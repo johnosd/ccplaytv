@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ccplaytv
+      POSTGRES_PASSWORD: ccplaytv_dev
+      POSTGRES_DB: ccplaytv
+    ports:
+      - "5432:5432"
+    volumes:
+      - ccplaytv_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  ccplaytv_postgres_data:

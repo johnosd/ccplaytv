@@ -1,0 +1,21 @@
+node_modules/
+dist/
+
+.env
+.env.*
+!.env.example
+
+*.p12
+*.wgt
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Cópia do backend anterior, caso exista
+/api-node-backup/
+
+# Credenciais reais de provedor de teste (ver ADR-006 — não versionar)
+/docs/m3u/dados.md

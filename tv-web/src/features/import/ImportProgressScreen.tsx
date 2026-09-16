@@ -1,0 +1,111 @@
+import { useRef } from 'react'
+import { useCancelImportJob, useImportJob, useRetryImportJob } from './importApi'
+import { useTvKeyNav } from '../../lib/useTvKeyNav'
+import { useRemoteNav } from '../../lib/useRemoteNav'
+
+export interface ImportProgressScreenProps {
+  jobId: string
+  onRetried: (newJobId: string) => void
+  onBack: () => void
+}
+
+const STEP_LABELS: Record<string, string> = {
+  acquiring: 'Obtendo a lista',
+  parsing: 'Lendo entradas',
+  classifying: 'Classificando canais, filmes e séries',
+  publishing: 'Publicando catálogo',
+  done: 'Concluído',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  queued: 'Na fila',
+  running: 'Importando',
+  completed: 'Concluída',
+  completed_with_warnings: 'Concluída com avisos',
+  failed: 'Falhou',
+  cancelled: 'Cancelada',
+}
+
+export function ImportProgressScreen({ jobId, onRetried, onBack }: ImportProgressScreenProps) {
+  const containerRef = useRef<HTMLElement>(null)
+  useTvKeyNav(containerRef)
+  useRemoteNav({ onBack })
+
+  const { data: job, isLoading } = useImportJob(jobId)
+  const cancelJob = useCancelImportJob()
+  const retryJob = useRetryImportJob()
+
+  if (isLoading || !job) {
+    return (
+      <section className="screen">
+        <p>Carregando estado da importação…</p>
+      </section>
+    )
+  }
+
+  const isRunning = job.status === 'queued' || job.status === 'running'
+  const cancelRequested = cancelJob.isSuccess || cancelJob.isPending
+
+  return (
+    <section className="screen" aria-labelledby="progress-title" ref={containerRef}>
+      <h1 id="progress-title" className="screen-title">
+        Progresso da importação
+      </h1>
+
+      <p className="screen-subtitle" style={{ marginBottom: 24 }}>
+        Status: {STATUS_LABELS[job.status] ?? job.status} — Etapa:{' '}
+        {STEP_LABELS[job.current_step] ?? job.current_step}
+      </p>
+
+      <ul aria-label="Contadores" className="episode-list" style={{ maxWidth: 480 }}>
+        <li className="live-item">Entradas lidas: {job.counts.entries_read}</li>
+        <li className="live-item">Canais: {job.counts.channels}</li>
+        <li className="live-item">Filmes: {job.counts.movies}</li>
+        <li className="live-item">Séries: {job.counts.series}</li>
+        <li className="live-item">Episódios: {job.counts.episodes}</li>
+        <li className="live-item">Não classificados: {job.counts.unclassified}</li>
+        <li className="live-item">Inválidos: {job.counts.invalid}</li>
+      </ul>
+
+      {job.warnings.length > 0 && (
+        <ul aria-label="Avisos" className="form-error">
+          {job.warnings.map((warning) => (
+            <li key={warning}>{warning}</li>
+          ))}
+        </ul>
+      )}
+
+      <div className="movie-detail-actions" style={{ marginTop: 32 }}>
+        {isRunning && (
+          <button
+            className="detail-button"
+            type="button"
+            disabled={cancelRequested}
+            onClick={() => cancelJob.mutate(jobId)}
+          >
+            {cancelRequested ? 'Cancelamento solicitado…' : 'Cancelar'}
+          </button>
+        )}
+
+        {job.status === 'failed' && (
+          <button
+            className="detail-button"
+            type="button"
+            disabled={retryJob.isPending}
+            onClick={() =>
+              retryJob.mutate(jobId, {
+                onSuccess: (result) => onRetried(result.id),
+              })
+            }
+          >
+            {retryJob.isPending ? 'Tentando novamente…' : 'Tentar novamente'}
+          </button>
+        )}
+
+        <button className="detail-button" type="button" onClick={onBack}>
+          Voltar
+        </button>
+      </div>
+    </section>
+  )
+}
