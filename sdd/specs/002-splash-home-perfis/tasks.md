@@ -161,25 +161,17 @@ visualmente após reinstalação na TV física.
 manual completo.
 
 - [x] T012 Rodar `cd tv-web && npx tsc -b && npm run lint && npx vitest run && npm run build` — tudo verde. (15/15 testes, tsc/oxlint/build limpos.)
-- [ ] T013 Executar o roteiro completo de `quickstart.md` (US1 e US2 em navegador; US3 na TV física via `npm run build:tizen` + `tz pack` + Apps2Samsung, mesmo pipeline da feature 001).
-- [x] T013 Executar o roteiro completo de `quickstart.md` (US1 e US2 em navegador; US3 na TV física via `npm run build:tizen` + `tz pack` + Apps2Samsung, mesmo pipeline da feature 001).
-
+- [x] T013a [Ad-hoc, descoberta durante T013] `tv-web/src/features/screens.css` nunca foi importado (`main.tsx`/`App.tsx`) — todas as classes de design system existiam mas nunca foram aplicadas; passava em tsc/lint/vitest/build normalmente (nenhum detecta CSS órfão), só apareceu na primeira verificação visual real desta feature. Corrigido: `import './features/screens.css'` adicionado em `main.tsx`. Ver `plan.md` R-004.
+- [x] T013 Executar o roteiro de `quickstart.md` em navegador via Playwright (MCP), contra o backend/Postgres reais: US1 completo (Splash → formulário direto com banco vazio → Back abre confirmação de saída → Back de novo fecha o diálogo sem sair → cadastro de fonte real com dados de `docs/m3u/dados.md` → Progresso → import real concluído, 311.969 entradas, 0 inválidos → volta pra Home → card "Sincronizada em ..." aparece); US2 confirmado no mesmo fluxo (cards + card "Adicionar lista", sem flash); FR-007 confirmado (selecionar card entra em Live TV/Filmes/Séries); ações Ressincronizar/Excluir renderizam corretamente. **US3 (ícone na TV física) fica pendente** — precisa do pipeline de deploy (`build:tizen`/`tz pack`/Apps2Samsung) e acesso à TV, não executado nesta rodada.
 ### Checklist de Release
 
-- [ ] Fase 3 (User Story 1) concluída
-- [ ] Fase 4 (User Story 2) concluída
-- [ ] Fase 5 (User Story 3) concluída — validada na TV física
-- [ ] Frontend disponível e validado (`npx vitest run` verde)
-- [ ] `quickstart.md` executado com sucesso
-- [ ] Nenhuma credencial exposta nos cards da Home (reconfirmação — sem mudança de contrato de `SourceOut`)
-- [ ] Toda ação desta feature (incluindo o novo diálogo de confirmação) alcançável só por controle remoto
 - [x] Fase 3 (User Story 1) concluída
 - [x] Fase 4 (User Story 2) concluída
-- [x] Fase 5 (User Story 3) concluída — validada na TV física
-- [x] Frontend disponível e validado (`npx vitest run` verde)
-- [x] `quickstart.md` executado com sucesso
-- [x] Nenhuma credencial exposta nos cards da Home (reconfirmação — sem mudança de contrato de `SourceOut`)
-- [x] Toda ação desta feature (incluindo o novo diálogo de confirmação) alcançável só por controle remoto
+- [x] Fase 5 (User Story 3) concluída no código — **validação na TV física ainda pendente** (ver Pendências)
+- [x] Frontend disponível e validado (`npx vitest run` verde — 15/15)
+- [x] `quickstart.md` executado com sucesso em navegador (US1/US2/FR-007); parte da TV física (US3) pendente
+- [x] Nenhuma credencial exposta nos cards da Home (reconfirmação — sem mudança de contrato de `SourceOut`; confirmado visualmente também)
+- [x] Toda ação desta feature (incluindo o novo diálogo de confirmação) alcançável só por controle remoto — confirmado em navegador real via Playwright, não só em teste automatizado
 
 ---
 

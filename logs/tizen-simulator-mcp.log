@@ -30,3 +30,7 @@
 {"timestamp": "2026-09-15T16:29:17.921987Z", "level": "INFO", "module": "TizenSimulatorMCPServer", "message": "Tizen Simulator MCP Server started successfully", "function": "_log", "line": 137}
 {"timestamp": "2026-09-15T16:29:17.926526Z", "level": "INFO", "module": "TizenSimulatorMCPServer", "message": "Simulator API URL: http://localhost:38888", "function": "_log", "line": 137}
 {"timestamp": "2026-09-15T16:29:17.927522Z", "level": "INFO", "module": "TizenSimulatorMCPServer", "message": "Connection to simulator will be checked on first API call", "function": "_log", "line": 137}
+{"timestamp": "2026-09-16T10:48:55.656970Z", "level": "INFO", "module": "Main", "message": "Starting Tizen Simulator MCP Server...", "function": "_log", "line": 137}
+{"timestamp": "2026-09-16T10:48:55.661970Z", "level": "INFO", "module": "SimulatorAPIClient", "message": "API Client initialized", "function": "_log", "line": 137, "base_url": "http://localhost:38888", "timeout": 5000}
+{"timestamp": "2026-09-16T10:48:55.666497Z", "level": "INFO", "module": "TizenSimulatorMCPServer", "message": "Tizen Simulator MCP Server initialized", "function": "_log", "line": 137}
+{"timestamp": "2026-09-16T10:48:55.666497Z", "level": "INFO", "module": "TizenSimulatorMCPServer", "message": "Starting Tizen Simulator MCP Server...", "function": "_log", "line": 137}

@@ -162,11 +162,13 @@ Casos de unitário a cobrir (novos, além do que já existe):
 
 | Área | Estado |
 | --- | --- |
-| Toolchain | Confirmado verde antes de começar (`tsc -b`, `oxlint`, `vitest`, `vite build`). |
-| `tizenExit.ts` | Implementado — `exitApp()` com guard de `window.tizen`, no-op fora da TV. |
-| `ConfirmDialog` | Implementado (`components/ConfirmDialog.tsx` + classes em `screens.css`) — navegação por `useRemoteNav`, Back sempre cancela. |
-| `HomeScreen` remodelada | Pendente (Fase 3). |
-| Ícone do app | Pendente (Fase 5). |
+| Toolchain | Verde (`tsc -b`, `oxlint`, `vitest` 15/15, `vite build`). |
+| `tizenExit.ts` | Implementado e testado — `exitApp()` com guard de `window.tizen`, no-op fora da TV. |
+| `ConfirmDialog` | Implementado e testado — navegação por `useRemoteNav({modal:true})` (fase de captura), Back sempre cancela. |
+| `HomeScreen` remodelada | Implementada e validada em navegador real (Playwright): loading/erro/vazio-inline/cards, sem flash. |
+| Ícone do app | Gerado (`CCPlayTv/icon.png`, 117×117) — **falta validação visual na TV física**. |
+| `screens.css` | Corrigido bug real: nunca estava importado (R-004) — agora aplicado em toda a UI, confirmado visualmente. |
+| Verificação end-to-end | US1/US2 confirmadas em navegador com backend/Postgres reais, incluindo um import real completo (311.969 entradas, 0 inválidos) através da Home remodelada. |
 
 ## Riscos e Decisões
 
@@ -174,6 +176,7 @@ Casos de unitário a cobrir (novos, além do que já existe):
 | --- | --- | --- | --- |
 | R-001 | `hwkey-event="enable"` já está configurado em `CCPlayTv/config.xml` (feature 001) — sem isso, o runtime Tizen poderia interceptar a tecla Voltar na raiz do app e minimizar/sair sozinho, sem nunca disparar nosso diálogo de confirmação. | Alto, se regredir — a US1 inteira depende disso. | Já mitigado por config existente; não precisa de mudança nesta feature, só confirmação durante o teste manual na TV (`quickstart.md`). |
 | R-002 | `window.tizen` não existe em navegador de desenvolvimento — testar a confirmação de saída "de verdade" (processo encerrando) só é possível na TV física. | Baixo — comportamento local, sem dado em jogo; consistente com a constitution ("validação em hardware real... não é gate obrigatório"). | Guard de ambiente no `tizenExit.ts` + teste unitário cobre a chamada condicional; verificação end-to-end do encerramento real fica pro passo manual na TV do `quickstart.md`. |
+| R-004 | **Bug real encontrado durante T013 (primeira verificação em navegador de verdade desta feature)**: `tv-web/src/features/screens.css` — criado numa sessão anterior com todas as classes de design system (cards, formulário, tabs, etc.) — nunca foi importado em nenhum arquivo (`main.tsx`, `App.tsx`). Passava em `tsc`/`oxlint`/`vitest`/`vite build` normalmente (nada disso detecta um CSS órfão), então só apareceu ao abrir a página de verdade: layout completamente sem estilo, tudo espremido numa única linha. | Alto — nenhuma tela desta feature (nem das anteriores que já usavam essas classes) estava realmente estilizada em produção, apesar de todos os testes automatizados passarem. | **Resolvido**: adicionado `import './features/screens.css'` em `tv-web/src/main.tsx`, junto do `index.css` já existente. Confirmado visualmente via Playwright (MCP) após a correção — layout completo, cores, foco e animações corretos. **Lição**: testes automatizados (tsc/lint/vitest/build) não substituem verificação visual real — nenhum deles pega um `<link>`/import de CSS esquecido. |
 | R-003 | **Bug real encontrado durante T008**: `useTvKeyNav` e `useRemoteNav` registram cada um seu próprio `document.addEventListener('keydown', ...)`, sem noção de sobreposição. Com o `ConfirmDialog` aberto por cima do `AddSourceScreen` renderizado inline pela Home vazia, as duas camadas reagiriam à mesma tecla simultaneamente (ex.: Enter podia submeter o formulário por baixo *e* confirmar o diálogo por cima no mesmo evento). | Alto, se não corrigido — comportamento imprevisível/duplo exatamente no fluxo mais crítico desta feature (US1). | **Resolvido** — tentativa 1 (pilha de camadas em `keyLayerStack.ts`) foi **abandonada**: quebrava telas que já usam `useTvKeyNav` *e* `useRemoteNav` juntas (`AddSourceScreen`/`ImportProgressScreen`), porque cada hook empurrava sua própria camada e competia consigo mesmo dentro do mesmo componente. Solução final: `useRemoteNav` ganhou uma opção `{ modal: true }` (só usada por `ConfirmDialog`) que registra o listener na **fase de captura** e chama `stopImmediatePropagation()` — intercepta a tecla antes de qualquer listener de bubble-phase por baixo, sem exigir que as telas normais saibam de nada. `useTvKeyNav`/`useRemoteNav` sem `modal` voltaram exatamente ao comportamento original. |
 
 ## Execution Notes
@@ -181,15 +184,33 @@ Casos de unitário a cobrir (novos, além do que já existe):
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
 | 2026-09-15 | Fase 1 (Setup) + Fase 2 (Foundational) | Toolchain confirmado verde; `tizenExit.ts` e `ConfirmDialog` implementados e tipados/lintados limpos (testes dedicados ficam pra Fase 3, junto do `HomeScreen.test.tsx`). | Nenhuma. |
+| 2026-09-16 | Fase 3 (US1) + Fase 4 (US2) | `HomeScreen` remodelada (4 ramos), `App.tsx` ajustado, 15 testes novos/atualizados verdes. Bug ad-hoc T007a: conflito de teclado entre `ConfirmDialog` e a tela por baixo — resolvido com opção `{modal:true}` em `useRemoteNav` (captura + `stopImmediatePropagation`), não com pilha de camadas (tentativa abandonada, quebrava telas que usam os dois hooks juntos). | Nenhuma. |
+| 2026-09-16 | Fase 5 (US3) + Fase 6 (Polish) | Ícone gerado via script GDI+ one-off (`CCPlayTv/icon.png`). Bug real T013a: `screens.css` nunca importado — toda a UI estava sem estilo em produção apesar de todos os testes automatizados passarem; corrigido (`import` em `main.tsx`). Verificação end-to-end em navegador real (Playwright/MCP) contra backend+Postgres reais: US1 completo incluindo diálogo de saída (abrir/cancelar/reabrir), US2 (cards sem flash), FR-007, e um import real de 311.969 entradas/0 inválidos através do fluxo novo, ponta a ponta. | Validação do ícone (US3) na TV física — não executada nesta rodada (precisa do pipeline de deploy + acesso ao hardware). |
 
-**PRÓXIMO**: Fase 3 (User Story 1) — testes de `ConfirmDialog`/`tizenExit`, remodelar `HomeScreen.tsx` e ajustar `App.tsx`.
+**PRÓXIMO**: Validar visualmente o ícone (`icon.png`) na TV física após reinstalação (`build:tizen` + `tz pack` + Apps2Samsung) — único item pendente antes de rodar `sdd-converge`.
 
 ## Arquivos Principais
 
-- `tv-web/src/lib/tizenExit.ts`
+- `tv-web/src/features/home/HomeScreen.tsx`
 - `tv-web/src/components/ConfirmDialog.tsx`
-- `tv-web/src/features/screens.css`
+- `tv-web/src/lib/{tizenExit,useRemoteNav,useTvKeyNav}.ts`
+- `tv-web/src/main.tsx` (import de `screens.css`)
+- `CCPlayTv/icon.png`
 
 ## Cuidados para Retomada
 
-- (nenhum ainda)
+- **Sempre verificar visualmente em navegador antes de considerar uma tela
+  "pronta"** — `tsc`/`oxlint`/`vitest`/`vite build` não detectam um arquivo
+  CSS criado mas nunca importado (R-004); só apareceu ao abrir a página de
+  verdade via Playwright.
+- Servidores de dev (`uv run python main.py` em `api/`, `npm run dev` em
+  `tv-web/`) e o **Docker Desktop** (Postgres) não sobrevivem entre sessões/
+  janelas de contexto longas — sempre confirmar `GET /health` e `GET
+  /sources` antes de testar manualmente, e checar `docker ps` antes de
+  assumir que o Postgres está de pé (o daemon do Docker Desktop também pode
+  estar completamente parado, não só o container).
+- O banco de dev local acumula fontes de teste de sessões/pytest anteriores
+  (não isolado) — para testar o estado "nenhuma lista cadastrada" (US1) de
+  verdade em navegador, é preciso limpar a tabela (`TRUNCATE catalog_items,
+  import_jobs, sources CASCADE` via `docker exec <container> psql ...`);
+  são só fixtures descartáveis de teste, nunca dado real de usuário.

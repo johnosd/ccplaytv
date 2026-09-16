@@ -19,3 +19,7 @@ __pycache__/
 
 # Credenciais reais de provedor de teste (ver ADR-006 — não versionar)
 /docs/m3u/dados.md
+
+# Saída de ferramentas de verificação local (efêmero, não é código do projeto)
+.playwright-mcp/
+logs/*-dev*.log

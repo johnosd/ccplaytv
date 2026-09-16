@@ -163,3 +163,5 @@
 {"level":"error","message":"App installation failed: tz: error: failed to install the package App installation failed: tz: error: failed to install the package","source":"AppManager","timestamp":"2026-09-14T12:53:55.948Z"}
 {"level":"info","message":"PlaywrightGuideManager initialized PlaywrightGuideManager initialized","source":"PlaywrightGuideManager","timestamp":"2026-09-15T10:51:53.005Z"}
 {"context":{"node":"v20.19.6","platform":"win32-x64","version":"1.0.0"},"level":"info","message":"Tizen MCP Server v1.0.0 started and connected Tizen MCP Server v1.0.0 started and connected","source":"TizenMCPServer","timestamp":"2026-09-15T10:51:53.012Z"}
+{"level":"info","message":"PlaywrightGuideManager initialized PlaywrightGuideManager initialized","source":"PlaywrightGuideManager","timestamp":"2026-09-16T10:48:49.741Z"}
+{"context":{"node":"v20.19.6","platform":"win32-x64","version":"1.0.0"},"level":"info","message":"Tizen MCP Server v1.0.0 started and connected Tizen MCP Server v1.0.0 started and connected","source":"TizenMCPServer","timestamp":"2026-09-16T10:48:49.748Z"}

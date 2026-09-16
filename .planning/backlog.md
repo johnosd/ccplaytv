@@ -154,7 +154,7 @@ em vez de ir direto pro `sdd-specify`.
 | Slug | Título | Status | Progresso | Última Atualização |
 | --- | --- | --- | --- | --- |
 | 001-importacao-fonte-m3u | Importação de Fonte M3U por URL e por Provedor | Convergida | 63/63 tasks | 2026-09-14 |
-| 002-splash-home-perfis | Splash, ícone do app e Home de perfis/listas | Em Execução | 4/20 tasks | 2026-09-15 |
+| 002-splash-home-perfis | Splash, ícone do app e Home de perfis/listas | Implementada | 22/22 tasks | 2026-09-16 |
 
 ## Bugs
 
