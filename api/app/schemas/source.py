@@ -1,0 +1,58 @@
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field, model_validator
+
+
+class ProviderCredentialsIn(BaseModel):
+    dns: str = Field(min_length=1)
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class CreateSourceRequest(BaseModel):
+    """Corpo de POST /sources — FR-001, FR-002. Aceita as duas entradas
+    (URL ou provedor) na mesma spec (ver Clarifications em spec.md)."""
+
+    type: Literal["m3u_url", "provider_credentials"]
+    display_name: str
+    m3u_url: str | None = None
+    provider: ProviderCredentialsIn | None = None
+    request_key: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _validate_by_type(self) -> CreateSourceRequest:
+        if not self.display_name.strip():
+            raise ValueError("display_name não pode ser vazio.")
+        if self.type == "m3u_url" and not self.m3u_url:
+            raise ValueError("m3u_url é obrigatório quando type=m3u_url.")
+        if self.type == "provider_credentials" and self.provider is None:
+            raise ValueError("provider é obrigatório quando type=provider_credentials.")
+        return self
+
+
+class CreateSourceResponse(BaseModel):
+    source_id: uuid.UUID
+    import_job_id: uuid.UUID
+
+
+class SourceOut(BaseModel):
+    """Nunca inclui provider_password (FR-014/constitution)."""
+
+    id: uuid.UUID
+    type: Literal["m3u_url", "provider_credentials"]
+    display_name: str
+    connection_state: Literal["never_synced", "synced", "error"]
+    last_successful_sync_at: datetime | None
+
+
+class SourceListResponse(BaseModel):
+    sources: list[SourceOut]
+
+
+class ResyncSourceResponse(BaseModel):
+    source_id: uuid.UUID
+    import_job_id: uuid.UUID
