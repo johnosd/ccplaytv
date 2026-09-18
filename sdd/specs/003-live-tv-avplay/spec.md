@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-16
 
-**Status**: Implementada
+**Status**: Convergida
 
 **Input**: "Fatia vertical de Live TV: tela de canais lendo o catálogo real
 importado (substituindo mockCatalog) + PlayerService/AVPlay reproduzindo um

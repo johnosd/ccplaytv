@@ -281,13 +281,13 @@ npm run build
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | **URL de reprodução com credencial chega à TV.** Inerente ao Direct Play com fontes Xtream, que embutem usuário e senha no caminho. | Alto se vazar para log, tela ou persistência — é credencial de provedor do usuário. | D-001 + D-002: endpoint dedicado, retenção só em memória de sessão, proibição explícita em log (contrato, regra 1) e FR-011. Verificado no checklist do `quickstart.md` em ciclo de sucesso **e** de falha. |
-| R-002 | **Iniciar reprodução depende do backend.** Sem backend, a lista pode até vir de cache no futuro, mas o play não começa. | Médio — não afeta esta feature (sem cache), mas condiciona o item 4 do backlog. | Aceito nesta fatia. A colisão entre ADR-002 §1 ("cache pode guardar informações mínimas de reprodução") e §5 ("retenção mínima de credencial") está registrada no item 4 do backlog para ser decidida lá. |
-| R-003 | **`App.tsx` não guarda estado de foco**, só histórico de telas. Um player como tela desmontaria a `LiveScreen` e quebraria o FR-009. | Alto para o FR-009/SC-003. | D-005: player como camada. O gerenciador central de foco por escopos (item 15 do backlog) resolve o caso geral depois. |
+| R-001 | **URL de reprodução com credencial chega à TV.** Inerente ao Direct Play com fontes Xtream, que embutem usuário e senha no caminho. | Alto se vazar para log, tela ou persistência — é credencial de provedor do usuário. | **Resolvido (2026-09-18, auditoria de convergência)**: D-001 + D-002 — endpoint dedicado, retenção só em memória de sessão, proibição explícita em log (contrato, regra 1) e FR-011. Verificado **na TV** em ciclo de sucesso **e** de falha: a tela de erro não mostrou URL, host nem credencial, e o log do backend registra apenas método e rota. A mitigação vale enquanto a URL não for cacheada — o item 4 do backlog herda a restrição. |
+| R-002 | **Iniciar reprodução depende do backend.** Sem backend, a lista pode até vir de cache no futuro, mas o play não começa. | Médio — não afeta esta feature (sem cache), mas condiciona o item 4 do backlog. | **Resolvido (2026-09-18)**: aceito e confirmado em hardware — com a API derrubada de propósito, o play falha com erro focável e mensagem sanitizada, sem travar o app. É o comportamento pretendido, não uma falha. Aceito nesta fatia. A colisão entre ADR-002 §1 ("cache pode guardar informações mínimas de reprodução") e §5 ("retenção mínima de credencial") está registrada no item 4 do backlog para ser decidida lá. |
+| R-003 | **`App.tsx` não guarda estado de foco**, só histórico de telas. Um player como tela desmontaria a `LiveScreen` e quebraria o FR-009. | Alto para o FR-009/SC-003. | **Resolvido (2026-09-18)**: confirmado na TV e no navegador — Voltar devolve o foco ao canal de origem, inclusive saindo da tela de erro. D-005: player como camada. O gerenciador central de foco por escopos (item 15 do backlog) resolve o caso geral depois. |
 | R-004 | **`vite.config.ts` não define `build.target`/`build.cssTarget`**, contrariando a ADR-006 §2, e esta é a primeira feature que roda código real na TV. Sintaxe não suportada pelo Chromium 108 aparece como tela preta — indistinguível de "o AVPlay falhou". | Alto: contamina o resultado da porta V1, que é o propósito da feature. | **Resolvido (2026-09-16, T001/T002)**: o risco era maior que o estimado — o padrão do Vite 8 é `'baseline-widely-available'`, que equivale a **Chrome 111**, três versões **acima** do alvo real da TV. Fixado `target: 'chrome108'` e `cssTarget: 'chrome108'`. Build, lint e testes verdes. Lembrete registrado: transpilar sintaxe não adiciona APIs de runtime ausentes — a prova final continua sendo o aparelho. |
 | R-005 | **Modelo de exibição do AVPlay não verificado**: vídeo em plano de hardware atrás da camada web, exigindo região transparente e coordenadas explícitas. Se a página tiver fundo opaco, o resultado é áudio sem imagem. | Alto — falha silenciosa e fácil de diagnosticar errado. | **Resolvido (2026-09-17)**: o risco se materializou exatamente como previsto — na primeira reprodução em hardware o canal tocou com áudio e sem imagem. `setDisplayRect` já era chamado corretamente; o que faltava era a camada web ceder a área. Corrigido em `sdd/bugs/live-tv-toca-audio-sem-imagem`: a capacidade `rendersOnHardwarePlane` entrou no contrato do `PlayerAdapter` e a camada de reprodução libera `:root` e `.player-overlay` só quando o motor pinta em hardware e a sessão tem vídeo, preservando D-007 (a tela continua sem saber qual motor está ativo). Verificado no aparelho. |
-| R-006 | **A fonte de teste pode não ter nenhum canal em formato suportado pelo AVPlay.** A escolha de formato hoje é fixa (`output=m3u8` no `build_m3u_url`), sem consultar `allowed_output_formats`. | Médio — a feature pode terminar sem reprodução bem-sucedida. | Previsto na spec: resultado negativo é evidência válida da porta V1, não fracasso silencioso. O encaminhamento é o item 1 do backlog (conector Xtream com `allowed_output_formats`). |
-| R-007 | **Testes de backend exigem Postgres de pé** (`httpx.ASGITransport` contra o app real, sem override de sessão). | Baixo — já é a realidade do repositório desde a feature 001. | Documentado nos pré-requisitos do `quickstart.md`. **Confirmado na prática** na Fase 2: com o container de pé, os 47 testes rodam em ~42 s. |
+| R-006 | **A fonte de teste pode não ter nenhum canal em formato suportado pelo AVPlay.** A escolha de formato hoje é fixa (`output=m3u8` no `build_m3u_url`), sem consultar `allowed_output_formats`. | Médio — a feature pode terminar sem reprodução bem-sucedida. | **Resolvido (2026-09-18)**: não se materializou — um canal da fonte real reproduziu com vídeo e áudio na TV. Vale para **um** canal de **uma** fonte: não prova compatibilidade geral de contêiner/codec, e o encaminhamento sobre formatos segue de pé. Previsto na spec: resultado negativo é evidência válida da porta V1, não fracasso silencioso. O encaminhamento é o item 1 do backlog (conector Xtream com `allowed_output_formats`). |
+| R-007 | **Testes de backend exigem Postgres de pé** (`httpx.ASGITransport` contra o app real, sem override de sessão). | Baixo — já é a realidade do repositório desde a feature 001. | **Resolvido (2026-09-18)**: confirmado como condição de trabalho, não risco pendente. Efeito colateral notado na convergência: a suíte grava fontes no mesmo banco de desenvolvimento, e parte das "listas que nunca carreguei" vistas na Home veio de execuções de teste. Documentado nos pré-requisitos do `quickstart.md`. **Confirmado na prática** na Fase 2: com o container de pé, os 47 testes rodam em ~42 s. |
 | R-008 | **`uv run ruff check .` falha por `api/delete_sources.py` (I001)**, arquivo pré-existente e fora do escopo desta feature. Descoberto na Fase 2. | Baixo tecnicamente, médio processualmente: o gate "checagens automatizadas passando" da constitution não fecha verde no backend por motivo alheio à feature. | **Resolvido (2026-09-18, T052)**: seguiu a regra durante toda a execução — não foi corrigido calado, ficou logado como `[Bug]` no backlog e a verificação da feature usou `ruff check` sobre os arquivos tocados. Na Fase 7 o usuário decidiu corrigir: `uv run ruff check --fix delete_sources.py` (ordenação de import), e `uv run ruff check .` passa limpo. Continua aberta no backlog a parte que não é lint: se esse script utilitário — que apaga todas as fontes via API, sem confirmação — deve seguir versionado dentro de `api/`. |
 
 ## Execution Notes
@@ -318,6 +318,63 @@ de rede) e exercitar um ciclo de falha para fechar o SC-005 no aparelho.
 Depois T050 (Cenário B no navegador, que não roda desde as duas correções) e
 T052 (decisão sobre o R-008). A feature **não** pode ser marcada como
 Implementada antes disso.
+
+## Resultado Final
+
+*Anexado pelo `sdd-converge` em 2026-09-18, após a feature convergir limpa.*
+
+**O que foi construído**: a fatia vertical prometida, ponta a ponta. O
+backend ganhou `playable` derivado na listagem e um endpoint dedicado de
+reprodução com `no-store`, mantendo a URL — que pode embutir credencial —
+fora de qualquer listagem de catálogo. O frontend ganhou o `PlayerService`
+com máquina de estados própria e dois adaptadores, a Live TV lendo o
+catálogo real com os grupos declarados pela fonte, e a camada de reprodução
+com saída garantida por RETURN. O mock saiu do caminho de canais. Nenhuma
+dependência nova entrou.
+
+**O que a validação em hardware mudou no resultado.** Esta é a parte que
+nenhum teste automatizado teria produzido. Três defeitos só existiam no
+aparelho, e todos passaram despercebidos por uma suíte verde:
+
+1. **RETURN chega como `keyCode` 10009.** O FR-008 não era satisfeito na TV
+   apesar de 53 testes passando — o app ficava preso na tela.
+   (`sdd/bugs/tecla-voltar-return-nao-funciona-na`)
+2. **Fundo opaco escondia o plano de hardware do AVPlay.** O canal tocava
+   com áudio e sem imagem. Era o R-005 deste plano, escrito antes de
+   qualquer teste, se materializando com precisão.
+   (`sdd/bugs/live-tv-toca-audio-sem-imagem`)
+3. **As colunas de grupos e canais continuavam pintando sobre o vídeo** —
+   irmãs do overlay, fora do alcance da correção anterior. Resolvido no
+   T054.
+
+**Desvios em relação ao plano original**, todos registrados e nenhum
+silencioso:
+
+- **D-010 foi estendida** (T053): a camada não tem elemento focável também
+  em `preparing`/`buffering`, não só em `playing`. A decisão foi do usuário,
+  diante do conflito com a letra do FR-013, e está datada na própria D-010,
+  no Complexity Tracking e numa sessão nova de Clarifications da spec. O
+  estado `error` continua exigindo as duas ações focáveis.
+- **O contrato do `PlayerAdapter` cresceu** com a capacidade
+  `rendersOnHardwarePlane`, para a UI saber que precisa liberar a área do
+  vídeo sem descobrir qual motor está ativo — preservando D-007.
+- **O empacotamento mudou de rota**: o caminho previsto era `tz pack` +
+  Apps2Samsung. O que funcionou foi assinatura com cadeia Samsung completa
+  (author `Samsung VD Author CA` + distribuidor `VD DEVELOPER Public CA
+  Class`, com o DUID da TV) e instalação direta por `sdb`. O procedimento
+  virou a skill `tizen-tv`.
+- **O emulador não serviu**: instalar no `T-samsung-10.0-x86_64` falha com
+  `118, -4 Operation not allowed` mesmo com DUID, relógio, cadeia e
+  integridade do pacote descartados por evidência. Registrado na skill
+  `tizen-emulator` para ninguém repetir o caminho.
+
+**O que fica em aberto, declarado**: a evidência do SC-001 é parcial —
+firmware e `navigator.userAgent` não são obteníveis nesta TV, que não expõe
+console ao desenvolvedor. O aviso de truncamento (FR-014) e o grupo "Sem
+categoria" não foram observados em tela porque a fonte de teste não produziu
+esses casos; a lógica dos dois tem teste unitário. E o zapping pedido
+durante a verificação foi registrado no item 11 do backlog, não
+implementado: a spec já listava "troca rápida de canal" como fora de escopo.
 
 ## Arquivos Principais
 

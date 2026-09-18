@@ -612,7 +612,7 @@ própria de demanda. Cada uma precisa passar por `sdd-assess`
 | --- | --- | --- | --- | --- |
 | 001-importacao-fonte-m3u | Importação de Fonte M3U por URL e por Provedor | Convergida | 63/63 tasks | 2026-09-14 |
 | 002-splash-home-perfis | Splash, ícone do app e Home de perfis/listas | Implementada | 22/22 tasks | 2026-09-16 |
-| 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Implementada | 67/67 tasks | 2026-09-18 |
+| 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Convergida | 67/67 tasks | 2026-09-18 |
 
 ## Bugs
 

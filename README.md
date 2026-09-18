@@ -175,7 +175,9 @@ Mantenha `.env`, `.venv`, caches Python e certificados privados fora do Git. Ver
 
 ## Próximos marcos
 
-Validar o app básico na TV e uma amostra de mídia com AVPlay; desenvolver importação e catálogo; adicionar enriquecimento e recomendações; então integrar voz e controle Android. Modelo/firmware da TV, captura de áudio disponível, persistência e protocolo de sincronização ainda precisam de validação ou decisão específica.
+**Validado em 18/09/2026**: o app roda na TV de referência (Samsung QN50Q60DAGXZD) e um canal da fonte real reproduz com vídeo e áudio em tela cheia via `webapis.avplay`, com o catálogo vindo do backend pela rede local — é a porta de validação V1 da ADR-006, executada. O firmware e a engine web do aparelho continuam sem registro: esta TV não expõe console ao desenvolvedor (`sdb root on` negado, `dlog` vazio, Web Inspector fechado).
+
+Próximos: desenvolver o catálogo de filmes e séries sobre dados reais (hoje ainda em mock); adicionar enriquecimento e recomendações; então integrar voz e controle Android. Captura de áudio disponível, persistência e protocolo de sincronização ainda precisam de validação ou decisão específica.
 
 ## Referências do ambiente
 
