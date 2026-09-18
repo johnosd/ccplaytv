@@ -256,11 +256,12 @@ npm run build
 | Contrato de reprodução na API (Fase 2) | **Concluído.** `playable` na listagem + `GET /catalog-items/{id}/playback` (200/404/409, `no-store`). 7 testes de contrato. |
 | `PlayerService` + adaptadores (Fase 2) | **Concluído.** Máquina de estados própria, `avplayAdapter`, `htmlVideoAdapter`, seleção em runtime. 8 testes. |
 | Tela de canais com catálogo real (Fase 3) | **Concluído.** `groupChannels` puro + `LiveScreen` sobre o catálogo real, estados de borda, mock removido. 17 testes. |
-| Camada de reprodução (Fase 4) | **Código completo, não verificado em hardware.** Overlay, sessão única, RETURN encerrando. |
-| Caminhos de falha (Fase 5) | **Concluído.** Erro com duas saídas focáveis, mensagens sanitizadas, `409` tratado à parte. |
-| Pacote Tizen | **Gerado e sincronizado** em `CCPlayTv/` com `VITE_API_URL=http://192.168.0.5:3000` (confirmado dentro do bundle). Falta empacotar `.wgt` e instalar. |
-| Porta V1 da ADR-006 | **NÃO EXECUTADA.** É o único bloqueio para a feature ser considerada concluída. |
-| Gate de lint do backend | **Vermelho por causa alheia** — `api/delete_sources.py` (ver R-008). Código desta feature passa limpo. |
+| Camada de reprodução (Fase 4) | **Verificada em hardware (17/09).** Overlay, sessão única, RETURN encerrando — este último só passou a funcionar na TV depois da correção do `keyCode` 10009. |
+| Caminhos de falha (Fase 5) | **Concluído em código; não exercitado na TV.** Erro com duas saídas focáveis, mensagens sanitizadas, `409` à parte. Nenhum canal falhou na rodada de 17/09 (ver T051). |
+| Pacote Tizen | **Instalado e rodando na TV.** Assinatura com cadeia Samsung completa (perfil `ccplay_samsung_certificate_4`, com o DUID do aparelho). Procedimento registrado na skill `tizen-tv`. |
+| Porta V1 da ADR-006 | **EXECUTADA (17/09/2026), com evidência parcial.** Vídeo e áudio confirmados; firmware e engine observada não são obteníveis nesta TV. ADR-006 §8 emendada. |
+| Cenários A e B do quickstart | **Pendentes.** A só foi observado de relance; B não roda desde as duas correções (T049, T050). |
+| Gate de lint do backend | **Vermelho por causa alheia** — `api/delete_sources.py` (ver R-008 e T052). Código desta feature passa limpo; 47 testes de backend verdes em 17/09. |
 
 ## Riscos e Decisões
 
@@ -270,7 +271,7 @@ npm run build
 | R-002 | **Iniciar reprodução depende do backend.** Sem backend, a lista pode até vir de cache no futuro, mas o play não começa. | Médio — não afeta esta feature (sem cache), mas condiciona o item 4 do backlog. | Aceito nesta fatia. A colisão entre ADR-002 §1 ("cache pode guardar informações mínimas de reprodução") e §5 ("retenção mínima de credencial") está registrada no item 4 do backlog para ser decidida lá. |
 | R-003 | **`App.tsx` não guarda estado de foco**, só histórico de telas. Um player como tela desmontaria a `LiveScreen` e quebraria o FR-009. | Alto para o FR-009/SC-003. | D-005: player como camada. O gerenciador central de foco por escopos (item 15 do backlog) resolve o caso geral depois. |
 | R-004 | **`vite.config.ts` não define `build.target`/`build.cssTarget`**, contrariando a ADR-006 §2, e esta é a primeira feature que roda código real na TV. Sintaxe não suportada pelo Chromium 108 aparece como tela preta — indistinguível de "o AVPlay falhou". | Alto: contamina o resultado da porta V1, que é o propósito da feature. | **Resolvido (2026-09-16, T001/T002)**: o risco era maior que o estimado — o padrão do Vite 8 é `'baseline-widely-available'`, que equivale a **Chrome 111**, três versões **acima** do alvo real da TV. Fixado `target: 'chrome108'` e `cssTarget: 'chrome108'`. Build, lint e testes verdes. Lembrete registrado: transpilar sintaxe não adiciona APIs de runtime ausentes — a prova final continua sendo o aparelho. |
-| R-005 | **Modelo de exibição do AVPlay não verificado**: vídeo em plano de hardware atrás da camada web, exigindo região transparente e coordenadas explícitas. Se a página tiver fundo opaco, o resultado é áudio sem imagem. | Alto — falha silenciosa e fácil de diagnosticar errado. | Modelado no contrato do `PlayerService` desde o início (`research.md` R0-2); verificação explícita no Cenário C do `quickstart.md`, que pede registrar "tocou sem áudio/imagem" como resultado distinto. |
+| R-005 | **Modelo de exibição do AVPlay não verificado**: vídeo em plano de hardware atrás da camada web, exigindo região transparente e coordenadas explícitas. Se a página tiver fundo opaco, o resultado é áudio sem imagem. | Alto — falha silenciosa e fácil de diagnosticar errado. | **Resolvido (2026-09-17)**: o risco se materializou exatamente como previsto — na primeira reprodução em hardware o canal tocou com áudio e sem imagem. `setDisplayRect` já era chamado corretamente; o que faltava era a camada web ceder a área. Corrigido em `sdd/bugs/live-tv-toca-audio-sem-imagem`: a capacidade `rendersOnHardwarePlane` entrou no contrato do `PlayerAdapter` e a camada de reprodução libera `:root` e `.player-overlay` só quando o motor pinta em hardware e a sessão tem vídeo, preservando D-007 (a tela continua sem saber qual motor está ativo). Verificado no aparelho. |
 | R-006 | **A fonte de teste pode não ter nenhum canal em formato suportado pelo AVPlay.** A escolha de formato hoje é fixa (`output=m3u8` no `build_m3u_url`), sem consultar `allowed_output_formats`. | Médio — a feature pode terminar sem reprodução bem-sucedida. | Previsto na spec: resultado negativo é evidência válida da porta V1, não fracasso silencioso. O encaminhamento é o item 1 do backlog (conector Xtream com `allowed_output_formats`). |
 | R-007 | **Testes de backend exigem Postgres de pé** (`httpx.ASGITransport` contra o app real, sem override de sessão). | Baixo — já é a realidade do repositório desde a feature 001. | Documentado nos pré-requisitos do `quickstart.md`. **Confirmado na prática** na Fase 2: com o container de pé, os 47 testes rodam em ~42 s. |
 | R-008 | **`uv run ruff check .` falha por `api/delete_sources.py` (I001)**, arquivo pré-existente e fora do escopo desta feature. Descoberto na Fase 2. | Baixo tecnicamente, médio processualmente: o gate "checagens automatizadas passando" da constitution não fecha verde no backend por motivo alheio à feature. | Não corrigido calado (regra do `sdd-execute` para bug fora de escopo). Logado em `.planning/backlog.md` → seção de processo, como `[Bug]` com origem. A verificação desta feature usa `ruff check` sobre os arquivos tocados, que passam limpos. |
@@ -283,13 +284,16 @@ npm run build
 | 2026-09-16 | Fase 2 (Foundational) | Contrato de reprodução na API (`playable`, endpoint dedicado 200/404/409, `no-store`) + `PlayerService` com máquina de estados própria e os dois adaptadores. O item pai de série, que o importer cria sem `playback_url`, virou o caso real de `409`/`playable:false` nos testes — sem precisar forjar dado. 7 testes de contrato + 8 de player, todos de primeira. | R-008: lint do backend vermelho por arquivo fora do escopo. |
 
 | 2026-09-16 | Fases 3–5 (US1, US2, US3) | `groupChannels` puro, `LiveScreen` sobre o catálogo real com todos os estados de borda, `PlayerOverlay` como camada, caminhos de falha sanitizados e `409` tratado à parte. Mock de canais removido. 49 testes de frontend + 47 de backend, tudo verde; build e sync Tizen feitos. | **T043/T045: a porta V1 não foi executada.** |
+| 2026-09-17 | Fase 7 (Convergência) — T046/T047/T048 | **Porta V1 executada. Canal da fonte real reproduzindo com vídeo e áudio na QN50Q60DAGXZD.** Evidência: pacote assinado com cadeia Samsung completa (author `Samsung VD Author CA`, distribuidor `VD DEVELOPER Public CA Class`), instalado por `sdb` sobre a rede e lançado por `tizen run`; catálogo real consumido do backend pela LAN, confirmado no log da API por requisição vinda do IP da TV. Sequência: `npm run build:tizen` (com `VITE_API_URL` da LAN) → `tizen build-web -e "Debug/*"` → `tizen package -t wgt -s ccplay_samsung_certificate_4` → `tizen install -t QN50Q60DAGXZD` → `tizen run`. **Dois defeitos só visíveis em hardware** foram encontrados e corrigidos com ciclo completo: `sdd/bugs/tecla-voltar-return-nao-funciona-na` (RETURN chega como `keyCode` 10009; o FR-008 não era satisfeito no aparelho apesar dos testes verdes) e `sdd/bugs/live-tv-toca-audio-sem-imagem` (R-005 materializado: camada web opaca escondendo o plano de hardware do AVPlay). ADR-006 §8 emendada. | **Evidência incompleta**: firmware e `navigator.userAgent` não são obteníveis nesta TV — sem console (`sdb root on` negado, `dlog` vazio, porta 7011 fechada). Contêiner/codec do canal também não registrado. |
 
-**PRÓXIMO**: **Verificação na TV física** (Cenário C do `quickstart.md`) —
-empacotar o `.wgt` com `tz.exe pack` usando o profile `ccplaytv-nosamsung`,
-instalar via Apps2Samsung, abrir Live TV e selecionar um canal. Registrar a
-evidência (modelo, firmware, contêiner/codec, resultado, erro do AVPlay) em
-T043, **inclusive se o resultado for negativo**. Só depois disso a feature
-pode ser marcada como Implementada.
+**PRÓXIMO**: **T049 e T051, com a TV conectada** — rodar o Cenário A do
+`quickstart.md` item a item (grupos na ordem da fonte, canal sem URL
+sinalizado, truncamento, "Sem categoria", e foco percorrendo a lista sem
+disparar requisição — conferindo no log do backend, já que a TV não tem aba
+de rede) e exercitar um ciclo de falha para fechar o SC-005 no aparelho.
+Depois T050 (Cenário B no navegador, que não roda desde as duas correções) e
+T052 (decisão sobre o R-008). A feature **não** pode ser marcada como
+Implementada antes disso.
 
 ## Arquivos Principais
 
@@ -304,8 +308,12 @@ pode ser marcada como Implementada.
 - `tv-web/src/features/live/groupChannels.ts` — agrupamento puro + teto.
 - `tv-web/src/features/live/LiveScreen.tsx` — tela sobre o catálogo real.
 - `tv-web/src/features/live/PlayerOverlay.tsx` — camada de reprodução.
-- `tv-web/src/features/screens.css` + `src/index.css` — estados novos e tokens.
+- `tv-web/src/features/screens.css` + `src/index.css` — estados novos, tokens
+  e a liberação da área do vídeo (`video-plane-visible`).
 - `tv-web/src/App.tsx` — encaminha a fonte ativa para a Live TV.
+- `tv-web/src/lib/useRemoteNav.ts` — entrou na lista em 17/09: é o único
+  ponto que traduz tecla em intenção de navegação, e passou a reconhecer o
+  `keyCode` 10009 do controle Samsung (sem isso, Voltar é inerte na TV).
 
 ## Cuidados para Retomada
 
@@ -330,3 +338,19 @@ pode ser marcada como Implementada.
 - O toolchain do Vite 8 aqui é **Rolldown/Oxc**, não esbuild (não há
   `esbuild` em `node_modules`). Receitas de configuração de Vite ≤6 que
   mencionam opções de esbuild não se aplicam diretamente.
+- **O ciclo de instalação na TV está documentado na skill `tizen-tv`** — use
+  ela em vez de reconstruir o procedimento. O que mais custou descobrir em
+  17/09: o pacote precisa de **author Samsung** (`author.p12`, criado pela
+  extensão Tizen do VS Code; o Certificate Manager do Tizen Studio não
+  concluiu), o DUID da TV precisa estar no certificado, o CLI clássico tem
+  que apontar para o `profiles.xml` da extensão via `cli-config`, e
+  `tizen uninstall` exige o **id completo** (`8tZqMtwANL.CCPlayTv`).
+- **O IP da TV muda sozinho** (DHCP): já foi `192.168.0.15`, hoje é
+  `192.168.0.4`. E o campo *Host PC IP* no Developer Mode da TV precisa ter
+  o IP atual do PC, com **reinício da TV** depois de salvar — sem isso o
+  `sdb connect` falha mesmo com a porta 26101 aberta.
+- **A TV não dá console.** `sdb root on` é negado, `dlog` volta vazio e a
+  porta 7011 do Web Inspector fica fechada. A evidência disponível é o
+  `applist`, o log do backend (requisições vindas do IP da TV) e o olho do
+  usuário. Planeje as perguntas de verificação em cima disso — genéricas
+  como "funcionou?" não produzem evidência utilizável.

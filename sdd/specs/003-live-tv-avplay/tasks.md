@@ -488,7 +488,7 @@ app instalado por `sdb` (ver a skill `tizen-tv`), e dois defeitos que só
 existiam em hardware foram corrigidos e verificados em `sdd/bugs/` durante a
 mesma sessão.
 
-- [ ] T046 [C-001] Registrar a evidência do Cenário C em `plan.md` →
+- [X] T046 [C-001] Registrar a evidência do Cenário C em `plan.md` →
       `## Execution Notes`: modelo (QN50Q60DAGXZD), resultado (canal
       reproduzindo com vídeo e áudio), sequência de comandos usada
       (`build:tizen` → `tizen build-web` → `tizen package -s
@@ -497,12 +497,12 @@ mesma sessão.
       `navigator.userAgent` e contêiner/codec continuam sem registro porque
       a TV não expõe console (`sdb root on` negado, `dlog` vazio, porta 7011
       do Web Inspector fechada). Origem: SC-001, T043.
-- [ ] T047 [C-002] Emendar `sdd/adr/ADR-006-bibliotecas-sdks-ccplay-tv.md`
+- [X] T047 [C-002] Emendar `sdd/adr/ADR-006-bibliotecas-sdks-ccplay-tv.md`
       §8 com uma nota `**Atualização (ADR-006):**` registrando a porta V1
       como executada em 17/09/2026, com o resultado e a limitação de
       evidência do T046 — sem reescrever a linha original. Origem: T043,
       Constitution "Documentação do Repositório É Canônica".
-- [ ] T048 [C-004] Em `plan.md`: referenciar
+- [X] T048 [C-004] Em `plan.md`: referenciar
       `sdd/bugs/tecla-voltar-return-nao-funciona-na` e
       `sdd/bugs/live-tv-toca-audio-sem-imagem` nas Execution Notes, e marcar
       **R-005 como `Resolvido:`** — o risco previsto (fundo opaco sobre o
@@ -529,3 +529,27 @@ mesma sessão.
       resolvido, ou o item correspondente do Checklist de Release recebe a
       ressalva explícita. Não deixar o checklist em aberto sem motivo
       declarado. Origem: plan R-008.
+
+**Registro da Fase**:
+
+- Status: **Em andamento** (2026-09-17). Fechadas as três tasks documentais;
+  as quatro restantes dependem da TV conectada (T049, T051), do navegador de
+  desenvolvimento (T050) ou de uma decisão do usuário (T052).
+- Feito: evidência do Cenário C registrada nas Execution Notes do `plan.md`,
+  com o que foi obtido **e** o que não é obtenível nesta TV (T046); ADR-006
+  §8 emendada com `**Atualização (ADR-006)**` declarando a V1 executada com
+  evidência parcial, sem reescrever a linha original da tabela (T047); os
+  dois bugs de hardware referenciados e **R-005 marcado como `Resolvido:`**,
+  já que o risco previsto no plano se materializou e foi corrigido (T048).
+  `## Estado Atual`, `## Arquivos Principais` e `PRÓXIMO:` sincronizados, e
+  quatro armadilhas operacionais da TV anexadas em Cuidados para Retomada.
+- Testes executados: nenhuma mudança de código nesta leva — as três tasks são
+  documentais. Os gates que sustentam o estado atual foram rodados na sessão:
+  `uv run pytest` (47 passaram), `uv run ruff check .` (1 erro conhecido em
+  `api/delete_sources.py`, R-008), `npx tsc -b` (limpo), `npm run lint`
+  (limpo), `npm run test` (10 arquivos / 57 testes).
+- Pendências: **a evidência de SC-001 permanece incompleta por limitação do
+  aparelho** — firmware, `navigator.userAgent` e contêiner/codec não são
+  obteníveis sem console na TV. Isso está declarado, não escondido; quando o
+  T049/T051 rodarem, vale reavaliar se o SC-001 deve ser emendado na spec
+  para pedir o que este hardware permite medir.

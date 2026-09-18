@@ -248,7 +248,35 @@ TMDB diferencia uso não comercial e comercial e exige sua atribuição.[^tmdb-f
 | V8 | Contratos gerados reproduzíveis, testes, lockfiles, licenças/transitivos e políticas de consumo. | Manifests e código não inspecionados. |
 | V9 | Migração local→VPS, restore, acesso às fontes, TLS, pareamento e reconexão. | Não executado. |
 
-A aprovação arquitetural pode preceder implementação, mas não substitui essas evidências para alegar compatibilidade. Pendências que não impedem escrever as primeiras especificações: firmware, volume, simultaneidade, sistema local/Docker, versões dos pacotes, fila e fonte IMDb. Reavaliar a seleção se a prova na TV ou a inspeção de licenças apontar incompatibilidade.
+**Atualização (ADR-006, 2026-09-17): V1 executada na TV, com evidência
+parcial.** A feature `003-live-tv-avplay` levou um build de produção à
+Samsung **QN50Q60DAGXZD** — pacote assinado com a cadeia Samsung completa
+(author por `Samsung VD Author CA`, distribuidor por `VD DEVELOPER Public CA
+Class`), instalado por `sdb` e lançado por `tizen run`. Resultado: **um canal
+da fonte real reproduziu com vídeo e áudio**, e a Home consumiu o catálogo do
+backend pela LAN (confirmado no log da API por requisição vinda do IP da TV).
+As APIs necessárias estão presentes e funcionais: `webapis.avplay` com
+`open`, `setListener`, `setDisplayRect`, `prepareAsync`, `play`, `stop` e
+`close`.
+
+Duas exigências desta porta **continuam sem registro**, por limitação do
+aparelho e não por omissão: **firmware** e **engine observada**
+(`navigator.userAgent`). A TV não expõe console ao desenvolvedor —
+`sdb root on` responde `Permission denied`, `dlog` retorna vazio e a porta
+7011 do Web Inspector fica fechada. Enquanto não houver um caminho de leitura,
+qualquer afirmação sobre a versão exata do Chromium do aparelho seria
+suposição; o build continua fixado em `chrome108` por decisão de projeto
+(`tv-web/vite.config.ts`), não por medição.
+
+A execução também revelou dois comportamentos de plataforma que nenhum teste
+automatizado ou navegador pegaria, ambos corrigidos e verificados em
+hardware: a tecla RETURN do controle chega como `keyCode` 10009, e o AVPlay
+pinta num plano de hardware atrás da camada web, exigindo que a área
+correspondente seja transparente. Ver `sdd/bugs/tecla-voltar-return-nao-funciona-na`
+e `sdd/bugs/live-tv-toca-audio-sem-imagem`.
+
+A aprovação arquitetural pode preceder implementação, mas não substitui essas
+evidências para alegar compatibilidade. Pendências que não impedem escrever as primeiras especificações: firmware, volume, simultaneidade, sistema local/Docker, versões dos pacotes, fila e fonte IMDb. Reavaliar a seleção se a prova na TV ou a inspeção de licenças apontar incompatibilidade.
 
 ## 9. Referências técnicas
 
