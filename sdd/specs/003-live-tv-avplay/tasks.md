@@ -379,7 +379,7 @@ e nenhum deles expõe segredo. Cobre FR-010, FR-011, FR-012; SC-004 e SC-005.
 - [X] T042 Conferir que a tela de Live TV consome apenas tokens da ADR-007,
       sem cor, raio ou tamanho de fonte literal, em
       `tv-web/src/features/screens.css`.
-- [ ] T043 Registrar a evidência do Cenário C (modelo, firmware,
+- [X] T043 Registrar a evidência do Cenário C (modelo, firmware,
       `navigator.userAgent`, contêiner/codec, resultado, erro do AVPlay) na
       seção `## Execution Notes` de `plan.md` e como atualização da porta V1
       na tabela de `sdd/adr/ADR-006-bibliotecas-sdks-ccplay-tv.md` §8.
@@ -389,23 +389,23 @@ e nenhum deles expõe segredo. Cobre FR-010, FR-011, FR-012; SC-004 e SC-005.
       consumido, e a seção `## Project status` de `CLAUDE.md`, que hoje
       afirma que Live TV renderiza dados de `mockCatalog.ts` e que "there is
       no real player yet".
-- [ ] T045 Rodar a validação completa de `quickstart.md` (Cenários A, B e C).
+- [X] T045 Rodar a validação completa de `quickstart.md` (Cenários A, B e C).
 
 ### Checklist de Release
 
-- [ ] Fase 1 (Setup — alvo de build) concluída
-- [ ] Fase 2 (Foundational — contrato + player) concluída
-- [ ] Fase 3 (User Story 1) concluída
-- [ ] Fase 4 (User Story 2) concluída
-- [ ] Fase 5 (User Story 3) concluída
-- [ ] Backend disponível e validado (`ruff` + `pytest` verdes, Postgres de pé)
-- [ ] Frontend disponível e validado (`tsc -b`, `oxlint`, `vitest`, `build`)
-- [ ] CORS e conectividade TV↔backend validados (`VITE_API_URL` de LAN,
+- [X] Fase 1 (Setup — alvo de build) concluída
+- [X] Fase 2 (Foundational — contrato + player) concluída
+- [X] Fase 3 (User Story 1) concluída
+- [X] Fase 4 (User Story 2) concluída
+- [X] Fase 5 (User Story 3) concluída
+- [X] Backend disponível e validado (`ruff` + `pytest` verdes, Postgres de pé)
+- [X] Frontend disponível e validado (`tsc -b`, `oxlint`, `vitest`, `build`)
+- [X] CORS e conectividade TV↔backend validados (`VITE_API_URL` de LAN,
       `HOST=0.0.0.0`, firewall TCP 3000 — herdado da feature 001)
-- [ ] Nenhuma credencial em tela, console ou log, em ciclo de sucesso **e**
+- [X] Nenhuma credencial em tela, console ou log, em ciclo de sucesso **e**
       de falha (SC-005)
-- [ ] Evidência da porta V1 registrada, positiva ou negativa
-- [ ] `quickstart.md` executado com sucesso
+- [X] Evidência da porta V1 registrada, positiva ou negativa
+- [X] `quickstart.md` executado com sucesso
 
 ---
 
@@ -509,32 +509,56 @@ mesma sessão.
       plano de hardware → áudio sem imagem) se materializou e foi corrigido.
       Registrar também que o FR-008 não era satisfeito no aparelho até a
       correção do `keyCode` 10009. Origem: FR-008, FR-009, plan R-005.
-- [ ] T049 [C-003] Executar o **Cenário A** do `quickstart.md` na TV, item a
+- [X] T049 [C-003] Executar o **Cenário A** do `quickstart.md` na TV, item a
       item, registrando o resultado de cada um: grupos na ordem da fonte,
       canal sem URL focável e sinalizado, grupo acima do teto com aviso,
       canais sem grupo em "Sem categoria", e foco percorrendo a lista **sem
       disparar requisição** (conferir no log do backend, já que a TV não tem
       aba de rede). Origem: T045, US1 AC1-4, SC-002, SC-006.
-- [ ] T050 [C-003] Reexecutar o **Cenário B** do `quickstart.md` no
+- [X] T050 [C-003] Reexecutar o **Cenário B** do `quickstart.md` no
       navegador de desenvolvimento, que não roda desde as duas correções, e
       confirmar que o adaptador `<video>` não regrediu (fundo preto
       preservado, máquina de estados intacta). Origem: T045, US2, US3.
-- [ ] T051 [C-005] Exercitar um **ciclo de falha na TV** (canal com URL
+- [X] T051 [C-005] Exercitar um **ciclo de falha na TV** (canal com URL
       inválida ou fonte fora do ar) e confirmar: duas ações focáveis,
       mensagem sanitizada, e nenhuma URL, host de provedor ou credencial em
       tela nem no log do backend. Origem: SC-005, US3 AC1-4.
-- [ ] T052 [C-006] Decidir o encaminhamento do R-008 — `uv run ruff check .`
+- [X] T052 [C-006] Decidir o encaminhamento do R-008 — `uv run ruff check .`
       segue vermelho por `api/delete_sources.py` (1 erro I001), arquivo
       alheio a esta feature e já logado como `[Bug]` no backlog. Ou o bug é
       resolvido, ou o item correspondente do Checklist de Release recebe a
       ressalva explícita. Não deixar o checklist em aberto sem motivo
       declarado. Origem: plan R-008.
+- [X] T053 [ad-hoc] **Descoberta durante o T050**: a camada de reprodução não
+      tem elemento focável nos estados `preparing`/`buffering`, contrariando a
+      letra do FR-013 e a decisão D-010 original, que só abria exceção para
+      `playing`. Levado ao usuário como conflito com critério de aceite —
+      decisão: **emendar a decisão, não o código**, pelo mesmo motivo já
+      registrado em Complexity Tracking (um botão só para satisfazer a leitura
+      literal sairia quando os controles do item 11 chegarem). Aplicado:
+      emenda datada em D-010 e na linha de `## Complexity Tracking` do
+      `plan.md`, nova sessão de `## Clarifications` no `spec.md`, e asserção
+      no teste "RETURN durante o preparo encerra a sessão" travando o desvio
+      aceito. `error` continua exigindo as duas ações focáveis (FR-010).
+
+- [X] T054 [ad-hoc] **Descoberta durante o T049, na TV**: o canal reproduz,
+      mas o vídeo aparece **atrás das colunas de grupos e canais** — a lista
+      continua desenhando sobre o plano de hardware e impede ver o que está
+      passando. A correção do `live-tv-toca-audio-sem-imagem` liberou o fundo
+      do overlay e o `:root`, mas não os **irmãos** do overlay dentro de
+      `.screen` (`.live-column-groups`, `.live-column-channels`,
+      `.live-preview-panel`, `Toast`). Contraria o escopo explícito da spec
+      ("reprodução em tela cheia") e a US2. Correção: enquanto
+      `video-plane-visible` estiver ativa, esses irmãos recebem
+      `visibility: hidden` em `tv-web/src/features/screens.css` — `visibility`
+      preserva estado e foco, ao contrário de `display: none`. Verificação só
+      vale na TV: jsdom não aplica folha de estilo, então não há teste
+      unitário possível para a regra. Origem: US2, spec → Escopo/Incluído.
 
 **Registro da Fase**:
 
-- Status: **Em andamento** (2026-09-17). Fechadas as três tasks documentais;
-  as quatro restantes dependem da TV conectada (T049, T051), do navegador de
-  desenvolvimento (T050) ou de uma decisão do usuário (T052).
+- Status: **Concluída** (2026-09-18). Todas as tasks fechadas, incluindo as
+  duas ad-hoc que a verificação em hardware produziu (T053, T054).
 - Feito: evidência do Cenário C registrada nas Execution Notes do `plan.md`,
   com o que foi obtido **e** o que não é obtenível nesta TV (T046); ADR-006
   §8 emendada com `**Atualização (ADR-006)**` declarando a V1 executada com
@@ -548,8 +572,32 @@ mesma sessão.
   `uv run pytest` (47 passaram), `uv run ruff check .` (1 erro conhecido em
   `api/delete_sources.py`, R-008), `npx tsc -b` (limpo), `npm run lint`
   (limpo), `npm run test` (10 arquivos / 57 testes).
-- Pendências: **a evidência de SC-001 permanece incompleta por limitação do
-  aparelho** — firmware, `navigator.userAgent` e contêiner/codec não são
-  obteníveis sem console na TV. Isso está declarado, não escondido; quando o
-  T049/T051 rodarem, vale reavaliar se o SC-001 deve ser emendado na spec
-  para pedir o que este hardware permite medir.
+- Feito na TV (18/09): Cenário A com o usuário no controle — grupos e canais
+  da fonte, painel direito acompanhando o foco, sem contagem total nem "fim
+  do catálogo" (FR-016). **SC-006 medido no log do backend**: 10-15
+  movimentos de foco produziram **zero** requisições de `/playback`; a única
+  do intervalo foi um OK deliberado, confirmado pelo usuário. Ciclo de falha
+  (T051) exercitado com a API derrubada de propósito: tela de erro com as
+  duas ações focáveis, mensagem sem URL/credencial, e Voltar devolvendo o
+  foco ao canal tentado — **fecha a metade do SC-005 que faltava**. T052
+  resolvido por decisão do usuário: `ruff check .` passa limpo.
+- Testes executados no fechamento: `uv run ruff check .` (**All checks
+  passed**, pela primeira vez), `uv run pytest` (47), `npx tsc -b` (limpo),
+  `npm run lint` (limpo), `npm run test` (10 arquivos / 57 testes),
+  `npm run build:tizen` + empacotamento e instalação na TV a cada ciclo.
+- Pendências declaradas, não escondidas:
+  1. **Evidência do SC-001 permanece parcial** — firmware,
+     `navigator.userAgent` e contêiner/codec não são obteníveis nesta TV, que
+     não expõe console. Se o critério precisar fechar ao pé da letra, o
+     caminho é emendar o SC-001 na spec para pedir o que este hardware
+     permite medir.
+  2. **Aviso de lista truncada (FR-014) não observado** — nenhum grupo da
+     fonte passou do teto de renderização, então não havia o que exibir. É
+     "não observado", não "aprovado"; a lógica está coberta por teste
+     unitário em `groupChannels.test.ts`.
+  3. **Grupo "Sem categoria" não observado** — esta fonte declara grupo em
+     todos os canais. Mesma situação do item anterior.
+  4. **Zapping** (OK durante a reprodução trazendo a lista de volta) foi
+     pedido pelo usuário durante a verificação e **registrado no item 11 do
+     backlog**, não implementado: a spec já listava "troca rápida de canal"
+     como fora de escopo desta fatia.

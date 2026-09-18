@@ -94,15 +94,29 @@ exatamente o motivo do teto temporário.
   API informar se há job em execução para a fonte, e fica fora desta fatia.
   O aviso de truncamento do FR-014 fala do teto de renderização e precisa ser
   redigido de forma a não se confundir com "isto é tudo que a fonte tem".
-- **D-010 — No estado `playing`, RETURN é a saída garantida.** Por desenho
-  esta fatia não tem controles na tela, então o estado `playing` não tem
-  elemento focável visível. Isso é compatível com o princípio "Foco Visível e
-  Sem Becos Sem Saída", cujo objetivo é **não prender o controle remoto**, e
-  não exigir um nó focável literal em toda superfície: RETURN está sempre
-  ativo na camada (via `useRemoteNav({ modal: true })`) e encerra a sessão.
-  Os demais estados — `preparing`, `buffering`, `error` — seguem exigindo
-  elemento focável. Quando os controles do item 11 do backlog chegarem, esta
-  decisão deixa de ser necessária.
+- **D-010 — Na camada de reprodução, RETURN é a saída garantida.** Por
+  desenho esta fatia não tem controles na tela, então a camada não tem
+  elemento focável visível enquanto não há o que decidir. Isso é compatível
+  com o princípio "Foco Visível e Sem Becos Sem Saída", cujo objetivo é **não
+  prender o controle remoto**, e não exigir um nó focável literal em toda
+  superfície: RETURN está sempre ativo na camada (via
+  `useRemoteNav({ modal: true })`) e encerra a sessão.
+
+  **Emenda (2026-09-17, decisão do usuário na Fase 7)**: originalmente esta
+  decisão cobria só o estado `playing`, e dizia que `preparing` e `buffering`
+  seguiriam exigindo elemento focável. A verificação do Cenário B mostrou que
+  a implementação nunca fez isso — durante "Preparando…" a camada tem zero
+  botões, `document.activeElement` é o `body`, e o único `.tv-focus` da
+  página é o canal da lista, escondido atrás da camada opaca. Diante do
+  conflito, **a decisão foi estendida em vez de o código ganhar um botão**:
+  `preparing` e `buffering` passam a ser cobertos pelo mesmo raciocínio do
+  `playing`. O motivo é o mesmo já registrado em `## Complexity Tracking`
+  para o `playing` — um botão que existe só para satisfazer a leitura literal
+  do princípio seria removido quando os controles do item 11 chegarem, e
+  poluiria a espera com um controle que não pertence ao desenho final.
+  **`error` continua exigindo elemento focável** (FR-010: "Tentar de novo" e
+  "Voltar"), porque aí existe uma decisão real a tomar. Quando os controles
+  do item 11 chegarem, esta decisão inteira deixa de ser necessária.
 
 ## Constitution Check
 
@@ -204,7 +218,7 @@ no-op fora da TV.
 
 | Violação | Por que é necessária | Alternativa mais simples rejeitada porque |
 | --- | --- | --- |
-| **"Foco Visível e Sem Becos Sem Saída"**, ao pé da letra: o estado `playing` do player não tem elemento focável visível. | A fatia é fina de propósito e **não** inclui controles na tela (play/pause, saltos, barra) — isso é o item 11 do backlog e o guia Samsung 06. Sem controles, não há o que focar durante a reprodução. O objetivo do princípio, não prender o controle remoto, continua atendido: RETURN está sempre ativo na camada e encerra a sessão (D-010). | *Adicionar um botão "Voltar" flutuante só para ter um nó focável*: rejeitada por poluir o vídeo com um controle que não pertence ao desenho final e que precisaria ser removido quando os controles de verdade chegarem. *Antecipar os controles do item 11*: rejeitada por dobrar a fatia e atrasar a porta V1, que é o propósito da feature. |
+| **"Foco Visível e Sem Becos Sem Saída"**, ao pé da letra: a camada do player não tem elemento focável visível nos estados `playing`, `preparing` e `buffering` (os dois últimos incluídos pela emenda de 2026-09-17 a D-010; `error` mantém as duas ações focáveis). | A fatia é fina de propósito e **não** inclui controles na tela (play/pause, saltos, barra) — isso é o item 11 do backlog e o guia Samsung 06. Sem controles, não há o que focar durante a reprodução. O objetivo do princípio, não prender o controle remoto, continua atendido: RETURN está sempre ativo na camada e encerra a sessão (D-010). | *Adicionar um botão "Voltar" flutuante só para ter um nó focável*: rejeitada por poluir o vídeo com um controle que não pertence ao desenho final e que precisaria ser removido quando os controles de verdade chegarem. *Antecipar os controles do item 11*: rejeitada por dobrar a fatia e atrasar a porta V1, que é o propósito da feature. |
 
 ## Estratégia de Testes
 
@@ -274,7 +288,7 @@ npm run build
 | R-005 | **Modelo de exibição do AVPlay não verificado**: vídeo em plano de hardware atrás da camada web, exigindo região transparente e coordenadas explícitas. Se a página tiver fundo opaco, o resultado é áudio sem imagem. | Alto — falha silenciosa e fácil de diagnosticar errado. | **Resolvido (2026-09-17)**: o risco se materializou exatamente como previsto — na primeira reprodução em hardware o canal tocou com áudio e sem imagem. `setDisplayRect` já era chamado corretamente; o que faltava era a camada web ceder a área. Corrigido em `sdd/bugs/live-tv-toca-audio-sem-imagem`: a capacidade `rendersOnHardwarePlane` entrou no contrato do `PlayerAdapter` e a camada de reprodução libera `:root` e `.player-overlay` só quando o motor pinta em hardware e a sessão tem vídeo, preservando D-007 (a tela continua sem saber qual motor está ativo). Verificado no aparelho. |
 | R-006 | **A fonte de teste pode não ter nenhum canal em formato suportado pelo AVPlay.** A escolha de formato hoje é fixa (`output=m3u8` no `build_m3u_url`), sem consultar `allowed_output_formats`. | Médio — a feature pode terminar sem reprodução bem-sucedida. | Previsto na spec: resultado negativo é evidência válida da porta V1, não fracasso silencioso. O encaminhamento é o item 1 do backlog (conector Xtream com `allowed_output_formats`). |
 | R-007 | **Testes de backend exigem Postgres de pé** (`httpx.ASGITransport` contra o app real, sem override de sessão). | Baixo — já é a realidade do repositório desde a feature 001. | Documentado nos pré-requisitos do `quickstart.md`. **Confirmado na prática** na Fase 2: com o container de pé, os 47 testes rodam em ~42 s. |
-| R-008 | **`uv run ruff check .` falha por `api/delete_sources.py` (I001)**, arquivo pré-existente e fora do escopo desta feature. Descoberto na Fase 2. | Baixo tecnicamente, médio processualmente: o gate "checagens automatizadas passando" da constitution não fecha verde no backend por motivo alheio à feature. | Não corrigido calado (regra do `sdd-execute` para bug fora de escopo). Logado em `.planning/backlog.md` → seção de processo, como `[Bug]` com origem. A verificação desta feature usa `ruff check` sobre os arquivos tocados, que passam limpos. |
+| R-008 | **`uv run ruff check .` falha por `api/delete_sources.py` (I001)**, arquivo pré-existente e fora do escopo desta feature. Descoberto na Fase 2. | Baixo tecnicamente, médio processualmente: o gate "checagens automatizadas passando" da constitution não fecha verde no backend por motivo alheio à feature. | **Resolvido (2026-09-18, T052)**: seguiu a regra durante toda a execução — não foi corrigido calado, ficou logado como `[Bug]` no backlog e a verificação da feature usou `ruff check` sobre os arquivos tocados. Na Fase 7 o usuário decidiu corrigir: `uv run ruff check --fix delete_sources.py` (ordenação de import), e `uv run ruff check .` passa limpo. Continua aberta no backlog a parte que não é lint: se esse script utilitário — que apaga todas as fontes via API, sem confirmação — deve seguir versionado dentro de `api/`. |
 
 ## Execution Notes
 
@@ -286,7 +300,17 @@ npm run build
 | 2026-09-16 | Fases 3–5 (US1, US2, US3) | `groupChannels` puro, `LiveScreen` sobre o catálogo real com todos os estados de borda, `PlayerOverlay` como camada, caminhos de falha sanitizados e `409` tratado à parte. Mock de canais removido. 49 testes de frontend + 47 de backend, tudo verde; build e sync Tizen feitos. | **T043/T045: a porta V1 não foi executada.** |
 | 2026-09-17 | Fase 7 (Convergência) — T046/T047/T048 | **Porta V1 executada. Canal da fonte real reproduzindo com vídeo e áudio na QN50Q60DAGXZD.** Evidência: pacote assinado com cadeia Samsung completa (author `Samsung VD Author CA`, distribuidor `VD DEVELOPER Public CA Class`), instalado por `sdb` sobre a rede e lançado por `tizen run`; catálogo real consumido do backend pela LAN, confirmado no log da API por requisição vinda do IP da TV. Sequência: `npm run build:tizen` (com `VITE_API_URL` da LAN) → `tizen build-web -e "Debug/*"` → `tizen package -t wgt -s ccplay_samsung_certificate_4` → `tizen install -t QN50Q60DAGXZD` → `tizen run`. **Dois defeitos só visíveis em hardware** foram encontrados e corrigidos com ciclo completo: `sdd/bugs/tecla-voltar-return-nao-funciona-na` (RETURN chega como `keyCode` 10009; o FR-008 não era satisfeito no aparelho apesar dos testes verdes) e `sdd/bugs/live-tv-toca-audio-sem-imagem` (R-005 materializado: camada web opaca escondendo o plano de hardware do AVPlay). ADR-006 §8 emendada. | **Evidência incompleta**: firmware e `navigator.userAgent` não são obteníveis nesta TV — sem console (`sdb root on` negado, `dlog` vazio, porta 7011 fechada). Contêiner/codec do canal também não registrado. |
 
-**PRÓXIMO**: **T049 e T051, com a TV conectada** — rodar o Cenário A do
+| 2026-09-17 | Fase 7 (Convergência) — T050/T053 | Cenário B reexecutado no navegador com dados reais (39 grupos da fonte, 126 canais no primeiro): camada abre em "Preparando…", Voltar durante o preparo fecha sem `<video>` residual, o canal **tocou** (`readyState 4`, sem erro), Enter repetido manteve sessão única (1 overlay, 1 `<video>`), e o Voltar restaurou o foco no canal de origem. Confirmado que o adaptador `<video>` não regrediu: `video-plane-visible` nunca é aplicada e o fundo preto permanece. **SC-006 verificado no navegador** — dois movimentos de foco, zero requisições de `/playback`. Descoberta levada ao usuário como conflito com critério de aceite (camada sem elemento focável em `preparing`/`buffering`): decisão foi emendar D-010 em vez de adicionar botão; ver T053. | T049 e T051 seguem dependendo da TV; T052 é decisão pendente. |
+
+| 2026-09-18 | Fase 7 (Convergência) — T049/T051/T052/T054 | Cenário A rodado na TV com o usuário no controle e **SC-006 medido no log do backend**: 10-15 movimentos de foco, zero requisições de `/playback`. Ciclo de falha exercitado derrubando a API de propósito — erro com duas ações focáveis, mensagem sem credencial, Voltar restaurando o foco: **fecha o SC-005**. T052 decidido pelo usuário: `api/delete_sources.py` corrigido e `ruff check .` passa limpo pela primeira vez. **T054 (ad-hoc, descoberto na TV)**: o vídeo tocava atrás das colunas de grupos e canais — a correção anterior liberou o fundo do overlay e o `:root`, mas não os irmãos dentro de `.screen`; resolvido com `visibility: hidden` sob `video-plane-visible`, e o usuário confirmou tela cheia. Zapping (OK durante a reprodução) foi pedido e registrado no item 11 do backlog, fora do escopo desta fatia. | Nenhuma bloqueante. Ficam declarados: SC-001 com evidência parcial por limite do aparelho, e FR-014/"Sem categoria" não observados porque a fonte não produziu os casos. |
+
+**PRÓXIMO**: **Rodar `sdd-converge` de novo** para reauditar com todas as
+tasks fechadas. Se convergir limpo, a feature sai de "Convergência Pendente".
+O que ficou pendente é declarado e não bloqueante: evidência parcial do
+SC-001 (a TV não expõe firmware nem engine), e dois casos do Cenário A que a
+fonte não produziu (aviso de truncamento e grupo "Sem categoria").
+
+**Histórico anterior**: **T049 e T051, com a TV conectada** — rodar o Cenário A do
 `quickstart.md` item a item (grupos na ordem da fonte, canal sem URL
 sinalizado, truncamento, "Sem categoria", e foco percorrendo a lista sem
 disparar requisição — conferindo no log do backend, já que a TV não tem aba
@@ -354,3 +378,9 @@ Implementada antes disso.
   `applist`, o log do backend (requisições vindas do IP da TV) e o olho do
   usuário. Planeje as perguntas de verificação em cima disso — genéricas
   como "funcionou?" não produzem evidência utilizável.
+- **Duas requisições de `/playback` por abertura, no navegador de
+  desenvolvimento, são esperadas** — `StrictMode` (`tv-web/src/main.tsx`)
+  invoca o efeito duas vezes em dev. Só uma sessão sobrevive (verificado em
+  17/09: 1 overlay, 1 `<video>` no DOM), o que na prática é evidência de que
+  o cleanup está correto. Não vale como bug, e não acontece no build de
+  produção que vai para o `.wgt`.

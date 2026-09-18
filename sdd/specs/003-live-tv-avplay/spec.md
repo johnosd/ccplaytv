@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-16
 
-**Status**: Convergência Pendente
+**Status**: Implementada
 
 **Input**: "Fatia vertical de Live TV: tela de canais lendo o catálogo real
 importado (substituindo mockCatalog) + PlayerService/AVPlay reproduzindo um
@@ -303,3 +303,18 @@ conceito de tempo de execução no cliente, não uma entidade persistida.
   × fonte expirada fica no item 20 do backlog.
 - Q: Canal sem URL de reprodução: o que fazer? → A: Mostrar na lista como
   indisponível, focável; Enter explica em vez de tentar abrir o player.
+
+### Sessão 2026-09-17 (durante a convergência, após a validação em hardware)
+
+- Q: O FR-013 exige elemento focável em "carregando", mas a camada de
+  reprodução não tem nenhum durante "Preparando…"/"Carregando…" — o código
+  muda ou o critério muda? → A: **O critério.** O FR-013 continua valendo
+  para os estados **da tela de canais** (carregando a lista, vazia, grupo
+  vazio, erro de carga) e para o **erro de reprodução**, que tem duas ações
+  focáveis. A **camada de reprodução** enquanto espera o vídeo é coberta pela
+  decisão D-010 do plano, emendada nesta data: sem controles nesta fatia, não
+  há o que focar, e RETURN é a saída garantida — o SC-004 (nenhum estado
+  deixa o controle sem ação) continua satisfeito e foi verificado. Adicionar
+  um botão só para satisfazer a leitura literal foi rejeitado pelo mesmo
+  motivo já registrado em Complexity Tracking: sairia quando os controles do
+  item 11 do backlog chegarem.

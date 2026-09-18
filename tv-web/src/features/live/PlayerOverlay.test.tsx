@@ -74,10 +74,17 @@ describe('PlayerOverlay', () => {
   it('RETURN durante o preparo encerra a sessão e avisa quem abriu', async () => {
     vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
     const onClose = vi.fn()
-    render(<PlayerOverlay itemId="item-1" channelName="Canal" onClose={onClose} createAdapter={createAdapter} />)
+    const { container } = render(
+      <PlayerOverlay itemId="item-1" channelName="Canal" onClose={onClose} createAdapter={createAdapter} />,
+    )
 
     await waitFor(() => expect(driver.callbacks).not.toBeNull())
     expect(screen.getByText('Preparando…')).toBeInTheDocument()
+
+    // Esperando o vídeo não há o que decidir, então a camada não tem controle
+    // focável — desvio aceito e documentado em D-010 (emenda de 17/09/2026),
+    // pelo mesmo motivo do estado `playing`. O que não pode faltar é a saída.
+    expect(container.querySelectorAll('.tv-focus')).toHaveLength(0)
 
     press('Escape')
 

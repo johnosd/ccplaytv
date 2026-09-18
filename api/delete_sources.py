@@ -1,5 +1,5 @@
-import urllib.request
 import json
+import urllib.request
 
 req = urllib.request.Request('http://127.0.0.1:3000/sources')
 with urllib.request.urlopen(req) as response:

@@ -570,6 +570,18 @@
   background: transparent;
 }
 
+/* Liberar só o fundo da camada não basta: as colunas de grupos e canais e o
+   painel de informação são IRMÃOS do overlay e continuam pintando sobre o
+   plano de hardware — na TV o canal toca atrás da lista, que é o que o
+   usuário vê. Enquanto há vídeo, a tela por baixo para de desenhar; ao sair
+   da reprodução a classe some e tudo volta, com foco e rolagem preservados
+   (`visibility` não remonta nada, ao contrário de `display: none`).
+   No navegador de desenvolvimento a regra nunca vale: lá o `<video>` é nó do
+   DOM e a classe não é aplicada. */
+:root.video-plane-visible .screen > *:not(.player-overlay) {
+  visibility: hidden;
+}
+
 .player-surface {
   position: absolute;
   inset: 0;

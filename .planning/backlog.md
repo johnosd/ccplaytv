@@ -34,9 +34,11 @@ de virar spec.
 **O que já existe hoje**: importação de fonte por URL/provedor ponta a
 ponta (feature 001), splash + Home de listas + formulário de adicionar
 lista (feature 002), e a Live TV lendo o catálogo real com reprodução via
-`PlayerService`/AVPlay (feature 003 — implementada, **aguardando a
-verificação na TV física**). As telas de **Filmes, Séries e detalhes
-continuam alimentadas por dados fictícios**
+`PlayerService`/AVPlay (feature 003 — implementada e **verificada na TV
+física em 17-18/09/2026**: canal da fonte real reproduzindo com vídeo e
+áudio em tela cheia na QN50Q60DAGXZD, fechando a porta V1 da ADR-006). As
+telas de **Filmes, Séries e detalhes continuam alimentadas por dados
+fictícios**
 (`tv-web/src/features/catalog/mockCatalog.ts`).
 
 ---
@@ -184,6 +186,19 @@ continuam alimentadas por dados fictícios**
     sempre.
     (`docs/guia-praticas-app-tv/06` §1/§2 e P05/P06;
     `docs/guia-praticas-app-tv/12` API03/API04)
+
+    **Pedido do usuário (18/09/2026, observado na TV durante a convergência
+    da 003)**: zapping por cima do vídeo — com o canal em tela cheia,
+    pressionar OK traz de volta a lista de canais **sobre** a reprodução;
+    escolher outro canal troca o stream; a lista some de novo. Hoje D-010 da
+    003 define que no estado `playing` só RETURN age, e a lista fica
+    escondida enquanto há vídeo (`video-plane-visible`). Fazer isso exige
+    decidir: o que a lista mostra por cima do vídeo e quanto da tela ocupa;
+    se o player continua tocando enquanto se navega; o que acontece se o
+    canal novo falhar (volta para o anterior ou fica no erro?); e em que
+    momento a sessão antiga é encerrada — que é exatamente a "sessão
+    sobreposta na troca rápida" deste item. Merece spec própria via
+    `sdd-specify`, não ajuste ad-hoc.
 
 12. **Pesquisa nos três tipos** — busca local no catálogo já salvo,
     indicando escopo ativo e cobertura parcial quando offline. Atualizar
@@ -541,17 +556,15 @@ própria de demanda. Cada uma precisa passar por `sdd-assess`
 
 ### Processo, documentação e qualidade de código
 
-0. **[Bug] `ruff check .` falha no backend por `api/delete_sources.py`** —
-   `I001` (bloco de import não ordenado) num script utilitário de
-   desenvolvimento na raiz de `api/`, commitado e coberto pelo `ruff check .`.
-   Consequência real: **o gate de lint do backend não fica verde**, mesmo com
-   o código da feature limpo, o que atrapalha o critério "checagens
-   automatizadas passando" da constitution. Correção é de uma linha
-   (`uv run ruff check --fix .`), mas o arquivo está fora do escopo da
-   feature em andamento. Decidir também se esse script deve continuar
-   versionado e lintado, ou virar `scripts/` fora do pacote.
-   *Origem: descoberto durante a Fase 2 da feature `003-live-tv-avplay`,
-   2026-09-16. Caminho normal para pegar: `sdd-bugfix`.*
+0. **~~[Bug] `ruff check .` falha no backend por `api/delete_sources.py`~~ —
+   resolvido em 18/09/2026** (decisão do usuário na Fase 7 da
+   `003-live-tv-avplay`, task T052). Era `I001`, bloco de import não
+   ordenado; corrigido com `uv run ruff check --fix delete_sources.py`, e
+   `uv run ruff check .` passa limpo. **Fica em aberto a segunda metade da
+   entrada original**: decidir se esse script utilitário deve continuar
+   versionado e lintado junto do pacote, ou mudar para `scripts/` fora dele.
+   Vale notar que ele **apaga todas as fontes** via API sem confirmação —
+   quem for mexer nisso decide também se é isso mesmo que se quer commitado.
 
 49. **Skills de domínio + mapa de validação por área** — skills curtos
     (~500 palavras) no formato "gatilho + Read First → doc canônico +
@@ -599,7 +612,7 @@ própria de demanda. Cada uma precisa passar por `sdd-assess`
 | --- | --- | --- | --- | --- |
 | 001-importacao-fonte-m3u | Importação de Fonte M3U por URL e por Provedor | Convergida | 63/63 tasks | 2026-09-14 |
 | 002-splash-home-perfis | Splash, ícone do app e Home de perfis/listas | Implementada | 22/22 tasks | 2026-09-16 |
-| 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Convergência Pendente | 48/65 tasks | 2026-09-17 |
+| 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Implementada | 67/67 tasks | 2026-09-18 |
 
 ## Bugs
 
