@@ -1,6 +1,9 @@
 // Dados de exemplo do protótipo do Claude Design ("CCPlayTv - Prototype.dc.html").
-// Live TV/Filmes/Séries continuam mock até a integração TMDB (item futuro
-// do backlog) — combinado explicitamente com o usuário nesta implementação.
+//
+// **Só Filmes e Séries ainda dependem disto.** A Live TV passou a ler o
+// catálogo real na feature 003-live-tv-avplay; Filmes e Séries saem do mock
+// nos itens 9 e 10 do backlog, que dependem do conector Xtream (item 1) para
+// ter hierarquia de série de verdade.
 
 export interface MockMovie {
   id: string
@@ -31,11 +34,6 @@ export interface MockSeries {
   synopsis: string
   cast: string
   seasons: MockSeason[]
-}
-
-export interface MockChannelGroup {
-  name: string
-  channels: string[]
 }
 
 export const MOVIES: MockMovie[] = [
@@ -216,10 +214,5 @@ export const SERIES: MockSeries[] = [
   },
 ]
 
-export const CHANNEL_GROUPS: MockChannelGroup[] = [
-  { name: 'Noticias', channels: ['Canal Manha', 'Rede Fato', 'Jornal 24h', 'Agencia Sul'] },
-  { name: 'Esportes', channels: ['Arena Total', 'Gol a Gol', 'Copa Livre', 'Volei+'] },
-  { name: 'Filmes e Series', channels: ['Cine Estelar', 'Max Drama', 'Comedia Total', 'Suspense 24h'] },
-  { name: 'Infantil', channels: ['TV Pequena', 'Aventura Kids', 'Toon Mania'] },
-  { name: 'Documentario', channels: ['Mundo Real', 'Natureza Viva', 'Historia+'] },
-]
+// CHANNEL_GROUPS foi removido na feature 003-live-tv-avplay: a Live TV passou
+// a ler os canais reais do catálogo importado (`features/catalog/catalogApi`).

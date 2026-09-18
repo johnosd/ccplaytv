@@ -80,6 +80,8 @@ Testar bordas, repetição de tecla, diálogos, categorias vazias, alteração d
 
 Não executar consultas externas por movimento de foco, nem reproduzir mídia automaticamente ao focar. Norigin não é um kit visual; Virtual não é o gerenciador do controle. Os componentes de TV serão próprios sobre essas duas peças.
 
+**Atualização (ADR-007):** o "como o foco se parece" desses componentes próprios deixou de ser decisão de cada tela — a receita única de foco, a paleta, a escala tipográfica e os estados obrigatórios por superfície estão na ADR-007, implementados como tokens CSS. Esta seção continua valendo para o **comportamento** (índice lógico, ordem de montagem, bordas, restauração); a ADR-007 cobre a **aparência**. Ver ADR-007 para o raciocínio completo.
+
 ### 4.2 Catálogo, preferências e estado remoto
 
 IndexedDB/Dexie será a base local de catálogo e preferências; estados de foco, diálogo e filtros serão transitórios. TanStack Query terá chaves com escopo de instalação/fonte quando apropriado, descarte definido e invalidação após atualização. Não será considerado armazenamento offline durável.

@@ -1,10 +1,22 @@
 <!--
 Relatório de Impacto de Sincronização
-- Mudança de versão: (nenhuma) -> 1.0.0
-- Princípios modificados: N/A (criação inicial)
-- Seções adicionadas: Princípios Fundamentais (8), Restrições do Projeto, Fluxo de Desenvolvimento, Governança
+- Mudança de versão: 1.0.0 -> 1.1.0
+- Princípios modificados: nenhum dos 8 originais foi alterado ou removido
+- Princípios adicionados (5):
+  - Foco Visível e Sem Becos Sem Saída
+  - Voltar Restaura Foco e Posição
+  - Identidade de Reprodução Não Depende da URL
+  - Progresso e Capacidades São Reais, Nunca Prometidos
+  - Documentação do Repositório É Canônica
+- Restrições do Projeto: acrescentada "Design system de TV" (ADR-007)
+- Origem das adições: docs/guia-praticas-app-tv/ (01, 03, 04, 06, 08),
+  docs/iptvnator/ (01, 02, 05, 06, 07, 08), ADR-007
 - Seções removidas: nenhuma
 - Pendências: nenhuma
+
+Histórico:
+- 1.0.0 (2026-09-14): criação inicial — Princípios Fundamentais (8),
+  Restrições do Projeto, Fluxo de Desenvolvimento, Governança
 -->
 
 # Constitution do CCPlay TV
@@ -90,6 +102,66 @@ canal, filme, série ou um segmento técnico de streaming.
 **Por quê**: RF-011; ADR-005 §2; docs/guia-praticas-app-tv/12 (RFC 8216 —
 playlists de mídia vs. master playlists).
 
+### Foco Visível e Sem Becos Sem Saída
+
+Todo estado de toda superfície — inclusive carregando, vazio e erro — DEVE
+ter pelo menos um elemento focável; uma tela sem saída focável prende o
+controle remoto. O estado de foco NÃO DEVE ser comunicado apenas por
+mudança de cor, e NÃO DEVE depender de `hover` (que não existe neste alvo).
+Mover o foco seleciona; SELECT executa — focar um item NÃO DEVE iniciar
+reprodução nem disparar consulta a serviço externo.
+
+**Por quê**: ADR-007 §4/§5; docs/guia-praticas-app-tv/04 (foco por contorno
++ realce) e /08 (UX09); docs/iptvnator/01-ui-ux.md #6 e
+07-tela-canais.md #1.
+
+### Voltar Restaura Foco e Posição
+
+Ao retornar de detalhe, player ou trailer, o item que originou a navegação
+DEVE recuperar o foco, e a posição de rolagem/janela virtual da grade DEVE
+ser restaurada. Trocar de categoria começa no primeiro item; voltar à
+categoria anterior restaura o item anterior. Após atualizar ou filtrar o
+catálogo, o foco DEVE ser reconciliado pelo identificador do item, não pelo
+índice.
+
+**Por quê**: ADR-005 §3; ADR-006 §4.1; docs/guia-praticas-app-tv/01 (D04) e
+/03 (I03, I04); docs/iptvnator/01-ui-ux.md #7.
+
+### Identidade de Reprodução Não Depende da URL
+
+Posição de retomada, favorito, histórico e sessão de reprodução DEVEM ser
+chaveados por uma identidade lógica estável (fonte + tipo + id estável +
+temporada/episódio), NUNCA pela URL de stream — que expira, muda com
+catch-up e carrega credenciais. Uma reimportação/resync DEVE reconciliar o
+estado do usuário por essa chave estável antes de expor o catálogo novo, e
+NÃO DEVE reatribuir estado a outra obra por aproximação de título.
+
+**Por quê**: ADR-005 §2/§4; docs/iptvnator/02-arquitetura.md #2 e
+06-carga-listas-url-xtream.md #8/#12.
+
+### Progresso e Capacidades São Reais, Nunca Prometidos
+
+Quando não houver denominador confiável, a interface DEVE usar indicação
+indeterminada em vez de um percentual inventado. Os controles do player
+DEVEM refletir as capacidades reais do item: transmissão ao vivo sem janela
+DVR NÃO DEVE oferecer busca temporal, e uma mensagem de "carregando" NÃO
+DEVE encobrir autenticação inválida ou formato incompatível.
+
+**Por quê**: docs/guia-praticas-app-tv/04 (T04) e /06 (P02, estados
+explícitos); docs/guia-praticas-app-tv/01 (D03); ADR-007 §5.
+
+### Documentação do Repositório É Canônica
+
+ADRs, specs, `.planning/` e docs de subsistema são artefatos mantidos, não
+rascunhos descartáveis — e continuam canônicos mesmo quando rascunhados por
+um LLM. Quando uma mudança invalidar um caminho, comando ou rota citado na
+documentação, a correção DEVE acontecer na mesma tarefa: um caminho
+desatualizado contamina toda sessão futura de agente. Funcionalidade
+planejada NÃO DEVE ser apresentada como entregue.
+
+**Por quê**: docs/iptvnator/05-documentos.md #3/#4/#6; regra de veredito
+honesto já em vigor no `sdd-bugfix` e no `sdd-converge`.
+
 ## Restrições do Projeto
 
 **Plataforma-alvo**: Samsung QN50Q60DAGXZD (referência de engine: Tizen 8.0
@@ -116,6 +188,13 @@ autorizam scraping nem extração de mídia (ADR-006 §8).
 **Interação primária por controle remoto**: touch, mouse, voz e o futuro
 app Android são complementares. Nenhum recurso essencial pode ter esse
 caminho como único meio de acesso.
+
+**Design system de TV**: palco 1920×1080 escalado uniformemente, tema
+escuro, paleta/tipografia/raios e receita de foco definidos na ADR-007 e
+implementados como tokens em `tv-web/src/index.css`. Tela nova consome
+token — não define cor, raio ou tamanho de fonte literal. O protótipo
+`docs/design/CCPlayTv Prototype - Standalone.html` é a referência de
+intenção; o CSS é o contrato executável.
 
 **Validação em hardware real**: emulador e navegador são suficientes para
 o desenvolvimento do dia a dia nesta fase do projeto. Teste na TV real é
@@ -159,4 +238,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.0.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-14
+**Versão**: 1.1.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-16

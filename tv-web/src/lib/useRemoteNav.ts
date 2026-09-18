@@ -27,6 +27,16 @@ const DIRECTION_BY_KEY: Record<string, RemoteDirection> = {
 }
 
 /**
+ * Código da tecla RETURN do controle Samsung. Fora da faixa padrão do DOM:
+ * o aparelho entrega `keyCode` 10009 sem um `event.key` equivalente a
+ * `Backspace`/`Escape`, então tratar só pelo nome da tecla deixa o Voltar
+ * inerte na TV — navegação presa na tela (bug
+ * `sdd/bugs/tecla-voltar-return-nao-funciona-na`, reproduzido na
+ * QN50Q60DAGXZD). Setas e OK não precisam disso: chegam no formato padrão.
+ */
+const TIZEN_RETURN_KEYCODE = 10009
+
+/**
  * Navegação por D-pad para telas com foco 2D/gerenciado manualmente
  * (grids, colunas independentes, abas). Diferente de `useTvKeyNav`
  * (roving-focus em ordem DOM, usado nos formulários) — aqui cada tela
@@ -46,7 +56,13 @@ export function useRemoteNav(
     function handleKeyDown(event: KeyboardEvent) {
       const direction = DIRECTION_BY_KEY[event.key]
       const isSelect = event.key === 'Enter' || event.key === ' '
-      const isBack = event.key === 'Backspace' || event.key === 'Escape'
+      // `XF86Back` é redundância defensiva: `keyCode` é deprecado no padrão
+      // DOM, e alguns engines Tizen nomeiam a mesma tecla assim.
+      const isBack =
+        event.key === 'Backspace' ||
+        event.key === 'Escape' ||
+        event.key === 'XF86Back' ||
+        event.keyCode === TIZEN_RETURN_KEYCODE
 
       if (!direction && !isSelect && !isBack) return
       event.preventDefault()

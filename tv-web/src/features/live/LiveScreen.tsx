@@ -1,54 +1,139 @@
-import { useState } from 'react'
-import { CHANNEL_GROUPS } from '../catalog/mockCatalog'
+import { useMemo, useState } from 'react'
+import { useChannels, type CatalogItemOut } from '../catalog/catalogApi'
+import { groupChannels } from './groupChannels'
+import { PlayerOverlay } from './PlayerOverlay'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 
 export interface LiveScreenProps {
+  sourceId: string
   onBack: () => void
 }
 
-export function LiveScreen({ onBack }: LiveScreenProps) {
+export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
   const [col, setCol] = useState<0 | 1>(0)
   const [groupIdx, setGroupIdx] = useState(0)
   const [channelIdx, setChannelIdx] = useState(0)
+  const [playing, setPlaying] = useState<CatalogItemOut | null>(null)
   const { toastMessage, showToast } = useToast()
 
-  const activeGroup = CHANNEL_GROUPS[groupIdx]
+  const query = useChannels(sourceId)
+  const groups = useMemo(() => groupChannels(query.data?.items ?? []), [query.data])
 
+  const activeGroup = groups[groupIdx]
+  const activeChannel = activeGroup?.channels[channelIdx]
+
+  // Quando a camada de reprodução está aberta, ela é dona do teclado
+  // (`modal: true`), então esta tela ignora as teclas — nada de navegar a
+  // lista por trás do player.
   useRemoteNav({
     onDirection: (dir) => {
+      if (playing) return
       if (dir === 'left') setCol(0)
       if (dir === 'right') setCol(1)
 
       if (col === 0) {
-        if (dir === 'up') {
-          setGroupIdx((i) => clamp(i - 1, 0, CHANNEL_GROUPS.length - 1))
-          setChannelIdx(0)
-        }
-        if (dir === 'down') {
-          setGroupIdx((i) => clamp(i + 1, 0, CHANNEL_GROUPS.length - 1))
-          setChannelIdx(0)
+        if (dir === 'up' || dir === 'down') {
+          const next = clamp(groupIdx + (dir === 'down' ? 1 : -1), 0, groups.length - 1)
+          if (next !== groupIdx) {
+            setGroupIdx(next)
+            // Trocar de grupo recomeça no primeiro canal — o item anterior de
+            // OUTRO grupo não é uma posição significativa.
+            setChannelIdx(0)
+          }
         }
       } else {
-        const chLen = activeGroup.channels.length
-        if (dir === 'up') setChannelIdx((i) => clamp(i - 1, 0, chLen - 1))
-        if (dir === 'down') setChannelIdx((i) => clamp(i + 1, 0, chLen - 1))
+        const total = activeGroup?.channels.length ?? 0
+        if (dir === 'up' || dir === 'down') {
+          setChannelIdx((i) => clamp(i + (dir === 'down' ? 1 : -1), 0, Math.max(0, total - 1)))
+        }
       }
     },
     onSelect: () => {
-      if (col === 1) showToast('Sintonizando canal...')
+      if (playing || col !== 1 || !activeChannel) return
+      if (!activeChannel.playable) {
+        // Canal existe no catálogo mas não tem fonte de reprodução: explica,
+        // não tenta abrir o player (FR-012).
+        showToast('Este canal não tem uma fonte de reprodução disponível.')
+        return
+      }
+      setPlaying(activeChannel)
     },
-    onBack,
+    onBack: () => {
+      if (playing) return
+      onBack()
+    },
   })
 
-  const activeChannelName = activeGroup.channels[channelIdx]
+  if (query.isLoading) {
+    return (
+      <div className="screen">
+        <div className="screen-title">Live TV</div>
+        <div className="live-state">
+          <div className="live-state-copy">Carregando canais…</div>
+          {/* Todo estado precisa de saída focável, ou o controle fica preso
+              (constitution, "Foco Visível e Sem Becos Sem Saída"). */}
+          <button type="button" className="live-state-action tv-focus">
+            Voltar
+          </button>
+        </div>
+        <Toast message={toastMessage} />
+      </div>
+    )
+  }
+
+  if (query.isError) {
+    return (
+      <div className="screen">
+        <div className="screen-title">Live TV</div>
+        <div className="live-state">
+          <div className="live-state-title">Não foi possível carregar os canais</div>
+          <div className="live-state-copy">
+            Verifique a conexão com o servidor e tente novamente.
+          </div>
+          <div className="live-state-actions">
+            <button
+              type="button"
+              className="live-state-action tv-focus"
+              onClick={() => void query.refetch()}
+            >
+              Tentar de novo
+            </button>
+            <button type="button" className="live-state-action">
+              Voltar
+            </button>
+          </div>
+        </div>
+        <Toast message={toastMessage} />
+      </div>
+    )
+  }
+
+  if (groups.length === 0) {
+    return (
+      <div className="screen">
+        <div className="screen-title">Live TV</div>
+        <div className="live-state">
+          <div className="live-state-title">Nenhum canal nesta lista</div>
+          <div className="live-state-copy">
+            A importação pode não ter encontrado canais nesta fonte, ou ainda estar em
+            andamento.
+          </div>
+          <button type="button" className="live-state-action tv-focus">
+            Voltar
+          </button>
+        </div>
+        <Toast message={toastMessage} />
+      </div>
+    )
+  }
 
   return (
     <div className="screen screen-row">
       <div className="live-column live-column-groups">
         <div className="live-column-title">Grupos</div>
-        {CHANNEL_GROUPS.map((group, i) => (
+        {groups.map((group, i) => (
           <button
             key={group.name}
             type="button"
@@ -60,26 +145,51 @@ export function LiveScreen({ onBack }: LiveScreenProps) {
       </div>
 
       <div className="live-column live-column-channels">
-        <div className="live-column-title">{activeGroup.name}</div>
-        {activeGroup.channels.map((name, i) => (
+        <div className="live-column-title">{activeGroup?.name}</div>
+        {activeGroup?.channels.length === 0 && (
+          <div className="live-state-copy">Este grupo está vazio.</div>
+        )}
+        {activeGroup?.channels.map((channel, i) => (
           <button
-            key={name}
+            key={channel.id}
             type="button"
-            className={`live-item${col === 1 && channelIdx === i ? ' tv-focus' : ''}`}
+            className={`live-item${col === 1 && channelIdx === i ? ' tv-focus' : ''}${
+              channel.playable ? '' : ' live-item-unavailable'
+            }`}
           >
-            {name}
+            <span className="live-item-logo" aria-hidden="true" />
+            <span className="live-item-name">{channel.name}</span>
+            {!channel.playable && <span className="live-item-badge">Indisponível</span>}
           </button>
         ))}
+        {activeGroup?.truncated && (
+          // Fala do limite de exibição, não do tamanho da fonte — a distinção
+          // importa porque o catálogo publicado pode ser parcial (FR-016).
+          <div className="live-truncated-note">
+            Mostrando os primeiros {activeGroup.channels.length} de {activeGroup.totalCount}{' '}
+            canais deste grupo.
+          </div>
+        )}
       </div>
 
       <div className="live-preview-panel">
         <div className="live-preview-box">
-          <div className="live-preview-box-noise" />
-          <div className="live-preview-label">▶ prévia — {activeChannelName}</div>
+          <div className="live-preview-logo" aria-hidden="true" />
         </div>
-        <div className="live-channel-name">{activeChannelName}</div>
-        <div className="live-channel-meta">Agora: programação ao vivo · {activeGroup.name}</div>
+        <div className="live-channel-name">{activeChannel?.name ?? 'Selecione um canal'}</div>
+        <div className="live-channel-meta">{activeGroup?.name}</div>
+        {/* Slot de EPG: nasce vazio e sem rótulo até existir fonte de dados
+            (item 44 do backlog). Reservar a área evita o layout pular depois. */}
+        <div className="live-channel-now" />
       </div>
+
+      {playing && (
+        <PlayerOverlay
+          itemId={playing.id}
+          channelName={playing.name}
+          onClose={() => setPlaying(null)}
+        />
+      )}
 
       <Toast message={toastMessage} />
     </div>

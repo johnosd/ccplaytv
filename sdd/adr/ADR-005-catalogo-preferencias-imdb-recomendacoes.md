@@ -58,6 +58,8 @@ O player não será iniciado ao apenas focar um cartão. Ao voltar, restaurar fo
 
 Capas terão origem e tipo registrados. Priorizar imagem adequada da fonte; complementar com metadados quando houver correspondência confiável; usar imagem padrão quando indisponível. Logotipo de canal e pôster de filme/série não são intercambiáveis. A ausência de imagem não bloqueará navegação.
 
+**Atualização (ADR-007):** a apresentação dessas regras ganhou contrato visual — área de capa reservada por `aspect-ratio` fixo (imagem que chega depois não muda a geometria do grid nem derruba o foco), estados `loading`/`vazio`/`erro` obrigatórios por superfície, cada um com pelo menos um elemento focável, e "categoria vazia" distinto de "sem resultado de busca". Ver ADR-007 para o raciocínio completo.
+
 ### 4. Favoritos, gosto pessoal e histórico
 
 Todos os estados pertencerão ao perfil da instalação, sem depender de conta CCPlay. Favoritos e preferências serão separados do snapshot do catálogo, com persistência local e sincronização posterior conforme ADR-002.

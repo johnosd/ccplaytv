@@ -22,7 +22,7 @@ documentação se mantém viva, e como retomar trabalho entre sessões.
 
 ## 1. Passo a passo de uso
 
-Não existem comandos de linha de comando pra digitar — os 7 skills são
+Não existem comandos de linha de comando pra digitar — os 8 skills são
 invocados em **linguagem natural**. O Claude Code reconhece qual skill usar
 pela descrição de cada um.
 
@@ -56,6 +56,13 @@ pela descrição de cada um.
    ativa): "avalia esse bug" / "corrige o bug X" / "verifica se o bug foi
    resolvido" → dispara `sdd-bugfix`. Produz
    `sdd/bugs/<slug>/{assessment,fix,test}.md`, um por fase.
+6. **Ajuste pequeno e de baixo risco** (a qualquer momento): "ordena essa
+   lista" / "limita a quantidade mostrada" / "troca esse texto" → dispara
+   `sdd-adhoc`. Nada quebrado (senão é `sdd-bugfix`), valor óbvio (senão é
+   `sdd-assess`), escopo pequeno e sem ambiguidade (senão é `sdd-specify`).
+   Não cria pasta em `sdd/` — o único rastro é uma linha em
+   `.planning/backlog.md` → `## Melhorias Ad-hoc`. Os gates de qualidade
+   (lint, type-check, testes, build) continuam valendo.
 
 Recomendado: até você ganhar confiança de que a invocação automática está
 acertando o skill certo, prefira pedir de forma explícita por etapa
@@ -596,7 +603,7 @@ documenta o shape de request/response de uma API que a feature expõe ou
 muda (também condicional, só se houver superfície de API).
 
 **Como inicio isso num repositório novo?**
-Copie `.claude/skills/sdd-*/` (os 7 skills) e `.planning/scripts/` +
+Copie `.claude/skills/sdd-*/` (os 8 skills) e `.planning/scripts/` +
 `.planning/templates/` (100% reutilizáveis). Não copie `constitution.md`,
 `backlog.md` nem a pasta `sdd/` (específicos deste projeto) — eles se
 recriam sozinhos ou vazios: `backlog.md` autocria na primeira chamada, a

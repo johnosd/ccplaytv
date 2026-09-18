@@ -439,7 +439,7 @@
 .live-preview-box {
   flex: 1;
   border-radius: 20px;
-  background: linear-gradient(135deg, #1d212b, #0b0d12);
+  background: linear-gradient(135deg, var(--surface-field-active), var(--surface-deep));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -447,20 +447,196 @@
   overflow: hidden;
 }
 
-.live-preview-box-noise {
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.02) 0 12px,
-    transparent 12px 24px
-  );
+/* Slot de logo do canal: área reservada com proporção fixa para a chegada da
+   imagem não mudar a geometria nem derrubar o foco (ADR-007 §6). Hoje o
+   `tvg-logo` não é persistido, então o slot fica vazio — item 16 do backlog. */
+.live-preview-logo {
+  width: 200px;
+  height: 200px;
+  border-radius: 24px;
+  background: var(--surface-field-active);
+  border: 3px dashed var(--border-dashed);
 }
 
-.live-preview-label {
-  position: relative;
-  font: 600 20px var(--font-body);
+.live-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.live-item-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--surface-field-active);
+  flex: none;
+}
+
+.live-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-item-unavailable .live-item-name {
   color: var(--text-muted);
+}
+
+.live-item-badge {
+  font: 600 13px var(--font-body);
+  color: var(--text-muted);
+  border: 2px solid var(--border-dashed);
+  border-radius: 999px;
+  padding: 2px 10px;
+  flex: none;
+}
+
+.live-truncated-note {
+  font: 500 15px var(--font-body);
+  color: var(--text-tertiary);
+  padding: 12px 20px;
+}
+
+/* Slot de "Agora:" (EPG). Reservado sem rótulo: exibir "Agora:" vazio
+   pareceria defeito, e inventar dado é proibido. Fonte de dados no item 44. */
+.live-channel-now {
+  min-height: 28px;
+}
+
+/* ---------- Estados de borda da Live TV ---------- */
+
+.live-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.live-state-title {
+  font: 700 30px var(--font-body);
+  color: var(--text-primary);
+}
+
+.live-state-copy {
+  font: 500 18px var(--font-body);
+  color: var(--text-tertiary);
+  max-width: 620px;
+  text-align: center;
+}
+
+.live-state-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.live-state-action {
+  padding: 16px 36px;
+  border-radius: 999px;
+  background: var(--surface-field-active);
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 19px;
+}
+
+.live-state-action.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- Camada de reprodução ---------- */
+
+.player-overlay {
+  position: absolute;
+  inset: 0;
+  /* Preto opaco, não translúcido: um fundo com blur/transparência parcial
+     custa caro no engine da TV (ADR-007 §8). Vale enquanto não há vídeo na
+     tela — preparando, carregando a URL, erro. */
+  background: var(--player-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+
+/* Com o AVPlay exibindo, o preto sai de cena: o vídeo está num plano de
+   hardware ATRÁS desta camada, e fundo opaco aqui é o que fazia o canal tocar
+   sem imagem (bug `live-tv-toca-audio-sem-imagem`). O texto de status e a tela
+   de erro continuam desenhando normalmente por cima do vídeo. */
+:root.video-plane-visible .player-overlay {
+  background: transparent;
+}
+
+.player-surface {
+  position: absolute;
+  inset: 0;
+}
+
+.player-surface .player-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.player-status {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.player-status-channel {
+  font: 700 34px var(--font-body);
+  color: var(--text-primary);
+}
+
+.player-status-label {
+  font: 500 20px var(--font-body);
+  color: var(--text-tertiary);
+}
+
+.player-message {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 760px;
+  text-align: center;
+}
+
+.player-message-title {
+  font: 700 34px var(--font-body);
+  color: var(--text-primary);
+}
+
+.player-message-copy {
+  font: 500 20px var(--font-body);
+  color: var(--text-tertiary);
+}
+
+.player-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.player-action {
+  padding: 16px 36px;
+  border-radius: 999px;
+  background: var(--surface-field-active);
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 19px;
+}
+
+.player-action.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 .live-channel-name {

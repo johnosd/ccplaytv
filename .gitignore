@@ -7,6 +7,11 @@ dist/
 
 *.p12
 *.wgt
+
+# Saída intermediária do empacotamento Tizen (`tizen build-web`/`tizen package`)
+# e delta do Rapid Development Support — regeneráveis a cada instalação na TV.
+.buildResult/
+.tizen-rds/
 # Python
 .venv/
 __pycache__/

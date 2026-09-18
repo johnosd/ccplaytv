@@ -18,7 +18,7 @@ type Screen =
   | { name: 'add-source' }
   | { name: 'progress'; jobId: string }
   | { name: 'list-home'; source: SourceOut }
-  | { name: 'live' }
+  | { name: 'live'; source: SourceOut }
   | { name: 'movies' }
   | { name: 'movie-detail'; movieId: string }
   | { name: 'series' }
@@ -85,13 +85,21 @@ function App() {
           sourceName={screen.source.display_name}
           movieCount={MOVIES.length}
           seriesCount={SERIES.length}
-          onSelect={(destination: ListDestination) => goto({ name: destination })}
+          onSelect={(destination: ListDestination) =>
+            // A Live TV precisa saber de qual fonte ler o catálogo; Filmes e
+            // Séries ainda leem o mock e não recebem a fonte.
+            goto(
+              destination === 'live'
+                ? { name: 'live', source: screen.source }
+                : { name: destination },
+            )
+          }
           onBack={back}
         />
       )
 
     case 'live':
-      return <LiveScreen onBack={back} />
+      return <LiveScreen sourceId={screen.source.id} onBack={back} />
 
     case 'movies':
       return (

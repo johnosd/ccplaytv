@@ -26,6 +26,8 @@ Como a qualidade dos dados das listas varia, o catálogo será normalizado no ba
 
 A TV renderizará um catálogo previamente organizado. Importação de M3U e consultas de enriquecimento ao TMDB/OpenAI serão responsabilidades do backend. A interface manterá foco visível, navegação por controle remoto, virtualização dos cartões e carregamento limitado de imagens.
 
+**Atualização (ADR-007):** "foco visível" deixou de ser uma intenção genérica e passou a ter contrato — paleta, escala tipográfica, receita de foco (outline + glow + escala), palco 1920×1080 com overscan e estados obrigatórios por superfície estão registrados na ADR-007 e implementados como tokens em `tv-web/src/index.css`. Ver ADR-007 para o raciocínio completo.
+
 A compilação e as dependências deverão ser compatíveis com o aparelho-alvo. A Samsung documenta diferentes mecanismos web por geração; o modelo e o firmware ainda precisam ser identificados antes de fixar a matriz de suporte.[^samsung-engine]
 
 O catálogo sincronizado terá cache local conforme a ADR-002. **Cache de metadados não significa download dos vídeos, nem garante que todas as capas ou fontes continuem acessíveis.**
