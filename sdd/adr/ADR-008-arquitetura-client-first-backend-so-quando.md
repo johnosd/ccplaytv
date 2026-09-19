@@ -25,6 +25,15 @@ mas distribuição comercial pra outras pessoas segue sendo objetivo de médio
 prazo (confirmado na discussão) — o que descarta soluções que só funcionam
 "porque é só eu usando".
 
+**Precisão importante sobre o escopo da restrição** (esclarecida pelo
+usuário depois da decisão inicial): o que se evita é manter **infraestrutura
+própria sempre ligada** — um PC ou VPS que alguém precisa operar 24x7.
+Chamar uma API de terceiro (OpenAI, TMDB) diretamente do cliente, sob
+demanda, usando a própria chave de cada usuário, **não** conta como isso —
+não é um processo que alguém mantém, é só tráfego de rede pontual, e é
+explicitamente bem-vindo. A distinção é "quem opera o servidor", não "o app
+faz alguma chamada de rede a algum lugar".
+
 O ponto técnico central da discussão: `ccplayTv` é um **app web** (React/TS/
 Vite empacotado como `.wgt` Tizen, rodando em WebView/Chromium), não um app
 nativo. Um app nativo (Android/TV) não tem essa restrição — é por isso que
@@ -49,10 +58,14 @@ registrado no histórico de commits, não neste ADR.
 ## Decisão
 
 **Client-first por padrão: o app tenta resolver import/reprodução direto do
-navegador da TV, sem depender de nenhum backend sempre-ligado — nem no PC
-do usuário, nem em VPS. Backend continua existindo só onde há uma barreira
-real que o cliente não pode cruzar sozinho, tratado como complemento
-opcional, nunca como pré-requisito de uso.**
+navegador da TV, sem depender de nenhuma infraestrutura própria sempre
+ligada — nem PC nem VPS, do usuário ou do desenvolvedor. Chamadas diretas a
+APIs de terceiro (TMDB, OpenAI) com a chave do próprio usuário são
+client-first também — não exigem manter nada no ar, então não contam como
+"backend" para efeito desta decisão. Um backend só entra onde há uma
+barreira real que o cliente não pode cruzar sozinho (ex.: proteger uma
+chave compartilhada que o produto decida oferecer), tratado como
+complemento opcional, nunca como pré-requisito de uso.**
 
 Por área concreta:
 
@@ -77,15 +90,17 @@ Por área concreta:
 3. **TMDB** — chamado direto do cliente com a chave do próprio usuário
    (já cogitado antes como "opcional, com chave própria do usuário"). TMDB
    é CORS-friendly por design; não há bloqueio técnico aqui.
-4. **OpenAI / voz** — continua exigindo *algum* componente servidor, porque
-   a OpenAI não oferece um modelo de chave "publicável" equivalente ao de
-   outras APIs para uso direto do browser (a verificar na hora de construir
-   essa feature: a Realtime API tem um fluxo de token efêmero que pode
-   mudar essa resposta — não confirmado nesta decisão). Continua sendo o
-   único componente da visão original que estruturalmente não cabe em
-   "zero backend" — mas fica **opcional e adiado**: só se constrói (e só
-   se paga por ele) quando essa feature específica for priorizada, podendo
-   ser uma função serverless mínima em vez de VPS.
+4. **OpenAI / voz** — também client-first: chamada direta à API da OpenAI
+   a partir do dispositivo, com a **chave do próprio usuário** (mesmo
+   modelo BYOK já previsto para o TMDB). Isso não exige manter nenhum
+   processo no ar — é uma chamada de API sob demanda, paga e limitada pela
+   própria conta OpenAI de cada usuário, exatamente como TMDB. Só existe
+   uma ressalva, não uma exigência: **se** o produto decidir no futuro
+   oferecer uma chave OpenAI compartilhada/gratuita para quem não tem a
+   própria, aí sim essa chave específica precisaria de um intermediário
+   para não vazar para todo mundo — mas isso é uma escolha de produto
+   ainda não tomada, não uma barreira técnica de hoje. Sem ela, voz cabe
+   inteiramente no modelo client-first.
 5. **Controle remoto por Android** — restrito a mesma-LAN por padrão (TV
    como servidor local, descoberta tipo mDNS/SSDP), sem relay externo.
    Controle fora da LAN fica como extensão futura condicionada a demanda
@@ -119,24 +134,26 @@ Por área concreta:
   completo, não faz sentido impor essa fricção de instalação a todo mundo
   por causa dos provedores que já funcionam sem ele.
 
-### A' — Client-only absoluto, sem exceção nenhuma (incluindo voz/OpenAI)
+### A' — Backend próprio para intermediar toda chamada de IA/metadados
 
-- Eliminar completamente qualquer componente servidor, inclusive para
-  voz/IA.
-- **Rejeitada:** a OpenAI não expõe hoje um jeito seguro de embutir a
-  chave direto no cliente sem um intermediário que a proteja — manter essa
-  chave fora do cliente é regra vigente da constitution que esta ADR não
-  revisita. Como voz é feature futura e opcional, isso não bloqueia nada
-  do que existe hoje; só significa que "zero backend" nunca vai ser 100%
-  literal se essa feature for construída.
+- Rotear TMDB e OpenAI através de um backend do desenvolvedor, em vez de
+  chamada direta do cliente com a chave de cada usuário.
+- **Rejeitada:** resolveria um problema que não existe no modelo BYOK —
+  com a chave sendo do próprio usuário, não há segredo compartilhado a
+  proteger, e adicionar um backend só pra isso reintroduziria exatamente a
+  infraestrutura sempre-ligada que esta decisão evita. Só voltaria a fazer
+  sentido se o produto decidisse oferecer uma chave compartilhada/gratuita
+  (ver item 4 da Decisão) — não é o caso hoje.
 
 ## Consequências
 
 ### Positivas
 
 - Custo de infraestrutura do desenvolvedor cai a zero pro caso de uso
-  principal (import, catálogo, reprodução, TMDB), pra qualquer número de
-  usuários — resolve exatamente a preocupação que motivou a decisão.
+  principal (import, catálogo, reprodução, TMDB, **e voz/OpenAI com chave
+  do próprio usuário**), pra qualquer número de usuários — resolve
+  exatamente a preocupação que motivou a decisão, sem excluir nenhuma
+  feature da visão original.
 - Instalação vira "baixar e abrir o app", sem exigir que a pessoa opere um
   segundo processo — reduz fricção de adoção comercial de verdade.
 - Elimina de vez os riscos de escala do backend compartilhado (R-004 do
