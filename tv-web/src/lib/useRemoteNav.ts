@@ -65,6 +65,14 @@ export function useRemoteNav(
         event.keyCode === TIZEN_RETURN_KEYCODE
 
       if (!direction && !isSelect && !isBack) return
+      // Telas de "roving DOM focus" (useTvKeyNav + <button>/<input> reais,
+      // ex. AddSourceScreen, ImportProgressScreen) não passam onSelect —
+      // contam com o Enter nativo do navegador pra ativar o elemento
+      // focado. Sem essa guarda, o preventDefault abaixo suprimia essa
+      // ativação nativa sem nada pra substituí-la, deixando todo botão
+      // dessas telas inerte no controle físico (mouse não passa por
+      // keydown, por isso nunca apareceu em teste manual por mouse).
+      if (isSelect && !handlersRef.current.onSelect) return
       event.preventDefault()
       // Fase de captura + stopImmediatePropagation: garante que nenhum
       // listener de bubble-phase por baixo (useTvKeyNav/useRemoteNav da

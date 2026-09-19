@@ -35,6 +35,30 @@ describe('useRemoteNav', () => {
     expect(event.defaultPrevented).toBe(true)
   })
 
+  it('sem onSelect, Enter não chama preventDefault (deixa a ativação nativa do botão focado acontecer)', () => {
+    // Telas de roving DOM focus (AddSourceScreen, ImportProgressScreen) não
+    // passam onSelect e contam com o navegador ativar o <button>/<input>
+    // com foco real — reprodução do bug relatado na TV física: sem essa
+    // guarda, o preventDefault suprimia essa ativação sem nada no lugar.
+    renderHook(() => useRemoteNav({ onBack: () => {} }))
+
+    const event = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true })
+    document.dispatchEvent(event)
+
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('com onSelect, Enter continua chamando preventDefault e o handler (telas de foco gerenciado 2D)', () => {
+    const onSelect = vi.fn()
+    renderHook(() => useRemoteNav({ onSelect, onBack: () => {} }))
+
+    const event = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true })
+    document.dispatchEvent(event)
+
+    expect(onSelect).toHaveBeenCalledTimes(1)
+    expect(event.defaultPrevented).toBe(true)
+  })
+
   it('tecla não mapeada não aciona nenhum handler', () => {
     const onBack = vi.fn()
     const onSelect = vi.fn()
