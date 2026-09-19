@@ -20,6 +20,14 @@ Permanecem o acesso sem conta obrigatória, as entradas por URL M3U, arquivo e c
 
 A entrevista confirmou **Samsung QN50Q60DAGXZD**, uso pessoal com intenção comercial futura, backend no computador com evolução desejada para VPS, experiência sênior em Python/dados e desenvolvimento assistido por IA usando SDD. A primeira integração de voz pode capturar áudio no celular. **Filmes e séries devem oferecer trailers de fácil acesso.**
 
+**Atualização (ADR-008, 2026-09-19):** "backend no computador com evolução
+para VPS" deixa de ser o caminho padrão de produção. Import e catálogo
+passam a ser client-first (sem backend sempre-ligado, nem local nem VPS),
+motivado por custo — distribuição comercial não pode depender de o
+desenvolvedor pagar hospedagem por instalação. VPS/backend auto-hospedado
+viram contorno opcional, não pré-requisito. Ver ADR-008 para o raciocínio
+completo e as seções 4.4/E4 abaixo, emendadas no mesmo sentido.
+
 O usuário forneceu dois endereços de catálogo com credenciais. A leitura limitada de ambos falhou por conexão neste ambiente, sem conteúdo retornado. Não foram reproduzidos streams, descobertos outros endpoints ou testadas credenciais em serviços diferentes. Quantidade de entradas, categorias, qualidade dos dados, equivalência entre as fontes e protocolo efetivo continuam **não medidos**. O registro sanitizado está em `VERIFICACAO-AMOSTRAS.json`.
 
 Não foram inspecionados `package.json`, `pyproject.toml`, `uv.lock`, código, sistema operacional do computador ou firmware da TV. O número de TVs simultâneas não foi informado. Não se presume que a experiência geral intermediária corresponda a uma avaliação específica de React.
@@ -177,6 +185,13 @@ Ao abrir trailer, coordenar o recurso de mídia para evitar áudio duplicado com
 **Incremento D — controle/voz móvel.** Pareamento, HTTPS, captura curta, transcrição, comandos e confirmação. Android nativo fica para evolução; não substituir a seleção de arquivo na TV por obrigação de usar celular.
 
 **Incremento E — VPS e preparação comercial.** Ensaiar migração de banco/chaves, autorização por instalação, worker recuperável, reconexão e limites de consumo; revisar licenças/termos das versões realmente empacotadas. Não publicar backend sem proteção apenas porque a interface dispensa login de pessoa.
+
+**Atualização (ADR-008, 2026-09-19):** este incremento deixa de ser o
+caminho padrão de preparação comercial — a decisão agora é client-first,
+sem backend sempre-ligado como pré-requisito de uso (pessoal ou
+comercial). O que resta deste incremento vira contorno opcional (fallback
+para provedor sem CORS) ou infraestrutura mínima só quando voz/OpenAI for
+de fato construída. Ver ADR-008.
 
 Preservar o setup existente. As versões exatas serão resolvidas e fixadas em `package.json`/lockfile e `pyproject.toml`/`uv.lock` após verificar compatibilidade. Não usar “latest” como contrato de build permanente. `uv sync --locked` depende de lockfile coerente e pode remover pacotes não declarados na sincronização exata.[^uv]
 

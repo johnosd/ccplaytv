@@ -45,8 +45,24 @@ fictícios**
 
 ### Fase 0 — Dívidas abertas da fundação (fazer antes de empilhar em cima)
 
-1. **Conector Xtream JSON (`player_api.php`) separado do conector M3U** —
-   hoje o backend monta `get.php?...&type=m3u_plus` e reaproveita o parser
+1. **[Entregue em `sdd/specs/004-conector-xtream-live`, convergida em
+   18/09/2026 — só a fatia de canais ao vivo]** Conector Xtream JSON
+   (`player_api.php`) separado do conector M3U: conector próprio com saída
+   normalizada comum, normalização do endereço do servidor, estado de conta
+   com fallback de actions, `stream_id` e categorias do provedor
+   preservados, formatos derivados de `allowed_output_formats` (preferindo
+   TS), modo limitado para painel incompatível, migração única das fontes já
+   importadas e atualização por idade (24h) sem re-baixar a cada abertura —
+   e corrigiu de caminho um bug pré-existente em que ressincronizar duplicava
+   o catálogo inteiro (`_publish_in_batches` nunca removia o job anterior).
+   Verificado na TV física (QN50Q60DAGXZD) com fonte real migrada e fonte
+   cadastrada do zero pelo controle remoto. **Fica para a fatia seguinte**
+   (item ainda sem spec própria): VOD e séries pelo mesmo protocolo, com a
+   hierarquia de temporadas/episódios — é o que destrava os itens 9 e 10 —
+   além de catch-up.
+
+   Descrição original: hoje o backend monta `get.php?...&type=m3u_plus` e
+   reaproveita o parser
    M3U para fontes de provedor, o que **contraria a própria ADR-006 §4.3**
    e descarta `stream_id`/`series_id`/categoria/hierarquia do provedor.
    Inclui: normalizar a URL do servidor (aceitar que o usuário cole
@@ -392,6 +408,20 @@ função nova; todos mudam a sensação de uso.
     orientativo — nunca uma justificativa pessoal inventada.
     (RF-017; ADR-005 §6)
 
+53. **Recomendação conversacional via chat com IA (BYOK OpenAI)** — chat de
+    texto onde o usuário pede recomendações em linguagem natural ("um filme
+    de ação dos anos 90", "algo parecido com X que já assisti") e a IA
+    responde cruzando com o catálogo **real** já importado, nunca sugerindo
+    título que a pessoa não tem acesso. Function-calling restrito a
+    consultar o catálogo local (busca por gênero/ano/similaridade/já
+    assistido), nunca a inventar título fora dele — mesma regra de "IA
+    Nunca Inventa Dados" da constitution. Chave da OpenAI é do próprio
+    usuário (BYOK) — chamada direta do cliente, sem backend (ADR-008).
+    Complementa o item 31: ali é um algoritmo automático a partir de
+    "Gostei"; aqui é uma conversa dirigida pelo usuário, sob demanda.
+    (ADR-001 §4; ADR-008; ADR-005 §6; constitution "IA e Classificação
+    Nunca Inventam Dados")
+
 32. **Trailers para filmes e séries** — ação "Trailer" na primeira área de
     ações do detalhe; TMDB para descoberta (preferir tipo Trailer, oficial,
     em português; teaser não é rotulado silenciosamente como trailer);
@@ -613,6 +643,7 @@ própria de demanda. Cada uma precisa passar por `sdd-assess`
 | 001-importacao-fonte-m3u | Importação de Fonte M3U por URL e por Provedor | Convergida | 63/63 tasks | 2026-09-14 |
 | 002-splash-home-perfis | Splash, ícone do app e Home de perfis/listas | Implementada | 22/22 tasks | 2026-09-16 |
 | 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Convergida | 67/67 tasks | 2026-09-18 |
+| 004-conector-xtream-live | Conector Xtream JSON para canais ao vivo | Convergida | 55/55 tasks | 2026-09-18 |
 
 ## Bugs
 
@@ -620,6 +651,7 @@ própria de demanda. Cada uma precisa passar por `sdd-assess`
 | --- | --- | --- | --- | --- | --- |
 | tecla-voltar-return-nao-funciona-na | Tecla Voltar (RETURN) não funciona na TV física | Test | verified | Concluído | 2026-09-17 |
 | live-tv-toca-audio-sem-imagem | Live TV toca áudio sem imagem na TV física | Test | verified | Concluído | 2026-09-17 |
+| enter-controle-remoto-nao-ativa-botoes | Enter do controle remoto não ativa botões em telas de foco DOM nativo | Test | verified | Concluído | 2026-09-18 |
 
 ## Melhorias Ad-hoc
 

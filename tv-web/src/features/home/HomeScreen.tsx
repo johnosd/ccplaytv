@@ -15,6 +15,7 @@ import { exitApp } from '../../lib/tizenExit'
 export interface HomeScreenProps {
   onAddSource: () => void
   onOpenSource: (source: SourceOut) => void
+  onEditSource: (source: SourceOut) => void
   onResyncStarted: (jobId: string) => void
   onSourceCreated: (result: { sourceId: string; jobId: string }) => void
 }
@@ -30,6 +31,7 @@ function formatStatus(source: SourceOut): string {
 export function HomeScreen({
   onAddSource,
   onOpenSource,
+  onEditSource,
   onResyncStarted,
   onSourceCreated,
 }: HomeScreenProps) {
@@ -60,8 +62,8 @@ export function HomeScreen({
         }
       } else {
         if (dir === 'up') setFocusRow(0)
-        if (dir === 'left') setFocusCol((c) => clamp(c - 1, 0, 1))
-        if (dir === 'right') setFocusCol((c) => clamp(c + 1, 0, 1))
+        if (dir === 'left') setFocusCol((c) => clamp(c - 1, 0, 2))
+        if (dir === 'right') setFocusCol((c) => clamp(c + 1, 0, 2))
       }
     },
     onSelect: () => {
@@ -83,6 +85,8 @@ export function HomeScreen({
         resyncSource.mutate(source.id, {
           onSuccess: (result) => onResyncStarted(result.import_job_id),
         })
+      } else if (focusCol === 1) {
+        onEditSource(source)
       } else {
         deleteSource.mutate(source.id)
         setFocusRow(0)
@@ -145,13 +149,17 @@ export function HomeScreen({
                 <div className="source-card-icon" />
                 <div className="source-card-name">{source.display_name}</div>
                 <div className="source-card-status">{formatStatus(source)}</div>
+                {source.provider_import_mode === 'legacy_m3u' && (
+                  <div className="source-card-badge">Modo limitado</div>
+                )}
               </div>
               {actionsVisible && (
                 <div className="source-actions">
                   <div className={`source-action${focusCol === 0 ? ' tv-focus' : ''}`}>
                     ↻ Ressincronizar
                   </div>
-                  <div className={`source-action${focusCol === 1 ? ' tv-focus' : ''}`}>🗑 Excluir</div>
+                  <div className={`source-action${focusCol === 1 ? ' tv-focus' : ''}`}>✎ Editar</div>
+                  <div className={`source-action${focusCol === 2 ? ' tv-focus' : ''}`}>🗑 Excluir</div>
                 </div>
               )}
             </div>

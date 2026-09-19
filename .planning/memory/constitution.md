@@ -1,22 +1,26 @@
 <!--
 Relatório de Impacto de Sincronização
-- Mudança de versão: 1.0.0 -> 1.1.0
-- Princípios modificados: nenhum dos 8 originais foi alterado ou removido
-- Princípios adicionados (5):
-  - Foco Visível e Sem Becos Sem Saída
-  - Voltar Restaura Foco e Posição
-  - Identidade de Reprodução Não Depende da URL
-  - Progresso e Capacidades São Reais, Nunca Prometidos
-  - Documentação do Repositório É Canônica
-- Restrições do Projeto: acrescentada "Design system de TV" (ADR-007)
-- Origem das adições: docs/guia-praticas-app-tv/ (01, 03, 04, 06, 08),
-  docs/iptvnator/ (01, 02, 05, 06, 07, 08), ADR-007
+- Mudança de versão: 1.1.0 -> 1.2.0
+- Princípios modificados (1): "Segredos Fora dos Clientes e dos Logs" —
+  aberta exceção explícita para credencial de provedor (dns/usuário/senha
+  Xtream), que passa a poder residir no dispositivo sob a arquitetura
+  client-first da ADR-008. Chaves de OpenAI/TMDB e URL completa de fonte
+  continuam proibidas no cliente, sem mudança.
+- Princípios adicionados: nenhum
+- Restrições do Projeto: "Ambiente de execução do backend" reescrita para
+  refletir client-first por padrão (ADR-008); backend deixa de ser
+  descrito como "roda localmente, migra para VPS depois"
+- Origem da mudança: ADR-008 (arquitetura client-first — backend só
+  quando estritamente necessário), decisão de custo confirmada pelo
+  usuário em 2026-09-19
 - Seções removidas: nenhuma
 - Pendências: nenhuma
 
 Histórico:
 - 1.0.0 (2026-09-14): criação inicial — Princípios Fundamentais (8),
   Restrições do Projeto, Fluxo de Desenvolvimento, Governança
+- 1.1.0 (2026-09-16): 5 princípios novos (foco/voltar/identidade/
+  progresso/documentação) + restrição de design system (ADR-007)
 -->
 
 # Constitution do CCPlay TV
@@ -44,6 +48,15 @@ exibidos.
 **Por quê**: ADR-001 §4; ADR-004 §7; docs/guia-praticas-app-tv/01
 (critério D05 — "nenhuma credencial aparece em cards, avisos ou histórico
 visível").
+
+**Exceção (ADR-008, 2026-09-19)**: sob a arquitetura client-first, a
+credencial de provedor (endereço, usuário, senha) PODE residir no
+dispositivo (ex.: IndexedDB) — é o que permite ao cliente reautenticar sem
+backend. Esta é a única exceção: chaves de OpenAI/TMDB e URL completa de
+fonte continuam proibidas no cliente, sem exceção. A credencial permitida
+aqui ainda NÃO DEVE ser logada, exibida depois de digitada, enviada a
+TMDB/OpenAI, nem exposta por um canal de exportação/backup. Ver ADR-008
+para o raciocínio completo.
 
 ### Categorias da Fonte São Preservadas
 
@@ -173,10 +186,13 @@ pela fonte direto para a TV, sem proxy ou transcodificação pelo backend.
 Mudar isso exige decisão posterior baseada em necessidade comprovada, custo
 e permissão da fonte (ADR-001 §2).
 
-**Ambiente de execução do backend**: roda localmente no computador do
-desenvolvedor por ora. Migração para VPS é evolução planejada, não
-implementada — não presumir TLS, backup/restore ou infraestrutura de
-produção já resolvidos (ADR-006 E4, Incremento E).
+**Ambiente de execução do backend**: client-first por padrão (ADR-008,
+2026-09-19) — import de fonte, catálogo e reprodução não DEVEM depender de
+nenhum backend sempre-ligado, nem local nem VPS. Um backend continua
+existindo só para o que estruturalmente não cabe no cliente (voz/OpenAI,
+quando construída) ou como contorno opcional para provedor que bloqueia
+CORS. Não presumir TLS, backup/restore ou infraestrutura de produção
+resolvidos para esse contorno (ADR-006 E4, Incremento E, emendado).
 
 **Uso pessoal com intenção comercial futura**: distribuição comercial
 ainda não está autorizada nem implementada, mas licenças de dependências e
@@ -238,4 +254,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.1.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-16
+**Versão**: 1.2.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-19

@@ -32,7 +32,7 @@ export type ImportJobStatus =
 
 export type ImportStep = 'acquiring' | 'parsing' | 'classifying' | 'publishing' | 'done'
 
-const TERMINAL_STATUSES: ImportJobStatus[] = [
+export const TERMINAL_STATUSES: ImportJobStatus[] = [
   'completed',
   'completed_with_warnings',
   'failed',
@@ -75,12 +75,33 @@ export interface RetryImportJobResponse {
 
 export type ConnectionState = 'never_synced' | 'synced' | 'error'
 
+// `null` para fonte m3u_url, ou fonte de provedor ainda não migrada pelo
+// conector novo (feature 004). `legacy_m3u` é o sinal de modo limitado.
+export type ProviderImportMode = 'xtream_api' | 'legacy_m3u' | null
+
 export interface SourceOut {
   id: string
   type: SourceType
   display_name: string
   connection_state: ConnectionState
   last_successful_sync_at: string | null
+  provider_import_mode: ProviderImportMode
+  // Sozinho não autentica nada — diferente de username/password, que o
+  // backend nunca devolve (FR-014/constitution). Existe pra tela de edição
+  // conseguir mostrar/corrigir o endereço sem redigitar usuário e senha.
+  provider_dns: string | null
+}
+
+export interface ProviderCredentialsPatch {
+  dns?: string
+  username?: string
+  password?: string
+}
+
+export interface UpdateSourceInput {
+  display_name?: string
+  m3u_url?: string
+  provider?: ProviderCredentialsPatch
 }
 
 export interface SourceListResponse {
@@ -90,6 +111,11 @@ export interface SourceListResponse {
 export interface ResyncSourceResponse {
   source_id: string
   import_job_id: string
+}
+
+export interface OpenSourceResponse {
+  triggered: boolean
+  import_job_id: string | null
 }
 
 export class ImportApiError extends Error {
@@ -177,6 +203,20 @@ export function useSources() {
   })
 }
 
+export function useUpdateSource() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ sourceId, input }: { sourceId: string; input: UpdateSourceInput }) =>
+      apiFetch<SourceOut>(`/sources/${sourceId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sources'] })
+    },
+  })
+}
+
 export function useDeleteSource() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -191,5 +231,19 @@ export function useResyncSource() {
   return useMutation({
     mutationFn: (sourceId: string) =>
       apiFetch<ResyncSourceResponse>(`/sources/${sourceId}/resync`, { method: 'POST' }),
+  })
+}
+
+/**
+ * Avisa o backend "abri esta fonte" — nunca decide nada no cliente (D-004).
+ * O backend decide migrar (FR-012), atualizar por idade (FR-020) ou não
+ * fazer nada; a TV só dispara a chamada e, se algo foi disparado, acompanha
+ * o job para saber quando o catálogo pode ter mudado (ver `useAutoRefresh`
+ * em `App.tsx`).
+ */
+export function useOpenSource() {
+  return useMutation({
+    mutationFn: (sourceId: string) =>
+      apiFetch<OpenSourceResponse>(`/sources/${sourceId}/open`, { method: 'POST' }),
   })
 }

@@ -54,6 +54,12 @@ Na importação, preservará os dados originais, normalizará títulos e disting
 
 Trabalhos extensos não deverão bloquear as rotas interativas. A estratégia de execução e o eventual uso de processos de trabalho estão tratados na ADR-003, sem escolher antecipadamente uma fila.
 
+**Atualização (ADR-008, 2026-09-19):** "o backend terá módulos para
+importação e catálogo" deixa de ser o padrão — essas responsabilidades
+passam a ser client-first (import direto do navegador da TV, catálogo em
+IndexedDB), com backend reservado a integrações que não cabem no cliente
+(voz/OpenAI) ou como contorno opcional. Ver ADR-008.
+
 ### 4. Recomendações, OpenAI e voz
 
 O TMDB é a integração inicial escolhida para metadados. Recomendações deverão ser cruzadas com o catálogo disponível; eventual descoberta de títulos fora dele será identificada separadamente. Atribuição e condições de uso do TMDB deverão ser atendidas antes da distribuição.[^tmdb-faq]
@@ -81,6 +87,16 @@ O escopo inicial do controle externo é operar o CCPlay aberto. Ligar a TV e ini
 ### Aplicativo standalone na TV
 
 Não adotado para o escopo atual. Concentraria importação, enriquecimento e integração com IA no cliente, aumentando o trabalho no dispositivo e dificultando a proteção de credenciais. Isso não significa que qualquer processamento local seja inviável: leitura de cache, pesquisa local e comandos permanecem na TV.
+
+**Atualização (ADR-008, 2026-09-19):** revisitado por motivação de custo —
+uma verificação real na TV física confirmou que o `fetch()` do app
+empacotado consegue falar direto com o painel Xtream do provedor de teste
+sem bloqueio de CORS, o que não era conhecido quando esta rejeição foi
+escrita. Import de fonte (Xtream e M3U) e catálogo passam a ser
+client-first por padrão; backend fica reservado a integrações que
+realmente não cabem no cliente (voz/OpenAI) ou como contorno opcional para
+provedores que bloqueiam CORS. Ver ADR-008 para o raciocínio completo,
+alternativas e o que fica pendente de validação.
 
 ### Usar exclusivamente `<video>` como player principal
 

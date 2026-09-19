@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useChannels, type CatalogItemOut } from '../catalog/catalogApi'
-import { groupChannels } from './groupChannels'
+import { groupChannels, type ChannelGroup } from './groupChannels'
 import { PlayerOverlay } from './PlayerOverlay'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
@@ -11,17 +11,47 @@ export interface LiveScreenProps {
   onBack: () => void
 }
 
+/** Identidade do item em foco — o que sobrevive a uma troca de catálogo em
+ * segundo plano (feature 004, atualização por idade). É a fonte da verdade
+ * guardada em estado; `groupIdx`/`channelIdx` são sempre DERIVADOS dela a
+ * cada render (nunca o contrário), então não existe um frame em que o
+ * índice aponta para dado antigo — se o catálogo mudou, a identidade é
+ * relocalizada no mesmo cálculo que descobre onde ela está agora. */
+interface FocusIdentity {
+  groupName: string | null
+  channelId: string | null
+}
+
+function identityAt(groups: ChannelGroup[], groupIdx: number, channelIdx: number): FocusIdentity {
+  const group = groups[groupIdx]
+  return {
+    groupName: group?.name ?? null,
+    channelId: group?.channels[channelIdx]?.id ?? null,
+  }
+}
+
+/** Índice da identidade em `groups`, ou 0 se ela não existir mais (grupo/
+ * canal removido do catálogo novo) — cai no início em vez de adivinhar. */
+function locate<T>(items: T[], matches: (item: T) => boolean): number {
+  const idx = items.findIndex(matches)
+  return idx === -1 ? 0 : idx
+}
+
 export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
   const [col, setCol] = useState<0 | 1>(0)
-  const [groupIdx, setGroupIdx] = useState(0)
-  const [channelIdx, setChannelIdx] = useState(0)
   const [playing, setPlaying] = useState<CatalogItemOut | null>(null)
   const { toastMessage, showToast } = useToast()
 
   const query = useChannels(sourceId)
   const groups = useMemo(() => groupChannels(query.data?.items ?? []), [query.data])
 
+  const [focusedIdentity, setFocusedIdentity] = useState<FocusIdentity>(() =>
+    identityAt(groups, 0, 0),
+  )
+
+  const groupIdx = locate(groups, (g) => g.name === focusedIdentity.groupName)
   const activeGroup = groups[groupIdx]
+  const channelIdx = locate(activeGroup?.channels ?? [], (c) => c.id === focusedIdentity.channelId)
   const activeChannel = activeGroup?.channels[channelIdx]
 
   // Quando a camada de reprodução está aberta, ela é dona do teclado
@@ -37,16 +67,16 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
         if (dir === 'up' || dir === 'down') {
           const next = clamp(groupIdx + (dir === 'down' ? 1 : -1), 0, groups.length - 1)
           if (next !== groupIdx) {
-            setGroupIdx(next)
             // Trocar de grupo recomeça no primeiro canal — o item anterior de
             // OUTRO grupo não é uma posição significativa.
-            setChannelIdx(0)
+            setFocusedIdentity(identityAt(groups, next, 0))
           }
         }
       } else {
         const total = activeGroup?.channels.length ?? 0
         if (dir === 'up' || dir === 'down') {
-          setChannelIdx((i) => clamp(i + (dir === 'down' ? 1 : -1), 0, Math.max(0, total - 1)))
+          const next = clamp(channelIdx + (dir === 'down' ? 1 : -1), 0, Math.max(0, total - 1))
+          setFocusedIdentity(identityAt(groups, groupIdx, next))
         }
       }
     },
