@@ -93,24 +93,44 @@ fictícios**
    `docs/iptvnator/03-apis.md` #5/#15/#16;
    `sdd/specs/001-importacao-fonte-m3u/plan.md` → Cuidados para Retomada)
 
-3. **Leitura de catálogo DB-first, com `import_status` por fonte e tipo** —
-   abrir uma fonte deve ler do PostgreSQL já importado; só o `resync`
-   explícito re-baixa do provedor. Hoje falta o marcador que distingue
-   "cache válido" de "frio". Evita carga redundante e torna o resync o
-   único gatilho de rede.
+3. **[Absorvido por `sdd/specs/005-import-catalogo-client-first`]** Leitura
+   de catálogo DB-first, com `import_status` por fonte e tipo — abrir uma
+   fonte deve ler do PostgreSQL já importado; só o `resync` explícito
+   re-baixa do provedor. Hoje falta o marcador que distingue "cache válido"
+   de "frio". Evita carga redundante e torna o resync o único gatilho de
+   rede.
    (ADR-002; `docs/iptvnator/06-carga-listas-url-xtream.md` #6)
+
+   **Nota (2026-09-19, ADR-008)**: "PostgreSQL" deixa de ser o destino —
+   com a arquitetura client-first, o catálogo passa a viver no próprio
+   aparelho. O **princípio** deste item continua valendo e está preservado
+   na feature 005 (FR-012: abrir fonte dentro do prazo não dispara consulta
+   ao provedor; FR-013/FR-014: só idade ou resync explícito re-baixam). O
+   que sobra de específico aqui — marcador de estado por fonte **e tipo**,
+   para quando VOD/séries existirem — volta a fazer sentido junto dos itens
+   9 e 10, não antes.
 
 ---
 
 ### Fase 1 — MVP: do catálogo real até assistir
 
-4. **Cache local do catálogo na TV (IndexedDB/Dexie)** — leitura imediata
+4. **[Em grande parte absorvido por `sdd/specs/005-import-catalogo-client-first`]**
+   Cache local do catálogo na TV (IndexedDB/Dexie) — leitura imediata
    ao abrir, sem esperar timeout do backend; `CatalogRepository` e
    `UserStateRepository` como repositórios **separados**, para que
    preferências não pertençam ao snapshot substituível do catálogo. Estado
    explícito de conexão/configuração quando não há cache nem backend.
    (ADR-002; ADR-006 §4.2 e Incremento A;
    `docs/iptvnator/02-arquitetura.md` #4)
+
+   **Nota (2026-09-19, ADR-008)**: muda de natureza. Isto era um **cache**
+   (espelho local de um backend que era a fonte de verdade); com a
+   arquitetura client-first, o armazenamento no aparelho **é** a fonte de
+   verdade, e é a feature 005 que o constrói. O que continua sendo item
+   próprio daqui: a separação entre repositório de catálogo e repositório
+   de estado do usuário — que só ganha sentido quando favoritos/histórico
+   existirem (itens 12 e 13), já que hoje não há estado de usuário a
+   separar.
 
    **Decisão pendente, a resolver no planejamento deste item** (levantada em
    2026-09-16, deliberadamente adiada): a ADR-002 §1 permite o cache guardar
@@ -123,6 +143,16 @@ fictícios**
    embutida na URL simplesmente não tem reprodução offline, e registrar o
    resultado como decisão invariante no `plan.md` ou como emenda de ADR. Não
    bloqueia a feature 003, que mantém a URL só na memória da sessão.
+
+   **Resolvida em parte (2026-09-19, ADR-008 + constitution v1.2.0)**: a
+   colisão era entre "guardar o mínimo de reprodução" e "não guardar
+   segredo". A ADR-008 decidiu o lado: a credencial de provedor **pode**
+   residir no aparelho, porque sem backend ela precisa estar lá para
+   reautenticar — com as mitigações da exceção registrada na constitution
+   (nunca logada, nunca reexibida, sem canal de exportação). O que ainda
+   fica em aberto é o recorte de reprodução offline propriamente dita (o
+   vídeo depende da origem estar acessível de qualquer forma), e isso
+   continua sendo assunto deste item, não da feature 005.
 
 5. **[Parcialmente em `sdd/specs/003-live-tv-avplay`]** `PlayerService` +
    AVPlay (Direct Play) — a feature 003 cria a abstração, o adaptador AVPlay,
@@ -644,6 +674,7 @@ própria de demanda. Cada uma precisa passar por `sdd-assess`
 | 002-splash-home-perfis | Splash, ícone do app e Home de perfis/listas | Implementada | 22/22 tasks | 2026-09-16 |
 | 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Convergida | 67/67 tasks | 2026-09-18 |
 | 004-conector-xtream-live | Conector Xtream JSON para canais ao vivo | Convergida | 55/55 tasks | 2026-09-18 |
+| 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Especificada | N/A | 2026-09-19 |
 
 ## Bugs
 
