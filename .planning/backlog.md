@@ -45,20 +45,21 @@ fictícios**
 
 ### Fase 0 — Dívidas abertas da fundação (fazer antes de empilhar em cima)
 
-1. **[Parcialmente em `sdd/specs/004-conector-xtream-live`, em execução]**
-   Conector Xtream JSON (`player_api.php`) separado do conector M3U — a
-   feature 004 entrega a fatia de **canais ao vivo**: conector próprio com
-   saída normalizada comum, normalização do endereço do servidor, estado de
-   conta com fallback de actions, `stream_id` e categorias do provedor
+1. **[Entregue em `sdd/specs/004-conector-xtream-live`, convergida em
+   18/09/2026 — só a fatia de canais ao vivo]** Conector Xtream JSON
+   (`player_api.php`) separado do conector M3U: conector próprio com saída
+   normalizada comum, normalização do endereço do servidor, estado de conta
+   com fallback de actions, `stream_id` e categorias do provedor
    preservados, formatos derivados de `allowed_output_formats` (preferindo
    TS), modo limitado para painel incompatível, migração única das fontes já
    importadas e atualização por idade (24h) sem re-baixar a cada abertura —
    e corrigiu de caminho um bug pré-existente em que ressincronizar duplicava
    o catálogo inteiro (`_publish_in_batches` nunca removia o job anterior).
-   Código completo em 18/09/2026; falta só a verificação manual na TV física
-   antes de convergir. **Fica para a fatia seguinte**: VOD e séries pelo
-   protocolo JSON, com a hierarquia de temporadas/episódios — que é o que
-   destrava os itens 9 e 10 — além de catch-up.
+   Verificado na TV física (QN50Q60DAGXZD) com fonte real migrada e fonte
+   cadastrada do zero pelo controle remoto. **Fica para a fatia seguinte**
+   (item ainda sem spec própria): VOD e séries pelo mesmo protocolo, com a
+   hierarquia de temporadas/episódios — é o que destrava os itens 9 e 10 —
+   além de catch-up.
 
    Descrição original: hoje o backend monta `get.php?...&type=m3u_plus` e
    reaproveita o parser
