@@ -39,8 +39,34 @@ class CreateSourceResponse(BaseModel):
     import_job_id: uuid.UUID
 
 
+class ProviderCredentialsPatch(BaseModel):
+    """Corpo de PATCH /sources/{id} para o trecho de credenciais — cada
+    campo é opcional; ausente/vazio significa "manter o valor atual", nunca
+    "apagar". Diferente de ProviderCredentialsIn (POST), que exige os três."""
+
+    dns: str | None = None
+    username: str | None = None
+    password: str | None = None
+
+
+class UpdateSourceRequest(BaseModel):
+    """Corpo de PATCH /sources/{id}. Atualização parcial: campo ausente ou
+    vazio mantém o valor já gravado. Editar dns/username/password reabre a
+    fonte para nova checagem de status na próxima abertura (a credencial
+    mudou, então o resultado anterior de account status não vale mais)."""
+
+    display_name: str | None = None
+    m3u_url: str | None = None
+    provider: ProviderCredentialsPatch | None = None
+
+
 class SourceOut(BaseModel):
-    """Nunca inclui provider_password (FR-014/constitution)."""
+    """Nunca inclui provider_username nem provider_password (FR-014/
+    constitution) — esses dois só existem em texto plano no banco e nunca
+    saem dele. provider_dns é diferente: sozinho não autentica nada, e
+    reexibi-lo (mesmo na listagem comum) é o que permite a tela de edição
+    mostrar/corrigir o endereço sem obrigar o usuário a redigitar
+    usuário/senha só para trocar um typo no host."""
 
     id: uuid.UUID
     type: Literal["m3u_url", "provider_credentials"]
@@ -51,6 +77,7 @@ class SourceOut(BaseModel):
     # pelo conector novo. `legacy_m3u` é o sinal para a Home indicar modo
     # limitado (FR-011) — estado normal, não erro (D-008).
     provider_import_mode: Literal["xtream_api", "legacy_m3u"] | None = None
+    provider_dns: str | None = None
 
 
 class SourceListResponse(BaseModel):

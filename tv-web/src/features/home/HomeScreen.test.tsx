@@ -31,6 +31,7 @@ function renderHome() {
       <HomeScreen
         onAddSource={() => {}}
         onOpenSource={() => {}}
+        onEditSource={() => {}}
         onResyncStarted={() => {}}
         onSourceCreated={() => {}}
       />

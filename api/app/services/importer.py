@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.models.catalog_item import CatalogItem, CatalogItemKind
 from app.models.import_job import ImportJob, ImportJobStatus, ImportStep
 from app.models.source import ConnectionState, ProviderImportMode, Source, SourceType
-from app.schemas.source import CreateSourceRequest
+from app.schemas.source import CreateSourceRequest, UpdateSourceRequest
 from app.services import provider_connector
 from app.services.classifier import ClassifiedEntry, classify_entries
 from app.services.m3u_parser import (
@@ -173,6 +173,45 @@ async def delete_source(session: AsyncSession, source_id: uuid.UUID) -> bool:
     await session.delete(source)
     await session.commit()
     return True
+
+
+async def update_source_fields(
+    session: AsyncSession, source_id: uuid.UUID, payload: UpdateSourceRequest
+) -> Source | None:
+    """Atualização parcial (PATCH) — campo ausente/vazio mantém o valor já
+    gravado, nunca apaga. Editar credencial de provedor invalida a marca de
+    migração: o status de conta resolvido antes valia para a credencial
+    antiga, então a próxima abertura precisa checar de novo (mesmo caminho
+    de decisão de maybe_refresh_on_open, D-004).
+
+    Retorna None se a Source não existir (o router decide o 404).
+    """
+    source = await session.get(Source, source_id)
+    if source is None:
+        return None
+
+    if payload.display_name is not None and payload.display_name.strip():
+        source.display_name = payload.display_name.strip()
+
+    if source.type == SourceType.M3U_URL and payload.m3u_url is not None and payload.m3u_url.strip():
+        source.m3u_url = payload.m3u_url.strip()
+
+    if source.type == SourceType.PROVIDER_CREDENTIALS and payload.provider is not None:
+        credential_changed = False
+        if payload.provider.dns is not None and payload.provider.dns.strip():
+            source.provider_dns = payload.provider.dns.strip()
+            credential_changed = True
+        if payload.provider.username is not None and payload.provider.username.strip():
+            source.provider_username = payload.provider.username.strip()
+            credential_changed = True
+        if payload.provider.password is not None and payload.provider.password.strip():
+            source.provider_password = payload.provider.password.strip()
+            credential_changed = True
+        if credential_changed:
+            source.provider_migrated_at = None
+
+    await session.commit()
+    return source
 
 
 async def run_import_job_by_id(job_id: uuid.UUID) -> None:

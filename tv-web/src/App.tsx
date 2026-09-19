@@ -22,6 +22,7 @@ type Screen =
   | { name: 'splash' }
   | { name: 'home' }
   | { name: 'add-source' }
+  | { name: 'edit-source'; source: SourceOut }
   | { name: 'progress'; jobId: string }
   | { name: 'list-home'; source: SourceOut }
   | { name: 'live'; source: SourceOut }
@@ -105,6 +106,7 @@ function App() {
         <HomeScreen
           onAddSource={() => goto({ name: 'add-source' })}
           onOpenSource={openSourceCatalog}
+          onEditSource={(source) => goto({ name: 'edit-source', source })}
           onResyncStarted={(jobId) => goto({ name: 'progress', jobId })}
           onSourceCreated={({ jobId }) => goto({ name: 'progress', jobId })}
         />
@@ -114,6 +116,16 @@ function App() {
       return (
         <AddSourceScreen
           onSourceCreated={({ jobId }) => goto({ name: 'progress', jobId })}
+          onBack={back}
+        />
+      )
+
+    case 'edit-source':
+      return (
+        <AddSourceScreen
+          existingSource={screen.source}
+          onSourceCreated={({ jobId }) => goto({ name: 'progress', jobId })}
+          onSourceUpdated={back}
           onBack={back}
         />
       )

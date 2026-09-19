@@ -13,6 +13,7 @@ from app.schemas.source import (
     ResyncSourceResponse,
     SourceListResponse,
     SourceOut,
+    UpdateSourceRequest,
 )
 from app.services.importer import (
     create_resync_job,
@@ -20,7 +21,22 @@ from app.services.importer import (
     delete_source,
     maybe_refresh_on_open,
     run_import_job_by_id,
+    update_source_fields,
 )
+
+
+def _to_source_out(source: Source) -> SourceOut:
+    return SourceOut(
+        id=source.id,
+        type=source.type.value,
+        display_name=source.display_name,
+        connection_state=source.connection_state.value,
+        last_successful_sync_at=source.last_successful_sync_at,
+        provider_import_mode=(
+            source.provider_import_mode.value if source.provider_import_mode else None
+        ),
+        provider_dns=source.provider_dns,
+    )
 
 router = APIRouter(prefix="/sources", tags=["sources"])
 
@@ -43,21 +59,19 @@ async def create_source(
 async def list_sources(session: AsyncSession = Depends(get_session)) -> SourceListResponse:
     result = await session.execute(select(Source).order_by(Source.created_at))
     sources = result.scalars().all()
-    return SourceListResponse(
-        sources=[
-            SourceOut(
-                id=source.id,
-                type=source.type.value,
-                display_name=source.display_name,
-                connection_state=source.connection_state.value,
-                last_successful_sync_at=source.last_successful_sync_at,
-                provider_import_mode=(
-                    source.provider_import_mode.value if source.provider_import_mode else None
-                ),
-            )
-            for source in sources
-        ]
-    )
+    return SourceListResponse(sources=[_to_source_out(source) for source in sources])
+
+
+@router.patch("/{source_id}", response_model=SourceOut)
+async def patch_source(
+    source_id: uuid.UUID,
+    payload: UpdateSourceRequest,
+    session: AsyncSession = Depends(get_session),
+) -> SourceOut:
+    source = await update_source_fields(session, source_id, payload)
+    if source is None:
+        raise HTTPException(status_code=404, detail="Fonte não encontrada.")
+    return _to_source_out(source)
 
 
 @router.delete("/{source_id}", status_code=204)

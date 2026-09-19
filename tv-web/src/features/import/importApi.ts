@@ -86,6 +86,22 @@ export interface SourceOut {
   connection_state: ConnectionState
   last_successful_sync_at: string | null
   provider_import_mode: ProviderImportMode
+  // Sozinho não autentica nada — diferente de username/password, que o
+  // backend nunca devolve (FR-014/constitution). Existe pra tela de edição
+  // conseguir mostrar/corrigir o endereço sem redigitar usuário e senha.
+  provider_dns: string | null
+}
+
+export interface ProviderCredentialsPatch {
+  dns?: string
+  username?: string
+  password?: string
+}
+
+export interface UpdateSourceInput {
+  display_name?: string
+  m3u_url?: string
+  provider?: ProviderCredentialsPatch
 }
 
 export interface SourceListResponse {
@@ -184,6 +200,20 @@ export function useSources() {
   return useQuery({
     queryKey: ['sources'],
     queryFn: () => apiFetch<SourceListResponse>('/sources'),
+  })
+}
+
+export function useUpdateSource() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ sourceId, input }: { sourceId: string; input: UpdateSourceInput }) =>
+      apiFetch<SourceOut>(`/sources/${sourceId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sources'] })
+    },
   })
 }
 
