@@ -105,6 +105,16 @@ terminar — inclusive a US1, que precisa de um pipeline real para medir
       dentro do prazo não dispara nada; fora do prazo dispara; fonte que
       nunca sincronizou é pendente, não "velha"; relógio para trás não
       gera disparo em laço.
+- [ ] T052 [P] **Paridade com o caminho congelado** em
+      `tv-web/src/lib/catalog/parity.test.ts` (SC-013): ler **a mesma
+      fixture** que os testes do backend usam
+      (`api/tests/fixtures/sample.m3u`) e afirmar o mesmo resultado que
+      `api/tests/test_classifier.py` documenta — os quatro tipos
+      presentes, os dois episódios compartilhando série e temporada 1, e
+      exatamente um item não classificado. Ler o arquivo original em vez
+      de copiá-lo é deliberado: uma cópia divergiria em silêncio, e o
+      ponto aqui é justamente detectar divergência entre as duas
+      implementações (Complexity Tracking / R-007).
 
 ### Implementation
 
@@ -236,6 +246,12 @@ aguardar a importação, abrir a lista de canais e reproduzir um canal.
       `tv-web/src/features/import/AddSourceScreen.test.tsx`: cadastrar uma
       fonte de provedor dispara o pipeline local e não faz requisição a
       serviço próprio.
+- [ ] T054 [P] [US2] Teste do **modo limitado** em
+      `tv-web/src/lib/catalog/xtreamConnector.test.ts` e na Home
+      (`HomeScreen.test.tsx`): painel que não responde ao protocolo JSON
+      é importado pelo caminho M3U, a fonte é marcada `legacy_m3u`, e a
+      indicação discreta de modo limitado aparece — como estado normal,
+      nunca como erro (paridade com a feature 004, D-008 de lá).
 
 ### Implementation
 
@@ -256,10 +272,20 @@ aguardar a importação, abrir a lista de canais e reproduzir um canal.
 - [ ] T034 [US2] Ajustar `tv-web/src/features/home/HomeScreen.tsx` e
       `tv-web/src/App.tsx` para o repositório local, removendo a
       dependência de invalidação de consulta remota.
+- [ ] T053 [US2] Implementar o **fallback de modo limitado** em
+      `tv-web/src/lib/catalog/xtreamConnector.ts` (SC-013): painel que não
+      fala o protocolo JSON é importado pelo caminho M3U e a fonte é
+      marcada `legacy_m3u`, preservando as categorias que o M3U declarar —
+      nunca inventando categoria para compensar a falta. Sem isso, fontes
+      hoje importáveis deixariam de ser, que é exatamente o que SC-013
+      proíbe. Manter a detecção por tentativa, nunca por varredura
+      (ADR-004 §3).
 
 **Critério de Conclusão**: com o backend **desligado**, o ciclo completo
 funciona na TV — cadastrar, importar, navegar, reproduzir, fechar e
-reabrir sem reimportar.
+reabrir sem reimportar. Os **dois** sub-caminhos de fonte de provedor
+funcionam: painel que fala o protocolo JSON e painel que só responde ao
+caminho M3U (modo limitado).
 
 **Checkpoint**: o caminho principal do produto não depende mais de nada
 ligado.
@@ -303,10 +329,21 @@ navegar o resultado.
       (`ImportProgressScreen.tsx` e onde a fonte aparece na Home): "só
       canais foram importados" e "a lista não coube inteira", ambos como
       informação, não como erro.
+- [ ] T055 [US3] **Não-regressão contra o caminho congelado** (SC-013):
+      com o backend ligado **apenas para esta comparação**, importar a
+      mesma fonte real pelos dois caminhos — o atual e o novo — e comparar
+      o **conjunto de categorias** e a **contagem de canais por
+      categoria**. Fazer para os dois tipos de fonte (provedor e URL M3U).
+      Diferença encontrada precisa ser **explicável** (ex.: o caminho
+      antigo grava filme/série, que o novo descarta de propósito — por
+      isso a comparação é da fatia de canais); diferença inexplicada é
+      regressão e interrompe a fase. Registrar o resultado em `plan.md` →
+      `## Execution Notes`.
 
 **Critério de Conclusão**: a lista grande importa dentro da meta, a
-navegação permanece fluida, e as duas limitações estão declaradas na
-interface.
+navegação permanece fluida, as duas limitações estão declaradas na
+interface, e a comparação com o caminho congelado não achou diferença
+inexplicada de canais.
 
 **Checkpoint**: o caso pesado é suportado com honestidade.
 
@@ -424,6 +461,9 @@ migração torna desatualizada.
 
 - [ ] Fase 1 (Setup) concluída
 - [ ] Fase 2 (Foundational — núcleo portado e pipeline) concluída
+- [ ] **SC-013 verificado nas duas camadas**: paridade automatizada com a
+      fixture compartilhada (T052) e comparação de campo contra o caminho
+      congelado (T055), incluindo o sub-caminho de modo limitado (T053)
 - [ ] Fase 3 (US1 — gate de performance) concluída **com veredito
       registrado**
 - [ ] Fase 4 (US2 — provedor ponta a ponta) concluída
@@ -490,6 +530,12 @@ migração torna desatualizada.
 - `[Story]` mapeia a task pra uma user story específica.
 - Commitar após cada task ou grupo lógico coerente.
 - Parar em qualquer checkpoint pra validar a story isoladamente.
-- Nenhuma task desta feature altera `api/`.
+- Nenhuma task desta feature altera `api/` — com **uma exceção de
+  leitura**: T052 *lê* `api/tests/fixtures/sample.m3u` como fixture
+  compartilhada. Ler não é alterar; D-007 continua valendo.
+- **T052-T055 têm numeração fora de sequência** porque foram acrescentadas
+  após a primeira versão deste arquivo, ao resolver um achado do Analyze
+  (SC-013 sem verificação). Estão posicionadas nas fases corretas; os IDs
+  seguem a sequência para não renumerar tasks já referenciadas.
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->

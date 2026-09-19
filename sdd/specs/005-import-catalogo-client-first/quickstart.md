@@ -81,6 +81,24 @@ apresentar, com o custo de cada uma, são:
 8. **Esperado**: o catálogo continua lá, sem nova importação e sem
    nenhuma consulta ao provedor (SC-007, em até 3 s).
 
+### B2 — Modo limitado (painel que não fala o protocolo JSON)
+
+Sub-caminho que hoje funciona pela feature 004 e **não pode deixar de
+funcionar** (SC-013).
+
+1. Cadastrar uma fonte de provedor cujo painel não responda ao protocolo
+   JSON.
+2. **Esperado**: a importação acontece pelo caminho M3U e conclui.
+3. **Esperado**: a fonte aparece na Home com a indicação discreta de modo
+   limitado — como estado normal, nunca como erro.
+4. Abrir a lista de canais dessa fonte.
+5. **Esperado**: os canais aparecem com as categorias que o M3U
+   declarava, nunca com categorias inventadas para compensar a falta.
+
+**Se não houver um painel assim disponível**, registrar como **não
+observado** — o comportamento continua coberto por teste automatizado
+(T054), o que é evidência de unidade, não de aparelho.
+
 ## Cenário C — Fonte por URL grande (US3)
 
 1. Com o backend desligado, cadastrar a URL M3U real.
@@ -125,12 +143,24 @@ apresentar, com o custo de cada uma, são:
 observado** — nunca inferir. O comportamento continua coberto por teste
 automatizado, o que é evidência de unidade, não de aparelho.
 
-## Cenário F — O caminho congelado continua de pé (FR-021)
+## Cenário F — O caminho congelado continua de pé, e serve de oráculo (FR-021, SC-013)
 
 1. Ligar o backend de novo.
 2. Rodar `uv run pytest` em `api/`.
 3. **Esperado**: tudo passa, sem alteração de comportamento — nenhuma
    task desta feature deveria ter tocado em `api/` (D-007).
+4. Importar a **mesma fonte real** pelos dois caminhos — o antigo (pelo
+   backend) e o novo (no aparelho).
+5. Comparar o **conjunto de categorias** e a **contagem de canais por
+   categoria** entre os dois resultados.
+6. **Esperado**: nenhuma diferença inexplicada. Diferenças esperadas e
+   aceitáveis: o caminho antigo grava também filme/série/episódio, que o
+   novo descarta de propósito (FR-008) — por isso a comparação é da fatia
+   de canais, não do total de itens.
+7. Repetir para os dois tipos de fonte: provedor e URL M3U.
+
+Uma diferença de canais que não tenha explicação é **regressão**, não
+"comportamento novo" — é exatamente o que SC-013 existe para impedir.
 
 ## Checklist cross-cutting (constitution)
 
