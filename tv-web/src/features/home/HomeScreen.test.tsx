@@ -123,4 +123,60 @@ describe('HomeScreen', () => {
     expect(screen.getByText('Adicionar lista')).toBeInTheDocument()
     expect(screen.queryByText('Nome de exibição')).not.toBeInTheDocument()
   })
+
+  // --- Feature 004 (US3, T025) — indicação de modo limitado ---
+
+  it('fonte em modo limitado mostra a indicação discreta (FR-011)', () => {
+    vi.mocked(importApi.useSources).mockReturnValue({
+      data: {
+        sources: [
+          {
+            id: 'src-limitado',
+            type: 'provider_credentials',
+            display_name: 'Provedor sem protocolo JSON',
+            connection_state: 'synced',
+            last_successful_sync_at: new Date().toISOString(),
+            provider_import_mode: 'legacy_m3u',
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof importApi.useSources>)
+
+    renderHome()
+
+    expect(screen.getByText('Modo limitado')).toBeInTheDocument()
+  })
+
+  it('fonte normal (protocolo falado, ou m3u_url) não mostra a indicação', () => {
+    vi.mocked(importApi.useSources).mockReturnValue({
+      data: {
+        sources: [
+          {
+            id: 'src-normal',
+            type: 'provider_credentials',
+            display_name: 'Provedor com protocolo JSON',
+            connection_state: 'synced',
+            last_successful_sync_at: new Date().toISOString(),
+            provider_import_mode: 'xtream_api',
+          },
+          {
+            id: 'src-m3u',
+            type: 'm3u_url',
+            display_name: 'Lista M3U direta',
+            connection_state: 'synced',
+            last_successful_sync_at: new Date().toISOString(),
+            provider_import_mode: null,
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof importApi.useSources>)
+
+    renderHome()
+
+    expect(screen.queryByText('Modo limitado')).not.toBeInTheDocument()
+  })
 })

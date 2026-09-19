@@ -145,6 +145,9 @@ export function HomeScreen({
                 <div className="source-card-icon" />
                 <div className="source-card-name">{source.display_name}</div>
                 <div className="source-card-status">{formatStatus(source)}</div>
+                {source.provider_import_mode === 'legacy_m3u' && (
+                  <div className="source-card-badge">Modo limitado</div>
+                )}
               </div>
               {actionsVisible && (
                 <div className="source-actions">

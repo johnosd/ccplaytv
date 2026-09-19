@@ -40,11 +40,19 @@ function renderLive() {
   function Wrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   }
-  return render(
-    <Wrapper>
-      <LiveScreen sourceId="source-1" onBack={() => {}} />
-    </Wrapper>,
-  )
+  // Um elemento NOVO a cada chamada é essencial: reusar a MESMA referência
+  // de elemento entre `render` e `rerender` faz o React aplicar bailout por
+  // identidade referencial na subárvore inteira, e `LiveScreen` nunca
+  // re-executa — o `useChannels` mockado nunca seria relido de verdade.
+  function buildUi() {
+    return (
+      <Wrapper>
+        <LiveScreen sourceId="source-1" onBack={() => {}} />
+      </Wrapper>
+    )
+  }
+  const result = render(buildUi())
+  return { ...result, rerenderLive: () => result.rerender(buildUi()) }
 }
 
 function press(key: string) {
@@ -234,5 +242,54 @@ describe('LiveScreen', () => {
     press('ArrowRight')
 
     expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('B1')
+  })
+
+  // --- Feature 004 (US5, T037): catálogo substituído em segundo plano ---
+  // não desorganiza a navegação em curso (FR-022, SC-012) ---
+
+  it('ao trocar o catálogo em segundo plano, o foco segue o canal pelo id — não pelo índice', () => {
+    mockChannels([channel('A', 'G1'), channel('B', 'G1'), channel('C', 'G2')])
+    const { rerenderLive } = renderLive()
+
+    focusChannel(1) // foca "B", índice 1 do grupo G1
+    expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('B')
+
+    // Atualização por idade conclui enquanto o usuário navega: mesmos
+    // canais, ordem diferente — "B" passa a ser o índice 0. Foco por
+    // índice "saltaria" pra outro canal; por identidade, continua em "B".
+    mockChannels([channel('B', 'G1'), channel('A', 'G1'), channel('C', 'G2')])
+    rerenderLive()
+
+    expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('B')
+  })
+
+  it('se o canal focado sumir do catálogo novo, cai no início do grupo em vez de focar algo aleatório', () => {
+    mockChannels([channel('A', 'G1'), channel('B', 'G1'), channel('C', 'G2')])
+    const { rerenderLive } = renderLive()
+
+    focusChannel(1) // foca "B"
+    expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('B')
+
+    // "B" não existe mais no catálogo novo.
+    mockChannels([channel('A', 'G1'), channel('C', 'G2')])
+    rerenderLive()
+
+    const focused = document.querySelector('.live-column-channels .tv-focus')
+    expect(focused).not.toBeNull() // continua havendo saída focável
+    expect(focused?.textContent).toContain('A')
+  })
+
+  it('se o grupo focado sumir do catálogo novo, cai no primeiro grupo', () => {
+    mockChannels([channel('A', 'G1'), channel('B', 'G2')])
+    const { rerenderLive } = renderLive()
+
+    press('ArrowDown') // move pro grupo G2
+    expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('G2')
+
+    // G2 deixou de existir.
+    mockChannels([channel('A', 'G1'), channel('C', 'G3')])
+    rerenderLive()
+
+    expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('G1')
   })
 })
