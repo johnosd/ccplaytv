@@ -408,6 +408,20 @@ função nova; todos mudam a sensação de uso.
     orientativo — nunca uma justificativa pessoal inventada.
     (RF-017; ADR-005 §6)
 
+53. **Recomendação conversacional via chat com IA (BYOK OpenAI)** — chat de
+    texto onde o usuário pede recomendações em linguagem natural ("um filme
+    de ação dos anos 90", "algo parecido com X que já assisti") e a IA
+    responde cruzando com o catálogo **real** já importado, nunca sugerindo
+    título que a pessoa não tem acesso. Function-calling restrito a
+    consultar o catálogo local (busca por gênero/ano/similaridade/já
+    assistido), nunca a inventar título fora dele — mesma regra de "IA
+    Nunca Inventa Dados" da constitution. Chave da OpenAI é do próprio
+    usuário (BYOK) — chamada direta do cliente, sem backend (ADR-008).
+    Complementa o item 31: ali é um algoritmo automático a partir de
+    "Gostei"; aqui é uma conversa dirigida pelo usuário, sob demanda.
+    (ADR-001 §4; ADR-008; ADR-005 §6; constitution "IA e Classificação
+    Nunca Inventam Dados")
+
 32. **Trailers para filmes e séries** — ação "Trailer" na primeira área de
     ações do detalhe; TMDB para descoberta (preferir tipo Trailer, oficial,
     em português; teaser não é rotulado silenciosamente como trailer);
