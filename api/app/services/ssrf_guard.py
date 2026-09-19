@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import ipaddress
+import json
 import socket
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -110,3 +112,30 @@ async def fetch_text_ssrf_safe(
     finally:
         if owns_client:
             await http_client.aclose()
+
+
+async def fetch_json_ssrf_safe(
+    url: str,
+    *,
+    max_bytes: int = MAX_DOWNLOAD_BYTES,
+    timeout: float = TIMEOUT_SECONDS,
+    client: httpx.AsyncClient | None = None,
+) -> Any:
+    """Irmão de `fetch_text_ssrf_safe` para o protocolo JSON do painel do
+    provedor (feature 004; `contracts/provider-protocol.md`).
+
+    Mesma política de segurança fim a fim — validação por hop, limite de
+    bytes/tempo/redirecionamentos, User-Agent de player — porque delega a
+    ela em vez de abrir cliente HTTP próprio (D-003). O `ProviderConnector`
+    nunca instancia `httpx.AsyncClient` diretamente.
+
+    Resposta que não é JSON válido levanta `SSRFValidationError`: do ponto
+    de vista de quem chama, é o mesmo sinal de "não dá pra confiar nesta
+    resposta" que os outros casos deste guardião já usam — e é também como
+    o conector percebe um painel que não fala o protocolo (FR-010).
+    """
+    text = await fetch_text_ssrf_safe(url, max_bytes=max_bytes, timeout=timeout, client=client)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise SSRFValidationError("Resposta não é JSON válido.") from exc

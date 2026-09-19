@@ -31,11 +31,20 @@ class ClassifiedEntry:
     name: str
     original_name: str
     group: str | None
-    url: str
+    # `str` para toda entrada vinda do M3U (sempre tem URL); `None` só é
+    # possível vindo do ProviderConnector, quando a conta não declara nenhum
+    # formato de saída permitido — sem URL inventada (FR-008).
+    url: str | None
     series_key: str | None = None
     series_name: str | None = None
     season_number: int | None = None
     episode_number: int | None = None
+    # Identidade declarada pelo provedor (feature 004) — `None` para itens
+    # vindos do M3U parser; preenchido pelo ProviderConnector quando o
+    # painel fala o protocolo JSON. Os dois conectores produzem a mesma
+    # `ClassifiedEntry` (D-001) — este campo é só opcional em um dos lados.
+    provider_stream_id: str | None = None
+    provider_category_id: str | None = None
 
 
 def _group_keyword_kind(group: str | None) -> CatalogItemKind | None:

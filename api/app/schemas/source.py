@@ -47,6 +47,10 @@ class SourceOut(BaseModel):
     display_name: str
     connection_state: Literal["never_synced", "synced", "error"]
     last_successful_sync_at: datetime | None
+    # `None` para fonte `m3u_url`, ou fonte de provedor ainda não migrada
+    # pelo conector novo. `legacy_m3u` é o sinal para a Home indicar modo
+    # limitado (FR-011) — estado normal, não erro (D-008).
+    provider_import_mode: Literal["xtream_api", "legacy_m3u"] | None = None
 
 
 class SourceListResponse(BaseModel):
@@ -56,3 +60,11 @@ class SourceListResponse(BaseModel):
 class ResyncSourceResponse(BaseModel):
     source_id: uuid.UUID
     import_job_id: uuid.UUID
+
+
+class OpenSourceResponse(BaseModel):
+    """Resposta de `POST /sources/{id}/open` (D-004) — a TV só informa que
+    abriu a fonte; o backend decidiu migrar, atualizar por idade, ou nada."""
+
+    triggered: bool
+    import_job_id: uuid.UUID | None

@@ -8,9 +8,13 @@ voice control (OpenAI) and Android remote-control companion app.
 
 ## Project status
 
-Two features delivered (`001-importacao-fonte-m3u`, `002-splash-home-perfis`)
-and one implemented pending hardware verification (`003-live-tv-avplay`). The
-repo has working code on both sides:
+Three features converged (`001-importacao-fonte-m3u`,
+`002-splash-home-perfis`, `003-live-tv-avplay` — the last one verified on the
+Samsung QN50Q60DAGXZD reference TV, closing ADR-006's V1 validation gate),
+and one in execution (`004-conector-xtream-live`: the provider connector now
+talks the panel's JSON protocol for live channels, preserving `stream_id`
+and category — see "Known deviation" below — with the manual TV
+verification step still pending). The repo has working code on both sides:
 
 - **`api/`** — Python 3.13 + FastAPI + SQLAlchemy 2 (async) + Alembic +
   PostgreSQL, managed with `uv`. Owns source import (M3U by URL and by
@@ -247,15 +251,22 @@ never does heavy processing or holds external API credentials:
   Video keeps working as long as the original source is reachable, since
   streams flow directly from source to TV.
 
-### Known deviation to be aware of
+### Known deviation, partially resolved
 
-`api/app/services/provider_connector.py` currently builds a
-`get.php?...&type=m3u_plus` URL and reuses the M3U parser for provider
-sources. This **contradicts ADR-006 §4.3**, which requires separate
-`M3USourceConnector` and `ProviderSourceConnector` with a common normalized
-output, and it discards the provider's `stream_id`/`series_id`/category
-hierarchy. Fixing it is Fase 0, item 1 of the backlog — don't build more on
-top of the current shape without reading that item.
+**Update (2026-09-18, feature 004, live channels only)**:
+`api/app/services/provider_connector.py` now talks the provider's JSON
+protocol (`player_api.php`) directly for **live channels**, preserving
+`stream_id` and category, with a fallback to the old `get.php` + M3U-parser
+path only when the panel doesn't speak the JSON protocol (`ProviderImportMode.
+LEGACY_M3U`, surfaced to the user as "Modo limitado"). This satisfies
+ADR-006 §4.3 for the channel slice.
+
+**Still open**: VOD and series through the same protocol
+(`get_vod_streams`, `get_series`, `series_id`) don't exist yet — that's the
+next slice per `sdd/specs/004-conector-xtream-live/spec.md`, and it's what
+the Filmes/Séries screens (items 9 and 10 of the backlog) depend on before
+they can stop reading `mockCatalog.ts`. Don't build VOD/series import on top
+of the current shape without reading that spec first.
 
 ## Language
 

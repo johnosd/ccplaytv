@@ -179,6 +179,8 @@ Mantenha `.env`, `.venv`, caches Python e certificados privados fora do Git. Ver
 
 Próximos: desenvolver o catálogo de filmes e séries sobre dados reais (hoje ainda em mock); adicionar enriquecimento e recomendações; então integrar voz e controle Android. Captura de áudio disponível, persistência e protocolo de sincronização ainda precisam de validação ou decisão específica.
 
+**Validado em 18/09/2026**: canais ao vivo de fontes por credenciais de provedor (Xtream Codes) passaram a ser importados pelo protocolo JSON do próprio painel (`player_api.php`), preservando o identificador estável e as categorias como o provedor as declara — em vez de reaproveitar o parser M3U, que descartava essa estrutura. Verificado na TV física com uma fonte real: categorias e identificador confirmados, reprodução sem regressão. Painéis que não falam esse protocolo continuam funcionando pelo caminho M3U existente, sinalizados como "modo limitado". Filmes e séries pelo mesmo protocolo ficam para a próxima fatia.
+
 ## Referências do ambiente
 
 Consultadas em 2026-09-13. As ADRs contêm as referências da arquitetura.
