@@ -1,4 +1,4 @@
----
+﻿---
 description: "Template de lista de tasks para implementação de feature"
 ---
 
@@ -35,11 +35,11 @@ description: "Template de lista de tasks para implementação de feature"
 **Purpose**: colocar no lugar a camada de armazenamento e o ambiente de
 teste que todas as fases seguintes usam.
 
-- [ ] T001 Adicionar `dexie` como dependência e `fake-indexeddb` como
+- [X] T001 Adicionar `dexie` como dependência e `fake-indexeddb` como
       devDependency em `tv-web/package.json` (research.md R1 e R6).
-- [ ] T002 Registrar `fake-indexeddb/auto` em `tv-web/src/setupTests.ts`,
+- [X] T002 Registrar `fake-indexeddb/auto` em `tv-web/src/setupTests.ts`,
       para os testes terem IndexedDB sob jsdom.
-- [ ] T003 Criar o schema local em `tv-web/src/lib/catalog/db.ts`: as três
+- [X] T003 Criar o schema local em `tv-web/src/lib/catalog/db.ts`: as três
       coleções e os índices de `data-model.md`, incluindo o índice composto
       `[sourceId+generation+groupOrder]` que sustenta a leitura paginada.
 
@@ -47,10 +47,18 @@ teste que todas as fases seguintes usam.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: **Concluída** (2026-09-19).
+- Feito: `dexie` 4.4.6 e `fake-indexeddb` 6.2.5 instalados;
+  `fake-indexeddb/auto` registrado no setup dos testes; schema criado em
+  `tv-web/src/lib/catalog/db.ts` com as três coleções de `data-model.md`
+  e os dois índices compostos de `channels`. Os tipos do schema
+  (`SourceRecord`, `ChannelRecord`, `ImportRunRecord`, `ImportErrorKind`)
+  já nascem com as fronteiras de segredo documentadas no próprio arquivo,
+  para que quem mexer depois veja a regra junto do campo.
+- Testes executados: `npx tsc -b` (limpo), `npm run lint` (limpo),
+  `npx vitest run` — **64 passaram**, mesma contagem de antes: o
+  `fake-indexeddb` no setup não afetou nenhum teste existente.
+- Pendências: nenhuma.
 
 ---
 
@@ -67,45 +75,40 @@ terminar — inclusive a US1, que precisa de um pipeline real para medir
 
 ### Testes da Fase
 
-- [ ] T004 [P] Testes do parser em
+- [X] T004 [P] Testes do parser em
       `tv-web/src/lib/catalog/m3uParser.test.ts`, cobrindo os casos de
       borda enumerados em `research.md` R2: conteúdo sem `#EXTM3U`,
       manifesto HLS real, `#EXT-X-SESSION-DATA` que **não** pode reprovar
       a lista, entrada sem URL, atributo com vírgula e aspas, lista válida
       e vazia, BOM inicial.
-- [ ] T005 [P] Testes do classificador em
+- [X] T005 [P] Testes do classificador em
       `tv-web/src/lib/catalog/classifier.test.ts`: canal, filme, série,
       episódio com temporada/episódio, e o caminho "não classificado"
       quando falta evidência.
-- [ ] T006 [P] Testes do conector em
+- [X] T006 [P] Testes do conector em
       `tv-web/src/lib/catalog/xtreamConnector.test.ts`: normalização de
       endereço nas formas comuns e com subpath, recusa de credencial
       embutida na URL, resolução de estado de conta nas três respostas
       (ativa, expirada, inválida) e com a primeira consulta falhando,
       escolha de formato com TS preferido e com ausência de formato.
-- [ ] T007 [P] Testes do repositório de catálogo em
+- [X] T007 [P] Testes do repositório de catálogo em
       `tv-web/src/lib/catalog/catalogRepository.test.ts`: gravação em
       lote; leitura paginada por categoria na ordem declarada; a geração
       anterior continua legível enquanto a nova é escrita; publicar troca
       o ponteiro e descarta a anterior; falha de escrita por falta de
       espaço é sinalizada ao chamador, não engolida.
-- [ ] T008 [P] Testes do repositório de fontes em
+- [X] T008 [P] Testes do repositório de fontes em
       `tv-web/src/lib/catalog/sourceRepository.test.ts`: listagem **nunca**
       devolve usuário/senha; atualização parcial mantém o valor atual;
       alterar credencial invalida a marca de migração; remover fonte leva
       junto catálogo e execuções.
-- [ ] T009 [P] Testes do pipeline em
+- [X] T009 [P] Testes do pipeline em
       `tv-web/src/lib/catalog/importPipeline.test.ts`: entrada em fluxo é
       classificada e **só canais** são gravados; contadores distinguem
       lidas de gravadas de descartadas; interrupção no meio preserva a
       geração ativa; segunda execução da mesma fonte é recusada enquanto
       houver uma ativa.
-- [ ] T010 [P] Testes de frescor em
-      `tv-web/src/lib/catalog/freshness.test.ts`, com instante injetado:
-      dentro do prazo não dispara nada; fora do prazo dispara; fonte que
-      nunca sincronizou é pendente, não "velha"; relógio para trás não
-      gera disparo em laço.
-- [ ] T052 [P] **Paridade com o caminho congelado** em
+- [X] T052 [P] **Paridade com o caminho congelado** em
       `tv-web/src/lib/catalog/parity.test.ts` (SC-013): ler **a mesma
       fixture** que os testes do backend usam
       (`api/tests/fixtures/sample.m3u`) e afirmar o mesmo resultado que
@@ -118,40 +121,40 @@ terminar — inclusive a US1, que precisa de um pipeline real para medir
 
 ### Implementation
 
-- [ ] T011 [P] Portar o parser para
+- [X] T011 [P] Portar o parser para
       `tv-web/src/lib/catalog/m3uParser.ts`, a partir de
       `api/app/services/m3u_parser.py`. **Deve consumir linhas
       incrementalmente** (D-002), nunca exigir o texto inteiro, e
       preservar a detecção de manifesto HLS com a mesma tolerância ao
       `#EXT-X-SESSION-DATA`.
-- [ ] T012 [P] Portar o classificador para
+- [X] T012 [P] Portar o classificador para
       `tv-web/src/lib/catalog/classifier.ts`, a partir de
       `api/app/services/classifier.py`, mantendo as mesmas regras e o
       mesmo caminho de "não classificado".
-- [ ] T013 Portar o conector para
+- [X] T013 Portar o conector para
       `tv-web/src/lib/catalog/xtreamConnector.ts`, a partir de
       `api/app/services/provider_connector.py`, usando o protocolo já
       mapeado em
       `sdd/specs/004-conector-xtream-live/contracts/provider-protocol.md`.
       Preserva categoria e identificador do provedor; deriva o formato do
       que a conta permite, nunca assumido.
-- [ ] T014 Implementar `tv-web/src/lib/catalog/catalogRepository.ts`
+- [X] T014 Implementar `tv-web/src/lib/catalog/catalogRepository.ts`
       conforme `contracts/local-storage.md` §2 — leitura sempre da geração
       ativa, escrita em lote, publicação e descarte de geração.
-- [ ] T015 Implementar `tv-web/src/lib/catalog/sourceRepository.ts`
+- [X] T015 Implementar `tv-web/src/lib/catalog/sourceRepository.ts`
       conforme `contracts/local-storage.md` §1, com o acesso à credencial
       isolado e fora de tudo que a interface renderiza (D-005/FR-009).
-- [ ] T016 [P] Implementar `tv-web/src/lib/catalog/playbackUrl.ts`: monta
+- [X] T016 [P] Implementar `tv-web/src/lib/catalog/playbackUrl.ts`: monta
       a URL na hora para fonte de provedor; devolve a URL gravada para
       fonte por URL M3U (`data-model.md` §4).
-- [ ] T017 Implementar `tv-web/src/lib/catalog/importPipeline.ts`:
+- [X] T017 Implementar `tv-web/src/lib/catalog/importPipeline.ts`:
       obtém em fluxo, classifica, descarta o que não é canal, grava em
       lotes numa geração nova e publica ao concluir (D-002/D-004/D-006).
       Erros saem como **categoria**, nunca como mensagem crua de rede.
-- [ ] T018 Implementar `tv-web/src/lib/catalog/importWorker.ts` como
+- [X] T018 Implementar `tv-web/src/lib/catalog/importWorker.ts` como
       invólucro fino sobre o pipeline (D-003), mantendo parser e
       classificador exportados como funções puras.
-- [ ] T019 Acrescentar o arquivo gerado para o Worker à lista `files:` de
+- [X] T019 Acrescentar o arquivo gerado para o Worker à lista `files:` de
       `CCPlayTv/tizen_web_project.yaml` e conferir o nome real emitido
       pelo build (R-002) — ausência aqui só falha na TV.
 
@@ -165,10 +168,55 @@ não trabalho perdido.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
+- Status: **Concluída** (2026-09-19).
+- Feito: núcleo portado e pipeline local completo, sem nenhuma tela
+  alterada. Arquivos novos em `tv-web/src/lib/catalog/`: `m3uParser.ts`,
+  `classifier.ts`, `xtreamConnector.ts`, `catalogRepository.ts`,
+  `sourceRepository.ts`, `playbackUrl.ts`, `importPipeline.ts`,
+  `importWorker.ts` e `importRunner.ts`.
+- Desvios e decisões tomadas durante a execução:
+  - **T018 virou dois arquivos.** `importWorker.ts` é a entrada do Worker;
+    `importRunner.ts` escolhe entre Worker e thread principal e apresenta a
+    mesma forma nos dois casos. A separação é o que torna o plano B de R4
+    acionável em campo: se o Worker não subir (R-002), a importação cai para
+    a thread principal em vez de a tela morrer.
+  - **T019 conferido com sonda temporária.** O Worker só é emitido quando
+    algo o importa, e nenhuma tela o importa nesta fase. Um import
+    provisório em `src/main.tsx` foi usado só para ler o nome real emitido
+    (`assets/importWorker.js`) e removido em seguida (`git status` limpo).
+    O nome foi fixado por `worker.rollupOptions` em `vite.config.ts`, pelo
+    mesmo motivo que o bundle principal já tinha nomes fixos, e a entrada
+    foi acrescentada a `CCPlayTv/tizen_web_project.yaml`. **O arquivo só
+    passa a existir em `CCPlayTv/` quando a Fase 3 importar o runner** —
+    até lá a entrada aponta para um arquivo ainda não gerado, e o primeiro
+    empacotamento acontece justamente em T022.
+  - **T010 movida para a Fase 6** (ver a task, na fase da US4).
+  - **Interpretação de FR-018 registrada como R-009 em `plan.md`**: quando
+    o espaço acaba com parte do catálogo já gravada, a geração parcial é
+    publicada com a truncagem declarada; quando acaba sem nada gravado, a
+    geração é descartada e o catálogo anterior continua no ar.
+  - **`vite.config.ts` ganhou `server.fs.allow`** com a pasta de fixtures do
+    backend, para o teste de paridade ler o arquivo original em vez de uma
+    cópia. Liberada a pasta de fixtures, nunca `..`: a raiz do repositório
+    contém `docs/m3u/dados.md`, com credenciais reais.
 - Testes executados:
-- Pendências:
+  - `npx vitest run src/lib/catalog/` → **89 passaram** (7 arquivos).
+  - `npx vitest run` (suíte inteira do front) → **153 passaram** (17
+    arquivos), nenhuma regressão nas telas atuais.
+  - `npx tsc -b` → limpo. `npm run lint` (oxlint) → limpo.
+  - `npm run build` → limpo; com a sonda, emitiu `assets/importWorker.js`.
+  - `uv run pytest -q` em `api/` → **100 passaram**: o caminho congelado
+    continua intacto, como D-007/FR-021 exige.
+- Três defeitos encontrados e corrigidos dentro da própria fase:
+  - `listCategories` chamava `first()` e `count()` no mesmo objeto de
+    consulta do Dexie; `first()` aplica um limite que fica no objeto, e a
+    contagem saía 1 para qualquer categoria. Pego pelo teste de ordem.
+  - O teste do conector simulava a resposta opaca com `status: 0`, que o
+    construtor de `Response` recusa — a sondagem parecia falha de rede.
+  - O teste do pipeline reaproveitava o mesmo objeto de resposta entre
+    chamadas; corpo de resposta só pode ser lido uma vez.
+- Pendências: nenhuma para esta fase. A Fase 3 é o gate — exige a TV
+  física e o usuário presente (D-008/FR-022).
 
 ---
 
@@ -183,29 +231,38 @@ TV física, ler os números na tela e compará-los com SC-003 a SC-006.
 
 ### Implementation
 
-- [ ] T020 [US1] Criar a superfície de diagnóstico temporária em
+- [X] T020 [US1] Criar a superfície de diagnóstico temporária em
       `tv-web/src/features/diagnostics/ImportBenchScreen.tsx`: dispara o
       pipeline para uma fonte escolhida e **mostra na tela** tempo total
       por etapa, entradas lidas, canais gravados, descartados e o
       indicador de memória quando o aparelho expuser (research.md R5).
       Nasce marcada como temporária — é removida na fase Polish.
-- [ ] T021 [US1] Alcançar essa tela por controle remoto a partir da Home,
+- [X] T021 [US1] Alcançar essa tela por controle remoto a partir da Home,
       sem quebrar a navegação existente (`tv-web/src/App.tsx` e
       `tv-web/src/features/home/HomeScreen.tsx`), também de forma
       temporária.
-- [ ] T022 [US1] Empacotar e instalar na TV pelo procedimento de
-      `.claude/skills/tizen-tv/SKILL.md`.
+- [X] T056 [US1] **Permitir informar a fonte na própria superfície de
+      diagnóstico** — descoberta durante T020. A medição pressupunha uma
+      fonte já guardada no aparelho, mas nenhuma existe: a credencial vive
+      hoje só no banco do backend, e o backend **nunca a devolve** (e não
+      deve). Sem um cadastro local aqui, a US1 não teria o que medir. O
+      formulário é temporário e sai com a tela; os campos são limpos assim
+      que a fonte é criada, para credencial digitada não ficar pendurada
+      na tela (FR-009).
+- [X] T022 [US1] Empacotar e instalar na TV pelo procedimento de
+      `.claude/skills/tizen-tv/SKILL.md`. **Exige a TV ligada e alcançável
+      na rede.**
 
 ### Testes da Fase
 
-- [ ] T023 [US1] Medir a **fonte de provedor** real na TV e registrar os
+- [X] T023 [US1] Medir a **fonte de provedor** real na TV e registrar os
       números observados (SC-003: até 30 s).
-- [ ] T024 [US1] Medir a **URL M3U grande** real na TV e registrar os
+- [X] T024 [US1] Medir a **URL M3U grande** real na TV e registrar os
       números observados (SC-004: até 2 min).
-- [ ] T025 [US1] Durante as duas medições, confirmar que o controle
+- [X] T025 [US1] Durante as duas medições, confirmar que o controle
       remoto continua respondendo e o foco nunca fica preso (SC-005), e
       que o app não fecha nem recarrega (SC-006).
-- [ ] T026 [US1] Registrar o veredito em `plan.md` → `## Execution Notes`.
+- [X] T026 [US1] Registrar o veredito em `plan.md` → `## Execution Notes`.
       **Se qualquer meta reprovar**: parar aqui e apresentar as opções de
       `quickstart.md` (Cenário A) com o custo de cada uma, aguardando
       decisão antes de seguir para a Fase 4 (FR-022).
@@ -218,10 +275,45 @@ Reprovar é um resultado válido desta story, não uma falha dela.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: **Concluída — gate aprovado** (2026-09-19). As duas fontes
+  reais foram medidas na TV QN50Q60DAGXZD com o backend desligado e o
+  usuário presente; todas as metas de SC-003 a SC-006 passaram. Veredito
+  completo em `plan.md` → `## Execution Notes`.
+- Feito: T020, T021, T022, T023, T024, T025 e T056.
+  - `tv-web/src/features/diagnostics/ImportBenchScreen.tsx` mede pelo
+    **mesmo** caminho que as telas vão usar (`importRunner`), não por um
+    protótipo parecido — é o que D-008 exige para o número valer.
+  - Mostra na tela: tempo total e por etapa, entradas lidas, canais
+    gravados, descartados por tipo, inválidas, memória no início e no pico,
+    situação, categoria do erro e truncagem por espaço.
+  - Mostra também **se rodou em Worker**. Sem isso, uma queda silenciosa
+    para a thread principal (o plano B de R4) passaria por medição válida,
+    quando na verdade invalida a leitura de SC-005.
+  - Memória ausente aparece como **"não medido"**, nunca como zero.
+  - Acesso pela Home: um cartão temporário na fileira de listas **e** uma
+    saída no estado de erro da Home — o gate roda com o backend desligado,
+    que é exatamente quando a Home cai nesse estado.
+- Testes executados: `npx tsc -b` limpo; `npm run lint` limpo; `npx vitest
+  run` → **153 passaram** (nenhuma regressão nas telas existentes);
+  `npm run build:tizen` → emitiu e sincronizou `assets/importWorker.js`
+  para `CCPlayTv/`, confirmando a entrada acrescentada em T019.
+- Achado fora do escopo, **não corrigido**: o estado de erro da Home não
+  tinha nenhum elemento focável antes desta task (`HomeScreen.tsx`,
+  ramo `isError`) — com o backend fora do ar, o controle ficava preso e só
+  restava fechar o app. A saída acrescentada aqui remove o sintoma **por
+  acidente**, e só enquanto esta tela temporária existir: ao removê-la na
+  fase Polish, a armadilha volta. Registrado em `.planning/backlog.md`.
+- Números observados na TV (backend desligado, usuário presente):
+  - **Provedor (Xtream)** — T023: **10 s**, 1637 canais gravados, pico de
+    memória 10 MB. Meta SC-003 (≤ 30 s): **aprovado**.
+  - **URL M3U grande** — T024: **16 s**, 312.936 entradas listadas, 1637
+    canais gravados, pico de memória 10 MB, **rodou em Worker**. Meta
+    SC-004 (≤ 2 min): **aprovado**.
+  - **SC-005**: navegação por controle remoto respondeu normal durante as
+    duas importações, sem foco preso.
+  - **SC-006**: o app não fechou, não recarregou e manteve o catálogo
+    anterior nas duas medições.
+  - **Gate aprovado** — a Fase 4 (US2) está liberada.
 
 ---
 
@@ -371,6 +463,14 @@ a ação de ressincronizar.
       `tv-web/src/features/live/LiveScreen.test.tsx`: quando o catálogo é
       substituído durante a navegação, a lista não salta e o item em foco
       continua em foco (FR-015/SC-012).
+- [ ] T010 [P] [US4] Testes de frescor em
+      `tv-web/src/lib/catalog/freshness.test.ts`, com instante injetado:
+      dentro do prazo não dispara nada; fora do prazo dispara; fonte que
+      nunca sincronizou é pendente, não "velha"; relógio para trás não
+      gera disparo em laço. **Movida da Fase 2 durante a execução**: ela
+      testava `freshness.ts`, que só é implementado aqui em T041 —
+      antecipá-lo seria construir, antes do gate da Fase 3, algo que o
+      gate pode invalidar. Ver o Registro da Fase 2.
 - [ ] T040 [P] [US4] Teste em `tv-web/src/lib/catalog/freshness.test.ts`
       cobrindo falha de atualização: a marca de sincronização não avança e
       a fonte não vira fonte com erro (FR-016).

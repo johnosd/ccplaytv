@@ -616,6 +616,18 @@ própria de demanda. Cada uma precisa passar por `sdd-assess`
 
 ### Processo, documentação e qualidade de código
 
+0. **[Bug] Estado de erro da Home não tem elemento focável** — em
+   `tv-web/src/features/home/HomeScreen.tsx`, o ramo `isError` renderiza só
+   um parágrafo. Com o backend fora do ar, o controle remoto fica preso e a
+   única saída é fechar o app, o que viola o princípio "Foco Visível e Sem
+   Becos Sem Saída" da constitution. Vale também conferir o ramo `isLoading`,
+   que tem a mesma forma. **Origem**: achado durante a feature
+   `005-import-catalogo-client-first`, Fase 3 (T021), em 19/09/2026 — fora do
+   escopo dela, por isso não foi corrigido ali. O sintoma está temporariamente
+   mascarado: a tela de diagnóstico da US1 acrescentou um botão nesse estado,
+   e **a armadilha volta quando essa tela temporária for removida na fase
+   Polish**. Caminho normal: `sdd-bugfix`.
+
 0. **~~[Bug] `ruff check .` falha no backend por `api/delete_sources.py`~~ —
    resolvido em 18/09/2026** (decisão do usuário na Fase 7 da
    `003-live-tv-avplay`, task T052). Era `I001`, bloco de import não
@@ -674,7 +686,7 @@ própria de demanda. Cada uma precisa passar por `sdd-assess`
 | 002-splash-home-perfis | Splash, ícone do app e Home de perfis/listas | Implementada | 22/22 tasks | 2026-09-16 |
 | 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Convergida | 67/67 tasks | 2026-09-18 |
 | 004-conector-xtream-live | Conector Xtream JSON para canais ao vivo | Convergida | 55/55 tasks | 2026-09-18 |
-| 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Planejada | 0/69 tasks | 2026-09-19 |
+| 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Em Execução | 27/70 tasks | 2026-09-21 |
 
 ## Bugs
 

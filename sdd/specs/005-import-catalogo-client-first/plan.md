@@ -235,10 +235,13 @@ uv run pytest
 
 ## Estado Atual
 
-<!-- Sobrescrita a cada checkpoint pelo sdd-execute. Vazia na criação. -->
-
 | Área | Estado |
 | --- | --- |
+| Armazenamento local (Fase 1) | **Concluído.** `dexie` e `fake-indexeddb` instalados; schema em `tv-web/src/lib/catalog/db.ts` com `sources`, `channels` e `importRuns`, incluindo os índices `[sourceId+generation]` e `[sourceId+generation+groupOrder]`. 64 testes de frontend continuam passando. |
+| Núcleo portado e pipeline (Fase 2) | **Concluído.** Parser, classificador e conector portados; repositórios de catálogo e de fontes, resolução de URL de reprodução, pipeline de importação e invólucro de Worker implementados em `tv-web/src/lib/catalog/`. 89 testes só desta camada; 153 no front inteiro; 100 no backend. Nenhuma tela alterada — o app continua no caminho atual. |
+| Gate de performance (Fase 3 / US1) | **Concluído — gate aprovado.** As duas fontes reais foram medidas na TV QN50Q60DAGXZD com o backend desligado e o usuário presente. Provedor: **10 s** (SC-003, meta ≤ 30 s). URL M3U grande: **16 s** para 312.936 entradas (SC-004, meta ≤ 2 min), rodando em Worker, pico de memória 10 MB. SC-005 (controle remoto respondeu, sem foco preso) e SC-006 (sem fechar/recarregar/perder catálogo) confirmados nas duas medições. T023-T026 registrados. |
+| Telas migradas (Fases 4-7) | Não iniciado — gate da Fase 3 aprovado, liberado para começar (D-008 satisfeito). |
+| Backend (`api/`) | **Intocado**, como manda D-007. Continua sendo o caminho ativo do app até a Fase 4. |
 
 ## Riscos e Decisões
 
@@ -251,19 +254,66 @@ uv run pytest
 | R-005 | **Nem todo provedor aceita conexão direta do navegador.** O teste real confirmou um; não há base para generalizar. | Médio: uma pessoa com provedor restritivo fica sem caminho se o app não explicar. | US5 trata a detecção e a explicação. O contorno (backend auto-hospedado) não é construído aqui — FR-021 apenas garante que ele continua existindo. |
 | R-006 | **Portar o parser M3U é reimplementar, não traduzir**: o backend usa a biblioteca `ipytv`, que não tem equivalente adotado em JavaScript. | Médio: risco de regressão silenciosa em casos de borda que a biblioteca já tratava (BOM, aspas, atributos exóticos). | `research.md` R2 decide por implementação própria e enumera os casos de borda que viram teste unitário obrigatório, derivados do que `m3u_parser.py` e seus testes já cobrem. |
 | R-007 | **Duas implementações de importação coexistindo** (ver Complexity Tracking). | Médio e permanente: divergência de comportamento entre os dois caminhos com o tempo. | Congelamento explícito (D-007): o caminho Python não recebe mudança de comportamento. Se um dia precisar evoluir, isso reabre a decisão da ADR-008. **Mitigação ativa acrescentada**: o caminho congelado vira **oráculo** — T052 compara comportamento por fixture compartilhada e T055 compara resultado de campo na mesma fonte real. |
+| R-009 | **FR-018 não diz o que fazer quando o espaço acaba no meio da gravação**: "preservar o que já era utilizável" tanto pode significar publicar o pedaço novo que coube quanto manter intacto o catálogo anterior. Decisão tomada na Fase 2, e ela é visível para o usuário. | Médio: publicar um catálogo parcial por cima de um completo é uma perda real; descartar o parcial deixa a pessoa sem catálogo nenhum quando não havia anterior. | **Decidido**: com algo já gravado, publica a geração parcial e declara a truncagem (`truncatedByStorage`); com nada gravado, descarta e mantém a geração anterior no ar. Publicar também libera o espaço que a geração antiga ocupava, que é o que permite a próxima tentativa. Coberto por teste. **A tela precisa dizer que não coube inteira** — sem isso a metade da regra que protege o usuário não existe (tasks das Fases 4-6). |
 | R-008 | **O sub-caminho de "modo limitado" é fácil de esquecer ao portar.** Uma fonte de provedor cujo painel não fala o protocolo JSON é importada hoje pelo caminho M3U e marcada como tal (feature 004). Ele não aparece como user story própria — vive dentro da US2 — e some da vista com facilidade. | **Alto para SC-013**: esquecê-lo faz fontes hoje importáveis deixarem de ser, que é exatamente a regressão que SC-013 proíbe. Achado ao resolver o item A1 do Analyze, não na primeira redação. | T053 implementa o fallback e T054 o cobre em teste; o Cenário B2 do `quickstart.md` o verifica no aparelho quando houver painel assim, e o registra como **não observado** quando não houver — nunca como aprovado por dedução. |
 
 ## Execution Notes
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-09-19 | Fase 1 (Setup) | `dexie` 4.4.6 + `fake-indexeddb` 6.2.5 instalados; schema local criado com as três coleções e os índices compostos que sustentam a leitura paginada. Nenhuma tela tocada; o app continua no caminho atual. 64 testes de frontend passando (mesma contagem de antes — o IndexedDB falso no setup não afetou nada existente). | Nenhuma. |
 
-**PRÓXIMO**: —
+| 2026-09-19 | Fase 2 (Foundational) | Núcleo portado e pipeline local completo, sem tocar em nenhuma tela. Três defeitos achados e corrigidos dentro da fase (uso indevido de `first()`+`count()` no mesmo objeto de consulta do Dexie; dois artefatos de teste). T018 rendeu dois arquivos (Worker + runner com plano B); T019 conferiu o nome real do arquivo emitido por sonda temporária; T010 movida para a Fase 6. FR-018 desambiguado e registrado como R-009. | **A execução para aqui**: a Fase 3 é o gate e exige a TV física. |
+
+| 2026-09-19 | Fase 3 (US1) — parcial | Tela de diagnóstico criada e alcançável por controle remoto; mede pelo mesmo caminho que as telas vão usar e mostra na tela tempo por etapa, contadores, memória (ou "não medido") e **se rodou em Worker**. T056 acrescentada: não havia como informar a fonte no aparelho, porque a credencial só existe no banco do backend. Build emite e sincroniza `assets/importWorker.js`. | **Parada obrigatória**: T022-T026 exigem a TV ligada e o usuário olhando a tela. |
+
+| 2026-09-19 | Fase 3 (US1) — T022 | Empacotado com `ccplay_samsung_certificate_4` (Samsung author no slot 0), instalado (`install completed`, sem `Author certificate not match`) e lançado (`pid 19723`) na TV QN50Q60DAGXZD em 192.168.0.4:26101. | Medir as duas fontes reais na tela da TV, com o backend desligado e o usuário presente (T023-T026). |
+
+| 2026-09-19 | Fase 3 (US1) — T023-T026 | **Gate aprovado.** Medido na TV QN50Q60DAGXZD com o backend desligado e o usuário presente. **Provedor (Xtream)**: 10 s, 1637 canais gravados, pico de memória 10 MB — SC-003 (≤ 30 s) aprovado. **URL M3U grande**: 16 s, 312.936 entradas listadas, 1637 canais gravados, pico de memória 10 MB, **rodou em Worker** — SC-004 (≤ 2 min) aprovado. **SC-005**: controle remoto respondeu normal nas duas importações, sem foco preso. **SC-006**: app não fechou, não recarregou e manteve o catálogo anterior. Durante a sessão foi corrigido um defeito de navegação na tela de diagnóstico: a tecla "voltar" saía do formulário em vez de recuar um campo — o `useTvKeyNav` ganhou `onBackField`/`onBack` (6 testes novos; 160 no front inteiro). | Nenhuma — gate liberado, Fase 4 (US2) desbloqueada. |
+
+**PRÓXIMO**: **Fase 4 — US2** (T027 em diante). O gate da Fase 3 passou
+com números reais na TV: provedor 10 s (SC-003), URL M3U grande 16 s para
+312.936 entradas (SC-004), SC-005 e SC-006 confirmados. Começar por T027
+(`HomeScreen.test.tsx`: Home lista fontes do repositório local, sem HTTP).
 
 ## Arquivos Principais
 
-- (nenhum ainda)
+- `tv-web/src/lib/catalog/db.ts` — schema local (Dexie), com as fronteiras
+  de segredo documentadas junto dos campos.
+- `tv-web/src/lib/catalog/m3uParser.ts` — interpretação em fluxo, com a
+  detecção de manifesto HLS e a tolerância ao `#EXT-X-SESSION-DATA`.
+- `tv-web/src/lib/catalog/classifier.ts` — classificação, incluindo o
+  caminho explícito de "não classificado".
+- `tv-web/src/lib/catalog/xtreamConnector.ts` — protocolo do painel e a
+  sondagem que separa recusa de origem cruzada de falha de rede.
+- `tv-web/src/lib/catalog/catalogRepository.ts` — geração ativa, leitura
+  paginada e publicação em duas fases.
+- `tv-web/src/lib/catalog/sourceRepository.ts` — fontes, com a credencial
+  atrás de uma porta restrita e fora do tipo que as telas consomem.
+- `tv-web/src/lib/catalog/importPipeline.ts` — a importação ponta a ponta.
+- `tv-web/src/lib/catalog/importWorker.ts` + `importRunner.ts` — onde o
+  trabalho pesado roda, com queda para a thread principal.
+- `CCPlayTv/tizen_web_project.yaml` — lista de arquivos do pacote, agora
+  com `assets/importWorker.js`.
+- `tv-web/src/features/diagnostics/ImportBenchScreen.tsx` — **temporária**:
+  a medição da US1, que sai na fase Polish.
 
 ## Cuidados para Retomada
 
-- (nenhum ainda)
+- **O Worker só entra no build quando alguma tela importar o runner.** A
+  entrada já está em `tizen_web_project.yaml`, mas `assets/importWorker.js`
+  só passa a existir em `CCPlayTv/` depois que a Fase 3 usar
+  `importRunner.ts`. Antes disso, um empacotamento apontaria para um
+  arquivo inexistente.
+- **Verificar o Worker na TV, não no build.** Ele pode ser emitido,
+  empacotado e ainda assim não subir no aparelho. O sintoma é uma
+  importação que nunca começa — e `importRunner.ts` cai para a thread
+  principal nesse caso, o que **mascara** o problema: confira
+  `ranInWorker` na tela de diagnóstico, não só se a importação terminou.
+- **Nenhum teste desta camada usa o banco padrão.** Cada arquivo de teste
+  abre um `CatalogDb` com nome próprio e o apaga ao fim. Um teste novo que
+  usar o `db` exportado vaza estado para os outros.
+- **Importação iniciada em teste precisa ser aguardada.** Deixar uma
+  `completion` pendente faz a importação continuar contra um banco que o
+  `afterEach` já apagou — aparece como erro solto, atribuído ao teste
+  errado.

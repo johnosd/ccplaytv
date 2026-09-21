@@ -976,3 +976,78 @@
   animation: ccp-toast 180ms ease-out;
   z-index: 1000;
 }
+
+
+/* ---------- Diagnóstico de importação (TEMPORÁRIO — feature 005, US1) ----------
+   Removido na fase Polish junto com a tela. Não é desenho de produto: a
+   TV não entrega console, então a medição precisa caber na tela. */
+
+.bench-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-top: 32px;
+  max-height: 720px;
+}
+
+.bench-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.bench-source {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  padding: 18px 24px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+
+.bench-source-selected {
+  background: var(--surface-active);
+  border-left: 6px solid var(--accent);
+}
+
+.bench-source-name {
+  font: 700 22px var(--font-heading);
+  color: var(--text-primary);
+}
+
+.bench-source-meta {
+  font-size: 16px;
+  color: var(--text-tertiary);
+}
+
+.bench-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.bench-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+  margin: 0;
+}
+
+.bench-metrics div {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 12px 18px;
+}
+
+.bench-metrics dt {
+  font-size: 15px;
+  color: var(--text-tertiary);
+}
+
+.bench-metrics dd {
+  margin: 4px 0 0;
+  font: 700 24px var(--font-heading);
+  color: var(--text-primary);
+}

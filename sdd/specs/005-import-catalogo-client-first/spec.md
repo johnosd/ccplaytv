@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-19
 
-**Status**: Planejada
+**Status**: Em Execução
 
 **Input**: ADR-008 (arquitetura client-first) — o app deve funcionar sem
 nenhuma infraestrutura própria ligada 24x7, nem PC nem VPS. A verificação

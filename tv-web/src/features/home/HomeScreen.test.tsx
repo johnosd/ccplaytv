@@ -34,6 +34,7 @@ function renderHome() {
         onEditSource={() => {}}
         onResyncStarted={() => {}}
         onSourceCreated={() => {}}
+        onOpenBench={() => {}}
       />
     </Wrapper>,
   )

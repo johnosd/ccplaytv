@@ -18,6 +18,8 @@ export interface HomeScreenProps {
   onEditSource: (source: SourceOut) => void
   onResyncStarted: (jobId: string) => void
   onSourceCreated: (result: { sourceId: string; jobId: string }) => void
+  /** TEMPORÁRIO (feature 005, US1): some na fase Polish, junto com a tela. */
+  onOpenBench: () => void
 }
 
 function formatStatus(source: SourceOut): string {
@@ -34,6 +36,7 @@ export function HomeScreen({
   onEditSource,
   onResyncStarted,
   onSourceCreated,
+  onOpenBench,
 }: HomeScreenProps) {
   const { data, isLoading, isError } = useSources()
   const deleteSource = useDeleteSource()
@@ -44,7 +47,10 @@ export function HomeScreen({
   const sources = data?.sources ?? []
   const hasSources = !isLoading && !isError && sources.length > 0
   const isEmpty = !isLoading && !isError && sources.length === 0
-  const total = sources.length + 1 // + card "Adicionar lista"
+  // + card "Adicionar lista" + card temporário de diagnóstico (US1).
+  const total = sources.length + 2
+  const addCardIdx = sources.length
+  const benchCardIdx = sources.length + 1
 
   const [focusRow, setFocusRow] = useState<0 | 1>(0)
   const [focusCol, setFocusCol] = useState(0)
@@ -67,10 +73,21 @@ export function HomeScreen({
       }
     },
     onSelect: () => {
+      // O gate da US1 roda justamente com o backend desligado, e é aí que
+      // esta tela cai no estado de erro. Sem esta saída, a medição ficaria
+      // inalcançável exatamente na configuração que ela precisa medir.
+      if (isError) {
+        onOpenBench()
+        return
+      }
       if (!hasSources) return
       if (focusRow === 0) {
-        if (focusCol === sources.length) {
+        if (focusCol === addCardIdx) {
           onAddSource()
+          return
+        }
+        if (focusCol === benchCardIdx) {
+          onOpenBench()
           return
         }
         const source = sources[focusCol]
@@ -110,6 +127,10 @@ export function HomeScreen({
           Não foi possível carregar suas listas. Verifique a conexão com o backend e tente
           novamente.
         </p>
+        {/* TEMPORÁRIO (feature 005, US1): sai na fase Polish. */}
+        <button type="button" className="home-empty-button tv-focus" onClick={onOpenBench}>
+          Diagnóstico de importação
+        </button>
       </div>
     )
   }
@@ -167,10 +188,19 @@ export function HomeScreen({
         })}
         <div className="source-card-wrap">
           <div
-            className={`add-card${focusRow === 0 && focusCol === sources.length ? ' tv-focus' : ''}`}
+            className={`add-card${focusRow === 0 && focusCol === addCardIdx ? ' tv-focus' : ''}`}
           >
             <div className="add-card-plus">+</div>
             <div className="add-card-label">Adicionar lista</div>
+          </div>
+        </div>
+        {/* TEMPORÁRIO (feature 005, US1): sai na fase Polish. */}
+        <div className="source-card-wrap">
+          <div
+            className={`add-card${focusRow === 0 && focusCol === benchCardIdx ? ' tv-focus' : ''}`}
+          >
+            <div className="add-card-plus">⏱</div>
+            <div className="add-card-label">Diagnóstico</div>
           </div>
         </div>
       </div>

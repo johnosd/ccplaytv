@@ -17,10 +17,13 @@ import { MovieDetailScreen } from './features/movies/MovieDetailScreen'
 import { SeriesScreen } from './features/series/SeriesScreen'
 import { SeriesDetailScreen } from './features/series/SeriesDetailScreen'
 import { MOVIES, SERIES } from './features/catalog/mockCatalog'
+// TEMPORÁRIO (feature 005, US1): sai na fase Polish, junto com a tela.
+import { ImportBenchScreen } from './features/diagnostics/ImportBenchScreen'
 
 type Screen =
   | { name: 'splash' }
   | { name: 'home' }
+  | { name: 'import-bench' }
   | { name: 'add-source' }
   | { name: 'edit-source'; source: SourceOut }
   | { name: 'progress'; jobId: string }
@@ -109,8 +112,13 @@ function App() {
           onEditSource={(source) => goto({ name: 'edit-source', source })}
           onResyncStarted={(jobId) => goto({ name: 'progress', jobId })}
           onSourceCreated={({ jobId }) => goto({ name: 'progress', jobId })}
+          onOpenBench={() => goto({ name: 'import-bench' })}
         />
       )
+
+    // TEMPORÁRIO (feature 005, US1): sai na fase Polish.
+    case 'import-bench':
+      return <ImportBenchScreen onBack={back} />
 
     case 'add-source':
       return (
