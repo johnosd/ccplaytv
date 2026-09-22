@@ -89,6 +89,8 @@ export interface SourceOut {
   last_successful_sync_at: string | null
   provider_import_mode: ProviderImportMode
   provider_dns: string | null
+  last_truncated_by_storage: boolean
+  last_discarded_by_type: number
 }
 
 export interface ProviderCredentialsPatch {
@@ -161,6 +163,8 @@ function toSourceOut(source: Awaited<ReturnType<typeof listSources>>[number]): S
       : null,
     provider_import_mode: source.providerImportMode ?? null,
     provider_dns: source.providerDns ?? null,
+    last_truncated_by_storage: source.lastTruncatedByStorage ?? false,
+    last_discarded_by_type: source.lastDiscardedByType ?? 0,
   }
 }
 

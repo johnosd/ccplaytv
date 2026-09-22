@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Importação local, ponta a ponta (`contracts/local-storage.md` §3).
  *
  * Obtém em fluxo, classifica, descarta o que não é canal, grava em lotes
@@ -304,7 +304,13 @@ export async function startImport(
     if (cancelled) throw new ImportCancelledError()
 
     await publishGeneration(sourceId, generation, database)
-    await markSynced(sourceId, { at: now(), mode, allowedFormats }, database)
+    await markSynced(sourceId, { 
+      at: now(), 
+      mode, 
+      allowedFormats,
+      truncatedByStorage: run.truncatedByStorage,
+      discardedByType: run.discardedByType
+    }, database)
 
     run.status = 'completed'
     enterStep('done')
@@ -324,7 +330,11 @@ export async function startImport(
       // com a truncagem declarada. Descartar aqui deixaria a pessoa sem
       // catálogo nenhum justamente por falta de espaço (FR-018).
       await publishGeneration(sourceId, generation, database)
-      await markSynced(sourceId, { at: now() }, database)
+      await markSynced(sourceId, { 
+        at: now(),
+        truncatedByStorage: run.truncatedByStorage,
+        discardedByType: run.discardedByType
+      }, database)
       run.status = 'completed'
       enterStep('done')
       return

@@ -187,6 +187,8 @@ export interface SyncMark {
   at: number
   mode?: ProviderImportMode
   allowedFormats?: string[]
+  truncatedByStorage?: boolean
+  discardedByType?: number
 }
 
 /**
@@ -200,17 +202,20 @@ export async function markSynced(
   mark: SyncMark,
   database: CatalogDb = db,
 ): Promise<void> {
-  const changes: Partial<SourceRecord> = {
+  const patch: Partial<SourceRecord> = {
     connectionState: 'synced',
     lastSuccessfulSyncAt: mark.at,
     updatedAt: mark.at,
   }
-  if (mark.mode) {
-    changes.providerImportMode = mark.mode
-    changes.providerMigratedAt = mark.at
+  if (mark.mode !== undefined) {
+    patch.providerImportMode = mark.mode
+    patch.providerMigratedAt = mark.at
   }
-  if (mark.allowedFormats) changes.providerAllowedFormats = mark.allowedFormats
-  await database.sources.update(id, changes)
+  if (mark.allowedFormats !== undefined) patch.providerAllowedFormats = mark.allowedFormats
+  if (mark.truncatedByStorage !== undefined) patch.lastTruncatedByStorage = mark.truncatedByStorage
+  if (mark.discardedByType !== undefined) patch.lastDiscardedByType = mark.discardedByType
+
+  await database.sources.update(id, patch)
 }
 
 /**

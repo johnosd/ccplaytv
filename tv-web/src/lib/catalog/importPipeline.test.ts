@@ -1,4 +1,4 @@
-﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CatalogDb, type ImportRunRecord, type SourceRecord } from './db'
 import { countChannels, listCategories, listChannels, storeBatch } from './catalogRepository'
 import { ImportAlreadyRunningError, startImport } from './importPipeline'
@@ -293,6 +293,54 @@ describe('importPipeline — fonte por URL M3U', () => {
       expect(snapshot).not.toHaveProperty('percent')
       expect(snapshot.channelsStored).toBeLessThanOrEqual(snapshot.entriesRead)
     }
+  })
+
+  it('falta de espaço com parte gravada publica o que coube e declara truncamento (R-009/FR-018)', async () => {
+    // Para falhar no SEGUNDO lote (já tem canaisStored > 0)
+    let callCount = 0
+    const originalBulkAdd = database.channels.bulkAdd.bind(database.channels)
+    vi.spyOn(database.channels, 'bulkAdd').mockImplementation((...args) => {
+      callCount += 1
+      if (callCount === 2) {
+        return Promise.reject(new DOMException('QuotaExceededError', 'QuotaExceededError'))
+      }
+      return originalBulkAdd(...args)
+    })
+
+    const many = ['#EXTM3U']
+    for (let index = 0; index < 20; index += 1) {
+      many.push(`#EXTINF:-1 group-title="Canais",Canal ${index}`, `http://exemplo.test/${index}.ts`)
+    }
+    vi.stubGlobal('fetch', respondWith(many.join('\n')))
+
+    const run = await (await startImport(M3U_SOURCE.id, { database, batchSize: 5 })).completion
+
+    // Concluída, mas com truncamento marcado (parte coube, foi publicada).
+    expect(run.status).toBe('completed')
+    expect(run.truncatedByStorage).toBe(true)
+    expect(run.channelsStored).toBe(5) // O primeiro lote coube
+
+    const visible = await countChannels(M3U_SOURCE.id, undefined, database)
+    expect(visible).toBe(5)
+  })
+
+  it('falta de espaço no primeiro lote descarta a geração e não marca como completa (R-009)', async () => {
+    vi.spyOn(database.channels, 'bulkAdd').mockRejectedValue(
+      new DOMException('QuotaExceededError', 'QuotaExceededError')
+    )
+
+    vi.stubGlobal('fetch', respondWith(MIXED_M3U))
+
+    const run = await (await startImport(M3U_SOURCE.id, { database, batchSize: 5 })).completion
+
+    // Falhou, truncamento marcado, mas NENHUM canal gravado.
+    expect(run.status).toBe('failed')
+    expect(run.truncatedByStorage).toBe(true)
+    expect(run.errorKind).toBeUndefined()
+    expect(run.channelsStored).toBe(0)
+
+    const visible = await countChannels(M3U_SOURCE.id, undefined, database)
+    expect(visible).toBe(0)
   })
 })
 

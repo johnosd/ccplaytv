@@ -181,4 +181,54 @@ describe('HomeScreen', () => {
 
     expect(screen.queryByText('Modo limitado')).not.toBeInTheDocument()
   })
+
+  it('fonte com truncamento mostra o alerta correspondente na Home (T038)', () => {
+    vi.mocked(importApi.useSources).mockReturnValue({
+      data: {
+        sources: [
+          {
+            id: 'src-truncado',
+            type: 'm3u_url',
+            display_name: 'Lista Truncada',
+            connection_state: 'synced',
+            last_successful_sync_at: new Date().toISOString(),
+            provider_import_mode: null,
+            last_truncated_by_storage: true,
+            last_discarded_by_type: 0,
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof importApi.useSources>)
+
+    renderHome()
+
+    expect(screen.getByText('A lista não coube inteira')).toBeInTheDocument()
+  })
+
+  it('fonte que só importou canais mostra o alerta correspondente na Home (T038)', () => {
+    vi.mocked(importApi.useSources).mockReturnValue({
+      data: {
+        sources: [
+          {
+            id: 'src-s-canais',
+            type: 'm3u_url',
+            display_name: 'Lista Só Canais',
+            connection_state: 'synced',
+            last_successful_sync_at: new Date().toISOString(),
+            provider_import_mode: null,
+            last_truncated_by_storage: false,
+            last_discarded_by_type: 100,
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof importApi.useSources>)
+
+    renderHome()
+
+    expect(screen.getByText('Só canais foram importados')).toBeInTheDocument()
+  })
 })

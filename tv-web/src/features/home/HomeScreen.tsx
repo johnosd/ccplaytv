@@ -173,6 +173,12 @@ export function HomeScreen({
                 {source.provider_import_mode === 'legacy_m3u' && (
                   <div className="source-card-badge">Modo limitado</div>
                 )}
+                {source.last_truncated_by_storage && (
+                  <div className="source-card-badge" style={{ marginTop: 4 }}>A lista não coube inteira</div>
+                )}
+                {source.last_discarded_by_type > 0 && (
+                  <div className="source-card-badge" style={{ marginTop: 4 }}>Só canais foram importados</div>
+                )}
               </div>
               {actionsVisible && (
                 <div className="source-actions">

@@ -400,12 +400,10 @@ navegar o resultado.
 
 ### Testes da Fase
 
-- [ ] T035 [P] [US3] Teste em
+- [X] T035 [P] [US3] Teste em
       `tv-web/src/lib/catalog/importPipeline.test.ts`: quando a escrita é
-      rejeitada por falta de espaço, a execução marca truncamento, a
-      geração ativa anterior permanece e nada parcial é publicado
-      (FR-018).
-- [ ] T036 [P] [US3] Teste em
+      rejeitada por falta de espaço e algo já foi gravado, publica o que coube declarando truncamento; se nada coube, descarta e mantém geração anterior (FR-018 / R-009).
+- [X] T036 [P] [US3] Teste em
       `tv-web/src/features/import/ImportProgressScreen.test.tsx`: a tela
       declara explicitamente que só canais foram importados e, quando
       houver truncamento, que a lista não coube inteira — sem apresentar
@@ -413,10 +411,10 @@ navegar o resultado.
 
 ### Implementation
 
-- [ ] T037 [US3] Tratar o resultado truncado por armazenamento no
+- [X] T037 [US3] Tratar o resultado truncado por armazenamento no
       `importPipeline` e no `catalogRepository`, preservando o que era
       utilizável.
-- [ ] T038 [US3] Apresentar os dois estados na interface
+- [X] T038 [US3] Apresentar os dois estados na interface
       (`ImportProgressScreen.tsx` e onde a fonte aparece na Home): "só
       canais foram importados" e "a lista não coube inteira", ambos como
       informação, não como erro.

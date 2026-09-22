@@ -36,6 +36,8 @@ export interface SourceRecord {
   providerMigratedAt?: number
   connectionState: ConnectionState
   lastSuccessfulSyncAt?: number
+  lastTruncatedByStorage?: boolean
+  lastDiscardedByType?: number
   /** Geração publicada do catálogo. `undefined` = nenhuma ainda (D-004). */
   activeGeneration?: number
   createdAt: number
