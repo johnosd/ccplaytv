@@ -193,3 +193,4 @@ Consultadas em 2026-09-13. As ADRs contêm as referências da arquitetura.
 [^uv-layout]: Astral — Structure and files. `https://docs.astral.sh/uv/concepts/projects/layout/`
 
 [^fastapi-start]: FastAPI — First Steps. `https://fastapi.tiangolo.com/tutorial/first-steps/`
+

@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-19
 
-**Status**: Concluida
+**Status**: Convergida
 
 **Input**: ADR-008 (arquitetura client-first) — o app deve funcionar sem
 nenhuma infraestrutura própria ligada 24x7, nem PC nem VPS. A verificação
@@ -425,3 +425,4 @@ milhares de entradas — para só então descartar o que não é canal. Por
 isso SC-003 e SC-004 têm metas diferentes, e por isso a US1 mede as duas
 fontes separadamente: é plausível que o caminho de provedor passe
 folgado e o caminho por URL seja o que force uma decisão.
+
