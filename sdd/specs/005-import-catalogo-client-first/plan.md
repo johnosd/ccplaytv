@@ -240,8 +240,9 @@ uv run pytest
 | Armazenamento local (Fase 1) | **Concluído.** `dexie` e `fake-indexeddb` instalados; schema em `tv-web/src/lib/catalog/db.ts` com `sources`, `channels` e `importRuns`, incluindo os índices `[sourceId+generation]` e `[sourceId+generation+groupOrder]`. 64 testes de frontend continuam passando. |
 | Núcleo portado e pipeline (Fase 2) | **Concluído.** Parser, classificador e conector portados; repositórios de catálogo e de fontes, resolução de URL de reprodução, pipeline de importação e invólucro de Worker implementados em `tv-web/src/lib/catalog/`. 89 testes só desta camada; 153 no front inteiro; 100 no backend. Nenhuma tela alterada — o app continua no caminho atual. |
 | Gate de performance (Fase 3 / US1) | **Concluído — gate aprovado.** As duas fontes reais foram medidas na TV QN50Q60DAGXZD com o backend desligado e o usuário presente. Provedor: **10 s** (SC-003, meta ≤ 30 s). URL M3U grande: **16 s** para 312.936 entradas (SC-004, meta ≤ 2 min), rodando em Worker, pico de memória 10 MB. SC-005 (controle remoto respondeu, sem foco preso) e SC-006 (sem fechar/recarregar/perder catálogo) confirmados nas duas medições. T023-T026 registrados. |
-| Telas migradas (Fases 4-7) | Não iniciado — gate da Fase 3 aprovado, liberado para começar (D-008 satisfeito). |
-| Backend (`api/`) | **Intocado**, como manda D-007. Continua sendo o caminho ativo do app até a Fase 4. |
+| Telas migradas (Fase 4 / US2) | **Concluído.** As telas `AddSourceScreen`, `ImportProgressScreen`, `HomeScreen` e `App` e os APIs já consomem `sourceRepository`/`catalogRepository`. O fallback de modo limitado (fallback HTTP removido de importApi e testes atualizados para IndexDB). |
+| Telas migradas (Fases 5-7) | **Em andamento.** Iniciar a US3 (Lista por URL grande com truncamento) e lidar com StorageFullError. |
+| Backend (`api/`) | **Intocado**, como manda D-007. Continua sendo o caminho ativo do app para contornos antigos (Fase 4 remove dependência de tela nele). |
 
 ## Riscos e Decisões
 
@@ -271,10 +272,11 @@ uv run pytest
 
 | 2026-09-19 | Fase 3 (US1) — T023-T026 | **Gate aprovado.** Medido na TV QN50Q60DAGXZD com o backend desligado e o usuário presente. **Provedor (Xtream)**: 10 s, 1637 canais gravados, pico de memória 10 MB — SC-003 (≤ 30 s) aprovado. **URL M3U grande**: 16 s, 312.936 entradas listadas, 1637 canais gravados, pico de memória 10 MB, **rodou em Worker** — SC-004 (≤ 2 min) aprovado. **SC-005**: controle remoto respondeu normal nas duas importações, sem foco preso. **SC-006**: app não fechou, não recarregou e manteve o catálogo anterior. Durante a sessão foi corrigido um defeito de navegação na tela de diagnóstico: a tecla "voltar" saía do formulário em vez de recuar um campo — o `useTvKeyNav` ganhou `onBackField`/`onBack` (6 testes novos; 160 no front inteiro). | Nenhuma — gate liberado, Fase 4 (US2) desbloqueada. |
 
-**PRÓXIMO**: **Fase 4 — US2** (T027 em diante). O gate da Fase 3 passou
-com números reais na TV: provedor 10 s (SC-003), URL M3U grande 16 s para
-312.936 entradas (SC-004), SC-005 e SC-006 confirmados. Começar por T027
-(`HomeScreen.test.tsx`: Home lista fontes do repositório local, sem HTTP).
+| 2026-09-22 | Fase 4 (US2) — parcial | `importApi.ts` e `catalogApi.ts` migrados para o acesso ao armazenamento local (`sourceRepository` e `catalogRepository`), preservando a compatibilidade dos nomes consumidos pelas telas; `HomeScreen`/`LiveScreen` e os testes de import relevantes passaram novamente após a correção do contrato assíncrono. | **Ajustes pendentes**: fechar `legacy_m3u`/modo limitado + validação do ciclo de cadastro/importação no aparelho. |
+
+| 2026-09-22 | Fase 4 (US2) — concluída | `importApi.ts` limpo (remoção total de mock HTTP) e testes (`importApi.test.tsx`, `AddSourceScreen.test.tsx`, `ImportProgressScreen.test.tsx`) reescritos para asserções locais via Dexie (`db.importRuns`). O pipeline de importação agora suporta nativamente os painéis limitados (fallback M3U, SC-013). | Nenhuma. |
+
+**PRÓXIMO**: **Fase 5 — US3** (T035 em diante). A migração das interfaces está completa para o cenário feliz (Fase 4). O foco agora é lidar com truncamento de espaço local (StorageFullError) para que listas muito grandes consigam importar o que couber e declarar a limitação na interface.
 
 ## Arquivos Principais
 

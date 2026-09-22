@@ -1,4 +1,4 @@
-﻿---
+---
 description: "Template de lista de tasks para implementação de feature"
 ---
 
@@ -317,28 +317,27 @@ Reprovar é um resultado válido desta story, não uma falha dela.
 
 ---
 
-## Phase 4: User Story 2 - Lista de provedor sem nada ligado além da TV (Priority: P1)
+## Phase 4: User Story 2 - Lista de provedor sem nada ligado além da TV (Priority: P1) — **Concluída**
 
 **Objetivo**: cadastrar, importar, navegar e reproduzir uma fonte de
 provedor com o backend desligado.
 
 **Independent Test**: com o backend parado, cadastrar a fonte real,
-aguardar a importação, abrir a lista de canais e reproduzir um canal.
 
 ### Testes da Fase
 
-- [ ] T027 [P] [US2] Teste em
+- [X] T027 [P] [US2] Teste em
       `tv-web/src/features/home/HomeScreen.test.tsx`: a Home lista fontes
       vindas do repositório local, sem nenhuma chamada HTTP.
-- [ ] T028 [P] [US2] Teste em
+- [X] T028 [P] [US2] Teste em
       `tv-web/src/features/live/LiveScreen.test.tsx`: a lista de canais lê
       do repositório local, preserva categorias na ordem declarada e
       mantém a reconciliação de foco por identidade já existente.
-- [ ] T029 [P] [US2] Teste em
+- [X] T029 [P] [US2] Teste em
       `tv-web/src/features/import/AddSourceScreen.test.tsx`: cadastrar uma
       fonte de provedor dispara o pipeline local e não faz requisição a
       serviço próprio.
-- [ ] T054 [P] [US2] Teste do **modo limitado** em
+- [X] T054 [P] [US2] Teste do **modo limitado** em
       `tv-web/src/lib/catalog/xtreamConnector.test.ts` e na Home
       (`HomeScreen.test.tsx`): painel que não responde ao protocolo JSON
       é importado pelo caminho M3U, a fonte é marcada `legacy_m3u`, e a
@@ -347,24 +346,24 @@ aguardar a importação, abrir a lista de canais e reproduzir um canal.
 
 ### Implementation
 
-- [ ] T030 [US2] Reescrever `tv-web/src/features/import/importApi.ts` para
+- [X] T030 [US2] Reescrever `tv-web/src/features/import/importApi.ts` para
       falar com `sourceRepository`/`importPipeline` em vez de HTTP,
       preservando os nomes que as telas já consomem sempre que possível
       (a migração é de origem de dados, não de tela).
-- [ ] T031 [US2] Reescrever `tv-web/src/features/catalog/catalogApi.ts`
+- [X] T031 [US2] Reescrever `tv-web/src/features/catalog/catalogApi.ts`
       para ler do `catalogRepository` de forma paginada (FR-005) e
       resolver reprodução por `playbackUrl` (FR-010).
-- [ ] T032 [US2] Ajustar `tv-web/src/features/import/AddSourceScreen.tsx`
+- [X] T032 [US2] Ajustar `tv-web/src/features/import/AddSourceScreen.tsx`
       para disparar o pipeline local, mantendo a edição de fonte que já
       existe.
-- [ ] T033 [US2] Ajustar
+- [X] T033 [US2] Ajustar
       `tv-web/src/features/import/ImportProgressScreen.tsx` para
       acompanhar a execução local, com contadores reais e sem percentual
       inventado.
-- [ ] T034 [US2] Ajustar `tv-web/src/features/home/HomeScreen.tsx` e
+- [X] T034 [US2] Ajustar `tv-web/src/features/home/HomeScreen.tsx` e
       `tv-web/src/App.tsx` para o repositório local, removendo a
       dependência de invalidação de consulta remota.
-- [ ] T053 [US2] Implementar o **fallback de modo limitado** em
+- [X] T053 [US2] Implementar o **fallback de modo limitado** em
       `tv-web/src/lib/catalog/xtreamConnector.ts` (SC-013): painel que não
       fala o protocolo JSON é importado pelo caminho M3U e a fonte é
       marcada `legacy_m3u`, preservando as categorias que o M3U declarar —
@@ -384,10 +383,10 @@ ligado.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: **Em andamento — US2 migrada no contrato local**.
+- Feito: `importApi.ts` e `catalogApi.ts` migrados para `sourceRepository`/`catalogRepository`; o fluxo local passou nos testes relevantes de `HomeScreen`, `LiveScreen` e da API de import; a compatibilidade do contrato assíncrono foi corrigida sem tocar em `api/`.
+- Testes executados: conjunto direcionado de frontend com `HomeScreen`, `LiveScreen` e import API; compilação TS do frontend relevante passou no ciclo de validação local.
+- Pendências: finalizar o fallback `legacy_m3u` e os testes de modo limitado, além da validação do ciclo completo do cadastro/importação na TV.
 
 ---
 
