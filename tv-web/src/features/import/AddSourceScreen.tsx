@@ -200,7 +200,7 @@ export function AddSourceScreen({
           </p>
         )}
 
-        <button className="submit-button" type="button" onClick={handleSubmit} disabled={isPending}>
+          <button className="submit-button" type="button" onClick={handleSubmit} disabled={isPending}>
           {isEditing
             ? updateSource.isPending
               ? 'Salvando…'

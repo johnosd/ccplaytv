@@ -56,6 +56,16 @@ export function useTvKeyNav(
           event.key === 'Escape' ||
           event.key === 'XF86Back' ||
           event.keyCode === TIZEN_RETURN_KEYCODE)
+      
+      const isEnter = event.key === 'Enter' || event.keyCode === 13
+      if (isEnter) {
+        if (document.activeElement?.tagName === 'BUTTON' || document.activeElement?.hasAttribute('tabindex')) {
+          event.preventDefault()
+          ;(document.activeElement as HTMLElement).click()
+        }
+        return
+      }
+
       if (!goNext && !goPrev && !isBack) return
 
       const list = getFocusable()
