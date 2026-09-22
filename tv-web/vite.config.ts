@@ -46,6 +46,20 @@ export default defineConfig({
       },
     },
   },
+  server: {
+    fs: {
+      // O teste de paridade (SC-013) lê a MESMA fixture que a suíte do
+      // backend usa, em vez de manter uma cópia que divergiria em silêncio.
+      // Isso exige liberar um caminho fora da raiz deste projeto.
+      //
+      // A liberação é **só da pasta de fixtures**, nunca de `..`: a raiz do
+      // repositório contém `docs/m3u/dados.md`, com credenciais reais de
+      // provedor, e o servidor de desenvolvimento escuta na rede local.
+      // Liberar o diretório pai serviria esse arquivo por HTTP para quem
+      // estivesse na mesma rede. Não amplie esta lista.
+      allow: ['.', '../api/tests/fixtures'],
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],

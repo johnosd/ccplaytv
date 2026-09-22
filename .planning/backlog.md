@@ -686,7 +686,7 @@ própria de demanda. Cada uma precisa passar por `sdd-assess`
 | 002-splash-home-perfis | Splash, ícone do app e Home de perfis/listas | Implementada | 22/22 tasks | 2026-09-16 |
 | 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Convergida | 67/67 tasks | 2026-09-18 |
 | 004-conector-xtream-live | Conector Xtream JSON para canais ao vivo | Convergida | 55/55 tasks | 2026-09-18 |
-| 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Concluida | 56/56 tasks | 2026-09-22 |
+| 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Concluida | 59/59 tasks | 2026-09-22 |
 
 ## Bugs
 

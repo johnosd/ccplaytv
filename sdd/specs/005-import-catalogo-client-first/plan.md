@@ -327,3 +327,4 @@ uv run pytest
   `completion` pendente faz a importação continuar contra um banco que o
   `afterEach` já apagou — aparece como erro solto, atribuído ao teste
   errado.
+

@@ -28,6 +28,11 @@ npx tsc -b
 npm run lint
 npx vitest run
 npm run build:tizen
+
+# Backend: não muda nesta feature — roda só para provar que não quebrou
+cd ..\api
+uv run ruff check .
+uv run pytest
 ```
 
 ## Cenário A — O gate de performance (US1)
@@ -137,6 +142,25 @@ observado** — o comportamento continua coberto por teste automatizado
 **Se não houver um provedor assim disponível**, registrar como **não
 observado** — nunca inferir. O comportamento continua coberto por teste
 automatizado, o que é evidência de unidade, não de aparelho.
+
+## Cenário F — O caminho congelado continua de pé, e serve de oráculo (FR-021, SC-013)
+
+1. Ligar o backend de novo.
+2. Rodar `uv run pytest` em `api/`.
+3. **Esperado**: tudo passa, sem alteração de comportamento — nenhuma
+   task desta feature deveria ter tocado em `api/` (D-007).
+4. Importar a **mesma fonte real** pelos dois caminhos — o antigo (pelo
+   backend) e o novo (no aparelho).
+5. Comparar o **conjunto de categorias** e a **contagem de canais por
+   categoria** entre os dois resultados.
+6. **Esperado**: nenhuma diferença inexplicada. Diferenças esperadas e
+   aceitáveis: o caminho antigo grava também filme/série/episódio, que o
+   novo descarta de propósito (FR-008) — por isso a comparação é da fatia
+   de canais, não do total de itens.
+7. Repetir para os dois tipos de fonte: provedor e URL M3U.
+
+Uma diferença de canais que não tenha explicação é **regressão**, não
+"comportamento novo" — é exatamente o que SC-013 existe para impedir.
 
 ## Checklist cross-cutting (constitution)
 

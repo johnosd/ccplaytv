@@ -569,3 +569,24 @@ esearch.md (ADR-003) para atestar que o
 - Testes executados: Suíte completa via \itest run\ garantindo que a remoção de telas e referências não quebrou nada.
 - Pendências: Nenhuma.
 
+
+---
+
+## Phase 9: Convergence
+
+**Purpose**: Corrigir lacunas e contradicoes identificadas pelo \sdd-converge\ entre o codigo final e as definicoes da spec e plan.
+
+- [X] T057 [P] [Convergence] Reverter a remocao do diretorio \pi/\ (backend Python). FR-021 e D-007 exigem que o caminho atual por backend nao seja removido nem quebrado, permanecendo como oraculo/contorno.
+- [X] T058 [Convergence] Restaurar a configuracao \s.allow\ no \ite.config.ts\ para que o frontend consiga ler a fixture do backend nos testes.
+- [X] T059 [Convergence] Reverter as modificacoes indevidas na documentacao (\quickstart.md\, \data-model.md\, \esearch.md\) que afirmavam a extincao do backend, alinhando-as novamente a decisao D-007.
+
+
+
+**Registro da Fase**:
+
+- Status: Concluída
+- Feito: Todos os artefatos removidos indevidamente na Fase 8 foram restaurados. O diretório \pi/\ voltou ao repositório intacto (T057), a configuração do \ite.config.ts\ (\s.allow\) foi revertida para garantir que o front acesse os fixtures do backend (T058) e a documentação (\quickstart.md\, \data-model.md\ e \esearch.md\) foi integralmente revertida para respeitar a decisão de congelar o backend, sem excluí-lo (T059).
+- Testes executados:
+  - \uv run pytest\ dentro de \pi/\ para comprovar que o backend continua rodando.
+- Pendências: Nenhuma.
+
