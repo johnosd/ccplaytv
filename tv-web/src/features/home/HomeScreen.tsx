@@ -44,7 +44,9 @@ export function HomeScreen({
   const sources = data?.sources ?? []
   const hasSources = !isLoading && !isError && sources.length > 0
   const isEmpty = !isLoading && !isError && sources.length === 0
-  const total = sources.length + 1 // + card "Adicionar lista"
+  // + card "Adicionar lista".
+  const total = sources.length + 1
+  const addCardIdx = sources.length
 
   const [focusRow, setFocusRow] = useState<0 | 1>(0)
   const [focusCol, setFocusCol] = useState(0)
@@ -62,14 +64,14 @@ export function HomeScreen({
         }
       } else {
         if (dir === 'up') setFocusRow(0)
-        if (dir === 'left') setFocusCol((c) => clamp(c - 1, 0, 2))
-        if (dir === 'right') setFocusCol((c) => clamp(c + 1, 0, 2))
+        if (dir === 'left') setFocusCol((c) => clamp(c - 1, 0, 1))
+        if (dir === 'right') setFocusCol((c) => clamp(c + 1, 0, 1))
       }
     },
     onSelect: () => {
       if (!hasSources) return
       if (focusRow === 0) {
-        if (focusCol === sources.length) {
+        if (focusCol === addCardIdx) {
           onAddSource()
           return
         }
@@ -152,6 +154,12 @@ export function HomeScreen({
                 {source.provider_import_mode === 'legacy_m3u' && (
                   <div className="source-card-badge">Modo limitado</div>
                 )}
+                {source.last_truncated_by_storage && (
+                  <div className="source-card-badge" style={{ marginTop: 4 }}>A lista não coube inteira</div>
+                )}
+                {source.last_discarded_by_type > 0 && (
+                  <div className="source-card-badge" style={{ marginTop: 4 }}>Só canais foram importados</div>
+                )}
               </div>
               {actionsVisible && (
                 <div className="source-actions">
@@ -167,7 +175,7 @@ export function HomeScreen({
         })}
         <div className="source-card-wrap">
           <div
-            className={`add-card${focusRow === 0 && focusCol === sources.length ? ' tv-focus' : ''}`}
+            className={`add-card${focusRow === 0 && focusCol === addCardIdx ? ' tv-focus' : ''}`}
           >
             <div className="add-card-plus">+</div>
             <div className="add-card-label">Adicionar lista</div>

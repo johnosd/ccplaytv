@@ -36,6 +36,11 @@ files:
   - icon.png
   - assets/index.js
   - assets/index.css
+  # Worker de importação (feature 005). Nome conferido no build de
+  # 2026-09-19 com `worker.rollupOptions` de nome fixo no vite.config.ts.
+  # Ausência aqui NÃO falha no navegador nem nos testes — só na TV, como
+  # importação que nunca começa. Ver R-002.
+  - assets/importWorker.js
 
 # list of files to exclude based on the matched patterns
 excludes:

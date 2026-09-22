@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3000'
+import { db, type ImportRunRecord } from '../../lib/catalog/db'
+import {
+  createSource,
+  deleteSource,
+  listSources,
+  readCredential,
+  updateSource,
+} from '../../lib/catalog/sourceRepository'
+import { startImport, type ImportHandle } from '../../lib/catalog/importPipeline'
 
 export type SourceType = 'm3u_url' | 'provider_credentials'
 
@@ -42,10 +49,7 @@ export const TERMINAL_STATUSES: ImportJobStatus[] = [
 export interface ImportJobCounts {
   entries_read: number
   channels: number
-  movies: number
-  series: number
-  episodes: number
-  unclassified: number
+  discarded_by_type: number
   invalid: number
 }
 
@@ -56,6 +60,7 @@ export interface ImportJobResponse {
   current_step: ImportStep
   counts: ImportJobCounts
   warnings: string[]
+  error_kind: string | null
   created_at: string
   updated_at: string
   finished_at: string | null
@@ -75,8 +80,6 @@ export interface RetryImportJobResponse {
 
 export type ConnectionState = 'never_synced' | 'synced' | 'error'
 
-// `null` para fonte m3u_url, ou fonte de provedor ainda não migrada pelo
-// conector novo (feature 004). `legacy_m3u` é o sinal de modo limitado.
 export type ProviderImportMode = 'xtream_api' | 'legacy_m3u' | null
 
 export interface SourceOut {
@@ -86,10 +89,9 @@ export interface SourceOut {
   connection_state: ConnectionState
   last_successful_sync_at: string | null
   provider_import_mode: ProviderImportMode
-  // Sozinho não autentica nada — diferente de username/password, que o
-  // backend nunca devolve (FR-014/constitution). Existe pra tela de edição
-  // conseguir mostrar/corrigir o endereço sem redigitar usuário e senha.
   provider_dns: string | null
+  last_truncated_by_storage: boolean
+  last_discarded_by_type: number
 }
 
 export interface ProviderCredentialsPatch {
@@ -118,55 +120,117 @@ export interface OpenSourceResponse {
   import_job_id: string | null
 }
 
-export class ImportApiError extends Error {
-  status: number
-
-  constructor(status: number, message: string) {
-    super(message)
-    this.status = status
-  }
-}
-
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-  })
-
-  if (!response.ok) {
-    const detail = await response.json().catch(() => null)
-    const message =
-      (detail && typeof detail === 'object' && 'detail' in detail
-        ? String((detail as { detail?: unknown }).detail)
-        : null) ?? response.statusText
-    throw new ImportApiError(response.status, message)
-  }
-
-  if (response.status === 204) {
-    return undefined as T
-  }
-  return (await response.json()) as T
-}
-
 const ACTIVE_POLL_INTERVAL_MS = 1500
+const runningImports = new Map<string, ImportHandle>()
+
+function mapStep(step: string): ImportStep {
+  switch (step) {
+    case 'fetching':
+      return 'acquiring'
+    case 'parsing':
+      return 'parsing'
+    case 'storing':
+      return 'publishing'
+    case 'done':
+      return 'done'
+    default:
+      return 'done'
+  }
+}
+
+function mapStatus(status: ImportRunRecord['status']): ImportJobStatus {
+  switch (status) {
+    case 'running':
+      return 'running'
+    case 'completed':
+      return 'completed'
+    case 'failed':
+      return 'failed'
+    case 'cancelled':
+      return 'cancelled'
+    default:
+      return 'completed'
+  }
+}
+
+function toSourceOut(source: Awaited<ReturnType<typeof listSources>>[number]): SourceOut {
+  return {
+    id: source.id,
+    type: source.type,
+    display_name: source.displayName,
+    connection_state: source.connectionState,
+    last_successful_sync_at: source.lastSuccessfulSyncAt
+      ? new Date(source.lastSuccessfulSyncAt).toISOString()
+      : null,
+    provider_import_mode: source.providerImportMode ?? null,
+    provider_dns: source.providerDns ?? null,
+    last_truncated_by_storage: source.lastTruncatedByStorage ?? false,
+    last_discarded_by_type: source.lastDiscardedByType ?? 0,
+  }
+}
+
+function toJobResponse(run: ImportRunRecord): ImportJobResponse {
+  const warnings: string[] = []
+  if (run.truncatedByStorage) warnings.push('A lista não coube inteira no aparelho.')
+  if (run.invalidCount > 0) warnings.push('Entradas inválidas foram ignoradas.')
+  if (run.discardedByType > 0) warnings.push('Só canais foram importados nesta fonte.')
+
+  return {
+    id: run.id,
+    source_id: run.sourceId,
+    status: mapStatus(run.status),
+    current_step: mapStep(run.step),
+    counts: {
+      entries_read: run.entriesRead,
+      channels: run.channelsStored,
+      discarded_by_type: run.discardedByType,
+      invalid: run.invalidCount,
+    },
+    warnings,
+    error_kind: run.errorKind ?? null,
+    created_at: new Date(run.startedAt).toISOString(),
+    updated_at: new Date().toISOString(),
+    finished_at: run.finishedAt ? new Date(run.finishedAt).toISOString() : null,
+  }
+}
+
+async function startLocalImport(sourceId: string): Promise<ImportHandle> {
+  const handle = await startImport(sourceId)
+  runningImports.set(handle.runId, handle)
+  void handle.completion.finally(() => {
+    runningImports.delete(handle.runId)
+  })
+  return handle
+}
 
 export function useCreateSource() {
   return useMutation({
-    mutationFn: (input: CreateSourceInput) =>
-      apiFetch<CreateSourceResponse>('/sources', {
-        method: 'POST',
-        body: JSON.stringify({ ...input, request_key: crypto.randomUUID() }),
-      }),
+    mutationFn: async (input: CreateSourceInput) => {
+      const sourceId = await createSource({
+        type: input.type,
+        displayName: input.display_name,
+        m3uUrl: input.m3u_url,
+        providerDns: input.provider?.dns,
+        providerUsername: input.provider?.username,
+        providerPassword: input.provider?.password,
+      })
+      const handle = await startLocalImport(sourceId)
+      return {
+        source_id: sourceId,
+        import_job_id: handle.runId,
+      } satisfies CreateSourceResponse
+    },
   })
 }
 
 export function useImportJob(jobId: string | null) {
   return useQuery({
     queryKey: ['import-job', jobId],
-    queryFn: () => apiFetch<ImportJobResponse>(`/import-jobs/${jobId}`),
+    queryFn: async () => {
+      if (!jobId) return null
+      const run = await db.importRuns.get(jobId)
+      return run ? toJobResponse(run) : null
+    },
     enabled: jobId !== null,
     refetchInterval: (query) => {
       const status = query.state.data?.status
@@ -181,8 +245,18 @@ export function useImportJob(jobId: string | null) {
 export function useCancelImportJob() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (jobId: string) =>
-      apiFetch<CancelImportJobResponse>(`/import-jobs/${jobId}/cancel`, { method: 'POST' }),
+    mutationFn: async (jobId: string) => {
+      const handle = runningImports.get(jobId)
+      if (handle) {
+        handle.cancel()
+      }
+      const run = await db.importRuns.get(jobId)
+      return {
+        id: jobId,
+        status: run ? mapStatus(run.status) : 'cancelled',
+        cancel_requested_at: null,
+      } satisfies CancelImportJobResponse
+    },
     onSuccess: (_result, jobId) => {
       queryClient.invalidateQueries({ queryKey: ['import-job', jobId] })
     },
@@ -191,26 +265,42 @@ export function useCancelImportJob() {
 
 export function useRetryImportJob() {
   return useMutation({
-    mutationFn: (jobId: string) =>
-      apiFetch<RetryImportJobResponse>(`/import-jobs/${jobId}/retry`, { method: 'POST' }),
+    mutationFn: async (jobId: string) => {
+      const existing = await db.importRuns.get(jobId)
+      const sourceId = existing?.sourceId
+      if (!sourceId) throw new Error('Importação não encontrada para repetir.')
+      const result = await startLocalImport(sourceId)
+      return {
+        id: result.runId,
+        source_id: sourceId,
+        status: 'running',
+      } satisfies RetryImportJobResponse
+    },
   })
 }
 
 export function useSources() {
   return useQuery({
     queryKey: ['sources'],
-    queryFn: () => apiFetch<SourceListResponse>('/sources'),
+    queryFn: async () => ({
+      sources: (await listSources()).map(toSourceOut),
+    }),
   })
 }
 
 export function useUpdateSource() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ sourceId, input }: { sourceId: string; input: UpdateSourceInput }) =>
-      apiFetch<SourceOut>(`/sources/${sourceId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(input),
-      }),
+    mutationFn: async ({ sourceId, input }: { sourceId: string; input: UpdateSourceInput }) => {
+      const updated = await updateSource(sourceId, {
+        displayName: input.display_name,
+        m3uUrl: input.m3u_url,
+        providerDns: input.provider?.dns,
+        providerUsername: input.provider?.username,
+        providerPassword: input.provider?.password,
+      })
+      return updated ? toSourceOut(updated) : undefined
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sources'] })
     },
@@ -220,7 +310,10 @@ export function useUpdateSource() {
 export function useDeleteSource() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (sourceId: string) => apiFetch<void>(`/sources/${sourceId}`, { method: 'DELETE' }),
+    mutationFn: async (sourceId: string) => {
+      await deleteSource(sourceId)
+      return undefined
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sources'] })
     },
@@ -229,21 +322,41 @@ export function useDeleteSource() {
 
 export function useResyncSource() {
   return useMutation({
-    mutationFn: (sourceId: string) =>
-      apiFetch<ResyncSourceResponse>(`/sources/${sourceId}/resync`, { method: 'POST' }),
+    mutationFn: async (sourceId: string) => {
+      const handle = await startLocalImport(sourceId)
+      return {
+        source_id: sourceId,
+        import_job_id: handle.runId,
+      } satisfies ResyncSourceResponse
+    },
   })
 }
 
-/**
- * Avisa o backend "abri esta fonte" — nunca decide nada no cliente (D-004).
- * O backend decide migrar (FR-012), atualizar por idade (FR-020) ou não
- * fazer nada; a TV só dispara a chamada e, se algo foi disparado, acompanha
- * o job para saber quando o catálogo pode ter mudado (ver `useAutoRefresh`
- * em `App.tsx`).
- */
 export function useOpenSource() {
   return useMutation({
-    mutationFn: (sourceId: string) =>
-      apiFetch<OpenSourceResponse>(`/sources/${sourceId}/open`, { method: 'POST' }),
+    mutationFn: async (sourceId: string) => {
+      const source = await db.sources.get(sourceId)
+      if (!source) throw new Error('Fonte não encontrada')
+
+      const { decideOnOpen } = await import('../../lib/catalog/freshness')
+      const action = decideOnOpen(source, Date.now())
+
+      if (action !== 'none') {
+        const handle = await startLocalImport(sourceId)
+        return {
+          triggered: true,
+          import_job_id: handle.runId,
+        } satisfies OpenSourceResponse
+      }
+
+      return {
+        triggered: false,
+        import_job_id: null,
+      } satisfies OpenSourceResponse
+    },
   })
+}
+
+export async function readSourceCredential(sourceId: string) {
+  return readCredential(sourceId)
 }

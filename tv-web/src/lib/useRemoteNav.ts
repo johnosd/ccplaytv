@@ -34,7 +34,7 @@ const DIRECTION_BY_KEY: Record<string, RemoteDirection> = {
  * `sdd/bugs/tecla-voltar-return-nao-funciona-na`, reproduzido na
  * QN50Q60DAGXZD). Setas e OK não precisam disso: chegam no formato padrão.
  */
-const TIZEN_RETURN_KEYCODE = 10009
+export const TIZEN_RETURN_KEYCODE = 10009
 
 /**
  * Navegação por D-pad para telas com foco 2D/gerenciado manualmente

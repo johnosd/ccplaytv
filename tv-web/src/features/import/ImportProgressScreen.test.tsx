@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ImportProgressScreen } from './ImportProgressScreen'
+import { db, type ImportRunRecord } from '../../lib/catalog/db'
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -13,40 +14,32 @@ function createWrapper() {
   }
 }
 
-function mockJobResponse(overrides: Record<string, unknown> = {}) {
+function mockJobRecord(overrides: Partial<ImportRunRecord> = {}): ImportRunRecord {
   return {
     id: 'job-1',
-    source_id: 'source-1',
+    sourceId: 'source-1',
+    generation: 1,
     status: 'running',
-    current_step: 'classifying',
-    counts: {
-      entries_read: 100,
-      channels: 10,
-      movies: 20,
-      series: 3,
-      episodes: 30,
-      unclassified: 5,
-      invalid: 0,
-    },
-    warnings: [],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    finished_at: null,
+    step: 'parsing',
+    entriesRead: 100,
+    channelsStored: 10,
+    discardedByType: 80,
+    invalidCount: 10,
+    truncatedByStorage: false,
+    startedAt: Date.now(),
     ...overrides,
   }
 }
 
 describe('ImportProgressScreen', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals()
+  afterEach(async () => {
     cleanup()
+    vi.clearAllMocks()
+    await db.importRuns.clear()
   })
 
   it('nunca exibe percentual, mesmo com contadores parciais conhecidos (FR-007)', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response(JSON.stringify(mockJobResponse()), { status: 200 })),
-    )
+    await db.importRuns.put(mockJobRecord())
 
     const Wrapper = createWrapper()
     render(
@@ -59,35 +52,55 @@ describe('ImportProgressScreen', () => {
     expect(screen.queryByText(/%/)).not.toBeInTheDocument()
   })
 
-  it('reabrir a tela consulta o estado real via GET, sem recriar a fonte/job (FR-012, SC-006)', async () => {
-    const fetchMock = vi.fn(async (..._args: Parameters<typeof fetch>) =>
-      new Response(
-        JSON.stringify(mockJobResponse({ status: 'completed', current_step: 'done' })),
-        { status: 200 },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
+  it('a tela declara explicitamente que só canais foram importados (FR-008)', async () => {
+    await db.importRuns.put(mockJobRecord({ discardedByType: 50 }))
 
-    const firstMount = render(
-      <QueryClientProvider client={new QueryClient()}>
-        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
-      </QueryClientProvider>,
-    )
-    await waitFor(() => expect(screen.getByText(/Concluída/)).toBeInTheDocument())
-    firstMount.unmount()
-
-    // "Reabrir a tela" = montar de novo com um QueryClient novo — simula
-    // sair e voltar sem depender de cache retido em memória.
+    const Wrapper = createWrapper()
     render(
-      <QueryClientProvider client={new QueryClient()}>
+      <Wrapper>
         <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
-      </QueryClientProvider>,
+      </Wrapper>,
     )
-    await waitFor(() => expect(screen.getByText(/Concluída/)).toBeInTheDocument())
 
-    const calledUrls = fetchMock.mock.calls.map((call) => String(call[0]))
-    expect(calledUrls.length).toBeGreaterThanOrEqual(2)
-    expect(calledUrls.every((url) => url.includes('/import-jobs/'))).toBe(true)
-    expect(calledUrls.some((url) => url.includes('/sources'))).toBe(false)
+    await waitFor(() => {
+      expect(screen.getByText('Só canais foram importados nesta fonte.')).toBeInTheDocument()
+      expect(screen.getByText(/Descartados \(não são canais\): 50/)).toBeInTheDocument()
+    })
+  })
+
+  it('quando houver truncamento, a tela declara que a lista não coube inteira (FR-018)', async () => {
+    await db.importRuns.put(mockJobRecord({ truncatedByStorage: true }))
+
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('A lista não coube inteira no aparelho.')).toBeInTheDocument()
+    })
+  })
+
+  it('exibe o estado de recusa com texto próprio e garante elemento focável (T044/US5)', async () => {
+    await db.importRuns.put(mockJobRecord({ status: 'failed', errorKind: 'direct_connection_refused' }))
+
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('O provedor não aceita conexão direta por este aplicativo. Requer uso do servidor.')).toBeInTheDocument()
+    })
+
+    const retryBtn = screen.getByRole('button', { name: 'Tentar novamente' })
+    const backBtn = screen.getByRole('button', { name: 'Voltar' })
+
+    expect(retryBtn).toBeInTheDocument()
+    expect(backBtn).toBeInTheDocument()
   })
 })

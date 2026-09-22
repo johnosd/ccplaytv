@@ -3,3 +3,4 @@
 {"level":"error","message":"Project creation failed: spawn C:\\tizen-studio\\tools\\tizen-core\\tz.exe ENOENT Project creation failed: spawn C:\\tizen-studio\\tools\\tizen-core\\tz.exe ENOENT","source":"ScaffoldingManager","timestamp":"2026-09-14T11:59:14.975Z"}
 {"level":"error","message":"Project creation failed: tz: error: path: can only have [a-zA-Z0-9]. Project creation failed: tz: error: path: can only have [a-zA-Z0-9].","source":"ScaffoldingManager","timestamp":"2026-09-14T12:20:59.960Z"}
 {"level":"error","message":"App installation failed: tz: error: failed to install the package App installation failed: tz: error: failed to install the package","source":"AppManager","timestamp":"2026-09-14T12:53:55.948Z"}
+{"level":"error","message":"App installation failed: tz: error: command terminated after timeout App installation failed: tz: error: command terminated after timeout","source":"AppManager","timestamp":"2026-09-17T15:32:47.536Z"}
