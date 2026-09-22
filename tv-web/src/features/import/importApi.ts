@@ -333,7 +333,20 @@ export function useResyncSource() {
 export function useOpenSource() {
   return useMutation({
     mutationFn: async (sourceId: string) => {
-      void sourceId
+      const source = await db.sources.get(sourceId)
+      if (!source) throw new Error('Fonte não encontrada')
+
+      const { decideOnOpen } = await import('../../lib/catalog/freshness')
+      const action = decideOnOpen(source, Date.now())
+
+      if (action !== 'none') {
+        const handle = await startLocalImport(sourceId)
+        return {
+          triggered: true,
+          import_job_id: handle.runId,
+        } satisfies OpenSourceResponse
+      }
+
       return {
         triggered: false,
         import_job_id: null,

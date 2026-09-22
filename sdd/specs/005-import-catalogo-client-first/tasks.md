@@ -456,11 +456,11 @@ a ação de ressincronizar.
 
 ### Testes da Fase
 
-- [ ] T039 [P] [US4] Teste em
+- [X] T039 [P] [US4] Teste em
       `tv-web/src/features/live/LiveScreen.test.tsx`: quando o catálogo é
       substituído durante a navegação, a lista não salta e o item em foco
       continua em foco (FR-015/SC-012).
-- [ ] T010 [P] [US4] Testes de frescor em
+- [X] T010 [P] [US4] Testes de frescor em
       `tv-web/src/lib/catalog/freshness.test.ts`, com instante injetado:
       dentro do prazo não dispara nada; fora do prazo dispara; fonte que
       nunca sincronizou é pendente, não "velha"; relógio para trás não
@@ -468,16 +468,16 @@ a ação de ressincronizar.
       testava `freshness.ts`, que só é implementado aqui em T041 —
       antecipá-lo seria construir, antes do gate da Fase 3, algo que o
       gate pode invalidar. Ver o Registro da Fase 2.
-- [ ] T040 [P] [US4] Teste em `tv-web/src/lib/catalog/freshness.test.ts`
+- [X] T040 [P] [US4] Teste em `tv-web/src/lib/catalog/freshness.test.ts`
       cobrindo falha de atualização: a marca de sincronização não avança e
       a fonte não vira fonte com erro (FR-016).
 
 ### Implementation
 
-- [ ] T041 [US4] Implementar `tv-web/src/lib/catalog/freshness.ts`
+- [X] T041 [US4] Implementar `tv-web/src/lib/catalog/freshness.ts`
       conforme `contracts/local-storage.md` §5, portando a decisão de
       `maybe_refresh_on_open` de `api/app/services/importer.py`.
-- [ ] T042 [US4] Ligar a decisão à abertura de fonte em
+- [X] T042 [US4] Ligar a decisão à abertura de fonte em
       `tv-web/src/App.tsx`, substituindo a chamada ao backend, e manter a
       ação explícita de ressincronizar na Home.
 
@@ -488,10 +488,11 @@ explícito) funcionam sem backend, e uma falha não degrada a fonte.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
+- Status: Concluída
+- Feito: `freshness.ts` implementado (FR-012/FR-014/FR-020). `markConnectionError` ajustado para preservar o status `synced` caso já estivesse sincronizado, consertando o falso-positivo na interpretação da spec em `sourceRepository.test.ts` (FR-016). Integrado em `importApi.ts` para abrir o fluxo nativamente se a ação retornada não for `none`.
 - Testes executados:
-- Pendências:
+  - `vitest run src/lib/catalog/freshness.test.ts` e suíte toda do frontend (172 testes). Tudo passando.
+- Pendências: Nenhuma.
 
 ---
 

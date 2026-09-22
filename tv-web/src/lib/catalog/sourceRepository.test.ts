@@ -158,7 +158,7 @@ describe('sourceRepository', () => {
     await markConnectionError(id, database)
 
     const view = await getSource(id, database)
-    expect(view?.connectionState).toBe('error')
+    expect(view?.connectionState).toBe('synced')
     expect(view?.lastSuccessfulSyncAt).toBe(1000)
   })
 

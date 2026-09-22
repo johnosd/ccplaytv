@@ -35,6 +35,8 @@ export interface SourceView {
   providerMigratedAt?: number
   connectionState: ConnectionState
   lastSuccessfulSyncAt?: number
+  lastTruncatedByStorage?: boolean
+  lastDiscardedByType?: number
   activeGeneration?: number
   createdAt: number
   updatedAt: number
@@ -54,6 +56,8 @@ function toView(record: SourceRecord): SourceView {
     providerMigratedAt: record.providerMigratedAt,
     connectionState: record.connectionState,
     lastSuccessfulSyncAt: record.lastSuccessfulSyncAt,
+    lastTruncatedByStorage: record.lastTruncatedByStorage,
+    lastDiscardedByType: record.lastDiscardedByType,
     activeGeneration: record.activeGeneration,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
@@ -222,9 +226,19 @@ export async function markSynced(
  * Marca que a última consulta falhou, **sem** tocar na marca de
  * sincronização nem no catálogo ativo — o que já foi importado continua
  * valendo e continua tocando.
+ *
+ * FR-016: "nem transformar uma fonte saudável em fonte com erro".
+ * Portanto, se a fonte já estiver 'synced', ela continua 'synced' e o catálogo
+ * não é escondido/invalidado na interface. Apenas falhas na primeira
+ * tentativa (ou já em erro) marcam como 'error'.
  */
 export async function markConnectionError(id: string, database: CatalogDb = db): Promise<void> {
-  await database.sources.update(id, { connectionState: 'error', updatedAt: Date.now() })
+  const source = await database.sources.get(id)
+  if (!source) return
+  
+  if (source.connectionState !== 'synced') {
+    await database.sources.update(id, { connectionState: 'error', updatedAt: Date.now() })
+  }
 }
 
 export interface ProviderCredential {

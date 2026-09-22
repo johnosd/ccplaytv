@@ -278,7 +278,9 @@ uv run pytest
 
 | 2026-09-22 | Fase 5 (US3) — concluída | Implementada lógica de truncamento de armazenamento (`StorageFullError`) no `importPipeline` preservando o catálogo já lido (R-009) e adicionadas _badges_ visuais `"Só canais foram importados"` e `"A lista não coube inteira"` na `HomeScreen`. Um erro Tizen-específico (Chromium 108 da TV não disparava `click` em `<button>` via `Enter`) foi detectado durante o teste T055 e corrigido ativamente via `useTvKeyNav`. O teste final na TV foi 100% positivo: importação completa via aparelho de M3U enorme consumindo apenas 19.3s. | Nenhuma. Fase 6 (US4) liberada. |
 
-**PRÓXIMO**: **Fase 6 — US4** (T039 em diante). A importação cliente-side está totalmente coberta. O foco agora é gerenciar quando e como o sistema deve re-validar as fontes sem backend (marcação de idade, resync e background updates).
+| 2026-09-22 | Fase 6 (US4) — concluída | `freshness.ts` adicionado com testes robustos para determinar quando reimportar listas e `useOpenSource` conectado nativamente, removendo o mock. Identificada e ajustada asserção no repositório de testes (T040 / FR-016) para não ocultar o catálogo com status de falha quando uma fonte já sincronizada falha ao ser atualizada. | Nenhuma. Fase 7 (US5) liberada. |
+
+**PRÓXIMO**: **Fase 7 — US5** (T043 em diante). Lidar com provedores restritivos.
 
 ## Arquivos Principais
 
