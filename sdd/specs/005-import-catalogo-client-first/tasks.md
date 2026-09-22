@@ -418,7 +418,7 @@ navegar o resultado.
       (`ImportProgressScreen.tsx` e onde a fonte aparece na Home): "só
       canais foram importados" e "a lista não coube inteira", ambos como
       informação, não como erro.
-- [ ] T055 [US3] **Não-regressão contra o caminho congelado** (SC-013):
+- [X] T055 [US3] **Não-regressão contra o caminho congelado** (SC-013):
       com o backend ligado **apenas para esta comparação**, importar a
       mesma fonte real pelos dois caminhos — o atual e o novo — e comparar
       o **conjunto de categorias** e a **contagem de canais por
@@ -564,7 +564,7 @@ migração torna desatualizada.
 - [ ] Fase 3 (US1 — gate de performance) concluída **com veredito
       registrado**
 - [ ] Fase 4 (US2 — provedor ponta a ponta) concluída
-- [ ] Fase 5 (US3 — lista por URL grande) concluída
+- [X] Fase 5 (US3 — lista por URL grande) concluída
 - [ ] Fase 6 (US4 — frescor local) concluída
 - [ ] Fase 7 (US5 — conexão recusada) concluída
 - [ ] Frontend validado (`tsc -b`, `oxlint`, `vitest`, `build:tizen`)
