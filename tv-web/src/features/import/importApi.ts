@@ -60,6 +60,7 @@ export interface ImportJobResponse {
   current_step: ImportStep
   counts: ImportJobCounts
   warnings: string[]
+  error_kind: string | null
   created_at: string
   updated_at: string
   finished_at: string | null
@@ -186,8 +187,9 @@ function toJobResponse(run: ImportRunRecord): ImportJobResponse {
       invalid: run.invalidCount,
     },
     warnings,
+    error_kind: run.errorKind ?? null,
     created_at: new Date(run.startedAt).toISOString(),
-    updated_at: new Date(run.finishedAt ?? run.startedAt).toISOString(),
+    updated_at: new Date().toISOString(),
     finished_at: run.finishedAt ? new Date(run.finishedAt).toISOString() : null,
   }
 }

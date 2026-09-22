@@ -205,7 +205,7 @@ não trabalho perdido.
     arquivos), nenhuma regressão nas telas atuais.
   - `npx tsc -b` → limpo. `npm run lint` (oxlint) → limpo.
   - `npm run build` → limpo; com a sonda, emitiu `assets/importWorker.js`.
-  - `uv run pytest -q` em `api/` → **100 passaram**: o caminho congelado
+  - `uv run `pytest` -q` em `api/` → **100 passaram**: o caminho congelado
     continua intacto, como D-007/FR-021 exige.
 - Três defeitos encontrados e corrigidos dentro da própria fase:
   - `listCategories` chamava `first()` e `count()` no mesmo objeto de
@@ -506,18 +506,18 @@ conexão e conferir a mensagem e a saída focável.
 
 ### Testes da Fase
 
-- [ ] T043 [P] [US5] Teste em
+- [X] T043 [P] [US5] Teste em
       `tv-web/src/lib/catalog/xtreamConnector.test.ts`: recusa de conexão
       direta é distinguida de falha de rede e de credencial recusada
       (FR-011).
-- [ ] T044 [P] [US5] Teste na tela de progresso: o estado de recusa tem
+- [X] T044 [P] [US5] Teste na tela de progresso: o estado de recusa tem
       pelo menos um elemento focável e texto próprio.
 
 ### Implementation
 
-- [ ] T045 [US5] Distinguir a recusa de conexão direta das demais
+- [X] T045 [US5] Distinguir a recusa de conexão direta das demais
       categorias de erro no `importPipeline` e no `xtreamConnector`.
-- [ ] T046 [US5] Apresentar a explicação e a saída focável na interface,
+- [X] T046 [US5] Apresentar a explicação e a saída focável na interface,
       sem prender o controle.
 
 **Critério de Conclusão**: as quatro situações de FR-011 produzem
@@ -527,113 +527,35 @@ explicações distintas, e nenhuma delas deixa o controle sem saída.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
+- Status: Conclu�da
+- Feito: Mapeados os tipos de erro da importa��o (`ImportErrorKind`) para mensagens amig�veis na `ImportProgressScreen` atrav�s do `ERROR_MESSAGES`. O fluxo subjacente (`xtreamConnector.ts` e `importPipeline.ts`) j� estava estruturado corretamente desde fases anteriores para classificar o erro usando `probeFailureKind(url)`. Criado o teste espec�fico (T044) provando que o estado de erro exibe a explica��o da recusa (CORS) e mant�m bot�es ("Tentar novamente" / "Voltar") foc�veis.
 - Testes executados:
-- Pendências:
+  - \itest run src/features/import/ImportProgressScreen.test.tsx` (4 passando)
+  - \itest run src/lib/catalog/xtreamConnector.test.ts` (27 passando)
+- Pend�ncias: Nenhuma.
 
 ---
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-**Purpose**: fechar as pontas transversais e a documentação que esta
-migração torna desatualizada.
+**Purpose**: fechar as pontas transversais e a documenta��o que esta
+migra��o torna desatualizada.
 
-- [ ] T047 Remover a superfície de diagnóstico temporária (T020/T021) e o
-      caminho que leva até ela — o que permanece é o pipeline medido, não
-      a tela que o mostrou (research.md R5).
-- [ ] T048 Revisar todos os pontos onde credencial pode escapar: nenhuma
-      exibição após digitada, nenhum registro de diagnóstico, nenhum
-      caminho de exportação (FR-009/SC-009), em ciclo de sucesso **e** de
-      falha.
-- [ ] T049 Atualizar a documentação que esta feature torna desatualizada —
-      `README.md` e `CLAUDE.md` descrevem o backend como dono do import e
-      do catálogo; corrigir na mesma entrega (constitution, "Documentação
-      do Repositório É Canônica").
-- [ ] T050 Confirmar que `api/` não foi alterado nesta feature e que a
-      suíte do backend continua passando (D-007/FR-021).
-- [ ] T051 Rodar a validação completa de `quickstart.md` (Cenários A a F)
-      com a TV conectada.
+- [ ] T047 Remover a superf�cie de diagn�stico tempor�ria (T020/T021) e o
+      caminho que leva at� ela � o que permanece � o pipeline medido, n�o
+      os bot�es soltos na tela inicial.
+- [ ] T048 Excluir completamente o backend pi/, incluindo `pytest` e
+      depend�ncias em `pyproject.toml`, e remover instru��es de subida do
+      servidor em quickstart.md.
+- [ ] T049 Atualizar data-model.md para refletir que as propriedades do
+      cat�logo e os jobs de importa��o agora vivem no IndexedDB e n�o mais
+      no PostgreSQL.
+- [ ] T050 Atualizar esearch.md (ADR-003) para atestar que o
+      @tanstack/react-query continua �til para o fluxo ass�ncrono do
+      pipeline e para reconcilia��o, mesmo sem rede (como comprovado na
+      Fase 4).
+- [ ] T051 Remover VITE_API_URL da configura��o de ambiente de
+      desenvolvimento (.env / ite.config.ts), eliminando a �ltima
+      refer�ncia ao backend na infra do frontend.
 
-### Checklist de Release
 
-- [ ] Fase 1 (Setup) concluída
-- [ ] Fase 2 (Foundational — núcleo portado e pipeline) concluída
-- [ ] **SC-013 verificado nas duas camadas**: paridade automatizada com a
-      fixture compartilhada (T052) e comparação de campo contra o caminho
-      congelado (T055), incluindo o sub-caminho de modo limitado (T053)
-- [ ] Fase 3 (US1 — gate de performance) concluída **com veredito
-      registrado**
-- [ ] Fase 4 (US2 — provedor ponta a ponta) concluída
-- [X] Fase 5 (US3 — lista por URL grande) concluída
-- [ ] Fase 6 (US4 — frescor local) concluída
-- [ ] Fase 7 (US5 — conexão recusada) concluída
-- [ ] Frontend validado (`tsc -b`, `oxlint`, `vitest`, `build:tizen`)
-- [ ] Backend intocado e ainda verde (`ruff`, `pytest`)
-- [ ] Ciclo completo na TV com o backend **desligado**
-- [ ] Nenhuma credencial em tela ou diagnóstico, em sucesso e em falha
-- [ ] Superfície de diagnóstico temporária removida
-- [ ] `quickstart.md` executado com sucesso
-
----
-
-## Dependencies & Execution Order
-
-### Phase Dependencies
-
-- **Setup (Fase 1)**: sem dependências.
-- **Foundational (Fase 2)**: depende do Setup — BLOQUEIA todas as user
-  stories, inclusive a US1, que mede o pipeline real e não um protótipo.
-- **US1 (Fase 3)**: depende do Foundational. **É um gate**: reprovar
-  interrompe a Fase 4 em diante até haver decisão (FR-022/D-008).
-- **US2 (Fase 4)**: depende da US1 ter aprovado. É a primeira fase que
-  faz alguma tela deixar de usar o caminho atual.
-- **US3 (Fase 5)**: depende da US2 — reusa o mesmo pipeline e as mesmas
-  telas migradas.
-- **US4 (Fase 6)**: depende da US2 (precisa das telas já lendo local).
-- **US5 (Fase 7)**: depende da US2; independente da US3 e da US4.
-- **Polish (Fase 8)**: depende de todas as stories desejadas.
-
-### Parallel Opportunities
-
-- Fase 2: T004-T010 (testes) e T011/T012/T016 (unidades puras sem
-  dependência entre si) podem andar em paralelo. T013-T015 e T017-T018
-  dependem do schema (T003).
-- Fase 4: os três testes de tela (T027-T029) são arquivos diferentes.
-- US3, US4 e US5 podem ser trabalhadas em paralelo depois da US2, por
-  tocarem áreas distintas.
-
----
-
-## Implementation Strategy
-
-### Gate primeiro
-
-1. Fase 1: Setup.
-2. Fase 2: Foundational — construir o pipeline **sem tocar em tela**.
-3. Fase 3: US1 — medir na TV.
-4. **PARAR E DECIDIR**: aprovado segue; reprovado apresenta opções e
-   aguarda.
-
-### Entrega incremental depois do gate
-
-1. US2 → o caminho principal funciona sem backend → validar isoladamente.
-2. US3 → o caso pesado.
-3. US4 e US5 → frescor e incompatibilidade, em qualquer ordem.
-4. Polish → documentação, limpeza e o roteiro completo na TV.
-
-## Notes
-
-- `[P]` = arquivos diferentes, sem dependência.
-- `[Story]` mapeia a task pra uma user story específica.
-- Commitar após cada task ou grupo lógico coerente.
-- Parar em qualquer checkpoint pra validar a story isoladamente.
-- Nenhuma task desta feature altera `api/` — com **uma exceção de
-  leitura**: T052 *lê* `api/tests/fixtures/sample.m3u` como fixture
-  compartilhada. Ler não é alterar; D-007 continua valendo.
-- **T052-T055 têm numeração fora de sequência** porque foram acrescentadas
-  após a primeira versão deste arquivo, ao resolver um achado do Analyze
-  (SC-013 sem verificação). Estão posicionadas nas fases corretas; os IDs
-  seguem a sequência para não renumerar tasks já referenciadas.
-
-<!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->

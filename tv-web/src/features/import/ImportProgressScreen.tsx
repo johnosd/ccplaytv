@@ -19,11 +19,22 @@ const STEP_LABELS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   queued: 'Na fila',
-  running: 'Importando',
+  running: 'Em andamento',
   completed: 'Concluída',
   completed_with_warnings: 'Concluída com avisos',
   failed: 'Falhou',
   cancelled: 'Cancelada',
+}
+
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_credentials: 'O provedor recusou o usuário ou senha.',
+  subscription_expired: 'Sua assinatura com este provedor expirou.',
+  direct_connection_refused:
+    'O provedor não aceita conexão direta por este aplicativo. Requer uso do servidor.',
+  network_failure: 'Falha de rede ao tentar conectar com o provedor.',
+  invalid_playlist: 'O painel não respondeu com um formato de catálogo válido.',
+  empty_playlist: 'O painel respondeu com um catálogo vazio.',
+  hls_manifest: 'O endereço fornecido aponta para um canal, não para um catálogo.',
 }
 
 export function ImportProgressScreen({ jobId, onRetried, onBack }: ImportProgressScreenProps) {
@@ -63,6 +74,12 @@ export function ImportProgressScreen({ jobId, onRetried, onBack }: ImportProgres
         <li className="live-item">Descartados (não são canais): {job.counts.discarded_by_type}</li>
         <li className="live-item">Inválidos: {job.counts.invalid}</li>
       </ul>
+
+      {job.status === 'failed' && job.error_kind && (
+        <div style={{ marginTop: 24, color: '#fca5a5' }} aria-label="Erro">
+          {ERROR_MESSAGES[job.error_kind] ?? 'Falha desconhecida'}
+        </div>
+      )}
 
       {job.warnings.length > 0 && (
         <ul aria-label="Avisos" className="episode-list" style={{ marginTop: 24, color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>

@@ -20,7 +20,7 @@ function mockJobRecord(overrides: Partial<ImportRunRecord> = {}): ImportRunRecor
     sourceId: 'source-1',
     generation: 1,
     status: 'running',
-    step: 'classifying',
+    step: 'parsing',
     entriesRead: 100,
     channelsStored: 10,
     discardedByType: 80,
@@ -81,5 +81,26 @@ describe('ImportProgressScreen', () => {
     await waitFor(() => {
       expect(screen.getByText('A lista não coube inteira no aparelho.')).toBeInTheDocument()
     })
+  })
+
+  it('exibe o estado de recusa com texto próprio e garante elemento focável (T044/US5)', async () => {
+    await db.importRuns.put(mockJobRecord({ status: 'failed', errorKind: 'direct_connection_refused' }))
+
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('O provedor não aceita conexão direta por este aplicativo. Requer uso do servidor.')).toBeInTheDocument()
+    })
+
+    const retryBtn = screen.getByRole('button', { name: 'Tentar novamente' })
+    const backBtn = screen.getByRole('button', { name: 'Voltar' })
+
+    expect(retryBtn).toBeInTheDocument()
+    expect(backBtn).toBeInTheDocument()
   })
 })

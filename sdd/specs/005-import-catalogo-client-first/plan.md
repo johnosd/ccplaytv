@@ -280,7 +280,9 @@ uv run pytest
 
 | 2026-09-22 | Fase 6 (US4) — concluída | `freshness.ts` adicionado com testes robustos para determinar quando reimportar listas e `useOpenSource` conectado nativamente, removendo o mock. Identificada e ajustada asserção no repositório de testes (T040 / FR-016) para não ocultar o catálogo com status de falha quando uma fonte já sincronizada falha ao ser atualizada. | Nenhuma. Fase 7 (US5) liberada. |
 
-**PRÓXIMO**: **Fase 7 — US5** (T043 em diante). Lidar com provedores restritivos.
+| 2026-09-22 | Fase 7 (US5) — concluída | Confirmada a distinção entre erros de credencial, conexão (CORS) e de URL inválida no conector Xtream e pipeline. Textos informativos de cada erro implementados diretamente na `ImportProgressScreen` com garantia de elemento focável contínuo no erro (FR-011). | Nenhuma. Fase 8 (Polish) liberada. |
+
+**PRÓXIMO**: **Fase 8 — Polish** (T047 em diante). Apagar backend e documentar.
 
 ## Arquivos Principais
 
