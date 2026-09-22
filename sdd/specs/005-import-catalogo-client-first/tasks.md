@@ -527,35 +527,45 @@ explicaÃ§Ãµes distintas, e nenhuma delas deixa o controle sem saÃ­da.
 
 **Registro da Fase**:
 
-- Status: Concluída
-- Feito: Mapeados os tipos de erro da importação (`ImportErrorKind`) para mensagens amigáveis na `ImportProgressScreen` através do `ERROR_MESSAGES`. O fluxo subjacente (`xtreamConnector.ts` e `importPipeline.ts`) já estava estruturado corretamente desde fases anteriores para classificar o erro usando `probeFailureKind(url)`. Criado o teste específico (T044) provando que o estado de erro exibe a explicação da recusa (CORS) e mantém botões ("Tentar novamente" / "Voltar") focáveis.
+- Status: Concluï¿½da
+- Feito: Mapeados os tipos de erro da importaï¿½ï¿½o (`ImportErrorKind`) para mensagens amigï¿½veis na `ImportProgressScreen` atravï¿½s do `ERROR_MESSAGES`. O fluxo subjacente (`xtreamConnector.ts` e `importPipeline.ts`) jï¿½ estava estruturado corretamente desde fases anteriores para classificar o erro usando `probeFailureKind(url)`. Criado o teste especï¿½fico (T044) provando que o estado de erro exibe a explicaï¿½ï¿½o da recusa (CORS) e mantï¿½m botï¿½es ("Tentar novamente" / "Voltar") focï¿½veis.
 - Testes executados:
   - \itest run src/features/import/ImportProgressScreen.test.tsx` (4 passando)
   - \itest run src/lib/catalog/xtreamConnector.test.ts` (27 passando)
-- Pendências: Nenhuma.
+- Pendï¿½ncias: Nenhuma.
 
 ---
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-**Purpose**: fechar as pontas transversais e a documentação que esta
-migração torna desatualizada.
+**Purpose**: fechar as pontas transversais e a documentaï¿½ï¿½o que esta
+migraï¿½ï¿½o torna desatualizada.
 
-- [ ] T047 Remover a superfície de diagnóstico temporária (T020/T021) e o
-      caminho que leva até ela — o que permanece é o pipeline medido, não
-      os botões soltos na tela inicial.
-- [ ] T048 Excluir completamente o backend pi/, incluindo `pytest` e
-      dependências em `pyproject.toml`, e remover instruções de subida do
+- [X] T047 Remover a superfï¿½cie de diagnï¿½stico temporï¿½ria (T020/T021) e o
+      caminho que leva atï¿½ ela ï¿½ o que permanece ï¿½ o pipeline medido, nï¿½o
+      os botï¿½es soltos na tela inicial.
+- [X] T048 Excluir completamente o backend pi/, incluindo `pytest` e
+      dependï¿½ncias em `pyproject.toml`, e remover instruï¿½ï¿½es de subida do
       servidor em quickstart.md.
-- [ ] T049 Atualizar data-model.md para refletir que as propriedades do
-      catálogo e os jobs de importação agora vivem no IndexedDB e não mais
+- [X] T049 Atualizar data-model.md para refletir que as propriedades do
+      catï¿½logo e os jobs de importaï¿½ï¿½o agora vivem no IndexedDB e nï¿½o mais
       no PostgreSQL.
-- [ ] T050 Atualizar esearch.md (ADR-003) para atestar que o
-      @tanstack/react-query continua útil para o fluxo assíncrono do
-      pipeline e para reconciliação, mesmo sem rede (como comprovado na
+- [X] T050 Atualizar 
+esearch.md (ADR-003) para atestar que o
+      @tanstack/react-query continua ï¿½til para o fluxo assï¿½ncrono do
+      pipeline e para reconciliaï¿½ï¿½o, mesmo sem rede (como comprovado na
       Fase 4).
-- [ ] T051 Remover VITE_API_URL da configuração de ambiente de
-      desenvolvimento (.env / ite.config.ts), eliminando a última
-      referência ao backend na infra do frontend.
+- [X] T051 Remover VITE_API_URL da configuraï¿½ï¿½o de ambiente de
+      desenvolvimento (.env / ite.config.ts), eliminando a ï¿½ltima
+      referï¿½ncia ao backend na infra do frontend.
 
+
+
+
+**Registro da Fase**:
+
+- Status: Concluída
+- Feito: Removida a tela \ImportBenchScreen\ e suas chamadas em \HomeScreen.tsx\ e \App.tsx\ (T047). Backend (\pi/\) completamente deletado do repositório, assim como as instruções em \quickstart.md\ (T048). Documentação de banco em \data-model.md\ atualizada afirmando o IndexedDB como nova e única fonte da verdade (T049). ADR-003 superada documentada em \esearch.md\ confirmando a utilidade do React Query mesmo localmente (T050). Limpamos dependências de ambiente em \ite.config.ts\ referenciando testes do backend (T051).
+- Testes executados: Suíte completa via \itest run\ garantindo que a remoção de telas e referências não quebrou nada.
+- Pendências: Nenhuma.
 

@@ -1,8 +1,8 @@
 # Data Model — 005-import-catalogo-client-first
 
 Schema do armazenamento local no aparelho (IndexedDB via Dexie). Substitui
-o PostgreSQL como fonte de verdade das telas; o banco do backend continua
-existindo para o caminho congelado, sem relação com este.
+completamente o PostgreSQL, e o antigo backend foi totalmente excluído 
+nesta fase. O aparelho agora é o único banco.
 
 Três coleções, com fronteiras deliberadas: **fonte** (durável, guarda
 credencial), **catálogo** (substituível, descartável) e **execução de

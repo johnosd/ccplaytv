@@ -54,7 +54,7 @@ describe('AddSourceScreen', () => {
 
     const fetchMock = globalThis.fetch as any
     const calledUrls = fetchMock.mock.calls.map((c: any) => c[0] as string)
-    expect(calledUrls.some(url => url.startsWith('/sources'))).toBe(false)
+    expect(calledUrls.some((url: string) => url.startsWith('/sources'))).toBe(false)
     expect(startImportSpy).toHaveBeenCalled()
 
     const sources = await db.sources.toArray()

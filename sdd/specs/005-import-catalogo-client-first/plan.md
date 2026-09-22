@@ -282,7 +282,9 @@ uv run pytest
 
 | 2026-09-22 | Fase 7 (US5) — concluída | Confirmada a distinção entre erros de credencial, conexão (CORS) e de URL inválida no conector Xtream e pipeline. Textos informativos de cada erro implementados diretamente na `ImportProgressScreen` com garantia de elemento focável contínuo no erro (FR-011). | Nenhuma. Fase 8 (Polish) liberada. |
 
-**PRÓXIMO**: **Fase 8 — Polish** (T047 em diante). Apagar backend e documentar.
+| 2026-09-22 | Fase 8 (Polish) — concluída | Backend Python (`api/`) sumariamente deletado do projeto, tela temporária de diagnóstico varrida, documentação atualizada confirmando a arquitetura client-first (Dexie+IndexedDB) superando de vez o design antigo (PostgreSQL). | Spec concluída. |
+
+**CONCLUÍDO**: Todas as fases da Spec **005-import-catalogo-client-first** finalizadas com sucesso!
 
 ## Arquivos Principais
 

@@ -302,7 +302,7 @@ describe('importPipeline — fonte por URL M3U', () => {
     vi.spyOn(database.channels, 'bulkAdd').mockImplementation((...args) => {
       callCount += 1
       if (callCount === 2) {
-        return Promise.reject(new DOMException('QuotaExceededError', 'QuotaExceededError'))
+        return Promise.reject(new DOMException('QuotaExceededError', 'QuotaExceededError')) as any
       }
       return originalBulkAdd(...args)
     })

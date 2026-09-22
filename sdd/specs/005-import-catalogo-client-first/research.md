@@ -170,3 +170,10 @@ obrigatórias.
   são a interface (D-001) —, mas insuficiente sozinho, porque os erros
   que mais importam aqui (transação, cota, cursor) só aparecem contra uma
   implementação real de IndexedDB.
+
+## R6 - Manutencao do React Query (Revisao da ADR-003/ADR-006)
+
+**Decisao**: Manter o \@tanstack/react-query\ no frontend, mesmo com a remocao total do backend (ADR-003 superada).
+
+**Justificativa**: Conforme comprovado na Fase 4 (US2), o React Query continua extremamente util para gerenciar o fluxo assincrono da importacao local (pipeline em background), oferecendo caches, status de \isLoading\, \isError\ e \onSuccess\ de forma nativa e compativel com nossa arquitetura anterior, dispensando a necessidade de reescrever toda a reconciliacao de estado no React. Ele apenas troca o \etch\ remoto por chamadas a \IndexedDB/Dexie\ e \Web Workers\.
+
