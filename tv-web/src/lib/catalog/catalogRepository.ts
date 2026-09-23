@@ -13,7 +13,15 @@
  *    A anterior continua legível enquanto isso.
  */
 
-import { db, type CatalogDb, type CatalogRecord, type CatalogItemKind } from './db'
+import {
+  db,
+  type CatalogDb,
+  type CatalogRecord,
+  type CatalogItemKind,
+  type CategoryKind,
+  type CategoryRecord,
+  type CatalogFetchMode,
+} from './db'
 
 /**
  * Limites da faixa de `generation` e de `groupOrder` nas consultas por
@@ -52,6 +60,10 @@ function isQuotaError(error: unknown): boolean {
 
 /** Uma categoria do catálogo, na ordem em que a fonte a declarou (FR-002). */
 export interface CatalogCategory {
+  /** Chave local — usada por `categoryLoader` para buscar/gravar os itens desta categoria (feature 010). */
+  id: number
+  /** Seção do painel a que pertence — decide qual endpoint `categoryLoader` chama. */
+  kind: CategoryKind
   /**
    * Como a fonte declarou. Ausente é estado legítimo — canal sem categoria
    * existe, e não recebe rótulo inventado.
@@ -59,7 +71,38 @@ export interface CatalogCategory {
   name?: string
   /** Chave de paginação: é por ela que se pede a página, não pelo nome. */
   order: number
+  /** Quantos itens estão gravados agora. `0` para categoria ainda não obtida. */
   count: number
+  /** Como os itens desta categoria chegam (data-model.md §2.1). */
+  fetchMode: CatalogFetchMode
+  /** Identificador do provedor — é por ele que a busca sob demanda pergunta. `undefined` em categoria `eager`. */
+  providerCategoryId?: string
+  /** Contagem que a fonte declara. `undefined` = a fonte não declarou nada — nunca um número inventado no lugar (FR-014). */
+  declaredCount?: number
+  /** Instante da última obtenção dos itens. `undefined` = nunca obtida. */
+  itemsFetchedAt?: number
+}
+
+/** O que se grava ao registrar a estrutura de uma fonte (feature 010). */
+export interface NewCategory {
+  sourceId: string
+  generation: number
+  kind: CategoryKind
+  fetchMode: CatalogFetchMode
+  providerCategoryId?: string
+  name?: string
+  order: number
+  declaredCount?: number
+}
+
+/** Identifica a categoria alvo de uma substituição integral de itens. */
+export interface CategoryItemsTarget {
+  sourceId: string
+  generation: number
+  kind: CategoryKind
+  categoryId: number
+  /** Mesmo valor de `order` da categoria — é o que localiza os itens dela em `channels`. */
+  groupOrder: number
 }
 
 async function activeGenerationOf(
@@ -68,6 +111,20 @@ async function activeGenerationOf(
 ): Promise<number | undefined> {
   const source = await database.sources.get(sourceId)
   return source?.activeGeneration
+}
+
+/**
+ * Geração ativa de uma fonte, ou `undefined` se nenhuma foi publicada
+ * ainda. Envoltório público do mesmo helper interno — existe para
+ * `categoryLoader` (feature 010) saber onde escrever sem reimplementar a
+ * leitura de `sources` nem furar D-001 (nenhuma tela/módulo fala com Dexie
+ * direto).
+ */
+export async function activeGeneration(
+  sourceId: string,
+  database: CatalogDb = db,
+): Promise<number | undefined> {
+  return activeGenerationOf(sourceId, database)
 }
 
 /**
@@ -93,12 +150,28 @@ function allGenerations(database: CatalogDb, sourceId: string) {
     .between([sourceId, KEY_MIN], [sourceId, KEY_MAX], true, true)
 }
 
+/** Categorias de uma fonte, qualquer geração — mesmo propósito, para `categories`. */
+function allCategoryGenerations(database: CatalogDb, sourceId: string) {
+  return database.categories.where('sourceId').equals(sourceId)
+}
+
 /**
  * Categorias da geração ativa, na ordem declarada pela fonte.
  *
- * Percorre só as chaves distintas do índice composto — não o catálogo. Com
- * 300 mil canais e algumas centenas de categorias, a diferença entre isso e
- * um `toArray()` é a diferença entre abrir a lista e travar a TV (FR-005).
+ * Lê a coleção `categories` (feature 010) — não deriva mais das chaves
+ * únicas de `channels`. **Caminho único de leitura**: toda fonte grava
+ * estrutura, inclusive a que importa a lista inteira em fluxo
+ * (`fetchMode: 'eager'`), então não existe aqui uma derivação de reserva
+ * para fonte sem estrutura gravada (D-004 do `plan.md` da feature 010;
+ * `data-model.md` §2.1). Fonte importada antes desta feature não tem
+ * linha em `categories` e aparece vazia aqui até re-sincronizar — é
+ * tratada como fonte a re-sincronizar, não como dado a converter
+ * (`data-model.md` §4).
+ *
+ * A categoria é uma tabela pequena (algumas centenas de linhas, mesmo numa
+ * fonte com 300 mil itens) — diferente de `channels`, varrê-la inteira por
+ * `sourceId` no ramo sem `kind` é seguro; o ramo com `kind` usa o índice
+ * composto porque é o caminho quente, chamado a cada tela.
  */
 export async function listCategories(
   sourceId: string,
@@ -108,22 +181,113 @@ export async function listCategories(
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return []
 
-  const keys = (await query(database, sourceId, generation, undefined, kind).uniqueKeys()) as unknown[]
-  const orders = keys
-    .map((key) => (Array.isArray(key) ? Number(key[kind ? 3 : 2]) : Number.NaN))
-    .filter((value) => Number.isFinite(value))
+  const records = kind
+    ? await database.categories
+        .where('[sourceId+generation+kind+order]')
+        .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
+        .toArray()
+    : (await database.categories.where('sourceId').equals(sourceId).toArray()).filter(
+        (record) => record.generation === generation,
+      )
 
-  const categories: CatalogCategory[] = []
-  for (const order of Array.from(new Set(orders)).sort((a, b) => a - b)) {
-    // Duas consultas, não duas chamadas na mesma: `first()` aplica um
-    // limite que fica no objeto de consulta, e um `count()` em seguida
-    // contaria no máximo 1.
-    const sample = await query(database, sourceId, generation, order, kind).first()
-    if (!sample) continue
-    const count = await query(database, sourceId, generation, order, kind).count()
-    categories.push({ name: sample.group, order, count })
+  return records
+    .sort((a, b) => a.order - b.order)
+    .map((record) => ({
+      id: record.id as number,
+      kind: record.kind,
+      name: record.name,
+      order: record.order,
+      count: record.itemsCount ?? 0,
+      fetchMode: record.fetchMode,
+      providerCategoryId: record.providerCategoryId,
+      declaredCount: record.declaredCount,
+      itemsFetchedAt: record.itemsFetchedAt,
+    }))
+}
+
+/**
+ * Grava uma ou mais categorias da estrutura, devolvendo os ids locais
+ * criados na mesma ordem em que foram passadas (contrato §1).
+ *
+ * Serve os dois caminhos de importação: o de provedor chama de uma vez com
+ * a lista inteira de uma seção (`fetchMode: 'on_demand'`); o caminho
+ * integral chama com uma categoria por vez, no instante em que o grupo
+ * aparece pela primeira vez no fluxo — antes de o primeiro item daquele
+ * grupo ser gravado, porque o item precisa do id da categoria para apontar
+ * (`data-model.md` §3).
+ */
+export async function storeCategories(
+  categories: NewCategory[],
+  database: CatalogDb = db,
+): Promise<number[]> {
+  if (categories.length === 0) return []
+  return database.transaction('rw', database.categories, async () => {
+    const ids = await database.categories.bulkAdd(categories as CategoryRecord[], { allKeys: true })
+    return ids as number[]
+  })
+}
+
+/**
+ * Substitui integralmente os itens de uma categoria e carimba a obtenção,
+ * numa única transação (contrato §1, D-006).
+ *
+ * Substituição **parcial** deixaria item órfão de uma obtenção anterior —
+ * por isso os itens antigos daquela categoria são removidos antes dos
+ * novos entrarem, no mesmo lock. Localiza pelo mesmo `groupOrder` que a
+ * categoria declara: é o eixo que já ordena a leitura paginada, e cada
+ * categoria tem o seu, sem colisão com outra do mesmo `kind`.
+ */
+export async function storeCategoryItems(
+  target: CategoryItemsTarget,
+  items: CatalogRecord[],
+  now: number,
+  database: CatalogDb = db,
+): Promise<void> {
+  try {
+    await database.transaction('rw', database.channels, database.categories, async () => {
+      await database.channels
+        .where('[sourceId+generation+kind+groupOrder]')
+        .equals([target.sourceId, target.generation, target.kind, target.groupOrder])
+        .delete()
+
+      if (items.length > 0) {
+        await database.channels.bulkAdd(
+          items.map((item) => ({
+            ...item,
+            sourceId: target.sourceId,
+            generation: target.generation,
+            kind: target.kind,
+            groupOrder: target.groupOrder,
+            categoryId: target.categoryId,
+          })),
+        )
+      }
+
+      await database.categories.update(target.categoryId, {
+        itemsFetchedAt: now,
+        itemsCount: items.length,
+      })
+    })
+  } catch (error) {
+    if (isQuotaError(error)) throw new StorageFullError()
+    throw error
   }
-  return categories
+}
+
+/**
+ * Carimba a obtenção de uma categoria sem tocar nos itens dela.
+ *
+ * Usada pelo caminho integral (M3U): os itens já foram gravados pelo fluxo
+ * normal de `storeBatch` durante a importação, em lotes — só falta
+ * registrar quando e quantos, o que só se sabe no fim (`data-model.md` §3).
+ */
+export async function markCategoryFetched(
+  categoryId: number,
+  itemsFetchedAt: number,
+  itemsCount: number,
+  database: CatalogDb = db,
+): Promise<void> {
+  await database.categories.update(categoryId, { itemsFetchedAt, itemsCount })
 }
 
 /**
@@ -216,12 +380,23 @@ export async function publishGeneration(
   generation: number,
   database: CatalogDb = db,
 ): Promise<void> {
-  await database.transaction('rw', database.sources, database.channels, async () => {
-    await database.sources.update(sourceId, { activeGeneration: generation, updatedAt: Date.now() })
-    await allGenerations(database, sourceId)
-      .and((channel) => channel.generation !== generation)
-      .delete()
-  })
+  await database.transaction(
+    'rw',
+    database.sources,
+    database.channels,
+    database.categories,
+    async () => {
+      await database.sources.update(sourceId, { activeGeneration: generation, updatedAt: Date.now() })
+      await allGenerations(database, sourceId)
+        .and((channel) => channel.generation !== generation)
+        .delete()
+      // Estrutura da geração anterior sai junto (feature 010) — nunca
+      // `userStates`, que não tem noção de geração (D-002 do plan.md).
+      await allCategoryGenerations(database, sourceId)
+        .and((category) => category.generation !== generation)
+        .delete()
+    },
+  )
 }
 
 /** Limpa uma importação que não chegou ao fim, sem tocar na geração ativa. */
@@ -237,6 +412,9 @@ export async function discardGeneration(
     throw new Error('Geração ativa não pode ser descartada.')
   }
   await query(database, sourceId, generation).delete()
+  await allCategoryGenerations(database, sourceId)
+    .and((category) => category.generation === generation)
+    .delete()
 }
 
 /** Remove todo o catálogo de uma fonte, de todas as gerações. */
@@ -245,4 +423,5 @@ export async function deleteAllForSource(
   database: CatalogDb = db,
 ): Promise<void> {
   await allGenerations(database, sourceId).delete()
+  await allCategoryGenerations(database, sourceId).delete()
 }

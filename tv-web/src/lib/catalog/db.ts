@@ -76,6 +76,14 @@ export interface CatalogRecord {
   originalName: string
   group?: string
   groupOrder: number
+  /**
+   * Chave local da categoria a que este item pertence (feature 010).
+   * Preenchida nos dois caminhos de importação — o integral também grava
+   * categorias, com `fetchMode: 'eager'` (data-model.md §2.1/§3).
+   * `undefined` só para item cujo grupo não é uma das categorias
+   * navegáveis (canal, filme, série) — ex.: episódio solto.
+   */
+  categoryId?: number
   providerStreamId?: string
   providerCategoryId?: string
   seriesId?: string
@@ -83,6 +91,42 @@ export interface CatalogRecord {
   episodeNumber?: number
   streamExtension?: string
   directUrl?: string
+}
+
+/** As três seções que o painel expõe por categoria (feature 010). */
+export type CategoryKind = 'channel' | 'movie' | 'series'
+
+/** Como os itens de uma categoria chegam (data-model.md §2.1). */
+export type CatalogFetchMode =
+  | 'on_demand' // Provedor pelo protocolo JSON — itens buscados por categoria, ao abri-la.
+  | 'eager' // URL M3U e modo limitado — itens já vieram inteiros na importação.
+
+/**
+ * Uma categoria da estrutura do catálogo (feature 010).
+ *
+ * Existe como entidade própria desde a importação, mesmo antes de seus
+ * itens serem obtidos: *saber que uma categoria existe* deixa de depender
+ * de *ter os itens dela* (`data-model.md` §1). É o que permite a
+ * importação de provedor gravar só a estrutura e concluir em segundos.
+ */
+export interface CategoryRecord {
+  id?: number
+  sourceId: string
+  generation: number
+  kind: CategoryKind
+  fetchMode: CatalogFetchMode
+  /** Identificador do provedor. `undefined` em categoria `eager` — não há o que perguntar por ela. */
+  providerCategoryId?: string
+  /** Como o provedor/fonte declarou. Vazio é estado legítimo — nunca substituído por rótulo externo. */
+  name?: string
+  /** Posição na ordem declarada pela fonte. Nunca ordenação alfabética imposta. */
+  order: number
+  /** Contagem que a fonte declara. `undefined` = não declarou nada — a interface não inventa um número. */
+  declaredCount?: number
+  /** Instante da última obtenção dos itens. `undefined` = nunca obtida. */
+  itemsFetchedAt?: number
+  /** Quantos itens de fato estão gravados agora — fato do disco, nunca fundido com `declaredCount` (D-005). */
+  itemsCount?: number
 }
 
 export type ImportStatus = 'running' | 'completed' | 'failed' | 'cancelled'
@@ -109,6 +153,15 @@ export interface ImportRunRecord {
   generation: number
   status: ImportStatus
   step: ImportStep
+  /**
+   * O que `entriesRead`/`channelsStored` contam nesta execução (feature
+   * 010). `undefined`/`'items'` = itens (canal, filme, série, episódio) —
+   * o significado de sempre, usado por toda fonte M3U e pelo modo
+   * limitado. `'categories'` = categorias — usado pela fonte de provedor
+   * pelo protocolo JSON, que grava só estrutura e conclui em segundos
+   * (FR-013: a tela de progresso conta categorias, sem percentual).
+   */
+  unit?: 'items' | 'categories'
   /** Total de entradas lidas, incluindo as descartadas. */
   entriesRead: number
   channelsStored: number
@@ -155,6 +208,7 @@ export class CatalogDb extends Dexie {
   channels!: EntityTable<CatalogRecord, 'id'>
   importRuns!: EntityTable<ImportRunRecord, 'id'>
   userStates!: EntityTable<UserStateRecord, 'stableId'>
+  categories!: EntityTable<CategoryRecord, 'id'>
 
   constructor(name: string = DB_NAME) {
     super(name)
@@ -192,6 +246,31 @@ export class CatalogDb extends Dexie {
             }
           }),
       )
+    // v7 (feature 010): categoria vira entidade própria, em vez de um
+    // número derivado das chaves únicas de `channels`. Sem migração de
+    // dados — uma fonte importada pelo modelo antigo fica sem linha em
+    // `categories`, e é tratada como fonte a re-sincronizar, não como
+    // dado a converter (data-model.md §4: adivinhar `providerCategoryId`
+    // a partir de `groupOrder` seria reconstrução por aproximação, que a
+    // constitution proíbe).
+    // `sourceId` sozinho é índice de verdade, não só prefixo do composto:
+    // consultá-lo como prefixo (`.where('sourceId')`) cai na camada de
+    // "virtual index" do Dexie 4, que quebrou até consulta em tabela vazia
+    // neste ambiente de teste (Dexie + fake-indexeddb). Declarar os dois
+    // de propósito evita depender dessa emulação — mesma razão pela qual
+    // `channels` usa `[sourceId+generation]` explícito para descarte por
+    // fonte, em vez de confiar num prefixo do índice maior.
+    //
+    // O segundo índice que estava previsto aqui,
+    // `[sourceId+generation+kind+providerCategoryId]` (para "localizar a
+    // categoria que a tela abriu"), foi removido antes de qualquer código
+    // consumidor existir: quem abre uma categoria já recebe o objeto
+    // inteiro de `listCategories`, com o id local e o providerCategoryId
+    // juntos — não há busca reversa por providerCategoryId em nenhum
+    // caminho de código (data-model.md §2, nota de execução).
+    this.version(7).stores({
+      categories: '++id, sourceId, [sourceId+generation+kind+order]',
+    })
   }
 }
 
