@@ -12,7 +12,7 @@ O objetivo é carregar múltiplas listas M3U, reproduzir canais, filmes e série
 
 TMDB é a integração inicial escolhida para metadados. As menções originais a **YouTube, “TV local”, IMDb e Google** permanecem como intenções a esclarecer: forma de acesso, requisitos, APIs e compatibilidade ainda não foram definidos. Elas não são consideradas integrações prontas nem substituições automáticas do TMDB.
 
-### Funcionalidades planejadas (visão de produto — nenhuma entregue ainda)
+### Funcionalidades
 
 > ⚠️ O CCPlay TV não distribui, hospeda nem fornece listas, canais ou
 > qualquer outro conteúdo digital. Canais e imagens usados em capturas de

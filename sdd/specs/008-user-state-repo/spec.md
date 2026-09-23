@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-22
 
-**Status**: Implementada
+**Status**: Convergida
 
 **Input**: Separação de CatalogRepository e UserStateRepository do backlog (Item 3 da Fase 1).
 
