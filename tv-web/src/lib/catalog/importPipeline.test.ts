@@ -84,7 +84,7 @@ describe('importPipeline — fonte por URL M3U', () => {
     expect(run.entriesRead).toBe(4)
     expect(run.discardedByType).toBe(2)
     expect(run.invalidCount).toBe(1)
-    expect(await countChannels(M3U_SOURCE.id, undefined, database)).toBe(2)
+    expect(await countChannels(M3U_SOURCE.id, undefined, undefined, database)).toBe(2)
   })
 
   it('preserva os grupos declarados pela fonte, na ordem em que apareceram', async () => {
@@ -92,7 +92,7 @@ describe('importPipeline — fonte por URL M3U', () => {
 
     await (await startImport(M3U_SOURCE.id, { database })).completion
 
-    const categories = await listCategories(M3U_SOURCE.id, database)
+    const categories = await listCategories(M3U_SOURCE.id, undefined, database)
     expect(categories.map((category) => category.name)).toEqual([
       'Canais | Esportes',
       'Canais | Variedades',
@@ -104,7 +104,7 @@ describe('importPipeline — fonte por URL M3U', () => {
 
     await (await startImport(M3U_SOURCE.id, { database })).completion
 
-    const [first] = await listChannels(M3U_SOURCE.id, 0, 0, 1, database)
+    const [first] = await listChannels(M3U_SOURCE.id, 0, 0, 1, undefined, database)
     expect(first.directUrl).toBe('http://exemplo.test/live/1.ts')
   })
 
@@ -197,7 +197,8 @@ describe('importPipeline — fonte por URL M3U', () => {
         {
           sourceId: M3U_SOURCE.id,
           generation: 1,
-          name: 'Canal Antigo',
+          kind: 'channel',
+      name: 'Canal Antigo',
           originalName: 'Canal Antigo',
           group: 'Esportes',
           groupOrder: 0,
@@ -210,7 +211,7 @@ describe('importPipeline — fonte por URL M3U', () => {
 
     await (await startImport(M3U_SOURCE.id, { database })).completion
 
-    const visible = await listChannels(M3U_SOURCE.id, 0, 0, 10, database)
+    const visible = await listChannels(M3U_SOURCE.id, 0, 0, 10, undefined, database)
     expect(visible.map((item) => item.name)).toEqual(['Canal Antigo'])
     expect((await getSource(M3U_SOURCE.id, database))?.activeGeneration).toBe(1)
   })
@@ -221,7 +222,8 @@ describe('importPipeline — fonte por URL M3U', () => {
         {
           sourceId: M3U_SOURCE.id,
           generation: 1,
-          name: 'Canal Antigo',
+          kind: 'channel',
+      name: 'Canal Antigo',
           originalName: 'Canal Antigo',
           group: 'Esportes',
           groupOrder: 0,
@@ -246,7 +248,7 @@ describe('importPipeline — fonte por URL M3U', () => {
     const run = await handle.completion
 
     expect(run.status).toBe('cancelled')
-    expect(await countChannels(M3U_SOURCE.id, undefined, database)).toBe(1)
+    expect(await countChannels(M3U_SOURCE.id, undefined, undefined, database)).toBe(1)
     expect((await getSource(M3U_SOURCE.id, database))?.activeGeneration).toBe(1)
     const leftovers = await database.channels.filter((item) => item.generation === 2).count()
     expect(leftovers).toBe(0)
@@ -320,7 +322,7 @@ describe('importPipeline — fonte por URL M3U', () => {
     expect(run.truncatedByStorage).toBe(true)
     expect(run.channelsStored).toBe(5) // O primeiro lote coube
 
-    const visible = await countChannels(M3U_SOURCE.id, undefined, database)
+    const visible = await countChannels(M3U_SOURCE.id, undefined, undefined, database)
     expect(visible).toBe(5)
   })
 
@@ -339,7 +341,7 @@ describe('importPipeline — fonte por URL M3U', () => {
     expect(run.errorKind).toBeUndefined()
     expect(run.channelsStored).toBe(0)
 
-    const visible = await countChannels(M3U_SOURCE.id, undefined, database)
+    const visible = await countChannels(M3U_SOURCE.id, undefined, undefined, database)
     expect(visible).toBe(0)
   })
 })
@@ -388,7 +390,7 @@ describe('importPipeline — fonte de provedor', () => {
 
     await (await startImport(PROVIDER_SOURCE.id, { database })).completion
 
-    const [channel] = await listChannels(PROVIDER_SOURCE.id, 0, 0, 1, database)
+    const [channel] = await listChannels(PROVIDER_SOURCE.id, 0, 0, 1, undefined, database)
     expect(channel.directUrl).toBeUndefined()
     expect(channel.providerStreamId).toBe('9')
     // A credencial não pode ter vazado para o catálogo em nenhuma forma.

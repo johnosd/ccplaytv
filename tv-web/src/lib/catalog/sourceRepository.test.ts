@@ -125,7 +125,7 @@ describe('sourceRepository', () => {
           name: 'Canal',
           originalName: 'Canal',
           group: 'Esportes',
-          groupOrder: 0,
+          groupOrder: 0, kind: 'channel',
         },
       ],
       database,

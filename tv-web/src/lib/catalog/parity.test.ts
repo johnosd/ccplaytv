@@ -1,5 +1,6 @@
 ﻿import { describe, expect, it } from 'vitest'
-import { classifyEntry, type CatalogItemKind } from './classifier'
+import { classifyEntry } from './classifier'
+import type { CatalogItemKind } from './db'
 import { parseM3uText } from './m3uParser'
 // A fixture é lida do próprio `api/`, não copiada: uma cópia divergiria em
 // silêncio, e detectar divergência entre as duas implementações é o ponto.

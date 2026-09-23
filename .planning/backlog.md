@@ -76,7 +76,7 @@ de virar spec.
 
 ### Fase 0 — Dívidas abertas da fundação (fazer antes de empilhar em cima)
 
-1. **Conector Xtream: fatia de VOD e séries pelo mesmo protocolo**
+1. ~~**Conector Xtream: fatia de VOD e séries pelo mesmo protocolo**~~ [CONCLUÍDO - FEATURE 006]
 
    O conector Xtream em TypeScript
    (`tv-web/src/lib/catalog/xtreamConnector.ts`) já fala o protocolo JSON
@@ -126,7 +126,7 @@ de virar spec.
    `docs/iptvnator/03-apis.md` #3–6, `06-carga-listas-url-xtream.md`
    #2–5/#7; feature 004 item remanescente)
 
-2. **Higiene de credenciais e cobertura das políticas de rede**
+2. ~~**Higiene de credenciais e cobertura das políticas de rede**
 
    Consolidar a sanitização de segredos num helper único aplicado a todo
    log e mensagem de erro — **tanto no frontend quanto no contorno de
@@ -1060,6 +1060,9 @@ mudaram de natureza** com a arquitetura client-first:
 | 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Convergida | 67/67 tasks | 2026-09-18 |
 | 004-conector-xtream-live | Conector Xtream JSON para canais ao vivo | Convergida | 55/55 tasks | 2026-09-18 |
 | 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Convergida | 59/59 tasks | 2026-09-22 |
+
+| 006-conector-xtream-vod-series | Conector Xtream JSON para VOD e Series | Convergida | 15/15 tasks | 2026-09-22 |
+| 007-higiene-credenciais | Higiene de Credenciais e Políticas de Rede | Convergida | 7/7 tasks | 2026-09-22 |
 
 ## Bugs
 

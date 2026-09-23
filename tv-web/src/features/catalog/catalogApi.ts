@@ -41,11 +41,11 @@ export function useChannels(sourceId: string | null) {
     queryFn: async () => {
       if (!sourceId) return { items: [], next_cursor: null } satisfies CatalogItemListResponse
 
-      const categories = await listCategories(sourceId)
+      const categories = await listCategories(sourceId, 'channel')
       const items: CatalogItemOut[] = []
 
       for (const category of categories) {
-        const channels = await listChannels(sourceId, category.order, 0, category.count)
+        const channels = await listChannels(sourceId, category.order, 0, category.count, 'channel')
         for (const channel of channels) {
           items.push({
             id: String(channel.id ?? ''),
@@ -73,4 +73,64 @@ export async function fetchPlayback(itemId: string): Promise<CatalogItemPlayback
     url,
     container_hint: null,
   }
+}
+
+
+export function useMovies(sourceId: string | null) {
+  return useQuery({
+    queryKey: ['catalog-items', sourceId, 'movie'],
+    queryFn: async () => {
+      if (!sourceId) return { items: [], next_cursor: null }
+
+      const categories = await listCategories(sourceId, 'movie')
+      const items = []
+
+      for (const category of categories) {
+        const movies = await listChannels(sourceId, category.order, 0, category.count, 'movie')
+        for (const movie of movies) {
+          items.push({
+            id: String(movie.id ?? ''),
+            kind: 'movie',
+            name: movie.name,
+            original_group: movie.group ?? null,
+            published: true,
+            playable: Boolean(movie.directUrl) || Boolean(movie.providerStreamId),
+          })
+        }
+      }
+
+      return { items, next_cursor: null }
+    },
+    enabled: sourceId !== null,
+  })
+}
+
+
+export function useSeries(sourceId: string | null) {
+  return useQuery({
+    queryKey: ['catalog-items', sourceId, 'series'],
+    queryFn: async () => {
+      if (!sourceId) return { items: [], next_cursor: null }
+
+      const categories = await listCategories(sourceId, 'series')
+      const items = []
+
+      for (const category of categories) {
+        const series = await listChannels(sourceId, category.order, 0, category.count, 'series')
+        for (const s of series) {
+          items.push({
+            id: String(s.id ?? ''),
+            kind: 'series',
+            name: s.name,
+            original_group: s.group ?? null,
+            published: true,
+            playable: false,
+          })
+        }
+      }
+
+      return { items, next_cursor: null }
+    },
+    enabled: sourceId !== null,
+  })
 }

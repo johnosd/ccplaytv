@@ -13,7 +13,7 @@
  *    A anterior continua legível enquanto isso.
  */
 
-import { db, type CatalogDb, type ChannelRecord } from './db'
+import { db, type CatalogDb, type CatalogRecord, type CatalogItemKind } from './db'
 
 /**
  * Limites da faixa de `generation` e de `groupOrder` nas consultas por
@@ -75,7 +75,12 @@ async function activeGenerationOf(
  * é filtrada: assim a varredura de uma geração inteira também sai na ordem
  * declarada pela fonte, sem ordenação por texto em cima.
  */
-function query(database: CatalogDb, sourceId: string, generation: number, groupOrder?: number) {
+function query(database: CatalogDb, sourceId: string, generation: number, groupOrder?: number, kind?: CatalogItemKind) {
+  if (kind) {
+    const low = [sourceId, generation, kind, groupOrder ?? KEY_MIN]
+    const high = [sourceId, generation, kind, groupOrder ?? KEY_MAX]
+    return database.channels.where('[sourceId+generation+kind+groupOrder]').between(low, high, true, true)
+  }
   const low = [sourceId, generation, groupOrder ?? KEY_MIN]
   const high = [sourceId, generation, groupOrder ?? KEY_MAX]
   return database.channels.where('[sourceId+generation+groupOrder]').between(low, high, true, true)
@@ -97,14 +102,15 @@ function allGenerations(database: CatalogDb, sourceId: string) {
  */
 export async function listCategories(
   sourceId: string,
+  kind?: CatalogItemKind,
   database: CatalogDb = db,
 ): Promise<CatalogCategory[]> {
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return []
 
-  const keys = (await query(database, sourceId, generation).uniqueKeys()) as unknown[]
+  const keys = (await query(database, sourceId, generation, undefined, kind).uniqueKeys()) as unknown[]
   const orders = keys
-    .map((key) => (Array.isArray(key) ? Number(key[2]) : Number.NaN))
+    .map((key) => (Array.isArray(key) ? Number(key[kind ? 3 : 2]) : Number.NaN))
     .filter((value) => Number.isFinite(value))
 
   const categories: CatalogCategory[] = []
@@ -112,9 +118,9 @@ export async function listCategories(
     // Duas consultas, não duas chamadas na mesma: `first()` aplica um
     // limite que fica no objeto de consulta, e um `count()` em seguida
     // contaria no máximo 1.
-    const sample = await query(database, sourceId, generation, order).first()
+    const sample = await query(database, sourceId, generation, order, kind).first()
     if (!sample) continue
-    const count = await query(database, sourceId, generation, order).count()
+    const count = await query(database, sourceId, generation, order, kind).count()
     categories.push({ name: sample.group, order, count })
   }
   return categories
@@ -129,11 +135,12 @@ export async function listChannels(
   groupOrder: number,
   offset: number,
   limit: number,
+  kind?: CatalogItemKind,
   database: CatalogDb = db,
-): Promise<ChannelRecord[]> {
+): Promise<CatalogRecord[]> {
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return []
-  return query(database, sourceId, generation, groupOrder).offset(offset).limit(limit).toArray()
+  return query(database, sourceId, generation, groupOrder, kind).offset(offset).limit(limit).toArray()
 }
 
 /**
@@ -143,17 +150,18 @@ export async function listChannels(
 export async function countChannels(
   sourceId: string,
   groupOrder?: number,
+  kind?: CatalogItemKind,
   database: CatalogDb = db,
 ): Promise<number> {
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return 0
-  return query(database, sourceId, generation, groupOrder).count()
+  return query(database, sourceId, generation, groupOrder, kind).count()
 }
 
 export async function getChannel(
   id: number,
   database: CatalogDb = db,
-): Promise<ChannelRecord | undefined> {
+): Promise<CatalogRecord | undefined> {
   return database.channels.get(id)
 }
 
@@ -165,7 +173,7 @@ export async function getChannel(
  * vez de fingir que gravou.
  */
 export async function storeBatch(
-  channels: ChannelRecord[],
+  channels: CatalogRecord[],
   database: CatalogDb = db,
 ): Promise<void> {
   if (channels.length === 0) return

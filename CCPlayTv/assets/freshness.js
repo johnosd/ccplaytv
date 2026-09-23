@@ -1,0 +1,1 @@
+function e(e,t){return e.connectionState===`never_synced`?`none`:e.type===`provider_credentials`&&e.providerMigratedAt===void 0?`migrate`:e.lastSuccessfulSyncAt!==void 0&&t-e.lastSuccessfulSyncAt>864e5?`update_by_age`:`none`}export{e as decideOnOpen};

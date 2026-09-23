@@ -14,23 +14,20 @@
 
 import type { ParsedEntry } from './m3uParser'
 
-export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
+import type { CatalogItemKind } from './db'
 
 export interface ClassifiedEntry {
   kind: CatalogItemKind
   name: string
   originalName: string
   group?: string
-  /**
-   * Ausente só quando vem do conector de provedor e a conta não declara
-   * nenhum formato permitido — sem URL inventada.
-   */
   url?: string
   seriesKey?: string
   seriesName?: string
+  seriesId?: string
   seasonNumber?: number
   episodeNumber?: number
-  /** Identidade declarada pelo provedor; ausente para entradas vindas de M3U. */
+  streamExtension?: string
   providerStreamId?: string
   providerCategoryId?: string
 }

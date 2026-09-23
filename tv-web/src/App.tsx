@@ -26,10 +26,10 @@ type Screen =
   | { name: 'progress'; jobId: string }
   | { name: 'list-home'; source: SourceOut }
   | { name: 'live'; source: SourceOut }
-  | { name: 'movies' }
-  | { name: 'movie-detail'; movieId: string }
-  | { name: 'series' }
-  | { name: 'series-detail'; seriesId: string }
+  | { name: 'movies'; source: SourceOut }
+  | { name: 'movie-detail'; source: SourceOut; movieId: string }
+  | { name: 'series'; source: SourceOut }
+  | { name: 'series-detail'; source: SourceOut; seriesId: string }
 
 interface NavState {
   screen: Screen
@@ -145,15 +145,7 @@ function App() {
           sourceName={screen.source.display_name}
           movieCount={MOVIES.length}
           seriesCount={SERIES.length}
-          onSelect={(destination: ListDestination) =>
-            // A Live TV precisa saber de qual fonte ler o catálogo; Filmes e
-            // Séries ainda leem o mock e não recebem a fonte.
-            goto(
-              destination === 'live'
-                ? { name: 'live', source: screen.source }
-                : { name: destination },
-            )
-          }
+          onSelect={(destination: ListDestination) => goto({ name: destination, source: screen.source } as Screen)}
           onBack={back}
         />
       )
@@ -163,22 +155,19 @@ function App() {
 
     case 'movies':
       return (
-        <MoviesScreen onOpenMovie={(movieId) => goto({ name: 'movie-detail', movieId })} onBack={back} />
+        <MoviesScreen sourceId={screen.source.id} onOpenMovie={(movieId) => goto({ name: 'movie-detail', source: screen.source, movieId } as Screen)} onBack={back} />
       )
 
     case 'movie-detail':
-      return <MovieDetailScreen movieId={screen.movieId} onBack={back} />
+      return <MovieDetailScreen sourceId={screen.source.id} movieId={screen.movieId} onBack={back} />
 
     case 'series':
       return (
-        <SeriesScreen
-          onOpenSeries={(seriesId) => goto({ name: 'series-detail', seriesId })}
-          onBack={back}
-        />
+        <SeriesScreen sourceId={screen.source.id} onOpenSeries={(seriesId) => goto({ name: 'series-detail', source: screen.source, seriesId } as Screen)} onBack={back} />
       )
 
     case 'series-detail':
-      return <SeriesDetailScreen seriesId={screen.seriesId} onBack={back} />
+      return <SeriesDetailScreen sourceId={screen.source.id} seriesId={screen.seriesId} onBack={back} />
 
     default:
       return null

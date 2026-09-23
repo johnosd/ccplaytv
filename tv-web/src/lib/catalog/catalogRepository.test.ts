@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { CatalogDb, type ChannelRecord, type SourceRecord } from './db'
+import { CatalogDb, type CatalogRecord, type SourceRecord } from './db'
 import {
   allocateGeneration,
   countChannels,
@@ -38,7 +38,7 @@ async function seedSource(overrides: Partial<SourceRecord> = {}): Promise<void> 
   })
 }
 
-function channel(generation: number, name: string, group: string, groupOrder: number): ChannelRecord {
+function channel(generation: number, name: string, group: string, groupOrder: number): CatalogRecord {
   return {
     sourceId: SOURCE_ID,
     generation,
@@ -47,6 +47,7 @@ function channel(generation: number, name: string, group: string, groupOrder: nu
     group,
     groupOrder,
     providerStreamId: name,
+    kind: 'channel',
   }
 }
 
@@ -58,11 +59,11 @@ describe('catalogRepository', () => {
       database,
     )
 
-    const page = await listChannels(SOURCE_ID, 0, 20, 10, database)
+    const page = await listChannels(SOURCE_ID, 0, 20, 10, undefined, database)
 
     expect(page).toHaveLength(10)
     expect(page[0].name).toBe('Canal 20')
-    expect(await countChannels(SOURCE_ID, 0, database)).toBe(50)
+    expect(await countChannels(SOURCE_ID, 0, undefined, database)).toBe(50)
   })
 
   it('lista categorias na ordem declarada pela fonte, não em ordem alfabética', async () => {
@@ -76,7 +77,7 @@ describe('catalogRepository', () => {
       database,
     )
 
-    const categories = await listCategories(SOURCE_ID, database)
+    const categories = await listCategories(SOURCE_ID, undefined, database)
 
     expect(categories.map((category) => category.name)).toEqual(['Zulu', 'Alfa'])
     expect(categories.map((category) => category.count)).toEqual([2, 1])
@@ -86,7 +87,7 @@ describe('catalogRepository', () => {
     await seedSource({ activeGeneration: 1 })
     await storeBatch([{ ...channel(1, 'Sem grupo', '', 0), group: undefined }], database)
 
-    const categories = await listCategories(SOURCE_ID, database)
+    const categories = await listCategories(SOURCE_ID, undefined, database)
 
     expect(categories).toHaveLength(1)
     expect(categories[0].name).toBeUndefined()
@@ -99,9 +100,9 @@ describe('catalogRepository', () => {
     // Importação nova em andamento, ainda não publicada.
     await storeBatch([channel(2, 'Novo', 'Esportes', 0)], database)
 
-    const visible = await listChannels(SOURCE_ID, 0, 0, 100, database)
+    const visible = await listChannels(SOURCE_ID, 0, 0, 100, undefined, database)
     expect(visible.map((item) => item.name)).toEqual(['Antigo'])
-    expect(await countChannels(SOURCE_ID, undefined, database)).toBe(1)
+    expect(await countChannels(SOURCE_ID, undefined, undefined, database)).toBe(1)
   })
 
   it('publicar troca o ponteiro e só então descarta a geração anterior', async () => {
@@ -111,7 +112,7 @@ describe('catalogRepository', () => {
 
     await publishGeneration(SOURCE_ID, 2, database)
 
-    const visible = await listChannels(SOURCE_ID, 0, 0, 100, database)
+    const visible = await listChannels(SOURCE_ID, 0, 0, 100, undefined, database)
     expect(visible.map((item) => item.name)).toEqual(['Novo'])
     // A anterior saiu do disco — não fica ocupando espaço num aparelho que
     // já é apertado.
@@ -122,8 +123,8 @@ describe('catalogRepository', () => {
     await seedSource()
     await storeBatch([channel(1, 'Em escrita', 'Esportes', 0)], database)
 
-    expect(await listChannels(SOURCE_ID, 0, 0, 100, database)).toEqual([])
-    expect(await listCategories(SOURCE_ID, database)).toEqual([])
+    expect(await listChannels(SOURCE_ID, 0, 0, 100, undefined, database)).toEqual([])
+    expect(await listCategories(SOURCE_ID, undefined, database)).toEqual([])
   })
 
   it('descartar uma geração falha não toca na ativa', async () => {
@@ -133,8 +134,8 @@ describe('catalogRepository', () => {
 
     await discardGeneration(SOURCE_ID, 2, database)
 
-    expect(await countChannels(SOURCE_ID, undefined, database)).toBe(1)
-    expect((await listChannels(SOURCE_ID, 0, 0, 10, database))[0].name).toBe('Bom')
+    expect(await countChannels(SOURCE_ID, undefined, undefined, database)).toBe(1)
+    expect((await listChannels(SOURCE_ID, 0, 0, 10, undefined, database))[0].name).toBe('Bom')
   })
 
   it('recusa descartar a geração que está no ar', async () => {

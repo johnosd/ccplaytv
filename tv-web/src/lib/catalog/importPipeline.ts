@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 /**
  * Importação local, ponta a ponta (`contracts/local-storage.md` §3).
  *
@@ -20,7 +21,7 @@
 import {
   db,
   type CatalogDb,
-  type ChannelRecord,
+  type CatalogRecord,
   type ImportErrorKind,
   type ImportRunRecord,
   type ImportStep,
@@ -45,6 +46,8 @@ import {
 } from './m3uParser'
 import {
   acquireXtreamChannels,
+  acquireXtreamVod,
+  acquireXtreamSeries,
   classifyWithGroupOrder,
   legacyM3uUrl,
   ProviderError,
@@ -59,7 +62,7 @@ import {
  * transação, pequeno o bastante para o cancelamento responder rápido e para
  * o laço devolver o controle ao desenho da tela (SC-005).
  */
-const DEFAULT_BATCH_SIZE = 500
+const DEFAULT_BATCH_SIZE = 2500
 
 export class ImportAlreadyRunningError extends Error {
   constructor() {
@@ -120,19 +123,21 @@ function toRecord(
   sourceId: string,
   generation: number,
   keepUrl: boolean,
-): ChannelRecord {
+): CatalogRecord {
   return {
     sourceId,
     generation,
+    kind: channel.kind,
     name: channel.name,
     originalName: channel.originalName,
     group: channel.group,
     groupOrder: channel.groupOrder,
     providerStreamId: channel.providerStreamId,
     providerCategoryId: channel.providerCategoryId,
-    // Só fonte por URL M3U guarda a URL: para fonte de provedor ela é
-    // montada na hora, e gravá-la espalharia a credencial por milhares de
-    // registros (data-model.md §4).
+    seriesId: channel.seriesId,
+    seasonNumber: channel.seasonNumber,
+    episodeNumber: channel.episodeNumber,
+    streamExtension: channel.streamExtension,
     directUrl: keepUrl ? channel.url : undefined,
   }
 }
@@ -190,7 +195,7 @@ export async function startImport(
   }
 
   async function execute(): Promise<void> {
-    let pendingBatch: ChannelRecord[] = []
+    let pendingBatch: CatalogRecord[] = []
     const keepUrl = source!.type === 'm3u_url'
 
     async function flush(): Promise<void> {
@@ -210,7 +215,7 @@ export async function startImport(
 
     async function accept(channel: MappedChannel): Promise<void> {
       run.entriesRead += 1
-      if (channel.kind !== 'channel') {
+      if (channel.kind === 'unclassified') {
         // D-006/FR-008: classificado e descartado sem tocar o disco. O
         // contador é o que sustenta dizer "não é o catálogo completo da
         // fonte" sem inventar número.
@@ -273,18 +278,37 @@ export async function startImport(
       allowedFormats = status.allowedFormats
 
       try {
-        const result = await acquireXtreamChannels(
+        const resultPromise = acquireXtreamChannels(
           credential.dns,
           credential.username,
           credential.password,
           status,
         )
+        const vodsPromise = acquireXtreamVod(credential.dns, credential.username, credential.password).catch((e) => {
+          logger.warn('Erro isolado ao importar VOD via painel', e)
+          return []
+        })
+        const seriesPromise = acquireXtreamSeries(credential.dns, credential.username, credential.password).catch((e) => {
+          logger.warn('Erro isolado ao importar series via painel', e)
+          return []
+        })
+
+        const [result, vods, series] = await Promise.all([resultPromise, vodsPromise, seriesPromise])
         mode = 'xtream_api'
         enterStep('parsing')
         await persist()
+
         for (const channel of result.channels) {
           if (cancelled) throw new ImportCancelledError()
           await accept(channel)
+        }
+        for (const vod of vods) {
+          if (cancelled) throw new ImportCancelledError()
+          await accept(vod)
+        }
+        for (const s of series) {
+          if (cancelled) throw new ImportCancelledError()
+          await accept(s)
         }
       } catch (error) {
         if (!(error instanceof ProviderIncompatibleError)) throw error

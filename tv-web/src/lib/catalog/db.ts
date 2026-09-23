@@ -44,23 +44,23 @@ export interface SourceRecord {
   updatedAt: number
 }
 
-export interface ChannelRecord {
+export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
+
+export interface CatalogRecord {
   id?: number
   sourceId: string
   generation: number
+  kind: CatalogItemKind
   name: string
   originalName: string
-  /** Categoria como a fonte declarou. Ausente é estado legítimo, nunca rótulo inventado. */
   group?: string
-  /** Posição da categoria na ordem declarada pela fonte — preserva ordem sem reordenar por texto. */
   groupOrder: number
   providerStreamId?: string
   providerCategoryId?: string
-  /**
-   * Só para fonte `m3u_url`, onde a URL **é** o dado que a lista fornece e
-   * não há identificador a partir do qual reconstruí-la (data-model.md §4).
-   * Para fonte de provedor fica ausente: a URL é montada na hora.
-   */
+  seriesId?: string
+  seasonNumber?: number
+  episodeNumber?: number
+  streamExtension?: string
   directUrl?: string
 }
 
@@ -110,17 +110,18 @@ const DB_NAME = 'ccplaytv'
 
 export class CatalogDb extends Dexie {
   sources!: EntityTable<SourceRecord, 'id'>
-  channels!: EntityTable<ChannelRecord, 'id'>
+  channels!: EntityTable<CatalogRecord, 'id'>
   importRuns!: EntityTable<ImportRunRecord, 'id'>
 
   constructor(name: string = DB_NAME) {
     super(name)
     this.version(1).stores({
       sources: 'id',
-      // O índice composto com groupOrder é o que permite ler uma categoria
-      // por página, na ordem declarada, sem carregar o catálogo (FR-005).
       channels: '++id, [sourceId+generation], [sourceId+generation+groupOrder]',
       importRuns: 'id, [sourceId+status]',
+    })
+    this.version(2).stores({
+      channels: '++id, [sourceId+generation], [sourceId+generation+groupOrder], [sourceId+generation+kind+groupOrder]'
     })
   }
 }

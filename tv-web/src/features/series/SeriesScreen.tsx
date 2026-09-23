@@ -1,21 +1,26 @@
 import { useState } from 'react'
-import { SERIES } from '../catalog/mockCatalog'
+import { useSeries } from '../catalog/catalogApi'
 import { gridNextIndex, useRemoteNav } from '../../lib/useRemoteNav'
 
 const GRID_COLS = 6
 
 export interface SeriesScreenProps {
+  sourceId: string
   onOpenSeries: (seriesId: string) => void
   onBack: () => void
 }
 
-export function SeriesScreen({ onOpenSeries, onBack }: SeriesScreenProps) {
+export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenProps) {
   const [focus, setFocus] = useState(0)
+  const query = useSeries(sourceId)
+  const series = query.data?.items ?? []
 
   useRemoteNav({
     onDirection: (dir) =>
-      setFocus((current) => gridNextIndex(dir, current, SERIES.length, GRID_COLS)),
-    onSelect: () => onOpenSeries(SERIES[focus].id),
+      setFocus((current) => gridNextIndex(dir, current, series.length, GRID_COLS)),
+    onSelect: () => {
+      if (series.length > 0) onOpenSeries(series[focus].id)
+    },
     onBack,
   })
 
@@ -23,20 +28,23 @@ export function SeriesScreen({ onOpenSeries, onBack }: SeriesScreenProps) {
     <div className="screen">
       <h1 className="screen-title">Séries</h1>
       <div className="poster-grid">
-        {SERIES.map((series, i) => (
-          <div key={series.id}>
+        {series.map((s, i) => (
+          <div key={s.id}>
             <div className={`poster-box${focus === i ? ' tv-focus' : ''}`}>
               <div className="poster-box-noise" />
               <span className="poster-box-label">
                 pôster
                 <br />
-                {series.title}
+                {s.name}
               </span>
             </div>
-            <div className="poster-card-title">{series.title}</div>
-            <div className="poster-card-meta">{series.genre}</div>
+            <div className="poster-card-title">{s.name}</div>
+            <div className="poster-card-meta">
+              {s.original_group ?? 'Série'}
+            </div>
           </div>
         ))}
+        {series.length === 0 && <div style={{ padding: 40 }}>Nenhuma série encontrada.</div>}
       </div>
     </div>
   )

@@ -1,92 +1,59 @@
 import { useState } from 'react'
-import { SERIES } from '../catalog/mockCatalog'
-import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
-import { useToast } from '../../lib/useToast'
-import { Toast } from '../../components/Toast'
+import { useSeries } from '../catalog/catalogApi'
+import { useRemoteNav } from '../../lib/useRemoteNav'
 
 export interface SeriesDetailScreenProps {
+  sourceId: string
   seriesId: string
   onBack: () => void
 }
 
-export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps) {
-  const series = SERIES.find((s) => s.id === seriesId) ?? SERIES[0]
-  const [seasonIdx, setSeasonIdx] = useState(0)
-  const [inEpisodeList, setInEpisodeList] = useState(false)
-  const [episodeCol, setEpisodeCol] = useState(0)
-  const { toastMessage, showToast } = useToast()
-
-  const season = series.seasons[seasonIdx]
+export function SeriesDetailScreen({ sourceId, seriesId, onBack }: SeriesDetailScreenProps) {
+  const query = useSeries(sourceId)
+  const series = query.data?.items?.find((s) => s.id === seriesId)
+  
+  // O Mock tinha suporte a temporadas e episódios (mockCatalog.ts).
+  // Para VOD real, precisamos da chamada fetchSeriesInfo (Feature 006).
+  // Por enquanto, mostraremos o layout básico.
+  const [focusArea, setFocusArea] = useState<'seasons' | 'episodes'>('seasons')
 
   useRemoteNav({
     onDirection: (dir) => {
-      if ((dir === 'left' || dir === 'right') && !inEpisodeList) {
-        setSeasonIdx((i) => clamp(i + (dir === 'right' ? 1 : -1), 0, series.seasons.length - 1))
-        setEpisodeCol(0)
-        return
-      }
-      if (dir === 'down') {
-        if (!inEpisodeList) {
-          setInEpisodeList(true)
-          return
-        }
-        setEpisodeCol((c) => clamp(c + 1, 0, season.episodes.length - 1))
-        return
-      }
-      if (dir === 'up' && inEpisodeList) {
-        if (episodeCol > 0) setEpisodeCol((c) => c - 1)
-        else setInEpisodeList(false)
-      }
+      // Navegação mock simplificada
+      if (dir === 'left' && focusArea === 'episodes') setFocusArea('seasons')
+      if (dir === 'right' && focusArea === 'seasons') setFocusArea('episodes')
     },
-    onSelect: () => {
-      if (inEpisodeList) showToast('Abrindo player do episódio...')
-    },
+    onSelect: () => {},
     onBack,
   })
 
+  if (!series) return <div className="screen" style={{ padding: 40 }}>Carregando...</div>
+
   return (
-    <div className="screen">
-      <div className="series-detail-header">
-        <div className="series-detail-thumb">
+    <div className="series-detail-layout">
+      <div className="series-detail-hero">
+        <div className="series-detail-hero-backdrop">
           <div className="backdrop-noise" />
         </div>
-        <div className="series-detail-info">
-          <div className="series-detail-title">{series.title}</div>
-          <p className="series-detail-synopsis">{series.synopsis}</p>
-          <div className="series-detail-cast">Elenco: {series.cast}</div>
+        <div className="series-detail-hero-content">
+          <h1 className="series-detail-title">{series.name}</h1>
+          <div className="series-detail-meta">
+            {series.original_group ?? 'Série'}
+          </div>
+          <p className="series-detail-synopsis">
+            Detalhes e episódios on-demand a serem integrados via fetchSeriesInfo.
+          </p>
         </div>
       </div>
 
-      <div className="season-tabs">
-        {series.seasons.map((s, i) => (
-          <div
-            key={s.name}
-            className={`season-tab${!inEpisodeList && seasonIdx === i ? ' tv-focus' : ''}`}
-            aria-selected={seasonIdx === i}
-          >
-            {s.name}
-          </div>
-        ))}
+      <div className="series-detail-browser">
+        <div className={`series-detail-seasons${focusArea === 'seasons' ? ' is-active' : ''}`}>
+          <div className="season-item tv-focus">Temporada 1</div>
+        </div>
+        <div className={`series-detail-episodes${focusArea === 'episodes' ? ' is-active' : ''}`}>
+           <div className="episode-item">Episódios virão de fetchSeriesInfo()</div>
+        </div>
       </div>
-
-      <div className="episode-list">
-        {season.episodes.map((ep, i) => (
-          <div
-            key={ep.title}
-            className={`episode-row${inEpisodeList && episodeCol === i ? ' tv-focus' : ''}`}
-          >
-            <div className="episode-thumb" />
-            <div>
-              <div className="episode-title">{ep.title}</div>
-              <div className="episode-meta">
-                {ep.dur} — {ep.synopsis}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <Toast message={toastMessage} />
     </div>
   )
 }
