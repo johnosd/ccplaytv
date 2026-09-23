@@ -866,6 +866,27 @@ mudaram de natureza** com a arquitetura client-first:
    estado, e **a armadilha volta quando essa tela temporária for removida
    na fase Polish**. Caminho normal: `sdd-bugfix`.
 
+0. **[Bug] Botões "Tentar de novo"/"Voltar" de estados de carregando/erro
+   não são ativáveis por controle remoto** — em `LiveScreen.tsx` (e
+   provavelmente em outras telas com o mesmo padrão), esses `<button>`
+   ganham a classe `.tv-focus` mas nenhum `.focus()` real é chamado, e
+   `useRemoteNav`'s `onSelect` não roteia Enter para eles (só trata
+   `col`/`activeChannel`/`focusedCategory`). O botão satisfaz a letra da
+   constitution ("tem elemento focável"), mas não o espírito: pressionar
+   OK no controle físico não ativa o clique. Só funciona por mouse (que
+   nunca passa pelo listener de `keydown` do `useRemoteNav`), por isso
+   nunca apareceu num teste manual só de mouse.
+
+   **Origem**: achado durante a feature 010, Fase 3 (T033), em
+   23/09/2026 — pré-existente ao `LiveScreen` original (rewrite só
+   reproduziu o padrão fielmente, e acrescentou 2 instâncias novas no
+   painel de conteúdo da categoria). Fora do escopo da US2, que é sobre
+   obter itens sob demanda, não sobre o mecanismo de ativação por
+   controle. Corrigir provavelmente exige um roteamento genérico
+   "onSelect ativa o botão .tv-focus atual" dentro de `useRemoteNav`, ou
+   cada tela wireificar esses botões manualmente — decisão de design,
+   não um typo. Caminho normal: `sdd-bugfix`.
+
 0. **~~[Bug] `ruff check .` falha no backend por `api/delete_sources.py`~~
    — resolvido em 18/09/2026** (decisão do usuário na Fase 7 da
    003-live-tv-avplay, task T052). **Fica em aberto**: decidir se esse
@@ -964,7 +985,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Convergida | 59/59 tasks | 2026-09-22 |
 | 008-user-state-repo | UserStateRepository | Convergida | 14/14 tasks | 2026-09-22 |
 | 009-virtualizacao-foco | Virtualização de Grades e Foco Direcional | Em Execução | 2/16 tasks | 2026-09-22 |
-| 010-catalogo-sob-demanda | Importação por Estrutura com Carga sob Demanda por Categoria | Planejada | 0/57 tasks | 2026-09-23 |
+| 010-catalogo-sob-demanda | Importação por Estrutura com Carga sob Demanda por Categoria | Implementada | 58/58 tasks | 2026-09-23 |
 
 | 006-conector-xtream-vod-series | Conector Xtream JSON para VOD e Series | Convergida | 15/15 tasks | 2026-09-22 |
 | 007-higiene-credenciais | Higiene de Credenciais e Políticas de Rede | Convergida | 7/7 tasks | 2026-09-22 |

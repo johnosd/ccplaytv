@@ -44,19 +44,34 @@ Estados devolvidos, e o que cada um significa para a tela:
 
 Regras invioláveis desta superfície:
 
-1. **Só é chamada na entrada da categoria**, nunca ao mover o foco sobre
-   ela (FR-004; constitution, "focar um item NÃO DEVE disparar consulta a
-   serviço externo").
+1. **A exibição de conteúdo só acontece na entrada da categoria** — mover
+   o foco nunca faz a tela mostrar itens de uma categoria que a pessoa não
+   entrou. **Emenda (23/09/2026, R-013):** a categoria pode ser **buscada
+   em segundo plano** antes da entrada, se o cursor **repousar** nela por
+   um breve amortecimento (não a cada tecla de movimento) — ver
+   `prefetchCategoryContent`/`useCategoryFocusPrefetch`. A distinção que
+   se mantém é a da constitution ("focar um item NÃO DEVE disparar
+   consulta a serviço externo"): isto vale para um **item reproduzível**
+   (canal, filme, série) dentro de uma categoria já aberta, que continua
+   nunca disparando consulta ao mover o foco. Categoria é agrupador de
+   navegação, não item reproduzível.
 2. **Chamadas concorrentes para a mesma categoria compartilham uma
    obtenção só.** Entrar, sair e entrar de novo antes da primeira terminar
-   não dispara duas buscas nem grava duas vezes.
+   — ou a pré-busca da regra 1 coincidindo com uma entrada explícita — não
+   dispara duas buscas nem grava duas vezes (`categoryLoader`'s
+   `inFlight`).
 3. **Falha nunca remove a categoria** da estrutura nem invalida as demais
-   (FR-009).
+   (FR-009). Isso vale também para uma pré-busca que falhe: silenciosa,
+   sem aviso à pessoa — só a entrada explícita mostra estado de erro.
 4. **Vencida com disco disponível serve o disco primeiro.** O catálogo
    antigo não é escondido enquanto o novo não chega (FR-007) — é a mesma
    regra que a geração aplica na importação.
 5. **Erro sai como categoria, nunca como mensagem de rede** — a mensagem
    crua carrega a URL com credencial. Mesma disciplina do `importPipeline`.
+6. **A pré-busca é amortecida, nunca por tecla.** Sem isso, passar o
+   cursor rápido por uma trilha de centenas de categorias dispararia uma
+   consulta por categoria sobrevoada — a mesma rajada que o R-002 do
+   `plan.md` já identifica como risco de limitação de taxa pelo painel.
 
 ## 3. Importação (`importPipeline`) — o que muda
 

@@ -2,28 +2,42 @@
 
 ## R0-1. O painel aceita filtrar por `category_id`?
 
-**Status**: **não resolvido.** É a incerteza que sustenta a feature inteira
-e precisa ser fechada antes de qualquer código de produção.
+**Status**: **resolvido em 23/09/2026 — o painel filtra, nas três seções.**
 
-**Por que é incerto**: a única referência de terceiros que o repositório
+**Por que era incerto**: a única referência de terceiros que o repositório
 tem (`docs/iptvnator/06-carga-listas-url-xtream.md`, seção 3) descreve o
 cliente maduro chamando `getLiveStreams` / `getVodStreams` /
 `getSeriesStreams` **inteiros** e filtrando por categoria no próprio
-cliente. Ele não demonstra o filtro no servidor. A ADR-004 §3 já registra
-que a compatibilidade Xtream é "proposta sujeita à confirmação do protocolo
-real", e `contracts/provider-protocol.md` (feature 004) repete que tudo ali
-é "o que vamos tentar", não o que está garantido.
+cliente. Ele não demonstrava o filtro no servidor. A ADR-004 §3 já
+registrava que a compatibilidade Xtream é "proposta sujeita à confirmação
+do protocolo real", e `contracts/provider-protocol.md` (feature 004)
+repetia que tudo ali é "o que vamos tentar", não o que está garantido.
 
-**Decisão**: nenhuma. A verificação é a primeira task da feature (Fase 0 em
-`tasks.md`), feita contra o painel real do usuário, e o resultado dela
-escolhe entre os caminhos abaixo.
+**Medição**: sonda descartável (`tv-web/scripts/probe-category.mjs`, T001)
+rodada contra o painel real do usuário em 23/09/2026, comparando a
+contagem de itens devolvida com e sem `&category_id=<id>`, para uma
+categoria de exemplo de cada seção. Nenhuma URL, credencial ou trecho de
+resposta foi impresso ou registrado — só contagens e tamanhos em bytes:
 
-**O que a sonda precisa responder**, para cada uma das três seções
-(`get_live_streams`, `get_vod_streams`, `get_series`):
+| Seção | Sem `category_id` | Com `category_id` | Redução |
+| --- | --- | --- | --- |
+| Canais ao vivo (`get_live_streams`) | 2.266 itens / 764.331 bytes | 34 itens / 11.382 bytes | 98,5% |
+| Filmes (`get_vod_streams`) | 31.304 itens / 12.396.507 bytes | 103 itens / 41.028 bytes | 99,7% |
+| Séries (`get_series`) | 9.637 itens / 9.689.639 bytes | 1.746 itens / 1.564.830 bytes | 81,9% |
 
-1. Com `&category_id=<id>`, a resposta traz **só** aquela categoria?
-2. Se traz tudo, o painel ao menos responde sem erro (ignora o parâmetro)?
-3. Qual o tamanho aproximado da resposta filtrada versus a completa?
+A proporção varia por seção (a categoria de séries sondada era bem mais
+populosa que a de canais ou filmes), mas a redução é real e consistente
+com filtro no servidor — não é artefato de paginação nem coincidência de
+tamanho.
+
+**Decisão**: o design segue o caminho principal descrito em `plan.md` e
+`data-model.md` — categoria como entidade, itens obtidos por
+`category_id` sob demanda. **Nenhuma das alternativas abaixo é adotada.**
+Elas continuam registradas porque a sonda foi feita contra **uma**
+categoria de cada seção; se, durante a Fase 2/3, alguma categoria
+específica do painel real se revelar sem filtro efetivo (D-007 continua
+valendo para esse caso pontual), este documento é o primeiro lugar a
+atualizar.
 
 **Alternativas consideradas, caso a resposta seja "não filtra"**:
 

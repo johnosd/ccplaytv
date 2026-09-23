@@ -62,6 +62,16 @@ geração, a anterior continua sendo lida até a nova estar completa; então
 o ponteiro da fonte troca e a antiga é descartada. É a publicação em duas
 fases da feature 004, portada (FR-007).
 
+**Atualização (feature 010, 2026-09-23):** "Só canais são gravados" no
+início desta seção já estava desatualizado antes desta feature (VOD e
+séries entraram na 006). O que a 010 muda de fato: `channels` ganhou um
+campo `categoryId?: number`, apontando para uma coleção nova,
+`categories` — a categoria virou entidade própria, obtida antes dos itens
+e existente mesmo sem eles. Ver
+`sdd/specs/010-catalogo-sob-demanda/data-model.md` §2/§3 para a forma
+completa; os campos e índices listados aqui continuam existindo sem
+alteração.
+
 ## 3. `importRuns` — a importação como algo observável
 
 Efêmera: existe para a tela de progresso mostrar contagem real e para

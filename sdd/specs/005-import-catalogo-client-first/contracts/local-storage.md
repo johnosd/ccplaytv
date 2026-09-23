@@ -26,6 +26,14 @@ objeto que a interface renderize (FR-009, D-005).
 
 ## 2. Catálogo (`catalogRepository`)
 
+**Atualização (feature 010, 2026-09-23):** "Listar categorias" abaixo
+descreve a forma original, onde a categoria era um número derivado das
+chaves únicas de `channels`. Isso mudou — categoria virou entidade própria
+numa coleção `categories`, com estrutura obtida separadamente dos itens.
+Ver `sdd/specs/010-catalogo-sob-demanda/contracts/catalog-on-demand.md` §1
+para a forma atual; o restante desta tabela (paginação de canais, contagem,
+publicação/descarte de geração) continua válido sem alteração.
+
 | Operação | Entrada | Saída | Regras |
 | --- | --- | --- | --- |
 | Listar categorias | sourceId | Categorias na ordem declarada pela fonte | Lê da geração ativa. Ordem vem de `groupOrder`, nunca de ordenação alfabética imposta. |

@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-23
 
-**Status**: Planejada
+**Status**: Implementada
 
 **Input**: A importação de uma fonte de provedor grava hoje o catálogo
 inteiro no aparelho de uma vez. Na TV de referência (Samsung
@@ -176,7 +176,19 @@ visitadas e não visitadas e conferir que a distinção aparece.
 - **FR-003**: A importação DEVE registrar, por categoria, a contagem de
   itens que o provedor declara.
 - **FR-004**: O sistema DEVE obter os itens de uma categoria quando a
-  pessoa entra nela, nunca ao mover o foco sobre ela.
+  pessoa entra nela. **Atualização de execução (23/09/2026, verificação na
+  TV física):** o sistema PODE também **pré-buscar em segundo plano** a
+  categoria sobre a qual o cursor **repousa** — nunca a cada tecla de
+  movimento, só depois de um breve amortecimento (o cursor parou ali) —,
+  desde que isso não substitua nem adiante visualmente a entrada: a tela
+  continua exigindo a entrada explícita para exibir o conteúdo, e a
+  pré-busca só faz esse conteúdo já estar pronto quando a entrada
+  acontecer. Motivo: a leitura original ("nunca ao mover o foco") deixava
+  toda entrada parecer a primeira, mesmo em uso normal de navegação —
+  achado do usuário testando na TV real. Não se aplica a mover o foco
+  sobre um **item reproduzível** dentro de uma categoria (canal, filme,
+  série) — isso continua nunca disparando consulta, e é o que "focar não
+  inicia reprodução" continua a proteger.
 - **FR-005**: Os itens obtidos de uma categoria DEVEM ser gravados no
   aparelho, com um instante de obtenção próprio por categoria.
 - **FR-006**: Uma categoria com obtenção dentro do prazo de validade DEVE
@@ -198,9 +210,21 @@ visitadas e não visitadas e conferir que a distinção aparece.
   categoria.
 - **FR-013**: A tela de progresso DEVE relatar as etapas da obtenção da
   estrutura, contando categorias, e NÃO DEVE exibir percentual.
-- **FR-014**: O hub da lista DEVE exibir as contagens declaradas pelo
-  provedor, identificáveis como tal, e nunca apresentar a quantidade de
-  itens já gravados como se fosse o total da fonte.
+- **FR-014**: O hub da lista DEVE exibir uma contagem real por seção — a
+  soma dos itens já gravados nas categorias cujo conteúdo é completo (todas
+  as categorias `eager`), somada ao que o provedor declarar nas categorias
+  ainda não obtidas (`on_demand`). Uma categoria `on_demand` sem itens
+  obtidos e sem contagem declarada NÃO DEVE contribuir um "0" para essa
+  soma — "0" diria que a seção está vazia quando na verdade só não foi
+  aberta ainda. Quando nenhum item for conhecível por nenhuma categoria da
+  seção, o hub DEVE recorrer ao número de categorias, também real e
+  conhecido desde a importação da estrutura, em vez de esconder o número
+  ou inventar um. **Nota de execução (sdd-execute, Fase 2):** a redação
+  original desta FR só previa "número declarado pelo provedor"; o
+  protocolo Xtream real não declara contagem por categoria
+  (`xtreamConnector.ts`), o que deixaria o hub sempre vazio logo após
+  sincronizar uma fonte de provedor — a regra acima é o refinamento que
+  torna o Acceptance Scenario 2 da US1 verdadeiro na prática.
 - **FR-015**: Quando a quantidade de itens entregue por uma categoria
   divergir da contagem declarada, o sistema DEVE declarar a divergência em
   vez de escondê-la.
@@ -213,6 +237,13 @@ visitadas e não visitadas e conferir que a distinção aparece.
   quando os itens chegam, nunca se a estrutura existe. Uma fonte por URL
   M3U DEVE continuar listando suas categorias, na ordem em que apareceram,
   depois desta mudança.
+- **FR-019**: Ao voltar para uma categoria cujos itens foram revalidados
+  (obtidos de novo por vencimento de prazo) enquanto a pessoa estava fora
+  dela, o item que tinha o foco antes da saída DEVE recuperar o foco pelo
+  seu identificador, nunca pelo índice de posição — a lista pode ter
+  mudado de tamanho ou de ordem entre a saída e a volta. Quando o item não
+  existir mais na lista revalidada, o foco DEVE cair no primeiro item, em
+  vez de apontar para o que ocupa o índice antigo.
 
 ### Key Entities
 
@@ -308,3 +339,23 @@ visitadas e não visitadas e conferir que a distinção aparece.
   rejeitada por criar dois caminhos de leitura no repositório, que é o que
   a D-004 do `plan.md` promete evitar. Virou **FR-018 desta spec**, com
   regressão coberta por T016/T017.
+
+### Sessão 2026-09-23 (verificação na TV física, T046)
+
+- Q: Cenário B do quickstart mostrou que mover o cursor pela trilha de
+  categorias sem pré-busca deixava toda entrada parecer "primeira vez" —
+  era esse o comportamento pretendido? → A: **Não.** O usuário, vendo o
+  comportamento estrito ao vivo, pediu pré-busca por permanência do
+  cursor: navegar pelas categorias deve carregar e guardar em cache os
+  itens da categoria onde o foco parou, para a entrada parecer instantânea
+  na maioria das vezes. Implementado como pré-busca **amortecida** (300ms
+  de permanência, não a cada tecla) para não disparar uma rajada de
+  requisições ao passar o cursor rápido por muitas categorias (risco
+  R-002 do `plan.md`). FR-004 emendada; ver `plan.md` D-003/R-013 e
+  `contracts/catalog-on-demand.md` §2 para o registro técnico completo.
+- Q: (achado A2 do Analyze) A constitution exige que voltar restaure foco
+  e posição, reconciliando por identificador — mas nenhum FR desta spec
+  cobria isso para categoria revalidada. Só existia como risco no
+  `plan.md` (R-004) e como task (T037/T039), sem requisito rastreável. →
+  A: vira **FR-019**. Sem um FR, um `sdd-converge` futuro não teria contra
+  o que verificar esse comportamento.

@@ -29,11 +29,29 @@ que uma categoria existe* deixa de depender de *ter os itens dela*.
 | `itemsFetchedAt` | number? | Instante da última obtenção dos itens. `undefined` = nunca obtida. |
 | `itemsCount` | number? | Quantos itens de fato entraram na última obtenção. É o que permite declarar divergência contra `declaredCount` (FR-015). |
 
-Índices necessários: `[sourceId+generation+kind+order]` (listagem na ordem
-declarada) e `[sourceId+generation+kind+providerCategoryId]` (localizar a
-categoria que a tela abriu). O segundo não indexa categoria `eager`, que
-tem `providerCategoryId` ausente — e é justamente a que nunca é procurada
-por esse caminho.
+Índices necessários: `[sourceId+generation+kind+order]` — caminho de
+leitura quente, usado por `listCategories` a cada tela — e `sourceId`
+sozinho, **como índice de verdade, não como prefixo do composto** — usado
+para limpar todas as categorias de uma fonte (troca de geração,
+`deleteAllForSource`). Consultar um prefixo de índice composto cai na
+camada de emulação "virtual index" do Dexie 4, que se mostrou frágil neste
+ambiente de teste (Dexie + fake-indexeddb) até para tabela vazia — mesma
+razão pela qual `channels` já usa `[sourceId+generation]` explícito em vez
+de depender de prefixo de `[sourceId+generation+groupOrder]`.
+
+**Atualização (sdd-execute, Fase 1):** um segundo índice
+`[sourceId+generation+kind+providerCategoryId]`, para "localizar a
+categoria que a tela abriu", estava previsto aqui e foi **removido antes
+de qualquer código consumidor existir**. Não há caminho de código que
+precise dele: quem abre uma categoria já recebe o objeto `CatalogCategory`
+inteiro — com o `id` local e o `providerCategoryId` juntos — na resposta de
+`listCategories`; `providerCategoryId` só é usado para montar a URL de
+busca no painel, nunca para procurar a categoria de volta no banco. Um
+índice sem consumidor seria peso sem uso, e a implementação expôs um
+segundo motivo prático: com `providerCategoryId` opcional como último
+componente, esse índice quebrava até uma consulta em tabela vazia sob
+Dexie 4 + fake-indexeddb (camada de "virtual index"), no ambiente de
+teste. Coberto por `db.test.ts`.
 
 ### 2.1. `fetchMode` — por que toda fonte grava estrutura
 

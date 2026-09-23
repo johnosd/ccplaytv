@@ -8,30 +8,42 @@ voice control (OpenAI) and Android remote-control companion app.
 
 ## Project status
 
-Three features converged (`001-importacao-fonte-m3u`,
-`002-splash-home-perfis`, `003-live-tv-avplay` — the last one verified on the
-Samsung QN50Q60DAGXZD reference TV, closing ADR-006's V1 validation gate),
-and one in execution (`004-conector-xtream-live`: the provider connector now
-talks the panel's JSON protocol for live channels, preserving `stream_id`
-and category — see "Known deviation" below — with the manual TV
-verification step still pending). The repo has working code on both sides:
+The app is **client-first** (ADR-008, superseding the original backend-first
+plan from ADR-001/ADR-003 where relevant): source import, classification,
+catalog storage and playback all happen on the TV itself, in IndexedDB via
+Dexie, with no always-on backend in the loop. Converged features:
+`001-importacao-fonte-m3u`, `002-splash-home-perfis`, `003-live-tv-avplay`
+(verified on the Samsung QN50Q60DAGXZD reference TV, closing ADR-006's V1
+gate), `004-conector-xtream-live`, `005-import-catalogo-client-first` (the
+client-first migration itself), `006-conector-xtream-vod-series`,
+`007-higiene-credenciais`, `008-user-state-repo`. In execution: `010-catalogo-sob-demanda` (structure-first import +
+per-category on-demand fetch — see "Known deviation" below).
+`009-virtualizacao-foco` (grid virtualization) is paused mid-flight by
+design: its `LiveScreen.tsx` rewrite would collide with 010's, so it
+resumes after 010 stabilizes that file (see
+`sdd/specs/009-virtualizacao-foco/plan.md`).
 
+- **`tv-web/`** — React 19 + TypeScript + Vite. Splash, Home (sources), the
+  Add-source form, the list hub, **Live TV, Filmes and Séries** all read the
+  **real local catalog** (`tv-web/src/lib/catalog/`, IndexedDB via Dexie) —
+  no mock data remains anywhere in the app. Live TV/Filmes/Séries are
+  category-first: a category rail, with items obtained only when the person
+  enters a category (feature 010) — never the whole catalog at once.
+  Playback goes through `src/lib/player/` (`PlayerService` + AVPlay adapter,
+  `<video>` adapter for desktop dev). The build targets `chrome108`
+  explicitly, because Vite 8's default is Chrome 111 — above the TV's
+  engine. Don't drop that from `vite.config.ts`.
 - **`api/`** — Python 3.13 + FastAPI + SQLAlchemy 2 (async) + Alembic +
-  PostgreSQL, managed with `uv`. Owns source import (M3U by URL and by
-  provider credentials), classification, catalog storage, and the
-  `/sources`, `/import-jobs`, `/catalog-items` routes.
-- **`tv-web/`** — React 19 + TypeScript + Vite. Splash, Home (lists/sources),
-  Add-source form, the list hub and **Live TV** are wired to the real backend.
-  Live TV reads the imported catalog and plays a channel through
-  `src/lib/player/` (`PlayerService` + AVPlay adapter, `<video>` adapter for
-  desktop dev). **Filmes, Séries and the two detail screens still render mock
-  data** from `tv-web/src/features/catalog/mockCatalog.ts` — they leave the
-  mock in backlog items 9 and 10, which depend on the Xtream connector.
-  The build targets `chrome108` explicitly, because Vite 8's default is
-  Chrome 111 — above the TV's engine. Don't drop that from `vite.config.ts`.
+  PostgreSQL, managed with `uv`. **Frozen fallback per ADR-008** — not the
+  primary path for any feature. It exists only for a provider panel that
+  blocks CORS from the TV's browser; don't build new client-first work on
+  top of it, and don't assume it's running.
 - **`CCPlayTv/`** — the Tizen web project (`config.xml`, `index.html`,
   assets) that gets packaged into `.wgt`. `tv-web/scripts/sync-tizen.mjs`
-  copies the Vite build into it (`npm run build:tizen`).
+  copies the Vite build into it (`npm run build:tizen`). Files listed in
+  `tizen_web_project.yaml` must match exactly what Vite emits — a Worker
+  chunk (`assets/importWorker.js`) missing from that list fails silently on
+  the TV, never in the browser or in tests.
 - **`tizen-app/`** — empty placeholder from the original setup guide; the
   real packaging project is `CCPlayTv/`.
 
@@ -41,8 +53,9 @@ principle.
 
 ## Commands
 
-Backend (`api/`, needs PostgreSQL — `docker compose up -d postgres` from the
-repo root):
+Backend (`api/` — frozen fallback per ADR-008, not needed for any
+client-first feature; needs PostgreSQL — `docker compose up -d postgres`
+from the repo root):
 
 ```bash
 uv sync --locked
@@ -68,7 +81,7 @@ running a whole suite.
 
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.1.0) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.2.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 
@@ -81,9 +94,13 @@ formally planned features. The ones most easily violated by accident:
 - Resume position, favorites and history are keyed by stable logical
   identity (source + type + stable id + season/episode), never by the stream
   URL.
-- Secrets (provider passwords, full source URLs, TMDB/OpenAI keys) never
-  reach the Tizen package, the frontend, logs, or visible UI. Never
-  interpolate `str(exc)` from httpx — it embeds the URL.
+- Secrets never reach logs, error messages or visible UI, and are never
+  logged/interpolated raw (a caught fetch error can embed the full URL with
+  credentials). TMDB/OpenAI keys and full source URLs never reach the
+  client at all. **Exception (ADR-008)**: provider credentials (dns,
+  username, password) may live in the device's IndexedDB — that's what lets
+  the client re-authenticate without a backend — but still never in a log,
+  a rendered card, or exported/backed up.
 - No invented progress percentages, and player controls must match the
   media's real capabilities (no seek bar on live without a DVR window).
 - Source-declared groups/categories are never silently replaced by external
@@ -229,45 +246,53 @@ before proposing anything that conflicts, and amend with an inline
 Plus `REQUISITOS-FUNCIONAIS.md` (RF-001 to RF-019) and
 `ESPECIFICACAO-TRAILERS.md` (RF-019 detail).
 
-**Split between a restricted TV front and a dedicated backend** — the TV
-never does heavy processing or holds external API credentials:
+**Client-first (ADR-008): the TV owns import, catalog and playback** — no
+always-on backend in the loop:
 
 - **Frontend (Tizen app)**: TypeScript, React, CSS, Vite (targeted at
   Tizen 8.0 / Chromium 108 on the reference Samsung QN50Q60DAGXZD, not
-  generic web). Never parses raw M3U or calls TMDB/OpenAI directly — it
-  receives a pre-processed catalog ready for virtualization. Playback goes
-  through a `PlayerService` abstraction backed by `webapis.avplay`, never
-  the HTML `<video>` tag (a `<video>` adapter exists only for desktop dev).
-  Direct Play only — the backend never proxies or transcodes video.
-- **Backend**: Python, FastAPI, SQLAlchemy 2 async, PostgreSQL. Modular
-  monolith (no early microservices). Owns M3U import/normalization, TMDB
-  matching, catalog storage, OpenAI function-calling (API keys live only
-  here), and a planned authenticated WebSocket protocol (`playItem`,
-  `pause`, `seek`, `search`) shared by the TV, a future Android remote, and
-  voice commands.
-- **Offline-first (ADR-002)**: the TV caches the processed catalog in
-  IndexedDB on every successful sync and falls back to it immediately on
-  launch or backend timeout, degrading backend-dependent features (voice,
-  live search, remote control) rather than showing a fatal error screen.
-  Video keeps working as long as the original source is reachable, since
-  streams flow directly from source to TV.
+  generic web). Parses M3U and talks the Xtream JSON protocol directly from
+  the browser (`tv-web/src/lib/catalog/xtreamConnector.ts`,
+  `m3uParser.ts`), classifies, and stores the result in IndexedDB via Dexie
+  (`db.ts`, `catalogRepository.ts`) — no backend round-trip for any of this.
+  Import runs in a Web Worker (`importWorker.ts`/`importRunner.ts`) so a
+  large source never blocks the UI thread; it falls back to the main thread
+  if the Worker fails to load (R-002 in the 005 spec). Playback goes through
+  a `PlayerService` abstraction backed by `webapis.avplay`, never the HTML
+  `<video>` tag (a `<video>` adapter exists only for desktop dev). Direct
+  Play only — nothing proxies or transcodes video.
+- **`api/` (frozen fallback)**: Python, FastAPI, SQLAlchemy 2 async,
+  PostgreSQL. Kept only for a provider panel that blocks CORS from the TV's
+  browser — not a dependency of any client-first feature, and not assumed
+  to have TLS, backup/restore or production infrastructure (ADR-006 E4,
+  emended). Don't route new work through it without a documented reason.
+- **Offline-first (ADR-002)**: the catalog in IndexedDB **is** the source of
+  truth, not a cache of something else. The app opens straight from it,
+  degrading only the things that genuinely need a live connection (playback
+  of a given stream, obtaining a category's items). See "Known deviation"
+  below for how far "obtained" currently goes.
 
-### Known deviation, partially resolved
+### Known deviation, in progress
 
-**Update (2026-09-18, feature 004, live channels only)**:
-`api/app/services/provider_connector.py` now talks the provider's JSON
-protocol (`player_api.php`) directly for **live channels**, preserving
-`stream_id` and category, with a fallback to the old `get.php` + M3U-parser
-path only when the panel doesn't speak the JSON protocol (`ProviderImportMode.
-LEGACY_M3U`, surfaced to the user as "Modo limitado"). This satisfies
-ADR-006 §4.3 for the channel slice.
+**Update (2026-09-23, feature 010, live/VOD/series categories)**: a
+provider source (Xtream JSON protocol) now imports only its **structure**
+— the categories the panel declares — and obtains the items of a category
+only when the person enters it
+(`tv-web/src/lib/catalog/categoryLoader.ts`). This replaced an eager,
+whole-catalog import that measurably froze the TV on a large real source
+(the write to IndexedDB was the bottleneck, not the network). A source
+imported by URL M3U, or a provider panel that doesn't speak the JSON
+protocol (`ProviderImportMode.LEGACY_M3U`, surfaced as "Modo limitado"),
+still imports everything eagerly, in one streaming pass — there's no
+per-category protocol for a flat M3U file. See
+`sdd/specs/010-catalogo-sob-demanda/` for the full design; ADR-002 has a
+matching amendment on partial catalog coverage being the normal state now,
+not an exception.
 
-**Still open**: VOD and series through the same protocol
-(`get_vod_streams`, `get_series`, `series_id`) don't exist yet — that's the
-next slice per `sdd/specs/004-conector-xtream-live/spec.md`, and it's what
-the Filmes/Séries screens (items 9 and 10 of the backlog) depend on before
-they can stop reading `mockCatalog.ts`. Don't build VOD/series import on top
-of the current shape without reading that spec first.
+**Still open**: the physical-TV verification pass in
+`sdd/specs/010-catalogo-sob-demanda/quickstart.md` (T046) hadn't run as of
+this writing — check `plan.md`'s `## Estado Atual` for the current status
+before assuming it's done.
 
 ## Language
 
