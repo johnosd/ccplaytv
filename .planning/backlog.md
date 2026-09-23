@@ -798,6 +798,24 @@ própria de demanda. Cada uma precisa passar por `sdd-assess`
 
     (`docs/iptvnator/03-apis.md` #7; `09-dashboard-home.md` #9)
 
+51. **Política de descarte quando o espaço do aparelho acaba**
+
+    Com a carga sob demanda por categoria (feature 010), o catálogo passa
+    a crescer enquanto a pessoa navega, em vez de nascer inteiro. Falta
+    decidir o que acontece quando o espaço acaba **durante a navegação**:
+    descartar a categoria menos usada (o catálogo virou reobtenível por
+    categoria, então descartar deixa de ser perda — é uma busca a mais
+    depois), parar de gravar e declarar, ou um teto configurável.
+
+    Precisa de `sdd-assess` porque depende de medição real de quanto uma
+    categoria ocupa no aparelho e de qual é a quota efetiva na TV de
+    referência — nenhum dos dois foi medido.
+
+    **Origem**: deliberadamente deixado fora do escopo da feature 010
+    (decisão registrada em `Clarifications`, sessão 2026-09-23). Até essa
+    decisão existir, vale o comportamento atual de FR-018: para de gravar
+    e declara.
+
 ---
 
 ### Itens removidos ou rebaixados pela ADR-008
@@ -945,7 +963,8 @@ mudaram de natureza** com a arquitetura client-first:
 | 004-conector-xtream-live | Conector Xtream JSON para canais ao vivo | Convergida | 55/55 tasks | 2026-09-18 |
 | 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Convergida | 59/59 tasks | 2026-09-22 |
 | 008-user-state-repo | UserStateRepository | Convergida | 14/14 tasks | 2026-09-22 |
-| 009-virtualizacao-foco | Virtualização de Grades e Foco Direcional | Planejada | 0/16 tasks | 2026-09-22 |
+| 009-virtualizacao-foco | Virtualização de Grades e Foco Direcional | Em Execução | 2/16 tasks | 2026-09-22 |
+| 010-catalogo-sob-demanda | Importação por Estrutura com Carga sob Demanda por Categoria | Planejada | 0/57 tasks | 2026-09-23 |
 
 | 006-conector-xtream-vod-series | Conector Xtream JSON para VOD e Series | Convergida | 15/15 tasks | 2026-09-22 |
 | 007-higiene-credenciais | Higiene de Credenciais e Políticas de Rede | Convergida | 7/7 tasks | 2026-09-22 |
