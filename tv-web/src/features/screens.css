@@ -505,6 +505,29 @@
   flex: none;
 }
 
+/* Painel de canais virtualizado (feature 009) — só o painel de conteúdo
+   (col 1) vira lista de janela deslizante; a trilha de categorias
+   (.live-column-groups) continua em fluxo normal (D-004). */
+.live-channel-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.live-channel-list-inner {
+  position: relative;
+  width: 100%;
+}
+
+.live-column-channels .live-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 72px;
+}
+
 .live-truncated-note {
   font: 500 15px var(--font-body);
   color: var(--text-tertiary);

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   groupLabel,
   useCategoryContent,
@@ -10,6 +11,15 @@ import { PlayerOverlay } from './PlayerOverlay'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
+import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
+
+/**
+ * Altura de linha do painel de canais (feature 009) — soma da altura fixa
+ * de `.live-item` (72px, `screens.css`) com o espaçamento entre itens
+ * (12px) que a posição absoluta não herda mais do `gap` do flex column.
+ */
+const LIVE_ITEM_ROW_HEIGHT = 84
+const LIVE_ITEM_OVERSCAN = 6
 
 export interface LiveScreenProps {
   sourceId: string
@@ -74,6 +84,24 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
 
   const channelIdx = locate(items, (c) => c.id === focusedIdentity.channelId)
   const activeChannel = items[channelIdx]
+
+  // Só o painel de conteúdo (col 1) é virtualizado — nunca a trilha de
+  // categorias (D-004). Uma única lane: lista 1D de canais, sem `lanes`.
+  const channelListRef = useRef<HTMLDivElement>(null)
+  const channelVirtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => channelListRef.current,
+    estimateSize: () => LIVE_ITEM_ROW_HEIGHT,
+    overscan: LIVE_ITEM_OVERSCAN,
+  })
+
+  const channelsNavigable =
+    col === 1 && !content.isLoading && content.data?.outcome !== 'failed' && items.length > 0
+  useVirtualFocusSync({
+    focusedIndex: channelIdx,
+    scrollToIndex: channelVirtualizer.scrollToIndex,
+    enabled: channelsNavigable,
+  })
 
   function enter(category: (typeof categories)[number]) {
     if (enteredCategoryId !== category.id) {
@@ -282,22 +310,33 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
           </div>
         )}
 
-        {showingContent &&
-          !content.isLoading &&
-          !contentFailed &&
-          items.map((channel, i) => (
-            <button
-              key={channel.id}
-              type="button"
-              className={`live-item${col === 1 && channelIdx === i ? ' tv-focus' : ''}${
-                channel.playable ? '' : ' live-item-unavailable'
-              }`}
+        {showingContent && !content.isLoading && !contentFailed && items.length > 0 && (
+          <div ref={channelListRef} className="live-channel-list">
+            <div
+              className="live-channel-list-inner"
+              style={{ height: channelVirtualizer.getTotalSize() }}
             >
-              <span className="live-item-logo" aria-hidden="true" />
-              <span className="live-item-name">{channel.name}</span>
-              {!channel.playable && <span className="live-item-badge">Indisponível</span>}
-            </button>
-          ))}
+              {channelVirtualizer.getVirtualItems().map((virtualRow) => {
+                const channel = items[virtualRow.index]
+                if (!channel) return null
+                return (
+                  <button
+                    key={channel.id}
+                    type="button"
+                    className={`live-item${
+                      col === 1 && channelIdx === virtualRow.index ? ' tv-focus' : ''
+                    }${channel.playable ? '' : ' live-item-unavailable'}`}
+                    style={{ transform: `translateY(${virtualRow.start}px)` }}
+                  >
+                    <span className="live-item-logo" aria-hidden="true" />
+                    <span className="live-item-name">{channel.name}</span>
+                    {!channel.playable && <span className="live-item-badge">Indisponível</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {showingContent && !content.isLoading && !contentFailed && content.data && (
           // Fala do limite de exibição, não do tamanho da fonte — a distinção

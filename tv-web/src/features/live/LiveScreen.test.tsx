@@ -1,10 +1,67 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LiveScreen } from './LiveScreen'
 import * as catalogApi from '../catalog/catalogApi'
 import type { CatalogCategory, CatalogItemOut, CategoryFetchOutcome } from '../catalog/catalogApi'
+
+/**
+ * jsdom não faz layout de verdade nem implementa `Element.scrollTo`
+ * (feature 009, painel de canais virtualizado por `@tanstack/react-virtual`).
+ * Sem isto, o virtualizador mede o contêiner como 0×0 e nunca monta nenhum
+ * `.live-item` — todo teste que procura `.tv-focus` no painel de canais
+ * falharia por um motivo alheio ao que está sendo testado. Os valores
+ * (640×400) só precisam ser "grandes o bastante" para caber os poucos
+ * itens que a maioria dos testes usa; T009/T010 testam milhares de itens
+ * de propósito, para exercitar a janela deslizante de verdade.
+ */
+let restoreOffsetHeight: PropertyDescriptor | undefined
+let restoreOffsetWidth: PropertyDescriptor | undefined
+let restoreClientHeight: PropertyDescriptor | undefined
+let restoreScrollHeight: PropertyDescriptor | undefined
+let restoreScrollTo: PropertyDescriptor | undefined
+
+beforeAll(() => {
+  restoreOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')
+  restoreOffsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth')
+  restoreClientHeight = Object.getOwnPropertyDescriptor(Element.prototype, 'clientHeight')
+  restoreScrollHeight = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollHeight')
+  restoreScrollTo = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollTo')
+
+  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, value: 640 })
+  Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, value: 400 })
+  // `getMaxScrollOffset` do virtualizador usa `scrollHeight - clientHeight`
+  // (`@tanstack/virtual-core`) para nunca deixar o alvo do `scrollToIndex`
+  // passar do fim da lista. Sem mockar os dois, ambos ficam 0 no jsdom (sem
+  // layout real) e todo `scrollToIndex` é grampeado em 0 — a janela nunca
+  // se move, mesmo com `offsetHeight`/`scrollTo` já resolvidos acima.
+  Object.defineProperty(Element.prototype, 'clientHeight', { configurable: true, value: 640 })
+  Object.defineProperty(Element.prototype, 'scrollHeight', { configurable: true, value: 1_000_000 })
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+    configurable: true,
+    writable: true,
+    value: function scrollTo(this: HTMLElement, options?: ScrollToOptions | number) {
+      const top = typeof options === 'object' && options !== null ? options.top : undefined
+      if (typeof top === 'number') this.scrollTop = top
+      // Assíncrono de propósito: um navegador real nunca entrega o evento de
+      // scroll na mesma volta de pilha da chamada a `scrollTo` — despachar
+      // sincronamente aqui reentraria no React em plena fase de commit (o
+      // `scrollToIndex` desta chamada roda dentro do efeito de
+      // `useVirtualFocusSync`), disparando o aviso "flushSync was called
+      // from inside a lifecycle method".
+      queueMicrotask(() => this.dispatchEvent(new Event('scroll')))
+    },
+  })
+})
+
+afterAll(() => {
+  if (restoreOffsetHeight) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', restoreOffsetHeight)
+  if (restoreOffsetWidth) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', restoreOffsetWidth)
+  if (restoreClientHeight) Object.defineProperty(Element.prototype, 'clientHeight', restoreClientHeight)
+  if (restoreScrollHeight) Object.defineProperty(Element.prototype, 'scrollHeight', restoreScrollHeight)
+  if (restoreScrollTo) Object.defineProperty(HTMLElement.prototype, 'scrollTo', restoreScrollTo)
+})
 
 vi.mock('../catalog/catalogApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../catalog/catalogApi')>()
@@ -198,6 +255,41 @@ describe('LiveScreen', () => {
 
     const channels = document.querySelectorAll('.live-column-channels .live-item-name')
     expect([...channels].map((c) => c.textContent)).toEqual(['Zulu', 'Yankee'])
+  })
+
+  // --- T009/T010 (feature 009): painel de canais virtualizado ---
+
+  it('categoria com milhares de canais monta só uma fração deles no DOM (T009)', () => {
+    const many = Array.from({ length: 5000 }, (_, i) => channel(`Canal ${i}`, 'Esportes'))
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({ 1: many })
+    renderLive()
+
+    press('ArrowRight')
+
+    const rendered = document.querySelectorAll('.live-column-channels .live-item-name')
+    expect(rendered.length).toBeGreaterThan(0)
+    expect(rendered.length).toBeLessThan(many.length)
+  })
+
+  it('mover o foco para um índice fora da janela renderizada aciona scrollToIndex e o item aparece focado (T010)', async () => {
+    const many = Array.from({ length: 5000 }, (_, i) => channel(`Canal ${i}`, 'Esportes'))
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({ 1: many })
+    renderLive()
+
+    // Bem além da janela inicial (viewport de teste ~640px / linha de 84px
+    // ≈ 8 itens visíveis + overscan) — só aparece com `tv-focus` se o
+    // `scrollToIndex` disparado por `useVirtualFocusSync` moveu a janela.
+    // O evento de scroll do polyfill acima é assíncrono (como num navegador
+    // real), então a janela só se assenta depois de um microtask — daí o
+    // `waitFor`.
+    enterAndDescend(200)
+
+    await waitFor(() => {
+      const focused = document.querySelector('.live-column-channels .tv-focus')
+      expect(focused?.textContent).toContain('Canal 200')
+    })
   })
 
   it('não exibe contagem total nem "fim do catálogo" (FR-016)', () => {
