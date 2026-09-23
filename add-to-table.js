@@ -11,3 +11,4 @@ content = content.replace(/\| 005-import-catalogo-client-first \| [^\n]+ \n/, (m
 });
 
 fs.writeFileSync(file, content);
+

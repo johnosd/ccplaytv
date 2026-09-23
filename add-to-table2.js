@@ -8,3 +8,4 @@ const newRow2 = '| 007-higiene-credenciais | Higiene de Credenciais e Políticas
 content = content.replace('## Bugs', newRow1 + newRow2 + '\n## Bugs');
 
 fs.writeFileSync(file, content);
+

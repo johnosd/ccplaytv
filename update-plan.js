@@ -8,3 +8,4 @@ content = content.replace(/O maior risco Ã©/g, 'Resolvido: O maior risco era')
 content = content.replace(/O maior risco é/g, 'Resolvido: O maior risco era');
 
 fs.writeFileSync(file, content);
+
