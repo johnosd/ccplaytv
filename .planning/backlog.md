@@ -76,36 +76,6 @@ de virar spec.
 
 ### Fase 1 — MVP: do catálogo real até assistir
 
-3. **Separação de `CatalogRepository` e `UserStateRepository`**
-
-   A feature 005 criou `catalogRepository.ts` e `sourceRepository.ts`,
-   com fronteiras claras de segredo. Falta o **terceiro repositório**: o
-   de estado do usuário (favoritos, histórico, progresso, "gostei"), que
-   precisa ser separado do snapshot de catálogo substituível.
-
-   **Por que não foi feito na 005**: não existe estado de usuário ainda —
-   favoritos e histórico não foram construídos (itens 11 e 12). O
-   repositório é necessário quando esse estado existir, para que uma
-   reimportação não o destrua.
-
-   **Entregáveis**:
-   - `userStateRepository.ts` em `tv-web/src/lib/catalog/` com coleção
-     Dexie separada (`userStates`), chaveada por identidade estável
-     (fonte + tipo + id estável + S/E), nunca por URL.
-   - Testes de contrato: favoritar/desfavoritar, persistir progresso,
-     sobreviver a reimportação sem perda.
-   - Reconciliação pós-resync: reaplicar estado por chave estável quando
-     o catálogo for substituído (ver item 21).
-
-   **Decisão pendente**: a colisão entre "guardar o mínimo de reprodução"
-   e "não guardar segredo" foi **parcialmente resolvida** pela ADR-008 e
-   constitution v1.2.0 (a credencial **pode** residir no aparelho). O que
-   fica em aberto: reprodução offline propriamente dita (o vídeo depende
-   da origem estar acessível).
-
-   (ADR-002; ADR-006 §4.2 e Incremento A; ADR-008 §2;
-   `docs/iptvnator/02-arquitetura.md` #4)
-
 4. **`PlayerService` — contrato completo de capacidades**
 
    A feature 003 criou a abstração, o adaptador AVPlay, o adaptador
@@ -974,7 +944,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Convergida | 67/67 tasks | 2026-09-18 |
 | 004-conector-xtream-live | Conector Xtream JSON para canais ao vivo | Convergida | 55/55 tasks | 2026-09-18 |
 | 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Convergida | 59/59 tasks | 2026-09-22 |
-| 008-user-state-repo | UserStateRepository | Implementada | 14/14 tasks | 2026-09-22 |
+| 008-user-state-repo | UserStateRepository | Convergida | 14/14 tasks | 2026-09-22 |
 | 009-virtualizacao-foco | Virtualização de Grades e Foco Direcional | Planejada | 0/16 tasks | 2026-09-22 |
 
 | 006-conector-xtream-vod-series | Conector Xtream JSON para VOD e Series | Convergida | 15/15 tasks | 2026-09-22 |
