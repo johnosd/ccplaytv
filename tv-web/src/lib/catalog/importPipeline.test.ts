@@ -39,7 +39,10 @@ const PROVIDER_SOURCE: SourceRecord = {
   updatedAt: 1,
 }
 
-/** Catálogo misto: dois canais, um filme, um episódio e uma entrada sem URL. */
+/**
+ * Catálogo misto: dois canais, um filme, um episódio, uma entrada que o
+ * classificador não consegue tipar e uma entrada sem URL.
+ */
 const MIXED_M3U = [
   '#EXTM3U',
   '#EXTINF:-1 group-title="Canais | Esportes",ESPN',
@@ -50,6 +53,8 @@ const MIXED_M3U = [
   'http://exemplo.test/vod/1.mp4',
   '#EXTINF:-1 group-title="Series",Uma Serie S01E01',
   'http://exemplo.test/series/1.mp4',
+  '#EXTINF:-1 group-title="Aleatorio",Coisa Sem Tipo',
+  'http://exemplo.test/outro/1.mp4',
   '#EXTINF:-1 group-title="Canais | Esportes",Entrada Sem URL',
 ].join('\n')
 
@@ -71,20 +76,22 @@ describe('importPipeline — fonte por URL M3U', () => {
     await database.sources.add(M3U_SOURCE)
   })
 
-  it('grava só canais e contabiliza o que descartou (FR-008)', async () => {
+  it('grava os tipos que sabe classificar e contabiliza o que descartou (FR-008)', async () => {
     vi.stubGlobal('fetch', respondWith(MIXED_M3U))
 
     const handle = await startImport(M3U_SOURCE.id, { database })
     const run = await handle.completion
 
     expect(run.status).toBe('completed')
-    expect(run.channelsStored).toBe(2)
-    // Contadores têm unidades diferentes e não se somam: 5 lidas, 2
-    // gravadas, 2 descartadas por tipo, 1 inválida por falta de URL.
-    expect(run.entriesRead).toBe(4)
-    expect(run.discardedByType).toBe(2)
+    // Canal, canal, filme e episódio. O que sobra do descarte por tipo é o
+    // que o classificador não consegue tipar — não "tudo que não é canal".
+    expect(run.channelsStored).toBe(4)
+    // Contadores têm unidades diferentes e não se somam: 5 lidas, 4
+    // gravadas, 1 descartada por tipo, 1 inválida por falta de URL.
+    expect(run.entriesRead).toBe(5)
+    expect(run.discardedByType).toBe(1)
     expect(run.invalidCount).toBe(1)
-    expect(await countChannels(M3U_SOURCE.id, undefined, undefined, database)).toBe(2)
+    expect(await countChannels(M3U_SOURCE.id, undefined, undefined, database)).toBe(4)
   })
 
   it('preserva os grupos declarados pela fonte, na ordem em que apareceram', async () => {
@@ -96,6 +103,8 @@ describe('importPipeline — fonte por URL M3U', () => {
     expect(categories.map((category) => category.name)).toEqual([
       'Canais | Esportes',
       'Canais | Variedades',
+      'Filmes',
+      'Series',
     ])
   })
 
@@ -414,23 +423,108 @@ describe('importPipeline — fonte de provedor', () => {
     expect(run.errorKind).toBe('invalid_credentials')
   })
 
+  function legacyPanelFetch(m3u: string) {
+    return vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/get.php')) return Promise.resolve(textResponse(m3u))
+      if (url.includes('player_api.php') && url.includes('action=')) {
+        // O painel autentica, mas não responde a nenhuma consulta de catálogo.
+        return Promise.resolve(textResponse('erro', 404))
+      }
+      return Promise.resolve(
+        textResponse(JSON.stringify({ user_info: { auth: 1, allowed_output_formats: ['ts'] } })),
+      )
+    })
+  }
+
+  const LEGACY_M3U = [
+    '#EXTM3U',
+    '#EXTINF:-1 group-title="Canais",Canal Legado',
+    'http://exemplo.test/live/usuario-teste/senha-teste/77.ts',
+    '#EXTINF:-1 group-title="Filmes",Filme Legado',
+    'http://exemplo.test/movie/usuario-teste/senha-teste/500.mkv',
+  ].join('\n')
+
   it('painel sem o protocolo JSON cai no modo limitado, em vez de falhar', async () => {
-    const m3u = [
-      '#EXTM3U',
-      '#EXTINF:-1 group-title="Canais",Canal Legado',
-      'http://exemplo.test/live/legado.ts',
-    ].join('\n')
+    vi.stubGlobal('fetch', legacyPanelFetch(LEGACY_M3U))
+
+    const run = await (await startImport(PROVIDER_SOURCE.id, { database })).completion
+
+    expect(run.status).toBe('completed')
+    expect(run.channelsStored).toBe(2)
+    expect((await getSource(PROVIDER_SOURCE.id, database))?.providerImportMode).toBe('legacy_m3u')
+  })
+
+  it('no modo limitado o item nasce reproduzível, sem a credencial ir para o catálogo', async () => {
+    vi.stubGlobal('fetch', legacyPanelFetch(LEGACY_M3U))
+
+    await (await startImport(PROVIDER_SOURCE.id, { database })).completion
+
+    const stored = await database.channels.toArray()
+    const canal = stored.find((item) => item.kind === 'channel')
+    const filme = stored.find((item) => item.kind === 'movie')
+
+    // Sem identificador, todo item do modo limitado seria inabrível — era o
+    // catálogo que se vê e não se abre.
+    expect(canal).toMatchObject({ providerStreamId: '77', streamExtension: 'ts' })
+    // O segmento da URL é o painel declarando o tipo: sem ele, o filme viria
+    // classificado só pelo nome e a reprodução montaria uma URL de canal.
+    expect(filme).toMatchObject({ providerStreamId: '500', streamExtension: 'mkv' })
+
+    for (const item of stored) {
+      expect(item.directUrl).toBeUndefined()
+      expect(JSON.stringify(item)).not.toContain(PROVIDER_SOURCE.providerPassword)
+    }
+  })
+
+  it('execução deixada em andamento por um fechamento do app não tranca a fonte', async () => {
+    // Sem reconciliação, este registro faz toda importação seguinte ser
+    // recusada com ImportAlreadyRunningError — para sempre.
+    await database.importRuns.add({
+      id: 'run-orfa',
+      sourceId: PROVIDER_SOURCE.id,
+      generation: 1,
+      status: 'running',
+      step: 'fetching',
+      entriesRead: 0,
+      channelsStored: 0,
+      discardedByType: 0,
+      invalidCount: 0,
+      truncatedByStorage: false,
+      startedAt: Date.now() - 10 * 60 * 1000,
+      heartbeatAt: Date.now() - 10 * 60 * 1000,
+    })
+    vi.stubGlobal('fetch', panelFetch())
+
+    const run = await (await startImport(PROVIDER_SOURCE.id, { database })).completion
+
+    expect(run.status).toBe('completed')
+    const orfa = await database.importRuns.get('run-orfa')
+    // Fechada como interrompida, não como cancelada: ninguém cancelou nada.
+    expect(orfa?.status).toBe('failed')
+    expect(orfa?.errorKind).toBe('interrupted')
+  })
+
+  it('seção que o painel não serve fica declarada, em vez de virar lista vazia', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation((url: string) => {
-        if (url.includes('/get.php')) return Promise.resolve(textResponse(m3u))
-        if (url.includes('get_live_categories') || url.includes('get_live_streams')) {
-          // O painel autentica, mas não responde às consultas de catálogo.
-          return Promise.resolve(textResponse('erro', 404))
+        if (url.includes('get_live_categories')) {
+          return Promise.resolve(
+            textResponse(JSON.stringify([{ category_id: '1', category_name: 'Esportes' }])),
+          )
         }
+        if (url.includes('get_live_streams')) {
+          return Promise.resolve(
+            textResponse(JSON.stringify([{ name: 'ESPN', stream_id: 9, category_id: '1' }])),
+          )
+        }
+        if (url.includes('get_vod_')) return Promise.resolve(textResponse('erro', 404))
+        if (url.includes('get_series')) return Promise.resolve(textResponse('erro', 404))
         return Promise.resolve(
           textResponse(
-            JSON.stringify({ user_info: { auth: 1, allowed_output_formats: ['ts'] } }),
+            JSON.stringify({
+              user_info: { auth: 1, exp_date: '0', allowed_output_formats: ['ts'] },
+            }),
           ),
         )
       }),
@@ -440,6 +534,6 @@ describe('importPipeline — fonte de provedor', () => {
 
     expect(run.status).toBe('completed')
     expect(run.channelsStored).toBe(1)
-    expect((await getSource(PROVIDER_SOURCE.id, database))?.providerImportMode).toBe('legacy_m3u')
+    expect(run.unavailableSections).toEqual(['movie', 'series'])
   })
 })

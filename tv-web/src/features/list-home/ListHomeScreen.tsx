@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
+import { useCatalogCounts } from '../catalog/catalogApi'
 
 export type ListDestination = 'live' | 'movies' | 'series'
 
 export interface ListHomeScreenProps {
+  sourceId: string
   sourceName: string
-  movieCount: number
-  seriesCount: number
   onSelect: (destination: ListDestination) => void
   onBack: () => void
 }
@@ -17,14 +17,9 @@ const TILES: { key: ListDestination; icon: string; label: string }[] = [
   { key: 'series', icon: '🎞️', label: 'Séries' },
 ]
 
-export function ListHomeScreen({
-  sourceName,
-  movieCount,
-  seriesCount,
-  onSelect,
-  onBack,
-}: ListHomeScreenProps) {
+export function ListHomeScreen({ sourceId, sourceName, onSelect, onBack }: ListHomeScreenProps) {
   const [focusCol, setFocusCol] = useState(0)
+  const counts = useCatalogCounts(sourceId)
 
   useRemoteNav({
     onDirection: (dir) => {
@@ -35,10 +30,16 @@ export function ListHomeScreen({
     onBack,
   })
 
+  // Número só aparece quando é o número real desta lista. Enquanto a
+  // contagem não chega, o lugar dela fica vazio — um valor de outra origem
+  // ali seria dado inventado apresentado como do catálogo.
+  const titles = (value: number | undefined): string =>
+    value === undefined ? '' : `${value} ${value === 1 ? 'título' : 'títulos'}`
+
   const tileMeta: Record<ListDestination, string> = {
     live: 'Canais em tempo real',
-    movies: `${movieCount} títulos`,
-    series: `${seriesCount} títulos`,
+    movies: titles(counts.data?.movies),
+    series: titles(counts.data?.series),
   }
 
   return (

@@ -20,6 +20,9 @@ export interface HomeScreenProps {
   onSourceCreated: (result: { sourceId: string; jobId: string }) => void
 }
 
+/** Ressincronizar, Editar, Excluir — a linha de ações de um card de fonte. */
+const ACTION_COUNT = 3
+
 function formatStatus(source: SourceOut): string {
   if (source.connection_state === 'error') return 'Erro na última sincronização'
   if (source.connection_state === 'never_synced' || !source.last_successful_sync_at) {
@@ -61,11 +64,25 @@ export function HomeScreen({
         if (dir === 'down' && focusCol < sources.length) {
           setFocusRow(1)
           setActiveCardIdx(focusCol)
+          // A coluna volta para a primeira ação. Sem isto ela herdava o
+          // índice do card: descer no terceiro card já chegava com Excluir
+          // em foco, e um OK seguido apagaria a lista sem o usuário ter
+          // navegado até lá.
+          setFocusCol(0)
         }
       } else {
-        if (dir === 'up') setFocusRow(0)
-        if (dir === 'left') setFocusCol((c) => clamp(c - 1, 0, 1))
-        if (dir === 'right') setFocusCol((c) => clamp(c + 1, 0, 1))
+        // Três ações nesta linha: Ressincronizar (0), Editar (1), Excluir
+        // (2). O limite tem que alcançar a última, ou ela fica renderizada e
+        // inalcançável pelo controle.
+        if (dir === 'up') {
+          setFocusRow(0)
+          // Voltar restaura o card de onde se desceu. Sem isto o índice da
+          // ação virava índice de card e o foco saltava para outra lista —
+          // a constitution exige que voltar restaure a posição, não adivinhe.
+          setFocusCol(activeCardIdx)
+        }
+        if (dir === 'left') setFocusCol((c) => clamp(c - 1, 0, ACTION_COUNT - 1))
+        if (dir === 'right') setFocusCol((c) => clamp(c + 1, 0, ACTION_COUNT - 1))
       }
     },
     onSelect: () => {
@@ -158,7 +175,9 @@ export function HomeScreen({
                   <div className="source-card-badge" style={{ marginTop: 4 }}>A lista não coube inteira</div>
                 )}
                 {source.last_discarded_by_type > 0 && (
-                  <div className="source-card-badge" style={{ marginTop: 4 }}>Só canais foram importados</div>
+                  <div className="source-card-badge" style={{ marginTop: 4 }}>
+                    Entradas não reconhecidas ficaram de fora
+                  </div>
                 )}
               </div>
               {actionsVisible && (

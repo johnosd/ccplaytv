@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCreateSource, useImportJob } from './importApi'
 import { db } from '../../lib/catalog/db'
 
@@ -14,10 +14,26 @@ function createWrapper() {
   }
 }
 
+const LISTA = ['#EXTM3U', '#EXTINF:-1 group-title="Canais",Canal Um', 'http://exemplo.test/1.ts'].join(
+  '\n',
+)
+
 describe('importApi', () => {
+  beforeEach(() => {
+    // A importação dispara de verdade ao criar a fonte. Sem isto, o teste
+    // sai para a rede e escreve no banco compartilhado depois que o
+    // `afterEach` já limpou as tabelas.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => Promise.resolve(new Response(LISTA, { status: 200 }))),
+    )
+  })
+
   afterEach(async () => {
+    vi.unstubAllGlobals()
     await db.sources.clear()
     await db.importRuns.clear()
+    await db.channels.clear()
   })
 
   describe('useCreateSource', () => {
@@ -31,7 +47,7 @@ describe('importApi', () => {
       })
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true))
-      
+
       const data = result.current.data
       expect(data?.source_id).toBeTruthy()
       expect(data?.import_job_id).toBeTruthy()
@@ -40,6 +56,11 @@ describe('importApi', () => {
       expect(source).toBeTruthy()
       expect(source?.displayName).toBe('Minha lista local')
       expect(source?.m3uUrl).toBe('https://exemplo.test/lista.m3u')
+
+      // A importação termina antes do teste seguinte limpar as tabelas.
+      await waitFor(async () =>
+        expect((await db.importRuns.get(data!.import_job_id))?.finishedAt).toBeDefined(),
+      )
     })
   })
 

@@ -1,5 +1,5 @@
-/* Design system CCPlayTv — telas de TV (1920x1080, 10-foot UI).
-   Classes derivadas 1:1 do protótipo do Claude Design
+﻿/* Design system CCPlayTv â€” telas de TV (1920x1080, 10-foot UI).
+   Classes derivadas 1:1 do protÃ³tipo do Claude Design
    ("CCPlayTv - Prototype.dc.html"). */
 
 .screen {
@@ -169,10 +169,10 @@
   color: var(--text-tertiary);
 }
 
-/* Fonte de provedor importada em modo limitado (feature 004, FR-011) — o
-   painel não fala o protocolo JSON e a fonte caiu no caminho M3U existente.
-   Estado normal, não erro (D-008): mesma linguagem visual do selo
-   "Indisponível" de um canal (.live-item-badge), discreta, sem alarme. */
+/* Fonte de provedor importada em modo limitado (feature 004, FR-011) â€” o
+   painel nÃ£o fala o protocolo JSON e a fonte caiu no caminho M3U existente.
+   Estado normal, nÃ£o erro (D-008): mesma linguagem visual do selo
+   "IndisponÃ­vel" de um canal (.live-item-badge), discreta, sem alarme. */
 .source-card-badge {
   font: 600 13px var(--font-body);
   color: var(--text-muted);
@@ -460,9 +460,9 @@
   overflow: hidden;
 }
 
-/* Slot de logo do canal: área reservada com proporção fixa para a chegada da
-   imagem não mudar a geometria nem derrubar o foco (ADR-007 §6). Hoje o
-   `tvg-logo` não é persistido, então o slot fica vazio — item 16 do backlog. */
+/* Slot de logo do canal: Ã¡rea reservada com proporÃ§Ã£o fixa para a chegada da
+   imagem nÃ£o mudar a geometria nem derrubar o foco (ADR-007 Â§6). Hoje o
+   `tvg-logo` nÃ£o Ã© persistido, entÃ£o o slot fica vazio â€” item 16 do backlog. */
 .live-preview-logo {
   width: 200px;
   height: 200px;
@@ -511,8 +511,8 @@
   padding: 12px 20px;
 }
 
-/* Slot de "Agora:" (EPG). Reservado sem rótulo: exibir "Agora:" vazio
-   pareceria defeito, e inventar dado é proibido. Fonte de dados no item 44. */
+/* Slot de "Agora:" (EPG). Reservado sem rÃ³tulo: exibir "Agora:" vazio
+   pareceria defeito, e inventar dado Ã© proibido. Fonte de dados no item 44. */
 .live-channel-now {
   min-height: 28px;
 }
@@ -560,14 +560,14 @@
   color: var(--accent-ink);
 }
 
-/* ---------- Camada de reprodução ---------- */
+/* ---------- Camada de reproduÃ§Ã£o ---------- */
 
 .player-overlay {
   position: absolute;
   inset: 0;
-  /* Preto opaco, não translúcido: um fundo com blur/transparência parcial
-     custa caro no engine da TV (ADR-007 §8). Vale enquanto não há vídeo na
-     tela — preparando, carregando a URL, erro. */
+  /* Preto opaco, nÃ£o translÃºcido: um fundo com blur/transparÃªncia parcial
+     custa caro no engine da TV (ADR-007 Â§8). Vale enquanto nÃ£o hÃ¡ vÃ­deo na
+     tela â€” preparando, carregando a URL, erro. */
   background: var(--player-backdrop);
   display: flex;
   align-items: center;
@@ -575,22 +575,22 @@
   z-index: 40;
 }
 
-/* Com o AVPlay exibindo, o preto sai de cena: o vídeo está num plano de
-   hardware ATRÁS desta camada, e fundo opaco aqui é o que fazia o canal tocar
+/* Com o AVPlay exibindo, o preto sai de cena: o vÃ­deo estÃ¡ num plano de
+   hardware ATRÃS desta camada, e fundo opaco aqui Ã© o que fazia o canal tocar
    sem imagem (bug `live-tv-toca-audio-sem-imagem`). O texto de status e a tela
-   de erro continuam desenhando normalmente por cima do vídeo. */
+   de erro continuam desenhando normalmente por cima do vÃ­deo. */
 :root.video-plane-visible .player-overlay {
   background: transparent;
 }
 
-/* Liberar só o fundo da camada não basta: as colunas de grupos e canais e o
-   painel de informação são IRMÃOS do overlay e continuam pintando sobre o
-   plano de hardware — na TV o canal toca atrás da lista, que é o que o
-   usuário vê. Enquanto há vídeo, a tela por baixo para de desenhar; ao sair
-   da reprodução a classe some e tudo volta, com foco e rolagem preservados
-   (`visibility` não remonta nada, ao contrário de `display: none`).
-   No navegador de desenvolvimento a regra nunca vale: lá o `<video>` é nó do
-   DOM e a classe não é aplicada. */
+/* Liberar sÃ³ o fundo da camada nÃ£o basta: as colunas de grupos e canais e o
+   painel de informaÃ§Ã£o sÃ£o IRMÃƒOS do overlay e continuam pintando sobre o
+   plano de hardware â€” na TV o canal toca atrÃ¡s da lista, que Ã© o que o
+   usuÃ¡rio vÃª. Enquanto hÃ¡ vÃ­deo, a tela por baixo para de desenhar; ao sair
+   da reproduÃ§Ã£o a classe some e tudo volta, com foco e rolagem preservados
+   (`visibility` nÃ£o remonta nada, ao contrÃ¡rio de `display: none`).
+   No navegador de desenvolvimento a regra nunca vale: lÃ¡ o `<video>` Ã© nÃ³ do
+   DOM e a classe nÃ£o Ã© aplicada. */
 :root.video-plane-visible .screen > *:not(.player-overlay) {
   visibility: hidden;
 }
@@ -674,7 +674,7 @@
   color: var(--text-tertiary);
 }
 
-/* ---------- Grids (Filmes / Séries) ---------- */
+/* ---------- Grids (Filmes / SÃ©ries) ---------- */
 
 .poster-grid {
   display: grid;
@@ -811,7 +811,7 @@
   color: var(--accent-ink);
 }
 
-/* ---------- Detalhe da série ---------- */
+/* ---------- Detalhe da sÃ©rie ---------- */
 
 .series-detail-header {
   display: flex;
@@ -977,77 +977,3 @@
   z-index: 1000;
 }
 
-
-/* ---------- Diagnóstico de importação (TEMPORÁRIO — feature 005, US1) ----------
-   Removido na fase Polish junto com a tela. Não é desenho de produto: a
-   TV não entrega console, então a medição precisa caber na tela. */
-
-.bench-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  margin-top: 32px;
-  max-height: 720px;
-}
-
-.bench-column {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
-}
-
-.bench-source {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: left;
-  padding: 18px 24px;
-  border-radius: 14px;
-  background: var(--surface);
-  color: var(--text-secondary);
-}
-
-.bench-source-selected {
-  background: var(--surface-active);
-  border-left: 6px solid var(--accent);
-}
-
-.bench-source-name {
-  font: 700 22px var(--font-heading);
-  color: var(--text-primary);
-}
-
-.bench-source-meta {
-  font-size: 16px;
-  color: var(--text-tertiary);
-}
-
-.bench-actions {
-  display: flex;
-  gap: 16px;
-}
-
-.bench-metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px 24px;
-  margin: 0;
-}
-
-.bench-metrics div {
-  background: var(--surface);
-  border-radius: 12px;
-  padding: 12px 18px;
-}
-
-.bench-metrics dt {
-  font-size: 15px;
-  color: var(--text-tertiary);
-}
-
-.bench-metrics dd {
-  margin: 4px 0 0;
-  font: 700 24px var(--font-heading);
-  color: var(--text-primary);
-}

@@ -43,7 +43,10 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
   const { toastMessage, showToast } = useToast()
 
   const query = useChannels(sourceId)
-  const groups = useMemo(() => groupChannels(query.data?.items ?? []), [query.data])
+  const groups = useMemo(
+    () => groupChannels(query.data?.items ?? [], undefined, query.data?.group_totals),
+    [query.data],
+  )
 
   const [focusedIdentity, setFocusedIdentity] = useState<FocusIdentity>(() =>
     identityAt(groups, 0, 0),

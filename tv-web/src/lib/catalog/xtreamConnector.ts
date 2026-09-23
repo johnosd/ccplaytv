@@ -128,7 +128,14 @@ export async function probeFailureKind(url: string): Promise<ProviderFailureKind
 async function fetchJsonDirect(url: string): Promise<unknown> {
   let response: Response
   try {
-    response = await fetch(url, { headers: { 'User-Agent': 'VLC/3.0.0' } })
+    // **Sem cabeçalho de requisição próprio, de propósito.** Qualquer
+    // cabeçalho fora da lista segura de CORS (inclusive `User-Agent`)
+    // transforma este GET simples numa requisição com verificação prévia
+    // (`OPTIONS`). Painel Xtream não responde `OPTIONS`, então a verificação
+    // falha antes do GET acontecer e *toda* conversa pelo protocolo JSON
+    // morre — que é justamente o caminho direto que a ADR-008 confirmou
+    // funcionar contra o provedor real.
+    response = await fetch(url)
   } catch {
     throw new ProviderError(
       await probeFailureKind(url),
@@ -385,6 +392,50 @@ export function buildVodUrl(base: string, username: string, password: string, st
   return `${base}/movie/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${streamId}.${extension}`
 }
 
+export function buildSeriesUrl(base: string, username: string, password: string, streamId: string, extension: string): string {
+  return `${base}/series/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${streamId}.${extension}`
+}
+
+/**
+ * Identidade reconstruível escondida dentro de uma URL de reprodução do
+ * painel.
+ *
+ * Existe para o modo limitado (`legacy_m3u`): ali o catálogo chega como
+ * M3U, e a única coisa que a entrada traz é a URL pronta — que embute a
+ * credencial. Guardá-la espalharia a senha por milhares de registros, o
+ * que o data-model §4 proíbe. Mas a URL de um painel Xtream é montada a
+ * partir de `(tipo, id, extensão)`, então esses três pedaços podem ser
+ * extraídos de volta e guardados no lugar dela: o item continua
+ * reproduzível e a credencial continua morando só em `sources`.
+ *
+ * Aceita as duas formas que os painéis emitem: com o segmento de tipo
+ * (`/live/u/p/1.ts`) e a forma antiga sem ele (`/u/p/1.ts`, sempre ao vivo).
+ */
+export interface XtreamStreamRef {
+  kind: 'live' | 'movie' | 'series'
+  streamId: string
+  extension: string
+}
+
+export function parseXtreamStreamUrl(rawUrl: string): XtreamStreamRef | undefined {
+  let path: string
+  try {
+    path = new URL(rawUrl).pathname
+  } catch {
+    return undefined
+  }
+
+  const typed = /^\/(live|movie|series)\/[^/]+\/[^/]+\/(\d+)\.([A-Za-z0-9]+)$/.exec(path)
+  if (typed) {
+    return { kind: typed[1] as XtreamStreamRef['kind'], streamId: typed[2], extension: typed[3] }
+  }
+
+  const untyped = /^\/[^/]+\/[^/]+\/(\d+)\.([A-Za-z0-9]+)$/.exec(path)
+  if (untyped) return { kind: 'live', streamId: untyped[1], extension: untyped[2] }
+
+  return undefined
+}
+
 export function mapVodEntry(
   raw: Record<string, unknown>,
   categories: Map<string, LiveCategory>,
@@ -393,12 +444,15 @@ export function mapVodEntry(
   const name = typeof raw.name === 'string' ? raw.name.trim() : ''
   if (name === '') return undefined
 
-  if (typeof raw.stream_type === 'string' && raw.stream_type !== 'live') return undefined
+  // `get_vod_streams` declara `stream_type: "movie"`. Entrada que declara
+  // outro tipo não é filme e não entra no catálogo de VOD; entrada que não
+  // declara nada veio deste endpoint e é aceita como filme.
+  if (typeof raw.stream_type === 'string' && raw.stream_type !== 'movie') return undefined
+
   const streamId = raw.stream_id === undefined || raw.stream_id === null ? undefined : String(raw.stream_id)
   const categoryId = raw.category_id === undefined || raw.category_id === null ? undefined : String(raw.category_id)
   const category = categoryId ? categories.get(categoryId) : undefined
   const ext = typeof raw.container_extension === 'string' ? raw.container_extension : 'mp4'
-  if (typeof raw.stream_type === 'string' && raw.stream_type !== 'movie') return undefined
 
   return {
     kind: 'movie',
@@ -526,7 +580,7 @@ export async function fetchSeriesInfo(
       const epName = typeof rawEp.title === 'string' ? rawEp.title.trim() : `S${seasonStr} E${rawEp.episode_num}`
       const streamId = rawEp.id === undefined || rawEp.id === null ? undefined : String(rawEp.id)
       const ext = typeof rawEp.container_extension === 'string' ? rawEp.container_extension : 'mp4'
-      const urlBuilt = streamId ? `${base}/series/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${streamId}.${ext}` : undefined
+      const urlBuilt = streamId ? buildSeriesUrl(base, username, password, streamId, ext) : undefined
 
       const seasonNumber = parseInt(seasonStr, 10) || 1
       const episodeNumber = typeof rawEp.episode_num === 'number' ? rawEp.episode_num : 0

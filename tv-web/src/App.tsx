@@ -16,7 +16,6 @@ import { MoviesScreen } from './features/movies/MoviesScreen'
 import { MovieDetailScreen } from './features/movies/MovieDetailScreen'
 import { SeriesScreen } from './features/series/SeriesScreen'
 import { SeriesDetailScreen } from './features/series/SeriesDetailScreen'
-import { MOVIES, SERIES } from './features/catalog/mockCatalog'
 
 type Screen =
   | { name: 'splash' }
@@ -65,6 +64,8 @@ function App() {
     // muda nada visível aqui: connection_state/last_successful_sync_at já
     // não avançam no backend quando o job falha (FR-023).
     void queryClient.invalidateQueries({ queryKey: ['catalog-items'] })
+    void queryClient.invalidateQueries({ queryKey: ['catalog-counts'] })
+    void queryClient.invalidateQueries({ queryKey: ['catalog-item'] })
     void queryClient.invalidateQueries({ queryKey: ['sources'] })
   }, [autoRefreshJobId, autoRefreshJob.data?.status, queryClient])
 
@@ -142,9 +143,8 @@ function App() {
     case 'list-home':
       return (
         <ListHomeScreen
+          sourceId={screen.source.id}
           sourceName={screen.source.display_name}
-          movieCount={MOVIES.length}
-          seriesCount={SERIES.length}
           onSelect={(destination: ListDestination) => goto({ name: destination, source: screen.source } as Screen)}
           onBack={back}
         />
@@ -159,7 +159,7 @@ function App() {
       )
 
     case 'movie-detail':
-      return <MovieDetailScreen sourceId={screen.source.id} movieId={screen.movieId} onBack={back} />
+      return <MovieDetailScreen movieId={screen.movieId} onBack={back} />
 
     case 'series':
       return (
@@ -167,7 +167,7 @@ function App() {
       )
 
     case 'series-detail':
-      return <SeriesDetailScreen sourceId={screen.source.id} seriesId={screen.seriesId} onBack={back} />
+      return <SeriesDetailScreen seriesId={screen.seriesId} onBack={back} />
 
     default:
       return null

@@ -59,9 +59,16 @@ export function useTvKeyNav(
       
       const isEnter = event.key === 'Enter' || event.keyCode === 13
       if (isEnter) {
-        if (document.activeElement?.tagName === 'BUTTON' || document.activeElement?.hasAttribute('tabindex')) {
+        // Botão nativo **não** é tocado aqui: o navegador já o ativa com
+        // Enter, e um `preventDefault` sobre isso é exatamente o que deixou
+        // todo botão inerte no controle físico uma vez (ver o comentário em
+        // useRemoteNav.ts). Só um focável que não é botão — `div` com
+        // `tabindex` — não tem ativação nativa, e é só para ele que o
+        // clique é sintetizado.
+        const active = document.activeElement as HTMLElement | null
+        if (active && active.tagName !== 'BUTTON' && active.hasAttribute('tabindex')) {
           event.preventDefault()
-          ;(document.activeElement as HTMLElement).click()
+          active.click()
         }
         return
       }

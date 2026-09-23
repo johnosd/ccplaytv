@@ -52,7 +52,7 @@ describe('ImportProgressScreen', () => {
     expect(screen.queryByText(/%/)).not.toBeInTheDocument()
   })
 
-  it('a tela declara explicitamente que só canais foram importados (FR-008)', async () => {
+  it('a tela declara o que ficou de fora por tipo não reconhecido (FR-008)', async () => {
     await db.importRuns.put(mockJobRecord({ discardedByType: 50 }))
 
     const Wrapper = createWrapper()
@@ -63,9 +63,43 @@ describe('ImportProgressScreen', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Só canais foram importados nesta fonte.')).toBeInTheDocument()
-      expect(screen.getByText(/Descartados \(não são canais\): 50/)).toBeInTheDocument()
+      expect(
+        screen.getByText('Entradas de tipo não reconhecido ficaram de fora.'),
+      ).toBeInTheDocument()
+      expect(screen.getByText(/Descartados \(tipo não reconhecido\): 50/)).toBeInTheDocument()
     })
+  })
+
+  it('seção que o painel não serviu aparece como aviso, não como ausência silenciosa', async () => {
+    await db.importRuns.put(mockJobRecord({ unavailableSections: ['movie'] }))
+
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('O provedor não respondeu à lista de filmes.')).toBeInTheDocument()
+    })
+  })
+
+  it('importação inexistente mostra um estado próprio com saída focável, sem consultar sem parar', async () => {
+    // Registro ausente resolvia para `null`, que nunca é status terminal: a
+    // consulta repetia a cada 1,5 s e a tela ficava num carregamento sem
+    // nenhum elemento focável — o controle só saía pela tecla Voltar.
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-sumido" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/não está mais registrada no aparelho/)).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument()
   })
 
   it('quando houver truncamento, a tela declara que a lista não coube inteira (FR-018)', async () => {

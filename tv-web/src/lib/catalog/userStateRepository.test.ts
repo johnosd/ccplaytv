@@ -9,14 +9,47 @@ import {
   getContinueWatching,
 } from './userStateRepository'
 
+const MATRIX = { sourceId: 'src1', kind: 'movie', providerStreamId: '100' } as const
+const AVATAR = { sourceId: 'src2', kind: 'movie', providerStreamId: '200' } as const
+const DUNE = { sourceId: 'src1', kind: 'movie', providerStreamId: '300' } as const
+
 describe('userStateRepository', () => {
   beforeEach(async () => {
     await db.userStates.clear()
   })
 
-  it('should build a stable id', () => {
-    const id = buildStableId('src1', 'movie', ' The Matrix ')
-    expect(id).toBe('src1_movie_the matrix')
+  describe('buildStableId', () => {
+    it('usa o identificador do painel, não o nome exibido', () => {
+      // O provedor renomear o título não pode apagar favorito nem progresso:
+      // é o que a constitution exige ao chavear por identidade estável.
+      const antes = buildStableId({ ...MATRIX, originalName: 'Die Hard' })
+      const depois = buildStableId({ ...MATRIX, originalName: 'Die Hard (1988)' })
+
+      expect(antes).toBe(depois)
+      expect(antes).toBe('src1|movie|id:100')
+    })
+
+    it('separa episódios homônimos por temporada e episódio', () => {
+      const base = { sourceId: 'src1', kind: 'episode', seriesId: '7' } as const
+      const s01e01 = buildStableId({ ...base, seasonNumber: 1, episodeNumber: 1 })
+      const s02e01 = buildStableId({ ...base, seasonNumber: 2, episodeNumber: 1 })
+
+      expect(s01e01).not.toBe(s02e01)
+      expect(s01e01).toBe('src1|episode|id:7|s1|e1')
+    })
+
+    it('cai no nome só quando a fonte não traz identificador (lista M3U)', () => {
+      const id = buildStableId({ sourceId: 'src1', kind: 'movie', originalName: ' The Matrix ' })
+      expect(id).toBe('src1|movie|name:the matrix')
+    })
+
+    it('recusa item sem identidade alguma, em vez de inventar uma chave', () => {
+      expect(() => buildStableId({ sourceId: 'src1', kind: 'movie' })).toThrow()
+    })
+
+    it('não mistura itens de fontes diferentes com o mesmo identificador', () => {
+      expect(buildStableId(MATRIX)).not.toBe(buildStableId({ ...MATRIX, sourceId: 'src2' }))
+    })
   })
 
   it('should return undefined if state does not exist', async () => {
@@ -25,7 +58,7 @@ describe('userStateRepository', () => {
   })
 
   it('should toggle favorite for new state', async () => {
-    const stableId = buildStableId('src1', 'movie', 'matrix')
+    const stableId = buildStableId(MATRIX)
     await toggleFavorite(stableId, 'src1', true)
 
     const state = await getUserState(stableId)
@@ -35,16 +68,19 @@ describe('userStateRepository', () => {
   })
 
   it('should toggle favorite for existing state', async () => {
-    const stableId = buildStableId('src1', 'movie', 'matrix')
+    const stableId = buildStableId(MATRIX)
     await toggleFavorite(stableId, 'src1', true)
     await toggleFavorite(stableId, 'src1', false)
 
     const state = await getUserState(stableId)
     expect(state?.isFavorite).toBe(false)
+    // Sem instante, o registro sai do índice — é assim que a consulta de
+    // favoritos deixa de encontrá-lo.
+    expect(state?.favoritedAt).toBeUndefined()
   })
 
   it('should update progress for new state', async () => {
-    const stableId = buildStableId('src1', 'movie', 'matrix')
+    const stableId = buildStableId(MATRIX)
     await updateProgress(stableId, 'src1', 120)
 
     const state = await getUserState(stableId)
@@ -54,9 +90,9 @@ describe('userStateRepository', () => {
   })
 
   it('should update progress for existing state', async () => {
-    const stableId = buildStableId('src1', 'movie', 'matrix')
+    const stableId = buildStableId(MATRIX)
     await toggleFavorite(stableId, 'src1', true)
-    
+
     await updateProgress(stableId, 'src1', 300)
 
     const state = await getUserState(stableId)
@@ -65,10 +101,25 @@ describe('userStateRepository', () => {
     expect(state?.lastWatched).toBeDefined()
   })
 
+  it('favoritar e salvar progresso ao mesmo tempo não estoura nem perde um dos dois', async () => {
+    const stableId = buildStableId(MATRIX)
+
+    // Sem transação, as duas leituras encontravam o registro ausente e as
+    // duas tentavam inserir — a segunda quebrava com ConstraintError.
+    await Promise.all([
+      toggleFavorite(stableId, 'src1', true),
+      updateProgress(stableId, 'src1', 42),
+    ])
+
+    const state = await getUserState(stableId)
+    expect(state?.isFavorite).toBe(true)
+    expect(state?.progressSeconds).toBe(42)
+  })
+
   it('should fetch global favorites across sources', async () => {
-    await toggleFavorite(buildStableId('src1', 'movie', 'matrix'), 'src1', true)
-    await toggleFavorite(buildStableId('src2', 'movie', 'avatar'), 'src2', true)
-    await toggleFavorite(buildStableId('src1', 'movie', 'dune'), 'src1', false)
+    await toggleFavorite(buildStableId(MATRIX), 'src1', true)
+    await toggleFavorite(buildStableId(AVATAR), 'src2', true)
+    await toggleFavorite(buildStableId(DUNE), 'src1', false)
 
     const favs = await getGlobalFavorites()
     expect(favs).toHaveLength(2)
@@ -76,11 +127,11 @@ describe('userStateRepository', () => {
   })
 
   it('should fetch continue watching across sources', async () => {
-    await updateProgress(buildStableId('src1', 'movie', 'matrix'), 'src1', 120)
-    await updateProgress(buildStableId('src2', 'movie', 'avatar'), 'src2', 300)
+    await updateProgress(buildStableId(MATRIX), 'src1', 120)
+    await updateProgress(buildStableId(AVATAR), 'src2', 300)
 
     const cw = await getContinueWatching()
     expect(cw).toHaveLength(2)
-    expect(cw[0].lastWatched).toBeGreaterThanOrEqual(cw[1].lastWatched)
+    expect(cw[0].lastWatched ?? 0).toBeGreaterThanOrEqual(cw[1].lastWatched ?? 0)
   })
 })

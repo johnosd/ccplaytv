@@ -193,7 +193,16 @@ export async function* linesFromResponse(body: ReadableStream<Uint8Array>): Asyn
   } finally {
     // Abandonar o fluxo no meio (cancelamento, erro de escrita) tem que
     // soltar a conexão, ou ela fica pendurada até o app fechar.
-    reader.releaseLock()
+    //
+    // `releaseLock` sozinho **não** faz isso: ele devolve o leitor e deixa o
+    // corpo da resposta continuar chegando — uma lista de 300 MB cancelada
+    // seguiria baixando inteira. `cancel` encerra o fluxo de verdade, e já
+    // libera a trava junto.
+    await reader.cancel().catch(() => {
+      // Fluxo já encerrado ou com erro próprio: não há o que cancelar, e um
+      // erro aqui não pode substituir o que trouxe a execução até este
+      // `finally`.
+    })
   }
 }
 

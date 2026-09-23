@@ -1,18 +1,20 @@
 import { useState } from 'react'
-import { useMovies } from '../catalog/catalogApi'
+import { useCatalogItem } from '../catalog/catalogApi'
 import { useRemoteNav } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 
 export interface MovieDetailScreenProps {
-  sourceId: string
   movieId: string
   onBack: () => void
 }
 
-export function MovieDetailScreen({ sourceId, movieId, onBack }: MovieDetailScreenProps) {
-  const query = useMovies(sourceId)
-  const movie = query.data?.items?.find((m) => m.id === movieId)
+export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
+  // Pelo id, direto na chave primária. Carregar a lista de filmes inteira só
+  // para procurar um item dentro dela custava o catálogo todo — e deixava de
+  // encontrar qualquer filme além do teto de leitura da listagem.
+  const query = useCatalogItem(movieId)
+  const movie = query.data ?? undefined
   const [focus, setFocus] = useState<0 | 1>(0)
   const { toastMessage, showToast } = useToast()
 
@@ -25,7 +27,21 @@ export function MovieDetailScreen({ sourceId, movieId, onBack }: MovieDetailScre
     onBack,
   })
 
-  if (!movie) return <div className="screen" style={{ padding: 40 }}>Carregando...</div>
+  if (!movie) {
+    // Carregando e "não existe mais" precisam dos dois de uma saída focável.
+    return (
+      <div className="screen">
+        <div className="live-state">
+          <div className="live-state-copy">
+            {query.isLoading ? 'Carregando…' : 'Este filme não está mais no catálogo.'}
+          </div>
+          <button type="button" className="live-state-action tv-focus" onClick={onBack}>
+            Voltar
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="movie-detail-layout">

@@ -22,6 +22,7 @@ import {
   db,
   type CatalogDb,
   type CatalogRecord,
+  type CatalogSection,
   type ImportErrorKind,
   type ImportRunRecord,
   type ImportStep,
@@ -50,6 +51,7 @@ import {
   acquireXtreamSeries,
   classifyWithGroupOrder,
   legacyM3uUrl,
+  parseXtreamStreamUrl,
   ProviderError,
   ProviderIncompatibleError,
   probeFailureKind,
@@ -63,6 +65,18 @@ import {
  * o laço devolver o controle ao desenho da tela (SC-005).
  */
 const DEFAULT_BATCH_SIZE = 2500
+
+/**
+ * De quanto em quanto tempo uma execução em andamento diz que está viva, e
+ * a partir de quando o silêncio significa que ninguém a está conduzindo.
+ *
+ * A folga entre os dois é grande de propósito: matar uma importação viva
+ * por engano descartaria a geração em escrita. O batimento é escrito por um
+ * temporizador próprio, não pelo progresso, justamente porque a etapa de
+ * obtenção pode passar minutos sem nenhum lote para relatar.
+ */
+const HEARTBEAT_INTERVAL_MS = 5_000
+export const ABANDONED_AFTER_MS = 60_000
 
 export class ImportAlreadyRunningError extends Error {
   constructor() {
@@ -118,6 +132,78 @@ async function activeRunFor(
   return database.importRuns.where('[sourceId+status]').equals([sourceId, 'running']).first()
 }
 
+function isAbandoned(run: ImportRunRecord, now: number): boolean {
+  return run.status === 'running' && now - (run.heartbeatAt ?? run.startedAt) > ABANDONED_AFTER_MS
+}
+
+/**
+ * Fecha uma execução que ficou em `running` sem ninguém conduzindo.
+ *
+ * Acontece quando o app é fechado no meio da importação: o registro fica
+ * para trás e, sem isto, `activeRunFor` continua achando uma execução
+ * "ativa" para sempre — a fonte nunca mais aceita ser sincronizada. O
+ * desfecho é `failed` com categoria própria, não `cancelled`: ninguém
+ * cancelou nada, e dizer que cancelou seria contar uma história que não
+ * aconteceu.
+ */
+async function closeAbandoned(
+  run: ImportRunRecord,
+  database: CatalogDb,
+  at: number,
+): Promise<ImportRunRecord> {
+  const closed: ImportRunRecord = {
+    ...run,
+    status: 'failed',
+    errorKind: 'interrupted',
+    finishedAt: at,
+  }
+  await database.importRuns.put(closed)
+  await discardGeneration(run.sourceId, run.generation, database).catch(() => {
+    // A geração pode ter sido publicada ou nem ter recebido linha — em
+    // nenhum dos casos há o que limpar aqui.
+  })
+  return closed
+}
+
+/**
+ * Reconcilia uma execução específica, se ela estiver órfã. Devolve o
+ * registro como ele ficou — inclusive intocado, quando a execução está de
+ * fato viva.
+ */
+export async function reconcileRun(
+  runId: string,
+  database: CatalogDb = db,
+  now: number = Date.now(),
+): Promise<ImportRunRecord | undefined> {
+  const run = await database.importRuns.get(runId)
+  if (!run || !isAbandoned(run, now)) return run
+  return closeAbandoned(run, database, now)
+}
+
+/**
+ * Recupera a identidade que a URL do modo limitado carrega.
+ *
+ * Fonte de provedor não guarda URL (data-model §4) — a credencial ficaria
+ * copiada em milhares de registros. Só que no caminho legado a entrada do
+ * M3U **é** só a URL pronta, e sem isto o item nasce sem identificador
+ * nenhum: "Modo limitado" viraria um catálogo que se vê e não se abre.
+ *
+ * O segmento de tipo (`/live/`, `/movie/`, `/series/`) é o próprio painel
+ * declarando o que o item é — mais confiável que a heurística de nome e
+ * grupo do classificador, e é ele quem decide o caminho da URL na hora de
+ * reproduzir.
+ */
+function refineFromUrl(channel: MappedChannel): MappedChannel {
+  const derived = channel.url ? parseXtreamStreamUrl(channel.url) : undefined
+  if (!derived) return channel
+  return {
+    ...channel,
+    kind: derived.kind === 'live' ? 'channel' : derived.kind,
+    providerStreamId: channel.providerStreamId ?? derived.streamId,
+    streamExtension: channel.streamExtension ?? derived.extension,
+  }
+}
+
 function toRecord(
   channel: MappedChannel,
   sourceId: string,
@@ -154,7 +240,14 @@ export async function startImport(
   if (!source) throw new Error('Fonte não encontrada.')
   // FR-017: a checagem vem antes de alocar geração, para a segunda
   // tentativa não consumir número nem deixar lixo para trás.
-  if (await activeRunFor(sourceId, database)) throw new ImportAlreadyRunningError()
+  const active = await activeRunFor(sourceId, database)
+  if (active) {
+    // Uma execução que parou de dar sinal de vida não é uma importação em
+    // andamento — é o rastro de um app fechado no meio. Recusar por causa
+    // dela trancaria a fonte para sempre.
+    if (!isAbandoned(active, now())) throw new ImportAlreadyRunningError()
+    await closeAbandoned(active, database, now())
+  }
 
   const generation = await allocateGeneration(sourceId, database)
   const run: ImportRunRecord = {
@@ -170,10 +263,22 @@ export async function startImport(
     truncatedByStorage: false,
     startedAt: now(),
   }
+  run.heartbeatAt = run.startedAt
   // A primeira etapa começa junto com a execução — não há o que esperar
   // antes de começar a obter.
   run.stepStartedAt = { fetching: run.startedAt }
   await database.importRuns.add(run)
+
+  // O batimento é independente do progresso de propósito: a obtenção de uma
+  // lista grande passa minutos sem nenhum lote a relatar, e nesse intervalo
+  // a execução pareceria órfã para quem só olha os contadores.
+  const heartbeat = setInterval(() => {
+    run.heartbeatAt = now()
+    void database.importRuns.update(run.id, { heartbeatAt: run.heartbeatAt }).catch(() => {
+      // Banco fechado ou registro já removido: o batimento é diagnóstico,
+      // nunca motivo para derrubar a importação.
+    })
+  }, HEARTBEAT_INTERVAL_MS)
   // Um progresso imediato, antes de qualquer rede. Sem ele, a tela fica sem
   // nenhuma informação durante todo o download — que numa lista grande são
   // minutos parecendo travamento — e a etapa de obtenção não tem instante
@@ -183,6 +288,7 @@ export async function startImport(
   let cancelled = false
 
   async function persist(): Promise<void> {
+    run.heartbeatAt = now()
     const { id, ...changes } = run
     await database.importRuns.update(id, changes)
     options.onProgress?.({ ...run })
@@ -230,7 +336,7 @@ export async function startImport(
       }
     }
 
-    async function consumeM3u(url: string): Promise<void> {
+    async function consumeM3u(url: string, refine = false): Promise<void> {
       let response: Response
       try {
         response = await fetch(url)
@@ -255,7 +361,8 @@ export async function startImport(
       for await (const entry of parseM3uLines(linesFromResponse(response.body), tally)) {
         if (cancelled) throw new ImportCancelledError()
         sawAny = true
-        await accept(classifyWithGroupOrder(entry, groupOrders))
+        const classified = classifyWithGroupOrder(entry, groupOrders)
+        await accept(refine ? refineFromUrl(classified) : classified)
       }
       run.invalidCount = tally.invalidCount
       if (!sawAny) throw new EmptyPlaylistError()
@@ -277,23 +384,47 @@ export async function startImport(
       if (!status.authorized) throw new ProviderError('invalid_credentials', 'Acesso negado.')
       allowedFormats = status.allowedFormats
 
+      /**
+       * Uma seção de cada vez, consumida antes de pedir a próxima.
+       *
+       * Pedir canais, filmes e séries em paralelo obriga as três listas
+       * inteiras a coexistirem em memória antes da primeira gravação —
+       * triplicando o pico que o caminho de fluxo do M3U (D-002) foi feito
+       * para evitar, justamente no aparelho com menos memória.
+       */
+      async function ingest(acquire: () => Promise<MappedChannel[]>): Promise<void> {
+        for (const item of await acquire()) {
+          if (cancelled) throw new ImportCancelledError()
+          await accept(item)
+        }
+      }
+
+      /**
+       * Seção que o painel não serve não derruba a importação — mas também
+       * não vira lista vazia em silêncio. Só a incompatibilidade é tolerada:
+       * credencial recusada e falha de rede continuam subindo, porque são
+       * problemas da fonte inteira, não daquela seção.
+       */
+      async function ingestOptional(
+        section: CatalogSection,
+        acquire: () => Promise<MappedChannel[]>,
+      ): Promise<void> {
+        try {
+          await ingest(acquire)
+        } catch (error) {
+          if (!(error instanceof ProviderIncompatibleError)) throw error
+          logger.warn(`Painel não serviu a seção ${section}`, error)
+          run.unavailableSections = [...(run.unavailableSections ?? []), section]
+        }
+      }
+
       try {
-        const resultPromise = acquireXtreamChannels(
+        const result = await acquireXtreamChannels(
           credential.dns,
           credential.username,
           credential.password,
           status,
         )
-        const vodsPromise = acquireXtreamVod(credential.dns, credential.username, credential.password).catch((e) => {
-          logger.warn('Erro isolado ao importar VOD via painel', e)
-          return []
-        })
-        const seriesPromise = acquireXtreamSeries(credential.dns, credential.username, credential.password).catch((e) => {
-          logger.warn('Erro isolado ao importar series via painel', e)
-          return []
-        })
-
-        const [result, vods, series] = await Promise.all([resultPromise, vodsPromise, seriesPromise])
         mode = 'xtream_api'
         enterStep('parsing')
         await persist()
@@ -302,21 +433,23 @@ export async function startImport(
           if (cancelled) throw new ImportCancelledError()
           await accept(channel)
         }
-        for (const vod of vods) {
-          if (cancelled) throw new ImportCancelledError()
-          await accept(vod)
-        }
-        for (const s of series) {
-          if (cancelled) throw new ImportCancelledError()
-          await accept(s)
-        }
+
+        await ingestOptional('movie', () =>
+          acquireXtreamVod(credential.dns, credential.username, credential.password),
+        )
+        await ingestOptional('series', () =>
+          acquireXtreamSeries(credential.dns, credential.username, credential.password),
+        )
       } catch (error) {
         if (!(error instanceof ProviderIncompatibleError)) throw error
         // O painel não fala o protocolo JSON: cai no caminho M3U legado.
         // É o "modo limitado" — menos informação por item, mas a fonte
         // continua utilizável, e o registro diz por qual caminho veio.
         mode = 'legacy_m3u'
-        await consumeM3u(legacyM3uUrl(credential.dns, credential.username, credential.password))
+        await consumeM3u(
+          legacyM3uUrl(credential.dns, credential.username, credential.password),
+          true,
+        )
       }
     } else {
       await consumeM3u(source!.m3uUrl as string)
@@ -395,6 +528,11 @@ export async function startImport(
         await persist()
       }
       return { ...run }
+    })
+    .finally(() => {
+      // Terminada a execução, o batimento não tem mais o que anunciar — e um
+      // temporizador vivo escreveria num banco que já pode ter sido fechado.
+      clearInterval(heartbeat)
     })
 
   return {

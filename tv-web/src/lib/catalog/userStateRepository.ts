@@ -1,8 +1,56 @@
-import { db, type CatalogDb, type UserStateRecord } from './db'
+/**
+ * Favoritos e posição de retomada.
+ *
+ * A regra que organiza este arquivo é a identidade do item. A constitution
+ * exige que essas preferências sejam chaveadas por **fonte + tipo +
+ * identificador estável + temporada/episódio** — nunca pela URL, e nunca
+ * pelo nome de exibição. Nome é dado editorial do provedor: renomear
+ * "Die Hard" para "Die Hard (1988)" não deveria apagar o progresso de
+ * ninguém, e dois episódios chamados "Piloto" em temporadas diferentes não
+ * são o mesmo item.
+ */
 
-export function buildStableId(sourceId: string, type: string, originalName: string): string {
-  // Replace spaces and special chars to make a clean stable ID, or just concatenate
-  return `${sourceId}_${type}_${originalName.trim().toLowerCase()}`
+import { db, type CatalogDb, type CatalogItemKind, type UserStateRecord } from './db'
+
+/**
+ * O que identifica um item entre importações. Os campos opcionais refletem
+ * o que cada tipo de fonte de fato entrega — não há valor inventado para
+ * preencher o que a fonte não declarou.
+ */
+export interface StableIdentity {
+  sourceId: string
+  kind: CatalogItemKind
+  /** Identificador do painel. É o que sobrevive a renomeação e a troca de URL. */
+  providerStreamId?: string
+  seriesId?: string
+  seasonNumber?: number
+  episodeNumber?: number
+  /**
+   * Último recurso, só para fonte por URL M3U: ali não existe identificador
+   * separado. Menos estável que um id, e é por isso que só entra quando não
+   * há id nenhum.
+   */
+  originalName?: string
+}
+
+function identifier(identity: StableIdentity): string {
+  const own = identity.providerStreamId ?? identity.seriesId
+  if (own) return `id:${own}`
+  const name = identity.originalName?.trim().toLowerCase()
+  if (name) return `name:${name}`
+  throw new Error('Item sem identidade estável: nem identificador do painel, nem nome.')
+}
+
+export function buildStableId(identity: StableIdentity): string {
+  const parts = [identity.sourceId, identity.kind, identifier(identity)]
+
+  // Temporada/episódio entram na chave para dois episódios homônimos da
+  // mesma série não colidirem num único registro de progresso.
+  if (identity.kind === 'episode') {
+    parts.push(`s${identity.seasonNumber ?? 0}`, `e${identity.episodeNumber ?? 0}`)
+  }
+
+  return parts.join('|')
 }
 
 export async function getUserState(
@@ -12,28 +60,53 @@ export async function getUserState(
   return database.userStates.get(stableId)
 }
 
+/**
+ * Lê-altera-grava numa transação só.
+ *
+ * Duas chamadas concorrentes para o mesmo item — favoritar e salvar
+ * progresso ao sair do player, por exemplo — leriam as duas o estado
+ * ausente e as duas tentariam `add`, e a segunda estouraria
+ * `ConstraintError`. Dentro da transação, a segunda enxerga o que a
+ * primeira gravou.
+ */
+async function upsert(
+  stableId: string,
+  sourceId: string,
+  patch: (current: UserStateRecord) => UserStateRecord,
+  database: CatalogDb = db,
+): Promise<void> {
+  await database.transaction('rw', database.userStates, async () => {
+    const now = Date.now()
+    const existing = await database.userStates.get(stableId)
+    const base: UserStateRecord = existing ?? {
+      stableId,
+      sourceId,
+      isFavorite: false,
+      createdAt: now,
+      updatedAt: now,
+    }
+    await database.userStates.put({ ...patch(base), updatedAt: now })
+  })
+}
+
 export async function toggleFavorite(
   stableId: string,
   sourceId: string,
   isFavorite: boolean,
   database: CatalogDb = db,
 ): Promise<void> {
-  const existing = await database.userStates.get(stableId)
-  const now = Date.now()
-  if (existing) {
-    await database.userStates.update(stableId, {
+  await upsert(
+    stableId,
+    sourceId,
+    (current) => ({
+      ...current,
       isFavorite,
-      updatedAt: now,
-    })
-  } else {
-    await database.userStates.add({
-      stableId,
-      sourceId,
-      isFavorite,
-      createdAt: now,
-      updatedAt: now,
-    })
-  }
+      // Deixar de ser favorito apaga o instante — é o que tira o registro do
+      // índice, em vez de mantê-lo lá com uma marca "mas não conta".
+      favoritedAt: isFavorite ? (current.favoritedAt ?? Date.now()) : undefined,
+    }),
+    database,
+  )
 }
 
 export async function updateProgress(
@@ -42,40 +115,25 @@ export async function updateProgress(
   progressSeconds: number,
   database: CatalogDb = db,
 ): Promise<void> {
-  const existing = await database.userStates.get(stableId)
-  const now = Date.now()
-  if (existing) {
-    await database.userStates.update(stableId, {
-      progressSeconds,
-      lastWatched: now,
-      updatedAt: now,
-    })
-  } else {
-    await database.userStates.add({
-      stableId,
-      sourceId,
-      isFavorite: false,
-      progressSeconds,
-      lastWatched: now,
-      createdAt: now,
-      updatedAt: now,
-    })
-  }
+  await upsert(
+    stableId,
+    sourceId,
+    (current) => ({ ...current, progressSeconds, lastWatched: Date.now() }),
+    database,
+  )
 }
-
-
 
 export async function getGlobalFavorites(
   database: CatalogDb = db,
 ): Promise<UserStateRecord[]> {
-  const all = await database.userStates.toArray()
-  return all.filter(s => s.isFavorite).sort((a, b) => b.updatedAt - a.updatedAt)
+  // Pelo índice, do favoritado mais recente para o mais antigo. Registro sem
+  // `favoritedAt` não está no índice — que é exatamente "não é favorito".
+  return database.userStates.orderBy('favoritedAt').reverse().toArray()
 }
 
 export async function getContinueWatching(
   database: CatalogDb = db,
 ): Promise<UserStateRecord[]> {
-  const all = await database.userStates.toArray()
-  return all.filter(s => s.progressSeconds !== undefined && s.progressSeconds > 0)
-            .sort((a, b) => (b.lastWatched || 0) - (a.lastWatched || 0))
+  const started = await database.userStates.orderBy('lastWatched').reverse().toArray()
+  return started.filter((state) => (state.progressSeconds ?? 0) > 0)
 }

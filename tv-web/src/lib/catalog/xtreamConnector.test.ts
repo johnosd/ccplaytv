@@ -6,6 +6,7 @@ import {
   legacyM3uUrl,
   mapLiveEntry,
   normalizeServerAddress,
+  parseXtreamStreamUrl,
   preferredFormat,
   ProviderIncompatibleError,
   resolveAccountStatus,
@@ -288,6 +289,52 @@ describe('montagem de URL', () => {
   })
 })
 
+describe('requisição ao protocolo JSON', () => {
+  it('não manda cabeçalho próprio, para o GET não virar requisição com verificação prévia', async () => {
+    // Qualquer cabeçalho fora da lista segura de CORS dispara um `OPTIONS`
+    // que painel Xtream não responde — e aí *nenhuma* consulta ao protocolo
+    // JSON funciona. Como a falha chega ao JavaScript como erro genérico de
+    // rede, ela se disfarça de "provedor recusa conexão direta".
+    const fetchSpy = vi.fn().mockResolvedValue(
+      jsonResponse({ user_info: { auth: 1, allowed_output_formats: ['ts'] } }),
+    )
+    vi.stubGlobal('fetch', fetchSpy)
+
+    await resolveAccountStatus('http://exemplo.test', 'u', 'p')
+
+    const init = fetchSpy.mock.calls[0][1]
+    expect(init?.headers).toBeUndefined()
+  })
+})
+
+describe('parseXtreamStreamUrl', () => {
+  it('recupera tipo, identificador e extensão da forma com segmento de tipo', () => {
+    expect(parseXtreamStreamUrl('http://exemplo.test/movie/u/p/100.mkv')).toEqual({
+      kind: 'movie',
+      streamId: '100',
+      extension: 'mkv',
+    })
+    expect(parseXtreamStreamUrl('http://exemplo.test/series/u/p/1001.mp4')).toEqual({
+      kind: 'series',
+      streamId: '1001',
+      extension: 'mp4',
+    })
+  })
+
+  it('trata a forma antiga sem segmento de tipo como canal ao vivo', () => {
+    expect(parseXtreamStreamUrl('http://exemplo.test/u/p/42.ts')).toEqual({
+      kind: 'live',
+      streamId: '42',
+      extension: 'ts',
+    })
+  })
+
+  it('devolve indefinido para o que não é URL de painel', () => {
+    expect(parseXtreamStreamUrl('http://exemplo.test/stream.m3u8')).toBeUndefined()
+    expect(parseXtreamStreamUrl('nem-url')).toBeUndefined()
+  })
+})
+
   describe('VOD and Series Extension', () => {
     it('acquireXtreamVod should map VOD entries correctly', async () => {
       vi.stubGlobal('fetch', vi.fn().mockImplementation(async (req) => {
@@ -297,7 +344,18 @@ describe('montagem de URL', () => {
         }
         if (url.searchParams.get('action') === 'get_vod_streams') {
           return jsonResponse([
-            { stream_id: 100, name: ' Die Hard ', category_id: '10', container_extension: 'mkv' }
+            // `stream_type: "movie"` é o que o painel real manda neste
+            // endpoint. Sem ele na fixture, uma guarda invertida passaria
+            // no teste e devolveria zero filme contra o provedor.
+            {
+              stream_id: 100,
+              stream_type: 'movie',
+              name: ' Die Hard ',
+              category_id: '10',
+              container_extension: 'mkv',
+            },
+            // Entrada de outro tipo no meio da lista não vira filme.
+            { stream_id: 101, stream_type: 'live', name: 'Canal Intruso', category_id: '10' },
           ])
         }
         return new Response(null, { status: 404 })

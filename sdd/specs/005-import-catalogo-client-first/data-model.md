@@ -102,6 +102,20 @@ formato permitido (FR-010). Isso mantém a identidade do item independente
 da URL, como a constitution exige, e evita espalhar a credencial por
 milhares de registros.
 
+**Atualização (modo limitado, `legacy_m3u`).** Uma fonte de provedor cujo
+painel não fala o protocolo JSON cai no caminho M3U, onde a entrada só traz
+a URL pronta — que embute a credencial. Guardá-la copiaria a senha para
+milhares de registros, contra a regra acima; não guardar nada deixava todo
+item inabrível. A saída é reconstruir: a URL de um painel Xtream é montada
+a partir de `(tipo, identificador, extensão)`, então esses três pedaços são
+extraídos de volta (`parseXtreamStreamUrl`) e gravados no lugar da URL. O
+item continua reproduzível, a credencial continua morando só em `sources`,
+e o segmento de tipo (`/live/`, `/movie/`, `/series/`) — o painel declarando
+o que o item é — tem precedência sobre a heurística de nome do
+classificador. Entrada cuja URL não tem essa forma continua sem
+identificador e é marcada como não reproduzível, em vez de virar exceção
+silenciosa à fronteira de segredo.
+
 **Exceção declarada: fonte por URL M3U.** Ali a URL de reprodução **é** o
 dado que a lista fornece — não existe identificador separado a partir do
 qual reconstruí-la, e essa URL pode conter credencial embutida no próprio
