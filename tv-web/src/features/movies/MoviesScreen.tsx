@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   groupLabel,
   useCategoryContent,
@@ -6,8 +7,18 @@ import {
   useCategoryList,
 } from '../catalog/catalogApi'
 import { clamp, gridNextIndex, useRemoteNav } from '../../lib/useRemoteNav'
+import { usePosterColumnWidth } from '../../lib/focus/usePosterColumnWidth'
+import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 
 const GRID_COLS = 6
+/**
+ * Espaço vertical que cada linha da grade precisa além da altura do
+ * pôster (`aspect-ratio: 2/3`, feature 009 `research.md`/
+ * `logic/virtualizacao-foco.md` §4): título (15px + margin-top 10px) +
+ * metadado (13px) + o espaçamento entre linhas que a posição absoluta
+ * deixou de herdar do `gap: 24px` que `.poster-grid` tinha como CSS Grid.
+ */
+const POSTER_ROW_EXTRA_PX = 68
 
 export interface MoviesScreenProps {
   sourceId: string
@@ -56,6 +67,29 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
    */
   const [focusedMovieId, setFocusedMovieId] = useState<string | null>(null)
   const movieIdx = locate(movies, (movie) => movie.id === focusedMovieId)
+
+  // Só o painel de conteúdo (col 1) é virtualizado — nunca a trilha de
+  // categorias (D-004). Grade com `lanes: GRID_COLS`, nunca dois
+  // virtualizadores compostos (D-005).
+  const gridContainerRef = useRef<HTMLDivElement>(null)
+  const columnWidth = usePosterColumnWidth(gridContainerRef, GRID_COLS)
+  const rowHeight = columnWidth * 1.5 + POSTER_ROW_EXTRA_PX
+
+  const movieVirtualizer = useVirtualizer({
+    count: movies.length,
+    getScrollElement: () => gridContainerRef.current,
+    estimateSize: () => rowHeight,
+    lanes: GRID_COLS,
+    overscan: GRID_COLS,
+  })
+
+  const moviesNavigable =
+    col === 1 && !content.isLoading && content.data?.outcome !== 'failed' && movies.length > 0
+  useVirtualFocusSync({
+    focusedIndex: movieIdx,
+    scrollToIndex: movieVirtualizer.scrollToIndex,
+    enabled: moviesNavigable,
+  })
 
   function enter(category: (typeof categories)[number]) {
     if (enteredCategoryId !== category.id) {
@@ -219,21 +253,35 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
         )}
 
         {showingContent && !content.isLoading && !contentFailed && movies.length > 0 && (
-          <div className="poster-grid">
-            {movies.map((movie, i) => (
-              <div key={movie.id}>
-                <div className={`poster-box${col === 1 && movieIdx === i ? ' tv-focus' : ''}`}>
-                  <div className="poster-box-noise" />
-                  <span className="poster-box-label">
-                    pôster
-                    <br />
-                    {movie.name}
-                  </span>
-                </div>
-                <div className="poster-card-title">{movie.name}</div>
-                <div className="poster-card-meta">{movie.original_group ?? 'Filme'}</div>
-              </div>
-            ))}
+          <div ref={gridContainerRef} className="poster-grid">
+            <div className="poster-grid-inner" style={{ height: movieVirtualizer.getTotalSize() }}>
+              {movieVirtualizer.getVirtualItems().map((virtualRow) => {
+                const movie = movies[virtualRow.index]
+                if (!movie) return null
+                return (
+                  <div
+                    key={movie.id}
+                    className="poster-cell"
+                    style={{
+                      left: `${(virtualRow.lane / GRID_COLS) * 100}%`,
+                      width: `${100 / GRID_COLS}%`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <div className={`poster-box${col === 1 && movieIdx === virtualRow.index ? ' tv-focus' : ''}`}>
+                      <div className="poster-box-noise" />
+                      <span className="poster-box-label">
+                        pôster
+                        <br />
+                        {movie.name}
+                      </span>
+                    </div>
+                    <div className="poster-card-title">{movie.name}</div>
+                    <div className="poster-card-meta">{movie.original_group ?? 'Filme'}</div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 

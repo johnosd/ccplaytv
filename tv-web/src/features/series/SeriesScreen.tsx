@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   groupLabel,
   useCategoryContent,
@@ -6,8 +7,18 @@ import {
   useCategoryList,
 } from '../catalog/catalogApi'
 import { clamp, gridNextIndex, useRemoteNav } from '../../lib/useRemoteNav'
+import { usePosterColumnWidth } from '../../lib/focus/usePosterColumnWidth'
+import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 
 const GRID_COLS = 6
+/**
+ * Espaço vertical que cada linha da grade precisa além da altura do
+ * pôster (`aspect-ratio: 2/3`, feature 009 `research.md`/
+ * `logic/virtualizacao-foco.md` §4): título (15px + margin-top 10px) +
+ * metadado (13px) + o espaçamento entre linhas que a posição absoluta
+ * deixou de herdar do `gap: 24px` que `.poster-grid` tinha como CSS Grid.
+ */
+const POSTER_ROW_EXTRA_PX = 68
 
 export interface SeriesScreenProps {
   sourceId: string
@@ -49,6 +60,29 @@ export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenPro
   // uma atualização em segundo plano pode encurtar a lista debaixo do foco.
   const [focusedSeriesId, setFocusedSeriesId] = useState<string | null>(null)
   const seriesIdx = locate(series, (item) => item.id === focusedSeriesId)
+
+  // Só o painel de conteúdo (col 1) é virtualizado — nunca a trilha de
+  // categorias (D-004). Grade com `lanes: GRID_COLS`, nunca dois
+  // virtualizadores compostos (D-005).
+  const gridContainerRef = useRef<HTMLDivElement>(null)
+  const columnWidth = usePosterColumnWidth(gridContainerRef, GRID_COLS)
+  const rowHeight = columnWidth * 1.5 + POSTER_ROW_EXTRA_PX
+
+  const seriesVirtualizer = useVirtualizer({
+    count: series.length,
+    getScrollElement: () => gridContainerRef.current,
+    estimateSize: () => rowHeight,
+    lanes: GRID_COLS,
+    overscan: GRID_COLS,
+  })
+
+  const seriesNavigable =
+    col === 1 && !content.isLoading && content.data?.outcome !== 'failed' && series.length > 0
+  useVirtualFocusSync({
+    focusedIndex: seriesIdx,
+    scrollToIndex: seriesVirtualizer.scrollToIndex,
+    enabled: seriesNavigable,
+  })
 
   function enter(category: (typeof categories)[number]) {
     if (enteredCategoryId !== category.id) {
@@ -210,21 +244,35 @@ export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenPro
         )}
 
         {showingContent && !content.isLoading && !contentFailed && series.length > 0 && (
-          <div className="poster-grid">
-            {series.map((item, i) => (
-              <div key={item.id}>
-                <div className={`poster-box${col === 1 && seriesIdx === i ? ' tv-focus' : ''}`}>
-                  <div className="poster-box-noise" />
-                  <span className="poster-box-label">
-                    pôster
-                    <br />
-                    {item.name}
-                  </span>
-                </div>
-                <div className="poster-card-title">{item.name}</div>
-                <div className="poster-card-meta">{item.original_group ?? 'Série'}</div>
-              </div>
-            ))}
+          <div ref={gridContainerRef} className="poster-grid">
+            <div className="poster-grid-inner" style={{ height: seriesVirtualizer.getTotalSize() }}>
+              {seriesVirtualizer.getVirtualItems().map((virtualRow) => {
+                const item = series[virtualRow.index]
+                if (!item) return null
+                return (
+                  <div
+                    key={item.id}
+                    className="poster-cell"
+                    style={{
+                      left: `${(virtualRow.lane / GRID_COLS) * 100}%`,
+                      width: `${100 / GRID_COLS}%`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <div className={`poster-box${col === 1 && seriesIdx === virtualRow.index ? ' tv-focus' : ''}`}>
+                      <div className="poster-box-noise" />
+                      <span className="poster-box-label">
+                        pôster
+                        <br />
+                        {item.name}
+                      </span>
+                    </div>
+                    <div className="poster-card-title">{item.name}</div>
+                    <div className="poster-card-meta">{item.original_group ?? 'Série'}</div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 

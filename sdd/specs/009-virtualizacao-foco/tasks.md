@@ -151,16 +151,16 @@ TV e de truncar em 500.
 
 ### Testes da Fase
 
-- [ ] T009 [P] [US1] Em `tv-web/src/features/live/LiveScreen.test.tsx`:
+- [X] T009 [P] [US1] Em `tv-web/src/features/live/LiveScreen.test.tsx`:
       categoria mockada com milhares de canais monta só uma fração deles
       no DOM (não todos).
-- [ ] T010 [US1] Em `LiveScreen.test.tsx`: mover o foco para um índice fora
+- [X] T010 [US1] Em `LiveScreen.test.tsx`: mover o foco para um índice fora
       da janela renderizada aciona `scrollToIndex` e o item correspondente
       aparece com a classe `tv-focus` depois do próximo render.
 
 ### Implementation
 
-- [ ] T011 [US1] Em `LiveScreen.tsx`: painel de canais (col 1) passa a usar
+- [X] T011 [US1] Em `LiveScreen.tsx`: painel de canais (col 1) passa a usar
       `useVirtualizer` (lista 1D, sem `lanes`) + `useVirtualFocusSync`
       (`logic/virtualizacao-foco.md` §3), no lugar do `.map` direto sobre
       `items`. Inclui o CSS que a T008 resequenciou: em
@@ -170,7 +170,7 @@ TV e de truncar em 500.
       mesma classe `.live-item` e **não pode** ganhar altura fixa, D-004),
       e o contêiner do painel preparado para itens posicionados de forma
       absoluta (`position: relative`, altura igual a `getTotalSize()`).
-- [ ] T012 [US1] Em `tv-web/src/features/catalog/catalogApi.ts`,
+- [X] T012 [US1] Em `tv-web/src/features/catalog/catalogApi.ts`,
       `loadCategoryContent`: quando `category.kind === 'channel'`, a
       chamada a `listChannels` deixa de usar `CHANNELS_PER_GROUP_CAP` como
       limite (usar `Number.MAX_SAFE_INTEGER`, mesmo padrão de "sem teto"
@@ -186,10 +186,50 @@ posição.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: Concluído
+- Feito: `LiveScreen.tsx` passa a usar `useVirtualizer` (lista 1D, sem
+  `lanes`) para o painel de canais (col 1), sincronizado por
+  `useVirtualFocusSync` (Fase 2). CSS que a T008 resequenciou entrou junto
+  (`screens.css`): `.live-column-channels .live-item` ganhou altura fixa
+  (72px) e posicionamento absoluto — escopado à coluna de canais, sem
+  afetar `.live-column-groups .live-item` (D-004); `.live-channel-list`
+  (novo, `flex:1; min-height:0; overflow:auto`) e `.live-channel-list-inner`
+  (spacer com `height: getTotalSize()`) formam o par padrão de virtualização
+  do TanStack Virtual, aninhados dentro de `.live-column-channels` junto do
+  título e das mensagens de estado (que continuam em fluxo normal, fora da
+  janela virtual). `catalogApi.ts`/`loadCategoryContent`: canais passam a
+  ler com `limit = Number.MAX_SAFE_INTEGER` (mesmo padrão de "sem teto" que
+  `catalogRepository.ts` já usa em `KEY_MAX`); filmes/séries continuam com
+  `CHANNELS_PER_GROUP_CAP` até a Fase 4 (T017).
+  **Achado durante a fase, sem task nova (bug inline, corrigido dentro das
+  próprias T009/T010)**: `research.md`/`logic/virtualizacao-foco.md`/
+  `quickstart.md`, citados como prerequisitos deste `tasks.md` e pelos hooks
+  da Fase 2, nunca chegaram a ser commitados neste repositório (confirmado
+  por `git log --all` — zero ocorrências) — existiram só como estado não
+  commitado de uma sessão anterior e não sobreviveram à troca de container.
+  Implementação desta fase seguiu as decisões já registradas em `plan.md`
+  (D-001 a D-006) e a descrição detalhada de cada task em vez do
+  pseudocódigo normativo perdido. Registrado como R-007 abaixo —
+  recomendação: rodar `sdd-plan` de novo só para regenerar esses três
+  arquivos antes da Fase 4, já que T015/T016 citam `logic/virtualizacao-foco.md`
+  §4 e `research.md` R0-1 explicitamente.
+- Testes executados: `npx vitest run` (`tv-web/`) — 265/265 (30 arquivos, 2
+  novos: T009/T010 em `LiveScreen.test.tsx`). `npx tsc -b` limpo. `npx oxlint`
+  limpo (1 aviso informativo, não bloqueante, sobre `useVirtualizer` retornar
+  funções não memoizáveis — esperado para esta API, documentado em R-008).
+  `npm run build` limpo (`tsc -b && vite build`, chunks inalterados fora de
+  `index.js`/`index.css`).
+  T009/T010 exigiram um achado de teste não previsto (corrigido inline, sem
+  task nova): jsdom não implementa `Element.scrollTo` nem faz layout real —
+  sem mockar `offsetHeight`/`offsetWidth` **e** `clientHeight`/`scrollHeight`
+  juntos, o `getMaxScrollOffset()` interno do `@tanstack/virtual-core`
+  grampeia todo `scrollToIndex` em 0 (`scrollHeight - clientHeight = 0 - 0`),
+  e a janela nunca se move mesmo com o resto mockado certo. Documentado como
+  R-008, relevante de novo na Fase 4 (`MoviesScreen.test.tsx`/
+  `SeriesScreen.test.tsx`, T013/T014).
+- Pendências: nenhuma conhecida para o escopo de US1. Verificação na TV
+  física (rolagem/latência reais, SC-001/SC-002) fica para a Fase 5
+  (T018), que cobre as três telas de uma vez.
 
 ---
 
@@ -206,15 +246,15 @@ Séries.
 
 ### Testes da Fase
 
-- [ ] T013 [P] Em `tv-web/src/features/movies/MoviesScreen.test.tsx`:
+- [X] T013 [P] Em `tv-web/src/features/movies/MoviesScreen.test.tsx`:
       categoria mockada com milhares de filmes monta só uma fração deles
       no DOM, distribuída em `GRID_COLS` colunas.
-- [ ] T014 [P] Em `tv-web/src/features/series/SeriesScreen.test.tsx`:
+- [X] T014 [P] Em `tv-web/src/features/series/SeriesScreen.test.tsx`:
       mesmo teste para séries.
 
 ### Implementation
 
-- [ ] T015 [P] Em `MoviesScreen.tsx`: grade de pôsteres (col 1) passa a
+- [X] T015 [P] Em `MoviesScreen.tsx`: grade de pôsteres (col 1) passa a
       usar `useVirtualizer` com `lanes: GRID_COLS` + `usePosterColumnWidth`
       + `useVirtualFocusSync` (`logic/virtualizacao-foco.md` §4), no lugar
       da `<div className="poster-grid">` com `.map` direto. Inclui o CSS
@@ -223,10 +263,10 @@ Séries.
       `left`/`width` em porcentagem por item, não mais de
       `grid-template-columns` — `research.md` R0-1), com altura igual a
       `getTotalSize()`.
-- [ ] T016 [P] Em `SeriesScreen.tsx`: mesmo tratamento (a mudança de CSS de
+- [X] T016 [P] Em `SeriesScreen.tsx`: mesmo tratamento (a mudança de CSS de
       `.poster-grid` em T015 já vale para as duas telas, por ser a mesma
       classe — nada novo a mudar em `screens.css` aqui).
-- [ ] T017 Em `catalogApi.ts`, `loadCategoryContent`: remover
+- [X] T017 Em `catalogApi.ts`, `loadCategoryContent`: remover
       `CHANNELS_PER_GROUP_CAP` também para `movie`/`series` — as três
       seções passam a buscar a categoria inteira (D-002 completo). Depois
       desta task, `CHANNELS_PER_GROUP_CAP` fica sem nenhum consumidor em
@@ -241,10 +281,42 @@ grandes, mantendo a grade de 6 colunas fluida.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: Concluído
+- Feito: `MoviesScreen.tsx`/`SeriesScreen.tsx` passam a usar `useVirtualizer`
+  com `lanes: GRID_COLS` (6) + `usePosterColumnWidth` (mede a largura real
+  do contêiner, feature 009 R0-2) + `useVirtualFocusSync`, seguindo
+  `logic/virtualizacao-foco.md` §4 à risca — inclusive a constante
+  `POSTER_ROW_EXTRA_PX` (68px: título + metadado + espaçamento entre
+  linhas que a posição absoluta deixou de herdar do `gap` do CSS Grid).
+  `screens.css`: `.poster-grid` troca `display: grid` por
+  `position: relative; overflow: auto; flex: 1; min-height: 0`;
+  `.poster-grid-inner` (spacer com `height: getTotalSize()`) e
+  `.poster-cell` (posicionamento absoluto, `left`/`width` em porcentagem
+  por `lane`) são novos — a mesma mudança de CSS vale para as duas telas,
+  por usarem a mesma classe (T016 não precisou de nenhuma mudança própria
+  em `screens.css`). `catalogApi.ts`: `loadCategoryContent` não aplica mais
+  `CHANNELS_PER_GROUP_CAP` para nenhuma seção (D-002 completo) — o import
+  do símbolo foi removido de `catalogApi.ts` (sem mais consumidor ali;
+  `groupChannels()`/`CHANNELS_PER_GROUP_CAP` continuam existindo em
+  `groupChannels.ts`, já sem uso em produção desde a feature 010, R-012 —
+  não é escopo desta feature remover o arquivo).
+- Testes executados: `npx vitest run` (`tv-web/`) — 267/267 (30 arquivos, +2
+  novos: T013/T014). `npx tsc -b`, `npx oxlint` (3 avisos informativos, não
+  bloqueantes, sobre `useVirtualizer` retornar funções não memoizáveis — um
+  por tela virtualizada agora, mesmo aviso de R-008) e `npm run build`
+  limpos.
+  Achado inline durante T013/T014 (corrigido na própria task, sem task
+  nova): `class FakeResizeObserver { constructor(private callback...) {} }`
+  nos dois novos blocos de mock falha o build com
+  `TS1294: This syntax is not allowed when 'erasableSyntaxOnly' is enabled`
+  (vitest tolera, `tsc -b` não) — corrigido trocando a propriedade de
+  parâmetro do construtor por um campo de classe normal atribuído no corpo
+  do construtor, mesmo padrão que `usePosterColumnWidth.test.ts` já usava
+  (lá com uma variável de closure em vez de campo de classe).
+- Pendências: nenhuma conhecida para o escopo de D-003. Verificação visual
+  da grade de 6 colunas fluidas (Cenário C do `quickstart.md`) e a
+  verificação completa na TV física (Cenários A/B/D, SC-001/SC-002) ficam
+  para a Fase 5 (T018).
 
 ---
 
@@ -263,10 +335,10 @@ grandes, mantendo a grade de 6 colunas fluida.
 
 ### Checklist de Release
 
-- [ ] Fase 1 (Setup) concluída
-- [ ] Fase 2 (Foundational) concluída
-- [ ] Fase 3 (US1 — Live TV) concluída
-- [ ] Fase 4 (Filmes/Séries, extensão D-003) concluída
+- [X] Fase 1 (Setup) concluída
+- [X] Fase 2 (Foundational) concluída
+- [X] Fase 3 (US1 — Live TV) concluída
+- [X] Fase 4 (Filmes/Séries, extensão D-003) concluída
 - [ ] `npm run test`, `npm run lint` e `npm run build` passando
 - [ ] `quickstart.md` executado, com veredito honesto por cenário
 - [ ] Nenhum valor de layout hardcoded fora dos tokens de `index.css` (ADR-007)

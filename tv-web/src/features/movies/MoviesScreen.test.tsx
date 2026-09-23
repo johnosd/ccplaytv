@@ -1,9 +1,77 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MoviesScreen } from './MoviesScreen'
 import * as catalogApi from '../catalog/catalogApi'
 import type { CatalogCategory, CatalogItemOut, CategoryFetchOutcome } from '../catalog/catalogApi'
+
+/**
+ * jsdom não faz layout de verdade nem implementa `Element.scrollTo`
+ * (feature 009, grade de pôsteres virtualizada por `@tanstack/react-virtual`
+ * + `usePosterColumnWidth`). Mesmo bloco de `LiveScreen.test.tsx` — ver
+ * `research.md` R0-4 para o porquê de cada mock (em especial
+ * `clientHeight`/`scrollHeight`, sem os quais `scrollToIndex` fica
+ * grampeado em 0).
+ */
+let restoreOffsetHeight: PropertyDescriptor | undefined
+let restoreOffsetWidth: PropertyDescriptor | undefined
+let restoreClientHeight: PropertyDescriptor | undefined
+let restoreScrollHeight: PropertyDescriptor | undefined
+let restoreScrollTo: PropertyDescriptor | undefined
+let restoreResizeObserver: typeof globalThis.ResizeObserver | undefined
+
+beforeAll(() => {
+  restoreOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')
+  restoreOffsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth')
+  restoreClientHeight = Object.getOwnPropertyDescriptor(Element.prototype, 'clientHeight')
+  restoreScrollHeight = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollHeight')
+  restoreScrollTo = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollTo')
+  restoreResizeObserver = globalThis.ResizeObserver
+
+  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, value: 640 })
+  Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, value: 1200 })
+  Object.defineProperty(Element.prototype, 'clientHeight', { configurable: true, value: 640 })
+  Object.defineProperty(Element.prototype, 'scrollHeight', { configurable: true, value: 1_000_000 })
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+    configurable: true,
+    writable: true,
+    value: function scrollTo(this: HTMLElement, options?: ScrollToOptions | number) {
+      const top = typeof options === 'object' && options !== null ? options.top : undefined
+      if (typeof top === 'number') this.scrollTop = top
+      // Assíncrono de propósito — ver o mesmo comentário em LiveScreen.test.tsx.
+      queueMicrotask(() => this.dispatchEvent(new Event('scroll')))
+    },
+  })
+
+  // `usePosterColumnWidth` só mede largura de verdade via `ResizeObserver` —
+  // sem isto, `columnWidth` fica em 0 pra sempre e a grade nunca sai do
+  // "estimateSize" mínimo (68px, só `POSTER_ROW_EXTRA_PX`).
+  class FakeResizeObserver {
+    callback: ResizeObserverCallback
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback
+    }
+    observe(target: Element) {
+      this.callback(
+        [{ contentRect: { width: 1200 } } as ResizeObserverEntry],
+        this as unknown as ResizeObserver,
+      )
+      void target
+    }
+    unobserve() {}
+    disconnect() {}
+  }
+  globalThis.ResizeObserver = FakeResizeObserver as unknown as typeof ResizeObserver
+})
+
+afterAll(() => {
+  if (restoreOffsetHeight) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', restoreOffsetHeight)
+  if (restoreOffsetWidth) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', restoreOffsetWidth)
+  if (restoreClientHeight) Object.defineProperty(Element.prototype, 'clientHeight', restoreClientHeight)
+  if (restoreScrollHeight) Object.defineProperty(Element.prototype, 'scrollHeight', restoreScrollHeight)
+  if (restoreScrollTo) Object.defineProperty(HTMLElement.prototype, 'scrollTo', restoreScrollTo)
+  globalThis.ResizeObserver = restoreResizeObserver as typeof ResizeObserver
+})
 
 vi.mock('../catalog/catalogApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../catalog/catalogApi')>()
@@ -127,6 +195,24 @@ describe('MoviesScreen', () => {
 
     const calls = vi.mocked(catalogApi.useCategoryContent).mock.calls
     expect(calls.every(([, cat]) => cat === undefined)).toBe(true)
+  })
+
+  it('categoria com milhares de filmes monta só uma fração deles no DOM, distribuída em GRID_COLS colunas (T013)', () => {
+    const many = Array.from({ length: 5000 }, (_, i) => movie(`Filme ${i}`, 'Ação'))
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({ 1: many })
+    renderMovies()
+
+    press('ArrowRight')
+
+    const rendered = document.querySelectorAll('.poster-grid .poster-card-title')
+    expect(rendered.length).toBeGreaterThan(0)
+    expect(rendered.length).toBeLessThan(many.length)
+
+    const lefts = new Set(
+      [...document.querySelectorAll('.poster-grid .poster-cell')].map((el) => (el as HTMLElement).style.left),
+    )
+    expect(lefts.size).toBe(6)
   })
 
   it('entrar na categoria mostra os filmes dela, e selecionar um abre o detalhe', () => {

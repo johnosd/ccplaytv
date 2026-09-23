@@ -15,7 +15,7 @@ import {
 } from '../../lib/catalog/catalogRepository'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
 import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
-import { CHANNELS_PER_GROUP_CAP, UNGROUPED_LABEL } from '../live/groupChannels'
+import { UNGROUPED_LABEL } from '../live/groupChannels'
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
 
@@ -96,7 +96,11 @@ export interface CategoryContent {
  */
 async function loadCategoryContent(sourceId: string, category: CatalogCategory): Promise<CategoryContent> {
   const result = await ensureCategory(sourceId, category)
-  const records = await listChannels(sourceId, category.order, 0, CHANNELS_PER_GROUP_CAP, category.kind)
+  // As três seções buscam a categoria inteira, sem teto de leitura (feature
+  // 009, D-002 completo) — painel de canais e grades de pôsteres agora
+  // virtualizam o que renderizam, então não precisam mais de um corte
+  // artificial pra não travar a TV.
+  const records = await listChannels(sourceId, category.order, 0, Number.MAX_SAFE_INTEGER, category.kind)
   const totalCount = await countChannels(sourceId, category.order, category.kind)
   return {
     items: records.map((record) => toItemOut(record, category.kind)),

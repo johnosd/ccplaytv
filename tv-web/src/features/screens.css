@@ -713,11 +713,28 @@
   overflow: auto;
 }
 
+/* Grade de pôsteres virtualizada (feature 009, D-003/D-005) — troca
+   `display: grid` por posicionamento absoluto com `lanes` do TanStack
+   Virtual; as colunas continuam fluidas via `left`/`width` em porcentagem
+   por item (`research.md` R0-1), calculados em MoviesScreen.tsx/
+   SeriesScreen.tsx, não fixados aqui. */
 .poster-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 24px;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
+  position: relative;
+}
+
+.poster-grid-inner {
+  position: relative;
+  width: 100%;
+}
+
+.poster-cell {
+  position: absolute;
+  top: 0;
+  box-sizing: border-box;
+  padding: 0 24px 24px 0;
 }
 
 .poster-card-title {
