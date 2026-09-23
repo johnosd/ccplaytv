@@ -1,6 +1,11 @@
-import { useMemo, useState } from 'react'
-import { useChannels, type CatalogItemOut } from '../catalog/catalogApi'
-import { groupChannels, type ChannelGroup } from './groupChannels'
+import { useState } from 'react'
+import {
+  groupLabel,
+  useCategoryContent,
+  useCategoryFocusPrefetch,
+  useCategoryList,
+  type CatalogItemOut,
+} from '../catalog/catalogApi'
 import { PlayerOverlay } from './PlayerOverlay'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
@@ -11,27 +16,19 @@ export interface LiveScreenProps {
   onBack: () => void
 }
 
-/** Identidade do item em foco — o que sobrevive a uma troca de catálogo em
- * segundo plano (feature 004, atualização por idade). É a fonte da verdade
- * guardada em estado; `groupIdx`/`channelIdx` são sempre DERIVADOS dela a
- * cada render (nunca o contrário), então não existe um frame em que o
- * índice aponta para dado antigo — se o catálogo mudou, a identidade é
- * relocalizada no mesmo cálculo que descobre onde ela está agora. */
+/**
+ * Identidade do que está em foco — o que sobrevive a uma troca de catálogo
+ * em segundo plano (feature 004) e a uma revalidação de categoria (feature
+ * 010, FR-019). `categoryIdx`/`channelIdx` são sempre DERIVADOS dela a cada
+ * render, nunca o contrário: não existe um frame em que o índice aponta
+ * para dado antigo.
+ */
 interface FocusIdentity {
-  groupName: string | null
+  categoryName: string | null
   channelId: string | null
 }
 
-function identityAt(groups: ChannelGroup[], groupIdx: number, channelIdx: number): FocusIdentity {
-  const group = groups[groupIdx]
-  return {
-    groupName: group?.name ?? null,
-    channelId: group?.channels[channelIdx]?.id ?? null,
-  }
-}
-
-/** Índice da identidade em `groups`, ou 0 se ela não existir mais (grupo/
- * canal removido do catálogo novo) — cai no início em vez de adivinhar. */
+/** Índice da identidade na lista, ou 0 se ela não existir mais — cai no início em vez de adivinhar. */
 function locate<T>(items: T[], matches: (item: T) => boolean): number {
   const idx = items.findIndex(matches)
   return idx === -1 ? 0 : idx
@@ -42,20 +39,51 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
   const [playing, setPlaying] = useState<CatalogItemOut | null>(null)
   const { toastMessage, showToast } = useToast()
 
-  const query = useChannels(sourceId)
-  const groups = useMemo(
-    () => groupChannels(query.data?.items ?? [], undefined, query.data?.group_totals),
-    [query.data],
-  )
+  // Estrutura: rápida, sempre segura de ler — nunca toca rede (FR-004).
+  const categoriesQuery = useCategoryList(sourceId, 'channel')
+  const categories = categoriesQuery.data ?? []
 
-  const [focusedIdentity, setFocusedIdentity] = useState<FocusIdentity>(() =>
-    identityAt(groups, 0, 0),
-  )
+  const [focusedIdentity, setFocusedIdentity] = useState<FocusIdentity>({
+    categoryName: null,
+    channelId: null,
+  })
+  const categoryIdx =
+    focusedIdentity.categoryName === null
+      ? 0
+      : locate(categories, (c) => groupLabel(c.name) === focusedIdentity.categoryName)
+  const focusedCategory = categories[categoryIdx]
 
-  const groupIdx = locate(groups, (g) => g.name === focusedIdentity.groupName)
-  const activeGroup = groups[groupIdx]
-  const channelIdx = locate(activeGroup?.channels ?? [], (c) => c.id === focusedIdentity.channelId)
-  const activeChannel = activeGroup?.channels[channelIdx]
+  // Pré-busca a categoria em foco depois que o cursor para nela por um
+  // instante (amortecido — ver `useCategoryFocusPrefetch`). Desvio
+  // deliberado de FR-004, pedido pelo usuário em 23/09/2026 ao ver a
+  // entrada sempre parecer "primeira vez" na TV física; registrado em
+  // `plan.md` R-013.
+  useCategoryFocusPrefetch(sourceId, focusedCategory)
+
+  /**
+   * "Entrada" na categoria — o que a pessoa comprometeu-se a ver (coluna de
+   * canais) troca de coluna e exibe o conteúdo. Como a categoria em foco já
+   * costuma estar pré-buscada (acima), isto raramente dispara rede de novo
+   * — mas quem decide se a exibição depende de categoria "entrada" ou só
+   * "focada" é aqui, não o pré-fetch.
+   */
+  const [enteredCategoryId, setEnteredCategoryId] = useState<number | null>(null)
+  const enteredCategory = categories.find((c) => c.id === enteredCategoryId)
+  const content = useCategoryContent(sourceId, enteredCategory)
+  const items = content.data?.items ?? []
+
+  const channelIdx = locate(items, (c) => c.id === focusedIdentity.channelId)
+  const activeChannel = items[channelIdx]
+
+  function enter(category: (typeof categories)[number]) {
+    if (enteredCategoryId !== category.id) {
+      setEnteredCategoryId(category.id)
+      // Trocar de categoria recomeça no primeiro canal — o item anterior de
+      // OUTRA categoria não é uma posição significativa.
+      setFocusedIdentity({ categoryName: groupLabel(category.name), channelId: null })
+    }
+    setCol(1)
+  }
 
   // Quando a camada de reprodução está aberta, ela é dona do teclado
   // (`modal: true`), então esta tela ignora as teclas — nada de navegar a
@@ -63,28 +91,37 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
   useRemoteNav({
     onDirection: (dir) => {
       if (playing) return
-      if (dir === 'left') setCol(0)
-      if (dir === 'right') setCol(1)
+      if (dir === 'left') {
+        setCol(0)
+        return
+      }
+      if (dir === 'right') {
+        if (focusedCategory) enter(focusedCategory)
+        return
+      }
 
       if (col === 0) {
         if (dir === 'up' || dir === 'down') {
-          const next = clamp(groupIdx + (dir === 'down' ? 1 : -1), 0, groups.length - 1)
-          if (next !== groupIdx) {
-            // Trocar de grupo recomeça no primeiro canal — o item anterior de
-            // OUTRO grupo não é uma posição significativa.
-            setFocusedIdentity(identityAt(groups, next, 0))
+          const next = clamp(categoryIdx + (dir === 'down' ? 1 : -1), 0, categories.length - 1)
+          if (next !== categoryIdx) {
+            setFocusedIdentity({ categoryName: groupLabel(categories[next]?.name), channelId: null })
           }
         }
       } else {
-        const total = activeGroup?.channels.length ?? 0
+        const total = items.length
         if (dir === 'up' || dir === 'down') {
           const next = clamp(channelIdx + (dir === 'down' ? 1 : -1), 0, Math.max(0, total - 1))
-          setFocusedIdentity(identityAt(groups, groupIdx, next))
+          setFocusedIdentity((prev) => ({ ...prev, channelId: items[next]?.id ?? null }))
         }
       }
     },
     onSelect: () => {
-      if (playing || col !== 1 || !activeChannel) return
+      if (playing) return
+      if (col === 0) {
+        if (focusedCategory) enter(focusedCategory)
+        return
+      }
+      if (!activeChannel) return
       if (!activeChannel.playable) {
         // Canal existe no catálogo mas não tem fonte de reprodução: explica,
         // não tenta abrir o player (FR-012).
@@ -95,11 +132,15 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
     },
     onBack: () => {
       if (playing) return
+      if (col === 1) {
+        setCol(0)
+        return
+      }
       onBack()
     },
   })
 
-  if (query.isLoading) {
+  if (categoriesQuery.isLoading) {
     return (
       <div className="screen">
         <div className="screen-title">Live TV</div>
@@ -116,7 +157,7 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
     )
   }
 
-  if (query.isError) {
+  if (categoriesQuery.isError) {
     return (
       <div className="screen">
         <div className="screen-title">Live TV</div>
@@ -129,7 +170,7 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
             <button
               type="button"
               className="live-state-action tv-focus"
-              onClick={() => void query.refetch()}
+              onClick={() => void categoriesQuery.refetch()}
             >
               Tentar de novo
             </button>
@@ -143,7 +184,7 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
     )
   }
 
-  if (groups.length === 0) {
+  if (categories.length === 0) {
     return (
       <div className="screen">
         <div className="screen-title">Live TV</div>
@@ -162,46 +203,110 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
     )
   }
 
+  const showingContent = col === 1
+  const contentFailed = showingContent && content.data?.outcome === 'failed'
+  const contentStale = showingContent && content.data?.outcome === 'stale-served'
+  /**
+   * O que o provedor prometeu e o que ele de fato entregou são fatos
+   * distintos (D-005) — quando os dois existem e divergem, a tela declara
+   * a diferença em vez de escondê-la (FR-015). Hoje isso quase nunca
+   * dispara contra um painel real (Xtream não declara contagem por
+   * categoria), mas o campo existe pronto para quando algum declarar.
+   */
+  const declaredCount = focusedCategory?.declaredCount
+  const realCount = content.data?.totalCount
+  const countsDiverge =
+    showingContent &&
+    !content.isLoading &&
+    declaredCount !== undefined &&
+    realCount !== undefined &&
+    declaredCount !== realCount
+
   return (
     <div className="screen screen-row">
       <div className="live-column live-column-groups">
         <div className="live-column-title">Grupos</div>
-        {groups.map((group, i) => (
+        {categories.map((category, i) => (
           <button
-            key={group.name}
+            key={category.id}
             type="button"
-            className={`live-item${col === 0 && groupIdx === i ? ' tv-focus' : ''}`}
+            className={`live-item${col === 0 && categoryIdx === i ? ' tv-focus' : ''}`}
           >
-            {group.name}
+            {groupLabel(category.name)}
           </button>
         ))}
       </div>
 
       <div className="live-column live-column-channels">
-        <div className="live-column-title">{activeGroup?.name}</div>
-        {activeGroup?.channels.length === 0 && (
+        <div className="live-column-title">{groupLabel(focusedCategory?.name)}</div>
+
+        {!showingContent && (
+          <div className="live-state-copy">Aponte para uma categoria e pressione OK para ver os canais.</div>
+        )}
+
+        {showingContent && content.isLoading && (
+          <div className="live-state">
+            <div className="live-state-copy">Carregando canais…</div>
+            <button type="button" className="live-state-action tv-focus">
+              Voltar
+            </button>
+          </div>
+        )}
+
+        {showingContent && contentFailed && (
+          <div className="live-state">
+            <div className="live-state-title">Não foi possível carregar esta categoria</div>
+            <button
+              type="button"
+              className="live-state-action tv-focus"
+              onClick={() => void content.refetch()}
+            >
+              Tentar de novo
+            </button>
+          </div>
+        )}
+
+        {showingContent && !content.isLoading && !contentFailed && items.length === 0 && (
           <div className="live-state-copy">Este grupo está vazio.</div>
         )}
-        {activeGroup?.channels.map((channel, i) => (
-          <button
-            key={channel.id}
-            type="button"
-            className={`live-item${col === 1 && channelIdx === i ? ' tv-focus' : ''}${
-              channel.playable ? '' : ' live-item-unavailable'
-            }`}
-          >
-            <span className="live-item-logo" aria-hidden="true" />
-            <span className="live-item-name">{channel.name}</span>
-            {!channel.playable && <span className="live-item-badge">Indisponível</span>}
-          </button>
-        ))}
-        {activeGroup?.truncated && (
+
+        {showingContent && !content.isLoading && !contentFailed && contentStale && (
+          <div className="live-truncated-note">
+            Não foi possível atualizar agora — mostrando o que já estava salvo.
+          </div>
+        )}
+
+        {countsDiverge && (
+          <div className="live-truncated-note">
+            O provedor declarou {declaredCount} canais nesta categoria, mas entregou {realCount}.
+          </div>
+        )}
+
+        {showingContent &&
+          !content.isLoading &&
+          !contentFailed &&
+          items.map((channel, i) => (
+            <button
+              key={channel.id}
+              type="button"
+              className={`live-item${col === 1 && channelIdx === i ? ' tv-focus' : ''}${
+                channel.playable ? '' : ' live-item-unavailable'
+              }`}
+            >
+              <span className="live-item-logo" aria-hidden="true" />
+              <span className="live-item-name">{channel.name}</span>
+              {!channel.playable && <span className="live-item-badge">Indisponível</span>}
+            </button>
+          ))}
+
+        {showingContent && !content.isLoading && !contentFailed && content.data && (
           // Fala do limite de exibição, não do tamanho da fonte — a distinção
           // importa porque o catálogo publicado pode ser parcial (FR-016).
-          <div className="live-truncated-note">
-            Mostrando os primeiros {activeGroup.channels.length} de {activeGroup.totalCount}{' '}
-            canais deste grupo.
-          </div>
+          content.data.totalCount > items.length && (
+            <div className="live-truncated-note">
+              Mostrando os primeiros {items.length} de {content.data.totalCount} canais deste grupo.
+            </div>
+          )
         )}
       </div>
 
@@ -210,7 +315,7 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
           <div className="live-preview-logo" aria-hidden="true" />
         </div>
         <div className="live-channel-name">{activeChannel?.name ?? 'Selecione um canal'}</div>
-        <div className="live-channel-meta">{activeGroup?.name}</div>
+        <div className="live-channel-meta">{groupLabel(focusedCategory?.name)}</div>
         {/* Slot de EPG: nasce vazio e sem rótulo até existir fonte de dados
             (item 44 do backlog). Reservar a área evita o layout pular depois. */}
         <div className="live-channel-now" />

@@ -676,6 +676,20 @@
 
 /* ---------- Grids (Filmes / SÃ©ries) ---------- */
 
+/**
+ * Painel de conteúdo à direita da trilha de categorias (feature 010):
+ * cresce para ocupar o espaço restante da linha, ao contrário de
+ * `.live-column-channels`, que tem largura fixa por ser uma lista de texto,
+ * não uma grade de pôsteres.
+ */
+.category-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow: auto;
+}
+
 .poster-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);

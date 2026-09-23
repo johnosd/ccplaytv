@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
-import { useCatalogCounts } from '../catalog/catalogApi'
+import { useCatalogCounts, type SectionCount } from '../catalog/catalogApi'
 
 export type ListDestination = 'live' | 'movies' | 'series'
 
@@ -30,16 +30,29 @@ export function ListHomeScreen({ sourceId, sourceName, onSelect, onBack }: ListH
     onBack,
   })
 
-  // Número só aparece quando é o número real desta lista. Enquanto a
-  // contagem não chega, o lugar dela fica vazio — um valor de outra origem
-  // ali seria dado inventado apresentado como do catálogo.
-  const titles = (value: number | undefined): string =>
-    value === undefined ? '' : `${value} ${value === 1 ? 'título' : 'títulos'}`
+  /**
+   * Número só aparece quando é o número real desta lista. `items` é a soma
+   * mais concreta que existe (itens já gravados, ou o que a fonte
+   * declarou); na ausência dele, o número de categorias já é conhecido
+   * desde a importação da estrutura e é honesto — diferente de mostrar
+   * "0", que diria que a seção está vazia quando na verdade só não foi
+   * aberta ainda (feature 010).
+   */
+  const sectionLabel = (section: SectionCount | undefined): string => {
+    if (!section) return ''
+    if (section.items !== undefined) {
+      return `${section.items} ${section.items === 1 ? 'título' : 'títulos'}`
+    }
+    if (section.categories > 0) {
+      return `${section.categories} ${section.categories === 1 ? 'categoria' : 'categorias'}`
+    }
+    return ''
+  }
 
   const tileMeta: Record<ListDestination, string> = {
     live: 'Canais em tempo real',
-    movies: titles(counts.data?.movies),
-    series: titles(counts.data?.series),
+    movies: sectionLabel(counts.data?.movies),
+    series: sectionLabel(counts.data?.series),
   }
 
   return (
@@ -57,6 +70,12 @@ export function ListHomeScreen({ sourceId, sourceName, onSelect, onBack }: ListH
           </div>
         ))}
       </div>
+      {/* Cobertura parcial é o normal de operação, não uma falha a esconder
+          (feature 010, R-007): o catálogo é obtido por categoria, conforme
+          cada uma é aberta — não tudo de uma vez na sincronização. */}
+      <p className="screen-subtitle" style={{ marginTop: 32, marginBottom: 0 }}>
+        Cada categoria é obtida quando você entra nela.
+      </p>
     </div>
   )
 }

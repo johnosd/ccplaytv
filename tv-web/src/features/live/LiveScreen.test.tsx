@@ -4,33 +4,92 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LiveScreen } from './LiveScreen'
 import * as catalogApi from '../catalog/catalogApi'
-import type { CatalogItemOut } from '../catalog/catalogApi'
+import type { CatalogCategory, CatalogItemOut, CategoryFetchOutcome } from '../catalog/catalogApi'
 
 vi.mock('../catalog/catalogApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../catalog/catalogApi')>()
-  return { ...actual, useChannels: vi.fn(), fetchPlayback: vi.fn() }
+  return {
+    ...actual,
+    useCategoryList: vi.fn(),
+    useCategoryContent: vi.fn(),
+    // Sem mock, tocaria IndexedDB/rede de verdade a cada movimento de
+    // cursor nestes testes — o comportamento do pré-fetch em si tem teste
+    // próprio, isolado, em catalogApi.test.tsx.
+    useCategoryFocusPrefetch: vi.fn(),
+    fetchPlayback: vi.fn(),
+  }
 })
+
+function category(
+  id: number,
+  name: string,
+  order: number,
+  overrides: Partial<CatalogCategory> = {},
+): CatalogCategory {
+  return {
+    id,
+    kind: 'channel',
+    name,
+    order,
+    count: 0,
+    fetchMode: 'on_demand',
+    providerCategoryId: String(id),
+    ...overrides,
+  }
+}
 
 function channel(name: string, group: string | null, playable = true): CatalogItemOut {
   return { id: `id-${name}`, kind: 'channel', name, original_group: group, published: true, playable }
 }
 
-function mockChannels(items: CatalogItemOut[]) {
-  vi.mocked(catalogApi.useChannels).mockReturnValue({
-    data: { items, next_cursor: null },
+/** Estrutura: sempre disponível de cara — nunca é o que fica em "carregando" nestes testes. */
+function mockCategories(categories: CatalogCategory[]) {
+  vi.mocked(catalogApi.useCategoryList).mockReturnValue({
+    data: categories,
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
-  } as unknown as ReturnType<typeof catalogApi.useChannels>)
+  } as unknown as ReturnType<typeof catalogApi.useCategoryList>)
 }
 
-function mockQueryState(state: { isLoading?: boolean; isError?: boolean }) {
-  vi.mocked(catalogApi.useChannels).mockReturnValue({
+function mockCategoriesState(state: { isLoading?: boolean; isError?: boolean }) {
+  vi.mocked(catalogApi.useCategoryList).mockReturnValue({
     data: undefined,
     isLoading: state.isLoading ?? false,
     isError: state.isError ?? false,
     refetch: vi.fn(),
-  } as unknown as ReturnType<typeof catalogApi.useChannels>)
+  } as unknown as ReturnType<typeof catalogApi.useCategoryList>)
+}
+
+/**
+ * Conteúdo por categoria — diferente de um `mockReturnValue` fixo porque
+ * vários testes precisam que categorias DIFERENTES devolvam itens
+ * DIFERENTES (ex.: trocar de grupo, ou uma categoria sumir do catálogo
+ * novo mas a outra continuar servindo).
+ */
+function mockContentByCategory(
+  byId: Record<number, CatalogItemOut[]>,
+  outcome: CategoryFetchOutcome = 'fresh',
+) {
+  const refetch = vi.fn()
+  vi.mocked(catalogApi.useCategoryContent).mockImplementation((_sourceId, cat) => {
+    const items = cat ? (byId[cat.id] ?? []) : []
+    return {
+      data: { items, totalCount: items.length, outcome },
+      isLoading: false,
+      isError: false,
+      refetch,
+    } as unknown as ReturnType<typeof catalogApi.useCategoryContent>
+  })
+}
+
+function mockContentLoading() {
+  vi.mocked(catalogApi.useCategoryContent).mockReturnValue({
+    data: undefined,
+    isLoading: true,
+    isError: false,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof catalogApi.useCategoryContent>)
 }
 
 function renderLive() {
@@ -43,7 +102,7 @@ function renderLive() {
   // Um elemento NOVO a cada chamada é essencial: reusar a MESMA referência
   // de elemento entre `render` e `rerender` faz o React aplicar bailout por
   // identidade referencial na subárvore inteira, e `LiveScreen` nunca
-  // re-executa — o `useChannels` mockado nunca seria relido de verdade.
+  // re-executa — os mocks nunca seriam relidos de verdade.
   function buildUi() {
     return (
       <Wrapper>
@@ -61,8 +120,8 @@ function press(key: string) {
   })
 }
 
-/** Move o foco para a coluna de canais e desce `n` posições. */
-function focusChannel(n = 0) {
+/** Entra na categoria em foco (dispara a obtenção) e desce `n` posições dentro dela. */
+function enterAndDescend(n = 0) {
   press('ArrowRight')
   for (let i = 0; i < n; i += 1) press('ArrowDown')
 }
@@ -70,6 +129,7 @@ function focusChannel(n = 0) {
 describe('LiveScreen', () => {
   beforeEach(() => {
     vi.mocked(catalogApi.fetchPlayback).mockReset()
+    mockContentByCategory({})
   })
 
   afterEach(() => {
@@ -77,10 +137,10 @@ describe('LiveScreen', () => {
     vi.clearAllMocks()
   })
 
-  // --- T017: estados de borda, todos com saída focável ---
+  // --- estados de borda, todos com saída focável ---
 
   it('mostra carregando com um elemento focável', () => {
-    mockQueryState({ isLoading: true })
+    mockCategoriesState({ isLoading: true })
     const { container } = renderLive()
 
     expect(screen.getByText(/Carregando canais/)).toBeInTheDocument()
@@ -88,7 +148,7 @@ describe('LiveScreen', () => {
   })
 
   it('mostra erro de carga com "Tentar de novo" focável', () => {
-    mockQueryState({ isError: true })
+    mockCategoriesState({ isError: true })
     const { container } = renderLive()
 
     expect(screen.getByText(/Não foi possível carregar os canais/)).toBeInTheDocument()
@@ -97,7 +157,7 @@ describe('LiveScreen', () => {
   })
 
   it('distingue "nenhum canal na fonte" de erro, com saída focável', () => {
-    mockChannels([])
+    mockCategories([])
     const { container } = renderLive()
 
     expect(screen.getByText('Nenhum canal nesta lista')).toBeInTheDocument()
@@ -105,26 +165,47 @@ describe('LiveScreen', () => {
     expect(container.querySelectorAll('.tv-focus').length).toBeGreaterThan(0)
   })
 
-  it('mostra os grupos e canais reais da fonte, na ordem declarada', () => {
-    mockChannels([
-      channel('Zulu', 'Esportes'),
-      channel('Alfa', 'Notícias'),
-      channel('Yankee', 'Esportes'),
-    ])
+  // --- T028: mover o foco sobre categorias não busca; SELECT/entrar busca ---
+
+  it('mover o foco entre categorias não consulta o conteúdo — só entrar consulta (T028, FR-004)', () => {
+    mockCategories([category(1, 'Esportes', 0), category(2, 'Notícias', 1)])
+    renderLive()
+
+    press('ArrowDown') // move o cursor da trilha para "Notícias" — ainda não entrou
+    press('ArrowUp')
+
+    // `useCategoryContent` é sempre chamado (é um hook), mas com categoria
+    // `undefined` até a entrada — é isso que mantém a consulta desabilitada
+    // (`enabled: category !== undefined`, em catalogApi.ts). Mover o cursor
+    // pela trilha nunca passa uma categoria concreta para o hook.
+    const calls = vi.mocked(catalogApi.useCategoryContent).mock.calls
+    expect(calls.every(([, cat]) => cat === undefined)).toBe(true)
+
+    press('ArrowRight') // agora sim: entrar passa a categoria concreta
+    const callsAfterEnter = vi.mocked(catalogApi.useCategoryContent).mock.calls
+    expect(callsAfterEnter.some(([, cat]) => cat?.id === 1)).toBe(true)
+  })
+
+  it('entrar na categoria (seta direita) mostra os canais dela, na ordem declarada', () => {
+    mockCategories([category(1, 'Esportes', 0), category(2, 'Notícias', 1)])
+    mockContentByCategory({ 1: [channel('Zulu', 'Esportes'), channel('Yankee', 'Esportes')] })
     renderLive()
 
     const groups = document.querySelectorAll('.live-column-groups .live-item')
     expect([...groups].map((g) => g.textContent)).toEqual(['Esportes', 'Notícias'])
-    // O primeiro grupo começa selecionado, com seus canais na ordem da fonte.
-    // Consulta escopada à coluna de canais: o nome do canal em foco também
-    // aparece no painel de informação à direita.
+
+    press('ArrowRight') // entra em "Esportes"
+
     const channels = document.querySelectorAll('.live-column-channels .live-item-name')
     expect([...channels].map((c) => c.textContent)).toEqual(['Zulu', 'Yankee'])
   })
 
   it('não exibe contagem total nem "fim do catálogo" (FR-016)', () => {
-    mockChannels([channel('A', 'G'), channel('B', 'G')])
+    mockCategories([category(1, 'G', 0)])
+    mockContentByCategory({ 1: [channel('A', 'G'), channel('B', 'G')] })
     renderLive()
+
+    press('ArrowRight')
 
     // O catálogo publicado pode ser parcial durante uma importação; a tela
     // não pode sugerir completude.
@@ -133,15 +214,50 @@ describe('LiveScreen', () => {
     expect(screen.queryByText(/total/i)).not.toBeInTheDocument()
   })
 
-  // --- T018 / T040: canal indisponível ---
+  // --- T029: estados de carregando/erro do conteúdo, todos focáveis ---
 
-  it('mostra canal sem URL como indisponível, e Enter não abre o player', () => {
-    mockChannels([channel('Sem fonte', 'Grupo', false)])
+  it('mostra carregando o conteúdo da categoria, com saída focável', () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentLoading()
     renderLive()
 
+    press('ArrowRight')
+
+    expect(screen.getByText(/Carregando canais/)).toBeInTheDocument()
+  })
+
+  it('categoria que nunca falou com o painel mostra erro com "Tentar de novo" (T029)', () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({}, 'failed')
+    renderLive()
+
+    press('ArrowRight')
+
+    expect(screen.getByText('Não foi possível carregar esta categoria')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+  })
+
+  it('categoria vencida cuja busca falhou serve o que estava salvo, com aviso (contrato §2)', () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({ 1: [channel('Zulu', 'Esportes')] }, 'stale-served')
+    renderLive()
+
+    press('ArrowRight')
+
+    expect(screen.getByText(/Não foi possível atualizar agora/)).toBeInTheDocument()
+    expect(document.querySelector('.live-column-channels .live-item-name')?.textContent).toBe('Zulu')
+  })
+
+  // --- canal indisponível ---
+
+  it('mostra canal sem URL como indisponível, e Enter não abre o player', () => {
+    mockCategories([category(1, 'Grupo', 0)])
+    mockContentByCategory({ 1: [channel('Sem fonte', 'Grupo', false)] })
+    renderLive()
+
+    enterAndDescend()
     expect(screen.getByText('Indisponível')).toBeInTheDocument()
 
-    focusChannel()
     press('Enter')
 
     expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
@@ -149,19 +265,19 @@ describe('LiveScreen', () => {
     expect(screen.getByText(/não tem uma fonte de reprodução/)).toBeInTheDocument()
   })
 
-  // --- T025: foco não dispara requisição de reprodução (SC-006) ---
+  // --- foco não dispara requisição de reprodução (SC-006) ---
 
   it('mover o foco por toda a lista não dispara nenhuma requisição de reprodução', () => {
-    mockChannels([
-      channel('A', 'G1'),
-      channel('B', 'G1'),
-      channel('C', 'G2'),
-    ])
+    mockCategories([category(1, 'G1', 0), category(2, 'G2', 1)])
+    mockContentByCategory({
+      1: [channel('A', 'G1'), channel('B', 'G1')],
+      2: [channel('C', 'G2')],
+    })
     renderLive()
 
     press('ArrowDown')
     press('ArrowUp')
-    focusChannel(1)
+    enterAndDescend(1)
     press('ArrowUp')
     press('ArrowLeft')
     press('ArrowDown')
@@ -170,10 +286,11 @@ describe('LiveScreen', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  // --- T026: Enter repetido cria uma única sessão ---
+  // --- Enter repetido cria uma única sessão ---
 
   it('Enter repetido no mesmo canal cria uma única sessão de reprodução', async () => {
-    mockChannels([channel('Canal', 'G')])
+    mockCategories([category(1, 'G', 0)])
+    mockContentByCategory({ 1: [channel('Canal', 'G')] })
     vi.mocked(catalogApi.fetchPlayback).mockResolvedValue({
       item_id: 'id-Canal',
       kind: 'channel',
@@ -182,7 +299,7 @@ describe('LiveScreen', () => {
     })
     renderLive()
 
-    focusChannel()
+    enterAndDescend()
     press('Enter')
     press('Enter')
     press('Enter')
@@ -191,14 +308,14 @@ describe('LiveScreen', () => {
     expect(catalogApi.fetchPlayback).toHaveBeenCalledTimes(1)
   })
 
-  // --- T027: voltar do player restaura o foco no canal de origem ---
+  // --- voltar do player restaura o foco no canal de origem ---
 
   it('ao fechar o player, o foco volta ao canal de origem no mesmo grupo', async () => {
-    mockChannels([
-      channel('Primeiro', 'G1'),
-      channel('Segundo', 'G1'),
-      channel('Outro', 'G2'),
-    ])
+    mockCategories([category(1, 'G1', 0), category(2, 'G2', 1)])
+    mockContentByCategory({
+      1: [channel('Primeiro', 'G1'), channel('Segundo', 'G1')],
+      2: [channel('Outro', 'G2')],
+    })
     vi.mocked(catalogApi.fetchPlayback).mockResolvedValue({
       item_id: 'id-Segundo',
       kind: 'channel',
@@ -207,7 +324,7 @@ describe('LiveScreen', () => {
     })
     renderLive()
 
-    focusChannel(1)
+    enterAndDescend(1)
     const focusedBefore = document.querySelector('.live-column-channels .tv-focus')?.textContent
     expect(focusedBefore).toContain('Segundo')
 
@@ -226,15 +343,14 @@ describe('LiveScreen', () => {
   })
 
   it('trocar de grupo recomeça no primeiro canal', () => {
-    mockChannels([
-      channel('A1', 'G1'),
-      channel('A2', 'G1'),
-      channel('B1', 'G2'),
-      channel('B2', 'G2'),
-    ])
+    mockCategories([category(1, 'G1', 0), category(2, 'G2', 1)])
+    mockContentByCategory({
+      1: [channel('A1', 'G1'), channel('A2', 'G1')],
+      2: [channel('B1', 'G2'), channel('B2', 'G2')],
+    })
     renderLive()
 
-    focusChannel(1)
+    enterAndDescend(1)
     expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('A2')
 
     press('ArrowLeft')
@@ -244,34 +360,45 @@ describe('LiveScreen', () => {
     expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('B1')
   })
 
-  // --- Feature 004 (US5, T037): catálogo substituído em segundo plano ---
+  // --- Feature 004 (US5): catálogo substituído em segundo plano ---
   // não desorganiza a navegação em curso (FR-022, SC-012) ---
 
   it('ao trocar o catálogo em segundo plano, o foco segue o canal pelo id — não pelo índice', () => {
-    mockChannels([channel('A', 'G1'), channel('B', 'G1'), channel('C', 'G2')])
+    mockCategories([category(1, 'G1', 0), category(2, 'G2', 1)])
+    mockContentByCategory({
+      1: [channel('A', 'G1'), channel('B', 'G1')],
+      2: [channel('C', 'G2')],
+    })
     const { rerenderLive } = renderLive()
 
-    focusChannel(1) // foca "B", índice 1 do grupo G1
+    enterAndDescend(1) // foca "B", índice 1 do grupo G1
     expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('B')
 
     // Atualização por idade conclui enquanto o usuário navega: mesmos
     // canais, ordem diferente — "B" passa a ser o índice 0. Foco por
     // índice "saltaria" pra outro canal; por identidade, continua em "B".
-    mockChannels([channel('B', 'G1'), channel('A', 'G1'), channel('C', 'G2')])
+    mockContentByCategory({
+      1: [channel('B', 'G1'), channel('A', 'G1')],
+      2: [channel('C', 'G2')],
+    })
     rerenderLive()
 
     expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('B')
   })
 
   it('se o canal focado sumir do catálogo novo, cai no início do grupo em vez de focar algo aleatório', () => {
-    mockChannels([channel('A', 'G1'), channel('B', 'G1'), channel('C', 'G2')])
+    mockCategories([category(1, 'G1', 0), category(2, 'G2', 1)])
+    mockContentByCategory({
+      1: [channel('A', 'G1'), channel('B', 'G1')],
+      2: [channel('C', 'G2')],
+    })
     const { rerenderLive } = renderLive()
 
-    focusChannel(1) // foca "B"
+    enterAndDescend(1) // foca "B"
     expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('B')
 
     // "B" não existe mais no catálogo novo.
-    mockChannels([channel('A', 'G1'), channel('C', 'G2')])
+    mockContentByCategory({ 1: [channel('A', 'G1')], 2: [channel('C', 'G2')] })
     rerenderLive()
 
     const focused = document.querySelector('.live-column-channels .tv-focus')
@@ -279,15 +406,57 @@ describe('LiveScreen', () => {
     expect(focused?.textContent).toContain('A')
   })
 
-  it('se o grupo focado sumir do catálogo novo, cai no primeiro grupo', () => {
-    mockChannels([channel('A', 'G1'), channel('B', 'G2')])
+  // --- T036: divergência entre o declarado e o entregue (FR-015) ---
+
+  it('declara quando a categoria entrega menos itens do que o provedor declarou', () => {
+    mockCategories([category(1, 'Esportes', 0, { declaredCount: 5 })])
+    mockContentByCategory({ 1: [channel('Zulu', 'Esportes')] })
+    renderLive()
+
+    press('ArrowRight')
+
+    expect(screen.getByText('O provedor declarou 5 canais nesta categoria, mas entregou 1.')).toBeInTheDocument()
+  })
+
+  it('não declara divergência quando não há o que comparar (fonte não declarou nada)', () => {
+    mockCategories([category(1, 'Esportes', 0)]) // declaredCount ausente
+    mockContentByCategory({ 1: [channel('Zulu', 'Esportes')] })
+    renderLive()
+
+    press('ArrowRight')
+
+    expect(screen.queryByText(/O provedor declarou/)).not.toBeInTheDocument()
+  })
+
+  // --- T037: revalidar uma categoria reconcilia o foco por id, não por
+  // índice (FR-019; R-004; constitution, "Voltar Restaura Foco e Posição")
+
+  it('categoria revalidada com os itens em outra ordem mantém o foco no mesmo item por id', () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({ 1: [channel('Zulu', 'Esportes'), channel('Yankee', 'Esportes')] })
     const { rerenderLive } = renderLive()
 
-    press('ArrowDown') // move pro grupo G2
+    enterAndDescend(1) // foca "Yankee", índice 1
+    expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('Yankee')
+
+    // A categoria vence o prazo e é revalidada em segundo plano: mesmos
+    // canais, ordem diferente devolvida pelo painel. Foco por índice
+    // "saltaria" para outro canal; por identidade, continua em "Yankee".
+    mockContentByCategory({ 1: [channel('Yankee', 'Esportes'), channel('Zulu', 'Esportes')] }, 'fetched')
+    rerenderLive()
+
+    expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('Yankee')
+  })
+
+  it('se o grupo focado sumir do catálogo novo, cai no primeiro grupo', () => {
+    mockCategories([category(1, 'G1', 0), category(2, 'G2', 1)])
+    const { rerenderLive } = renderLive()
+
+    press('ArrowDown') // move o cursor da trilha pro grupo G2 — sem entrar
     expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('G2')
 
     // G2 deixou de existir.
-    mockChannels([channel('A', 'G1'), channel('C', 'G3')])
+    mockCategories([category(1, 'G1', 0), category(3, 'G3', 1)])
     rerenderLive()
 
     expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('G1')
