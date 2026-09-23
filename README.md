@@ -4,7 +4,7 @@ Reprodutor e organizador de listas M3U, M3U8 para Smart TVs Samsung com Tizen, c
 
 ## Estado do projeto
 
-Projeto em configuração inicial e desenvolvimento. O desenvolvedor informou seguir o setup de React/TypeScript e Python/FastAPI, usando **uv** no backend. A revisão desta documentação não incluiu o código da aplicação nem testes na TV; funcionalidades planejadas não são apresentadas como entregues.
+Projeto em desenvolvimento ativo. Conforme a arquitetura atualizada (ADR-008), o app roda 100% no cliente (TV) usando React, TypeScript e IndexedDB, abolindo a necessidade de um backend dedicado sempre ligado.
 
 ## Escopo funcional
 
@@ -56,7 +56,6 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
 
 **TV:** aplicativo web empacotado para Tizen, com React, TypeScript, CSS e Vite; `PlayerService` usando AVPlay na Samsung; cache de catálogo em IndexedDB, condicionado à validação no aparelho.
 
-**Backend:** Python, FastAPI e Uvicorn, com Pydantic para contratos e `uv` para o ambiente Python. PostgreSQL é o banco de persistência, acessado via SQLAlchemy 2 (engine assíncrono) com migrações Alembic — em uso desde a feature `001-importacao-fonte-m3u` (importação de fontes M3U por URL/provedor).
 
 **Mídia:** reprodução direta da origem para a TV por padrão. O backend não retransmite nem transcodifica todo o vídeo. Navegação e comandos locais não aguardam OpenAI ou WebSocket.
 
