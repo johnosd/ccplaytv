@@ -590,3 +590,58 @@ navegável. US3 torna os números confiáveis. Nenhuma quebra a anterior.
 - Nenhuma task é concluída com `npm run test` ou `npm run lint` vermelhos
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->
+
+## Phase 6: Convergence
+
+**Goal**: Fechar o achado C-001 do `sdd-converge` (2026-09-23) — a seção de
+canais do hub da lista não segue a mesma regra de contagem honesta que
+filmes e séries já seguem.
+
+**Origem**: FR-014 / US1 Acceptance Scenario 2 ("Given a importação
+concluída, When eu abro o hub da lista, Then vejo Live TV, Filmes e Séries
+com as contagens que o provedor declarou"). Hoje só Filmes e Séries mostram
+essa contagem (`sectionCount`, R-010); Live TV mostra a string fixa "Canais
+em tempo real", nunca um número — mesmo canal de provedor passando pelo
+mesmo `fetchMode: 'on_demand'` que motivou o refinamento de FR-014 para as
+outras duas seções.
+
+### Implementation
+
+- [X] T048 Em `tv-web/src/features/catalog/catalogApi.ts`, trocar
+      `CatalogCounts.channels: number` por `channels: SectionCount`,
+      usando a mesma `sectionCount(sourceId, 'channel')` já usada por
+      `movies`/`series` (soma itens de categoria `eager` + `declaredCount`
+      de `on_demand`, piso de contagem de categorias quando nenhum dos
+      dois existir, nunca "0" forjado). Em
+      `tv-web/src/features/list-home/ListHomeScreen.tsx`, `tileMeta.live`
+      passa a usar `sectionLabel(counts.data?.channels)`, do mesmo jeito
+      que `movies`/`series`, no lugar da string fixa "Canais em tempo
+      real". Estender os testes existentes de `catalogApi.test.tsx`
+      (contagem de canais) e de `ListHomeScreen` (rótulo do tile de Live
+      TV) para cobrir os casos `eager`/`on_demand`/nem-um-nem-outro, iguais
+      aos que já existem para filmes/séries.
+
+**Critério de Conclusão**: o hub da lista mostra uma contagem honesta para
+as três seções — Live TV incluída —, com a mesma regra de honestidade que
+já vale para Filmes e Séries.
+
+**Registro da Fase**:
+
+- Status: Concluído
+- Feito: `CatalogCounts.channels` deixou de ser `number` (contagem bruta de
+  disco via `countChannels`) e passou a ser `SectionCount`, produzida pela
+  mesma `sectionCount('channel')` que já servia filmes/séries — soma
+  itens de categoria `eager`, ou `declaredCount` de `on_demand` quando
+  existir, com piso de contagem de categorias quando nenhum dos dois for
+  conhecível, nunca "0" forjado. `ListHomeScreen.tsx`: `tileMeta.live`
+  trocou o rótulo fixo "Canais em tempo real" por
+  `sectionLabel(counts.data?.channels)`, igual a `movies`/`series`.
+- Testes executados: 2 casos novos em `catalogApi.test.tsx` (canal
+  `eager` soma itens reais; canal `on_demand` sem contagem cai no piso de
+  categorias) + `ListHomeScreen.test.tsx` novo (2 casos: contagem real
+  exibida, rótulo fixo antigo não aparece mais). `npx vitest run` —
+  261/261 (29 arquivos). `npx tsc -b`, `npx oxlint` e `npm run build`
+  limpos.
+- Pendências: nenhuma conhecida. C-002/C-003/C-004 do `sdd-converge`
+  seguem como estavam (não acionáveis nesta feature — ver `plan.md`
+  R-011/R-012 e a nota sobre SC-004).

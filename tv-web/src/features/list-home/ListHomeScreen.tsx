@@ -50,7 +50,7 @@ export function ListHomeScreen({ sourceId, sourceName, onSelect, onBack }: ListH
   }
 
   const tileMeta: Record<ListDestination, string> = {
-    live: 'Canais em tempo real',
+    live: sectionLabel(counts.data?.channels),
     movies: sectionLabel(counts.data?.movies),
     series: sectionLabel(counts.data?.series),
   }

@@ -38,3 +38,19 @@ Refatorar as listas de conteúdo no app (focado inicialmente na `LiveScreen`, es
 - `tv-web/src/components/VirtualizedList.tsx` (novo componente agnóstico, se aplicável, ou hook/helper focado)
 - `tv-web/src/lib/focus/virtualFocusEngine.ts` (helper de sincronização Norigin/Tanstack)
 
+
+## Estado Atual
+| Área | Estado |
+|---|---|
+| Infra | Phase 1 concluída |
+
+## Arquivos Principais
+- `tv-web/package.json`
+
+## Execution Notes
+| Data | Fase/Story | Resumo | Pendência Principal |
+|---|---|---|---|
+| 2026-09-22 | Phase 1 | Instalação do @tanstack/react-virtual | Ir para Phase 2 |
+| 2026-09-23 | Pausa decidida | A Fase 3 (aplicação em `LiveScreen.tsx`) fica pausada até a feature `010-catalogo-sob-demanda` concluir sua Fase 3 (US2). As duas alteram o mesmo arquivo: a 010 muda a leitura de "catálogo inteiro" para "por categoria sob demanda", e refatorar `LiveScreen.tsx` para virtualização antes disso duplicaria trabalho quando a fonte de dados mudar embaixo. Decisão do usuário, registrada em `sdd/specs/010-catalogo-sob-demanda/tasks.md` § "Ordem decidida frente à feature 009". Fases 1 e 2 (helper matemático) não são afetadas e podem continuar. | Retomar a Fase 3 quando `010` fechar o checkpoint da US2 |
+
+PRÓXIMO: Phase 2 - VirtualFocus Helper (Fase 3 pausada — ver nota acima)

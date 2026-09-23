@@ -12,31 +12,31 @@
 **Goal**: Incluir a biblioteca TanStack Virtual no projeto (se não estiver).
 
 **Implementation**:
-- [ ] 1. Checar se `@tanstack/react-virtual` está no `package.json`. Se não, `npm install @tanstack/react-virtual`.
+- [X] 1. Checar se `@tanstack/react-virtual` está no `package.json`. Se não, `npm install @tanstack/react-virtual`.
 
 **Tests**:
-- [ ] 2. `npm run build` passa (ou tsc passa sem quebrar tipos).
+- [X] 2. `npm run build` passa (ou tsc passa sem quebrar tipos).
 
 **Critério de Conclusão**: Dependência instalada e disponível para importação.
 
 **Registro da Fase**:
-- Status: 
-- Feito: 
-- Testes executados: 
-- Pendências: 
+- Status: Concluído
+- Feito: @tanstack/react-virtual instalado
+- Testes executados: tsc --noEmit passou sem erros
+- Pendências: Nenhuma
 
 ## Phase 2: VirtualFocus Helper
 
 **Goal**: Criar o utilitário que sincroniza a intenção de movimento do Norigin com o scroll do TanStack.
 
 **Implementation**:
-- [ ] 1. Em `tv-web/src/lib/focus/virtualFocusHelper.ts`, criar um Hook ou função que intercepta o `onArrowPress` do Norigin na lista virtual.
-- [ ] 2. Implementar a lógica: Ao receber `Down`, calcular próximo índice = `currentIndex + 1` (clampado ao max length).
-- [ ] 3. Disparar `virtualizer.scrollToIndex(proximo)`.
-- [ ] 4. Agendar (`requestAnimationFrame` ou timeout) a aplicação de `setFocus` no id do próximo item recém-montado.
+- [X] 1. Em `tv-web/src/lib/focus/virtualFocusHelper.ts`, criar um Hook ou função que intercepta o `onArrowPress` do Norigin na lista virtual.
+- [X] 2. Implementar a lógica: Ao receber `Down`, calcular próximo índice = `currentIndex + 1` (clampado ao max length).
+- [X] 3. Disparar `virtualizer.scrollToIndex(proximo)`.
+- [X] 4. Agendar (`requestAnimationFrame` ou timeout) a aplicação de `setFocus` no id do próximo item recém-montado.
 
 **Tests**:
-- [ ] 5. Testar a lógica matemática e de clamping em `virtualFocusHelper.test.ts`.
+- [X] 5. Testar a lógica matemática e de clamping em `virtualFocusHelper.test.ts`.
 
 **Critério de Conclusão**: Helper matemático construído, preparado para lidar com navegação de listas 1D virtuais.
 

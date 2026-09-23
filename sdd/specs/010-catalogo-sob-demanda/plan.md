@@ -212,19 +212,20 @@ npm run build:tizen # build + sync para CCPlayTv/
 | US3 | Concluída — divergência visível, foco reconciliado por id (mecanismo da Fase 3, testado explicitamente aqui). |
 | Documentação | ADR-002 emendada; contrato/data-model da 005 apontam o delta; CLAUDE.md/README.md corrigidos (inclusive dessincronia pré-existente). |
 | **Verificação na TV física** | **Concluída (T046, 23/09/2026).** 6 de 7 cenários aprovados (A-F); Cenário G (fonte M3U) não executado por falta de fonte disponível na sessão — mitigado por T016 (automatizado). Cenário B só aprovou após a correção do R-013 (pré-busca amortecida). |
+| **Convergência (`sdd-converge`)** | Rodada em 23/09/2026: achado C-001 (HIGH) — hub da lista não mostrava contagem real para Live TV, só para Filmes/Séries, contrariando o AS2 da US1. **Corrigido em T048** (Fase 6): `channels` passou a usar a mesma `sectionCount` de filmes/séries. C-002/C-003/C-004 confirmados como já rastreados (R-011/R-012) ou não acionáveis (SC-004) — sem ação nova. |
 
 ## Riscos e Decisões
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
 | R-001 | **Resolvido (23/09/2026)**: o painel poderia não honrar `category_id` — a única referência do repositório (`docs/iptvnator/06`) mostra o cliente maduro baixando a seção inteira e filtrando localmente | Era crítico — é a premissa que sustenta a feature | Sonda contra o painel real (T001-T004): filtra nas três seções, com redução de 82–99,7% no tamanho da resposta. Números em `research.md` R0-1. Caminho principal do design confirmado; nenhuma alternativa adotada |
-| R-002 | Painel pode limitar taxa de requisições quando a pessoa percorre muitas categorias rápido | Médio — categorias falhando sem motivo aparente | Uma obtenção por categoria compartilhada entre chamadas concorrentes (contrato §2, regra 2); observar na TV; não há retentativa automática agressiva |
-| R-003 | `declaredCount` pode divergir do entregue | Baixo — mas vira número mentiroso se escondido | D-005 separa os campos; FR-015 exige declarar |
-| R-004 | Voltar a uma categoria revalidada com a lista mudada pode perder o foco ou estourar índice | Médio — viola "Voltar Restaura Foco e Posição" | Reconciliar por id do item, padrão que `LiveScreen` já usa (`FocusIdentity`) e que `MoviesScreen`/`SeriesScreen` passaram a usar em 23/09/2026. Requisito próprio: **FR-019** |
-| R-005 | A feature 009 está Em Execução e refatora `LiveScreen.tsx`, que esta feature também altera | Médio — conflito e retrabalho | Ordem entre as duas é decisão a tomar antes da Fase 3; recomendação em "Cuidados" |
-| R-006 | FR-010 descarta itens obtidos ao ressincronizar; a pessoa perde o que baixou navegando | Médio — percepção de perda | Decisão explícita do usuário na clarificação de 23/09/2026. Registrada, não silenciosa |
-| R-007 | Cobertura parcial deixa de ser exceção e vira o modo normal de operação | Médio — a ADR-002 passa a ser lida ao contrário do que o app faz | Emenda obrigatória à ADR-002 dentro desta feature (R0-4 de `research.md`) |
-| R-008 | Fonte importada pelo modelo antigo fica sem `categories` e com itens sem `categoryId` | Médio — catálogo existente parece vazio | Sem migração de dados: tratada como fonte a re-sincronizar (`data-model.md` §4). Converter exigiria adivinhar `providerCategoryId`, que a constitution proíbe |
+| R-002 | Painel pode limitar taxa de requisições quando a pessoa percorre muitas categorias rápido | Médio — categorias falhando sem motivo aparente | **Resolvido: mitigação confirmada em auditoria (`sdd-converge`, 23/09/2026)** — obtenção por categoria compartilhada entre chamadas concorrentes via `inFlight` (contrato §2, regra 2), confirmada no código e testada (T026); pré-busca amortecida a 300ms (T047) reduz ainda mais a chance de rajada. Comportamento do painel real sob uso intenso continua sendo algo só a operação cotidiana confirma — não é código pendente |
+| R-003 | `declaredCount` pode divergir do entregue | Baixo — mas vira número mentiroso se escondido | **Resolvido: mitigação confirmada em auditoria** — D-005 separa os campos; exibição da divergência (`countsDiverge`) confirmada nas três telas de categoria e testada (T036) |
+| R-004 | Voltar a uma categoria revalidada com a lista mudada pode perder o foco ou estourar índice | Médio — viola "Voltar Restaura Foco e Posição" | **Resolvido: virou FR-019, implementado e testado (T037)** — reconciliação por id do item (`locate()`) confirmada nas três telas (`LiveScreen`/`MoviesScreen`/`SeriesScreen`) |
+| R-005 | A feature 009 está Em Execução e refatora `LiveScreen.tsx`, que esta feature também altera | Médio — conflito e retrabalho | **Resolvido**: decisão do usuário (23/09/2026) — a 010 é concluída primeiro; a 009 retoma só depois de `LiveScreen.tsx` estabilizado (`tasks.md`, "Ordem decidida frente à feature 009") |
+| R-006 | FR-010 descarta itens obtidos ao ressincronizar; a pessoa perde o que baixou navegando | Médio — percepção de perda | **Resolvido**: decisão explícita do usuário na clarificação de 23/09/2026, registrada, não silenciosa; confirmada na TV física (Cenário F, T046) |
+| R-007 | Cobertura parcial deixa de ser exceção e vira o modo normal de operação | Médio — a ADR-002 passa a ser lida ao contrário do que o app faz | **Resolvido**: ADR-002 emendada dentro desta feature (T041; R0-4 de `research.md`), confirmada em auditoria |
+| R-008 | Fonte importada pelo modelo antigo fica sem `categories` e com itens sem `categoryId` | Médio — catálogo existente parece vazio | **Resolvido: mitigação confirmada em auditoria** — `db.ts` v7 não tenta migrar/adivinhar dado (comentário explícito no schema); tratada como fonte a re-sincronizar (`data-model.md` §4), sem violação encontrada |
 | R-010 | **Resolvido**: FR-014 original ("contagens declaradas pelo provedor") ficaria sempre vazia na prática — o protocolo Xtream real não declara contagem por categoria | Médio — hub sem número nenhum logo após sincronizar, contrariando o AS#2 da US1 | FR-014 refinada em execução: soma itens de categoria `eager` (completo) + `declaredCount` de `on_demand` (quando existir); sem nenhum dos dois, mostra contagem de categorias — nunca "0" para seção não obtida. Implementado em `catalogApi.ts` (`sectionCount`) e `ListHomeScreen.tsx` |
 | R-011 | Achado durante T033: botões "Tentar de novo"/"Voltar" em estados de carregando/erro (Live/Movies/Series) têm `.tv-focus` visual mas não são ativáveis por OK do controle físico — `useRemoteNav` não roteia Enter para eles, nenhum `.focus()` DOM real é chamado. Pré-existente em `LiveScreen` antes desta feature; reproduzido fielmente (não corrigido) e mais 4 instâncias novas somadas (painéis de conteúdo de categoria nas 3 telas) | Baixo/Médio — botão existe (satisfaz a letra da constitution), mas só funciona por mouse | **Fora de escopo desta US** (não é sobre obtenção sob demanda, é sobre o mecanismo de ativação por controle). Logado em `.planning/backlog.md` como `[Bug]`, não corrigido calado. Caminho normal: `sdd-bugfix` |
 | R-012 | `groupChannels()` (função original de agrupamento client-side) ficou sem consumidor em produção depois da Fase 3 — a categoria já é o grupo, não precisa mais ser derivada de uma lista plana | Baixo — código morto, não incorreto | Mantida com seus testes intactos por ora, para não inchar ainda mais o diff desta fase. Candidata a remoção explícita na Fase 5 (Polish) |
@@ -241,14 +242,18 @@ npm run build:tizen # build + sync para CCPlayTv/
 | 2026-09-23 | Fase 3 (US2) | `categoryLoader.ts` novo com os 4 estados do contrato + de-dup de chamadas concorrentes. `catalogApi.ts`: `useCategoryList`/`useCategoryContent` substituem `useChannels`/`useMovies`/`useSeries`. As 3 telas reescritas categoria-primeiro; Movies/Series ganharam trilha de categorias (regressão de design necessária: grade plana de tudo deixou de ser viável sob demanda). T035 resolvida por caminho diferente do previsto (totais fluem de `CatalogCategory`, não de `groupChannels.ts` — função original fica sem uso em produção, R-012). Achado fora de escopo logado, não corrigido (R-011). Suíte: 251/251, `tsc`/`oxlint`/`build` limpos. | Nenhuma — Fase 4 liberada |
 | 2026-09-23 | Fase 4 (US3) | Divergência `declaredCount`×`totalCount` declarada nas 3 telas de categoria (nunca dispara contra Xtream real hoje, mas pronta). Nota de cobertura-por-categoria em `ListHomeScreen`. Reconciliação de foco por revalidação testada explicitamente (T037) — mecanismo já existia da Fase 3. Suíte: 254/254, `tsc`/`oxlint`/`build` limpos. | Nenhuma — Fase 5 (Polish) liberada |
 | 2026-09-23 | Fase 5 (Polish) | T041-T045 concluídos: ADR-002 emendada; contrato/data-model da 005 apontam o delta; CLAUDE.md/README.md corrigidos (mais amplo que o pedido — as duas descreviam um estado pré-ADR-008/pré-005 que já estava errado antes desta feature); revisão de segredos sem achado novo; `tizen_web_project.yaml` confirmado batendo com o build (`npm run build:tizen`). T046 rodado com o usuário na TV física: SC-001 e SC-002 confirmados (Cenário A ≤15s, Cenário B instantâneo na segunda entrada); Cenário B revelou R-013 (pré-busca por permanência do cursor, T047), corrigido e reaprovado; C, D, E, F aprovados (F com a sobrevivência de favoritos não testável — não há UI de favoritar ainda, só cobertura automatizada); G não executado (sem fonte M3U disponível). Suíte 257/257, `tsc`/`oxlint`/`build`/`build:tizen` limpos. | Cenário G fica para confirmação visual numa sessão futura com fonte M3U disponível — risco baixo, caminho não alterado por esta feature |
+| 2026-09-23 | Fase 6 (Convergence, achado C-001) | `sdd-converge` mapeou os 19 FRs contra o código real e achou 1 gap acionável: o hub da lista nunca mostrava contagem real de Live TV (rótulo fixo "Canais em tempo real"), enquanto Filmes/Séries já usavam `sectionCount` desde R-010 — contrariando o AS2 da US1 ("vejo Live TV, Filmes e Séries com as contagens que o provedor declarou"). T048: `CatalogCounts.channels` passou de `number` (disco cru) para `SectionCount`, roteado pela mesma `sectionCount('channel')`; `ListHomeScreen` usa `sectionLabel` para as três seções, sem exceção. 4 testes novos (`catalogApi.test.tsx` ×2, `ListHomeScreen.test.tsx` novo ×2). Suíte 261/261, `tsc`/`oxlint`/`build` limpos. | Nenhuma — rodar `sdd-converge` de novo para confirmar convergência limpa |
 
-**PRÓXIMO**: Feature 010 concluída — todas as tasks de `tasks.md` marcadas,
-incluindo T046. `sdd-converge` pode rodar quando o usuário quiser fechar a
-feature formalmente. Pendências que sobrevivem, fora do escopo desta
-feature: R-011 (botões "Tentar de novo"/"Voltar" não ativáveis por OK, já
-logado em `.planning/backlog.md` como `[Bug]`), R-012 (`groupChannels()`
-morto, candidato a remoção num polish futuro), e o Cenário G do
-`quickstart.md` (fonte M3U) ainda não observado numa TV física.
+**PRÓXIMO**: T048 (Fase 6, achado C-001 do `sdd-converge`) implementada e
+testada — todas as tasks de `tasks.md` marcadas, incluindo a Fase 6. Rodar
+`sdd-converge` de novo para confirmar que não sobrou achado acionável e
+fechar a feature formalmente (`Convergida`). Pendências que sobrevivem,
+fora do escopo desta feature: R-011 (botões "Tentar de novo"/"Voltar" não
+ativáveis por OK, já logado em `.planning/backlog.md` como `[Bug]`), R-012
+(`groupChannels()` morto, candidato a remoção num polish futuro), SC-004
+nunca medido diretamente na TV (garantido por construção do código, ver
+C-004), e o Cenário G do `quickstart.md` (fonte M3U) ainda não observado
+numa TV física.
 
 ## Arquivos Principais
 
@@ -278,3 +283,67 @@ morto, candidato a remoção num polish futuro), e o Cenário G do
   do jeito que `channels` já faz com `[sourceId+generation]` — não confie
   em prefixo de composto nem em campo opcional como último componente de
   índice.
+
+## Resultado Final
+
+`sdd-converge` rodado em 23/09/2026, em duas passadas. A primeira mapeou os
+19 FRs, as 8 Decisões Invariantes e os Riscos desta spec contra o código
+real (`db.ts`, `catalogRepository.ts`, `categoryLoader.ts`,
+`importPipeline.ts`, `xtreamConnector.ts`, `catalogApi.ts`, as três telas
+de categoria, `ImportProgressScreen.tsx`, `ListHomeScreen.tsx`) e achou um
+gap acionável (C-001); a segunda, depois de T048 corrigi-lo, confirmou
+convergência limpa.
+
+**O que foi de fato construído** bate com o desenho original em quase
+tudo: coleção `categories` como entidade de primeira classe (D-001),
+`categoryLoader.ensureCategory` como ponto único de obtenção sob demanda
+com os 4 estados do contrato, importação bifurcada por tipo de fonte
+(provedor JSON grava só estrutura; M3U/`legacy_m3u` seguem integrais mas
+também passam a gravar categoria), geração continuando como único ponto de
+troca atômica (D-004) alcançando `categories` sem nunca tocar `userStates`
+(D-002, confirmado em código e por teste), e as três telas (Live/Filmes/
+Séries) reescritas categoria-primeiro com foco reconciliado por identidade
+(FR-019).
+
+**Desvios acumulados nas Execution Notes, todos documentados no momento em
+que aconteceram — nenhum silencioso**:
+
+- **R-013 / FR-004 emendada**: pré-busca amortecida (300ms) por
+  permanência do cursor na trilha de categorias, pedida pelo usuário depois
+  de testar o desenho original ("nunca ao mover o foco") na TV física e
+  achar que toda entrada parecia a primeira vez. Implementada como exceção
+  explícita e estreita — só a *listagem* de uma categoria pode ser
+  pré-buscada; um item reproduzível dentro dela continua nunca disparando
+  consulta ao ganhar foco.
+- **A1 do Analyze (`sdd-plan`) / D-004 estendida**: o caminho integral
+  (M3U/`legacy_m3u`) passou a gravar `categories` também, com
+  `fetchMode: 'eager'`, para `listCategories` ter um único caminho de
+  leitura — sem essa extensão, a mudança de leitura da US1 deixaria toda
+  fonte M3U sem categoria nenhuma.
+- **R-010 / FR-014 refinada**: o protocolo Xtream real não declara
+  contagem por categoria, o que a redação original de FR-014 não previa. A
+  soma passou a usar itens reais de categoria `eager` + `declaredCount` de
+  `on_demand` quando existir, com piso de contagem de categorias — nunca
+  "0" forjado.
+- **C-001 do `sdd-converge`**: a mesma regra de FR-014/R-010 não tinha sido
+  estendida a canais quando a US1 foi fechada — o hub mostrava um rótulo
+  fixo para Live TV em vez da contagem real. Corrigido na Fase 6 (T048).
+
+**Diferenças técnicas do plano original**: o segundo índice previsto para
+`categories` em `data-model.md`
+(`[sourceId+generation+kind+providerCategoryId]`) foi removido em execução
+por não ter consumidor e por quebrar sob a camada de "virtual index" do
+Dexie 4 + fake-indexeddb neste ambiente de teste — `sourceId` virou índice
+próprio pelo mesmo motivo.
+
+**O que fica genuinamente pendente, fora do escopo desta feature** (nenhum
+bloqueia a convergência): R-011 (botões "Tentar de novo"/"Voltar" nos
+estados de carregando/erro têm `.tv-focus` mas não são ativáveis por OK do
+controle físico — pré-existente, reproduzido fielmente, logado em
+`.planning/backlog.md` como `[Bug]`); R-012 (`groupChannels()` ficou sem
+uso em produção, candidata a remoção num polish futuro); Cenário G do
+`quickstart.md` (fonte por URL M3U) não observado numa TV física por falta
+de fonte disponível na sessão, mitigado por T016 (automatizado); SC-004
+(espaço proporcional a categorias) garantido pela estrutura do código
+(nenhum item é gravado por categoria `on_demand` na importação) mas nunca
+medido diretamente no aparelho, que não oferece console para isso.

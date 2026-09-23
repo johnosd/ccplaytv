@@ -104,7 +104,9 @@ Para empacotamento e testes no emulador ou TV física, o aplicativo é compilado
 
 Filmes e séries deixaram de usar dados fictícios: as telas leem o catálogo real, com o mesmo protocolo JSON do provedor (feature 006). Em 23/09/2026, a importação de fonte de provedor passou a gravar só a **estrutura** (as categorias declaradas pelo painel) e a obter os itens de cada categoria quando a pessoa entra nela — sincronizar uma fonte com centenas de milhares de itens deixou de significar esperar minutos olhando uma tela de progresso (feature 010, `sdd/specs/010-catalogo-sob-demanda/`). Fonte por URL M3U continua importando tudo de uma vez, como sempre — não existe protocolo por categoria num arquivo M3U.
 
-Próximos: verificação na TV física do ciclo completo de carga sob demanda (pendente — ver `sdd/specs/010-catalogo-sob-demanda/plan.md` → `## Estado Atual`); depois, enriquecimento, recomendações, e então voz e controle Android. Captura de áudio disponível, persistência e protocolo de sincronização ainda precisam de validação ou decisão específica.
+**Validado em 23/09/2026**: o ciclo completo de carga sob demanda foi verificado na TV física (feature 010) — sincronizar a fonte real passou a concluir em segundos (antes, minutos), e entrar numa categoria traz os itens dela sob demanda, com cache e degradação honesta offline. 6 dos 7 cenários do quickstart foram aprovados no aparelho; o único não executado (fonte por URL M3U) fica coberto por teste automatizado, sem fonte M3U disponível na sessão para confirmação visual.
+
+Próximos: enriquecimento, recomendações, e então voz e controle Android. Captura de áudio disponível, persistência e protocolo de sincronização ainda precisam de validação ou decisão específica.
 
 ## Referências do ambiente
 

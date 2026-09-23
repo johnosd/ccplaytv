@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-23
 
-**Status**: Implementada
+**Status**: Convergida
 
 **Input**: A importação de uma fonte de provedor grava hoje o catálogo
 inteiro no aparelho de uma vez. Na TV de referência (Samsung

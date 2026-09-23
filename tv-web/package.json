@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",
+    "@tanstack/react-virtual": "^3.14.13",
     "dexie": "^4.4.6",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

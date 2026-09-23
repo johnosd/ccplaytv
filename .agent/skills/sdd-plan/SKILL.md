@@ -136,6 +136,7 @@ arquivo.
   alterados.
 - `contracts/<superfície>.md`: só se a feature expõe ou altera uma superfície
   de API.
+- `logic/<nome>.md`: só se a feature possuir lógicas de negócio complexas, algoritmos não-triviais ou regras onde o executor poderia tomar decisões arquiteturais ruins (inclua pseudocódigos ou assinaturas de interfaces para delimitar estritamente o "como").
 - `quickstart.md`: passos de verificação manual — prerrequisitos, checagens
   automatizadas, cenário ponta a ponta, e os itens cross-cutting do
   pre-acceptance checklist da constitution deste projeto, se ela definir um
@@ -173,7 +174,7 @@ prioridade), cada fase seguindo o template de 5 blocos:
 
 1. **Goal/Objetivo** — 1 frase.
 2. **Implementation/Checklist** — tasks com `[TaskID] [P?] [Story?]` e
-   caminho de arquivo real (nunca um placeholder).
+   caminho de arquivo real (nunca um placeholder). Se a task envolver lógica complexa, referencie aqui o arquivo `logic/<nome>.md` criado no passo 7 ou anexe um breve pseudocódigo/assinatura de interface diretamente na task para guiar o executor.
 3. **Tests/Testes da fase** — checklist **separado** dos itens de
    implementação.
 4. **Critério de Conclusão** — prosa explícita do que "pronto" significa

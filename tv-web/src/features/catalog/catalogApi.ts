@@ -210,7 +210,7 @@ export interface SectionCount {
 }
 
 export interface CatalogCounts {
-  channels: number
+  channels: SectionCount
   movies: SectionCount
   series: SectionCount
 }
@@ -235,15 +235,21 @@ async function sectionCount(sourceId: string, kind: CategoryKind): Promise<Secti
  * geração publicada tem.
  *
  * Enquanto nada chega, quem chama mostra nada — nunca um número de outra
- * origem (FR-014).
+ * origem (FR-014). Canais passam pela mesma regra de filmes/séries
+ * (`sectionCount`) — não pela contagem bruta do disco (`countChannels`) —
+ * porque canal de provedor também nasce `on_demand` (feature 010, achado
+ * C-001 do `sdd-converge`): mostrar o disco cru daria "0" logo após
+ * sincronizar, exatamente o número mentiroso que FR-014 proíbe.
  */
 export function useCatalogCounts(sourceId: string | null) {
   return useQuery({
     queryKey: ['catalog-counts', sourceId],
     queryFn: async (): Promise<CatalogCounts> => {
-      if (!sourceId) return { channels: 0, movies: { categories: 0 }, series: { categories: 0 } }
+      if (!sourceId) {
+        return { channels: { categories: 0 }, movies: { categories: 0 }, series: { categories: 0 } }
+      }
       const [channels, movies, series] = await Promise.all([
-        countChannels(sourceId, undefined, 'channel'),
+        sectionCount(sourceId, 'channel'),
         sectionCount(sourceId, 'movie'),
         sectionCount(sourceId, 'series'),
       ])
