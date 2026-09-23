@@ -94,18 +94,55 @@ describe('importPipeline — fonte por URL M3U', () => {
     expect(await countChannels(M3U_SOURCE.id, undefined, undefined, database)).toBe(4)
   })
 
-  it('preserva os grupos declarados pela fonte, na ordem em que apareceram', async () => {
+  it('preserva os grupos declarados pela fonte, na ordem em que apareceram, com estrutura completa (feature 010)', async () => {
     vi.stubGlobal('fetch', respondWith(MIXED_M3U))
 
     await (await startImport(M3U_SOURCE.id, { database })).completion
 
     const categories = await listCategories(M3U_SOURCE.id, undefined, database)
+    // Só canal/filme/série viram categoria navegável (categoryKindOf). O
+    // episódio usa o grupo "Series" mas é classificado por padrão de nome
+    // — não cria uma categoria própria (data-model.md §2.1).
     expect(categories.map((category) => category.name)).toEqual([
       'Canais | Esportes',
       'Canais | Variedades',
       'Filmes',
-      'Series',
     ])
+    expect(categories.map((c) => c.count)).toEqual([1, 1, 1])
+    for (const category of categories) {
+      expect(category.fetchMode).toBe('eager')
+      // Fonte por URL M3U não declara contagem — só o que foi de fato
+      // gravado, nunca fundido com uma promessa que não existe (D-005).
+      expect(category.declaredCount).toBeUndefined()
+      expect(category.itemsFetchedAt).toBeDefined()
+    }
+  })
+
+  it('todo item do caminho integral aponta para a categoria do seu grupo, inclusive o do primeiro lote (T017)', async () => {
+    vi.stubGlobal('fetch', respondWith(MIXED_M3U))
+
+    // batchSize 1 força o primeiro item a ser gravado antes de o resto do
+    // arquivo ter sido lido — é o cenário que expõe se a categoria precisa
+    // nascer antes do item (data-model.md §3), ou se dá para deixar para
+    // depois.
+    await (await startImport(M3U_SOURCE.id, { database, batchSize: 1 })).completion
+
+    const categories = await listCategories(M3U_SOURCE.id, undefined, database)
+    const idOf = (name: string) => categories.find((c) => c.name === name)!.id
+    const orderOf = (name: string) => categories.find((c) => c.name === name)!.order
+
+    const [espn] = await listChannels(M3U_SOURCE.id, orderOf('Canais | Esportes'), 0, 10, 'channel', database)
+    const [filme] = await listChannels(M3U_SOURCE.id, orderOf('Filmes'), 0, 10, 'movie', database)
+    // Sem categoria própria de "episódio" para pedir a página por
+    // groupOrder — varre a tabela inteira, seguro numa base de teste
+    // pequena (não é o caminho de leitura de produção).
+    const episodio = (await database.channels.toArray()).find((item) => item.kind === 'episode')
+
+    expect(espn.categoryId).toBe(idOf('Canais | Esportes'))
+    expect(filme.categoryId).toBe(idOf('Filmes'))
+    // Episódio não tem categoria navegável — categoryId fica ausente, não
+    // um valor forjado.
+    expect(episodio?.categoryId).toBeUndefined()
   })
 
   it('guarda a URL da entrada, porque para esta fonte ela é o único dado de reprodução', async () => {
@@ -390,20 +427,35 @@ describe('importPipeline — fonte de provedor', () => {
 
     expect(run.status).toBe('completed')
     expect(run.channelsStored).toBe(1)
+    // Contando categorias, não itens — é o que faz a tela de progresso
+    // dizer a verdade sobre o que está acontecendo (FR-013).
+    expect(run.unit).toBe('categories')
     expect((await getSource(PROVIDER_SOURCE.id, database))?.providerImportMode).toBe('xtream_api')
     expect((await getSource(PROVIDER_SOURCE.id, database))?.providerMigratedAt).toBe(7000)
   })
 
-  it('não guarda a URL de reprodução no catálogo — ela é montada na hora', async () => {
+  it('grava só a estrutura (categorias on_demand), nenhum item — conclui em passos, não em itens (T015)', async () => {
     vi.stubGlobal('fetch', panelFetch())
 
     await (await startImport(PROVIDER_SOURCE.id, { database })).completion
 
-    const [channel] = await listChannels(PROVIDER_SOURCE.id, 0, 0, 1, undefined, database)
-    expect(channel.directUrl).toBeUndefined()
-    expect(channel.providerStreamId).toBe('9')
-    // A credencial não pode ter vazado para o catálogo em nenhuma forma.
-    expect(JSON.stringify(channel)).not.toContain(PROVIDER_SOURCE.providerPassword)
+    // Zero itens: é o que faz a importação de provedor concluir em
+    // segundos, mesmo numa fonte com centenas de milhares de entradas.
+    expect(await countChannels(PROVIDER_SOURCE.id, undefined, undefined, database)).toBe(0)
+
+    const [category] = await listCategories(PROVIDER_SOURCE.id, 'channel', database)
+    expect(category).toMatchObject({
+      name: 'Esportes',
+      providerCategoryId: '1',
+      fetchMode: 'on_demand',
+      count: 0,
+    })
+    // O protocolo Xtream não declara contagem nas categorias — o campo
+    // fica ausente, nunca um número inventado no lugar (D-005).
+    expect(category.declaredCount).toBeUndefined()
+    expect(category.itemsFetchedAt).toBeUndefined()
+    // A credencial não pode ter vazado para a estrutura em nenhuma forma.
+    expect(JSON.stringify(category)).not.toContain(PROVIDER_SOURCE.providerPassword)
   })
 
   it('assinatura expirada é categoria própria, distinta de credencial recusada', async () => {
@@ -451,6 +503,9 @@ describe('importPipeline — fonte de provedor', () => {
 
     expect(run.status).toBe('completed')
     expect(run.channelsStored).toBe(2)
+    // Volta a contar itens: o caminho legado não tem estrutura pronta de
+    // antemão para contar como categorias.
+    expect(run.unit).toBe('items')
     expect((await getSource(PROVIDER_SOURCE.id, database))?.providerImportMode).toBe('legacy_m3u')
   })
 

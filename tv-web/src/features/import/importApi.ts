@@ -54,6 +54,13 @@ export interface ImportJobCounts {
   channels: number
   discarded_by_type: number
   invalid: number
+  /**
+   * O que `entries_read`/`channels` contam (feature 010). `'categories'`
+   * na fonte de provedor pelo protocolo JSON — que grava só estrutura e
+   * conclui em segundos, sem percentual (FR-013). `'items'` em todo o
+   * resto: canal, filme, série ou episódio, como sempre foi.
+   */
+  unit: 'items' | 'categories'
 }
 
 export interface ImportJobResponse {
@@ -202,6 +209,7 @@ function toJobResponse(run: ImportRunRecord): ImportJobResponse {
       channels: run.channelsStored,
       discarded_by_type: run.discardedByType,
       invalid: run.invalidCount,
+      unit: run.unit ?? 'items',
     },
     warnings,
     error_kind: run.errorKind ?? null,

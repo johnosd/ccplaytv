@@ -21,8 +21,10 @@ import { logger } from '../logger';
 import {
   db,
   type CatalogDb,
+  type CatalogItemKind,
   type CatalogRecord,
   type CatalogSection,
+  type CategoryKind,
   type ImportErrorKind,
   type ImportRunRecord,
   type ImportStep,
@@ -32,9 +34,12 @@ import {
 import {
   allocateGeneration,
   discardGeneration,
+  markCategoryFetched,
   publishGeneration,
   storeBatch,
+  storeCategories,
   StorageFullError,
+  type NewCategory,
 } from './catalogRepository'
 import { markConnectionError, markSynced, readCredential } from './sourceRepository'
 import {
@@ -46,16 +51,17 @@ import {
   type ParseTally,
 } from './m3uParser'
 import {
-  acquireXtreamChannels,
-  acquireXtreamVod,
-  acquireXtreamSeries,
   classifyWithGroupOrder,
+  fetchLiveCategories,
+  fetchSeriesCategories,
+  fetchVodCategories,
   legacyM3uUrl,
   parseXtreamStreamUrl,
   ProviderError,
   ProviderIncompatibleError,
   probeFailureKind,
   resolveAccountStatus,
+  type LiveCategory,
   type MappedChannel,
 } from './xtreamConnector'
 
@@ -209,6 +215,7 @@ function toRecord(
   sourceId: string,
   generation: number,
   keepUrl: boolean,
+  categoryId: number | undefined,
 ): CatalogRecord {
   return {
     sourceId,
@@ -218,6 +225,7 @@ function toRecord(
     originalName: channel.originalName,
     group: channel.group,
     groupOrder: channel.groupOrder,
+    categoryId,
     providerStreamId: channel.providerStreamId,
     providerCategoryId: channel.providerCategoryId,
     seriesId: channel.seriesId,
@@ -226,6 +234,11 @@ function toRecord(
     streamExtension: channel.streamExtension,
     directUrl: keepUrl ? channel.url : undefined,
   }
+}
+
+/** As três seções que viram categoria navegável. Episódio e não classificado não têm uma. */
+function categoryKindOf(kind: CatalogItemKind): CategoryKind | undefined {
+  return kind === 'channel' || kind === 'movie' || kind === 'series' ? kind : undefined
 }
 
 export async function startImport(
@@ -319,7 +332,7 @@ export async function startImport(
       }
     }
 
-    async function accept(channel: MappedChannel): Promise<void> {
+    async function accept(channel: MappedChannel, categoryId: number | undefined): Promise<void> {
       run.entriesRead += 1
       if (channel.kind === 'unclassified') {
         // D-006/FR-008: classificado e descartado sem tocar o disco. O
@@ -328,7 +341,7 @@ export async function startImport(
         run.discardedByType += 1
         return
       }
-      pendingBatch.push(toRecord(channel, sourceId, generation, keepUrl))
+      pendingBatch.push(toRecord(channel, sourceId, generation, keepUrl, categoryId))
       if (pendingBatch.length >= batchSize) {
         await flush()
         if (cancelled) throw new ImportCancelledError()
@@ -355,17 +368,66 @@ export async function startImport(
 
       const tally: ParseTally = { invalidCount: 0 }
       // A ordem de aparição do grupo é o que, no caminho M3U, substitui o
-      // índice que o painel entrega explicitamente (FR-002).
+      // índice que o painel entrega explicitamente (FR-002). O mesmo
+      // número vira `categories.order` (feature 010) — sem colisão entre
+      // kinds diferentes porque a chave da categoria inclui o kind.
       const groupOrders = new Map<string, number>()
+      // Categoria já criada nesta importação, por `${kind}|${grupo}` — só
+      // canal/filme/série viram categoria navegável (`categoryKindOf`).
+      const categoryIdsByKey = new Map<string, number>()
+      // Contagem real por categoria, para carimbar no fim (`itemsCount` —
+      // só se sabe o total quando o fluxo termina).
+      const categoryItemCounts = new Map<number, number>()
+
+      async function categoryIdFor(
+        kind: CatalogItemKind,
+        group: string | undefined,
+      ): Promise<number | undefined> {
+        const categoryKind = categoryKindOf(kind)
+        if (!categoryKind) return undefined
+        const groupName = group ?? ''
+        const key = `${categoryKind}|${groupName}`
+        const existing = categoryIdsByKey.get(key)
+        if (existing !== undefined) return existing
+
+        const [id] = await storeCategories(
+          [
+            {
+              sourceId,
+              generation,
+              kind: categoryKind,
+              fetchMode: 'eager',
+              name: group,
+              order: groupOrders.get(groupName) ?? Number.MAX_SAFE_INTEGER,
+            },
+          ],
+          database,
+        )
+        categoryIdsByKey.set(key, id)
+        return id
+      }
+
       let sawAny = false
       for await (const entry of parseM3uLines(linesFromResponse(response.body), tally)) {
         if (cancelled) throw new ImportCancelledError()
         sawAny = true
         const classified = classifyWithGroupOrder(entry, groupOrders)
-        await accept(refine ? refineFromUrl(classified) : classified)
+        const refined = refine ? refineFromUrl(classified) : classified
+        const categoryId = await categoryIdFor(refined.kind, refined.group)
+        if (categoryId !== undefined) {
+          categoryItemCounts.set(categoryId, (categoryItemCounts.get(categoryId) ?? 0) + 1)
+        }
+        await accept(refined, categoryId)
       }
       run.invalidCount = tally.invalidCount
       if (!sawAny) throw new EmptyPlaylistError()
+
+      // Os itens já foram gravados pelo fluxo normal de `storeBatch`
+      // acima, em lotes — falta só carimbar quando e quantos, porque o
+      // total de cada categoria só se conhece no fim (data-model.md §3).
+      for (const [categoryId, count] of categoryItemCounts) {
+        await markCategoryFetched(categoryId, now(), count, database)
+      }
     }
 
     let mode: ProviderImportMode | undefined
@@ -385,18 +447,33 @@ export async function startImport(
       allowedFormats = status.allowedFormats
 
       /**
-       * Uma seção de cada vez, consumida antes de pedir a próxima.
-       *
-       * Pedir canais, filmes e séries em paralelo obriga as três listas
-       * inteiras a coexistirem em memória antes da primeira gravação —
-       * triplicando o pico que o caminho de fluxo do M3U (D-002) foi feito
-       * para evitar, justamente no aparelho com menos memória.
+       * Grava a estrutura de uma seção — nenhum item. É a mudança central
+       * da feature 010: a importação de provedor deixa de esperar o
+       * catálogo inteiro e conclui assim que as categorias (algumas
+       * centenas, no pior caso) estiverem gravadas.
        */
-      async function ingest(acquire: () => Promise<MappedChannel[]>): Promise<void> {
-        for (const item of await acquire()) {
-          if (cancelled) throw new ImportCancelledError()
-          await accept(item)
-        }
+      async function ingestCategories(
+        kind: CategoryKind,
+        categories: LiveCategory[],
+      ): Promise<void> {
+        if (cancelled) throw new ImportCancelledError()
+        run.entriesRead += categories.length
+        await storeCategories(
+          categories.map(
+            (category): NewCategory => ({
+              sourceId,
+              generation,
+              kind,
+              fetchMode: 'on_demand',
+              providerCategoryId: category.id,
+              name: category.name,
+              order: category.order,
+              declaredCount: category.declaredCount,
+            }),
+          ),
+          database,
+        )
+        run.channelsStored += categories.length
       }
 
       /**
@@ -405,46 +482,55 @@ export async function startImport(
        * credencial recusada e falha de rede continuam subindo, porque são
        * problemas da fonte inteira, não daquela seção.
        */
-      async function ingestOptional(
+      async function ingestCategoriesOptional(
         section: CatalogSection,
-        acquire: () => Promise<MappedChannel[]>,
+        kind: CategoryKind,
+        fetchCategories: () => Promise<LiveCategory[]>,
       ): Promise<void> {
+        let categories: LiveCategory[]
         try {
-          await ingest(acquire)
+          categories = await fetchCategories()
         } catch (error) {
           if (!(error instanceof ProviderIncompatibleError)) throw error
           logger.warn(`Painel não serviu a seção ${section}`, error)
           run.unavailableSections = [...(run.unavailableSections ?? []), section]
+          return
         }
+        await ingestCategories(kind, categories)
+        await persist()
       }
 
+      // Contadores desta execução passam a significar categorias, não
+      // itens — é o que a tela de progresso relata (FR-013, contrato §3).
+      run.unit = 'categories'
+
       try {
-        const result = await acquireXtreamChannels(
+        const liveCategories = await fetchLiveCategories(
           credential.dns,
           credential.username,
           credential.password,
-          status,
         )
         mode = 'xtream_api'
         enterStep('parsing')
         await persist()
 
-        for (const channel of result.channels) {
-          if (cancelled) throw new ImportCancelledError()
-          await accept(channel)
-        }
+        await ingestCategories('channel', liveCategories)
+        await persist()
 
-        await ingestOptional('movie', () =>
-          acquireXtreamVod(credential.dns, credential.username, credential.password),
+        await ingestCategoriesOptional('movie', 'movie', () =>
+          fetchVodCategories(credential.dns, credential.username, credential.password),
         )
-        await ingestOptional('series', () =>
-          acquireXtreamSeries(credential.dns, credential.username, credential.password),
+        await ingestCategoriesOptional('series', 'series', () =>
+          fetchSeriesCategories(credential.dns, credential.username, credential.password),
         )
       } catch (error) {
         if (!(error instanceof ProviderIncompatibleError)) throw error
         // O painel não fala o protocolo JSON: cai no caminho M3U legado.
         // É o "modo limitado" — menos informação por item, mas a fonte
         // continua utilizável, e o registro diz por qual caminho veio.
+        // Volta a contar itens — o caminho integral não tem estrutura
+        // pronta de antemão para contar.
+        run.unit = 'items'
         mode = 'legacy_m3u'
         await consumeM3u(
           legacyM3uUrl(credential.dns, credential.username, credential.password),

@@ -251,6 +251,16 @@ export interface LiveCategory {
   name: string
   /** Posição na ordem declarada pelo provedor — preserva ordem sem reordenar por texto. */
   order: number
+  /**
+   * Contagem que o provedor declara para esta categoria (feature 010,
+   * FR-003). `get_live_categories`/`get_vod_categories`/
+   * `get_series_categories` do protocolo Xtream **não trazem esse campo**
+   * hoje — só `category_id`, `category_name` e `parent_id`. Este campo
+   * fica pronto para o dia em que um painel declarar, mas continua
+   * `undefined` por padrão: inventar uma contagem a partir do que não foi
+   * declarado violaria "IA e Classificação Nunca Inventam Dados".
+   */
+  declaredCount?: number
 }
 
 export async function fetchLiveCategories(
@@ -277,12 +287,27 @@ export async function fetchLiveCategories(
   return categories
 }
 
+/**
+ * @param categoryId Quando informado, pede só os itens daquela categoria
+ * (confirmado contra o painel real em 23/09/2026 — Fase 0 da feature 010,
+ * redução de 98,5% no tamanho da resposta). Omitido, pede a seção inteira
+ * — caminho que a importação client-first não usa mais para provedor, mas
+ * que continua correto.
+ */
 export async function fetchLiveStreams(
   base: string,
   username: string,
   password: string,
+  categoryId?: string,
 ): Promise<unknown[]> {
-  return fetchListDirect(playerApiUrl(base, username, password, { action: 'get_live_streams' }))
+  return fetchListDirect(
+    playerApiUrl(
+      base,
+      username,
+      password,
+      categoryId ? { action: 'get_live_streams', category_id: categoryId } : { action: 'get_live_streams' },
+    ),
+  )
 }
 
 export interface MappedChannel extends ClassifiedEntry {
@@ -384,8 +409,21 @@ export async function fetchVodCategories(base: string, username: string, passwor
   return categories
 }
 
-export async function fetchVodStreams(base: string, username: string, password: string): Promise<unknown[]> {
-  return fetchListDirect(playerApiUrl(base, username, password, { action: 'get_vod_streams' }))
+/** @param categoryId Ver `fetchLiveStreams`. */
+export async function fetchVodStreams(
+  base: string,
+  username: string,
+  password: string,
+  categoryId?: string,
+): Promise<unknown[]> {
+  return fetchListDirect(
+    playerApiUrl(
+      base,
+      username,
+      password,
+      categoryId ? { action: 'get_vod_streams', category_id: categoryId } : { action: 'get_vod_streams' },
+    ),
+  )
 }
 
 export function buildVodUrl(base: string, username: string, password: string, streamId: string, extension: string): string {
@@ -503,8 +541,21 @@ export async function fetchSeriesCategories(base: string, username: string, pass
   return categories
 }
 
-export async function fetchSeries(base: string, username: string, password: string): Promise<unknown[]> {
-  return fetchListDirect(playerApiUrl(base, username, password, { action: 'get_series' }))
+/** @param categoryId Ver `fetchLiveStreams`. */
+export async function fetchSeries(
+  base: string,
+  username: string,
+  password: string,
+  categoryId?: string,
+): Promise<unknown[]> {
+  return fetchListDirect(
+    playerApiUrl(
+      base,
+      username,
+      password,
+      categoryId ? { action: 'get_series', category_id: categoryId } : { action: 'get_series' },
+    ),
+  )
 }
 
 export function mapSeriesEntry(

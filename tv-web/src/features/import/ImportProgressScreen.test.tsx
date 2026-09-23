@@ -117,6 +117,36 @@ describe('ImportProgressScreen', () => {
     })
   })
 
+  it('fonte de provedor conta categorias, sem os rótulos de item que não fazem sentido ali (T022)', async () => {
+    await db.importRuns.put(
+      mockJobRecord({
+        unit: 'categories',
+        entriesRead: 340,
+        channelsStored: 340,
+        discardedByType: 0,
+        invalidCount: 0,
+      }),
+    )
+
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Categorias lidas: 340/)).toBeInTheDocument()
+      expect(screen.getByText(/Categorias gravadas: 340/)).toBeInTheDocument()
+      expect(screen.getByText(/Lendo categorias/)).toBeInTheDocument()
+    })
+    // Descarte por tipo e invalidez não existem para uma estrutura de
+    // categorias — não é honesto mostrar uma linha que é sempre zero.
+    expect(screen.queryByText(/Descartados/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Inválidos/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument()
+  })
+
   it('exibe o estado de recusa com texto próprio e garante elemento focável (T044/US5)', async () => {
     await db.importRuns.put(mockJobRecord({ status: 'failed', errorKind: 'direct_connection_refused' }))
 

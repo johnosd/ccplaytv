@@ -3,6 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   acquireXtreamChannels,
   buildLiveUrl,
+  fetchLiveCategories,
+  fetchLiveStreams,
+  fetchSeries,
+  fetchSeriesCategories,
+  fetchVodCategories,
+  fetchVodStreams,
   legacyM3uUrl,
   mapLiveEntry,
   normalizeServerAddress,
@@ -304,6 +310,61 @@ describe('requisição ao protocolo JSON', () => {
 
     const init = fetchSpy.mock.calls[0][1]
     expect(init?.headers).toBeUndefined()
+  })
+})
+
+describe('categorias declaradas (feature 010, T014)', () => {
+  function urlOf(call: unknown[]): URL {
+    return new URL(String(call[0]))
+  }
+
+  it('mapeia id, nome (inclusive vazio) e ordem; declaredCount fica ausente, nunca inventado', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse([
+        { category_id: '10', category_name: 'Ação' },
+        { category_id: '11', category_name: '' },
+      ]),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const categories = await fetchVodCategories('http://mock', 'u', 'p')
+
+    expect(categories).toEqual([
+      { id: '10', name: 'Ação', order: 0, declaredCount: undefined },
+      { id: '11', name: '', order: 1, declaredCount: undefined },
+    ])
+    // O protocolo Xtream não declara contagem nesse endpoint — o campo
+    // existe pronto no tipo, mas nada aqui o preenche por adivinhação.
+    expect(urlOf(fetchMock.mock.calls[0])).toBeInstanceOf(URL)
+  })
+
+  it('get_live_categories/get_vod_categories/get_series_categories preservam a mesma forma', async () => {
+    const raw = [{ category_id: '1', category_name: 'X' }]
+    // Uma Response nova por chamada — o corpo só pode ser lido uma vez, e
+    // este teste chama fetch três vezes (uma por seção).
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(jsonResponse(raw))))
+
+    for (const fetcher of [fetchLiveCategories, fetchVodCategories, fetchSeriesCategories]) {
+      const categories: LiveCategory[] = await fetcher('http://mock', 'u', 'p')
+      expect(categories).toEqual([{ id: '1', name: 'X', order: 0, declaredCount: undefined }])
+    }
+  })
+
+  it('fetchLiveStreams/fetchVodStreams/fetchSeries incluem category_id só quando informado', async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse([])))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await fetchLiveStreams('http://mock', 'u', 'p')
+    expect(urlOf(fetchMock.mock.calls[0]).searchParams.has('category_id')).toBe(false)
+
+    await fetchLiveStreams('http://mock', 'u', 'p', '42')
+    expect(urlOf(fetchMock.mock.calls[1]).searchParams.get('category_id')).toBe('42')
+
+    await fetchVodStreams('http://mock', 'u', 'p', '43')
+    expect(urlOf(fetchMock.mock.calls[2]).searchParams.get('category_id')).toBe('43')
+
+    await fetchSeries('http://mock', 'u', 'p', '44')
+    expect(urlOf(fetchMock.mock.calls[3]).searchParams.get('category_id')).toBe('44')
   })
 })
 
