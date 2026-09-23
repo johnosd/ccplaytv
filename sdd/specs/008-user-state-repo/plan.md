@@ -10,6 +10,13 @@ Criação do repositório `userStateRepository.ts` isolado no Dexie (`userStates
 - **Armazenamento**: IndexedDB via Dexie (`tv-web/src/lib/catalog/db.ts`).
 - **Padrões Existentes**: Repositórios separam as entidades do Dexie das telas. As chaves devem ser estáveis (sourceId + type + originalName) para sobreviver à recriação do catálogo.
 
+
+## Requisitos Derivados das Referências (docs/iptvnator, docs/guia-praticas-app-tv, docs/design)
+A arquitetura do UserStateRepository deve se alinhar com as práticas recomendadas de TV:
+1. **Favoritos Globais vs Locais**: (ref: docs/iptvnator/01-ui-ux.md) A taxonomia de estados suporta a distinção entre um favorito que pertence especificamente a uma fonte (sourceId) e um favorito global que consolida itens idênticos. O `stableId` que implementamos resolve a base, mas a API de leitura precisará permitir queries que cruzem fontes (usando índices Dexie) para a futura tela "Global Favorites".
+2. **Restaurar Estado de Foco**: O guia pede para manter o índice focal no histórico de navegação. Esse estado de roteamento e UI efêmero não pertence ao Dexie (que foca em retenção de longo prazo), e sim à memória React/Norigin (que faremos no roteador na Feature 009/010).
+3. **Empty States Controlados**: As leituras deste repositório sempre retornarão defaults seguros ou `undefined` previsíveis para forçar o render de `EmptyState` focável na UI, evitando travamentos do controle remoto.
+
 ## Decisões Invariantes
 - **ID Estável Obrigatório**: Nunca usar o ID sequencial do provedor ou ID auto-incremento do Dexie como chave primária do estado. A chave primária deve ser determinística.
 - **Repositório Independente**: O estado do usuário não entra na tabela `channels`. Deve ser uma tabela separada `userStates`.
@@ -35,19 +42,3 @@ Criação do repositório `userStateRepository.ts` isolado no Dexie (`userStates
 - `tv-web/src/lib/catalog/userStateRepository.ts`: Nova camada
 - `tv-web/src/lib/catalog/userStateRepository.test.ts`: Testes
 
-## Estado Atual
-| Área | Estado |
-|---|---|
-| Repositório | Implementado e Testado |
-| DB | Schema v4 criado |
-
-## Arquivos Principais
-- `tv-web/src/lib/catalog/db.ts`
-- `tv-web/src/lib/catalog/userStateRepository.ts`
-
-## Execution Notes
-| Data | Fase/Story | Resumo | Pendência Principal |
-|---|---|---|---|
-| 2026-09-22 | Phase 1-3 | Repositório Dexie de estado criado | Nenhuma |
-
-PRÓXIMO: sdd-converge
