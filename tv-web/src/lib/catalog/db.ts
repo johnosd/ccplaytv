@@ -46,6 +46,17 @@ export interface SourceRecord {
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
 
+
+export interface UserStateRecord {
+  stableId: string
+  sourceId: string
+  isFavorite: boolean
+  progressSeconds?: number
+  lastWatched?: number
+  createdAt: number
+  updatedAt: number
+}
+
 export interface CatalogRecord {
   id?: number
   sourceId: string
@@ -112,6 +123,7 @@ export class CatalogDb extends Dexie {
   sources!: EntityTable<SourceRecord, 'id'>
   channels!: EntityTable<CatalogRecord, 'id'>
   importRuns!: EntityTable<ImportRunRecord, 'id'>
+  userStates!: EntityTable<UserStateRecord, 'stableId'>
 
   constructor(name: string = DB_NAME) {
     super(name)
@@ -120,8 +132,12 @@ export class CatalogDb extends Dexie {
       channels: '++id, [sourceId+generation], [sourceId+generation+groupOrder]',
       importRuns: 'id, [sourceId+status]',
     })
-    this.version(2).stores({
+    this.version(3).stores({
       channels: '++id, [sourceId+generation], [sourceId+generation+groupOrder], [sourceId+generation+kind+groupOrder]'
+   
+    })
+    this.version(4).stores({
+      userStates: 'stableId, sourceId'
     })
   }
 }
