@@ -62,3 +62,20 @@ export async function updateProgress(
     })
   }
 }
+
+
+
+export async function getGlobalFavorites(
+  database: CatalogDb = db,
+): Promise<UserStateRecord[]> {
+  const all = await database.userStates.toArray()
+  return all.filter(s => s.isFavorite).sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
+export async function getContinueWatching(
+  database: CatalogDb = db,
+): Promise<UserStateRecord[]> {
+  const all = await database.userStates.toArray()
+  return all.filter(s => s.progressSeconds !== undefined && s.progressSeconds > 0)
+            .sort((a, b) => (b.lastWatched || 0) - (a.lastWatched || 0))
+}

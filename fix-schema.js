@@ -8,3 +8,4 @@ content = content.replace(/ \}\)\n  \}\n\}/g, "\n    })\n    this.version(4).sto
 content = content.replace("importRuns!: EntityTable<ImportRunRecord, 'id'>\n\n", "importRuns!: EntityTable<ImportRunRecord, 'id'>\n  userStates!: EntityTable<UserStateRecord, 'stableId'>\n\n");
 
 fs.writeFileSync(file, content);
+

@@ -21,3 +21,4 @@ content = content.replace("importRuns: 'id, sourceId, providerMode, status',\n  
 content = content.replace("importRuns!: EntityTable<ImportRunRecord, 'id'>\n}", "importRuns!: EntityTable<ImportRunRecord, 'id'>\n  userStates!: EntityTable<UserStateRecord, 'stableId'>\n}");
 
 fs.writeFileSync(file, content);
+

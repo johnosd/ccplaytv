@@ -15,3 +15,4 @@ content = content.replace(
 );
 
 fs.writeFileSync(file, content);
+

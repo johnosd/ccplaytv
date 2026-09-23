@@ -139,6 +139,9 @@ export class CatalogDb extends Dexie {
     this.version(4).stores({
       userStates: 'stableId, sourceId'
     })
+    this.version(5).stores({
+      userStates: 'stableId, sourceId, isFavorite, lastWatched'
+    })
   }
 }
 

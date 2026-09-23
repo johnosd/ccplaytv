@@ -975,6 +975,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 004-conector-xtream-live | Conector Xtream JSON para canais ao vivo | Convergida | 55/55 tasks | 2026-09-18 |
 | 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Convergida | 59/59 tasks | 2026-09-22 |
 | 008-user-state-repo | UserStateRepository | Implementada | 14/14 tasks | 2026-09-22 |
+| 009-virtualizacao-foco | Virtualização de Grades e Foco Direcional | Planejada | 0/16 tasks | 2026-09-22 |
 
 | 006-conector-xtream-vod-series | Conector Xtream JSON para VOD e Series | Convergida | 15/15 tasks | 2026-09-22 |
 | 007-higiene-credenciais | Higiene de Credenciais e Políticas de Rede | Convergida | 7/7 tasks | 2026-09-22 |
