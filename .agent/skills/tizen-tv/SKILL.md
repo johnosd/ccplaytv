@@ -81,6 +81,17 @@ cmd /c 'C:\tizen-studio\tools\ide\bin\tizen.bat cli-config "default.profiles.pat
 Diferença que importa: a extensão põe o distribuidor Samsung no **slot 1**.
 Perfil com distribuidor Tizen no slot 1 e Samsung no slot 2 é recusado.
 
+## Script de Deploy Automático (Recomendado)
+
+O fluxo manual descrito nas fases abaixo foi inteiramente automatizado no script `.planning\scripts\powershell\deploy-tv.ps1`. 
+Ele cuida da descoberta do IP da TV, build do frontend, empacotamento (evitando a armadilha do nome do certificado) e instalação encadeada (para evitar quedas do daemon `sdb`).
+
+A partir da raiz do projeto, rode:
+```powershell
+.\.planning\scripts\powershell\deploy-tv.ps1
+```
+*(Adicione a flag `-SkipBuild` se quiser apenas instalar alterações que não precisem de recompilação do frontend).*
+
 ## Fase 1 — Achar a TV
 
 O DHCP troca o IP da TV entre sessões (aconteceu duas vezes num dia). Não
@@ -142,9 +153,11 @@ O `-e "Debug/*"` evita empacotar o build anterior dentro do novo (sem ele o
 
 ## Fase 4 — Instalar e lançar
 
+Para evitar o erro `There is no connected target` (causado pelo daemon do `sdb` no Windows caindo ou derrubando a sessão muito rápido), **encadeie a reconexão e a instalação na mesma linha de comando**:
+
 ```powershell
-& $tizen install -n CCPlayTv.wgt -t QN50Q60DAGXZD -- "$PWD\CCPlayTv\.buildResult"
-& $tizen run -p 8tZqMtwANL.CCPlayTv -t QN50Q60DAGXZD
+& "C:\tizen-studio\tools\sdb.exe" connect <ip-da-tv>:26101; $tizen = "C:\tizen-studio\tools\ide\bin\tizen.bat"; & $tizen install -n CCPlayTv.wgt -t QN50Q60DAGXZD -- "$PWD\CCPlayTv\.buildResult"
+& "C:\tizen-studio\tools\sdb.exe" connect <ip-da-tv>:26101; & $tizen run -p 8tZqMtwANL.CCPlayTv -t QN50Q60DAGXZD
 ```
 
 Se aparecer **`install failed[118, -11], reason: Author certificate not
@@ -200,6 +213,8 @@ requisição?" — e não "funcionou?".
   TCP abre e o daemon derruba o handshake.
 - **IP da TV muda sozinho** (DHCP). Fixe um IP para ela no roteador, ou
   repita a varredura da Fase 1 a cada sessão.
+- **A armadilha da letra `O` no Certificado**: O comando `tizen.bat security-profiles list` formata a coluna `[Active]` com a letra `O`. Se o nome do perfil for longo, o `O` gruda no nome (ex: `meu_certificadoO`). **Não inclua o `O` no nome** ao usar `-s <perfil>`. Se o nome estiver errado, o `tizen package` esconde o erro emitindo apenas `Warning: Not found tizen signature file`, gerando um `.wgt` não assinado. A instalação na TV então falha com `install failed[118, -12], reason: Check certificate error`.
+- **Erro `There is no connected target` ao instalar**: O daemon do `sdb.exe` pode morrer ou derrubar a sessão quase que imediatamente após conectar no Windows. **Solução**: sempre rode o `sdb connect` na **mesma linha** (separado por `;`) do `tizen install` ou `tizen run`, como mostrado na Fase 4.
 - **`tizen uninstall -p 8tZqMtwANL`** responde `The package is not exist`
   mesmo com o app instalado — nesta TV o uninstall quer o **app id completo**
   (`8tZqMtwANL.CCPlayTv`). O `applist` mostra os dois valores.
