@@ -123,9 +123,18 @@ function mockContentByCategory(byId: Record<number, CatalogItemOut[]>, outcome: 
   })
 }
 
+/**
+ * Simula um toque rápido no controle. Para OK (feature 013), sem o
+ * `keyup`, o gesto de "segurar" (agora possível sempre que um filme está
+ * focado, `MoviesScreen.tsx`) nunca completaria como toque curto — o
+ * `onSelect` só dispara no `keyup`.
+ */
 function press(key: string) {
   act(() => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+    if (key === 'Enter') {
+      document.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }))
+    }
   })
 }
 

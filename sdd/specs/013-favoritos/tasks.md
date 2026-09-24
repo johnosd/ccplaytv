@@ -111,24 +111,24 @@ description: "Lista de tasks da feature 013-favoritos"
 
 ### Testes da Fase
 
-- [ ] T020 [P] [US2] Em `tv-web/src/features/movies/MoviesScreen.test.tsx`: casos equivalentes a T015 (a)–(h), (j), (k) para a grade — OK curto abre o detalhe no keyup; OK demorado favorita sem chamar `onOpenMovie`; estrela no `.poster-box`; "★ Favoritos" na trilha; vazio ativável por Enter; desfavoritar move ao vizinho da grade.
-- [ ] T021 [P] [US2] Em `tv-web/src/features/series/SeriesScreen.test.tsx`: mesmos casos de T020 para séries, mais: "Favoritos" mostra o cartão da série (nunca episódio) e OK abre o detalhe da série.
+- [X] T020 [P] [US2] **Desvio registrado** (mesmo de T015): em `tv-web/src/features/movies/MoviesScreen.favorites.test.tsx` (arquivo novo). 4 testes: OK curto/demorado no keyup/keydown; "★ Favoritos" lista e abre por OK; vazio ativável por tecla; desfavoritar move ao vizinho da grade.
+- [X] T021 [P] [US2] Em `tv-web/src/features/series/SeriesScreen.favorites.test.tsx` (arquivo novo, mesmo motivo). 3 testes: os mesmos de T020 (a)/(d)/(f), mais confirmação de que "Favoritos" mostra o cartão da série e nunca um episódio da mesma série (mesmo quando o episódio está no catálogo).
 
 ### Implementation
 
-- [ ] T022 [P] [US2] Em `tv-web/src/features/movies/MoviesScreen.tsx`: mesmas mudanças de T016–T019 adaptadas à grade (`FocusIdentity` da trilha, entrada ★, `onLongSelect` só na coluna de conteúdo, estrela, dica, conteúdo de "Favoritos" com `useFavoritesContent(sourceId, 'movie', …)` na mesma grade virtualizada com `lanes`).
-- [ ] T023 [P] [US2] Em `tv-web/src/features/series/SeriesScreen.tsx`: idem T022 com `kind: 'series'`. Não tocar `SeriesDetailScreen.tsx` (episódio não é favoritável, D-009).
+- [X] T022 [P] [US2] Em `tv-web/src/features/movies/MoviesScreen.tsx`: mesmas mudanças de T016–T019 adaptadas à grade (`TrailKey`/`EnteredKey` discriminados, entrada ★, `onLongSelect` só com filme focado, estrela em `.poster-box`, dica, conteúdo de "Favoritos" com `useFavoritesContent(sourceId, 'movie', …)` na mesma grade virtualizada com `lanes`, mesmo fallback de foco de R-009, mesmo roteamento de OK no vazio de FR-008).
+- [X] T023 [P] [US2] Em `tv-web/src/features/series/SeriesScreen.tsx`: idem T022 com `kind: 'series'`. `SeriesDetailScreen.tsx` não tocado (episódio não é favoritável, D-009).
 
-**Critério de Conclusão**: cenários da US2 cobertos e passando; desfavoritar numa categoria da fonte tira a estrela e o item de "Favoritos" (invalidação de T011); testes existentes de Filmes/Séries sem regressão; gates limpos.
+**Critério de Conclusão**: cenários da US2 cobertos e passando (7 testes novos); desfavoritar numa categoria da fonte tira a estrela e o item de "Favoritos" (invalidação de T011); testes existentes de Filmes/Séries sem regressão (`press()` ajustada nos dois arquivos, mesmo motivo de T015); gates limpos.
 
 **Checkpoint**: User Stories 1 e 2 funcionais de forma independente.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: Concluída (2026-09-24)
+- Feito: T020–T023. `MoviesScreen.tsx` e `SeriesScreen.tsx` reescritos com o mesmo padrão de `LiveScreen.tsx` (Fase 3): trilha `[Favoritos, ...categories]`, gesto de OK na grade (curto abre o detalhe no keyup, demorado favorita), estrela em `.poster-box`, dica fixa, conteúdo de "Favoritos" via `useFavoritesContent`, fallback de foco por categoria sumida (R-009) e roteamento de OK no vazio (mesmo achado de T019, aplicado preventivamente aqui — nenhuma das duas telas tinha esse gap antes de eu escrever, porque copiei o padrão já corrigido). `MoviesScreen.test.tsx`/`SeriesScreen.test.tsx`: `press()` ajustada (keydown+keyup em Enter); nenhuma asserção de trilha existia nesses arquivos, então nada mais precisou mudar. Dois arquivos novos de teste: `MoviesScreen.favorites.test.tsx` (4), `SeriesScreen.favorites.test.tsx` (3).
+- Testes executados: `npm run test` → 49 arquivos, 548 testes (0 regressão nos 16 pré-existentes de Filmes/Séries, 541→548 líquido); `npx tsc -b` e `npm run lint` limpos. Comando: `npx vitest run src/features/movies/ src/features/series/ && npm run test && npm run lint && npx tsc -b`.
+- Pendências: nenhuma técnica.
 
 ---
 
