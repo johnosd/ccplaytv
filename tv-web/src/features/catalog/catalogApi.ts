@@ -90,6 +90,22 @@ export interface CategoryContent {
 }
 
 /**
+ * "Sem teto" para `listChannels` (feature 009, D-002 completo).
+ *
+ * **Não é** `Number.MAX_SAFE_INTEGER`: esse `limit` chega até
+ * `IDBIndex.getAll(query, count)`, e o navegador exige `count` como
+ * `unsigned long` do WebIDL — no máximo `2**32 - 1`. Um valor maior lança
+ * `TypeError: ... is outside the 'unsigned long' value range`, descoberto
+ * ao verificar esta feature na TV física em 23/09/2026: a categoria vinha
+ * vazia (ou, dependendo do motor, com linhas sobrepostas por outro bug já
+ * corrigido) porque a consulta nunca completava. `0xFFFFFFFF` é o teto
+ * real do navegador — folgado o bastante para qualquer categoria real
+ * (a fonte inteira de referência tem 311.367 entradas), sem arriscar essa
+ * mesma armadilha nalgum motor mais recente que valide o argumento.
+ */
+const NO_LIMIT = 0xffffffff
+
+/**
  * Garante e lê os itens de uma categoria — o corpo de `useCategoryContent`,
  * extraído para ser reusado por `prefetchCategoryContent` sem duplicar a
  * lógica.
@@ -100,7 +116,7 @@ async function loadCategoryContent(sourceId: string, category: CatalogCategory):
   // 009, D-002 completo) — painel de canais e grades de pôsteres agora
   // virtualizam o que renderizam, então não precisam mais de um corte
   // artificial pra não travar a TV.
-  const records = await listChannels(sourceId, category.order, 0, Number.MAX_SAFE_INTEGER, category.kind)
+  const records = await listChannels(sourceId, category.order, 0, NO_LIMIT, category.kind)
   const totalCount = await countChannels(sourceId, category.order, category.kind)
   return {
     items: records.map((record) => toItemOut(record, category.kind)),

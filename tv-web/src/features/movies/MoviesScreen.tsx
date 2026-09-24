@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   groupLabel,
@@ -9,6 +9,7 @@ import {
 import { clamp, gridNextIndex, useRemoteNav } from '../../lib/useRemoteNav'
 import { usePosterColumnWidth } from '../../lib/focus/usePosterColumnWidth'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
+import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
 
 const GRID_COLS = 6
 /**
@@ -45,6 +46,13 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
       : locate(categories, (c) => groupLabel(c.name) === focusedCategoryName)
   const focusedCategory = categories[categoryIdx]
 
+  // Trilha de categorias não é virtualizada (D-004) e usa uma classe CSS
+  // pra foco, não foco real de DOM — sem isto, o item focado descia pra
+  // fora da área visível numa fonte com muitas categorias e ficava lá
+  // (achado na TV física, feature 009, Cenário B — mesmo padrão da
+  // LiveScreen).
+  const focusedCategoryRef = useScrollFocusedIntoView<HTMLButtonElement>(categoryIdx)
+
   // Pré-busca a categoria em foco depois que o cursor para nela por um
   // instante — desvio deliberado de FR-004, ver LiveScreen.tsx e plan.md R-013.
   useCategoryFocusPrefetch(sourceId, focusedCategory)
@@ -71,8 +79,7 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
   // Só o painel de conteúdo (col 1) é virtualizado — nunca a trilha de
   // categorias (D-004). Grade com `lanes: GRID_COLS`, nunca dois
   // virtualizadores compostos (D-005).
-  const gridContainerRef = useRef<HTMLDivElement>(null)
-  const columnWidth = usePosterColumnWidth(gridContainerRef, GRID_COLS)
+  const { columnWidth, setContainerRef, containerRef: gridContainerRef } = usePosterColumnWidth(GRID_COLS)
   const rowHeight = columnWidth * 1.5 + POSTER_ROW_EXTRA_PX
 
   const movieVirtualizer = useVirtualizer({
@@ -82,6 +89,18 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
     lanes: GRID_COLS,
     overscan: GRID_COLS,
   })
+
+  // O virtualizador mede e GUARDA o tamanho de cada item na primeira vez
+  // que o vê — e `columnWidth` (logo `rowHeight`) só chega depois do
+  // primeiro `ResizeObserver` disparar (`usePosterColumnWidth`). Sem isto,
+  // linhas já medidas com o `rowHeight` mínimo (`columnWidth` ainda 0)
+  // ficam erradas pra sempre: passar um `estimateSize` novo não invalida
+  // sozinho o que já foi medido, só `measure()` faz isso (achado na
+  // verificação na TV física, T019/R-010 — o bug sobrevivia mesmo depois
+  // do `ResizeObserver` já estar anexado corretamente).
+  useEffect(() => {
+    movieVirtualizer.measure()
+  }, [rowHeight, movieVirtualizer])
 
   const moviesNavigable =
     col === 1 && !content.isLoading && content.data?.outcome !== 'failed' && movies.length > 0
@@ -174,7 +193,10 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
   }
 
   const showingContent = col === 1
-  const contentFailed = showingContent && content.data?.outcome === 'failed'
+  // `content.isError`: a consulta em si lançou (ex.: erro de plataforma
+  // fora do controle de `categoryLoader`) — sem isto, `movies` cai em `[]`
+  // e a tela mostraria "categoria vazia" escondendo uma falha de verdade.
+  const contentFailed = showingContent && (content.data?.outcome === 'failed' || content.isError)
   const contentStale = showingContent && content.data?.outcome === 'stale-served'
   const truncated = showingContent && (content.data?.totalCount ?? 0) > movies.length
   /**
@@ -201,6 +223,7 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
         {categories.map((category, i) => (
           <button
             key={category.id}
+            ref={categoryIdx === i ? focusedCategoryRef : undefined}
             type="button"
             className={`live-item${col === 0 && categoryIdx === i ? ' tv-focus' : ''}`}
           >
@@ -253,7 +276,7 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
         )}
 
         {showingContent && !content.isLoading && !contentFailed && movies.length > 0 && (
-          <div ref={gridContainerRef} className="poster-grid">
+          <div ref={setContainerRef} className="poster-grid">
             <div className="poster-grid-inner" style={{ height: movieVirtualizer.getTotalSize() }}>
               {movieVirtualizer.getVirtualItems().map((virtualRow) => {
                 const movie = movies[virtualRow.index]

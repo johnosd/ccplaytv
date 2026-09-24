@@ -28,44 +28,67 @@ describe('usePosterColumnWidth (feature 009, logic/virtualizacao-foco.md §5, re
     vi.unstubAllGlobals()
   })
 
-  it('sem medição ainda (ResizeObserver não disparou), devolve 0 sem lançar', () => {
-    const containerRef = { current: document.createElement('div') }
+  it('sem contêiner anexado ainda, devolve 0 sem lançar e não tenta observar nada', () => {
+    const { result } = renderHook(() => usePosterColumnWidth(6))
 
-    const { result } = renderHook(() => usePosterColumnWidth(containerRef, 6))
-
-    expect(result.current).toBe(0)
-    expect(observe).toHaveBeenCalledWith(containerRef.current)
+    expect(result.current.columnWidth).toBe(0)
+    expect(observe).not.toHaveBeenCalled()
   })
 
-  it('divide a largura medida do contêiner pelo número de colunas', () => {
-    const containerRef = { current: document.createElement('div') }
+  it('mede assim que o callback ref é chamado com um nó — mesmo que isso não aconteça na montagem', () => {
+    // Reproduz o caso real (achado na TV física): o contêiner só passa a
+    // existir depois que o conteúdo carrega, várias renderizações depois
+    // da montagem do componente — nunca no primeiro render.
+    const { result } = renderHook(() => usePosterColumnWidth(6))
 
-    const { result } = renderHook(() => usePosterColumnWidth(containerRef, 6))
+    expect(observe).not.toHaveBeenCalled()
 
+    const node = document.createElement('div')
     act(() => {
-      observeCallback?.(
-        [{ contentRect: { width: 1200 } } as ResizeObserverEntry],
-        {} as ResizeObserver,
-      )
+      result.current.setContainerRef(node)
     })
 
-    expect(result.current).toBe(200)
+    expect(observe).toHaveBeenCalledWith(node)
+
+    act(() => {
+      observeCallback?.([{ contentRect: { width: 1200 } } as ResizeObserverEntry], {} as ResizeObserver)
+    })
+
+    expect(result.current.columnWidth).toBe(200)
   })
 
-  it('desconecta o observer ao desmontar', () => {
-    const containerRef = { current: document.createElement('div') }
+  it('trocar de nó desconecta o observer antigo antes de observar o novo', () => {
+    const { result } = renderHook(() => usePosterColumnWidth(6))
 
-    const { unmount } = renderHook(() => usePosterColumnWidth(containerRef, 6))
-    unmount()
+    const first = document.createElement('div')
+    act(() => result.current.setContainerRef(first))
+    expect(observe).toHaveBeenCalledTimes(1)
+
+    const second = document.createElement('div')
+    act(() => result.current.setContainerRef(second))
+
+    expect(disconnect).toHaveBeenCalledTimes(1)
+    expect(observe).toHaveBeenCalledTimes(2)
+    expect(observe).toHaveBeenLastCalledWith(second)
+  })
+
+  it('desanexar (nó null) desconecta o observer', () => {
+    const { result } = renderHook(() => usePosterColumnWidth(6))
+
+    const node = document.createElement('div')
+    act(() => result.current.setContainerRef(node))
+    act(() => result.current.setContainerRef(null))
 
     expect(disconnect).toHaveBeenCalledTimes(1)
   })
 
-  it('sem contêiner montado ainda, não tenta observar nada', () => {
-    const containerRef = { current: null }
+  it('desconecta o observer ao desmontar o componente', () => {
+    const { result, unmount } = renderHook(() => usePosterColumnWidth(6))
 
-    renderHook(() => usePosterColumnWidth(containerRef, 6))
+    const node = document.createElement('div')
+    act(() => result.current.setContainerRef(node))
+    unmount()
 
-    expect(observe).not.toHaveBeenCalled()
+    expect(disconnect).toHaveBeenCalledTimes(1)
   })
 })

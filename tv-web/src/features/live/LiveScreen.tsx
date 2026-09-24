@@ -12,6 +12,7 @@ import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
+import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
 
 /**
  * Altura de linha do painel de canais (feature 009) — soma da altura fixa
@@ -62,6 +63,12 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
       ? 0
       : locate(categories, (c) => groupLabel(c.name) === focusedIdentity.categoryName)
   const focusedCategory = categories[categoryIdx]
+
+  // Trilha de categorias não é virtualizada (D-004) e usa uma classe CSS
+  // pra foco, não foco real de DOM — sem isto, o item focado descia pra
+  // fora da área visível numa fonte com muitas categorias e ficava lá
+  // (achado na TV física, feature 009, Cenário B).
+  const focusedCategoryRef = useScrollFocusedIntoView<HTMLButtonElement>(categoryIdx)
 
   // Pré-busca a categoria em foco depois que o cursor para nela por um
   // instante (amortecido — ver `useCategoryFocusPrefetch`). Desvio
@@ -232,7 +239,10 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
   }
 
   const showingContent = col === 1
-  const contentFailed = showingContent && content.data?.outcome === 'failed'
+  // `content.isError`: a consulta em si lançou (ex.: erro de plataforma
+  // fora do controle de `categoryLoader`) — sem isto, `items` cai em `[]`
+  // e a tela mostraria "grupo vazio" escondendo uma falha de verdade.
+  const contentFailed = showingContent && (content.data?.outcome === 'failed' || content.isError)
   const contentStale = showingContent && content.data?.outcome === 'stale-served'
   /**
    * O que o provedor prometeu e o que ele de fato entregou são fatos
@@ -257,6 +267,7 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
         {categories.map((category, i) => (
           <button
             key={category.id}
+            ref={categoryIdx === i ? focusedCategoryRef : undefined}
             type="button"
             className={`live-item${col === 0 && categoryIdx === i ? ' tv-focus' : ''}`}
           >
