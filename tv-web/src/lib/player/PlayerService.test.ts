@@ -265,7 +265,11 @@ describe('PlayerService', () => {
 
   // T007 — porta single-flight de saltos, com grampeamento aos limites reais.
   describe('jumpBy / seekTo — porta single-flight', () => {
-    it('três jumpBy em voo produzem um segundo salto acumulado, não três chamadas', () => {
+    it('três jumpBy em voo produzem UMA chamada ao adaptador — as outras duas são descartadas (R-019)', () => {
+      // Achado na TV física: acumular deltas enquanto em voo produzia um
+      // salto do tamanho da soma quando o motor finalmente respondia — uma
+      // fila de saltos enormes que parecia o app congelado. Corrigido para
+      // descartar: no máximo um salto de 10s em voo por vez.
       const adapter = fakeAdapter()
       const session = createPlayerSession('http://exemplo.invalid/x.ts', FULLSCREEN_REGION, 'movie', {
         createAdapter: adapter.factory,
@@ -273,15 +277,18 @@ describe('PlayerService', () => {
       adapter.emitProgress(60_000, 600_000) // 1min de 10min — sem risco de clamp
 
       session.jumpBy(10_000) // dispara na hora: 1ª chamada ao adaptador
-      session.jumpBy(10_000) // em voo: acumula
-      session.jumpBy(10_000) // em voo: acumula mais
+      session.jumpBy(10_000) // em voo: descartado
+      session.jumpBy(10_000) // em voo: descartado
 
       expect(adapter.jumpCalls).toEqual([10_000])
 
-      adapter.settleSeek() // libera a porta: dispara o pendente acumulado
+      adapter.settleSeek() // libera a porta — nada pendente pra disparar
 
-      expect(adapter.jumpCalls).toEqual([10_000, 20_000])
-      expect(adapter.jumpCalls.reduce((a, b) => a + b, 0)).toBe(30_000)
+      expect(adapter.jumpCalls).toEqual([10_000]) // continua uma só chamada
+
+      // Com a porta livre, um novo toque agora dispara normalmente.
+      session.jumpBy(10_000)
+      expect(adapter.jumpCalls).toEqual([10_000, 10_000])
     })
 
     it('callback de FALHA também libera a porta (não trava saltos seguintes)', () => {

@@ -6,11 +6,14 @@ update-bug-status.ps1.
 
 ## Ideias Futuras
 
-Revisado em 2026-09-23 para refletir a convergência das features 006 a
-010 (conector VOD/séries, higiene de credenciais, `UserStateRepository`,
-virtualização e carga sob demanda por categoria). A revisão anterior, de
-22/09, refletia a **decisão ADR-008** (arquitetura client-first, backend
-só quando estritamente necessário) e a conclusão da feature 005.
+Revisado em 2026-09-24 para refletir o progresso da feature
+`011-assistir-filme-retomada` (contrato de capacidades, reprodução de
+filme, retomada — verificação na TV física em andamento). A revisão
+anterior, de 23/09, refletia a convergência das features 006 a 010
+(conector VOD/séries, higiene de credenciais, `UserStateRepository`,
+virtualização e carga sob demanda por categoria), e a de 22/09 a
+**decisão ADR-008** (arquitetura client-first) e a conclusão da feature
+005.
 Derivado de `sdd/adr/REQUISITOS-FUNCIONAIS.md` (RF-001 a
 RF-019), `sdd/adr/ESPECIFICACAO-TRAILERS.md`, `ADR-001` a `ADR-009`, da
 constitution v1.2.0, e da análise de três conjuntos de documentos:
@@ -71,21 +74,29 @@ de virar spec.
   próprio (ADR-009 — Norigin nunca foi instalado). **Nenhum dado fictício
   resta no app**; `mockCatalog.ts` não existe mais.
 - **`UserStateRepository`** (feature 008): favoritos, progresso e
-  "continuar assistindo" por identidade lógica estável. **Sem nenhum
-  consumidor em produção** — só o próprio teste o importa.
+  "continuar assistindo" por identidade lógica estável. Favoritos
+  continuam sem consumidor; progresso ganhou o primeiro (ver abaixo).
 - **URL de reprodução para os três tipos** (`playbackUrl.ts`, feature
   006/007): canal, filme e episódio, cada um no caminho e extensão certos.
   `fetchPlayback` já devolve o `kind` real do item.
+- **Reprodução de filme, com contrato de capacidades e retomada** (feature
+  `011-assistir-filme-retomada`, 24/09/2026, verificação na TV física em
+  andamento): filme abre em tela cheia com play/pause, busca (±10s, com
+  barra de progresso focável) e retomada automática, gravada em pontos
+  intermediários por identidade estável — primeiro consumidor real do
+  `UserStateRepository`. A camada de reprodução (`components/PlayerLayer.tsx`)
+  é compartilhada com a Live TV, que não regrediu. Achados só possíveis na
+  TV real: a porta que evita saltos sobrepostos na API do motor acumulava
+  pedidos em vez de descartar (travava o app ao segurar o controle) e o
+  backdrop do detalhe do filme vazava atrás do vídeo — os dois corrigidos.
 - **Frescor decidido localmente**: migração de fonte antiga, atualização
   por idade (24 h) e ressincronização explícita — tudo no aparelho.
 - **Detecção de provedor sem CORS**: explicação distinta de "sem
   internet" e "senha errada".
 
-**O buraco mais visível hoje**: dá para navegar o catálogo dos três tipos,
-mas **só canal ao vivo reproduz**. `MovieDetailScreen` tem um *placeholder*
-no lugar do "Assistir"; `SeriesDetailScreen` declara que não tem episódios;
-`PlayerOverlay` mora em `features/live/` com texto específico de canal. Ver
-os itens 4, 8, 9 e 13.
+**O buraco mais visível hoje**: filme já reproduz; **episódio de série
+ainda não** — `SeriesDetailScreen` declara que não tem episódios, e
+`fetchSeriesInfo` (conector) segue sem consumidor. Ver os itens 9 e 13.
 
 **O que não existe mais**:
 - O backend Python/FastAPI **não é mais o caminho principal**. Continua no
@@ -110,24 +121,25 @@ os itens 4, 8, 9 e 13.
    - **Ciclo de vida completo**: screensaver, `visibilitychange`, sessões
      sobrepostas, progresso intermediário — detalhado no item 10.
 
-   **Estado concreto (verificado em 23/09/2026)**: `PlayerAdapter`
-   (`tv-web/src/lib/player/PlayerService.ts`) expõe **só `open` e `close`**
-   — não há pausa, busca, posição nem duração. A única capacidade já
-   declarada é `rendersOnHardwarePlane`, e ela é o precedente a seguir: a
-   UI lê a capacidade, nunca o nome do adaptador. Sem esse contrato não há
-   como oferecer barra de busca em filme **e** mantê-la fora de canal ao
-   vivo sem janela de DVR, como a constitution exige. `fetchPlayback` já
-   devolve o `kind` real do item justamente para alimentar essa decisão.
+   **Contrato de capacidades e identidade: entregues pela feature
+   `011-assistir-filme-retomada`** (24/09/2026, verificação na TV física em
+   andamento). `PlayerAdapter` agora declara `capabilities`
+   (`canPause`/`canSeek`/`reportsPosition`/`reportsDuration`), resolvidas por
+   sessão como interseção motor × mídia — a UI lê a capacidade, nunca o
+   nome do adaptador, mesmo padrão que `rendersOnHardwarePlane` já usava. A
+   posição de retomada é chaveada por `buildStableId` (feature 008), nunca
+   pela URL. **Achado só na TV física, não previsto no design**: a porta que
+   protege `jumpBy`/`seekTo` contra chamadas sobrepostas na API do motor
+   *acumulava* saltos pendentes enquanto um estava em voo — segurar uma seta
+   no controle **travava o app** (dezenas de eventos de tecla repetida
+   viravam um salto gigante quando o motor finalmente respondia). Corrigido
+   para descartar em vez de acumular; confirmado funcionando na TV real.
 
-   **Este item bloqueia os itens 8, 9 e 13** — é o pré-requisito real de
-   qualquer reprodução que não seja canal ao vivo.
-
-   **Em andamento na feature `011-assistir-filme-retomada`** (especificada em
-   23/09/2026): o contrato de capacidades e o progresso em pontos
-   intermediários entram lá. **Continua neste item depois da 011**: a
-   identidade lógica de reprodução serializada e o ciclo de vida completo
-   (screensaver, `visibilitychange`, sessões sobrepostas) — esse resto é o
-   item 10.
+   **Continua neste item**: o ciclo de vida completo (screensaver,
+   `visibilitychange`, impedir sessões sobrepostas na troca rápida de canal)
+   — nada disso foi tocado pela 011, que abriu uma sessão por vez a partir
+   de uma tela de detalhe, não o cenário de trocar rapidamente de canal ao
+   vivo. Esse resto é o item 10.
 
    (ADR-001 §2; ADR-006 Incremento A/B; constitution "Identidade de
    Reprodução Não Depende da URL"; `docs/iptvnator/02-arquitetura.md`
@@ -172,10 +184,16 @@ os itens 4, 8, 9 e 13.
    **Já entregue** (features 009/010): a grade virtualizada de pôsteres por
    categoria, com contagem real e empty state de categoria.
 
-   **Na feature `011-assistir-filme-retomada`** (especificada em
-   23/09/2026): **Assistir** e a ação primária contextual (Assistir /
-   Retomar com posição / Reiniciar). Hoje o botão do `MovieDetailScreen`
-   dispara um toast (`showToast('Abrindo player...')`), não o player.
+   **Entregue pela feature `011-assistir-filme-retomada`** (24/09/2026,
+   verificação na TV física em andamento): **Assistir**, **Retomar** (com
+   posição salva) e **Reiniciar** como ação primária contextual do
+   `MovieDetailScreen`, com controles de play/pause e busca (±10s) e uma
+   barra de progresso focável (CIMA a partir dos botões entra nela, BAIXO
+   sai — desenho ajustado depois de testar na TV real). Progresso gravado em
+   pontos intermediários por `progressRecorder.ts`, chaveado por identidade
+   estável. Conclusão do filme é tratada como fim normal, não erro. Live TV
+   migrada para a mesma camada de reprodução (`components/PlayerLayer.tsx`),
+   sem regressão nos cenários já verificados.
 
    **Fica para este item, depois da 011**:
    - Fallback de arte em cascata: `poster_url` → `cover` → `stream_icon`
@@ -298,16 +316,18 @@ os itens 4, 8, 9 e 13.
 
     **O repositório já existe** (feature 008): `updateProgress` e
     `getContinueWatching` prontos e testados, **sem nenhum consumidor**.
-    O bloqueio real não é o armazenamento: é que nenhum motor de
-    reprodução informa posição hoje (`PlayerAdapter` só tem `open`/`close`
-    — item 4). Sem posição, não há progresso para gravar.
-
-    **A feature `011-assistir-filme-retomada` resolve esse bloqueio e grava
-    a posição de filme** — vira o primeiro consumidor do repositório.
-    **Continua neste item**: a semântica de conclusão por tipo de mídia
-    (filme conclui a ~90 %, série agrega episódios, canal ao vivo nunca
-    conclui), "em dia" para séries, e a regra de que play com erro não
-    registra visualização. A 011 grava posição; não decide "assistido".
+    **A feature `011-assistir-filme-retomada` (24/09/2026) resolveu o
+    bloqueio e é o primeiro consumidor real do repositório**: `progressRecorder.ts`
+    grava a posição de filme em pontos intermediários (a cada 5s de avanço),
+    chaveada por identidade estável, com limiar inicial (ignora os primeiros
+    ~30s) e final (apaga ao ultrapassar ~95% ou ao concluir de verdade —
+    nunca por estimativa). Tentativa de play com erro não grava nada
+    (nenhum avanço aconteceu). **Continua neste item**: a semântica de
+    conclusão por tipo de mídia como sinal de HISTÓRICO (filme "assistido" a
+    ~90% independente de retomada, série agrega episódios e distingue "em
+    dia", canal ao vivo registra acesso recente nunca conclusão) e o hero de
+    "continuar assistindo" na Home (item 16) — a 011 grava e apaga posição
+    de retomada, não decide nem persiste "assistido".
 
     (RF-014; ADR-005 §4; `docs/guia-praticas-app-tv/06` §2 e
     `docs/guia-praticas-app-tv/01` §2)
@@ -935,6 +955,24 @@ mudaram de natureza** com a arquitetura client-first:
    script utilitário deve continuar versionado e lintado junto do pacote,
    ou mudar para `scripts/` fora dele.
 
+0. **[Bug] Voltar do detalhe pra grade não restaura foco nem posição** — em
+   `tv-web/src/App.tsx`, o roteador é um `switch` que renderiza uma tela por
+   vez: abrir `MovieDetailScreen`/`SeriesDetailScreen` a partir de
+   `MoviesScreen`/`SeriesScreen` **desmonta** a tela de origem. Voltar
+   reconstrói do zero — categoria não entrada, foco no primeiro item,
+   rolagem no topo — violando "Voltar Restaura Foco e Posição" da
+   constitution. A camada de reprodução (`PlayerLayer`) não sofre disso
+   porque é montada como camada por cima da tela de detalhe, não como uma
+   troca de rota — só a navegação **entre telas do roteador** tem o
+   problema.
+
+   **Origem**: achado na exploração da feature `011-assistir-filme-retomada`
+   (24/09/2026) — pré-existente, não introduzido por ela, e fora do escopo
+   dela (a 011 trata do retorno do player pro detalhe, que já funciona).
+   Corrigir exige guardar estado de foco no histórico de navegação do
+   `App.tsx` ou manter as telas montadas em vez de trocar — decisão de
+   design, não um ajuste pequeno. Caminho normal: `sdd-bugfix`.
+
 47. **Skills de domínio + mapa de validação por área**
 
     Skills curtos (~500 palavras) no formato "gatilho + Read First → doc
@@ -1030,7 +1068,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 008-user-state-repo | UserStateRepository | Convergida | 14/14 tasks | 2026-09-22 |
 | 009-virtualizacao-foco | Virtualização de Grades e Foco Direcional | Convergida | 28/28 tasks | 2026-09-23 |
 | 010-catalogo-sob-demanda | Importação por Estrutura com Carga sob Demanda por Categoria | Convergida | 59/59 tasks | 2026-09-23 |
-| 011-assistir-filme-retomada | Assistir Filme, com Retomada | Em Execução | 29/69 tasks | 2026-09-24 |
+| 011-assistir-filme-retomada | Assistir Filme, com Retomada | Em Execução | 60/69 tasks | 2026-09-24 |
 
 ## Bugs
 

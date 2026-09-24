@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CatalogApiError, fetchPlayback } from '../features/catalog/catalogApi'
+import { CatalogApiError, fetchPlayback, type CatalogItemPlayback } from '../features/catalog/catalogApi'
 import {
   createPlayerSession,
   FULLSCREEN_REGION,
@@ -8,8 +8,29 @@ import {
   type PlayerServiceSession,
   type PlayerState,
 } from '../lib/player/PlayerService'
+import { createProgressRecorder, type ProgressRecorder, type ProgressRecorderIdentity } from '../lib/player/progressRecorder'
+import { buildStableId } from '../lib/catalog/userStateRepository'
 import { clamp, useRemoteNav } from '../lib/useRemoteNav'
 import { PlayerControls, playerControlsActions } from './PlayerControls'
+
+/**
+ * Monta a identidade estável do item, sem deixar `buildStableId` lançar até
+ * a camada de reprodução — perder retomada é degradação aceitável, nunca
+ * falha de player (D-010, R-010 do `plan.md`).
+ */
+function computeIdentity(playback: CatalogItemPlayback): ProgressRecorderIdentity | null {
+  try {
+    const stableId = buildStableId({
+      sourceId: playback.source_id,
+      kind: playback.kind,
+      providerStreamId: playback.provider_stream_id ?? undefined,
+      originalName: playback.original_name,
+    })
+    return { stableId, sourceId: playback.source_id }
+  } catch {
+    return null
+  }
+}
 
 export interface PlayerLayerProps {
   itemId: string
@@ -90,6 +111,7 @@ export function PlayerLayer({
   const [focusedIndex, setFocusedIndex] = useState(0)
   const sessionRef = useRef<PlayerServiceSession | null>(null)
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const recorderRef = useRef<ProgressRecorder | null>(null)
 
   function clearHideTimer() {
     if (hideTimerRef.current !== null) {
@@ -137,8 +159,14 @@ export function PlayerLayer({
 
     function teardown() {
       clearHideTimer()
+      // Ponto de saída (RETURN, desmontagem, nova tentativa): grava o resto
+      // que ainda não tinha cruzado o intervalo periódico (`logic/
+      // reproducao-vod.md` §2, `aoSair`). Vem antes de fechar a sessão —
+      // depois disso `session.progress` já não importa mais.
+      recorderRef.current?.onExit('close')
       sessionRef.current?.close()
       sessionRef.current = null
+      recorderRef.current = null
     }
 
     async function start() {
@@ -161,11 +189,39 @@ export function PlayerLayer({
         setFocusedIndex(playPauseIndexOf(session.capabilities))
         scheduleHide()
 
+        // Gravador de progresso (feature 011). Identidade calculada uma vez
+        // por sessão — nunca lançando até aqui (D-010).
+        const recorder = createProgressRecorder(computeIdentity(playback), session.capabilities.reportsPosition)
+        recorderRef.current = recorder
+        let previousState: PlayerState | null = null
+
         // O erro é copiado para o estado no momento em que acontece, em vez
         // de ser lido do ref durante o render — um ref não dispara
         // re-render, então a mensagem poderia ficar defasada.
         const publish = () => {
           if (cancelled) return
+          // Alimenta o gravador a cada emissão da sessão — inclusive as que
+          // só trazem progresso novo (a cadência de 5s vive dentro do
+          // próprio gravador, não aqui).
+          if (session.progress) {
+            recorder.onProgress(session.progress.positionMs, session.progress.durationMs)
+          }
+          // Pausar é ponto de saída (R0-4): a pessoa parou de propósito.
+          if (session.state === 'paused' && previousState !== 'paused') {
+            recorder.onExit('pause')
+          }
+          // Fim de filme é conclusão normal, não falha (US3/FR-019): fecha a
+          // camada sem passar pelo caminho de erro. `previousState` evita
+          // chamar `onClose` de novo no re-emit que o próprio `close()` do
+          // cleanup dispara (guardado também por `cancelled`, em dobro).
+          if (session.state === 'completed' && previousState !== 'completed') {
+            previousState = session.state
+            recorder.onExit('completed')
+            onClose()
+            return
+          }
+          previousState = session.state
+
           if (session.state === 'error') {
             setPhase({
               kind: 'error',
@@ -246,7 +302,7 @@ export function PlayerLayer({
         }
         const session = sessionRef.current
         if (!session) return
-        const actions = playerControlsActions(session.capabilities)
+        const actions = playerControlsActions(session.capabilities, session.progress)
         if (actions.length === 0) return // canal ao vivo: sem busca, sem pausa (FR-003/FR-022)
 
         if (!controlsVisible) {
@@ -266,11 +322,32 @@ export function PlayerLayer({
           return
         }
 
-        // Visíveis: esquerda/direita NAVEGAM entre ações, sem saltar.
+        // Achado na TV física (Fase 6): a barra fica visualmente ACIMA dos
+        // botões, então CIMA entra nela (não direita) e BAIXO volta —
+        // pedido direto do usuário depois de testar no aparelho.
+        const seekBarIndex = actions.findIndex((a) => a.id === 'seekBar')
+        const buttonCount = seekBarIndex === -1 ? actions.length : seekBarIndex
+
+        if (actions[focusedIndex]?.id === 'seekBar') {
+          // Com a barra focada, esquerda/direita buscam direto, sem mover o
+          // foco — segurar acumula na porta single-flight do motor, não
+          // aqui (R-019: acumular NESTE nível é que travava o app).
+          if (dir === 'left') session.jumpBy(-JUMP_MS)
+          else if (dir === 'right') session.jumpBy(JUMP_MS)
+          else if (dir === 'down') setFocusedIndex(playPauseIndexOf(session.capabilities))
+          // cima: já está no topo, nada a fazer além de reafirmar "visível".
+          scheduleHide()
+          return
+        }
+
+        // Um dos três botões focado: esquerda/direita navegam só entre eles
+        // (a barra não entra nessa varredura); cima entra na barra, se existir.
         if (dir === 'left') {
-          setFocusedIndex((i) => clamp(i - 1, 0, actions.length - 1))
+          setFocusedIndex((i) => clamp(i - 1, 0, buttonCount - 1))
         } else if (dir === 'right') {
-          setFocusedIndex((i) => clamp(i + 1, 0, actions.length - 1))
+          setFocusedIndex((i) => clamp(i + 1, 0, buttonCount - 1))
+        } else if (dir === 'up' && seekBarIndex !== -1) {
+          setFocusedIndex(seekBarIndex)
         }
         scheduleHide()
       },
@@ -290,12 +367,13 @@ export function PlayerLayer({
           revealControls()
           return
         }
-        const actions = playerControlsActions(session.capabilities)
+        const actions = playerControlsActions(session.capabilities, session.progress)
         const action = actions[focusedIndex]
         if (!action) return
         if (action.id === 'playPause') session.togglePause()
         else if (action.id === 'jumpBack') session.jumpBy(-JUMP_MS)
         else if (action.id === 'jumpForward') session.jumpBy(JUMP_MS)
+        // seekBar: sem ação em SELECT — o gesto dela é esquerda/direita, não OK.
         scheduleHide()
       },
       // RETURN encerra de qualquer estado — inclusive de `playing`, que não

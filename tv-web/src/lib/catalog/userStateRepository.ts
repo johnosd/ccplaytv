@@ -123,6 +123,26 @@ export async function updateProgress(
   )
 }
 
+/**
+ * Apaga a posição de retomada — usada ao cruzar o limiar final (quase todo
+ * assistido) e na conclusão real do motor (feature 011, `progressRecorder.ts`
+ * `logic/reproducao-vod.md` §2). Segue o mesmo padrão de `toggleFavorite`:
+ * zera o campo em vez de marcar "concluído" numa coleção separada — não há
+ * necessidade de inventar outro estado além de "tem posição" / "não tem".
+ */
+export async function clearProgress(
+  stableId: string,
+  sourceId: string,
+  database: CatalogDb = db,
+): Promise<void> {
+  await upsert(
+    stableId,
+    sourceId,
+    (current) => ({ ...current, progressSeconds: undefined }),
+    database,
+  )
+}
+
 export async function getGlobalFavorites(
   database: CatalogDb = db,
 ): Promise<UserStateRecord[]> {

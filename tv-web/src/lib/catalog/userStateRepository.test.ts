@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from './db'
 import {
   buildStableId,
+  clearProgress,
   getUserState,
   toggleFavorite,
   updateProgress,
@@ -114,6 +115,27 @@ describe('userStateRepository', () => {
     const state = await getUserState(stableId)
     expect(state?.isFavorite).toBe(true)
     expect(state?.progressSeconds).toBe(42)
+  })
+
+  it('clearProgress apaga a posição, mas preserva o favorito (feature 011)', async () => {
+    const stableId = buildStableId(MATRIX)
+    await toggleFavorite(stableId, 'src1', true)
+    await updateProgress(stableId, 'src1', 300)
+
+    await clearProgress(stableId, 'src1')
+
+    const state = await getUserState(stableId)
+    expect(state?.progressSeconds).toBeUndefined()
+    expect(state?.isFavorite).toBe(true) // não é apagar o registro, só o progresso
+  })
+
+  it('clearProgress num item sem estado prévio não lança e não cria progresso', async () => {
+    const stableId = buildStableId(MATRIX)
+
+    await expect(clearProgress(stableId, 'src1')).resolves.toBeUndefined()
+
+    const state = await getUserState(stableId)
+    expect(state?.progressSeconds).toBeUndefined()
   })
 
   it('should fetch global favorites across sources', async () => {

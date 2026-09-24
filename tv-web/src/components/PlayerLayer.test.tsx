@@ -82,6 +82,9 @@ const PLAYBACK = {
   kind: 'channel' as const,
   url: 'http://usuario:senha@exemplo.invalid/live/1.ts',
   container_hint: 'ts',
+  source_id: 'src1',
+  provider_stream_id: '1',
+  original_name: 'Canal',
 }
 
 /** Filme: capacidades resolvem tudo `true` — usado nos testes de interação (T018). */
@@ -90,6 +93,9 @@ const MOVIE_PLAYBACK = {
   kind: 'movie' as const,
   url: 'http://usuario:senha@exemplo.invalid/movie/1.mp4',
   container_hint: 'mp4',
+  source_id: 'src1',
+  provider_stream_id: '1',
+  original_name: 'Filme',
 }
 
 describe('PlayerLayer', () => {
@@ -408,6 +414,74 @@ describe('PlayerLayer', () => {
       expect(buttons[2].className).toContain('tv-focus')
     })
 
+    // --- Achado na TV física (Fase 6): barra de progresso como 4º alvo de
+    // foco, acima dos botões — CIMA entra nela, BAIXO sai. Esquerda/direita
+    // continuam só entre os três botões (nunca alcançam a barra). ---
+
+    it('esquerda/direita entre os botões nunca alcançam a barra, mesmo insistindo', async () => {
+      const { container } = await renderPlaying()
+      press('ArrowRight') // playPause(1) -> jumpForward(2)
+      press('ArrowRight') // já no último botão — clampado, não avança pra barra
+
+      expect(driver.jumpCalls).toEqual([])
+      expect(container.querySelector('.player-time-bar')?.className).not.toContain('tv-focus')
+      const buttons = screen.getAllByRole('button')
+      expect(buttons[2].className).toContain('tv-focus') // continua em jumpForward
+    })
+
+    it('CIMA a partir de um botão entra na barra (4º alvo), sem saltar', async () => {
+      const { container } = await renderPlaying()
+      press('ArrowUp') // playPause -> seekBar
+
+      expect(driver.jumpCalls).toEqual([])
+      expect(container.querySelector('.player-time-bar')?.className).toContain('tv-focus')
+    })
+
+    it('com a BARRA focada, esquerda/direita buscam direto, sem mover o foco', async () => {
+      const { container } = await renderPlaying()
+      press('ArrowUp') // -> seekBar
+
+      press('ArrowRight') // busca, não navega
+
+      expect(driver.jumpCalls).toEqual([10_000])
+      expect(container.querySelector('.player-time-bar')?.className).toContain('tv-focus') // continua na barra
+
+      press('ArrowLeft') // busca pra trás, ainda sem sair da barra
+
+      expect(driver.jumpCalls).toEqual([10_000, -10_000])
+      expect(container.querySelector('.player-time-bar')?.className).toContain('tv-focus')
+    })
+
+    it('BAIXO com a barra focada volta o foco pro play/pause', async () => {
+      const { container } = await renderPlaying()
+      press('ArrowUp') // -> seekBar
+
+      press('ArrowDown')
+
+      expect(container.querySelector('.player-time-bar')?.className).not.toContain('tv-focus')
+      const buttons = screen.getAllByRole('button')
+      expect(buttons[1].className).toContain('tv-focus') // de volta ao play/pause
+    })
+
+    it('CIMA com a barra já focada não faz nada (já está no topo)', async () => {
+      const { container } = await renderPlaying()
+      press('ArrowUp') // -> seekBar
+      press('ArrowUp') // já no topo
+
+      expect(driver.jumpCalls).toEqual([])
+      expect(container.querySelector('.player-time-bar')?.className).toContain('tv-focus')
+    })
+
+    it('SELECT com a barra focada não executa nenhuma ação (o gesto dela é esquerda/direita)', async () => {
+      await renderPlaying()
+      press('ArrowUp') // -> seekBar
+
+      press('Enter')
+
+      expect(driver.pauseCount).toBe(0)
+      expect(driver.jumpCalls).toEqual([])
+    })
+
     it('SELECT com controles ocultos revela, sem executar a ação', async () => {
       await renderPlaying()
       act(() => {
@@ -468,6 +542,52 @@ describe('PlayerLayer', () => {
       press('Escape')
 
       expect(onClose).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  // --- T039/T041: US3 — o filme termina ---
+
+  describe('conclusão (US3)', () => {
+    it('filme: estado completed fecha a camada e chama onClose, sem tela de erro', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
+      const onClose = vi.fn()
+      render(<PlayerLayer itemId="item-1" title="Filme" onClose={onClose} createAdapter={createAdapter} />)
+
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => {
+        driver.callbacks?.onStateChange('buffering')
+        driver.callbacks?.onStateChange('playing')
+      })
+
+      act(() => {
+        driver.callbacks?.onCompleted?.()
+      })
+
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole('button', { name: 'Voltar' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Tentar de novo' })).not.toBeInTheDocument()
+    })
+
+    it('canal ao vivo: onCompleted continua produzindo a tela de erro de transmissão interrompida (FR-021, não-regressão)', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
+      const onClose = vi.fn()
+      render(<PlayerLayer itemId="item-1" title="Item" onClose={onClose} createAdapter={createAdapter} />)
+
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => {
+        driver.callbacks?.onStateChange('buffering')
+        driver.callbacks?.onStateChange('playing')
+      })
+
+      act(() => {
+        driver.callbacks?.onCompleted?.()
+      })
+
+      expect(await screen.findByText('A transmissão foi interrompida.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument()
+      // Transmissão contínua não conclui — a camada continua aberta em erro,
+      // não fechada como o filme.
+      expect(onClose).not.toHaveBeenCalled()
     })
   })
 })

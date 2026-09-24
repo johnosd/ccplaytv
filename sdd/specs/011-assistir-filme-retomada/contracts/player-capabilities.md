@@ -261,19 +261,35 @@ A referência da Samsung diz que, durante `jumpForward`/`jumpBackward`,
 **outras chamadas à API ficam restritas** até o callback voltar. Segurar uma
 seta no controle emite saltos mais rápido do que o motor os conclui.
 
-**Contrato**: `jumpBy()` é *single-flight*. Enquanto um salto está em voo:
+**Revisado na Fase 6 (verificação na TV física, R-019)** — o parágrafo abaixo
+descreve a decisão **original**, testada em hardware real e **revertida**
+por travar o app; ficou aqui só como registro de alternativa rejeitada:
 
-- novas chamadas a `jumpBy` **acumulam o deslocamento** num pendente, em vez
-  de serem descartadas ou repassadas;
-- ao voltar o callback, se houver pendente acumulado, **um único** salto novo
-  é emitido com a soma.
+> ~~Acumular em vez de descartar é o que faz três toques rápidos em
+> "avançar" andarem 30 s, e não 10 s. Descartar seria perda de comando
+> percebida como travamento~~ — na prática, acumular foi o que travou: um
+> `jumpForward` real pode levar tempo perceptível pra responder (stream
+> HTTP), e segurar a seta por poucos segundos já acumula dezenas de eventos
+> de tecla repetida. Quando o salto em voo finalmente respondia, o pendente
+> somado virava um ÚNICO salto de tamanho potencialmente enorme (minutos),
+> e a própria restrição da API prendia a interface enquanto ele processava
+> — exatamente o "travamento" que a decisão original queria evitar, só que
+> por um caminho diferente.
 
-Acumular em vez de descartar é o que faz três toques rápidos em "avançar"
-andarem 30 s, e não 10 s. Descartar seria perda de comando percebida como
-travamento; repassar direto seria a chamada restrita que a referência proíbe.
+**Contrato atual**: `jumpBy()` é *single-flight* por **descarte**, não por
+acumulação. Enquanto um salto está em voo, novas chamadas a `jumpBy` são
+**ignoradas** — nenhum pendente é guardado. Ao voltar o callback (sucesso OU
+falha), a porta libera; se a tecla continuar pressionada, o próximo evento já
+dispara normalmente. No pior caso, isso limita a cadência de saltos à
+latência real do motor — previsível — em vez de arriscar um salto composto
+de tamanho imprevisível.
 
-O mesmo vale para `seekTo` durante um salto em voo: vira o pendente, com
-destino absoluto em vez de deslocamento.
+`seekTo` (destino absoluto) é diferente: não é acionado por tecla mantida
+pressionada (só pela retomada, uma vez por sessão), então continua
+enfileirando o pendente mais recente (substituindo, nunca somando) enquanto
+um salto está em voo — o risco de acúmulo que afetava `jumpBy` não se aplica
+aqui, porque não há como chamar `seekTo` repetidamente num período curto no
+fluxo real do produto.
 
 ---
 

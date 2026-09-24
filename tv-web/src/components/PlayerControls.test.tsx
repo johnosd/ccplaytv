@@ -1,7 +1,9 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { PlayerControls, playerControlsActions } from './PlayerControls'
-import type { PlayerCapabilities } from '../lib/player/PlayerService'
+import type { PlayerCapabilities, PlayerProgress } from '../lib/player/PlayerService'
+
+const KNOWN_PROGRESS: PlayerProgress = { positionMs: 60_000, durationMs: 600_000 }
 
 afterEach(() => cleanup())
 
@@ -24,13 +26,27 @@ describe('playerControlsActions', () => {
     expect(playerControlsActions(NONE)).toEqual([])
   })
 
-  it('com tudo, as três ações na ordem de foco documentada', () => {
+  it('sem progresso (ou sem duração), a barra não é um alvo — só os três botões', () => {
     expect(playerControlsActions(FULL).map((a) => a.id)).toEqual(['jumpBack', 'playPause', 'jumpForward'])
+    expect(playerControlsActions(FULL, { positionMs: 5_000, durationMs: undefined }).map((a) => a.id)).toEqual([
+      'jumpBack',
+      'playPause',
+      'jumpForward',
+    ])
   })
 
-  it('só pausa, sem busca: nenhuma ação de salto', () => {
-    const caps: PlayerCapabilities = { ...NONE, canPause: true }
-    expect(playerControlsActions(caps).map((a) => a.id)).toEqual(['playPause'])
+  it('com duração conhecida, a barra entra como quarto alvo, por último (achado da TV física)', () => {
+    expect(playerControlsActions(FULL, KNOWN_PROGRESS).map((a) => a.id)).toEqual([
+      'jumpBack',
+      'playPause',
+      'jumpForward',
+      'seekBar',
+    ])
+  })
+
+  it('só pausa, sem busca: nenhuma ação de salto nem barra, mesmo com duração conhecida', () => {
+    const caps: PlayerCapabilities = { ...NONE, canPause: true, reportsDuration: true }
+    expect(playerControlsActions(caps, KNOWN_PROGRESS).map((a) => a.id)).toEqual(['playPause'])
   })
 })
 
@@ -74,6 +90,21 @@ describe('PlayerControls', () => {
     const buttons = screen.getAllByRole('button')
     expect(buttons[0].className).toContain('tv-focus')
     expect(buttons[1].className).not.toContain('tv-focus')
+  })
+
+  it('com o foco na barra (índice 3), ela recebe .tv-focus e nenhum botão recebe', () => {
+    const { container } = render(
+      <PlayerControls capabilities={FULL} state="playing" progress={KNOWN_PROGRESS} focusedIndex={3} />,
+    )
+    expect(container.querySelector('.player-time-bar')?.className).toContain('tv-focus')
+    for (const button of screen.getAllByRole('button')) {
+      expect(button.className).not.toContain('tv-focus')
+    }
+  })
+
+  it('a barra nunca vira um <button> — é foco de div, não um elemento novo na contagem de botões', () => {
+    render(<PlayerControls capabilities={FULL} state="playing" progress={KNOWN_PROGRESS} focusedIndex={1} />)
+    expect(screen.getAllByRole('button')).toHaveLength(3) // jumpBack, playPause, jumpForward — barra não conta
   })
 
   it('play/pause mostra o glifo certo conforme o estado', () => {

@@ -181,8 +181,12 @@ export function canTransition(from: PlayerState, to: PlayerState): boolean {
   return ALLOWED_NEXT[from].includes(to)
 }
 
-/** Um salto pendente enquanto outro está em voo (contrato §5, logic §3). */
-type PendingSeek = { kind: 'delta'; value: number } | { kind: 'absolute'; value: number }
+/**
+ * Um destino ABSOLUTO pendente enquanto uma busca está em voo (contrato §5,
+ * logic §3). Só `seekTo` enfileira — `jumpBy` não usa mais este mecanismo
+ * (R-019: acumular deltas de `jumpBy` produzia saltos gigantes na TV real).
+ */
+type PendingSeek = { kind: 'absolute'; value: number }
 
 /**
  * Uma sessão de reprodução. Criada por play, encerrada por `close()`, nunca
@@ -287,16 +291,16 @@ export class PlayerServiceSession implements PlayerSession {
 
   jumpBy(deltaMs: number): void {
     if (!this._capabilities.canSeek) return
-    if (this.seekInFlight) {
-      // Acumula: três saltos de +10s em voo produzem um só de +30s, não três
-      // chamadas separadas à API restrita (logic/reproducao-vod.md §3).
-      if (this.pendingSeek) {
-        this.pendingSeek = { kind: this.pendingSeek.kind, value: this.pendingSeek.value + deltaMs }
-      } else {
-        this.pendingSeek = { kind: 'delta', value: deltaMs }
-      }
-      return
-    }
+    // Descarta enquanto um salto está em voo — não acumula (R-019, achado na
+    // TV física). Segurar a seta emite dezenas de eventos de tecla repetida
+    // em poucos segundos; acumular todos produzia UM salto do tamanho da
+    // soma quando o motor finalmente respondia (às vezes minutos), e a
+    // restrição real da API ("outras chamadas ficam restritas durante a
+    // operação") transformava isso numa fila de saltos enormes um atrás do
+    // outro — o app parecia congelado. Descartar é previsível: no máximo um
+    // salto de 10s por vez, e o próximo toque já mantido pressionado dispara
+    // assim que o anterior liberar a porta.
+    if (this.seekInFlight) return
     this.dispatchJump(deltaMs)
   }
 
@@ -327,9 +331,9 @@ export class PlayerServiceSession implements PlayerSession {
     this.seekInFlight = false
     const pending = this.pendingSeek
     this.pendingSeek = null
-    if (!pending) return
-    if (pending.kind === 'delta') this.jumpBy(pending.value)
-    else this.seekTo(pending.value)
+    // Só `seekTo` (destino absoluto) ainda enfileira — `jumpBy` descarta
+    // direto em `jumpBy()`, nunca chega a ter pendente aqui (R-019).
+    if (pending) this.seekTo(pending.value)
   }
 
   /**

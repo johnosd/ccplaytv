@@ -20,23 +20,30 @@ client-first migration itself), `006-conector-xtream-vod-series`,
 `009-virtualizacao-foco` (grid/list virtualization on all three category
 screens; ADR-009 came out of it) and `010-catalogo-sob-demanda`
 (structure-first import + per-category on-demand fetch — see "Known
-deviation" below). **Nothing is in execution right now.**
+deviation" below).
 
-Two gaps are worth knowing before picking up new work, because neither is
+**In execution**: `011-assistir-filme-retomada` (movie playback with
+capability contract, controls, and resume). Code-complete for all three
+user stories; the physical-TV gate (feature spec makes it mandatory, not
+just recommended, because the `<video>` dev adapter can't disprove a
+missing AVPlay capability) is **partially closed** — see
+`sdd/specs/011-assistir-filme-retomada/plan.md` → `## Estado Atual` for the
+exact scenario-by-scenario status before assuming it's done. Two real bugs
+only surfaced on real hardware: the single-flight seek gate used to
+*accumulate* pending jumps while one was in flight, which froze the app
+when a remote button was held down (fixed: it now discards instead); and
+`MovieDetailScreen`'s backdrop panel painted over the AVPlay hardware plane
+because the transparency rule only covered `.screen`-rooted screens, not
+`.movie-detail-layout` (fixed, but the next screen to host `PlayerLayer`
+needs its own root added to that CSS rule too).
+
+One gap is worth knowing before picking up new work, because it isn't
 visible from the converged-feature list:
 
-- **Only live channels actually play.** `resolvePlaybackUrl` already builds
-  movie and episode URLs (`playbackUrl.ts`) and `fetchPlayback` already
-  returns the item's real `kind`, but `MovieDetailScreen`'s "Assistir" is
-  still a toast placeholder, `SeriesDetailScreen` has no episodes at all,
-  and `PlayerOverlay` lives under `features/live/` with live-only wording.
-  `PlayerAdapter` exposes only `open`/`close` — no pause, seek, position or
-  duration — so VOD needs the per-engine capability contract (backlog
-  item 4) before it can offer a seek bar without violating the "controls
-  match real capabilities" principle.
-- **`userStateRepository` (feature 008) has no consumer in production** —
-  only its own test imports it. Favorites, progress and continue-watching
-  are storage without UI.
+- **Series episodes still don't play.** `SeriesDetailScreen` has no
+  episodes at all yet — `fetchSeriesInfo` exists in `xtreamConnector.ts`
+  and is never called. Movie playback (011) built the capability contract
+  and the shared `PlayerLayer` that a series-episode feature would reuse.
 
 The four top-level directories:
 
@@ -50,9 +57,15 @@ The four top-level directories:
   focus kept in sync by the project's own `useRemoteNav` + the hooks in
   `src/lib/focus/` — **not** a DOM-ref focus library (ADR-009).
   Playback goes through `src/lib/player/` (`PlayerService` + AVPlay adapter,
-  `<video>` adapter for desktop dev). The build targets `chrome108`
-  explicitly, because Vite 8's default is Chrome 111 — above the TV's
-  engine. Don't drop that from `vite.config.ts`.
+  `<video>` adapter for desktop dev), each engine declaring a capability
+  contract (pause/seek/position/duration) the UI reads instead of ever
+  branching on which engine is active. `src/components/PlayerLayer.tsx` is
+  the one fullscreen playback layer shared by Live TV and Filmes (moved out
+  of `features/live/` in feature 011) — any screen that mounts it needs its
+  own root added to the hardware-plane CSS rule in `screens.css`, or the
+  video paints behind whatever that screen renders on top of it. The build
+  targets `chrome108` explicitly, because Vite 8's default is Chrome 111 —
+  above the TV's engine. Don't drop that from `vite.config.ts`.
 - **`api/`** — Python 3.13 + FastAPI + SQLAlchemy 2 (async) + Alembic +
   PostgreSQL, managed with `uv`. **Frozen fallback per ADR-008** — not the
   primary path for any feature. It exists only for a provider panel that

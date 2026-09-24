@@ -613,8 +613,19 @@
    da reproduÃ§Ã£o a classe some e tudo volta, com foco e rolagem preservados
    (`visibility` nÃ£o remonta nada, ao contrÃ¡rio de `display: none`).
    No navegador de desenvolvimento a regra nunca vale: lÃ¡ o `<video>` Ã© nÃ³ do
-   DOM e a classe nÃ£o Ã© aplicada. */
-:root.video-plane-visible .screen > *:not(.player-overlay) {
+   DOM e a classe nÃ£o Ã© aplicada.
+
+   Feature 011: PlayerLayer passou a ser consumido tambÃ©m por
+   MovieDetailScreen, cuja raiz Ã© `.movie-detail-layout`, nÃ£o `.screen` â€”
+   achado na TV fÃ­sica (verificaÃ§Ã£o da Fase 6): o backdrop com gradiente
+   opaco do detalhe do filme vazava atrÃ¡s do vÃ­deo, exatamente a mesma causa
+   do bug `live-tv-toca-audio-sem-imagem`, sÃ³ que num container que a regra
+   original nÃ£o cobria. Listado explicitamente por seletor, no mesmo padrÃ£o
+   jÃ¡ comprovado, em vez de introduzir `:has()` (suportado no Chromium 108,
+   mas nÃ£o testado neste projeto) no meio de uma sessÃ£o de depuraÃ§Ã£o ao
+   vivo â€” prÃ³xima tela que hospedar `PlayerLayer` precisa somar sua raiz aqui. */
+:root.video-plane-visible .screen > *:not(.player-overlay),
+:root.video-plane-visible .movie-detail-layout > *:not(.player-overlay) {
   visibility: hidden;
 }
 

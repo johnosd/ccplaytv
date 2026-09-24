@@ -5,6 +5,7 @@ import {
   type CategoryKind,
   type CatalogItemKind as StoredKind,
   type CatalogRecord,
+  type UserStateRecord,
 } from '../../lib/catalog/db'
 import {
   countChannels,
@@ -15,6 +16,7 @@ import {
 } from '../../lib/catalog/catalogRepository'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
 import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
+import { getUserState } from '../../lib/catalog/userStateRepository'
 import { UNGROUPED_LABEL } from '../live/groupChannels'
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
@@ -26,6 +28,15 @@ export interface CatalogItemOut {
   original_group: string | null
   published: boolean
   playable: boolean
+  /**
+   * Identidade estável (feature 011, retomada) — opcionais de propósito: as
+   * grades (Filmes/Séries/Live) constroem `CatalogItemOut` em massa e nunca
+   * precisam destes campos; só a tela de detalhe os consome, para montar a
+   * chave de `userStateRepository.buildStableId` sem depender da URL.
+   */
+  source_id?: string
+  provider_stream_id?: string | null
+  original_name?: string
 }
 
 export interface CatalogItemPlayback {
@@ -33,6 +44,15 @@ export interface CatalogItemPlayback {
   kind: CatalogItemKind
   url: string
   container_hint: string | null
+  /**
+   * Identidade estável (feature 011, retomada) — `userStateRepository.
+   * buildStableId` monta a chave de progresso a partir destes três campos,
+   * nunca da URL. `provider_stream_id` ausente é o caso normal de fonte M3U
+   * (sem identificador de painel); `buildStableId` cai em `original_name`.
+   */
+  source_id: string
+  provider_stream_id: string | null
+  original_name: string
 }
 
 export class CatalogApiError extends Error {
@@ -62,6 +82,9 @@ function toItemOut(record: CatalogRecord, kind: CatalogItemKind): CatalogItemOut
       kind === 'series'
         ? false
         : Boolean(record.directUrl) || Boolean(record.providerStreamId),
+    source_id: record.sourceId,
+    provider_stream_id: record.providerStreamId ?? null,
+    original_name: record.originalName,
   }
 }
 
@@ -311,6 +334,9 @@ export async function fetchPlayback(itemId: string): Promise<CatalogItemPlayback
       kind: record?.kind ?? 'channel',
       url,
       container_hint: record?.streamExtension ?? null,
+      source_id: record?.sourceId ?? '',
+      provider_stream_id: record?.providerStreamId ?? null,
+      original_name: record?.originalName ?? '',
     }
   } catch (error) {
     // Item existe no catálogo mas não dá para montar a URL dele. É a mesma
@@ -321,4 +347,39 @@ export async function fetchPlayback(itemId: string): Promise<CatalogItemPlayback
     }
     throw error
   }
+}
+
+/**
+ * O estado do usuário (favorito/progresso) de um item, por identidade
+ * estável — nunca pela URL (feature 011, retomada).
+ *
+ * `null` cobre dois casos que a tela trata igual: sem identidade estável
+ * (`stableId` nulo) e identidade que nunca teve estado gravado. Os dois
+ * significam a mesma coisa pra ação primária: "Assistir", sem retomada.
+ */
+export function useUserState(stableId: string | null) {
+  return useQuery({
+    queryKey: ['user-state', stableId],
+    queryFn: async (): Promise<UserStateRecord | null> => {
+      if (!stableId) return null
+      const state = await getUserState(stableId, db)
+      return state ?? null
+    },
+    enabled: stableId !== null,
+  })
+}
+
+/**
+ * Invalida a leitura de `useUserState` para um item.
+ *
+ * Exportada (não inline na tela) de propósito: a camada de reprodução é
+ * **camada**, não rota — a tela de detalhe continua montada por baixo
+ * enquanto o filme toca, com a leitura de quando montou. Sem invalidar ao
+ * fechar a camada, "Retomar" continuaria mostrando a posição antiga (ou
+ * "Assistir", como se nada tivesse sido gravado) — `logic/
+ * reproducao-vod.md` §5.1. A tela de séries (feature seguinte) reusa esta
+ * mesma função em vez de inventar outra chave.
+ */
+export function invalidateUserState(queryClient: QueryClient, stableId: string): void {
+  void queryClient.invalidateQueries({ queryKey: ['user-state', stableId] })
 }

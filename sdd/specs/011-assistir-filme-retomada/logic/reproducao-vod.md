@@ -107,40 +107,52 @@ falha antes do primeiro quadro não grava nada.
 Consequência direta de R0-1 (a referência Samsung restringe outras chamadas
 durante `jumpForward`/`jumpBackward`).
 
+**Revisado na Fase 6 (verificação na TV física, R-019)**: a versão original
+deste projeto ACUMULAVA deltas de `jumpBy` enquanto um salto estava em voo,
+pra três toques rápidos em "avançar" andarem 30 s numa só chamada ao
+adaptador. Na TV real isso **travava o app**: segurar a seta emite dezenas de
+eventos de tecla repetida em poucos segundos, cada um somando ao pendente;
+quando o `jumpForward` em voo finalmente respondia (a operação pode levar
+tempo real num stream HTTP), disparava um salto do tamanho da soma acumulada
+— potencialmente minutos — e a restrição real da API prendia a interface
+enquanto esse salto gigante processava. `jumpBy` passou a **descartar**
+enquanto em voo, não acumular: no máximo um salto de 10 s por vez; o próximo
+toque, se a tecla continuar pressionada, dispara assim que a porta liberar.
+`seekTo` (destino absoluto, usado só pela retomada — nunca por tecla mantida
+pressionada) continua substituindo o pendente, sem risco de acúmulo.
+
 ```
 estado: emVoo: boolean = false
-        pendente: { tipo: 'delta'|'absoluto', valor: number } | null = null
+        pendenteAbsoluto: number | null = null   # só seekTo usa isto
 
 jumpBy(deltaMs):
     se NÃO capabilities.canSeek: retorna
-    se emVoo:
-        se pendente é 'delta':  pendente.valor += deltaMs      # ACUMULA
-        senão se pendente é 'absoluto': pendente.valor += deltaMs
-        senão: pendente := { tipo: 'delta', valor: deltaMs }
-        retorna
+    se emVoo: retorna                            # DESCARTA — não acumula (R-019)
     emVoo := true
-    adapter.jumpBy(deltaMs)                                    # ok/err → aoTerminarSalto()
+    adapter.jumpBy(deltaMs)                       # ok/err → aoTerminarSalto()
 
 seekTo(posiçãoMs):
     se NÃO capabilities.canSeek: retorna
     se emVoo:
-        pendente := { tipo: 'absoluto', valor: posiçãoMs }     # SUBSTITUI
+        pendenteAbsoluto := posiçãoMs             # SUBSTITUI
         retorna
     emVoo := true
     adapter.seekTo(posiçãoMs)
 
-aoTerminarSalto():                              # sucesso OU falha
+aoTerminarSalto():                                # sucesso OU falha
     emVoo := false
-    se pendente:
-        p := pendente; pendente := null
-        se p.tipo == 'delta': jumpBy(p.valor) senão seekTo(p.valor)
+    se pendenteAbsoluto != null:
+        p := pendenteAbsoluto; pendenteAbsoluto := null
+        seekTo(p)
 ```
-
-Acumular o delta é o que faz três toques rápidos em "avançar" andarem 30 s.
-Descartar pareceria travamento; repassar direto violaria a restrição da API.
 
 `aoTerminarSalto` roda **também na falha** — senão um `seekTo` recusado (por
 exemplo, além da duração) travaria a porta e nenhum salto seguinte sairia.
+
+**Consequência assumida**: segurar a seta produz uma cadência de saltos de
+10 s limitada pela latência real do motor pra cada `jumpForward` — não um
+avanço uniformemente contínuo. É um comportamento previsível (nunca "sumiu
+minutos processando"), preferível a um que pareça travamento.
 
 ---
 
@@ -149,13 +161,27 @@ exemplo, além da duração) travaria a porta e nenhum salto seguinte sairia.
 Duas variáveis de estado na camada: `controlsVisible: boolean` e
 `focusedAction: índice`.
 
-| Tecla | Controles **ocultos** | Controles **visíveis** |
-| --- | --- | --- |
-| ESQUERDA | `jumpBy(-10s)` **e** mostra os controles | move o foco para a ação anterior |
-| DIREITA | `jumpBy(+10s)` **e** mostra os controles | move o foco para a próxima ação |
-| CIMA / BAIXO | mostra os controles | mostra os controles (reinicia o temporizador) |
-| SELECT | mostra os controles | **executa a ação focada** |
-| RETURN | encerra a sessão | encerra a sessão |
+**Revisado na Fase 6 (achado do usuário na TV física)**: a barra de progresso
+passou a ser um **quarto alvo de foco**, além dos três botões — pedido
+explícito depois de testar no aparelho ("focar a barra e usar direita pra
+avançar"). Ela fica visualmente **acima** dos botões, então **CIMA** entra
+nela a partir de qualquer botão, e **BAIXO** volta pro play/pause. Só existe
+quando a barra em si é desenhada (duração conhecida — `PlayerControls.
+hasSeekBar`); sem duração, o comportamento é idêntico ao original (só os três
+botões).
+
+| Tecla | Ocultos | Visíveis — **um botão** focado | Visíveis — **barra** focada |
+| --- | --- | --- | --- |
+| ESQUERDA | `jumpBy(-10s)` **e** mostra os controles | move o foco pro botão anterior | `jumpBy(-10s)`, **sem mover o foco** |
+| DIREITA | `jumpBy(+10s)` **e** mostra os controles | move o foco pro próximo botão | `jumpBy(+10s)`, **sem mover o foco** |
+| CIMA | mostra os controles | **entra na barra** (se existir) | nada (já está no topo) |
+| BAIXO | mostra os controles | reinicia o temporizador | **volta pro play/pause** |
+| SELECT | mostra os controles | **executa a ação focada** | nada — o gesto da barra é esquerda/direita, não OK |
+| RETURN | encerra a sessão | encerra a sessão | encerra a sessão |
+
+Esquerda/direita entre os três botões **nunca alcançam a barra** por
+transbordo — só CIMA leva até ela. Isso evita a ambiguidade de "mais um
+toque pra direita no último botão vira busca ou fica parado?".
 
 ```
 TEMPO_OCULTAR_MS = 5000     # guia 06 §1
@@ -179,12 +205,15 @@ aoInteragir():
 
 ### Ações da barra, em ordem de foco
 
-`[ ⏪ 10s ] [ ▶/⏸ ] [ ⏩ 10s ]`
+`[ ⏪ 10s ] [ ▶/⏸ ] [ ⏩ 10s ] [ barra de progresso ]*`
+
+\* só quando `hasSeekBar` (duração conhecida) — ver §3 acima.
 
 O foco inicial, ao revelar, é sempre o **play/pause** (a ação primária de
-FR-008). Ações cuja capacidade seja `false` **não são renderizadas** — não
-existem desabilitadas. Com `canSeek: false` e `canPause: false` (canal ao
-vivo), a barra inteira não existe.
+FR-008) — nunca a barra, mesmo quando ela existe. Ações cuja capacidade seja
+`false` **não são renderizadas** — não existem desabilitadas. Com
+`canSeek: false` e `canPause: false` (canal ao vivo), a barra inteira não
+existe, nem os botões de salto.
 
 ---
 

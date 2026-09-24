@@ -134,21 +134,21 @@ description: "Template de lista de tasks para implementação de feature"
 
 ### Testes da Fase
 
-- [ ] T027 [P] [US2] Teste de gravação em `tv-web/src/lib/player/progressRecorder.test.ts` (novo), com `fake-indexeddb` — cadência de 5 s; **nada** gravado abaixo de 30 s; gravação ao pausar/encerrar; **nada** gravado quando nenhum `onProgress` chegou (FR-017); nada gravado quando `reportsPosition: false` (canal ao vivo)
-- [ ] T028 [P] [US2] Teste do limiar final em `tv-web/src/lib/player/progressRecorder.test.ts` — cruzar 95 % **apaga** o progresso e a porta `marcaComoApagado` impede regravação enquanto a sessão continua (`logic/reproducao-vod.md` §2); sem duração conhecida, **não** apaga por proporção
-- [ ] T029 [P] [US2] Teste de `MovieDetailScreen.test.tsx` — com progresso ≥30 s, a ação primária é "Retomar" com o tempo formatado e "Reiniciar" existe; com progresso <30 s, continua "Assistir" sem secundária; "Reiniciar" passa `startAtMs: 0` e "Retomar" passa a posição (`logic/reproducao-vod.md` §5)
-- [ ] T030 [P] [US2] Teste de identidade em `progressRecorder.test.ts` — a chave usada é a de `buildStableId`; item sem `providerStreamId` cai em `originalName`; item sem nenhum dos dois **não derruba a reprodução**, só não grava (D-010, R-010)
-- [ ] T031 [P] [US2] Teste de frescor em `tv-web/src/features/movies/MovieDetailScreen.test.tsx` — abrir a camada, simular avanço gravado, fechar, e conferir que a ação primária **relê** e passa a mostrar a posição nova. O teste que falha sem a invalidação: assistir e voltar deixando a tela anunciar "Assistir" ou "0:00" (`logic/reproducao-vod.md` §5.1)
+- [X] T027 [P] [US2] Teste de gravação em `tv-web/src/lib/player/progressRecorder.test.ts` (novo), com `fake-indexeddb` — cadência de 5 s; **nada** gravado abaixo de 30 s; gravação ao pausar/encerrar; **nada** gravado quando nenhum `onProgress` chegou (FR-017); nada gravado quando `reportsPosition: false` (canal ao vivo)
+- [X] T028 [P] [US2] Teste do limiar final em `tv-web/src/lib/player/progressRecorder.test.ts` — cruzar 95 % **apaga** o progresso e a porta `marcaComoApagado` impede regravação enquanto a sessão continua (`logic/reproducao-vod.md` §2); sem duração conhecida, **não** apaga por proporção
+- [X] T029 [P] [US2] Teste de `MovieDetailScreen.test.tsx` — com progresso ≥30 s, a ação primária é "Retomar" com o tempo formatado e "Reiniciar" existe; com progresso <30 s, continua "Assistir" sem secundária; "Reiniciar" passa `startAtMs: 0` e "Retomar" passa a posição (`logic/reproducao-vod.md` §5)
+- [X] T030 [P] [US2] Teste de identidade em `progressRecorder.test.ts` — a chave usada é a de `buildStableId`; item sem `providerStreamId` cai em `originalName`; item sem nenhum dos dois **não derruba a reprodução**, só não grava (D-010, R-010)
+- [X] T031 [P] [US2] Teste de frescor em `tv-web/src/features/movies/MovieDetailScreen.test.tsx` — abrir a camada, simular avanço gravado, fechar, e conferir que a ação primária **relê** e passa a mostrar a posição nova. O teste que falha sem a invalidação: assistir e voltar deixando a tela anunciar "Assistir" ou "0:00" (`logic/reproducao-vod.md` §5.1)
 
 ### Implementation
 
-- [ ] T032 [US2] Criar `tv-web/src/lib/player/progressRecorder.ts` — a máquina de `logic/reproducao-vod.md` §2 (`aoAtualizarPosição`/`aoSair`), consumindo `resumePolicy` e `userStateRepository.updateProgress`. Sem React: recebe posição e devolve efeito, para ser testável sem DOM
-- [ ] T033 [US2] Acrescentar ao `userStateRepository` a limpeza de progresso usada pelo limiar final e pela conclusão em `tv-web/src/lib/catalog/userStateRepository.ts` — seguir o padrão de `toggleFavorite`, que já zera `favoritedAt` em vez de marcar (não inventar coleção nova)
-- [ ] T034 [US2] Ligar o gravador à camada em `tv-web/src/components/PlayerLayer.tsx` — assinar `onProgress`, chamar `aoSair` em pausa/RETURN/desmontagem, envolvendo em `try/catch` para D-010
-- [ ] T035 [US2] Criar `useUserState(stableId)` e `invalidateUserState(queryClient, stableId)` em `tv-web/src/features/catalog/catalogApi.ts`, com `queryKey: ['user-state', stableId]` — seguir o padrão de `useCatalogItem` (`catalogApi.ts:289`). Exportar a invalidação em vez de deixá-la inline, para a tela de séries reusar a mesma chave (`logic/reproducao-vod.md` §5.1)
-- [ ] T036 [US2] Ler o estado do usuário em `tv-web/src/features/movies/MovieDetailScreen.tsx` via `useUserState` e alternar a ação primária entre Assistir / Retomar (com posição formatada) / Reiniciar (FR-015, FR-016)
-- [ ] T037 [US2] Chamar `invalidateUserState` ao fechar a camada em `MovieDetailScreen.tsx` — sem isso a tela por baixo continua com a leitura de quando montou, e um filme assistido por 20 min volta anunciando "Assistir" (`logic/reproducao-vod.md` §5.1). A invalidação fica na tela, que detém a consulta **e** o estado `playing`; a camada não conhece chaves de consulta
-- [ ] T038 [US2] Formatação de tempo em `tv-web/src/lib/player/formatTime.ts` (novo) com teste — `1h23`, `12:05`, sem inventar horas para um filme de 40 min
+- [X] T032 [US2] Criar `tv-web/src/lib/player/progressRecorder.ts` — a máquina de `logic/reproducao-vod.md` §2 (`aoAtualizarPosição`/`aoSair`), consumindo `resumePolicy` e `userStateRepository.updateProgress`. Sem React: recebe posição e devolve efeito, para ser testável sem DOM
+- [X] T033 [US2] Acrescentar ao `userStateRepository` a limpeza de progresso usada pelo limiar final e pela conclusão em `tv-web/src/lib/catalog/userStateRepository.ts` — seguir o padrão de `toggleFavorite`, que já zera `favoritedAt` em vez de marcar (não inventar coleção nova)
+- [X] T034 [US2] Ligar o gravador à camada em `tv-web/src/components/PlayerLayer.tsx` — assinar `onProgress`, chamar `aoSair` em pausa/RETURN/desmontagem, envolvendo em `try/catch` para D-010
+- [X] T035 [US2] Criar `useUserState(stableId)` e `invalidateUserState(queryClient, stableId)` em `tv-web/src/features/catalog/catalogApi.ts`, com `queryKey: ['user-state', stableId]` — seguir o padrão de `useCatalogItem` (`catalogApi.ts:289`). Exportar a invalidação em vez de deixá-la inline, para a tela de séries reusar a mesma chave (`logic/reproducao-vod.md` §5.1)
+- [X] T036 [US2] Ler o estado do usuário em `tv-web/src/features/movies/MovieDetailScreen.tsx` via `useUserState` e alternar a ação primária entre Assistir / Retomar (com posição formatada) / Reiniciar (FR-015, FR-016)
+- [X] T037 [US2] Chamar `invalidateUserState` ao fechar a camada em `MovieDetailScreen.tsx` — sem isso a tela por baixo continua com a leitura de quando montou, e um filme assistido por 20 min volta anunciando "Assistir" (`logic/reproducao-vod.md` §5.1). A invalidação fica na tela, que detém a consulta **e** o estado `playing`; a camada não conhece chaves de consulta
+- [X] T038 [US2] Formatação de tempo em `tv-web/src/lib/player/formatTime.ts` (novo) com teste — `1h23`, `12:05`, sem inventar horas para um filme de 40 min. **Adiantada na Fase 3** (T022/`PlayerControls.tsx` já precisava dela para exibir tempo decorrido/total, FR-007) — reconciliada aqui.
 
 **Critério de Conclusão**: a posição sobrevive a fechar a camada e a recarregar a página, aparece como "Retomar" com o tempo certo **imediatamente ao voltar do player** (sem releitura manual), "Reiniciar" começa do zero, e nada é gravado abaixo do limiar inicial nem acima do final.
 
@@ -156,10 +156,10 @@ description: "Template de lista de tasks para implementação de feature"
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: Concluída
+- Feito: `progressRecorder.ts` (máquina `aoAtualizarPosição`/`aoSair`, sem React); `userStateRepository.clearProgress` (segue o padrão de `toggleFavorite`); `catalogApi.ts` ganhou `source_id`/`provider_stream_id`/`original_name` em `CatalogItemPlayback` (obrigatórios) e `CatalogItemOut` (opcionais, populados em `toItemOut`, sem afetar as grades) e os hooks `useUserState`/`invalidateUserState`; `PlayerLayer.tsx` cria o gravador por sessão (identidade contida em `computeIdentity`, nunca lança até a camada) e alimenta `onProgress`/`onExit('pause')`/`onExit('close')`; `MovieDetailScreen.tsx` reescrito com lista de ações (`buildActions`) que alterna Trailer+Assistir ↔ Trailer+Retomar+Reiniciar, com a ação primária sempre no índice 1, e invalida `useUserState` ao fechar a camada.
+- Testes executados: `npx vitest run` → 378 passed (39 arquivos, +21 desde a Fase 3: 13 em `progressRecorder.test.ts`, 2 novos em `userStateRepository.test.ts`, 6 novos em `MovieDetailScreen.test.tsx` reescrito com 13 testes no total); `npx tsc -b` limpo; `npm run lint` limpo (mesmos warnings pré-existentes de `react(incompatible-library)`/`react(only-export-components)`, nenhum novo introduzido por esta fase). Dois erros de premissa nos meus próprios testes corrigidos durante o desenvolvimento (não no código): `onExit` reaplica a MESMA porta de `onProgress` em vez de forçar gravação incondicional (o design já estava certo, o teste que assumia errado), e "sem duração conhecida" testava a coisa errada (duração ausente não bloqueia gravação normal, só a decisão de "passou do fim").
+- Pendências: nenhuma nova. `MovieDetailScreen.test.tsx` passou a mockar `PlayerLayer` inteiro (não só `fetchPlayback`) para inspecionar `startAtMs` recebido — decisão de teste registrada aqui para quem retomar não estranhar a mudança de estratégia frente à Fase 3.
 
 ---
 
@@ -171,14 +171,14 @@ description: "Template de lista de tasks para implementação de feature"
 
 ### Testes da Fase
 
-- [ ] T039 [P] [US3] Teste em `tv-web/src/components/PlayerLayer.test.tsx` — estado `completed` fecha a camada e chama `onClose`, **sem** renderizar a tela de erro
-- [ ] T040 [P] [US3] Teste em `progressRecorder.test.ts` — conclusão apaga o progresso (FR-020)
-- [ ] T041 [P] [US3] Teste de não-regressão em `tv-web/src/components/PlayerLayer.test.tsx` — com mídia `channel`, `onCompleted` continua produzindo a tela de erro com a mensagem de transmissão interrompida (FR-021)
+- [X] T039 [P] [US3] Teste em `tv-web/src/components/PlayerLayer.test.tsx` — estado `completed` fecha a camada e chama `onClose`, **sem** renderizar a tela de erro
+- [X] T040 [P] [US3] Teste em `progressRecorder.test.ts` — conclusão apaga o progresso (FR-020). **Adiantado na Fase 4** (T028) — reconciliado aqui, mais um teste novo do selo pós-conclusão (ver T043)
+- [X] T041 [P] [US3] Teste de não-regressão em `tv-web/src/components/PlayerLayer.test.tsx` — com mídia `channel`, `onCompleted` continua produzindo a tela de erro com a mensagem de transmissão interrompida (FR-021)
 
 ### Implementation
 
-- [ ] T042 [US3] Tratar `completed` em `tv-web/src/components/PlayerLayer.tsx` — fechar a camada e devolver o foco, sem passar pelo caminho de erro
-- [ ] T043 [US3] Ligar a conclusão à limpeza de progresso via `progressRecorder` (`aoSair('conclusão')`) — o `onClose` que se segue já dispara a invalidação de T037, então o detalhe volta a oferecer "Assistir" sem releitura manual
+- [X] T042 [US3] Tratar `completed` em `tv-web/src/components/PlayerLayer.tsx` — fechar a camada e devolver o foco, sem passar pelo caminho de erro
+- [X] T043 [US3] Ligar a conclusão à limpeza de progresso via `progressRecorder` (`aoSair('conclusão')`) — o `onClose` que se segue já dispara a invalidação de T037, então o detalhe volta a oferecer "Assistir" sem releitura manual. **Achado ao implementar**: a desmontagem que `onClose()` provoca roda o cleanup do efeito, que chama `onExit('close')` de novo sobre o MESMO gravador — sem um selo (`done`), essa segunda chamada reaplicaria a última posição conhecida e ressuscitaria o progresso recém-apagado. `progressRecorder.ts` ganhou esse selo (R-018)
 
 **Critério de Conclusão**: um filme que termina não mostra erro, volta ao detalhe e deixa de ser retomável; um canal cuja transmissão cai continua mostrando a falha de hoje.
 
@@ -186,10 +186,10 @@ description: "Template de lista de tasks para implementação de feature"
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: Concluída
+- Feito: `progressRecorder.ts` ganhou o selo `done` (impede que `onExit('close')` do cleanup reverta uma conclusão já processada); `PlayerLayer.tsx` trata `session.state === 'completed'` chamando `recorder.onExit('completed')` e `onClose()` diretamente, antes do ramo de erro — canal ao vivo nunca alcança esse ramo (`reportsDuration: false` já traduz `onCompleted` para `error` na sessão, D-008, sem tocar nesta fase).
+- Testes executados: `npx vitest run` → 381 passed (39 arquivos, +3 desde a Fase 4: 2 em `PlayerLayer.test.tsx`, 1 em `progressRecorder.test.ts`); `npx tsc -b` limpo; `npm run lint` limpo (mesmos 4 warnings pré-existentes, nenhum novo).
+- Pendências: nenhuma. As três user stories (P1/P2/P3) estão funcionais e testadas. Falta o gate de TV física (Fase 6) e a validação manual completa do `quickstart.md` (Fase 7).
 
 ---
 
@@ -197,23 +197,25 @@ description: "Template de lista de tasks para implementação de feature"
 
 **Purpose**: Provar no AVPlay o que o adaptador `<video>` é incapaz de reprovar. Decisão do usuário (23/09/2026): **gate de conclusão desta feature**.
 
-- [ ] T044 Build e instalação pelo skill `tizen-tv` (`npm run build:tizen` em `tv-web/`)
-- [ ] T045 Executar Cenário F (filme reproduz, com imagem e áudio) de `quickstart.md`
-- [ ] T046 Executar Cenário G (posição e duração reais) — **registrar** se a duração veio ou não, e qual degradação ocorreu (R-007)
-- [ ] T047 Executar Cenário H (pausa e busca), incluindo **segurar a seta por ~3 s** para exercitar a porta single-flight (R-002) — o risco mais concreto da feature
-- [ ] T048 Executar Cenário I (retomada ponta a ponta, com o app fechado pelo controle)
-- [ ] T049 Executar Cenário J (Live TV não regrediu) — reexecuta o Cenário C da feature 003 (SC-005)
-- [ ] T050 Conferir `sdb dlog | Select-String CCPlay` — nenhuma URL, endereço, usuário ou senha no log (SC-006)
-- [ ] T051 Registrar a evidência exigida pelo guia 06 (modelo, firmware, versão, origem **sem URL**, sequência de comandos) em `plan.md` → `## Execution Notes`
+- [X] T044 Build e instalação pelo skill `tizen-tv` (`npm run build:tizen` em `tv-web/`) — feito 4 vezes nesta rodada (build inicial + 3 correções)
+- [X] T045 Executar Cenário F (filme reproduz, com imagem e áudio) de `quickstart.md` — aprovado **depois** da correção de R-021 (backdrop vazando atrás do vídeo); reprovado na primeira tentativa
+- [X] T046 Executar Cenário G (posição e duração reais) — aprovado; duração veio do motor (confirmado indiretamente: a barra de progresso só existe com duração conhecida, e o usuário validou a barra funcionando)
+- [ ] T047 Executar Cenário H (pausa e busca), incluindo **segurar a seta por ~3 s** para exercitar a porta single-flight (R-002) — **pausa/retomada, salto único e segurar a seta aprovados**, depois de duas correções (R-019 congelamento, R-020 modelo de navegação). **Falta só**: confirmar que buscar além do fim do filme não trava — pedido ao usuário, sem resposta ainda; deixado `[ ]` até esse último item ser observado
+- [ ] T048 Executar Cenário I (retomada ponta a ponta, com o app fechado pelo controle) — **não executado**
+- [ ] T049 Executar Cenário J (Live TV não regrediu) — **não executado**, confirmado explicitamente pelo usuário ("não testei o canal") — registrado como não executado, nunca como aprovado (regra do skill `tizen-tv`)
+- [ ] T050 Conferir `sdb dlog | Select-String CCPlay` — nenhuma URL, endereço, usuário ou senha no log (SC-006) — não executado
+- [X] T051 Registrar a evidência exigida pelo guia 06 (modelo, firmware, versão, origem **sem URL**, sequência de comandos) em `plan.md` → `## Execution Notes` — registrado para o que foi executado até aqui
 
 **Critério de Conclusão**: Cenários F–J aprovados na QN50Q60DAGXZD, com evidência registrada. Cenário reprovado vira task nova, não nota de rodapé.
 
+**Encerrada por decisão explícita do usuário (24/09/2026), sem satisfazer o critério acima por completo.** Os itens não executados (T047 parcial, T048, T049, T050) **continuam `[ ]` e continuam significando "não executado"** — nenhum deles virou "aprovado" por decisão, só a INSISTÊNCIA em testá-los agora é que foi dispensada. O usuário optou explicitamente por não testar o restante nesta sessão e assumir o risco residual: **qualquer comportamento incorreto percebido depois nesses caminhos (busca além do fim, retomada após fechar o app, Live TV, segredo em log) vira `sdd-adhoc` (ajuste pequeno) ou `sdd-bugfix` (bug), não reabre esta feature nem o gate da Fase 6.**
+
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: Encerrada por decisão do usuário — risco residual aceito, gate não satisfeito por completo
+- Feito: instalação e três rodadas de correção na TV física QN50Q60DAGXZD (192.168.0.4). Cenário F aprovado após corrigir R-021 (backdrop de `MovieDetailScreen` vazando atrás do plano de hardware — mesma causa-raiz de `live-tv-toca-audio-sem-imagem`, cobertura de CSS que não existia pra essa tela). Cenário G aprovado. Cenário H aprovado nos itens de pausa/retomada, salto único e — o mais crítico — segurar a seta continuamente, depois de duas correções reais: R-019 (a porta single-flight acumulava saltos em vez de descartar, causando o congelamento relatado) e R-020 (modelo de navegação redesenhado de "direita entra na barra" para "cima entra, baixo sai", a pedido do usuário após testar).
+- Testes executados: `npx vitest run` → 390/390 depois de cada correção; `npx tsc -b`/`npm run lint` limpos. Verificação manual na TV física para os itens listados acima.
+- Pendências (aceitas como risco residual, não bloqueiam mais o avanço): (1) confirmar "buscar além do fim não trava"; (2) Cenário I (retomada ponta a ponta, fechando o app); (3) Cenário J (Live TV, explicitamente não testado nesta sessão); (4) checagem de log via `sdb dlog` (T050). Nenhum destes foi observado — permanecem "não executado", não "aprovado" (R-022 em `plan.md`). Caminho normal se algo aparecer: `sdd-adhoc`/`sdd-bugfix`.
 
 ---
 
@@ -221,12 +223,12 @@ description: "Template de lista de tasks para implementação de feature"
 
 **Purpose**: Fechar a documentação e o que atravessa as stories.
 
-- [ ] T052 Rodar a validação completa de `quickstart.md` (Cenários A–E no navegador)
-- [ ] T053 Atualizar `CLAUDE.md` — a seção "Project status" hoje diz que só canal ao vivo reproduz e que `userStateRepository` não tem consumidor; as duas deixam de ser verdade
-- [ ] T054 Atualizar `.planning/backlog.md` — item 4 (contrato de capacidades entregue; o que sobra é o ciclo de vida do item 10), item 8 (Assistir e ação contextual entregues) e item 13 (posição gravada; conclusão/histórico continuam abertos)
-- [ ] T055 Registrar R-004 como `[Bug]` em `.planning/backlog.md` — o roteador desmonta a tela e voltar do detalhe perde foco e posição da grade. **Pré-existente**, achado nesta feature, fora do escopo dela. Caminho normal: `sdd-bugfix`
-- [ ] T056 Conferir que nenhum componente novo usa cor, raio ou tamanho de fonte literal (ADR-007)
-- [ ] T057 `npx tsc -b`, `npm run lint` e `npx vitest run` limpos de ponta a ponta
+- [ ] T052 Rodar a validação completa de `quickstart.md` (Cenários A–E no navegador) — **não executado** (sessão focou a verificação na TV física; browser fica para uma próxima passada)
+- [X] T053 Atualizar `CLAUDE.md` — a seção "Project status" hoje diz que só canal ao vivo reproduz e que `userStateRepository` não tem consumidor; as duas deixam de ser verdade
+- [X] T054 Atualizar `.planning/backlog.md` — item 4 (contrato de capacidades entregue; o que sobra é o ciclo de vida do item 10), item 8 (Assistir e ação contextual entregues) e item 13 (posição gravada; conclusão/histórico continuam abertos)
+- [X] T055 Registrar R-004 como `[Bug]` em `.planning/backlog.md` — o roteador desmonta a tela e voltar do detalhe perde foco e posição da grade. **Pré-existente**, achado nesta feature, fora do escopo dela. Caminho normal: `sdd-bugfix`
+- [X] T056 Conferir que nenhum componente novo usa cor, raio ou tamanho de fonte literal (ADR-007) — todas as cores usam `var(--...)`; raio (`999px`) e tamanho de fonte literais seguem a mesma convenção já usada em todo `screens.css` (o projeto não define tokens de raio/tamanho)
+- [X] T057 `npx tsc -b`, `npm run lint` e `npx vitest run` limpos de ponta a ponta — 390/390 testes, tsc limpo, lint só com os 5 warnings pré-existentes (nenhum novo)
 
 ### Checklist de Release
 
@@ -238,15 +240,15 @@ description: "Template de lista de tasks para implementação de feature"
 - [X] Fase 1 (Setup) concluída
 - [X] Fase 2 (Foundational) concluída
 - [X] Fase 3 (User Story 1) concluída
-- [ ] Fase 4 (User Story 2) concluída
-- [ ] Fase 5 (User Story 3) concluída
-- [ ] Fase 6 (TV física) concluída — **gate obrigatório**
-- [ ] `quickstart.md` executado com sucesso (A–E no navegador, F–J na TV)
-- [ ] Testes automatizados passando (`npx tsc -b`, `npm run lint`, `npx vitest run`)
-- [ ] Nenhum segredo em mensagem, rótulo, UI ou log (SC-006)
-- [ ] Live TV sem regressão (SC-005)
-- [ ] Nenhum percentual exibido sem duração conhecida (FR-004)
-- [ ] Documentação sincronizada (`CLAUDE.md`, backlog)
+- [X] Fase 4 (User Story 2) concluída
+- [X] Fase 5 (User Story 3) concluída
+- [ ] Fase 6 (TV física) concluída — **gate obrigatório**. **Encerrada por decisão do usuário (24/09/2026) sem satisfação plena**: F/G/H (maioria) aprovados na TV real, com 3 correções (R-019/R-020/R-021); I, J e um edge case de H aceitos como risco residual não testado — ver R-022
+- [ ] `quickstart.md` executado com sucesso (A–E no navegador, F–J na TV) — F–H parcial na TV, aceito como está; A–E no navegador não executado
+- [X] Testes automatizados passando (`npx tsc -b`, `npm run lint`, `npx vitest run`) — 390/390, limpo
+- [ ] Nenhum segredo em mensagem, rótulo, UI ou log (SC-006) — sanitização confirmada em teste unitário; checagem de `sdb dlog` na TV (T050) não executada
+- [ ] Live TV sem regressão (SC-005) — confirmado em teste unitário (`LiveScreen.test.tsx` sem alteração de asserção); Cenário J na TV física não executado
+- [X] Nenhum percentual exibido sem duração conhecida (FR-004) — coberto por teste automatizado determinístico, independente de hardware
+- [X] Documentação sincronizada (`CLAUDE.md`, backlog)
 
 ---
 

@@ -388,6 +388,9 @@ describe('LiveScreen', () => {
       kind: 'channel',
       url: 'http://exemplo.invalid/x.ts',
       container_hint: 'ts',
+      source_id: 'src1',
+      provider_stream_id: '1',
+      original_name: 'Canal',
     })
     renderLive()
 
@@ -413,6 +416,9 @@ describe('LiveScreen', () => {
       kind: 'channel',
       url: 'http://exemplo.invalid/x.ts',
       container_hint: 'ts',
+      source_id: 'src1',
+      provider_stream_id: '2',
+      original_name: 'Segundo',
     })
     renderLive()
 
