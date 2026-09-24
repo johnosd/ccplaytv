@@ -1,45 +1,35 @@
 <!--
 Relatório de Impacto de Sincronização
-- Mudança de versão: 1.2.0 -> 1.3.0
-- Princípios modificados (2):
-  - "Foco Visível e Sem Becos Sem Saída" — passa a exigir explicitamente
-    que o elemento com aparência de foco seja ativável por SELECT, não só
-    marcado visualmente. Fecha a brecha letra-vs-espírito que o bug de
-    backlog conhecido já explora (botões "Tentar de novo"/"Voltar" com
-    `.tv-focus` mas sem `onSelect` roteado — só funcionam por mouse).
-  - "Progresso e Capacidades São Reais, Nunca Prometidos" — escopo
-    ampliado de progresso/capacidades de player para cobertura de
-    catálogo: catálogo obtido sob demanda ou truncado por espaço em disco
-    (feature 010) DEVE ser sinalizado como parcial, nunca apresentado
-    como se fosse o catálogo completo declarado pela fonte.
-- Restrições do Projeto modificadas (1): "Validação em hardware real"
-  ganha uma exceção — a spec/plano de uma feature específica PODE elevar
-  TV física a gate obrigatório para uma capacidade concreta que o
-  adaptador de desenvolvimento (`<video>`) não consegue provar nem
-  desprovar; fechar sem satisfazer esse gate por completo exige decisão
-  explícita do usuário com risco residual registrado, nunca um item
-  pulado em silêncio. Formaliza o que já aconteceu de fato na Fase 6 de
-  `sdd/specs/011-assistir-filme-retomada/plan.md`.
+- Mudança de versão: 1.3.0 -> 1.4.0
+- Princípios modificados: nenhum
 - Princípios adicionados: nenhum
-- Origem da mudança: auditoria pedida pelo usuário em 2026-09-24 do que
-  mudou desde v1.2.0 (features 006-011, ADR-009) mais revisão de
-  princípios com brecha entre letra e espírito; escopo e redação
-  confirmados com o usuário via `AskUserQuestion` na mesma conversa.
+- Fluxo de Desenvolvimento: novo item "Testes E2E (Playwright) antes de
+  validação em TV física" — gate entre a conclusão de uma feature e
+  qualquer solicitação de teste na TV física (`tizen-tv`) ou no emulador
+  (`tizen-emulator`); item "Critério de 'pronto' por feature" (a) passa a
+  exigir também um roteiro E2E via Playwright, não só teste
+  unitário/componente
+- Restrições do Projeto: nenhuma mudança
+- Origem da mudança: pedido direto do usuário em 2026-09-24, para
+  formalizar como memória do projeto o hábito de rodar teste E2E via
+  Playwright (`tv-web/e2e.mjs`, agora também `npm run test:e2e`) depois de
+  concluir uma feature, antes de pedir validação na TV física
 - Seções removidas: nenhuma
-- Pendências: o "contrato de capacidades do player" da feature 011 foi
-  discutido e deliberadamente deixado fora da constitution — já coberto
-  pelo texto de capacidades reais; a formalização arquitetural (como o
-  contrato é resolvido por engine ∩ mídia) fica para uma futura emenda de
-  ADR-001, se o usuário decidir abri-la.
+- Pendências: nenhuma
 
 Histórico:
 - 1.0.0 (2026-09-14): criação inicial — Princípios Fundamentais (8),
   Restrições do Projeto, Fluxo de Desenvolvimento, Governança
 - 1.1.0 (2026-09-16): 5 princípios novos (foco/voltar/identidade/
   progresso/documentação) + restrição de design system (ADR-007)
-- 1.2.0 (2026-09-19): exceção de credencial de provedor em "Segredos Fora
-  dos Clientes e dos Logs" (ADR-008); restrição de backend reescrita para
-  client-first
+- 1.2.0 (2026-09-19): exceção em "Segredos Fora dos Clientes e dos Logs"
+  para credencial de provedor sob client-first (ADR-008); restrição de
+  ambiente de execução do backend reescrita para client-first
+- 1.3.0 (2026-09-24): "Foco Visível e Sem Becos Sem Saída" passa a exigir
+  SELECT funcional, não só aparência de foco; "Progresso e Capacidades São
+  Reais" ganha cobertura de catálogo parcial (feature 010); "Validação em
+  hardware real" ganha exceção de gate obrigatório por feature (feature
+  011)
 -->
 
 # Constitution do CCPlay TV
@@ -266,17 +256,31 @@ stack passando — `pytest` + `ruff` no backend (Python/FastAPI), `vitest`
 no frontend (TypeScript/React/Vite). Isso é checado a cada task, não
 apenas ao final da feature.
 
+**Testes E2E (Playwright) antes de validação em TV física**: ao concluir
+uma feature (última fase implementada no `sdd-execute`, ou convergência
+sem achado no `sdd-converge`), além dos testes automatizados por task já
+exigidos acima, DEVE rodar pelo menos um roteiro de teste E2E via
+Playwright cobrindo os fluxos principais da feature (`npm run test:e2e`
+em `tv-web/`, hoje `tv-web/e2e.mjs`) contra o dev server (`npm run dev`).
+Este é um gate **anterior** a qualquer solicitação de teste na TV física
+(`tizen-tv`) ou no emulador (`tizen-emulator`) — nunca um substituto para
+eles: pega regressão de fluxo, formulário, diálogo e navegação mais cedo e
+mais barato do que o ciclo de hardware real, mas não valida
+`webapis.avplay`, codec, DRM nem desempenho (só a TV real faz isso, ver
+"Validação em hardware real" acima).
+
 **Revisão de segredos antes de commit/push**: qualquer mudança que toque
 configuração, `.env`, logs ou serialização de `Source`/credenciais DEVE
 ser revisada quanto a vazamento de segredo antes de integrar, mesmo
 passando nos testes automatizados.
 
 **Critério de "pronto" por feature**: uma feature só é considerada
-implementada quando (a) os testes automatizados relevantes passam, (b) os
-critérios de aceite da spec (`Acceptance Scenarios`) foram verificados
-manualmente pelo menos em emulador/navegador, e (c) nenhum princípio desta
-constitution foi violado sem justificativa registrada em Complexity
-Tracking do `plan.md`.
+implementada quando (a) os testes automatizados relevantes passam —
+unitários/componente (pytest/vitest) e pelo menos um roteiro E2E via
+Playwright cobrindo os fluxos principais da feature, (b) os critérios de
+aceite da spec (`Acceptance Scenarios`) foram verificados manualmente pelo
+menos em emulador/navegador, e (c) nenhum princípio desta constitution foi
+violado sem justificativa registrada em Complexity Tracking do `plan.md`.
 
 ## Governança
 
@@ -291,4 +295,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.3.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-24
+**Versão**: 1.4.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-24

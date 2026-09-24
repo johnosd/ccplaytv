@@ -115,6 +115,7 @@ Frontend (`tv-web/`):
 ```bash
 npm run dev            # Vite dev server (API CORS expects :5173)
 npm run test           # vitest run
+npm run test:e2e       # Playwright E2E script against the dev server (tv-web/e2e.mjs)
 npm run lint           # oxlint
 npm run build          # tsc -b && vite build
 npm run build:tizen    # build + sync into CCPlayTv/
@@ -124,9 +125,14 @@ Prefer the narrowest command that covers the change (a single
 `uv run pytest tests/test_classifier.py`, a single vitest file) before
 running a whole suite.
 
+Per the constitution's "Fluxo de Desenvolvimento" (`.planning/memory/constitution.md`),
+`npm run test:e2e` (with `npm run dev` already running) is a required gate after
+finishing a feature — in addition to unit tests — and must run **before**
+requesting a `tizen-tv`/`tizen-emulator` validation pass.
+
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.3.0) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.4.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 
