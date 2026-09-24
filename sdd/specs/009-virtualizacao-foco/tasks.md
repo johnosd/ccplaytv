@@ -326,12 +326,112 @@ grandes, mantendo a grade de 6 colunas fluida.
 
 ### Implementation
 
-- [ ] T018 Rodar `quickstart.md` inteiro (5 cenários) na TV física ou no
+- [X] T018 Rodar `quickstart.md` inteiro (5 cenários) na TV física ou no
       navegador de desenvolvimento — pelo menos os cenários A/B/D
       (travamento, foco visível, voltar) precisam da TV para valer como
       evidência de SC-001/SC-002; C/E podem ser conferidos no navegador.
       Registrar cada cenário como aprovado, reprovado ou não executado.
       **Precisa do usuário.**
+      Veredito por cenário (23/09/2026, todos na TV física):
+      - **A — Aprovado** (na segunda rodada, depois de T019): segurando ▼
+        continuamente em Live TV/Filmes/Séries, sem travar, sem atraso
+        acumulando.
+      - **B — Aprovado** (na segunda rodada, depois de T020): foco visível
+        e a trilha rola pra acompanhá-lo, em qualquer ponto da lista.
+      - **C — Aprovado**: grade de Filmes/Séries manteve 6 colunas do
+        mesmo tamanho do início ao fim da rolagem; última linha parcial
+        navegou sem erro.
+      - **D — Aprovado**: voltar de um item restaura o foco exatamente
+        nele, visível, sem rolar manualmente.
+      - **E — Aprovado**: carregando, erro e categoria vazia nas três
+        telas continuaram com elemento em destaque navegável, "Tentar de
+        novo" respondendo a OK.
+- [X] T019 **Ad-hoc, descoberta durante T018 (Cenário A na TV física,
+      Filmes/Séries).** O usuário reportou cards de pôster "se fundindo e
+      entrelaçados". Dois bugs reais, ambos em código da Fase 4:
+      1. **`usePosterColumnWidth` nunca media nada.** Seu `useEffect` tinha
+         `[containerRef, cols]` como dependências — mas o `<div
+         ref={gridContainerRef} className="poster-grid">` só existe no DOM
+         depois que o conteúdo carrega (`items.length > 0`), várias
+         renderizações depois da montagem do componente. Nem a identidade
+         do objeto `ref` nem `cols` mudam quando o `<div>` passa a existir,
+         então o efeito nunca rodava de novo: `columnWidth` ficava travado
+         em `0`, `rowHeight` no mínimo (`POSTER_ROW_EXTRA_PX`), e cada
+         linha da grade saía pequena demais — sobrepondo a linha debaixo
+         com o conteúdo real, muito mais alto. Reescrito para callback ref
+         (`setContainerRef`), que o React chama exatamente quando o nó
+         monta, não só na montagem do componente.
+      2. **`loadCategoryContent` usava `Number.MAX_SAFE_INTEGER` como
+         `limit` do Dexie** (D-002 completo, T017) — mas esse `limit`
+         chega até `IDBIndex.getAll(query, count)`, e `count` é validado
+         pelo navegador como `unsigned long` do WebIDL (máximo
+         `2**32 - 1`). Um valor maior lança `TypeError`, confirmado
+         reproduzindo no Chrome de desktop (`npm run dev`); a TV
+         (Chromium 108) provavelmente cai num caminho de compatibilidade
+         que não valida isso — por isso o efeito na TV era visual (bug 1
+         sobrepondo cards reais), não um erro. Corrigido para
+         `0xffffffff` (`NO_LIMIT`, `catalogApi.ts`), o teto real do
+         navegador.
+      **Achado relacionado, corrigido junto**: nenhuma das três telas
+      distinguia `content.isError` (a consulta lançou) de "categoria
+      vazia" — um erro não categorizado por `categoryLoader` cairia
+      silenciosamente no estado de lista vazia em vez de um estado de
+      erro de verdade. `contentFailed` em `LiveScreen`/`MoviesScreen`/
+      `SeriesScreen` passou a checar `content.isError` também.
+      Regressão coberta por `usePosterColumnWidth.test.ts` reescrito (5
+      testes, incluindo o cenário exato do bug 1: ref que só anexa depois
+      da montagem). Suíte: 268/268, `tsc`/`oxlint`/`build` limpos.
+      **Segunda rodada (mesmo achado, corrigido no primeiro reteste na TV
+      física)**: o fix acima resolveu no navegador de desenvolvimento
+      (confirmado com dados sintéticos via Playwright) mas **não** na TV —
+      o usuário reportou o mesmo sintoma depois de reinstalar. Causa: o
+      `useVirtualizer` mede e **guarda em cache** o tamanho de cada item na
+      primeira vez que o vê; se essa primeira medição acontecer antes do
+      `ResizeObserver` disparar (`columnWidth` ainda `0`), o `rowHeight`
+      mínimo fica preso naquele item pra sempre — passar um `estimateSize`
+      novo em renders seguintes **não invalida** o que já foi medido, só
+      `virtualizer.measure()` faz isso (confirmado contra a documentação
+      oficial do TanStack Virtual, que recomenda exatamente este padrão:
+      `useLayoutEffect(() => virtualizer.measure(), [virtualizer, width])`
+      para quando a largura vem de medição assíncrona). O bug sobrevivia
+      no navegador de desenvolvimento só por sorte de tempo (a corrida
+      entre a primeira medição do virtualizador e o primeiro disparo do
+      `ResizeObserver` tende a favorecer o `ResizeObserver` num desktop
+      rápido; a TV, mais lenta, perdia essa corrida). Corrigido com
+      `useEffect(() => virtualizer.measure(), [rowHeight, virtualizer])`
+      em `MoviesScreen.tsx`/`SeriesScreen.tsx`. Suíte: 268/268 (mesma
+      contagem — nenhum teste novo cobre isto: exigiria simular a corrida
+      de tempo real entre medição e `ResizeObserver`, que jsdom não tem
+      como reproduzir de forma significativa; a evidência é a TV física).
+      `tsc`/`oxlint`/`build` limpos.
+- [X] T020 **Ad-hoc, descoberta durante T018 (Cenário B na TV física, Live
+      TV).** O usuário reportou que o foco "desce e some" navegando pela
+      **trilha de categorias** (não o painel de canais, já virtualizado e
+      corrigido em T019). Achado **fora do escopo de virtualização desta
+      feature** (D-004 exclui a trilha de propósito) — pré-existente desde
+      a feature 010, exposto só agora por uma fonte real com dezenas de
+      categorias. Confirmado com o usuário antes de corrigir (desvio
+      pequeno registrado, não silencioso).
+
+      Causa: `.live-column-groups`/`.category-content`'s trilha
+      (`.live-column`) tem `overflow: auto` — pode rolar — mas nada no
+      código chamava rolagem alguma quando o índice focado mudava. O foco
+      é comunicado por uma classe CSS (`tv-focus`), não foco real de DOM,
+      então o comportamento nativo do navegador de rolar um elemento
+      focado pra dentro da tela nunca se aplicava aqui.
+
+      Corrigido com `tv-web/src/lib/focus/useScrollFocusedIntoView.ts`
+      (novo): um `useRef` anexado ao botão da categoria focada, com um
+      `useEffect` chamando `scrollIntoView({ block: 'nearest', inline:
+      'nearest' })` quando o índice muda. Conectado nas três telas
+      (`LiveScreen`/`MoviesScreen`/`SeriesScreen` — as três compartilham a
+      mesma trilha). jsdom não implementa `Element.scrollIntoView`
+      (achado ao rodar a suíte após a mudança) — polyfill de no-op
+      acrescentado a `src/setupTests.ts`, já que os testes verificam
+      índice/identidade do foco, nunca a posição real de rolagem (isso só
+      a TV confirma). Testes novos:
+      `useScrollFocusedIntoView.test.ts` (2 casos). Suíte: 270/270,
+      `tsc`/`oxlint`/`build` limpos.
 
 ### Checklist de Release
 
@@ -339,17 +439,31 @@ grandes, mantendo a grade de 6 colunas fluida.
 - [X] Fase 2 (Foundational) concluída
 - [X] Fase 3 (US1 — Live TV) concluída
 - [X] Fase 4 (Filmes/Séries, extensão D-003) concluída
-- [ ] `npm run test`, `npm run lint` e `npm run build` passando
-- [ ] `quickstart.md` executado, com veredito honesto por cenário
-- [ ] Nenhum valor de layout hardcoded fora dos tokens de `index.css` (ADR-007)
-- [ ] Nada em `api/` modificado
+- [X] `npm run test`, `npm run lint` e `npm run build` passando
+- [X] `quickstart.md` executado, com veredito honesto por cenário
+- [X] Nenhum valor de layout hardcoded fora dos tokens de `index.css` (ADR-007)
+- [X] Nada em `api/` modificado
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: Concluído
+- Feito: `quickstart.md` rodado na TV física com o usuário — 5/5 cenários
+  aprovados (A e B só na segunda rodada, depois de T019/T020). Três bugs
+  reais encontrados e corrigidos ao longo da verificação: (1)
+  `usePosterColumnWidth` nunca media a largura real (ref nunca anexava);
+  (2) `Number.MAX_SAFE_INTEGER` como `limit` do Dexie lançava `TypeError`
+  no `IDBIndex.getAll` nativo; (3) o virtualizador cacheava a medição
+  errada de antes do `ResizeObserver` disparar, exigindo
+  `virtualizer.measure()` explícito (T019); (4) a trilha de categorias —
+  fora do escopo de virtualização desta feature, mas corrigida com
+  autorização do usuário — não rolava sozinha pra acompanhar o foco
+  (T020, `useScrollFocusedIntoView` novo).
+- Testes executados: `npx vitest run` — 270/270 (31 arquivos). `npx tsc -b`
+  e `npx oxlint` limpos (só os 3 avisos informativos de sempre sobre
+  `useVirtualizer`). `npm run build`/`npm run build:tizen` limpos, com 4
+  reinstalações sucessivas na TV física (QN50Q60DAGXZD) ao longo da
+  verificação.
+- Pendências: nenhuma conhecida.
 
 ---
 

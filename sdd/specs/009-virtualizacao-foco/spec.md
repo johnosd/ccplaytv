@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-22
 
-**Status**: Em Execução
+**Status**: Implementada
 
 **Input**: Virtualização das listas longas (Canais, Filmes, Séries) usando TanStack Virtual e Norigin Spatial Navigation para contornar a lentidão severa na TV (referências em `docs/design`, `docs/guia-praticas-app-tv`, `docs/iptvnator`).
 
