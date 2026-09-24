@@ -12,13 +12,28 @@
  *    camada web — não é um nó do DOM, não respeita CSS. Por isso a região de
  *    exibição é declarada por coordenadas, e não "onde o elemento estiver".
  *    O adaptador `<video>` ignora a região; o de AVPlay a traduz.
+ *
+ * Feature 011 (assistir filme, com retomada) estendeu este contrato com
+ * capacidades por sessão (motor ∩ mídia — ver `capabilities.ts`), pausa,
+ * busca, progresso e o estado `completed`. Ver
+ * `sdd/specs/011-assistir-filme-retomada/contracts/player-capabilities.md`.
  */
+
+import {
+  resolveCapabilities,
+  type EngineCapabilities,
+  type PlayableKind,
+  type PlayerCapabilities,
+  type PlayerProgress,
+} from './capabilities'
 
 export type PlayerState =
   | 'idle'
   | 'preparing'
   | 'buffering'
   | 'playing'
+  | 'paused'
+  | 'completed'
   | 'error'
   | 'closed'
 
@@ -68,13 +83,50 @@ export interface PlayerAdapter {
    * `sdd/bugs/live-tv-toca-audio-sem-imagem`.
    */
   readonly rendersOnHardwarePlane: boolean
-  open(url: string, region: PlayerRegion): void
+  /**
+   * O que este MOTOR sabe fazer, sem considerar a mídia. A sessão resolve
+   * isto contra `mediaCapabilities(kind)` — nunca é a palavra final sozinha
+   * (contrato §1/§2; D-001/D-002 do plano).
+   */
+  readonly capabilities: EngineCapabilities
+
+  /**
+   * `startAtMs`, quando presente, DEVE ser aplicado antes de a reprodução
+   * começar (a sessão só o passa depois de já ter resolvido `canSeek` —
+   * contrato §4.1). É o que evita o filme aparecer do início por um instante
+   * antes de saltar pra posição de retomada.
+   */
+  open(url: string, region: PlayerRegion, startAtMs?: number): void
   close(): void
+
+  /** Só chamado quando a sessão resolveu `canPause`. */
+  pause?(): void
+  /** Só chamado quando a sessão resolveu `canPause`. */
+  resume?(): void
+  /**
+   * Destino absoluto em ms, já grampeado aos limites conhecidos pela sessão.
+   * Só chamado quando `canSeek`. `onSettled` DEVE rodar tanto no sucesso
+   * quanto na falha — é o que libera a porta single-flight (contrato §5).
+   */
+  seekTo?(positionMs: number, onSettled: () => void): void
+  /**
+   * Deslocamento relativo em ms (negativo retrocede), já grampeado. Só
+   * chamado quando `canSeek`. Mesma regra de `onSettled` de `seekTo`.
+   */
+  jumpBy?(deltaMs: number, onSettled: () => void): void
 }
 
 export interface PlayerAdapterCallbacks {
   onStateChange(state: PlayerState): void
   onError(error: PlayerError): void
+  /** Posição/duração empurradas pelo motor (R0-3). */
+  onProgress?(progress: PlayerProgress): void
+  /**
+   * A mídia chegou ao fim por conta própria. A SESSÃO decide se isso é
+   * conclusão normal (filme) ou falha de fornecimento (canal ao vivo,
+   * D-008) — o adaptador só relata o fato.
+   */
+  onCompleted?(): void
 }
 
 export type PlayerAdapterFactory = (callbacks: PlayerAdapterCallbacks) => PlayerAdapter
@@ -84,24 +136,43 @@ export interface PlayerSession {
   readonly error: PlayerError | null
   /** Ver `PlayerAdapter.rendersOnHardwarePlane`. */
   readonly rendersOnHardwarePlane: boolean
+  /** Capacidades já resolvidas (motor ∩ mídia) — nunca a identidade do motor. */
+  readonly capabilities: PlayerCapabilities
+  /** Último progresso informado pelo motor, ou `null` antes do primeiro. */
+  readonly progress: PlayerProgress | null
+
+  /** Sem efeito se `!capabilities.canPause`. */
+  togglePause(): void
+  /** Sem efeito se `!capabilities.canSeek`. Destino é grampeado aos limites conhecidos. */
+  seekTo(positionMs: number): void
+  /** Sem efeito se `!capabilities.canSeek`. Ver a porta single-flight, §3 da lógica. */
+  jumpBy(deltaMs: number): void
+
   close(): void
 }
 
 export interface PlayerServiceOptions {
   /** Injetável para teste; na aplicação vem de `resolveAdapterFactory()`. */
   createAdapter?: PlayerAdapterFactory
+  /** Posição inicial em ms, aplicada só depois de o motor ficar pronto. */
+  startAtMs?: number
 }
 
 /**
  * Transições permitidas. Existe para o serviço nunca voltar de um estado
  * terminal por causa de um callback atrasado do motor — o cuidado que o guia
  * Samsung 06 pede ao trocar de mídia rapidamente.
+ *
+ * `paused`/`completed` entraram na feature 011. `completed` é terminal exceto
+ * por `closed`, como `error` — mesma proteção contra callback atrasado.
  */
 const ALLOWED_NEXT: Record<PlayerState, PlayerState[]> = {
   idle: ['preparing', 'closed'],
   preparing: ['buffering', 'playing', 'error', 'closed'],
-  buffering: ['playing', 'error', 'closed'],
-  playing: ['buffering', 'error', 'closed'],
+  buffering: ['playing', 'paused', 'error', 'closed'],
+  playing: ['buffering', 'paused', 'completed', 'error', 'closed'],
+  paused: ['playing', 'buffering', 'error', 'closed'],
+  completed: ['closed'],
   error: ['closed'],
   closed: [],
 }
@@ -109,6 +180,9 @@ const ALLOWED_NEXT: Record<PlayerState, PlayerState[]> = {
 export function canTransition(from: PlayerState, to: PlayerState): boolean {
   return ALLOWED_NEXT[from].includes(to)
 }
+
+/** Um salto pendente enquanto outro está em voo (contrato §5, logic §3). */
+type PendingSeek = { kind: 'delta'; value: number } | { kind: 'absolute'; value: number }
 
 /**
  * Uma sessão de reprodução. Criada por play, encerrada por `close()`, nunca
@@ -118,25 +192,45 @@ export function canTransition(from: PlayerState, to: PlayerState): boolean {
 export class PlayerServiceSession implements PlayerSession {
   private _state: PlayerState = 'idle'
   private _error: PlayerError | null = null
+  private _progress: PlayerProgress | null = null
   private adapter: PlayerAdapter | null = null
   // Copiado na construção: `adapter` é anulado no `close()`, e a camada de
   // reprodução ainda precisa saber como desmontar o fundo depois disso.
   private readonly _rendersOnHardwarePlane: boolean
+  private readonly _capabilities: PlayerCapabilities
   private readonly listeners = new Set<() => void>()
+
+  // Porta single-flight de saltos (contrato §5; logic/reproducao-vod.md §3).
+  private seekInFlight = false
+  private pendingSeek: PendingSeek | null = null
 
   constructor(
     url: string,
     region: PlayerRegion,
+    kind: PlayableKind,
     createAdapter: PlayerAdapterFactory,
+    startAtMs?: number,
   ) {
     this.adapter = createAdapter({
       onStateChange: (state) => this.applyState(state),
       onError: (error) => this.applyError(error),
+      onProgress: (progress) => this.applyProgress(progress),
+      onCompleted: () => this.applyCompleted(),
     })
     this._rendersOnHardwarePlane = this.adapter.rendersOnHardwarePlane
+    // Resolvida uma vez, na construção: nem o motor nem o tipo de mídia mudam
+    // durante a vida da sessão (D-001).
+    this._capabilities = resolveCapabilities(this.adapter.capabilities, kind)
     this.applyState('preparing')
     try {
-      this.adapter.open(url, region)
+      // A sessão decide SE repassa `startAtMs` (precisa de `canSeek` já
+      // resolvido); o adaptador só decide COMO aplicá-lo, antes do play()
+      // (contrato §4.1).
+      const effectiveStartAtMs =
+        this._capabilities.canSeek && startAtMs !== undefined && startAtMs > 0
+          ? startAtMs
+          : undefined
+      this.adapter.open(url, region, effectiveStartAtMs)
     } catch {
       // A exceção original fica de fora de propósito: mensagens de erro de
       // rede/motor costumam embutir a URL, que carrega credencial.
@@ -156,11 +250,54 @@ export class PlayerServiceSession implements PlayerSession {
     return this._rendersOnHardwarePlane
   }
 
+  get capabilities(): PlayerCapabilities {
+    return this._capabilities
+  }
+
+  get progress(): PlayerProgress | null {
+    return this._progress
+  }
+
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener)
     return () => {
       this.listeners.delete(listener)
     }
+  }
+
+  togglePause(): void {
+    if (!this._capabilities.canPause) return
+    if (this._state === 'playing' || this._state === 'buffering') {
+      this.adapter?.pause?.()
+    } else if (this._state === 'paused') {
+      this.adapter?.resume?.()
+    }
+  }
+
+  seekTo(positionMs: number): void {
+    if (!this._capabilities.canSeek) return
+    if (this.seekInFlight) {
+      // Substitui qualquer pendente — um destino absoluto novo não se soma
+      // ao anterior (logic/reproducao-vod.md §3).
+      this.pendingSeek = { kind: 'absolute', value: positionMs }
+      return
+    }
+    this.dispatchSeek(positionMs)
+  }
+
+  jumpBy(deltaMs: number): void {
+    if (!this._capabilities.canSeek) return
+    if (this.seekInFlight) {
+      // Acumula: três saltos de +10s em voo produzem um só de +30s, não três
+      // chamadas separadas à API restrita (logic/reproducao-vod.md §3).
+      if (this.pendingSeek) {
+        this.pendingSeek = { kind: this.pendingSeek.kind, value: this.pendingSeek.value + deltaMs }
+      } else {
+        this.pendingSeek = { kind: 'delta', value: deltaMs }
+      }
+      return
+    }
+    this.dispatchJump(deltaMs)
   }
 
   close(): void {
@@ -172,6 +309,55 @@ export class PlayerServiceSession implements PlayerSession {
       this._state = 'closed'
       this.emit()
     }
+  }
+
+  private dispatchSeek(positionMs: number): void {
+    const clamped = this.clampSeekTarget(positionMs)
+    this.seekInFlight = true
+    this.adapter?.seekTo?.(clamped, () => this.onSeekSettled())
+  }
+
+  private dispatchJump(deltaMs: number): void {
+    const clamped = this.clampJumpDelta(deltaMs)
+    this.seekInFlight = true
+    this.adapter?.jumpBy?.(clamped, () => this.onSeekSettled())
+  }
+
+  private onSeekSettled(): void {
+    this.seekInFlight = false
+    const pending = this.pendingSeek
+    this.pendingSeek = null
+    if (!pending) return
+    if (pending.kind === 'delta') this.jumpBy(pending.value)
+    else this.seekTo(pending.value)
+  }
+
+  /**
+   * Grampeia um destino absoluto a `[0, duração)`. Sem duração conhecida, só
+   * o limite inferior é aplicado — nada é estimado (spec, Edge Cases; T007).
+   */
+  private clampSeekTarget(positionMs: number): number {
+    const lower = Math.max(0, positionMs)
+    const duration = this._progress?.durationMs
+    if (duration === undefined || duration <= 0) return lower
+    // Último instante VÁLIDO, não a duração exata: alcançar o fim por busca
+    // não pode ser um atalho para "concluído" (só o motor real conclui).
+    return Math.min(lower, duration - 1)
+  }
+
+  /**
+   * Grampeia um deslocamento relativo usando a última posição conhecida como
+   * referência. Mesma regra de limite inferior/superior de `clampSeekTarget`.
+   */
+  private clampJumpDelta(deltaMs: number): number {
+    const position = this._progress?.positionMs ?? 0
+    const minDelta = -position
+    const duration = this._progress?.durationMs
+    if (duration === undefined || duration <= 0) {
+      return Math.max(deltaMs, minDelta)
+    }
+    const maxDelta = duration - 1 - position
+    return Math.max(minDelta, Math.min(deltaMs, maxDelta))
   }
 
   private applyState(next: PlayerState): void {
@@ -188,18 +374,48 @@ export class PlayerServiceSession implements PlayerSession {
     this.emit()
   }
 
+  private applyProgress(progress: PlayerProgress): void {
+    if (this._state === 'closed') return
+    this._progress = progress
+    this.emit()
+  }
+
+  /**
+   * Fim de mídia relatado pelo motor. A tradução depende só da capacidade
+   * resolvida da MÍDIA, nunca do tipo de motor (D-002, D-008):
+   * `reportsDuration` verdadeiro (filme, episódio) é conclusão normal;
+   * falso (canal ao vivo) é falha de fornecimento — mantém a mensagem que a
+   * Live TV já usa hoje, sem regressão (FR-021/FR-022).
+   */
+  private applyCompleted(): void {
+    if (this._capabilities.reportsDuration) {
+      if (!canTransition(this._state, 'completed')) return
+      this._state = 'completed'
+      this.emit()
+      return
+    }
+    this.applyError({ code: 'stream_completed', message: 'A transmissão foi interrompida.' })
+  }
+
   private emit(): void {
     for (const listener of this.listeners) listener()
   }
 }
 
+/**
+ * `kind` é obrigatório e sem valor padrão (D-004): um padrão `'channel'`
+ * faria um filme perder a barra por esquecimento numa chamada nova, sem
+ * erro de compilação — exatamente o tipo de falha silenciosa que o contrato
+ * existe para impedir.
+ */
 export function createPlayerSession(
   url: string,
   region: PlayerRegion,
+  kind: PlayableKind,
   options: PlayerServiceOptions = {},
 ): PlayerServiceSession {
   const factory = options.createAdapter ?? resolveAdapterFactory()
-  return new PlayerServiceSession(url, region, factory)
+  return new PlayerServiceSession(url, region, kind, factory, options.startAtMs)
 }
 
 /**
@@ -210,6 +426,8 @@ export function resolveAdapterFactory(): PlayerAdapterFactory {
   if (hasAvplay()) return createAvplayAdapter
   return createHtmlVideoAdapter
 }
+
+export type { PlayableKind, PlayerCapabilities, PlayerProgress } from './capabilities'
 
 // Importações no fim para evitar ciclo: os adaptadores dependem dos tipos
 // declarados acima.

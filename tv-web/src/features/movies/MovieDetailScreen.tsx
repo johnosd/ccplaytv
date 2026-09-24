@@ -3,6 +3,7 @@ import { useCatalogItem } from '../catalog/catalogApi'
 import { useRemoteNav } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
+import { PlayerLayer } from '../../components/PlayerLayer'
 
 export interface MovieDetailScreenProps {
   movieId: string
@@ -15,15 +16,41 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
   // encontrar qualquer filme além do teto de leitura da listagem.
   const query = useCatalogItem(movieId)
   const movie = query.data ?? undefined
-  const [focus, setFocus] = useState<0 | 1>(0)
+  // O foco inicial é sempre a ação primária (Assistir, índice 1) — FR-015 e
+  // `logic/reproducao-vod.md` §5. Antes desta feature o foco nascia em
+  // Trailer (índice 0); ajustado porque a ação primária de um filme é
+  // assistir, não o trailer.
+  const [focus, setFocus] = useState<0 | 1>(1)
+  // Guarda de sessão única (FR-010): `{playing && <PlayerLayer/>}` já impede
+  // duas camadas montadas ao mesmo tempo, e o `if (playing) return` abaixo
+  // cobre o instante entre um SELECT repetido e o re-render que monta a
+  // camada (mesmo padrão de `LiveScreen.tsx`).
+  const [playing, setPlaying] = useState(false)
   const { toastMessage, showToast } = useToast()
 
   useRemoteNav({
     onDirection: (dir) => {
+      if (!movie) return
       if (dir === 'left') setFocus(0)
       if (dir === 'right') setFocus(1)
     },
-    onSelect: () => showToast(focus === 0 ? 'Reproduzindo trailer...' : 'Abrindo player...'),
+    onSelect: () => {
+      // Estado de carregando/erro tem uma única saída ("Voltar") — sem isto,
+      // OK do controle físico não a ativa, só o mouse (achado R-005, feature
+      // 010; corrigido aqui localmente, sem tocar `useRemoteNav` global).
+      if (!movie) {
+        onBack()
+        return
+      }
+      if (focus === 0) {
+        // Trailer não é escopo desta feature (item 32 do backlog) — placeholder
+        // mantido como já estava, intocado.
+        showToast('Reproduzindo trailer...')
+        return
+      }
+      if (playing) return
+      setPlaying(true)
+    },
     onBack,
   })
 
@@ -62,6 +89,7 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
         </div>
       </div>
       <Toast message={toastMessage} />
+      {playing && <PlayerLayer itemId={movieId} title={movie.name} onClose={() => setPlaying(false)} />}
     </div>
   )
 }

@@ -16,19 +16,39 @@ Dexie, with no always-on backend in the loop. Converged features:
 (verified on the Samsung QN50Q60DAGXZD reference TV, closing ADR-006's V1
 gate), `004-conector-xtream-live`, `005-import-catalogo-client-first` (the
 client-first migration itself), `006-conector-xtream-vod-series`,
-`007-higiene-credenciais`, `008-user-state-repo`. In execution: `010-catalogo-sob-demanda` (structure-first import +
-per-category on-demand fetch — see "Known deviation" below).
-`009-virtualizacao-foco` (grid virtualization) is paused mid-flight by
-design: its `LiveScreen.tsx` rewrite would collide with 010's, so it
-resumes after 010 stabilizes that file (see
-`sdd/specs/009-virtualizacao-foco/plan.md`).
+`007-higiene-credenciais`, `008-user-state-repo`,
+`009-virtualizacao-foco` (grid/list virtualization on all three category
+screens; ADR-009 came out of it) and `010-catalogo-sob-demanda`
+(structure-first import + per-category on-demand fetch — see "Known
+deviation" below). **Nothing is in execution right now.**
+
+Two gaps are worth knowing before picking up new work, because neither is
+visible from the converged-feature list:
+
+- **Only live channels actually play.** `resolvePlaybackUrl` already builds
+  movie and episode URLs (`playbackUrl.ts`) and `fetchPlayback` already
+  returns the item's real `kind`, but `MovieDetailScreen`'s "Assistir" is
+  still a toast placeholder, `SeriesDetailScreen` has no episodes at all,
+  and `PlayerOverlay` lives under `features/live/` with live-only wording.
+  `PlayerAdapter` exposes only `open`/`close` — no pause, seek, position or
+  duration — so VOD needs the per-engine capability contract (backlog
+  item 4) before it can offer a seek bar without violating the "controls
+  match real capabilities" principle.
+- **`userStateRepository` (feature 008) has no consumer in production** —
+  only its own test imports it. Favorites, progress and continue-watching
+  are storage without UI.
+
+The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, Home (sources), the
   Add-source form, the list hub, **Live TV, Filmes and Séries** all read the
   **real local catalog** (`tv-web/src/lib/catalog/`, IndexedDB via Dexie) —
   no mock data remains anywhere in the app. Live TV/Filmes/Séries are
   category-first: a category rail, with items obtained only when the person
-  enters a category (feature 010) — never the whole catalog at once.
+  enters a category (feature 010) — never the whole catalog at once. All
+  three are virtualized via `@tanstack/react-virtual` (feature 009), with
+  focus kept in sync by the project's own `useRemoteNav` + the hooks in
+  `src/lib/focus/` — **not** a DOM-ref focus library (ADR-009).
   Playback goes through `src/lib/player/` (`PlayerService` + AVPlay adapter,
   `<video>` adapter for desktop dev). The build targets `chrome108`
   explicitly, because Vite 8's default is Chrome 111 — above the TV's
@@ -290,10 +310,11 @@ per-category protocol for a flat M3U file. See
 matching amendment on partial catalog coverage being the normal state now,
 not an exception.
 
-**Still open**: the physical-TV verification pass in
-`sdd/specs/010-catalogo-sob-demanda/quickstart.md` (T046) hadn't run as of
-this writing — check `plan.md`'s `## Estado Atual` for the current status
-before assuming it's done.
+**Verified on the physical TV** (T046, 2026-09-23): 6 of 7 scenarios
+passed; scenario G (M3U source) wasn't run for lack of an available source
+in that session, and is covered by the automated T016 instead. Scenario B
+only passed after R-013 (debounced prefetch). `plan.md`'s `## Estado Atual`
+stays the authority if you need more detail.
 
 ## Language
 
