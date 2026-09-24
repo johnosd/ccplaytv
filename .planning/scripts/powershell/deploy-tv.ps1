@@ -12,11 +12,7 @@ $sdb = "C:\tizen-studio\tools\sdb.exe"
 
 Write-Host "Iniciando deploy para a TV Samsung..." -ForegroundColor Cyan
 
-# 1. Encontrar IP do PC na LAN
-$PcIp = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -eq 'Dhcp' -or $_.InterfaceAlias -like '*Wi-Fi*' -or $_.InterfaceAlias -like '*Ethernet*' }).IPAddress | Select-Object -First 1
-Write-Host "IP do PC (Backend): $PcIp" -ForegroundColor Green
-
-# 2. Encontrar TV na rede se IP não foi passado
+# 1. Encontrar TV na rede se IP não foi passado
 if (-not $TvIp) {
     Write-Host "Buscando TV na rede local..." -ForegroundColor Yellow
     $hosts = (arp -a | Select-String "192\.168\." | ForEach-Object { ($_.ToString().Trim() -split "\s+")[0] }) | Where-Object { $_ -match "^\d+\.\d+\.\d+\.\d+$" } | Sort-Object -Unique
@@ -32,6 +28,16 @@ if (-not $TvIp) {
     }
 }
 Write-Host "TV encontrada no IP: $TvIp" -ForegroundColor Green
+
+# 2. Encontrar IP do PC na mesma sub-rede da TV
+$TvSubnet = ($TvIp -split '\.')[0..2] -join '.'
+$PcIp = (Get-NetIPAddress -AddressFamily IPv4).IPAddress | Where-Object { $_ -like "$TvSubnet.*" } | Select-Object -First 1
+
+if (-not $PcIp) {
+    # Fallback caso não encontre na mesma sub-rede
+    $PcIp = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -eq 'Dhcp' }).IPAddress | Select-Object -First 1
+}
+Write-Host "IP do PC (Backend): $PcIp" -ForegroundColor Green
 
 # 3. Build do Front-end
 if (-not $SkipBuild) {

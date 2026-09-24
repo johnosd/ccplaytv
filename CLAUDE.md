@@ -62,14 +62,23 @@ favorite back into a catalog record, `resolveFavorites`/`useFavoriteIds`/
 (toast + focus-to-neighbor + empty/unresolved states), a "★ Favoritos"
 entry pinned atop the category rail in Live TV/Movies/Series, and
 `deleteSource` now clears a removed source's favorites and resume state.
-553/553 tests, `tsc`/lint/build clean, one Playwright E2E script
-(`tv-web/e2e/favoritos.mjs`) covering the core flows headless. **The one
-gate still open is the physical-TV verification of the hold gesture
-itself (SC-001)** — this feature explicitly elevates that to a mandatory
-gate (constitution's "Validação em hardware real" exception, same pattern
-as feature 011), because a browser can't prove how the real remote's
-`keydown` auto-repeat and `keyup` behave. See
-`sdd/specs/013-favoritos/plan.md` → `## Estado Atual` and R-001.
+A first physical-TV pass found that a test remote control didn't deliver
+`keydown`/`keyup` the way the browser does, which made the hold gesture
+unusable on it — so favoriting now has a second, independent path: a
+single tap of the remote's yellow key (`tizenColorKey.ts`,
+`registerFavoriteColorKey`, `useRemoteNav`'s `onFavoriteKey`), never a
+replacement for the hold gesture (FR-020/FR-021, D-010 in that plan).
+565/565 tests, `tsc`/lint/build clean, one Playwright E2E script
+(`tv-web/e2e/favoritos.mjs`) covering the core flows headless, including
+the yellow-key path via a synthetic keyboard event. **The one gate still
+open is the physical-TV verification of both paths — the hold gesture
+(SC-001) and now also the yellow key (SC-006, plus whether the key name
+`ColorF2Yellow` and the `tvinputdevice` privilege are correct, R-011)** —
+this feature explicitly elevates that to a mandatory gate (constitution's
+"Validação em hardware real" exception, same pattern as feature 011),
+because a browser can't prove how the real remote's `keydown` auto-repeat
+and `keyup` behave. See `sdd/specs/013-favoritos/plan.md` →
+`## Estado Atual` and R-001/R-011.
 
 The four top-level directories:
 

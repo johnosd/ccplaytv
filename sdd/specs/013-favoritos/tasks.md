@@ -170,7 +170,7 @@ description: "Lista de tasks da feature 013-favoritos"
 - [X] T030 **Parcial, ver nota** — executado num navegador real (Chromium headless via Playwright, `npm run dev`), não por olho humano: (B.1, adaptado) 10 segurar-OK alternados no MESMO filme, sem mover o foco — 10/10 com a estrela no estado esperado (nunca dupla nem faltando); (B.4, categoria "Favoritos" da fonte × virtual) já coberto pelo teste unitário `LiveScreen.favorites.test.tsx` (j), não repetido aqui. (C.2/C.3, medido com fonte M3U sintética de 5000 filmes, `Filmes Grande`): importar 5000 filmes ~1,9s; entrar em "★ Favoritos" com a varredura por nome (R-003) depois de favoritar um item — **187ms**, bem abaixo de qualquer limiar de preocupação. **Não coberto**: fonte de provedor Xtream real (sem credencial disponível nesta sessão — mesma limitação já registrada nas features 011/012); B.2/B.3/B.5 (percepção humana de atraso do OK ao soltar, RETURN em camadas, nome duplicado em dois grupos) exigem julgamento humano ou já têm cobertura unitária equivalente (`resolveFavorites` T008). Tempos anotados em `plan.md` → `Execution Notes`.
 - [X] T031 Documentação canônica: nota `**Atualização (feature 013-favoritos):**` em `sdd/adr/ADR-009-navegao-direcional-prpria-useremotenav-vez.md` (o gesto `onLongSelect` opt-in em `useRemoteNav`, decidido por keydown+keyup+limiar); parágrafo "In execution" novo em `CLAUDE.md` (013 no status do projeto, mesmo padrão do parágrafo da 011/012). `.planning/backlog.md` → itens 16/24 citando a 013 fica para o `sdd-converge` ("quando convergir" — ainda não é o caso), não alterado agora.
 - [X] T032 Revisão de segredos: sem achados. Nenhum `console.log`/`console.error` em código de produção tocado por esta feature; nenhuma interpolação de `error.message` em UI (só um `.includes()` de comparação); fixture E2E (`favoritos.m3u`) só com URLs `http://127.0.0.1:59999/…` fictícias, sem `dns`/`username`/`password`.
-- [ ] T033 `npm run build:tizen` e `quickstart.md` §D na TV física via skill `tizen-tv` — **gate de SC-001 (R-001) e, desde T034, também de SC-006 (R-011)**; **não executado nesta sessão** (sem acesso à TV física QN50Q60DAGXZD neste ambiente). Todas as demais tasks estão prontas; esta é a única pendência da feature inteira.
+- [X] T033 **Concluída (2026-09-24, sessão seguinte)** — `quickstart.md` §D rodado na TV física (QN50Q60DAGXZD) pelo usuário via skill `tizen-tv`: gesto de segurar OK (SC-001) e tecla amarela (SC-006) verificados com sucesso nas três telas (Live TV, Filmes, Séries) — ambos os caminhos alternam o favorito corretamente no controle remoto real, sem toque acidental relatado. `ColorF2Yellow`/privilege `tvinputdevice` funcionaram como declarado, sem ajuste de nome necessário (fecha a incerteza de R-011). Relatado pelo usuário diretamente no chat (não uma corrida re-executada nesta sessão) — reproduzido aqui por confiança na verificação já feita, não presumido.
 - [X] T034 **Adição (2026-09-24, pós-tentativa de T033)**: usuário tentou a verificação em TV física com um controle de teste (não o original) — o gesto de segurar OK não funcionou nele (`keyup` não se comportou como no navegador). Decisão: manter o gesto como está (nenhuma mudança em T003–T023) e acrescentar um segundo caminho independente para a mesma ação — tecla amarela do controle, toque único (FR-020/FR-021, D-010, spec.md → Clarifications sessão 2026-09-24). Implementado: `tv-web/src/lib/tizenColorKey.ts` (`registerFavoriteColorKey`, `FAVORITE_COLOR_KEY = 'ColorF2Yellow'`, tolerante a ambiente fora do Tizen ou sem a tecla listada em `getSupportedKeys()`) + `tizenColorKey.test.ts` (5 testes); `useRemoteNav.ts` ganhou `onFavoriteKey` (dispara no `keydown`, debounce de 400ms contra auto-repetição de hardware — mesma desconfiança de `event.repeat` de D-002) + 5 testes novos em `useRemoteNav.test.tsx`; `LiveScreen.tsx`/`MoviesScreen.tsx`/`SeriesScreen.tsx` extraíram `toggleFocusedFavorite()` e passaram a chamá-la tanto de `onLongSelect` quanto de `onFavoriteKey` (mesma função, dois gatilhos, `canToggleFavorite` inalterado); `App.tsx` chama `registerFavoriteColorKey()` uma vez no mount; `CCPlayTv/config.xml` ganhou a privilege `http://tizen.org/privilege/tvinputdevice` (arquivo mantido à mão — confirmado em `sync-tizen.mjs` que o build não o sobrescreve); `FavoritesState.tsx` ganhou o componente `FavoriteHint` compartilhado e as três telas passaram a usá-lo; texto da dica e do estado vazio atualizado nas três telas pra citar os dois caminhos (FR-012). Teste novo em `LiveScreen.favorites.test.tsx` (b2: tecla amarela, mesmo resultado do gesto, `waitFor` porque a mutação é assíncrona — toque único não embute a espera real que `holdEnter` tem). E2E: nova seção em `favoritos.mjs` cobrindo Séries via tecla amarela (`page.evaluate` disparando um `KeyboardEvent` sintético `ColorF2Yellow`, já que Playwright não tem tecla física equivalente); a fixture `favoritos.m3u` ganhou uma entrada `S01E01` pra existir ao menos uma série no catálogo de teste. Achado no processo (R-012, não uma regressão): o teste E2E novo checava o aviso com `isVisible()` síncrono logo após disparar a tecla, mas a mutação (`favoriteToggle.toggle`) é assíncrona — corrigido pra `waitForSelector` (que espera). 565/565 testes (12 novos líquidos), `lint`/`tsc -b`/`build` limpos, uma corrida completa do E2E confirmada limpa (corridas seguintes flakaram em pontos pré-existentes do roteiro, ambiental — R-012). `spec.md` ganhou FR-020/FR-021/SC-006 e uma nova sessão de Clarifications; `plan.md` ganhou D-010, R-011, R-012 e uma linha de Execution Notes; `quickstart.md` §A e §D atualizados.
 
 ### Checklist de Release
@@ -182,7 +182,7 @@ description: "Lista de tasks da feature 013-favoritos"
 - [X] `npm run test`, `npm run lint`, `npx tsc -b`, `npm run build` limpos (565/565 testes, com a adição de T034)
 - [X] Roteiro E2E verde — `node e2e/favoritos.mjs` sozinho (14/14 verificações, incluindo as 2 novas da seção da tecla amarela de T034). `npm run test:e2e` como comando único falha neste ambiente por um problema pré-existente e alheio a esta feature (R-010, binário do Chromium de `e2e.mjs` não disponível no sandbox) — não bloqueia o gate da constitution, que pede o roteiro em si, satisfeito. Corridas repetidas do roteiro combinado mostraram flakiness ambiental pré-existente (R-012), não ligada à lógica nova.
 - [X] `quickstart.md` §B e §C executados — parcial, ver nota da T030 (sem provedor Xtream real disponível)
-- [ ] `quickstart.md` §D na TV física (gate R-001, e desde T034 também R-011/SC-006) — **não executado nesta sessão**, sem acesso à TV física; exige decisão explícita do usuário para fechar a feature sem ele
+- [X] `quickstart.md` §D na TV física (gate R-001/SC-001 e R-011/SC-006) — executado pelo usuário na QN50Q60DAGXZD, ambos os caminhos de favoritar confirmados com sucesso nas três telas (T033)
 - [X] Revisão de segredos (T032, revisitada em T034) sem achados
 - [X] ADR-009 e `CLAUDE.md` atualizados (T031); backlog (itens 16/24) fica para o `sdd-converge`
 
@@ -239,3 +239,48 @@ Task: "T008 [P] catalogRepository.test.ts — resolveFavorites"
 - Commitar após cada task ou grupo lógico coerente.
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->
+
+## Phase 7: Convergence (2026-09-24)
+
+**Purpose**: Fechar lacunas de fidelidade doc↔código encontradas pelo
+`sdd-converge` — a implementação de T034 (tecla amarela) está correta, mas
+dois documentos canônicos citados pela constitution ("Documentação do
+Repositório É Canônica") ainda descrevem só o estado anterior a T034.
+
+- [X] T035 [HIGH] Em `CLAUDE.md` § "In execution: `013-favoritos`":
+  atualizar a contagem de testes (553/553 → 565/565) e acrescentar que o
+  gesto de segurar OK ganhou um segundo caminho independente — a tecla
+  amarela do controle, toque único (FR-020/FR-021, D-010) — e que o gate
+  de TV física pendente agora cobre também SC-006 (tecla), não só SC-001
+  (gesto). (Origem: CLAUDE.md vs `plan.md`/`spec.md` pós-T034, achado
+  CV-001)
+- [X] T036 [MEDIUM] Em `sdd/adr/ADR-009-navegao-direcional-prpria-useremotenav-vez.md`,
+  na nota "Atualização (feature `013-favoritos`, 2026-09-24)": acrescentar
+  uma frase sobre `onFavoriteKey` — segundo handler opcional do mesmo
+  `useRemoteNav`, disparado no `keydown` sem limiar (ao contrário de
+  `onLongSelect`), adicionado pelo mesmo motivo (confiabilidade do
+  `keyup` de um controle real). (Origem: ADR-009 vs `plan.md` D-010,
+  achado CV-002)
+- [X] T037 [LOW] Em `plan.md` → `## Riscos e Decisões` → R-008: anexar
+  nota de que `npm run test` como suíte cheia em paralelo mostrou
+  flakiness intermitente em `*.favorites.test.tsx` (testes com
+  `holdEnter()`, tempo real, competindo por CPU com ~50 ambientes jsdom
+  simultâneos) em verificação de `sdd-converge` — cada arquivo isolado
+  passa 100%; não é regressão de lógica. (Origem: verificação desta sessão
+  vs Checklist de Release, achado CV-003)
+
+**Registro da Fase**:
+
+- Status: Concluída (2026-09-24)
+- Feito: T035–T037. `CLAUDE.md` § "In execution: 013-favoritos" atualizado
+  (contagem 565/565, tecla amarela FR-020/FR-021/D-010, gate ampliado pra
+  SC-001+SC-006/R-011). ADR-009 ganhou uma segunda nota de atualização
+  cobrindo `onFavoriteKey`. `plan.md` → R-008 ganhou o registro de
+  flakiness da suíte cheia em paralelo (achado nesta própria verificação
+  de `sdd-converge`).
+- Testes executados: nenhum — as três tasks só editam Markdown
+  (`CLAUDE.md`, ADR-009, `plan.md`), nenhum arquivo de código tocado.
+- Pendências: nenhuma técnica. T033 (TV física, SC-001+SC-006/R-011)
+  continua sendo a única pendência da feature — aguarda decisão explícita
+  do usuário ou acesso à TV física.
+

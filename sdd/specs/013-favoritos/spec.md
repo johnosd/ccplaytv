@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-24
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: Item 11 do backlog (`.planning/backlog.md`), eleito em
 2026-09-24 na revisão pós-012: "Favoritos nos três tipos — persistência

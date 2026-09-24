@@ -156,3 +156,15 @@ qualquer gesto em andamento em `blur`/`visibilitychange`. Detalhe completo
 em `sdd/specs/013-favoritos/logic/gesto-ok-longo.md`. Continua verdade que
 "foco é estado React" e "mover o foco não aciona nada" — o que mudou é só
 quando o OK em si termina de ser processado, não o modelo de foco.
+
+**Atualização (feature `013-favoritos`, pós-verificação em TV física,
+2026-09-24):** `useRemoteNav` ganhou um terceiro handler opcional na mesma
+linha de `onLongSelect` — `onFavoriteKey` (D-010) —, disparado direto no
+`keydown` da tecla amarela do controle (`ColorF2Yellow`), sem limiar, só
+com um debounce curto contra auto-repetição de hardware. Motivo: um
+controle de teste usado na verificação física não entregou
+pressionar/segurar/soltar do jeito que o navegador distingue, inviabilizando
+o gesto de segurar nele — a tecla amarela é um segundo caminho independente
+para a mesma ação de favoritar, nunca uma substituta. Mesmo padrão de
+`onLongSelect`: opt-in por tela, nenhuma tela muda de comportamento sem
+passar o handler.
