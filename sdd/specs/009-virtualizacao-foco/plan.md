@@ -233,8 +233,8 @@ npm run build       # tsc -b && vite build
 | --- | --- | --- | --- |
 | R-001 | **Achado no replanejamento (23/09/2026)**: o plano de 22/09 assumia Norigin Spatial Navigation (conforme ADR-006 recomendava) como engine de foco. Nunca foi instalado neste projeto (`package.json` só tem `@tanstack/react-virtual`; busca por "norigin" em todo `tv-web/src` só acha um comentário dentro do próprio helper descartado) | Era crítico — desenhar virtualização para sincronizar com uma engine que não existe produziria código morto, como de fato aconteceu na Fase 2 anterior | **Resolvido**: D-001 trava `useRemoteNav` como a engine real. Recomendação registrada no relatório final: rodar `sdd-adr` para emendar ADR-006 formalmente — esta feature não pode fazer isso sozinha (foge do escopo de `sdd-plan`) |
 | R-002 | **Achado no replanejamento**: a Fase 3 do plano de 22/09 descrevia refatorar `.map` direto sobre `activeGroup.channels` em `LiveScreen.tsx` — essa estrutura não existe mais desde a feature 010 (trilha + conteúdo obtido sob demanda) | Era crítico — as tasks antigas referenciavam um arquivo que já mudou de forma | **Resolvido**: `plan.md`/`tasks.md` desta rodada descrevem a estrutura real (`col 0`/`col 1`, `useCategoryContent`, `FocusIdentity`) |
-| R-003 | Fase 2 anterior (`virtualFocusHelper.ts`) foi marcada `[X]` em `tasks.md` por um script solto (`update-tasks-009-2.js`, achado na raiz do repositório) em vez de pelo fluxo do `sdd-execute` — o Registro da Fase correspondente ficou em branco apesar dos checkboxes marcados | Baixo — não é um bug de produto, mas indica que aquela "conclusão" não passou pela disciplina normal de checkpoint | Fase 2 desta rodada refaz o trabalho do zero (D-006); `update-tasks-009-2.js` fica para o usuário decidir se apaga (fora do escopo deste `sdd-plan` mexer em script solto na raiz) |
-| R-004 | Grade de pôsteres depende de medir a largura real do contêiner (R0-2) — jsdom não mede layout, então o teste unitário não pega um erro de cálculo que só aparece com layout real | Médio — regressão visual só visível na TV/navegador, não no CI | Teste unitário cobre a fórmula com largura injetada (research.md R0-4); verificação visual na TV é item do `quickstart.md` |
+| R-003 | Fase 2 anterior (`virtualFocusHelper.ts`) foi marcada `[X]` em `tasks.md` por um script solto (`update-tasks-009-2.js`, achado na raiz do repositório) em vez de pelo fluxo do `sdd-execute` — o Registro da Fase correspondente ficou em branco apesar dos checkboxes marcados | Baixo — não é um bug de produto, mas indica que aquela "conclusão" não passou pela disciplina normal de checkpoint | **Resolvido: confirmado por auditoria (`sdd-converge`)** — todas as fases desta rodada (1-5) têm Registro da Fase completo, preenchido pelo `sdd-execute` a cada checkpoint. `update-tasks-009-2.js` continua na raiz, sem uso; fica para o usuário decidir se apaga |
+| R-004 | Grade de pôsteres depende de medir a largura real do contêiner (R0-2) — jsdom não mede layout, então o teste unitário não pega um erro de cálculo que só aparece com layout real | Médio — regressão visual só visível na TV/navegador, não no CI | **Resolvido: confirmado por auditoria** — teste unitário cobre a fórmula com largura injetada (research.md R0-4); Cenário C do `quickstart.md` aprovado na TV física (T018), 6 colunas consistentes do início ao fim da rolagem |
 | R-005 | Painel de conteúdo virtualizado muda a interação com o botão "Tentar de novo"/"Voltar" nos estados de erro (herdados de R-011 da feature 010) | Baixo — R-011 já é conhecido e não corrigido; risco é só de esquecer de preservar o estado atual (por pior que seja) ao trocar a renderização por virtualizador | Nenhuma mudança nova nesses estados — eles continuam fora do `.category-content`/`poster-grid` virtualizado, sem alteração de comportamento por esta feature |
 | R-006 | Achado na Fase 2: a T008 original preparava `.poster-grid`/`.live-item` pra posicionamento absoluto antes de qualquer tela consumir isso. Como `.poster-grid` hoje depende de `display: grid` pra funcionar sem virtualização, mudar o CSS antes das telas quebraria Filmes/Séries no intervalo até a Fase 4 | Médio — regressão visual temporária, autoinfligida pela ordem das tasks | **Resolvido**: T008 resequenciada — o CSS de cada tela entra junto com a task que a virtualiza (T011 para `.live-item`, escopado a `.live-column-channels` pra não afetar a trilha de categorias por D-004; T015/T016 para `.poster-grid`) |
 | R-007 | **Achado na Fase 3**: `research.md`, `logic/virtualizacao-foco.md` e `quickstart.md` — citados como prerequisito em `tasks.md` e nos comentários dos hooks da Fase 2 (`useVirtualFocusSync.ts`/`usePosterColumnWidth.ts`) — nunca foram commitados neste repositório. `git log --all` para os três caminhos não retorna nenhum commit; existiram só como estado local de uma sessão anterior e não sobreviveram à troca de container desta sessão remota | Médio — a Fase 4 ainda cita `logic/virtualizacao-foco.md` §4/§5 e `research.md` R0-1/R0-2 por número de seção; sem os arquivos, essas referências são inúteis para quem executar a Fase 4 a seguir | **Resolvido**: os três arquivos foram reconstruídos via `sdd-plan` em 23/09/2026, consistentes com o código real já implementado nas Fases 1-3 e com todas as referências por número de seção/item já existentes em `tasks.md`/`plan.md`/comentários de código (conferido um a um — nenhuma ficou órfã). `logic/virtualizacao-foco.md` §4 já é normativo para a Fase 4, ainda não implementada |
@@ -307,3 +307,62 @@ quiser fechar a feature formalmente.
   parâmetro do construtor** (`constructor(private x: T) {}`) — passa no
   Vitest mas quebra `npm run build` com `TS1294 (erasableSyntaxOnly)`
   (R-009). Declare o campo separado e atribua no corpo do construtor.
+
+## Resultado Final
+
+`sdd-converge` rodado em 23/09/2026. Nenhum achado acionável — convergência
+limpa na primeira passada.
+
+**O que foi de fato construído** bate com o desenho do replanejamento em
+tudo que importa: as três telas de categoria (Live TV, Filmes, Séries)
+virtualizam o painel de conteúdo (`useVirtualizer` — lista 1D em canais,
+`lanes: GRID_COLS` em pôsteres), sincronizado com o motor de foco próprio
+do projeto (`useVirtualFocusSync`, D-001) em vez de Norigin Spatial
+Navigation — que nunca chegou a ser adotado, e cuja recomendação original
+(ADR-006) foi formalmente substituída por ADR-009 nesta mesma sessão. A
+categoria buscada inteira sem paginação incremental (D-002) removeu o teto
+artificial `CHANNELS_PER_GROUP_CAP` das três seções. A trilha de categorias
+(col 0) permanece deliberadamente fora da virtualização (D-004).
+
+**Único desvio real de spec.md, já registrado como decisão consciente**:
+FR-002 nomeia Norigin Spatial Navigation; o código usa `useRemoteNav`
+(D-001/ADR-009). Não é uma lacuna de implementação — é uma correção de
+premissa técnica que a spec original (22/09) carregava por engano, mantida
+aqui como registro histórico em vez de reescrita silenciosa.
+
+**Desvios acumulados nas Execution Notes, todos documentados no momento em
+que aconteceram**:
+
+- **D-003**: escopo estendido de "só Live TV" (letra original de `spec.md`)
+  para as três telas de categoria, por decisão do usuário em 23/09/2026 —
+  Filmes/Séries ganharam exatamente a mesma estrutura de trilha+conteúdo
+  que a feature 010 deu à Live TV, e o mesmo risco de categoria grande.
+- **R-010** (três bugs reais, achados na TV física, T019): `usePosterColumnWidth`
+  nunca media a largura real (ref não reagia a montagem tardia do
+  contêiner); `Number.MAX_SAFE_INTEGER` como `limit` do Dexie lançava
+  `TypeError` real no `IDBIndex.getAll` nativo (o `unsigned long` do
+  WebIDL tem teto de `2**32-1`); e, mais sutil, o virtualizador cacheava a
+  medição errada de antes do `ResizeObserver` disparar, exigindo
+  `virtualizer.measure()` explícito quando `rowHeight` muda — o padrão
+  que a própria documentação do TanStack Virtual recomenda para medição
+  assíncrona, e que só a TV física expôs (o navegador de desenvolvimento
+  "ganhava a corrida" por sorte de velocidade).
+- **R-011** (achado na TV física, T020, fora do escopo de virtualização
+  desta feature por D-004, mas corrigido com autorização explícita do
+  usuário): a trilha de categorias não rolava sozinha para acompanhar o
+  foco — pré-existente desde a feature 010, exposto só agora por uma fonte
+  real com dezenas de categorias. `useScrollFocusedIntoView` novo resolve
+  isso nas três telas.
+
+**Diferença técnica notável do plano original**: nenhuma — as Decisões
+Invariantes D-001 a D-006 se mantiveram estáveis do replanejamento até a
+entrega final, sem precisar reabrir design.
+
+**O que fica genuinamente pendente, fora do escopo desta feature** (nenhum
+bloqueia a convergência): R-005/R-011-da-feature-010 (botões "Tentar de
+novo"/"Voltar" não ativáveis por OK do controle físico nos estados de
+carregando/erro — pré-existente, já logado em `.planning/backlog.md`);
+`update-tasks-009-2.js` (script solto na raiz, decisão do usuário se
+remove ou não); `groupChannels()`/`CHANNELS_PER_GROUP_CAP` mortos em
+`groupChannels.ts` (R-012 da feature 010, candidatos a remoção num polish
+futuro, não desta feature).

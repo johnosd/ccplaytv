@@ -106,6 +106,8 @@ Filmes e séries deixaram de usar dados fictícios: as telas leem o catálogo re
 
 **Validado em 23/09/2026**: o ciclo completo de carga sob demanda foi verificado na TV física (feature 010) — sincronizar a fonte real passou a concluir em segundos (antes, minutos), e entrar numa categoria traz os itens dela sob demanda, com cache e degradação honesta offline. 6 dos 7 cenários do quickstart foram aprovados no aparelho; o único não executado (fonte por URL M3U) fica coberto por teste automatizado, sem fonte M3U disponível na sessão para confirmação visual.
 
+**Validado em 23/09/2026**: as listas de canais e grades de pôsteres (Live TV, Filmes, Séries) passaram a virtualizar o que renderizam (`@tanstack/react-virtual`), sincronizadas com o motor de foco próprio do projeto — nunca com uma engine de foco por DOM (feature 009, `sdd/specs/009-virtualizacao-foco/`; ADR-009 formaliza essa escolha, substituindo a recomendação original de Norigin Spatial Navigation, nunca adotada). O teto artificial de 500 itens por categoria (`CHANNELS_PER_GROUP_CAP`), necessário só por falta de virtualização, saiu de uso: uma categoria com milhares de itens agora rola sem travar a TV, confirmado no aparelho de referência.
+
 Próximos: enriquecimento, recomendações, e então voz e controle Android. Captura de áudio disponível, persistência e protocolo de sincronização ainda precisam de validação ou decisão específica.
 
 ## Referências do ambiente
