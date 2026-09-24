@@ -47,8 +47,8 @@ de virar spec.
 
 **Revisão de 2026-09-24 (pós-012)**: removidos desta lista os itens já
 entregues (4, 5, 6 e 9) e o bug de lint resolvido; os itens parcialmente
-entregues (7, 8, 13) dizem só o que falta. Eleito para a próxima spec:
-**item 11 (Favoritos)**.
+entregues (7, 8, 13) dizem só o que falta. O item 11 (Favoritos) virou a
+feature **013-favoritos**, especificada no mesmo dia.
 
 **O que já existe hoje** (estado pós-feature 012):
 - **Importação client-first ponta a ponta** (feature 005, convergida em
@@ -194,24 +194,6 @@ de "assistido" agregada por série, hero de "continuar assistindo").
     (`docs/guia-praticas-app-tv/06` §1/§2 e P05/P06;
     `docs/guia-praticas-app-tv/12` API03/API04)
 
-11. **Favoritos nos três tipos** ← **eleito para a próxima spec
-    (2026-09-24)**
-
-    Persistência local em `userStateRepository` que sobrevive a
-    reimportação, por chave estável (fonte + tipo + id estável). Favoritar
-    não marca como assistido nem como "gostei".
-
-    **O repositório já existe** (feature 008, convergida em 22/09/2026):
-    `toggleFavorite`, `getGlobalFavorites` e `buildStableId` estão prontos
-    e testados. **Falta inteiramente a UI** — nenhuma tela o importa. Este
-    item é o consumidor, não o armazenamento.
-
-    **Nota client-first**: tudo local — sem backend, sem sincronização
-    remota. A chave estável usa `providerStreamId` quando existir,
-    conforme definido no data model da feature 005.
-
-    (RF-013; ADR-005 §4)
-
 12. **Pesquisa nos três tipos**
 
     Busca local no catálogo já salvo no IndexedDB, indicando escopo ativo
@@ -317,7 +299,7 @@ função nova; todos mudam a sensação de uso.
     - Sem listas, o shell da Home permanece e só o conteúdo vira
       empty-state de boas-vindas.
 
-    **Pré-requisitos**: itens 11 (favoritos), 13 (histórico) para o
+    **Pré-requisitos**: feature 013 (favoritos), 13 (histórico) para o
     hero funcionar.
 
     (`docs/iptvnator/09-dashboard-home.md` #1–6/#8;
@@ -442,7 +424,7 @@ função nova; todos mudam a sensação de uso.
     aproximação.
 
     **Pré-requisitos**: feature 008 (`UserStateRepository`, já entregue) e
-    os itens 11 (favoritos) e 13 (histórico).
+    a feature 013 (favoritos) e o item 13 (histórico).
 
     (ADR-005 §2/§4;
     `docs/iptvnator/06-carga-listas-url-xtream.md` #8/#12)
@@ -1021,6 +1003,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 010-catalogo-sob-demanda | Importação por Estrutura com Carga sob Demanda por Categoria | Convergida | 59/59 tasks | 2026-09-23 |
 | 011-assistir-filme-retomada | Assistir Filme, com Retomada | Convergida | 63/72 tasks | 2026-09-24 |
 | 012-series-episodios-temporadas | Séries — Episódios e Temporadas | Convergida | 52/55 tasks | 2026-09-24 |
+| 013-favoritos | Favoritos em Canais, Filmes e Séries | Especificada | N/A | 2026-09-24 |
 
 ## Bugs
 
