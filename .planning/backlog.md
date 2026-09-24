@@ -45,7 +45,12 @@ só a APIs de terceiro (TMDB, OpenAI) com a chave do próprio usuário
 evidência própria de demanda e **precisam passar por `sdd-assess`** antes
 de virar spec.
 
-**O que já existe hoje** (estado pós-feature 010):
+**Revisão de 2026-09-24 (pós-012)**: removidos desta lista os itens já
+entregues (4, 5, 6 e 9) e o bug de lint resolvido; os itens parcialmente
+entregues (7, 8, 13) dizem só o que falta. Eleito para a próxima spec:
+**item 11 (Favoritos)**.
+
+**O que já existe hoje** (estado pós-feature 012):
 - **Importação client-first ponta a ponta** (feature 005, convergida em
   22/09/2026): o app obtém dados da fonte (provedor Xtream ou URL M3U)
   diretamente do aparelho, interpreta e classifica em Web Worker
@@ -99,8 +104,8 @@ dois. A lacuna de "episódio de série ainda não" (`SeriesDetailScreen` sem
 episódios, `fetchSeriesInfo` sem consumidor) foi fechada pela feature
 `012-series-episodios-temporadas` (código completo nas 4 user stories,
 suíte automatizada limpa; verificação na TV física é recomendada, não
-obrigatória — ver `Estado Atual` da spec). Ver o item 9 para o
-detalhamento, e o item 13 para o que continua fora de escopo (semântica
+obrigatória — ver `Estado Atual` da spec; detalhamento em
+`sdd/specs/012-series-episodios-temporadas/`). Ver o item 13 para o que continua fora de escopo (semântica
 de "assistido" agregada por série, hero de "continuar assistindo").
 
 **O que não existe mais**:
@@ -114,60 +119,6 @@ de "assistido" agregada por série, hero de "continuar assistindo").
 ---
 
 ### Fase 1 — MVP: do catálogo real até assistir
-
-4. **`PlayerService` — contrato completo de capacidades**
-
-   A feature 003 criou a abstração, o adaptador AVPlay, o adaptador
-   `<video>` de desenvolvimento e os estados de sessão. Falta:
-   - **Contrato de capacidades por motor**: a UI nunca oferece botão que o
-     motor não suporta.
-   - **Identidade lógica de reprodução serializada**: fonte + tipo + id
-     estável + S/E, conforme a constitution.
-   - **Ciclo de vida completo**: screensaver, `visibilitychange`, sessões
-     sobrepostas, progresso intermediário — detalhado no item 10.
-
-   **Contrato de capacidades e identidade: entregues pela feature
-   `011-assistir-filme-retomada`** (24/09/2026, verificação na TV física em
-   andamento). `PlayerAdapter` agora declara `capabilities`
-   (`canPause`/`canSeek`/`reportsPosition`/`reportsDuration`), resolvidas por
-   sessão como interseção motor × mídia — a UI lê a capacidade, nunca o
-   nome do adaptador, mesmo padrão que `rendersOnHardwarePlane` já usava. A
-   posição de retomada é chaveada por `buildStableId` (feature 008), nunca
-   pela URL. **Achado só na TV física, não previsto no design**: a porta que
-   protege `jumpBy`/`seekTo` contra chamadas sobrepostas na API do motor
-   *acumulava* saltos pendentes enquanto um estava em voo — segurar uma seta
-   no controle **travava o app** (dezenas de eventos de tecla repetida
-   viravam um salto gigante quando o motor finalmente respondia). Corrigido
-   para descartar em vez de acumular; confirmado funcionando na TV real.
-
-   **Continua neste item**: o ciclo de vida completo (screensaver,
-   `visibilitychange`, impedir sessões sobrepostas na troca rápida de canal)
-   — nada disso foi tocado pela 011, que abriu uma sessão por vez a partir
-   de uma tela de detalhe, não o cenário de trocar rapidamente de canal ao
-   vivo. Esse resto é o item 10.
-
-   (ADR-001 §2; ADR-006 Incremento A/B; constitution "Identidade de
-   Reprodução Não Depende da URL"; `docs/iptvnator/02-arquitetura.md`
-   #1/#2; `docs/guia-praticas-app-tv/12` §1)
-
-5. ~~**Ligar Filmes e Séries ao catálogo real**~~ — **entregue pela
-   feature 010** (23/09/2026). As três telas de categoria foram reescritas
-   categoria-primeiro lendo `catalogRepository`; `ListHomeScreen` mostra
-   contagem real por seção (`sectionCount`); `mockCatalog.ts` não existe
-   mais. **Continua em aberto, mas nos itens 8 e 9**: as telas de
-   *detalhe* (`MovieDetailScreen`, `SeriesDetailScreen`) leem o item real,
-   porém sem arte, sinopse, episódios ou ação de assistir.
-
-6. ~~**Foco direcional e virtualização de grades**~~ — **entregue pela
-   feature 009** (23/09/2026), verificada na TV física (5/5 cenários).
-   Grades e lista virtualizadas com `@tanstack/react-virtual`, sem teto de
-   leitura, coluna preferida conservada e foco reconciliado por id.
-
-   **Divergência registrada**: Norigin Spatial Navigation, recomendada pela
-   ADR-006, **nunca foi instalada**. A engine real é o `useRemoteNav`
-   próprio do projeto, mais os hooks de `tv-web/src/lib/focus/`. Isso virou
-   a **ADR-009**, e a ADR-006 foi emendada. Não replanejar nada assumindo
-   Norigin.
 
 7. **Tela de Canais — melhorias pendentes da feature 003**
 
@@ -184,21 +135,13 @@ de "assistido" agregada por série, hero de "continuar assistindo").
    (RF-008; ADR-005 §3; ADR-007 §4/§5;
    `docs/iptvnator/07-tela-canais.md` #1–5/#8)
 
-8. **Filmes: assistir, com arte e detalhe real**
+8. **Filmes: arte e detalhe real**
 
    **Já entregue** (features 009/010): a grade virtualizada de pôsteres por
    categoria, com contagem real e empty state de categoria.
 
-   **Entregue pela feature `011-assistir-filme-retomada`** (24/09/2026,
-   verificação na TV física em andamento): **Assistir**, **Retomar** (com
-   posição salva) e **Reiniciar** como ação primária contextual do
-   `MovieDetailScreen`, com controles de play/pause e busca (±10s) e uma
-   barra de progresso focável (CIMA a partir dos botões entra nela, BAIXO
-   sai — desenho ajustado depois de testar na TV real). Progresso gravado em
-   pontos intermediários por `progressRecorder.ts`, chaveado por identidade
-   estável. Conclusão do filme é tratada como fim normal, não erro. Live TV
-   migrada para a mesma camada de reprodução (`components/PlayerLayer.tsx`),
-   sem regressão nos cenários já verificados.
+   **Já entregue pela feature 011**: Assistir/Retomar/Reiniciar, controles
+   de VOD e retomada por identidade estável.
 
    **Fica para este item, depois da 011**:
    - Fallback de arte em cascata: `poster_url` → `cover` → `stream_icon`
@@ -216,47 +159,11 @@ de "assistido" agregada por série, hero de "continuar assistindo").
    (RF-010; ADR-005 §3; ADR-007 §5/§6;
    `docs/iptvnator/08-tela-filmes.md` #1–7)
 
-9. **Séries: episódios e temporadas**
-
-   **Entregue pela feature `012-series-episodios-temporadas`** (código
-   completo em 24/09/2026, 4 user stories, suíte automatizada — 478/478 —
-   e `tsc`/lint limpos; verificação na TV física recomendada, não
-   obrigatória). Escopo final ficou maior do que este item original, por
-   pedido do usuário durante a entrevista de especificação:
-   - **Provedor Xtream**: episódios obtidos sob demanda ao entrar no
-     detalhe (`get_series_info`, mesma janela de frescor de 24h das
-     categorias da feature 010), nunca gravando URL de episódio.
-   - **Fonte M3U e "Modo limitado"**: episódios agrupados em série por
-     título normalizado (`SxxEyy` no nome, ou só pelo segmento `/series/`
-     da URL quando não há esse padrão) — um cartão por série, não por
-     arquivo. Corrigiu de quebra um bug pré-existente do Modo limitado
-     (cada `/series/` virava um cartão de série órfão, sem reprodução).
-   - Detalhe com abas de temporada e lista de episódios virtualizada
-     (layout do protótipo, nunca antes consumido).
-   - Reprodução e retomada por identidade estável (mesmo mecanismo da
-     011), marca visual de "assistido" por episódio, e autoplay do
-     próximo episódio com aviso de 10s cancelável, atravessando temporada.
-
-   **Já entregue antes** (features 009/010): a grade de séries por
-   categoria, um cartão por série (o conector já mapeia série como
-   agrupador, não como episódio solto).
-
-   **O que ficava para este item** (agora entregue):
-   - **Obter e gravar episódios.** `fetchSeriesInfo` já existe em
-     `xtreamConnector.ts` e nunca foi chamado. Sem episódio no catálogo
-     local não há de onde montar a URL nem onde guardar retomada por
-     temporada/episódio — é o que `SeriesDetailScreen` declara hoje, em vez
-     de fingir uma temporada.
-   - Detalhe com seletor de temporada e lista de episódios.
-   - Reprodução de episódio (`buildSeriesUrl` já existe). **Depende do
-     item 4** e, na prática, de o item 8 ter estabilizado a camada de
-     reprodução de VOD — os dois já entregues pela feature 011.
-   - Quando a hierarquia não for identificável com segurança, manter o
-     conteúdo acessível e indicar a limitação, sem inventar estrutura.
-
-   (RF-009; ADR-005 §2/§3)
-
 10. **Ciclo de vida do player na TV**
+
+    Absorve o resto do antigo item 4: o contrato de capacidades e a
+    identidade lógica de reprodução foram entregues pela feature 011; o
+    progresso intermediário também (`progressRecorder.ts`). Falta:
 
     - Desligar screensaver durante reprodução, reativá-lo ao
       pausar/parar.
@@ -265,7 +172,6 @@ de "assistido" agregada por série, hero de "continuar assistindo").
       expirados ao retomar.
     - Impedir sessões sobrepostas na troca rápida de canal, descartando
       callbacks atrasados da mídia anterior.
-    - Salvar progresso em pontos intermediários, não só no encerramento.
     - Preservar preferência de áudio/legenda quando a próxima mídia
       oferecer equivalente, sem afirmar que a faixa existe sempre.
 
@@ -288,7 +194,8 @@ de "assistido" agregada por série, hero de "continuar assistindo").
     (`docs/guia-praticas-app-tv/06` §1/§2 e P05/P06;
     `docs/guia-praticas-app-tv/12` API03/API04)
 
-11. **Favoritos nos três tipos**
+11. **Favoritos nos três tipos** ← **eleito para a próxima spec
+    (2026-09-24)**
 
     Persistência local em `userStateRepository` que sobrevive a
     reimportação, por chave estável (fonte + tipo + id estável). Favoritar
@@ -973,11 +880,9 @@ mudaram de natureza** com a arquitetura client-first:
    cada tela wireificar esses botões manualmente — decisão de design,
    não um typo. Caminho normal: `sdd-bugfix`.
 
-0. **~~[Bug] `ruff check .` falha no backend por `api/delete_sources.py`~~
-   — resolvido em 18/09/2026** (decisão do usuário na Fase 7 da
-   003-live-tv-avplay, task T052). **Fica em aberto**: decidir se esse
-   script utilitário deve continuar versionado e lintado junto do pacote,
-   ou mudar para `scripts/` fora dele.
+0. **Decidir o destino de `api/delete_sources.py`** — o lint foi
+   corrigido em 18/09/2026 (T052 da 003); fica em aberto se o script
+   continua versionado junto do pacote congelado ou sai dele.
 
 0. **[Bug] Voltar do detalhe pra grade não restaura foco nem posição** — em
    `tv-web/src/App.tsx`, o roteador é um `switch` que renderiza uma tela por
