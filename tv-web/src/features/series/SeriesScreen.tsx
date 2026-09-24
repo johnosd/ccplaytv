@@ -15,7 +15,7 @@ import { usePosterColumnWidth } from '../../lib/focus/usePosterColumnWidth'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
-import { FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
+import { FavoriteHint, FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 
@@ -204,6 +204,22 @@ export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenPro
    */
   const canToggleFavorite = col === 1 && activeSeries !== undefined
 
+  /**
+   * Alterna o favorito da série focada — chamada tanto por segurar OK
+   * (`onLongSelect`) quanto pela tecla amarela (`onFavoriteKey`, feature
+   * 013, achado testando na TV física com um controle substituto). Mesmo
+   * caminho de ação, só dois jeitos de chegar nele.
+   */
+  function toggleFocusedFavorite() {
+    if (!activeSeries) return
+    void favoriteToggle.toggle(activeSeries, {
+      // Só dentro de "Favoritos" desfavoritar precisa mover o foco pra
+      // fora do item — numa categoria comum, ele continua lá.
+      visibleItems: enteredFavorites ? series : undefined,
+      onFocusNeighbor: enteredFavorites ? setFocusedSeriesId : undefined,
+    })
+  }
+
   useRemoteNav({
     onDirection: (dir) => {
       if (col === 0) {
@@ -242,16 +258,8 @@ export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenPro
       const item = series[seriesIdx]
       if (item) onOpenSeries(item.id)
     },
-    onLongSelect: canToggleFavorite
-      ? () => {
-          void favoriteToggle.toggle(activeSeries, {
-            // Só dentro de "Favoritos" desfavoritar precisa mover o foco
-            // pra fora do item — numa categoria comum, ele continua lá.
-            visibleItems: enteredFavorites ? series : undefined,
-            onFocusNeighbor: enteredFavorites ? setFocusedSeriesId : undefined,
-          })
-        }
-      : undefined,
+    onLongSelect: canToggleFavorite ? toggleFocusedFavorite : undefined,
+    onFavoriteKey: canToggleFavorite ? toggleFocusedFavorite : undefined,
     onBack: () => {
       if (col === 1) {
         setCol(0)
@@ -387,7 +395,7 @@ export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenPro
         )}
 
         {showingContent && !contentIsLoading && !contentFailed && series.length > 0 && (
-          <div className="fav-hint">Segure OK para favoritar</div>
+          <FavoriteHint />
         )}
 
         {showingContent && !contentIsLoading && !contentFailed && series.length > 0 && (

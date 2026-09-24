@@ -16,6 +16,7 @@ import { MoviesScreen } from './features/movies/MoviesScreen'
 import { MovieDetailScreen } from './features/movies/MovieDetailScreen'
 import { SeriesScreen } from './features/series/SeriesScreen'
 import { SeriesDetailScreen } from './features/series/SeriesDetailScreen'
+import { registerFavoriteColorKey } from './lib/tizenColorKey'
 
 type Screen =
   | { name: 'splash' }
@@ -38,6 +39,14 @@ interface NavState {
 function App() {
   const [nav, setNav] = useState<NavState>({ screen: { name: 'splash' }, history: [] })
   const { screen } = nav
+
+  // Tecla amarela como atalho de favoritar (feature 013) — registra uma
+  // vez, na raiz do app, nunca por tela: `tizen.tvinputdevice.registerKey`
+  // é global à sessão do widget, registrar de novo em cada tela seria
+  // redundante. No-op fora da TV (`tizenColorKey.ts`).
+  useEffect(() => {
+    registerFavoriteColorKey()
+  }, [])
 
   // Migração única e atualização por idade (feature 004, D-004): a TV só
   // avisa "abri esta fonte" — quem decide migrar/atualizar/nada é o

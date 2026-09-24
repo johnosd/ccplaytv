@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LONG_SELECT_MS, useRemoteNav } from './useRemoteNav'
+import { FAVORITE_COLOR_KEY } from './tizenColorKey'
 
 describe('useRemoteNav', () => {
   afterEach(() => cleanup())
@@ -237,5 +238,76 @@ describe('useRemoteNav — onLongSelect (clique demorado, feature 013)', () => {
     expect(bubbleKeyUp).not.toHaveBeenCalled() // nunca chegou à fase de bubble
 
     document.removeEventListener('keyup', bubbleKeyUp)
+  })
+})
+
+/**
+ * Tecla amarela do controle (feature 013) — atalho complementar ao
+ * segurar OK, pedido depois de testar na TV física com um controle
+ * substituto onde o gesto de segurar não se comportava como no navegador.
+ */
+describe('useRemoteNav — onFavoriteKey (tecla amarela, feature 013)', () => {
+  afterEach(() => cleanup())
+
+  it('dispara onFavoriteKey no keydown, sem esperar soltar (nunca é um gesto)', () => {
+    const onFavoriteKey = vi.fn()
+    renderHook(() => useRemoteNav({ onFavoriteKey }))
+
+    fireEvent.keyDown(document, { key: FAVORITE_COLOR_KEY })
+
+    expect(onFavoriteKey).toHaveBeenCalledTimes(1)
+  })
+
+  it('sem onFavoriteKey, a tecla amarela não faz nada (não é tratada como tecla desconhecida perigosa)', () => {
+    const onDirection = vi.fn()
+    const onBack = vi.fn()
+    renderHook(() => useRemoteNav({ onDirection, onBack }))
+
+    expect(() => fireEvent.keyDown(document, { key: FAVORITE_COLOR_KEY })).not.toThrow()
+    expect(onDirection).not.toHaveBeenCalled()
+    expect(onBack).not.toHaveBeenCalled()
+  })
+
+  it('segurar a tecla (vários keydown seguidos) alterna o favorito só uma vez dentro do debounce', () => {
+    vi.useFakeTimers()
+    const onFavoriteKey = vi.fn()
+    renderHook(() => useRemoteNav({ onFavoriteKey }))
+
+    fireEvent.keyDown(document, { key: FAVORITE_COLOR_KEY, repeat: true })
+    vi.advanceTimersByTime(50)
+    fireEvent.keyDown(document, { key: FAVORITE_COLOR_KEY, repeat: true })
+    vi.advanceTimersByTime(50)
+    fireEvent.keyDown(document, { key: FAVORITE_COLOR_KEY, repeat: true })
+
+    expect(onFavoriteKey).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
+  })
+
+  it('depois do debounce passar, um novo toque na tecla dispara de novo', () => {
+    vi.useFakeTimers()
+    const onFavoriteKey = vi.fn()
+    renderHook(() => useRemoteNav({ onFavoriteKey }))
+
+    fireEvent.keyDown(document, { key: FAVORITE_COLOR_KEY })
+    vi.advanceTimersByTime(500) // além do FAVORITE_KEY_DEBOUNCE_MS (400ms)
+    fireEvent.keyDown(document, { key: FAVORITE_COLOR_KEY })
+
+    expect(onFavoriteKey).toHaveBeenCalledTimes(2)
+    vi.useRealTimers()
+  })
+
+  it('não interfere no gesto de OK — as duas teclas são independentes', () => {
+    const onSelect = vi.fn()
+    const onLongSelect = vi.fn()
+    const onFavoriteKey = vi.fn()
+    renderHook(() => useRemoteNav({ onSelect, onLongSelect, onFavoriteKey }))
+
+    fireEvent.keyDown(document, { key: FAVORITE_COLOR_KEY })
+    fireEvent.keyDown(document, { key: 'Enter' })
+    fireEvent.keyUp(document, { key: 'Enter' })
+
+    expect(onFavoriteKey).toHaveBeenCalledTimes(1)
+    expect(onSelect).toHaveBeenCalledTimes(1)
+    expect(onLongSelect).not.toHaveBeenCalled()
   })
 })

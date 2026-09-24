@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { FAVORITE_COLOR_KEY } from './tizenColorKey'
 
 export type RemoteDirection = 'up' | 'down' | 'left' | 'right'
 
@@ -14,6 +15,17 @@ export interface RemoteNavHandlers {
    * indefinido, o OK continua agindo no `keydown`, como sempre agiu.
    */
   onLongSelect?: () => void
+  /**
+   * Opcional (feature 013, achado em 24/09/2026 testando na TV física com
+   * um controle substituto: segurar OK não se comportou lá como no
+   * navegador). Atalho de UM toque na tecla amarela do controle
+   * (`FAVORITE_COLOR_KEY`, registrada por `tizenColorKey.ts`) — sempre a
+   * MESMA ação de `onLongSelect`, nunca um gesto próprio: chama no
+   * `keydown`, sem esperar soltar. Complementa `onLongSelect`, nunca o
+   * substitui — os guias de boas práticas do projeto são explícitos que
+   * tecla colorida nunca pode ser o único caminho.
+   */
+  onFavoriteKey?: () => void
   onBack?: () => void
 }
 
@@ -47,6 +59,16 @@ interface PendingPress {
   timer: ReturnType<typeof setTimeout>
 }
 
+/**
+ * Intervalo mínimo entre dois disparos de `onFavoriteKey` (feature 013).
+ * `KeyboardEvent.repeat` já deveria bastar pra distinguir auto-repetição
+ * de um toque novo, mas este hook já trata outras informações "do
+ * fabricante" como não confiáveis (`STALE_PRESS_MS`, `TIZEN_RETURN_KEYCODE`)
+ * — um controle segurado que dispare vários `keydown` sem `repeat: true`
+ * não deveria alternar o favorito várias vezes.
+ */
+const FAVORITE_KEY_DEBOUNCE_MS = 400
+
 const DIRECTION_BY_KEY: Record<string, RemoteDirection> = {
   ArrowUp: 'up',
   ArrowDown: 'down',
@@ -71,17 +93,18 @@ export const TIZEN_RETURN_KEYCODE = 10009
  * decide o que "próximo"/"anterior" significa via `onDirection`.
  */
 export function useRemoteNav(
-  { onDirection, onSelect, onLongSelect, onBack }: RemoteNavHandlers,
+  { onDirection, onSelect, onLongSelect, onFavoriteKey, onBack }: RemoteNavHandlers,
   { modal = false, longSelectMs = LONG_SELECT_MS }: RemoteNavOptions = {},
 ) {
-  const handlersRef = useRef({ onDirection, onSelect, onLongSelect, onBack })
+  const handlersRef = useRef({ onDirection, onSelect, onLongSelect, onFavoriteKey, onBack })
   // Gesto de OK em andamento (feature 013) — `null` fora de um
   // pressionamento. Vive em `useRef`, não em estado: nada aqui precisa
   // re-renderizar a tela, só decidir o que o próximo evento de teclado faz.
   const pressRef = useRef<PendingPress | null>(null)
+  const lastFavoriteKeyAtRef = useRef(0)
 
   useEffect(() => {
-    handlersRef.current = { onDirection, onSelect, onLongSelect, onBack }
+    handlersRef.current = { onDirection, onSelect, onLongSelect, onFavoriteKey, onBack }
   })
 
   useEffect(() => {
@@ -140,8 +163,12 @@ export function useRemoteNav(
         event.key === 'Escape' ||
         event.key === 'XF86Back' ||
         event.keyCode === TIZEN_RETURN_KEYCODE
+      // Tecla amarela (feature 013) — só existe evento se a tela passou
+      // `onFavoriteKey`; nas demais, chega aqui e cai no `return` de baixo
+      // como tecla não mapeada, sem interceptar nada.
+      const isFavoriteKey = event.key === FAVORITE_COLOR_KEY && Boolean(handlersRef.current.onFavoriteKey)
 
-      if (!direction && !isSelect && !isBack) return
+      if (!direction && !isSelect && !isBack && !isFavoriteKey) return
       // Telas de "roving DOM focus" (useTvKeyNav + <button>/<input> reais,
       // ex. AddSourceScreen, ImportProgressScreen) não passam onSelect —
       // contam com o Enter nativo do navegador pra ativar o elemento
@@ -164,6 +191,17 @@ export function useRemoteNav(
 
       if (direction) handlersRef.current.onDirection?.(direction)
       else if (isBack) handlersRef.current.onBack?.()
+      else if (isFavoriteKey) {
+        // Toque único, sem gesto: chama direto no keydown, mas com um
+        // debounce próprio (`FAVORITE_KEY_DEBOUNCE_MS`) — sem isto, segurar
+        // a tecla amarela (auto-repetição do controle) alternaria o
+        // favorito várias vezes por engano.
+        const now = Date.now()
+        if (now - lastFavoriteKeyAtRef.current >= FAVORITE_KEY_DEBOUNCE_MS) {
+          lastFavoriteKeyAtRef.current = now
+          handlersRef.current.onFavoriteKey?.()
+        }
+      }
     }
 
     /**

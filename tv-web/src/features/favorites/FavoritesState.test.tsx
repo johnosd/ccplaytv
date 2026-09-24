@@ -1,21 +1,27 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FavoritesEmptyState, FavoritesUnresolvedNote } from './FavoritesState'
+import { FavoriteHint, FavoritesEmptyState, FavoritesUnresolvedNote } from './FavoritesState'
 
 describe('FavoritesEmptyState (feature 013)', () => {
   afterEach(() => cleanup())
 
-  it('mostra o texto certo por tipo', () => {
+  it('mostra o texto certo por tipo, citando os dois caminhos (segurar OK e tecla amarela)', () => {
     render(<FavoritesEmptyState kind="channel" focused onBack={() => {}} />)
-    expect(screen.getByText('Segure OK sobre um canal para favoritar.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Segure OK ou aperte a tecla amarela sobre um canal para favoritar.'),
+    ).toBeInTheDocument()
 
     cleanup()
     render(<FavoritesEmptyState kind="movie" focused onBack={() => {}} />)
-    expect(screen.getByText('Segure OK sobre um filme para favoritar.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Segure OK ou aperte a tecla amarela sobre um filme para favoritar.'),
+    ).toBeInTheDocument()
 
     cleanup()
     render(<FavoritesEmptyState kind="series" focused onBack={() => {}} />)
-    expect(screen.getByText('Segure OK sobre uma série para favoritar.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Segure OK ou aperte a tecla amarela sobre uma série para favoritar.'),
+    ).toBeInTheDocument()
   })
 
   it('aplica a classe de foco só quando `focused` é true — quem decide é a tela, não o componente', () => {
@@ -32,6 +38,15 @@ describe('FavoritesEmptyState (feature 013)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Voltar' }))
     expect(onBack).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('FavoriteHint (feature 013)', () => {
+  afterEach(() => cleanup())
+
+  it('menciona os dois caminhos de favoritar', () => {
+    render(<FavoriteHint />)
+    expect(screen.getByText('Segure OK ou aperte a tecla amarela para favoritar')).toBeInTheDocument()
   })
 })
 

@@ -14,6 +14,21 @@ const LABEL_BY_KIND: Record<FavoritableKind, string> = {
   series: 'uma série',
 }
 
+/**
+ * Texto da dica fixa (FR-012) — um lugar só, usado pelas três telas
+ * (Live/Filmes/Séries), pra "segurar OK" e "tecla amarela" nunca ficarem
+ * descritos de jeitos diferentes em telas diferentes. Os dois caminhos
+ * fazem a MESMA coisa (`toggleFocusedFavorite` de cada tela) — a tecla
+ * amarela existe desde 24/09/2026 porque, testando na TV física com um
+ * controle substituto, segurar OK não se comportou como no navegador.
+ */
+export const FAVORITE_HINT_TEXT = 'Segure OK ou aperte a tecla amarela para favoritar'
+
+/** Dica fixa, sempre visível enquanto a tela tem itens favoritáveis (FR-012). */
+export function FavoriteHint() {
+  return <div className="fav-hint">{FAVORITE_HINT_TEXT}</div>
+}
+
 export interface FavoritesEmptyStateProps {
   kind: FavoritableKind
   /**
@@ -32,7 +47,9 @@ export function FavoritesEmptyState({ kind, focused, onBack }: FavoritesEmptySta
   return (
     <div className="live-state">
       <div className="live-state-title">Nenhum favorito ainda</div>
-      <div className="live-state-copy">Segure OK sobre {LABEL_BY_KIND[kind]} para favoritar.</div>
+      <div className="live-state-copy">
+        Segure OK ou aperte a tecla amarela sobre {LABEL_BY_KIND[kind]} para favoritar.
+      </div>
       <button
         type="button"
         className={`live-state-action${focused ? ' tv-focus' : ''}`}

@@ -16,6 +16,7 @@ import * as catalogApi from '../catalog/catalogApi'
 import * as catalogRepository from '../../lib/catalog/catalogRepository'
 import type { CatalogCategory, CatalogItemOut } from '../catalog/catalogApi'
 import { db } from '../../lib/catalog/db'
+import { FAVORITE_COLOR_KEY } from '../../lib/tizenColorKey'
 
 // Mesmo motivo de LiveScreen.test.tsx: jsdom não faz layout real, o painel
 // de canais é virtualizado (feature 009).
@@ -283,6 +284,22 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     keyup('Enter') // soltar depois do gesto já resolvido não faz mais nada
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   }, 10000)
+
+  it('(b2) tecla amarela favorita no toque único, sem esperar soltar — mesmo resultado do segurar OK', async () => {
+    await seedSource()
+    mockCategories([category(1, 'G1', 0)])
+    mockContentByCategory({ 1: [channel('Canal', '1')] })
+    renderLive()
+
+    enterAndDescend()
+    keydown(FAVORITE_COLOR_KEY)
+    keyup(FAVORITE_COLOR_KEY)
+
+    await waitFor(() => expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument())
+    await waitFor(() => expect(document.querySelector('.fav-star')).toBeInTheDocument())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
+  })
 
   it('(c) segurar além do limiar alterna o favorito uma única vez', async () => {
     await seedSource()

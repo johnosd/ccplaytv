@@ -32,9 +32,11 @@ de dados já existe (feature 008: `toggleFavorite`, `getGlobalFavorites`,
 
 ### Incluído
 
-- Favoritar e desfavoritar **canal, filme e série** segurando OK (clique
-  demorado) sobre o item focado na grade de pôsteres ou na lista de
-  canais.
+- Favoritar e desfavoritar **canal, filme e série** por dois caminhos
+  independentes e equivalentes sobre o item focado na grade de pôsteres ou
+  na lista de canais: segurando OK (clique demorado), ou apertando a
+  tecla amarela do controle uma única vez (sem segurar) — ver
+  Clarifications, sessão 2026-09-24 (adição).
 - Categoria virtual **"Favoritos"** no topo da trilha de categorias de
   Live TV, de Filmes e de Séries, listando os favoritos daquele tipo e
   daquela fonte.
@@ -42,7 +44,8 @@ de dados já existe (feature 008: `toggleFavorite`, `getGlobalFavorites`,
   categoria onde ele apareça.
 - Aviso breve de confirmação ("Adicionado aos favoritos" / "Removido dos
   favoritos").
-- Dica fixa "Segure OK para favoritar" nas três seções.
+- Dica fixa "Segure OK ou aperte a tecla amarela para favoritar" nas três
+  seções.
 - Persistência local por identidade lógica estável, sobrevivendo a
   ressincronização e a fechar/reabrir o app.
 
@@ -51,7 +54,9 @@ de dados já existe (feature 008: `toggleFavorite`, `getGlobalFavorites`,
 - Favoritar episódio individual (série é o nível de favorito).
 - Favoritar pelas telas de detalhe de filme/série, pelo player ou por
   categoria da trilha — nesses lugares, segurar OK se comporta como OK.
-- Teclas coloridas, tecla de mídia ou menu de contexto (item 44).
+- Tecla de mídia ou menu de contexto (item 44). Das quatro teclas
+  coloridas, só a amarela é registrada, e só para esta ação — as outras
+  três seguem fora de escopo, e nenhuma delas ganha outro significado.
 - Favoritos globais entre fontes, ou bloco "Favoritos" no hub da lista /
   rail na Home (itens 16 e 21).
 - Mostrar favorito cujo item ainda não está no aparelho (categoria não
@@ -148,9 +153,9 @@ vazio.
    itens mantêm o mesmo id estável, **Then** continuam favoritos quando o
    item volta a estar carregado.
 3. **Given** nenhum favorito carregado para aquele tipo, **When** a pessoa
-   entra em "Favoritos", **Then** vê uma explicação ("Segure OK sobre um
-   canal/filme/série para favoritar") e um elemento focável que devolve o
-   foco à trilha.
+   entra em "Favoritos", **Then** vê uma explicação ("Segure OK ou aperte
+   a tecla amarela sobre um canal/filme/série para favoritar") e um
+   elemento focável que devolve o foco à trilha.
 4. **Given** há favoritos gravados cujo item ainda não está no aparelho,
    **When** a pessoa entra em "Favoritos", **Then** vê só os carregados, e
    uma nota informa que outros favoritos aparecem quando a categoria deles
@@ -197,6 +202,18 @@ vazio.
   da tecla.
 - **FR-004**: Em categoria da trilha, detalhe, player e demais telas,
   segurar OK DEVE se comportar como OK comum.
+- **FR-020** *(adição, sessão 2026-09-24)*: Apertar a tecla amarela do
+  controle (toque único, sem segurar) sobre um canal, filme ou série
+  focado na lista/grade DEVE alternar o favorito desse item, com o mesmo
+  resultado observável do gesto de segurar OK (FR-001) — mesmo aviso,
+  mesma estrela, sem iniciar reprodução nem abrir detalhe. É um segundo
+  caminho para a mesma ação, não uma ação nova; motivada por um controle
+  remoto de teste cujo evento de "soltar" (`keyup`) não chegou ao
+  navegador da forma esperada durante a verificação em TV física,
+  impedindo o gesto de segurar de funcionar nele.
+- **FR-021** *(adição, sessão 2026-09-24)*: Fora da lista/grade com um
+  item favoritável focado (trilha, detalhe, player, estado vazio etc.), a
+  tecla amarela NÃO DEVE ter efeito algum — mesma restrição de FR-004.
 
 **Categoria "Favoritos"**
 
@@ -220,8 +237,9 @@ vazio.
   em qualquer categoria onde apareça.
 - **FR-011**: Alternar o favorito DEVE exibir aviso breve de confirmação
   ("Adicionado aos favoritos" / "Removido dos favoritos").
-- **FR-012**: As três seções DEVEM exibir a dica "Segure OK para
-  favoritar" enquanto houver itens favoritáveis na tela.
+- **FR-012**: As três seções DEVEM exibir a dica "Segure OK ou aperte a
+  tecla amarela para favoritar" enquanto houver itens favoritáveis na
+  tela.
 - **FR-013**: Falha ao gravar DEVE ser comunicada sem detalhe técnico, e a
   estrela NÃO DEVE mudar.
 
@@ -262,6 +280,10 @@ vazio.
 - **SC-001**: Em 20 pressionamentos curtos e 20 demorados seguidos na TV de
   referência, 100% executam exatamente a ação esperada (nenhum toque
   acidental, nenhum favorito duplo).
+- **SC-006** *(adição, sessão 2026-09-24)*: Na TV de referência, a tecla
+  amarela do controle chega ao app (`getSupportedKeys()`/`registerKey()`
+  funcionam com a privilege declarada) e 20 toques seguidos alternam o
+  favorito exatamente uma vez cada, sem exigir segurar.
 - **SC-002**: A estrela e o aviso aparecem em até 300 ms após o limiar do
   gesto.
 - **SC-003**: 100% dos favoritos carregados permanecem após fechar/reabrir
@@ -284,6 +306,13 @@ vazio.
 - Canal favorito aparece em "Favoritos" da Live TV mesmo que a categoria
   de origem tenha sido ressincronizada, desde que o item da geração atual
   com a mesma identidade estável esteja carregado.
+- O nome da tecla amarela na Tizen Web API (`ColorF2Yellow`) e a
+  privilege `http://tizen.org/privilege/tvinputdevice` necessária para
+  `tizen.tvinputdevice.registerKey()` entregá-la ao app são baseados no
+  conhecimento geral da API, não confirmados contra a documentação da
+  Samsung nem contra hardware real nesta sessão — o plano registra isso
+  como risco a fechar na mesma verificação em TV física do gesto de
+  segurar (T033).
 
 ## Clarifications
 
@@ -306,3 +335,19 @@ vazio.
 - Q: Segurar OK sobre categoria da trilha ou no detalhe faz o quê? → A: Só
   favorita item da grade/lista; nos demais lugares, comporta-se como OK
   comum.
+
+### Sessão 2026-09-24 (adição pós-verificação em TV física)
+
+- Q: Na TV física, o clique demorado não funcionou porque o controle de
+  teste (não é o controle original) parece não distinguir
+  pressionar/segurar/soltar do jeito que o navegador em desktop distingue
+  — o que fazer? → A: Manter o gesto de segurar OK exatamente como está
+  (FR-001–FR-004 inalterados; permanece o caminho principal, já coberto
+  pelo gate de TV física T033) e acrescentar um segundo caminho
+  independente para a mesma ação: apertar a tecla amarela do controle,
+  num toque único, sem precisar segurar (FR-020/FR-021). As duas
+  continuam sendo a mesma ação de alternar favorito — nenhuma virou
+  "favoritar" e a outra "algo diferente".
+- Q: Qual tecla de cor? → A: Amarela — só ela é registrada
+  (`tizen.tvinputdevice.registerKey('ColorF2Yellow')`), nunca as quatro
+  indiscriminadamente (backlog item 44 já alertava sobre isso).

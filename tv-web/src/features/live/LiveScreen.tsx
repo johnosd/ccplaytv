@@ -18,7 +18,7 @@ import { Toast } from '../../components/Toast'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
-import { FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
+import { FavoriteHint, FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
 
 /**
  * Altura de linha do painel de canais (feature 009) — soma da altura fixa
@@ -230,6 +230,26 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
    */
   const canToggleFavorite = col === 1 && !playing && activeChannel !== undefined
 
+  /**
+   * Alterna o favorito do canal focado — chamada tanto por segurar OK
+   * (`onLongSelect`) quanto pela tecla amarela (`onFavoriteKey`, achado em
+   * 24/09/2026 testando na TV física: um controle substituto não entregava
+   * o mesmo padrão de segurar do navegador). As duas são o MESMO caminho
+   * de ação, nunca dois comportamentos diferentes — só dois jeitos de
+   * chegar nele.
+   */
+  function toggleFocusedFavorite() {
+    if (!activeChannel) return
+    void favoriteToggle.toggle(activeChannel, {
+      // Só dentro de "Favoritos" desfavoritar precisa mover o foco pra
+      // fora do item — numa categoria comum, o item continua lá.
+      visibleItems: enteredFavorites ? items : undefined,
+      onFocusNeighbor: enteredFavorites
+        ? (neighborId) => setFocusedIdentity((prev) => ({ ...prev, channelId: neighborId }))
+        : undefined,
+    })
+  }
+
   // Quando a camada de reprodução está aberta, ela é dona do teclado
   // (`modal: true`), então esta tela ignora as teclas — nada de navegar a
   // lista por trás do player.
@@ -283,18 +303,8 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
       }
       setPlaying(activeChannel)
     },
-    onLongSelect: canToggleFavorite
-      ? () => {
-          void favoriteToggle.toggle(activeChannel, {
-            // Só dentro de "Favoritos" desfavoritar precisa mover o foco pra
-            // fora do item — numa categoria comum, o item continua lá.
-            visibleItems: enteredFavorites ? items : undefined,
-            onFocusNeighbor: enteredFavorites
-              ? (neighborId) => setFocusedIdentity((prev) => ({ ...prev, channelId: neighborId }))
-              : undefined,
-          })
-        }
-      : undefined,
+    onLongSelect: canToggleFavorite ? toggleFocusedFavorite : undefined,
+    onFavoriteKey: canToggleFavorite ? toggleFocusedFavorite : undefined,
     onBack: () => {
       if (playing) return
       if (col === 1) {
@@ -468,7 +478,7 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
 
         {showingContent && !contentIsLoading && !contentFailed && items.length > 0 && (
           <>
-            <div className="fav-hint">Segure OK para favoritar</div>
+            <FavoriteHint />
             <div ref={channelListRef} className="live-channel-list">
               <div
                 className="live-channel-list-inner"
