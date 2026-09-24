@@ -299,7 +299,7 @@ função nova; todos mudam a sensação de uso.
     - Sem listas, o shell da Home permanece e só o conteúdo vira
       empty-state de boas-vindas.
 
-    **Pré-requisitos**: feature 013 (favoritos), 13 (histórico) para o
+    **Pré-requisitos**: feature 013 (favoritos) e item 13 (histórico) para o
     hero funcionar.
 
     (`docs/iptvnator/09-dashboard-home.md` #1–6/#8;
