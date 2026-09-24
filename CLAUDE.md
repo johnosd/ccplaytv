@@ -52,6 +52,25 @@ imagery on the hardware plane, no residual audio across the session
 swap) are **recommended, not a mandatory gate** for this feature — see
 that plan's R-005.
 
+**In execution**: `013-favoritos` — favoriting across all three catalog
+types (channel/movie/series). All five phases of code are done: a new
+opt-in gesture in `useRemoteNav` (`onLongSelect`, hold-OK, keydown+keyup
+with an 800ms threshold — legacy screens that don't pass it are
+untouched, see the ADR-009 amendment), a Dexie v9 index to resolve a
+favorite back into a catalog record, `resolveFavorites`/`useFavoriteIds`/
+`useFavoritesContent`/`useToggleFavorite`, a shared `features/favorites/`
+(toast + focus-to-neighbor + empty/unresolved states), a "★ Favoritos"
+entry pinned atop the category rail in Live TV/Movies/Series, and
+`deleteSource` now clears a removed source's favorites and resume state.
+553/553 tests, `tsc`/lint/build clean, one Playwright E2E script
+(`tv-web/e2e/favoritos.mjs`) covering the core flows headless. **The one
+gate still open is the physical-TV verification of the hold gesture
+itself (SC-001)** — this feature explicitly elevates that to a mandatory
+gate (constitution's "Validação em hardware real" exception, same pattern
+as feature 011), because a browser can't prove how the real remote's
+`keydown` auto-repeat and `keyup` behave. See
+`sdd/specs/013-favoritos/plan.md` → `## Estado Atual` and R-001.
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, Home (sources), the

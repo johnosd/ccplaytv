@@ -141,3 +141,18 @@ biblioteca) como um **adicional** ao lado de `useRemoteNav` para aquele
 caso específico, não como substituição integral: o custo de migrar as
 telas já testadas continuaria alto, e o retorno só se justificaria pelo
 ganho na tela nova.
+
+**Atualização (feature `013-favoritos`, 2026-09-24):**
+`useRemoteNav` ganhou um segundo modo de OK, opt-in por tela — `onLongSelect`.
+Quando uma tela passa esse handler, o pressionamento de OK vira um gesto
+decidido por `keydown`+`keyup`+um limiar (`LONG_SELECT_MS`, 800ms): soltar
+antes do limiar chama `onSelect` (agora no `keyup`, não mais no `keydown`
+para essas telas); segurar além do limiar chama `onLongSelect` uma única
+vez. Quando a tela não passa `onLongSelect`, nada muda — o OK continua
+agindo no `keydown`, como sempre agiu (modo legado intacto). O algoritmo
+tolera `keyup` perdido pela plataforma via um corte de "pressionamento
+velho demais para ser auto-repetição" (`STALE_PRESS_MS`, 1000ms) e cancela
+qualquer gesto em andamento em `blur`/`visibilitychange`. Detalhe completo
+em `sdd/specs/013-favoritos/logic/gesto-ok-longo.md`. Continua verdade que
+"foco é estado React" e "mover o foco não aciona nada" — o que mudou é só
+quando o OK em si termina de ser processado, não o modelo de foco.

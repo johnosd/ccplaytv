@@ -1,0 +1,9 @@
+#EXTM3U
+#EXTINF:-1 group-title="Canais Teste",Canal Alfa
+http://127.0.0.1:59999/stream/canal-alfa.ts
+#EXTINF:-1 group-title="Canais Teste",Canal Beta
+http://127.0.0.1:59999/stream/canal-beta.ts
+#EXTINF:-1 group-title="Filmes Teste",Filme Exemplo Um
+http://127.0.0.1:59999/stream/filme-um.mp4
+#EXTINF:-1 group-title="Filmes Teste",Filme Exemplo Dois
+http://127.0.0.1:59999/stream/filme-dois.mp4
