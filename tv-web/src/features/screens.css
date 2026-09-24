@@ -687,6 +687,62 @@
   color: var(--accent-ink);
 }
 
+/* Barra de controles (feature 011, T026) — ancorada embaixo da camada, nunca
+   no centro (`.player-overlay` centraliza `.player-status`, que só aparece
+   antes/depois de tocar). Só existe quando alguma ação é permitida
+   (`playerControlsActions`), nunca desabilitada (D-003 do plano). */
+.player-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.player-time {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 640px;
+  font: 600 20px var(--font-body);
+  color: var(--text-secondary);
+}
+
+.player-time-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-field-active);
+  overflow: hidden;
+}
+
+.player-time-bar-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.player-buttons {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.player-control-button {
+  padding: 16px 28px;
+  border-radius: 999px;
+  background: var(--surface-field-active);
+  color: var(--text-secondary);
+  font: 700 22px var(--font-body);
+}
+
+.player-control-button.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
 .live-channel-name {
   font: 700 26px var(--font-body);
   color: var(--text-primary);

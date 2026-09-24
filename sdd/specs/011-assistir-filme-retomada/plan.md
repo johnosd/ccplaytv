@@ -278,12 +278,16 @@ npx vitest run src/components/PlayerLayer.test.tsx
 | --- | --- |
 | Fase 1 (Setup) | Concluída. |
 | Fase 2 (Foundational) | Concluída. Contrato de capacidades completo e testado nos dois adaptadores; Live TV intacta. |
+| Fase 3 (US1 — MVP) | Concluída. Um filme abre em `PlayerLayer`, com barra de play/pause e saltos de 10s, e RETURN devolve ao detalhe. Live TV migrada para o mesmo componente sem regressão de comportamento. |
 | `resumePolicy.ts` | `RESUME_MIN_SECONDS=30`, `RESUME_MAX_RATIO=0.95`, `PROGRESS_WRITE_INTERVAL_SECONDS=5`; `isResumable`/`isPastEnd`/`shouldWriteProgress` puras e testadas. |
 | `capabilities.ts` | `mediaCapabilities(kind)` e `resolveCapabilities(engine, kind)` prontos; `PlayableKind` local (não importa `lib/catalog`, R-012). |
 | `PlayerService.ts` | `PlayerState` com `paused`/`completed`; `PlayerAdapter`/`PlayerAdapterCallbacks` com capacidades, pausa, busca (`onSettled`), progresso; `PlayerServiceSession` resolve capacidades no construtor, expõe `togglePause`/`seekTo`/`jumpBy` com porta single-flight e grampeamento aos limites reais, traduz `onCompleted` por capacidade da mídia (D-008); `createPlayerSession` exige `kind`, aceita `startAtMs`. |
 | `avplayAdapter.ts` | Superfície completa implementada (`pause`/`resume`/`seekTo`/`jumpBy`/progresso/`onCompleted`) — **não verificada em hardware** (gate: Fase 6). |
 | `htmlVideoAdapter.ts` | Mesma superfície via `HTMLMediaElement`, suporta tudo sempre (motor de desenvolvimento). |
-| `features/live/PlayerOverlay.tsx` | Passa `kind` real ao criar a sessão; comportamento inalterado (testes originais passam sem modificação de asserção). Continua em `features/live/` — a mudança para `components/PlayerLayer.tsx` é T020 (Fase 3). |
+| `components/PlayerLayer.tsx` | Movido de `features/live/PlayerOverlay.tsx` (T020, `git mv`), com `title`/`unavailableMessage`/`genericErrorMessage` generalizados (D-007). Consome `PlayerControls.tsx` (T022) e implementa `controlsVisible`/`focusedIndex`/temporizador de 5s (T023), com os dois ajustes de R-014/R-015 (foco inicial no play/pause; reagenda o temporizador reagindo à confirmação real de pausa, não ao momento do SELECT). |
+| `features/live/LiveScreen.tsx` | Importa `PlayerLayer` (T021), passando as mensagens de canal originais — comportamento idêntico a antes da migração (FR-022, suíte `LiveScreen.test.tsx` sem alteração de asserção). |
+| `features/movies/MovieDetailScreen.tsx` | Ação primária "Assistir" liga a `PlayerLayer` (T024); OK nos estados de carregando/erro ativa o botão focado (T025, R-005 local). |
+| `features/screens.css` | `.player-controls`/`.player-time`/`.player-time-bar`/`.player-buttons`/`.player-control-button` (T026) — barra ancorada embaixo da camada, tokens de `index.css`. |
 
 ## Riscos e Decisões
 
@@ -307,6 +311,8 @@ npx vitest run src/components/PlayerLayer.test.tsx
 | R-011 | **Achado na Fase 2**: o contrato original (`player-capabilities.md`) não especificava como a sessão saberia quando uma chamada assíncrona de `seekTo`/`jumpBy` no motor volta, nem como `startAtMs` chegaria ao adaptador a tempo de rodar antes do `play()` — os dois são exigidos pela lógica documentada (porta single-flight, §3; retomada, §5), mas as assinaturas de tipo não os expunham | Médio — sem isso, a porta single-flight não tem como saber quando liberar, e a retomada piscaria o início antes de saltar | **Resolvido**: `seekTo?`/`jumpBy?` do `PlayerAdapter` ganharam um segundo parâmetro `onSettled: () => void`; `open()` ganhou um terceiro parâmetro opcional `startAtMs`. Os dois documentados retroativamente em `contracts/player-capabilities.md` (§2 e novo §4.1), consistente com "Documentação do Repositório É Canônica" |
 | R-012 | **Achado na Fase 1/2**: `capabilities.ts` importava `CatalogItemKind` de `lib/catalog/db`, o que criaria uma dependência `lib/player → lib/catalog` — o inverso da fronteira unidirecional que o backlog (item 49) propõe (`lib/catalog/ → lib/player/`) | Baixo — nada quebraria hoje (item 49 ainda não é lint-enforced), mas compraria dívida logo na primeira feature que toca o player | **Resolvido**: `PlayableKind` definido localmente em `capabilities.ts`, estruturalmente idêntico a `CatalogItemKind`. Um `CatalogItemKind` real satisfaz `PlayableKind` por tipagem estrutural — nenhum ponto de chamada precisa converter ou importar de `lib/catalog` |
 | R-013 | **Conflito achado na Fase 3 (gatilho de parada do `sdd-execute`)**: a Acceptance Scenario 6 da US1 dizia "a busca não é oferecida" sem duração confiável, mas o contrato trata `canSeek`/`reportsDuration` como capacidades independentes — salto relativo (±10s) não precisa saber o total | Médio — decidiria se ⏪/⏩ desaparecem junto com a barra, ou só a barra some | **Resolvido com o usuário (23/09/2026)**: só a barra/percentual dependem de duração; avançar/retroceder continuam disponíveis sempre que `canSeek` for verdadeiro. `spec.md` AS6 corrigida com nota de rastreio; nenhuma mudança de código necessária — o design já implementava isto |
+| R-014 | **Achado ao rodar a suíte herdada de T017/T018 (retomada da Fase 3)**: `playerControlsActions` ordena `[jumpBack, playPause, jumpForward]` (`canSeek` empurra `jumpBack` antes de `canPause` empurrar `playPause`), mas `PlayerLayer.tsx` inicializava e resetava `focusedIndex` para `0` — focando `jumpBack`, não o play/pause que `logic/reproducao-vod.md` §4 exige ("o foco inicial, ao revelar, é sempre o play/pause") | Alto — SELECT com controles recém-revelados executaria um salto em vez de pausar/retomar, e nenhum teste unitário existente pegava isso (a suíte de T018 é que expôs, ao ser rodada pela primeira vez) | **Resolvido**: `playPauseIndexOf(capabilities)` calcula o índice real de `playPause` dentro de `playerControlsActions(capabilities)` (com fallback `0` se a ação não existir); usado tanto na criação da sessão quanto em `revealControls()`, em vez do literal `0` |
+| R-015 | **Achado no mesmo lote**: `scheduleHide()` só era chamado dentro dos handlers de tecla, lendo `sessionRef.current.state` **no momento da tecla** — mas `togglePause()` só chama `adapter.pause()`, e a transição real para `paused` só chega depois, pelo callback assíncrono do motor (`onStateChange`). O temporizador de 5s ficava armado com o estado "tocando" e escondia a barra mesmo já pausado, violando `logic/reproducao-vod.md` §4 ("o temporizador não roda enquanto pausado") | Médio/Alto — pausar e sair da tela por 5s faria os controles sumirem sem ação nenhuma, na Live TV e em Filmes igualmente (código compartilhado) | **Resolvido**: novo `useEffect` reage à mudança real de `phase.state` (via uma variável derivada `sessionState`, não ao objeto `phase` inteiro — que muda a cada `onProgress`) e rechama `scheduleHide()` toda vez que o estado confirmado muda, cancelando o temporizador assim que `paused` é confirmado e rearmando ao retomar |
 
 ## Execution Notes
 
@@ -320,18 +326,19 @@ npx vitest run src/components/PlayerLayer.test.tsx
 | --- | --- | --- | --- |
 | 2026-09-23 | Fase 1 (Setup) | Criados `resumePolicy.ts`/`capabilities.ts` com 23 testes; `npx tsc -b` limpo. Nenhum arquivo pré-existente alterado. | Nenhuma — pronto para a Fase 2. |
 | 2026-09-23 | Fase 2 (Foundational) | Contrato de capacidades completo: `PlayerService.ts` (estados novos, pausa/busca/progresso, tradução `onCompleted`), os dois adaptadores, e `PlayerOverlay.tsx` (Live TV) passando `kind` sem regressão. Dois refinamentos de contrato (`onSettled`, `startAtMs` em `open()`) e uma correção de fronteira (`PlayableKind` local) documentados em R-011/R-012. `npx vitest run` → 328 passed; `npx tsc -b`/`npm run lint` limpos. | Verificação em hardware real (gate: Fase 6) — nada da superfície de VOD foi exercitado no AVPlay ainda. |
+| 2026-09-24 | Fase 3 (US1 — MVP) | T020/T022/T024/T025/T026 já estavam implementados em código de uma sessão anterior (commit `player2`) sem os checkboxes/Registro atualizados — reconciliado. T021 estava genuinamente pendente e quebrado: o `git mv` de T020 apagou `PlayerOverlay.tsx`, deixando `LiveScreen.tsx` com import morto e a prop antiga `channelName`; corrigido para importar `PlayerLayer` com as mensagens de canal originais. Rodar a suíte herdada de T017/T018 pela primeira vez expôs dois bugs reais (R-014: foco inicial/ao revelar mirava `jumpBack` em vez de play/pause; R-015: o temporizador de ocultar não reagia à confirmação assíncrona de pausa), ambos corrigidos em `PlayerLayer.tsx`. T026 (CSS da barra) não existia — criado em `screens.css`, só com tokens de `index.css`. | `npx vitest run` → 357/357 (38 arquivos); `npx tsc -b`/`npm run lint` limpos. Pendência: Cenários A/E do `quickstart.md` (navegador) ainda não rodados manualmente — formalmente T052, mas recomendados antes de prosseguir. |
 
-**PRÓXIMO**: Fase 3 (User Story 1) — mover `PlayerOverlay.tsx` para `components/PlayerLayer.tsx` (T020, `git mv`), criar `PlayerControls.tsx` e ligar a ação primária do `MovieDetailScreen` à camada (T017–T026).
+**PRÓXIMO**: Fase 4 (User Story 2 — Retomar de onde parou, T027–T038) — criar `progressRecorder.ts`, ligar a gravação de progresso à `PlayerLayer` e trocar a ação primária do `MovieDetailScreen` entre Assistir/Retomar/Reiniciar via `useUserState`.
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
+- `tv-web/src/components/PlayerLayer.tsx` — camada de reprodução compartilhada (Fase 3: R-014/R-015 corrigidos)
+- `tv-web/src/components/PlayerControls.tsx` — barra de controles (Fase 3, T022)
+- `tv-web/src/features/live/LiveScreen.tsx` — consome `PlayerLayer` (Fase 3, T021)
+- `tv-web/src/features/movies/MovieDetailScreen.tsx` — ação primária liga a `PlayerLayer` (Fase 3, T024/T025); próximo alvo: ação Retomar/Reiniciar (Fase 4, T036)
 - `tv-web/src/lib/player/PlayerService.ts` — contrato, estados, sessão (estendido, Fase 2)
-- `tv-web/src/lib/player/avplayAdapter.ts` — motor de produção (estendido, Fase 2 — sem verificação em hardware)
-- `tv-web/src/lib/player/htmlVideoAdapter.ts` — motor de desenvolvimento (estendido, Fase 2)
-- `tv-web/src/features/live/PlayerOverlay.tsx` — próximo a mover para `components/PlayerLayer.tsx` (T020)
-- `tv-web/src/features/movies/MovieDetailScreen.tsx` — próximo alvo: ligar ação primária (T024)
 
 ## Cuidados para Retomada
 

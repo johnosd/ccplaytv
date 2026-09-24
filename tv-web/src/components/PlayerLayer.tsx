@@ -4,6 +4,7 @@ import {
   createPlayerSession,
   FULLSCREEN_REGION,
   type PlayerAdapterFactory,
+  type PlayerCapabilities,
   type PlayerServiceSession,
   type PlayerState,
 } from '../lib/player/PlayerService'
@@ -84,8 +85,7 @@ export function PlayerLayer({
   const [attempt, setAttempt] = useState(0)
   const [hardwarePlane, setHardwarePlane] = useState(false)
   // Controles começam visíveis (clarificação de 23/09/2026) — ver `logic/
-  // reproducao-vod.md` §4. O foco inicial ao revelar é sempre a primeira
-  // ação (play/pause), e `useState(0)` já nasce assim.
+  // reproducao-vod.md` §4.
   const [controlsVisible, setControlsVisible] = useState(true)
   const [focusedIndex, setFocusedIndex] = useState(0)
   const sessionRef = useRef<PlayerServiceSession | null>(null)
@@ -96,6 +96,17 @@ export function PlayerLayer({
       clearTimeout(hideTimerRef.current)
       hideTimerRef.current = null
     }
+  }
+
+  /**
+   * O foco inicial, ao revelar, é sempre o play/pause (`logic/
+   * reproducao-vod.md` §4) — nunca um índice fixo, porque a ordem de
+   * `playerControlsActions` começa por `jumpBack` quando `canSeek` é
+   * verdadeiro.
+   */
+  function playPauseIndexOf(capabilities: PlayerCapabilities): number {
+    const idx = playerControlsActions(capabilities).findIndex((action) => action.id === 'playPause')
+    return idx === -1 ? 0 : idx
   }
 
   /**
@@ -117,7 +128,7 @@ export function PlayerLayer({
 
   function revealControls() {
     setControlsVisible(true)
-    setFocusedIndex(0)
+    if (sessionRef.current) setFocusedIndex(playPauseIndexOf(sessionRef.current.capabilities))
     scheduleHide()
   }
 
@@ -147,6 +158,7 @@ export function PlayerLayer({
         })
         sessionRef.current = session
         setHardwarePlane(session.rendersOnHardwarePlane)
+        setFocusedIndex(playPauseIndexOf(session.capabilities))
         scheduleHide()
 
         // O erro é copiado para o estado no momento em que acontece, em vez
@@ -210,6 +222,18 @@ export function PlayerLayer({
     root.classList.add('video-plane-visible')
     return () => root.classList.remove('video-plane-visible')
   }, [showsVideo])
+
+  // `scheduleHide` chamado de dentro de um handler de tecla só vê o estado de
+  // ANTES do pedido de pausa — pausar é confirmado de forma assíncrona pelo
+  // motor (`onStateChange`), nunca no mesmo tick do SELECT. Sem reagir à
+  // confirmação real, um temporizador armado enquanto ainda tocava sobrevive
+  // e oculta os controles mesmo já pausado (`logic/reproducao-vod.md` §4).
+  const sessionState = phase.kind === 'session' ? phase.state : null
+  useEffect(() => {
+    if (sessionState === null) return
+    scheduleHide()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- scheduleHide lê refs estáveis (sessionRef/hideTimerRef); só o valor de sessionState deve reagendar
+  }, [sessionState])
 
   useRemoteNav(
     {

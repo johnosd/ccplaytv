@@ -348,12 +348,26 @@ describe('PlayerLayer', () => {
 
   describe('interação dos controles (filme)', () => {
     async function renderPlaying() {
+      // Fake timers desde antes do render: o temporizador de ocultar
+      // (`scheduleHide`) já é armado assim que a sessão nasce, dentro do
+      // efeito de montagem — instalar o clock falso depois deixaria esse
+      // primeiro agendamento num `setTimeout` real, órfão do avanço de
+      // relógio que os testes abaixo fazem.
+      vi.useFakeTimers()
       vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
       const onClose = vi.fn()
       const utils = render(
         <PlayerLayer itemId="item-1" title="Filme" onClose={onClose} createAdapter={createAdapter} />,
       )
-      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      // `waitFor` da testing-library reagenda sua checagem por `setInterval`,
+      // que sob fake timers nunca dispara sozinho. A promessa de
+      // `fetchPlayback` resolve por microtask, não por timer — basta
+      // esvaziar a fila de microtasks dentro de `act`.
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      expect(driver.callbacks).not.toBeNull()
       act(() => {
         driver.callbacks?.onStateChange('buffering')
         driver.callbacks?.onStateChange('playing')
@@ -372,7 +386,6 @@ describe('PlayerLayer', () => {
     it('com controles OCULTOS, esquerda/direita SALTAM e revelam a barra', async () => {
       await renderPlaying()
       press('ArrowRight') // qualquer tecla aqui só reafirma "visível" — força ocultar primeiro
-      vi.useFakeTimers()
       act(() => {
         vi.advanceTimersByTime(5000)
       })
@@ -397,7 +410,6 @@ describe('PlayerLayer', () => {
 
     it('SELECT com controles ocultos revela, sem executar a ação', async () => {
       await renderPlaying()
-      vi.useFakeTimers()
       act(() => {
         vi.advanceTimersByTime(5000)
       })
@@ -420,7 +432,6 @@ describe('PlayerLayer', () => {
     })
 
     it('oculta sozinho após 5s sem interação', async () => {
-      vi.useFakeTimers()
       await renderPlaying()
       expect(screen.getAllByRole('button')).toHaveLength(3)
 
@@ -432,7 +443,6 @@ describe('PlayerLayer', () => {
     })
 
     it('NÃO oculta sozinho enquanto pausado', async () => {
-      vi.useFakeTimers()
       await renderPlaying()
       act(() => {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })) // pausa
@@ -450,7 +460,6 @@ describe('PlayerLayer', () => {
 
     it('RETURN encerra mesmo com os controles ocultos', async () => {
       const { onClose } = await renderPlaying()
-      vi.useFakeTimers()
       act(() => {
         vi.advanceTimersByTime(5000)
       })

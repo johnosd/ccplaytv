@@ -1030,7 +1030,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 008-user-state-repo | UserStateRepository | Convergida | 14/14 tasks | 2026-09-22 |
 | 009-virtualizacao-foco | Virtualização de Grades e Foco Direcional | Convergida | 28/28 tasks | 2026-09-23 |
 | 010-catalogo-sob-demanda | Importação por Estrutura com Carga sob Demanda por Categoria | Convergida | 59/59 tasks | 2026-09-23 |
-| 011-assistir-filme-retomada | Assistir Filme, com Retomada | Em Execução | 18/69 tasks | 2026-09-23 |
+| 011-assistir-filme-retomada | Assistir Filme, com Retomada | Em Execução | 29/69 tasks | 2026-09-24 |
 
 ## Bugs
 

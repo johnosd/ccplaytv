@@ -99,19 +99,19 @@ description: "Template de lista de tasks para implementação de feature"
 
 ### Testes da Fase
 
-- [ ] T017 [P] [US1] Teste de `tv-web/src/components/PlayerControls.test.tsx` (novo) — controle cuja capacidade é `false` **não é renderizado** (D-003); com `canSeek: false` e `canPause: false` a barra inteira não existe; sem `durationMs` mostra só tempo decorrido, **sem barra e sem percentual** (FR-004)
-- [ ] T018 [US1] Teste de interação e de mensagens em `tv-web/src/components/PlayerLayer.test.tsx`. **(a) Interação** — a tabela de `logic/reproducao-vod.md` §4: com controles **ocultos**, esquerda/direita **saltam e revelam**; com controles **visíveis**, movem o foco sem saltar; SELECT/cima/baixo revelam; ocultar após 5 s (timers falsos); **não** ocultar enquanto pausado; RETURN encerra de todo estado. **(b) FR-011, no caminho de filme** — item sem fonte montável (409 de `fetchPlayback`) mostra indisponibilidade **sem** "Tentar de novo"; falha do motor mostra erro **com** "Tentar de novo"; nenhuma das duas contém URL, endereço, usuário ou senha. O caminho já existe no `PlayerOverlay` herdado e T020 generaliza o texto — é este teste que impede a generalização de apagar a distinção
-- [ ] T019 [P] [US1] Teste de `tv-web/src/features/movies/MovieDetailScreen.test.tsx` (novo) — ação primária "Assistir" focada por padrão; SELECT abre a camada; SELECT repetido **não** abre segunda sessão (FR-010); o botão do estado de erro é ativável por OK (R-005)
+- [X] T017 [P] [US1] Teste de `tv-web/src/components/PlayerControls.test.tsx` (novo) — controle cuja capacidade é `false` **não é renderizado** (D-003); com `canSeek: false` e `canPause: false` a barra inteira não existe; sem `durationMs` mostra só tempo decorrido, **sem barra e sem percentual** (FR-004)
+- [X] T018 [US1] Teste de interação e de mensagens em `tv-web/src/components/PlayerLayer.test.tsx`. **(a) Interação** — a tabela de `logic/reproducao-vod.md` §4: com controles **ocultos**, esquerda/direita **saltam e revelam**; com controles **visíveis**, movem o foco sem saltar; SELECT/cima/baixo revelam; ocultar após 5 s (timers falsos); **não** ocultar enquanto pausado; RETURN encerra de todo estado. **(b) FR-011, no caminho de filme** — item sem fonte montável (409 de `fetchPlayback`) mostra indisponibilidade **sem** "Tentar de novo"; falha do motor mostra erro **com** "Tentar de novo"; nenhuma das duas contém URL, endereço, usuário ou senha. O caminho já existe no `PlayerOverlay` herdado e T020 generaliza o texto — é este teste que impede a generalização de apagar a distinção
+- [X] T019 [P] [US1] Teste de `tv-web/src/features/movies/MovieDetailScreen.test.tsx` (novo) — ação primária "Assistir" focada por padrão; SELECT abre a camada; SELECT repetido **não** abre segunda sessão (FR-010); o botão do estado de erro é ativável por OK (R-005)
 
 ### Implementation
 
-- [ ] T020 [US1] Mover `tv-web/src/features/live/PlayerOverlay.tsx` → `tv-web/src/components/PlayerLayer.tsx` e `PlayerOverlay.test.tsx` → `tv-web/src/components/PlayerLayer.test.tsx`, via `git mv` (preserva histórico). Generalizar o texto específico de canal: `channelName` → `title`, "Não foi possível reproduzir este canal." → mensagem recebida por prop (D-007)
-- [ ] T021 [US1] Atualizar `tv-web/src/features/live/LiveScreen.tsx` para importar `PlayerLayer` de `../../components/PlayerLayer`, passando o texto de canal que hoje está embutido — **sem** mudança de comportamento (FR-022)
-- [ ] T022 [US1] Criar `tv-web/src/components/PlayerControls.tsx` — barra, tempo decorrido/total e as ações `[⏪ 10s] [▶/⏸] [⏩ 10s]` na ordem de foco de `logic/reproducao-vod.md` §4, renderizando **só** o que a capacidade permite. Consumir exclusivamente tokens da ADR-007
-- [ ] T023 [US1] Implementar em `tv-web/src/components/PlayerLayer.tsx` o estado `controlsVisible`/`focusedAction`, o temporizador de 5 s e o roteamento de teclas da tabela de `logic/reproducao-vod.md` §4 (incluindo: com `!canSeek`, esquerda/direita não fazem nada)
-- [ ] T024 [US1] Ligar a ação primária de `tv-web/src/features/movies/MovieDetailScreen.tsx` à camada — substituir o `showToast('Abrindo player...')` por `{playing && <PlayerLayer … />}`, com guarda de sessão única (`logic/reproducao-vod.md` §7)
-- [ ] T025 [US1] Rotear `onSelect` para o botão do estado ativo nos ramos de carregando/erro de `MovieDetailScreen.tsx`, para OK do controle ativá-lo (R-005). **Não** alterar `tv-web/src/lib/useRemoteNav.ts`
-- [ ] T026 [US1] Estilos da barra em `tv-web/src/features/screens.css`, reaproveitando as classes `.player-*` existentes e acrescentando as da barra — sem cor, raio ou tamanho de fonte literal (ADR-007)
+- [X] T020 [US1] Mover `tv-web/src/features/live/PlayerOverlay.tsx` → `tv-web/src/components/PlayerLayer.tsx` e `PlayerOverlay.test.tsx` → `tv-web/src/components/PlayerLayer.test.tsx`, via `git mv` (preserva histórico). Generalizar o texto específico de canal: `channelName` → `title`, "Não foi possível reproduzir este canal." → mensagem recebida por prop (D-007)
+- [X] T021 [US1] Atualizar `tv-web/src/features/live/LiveScreen.tsx` para importar `PlayerLayer` de `../../components/PlayerLayer`, passando o texto de canal que hoje está embutido — **sem** mudança de comportamento (FR-022)
+- [X] T022 [US1] Criar `tv-web/src/components/PlayerControls.tsx` — barra, tempo decorrido/total e as ações `[⏪ 10s] [▶/⏸] [⏩ 10s]` na ordem de foco de `logic/reproducao-vod.md` §4, renderizando **só** o que a capacidade permite. Consumir exclusivamente tokens da ADR-007
+- [X] T023 [US1] Implementar em `tv-web/src/components/PlayerLayer.tsx` o estado `controlsVisible`/`focusedAction`, o temporizador de 5 s e o roteamento de teclas da tabela de `logic/reproducao-vod.md` §4 (incluindo: com `!canSeek`, esquerda/direita não fazem nada)
+- [X] T024 [US1] Ligar a ação primária de `tv-web/src/features/movies/MovieDetailScreen.tsx` à camada — substituir o `showToast('Abrindo player...')` por `{playing && <PlayerLayer … />}`, com guarda de sessão única (`logic/reproducao-vod.md` §7)
+- [X] T025 [US1] Rotear `onSelect` para o botão do estado ativo nos ramos de carregando/erro de `MovieDetailScreen.tsx`, para OK do controle ativá-lo (R-005). **Não** alterar `tv-web/src/lib/useRemoteNav.ts`
+- [X] T026 [US1] Estilos da barra em `tv-web/src/features/screens.css`, reaproveitando as classes `.player-*` existentes e acrescentando as da barra — sem cor, raio ou tamanho de fonte literal (ADR-007)
 
 **Critério de Conclusão**: um filme abre, toca no adaptador `<video>`, pausa, salta, mostra posição e duração, oculta e revela os controles conforme o guia 06, e RETURN devolve ao detalhe com o foco na ação primária. A Live TV continua idêntica (Cenário E). Toda a suíte passa.
 
@@ -119,10 +119,10 @@ description: "Template de lista de tasks para implementação de feature"
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: Concluída
+- Feito: T020 (`git mv` PlayerOverlay→PlayerLayer + generalização D-007), T022 (`PlayerControls.tsx`), T023 (estado/temporizador/roteamento de teclas em `PlayerLayer.tsx`), T024/T025 (`MovieDetailScreen.tsx` liga a camada e roteia OK pro botão ativo nos estados de carregando/erro) e T026 (CSS da barra) já existiam no código (commit `player2`, sessão anterior) mas sem os checkboxes/Registro atualizados — reconciliado aqui. T021 (import de `LiveScreen.tsx`) estava genuinamente pendente: o `git mv` de T020 já tinha apagado `PlayerOverlay.tsx`, deixando `LiveScreen.tsx` com um import quebrado (`./PlayerOverlay`) e a prop antiga `channelName` — corrigido para importar `PlayerLayer` e passar `title`/`unavailableMessage`/`genericErrorMessage` com o texto de canal original ("Este canal não tem uma fonte de reprodução disponível." / "Não foi possível reproduzir este canal.", resgatados do `PlayerOverlay.tsx` pré-`git mv`). Dois bugs reais encontrados e corrigidos ao rodar a suíte herdada de T017-T019 (ver R-014/R-015 em `plan.md`): foco inicial/ao revelar caía no índice 0 (`jumpBack`) em vez do play/pause, e o temporizador de ocultar armado no momento do SELECT de pausa sobrevivia à confirmação assíncrona do motor, escondendo a barra mesmo pausado.
+- Testes executados: `npx tsc -b` limpo; `npm run lint` limpo (só os 3 warnings pré-existentes de `react(incompatible-library)`/`react(only-export-components)`, nenhum deles em código desta feature); `npx vitest run` → 357/357 (38 arquivos), incluindo os 22 testes de `PlayerLayer.test.tsx` (8 falhavam antes das correções de R-014/R-015) e a suíte de `LiveScreen.test.tsx` sem alteração de asserção (Live TV intacta).
+- Pendências: Cenários A e E do `quickstart.md` (verificação manual no navegador, ponto de parada sugerido pelo "Implementation Strategy" desta fase) ainda não foram executados — ficam formalmente para T052 (Polish), como o restante dos cenários A–E, mas quem retomar antes disso deveria rodá-los primeiro por precaução.
 
 ---
 
@@ -237,7 +237,7 @@ description: "Template de lista de tasks para implementação de feature"
 
 - [X] Fase 1 (Setup) concluída
 - [X] Fase 2 (Foundational) concluída
-- [ ] Fase 3 (User Story 1) concluída
+- [X] Fase 3 (User Story 1) concluída
 - [ ] Fase 4 (User Story 2) concluída
 - [ ] Fase 5 (User Story 3) concluída
 - [ ] Fase 6 (TV física) concluída — **gate obrigatório**

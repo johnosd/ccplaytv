@@ -7,7 +7,7 @@ import {
   useCategoryList,
   type CatalogItemOut,
 } from '../catalog/catalogApi'
-import { PlayerOverlay } from './PlayerOverlay'
+import { PlayerLayer } from '../../components/PlayerLayer'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
@@ -372,10 +372,12 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
       </div>
 
       {playing && (
-        <PlayerOverlay
+        <PlayerLayer
           itemId={playing.id}
-          channelName={playing.name}
+          title={playing.name}
           onClose={() => setPlaying(null)}
+          unavailableMessage="Este canal não tem uma fonte de reprodução disponível."
+          genericErrorMessage="Não foi possível reproduzir este canal."
         />
       )}
 
