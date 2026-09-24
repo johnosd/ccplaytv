@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-24
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: Item 9 do backlog (`.planning/backlog.md`) — "o buraco mais visível hoje":
 `SeriesDetailScreen` declara que não tem episódios e `fetchSeriesInfo`

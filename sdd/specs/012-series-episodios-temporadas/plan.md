@@ -292,14 +292,14 @@ npm run build:tizen
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | `PlayerLayer.computeIdentity` não passa temporada/episódio a `buildStableId` — todo episódio gravaria retomada em `…\|s0\|e0` | **Alto** — retomada e "assistido" de episódios distintos se sobrescreveriam (quando o `providerStreamId` faltar) e a lista nunca acharia o estado | D-006: helper único `stableIdOf`, com teste que grava pela camada e lê pela lista com o mesmo id |
-| R-002 | Painel Xtream real devolve `episode_num` como texto em parte dos casos; hoje vira `0` | **Alto** — ordem e "próximo episódio" quebram | `logic` §1: número em texto é convertido; não numérico → ausente (ordem cai na ordem declarada, D-011). Teste com as duas formas |
-| R-003 | `fetchSeriesInfo` presume `'mp4'` sem `container_extension` | Médio — URL chutada falha na TV como se fosse codec | D-004: sem presunção; cai no `no_container_extension` já tratado como "sem fonte de reprodução" |
+| R-001 | `PlayerLayer.computeIdentity` não passa temporada/episódio a `buildStableId` — todo episódio gravaria retomada em `…\|s0\|e0` | **Alto** — retomada e "assistido" de episódios distintos se sobrescreveriam (quando o `providerStreamId` faltar) e a lista nunca acharia o estado | **Resolvido**: D-006, helper único `stableIdOf`, com teste que grava pela camada e lê pela lista com o mesmo id. Confirmado no código pelo `sdd-converge` (`PlayerLayer.tsx` importa `stableIdOf` de `catalogApi.ts`) |
+| R-002 | Painel Xtream real devolve `episode_num` como texto em parte dos casos; hoje vira `0` | **Alto** — ordem e "próximo episódio" quebram | **Resolvido**: `logic` §1: número em texto é convertido (`toNumber` em `xtreamConnector.ts`); não numérico → ausente (ordem cai na ordem declarada, D-011). Teste com as duas formas |
+| R-003 | `fetchSeriesInfo` presume `'mp4'` sem `container_extension` | Médio — URL chutada falha na TV como se fosse codec | **Resolvido**: D-004, sem presunção (confirmado em `xtreamConnector.fetchSeriesInfo`); cai no `no_container_extension` já tratado como "sem fonte de reprodução" |
 | R-004 | Modo limitado grava cada `/series/` como `kind: 'series'` (achado nesta exploração, pré-existente) | Médio — cartões de série que não reproduzem nada | **Resolvido**: D-012, `kindFromUrlSegment` em `importPipeline.ts` — `/series/` agora vira `kind:'episode'`, agrupado como qualquer outro (feature 012, Fase 4). Testado |
-| R-005 | Conclusão real de episódio e troca de sessão no autoplay só se provam no AVPlay | Médio | `quickstart.md` G–I na TV física. **Não** elevado a gate obrigatório: toda a superfície de VOD do AVPlay já foi provada na 011 (Cenários F/G/H); o que é novo aqui é orquestração de tela, coberta por teste de componente |
-| R-006 | Nova tela que monta `PlayerLayer` precisa da raiz na regra de plano de hardware (lição da 011) | Médio — episódio tocaria sem imagem na TV | Task explícita em `screens.css` + item de verificação G no `quickstart.md` |
-| R-007 | Duas obras M3U diferentes com mesmo título-base no mesmo grupo se unem | Baixo | Aceito na spec (Fora de Escopo). Sem heurística adicional |
-| R-008 | Resync troca os ids locais das séries; registros de episódio de gerações antigas saem no `publishGeneration` | Baixo | Esperado: episódio é reobtível; estado do usuário é por identidade estável e sobrevive (D-006) |
+| R-005 | Conclusão real de episódio e troca de sessão no autoplay só se provam no AVPlay | Médio | `quickstart.md` G–I na TV física, ainda não executado (não é gate obrigatório). **Continua aberto** — nenhuma TV disponível durante a convergência; fica para quando houver TV física à mão |
+| R-006 | Nova tela que monta `PlayerLayer` precisa da raiz na regra de plano de hardware (lição da 011) | Médio — episódio tocaria sem imagem na TV | **Resolvido**: `SeriesDetailScreen` reusa raiz `.screen`, já listada em `screens.css` (`:root.video-plane-visible .screen > *`) desde a feature 011 — confirmado no código pelo `sdd-converge`, sem CSS novo necessário |
+| R-007 | Duas obras M3U diferentes com mesmo título-base no mesmo grupo se unem | Baixo | **Resolvido**: aceito na spec (Fora de Escopo) por decisão deliberada, sem heurística adicional — confirmado que `m3uSeriesGrouping.ts` não tenta correspondência aproximada, como documentado |
+| R-008 | Resync troca os ids locais das séries; registros de episódio de gerações antigas saem no `publishGeneration` | Baixo | **Resolvido**: esperado, episódio é reobtível; estado do usuário é por identidade estável e sobrevive (D-006) — nenhuma evidência de violação encontrada |
 | R-009 | Achado na Fase 2: gravar em `db.userStates` (IndexedDB real, via fake-indexeddb) dentro de um teste que roda sob `vi.useFakeTimers()` nunca completa — a conclusão da transação é agendada por um `setTimeout` interno que fica órfão quando `vi.useRealTimers()` troca a implementação de volta. Em `PlayerLayer.test.tsx`, isso é pré-existente (a suíte "interação dos controles (filme)" já escreve progresso sob fake timers) — inofensivo até um teste desta feature tentar ler `db.userStates` de verdade depois, quando vira timeout/`TransactionInactiveError` não tratado | Médio — quebra teste novo, não a aplicação | **Resolvido para esta feature**: T006 usa `vi.mock('.../userStateRepository', ...)` (só `updateProgress`/`clearProgress` viram espiã) em vez de gravação real, evitando o IndexedDB por completo nesse arquivo. A escrita de verdade já está coberta por `progressRecorder.test.ts`, que não usa fake timers. **Não corrigido na origem** (a suíte "interação dos controles" continua escrevendo sob fake timers) — armadilha registrada em `Cuidados para Retomada` para quem tocar `PlayerLayer.test.tsx` de novo |
 
 ## Execution Notes
@@ -362,3 +362,69 @@ npm run build:tizen
   timers). Ao testar através de `PlayerLayer` (com fake timers em algum
   teste do mesmo arquivo), mocke `userStateRepository` em vez de gravar de
   verdade.
+
+## Resultado Final
+
+<!-- Anexado pelo sdd-converge. Nunca reescreve o que já existe acima. -->
+
+Convergência limpa (2026-09-24) — nenhuma lacuna encontrada entre spec,
+plano e código. As 4 user stories (P1–P4) estão implementadas fielmente às
+23 Functional Requirements e às 13 Decisões Invariantes, verificadas linha
+a linha contra o código real, não só contra os testes:
+
+- **US1 (Xtream)**: `seriesLoader.ensureSeriesEpisodes` reproduz o mesmo
+  contrato de quatro desfechos do `categoryLoader` (D-005); `fetchSeriesInfo`
+  não grava URL nem presume extensão (D-004, R-003 confirmado resolvido) e
+  converte `episode_num` textual em vez de descartar como `0` (R-002
+  confirmado resolvido).
+- **US2 (M3U)**: `m3uSeriesGrouping.createSeriesGrouper` agrupa por
+  `group-title + título-base normalizado` (D-003), com correspondência
+  exata, nunca aproximada. A correção do bug pré-existente do "Modo
+  limitado" (`/series/` virando série órfã) está em
+  `importPipeline.kindFromUrlSegment` (D-012, R-004 resolvido).
+- **US3 (assistido)**: `progressRecorder`'s `recordCompletion` só liga para
+  `kind === 'episode'` — filme fica exatamente como a feature 011 deixou,
+  sem antecipar a decisão do item 13 do backlog (D-007).
+- **US4 (autoplay)**: `PlayerLayer.onCompleted` desmonta a sessão antes da
+  tela decidir o próximo passo (FR-013, D-008); `NextEpisodeCountdown` usa
+  um único `setInterval` (não uma cadeia de `setTimeout` reagendada, que
+  perdia ticks sob relógio falso); `episodeNavigation.nextEpisode` nunca
+  toca rede nem outra série (FR-017 por construção, D-010).
+
+**Achado real da implementação, fora do que a spec previa**: o
+`PlayerLayer.computeIdentity` original não passava temporada/episódio para
+`buildStableId` — todo episódio teria colidido em `…|s0|e0` (R-001).
+Corrigido centralizando em `stableIdOf` (`catalogApi.ts`), usado tanto pela
+camada de reprodução quanto pela lista de episódios, com teste de
+regressão. Sem esse achado, retomada e "assistido" de episódios distintos
+da mesma série se sobrescreveriam silenciosamente.
+
+**Desvios do plano original**: `getCategory` em `catalogRepository.ts`
+(Fase 3) não estava no contrato original — necessário para `seriesLoader`
+saber se a categoria da série é `eager` sem exigir isso de quem chama.
+`EpisodeOut` migrou de `episodeNavigation.ts` (onde nasceu na Fase 2,
+provisório) para `catalogApi.ts` (onde `data-model.md` já mandava);
+`episodeNavigation.ts` reexporta. Nenhum desvio de comportamento observável
+— só reorganização interna, já registrada nas Execution Notes.
+
+**Verificação executada pelo `sdd-converge`**: suíte completa
+(`npx vitest run`) 478/478, `npx tsc -b` limpo, `npm run lint` só com os
+avisos pré-existentes (`incompatible-library` do React Compiler, já
+presente em `LiveScreen`/`MoviesScreen`/`SeriesScreen` antes desta
+feature; `only-export-components` em `PlayerControls.tsx`, também
+anterior). Nenhum teste novo rodado além da suíte automatizada — sem fonte
+Xtream/M3U real nem TV física disponíveis nesta sessão.
+
+**Pendências que permanecem abertas, sem bloquear a convergência**:
+
+- `quickstart.md` B/C/E/F (retomada/stale-served/selo/autoplay num
+  navegador real com fonte de verdade) — cobertos pela suíte automatizada
+  nesse meio-tempo.
+- `quickstart.md` G–I na TV física (T044/R-005) e `npm run build:tizen`
+  sincronizado em `CCPlayTv/` — nenhum dos dois é gate obrigatório para
+  esta feature (toda a superfície de VOD do AVPlay já foi provada na
+  feature 011).
+- Achado fora de escopo registrado no backlog como `[Bug]`:
+  `avplayAdapter`/`htmlVideoAdapter` sempre dizem "Não foi possível
+  reproduzir este canal" em qualquer falha genérica, mesmo para filme ou
+  episódio — pré-existente, cosmético, não corrigido por esta feature.
