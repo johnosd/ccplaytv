@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CatalogDb, type ImportRunRecord, type SourceRecord } from './db'
-import { countChannels, listCategories, listChannels, storeBatch } from './catalogRepository'
+import { countChannels, listCategories, listChannels, listEpisodes, storeBatch } from './catalogRepository'
 import { ImportAlreadyRunningError, startImport } from './importPipeline'
 import { getSource } from './sourceRepository'
 
@@ -83,15 +83,19 @@ describe('importPipeline — fonte por URL M3U', () => {
     const run = await handle.completion
 
     expect(run.status).toBe('completed')
-    // Canal, canal, filme e episódio. O que sobra do descarte por tipo é o
-    // que o classificador não consegue tipar — não "tudo que não é canal".
-    expect(run.channelsStored).toBe(4)
-    // Contadores têm unidades diferentes e não se somam: 5 lidas, 4
-    // gravadas, 1 descartada por tipo, 1 inválida por falta de URL.
+    // Canal, canal, filme e episódio — mais a série sintética que o
+    // episódio cria (feature 012, D-003): "Uma Serie" vira um registro
+    // `kind:'series'` próprio, além do episódio em si. O que sobra do
+    // descarte por tipo é o que o classificador não consegue tipar — não
+    // "tudo que não é canal".
+    expect(run.channelsStored).toBe(5)
+    // Contadores têm unidades diferentes e não se somam: 5 lidas (a série
+    // sintética não é uma linha da fonte, então não conta aqui — feature
+    // 012), 5 gravadas, 1 descartada por tipo, 1 inválida por falta de URL.
     expect(run.entriesRead).toBe(5)
     expect(run.discardedByType).toBe(1)
     expect(run.invalidCount).toBe(1)
-    expect(await countChannels(M3U_SOURCE.id, undefined, undefined, database)).toBe(4)
+    expect(await countChannels(M3U_SOURCE.id, undefined, undefined, database)).toBe(5)
   })
 
   it('preserva os grupos declarados pela fonte, na ordem em que apareceram, com estrutura completa (feature 010)', async () => {
@@ -101,14 +105,16 @@ describe('importPipeline — fonte por URL M3U', () => {
 
     const categories = await listCategories(M3U_SOURCE.id, undefined, database)
     // Só canal/filme/série viram categoria navegável (categoryKindOf). O
-    // episódio usa o grupo "Series" mas é classificado por padrão de nome
-    // — não cria uma categoria própria (data-model.md §2.1).
+    // episódio "Uma Serie S01E01" nunca tem categoria própria — quem entra
+    // na categoria "Series" é a série sintética que o agrupa (feature 012,
+    // D-001/D-003), um cartão por série, não por arquivo de episódio.
     expect(categories.map((category) => category.name)).toEqual([
       'Canais | Esportes',
       'Canais | Variedades',
       'Filmes',
+      'Series',
     ])
-    expect(categories.map((c) => c.count)).toEqual([1, 1, 1])
+    expect(categories.map((c) => c.count)).toEqual([1, 1, 1, 1])
     for (const category of categories) {
       expect(category.fetchMode).toBe('eager')
       // Fonte por URL M3U não declara contagem — só o que foi de fato
@@ -337,9 +343,13 @@ describe('importPipeline — fonte por URL M3U', () => {
 
     expect(snapshots.length).toBeGreaterThan(1)
     expect(snapshots.map((snapshot) => snapshot.step)).toContain('storing')
+    // `channelsStored` pode passar de `entriesRead`: a série sintética que
+    // o agrupamento M3U cria (feature 012, D-003) grava um registro extra
+    // sem ser uma linha própria da fonte — não há mais o invariante
+    // "nunca grava mais do que leu". O que continua valendo, e é o que
+    // este teste verifica de fato, é não inventar percentual.
     for (const snapshot of snapshots) {
       expect(snapshot).not.toHaveProperty('percent')
-      expect(snapshot.channelsStored).toBeLessThanOrEqual(snapshot.entriesRead)
     }
   })
 
@@ -590,5 +600,107 @@ describe('importPipeline — fonte de provedor', () => {
     expect(run.status).toBe('completed')
     expect(run.channelsStored).toBe(1)
     expect(run.unavailableSections).toEqual(['movie', 'series'])
+  })
+})
+
+describe('importPipeline — agrupamento de séries M3U (feature 012, US2)', () => {
+  function breakingBadM3u(count: number): string {
+    const lines = ['#EXTM3U']
+    for (let i = 1; i <= count; i += 1) {
+      const n = String(i).padStart(2, '0')
+      lines.push(`#EXTINF:-1 group-title="Series",Breaking Bad S01E${n}`)
+      lines.push(`http://exemplo.test/vod/${i}.mp4`)
+    }
+    return lines.join('\n')
+  }
+
+  it('10 episódios da mesma série viram 1 registro de série + 10 episódios, todos com o mesmo seriesId (FR-005/FR-006)', async () => {
+    await database.sources.add({ ...M3U_SOURCE, id: 'fonte-bb' })
+    vi.stubGlobal('fetch', respondWith(breakingBadM3u(10)))
+
+    const run = await (await startImport('fonte-bb', { database })).completion
+
+    expect(run.status).toBe('completed')
+    const stored = await database.channels.where('sourceId').equals('fonte-bb').toArray()
+    const series = stored.filter((item) => item.kind === 'series')
+    const episodes = stored.filter((item) => item.kind === 'episode')
+
+    // Um cartão por série, nunca um por arquivo de episódio (FR-006).
+    expect(series).toHaveLength(1)
+    expect(episodes).toHaveLength(10)
+    expect(episodes.every((ep) => ep.seriesId === series[0].seriesId)).toBe(true)
+    expect(episodes.every((ep) => ep.categoryId === undefined)).toBe(true)
+
+    // A categoria "Series" conta a série (1), não os episódios (10) —
+    // mesma semântica de contagem real de itens por categoria (D-005).
+    const [category] = await listCategories('fonte-bb', 'series', database)
+    expect(category.name).toBe('Series')
+    expect(category.count).toBe(1)
+    expect(series[0].categoryId).toBe(category.id)
+
+    const listed = await listEpisodes('fonte-bb', series[0].seriesId as string, database)
+    expect(listed.map((ep) => ep.name).sort()).toEqual(
+      Array.from({ length: 10 }, (_, i) => `Breaking Bad S01E${String(i + 1).padStart(2, '0')}`),
+    )
+  })
+
+  it('duas fontes com a mesma série não se misturam — cada uma com os próprios episódios', async () => {
+    await database.sources.add({ ...M3U_SOURCE, id: 'fonte-a' })
+    await database.sources.add({ ...M3U_SOURCE, id: 'fonte-b', m3uUrl: 'http://exemplo.test/b.m3u' })
+
+    vi.stubGlobal('fetch', respondWith(breakingBadM3u(3)))
+    await (await startImport('fonte-a', { database })).completion
+
+    vi.stubGlobal('fetch', respondWith(breakingBadM3u(5)))
+    await (await startImport('fonte-b', { database })).completion
+
+    const seriesA = (await database.channels.where('sourceId').equals('fonte-a').toArray()).find(
+      (item) => item.kind === 'series',
+    )
+    const seriesB = (await database.channels.where('sourceId').equals('fonte-b').toArray()).find(
+      (item) => item.kind === 'series',
+    )
+    expect(seriesA).toBeDefined()
+    expect(seriesB).toBeDefined()
+
+    const episodesA = await listEpisodes('fonte-a', seriesA!.seriesId as string, database)
+    const episodesB = await listEpisodes('fonte-b', seriesB!.seriesId as string, database)
+    expect(episodesA).toHaveLength(3)
+    expect(episodesB).toHaveLength(5)
+  })
+
+  it('Modo limitado: episódio sem SxxEyy no nome, tipado só pela URL /series/, é agrupado mesmo assim (D-012)', async () => {
+    await database.sources.add(PROVIDER_SOURCE)
+    const legacyM3u = [
+      '#EXTM3U',
+      '#EXTINF:-1 group-title="Filmes e Séries",Um Episódio Qualquer',
+      'http://exemplo.test/series/usuario-teste/senha-teste/900.mp4',
+    ].join('\n')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/get.php')) return Promise.resolve(textResponse(legacyM3u))
+        if (url.includes('player_api.php') && url.includes('action=')) {
+          return Promise.resolve(textResponse('erro', 404))
+        }
+        return Promise.resolve(
+          textResponse(JSON.stringify({ user_info: { auth: 1, allowed_output_formats: ['ts'] } })),
+        )
+      }),
+    )
+
+    const run = await (await startImport(PROVIDER_SOURCE.id, { database })).completion
+
+    expect(run.status).toBe('completed')
+    const stored = await database.channels.where('sourceId').equals(PROVIDER_SOURCE.id).toArray()
+    const series = stored.filter((item) => item.kind === 'series')
+    const episode = stored.find((item) => item.kind === 'episode')
+
+    // Sem SxxEyy no nome, agrupa pelo próprio nome normalizado — mas
+    // continua virando `kind:'episode'`, nunca `kind:'series'` orfão
+    // (achado R-004, pré-existente à feature 012).
+    expect(series).toHaveLength(1)
+    expect(episode).toMatchObject({ providerStreamId: '900', streamExtension: 'mp4', seriesId: series[0].seriesId })
+    expect(episode?.directUrl).toBeUndefined()
   })
 })

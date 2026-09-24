@@ -61,6 +61,19 @@ export async function getUserState(
 }
 
 /**
+ * Leitura em lote, na ordem pedida (feature 012) — a lista de episódios
+ * calcula o selo de cada linha sem uma consulta por episódio.
+ * `bulkGet` já preserva ordem e devolve `undefined` na posição de um id
+ * sem registro (nunca aberto), sem lançar.
+ */
+export async function getUserStates(
+  stableIds: string[],
+  database: CatalogDb = db,
+): Promise<(UserStateRecord | undefined)[]> {
+  return database.userStates.bulkGet(stableIds)
+}
+
+/**
  * Lê-altera-grava numa transação só.
  *
  * Duas chamadas concorrentes para o mesmo item — favoritar e salvar
@@ -139,6 +152,28 @@ export async function clearProgress(
     stableId,
     sourceId,
     (current) => ({ ...current, progressSeconds: undefined }),
+    database,
+  )
+}
+
+/**
+ * Marca conclusão real (feature 012, D-007): grava `completedAt`, apaga
+ * `progressSeconds` (mesma limpeza de `clearProgress` — não faz sentido
+ * "assistido" e "retomar do meio" coexistirem) e atualiza `lastWatched`.
+ *
+ * Persistente por design: gravar progresso depois (reassistir e sair no
+ * meio) não apaga `completedAt` — os dois convivem, o selo continua ligado
+ * enquanto a nova posição de retomada aparece separadamente.
+ */
+export async function markCompleted(
+  stableId: string,
+  sourceId: string,
+  database: CatalogDb = db,
+): Promise<void> {
+  await upsert(
+    stableId,
+    sourceId,
+    (current) => ({ ...current, completedAt: Date.now(), progressSeconds: undefined }),
     database,
   )
 }

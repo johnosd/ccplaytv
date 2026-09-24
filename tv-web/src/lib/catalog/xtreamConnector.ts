@@ -602,8 +602,20 @@ export async function acquireXtreamSeries(
 
 export interface XtreamEpisode extends MappedChannel {
   seasonNumber: number
-  episodeNumber: number
+  episodeNumber?: number
   seriesId: string
+}
+
+/**
+ * `null`/objeto sem número reconhecível → `undefined`, nunca um `0`
+ * inventado (feature 012, R-002: o painel real devolve `episode_num` como
+ * texto em parte dos casos — `0` faria a ordem e o "próximo episódio"
+ * quebrarem em silêncio).
+ */
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) return parseInt(value, 10)
+  return undefined
 }
 
 export async function fetchSeriesInfo(
@@ -615,7 +627,7 @@ export async function fetchSeriesInfo(
   const url = playerApiUrl(base, username, password, { action: 'get_series_info', series_id: seriesId })
   const payload = await fetchJsonDirect(url)
   if (typeof payload !== 'object' || payload === null) return []
-  
+
   const record = payload as Record<string, unknown>
   const episodesObj = record.episodes
   if (typeof episodesObj !== 'object' || episodesObj === null) return []
@@ -623,30 +635,43 @@ export async function fetchSeriesInfo(
   const episodes: XtreamEpisode[] = []
   for (const [seasonStr, epsArray] of Object.entries(episodesObj)) {
     if (!Array.isArray(epsArray)) continue
-    
+
     for (const ep of epsArray) {
       if (typeof ep !== 'object' || ep === null) continue
       const rawEp = ep as Record<string, unknown>
-      
-      const epName = typeof rawEp.title === 'string' ? rawEp.title.trim() : `S${seasonStr} E${rawEp.episode_num}`
-      const streamId = rawEp.id === undefined || rawEp.id === null ? undefined : String(rawEp.id)
-      const ext = typeof rawEp.container_extension === 'string' ? rawEp.container_extension : 'mp4'
-      const urlBuilt = streamId ? buildSeriesUrl(base, username, password, streamId, ext) : undefined
 
-      const seasonNumber = parseInt(seasonStr, 10) || 1
-      const episodeNumber = typeof rawEp.episode_num === 'number' ? rawEp.episode_num : 0
+      // Sem id não há como montar URL (`resolvePlaybackUrl`) nem
+      // identidade estável (`buildStableId` cairia no nome, frágil pra
+      // episódio) — descartado, não gravado com id inventado.
+      const streamId = rawEp.id === undefined || rawEp.id === null ? undefined : String(rawEp.id)
+      if (!streamId) continue
+
+      const episodeNumber = toNumber(rawEp.episode_num)
+      const title = typeof rawEp.title === 'string' && rawEp.title.trim() ? rawEp.title.trim() : undefined
+      const epName = title ?? (episodeNumber !== undefined ? `Episódio ${episodeNumber}` : 'Episódio')
+      // D-004: provedor nunca grava URL de episódio — resolvida na hora por
+      // `resolvePlaybackUrl`, como filme e canal. Sem extensão presumida:
+      // `'mp4'` chutado falha na TV como se fosse codec (R-003).
+      const ext =
+        typeof rawEp.container_extension === 'string' && rawEp.container_extension.trim()
+          ? rawEp.container_extension.trim()
+          : undefined
+
+      // FR-019: temporada não identificável (chave não numérica) cai na 1,
+      // nunca descartada.
+      const seasonNumber = toNumber(seasonStr) ?? toNumber(rawEp.season) ?? 1
 
       episodes.push({
         kind: 'episode',
         name: epName,
-        originalName: typeof rawEp.title === 'string' ? rawEp.title : '',
+        originalName: title ?? '',
         groupOrder: Number.MAX_SAFE_INTEGER,
         providerStreamId: streamId,
         streamExtension: ext,
-        url: urlBuilt,
+        url: undefined,
         seriesId,
         seasonNumber,
-        episodeNumber
+        episodeNumber,
       })
     }
   }

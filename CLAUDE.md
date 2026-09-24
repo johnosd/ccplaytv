@@ -22,28 +22,35 @@ screens; ADR-009 came out of it) and `010-catalogo-sob-demanda`
 (structure-first import + per-category on-demand fetch — see "Known
 deviation" below).
 
-**In execution**: `011-assistir-filme-retomada` (movie playback with
-capability contract, controls, and resume). Code-complete for all three
-user stories; the physical-TV gate (feature spec makes it mandatory, not
-just recommended, because the `<video>` dev adapter can't disprove a
-missing AVPlay capability) is **partially closed** — see
-`sdd/specs/011-assistir-filme-retomada/plan.md` → `## Estado Atual` for the
-exact scenario-by-scenario status before assuming it's done. Two real bugs
-only surfaced on real hardware: the single-flight seek gate used to
-*accumulate* pending jumps while one was in flight, which froze the app
-when a remote button was held down (fixed: it now discards instead); and
-`MovieDetailScreen`'s backdrop panel painted over the AVPlay hardware plane
-because the transparency rule only covered `.screen`-rooted screens, not
-`.movie-detail-layout` (fixed, but the next screen to host `PlayerLayer`
-needs its own root added to that CSS rule too).
+**Also code-complete, converged**: `011-assistir-filme-retomada` (movie
+playback with capability contract, controls, and resume) — the
+physical-TV gate is **partially closed**, see
+`sdd/specs/011-assistir-filme-retomada/plan.md` → `## Estado Atual` for
+the exact scenario-by-scenario status. Two real bugs only surfaced on
+real hardware: the single-flight seek gate used to *accumulate* pending
+jumps while one was in flight, which froze the app when a remote button
+was held down (fixed: it now discards instead); and `MovieDetailScreen`'s
+backdrop panel painted over the AVPlay hardware plane because the
+transparency rule only covered `.screen`-rooted screens, not
+`.movie-detail-layout` (fixed).
 
-One gap is worth knowing before picking up new work, because it isn't
-visible from the converged-feature list:
-
-- **Series episodes still don't play.** `SeriesDetailScreen` has no
-  episodes at all yet — `fetchSeriesInfo` exists in `xtreamConnector.ts`
-  and is never called. Movie playback (011) built the capability contract
-  and the shared `PlayerLayer` that a series-episode feature would reuse.
+**In execution**: `012-series-episodios-temporadas` — series episodes now
+play. `SeriesDetailScreen` obtains episodes on demand (Xtream
+`get_series_info`, gated by the same 24 h freshness window as feature
+010's categories) and, separately, groups M3U/"Modo limitado" episodes
+(`S01E02`-style filenames, or files typed only by their `/series/` URL
+segment) into a synthetic series — closing a pre-existing bug where the
+latter graved a `kind:'series'` orphan per file, never reproducible.
+Season tabs + a virtualized episode list, resume and a per-episode
+"watched" mark (independent of movie's own resume, which is untouched),
+and next-episode autoplay with a 10 s cancellable countdown that can
+cross a season boundary. All four user stories are code-complete and
+covered by the automated suite; `sdd/specs/012-series-episodios-
+temporadas/plan.md` → `## Estado Atual` has the phase-by-phase detail.
+The physical-TV scenarios (real AVPlay conclusion firing autoplay,
+imagery on the hardware plane, no residual audio across the session
+swap) are **recommended, not a mandatory gate** for this feature — see
+that plan's R-005.
 
 The four top-level directories:
 
@@ -60,12 +67,17 @@ The four top-level directories:
   `<video>` adapter for desktop dev), each engine declaring a capability
   contract (pause/seek/position/duration) the UI reads instead of ever
   branching on which engine is active. `src/components/PlayerLayer.tsx` is
-  the one fullscreen playback layer shared by Live TV and Filmes (moved out
-  of `features/live/` in feature 011) — any screen that mounts it needs its
-  own root added to the hardware-plane CSS rule in `screens.css`, or the
-  video paints behind whatever that screen renders on top of it. The build
-  targets `chrome108` explicitly, because Vite 8's default is Chrome 111 —
-  above the TV's engine. Don't drop that from `vite.config.ts`.
+  the one fullscreen playback layer shared by Live TV, Filmes and Séries
+  (moved out of `features/live/` in feature 011; `SeriesDetailScreen`
+  became its third consumer in feature 012) — any screen that mounts it
+  needs its root covered by the hardware-plane CSS rule in `screens.css`
+  (`.screen`-rooted screens already are; a screen with a different root,
+  like `MovieDetailScreen`'s `.movie-detail-layout`, needs its own line
+  added there — `SeriesDetailScreen` avoided this by staying `.screen`-
+  rooted), or the video paints behind whatever that screen renders on top
+  of it. The build targets `chrome108` explicitly, because Vite 8's
+  default is Chrome 111 — above the TV's engine. Don't drop that from
+  `vite.config.ts`.
 - **`api/`** — Python 3.13 + FastAPI + SQLAlchemy 2 (async) + Alembic +
   PostgreSQL, managed with `uv`. **Frozen fallback per ADR-008** — not the
   primary path for any feature. It exists only for a provider panel that
@@ -146,9 +158,19 @@ dark theme, brand gradient reserved for identity, `--accent: #ff7a3d` for
 state, and one focus recipe (4px outline + offset + glow + `scale(1.06)`,
 140ms). The executable form is the tokens in `tv-web/src/index.css`;
 `docs/design/CCPlayTv Prototype - Standalone.html` is the design intent
-snapshot (a 671 KB bundled page — read ADR-007 instead of trying to parse
-it). **New screens consume tokens; they never hardcode a color, radius or
-font size.**
+snapshot (a 671 KB single-line-per-block bundled page — reading it whole
+fails on size; `Grep` with a narrow pattern and a small capture window,
+e.g. `.{0,30}keyword.{0,80}`, pulls out one screen's markup/state logic
+without loading the rest). **Before planning or architecting any new
+screen, check both `docs/design/` (does the 9-screen prototype already
+draw this screen or a close analogue — layout, focus flow, interaction —
+before inventing one from scratch) and `docs/guia-praticas-app-tv/` (does
+a Samsung/Tizen guideline constrain it — input method, focus, text entry,
+media player chrome). Not every screen is covered (see backlog item 20 for
+the known gaps: full-screen player controls, busca, favoritos, "continuar
+assistindo", "Não classificados", import progress, error/offline states),
+but check before assuming there's nothing there.** **New screens consume
+tokens; they never hardcode a color, radius or font size.**
 
 ## How work happens here: the SDD system
 

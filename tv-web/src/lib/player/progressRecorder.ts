@@ -5,7 +5,7 @@
  */
 
 import { db, type CatalogDb } from '../catalog/db'
-import { clearProgress, updateProgress } from '../catalog/userStateRepository'
+import { clearProgress, markCompleted, updateProgress } from '../catalog/userStateRepository'
 import { RESUME_MIN_SECONDS, isPastEnd, shouldWriteProgress } from './resumePolicy'
 
 /** Identidade do item cuja posição está sendo gravada. */
@@ -16,6 +16,17 @@ export interface ProgressRecorderIdentity {
 
 /** Por que a reprodução está saindo — decide o tratamento de FR-017/FR-020. */
 export type ExitReason = 'pause' | 'close' | 'completed'
+
+export interface ProgressRecorderOptions {
+  /**
+   * Feature 012, D-007: os dois pontos que hoje apagam a retomada (cruzar
+   * o limiar final, e conclusão real do motor) gravam conclusão
+   * (`markCompleted`) em vez de só limpar. `false`/ausente preserva o
+   * comportamento da 011 (`clearProgress`) — só `kind:'episode'` liga isto;
+   * "assistido" de filme é o item 13 do backlog, não esta feature.
+   */
+  recordCompletion?: boolean
+}
 
 export interface ProgressRecorder {
   /** Chamado a cada atualização de posição do motor (`session.onProgress`). */
@@ -35,6 +46,7 @@ export function createProgressRecorder(
   identity: ProgressRecorderIdentity | null,
   reportsPosition: boolean,
   database: CatalogDb = db,
+  options: ProgressRecorderOptions = {},
 ): ProgressRecorder {
   let lastWrittenMs: number | null = null
   let lastKnownMs: number | null = null
@@ -58,6 +70,10 @@ export function createProgressRecorder(
 
   function clear(): void {
     if (!identity) return
+    if (options.recordCompletion) {
+      void markCompleted(identity.stableId, identity.sourceId, database)
+      return
+    }
     void clearProgress(identity.stableId, identity.sourceId, database)
   }
 

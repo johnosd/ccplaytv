@@ -391,6 +391,9 @@ describe('LiveScreen', () => {
       source_id: 'src1',
       provider_stream_id: '1',
       original_name: 'Canal',
+      series_id: null,
+      season_number: null,
+      episode_number: null,
     })
     renderLive()
 
@@ -419,6 +422,9 @@ describe('LiveScreen', () => {
       source_id: 'src1',
       provider_stream_id: '2',
       original_name: 'Segundo',
+      series_id: null,
+      season_number: null,
+      episode_number: null,
     })
     renderLive()
 

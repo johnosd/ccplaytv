@@ -196,6 +196,47 @@ describe('progressRecorder', () => {
     // tabela continua vazia, já que não há identidade pra consultar.
     expect(await db.userStates.count()).toBe(0)
   })
+
+  // --- feature 012 (D-007): recordCompletion ---
+
+  describe('com recordCompletion: true (episódio)', () => {
+    it('conclusão real grava completedAt em vez de só apagar', async () => {
+      await updateProgress(IDENTITY.stableId, IDENTITY.sourceId, 200)
+      const recorder = createProgressRecorder(IDENTITY, true, undefined, { recordCompletion: true })
+
+      recorder.onExit('completed')
+      await flush()
+
+      const state = await getUserState(IDENTITY.stableId)
+      expect(state?.completedAt).toBeDefined()
+      expect(state?.progressSeconds).toBeUndefined()
+    })
+
+    it('cruzar o limiar final grava completedAt em vez de só apagar', async () => {
+      const recorder = createProgressRecorder(IDENTITY, true, undefined, { recordCompletion: true })
+
+      recorder.onProgress(595_000, 600_000) // >95% de 600_000
+
+      await flush()
+      const state = await getUserState(IDENTITY.stableId)
+      expect(state?.completedAt).toBeDefined()
+      expect(state?.progressSeconds).toBeUndefined()
+    })
+  })
+
+  describe('sem recordCompletion (padrão — filme, comportamento da 011 intacto)', () => {
+    it('conclusão real apaga o progresso sem gravar completedAt', async () => {
+      await updateProgress(IDENTITY.stableId, IDENTITY.sourceId, 200)
+      const recorder = createProgressRecorder(IDENTITY, true)
+
+      recorder.onExit('completed')
+      await flush()
+
+      const state = await getUserState(IDENTITY.stableId)
+      expect(state?.completedAt).toBeUndefined()
+      expect(state?.progressSeconds).toBeUndefined()
+    })
+  })
 })
 
 /** Dá um tick pras Promises internas de `updateProgress`/`clearProgress` resolverem. */

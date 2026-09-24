@@ -146,3 +146,108 @@ describe('CatalogDb — schema v7 (feature 010)', () => {
     upgraded.close()
   })
 })
+
+/**
+ * Réplica só até a v7 — o schema antes desta feature (012). Serve para
+ * simular um aparelho com séries/canais já gravados, sem `seriesId` no
+ * índice novo.
+ */
+class PreSeriesDb extends Dexie {
+  constructor(name: string) {
+    super(name)
+    this.version(1).stores({
+      sources: 'id',
+      channels: '++id, [sourceId+generation], [sourceId+generation+groupOrder]',
+      importRuns: 'id, [sourceId+status]',
+    })
+    this.version(3).stores({
+      channels:
+        '++id, [sourceId+generation], [sourceId+generation+groupOrder], [sourceId+generation+kind+groupOrder]',
+    })
+    this.version(4).stores({ userStates: 'stableId, sourceId' })
+    this.version(5).stores({ userStates: 'stableId, sourceId, isFavorite, lastWatched' })
+    this.version(6).stores({ userStates: 'stableId, sourceId, favoritedAt, lastWatched' })
+    this.version(7).stores({ categories: '++id, sourceId, [sourceId+generation+kind+order]' })
+  }
+}
+
+describe('CatalogDb — schema v8 (feature 012)', () => {
+  it('abrir um banco em v7 não perde dado e o índice [sourceId+generation+seriesId] fica disponível', async () => {
+    dbName = `test-db-v8-migration-${Math.random().toString(36).slice(2)}`
+
+    const legacy = new PreSeriesDb(dbName)
+    await legacy.open()
+    // Canal sem seriesId — o caso comum, que não deve quebrar nada.
+    await (legacy.table('channels') as EntityTable<CatalogRecord, 'id'>).add({
+      sourceId: 'src-1',
+      generation: 1,
+      kind: 'channel',
+      name: 'Canal Antigo',
+      originalName: 'Canal Antigo',
+      group: 'Esportes',
+      groupOrder: 0,
+    })
+    legacy.close()
+
+    const upgraded = new CatalogDb(dbName)
+    await upgraded.open()
+
+    // Dado de v7 sobrevive, sem alteração.
+    expect(await upgraded.channels.where('sourceId').equals('src-1').count()).toBe(1)
+
+    // Registro sem seriesId não quebra a consulta pelo índice novo —
+    // parte undefined de um índice composto simplesmente não indexa.
+    const bySeries = await upgraded.channels
+      .where('[sourceId+generation+seriesId]')
+      .equals(['src-1', 1, 'srv-200'])
+      .toArray()
+    expect(bySeries).toEqual([])
+
+    upgraded.close()
+  })
+
+  it('série e seus episódios são encontráveis pelo índice novo, sem varrer a tabela inteira', async () => {
+    dbName = `test-db-v8-index-${Math.random().toString(36).slice(2)}`
+    const database = new CatalogDb(dbName)
+    await database.open()
+
+    await database.channels.bulkAdd([
+      {
+        sourceId: 'src-1',
+        generation: 1,
+        kind: 'series',
+        name: 'Breaking Bad',
+        originalName: 'Breaking Bad',
+        groupOrder: 0,
+        seriesId: 'srv-200',
+      },
+      {
+        sourceId: 'src-1',
+        generation: 1,
+        kind: 'episode',
+        name: 'Pilot',
+        originalName: 'Pilot',
+        groupOrder: 0,
+        seriesId: 'srv-200',
+        seasonNumber: 1,
+        episodeNumber: 1,
+      },
+      {
+        sourceId: 'src-1',
+        generation: 1,
+        kind: 'movie',
+        name: 'Filme sem série',
+        originalName: 'Filme sem série',
+        groupOrder: 1,
+      },
+    ])
+
+    const records = await database.channels
+      .where('[sourceId+generation+seriesId]')
+      .equals(['src-1', 1, 'srv-200'])
+      .toArray()
+    expect(records.map((r) => r.kind).sort()).toEqual(['episode', 'series'])
+
+    database.close()
+  })
+})

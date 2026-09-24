@@ -466,7 +466,18 @@ describe('parseXtreamStreamUrl', () => {
       })
     })
 
-    it('fetchSeriesInfo should map episodes properly', async () => {
+    /** `get_series_info` mockado com um único episódio por `it` (feature 012, `logic` §1). */
+    function stubSeriesInfo(episodes: Record<string, unknown>[]): void {
+      vi.stubGlobal('fetch', vi.fn().mockImplementation(async (req) => {
+        const url = new URL(typeof req === 'string' ? req : req.url)
+        if (url.searchParams.get('action') === 'get_series_info' && url.searchParams.get('series_id') === '200') {
+          return jsonResponse({ episodes: { '1': episodes } })
+        }
+        return new Response(null, { status: 404 })
+      }))
+    }
+
+    it('fetchSeriesInfo mapeia episódios, sem montar URL (D-004 — provedor nunca grava URL de episódio)', async () => {
       vi.stubGlobal('fetch', vi.fn().mockImplementation(async (req) => {
         const url = new URL(typeof req === 'string' ? req : req.url)
         if (url.searchParams.get('action') === 'get_series_info' && url.searchParams.get('series_id') === '200') {
@@ -490,19 +501,70 @@ describe('parseXtreamStreamUrl', () => {
       expect(episodes[0]).toMatchObject({
         kind: 'episode',
         name: 'Pilot',
-        url: 'http://mock/series/user/pass/1001.mp4',
+        providerStreamId: '1001',
+        streamExtension: 'mp4',
         seriesId: '200',
         seasonNumber: 1,
-        episodeNumber: 1
+        episodeNumber: 1,
       })
+      expect(episodes[0].url).toBeUndefined()
 
       expect(episodes[1]).toMatchObject({
         kind: 'episode',
         name: 'The Dundies',
-        url: 'http://mock/series/user/pass/1002.mkv',
+        providerStreamId: '1002',
+        streamExtension: 'mkv',
         seriesId: '200',
         seasonNumber: 2,
-        episodeNumber: 1
+        episodeNumber: 1,
       })
+      expect(episodes[1].url).toBeUndefined()
+    })
+
+    it('episode_num em texto vira número (R-002 — painel real devolve como string em parte dos casos)', async () => {
+      stubSeriesInfo([{ id: '1001', episode_num: '3', title: 'Ep 3', container_extension: 'mp4' }])
+
+      const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+      expect(episode.episodeNumber).toBe(3)
+    })
+
+    it('episode_num não numérico fica ausente, sem virar 0 (a ordem cai na ordem declarada, D-011)', async () => {
+      stubSeriesInfo([{ id: '1001', episode_num: 'especial', title: 'Bônus', container_extension: 'mp4' }])
+
+      const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+      expect(episode.episodeNumber).toBeUndefined()
+    })
+
+    it('sem container_extension, streamExtension fica ausente — sem "mp4" presumido (D-004, R-003)', async () => {
+      stubSeriesInfo([{ id: '1001', episode_num: 1, title: 'Pilot' }])
+
+      const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+      expect(episode.streamExtension).toBeUndefined()
+    })
+
+    it('episódio sem id é descartado — não há como montar URL nem identidade sem ele', async () => {
+      stubSeriesInfo([
+        { episode_num: 1, title: 'Sem id', container_extension: 'mp4' },
+        { id: '1002', episode_num: 2, title: 'Com id', container_extension: 'mp4' },
+      ])
+
+      const episodes = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+      expect(episodes).toHaveLength(1)
+      expect(episodes[0].name).toBe('Com id')
+    })
+
+    it('chave de temporada não numérica cai na Temporada 1 (FR-019, Xtream)', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockImplementation(async (req) => {
+        const url = new URL(typeof req === 'string' ? req : req.url)
+        if (url.searchParams.get('action') === 'get_series_info' && url.searchParams.get('series_id') === '200') {
+          return jsonResponse({
+            episodes: { especiais: [{ id: '1001', episode_num: 1, title: 'Extra', container_extension: 'mp4' }] },
+          })
+        }
+        return new Response(null, { status: 404 })
+      }))
+
+      const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+      expect(episode.seasonNumber).toBe(1)
     })
   })

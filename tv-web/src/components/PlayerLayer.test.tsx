@@ -2,11 +2,30 @@ import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PlayerLayer } from './PlayerLayer'
 import * as catalogApi from '../features/catalog/catalogApi'
+import * as userStateRepository from '../lib/catalog/userStateRepository'
 import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerAdapterFactory } from '../lib/player/PlayerService'
 
 vi.mock('../features/catalog/catalogApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../features/catalog/catalogApi')>()
   return { ...actual, fetchPlayback: vi.fn() }
+})
+
+/**
+ * Só `updateProgress`/`clearProgress` viram espiã — `buildStableId` (que
+ * `stableIdOf` de `catalogApi.ts` usa por baixo) continua real. Evita
+ * provar a identidade de retomada (feature 012, R-001) através de uma
+ * escrita de verdade no IndexedDB: outros testes deste arquivo usam
+ * `vi.useFakeTimers()`, e uma gravação real iniciada sob relógio falso
+ * nunca completa — a conclusão da transação some para sempre (achado
+ * nesta feature), e mais tarde estoura como rejeição não tratada
+ * (`TransactionInactiveError`) quando o relógio real volta num teste
+ * seguinte. A escrita em si (grava o número certo, sob a chave certa) já
+ * está coberta por `progressRecorder.test.ts`, que chama o gravador direto
+ * sem passar por React nem pelo motor fake.
+ */
+vi.mock('../lib/catalog/userStateRepository', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/catalog/userStateRepository')>()
+  return { ...actual, updateProgress: vi.fn(), clearProgress: vi.fn() }
 })
 
 /**
@@ -85,6 +104,9 @@ const PLAYBACK = {
   source_id: 'src1',
   provider_stream_id: '1',
   original_name: 'Canal',
+  series_id: null,
+  season_number: null,
+  episode_number: null,
 }
 
 /** Filme: capacidades resolvem tudo `true` — usado nos testes de interação (T018). */
@@ -96,6 +118,23 @@ const MOVIE_PLAYBACK = {
   source_id: 'src1',
   provider_stream_id: '1',
   original_name: 'Filme',
+  series_id: null,
+  season_number: null,
+  episode_number: null,
+}
+
+/** Episódio: mesmas capacidades do filme (`FULL`), com identidade de série (feature 012). */
+const EPISODE_PLAYBACK = {
+  item_id: 'item-1',
+  kind: 'episode' as const,
+  url: 'http://usuario:senha@exemplo.invalid/series/1.mp4',
+  container_hint: 'mp4',
+  source_id: 'src1',
+  provider_stream_id: '1',
+  original_name: 'Piloto',
+  series_id: 'srv-7',
+  season_number: 1,
+  episode_number: 1,
 }
 
 describe('PlayerLayer', () => {
@@ -108,6 +147,44 @@ describe('PlayerLayer', () => {
     cleanup()
     vi.restoreAllMocks()
     vi.useRealTimers()
+  })
+
+  describe('identidade de retomada por temporada/episódio (feature 012, R-001)', () => {
+    it('episódio grava progresso sob o id de stableIdOf, com temporada/episódio na chave', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(EPISODE_PLAYBACK)
+      render(<PlayerLayer itemId="item-1" title="Piloto" onClose={vi.fn()} createAdapter={createAdapter} />)
+
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => {
+        driver.callbacks?.onStateChange('buffering')
+        driver.callbacks?.onStateChange('playing')
+      })
+      act(() => {
+        // 40s — acima do limiar inicial (RESUME_MIN_SECONDS=30), bem abaixo
+        // do limiar final: dispara escrita imediata (primeira gravação).
+        driver.callbacks?.onProgress?.({ positionMs: 40_000, durationMs: 1_200_000 })
+      })
+
+      const expectedId = catalogApi.stableIdOf(EPISODE_PLAYBACK)
+      expect(expectedId).toBe('src1|episode|id:1|s1|e1')
+      expect(userStateRepository.updateProgress).toHaveBeenCalledWith(expectedId, 'src1', 40, expect.anything())
+    })
+
+    it('sem providerStreamId, dois episódios da mesma série gravam sob ids distintos (temporada/episódio desambiguam)', async () => {
+      const s1e2 = { ...EPISODE_PLAYBACK, provider_stream_id: null, episode_number: 2 }
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(s1e2)
+      render(<PlayerLayer itemId="item-1" title="E2" onClose={vi.fn()} createAdapter={createAdapter} />)
+
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+      act(() => driver.callbacks?.onProgress?.({ positionMs: 90_000, durationMs: 1_200_000 }))
+
+      const id1 = catalogApi.stableIdOf({ ...EPISODE_PLAYBACK, provider_stream_id: null })
+      const id2 = catalogApi.stableIdOf(s1e2)
+      expect(id1).not.toBe(id2)
+      expect(userStateRepository.updateProgress).toHaveBeenCalledWith(id2, 'src1', 90, expect.anything())
+      expect(userStateRepository.updateProgress).not.toHaveBeenCalledWith(id1, expect.anything(), expect.anything(), expect.anything())
+    })
   })
 
   it('RETURN durante o preparo encerra a sessão e avisa quem abriu', async () => {
@@ -588,6 +665,69 @@ describe('PlayerLayer', () => {
       // Transmissão contínua não conclui — a camada continua aberta em erro,
       // não fechada como o filme.
       expect(onClose).not.toHaveBeenCalled()
+    })
+
+    // --- feature 012 (D-008): onCompleted substitui onClose na conclusão ---
+
+    it('com onCompleted, a conclusão chama onCompleted e NÃO onClose', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(EPISODE_PLAYBACK)
+      const onClose = vi.fn()
+      const onCompleted = vi.fn()
+      render(
+        <PlayerLayer
+          itemId="item-1"
+          title="Episódio"
+          onClose={onClose}
+          onCompleted={onCompleted}
+          createAdapter={createAdapter}
+        />,
+      )
+
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => {
+        driver.callbacks?.onStateChange('buffering')
+        driver.callbacks?.onStateChange('playing')
+      })
+      act(() => driver.callbacks?.onCompleted?.())
+
+      expect(onCompleted).toHaveBeenCalledTimes(1)
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('mesmo com onCompleted presente, RETURN e erro continuam chamando onClose', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(EPISODE_PLAYBACK)
+      const onClose = vi.fn()
+      const onCompleted = vi.fn()
+      render(
+        <PlayerLayer
+          itemId="item-1"
+          title="Episódio"
+          onClose={onClose}
+          onCompleted={onCompleted}
+          createAdapter={createAdapter}
+        />,
+      )
+
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      press('Escape')
+
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(onCompleted).not.toHaveBeenCalled()
+    })
+
+    it('sem onCompleted, o comportamento da 011 continua intacto (conclusão chama onClose)', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(EPISODE_PLAYBACK)
+      const onClose = vi.fn()
+      render(<PlayerLayer itemId="item-1" title="Episódio" onClose={onClose} createAdapter={createAdapter} />)
+
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => {
+        driver.callbacks?.onStateChange('buffering')
+        driver.callbacks?.onStateChange('playing')
+      })
+      act(() => driver.callbacks?.onCompleted?.())
+
+      expect(onClose).toHaveBeenCalledTimes(1)
     })
   })
 })

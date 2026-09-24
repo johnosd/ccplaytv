@@ -4,13 +4,16 @@ import {
   allocateGeneration,
   countChannels,
   discardGeneration,
+  getChannel,
   listCategories,
   listChannels,
+  listEpisodes,
   markCategoryFetched,
   publishGeneration,
   storeBatch,
   storeCategories,
   storeCategoryItems,
+  storeSeriesEpisodes,
   StorageFullError,
   type NewCategory,
 } from './catalogRepository'
@@ -340,5 +343,114 @@ describe('catalogRepository', () => {
     await storeBatch([channel(5, 'Lixo', 'Esportes', 0)], database)
 
     expect(await allocateGeneration(SOURCE_ID, database)).toBe(6)
+  })
+
+  describe('episódios de série (feature 012)', () => {
+    function episode(seriesId: string, name: string, season: number, ep: number): CatalogRecord {
+      return {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'episode',
+        name,
+        originalName: name,
+        groupOrder: Number.MAX_SAFE_INTEGER,
+        seriesId,
+        seasonNumber: season,
+        episodeNumber: ep,
+        providerStreamId: name,
+      }
+    }
+
+    async function seedSeries(seriesId: string): Promise<number> {
+      const [id] = await database.channels.bulkAdd(
+        [
+          {
+            sourceId: SOURCE_ID,
+            generation: 1,
+            kind: 'series',
+            name: 'Breaking Bad',
+            originalName: 'Breaking Bad',
+            groupOrder: 0,
+            seriesId,
+          },
+        ],
+        { allKeys: true },
+      )
+      return id as number
+    }
+
+    it('storeSeriesEpisodes substitui integralmente os episódios e carimba a série, sem apagar o registro da série', async () => {
+      await seedSource({ activeGeneration: 1 })
+      const seriesRecordId = await seedSeries('srv-200')
+
+      await storeSeriesEpisodes(
+        { sourceId: SOURCE_ID, generation: 1, seriesId: 'srv-200', seriesRecordId },
+        [episode('srv-200', 'Pilot', 1, 1)],
+        1000,
+        database,
+      )
+      // Segunda obtenção com episódios diferentes — a primeira não pode
+      // sobrar órfã, mesmo padrão de storeCategoryItems.
+      await storeSeriesEpisodes(
+        { sourceId: SOURCE_ID, generation: 1, seriesId: 'srv-200', seriesRecordId },
+        [episode('srv-200', 'Cat in the Bag', 1, 2), episode('srv-200', "...and the Bag's in the River", 1, 3)],
+        2000,
+        database,
+      )
+
+      const episodes = await listEpisodes(SOURCE_ID, 'srv-200', database)
+      expect(episodes.map((e) => e.name).sort()).toEqual(["...and the Bag's in the River", 'Cat in the Bag'])
+      expect(episodes.every((e) => e.seriesId === 'srv-200')).toBe(true)
+
+      // O registro da série em si sobreviveu às duas substituições.
+      const series = await getChannel(seriesRecordId, database)
+      expect(series?.kind).toBe('series')
+      expect(series?.name).toBe('Breaking Bad')
+      expect(series?.episodesFetchedAt).toBe(2000)
+    })
+
+    it('listEpisodes só devolve kind:episode, nunca o registro da própria série', async () => {
+      await seedSource({ activeGeneration: 1 })
+      const seriesRecordId = await seedSeries('srv-200')
+      await storeSeriesEpisodes(
+        { sourceId: SOURCE_ID, generation: 1, seriesId: 'srv-200', seriesRecordId },
+        [episode('srv-200', 'Pilot', 1, 1)],
+        1000,
+        database,
+      )
+
+      const episodes = await listEpisodes(SOURCE_ID, 'srv-200', database)
+      expect(episodes.every((e) => e.kind === 'episode')).toBe(true)
+    })
+
+    it('listEpisodes só lê a geração ativa', async () => {
+      await seedSource() // sem activeGeneration — nada publicado ainda
+      const seriesRecordId = await seedSeries('srv-200')
+      await storeSeriesEpisodes(
+        { sourceId: SOURCE_ID, generation: 1, seriesId: 'srv-200', seriesRecordId },
+        [episode('srv-200', 'Pilot', 1, 1)],
+        1000,
+        database,
+      )
+
+      expect(await listEpisodes(SOURCE_ID, 'srv-200', database)).toEqual([])
+    })
+
+    it('falta de espaço ao gravar episódios é sinalizada, não engolida', async () => {
+      await seedSource({ activeGeneration: 1 })
+      const seriesRecordId = await seedSeries('srv-200')
+      const quota = new Error('quota')
+      quota.name = 'QuotaExceededError'
+      vi.spyOn(database.channels, 'bulkAdd').mockRejectedValue(quota)
+
+      await expect(
+        storeSeriesEpisodes(
+          { sourceId: SOURCE_ID, generation: 1, seriesId: 'srv-200', seriesRecordId },
+          [episode('srv-200', 'Pilot', 1, 1)],
+          1000,
+          database,
+        ),
+      ).rejects.toBeInstanceOf(StorageFullError)
+    })
   })
 })

@@ -975,6 +975,9 @@
 .season-tabs {
   display: flex;
   gap: 14px;
+  margin-top: 32px;
+  overflow: auto;
+  flex: none;
 }
 
 .season-tab {
@@ -984,6 +987,7 @@
   color: var(--text-secondary);
   font-weight: 700;
   font-size: 17px;
+  flex: none;
 }
 
 .season-tab[aria-selected='true'] {
@@ -991,14 +995,34 @@
   color: var(--accent-ink);
 }
 
+/*
+  Feature 012 (T017): a lista de episódios é virtualizada, como
+  `.live-channel-list`/`.poster-grid` já são (feature 009) — uma série
+  longa (ex.: "Os Simpsons", centenas de episódios) não pode montar tudo de
+  uma vez. `.episode-list` é o contêiner com scroll (altura vinda de
+  `flex: 1` dentro da coluna de `.screen`); `.episode-list-inner` tem a
+  altura total do virtualizador; cada `.episode-row` é posicionada por
+  `transform`, nunca pelo fluxo normal — por isso vira `position: absolute`
+  aqui, diferente do fluxo estático que o protótipo original desenhava.
+*/
 .episode-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
+  margin-top: 20px;
+  position: relative;
+}
+
+.episode-list-inner {
+  position: relative;
+  width: 100%;
 }
 
 .episode-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   gap: 20px;
   align-items: center;
@@ -1029,6 +1053,14 @@
 .episode-meta {
   font: 500 14px var(--font-body);
   color: var(--text-tertiary);
+}
+
+/* Selo de episódio assistido (feature 012, US3) — texto além da cor, nunca só cor (constitution). */
+.episode-badge {
+  font: 700 13px var(--font-body);
+  color: var(--accent);
+  flex: none;
+  margin-left: auto;
 }
 
 /* ---------- Confirm Dialog ---------- */

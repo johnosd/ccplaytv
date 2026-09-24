@@ -63,6 +63,12 @@ export interface UserStateRecord {
   favoritedAt?: number
   progressSeconds?: number
   lastWatched?: number
+  /**
+   * Instante em que o item foi assistido até o fim (feature 012, D-007).
+   * Ausente = nunca concluído. Persistente: reassistir e gravar progresso
+   * de novo não apaga este campo — os dois convivem (retomada + selo).
+   */
+  completedAt?: number
   createdAt: number
   updatedAt: number
 }
@@ -86,11 +92,23 @@ export interface CatalogRecord {
   categoryId?: number
   providerStreamId?: string
   providerCategoryId?: string
+  /**
+   * Liga um episódio à sua série, ou identifica a própria série (feature
+   * 012, D-001/D-002). Provedor: `series_id` do painel. M3U: sintético,
+   * `m3u:<grupo>|<título-base normalizado>` (D-003) — nunca credencial.
+   */
   seriesId?: string
   seasonNumber?: number
   episodeNumber?: number
   streamExtension?: string
   directUrl?: string
+  /**
+   * Instante da última obtenção dos episódios desta série (feature 012,
+   * D-005). Só existe em registro `kind: 'series'` de categoria
+   * `on_demand`; ausente = nunca obtida. Espelha `CategoryRecord.
+   * itemsFetchedAt`, mas granular por série, não por categoria inteira.
+   */
+  episodesFetchedAt?: number
 }
 
 /** As três seções que o painel expõe por categoria (feature 010). */
@@ -270,6 +288,19 @@ export class CatalogDb extends Dexie {
     // caminho de código (data-model.md §2, nota de execução).
     this.version(7).stores({
       categories: '++id, sourceId, [sourceId+generation+kind+order]',
+    })
+    // v8 (feature 012): índice novo para localizar os episódios de uma
+    // série (ou a própria série) por [sourceId+generation+seriesId], sem
+    // varrer `channels` inteira. Sem `.upgrade()` de propósito — registro
+    // existente sem `seriesId` simplesmente não entra no índice (parte
+    // `undefined` de um índice composto do IndexedDB não indexa a linha), e
+    // episódio M3U gravado antes desta feature não tem `seriesId` pra
+    // religar por aproximação (`data-model.md` §1): a fonte precisa
+    // re-sincronizar pra ganhar o agrupamento.
+    this.version(8).stores({
+      channels:
+        '++id, [sourceId+generation], [sourceId+generation+groupOrder], ' +
+        '[sourceId+generation+kind+groupOrder], [sourceId+generation+seriesId]',
     })
   }
 }

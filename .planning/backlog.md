@@ -94,9 +94,14 @@ de virar spec.
 - **Detecção de provedor sem CORS**: explicação distinta de "sem
   internet" e "senha errada".
 
-**O buraco mais visível hoje**: filme já reproduz; **episódio de série
-ainda não** — `SeriesDetailScreen` declara que não tem episódios, e
-`fetchSeriesInfo` (conector) segue sem consumidor. Ver os itens 9 e 13.
+**Fechado em 24/09/2026**: filme e episódio de série já reproduzem os
+dois. A lacuna de "episódio de série ainda não" (`SeriesDetailScreen` sem
+episódios, `fetchSeriesInfo` sem consumidor) foi fechada pela feature
+`012-series-episodios-temporadas` (código completo nas 4 user stories,
+suíte automatizada limpa; verificação na TV física é recomendada, não
+obrigatória — ver `Estado Atual` da spec). Ver o item 9 para o
+detalhamento, e o item 13 para o que continua fora de escopo (semântica
+de "assistido" agregada por série, hero de "continuar assistindo").
 
 **O que não existe mais**:
 - O backend Python/FastAPI **não é mais o caminho principal**. Continua no
@@ -213,11 +218,30 @@ ainda não** — `SeriesDetailScreen` declara que não tem episódios, e
 
 9. **Séries: episódios e temporadas**
 
-   **Já entregue** (features 009/010): a grade de séries por categoria, um
-   cartão por série (o conector já mapeia série como agrupador, não como
-   episódio solto).
+   **Entregue pela feature `012-series-episodios-temporadas`** (código
+   completo em 24/09/2026, 4 user stories, suíte automatizada — 478/478 —
+   e `tsc`/lint limpos; verificação na TV física recomendada, não
+   obrigatória). Escopo final ficou maior do que este item original, por
+   pedido do usuário durante a entrevista de especificação:
+   - **Provedor Xtream**: episódios obtidos sob demanda ao entrar no
+     detalhe (`get_series_info`, mesma janela de frescor de 24h das
+     categorias da feature 010), nunca gravando URL de episódio.
+   - **Fonte M3U e "Modo limitado"**: episódios agrupados em série por
+     título normalizado (`SxxEyy` no nome, ou só pelo segmento `/series/`
+     da URL quando não há esse padrão) — um cartão por série, não por
+     arquivo. Corrigiu de quebra um bug pré-existente do Modo limitado
+     (cada `/series/` virava um cartão de série órfão, sem reprodução).
+   - Detalhe com abas de temporada e lista de episódios virtualizada
+     (layout do protótipo, nunca antes consumido).
+   - Reprodução e retomada por identidade estável (mesmo mecanismo da
+     011), marca visual de "assistido" por episódio, e autoplay do
+     próximo episódio com aviso de 10s cancelável, atravessando temporada.
 
-   **Fica para este item**:
+   **Já entregue antes** (features 009/010): a grade de séries por
+   categoria, um cartão por série (o conector já mapeia série como
+   agrupador, não como episódio solto).
+
+   **O que ficava para este item** (agora entregue):
    - **Obter e gravar episódios.** `fetchSeriesInfo` já existe em
      `xtreamConnector.ts` e nunca foi chamado. Sem episódio no catálogo
      local não há de onde montar a URL nem onde guardar retomada por
@@ -226,7 +250,7 @@ ainda não** — `SeriesDetailScreen` declara que não tem episódios, e
    - Detalhe com seletor de temporada e lista de episódios.
    - Reprodução de episódio (`buildSeriesUrl` já existe). **Depende do
      item 4** e, na prática, de o item 8 ter estabilizado a camada de
-     reprodução de VOD.
+     reprodução de VOD — os dois já entregues pela feature 011.
    - Quando a hierarquia não for identificável com segurança, manter o
      conteúdo acessível e indicar a limitação, sem inventar estrutura.
 
@@ -973,6 +997,28 @@ mudaram de natureza** com a arquitetura client-first:
    `App.tsx` ou manter as telas montadas em vez de trocar — decisão de
    design, não um ajuste pequeno. Caminho normal: `sdd-bugfix`.
 
+0. **[Bug] Mensagem genérica de erro de reprodução sempre diz "canal"**
+   — `tv-web/src/lib/player/avplayAdapter.ts` (`toPlayerError`) e
+   `tv-web/src/lib/player/htmlVideoAdapter.ts` traduzem qualquer falha de
+   stream sem código reconhecido para o texto fixo "Não foi possível
+   reproduzir este canal.", inclusive quando o item é um filme ou um
+   episódio de série. `PlayerLayer` só usa a mensagem genérica configurável
+   por prop (`genericErrorMessage`) quando o adaptador não fornece
+   `message` nenhuma — como os dois adaptadores sempre fornecem esta
+   string fixa, a prop nunca tem chance de valer para esse caminho de
+   erro específico.
+
+   **Origem**: achado durante a verificação manual no navegador da feature
+   `012-series-episodios-temporadas` (24/09/2026), ao simular uma URL de
+   episódio inválida — pré-existente desde que os dois adaptadores foram
+   escritos (antes da feature 011 introduzir filme), fora do escopo desta
+   feature. Severidade baixa: cosmético, não vaza segredo, não bloqueia
+   nenhuma função — só descreve errado o tipo de mídia numa falha rara.
+   Corrigir exige decidir se a mensagem vem do `kind` da sessão (motor não
+   sabe, só o `PlayerService` sabe) ou se os adaptadores passam de vez a
+   mensagem em branco pra sempre cair no `genericErrorMessage` da tela
+   chamadora. Caminho normal: `sdd-bugfix`.
+
 47. **Skills de domínio + mapa de validação por área**
 
     Skills curtos (~500 palavras) no formato "gatilho + Read First → doc
@@ -1069,6 +1115,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 009-virtualizacao-foco | Virtualização de Grades e Foco Direcional | Convergida | 28/28 tasks | 2026-09-23 |
 | 010-catalogo-sob-demanda | Importação por Estrutura com Carga sob Demanda por Categoria | Convergida | 59/59 tasks | 2026-09-23 |
 | 011-assistir-filme-retomada | Assistir Filme, com Retomada | Convergida | 63/72 tasks | 2026-09-24 |
+| 012-series-episodios-temporadas | Séries — Episódios e Temporadas | Em Execução | 52/55 tasks | 2026-09-24 |
 
 ## Bugs
 

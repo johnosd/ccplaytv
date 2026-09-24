@@ -4,6 +4,8 @@ import {
   buildStableId,
   clearProgress,
   getUserState,
+  getUserStates,
+  markCompleted,
   toggleFavorite,
   updateProgress,
   getGlobalFavorites,
@@ -127,6 +129,49 @@ describe('userStateRepository', () => {
     const state = await getUserState(stableId)
     expect(state?.progressSeconds).toBeUndefined()
     expect(state?.isFavorite).toBe(true) // não é apagar o registro, só o progresso
+  })
+
+  describe('markCompleted (feature 012, D-007)', () => {
+    it('grava completedAt e apaga a posição de retomada', async () => {
+      const stableId = buildStableId({ ...MATRIX, kind: 'episode' })
+      await updateProgress(stableId, 'src1', 300)
+
+      await markCompleted(stableId, 'src1')
+
+      const state = await getUserState(stableId)
+      expect(state?.completedAt).toBeDefined()
+      expect(state?.progressSeconds).toBeUndefined()
+    })
+
+    it('gravar progresso depois de concluído não apaga completedAt — os dois convivem', async () => {
+      const stableId = buildStableId({ ...MATRIX, kind: 'episode' })
+      await markCompleted(stableId, 'src1')
+      const completedAt = (await getUserState(stableId))?.completedAt
+
+      await updateProgress(stableId, 'src1', 40) // reassistindo, parou no meio
+
+      const state = await getUserState(stableId)
+      expect(state?.completedAt).toBe(completedAt)
+      expect(state?.progressSeconds).toBe(40)
+    })
+  })
+
+  describe('getUserStates (feature 012)', () => {
+    it('devolve os estados na mesma ordem pedida, undefined pra id sem registro', async () => {
+      const matrixId = buildStableId(MATRIX)
+      const duneId = buildStableId(DUNE)
+      await toggleFavorite(matrixId, 'src1', true)
+
+      const [matrixState, unknownState, duneState] = await getUserStates([matrixId, 'src1|movie|id:999', duneId])
+
+      expect(matrixState?.isFavorite).toBe(true)
+      expect(unknownState).toBeUndefined()
+      expect(duneState).toBeUndefined()
+    })
+
+    it('lista vazia devolve lista vazia, sem lançar', async () => {
+      expect(await getUserStates([])).toEqual([])
+    })
   })
 
   it('clearProgress num item sem estado prévio não lança e não cria progresso', async () => {

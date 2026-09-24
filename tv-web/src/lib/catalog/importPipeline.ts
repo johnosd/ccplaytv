@@ -64,6 +64,7 @@ import {
   type LiveCategory,
   type MappedChannel,
 } from './xtreamConnector'
+import { createSeriesGrouper } from './m3uSeriesGrouping'
 
 /**
  * Tamanho do lote de gravação: grande o bastante para amortizar o custo da
@@ -199,12 +200,28 @@ export async function reconcileRun(
  * grupo do classificador, e é ele quem decide o caminho da URL na hora de
  * reproduzir.
  */
+/**
+ * Segmento de URL → tipo do item, na mesma escala de confiança de
+ * `parseXtreamStreamUrl`: o painel declarando o caminho é mais confiável
+ * que a heurística de nome/grupo do classificador.
+ *
+ * `/series/` identifica o STREAM DE UM EPISÓDIO (D-012, feature 012) — não
+ * a série em si, que é agrupador. Antes desta correção, cada arquivo nesse
+ * caminho virava um cartão de série sem reprodução (achado R-004: Modo
+ * limitado grava cada `/series/` como `kind:'series'`).
+ */
+function kindFromUrlSegment(derived: { kind: 'live' | 'movie' | 'series' }): CatalogItemKind {
+  if (derived.kind === 'live') return 'channel'
+  if (derived.kind === 'series') return 'episode'
+  return derived.kind
+}
+
 function refineFromUrl(channel: MappedChannel): MappedChannel {
   const derived = channel.url ? parseXtreamStreamUrl(channel.url) : undefined
   if (!derived) return channel
   return {
     ...channel,
-    kind: derived.kind === 'live' ? 'channel' : derived.kind,
+    kind: kindFromUrlSegment(derived),
     providerStreamId: channel.providerStreamId ?? derived.streamId,
     streamExtension: channel.streamExtension ?? derived.extension,
   }
@@ -341,6 +358,18 @@ export async function startImport(
         run.discardedByType += 1
         return
       }
+      await enqueue(channel, categoryId)
+    }
+
+    /**
+     * Grava um registro no lote em construção, sem contar como "entrada
+     * lida" (feature 012). Usada pela série sintética que o agrupamento
+     * M3U cria (`m3uSeriesGrouping.ts`) — ela não existe como linha própria
+     * na fonte, então contá-la em `entriesRead` inflaria o progresso além
+     * do que o arquivo de fato tem. `channelsStored` continua exato: soma
+     * o que `flush()` de fato grava, série sintética incluída.
+     */
+    async function enqueue(channel: MappedChannel, categoryId: number | undefined): Promise<void> {
       pendingBatch.push(toRecord(channel, sourceId, generation, keepUrl, categoryId))
       if (pendingBatch.length >= batchSize) {
         await flush()
@@ -378,6 +407,11 @@ export async function startImport(
       // Contagem real por categoria, para carimbar no fim (`itemsCount` —
       // só se sabe o total quando o fluxo termina).
       const categoryItemCounts = new Map<number, number>()
+      // Agrupa episódios (padrão SxxEyy no título, ou tipo vindo da URL no
+      // Modo limitado, D-012) em séries sintéticas (feature 012, D-003).
+      // Uma instância por importação — nunca compartilhada entre fontes,
+      // ou duas fontes distintas colidiriam na mesma série "m3u:<chave>".
+      const seriesGrouper = createSeriesGrouper()
 
       async function categoryIdFor(
         kind: CatalogItemKind,
@@ -413,6 +447,23 @@ export async function startImport(
         sawAny = true
         const classified = classifyWithGroupOrder(entry, groupOrders)
         const refined = refine ? refineFromUrl(classified) : classified
+
+        if (refined.kind === 'episode') {
+          // Episódio nunca tem categoria própria (D-001, feature 012) — a
+          // categoria pertence à série sintética que o agrupa, criada só
+          // na primeira vez que a chave (grupo + título-base) aparece.
+          const { episode, series } = seriesGrouper.assign(refined)
+          if (series) {
+            const seriesCategoryId = await categoryIdFor(series.kind, series.group)
+            if (seriesCategoryId !== undefined) {
+              categoryItemCounts.set(seriesCategoryId, (categoryItemCounts.get(seriesCategoryId) ?? 0) + 1)
+            }
+            await enqueue(series, seriesCategoryId)
+          }
+          await accept(episode, undefined)
+          continue
+        }
+
         const categoryId = await categoryIdFor(refined.kind, refined.group)
         if (categoryId !== undefined) {
           categoryItemCounts.set(categoryId, (categoryItemCounts.get(categoryId) ?? 0) + 1)

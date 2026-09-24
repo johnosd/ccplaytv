@@ -2,8 +2,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useCatalogCounts, useCategoryFocusPrefetch, type CatalogCategory } from './catalogApi'
+import { stableIdOf, useCatalogCounts, useCategoryFocusPrefetch, type CatalogCategory } from './catalogApi'
 import * as categoryLoader from '../../lib/catalog/categoryLoader'
+import { buildStableId } from '../../lib/catalog/userStateRepository'
 import { db, type CategoryRecord } from '../../lib/catalog/db'
 
 vi.mock('../../lib/catalog/categoryLoader', async (importOriginal) => {
@@ -131,5 +132,50 @@ describe('useCatalogCounts — canais seguem a mesma regra honesta de filmes/sé
 
     await waitFor(() => expect(result.current.data).toBeDefined())
     expect(result.current.data?.channels).toEqual({ items: undefined, categories: 3 })
+  })
+})
+
+describe('stableIdOf (feature 012, D-006)', () => {
+  it('episódio inclui temporada e episódio na chave, igual a buildStableId direto', () => {
+    const id = stableIdOf({
+      source_id: 'src1',
+      kind: 'episode',
+      provider_stream_id: null,
+      series_id: '7',
+      season_number: 1,
+      episode_number: 3,
+      original_name: 'Piloto',
+    })
+
+    expect(id).toBe(
+      buildStableId({ sourceId: 'src1', kind: 'episode', seriesId: '7', seasonNumber: 1, episodeNumber: 3 }),
+    )
+    expect(id).toBe('src1|episode|id:7|s1|e3')
+  })
+
+  it('filme dá o mesmo resultado que a identidade calculada hoje pelo PlayerLayer/MovieDetailScreen (nada muda para a 011)', () => {
+    const id = stableIdOf({
+      source_id: 'src1',
+      kind: 'movie',
+      provider_stream_id: '100',
+      original_name: 'Die Hard',
+    })
+
+    expect(id).toBe(
+      buildStableId({ sourceId: 'src1', kind: 'movie', providerStreamId: '100', originalName: 'Die Hard' }),
+    )
+    expect(id).toBe('src1|movie|id:100')
+  })
+
+  it('canal também bate com buildStableId direto', () => {
+    const id = stableIdOf({ source_id: 'src1', kind: 'channel', provider_stream_id: '55', original_name: 'Canal' })
+
+    expect(id).toBe(buildStableId({ sourceId: 'src1', kind: 'channel', providerStreamId: '55', originalName: 'Canal' }))
+  })
+
+  it('sem identificador de painel nem nome aproveitável, devolve null em vez de lançar (D-010 da 011)', () => {
+    expect(
+      stableIdOf({ source_id: 'src1', kind: 'episode', provider_stream_id: null, series_id: null, original_name: '' }),
+    ).toBeNull()
   })
 })

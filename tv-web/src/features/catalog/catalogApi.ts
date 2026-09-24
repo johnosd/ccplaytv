@@ -12,11 +12,13 @@ import {
   getChannel,
   listCategories,
   listChannels,
+  listEpisodes,
   type CatalogCategory,
 } from '../../lib/catalog/catalogRepository'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
+import { ensureSeriesEpisodes, type SeriesFetchOutcome } from '../../lib/catalog/seriesLoader'
 import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
-import { getUserState } from '../../lib/catalog/userStateRepository'
+import { buildStableId, getUserState, getUserStates } from '../../lib/catalog/userStateRepository'
 import { UNGROUPED_LABEL } from '../live/groupChannels'
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
@@ -37,6 +39,8 @@ export interface CatalogItemOut {
   source_id?: string
   provider_stream_id?: string | null
   original_name?: string
+  /** Liga um episódio à série (feature 012). `undefined` fora do detalhe de série, como os demais campos de identidade. */
+  series_id?: string | null
 }
 
 export interface CatalogItemPlayback {
@@ -46,13 +50,52 @@ export interface CatalogItemPlayback {
   container_hint: string | null
   /**
    * Identidade estável (feature 011, retomada) — `userStateRepository.
-   * buildStableId` monta a chave de progresso a partir destes três campos,
+   * buildStableId` monta a chave de progresso a partir destes campos,
    * nunca da URL. `provider_stream_id` ausente é o caso normal de fonte M3U
    * (sem identificador de painel); `buildStableId` cai em `original_name`.
    */
   source_id: string
   provider_stream_id: string | null
   original_name: string
+  /** Série, temporada e episódio (feature 012) — `null` para canal/filme. */
+  series_id: string | null
+  season_number: number | null
+  episode_number: number | null
+}
+
+/** O que `stableIdOf` precisa — CatalogItemOut e CatalogItemPlayback satisfazem por tipagem estrutural. */
+export interface StableIdSource {
+  source_id?: string
+  kind: CatalogItemKind
+  provider_stream_id?: string | null
+  series_id?: string | null
+  season_number?: number | null
+  episode_number?: number | null
+  original_name?: string
+}
+
+/**
+ * Identidade estável de reprodução (feature 012, D-006) — ponto único que
+ * monta `buildStableId` a partir da forma que as telas recebem, incluindo
+ * temporada/episódio. Antes desta feature, `PlayerLayer.computeIdentity` e
+ * `MovieDetailScreen.computeIdentity` duplicavam essa montagem sem os
+ * campos de série — todo episódio colidiria em `s0|e0` (R-001). Nunca
+ * lança: sem identidade estável, `null` (D-010 da 011).
+ */
+export function stableIdOf(item: StableIdSource): string | null {
+  try {
+    return buildStableId({
+      sourceId: item.source_id ?? '',
+      kind: item.kind,
+      providerStreamId: item.provider_stream_id ?? undefined,
+      seriesId: item.series_id ?? undefined,
+      seasonNumber: item.season_number ?? undefined,
+      episodeNumber: item.episode_number ?? undefined,
+      originalName: item.original_name ?? '',
+    })
+  } catch {
+    return null
+  }
 }
 
 export class CatalogApiError extends Error {
@@ -85,6 +128,7 @@ function toItemOut(record: CatalogRecord, kind: CatalogItemKind): CatalogItemOut
     source_id: record.sourceId,
     provider_stream_id: record.providerStreamId ?? null,
     original_name: record.originalName,
+    series_id: record.seriesId ?? null,
   }
 }
 
@@ -337,6 +381,9 @@ export async function fetchPlayback(itemId: string): Promise<CatalogItemPlayback
       source_id: record?.sourceId ?? '',
       provider_stream_id: record?.providerStreamId ?? null,
       original_name: record?.originalName ?? '',
+      series_id: record?.seriesId ?? null,
+      season_number: record?.seasonNumber ?? null,
+      episode_number: record?.episodeNumber ?? null,
     }
   } catch (error) {
     // Item existe no catálogo mas não dá para montar a URL dele. É a mesma
@@ -382,4 +429,89 @@ export function useUserState(stableId: string | null) {
  */
 export function invalidateUserState(queryClient: QueryClient, stableId: string): void {
   void queryClient.invalidateQueries({ queryKey: ['user-state', stableId] })
+}
+
+/**
+ * Um episódio, pronto pra tela (feature 012, `data-model.md` §5). Mesmo
+ * espírito de `CatalogItemOut`, mas só o que a lista de episódios precisa —
+ * sem os campos de grade (grupo, categoria) que não fazem sentido aqui.
+ */
+export interface EpisodeOut {
+  id: string
+  name: string
+  season_number: number | null
+  episode_number: number | null
+  playable: boolean
+  source_id: string
+  provider_stream_id: string | null
+  series_id: string
+  original_name: string
+}
+
+function toEpisodeOut(record: CatalogRecord): EpisodeOut {
+  return {
+    id: String(record.id ?? ''),
+    name: record.name,
+    season_number: record.seasonNumber ?? null,
+    episode_number: record.episodeNumber ?? null,
+    playable: Boolean(record.directUrl) || Boolean(record.providerStreamId),
+    source_id: record.sourceId,
+    provider_stream_id: record.providerStreamId ?? null,
+    series_id: record.seriesId ?? '',
+    original_name: record.originalName,
+  }
+}
+
+export interface SeriesEpisodesContent {
+  episodes: EpisodeOut[]
+  outcome: SeriesFetchOutcome
+}
+
+/**
+ * Garante (`seriesLoader.ensureSeriesEpisodes`) e lê os episódios de uma
+ * série — o par de `useCategoryContent` (feature 010), mas por série em
+ * vez de por categoria. `seriesItemId` é o id local do registro
+ * `kind:'series'`, o mesmo que `useCatalogItem`/`fetchPlayback` recebem.
+ */
+export function useSeriesEpisodes(seriesItemId: string | null) {
+  return useQuery({
+    queryKey: ['series-episodes', seriesItemId],
+    queryFn: async (): Promise<SeriesEpisodesContent> => {
+      if (!seriesItemId) return { episodes: [], outcome: 'fresh' }
+      const id = Number(seriesItemId)
+      const series = await getChannel(id, db)
+      if (!series || !series.seriesId) return { episodes: [], outcome: 'failed' }
+
+      const result = await ensureSeriesEpisodes(id, { database: db })
+      const records = await listEpisodes(series.sourceId, series.seriesId, db)
+      return { episodes: records.map(toEpisodeOut), outcome: result.outcome }
+    },
+    enabled: seriesItemId !== null,
+  })
+}
+
+/**
+ * O estado do usuário de vários itens de uma vez, na mesma ordem pedida —
+ * a lista de episódios não lê um por um (feature 012).
+ */
+export function useUserStates(stableIds: (string | null)[]) {
+  return useQuery({
+    queryKey: ['user-states', ...stableIds],
+    queryFn: async (): Promise<(UserStateRecord | null)[]> => {
+      const validIds = stableIds.filter((id): id is string => id !== null)
+      const states = await getUserStates(validIds, db)
+      const byId = new Map(validIds.map((id, index) => [id, states[index]]))
+      return stableIds.map((id) => (id === null ? null : (byId.get(id) ?? null)))
+    },
+    enabled: stableIds.length > 0,
+  })
+}
+
+/**
+ * Invalida todas as leituras de `useUserStates` — prefixo de chave, não uma
+ * lista específica: fechar o player não sabe (nem precisa saber) qual
+ * conjunto de episódios cada tela tinha em cache.
+ */
+export function invalidateUserStates(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: ['user-states'] })
 }

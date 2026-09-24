@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CatalogApiError, fetchPlayback, type CatalogItemPlayback } from '../features/catalog/catalogApi'
+import { CatalogApiError, fetchPlayback, stableIdOf, type CatalogItemPlayback } from '../features/catalog/catalogApi'
 import {
   createPlayerSession,
   FULLSCREEN_REGION,
@@ -9,27 +9,19 @@ import {
   type PlayerState,
 } from '../lib/player/PlayerService'
 import { createProgressRecorder, type ProgressRecorder, type ProgressRecorderIdentity } from '../lib/player/progressRecorder'
-import { buildStableId } from '../lib/catalog/userStateRepository'
 import { clamp, useRemoteNav } from '../lib/useRemoteNav'
 import { PlayerControls, playerControlsActions } from './PlayerControls'
 
 /**
- * Monta a identidade estável do item, sem deixar `buildStableId` lançar até
- * a camada de reprodução — perder retomada é degradação aceitável, nunca
- * falha de player (D-010, R-010 do `plan.md`).
+ * Monta a identidade estável do item, sem deixar `stableIdOf` lançar até a
+ * camada de reprodução — perder retomada é degradação aceitável, nunca
+ * falha de player (D-010, R-010 do plano da 011). A partir da feature 012
+ * (D-006), inclui `series_id`/temporada/episódio — antes, todo episódio
+ * colidiria em `s0|e0` (R-001 do plano da 012).
  */
 function computeIdentity(playback: CatalogItemPlayback): ProgressRecorderIdentity | null {
-  try {
-    const stableId = buildStableId({
-      sourceId: playback.source_id,
-      kind: playback.kind,
-      providerStreamId: playback.provider_stream_id ?? undefined,
-      originalName: playback.original_name,
-    })
-    return { stableId, sourceId: playback.source_id }
-  } catch {
-    return null
-  }
+  const stableId = stableIdOf(playback)
+  return stableId ? { stableId, sourceId: playback.source_id } : null
 }
 
 export interface PlayerLayerProps {
@@ -49,6 +41,13 @@ export interface PlayerLayerProps {
   unavailableMessage?: string
   /** Mensagem genérica de falha. Live TV preserva a sua (FR-022). */
   genericErrorMessage?: string
+  /**
+   * Se presente, a conclusão chama isto em vez de `onClose` (feature 012,
+   * D-008) — quem decide entre encerrar e encadear o próximo episódio é a
+   * tela (autoplay), nunca esta camada. Live TV e Filmes não passam isto e
+   * não mudam de comportamento.
+   */
+  onCompleted?: () => void
 }
 
 type Phase =
@@ -100,6 +99,7 @@ export function PlayerLayer({
   startAtMs,
   unavailableMessage = DEFAULT_UNAVAILABLE_MESSAGE,
   genericErrorMessage = DEFAULT_GENERIC_ERROR_MESSAGE,
+  onCompleted,
 }: PlayerLayerProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'resolving' })
   const [errorFocus, setErrorFocus] = useState<0 | 1>(0)
@@ -190,8 +190,15 @@ export function PlayerLayer({
         scheduleHide()
 
         // Gravador de progresso (feature 011). Identidade calculada uma vez
-        // por sessão — nunca lançando até aqui (D-010).
-        const recorder = createProgressRecorder(computeIdentity(playback), session.capabilities.reportsPosition)
+        // por sessão — nunca lançando até aqui (D-010). `recordCompletion`
+        // só liga pra episódio (feature 012, D-007) — "assistido" de filme
+        // continua fora de escopo (item 13 do backlog).
+        const recorder = createProgressRecorder(
+          computeIdentity(playback),
+          session.capabilities.reportsPosition,
+          undefined,
+          { recordCompletion: playback.kind === 'episode' },
+        )
         recorderRef.current = recorder
         let previousState: PlayerState | null = null
 
@@ -210,14 +217,16 @@ export function PlayerLayer({
           if (session.state === 'paused' && previousState !== 'paused') {
             recorder.onExit('pause')
           }
-          // Fim de filme é conclusão normal, não falha (US3/FR-019): fecha a
-          // camada sem passar pelo caminho de erro. `previousState` evita
-          // chamar `onClose` de novo no re-emit que o próprio `close()` do
+          // Fim de filme/episódio é conclusão normal, não falha (US3/FR-019):
+          // fecha a camada sem passar pelo caminho de erro. `previousState`
+          // evita chamar de novo no re-emit que o próprio `close()` do
           // cleanup dispara (guardado também por `cancelled`, em dobro).
+          // `onCompleted` (feature 012, D-008) substitui `onClose` quando a
+          // tela quer decidir o que vem depois (autoplay) em vez de só sair.
           if (session.state === 'completed' && previousState !== 'completed') {
             previousState = session.state
             recorder.onExit('completed')
-            onClose()
+            ;(onCompleted ?? onClose)()
             return
           }
           previousState = session.state
@@ -254,7 +263,7 @@ export function PlayerLayer({
       cancelled = true
       teardown()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- unavailableMessage/genericErrorMessage/startAtMs são props de configuração, estáveis na prática (não recriam a sessão por si)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- unavailableMessage/genericErrorMessage/startAtMs/onClose/onCompleted são props de configuração, estáveis na prática (não recriam a sessão por si)
   }, [itemId, attempt, createAdapter])
 
   const isErrorScreen = phase.kind === 'error'

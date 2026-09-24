@@ -105,6 +105,15 @@ export interface CategoryItemsTarget {
   groupOrder: number
 }
 
+/** Identifica a série alvo de uma substituição integral de episódios (feature 012). */
+export interface SeriesEpisodesTarget {
+  sourceId: string
+  generation: number
+  seriesId: string
+  /** Id local do registro `kind:'series'` — recebe o carimbo `episodesFetchedAt`. */
+  seriesRecordId: number
+}
+
 async function activeGenerationOf(
   sourceId: string,
   database: CatalogDb,
@@ -173,6 +182,21 @@ function allCategoryGenerations(database: CatalogDb, sourceId: string) {
  * `sourceId` no ramo sem `kind` é seguro; o ramo com `kind` usa o índice
  * composto porque é o caminho quente, chamado a cada tela.
  */
+/**
+ * Uma categoria pelo id local — usada por `seriesLoader.ts` (feature 012)
+ * para saber se a série pertence a uma categoria `eager` (M3U/Modo
+ * limitado, nunca toca rede) ou `on_demand` (Xtream, obtida sob demanda),
+ * sem exigir que o chamador já tenha o objeto `CatalogCategory` em mãos —
+ * diferente de `ensureCategory` (feature 010), que recebe a categoria
+ * pronta porque a tela já a leu de `listCategories`.
+ */
+export async function getCategory(
+  id: number,
+  database: CatalogDb = db,
+): Promise<CategoryRecord | undefined> {
+  return database.categories.get(id)
+}
+
 export async function listCategories(
   sourceId: string,
   kind?: CatalogItemKind,
@@ -327,6 +351,71 @@ export async function getChannel(
   database: CatalogDb = db,
 ): Promise<CatalogRecord | undefined> {
   return database.channels.get(id)
+}
+
+/**
+ * Episódios de uma série, na geração ativa (feature 012). Filtra
+ * `kind:'episode'` mesmo lendo pelo índice `[sourceId+generation+seriesId]`
+ * que a própria série também compartilha (D-002) — sem isso o registro da
+ * série apareceria misturado na lista de episódios.
+ */
+export async function listEpisodes(
+  sourceId: string,
+  seriesId: string,
+  database: CatalogDb = db,
+): Promise<CatalogRecord[]> {
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined) return []
+  const records = await database.channels
+    .where('[sourceId+generation+seriesId]')
+    .equals([sourceId, generation, seriesId])
+    .toArray()
+  return records.filter((record) => record.kind === 'episode')
+}
+
+/**
+ * Substitui integralmente os episódios de uma série e carimba a obtenção,
+ * numa única transação (feature 012, D-002, espelho de `storeCategoryItems`).
+ *
+ * Apaga só `kind:'episode'` com o mesmo `seriesId` — o registro da própria
+ * série (mesmo `seriesId`, `kind:'series'`) nunca é tocado pela exclusão,
+ * só recebe o carimbo de `episodesFetchedAt`.
+ */
+export async function storeSeriesEpisodes(
+  target: SeriesEpisodesTarget,
+  episodes: CatalogRecord[],
+  now: number,
+  database: CatalogDb = db,
+): Promise<void> {
+  try {
+    await database.transaction('rw', database.channels, async () => {
+      const existing = await database.channels
+        .where('[sourceId+generation+seriesId]')
+        .equals([target.sourceId, target.generation, target.seriesId])
+        .toArray()
+      const staleEpisodeIds = existing
+        .filter((record) => record.kind === 'episode')
+        .map((record) => record.id as number)
+      if (staleEpisodeIds.length > 0) await database.channels.bulkDelete(staleEpisodeIds)
+
+      if (episodes.length > 0) {
+        await database.channels.bulkAdd(
+          episodes.map((item) => ({
+            ...item,
+            sourceId: target.sourceId,
+            generation: target.generation,
+            kind: 'episode',
+            seriesId: target.seriesId,
+          })),
+        )
+      }
+
+      await database.channels.update(target.seriesRecordId, { episodesFetchedAt: now })
+    })
+  } catch (error) {
+    if (isQuotaError(error)) throw new StorageFullError()
+    throw error
+  }
 }
 
 /**
