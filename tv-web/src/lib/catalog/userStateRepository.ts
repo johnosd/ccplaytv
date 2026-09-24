@@ -53,6 +53,89 @@ export function buildStableId(identity: StableIdentity): string {
   return parts.join('|')
 }
 
+const KNOWN_KINDS = new Set<CatalogItemKind>(['channel', 'movie', 'series', 'episode', 'unclassified'])
+
+/**
+ * As partes de um `stableId` (feature 013) — o único formato que este
+ * arquivo conhece; nenhuma tela faz `split` por conta própria
+ * (`sdd/specs/013-favoritos/logic/resolucao-favoritos.md`).
+ */
+export interface StableIdParts {
+  sourceId: string
+  kind: CatalogItemKind
+  identifier: { type: 'id'; value: string } | { type: 'name'; value: string }
+}
+
+/**
+ * Inverso de `buildStableId` — usado para resolver um favorito de volta a
+ * um registro do catálogo (feature 013). `null` para qualquer coisa que
+ * não seja um `stableId` desta função geradora, em vez de adivinhar.
+ *
+ * Só a última fatia (`sN`/`eN`) é reservada para episódio: o identificador
+ * em si (id do painel ou nome) pode conter `|` — um nome de fonte M3U com
+ * pipe, por exemplo — porque é rejuntado a partir dos segmentos que
+ * sobram, nunca cortado no primeiro `|` que aparecer.
+ */
+export function parseStableId(stableId: string): StableIdParts | null {
+  const segments = stableId.split('|')
+  if (segments.length < 3) return null
+
+  const [sourceId, kindRaw, ...rest] = segments
+  if (!sourceId || !KNOWN_KINDS.has(kindRaw as CatalogItemKind)) return null
+  const kind = kindRaw as CatalogItemKind
+
+  let identifierSegments = rest
+  if (kind === 'episode') {
+    if (rest.length < 3) return null // identificador + sN + eN
+    const season = rest[rest.length - 2]
+    const episode = rest[rest.length - 1]
+    if (!/^s\d+$/.test(season) || !/^e\d+$/.test(episode)) return null
+    identifierSegments = rest.slice(0, -2)
+  }
+  if (identifierSegments.length === 0) return null
+
+  const identifierStr = identifierSegments.join('|')
+  if (identifierStr.startsWith('id:')) {
+    return { sourceId, kind, identifier: { type: 'id', value: identifierStr.slice(3) } }
+  }
+  if (identifierStr.startsWith('name:')) {
+    return { sourceId, kind, identifier: { type: 'name', value: identifierStr.slice(5) } }
+  }
+  return null
+}
+
+/**
+ * Favoritos de uma fonte e tipo, do mais recente para o mais antigo
+ * (índice `favoritedAt`) — feature 013, categoria "Favoritos" da trilha.
+ *
+ * Filtra em memória por fonte/tipo em vez de um índice composto novo:
+ * favoritos são dezenas a centenas por fonte, não o catálogo inteiro
+ * (`plan.md` D-006) — bem diferente do volume que justificou os índices de
+ * `channels`.
+ */
+export async function listFavorites(
+  sourceId: string,
+  kind: CatalogItemKind,
+  database: CatalogDb = db,
+): Promise<UserStateRecord[]> {
+  const prefix = `${sourceId}|${kind}|`
+  const favorites = await database.userStates.orderBy('favoritedAt').reverse().toArray()
+  return favorites.filter((state) => state.sourceId === sourceId && state.stableId.startsWith(prefix))
+}
+
+/**
+ * Remove TODO o estado do usuário (favoritos e retomada) de uma fonte —
+ * chamado ao remover a fonte (feature 013, `plan.md` D-007, FR-017). Uma
+ * fonte readicionada ganha `sourceId` novo (UUID), então nada aqui fica
+ * órfão-mas-recuperável: manter o registro só ocuparia espaço à toa.
+ */
+export async function deleteUserStatesForSource(
+  sourceId: string,
+  database: CatalogDb = db,
+): Promise<void> {
+  await database.userStates.where('sourceId').equals(sourceId).delete()
+}
+
 export async function getUserState(
   stableId: string,
   database: CatalogDb = db,

@@ -302,6 +302,22 @@ export class CatalogDb extends Dexie {
         '++id, [sourceId+generation], [sourceId+generation+groupOrder], ' +
         '[sourceId+generation+kind+groupOrder], [sourceId+generation+seriesId]',
     })
+    // v9 (feature 013): índice novo para resolver um favorito de provedor
+    // (guardado só como stableId, nunca como id local — sdd/specs/
+    // 013-favoritos/logic/resolucao-favoritos.md) no registro da geração
+    // ativa, por [sourceId+generation+kind+providerStreamId], sem varrer
+    // `channels`. `kind` entra porque o `stream_id` do Xtream não é único
+    // entre live/VOD/série. Sem `.upgrade()`: é só índice, o Dexie o
+    // constrói sobre os registros existentes na abertura. Registro sem
+    // `providerStreamId` (toda entrada de fonte M3U) não entra no índice
+    // composto — a importação M3U grande, que é o caminho de escrita que
+    // importa, não paga nada por isto (data-model.md §2).
+    this.version(9).stores({
+      channels:
+        '++id, [sourceId+generation], [sourceId+generation+groupOrder], ' +
+        '[sourceId+generation+kind+groupOrder], [sourceId+generation+seriesId], ' +
+        '[sourceId+generation+kind+providerStreamId]',
+    })
   }
 }
 

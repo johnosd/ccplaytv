@@ -22,6 +22,7 @@ import {
   type CategoryRecord,
   type CatalogFetchMode,
 } from './db'
+import type { StableIdParts } from './userStateRepository'
 
 /**
  * Limites da faixa de `generation` e de `groupOrder` nas consultas por
@@ -351,6 +352,97 @@ export async function getChannel(
   database: CatalogDb = db,
 ): Promise<CatalogRecord | undefined> {
   return database.channels.get(id)
+}
+
+/** Sentinela pra encerrar `.each()` mais cedo — nunca vaza pra fora desta função. */
+class FavoritesScanComplete {}
+
+/**
+ * Resolve favoritos (feature 013, `stableId` do usuário) em registros do
+ * catálogo da GERAÇÃO ATIVA — sem isso a categoria "Favoritos" não tem o
+ * que mostrar. Favorito cujo item não está carregado nesta instalação é
+ * simplesmente omitido (contado em `unresolved`), nunca inventado
+ * (`sdd/specs/013-favoritos/logic/resolucao-favoritos.md`).
+ *
+ * Devolve na MESMA ORDEM de `favorites` (mais recente primeiro, já que é
+ * quem chama — `useFavoritesContent` — que passa a lista nessa ordem).
+ */
+export async function resolveFavorites(
+  sourceId: string,
+  kind: CatalogItemKind,
+  favorites: StableIdParts[],
+  database: CatalogDb = db,
+): Promise<{ records: CatalogRecord[]; unresolved: number }> {
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined) return { records: [], unresolved: favorites.length }
+
+  const resolved = new Map<StableIdParts, CatalogRecord>()
+
+  // Id do painel: um lookup pelo índice por favorito — nunca uma varredura.
+  for (const favorite of favorites) {
+    if (favorite.identifier.type !== 'id') continue
+    const value = favorite.identifier.value
+
+    let record = await database.channels
+      .where('[sourceId+generation+kind+providerStreamId]')
+      .equals([sourceId, generation, kind, value])
+      .first()
+
+    // Série sem `providerStreamId` próprio guarda o `seriesId` como
+    // identificador (`buildStableId`) — mesmo índice que a 012 já usa
+    // pra achar os episódios, aqui filtrado pro registro da série em si.
+    if (!record && kind === 'series') {
+      record = await database.channels
+        .where('[sourceId+generation+seriesId]')
+        .equals([sourceId, generation, value])
+        .and((candidate) => candidate.kind === 'series')
+        .first()
+    }
+
+    if (record) resolved.set(favorite, record)
+  }
+
+  // Nome (só fonte M3U, sem identificador de painel): uma varredura só do
+  // tipo, encerrada assim que todos os alvos restantes forem encontrados —
+  // nunca por item, nunca ao focar (D-005 do plan.md).
+  const byName = favorites.filter(
+    (favorite): favorite is StableIdParts & { identifier: { type: 'name'; value: string } } =>
+      favorite.identifier.type === 'name',
+  )
+  if (byName.length > 0) {
+    const targetsByName = new Map(byName.map((favorite) => [favorite.identifier.value, favorite]))
+    let remaining = targetsByName.size
+
+    try {
+      await database.channels
+        .where('[sourceId+generation+kind+groupOrder]')
+        .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
+        .each((record) => {
+          const key = record.originalName.trim().toLowerCase()
+          const target = targetsByName.get(key)
+          // Nome repetido em duas categorias: a ordem do índice já é por
+          // `groupOrder` crescente, então o primeiro achado é o de menor
+          // `groupOrder` — o `!resolved.has` abaixo nunca sobrescreve com
+          // o segundo.
+          if (target && !resolved.has(target)) {
+            resolved.set(target, record)
+            remaining -= 1
+            if (remaining === 0) throw new FavoritesScanComplete()
+          }
+        })
+    } catch (error) {
+      if (!(error instanceof FavoritesScanComplete)) throw error
+    }
+  }
+
+  const records: CatalogRecord[] = []
+  let unresolved = 0
+  for (const favorite of favorites) {
+    const record = resolved.get(favorite)
+    if (record) records.push(record)
+    else unresolved += 1
+  }
+  return { records, unresolved }
 }
 
 /**

@@ -3,9 +3,12 @@ import { db } from './db'
 import {
   buildStableId,
   clearProgress,
+  deleteUserStatesForSource,
   getUserState,
   getUserStates,
+  listFavorites,
   markCompleted,
+  parseStableId,
   toggleFavorite,
   updateProgress,
   getGlobalFavorites,
@@ -200,5 +203,107 @@ describe('userStateRepository', () => {
     const cw = await getContinueWatching()
     expect(cw).toHaveLength(2)
     expect(cw[0].lastWatched ?? 0).toBeGreaterThanOrEqual(cw[1].lastWatched ?? 0)
+  })
+
+  describe('parseStableId (feature 013)', () => {
+    it('ida-e-volta com buildStableId — identificador por id do painel', () => {
+      const stableId = buildStableId(MATRIX)
+      expect(parseStableId(stableId)).toEqual({
+        sourceId: 'src1',
+        kind: 'movie',
+        identifier: { type: 'id', value: '100' },
+      })
+    })
+
+    it('ida-e-volta com buildStableId — nome com pipe (fonte M3U)', () => {
+      const stableId = buildStableId({ sourceId: 'src1', kind: 'movie', originalName: 'A|B: Legendado' })
+      expect(stableId).toBe('src1|movie|name:a|b: legendado')
+
+      expect(parseStableId(stableId)).toEqual({
+        sourceId: 'src1',
+        kind: 'movie',
+        identifier: { type: 'name', value: 'a|b: legendado' },
+      })
+    })
+
+    it('ida-e-volta com buildStableId — episódio (temporada/episódio nunca fazem parte do identificador)', () => {
+      const stableId = buildStableId({ sourceId: 'src1', kind: 'episode', seriesId: '7', seasonNumber: 2, episodeNumber: 5 })
+      expect(parseStableId(stableId)).toEqual({
+        sourceId: 'src1',
+        kind: 'episode',
+        identifier: { type: 'id', value: '7' },
+      })
+    })
+
+    it('episódio com nome (série M3U agrupada por título) preserva o nome inteiro, mesmo com pipe', () => {
+      const stableId = buildStableId({
+        sourceId: 'src1',
+        kind: 'episode',
+        originalName: 'Série X|Especial',
+        seasonNumber: 1,
+        episodeNumber: 3,
+      })
+      expect(parseStableId(stableId)).toEqual({
+        sourceId: 'src1',
+        kind: 'episode',
+        identifier: { type: 'name', value: 'série x|especial' },
+      })
+    })
+
+    it('string que não é um stableId desta função devolve null, sem adivinhar', () => {
+      expect(parseStableId('não é um stableId')).toBeNull()
+      expect(parseStableId('src1|kind-invalido|id:1')).toBeNull()
+      expect(parseStableId('src1|movie|sem-prefixo-reconhecido')).toBeNull()
+      expect(parseStableId('src1|episode|id:1|temporada|episodio')).toBeNull() // sN/eN não batem
+      expect(parseStableId('')).toBeNull()
+    })
+  })
+
+  describe('listFavorites (feature 013)', () => {
+    it('filtra por fonte e tipo, do mais recente para o mais antigo', async () => {
+      const matrixId = buildStableId(MATRIX) // src1, movie
+      const duneId = buildStableId(DUNE) // src1, movie
+      const avatarId = buildStableId(AVATAR) // src2, movie
+      const channelId = buildStableId({ sourceId: 'src1', kind: 'channel', providerStreamId: '9' })
+
+      await toggleFavorite(matrixId, 'src1', true)
+      await toggleFavorite(duneId, 'src1', true) // favoritado depois — deve vir primeiro
+      await toggleFavorite(avatarId, 'src2', true) // outra fonte — não entra
+      await toggleFavorite(channelId, 'src1', true) // outro tipo — não entra
+
+      const favorites = await listFavorites('src1', 'movie')
+      expect(favorites.map((f) => f.stableId)).toEqual([duneId, matrixId])
+    })
+
+    it('ignora item não favorito (favoritedAt ausente)', async () => {
+      const matrixId = buildStableId(MATRIX)
+      await toggleFavorite(matrixId, 'src1', true)
+      await toggleFavorite(matrixId, 'src1', false)
+
+      expect(await listFavorites('src1', 'movie')).toEqual([])
+    })
+
+    it('fonte/tipo sem nenhum favorito devolve lista vazia', async () => {
+      expect(await listFavorites('src-sem-favorito', 'movie')).toEqual([])
+    })
+  })
+
+  describe('deleteUserStatesForSource (feature 013, D-007)', () => {
+    it('apaga favoritos e progresso só da fonte pedida, preservando as demais', async () => {
+      const matrixId = buildStableId(MATRIX) // src1
+      const avatarId = buildStableId(AVATAR) // src2
+      await toggleFavorite(matrixId, 'src1', true)
+      await updateProgress(matrixId, 'src1', 120)
+      await toggleFavorite(avatarId, 'src2', true)
+
+      await deleteUserStatesForSource('src1')
+
+      expect(await getUserState(matrixId)).toBeUndefined()
+      expect(await getUserState(avatarId)).toMatchObject({ isFavorite: true })
+    })
+
+    it('fonte sem nenhum estado gravado não lança', async () => {
+      await expect(deleteUserStatesForSource('src-vazia')).resolves.toBeUndefined()
+    })
   })
 })

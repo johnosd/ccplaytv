@@ -219,6 +219,12 @@ npm run build:tizen    # antes da TV física
 
 | Área | Estado |
 | --- | --- |
+| Fase 1 (Setup) | Concluída — linha de base registrada (44/478), CSS `.fav-star`/`.live-item-favorites`/`.fav-hint` |
+| Fase 2 (Foundational) | Concluída — gesto de OK, schema v9, `resolveFavorites`, hooks de `catalogApi`, `useFavoriteToggle`, `FavoritesState`. 530/530 testes, `tsc`/lint limpos |
+| Fase 3 (US1 — Live TV) | Não iniciada |
+| Fase 4 (US2 — Filmes/Séries) | Não iniciada |
+| Fase 5 (US3 — persistência) | Não iniciada |
+| Fase 6 (Polish) | Não iniciada |
 
 ## Riscos e Decisões
 
@@ -235,6 +241,7 @@ npm run build:tizen    # antes da TV física
 | R-004 | Índice v9 aumenta o custo de gravar categorias sob demanda (Xtream) | Baixo | Uma entrada de índice por item; M3U não paga (chave com parte `undefined` não indexa). Conferir tempo de entrada de categoria no quickstart (C). |
 | R-005 | Duas telas (Live e Filmes) com a mesma trilha: duplicação da lógica da entrada ★ | Baixo — manutenção | Comportamento comum em `useFavoriteToggle`/`FavoritesState`; a trilha em si continua por tela, como hoje. |
 | R-006 | Voltar do detalhe para "Favoritos" (Filmes/Séries) não restaura o foco — bug pré-existente do roteador (`App.tsx`), no backlog | Médio — FR-019 só se cumpre para o player (Live) | Fora do escopo: o bug é do roteador para todas as categorias. FR-019 é verificado no retorno do player; o retorno do detalhe fica com o `sdd-bugfix` já registrado. |
+| R-007 | `useFavoriteToggle` não recebe `sourceId`/`kind` como a task T013 descrevia — só `showToast` | Nenhum (decisão de implementação, não um problema) | O `item` passado a `toggle()` já carrega `source_id`/`kind`, e é ele que `useToggleFavorite` usa pra montar o `stableId` — passar os dois de novo seria redundante e abriria espaço pra divergirem do item de verdade. `tasks.md` T013 corrigida pra descrever a assinatura real. |
 
 ## Execution Notes
 
@@ -246,14 +253,22 @@ npm run build:tizen    # antes da TV física
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-09-24 | Fase 1 (Setup) | Linha de base registrada (44 arquivos/478 testes, lint e `tsc` limpos) antes de qualquer mudança; CSS de favoritos adicionado a `screens.css` (`.fav-star`, `.live-item-favorites`, `.fav-hint`), só tokens. | — |
+| 2026-09-24 | Fase 2 (Foundational) | `useRemoteNav` ganhou `onLongSelect` opt-in (keydown/keyup/limiar, `STALE_PRESS_MS` pra keyup perdido, cancelamento em blur/visibilitychange) sem tocar nenhuma tela existente. Schema Dexie v9 (`[sourceId+generation+kind+providerStreamId]`). `userStateRepository`: `parseStableId`, `listFavorites`, `deleteUserStatesForSource`. `catalogRepository`: `resolveFavorites` (índice → seriesId → varredura por nome com corte antecipado via sentinela). `catalogApi`: `useFavoriteIds`/`useFavoritesContent`/`useToggleFavorite`. `features/favorites/` novo: `useFavoriteToggle` (aviso + vizinho de foco) e `FavoritesState` (`FavoritesEmptyState` + `FavoritesUnresolvedNote`). 530/530 testes (52 novos), `tsc`/lint limpos. | Nenhuma técnica; R-001 (verificação de hold na TV física) segue em aberto até a Fase 6. |
 
-**PRÓXIMO**: —
+**PRÓXIMO**: Fase 3 (US1) — `LiveScreen.tsx` consome o gesto e os hooks novos (T015–T019): entrada "★ Favoritos" na trilha, `onLongSelect` só na coluna de conteúdo, estrela, dica, conteúdo de "Favoritos" via `useFavoritesContent`.
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- (nenhum ainda)
+- `tv-web/src/lib/useRemoteNav.ts` / `.test.tsx` — gesto de OK (feature 013)
+- `tv-web/src/lib/catalog/db.ts` — schema v9
+- `tv-web/src/lib/catalog/userStateRepository.ts` — `parseStableId`, `listFavorites`, `deleteUserStatesForSource`
+- `tv-web/src/lib/catalog/catalogRepository.ts` — `resolveFavorites`
+- `tv-web/src/features/catalog/catalogApi.ts` — `useFavoriteIds`, `useFavoritesContent`, `useToggleFavorite`
+- `tv-web/src/features/favorites/useFavoriteToggle.ts` e `FavoritesState.tsx` — pasta nova
+- `tv-web/src/features/live/LiveScreen.tsx` — próximo arquivo a mudar (Fase 3)
 
 ## Cuidados para Retomada
 

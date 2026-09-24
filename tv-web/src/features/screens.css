@@ -1130,3 +1130,49 @@
   z-index: 1000;
 }
 
+
+/* ---------- Favoritos (feature 013) ---------- */
+
+/* Estrela no cartao/linha de item favorito. Sobreposta no canto do
+   poster (.poster-box) ou apos o nome na lista de canais (.live-item) —
+   nunca a unica pista: o rotulo textual da categoria "Favoritos" e a
+   dica fixa (.fav-hint) tambem comunicam o estado, para nao depender so
+   de cor (ADR-007). */
+.fav-star {
+  color: var(--accent);
+  font-size: 16px;
+  line-height: 1;
+  flex: none;
+}
+
+.live-item .fav-star {
+  margin-left: 8px;
+}
+
+.poster-box .fav-star {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 20px;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+/* Entrada virtual "Favoritos" no topo da trilha de categorias — mesma
+   classe .live-item, com um rotulo fixo (icone + texto) que nunca
+   depende so da posicao para ser distinguivel de uma categoria real da
+   fonte com o mesmo nome (edge case da spec). */
+.live-item-favorites {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Dica fixa no rodape da coluna de conteudo, discreta (mesmo tom de
+   .live-truncated-note), lembrando o gesto de segurar OK enquanto houver
+   itens favoritaveis na tela (FR-012). */
+.fav-hint {
+  font: 500 14px var(--font-body);
+  color: var(--text-tertiary);
+  padding: 8px 20px;
+  flex: none;
+}

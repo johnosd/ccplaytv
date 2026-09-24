@@ -31,8 +31,8 @@ description: "Lista de tasks da feature 013-favoritos"
 
 **Purpose**: Linha de base e estilos compartilhados.
 
-- [ ] T001 Registrar a linha de base em `tv-web/`: `npm run test`, `npm run lint`, `npx tsc -b` — anotar contagem de testes e qualquer falha pré-existente em `plan.md` → `Execution Notes` antes de mudar código.
-- [ ] T002 [P] Em `tv-web/src/features/screens.css`: classes `.fav-star` (estrela no cartão `.poster-box` e na linha `.live-item`, cor `var(--accent)`), `.live-item-favorites` (entrada "★ Favoritos" da trilha, distinguível sem depender só de cor — ícone + texto) e `.fav-hint` (dica fixa no rodapé da coluna de conteúdo, `--text-tertiary`). Nenhum valor literal de cor/raio/fonte.
+- [X] T001 Registrar a linha de base em `tv-web/`: `npm run test`, `npm run lint`, `npx tsc -b` — anotar contagem de testes e qualquer falha pré-existente em `plan.md` → `Execution Notes` antes de mudar código.
+- [X] T002 [P] Em `tv-web/src/features/screens.css`: classes `.fav-star` (estrela no cartão `.poster-box` e na linha `.live-item`, cor `var(--accent)`), `.live-item-favorites` (entrada "★ Favoritos" da trilha, distinguível sem depender só de cor — ícone + texto) e `.fav-hint` (dica fixa no rodapé da coluna de conteúdo, `--text-tertiary`). Nenhum valor literal de cor/raio/fonte.
 
 ---
 
@@ -44,21 +44,21 @@ description: "Lista de tasks da feature 013-favoritos"
 
 ### Testes da Fase
 
-- [ ] T003 [P] Em `tv-web/src/lib/useRemoteNav.test.tsx`: os 9 casos de `logic/gesto-ok-longo.md` §Testes (fake timers; `fireEvent.keyDown`/`keyUp` no `document`), incluindo a regressão "sem `onLongSelect` o OK age no keydown".
-- [ ] T006 [P] Em `tv-web/src/lib/catalog/userStateRepository.test.ts`: `parseStableId` ida-e-volta com `buildStableId` (id, nome com `|`, episódio), `listFavorites` (filtra fonte e tipo, ordem por `favoritedAt` desc, ignora não favoritos), `deleteUserStatesForSource` (só a fonte pedida).
-- [ ] T008 [P] Em `tv-web/src/lib/catalog/catalogRepository.test.ts`: `resolveFavorites` — por `providerStreamId` com `kind` (mesmo stream_id em live e VOD não colide), série por `seriesId`, M3U por nome (caixa/espaços), favorito não carregado conta em `unresolved`, geração antiga ignorada, ordem dos favoritos preservada, nome repetido em dois grupos → um registro.
-- [ ] T010 [P] Em `tv-web/src/features/catalog/catalogApi.test.tsx`: `useFavoriteIds` devolve o `Set` da fonte/tipo; `useFavoritesContent` não consulta enquanto `enabled=false` (D-005); `useToggleFavorite` grava, devolve o novo estado, invalida `favorite-ids`/`favorites-content`/`user-state` e recusa `kind` `episode` (D-009).
-- [ ] T012 [P] Em `tv-web/src/features/favorites/useFavoriteToggle.test.tsx`: aviso "Adicionado aos favoritos"/"Removido dos favoritos"; falha de gravação → "Não foi possível salvar o favorito" sem mudar a estrela (FR-013); item sem identidade estável → aviso explicativo (edge case); cálculo do vizinho ao desfavoritar dentro de "Favoritos" (seguinte, anterior se último, `null` se único — FR-018).
+- [X] T003 [P] Em `tv-web/src/lib/useRemoteNav.test.tsx`: os 9 casos de `logic/gesto-ok-longo.md` §Testes (fake timers; `fireEvent.keyDown`/`keyUp` no `document`), incluindo a regressão "sem `onLongSelect` o OK age no keydown".
+- [X] T006 [P] Em `tv-web/src/lib/catalog/userStateRepository.test.ts`: `parseStableId` ida-e-volta com `buildStableId` (id, nome com `|`, episódio), `listFavorites` (filtra fonte e tipo, ordem por `favoritedAt` desc, ignora não favoritos), `deleteUserStatesForSource` (só a fonte pedida).
+- [X] T008 [P] Em `tv-web/src/lib/catalog/catalogRepository.test.ts`: `resolveFavorites` — por `providerStreamId` com `kind` (mesmo stream_id em live e VOD não colide), série por `seriesId`, M3U por nome (caixa/espaços), favorito não carregado conta em `unresolved`, geração antiga ignorada, ordem dos favoritos preservada, nome repetido em dois grupos → um registro.
+- [X] T010 [P] Em `tv-web/src/features/catalog/catalogApi.test.tsx`: `useFavoriteIds` devolve o `Set` da fonte/tipo; `useFavoritesContent` não consulta enquanto `enabled=false` (D-005); `useToggleFavorite` grava, devolve o novo estado, invalida `favorite-ids`/`favorites-content`/`user-state` e recusa `kind` `episode` (D-009).
+- [X] T012 [P] Em `tv-web/src/features/favorites/useFavoriteToggle.test.tsx`: aviso "Adicionado aos favoritos"/"Removido dos favoritos"; falha de gravação → "Não foi possível salvar o favorito" sem mudar a estrela (FR-013); item sem identidade estável → aviso explicativo (edge case); cálculo do vizinho ao desfavoritar dentro de "Favoritos" (seguinte, anterior se último, `null` se único — FR-018).
 
 ### Implementation
 
-- [ ] T004 Em `tv-web/src/lib/useRemoteNav.ts`: `onLongSelect`, `longSelectMs`, `LONG_SELECT_MS`, `STALE_PRESS_MS` e o listener de `keyup` + cancelamento em `blur`/`visibilitychange`, exatamente como `logic/gesto-ok-longo.md`. Setas/RETURN e o modo `modal` inalterados.
-- [ ] T005 Em `tv-web/src/lib/catalog/db.ts`: `version(9)` com o índice `[sourceId+generation+kind+providerStreamId]` (`data-model.md` §2), comentário no padrão das versões anteriores; teste de abertura v8 → v9 sem perda em `tv-web/src/lib/catalog/db.test.ts`.
-- [ ] T007 Em `tv-web/src/lib/catalog/userStateRepository.ts`: `StableIdParts`, `parseStableId`, `listFavorites`, `deleteUserStatesForSource` (`logic/resolucao-favoritos.md`).
-- [ ] T009 Em `tv-web/src/lib/catalog/catalogRepository.ts`: `resolveFavorites` pelo algoritmo de `logic/resolucao-favoritos.md` (índice v9 → `seriesId` → varredura por nome encerrável).
-- [ ] T011 Em `tv-web/src/features/catalog/catalogApi.ts`: `FavoritableKind`, `useFavoriteIds`, `FavoritesContent`, `useFavoritesContent` (mapeia com `toItemOut`), `useToggleFavorite`.
-- [ ] T013 Criar `tv-web/src/features/favorites/useFavoriteToggle.ts`: recebe `sourceId`, `kind`, `showToast`; expõe `toggle(item, { visibleItems?, onFocusNeighbor? })` que usa `useToggleFavorite`, mostra o aviso e, quando chamado dentro de "Favoritos" desfavoritando, informa o id vizinho antes de a lista mudar.
-- [ ] T014 Criar `tv-web/src/features/favorites/FavoritesState.tsx` (+ caso de teste no mesmo `.test.tsx` de T012 ou próprio): estado vazio ("Segure OK sobre um canal/filme/série para favoritar", texto por tipo) com botão `tv-focus` controlado pela tela, e nota de não carregados (FR-009) sem número.
+- [X] T004 Em `tv-web/src/lib/useRemoteNav.ts`: `onLongSelect`, `longSelectMs`, `LONG_SELECT_MS`, `STALE_PRESS_MS` e o listener de `keyup` + cancelamento em `blur`/`visibilitychange`, exatamente como `logic/gesto-ok-longo.md`. Setas/RETURN e o modo `modal` inalterados.
+- [X] T005 Em `tv-web/src/lib/catalog/db.ts`: `version(9)` com o índice `[sourceId+generation+kind+providerStreamId]` (`data-model.md` §2), comentário no padrão das versões anteriores; teste de abertura v8 → v9 sem perda em `tv-web/src/lib/catalog/db.test.ts`.
+- [X] T007 Em `tv-web/src/lib/catalog/userStateRepository.ts`: `StableIdParts`, `parseStableId`, `listFavorites`, `deleteUserStatesForSource` (`logic/resolucao-favoritos.md`).
+- [X] T009 Em `tv-web/src/lib/catalog/catalogRepository.ts`: `resolveFavorites` pelo algoritmo de `logic/resolucao-favoritos.md` (índice v9 → `seriesId` → varredura por nome encerrável).
+- [X] T011 Em `tv-web/src/features/catalog/catalogApi.ts`: `FavoritableKind`, `useFavoriteIds`, `FavoritesContent`, `useFavoritesContent` (mapeia com `toItemOut`), `useToggleFavorite`.
+- [X] T013 Criar `tv-web/src/features/favorites/useFavoriteToggle.ts`: recebe `showToast` (desvio da descrição original — `sourceId`/`kind` seriam redundantes, o `item` passado a `toggle()` já carrega os dois, e é ele que `useToggleFavorite` usa de verdade); expõe `toggle(item, { visibleItems?, onFocusNeighbor? })` que usa `useToggleFavorite`, mostra o aviso e, quando chamado dentro de "Favoritos" desfavoritando, informa o id vizinho antes de a lista mudar.
+- [X] T014 Criar `tv-web/src/features/favorites/FavoritesState.tsx` (+ caso de teste no mesmo `.test.tsx` de T012 ou próprio): estado vazio ("Segure OK sobre um canal/filme/série para favoritar", texto por tipo) com botão `tv-focus` controlado pela tela, e nota de não carregados (FR-009) sem número.
 
 **Critério de Conclusão**: gesto de OK coberto pelos 9 casos; favoritos gravam, listam e resolvem contra a geração ativa em teste com `fake-indexeddb`; hooks e `useFavoriteToggle` testados; `npm run test`, `npm run lint` e `npx tsc -b` limpos; nenhuma tela mudou de comportamento ainda.
 
@@ -66,10 +66,10 @@ description: "Lista de tasks da feature 013-favoritos"
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: Concluída (2026-09-24)
+- Feito: T001–T014. `useRemoteNav` ganhou o gesto `onLongSelect` (keydown+keyup+limiar de 800ms, `STALE_PRESS_MS` pra keyup perdido, cancelamento em blur/visibilitychange) sem alterar nenhuma tela existente (modo legado intacto quando `onLongSelect` não é passado). Schema Dexie subiu pra v9 com o índice `[sourceId+generation+kind+providerStreamId]`. `userStateRepository.ts` ganhou `parseStableId` (inverso de `buildStableId`, preserva pipe em nome/episódio), `listFavorites` e `deleteUserStatesForSource`. `catalogRepository.ts` ganhou `resolveFavorites` (índice v9 → `seriesId` → varredura por nome com corte antecipado via sentinela `FavoritesScanComplete`). `catalogApi.ts` ganhou `useFavoriteIds`/`useFavoritesContent`/`useToggleFavorite`. `features/favorites/` (pasta nova) ganhou `useFavoriteToggle` (aviso + vizinho de foco) e `FavoritesState.tsx` (`FavoritesEmptyState` + `FavoritesUnresolvedNote`, dois componentes em vez de um — o "não carregados" precisa aparecer mesmo com a lista não-vazia). CSS: `.fav-star`/`.live-item-favorites`/`.fav-hint` em `screens.css`, só tokens.
+- Testes executados: `npx tsc -b` limpo; `npm run lint` sem erro novo (só os 6 warnings pré-existentes de `react(incompatible-library)`/`react(only-export-components)`); `npm run test` → 46 arquivos, 530 testes (baseline T001 era 44/478 — 52 testes novos). Comando completo: `npm run test && npm run lint && npx tsc -b`.
+- Pendências: nenhuma desta fase. Ver R-007 (deviation de T013 registrada abaixo).
 
 ---
 

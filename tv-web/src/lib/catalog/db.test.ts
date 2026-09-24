@@ -251,3 +251,126 @@ describe('CatalogDb — schema v8 (feature 012)', () => {
     database.close()
   })
 })
+
+/** Réplica só até a v8 — o schema antes desta feature (013). */
+class PreFavoritesDb extends Dexie {
+  constructor(name: string) {
+    super(name)
+    this.version(1).stores({
+      sources: 'id',
+      channels: '++id, [sourceId+generation], [sourceId+generation+groupOrder]',
+      importRuns: 'id, [sourceId+status]',
+    })
+    this.version(3).stores({
+      channels:
+        '++id, [sourceId+generation], [sourceId+generation+groupOrder], [sourceId+generation+kind+groupOrder]',
+    })
+    this.version(4).stores({ userStates: 'stableId, sourceId' })
+    this.version(5).stores({ userStates: 'stableId, sourceId, isFavorite, lastWatched' })
+    this.version(6).stores({ userStates: 'stableId, sourceId, favoritedAt, lastWatched' })
+    this.version(7).stores({ categories: '++id, sourceId, [sourceId+generation+kind+order]' })
+    this.version(8).stores({
+      channels:
+        '++id, [sourceId+generation], [sourceId+generation+groupOrder], ' +
+        '[sourceId+generation+kind+groupOrder], [sourceId+generation+seriesId]',
+    })
+  }
+}
+
+describe('CatalogDb — schema v9 (feature 013)', () => {
+  it('abrir um banco em v8 não perde dado e o índice [sourceId+generation+kind+providerStreamId] fica disponível', async () => {
+    dbName = `test-db-v9-migration-${Math.random().toString(36).slice(2)}`
+
+    const legacy = new PreFavoritesDb(dbName)
+    await legacy.open()
+    await (legacy.table('channels') as EntityTable<CatalogRecord, 'id'>).add({
+      sourceId: 'src-1',
+      generation: 1,
+      kind: 'channel',
+      name: 'Canal Antigo',
+      originalName: 'Canal Antigo',
+      groupOrder: 0,
+      providerStreamId: '100',
+    })
+    legacy.close()
+
+    const upgraded = new CatalogDb(dbName)
+    await upgraded.open()
+
+    // Dado de v8 sobrevive, sem alteração.
+    expect(await upgraded.channels.where('sourceId').equals('src-1').count()).toBe(1)
+
+    const byStreamId = await upgraded.channels
+      .where('[sourceId+generation+kind+providerStreamId]')
+      .equals(['src-1', 1, 'channel', '100'])
+      .toArray()
+    expect(byStreamId).toHaveLength(1)
+    expect(byStreamId[0]?.name).toBe('Canal Antigo')
+
+    upgraded.close()
+  })
+
+  it('o mesmo providerStreamId em kinds diferentes não colide (índice inclui kind)', async () => {
+    dbName = `test-db-v9-index-${Math.random().toString(36).slice(2)}`
+    const database = new CatalogDb(dbName)
+    await database.open()
+
+    await database.channels.bulkAdd([
+      {
+        sourceId: 'src-1',
+        generation: 1,
+        kind: 'channel',
+        name: 'Canal 7',
+        originalName: 'Canal 7',
+        groupOrder: 0,
+        providerStreamId: '7',
+      },
+      {
+        sourceId: 'src-1',
+        generation: 1,
+        kind: 'movie',
+        name: 'Filme 7',
+        originalName: 'Filme 7',
+        groupOrder: 0,
+        providerStreamId: '7',
+      },
+    ])
+
+    const channel = await database.channels
+      .where('[sourceId+generation+kind+providerStreamId]')
+      .equals(['src-1', 1, 'channel', '7'])
+      .toArray()
+    expect(channel.map((r) => r.name)).toEqual(['Canal 7'])
+
+    const movie = await database.channels
+      .where('[sourceId+generation+kind+providerStreamId]')
+      .equals(['src-1', 1, 'movie', '7'])
+      .toArray()
+    expect(movie.map((r) => r.name)).toEqual(['Filme 7'])
+
+    database.close()
+  })
+
+  it('registro sem providerStreamId (fonte M3U) não entra no índice, sem quebrar a consulta', async () => {
+    dbName = `test-db-v9-no-stream-id-${Math.random().toString(36).slice(2)}`
+    const database = new CatalogDb(dbName)
+    await database.open()
+
+    await database.channels.add({
+      sourceId: 'src-1',
+      generation: 1,
+      kind: 'movie',
+      name: 'Filme M3U',
+      originalName: 'Filme M3U',
+      groupOrder: 0,
+    })
+
+    const results = await database.channels
+      .where('[sourceId+generation+kind+providerStreamId]')
+      .equals(['src-1', 1, 'movie', 'qualquer'])
+      .toArray()
+    expect(results).toEqual([])
+
+    database.close()
+  })
+})

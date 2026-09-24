@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   db,
   type CategoryKind,
@@ -13,12 +13,20 @@ import {
   listCategories,
   listChannels,
   listEpisodes,
+  resolveFavorites,
   type CatalogCategory,
 } from '../../lib/catalog/catalogRepository'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
 import { ensureSeriesEpisodes, type SeriesFetchOutcome } from '../../lib/catalog/seriesLoader'
 import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
-import { buildStableId, getUserState, getUserStates } from '../../lib/catalog/userStateRepository'
+import {
+  buildStableId,
+  getUserState,
+  getUserStates,
+  listFavorites,
+  parseStableId,
+  toggleFavorite,
+} from '../../lib/catalog/userStateRepository'
 import { UNGROUPED_LABEL } from '../live/groupChannels'
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
@@ -514,4 +522,101 @@ export function useUserStates(stableIds: (string | null)[]) {
  */
 export function invalidateUserStates(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ['user-states'] })
+}
+
+/**
+ * Tipos que a categoria virtual "Favoritos" cobre (feature 013). Episódio
+ * fica de fora de propósito — série é o nível de favorito (D-009 do
+ * plan.md), então `SeriesDetailScreen`/lista de episódios nunca passam
+ * `onLongSelect`.
+ */
+export type FavoritableKind = 'channel' | 'movie' | 'series'
+
+/**
+ * O conjunto de `stableId`s favoritos de uma fonte e tipo — alimenta só a
+ * estrela do cartão/linha (FR-010). Nunca resolve nada em registro do
+ * catálogo: mover o foco sobre um item, ou sobre a entrada "Favoritos" da
+ * trilha, não consulta nada além disto (constitution, "Foco Visível e Sem
+ * Becos Sem Saída" — focar nunca dispara consulta a serviço externo; aqui
+ * nem chega a ser externo, mas o princípio de não gastar em foco vale
+ * igual, D-005 do plan.md).
+ */
+export function useFavoriteIds(sourceId: string | null, kind: FavoritableKind) {
+  return useQuery({
+    queryKey: ['favorite-ids', sourceId, kind],
+    queryFn: async (): Promise<Set<string>> => {
+      if (!sourceId) return new Set()
+      const favorites = await listFavorites(sourceId, kind, db)
+      return new Set(favorites.map((favorite) => favorite.stableId))
+    },
+    enabled: sourceId !== null,
+  })
+}
+
+export interface FavoritesContent {
+  items: CatalogItemOut[]
+  /**
+   * Quantos favoritos gravados não resolveram em nenhum registro da
+   * geração ativa (categoria ainda não obtida, ou item que saiu da fonte)
+   * — nunca vira cartão inventado nem entra na contagem de `items`
+   * (FR-009, princípio "Progresso e Capacidades São Reais").
+   */
+  unresolved: number
+}
+
+/**
+ * Conteúdo da categoria virtual "Favoritos" de uma fonte e tipo.
+ *
+ * Só resolve favorito em registro do catálogo quando `enabled` — a pessoa
+ * **entrou** na categoria (mesmo contrato de `useCategoryContent`, D-005):
+ * focar a entrada "Favoritos" na trilha nunca chama isto habilitada.
+ */
+export function useFavoritesContent(sourceId: string | null, kind: FavoritableKind, enabled: boolean) {
+  return useQuery({
+    queryKey: ['favorites-content', sourceId, kind],
+    queryFn: async (): Promise<FavoritesContent> => {
+      if (!sourceId) return { items: [], unresolved: 0 }
+      const favorites = await listFavorites(sourceId, kind, db)
+      const parsed = favorites
+        .map((favorite) => parseStableId(favorite.stableId))
+        .filter((parts): parts is NonNullable<typeof parts> => parts !== null)
+      const { records, unresolved } = await resolveFavorites(sourceId, kind, parsed, db)
+      return { items: records.map((record) => toItemOut(record, kind)), unresolved }
+    },
+    enabled: enabled && sourceId !== null,
+  })
+}
+
+/**
+ * Alterna o favorito de um item (segurar OK — feature 013) e invalida
+ * tudo que depende dele: a estrela em qualquer tela onde o item aparece,
+ * a categoria "Favoritos" da fonte/tipo, e o estado do detalhe
+ * (`useUserState`). Recusa episódio (D-009) e item sem identidade
+ * estável, em vez de gravar uma chave inventada.
+ */
+export function useToggleFavorite() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (item: CatalogItemOut): Promise<boolean> => {
+      if (item.kind !== 'channel' && item.kind !== 'movie' && item.kind !== 'series') {
+        throw new Error(`Tipo "${item.kind}" não é favoritável.`)
+      }
+      const stableId = stableIdOf(item)
+      if (!stableId || !item.source_id) {
+        throw new Error('Item sem identidade estável: não é possível favoritar.')
+      }
+
+      const current = await getUserState(stableId, db)
+      const next = !(current?.isFavorite ?? false)
+      await toggleFavorite(stableId, item.source_id, next, db)
+      return next
+    },
+    onSuccess: (_isFavoriteNow, item) => {
+      const stableId = stableIdOf(item)
+      void queryClient.invalidateQueries({ queryKey: ['favorite-ids', item.source_id, item.kind] })
+      void queryClient.invalidateQueries({ queryKey: ['favorites-content', item.source_id, item.kind] })
+      if (stableId) void queryClient.invalidateQueries({ queryKey: ['user-state', stableId] })
+    },
+  })
 }

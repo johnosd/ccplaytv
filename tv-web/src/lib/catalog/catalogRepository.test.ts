@@ -10,6 +10,7 @@ import {
   listEpisodes,
   markCategoryFetched,
   publishGeneration,
+  resolveFavorites,
   storeBatch,
   storeCategories,
   storeCategoryItems,
@@ -17,6 +18,7 @@ import {
   StorageFullError,
   type NewCategory,
 } from './catalogRepository'
+import type { StableIdParts } from './userStateRepository'
 
 let database: CatalogDb
 
@@ -452,5 +454,158 @@ describe('catalogRepository', () => {
         ),
       ).rejects.toBeInstanceOf(StorageFullError)
     })
+  })
+})
+
+describe('resolveFavorites (feature 013)', () => {
+  function idFavorite(kind: StableIdParts['kind'], value: string): StableIdParts {
+    return { sourceId: SOURCE_ID, kind, identifier: { type: 'id', value } }
+  }
+  function nameFavorite(kind: StableIdParts['kind'], value: string): StableIdParts {
+    return { sourceId: SOURCE_ID, kind, identifier: { type: 'name', value } }
+  }
+  function movie(generation: number, name: string, groupOrder: number, providerStreamId?: string): CatalogRecord {
+    return {
+      sourceId: SOURCE_ID,
+      generation,
+      kind: 'movie',
+      name,
+      originalName: name,
+      groupOrder,
+      providerStreamId,
+    }
+  }
+
+  it('resolve por providerStreamId, sem confundir tipos com o mesmo id (kind entra na chave)', async () => {
+    await seedSource({ activeGeneration: 1 })
+    await storeBatch(
+      [
+        // Mesmo providerStreamId ('7') que o filme abaixo, tipo diferente —
+        // só existe pra provar que o índice não confunde os dois.
+        { sourceId: SOURCE_ID, generation: 1, kind: 'channel', name: 'Canal 7', originalName: 'Canal 7', groupOrder: 0, providerStreamId: '7' },
+        movie(1, 'Filme 7', 0, '7'),
+      ],
+      database,
+    )
+
+    const { records, unresolved } = await resolveFavorites(SOURCE_ID, 'movie', [idFavorite('movie', '7')], database)
+
+    expect(records.map((r) => r.name)).toEqual(['Filme 7'])
+    expect(unresolved).toBe(0)
+  })
+
+  it('série sem providerStreamId próprio resolve pelo seriesId (mesmo índice da feature 012)', async () => {
+    await seedSource({ activeGeneration: 1 })
+    await database.channels.add({
+      sourceId: SOURCE_ID,
+      generation: 1,
+      kind: 'series',
+      name: 'Breaking Bad',
+      originalName: 'Breaking Bad',
+      groupOrder: 0,
+      seriesId: 'srv-200',
+    })
+
+    const { records, unresolved } = await resolveFavorites(
+      SOURCE_ID,
+      'series',
+      [idFavorite('series', 'srv-200')],
+      database,
+    )
+
+    expect(records.map((r) => r.name)).toEqual(['Breaking Bad'])
+    expect(unresolved).toBe(0)
+  })
+
+  it('fonte M3U resolve por nome, normalizado (caixa e espaços já vieram do buildStableId)', async () => {
+    await seedSource({ activeGeneration: 1 })
+    await storeBatch([movie(1, 'The Matrix', 0)], database)
+
+    const { records, unresolved } = await resolveFavorites(
+      SOURCE_ID,
+      'movie',
+      [nameFavorite('movie', 'the matrix')],
+      database,
+    )
+
+    expect(records.map((r) => r.name)).toEqual(['The Matrix'])
+    expect(unresolved).toBe(0)
+  })
+
+  it('favorito cujo item não está carregado é omitido e contado em unresolved, sem inventar cartão', async () => {
+    await seedSource({ activeGeneration: 1 })
+    await storeBatch([movie(1, 'Dune', 0, '1')], database)
+
+    const { records, unresolved } = await resolveFavorites(
+      SOURCE_ID,
+      'movie',
+      [idFavorite('movie', '1'), idFavorite('movie', '999'), nameFavorite('movie', 'inexistente')],
+      database,
+    )
+
+    expect(records.map((r) => r.name)).toEqual(['Dune'])
+    expect(unresolved).toBe(2)
+  })
+
+  it('geração antiga (não publicada/ativa) é ignorada — favorito não resolve contra ela', async () => {
+    await seedSource({ activeGeneration: 1 })
+    await storeBatch([movie(1, 'Ativo', 0, '1')], database)
+    // Geração 2 em progresso, ainda não publicada — tem o mesmo id, mas não é a ativa.
+    await storeBatch([movie(2, 'Em importação', 0, '1')], database)
+
+    const { records } = await resolveFavorites(SOURCE_ID, 'movie', [idFavorite('movie', '1')], database)
+
+    expect(records.map((r) => r.name)).toEqual(['Ativo'])
+  })
+
+  it('preserva a ordem dos favoritos pedidos, não a ordem do catálogo', async () => {
+    await seedSource({ activeGeneration: 1 })
+    await storeBatch(
+      [movie(1, 'A', 0, '1'), movie(1, 'B', 1, '2'), movie(1, 'C', 2, '3')],
+      database,
+    )
+
+    const { records } = await resolveFavorites(
+      SOURCE_ID,
+      'movie',
+      [idFavorite('movie', '3'), idFavorite('movie', '1'), idFavorite('movie', '2')],
+      database,
+    )
+
+    expect(records.map((r) => r.name)).toEqual(['C', 'A', 'B'])
+  })
+
+  it('nome repetido em dois grupos resolve para o registro de menor groupOrder — um só', async () => {
+    await seedSource({ activeGeneration: 1 })
+    await storeBatch(
+      [movie(1, 'Duplicado', 5, undefined), movie(1, 'Duplicado', 1, undefined)],
+      database,
+    )
+
+    const { records } = await resolveFavorites(
+      SOURCE_ID,
+      'movie',
+      [nameFavorite('movie', 'duplicado')],
+      database,
+    )
+
+    expect(records).toHaveLength(1)
+    expect(records[0].groupOrder).toBe(1)
+  })
+
+  it('fonte sem geração ativa (nunca importou) devolve tudo como não resolvido', async () => {
+    await seedSource()
+
+    const { records, unresolved } = await resolveFavorites(SOURCE_ID, 'movie', [idFavorite('movie', '1')], database)
+
+    expect(records).toEqual([])
+    expect(unresolved).toBe(1)
+  })
+
+  it('lista de favoritos vazia devolve vazia, sem tocar o catálogo', async () => {
+    await seedSource({ activeGeneration: 1 })
+    await storeBatch([movie(1, 'Solo', 0, '1')], database)
+
+    expect(await resolveFavorites(SOURCE_ID, 'movie', [], database)).toEqual({ records: [], unresolved: 0 })
   })
 })

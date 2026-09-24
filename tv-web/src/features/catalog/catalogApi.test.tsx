@@ -1,8 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { stableIdOf, useCatalogCounts, useCategoryFocusPrefetch, type CatalogCategory } from './catalogApi'
+import {
+  stableIdOf,
+  useCatalogCounts,
+  useCategoryFocusPrefetch,
+  useFavoriteIds,
+  useFavoritesContent,
+  useToggleFavorite,
+  type CatalogCategory,
+  type CatalogItemOut,
+} from './catalogApi'
 import * as categoryLoader from '../../lib/catalog/categoryLoader'
 import { buildStableId } from '../../lib/catalog/userStateRepository'
 import { db, type CategoryRecord } from '../../lib/catalog/db'
@@ -177,5 +186,169 @@ describe('stableIdOf (feature 012, D-006)', () => {
     expect(
       stableIdOf({ source_id: 'src1', kind: 'episode', provider_stream_id: null, series_id: null, original_name: '' }),
     ).toBeNull()
+  })
+})
+
+describe('useFavoriteIds / useFavoritesContent / useToggleFavorite (feature 013)', () => {
+  const SOURCE_ID = 'source-favorites'
+
+  function movieItem(overrides: Partial<CatalogItemOut> = {}): CatalogItemOut {
+    return {
+      id: '1',
+      kind: 'movie',
+      name: 'Duna',
+      original_group: 'Ficção',
+      published: true,
+      playable: true,
+      source_id: SOURCE_ID,
+      provider_stream_id: '42',
+      original_name: 'Duna',
+      ...overrides,
+    }
+  }
+
+  async function seedSourceAndMovie(): Promise<number> {
+    await db.sources.put({
+      id: SOURCE_ID,
+      type: 'provider_credentials',
+      displayName: 'Fonte de favoritos',
+      connectionState: 'synced',
+      activeGeneration: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    const [id] = await db.channels.bulkAdd(
+      [
+        {
+          sourceId: SOURCE_ID,
+          generation: 1,
+          kind: 'movie',
+          name: 'Duna',
+          originalName: 'Duna',
+          groupOrder: 0,
+          providerStreamId: '42',
+        },
+      ],
+      { allKeys: true },
+    )
+    return id as number
+  }
+
+  afterEach(async () => {
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+  })
+
+  it('useFavoriteIds devolve o Set de stableIds favoritos da fonte/tipo', async () => {
+    await seedSourceAndMovie()
+    const stableId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: '42' })
+    await db.userStates.put({
+      stableId,
+      sourceId: SOURCE_ID,
+      isFavorite: true,
+      favoritedAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    })
+
+    const { result } = renderHook(() => useFavoriteIds(SOURCE_ID, 'movie'), { wrapper: wrapper() })
+
+    await waitFor(() => expect(result.current.data).toBeDefined())
+    expect(result.current.data?.has(stableId)).toBe(true)
+    expect(result.current.data?.size).toBe(1)
+  })
+
+  it('useFavoriteIds sem fonte não consulta nada (mesmo padrão de enabled dos demais hooks)', async () => {
+    const { result } = renderHook(() => useFavoriteIds(null, 'movie'), { wrapper: wrapper() })
+
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(result.current.data).toBeUndefined()
+  })
+
+  it('useFavoritesContent não consulta enquanto enabled=false (D-005 — focar não gasta)', async () => {
+    await seedSourceAndMovie()
+    const stableId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: '42' })
+    await db.userStates.put({
+      stableId,
+      sourceId: SOURCE_ID,
+      isFavorite: true,
+      favoritedAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    })
+
+    const { result } = renderHook(() => useFavoritesContent(SOURCE_ID, 'movie', false), { wrapper: wrapper() })
+
+    // Tempo suficiente pra qualquer efeito assíncrono ter rodado, se fosse rodar.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(result.current.data).toBeUndefined()
+  })
+
+  it('useFavoritesContent, entrada (enabled=true), resolve os favoritos carregados e conta os que faltam', async () => {
+    await seedSourceAndMovie()
+    const loadedId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: '42' })
+    const missingId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: '999' })
+    await db.userStates.bulkPut([
+      { stableId: loadedId, sourceId: SOURCE_ID, isFavorite: true, favoritedAt: 2, createdAt: 1, updatedAt: 1 },
+      { stableId: missingId, sourceId: SOURCE_ID, isFavorite: true, favoritedAt: 1, createdAt: 1, updatedAt: 1 },
+    ])
+
+    const { result } = renderHook(() => useFavoritesContent(SOURCE_ID, 'movie', true), { wrapper: wrapper() })
+
+    await waitFor(() => expect(result.current.data).toBeDefined())
+    expect(result.current.data?.items.map((item) => item.name)).toEqual(['Duna'])
+    expect(result.current.data?.unresolved).toBe(1)
+  })
+
+  it('useToggleFavorite grava, devolve o novo estado e invalida favorite-ids/favorites-content/user-state', async () => {
+    await seedSourceAndMovie()
+    const item = movieItem()
+    const stableId = stableIdOf(item)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    }
+
+    const { result } = renderHook(() => useToggleFavorite(), { wrapper: Wrapper })
+
+    let isFavoriteNow: boolean | undefined
+    await act(async () => {
+      isFavoriteNow = await result.current.mutateAsync(item)
+    })
+
+    expect(isFavoriteNow).toBe(true)
+    expect((await db.userStates.get(stableId!))?.isFavorite).toBe(true)
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['favorite-ids', SOURCE_ID, 'movie'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['favorites-content', SOURCE_ID, 'movie'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['user-state', stableId] })
+
+    // Chamar de novo alterna de volta (é isso que "toggle" quer dizer).
+    let isFavoriteAgain: boolean | undefined
+    await act(async () => {
+      isFavoriteAgain = await result.current.mutateAsync(item)
+    })
+    expect(isFavoriteAgain).toBe(false)
+  })
+
+  it('useToggleFavorite recusa episódio (D-009 — série é o nível de favorito)', async () => {
+    const { result } = renderHook(() => useToggleFavorite(), { wrapper: wrapper() })
+
+    await expect(
+      act(() => result.current.mutateAsync(movieItem({ kind: 'episode', series_id: '7' }))),
+    ).rejects.toThrow(/não é favoritável/)
+  })
+
+  it('useToggleFavorite recusa item sem identidade estável, sem gravar chave inventada', async () => {
+    const { result } = renderHook(() => useToggleFavorite(), { wrapper: wrapper() })
+
+    await expect(
+      act(() => result.current.mutateAsync(movieItem({ provider_stream_id: null, original_name: '' }))),
+    ).rejects.toThrow(/identidade estável/)
   })
 })
