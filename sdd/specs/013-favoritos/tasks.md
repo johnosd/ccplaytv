@@ -81,25 +81,25 @@ description: "Lista de tasks da feature 013-favoritos"
 
 ### Testes da Fase
 
-- [ ] T015 [US1] Em `tv-web/src/features/live/LiveScreen.test.tsx` (fake timers, `keyDown`/`keyUp`): (a) OK curto na lista toca no keyup; (b) OK demorado favorita, mostra aviso e estrela e **não** abre `PlayerLayer`; (c) segurar mais não alterna de novo; (d) "★ Favoritos" é a primeira entrada da trilha e segurar OK nela entra como OK comum; (e) entrar em "Favoritos" lista os canais em ordem de `favoritedAt` desc e OK toca; (f) estado vazio: Enter no botão devolve o foco à trilha (ativação por tecla, não `click`); (g) nota de não carregados sem número; (h) desfavoritar o focado move ao vizinho; (i) fechar o player volta o foco ao mesmo canal em "Favoritos"; (j) categoria da fonte chamada "Favoritos" não colide com a virtual; (k) mover o foco sobre "★ Favoritos" não chama `useFavoritesContent` habilitado.
+- [X] T015 [US1] **Desvio registrado**: em `tv-web/src/features/live/LiveScreen.favorites.test.tsx` (arquivo NOVO, não `LiveScreen.test.tsx`) — aquele mocka `useCategoryList`/`useCategoryContent` e deixaria `useFavoriteIds`/`useFavoritesContent`/`useToggleFavorite` reais tocarem `fake-indexeddb` sem seed nenhum; separar evita ambiguidade de mocks e mantém `LiveScreen.test.tsx` intocado (zero risco de regressão nele). Tempo real (não fake timers) pro gesto — `waitFor` some com timer falso não avançado; ver `plan.md` R-008. Cobre (a)–(k) da descrição original.
 
 ### Implementation
 
-- [ ] T016 [US1] Em `tv-web/src/features/live/LiveScreen.tsx`: `FocusIdentity` da trilha vira união discriminada (`{ type: 'favorites' } | { type: 'source', name }`, D-004); entrada "★ Favoritos" renderizada na posição 0, fora de `categories`; `enteredCategoryId: number | 'favorites' | null`; `useCategoryFocusPrefetch` não é chamado para a entrada virtual.
-- [ ] T017 [US1] Em `tv-web/src/features/live/LiveScreen.tsx`: passar `onLongSelect` ao `useRemoteNav` só quando `col === 1` e há canal focado e nenhum player aberto (D-002), chamando `useFavoriteToggle`; OK curto mantém a lógica atual de `onSelect`.
-- [ ] T018 [US1] Em `tv-web/src/features/live/LiveScreen.tsx`: estrela `.fav-star` nas linhas cujo `stableIdOf(channel)` está em `useFavoriteIds(sourceId, 'channel')`; dica `.fav-hint` "Segure OK para favoritar" quando a coluna de conteúdo tem canais (FR-012).
-- [ ] T019 [US1] Em `tv-web/src/features/live/LiveScreen.tsx`: com "Favoritos" entrada, a coluna de conteúdo usa `useFavoritesContent(sourceId, 'channel', true)` (mesma lista virtualizada, estados de carregando/vazio via `FavoritesState`, nota FR-009), com o botão do estado vazio ativado pelo `onSelect` da tela; foco reconciliado por id após desfavoritar (vizinho de T013).
+- [X] T016 [US1] Em `tv-web/src/features/live/LiveScreen.tsx`: `FocusIdentity` da trilha vira união discriminada `TrailKey` (`{ kind: 'favorites' } | { kind: 'category', name }`, D-004); trilha combinada `trail = [Favoritos, ...categories]`, entrada "★ Favoritos" na posição 0; `entered: EnteredKey | null` (`{ kind: 'favorites' } | { kind: 'category', id }`); `useCategoryFocusPrefetch` não é chamado pra Favoritos (`focusedCategory` vira `undefined`). Padrão de foco ao abrir a tela continua sendo a primeira categoria REAL (índice 1 da trilha), não Favoritos — ver R-009.
+- [X] T017 [US1] Em `tv-web/src/features/live/LiveScreen.tsx`: passar `onLongSelect` ao `useRemoteNav` só quando `col === 1` e há canal focado e nenhum player aberto (D-002), chamando `useFavoriteToggle`; OK curto mantém a lógica atual de `onSelect`.
+- [X] T018 [US1] Em `tv-web/src/features/live/LiveScreen.tsx`: estrela `.fav-star` nas linhas cujo `stableIdOf(channel)` está em `useFavoriteIds(sourceId, 'channel')`; dica `.fav-hint` "Segure OK para favoritar" quando a coluna de conteúdo tem canais (FR-012).
+- [X] T019 [US1] Em `tv-web/src/features/live/LiveScreen.tsx`: com "Favoritos" entrada, a coluna de conteúdo usa `useFavoritesContent(sourceId, 'channel', enteredFavorites)` (mesma lista virtualizada, estados de carregando/vazio via `FavoritesState`, nota FR-009); o `onSelect` da tela (não `onClick` do botão) trata OK no estado vazio como "voltar à trilha" — achado durante a escrita do teste (f): sem isso, FR-008/FR-020 (ativação por OK) não se cumpriam, mesmo bug de outras telas do backlog; foco reconciliado por id após desfavoritar (vizinho de T013).
 
-**Critério de Conclusão**: todos os cenários da US1 da spec cobertos por T015 e passando; uma fonte sem nenhum favorito mostra "★ Favoritos" vazia e navegável; nenhum teste existente de `LiveScreen` regrediu; gates (`test`/`lint`/`tsc`) limpos.
+**Critério de Conclusão**: todos os cenários (a)–(k) cobertos por T015 e passando; uma fonte sem nenhum favorito mostra "★ Favoritos" vazia e navegável; nenhum teste existente de `LiveScreen.test.tsx` regrediu (22/22, com 1 asserção atualizada pra incluir a nova entrada da trilha — não é regressão, é o comportamento pretendido); gates (`test`/`lint`/`tsc`) limpos.
 
 **Checkpoint**: User Story 1 funcional e testável isoladamente.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: Concluída (2026-09-24)
+- Feito: T015–T019. `LiveScreen.tsx` reescrito com a trilha combinada (Favoritos + categorias), gesto de OK na coluna de conteúdo, estrela, dica fixa, conteúdo de "Favoritos" via `useFavoritesContent`, e correção do OK no estado vazio (achado ao escrever T015-f). `LiveScreen.test.tsx`: `press()` passou a soltar Enter também (keydown+keyup), porque o gesto de OK só completa no keyup — sem isso, testes que dependiam do antigo "age no keydown" ficariam presos até o timer real de 800ms disparar por engano; 1 asserção de conteúdo da trilha atualizada pra incluir "★Favoritos". `LiveScreen.favorites.test.tsx` (novo): 11 testes (a)-(k).
+- Testes executados: `npm run test` → 47 arquivos, 541 testes (0 regressão nos 22 de `LiveScreen.test.tsx`, 530→541 líquido); `npx tsc -b` e `npm run lint` limpos. Comando: `npx vitest run src/features/live/ && npm run test && npm run lint && npx tsc -b`.
+- Pendências: nenhuma técnica. R-008/R-009 registrados em `plan.md`.
 
 ---
 

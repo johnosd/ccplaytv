@@ -171,9 +171,21 @@ function renderLive() {
   return { ...result, rerenderLive: () => result.rerender(buildUi()) }
 }
 
+/**
+ * Simula um toque rápido no controle. Para OK (feature 013), um toque
+ * rápido de verdade solta a tecla quase no mesmo instante — sem o `keyup`
+ * aqui, o gesto de "segurar" (agora possível sempre que um canal está
+ * focado, `LiveScreen.tsx`) nunca completaria como toque curto: o `onSelect`
+ * só dispara no `keyup`, e sem ele os timers REAIS deste arquivo (nenhum
+ * `vi.useFakeTimers()`) acabariam correndo até o limiar de "segurar" durante
+ * um `waitFor` mais longo, disparando `onLongSelect` por engano.
+ */
 function press(key: string) {
   act(() => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+    if (key === 'Enter') {
+      document.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }))
+    }
   })
 }
 
@@ -248,10 +260,12 @@ describe('LiveScreen', () => {
     mockContentByCategory({ 1: [channel('Zulu', 'Esportes'), channel('Yankee', 'Esportes')] })
     renderLive()
 
+    // "★ Favoritos" (feature 013) é sempre a primeira entrada da trilha,
+    // antes de qualquer categoria declarada pela fonte.
     const groups = document.querySelectorAll('.live-column-groups .live-item')
-    expect([...groups].map((g) => g.textContent)).toEqual(['Esportes', 'Notícias'])
+    expect([...groups].map((g) => g.textContent)).toEqual(['★Favoritos', 'Esportes', 'Notícias'])
 
-    press('ArrowRight') // entra em "Esportes"
+    press('ArrowRight') // padrão é focar a primeira categoria REAL — entra em "Esportes"
 
     const channels = document.querySelectorAll('.live-column-channels .live-item-name')
     expect([...channels].map((c) => c.textContent)).toEqual(['Zulu', 'Yankee'])
