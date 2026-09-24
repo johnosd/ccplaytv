@@ -42,9 +42,18 @@ filme — emite chamadas sobrepostas. Ver `logic/reproducao-vod.md` §3.
   associa a "saltos", e trata timestamp inválido em streaming HTTP
   automaticamente. `seekTo` é usado onde há um destino absoluto (retomada).
 
-**Não verificado em hardware**: nada disto foi exercitado na QN50Q60DAGXZD —
-o adaptador atual só usa `open`/`prepareAsync`/`play`/`stop`/`close`. É a
-razão do gate de TV física desta feature (`quickstart.md`, Cenários F–I).
+**Atualização (Fase 6, TV física, 24/09/2026)**: a superfície acima foi
+parcialmente verificada na QN50Q60DAGXZD — Cenários F, G e a maior parte de H
+aprovados, com três correções reais confirmadas no aparelho (`plan.md`
+R-019, R-020, R-021). A restrição de `jumpForward/Backward` prevista acima
+("outras chamadas restritas durante a operação assíncrona") se confirmou
+real e mais severa do que o desenho original previa: a porta single-flight
+por acumulação (D-009) travava o app de verdade ao segurar a seta — corrigida
+para descarte (R-019). Cenário I (retomada ponta a ponta com o app fechado),
+Cenário J (Live TV) e o edge case "buscar além do fim" em H **não foram
+executados** — risco residual aceito explicitamente pelo usuário (R-022),
+não bloqueia o avanço da feature. Ver `plan.md` → `## Estado Atual` para o
+status atual por cenário.
 
 ---
 

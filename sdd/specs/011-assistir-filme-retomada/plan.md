@@ -283,6 +283,7 @@ npx vitest run src/components/PlayerLayer.test.tsx
 | Fase 5 (US3 — Conclusão) | Concluída. Filme concluído fecha a camada sem erro e apaga a retomada; canal ao vivo continua tratando fim de stream como falha (FR-021, sem regressão). |
 | Fase 6 (TV física) | **Encerrada por decisão do usuário, sem satisfazer o critério por completo** (R-022). Cenários F/G/H aprovados na QN50Q60DAGXZD, com 3 correções reais confirmadas (R-019/R-020/R-021). Cenário I, Cenário J, e o edge case de "buscar além do fim" em H **não foram executados** — risco residual aceito explicitamente, não bloqueia mais o avanço da feature. |
 | Fase 7 (Polish) | Parcial. Documentação sincronizada (`CLAUDE.md`, backlog, R-004 registrado) e suíte automatizada limpa. T052 (Cenários A–E no navegador) não executado. |
+| Fase 8 (Convergence) | Concluída. Os 3 achados acionáveis da primeira passada de `sdd-converge` (24/09/2026) sanados: FR-008 emendado com a exceção da barra focada (CF-01), teste de clamp de 100% adicionado a `PlayerControls.test.tsx` (CF-02), `research.md` R0-1 atualizado (CF-07). Nenhum achado era `CRITICAL`; os quatro itens de risco residual (R-022) permanecem fora de escopo, não reabertos. |
 | `resumePolicy.ts` | `RESUME_MIN_SECONDS=30`, `RESUME_MAX_RATIO=0.95`, `PROGRESS_WRITE_INTERVAL_SECONDS=5`; `isResumable`/`isPastEnd`/`shouldWriteProgress` puras e testadas. |
 | `progressRecorder.ts` | `createProgressRecorder(identity, reportsPosition)` — `onProgress`/`onExit('pause'\|'close'\|'completed')`, sem React. Identidade `null` é no-op silencioso (D-010). Selado (`done`) após conclusão — chamadas seguintes são ignoradas (R-018). |
 | `userStateRepository.ts` | `clearProgress` novo, mesmo padrão de `toggleFavorite` (zera o campo, não apaga o registro). |
@@ -307,15 +308,15 @@ npx vitest run src/components/PlayerLayer.test.tsx
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
 | R-001 | Nada da superfície de VOD do AVPlay (`getDuration`, `oncurrentplaytime`, `seekTo`, `pause`) foi exercitado na QN50Q60DAGXZD — o adaptador só usa `open`/`play`/`stop`/`close` | **Alto** — é a premissa que sustenta a barra de progresso e a retomada | Superfície confirmada na referência oficial Samsung (`research.md` R0-1). Verificação em hardware é gate desta feature: Cenários F–I do `quickstart.md`. FR-004 já define a degradação se a duração não vier |
-| R-002 | `jumpForward`/`jumpBackward` restringem outras chamadas à API enquanto a operação assíncrona não volta. Segurar a seta emite saltos mais rápido do que o motor os conclui | **Alto** — congelamento do app na TV, invisível no navegador | **Confirmado real e corrigido (24/09/2026)**: a mitigação original (porta single-flight com ACUMULAÇÃO, D-009) travava o app de verdade — ver R-019. Substituída por descarte; segurar a seta confirmado funcionando sem travar na TV física |
+| R-002 | `jumpForward`/`jumpBackward` restringem outras chamadas à API enquanto a operação assíncrona não volta. Segurar a seta emite saltos mais rápido do que o motor os conclui | **Alto** — congelamento do app na TV, invisível no navegador | **Resolvido e confirmado real (24/09/2026)**: a mitigação original (porta single-flight com ACUMULAÇÃO, D-009) travava o app de verdade — ver R-019. Substituída por descarte; segurar a seta confirmado funcionando sem travar na TV física |
 | R-003 | A camada compartilhada é o único caminho de reprodução comprovado na TV (feature 003). Generalizá-la pode regredir a Live TV | **Alto** — perderia a única prova de reprodução que o projeto tem | FR-022 + D-003 (controle sem capacidade não é renderizado) mantêm o caminho de canal idêntico. Cenário E (navegador) confirmado por teste automatizado sem alteração de asserção. **Cenário J (TV física) não foi executado** — usuário decidiu não testar Live TV nesta rodada (R-022); risco aceito, não confirmado em hardware |
 | R-004 | **Achado na exploração**: `App.tsx` é um `switch` que renderiza uma tela por vez, então abrir o detalhe **desmonta** `MoviesScreen`. Voltar do detalhe reconstrói a tela do zero — categoria não entrada, foco no início, rolagem perdida | Médio — viola "Voltar Restaura Foco e Posição" | **Pré-existente, não introduzido por esta feature**, e fora do escopo dela (a spec trata do retorno *do player para o detalhe*, que funciona por ser camada). Encaminhar ao backlog como `[Bug]` na fase Polish. Corrigir exige estado de foco no histórico de navegação ou manter telas montadas — decisão de design, não ajuste |
-| R-005 | O bug conhecido R-011 da feature 010 (botão com `.tv-focus` não é ativado por OK) atinge os estados de carregando/erro do `MovieDetailScreen`, que esta feature toca | Médio — botão que só funciona por mouse | Corrigido **localmente** nas telas desta feature, roteando `onSelect` para o botão do estado ativo. **Não** altera o `useRemoteNav` global — esse continua sendo o bug de backlog, porque afeta várias telas e é decisão de design |
-| R-006 | `onstreamcompleted` tem significados opostos por tipo de mídia. Se a tradução errar, ou todo filme termina numa tela de erro, ou uma queda de transmissão ao vivo parece conclusão bem-sucedida | Médio | D-008: o adaptador sempre emite `onCompleted` e a **sessão** traduz pela capacidade da mídia. Teste de contrato cobre os dois sentidos explicitamente |
-| R-007 | A duração pode não vir para alguns contêineres, deixando a barra sem denominador | Baixo/Médio — seria o percentual inventado que a constitution proíbe | FR-004 já define: tempo decorrido, sem barra, sem percentual. O Cenário G **registra qual dos dois ocorreu** na TV, em vez de presumir |
-| R-008 | Acrescentar `paused`/`completed` a `ALLOWED_NEXT` pode afrouxar a proteção contra callback atrasado que a tabela existe para dar | Baixo | `completed` é terminal exceto por `closed`, como `error`. Os testes cobrem as transições **proibidas**, não só as permitidas |
-| R-009 | Gravar progresso a cada 5 s durante um filme concorre com o IndexedDB, que a feature 010 também usa para obter categorias em segundo plano | Baixo | Escrita é um `put` por chave primária em `userStates` — tabela que a 010 não toca (ela escreve em `channels`/`categories`) — dentro de uma transação curta que já existe (`upsert`, `userStateRepository.ts:72`) |
-| R-010 | `buildStableId` **lança** quando o item não tem identificador nem nome (`userStateRepository.ts:41`) | Baixo | D-010: a exceção é contida na camada de progresso e nunca vira erro de player. Filme toca; só não grava retomada |
+| R-005 | O bug conhecido R-011 da feature 010 (botão com `.tv-focus` não é ativado por OK) atinge os estados de carregando/erro do `MovieDetailScreen`, que esta feature toca | Médio — botão que só funciona por mouse | **Resolvido localmente**: corrigido nas telas desta feature, roteando `onSelect` para o botão do estado ativo. **Não** altera o `useRemoteNav` global — esse continua sendo o bug de backlog, porque afeta várias telas e é decisão de design |
+| R-006 | `onstreamcompleted` tem significados opostos por tipo de mídia. Se a tradução errar, ou todo filme termina numa tela de erro, ou uma queda de transmissão ao vivo parece conclusão bem-sucedida | Médio | **Resolvido**: D-008 — o adaptador sempre emite `onCompleted` e a **sessão** traduz pela capacidade da mídia. Teste de contrato cobre os dois sentidos explicitamente |
+| R-007 | A duração pode não vir para alguns contêineres, deixando a barra sem denominador | Baixo/Médio — seria o percentual inventado que a constitution proíbe | **Resolvido**: FR-004 já define tempo decorrido, sem barra, sem percentual. O Cenário G (TV física, aprovado) confirmou que a duração vem do motor neste caso |
+| R-008 | Acrescentar `paused`/`completed` a `ALLOWED_NEXT` pode afrouxar a proteção contra callback atrasado que a tabela existe para dar | Baixo | **Resolvido**: `completed` é terminal exceto por `closed`, como `error`. Os testes cobrem as transições **proibidas**, não só as permitidas |
+| R-009 | Gravar progresso a cada 5 s durante um filme concorre com o IndexedDB, que a feature 010 também usa para obter categorias em segundo plano | Baixo | **Resolvido**: escrita é um `put` por chave primária em `userStates` — tabela que a 010 não toca (ela escreve em `channels`/`categories`) — dentro de uma transação curta que já existe (`upsert`, `userStateRepository.ts:72`) |
+| R-010 | `buildStableId` **lança** quando o item não tem identificador nem nome (`userStateRepository.ts:41`) | Baixo | **Resolvido**: D-010 — a exceção é contida na camada de progresso e nunca vira erro de player. Filme toca; só não grava retomada |
 | R-011 | **Achado na Fase 2**: o contrato original (`player-capabilities.md`) não especificava como a sessão saberia quando uma chamada assíncrona de `seekTo`/`jumpBy` no motor volta, nem como `startAtMs` chegaria ao adaptador a tempo de rodar antes do `play()` — os dois são exigidos pela lógica documentada (porta single-flight, §3; retomada, §5), mas as assinaturas de tipo não os expunham | Médio — sem isso, a porta single-flight não tem como saber quando liberar, e a retomada piscaria o início antes de saltar | **Resolvido**: `seekTo?`/`jumpBy?` do `PlayerAdapter` ganharam um segundo parâmetro `onSettled: () => void`; `open()` ganhou um terceiro parâmetro opcional `startAtMs`. Os dois documentados retroativamente em `contracts/player-capabilities.md` (§2 e novo §4.1), consistente com "Documentação do Repositório É Canônica" |
 | R-012 | **Achado na Fase 1/2**: `capabilities.ts` importava `CatalogItemKind` de `lib/catalog/db`, o que criaria uma dependência `lib/player → lib/catalog` — o inverso da fronteira unidirecional que o backlog (item 49) propõe (`lib/catalog/ → lib/player/`) | Baixo — nada quebraria hoje (item 49 ainda não é lint-enforced), mas compraria dívida logo na primeira feature que toca o player | **Resolvido**: `PlayableKind` definido localmente em `capabilities.ts`, estruturalmente idêntico a `CatalogItemKind`. Um `CatalogItemKind` real satisfaz `PlayableKind` por tipagem estrutural — nenhum ponto de chamada precisa converter ou importar de `lib/catalog` |
 | R-013 | **Conflito achado na Fase 3 (gatilho de parada do `sdd-execute`)**: a Acceptance Scenario 6 da US1 dizia "a busca não é oferecida" sem duração confiável, mas o contrato trata `canSeek`/`reportsDuration` como capacidades independentes — salto relativo (±10s) não precisa saber o total | Médio — decidiria se ⏪/⏩ desaparecem junto com a barra, ou só a barra some | **Resolvido com o usuário (23/09/2026)**: só a barra/percentual dependem de duração; avançar/retroceder continuam disponíveis sempre que `canSeek` for verdadeiro. `spec.md` AS6 corrigida com nota de rastreio; nenhuma mudança de código necessária — o design já implementava isto |
@@ -347,8 +348,9 @@ npx vitest run src/components/PlayerLayer.test.tsx
 | 2026-09-24 | Fase 5 (US3 — Conclusão) | `session.state === 'completed'` em `PlayerLayer.tsx` chama `recorder.onExit('completed')` e `onClose()` direto, sem passar pelo ramo de erro. Achado ao implementar: a desmontagem resultante roda o cleanup do efeito, que chamaria `onExit('close')` de novo sobre o mesmo gravador — corrigido com um selo `done` em `progressRecorder.ts` (R-018), que também evita um callback atrasado do motor reviver o progresso depois de concluído. | `npx vitest run` → 381/381 (39 arquivos); `npx tsc -b`/`npm run lint` limpos. As três user stories (P1/P2/P3) estão completas. |
 | 2026-09-24 | Fase 6 (TV física) — encerrada por decisão do usuário | Cenários F e G aprovados; Cenário H reprovou duas vezes e gerou três correções reais confirmadas na TV depois: (1) backdrop de `MovieDetailScreen` vazando atrás do vídeo — R-021; (2) segurar a seta travava o app — a porta single-flight acumulava saltos em vez de descartar — R-019; (3) modelo de navegação da barra redesenhado de "direita entra" pra "cima entra, baixo sai", a pedido do usuário depois de testar — R-020. Usuário confirmou os três funcionando após a correção final. `npx vitest run` → 390/390 (39 arquivos); `npx tsc -b`/`npm run lint` limpos. Usuário decidiu então **não testar o restante** (R-022): edge case de busca além do fim, Cenário I, Cenário J e checagem de `sdb dlog`. | Nenhuma bloqueante — risco residual aceito explicitamente (R-022). Documentação de Fase 7 (T053–T057) fechada nesta mesma sessão. |
 | 2026-09-24 | Fase 7 (Polish) — parcial | `CLAUDE.md` e `.planning/backlog.md` (itens 4/8/13, resumo "O que já existe hoje") atualizados para refletir a 011; R-004 (roteador perde foco/posição ao voltar de detalhe) registrado como `[Bug]` pré-existente; conferido que os componentes novos só usam tokens ADR-007; suíte completa limpa (390/390, tsc, lint). | T052 (Cenários A–E no navegador) não executado nesta sessão — sem bloqueio, fica para quando o navegador estiver em uso. |
+| 2026-09-24 | Fase 8 (Convergence) | Primeira passada de `sdd-converge` encontrou 7 achados, nenhum `CRITICAL`; 3 acionáveis viraram T058-T060. FR-008 (`spec.md`) emendado com a exceção da barra focada e nota "Atualização (Fase 6, R-020)" (T058/CF-01); teste novo em `PlayerControls.test.tsx` cobrindo o clamp de 100% quando a duração encolhe abaixo da posição já alcançada (T059/CF-02) — o clamp em si já existia, só faltava a cobertura; `research.md` R0-1 deixou de afirmar "não verificado em hardware", com nota apontando pra R-019/R-020/R-021/R-022 (T060/CF-07). Também aproveitada pra corrigir a Fase 2 da skill `tizen-tv` (build com `VITE_API_URL`/backend LAN), stale desde a migração client-first (feature 005/ADR-008) — não é código desta feature, mas foi pedido explicitamente no mesmo lote de trabalho. | Nenhuma — os 3 achados acionáveis foram sanados; os 4 achados de risco residual continuam cobertos por R-022, sem nova task. |
 
-**PRÓXIMO**: feature em estado utilizável e documentado, com risco residual aceito (R-022) em vez de bloqueio. Se algo for percebido nos quatro caminhos não testados (busca além do fim, retomada após fechar o app, Live TV, segredo em log), o caminho é `sdd-adhoc` ou `sdd-bugfix` — não reabrir esta feature. T052 (Cenários A–E no navegador) continua disponível para quando fizer sentido rodar.
+**PRÓXIMO**: rodar `sdd-converge` de novo para confirmar que os achados foram sanados e, se não houver novo achado acionável, fechar a convergência (status final). Os quatro caminhos de risco residual (busca além do fim, retomada após fechar o app, Live TV, segredo em log) continuam fora de escopo — qualquer comportamento incorreto percebido neles vira `sdd-adhoc` ou `sdd-bugfix`, não reabre esta feature. T052 (Cenários A–E no navegador) continua disponível para quando fizer sentido rodar.
 
 ## Arquivos Principais
 
@@ -362,6 +364,9 @@ npx vitest run src/components/PlayerLayer.test.tsx
 - `tv-web/src/lib/player/PlayerService.ts` — porta single-flight corrigida pra descartar em vez de acumular (Fase 6, R-019)
 - `tv-web/src/components/PlayerLayer.tsx` — navegação da barra redesenhada (cima entra, baixo sai; Fase 6, R-020)
 - `tv-web/src/features/screens.css` — regra de plano de hardware estendida a `.movie-detail-layout` (Fase 6, R-021)
+- `sdd/specs/011-assistir-filme-retomada/spec.md` — FR-008 emendado com a exceção da barra focada (Fase 8, T058/CF-01)
+- `tv-web/src/components/PlayerControls.test.tsx` — teste de clamp de 100% com posição além da duração (Fase 8, T059/CF-02)
+- `sdd/specs/011-assistir-filme-retomada/research.md` — R0-1 atualizado, deixou de afirmar "não verificado em hardware" (Fase 8, T060/CF-07)
 
 ## Cuidados para Retomada
 
@@ -404,3 +409,63 @@ npx vitest run src/components/PlayerLayer.test.tsx
   .<raiz-da-tela> > *:not(.player-overlay)`) — ver R-021. Esquecer produz
   exatamente o sintoma do bug `live-tv-toca-audio-sem-imagem`, só que
   silencioso até alguém testar na TV física.
+
+## Resultado Final
+
+<!-- Anexado pelo sdd-converge (24/09/2026) ao final de uma convergência sem achados novos. -->
+
+As três user stories (P1 assistir, P2 retomar, P3 concluir) foram entregues e
+estão em uso: `PlayerService` ganhou um contrato de capacidades resolvido por
+sessão (motor ∩ mídia), `PlayerLayer` (movido de `features/live/`) passou a
+servir Live TV e Filmes com o mesmo código, e `MovieDetailScreen` consome
+`userStateRepository` pela primeira vez desde a feature 008.
+
+**Verificado na TV física (QN50Q60DAGXZD)**: Cenários F, G e a maior parte de
+H, com três correções reais que só um aparelho real revelou — nenhuma visível
+no adaptador `<video>` de desenvolvimento:
+
+- **R-019**: a porta single-flight de saltos acumulava comandos em vez de
+  descartar, e travava o app de verdade ao segurar a seta — a API AVPlay
+  restringe outras chamadas enquanto uma está em voo, e o desenho original
+  (D-009) não previa isso corretamente.
+- **R-020**: o modelo de foco da barra de progresso foi redesenhado em campo
+  — de "direita a partir do último botão entra na barra" para "cima entra a
+  partir de qualquer botão, baixo sai" — a pedido do usuário, depois de testar
+  o desenho original e achá-lo contraintuitivo.
+- **R-021**: o backdrop opaco de `MovieDetailScreen` vazava por trás do vídeo
+  porque a regra CSS do plano de hardware só cobria `.screen`, não
+  `.movie-detail-layout` — mesma causa-raiz do bug `live-tv-toca-audio-sem-imagem`
+  da feature 003, numa tela que a proteção existente não alcançava.
+
+**Risco residual aceito, não bloqueante (R-022)**: por decisão explícita do
+usuário em 24/09/2026, quatro itens do roteiro de verificação da TV física
+não foram executados — o edge case "buscar além do fim" em H, o Cenário I
+(retomada ponta a ponta com o app fechado), o Cenário J (Live TV) e a
+checagem de segredo em log via `sdb dlog`. Continuam registrados como "não
+executado" em `tasks.md`, nunca como "aprovado". Qualquer comportamento
+incorreto percebido depois nesses quatro caminhos segue por `sdd-adhoc` ou
+`sdd-bugfix` — não reabre esta feature.
+
+**Divergências acumuladas frente ao plano original**: nenhuma de fundo. O
+maior ajuste foi a interação da barra de progresso (R-020), que já nasceu
+prevista como um refinamento sobre a spec original (D-006, `research.md`
+R0-6) e foi ainda mais longe depois do teste em campo — FR-008 foi emendado
+de volta (T058) para refletir o modelo final. `jumpBy` mudou de acumulação
+(D-009) para descarte (R-019) — mudança de comportamento interno, sem
+qualquer requisito de spec que a contradissesse.
+
+**Primeira passada de `sdd-converge` (24/09/2026)**: 7 achados, nenhum
+`CRITICAL`. Três acionáveis (FR-008 desatualizado, clamp de 100% sem teste,
+nota obsoleta em `research.md`) viraram a Fase 8 (`T058`-`T060`) e foram
+sanados nesta sessão. Os quatro restantes já estavam integralmente cobertos
+por R-022, sem trabalho novo necessário.
+
+**Estado dos testes automatizados ao final**: `npx vitest run` → 391/391 (39
+arquivos); `npx tsc -b` limpo; `npm run lint` limpo (5 warnings pré-existentes,
+nenhum novo).
+
+**Não fechado nesta feature, fora do escopo dela**: R-004 (o roteador
+`App.tsx` desmonta telas ao navegar, perdendo foco/posição ao voltar de um
+detalhe) — achado durante a exploração, pré-existente, encaminhado ao
+backlog como `[Bug]`. T052 (Cenários A–E do `quickstart.md` no navegador)
+segue disponível, sem bloqueio, para quando fizer sentido rodar.

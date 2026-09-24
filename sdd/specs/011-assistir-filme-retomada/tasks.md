@@ -318,3 +318,52 @@ impossível. Retomada e conclusão podem ser entregues depois sem retrabalho.
   carrega dois bugs corrigidos na TV física e não deve ser perdido
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->
+
+---
+
+## Phase 8: Convergence
+
+**Purpose**: Sanar os achados da primeira passada de `sdd-converge` (24/09/2026)
+sobre a Fase 6/7 encerradas com risco residual aceito (R-022). Nenhum achado
+foi `CRITICAL`; os três abaixo são acionáveis e não exigem reabrir a Fase 6.
+
+- [X] T058 **[CF-01, HIGH]** Emendar FR-008 em `spec.md` — a redação atual diz
+  que, com os controles **visíveis**, esquerda/direita "DEVEM navegar entre as
+  ações sem saltar", sem exceção. Isso ficou incompleto depois do redesenho de
+  R-020 (`plan.md`): com a **barra de progresso focada** (alcançada por cima a
+  partir de qualquer botão), esquerda/direita buscam **diretamente** ±10s, e
+  baixo devolve o foco ao play/pause — não é "navegar entre ações". Acrescentar
+  essa exceção ao corpo de FR-008 e uma nota citando R-020, no mesmo padrão da
+  nota já existente que cita R0-6/D-006. Origem: `FR-008` +
+  constitution "Documentação do Repositório É Canônica" (a spec deve refletir
+  o comportamento real confirmado na TV física, não uma versão pré-R-020)
+- [X] T059 **[CF-02, MEDIUM]** Adicionar teste unitário em
+  `tv-web/src/components/PlayerControls.test.tsx` para o edge case "duração
+  informada pelo motor muda depois do início" (spec.md, Edge Cases): com
+  `positionMs > durationMs` (duração encolheu após o início), o preenchimento
+  da barra DEVE ficar grampeado em 100% — nunca exibir um percentual acima de
+  100% (FR-004/constitution "Progresso e Capacidades São Reais"). O clamp
+  (`Math.min(1, Math.max(0, positionMs/durationMs))`) já existe em
+  `PlayerControls.tsx`; falta só a cobertura de teste. Origem: `spec.md` Edge
+  Cases ("Duração informada pelo motor muda")
+- [X] T060 **[CF-07, LOW]** Atualizar `research.md` R0-1 — a nota final ainda
+  diz "Não verificado em hardware: nada disto foi exercitado [...]", o que
+  ficou desatualizado depois da Fase 6 (Cenários F/G/H aprovados na TV física,
+  com três correções reais: R-019, R-020, R-021 em `plan.md`). Substituir por
+  uma nota curta apontando para esses três riscos e para o estado real
+  (parcialmente verificado, com risco residual aceito em R-022) em vez de
+  deixar a afirmação original — que agora é falsa — sem correção. Origem:
+  `plan.md` R-019/R-020/R-021/R-022
+
+**Critério de Conclusão**: FR-008 reflete o comportamento real da barra
+focada; o clamp de percentual acima de 100% tem teste; `research.md` não
+afirma mais que nada foi verificado em hardware. Nenhuma task desta fase toca
+código de produção além do teste de T059 (que cobre comportamento já
+implementado, não uma mudança nova).
+
+**Registro da Fase**:
+
+- Status: Concluída
+- Feito: FR-008 emendado em `spec.md` com a exceção da barra focada e uma nota "Atualização (Fase 6, TV física, R-020)"; teste novo em `PlayerControls.test.tsx` cobrindo o clamp de 100% quando `positionMs > durationMs`; `research.md` R0-1 com nota "Atualização (Fase 6...)" substituindo a afirmação obsoleta "não verificado em hardware".
+- Testes executados: `npx vitest run` → 391/391 (39 arquivos, +1 desde a Fase 7); `npx tsc -b` limpo; `npm run lint` limpo (os mesmos 5 warnings pré-existentes, nenhum novo).
+- Pendências: nenhuma nesta fase. Os quatro itens de risco residual (R-022) continuam fora de escopo — não foram tocados nem reabertos.

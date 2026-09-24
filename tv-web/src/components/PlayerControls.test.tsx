@@ -102,6 +102,19 @@ describe('PlayerControls', () => {
     }
   })
 
+  it('quando a posição ultrapassa a duração (duração encolheu depois do início), a barra fica grampeada em 100% — nunca mais que isso (spec.md Edge Cases)', () => {
+    const { container } = render(
+      <PlayerControls
+        capabilities={FULL}
+        state="playing"
+        progress={{ positionMs: 700_000, durationMs: 600_000 }}
+        focusedIndex={1}
+      />,
+    )
+    const fill = container.querySelector('.player-time-bar-fill') as HTMLElement
+    expect(fill.style.width).toBe('100%')
+  })
+
   it('a barra nunca vira um <button> — é foco de div, não um elemento novo na contagem de botões', () => {
     render(<PlayerControls capabilities={FULL} state="playing" progress={KNOWN_PROGRESS} focusedIndex={1} />)
     expect(screen.getAllByRole('button')).toHaveLength(3) // jumpBack, playPause, jumpForward — barra não conta

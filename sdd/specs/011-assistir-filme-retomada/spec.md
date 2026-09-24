@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-23
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: Assistir filme, com retomada — reprodução de VOD na TV: contrato de
 capacidades por motor no `PlayerService` (pausa, busca, posição, duração),
@@ -233,9 +233,13 @@ volta, e que a ação primária voltou a ser "Assistir".
 - **FR-008**: Os controles DEVEM se ocultar após um período sem interação e
   DEVEM reaparecer, com foco na ação primária, ao acionar qualquer direcional
   ou SELECT. Com os controles **ocultos**, esquerda e direita DEVEM **executar
-  o salto** além de exibir a barra; com os controles **visíveis**, DEVEM
-  navegar entre as ações sem saltar. Numa mídia sem capacidade de busca,
-  esquerda e direita NÃO DEVEM fazer nada.
+  o salto** além de exibir a barra; com os controles **visíveis** e o foco em
+  um botão, esquerda e direita DEVEM navegar entre as ações sem saltar. Com os
+  controles **visíveis** e o foco na **barra de progresso** — alcançada por
+  cima a partir de qualquer botão —, esquerda e direita DEVEM **buscar
+  diretamente** pela mesma quantidade do salto, e baixo DEVE devolver o foco à
+  ação de play/pause. Numa mídia sem capacidade de busca, esquerda e direita
+  NÃO DEVEM fazer nada, e a barra não existe como alvo de foco.
 
   > Refinado durante o `sdd-plan` a partir de
   > `docs/guia-praticas-app-tv/06` §1, normativo para o que é enviado a uma
@@ -243,6 +247,14 @@ volta, e que a ação primária voltou a ser "Assistir".
   > controles; o guia distingue o comportamento conforme eles estejam
   > visíveis ou não, o que permite avançar o filme sem primeiro ter de revelar
   > a barra. Ver `research.md` R0-6 e a decisão D-006 do `plan.md`.
+  >
+  > **Atualização (Fase 6, TV física, R-020)**: a distinção "visível vs.
+  > oculto" não bastava sozinha. Testado ao vivo, o usuário esperava focar
+  > especificamente a barra — desenhada acima dos botões — para buscar com
+  > esquerda/direita, em vez de alcançá-la por transbordo do último botão. O
+  > modelo final: CIMA entra na barra a partir de qualquer botão, BAIXO sai de
+  > volta pro play/pause, e só com a barra focada esquerda/direita buscam. Ver
+  > `plan.md` R-020 e `logic/reproducao-vod.md` §4.
 - **FR-009**: RETURN DEVE encerrar a reprodução a partir de qualquer estado,
   inclusive com os controles ocultos, sem deixar áudio em segundo plano, e
   DEVE devolver o foco ao item que originou a navegação.

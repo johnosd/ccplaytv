@@ -1,6 +1,6 @@
 ---
 name: tizen-tv
-description: Instala ou atualiza o app direto na TV Samsung física pela rede (sdb), do build ao app rodando na tela — descobre o IP atual da TV, confere Developer Mode e certificado, gera o build com `npm run build:tizen` apontando para o backend da LAN, empacota e assina o `.wgt` com o perfil Samsung que cobre o DUID do aparelho, instala, lança e coleta a evidência que existe (log do backend, `applist`), sem prometer a que não existe (a TV não expõe console). Use quando o usuário pedir para instalar, atualizar, reinstalar, publicar ou rodar o app na TV, testar na TV física, "manda pra TV", ou validar uma correção no aparelho de verdade. Também cobre os becos conhecidos: IP trocado pelo DHCP, `failed to connect` com a porta 26101 aberta, `Author certificate not match`, e o certificado Samsung que precisa de author próprio. NÃO use para o emulador (use `tizen-emulator`, que tem seu próprio beco documentado), para corrigir bugs encontrados no aparelho (use `sdd-bugfix`), nem para implementar feature (use `sdd-execute`).
+description: Instala ou atualiza o app direto na TV Samsung física pela rede (sdb), do build ao app rodando na tela — descobre o IP atual da TV, confere Developer Mode e certificado, gera o build com `npm run build:tizen` (client-first, ADR-008 — nenhum backend envolvido), empacota e assina o `.wgt` com o perfil Samsung que cobre o DUID do aparelho, instala, lança e coleta a evidência que existe (`applist`, observação visual guiada), sem prometer a que não existe (a TV não expõe console). Use quando o usuário pedir para instalar, atualizar, reinstalar, publicar ou rodar o app na TV, testar na TV física, "manda pra TV", ou validar uma correção no aparelho de verdade. Também cobre os becos conhecidos: IP trocado pelo DHCP, `failed to connect` com a porta 26101 aberta, `Author certificate not match`, e o certificado Samsung que precisa de author próprio. NÃO use para o emulador (use `tizen-emulator`, que tem seu próprio beco documentado), para corrigir bugs encontrados no aparelho (use `sdd-bugfix`), nem para implementar feature (use `sdd-execute`).
 ---
 
 # tizen-tv
@@ -26,7 +26,6 @@ do código à tela em cerca de um minuto, quando os pré-requisitos estão de p�
 | Certificado Samsung com author próprio | `Get-ChildItem $env:USERPROFILE\SamsungCertificate\<perfil>` deve ter **`author.p12` e `distributor.p12`** | Ver "O certificado" abaixo |
 | DUID da TV no certificado | `device-profile.xml` → `<TestDevice>` | Idem |
 | CLI apontando para o perfil certo | `tizen.bat security-profiles list` deve listar o perfil e marcá-lo ativo | Ver "O certificado" abaixo |
-| Backend alcançável pela LAN | `Invoke-RestMethod http://<ip-pc>:3000/health` | `api/.env` com `HOST=0.0.0.0`, firewall liberando TCP 3000, `docker compose up -d postgres` + `uv run python main.py` |
 
 Shell é **Windows PowerShell 5.1** (`pwsh` não instalado): sem `&&`, sem
 `??`. Encadeie com `;`.
@@ -109,22 +108,24 @@ foreach ($h in $hosts) {
 
 Esse nome (`QN50Q60DAGXZD`) é o que vai em `-t` nos comandos seguintes.
 
-## Fase 2 — Build apontando para o backend da LAN
+## Fase 2 — Build (client-first, sem backend)
 
-Dentro da TV, `127.0.0.1` é a própria TV. O fallback do front é
-`http://127.0.0.1:3000` (`catalogApi.ts`/`importApi.ts`), então a env var é
-obrigatória:
+**Atualizado (24/09/2026)**: esta fase pedia `VITE_API_URL` apontando para um
+backend na LAN, do tempo em que o app dependia dele para abrir a Home. Isso
+ficou obsoleto com a migração client-first (feature 005, ADR-008): import,
+catálogo e reprodução rodam inteiramente no IndexedDB do aparelho, sem ida à
+rede além da própria fonte IPTV. Um `grep` por `VITE_API_URL`/`127.0.0.1:3000`
+em `tv-web/src` não encontra nenhuma referência. Basta:
 
 ```powershell
-(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -eq 'Dhcp' }).IPAddress
 Push-Location .\tv-web
-$env:VITE_API_URL = "http://<ip-do-pc>:3000"
 npm run build:tizen
 Pop-Location
 ```
 
-Sem isso a Home abre vazia na TV e parece bug de UI. O CORS da API já aceita
-`Origin: null`, que é o que o app empacotado envia.
+`api/` continua existindo só como contorno congelado (ADR-008) para um painel
+de provedor que não faz parte de nenhum caminho client-first — não presuma
+que está rodando, e não é pré-requisito desta skill.
 
 ## Fase 3 — Empacotar e assinar
 
@@ -155,8 +156,10 @@ pelo **id completo** e repita:
 & $tizen uninstall -p 8tZqMtwANL.CCPlayTv -t QN50Q60DAGXZD
 ```
 
-Avise o usuário antes: isso apaga o cache local do app na TV (o catálogo
-volta a sincronizar do backend, então a perda é temporária).
+Avise o usuário antes: isso apaga o IndexedDB do app na TV — que é a fonte de
+verdade do catálogo (client-first, ADR-008), não um cache. A perda **não** é
+temporária: fontes cadastradas e progresso gravado somem, e reimportar exige
+repetir o fluxo de importação manualmente.
 
 Atualizações seguintes, com o mesmo certificado, dispensam o uninstall: o
 install sobrescreve em ~6 segundos.
@@ -164,17 +167,16 @@ install sobrescreve em ~6 segundos.
 ## Fase 5 — Evidência do que dá para provar
 
 A TV **não** entrega console: `sdb root on` → `Permission denied`, `dlog`
-volta vazio, e a porta 7011 do Web Inspector fica fechada. O que sobra:
+volta vazio, e a porta 7011 do Web Inspector fica fechada. Client-first
+(ADR-008) também tira o log de backend que antes servia de evidência
+indireta — não há requisição de API para inspecionar, porque não há API no
+caminho. O que sobra:
 
 ```powershell
 & $sdb -s <ip>:26101 shell 0 applist | Select-String "CCPlay"   # confirma instalação
-Get-Content "$env:TEMP\ccplay-api.log" -Tail 15                 # requisições vindas da TV
 ```
 
-Uma linha como `INFO: 192.168.0.4:51798 - "GET /sources HTTP/1.1" 200 OK`, com
-o IP **da TV**, é prova objetiva de que o app empacotado subiu, alcançou o
-backend pela LAN e o CORS passou. Fora isso, o veredito é visual: o usuário
-olhando a tela.
+Fora isso, o veredito é visual: o usuário olhando a tela.
 
 Por isso **as perguntas ao usuário precisam ser específicas** — "a splash
 apareceu?", "o foco está visível neste estado?", "mover o foco disparou
