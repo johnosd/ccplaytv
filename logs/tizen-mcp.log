@@ -183,3 +183,7 @@
 {"context":{"node":"v20.19.6","platform":"win32-x64","version":"1.0.0"},"level":"info","message":"Tizen MCP Server v1.0.0 started and connected Tizen MCP Server v1.0.0 started and connected","source":"TizenMCPServer","timestamp":"2026-09-23T10:09:26.201Z"}
 {"level":"info","message":"PlaywrightGuideManager initialized PlaywrightGuideManager initialized","source":"PlaywrightGuideManager","timestamp":"2026-09-23T11:19:14.849Z"}
 {"context":{"node":"v20.19.6","platform":"win32-x64","version":"1.0.0"},"level":"info","message":"Tizen MCP Server v1.0.0 started and connected Tizen MCP Server v1.0.0 started and connected","source":"TizenMCPServer","timestamp":"2026-09-23T11:19:14.860Z"}
+{"level":"info","message":"PlaywrightGuideManager initialized PlaywrightGuideManager initialized","source":"PlaywrightGuideManager","timestamp":"2026-09-24T12:53:38.329Z"}
+{"context":{"node":"v20.19.6","platform":"win32-x64","version":"1.0.0"},"level":"info","message":"Tizen MCP Server v1.0.0 started and connected Tizen MCP Server v1.0.0 started and connected","source":"TizenMCPServer","timestamp":"2026-09-24T12:53:38.339Z"}
+{"level":"info","message":"PlaywrightGuideManager initialized PlaywrightGuideManager initialized","source":"PlaywrightGuideManager","timestamp":"2026-09-24T13:15:25.979Z"}
+{"context":{"node":"v20.19.6","platform":"win32-x64","version":"1.0.0"},"level":"info","message":"Tizen MCP Server v1.0.0 started and connected Tizen MCP Server v1.0.0 started and connected","source":"TizenMCPServer","timestamp":"2026-09-24T13:15:25.985Z"}

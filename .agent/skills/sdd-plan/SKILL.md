@@ -41,8 +41,14 @@ bootstrap agora, antes de continuar:
    engenharia). Se existir algo aproveitável, pergunte ao usuário se quer
    portar esse conteúdo (traduzindo pra português se for o caso) em vez de
    partir do zero.
-2. Se não houver nada pra portar, faça uma entrevista curta (3-5 perguntas,
-   um só lote):
+2. Se não houver nada pra portar, faça uma entrevista pra levantar os
+   princípios. **Sem teto artificial de perguntas** — pode passar de 10 se o
+   projeto justificar. Prefira a tool `AskUserQuestion` sempre que as
+   alternativas puderem ser enumeradas (ex: stack, modelo de deploy,
+   single-user vs multi-tenant), listando as opções **da mais recomendada
+   para a menos recomendada** e marcando a primeira explicitamente como
+   recomendada; pra perguntas abertas (ex: "quais princípios?"), colete em
+   texto livre. Cubra pelo menos:
    - Que tipo de projeto é este e qual a stack principal?
    - Quais são os 3-5 princípios não-negociáveis pra como o código deste
      projeto deve ser construído (ex: segurança, fronteiras de
@@ -118,7 +124,10 @@ não uma lista fixa de princípios. Se houver violação:
   `## Complexity Tracking` (Violação | Por que é necessária | Alternativa
   mais simples rejeitada porque).
 - **Não justificável**: **pare e pergunte ao usuário** — não prossiga
-  silenciosamente. Isso é um gate real, não um carimbo.
+  silenciosamente. Isso é um gate real, não um carimbo. Prefira
+  `AskUserQuestion`, com as alternativas (ex: redesenhar, aceitar como
+  complexidade justificada, abrir `sdd-adr`) ordenadas da mais recomendada
+  para a menos recomendada.
 
 Riscos ou decisões técnicas identificados aqui já entram em `## Riscos e
 Decisões` com um novo ID (`R-001`, `R-002`...).

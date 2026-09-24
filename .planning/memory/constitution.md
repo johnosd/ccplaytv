@@ -1,26 +1,45 @@
 <!--
 Relatório de Impacto de Sincronização
-- Mudança de versão: 1.1.0 -> 1.2.0
-- Princípios modificados (1): "Segredos Fora dos Clientes e dos Logs" —
-  aberta exceção explícita para credencial de provedor (dns/usuário/senha
-  Xtream), que passa a poder residir no dispositivo sob a arquitetura
-  client-first da ADR-008. Chaves de OpenAI/TMDB e URL completa de fonte
-  continuam proibidas no cliente, sem mudança.
+- Mudança de versão: 1.2.0 -> 1.3.0
+- Princípios modificados (2):
+  - "Foco Visível e Sem Becos Sem Saída" — passa a exigir explicitamente
+    que o elemento com aparência de foco seja ativável por SELECT, não só
+    marcado visualmente. Fecha a brecha letra-vs-espírito que o bug de
+    backlog conhecido já explora (botões "Tentar de novo"/"Voltar" com
+    `.tv-focus` mas sem `onSelect` roteado — só funcionam por mouse).
+  - "Progresso e Capacidades São Reais, Nunca Prometidos" — escopo
+    ampliado de progresso/capacidades de player para cobertura de
+    catálogo: catálogo obtido sob demanda ou truncado por espaço em disco
+    (feature 010) DEVE ser sinalizado como parcial, nunca apresentado
+    como se fosse o catálogo completo declarado pela fonte.
+- Restrições do Projeto modificadas (1): "Validação em hardware real"
+  ganha uma exceção — a spec/plano de uma feature específica PODE elevar
+  TV física a gate obrigatório para uma capacidade concreta que o
+  adaptador de desenvolvimento (`<video>`) não consegue provar nem
+  desprovar; fechar sem satisfazer esse gate por completo exige decisão
+  explícita do usuário com risco residual registrado, nunca um item
+  pulado em silêncio. Formaliza o que já aconteceu de fato na Fase 6 de
+  `sdd/specs/011-assistir-filme-retomada/plan.md`.
 - Princípios adicionados: nenhum
-- Restrições do Projeto: "Ambiente de execução do backend" reescrita para
-  refletir client-first por padrão (ADR-008); backend deixa de ser
-  descrito como "roda localmente, migra para VPS depois"
-- Origem da mudança: ADR-008 (arquitetura client-first — backend só
-  quando estritamente necessário), decisão de custo confirmada pelo
-  usuário em 2026-09-19
+- Origem da mudança: auditoria pedida pelo usuário em 2026-09-24 do que
+  mudou desde v1.2.0 (features 006-011, ADR-009) mais revisão de
+  princípios com brecha entre letra e espírito; escopo e redação
+  confirmados com o usuário via `AskUserQuestion` na mesma conversa.
 - Seções removidas: nenhuma
-- Pendências: nenhuma
+- Pendências: o "contrato de capacidades do player" da feature 011 foi
+  discutido e deliberadamente deixado fora da constitution — já coberto
+  pelo texto de capacidades reais; a formalização arquitetural (como o
+  contrato é resolvido por engine ∩ mídia) fica para uma futura emenda de
+  ADR-001, se o usuário decidir abri-la.
 
 Histórico:
 - 1.0.0 (2026-09-14): criação inicial — Princípios Fundamentais (8),
   Restrições do Projeto, Fluxo de Desenvolvimento, Governança
 - 1.1.0 (2026-09-16): 5 princípios novos (foco/voltar/identidade/
   progresso/documentação) + restrição de design system (ADR-007)
+- 1.2.0 (2026-09-19): exceção de credencial de provedor em "Segredos Fora
+  dos Clientes e dos Logs" (ADR-008); restrição de backend reescrita para
+  client-first
 -->
 
 # Constitution do CCPlay TV
@@ -122,7 +141,10 @@ ter pelo menos um elemento focável; uma tela sem saída focável prende o
 controle remoto. O estado de foco NÃO DEVE ser comunicado apenas por
 mudança de cor, e NÃO DEVE depender de `hover` (que não existe neste alvo).
 Mover o foco seleciona; SELECT executa — focar um item NÃO DEVE iniciar
-reprodução nem disparar consulta a serviço externo.
+reprodução nem disparar consulta a serviço externo. Um elemento com a
+aparência visual de foco (contorno/classe) mas que SELECT não ativa de fato
+NÃO satisfaz este princípio — foco é o par completo "visível + ativável por
+SELECT", nunca só o primeiro.
 
 **Por quê**: ADR-007 §4/§5; docs/guia-praticas-app-tv/04 (foco por contorno
 + realce) e /08 (UX09); docs/iptvnator/01-ui-ux.md #6 e
@@ -158,10 +180,15 @@ Quando não houver denominador confiável, a interface DEVE usar indicação
 indeterminada em vez de um percentual inventado. Os controles do player
 DEVEM refletir as capacidades reais do item: transmissão ao vivo sem janela
 DVR NÃO DEVE oferecer busca temporal, e uma mensagem de "carregando" NÃO
-DEVE encobrir autenticação inválida ou formato incompatível.
+DEVE encobrir autenticação inválida ou formato incompatível. O mesmo vale
+para o catálogo: quando a cobertura de uma categoria for parcial — obtida
+sob demanda, truncada por limite de armazenamento, ou ainda não
+sincronizada — a interface DEVE indicar esse escopo, e NUNCA apresentar um
+catálogo parcial como se fosse o catálogo completo declarado pela fonte.
 
 **Por quê**: docs/guia-praticas-app-tv/04 (T04) e /06 (P02, estados
-explícitos); docs/guia-praticas-app-tv/01 (D03); ADR-007 §5.
+explícitos); docs/guia-praticas-app-tv/01 (D03); ADR-007 §5; ADR-002
+(emenda de cobertura parcial de catálogo, feature 010).
 
 ### Documentação do Repositório É Canônica
 
@@ -215,11 +242,21 @@ intenção; o CSS é o contrato executável.
 **Validação em hardware real**: emulador e navegador são suficientes para
 o desenvolvimento do dia a dia nesta fase do projeto. Teste na TV real é
 fortemente recomendado antes de considerar uma capacidade de
-player/DRM/codec comprovada, mas **não é gate obrigatório** para o
-`sdd-converge` fechar uma feature nesta fase — decisão explícita,
+player/DRM/codec comprovada, mas **não é gate obrigatório por padrão** para
+o `sdd-converge` fechar uma feature nesta fase — decisão explícita,
 revisitável quando o projeto avançar para preparação comercial
 (docs/guia-praticas-app-tv/12, "emulador não reproduz integralmente o
 hardware").
+
+**Exceção**: a spec/plano de uma feature específica PODE elevar a
+verificação em TV física a gate obrigatório para uma capacidade concreta
+que o adaptador de desenvolvimento (`<video>`) estruturalmente não
+consegue provar nem desprovar (ex.: superfície de VOD do AVPlay — pausa,
+busca, posição, duração — na feature `011-assistir-filme-retomada`). Quando
+isso acontecer, fechar a feature sem satisfazer esse gate por completo DEVE
+ser uma decisão explícita do usuário, com o risco residual registrado em
+`Riscos e Decisões` do `plan.md` — nunca um item pulado em silêncio pelo
+`sdd-execute`/`sdd-converge`.
 
 ## Fluxo de Desenvolvimento
 
@@ -254,4 +291,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.2.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-19
+**Versão**: 1.3.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-24

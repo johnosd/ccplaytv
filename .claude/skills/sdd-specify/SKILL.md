@@ -26,7 +26,14 @@ pelo `sdd-plan`, não por este skill.
 ### 2. Entrevista leve
 
 Pergunte o suficiente para remover ambiguidade antes de escrever qualquer
-coisa, em lotes concisos (3-5 perguntas). Cubra:
+coisa. **Não há teto artificial de perguntas** — o limite é a ambiguidade
+real, não uma contagem; para uma ideia pouco clara, é legítimo (e esperado)
+passar de 10 perguntas ao longo da entrevista. Prefira a tool
+`AskUserQuestion` a texto corrido sempre que as alternativas puderem ser
+enumeradas (ela aceita até 4 perguntas por chamada — encadeie quantas
+chamadas forem necessárias). Em toda pergunta com alternativas, liste as
+opções **da mais recomendada para a menos recomendada** e marque a primeira
+explicitamente como recomendada, pra que o usuário possa só confirmar. Cubra:
 
 - Objetivo e comportamento visível ao usuário.
 - Usuários-alvo e ponto de entrada (onde na UI/API isso aparece).
@@ -70,9 +77,15 @@ não houver ambiguidade genuína):
 7. Constraints/Terminologia — termos ambíguos, constraints implícitas.
 8. Sinais de Conclusão — como saber que a feature está "pronta".
 
-Faça **no máximo 5 perguntas sequenciais**, cada uma com uma opção
-**Recomendada** explícita (o usuário pode só confirmar). Registre cada
-resposta imediatamente:
+Faça quantas perguntas forem necessárias pra cobrir as lacunas reais
+encontradas — **sem teto artificial**; para uma ideia ambígua, passar de 10
+perguntas ao longo da varredura é normal, não um exagero. Prefira a tool
+`AskUserQuestion` a texto corrido (até 4 perguntas por chamada — encadeie
+quantas chamadas precisar em vez de se limitar a uma rodada única). Cada
+pergunta lista as opções **da mais recomendada para a menos recomendada**,
+com a primeira marcada explicitamente como recomendada (o usuário pode só
+confirmar). Mantenha o caráter sequencial: registre cada resposta
+imediatamente antes de abrir a próxima leva:
 
 - Anexe em `## Clarifications` → `### Sessão AAAA-MM-DD` como `- Q: ... → A: ...`.
 - Corrija a seção da spec afetada na hora (não deixe pra depois).

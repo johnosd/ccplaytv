@@ -114,7 +114,7 @@ running a whole suite.
 
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.2.0) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.3.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 
@@ -169,13 +169,13 @@ sdd-assess (optional, "is this worth building?")
 active feature), and `sdd-adhoc` (small low-risk tweaks) run independently
 of that pipeline, at any time.
 
-### Skills are mirrored in `.claude/skills/` and `.gemini/skills/`
+### Skills are mirrored in `.claude/skills/` and `.agent/skills/`
 
 All 8 SDD skills (`sdd-assess`, `sdd-adr`, `sdd-bugfix`, `sdd-specify`,
 `sdd-plan`, `sdd-execute`, `sdd-converge`, `sdd-adhoc`) exist as
 `SKILL.md` under **both** `.claude/skills/<name>/` (so Claude Code invokes
-them as `/sdd-*`) and `.gemini/skills/<name>/` (Gemini CLI). Keep the two
-copies in sync when editing one.
+them as `/sdd-*`) and `.agent/skills/<name>/` (other agent CLIs, e.g.
+Gemini CLI). Keep the two copies in sync when editing one.
 
 Two more skills follow the same mirroring rule but are **not** part of the
 SDD pipeline — both are operational procedures for getting the app onto a

@@ -66,16 +66,23 @@ informação nova) ou está satisfeito.
 
 1. Pode rodar direto sobre a entrada do usuário, sem exigir `explora.md` —
    se ele existir, leia e incorpore; se não, tudo bem.
-2. **Problem Statement**: 1-2 frases, o problema real, não a solução.
-3. **Usuários/partes afetadas**: quem sente isso e como.
-4. **Goals** e **Non-Goals**: tão importante um quanto o outro — non-goals
+2. Se o Problem Statement, usuários afetados, goals/non-goals ou métricas de
+   sucesso ficarem ambíguos a partir do que o usuário deu, **pergunte
+   diretamente em vez de assumir** — sem teto artificial de perguntas (numa
+   ideia pouco clara, passar de 10 é normal). Prefira a tool
+   `AskUserQuestion`, com as opções de cada pergunta ordenadas **da mais
+   recomendada para a menos recomendada** e a primeira marcada
+   explicitamente como recomendada.
+3. **Problem Statement**: 1-2 frases, o problema real, não a solução.
+4. **Usuários/partes afetadas**: quem sente isso e como.
+5. **Goals** e **Non-Goals**: tão importante um quanto o outro — non-goals
    evita que o escopo infle silenciosamente depois.
-5. **Success Metrics**: como saber que resolveu, de forma mensurável.
-6. **Cost of Inaction**: o que acontece se isso não for feito — ajuda a
+6. **Success Metrics**: como saber que resolveu, de forma mensurável.
+7. **Cost of Inaction**: o que acontece se isso não for feito — ajuda a
    julgar prioridade de verdade.
-7. Escreve `problem.md` a partir de
+8. Escreve `problem.md` a partir de
    `.planning/templates/assessment-problem-template.md`.
-8. Relata: slug, próximo passo ("rode a fase Decide").
+9. Relata: slug, próximo passo ("rode a fase Decide").
 
 ### 4. Fase Decide
 
@@ -83,9 +90,13 @@ informação nova) ou está satisfeito.
    rodar Define primeiro.
 2. **Preencha o scorecard** — cada critério (validade do problema, força da
    evidência, valor vs. custo de inação, viabilidade/apetite, fit
-   estratégico) avaliado como `strong`/`adequate`/`weak`/`unknown`. Um
-   `unknown` precisa ser **reconhecido explicitamente**, nunca varrido pra
-   baixo do tapete pra fechar o veredito mais rápido.
+   estratégico) avaliado como `strong`/`adequate`/`weak`/`unknown`. Antes de
+   marcar um critério como `unknown` só porque a informação não foi dada,
+   **pergunte ao usuário** — sem teto artificial de perguntas, preferindo a
+   tool `AskUserQuestion` com as opções ordenadas da mais recomendada para a
+   menos recomendada. O `unknown` que sobrar depois de perguntar precisa ser
+   **reconhecido explicitamente**, nunca varrido pra baixo do tapete pra
+   fechar o veredito mais rápido.
 3. **Liste 1-3 abordagens candidatas** em nível de conceito (não design de
    implementação) e recomende uma, se o veredito parecer `go`.
 4. **Aplique o veredito**:
