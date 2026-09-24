@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CatalogDb } from './db'
 import { storeBatch } from './catalogRepository'
+import { buildStableId, toggleFavorite } from './userStateRepository'
 import {
   createSource,
   deleteSource,
@@ -149,6 +150,21 @@ describe('sourceRepository', () => {
     expect(await database.sources.count()).toBe(0)
     expect(await database.channels.count()).toBe(0)
     expect(await database.importRuns.count()).toBe(0)
+  })
+
+  it('remover a fonte apaga favoritos e retomada dela, preservando os de outra fonte (feature 013, FR-017/D-007)', async () => {
+    const id = await createSource(CREDENTIAL, database)
+    const otherId = await createSource({ ...CREDENTIAL, displayName: 'Outra lista' }, database)
+
+    const stableId = buildStableId({ sourceId: id, kind: 'movie', providerStreamId: '1' })
+    const otherStableId = buildStableId({ sourceId: otherId, kind: 'movie', providerStreamId: '1' })
+    await toggleFavorite(stableId, id, true, database)
+    await toggleFavorite(otherStableId, otherId, true, database)
+
+    await deleteSource(id, database)
+
+    expect(await database.userStates.get(stableId)).toBeUndefined()
+    expect((await database.userStates.get(otherStableId))?.isFavorite).toBe(true)
   })
 
   it('falha de conexão não avança a marca de sincronização (FR-016)', async () => {

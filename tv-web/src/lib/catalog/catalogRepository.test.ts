@@ -608,4 +608,53 @@ describe('resolveFavorites (feature 013)', () => {
 
     expect(await resolveFavorites(SOURCE_ID, 'movie', [], database)).toEqual({ records: [], unresolved: 0 })
   })
+
+  it('favorito sobrevive a uma ressincronização (geração nova, mesmo providerStreamId — SC-003)', async () => {
+    await seedSource({ activeGeneration: 1 })
+    await storeBatch([movie(1, 'Dune', 0, '1')], database)
+
+    // Ressincronização: geração 2 traz o mesmo filme (mesmo id do painel),
+    // publicada por cima da 1.
+    await storeBatch([movie(2, 'Dune', 0, '1')], database)
+    await publishGeneration(SOURCE_ID, 2, database)
+
+    const { records } = await resolveFavorites(SOURCE_ID, 'movie', [idFavorite('movie', '1')], database)
+    expect(records.map((r) => r.name)).toEqual(['Dune'])
+  })
+
+  it('favorito (userStates) e o catálogo sobrevivem a fechar e reabrir o banco com o mesmo nome (SC-003)', async () => {
+    const name = `test-favorites-reopen-${Math.random().toString(36).slice(2)}`
+    const first = new CatalogDb(name)
+    await first.open()
+    await first.sources.add({
+      id: SOURCE_ID,
+      type: 'provider_credentials',
+      displayName: 'Fonte',
+      connectionState: 'never_synced',
+      activeGeneration: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    await storeBatch([movie(1, 'Dune', 0, '1')], first)
+    const stableId = `${SOURCE_ID}|movie|id:1` // mesmo formato de buildStableId
+    await first.userStates.add({
+      stableId,
+      sourceId: SOURCE_ID,
+      isFavorite: true,
+      favoritedAt: 100,
+      createdAt: 100,
+      updatedAt: 100,
+    })
+    first.close()
+
+    const reopened = new CatalogDb(name)
+    await reopened.open()
+    try {
+      expect((await reopened.userStates.get(stableId))?.isFavorite).toBe(true)
+      const { records } = await resolveFavorites(SOURCE_ID, 'movie', [idFavorite('movie', '1')], reopened)
+      expect(records.map((r) => r.name)).toEqual(['Dune'])
+    } finally {
+      await reopened.delete()
+    }
+  })
 })

@@ -140,13 +140,13 @@ description: "Lista de tasks da feature 013-favoritos"
 
 ### Testes da Fase
 
-- [ ] T024 [P] [US3] Em `tv-web/src/lib/catalog/sourceRepository.test.ts`: `deleteSource` apaga `userStates` da fonte removida e preserva os de outra fonte (FR-017, D-007).
-- [ ] T025 [P] [US3] Em `tv-web/src/lib/catalog/catalogRepository.test.ts`: integração — favoritar, publicar nova geração com o mesmo `providerStreamId` (e, para M3U, o mesmo nome), `resolveFavorites` encontra o registro novo; reabrir `CatalogDb` com o mesmo nome mantém os favoritos (SC-003).
-- [ ] T026 [P] [US3] Em `tv-web/src/features/catalog/catalogApi.test.tsx`: duas fontes com favoritos — `useFavoriteIds`/`useFavoritesContent` de uma nunca devolvem os da outra (US3 cenário 5).
+- [X] T024 [P] [US3] Em `tv-web/src/lib/catalog/sourceRepository.test.ts`: `deleteSource` apaga `userStates` da fonte removida e preserva os de outra fonte (FR-017, D-007).
+- [X] T025 [P] [US3] Em `tv-web/src/lib/catalog/catalogRepository.test.ts`: integração — favoritar, publicar nova geração com o mesmo `providerStreamId`, `resolveFavorites` encontra o registro novo; reabrir `CatalogDb` com o mesmo nome mantém o favorito (`userStates`) e o resolve (SC-003). Caso M3U por nome coberto pela varredura por nome já testada em T008; não duplicado aqui.
+- [X] T026 [P] [US3] Em `tv-web/src/features/catalog/catalogApi.test.tsx`: duas fontes com favoritos — `useFavoriteIds`/`useFavoritesContent` de uma nunca devolvem os da outra (US3 cenário 5).
 
 ### Implementation
 
-- [ ] T027 [US3] Em `tv-web/src/lib/catalog/sourceRepository.ts`: `deleteSource` chama `deleteUserStatesForSource` (dentro do mesmo fluxo que já apaga catálogo e `importRuns`).
+- [X] T027 [US3] Em `tv-web/src/lib/catalog/sourceRepository.ts`: `deleteSource` chama `deleteUserStatesForSource` (dentro do mesmo fluxo que já apaga catálogo e `importRuns`).
 
 **Critério de Conclusão**: T024–T026 passando; nenhum favorito de fonte removida reaparece; gates limpos.
 
@@ -154,10 +154,10 @@ description: "Lista de tasks da feature 013-favoritos"
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Testes executados:
-- Pendências:
+- Status: Concluída (2026-09-24)
+- Feito: T024–T027. `sourceRepository.ts`: `deleteSource` agora chama `deleteUserStatesForSource` antes de apagar a fonte. Testes: isolamento entre duas fontes em `deleteSource` (T024); favorito sobrevivendo a nova geração publicada e a fechar/reabrir `CatalogDb` com o mesmo nome, incluindo o registro `userStates` em si, não só o catálogo (T025); `useFavoriteIds`/`useFavoritesContent` isolados entre fontes (T026).
+- Testes executados: `npm run test` → 49 arquivos, 553 testes (0 regressão, 548→553 líquido); `npx tsc -b` e `npm run lint` limpos. Comando: `npx vitest run src/lib/catalog/sourceRepository.test.ts src/lib/catalog/catalogRepository.test.ts src/features/catalog/catalogApi.test.tsx && npm run test && npm run lint && npx tsc -b`.
+- Pendências: nenhuma técnica.
 
 ---
 

@@ -351,4 +351,72 @@ describe('useFavoriteIds / useFavoritesContent / useToggleFavorite (feature 013)
       act(() => result.current.mutateAsync(movieItem({ provider_stream_id: null, original_name: '' }))),
     ).rejects.toThrow(/identidade estável/)
   })
+
+  describe('isolamento entre fontes (feature 013, US3 cenário 5)', () => {
+    const OTHER_SOURCE_ID = 'source-favorites-other'
+
+    async function seedOtherSourceAndMovie(): Promise<void> {
+      await db.sources.put({
+        id: OTHER_SOURCE_ID,
+        type: 'provider_credentials',
+        displayName: 'Outra fonte',
+        connectionState: 'synced',
+        activeGeneration: 1,
+        createdAt: 0,
+        updatedAt: 0,
+      })
+      await db.channels.bulkAdd([
+        {
+          sourceId: OTHER_SOURCE_ID,
+          generation: 1,
+          kind: 'movie',
+          name: 'Avatar',
+          originalName: 'Avatar',
+          groupOrder: 0,
+          providerStreamId: '99',
+        },
+      ])
+    }
+
+    afterEach(async () => {
+      await db.sources.delete(OTHER_SOURCE_ID)
+      await db.channels.where('sourceId').equals(OTHER_SOURCE_ID).delete()
+      await db.userStates.where('sourceId').equals(OTHER_SOURCE_ID).delete()
+    })
+
+    it('useFavoriteIds de uma fonte nunca devolve o stableId de outra', async () => {
+      await seedSourceAndMovie()
+      await seedOtherSourceAndMovie()
+      const ownId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: '42' })
+      const otherId = buildStableId({ sourceId: OTHER_SOURCE_ID, kind: 'movie', providerStreamId: '99' })
+      await db.userStates.bulkPut([
+        { stableId: ownId, sourceId: SOURCE_ID, isFavorite: true, favoritedAt: 1, createdAt: 1, updatedAt: 1 },
+        { stableId: otherId, sourceId: OTHER_SOURCE_ID, isFavorite: true, favoritedAt: 1, createdAt: 1, updatedAt: 1 },
+      ])
+
+      const { result } = renderHook(() => useFavoriteIds(SOURCE_ID, 'movie'), { wrapper: wrapper() })
+
+      await waitFor(() => expect(result.current.data).toBeDefined())
+      expect(result.current.data?.has(ownId)).toBe(true)
+      expect(result.current.data?.has(otherId)).toBe(false)
+      expect(result.current.data?.size).toBe(1)
+    })
+
+    it('useFavoritesContent de uma fonte nunca resolve o favorito de outra', async () => {
+      await seedSourceAndMovie()
+      await seedOtherSourceAndMovie()
+      const ownId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: '42' })
+      const otherId = buildStableId({ sourceId: OTHER_SOURCE_ID, kind: 'movie', providerStreamId: '99' })
+      await db.userStates.bulkPut([
+        { stableId: ownId, sourceId: SOURCE_ID, isFavorite: true, favoritedAt: 1, createdAt: 1, updatedAt: 1 },
+        { stableId: otherId, sourceId: OTHER_SOURCE_ID, isFavorite: true, favoritedAt: 1, createdAt: 1, updatedAt: 1 },
+      ])
+
+      const { result } = renderHook(() => useFavoritesContent(SOURCE_ID, 'movie', true), { wrapper: wrapper() })
+
+      await waitFor(() => expect(result.current.data).toBeDefined())
+      expect(result.current.data?.items.map((item) => item.name)).toEqual(['Duna'])
+      expect(result.current.data?.unresolved).toBe(0)
+    })
+  })
 })

@@ -1003,7 +1003,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 010-catalogo-sob-demanda | Importação por Estrutura com Carga sob Demanda por Categoria | Convergida | 59/59 tasks | 2026-09-23 |
 | 011-assistir-filme-retomada | Assistir Filme, com Retomada | Convergida | 63/72 tasks | 2026-09-24 |
 | 012-series-episodios-temporadas | Séries — Episódios e Temporadas | Convergida | 52/55 tasks | 2026-09-24 |
-| 013-favoritos | Favoritos em Canais, Filmes e Séries | Em Execução | 23/43 tasks | 2026-09-24 |
+| 013-favoritos | Favoritos em Canais, Filmes e Séries | Em Execução | 27/43 tasks | 2026-09-24 |
 
 ## Bugs
 

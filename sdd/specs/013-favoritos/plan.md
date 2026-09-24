@@ -223,7 +223,7 @@ npm run build:tizen    # antes da TV física
 | Fase 2 (Foundational) | Concluída — gesto de OK, schema v9, `resolveFavorites`, hooks de `catalogApi`, `useFavoriteToggle`, `FavoritesState`. 530/530 testes, `tsc`/lint limpos |
 | Fase 3 (US1 — Live TV) | Concluída — trilha com "★ Favoritos", gesto de OK, estrela, dica, conteúdo de Favoritos. 541/541 testes (11 novos), `tsc`/lint limpos |
 | Fase 4 (US2 — Filmes/Séries) | Concluída — mesmo padrão da Fase 3 aplicado às duas grades. 548/548 testes (7 novos), `tsc`/lint limpos |
-| Fase 5 (US3 — persistência) | Não iniciada |
+| Fase 5 (US3 — persistência) | Concluída — `deleteSource` apaga `userStates`; favorito sobrevive a resync e a reabrir o banco; isolamento entre fontes. 553/553 testes (5 novos), `tsc`/lint limpos |
 | Fase 6 (Polish) | Não iniciada |
 
 ## Riscos e Decisões
@@ -259,17 +259,17 @@ npm run build:tizen    # antes da TV física
 | 2026-09-24 | Fase 2 (Foundational) | `useRemoteNav` ganhou `onLongSelect` opt-in (keydown/keyup/limiar, `STALE_PRESS_MS` pra keyup perdido, cancelamento em blur/visibilitychange) sem tocar nenhuma tela existente. Schema Dexie v9 (`[sourceId+generation+kind+providerStreamId]`). `userStateRepository`: `parseStableId`, `listFavorites`, `deleteUserStatesForSource`. `catalogRepository`: `resolveFavorites` (índice → seriesId → varredura por nome com corte antecipado via sentinela). `catalogApi`: `useFavoriteIds`/`useFavoritesContent`/`useToggleFavorite`. `features/favorites/` novo: `useFavoriteToggle` (aviso + vizinho de foco) e `FavoritesState` (`FavoritesEmptyState` + `FavoritesUnresolvedNote`). 530/530 testes (52 novos), `tsc`/lint limpos. | Nenhuma técnica; R-001 (verificação de hold na TV física) segue em aberto até a Fase 6. |
 | 2026-09-24 | Fase 3 (US1 — Live TV) | `LiveScreen.tsx` reescrito: trilha `[Favoritos, ...categories]` com `TrailKey`/`EnteredKey` discriminados (D-004), gesto de OK só na coluna de conteúdo (D-002), estrela `.fav-star`, dica `.fav-hint`, conteúdo de "Favoritos" via `useFavoritesContent`. Dois achados corrigidos na hora: (1) fallback de foco pra categoria sumida caía em Favoritos em vez da 1ª categoria real (R-009) — `categoryIdx` ganhou fallback próprio; (2) OK no estado vazio de "Favoritos" não fazia nada (só o botão tinha `onClick`, não roteado por `useRemoteNav.onSelect`) — corrigido pra cumprir FR-008/FR-020. `LiveScreen.test.tsx`: `press()` passou a soltar Enter (gesto só completa no keyup); 1 asserção do conteúdo da trilha atualizada (inclui "★Favoritos"). Testes novos em `LiveScreen.favorites.test.tsx` (arquivo separado, R-008/R-009) cobrindo (a)–(k). 541/541 testes (11 novos líquidos), `tsc`/lint limpos, 0 regressão. | Nenhuma técnica. |
 | 2026-09-24 | Fase 4 (US2 — Filmes/Séries) | `MoviesScreen.tsx`/`SeriesScreen.tsx` reescritos com o mesmo padrão da Fase 3 (trilha, gesto, estrela em `.poster-box`, dica, conteúdo de Favoritos, fallback de foco R-009 e roteamento de OK no vazio — os dois últimos já vieram corretos desde o início, sem achado novo, porque o padrão foi copiado já corrigido). `press()` ajustada nos dois arquivos de teste existentes; nenhuma asserção de trilha existia neles, então nada mais mudou (diferente da Live, que teve 1 asserção reescrita). Dois arquivos novos: `MoviesScreen.favorites.test.tsx` (4 testes), `SeriesScreen.favorites.test.tsx` (3 testes, incluindo a confirmação de que um episódio da série favoritada nunca aparece em "Favoritos", só o cartão da série). 548/548 testes (7 novos líquidos), `tsc`/lint limpos, 0 regressão. | Nenhuma técnica. |
+| 2026-09-24 | Fase 5 (US3 — persistência) | `sourceRepository.deleteSource` passa a chamar `deleteUserStatesForSource` — favoritos e retomada da fonte removida somem, os de outra fonte ficam intactos (D-007/FR-017). Testes de integração: favorito sobrevive a uma nova geração publicada com o mesmo `providerStreamId` e a fechar/reabrir `CatalogDb` com o mesmo nome (o registro `userStates` em si, não só o catálogo — SC-003); `useFavoriteIds`/`useFavoritesContent` isolados entre duas fontes (US3 cenário 5). Nenhum achado fora do previsto. 553/553 testes (5 novos líquidos), `tsc`/lint limpos, 0 regressão. | Nenhuma técnica. |
 
-**PRÓXIMO**: Fase 5 (US3 — persistência) — T024–T027: `deleteSource` apaga `userStates` da fonte (D-007), favoritos sobrevivem a reabrir o app e a ressincronizar (já cobertos em boa parte pelos testes de integração de T025 na Fase 2), isolamento entre fontes.
+**PRÓXIMO**: Fase 6 (Polish) — T028–T033: `tv-web/e2e/favoritos.mjs` (gate E2E da constitution v1.4.0), gates completos, `quickstart.md` §B/§C no navegador, documentação canônica (ADR-009, `CLAUDE.md`, backlog), revisão de segredos, e `npm run build:tizen` + `quickstart.md` §D na TV física (**gate obrigatório de SC-001, R-001** — o maior risco da feature, ainda não verificado em hardware real).
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
 - `tv-web/src/features/live/LiveScreen.tsx`, `MoviesScreen.tsx`, `SeriesScreen.tsx` — trilha, gesto, estrela, conteúdo de Favoritos (Fases 3-4, feitas)
-- `tv-web/src/features/{live,movies,series}/*.favorites.test.tsx` — 3 arquivos novos, 18 testes ao todo
-- `tv-web/src/features/{live,movies,series}/*Screen.test.tsx` (Live/Movies/Series) — `press()` ajustada nos três
-- `tv-web/src/lib/catalog/sourceRepository.ts` — próximo arquivo a mudar (Fase 5, T024/T027: `deleteSource` apaga `userStates`)
+- `tv-web/src/lib/catalog/sourceRepository.ts` — `deleteSource` apaga `userStates` (Fase 5, feita)
+- `tv-web/e2e.mjs` — próximo arquivo a referenciar (Fase 6, T028: `tv-web/e2e/favoritos.mjs` novo + `package.json` → `test:e2e`)
 
 ## Cuidados para Retomada
 
@@ -277,4 +277,5 @@ npm run build:tizen    # antes da TV física
 
 - **Teste de gesto + `waitFor` no mesmo teste**: nunca usar `vi.useFakeTimers()` com `waitFor` no mesmo caminho — trava (R-008). Usar espera real (`await act(() => new Promise((r) => setTimeout(r, 850)))`) para segurar o OK além do limiar quando o teste também precisa de `waitFor`.
 - **`locate()` genérico não serve pra trilha com Favoritos**: seu fallback é sempre índice 0, que agora é a entrada virtual. Qualquer tela nova com essa trilha precisa do mesmo fallback próprio (R-009), não o `locate()` direto. Aplicado nas três telas de conteúdo (Live/Filmes/Séries); nenhuma tela nova prevista no escopo desta feature.
-- **`press()` em teste de tela com a trilha de favoritos**: um `keydown` de Enter sozinho não basta mais pra completar um toque — falta o `keyup`. Testes que só existiam a partir de `LiveScreen.test.tsx` copiando o padrão precisam do mesmo ajuste ao serem escritos para Filmes/Séries.
+- **`press()` em teste de tela com a trilha de favoritos**: um `keydown` de Enter sozinho não basta mais pra completar um toque — falta o `keyup`. Aplicado nos três arquivos `*Screen.test.tsx` existentes (Live/Filmes/Séries); qualquer teste E2E (Fase 6) precisa do mesmo cuidado com Playwright (`keyboard.down`/`up`, não só `press`).
+- **Todas as fases de código estão prontas — só falta a Fase 6.** A partir daqui, tudo que resta é E2E, documentação e a verificação na TV física (R-001), que é o único gate ainda não satisfeito da feature inteira.

@@ -22,6 +22,7 @@ import {
 } from './db'
 import { deleteAllForSource } from './catalogRepository'
 import { normalizeServerAddress } from './xtreamConnector'
+import { deleteUserStatesForSource } from './userStateRepository'
 
 /** A fonte como as telas a veem — sem credencial, por construção. */
 export interface SourceView {
@@ -184,6 +185,10 @@ export async function updateSource(
 export async function deleteSource(id: string, database: CatalogDb = db): Promise<void> {
   await deleteAllForSource(id, database)
   await database.importRuns.where('[sourceId+status]').between([id, ''], [id, '￿']).delete()
+  // Favoritos e retomada da fonte removida (feature 013, D-007/FR-017) —
+  // uma fonte readicionada ganha `sourceId` novo (UUID), então nada aqui
+  // fica órfão-mas-recuperável; manter o registro só ocuparia espaço.
+  await deleteUserStatesForSource(id, database)
   await database.sources.delete(id)
 }
 
