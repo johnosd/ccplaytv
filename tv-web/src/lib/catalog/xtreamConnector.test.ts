@@ -11,6 +11,8 @@ import {
   fetchVodStreams,
   legacyM3uUrl,
   mapLiveEntry,
+  mapSeriesEntry,
+  mapVodEntry,
   normalizeServerAddress,
   parseXtreamStreamUrl,
   preferredFormat,
@@ -222,6 +224,57 @@ describe('mapLiveEntry', () => {
 
     expect(mapped).toBeDefined()
     expect(mapped?.url).toBeUndefined()
+  })
+
+  it('canal NUNCA ganha iconUrl, mesmo que o provedor declare stream_icon (feature 015, FR-009)', () => {
+    const mapped = mapLiveEntry(
+      { name: 'ESPN', stream_id: 5, category_id: 10, stream_icon: 'http://exemplo.test/espn.png' },
+      categories,
+      buildUrl,
+    )
+    expect(mapped?.iconUrl).toBeUndefined()
+  })
+})
+
+describe('mapVodEntry (feature 015)', () => {
+  const categories = new Map<string, LiveCategory>([['10', { id: '10', name: 'Ação', order: 0 }]])
+  const buildUrl = (streamId: string, ext: string) => `http://exemplo.test/movie/u/p/${streamId}.${ext}`
+
+  it('captura iconUrl de stream_icon quando presente', () => {
+    const mapped = mapVodEntry(
+      { name: 'Matrix', stream_id: 1, category_id: '10', stream_icon: 'http://exemplo.test/matrix.png' },
+      categories,
+      buildUrl,
+    )
+    expect(mapped?.iconUrl).toBe('http://exemplo.test/matrix.png')
+  })
+
+  it('sem stream_icon, ou vazio/inválido, iconUrl fica undefined', () => {
+    expect(mapVodEntry({ name: 'Sem capa', stream_id: 2, category_id: '10' }, categories, buildUrl)?.iconUrl).toBeUndefined()
+    expect(
+      mapVodEntry(
+        { name: 'Capa vazia', stream_id: 3, category_id: '10', stream_icon: '' },
+        categories,
+        buildUrl,
+      )?.iconUrl,
+    ).toBeUndefined()
+  })
+})
+
+describe('mapSeriesEntry (feature 015)', () => {
+  const categories = new Map<string, LiveCategory>([['10', { id: '10', name: 'Suspense', order: 0 }]])
+
+  it('captura iconUrl de cover quando presente', () => {
+    const mapped = mapSeriesEntry(
+      { name: 'Show', series_id: 1, category_id: '10', cover: 'http://exemplo.test/show.png' },
+      categories,
+    )
+    expect(mapped?.iconUrl).toBe('http://exemplo.test/show.png')
+  })
+
+  it('sem cover, iconUrl fica undefined', () => {
+    const mapped = mapSeriesEntry({ name: 'Sem capa', series_id: 2, category_id: '10' }, categories)
+    expect(mapped?.iconUrl).toBeUndefined()
   })
 })
 

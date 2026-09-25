@@ -147,6 +147,46 @@ describe('ImportProgressScreen', () => {
     expect(screen.queryByText(/%/)).not.toBeInTheDocument()
   })
 
+  it('caminho do conteúdo guardado (feature 014): etapas reais, sem percentual, rótulo de item corresponde ao que channelsStored conta', async () => {
+    // Sem `unit` (M3U, `scanToStored`) — mesmo contrato de rótulo que o
+    // caminho integral de antes tinha: "Entradas lidas"/"Itens gravados"
+    // continuam corretos, porque `channelsStored` ainda conta registros
+    // persistidos com sucesso — só o destino (`storedEntries`, não mais
+    // `channels`) mudou, e isso é interno, não aparece na tela.
+    await db.importRuns.put(
+      mockJobRecord({ step: 'storing', entriesRead: 500, channelsStored: 480, discardedByType: 20, invalidCount: 0 }),
+    )
+
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Entradas lidas: 500/)).toBeInTheDocument()
+      expect(screen.getByText(/Itens gravados: 480/)).toBeInTheDocument()
+      expect(screen.getByText(/Publicando catálogo/)).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument()
+  })
+
+  it('falta de espaço ao guardar o conteúdo mostra a mensagem própria (feature 014, D-009)', async () => {
+    await db.importRuns.put(mockJobRecord({ status: 'failed', errorKind: 'storage_full' }))
+
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Não há espaço no aparelho para guardar esta lista.')).toBeInTheDocument()
+    })
+  })
+
   it('exibe o estado de recusa com texto próprio e garante elemento focável (T044/US5)', async () => {
     await db.importRuns.put(mockJobRecord({ status: 'failed', errorKind: 'direct_connection_refused' }))
 

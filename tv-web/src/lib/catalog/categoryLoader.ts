@@ -20,7 +20,8 @@
  */
 
 import { db, type CatalogDb, type CatalogRecord, type CategoryKind } from './db'
-import { activeGeneration, storeCategoryItems, type CatalogCategory } from './catalogRepository'
+import { activeGeneration, storeCategoryItems, storeStoredCategory, type CatalogCategory } from './catalogRepository'
+import { readEntryChunks } from './storedEntries'
 import { isCategoryFresh } from './freshness'
 import { readCredential } from './sourceRepository'
 import {
@@ -34,7 +35,13 @@ import {
   type MappedChannel,
 } from './xtreamConnector'
 
-export type CategoryFetchOutcome = 'fresh' | 'fetched' | 'stale-served' | 'failed'
+export type CategoryFetchOutcome =
+  | 'fresh'
+  | 'fetched'
+  | 'stale-served'
+  | 'failed'
+  /** Categoria `stored` sem nenhum bloco guardado (feature 014, D-008) — "Tentar de novo" não resolve, só ressincronizar. */
+  | 'source_missing'
 
 export interface EnsureCategoryResult {
   outcome: CategoryFetchOutcome
@@ -113,6 +120,8 @@ function toItemRecord(
     streamExtension: channel.streamExtension,
     // Provedor nunca guarda URL — ver `noUrl` acima.
     directUrl: undefined,
+    // Feature 015: capa declarada pela fonte (nunca para canal — mapLiveEntry não a preenche).
+    iconUrl: channel.iconUrl,
   }
 }
 
@@ -154,12 +163,63 @@ async function fetchAndStore(
 }
 
 /**
+ * Lê uma categoria `stored` do conteúdo guardado (feature 014, D-007).
+ *
+ * Nunca toca rede — o arquivo já foi baixado na importação. Sem blocos
+ * guardados (aparelho limpou armazenamento, ou algo apagou a geração pela
+ * metade), devolve `source_missing`: diferente de `failed`, "Tentar de
+ * novo" não resolve isso, só ressincronizar a fonte (D-008).
+ */
+async function readStored(
+  sourceId: string,
+  category: CatalogCategory,
+  database: CatalogDb,
+  now: number,
+): Promise<EnsureCategoryResult> {
+  const generation = await activeGeneration(sourceId, database)
+  if (generation === undefined) return { outcome: 'failed' }
+
+  const chunks = await readEntryChunks(sourceId, generation, category.id, database)
+  if (chunks.length === 0) return { outcome: 'source_missing' }
+
+  const records = chunks.flatMap((chunk) => chunk.records)
+  const items = records.filter((record) => record.kind !== 'episode')
+  const episodes = records.filter((record) => record.kind === 'episode')
+
+  try {
+    await storeStoredCategory(
+      { sourceId, generation, kind: category.kind, categoryId: category.id, groupOrder: category.order },
+      items,
+      episodes,
+      now,
+      database,
+    )
+    return { outcome: 'fetched' }
+  } catch {
+    // Erro sai como categoria, nunca mensagem crua (regra 5) — mesmo padrão
+    // de `fetchAndStore`. Falha aqui não some com os blocos: uma quota
+    // cheia deixa `storedEntries` intacto para a pessoa tentar de novo.
+    return { outcome: 'failed' }
+  }
+}
+
+/** Compartilha uma única busca em andamento por categoria (contrato §2, regra 2). */
+function dedup(categoryId: number, run: () => Promise<EnsureCategoryResult>): Promise<EnsureCategoryResult> {
+  const existing = inFlight.get(categoryId)
+  if (existing) return existing
+  const promise = run().finally(() => inFlight.delete(categoryId))
+  inFlight.set(categoryId, promise)
+  return promise
+}
+
+/**
  * Garante que uma categoria tem itens utilizáveis, buscando se preciso.
  *
  * Chamar para uma categoria `eager` nunca toca a rede — os itens já vieram
  * inteiros na importação, e não há `providerCategoryId` por onde
- * perguntar. É o que permite a tela chamar esta operação sempre, sem saber
- * de que tipo é a fonte.
+ * perguntar. `stored` (feature 014) também nunca toca rede — lê do
+ * conteúdo guardado uma única vez por geração (D-007). É o que permite a
+ * tela chamar esta operação sempre, sem saber de que tipo é a fonte.
  */
 export async function ensureCategory(
   sourceId: string,
@@ -170,15 +230,16 @@ export async function ensureCategory(
   const now = options.now?.() ?? Date.now()
 
   if (category.fetchMode === 'eager') return { outcome: 'fresh' }
+
+  if (category.fetchMode === 'stored') {
+    // Diferente de `on_demand`, sem validade por idade: o conteúdo vem de
+    // um arquivo que não muda — reler produziria o mesmo resultado, então
+    // só a geração (ressincronização) invalida (D-007/FR-011).
+    if (category.itemsFetchedAt !== undefined) return { outcome: 'fresh' }
+    return dedup(category.id, () => readStored(sourceId, category, database, now))
+  }
+
   if (isCategoryFresh(category.itemsFetchedAt, now)) return { outcome: 'fresh' }
-
-  const existing = inFlight.get(category.id)
-  if (existing) return existing
-
   const wasNeverFetched = category.itemsFetchedAt === undefined
-  const promise = fetchAndStore(sourceId, category, wasNeverFetched, database, now).finally(() => {
-    inFlight.delete(category.id)
-  })
-  inFlight.set(category.id, promise)
-  return promise
+  return dedup(category.id, () => fetchAndStore(sourceId, category, wasNeverFetched, database, now))
 }

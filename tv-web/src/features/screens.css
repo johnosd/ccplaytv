@@ -396,6 +396,40 @@
   color: var(--text-tertiary);
 }
 
+/* Explicação do Modo limitado no hub da lista (feature 014, FR-021/FR-022).
+   Tom informativo, nunca de erro — nunca a cor de `.form-error`. */
+.limited-mode-notice {
+  max-width: 640px;
+  margin-top: 32px;
+  padding: 24px 28px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 2px solid var(--border-dashed);
+  color: var(--text-secondary);
+  font: 500 16px var(--font-body);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.limited-mode-notice-title {
+  font: 700 18px var(--font-body);
+  color: var(--text-primary);
+}
+
+.limited-mode-notice-subhead {
+  margin-top: 8px;
+  color: var(--text-tertiary);
+}
+
+.limited-mode-notice-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 /* ---------- Live TV ---------- */
 
 .live-layout {
@@ -846,6 +880,17 @@
   color: var(--text-muted);
   text-align: center;
   padding: 0 8px;
+}
+
+/* Capa real (feature 015) — cobre a camada de placeholder por cima; some
+   sozinha ao falhar (PosterArt.tsx), revelando o placeholder que nunca
+   deixou de existir por baixo. */
+.poster-box-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* ---------- Detalhe do filme ---------- */

@@ -87,6 +87,13 @@ Por área concreta:
    reautenticar sozinho. Mitigação: nunca logada, nunca exibida depois de
    digitada, nunca enviada a terceiro (TMDB/OpenAI), sem canal de
    exportação/backup que a exponha.
+
+   **Atualização (ADR-010):** a exceção passa a cobrir também a URL
+   completa da fonte, a URL de reprodução de cada item e o conteúdo do
+   arquivo M3U baixado (que, numa lista de painel, repetem usuário e
+   senha). Podem ser armazenados no aparelho, sob as mesmas mitigações
+   acima — nunca em log, tela, erro, envio a terceiros ou exportação. Ver
+   ADR-010 para o raciocínio completo.
 3. **TMDB** — chamado direto do cliente com a chave do próprio usuário
    (já cogitado antes como "opcional, com chave própria do usuário"). TMDB
    é CORS-friendly por design; não há bloqueio técnico aqui.
@@ -166,6 +173,8 @@ Por área concreta:
   provedor passa a viver no dispositivo. Aceito explicitamente pelo
   usuário; precisa de mitigação de engenharia (nunca logada/exibida/
   exportada) documentada e cobrada em toda feature que tocar nisso.
+  **Atualização (ADR-010):** estendida à URL completa da fonte e ao
+  arquivo M3U guardado. Ver ADR-010.
 - **Retrabalho real**: `m3u_parser.py`, `classifier.py`,
   `provider_connector.py` e a orquestração de `ImportJob`/publicação em
   duas fases (`importer.py`) — todo o núcleo das features 001 e 004 — precisa

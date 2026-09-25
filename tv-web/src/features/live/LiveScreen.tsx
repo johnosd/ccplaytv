@@ -31,6 +31,8 @@ const LIVE_ITEM_OVERSCAN = 6
 export interface LiveScreenProps {
   sourceId: string
   onBack: () => void
+  /** Feature 014, D-008: ressincroniza a fonte quando o arquivo guardado de uma categoria sumiu do aparelho. */
+  onResync: () => void
 }
 
 /**
@@ -87,7 +89,7 @@ function defaultTrailIdx(trail: TrailEntry[]): number {
 /** O que entrou de fato na coluna de conteúdo — Favoritos ou uma categoria por id. */
 type EnteredKey = { kind: 'favorites' } | { kind: 'category'; id: number }
 
-export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
+export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
   const [col, setCol] = useState<0 | 1>(0)
   const [playing, setPlaying] = useState<CatalogItemOut | null>(null)
   const { toastMessage, showToast } = useToast()
@@ -170,6 +172,12 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
   const contentFailed = enteredFavorites
     ? favoritesContent.isError
     : content.data?.outcome === 'failed' || content.isError
+  // Feature 014, D-008: categoria `stored` sem nenhum bloco guardado — o
+  // arquivo sumiu do aparelho. "Tentar de novo" não resolve isso, só
+  // ressincronizar a fonte — por isso é um estado próprio, não uma variação
+  // de `contentFailed`. Nunca se aplica a "Favoritos" (virtual, sem outcome).
+  const contentMissing = !enteredFavorites && content.data?.outcome === 'source_missing'
+  const contentUnavailable = contentFailed || contentMissing
 
   const channelIdx = locate(items, (c) => c.id === focusedIdentity.channelId)
   const activeChannel = items[channelIdx]
@@ -184,7 +192,7 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
     overscan: LIVE_ITEM_OVERSCAN,
   })
 
-  const channelsNavigable = col === 1 && !contentIsLoading && !contentFailed && items.length > 0
+  const channelsNavigable = col === 1 && !contentIsLoading && !contentUnavailable && items.length > 0
   useVirtualFocusSync({
     focusedIndex: channelIdx,
     scrollToIndex: channelVirtualizer.scrollToIndex,
@@ -292,6 +300,18 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
       // quem de fato responde ao controle remoto, não o clique de mouse).
       if (enteredFavorites && !contentIsLoading && !contentFailed && items.length === 0) {
         setCol(0)
+        return
+      }
+      // Feature 014 (T039) — e achado no caminho: o mesmo estado de
+      // "Tentar de novo" já existia sem isto, então SELECT não ativava o
+      // botão apesar da aparência de foco (constitution, "Foco Visível e
+      // Sem Becos Sem Saída") — corrigido junto, mesmo sendo pré-existente.
+      if (!contentIsLoading && contentMissing) {
+        onResync()
+        return
+      }
+      if (!contentIsLoading && contentFailed) {
+        retryContent()
         return
       }
       if (!activeChannel) return
@@ -452,15 +472,24 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
           </div>
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && enteredFavorites && items.length === 0 && (
+        {showingContent && !contentIsLoading && contentMissing && (
+          <div className="live-state">
+            <div className="live-state-title">O conteúdo desta lista não está mais no aparelho</div>
+            <button type="button" className="live-state-action tv-focus" onClick={onResync}>
+              Ressincronizar lista
+            </button>
+          </div>
+        )}
+
+        {showingContent && !contentIsLoading && !contentUnavailable && enteredFavorites && items.length === 0 && (
           <FavoritesEmptyState kind="channel" focused onBack={() => setCol(0)} />
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && !enteredFavorites && items.length === 0 && (
+        {showingContent && !contentIsLoading && !contentUnavailable && !enteredFavorites && items.length === 0 && (
           <div className="live-state-copy">Este grupo está vazio.</div>
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && contentStale && (
+        {showingContent && !contentIsLoading && !contentUnavailable && contentStale && (
           <div className="live-truncated-note">
             Não foi possível atualizar agora — mostrando o que já estava salvo.
           </div>
@@ -472,11 +501,11 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
           </div>
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && enteredFavorites && (
+        {showingContent && !contentIsLoading && !contentUnavailable && enteredFavorites && (
           <FavoritesUnresolvedNote unresolved={unresolvedFavorites} />
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && items.length > 0 && (
+        {showingContent && !contentIsLoading && !contentUnavailable && items.length > 0 && (
           <>
             <FavoriteHint />
             <div ref={channelListRef} className="live-channel-list">
@@ -513,7 +542,7 @@ export function LiveScreen({ sourceId, onBack }: LiveScreenProps) {
           </>
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && !enteredFavorites && content.data && (
+        {showingContent && !contentIsLoading && !contentUnavailable && !enteredFavorites && content.data && (
           // Fala do limite de exibição, não do tamanho da fonte — a distinção
           // importa porque o catálogo publicado pode ser parcial (FR-016).
           content.data.totalCount > items.length && (

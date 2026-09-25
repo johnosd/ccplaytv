@@ -22,25 +22,26 @@ import {
   db,
   type CatalogDb,
   type CatalogItemKind,
-  type CatalogRecord,
   type CatalogSection,
   type CategoryKind,
   type ImportErrorKind,
   type ImportRunRecord,
   type ImportStep,
+  type LimitedReason,
   type ProviderImportMode,
   type SourceRecord,
+  type StoredCatalogRecord,
 } from './db'
 import {
   allocateGeneration,
   discardGeneration,
-  markCategoryFetched,
   publishGeneration,
-  storeBatch,
+  setDeclaredCount,
   storeCategories,
   StorageFullError,
   type NewCategory,
 } from './catalogRepository'
+import { storeEntryChunks } from './storedEntries'
 import { markConnectionError, markSynced, readCredential } from './sourceRepository'
 import {
   EmptyPlaylistError,
@@ -61,17 +62,21 @@ import {
   ProviderIncompatibleError,
   probeFailureKind,
   resolveAccountStatus,
+  type AccountStatus,
   type LiveCategory,
   type MappedChannel,
 } from './xtreamConnector'
 import { createSeriesGrouper } from './m3uSeriesGrouping'
+import { parsePanelUrl, type PanelCredential } from './m3uPanelUrl'
 
 /**
- * Tamanho do lote de gravação: grande o bastante para amortizar o custo da
- * transação, pequeno o bastante para o cancelamento responder rápido e para
- * o laço devolver o controle ao desenho da tela (SC-005).
+ * Quantos registros ficam em buffer, por varredura M3U, antes de virarem
+ * blocos de `storedEntries` (feature 014, D-005 do `plan.md`) — grande o
+ * bastante para amortizar o custo da transação, pequeno o bastante para o
+ * cancelamento responder rápido e para o laço devolver o controle ao
+ * desenho da tela (SC-005 da feature 005).
  */
-const DEFAULT_BATCH_SIZE = 2500
+const DEFAULT_BATCH_SIZE = 5_000
 
 /**
  * De quanto em quanto tempo uma execução em andamento diz que está viva, e
@@ -227,32 +232,6 @@ function refineFromUrl(channel: MappedChannel): MappedChannel {
   }
 }
 
-function toRecord(
-  channel: MappedChannel,
-  sourceId: string,
-  generation: number,
-  keepUrl: boolean,
-  categoryId: number | undefined,
-): CatalogRecord {
-  return {
-    sourceId,
-    generation,
-    kind: channel.kind,
-    name: channel.name,
-    originalName: channel.originalName,
-    group: channel.group,
-    groupOrder: channel.groupOrder,
-    categoryId,
-    providerStreamId: channel.providerStreamId,
-    providerCategoryId: channel.providerCategoryId,
-    seriesId: channel.seriesId,
-    seasonNumber: channel.seasonNumber,
-    episodeNumber: channel.episodeNumber,
-    streamExtension: channel.streamExtension,
-    directUrl: keepUrl ? channel.url : undefined,
-  }
-}
-
 /** As três seções que viram categoria navegável. Episódio e não classificado não têm uma. */
 function categoryKindOf(kind: CatalogItemKind): CategoryKind | undefined {
   return kind === 'channel' || kind === 'movie' || kind === 'series' ? kind : undefined
@@ -316,6 +295,14 @@ export async function startImport(
   options.onProgress?.({ ...run })
 
   let cancelled = false
+  // Fora de `execute()`, de propósito: `fail()` (o caminho de publicação
+  // parcial por falta de espaço) precisa do mesmo `mode`/`limitedReason`
+  // para não apagar por engano o Modo limitado já registrado de uma fonte
+  // de provedor (feature 014, T007) — antes, essas variáveis eram locais
+  // de `execute()` e `fail()` simplesmente não tinha como vê-las.
+  let mode: ProviderImportMode | undefined
+  let allowedFormats: string[] | undefined
+  let limitedReason: LimitedReason | undefined
 
   async function persist(): Promise<void> {
     run.heartbeatAt = now()
@@ -331,54 +318,20 @@ export async function startImport(
   }
 
   async function execute(): Promise<void> {
-    let pendingBatch: CatalogRecord[] = []
-    const keepUrl = source!.type === 'm3u_url'
-
-    async function flush(): Promise<void> {
-      if (pendingBatch.length === 0) return
-      const batch = pendingBatch
-      pendingBatch = []
-      try {
-        await storeBatch(batch, database)
-        run.channelsStored += batch.length
-      } catch (error) {
-        // FR-018: o que já entrou continua utilizável; o que não coube fica
-        // declarado. Quem trata o erro decide o que fazer com a geração.
-        if (error instanceof StorageFullError) run.truncatedByStorage = true
-        throw error
-      }
-    }
-
-    async function accept(channel: MappedChannel, categoryId: number | undefined): Promise<void> {
-      run.entriesRead += 1
-      if (channel.kind === 'unclassified') {
-        // D-006/FR-008: classificado e descartado sem tocar o disco. O
-        // contador é o que sustenta dizer "não é o catálogo completo da
-        // fonte" sem inventar número.
-        run.discardedByType += 1
-        return
-      }
-      await enqueue(channel, categoryId)
-    }
-
     /**
-     * Grava um registro no lote em construção, sem contar como "entrada
-     * lida" (feature 012). Usada pela série sintética que o agrupamento
-     * M3U cria (`m3uSeriesGrouping.ts`) — ela não existe como linha própria
-     * na fonte, então contá-la em `entriesRead` inflaria o progresso além
-     * do que o arquivo de fato tem. `channelsStored` continua exato: soma
-     * o que `flush()` de fato grava, série sintética incluída.
+     * Varre um M3U e guarda o conteúdo já classificado e separado por
+     * categoria em `storedEntries` — nenhum item vai para `channels`
+     * durante a importação (feature 014, D-004). Substitui o antigo
+     * `consumeM3u` (gravava tudo em `channels` de uma vez, categoria
+     * `eager`) nos quatro pontos que hoje levam ao caminho do conteúdo
+     * guardado: URL M3U avulsa, URL M3U de painel não confirmado, Modo
+     * limitado de provedor, e painel confirmado que falha ao ler as
+     * categorias. `channels`/`storeBatch` deixaram de ser usados aqui —
+     * uma fonte M3U só grava `channels` na leitura de categoria
+     * (`categoryLoader.ts`), nunca na importação (D-012: `fetchMode:
+     * 'eager'` só existe em fonte importada antes desta feature).
      */
-    async function enqueue(channel: MappedChannel, categoryId: number | undefined): Promise<void> {
-      pendingBatch.push(toRecord(channel, sourceId, generation, keepUrl, categoryId))
-      if (pendingBatch.length >= batchSize) {
-        await flush()
-        if (cancelled) throw new ImportCancelledError()
-        await persist()
-      }
-    }
-
-    async function consumeM3u(url: string, refine = false): Promise<void> {
+    async function scanToStored(url: string, refine = false): Promise<void> {
       let response: Response
       try {
         response = await fetch(url)
@@ -395,6 +348,7 @@ export async function startImport(
       enterStep('parsing')
       await persist()
 
+      const keepUrl = source!.type === 'm3u_url'
       const tally: ParseTally = { invalidCount: 0 }
       // A ordem de aparição do grupo é o que, no caminho M3U, substitui o
       // índice que o painel entrega explicitamente (FR-002). O mesmo
@@ -404,14 +358,21 @@ export async function startImport(
       // Categoria já criada nesta importação, por `${kind}|${grupo}` — só
       // canal/filme/série viram categoria navegável (`categoryKindOf`).
       const categoryIdsByKey = new Map<string, number>()
-      // Contagem real por categoria, para carimbar no fim (`itemsCount` —
-      // só se sabe o total quando o fluxo termina).
+      // Contagem real por categoria, para gravar como `declaredCount`
+      // assim que a varredura termina (D-011) — série conta série, nunca
+      // os episódios dela.
       const categoryItemCounts = new Map<number, number>()
       // Agrupa episódios (padrão SxxEyy no título, ou tipo vindo da URL no
       // Modo limitado, D-012) em séries sintéticas (feature 012, D-003).
       // Uma instância por importação — nunca compartilhada entre fontes,
       // ou duas fontes distintas colidiriam na mesma série "m3u:<chave>".
       const seriesGrouper = createSeriesGrouper()
+
+      // Registros ainda não gravados, por categoria — vira um bloco de
+      // `storedEntries` por categoria a cada `flush()` (D-005).
+      let buffers = new Map<number, StoredCatalogRecord[]>()
+      const chunkIndex = new Map<number, number>()
+      let buffered = 0
 
       async function categoryIdFor(
         kind: CatalogItemKind,
@@ -430,7 +391,7 @@ export async function startImport(
               sourceId,
               generation,
               kind: categoryKind,
-              fetchMode: 'eager',
+              fetchMode: 'stored',
               name: group,
               order: groupOrders.get(groupName) ?? Number.MAX_SAFE_INTEGER,
             },
@@ -441,6 +402,60 @@ export async function startImport(
         return id
       }
 
+      function toStoredRecord(channel: MappedChannel): StoredCatalogRecord {
+        return {
+          kind: channel.kind,
+          name: channel.name,
+          originalName: channel.originalName,
+          group: channel.group,
+          groupOrder: channel.groupOrder,
+          providerStreamId: channel.providerStreamId,
+          providerCategoryId: channel.providerCategoryId,
+          seriesId: channel.seriesId,
+          seasonNumber: channel.seasonNumber,
+          episodeNumber: channel.episodeNumber,
+          streamExtension: channel.streamExtension,
+          directUrl: keepUrl ? channel.url : undefined,
+          // Feature 015: capa declarada pela fonte (nunca para canal — classifyEntry não a preenche).
+          iconUrl: channel.iconUrl,
+        }
+      }
+
+      /**
+       * Grava todos os blocos em buffer numa só transação (D-009: falta de
+       * espaço aqui derruba a importação inteira, nunca publica parcial —
+       * `fail()` decide isso ao tratar `StorageFullError`).
+       */
+      async function flush(): Promise<void> {
+        if (buffered === 0) return
+        const rows: Parameters<typeof storeEntryChunks>[0] = []
+        let recordCount = 0
+        for (const [categoryId, records] of buffers) {
+          if (records.length === 0) continue
+          const chunk = chunkIndex.get(categoryId) ?? 0
+          chunkIndex.set(categoryId, chunk + 1)
+          rows.push({ sourceId, generation, categoryId, chunk, records })
+          recordCount += records.length
+        }
+        buffers = new Map()
+        buffered = 0
+        await storeEntryChunks(rows, database)
+        run.channelsStored += recordCount
+        if (cancelled) throw new ImportCancelledError()
+        await persist()
+      }
+
+      async function push(categoryId: number, record: StoredCatalogRecord, countsAsItem: boolean): Promise<void> {
+        const existing = buffers.get(categoryId)
+        if (existing) existing.push(record)
+        else buffers.set(categoryId, [record])
+        buffered += 1
+        if (countsAsItem) {
+          categoryItemCounts.set(categoryId, (categoryItemCounts.get(categoryId) ?? 0) + 1)
+        }
+        if (buffered >= batchSize) await flush()
+      }
+
       let sawAny = false
       for await (const entry of parseM3uLines(linesFromResponse(response.body), tally)) {
         if (cancelled) throw new ImportCancelledError()
@@ -448,41 +463,170 @@ export async function startImport(
         const classified = classifyWithGroupOrder(entry, groupOrders)
         const refined = refine ? refineFromUrl(classified) : classified
 
-        if (refined.kind === 'episode') {
-          // Episódio nunca tem categoria própria (D-001, feature 012) — a
-          // categoria pertence à série sintética que o agrupa, criada só
-          // na primeira vez que a chave (grupo + título-base) aparece.
-          const { episode, series } = seriesGrouper.assign(refined)
-          if (series) {
-            const seriesCategoryId = await categoryIdFor(series.kind, series.group)
-            if (seriesCategoryId !== undefined) {
-              categoryItemCounts.set(seriesCategoryId, (categoryItemCounts.get(seriesCategoryId) ?? 0) + 1)
-            }
-            await enqueue(series, seriesCategoryId)
-          }
-          await accept(episode, undefined)
+        if (refined.kind === 'unclassified') {
+          // D-006/FR-008: classificado e descartado sem tocar o disco. O
+          // contador é o que sustenta dizer "não é o catálogo completo da
+          // fonte" sem inventar número.
+          run.entriesRead += 1
+          run.discardedByType += 1
           continue
         }
 
+        if (refined.kind === 'episode') {
+          run.entriesRead += 1
+          // Episódio nunca tem categoria própria (D-001, feature 012) — o
+          // bloco é o da série sintética que o agrupa. Todo episódio de uma
+          // mesma série compartilha o mesmo grupo (é parte da chave do
+          // agrupador), então perguntar de novo aqui é sempre um acerto de
+          // cache (`categoryIdsByKey`), nunca uma escrita nova.
+          const { episode, series } = seriesGrouper.assign(refined)
+          const seriesCategoryId = await categoryIdFor('series', refined.group)
+          if (seriesCategoryId !== undefined) {
+            if (series) await push(seriesCategoryId, toStoredRecord(series), true)
+            await push(seriesCategoryId, toStoredRecord(episode), false)
+          }
+          continue
+        }
+
+        run.entriesRead += 1
         const categoryId = await categoryIdFor(refined.kind, refined.group)
         if (categoryId !== undefined) {
-          categoryItemCounts.set(categoryId, (categoryItemCounts.get(categoryId) ?? 0) + 1)
+          await push(categoryId, toStoredRecord(refined), true)
         }
-        await accept(refined, categoryId)
       }
       run.invalidCount = tally.invalidCount
       if (!sawAny) throw new EmptyPlaylistError()
 
-      // Os itens já foram gravados pelo fluxo normal de `storeBatch`
-      // acima, em lotes — falta só carimbar quando e quantos, porque o
-      // total de cada categoria só se conhece no fim (data-model.md §3).
+      await flush()
+
+      // Só agora, com a varredura inteira concluída, cada categoria tem sua
+      // contagem real — é o que `sectionCount` (`catalogApi.ts`) soma
+      // enquanto a categoria ainda não foi lida (D-011).
       for (const [categoryId, count] of categoryItemCounts) {
-        await markCategoryFetched(categoryId, now(), count, database)
+        await setDeclaredCount(categoryId, count, database)
       }
     }
 
-    let mode: ProviderImportMode | undefined
-    let allowedFormats: string[] | undefined
+    /**
+     * Grava a estrutura de uma seção — nenhum item. É a mudança central da
+     * feature 010: a importação de provedor deixa de esperar o catálogo
+     * inteiro e conclui assim que as categorias (algumas centenas, no pior
+     * caso) estiverem gravadas. Reusada pelo caminho de provedor e, desde a
+     * feature 014, por uma URL M3U reconhecida como painel Xtream (T016).
+     */
+    async function ingestCategories(
+      kind: CategoryKind,
+      categories: LiveCategory[],
+    ): Promise<void> {
+      if (cancelled) throw new ImportCancelledError()
+      run.entriesRead += categories.length
+      await storeCategories(
+        categories.map(
+          (category): NewCategory => ({
+            sourceId,
+            generation,
+            kind,
+            fetchMode: 'on_demand',
+            providerCategoryId: category.id,
+            name: category.name,
+            order: category.order,
+            declaredCount: category.declaredCount,
+          }),
+        ),
+        database,
+      )
+      run.channelsStored += categories.length
+    }
+
+    /**
+     * Seção que o painel não serve não derruba a importação — mas também
+     * não vira lista vazia em silêncio. Só a incompatibilidade é tolerada:
+     * credencial recusada e falha de rede continuam subindo, porque são
+     * problemas da fonte inteira, não daquela seção.
+     */
+    async function ingestCategoriesOptional(
+      section: CatalogSection,
+      kind: CategoryKind,
+      fetchCategories: () => Promise<LiveCategory[]>,
+    ): Promise<void> {
+      let categories: LiveCategory[]
+      try {
+        categories = await fetchCategories()
+      } catch (error) {
+        if (!(error instanceof ProviderIncompatibleError)) throw error
+        logger.warn(`Painel não serviu a seção ${section}`, error)
+        run.unavailableSections = [...(run.unavailableSections ?? []), section]
+        return
+      }
+      await ingestCategories(kind, categories)
+      await persist()
+    }
+
+    /**
+     * Importa a estrutura de um painel Xtream (categorias de canal, filme e
+     * série) — nenhum item. Lança `ProviderIncompatibleError` se o painel
+     * não falar o protocolo pela seção obrigatória (canais); quem chama
+     * decide o fallback (feature 014, T016: extraído do que já era o
+     * caminho de fonte de provedor, para uma URL M3U reconhecida como
+     * painel confirmado (T017) reusar sem duplicar).
+     */
+    async function ingestProviderStructure(credential: {
+      dns: string
+      username: string
+      password: string
+    }): Promise<void> {
+      // Contadores desta execução passam a significar categorias, não
+      // itens — é o que a tela de progresso relata (FR-013, contrato §3).
+      run.unit = 'categories'
+
+      const liveCategories = await fetchLiveCategories(
+        credential.dns,
+        credential.username,
+        credential.password,
+      )
+      mode = 'xtream_api'
+      enterStep('parsing')
+      await persist()
+
+      await ingestCategories('channel', liveCategories)
+      await persist()
+
+      await ingestCategoriesOptional('movie', 'movie', () =>
+        fetchVodCategories(credential.dns, credential.username, credential.password),
+      )
+      await ingestCategoriesOptional('series', 'series', () =>
+        fetchSeriesCategories(credential.dns, credential.username, credential.password),
+      )
+    }
+
+    /**
+     * Decide, para uma URL M3U reconhecida como painel (feature 014, D-001),
+     * se ela fala o protocolo Xtream completo ou cai no conteúdo guardado —
+     * mesma árvore de decisão do D-002 do `plan.md`. Acesso recusado e
+     * assinatura vencida **não** levam ao conteúdo guardado: fazem a
+     * importação falhar, porque baixar a lista usaria a mesma credencial e
+     * seria recusado também (FR-002).
+     */
+    async function confirmPanel(
+      panel: PanelCredential,
+    ): Promise<{ kind: 'xtream'; allowedFormats?: string[] } | { kind: 'limited'; reason: LimitedReason }> {
+      let status: AccountStatus
+      try {
+        status = await resolveAccountStatus(panel.dns, panel.username, panel.password)
+      } catch (error) {
+        if (error instanceof ProviderError) {
+          if (error.kind === 'invalid_credentials') throw error
+          if (error.kind === 'network_failure') return { kind: 'limited', reason: 'panel_unreachable' }
+          // direct_connection_refused: painel alcançável, mas não fala o protocolo por este caminho.
+          return { kind: 'limited', reason: 'protocol_unavailable' }
+        }
+        if (error instanceof ProviderIncompatibleError) return { kind: 'limited', reason: 'protocol_unavailable' }
+        throw error
+      }
+      if (status.expired) throw new ProviderError('subscription_expired', 'Assinatura expirada.')
+      if (!status.authorized) throw new ProviderError('invalid_credentials', 'Acesso negado.')
+      return { kind: 'xtream', allowedFormats: status.allowedFormats }
+    }
 
     if (source!.type === 'provider_credentials') {
       const credential = await readCredential(sourceId, database)
@@ -497,83 +641,8 @@ export async function startImport(
       if (!status.authorized) throw new ProviderError('invalid_credentials', 'Acesso negado.')
       allowedFormats = status.allowedFormats
 
-      /**
-       * Grava a estrutura de uma seção — nenhum item. É a mudança central
-       * da feature 010: a importação de provedor deixa de esperar o
-       * catálogo inteiro e conclui assim que as categorias (algumas
-       * centenas, no pior caso) estiverem gravadas.
-       */
-      async function ingestCategories(
-        kind: CategoryKind,
-        categories: LiveCategory[],
-      ): Promise<void> {
-        if (cancelled) throw new ImportCancelledError()
-        run.entriesRead += categories.length
-        await storeCategories(
-          categories.map(
-            (category): NewCategory => ({
-              sourceId,
-              generation,
-              kind,
-              fetchMode: 'on_demand',
-              providerCategoryId: category.id,
-              name: category.name,
-              order: category.order,
-              declaredCount: category.declaredCount,
-            }),
-          ),
-          database,
-        )
-        run.channelsStored += categories.length
-      }
-
-      /**
-       * Seção que o painel não serve não derruba a importação — mas também
-       * não vira lista vazia em silêncio. Só a incompatibilidade é tolerada:
-       * credencial recusada e falha de rede continuam subindo, porque são
-       * problemas da fonte inteira, não daquela seção.
-       */
-      async function ingestCategoriesOptional(
-        section: CatalogSection,
-        kind: CategoryKind,
-        fetchCategories: () => Promise<LiveCategory[]>,
-      ): Promise<void> {
-        let categories: LiveCategory[]
-        try {
-          categories = await fetchCategories()
-        } catch (error) {
-          if (!(error instanceof ProviderIncompatibleError)) throw error
-          logger.warn(`Painel não serviu a seção ${section}`, error)
-          run.unavailableSections = [...(run.unavailableSections ?? []), section]
-          return
-        }
-        await ingestCategories(kind, categories)
-        await persist()
-      }
-
-      // Contadores desta execução passam a significar categorias, não
-      // itens — é o que a tela de progresso relata (FR-013, contrato §3).
-      run.unit = 'categories'
-
       try {
-        const liveCategories = await fetchLiveCategories(
-          credential.dns,
-          credential.username,
-          credential.password,
-        )
-        mode = 'xtream_api'
-        enterStep('parsing')
-        await persist()
-
-        await ingestCategories('channel', liveCategories)
-        await persist()
-
-        await ingestCategoriesOptional('movie', 'movie', () =>
-          fetchVodCategories(credential.dns, credential.username, credential.password),
-        )
-        await ingestCategoriesOptional('series', 'series', () =>
-          fetchSeriesCategories(credential.dns, credential.username, credential.password),
-        )
+        await ingestProviderStructure(credential)
       } catch (error) {
         if (!(error instanceof ProviderIncompatibleError)) throw error
         // O painel não fala o protocolo JSON: cai no caminho M3U legado.
@@ -583,24 +652,58 @@ export async function startImport(
         // pronta de antemão para contar.
         run.unit = 'items'
         mode = 'legacy_m3u'
-        await consumeM3u(
+        // Feature 014, FR-020/T025: mesmo motivo do painel reconhecido por
+        // URL M3U que também não confirma o protocolo — o painel foi
+        // alcançado (a conta autenticou), só não respondeu à consulta de
+        // categorias pelo protocolo.
+        limitedReason = 'protocol_unavailable'
+        await scanToStored(
           legacyM3uUrl(credential.dns, credential.username, credential.password),
           true,
         )
       }
     } else {
-      await consumeM3u(source!.m3uUrl as string)
+      // Feature 014 (US1/D-001): a URL pode ser de um painel Xtream, ainda
+      // que a fonte tenha sido cadastrada como "URL M3U" — o app tenta
+      // reconhecer e confirmar antes de cair no caminho do conteúdo
+      // guardado.
+      const panel = parsePanelUrl(source!.m3uUrl as string)
+      if (!panel) {
+        await scanToStored(source!.m3uUrl as string)
+      } else {
+        const route = await confirmPanel(panel)
+        if (route.kind === 'limited') {
+          // `run.unit` nunca chegou a virar 'categories' aqui — `confirmPanel`
+          // decidiu antes de `ingestProviderStructure` rodar. Explícito por
+          // clareza (o `?? 'items'` de `toJobResponse` já cobriria o caso).
+          run.unit = 'items'
+          mode = 'legacy_m3u'
+          limitedReason = route.reason
+          await scanToStored(source!.m3uUrl as string, true)
+        } else {
+          allowedFormats = route.allowedFormats
+          try {
+            await ingestProviderStructure(panel)
+          } catch (error) {
+            if (!(error instanceof ProviderIncompatibleError)) throw error
+            run.unit = 'items'
+            mode = 'legacy_m3u'
+            limitedReason = 'protocol_unavailable'
+            await scanToStored(source!.m3uUrl as string, true)
+          }
+        }
+      }
     }
 
     enterStep('storing')
     await persist()
-    await flush()
     if (cancelled) throw new ImportCancelledError()
 
     await publishGeneration(sourceId, generation, database)
-    await markSynced(sourceId, { 
-      at: now(), 
-      mode, 
+    await markSynced(sourceId, {
+      at: now(),
+      mode,
+      limitedReason,
       allowedFormats,
       truncatedByStorage: run.truncatedByStorage,
       discardedByType: run.discardedByType
@@ -619,29 +722,27 @@ export async function startImport(
       return
     }
 
-    if (error instanceof StorageFullError && run.channelsStored > 0) {
-      // Espaço acabou com parte do catálogo já gravada: publica o que coube,
-      // com a truncagem declarada. Descartar aqui deixaria a pessoa sem
-      // catálogo nenhum justamente por falta de espaço (FR-018).
-      await publishGeneration(sourceId, generation, database)
-      await markSynced(sourceId, { 
-        at: now(),
-        truncatedByStorage: run.truncatedByStorage,
-        discardedByType: run.discardedByType
-      }, database)
-      run.status = 'completed'
-      enterStep('done')
+    if (error instanceof StorageFullError) {
+      // Feature 014, D-009: o caminho do conteúdo guardado nunca publica
+      // parcial — ao contrário do antigo caminho integral (removido nesta
+      // feature), que gravava item a item e podia publicar o que coubesse.
+      // Um bloco de `storedEntries` perdido no meio deixaria uma categoria
+      // com itens incompletos e sem como saber disso depois, então a
+      // geração inteira é descartada e a importação falha declarando o
+      // motivo (`storage_full`), nunca escondido atrás de um "0 itens".
+      await discardSilently()
+      run.status = 'failed'
+      run.errorKind = 'storage_full'
+      await markConnectionError(sourceId, database)
       return
     }
 
     await discardSilently()
     run.status = 'failed'
-    // Truncagem sem nada gravado não é erro de rede nem de lista: fica
-    // registrada só pelo indicador de truncagem, que é o que a tela mostra.
-    run.errorKind = error instanceof StorageFullError ? undefined : categorize(error)
+    run.errorKind = categorize(error)
     await markConnectionError(sourceId, database)
 
-    if (!(error instanceof StorageFullError) && run.errorKind === undefined) {
+    if (run.errorKind === undefined) {
       run.finishedAt = now()
       await persist()
       throw error

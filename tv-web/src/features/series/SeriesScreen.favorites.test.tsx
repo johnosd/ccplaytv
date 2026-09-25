@@ -169,7 +169,7 @@ function renderSeries() {
   function buildUi() {
     return (
       <QueryClientProvider client={queryClient}>
-        <SeriesScreen sourceId={SOURCE_ID} onOpenSeries={onOpenSeries} onBack={onBack} />
+        <SeriesScreen sourceId={SOURCE_ID} onOpenSeries={onOpenSeries} onBack={onBack} onResync={() => {}} />
       </QueryClientProvider>
     )
   }

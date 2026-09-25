@@ -91,6 +91,8 @@ export interface RetryImportJobResponse {
 export type ConnectionState = 'never_synced' | 'synced' | 'error'
 
 export type ProviderImportMode = 'xtream_api' | 'legacy_m3u' | null
+/** Motivo do Modo limitado (feature 014, FR-020). `null` quando a fonte não está em Modo limitado. */
+export type LimitedReason = 'protocol_unavailable' | 'panel_unreachable' | null
 
 export interface SourceOut {
   id: string
@@ -99,6 +101,7 @@ export interface SourceOut {
   connection_state: ConnectionState
   last_successful_sync_at: string | null
   provider_import_mode: ProviderImportMode
+  limited_reason: LimitedReason
   provider_dns: string | null
   last_truncated_by_storage: boolean
   last_discarded_by_type: number
@@ -173,6 +176,7 @@ function toSourceOut(source: Awaited<ReturnType<typeof listSources>>[number]): S
       ? new Date(source.lastSuccessfulSyncAt).toISOString()
       : null,
     provider_import_mode: source.providerImportMode ?? null,
+    limited_reason: source.limitedReason ?? null,
     provider_dns: source.providerDns ?? null,
     last_truncated_by_storage: source.lastTruncatedByStorage ?? false,
     last_discarded_by_type: source.lastDiscardedByType ?? 0,

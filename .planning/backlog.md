@@ -61,10 +61,19 @@ feature **013-favoritos**, especificada no mesmo dia.
 - **Importação por estrutura + carga sob demanda por categoria** (feature
   010, convergida em 23/09/2026, verificada na TV física): fonte de
   provedor grava só as categorias declaradas; os itens de uma categoria
-  são obtidos quando a pessoa entra nela (`categoryLoader.ts`). Fonte por
-  URL M3U continua integral, em uma passada — não há protocolo por
-  categoria num arquivo plano. **Substituiu o descarte de VOD/séries da
-  FR-008 da 005**: os três tipos são gravados hoje.
+  são obtidos quando a pessoa entra nela (`categoryLoader.ts`).
+  **Substituiu o descarte de VOD/séries da FR-008 da 005**: os três tipos
+  são gravados hoje.
+- **Fonte M3U também estrutura-primeiro** (feature `014-m3u-sob-demanda`,
+  código completo em 24/09/2026, ADR-010): uma URL M3U de painel Xtream
+  reconhecido segue a 010 por inteiro; o resto (URL avulsa, painel não
+  confirmado, "Modo limitado") guarda o conteúdo já classificado e
+  separado por categoria — nunca mais em `channels` durante a
+  importação — e lê cada categoria desse conteúdo guardado ao entrar,
+  sem rede nova. O selo "Modo limitado" ganhou explicação no hub da
+  lista. Faltam só as duas medições de tempo com a lista real do
+  usuário (SC-001/SC-002); ver `sdd/specs/014-m3u-sob-demanda/plan.md`
+  → `## Estado Atual`.
 - **Splash + Home de listas + formulário de adicionar lista** (feature
   002).
 - **Live TV com catálogo real e reprodução AVPlay** (feature 003,
@@ -143,9 +152,16 @@ de "assistido" agregada por série, hero de "continuar assistindo").
    **Já entregue pela feature 011**: Assistir/Retomar/Reiniciar, controles
    de VOD e retomada por identidade estável.
 
-   **Fica para este item, depois da 011**:
-   - Fallback de arte em cascata: `poster_url` → `cover` → `stream_icon`
-     → placeholder, com detecção de URL de "blank icon".
+   **Especificada como feature `015-capa-real-filmes-series`** (24/09/2026,
+   pedido direto do usuário — percebeu que nenhuma capa carrega): captura
+   de `stream_icon`/`cover` (Xtream) e `tvg-logo` (M3U) para filme e
+   série, guardada no catálogo local, exibida nas grades de Filmes e
+   Séries com fallback ao placeholder atual (sem capa declarada, ou falha
+   de carregamento — nunca o ícone nativo de imagem quebrada). Deixou
+   fora de escopo, de propósito: Live TV, detecção de "capa em branco",
+   e o hero de detalhe (abaixo, que depende de TMDB).
+
+   **Continua fora de escopo, depende de outros itens**:
    - Skeleton de mesma geometria do card.
    - Empty state de "sem resultado de busca", **distinto** do de categoria
      vazia que já existe (depende do item 12).
@@ -906,6 +922,26 @@ mudaram de natureza** com a arquitetura client-first:
    mensagem em branco pra sempre cair no `genericErrorMessage` da tela
    chamadora. Caminho normal: `sdd-bugfix`.
 
+0. **[Bug] `e2e.mjs` testa um diálogo de saída que não existe mais em
+   `AddSourceScreen`** — o script `tv-web/e2e.mjs` (cenário "US1: Sem lista
+   cadastrada") pressiona Escape na tela de Adicionar Fonte esperando um
+   `.confirm-dialog` com botão "Sair" (`page.click('button:has-text("Sair")')`,
+   linha 45), mas nem `AddSourceScreen.tsx` nem `App.tsx` têm hoje qualquer
+   tratamento de Escape para essa tela — não existe mais esse diálogo de
+   confirmação de saída ali. `npm run test:e2e` trava com timeout de 30s
+   nesse `page.click`, antes mesmo de chegar aos outros dois scripts
+   (`e2e/favoritos.mjs`, `e2e/m3u-sob-demanda.mjs`).
+
+   **Origem**: achado ao rodar o gate `npm run test:e2e` na feature
+   `014-m3u-sob-demanda` (24/09/2026) — `e2e.mjs` está intocado desde o
+   commit inicial do repositório (`git log -- e2e.mjs` só mostra "first
+   commit"), então é drift pré-existente entre o script e o comportamento
+   atual do app, não uma regressão desta feature (que não toca
+   `AddSourceScreen`). Corrigir exige decidir o comportamento correto —
+   reintroduzir confirmação de saída nessa tela, ou atualizar o script pra
+   refletir que Escape ali simplesmente não faz nada — decisão pequena mas
+   que precisa ser tomada, não um typo. Caminho normal: `sdd-bugfix`.
+
 47. **Skills de domínio + mapa de validação por área**
 
     Skills curtos (~500 palavras) no formato "gatilho + Read First → doc
@@ -1004,6 +1040,8 @@ mudaram de natureza** com a arquitetura client-first:
 | 011-assistir-filme-retomada | Assistir Filme, com Retomada | Convergida | 63/72 tasks | 2026-09-24 |
 | 012-series-episodios-temporadas | Séries — Episódios e Temporadas | Convergida | 52/55 tasks | 2026-09-24 |
 | 013-favoritos | Favoritos em Canais, Filmes e Séries | Convergida | 47/47 tasks | 2026-09-24 |
+| 014-m3u-sob-demanda | Fonte M3U Estrutura-Primeiro (Detecção de Painel Xtream ou Arquivo Guardado) | Convergida | 58/62 tasks | 2026-09-24 |
+| 015-capa-real-filmes-series | Capa Real de Filmes e Séries | Em Execução | 19/34 tasks | 2026-09-24 |
 
 ## Bugs
 

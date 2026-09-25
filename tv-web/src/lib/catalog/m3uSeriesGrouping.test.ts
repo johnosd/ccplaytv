@@ -74,4 +74,28 @@ describe('createSeriesGrouper (feature 012, D-003)', () => {
     const first = grouper.assign(episode())
     expect(first.series?.seriesId).toMatch(/^m3u:/)
   })
+
+  it('série sintética herda iconUrl do primeiro episódio da chave (feature 015, D-003)', () => {
+    const grouper = createSeriesGrouper()
+
+    const { series } = grouper.assign(episode({ iconUrl: 'http://exemplo.test/ep1.png' }))
+    expect(series?.iconUrl).toBe('http://exemplo.test/ep1.png')
+  })
+
+  it('episódio seguinte com iconUrl diferente não altera a série já criada (feature 015, D-003)', () => {
+    const grouper = createSeriesGrouper()
+
+    grouper.assign(episode({ episodeNumber: 1, iconUrl: 'http://exemplo.test/ep1.png' }))
+    const second = grouper.assign(episode({ episodeNumber: 2, iconUrl: 'http://exemplo.test/ep2.png' }))
+
+    expect(second.series).toBeUndefined() // série não é reemitida
+    expect(second.episode.iconUrl).toBe('http://exemplo.test/ep2.png') // o episódio em si mantém a própria capa
+  })
+
+  it('primeiro episódio sem iconUrl faz a série sintética também ficar sem capa', () => {
+    const grouper = createSeriesGrouper()
+
+    const { series } = grouper.assign(episode({ iconUrl: undefined }))
+    expect(series?.iconUrl).toBeUndefined()
+  })
 })

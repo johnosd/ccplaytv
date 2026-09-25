@@ -10,7 +10,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:e2e": "node e2e.mjs && node e2e/favoritos.mjs"
+    "test:e2e": "node e2e.mjs && node e2e/favoritos.mjs && node e2e/m3u-sob-demanda.mjs && node e2e/capa-real.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",

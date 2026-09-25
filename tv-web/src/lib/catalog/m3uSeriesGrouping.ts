@@ -62,6 +62,9 @@ export function createSeriesGrouper(): SeriesGrouper {
         group: entry.group,
         groupOrder: entry.groupOrder,
         seriesId,
+        // Feature 015 (D-003 do plan.md): dado real do primeiro episódio
+        // desta série, reaproveitado — nunca um valor novo/inventado.
+        iconUrl: entry.iconUrl,
       }
       return { episode, series }
     },

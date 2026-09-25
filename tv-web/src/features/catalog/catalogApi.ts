@@ -49,6 +49,8 @@ export interface CatalogItemOut {
   original_name?: string
   /** Liga um episódio à série (feature 012). `undefined` fora do detalhe de série, como os demais campos de identidade. */
   series_id?: string | null
+  /** Capa declarada pela fonte (feature 015). `null` = fonte não declarou, ou o item é um canal (nunca preenchido para canal, FR-009). */
+  icon_url?: string | null
 }
 
 export interface CatalogItemPlayback {
@@ -137,6 +139,7 @@ function toItemOut(record: CatalogRecord, kind: CatalogItemKind): CatalogItemOut
     provider_stream_id: record.providerStreamId ?? null,
     original_name: record.originalName,
     series_id: record.seriesId ?? null,
+    icon_url: record.iconUrl ?? null,
   }
 }
 
@@ -265,12 +268,35 @@ export function prefetchCategoryContent(
  * um instante depois; é o mesmo tipo de antecipação que um app de TV faz
  * ao pré-carregar a miniatura do próximo cartão. Ver `plan.md` R-013 e o
  * `data-model`/contrato desta feature para o registro completo.
+ *
+ * `enteredCategoryId`: a categoria que a pessoa já **entrou** (coluna de
+ * conteúdo), se houver. Quando ela é a mesma que está em foco na trilha,
+ * o prefetch nunca dispara nem fica pendente — achado na feature 015
+ * (2026-09-24): sem isto, um timer já agendado antes da entrada dispara
+ * ~300ms depois mesmo já dentro da categoria, usando o snapshot de
+ * `focusedCategory` capturado no foco (sem `itemsFetchedAt`, porque a
+ * lista de categorias de `useCategoryList` nunca é invalidada pela
+ * leitura real). Para categoria `stored` (feature 014), isso repete
+ * `ensureCategory` depois que a entrada real já consumiu os blocos de
+ * `storedEntries` — a releitura acha vazio, devolve `source_missing`, e
+ * `prefetchCategoryContent` escreve isso por cima do cache que
+ * `useCategoryContent` já tinha populado com o conteúdo certo: a tela
+ * mostra "conteúdo não está mais no aparelho" sem o usuário ter feito
+ * nada. Cancelar o timer pendente ao entrar (via este parâmetro na lista
+ * de dependências do efeito) fecha a corrida na raiz, sem precisar
+ * invalidar a query de categorias nem tornar `ensureCategory` ciente de
+ * cache alheio.
  */
-export function useCategoryFocusPrefetch(sourceId: string | null, focusedCategory: CatalogCategory | undefined) {
+export function useCategoryFocusPrefetch(
+  sourceId: string | null,
+  focusedCategory: CatalogCategory | undefined,
+  enteredCategoryId?: number,
+) {
   const queryClient = useQueryClient()
 
   useEffect(() => {
     if (!sourceId || !focusedCategory) return
+    if (focusedCategory.id === enteredCategoryId) return
 
     const timer = setTimeout(() => {
       void prefetchCategoryContent(queryClient, sourceId, focusedCategory)
@@ -281,8 +307,10 @@ export function useCategoryFocusPrefetch(sourceId: string | null, focusedCategor
     // React Query devolve referência estável de `data` enquanto a consulta
     // não refizer de verdade, então isto só rearma o temporizador quando a
     // categoria em foco muda de fato — não é preciso comparar por `id`
-    // manualmente.
-  }, [sourceId, focusedCategory, queryClient])
+    // manualmente. `enteredCategoryId` também entra: mudar de "focada" pra
+    // "entrada" precisa cancelar um timer já agendado, não só bloquear um
+    // novo.
+  }, [sourceId, focusedCategory, enteredCategoryId, queryClient])
 }
 
 /**
@@ -318,7 +346,16 @@ async function sectionCount(sourceId: string, kind: CategoryKind): Promise<Secti
     // On_demand: só soma o que a fonte declarou; painel Xtream real não
     // declara isso hoje (xtreamConnector.ts), então isto fica pronto para
     // quando algum declarar, sem inventar nada enquanto isso não acontece.
-    const contribution = category.fetchMode === 'eager' ? category.count : category.declaredCount
+    // Stored (feature 014): a varredura sempre sabe a contagem real desde
+    // a importação (`declaredCount`, D-011) — mas depois que a categoria é
+    // lida, `count` passa a ser o fato do disco, e é ele que conta (mesma
+    // regra de `eager`, nunca os dois somados).
+    const contribution =
+      category.fetchMode === 'eager'
+        ? category.count
+        : category.fetchMode === 'stored' && category.itemsFetchedAt !== undefined
+          ? category.count
+          : category.declaredCount
     if (contribution === undefined) continue
     items = (items ?? 0) + contribution
   }

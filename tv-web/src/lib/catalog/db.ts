@@ -18,6 +18,13 @@ import Dexie, { type EntityTable } from 'dexie'
 export type SourceType = 'm3u_url' | 'provider_credentials'
 export type ConnectionState = 'never_synced' | 'synced' | 'error'
 export type ProviderImportMode = 'xtream_api' | 'legacy_m3u'
+/**
+ * Por que uma fonte está em Modo limitado (feature 014, FR-020). Só existe
+ * quando `providerImportMode === 'legacy_m3u'` — acesso recusado e
+ * assinatura vencida NÃO levam ao Modo limitado, fazem a importação falhar
+ * (FR-002 da spec 014).
+ */
+export type LimitedReason = 'protocol_unavailable' | 'panel_unreachable'
 
 export interface SourceRecord {
   id: string
@@ -32,6 +39,8 @@ export interface SourceRecord {
   /** `undefined` = conta ainda não consultada; lista vazia = consultada e nada declarado. */
   providerAllowedFormats?: string[]
   providerImportMode?: ProviderImportMode
+  /** Motivo do Modo limitado (feature 014). Só presente junto de `providerImportMode: 'legacy_m3u'`. */
+  limitedReason?: LimitedReason
   /** `undefined` = fonte ainda não passou pelo conector novo. */
   providerMigratedAt?: number
   connectionState: ConnectionState
@@ -109,6 +118,15 @@ export interface CatalogRecord {
    * itemsFetchedAt`, mas granular por série, não por categoria inteira.
    */
   episodesFetchedAt?: number
+  /**
+   * Capa declarada pela própria fonte para um filme ou série (feature 015,
+   * D-001/D-002 do plan.md) — Xtream `stream_icon`/`cover`, ou `tvg-logo`
+   * do M3U. `undefined` = fonte não declarou, ou o item é um canal
+   * (nunca lido nem gravado para `kind: 'channel'`, FR-009). Campo de
+   * valor comum, sem índice — não exige bump de versão do Dexie (D-009);
+   * registro gravado antes desta feature simplesmente não o tem.
+   */
+  iconUrl?: string
 }
 
 /** As três seções que o painel expõe por categoria (feature 010). */
@@ -117,7 +135,8 @@ export type CategoryKind = 'channel' | 'movie' | 'series'
 /** Como os itens de uma categoria chegam (data-model.md §2.1). */
 export type CatalogFetchMode =
   | 'on_demand' // Provedor pelo protocolo JSON — itens buscados por categoria, ao abri-la.
-  | 'eager' // URL M3U e modo limitado — itens já vieram inteiros na importação.
+  | 'eager' // Legado: fonte M3U importada antes da feature 014 — itens já vieram inteiros na importação. Só leitura.
+  | 'stored' // Feature 014: conteúdo guardado no aparelho, separado por categoria — itens lidos ao entrar.
 
 /**
  * Uma categoria da estrutura do catálogo (feature 010).
@@ -147,6 +166,35 @@ export interface CategoryRecord {
   itemsCount?: number
 }
 
+/**
+ * Um registro de `CatalogRecord` como fica guardado em `storedEntries`
+ * (feature 014) — os mesmos campos, exceto os que só existem depois da
+ * leitura da categoria (`id`, `sourceId`, `generation`, `categoryId`).
+ */
+export type StoredCatalogRecord = Omit<CatalogRecord, 'id' | 'sourceId' | 'generation' | 'categoryId'>
+
+/**
+ * Um bloco do conteúdo M3U guardado no aparelho (feature 014, D-004/D-005).
+ *
+ * Existe só no caminho do arquivo guardado (`fetchMode: 'stored'`): a
+ * importação guarda o conteúdo já classificado e separado por categoria —
+ * nunca o texto bruto —, em blocos por causa do teto de memória em buffer
+ * (`STORED_FLUSH_THRESHOLD`). Ler uma categoria concatena todos os blocos
+ * dela, na ordem de `chunk`, grava os itens em `channels` e apaga os
+ * blocos — depois disso a categoria nunca mais é lida daqui na mesma
+ * geração (D-007).
+ */
+export interface StoredEntriesRecord {
+  id?: number
+  sourceId: string
+  generation: number
+  /** Id local da categoria (`categories.id`) dona destes registros. */
+  categoryId: number
+  /** Ordem de gravação do bloco — a leitura concatena na ordem crescente. */
+  chunk: number
+  records: StoredCatalogRecord[]
+}
+
 export type ImportStatus = 'running' | 'completed' | 'failed' | 'cancelled'
 export type ImportStep = 'fetching' | 'parsing' | 'storing' | 'done'
 
@@ -161,6 +209,8 @@ export type ImportErrorKind =
   | 'hls_manifest'
   /** O app foi fechado no meio — ninguém estava conduzindo a execução. */
   | 'interrupted'
+  /** Sem espaço para guardar o conteúdo (feature 014, D-009). */
+  | 'storage_full'
 
 /** Seções do painel que não responderam, declaradas em vez de viradas em lista vazia. */
 export type CatalogSection = 'movie' | 'series'
@@ -227,6 +277,7 @@ export class CatalogDb extends Dexie {
   importRuns!: EntityTable<ImportRunRecord, 'id'>
   userStates!: EntityTable<UserStateRecord, 'stableId'>
   categories!: EntityTable<CategoryRecord, 'id'>
+  storedEntries!: EntityTable<StoredEntriesRecord, 'id'>
 
   constructor(name: string = DB_NAME) {
     super(name)
@@ -317,6 +368,19 @@ export class CatalogDb extends Dexie {
         '++id, [sourceId+generation], [sourceId+generation+groupOrder], ' +
         '[sourceId+generation+kind+groupOrder], [sourceId+generation+seriesId], ' +
         '[sourceId+generation+kind+providerStreamId]',
+    })
+    // v10 (feature 014): `storedEntries` guarda o conteúdo M3U já
+    // classificado e separado por categoria, para a importação por URL
+    // M3U concluir sem gravar item em `channels` (o que antes fazia dela
+    // ser eager). `[sourceId+generation]` é o eixo de descarte por geração
+    // (publicação/descarte/remoção da fonte, mesmo padrão de `categories`);
+    // `[sourceId+generation+categoryId+chunk]` é o eixo de leitura — os
+    // blocos de uma categoria, na ordem em que foram gravados. Sem
+    // `.upgrade()`: fonte M3U importada antes desta feature continua
+    // `eager`, só leitura, até re-sincronizar (D-012) — não há dado velho
+    // para migrar para uma tabela que não existia.
+    this.version(10).stores({
+      storedEntries: '++id, [sourceId+generation], [sourceId+generation+categoryId+chunk]',
     })
   }
 }

@@ -112,15 +112,17 @@ function mockCategoriesState(state: { isLoading?: boolean; isError?: boolean }) 
 }
 
 function mockContentByCategory(byId: Record<number, CatalogItemOut[]>, outcome: CategoryFetchOutcome = 'fresh') {
+  const refetch = vi.fn()
   vi.mocked(catalogApi.useCategoryContent).mockImplementation((_sourceId, cat) => {
     const items = cat ? (byId[cat.id] ?? []) : []
     return {
       data: { items, totalCount: items.length, outcome },
       isLoading: false,
       isError: false,
-      refetch: vi.fn(),
+      refetch,
     } as unknown as ReturnType<typeof catalogApi.useCategoryContent>
   })
+  return refetch
 }
 
 /**
@@ -153,7 +155,7 @@ describe('MoviesScreen', () => {
     vi.clearAllMocks()
   })
 
-  function renderMovies() {
+  function renderMovies(onResync: () => void = vi.fn()) {
     // `useCategoryFocusPrefetch` usa o QueryClient real (não é algo a
     // mockar) — precisa de um provider de verdade, mesmo com
     // useCategoryList/useCategoryContent mockados.
@@ -163,7 +165,7 @@ describe('MoviesScreen', () => {
     function buildUi() {
       return (
         <QueryClientProvider client={queryClient}>
-          <MoviesScreen sourceId="source-1" onOpenMovie={onOpenMovie} onBack={onBack} />
+          <MoviesScreen sourceId="source-1" onOpenMovie={onOpenMovie} onBack={onBack} onResync={onResync} />
         </QueryClientProvider>
       )
     }
@@ -237,6 +239,26 @@ describe('MoviesScreen', () => {
     expect(onOpenMovie).toHaveBeenCalledWith('id-Filme A')
   })
 
+  it('filme com icon_url mostra a capa real; sem icon_url continua no placeholder (feature 015)', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({
+      1: [
+        { ...movie('Com Capa', 'Ação'), icon_url: 'http://exemplo.test/capa.png' },
+        movie('Sem Capa', 'Ação'),
+      ],
+    })
+    const { container } = renderMovies()
+
+    press('ArrowRight')
+
+    const cards = [...container.querySelectorAll('.poster-cell')]
+    const comCapa = cards.find((c) => c.textContent?.includes('Com Capa'))
+    const semCapa = cards.find((c) => c.textContent?.includes('Sem Capa'))
+
+    expect(comCapa?.querySelector('img.poster-box-art')).toHaveAttribute('src', 'http://exemplo.test/capa.png')
+    expect(semCapa?.querySelector('img.poster-box-art')).not.toBeInTheDocument()
+  })
+
   it('categoria que nunca obteve itens e falhou mostra erro com "Tentar de novo"', () => {
     mockCategories([category(1, 'Ação', 0)])
     mockContentByCategory({}, 'failed')
@@ -246,6 +268,34 @@ describe('MoviesScreen', () => {
 
     expect(screen.getByText('Não foi possível carregar esta categoria')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+  })
+
+  it('SELECT em "Tentar de novo" aciona a nova tentativa (achado corrigido junto com a feature 014)', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    const refetch = mockContentByCategory({}, 'failed')
+    renderMovies()
+
+    press('ArrowRight')
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+    press('Enter')
+
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('categoria stored sem arquivo guardado mostra "Ressincronizar lista", e SELECT aciona onResync (feature 014, D-008)', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({}, 'source_missing')
+    const onResync = vi.fn()
+    renderMovies(onResync)
+
+    press('ArrowRight')
+
+    expect(screen.getByText('O conteúdo desta lista não está mais no aparelho')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ressincronizar lista' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).not.toBeInTheDocument()
+
+    press('Enter')
+    expect(onResync).toHaveBeenCalledTimes(1)
   })
 
   it('foco por identidade: item que sumir do catálogo novo não estoura, cai no início', () => {

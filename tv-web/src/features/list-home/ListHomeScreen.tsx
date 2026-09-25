@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { useCatalogCounts, type SectionCount } from '../catalog/catalogApi'
+import type { SourceOut } from '../import/importApi'
+import { LimitedModeNotice } from './LimitedModeNotice'
 
 export type ListDestination = 'live' | 'movies' | 'series'
 
 export interface ListHomeScreenProps {
-  sourceId: string
-  sourceName: string
+  source: SourceOut
   onSelect: (destination: ListDestination) => void
   onBack: () => void
 }
@@ -17,7 +18,9 @@ const TILES: { key: ListDestination; icon: string; label: string }[] = [
   { key: 'series', icon: '🎞️', label: 'Séries' },
 ]
 
-export function ListHomeScreen({ sourceId, sourceName, onSelect, onBack }: ListHomeScreenProps) {
+export function ListHomeScreen({ source, onSelect, onBack }: ListHomeScreenProps) {
+  const sourceId = source.id
+  const sourceName = source.display_name
   const [focusCol, setFocusCol] = useState(0)
   const counts = useCatalogCounts(sourceId)
 
@@ -76,6 +79,16 @@ export function ListHomeScreen({ sourceId, sourceName, onSelect, onBack }: ListH
       <p className="screen-subtitle" style={{ marginTop: 32, marginBottom: 0 }}>
         Cada categoria é obtida quando você entra nela.
       </p>
+      {/* Feature 014, US2 (FR-021): o selo já diz QUE a fonte está em Modo
+          limitado (Home); aqui é ONDE se explica o motivo, o que se perde e
+          o que fazer — só quando a última importação de fato caiu nesse
+          caminho. */}
+      {source.provider_import_mode === 'legacy_m3u' && (
+        <LimitedModeNotice
+          reason={source.limited_reason ?? ''}
+          discardedCount={source.last_discarded_by_type}
+        />
+      )}
     </div>
   )
 }

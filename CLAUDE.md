@@ -80,6 +80,37 @@ because a browser can't prove how the real remote's `keydown` auto-repeat
 and `keyup` behave. See `sdd/specs/013-favoritos/plan.md` →
 `## Estado Atual` and R-001/R-011.
 
+**In execution**: `014-m3u-sob-demanda` — closes the gap feature 010 left
+on purpose: an M3U source (URL or "Modo limitado") used to import every
+item eagerly, because a flat M3U file has no per-category network
+protocol. Code is now complete for two paths, chosen per import: (1) if
+the URL matches an Xtream panel's shape
+(`…/get.php?username=…&password=…`, `tv-web/src/lib/catalog/
+m3uPanelUrl.ts`) and the panel confirms the protocol, the source follows
+feature 010's provider path in full — structure only, items on entry,
+`readCredential` derives dns/user/password straight from the stored URL
+(never copied to another field); (2) otherwise (avulsa URL, unconfirmed
+panel, or the pre-existing "Modo limitado" fallback), the importer scans
+the file once, writes **only structure** to `categories`, and stores the
+already-classified, per-category content in a new `storedEntries` table
+(`fetchMode: 'stored'`) — entering a category reads and writes it to
+`channels` exactly once per generation, no network, no re-scan
+(`categoryLoader.ts`). ADR-010 is what allows the full source URL, each
+item's playback URL, and the stored file's content to live in IndexedDB —
+it extends ADR-008's provider-credential exception. The "Modo limitado"
+badge on Home now comes with an explanation in the list hub
+(`LimitedModeNotice.tsx`): the real reason, what the source loses versus
+the full protocol, and what to do about it — previously the badge alone
+gave no way to understand or act on it. Along the way, a pre-existing bug
+surfaced and was fixed with the user's explicit approval: the "Tentar de
+novo" retry button on all three category screens (Live/Movies/Series,
+present since feature 010) looked focused (`tv-focus`) but SELECT never
+activated it — only a mouse click did. All code-complete, three E2E
+scenarios (`tv-web/e2e/m3u-sob-demanda.mjs`) green; only the two
+performance measurements that need the user's real list (SC-001/SC-002)
+are outstanding. See `sdd/specs/014-m3u-sob-demanda/plan.md` →
+`## Estado Atual` for the phase-by-phase detail.
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, Home (sources), the
@@ -160,7 +191,7 @@ requesting a `tizen-tv`/`tizen-emulator` validation pass.
 
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.4.0) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.5.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 
@@ -175,11 +206,13 @@ formally planned features. The ones most easily violated by accident:
   URL.
 - Secrets never reach logs, error messages or visible UI, and are never
   logged/interpolated raw (a caught fetch error can embed the full URL with
-  credentials). TMDB/OpenAI keys and full source URLs never reach the
-  client at all. **Exception (ADR-008)**: provider credentials (dns,
-  username, password) may live in the device's IndexedDB — that's what lets
-  the client re-authenticate without a backend — but still never in a log,
-  a rendered card, or exported/backed up.
+  credentials). TMDB/OpenAI keys never reach the client at all.
+  **Exception (ADR-008, extended by ADR-010)**: provider credentials (dns,
+  username, password), the full source URL, each item's playback URL and
+  the downloaded M3U file may live in the device's IndexedDB — that's what
+  lets the client re-authenticate and play without a backend — but still
+  never in a log, a rendered card, an error message, a third-party request,
+  or an export/backup.
 - No invented progress percentages, and player controls must match the
   media's real capabilities (no seek bar on live without a DVR window).
 - Source-declared groups/categories are never silently replaced by external
@@ -317,7 +350,7 @@ and never reads or modifies.
 
 ## Architecture (from `sdd/adr/`)
 
-ADR-001 to ADR-008 are accepted decisions — read the relevant one in full
+ADR-001 to ADR-010 are accepted decisions — read the relevant one in full
 before proposing anything that conflicts, and amend with an inline
 `**Atualização (ADR-0XX):**` note rather than rewriting history.
 
@@ -332,6 +365,7 @@ before proposing anything that conflicts, and amend with an inline
 | ADR-007 | TV design system and visual identity |
 | ADR-008 | Client-first architecture — backend only when strictly necessary (VPS/self-hosted backend no longer the default path; confirmed CORS works against the real provider) |
 | ADR-009 | Directional navigation is the project's own `useRemoteNav` hook (state + CSS class, no DOM-ref focus library) — Norigin Spatial Navigation, recommended by ADR-006, was never installed |
+| ADR-010 | Full source URL, per-item playback URLs and the downloaded M3U file may be stored on the device (extends ADR-008's credential exception); still never logged, displayed, sent to third parties or exported |
 
 Plus `REQUISITOS-FUNCIONAIS.md` (RF-001 to RF-019) and
 `ESPECIFICACAO-TRAILERS.md` (RF-019 detail).
@@ -362,7 +396,7 @@ always-on backend in the loop:
   of a given stream, obtaining a category's items). See "Known deviation"
   below for how far "obtained" currently goes.
 
-### Known deviation, in progress
+### Known deviation, mostly closed
 
 **Update (2026-09-23, feature 010, live/VOD/series categories)**: a
 provider source (Xtream JSON protocol) now imports only its **structure**
@@ -370,11 +404,7 @@ provider source (Xtream JSON protocol) now imports only its **structure**
 only when the person enters it
 (`tv-web/src/lib/catalog/categoryLoader.ts`). This replaced an eager,
 whole-catalog import that measurably froze the TV on a large real source
-(the write to IndexedDB was the bottleneck, not the network). A source
-imported by URL M3U, or a provider panel that doesn't speak the JSON
-protocol (`ProviderImportMode.LEGACY_M3U`, surfaced as "Modo limitado"),
-still imports everything eagerly, in one streaming pass — there's no
-per-category protocol for a flat M3U file. See
+(the write to IndexedDB was the bottleneck, not the network). See
 `sdd/specs/010-catalogo-sob-demanda/` for the full design; ADR-002 has a
 matching amendment on partial catalog coverage being the normal state now,
 not an exception.
@@ -384,6 +414,22 @@ passed; scenario G (M3U source) wasn't run for lack of an available source
 in that session, and is covered by the automated T016 instead. Scenario B
 only passed after R-013 (debounced prefetch). `plan.md`'s `## Estado Atual`
 stays the authority if you need more detail.
+
+**Update (2026-09-24, feature 014)**: the M3U gap feature 010 left on
+purpose — a source imported by URL M3U, or the pre-existing "Modo
+limitado" fallback, used to import everything eagerly, in one streaming
+pass, because a flat M3U file has no per-category network protocol — is
+now closed for the case that matters most (a URL M3U pointing at an
+actual Xtream panel: the app detects and confirms it, then follows
+feature 010's provider path in full) and narrowed for the rest (avulsa
+URL, unconfirmed panel, "Modo limitado"): those still can't ask the
+network for one category at a time, but the importer no longer needs to
+either — it scans the file once, writes structure only, and keeps the
+per-category content in a new `storedEntries` table instead of writing it
+straight to `channels`; entering a category reads it from there once per
+generation, never the network again. Code-complete; only the SC-001/SC-002
+timing measurements against a real user list remain open. See
+`sdd/specs/014-m3u-sob-demanda/`.
 
 ## Language
 

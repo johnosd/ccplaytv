@@ -169,7 +169,7 @@ function renderMovies() {
   function buildUi() {
     return (
       <QueryClientProvider client={queryClient}>
-        <MoviesScreen sourceId={SOURCE_ID} onOpenMovie={onOpenMovie} onBack={onBack} />
+        <MoviesScreen sourceId={SOURCE_ID} onOpenMovie={onOpenMovie} onBack={onBack} onResync={() => {}} />
       </QueryClientProvider>
     )
   }

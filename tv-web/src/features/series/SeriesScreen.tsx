@@ -18,6 +18,7 @@ import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { FavoriteHint, FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
+import { PosterArt } from '../../components/PosterArt'
 
 const GRID_COLS = 6
 /**
@@ -33,6 +34,8 @@ export interface SeriesScreenProps {
   sourceId: string
   onOpenSeries: (seriesId: string) => void
   onBack: () => void
+  /** Feature 014, D-008: ressincroniza a fonte quando o arquivo guardado de uma categoria sumiu do aparelho. */
+  onResync: () => void
 }
 
 /**
@@ -67,7 +70,7 @@ function defaultTrailIdx(trail: TrailEntry[]): number {
   return Math.min(1, trail.length - 1)
 }
 
-export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenProps) {
+export function SeriesScreen({ sourceId, onOpenSeries, onBack, onResync }: SeriesScreenProps) {
   const [col, setCol] = useState<0 | 1>(0)
   const { toastMessage, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
@@ -130,6 +133,9 @@ export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenPro
   const contentFailed = enteredFavorites
     ? favoritesContent.isError
     : content.data?.outcome === 'failed' || content.isError
+  // Feature 014, D-008 — mesmo motivo de LiveScreen.tsx.
+  const contentMissing = !enteredFavorites && content.data?.outcome === 'source_missing'
+  const contentUnavailable = contentFailed || contentMissing
 
   // Foco por identidade, não por índice — ver a explicação em MoviesScreen:
   // uma atualização em segundo plano pode encurtar a lista debaixo do foco.
@@ -163,7 +169,7 @@ export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenPro
     seriesVirtualizer.measure()
   }, [rowHeight, seriesVirtualizer])
 
-  const seriesNavigable = col === 1 && !contentIsLoading && !contentFailed && series.length > 0
+  const seriesNavigable = col === 1 && !contentIsLoading && !contentUnavailable && series.length > 0
   useVirtualFocusSync({
     focusedIndex: seriesIdx,
     scrollToIndex: seriesVirtualizer.scrollToIndex,
@@ -253,6 +259,17 @@ export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenPro
       // "Voltar" do `FavoritesEmptyState` — sem isto, OK não faz nada aqui.
       if (enteredFavorites && !contentIsLoading && !contentFailed && series.length === 0) {
         setCol(0)
+        return
+      }
+      // Feature 014 (T039) + achado (bug pré-existente da 010): mesmo
+      // ajuste de LiveScreen.tsx — sem isto, SELECT não ativava "Tentar de
+      // novo" apesar da aparência de foco.
+      if (!contentIsLoading && contentMissing) {
+        onResync()
+        return
+      }
+      if (!contentIsLoading && contentFailed) {
+        retryContent()
         return
       }
       const item = series[seriesIdx]
@@ -370,11 +387,20 @@ export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenPro
           </div>
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && enteredFavorites && series.length === 0 && (
+        {showingContent && !contentIsLoading && contentMissing && (
+          <div className="live-state">
+            <div className="live-state-title">O conteúdo desta lista não está mais no aparelho</div>
+            <button type="button" className="live-state-action tv-focus" onClick={onResync}>
+              Ressincronizar lista
+            </button>
+          </div>
+        )}
+
+        {showingContent && !contentIsLoading && !contentUnavailable && enteredFavorites && series.length === 0 && (
           <FavoritesEmptyState kind="series" focused onBack={() => setCol(0)} />
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && !enteredFavorites && series.length === 0 && (
+        {showingContent && !contentIsLoading && !contentUnavailable && !enteredFavorites && series.length === 0 && (
           <div className="live-state-copy">Esta categoria está vazia.</div>
         )}
 
@@ -390,15 +416,15 @@ export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenPro
           </div>
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && enteredFavorites && (
+        {showingContent && !contentIsLoading && !contentUnavailable && enteredFavorites && (
           <FavoritesUnresolvedNote unresolved={unresolvedFavorites} />
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && series.length > 0 && (
+        {showingContent && !contentIsLoading && !contentUnavailable && series.length > 0 && (
           <FavoriteHint />
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && series.length > 0 && (
+        {showingContent && !contentIsLoading && !contentUnavailable && series.length > 0 && (
           <div ref={setContainerRef} className="poster-grid">
             <div className="poster-grid-inner" style={{ height: seriesVirtualizer.getTotalSize() }}>
               {seriesVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -415,19 +441,17 @@ export function SeriesScreen({ sourceId, onOpenSeries, onBack }: SeriesScreenPro
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
                   >
-                    <div className={`poster-box${col === 1 && seriesIdx === virtualRow.index ? ' tv-focus' : ''}`}>
-                      <div className="poster-box-noise" />
-                      <span className="poster-box-label">
-                        pôster
-                        <br />
-                        {item.name}
-                      </span>
+                    <PosterArt
+                      url={item.icon_url ?? undefined}
+                      title={item.name}
+                      focused={col === 1 && seriesIdx === virtualRow.index}
+                    >
                       {isFavorite && (
                         <span className="fav-star" aria-hidden="true">
                           ★
                         </span>
                       )}
-                    </div>
+                    </PosterArt>
                     <div className="poster-card-title">{item.name}</div>
                     <div className="poster-card-meta">{item.original_group ?? 'Série'}</div>
                   </div>

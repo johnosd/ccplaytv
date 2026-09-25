@@ -3,6 +3,7 @@ import { CatalogDb, type CatalogRecord, type SourceRecord } from './db'
 import {
   allocateGeneration,
   countChannels,
+  deleteAllForSource,
   discardGeneration,
   getChannel,
   listCategories,
@@ -251,6 +252,63 @@ describe('catalogRepository', () => {
 
       const categories = await listCategories(SOURCE_ID, 'channel', database)
       expect(categories.map((c) => c.name)).toEqual(['Ativa'])
+    })
+  })
+
+  describe('storedEntries (feature 014 — conteúdo guardado)', () => {
+    function stubBlock(generation: number, categoryId: number, chunk = 0) {
+      return { sourceId: SOURCE_ID, generation, categoryId, chunk, records: [] }
+    }
+
+    it('publicar geração descarta os blocos guardados das anteriores, mantém os da publicada', async () => {
+      await seedSource({ activeGeneration: 1 })
+      await database.storedEntries.bulkAdd([stubBlock(1, 10), stubBlock(2, 20)])
+
+      await publishGeneration(SOURCE_ID, 2, database)
+
+      const remaining = await database.storedEntries.toArray()
+      expect(remaining.map((b) => b.generation)).toEqual([2])
+    })
+
+    it('descartar uma geração falha também remove os blocos guardados dela, sem tocar a ativa', async () => {
+      await seedSource({ activeGeneration: 1 })
+      await database.storedEntries.bulkAdd([stubBlock(1, 10), stubBlock(2, 20)])
+
+      await discardGeneration(SOURCE_ID, 2, database)
+
+      const remaining = await database.storedEntries.toArray()
+      expect(remaining.map((b) => b.generation)).toEqual([1])
+    })
+
+    it('remover a fonte apaga os blocos guardados de todas as gerações', async () => {
+      await seedSource({ activeGeneration: 2 })
+      await database.storedEntries.bulkAdd([stubBlock(1, 10), stubBlock(2, 20)])
+
+      await deleteAllForSource(SOURCE_ID, database)
+
+      expect(await database.storedEntries.count()).toBe(0)
+    })
+
+    it('não toca os blocos guardados de outra fonte', async () => {
+      await seedSource({ activeGeneration: 1 })
+      await database.sources.add({
+        id: 'fonte-2',
+        type: 'provider_credentials',
+        displayName: 'Outra',
+        connectionState: 'never_synced',
+        activeGeneration: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      await database.storedEntries.bulkAdd([
+        { sourceId: SOURCE_ID, generation: 1, categoryId: 10, chunk: 0, records: [] },
+        { sourceId: 'fonte-2', generation: 1, categoryId: 30, chunk: 0, records: [] },
+      ])
+
+      await deleteAllForSource(SOURCE_ID, database)
+
+      const remaining = await database.storedEntries.toArray()
+      expect(remaining.map((b) => b.sourceId)).toEqual(['fonte-2'])
     })
   })
 

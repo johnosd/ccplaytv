@@ -3,8 +3,10 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  prefetchCategoryContent,
   stableIdOf,
   useCatalogCounts,
+  useCategoryContent,
   useCategoryFocusPrefetch,
   useFavoriteIds,
   useFavoritesContent,
@@ -141,6 +143,152 @@ describe('useCatalogCounts — canais seguem a mesma regra honesta de filmes/sé
 
     await waitFor(() => expect(result.current.data).toBeDefined())
     expect(result.current.data?.channels).toEqual({ items: undefined, categories: 3 })
+  })
+
+  it('categoria stored ainda não lida soma declaredCount (feature 014, D-011)', async () => {
+    await seedCategories([
+      { kind: 'channel', fetchMode: 'stored', order: 0, name: 'Esportes', declaredCount: 30 },
+      { kind: 'channel', fetchMode: 'stored', order: 1, name: 'Notícias', declaredCount: 10 },
+    ])
+
+    const { result } = renderHook(() => useCatalogCounts(SOURCE_ID), { wrapper: wrapper() })
+
+    await waitFor(() => expect(result.current.data).toBeDefined())
+    expect(result.current.data?.channels).toEqual({ items: 40, categories: 2 })
+  })
+
+  it('categoria stored já lida soma a contagem real (count/itemsCount), não mais declaredCount', async () => {
+    await seedCategories([
+      // declaredCount e itemsCount podem divergir (a varredura promete um
+      // número, a leitura real é outro) — depois de lida, o real vence.
+      { kind: 'channel', fetchMode: 'stored', order: 0, name: 'Esportes', declaredCount: 30, itemsFetchedAt: 1000, itemsCount: 28 },
+    ])
+
+    const { result } = renderHook(() => useCatalogCounts(SOURCE_ID), { wrapper: wrapper() })
+
+    await waitFor(() => expect(result.current.data).toBeDefined())
+    expect(result.current.data?.channels).toEqual({ items: 28, categories: 1 })
+  })
+
+  it('categorias stored lidas e não lidas somam count e declaredCount juntos', async () => {
+    await seedCategories([
+      { kind: 'channel', fetchMode: 'stored', order: 0, name: 'Esportes', declaredCount: 30, itemsFetchedAt: 1000, itemsCount: 30 },
+      { kind: 'channel', fetchMode: 'stored', order: 1, name: 'Notícias', declaredCount: 10 },
+    ])
+
+    const { result } = renderHook(() => useCatalogCounts(SOURCE_ID), { wrapper: wrapper() })
+
+    await waitFor(() => expect(result.current.data).toBeDefined())
+    expect(result.current.data?.channels).toEqual({ items: 40, categories: 2 })
+  })
+})
+
+describe('prefetchCategoryContent / useCategoryContent — categoria stored (feature 014, T052)', () => {
+  const SOURCE_ID = 'source-stored-content'
+
+  afterEach(async () => {
+    await db.sources.delete(SOURCE_ID)
+    await db.categories.clear()
+    await db.channels.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('lê uma categoria stored pelo mesmo ensureCategory de qualquer outra — nunca fetch direto aqui', async () => {
+    vi.mocked(categoryLoader.ensureCategory).mockResolvedValue({ outcome: 'fetched' })
+    const cat = category(1, { fetchMode: 'stored', kind: 'movie' })
+
+    const { result } = renderHook(() => useCategoryContent(SOURCE_ID, cat), { wrapper: wrapper() })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(categoryLoader.ensureCategory).toHaveBeenCalledWith(SOURCE_ID, cat)
+  })
+
+  it('pré-carga seguida da entrada explícita mostra o conteúdo já pronto, sem esperar nova leitura', async () => {
+    vi.mocked(categoryLoader.ensureCategory).mockResolvedValue({ outcome: 'fetched' })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const cat = category(2, { fetchMode: 'stored', kind: 'series' })
+
+    await prefetchCategoryContent(queryClient, SOURCE_ID, cat)
+
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    }
+    // `initialData` do cache já populado pela pré-carga: o primeiro render
+    // já chega com dado, nunca em `isLoading` — é o que faz a categoria
+    // "já estar pronta quando a entrada acontecer" (feature 010, FR-004).
+    // Uma segunda chamada a `ensureCategory` no mount é esperada e inofensiva
+    // (staleTime padrão do React Query é 0): para uma categoria `stored` já
+    // lida, `ensureCategory` devolve `fresh` sem nenhum I/O — é isso que
+    // `categoryLoader.test.ts` (T028) verifica na implementação real, não
+    // mockada.
+    const { result } = renderHook(() => useCategoryContent(SOURCE_ID, cat), { wrapper: Wrapper })
+
+    expect(result.current.isLoading).toBe(false)
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  })
+
+  it('pré-carga e entrada explícita disparadas ao mesmo tempo na mesma categoria fazem uma leitura só (dedup do React Query)', async () => {
+    let resolveEnsure: ((value: { outcome: 'fetched' }) => void) | undefined
+    vi.mocked(categoryLoader.ensureCategory).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveEnsure = resolve
+        }),
+    )
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const cat = category(3, { fetchMode: 'stored', kind: 'channel' })
+
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    }
+    const prefetchPromise = prefetchCategoryContent(queryClient, SOURCE_ID, cat)
+    const { result } = renderHook(() => useCategoryContent(SOURCE_ID, cat), { wrapper: Wrapper })
+
+    resolveEnsure?.({ outcome: 'fetched' })
+    await prefetchPromise
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(categoryLoader.ensureCategory).toHaveBeenCalledTimes(1)
+  })
+
+  it('toItemOut expõe icon_url a partir de iconUrl do registro (feature 015)', async () => {
+    vi.mocked(categoryLoader.ensureCategory).mockResolvedValue({ outcome: 'fresh' })
+    await db.sources.put({
+      id: SOURCE_ID,
+      type: 'm3u_url',
+      displayName: 'Fonte com capa',
+      connectionState: 'synced',
+      activeGeneration: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    await db.channels.bulkAdd([
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'movie',
+        name: 'Com capa',
+        originalName: 'Com capa',
+        groupOrder: 4,
+        iconUrl: 'http://exemplo.test/capa.png',
+      },
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'movie',
+        name: 'Sem capa',
+        originalName: 'Sem capa',
+        groupOrder: 4,
+      },
+    ])
+    const cat = category(4, { fetchMode: 'stored', kind: 'movie' })
+
+    const { result } = renderHook(() => useCategoryContent(SOURCE_ID, cat), { wrapper: wrapper() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    const items = result.current.data?.items ?? []
+    expect(items.find((i) => i.name === 'Com capa')?.icon_url).toBe('http://exemplo.test/capa.png')
+    expect(items.find((i) => i.name === 'Sem capa')?.icon_url).toBeNull()
   })
 })
 

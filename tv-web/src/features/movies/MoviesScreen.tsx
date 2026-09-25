@@ -18,6 +18,7 @@ import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { FavoriteHint, FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
+import { PosterArt } from '../../components/PosterArt'
 
 const GRID_COLS = 6
 /**
@@ -33,6 +34,8 @@ export interface MoviesScreenProps {
   sourceId: string
   onOpenMovie: (movieId: string) => void
   onBack: () => void
+  /** Feature 014, D-008: ressincroniza a fonte quando o arquivo guardado de uma categoria sumiu do aparelho. */
+  onResync: () => void
 }
 
 /**
@@ -70,7 +73,7 @@ function defaultTrailIdx(trail: TrailEntry[]): number {
   return Math.min(1, trail.length - 1)
 }
 
-export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProps) {
+export function MoviesScreen({ sourceId, onOpenMovie, onBack, onResync }: MoviesScreenProps) {
   const [col, setCol] = useState<0 | 1>(0)
   const { toastMessage, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
@@ -136,6 +139,9 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
   const contentFailed = enteredFavorites
     ? favoritesContent.isError
     : content.data?.outcome === 'failed' || content.isError
+  // Feature 014, D-008 — mesmo motivo de LiveScreen.tsx.
+  const contentMissing = !enteredFavorites && content.data?.outcome === 'source_missing'
+  const contentUnavailable = contentFailed || contentMissing
 
   /**
    * O foco é guardado pela identidade do item, não pelo índice dele.
@@ -176,7 +182,7 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
     movieVirtualizer.measure()
   }, [rowHeight, movieVirtualizer])
 
-  const moviesNavigable = col === 1 && !contentIsLoading && !contentFailed && movies.length > 0
+  const moviesNavigable = col === 1 && !contentIsLoading && !contentUnavailable && movies.length > 0
   useVirtualFocusSync({
     focusedIndex: movieIdx,
     scrollToIndex: movieVirtualizer.scrollToIndex,
@@ -268,6 +274,17 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
       // "Voltar" do `FavoritesEmptyState` — sem isto, OK não faz nada aqui.
       if (enteredFavorites && !contentIsLoading && !contentFailed && movies.length === 0) {
         setCol(0)
+        return
+      }
+      // Feature 014 (T039) + achado (bug pré-existente da 010): mesmo
+      // ajuste de LiveScreen.tsx — sem isto, SELECT não ativava "Tentar de
+      // novo" apesar da aparência de foco.
+      if (!contentIsLoading && contentMissing) {
+        onResync()
+        return
+      }
+      if (!contentIsLoading && contentFailed) {
+        retryContent()
         return
       }
       const movie = movies[movieIdx]
@@ -385,11 +402,20 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
           </div>
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && enteredFavorites && movies.length === 0 && (
+        {showingContent && !contentIsLoading && contentMissing && (
+          <div className="live-state">
+            <div className="live-state-title">O conteúdo desta lista não está mais no aparelho</div>
+            <button type="button" className="live-state-action tv-focus" onClick={onResync}>
+              Ressincronizar lista
+            </button>
+          </div>
+        )}
+
+        {showingContent && !contentIsLoading && !contentUnavailable && enteredFavorites && movies.length === 0 && (
           <FavoritesEmptyState kind="movie" focused onBack={() => setCol(0)} />
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && !enteredFavorites && movies.length === 0 && (
+        {showingContent && !contentIsLoading && !contentUnavailable && !enteredFavorites && movies.length === 0 && (
           <div className="live-state-copy">Esta categoria está vazia.</div>
         )}
 
@@ -405,15 +431,15 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
           </div>
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && enteredFavorites && (
+        {showingContent && !contentIsLoading && !contentUnavailable && enteredFavorites && (
           <FavoritesUnresolvedNote unresolved={unresolvedFavorites} />
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && movies.length > 0 && (
+        {showingContent && !contentIsLoading && !contentUnavailable && movies.length > 0 && (
           <FavoriteHint />
         )}
 
-        {showingContent && !contentIsLoading && !contentFailed && movies.length > 0 && (
+        {showingContent && !contentIsLoading && !contentUnavailable && movies.length > 0 && (
           <div ref={setContainerRef} className="poster-grid">
             <div className="poster-grid-inner" style={{ height: movieVirtualizer.getTotalSize() }}>
               {movieVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -430,19 +456,17 @@ export function MoviesScreen({ sourceId, onOpenMovie, onBack }: MoviesScreenProp
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
                   >
-                    <div className={`poster-box${col === 1 && movieIdx === virtualRow.index ? ' tv-focus' : ''}`}>
-                      <div className="poster-box-noise" />
-                      <span className="poster-box-label">
-                        pôster
-                        <br />
-                        {movie.name}
-                      </span>
+                    <PosterArt
+                      url={movie.icon_url ?? undefined}
+                      title={movie.name}
+                      focused={col === 1 && movieIdx === virtualRow.index}
+                    >
                       {isFavorite && (
                         <span className="fav-star" aria-hidden="true">
                           ★
                         </span>
                       )}
-                    </div>
+                    </PosterArt>
                     <div className="poster-card-title">{movie.name}</div>
                     <div className="poster-card-meta">{movie.original_group ?? 'Filme'}</div>
                   </div>

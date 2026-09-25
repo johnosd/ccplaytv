@@ -21,6 +21,7 @@ import {
   type CategoryKind,
   type CategoryRecord,
   type CatalogFetchMode,
+  type StoredCatalogRecord,
 } from './db'
 import type { StableIdParts } from './userStateRepository'
 
@@ -47,8 +48,11 @@ export class StorageFullError extends Error {
  * embrulha o erro original. Reconhecer só uma das formas deixaria o
  * truncamento passar como erro genérico — e a pessoa veria um catálogo
  * incompleto sem aviso.
+ *
+ * Exportada para `storedEntries.ts` (feature 014) reusar a mesma detecção
+ * na gravação dos blocos — sem duplicar a lista de nomes de erro.
  */
-function isQuotaError(error: unknown): boolean {
+export function isQuotaError(error: unknown): boolean {
   const names = new Set(['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'])
   let current: unknown = error
   for (let depth = 0; depth < 4 && current; depth += 1) {
@@ -163,6 +167,13 @@ function allGenerations(database: CatalogDb, sourceId: string) {
 /** Categorias de uma fonte, qualquer geração — mesmo propósito, para `categories`. */
 function allCategoryGenerations(database: CatalogDb, sourceId: string) {
   return database.categories.where('sourceId').equals(sourceId)
+}
+
+/** Blocos guardados de uma fonte, qualquer geração — mesmo propósito, para `storedEntries` (feature 014). */
+function allStoredEntriesGenerations(database: CatalogDb, sourceId: string) {
+  return database.storedEntries
+    .where('[sourceId+generation]')
+    .between([sourceId, KEY_MIN], [sourceId, KEY_MAX], true, true)
 }
 
 /**
@@ -313,6 +324,110 @@ export async function markCategoryFetched(
   database: CatalogDb = db,
 ): Promise<void> {
   await database.categories.update(categoryId, { itemsFetchedAt, itemsCount })
+}
+
+/** Grava, na importação, a contagem real que a leitura da categoria vai produzir (feature 014, D-011). */
+export async function setDeclaredCount(
+  categoryId: number,
+  declaredCount: number,
+  database: CatalogDb = db,
+): Promise<void> {
+  await database.categories.update(categoryId, { declaredCount })
+}
+
+/** Identifica a categoria `stored` cujo conteúdo guardado está sendo lido (feature 014). */
+export interface StoredCategoryTarget {
+  sourceId: string
+  generation: number
+  kind: CategoryKind
+  categoryId: number
+  /** Mesmo valor de `order` da categoria — episódios da série desta categoria também têm este `groupOrder`. */
+  groupOrder: number
+}
+
+/**
+ * Lê uma categoria do conteúdo guardado: grava os itens (e, para uma
+ * categoria de séries, os episódios) em `channels`, carimba a obtenção e
+ * apaga os blocos lidos — tudo numa única transação (feature 014, D-007).
+ *
+ * Depois desta chamada, a categoria nunca mais é lida do conteúdo guardado
+ * na mesma geração: `itemsFetchedAt` passa a existir, e é isso que
+ * `ensureCategory` (`categoryLoader.ts`) usa para devolver `fresh` sem
+ * tocar `storedEntries` de novo.
+ */
+export async function storeStoredCategory(
+  target: StoredCategoryTarget,
+  items: StoredCatalogRecord[],
+  episodes: StoredCatalogRecord[],
+  now: number,
+  database: CatalogDb = db,
+): Promise<void> {
+  try {
+    await database.transaction(
+      'rw',
+      database.channels,
+      database.categories,
+      database.storedEntries,
+      async () => {
+        // Substituição integral, não parcial — mesmo motivo de
+        // `storeCategoryItems`, ainda que numa primeira leitura não haja
+        // nada prévio para remover.
+        await database.channels
+          .where('[sourceId+generation+kind+groupOrder]')
+          .equals([target.sourceId, target.generation, target.kind, target.groupOrder])
+          .delete()
+        await database.channels
+          .where('[sourceId+generation+kind+groupOrder]')
+          .equals([target.sourceId, target.generation, 'episode', target.groupOrder])
+          .delete()
+
+        if (items.length > 0) {
+          await database.channels.bulkAdd(
+            items.map((item) => ({
+              ...item,
+              sourceId: target.sourceId,
+              generation: target.generation,
+              kind: target.kind,
+              groupOrder: target.groupOrder,
+              categoryId: target.categoryId,
+            })),
+          )
+        }
+
+        if (episodes.length > 0) {
+          await database.channels.bulkAdd(
+            episodes.map((episode) => ({
+              ...episode,
+              sourceId: target.sourceId,
+              generation: target.generation,
+              kind: 'episode',
+              groupOrder: target.groupOrder,
+              // Episódio nunca tem categoria navegável própria (D-001, feature 012).
+              categoryId: undefined,
+            })),
+          )
+        }
+
+        await database.categories.update(target.categoryId, {
+          itemsFetchedAt: now,
+          itemsCount: items.length,
+        })
+
+        await database.storedEntries
+          .where('[sourceId+generation+categoryId+chunk]')
+          .between(
+            [target.sourceId, target.generation, target.categoryId, KEY_MIN],
+            [target.sourceId, target.generation, target.categoryId, KEY_MAX],
+            true,
+            true,
+          )
+          .delete()
+      },
+    )
+  } catch (error) {
+    if (isQuotaError(error)) throw new StorageFullError()
+    throw error
+  }
 }
 
 /**
@@ -566,6 +681,7 @@ export async function publishGeneration(
     database.sources,
     database.channels,
     database.categories,
+    database.storedEntries,
     async () => {
       await database.sources.update(sourceId, { activeGeneration: generation, updatedAt: Date.now() })
       await allGenerations(database, sourceId)
@@ -575,6 +691,12 @@ export async function publishGeneration(
       // `userStates`, que não tem noção de geração (D-002 do plan.md).
       await allCategoryGenerations(database, sourceId)
         .and((category) => category.generation !== generation)
+        .delete()
+      // Conteúdo guardado da geração anterior (feature 014) — mesmo motivo:
+      // uma categoria `stored` ainda não lida da geração que saiu de ar não
+      // tem para onde apontar depois da troca.
+      await allStoredEntriesGenerations(database, sourceId)
+        .and((entry) => entry.generation !== generation)
         .delete()
     },
   )
@@ -596,6 +718,9 @@ export async function discardGeneration(
   await allCategoryGenerations(database, sourceId)
     .and((category) => category.generation === generation)
     .delete()
+  await allStoredEntriesGenerations(database, sourceId)
+    .and((entry) => entry.generation === generation)
+    .delete()
 }
 
 /** Remove todo o catálogo de uma fonte, de todas as gerações. */
@@ -605,4 +730,5 @@ export async function deleteAllForSource(
 ): Promise<void> {
   await allGenerations(database, sourceId).delete()
   await allCategoryGenerations(database, sourceId).delete()
+  await allStoredEntriesGenerations(database, sourceId).delete()
 }

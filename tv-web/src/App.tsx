@@ -8,6 +8,7 @@ import {
   TERMINAL_STATUSES,
   useImportJob,
   useOpenSource,
+  useResyncSource,
   type SourceOut,
 } from './features/import/importApi'
 import { ListHomeScreen, type ListDestination } from './features/list-home/ListHomeScreen'
@@ -54,6 +55,7 @@ function App() {
   // porque a atualização pode terminar depois que o usuário já navegou
   // para outra tela, e o acompanhamento não pode se perder na troca.
   const openSource = useOpenSource()
+  const resyncSource = useResyncSource()
   const [autoRefreshJobId, setAutoRefreshJobId] = useState<string | null>(null)
   const autoRefreshJob = useImportJob(autoRefreshJobId)
   const queryClient = useQueryClient()
@@ -89,6 +91,19 @@ function App() {
           setAutoRefreshJobId(result.import_job_id)
         }
       },
+    })
+  }
+
+  /**
+   * Ressincroniza a fonte a partir de uma tela de categoria (feature 014,
+   * D-008): o conteúdo guardado de uma categoria `stored` sumiu do
+   * aparelho, e "Tentar de novo" não resolve isso — só uma importação
+   * nova. Navega pra tela de progresso, igual ao botão de ressincronizar
+   * da Home.
+   */
+  function resyncFromCategoryScreen(sourceId: string) {
+    resyncSource.mutate(sourceId, {
+      onSuccess: (result) => goto({ name: 'progress', jobId: result.import_job_id }),
     })
   }
 
@@ -152,19 +167,29 @@ function App() {
     case 'list-home':
       return (
         <ListHomeScreen
-          sourceId={screen.source.id}
-          sourceName={screen.source.display_name}
+          source={screen.source}
           onSelect={(destination: ListDestination) => goto({ name: destination, source: screen.source } as Screen)}
           onBack={back}
         />
       )
 
     case 'live':
-      return <LiveScreen sourceId={screen.source.id} onBack={back} />
+      return (
+        <LiveScreen
+          sourceId={screen.source.id}
+          onBack={back}
+          onResync={() => resyncFromCategoryScreen(screen.source.id)}
+        />
+      )
 
     case 'movies':
       return (
-        <MoviesScreen sourceId={screen.source.id} onOpenMovie={(movieId) => goto({ name: 'movie-detail', source: screen.source, movieId } as Screen)} onBack={back} />
+        <MoviesScreen
+          sourceId={screen.source.id}
+          onOpenMovie={(movieId) => goto({ name: 'movie-detail', source: screen.source, movieId } as Screen)}
+          onBack={back}
+          onResync={() => resyncFromCategoryScreen(screen.source.id)}
+        />
       )
 
     case 'movie-detail':
@@ -172,7 +197,12 @@ function App() {
 
     case 'series':
       return (
-        <SeriesScreen sourceId={screen.source.id} onOpenSeries={(seriesId) => goto({ name: 'series-detail', source: screen.source, seriesId } as Screen)} onBack={back} />
+        <SeriesScreen
+          sourceId={screen.source.id}
+          onOpenSeries={(seriesId) => goto({ name: 'series-detail', source: screen.source, seriesId } as Screen)}
+          onBack={back}
+          onResync={() => resyncFromCategoryScreen(screen.source.id)}
+        />
       )
 
     case 'series-detail':

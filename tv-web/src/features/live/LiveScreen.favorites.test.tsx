@@ -178,7 +178,7 @@ function renderLive() {
   function buildUi() {
     return (
       <Wrapper>
-        <LiveScreen sourceId={SOURCE_ID} onBack={() => {}} />
+        <LiveScreen sourceId={SOURCE_ID} onBack={() => {}} onResync={() => {}} />
       </Wrapper>
     )
   }

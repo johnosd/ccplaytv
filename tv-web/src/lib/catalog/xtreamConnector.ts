@@ -15,7 +15,7 @@
  *    descrita em `probeFailureKind`.
  */
 
-import { classifyEntry, type ClassifiedEntry } from './classifier'
+import { classifyEntry, normalizeIconUrl, type ClassifiedEntry } from './classifier'
 
 /** TS quando a conta permite mais de um formato — o que reproduziu na TV de referência. */
 const PREFERRED_FORMAT = 'ts'
@@ -502,6 +502,8 @@ export function mapVodEntry(
     providerStreamId: streamId,
     providerCategoryId: categoryId,
     streamExtension: ext,
+    // Feature 015 (D-001/FR-001/FR-008): `get_vod_streams` declara a capa em `stream_icon`.
+    iconUrl: normalizeIconUrl(raw.stream_icon),
   }
 }
 
@@ -579,6 +581,8 @@ export function mapSeriesEntry(
     groupOrder: category?.order ?? Number.MAX_SAFE_INTEGER,
     providerCategoryId: categoryId,
     seriesId,
+    // Feature 015 (D-001/FR-001/FR-008): `get_series` declara a capa em `cover`.
+    iconUrl: normalizeIconUrl(raw.cover),
   }
 }
 

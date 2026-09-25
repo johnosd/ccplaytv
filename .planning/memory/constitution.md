@@ -1,19 +1,16 @@
 <!--
 Relatório de Impacto de Sincronização
-- Mudança de versão: 1.3.0 -> 1.4.0
-- Princípios modificados: nenhum
+- Mudança de versão: 1.4.0 -> 1.5.0
+- Princípios modificados: "Segredos Fora dos Clientes e dos Logs" — a
+  exceção client-first passa a cobrir URL completa de fonte, URL de
+  reprodução de cada item e o arquivo M3U baixado (ADR-010); antes, a URL
+  completa era proibida no cliente sem exceção
 - Princípios adicionados: nenhum
-- Fluxo de Desenvolvimento: novo item "Testes E2E (Playwright) antes de
-  validação em TV física" — gate entre a conclusão de uma feature e
-  qualquer solicitação de teste na TV física (`tizen-tv`) ou no emulador
-  (`tizen-emulator`); item "Critério de 'pronto' por feature" (a) passa a
-  exigir também um roteiro E2E via Playwright, não só teste
-  unitário/componente
 - Restrições do Projeto: nenhuma mudança
-- Origem da mudança: pedido direto do usuário em 2026-09-24, para
-  formalizar como memória do projeto o hábito de rodar teste E2E via
-  Playwright (`tv-web/e2e.mjs`, agora também `npm run test:e2e`) depois de
-  concluir uma feature, antes de pedir validação na TV física
+- Origem da mudança: pedido direto do usuário em 2026-09-24, durante o
+  planejamento da feature 014-m3u-sob-demanda ("vamos expor a url"); a
+  fonte por URL M3U já guardava a URL completa desde a feature 005, em
+  violação silenciosa do texto anterior
 - Seções removidas: nenhuma
 - Pendências: nenhuma
 
@@ -30,6 +27,11 @@ Histórico:
   Reais" ganha cobertura de catálogo parcial (feature 010); "Validação em
   hardware real" ganha exceção de gate obrigatório por feature (feature
   011)
+- 1.4.0 (2026-09-24): Fluxo de Desenvolvimento ganha "Testes E2E
+  (Playwright) antes de validação em TV física"; critério de "pronto"
+  passa a exigir roteiro E2E
+- 1.5.0 (2026-09-24): exceção de "Segredos Fora dos Clientes e dos Logs"
+  estendida à URL completa de fonte e ao arquivo M3U (ADR-010)
 -->
 
 # Constitution do CCPlay TV
@@ -61,11 +63,16 @@ visível").
 **Exceção (ADR-008, 2026-09-19)**: sob a arquitetura client-first, a
 credencial de provedor (endereço, usuário, senha) PODE residir no
 dispositivo (ex.: IndexedDB) — é o que permite ao cliente reautenticar sem
-backend. Esta é a única exceção: chaves de OpenAI/TMDB e URL completa de
-fonte continuam proibidas no cliente, sem exceção. A credencial permitida
-aqui ainda NÃO DEVE ser logada, exibida depois de digitada, enviada a
-TMDB/OpenAI, nem exposta por um canal de exportação/backup. Ver ADR-008
-para o raciocínio completo.
+backend. **Extensão (ADR-010, 2026-09-24)**: pelo mesmo motivo, a URL
+completa de uma fonte, a URL de reprodução de cada item e o conteúdo do
+arquivo M3U baixado — que numa lista de painel repetem usuário e senha —
+também PODEM residir no dispositivo. Chaves de OpenAI/TMDB continuam
+proibidas no cliente, sem exceção. Tudo o que esta exceção permite guardar
+ainda NÃO DEVE ser logado, exibido em tela, cartão ou mensagem de erro
+(a credencial, nem depois de digitada), enviado a TMDB/OpenAI ou a
+qualquer terceiro, nem exposto por um canal de exportação/backup, e DEVE
+ser descartado junto com a fonte ou a geração a que pertence. Ver ADR-008
+e ADR-010 para o raciocínio completo.
 
 ### Categorias da Fonte São Preservadas
 
@@ -295,4 +302,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.4.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-24
+**Versão**: 1.5.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-24

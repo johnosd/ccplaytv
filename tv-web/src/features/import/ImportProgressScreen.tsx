@@ -49,6 +49,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   empty_playlist: 'O painel respondeu com um catálogo vazio.',
   hls_manifest: 'O endereço fornecido aponta para um canal, não para um catálogo.',
   interrupted: 'A importação foi interrompida antes de terminar. O aplicativo foi fechado no meio.',
+  storage_full: 'Não há espaço no aparelho para guardar esta lista.',
 }
 
 export function ImportProgressScreen({ jobId, onRetried, onBack }: ImportProgressScreenProps) {

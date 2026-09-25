@@ -61,6 +61,16 @@ tela de progresso mostrou, observado pelo usuário.
   comportamentos de *obtenção* por tipo de fonte, e a spec assume isso
   explicitamente. (A *estrutura* de categorias, essa sim, passa a ser
   gravada nos dois casos — ver FR-018.)
+
+  **Atualização (ADR-010 / feature 014):** fechado. Uma URL M3U que se
+  revela um painel Xtream (detectável pela forma da URL,
+  `…/get.php?username=…&password=…`) passa a seguir esta mesma spec por
+  inteiro, sem baixar o arquivo. Para o resto — URL avulsa, painel não
+  confirmado, "Modo limitado" — o gargalo de gravação item a item também
+  foi resolvido, sem depender de um protocolo por categoria: a importação
+  guarda o conteúdo já classificado e separado por categoria (não mais em
+  `channels`), e a leitura de uma categoria vem desse conteúdo guardado,
+  sem nova rede. Ver `sdd/specs/014-m3u-sob-demanda/`.
 - **Política de descarte quando o espaço do aparelho acaba durante a
   navegação.** Decisão adiada para uma feature própria de armazenamento;
   aqui vale o comportamento que já existe (FR-018 da feature 005: para de gravar e
@@ -205,9 +215,21 @@ visitadas e não visitadas e conferir que a distinção aparece.
   mantendo a geração como único ponto de troca.
 - **FR-011**: A fonte por URL M3U DEVE continuar importando a lista
   inteira em fluxo, com o comportamento atual.
+
+  **Atualização (ADR-010 / feature 014):** substituída. Uma URL M3U
+  reconhecida como painel Xtream confirmado segue as FR-001 a FR-010 desta
+  spec por inteiro. As demais (avulsa, painel não confirmado) deixam de
+  importar a lista inteira *em `channels`*: guardam o conteúdo já
+  classificado e separado por categoria, e concluem sem gravar item algum
+  — ver FR-007 da feature 014.
 - **FR-012**: Fonte de provedor em modo limitado (`legacy_m3u`) DEVE
   seguir a regra da fonte por URL M3U, por não ter protocolo por
   categoria.
+
+  **Atualização (ADR-010 / feature 014):** a regra que se segue mudou (ver
+  FR-011 acima), mas a equivalência entre "Modo limitado" e URL M3U não
+  confirmada continua valendo — os dois seguem o mesmo caminho do
+  conteúdo guardado.
 - **FR-013**: A tela de progresso DEVE relatar as etapas da obtenção da
   estrutura, contando categorias, e NÃO DEVE exibir percentual.
 - **FR-014**: O hub da lista DEVE exibir uma contagem real por seção — a

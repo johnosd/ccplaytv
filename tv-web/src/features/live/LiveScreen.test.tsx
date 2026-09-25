@@ -138,6 +138,7 @@ function mockContentByCategory(
       refetch,
     } as unknown as ReturnType<typeof catalogApi.useCategoryContent>
   })
+  return refetch
 }
 
 function mockContentLoading() {
@@ -149,7 +150,7 @@ function mockContentLoading() {
   } as unknown as ReturnType<typeof catalogApi.useCategoryContent>)
 }
 
-function renderLive() {
+function renderLive(onResync: () => void = vi.fn()) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -163,7 +164,7 @@ function renderLive() {
   function buildUi() {
     return (
       <Wrapper>
-        <LiveScreen sourceId="source-1" onBack={() => {}} />
+        <LiveScreen sourceId="source-1" onBack={() => {}} onResync={onResync} />
       </Wrapper>
     )
   }
@@ -341,6 +342,35 @@ describe('LiveScreen', () => {
 
     expect(screen.getByText('Não foi possível carregar esta categoria')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+  })
+
+  it('SELECT em "Tentar de novo" aciona a nova tentativa (achado corrigido junto com a feature 014)', () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    const refetch = mockContentByCategory({}, 'failed')
+    renderLive()
+
+    press('ArrowRight')
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+    press('Enter')
+
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('categoria stored sem arquivo guardado mostra "Ressincronizar lista", e SELECT aciona onResync (feature 014, D-008)', () => {
+    mockCategories([category(1, 'Esportes', 0, { fetchMode: 'stored' })])
+    mockContentByCategory({}, 'source_missing')
+    const onResync = vi.fn()
+    renderLive(onResync)
+
+    press('ArrowRight')
+
+    expect(screen.getByText('O conteúdo desta lista não está mais no aparelho')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ressincronizar lista' })).toBeInTheDocument()
+    // "Tentar de novo" não aparece aqui — não resolveria nada (D-008).
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).not.toBeInTheDocument()
+
+    press('Enter')
+    expect(onResync).toHaveBeenCalledTimes(1)
   })
 
   it('categoria vencida cuja busca falhou serve o que estava salvo, com aviso (contrato §2)', () => {

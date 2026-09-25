@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CatalogDb, type ImportRunRecord, type SourceRecord } from './db'
 import { countChannels, listCategories, listChannels, listEpisodes, storeBatch } from './catalogRepository'
 import { ImportAlreadyRunningError, startImport } from './importPipeline'
+import { ensureCategory } from './categoryLoader'
 import { getSource } from './sourceRepository'
+import { logger } from '../logger'
 
 let database: CatalogDb
 
@@ -71,6 +73,18 @@ function respondWith(body: string, status = 200) {
   return vi.fn().mockImplementation(() => Promise.resolve(textResponse(body, status)))
 }
 
+/**
+ * Lê todas as categorias de uma fonte pelo caminho normal de tela
+ * (`ensureCategory`) — feature 014: nenhuma fonte M3U grava item na
+ * importação, só quando a categoria é lida (FR-007/FR-009).
+ */
+async function readAllCategories(sourceId: string): Promise<void> {
+  const categories = await listCategories(sourceId, undefined, database)
+  for (const category of categories) {
+    await ensureCategory(sourceId, category, { database })
+  }
+}
+
 describe('importPipeline — fonte por URL M3U', () => {
   beforeEach(async () => {
     await database.sources.add(M3U_SOURCE)
@@ -95,10 +109,14 @@ describe('importPipeline — fonte por URL M3U', () => {
     expect(run.entriesRead).toBe(5)
     expect(run.discardedByType).toBe(1)
     expect(run.invalidCount).toBe(1)
+    // Feature 014, FR-007: nada em `channels` até a categoria ser lida.
+    expect(await countChannels(M3U_SOURCE.id, undefined, undefined, database)).toBe(0)
+
+    await readAllCategories(M3U_SOURCE.id)
     expect(await countChannels(M3U_SOURCE.id, undefined, undefined, database)).toBe(5)
   })
 
-  it('preserva os grupos declarados pela fonte, na ordem em que apareceram, com estrutura completa (feature 010)', async () => {
+  it('preserva os grupos declarados pela fonte, na ordem em que apareceram, com estrutura completa e contagem real (feature 010/014)', async () => {
     vi.stubGlobal('fetch', respondWith(MIXED_M3U))
 
     await (await startImport(M3U_SOURCE.id, { database })).completion
@@ -114,24 +132,34 @@ describe('importPipeline — fonte por URL M3U', () => {
       'Filmes',
       'Series',
     ])
-    expect(categories.map((c) => c.count)).toEqual([1, 1, 1, 1])
     for (const category of categories) {
-      expect(category.fetchMode).toBe('eager')
-      // Fonte por URL M3U não declara contagem — só o que foi de fato
-      // gravado, nunca fundido com uma promessa que não existe (D-005).
-      expect(category.declaredCount).toBeUndefined()
+      expect(category.fetchMode).toBe('stored')
+      // Feature 014, D-011: diferente da 010 (provedor, sem contagem
+      // antecipada), a varredura M3U sempre sabe a contagem real — é o que
+      // `declaredCount` guarda assim que a importação termina.
+      expect(category.declaredCount).toBe(1)
+      // Ainda não lida: sem itens no disco, sem instante de leitura.
+      expect(category.count).toBe(0)
+      expect(category.itemsFetchedAt).toBeUndefined()
+    }
+
+    await readAllCategories(M3U_SOURCE.id)
+
+    const readCategories = await listCategories(M3U_SOURCE.id, undefined, database)
+    expect(readCategories.map((c) => c.count)).toEqual([1, 1, 1, 1])
+    for (const category of readCategories) {
       expect(category.itemsFetchedAt).toBeDefined()
     }
   })
 
-  it('todo item do caminho integral aponta para a categoria do seu grupo, inclusive o do primeiro lote (T017)', async () => {
+  it('cada item aponta para a categoria do seu grupo, mesmo gravado em blocos separados (batchSize pequeno)', async () => {
     vi.stubGlobal('fetch', respondWith(MIXED_M3U))
 
-    // batchSize 1 força o primeiro item a ser gravado antes de o resto do
-    // arquivo ter sido lido — é o cenário que expõe se a categoria precisa
-    // nascer antes do item (data-model.md §3), ou se dá para deixar para
-    // depois.
+    // batchSize 1 força cada registro a virar um bloco próprio de
+    // `storedEntries` — é o cenário que expõe se ler a categoria concatena
+    // os blocos na ordem certa e mantém cada item na categoria certa.
     await (await startImport(M3U_SOURCE.id, { database, batchSize: 1 })).completion
+    await readAllCategories(M3U_SOURCE.id)
 
     const categories = await listCategories(M3U_SOURCE.id, undefined, database)
     const idOf = (name: string) => categories.find((c) => c.name === name)!.id
@@ -155,6 +183,7 @@ describe('importPipeline — fonte por URL M3U', () => {
     vi.stubGlobal('fetch', respondWith(MIXED_M3U))
 
     await (await startImport(M3U_SOURCE.id, { database })).completion
+    await readAllCategories(M3U_SOURCE.id)
 
     const [first] = await listChannels(M3U_SOURCE.id, 0, 0, 1, undefined, database)
     expect(first.directUrl).toBe('http://exemplo.test/live/1.ts')
@@ -268,7 +297,7 @@ describe('importPipeline — fonte por URL M3U', () => {
     expect((await getSource(M3U_SOURCE.id, database))?.activeGeneration).toBe(1)
   })
 
-  it('cancelar descarta a geração em escrita e preserva a ativa', async () => {
+  it('cancelar no meio descarta os blocos guardados da geração em escrita, preserva a ativa (feature 014)', async () => {
     await storeBatch(
       [
         {
@@ -292,18 +321,27 @@ describe('importPipeline — fonte por URL M3U', () => {
     vi.stubGlobal('fetch', respondWith(many.join('\n')))
 
     let handle: Awaited<ReturnType<typeof startImport>> | undefined
+    let progressCount = 0
     handle = await startImport(M3U_SOURCE.id, {
       database,
       batchSize: 2,
-      onProgress: () => handle?.cancel(),
+      onProgress: () => {
+        progressCount += 1
+        // Deixa pelo menos um bloco ser gravado em `storedEntries` antes de
+        // cancelar — prova que um bloco JÁ GRAVADO da geração cancelada
+        // também é descartado, não só o que ainda estava em buffer.
+        if (progressCount > 3) handle?.cancel()
+      },
     })
     const run = await handle.completion
 
     expect(run.status).toBe('cancelled')
     expect(await countChannels(M3U_SOURCE.id, undefined, undefined, database)).toBe(1)
     expect((await getSource(M3U_SOURCE.id, database))?.activeGeneration).toBe(1)
-    const leftovers = await database.channels.filter((item) => item.generation === 2).count()
-    expect(leftovers).toBe(0)
+    const leftoverChannels = await database.channels.filter((item) => item.generation === 2).count()
+    expect(leftoverChannels).toBe(0)
+    const leftoverBlocks = await database.storedEntries.filter((item) => item.generation === 2).count()
+    expect(leftoverBlocks).toBe(0)
   })
 
   it('recusa uma segunda importação enquanto houver uma ativa (FR-017)', async () => {
@@ -353,11 +391,13 @@ describe('importPipeline — fonte por URL M3U', () => {
     }
   })
 
-  it('falta de espaço com parte gravada publica o que coube e declara truncamento (R-009/FR-018)', async () => {
-    // Para falhar no SEGUNDO lote (já tem canaisStored > 0)
+  it('falta de espaço ao guardar um bloco descarta a geração inteira, nunca publica parcial (feature 014, D-009)', async () => {
+    // Falha no SEGUNDO bloco — já tinha um bloco guardado com sucesso antes
+    // disso, e mesmo assim nada pode sobreviver (diferente do antigo
+    // truncamento por item, removido com o caminho integral).
     let callCount = 0
-    const originalBulkAdd = database.channels.bulkAdd.bind(database.channels)
-    vi.spyOn(database.channels, 'bulkAdd').mockImplementation((...args) => {
+    const originalBulkAdd = database.storedEntries.bulkAdd.bind(database.storedEntries)
+    vi.spyOn(database.storedEntries, 'bulkAdd').mockImplementation((...args) => {
       callCount += 1
       if (callCount === 2) {
         return Promise.reject(new DOMException('QuotaExceededError', 'QuotaExceededError')) as any
@@ -373,17 +413,16 @@ describe('importPipeline — fonte por URL M3U', () => {
 
     const run = await (await startImport(M3U_SOURCE.id, { database, batchSize: 5 })).completion
 
-    // Concluída, mas com truncamento marcado (parte coube, foi publicada).
-    expect(run.status).toBe('completed')
-    expect(run.truncatedByStorage).toBe(true)
-    expect(run.channelsStored).toBe(5) // O primeiro lote coube
-
-    const visible = await countChannels(M3U_SOURCE.id, undefined, undefined, database)
-    expect(visible).toBe(5)
+    expect(run.status).toBe('failed')
+    expect(run.errorKind).toBe('storage_full')
+    // Nada publicado: nem estrutura, nem conteúdo guardado da geração que falhou.
+    expect(await listCategories(M3U_SOURCE.id, undefined, database)).toEqual([])
+    expect(await database.storedEntries.where('sourceId').equals(M3U_SOURCE.id).count()).toBe(0)
+    expect((await getSource(M3U_SOURCE.id, database))?.activeGeneration).toBeUndefined()
   })
 
-  it('falta de espaço no primeiro lote descarta a geração e não marca como completa (R-009)', async () => {
-    vi.spyOn(database.channels, 'bulkAdd').mockRejectedValue(
+  it('falta de espaço no primeiro bloco também descarta a geração e não marca como completa', async () => {
+    vi.spyOn(database.storedEntries, 'bulkAdd').mockRejectedValue(
       new DOMException('QuotaExceededError', 'QuotaExceededError')
     )
 
@@ -391,14 +430,10 @@ describe('importPipeline — fonte por URL M3U', () => {
 
     const run = await (await startImport(M3U_SOURCE.id, { database, batchSize: 5 })).completion
 
-    // Falhou, truncamento marcado, mas NENHUM canal gravado.
     expect(run.status).toBe('failed')
-    expect(run.truncatedByStorage).toBe(true)
-    expect(run.errorKind).toBeUndefined()
+    expect(run.errorKind).toBe('storage_full')
     expect(run.channelsStored).toBe(0)
-
-    const visible = await countChannels(M3U_SOURCE.id, undefined, undefined, database)
-    expect(visible).toBe(0)
+    expect(await listCategories(M3U_SOURCE.id, undefined, database)).toEqual([])
   })
 })
 
@@ -517,12 +552,29 @@ describe('importPipeline — fonte de provedor', () => {
     // antemão para contar como categorias.
     expect(run.unit).toBe('items')
     expect((await getSource(PROVIDER_SOURCE.id, database))?.providerImportMode).toBe('legacy_m3u')
+    // Feature 014, FR-020: o painel foi alcançado (autenticou), só não
+    // respondeu à consulta de categorias — mesmo motivo do caminho m3u_url.
+    expect((await getSource(PROVIDER_SOURCE.id, database))?.limitedReason).toBe('protocol_unavailable')
+  })
+
+  it('ressincronizar e o painel voltar a falar o protocolo limpa o Modo limitado (feature 014, FR-023)', async () => {
+    vi.stubGlobal('fetch', legacyPanelFetch(LEGACY_M3U))
+    await (await startImport(PROVIDER_SOURCE.id, { database })).completion
+    expect((await getSource(PROVIDER_SOURCE.id, database))?.providerImportMode).toBe('legacy_m3u')
+
+    vi.stubGlobal('fetch', panelFetch())
+    await (await startImport(PROVIDER_SOURCE.id, { database })).completion
+
+    const source = await getSource(PROVIDER_SOURCE.id, database)
+    expect(source?.providerImportMode).toBe('xtream_api')
+    expect(source?.limitedReason).toBeUndefined()
   })
 
   it('no modo limitado o item nasce reproduzível, sem a credencial ir para o catálogo', async () => {
     vi.stubGlobal('fetch', legacyPanelFetch(LEGACY_M3U))
 
     await (await startImport(PROVIDER_SOURCE.id, { database })).completion
+    await readAllCategories(PROVIDER_SOURCE.id)
 
     const stored = await database.channels.toArray()
     const canal = stored.find((item) => item.kind === 'channel')
@@ -619,6 +671,7 @@ describe('importPipeline — agrupamento de séries M3U (feature 012, US2)', () 
     vi.stubGlobal('fetch', respondWith(breakingBadM3u(10)))
 
     const run = await (await startImport('fonte-bb', { database })).completion
+    await readAllCategories('fonte-bb')
 
     expect(run.status).toBe('completed')
     const stored = await database.channels.where('sourceId').equals('fonte-bb').toArray()
@@ -650,9 +703,11 @@ describe('importPipeline — agrupamento de séries M3U (feature 012, US2)', () 
 
     vi.stubGlobal('fetch', respondWith(breakingBadM3u(3)))
     await (await startImport('fonte-a', { database })).completion
+    await readAllCategories('fonte-a')
 
     vi.stubGlobal('fetch', respondWith(breakingBadM3u(5)))
     await (await startImport('fonte-b', { database })).completion
+    await readAllCategories('fonte-b')
 
     const seriesA = (await database.channels.where('sourceId').equals('fonte-a').toArray()).find(
       (item) => item.kind === 'series',
@@ -690,6 +745,7 @@ describe('importPipeline — agrupamento de séries M3U (feature 012, US2)', () 
     )
 
     const run = await (await startImport(PROVIDER_SOURCE.id, { database })).completion
+    await readAllCategories(PROVIDER_SOURCE.id)
 
     expect(run.status).toBe('completed')
     const stored = await database.channels.where('sourceId').equals(PROVIDER_SOURCE.id).toArray()
@@ -702,5 +758,253 @@ describe('importPipeline — agrupamento de séries M3U (feature 012, US2)', () 
     expect(series).toHaveLength(1)
     expect(episode).toMatchObject({ providerStreamId: '900', streamExtension: 'mp4', seriesId: series[0].seriesId })
     expect(episode?.directUrl).toBeUndefined()
+  })
+})
+
+describe('importPipeline — URL M3U reconhecida como painel Xtream (feature 014, US1)', () => {
+  const M3U_PANEL_URL = 'http://exemplo.test/get.php?username=usuario-teste&password=senha-teste'
+
+  function panelSource(id: string): SourceRecord {
+    return {
+      id,
+      type: 'm3u_url',
+      displayName: 'Lista de Painel',
+      m3uUrl: M3U_PANEL_URL,
+      connectionState: 'never_synced',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+  }
+
+  /** Mesmo padrão de `panelFetch` (describe "fonte de provedor"), com um ramo a mais para `get.php`. */
+  function panelUrlFetch(overrides: Record<string, unknown> = {}) {
+    return vi.fn().mockImplementation((url: string) => {
+      if (url.includes('get_live_categories')) {
+        return Promise.resolve(
+          textResponse(JSON.stringify([{ category_id: '1', category_name: 'Esportes' }])),
+        )
+      }
+      if (url.includes('get.php')) return Promise.resolve(textResponse(MIXED_M3U))
+      return Promise.resolve(
+        textResponse(
+          JSON.stringify({
+            user_info: { auth: 1, exp_date: '0', allowed_output_formats: ['ts'], ...overrides },
+          }),
+        ),
+      )
+    })
+  }
+
+  function requestedGetPhp(fetchSpy: ReturnType<typeof vi.fn>): boolean {
+    return fetchSpy.mock.calls.some((call) => typeof call[0] === 'string' && call[0].includes('get.php'))
+  }
+
+  it('URL M3U de painel confirmado importa só categorias, sem baixar get.php (FR-001/FR-002/FR-003)', async () => {
+    await database.sources.add(panelSource('painel-ok'))
+    const fetchSpy = panelUrlFetch()
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const run = await (await startImport('painel-ok', { database })).completion
+
+    expect(run.status).toBe('completed')
+    expect(run.unit).toBe('categories')
+    expect(await countChannels('painel-ok', undefined, undefined, database)).toBe(0)
+    const [category] = await listCategories('painel-ok', 'channel', database)
+    expect(category).toMatchObject({ name: 'Esportes', providerCategoryId: '1', fetchMode: 'on_demand' })
+    const source = await getSource('painel-ok', database)
+    expect(source?.providerImportMode).toBe('xtream_api')
+    expect(source?.limitedReason).toBeUndefined()
+    expect(requestedGetPhp(fetchSpy)).toBe(false)
+  })
+
+  it('a fonte continua identificada como URL M3U depois de confirmada como painel (FR-005)', async () => {
+    await database.sources.add(panelSource('painel-tipo'))
+    vi.stubGlobal('fetch', panelUrlFetch())
+
+    await (await startImport('painel-tipo', { database })).completion
+
+    expect((await getSource('painel-tipo', database))?.type).toBe('m3u_url')
+  })
+
+  it('painel recusa a credencial (auth 0) → falha com invalid_credentials, sem tocar no arquivo', async () => {
+    await database.sources.add(panelSource('painel-auth0'))
+    const fetchSpy = panelUrlFetch({ auth: 0 })
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const run = await (await startImport('painel-auth0', { database })).completion
+
+    expect(run.status).toBe('failed')
+    expect(run.errorKind).toBe('invalid_credentials')
+    expect(requestedGetPhp(fetchSpy)).toBe(false)
+  })
+
+  it('painel responde 401 → falha com invalid_credentials', async () => {
+    await database.sources.add(panelSource('painel-401'))
+    vi.stubGlobal('fetch', respondWith('{}', 401))
+
+    const run = await (await startImport('painel-401', { database })).completion
+
+    expect(run.errorKind).toBe('invalid_credentials')
+  })
+
+  it('assinatura vencida → falha com subscription_expired', async () => {
+    await database.sources.add(panelSource('painel-vencido'))
+    const past = String(Math.floor(Date.now() / 1000) - 60)
+    vi.stubGlobal('fetch', panelUrlFetch({ exp_date: past }))
+
+    const run = await (await startImport('painel-vencido', { database })).completion
+
+    expect(run.errorKind).toBe('subscription_expired')
+  })
+
+  it('painel não responde ao protocolo (404) → cai no caminho integral, Modo limitado com protocol_unavailable', async () => {
+    await database.sources.add(panelSource('painel-404'))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('get.php')) return Promise.resolve(textResponse(MIXED_M3U))
+        return Promise.resolve(textResponse('erro', 404))
+      }),
+    )
+
+    const run = await (await startImport('painel-404', { database })).completion
+    await readAllCategories('painel-404')
+
+    expect(run.status).toBe('completed')
+    expect(run.unit).toBe('items')
+    const source = await getSource('painel-404', database)
+    expect(source?.providerImportMode).toBe('legacy_m3u')
+    expect(source?.limitedReason).toBe('protocol_unavailable')
+    expect(await countChannels('painel-404', undefined, undefined, database)).toBeGreaterThan(0)
+  })
+
+  it('falha de rede ao consultar o painel (não 404) → Modo limitado com panel_unreachable', async () => {
+    await database.sources.add(panelSource('painel-rede'))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('get.php')) return Promise.resolve(textResponse(MIXED_M3U))
+        return Promise.reject(new TypeError('Failed to fetch'))
+      }),
+    )
+
+    const run = await (await startImport('painel-rede', { database })).completion
+
+    expect(run.status).toBe('completed')
+    const source = await getSource('painel-rede', database)
+    expect(source?.providerImportMode).toBe('legacy_m3u')
+    expect(source?.limitedReason).toBe('panel_unreachable')
+  })
+
+  it('detecção é refeita a cada importação: painel que passa a responder some do Modo limitado (FR-004/FR-023)', async () => {
+    await database.sources.add(panelSource('painel-muda'))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('get.php')) return Promise.resolve(textResponse(MIXED_M3U))
+        return Promise.resolve(textResponse('erro', 404))
+      }),
+    )
+    await (await startImport('painel-muda', { database })).completion
+    expect((await getSource('painel-muda', database))?.providerImportMode).toBe('legacy_m3u')
+
+    vi.stubGlobal('fetch', panelUrlFetch())
+    await (await startImport('painel-muda', { database })).completion
+
+    const source = await getSource('painel-muda', database)
+    expect(source?.providerImportMode).toBe('xtream_api')
+    expect(source?.limitedReason).toBeUndefined()
+  })
+
+  it('URL M3U avulsa (não reconhecida como painel) segue o caminho integral, sem modo nem motivo', async () => {
+    await database.sources.add(M3U_SOURCE)
+    vi.stubGlobal('fetch', respondWith(MIXED_M3U))
+
+    const run = await (await startImport(M3U_SOURCE.id, { database })).completion
+
+    expect(run.status).toBe('completed')
+    const source = await getSource(M3U_SOURCE.id, database)
+    expect(source?.providerImportMode).toBeUndefined()
+    expect(source?.limitedReason).toBeUndefined()
+  })
+
+  // Feature 015 — caminho `stored` (scanToStored/toStoredRecord) propaga
+  // tvg-logo pra iconUrl: filme, série sintética (herdado do 1º episódio,
+  // D-003) e nunca canal (FR-009).
+  it('varredura captura tvg-logo pra filme e série, e a série sintética herda do 1º episódio', async () => {
+    const lines = [
+      '#EXTM3U',
+      '#EXTINF:-1 tvg-logo="http://exemplo.test/espn.png" group-title="Canais",ESPN',
+      'http://exemplo.test/live/1.ts',
+      '#EXTINF:-1 tvg-logo="http://exemplo.test/filme.png" group-title="Filmes",Um Filme',
+      'http://exemplo.test/vod/1.mp4',
+      '#EXTINF:-1 group-title="Filmes",Filme Sem Capa',
+      'http://exemplo.test/vod/2.mp4',
+      '#EXTINF:-1 tvg-logo="http://exemplo.test/serie-ep1.png" group-title="Series",Uma Serie S01E01',
+      'http://exemplo.test/series/1.mp4',
+      '#EXTINF:-1 tvg-logo="http://exemplo.test/serie-ep2.png" group-title="Series",Uma Serie S01E02',
+      'http://exemplo.test/series/2.mp4',
+    ].join('\n')
+
+    await database.sources.add(M3U_SOURCE)
+    vi.stubGlobal('fetch', respondWith(lines))
+    await (await startImport(M3U_SOURCE.id, { database })).completion
+    await readAllCategories(M3U_SOURCE.id)
+
+    const categories = await listCategories(M3U_SOURCE.id, undefined, database)
+    const orderOf = (name: string) => categories.find((c) => c.name === name)!.order
+
+    const channels = await listChannels(M3U_SOURCE.id, orderOf('Canais'), 0, 10, 'channel', database)
+    expect(channels[0].iconUrl).toBeUndefined() // FR-009: canal nunca ganha capa
+
+    const movies = await listChannels(M3U_SOURCE.id, orderOf('Filmes'), 0, 10, 'movie', database)
+    const withIcon = movies.find((m) => m.name === 'Um Filme')
+    const withoutIcon = movies.find((m) => m.name === 'Filme Sem Capa')
+    expect(withIcon?.iconUrl).toBe('http://exemplo.test/filme.png')
+    expect(withoutIcon?.iconUrl).toBeUndefined()
+
+    const series = await listChannels(M3U_SOURCE.id, orderOf('Series'), 0, 10, 'series', database)
+    // Série sintética herda a capa do 1º episódio (S01E01), não do 2º.
+    expect(series[0].iconUrl).toBe('http://exemplo.test/serie-ep1.png')
+  })
+
+  // T012 — SC-007: nenhum ramo de falha ou de Modo limitado vaza usuário, senha ou URL.
+  it('nenhum ramo desta fonte vaza usuário, senha ou URL, nem em run nem em log (SC-007)', async () => {
+    const warnSpy = vi.spyOn(logger, 'warn')
+
+    function assertNoLeak(run: ImportRunRecord): void {
+      const dump = JSON.stringify(run)
+      expect(dump).not.toContain('usuario-teste')
+      expect(dump).not.toContain('senha-teste')
+      for (const call of warnSpy.mock.calls) {
+        const callDump = JSON.stringify(call)
+        expect(callDump).not.toContain('usuario-teste')
+        expect(callDump).not.toContain('senha-teste')
+      }
+    }
+
+    await database.sources.add(panelSource('vaza-401'))
+    vi.stubGlobal('fetch', respondWith('{}', 401))
+    assertNoLeak(await (await startImport('vaza-401', { database })).completion)
+
+    await database.sources.add(panelSource('vaza-404'))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('get.php')) return Promise.resolve(textResponse(MIXED_M3U))
+        return Promise.resolve(textResponse('erro', 404))
+      }),
+    )
+    assertNoLeak(await (await startImport('vaza-404', { database })).completion)
+
+    await database.sources.add(panelSource('vaza-rede'))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('get.php')) return Promise.resolve(textResponse(MIXED_M3U))
+        return Promise.reject(new TypeError('Failed to fetch'))
+      }),
+    )
+    assertNoLeak(await (await startImport('vaza-rede', { database })).completion)
   })
 })

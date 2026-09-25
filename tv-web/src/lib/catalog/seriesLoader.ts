@@ -116,7 +116,11 @@ export async function ensureSeriesEpisodes(
   if (!series || !series.seriesId) return { outcome: 'failed' }
 
   const category = series.categoryId !== undefined ? await getCategory(series.categoryId, database) : undefined
-  if (category?.fetchMode === 'eager') return { outcome: 'fresh' }
+  // `eager` (legado) e `stored` (feature 014) nunca tocam rede aqui: os
+  // episódios chegam junto da série na leitura da própria categoria
+  // (`categoryLoader.ts`, D-006) — sempre antes de existir um cartão de
+  // série para abrir o detalhe.
+  if (category?.fetchMode === 'eager' || category?.fetchMode === 'stored') return { outcome: 'fresh' }
   if (isCategoryFresh(series.episodesFetchedAt, now)) return { outcome: 'fresh' }
 
   const existing = inFlight.get(seriesRecordId)
