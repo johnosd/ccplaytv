@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:-1 group-title="Canais Zap Teste",Canal Um
+http://127.0.0.1:59998/stream/canal-um.mp4
+#EXTINF:-1 group-title="Canais Zap Teste",Canal Dois
+http://127.0.0.1:59998/stream/canal-dois.mp4
+#EXTINF:-1 group-title="Canais Zap Teste",Canal Tres
+http://127.0.0.1:59998/stream/canal-tres.mp4

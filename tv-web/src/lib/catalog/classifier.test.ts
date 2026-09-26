@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { classifyEntry } from './classifier'
+import { classifyEntry, normalizeIconUrl } from './classifier'
 import type { ParsedEntry } from './m3uParser'
 
-function entry(name: string, group?: string): ParsedEntry {
-  return { name, url: 'http://exemplo.test/x', group, attributes: {} }
+function entry(name: string, group?: string, attributes: Record<string, string> = {}): ParsedEntry {
+  return { name, url: 'http://exemplo.test/x', group, attributes }
 }
 
 describe('classifier', () => {
@@ -54,5 +54,46 @@ describe('classifier', () => {
   it('preserva o grupo exatamente como a fonte declarou', () => {
     const classified = classifyEntry(entry('Canal X', 'Canais | Variedades'))
     expect(classified.group).toBe('Canais | Variedades')
+  })
+
+  describe('normalizeIconUrl (feature 015, D-001b)', () => {
+    it('aceita URL válida, com espaço nas bordas', () => {
+      expect(normalizeIconUrl('  http://exemplo.test/capa.png  ')).toBe('http://exemplo.test/capa.png')
+    })
+
+    it('vazia, só espaço, ausente ou inválida vira undefined, sem lançar', () => {
+      expect(normalizeIconUrl('')).toBeUndefined()
+      expect(normalizeIconUrl('   ')).toBeUndefined()
+      expect(normalizeIconUrl(undefined)).toBeUndefined()
+      expect(normalizeIconUrl('não é url')).toBeUndefined()
+      expect(normalizeIconUrl(42)).toBeUndefined()
+    })
+  })
+
+  describe('captura de tvg-logo (feature 015)', () => {
+    it('filme e série capturam iconUrl do atributo tvg-logo', () => {
+      const movie = classifyEntry(entry('Matrix', 'Filmes Ação', { 'tvg-logo': 'http://exemplo.test/matrix.png' }))
+      expect(movie.iconUrl).toBe('http://exemplo.test/matrix.png')
+
+      const series = classifyEntry(entry('Show', 'Séries Suspense', { 'tvg-logo': 'http://exemplo.test/show.png' }))
+      expect(series.iconUrl).toBe('http://exemplo.test/show.png')
+    })
+
+    it('episódio captura iconUrl (pra série sintética herdar, D-003)', () => {
+      const episode = classifyEntry(
+        entry('Show S01E01', 'Séries Comédia', { 'tvg-logo': 'http://exemplo.test/ep.png' }),
+      )
+      expect(episode.iconUrl).toBe('http://exemplo.test/ep.png')
+    })
+
+    it('canal NUNCA captura iconUrl, mesmo com tvg-logo declarado (FR-009)', () => {
+      const channel = classifyEntry(entry('ESPN', 'Canais Esportes', { 'tvg-logo': 'http://exemplo.test/espn.png' }))
+      expect(channel.iconUrl).toBeUndefined()
+    })
+
+    it('atributo ausente vira iconUrl undefined', () => {
+      const movie = classifyEntry(entry('Matrix', 'Filmes Ação'))
+      expect(movie.iconUrl).toBeUndefined()
+    })
   })
 })

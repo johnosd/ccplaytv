@@ -9,10 +9,12 @@
     "build:tizen": "tsc -b && vite build && node scripts/sync-tizen.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "node e2e.mjs && node e2e/favoritos.mjs && node e2e/m3u-sob-demanda.mjs && node e2e/capa-real.mjs && node e2e/zapping-live-tv.mjs && node e2e/busca-por-categoria.mjs && node e2e/historico-continuar-assistindo.mjs && node e2e/ciclo-vida-player.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",
+    "@tanstack/react-virtual": "^3.14.13",
     "dexie": "^4.4.6",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

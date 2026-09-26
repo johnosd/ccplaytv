@@ -7,7 +7,10 @@ import {
   readCredential,
   updateSource,
 } from '../../lib/catalog/sourceRepository'
-import { startImport, type ImportHandle } from '../../lib/catalog/importPipeline'
+import { reconcileRun, type ImportHandle } from '../../lib/catalog/importPipeline'
+import { runImport } from '../../lib/catalog/importRunner'
+import { decideOnOpen } from '../../lib/catalog/freshness'
+import { logger } from '../../lib/logger'
 
 export type SourceType = 'm3u_url' | 'provider_credentials'
 
@@ -51,6 +54,13 @@ export interface ImportJobCounts {
   channels: number
   discarded_by_type: number
   invalid: number
+  /**
+   * O que `entries_read`/`channels` contam (feature 010). `'categories'`
+   * na fonte de provedor pelo protocolo JSON — que grava só estrutura e
+   * conclui em segundos, sem percentual (FR-013). `'items'` em todo o
+   * resto: canal, filme, série ou episódio, como sempre foi.
+   */
+  unit: 'items' | 'categories'
 }
 
 export interface ImportJobResponse {
@@ -81,6 +91,8 @@ export interface RetryImportJobResponse {
 export type ConnectionState = 'never_synced' | 'synced' | 'error'
 
 export type ProviderImportMode = 'xtream_api' | 'legacy_m3u' | null
+/** Motivo do Modo limitado (feature 014, FR-020). `null` quando a fonte não está em Modo limitado. */
+export type LimitedReason = 'protocol_unavailable' | 'panel_unreachable' | null
 
 export interface SourceOut {
   id: string
@@ -89,6 +101,7 @@ export interface SourceOut {
   connection_state: ConnectionState
   last_successful_sync_at: string | null
   provider_import_mode: ProviderImportMode
+  limited_reason: LimitedReason
   provider_dns: string | null
   last_truncated_by_storage: boolean
   last_discarded_by_type: number
@@ -163,17 +176,32 @@ function toSourceOut(source: Awaited<ReturnType<typeof listSources>>[number]): S
       ? new Date(source.lastSuccessfulSyncAt).toISOString()
       : null,
     provider_import_mode: source.providerImportMode ?? null,
+    limited_reason: source.limitedReason ?? null,
     provider_dns: source.providerDns ?? null,
     last_truncated_by_storage: source.lastTruncatedByStorage ?? false,
     last_discarded_by_type: source.lastDiscardedByType ?? 0,
   }
 }
 
+const SECTION_UNAVAILABLE: Record<string, string> = {
+  movie: 'O provedor não respondeu à lista de filmes.',
+  series: 'O provedor não respondeu à lista de séries.',
+}
+
 function toJobResponse(run: ImportRunRecord): ImportJobResponse {
   const warnings: string[] = []
   if (run.truncatedByStorage) warnings.push('A lista não coube inteira no aparelho.')
   if (run.invalidCount > 0) warnings.push('Entradas inválidas foram ignoradas.')
-  if (run.discardedByType > 0) warnings.push('Só canais foram importados nesta fonte.')
+  // Canais, filmes e séries são todos importados: o que sobra no descarte
+  // por tipo é o que não foi possível reconhecer. Dizer "só canais" aqui
+  // descreveria uma versão do app que não é mais esta.
+  if (run.discardedByType > 0) {
+    warnings.push('Entradas de tipo não reconhecido ficaram de fora.')
+  }
+  for (const section of run.unavailableSections ?? []) {
+    const message = SECTION_UNAVAILABLE[section]
+    if (message) warnings.push(message)
+  }
 
   return {
     id: run.id,
@@ -185,6 +213,7 @@ function toJobResponse(run: ImportRunRecord): ImportJobResponse {
       channels: run.channelsStored,
       discarded_by_type: run.discardedByType,
       invalid: run.invalidCount,
+      unit: run.unit ?? 'items',
     },
     warnings,
     error_kind: run.errorKind ?? null,
@@ -195,11 +224,24 @@ function toJobResponse(run: ImportRunRecord): ImportJobResponse {
 }
 
 async function startLocalImport(sourceId: string): Promise<ImportHandle> {
-  const handle = await startImport(sourceId)
+  // Pelo `importRunner`, não pelo pipeline direto: é ele que põe o trabalho
+  // num Worker (e cai para a thread principal se o Worker não estiver no
+  // pacote, R-002). Chamar `startImport` aqui mantinha um laço de centenas
+  // de milhares de entradas na thread de interface — a tela parada e o
+  // controle sem resposta que a constitution proíbe (SC-005). É também o
+  // que faz o empacotador emitir `assets/importWorker.js`.
+  const handle = await runImport(sourceId)
   runningImports.set(handle.runId, handle)
-  void handle.completion.finally(() => {
-    runningImports.delete(handle.runId)
-  })
+  void handle.completion
+    .catch((error: unknown) => {
+      // A categoria do erro já está no registro da execução, que é o que a
+      // tela lê. O que chega aqui é o que o pipeline não soube categorizar —
+      // defeito nosso, anotado em vez de virar rejeição sem dono.
+      logger.warn('Importação terminou com erro não categorizado', error)
+    })
+    .finally(() => {
+      runningImports.delete(handle.runId)
+    })
   return handle
 }
 
@@ -223,16 +265,36 @@ export function useCreateSource() {
   })
 }
 
+export class ImportJobNotFoundError extends Error {
+  constructor(jobId: string) {
+    super(`Importação ${jobId} não encontrada.`)
+    this.name = 'ImportJobNotFoundError'
+  }
+}
+
 export function useImportJob(jobId: string | null) {
   return useQuery({
     queryKey: ['import-job', jobId],
     queryFn: async () => {
       if (!jobId) return null
-      const run = await db.importRuns.get(jobId)
-      return run ? toJobResponse(run) : null
+      // Toda leitura reconcilia: uma execução cujo app foi fechado no meio
+      // chega aqui ainda marcada como "em andamento", e sem isto a tela
+      // acompanharia para sempre um progresso que não avança mais.
+      const run = await reconcileRun(jobId)
+      // Registro ausente é erro, não "ainda carregando". Devolver `null`
+      // deixava o `refetchInterval` abaixo sem status terminal para
+      // encontrar: a consulta repetia indefinidamente e a tela ficava presa
+      // num carregamento sem nenhum elemento focável.
+      if (!run) throw new ImportJobNotFoundError(jobId)
+      return toJobResponse(run)
     },
     enabled: jobId !== null,
+    retry: false,
     refetchInterval: (query) => {
+      // Sem esta saída, a consulta em erro continuaria repetindo: `data`
+      // fica indefinido e a comparação abaixo nunca encontra um status
+      // terminal.
+      if (query.state.status === 'error') return false
       const status = query.state.data?.status
       if (!status || !TERMINAL_STATUSES.includes(status)) {
         return ACTIVE_POLL_INTERVAL_MS
@@ -247,12 +309,16 @@ export function useCancelImportJob() {
   return useMutation({
     mutationFn: async (jobId: string) => {
       const handle = runningImports.get(jobId)
-      if (handle) {
-        handle.cancel()
-      }
-      const run = await db.importRuns.get(jobId)
+      if (handle) handle.cancel()
+      // Sem handle, não há o que cancelar: a execução foi iniciada por uma
+      // carga anterior do app e morreu com ela. Reconciliar diz a verdade
+      // sobre o registro, em vez de responder "cancelada" para algo que este
+      // caminho não cancelou.
+      const run = handle ? await db.importRuns.get(jobId) : await reconcileRun(jobId)
       return {
         id: jobId,
+        // O cancelamento é cooperativo: o desfecho real chega pela consulta
+        // de progresso, não por esta resposta.
         status: run ? mapStatus(run.status) : 'cancelled',
         cancel_requested_at: null,
       } satisfies CancelImportJobResponse
@@ -338,7 +404,12 @@ export function useOpenSource() {
       const source = await db.sources.get(sourceId)
       if (!source) throw new Error('Fonte não encontrada')
 
-      const { decideOnOpen } = await import('../../lib/catalog/freshness')
+      // Importação estática de propósito. Um `import()` aqui faria o
+      // empacotador emitir um pedaço separado (`assets/freshness.js`), que o
+      // `tizen_web_project.yaml` precisaria listar arquivo a arquivo — e a
+      // ausência dessa linha falharia **só na TV**, como abertura de fonte
+      // que rejeita sem motivo aparente (R-002). São 36 linhas: não há o que
+      // adiar.
       const action = decideOnOpen(source, Date.now())
 
       if (action !== 'none') {

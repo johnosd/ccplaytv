@@ -1,10 +1,20 @@
+import { acquireXtreamVod, acquireXtreamSeries, fetchSeriesInfo } from './xtreamConnector';
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   acquireXtreamChannels,
   buildLiveUrl,
+  fetchLiveCategories,
+  fetchLiveStreams,
+  fetchSeries,
+  fetchSeriesCategories,
+  fetchVodCategories,
+  fetchVodStreams,
   legacyM3uUrl,
   mapLiveEntry,
+  mapSeriesEntry,
+  mapVodEntry,
   normalizeServerAddress,
+  parseXtreamStreamUrl,
   preferredFormat,
   ProviderIncompatibleError,
   resolveAccountStatus,
@@ -215,6 +225,57 @@ describe('mapLiveEntry', () => {
     expect(mapped).toBeDefined()
     expect(mapped?.url).toBeUndefined()
   })
+
+  it('canal NUNCA ganha iconUrl, mesmo que o provedor declare stream_icon (feature 015, FR-009)', () => {
+    const mapped = mapLiveEntry(
+      { name: 'ESPN', stream_id: 5, category_id: 10, stream_icon: 'http://exemplo.test/espn.png' },
+      categories,
+      buildUrl,
+    )
+    expect(mapped?.iconUrl).toBeUndefined()
+  })
+})
+
+describe('mapVodEntry (feature 015)', () => {
+  const categories = new Map<string, LiveCategory>([['10', { id: '10', name: 'Ação', order: 0 }]])
+  const buildUrl = (streamId: string, ext: string) => `http://exemplo.test/movie/u/p/${streamId}.${ext}`
+
+  it('captura iconUrl de stream_icon quando presente', () => {
+    const mapped = mapVodEntry(
+      { name: 'Matrix', stream_id: 1, category_id: '10', stream_icon: 'http://exemplo.test/matrix.png' },
+      categories,
+      buildUrl,
+    )
+    expect(mapped?.iconUrl).toBe('http://exemplo.test/matrix.png')
+  })
+
+  it('sem stream_icon, ou vazio/inválido, iconUrl fica undefined', () => {
+    expect(mapVodEntry({ name: 'Sem capa', stream_id: 2, category_id: '10' }, categories, buildUrl)?.iconUrl).toBeUndefined()
+    expect(
+      mapVodEntry(
+        { name: 'Capa vazia', stream_id: 3, category_id: '10', stream_icon: '' },
+        categories,
+        buildUrl,
+      )?.iconUrl,
+    ).toBeUndefined()
+  })
+})
+
+describe('mapSeriesEntry (feature 015)', () => {
+  const categories = new Map<string, LiveCategory>([['10', { id: '10', name: 'Suspense', order: 0 }]])
+
+  it('captura iconUrl de cover quando presente', () => {
+    const mapped = mapSeriesEntry(
+      { name: 'Show', series_id: 1, category_id: '10', cover: 'http://exemplo.test/show.png' },
+      categories,
+    )
+    expect(mapped?.iconUrl).toBe('http://exemplo.test/show.png')
+  })
+
+  it('sem cover, iconUrl fica undefined', () => {
+    const mapped = mapSeriesEntry({ name: 'Sem capa', series_id: 2, category_id: '10' }, categories)
+    expect(mapped?.iconUrl).toBeUndefined()
+  })
 })
 
 describe('acquireXtreamChannels', () => {
@@ -286,3 +347,277 @@ describe('montagem de URL', () => {
     expect(url).toContain('type=m3u_plus')
   })
 })
+
+describe('requisição ao protocolo JSON', () => {
+  it('não manda cabeçalho próprio, para o GET não virar requisição com verificação prévia', async () => {
+    // Qualquer cabeçalho fora da lista segura de CORS dispara um `OPTIONS`
+    // que painel Xtream não responde — e aí *nenhuma* consulta ao protocolo
+    // JSON funciona. Como a falha chega ao JavaScript como erro genérico de
+    // rede, ela se disfarça de "provedor recusa conexão direta".
+    const fetchSpy = vi.fn().mockResolvedValue(
+      jsonResponse({ user_info: { auth: 1, allowed_output_formats: ['ts'] } }),
+    )
+    vi.stubGlobal('fetch', fetchSpy)
+
+    await resolveAccountStatus('http://exemplo.test', 'u', 'p')
+
+    const init = fetchSpy.mock.calls[0][1]
+    expect(init?.headers).toBeUndefined()
+  })
+})
+
+describe('categorias declaradas (feature 010, T014)', () => {
+  function urlOf(call: unknown[]): URL {
+    return new URL(String(call[0]))
+  }
+
+  it('mapeia id, nome (inclusive vazio) e ordem; declaredCount fica ausente, nunca inventado', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse([
+        { category_id: '10', category_name: 'Ação' },
+        { category_id: '11', category_name: '' },
+      ]),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const categories = await fetchVodCategories('http://mock', 'u', 'p')
+
+    expect(categories).toEqual([
+      { id: '10', name: 'Ação', order: 0, declaredCount: undefined },
+      { id: '11', name: '', order: 1, declaredCount: undefined },
+    ])
+    // O protocolo Xtream não declara contagem nesse endpoint — o campo
+    // existe pronto no tipo, mas nada aqui o preenche por adivinhação.
+    expect(urlOf(fetchMock.mock.calls[0])).toBeInstanceOf(URL)
+  })
+
+  it('get_live_categories/get_vod_categories/get_series_categories preservam a mesma forma', async () => {
+    const raw = [{ category_id: '1', category_name: 'X' }]
+    // Uma Response nova por chamada — o corpo só pode ser lido uma vez, e
+    // este teste chama fetch três vezes (uma por seção).
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(jsonResponse(raw))))
+
+    for (const fetcher of [fetchLiveCategories, fetchVodCategories, fetchSeriesCategories]) {
+      const categories: LiveCategory[] = await fetcher('http://mock', 'u', 'p')
+      expect(categories).toEqual([{ id: '1', name: 'X', order: 0, declaredCount: undefined }])
+    }
+  })
+
+  it('fetchLiveStreams/fetchVodStreams/fetchSeries incluem category_id só quando informado', async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse([])))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await fetchLiveStreams('http://mock', 'u', 'p')
+    expect(urlOf(fetchMock.mock.calls[0]).searchParams.has('category_id')).toBe(false)
+
+    await fetchLiveStreams('http://mock', 'u', 'p', '42')
+    expect(urlOf(fetchMock.mock.calls[1]).searchParams.get('category_id')).toBe('42')
+
+    await fetchVodStreams('http://mock', 'u', 'p', '43')
+    expect(urlOf(fetchMock.mock.calls[2]).searchParams.get('category_id')).toBe('43')
+
+    await fetchSeries('http://mock', 'u', 'p', '44')
+    expect(urlOf(fetchMock.mock.calls[3]).searchParams.get('category_id')).toBe('44')
+  })
+})
+
+describe('parseXtreamStreamUrl', () => {
+  it('recupera tipo, identificador e extensão da forma com segmento de tipo', () => {
+    expect(parseXtreamStreamUrl('http://exemplo.test/movie/u/p/100.mkv')).toEqual({
+      kind: 'movie',
+      streamId: '100',
+      extension: 'mkv',
+    })
+    expect(parseXtreamStreamUrl('http://exemplo.test/series/u/p/1001.mp4')).toEqual({
+      kind: 'series',
+      streamId: '1001',
+      extension: 'mp4',
+    })
+  })
+
+  it('trata a forma antiga sem segmento de tipo como canal ao vivo', () => {
+    expect(parseXtreamStreamUrl('http://exemplo.test/u/p/42.ts')).toEqual({
+      kind: 'live',
+      streamId: '42',
+      extension: 'ts',
+    })
+  })
+
+  it('devolve indefinido para o que não é URL de painel', () => {
+    expect(parseXtreamStreamUrl('http://exemplo.test/stream.m3u8')).toBeUndefined()
+    expect(parseXtreamStreamUrl('nem-url')).toBeUndefined()
+  })
+})
+
+  describe('VOD and Series Extension', () => {
+    it('acquireXtreamVod should map VOD entries correctly', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockImplementation(async (req) => {
+        const url = new URL(typeof req === 'string' ? req : req.url)
+        if (url.searchParams.get('action') === 'get_vod_categories') {
+          return jsonResponse([{ category_id: '10', category_name: 'Action Movies' }])
+        }
+        if (url.searchParams.get('action') === 'get_vod_streams') {
+          return jsonResponse([
+            // `stream_type: "movie"` é o que o painel real manda neste
+            // endpoint. Sem ele na fixture, uma guarda invertida passaria
+            // no teste e devolveria zero filme contra o provedor.
+            {
+              stream_id: 100,
+              stream_type: 'movie',
+              name: ' Die Hard ',
+              category_id: '10',
+              container_extension: 'mkv',
+            },
+            // Entrada de outro tipo no meio da lista não vira filme.
+            { stream_id: 101, stream_type: 'live', name: 'Canal Intruso', category_id: '10' },
+          ])
+        }
+        return new Response(null, { status: 404 })
+       }))
+
+            const vods = await acquireXtreamVod('http://mock', 'user', 'pass')
+
+      expect(vods).toHaveLength(1)
+      expect(vods[0]).toEqual({
+        kind: 'movie',
+        name: 'Die Hard',
+        originalName: 'Die Hard',
+        group: 'Action Movies',
+        groupOrder: 0,
+        url: 'http://mock/movie/user/pass/100.mkv',
+        providerStreamId: '100',
+        providerCategoryId: '10',
+        streamExtension: 'mkv',
+      })
+    })
+
+    it('acquireXtreamSeries should map Series entries correctly', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockImplementation(async (req) => {
+        const url = new URL(typeof req === 'string' ? req : req.url)
+        if (url.searchParams.get('action') === 'get_series_categories') {
+          return jsonResponse([{ category_id: '20', category_name: 'Comedy Series' }])
+        }
+        if (url.searchParams.get('action') === 'get_series') {
+          return jsonResponse([
+            { series_id: 200, name: ' The Office ', category_id: '20' }
+          ])
+        }
+        return new Response(null, { status: 404 })
+       }))
+
+      const series = await acquireXtreamSeries('http://mock', 'user', 'pass')
+
+      expect(series).toHaveLength(1)
+      expect(series[0]).toEqual({
+        kind: 'series',
+        name: 'The Office',
+        originalName: 'The Office',
+        group: 'Comedy Series',
+        groupOrder: 0,
+        providerCategoryId: '20',
+        seriesId: '200',
+      })
+    })
+
+    /** `get_series_info` mockado com um único episódio por `it` (feature 012, `logic` §1). */
+    function stubSeriesInfo(episodes: Record<string, unknown>[]): void {
+      vi.stubGlobal('fetch', vi.fn().mockImplementation(async (req) => {
+        const url = new URL(typeof req === 'string' ? req : req.url)
+        if (url.searchParams.get('action') === 'get_series_info' && url.searchParams.get('series_id') === '200') {
+          return jsonResponse({ episodes: { '1': episodes } })
+        }
+        return new Response(null, { status: 404 })
+      }))
+    }
+
+    it('fetchSeriesInfo mapeia episódios, sem montar URL (D-004 — provedor nunca grava URL de episódio)', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockImplementation(async (req) => {
+        const url = new URL(typeof req === 'string' ? req : req.url)
+        if (url.searchParams.get('action') === 'get_series_info' && url.searchParams.get('series_id') === '200') {
+          return jsonResponse({
+            episodes: {
+              "1": [
+                { id: "1001", episode_num: 1, title: "Pilot", container_extension: "mp4" }
+              ],
+              "2": [
+                { id: "1002", episode_num: 1, title: "The Dundies", container_extension: "mkv" }
+              ]
+            }
+          })
+        }
+        return new Response(null, { status: 404 })
+       }))
+
+      const episodes = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+      expect(episodes).toHaveLength(2)
+
+      expect(episodes[0]).toMatchObject({
+        kind: 'episode',
+        name: 'Pilot',
+        providerStreamId: '1001',
+        streamExtension: 'mp4',
+        seriesId: '200',
+        seasonNumber: 1,
+        episodeNumber: 1,
+      })
+      expect(episodes[0].url).toBeUndefined()
+
+      expect(episodes[1]).toMatchObject({
+        kind: 'episode',
+        name: 'The Dundies',
+        providerStreamId: '1002',
+        streamExtension: 'mkv',
+        seriesId: '200',
+        seasonNumber: 2,
+        episodeNumber: 1,
+      })
+      expect(episodes[1].url).toBeUndefined()
+    })
+
+    it('episode_num em texto vira número (R-002 — painel real devolve como string em parte dos casos)', async () => {
+      stubSeriesInfo([{ id: '1001', episode_num: '3', title: 'Ep 3', container_extension: 'mp4' }])
+
+      const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+      expect(episode.episodeNumber).toBe(3)
+    })
+
+    it('episode_num não numérico fica ausente, sem virar 0 (a ordem cai na ordem declarada, D-011)', async () => {
+      stubSeriesInfo([{ id: '1001', episode_num: 'especial', title: 'Bônus', container_extension: 'mp4' }])
+
+      const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+      expect(episode.episodeNumber).toBeUndefined()
+    })
+
+    it('sem container_extension, streamExtension fica ausente — sem "mp4" presumido (D-004, R-003)', async () => {
+      stubSeriesInfo([{ id: '1001', episode_num: 1, title: 'Pilot' }])
+
+      const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+      expect(episode.streamExtension).toBeUndefined()
+    })
+
+    it('episódio sem id é descartado — não há como montar URL nem identidade sem ele', async () => {
+      stubSeriesInfo([
+        { episode_num: 1, title: 'Sem id', container_extension: 'mp4' },
+        { id: '1002', episode_num: 2, title: 'Com id', container_extension: 'mp4' },
+      ])
+
+      const episodes = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+      expect(episodes).toHaveLength(1)
+      expect(episodes[0].name).toBe('Com id')
+    })
+
+    it('chave de temporada não numérica cai na Temporada 1 (FR-019, Xtream)', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockImplementation(async (req) => {
+        const url = new URL(typeof req === 'string' ? req : req.url)
+        if (url.searchParams.get('action') === 'get_series_info' && url.searchParams.get('series_id') === '200') {
+          return jsonResponse({
+            episodes: { especiais: [{ id: '1001', episode_num: 1, title: 'Extra', container_extension: 'mp4' }] },
+          })
+        }
+        return new Response(null, { status: 404 })
+      }))
+
+      const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+      expect(episode.seasonNumber).toBe(1)
+    })
+  })

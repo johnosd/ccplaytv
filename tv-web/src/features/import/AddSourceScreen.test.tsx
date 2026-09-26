@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AddSourceScreen } from './AddSourceScreen'
 import { db } from '../../lib/catalog/db'
 import * as importPipeline from '../../lib/catalog/importPipeline'
@@ -18,6 +18,14 @@ function createWrapper() {
 }
 
 describe('AddSourceScreen', () => {
+  beforeEach(() => {
+    // O espião sem implementação chama a rede de verdade: a importação que o
+    // cadastro dispara fica tentando alcançar um host inexistente, e o
+    // arquivo de teste termina com ela ainda correndo. Recusar na hora faz a
+    // importação fracassar e se encerrar dentro do teste.
+    vi.mocked(globalThis.fetch).mockRejectedValue(new TypeError('Failed to fetch'))
+  })
+
   afterEach(async () => {
     cleanup()
     vi.clearAllMocks()

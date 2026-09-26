@@ -1,5 +1,5 @@
-/* Design system CCPlayTv — telas de TV (1920x1080, 10-foot UI).
-   Classes derivadas 1:1 do protótipo do Claude Design
+﻿/* Design system CCPlayTv â€” telas de TV (1920x1080, 10-foot UI).
+   Classes derivadas 1:1 do protÃ³tipo do Claude Design
    ("CCPlayTv - Prototype.dc.html"). */
 
 .screen {
@@ -169,10 +169,10 @@
   color: var(--text-tertiary);
 }
 
-/* Fonte de provedor importada em modo limitado (feature 004, FR-011) — o
-   painel não fala o protocolo JSON e a fonte caiu no caminho M3U existente.
-   Estado normal, não erro (D-008): mesma linguagem visual do selo
-   "Indisponível" de um canal (.live-item-badge), discreta, sem alarme. */
+/* Fonte de provedor importada em modo limitado (feature 004, FR-011) â€” o
+   painel nÃ£o fala o protocolo JSON e a fonte caiu no caminho M3U existente.
+   Estado normal, nÃ£o erro (D-008): mesma linguagem visual do selo
+   "IndisponÃ­vel" de um canal (.live-item-badge), discreta, sem alarme. */
 .source-card-badge {
   font: 600 13px var(--font-body);
   color: var(--text-muted);
@@ -396,6 +396,65 @@
   color: var(--text-tertiary);
 }
 
+/* Seção "Continuar assistindo" no hub da lista (feature 019, D-010) — rail
+   simples, acima dos tiles. Cards menores que .tile: só capa + título. */
+.continue-watching-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 40px;
+  overflow-x: hidden;
+}
+
+.continue-watching-card {
+  width: 180px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.continue-watching-title {
+  font: 500 16px var(--font-body);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Explicação do Modo limitado no hub da lista (feature 014, FR-021/FR-022).
+   Tom informativo, nunca de erro — nunca a cor de `.form-error`. */
+.limited-mode-notice {
+  max-width: 640px;
+  margin-top: 32px;
+  padding: 24px 28px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 2px solid var(--border-dashed);
+  color: var(--text-secondary);
+  font: 500 16px var(--font-body);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.limited-mode-notice-title {
+  font: 700 18px var(--font-body);
+  color: var(--text-primary);
+}
+
+.limited-mode-notice-subhead {
+  margin-top: 8px;
+  color: var(--text-tertiary);
+}
+
+.limited-mode-notice-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 /* ---------- Live TV ---------- */
 
 .live-layout {
@@ -460,9 +519,9 @@
   overflow: hidden;
 }
 
-/* Slot de logo do canal: área reservada com proporção fixa para a chegada da
-   imagem não mudar a geometria nem derrubar o foco (ADR-007 §6). Hoje o
-   `tvg-logo` não é persistido, então o slot fica vazio — item 16 do backlog. */
+/* Slot de logo do canal: Ã¡rea reservada com proporÃ§Ã£o fixa para a chegada da
+   imagem nÃ£o mudar a geometria nem derrubar o foco (ADR-007 Â§6). Hoje o
+   `tvg-logo` nÃ£o Ã© persistido, entÃ£o o slot fica vazio â€” item 16 do backlog. */
 .live-preview-logo {
   width: 200px;
   height: 200px;
@@ -505,14 +564,37 @@
   flex: none;
 }
 
+/* Painel de canais virtualizado (feature 009) — só o painel de conteúdo
+   (col 1) vira lista de janela deslizante; a trilha de categorias
+   (.live-column-groups) continua em fluxo normal (D-004). */
+.live-channel-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.live-channel-list-inner {
+  position: relative;
+  width: 100%;
+}
+
+.live-column-channels .live-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 72px;
+}
+
 .live-truncated-note {
   font: 500 15px var(--font-body);
   color: var(--text-tertiary);
   padding: 12px 20px;
 }
 
-/* Slot de "Agora:" (EPG). Reservado sem rótulo: exibir "Agora:" vazio
-   pareceria defeito, e inventar dado é proibido. Fonte de dados no item 44. */
+/* Slot de "Agora:" (EPG). Reservado sem rÃ³tulo: exibir "Agora:" vazio
+   pareceria defeito, e inventar dado Ã© proibido. Fonte de dados no item 44. */
 .live-channel-now {
   min-height: 28px;
 }
@@ -560,14 +642,14 @@
   color: var(--accent-ink);
 }
 
-/* ---------- Camada de reprodução ---------- */
+/* ---------- Camada de reproduÃ§Ã£o ---------- */
 
 .player-overlay {
   position: absolute;
   inset: 0;
-  /* Preto opaco, não translúcido: um fundo com blur/transparência parcial
-     custa caro no engine da TV (ADR-007 §8). Vale enquanto não há vídeo na
-     tela — preparando, carregando a URL, erro. */
+  /* Preto opaco, nÃ£o translÃºcido: um fundo com blur/transparÃªncia parcial
+     custa caro no engine da TV (ADR-007 Â§8). Vale enquanto nÃ£o hÃ¡ vÃ­deo na
+     tela â€” preparando, carregando a URL, erro. */
   background: var(--player-backdrop);
   display: flex;
   align-items: center;
@@ -575,23 +657,34 @@
   z-index: 40;
 }
 
-/* Com o AVPlay exibindo, o preto sai de cena: o vídeo está num plano de
-   hardware ATRÁS desta camada, e fundo opaco aqui é o que fazia o canal tocar
+/* Com o AVPlay exibindo, o preto sai de cena: o vÃ­deo estÃ¡ num plano de
+   hardware ATRÃS desta camada, e fundo opaco aqui Ã© o que fazia o canal tocar
    sem imagem (bug `live-tv-toca-audio-sem-imagem`). O texto de status e a tela
-   de erro continuam desenhando normalmente por cima do vídeo. */
+   de erro continuam desenhando normalmente por cima do vÃ­deo. */
 :root.video-plane-visible .player-overlay {
   background: transparent;
 }
 
-/* Liberar só o fundo da camada não basta: as colunas de grupos e canais e o
-   painel de informação são IRMÃOS do overlay e continuam pintando sobre o
-   plano de hardware — na TV o canal toca atrás da lista, que é o que o
-   usuário vê. Enquanto há vídeo, a tela por baixo para de desenhar; ao sair
-   da reprodução a classe some e tudo volta, com foco e rolagem preservados
-   (`visibility` não remonta nada, ao contrário de `display: none`).
-   No navegador de desenvolvimento a regra nunca vale: lá o `<video>` é nó do
-   DOM e a classe não é aplicada. */
-:root.video-plane-visible .screen > *:not(.player-overlay) {
+/* Liberar sÃ³ o fundo da camada nÃ£o basta: as colunas de grupos e canais e o
+   painel de informaÃ§Ã£o sÃ£o IRMÃƒOS do overlay e continuam pintando sobre o
+   plano de hardware â€” na TV o canal toca atrÃ¡s da lista, que Ã© o que o
+   usuÃ¡rio vÃª. Enquanto hÃ¡ vÃ­deo, a tela por baixo para de desenhar; ao sair
+   da reproduÃ§Ã£o a classe some e tudo volta, com foco e rolagem preservados
+   (`visibility` nÃ£o remonta nada, ao contrÃ¡rio de `display: none`).
+   No navegador de desenvolvimento a regra nunca vale: lÃ¡ o `<video>` Ã© nÃ³ do
+   DOM e a classe nÃ£o Ã© aplicada.
+
+   Feature 011: PlayerLayer passou a ser consumido tambÃ©m por
+   MovieDetailScreen, cuja raiz Ã© `.movie-detail-layout`, nÃ£o `.screen` â€”
+   achado na TV fÃ­sica (verificaÃ§Ã£o da Fase 6): o backdrop com gradiente
+   opaco do detalhe do filme vazava atrÃ¡s do vÃ­deo, exatamente a mesma causa
+   do bug `live-tv-toca-audio-sem-imagem`, sÃ³ que num container que a regra
+   original nÃ£o cobria. Listado explicitamente por seletor, no mesmo padrÃ£o
+   jÃ¡ comprovado, em vez de introduzir `:has()` (suportado no Chromium 108,
+   mas nÃ£o testado neste projeto) no meio de uma sessÃ£o de depuraÃ§Ã£o ao
+   vivo â€” prÃ³xima tela que hospedar `PlayerLayer` precisa somar sua raiz aqui. */
+:root.video-plane-visible .screen > *:not(.player-overlay),
+:root.video-plane-visible .movie-detail-layout > *:not(.player-overlay) {
   visibility: hidden;
 }
 
@@ -664,6 +757,62 @@
   color: var(--accent-ink);
 }
 
+/* Barra de controles (feature 011, T026) — ancorada embaixo da camada, nunca
+   no centro (`.player-overlay` centraliza `.player-status`, que só aparece
+   antes/depois de tocar). Só existe quando alguma ação é permitida
+   (`playerControlsActions`), nunca desabilitada (D-003 do plano). */
+.player-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.player-time {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 640px;
+  font: 600 20px var(--font-body);
+  color: var(--text-secondary);
+}
+
+.player-time-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-field-active);
+  overflow: hidden;
+}
+
+.player-time-bar-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.player-buttons {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.player-control-button {
+  padding: 16px 28px;
+  border-radius: 999px;
+  background: var(--surface-field-active);
+  color: var(--text-secondary);
+  font: 700 22px var(--font-body);
+}
+
+.player-control-button.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
 .live-channel-name {
   font: 700 26px var(--font-body);
   color: var(--text-primary);
@@ -674,13 +823,44 @@
   color: var(--text-tertiary);
 }
 
-/* ---------- Grids (Filmes / Séries) ---------- */
+/* ---------- Grids (Filmes / SÃ©ries) ---------- */
 
-.poster-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
+/**
+ * Painel de conteúdo à direita da trilha de categorias (feature 010):
+ * cresce para ocupar o espaço restante da linha, ao contrário de
+ * `.live-column-channels`, que tem largura fixa por ser uma lista de texto,
+ * não uma grade de pôsteres.
+ */
+.category-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
   overflow: auto;
+}
+
+/* Grade de pôsteres virtualizada (feature 009, D-003/D-005) — troca
+   `display: grid` por posicionamento absoluto com `lanes` do TanStack
+   Virtual; as colunas continuam fluidas via `left`/`width` em porcentagem
+   por item (`research.md` R0-1), calculados em MoviesScreen.tsx/
+   SeriesScreen.tsx, não fixados aqui. */
+.poster-grid {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.poster-grid-inner {
+  position: relative;
+  width: 100%;
+}
+
+.poster-cell {
+  position: absolute;
+  top: 0;
+  box-sizing: border-box;
+  padding: 0 24px 24px 0;
 }
 
 .poster-card-title {
@@ -725,6 +905,17 @@
   color: var(--text-muted);
   text-align: center;
   padding: 0 8px;
+}
+
+/* Capa real (feature 015) — cobre a camada de placeholder por cima; some
+   sozinha ao falhar (PosterArt.tsx), revelando o placeholder que nunca
+   deixou de existir por baixo. */
+.poster-box-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* ---------- Detalhe do filme ---------- */
@@ -811,7 +1002,7 @@
   color: var(--accent-ink);
 }
 
-/* ---------- Detalhe da série ---------- */
+/* ---------- Detalhe da sÃ©rie ---------- */
 
 .series-detail-header {
   display: flex;
@@ -854,6 +1045,9 @@
 .season-tabs {
   display: flex;
   gap: 14px;
+  margin-top: 32px;
+  overflow: auto;
+  flex: none;
 }
 
 .season-tab {
@@ -863,6 +1057,7 @@
   color: var(--text-secondary);
   font-weight: 700;
   font-size: 17px;
+  flex: none;
 }
 
 .season-tab[aria-selected='true'] {
@@ -870,14 +1065,34 @@
   color: var(--accent-ink);
 }
 
+/*
+  Feature 012 (T017): a lista de episódios é virtualizada, como
+  `.live-channel-list`/`.poster-grid` já são (feature 009) — uma série
+  longa (ex.: "Os Simpsons", centenas de episódios) não pode montar tudo de
+  uma vez. `.episode-list` é o contêiner com scroll (altura vinda de
+  `flex: 1` dentro da coluna de `.screen`); `.episode-list-inner` tem a
+  altura total do virtualizador; cada `.episode-row` é posicionada por
+  `transform`, nunca pelo fluxo normal — por isso vira `position: absolute`
+  aqui, diferente do fluxo estático que o protótipo original desenhava.
+*/
 .episode-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
+  margin-top: 20px;
+  position: relative;
+}
+
+.episode-list-inner {
+  position: relative;
+  width: 100%;
 }
 
 .episode-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   gap: 20px;
   align-items: center;
@@ -908,6 +1123,14 @@
 .episode-meta {
   font: 500 14px var(--font-body);
   color: var(--text-tertiary);
+}
+
+/* Selo de episódio assistido (feature 012, US3) — texto além da cor, nunca só cor (constitution). */
+.episode-badge {
+  font: 700 13px var(--font-body);
+  color: var(--accent);
+  flex: none;
+  margin-left: auto;
 }
 
 /* ---------- Confirm Dialog ---------- */
@@ -978,76 +1201,159 @@
 }
 
 
-/* ---------- Diagnóstico de importação (TEMPORÁRIO — feature 005, US1) ----------
-   Removido na fase Polish junto com a tela. Não é desenho de produto: a
-   TV não entrega console, então a medição precisa caber na tela. */
+/* ---------- Favoritos (feature 013) ---------- */
 
-.bench-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  margin-top: 32px;
-  max-height: 720px;
+/* Estrela no cartao/linha de item favorito. Sobreposta no canto do
+   poster (.poster-box) ou apos o nome na lista de canais (.live-item) —
+   nunca a unica pista: o rotulo textual da categoria "Favoritos" e a
+   dica fixa (.fav-hint) tambem comunicam o estado, para nao depender so
+   de cor (ADR-007). */
+.fav-star {
+  color: var(--accent);
+  font-size: 16px;
+  line-height: 1;
+  flex: none;
 }
 
-.bench-column {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
+.live-item .fav-star {
+  margin-left: 8px;
 }
 
-.bench-source {
+.poster-box .fav-star {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 20px;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+/* Selo "Assistido" (feature 019, D-006) — canto inferior, nunca disputa
+   posição com .fav-star (superior). Texto sempre, nunca só cor
+   (constitution, "Foco Visível e Sem Becos Sem Saída"). */
+.poster-box .watched-badge {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  font: 700 12px var(--font-body);
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+/* Entrada virtual "Favoritos" no topo da trilha de categorias — mesma
+   classe .live-item, com um rotulo fixo (icone + texto) que nunca
+   depende so da posicao para ser distinguivel de uma categoria real da
+   fonte com o mesmo nome (edge case da spec). */
+.live-item-favorites {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: left;
-  padding: 18px 24px;
-  border-radius: 14px;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Dica fixa no rodape da coluna de conteudo, discreta (mesmo tom de
+   .live-truncated-note), lembrando o gesto de segurar OK enquanto houver
+   itens favoritaveis na tela (FR-012). */
+.fav-hint {
+  font: 500 14px var(--font-body);
+  color: var(--text-tertiary);
+  padding: 8px 20px;
+  flex: none;
+}
+
+.player-zap-scrim {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  background: var(--player-zap-scrim);
+}
+
+.player-zap-columns {
+  position: absolute;
+  inset: 0;
+  padding: 80px 96px;
+  display: flex;
+  flex-direction: row;
+  gap: 40px;
+}
+
+/* ---------- Busca local (feature 017) ---------- */
+
+/* Entrada "Todos" no topo da trilha (feature 018) — mesmo padrão de
+   .live-item-favorites (feature 013): ícone + texto, nunca confundido com
+   uma categoria real da fonte. Substitui .live-item-search (feature 017,
+   removida — a busca deixou de ser uma entrada de trilha). */
+.live-item-all {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Título da coluna de conteúdo + ícone de busca lado a lado (feature 018,
+   FR-001) — o ícone só existe quando a entrada atual tem itens (D-006). */
+.category-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.category-title-row .live-column-title {
+  margin-bottom: 0;
+}
+
+/* Botão pequeno, focável — mesma receita de foco de qualquer outro
+   elemento (.tv-focus, ADR-007), nunca uma cor/raio literal aqui. */
+.search-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   background: var(--surface);
   color: var(--text-secondary);
+  font-size: 20px;
+  flex: none;
 }
 
-.bench-source-selected {
+.search-icon-button.tv-focus {
   background: var(--surface-active);
-  border-left: 6px solid var(--accent);
-}
-
-.bench-source-name {
-  font: 700 22px var(--font-heading);
   color: var(--text-primary);
 }
 
-.bench-source-meta {
-  font-size: 16px;
-  color: var(--text-tertiary);
+.search-field-row {
+  margin-bottom: 16px;
 }
 
-.bench-actions {
+/* Reusa .field-box (mesmo campo do formulário de fonte), com altura menor
+   para caber no topo da coluna de conteúdo sem empurrar a lista — nunca uma
+   cor/raio literal (ADR-007), só o token já usado por .field-box. */
+.search-field {
+  height: 56px;
+  max-width: 100%;
+  font-size: 17px;
+}
+
+.search-status {
   display: flex;
-  gap: 16px;
-}
-
-.bench-metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px 24px;
-  margin: 0;
-}
-
-.bench-metrics div {
-  background: var(--surface);
-  border-radius: 12px;
-  padding: 12px 18px;
-}
-
-.bench-metrics dt {
-  font-size: 15px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 4px 0;
+  font: 500 15px var(--font-body);
   color: var(--text-tertiary);
 }
 
-.bench-metrics dd {
-  margin: 4px 0 0;
-  font: 700 24px var(--font-heading);
-  color: var(--text-primary);
+.search-coverage {
+  color: var(--text-muted);
+}
+
+/* Rótulo de categoria em cada resultado (FR-011) — só existe em modo busca,
+   nunca na navegação normal por categoria (que já mostra isso no cabeçalho). */
+.live-item-group {
+  font: 500 13px var(--font-body);
+  color: var(--text-muted);
+  flex: none;
+  margin-left: 8px;
 }

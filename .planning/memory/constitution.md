@@ -1,18 +1,16 @@
 <!--
 Relatório de Impacto de Sincronização
-- Mudança de versão: 1.1.0 -> 1.2.0
-- Princípios modificados (1): "Segredos Fora dos Clientes e dos Logs" —
-  aberta exceção explícita para credencial de provedor (dns/usuário/senha
-  Xtream), que passa a poder residir no dispositivo sob a arquitetura
-  client-first da ADR-008. Chaves de OpenAI/TMDB e URL completa de fonte
-  continuam proibidas no cliente, sem mudança.
+- Mudança de versão: 1.4.0 -> 1.5.0
+- Princípios modificados: "Segredos Fora dos Clientes e dos Logs" — a
+  exceção client-first passa a cobrir URL completa de fonte, URL de
+  reprodução de cada item e o arquivo M3U baixado (ADR-010); antes, a URL
+  completa era proibida no cliente sem exceção
 - Princípios adicionados: nenhum
-- Restrições do Projeto: "Ambiente de execução do backend" reescrita para
-  refletir client-first por padrão (ADR-008); backend deixa de ser
-  descrito como "roda localmente, migra para VPS depois"
-- Origem da mudança: ADR-008 (arquitetura client-first — backend só
-  quando estritamente necessário), decisão de custo confirmada pelo
-  usuário em 2026-09-19
+- Restrições do Projeto: nenhuma mudança
+- Origem da mudança: pedido direto do usuário em 2026-09-24, durante o
+  planejamento da feature 014-m3u-sob-demanda ("vamos expor a url"); a
+  fonte por URL M3U já guardava a URL completa desde a feature 005, em
+  violação silenciosa do texto anterior
 - Seções removidas: nenhuma
 - Pendências: nenhuma
 
@@ -21,6 +19,19 @@ Histórico:
   Restrições do Projeto, Fluxo de Desenvolvimento, Governança
 - 1.1.0 (2026-09-16): 5 princípios novos (foco/voltar/identidade/
   progresso/documentação) + restrição de design system (ADR-007)
+- 1.2.0 (2026-09-19): exceção em "Segredos Fora dos Clientes e dos Logs"
+  para credencial de provedor sob client-first (ADR-008); restrição de
+  ambiente de execução do backend reescrita para client-first
+- 1.3.0 (2026-09-24): "Foco Visível e Sem Becos Sem Saída" passa a exigir
+  SELECT funcional, não só aparência de foco; "Progresso e Capacidades São
+  Reais" ganha cobertura de catálogo parcial (feature 010); "Validação em
+  hardware real" ganha exceção de gate obrigatório por feature (feature
+  011)
+- 1.4.0 (2026-09-24): Fluxo de Desenvolvimento ganha "Testes E2E
+  (Playwright) antes de validação em TV física"; critério de "pronto"
+  passa a exigir roteiro E2E
+- 1.5.0 (2026-09-24): exceção de "Segredos Fora dos Clientes e dos Logs"
+  estendida à URL completa de fonte e ao arquivo M3U (ADR-010)
 -->
 
 # Constitution do CCPlay TV
@@ -52,11 +63,16 @@ visível").
 **Exceção (ADR-008, 2026-09-19)**: sob a arquitetura client-first, a
 credencial de provedor (endereço, usuário, senha) PODE residir no
 dispositivo (ex.: IndexedDB) — é o que permite ao cliente reautenticar sem
-backend. Esta é a única exceção: chaves de OpenAI/TMDB e URL completa de
-fonte continuam proibidas no cliente, sem exceção. A credencial permitida
-aqui ainda NÃO DEVE ser logada, exibida depois de digitada, enviada a
-TMDB/OpenAI, nem exposta por um canal de exportação/backup. Ver ADR-008
-para o raciocínio completo.
+backend. **Extensão (ADR-010, 2026-09-24)**: pelo mesmo motivo, a URL
+completa de uma fonte, a URL de reprodução de cada item e o conteúdo do
+arquivo M3U baixado — que numa lista de painel repetem usuário e senha —
+também PODEM residir no dispositivo. Chaves de OpenAI/TMDB continuam
+proibidas no cliente, sem exceção. Tudo o que esta exceção permite guardar
+ainda NÃO DEVE ser logado, exibido em tela, cartão ou mensagem de erro
+(a credencial, nem depois de digitada), enviado a TMDB/OpenAI ou a
+qualquer terceiro, nem exposto por um canal de exportação/backup, e DEVE
+ser descartado junto com a fonte ou a geração a que pertence. Ver ADR-008
+e ADR-010 para o raciocínio completo.
 
 ### Categorias da Fonte São Preservadas
 
@@ -122,7 +138,10 @@ ter pelo menos um elemento focável; uma tela sem saída focável prende o
 controle remoto. O estado de foco NÃO DEVE ser comunicado apenas por
 mudança de cor, e NÃO DEVE depender de `hover` (que não existe neste alvo).
 Mover o foco seleciona; SELECT executa — focar um item NÃO DEVE iniciar
-reprodução nem disparar consulta a serviço externo.
+reprodução nem disparar consulta a serviço externo. Um elemento com a
+aparência visual de foco (contorno/classe) mas que SELECT não ativa de fato
+NÃO satisfaz este princípio — foco é o par completo "visível + ativável por
+SELECT", nunca só o primeiro.
 
 **Por quê**: ADR-007 §4/§5; docs/guia-praticas-app-tv/04 (foco por contorno
 + realce) e /08 (UX09); docs/iptvnator/01-ui-ux.md #6 e
@@ -158,10 +177,15 @@ Quando não houver denominador confiável, a interface DEVE usar indicação
 indeterminada em vez de um percentual inventado. Os controles do player
 DEVEM refletir as capacidades reais do item: transmissão ao vivo sem janela
 DVR NÃO DEVE oferecer busca temporal, e uma mensagem de "carregando" NÃO
-DEVE encobrir autenticação inválida ou formato incompatível.
+DEVE encobrir autenticação inválida ou formato incompatível. O mesmo vale
+para o catálogo: quando a cobertura de uma categoria for parcial — obtida
+sob demanda, truncada por limite de armazenamento, ou ainda não
+sincronizada — a interface DEVE indicar esse escopo, e NUNCA apresentar um
+catálogo parcial como se fosse o catálogo completo declarado pela fonte.
 
 **Por quê**: docs/guia-praticas-app-tv/04 (T04) e /06 (P02, estados
-explícitos); docs/guia-praticas-app-tv/01 (D03); ADR-007 §5.
+explícitos); docs/guia-praticas-app-tv/01 (D03); ADR-007 §5; ADR-002
+(emenda de cobertura parcial de catálogo, feature 010).
 
 ### Documentação do Repositório É Canônica
 
@@ -215,11 +239,21 @@ intenção; o CSS é o contrato executável.
 **Validação em hardware real**: emulador e navegador são suficientes para
 o desenvolvimento do dia a dia nesta fase do projeto. Teste na TV real é
 fortemente recomendado antes de considerar uma capacidade de
-player/DRM/codec comprovada, mas **não é gate obrigatório** para o
-`sdd-converge` fechar uma feature nesta fase — decisão explícita,
+player/DRM/codec comprovada, mas **não é gate obrigatório por padrão** para
+o `sdd-converge` fechar uma feature nesta fase — decisão explícita,
 revisitável quando o projeto avançar para preparação comercial
 (docs/guia-praticas-app-tv/12, "emulador não reproduz integralmente o
 hardware").
+
+**Exceção**: a spec/plano de uma feature específica PODE elevar a
+verificação em TV física a gate obrigatório para uma capacidade concreta
+que o adaptador de desenvolvimento (`<video>`) estruturalmente não
+consegue provar nem desprovar (ex.: superfície de VOD do AVPlay — pausa,
+busca, posição, duração — na feature `011-assistir-filme-retomada`). Quando
+isso acontecer, fechar a feature sem satisfazer esse gate por completo DEVE
+ser uma decisão explícita do usuário, com o risco residual registrado em
+`Riscos e Decisões` do `plan.md` — nunca um item pulado em silêncio pelo
+`sdd-execute`/`sdd-converge`.
 
 ## Fluxo de Desenvolvimento
 
@@ -229,17 +263,31 @@ stack passando — `pytest` + `ruff` no backend (Python/FastAPI), `vitest`
 no frontend (TypeScript/React/Vite). Isso é checado a cada task, não
 apenas ao final da feature.
 
+**Testes E2E (Playwright) antes de validação em TV física**: ao concluir
+uma feature (última fase implementada no `sdd-execute`, ou convergência
+sem achado no `sdd-converge`), além dos testes automatizados por task já
+exigidos acima, DEVE rodar pelo menos um roteiro de teste E2E via
+Playwright cobrindo os fluxos principais da feature (`npm run test:e2e`
+em `tv-web/`, hoje `tv-web/e2e.mjs`) contra o dev server (`npm run dev`).
+Este é um gate **anterior** a qualquer solicitação de teste na TV física
+(`tizen-tv`) ou no emulador (`tizen-emulator`) — nunca um substituto para
+eles: pega regressão de fluxo, formulário, diálogo e navegação mais cedo e
+mais barato do que o ciclo de hardware real, mas não valida
+`webapis.avplay`, codec, DRM nem desempenho (só a TV real faz isso, ver
+"Validação em hardware real" acima).
+
 **Revisão de segredos antes de commit/push**: qualquer mudança que toque
 configuração, `.env`, logs ou serialização de `Source`/credenciais DEVE
 ser revisada quanto a vazamento de segredo antes de integrar, mesmo
 passando nos testes automatizados.
 
 **Critério de "pronto" por feature**: uma feature só é considerada
-implementada quando (a) os testes automatizados relevantes passam, (b) os
-critérios de aceite da spec (`Acceptance Scenarios`) foram verificados
-manualmente pelo menos em emulador/navegador, e (c) nenhum princípio desta
-constitution foi violado sem justificativa registrada em Complexity
-Tracking do `plan.md`.
+implementada quando (a) os testes automatizados relevantes passam —
+unitários/componente (pytest/vitest) e pelo menos um roteiro E2E via
+Playwright cobrindo os fluxos principais da feature, (b) os critérios de
+aceite da spec (`Acceptance Scenarios`) foram verificados manualmente pelo
+menos em emulador/navegador, e (c) nenhum princípio desta constitution foi
+violado sem justificativa registrada em Complexity Tracking do `plan.md`.
 
 ## Governança
 
@@ -254,4 +302,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.2.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-19
+**Versão**: 1.5.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-24

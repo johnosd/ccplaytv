@@ -26,6 +26,8 @@ O cache deverá guardar os metadados necessários para as telas já sincronizada
 
 O volume máximo e a cobertura do catálogo ainda serão definidos por testes. Se apenas parte dos dados estiver salva, a interface indicará essa limitação. Não prometerá pesquisa completa sobre itens que nunca foram sincronizados.
 
+**Atualização (feature 010, 2026-09-23):** esta previsão deixou de ser a exceção e passou a ser o **modo normal de operação** para fonte de provedor. A importação client-first (feature 005) inicialmente gravava o catálogo inteiro de uma vez; medido na TV física, isso travava a sincronização de uma fonte grande por tempo inaceitável — o gargalo era a própria gravação em IndexedDB, não a rede. A feature 010 resolve isso invertendo a ordem: a importação grava só a **estrutura** (as categorias declaradas pelo provedor), e os itens de cada categoria são obtidos e gravados só quando a pessoa entra nela, com prazo de validade próprio (reaproveitando a mesma noção de "velho" que já existia para a fonte inteira). Cobertura parcial do catálogo — a diretriz desta seção — é agora o estado esperado entre a sincronização e a navegação, não uma falha de rede ou de armazenamento. Fonte por URL M3U não muda: continua sem protocolo por categoria, então continua importando a lista inteira em fluxo, como sempre. Ver `sdd/specs/010-catalogo-sob-demanda/` para o desenho completo.
+
 ### 2. Inicialização e atualização
 
 Ao abrir, a TV lerá a última versão local válida sem esperar um timeout do backend. Em paralelo, verificará se há atualização disponível.

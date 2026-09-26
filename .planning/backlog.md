@@ -6,11 +6,8 @@ update-bug-status.ps1.
 
 ## Ideias Futuras
 
-Revisado em 2026-09-22 para refletir a **decisão ADR-008** (arquitetura
-client-first, backend só quando estritamente necessário) e a **conclusão
-da feature 005** (import e catálogo client-first, convergida em
-22/09/2026). Derivado de `sdd/adr/REQUISITOS-FUNCIONAIS.md` (RF-001 a
-RF-019), `sdd/adr/ESPECIFICACAO-TRAILERS.md`, `ADR-001` a `ADR-008`, da
+Derivado de `sdd/adr/REQUISITOS-FUNCIONAIS.md` (RF-001 a
+RF-019), `sdd/adr/ESPECIFICACAO-TRAILERS.md`, `ADR-001` a `ADR-009`, da
 constitution v1.2.0, e da análise de três conjuntos de documentos:
 `docs/iptvnator/` (reuso de um player IPTV maduro), `docs/guia-praticas-app-tv/`
 (13 relatórios sobre as orientações Samsung/Tizen) e
@@ -20,12 +17,12 @@ de 9 telas).
 ### Como ler esta lista
 
 **A ordem é de dependência, não de desejo.** Cada fase assume a anterior
-pronta: sem catálogo real de VOD/séries na TV não há o que virtualizar;
-sem ciclo de vida completo do player não há progresso confiável; sem
-histórico não há hero de "continuar assistindo". Dentro de uma fase, a
-ordem é sugerida mas negociável.
+pronta: sem contrato de capacidades do motor não há reprodução de VOD; sem
+reprodução que informe posição não há progresso confiável; sem histórico
+não há hero de "continuar assistindo". Dentro de uma fase, a ordem é
+sugerida mas negociável.
 
-**O paradigma mudou nesta revisão.** Com a ADR-008 e a feature 005, o
+**O paradigma mudou na revisão de 22/09.** Com a ADR-008 e a feature 005, o
 CCPlayTv é agora um **app client-first**: import de fonte, parsing,
 classificação, armazenamento (IndexedDB via Dexie) e reprodução acontecem
 inteiramente no aparelho, sem backend sempre-ligado. A pasta `api/`
@@ -40,351 +37,18 @@ só a APIs de terceiro (TMDB, OpenAI) com a chave do próprio usuário
 evidência própria de demanda e **precisam passar por `sdd-assess`** antes
 de virar spec.
 
-**O que já existe hoje** (estado pós-feature 005):
-- **Importação client-first ponta a ponta** (feature 005, convergida em
-  22/09/2026): o app obtém dados da fonte (provedor Xtream ou URL M3U)
-  diretamente do aparelho, interpreta e classifica em Web Worker
-  (`tv-web/src/lib/catalog/`), armazena em IndexedDB via Dexie, e serve
-  às telas — **sem backend ligado**. Medido na TV física
-  QN50Q60DAGXZD: provedor em 10 s, M3U grande (312.936 entradas) em 16 s,
-  pico de memória 10 MB.
-- **Splash + Home de listas + formulário de adicionar lista** (feature
-  002).
-- **Live TV com catálogo real e reprodução AVPlay** (feature 003,
-  verificada na TV física em 17–18/09/2026).
-- **Conector Xtream JSON para canais ao vivo** (feature 004, portado
-  para TypeScript na feature 005).
-- **Frescor decidido localmente**: migração de fonte antiga, atualização
-  por idade (24 h) e ressincronização explícita — tudo no aparelho.
-- **Detecção de provedor sem CORS**: explicação distinta de "sem
-  internet" e "senha errada".
-- As telas de **Filmes, Séries e detalhes continuam alimentadas por dados
-  fictícios** (`tv-web/src/features/catalog/mockCatalog.ts`).
-- **Importação grava apenas canais** (FR-008 da 005): VOD e séries são
-  classificados e descartados; entram quando as telas reais existirem
-  (itens 8 e 9).
-
-**O que não existe mais**:
-- O backend Python/FastAPI **não é mais o caminho principal**. Continua no
-  repositório como contorno congelado para provedor sem CORS (ADR-008
-  item 6, FR-021). Nenhuma feature futura deve assumir o backend como
-  pré-requisito de uso.
-- O PostgreSQL **não é mais a fonte de verdade do catálogo**. O IndexedDB
-  no aparelho é.
-
----
-
-### Fase 0 — Dívidas abertas da fundação (fazer antes de empilhar em cima)
-
-1. **Conector Xtream: fatia de VOD e séries pelo mesmo protocolo**
-
-   O conector Xtream em TypeScript
-   (`tv-web/src/lib/catalog/xtreamConnector.ts`) já fala o protocolo JSON
-   do painel para canais ao vivo. Falta estender para VOD
-   (`get_vod_streams`) e séries (`get_series` + `get_series_info`), com a
-   hierarquia de temporadas/episódios preservada.
-
-   **O que já existe**: protocolo mapeado em
-   `sdd/specs/004-conector-xtream-live/contracts/provider-protocol.md`;
-   conector TypeScript já normaliza endereço, resolve estado de conta com
-   fallback de actions, escolhe formato de reprodução por
-   `allowed_output_formats` (preferindo TS), e trata modo limitado
-   (`legacy_m3u`). Tudo rodando no aparelho (feature 005).
-
-   **Entregáveis**:
-   - `xtreamConnector.ts` estendido com `getVodStreams()`,
-     `getSeriesIndex()`, `getSeriesInfo(seriesId)`.
-   - `classifier.ts` estendido para classificar VOD e séries recebidos
-     do painel (hoje só classifica canais e descarta o resto).
-   - `catalogRepository.ts` e `db.ts` (schema Dexie v2) estendidos para
-     gravar/ler VOD e séries, com os índices compostos necessários para
-     leitura paginada por grupo.
-   - `importPipeline.ts` estendido para gravar os três tipos (canais +
-     VOD + séries), respeitando o mesmo fluxo por partes (D-002 da 005).
-   - Testes unitários do protocolo contra fixtures derivadas do painel
-     real.
-   - Medição na TV física do volume total gravado (antes era ~2,3 mil
-     canais; com VOD e séries, sobe para ~321 mil itens — o impacto no
-     IndexedDB e no tempo de importação precisa ser medido antes de
-     considerar pronto).
-
-   **Critérios de aceite**:
-   - Importação de provedor grava canais, filmes e séries com suas
-     categorias preservadas.
-   - Séries preservam a hierarquia de temporadas/episódios.
-   - Tempo de importação e pico de memória na TV física registrados e
-     dentro de meta a definir.
-   - Modo limitado (`legacy_m3u`) continua funcionando — SC-013.
-
-   **Pré-requisitos**: nenhum (depende apenas do que a feature 005
-   entregou).
-
-   **Desbloqueadores**: itens 8 (Tela de Filmes real) e 9 (Tela de Séries
-   real) — sem este item, essas telas continuam em mock.
-
-   (RF-005; ADR-004 §2/3/5/6; ADR-006 §4.3 e Incremento B;
-   `docs/iptvnator/03-apis.md` #3–6, `06-carga-listas-url-xtream.md`
-   #2–5/#7; feature 004 item remanescente)
-
-2. **Higiene de credenciais e cobertura das políticas de rede**
-
-   Consolidar a sanitização de segredos num helper único aplicado a todo
-   log e mensagem de erro — **tanto no frontend quanto no contorno de
-   backend** — garantindo que nunca se interpola `str(exc)` ou
-   `error.message` que embuta URL completa com credencial.
-
-   **Contexto client-first**: com a ADR-008, a credencial de provedor
-   reside no aparelho (IndexedDB, coleção `sources`). A exceção da
-   constitution v1.2.0 a permite ali, mas exige que **nunca seja logada,
-   exibida depois de digitada, nem exposta por canal de exportação/backup**
-   (FR-009 da 005). Este item garante cobertura consistente dessa regra.
-
-   **Entregáveis**:
-   - Helper `sanitizeError(error, context)` em `tv-web/src/lib/` que
-     redija URL, credencial e endereço de servidor de qualquer mensagem.
-   - Auditoria de todos os `console.log`, `console.error` e textos de
-     erro visíveis para garantir que passam pelo helper.
-   - User-Agent de player (VLC) e política SSRF confirmados em todas as
-     aquisições externas client-side (fetch para painel, fetch para URL
-     M3U).
-
-   **Nota de escopo** (verificado em 2026-09-16): o relatório
-   `docs/iptvnator/00-resumo.md` recomenda "remover do repositório" as
-   credenciais de `docs/m3u/dados.md`. Isso **já foi resolvido durante o
-   `sdd-plan` da feature 001**: o arquivo está em `.gitignore` (linha 21),
-   não é rastreado pelo git e nunca entrou em commit.
-
-   (ADR-004 §7; ADR-008 §2; constitution "Segredos Fora dos Clientes e
-   dos Logs"; `docs/iptvnator/03-apis.md` #5/#15/#16;
-   `sdd/specs/001-importacao-fonte-m3u/plan.md` → Cuidados para Retomada)
-
----
-
-### Fase 1 — MVP: do catálogo real até assistir
-
-3. **Separação de `CatalogRepository` e `UserStateRepository`**
-
-   A feature 005 criou `catalogRepository.ts` e `sourceRepository.ts`,
-   com fronteiras claras de segredo. Falta o **terceiro repositório**: o
-   de estado do usuário (favoritos, histórico, progresso, "gostei"), que
-   precisa ser separado do snapshot de catálogo substituível.
-
-   **Por que não foi feito na 005**: não existe estado de usuário ainda —
-   favoritos e histórico não foram construídos (itens 11 e 12). O
-   repositório é necessário quando esse estado existir, para que uma
-   reimportação não o destrua.
-
-   **Entregáveis**:
-   - `userStateRepository.ts` em `tv-web/src/lib/catalog/` com coleção
-     Dexie separada (`userStates`), chaveada por identidade estável
-     (fonte + tipo + id estável + S/E), nunca por URL.
-   - Testes de contrato: favoritar/desfavoritar, persistir progresso,
-     sobreviver a reimportação sem perda.
-   - Reconciliação pós-resync: reaplicar estado por chave estável quando
-     o catálogo for substituído (ver item 21).
-
-   **Decisão pendente**: a colisão entre "guardar o mínimo de reprodução"
-   e "não guardar segredo" foi **parcialmente resolvida** pela ADR-008 e
-   constitution v1.2.0 (a credencial **pode** residir no aparelho). O que
-   fica em aberto: reprodução offline propriamente dita (o vídeo depende
-   da origem estar acessível).
-
-   (ADR-002; ADR-006 §4.2 e Incremento A; ADR-008 §2;
-   `docs/iptvnator/02-arquitetura.md` #4)
-
-4. **`PlayerService` — contrato completo de capacidades**
-
-   A feature 003 criou a abstração, o adaptador AVPlay, o adaptador
-   `<video>` de desenvolvimento e os estados de sessão. Falta:
-   - **Contrato de capacidades por motor**: a UI nunca oferece botão que o
-     motor não suporta.
-   - **Identidade lógica de reprodução serializada**: fonte + tipo + id
-     estável + S/E, conforme a constitution.
-   - **Ciclo de vida completo**: screensaver, `visibilitychange`, sessões
-     sobrepostas, progresso intermediário — detalhado no item 10.
-
-   (ADR-001 §2; ADR-006 Incremento A/B; constitution "Identidade de
-   Reprodução Não Depende da URL"; `docs/iptvnator/02-arquitetura.md`
-   #1/#2; `docs/guia-praticas-app-tv/12` §1)
-
-5. **Ligar Filmes e Séries ao catálogo real**
-
-   Live TV já lê o catálogo real do IndexedDB (feature 003 + 005). Filmes
-   e Séries continuam lendo `mockCatalog.ts`. Este item substitui os mocks
-   pela leitura de `catalogRepository`, com as mesmas semânticas de
-   paginação e grupo que `LiveScreen` já usa.
-
-   **Pré-requisitos**: item 1 (conector Xtream para VOD/séries) — sem ele,
-   não há dados reais para ler.
-
-   **Entregáveis**:
-   - `MoviesScreen` e `SeriesScreen` consumindo `catalogRepository` em
-     vez de `mockCatalog.ts`.
-   - `MovieDetailScreen` e `SeriesDetailScreen` mostrando dados reais.
-   - `ListHomeScreen` mostrando contagem real em vez de
-     `MOVIES.length`/`SERIES.length`.
-   - Remoção de `mockCatalog.ts` quando todas as telas estiverem
-     migradas.
-
-   (RF-008/009/010; feature 002 deixou explicitamente fora de escopo)
-
-6. **Foco direcional e virtualização de grades**
-
-   Norigin Spatial Navigation + TanStack Virtual como base de toda
-   navegação por controle remoto.
-
-   **Entregáveis**:
-   - Integração de Norigin Spatial Navigation no sistema de navegação
-     existente.
-   - TanStack Virtual nas grades de canais, filmes e séries para
-     renderizar apenas o visível.
-   - Matemática de grade pura e testável (`gridNextIndex` já é), com
-     identidade estável por cartão.
-   - Sequência explícita: "próximo índice → deslocar a grade → aguardar
-     montagem → focar" — não confiar no algoritmo geométrico achar um nó
-     que ainda não existe no DOM.
-   - Conservar a coluna preferida ao mover entre linhas incompletas.
-   - Separar tecla mantida pressionada de múltiplos SELECT (evita
-     reprodução duplicada).
-
-   **Critérios de aceite**:
-   - Rolar uma grade de 2.000+ itens na TV física sem travamento
-     perceptível.
-   - Focar item no final da lista sem que todos os cartões anteriores
-     estejam no DOM.
-
-   (ADR-006 §3/§4.1; `docs/iptvnator/01-ui-ux.md` #1/#2;
-   `docs/guia-praticas-app-tv/03` §2)
-
-7. **Tela de Canais — melhorias pendentes da feature 003**
-
-   A feature 003 entregou a tela com três estados (vazio, selecionado,
-   reproduzindo), troca do preview de ruído por informação real e Enter →
-   AVPlay. **Fica para este item**:
-   - Hand-off direcional com foco real no contêiner rolável (para o
-     scroll nativo funcionar).
-   - Reset e rolagem ao topo ao trocar de grupo.
-   - Lista virtualizada (depende do item 6).
-   - Botão "voltar ao canal que está tocando".
-
-   (RF-008; ADR-005 §3; ADR-007 §4/§5;
-   `docs/iptvnator/07-tela-canais.md` #1–5/#8)
-
-8. **Tela de Filmes real**
-
-   Grid virtualizado de pôsteres com:
-   - Fallback de arte em cascata: `poster_url` → `cover` → `stream_icon`
-     → placeholder, com detecção de URL de "blank icon".
-   - Skeleton de mesma geometria do card.
-   - Empty states **distintos** para "categoria vazia" e "sem resultado de
-     busca".
-   - Detalhe com hero real (backdrop, sinopse com "ver mais" acionável por
-     Enter).
-   - Ação primária contextual: Assistir / Retomar (com posição) /
-     Reiniciar.
-
-   **Pré-requisitos**: itens 1 (VOD no conector) e 5 (tela lendo
-   catálogo real).
-
-   **Nota client-first**: os dados vêm do IndexedDB local, não de API
-   REST. A leitura paginada por grupo já existe em `catalogRepository`
-   (índice `[sourceId+generation+groupOrder]`).
-
-   (RF-010; ADR-005 §3; ADR-007 §5/§6;
-   `docs/iptvnator/08-tela-filmes.md` #1–7)
-
-9. **Tela de Séries real**
-
-   - Um cartão por série identificada, nunca episódio duplicado como
-     série.
-   - Detalhe com seletor de temporada e lista de episódios.
-   - Quando a hierarquia não for identificável com segurança, manter o
-     conteúdo acessível e indicar a limitação, sem inventar estrutura.
-
-   **Pré-requisitos**: itens 1 (séries no conector) e 5 (tela lendo
-   catálogo real).
-
-   (RF-009; ADR-005 §2/§3)
-
-10. **Ciclo de vida do player na TV**
-
-    - Desligar screensaver durante reprodução, reativá-lo ao
-      pausar/parar.
-    - Tratar `visibilitychange` executando fluxo de interrupção completo
-      (sem áudio residual em segundo plano) e revalidando rede/dados
-      expirados ao retomar.
-    - Impedir sessões sobrepostas na troca rápida de canal, descartando
-      callbacks atrasados da mídia anterior.
-    - Salvar progresso em pontos intermediários, não só no encerramento.
-    - Preservar preferência de áudio/legenda quando a próxima mídia
-      oferecer equivalente, sem afirmar que a faixa existe sempre.
-
-    **Pedido do usuário** (18/09/2026, observado na TV durante a
-    convergência da 003): **zapping por cima do vídeo** — com o canal em
-    tela cheia, pressionar OK traz de volta a lista de canais **sobre** a
-    reprodução; escolher outro canal troca o stream; a lista some de novo.
-    Decisões necessárias:
-    - O que a lista mostra por cima do vídeo e quanto da tela ocupa.
-    - Se o player continua tocando enquanto se navega.
-    - O que acontece se o canal novo falhar (volta para o anterior ou fica
-      no erro?).
-    - Em que momento a sessão antiga é encerrada.
-    Merece spec própria via `sdd-specify`, não ajuste ad-hoc.
-
-    **Nota client-first**: o progresso é gravado no `UserStateRepository`
-    (item 3), não num banco remoto. A revalidação de dados expirados ao
-    retomar consulta `freshness.ts` (já existente).
-
-    (`docs/guia-praticas-app-tv/06` §1/§2 e P05/P06;
-    `docs/guia-praticas-app-tv/12` API03/API04)
-
-11. **Favoritos nos três tipos**
-
-    Persistência local em `userStateRepository` (item 3) que sobrevive a
-    reimportação, por chave estável (fonte + tipo + id estável). Favoritar
-    não marca como assistido nem como "gostei".
-
-    **Nota client-first**: tudo local — sem backend, sem sincronização
-    remota. A chave estável usa `providerStreamId` quando existir,
-    conforme definido no data model da feature 005.
-
-    (RF-013; ADR-005 §4)
-
-12. **Pesquisa nos três tipos**
-
-    Busca local no catálogo já salvo no IndexedDB, indicando escopo ativo
-    e cobertura parcial quando o catálogo estiver truncado
-    (`truncatedByStorage`).
-
-    **Entregáveis**:
-    - Campo de busca com debounce (~300 ms, ajustável) usando
-      `catalogRepository` para consulta local.
-    - Cancelar respostas antigas quando o termo muda.
-    - Mover o foco para o primeiro resultado ao confirmar.
-    - RETURN volta ao termo sem apagar o contexto.
-    - Tratar acentos e caixa de forma consistente (normalização Unicode).
-    - Não enviar todo termo digitado a serviço externo por padrão.
-
-    **Nota client-first**: a busca é 100% local (IndexedDB). Pode usar
-    `Dexie.where()` com filtro ou criar índice de texto conforme o volume
-    justifique.
-
-    (RF-012; ADR-005 §3; `docs/guia-praticas-app-tv/05` §2)
-
-13. **Histórico e "continuar assistindo"**
-
-    Semântica distinta por mídia:
-    - **Filme**: progresso e conclusão. Conclusão automática a ~90%,
-      ajustável, com correção manual.
-    - **Série**: agrega avanço dos episódios, distingue "em dia".
-    - **Canal ao vivo**: registra acesso recente, nunca conclusão.
-    - Tentativa de play com erro **não** registra visualização.
-
-    Persistido em `userStateRepository` (item 3). Alimenta o hero de
-    "continuar assistindo" na Home (item 16).
-
-    (RF-014; ADR-005 §4; `docs/guia-praticas-app-tv/06` §2 e
-    `docs/guia-praticas-app-tv/01` §2)
+**Fase 1 do backlog ("MVP: do catálogo real até assistir") convergiu por
+completo em 26/09/2026** — os cinco itens que a compunham (tela de canais/
+zapping, arte e detalhe de filmes, ciclo de vida do player, pesquisa,
+histórico/continuar assistindo) viraram as features `016`, `011`/`015`/
+`017`, `020`, `017`/`018` e `019` respectivamente, todas convergidas. A
+narrativa dessa construção (o que existia em cada revisão, o que fechou
+quando) já está nas Execution Notes/`## Resultado Final` de cada spec e no
+histórico de `CLAUDE.md` — não repetida aqui. As duas únicas peças que
+sobraram, sem features próprias ainda, foram realocadas: o hero de detalhe
+de Filmes/Séries (backdrop, sinopse) para a nota do item 28 (depende do
+conector TMDB), e o skeleton de card para o item 15 (já cobre a mesma
+necessidade de forma genérica).
 
 ---
 
@@ -410,12 +74,21 @@ função nova; todos mudam a sensação de uso.
 
 15. **Biblioteca de componentes de TV**
 
-    - `PosterCard`: área reservada por `aspect-ratio`, badges de
-      progresso/assistido na base do pôster.
+    **Primeiro passo real, feature 015**: `PosterArt`
+    (`tv-web/src/components/PosterArt.tsx`) já reserva área por
+    `aspect-ratio`, mostra a capa real com fallback seguro (placeholder
+    sem capa, nunca o ícone nativo de imagem quebrada) e aceita overlay
+    (`children`, hoje só `.fav-star`). Falta o resto do `PosterCard`
+    completo:
+    - Badges de progresso/assistido na base do pôster — **já entregue**
+      pela feature `019-historico-continuar-assistindo` (`.watched-badge`
+      em Filmes/Séries), reaproveitar em vez de reconstruir aqui.
     - `ChannelRow`: logo com fallback + nome + slot de "agora" + barra de
       progresso.
     - `EmptyState` e `ErrorState`: ambos com CTA focável.
-    - `Skeleton`: mesma geometria do item real.
+    - `Skeleton`: mesma geometria do item real — absorve o antigo item 8
+      (Fase 1, removida em 26/09/2026), que pedia isso especificamente
+      para o card de Filmes/Séries.
     - Rail horizontal.
 
     Cada componente com estados documentados de foco, seleção,
@@ -440,8 +113,10 @@ função nova; todos mudam a sensação de uso.
     - Sem listas, o shell da Home permanece e só o conteúdo vira
       empty-state de boas-vindas.
 
-    **Pré-requisitos**: itens 11 (favoritos), 13 (histórico) para o
-    hero funcionar.
+    **Pré-requisitos**: feature 013 (favoritos) e feature 019 (histórico
+    agregado por série + "continuar assistindo") — **as duas já
+    entregues, convergidas** — os dados que o hero precisa já existem;
+    falta só o layout hero+rails em si.
 
     (`docs/iptvnator/09-dashboard-home.md` #1–6/#8;
     `docs/guia-praticas-app-tv/01` §2)
@@ -564,8 +239,9 @@ função nova; todos mudam a sensação de uso.
     anterior como indisponível, sem ser atribuído a outra obra por
     aproximação.
 
-    **Pré-requisitos**: itens 3 (UserStateRepository), 11 (favoritos) e
-    13 (histórico).
+    **Pré-requisitos**: feature 008 (`UserStateRepository`), feature 013
+    (favoritos) e feature 019 (histórico) — **as três já entregues,
+    convergidas**.
 
     (ADR-005 §2/§4;
     `docs/iptvnator/06-carga-listas-url-xtream.md` #8/#12)
@@ -599,7 +275,7 @@ função nova; todos mudam a sensação de uso.
     recomendações. Dá para gostar sem favoritar e favoritar sem gostar.
     Persistido em `userStateRepository`.
 
-    **Pré-requisitos**: item 3 (UserStateRepository).
+    **Pré-requisitos**: feature 008 (`UserStateRepository`) — já entregue.
 
     (RF-015; ADR-005 §4)
 
@@ -608,6 +284,11 @@ função nova; todos mudam a sensação de uso.
 ### Fase 4 — Enriquecimento, notas e trailers
 
 28. **Conector TMDB client-first (BYOK)**
+
+    **Desbloqueia o hero de detalhe de Filmes/Séries** (backdrop, sinopse
+    com "ver mais" acionável por Enter) — pendência realocada do antigo
+    item 8 (Fase 1, removida em 26/09/2026): sem TMDB a sinopse não existe
+    na fonte, e a tela hoje diz isso em vez de inventar.
 
     `tmdb_id` vindo do provedor é dica forte, não verdade: pesar contra
     título/ano; anos incompatíveis significam id contradito e a busca por
@@ -914,6 +595,24 @@ própria de demanda. Cada uma precisa passar por `sdd-assess`
 
     (`docs/iptvnator/03-apis.md` #7; `09-dashboard-home.md` #9)
 
+51. **Política de descarte quando o espaço do aparelho acaba**
+
+    Com a carga sob demanda por categoria (feature 010), o catálogo passa
+    a crescer enquanto a pessoa navega, em vez de nascer inteiro. Falta
+    decidir o que acontece quando o espaço acaba **durante a navegação**:
+    descartar a categoria menos usada (o catálogo virou reobtenível por
+    categoria, então descartar deixa de ser perda — é uma busca a mais
+    depois), parar de gravar e declarar, ou um teto configurável.
+
+    Precisa de `sdd-assess` porque depende de medição real de quanto uma
+    categoria ocupa no aparelho e de qual é a quota efetiva na TV de
+    referência — nenhum dos dois foi medido.
+
+    **Origem**: deliberadamente deixado fora do escopo da feature 010
+    (decisão registrada em `Clarifications`, sessão 2026-09-23). Até essa
+    decisão existir, vale o comportamento atual de FR-018: para de gravar
+    e declara.
+
 ---
 
 ### Itens removidos ou rebaixados pela ADR-008
@@ -946,7 +645,7 @@ mudaram de natureza** com a arquitetura client-first:
   4)~~: com client-first, o IndexedDB no aparelho **é** a fonte de
   verdade, não um cache. A feature 005 implementou isso. O que sobra
   (separação de repositório de catálogo e de estado do usuário) virou o
-  item 3 desta revisão.
+  item 3 da revisão de 22/09, entregue como feature 008 em 22/09/2026.
 
 ---
 
@@ -964,11 +663,69 @@ mudaram de natureza** com a arquitetura client-first:
    estado, e **a armadilha volta quando essa tela temporária for removida
    na fase Polish**. Caminho normal: `sdd-bugfix`.
 
-0. **~~[Bug] `ruff check .` falha no backend por `api/delete_sources.py`~~
-   — resolvido em 18/09/2026** (decisão do usuário na Fase 7 da
-   003-live-tv-avplay, task T052). **Fica em aberto**: decidir se esse
-   script utilitário deve continuar versionado e lintado junto do pacote,
-   ou mudar para `scripts/` fora dele.
+0. **[Bug] Botões "Tentar de novo"/"Voltar" de estados de carregando/erro
+   não são ativáveis por controle remoto** — **parcialmente corrigido**:
+   a feature `014-m3u-sob-demanda` (T039, 24/09/2026) consertou o
+   "Tentar de novo" nas três telas de categoria (`LiveScreen.tsx`,
+   `MoviesScreen.tsx`, `SeriesScreen.tsx`), no mesmo `onSelect` que ganhou
+   o caso `source_missing` — aprovado pelo usuário como desvio pequeno
+   dentro daquela feature, por ser exatamente o mesmo padrão que a task
+   em questão já estava mexendo. **O que fica**: conferir se o mesmo
+   padrão (`.tv-focus` sem roteamento real em `onSelect`) se repete em
+   outras telas fora dessas três (a suspeita original — "provavelmente em
+   outras telas" — nunca foi varrida no app inteiro, só nas três
+   corrigidas).
+
+   **Origem**: achado durante a feature 010, Fase 3 (T033), em
+   23/09/2026 — pré-existente ao `LiveScreen` original. Corrigido nas três
+   telas de categoria pela feature 014; permanece como item de backlog só
+   pela parte não varrida. Caminho normal: `sdd-bugfix`.
+
+0. **Decidir o destino de `api/delete_sources.py`** — o lint foi
+   corrigido em 18/09/2026 (T052 da 003); fica em aberto se o script
+   continua versionado junto do pacote congelado ou sai dele.
+
+0. **[Bug] Mensagem genérica de erro de reprodução sempre diz "canal"**
+   — `tv-web/src/lib/player/avplayAdapter.ts` (`toPlayerError`) e
+   `tv-web/src/lib/player/htmlVideoAdapter.ts` traduzem qualquer falha de
+   stream sem código reconhecido para o texto fixo "Não foi possível
+   reproduzir este canal.", inclusive quando o item é um filme ou um
+   episódio de série. `PlayerLayer` só usa a mensagem genérica configurável
+   por prop (`genericErrorMessage`) quando o adaptador não fornece
+   `message` nenhuma — como os dois adaptadores sempre fornecem esta
+   string fixa, a prop nunca tem chance de valer para esse caminho de
+   erro específico.
+
+   **Origem**: achado durante a verificação manual no navegador da feature
+   `012-series-episodios-temporadas` (24/09/2026), ao simular uma URL de
+   episódio inválida — pré-existente desde que os dois adaptadores foram
+   escritos (antes da feature 011 introduzir filme), fora do escopo desta
+   feature. Severidade baixa: cosmético, não vaza segredo, não bloqueia
+   nenhuma função — só descreve errado o tipo de mídia numa falha rara.
+   Corrigir exige decidir se a mensagem vem do `kind` da sessão (motor não
+   sabe, só o `PlayerService` sabe) ou se os adaptadores passam de vez a
+   mensagem em branco pra sempre cair no `genericErrorMessage` da tela
+   chamadora. Caminho normal: `sdd-bugfix`.
+
+0. **[Bug] `e2e.mjs` testa um diálogo de saída que não existe mais em
+   `AddSourceScreen`** — o script `tv-web/e2e.mjs` (cenário "US1: Sem lista
+   cadastrada") pressiona Escape na tela de Adicionar Fonte esperando um
+   `.confirm-dialog` com botão "Sair" (`page.click('button:has-text("Sair")')`,
+   linha 45), mas nem `AddSourceScreen.tsx` nem `App.tsx` têm hoje qualquer
+   tratamento de Escape para essa tela — não existe mais esse diálogo de
+   confirmação de saída ali. `npm run test:e2e` trava com timeout de 30s
+   nesse `page.click`, antes mesmo de chegar aos outros dois scripts
+   (`e2e/favoritos.mjs`, `e2e/m3u-sob-demanda.mjs`).
+
+   **Origem**: achado ao rodar o gate `npm run test:e2e` na feature
+   `014-m3u-sob-demanda` (24/09/2026) — `e2e.mjs` está intocado desde o
+   commit inicial do repositório (`git log -- e2e.mjs` só mostra "first
+   commit"), então é drift pré-existente entre o script e o comportamento
+   atual do app, não uma regressão desta feature (que não toca
+   `AddSourceScreen`). Corrigir exige decidir o comportamento correto —
+   reintroduzir confirmação de saída nessa tela, ou atualizar o script pra
+   refletir que Escape ali simplesmente não faz nada — decisão pequena mas
+   que precisa ser tomada, não um typo. Caminho normal: `sdd-bugfix`.
 
 47. **Skills de domínio + mapa de validação por área**
 
@@ -1060,6 +817,21 @@ mudaram de natureza** com a arquitetura client-first:
 | 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Convergida | 67/67 tasks | 2026-09-18 |
 | 004-conector-xtream-live | Conector Xtream JSON para canais ao vivo | Convergida | 55/55 tasks | 2026-09-18 |
 | 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Convergida | 59/59 tasks | 2026-09-22 |
+| 006-conector-xtream-vod-series | Conector Xtream JSON para VOD e Series | Convergida | 15/15 tasks | 2026-09-22 |
+| 007-higiene-credenciais | Higiene de Credenciais e Políticas de Rede | Convergida | 7/7 tasks | 2026-09-22 |
+| 008-user-state-repo | UserStateRepository | Convergida | 14/14 tasks | 2026-09-22 |
+| 009-virtualizacao-foco | Virtualização de Grades e Foco Direcional | Convergida | 28/28 tasks | 2026-09-23 |
+| 010-catalogo-sob-demanda | Importação por Estrutura com Carga sob Demanda por Categoria | Convergida | 59/59 tasks | 2026-09-23 |
+| 011-assistir-filme-retomada | Assistir Filme, com Retomada | Convergida | 63/72 tasks | 2026-09-24 |
+| 012-series-episodios-temporadas | Séries — Episódios e Temporadas | Convergida | 52/55 tasks | 2026-09-24 |
+| 013-favoritos | Favoritos em Canais, Filmes e Séries | Convergida | 47/47 tasks | 2026-09-24 |
+| 014-m3u-sob-demanda | Fonte M3U Estrutura-Primeiro (Detecção de Painel Xtream ou Arquivo Guardado) | Convergida | 58/62 tasks | 2026-09-24 |
+| 015-capa-real-filmes-series | Capa Real de Filmes e Séries | Convergida | 34/34 tasks | 2026-09-25 |
+| 016-zapping-live-tv | Zapping por Cima do Vídeo em Live TV | Convergida | 41/41 tasks | 2026-09-25 |
+| 017-busca-local-catalogo | Busca Local em Live TV, Filmes e Séries | Implementada | 40/42 tasks | 2026-09-25 |
+| 018-busca-por-categoria | Busca por categoria com ícone de entrada e categoria virtual "Todos" | Convergida | 36/36 tasks | 2026-09-26 |
+| 019-historico-continuar-assistindo | Histórico e Continuar Assistindo | Convergida | 30/31 tasks | 2026-09-26 |
+| 020-ciclo-vida-player | Ciclo de Vida do Player na TV | Convergida | 15/16 tasks | 2026-09-26 |
 
 ## Bugs
 
@@ -1068,6 +840,7 @@ mudaram de natureza** com a arquitetura client-first:
 | tecla-voltar-return-nao-funciona-na | Tecla Voltar (RETURN) não funciona na TV física | Test | verified | Concluído | 2026-09-17 |
 | live-tv-toca-audio-sem-imagem | Live TV toca áudio sem imagem na TV física | Test | verified | Concluído | 2026-09-17 |
 | enter-controle-remoto-nao-ativa-botoes | Enter do controle remoto não ativa botões em telas de foco DOM nativo | Test | verified | Concluído | 2026-09-18 |
+| prefetch-concorrente-categoria-sem-cancelamento-requisicao | Prefetch de categoria sem cancelamento de requisição HTTP em voo | Test | verified | Concluído | 2026-09-25 |
 
 ## Melhorias Ad-hoc
 

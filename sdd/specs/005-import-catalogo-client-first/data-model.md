@@ -62,6 +62,16 @@ geração, a anterior continua sendo lida até a nova estar completa; então
 o ponteiro da fonte troca e a antiga é descartada. É a publicação em duas
 fases da feature 004, portada (FR-007).
 
+**Atualização (feature 010, 2026-09-23):** "Só canais são gravados" no
+início desta seção já estava desatualizado antes desta feature (VOD e
+séries entraram na 006). O que a 010 muda de fato: `channels` ganhou um
+campo `categoryId?: number`, apontando para uma coleção nova,
+`categories` — a categoria virou entidade própria, obtida antes dos itens
+e existente mesmo sem eles. Ver
+`sdd/specs/010-catalogo-sob-demanda/data-model.md` §2/§3 para a forma
+completa; os campos e índices listados aqui continuam existindo sem
+alteração.
+
 ## 3. `importRuns` — a importação como algo observável
 
 Efêmera: existe para a tela de progresso mostrar contagem real e para
@@ -101,6 +111,20 @@ momento de reproduzir, combinando o identificador com a credencial e o
 formato permitido (FR-010). Isso mantém a identidade do item independente
 da URL, como a constitution exige, e evita espalhar a credencial por
 milhares de registros.
+
+**Atualização (modo limitado, `legacy_m3u`).** Uma fonte de provedor cujo
+painel não fala o protocolo JSON cai no caminho M3U, onde a entrada só traz
+a URL pronta — que embute a credencial. Guardá-la copiaria a senha para
+milhares de registros, contra a regra acima; não guardar nada deixava todo
+item inabrível. A saída é reconstruir: a URL de um painel Xtream é montada
+a partir de `(tipo, identificador, extensão)`, então esses três pedaços são
+extraídos de volta (`parseXtreamStreamUrl`) e gravados no lugar da URL. O
+item continua reproduzível, a credencial continua morando só em `sources`,
+e o segmento de tipo (`/live/`, `/movie/`, `/series/`) — o painel declarando
+o que o item é — tem precedência sobre a heurística de nome do
+classificador. Entrada cuja URL não tem essa forma continua sem
+identificador e é marcada como não reproduzível, em vez de virar exceção
+silenciosa à fronteira de segredo.
 
 **Exceção declarada: fonte por URL M3U.** Ali a URL de reprodução **é** o
 dado que a lista fornece — não existe identificador separado a partir do

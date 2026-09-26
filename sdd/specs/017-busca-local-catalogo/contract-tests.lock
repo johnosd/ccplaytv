@@ -1,0 +1,27 @@
+{
+    "feature":  "017-busca-local-catalogo",
+    "lockedAt":  "2026-09-25 13:33",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/catalog/catalogSearch.contract.test.ts",
+                      "sha256":  "b9460f7cd713133d6bcd74c4c8dafd5ff8b3aa2601edaaf2ce350ec872868240",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/lib/useRemoteNav.busca.contract.test.tsx",
+                      "sha256":  "3610b4a0982052602f596ae9924563c1e661cd85801a0e19c1378c7039707626",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/movies/MoviesScreen.busca.contract.test.tsx",
+                      "sha256":  "ffad4fab898afe95fc9f6a126800e8f26ab7bc8ce96528baf93f712d1b74aa4e",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/live/LiveScreen.busca.contract.test.tsx",
+                      "sha256":  "ee6deb6c3e5ff12f064c450eb3b542bea8ff915ee156c68970dd41eab2ef22c8",
+                      "tests":  1
+                  }
+              ]
+}

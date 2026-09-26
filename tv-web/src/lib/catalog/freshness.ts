@@ -34,3 +34,24 @@ export function decideOnOpen(source: SourceRecord, now: number): FreshnessAction
 
   return 'none'
 }
+
+/**
+ * Decide se os itens de uma categoria ainda valem, ou se é hora de buscar
+ * de novo (feature 010, `categoryLoader`).
+ *
+ * Reusa o mesmo prazo que a fonte inteira já usa (`STALE_AFTER_MS`, FR-020)
+ * em vez de inventar um segundo valor: duas noções de "velho" no mesmo
+ * aplicativo, sem nenhuma medição que justifique a diferença, seria
+ * complexidade sem necessidade comprovada (research.md R0-2). Categoria
+ * `eager` não passa por aqui — ela é sempre servida do disco, qualquer
+ * que seja a idade (contrato `catalog-on-demand.md` §2), porque não há o
+ * que "atualizar" nela isoladamente: a fonte inteira é que re-sincroniza.
+ *
+ * @param itemsFetchedAt Instante da última obtenção. `undefined` = nunca
+ *                        obtida — nunca é "fresca".
+ * @param now Instante atual injetado — mesma disciplina de `decideOnOpen`.
+ */
+export function isCategoryFresh(itemsFetchedAt: number | undefined, now: number): boolean {
+  if (itemsFetchedAt === undefined) return false
+  return now - itemsFetchedAt <= STALE_AFTER_MS
+}

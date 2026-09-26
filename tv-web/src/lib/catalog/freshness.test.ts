@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { decideOnOpen, STALE_AFTER_MS } from './freshness'
+import { decideOnOpen, isCategoryFresh, STALE_AFTER_MS } from './freshness'
 import type { SourceRecord } from './db'
 import { CatalogDb } from './db'
 import { startImport } from './importPipeline'
@@ -74,6 +74,22 @@ describe('freshness / decideOnOpen', () => {
       updatedAt: now,
     }
     expect(decideOnOpen(source, now)).toBe('migrate')
+  })
+})
+
+describe('isCategoryFresh (feature 010)', () => {
+  it('nunca obtida nunca é fresca', () => {
+    expect(isCategoryFresh(undefined, 1000000000)).toBe(false)
+  })
+
+  it('dentro do prazo é fresca', () => {
+    const now = 1000000000
+    expect(isCategoryFresh(now - (STALE_AFTER_MS - 1), now)).toBe(true)
+  })
+
+  it('fora do prazo não é fresca', () => {
+    const now = 1000000000
+    expect(isCategoryFresh(now - (STALE_AFTER_MS + 1), now)).toBe(false)
   })
 })
 

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CatalogDb } from './db'
 import { storeBatch } from './catalogRepository'
+import { buildStableId, toggleFavorite } from './userStateRepository'
 import {
   createSource,
   deleteSource,
@@ -115,6 +116,61 @@ describe('sourceRepository', () => {
     expect((await getSource(id, database))?.providerMigratedAt).toBe(1000)
   })
 
+  it('markSynced grava o motivo do Modo limitado junto do modo (feature 014, FR-020)', async () => {
+    const id = await createSource(CREDENTIAL, database)
+
+    await markSynced(id, { at: 1000, mode: 'legacy_m3u', limitedReason: 'protocol_unavailable' }, database)
+
+    const view = await getSource(id, database)
+    expect(view?.providerImportMode).toBe('legacy_m3u')
+    expect(view?.limitedReason).toBe('protocol_unavailable')
+  })
+
+  it('markSynced limpa o Modo limitado quando a ressincronização volta ao protocolo completo (feature 014, FR-023)', async () => {
+    const id = await createSource(CREDENTIAL, database)
+    await markSynced(id, { at: 1000, mode: 'legacy_m3u', limitedReason: 'protocol_unavailable' }, database)
+
+    await markSynced(id, { at: 2000, mode: 'xtream_api' }, database)
+
+    const view = await getSource(id, database)
+    expect(view?.providerImportMode).toBe('xtream_api')
+    expect(view?.limitedReason).toBeUndefined()
+  })
+
+  it('sem mode, markSynced grava a fonte como sem modo (M3U avulsa) e não mexe em providerMigratedAt (D-010)', async () => {
+    const id = await createSource(CREDENTIAL, database)
+    await markSynced(id, { at: 1000, mode: 'xtream_api' }, database)
+
+    // Uma marca sem `mode` diz "esta importação não fala de modo" — o
+    // registro passa a refletir isso (como toda fonte M3U avulsa, que
+    // nunca teve modo). `providerMigratedAt` não é sobre "modo atual", é
+    // sobre "quando confirmamos o protocolo pela última vez" — por isso só
+    // muda quando `mode` vem definido de novo, mesmo com o campo de modo
+    // já limpo.
+    await markSynced(id, { at: 2000, truncatedByStorage: true }, database)
+
+    const view = await getSource(id, database)
+    expect(view?.providerImportMode).toBeUndefined()
+    expect(view?.providerMigratedAt).toBe(1000)
+    expect(view?.lastTruncatedByStorage).toBe(true)
+  })
+
+  it('as duas chamadas reais de markSynced em importPipeline (sucesso e publicação parcial) preservam o modo do provedor (T007)', async () => {
+    // Cobertura de integração fica em importPipeline.test.ts; este teste
+    // só documenta o contrato que sourceRepository garante: quem passa
+    // `mode` explicitamente (como as duas chamadas do pipeline passam,
+    // desde T007) nunca perde o valor por causa desta função.
+    const id = await createSource(CREDENTIAL, database)
+    await markSynced(id, { at: 1000, mode: 'legacy_m3u', limitedReason: 'panel_unreachable' }, database)
+
+    await markSynced(id, { at: 2000, mode: 'legacy_m3u', limitedReason: 'panel_unreachable', truncatedByStorage: true }, database)
+
+    const view = await getSource(id, database)
+    expect(view?.providerImportMode).toBe('legacy_m3u')
+    expect(view?.limitedReason).toBe('panel_unreachable')
+    expect(view?.providerMigratedAt).toBe(2000)
+  })
+
   it('remover a fonte leva junto catálogo e execuções', async () => {
     const id = await createSource(CREDENTIAL, database)
     await storeBatch(
@@ -125,7 +181,7 @@ describe('sourceRepository', () => {
           name: 'Canal',
           originalName: 'Canal',
           group: 'Esportes',
-          groupOrder: 0,
+          groupOrder: 0, kind: 'channel',
         },
       ],
       database,
@@ -151,6 +207,21 @@ describe('sourceRepository', () => {
     expect(await database.importRuns.count()).toBe(0)
   })
 
+  it('remover a fonte apaga favoritos e retomada dela, preservando os de outra fonte (feature 013, FR-017/D-007)', async () => {
+    const id = await createSource(CREDENTIAL, database)
+    const otherId = await createSource({ ...CREDENTIAL, displayName: 'Outra lista' }, database)
+
+    const stableId = buildStableId({ sourceId: id, kind: 'movie', providerStreamId: '1' })
+    const otherStableId = buildStableId({ sourceId: otherId, kind: 'movie', providerStreamId: '1' })
+    await toggleFavorite(stableId, id, true, database)
+    await toggleFavorite(otherStableId, otherId, true, database)
+
+    await deleteSource(id, database)
+
+    expect(await database.userStates.get(stableId)).toBeUndefined()
+    expect((await database.userStates.get(otherStableId))?.isFavorite).toBe(true)
+  })
+
   it('falha de conexão não avança a marca de sincronização (FR-016)', async () => {
     const id = await createSource(CREDENTIAL, database)
     await markSynced(id, { at: 1000, mode: 'xtream_api' }, database)
@@ -173,5 +244,68 @@ describe('sourceRepository', () => {
     await expect(
       createSource({ type: 'm3u_url', displayName: 'Sem URL' }, database),
     ).rejects.toBeInstanceOf(InvalidSourceError)
+  })
+
+  describe('readCredential deriva de URL de painel (feature 014, D-001/D-003)', () => {
+    it('fonte por URL M3U de painel devolve dns/usuário/senha derivados, sem guardá-los em campo próprio', async () => {
+      const id = await createSource(
+        {
+          type: 'm3u_url',
+          displayName: 'Lista de Painel',
+          m3uUrl: 'http://exemplo.test/get.php?username=joao&password=1234',
+        },
+        database,
+      )
+
+      const credential = await readCredential(id, database)
+
+      expect(credential).toMatchObject({ dns: 'http://exemplo.test', username: 'joao', password: '1234' })
+      // Nada foi copiado para os campos de credencial de provedor — a URL
+      // continua sendo a única fonte de verdade (D-003).
+      const record = await database.sources.get(id)
+      expect(record?.providerUsername).toBeUndefined()
+      expect(record?.providerPassword).toBeUndefined()
+    })
+
+    it('fonte por URL M3U de painel usa allowedFormats gravado por markSynced', async () => {
+      const id = await createSource(
+        {
+          type: 'm3u_url',
+          displayName: 'Lista de Painel',
+          m3uUrl: 'http://exemplo.test/get.php?username=joao&password=1234',
+        },
+        database,
+      )
+      await markSynced(id, { at: 1000, mode: 'xtream_api', allowedFormats: ['ts', 'm3u8'] }, database)
+
+      const credential = await readCredential(id, database)
+
+      expect(credential?.allowedFormats).toEqual(['ts', 'm3u8'])
+    })
+
+    it('fonte por URL M3U avulsa (não painel) continua sem credencial', async () => {
+      const id = await createSource(
+        { type: 'm3u_url', displayName: 'Lista Avulsa', m3uUrl: 'http://exemplo.test/lista.m3u' },
+        database,
+      )
+
+      expect(await readCredential(id, database)).toBeUndefined()
+    })
+
+    it('editar a URL da fonte muda a credencial derivada sozinha, sem redigitar nada', async () => {
+      const id = await createSource(
+        {
+          type: 'm3u_url',
+          displayName: 'Lista de Painel',
+          m3uUrl: 'http://exemplo.test/get.php?username=joao&password=1234',
+        },
+        database,
+      )
+
+      await updateSource(id, { m3uUrl: 'http://outro.test/get.php?username=maria&password=5678' }, database)
+
+      const credential = await readCredential(id, database)
+      expect(credential).toMatchObject({ dns: 'http://outro.test', username: 'maria', password: '5678' })
+    })
   })
 })

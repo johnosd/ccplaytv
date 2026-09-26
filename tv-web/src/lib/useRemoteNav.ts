@@ -1,10 +1,31 @@
 import { useEffect, useRef } from 'react'
+import { FAVORITE_COLOR_KEY } from './tizenColorKey'
 
 export type RemoteDirection = 'up' | 'down' | 'left' | 'right'
 
 export interface RemoteNavHandlers {
   onDirection?: (direction: RemoteDirection) => void
   onSelect?: () => void
+  /**
+   * Opcional (feature 013, `logic/gesto-ok-longo.md`). Quando definido NO
+   * MOMENTO do primeiro `keydown` do OK, o pressionamento vira um gesto: OK
+   * curto chama `onSelect` ao SOLTAR a tecla; segurar além do limiar chama
+   * `onLongSelect` uma única vez, e soltar depois não faz mais nada. O modo
+   * é decidido nesse instante e não muda durante o pressionamento — quando
+   * indefinido, o OK continua agindo no `keydown`, como sempre agiu.
+   */
+  onLongSelect?: () => void
+  /**
+   * Opcional (feature 013, achado em 24/09/2026 testando na TV física com
+   * um controle substituto: segurar OK não se comportou lá como no
+   * navegador). Atalho de UM toque na tecla amarela do controle
+   * (`FAVORITE_COLOR_KEY`, registrada por `tizenColorKey.ts`) — sempre a
+   * MESMA ação de `onLongSelect`, nunca um gesto próprio: chama no
+   * `keydown`, sem esperar soltar. Complementa `onLongSelect`, nunca o
+   * substitui — os guias de boas práticas do projeto são explícitos que
+   * tecla colorida nunca pode ser o único caminho.
+   */
+  onFavoriteKey?: () => void
   onBack?: () => void
 }
 
@@ -17,7 +38,54 @@ export interface RemoteNavOptions {
    * registro dos listeners. Tela normal nunca precisa disso.
    */
   modal?: boolean
+  /** Limiar do gesto de `onLongSelect`, em ms. Padrão: `LONG_SELECT_MS`. */
+  longSelectMs?: number
 }
+
+/** Limiar padrão de "segurar OK" para virar `onLongSelect` (feature 013). */
+export const LONG_SELECT_MS = 800
+
+/**
+ * Um `keydown` de OK mais afastado do anterior que isto é tratado como um
+ * pressionamento NOVO, não como auto-repetição do mesmo gesto — cobre o
+ * caso de um `keyup` perdido pela plataforma (o gesto anterior é
+ * descartado sem chamar handler nenhum, ver `logic/gesto-ok-longo.md`).
+ */
+const STALE_PRESS_MS = 1000
+
+interface PendingPress {
+  lastEventAt: number
+  longFired: boolean
+  timer: ReturnType<typeof setTimeout>
+}
+
+/**
+ * Intervalo mínimo entre dois disparos de `onFavoriteKey` (feature 013).
+ * `KeyboardEvent.repeat` já deveria bastar pra distinguir auto-repetição
+ * de um toque novo, mas este hook já trata outras informações "do
+ * fabricante" como não confiáveis (`STALE_PRESS_MS`, `TIZEN_RETURN_KEYCODE`)
+ * — um controle segurado que dispare vários `keydown` sem `repeat: true`
+ * não deveria alternar o favorito várias vezes.
+ */
+const FAVORITE_KEY_DEBOUNCE_MS = 400
+
+/**
+ * Alvo com edição de texto real (feature 017: campo de busca) — a única
+ * exceção ao padrão "todo teclado é do controle remoto" deste hook.
+ */
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+}
+
+/**
+ * Com um campo editável focado, estas teclas são do campo, não da tela:
+ * Backspace apaga (nunca "voltar"), espaço e as setas laterais movem o
+ * cursor do texto, Enter é do teclado do sistema da TV (abre/some — mesmo
+ * mecanismo de `AddSourceScreen`). RETURN (`isBack`) e ↑/↓ continuam com a
+ * tela mesmo editando (feature 017, `logic/busca-local.md` §3).
+ */
+const EDITABLE_PASSTHROUGH_KEYS = new Set(['Backspace', ' ', 'Enter', 'ArrowLeft', 'ArrowRight'])
 
 const DIRECTION_BY_KEY: Record<string, RemoteDirection> = {
   ArrowUp: 'up',
@@ -43,17 +111,69 @@ export const TIZEN_RETURN_KEYCODE = 10009
  * decide o que "próximo"/"anterior" significa via `onDirection`.
  */
 export function useRemoteNav(
-  { onDirection, onSelect, onBack }: RemoteNavHandlers,
-  { modal = false }: RemoteNavOptions = {},
+  { onDirection, onSelect, onLongSelect, onFavoriteKey, onBack }: RemoteNavHandlers,
+  { modal = false, longSelectMs = LONG_SELECT_MS }: RemoteNavOptions = {},
 ) {
-  const handlersRef = useRef({ onDirection, onSelect, onBack })
+  const handlersRef = useRef({ onDirection, onSelect, onLongSelect, onFavoriteKey, onBack })
+  // Gesto de OK em andamento (feature 013) — `null` fora de um
+  // pressionamento. Vive em `useRef`, não em estado: nada aqui precisa
+  // re-renderizar a tela, só decidir o que o próximo evento de teclado faz.
+  const pressRef = useRef<PendingPress | null>(null)
+  const lastFavoriteKeyAtRef = useRef(0)
 
   useEffect(() => {
-    handlersRef.current = { onDirection, onSelect, onBack }
+    handlersRef.current = { onDirection, onSelect, onLongSelect, onFavoriteKey, onBack }
   })
 
   useEffect(() => {
+    function cancelPress() {
+      const press = pressRef.current
+      if (!press) return
+      clearTimeout(press.timer)
+      pressRef.current = null
+    }
+
+    /**
+     * OK no keydown — pode ser o início de um gesto (`onLongSelect`
+     * definido) ou, no modo legado, a própria ação. Ver
+     * `sdd/specs/013-favoritos/logic/gesto-ok-longo.md`.
+     */
+    function handleSelectKeyDown(event: KeyboardEvent) {
+      event.preventDefault()
+      if (modal) event.stopImmediatePropagation()
+
+      const now = Date.now()
+      const press = pressRef.current
+      if (press) {
+        if (now - press.lastEventAt < STALE_PRESS_MS) {
+          // Auto-repetição do controle ao segurar: o MESMO gesto continua,
+          // não conta como um pressionamento novo nem reinicia o timer.
+          press.lastEventAt = now
+          return
+        }
+        // `keyup` do pressionamento anterior nunca chegou — descarta sem
+        // acionar handler nenhum e começa um gesto novo abaixo.
+        cancelPress()
+      }
+
+      if (!handlersRef.current.onLongSelect) {
+        // Modo legado: sem gesto, o OK age aqui mesmo, como sempre agiu.
+        handlersRef.current.onSelect?.()
+        return
+      }
+
+      const timer = setTimeout(() => {
+        const current = pressRef.current
+        if (!current) return
+        current.longFired = true
+        handlersRef.current.onLongSelect?.()
+      }, longSelectMs)
+      pressRef.current = { lastEventAt: now, longFired: false, timer }
+    }
+
     function handleKeyDown(event: KeyboardEvent) {
+      if (isEditableTarget(event.target) && EDITABLE_PASSTHROUGH_KEYS.has(event.key)) return
+
       const direction = DIRECTION_BY_KEY[event.key]
       const isSelect = event.key === 'Enter' || event.key === ' '
       // `XF86Back` é redundância defensiva: `keyCode` é deprecado no padrão
@@ -63,8 +183,12 @@ export function useRemoteNav(
         event.key === 'Escape' ||
         event.key === 'XF86Back' ||
         event.keyCode === TIZEN_RETURN_KEYCODE
+      // Tecla amarela (feature 013) — só existe evento se a tela passou
+      // `onFavoriteKey`; nas demais, chega aqui e cai no `return` de baixo
+      // como tecla não mapeada, sem interceptar nada.
+      const isFavoriteKey = event.key === FAVORITE_COLOR_KEY && Boolean(handlersRef.current.onFavoriteKey)
 
-      if (!direction && !isSelect && !isBack) return
+      if (!direction && !isSelect && !isBack && !isFavoriteKey) return
       // Telas de "roving DOM focus" (useTvKeyNav + <button>/<input> reais,
       // ex. AddSourceScreen, ImportProgressScreen) não passam onSelect —
       // contam com o Enter nativo do navegador pra ativar o elemento
@@ -73,6 +197,12 @@ export function useRemoteNav(
       // dessas telas inerte no controle físico (mouse não passa por
       // keydown, por isso nunca apareceu em teste manual por mouse).
       if (isSelect && !handlersRef.current.onSelect) return
+
+      if (isSelect) {
+        handleSelectKeyDown(event)
+        return
+      }
+
       event.preventDefault()
       // Fase de captura + stopImmediatePropagation: garante que nenhum
       // listener de bubble-phase por baixo (useTvKeyNav/useRemoteNav da
@@ -80,13 +210,58 @@ export function useRemoteNav(
       if (modal) event.stopImmediatePropagation()
 
       if (direction) handlersRef.current.onDirection?.(direction)
-      else if (isSelect) handlersRef.current.onSelect?.()
       else if (isBack) handlersRef.current.onBack?.()
+      else if (isFavoriteKey) {
+        // Toque único, sem gesto: chama direto no keydown, mas com um
+        // debounce próprio (`FAVORITE_KEY_DEBOUNCE_MS`) — sem isto, segurar
+        // a tecla amarela (auto-repetição do controle) alternaria o
+        // favorito várias vezes por engano.
+        const now = Date.now()
+        if (now - lastFavoriteKeyAtRef.current >= FAVORITE_KEY_DEBOUNCE_MS) {
+          lastFavoriteKeyAtRef.current = now
+          handlersRef.current.onFavoriteKey?.()
+        }
+      }
+    }
+
+    /**
+     * Soltar o OK — só importa quando existe um gesto em andamento (modo
+     * legado nunca cria `pressRef`, então esta função não faz nada nele).
+     * `keyup` sem `keydown` prévio (evento de outra tela, ou um gesto já
+     * descartado por `STALE_PRESS_MS`) também não faz nada.
+     */
+    function handleKeyUp(event: KeyboardEvent) {
+      if (isEditableTarget(event.target) && EDITABLE_PASSTHROUGH_KEYS.has(event.key)) return
+      const isSelect = event.key === 'Enter' || event.key === ' '
+      if (!isSelect) return
+      const press = pressRef.current
+      if (!press) return
+
+      event.preventDefault()
+      if (modal) event.stopImmediatePropagation()
+
+      clearTimeout(press.timer)
+      pressRef.current = null
+      if (!press.longFired) handlersRef.current.onSelect?.()
     }
 
     document.addEventListener('keydown', handleKeyDown, modal)
-    return () => document.removeEventListener('keydown', handleKeyDown, modal)
-  }, [modal])
+    document.addEventListener('keyup', handleKeyUp, modal)
+    // Um gesto interrompido (troca de app, tela apagada, devtools) nunca
+    // deve agir quando o foco/visibilidade volta — sem isto, um `keyup`
+    // que a plataforma entregasse atrasado poderia disparar `onSelect`
+    // fora de contexto.
+    window.addEventListener('blur', cancelPress)
+    document.addEventListener('visibilitychange', cancelPress)
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, modal)
+      document.removeEventListener('keyup', handleKeyUp, modal)
+      window.removeEventListener('blur', cancelPress)
+      document.removeEventListener('visibilitychange', cancelPress)
+      cancelPress()
+    }
+  }, [modal, longSelectMs])
 }
 
 export function clamp(value: number, min: number, max: number): number {

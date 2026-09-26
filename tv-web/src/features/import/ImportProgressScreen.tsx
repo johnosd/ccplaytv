@@ -17,6 +17,19 @@ const STEP_LABELS: Record<string, string> = {
   done: 'Concluído',
 }
 
+/**
+ * Fonte de provedor pelo protocolo JSON grava só estrutura e conclui em
+ * segundos (feature 010) — as etapas falam de categoria, não de item, e a
+ * tela precisa dizer a verdade sobre o que está acontecendo (FR-013).
+ */
+const CATEGORY_STEP_LABELS: Record<string, string> = {
+  acquiring: 'Obtendo a estrutura',
+  parsing: 'Lendo categorias',
+  classifying: 'Organizando categorias',
+  publishing: 'Publicando estrutura',
+  done: 'Concluído',
+}
+
 const STATUS_LABELS: Record<string, string> = {
   queued: 'Na fila',
   running: 'Em andamento',
@@ -35,6 +48,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_playlist: 'O painel não respondeu com um formato de catálogo válido.',
   empty_playlist: 'O painel respondeu com um catálogo vazio.',
   hls_manifest: 'O endereço fornecido aponta para um canal, não para um catálogo.',
+  interrupted: 'A importação foi interrompida antes de terminar. O aplicativo foi fechado no meio.',
+  storage_full: 'Não há espaço no aparelho para guardar esta lista.',
 }
 
 export function ImportProgressScreen({ jobId, onRetried, onBack }: ImportProgressScreenProps) {
@@ -42,20 +57,53 @@ export function ImportProgressScreen({ jobId, onRetried, onBack }: ImportProgres
   useTvKeyNav(containerRef)
   useRemoteNav({ onBack })
 
-  const { data: job, isLoading } = useImportJob(jobId)
+  const { data: job, isLoading, isError } = useImportJob(jobId)
   const cancelJob = useCancelImportJob()
   const retryJob = useRetryImportJob()
 
-  if (isLoading || !job) {
+  // Carregando e "não existe mais" são estados distintos, e nenhum dos dois
+  // pode ficar sem saída: a tela precisa de pelo menos um elemento focável
+  // sempre, ou o controle fica preso nela (constitution, "Foco Visível e Sem
+  // Becos Sem Saída").
+  if (isError || (!isLoading && !job)) {
     return (
-      <section className="screen">
-        <p>Carregando estado da importação…</p>
+      <section className="screen" aria-labelledby="progress-title" ref={containerRef}>
+        <h1 id="progress-title" className="screen-title">
+          Progresso da importação
+        </h1>
+        <p className="screen-subtitle">
+          Esta importação não está mais registrada no aparelho. Abra a lista na tela inicial para
+          sincronizar de novo.
+        </p>
+        <div className="movie-detail-actions" style={{ marginTop: 32 }}>
+          <button className="detail-button" type="button" onClick={onBack}>
+            Voltar
+          </button>
+        </div>
+      </section>
+    )
+  }
+
+  if (!job) {
+    return (
+      <section className="screen" aria-labelledby="progress-title" ref={containerRef}>
+        <h1 id="progress-title" className="screen-title">
+          Progresso da importação
+        </h1>
+        <p className="screen-subtitle">Carregando estado da importação…</p>
+        <div className="movie-detail-actions" style={{ marginTop: 32 }}>
+          <button className="detail-button" type="button" onClick={onBack}>
+            Voltar
+          </button>
+        </div>
       </section>
     )
   }
 
   const isRunning = job.status === 'queued' || job.status === 'running'
   const cancelRequested = cancelJob.isSuccess || cancelJob.isPending
+  const isCategories = job.counts.unit === 'categories'
+  const stepLabels = isCategories ? CATEGORY_STEP_LABELS : STEP_LABELS
 
   return (
     <section className="screen" aria-labelledby="progress-title" ref={containerRef}>
@@ -65,18 +113,32 @@ export function ImportProgressScreen({ jobId, onRetried, onBack }: ImportProgres
 
       <p className="screen-subtitle" style={{ marginBottom: 24 }}>
         Status: {STATUS_LABELS[job.status] ?? job.status} — Etapa:{' '}
-        {STEP_LABELS[job.current_step] ?? job.current_step}
+        {stepLabels[job.current_step] ?? job.current_step}
       </p>
 
       <ul aria-label="Contadores" className="episode-list" style={{ maxWidth: 480 }}>
-        <li className="live-item">Entradas lidas: {job.counts.entries_read}</li>
-        <li className="live-item">Canais gravados: {job.counts.channels}</li>
-        <li className="live-item">Descartados (não são canais): {job.counts.discarded_by_type}</li>
-        <li className="live-item">Inválidos: {job.counts.invalid}</li>
+        <li className="live-item">
+          {isCategories ? 'Categorias lidas' : 'Entradas lidas'}: {job.counts.entries_read}
+        </li>
+        <li className="live-item">
+          {isCategories ? 'Categorias gravadas' : 'Itens gravados'}: {job.counts.channels}
+        </li>
+        {/* Descarte por tipo e invalidez não têm sentido para uma estrutura
+            de categorias — nenhuma categoria é "descartada por tipo" ou
+            "inválida" neste caminho, então as linhas ficariam sempre em
+            zero, sem informar nada. */}
+        {!isCategories && (
+          <>
+            <li className="live-item">
+              Descartados (tipo não reconhecido): {job.counts.discarded_by_type}
+            </li>
+            <li className="live-item">Inválidos: {job.counts.invalid}</li>
+          </>
+        )}
       </ul>
 
       {job.status === 'failed' && job.error_kind && (
-        <div style={{ marginTop: 24, color: '#fca5a5' }} aria-label="Erro">
+        <div className="form-error" style={{ marginTop: 24 }} aria-label="Erro">
           {ERROR_MESSAGES[job.error_kind] ?? 'Falha desconhecida'}
         </div>
       )}

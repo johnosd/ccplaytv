@@ -16,12 +16,15 @@ import {
   db,
   type CatalogDb,
   type ConnectionState,
+  type LimitedReason,
   type ProviderImportMode,
   type SourceRecord,
   type SourceType,
 } from './db'
+import { parsePanelUrl } from './m3uPanelUrl'
 import { deleteAllForSource } from './catalogRepository'
 import { normalizeServerAddress } from './xtreamConnector'
+import { deleteUserStatesForSource } from './userStateRepository'
 
 /** A fonte como as telas a veem — sem credencial, por construção. */
 export interface SourceView {
@@ -32,6 +35,8 @@ export interface SourceView {
   /** Endereço do painel. Sozinho não autentica, e é o que permite editar sem redigitar a senha. */
   providerDns?: string
   providerImportMode?: ProviderImportMode
+  /** Motivo do Modo limitado (feature 014, FR-020) — categoria fixa, nunca texto de erro cru. */
+  limitedReason?: LimitedReason
   providerMigratedAt?: number
   connectionState: ConnectionState
   lastSuccessfulSyncAt?: number
@@ -53,6 +58,7 @@ function toView(record: SourceRecord): SourceView {
     m3uUrl: record.m3uUrl,
     providerDns: record.providerDns,
     providerImportMode: record.providerImportMode,
+    limitedReason: record.limitedReason,
     providerMigratedAt: record.providerMigratedAt,
     connectionState: record.connectionState,
     lastSuccessfulSyncAt: record.lastSuccessfulSyncAt,
@@ -184,12 +190,18 @@ export async function updateSource(
 export async function deleteSource(id: string, database: CatalogDb = db): Promise<void> {
   await deleteAllForSource(id, database)
   await database.importRuns.where('[sourceId+status]').between([id, ''], [id, '￿']).delete()
+  // Favoritos e retomada da fonte removida (feature 013, D-007/FR-017) —
+  // uma fonte readicionada ganha `sourceId` novo (UUID), então nada aqui
+  // fica órfão-mas-recuperável; manter o registro só ocuparia espaço.
+  await deleteUserStatesForSource(id, database)
   await database.sources.delete(id)
 }
 
 export interface SyncMark {
   at: number
   mode?: ProviderImportMode
+  /** Motivo do Modo limitado (feature 014). Só faz sentido junto de `mode: 'legacy_m3u'`. */
+  limitedReason?: LimitedReason
   allowedFormats?: string[]
   truncatedByStorage?: boolean
   discardedByType?: number
@@ -200,6 +212,12 @@ export interface SyncMark {
  *
  * Só é chamada no sucesso. Falha **não** avança a marca (FR-016): uma
  * atualização que não deu certo não pode fazer o catálogo parecer recente.
+ *
+ * `providerImportMode` e `limitedReason` são gravados **sempre**, inclusive
+ * como ausentes (feature 014, D-010/FR-023) — uma ressincronização que
+ * volta a falar o protocolo completo precisa apagar o Modo limitado
+ * anterior, não só deixar de mencioná-lo. `providerMigratedAt` continua
+ * condicional: só muda quando `mode` vem definido.
  */
 export async function markSynced(
   id: string,
@@ -210,11 +228,10 @@ export async function markSynced(
     connectionState: 'synced',
     lastSuccessfulSyncAt: mark.at,
     updatedAt: mark.at,
+    providerImportMode: mark.mode,
+    limitedReason: mark.limitedReason,
   }
-  if (mark.mode !== undefined) {
-    patch.providerImportMode = mark.mode
-    patch.providerMigratedAt = mark.at
-  }
+  if (mark.mode !== undefined) patch.providerMigratedAt = mark.at
   if (mark.allowedFormats !== undefined) patch.providerAllowedFormats = mark.allowedFormats
   if (mark.truncatedByStorage !== undefined) patch.lastTruncatedByStorage = mark.truncatedByStorage
   if (mark.discardedByType !== undefined) patch.lastDiscardedByType = mark.discardedByType
@@ -252,13 +269,28 @@ export interface ProviderCredential {
  * **Porta restrita.** Só o conector (ao importar) e a montagem de URL (ao
  * reproduzir) chamam isto. O resultado nunca entra em estado de tela, em
  * log, em diagnóstico ou em qualquer objeto que atravesse a interface.
+ *
+ * Para `type: 'm3u_url'`, a credencial é **derivada** da própria URL
+ * guardada (feature 014, D-001/D-003) sempre que ela estiver no formato de
+ * painel — nunca copiada para `providerUsername`/`providerPassword`:
+ * editar a URL muda a credencial sozinha, sem risco de duas cópias
+ * divergirem. `allowedFormats` ainda vem de `providerAllowedFormats`, que
+ * `markSynced` grava do mesmo jeito para os dois tipos de fonte.
  */
 export async function readCredential(
   id: string,
   database: CatalogDb = db,
 ): Promise<ProviderCredential | undefined> {
   const record = await database.sources.get(id)
-  if (!record?.providerDns || !record.providerUsername || !record.providerPassword) return undefined
+  if (!record) return undefined
+
+  if (record.type === 'm3u_url') {
+    const panel = record.m3uUrl ? parsePanelUrl(record.m3uUrl) : undefined
+    if (!panel) return undefined
+    return { ...panel, allowedFormats: record.providerAllowedFormats }
+  }
+
+  if (!record.providerDns || !record.providerUsername || !record.providerPassword) return undefined
   return {
     dns: record.providerDns,
     username: record.providerUsername,

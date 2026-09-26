@@ -34,7 +34,7 @@ function renderHome() {
         onEditSource={() => {}}
         onResyncStarted={() => {}}
         onSourceCreated={() => {}}
-        onOpenBench={() => {}}
+        
       />
     </Wrapper>,
   )
@@ -207,7 +207,7 @@ describe('HomeScreen', () => {
     expect(screen.getByText('A lista não coube inteira')).toBeInTheDocument()
   })
 
-  it('fonte que só importou canais mostra o alerta correspondente na Home (T038)', () => {
+  it('fonte com entradas descartadas mostra o alerta correspondente na Home (T038)', () => {
     vi.mocked(importApi.useSources).mockReturnValue({
       data: {
         sources: [
@@ -229,6 +229,80 @@ describe('HomeScreen', () => {
 
     renderHome()
 
-    expect(screen.getByText('Só canais foram importados')).toBeInTheDocument()
+    expect(screen.getByText('Entradas não reconhecidas ficaram de fora')).toBeInTheDocument()
+  })
+
+  it('a ação Excluir é alcançável pelo controle (três ações na linha, não duas)', () => {
+    const deleteMutate = vi.fn()
+    vi.mocked(importApi.useDeleteSource).mockReturnValue({
+      mutate: deleteMutate,
+    } as unknown as ReturnType<typeof importApi.useDeleteSource>)
+    vi.mocked(importApi.useSources).mockReturnValue({
+      data: {
+        sources: [
+          {
+            id: 'src-1',
+            type: 'm3u_url',
+            display_name: 'Minha Lista',
+            connection_state: 'synced',
+            last_successful_sync_at: new Date().toISOString(),
+            provider_import_mode: null,
+            last_truncated_by_storage: false,
+            last_discarded_by_type: 0,
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof importApi.useSources>)
+
+    renderHome()
+
+    // Baixo abre as ações do card; depois Ressincronizar → Editar → Excluir.
+    fireEvent.keyDown(document, { key: 'ArrowDown' })
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    fireEvent.keyDown(document, { key: 'Enter' })
+
+    expect(deleteMutate).toHaveBeenCalledWith('src-1')
+  })
+
+  it('descer no segundo card entra pela primeira ação, não pela coluna herdada do card', () => {
+    const resyncMutate = vi.fn()
+    const deleteMutate = vi.fn()
+    vi.mocked(importApi.useResyncSource).mockReturnValue({
+      mutate: resyncMutate,
+    } as unknown as ReturnType<typeof importApi.useResyncSource>)
+    vi.mocked(importApi.useDeleteSource).mockReturnValue({
+      mutate: deleteMutate,
+    } as unknown as ReturnType<typeof importApi.useDeleteSource>)
+    vi.mocked(importApi.useSources).mockReturnValue({
+      data: {
+        sources: [1, 2, 3].map((n) => ({
+          id: `src-${n}`,
+          type: 'm3u_url',
+          display_name: `Lista ${n}`,
+          connection_state: 'synced',
+          last_successful_sync_at: new Date().toISOString(),
+          provider_import_mode: null,
+          last_truncated_by_storage: false,
+          last_discarded_by_type: 0,
+        })),
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof importApi.useSources>)
+
+    renderHome()
+
+    // Terceiro card: sem zerar a coluna, descer já chegava com Excluir em
+    // foco e o OK seguinte apagaria a lista.
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    fireEvent.keyDown(document, { key: 'ArrowDown' })
+    fireEvent.keyDown(document, { key: 'Enter' })
+
+    expect(deleteMutate).not.toHaveBeenCalled()
+    expect(resyncMutate).toHaveBeenCalledWith('src-3', expect.anything())
   })
 })

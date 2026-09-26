@@ -52,7 +52,7 @@ describe('ImportProgressScreen', () => {
     expect(screen.queryByText(/%/)).not.toBeInTheDocument()
   })
 
-  it('a tela declara explicitamente que só canais foram importados (FR-008)', async () => {
+  it('a tela declara o que ficou de fora por tipo não reconhecido (FR-008)', async () => {
     await db.importRuns.put(mockJobRecord({ discardedByType: 50 }))
 
     const Wrapper = createWrapper()
@@ -63,9 +63,43 @@ describe('ImportProgressScreen', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Só canais foram importados nesta fonte.')).toBeInTheDocument()
-      expect(screen.getByText(/Descartados \(não são canais\): 50/)).toBeInTheDocument()
+      expect(
+        screen.getByText('Entradas de tipo não reconhecido ficaram de fora.'),
+      ).toBeInTheDocument()
+      expect(screen.getByText(/Descartados \(tipo não reconhecido\): 50/)).toBeInTheDocument()
     })
+  })
+
+  it('seção que o painel não serviu aparece como aviso, não como ausência silenciosa', async () => {
+    await db.importRuns.put(mockJobRecord({ unavailableSections: ['movie'] }))
+
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('O provedor não respondeu à lista de filmes.')).toBeInTheDocument()
+    })
+  })
+
+  it('importação inexistente mostra um estado próprio com saída focável, sem consultar sem parar', async () => {
+    // Registro ausente resolvia para `null`, que nunca é status terminal: a
+    // consulta repetia a cada 1,5 s e a tela ficava num carregamento sem
+    // nenhum elemento focável — o controle só saía pela tecla Voltar.
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-sumido" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/não está mais registrada no aparelho/)).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument()
   })
 
   it('quando houver truncamento, a tela declara que a lista não coube inteira (FR-018)', async () => {
@@ -80,6 +114,76 @@ describe('ImportProgressScreen', () => {
 
     await waitFor(() => {
       expect(screen.getByText('A lista não coube inteira no aparelho.')).toBeInTheDocument()
+    })
+  })
+
+  it('fonte de provedor conta categorias, sem os rótulos de item que não fazem sentido ali (T022)', async () => {
+    await db.importRuns.put(
+      mockJobRecord({
+        unit: 'categories',
+        entriesRead: 340,
+        channelsStored: 340,
+        discardedByType: 0,
+        invalidCount: 0,
+      }),
+    )
+
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Categorias lidas: 340/)).toBeInTheDocument()
+      expect(screen.getByText(/Categorias gravadas: 340/)).toBeInTheDocument()
+      expect(screen.getByText(/Lendo categorias/)).toBeInTheDocument()
+    })
+    // Descarte por tipo e invalidez não existem para uma estrutura de
+    // categorias — não é honesto mostrar uma linha que é sempre zero.
+    expect(screen.queryByText(/Descartados/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Inválidos/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument()
+  })
+
+  it('caminho do conteúdo guardado (feature 014): etapas reais, sem percentual, rótulo de item corresponde ao que channelsStored conta', async () => {
+    // Sem `unit` (M3U, `scanToStored`) — mesmo contrato de rótulo que o
+    // caminho integral de antes tinha: "Entradas lidas"/"Itens gravados"
+    // continuam corretos, porque `channelsStored` ainda conta registros
+    // persistidos com sucesso — só o destino (`storedEntries`, não mais
+    // `channels`) mudou, e isso é interno, não aparece na tela.
+    await db.importRuns.put(
+      mockJobRecord({ step: 'storing', entriesRead: 500, channelsStored: 480, discardedByType: 20, invalidCount: 0 }),
+    )
+
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Entradas lidas: 500/)).toBeInTheDocument()
+      expect(screen.getByText(/Itens gravados: 480/)).toBeInTheDocument()
+      expect(screen.getByText(/Publicando catálogo/)).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument()
+  })
+
+  it('falta de espaço ao guardar o conteúdo mostra a mensagem própria (feature 014, D-009)', async () => {
+    await db.importRuns.put(mockJobRecord({ status: 'failed', errorKind: 'storage_full' }))
+
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+      </Wrapper>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Não há espaço no aparelho para guardar esta lista.')).toBeInTheDocument()
     })
   })
 
