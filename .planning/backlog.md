@@ -80,7 +80,9 @@ M0. ~~**ADR de adoção do DS V14**~~ — **concluído em 26/09/2026 como
     - a ADR-007 ganhou nota inline apontando para ela.
 M1. **Onda 0 — Fundação visual**: especificada como
     `021-fundacao-visual-ds-v14` (ver `## Features`).
-M2. **Onda 1 — Biblioteca de componentes** (feature 022): absorve o item 15.
+M2. **Onda 1 — Biblioteca de componentes**: especificada como
+    `022-biblioteca-componentes-ds-v14` (ver `## Features`). Absorve o
+    item 15.
 M3. **Onda 2 — Shell, navegação e entrada** (feature 023): topbar, tela de
     perfis = listas (a `HomeScreen` atual reaproveitada), fonte ativa,
     roteamento com RETURN em camadas, Splash/onboarding/progresso de
@@ -947,6 +949,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 019-historico-continuar-assistindo | Histórico e Continuar Assistindo | Convergida | 30/31 tasks | 2026-09-26 |
 | 020-ciclo-vida-player | Ciclo de Vida do Player na TV | Convergida | 15/16 tasks | 2026-09-26 |
 | 021-fundacao-visual-ds-v14 | Fundação Visual do Design System V14 (Onda 0 da migração) | Convergida | 65/65 tasks | 2026-09-26 |
+| 022-biblioteca-componentes-ds-v14 | Biblioteca de Componentes do Design System V14 (Onda 1 da migração) | Especificada | N/A | 2026-09-26 |
 
 ## Bugs
 
