@@ -10,9 +10,12 @@ Derivado de `sdd/adr/REQUISITOS-FUNCIONAIS.md` (RF-001 a
 RF-019), `sdd/adr/ESPECIFICACAO-TRAILERS.md`, `ADR-001` a `ADR-009`, da
 constitution v1.2.0, e da análise de três conjuntos de documentos:
 `docs/iptvnator/` (reuso de um player IPTV maduro), `docs/guia-praticas-app-tv/`
-(13 relatórios sobre as orientações Samsung/Tizen) e
-`docs/design/CCPlayTv Prototype - Standalone.html` (protótipo navegável
-de 9 telas).
+(13 relatórios sobre as orientações Samsung/Tizen) e o protótipo navegável
+de 9 telas, hoje histórico em `docs/design/old/`. **Desde 26/09/2026 a
+referência de design é o Design System V14 Spectrum**
+(`docs/design/design-system/`: Spec normativa, Component Lab e protótipo
+de telas). A migração do frontend para ele tem roteiro próprio em
+`.planning/migracao-design-system-v14.md` e ocupa a "Fase 1.5" abaixo.
 
 ### Como ler esta lista
 
@@ -52,6 +55,48 @@ necessidade de forma genérica).
 
 ---
 
+### Fase 1.5 — Migração para o Design System V14 Spectrum
+
+Troca a camada de apresentação inteira pelo DS V14
+(`docs/design/design-system/`) **sem perder nenhuma função das features
+001–020**. O que o protótipo novo desenha e o app ainda não tem entra como
+mock honesto: soft disabled "Em breve", nunca conteúdo fictício
+(constitution, "IA e Classificação Nunca Inventam Dados"). O roteiro
+completo, com matriz real × mock, riscos e decisões em aberto, está em
+`.planning/migracao-design-system-v14.md`. Cada onda vira uma feature SDD
+própria.
+
+Vem antes da Fase 2 porque absorve dois itens dela (15 e 16) e redefine a
+base visual sobre a qual os demais (14, 17, 18, 19, 21) seriam construídos.
+
+M0. ~~**ADR de adoção do DS V14**~~ — **concluído em 26/09/2026 como
+    ADR-011**:
+    - perfil = lista (a tela "Quem está assistindo?" mostra as fontes mais
+      "Adicionar lista");
+    - fonte ativa única;
+    - topbar sem Esportes/Infantil;
+    - mock soft disabled "Em breve", sem conteúdo fictício;
+    - número do canal = posição na fonte;
+    - a ADR-007 ganhou nota inline apontando para ela.
+M1. **Onda 0 — Fundação visual**: especificada como
+    `021-fundacao-visual-ds-v14` (ver `## Features`).
+M2. **Onda 1 — Biblioteca de componentes** (feature 022): absorve o item 15.
+M3. **Onda 2 — Shell, navegação e entrada** (feature 023): topbar, tela de
+    perfis = listas (a `HomeScreen` atual reaproveitada), fonte ativa,
+    roteamento com RETURN em camadas, Splash/onboarding/progresso de
+    importação.
+M4. **Onda 3 — Live TV** (feature 024): 3 colunas + preview sem vídeo,
+    preservando zapping/favoritos/busca.
+M5. **Onda 4 — Filmes e Séries** (feature 025): side nav com **↺ Histórico**
+    (dado real, `lastWatched`), Ordenar, hero band, detalhes V14.
+M6. **Onda 5 — Home, Busca global e Configurações** (feature 026): absorve o
+    item 16. Remove `HomeScreen`/`ListHomeScreen` antigos.
+M7. **Onda 6/7 — Player chrome, limpeza e QA** (feature 027): chrome com
+    auto-hide, media keys, quebra do `screens.css`, matriz QA Tizen, passada
+    na TV física.
+
+---
+
 ### Fase 2 — Qualidade de app de TV
 
 O que separa "web empacotada" de "app de TV". Nenhum item aqui adiciona
@@ -73,6 +118,9 @@ função nova; todos mudam a sensação de uso.
     `docs/iptvnator/01-ui-ux.md` #7)
 
 15. **Biblioteca de componentes de TV**
+
+    **Absorvido pela Fase 1.5, Onda 1 (M2)**, com o Component Lab V14 como
+    referência. O texto abaixo fica como histórico do que já existia.
 
     **Primeiro passo real, feature 015**: `PosterArt`
     (`tv-web/src/components/PosterArt.tsx`) já reserva área por
@@ -100,6 +148,9 @@ função nova; todos mudam a sensação de uso.
     `08-tela-filmes.md` #1/#2/#8)
 
 16. **Home em hero + rails**
+
+    **Absorvido pela Fase 1.5, Onda 5 (M6)**. O layout agora é o de
+    `home()` no protótipo V14; as regras abaixo continuam valendo.
 
     - Hero de "continuar assistindo" (primeiro item recente) como primeiro
       elemento focável, de largura total, com CTA para retomada direta.
@@ -165,15 +216,15 @@ função nova; todos mudam a sensação de uso.
 
 20. **Design das telas que o protótipo não cobre**
 
-    O protótipo desenha 9 telas (splash, home de listas, adicionar lista,
-    hub da lista, Live TV, grade e detalhe de filmes, grade e detalhe de
-    séries). **Não existe desenho** para: player em tela cheia com
-    controles, busca, favoritos, "continuar assistindo", seção "Não
-    classificados", progresso de importação e estados de erro/offline.
-    Estender o design system da ADR-007 a essas superfícies antes de
-    construí-las, em vez de improvisar tela a tela.
+    **Em grande parte resolvido pelo DS V14 (26/09/2026).** O protótipo
+    novo desenha player em tela cheia com controles, busca, favoritos,
+    "continuar assistindo", histórico e estados de erro/offline, e o
+    Component Lab tem os componentes. **Continuam sem desenho**: a seção
+    "Não classificados" (item 26) e a tela de progresso de importação,
+    que será composta com componentes do Lab na Onda 2 (M3).
 
-    (ADR-007; `docs/design/CCPlayTv Prototype - Standalone.html`)
+    (ADR-007; `docs/design/old/CCPlayTv Prototype - Standalone.html`;
+    `docs/design/design-system/`)
 
 21. **Um dono de scroll por painel + rótulo de escopo explícito**
 
@@ -613,6 +664,69 @@ própria de demanda. Cada uma precisa passar por `sdd-assess`
     decisão existir, vale o comportamento atual de FR-018: para de gravar
     e declara.
 
+Os itens 52–56 vêm do DS V14 (26/09/2026). Durante a migração (Fase 1.5)
+eles aparecem assim, conforme a ADR-011:
+- 54–56 como mock "Em breve";
+- 53 fica ausente da interface;
+- 52 foi rebaixado a hipótese.
+
+Todos precisam de `sdd-assess` antes de virar funcionalidade real.
+
+52. **Perfis de usuário com estado próprio**
+
+    **Rebaixado pela ADR-011**: no CCPlayTv, **perfil = lista**. A tela
+    "Quem está assistindo?" mostra as fontes, e favoritos/histórico já são
+    isolados por `sourceId`. O que sobra aqui é só a hipótese de **perfis
+    de pessoa independentes das listas** (várias pessoas usando a mesma
+    lista com estado separado). Isso exige migração Dexie de
+    `UserStateRecord`, reconciliação do estado existente e decisão sobre
+    PIN/parental. Sem demanda registrada.
+
+    (V14 §13.3/§32/§48; protótipo `profiles()`/`profileCreate()`)
+
+53. **Seções Esportes e Infantil**
+
+    Destinos da topbar do DS sem fonte de dado definida. Precisa decidir
+    como montá-los **sem substituir as categorias da fonte**
+    (constitution, "Categorias da Fonte São Preservadas"): por exemplo,
+    seleção manual de grupos pela pessoa, ou regra explícita e
+    reversível. Pela ADR-011, **ficam fora da topbar** até esta avaliação.
+
+    (V14 §13.1; protótipo `sports()`/`kids()`)
+
+54. **Dock de serviços e Integrações & BYOK (clima, teste de velocidade)**
+
+    O DS traz um dock compacto na Home (WeatherAPI, Cloudflare Speed Test,
+    TMDB, IA) e uma tela de integrações com chave mascarada, Testar e
+    Editar. TMDB já é o item 28 e IA os itens 30/31. **Clima e teste de
+    velocidade são novos e sem demanda registrada**. O DS cita DeepSeek,
+    mas o provedor de IA é decisão de ADR (hoje OpenAI, ADR-008 §4).
+
+    (V14 §20/§21; protótipo `serviceStrip()`/`settingsIntegrations()`)
+
+55. **Trilhas de áudio/legenda, qualidade, velocidade, aspecto e info do
+    stream no player**
+
+    Estender o contrato de capacidades do `PlayerService` (feature 011)
+    para trilhas, bitrate/resolução, velocidade (só VOD) e modo de tela,
+    com cada botão do chrome V14 dirigido pela capacidade real (soft
+    disabled quando o stream não oferece). Depende de verificar o que o
+    AVPlay expõe na TV de referência.
+
+    (V14 §27/§39; protótipo `playerTracksModal()`/`playerQualityModal()`/
+    `playerSpeedModal()`/`playerAspectModal()`/`playerInfoModal()`)
+
+56. **Acessibilidade de sistema: legendas acessíveis, alto contraste, Voice
+    Guide**
+
+    Aparência de legenda (tamanho, cor, fundo, contorno, com prévia real),
+    alto contraste, anúncios de Voice Guide configuráveis e teste de
+    anúncio de foco. "Reduzir movimento" já entra de verdade na migração
+    (Onda 0); o restante é mock até aqui.
+
+    (V14 §31/§38/§39; protótipo `settingsAccessibility()`/
+    `subtitleStyleModal()`)
+
 ---
 
 ### Itens removidos ou rebaixados pela ADR-008
@@ -832,6 +946,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 018-busca-por-categoria | Busca por categoria com ícone de entrada e categoria virtual "Todos" | Convergida | 36/36 tasks | 2026-09-26 |
 | 019-historico-continuar-assistindo | Histórico e Continuar Assistindo | Convergida | 30/31 tasks | 2026-09-26 |
 | 020-ciclo-vida-player | Ciclo de Vida do Player na TV | Convergida | 15/16 tasks | 2026-09-26 |
+| 021-fundacao-visual-ds-v14 | Fundação Visual do Design System V14 (Onda 0 da migração) | Implementada | 65/65 tasks | 2026-09-26 |
 
 ## Bugs
 

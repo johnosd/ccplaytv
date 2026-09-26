@@ -285,6 +285,63 @@ and the closing-instead-of-pausing decision for live channels (R-003) that
 are worth a second look before the physical-TV pass (recommended, not a
 mandatory gate for this feature).
 
+**Code-complete**: `021-fundacao-visual-ds-v14` — Onda 0 of the migration to
+Design System V14 "Spectrum" (`docs/design/design-system/`), per
+`.planning/migracao-design-system-v14.md` and **ADR-011** (product
+decisions for the whole migration: profile = IPTV list, single active
+source, topbar without Esportes/Infantil yet, channel number = source
+order — none of those land until the Onda 2 shell feature). This wave is
+foundation only, with **zero layout change** on any existing screen
+(proven by before/after screenshots of 8 core screens, `tv-web/e2e/
+paridade-visual.mjs`, plus the full unit suite and all E2E scripts staying
+green): Poppins/Inter now ship as local `.woff2` files
+(`tv-web/src/assets/fonts/`, Fontsource v5, OFL licenses alongside) instead
+of Google Fonts — `tv-web/scripts/sync-tizen.mjs` gained a guard
+(`tizenFiles.mjs`'s `findUnlistedFiles`) that refuses to sync if the build
+emits a file `tizen_web_project.yaml`'s `files:` doesn't list, the exact
+failure mode that used to only surface on the TV. `index.css` now carries
+the full V14 token set (spacing, radius, elevation, motion, semantic
+colors, z-layers, safe zone) with every pre-existing token name kept as an
+alias resolving to the same value. A new `Stage` component
+(`tv-web/src/components/Stage.tsx` + `src/lib/stage.ts`) wraps the whole
+app in a 1920×1080 logical stage, scaled uniformly to the real viewport —
+identity (no `transform`) at 1920×1080, so the reference TV is pixel-for-
+pixel unchanged; recalculates only on `resize`, never remounting children,
+so focus survives. A single persistent `aria-live="polite"` region
+(`AnnouncerRegion` + `useAnnounce`, `tv-web/src/lib/announcer.ts`) now
+hosts `Toast` via `createPortal` when mounted — the naive approach (a
+separate `sr-only` region echoing the toast text) would have duplicated
+the toast's text node and broken `getByText`-based assertions across 6
+screen test files plus the Playwright E2E; instead `Toast` renders
+exactly as before when no region is in the tree (screen tests stay
+untouched) and moves inside the region, remounted per `useToast()`'s
+`toastKey`, only when one exists — see `sdd/specs/021-fundacao-visual-ds-
+v14/logic/regiao-de-anuncio.md`. Reduced motion now has two independent
+sources (`tv-web/src/lib/motionPreference.ts`): the system's
+`prefers-reduced-motion` media query and a persisted internal preference
+(`ccplaytv:reduce-motion` in `localStorage`, applied before first paint,
+no UI toggle yet), either one collapsing animation/transition duration to
+near-zero without hiding the final focus state. A 17-icon local SVG set
+(`iconPaths.ts` + `Icon.tsx`) and state utilities
+(`.no-scale`/`.pressed`/`.is-soft-disabled`/`.is-hard-disabled`,
+`tv-web/src/styles/utilities.css`) are ready but consumed by no screen yet
+— that starts with Onda 1 (feature 022). All 5 contract tests green,
+858+ unit tests passing (a handful of pre-existing `*.favorites.test.tsx`/
+`LiveScreen.test.tsx` flakes under full-suite parallelism, confirmed
+passing isolated — same pattern already documented for earlier features).
+Two real pre-existing bugs, in *other* features' E2E scripts, surfaced
+only by finally running them and were fixed as small approved deviations:
+`e2e/favoritos.mjs` pressed `ArrowUp` once to reach "★ Favoritos", stale
+since feature 018 inserted "Todos" as a second fixed trail entry (needs
+two); and `e2e/capa-real.mjs`'s virtualization scenario assumed a viewport-
+sized layout window that the new fixed 1920×1080 stage genuinely changes
+(confirmed experimentally: identical item count pre-loaded whether the
+real viewport is 1280×720 or 1920×1080, proving the stage's logical area —
+not the browser viewport — now decides it), so its fixed scroll-key count
+went from 10 to 40. See `sdd/specs/021-fundacao-visual-ds-v14/plan.md` →
+`## Estado Atual` and R-009/R-011 for both. Next: Onda 1 (feature 022,
+component library) consumes the icons/utilities built here.
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, Home (sources), the
@@ -320,8 +377,12 @@ The four top-level directories:
   assets) that gets packaged into `.wgt`. `tv-web/scripts/sync-tizen.mjs`
   copies the Vite build into it (`npm run build:tizen`). Files listed in
   `tizen_web_project.yaml` must match exactly what Vite emits — a Worker
-  chunk (`assets/importWorker.js`) missing from that list fails silently on
-  the TV, never in the browser or in tests.
+  chunk (`assets/importWorker.js`) missing from that list used to fail
+  silently on the TV, never in the browser or in tests, until feature 021
+  gave `sync-tizen.mjs` a guard (`tv-web/scripts/tizenFiles.mjs`'s
+  `findUnlistedFiles`) that refuses to sync and lists exactly what's
+  missing — add any new emitted file (a Worker, a font, an asset) to that
+  list or the build stops there instead of on the TV.
 - **`tizen-app/`** — empty placeholder from the original setup guide; the
   real packaging project is `CCPlayTv/`.
 
@@ -394,24 +455,49 @@ formally planned features. The ones most easily violated by accident:
 
 ## Design system
 
-ADR-007 is the canonical visual contract: 1920×1080 stage scaled uniformly,
-dark theme, brand gradient reserved for identity, `--accent: #ff7a3d` for
-state, and one focus recipe (4px outline + offset + glow + `scale(1.06)`,
-140ms). The executable form is the tokens in `tv-web/src/index.css`;
-`docs/design/CCPlayTv Prototype - Standalone.html` is the design intent
-snapshot (a 671 KB single-line-per-block bundled page — reading it whole
-fails on size; `Grep` with a narrow pattern and a small capture window,
-e.g. `.{0,30}keyword.{0,80}`, pulls out one screen's markup/state logic
-without loading the rest). **Before planning or architecting any new
-screen, check both `docs/design/` (does the 9-screen prototype already
-draw this screen or a close analogue — layout, focus flow, interaction —
-before inventing one from scratch) and `docs/guia-praticas-app-tv/` (does
-a Samsung/Tizen guideline constrain it — input method, focus, text entry,
-media player chrome). Not every screen is covered (see backlog item 20 for
-the known gaps: full-screen player controls, busca, favoritos, "continuar
-assistindo", "Não classificados", import progress, error/offline states),
-but check before assuming there's nothing there.** **New screens consume
-tokens; they never hardcode a color, radius or font size.**
+**The app is migrating to the CCPlayTV Design System V14 "Spectrum"** — see
+`.planning/migracao-design-system-v14.md` for the wave-by-wave plan
+(Onda 0–7, one SDD feature each from 021 on), the real-vs-mock matrix and
+the mock policy. Until that migration converges, some screens still carry
+the old layout; new work follows V14.
+
+**Before creating or changing any screen or component, consult the V14
+design system — all three artifacts, in `docs/design/design-system/`:**
+
+| Artifact | Role | How to read it |
+|---|---|---|
+| `CCPlayTV_Design_System_Spec_v14_Spectrum.md` | **Normative** — tokens (§5–§10), focus/pressed/soft vs hard disabled (§11), navigation patterns incl. pinned `★ Favoritos`/`↺ Histórico`/`Todos` (§13), cards (§16), states/errors (§19, §45), player (§27, §43), IME (§37), ARIA (§38), lifecycle (§40), focus memory (§41), Tizen QA matrix (§34) | Plain Markdown, read the relevant sections |
+| `CCPlayTV_Design_System_Component_Lab_v14_Spectrum.html` | Visual/interactive catalog, one `<section id="…">` per component (`#cards`, `#rails`, `#forms`, `#ime`, `#feedback`, `#errorstax`, `#player`, `#categoriesv131`…) | Open in a browser, or `Grep` for `id="<section>"` |
+| `CCPlayTV_Tizen_Ultimate_Prototype_v13_2.html` | The rules applied to real screens — one JS function per screen (`profiles()`, `home()`, `live()`, `catalog()`, `details()`, `player()`, `settings*()`, `*Modal()`) | 249 KB with lines up to ~13k chars: `Grep` a narrow window (e.g. `function live\(\).{0,400}`), never read whole. `file://` is blocked for Playwright MCP — serve the folder with `python -m http.server` to look at it |
+
+**Precedence when they disagree** (ADR-011): constitution > accepted ADRs >
+V14 Spec > Component Lab > prototype. Where the prototype's structure
+differs from ADR-011, ADR-011 wins: its "profiles" are IPTV lists, and
+Esportes/Infantil are not in the topbar yet. Known conflicts already
+resolved in the migration plan (§1): the Spec's §36 "CSS canônico V13" block is obsolete
+(red accent, white focus) — V14 values are §5/§11; trailer/channel
+*preview on focus* is **not** adopted (constitution: focusing never starts
+playback or an external query; AVPlay is a singleton); the prototype's
+invented content (relevance %, ratings, EPG "Agora:" text, editorial rails)
+never becomes real UI — unbuilt features are **soft-disabled "Em breve"
+mocks**, registered in one place, never fake data.
+
+Also check `docs/guia-praticas-app-tv/` (Samsung/Tizen guidelines — input
+method, focus, text entry, media player chrome) before designing a screen.
+The old 9-screen prototype lives on only as history in
+`docs/design/old/` — don't use it as a reference for new work.
+
+ADR-007 remains the canonical visual contract (V14 kept its palette and
+focus recipe: 1920×1080 stage scaled uniformly, dark theme, brand gradient
+reserved for identity, `--accent: #ff7a3d` for state, 4px outline + offset
++ glow + `scale(1.06)`, 140ms). The executable form is the tokens in
+`tv-web/src/index.css`, all in place since feature 021 (full V14 set:
+spacing, radius, elevation, motion, semantic colors, z-layers), and the
+1920×1080 stage is a real component (`tv-web/src/components/Stage.tsx`),
+not just an aspiration — it wraps the app root, identity at 1920×1080,
+scaled elsewhere. **New screens consume tokens; they never hardcode a
+color, radius, spacing or font size**, and fonts ship locally
+(`tv-web/src/assets/fonts/`, feature 021) — never a CDN.
 
 ## How work happens here: the SDD system
 
@@ -475,6 +561,10 @@ to under-deliver on from memory.
   `## Features`, `## Bugs`, `## Melhorias Ad-hoc`. **The status/progress
   columns are maintained by the PowerShell scripts — don't hand-edit them.**
   The idea list above them is hand-maintained prose.
+- `.planning/migracao-design-system-v14.md` — the roadmap for migrating the
+  frontend to Design System V14 (waves → features 021+, real-vs-mock matrix,
+  mock policy, open decisions, risks). Hand-maintained prose, like the idea
+  list in the backlog.
 - `docs/` — research inputs, not generated work product:
   - `docs/iptvnator/` — 10 reports on what to reuse from a mature Angular/
     Electron IPTV player (UI/UX, architecture, APIs, per-screen deep dives).
@@ -483,7 +573,11 @@ to under-deliver on from memory.
     (design principles, input methods, layout, text input, media player,
     Smart View, UX checklist, distribution, launch checklist, Seller Office,
     web APIs, samples). Normative for anything shipped to a TV.
-  - `docs/design/` — the prototype and the prompt that produced it.
+  - `docs/design/design-system/` — **the current design system (V14
+    Spectrum)**: normative Spec, Component Lab and screen prototype. See
+    "Design system" above.
+  - `docs/design/old/` — the superseded 9-screen prototype and the prompt
+    that produced it. Kept as history only.
   - `docs/m3u/dados.md` — **contains real provider credentials in plain
     text.** It is gitignored and has never been committed (handled during
     feature 001), so there is no history to remediate — but never quote its
@@ -525,7 +619,7 @@ and never reads or modifies.
 
 ## Architecture (from `sdd/adr/`)
 
-ADR-001 to ADR-010 are accepted decisions — read the relevant one in full
+ADR-001 to ADR-011 are accepted decisions — read the relevant one in full
 before proposing anything that conflicts, and amend with an inline
 `**Atualização (ADR-0XX):**` note rather than rewriting history.
 
@@ -537,10 +631,11 @@ before proposing anything that conflicts, and amend with an inline
 | ADR-004 | No mandatory account; sources and import |
 | ADR-005 | Catalog, preferences, IMDb rating, recommendations |
 | ADR-006 | Library/SDK selection, boundaries, adoption increments A–E, validation gates V1–V9 (**Incremento E partially superseded by ADR-008; directional-focus recommendation superseded by ADR-009**) |
-| ADR-007 | TV design system and visual identity |
+| ADR-007 | TV design system and visual identity (**visual reference updated by ADR-011** to DS V14; palette and focus recipe still valid) |
 | ADR-008 | Client-first architecture — backend only when strictly necessary (VPS/self-hosted backend no longer the default path; confirmed CORS works against the real provider) |
 | ADR-009 | Directional navigation is the project's own `useRemoteNav` hook (state + CSS class, no DOM-ref focus library) — Norigin Spatial Navigation, recommended by ADR-006, was never installed |
 | ADR-010 | Full source URL, per-item playback URLs and the downloaded M3U file may be stored on the device (extends ADR-008's credential exception); still never logged, displayed, sent to third parties or exported |
+| ADR-011 | Adopts Design System V14 Spectrum (updates ADR-007's reference): precedence constitution > ADRs > V14 Spec > Component Lab > prototype; no media preview on focus; topbar shell; **profile = IPTV list**; single active source; "Em breve" soft-disabled mocks, never fake content; channel number = source order position |
 
 Plus `REQUISITOS-FUNCIONAIS.md` (RF-001 to RF-019) and
 `ESPECIFICACAO-TRAILERS.md` (RF-019 detail).
