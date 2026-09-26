@@ -248,6 +248,43 @@ isolated), `tsc`/lint/build clean, a new Playwright E2E script
 `sdd/specs/019-historico-continuar-assistindo/plan.md` → `## Estado Atual`
 for the phase-by-phase detail.
 
+**Code-complete**: `020-ciclo-vida-player` — closes the last item of backlog
+Phase 1 ("MVP: do catálogo real até assistir"): the system screensaver stays
+off for as long as `PlayerLayer` reports `playing` (any of the three media
+kinds), and turns back on on any other transition (pause, error, completion,
+close, unmount) — one `useEffect` keyed on that single boolean, so zapping
+(feature 016) never re-triggers it since the underlying channel session
+never leaves `playing` while the list is open on top. Separately,
+`document.visibilitychange` is now handled inside `PlayerLayer`'s existing
+session-lifecycle effect (no new effect, reusing its own cleanup): hiding
+the app pauses a movie/episode for real (`session.togglePause()`, guarded to
+only act while genuinely `playing`/`buffering` — never re-toggling an
+already-paused session, which would have resumed it) — but a live channel
+has no real pause capability (`canPause=false`, decided by feature 011's
+capability model), so hiding it instead closes the whole layer exactly like
+RETURN would, with no automatic reopening (there's no position to resume
+for live anyway). Becoming visible again with a still-open session
+(movie/episode only — a channel's session already closed) re-confirms the
+item's playback URL is still valid (`fetchPlayback`, a confirmation call
+that never rebuilds the paused session) before allowing a resume attempt,
+falling into the exact same error screen an initial open failure would use
+if that confirmation rejects. A completion detected while the app was
+hidden is handled exactly like a foreground one, for free — the existing
+completion path in `PlayerLayer` was already agnostic of
+`document.visibilityState`, so it needed no new code. 739 tests (2
+pre-existing `SeriesScreen.favorites.test.tsx` flakes under full-suite
+parallelism, confirmed passing isolated), `tsc`/lint/build clean, a new
+Playwright E2E script (`tv-web/e2e/ciclo-vida-player.mjs`) that injects a
+`tizen.power` mock via `page.addInitScript` (feature-detected the same way
+`screenSaver.ts` checks for it in production) to prove the real screensaver
+API gets called at the right moments in an actual browser, not just through
+a spied-on TypeScript module. See
+`sdd/specs/020-ciclo-vida-player/plan.md` → `## Estado Atual` for the
+phase-by-phase detail, including a real screensaver-API-name risk (R-001)
+and the closing-instead-of-pausing decision for live channels (R-003) that
+are worth a second look before the physical-TV pass (recommended, not a
+mandatory gate for this feature).
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, Home (sources), the

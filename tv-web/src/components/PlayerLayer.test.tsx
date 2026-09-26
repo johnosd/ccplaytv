@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PlayerLayer } from './PlayerLayer'
 import * as catalogApi from '../features/catalog/catalogApi'
 import * as userStateRepository from '../lib/catalog/userStateRepository'
+import * as screenSaver from '../lib/player/screenSaver'
 import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerAdapterFactory } from '../lib/player/PlayerService'
 
 vi.mock('../features/catalog/catalogApi', async (importOriginal) => {
@@ -841,6 +842,94 @@ describe('PlayerLayer', () => {
       
       // O top layer permanece
       expect(screen.getByTestId('top-content')).toBeInTheDocument()
+    })
+  })
+
+  describe('ciclo de vida do player (feature 020, testes da fase)', () => {
+    it('T003: proteção de tela permanece desligada durante o zapping (US1 AC3)', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
+      const disableSpy = vi.spyOn(screenSaver, 'disableScreenSaver')
+      const enableSpy = vi.spyOn(screenSaver, 'enableScreenSaver')
+      const topLayer = {
+        content: <div data-testid="zap-content">Zapping</div>,
+        onDirection: vi.fn(),
+        onSelect: vi.fn(),
+        onBack: vi.fn(),
+      }
+      const { rerender } = render(
+        <PlayerLayer itemId="item-1" title="Live" onClose={vi.fn()} createAdapter={createAdapter} />,
+      )
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+      expect(disableSpy).toHaveBeenCalledTimes(1)
+
+      // Abre o zapping (topLayer) por cima — a sessão continua 'playing',
+      // nunca pausa (feature 016) — a proteção de tela não deve religar.
+      rerender(
+        <PlayerLayer
+          itemId="item-1"
+          title="Live"
+          onClose={vi.fn()}
+          createAdapter={createAdapter}
+          topLayer={topLayer}
+        />,
+      )
+      expect(screen.getByTestId('zap-content')).toBeInTheDocument()
+      expect(enableSpy).not.toHaveBeenCalled()
+    })
+
+    function setVisibility(state: 'visible' | 'hidden') {
+      Object.defineProperty(document, 'visibilityState', { value: state, configurable: true })
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+    }
+
+    it('T007: ocultar/mostrar repetidamente não acumula listeners nem revalidações (edge case da spec)', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
+      render(<PlayerLayer itemId="item-1" title="Filme" onClose={vi.fn()} createAdapter={createAdapter} />)
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+      expect(vi.mocked(catalogApi.fetchPlayback)).toHaveBeenCalledTimes(1) // abertura inicial
+
+      setVisibility('hidden')
+      // O motor real confirma a pausa via onStateChange — o fake do teste
+      // não faz isso sozinho, então simula aqui (sem isto, a sessão
+      // continuaria "playing" no modelo e uma segunda ocultação pausaria de
+      // novo, o que o guard `isActive` existe pra evitar).
+      act(() => driver.callbacks?.onStateChange('paused'))
+      setVisibility('visible')
+      setVisibility('hidden') // já pausado — nenhuma segunda transição
+      setVisibility('visible')
+
+      // Uma pausa só (a segunda hidden não fez nada — já estava pausado,
+      // edge case da spec) e uma revalidação por 'visible' genuíno.
+      expect(driver.pauseCount).toBe(1)
+      expect(vi.mocked(catalogApi.fetchPlayback)).toHaveBeenCalledTimes(3) // inicial + 2 revalidações (uma por 'visible')
+    })
+
+    it('T008: conclusão detectada com o app oculto é tratada como conclusão normal (FR-006)', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
+      const onCompleted = vi.fn()
+      render(
+        <PlayerLayer
+          itemId="item-1"
+          title="Filme"
+          onClose={vi.fn()}
+          onCompleted={onCompleted}
+          createAdapter={createAdapter}
+        />,
+      )
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+
+      setVisibility('hidden')
+      // A conclusão real do motor não checa `document.visibilityState` em
+      // lugar nenhum (plan.md: mecanismo já agnóstico de visibilidade) —
+      // dispara exatamente como em primeiro plano.
+      act(() => driver.callbacks?.onStateChange('completed'))
+
+      await waitFor(() => expect(onCompleted).toHaveBeenCalledTimes(1))
     })
   })
 })

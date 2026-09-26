@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-26
 
-**Status**: Especificada
+**Status**: Convergida
 
 **Input**: Item 10 do backlog (`.planning/backlog.md`, Fase 1) — o que resta
 depois que o zapping saiu para a feature `016-zapping-live-tv` (convergida)

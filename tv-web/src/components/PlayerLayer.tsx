@@ -10,6 +10,7 @@ import {
 } from '../lib/player/PlayerService'
 import { createProgressRecorder, type ProgressRecorder, type ProgressRecorderIdentity } from '../lib/player/progressRecorder'
 import { MOVIE_WATCHED_RATIO } from '../lib/player/resumePolicy'
+import { disableScreenSaver, enableScreenSaver } from '../lib/player/screenSaver'
 import { clamp, useRemoteNav } from '../lib/useRemoteNav'
 import { PlayerControls, playerControlsActions } from './PlayerControls'
 
@@ -213,6 +214,7 @@ export function PlayerLayer({
     let cancelled = false
 
     function teardown() {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       clearHideTimer()
       // Ponto de saída (RETURN, desmontagem, nova tentativa): grava o resto
       // que ainda não tinha cruzado o intervalo periódico (`logic/
@@ -222,6 +224,48 @@ export function PlayerLayer({
       sessionRef.current?.close()
       sessionRef.current = null
       recorderRef.current = null
+    }
+
+    /** Mesma lógica do `catch` de `start()` — reaproveitada pela revalidação
+     *  de `onVisibilityChange` (D-003) pra nunca duplicar a distinção
+     *  409/`unavailableMessage` de outros erros/`genericErrorMessage`. */
+    function applyFetchError(error: unknown) {
+      if (cancelled) return
+      const unavailable = error instanceof CatalogApiError && error.status === 409
+      setPhase({
+        kind: 'error',
+        message: unavailable ? unavailableMessage : genericErrorMessage,
+        retryable: !unavailable,
+      })
+      onSessionError?.(unavailable ? unavailableMessage : genericErrorMessage)
+    }
+
+    /**
+     * Feature 020 (US2): oculto → pausa (filme/episódio, D-002) ou fecha
+     * (canal ao vivo, sem pausa real, D-002) — só quando havia reprodução
+     * ATIVA (`playing`/`buffering`); uma sessão já pausada manualmente não
+     * ganha uma segunda transição, e `togglePause()` às cegas a RETOMARIA
+     * (edge case da spec). Visível → revalida a URL do item antes de
+     * qualquer nova tentativa de retomar (D-003, FR-004/FR-008) — só existe
+     * sessão aberta aqui pra filme/episódio pausado, já que canal fechou a
+     * própria sessão no ramo oculto.
+     */
+    function onVisibilityChange() {
+      const session = sessionRef.current
+      if (!session) return
+      if (document.visibilityState === 'hidden') {
+        const isActive = session.state === 'playing' || session.state === 'buffering'
+        if (!isActive) return
+        if (session.capabilities.canPause) {
+          session.togglePause()
+        } else {
+          session.close()
+          sessionRef.current = null
+          onClose()
+        }
+        return
+      }
+      void fetchPlayback(itemId).catch(applyFetchError)
     }
 
     async function start() {
@@ -320,20 +364,14 @@ export function PlayerLayer({
         publish()
         session.subscribe(publish)
       } catch (error) {
-        if (cancelled) return
         // 409 = o item existe mas não é reproduzível (corrida entre listar e
         // reproduzir). Não adianta tentar de novo.
-        const unavailable = error instanceof CatalogApiError && error.status === 409
-        setPhase({
-          kind: 'error',
-          message: unavailable ? unavailableMessage : genericErrorMessage,
-          retryable: !unavailable,
-        })
-        onSessionError?.(unavailable ? unavailableMessage : genericErrorMessage)
+        applyFetchError(error)
       }
     }
 
     void start()
+    document.addEventListener('visibilitychange', onVisibilityChange)
 
     return () => {
       cancelled = true
@@ -375,6 +413,18 @@ export function PlayerLayer({
     scheduleHide()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- scheduleHide lê refs estáveis (sessionRef/hideTimerRef); só o valor de sessionState deve reagendar
   }, [sessionState])
+
+  // Proteção de tela (feature 020, D-004): desligada enquanto tocando de
+  // verdade, religada pelo cleanup em qualquer outra transição — pausar,
+  // completar, erro, fechar ou desmontar — sem listar cada uma. O zapping
+  // (feature 016) não pausa a sessão do canal por baixo da lista, então isto
+  // continua desligado durante o zapping por construção (US1 AC3).
+  const isPlaying = sessionState === 'playing'
+  useEffect(() => {
+    if (!isPlaying) return
+    disableScreenSaver()
+    return () => enableScreenSaver()
+  }, [isPlaying])
 
   useRemoteNav(
     {

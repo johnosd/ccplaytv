@@ -6,17 +6,6 @@ update-bug-status.ps1.
 
 ## Ideias Futuras
 
-Revisado em 2026-09-25 para refletir a convergência das features
-`013-favoritos`, `014-m3u-sob-demanda` e `015-capa-real-filmes-series`
-(favoritos em canal/filme/série; fonte M3U estrutura-primeiro com detecção
-de painel Xtream; capa real de filmes e séries capturada da própria
-fonte). A revisão anterior, de 24/09, refletia o progresso da feature
-`011-assistir-filme-retomada` (contrato de capacidades, reprodução de
-filme, retomada). A de 23/09 refletia a convergência das features 006 a
-010 (conector VOD/séries, higiene de credenciais, `UserStateRepository`,
-virtualização e carga sob demanda por categoria), e a de 22/09 a
-**decisão ADR-008** (arquitetura client-first) e a conclusão da feature
-005.
 Derivado de `sdd/adr/REQUISITOS-FUNCIONAIS.md` (RF-001 a
 RF-019), `sdd/adr/ESPECIFICACAO-TRAILERS.md`, `ADR-001` a `ADR-009`, da
 constitution v1.2.0, e da análise de três conjuntos de documentos:
@@ -48,237 +37,18 @@ só a APIs de terceiro (TMDB, OpenAI) com a chave do próprio usuário
 evidência própria de demanda e **precisam passar por `sdd-assess`** antes
 de virar spec.
 
-**Revisão de 2026-09-24 (pós-012)**: removidos desta lista os itens já
-entregues (4, 5, 6 e 9) e o bug de lint resolvido; os itens parcialmente
-entregues (7, 8, 13) dizem só o que falta. O item 11 (Favoritos) virou a
-feature **013-favoritos**, especificada no mesmo dia.
-
-**Revisão de 2026-09-25 (pós-015)**: item 8 (arte de filmes/séries) —
-a parte de capa real foi **entregue** pela feature `015-capa-real-filmes-series`;
-só o hero de detalhe (que depende de TMDB, item 28) e itens menores
-continuam pendentes. Item 13 (histórico) ganhou a marca "assistido" por
-episódio da feature `012-series-episodios-temporadas` — a semântica
-agregada por série e o hero da Home continuam pendentes. Itens 16 e 24
-tinham "feature 013 (favoritos)" como pré-requisito ainda não cumprido —
-**013 convergiu em 24/09/2026**, então esse pré-requisito específico já
-está satisfeito; o que falta em cada item é só o que o próprio item ainda
-lista. O bug "Botões 'Tentar de novo'/'Voltar' não ativáveis por controle
-remoto" foi **corrigido nas três telas de categoria** (Live/Filmes/
-Séries) pela feature `014-m3u-sob-demanda` — a entrada ficou só com o que
-não foi coberto por essa correção pontual.
-
-**O que já existe hoje** (estado pós-feature 015):
-- **Importação client-first ponta a ponta** (feature 005, convergida em
-  22/09/2026): o app obtém dados da fonte (provedor Xtream ou URL M3U)
-  diretamente do aparelho, interpreta e classifica em Web Worker
-  (`tv-web/src/lib/catalog/`), armazena em IndexedDB via Dexie, e serve
-  às telas — **sem backend ligado**. Medido na TV física
-  QN50Q60DAGXZD: provedor em 10 s, M3U grande (312.936 entradas) em 16 s,
-  pico de memória 10 MB.
-- **Importação por estrutura + carga sob demanda por categoria** (feature
-  010, convergida em 23/09/2026, verificada na TV física): fonte de
-  provedor grava só as categorias declaradas; os itens de uma categoria
-  são obtidos quando a pessoa entra nela (`categoryLoader.ts`).
-  **Substituiu o descarte de VOD/séries da FR-008 da 005**: os três tipos
-  são gravados hoje.
-- **Fonte M3U também estrutura-primeiro** (feature `014-m3u-sob-demanda`,
-  convergida em 24/09/2026, ADR-010): uma URL M3U de painel Xtream
-  reconhecido segue a 010 por inteiro; o resto (URL avulsa, painel não
-  confirmado, "Modo limitado") guarda o conteúdo já classificado e
-  separado por categoria — nunca mais em `channels` durante a
-  importação — e lê cada categoria desse conteúdo guardado ao entrar,
-  sem rede nova. O selo "Modo limitado" ganhou explicação no hub da
-  lista. Faltam só as duas medições de tempo com a lista real do
-  usuário (SC-001/SC-002), fora do gate de convergência; ver
-  `sdd/specs/014-m3u-sob-demanda/plan.md` → `## Resultado Final`.
-- **Favoritos em canal, filme e série** (feature `013-favoritos`,
-  convergida em 24/09/2026): segurar OK (ou a tecla amarela, segundo
-  caminho achado necessário na TV física) favorita/desfavorita qualquer
-  item, com "★ Favoritos" fixo no topo da trilha de categorias das três
-  telas. Sobrevive a ressincronização e remoção de fonte. Primeiro
-  consumidor real dos favoritos do `UserStateRepository` (feature 008).
-- **Capa real de filmes e séries** (feature `015-capa-real-filmes-series`,
-  convergida em 25/09/2026, pedido direto do usuário): captura
-  `stream_icon`/`cover` (Xtream) e `tvg-logo` (M3U) na importação, com
-  fallback ao placeholder de sempre — sem capa declarada ou falha de
-  carregamento, nunca o ícone nativo de imagem quebrada. Carregamento
-  segue a janela da virtualização (feature 009): nunca a categoria
-  inteira de uma vez. Live TV fica de fora, de propósito.
-- **Splash + Home de listas + formulário de adicionar lista** (feature
-  002).
-- **Live TV com catálogo real e reprodução AVPlay** (feature 003,
-  verificada na TV física em 17–18/09/2026).
-- **Conector Xtream JSON** para canais ao vivo (feature 004) e para VOD e
-  séries (feature 006), tudo em TypeScript no aparelho. Inclui
-  `fetchSeriesInfo` (temporadas/episódios) — **já implementado e ainda sem
-  consumidor**.
-- **Live TV, Filmes e Séries categoria-primeiro e virtualizadas** (features
-  010 e 009): trilha de categorias + conteúdo obtido ao entrar, sem teto
-  de leitura e sem truncamento, com foco sincronizado pelo `useRemoteNav`
-  próprio (ADR-009 — Norigin nunca foi instalado). **Nenhum dado fictício
-  resta no app**; `mockCatalog.ts` não existe mais.
-- **`UserStateRepository`** (feature 008): favoritos, progresso e
-  "continuar assistindo" por identidade lógica estável. Favoritos
-  continuam sem consumidor; progresso ganhou o primeiro (ver abaixo).
-- **URL de reprodução para os três tipos** (`playbackUrl.ts`, feature
-  006/007): canal, filme e episódio, cada um no caminho e extensão certos.
-  `fetchPlayback` já devolve o `kind` real do item.
-- **Reprodução de filme, com contrato de capacidades e retomada** (feature
-  `011-assistir-filme-retomada`, 24/09/2026, verificação na TV física em
-  andamento): filme abre em tela cheia com play/pause, busca (±10s, com
-  barra de progresso focável) e retomada automática, gravada em pontos
-  intermediários por identidade estável — primeiro consumidor real do
-  `UserStateRepository`. A camada de reprodução (`components/PlayerLayer.tsx`)
-  é compartilhada com a Live TV, que não regrediu. Achados só possíveis na
-  TV real: a porta que evita saltos sobrepostos na API do motor acumulava
-  pedidos em vez de descartar (travava o app ao segurar o controle) e o
-  backdrop do detalhe do filme vazava atrás do vídeo — os dois corrigidos.
-- **Frescor decidido localmente**: migração de fonte antiga, atualização
-  por idade (24 h) e ressincronização explícita — tudo no aparelho.
-- **Detecção de provedor sem CORS**: explicação distinta de "sem
-  internet" e "senha errada".
-
-**Fechado em 24/09/2026**: filme e episódio de série já reproduzem os
-dois. A lacuna de "episódio de série ainda não" (`SeriesDetailScreen` sem
-episódios, `fetchSeriesInfo` sem consumidor) foi fechada pela feature
-`012-series-episodios-temporadas` (código completo nas 4 user stories,
-suíte automatizada limpa; verificação na TV física é recomendada, não
-obrigatória — ver `Estado Atual` da spec; detalhamento em
-`sdd/specs/012-series-episodios-temporadas/`). Ver o item 13 para o que continua fora de escopo (semântica
-de "assistido" agregada por série, hero de "continuar assistindo").
-
-**O que não existe mais**:
-- O backend Python/FastAPI **não é mais o caminho principal**. Continua no
-  repositório como contorno congelado para provedor sem CORS (ADR-008
-  item 6, FR-021). Nenhuma feature futura deve assumir o backend como
-  pré-requisito de uso.
-- O PostgreSQL **não é mais a fonte de verdade do catálogo**. O IndexedDB
-  no aparelho é.
-
----
-
-### Fase 1 — MVP: do catálogo real até assistir
-
-7. **Tela de Canais — melhorias pendentes da feature 003**
-
-   A feature 003 entregou a tela com três estados (vazio, selecionado,
-   reproduzindo), troca do preview de ruído por informação real e Enter →
-   AVPlay. As features 009 e 010 entregaram a lista virtualizada e o reset
-   ao trocar de categoria.
-
-   **Especificada como feature `016-zapping-live-tv`** (25/09/2026): o
-   zapping por cima do vídeo e o "botão voltar ao canal que está tocando"
-   (que só fazia sentido dado o zapping — virou o próprio RETURN da lista
-   sobreposta, com foco padrão no canal tocando, não um botão à parte).
-
-   **Saiu de escopo, considerado já resolvido**: hand-off direcional de
-   foco no contêiner rolável — a lista de canais já tem scroll
-   sincronizado ao foco (`scrollToIndex`, feature 009), sem gap
-   conhecido.
-
-   (RF-008; ADR-005 §3; ADR-007 §4/§5;
-   `docs/iptvnator/07-tela-canais.md` #1–5/#8)
-
-8. **Filmes: arte e detalhe real**
-
-   **Já entregue** (features 009/010): a grade virtualizada de pôsteres por
-   categoria, com contagem real e empty state de categoria.
-
-   **Já entregue pela feature 011**: Assistir/Retomar/Reiniciar, controles
-   de VOD e retomada por identidade estável.
-
-   **Entregue pela feature `015-capa-real-filmes-series`** (convergida em
-   25/09/2026, pedido direto do usuário — percebeu que nenhuma capa
-   carrega): captura de `stream_icon`/`cover` (Xtream) e `tvg-logo` (M3U)
-   para filme e série, guardada no catálogo local, exibida nas grades de
-   Filmes e Séries com fallback ao placeholder atual (sem capa declarada,
-   ou falha de carregamento — nunca o ícone nativo de imagem quebrada).
-   Deixou fora de escopo, de propósito: Live TV, detecção de "capa em
-   branco", e o hero de detalhe (abaixo, que depende de TMDB).
-
-   **Entregue pela feature `017-busca-local-catalogo`** (25/09/2026):
-   empty state de "sem resultado de busca", distinto do de categoria vazia
-   — nas três telas (Live TV, Filmes, Séries).
-
-   **Continua fora de escopo, depende de outros itens**:
-   - Skeleton de mesma geometria do card.
-   - Detalhe com hero real (backdrop, sinopse com "ver mais" acionável por
-     Enter). Sem TMDB (item 28) a sinopse não existe na fonte — hoje a tela
-     diz isso em vez de inventar.
-
-   **Nota client-first**: os dados vêm do IndexedDB local, não de API
-   REST. A leitura paginada por grupo já existe em `catalogRepository`.
-
-   (RF-010; ADR-005 §3; ADR-007 §5/§6;
-   `docs/iptvnator/08-tela-filmes.md` #1–7)
-
-10. **Ciclo de vida do player na TV**
-
-    **Especificada como feature `020-ciclo-vida-player`** (26/09/2026):
-    desligar screensaver durante reprodução (religa ao pausar/encerrar),
-    pausa automática ao ocultar o app (`visibilitychange`) com revalidação
-    da URL de reprodução ao voltar a ficar visível, e tratamento de
-    conclusão detectada ao voltar como conclusão normal. Preservar
-    preferência de áudio/legenda ficou **fora do escopo** — não existe
-    seletor de faixa hoje, decisão explícita do usuário na entrevista. Ver
-    `sdd/specs/020-ciclo-vida-player/spec.md`.
-
-    **O zapping por cima do vídeo** (pedido do usuário, 18/09/2026,
-    observado na TV durante a convergência da 003) **virou a feature
-    `016-zapping-live-tv`** (especificada em 25/09/2026), com todas as
-    decisões de design já resolvidas lá (o que a lista mostra, se o
-    player continua tocando, o que fazer se o canal novo falhar, quando
-    a sessão antiga encerra). **"Impedir sessões sobrepostas na troca
-    rápida de canal" também saiu daqui** — na prática só acontece através
-    do zapping (a navegação normal não permite reselecionar rápido com
-    um canal já tocando), então virou FR-009/SC-003 da 016, não uma
-    pendência solta deste item.
-
-    **Nota client-first**: o progresso é gravado no `UserStateRepository`
-    (feature 008), não num banco remoto. A revalidação de dados expirados ao
-    retomar consulta `freshness.ts` (já existente).
-
-    (`docs/guia-praticas-app-tv/06` §1/§2 e P05/P06;
-    `docs/guia-praticas-app-tv/12` API03/API04)
-
-12. **Pesquisa nos três tipos**
-
-    **Virou a feature `017-busca-local-catalogo`** (especificada em
-    25/09/2026): entrada "🔍 Buscar" no topo da trilha de cada seção,
-    busca por nome só no que já está no aparelho (nunca no provedor), a
-    partir de 3 caracteres, com aviso "busca em X de Y categorias" quando
-    a cobertura for parcial. Ficaram fora de escopo, de propósito: busca
-    global no hub, achar categorias pelo nome, buscar episódios, buscar
-    no provedor pela rede para ampliar a cobertura, e teclado próprio
-    (item 18). Ver `sdd/specs/017-busca-local-catalogo/spec.md`.
-
-    (RF-012; ADR-005 §3; `docs/guia-praticas-app-tv/05` §2)
-
-13. **Histórico e "continuar assistindo"**
-
-    **O repositório já existe** (feature 008): `updateProgress` e
-    `getContinueWatching` prontos e testados. **A feature
-    `011-assistir-filme-retomada` (24/09/2026)** é o primeiro consumidor
-    real: `progressRecorder.ts` grava a posição de filme em pontos
-    intermediários, com limiar inicial (~30s) e final (apaga ao
-    ultrapassar ~95% ou concluir de verdade). **A feature
-    `012-series-episodios-temporadas` (24/09/2026)** somou o segundo
-    consumidor: marca "assistido" por episódio, independente da retomada
-    do episódio em si e do resumo de filme.
-
-    **A parte que faltava virou a feature `019-historico-continuar-
-    assistindo`** (especificada em 26/09/2026): filme concluído passa a
-    ficar marcado como assistido de verdade (hoje só perde o progresso,
-    ~90%, com correção manual no detalhe); série ganha agregação "em dia"
-    exposta na grade (só quando a cobertura de episódios for completa,
-    nunca escondendo cobertura parcial); e uma seção "Continuar
-    assistindo" aparece no hub da fonte (não na Home de múltiplas listas,
-    que continua sendo o item 16). Canal ao vivo e marcação em lote de
-    episódios ficaram de propósito fora do escopo dessa feature. Ver
-    `sdd/specs/019-historico-continuar-assistindo/spec.md`.
-
-    (RF-014; ADR-005 §4; `docs/guia-praticas-app-tv/06` §2 e
-    `docs/guia-praticas-app-tv/01` §2)
+**Fase 1 do backlog ("MVP: do catálogo real até assistir") convergiu por
+completo em 26/09/2026** — os cinco itens que a compunham (tela de canais/
+zapping, arte e detalhe de filmes, ciclo de vida do player, pesquisa,
+histórico/continuar assistindo) viraram as features `016`, `011`/`015`/
+`017`, `020`, `017`/`018` e `019` respectivamente, todas convergidas. A
+narrativa dessa construção (o que existia em cada revisão, o que fechou
+quando) já está nas Execution Notes/`## Resultado Final` de cada spec e no
+histórico de `CLAUDE.md` — não repetida aqui. As duas únicas peças que
+sobraram, sem features próprias ainda, foram realocadas: o hero de detalhe
+de Filmes/Séries (backdrop, sinopse) para a nota do item 28 (depende do
+conector TMDB), e o skeleton de card para o item 15 (já cobre a mesma
+necessidade de forma genérica).
 
 ---
 
@@ -310,13 +80,15 @@ função nova; todos mudam a sensação de uso.
     sem capa, nunca o ícone nativo de imagem quebrada) e aceita overlay
     (`children`, hoje só `.fav-star`). Falta o resto do `PosterCard`
     completo:
-    - Badges de progresso/assistido na base do pôster (depende do item 13,
-      que ainda não persiste "assistido" agregado nem progresso de filme
-      exposto como badge visual).
+    - Badges de progresso/assistido na base do pôster — **já entregue**
+      pela feature `019-historico-continuar-assistindo` (`.watched-badge`
+      em Filmes/Séries), reaproveitar em vez de reconstruir aqui.
     - `ChannelRow`: logo com fallback + nome + slot de "agora" + barra de
       progresso.
     - `EmptyState` e `ErrorState`: ambos com CTA focável.
-    - `Skeleton`: mesma geometria do item real.
+    - `Skeleton`: mesma geometria do item real — absorve o antigo item 8
+      (Fase 1, removida em 26/09/2026), que pedia isso especificamente
+      para o card de Filmes/Séries.
     - Rail horizontal.
 
     Cada componente com estados documentados de foco, seleção,
@@ -341,9 +113,10 @@ função nova; todos mudam a sensação de uso.
     - Sem listas, o shell da Home permanece e só o conteúdo vira
       empty-state de boas-vindas.
 
-    **Pré-requisitos**: feature 013 (favoritos) — **já entregue,
-    convergida em 24/09/2026** — e o restante do item 13 (histórico
-    agregado por série + hero) para o hero funcionar.
+    **Pré-requisitos**: feature 013 (favoritos) e feature 019 (histórico
+    agregado por série + "continuar assistindo") — **as duas já
+    entregues, convergidas** — os dados que o hero precisa já existem;
+    falta só o layout hero+rails em si.
 
     (`docs/iptvnator/09-dashboard-home.md` #1–6/#8;
     `docs/guia-praticas-app-tv/01` §2)
@@ -466,8 +239,9 @@ função nova; todos mudam a sensação de uso.
     anterior como indisponível, sem ser atribuído a outra obra por
     aproximação.
 
-    **Pré-requisitos**: feature 008 (`UserStateRepository`) e feature 013
-    (favoritos) — **as duas já entregues** — e o item 13 (histórico).
+    **Pré-requisitos**: feature 008 (`UserStateRepository`), feature 013
+    (favoritos) e feature 019 (histórico) — **as três já entregues,
+    convergidas**.
 
     (ADR-005 §2/§4;
     `docs/iptvnator/06-carga-listas-url-xtream.md` #8/#12)
@@ -510,6 +284,11 @@ função nova; todos mudam a sensação de uso.
 ### Fase 4 — Enriquecimento, notas e trailers
 
 28. **Conector TMDB client-first (BYOK)**
+
+    **Desbloqueia o hero de detalhe de Filmes/Séries** (backdrop, sinopse
+    com "ver mais" acionável por Enter) — pendência realocada do antigo
+    item 8 (Fase 1, removida em 26/09/2026): sem TMDB a sinopse não existe
+    na fonte, e a tela hoje diz isso em vez de inventar.
 
     `tmdb_id` vindo do provedor é dica forte, não verdade: pesar contra
     título/ano; anos incompatíveis significam id contradito e a busca por
@@ -1052,7 +831,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 017-busca-local-catalogo | Busca Local em Live TV, Filmes e Séries | Implementada | 40/42 tasks | 2026-09-25 |
 | 018-busca-por-categoria | Busca por categoria com ícone de entrada e categoria virtual "Todos" | Convergida | 36/36 tasks | 2026-09-26 |
 | 019-historico-continuar-assistindo | Histórico e Continuar Assistindo | Convergida | 30/31 tasks | 2026-09-26 |
-| 020-ciclo-vida-player | Ciclo de Vida do Player na TV | Especificada | N/A | 2026-09-26 |
+| 020-ciclo-vida-player | Ciclo de Vida do Player na TV | Convergida | 15/16 tasks | 2026-09-26 |
 
 ## Bugs
 
