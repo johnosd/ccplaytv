@@ -1,6 +1,6 @@
 ---
 name: tizen-tv
-description: Instala ou atualiza o app direto na TV Samsung física pela rede (sdb), do build ao app rodando na tela — descobre o IP atual da TV, confere Developer Mode e certificado, gera o build com `npm run build:tizen` apontando para o backend da LAN, empacota e assina o `.wgt` com o perfil Samsung que cobre o DUID do aparelho, instala, lança e coleta a evidência que existe (log do backend, `applist`), sem prometer a que não existe (a TV não expõe console). Use quando o usuário pedir para instalar, atualizar, reinstalar, publicar ou rodar o app na TV, testar na TV física, "manda pra TV", ou validar uma correção no aparelho de verdade. Também cobre os becos conhecidos: IP trocado pelo DHCP, `failed to connect` com a porta 26101 aberta, `Author certificate not match`, e o certificado Samsung que precisa de author próprio. NÃO use para o emulador (use `tizen-emulator`, que tem seu próprio beco documentado), para corrigir bugs encontrados no aparelho (use `sdd-bugfix`), nem para implementar feature (use `sdd-execute`).
+description: Instala ou atualiza o app direto na TV Samsung física pela rede (sdb), do build ao app rodando na tela — descobre o IP atual da TV, confere Developer Mode e certificado, gera o build com `npm run build:tizen` (client-first, ADR-008 — o backend não é pré-requisito), empacota e assina o `.wgt` com o perfil Samsung que cobre o DUID do aparelho, instala, lança e coleta a evidência que existe (`applist`, observação visual), sem prometer a que não existe (a TV não expõe console). Use quando o usuário pedir para instalar, atualizar, reinstalar, publicar ou rodar o app na TV, testar na TV física, "manda pra TV", ou validar uma correção no aparelho de verdade. Também cobre os becos conhecidos: IP trocado pelo DHCP, `failed to connect` com a porta 26101 aberta, `Author certificate not match`, e o certificado Samsung que precisa de author próprio. NÃO use para o emulador (use `tizen-emulator`, que tem seu próprio beco documentado), para corrigir bugs encontrados no aparelho (use `sdd-bugfix`), nem para implementar feature (use `sdd-execute`).
 ---
 
 # tizen-tv
@@ -26,10 +26,21 @@ do código à tela em cerca de um minuto, quando os pré-requisitos estão de p�
 | Certificado Samsung com author próprio | `Get-ChildItem $env:USERPROFILE\SamsungCertificate\<perfil>` deve ter **`author.p12` e `distributor.p12`** | Ver "O certificado" abaixo |
 | DUID da TV no certificado | `device-profile.xml` → `<TestDevice>` | Idem |
 | CLI apontando para o perfil certo | `tizen.bat security-profiles list` deve listar o perfil e marcá-lo ativo | Ver "O certificado" abaixo |
-| Backend alcançável pela LAN | `Invoke-RestMethod http://<ip-pc>:3000/health` | `api/.env` com `HOST=0.0.0.0`, firewall liberando TCP 3000, `docker compose up -d postgres` + `uv run python main.py` |
 
 Shell é **Windows PowerShell 5.1** (`pwsh` não instalado): sem `&&`, sem
 `??`. Encadeie com `;`.
+
+**O backend (`api/`) NÃO é pré-requisito** (ADR-008, client-first,
+confirmado 25/09/2026): import de fonte, catálogo e reprodução rodam
+inteiramente no navegador da TV, com IndexedDB via Dexie como fonte de
+verdade — não há chamada ao backend no caminho normal de abrir a Home,
+navegar o catálogo ou reproduzir. Nunca pare o deploy por ele estar fora
+do ar. Ele só entra em jogo como contorno opcional para um provedor Xtream
+específico que bloqueia CORS direto do navegador (ADR-006 E4) — se uma
+fonte desse tipo precisar ser adicionada/ressincronizada durante a sessão
+de teste e isso falhar, aí sim vale subir o backend (`docker compose up -d
+postgres` + `uv run python main.py` em `api/`, com `HOST=0.0.0.0`) como
+diagnóstico pontual, não como passo padrão do fluxo de deploy.
 
 ## O certificado (a parte que mais custa quando falta)
 
@@ -120,22 +131,27 @@ foreach ($h in $hosts) {
 
 Esse nome (`QN50Q60DAGXZD`) é o que vai em `-t` nos comandos seguintes.
 
-## Fase 2 — Build apontando para o backend da LAN
-
-Dentro da TV, `127.0.0.1` é a própria TV. O fallback do front é
-`http://127.0.0.1:3000` (`catalogApi.ts`/`importApi.ts`), então a env var é
-obrigatória:
+## Fase 2 — Build
 
 ```powershell
-(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -eq 'Dhcp' }).IPAddress
 Push-Location .\tv-web
-$env:VITE_API_URL = "http://<ip-do-pc>:3000"
 npm run build:tizen
 Pop-Location
 ```
 
-Sem isso a Home abre vazia na TV e parece bug de UI. O CORS da API já aceita
-`Origin: null`, que é o que o app empacotado envia.
+`VITE_API_URL` **não precisa mais ser setada** (client-first, ADR-008) — a
+Home lê o catálogo do IndexedDB local, sem chamada ao backend no caminho
+normal. Se, durante a sessão de teste, for preciso adicionar/ressincronizar
+uma fonte Xtream que bloqueia CORS direto do navegador (o único caso onde o
+backend entra), aí sim sete a env var antes do build, apontando para o IP
+do PC na LAN (dentro da TV, `127.0.0.1` é a própria TV):
+
+```powershell
+(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -eq 'Dhcp' }).IPAddress
+$env:VITE_API_URL = "http://<ip-do-pc>:3000"
+```
+
+O CORS da API já aceita `Origin: null`, que é o que o app empacotado envia.
 
 ## Fase 3 — Empacotar e assinar
 
@@ -168,8 +184,10 @@ pelo **id completo** e repita:
 & $tizen uninstall -p 8tZqMtwANL.CCPlayTv -t QN50Q60DAGXZD
 ```
 
-Avise o usuário antes: isso apaga o cache local do app na TV (o catálogo
-volta a sincronizar do backend, então a perda é temporária).
+Avise o usuário antes: isso apaga o IndexedDB local do app na TV — fontes,
+catálogo e estado de usuário (favoritos, retomada). Nada disso vem de um
+backend (client-first); a fonte só volta se for readicionada/
+ressincronizada a partir da URL/credencial original.
 
 Atualizações seguintes, com o mesmo certificado, dispensam o uninstall: o
 install sobrescreve em ~6 segundos.
@@ -181,13 +199,18 @@ volta vazio, e a porta 7011 do Web Inspector fica fechada. O que sobra:
 
 ```powershell
 & $sdb -s <ip>:26101 shell 0 applist | Select-String "CCPlay"   # confirma instalação
-Get-Content "$env:TEMP\ccplay-api.log" -Tail 15                 # requisições vindas da TV
 ```
 
-Uma linha como `INFO: 192.168.0.4:51798 - "GET /sources HTTP/1.1" 200 OK`, com
-o IP **da TV**, é prova objetiva de que o app empacotado subiu, alcançou o
-backend pela LAN e o CORS passou. Fora isso, o veredito é visual: o usuário
-olhando a tela.
+Isso confirma que o pacote está instalado — não que abriu nem que o
+catálogo carregou. Como o caminho normal é client-first (sem chamada ao
+backend), não há mais uma linha de log de rede para provar que os dados
+apareceram: o veredito é visual, o usuário olhando a tela (splash, Home com
+a fonte já sincronizada, categoria abrindo). Só quando o cenário de teste
+envolve de propósito uma fonte que passa pelo backend (contorno de CORS,
+ver "Fase 2") é que `Get-Content "$env:TEMP\ccplay-api.log" -Tail 15`
+mostrando uma linha como `INFO: 192.168.0.4:51798 - "GET /..." 200 OK`, com
+o IP **da TV**, vale como prova objetiva adicional desse caminho
+específico.
 
 Por isso **as perguntas ao usuário precisam ser específicas** — "a splash
 apareceu?", "o foco está visível neste estado?", "mover o foco disparou

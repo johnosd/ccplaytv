@@ -32,9 +32,10 @@ natural. O "parâmetro" de modo é só como o usuário pede:
 Se não estiver claro qual o usuário quer, assuma o padrão (pausado) e avise
 que vai pausar a cada fase, mencionando que dá pra pedir modo contínuo.
 
-**Importante**: os 3 gatilhos de parada obrigatória (bug fora de escopo —
-passo 6; conflito com critério de aceite — passo 13; todas as tasks
-concluídas) **continuam valendo mesmo em modo contínuo**. Eles não são pausas
+**Importante**: os 4 gatilhos de parada obrigatória (bug fora de escopo —
+passo 6; teste de contrato que parece errado ou impossível — passo 5b;
+conflito com critério de aceite — passo 13; todas as tasks concluídas)
+**continuam valendo mesmo em modo contínuo**. Eles não são pausas
 de revisão opcionais, são bloqueios reais que exigem decisão do usuário.
 
 ## Fluxo
@@ -55,6 +56,19 @@ Invariantes, Estratégia de Testes, Execution Notes acumuladas), `spec.md`
 (critérios de aceite), `.planning/memory/constitution.md`, e os
 `AVAILABLE_DOCS` que o script do passo 1 reportou (`research.md`,
 `data-model.md`, `contracts/`, `quickstart.md`, `history.md` se existir).
+
+Se existir `contract-tests.lock` no diretório da feature, leia os arquivos
+de teste listados nele **antes** do código de produção: eles são a
+definição executável de "pronto" que o `sdd-plan` deixou, e valem mais que
+qualquer prosa em `tasks.md` quando os dois parecerem divergir (divergência
+real → passo 5b). Confira a trava logo de saída:
+
+```powershell
+.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug <NNN-slug>
+```
+
+Se já começar `FAIL`, pare e reporte — alguém mexeu nos contratos fora do
+fluxo.
 
 Se `history.md` existir, não precisa reler por inteiro — é arquivo, não
 contexto ativo; consulte só se precisar entender uma decisão antiga que sumiu
@@ -81,6 +95,44 @@ Story por story. Rode os comandos de build/teste da Estratégia de Testes
 (comandos exatos, copy-paste-prontos no relatório — nunca só "rodei os
 testes"). Marque `[X]` **imediatamente por task concluída**, não em lote —
 progresso precisa sobreviver a uma interrupção.
+
+Se a fase tem **Contrato da fase** em `tasks.md`:
+
+1. **Antes de implementar**, rode os testes de contrato da fase e confirme
+   que estão vermelhos pelo motivo esperado (a saída vermelha registrada em
+   `## Estratégia de Testes`). Se algum já estiver verde ou falhar por outro
+   motivo (import, tipo, sintaxe), anote e siga com cautela — não "conserte"
+   o teste.
+2. Implemente a partir dos stubs que o plan criou, até os contratos da fase
+   ficarem verdes. Você pode — e deve, quando fizer sentido — escrever
+   testes **adicionais** (os de "Testes da fase"), sempre em arquivos que
+   não estão na trava.
+3. **Nos arquivos travados, proibido**: editar, renomear, mover ou apagar;
+   adicionar `.skip`/`.only`/`.todo`; afrouxar timeout; mockar a própria
+   unidade sob teste; e, no código de produção, tratar de forma especial os
+   valores exatos que o teste usa (se o código só funciona pros dados do
+   teste, o contrato não foi cumprido). Contrato verde por qualquer um
+   desses caminhos conta como **não cumprido**.
+4. **Teste instável não é "ok"**: se um teste (de contrato ou não) falha na
+   suíte completa e passa rodando sozinho, isso vai em `Pendências:` do
+   Registro da Fase como problema aberto — nunca como "baseline ok".
+
+### 5b. Teste de contrato parece errado ou impossível
+
+Se, depois de uma tentativa honesta, um teste de contrato parecer errado
+(contradiz a spec, depende de algo que não existe, exige uma interface que
+não se sustenta no código real) ou impossível de passar sem violar uma
+Decisão Invariante ou a constitution: **pare e reporte, sem editar o
+teste**. Vale em qualquer modo. O relatório diz qual teste, a evidência
+(saída do teste + arquivo/linha do conflito) e 1-2 alternativas. Quem
+decide é o usuário — em geral voltando ao `sdd-plan`/modelo de planejamento
+pra emendar. Uma emenda aprovada:
+
+- edita o arquivo de contrato (e só o necessário);
+- regrava a trava: `check-contract-tests.ps1 -Slug <NNN-slug> -Write`;
+- anexa um `R-00X` em `## Riscos e Decisões` de `plan.md` com o motivo.
+
+Nunca regrave a trava sem essa aprovação explícita.
 
 ### 6. Bugs encontrados durante implementação/teste
 
@@ -114,8 +166,13 @@ Cerimônia proporcional ao tamanho do bug — nunca o ciclo completo de
 Atualização **obrigatória, não condicional** — isso é o mecanismo estrutural
 que substitui "lembrar de atualizar a doc":
 
+- Rode `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug <NNN-slug>`.
+  Se der `FAIL`, a fase **não** fecha: desfaça a mudança no arquivo de
+  contrato (ou vá pro passo 5b se ela era necessária).
 - Em `tasks.md`: escreva/atualize o bloco **Registro da Fase** da fase/story
-  recém-fechada (`Status:` / `Feito:` / `Testes executados:` / `Pendências:`).
+  recém-fechada (`Status:` / `Feito:` / `Contrato:` / `Testes executados:` /
+  `Pendências:`). `Contrato:` traz o comando, o resultado (`N/N verdes`) e
+  `trava íntegra` — ou `sem contrato nesta fase`.
   Se a fase fechou como concluída, marque também o item correspondente no
   Checklist de Release (fase Polish).
 - Em `plan.md`:
@@ -180,7 +237,9 @@ qualquer modo, a qualquer momento — não só nas pausas entre fases.
 ### 14. Ao marcar a última task
 
 Quando o último checkbox de `tasks.md` (incluindo Polish/Checklist de
-Release) é marcado:
+Release) é marcado — e, se houver trava, todos os testes de contrato estão
+verdes na suíte completa e `check-contract-tests.ps1` está íntegro (senão a
+feature não está implementada, mesmo com tudo marcado):
 
 ```powershell
 .\.planning\scripts\powershell\update-feature-status.ps1 -Slug <NNN-slug> -Status Implementada

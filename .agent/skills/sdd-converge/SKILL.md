@@ -32,6 +32,25 @@ tiver zero itens marcados.
   anexar), Registro da Fase de cada fase.
 - `.planning/memory/constitution.md`: princípios que governam o projeto.
 
+### 2b. Confere os testes de contrato
+
+Se existir `contract-tests.lock` no diretório da feature:
+
+```powershell
+.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug <NNN-slug>
+```
+
+- `FAIL` (arquivo alterado/removido) sem um `R-00X` em `## Riscos e
+  Decisões` que registre a emenda aprovada → achado **CRITICAL**
+  (`contradicts`, origem `plan: contrato`). Com a emenda registrada mas a
+  trava não regravada → **HIGH**.
+- Rode os arquivos de contrato (comando de `## Estratégia de Testes`).
+  Qualquer um vermelho → achado **CRITICAL** se cobre uma story P1, **HIGH**
+  caso contrário.
+- Leia o código que faz os contratos passarem procurando atalhos: lógica
+  que só funciona pros valores exatos do teste, mock da própria unidade,
+  comportamento condicionado a ambiente de teste. Encontrado → **CRITICAL**.
+
 ### 3. Mapeia intenção → código real
 
 Baseado nos arquivos/componentes que os artefatos acima realmente nomeiam

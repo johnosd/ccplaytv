@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-24
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: O usuário percebeu que nenhuma imagem de capa carrega hoje nas
 grades de Filmes e Séries. Investigação confirmou que não é um bug: o

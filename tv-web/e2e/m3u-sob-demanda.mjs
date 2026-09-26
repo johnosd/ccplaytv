@@ -258,8 +258,13 @@ async function run() {
 
     assert(limitedPanel.counts.getPhp > 0, 'sem confirmar o protocolo, o caminho integral baixou o get.php')
 
-    await page.waitForSelector('.source-card', { timeout: 8000 })
+    // `.source-card` já existe desde a primeira fonte — esperar só por ele
+    // resolve na hora, sem dar tempo do refetch do react-query (staleTime 0,
+    // mas ainda assíncrono) trazer o selo da fonte recém-importada. Espera
+    // pelo próprio badge (com polling do Playwright) em vez de um card
+    // genérico.
     const limitedCard = page.locator('.source-card-wrap', { hasText: 'Fonte E2E Sem Protocolo' })
+    await limitedCard.locator('.source-card-badge', { hasText: 'Modo limitado' }).waitFor({ timeout: 8000 })
     assert(
       (await limitedCard.locator('.source-card-badge', { hasText: 'Modo limitado' }).count()) === 1,
       'a segunda fonte ganhou o selo "Modo limitado" na Home',

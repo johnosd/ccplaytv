@@ -168,3 +168,21 @@ o gesto de segurar nele — a tecla amarela é um segundo caminho independente
 para a mesma ação de favoritar, nunca uma substituta. Mesmo padrão de
 `onLongSelect`: opt-in por tela, nenhuma tela muda de comportamento sem
 passar o handler.
+
+**Atualização (feature `017-busca-local-catalogo`, 2026-09-25):**
+`useRemoteNav` ganhou uma guarda de alvo editável (D-005 do plano daquela
+feature), incondicional — não é mais um handler opt-in como os três
+anteriores. `handleKeyDown`/`handleKeyUp` agora verificam primeiro se
+`event.target` é um campo editável (`<input>`/`<textarea>`/
+`contentEditable`, `isEditableTarget()`); se for, e a tecla estiver em
+`EDITABLE_PASSTHROUGH_KEYS` (Backspace, espaço, Enter, ←, →), o hook
+retorna imediatamente sem chamar nenhum handler nem `preventDefault` —
+deixa o campo de texto nativo (teclado do sistema da TV) se comportar
+normalmente. RETURN e ↑/↓ nunca entram nesse conjunto: continuam sempre
+chegando à tela, mesmo com um campo focado, porque "foco é estado React"
+(este ADR) precisa continuar valendo — sem essa exceção, o campo de busca
+capturaria a navegação inteira da tela enquanto tivesse foco DOM real (a
+primeira exceção deliberada ao "nunca `.focus()` de DOM" deste ADR: o campo
+de busca é o único elemento do projeto com foco DOM real, porque só o
+teclado do sistema da TV sabe escrever nele). Detalhe completo em
+`sdd/specs/017-busca-local-catalogo/logic/busca-local.md` §3.

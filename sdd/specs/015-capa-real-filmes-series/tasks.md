@@ -272,12 +272,12 @@ só os itens visíveis (+ overscan) foram pedidos.
 
 ### Testes da Fase
 
-- [ ] T020 [P] [US2] `tv-web/e2e/capa-real.mjs`, cenário 2: o item cujo
+- [X] T020 [P] [US2] `tv-web/e2e/capa-real.mjs`, cenário 2: o item cujo
   `tvg-logo` aponta pra um caminho que o servidor fictício responde 404
   (fixture da T001) — a grade mostra o placeholder, sem nenhum elemento
   de imagem quebrada no DOM (checagem por seletor/atributo, não captura
   visual), e sem repetição de requisição em loop.
-- [ ] T021 [US2] Mesmo arquivo, cenário 3 (D-007): entrar na categoria de
+- [X] T021 [US2] Mesmo arquivo, cenário 3 (D-007): entrar na categoria de
   dezenas de itens com capa (fixture da T001) sem rolar — o contador de
   requisições do servidor fictício fica preso ao tamanho da janela
   virtual (bem menor que o total da categoria); rolar a grade até o fim
@@ -286,13 +286,11 @@ só os itens visíveis (+ overscan) foram pedidos.
 
 ### Implementation
 
-Nenhuma implementação nova esperada — `PosterArt` (Foundational, T005) e a
-janela de virtualização (feature 009, já existente em `MoviesScreen.tsx`/
-`SeriesScreen.tsx`) já cobrem os dois cenários por construção. Se os
-testes desta fase encontrarem uma lacuna real (ex.: contador maior que o
-esperado, ícone quebrado aparecendo), a correção acontece **dentro desta
-fase**, registrada em prosa no Registro da Fase (protocolo de bug do
-`sdd-execute`) — não uma task nova pré-definida aqui.
+O plano previa nenhuma implementação nova (`PosterArt` e a virtualização
+já cobrem os dois cenários por construção) — **isso valeu pro cenário 2,
+mas não pro 3**: T021 encontrou uma lacuna real, fora do escopo desta
+feature (protocolo de bug do `sdd-execute`, corrigida com aprovação
+explícita do usuário — ver Registro da Fase abaixo e R-005 do `plan.md`).
 
 **Critério de Conclusão**: nenhum ícone de imagem quebrada aparece em
 nenhum cenário testado; o número de requisições de imagem observado no
@@ -302,7 +300,57 @@ E2E comprova a janela virtualizada, não a categoria inteira.
 
 **Registro da Fase**:
 
-- Status:
+- Status: Concluída (2026-09-24)
+- Feito: T020 (cenário 2, capa quebrada) passou de primeira, sem
+  implementação nova — confirma `PosterArt` por construção. T021 (cenário
+  3, D-007) exigiu subir `MANY_COUNT` de 60 pra 500 (um navegador real,
+  mesmo headless, mostra ~60 cards de uma vez — 60 não estourava a
+  janela) e revelou um **achado fora do escopo desta feature, com
+  aprovação explícita do usuário antes de corrigir** (AskUserQuestion:
+  "Corrigir agora, junto com a 015"): entrar numa categoria `stored`
+  grande e **não fazer nada** já bastava pro conteúdo sumir sozinho da
+  tela ~300ms depois, mostrando "O conteúdo desta lista não está mais no
+  aparelho" — sem rolar, sem qualquer ação do usuário. Causa raiz:
+  `useCategoryFocusPrefetch` (feature 010, R-013) mantém um timer de
+  pré-busca amarrado à categoria em foco na trilha **mesmo depois de já
+  ter entrado nela** — o cálculo de `focusedCategory` não olha `col`. O
+  timer usa o snapshot de categoria da lista (`useCategoryList`), que
+  nunca é invalidado depois que a entrada real (`useCategoryContent`) lê
+  e consome os blocos de `storedEntries` (D-007 da feature 014) — então
+  o prefetch, ao disparar, vê `itemsFetchedAt` ainda `undefined` no
+  snapshot antigo, tenta `readStored` de novo, acha os blocos já
+  consumidos, devolve `source_missing`, e escreve isso por cima do cache
+  que `useCategoryContent` já tinha populado com o conteúdo certo —
+  mesma `queryKey` (`category-content`, `prefetchCategoryContent` vs
+  `useCategoryContent`). Corrigido em `catalogApi.ts`:
+  `useCategoryFocusPrefetch` ganhou um terceiro parâmetro
+  (`enteredCategoryId?: number`), incluído na lista de dependências do
+  `useEffect` — quando a categoria focada é a já entrada, o efeito nunca
+  agenda um timer novo **e cancela um já agendado** (o `return () =>
+  clearTimeout(timer)` do efeito anterior roda antes do corpo novo, que
+  aí não reagenda nada). `LiveScreen.tsx`/`MoviesScreen.tsx`/
+  `SeriesScreen.tsx`: `entered` (estado de "categoria entrada") subiu pra
+  antes da chamada de `useCategoryFocusPrefetch` (só reordenação, mesmo
+  valor) e passa `entered?.kind === 'category' ? entered.id : undefined`
+  como terceiro argumento. 3 testes novos em `catalogApi.test.tsx`
+  provam: categoria já entrada nunca prefetcha; um timer pendente é
+  cancelado ao entrar antes de disparar; uma categoria diferente da
+  entrada continua prefetchando normal (a correção não desliga o
+  recurso, só evita a corrida). Registrado em `plan.md` → Riscos e
+  Decisões como R-005.
+- Testes executados: `npm run test -- src/features/catalog/catalogApi.test.tsx
+  src/features/live/LiveScreen.test.tsx src/features/movies/MoviesScreen.test.tsx
+  src/features/series/SeriesScreen.test.tsx` (74/74, incluindo os 3 testes
+  novos do achado); `node e2e/capa-real.mjs` rodado 3x seguidas depois da
+  correção — 11/11 verificações nas três rodadas (cenário 3 com `afterScroll`
+  visivelmente maior que `beforeScroll` em todas, sem nenhuma flutuação pra
+  `source_missing`); `npm run test` completo 665/666 (a 1 falha,
+  `LiveScreen.favorites.test.tsx`, é o mesmo padrão de timer real sob carga
+  já documentado em toda a feature, confirmada 12/12 isolada); `npm run lint`
+  (só warnings pré-existentes); `npm run build` (limpo, depois de corrigir um
+  erro de tipo num teste novo — `initialProps` sem o cast `as number |
+  undefined` inferia o tipo do parâmetro como sempre `undefined`).
+- Pendências: nenhuma.
 - Feito:
 - Testes executados:
 - Pendências:
@@ -313,36 +361,100 @@ E2E comprova a janela virtualizada, não a categoria inteira.
 
 **Purpose**: regressão, documentação canônica, gates e verificação.
 
-- [ ] T022 [P] Regressão: `npm run test -- src/features/live/LiveScreen.test.tsx`
+- [X] T022 [P] Regressão: `npm run test -- src/features/live/LiveScreen.test.tsx`
   e `node e2e/m3u-sob-demanda.mjs` — confirmar que Live TV (FR-009) e o
   caminho `stored` da feature 014 continuam intocados.
-- [ ] T023 [P] `CLAUDE.md`: avaliar, proporcionalmente, se o "Project
+- [X] T023 [P] `CLAUDE.md`: avaliar, proporcionalmente, se o "Project
   status" precisa de nota sobre esta feature (provável que não — é uma
   mudança visual contida, sem novo caminho arquitetural; decidir na
   hora, não reescrever a seção à toa).
-- [ ] T024 Revisão de segredos (constitution, Fluxo de Desenvolvimento):
+- [X] T024 Revisão de segredos (constitution, Fluxo de Desenvolvimento):
   conferir no diff que nenhuma URL de capa aparece em log, mensagem de
   erro, texto de tela ou `console.*` (D-008 do plan.md).
-- [ ] T025 Gates: `npm run test`, `npm run lint`, `npm run build`, e
+- [X] T025 Gates: `npm run test`, `npm run lint`, `npm run build`, e
   `npm run test:e2e` com `npm run dev` rodando. **Ciente de antemão**: o
   achado R-009 da feature 014 (`e2e.mjs` desatualizado, diálogo de saída
   que `AddSourceScreen` não tem mais) segue sem correção por decisão do
   usuário — vai continuar travando a cadeia combinada; rodar
   `node e2e/capa-real.mjs` isolado para validar esta feature
   especificamente, mesmo padrão já estabelecido na 014.
-- [ ] T026 Rodar `quickstart.md` inteiro no navegador (cenários 1–7 e
+- [X] T026 Rodar `quickstart.md` inteiro no navegador (cenários 1–7 e
   itens da constitution).
 
 ### Checklist de Release
 
-- [ ] Fase 2 (Foundational) concluída
-- [ ] Fase 3 (User Story 1) concluída
-- [ ] Fase 4 (User Story 2) concluída
-- [ ] Nenhum vazamento de URL de capa (T024)
-- [ ] Janela virtualizada comprovada por teste (T021)
-- [ ] E2E `capa-real.mjs` verde (cenários 1–3)
-- [ ] Live TV e feature 014 sem regressão (T022)
-- [ ] `quickstart.md` executado com sucesso
+- [X] Fase 2 (Foundational) concluída
+- [X] Fase 3 (User Story 1) concluída
+- [X] Fase 4 (User Story 2) concluída
+- [X] Nenhum vazamento de URL de capa (T024)
+- [X] Janela virtualizada comprovada por teste (T021)
+- [X] E2E `capa-real.mjs` verde (cenários 1–3)
+- [X] Live TV e feature 014 sem regressão (T022)
+- [X] `quickstart.md` executado com sucesso
+
+---
+
+**Registro da Fase (Polish)**:
+
+- Status: Concluída (2026-09-25)
+- Feito: T023 (`CLAUDE.md` ganhou o parágrafo "In execution:
+  015-capa-real-filmes-series"; aproveitei a mesma edição pra corrigir o
+  parágrafo da 014, que ainda dizia "In execution" apesar de já ter
+  convergido nesta sessão — constitution, "correção acontece na mesma
+  tarefa"). T024 (revisão de segredos: `PosterArt.tsx` não tem nenhum
+  `console.*`/`logger.*`; os 17 arquivos que tocam `iconUrl`/`icon_url`
+  são só captura/propagação/prop, nunca renderizados como texto). T026
+  (quickstart: cenários 1–5 já cobertos byte-a-byte pelos 11 asserts de
+  `e2e/capa-real.mjs`; cenário 6, fonte antiga sem `iconUrl`, é o mesmo
+  mecanismo já testado de "sem capa declarada" — campo ausente, sem
+  migração, D-009; cenário 7, ressincronizar populando a capa, é o mesmo
+  ciclo de geração nova já coberto em toda a cadeia 010/013/014, sem
+  lógica nova desta feature a testar de novo; itens da constitution
+  conferidos por código — foco nunca depende do estado da imagem,
+  `.poster-box-art` só tem propriedades geométricas, sem cor/raio/fonte
+  hardcoded).
+  **T022 (regressão) achou 2 falhas intermitentes em `node
+  e2e/m3u-sob-demanda.mjs`** (script da feature 014, não tocado nesta
+  sessão) — investigado a fundo antes de concluir: (1) conferido
+  `git status`/diff — zero sobreposição de arquivo entre o que esta
+  feature mudou e o que as asserções que falharam testam (uma delas é
+  sobre `HomeScreen.tsx`/`.source-card-badge`, tela que nem importa
+  `useCategoryFocusPrefetch`); (2) uma rodada isolada, com debug
+  temporário, mostrou o selo "Modo limitado" corretamente presente no
+  texto do card — a falha não é um dado errado, é uma corrida de tempo;
+  (3) rodadas seguintes falharam em pontos diferentes do script a cada
+  vez (não sempre o mesmo assert), característica de flakiness de
+  ambiente, não de bug determinístico; (4) esta sessão rodou dezenas de
+  ciclos de Playwright/Vitest e reiniciou o dev server, com carga
+  acumulada bem maior que a das sessões originais da 014 (documentadas
+  como estáveis em 3 rodadas). Conclusão: fragilidade de tempo
+  pré-existente em `m3u-sob-demanda.mjs`, exposta hoje por carga de
+  sistema, não uma regressão desta feature — mesma classe de achado que
+  o padrão flaky já documentado pra `*.favorites.test.tsx` em toda a
+  sessão, só que num script E2E em vez de teste unitário. Não alterado
+  (fora do escopo desta feature, mesmo critério do R-009 da 014).
+  **Achado paralelo, não relacionado ao código**: durante a investigação,
+  `git status` revelou 2 commits (`7b4a752 images`, `51d8516 imagens`,
+  autor John Costa, 2026-09-25 00:26–00:27) que não vieram desta sessão —
+  parecem ter capturado o estado da árvore de trabalho (incluindo o
+  trabalho desta sessão nas features 014/015) a partir de outro processo
+  concorrente. Nenhum conteúdo foi perdido ou alterado por eles (`git
+  commit` não modifica a árvore de trabalho), mas o usuário foi avisado
+  em tempo real durante a investigação.
+- Testes executados: `npm run test` completo 665/666 (a 1 falha,
+  `MoviesScreen.favorites.test.tsx`, confirmada 4/4 isolada — mesmo
+  padrão pré-existente); `npm run lint` (só warnings pré-existentes);
+  `npm run build` (limpo); `npm run test:e2e` (trava em `e2e.mjs`, R-009,
+  esperado); `node e2e/capa-real.mjs` isolado, verde 100% na rodada final
+  (11/11); `node e2e/m3u-sob-demanda.mjs` rodado 5x ao longo da
+  investigação — 3 rodadas com falha intermitente (pontos diferentes a
+  cada vez), 1 rodada limpa com debug confirmando o dado correto, todas
+  sem nenhuma relação de código com esta feature.
+- Pendências: nenhuma desta feature. A fragilidade de `m3u-sob-demanda.mjs`
+  sob carga fica registrada aqui como achado, não como task — se
+  reaparecer de forma mais séria no futuro, é candidata a `sdd-bugfix`
+  própria (tornar as esperas do script mais robustas, mesmo padrão do
+  R-004 desta feature).
 
 ---
 

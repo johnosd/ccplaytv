@@ -396,6 +396,31 @@
   color: var(--text-tertiary);
 }
 
+/* Seção "Continuar assistindo" no hub da lista (feature 019, D-010) — rail
+   simples, acima dos tiles. Cards menores que .tile: só capa + título. */
+.continue-watching-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 40px;
+  overflow-x: hidden;
+}
+
+.continue-watching-card {
+  width: 180px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.continue-watching-title {
+  font: 500 16px var(--font-body);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Explicação do Modo limitado no hub da lista (feature 014, FR-021/FR-022).
    Tom informativo, nunca de erro — nunca a cor de `.form-error`. */
 .limited-mode-notice {
@@ -1202,6 +1227,20 @@
   text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
 }
 
+/* Selo "Assistido" (feature 019, D-006) — canto inferior, nunca disputa
+   posição com .fav-star (superior). Texto sempre, nunca só cor
+   (constitution, "Foco Visível e Sem Becos Sem Saída"). */
+.poster-box .watched-badge {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  font: 700 12px var(--font-body);
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
 /* Entrada virtual "Favoritos" no topo da trilha de categorias — mesma
    classe .live-item, com um rotulo fixo (icone + texto) que nunca
    depende so da posicao para ser distinguivel de uma categoria real da
@@ -1220,4 +1259,101 @@
   color: var(--text-tertiary);
   padding: 8px 20px;
   flex: none;
+}
+
+.player-zap-scrim {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  background: var(--player-zap-scrim);
+}
+
+.player-zap-columns {
+  position: absolute;
+  inset: 0;
+  padding: 80px 96px;
+  display: flex;
+  flex-direction: row;
+  gap: 40px;
+}
+
+/* ---------- Busca local (feature 017) ---------- */
+
+/* Entrada "Todos" no topo da trilha (feature 018) — mesmo padrão de
+   .live-item-favorites (feature 013): ícone + texto, nunca confundido com
+   uma categoria real da fonte. Substitui .live-item-search (feature 017,
+   removida — a busca deixou de ser uma entrada de trilha). */
+.live-item-all {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Título da coluna de conteúdo + ícone de busca lado a lado (feature 018,
+   FR-001) — o ícone só existe quando a entrada atual tem itens (D-006). */
+.category-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.category-title-row .live-column-title {
+  margin-bottom: 0;
+}
+
+/* Botão pequeno, focável — mesma receita de foco de qualquer outro
+   elemento (.tv-focus, ADR-007), nunca uma cor/raio literal aqui. */
+.search-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 20px;
+  flex: none;
+}
+
+.search-icon-button.tv-focus {
+  background: var(--surface-active);
+  color: var(--text-primary);
+}
+
+.search-field-row {
+  margin-bottom: 16px;
+}
+
+/* Reusa .field-box (mesmo campo do formulário de fonte), com altura menor
+   para caber no topo da coluna de conteúdo sem empurrar a lista — nunca uma
+   cor/raio literal (ADR-007), só o token já usado por .field-box. */
+.search-field {
+  height: 56px;
+  max-width: 100%;
+  font-size: 17px;
+}
+
+.search-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 4px 0;
+  font: 500 15px var(--font-body);
+  color: var(--text-tertiary);
+}
+
+.search-coverage {
+  color: var(--text-muted);
+}
+
+/* Rótulo de categoria em cada resultado (FR-011) — só existe em modo busca,
+   nunca na navegação normal por categoria (que já mostra isso no cabeçalho). */
+.live-item-group {
+  font: 500 13px var(--font-body);
+  color: var(--text-muted);
+  flex: none;
+  margin-left: 8px;
 }

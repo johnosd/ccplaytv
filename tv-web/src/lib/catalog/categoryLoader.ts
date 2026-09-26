@@ -20,7 +20,13 @@
  */
 
 import { db, type CatalogDb, type CatalogRecord, type CategoryKind } from './db'
-import { activeGeneration, storeCategoryItems, storeStoredCategory, type CatalogCategory } from './catalogRepository'
+import {
+  activeGeneration,
+  countChannels,
+  storeCategoryItems,
+  storeStoredCategory,
+  type CatalogCategory,
+} from './catalogRepository'
 import { readEntryChunks } from './storedEntries'
 import { isCategoryFresh } from './freshness'
 import { readCredential } from './sourceRepository'
@@ -28,6 +34,7 @@ import {
   fetchLiveStreams,
   fetchSeries,
   fetchVodStreams,
+  isAbortError,
   mapLiveEntry,
   mapSeriesEntry,
   mapVodEntry,
@@ -50,6 +57,14 @@ export interface EnsureCategoryResult {
 export interface EnsureCategoryOptions {
   database?: CatalogDb
   now?: () => number
+  /**
+   * Sinal de cancelamento para a busca de rede desta chamada (bug
+   * `prefetch-concorrente-categoria-sem-cancelamento-requisicao`) — só o
+   * caminho `on_demand` (`fetchAndStore`) o usa; `stored`/`eager` nunca
+   * tocam rede. Abortado, a busca lança em vez de virar `failed`/
+   * `stale-served` (ver `fetchAndStore`).
+   */
+  signal?: AbortSignal
 }
 
 /**
@@ -69,6 +84,7 @@ async function fetchMappedItems(
   username: string,
   password: string,
   category: CatalogCategory,
+  signal?: AbortSignal,
 ): Promise<MappedChannel[]> {
   if (!category.providerCategoryId) return []
 
@@ -77,20 +93,20 @@ async function fetchMappedItems(
   ])
 
   if (kind === 'channel') {
-    const raw = await fetchLiveStreams(dns, username, password, category.providerCategoryId)
+    const raw = await fetchLiveStreams(dns, username, password, category.providerCategoryId, signal)
     return raw
       .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
       .map((item) => mapLiveEntry(item, categoryMap, noUrl))
       .filter((item): item is MappedChannel => item !== undefined)
   }
   if (kind === 'movie') {
-    const raw = await fetchVodStreams(dns, username, password, category.providerCategoryId)
+    const raw = await fetchVodStreams(dns, username, password, category.providerCategoryId, signal)
     return raw
       .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
       .map((item) => mapVodEntry(item, categoryMap, noUrl))
       .filter((item): item is MappedChannel => item !== undefined)
   }
-  const raw = await fetchSeries(dns, username, password, category.providerCategoryId)
+  const raw = await fetchSeries(dns, username, password, category.providerCategoryId, signal)
   return raw
     .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
     .map((item) => mapSeriesEntry(item, categoryMap))
@@ -131,6 +147,7 @@ async function fetchAndStore(
   wasNeverFetched: boolean,
   database: CatalogDb,
   now: number,
+  signal?: AbortSignal,
 ): Promise<EnsureCategoryResult> {
   const credential = await readCredential(sourceId, database)
   if (!credential) return { outcome: wasNeverFetched ? 'failed' : 'stale-served' }
@@ -145,6 +162,7 @@ async function fetchAndStore(
       credential.username,
       credential.password,
       category,
+      signal,
     )
     await storeCategoryItems(
       { sourceId, generation, kind: category.kind, categoryId: category.id, groupOrder: category.order },
@@ -153,11 +171,17 @@ async function fetchAndStore(
       database,
     )
     return { outcome: 'fetched' }
-  } catch {
-    // Erro sai como categoria, nunca como mensagem de rede (regra 5): o
-    // que aconteceu já não importa aqui, só que não deu certo. Falha nunca
-    // remove a categoria nem invalida as demais (regra 3) — o disco, se
-    // tiver algo, continua servindo (regra 4).
+  } catch (error) {
+    // Cancelamento deliberado (bug
+    // `prefetch-concorrente-categoria-sem-cancelamento-requisicao`): quem
+    // chamou já não quer mais este resultado — nunca vira `failed`/
+    // `stale-served` (isso sobrescreveria um conteúdo bom já servido, ou
+    // marcaria a categoria como quebrada por engano). Deixa propagar.
+    if (isAbortError(error)) throw error
+    // Qualquer outro erro sai como categoria, nunca como mensagem de rede
+    // (regra 5): o que aconteceu já não importa aqui, só que não deu
+    // certo. Falha nunca remove a categoria nem invalida as demais (regra
+    // 3) — o disco, se tiver algo, continua servindo (regra 4).
     return { outcome: wasNeverFetched ? 'failed' : 'stale-served' }
   }
 }
@@ -166,9 +190,17 @@ async function fetchAndStore(
  * Lê uma categoria `stored` do conteúdo guardado (feature 014, D-007).
  *
  * Nunca toca rede — o arquivo já foi baixado na importação. Sem blocos
- * guardados (aparelho limpou armazenamento, ou algo apagou a geração pela
- * metade), devolve `source_missing`: diferente de `failed`, "Tentar de
- * novo" não resolve isso, só ressincronizar a fonte (D-008).
+ * guardados, a categoria pode já ter sido lida antes nesta mesma geração
+ * (os blocos são consumidos na primeira leitura, D-007) — a tela que
+ * chamou pode ter um `category` desatualizado (sem `itemsFetchedAt`) por
+ * causa de um remount com o cache do React Query (`staleTime` padrão),
+ * ex.: voltar de uma tela de detalhe. Achado no gate final da feature 018:
+ * sem essa checagem, reentrar assim mostrava "conteúdo não está mais no
+ * aparelho" mesmo com os itens certos já em `channels`. Só quando também
+ * não há nada em `channels` é que de fato falta o arquivo (aparelho
+ * limpou armazenamento, ou algo apagou a geração pela metade) — aí sim
+ * `source_missing`: diferente de `failed`, "Tentar de novo" não resolve
+ * isso, só ressincronizar a fonte (D-008).
  */
 async function readStored(
   sourceId: string,
@@ -180,7 +212,10 @@ async function readStored(
   if (generation === undefined) return { outcome: 'failed' }
 
   const chunks = await readEntryChunks(sourceId, generation, category.id, database)
-  if (chunks.length === 0) return { outcome: 'source_missing' }
+  if (chunks.length === 0) {
+    const alreadyStored = await countChannels(sourceId, category.order, category.kind, database)
+    return { outcome: alreadyStored > 0 ? 'fresh' : 'source_missing' }
+  }
 
   const records = chunks.flatMap((chunk) => chunk.records)
   const items = records.filter((record) => record.kind !== 'episode')
@@ -241,5 +276,5 @@ export async function ensureCategory(
 
   if (isCategoryFresh(category.itemsFetchedAt, now)) return { outcome: 'fresh' }
   const wasNeverFetched = category.itemsFetchedAt === undefined
-  return dedup(category.id, () => fetchAndStore(sourceId, category, wasNeverFetched, database, now))
+  return dedup(category.id, () => fetchAndStore(sourceId, category, wasNeverFetched, database, now, options.signal))
 }

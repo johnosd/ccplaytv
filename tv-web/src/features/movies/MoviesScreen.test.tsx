@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MoviesScreen } from './MoviesScreen'
 import * as catalogApi from '../catalog/catalogApi'
 import type { CatalogCategory, CatalogItemOut, CategoryFetchOutcome } from '../catalog/catalogApi'
+import type { CategoryScreenSnapshot } from '../catalog/categoryScreenSnapshot'
 
 /**
  * jsdom não faz layout de verdade nem implementa `Element.scrollTo`
@@ -82,6 +83,7 @@ vi.mock('../catalog/catalogApi', async (importOriginal) => {
     // Sem mock, tocaria IndexedDB/rede de verdade a cada movimento de
     // cursor — o pré-fetch em si tem teste próprio em catalogApi.test.tsx.
     useCategoryFocusPrefetch: vi.fn(),
+    useAggregatedItems: vi.fn(),
   }
 })
 
@@ -91,6 +93,15 @@ function category(id: number, name: string, order: number): CatalogCategory {
 
 function movie(name: string, group: string | null): CatalogItemOut {
   return { id: `id-${name}`, kind: 'movie', name, original_group: group, published: true, playable: true }
+}
+
+function mockAggregated(items: CatalogItemOut[], coveredCategories = 1, totalCategories = 1) {
+  vi.mocked(catalogApi.useAggregatedItems).mockReturnValue({
+    items,
+    coveredCategories,
+    totalCategories,
+    isLoading: false,
+  })
 }
 
 function mockCategories(categories: CatalogCategory[]) {
@@ -148,6 +159,7 @@ describe('MoviesScreen', () => {
     onOpenMovie.mockReset()
     onBack.mockReset()
     mockContentByCategory({})
+    mockAggregated([])
   })
 
   afterEach(() => {
@@ -155,7 +167,7 @@ describe('MoviesScreen', () => {
     vi.clearAllMocks()
   })
 
-  function renderMovies(onResync: () => void = vi.fn()) {
+  function renderMovies(onResync: () => void = vi.fn(), restore?: CategoryScreenSnapshot) {
     // `useCategoryFocusPrefetch` usa o QueryClient real (não é algo a
     // mockar) — precisa de um provider de verdade, mesmo com
     // useCategoryList/useCategoryContent mockados.
@@ -165,7 +177,13 @@ describe('MoviesScreen', () => {
     function buildUi() {
       return (
         <QueryClientProvider client={queryClient}>
-          <MoviesScreen sourceId="source-1" onOpenMovie={onOpenMovie} onBack={onBack} onResync={onResync} />
+          <MoviesScreen
+            sourceId="source-1"
+            onOpenMovie={onOpenMovie}
+            onBack={onBack}
+            onResync={onResync}
+            restore={restore}
+          />
         </QueryClientProvider>
       )
     }
@@ -236,7 +254,7 @@ describe('MoviesScreen', () => {
     expect(screen.getByText('Filme B')).toBeInTheDocument()
 
     press('Enter')
-    expect(onOpenMovie).toHaveBeenCalledWith('id-Filme A')
+    expect(onOpenMovie).toHaveBeenCalledWith('id-Filme A', expect.any(Object))
   })
 
   it('filme com icon_url mostra a capa real; sem icon_url continua no placeholder (feature 015)', () => {
@@ -311,6 +329,126 @@ describe('MoviesScreen', () => {
 
     press('Enter')
     // Não estourou, e abriu o que sobrou — não um índice fantasma.
-    expect(onOpenMovie).toHaveBeenCalledWith('id-Filme A')
+    expect(onOpenMovie).toHaveBeenCalledWith('id-Filme A', expect.any(Object))
+  })
+
+  // T024 (feature 017): grade normal (sem busca) — o mesmo mecanismo de
+  // snapshot que o contrato prova para a busca também cobre a navegação
+  // comum por categoria (FR-019 + Constitution: Voltar Restaura Foco e Posição).
+  it('grade normal (sem busca): abrir um filme e remontar com o snapshot restaura a categoria entrada e o foco nele (T024)', () => {
+    mockCategories([category(1, 'Ação', 0), category(2, 'Comédia', 1)])
+    mockContentByCategory({
+      1: [movie('Filme A', 'Ação'), movie('Filme B', 'Ação')],
+      2: [movie('Filme C', 'Comédia')],
+    })
+    renderMovies()
+
+    press('ArrowDown') // categoria "Comédia"
+    press('ArrowRight') // entra
+    press('Enter') // abre "Filme C"
+
+    expect(onOpenMovie).toHaveBeenCalledTimes(1)
+    const [openedId, snapshot] = onOpenMovie.mock.calls[0] as [string, CategoryScreenSnapshot | undefined]
+    expect(openedId).toBe('id-Filme C')
+    expect(snapshot).toBeDefined()
+
+    cleanup()
+    onOpenMovie.mockReset()
+    mockCategories([category(1, 'Ação', 0), category(2, 'Comédia', 1)])
+    mockContentByCategory({
+      1: [movie('Filme A', 'Ação'), movie('Filme B', 'Ação')],
+      2: [movie('Filme C', 'Comédia')],
+    })
+    renderMovies(vi.fn(), snapshot)
+
+    expect(screen.getByText('Filme C')).toBeInTheDocument()
+    const focusedCell = [...document.querySelectorAll('.poster-cell')].find((c) => c.querySelector('.tv-focus'))
+    expect(focusedCell?.querySelector('.poster-card-title')?.textContent).toBe('Filme C')
+  })
+
+  // T024 (feature 017, FR-022): a categoria do snapshot pode não existir mais
+  // (fonte ressincronizada) — a tela cai no padrão em vez de travar ou
+  // apontar pra um estado inconsistente.
+  it('categoria do snapshot que sumiu cai no padrão em vez de travar (reconciliação por id, T024)', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({ 1: [movie('Filme A', 'Ação')] })
+
+    const staleSnapshot: CategoryScreenSnapshot = {
+      trailKey: { kind: 'category', name: 'Categoria Removida' },
+      entered: { kind: 'category', id: 999 },
+      col: 1,
+      focusedItemId: 'id-Fantasma',
+      searchTerm: '',
+      searchActive: false,
+    }
+
+    renderMovies(vi.fn(), staleSnapshot)
+
+    // Não trava nem mostra a categoria fantasma — cai no estado real da
+    // categoria (que, para este id inexistente, é "vazia"), e a trilha
+    // continua mostrando só as categorias que existem de fato no catálogo.
+    expect(screen.queryByText('Categoria Removida')).not.toBeInTheDocument()
+    expect(screen.queryByText('Filme A')).not.toBeInTheDocument()
+    const groups = [...document.querySelectorAll('.live-column-groups .live-item')].map((g) => g.textContent)
+    expect(groups).toEqual(['★Favoritos', 'Todos', 'Ação'])
+  })
+
+  // T029 (feature 018, US1) — espelha o teste equivalente de LiveScreen.test.tsx.
+  // FR-014, redação ajustada (ver plan.md → R-005 da 017): sem resultado, o
+  // campo continua com foco DOM real (único elemento focável do estado), e
+  // RETURN a partir dele sai sem beco sem saída — sem botão dedicado.
+  it('busca dentro de uma categoria sem resultado mostra estado vazio, campo mantém foco e RETURN sai sem prender o controle (T029)', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({ 1: [movie('Duna', 'Ação')] })
+    renderMovies()
+
+    press('ArrowRight') // entra em "Ação"
+    press('ArrowUp') // 1º item -> ícone
+    press('Enter') // abre o campo
+
+    const field = document.querySelector<HTMLInputElement>('input.search-field')
+    expect(field).not.toBeNull()
+    expect(document.activeElement).toBe(field)
+
+    act(() => fireEvent.change(field!, { target: { value: 'xyz' } }))
+
+    expect(screen.getByText('Nenhum resultado para "xyz"')).toBeInTheDocument()
+    expect(document.activeElement).toBe(field)
+
+    act(() => fireEvent.keyDown(field!, { keyCode: 10009, bubbles: true }))
+    expect(onBack).not.toHaveBeenCalled()
+    expect(document.querySelector('.search-icon-button.tv-focus')).not.toBeNull()
+  })
+
+  // Achado no gate final desta feature (T029): `loadCategoryContent` sempre
+  // lê `channels`, que pode reter registros de uma geração anterior mesmo
+  // com outcome `source_missing`/`failed` — o ícone não pode se guiar só
+  // por `baseMovies.length`, tem que respeitar `contentUnavailable`.
+  it('o ícone de busca não aparece com itens obsoletos quando o conteúdo está indisponível', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({ 1: [movie('Duna', 'Ação')] }, 'source_missing')
+    renderMovies()
+
+    press('ArrowRight') // entra em "Ação" — item obsoleto, outcome indisponível
+    expect(document.querySelector('.search-icon-button')).toBeNull()
+  })
+
+  // T029 (feature 018, US2, FR-010/FR-011): cobertura total dentro de
+  // "Todos" nunca mostra o aviso — só quando `covered < total`.
+  it('dentro de "Todos": cobertura total não mostra aviso de cobertura (T029)', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockAggregated([movie('Duna', 'Ação')], 1, 1)
+    renderMovies()
+
+    press('ArrowUp') // de "Ação" (padrão) para "Todos"
+    press('ArrowRight') // entra em "Todos"
+    press('ArrowUp') // 1º item -> ícone
+    press('Enter') // abre o campo
+
+    const field = document.querySelector<HTMLInputElement>('input.search-field')
+    act(() => fireEvent.change(field!, { target: { value: 'duna' } }))
+
+    expect(screen.getByText('Duna')).toBeInTheDocument()
+    expect(screen.queryByText(/Busca em \d+ de \d+ categorias/)).not.toBeInTheDocument()
   })
 })

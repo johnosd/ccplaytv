@@ -69,6 +69,24 @@ interface PendingPress {
  */
 const FAVORITE_KEY_DEBOUNCE_MS = 400
 
+/**
+ * Alvo com edição de texto real (feature 017: campo de busca) — a única
+ * exceção ao padrão "todo teclado é do controle remoto" deste hook.
+ */
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+}
+
+/**
+ * Com um campo editável focado, estas teclas são do campo, não da tela:
+ * Backspace apaga (nunca "voltar"), espaço e as setas laterais movem o
+ * cursor do texto, Enter é do teclado do sistema da TV (abre/some — mesmo
+ * mecanismo de `AddSourceScreen`). RETURN (`isBack`) e ↑/↓ continuam com a
+ * tela mesmo editando (feature 017, `logic/busca-local.md` §3).
+ */
+const EDITABLE_PASSTHROUGH_KEYS = new Set(['Backspace', ' ', 'Enter', 'ArrowLeft', 'ArrowRight'])
+
 const DIRECTION_BY_KEY: Record<string, RemoteDirection> = {
   ArrowUp: 'up',
   ArrowDown: 'down',
@@ -154,6 +172,8 @@ export function useRemoteNav(
     }
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (isEditableTarget(event.target) && EDITABLE_PASSTHROUGH_KEYS.has(event.key)) return
+
       const direction = DIRECTION_BY_KEY[event.key]
       const isSelect = event.key === 'Enter' || event.key === ' '
       // `XF86Back` é redundância defensiva: `keyCode` é deprecado no padrão
@@ -211,6 +231,7 @@ export function useRemoteNav(
      * descartado por `STALE_PRESS_MS`) também não faz nada.
      */
     function handleKeyUp(event: KeyboardEvent) {
+      if (isEditableTarget(event.target) && EDITABLE_PASSTHROUGH_KEYS.has(event.key)) return
       const isSelect = event.key === 'Enter' || event.key === ' '
       if (!isSelect) return
       const press = pressRef.current

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCatalogItem, useUserState, invalidateUserState } from '../catalog/catalogApi'
+import { useCatalogItem, useUserState, invalidateUserState, useToggleWatched } from '../catalog/catalogApi'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
@@ -19,6 +19,7 @@ type MovieAction =
   | { id: 'watch' }
   | { id: 'resume'; progressSeconds: number }
   | { id: 'restart' }
+  | { id: 'toggle-watched'; watched: boolean }
 
 /**
  * As ações do detalhe, na ordem de foco. Trailer é sempre a primeira — fora
@@ -27,12 +28,16 @@ type MovieAction =
  * segunda: é o que FR-015 e `logic/reproducao-vod.md` §5 chamam de "foco
  * inicial na ação primária" — nesta estrutura isso é sempre o índice 1,
  * então o foco não precisa ser recalculado quando o array muda de tamanho.
+ *
+ * `toggle-watched` (feature 019, D-005) entra **sempre por último** — nunca
+ * desloca o índice 1 da ação primária, esteja o array com 2 ou 3 ações
+ * antes dela.
  */
-function buildActions(progressSeconds: number | undefined): MovieAction[] {
-  if (isResumable(progressSeconds)) {
-    return [{ id: 'trailer' }, { id: 'resume', progressSeconds: progressSeconds as number }, { id: 'restart' }]
-  }
-  return [{ id: 'trailer' }, { id: 'watch' }]
+function buildActions(progressSeconds: number | undefined, watched: boolean): MovieAction[] {
+  const base: MovieAction[] = isResumable(progressSeconds)
+    ? [{ id: 'trailer' }, { id: 'resume', progressSeconds: progressSeconds as number }, { id: 'restart' }]
+    : [{ id: 'trailer' }, { id: 'watch' }]
+  return [...base, { id: 'toggle-watched', watched }]
 }
 
 function actionLabel(action: MovieAction): string {
@@ -45,6 +50,8 @@ function actionLabel(action: MovieAction): string {
       return `▶ Retomar (${formatTime(action.progressSeconds * 1000)})`
     case 'restart':
       return '↺ Reiniciar'
+    case 'toggle-watched':
+      return action.watched ? '✗ Desmarcar assistido' : '✓ Marcar como assistido'
   }
 }
 
@@ -92,7 +99,9 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
   }
 
   const userStateQuery = useUserState(identity?.stableId ?? null)
-  const actions = buildActions(userStateQuery.data?.progressSeconds ?? undefined)
+  const watched = userStateQuery.data?.completedAt != null
+  const actions = buildActions(userStateQuery.data?.progressSeconds ?? undefined, watched)
+  const toggleWatched = useToggleWatched()
 
   const [focus, setFocus] = useState(1) // ação primária — ver buildActions
   const safeFocus = clamp(focus, 0, actions.length - 1)
@@ -135,6 +144,10 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
         // Trailer não é escopo desta feature (item 32 do backlog) — placeholder
         // mantido como já estava, intocado.
         showToast('Reproduzindo trailer...')
+        return
+      }
+      if (action.id === 'toggle-watched') {
+        if (identity) toggleWatched.mutate({ ...identity, watched: !action.watched })
         return
       }
       openPlayer(action)

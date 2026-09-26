@@ -8,7 +8,7 @@
  * ponta, igual a `catalogApi.test.tsx`.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LiveScreen } from './LiveScreen'
@@ -315,15 +315,17 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     expect((await db.userStates.get(stableId))?.isFavorite).toBe(true) // favoritou uma vez, não alternou de novo
   }, 10000)
 
-  it('(d) "★ Favoritos" é a primeira entrada da trilha; segurar OK nela entra como OK comum', async () => {
+  it('(d) "★ Favoritos" é a primeira entrada da trilha (antes de "Todos", feature 018); segurar OK nela entra como OK comum', async () => {
     await seedSource()
     mockCategories([category(1, 'Esportes', 0)])
     renderLive()
 
     const groups = document.querySelectorAll('.live-column-groups .live-item')
-    expect([...groups].map((g) => g.textContent)).toEqual(['★Favoritos', 'Esportes'])
+    expect([...groups].map((g) => g.textContent)).toEqual(['★Favoritos', 'Todos', 'Esportes'])
 
-    keydown('ArrowUp') // do padrão (primeira categoria real) sobe pra "★ Favoritos"
+    keydown('ArrowUp') // do padrão (primeira categoria real) sobe pra "Todos"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // sobe mais uma vez, para "★ Favoritos"
     keyup('ArrowUp')
     expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('★Favoritos')
 
@@ -358,7 +360,9 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     })
     renderLive()
 
-    keydown('ArrowUp')
+    keydown('ArrowUp') // do padrão (primeira categoria real) sobe pra "Todos"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // sobe mais uma vez, para "★ Favoritos"
     keyup('ArrowUp')
     keydown('ArrowRight')
     keyup('ArrowRight')
@@ -378,7 +382,9 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     mockCategories([category(1, 'G1', 0)])
     renderLive()
 
-    keydown('ArrowUp')
+    keydown('ArrowUp') // do padrão (primeira categoria real) sobe pra "Todos"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // sobe mais uma vez, para "★ Favoritos"
     keyup('ArrowUp')
     keydown('ArrowRight')
     keyup('ArrowRight')
@@ -400,7 +406,9 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     mockCategories([category(1, 'G1', 0)])
     renderLive()
 
-    keydown('ArrowUp')
+    keydown('ArrowUp') // do padrão (primeira categoria real) sobe pra "Todos"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // sobe mais uma vez, para "★ Favoritos"
     keyup('ArrowUp')
     keydown('ArrowRight')
     keyup('ArrowRight')
@@ -426,7 +434,9 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     mockCategories([category(1, 'G1', 0)])
     renderLive()
 
-    keydown('ArrowUp')
+    keydown('ArrowUp') // do padrão (primeira categoria real) sobe pra "Todos"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // sobe mais uma vez, para "★ Favoritos"
     keyup('ArrowUp')
     keydown('ArrowRight')
     keyup('ArrowRight')
@@ -469,7 +479,9 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     })
     renderLive()
 
-    keydown('ArrowUp')
+    keydown('ArrowUp') // do padrão (primeira categoria real) sobe pra "Todos"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // sobe mais uma vez, para "★ Favoritos"
     keyup('ArrowUp')
     keydown('ArrowRight')
     keyup('ArrowRight')
@@ -508,7 +520,9 @@ describe('LiveScreen — favoritos (feature 013)', () => {
 
     keydown('ArrowLeft')
     keyup('ArrowLeft')
-    keydown('ArrowUp') // sobe pra entrada virtual, acima da categoria "Favoritos" da fonte
+    keydown('ArrowUp') // sobe pra "Todos"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // sobe mais uma vez, para a entrada virtual "★ Favoritos"
     keyup('ArrowUp')
     expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('★Favoritos')
 
@@ -519,6 +533,115 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     )
   })
 
+  it('(l) segurar OK dentro do zapping favorita o canal focado, sem trocar de canal (feature 016)', async () => {
+    await seedSource()
+    mockCategories([category(1, 'G1', 0)])
+    mockContentByCategory({ 1: [channel('C10', '1'), channel('C11', '2')] })
+    vi.mocked(catalogApi.fetchPlayback).mockResolvedValue({
+      item_id: 'id-C10',
+      kind: 'channel',
+      url: 'http://exemplo.invalid/x.ts',
+      container_hint: 'ts',
+      source_id: SOURCE_ID,
+      provider_stream_id: '1',
+      original_name: 'C10',
+      series_id: null,
+      season_number: null,
+      episode_number: null,
+    })
+    renderLive()
+
+    // Toca C10
+    enterAndDescend()
+    tap('Enter')
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+    // Abre o zapping (toque curto — sem gesto na trilha/coluna ainda focada em C10)
+    tap('Enter')
+    await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
+    expect(document.querySelector('.live-channel-list .tv-focus')?.textContent).toContain('C10')
+
+    // Segura OK sobre C10 (já focado) — deve favoritar, não trocar de canal
+    vi.mocked(catalogApi.fetchPlayback).mockClear()
+    await holdEnter()
+
+    expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument()
+    await waitFor(() => expect(document.querySelector('.player-zap-columns .fav-star')).toBeInTheDocument())
+    // Zapping continua aberto, e nenhuma troca de canal foi disparada
+    expect(document.querySelector('.player-zap-columns')).toBeInTheDocument()
+    expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
+
+    keyup('Enter') // soltar depois do gesto já resolvido não faz mais nada
+    expect(document.querySelector('.player-zap-columns')).toBeInTheDocument()
+  }, 10000)
+
+  // T014 (feature 018, US3): buscar dentro de "★ Favoritos" filtra só os
+  // favoritos do tipo — mesmo ícone, mesmo comportamento das categorias reais.
+  it('(m) buscar dentro de "★ Favoritos" filtra só os favoritos do tipo', async () => {
+    await seedSource()
+    await seedRealChannel('Globo', '1')
+    await seedRealChannel('ESPN', '2')
+    await favoriteChannel('1', 100)
+    await favoriteChannel('2', 200)
+    mockCategories([category(1, 'G1', 0)])
+    renderLive()
+
+    keydown('ArrowUp') // "Todos"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // "★ Favoritos"
+    keyup('ArrowUp')
+    keydown('ArrowRight')
+    keyup('ArrowRight')
+
+    await waitFor(() => {
+      const names = document.querySelectorAll('.live-column-channels .live-item-name')
+      expect(names.length).toBe(2)
+    })
+
+    keydown('ArrowUp') // 1º item -> ícone
+    keyup('ArrowUp')
+    tap('Enter') // abre o campo
+
+    const field = document.querySelector<HTMLInputElement>('input.search-field')
+    expect(field).not.toBeNull()
+    act(() => fireEvent.change(field!, { target: { value: 'glo' } }))
+
+    await waitFor(() => {
+      const names = [...document.querySelectorAll('.live-column-channels .live-item-name')].map((n) => n.textContent)
+      expect(names).toEqual(['Globo'])
+    })
+  })
+
+  // T015 (feature 018, US1): segurar OK sobre um resultado de busca favorita
+  // sem tocar — mesmo gesto de sempre, agora também alcançável em busca.
+  it('(n) segurar OK sobre um resultado de busca favorita sem tocar o canal', async () => {
+    await seedSource()
+    await seedRealChannel('Globo', '1')
+    mockCategories([category(1, 'G1', 0)])
+    mockContentByCategory({ 1: [channel('Globo', '1')] })
+    renderLive()
+
+    enterAndDescend() // entra em "G1"
+    keydown('ArrowUp') // 1º item -> ícone
+    keyup('ArrowUp')
+    tap('Enter') // abre o campo
+
+    const field = document.querySelector<HTMLInputElement>('input.search-field')
+    act(() => fireEvent.change(field!, { target: { value: 'glo' } }))
+
+    await waitFor(() => expect(document.querySelector('.live-channel-list .live-item-name')).not.toBeNull())
+    keydown('ArrowDown') // do campo para o 1º resultado
+    keyup('ArrowDown')
+
+    await holdEnter()
+    expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument()
+    await waitFor(() => expect(document.querySelector('.fav-star')).toBeInTheDocument())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
+
+    keyup('Enter')
+  }, 10000)
+
   it('(k) mover o foco sobre "★ Favoritos" não resolve nada (D-005 — focar não gasta)', async () => {
     await seedSource()
     await seedRealChannel('X', '1')
@@ -527,8 +650,12 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     const resolveSpy = vi.spyOn(catalogRepository, 'resolveFavorites')
     renderLive()
 
+    keydown('ArrowUp') // foca "Todos" — não entra
+    keyup('ArrowUp')
     keydown('ArrowUp') // foca "★ Favoritos" — não entra
     keyup('ArrowUp')
+    keydown('ArrowDown') // volta a focar "Todos" — não entra
+    keyup('ArrowDown')
     keydown('ArrowDown') // volta a focar a categoria real — não entra
     keyup('ArrowDown')
 

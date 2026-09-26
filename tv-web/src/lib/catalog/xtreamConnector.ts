@@ -125,7 +125,18 @@ export async function probeFailureKind(url: string): Promise<ProviderFailureKind
   }
 }
 
-async function fetchJsonDirect(url: string): Promise<unknown> {
+/**
+ * Um `fetch` cancelado por `AbortSignal` (bug
+ * `prefetch-concorrente-categoria-sem-cancelamento-requisicao`) é uma
+ * decisão deliberada de quem chama, nunca uma falha do provedor — quem
+ * usa isto precisa poder distinguir os dois e não tratar o cancelamento
+ * como se fosse um erro de rede real.
+ */
+export function isAbortError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'AbortError'
+}
+
+async function fetchJsonDirect(url: string, signal?: AbortSignal): Promise<unknown> {
   let response: Response
   try {
     // **Sem cabeçalho de requisição próprio, de propósito.** Qualquer
@@ -135,8 +146,12 @@ async function fetchJsonDirect(url: string): Promise<unknown> {
     // falha antes do GET acontecer e *toda* conversa pelo protocolo JSON
     // morre — que é justamente o caminho direto que a ADR-008 confirmou
     // funcionar contra o provedor real.
-    response = await fetch(url)
-  } catch {
+    response = await fetch(url, signal ? { signal } : undefined)
+  } catch (error) {
+    // Cancelamento deliberado (bug acima): nunca sonda o provedor de novo
+    // por causa de algo que a própria pessoa que chamou já desistiu de
+    // esperar — `probeFailureKind` dispararia uma SEGUNDA requisição à toa.
+    if (isAbortError(error)) throw error
     throw new ProviderError(
       await probeFailureKind(url),
       'Não foi possível falar com o provedor a partir deste aparelho.',
@@ -241,8 +256,8 @@ export function buildLiveUrl(
   return `${base}/live/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${streamId}.${format}`
 }
 
-async function fetchListDirect(url: string): Promise<unknown[]> {
-  const payload = await fetchJsonDirect(url)
+async function fetchListDirect(url: string, signal?: AbortSignal): Promise<unknown[]> {
+  const payload = await fetchJsonDirect(url, signal)
   return Array.isArray(payload) ? payload : []
 }
 
@@ -299,6 +314,7 @@ export async function fetchLiveStreams(
   username: string,
   password: string,
   categoryId?: string,
+  signal?: AbortSignal,
 ): Promise<unknown[]> {
   return fetchListDirect(
     playerApiUrl(
@@ -307,6 +323,7 @@ export async function fetchLiveStreams(
       password,
       categoryId ? { action: 'get_live_streams', category_id: categoryId } : { action: 'get_live_streams' },
     ),
+    signal,
   )
 }
 
@@ -415,6 +432,7 @@ export async function fetchVodStreams(
   username: string,
   password: string,
   categoryId?: string,
+  signal?: AbortSignal,
 ): Promise<unknown[]> {
   return fetchListDirect(
     playerApiUrl(
@@ -423,6 +441,7 @@ export async function fetchVodStreams(
       password,
       categoryId ? { action: 'get_vod_streams', category_id: categoryId } : { action: 'get_vod_streams' },
     ),
+    signal,
   )
 }
 
@@ -549,6 +568,7 @@ export async function fetchSeries(
   username: string,
   password: string,
   categoryId?: string,
+  signal?: AbortSignal,
 ): Promise<unknown[]> {
   return fetchListDirect(
     playerApiUrl(
@@ -557,6 +577,7 @@ export async function fetchSeries(
       password,
       categoryId ? { action: 'get_series', category_id: categoryId } : { action: 'get_series' },
     ),
+    signal,
   )
 }
 

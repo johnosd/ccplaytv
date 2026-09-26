@@ -22,8 +22,9 @@ import {
   type CategoryRecord,
   type CatalogFetchMode,
   type StoredCatalogRecord,
+  type UserStateRecord,
 } from './db'
-import type { StableIdParts } from './userStateRepository'
+import { parseStableId, type StableIdParts } from './userStateRepository'
 
 /**
  * Limites da faixa de `generation` e de `groupOrder` nas consultas por
@@ -431,6 +432,22 @@ export async function storeStoredCategory(
 }
 
 /**
+ * Todos os registros de um tipo na geração ativa, sem paginação — só para a
+ * busca local (feature 017), que lê uma vez e filtra em memória (D-002 do
+ * `plan.md` da 017). Nunca use isto para uma tela renderizar direto: sem
+ * paginação, é exatamente o que `listChannels` existe para evitar.
+ */
+export async function listAllOfKind(
+  sourceId: string,
+  kind: CatalogItemKind,
+  database: CatalogDb = db,
+): Promise<CatalogRecord[]> {
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined) return []
+  return query(database, sourceId, generation, undefined, kind).toArray()
+}
+
+/**
  * Uma janela de canais de uma categoria — paginado por contrato (FR-005): a
  * tela pede uma página, nunca o catálogo.
  */
@@ -561,6 +578,59 @@ export async function resolveFavorites(
 }
 
 /**
+ * Resolve os `UserStateRecord`s de "Continuar assistindo" (feature 019,
+ * D-009/D-011/R-002) de volta a registros do catálogo, na MESMA ordem de
+ * entrada (já vem de `getContinueWatching`, mais recente primeiro).
+ * Reaproveita o núcleo de `resolveFavorites` por kind — um episódio sempre
+ * tem `providerStreamId` próprio do provedor (feature 012), então cai no
+ * mesmo caminho de resolução por índice que filme/canal já usam.
+ *
+ * Um episódio nunca é devolvido como episódio: é trocado pelo registro da
+ * SÉRIE-pai (mesmo `seriesId`, kind:'series') — abrir um item de "Continuar
+ * assistindo" precisa levar ao MESMO lugar que abrir esse item pela
+ * navegação normal já leva (D-011), e a navegação normal nunca abre um
+ * episódio isolado, sempre a série (que então mostra o progresso de cada
+ * episódio, já resolvido por `SeriesDetailScreen`). Item sem correspondência
+ * (fonte removida, categoria reimportada) é omitido silenciosamente, nunca
+ * lança.
+ */
+export async function resolveContinueWatching(
+  sourceId: string,
+  states: UserStateRecord[],
+  database: CatalogDb = db,
+): Promise<CatalogRecord[]> {
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined) return []
+
+  const records: CatalogRecord[] = []
+  for (const state of states) {
+    const parts = parseStableId(state.stableId)
+    if (!parts) continue
+    // Um item por vez (não em lote): `resolveFavorites` devolve só os
+    // resolvidos, sem dizer QUAL `StableIdParts` cada um era — em lote não
+    // dá pra saber com segurança se `records[i]` corresponde a `parts[i]`
+    // quando algum item no meio não resolve. A lista de "Continuar
+    // assistindo" é pequena (itens em progresso, não o catálogo inteiro),
+    // então o custo de uma resolução por item é aceitável.
+    const { records: resolved } = await resolveFavorites(sourceId, parts.kind, [parts], database)
+    const record = resolved[0]
+    if (!record) continue
+
+    if (record.kind !== 'episode' || !record.seriesId) {
+      records.push(record)
+      continue
+    }
+    const series = await database.channels
+      .where('[sourceId+generation+seriesId]')
+      .equals([sourceId, generation, record.seriesId])
+      .and((candidate) => candidate.kind === 'series')
+      .first()
+    if (series) records.push(series)
+  }
+  return records
+}
+
+/**
  * Episódios de uma série, na geração ativa (feature 012). Filtra
  * `kind:'episode'` mesmo lendo pelo índice `[sourceId+generation+seriesId]`
  * que a própria série também compartilha (D-002) — sem isso o registro da
@@ -578,6 +648,24 @@ export async function listEpisodes(
     .equals([sourceId, generation, seriesId])
     .toArray()
   return records.filter((record) => record.kind === 'episode')
+}
+
+/**
+ * Todos os episódios já conhecidos de uma fonte, de qualquer série
+ * (feature 019, D-007/D-008) — usa o mesmo índice `[sourceId+generation+
+ * kind+groupOrder]` de `listChannels`/`countChannels`, sem grupo
+ * específico (`query()` com `groupOrder` ausente cobre `KEY_MIN`..`KEY_MAX`
+ * — todos). Nunca dispara `ensureSeriesEpisodes`: só lê o que já está
+ * gravado, mesmo padrão de "nunca busca ao focar/renderizar" (`logic/
+ * agregacao-serie.md`).
+ */
+export async function listAllEpisodes(
+  sourceId: string,
+  database: CatalogDb = db,
+): Promise<CatalogRecord[]> {
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined) return []
+  return query(database, sourceId, generation, undefined, 'episode').toArray()
 }
 
 /**

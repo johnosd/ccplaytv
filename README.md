@@ -51,9 +51,12 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
 **Organização**
 - Favoritos nos três tipos de conteúdo (canal, filme, série), por fonte —
   segurando OK ou pela tecla amarela do controle sobre o item focado.
-- Indicação de "já assistido"/"continuar assistindo" nos três tipos de
-  conteúdo, por fonte. *A avaliar:* agregação de favoritos/histórico entre
-  todas as fontes.
+- Indicação de "já assistido" (filme, com correção manual) e "em dia"
+  (série, por cobertura de episódios conhecidos), além de "continuar
+  assistindo" no hub da fonte para o que tem retomada salva — canal ao
+  vivo não tem histórico nem "já assistido" (decisão de escopo, feature
+  019). *A avaliar:* agregação de favoritos/histórico entre todas as
+  fontes.
 
 ## Arquitetura
 

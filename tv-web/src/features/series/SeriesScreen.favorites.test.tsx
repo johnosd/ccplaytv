@@ -228,10 +228,10 @@ describe('SeriesScreen — favoritos (feature 013)', () => {
 
     keyup('Enter')
     tap('Enter')
-    expect(onOpenSeries).toHaveBeenCalledWith('id-Breaking Bad')
+    expect(onOpenSeries).toHaveBeenCalledWith('id-Breaking Bad', expect.any(Object))
   }, 10000)
 
-  it('"★ Favoritos" lista o cartão da série (nunca episódio) e abre o detalhe por OK', async () => {
+  it('"★ Favoritos" é a primeira entrada da trilha (antes de "Todos", feature 018), lista o cartão da série (nunca episódio) e abre o detalhe por OK', async () => {
     await seedSource()
     const seriesRecordId = await seedRealSeries('Breaking Bad', 'srv-1')
     // Um episódio da mesma série no catálogo — nunca deve aparecer em "Favoritos".
@@ -251,9 +251,11 @@ describe('SeriesScreen — favoritos (feature 013)', () => {
     const { onOpenSeries } = renderSeries()
 
     const groups = document.querySelectorAll('.live-column-groups .live-item')
-    expect([...groups].map((g) => g.textContent)).toEqual(['★Favoritos', 'G1'])
+    expect([...groups].map((g) => g.textContent)).toEqual(['★Favoritos', 'Todos', 'G1'])
 
-    keydown('ArrowUp')
+    keydown('ArrowUp') // "Todos"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
     keydown('ArrowRight')
     keyup('ArrowRight')
@@ -264,7 +266,7 @@ describe('SeriesScreen — favoritos (feature 013)', () => {
     })
 
     tap('Enter')
-    expect(onOpenSeries).toHaveBeenCalledWith(String(seriesRecordId))
+    expect(onOpenSeries).toHaveBeenCalledWith(String(seriesRecordId), expect.any(Object))
   })
 
   it('"Favoritos" vazia: OK no botão devolve o foco à trilha (ativação por tecla)', async () => {
@@ -272,6 +274,8 @@ describe('SeriesScreen — favoritos (feature 013)', () => {
     mockCategories([category(1, 'G1', 0)])
     renderSeries()
 
+    keydown('ArrowUp')
+    keyup('ArrowUp')
     keydown('ArrowUp')
     keyup('ArrowUp')
     keydown('ArrowRight')

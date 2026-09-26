@@ -1,0 +1,785 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CCPlayTV Design System — Component Lab V14 • Spectrum</title><style>
+:root{
+  --bg-canvas:#05060A;
+  --bg-base:#0B0D12;
+  --bg-surface:#15181F;
+  --bg-elevated:#1D212B;
+  --bg-hover:#2A2F3C;
+  --text-primary:#F5F6F8;
+  --text-secondary:#A7ADBB;
+  --text-disabled:#5C6372;
+  --accent:#FF7A3D;
+  --accent-light:#FFA36B;
+  --accent-pressed:#D9601F;
+  --accent-tint:rgba(255,122,61,.16);
+  --brand-pink:#FF2E87;
+  --brand-yellow:#FFC93D;
+  --brand-green:#3DDC84;
+  --brand-teal:#1E9AB0;
+  --info:#2DB8C4;
+  --success:#3DDC84;
+  --warning:#FFC93D;
+  --danger:#FF4F68;
+  --live:#FF2E87;
+  --focus:#FF7A3D;
+
+  /* aliases kept for existing components */
+  --outer:var(--bg-canvas);
+  --bg:var(--bg-base);
+  --surface:var(--bg-surface);
+  --surface-2:var(--bg-elevated);
+  --surface-3:var(--bg-hover);
+  --text:var(--text-primary);
+  --text-2:var(--text-secondary);
+  --muted:#7C8494;
+  --muted-2:var(--text-disabled);
+  --accent-2:var(--accent-light);
+  --blue:var(--brand-teal);
+
+  --r8:8px;--r12:12px;--r16:16px;--r999:999px;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --brand-gradient:linear-gradient(92deg,#FF2E87 0%,#FF7A3D 26%,#FFC93D 50%,#3DDC84 72%,#1E9AB0 100%);
+  --focus-ring:0 0 0 4px #FF7A3D,0 0 0 8px rgba(255,122,61,.22),0 0 40px rgba(255,122,61,.55);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--outer)}
+body{font-family:'Inter',Arial,Helvetica,sans-serif;color:var(--text);background:
+radial-gradient(circle at 7% 2%,rgba(255,46,135,.10),transparent 19%),
+radial-gradient(circle at 92% 3%,rgba(30,154,176,.10),transparent 20%),
+var(--bg-base);min-height:100vh;padding:48px 56px 112px;line-height:1.4}
+button,input,select{font:inherit;color:inherit}
+button{appearance:none;-webkit-appearance:none}
+.header{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:30px}
+.brand{display:flex;align-items:center;gap:14px}.logo-mark{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;box-shadow:0 8px 26px rgba(255,82,100,.18)}.logo-mark:after{content:"";position:absolute;left:15px;top:11px;border-left:14px solid #071018;border-top:10px solid transparent;border-bottom:10px solid transparent}.brand h1{font-size:29px;letter-spacing:-1px}.brand h1 span{color:var(--accent)}
+.header-copy{max-width:700px;text-align:right;color:var(--muted);font-size:14px;line-height:1.55}.header-copy b{color:var(--text-2)}
+.lab-nav{display:flex;gap:8px;flex-wrap:wrap;padding:10px;background:#080b10;border:1px solid rgba(255,255,255,.08);border-radius:14px;margin-bottom:34px;box-shadow:0 12px 34px rgba(0,0,0,.24)}
+.lab-nav a{color:#aeb8c8;text-decoration:none;font-size:13px;font-weight:800;padding:10px 13px;border-radius:10px}.lab-nav a:focus,.lab-nav a:hover{outline:0;background:#fff;color:#07090d}
+.section{margin-top:44px}.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px}.section h2{font-size:30px;letter-spacing:-.7px}.section-head p{color:var(--muted);font-size:14px;max-width:680px;line-height:1.55;text-align:right}
+.panel{background:linear-gradient(145deg,#0e141d,#090d13);border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:24px}.panel + .panel{margin-top:16px}
+.grid{display:grid;gap:16px}.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}.cols3{grid-template-columns:repeat(3,minmax(0,1fr))}.cols4{grid-template-columns:repeat(4,minmax(0,1fr))}.cols6{grid-template-columns:repeat(6,minmax(0,1fr))}
+.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.note{border-left:3px solid var(--info);padding:12px 14px;background:#0b131c;border-radius:0 12px 12px 0;color:var(--text-2);font-size:13px;line-height:1.5}.note.warn{border-left-color:var(--warning)}.note.good{border-left-color:var(--success)}
+.kicker{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;font-weight:850;color:#dce6f4}.meta{font-size:14px;color:var(--muted);margin-top:6px}.micro{font-size:11px;color:var(--muted-2)}
+.token{min-height:116px;border-radius:14px;border:1px solid rgba(255,255,255,.07);overflow:hidden;background:#0c1118}.swatch{height:64px}.token-copy{padding:12px}.token-copy b{display:block;font-size:14px}.token-copy code{display:block;color:#8492a5;font-size:11px;margin-top:5px}
+.type-row{display:grid;grid-template-columns:180px 1fr;gap:24px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.06);align-items:center}.type-row:last-child{border-bottom:0}.type-meta{font-size:12px;color:#7c899c;line-height:1.5}.type-sample{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.t72{font-size:72px;font-weight:700;letter-spacing:-2px}.t64{font-size:64px;font-weight:700;letter-spacing:-2px}.t48{font-size:48px;font-weight:700;letter-spacing:-1.6px}.t32{font-size:32px;font-weight:700}.t28{font-size:28px;font-weight:700}.t24{font-size:24px;font-weight:700}.t20{font-size:20px;font-weight:700}.t18{font-size:18px}.t16{font-size:16px}.t14{font-size:14px}.t12{font-size:12px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase}
+.focusable{outline:0;cursor:pointer;transition:transform .14s var(--ease),box-shadow .14s var(--ease),background .14s var(--ease),border-color .14s var(--ease),opacity .14s var(--ease)}
+.focusable.focused,.focusable:focus{box-shadow:var(--focus-ring);transform:scale(1.05);border-color:rgba(255,255,255,.9)!important;position:relative;z-index:5}.no-scale.focused,.no-scale:focus{transform:none}
+.btn,.chip,.icon-btn{border:1px solid rgba(255,255,255,.08);background:var(--surface-3);color:#fff;border-radius:14px;font-weight:700}.btn{padding:15px 22px;font-size:17px}.btn.primary{background:#fff;color:#07090d}.btn.accent{background:linear-gradient(135deg,var(--accent),var(--accent-2));border:0}.btn.ghost{background:rgba(255,255,255,.055)}.btn.disabled{opacity:.35}.chip{padding:11px 16px;font-size:14px}.chip.selected{background:#fff;color:#080b10}.icon-btn{width:52px;height:52px;display:grid;place-items:center}.svg-icon{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rule-card{border-radius:16px;background:var(--surface);border:1px solid rgba(255,255,255,.07);padding:18px;min-height:150px}.rule-card b{font-size:17px}.rule-card p{font-size:13px;color:var(--muted);line-height:1.5;margin-top:8px}.rule-card code{display:inline-block;margin-top:12px;padding:6px 8px;background:#131c28;border-radius:8px;color:#a7b5c8;font-size:11px}
+.safe-tv{width:100%;max-width:960px;height:540px;margin:0 auto;position:relative;border-radius:16px;background:linear-gradient(145deg,#07101a,#101a26);border:1px solid rgba(255,255,255,.09);overflow:hidden}.safe-tv:before{content:"1920 × 1080 logical canvas";position:absolute;left:24px;top:20px;color:#8b99ad;font-size:13px}.safe-zone{position:absolute;left:5%;right:5%;top:7%;bottom:7%;border:2px dashed rgba(98,215,255,.5);border-radius:10px}.safe-zone:before{content:"SAFE CONTENT ZONE";position:absolute;top:12px;left:14px;color:var(--info);font-size:12px;font-weight:700;letter-spacing:1.2px}.safe-card{position:absolute;width:26%;height:23%;background:#111b28;border-radius:12px;border:1px solid rgba(255,255,255,.08)}.safe-card.a{left:8%;top:25%}.safe-card.b{left:37%;top:25%}.safe-card.c{left:66%;top:25%}.safe-card.d{left:8%;top:53%}.safe-card.e{left:37%;top:53%}.safe-card.f{left:66%;top:53%}
+.motion-token{display:flex;align-items:center;justify-content:space-between;padding:16px;border-radius:14px;background:#0f1620;border:1px solid rgba(255,255,255,.07)}.motion-token b{font-size:15px}.motion-token span{font-size:12px;color:var(--muted)}.motion-demo{width:54px;height:30px;border-radius:10px;background:var(--accent);animation:motionDemo 1.6s var(--ease) infinite alternate}@keyframes motionDemo{to{transform:translateX(42px)}}
+.space-list{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}.space-token{width:64px;text-align:center;color:#8693a6;font-size:11px}.space-bar{width:100%;background:linear-gradient(180deg,var(--accent),var(--accent-2));border-radius:4px;margin-bottom:8px}
+.radius-list{display:flex;gap:14px;flex-wrap:wrap}.radius-demo{width:118px;height:84px;background:#111824;border:1px solid rgba(255,255,255,.1);display:grid;place-items:center;color:#8e9bad;font-size:12px}
+.shadow-demo{height:90px;border-radius:14px;background:#1D212B;display:grid;place-items:center;color:#9aa7b8;font-size:12px;border:1px solid rgba(255,255,255,.07)}.shadow-demo.s1{box-shadow:0 8px 24px rgba(0,0,0,.28)}.shadow-demo.s2{box-shadow:0 16px 48px rgba(0,0,0,.48)}.shadow-demo.s3{box-shadow:0 24px 70px rgba(0,0,0,.62)}
+.compat-table{width:100%;border-collapse:collapse;font-size:13px}.compat-table th,.compat-table td{padding:13px 14px;border-bottom:1px solid rgba(255,255,255,.07);text-align:left}.compat-table th{color:#dbe4f1;font-size:12px;text-transform:uppercase;letter-spacing:.8px}.compat-table td{color:#9aa7b8}.yes{color:var(--success)!important}.avoid{color:var(--warning)!important}
+.remote{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.remote-pad{display:grid;grid-template-columns:54px 54px 54px;grid-template-rows:54px 54px 54px;gap:6px}.remote-key{border-radius:14px;background:#2A2F3C;border:1px solid rgba(255,255,255,.09);display:grid;place-items:center;font-weight:700}.remote-key.up{grid-column:2}.remote-key.left{grid-column:1;grid-row:2}.remote-key.ok{grid-column:2;grid-row:2;background:#fff;color:#07090d}.remote-key.right{grid-column:3;grid-row:2}.remote-key.down{grid-column:2;grid-row:3}.remote-copy{max-width:620px}.remote-copy h3{font-size:22px}.remote-copy p{color:var(--muted);font-size:14px;line-height:1.55;margin-top:8px}
+footer{margin-top:58px;padding-top:22px;border-top:1px solid rgba(255,255,255,.07);color:#687589;font-size:12px;line-height:1.6}
+@media(max-width:1150px){body{padding:24px}.cols6,.cols4,.cols3{grid-template-columns:repeat(2,minmax(0,1fr))}.cols2{grid-template-columns:1fr}.header{align-items:flex-start;flex-direction:column}.header-copy{text-align:left}.type-row{grid-template-columns:1fr}.t72{font-size:54px}.t64{font-size:50px}.t48{font-size:42px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+.pressed{transform:scale(.985)!important;box-shadow:0 0 0 2px rgba(255,255,255,.9)!important}
+.state-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.state-box{padding:18px;border-radius:14px;background:#0f1620;border:1px solid rgba(255,255,255,.07)}.state-box small{display:block;color:var(--muted-2);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}.state-box .btn{width:100%}
+.topnav-demo{display:flex;align-items:center;gap:8px;background:#070a0f;padding:12px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.08);overflow:hidden}.topnav-brand{font-weight:700;font-size:20px;margin-right:16px;white-space:nowrap}.topnav-brand span{color:var(--accent)}.topnav-item{padding:11px 14px;border-radius:10px;color:#aab5c4;font-weight:700;font-size:15px;border:1px solid transparent;background:transparent}.topnav-item.active{background:#161d27;color:#fff}.topnav-spacer{flex:1}.profile-dot{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--blue));display:grid;place-items:center;font-weight:700}
+.tabs{display:flex;gap:8px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px}.tab{padding:12px 16px;border-radius:10px 10px 0 0;border:1px solid transparent;background:transparent;color:#9aa6b8;font-weight:700}.tab.active{color:#fff;border-bottom-color:var(--accent);background:#1D212B}
+.side-layout{display:grid;grid-template-columns:250px 1fr;gap:16px;min-height:390px}.sidenav{background:#0a0f16;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:12px}.side-item{height:54px;border-radius:12px;display:flex;align-items:center;gap:12px;padding:0 12px;color:#a9b5c5;border:1px solid transparent;font-weight:700}.side-item .sicon{width:34px;height:34px;border-radius:10px;background:#151e2a;display:grid;place-items:center;font-size:12px}.side-item.active{background:#2A2F3C;color:#fff}.side-content{border-radius:16px;background:#15181F;border:1px solid rgba(255,255,255,.07);padding:18px}.fake-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.fake-tile{height:132px;border-radius:12px;background:linear-gradient(145deg,#18324c,#0a1018);border:1px solid rgba(255,255,255,.06)}
+.cards{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}.card{position:relative;overflow:hidden;background:#141a26;border:1px solid rgba(255,255,255,.08);border-radius:14px;width:292px;height:164px}.card.portrait{width:205px;height:302px}.card.wide{width:356px;height:200px}.card.compact{width:250px;height:126px}.art{position:absolute;inset:0;background:radial-gradient(circle at 78% 20%,rgba(98,215,255,.34),transparent 22%),linear-gradient(135deg,#193a59,#0a111a 55%,#04070b)}.art.red{background:radial-gradient(circle at 72% 24%,rgba(255,109,87,.35),transparent 20%),linear-gradient(135deg,#5b2632,#170b0f)}.art.purple{background:radial-gradient(circle at 74% 24%,rgba(169,147,255,.38),transparent 18%),linear-gradient(135deg,#302957,#100e1b)}.art.green{background:radial-gradient(circle at 78% 22%,rgba(89,217,154,.32),transparent 20%),linear-gradient(135deg,#1b4737,#08130e)}.art:after{content:"";position:absolute;width:120px;height:180px;background:#020407;right:34px;bottom:-36px;opacity:.78}.card-copy{position:absolute;left:16px;right:16px;bottom:15px;text-shadow:0 2px 8px #000}.card-title{font-size:22px;font-weight:700;margin-top:5px}.portrait .card-title{font-size:24px}.badge{position:absolute;top:12px;left:12px;padding:7px 9px;border-radius:8px;background:rgba(5,8,12,.82);font-size:11px;font-weight:700}.badge.live{background:var(--live)}.fav{position:absolute;right:12px;top:12px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#fff;color:#07090d;font-size:13px;font-weight:700}.progress{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(255,255,255,.18)}.progress i{display:block;height:100%;background:var(--accent);width:62%}
+.rail-wrap{position:relative}.rail{display:flex;gap:16px;overflow:hidden;padding:6px 6px 18px}.edge-fade{position:absolute;top:0;bottom:18px;width:78px;pointer-events:none}.edge-fade.left{left:0;background:linear-gradient(90deg,#090d13,transparent)}.edge-fade.right{right:0;background:linear-gradient(270deg,#090d13,transparent)}.rail-indicator{height:4px;background:#1b2431;border-radius:4px;overflow:hidden;margin:4px 6px 0}.rail-indicator i{display:block;height:100%;width:34%;background:#7d8ca0;border-radius:4px}.rail-arrow{position:absolute;top:66px;width:42px;height:64px;border-radius:10px;background:#111824;border:1px solid rgba(255,255,255,.08);display:grid;place-items:center;color:#d9e2ef}.rail-arrow.left{left:10px}.rail-arrow.right{right:10px}.rail-arrow.disabled{opacity:.25}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{min-height:76px;border-radius:14px;background:#090d13;border:1px solid #263142;padding:10px 14px}.field.wide{grid-column:1/-1}.field label{display:block;color:#7e8ca0;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px}.field input{width:100%;background:transparent;border:0;outline:0;color:#fff;font-size:17px;font-weight:700}.field input::placeholder{color:#4d596a}.field.error{border-color:var(--danger)}.field .help{font-size:11px;color:#758296;margin-top:7px}.field.error .help{color:#ff8a9a}
+.toggle-row{height:66px;border-radius:14px;background:#1D212B;border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;padding:0 16px}.toggle-copy b{font-size:15px}.toggle-copy p{font-size:12px;color:#8490a2;margin-top:5px}.switch{width:58px;height:32px;border-radius:18px;background:#293342;position:relative}.switch:after{content:"";position:absolute;width:24px;height:24px;border-radius:50%;background:#fff;left:4px;top:4px}.switch.on{background:var(--success)}.switch.on:after{left:30px}
+.status-state{min-height:260px;border-radius:18px;background:#15181F;border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;text-align:center;padding:30px}.state-inner{max-width:460px}.state-icon{width:70px;height:70px;border-radius:20px;background:#151e2a;display:grid;place-items:center;margin:0 auto 18px;font-size:28px}.state-inner h3{font-size:24px}.state-inner p{font-size:14px;color:var(--muted);line-height:1.5;margin:9px 0 18px}.state-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.spinner{width:32px;height:32px;border-radius:50%;border:3px solid rgba(255,255,255,.10);border-top-color:var(--accent);animation:spin .82s linear infinite}.spinner.sm{width:20px;height:20px;border-width:2px}.spinner.lg{width:48px;height:48px;border-width:4px;border-top-color:var(--info)}@keyframes spin{to{transform:rotate(360deg)}}
+.skeletons{display:flex;gap:16px;flex-wrap:wrap}.skeleton-card{width:292px;height:164px;border-radius:14px;background:#1D212B;position:relative;overflow:hidden}.skeleton-card.portrait{width:205px;height:302px}.skeleton-card:before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 15%,rgba(255,255,255,.055) 40%,transparent 65%);transform:translateX(-100%);animation:shimmer 1.3s ease-in-out infinite}@keyframes shimmer{to{transform:translateX(100%)}}.skeleton-line{height:12px;border-radius:6px;background:#1a2230;margin:12px 16px}.skeleton-line.short{width:38%}.skeleton-line.mid{width:62%}.skeleton-footer{position:absolute;left:0;right:0;bottom:8px}
+.toast-stack{display:flex;gap:12px;flex-wrap:wrap}.toast{display:inline-flex;align-items:center;gap:8px;padding:12px 16px;border-radius:12px;background:#111824;border:1px solid rgba(255,255,255,.1);font-size:13px;font-weight:700;box-shadow:0 14px 40px rgba(0,0,0,.35)}.dot{width:8px;height:8px;border-radius:50%;background:var(--success)}.dot.warn{background:var(--warning)}.dot.danger{background:var(--danger)}
+.tooltip-demo{position:relative;display:inline-block}.tooltip{position:absolute;left:50%;bottom:calc(100% + 12px);transform:translateX(-50%);background:#111824;border:1px solid rgba(255,255,255,.1);padding:9px 11px;border-radius:10px;font-size:12px;white-space:nowrap;color:#dbe4ef;opacity:0;pointer-events:none}.tooltip-demo.focused .tooltip,.tooltip-demo:focus .tooltip{opacity:1}
+
+
+.service-dock{display:flex;gap:10px;align-items:center}.service-icon{width:44px;height:44px;border-radius:12px;background:#111824;border:1px solid rgba(255,255,255,.08);display:grid;place-items:center;font-size:12px;font-weight:700;position:relative}.service-icon .sdot{position:absolute;right:5px;top:5px;width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 8px rgba(89,217,154,.5)}.service-tooltip{position:absolute;top:52px;right:0;width:230px;padding:12px;border-radius:12px;background:#0e151f;border:1px solid rgba(255,255,255,.1);font-size:12px;line-height:1.45;color:#b9c5d5;opacity:0;pointer-events:none;z-index:20}.service-icon.focused .service-tooltip,.service-icon:focus .service-tooltip{opacity:1}
+.integration-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.integration{min-height:235px;border-radius:18px;background:linear-gradient(145deg,#1D212B,#0c1118);border:1px solid rgba(255,255,255,.075);padding:18px}.int-top{display:flex;align-items:center;gap:12px}.int-logo{width:46px;height:46px;border-radius:13px;background:#182331;display:grid;place-items:center;font-size:13px;font-weight:700}.int-status{margin-left:auto;color:var(--success);font-size:11px;font-weight:700}.int-desc{font-size:13px;color:#8e9bad;line-height:1.45;margin:13px 0}.int-key{height:44px;border-radius:11px;background:#080d13;border:1px solid #202b39;display:flex;align-items:center;padding:0 12px;color:#b6c1d0;font-size:12px}.int-key b{margin-right:10px;color:#7f8da1}.capabilities{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.cap{padding:6px 8px;border-radius:7px;background:#151e2a;color:#9cabbd;font-size:10px;font-weight:700}.mini-action{height:36px;padding:0 11px;font-size:11px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#2A2F3C;color:#fff;font-weight:700}.mini-action.primary{background:#f2f5f8;color:#080b10}
+.trailer-preview{height:310px;position:relative;overflow:hidden;border-radius:18px;background:radial-gradient(circle at 72% 26%,rgba(98,215,255,.27),transparent 20%),linear-gradient(130deg,#122b42,#070b10 60%);border:1px solid rgba(255,255,255,.08)}.trailer-preview:after{content:"";position:absolute;right:110px;bottom:-45px;width:160px;height:255px;background:#020407;opacity:.8}.trailer-copy{position:absolute;left:28px;bottom:28px;z-index:2;width:55%}.trailer-copy h3{font-size:36px;letter-spacing:-1px}.trailer-copy p{font-size:14px;color:#b5c2d4;line-height:1.45;margin-top:8px}.trailer-badge{position:absolute;left:20px;top:18px;padding:7px 9px;border-radius:8px;background:#0a0f17;border:1px solid rgba(255,255,255,.1);font-size:11px;font-weight:700}.trailer-timeline{position:absolute;left:20px;right:20px;bottom:10px;height:4px;background:#ffffff22;border-radius:4px;z-index:3}.trailer-timeline i{display:block;width:38%;height:100%;background:var(--accent)}
+.ai-shell{display:grid;grid-template-columns:330px 1fr;gap:16px}.ai-intents{background:#0a0f16;border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:14px}.intent{min-height:58px;border-radius:13px;display:flex;align-items:center;gap:11px;padding:0 13px;border:1px solid transparent;color:#aeb9c8}.intent.active{background:#2A2F3C;color:#fff}.intent .spark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#8d5cff);display:grid;place-items:center}.ai-results{background:#15181F;border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:18px}.ai-card{display:grid;grid-template-columns:120px 1fr 92px;gap:16px;align-items:center;padding:12px;border-radius:14px;background:#1D212B;border:1px solid rgba(255,255,255,.06);margin-top:10px}.ai-thumb{height:76px;border-radius:10px;background:linear-gradient(135deg,#244a6a,#0a111a)}.ai-card b{font-size:18px}.ai-card p{font-size:12px;color:#8e9bad;margin-top:5px}.match{font-size:20px;font-weight:700;color:var(--success);text-align:right}
+.source-list{display:flex;flex-direction:column;gap:12px}.source-row{display:grid;grid-template-columns:58px minmax(250px,1fr) 130px 160px 350px;gap:14px;align-items:center;padding:14px 16px;border-radius:16px;background:#0f1620;border:1px solid rgba(255,255,255,.07)}.source-logo{width:48px;height:48px;border-radius:13px;background:linear-gradient(135deg,var(--accent),var(--blue));display:grid;place-items:center;font-weight:700}.source-main b{font-size:17px}.source-main span,.source-col small{display:block;color:#8491a4;font-size:12px;margin-top:4px}.source-col small{font-size:10px;text-transform:uppercase;letter-spacing:.7px}.source-col b{font-size:13px;display:block;margin-top:5px}.source-actions{display:flex;gap:7px;justify-content:flex-end}.source-action{height:38px;padding:0 10px;font-size:11px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#2A2F3C;color:#fff;font-weight:700}.source-action.sync{color:#73dea3}.source-action.epg{color:#68dcff}
+.epg-grid{overflow:hidden;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:#090e14}.epg-head,.epg-row{display:grid;grid-template-columns:170px 1.2fr .9fr 1.1fr;min-height:58px}.epg-head{background:#1D212B;color:#8f9bad;font-size:12px;font-weight:700}.epg-head>div,.epg-row>div{display:flex;align-items:center;padding:10px 12px;border-right:1px solid rgba(255,255,255,.055);border-bottom:1px solid rgba(255,255,255,.055)}.epg-row{min-height:74px}.epg-channel{font-weight:700}.epg-program{display:block!important;color:#dbe4ef;font-size:13px}.epg-program b{display:block;font-size:14px}.epg-program span{display:block;color:#7f8da0;margin-top:4px}.epg-program.now{background:linear-gradient(90deg,rgba(255,82,100,.15),rgba(255,82,100,.03));border-left:3px solid var(--accent)}
+.player-demo{position:relative;min-height:430px;border-radius:20px;overflow:hidden;background:radial-gradient(circle at 70% 25%,rgba(76,163,255,.24),transparent 24%),linear-gradient(140deg,#0d2133,#030609 62%);border:1px solid rgba(255,255,255,.08)}.player-demo:after{content:"";position:absolute;right:140px;bottom:-80px;width:190px;height:330px;background:#020407;opacity:.84}.player-title{position:absolute;left:26px;top:24px;z-index:2}.player-title h3{font-size:26px}.player-title p{font-size:13px;color:#9ba8ba;margin-top:5px}.player-chrome{position:absolute;left:0;right:0;bottom:0;padding:90px 26px 24px;background:linear-gradient(0deg,rgba(0,0,0,.96),transparent);z-index:3}.timeline{display:flex;align-items:center;gap:14px;color:#aeb9c8;font-size:13px}.track{height:5px;flex:1;background:#ffffff22;border-radius:8px;overflow:hidden}.track i{display:block;width:44%;height:100%;background:#fff}.player-controls{display:flex;justify-content:space-between;align-items:center;margin-top:20px;gap:18px}.control-group,.pill-group{display:flex;gap:9px;align-items:center}.control{width:54px;height:54px;border-radius:50%;background:#2A2F3C;border:1px solid rgba(255,255,255,.09);display:grid;place-items:center}.control.main{width:64px;height:64px;background:#fff;color:#07090d}.player-pill{padding:11px 14px;border-radius:12px;background:#121924;border:1px solid rgba(255,255,255,.08);font-size:12px;font-weight:700}
+.stream-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stream-stat{padding:14px;border-radius:12px;background:#0f1620;border:1px solid rgba(255,255,255,.07)}.stream-stat small{display:block;color:#718096;font-size:10px;text-transform:uppercase;letter-spacing:.7px}.stream-stat b{display:block;font-size:18px;margin-top:7px}
+.demo-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(1,3,6,.88);z-index:1000}.demo-modal.open{display:flex}.modal-card{width:820px;max-width:90%;background:#0d131d;border:1px solid rgba(255,255,255,.11);border-radius:22px;padding:28px;box-shadow:0 28px 90px #000}.modal-title{font-size:30px;font-weight:700}.modal-sub{color:#8e9aab;margin-top:8px;line-height:1.45}.option-list{display:flex;flex-direction:column;gap:9px;margin-top:20px}.option{height:58px;border-radius:13px;background:#121a26;border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;padding:0 16px}.option.on{background:#fff;color:#07090d}.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+
+
+/* V12 final compatibility hardening */
+.art:after,.trailer-preview:after,.player-demo:after{border-radius:54% 54% 16% 16%!important;transform:skewX(-4deg)}
+.qa-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.qa-card{padding:18px;border-radius:16px;background:#0f1620;border:1px solid rgba(255,255,255,.07);min-height:180px}.qa-card h3{font-size:18px}.qa-list{list-style:none;margin-top:12px}.qa-list li{font-size:13px;color:#9ca9ba;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.045)}.qa-list li:last-child{border-bottom:0}.check{color:var(--success);font-weight:700;margin-right:7px}.x{color:var(--danger);font-weight:700;margin-right:7px}
+.budget-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.budget{padding:16px;border-radius:14px;background:#0f1620;border:1px solid rgba(255,255,255,.07)}.budget small{display:block;color:#758399;font-size:10px;text-transform:uppercase;letter-spacing:.8px}.budget b{display:block;font-size:22px;margin-top:7px}.budget p{color:#8795a8;font-size:12px;line-height:1.4;margin-top:6px}
+.anti{display:grid;grid-template-columns:1fr 1fr;gap:16px}.do,.dont{border-radius:16px;padding:18px;border:1px solid rgba(255,255,255,.07)}.do{background:linear-gradient(145deg,rgba(89,217,154,.07),#15181F)}.dont{background:linear-gradient(145deg,rgba(255,79,104,.07),#15181F)}.anti h3{font-size:19px}.anti ul{list-style:none;margin-top:12px}.anti li{font-size:13px;color:#9ba8b9;padding:8px 0}.focus-path{height:220px;position:relative;background:#090e14;border-radius:16px;border:1px solid rgba(255,255,255,.07);overflow:hidden}.fp{position:absolute;width:150px;height:64px;border-radius:12px;background:#121a26;border:1px solid rgba(255,255,255,.08);display:grid;place-items:center;font-weight:700}.fp.a{left:50px;top:46px}.fp.b{left:240px;top:46px}.fp.c{left:430px;top:46px}.fp.d{left:50px;top:130px}.fp.e{left:240px;top:130px}.fp.f{left:430px;top:130px}.focus-path .arrow{position:absolute;color:#68768a;font-size:22px}.focus-path .ar1{left:210px;top:62px}.focus-path .ar2{left:400px;top:62px}.focus-path .ar3{left:210px;top:148px}.focus-path .ar4{left:400px;top:148px}.focus-path .down{left:120px;top:100px}.focus-path .down2{left:310px;top:100px}.focus-path .down3{left:500px;top:100px}
+.icon-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.icon-sample{height:110px;border-radius:14px;background:#0f1620;border:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px}.icon-sample svg{width:28px;height:28px;stroke:#dce5f2;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.icon-sample span{font-size:11px;color:#8491a4}
+.layer-stack{display:flex;align-items:flex-end;gap:16px;min-height:200px}.layer{flex:1;border-radius:14px;border:1px solid rgba(255,255,255,.08);padding:14px;background:#0d131d;box-shadow:0 8px 20px rgba(0,0,0,.22)}.layer:nth-child(2){transform:translateY(-18px);background:#1D212B}.layer:nth-child(3){transform:translateY(-36px);background:#2A2F3C}.layer:nth-child(4){transform:translateY(-54px);background:#1b2430}.layer b{display:block}.layer span{display:block;color:#8290a4;font-size:11px;margin-top:6px}
+.key-monitor{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.key-bubble{min-width:88px;height:44px;border-radius:12px;background:#111824;border:1px solid rgba(255,255,255,.08);display:grid;place-items:center;font-size:12px;font-weight:700;color:#9aa7b8}.key-bubble.on{background:#fff;color:#07090d}
+.access-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.access-card{padding:18px;border-radius:16px;background:#0f1620;border:1px solid rgba(255,255,255,.07)}.access-card b{font-size:16px}.access-card p{font-size:13px;color:#8f9daf;line-height:1.5;margin-top:8px}
+@media(max-width:1150px){.state-grid,.budget-grid,.qa-grid,.access-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.integration-grid,.ai-shell,.anti{grid-template-columns:1fr}.source-row{grid-template-columns:58px 1fr}.source-col,.source-actions{grid-column:2}.icon-grid{grid-template-columns:repeat(3,1fr)}}
+
+
+/* V13 additions — native input, accessibility, lifecycle and Smart Remote */
+.v13-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:rgba(89,217,154,.10);border:1px solid rgba(89,217,154,.22);color:var(--success);font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase}
+.delta-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.delta-card{min-height:150px;padding:17px;border-radius:16px;background:#0d141e;border:1px solid rgba(255,255,255,.07)}.delta-card small{color:var(--info);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase}.delta-card b{display:block;font-size:17px;margin-top:8px}.delta-card p{color:var(--muted);font-size:12px;line-height:1.5;margin-top:7px}
+.ime-demo{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}.ime-panel{background:#0b1119;border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:20px}.ime-field{margin-top:13px}.ime-field label{display:block;color:#95a3b6;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px}.ime-wrap{display:flex;align-items:center;gap:10px;border:1px solid #243246;background:#080d13;border-radius:13px;padding:0 13px;min-height:54px}.ime-wrap:focus-within{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.15)}.ime-wrap input{flex:1;min-width:0;background:transparent;border:0;outline:0;font-size:17px;color:#fff}.ime-mark{padding:6px 8px;border-radius:8px;background:#172230;color:var(--info);font-size:9px;font-weight:700;letter-spacing:.8px}.ime-flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:15px}.ime-step{padding:8px 10px;border-radius:9px;background:#121b27;color:#a9b5c5;font-size:11px}.ime-arrow{color:#59687b}.ime-note{margin-top:15px;color:#7f8da1;font-size:12px;line-height:1.5}
+.disabled-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.disabled-demo{padding:18px;border-radius:16px;background:#0f1620;border:1px solid rgba(255,255,255,.07)}.disabled-demo h3{font-size:18px}.disabled-demo p{color:var(--muted);font-size:12px;line-height:1.5;margin:7px 0 14px}.soft-disabled-demo{opacity:.58}.soft-disabled-demo.focused,.soft-disabled-demo:focus{opacity:1}.hard-disabled-demo{opacity:.32;filter:saturate(.45)}
+.voice-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.voice-card{padding:18px;border-radius:16px;background:#0e151f;border:1px solid rgba(255,255,255,.07)}.voice-card h3{font-size:19px}.voice-card p{font-size:12px;color:var(--muted);line-height:1.5;margin-top:8px}.aria-code{margin-top:12px;background:#070b10;border:1px solid #1f2a38;border-radius:10px;padding:11px;color:#a7b9cf;font-family:monospace;font-size:11px;white-space:pre-wrap}.live-announcer{margin-top:14px;padding:11px 13px;border-radius:10px;background:#101b17;border:1px solid rgba(89,217,154,.18);color:#8ee9b9;font-size:12px}
+.subtitle-system{display:grid;grid-template-columns:1.05fr .95fr;gap:16px}.subtitle-stage{min-height:280px;position:relative;overflow:hidden;border-radius:18px;background:radial-gradient(circle at 68% 30%,rgba(76,163,255,.22),transparent 20%),linear-gradient(145deg,#10243a,#05080d 70%);border:1px solid rgba(255,255,255,.08)}.subtitle-stage:after{content:'';position:absolute;inset:auto 0 0;height:58%;background:linear-gradient(transparent,rgba(0,0,0,.8))}.subtitle-line{position:absolute;z-index:2;left:50%;bottom:38px;transform:translateX(-50%);padding:8px 13px;border-radius:6px;background:rgba(0,0,0,.68);font-size:22px;font-weight:700;text-shadow:0 2px 3px #000;white-space:nowrap}.subtitle-controls{display:grid;gap:9px}.subtitle-option{display:flex;justify-content:space-between;align-items:center;min-height:52px;padding:0 14px;border-radius:12px;background:#1D212B;border:1px solid rgba(255,255,255,.07);font-size:13px}.subtitle-option span{color:#9fb0c4}.subtitle-option b{font-size:13px}
+.system-v13-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.sys-v13{padding:16px;border-radius:14px;background:#0d151e;border:1px solid rgba(255,255,255,.07)}.sys-v13 small{display:block;color:#748399;font-size:10px;text-transform:uppercase;letter-spacing:.8px}.sys-v13 b{display:block;font-size:19px;margin-top:7px}.sys-v13.good b{color:var(--success)}.sys-v13.warn b{color:var(--warning)}.lifecycle-flow{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:16px}.life-step{padding:10px 12px;border-radius:10px;background:#101a25;border:1px solid rgba(255,255,255,.06);color:#aab7c8;font-size:11px}.life-step strong{color:#fff}.life-arrow{color:#5f7085}.offline-bar-v13{margin-top:16px;display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:13px;background:rgba(255,179,108,.08);border:1px solid rgba(255,179,108,.23)}.offline-bar-v13 .off-dot{width:9px;height:9px;border-radius:50%;background:var(--warning)}.offline-bar-v13 b{font-size:13px}.offline-bar-v13 span{font-size:11px;color:#aab5c5;flex:1}
+.focus-memory-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.memory-card{padding:17px;border-radius:15px;background:#0f1620;border:1px solid rgba(255,255,255,.07)}.memory-card small{font-size:10px;color:#7f8ca0;text-transform:uppercase;letter-spacing:.8px}.memory-card h3{font-size:17px;margin-top:7px}.memory-pos{margin-top:12px;display:flex;gap:7px}.memory-dot{width:28px;height:8px;border-radius:999px;background:#263243}.memory-dot.on{background:#fff}.repeat-demo{margin-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.repeat-card{padding:14px;border-radius:13px;background:#0b1118;border:1px solid rgba(255,255,255,.06)}.repeat-card b{font-size:13px}.repeat-card p{color:#7f8da0;font-size:11px;line-height:1.45;margin-top:6px}
+.smart-remote{display:grid;grid-template-columns:360px 1fr;gap:18px}.smart-remote-pad{padding:22px;border-radius:22px;background:#0a0f16;border:1px solid rgba(255,255,255,.08)}.remote-row-v13{display:flex;justify-content:center;gap:9px;margin-top:10px}.smart-key{min-width:62px;height:50px;border-radius:14px;background:#151e2a;border:1px solid rgba(255,255,255,.09);display:grid;place-items:center;font-size:11px;font-weight:700;color:#c7d1df}.smart-key.round{width:58px;min-width:58px;border-radius:50%}.smart-key.ok{background:#fff;color:#090c10}.smart-key.live{color:#ff7388}.number-entry{margin-top:18px;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-radius:14px;background:#080d13;border:1px solid rgba(255,255,255,.07)}.number-entry small{display:block;color:#728198;font-size:10px;text-transform:uppercase}.number-value{font-size:34px;font-weight:700;letter-spacing:4px}.smart-copy{padding:4px 0}.smart-copy h3{font-size:24px}.smart-copy p{color:var(--muted);font-size:13px;line-height:1.55;margin-top:8px}.smart-rules{margin-top:15px;display:grid;gap:9px}.smart-rule{display:flex;gap:10px;padding:11px;border-radius:11px;background:#0d151f;border:1px solid rgba(255,255,255,.06);font-size:12px;color:#aab7c7}.smart-rule b{color:#fff;min-width:115px}
+.error-taxonomy{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.error-card{min-height:180px;padding:16px;border-radius:15px;background:#0f151d;border:1px solid rgba(255,255,255,.07)}.error-code{display:inline-flex;padding:5px 7px;border-radius:7px;background:#1b232e;color:#8fa0b4;font-size:10px;font-weight:700}.error-card h3{font-size:17px;margin-top:11px}.error-card p{color:#8b99ac;font-size:11px;line-height:1.45;margin-top:7px}.error-action{display:inline-flex;margin-top:12px;padding:8px 10px;border-radius:9px;background:#fff;color:#080b0f;font-size:11px;font-weight:700}
+.player-v13-row{margin-top:16px;display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.player-v13-action{height:62px;border-radius:14px;background:#121b27;border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;font-weight:700}.player-v13-action.soft{opacity:.55}.player-v13-action.soft.focused,.player-v13-action.soft:focus{opacity:1}.media-key-callout{margin-top:13px;padding:12px 14px;border-radius:11px;background:#0c171e;border:1px solid rgba(98,215,255,.17);color:#9fdff5;font-size:12px}
+.key-bubble.digit{min-width:48px}.key-bubble.media{border-color:rgba(98,215,255,.23)}
+body.high-contrast-demo .meta,body.high-contrast-demo .micro{color:#d7e1ee!important}
+@media(max-width:1150px){.delta-grid,.error-taxonomy{grid-template-columns:repeat(2,minmax(0,1fr))}.ime-demo,.subtitle-system,.smart-remote,.voice-grid{grid-template-columns:1fr}.system-v13-grid,.focus-memory-grid,.repeat-demo{grid-template-columns:1fr}.player-v13-row{grid-template-columns:repeat(2,1fr)}}
+
+
+/* V14 — pinned Favorites / History categories */
+.category-system-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.category-demo{background:#15181F;border:1px solid rgba(255,255,255,.075);border-radius:18px;padding:16px;min-width:0}
+.category-demo-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}
+.category-demo-head h3{font-size:20px}.category-demo-head p{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45}
+.category-pin{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--info);background:#101c27;border:1px solid rgba(98,215,255,.18);padding:6px 8px;border-radius:8px;white-space:nowrap}
+.category-list-v131{display:flex;flex-direction:column;gap:7px}
+.category-item-v131{min-height:48px;border-radius:12px;border:1px solid transparent;background:#1D212B;color:#aeb9c8;display:flex;align-items:center;gap:11px;padding:0 12px;font-weight:700;text-align:left}
+.category-item-v131 .cat-icon{width:30px;height:30px;border-radius:9px;background:#182331;display:grid;place-items:center;font-size:13px;color:#dce5f0;flex:0 0 auto}
+.category-item-v131.pinned{background:#121b27;color:#fff;border-color:rgba(255,255,255,.07)}
+.category-item-v131.favorite .cat-icon{color:#ffd76a}.category-item-v131.history .cat-icon{color:var(--info)}
+.category-item-v131.active{background:#fff;color:#07090d}.category-item-v131.active .cat-icon{background:#e8edf3;color:#07090d}
+.category-rules-v131{margin-top:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.category-rule-v131{background:#0f1620;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:14px}
+.category-rule-v131 b{display:block;font-size:14px}.category-rule-v131 p{font-size:12px;color:var(--muted);line-height:1.5;margin-top:6px}
+.category-empty-v131{margin-top:14px;padding:14px;border-radius:14px;background:#091018;border:1px dashed rgba(255,255,255,.12);color:var(--muted);font-size:12px;line-height:1.5}
+.category-empty-v131 b{color:var(--text-2)}
+@media(max-width:1150px){.category-system-grid,.category-rules-v131{grid-template-columns:1fr}}
+
+
+/* V14 — TV-first virtual keyboard (on-demand fallback) */
+.vk-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.55fr);gap:16px;align-items:stretch}
+.vk-shell{background:linear-gradient(145deg,#0d141d,#080d13);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:20px;overflow:hidden}
+.vk-top{display:flex;align-items:center;gap:12px}.vk-query{min-height:62px;flex:1;border-radius:14px;background:#070b11;border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:12px;padding:0 16px}.vk-query-icon{font-size:20px;color:var(--muted)}.vk-query-copy{min-width:0;flex:1}.vk-query-copy small{display:block;color:var(--muted-2);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}.vk-query-value{font-size:20px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vk-query-value.empty{color:#718096;font-weight:400}.vk-launcher{height:62px;padding:0 18px;border-radius:14px;border:1px solid rgba(255,255,255,.09);background:#2A2F3C;color:#fff;font-weight:700}
+.vk-suggestions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0}.vk-suggestion{height:42px;padding:0 14px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:#1D212B;color:#b9c5d4;font-size:13px;font-weight:700}.vk-suggestion.primary{background:#182231;color:#fff}.vk-hint{margin-left:auto;font-size:11px;color:var(--muted-2)}
+.vk-panel{border-top:1px solid rgba(255,255,255,.07);padding-top:16px;transition:opacity .16s var(--ease),max-height .2s var(--ease);max-height:620px;opacity:1}.vk-panel.closed{max-height:0;opacity:0;overflow:hidden;padding-top:0;border-top:0;pointer-events:none}
+.vk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.vk-mode-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}.vk-toolbar-actions{display:flex;gap:8px}.vk-mini{height:38px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#111925;color:#c4cede;font-size:11px;font-weight:700}
+.vk-board{display:flex;flex-direction:column;gap:8px}.vk-row{display:flex;gap:8px;justify-content:center}.vk-key{height:58px;min-width:64px;padding:0 15px;border-radius:12px;border:1px solid rgba(255,255,255,.09);background:#2A2F3C;color:#f4f7fb;font-size:17px;font-weight:700;box-shadow:0 5px 14px rgba(0,0,0,.18)}.vk-key.action{background:#1D212B;color:#cbd5e2}.vk-key.space{min-width:330px}.vk-key.wide{min-width:116px}.vk-key.confirm{min-width:124px;background:#fff;color:#07090d}.vk-key.focused,.vk-key:focus{background:#fff!important;color:#07090d!important;box-shadow:0 0 0 3px rgba(255,255,255,.98),0 16px 34px rgba(0,0,0,.55)!important;transform:none!important}.vk-key.pressed{transform:scale(.97)!important}.vk-num{display:none}.vk-panel.mode-num .vk-alpha{display:none}.vk-panel.mode-num .vk-num{display:flex}
+.vk-side{background:#15181F;border:1px solid rgba(255,255,255,.075);border-radius:20px;padding:18px}.vk-side h3{font-size:22px}.vk-side p{color:var(--muted);font-size:13px;line-height:1.55;margin-top:7px}.vk-rule{margin-top:12px;padding:12px 13px;border-radius:12px;background:#1D212B;border:1px solid rgba(255,255,255,.06)}.vk-rule b{display:block;font-size:13px}.vk-rule span{display:block;color:var(--muted);font-size:11px;line-height:1.45;margin-top:5px}.vk-rule.good{border-left:3px solid var(--success)}.vk-rule.info{border-left:3px solid var(--info)}.vk-rule.warn{border-left:3px solid var(--warning)}
+.vk-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media(max-width:1150px){.vk-layout{grid-template-columns:1fr}.vk-key{min-width:52px;height:54px;padding:0 10px}.vk-key.space{min-width:240px}}
+
+
+/* =========================================================
+   V14 • Spectrum visual language — based on CCPlayTv Style Guide
+   Production Tizen rule: package Poppins/Inter locally or use fallback.
+   No external Google Fonts are required by this standalone Lab.
+   ========================================================= */
+h1,h2,h3,.page-title,.modal-title,.card-title,.brand h1{
+  font-family:'Poppins','Inter',Arial,Helvetica,sans-serif;
+}
+.header{margin-bottom:40px}
+.brand{gap:16px}
+.logo-mark{
+  width:48px;height:48px;border-radius:14px;
+  background:var(--brand-gradient);
+  box-shadow:0 14px 36px rgba(255,122,61,.24);
+}
+.logo-mark:after{
+  left:18px;top:12px;border-left-color:#0B0D12;border-left-width:15px;
+  border-top-width:11px;border-bottom-width:11px;
+}
+.brand h1{
+  font-size:32px;font-weight:800;letter-spacing:-1.2px;
+  background:var(--brand-gradient);-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.brand h1 span{color:inherit}
+.header-copy{font-size:16px;color:#7C8494}
+.lab-nav{
+  background:#15181F;border-color:#2A2F3C;border-radius:16px;padding:12px;
+  box-shadow:0 16px 42px rgba(0,0,0,.28);
+}
+.lab-nav a{
+  color:#A7ADBB;font-size:15px;font-weight:700;border-radius:10px;padding:12px 16px
+}
+.lab-nav a:focus,.lab-nav a:hover{
+  color:#0B0D12;background:#FFA36B;outline:3px solid #FF7A3D;outline-offset:2px
+}
+.section{margin-top:64px}
+.section h2{
+  font-size:28px;font-weight:700;letter-spacing:.02em;text-transform:uppercase
+}
+.section-head{margin-bottom:24px}
+.section-head p{font-size:16px;color:#7C8494;line-height:1.6}
+.panel{
+  background:#15181F;border:1px solid #1D212B;border-radius:16px;padding:24px;
+  box-shadow:none
+}
+.note{
+  background:#1D212B;border-left:4px solid var(--accent);border-radius:0 12px 12px 0;
+  color:#A7ADBB;font-size:16px
+}
+.kicker{
+  font-size:16px;letter-spacing:.10em;font-weight:700;color:#A7ADBB
+}
+.meta{font-size:16px;color:#A7ADBB}
+.micro{font-size:14px;color:#7C8494}
+.token{background:#15181F;border-color:#2A2F3C;border-radius:12px}
+.token-copy b{font-size:16px}.token-copy code{font-size:14px;color:#7C8494}
+.type-row{grid-template-columns:200px 1fr;padding:20px 0}
+.type-meta{font-size:14px;color:#7C8494}
+.focusable{
+  transition:transform 140ms ease-out,box-shadow 140ms ease-out,background 140ms ease-out,border-color 140ms ease-out;
+}
+.focusable.focused,.focusable:focus{
+  outline:4px solid #FF7A3D!important;
+  outline-offset:3px!important;
+  box-shadow:0 0 0 8px rgba(255,122,61,.22),0 0 40px rgba(255,122,61,.55)!important;
+  transform:scale(1.06);
+  border-color:#FF7A3D!important;
+  z-index:8
+}
+.no-scale.focused,.no-scale:focus{
+  transform:none!important;
+}
+.btn{
+  min-height:64px;padding:0 28px;border-radius:999px;
+  border:1px solid #2A2F3C;background:#1D212B;color:#F5F6F8;font-size:18px;font-weight:700
+}
+.btn.primary,.mini-action.primary{
+  background:#FF7A3D;color:#2A1206;border-color:#FF7A3D
+}
+.btn.primary.focused,.btn.primary:focus,.mini-action.primary.focused,.mini-action.primary:focus{
+  background:#FFA36B;color:#2A1206
+}
+.btn.accent{
+  background:#FF7A3D;color:#2A1206;border-color:#FF7A3D
+}
+.btn.ghost{background:#15181F}
+.btn.disabled{color:#5C6372;opacity:.55}
+.chip{
+  min-height:48px;padding:0 18px;border-radius:999px;background:#1D212B;border-color:#2A2F3C;
+  font-size:16px
+}
+.chip.selected{
+  color:#FF7A3D;background:rgba(255,122,61,.16);border-color:rgba(255,122,61,.45)
+}
+.icon-btn{
+  width:56px;height:56px;border-radius:999px;background:#1D212B;border-color:#2A2F3C
+}
+.card,.integration-card,.rule-card,.status-card,.access-card,.voice-card,.memory-card,.budget,.category-demo{
+  border-radius:16px!important;border-color:#2A2F3C!important;background-color:#15181F
+}
+.card{background:#15181F}
+.card-copy{left:18px;right:18px;bottom:18px}
+.card-title{font-weight:700}
+.progress{height:6px}.progress i,.track i{background:#FF7A3D}
+.badge{font-size:14px;border-radius:999px;padding:7px 11px}
+.badge.live{background:#FF2E87}
+.topnav-demo,.sidenav,.side-content,.tabs,.integration,.source-row,.player-demo,.player-bar{
+  border-color:#2A2F3C!important
+}
+.topnav-item.active,.side-item.active,.tab.active{
+  background:rgba(255,122,61,.16)!important;color:#FF7A3D!important;border-color:rgba(255,122,61,.34)!important
+}
+.profile-dot,.source-logo,.source-logo-v11{
+  background:var(--brand-gradient)!important;color:#0B0D12!important
+}
+.player-pill,.source-action,.mini-action{
+  border-radius:999px!important
+}
+.control.main{
+  background:#FF7A3D!important;color:#2A1206!important
+}
+.input,.text-input,input[type="text"],input[type="url"],input[type="password"],select{
+  border-radius:12px!important
+}
+input:focus,select:focus{
+  border-color:#FF7A3D!important;
+  outline:4px solid #FF7A3D!important;
+  outline-offset:3px!important;
+  box-shadow:0 0 0 8px rgba(255,122,61,.16),0 0 32px rgba(255,122,61,.35)!important
+}
+.vk-key.focused,.vk-key:focus{
+  background:#FFA36B!important;color:#2A1206!important
+}
+.vk-key.vk-primary{
+  background:#FF7A3D!important;color:#2A1206!important
+}
+.category-item-v131.active{
+  background:rgba(255,122,61,.16)!important;color:#FF7A3D!important;
+  border-color:rgba(255,122,61,.38)!important
+}
+.category-item-v131.active .cat-icon{
+  background:#FF7A3D!important;color:#2A1206!important
+}
+.tmdb-credit,.integration-foot,.epg-hint{color:#7C8494}
+.safe-zone{left:5%;right:5%;top:8.9%;bottom:8.9%;border-color:rgba(255,122,61,.55)}
+.safe-zone:before{color:#FF7A3D}
+.space-bar{background:#FF7A3D!important}
+.motion-demo{background:#FF7A3D}
+.shadow-demo.s1{box-shadow:0 8px 24px rgba(0,0,0,.26)}
+.shadow-demo.s2{box-shadow:0 16px 48px rgba(255,122,61,.14)}
+.shadow-demo.s3{box-shadow:0 20px 54px rgba(255,122,61,.24)}
+.v14-brand-panel{
+  position:relative;overflow:hidden;border-radius:20px;background:#0E0A14;border:1px solid #1D212B;
+  min-height:330px;padding:48px;display:grid;grid-template-columns:1.3fr .7fr;gap:32px;align-items:center
+}
+.v14-brand-panel:before{
+  content:"";position:absolute;inset:0;
+  background:
+   radial-gradient(circle at 8% 18%,rgba(255,46,135,.23),transparent 24%),
+   radial-gradient(circle at 92% 15%,rgba(45,184,196,.22),transparent 24%),
+   radial-gradient(circle at 38% 105%,rgba(255,201,61,.16),transparent 26%);
+  pointer-events:none
+}
+.v14-wordmark{position:relative;z-index:1}
+.v14-wordmark h2{
+  font-family:'Poppins',Arial,sans-serif;font-size:64px;text-transform:none;letter-spacing:-2px;margin:0;
+  background:var(--brand-gradient);-webkit-background-clip:text;background-clip:text;color:transparent
+}
+.v14-wordmark .strap{
+  display:inline-flex;margin-top:14px;padding:8px 18px;border-radius:999px;background:#F5F6F8;color:#0B0D12;
+  font-family:'Poppins',Arial,sans-serif;font-weight:700;letter-spacing:.14em;font-size:14px
+}
+.v14-wordmark p{margin-top:24px;color:#A7ADBB;font-size:18px;line-height:1.6;max-width:760px}
+.v14-app-icon{
+  position:relative;z-index:1;width:180px;height:180px;border-radius:40px;margin:auto;
+  background:var(--brand-gradient);display:grid;place-items:center;
+  box-shadow:0 22px 58px rgba(255,122,61,.28)
+}
+.v14-app-icon:after{
+  content:"";width:0;height:0;border-top:38px solid transparent;border-bottom:38px solid transparent;
+  border-left:58px solid #0B0D12;margin-left:10px
+}
+.v14-style-rules{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:16px
+}
+.v14-style-rule{
+  background:#15181F;border:1px solid #1D212B;border-radius:16px;padding:18px
+}
+.v14-style-rule b{display:block;font-size:18px}.v14-style-rule p{margin-top:8px;color:#7C8494;font-size:15px;line-height:1.5}
+@media(max-width:1150px){
+  body{padding:32px 28px 80px}
+  .v14-brand-panel{grid-template-columns:1fr}
+  .v14-style-rules{grid-template-columns:repeat(2,1fr)}
+}
+
+</style></head><body><header class="header"><div class="brand"><div class="logo-mark"></div><h1>CCPlay<span>TV</span> Design System</h1></div><div class="header-copy"><b>Component Lab V14 Spectrum • Samsung Tizen TV</b><br>Referência visual e interativa para tokens, padrões de foco, componentes e estados. Tudo standalone e testável por controle remoto.</div></header><nav class="lab-nav"><a href="#identityv14">Identidade</a><a href="#principles">Princípios</a><a href="#compat">Tizen</a><a href="#safe">Canvas</a><a href="#colors">Cores</a><a href="#type">Tipo</a><a href="#focus">Foco</a><a href="#motion">Motion</a><a href="#states">Estados</a><a href="#navigation">Navegação</a><a href="#categoriesv131">Categorias</a><a href="#actions">Ações</a><a href="#cards">Cards</a><a href="#rails">Rails</a><a href="#forms">Inputs</a><a href="#feedback">Feedback</a><a href="#services">Status</a><a href="#byok">BYOK</a><a href="#trailers">Trailers</a><a href="#ai">IA</a><a href="#sources">Fontes</a><a href="#epg">EPG</a><a href="#player">Player</a><a href="#icons">Ícones</a><a href="#focuspath">Focus path</a><a href="#layers">Layers</a><a href="#performance">Performance</a><a href="#accessibility">A11y</a><a href="#qa">QA</a><a href="#antipatterns">Do/Avoid</a><a href="#ime">IME</a><a href="#virtualkeyboard">Teclado TV</a><a href="#disabledv13">Disabled</a><a href="#voice">Voice/ARIA</a><a href="#subtitlesv13">Legendas</a><a href="#smartremote">Smart Remote</a><a href="#networkv13">Rede</a><a href="#focusmemory">Memória</a><a href="#errorstax">Erros</a><a href="#keys">Keys</a></nav>
+
+<section class="section" id="identityv14">
+  <div class="section-head">
+    <h2>Identidade V14 • Spectrum</h2>
+    <p>A arquitetura Tizen da V13.2 permanece. A V14 troca a linguagem visual para a identidade CCPlayTv de fundo escuro, accent laranja e gradiente multicolorido reservado à marca.</p>
+  </div>
+  <div class="v14-brand-panel">
+    <div class="v14-wordmark">
+      <h2>CCPlayTv</h2>
+      <span class="strap">STREAM YOUR WAY</span>
+      <p>Poppins para personalidade nos títulos, Inter para interface e leitura. Em produção Tizen as fontes devem ser empacotadas localmente; este Lab não depende de Google Fonts ou CDN.</p>
+    </div>
+    <div class="v14-app-icon" aria-label="Ícone CCPlayTv"></div>
+  </div>
+  <div class="v14-style-rules">
+    <div class="v14-style-rule"><b>Accent único</b><p>#FF7A3D conduz ação principal, foco, progresso e seleção.</p></div>
+    <div class="v14-style-rule"><b>Gradiente raro</b><p>Rosa → laranja → amarelo → verde → teal apenas em logo, splash e decoração pontual.</p></div>
+    <div class="v14-style-rule"><b>Grid 8 px</b><p>Espaçamento principal: 8, 16, 24, 32, 48, 64 e 96 px.</p></div>
+    <div class="v14-style-rule"><b>Foco forte</b><p>Outline 4 px laranja + halo 8 px + glow. TV não pode depender de hover.</p></div>
+  </div>
+</section>
+
+<section class="section" id="principles"><div class="section-head"><h2>Tizen TV principles</h2><p>O Design System parte de quatro regras: legibilidade a distância, navegação por quatro direções, foco inequívoco e redução de carga cognitiva.</p></div><div class="grid cols4">
+<div class="rule-card"><b>10-foot UI</b><p>Elementos essenciais precisam continuar legíveis a aproximadamente 3 metros. Metadados não devem competir com títulos e ações.</p><code>minimum practical body: 16px</code></div>
+<div class="rule-card"><b>4-way first</b><p>Todo fluxo deve ser concluído usando apenas ↑ ↓ ← →, Select e Return. Mouse e teclado são extras.</p><code>no diagonal dependency</code></div>
+<div class="rule-card"><b>Focus is location</b><p>Somente um item recebe foco. O usuário deve saber onde está sem precisar interpretar cores sutis.</p><code>1 focus / screen</code></div>
+<div class="rule-card"><b>Reduce workload</b><p>A TV é contexto de relaxamento. Agrupe informações parecidas e esconda detalhes técnicos até serem solicitados.</p><code>progressive disclosure</code></div>
+</div></section>
+
+
+<section class="section" id="v13delta"><div class="section-head"><h2>V13 platform delta</h2><p>A V13 adiciona padrões nativos de operação para Samsung Tizen além do vocabulário visual do V12.</p></div><div class="delta-grid">
+<div class="delta-card"><small>Input</small><b>Samsung IME</b><p>Busca, M3U, Xtream, EPG e BYOK usam campos nativos. Teclado customizado deixa de ser requisito.</p></div>
+<div class="delta-card"><small>Accessibility</small><b>Voice Guide + ARIA</b><p>Foco precisa ter nome acessível, estado e contexto. Mudanças importantes usam região de anúncio.</p></div>
+<div class="delta-card"><small>System</small><b>Network + lifecycle</b><p>Ocultar o app cancela previews e mídia auxiliar. Retomar verifica rede e restaura contexto.</p></div>
+<div class="delta-card"><small>Remote</small><b>Repeat + media keys</b><p>Long press acelera navegação sem disparar trailers. Play/Pause revela OSD e recebe foco.</p></div>
+</div></section>
+
+<section class="section" id="compat"><div class="section-head"><h2>Compatibility profile</h2><p>Perfil conservador para Samsung Tizen Web App. O Lab evita dependências externas e recursos CSS/JS desnecessariamente modernos.</p></div><div class="panel"><table class="compat-table"><thead><tr><th>Padrão</th><th>Status no DS</th><th>Regra</th></tr></thead><tbody>
+<tr><td>HTML/CSS/JS standalone</td><td class="yes">Preferido</td><td>Sem CDN, framework ou webfont obrigatória.</td></tr>
+<tr><td>CSS transform / opacity</td><td class="yes">Preferido</td><td>Usar para foco e transições curtas.</td></tr>
+<tr><td>CSS Grid + Flexbox</td><td class="yes">Permitido</td><td>Layouts alinhados; não criar rotas diagonais de foco.</td></tr>
+<tr><td>backdrop-filter / filtros pesados</td><td class="avoid">Evitar</td><td>Substituir por superfícies opacas/translúcidas simples.</td></tr>
+<tr><td>GIF animado</td><td class="avoid">Evitar</td><td>Preferir CSS ou mídia otimizada.</td></tr>
+<tr><td>DOM com milhares de cards</td><td class="avoid">Proibido em produção</td><td>Virtualizar listas e grades extensas.</td></tr>
+<tr><td>Recursos remotos para UI base</td><td class="avoid">Evitar</td><td>Ícones críticos e shell devem ser locais.</td></tr>
+</tbody></table></div></section>
+
+<section class="section" id="safe"><div class="section-head"><h2>Canvas & safe zone</h2><p>O protótipo usa canvas lógico de 1920×1080. Conteúdo crítico fica afastado das bordas para manter conforto visual e consistência.</p></div><div class="panel"><div class="safe-tv"><div class="safe-zone"></div><div class="safe-card a"></div><div class="safe-card b"></div><div class="safe-card c"></div><div class="safe-card d"></div><div class="safe-card e"></div><div class="safe-card f"></div></div></div></section>
+
+<section class="section" id="colors">
+  <div class="section-head"><h2>Cor</h2><p>Superfícies escuras neutras. Laranja é o accent funcional; o espectro completo pertence à marca.</p></div>
+  <div class="grid cols6">
+    <div class="token"><div class="swatch" style="background:#05060A"></div><div class="token-copy"><b>Canvas</b><code>#05060A • --bg-canvas</code></div></div>
+    <div class="token"><div class="swatch" style="background:#0B0D12"></div><div class="token-copy"><b>Base</b><code>#0B0D12 • --bg-base</code></div></div>
+    <div class="token"><div class="swatch" style="background:#15181F"></div><div class="token-copy"><b>Surface</b><code>#15181F • --bg-surface</code></div></div>
+    <div class="token"><div class="swatch" style="background:#1D212B"></div><div class="token-copy"><b>Elevated</b><code>#1D212B • --bg-elevated</code></div></div>
+    <div class="token"><div class="swatch" style="background:#2A2F3C"></div><div class="token-copy"><b>Hover/Focus surface</b><code>#2A2F3C • --bg-hover</code></div></div>
+    <div class="token"><div class="swatch" style="background:#F5F6F8"></div><div class="token-copy"><b>Text primary</b><code>#F5F6F8</code></div></div>
+    <div class="token"><div class="swatch" style="background:#A7ADBB"></div><div class="token-copy"><b>Text secondary</b><code>#A7ADBB</code></div></div>
+    <div class="token"><div class="swatch" style="background:#5C6372"></div><div class="token-copy"><b>Text disabled</b><code>#5C6372</code></div></div>
+    <div class="token"><div class="swatch" style="background:#FF7A3D"></div><div class="token-copy"><b>Accent</b><code>#FF7A3D</code></div></div>
+    <div class="token"><div class="swatch" style="background:#FFA36B"></div><div class="token-copy"><b>Accent light</b><code>#FFA36B</code></div></div>
+    <div class="token"><div class="swatch" style="background:#D9601F"></div><div class="token-copy"><b>Accent pressed</b><code>#D9601F</code></div></div>
+    <div class="token"><div class="swatch" style="background:linear-gradient(92deg,#FF2E87,#FF7A3D 26%,#FFC93D 50%,#3DDC84 72%,#1E9AB0)"></div><div class="token-copy"><b>Brand spectrum</b><code>logo / splash only</code></div></div>
+  </div>
+</section>
+
+<section class="section" id="type">
+  <div class="section-head"><h2>Tipografia</h2><p>Poppins traz personalidade para títulos; Inter sustenta UI e leitura. Em Tizen, empacotar localmente ou usar os fallbacks — nunca tornar a CDN requisito do app.</p></div>
+  <div class="panel">
+    <div class="type-row"><div class="type-meta">Display • 64 px • 800<br>Poppins / fallback sans</div><div class="type-sample" style="font-family:'Poppins',Arial,sans-serif;font-size:64px;font-weight:800;letter-spacing:-2px">Quem está assistindo?</div></div>
+    <div class="type-row"><div class="type-meta">H1 • 40 px • 700<br>Poppins</div><div class="type-sample" style="font-family:'Poppins',Arial,sans-serif;font-size:40px;font-weight:700">Filmes</div></div>
+    <div class="type-row"><div class="type-meta">H2 • 28 px • 600<br>Inter</div><div class="type-sample" style="font-size:28px;font-weight:600">Continue assistindo</div></div>
+    <div class="type-row"><div class="type-meta">Body LG • 24 px • 500<br>Inter</div><div class="type-sample" style="font-size:24px;font-weight:500">Descubra algo perfeito para assistir agora.</div></div>
+    <div class="type-row"><div class="type-meta">Body • 20 px • 500<br>Inter</div><div class="type-sample" style="font-size:20px;font-weight:500">Sci-fi • 2 temporadas • 4K</div></div>
+    <div class="type-row"><div class="type-meta">Caption • 16 px • 600<br>mínimo de produto</div><div class="type-sample" style="font-size:16px;font-weight:600;color:#A7ADBB">TMDB • 92% match • há 12 min</div></div>
+  </div>
+</section>
+
+<section class="section" id="focus">
+  <div class="section-head"><h2>Estado de foco</h2><p>É o estado mais importante do sistema. Não existe dependência de hover: todo elemento interativo precisa comunicar foco a 2–3 metros.</p></div>
+  <div class="grid cols2">
+    <div class="panel">
+      <div class="row">
+        <button class="btn ghost focusable" tabindex="0">Secundário</button>
+        <button class="btn primary focusable" tabindex="0">Assistir</button>
+        <button class="chip focusable" tabindex="0">Categoria</button>
+        <button class="icon-btn focusable" tabindex="0" aria-label="Buscar"><svg class="svg-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg></button>
+      </div>
+      <pre style="margin-top:28px;background:#0B0D12;border:1px solid #1D212B;border-radius:12px;padding:20px;font:14px/1.7 ui-monospace,monospace;color:#DDE1E8;overflow:auto">outline: 4px solid #FF7A3D;
+outline-offset: 3px;
+box-shadow:
+  0 0 0 8px rgba(255,122,61,.22),
+  0 0 40px rgba(255,122,61,.55);
+transform: scale(1.06);
+transition: 140ms ease-out;</pre>
+    </div>
+    <div class="panel remote">
+      <div class="remote-pad"><div class="remote-key up">↑</div><div class="remote-key left">←</div><div class="remote-key ok">OK</div><div class="remote-key right">→</div><div class="remote-key down">↓</div></div>
+      <div class="remote-copy"><h3>Remote-first</h3><p>Outline laranja + halo + brilho da superfície. Rows, EPG e teclado podem usar <b>no-scale</b> para não deformar a geometria.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="motion"><div class="section-head"><h2>Motion, elevation & geometry</h2><p>Animações são curtas e funcionais. Evite criar camadas GPU permanentes em todos os cards; promova somente durante movimento real.</p></div><div class="grid cols3"><div class="motion-token"><div><b>Fast</b><span>120–160 ms • foco</span></div><div class="motion-demo"></div></div><div class="motion-token"><div><b>Standard</b><span>180–240 ms • modal</span></div><div class="motion-demo" style="animation-duration:2s;background:var(--info)"></div></div><div class="motion-token"><div><b>Slow</b><span>280–420 ms • hero</span></div><div class="motion-demo" style="animation-duration:2.5s;background:var(--success)"></div></div></div><div class="panel" style="margin-top:16px"><div class="kicker">Spacing • grid base 8 px</div><div class="space-list" style="margin-top:18px"></div><div class="kicker" style="margin-top:30px">Radius • 8 / 12 / 16 / pill</div><div class="radius-list" style="margin-top:16px"><div class="radius-demo" style="border-radius:8px">8 px</div><div class="radius-demo" style="border-radius:10px">10 px</div><div class="radius-demo" style="border-radius:12px">12 px</div><div class="radius-demo" style="border-radius:14px">14 px</div><div class="radius-demo" style="border-radius:16px">16 px</div><div class="radius-demo" style="border-radius:18px">18 px</div><div class="radius-demo" style="border-radius:22px">22 px</div></div><div class="kicker" style="margin-top:30px">Elevation</div><div class="grid cols3" style="margin-top:16px"><div class="shadow-demo s1">Level 1</div><div class="shadow-demo s2">Level 2</div><div class="shadow-demo s3">Level 3</div></div></div></section>
+
+<section class="section" id="states"><div class="section-head"><h2>Interaction states</h2><p>Cada componente interativo documenta default, focused, pressed e disabled. O foco deve continuar visível mesmo quando a ação está indisponível.</p></div><div class="state-grid"><div class="state-box"><small>Default</small><button class="btn ghost">Mais informações</button></div><div class="state-box"><small>Focused</small><button class="btn primary focusable" tabindex="0">Assistir</button></div><div class="state-box"><small>Pressed</small><button class="btn accent pressed">Selecionado</button></div><div class="state-box"><small>Disabled</small><button class="btn ghost disabled" aria-disabled="true">Indisponível</button></div></div></section>
+
+
+<section class="section" id="disabledv13"><div class="section-head"><h2>Disabled: soft × hard</h2><p>V13 separa indisponibilidade explicável de indisponibilidade absoluta.</p></div><div class="disabled-grid">
+<button class="disabled-demo soft-disabled-demo focusable no-scale" tabindex="0" data-demo-explain="Áudio-descrição não existe neste stream. Quando a faixa estiver disponível, a opção será liberada." aria-label="Áudio-descrição indisponível. Pressione OK para saber o motivo"><h3>Soft disabled</h3><p>Permanece focável. Select explica o motivo ou mostra como habilitar.</p><span class="chip">Áudio-descrição • indisponível</span></button>
+<div class="disabled-demo hard-disabled-demo" aria-disabled="true"><h3>Hard disabled</h3><p>Não recebe foco quando a ação não faz sentido no contexto e não há informação útil adicional.</p><span class="chip">Velocidade • Live TV</span></div>
+</div><div class="live-announcer" id="disabledExplanation" aria-live="polite">Selecione o exemplo Soft disabled para testar a explicação.</div></section>
+
+<section class="section" id="navigation"><div class="section-head"><h2>Navigation patterns</h2><p>Menus horizontais funcionam bem com poucos destinos; categorias numerosas ou variáveis usam navegação vertical à esquerda.</p></div><div class="panel"><div class="topnav-demo"><div class="topnav-brand">CCPlay<span style="color:var(--accent)">TV</span></div><button class="topnav-item active focusable" tabindex="0">Início</button><button class="topnav-item focusable" tabindex="0">TV ao vivo</button><button class="topnav-item focusable" tabindex="0">Filmes</button><button class="topnav-item focusable" tabindex="0">Séries</button><button class="topnav-item focusable" tabindex="0">Esportes</button><div class="topnav-spacer"></div><button class="icon-btn focusable" tabindex="0" aria-label="Buscar"><svg class="svg-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg></button><div class="profile-dot">CC</div></div><div class="tabs" style="margin-top:22px"><button class="tab active focusable no-scale" tabindex="0">Episódios</button><button class="tab focusable no-scale" tabindex="0">Detalhes</button><button class="tab focusable no-scale" tabindex="0">Elenco</button><button class="tab focusable no-scale" tabindex="0">Semelhantes</button></div></div><div class="side-layout" style="margin-top:16px"><div class="sidenav"><div class="side-item active focusable no-scale" tabindex="0"><span class="sicon">∞</span>Todos</div><div class="side-item focusable no-scale" tabindex="0"><span class="sicon">A</span>Ação</div><div class="side-item focusable no-scale" tabindex="0"><span class="sicon">D</span>Drama</div><div class="side-item focusable no-scale" tabindex="0"><span class="sicon">S</span>Suspense</div><div class="side-item focusable no-scale" tabindex="0"><span class="sicon">SF</span>Sci-fi</div></div><div class="side-content"><div class="kicker">Conteúdo da categoria</div><div class="fake-grid" style="margin-top:14px"><div class="fake-tile"></div><div class="fake-tile"></div><div class="fake-tile"></div><div class="fake-tile"></div><div class="fake-tile"></div><div class="fake-tile"></div><div class="fake-tile"></div><div class="fake-tile"></div></div></div></div></section>
+
+<section class="section" id="categoriesv131">
+  <div class="section-head">
+    <h2>Favoritos & Histórico</h2>
+    <p>Categorias pessoais ficam fixadas no topo da navegação. Favoritos existe em Canais, Filmes e Séries; Histórico existe em Filmes e Séries.</p>
+  </div>
+  <div class="category-system-grid">
+    <div class="category-demo">
+      <div class="category-demo-head">
+        <div><h3>Canais</h3><p>Favoritos sempre acessível antes dos grupos do provedor.</p></div>
+        <span class="category-pin">Fixa</span>
+      </div>
+      <div class="category-list-v131">
+        <button class="category-item-v131 pinned favorite focusable no-scale" tabindex="0"><span class="cat-icon">★</span>Favoritos</button>
+        <button class="category-item-v131 active focusable no-scale" tabindex="0"><span class="cat-icon">∞</span>Todos</button>
+        <button class="category-item-v131 focusable no-scale" tabindex="0"><span class="cat-icon">TV</span>Canais abertos</button>
+        <button class="category-item-v131 focusable no-scale" tabindex="0"><span class="cat-icon">TC</span>Telecine</button>
+        <button class="category-item-v131 focusable no-scale" tabindex="0"><span class="cat-icon">SP</span>SporTV</button>
+        <button class="category-item-v131 focusable no-scale" tabindex="0"><span class="cat-icon">N</span>Notícias</button>
+      </div>
+      <div class="category-empty-v131"><b>Favoritos vazio:</b> manter a categoria visível e mostrar orientação “Pressione ★ em um canal para adicionar”.</div>
+    </div>
+
+    <div class="category-demo">
+      <div class="category-demo-head">
+        <div><h3>Filmes</h3><p>Favoritos e Histórico ficam acima das categorias editoriais.</p></div>
+        <span class="category-pin">2 fixas</span>
+      </div>
+      <div class="category-list-v131">
+        <button class="category-item-v131 pinned favorite focusable no-scale" tabindex="0"><span class="cat-icon">★</span>Favoritos</button>
+        <button class="category-item-v131 pinned history focusable no-scale" tabindex="0"><span class="cat-icon">↺</span>Histórico</button>
+        <button class="category-item-v131 active focusable no-scale" tabindex="0"><span class="cat-icon">∞</span>Todos</button>
+        <button class="category-item-v131 focusable no-scale" tabindex="0"><span class="cat-icon">D</span>Destaques</button>
+        <button class="category-item-v131 focusable no-scale" tabindex="0"><span class="cat-icon">A</span>Ação</button>
+        <button class="category-item-v131 focusable no-scale" tabindex="0"><span class="cat-icon">S</span>Suspense</button>
+      </div>
+      <div class="category-empty-v131"><b>Histórico:</b> ordenado por reprodução mais recente. Inclui títulos iniciados ou concluídos; não substitui “Continue Assistindo”.</div>
+    </div>
+
+    <div class="category-demo">
+      <div class="category-demo-head">
+        <div><h3>Séries</h3><p>Mesmo padrão de Filmes, preservando contexto por perfil.</p></div>
+        <span class="category-pin">2 fixas</span>
+      </div>
+      <div class="category-list-v131">
+        <button class="category-item-v131 pinned favorite focusable no-scale" tabindex="0"><span class="cat-icon">★</span>Favoritos</button>
+        <button class="category-item-v131 pinned history focusable no-scale" tabindex="0"><span class="cat-icon">↺</span>Histórico</button>
+        <button class="category-item-v131 active focusable no-scale" tabindex="0"><span class="cat-icon">∞</span>Todos</button>
+        <button class="category-item-v131 focusable no-scale" tabindex="0"><span class="cat-icon">O</span>Originais</button>
+        <button class="category-item-v131 focusable no-scale" tabindex="0"><span class="cat-icon">D</span>Drama</button>
+        <button class="category-item-v131 focusable no-scale" tabindex="0"><span class="cat-icon">C</span>Crime</button>
+      </div>
+      <div class="category-empty-v131"><b>Histórico de séries:</b> abrir o título no último episódio/temporada pertinente; o rail “Continue Assistindo” continua reservado ao progresso incompleto.</div>
+    </div>
+  </div>
+
+  <div class="category-rules-v131">
+    <div class="category-rule-v131"><b>Por perfil</b><p>Favoritos e Histórico pertencem ao perfil ativo e não devem vazar entre perfis.</p></div>
+    <div class="category-rule-v131"><b>Posição fixa</b><p>Não ocultar Favoritos/Histórico quando vazios. O estado vazio ensina como preencher a categoria.</p></div>
+    <div class="category-rule-v131"><b>Memória de foco</b><p>Cada categoria mantém sua própria posição: <code>movies:favorites</code>, <code>movies:history</code>, <code>series:favorites</code>, <code>live:favorites</code>.</p></div>
+  </div>
+</section>
+
+<section class="section" id="actions"><div class="section-head"><h2>Buttons, chips, icons & tooltips</h2><p>A ação principal é única por contexto. Ícones sem texto precisam de rótulo contextual ao receber foco.</p></div><div class="panel"><div class="row"><button class="btn primary focusable" tabindex="0">▶ Assistir</button><button class="btn ghost focusable" tabindex="0">Mais informações</button><button class="btn accent focusable" tabindex="0">✦ Descobrir com IA</button><button class="chip selected focusable" tabindex="0">Selecionado</button><button class="chip focusable" tabindex="0">Ação</button><span class="badge live" style="position:static">AO VIVO</span><span class="badge" style="position:static">TMDB</span><span class="badge" style="position:static">CONTINUAR</span><span class="tooltip-demo focusable" tabindex="0"><span class="icon-btn" style="pointer-events:none">⚙</span><span class="tooltip">Configurações</span></span></div></div></section>
+
+<section class="section" id="cards"><div class="section-head"><h2>Content cards</h2><p>Landscape para continuidade/TV, portrait para catálogo e compact para canais. Evite misturar proporções sem alinhamento claro.</p></div><div class="cards"><div class="card focusable" tabindex="0"><div class="art"></div><span class="badge">CONTINUAR</span><span class="fav">✓</span><div class="card-copy"><div class="kicker">Série original</div><div class="card-title">Horizonte Zero</div><div class="meta">Sci-fi • 2 temporadas</div></div><div class="progress"><i></i></div></div><div class="card portrait focusable" tabindex="0"><div class="art red"></div><div class="card-copy"><div class="kicker">Filme</div><div class="card-title">Operação Boreal</div><div class="meta">Ação • 2h 08min</div></div></div><div class="card wide focusable" tabindex="0"><div class="art purple"></div><span class="badge live">AO VIVO</span><div class="card-copy"><div class="kicker">Canal 105</div><div class="card-title">Telecine Premium</div><div class="meta">Estreia da Noite</div></div><div class="progress"><i style="width:46%"></i></div></div><div class="card compact focusable" tabindex="0"><div class="art green"></div><div class="card-copy"><div class="kicker">Canal 201</div><div class="card-title" style="font-size:18px">SporTV</div><div class="meta">SporTV News</div></div></div></div></section>
+
+<section class="section" id="rails"><div class="section-head"><h2>Rails & position indicators</h2><p>Quando há conteúdo fora da viewport, indique continuação. Para Smart Remote, foco move o rail; para mouse, arrows podem existir como affordance separada.</p></div><div class="panel rail-wrap"><div class="rail-arrow left disabled">‹</div><div class="rail-arrow right">›</div><div class="rail"><div class="card portrait focusable" tabindex="0"><div class="art"></div><div class="card-copy"><div class="kicker">Série</div><div class="card-title">Horizonte Zero</div></div></div><div class="card portrait focusable" tabindex="0"><div class="art red"></div><div class="card-copy"><div class="kicker">Filme</div><div class="card-title">Linha de Fogo</div></div></div><div class="card portrait focusable" tabindex="0"><div class="art purple"></div><div class="card-copy"><div class="kicker">Série</div><div class="card-title">Neon District</div></div></div><div class="card portrait focusable" tabindex="0"><div class="art green"></div><div class="card-copy"><div class="kicker">Filme</div><div class="card-title">Mar Aberto</div></div></div><div class="card portrait"><div class="art red"></div></div><div class="card portrait"><div class="art"></div></div></div><div class="edge-fade right"></div><div class="rail-indicator"><i></i></div></div></section>
+
+<section class="section" id="forms"><div class="section-head"><h2>Inputs & preferences</h2><p>Entrada de texto longa não deve ser o fluxo principal no controle. Para BYOK e M3U/Xtream, priorize pareamento por celular e mantenha formulário manual como fallback.</p></div><div class="panel"><div class="form-grid"><div class="field wide"><label>Servidor Xtream</label><input value="https://provider.example:8080" aria-label="Servidor Xtream"><div class="help">Preferir conexão pelo celular para URLs longas.</div></div><div class="field"><label>Usuário</label><input value="usuario123"></div><div class="field error"><label>Senha</label><input value="••••••"><div class="help">Credencial inválida. Revise e teste novamente.</div></div></div><div style="height:16px"></div><div class="grid cols2"><div class="toggle-row focusable no-scale" tabindex="0"><div class="toggle-copy"><b>Autoplay de trailer</b><p>Inicia somente após foco estável.</p></div><div class="switch on"></div></div><div class="toggle-row focusable no-scale" tabindex="0"><div class="toggle-copy"><b>Reduzir movimento</b><p>Desativa transições não essenciais.</p></div><div class="switch"></div></div></div></div></section>
+
+
+<section class="section" id="ime"><div class="section-head"><h2>Samsung IME & native text input</h2><p>Campos de texto devem delegar digitação ao IME da TV. Sugestões e pareamento por celular reduzem o custo de escrever com controle remoto.</p></div><div class="ime-demo">
+<div class="ime-panel"><span class="v13-badge">IME ready</span><div class="ime-field"><label>Pesquisar</label><div class="ime-wrap"><span>⌕</span><input class="focusable no-scale" tabindex="0" inputmode="search" aria-label="Pesquisar filmes e séries" placeholder="Digite título, gênero ou artista"><span class="ime-mark">SAMSUNG IME</span></div></div><div class="ime-field"><label>URL M3U / XMLTV</label><div class="ime-wrap"><input class="focusable no-scale" tabindex="0" inputmode="url" aria-label="URL da playlist" value="https://exemplo.com/lista.m3u"><span class="ime-mark">URL</span></div></div><div class="ime-flow"><span class="ime-step">Servidor</span><span class="ime-arrow">→</span><span class="ime-step">Usuário</span><span class="ime-arrow">→</span><span class="ime-step">Senha</span><span class="ime-arrow">→</span><span class="ime-step">Done</span></div><div class="ime-note">Em formulários sequenciais, a ação <b>Next</b> deve avançar para o próximo campo. URLs/credenciais longas continuam tendo pareamento por celular como fluxo preferido.</div></div>
+<div class="ime-panel"><div class="kicker">Regras</div><h3 style="font-size:24px;margin-top:8px">Não reinventar teclado</h3><div class="note good" style="margin-top:14px">Use <code>inputmode</code>, <code>type</code>, <code>autocomplete</code> e <code>aria-label</code> coerentes.</div><div class="note" style="margin-top:10px">Busca pode oferecer sugestões rápidas antes do campo de texto.</div><div class="note warn" style="margin-top:10px">O campo ativo nunca pode ficar escondido pelo IME. Reposicione o conteúdo se necessário.</div></div>
+</div></section>
+
+
+<section class="section" id="virtualkeyboard">
+  <div class="section-head">
+    <h2>Teclado virtual TV-first</h2>
+    <p>Fallback on-demand para busca e entrada curta. O Samsung IME continua preferido para URLs, credenciais, BYOK e formulários longos.</p>
+  </div>
+  <div class="vk-layout">
+    <div class="vk-shell">
+      <div class="vk-top">
+        <div class="vk-query" role="textbox" aria-readonly="true" aria-label="Texto da busca">
+          <span class="vk-query-icon">⌕</span>
+          <div class="vk-query-copy"><small>Buscar</small><div class="vk-query-value empty" id="vkValue">Filmes, séries ou artistas</div></div>
+        </div>
+        <button class="vk-launcher focusable no-scale" id="vkLauncher" tabindex="0" data-vk-launcher>Abrir teclado</button>
+      </div>
+
+      <div class="vk-suggestions" aria-label="Sugestões rápidas">
+        <button class="vk-suggestion primary focusable no-scale" tabindex="0" data-vk-suggestion="Suspense inteligente">Suspense inteligente</button>
+        <button class="vk-suggestion focusable no-scale" tabindex="0" data-vk-suggestion="Comédia leve">Comédia leve</button>
+        <button class="vk-suggestion focusable no-scale" tabindex="0" data-vk-suggestion="Até 90 minutos">Até 90 min</button>
+        <button class="vk-suggestion focusable no-scale" tabindex="0" data-vk-suggestion="Para assistir em família">Para família</button>
+        <span class="vk-hint">Sugestões antes de digitar reduzem o uso do teclado.</span>
+      </div>
+
+      <div class="vk-panel" id="virtualKeyboardPanel" aria-label="Teclado virtual">
+        <div class="vk-toolbar">
+          <span class="vk-mode-label" id="vkModeLabel">ABC • busca rápida</span>
+          <div class="vk-toolbar-actions">
+            <button class="vk-mini focusable no-scale" tabindex="0" data-vk-action="voice">Voz</button>
+            <button class="vk-mini focusable no-scale" tabindex="0" data-vk-action="clear">Limpar</button>
+          </div>
+        </div>
+
+        <div class="vk-board vk-alpha" data-vk-board="alpha">
+          <div class="vk-row">
+            <button class="vk-key focusable no-scale" tabindex="0" data-vk-key="q" data-vk-row="0" data-vk-col="0">Q</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="w" data-vk-row="0" data-vk-col="1">W</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="e" data-vk-row="0" data-vk-col="2">E</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="r" data-vk-row="0" data-vk-col="3">R</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="t" data-vk-row="0" data-vk-col="4">T</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="y" data-vk-row="0" data-vk-col="5">Y</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="u" data-vk-row="0" data-vk-col="6">U</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="i" data-vk-row="0" data-vk-col="7">I</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="o" data-vk-row="0" data-vk-col="8">O</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="p" data-vk-row="0" data-vk-col="9">P</button>
+          </div>
+          <div class="vk-row">
+            <button class="vk-key focusable no-scale" tabindex="0" data-vk-key="a" data-vk-row="1" data-vk-col="0">A</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="s" data-vk-row="1" data-vk-col="1">S</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="d" data-vk-row="1" data-vk-col="2">D</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="f" data-vk-row="1" data-vk-col="3">F</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="g" data-vk-row="1" data-vk-col="4">G</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="h" data-vk-row="1" data-vk-col="5">H</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="j" data-vk-row="1" data-vk-col="6">J</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="k" data-vk-row="1" data-vk-col="7">K</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="l" data-vk-row="1" data-vk-col="8">L</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="ç" data-vk-row="1" data-vk-col="9">Ç</button>
+          </div>
+          <div class="vk-row">
+            <button class="vk-key focusable no-scale" tabindex="0" data-vk-key="z" data-vk-row="2" data-vk-col="0">Z</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="x" data-vk-row="2" data-vk-col="1">X</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="c" data-vk-row="2" data-vk-col="2">C</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="v" data-vk-row="2" data-vk-col="3">V</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="b" data-vk-row="2" data-vk-col="4">B</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="n" data-vk-row="2" data-vk-col="5">N</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="m" data-vk-row="2" data-vk-col="6">M</button><button class="vk-key action wide focusable no-scale" tabindex="0" data-vk-action="backspace" data-vk-row="2" data-vk-col="7">⌫ Apagar</button>
+          </div>
+          <div class="vk-row">
+            <button class="vk-key action wide focusable no-scale" tabindex="0" data-vk-action="mode" data-vk-row="3" data-vk-col="0">123 / #</button><button class="vk-key action focusable no-scale" tabindex="0" data-vk-key="." data-vk-row="3" data-vk-col="1">.</button><button class="vk-key action space focusable no-scale" tabindex="0" data-vk-action="space" data-vk-row="3" data-vk-col="2">Espaço</button><button class="vk-key action wide focusable no-scale" tabindex="0" data-vk-action="clear" data-vk-row="3" data-vk-col="3">Limpar</button><button class="vk-key confirm focusable no-scale" tabindex="0" data-vk-action="done" data-vk-row="3" data-vk-col="4">OK / Buscar</button>
+          </div>
+        </div>
+
+        <div class="vk-board vk-num" data-vk-board="num">
+          <div class="vk-row">
+            <button class="vk-key focusable no-scale" tabindex="0" data-vk-key="1" data-vk-row="0" data-vk-col="0">1</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="2" data-vk-row="0" data-vk-col="1">2</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="3" data-vk-row="0" data-vk-col="2">3</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="4" data-vk-row="0" data-vk-col="3">4</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="5" data-vk-row="0" data-vk-col="4">5</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="6" data-vk-row="0" data-vk-col="5">6</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="7" data-vk-row="0" data-vk-col="6">7</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="8" data-vk-row="0" data-vk-col="7">8</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="9" data-vk-row="0" data-vk-col="8">9</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="0" data-vk-row="0" data-vk-col="9">0</button>
+          </div>
+          <div class="vk-row">
+            <button class="vk-key focusable no-scale" tabindex="0" data-vk-key="@" data-vk-row="1" data-vk-col="0">@</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="#" data-vk-row="1" data-vk-col="1">#</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="%" data-vk-row="1" data-vk-col="2">%</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="&" data-vk-row="1" data-vk-col="3">&</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="*" data-vk-row="1" data-vk-col="4">*</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="-" data-vk-row="1" data-vk-col="5">−</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="_" data-vk-row="1" data-vk-col="6">_</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="/" data-vk-row="1" data-vk-col="7">/</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key=":" data-vk-row="1" data-vk-col="8">:</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="?" data-vk-row="1" data-vk-col="9">?</button>
+          </div>
+          <div class="vk-row">
+            <button class="vk-key action wide focusable no-scale" tabindex="0" data-vk-action="mode" data-vk-row="2" data-vk-col="0">ABC</button><button class="vk-key focusable no-scale" tabindex="0" data-vk-key="." data-vk-row="2" data-vk-col="1">.</button><button class="vk-key action space focusable no-scale" tabindex="0" data-vk-action="space" data-vk-row="2" data-vk-col="2">Espaço</button><button class="vk-key action wide focusable no-scale" tabindex="0" data-vk-action="backspace" data-vk-row="2" data-vk-col="3">⌫ Apagar</button><button class="vk-key confirm focusable no-scale" tabindex="0" data-vk-action="done" data-vk-row="2" data-vk-col="4">OK / Buscar</button>
+          </div>
+        </div>
+      </div>
+      <div class="vk-live" id="vkLive" aria-live="polite"></div>
+    </div>
+
+    <div class="vk-side">
+      <div class="kicker">Regras de UX</div>
+      <h3>Menos digitação, mais descoberta</h3>
+      <p>O teclado existe para completar uma intenção já iniciada. Ele não deve ser a primeira experiência de busca.</p>
+      <div class="vk-rule good"><b>1. Sugestões primeiro</b><span>Recentes, tendências, gêneros e intents reduzem drasticamente o número de teclas pressionadas.</span></div>
+      <div class="vk-rule info"><b>2. D-pad previsível</b><span>←/→ ficam na mesma linha. ↑/↓ preservam aproximadamente a mesma coluna, evitando saltos diagonais.</span></div>
+      <div class="vk-rule info"><b>3. Teclas maiores</b><span>58 px de altura, foco sem escala e Espaço largo. O layout não se move quando a tecla recebe foco.</span></div>
+      <div class="vk-rule good"><b>4. Voz como atalho</b><span>Quando disponível, voz aparece perto de Limpar — não escondida numa segunda tela.</span></div>
+      <div class="vk-rule warn"><b>5. Não usar para segredos longos</b><span>URLs, tokens e credenciais continuam no Samsung IME ou pareamento por celular.</span></div>
+      <div class="vk-rule info"><b>6. Return fecha</b><span>Return sai do teclado e devolve foco ao launcher/campo que o abriu. O texto digitado é preservado.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="feedback"><div class="section-head"><h2>Loading, empty, offline & errors</h2><p>Toda operação demorada precisa de feedback. Erros devem explicar causa e ação possível; skeletons só quando preservam estrutura conhecida.</p></div><div class="panel"><div class="row"><div class="spinner sm"></div><div class="spinner"></div><div class="spinner lg"></div><div class="toast"><span class="dot"></span>TMDB conectado</div><div class="toast"><span class="dot warn"></span>Sincronizando EPG</div><div class="toast"><span class="dot danger"></span>Stream indisponível</div></div><div style="height:24px"></div><div class="skeletons"><div class="skeleton-card"><div class="skeleton-footer"><div class="skeleton-line short"></div><div class="skeleton-line mid"></div></div></div><div class="skeleton-card portrait"><div class="skeleton-footer"><div class="skeleton-line short"></div><div class="skeleton-line mid"></div></div></div></div></div><div class="grid cols3" style="margin-top:16px"><div class="status-state"><div class="state-inner"><div class="state-icon">＋</div><h3>Minha Lista está vazia</h3><p>Adicione filmes e séries para encontrar tudo aqui.</p><div class="state-actions"><button class="btn primary focusable" tabindex="0">Explorar catálogo</button></div></div></div><div class="status-state"><div class="state-inner"><div class="state-icon">↯</div><h3>Sem conexão</h3><p>Verifique a rede ou execute o diagnóstico de internet.</p><div class="state-actions"><button class="btn primary focusable" tabindex="0">Testar conexão</button></div></div></div><div class="status-state"><div class="state-inner"><div class="state-icon">!</div><h3>Não foi possível reproduzir</h3><p>O stream não respondeu. Tente novamente ou escolha outro canal.</p><div class="state-actions"><button class="btn primary focusable" tabindex="0">Tentar novamente</button><button class="btn ghost focusable" tabindex="0">Voltar</button></div></div></div></div></section>
+
+
+<section class="section" id="errorstax"><div class="section-head"><h2>Actionable error taxonomy</h2><p>Erro sempre explica o que aconteceu e oferece a ação mais útil naquele contexto.</p></div><div class="error-taxonomy">
+<div class="error-card"><span class="error-code">NET-01</span><h3>Sem internet</h3><p>Conteúdo local continua disponível. Requests e streaming ficam pausados.</p><span class="error-action">Tentar novamente</span></div>
+<div class="error-card"><span class="error-code">SRC-401</span><h3>Credencial inválida</h3><p>Servidor respondeu, mas rejeitou usuário, senha ou token da fonte.</p><span class="error-action">Editar credenciais</span></div>
+<div class="error-card"><span class="error-code">EPG-02</span><h3>EPG não sincronizado</h3><p>A playlist segue funcionando; apenas programação está incompleta.</p><span class="error-action">Sincronizar EPG</span></div>
+<div class="error-card"><span class="error-code">PLAY-04</span><h3>Stream indisponível</h3><p>Mostrar código técnico, tentar alternativa e preservar o contexto do usuário.</p><span class="error-action">Tentar novamente</span></div>
+</div></section>
+
+<section class="section" id="services"><div class="section-head"><h2>Home service dock</h2><p>Status técnicos ficam compactos. Detalhes aparecem apenas com foco para não competir com o hero e com o conteúdo.</p></div><div class="panel"><div class="service-dock"><button class="service-icon focusable" tabindex="0">☁<span class="sdot"></span><span class="service-tooltip">WeatherAPI • 24 °C • Parcialmente nublado</span></button><button class="service-icon focusable" tabindex="0">↯<span class="sdot"></span><span class="service-tooltip">Cloudflare Speed Test • 412 Mbps • 16 ms</span></button><button class="service-icon focusable" tabindex="0">TM<span class="sdot"></span><span class="service-tooltip">TMDB conectado • metadata, ratings e trailers</span></button><button class="service-icon focusable" tabindex="0">AI<span class="sdot"></span><span class="service-tooltip">DeepSeek BYOK • secure relay ativo</span></button></div></div></section>
+
+<section class="section" id="byok"><div class="section-head"><h2>Integrations & BYOK</h2><p>Chaves e diagnóstico ficam em Configurações. O Home mostra somente status compacto. Segredos de agente devem preferir relay seguro.</p></div><div class="integration-grid"><div class="integration"><div class="int-top"><div class="int-logo" style="color:#6ee1af">TM</div><div><b>TMDB</b><div class="meta">Metadata & trailers</div></div><div class="int-status">CONECTADO</div></div><div class="int-desc">Notas, posters, backdrops, trailers, elenco, trending e recomendações.</div><div class="int-key"><b>API KEY</b>•••••••••••91AB</div><div class="capabilities"><span class="cap">TRAILERS</span><span class="cap">RATINGS</span><span class="cap">CAST</span><span class="cap">TRENDING</span></div><div class="row" style="margin-top:13px"><button class="mini-action primary focusable" tabindex="0">Testar</button><button class="mini-action focusable" tabindex="0">Editar</button></div></div><div class="integration"><div class="int-top"><div class="int-logo" style="color:#2DB8C4">☁</div><div><b>WeatherAPI</b><div class="meta">Clima & previsão</div></div><div class="int-status">CONECTADO</div></div><div class="int-desc">Condição atual, previsão, alertas e localização aproximada configurável.</div><div class="int-key"><b>API KEY</b>•••••••••••WTHR</div><div class="capabilities"><span class="cap">CURRENT</span><span class="cap">FORECAST</span><span class="cap">ALERTS</span></div><div class="row" style="margin-top:13px"><button class="mini-action primary focusable" tabindex="0">Testar</button><button class="mini-action focusable" tabindex="0">Editar</button></div></div><div class="integration"><div class="int-top"><div class="int-logo" style="color:#FFC93D">AI</div><div><b>DeepSeek</b><div class="meta">Agente de recomendação</div></div><div class="int-status">BYOK</div></div><div class="int-desc">Curadoria por intenção, histórico, duração, gênero, favoritos e feedback.</div><div class="int-key"><b>RELAY</b>secure relay recomendado</div><div class="capabilities"><span class="cap">RECOMMEND</span><span class="cap">EXPLAIN</span><span class="cap">VOICE INTENT</span></div><div class="row" style="margin-top:13px"><button class="mini-action primary focusable" tabindex="0">Testar</button><button class="mini-action focusable" tabindex="0">Configurar</button></div></div><div class="integration"><div class="int-top"><div class="int-logo" style="color:#3DDC84">↯</div><div><b>Cloudflare Speed Test</b><div class="meta">Diagnóstico de rede</div></div><div class="int-status">SEM CHAVE</div></div><div class="int-desc">Download, upload, ping e jitter. Teste deve ser iniciado pelo usuário para evitar consumo desnecessário.</div><div class="int-key"><b>STATUS</b>412 Mbps • 16 ms</div><div class="capabilities"><span class="cap">DOWNLOAD</span><span class="cap">UPLOAD</span><span class="cap">PING</span><span class="cap">JITTER</span></div><div class="row" style="margin-top:13px"><button class="mini-action primary focusable" tabindex="0">Executar teste</button></div></div></div></section>
+
+<section class="section" id="trailers"><div class="section-head"><h2>Trailer preview on focus</h2><p>Trailer só inicia após foco estável e começa sem áudio. Cada movimento do controle cancela o timer para não carregar vídeo desnecessariamente.</p></div><div class="trailer-preview"><div class="trailer-badge">TMDB TRAILER • SEM ÁUDIO</div><div class="trailer-copy"><div class="kicker">Preview após 850 ms de foco</div><h3>Horizonte Zero</h3><p>O backdrop continua estável até a intenção do usuário ficar clara. Pressione OK para abrir detalhes.</p></div><div class="trailer-timeline"><i></i></div></div></section>
+
+<section class="section" id="ai"><div class="section-head"><h2>AI recommendation</h2><p>IA funciona como curadoria por intenção, não como chat obrigatório. Sugestões explicam o motivo e aceitam feedback rápido.</p></div><div class="ai-shell"><div class="ai-intents"><div class="intent active focusable no-scale" tabindex="0"><span class="spark">✦</span>Me surpreenda</div><div class="intent focusable no-scale" tabindex="0"><span class="spark">☀</span>Algo leve</div><div class="intent focusable no-scale" tabindex="0"><span class="spark">⌁</span>Suspense inteligente</div><div class="intent focusable no-scale" tabindex="0"><span class="spark">90</span>Até 2 horas</div><div class="intent focusable no-scale" tabindex="0"><span class="spark">TV</span>Série curta</div></div><div class="ai-results"><div class="kicker">Curadoria IA • DeepSeek BYOK</div><div class="ai-card focusable no-scale" tabindex="0"><div class="ai-thumb"></div><div><b>Operação Boreal</b><p>Ação, ritmo alto e duração compatível com seu tempo disponível.</p></div><div class="match">94%</div></div><div class="ai-card focusable no-scale" tabindex="0"><div class="ai-thumb" style="background:linear-gradient(135deg,#4e315f,#0d0c15)"></div><div><b>Neon District</b><p>Você costuma terminar dramas curtos e marcou títulos semelhantes.</p></div><div class="match">91%</div></div><div class="ai-card focusable no-scale" tabindex="0"><div class="ai-thumb" style="background:linear-gradient(135deg,#1e4a38,#09120d)"></div><div><b>Mar Aberto</b><p>Aventura leve e diferente do que você viu nos últimos dias.</p></div><div class="match">87%</div></div></div></div></section>
+
+<section class="section" id="sources"><div class="section-head"><h2>IPTV sources & EPG</h2><p>Editar, sincronizar e vincular EPG são ações de primeira classe. EPG é configuração independente da playlist.</p></div><div class="source-list"><div class="source-row"><div class="source-logo">▶</div><div class="source-main"><b>Minha Lista Principal</b><span>Xtream Codes • 428 canais • 3.2k filmes • 817 séries</span></div><div class="source-col"><small>Status</small><b style="color:var(--success)">Sincronizada</b></div><div class="source-col"><small>EPG</small><b style="color:var(--info)">XMLTV vinculado</b></div><div class="source-actions"><button class="source-action focusable" tabindex="0">Editar</button><button class="source-action sync focusable" tabindex="0">Sincronizar</button><button class="source-action epg focusable" tabindex="0">EPG</button></div></div><div class="source-row"><div class="source-logo" style="background:linear-gradient(135deg,#1E9AB0,#725cff)">M3U</div><div class="source-main"><b>Filmes HD</b><span>M3U • 1.8k filmes</span></div><div class="source-col"><small>Status</small><b style="color:var(--success)">Sincronizada</b></div><div class="source-col"><small>EPG</small><b style="color:var(--warning)">Não configurado</b></div><div class="source-actions"><button class="source-action focusable" tabindex="0">Editar</button><button class="source-action sync focusable" tabindex="0">Sincronizar</button><button class="source-action epg focusable" tabindex="0">Adicionar EPG</button></div></div></div></section>
+
+<section class="section" id="epg"><div class="section-head"><h2>EPG cells</h2><p>Programas usam duração proporcional quando possível. O programa atual recebe marcador explícito, não apenas uma cor diferente.</p></div><div class="epg-grid"><div class="epg-head"><div>Canal</div><div>20:00</div><div>20:30</div><div>21:00</div></div><div class="epg-row"><div class="epg-channel">105 • Telecine Premium</div><div class="epg-program now focusable no-scale" tabindex="0"><b>Estreia da Noite</b><span>Agora • 22 min restantes</span></div><div class="epg-program"><b>Making Of</b><span>20:42</span></div><div class="epg-program"><b>Cinema Especial</b><span>21:00</span></div></div><div class="epg-row"><div class="epg-channel">201 • SporTV</div><div class="epg-program"><b>SporTV News</b><span>20:00</span></div><div class="epg-program"><b>Pré-jogo</b><span>20:30</span></div><div class="epg-program"><b>Ao vivo</b><span>21:00</span></div></div></div></section>
+
+<section class="section" id="player"><div class="section-head"><h2>Player & stream controls</h2><p>Chrome fica oculto durante reprodução e volta com interação. VOD e Live compartilham áudio/legendas/qualidade; velocidade é VOD-only.</p></div><div class="player-demo"><div class="player-title"><h3>Horizonte Zero</h3><p>T1:E3 • O Desvio</p></div><div class="player-chrome"><div class="timeline"><span>18:42</span><div class="track"><i></i></div><span>42:18</span></div><div class="player-controls"><div class="control-group"><button class="control focusable" tabindex="0">↶</button><button class="control main focusable" tabindex="0">Ⅱ</button><button class="control focusable" tabindex="0">↷</button></div><div class="pill-group"><button class="player-pill focusable" tabindex="0" data-open-modal="audio">Áudio & Legendas</button><button class="player-pill focusable" tabindex="0" data-open-modal="quality">4K • Auto</button><button class="player-pill focusable" tabindex="0">1.0×</button><button class="player-pill focusable" tabindex="0">Info stream</button></div></div></div></div><div class="stream-grid" style="margin-top:14px"><div class="stream-stat"><small>Resolução</small><b>3840×2160</b></div><div class="stream-stat"><small>Codec</small><b>HEVC</b></div><div class="stream-stat"><small>Bitrate</small><b>18.4 Mbps</b></div><div class="stream-stat"><small>Buffer</small><b>4.2 s</b></div></div></section>
+
+<div class="demo-modal" id="modal-audio"><div class="modal-card"><div class="modal-title">Áudio e legendas</div><div class="modal-sub">Escolha faixa de áudio, legenda e ajuste de sincronização.</div><div class="option-list"><button class="option on focusable no-scale" tabindex="0">Português • 5.1 <b>✓</b></button><button class="option focusable no-scale" tabindex="0">English • 5.1 <b></b></button><button class="option focusable no-scale" tabindex="0">Legenda PT-BR <b>On</b></button><button class="option focusable no-scale" tabindex="0">Sincronização <b>0 ms</b></button></div><div class="modal-actions"><button class="btn ghost focusable" tabindex="0" data-close-modal>Fechar</button><button class="btn primary focusable" tabindex="0" data-close-modal>Aplicar</button></div></div></div>
+<div class="demo-modal" id="modal-quality"><div class="modal-card"><div class="modal-title">Qualidade</div><div class="modal-sub">Auto é o padrão; opções fixas são úteis para diagnóstico.</div><div class="option-list"><button class="option on focusable no-scale" tabindex="0">Auto • 4K <b>✓</b></button><button class="option focusable no-scale" tabindex="0">2160p <b></b></button><button class="option focusable no-scale" tabindex="0">1080p <b></b></button><button class="option focusable no-scale" tabindex="0">720p <b></b></button></div><div class="modal-actions"><button class="btn primary focusable" tabindex="0" data-close-modal>Aplicar</button></div></div></div>
+
+
+<section class="section" id="smartremote"><div class="section-head"><h2>Smart Remote & playback behavior</h2><p>O player trata teclas físicas como parte do design system. Play/Pause revela o OSD e coloca foco no controle principal.</p></div><div class="smart-remote"><div class="smart-remote-pad"><div class="remote-row-v13"><div class="smart-key round">↑</div></div><div class="remote-row-v13"><div class="smart-key round">←</div><div class="smart-key round ok">OK</div><div class="smart-key round">→</div></div><div class="remote-row-v13"><div class="smart-key round">↓</div></div><div class="remote-row-v13"><div class="smart-key">⏮</div><div class="smart-key">⏯</div><div class="smart-key">⏭</div></div><div class="number-entry"><div><small>Entrada direta de canal</small><b>Live TV</b></div><div class="number-value" id="demoChannelNumber">005</div></div></div><div class="smart-copy"><span class="v13-badge">Smart Remote</span><h3 style="margin-top:12px">Regras canônicas</h3><p>O mesmo comando precisa produzir feedback visual previsível em VOD e TV ao vivo.</p><div class="smart-rules"><div class="smart-rule"><b>Play/Pause</b><span>Alterna reprodução, mostra chrome e foca o controle principal.</span></div><div class="smart-rule"><b>↑ / ↓ em Live</b><span>Zapping de canal. Durante navegação rápida, não iniciar previews.</span></div><div class="smart-rule"><b>0–9</b><span>Acumula até três dígitos e troca de canal após timeout curto.</span></div><div class="smart-rule"><b>Previous / Next</b><span>Em série, episódio anterior/próximo; soft disabled nas extremidades.</span></div></div></div></div><div class="player-v13-row"><button class="player-v13-action soft focusable" tabindex="0" data-demo-explain="Você já está no primeiro episódio desta temporada.">⏮ Episódio anterior</button><button class="player-v13-action focusable" tabindex="0">↶ 10 s</button><button class="player-v13-action focusable" tabindex="0">Ⅱ Play/Pause</button><button class="player-v13-action focusable" tabindex="0">↷ 10 s</button><button class="player-v13-action focusable" tabindex="0">⏭ Próximo episódio</button></div><div class="media-key-callout">Media key físico → mostrar OSD → restaurar foco no Play/Pause → reiniciar timer de auto-hide.</div></section>
+
+<section class="section" id="subtitlesv13"><div class="section-head"><h2>Accessible subtitle system</h2><p>Idioma e delay não bastam. V13 inclui aparência de legenda por perfil e respeita preferências do sistema quando disponíveis.</p></div><div class="subtitle-system"><div class="subtitle-stage"><div class="subtitle-line" id="subtitlePreviewText">Exemplo de legenda na tela</div></div><div class="subtitle-controls"><button class="subtitle-option focusable no-scale" tabindex="0" data-sub-option="size"><span>Tamanho</span><b id="subSize">Médio</b></button><button class="subtitle-option focusable no-scale" tabindex="0" data-sub-option="color"><span>Cor</span><b id="subColor">Branco</b></button><button class="subtitle-option focusable no-scale" tabindex="0" data-sub-option="background"><span>Fundo</span><b id="subBackground">Preto 60%</b></button><button class="subtitle-option focusable no-scale" tabindex="0" data-sub-option="edge"><span>Contorno</span><b id="subEdge">Contorno</b></button><button class="subtitle-option focusable no-scale" tabindex="0"><span>Sincronização</span><b>0 ms</b></button><button class="subtitle-option soft-disabled-demo focusable no-scale" tabindex="0" data-demo-explain="Faixa de áudio-descrição não disponível neste conteúdo."><span>Áudio-descrição</span><b>Indisponível</b></button></div></div></section>
+
+<section class="section" id="icons"><div class="section-head"><h2>Iconography</h2><p>Ícones críticos devem ser SVG/local assets com stroke consistente. Evite depender de emojis ou glyphs que variam entre versões do sistema.</p></div><div class="icon-grid"><div class="icon-sample"><svg viewBox="0 0 24 24"><polygon points="8 5 19 12 8 19 8 5"></polygon></svg><span>Play</span></div><div class="icon-sample"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><span>Search</span></div><div class="icon-sample"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg><span>Add</span></div><div class="icon-sample"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"></path></svg><span>Next</span></div><div class="icon-sample"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg><span>Menu</span></div><div class="icon-sample"><svg viewBox="0 0 24 24"><path d="M6 7h12v10H6z"></path><path d="M9 4h6M9 20h6"></path></svg><span>Device</span></div></div></section>
+
+<section class="section" id="focuspath"><div class="section-head"><h2>Predictable focus path</h2><p>Componentes alinhados em eixos claros reduzem ambiguidade. O algoritmo espacial deve escolher o vizinho mais próximo na direção pressionada e nunca “teleportar” o foco.</p></div><div class="focus-path"><div class="fp a">A</div><div class="fp b">B</div><div class="fp c">C</div><div class="fp d">D</div><div class="fp e">E</div><div class="fp f">F</div><div class="arrow ar1">→</div><div class="arrow ar2">→</div><div class="arrow ar3">→</div><div class="arrow ar4">→</div><div class="arrow down">↓</div><div class="arrow down2">↓</div><div class="arrow down3">↓</div></div></section>
+
+
+<section class="section" id="focusmemory"><div class="section-head"><h2>Focus memory & rapid navigation</h2><p>Memória é por área/contexto. Long press usa <code>event.repeat</code> para acelerar movimento e suspender operações caras.</p></div><div class="focus-memory-grid"><div class="memory-card"><small>Filmes • Ação</small><h3>Retornar ao card 4</h3><div class="memory-pos"><i class="memory-dot"></i><i class="memory-dot"></i><i class="memory-dot"></i><i class="memory-dot on"></i><i class="memory-dot"></i></div></div><div class="memory-card"><small>Séries • Drama</small><h3>Retornar ao card 2</h3><div class="memory-pos"><i class="memory-dot"></i><i class="memory-dot on"></i><i class="memory-dot"></i><i class="memory-dot"></i></div></div><div class="memory-card"><small>Live • Esportes</small><h3>Retornar ao canal 201</h3><div class="memory-pos"><i class="memory-dot"></i><i class="memory-dot"></i><i class="memory-dot on"></i><i class="memory-dot"></i></div></div></div><div class="repeat-demo"><div class="repeat-card"><b>1. Key repeat detectado</b><p>Marcar navegação rápida quando uma seta continua pressionada.</p></div><div class="repeat-card"><b>2. Cancelar timers</b><p>Abortar trailer-preview, preview de canal e requests de metadata pendentes.</p></div><div class="repeat-card"><b>3. Reativar após estabilizar</b><p>Quando o foco parar, iniciar preview usando o delay normal.</p></div></div></section>
+
+<section class="section" id="layers"><div class="section-head"><h2>Layers & z-index</h2><p>Evite empilhar superfícies fullscreen. A hierarquia visual deve refletir a hierarquia de interação.</p></div><div class="layer-stack"><div class="layer"><b>0 • Background</b><span>Backdrop / ambient</span></div><div class="layer"><b>10 • Content</b><span>Rails, grids, EPG</span></div><div class="layer"><b>50 • Navigation</b><span>Topbar / side navigation</span></div><div class="layer"><b>100 • Overlay</b><span>Modal, toast, player chrome</span></div></div></section>
+
+<section class="section" id="performance"><div class="section-head"><h2>Performance budget</h2><p>Em TV, memória e estabilidade têm prioridade sobre microefeitos. Imagens decodificadas e DOM extenso são os maiores custos.</p></div><div class="budget-grid"><div class="budget"><small>DOM</small><b>Windowed</b><p>Renderizar somente viewport + buffer em catálogos extensos.</p></div><div class="budget"><small>Images</small><b>Display-size</b><p>Thumbnail no tamanho necessário; não reduzir imagem 4K para card pequeno.</p></div><div class="budget"><small>Animation</small><b>Transform/Opacity</b><p>Evitar layout thrash, filtros e camadas GPU permanentes.</p></div><div class="budget"><small>Lifecycle</small><b>Release</b><p>Pausar timers/mídia e liberar recursos pesados quando app fica oculto.</p></div></div><div class="note warn" style="margin-top:16px">Não aplicar <code>translateZ(0)</code> ou <code>will-change</code> em todos os cards. Promoção de camada permanente pode aumentar o uso de GPU/memória em TV.</div></section>
+
+
+<section class="section" id="networkv13"><div class="section-head"><h2>Network & lifecycle state machine</h2><p>Conexão e suspensão deixam de ser casos improvisados e passam a ter estados explícitos.</p></div><div class="system-v13-grid"><div class="sys-v13 good"><small>Rede</small><b id="networkStateLabel">Online</b></div><div class="sys-v13"><small>Lifecycle</small><b id="lifecycleStateLabel">Ativo</b></div><div class="sys-v13 good"><small>Contexto</small><b>Foco preservado</b></div></div><div class="lifecycle-flow"><span class="life-step"><strong>visible</strong><br>UI ativa</span><span class="life-arrow">→</span><span class="life-step"><strong>hidden</strong><br>cancelar trailer/timers</span><span class="life-arrow">→</span><span class="life-step"><strong>resume</strong><br>verificar rede</span><span class="life-arrow">→</span><span class="life-step"><strong>restore</strong><br>foco + player</span></div><div class="offline-bar-v13"><i class="off-dot"></i><div><b>Exemplo de fallback offline</b><span> Catálogo em cache continua navegável; chamadas externas e streams aguardam conexão.</span></div><button class="mini-action primary focusable no-scale" tabindex="0" data-demo-network>Alternar estado</button></div></section>
+
+<section class="section" id="accessibility"><div class="section-head"><h2>Accessibility & comfort</h2><p>O Lab não depende de cor para foco, oferece reduced motion e evita texto crítico em microtamanho.</p></div><div class="access-grid"><div class="access-card"><b>Reduced motion</b><p>Respeitar <code>prefers-reduced-motion</code> quando disponível e expor opção interna para TVs/engines que não suportam a media query.</p></div><div class="access-card"><b>Contrast</b><p>Texto principal permanece claro sobre superfícies escuras; foco usa borda + escala + sombra.</p></div><div class="access-card"><b>Labels</b><p>Ícones sem texto ganham tooltip/rótulo no foco. Não depender de símbolos ambíguos.</p></div><div class="access-card"><b>Audio/Subtitles</b><p>Áudio e legendas devem ser acessíveis no player sem sair do conteúdo.</p></div><div class="access-card"><b>Safe reading</b><p>Evitar blocos longos de texto e manter largura confortável para leitura a distância.</p></div><div class="access-card"><b>Privacy</b><p>Perfis deixam claro quem está ativo; credenciais BYOK nunca ficam expostas visualmente.</p></div></div></section>
+
+
+<section class="section" id="voice"><div class="section-head"><h2>Voice Guide, ARIA & announcements</h2><p>O componente focado deve possuir nome acessível e contexto suficiente para fazer sentido sem depender da composição visual.</p></div><div class="voice-grid"><div class="voice-card"><span class="v13-badge">ARIA</span><h3 style="margin-top:12px">Content card</h3><p>Evite anunciar toda a sinopse. O foco comunica título, tipo, progresso e ação principal.</p><div class="aria-code">role="button"\naria-label="Horizonte Zero, série, episódio 3, 31 por cento assistido"</div></div><div class="voice-card"><span class="v13-badge">aria-live</span><h3 style="margin-top:12px">Mudanças de sistema</h3><p>Rede restaurada, sincronização concluída e explicações de soft disabled podem usar anúncio educado.</p><div class="live-announcer" id="voiceDemoLive" aria-live="polite">Voice Guide pronto. Foque o botão abaixo e pressione OK.</div><button class="btn primary focusable no-scale" tabindex="0" style="margin-top:12px" data-demo-announce>Testar anúncio</button></div></div></section>
+
+<section class="section" id="qa"><div class="section-head"><h2>Tizen QA matrix</h2><p>Checklist de aprovação visual e funcional para cada componente novo antes de entrar no app principal.</p></div><div class="qa-grid"><div class="qa-card"><h3>Remote</h3><ul class="qa-list"><li><span class="check">✓</span>Todos os itens acessíveis por setas</li><li><span class="check">✓</span>Select executa ação esperada</li><li><span class="check">✓</span>Return fecha nível atual</li><li><span class="check">✓</span>Sem loop no início/fim de lista</li><li><span class="check">✓</span>Foco nunca desaparece</li></ul></div><div class="qa-card"><h3>Visual</h3><ul class="qa-list"><li><span class="check">✓</span>Um único foco por vez</li><li><span class="check">✓</span>Foco reconhecível sem depender de cor</li><li><span class="check">✓</span>Indicador em listas com overflow</li><li><span class="check">✓</span>Sem sobreposição em repetição rápida</li><li><span class="check">✓</span>Textos legíveis a distância</li></ul></div><div class="qa-card"><h3>Performance</h3><ul class="qa-list"><li><span class="check">✓</span>Assets locais no shell</li><li><span class="check">✓</span>Sem GIF animado</li><li><span class="check">✓</span>Sem backdrop blur pesado</li><li><span class="check">✓</span>Listas extensas virtualizadas</li><li><span class="check">✓</span>Teste em hardware real</li></ul></div></div></section>
+
+<section class="section" id="antipatterns"><div class="section-head"><h2>Do / Avoid</h2><p>Regras rápidas para impedir que novos componentes tragam de volta padrões de web/mobile inadequados à TV.</p></div><div class="anti"><div class="do"><h3 style="color:var(--success)">Faça</h3><ul><li>✓ Use grid/fila com vizinhos claros.</li><li>✓ Revele detalhes sob demanda.</li><li>✓ Preserve foco ao voltar.</li><li>✓ Mostre feedback para operações lentas.</li><li>✓ Mantenha ação principal evidente.</li></ul></div><div class="dont"><h3 style="color:var(--danger)">Evite</h3><ul><li>× Teclado virtual permanente na tela.</li><li>× Texto pequeno ou excesso de metadados.</li><li>× Foco apenas por mudança de cor.</li><li>× Hover obrigatório para descobrir ações.</li><li>× Milhares de cards montados no DOM.</li></ul></div></div></section>
+
+<section class="section" id="keys"><div class="section-head"><h2>Remote key monitor</h2><p>Use esta área para testar setas, Enter e Return/Escape no browser. Em Tizen, os controles básicos não exigem registro adicional.</p></div><div class="panel"><div class="key-monitor"><div class="key-bubble" data-key-label="ArrowLeft">← Left</div><div class="key-bubble" data-key-label="ArrowUp">↑ Up</div><div class="key-bubble" data-key-label="Enter">OK / Select</div><div class="key-bubble" data-key-label="ArrowDown">↓ Down</div><div class="key-bubble" data-key-label="ArrowRight">→ Right</div><div class="key-bubble" data-key-label="Return">Return</div><div class="key-bubble media" data-key-label="MediaPlayPause">⏯ Play/Pause</div><div class="key-bubble digit" data-key-label="Digit">0–9 Canal</div></div></div></section>
+<footer>CCPlayTV Design System Component Lab • V14 Spectrum • Samsung Tizen TV • identidade visual baseada no Style Guide CCPlayTv • standalone, remote-first e sem dependências externas obrigatórias.</footer><script>
+(function(){
+'use strict';
+var focusables=function(){return Array.prototype.slice.call(document.querySelectorAll('.focusable')).filter(function(el){return el.offsetParent!==null&&!el.disabled;});};
+function setFocus(el){var old=document.querySelectorAll('.focused');for(var i=0;i<old.length;i++)old[i].classList.remove('focused');if(!el)return;el.classList.add('focused');try{el.focus({preventScroll:true});}catch(_){el.focus();}try{el.scrollIntoView({block:'nearest',inline:'nearest'});}catch(_){el.scrollIntoView(false);}}
+function move(dir){var fs=focusables(),cur=document.querySelector('.focused')||document.activeElement;if(fs.indexOf(cur)<0){setFocus(fs[0]);return;}var cr=cur.getBoundingClientRect(),cx=cr.left+cr.width/2,cy=cr.top+cr.height/2,best=null,bestScore=1e9;for(var i=0;i<fs.length;i++){var el=fs[i];if(el===cur)continue;var r=el.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,dx=x-cx,dy=y-cy,valid=false,p=0,s=0;if(dir==='left'){valid=dx<-6;p=-dx;s=Math.abs(dy);}else if(dir==='right'){valid=dx>6;p=dx;s=Math.abs(dy);}else if(dir==='up'){valid=dy<-6;p=-dy;s=Math.abs(dx);}else if(dir==='down'){valid=dy>6;p=dy;s=Math.abs(dx);}if(!valid)continue;var score=p+s*1.8+(s>p*1.8?500:0);if(score<bestScore){bestScore=score;best=el;}}
+if(best)setFocus(best);}
+function pulse(el){el.classList.add('pressed');setTimeout(function(){el.classList.remove('pressed');},140);}
+document.addEventListener('keydown',function(e){var k=e.key,code=e.keyCode;if(k==='ArrowLeft'||k==='ArrowRight'||k==='ArrowUp'||k==='ArrowDown'){e.preventDefault();move(k.replace('Arrow','').toLowerCase());return;}if(k==='Enter'){var f=document.querySelector('.focused')||document.activeElement;if(f&&f.classList.contains('focusable')){e.preventDefault();pulse(f);f.click();}return;}if(k==='Escape'||k==='Backspace'||code===10009){var modal=document.querySelector('.demo-modal.open');if(modal){e.preventDefault();modal.classList.remove('open');var last=modal.getAttribute('data-return');if(last){var target=document.querySelector('[data-focus-id="'+last+'"]');if(target)setFocus(target);}}}});
+var all=document.querySelectorAll('.focusable');for(var i=0;i<all.length;i++){all[i].addEventListener('focus',function(){setFocus(this);});all[i].addEventListener('mouseenter',function(){setFocus(this);});}
+var sp=document.querySelector('.space-list');if(sp){var vals=[8,16,24,32,48,64,96];var html='';for(var j=0;j<vals.length;j++){html+='<div class="space-token"><div class="space-bar" style="height:'+Math.max(6,vals[j])+'px"></div>'+vals[j]+'px</div>';}sp.innerHTML=html;}
+})();
+
+(function(){
+  var openers=document.querySelectorAll('[data-open-modal]');
+  for(var i=0;i<openers.length;i++)openers[i].addEventListener('click',function(){var id='modal-'+this.getAttribute('data-open-modal');var m=document.getElementById(id);if(!m)return;var fid=this.getAttribute('data-focus-id');if(!fid){fid='f'+Math.floor(Math.random()*1000000);this.setAttribute('data-focus-id',fid);}m.setAttribute('data-return',fid);m.classList.add('open');var f=m.querySelector('.focusable');if(f)f.focus();});
+  var closers=document.querySelectorAll('[data-close-modal]');for(var j=0;j<closers.length;j++)closers[j].addEventListener('click',function(){var m=this.closest('.demo-modal');if(!m)return;m.classList.remove('open');var id=m.getAttribute('data-return');if(id){var target=document.querySelector('[data-focus-id="'+id+'"]');if(target)target.focus();}});
+})();
+
+(function(){
+  function flash(label){var els=document.querySelectorAll('[data-key-label="'+label+'"]');for(var i=0;i<els.length;i++){els[i].classList.add('on');(function(el){setTimeout(function(){el.classList.remove('on');},180);})(els[i]);}}
+  document.addEventListener('keydown',function(e){var label=e.key;if(e.keyCode===10009)label='Return';if(label==='Escape'||label==='Backspace')label='Return';flash(label);});
+  try{if(window.tizen&&tizen.tvinputdevice){var keys=['MediaPlayPause','MediaPlay','MediaPause','MediaFastForward','MediaRewind','MediaStop'];for(var i=0;i<keys.length;i++){try{tizen.tvinputdevice.registerKey(keys[i]);}catch(_){}}}}catch(_e){}
+})();
+
+
+(function(){
+  var explanation=document.getElementById('disabledExplanation');
+  var expl=document.querySelectorAll('[data-demo-explain]');
+  for(var i=0;i<expl.length;i++) expl[i].addEventListener('click',function(){
+    var msg=this.getAttribute('data-demo-explain')||'Opção indisponível.';
+    if(explanation) explanation.textContent=msg;
+    var live=document.getElementById('voiceDemoLive'); if(live) live.textContent=msg;
+  });
+
+  var ann=document.querySelector('[data-demo-announce]');
+  if(ann) ann.addEventListener('click',function(){var live=document.getElementById('voiceDemoLive');if(live)live.textContent='Horizonte Zero, série, episódio 3, 31 por cento assistido.';});
+
+  var netBtn=document.querySelector('[data-demo-network]'), online=true;
+  if(netBtn) netBtn.addEventListener('click',function(){online=!online;var n=document.getElementById('networkStateLabel');var l=document.getElementById('lifecycleStateLabel');if(n)n.textContent=online?'Online':'Offline';if(l)l.textContent=online?'Retomado':'Rede offline';var card=n?n.parentNode:null;if(card){card.classList.toggle('good',online);card.classList.toggle('warn',!online);}});
+
+  var subVals={size:['Pequeno','Médio','Grande'],color:['Branco','Amarelo','Cyan'],background:['Sem fundo','Preto 60%','Preto 85%'],edge:['Sem contorno','Contorno','Sombra']};
+  var subIndex={size:1,color:0,background:1,edge:1};
+  var ids={size:'subSize',color:'subColor',background:'subBackground',edge:'subEdge'};
+  var opts=document.querySelectorAll('[data-sub-option]');
+  for(var j=0;j<opts.length;j++) opts[j].addEventListener('click',function(){var k=this.getAttribute('data-sub-option');subIndex[k]=(subIndex[k]+1)%subVals[k].length;var value=subVals[k][subIndex[k]],el=document.getElementById(ids[k]);if(el)el.textContent=value;var p=document.getElementById('subtitlePreviewText');if(!p)return;if(k==='size')p.style.fontSize=value==='Pequeno'?'18px':value==='Grande'?'28px':'22px';if(k==='color')p.style.color=value==='Amarelo'?'#ffd76a':value==='Cyan'?'#2DB8C4':'#fff';if(k==='background')p.style.background=value==='Sem fundo'?'transparent':value==='Preto 85%'?'rgba(0,0,0,.85)':'rgba(0,0,0,.60)';if(k==='edge')p.style.textShadow=value==='Sem contorno'?'none':value==='Sombra'?'0 4px 7px #000':'-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000';});
+
+  var digits='',digitTimer;
+  document.addEventListener('keydown',function(e){
+    if(/^[0-9]$/.test(e.key)){
+      digits=(digits+e.key).slice(-3);var v=document.getElementById('demoChannelNumber');if(v)v.textContent=('000'+digits).slice(-3);clearTimeout(digitTimer);digitTimer=setTimeout(function(){digits='';},1100);
+      var kb=document.querySelector('[data-key-label="Digit"]');if(kb){kb.classList.add('on');setTimeout(function(){kb.classList.remove('on');},180);}
+    }
+    if(e.key==='MediaPlayPause'||e.keyCode===10252){var kb2=document.querySelector('[data-key-label="MediaPlayPause"]');if(kb2){kb2.classList.add('on');setTimeout(function(){kb2.classList.remove('on');},180);}}
+  });
+})();
+
+
+
+(function(){
+  var panel=document.getElementById('virtualKeyboardPanel');
+  var launcher=document.getElementById('vkLauncher');
+  var valueEl=document.getElementById('vkValue');
+  var modeLabel=document.getElementById('vkModeLabel');
+  var live=document.getElementById('vkLive');
+  if(!panel||!launcher||!valueEl)return;
+  var textValue='';
+  var mode='alpha';
+
+  function announce(msg){if(live)live.textContent=msg;}
+  function renderValue(){valueEl.textContent=textValue||'Filmes, séries ou artistas';valueEl.classList.toggle('empty',!textValue);}
+  function visibleKeys(){var board=panel.querySelector('[data-vk-board="'+(mode==='num'?'num':'alpha')+'"]');return board?Array.prototype.slice.call(board.querySelectorAll('[data-vk-row]')):[];}
+  function focusFirst(){var keys=visibleKeys();if(keys.length)keys[0].focus();}
+  function openKeyboard(){panel.classList.remove('closed');setTimeout(focusFirst,0);announce('Teclado aberto');}
+  function closeKeyboard(){panel.classList.add('closed');launcher.focus();announce('Teclado fechado');}
+  function setMode(next){mode=next;panel.classList.toggle('mode-num',mode==='num');if(modeLabel)modeLabel.textContent=mode==='num'?'123 / símbolos':'ABC • busca rápida';setTimeout(focusFirst,0);announce(mode==='num'?'Teclado numérico e símbolos':'Teclado alfabético');}
+  function append(v){textValue+=v;renderValue();announce(v===' '?'Espaço':v);}
+  function backspace(){textValue=textValue.slice(0,-1);renderValue();announce('Apagar');}
+  function clearValue(){textValue='';renderValue();announce('Busca limpa');}
+
+  launcher.addEventListener('click',function(){if(panel.classList.contains('closed'))openKeyboard();else closeKeyboard();});
+  var suggestions=document.querySelectorAll('[data-vk-suggestion]');
+  for(var i=0;i<suggestions.length;i++)suggestions[i].addEventListener('click',function(){textValue=this.getAttribute('data-vk-suggestion')||'';renderValue();announce('Sugestão: '+textValue);});
+
+  var chars=panel.querySelectorAll('[data-vk-key]');
+  for(var j=0;j<chars.length;j++)chars[j].addEventListener('click',function(){append(this.getAttribute('data-vk-key')||'');});
+  var actions=panel.querySelectorAll('[data-vk-action]');
+  for(var k=0;k<actions.length;k++)actions[k].addEventListener('click',function(){var a=this.getAttribute('data-vk-action');if(a==='backspace')backspace();else if(a==='space')append(' ');else if(a==='clear')clearValue();else if(a==='mode')setMode(mode==='alpha'?'num':'alpha');else if(a==='voice'){textValue='Comédias leves para assistir em família';renderValue();announce('Entrada por voz simulada');}else if(a==='done'){announce(textValue?'Buscar '+textValue:'Nada digitado');closeKeyboard();}});
+
+  function keyRows(){var keys=visibleKeys(),rows={};for(var i=0;i<keys.length;i++){var r=parseInt(keys[i].getAttribute('data-vk-row'),10);if(!rows[r])rows[r]=[];rows[r].push(keys[i]);}for(var key in rows)rows[key].sort(function(a,b){return parseFloat(a.getAttribute('data-vk-col'))-parseFloat(b.getAttribute('data-vk-col'));});return rows;}
+  function moveVk(current,dir){var rows=keyRows(),r=parseInt(current.getAttribute('data-vk-row'),10),row=rows[r]||[],idx=row.indexOf(current),target=null;if(dir==='left'&&idx>0)target=row[idx-1];else if(dir==='right'&&idx<row.length-1)target=row[idx+1];else if(dir==='up'||dir==='down'){var nr=r+(dir==='up'?-1:1),next=rows[nr];if(next&&next.length){var ratio=row.length<=1?0:idx/(row.length-1),ni=Math.round(ratio*(next.length-1));target=next[Math.max(0,Math.min(next.length-1,ni))];}}if(target)target.focus();}
+
+  document.addEventListener('keydown',function(e){var active=document.activeElement;if(!active||!panel.contains(active))return;var key=e.key,code=e.keyCode;if(key==='ArrowLeft'||key==='ArrowRight'||key==='ArrowUp'||key==='ArrowDown'){e.preventDefault();e.stopImmediatePropagation();moveVk(active,key.replace('Arrow','').toLowerCase());return;}if(key==='Escape'||key==='Backspace'||code===10009){e.preventDefault();e.stopImmediatePropagation();closeKeyboard();}},true);
+})();
+
+</script></body></html>

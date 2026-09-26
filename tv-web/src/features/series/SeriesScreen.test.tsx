@@ -1,9 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SeriesScreen } from './SeriesScreen'
 import * as catalogApi from '../catalog/catalogApi'
 import type { CatalogCategory, CatalogItemOut, CategoryFetchOutcome } from '../catalog/catalogApi'
+import type { CategoryScreenSnapshot } from '../catalog/categoryScreenSnapshot'
+import { db } from '../../lib/catalog/db'
+import { buildStableId } from '../../lib/catalog/userStateRepository'
 
 /**
  * jsdom não faz layout de verdade nem implementa `Element.scrollTo`
@@ -82,6 +85,7 @@ vi.mock('../catalog/catalogApi', async (importOriginal) => {
     // Sem mock, tocaria IndexedDB/rede de verdade a cada movimento de
     // cursor — o pré-fetch em si tem teste próprio em catalogApi.test.tsx.
     useCategoryFocusPrefetch: vi.fn(),
+    useAggregatedItems: vi.fn(),
   }
 })
 
@@ -89,8 +93,16 @@ function category(id: number, name: string, order: number): CatalogCategory {
   return { id, kind: 'series', name, order, count: 0, fetchMode: 'on_demand', providerCategoryId: String(id) }
 }
 
-function series(name: string, group: string | null): CatalogItemOut {
-  return { id: `id-${name}`, kind: 'series', name, original_group: group, published: true, playable: false }
+function series(name: string, group: string | null, seriesId?: string): CatalogItemOut {
+  return {
+    id: `id-${name}`,
+    kind: 'series',
+    name,
+    original_group: group,
+    published: true,
+    playable: false,
+    series_id: seriesId ?? null,
+  }
 }
 
 function mockCategories(categories: CatalogCategory[]) {
@@ -125,6 +137,15 @@ function mockContentByCategory(byId: Record<number, CatalogItemOut[]>, outcome: 
   return refetch
 }
 
+function mockAggregated(items: CatalogItemOut[], coveredCategories = 1, totalCategories = 1) {
+  vi.mocked(catalogApi.useAggregatedItems).mockReturnValue({
+    items,
+    coveredCategories,
+    totalCategories,
+    isLoading: false,
+  })
+}
+
 /**
  * Simula um toque rápido no controle. Para OK (feature 013), sem o
  * `keyup`, o gesto de "segurar" (agora possível sempre que uma série está
@@ -148,6 +169,7 @@ describe('SeriesScreen', () => {
     onOpenSeries.mockReset()
     onBack.mockReset()
     mockContentByCategory({})
+    mockAggregated([])
   })
 
   afterEach(() => {
@@ -155,7 +177,7 @@ describe('SeriesScreen', () => {
     vi.clearAllMocks()
   })
 
-  function renderSeries(onResync: () => void = vi.fn()) {
+  function renderSeries(onResync: () => void = vi.fn(), restore?: CategoryScreenSnapshot) {
     // `useCategoryFocusPrefetch` usa o QueryClient real (não é algo a
     // mockar) — precisa de um provider de verdade, mesmo com
     // useCategoryList/useCategoryContent mockados.
@@ -165,7 +187,13 @@ describe('SeriesScreen', () => {
     function buildUi() {
       return (
         <QueryClientProvider client={queryClient}>
-          <SeriesScreen sourceId="source-1" onOpenSeries={onOpenSeries} onBack={onBack} onResync={onResync} />
+          <SeriesScreen
+            sourceId="source-1"
+            onOpenSeries={onOpenSeries}
+            onBack={onBack}
+            onResync={onResync}
+            restore={restore}
+          />
         </QueryClientProvider>
       )
     }
@@ -236,7 +264,7 @@ describe('SeriesScreen', () => {
     expect(screen.getByText('Série B')).toBeInTheDocument()
 
     press('Enter')
-    expect(onOpenSeries).toHaveBeenCalledWith('id-Série A')
+    expect(onOpenSeries).toHaveBeenCalledWith('id-Série A', expect.any(Object))
   })
 
   it('série com icon_url mostra a capa real; sem icon_url continua no placeholder (feature 015)', () => {
@@ -310,6 +338,166 @@ describe('SeriesScreen', () => {
     rerenderSeries()
 
     press('Enter')
-    expect(onOpenSeries).toHaveBeenCalledWith('id-Série A')
+    expect(onOpenSeries).toHaveBeenCalledWith('id-Série A', expect.any(Object))
+  })
+
+  // T023 (feature 018): mesmo ciclo abrir-resultado → snapshot → remontar do
+  // contrato de Filmes (`MoviesScreen.busca-categoria.contract.test.tsx`
+  // equivalente — feature 017 tinha renumerado este teste como T023, mesmo
+  // papel aqui), aqui como teste adicional não-travado — Séries ficou fora
+  // do orçamento de 5 contratos (D-007: reusa o mesmo mecanismo de
+  // busca/snapshot de Filmes).
+  it('busca dentro de categoria: abrir um resultado entrega um snapshot que, devolvido ao remontar, restaura termo, resultados e foco (T023)', () => {
+    mockCategories([category(1, 'Drama', 0)])
+    mockContentByCategory({ 1: [series('Breaking Bad', 'Drama'), series('Better Call Saul', 'Drama')] })
+    renderSeries()
+
+    press('ArrowRight') // entra em "Drama" (padrão: 1ª categoria real)
+    press('ArrowUp') // 1º item -> ícone
+    press('Enter') // abre o campo
+
+    const field = document.querySelector<HTMLInputElement>('input.search-field')
+    expect(field).not.toBeNull()
+    expect(field!.value).toBe('')
+    act(() => {
+      fireEvent.change(field!, { target: { value: 'break' } })
+    })
+
+    press('ArrowDown') // do campo para o primeiro resultado
+    press('Enter')
+
+    expect(onOpenSeries).toHaveBeenCalledTimes(1)
+    const [openedId, snapshot] = onOpenSeries.mock.calls[0] as [string, CategoryScreenSnapshot | undefined]
+    expect(openedId).toBe('id-Breaking Bad')
+    expect(snapshot).toBeDefined()
+
+    // Ida ao detalhe: o App desmonta a tela; na volta, remonta com o snapshot.
+    cleanup()
+    mockCategories([category(1, 'Drama', 0)])
+    mockContentByCategory({ 1: [series('Breaking Bad', 'Drama'), series('Better Call Saul', 'Drama')] })
+    renderSeries(vi.fn(), snapshot)
+
+    expect(document.querySelector<HTMLInputElement>('input.search-field')?.value).toBe('break')
+    const focusedCell = [...document.querySelectorAll('.poster-cell')].find((c) => c.querySelector('.tv-focus'))
+    expect(focusedCell?.querySelector('.poster-card-title')?.textContent).toBe('Breaking Bad')
+  })
+
+  // T023 (feature 018, US2): "Todos" lista séries de mais de uma categoria
+  // sem buscar, mostra cobertura parcial, e busca dentro dela funciona —
+  // espelha o contrato de Live TV, fora do orçamento de 5 contratos.
+  it('"Todos" lista séries de mais de uma categoria sem buscar, mostra cobertura parcial, e busca dentro dela funciona', () => {
+    mockCategories([category(1, 'Drama', 0), category(2, 'Comédia', 1)])
+    mockContentByCategory({ 1: [series('Breaking Bad', 'Drama')] })
+    // "Comédia" nunca foi aberta — só 1 de 2 categorias cobertas.
+    mockAggregated([series('Breaking Bad', 'Drama'), series('Better Call Saul', 'Drama')], 1, 2)
+    renderSeries()
+
+    press('ArrowUp') // de "Drama" (padrão) para "Todos"
+    press('ArrowRight') // entra em "Todos"
+
+    const titlesBeforeSearch = [...document.querySelectorAll('.poster-card-title')].map((t) => t.textContent)
+    expect(titlesBeforeSearch.sort()).toEqual(['Better Call Saul', 'Breaking Bad'].sort())
+    expect(document.body.textContent).toContain('Busca em 1 de 2 categorias')
+
+    press('ArrowUp') // 1º item -> ícone
+    press('Enter') // abre o campo
+    const field = document.querySelector<HTMLInputElement>('input.search-field')
+    act(() => fireEvent.change(field!, { target: { value: 'saul' } }))
+
+    const titlesAfterSearch = [...document.querySelectorAll('.poster-card-title')].map((t) => t.textContent)
+    expect(titlesAfterSearch).toEqual(['Better Call Saul'])
+  })
+
+  // Achado no gate final desta feature (T029): `loadCategoryContent` sempre
+  // lê `channels`, que pode reter registros de uma geração anterior mesmo
+  // com outcome `source_missing`/`failed` — o ícone não pode se guiar só
+  // por `baseSeries.length`, tem que respeitar `contentUnavailable`.
+  it('o ícone de busca não aparece com itens obsoletos quando o conteúdo está indisponível', () => {
+    mockCategories([category(1, 'Drama', 0)])
+    mockContentByCategory({ 1: [series('Breaking Bad', 'Drama')] }, 'source_missing')
+    renderSeries()
+
+    press('ArrowRight') // entra em "Drama" — item obsoleto, outcome indisponível
+    expect(document.querySelector('.search-icon-button')).toBeNull()
+  })
+
+  // Feature 019 (US3): selo agregado "Em dia"/contagem — `useSeriesWatchedSummary`
+  // não é mockado neste arquivo (roda de verdade contra fake-indexeddb).
+  describe('selo agregado "Em dia" (feature 019, D-007/D-008)', () => {
+    afterEach(async () => {
+      await db.sources.delete('source-1')
+      await db.channels.where('sourceId').equals('source-1').delete()
+      await db.userStates.where('sourceId').equals('source-1').delete()
+    })
+
+    async function seedEpisode(seriesId: string, providerStreamId: string, watched: boolean): Promise<void> {
+      await db.sources.put({
+        id: 'source-1',
+        type: 'provider_credentials',
+        displayName: 'Fonte de teste',
+        connectionState: 'synced',
+        activeGeneration: 1,
+        createdAt: 0,
+        updatedAt: 0,
+      })
+      await db.channels.add({
+        sourceId: 'source-1',
+        generation: 1,
+        kind: 'episode',
+        name: `Ep ${providerStreamId}`,
+        originalName: `Ep ${providerStreamId}`,
+        groupOrder: 0,
+        seriesId,
+        providerStreamId,
+        seasonNumber: 1,
+        episodeNumber: Number(providerStreamId),
+      })
+      if (watched) {
+        const stableId = buildStableId({
+          sourceId: 'source-1',
+          kind: 'episode',
+          providerStreamId,
+          seasonNumber: 1,
+          episodeNumber: Number(providerStreamId),
+        })
+        await db.userStates.put({
+          stableId,
+          sourceId: 'source-1',
+          isFavorite: false,
+          completedAt: Date.now(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        })
+      }
+    }
+
+    it('cobertura completa e tudo assistido mostra "Em dia"; cobertura completa mas parcial mostra contagem; nunca aberta não mostra selo', async () => {
+      await seedEpisode('s-em-dia', '101', true)
+      await seedEpisode('s-em-dia', '102', true)
+      await seedEpisode('s-parcial', '201', true)
+      await seedEpisode('s-parcial', '202', false)
+
+      mockCategories([category(1, 'Drama', 0)])
+      mockContentByCategory({
+        1: [
+          series('Em Dia', 'Drama', 's-em-dia'),
+          series('Parcial', 'Drama', 's-parcial'),
+          series('Nunca Aberta', 'Drama', 's-nunca-aberta'),
+        ],
+      })
+      renderSeries()
+
+      press('ArrowRight') // entra em "Drama"
+
+      await waitFor(() => expect(document.querySelector('.watched-badge')).toBeInTheDocument())
+      const cards = [...document.querySelectorAll('.poster-cell')]
+      const emDia = cards.find((c) => c.textContent?.includes('Em Dia'))
+      const parcial = cards.find((c) => c.textContent?.includes('Parcial'))
+      const nuncaAberta = cards.find((c) => c.textContent?.includes('Nunca Aberta'))
+
+      expect(emDia?.querySelector('.watched-badge')?.textContent).toBe('Em dia')
+      expect(parcial?.querySelector('.watched-badge')?.textContent).toBe('1/2')
+      expect(nuncaAberta?.querySelector('.watched-badge')).not.toBeInTheDocument()
+    })
   })
 })

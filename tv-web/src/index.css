@@ -20,6 +20,7 @@
      precisam ser pretas de verdade, e o plano de vídeo do AVPlay fica atrás
      desta camada. */
   --player-backdrop: #000;
+  --player-zap-scrim: rgba(5, 6, 10, 0.85);
 
   --brand-1: #ff2e87;
   --brand-2: #ff7a3d;

@@ -640,7 +640,9 @@ describe('PlayerLayer', () => {
         driver.callbacks?.onCompleted?.()
       })
 
-      expect(onClose).toHaveBeenCalledTimes(1)
+      // Feature 019, T023: `onExit('completed')` agora aguarda a escrita
+      // (markCompleted) antes de chamar onClose — não é mais síncrono.
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
       expect(screen.queryByRole('button', { name: 'Voltar' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Tentar de novo' })).not.toBeInTheDocument()
     })
@@ -690,7 +692,7 @@ describe('PlayerLayer', () => {
       })
       act(() => driver.callbacks?.onCompleted?.())
 
-      expect(onCompleted).toHaveBeenCalledTimes(1)
+      await waitFor(() => expect(onCompleted).toHaveBeenCalledTimes(1))
       expect(onClose).not.toHaveBeenCalled()
     })
 
@@ -727,7 +729,118 @@ describe('PlayerLayer', () => {
       })
       act(() => driver.callbacks?.onCompleted?.())
 
-      expect(onClose).toHaveBeenCalledTimes(1)
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    })
+  })
+
+  describe('suporte a zapping (feature 016, topLayer)', () => {
+    it('T010: topLayer intercepta botões e não chama controles', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
+      const topLayer = {
+        content: <div data-testid="top-content">topLayer</div>,
+        onDirection: vi.fn(),
+        onSelect: vi.fn(),
+        onBack: vi.fn(),
+      }
+      render(
+        <PlayerLayer itemId="item-1" title="TopLayer Test" onClose={vi.fn()} createAdapter={createAdapter} topLayer={topLayer} />
+      )
+      
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => {
+        driver.callbacks?.onStateChange('buffering')
+        driver.callbacks?.onStateChange('playing')
+      })
+
+      // Select interceptado
+      press('Enter')
+      expect(topLayer.onSelect).toHaveBeenCalledTimes(1)
+
+      // Direção interceptada
+      press('ArrowLeft')
+      expect(topLayer.onDirection).toHaveBeenCalledWith('left')
+
+      // Back interceptado
+      press('Escape')
+      expect(topLayer.onBack).toHaveBeenCalledTimes(1)
+
+      // Não mostrou controles, não buscou, não pausou
+      expect(screen.queryByTestId('player-controls')).not.toBeInTheDocument()
+      expect(driver.seekCalls.length).toBe(0)
+      expect(driver.jumpCalls.length).toBe(0)
+      expect(driver.pauseCount).toBe(0)
+    })
+
+    it('T011: SELECT sem controles disponíveis e sem topLayer chama onIdleSelect', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK) // live channel, sem controles
+      const onIdleSelect = vi.fn()
+      render(
+        <PlayerLayer itemId="item-1" title="Live" onClose={vi.fn()} createAdapter={createAdapter} onIdleSelect={onIdleSelect} />
+      )
+
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => {
+        driver.callbacks?.onStateChange('playing')
+      })
+
+      press('Enter')
+      expect(onIdleSelect).toHaveBeenCalledTimes(1)
+    })
+
+    it('T012: onEnteredPlaying dispara só uma vez quando atinge playing pela primeira vez', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
+      const onEnteredPlaying = vi.fn()
+      render(
+        <PlayerLayer itemId="item-1" title="Live" onClose={vi.fn()} createAdapter={createAdapter} onEnteredPlaying={onEnteredPlaying} />
+      )
+
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('buffering'))
+      expect(onEnteredPlaying).not.toHaveBeenCalled()
+
+      act(() => driver.callbacks?.onStateChange('playing'))
+      expect(onEnteredPlaying).toHaveBeenCalledTimes(1)
+
+      // rebuffering e de novo playing não deve disparar novamente
+      act(() => driver.callbacks?.onStateChange('buffering'))
+      act(() => driver.callbacks?.onStateChange('playing'))
+      expect(onEnteredPlaying).toHaveBeenCalledTimes(1)
+    })
+
+    it('T013: onSessionError dispara com mensagem sanitizada e topLayer permanece', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
+      const onSessionError = vi.fn()
+      const topLayer = {
+        content: <div data-testid="top-content">Meu Zapping</div>,
+        onDirection: vi.fn(),
+        onSelect: vi.fn(),
+        onBack: vi.fn(),
+      }
+      render(
+        <PlayerLayer 
+          itemId="item-1" 
+          title="Live" 
+          onClose={vi.fn()} 
+          createAdapter={createAdapter} 
+          onSessionError={onSessionError} 
+          topLayer={topLayer}
+          genericErrorMessage="Erro 1234"
+        />
+      )
+
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+      
+      // dispara erro
+      act(() => {
+        driver.callbacks?.onError?.({ code: null, message: 'Fatal AVPlay crash' })
+        driver.callbacks?.onStateChange('error')
+      })
+
+      expect(onSessionError).toHaveBeenCalledWith('Fatal AVPlay crash') // O mock do fake repassa o erro
+      
+      // O top layer permanece
+      expect(screen.getByTestId('top-content')).toBeInTheDocument()
     })
   })
 })

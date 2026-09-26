@@ -1,14 +1,23 @@
 import { useState } from 'react'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
-import { useCatalogCounts, type SectionCount } from '../catalog/catalogApi'
+import { useCatalogCounts, useContinueWatchingContent, type CatalogItemOut, type SectionCount } from '../catalog/catalogApi'
 import type { SourceOut } from '../import/importApi'
 import { LimitedModeNotice } from './LimitedModeNotice'
+import { PosterArt } from '../../components/PosterArt'
 
 export type ListDestination = 'live' | 'movies' | 'series'
 
 export interface ListHomeScreenProps {
   source: SourceOut
   onSelect: (destination: ListDestination) => void
+  /**
+   * Feature 019, D-009/D-011: SELECT num item da seção "Continuar
+   * assistindo" — sempre `kind: 'movie'` ou `kind: 'series'`
+   * (`resolveContinueWatching` já troca episódio pela série-pai), nunca
+   * `'episode'`. Quem decide para onde navegar é o chamador (mesmo padrão
+   * de `onOpenMovie`/`onOpenSeries` de `MoviesScreen`/`SeriesScreen`).
+   */
+  onOpenContinueWatching: (item: CatalogItemOut) => void
   onBack: () => void
 }
 
@@ -18,18 +27,49 @@ const TILES: { key: ListDestination; icon: string; label: string }[] = [
   { key: 'series', icon: '🎞️', label: 'Séries' },
 ]
 
-export function ListHomeScreen({ source, onSelect, onBack }: ListHomeScreenProps) {
+/** As duas linhas navegáveis desta tela — "topo"/conteúdo, mesmo mecanismo já usado noutras telas (D-010). */
+type FocusRow = 'continue-watching' | 'tiles'
+
+export function ListHomeScreen({ source, onSelect, onOpenContinueWatching, onBack }: ListHomeScreenProps) {
   const sourceId = source.id
   const sourceName = source.display_name
   const [focusCol, setFocusCol] = useState(0)
+  const [continueIdx, setContinueIdx] = useState(0)
+  // Foco inicial continua nos tiles, mesmo comportamento de hoje (D-010) —
+  // "Continuar assistindo" é alcançável com UP, nunca o ponto de partida.
+  const [row, setRow] = useState<FocusRow>('tiles')
   const counts = useCatalogCounts(sourceId)
+  const continueWatchingQuery = useContinueWatchingContent(sourceId)
+  const continueWatchingItems = continueWatchingQuery.data ?? []
+  const hasContinueWatching = continueWatchingItems.length > 0
+  const safeContinueIdx = clamp(continueIdx, 0, Math.max(0, continueWatchingItems.length - 1))
 
   useRemoteNav({
     onDirection: (dir) => {
+      if (dir === 'up' && row === 'tiles' && hasContinueWatching) {
+        setRow('continue-watching')
+        return
+      }
+      if (dir === 'down' && row === 'continue-watching') {
+        setRow('tiles')
+        return
+      }
+      if (row === 'continue-watching') {
+        if (dir === 'left') setContinueIdx((c) => clamp(c - 1, 0, continueWatchingItems.length - 1))
+        if (dir === 'right') setContinueIdx((c) => clamp(c + 1, 0, continueWatchingItems.length - 1))
+        return
+      }
       if (dir === 'left') setFocusCol((c) => clamp(c - 1, 0, TILES.length - 1))
       if (dir === 'right') setFocusCol((c) => clamp(c + 1, 0, TILES.length - 1))
     },
-    onSelect: () => onSelect(TILES[focusCol].key),
+    onSelect: () => {
+      if (row === 'continue-watching') {
+        const item = continueWatchingItems[safeContinueIdx]
+        if (item) onOpenContinueWatching(item)
+        return
+      }
+      onSelect(TILES[focusCol].key)
+    },
     onBack,
   })
 
@@ -64,6 +104,20 @@ export function ListHomeScreen({ source, onSelect, onBack }: ListHomeScreenProps
       <h1 className="screen-title" style={{ marginBottom: 64 }}>
         O que você quer assistir?
       </h1>
+      {hasContinueWatching && (
+        <div className="continue-watching-row">
+          {continueWatchingItems.map((item, i) => (
+            <div key={item.id} className="continue-watching-card">
+              <PosterArt
+                url={item.icon_url ?? undefined}
+                title={item.name}
+                focused={row === 'continue-watching' && safeContinueIdx === i}
+              />
+              <div className="continue-watching-title">{item.name}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="tiles-row">
         {TILES.map((tile, i) => (
           <div key={tile.key} className={`tile${focusCol === i ? ' tv-focus' : ''}`}>

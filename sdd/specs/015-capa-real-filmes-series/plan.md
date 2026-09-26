@@ -317,8 +317,8 @@ npm run test:e2e
 | Setup (Fase 1) | Concluída. Fixtures de imagem prontas; M3U movido para inline no E2E (ajuste registrado em `tasks.md`). |
 | Foundational (Fase 2) | Concluída. `PosterArt.tsx` (com `children` pra overlay, acréscimo em relação ao plano), schema (`CatalogRecord.iconUrl`), DTO (`CatalogItemOut.icon_url`), CSS (`.poster-box-art`). 38/38 testes, lint/build limpos. |
 | US1 — capa real | Concluída. Captura nos dois caminhos de importação (Xtream `on_demand`, M3U `stored`), série sintética herda do 1º episódio, telas ligadas a `PosterArt`, E2E cenário 1 verde (3 rodadas). |
-| US2 — nunca imagem quebrada | Não iniciada. |
-| Polish | Não iniciada. |
+| US2 — nunca imagem quebrada | Concluída. Cenário 2 (capa quebrada) verde sem código novo; cenário 3 (D-007, janela virtualizada) revelou e fechou um bug pré-existente sério (R-005 — conteúdo `stored` sumindo sozinho ~300ms após entrar), corrigido com aprovação do usuário. E2E 11/11, 3 rodadas. |
+| Polish | Concluída. Documentação (`CLAUDE.md`), segredos (T024, limpo), regressão (T022 — achado de flakiness pré-existente em `m3u-sob-demanda.mjs`, investigado e não relacionado a esta feature, R-006), gates (`test`/`lint`/`build` limpos, `capa-real.mjs` isolado 11/11), `quickstart.md` mapeado contra cobertura já existente. Feature código-completa. |
 
 ## Riscos e Decisões
 
@@ -330,9 +330,11 @@ npm run test:e2e
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
 | R-001 | Nenhum painel Xtream real foi consultado durante o planejamento — `stream_icon`/`cover` são os nomes de campo padrão do protocolo, mas um painel específico pode variar. | SC-001 pode não bater 100% numa lista real | Verificação manual (`quickstart.md`) com a lista real do usuário, se ela for painel Xtream; achado vira nota em Execution Notes, não suposição escondida. |
-| R-002 | `docs/iptvnator/08-tela-filmes.md` documenta detecção de "blank icon" (URL válida que aponta para imagem genérica) como prática madura — deliberadamente fora de escopo desta feature (spec, Clarifications). | Algumas capas podem aparecer como imagem cinza/vazia em vez do placeholder | Aceito pela spec; registrado no backlog (item 8) como melhoria futura, não repetir a decisão aqui. |
-| R-003 | Série sintética M3U (D-003) herda a capa do primeiro episódio processado — se os episódios de uma série tiverem capas diferentes entre si (raro, mas possível em listas mal padronizadas), a escolhida é arbitrária (ordem de aparição no arquivo, não a "melhor"). | Baixo — visual, não funcional | Aceito, documentado; mesma classe de aproximação que a spec 012 já aceitou para o agrupamento em si. |
+| R-002 | `docs/iptvnator/08-tela-filmes.md` documenta detecção de "blank icon" (URL válida que aponta para imagem genérica) como prática madura — deliberadamente fora de escopo desta feature (spec, Clarifications). | Algumas capas podem aparecer como imagem cinza/vazia em vez do placeholder | Resolvido: aceito pela spec; confirmado pela auditoria do `sdd-converge` (2026-09-25) que o código não tenta detectar/tratar isso — comportamento como documentado, não uma lacuna esquecida. Registrado no backlog (item 8) como melhoria futura. |
+| R-003 | Série sintética M3U (D-003) herda a capa do primeiro episódio processado — se os episódios de uma série tiverem capas diferentes entre si (raro, mas possível em listas mal padronizadas), a escolhida é arbitrária (ordem de aparição no arquivo, não a "melhor"). | Baixo — visual, não funcional | Resolvido: aceito, documentado; confirmado pela auditoria do `sdd-converge` (`m3uSeriesGrouping.ts` implementa exatamente D-003, com teste cobrindo o caso). Mesma classe de aproximação que a spec 012 já aceitou para o agrupamento em si. |
 | R-004 | Achado durante US1 (E2E, `capa-real.mjs`): entrar numa tela de categoria (Live/Filmes/Séries) e pressionar `ArrowRight` pra "entrar" na categoria focada da trilha é uma corrida real — se disparado antes de `useCategoryList` resolver, a trilha só tem "★ Favoritos" (vazia), e o `ArrowRight` entra nela em vez da categoria real. Não é um bug de produto (o app sempre soube que "Favoritos" é a posição 0 da trilha) — é um cuidado de teste E2E que faltava. | Só afeta scripts E2E que navegam rápido demais entre "entrar na tela" e "entrar na categoria" | Resolvido: `capa-real.mjs` agora espera `.live-item:not(.live-item-favorites)` (uma categoria real já na trilha) antes de cada `ArrowRight` que entra numa categoria. Vale para qualquer E2E futuro que repita esse padrão de navegação — `m3u-sob-demanda.mjs`/`favoritos.mjs` não apresentaram o sintoma nas rodadas já feitas, mas usam o mesmo padrão arriscado; não alterados aqui por estarem fora do escopo desta feature. |
+| R-005 | **Achado fora do escopo desta feature, com aprovação explícita do usuário antes de corrigir** (AskUserQuestion, 2026-09-24: "Corrigir agora, junto com a 015"): entrar numa categoria M3U `stored` (features 010/014) grande o bastante e **não fazer nada** já bastava pro conteúdo sumir sozinho da tela ~300ms depois, mostrando "O conteúdo desta lista não está mais no aparelho" — reproduzido de forma determinística durante o T021 (E2E), sem rolar nada. Causa raiz: `useCategoryFocusPrefetch` (feature 010, R-013) mantém um timer de pré-busca amarrado à categoria em foco na trilha mesmo depois de já ter entrado nela (o cálculo de `focusedCategory` não olha `col`); o timer usa o snapshot de categoria de `useCategoryList`, nunca invalidado depois que a entrada real consome os blocos de `storedEntries` (D-007 da 014) — o prefetch, ao disparar, vê `itemsFetchedAt` ainda `undefined` no snapshot antigo, tenta `readStored` de novo, acha vazio, devolve `source_missing`, e escreve isso por cima do cache que `useCategoryContent` já tinha com o conteúdo certo (mesma `queryKey`). | Alto — qualquer categoria `stored` real (M3U avulsa, painel não confirmado, Modo limitado) podia perder o conteúdo já exibido sem nenhuma ação do usuário, sempre que ficasse tempo suficiente com o cursor na trilha antes ou logo depois de entrar | Resolvido: `useCategoryFocusPrefetch` (`catalogApi.ts`) ganhou um terceiro parâmetro, `enteredCategoryId?: number`, na lista de dependências do `useEffect` — quando a categoria focada é a já entrada, o efeito nunca agenda um timer novo e cancela um já agendado (a função de limpeza do efeito anterior roda antes do corpo novo). `LiveScreen.tsx`/`MoviesScreen.tsx`/`SeriesScreen.tsx` passam `entered?.kind === 'category' ? entered.id : undefined`. 3 testes novos em `catalogApi.test.tsx` cobrem: nunca prefetcha já entrada; cancela timer pendente ao entrar; categoria diferente da entrada continua prefetchando normal. `node e2e/capa-real.mjs` 3x seguidas depois da correção, sem nenhuma flutuação pra `source_missing`. |
+| R-006 | Achado durante T022 (Polish, regressão): `node e2e/m3u-sob-demanda.mjs` (script da feature 014, intocado nesta sessão) falhou de forma intermitente em pontos diferentes a cada rodada — investigado a fundo (zero sobreposição de arquivo com esta feature; uma rodada isolada com debug confirmou o dado real correto, só a asserção correu antes de tempo; falhas em pontos diferentes do script entre rodadas, não sempre o mesmo assert). | Não bloqueia esta feature (seu próprio E2E, `capa-real.mjs`, ficou estável 11/11 em todas as rodadas); só afeta a confiança no `m3u-sob-demanda.mjs` sob sessões de carga alta | Não corrigido (fora do escopo — script de outra feature). Registrado como achado, não como regressão; candidato a `sdd-bugfix` (tornar as esperas do script mais robustas, mesmo padrão do R-004) se reaparecer fora de uma sessão excepcionalmente longa como esta. |
 
 ## Execution Notes
 
@@ -349,7 +351,11 @@ npm run test:e2e
 
 | 2026-09-24 | US1 (T006–T019) | Captura completa nos dois caminhos (Xtream/M3U) e nas duas telas. Achado corrigido durante o E2E (R-004): `ArrowRight` pra entrar numa categoria é uma corrida com `useCategoryList` — script corrigido pra esperar uma categoria real na trilha antes de entrar, aplicado aos três blocos (Live/Filmes/Séries); a asserção de Live TV também ficou mais forte (conteúdo real, não só contagem). Estável em 3 rodadas. `npm run test` completo 663/666 (3 falhas do padrão flaky pré-existente, 43/43 confirmadas isoladas). | Fase 4 (US2) |
 
-**PRÓXIMO**: Fase 4 (User Story 2) — provar com teste o fallback de falha e a janela virtualizada (D-007)
+| 2026-09-24 | US2 (T020–T021) | Cenário 2 (capa quebrada) verde sem código novo, confirma `PosterArt` por construção. Cenário 3 (D-007) precisou de `MANY_COUNT` 60→500 (navegador real mostra ~60 cards de uma vez, mesmo headless) e revelou um bug pré-existente fora do escopo (R-005): categoria `stored` grande perdia o conteúdo sozinha ~300ms após entrar, por uma corrida entre `useCategoryFocusPrefetch` (timer de prefetch que não sabe que a categoria já foi entrada) e a leitura real de `storedEntries` (consumível uma vez só). Usuário aprovou corrigir agora; `useCategoryFocusPrefetch` ganhou `enteredCategoryId` como guarda + gatilho de cancelamento do timer pendente, aplicado nas três telas. 3 testes novos comprovam a correção sem desligar o prefetch para categorias realmente não-entradas. E2E 11/11, 3 rodadas estáveis. | Fase 5 (Polish) |
+
+| 2026-09-25 | Polish (T022–T026) | `CLAUDE.md` atualizado (parágrafo novo da 015 + correção do parágrafo da 014, que ainda dizia "In execution" após convergir). Segredos limpos (T024). `quickstart.md` mapeado contra a cobertura automatizada já existente (T026). T022 (regressão) achou flakiness intermitente em `e2e/m3u-sob-demanda.mjs` (script da 014, intocado) — investigado a fundo, sem sobreposição de código com esta feature, registrado como R-006, não corrigido (fora do escopo). Gates: `test` 665/666 (flaky pré-existente confirmado isolado), `lint`/`build` limpos, `test:e2e` trava em R-009 (esperado), `capa-real.mjs` isolado 11/11. Achado à parte, sem relação com código: 2 commits do usuário (`images`/`imagens`) apareceram no histórico durante a investigação, capturando o estado da árvore de trabalho desta sessão — sem perda de conteúdo, usuário avisado em tempo real. | Nenhuma — feature código-completa |
+
+**PRÓXIMO**: feature código-completa (Fase 5 fechada). Falta só decidir com o usuário se roda `sdd-converge` agora
 
 ## Arquivos Principais
 
@@ -364,8 +370,9 @@ npm run test:e2e
 - `tv-web/src/lib/catalog/xtreamConnector.ts` — `mapVodEntry`/`mapSeriesEntry` capturam `stream_icon`/`cover`.
 - `tv-web/src/lib/catalog/m3uSeriesGrouping.ts` — série sintética herda `iconUrl` do 1º episódio.
 - `tv-web/src/lib/catalog/categoryLoader.ts`, `importPipeline.ts` — propagam `iconUrl` (`on_demand`/`stored`).
-- `tv-web/src/features/movies/MoviesScreen.tsx`, `series/SeriesScreen.tsx` — usam `<PosterArt>`.
-- `tv-web/e2e/capa-real.mjs` (novo) — cenário 1 (US1), 8 verificações.
+- `tv-web/src/features/movies/MoviesScreen.tsx`, `series/SeriesScreen.tsx`, `live/LiveScreen.tsx` — usam `<PosterArt>` (Movies/Series) e/ou passam `enteredCategoryId` pro prefetch (as três).
+- `tv-web/e2e/capa-real.mjs` (novo) — cenários 1–3 (US1/US2), 11 verificações.
+- `tv-web/src/features/catalog/catalogApi.ts` — `useCategoryFocusPrefetch` ganhou `enteredCategoryId?` (R-005, correção do bug de prefetch vs. leitura `stored`).
 
 ## Cuidados para Retomada
 
@@ -380,3 +387,81 @@ npm run test:e2e
   (ver R-004). `m3u-sob-demanda.mjs`/`favoritos.mjs` usam o padrão antigo
   sem essa espera; não foram alterados por estarem fora do escopo desta
   feature, mas correm o mesmo risco se ficarem mais lentos algum dia.
+- Se `useCategoryFocusPrefetch` ganhar mais parâmetros/lógica no futuro,
+  lembrar do R-005: o timer de prefetch precisa saber quando a categoria
+  focada na trilha já foi **entrada** (`col === 1`), não só focada — senão
+  a mesma classe de corrida volta (timer agendado antes de entrar dispara
+  depois, relê uma categoria `stored` já consumida).
+- Sessão excepcionalmente longa: `node e2e/m3u-sob-demanda.mjs` ficou
+  intermitente sob a carga acumulada de hoje (R-006) sem nenhuma relação
+  com o código desta feature. Se voltar a falhar numa sessão normal (não
+  maratona), aí sim vale investigar como bug real, não como ambiente.
+- Se `git status`/`git log` mostrar commits que você não fez nesta sessão,
+  não assuma perda de trabalho — `git commit` nunca apaga o que está na
+  árvore de trabalho, só grava um snapshot. Confira `git show --stat
+  <hash>` pra ver o que entrou antes de reagir; avise o usuário do achado
+  e siga (não desfaça nem re-commite por conta própria).
+
+## Resultado Final
+
+<!-- Anexado pelo sdd-converge em 2026-09-25. Convergência limpa — zero achados. -->
+
+Auditoria do `sdd-converge` (2026-09-25): mapeei cada FR/SC/Decisão
+Invariante contra o código real — `PosterArt.tsx` (D-005/D-006/D-007),
+`classifier.ts` (`normalizeIconUrl`/D-001b, captura de `tvg-logo` nunca
+para canal), `xtreamConnector.ts` (`mapVodEntry`/`mapSeriesEntry`
+capturam `stream_icon`/`cover`, `mapLiveEntry` intocado), `m3uSeriesGrouping.ts`
+(série sintética herda `iconUrl` do 1º episódio, D-003),
+`categoryLoader.ts`/`importPipeline.ts` (propagação nos caminhos
+`on_demand`/`stored`), `db.ts` (`CatalogRecord.iconUrl`, ainda na v10 —
+D-009 confirmado, sem bump de versão), `catalogApi.ts`
+(`CatalogItemOut.icon_url`, `useCategoryFocusPrefetch` com a correção do
+R-005), as três telas (`LiveScreen.tsx`/`MoviesScreen.tsx`/
+`SeriesScreen.tsx`, wiring de `PosterArt` e `enteredCategoryId`),
+`CLAUDE.md` e `.planning/backlog.md`. **Zero achados** — nenhuma lacuna
+`missing`, `partial`, `contradicts` ou `unrequested`. O código entregue é
+fiel ao que `spec.md`, `plan.md` e `data-model.md` descrevem.
+
+**O que foi de fato construído**: as duas user stories (capa real nas
+grades de Filmes/Séries, carregamento sempre com fallback seguro e
+sempre dentro da janela virtualizada) estão código-completas, com a
+suíte automatizada (unitário + integração + componente + os três
+cenários E2E de `e2e/capa-real.mjs`, 11/11) verde, e a documentação
+canônica (`CLAUDE.md`, backlog) sincronizada com o estado real.
+
+**Desvios acumulados nas Execution Notes, confirmados nesta auditoria**:
+- R-004: corrida de navegação no próprio E2E desta feature, corrigida
+  dentro do script — sem impacto em código de produto.
+- R-005: bug pré-existente e fora do escopo (features 010/014,
+  `useCategoryFocusPrefetch` vs. leitura `stored` de `storedEntries`)
+  corrigido dentro desta feature, com aprovação explícita do usuário.
+  Confirmado no código: `enteredCategoryId` cancela o timer de prefetch
+  pendente ao entrar na categoria.
+- R-006: flakiness intermitente em `e2e/m3u-sob-demanda.mjs` (script da
+  feature 014), investigada a fundo e não relacionada ao código desta
+  feature — não corrigida, por estar fora do escopo. Continua em aberto,
+  registrada como achado, não como regressão desta feature.
+- `MANY_COUNT` (fixture do cenário 3, E2E) subiu de 60 para 500 durante a
+  execução — um navegador real, mesmo headless, mostra ~60 cards de uma
+  vez, então 60 não bastava para provar a janela virtualizada. Ajuste de
+  fixture, não uma mudança de decisão.
+
+**Decisões técnicas que ficaram diferentes do plano original**: a única
+foi o próprio R-005 — não estava previsto no plano original (que
+presumia, corretamente, que `PosterArt` e a virtualização já bastariam
+para o cenário 3 "por construção"), mas o teste desse mesmo cenário foi o
+que revelou a lacuna real numa camada vizinha (prefetch). Tratado com o
+mesmo rigor de qualquer achado fora do escopo — parado, perguntado,
+aprovado, corrigido e testado antes de prosseguir.
+
+**Pendências que seguem em aberto, fora do gate de convergência**:
+- R-001: SC-001 (nenhuma capa some/inventa numa lista real de painel
+  Xtream) segue sem verificação manual com um painel real — bloqueada em
+  você, mesmo critério de segredo já usado nas features 010/013/014 (o
+  agente nunca insere uma URL/credencial real em lugar nenhum).
+- R-006 (acima): flakiness de `m3u-sob-demanda.mjs`, fora do escopo,
+  candidata a `sdd-bugfix` se reaparecer fora de uma sessão excepcional.
+
+**README.md do projeto**: não existe um na raiz do repositório (só
+`tv-web/README.md`, o boilerplate padrão do template Vite) — nada para
+atualizar, conforme o escopo deste skill.

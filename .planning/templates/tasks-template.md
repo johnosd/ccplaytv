@@ -62,16 +62,29 @@ description: "Template de lista de tasks para implementação de feature"
 
 **Independent Test**: [Como verificar que esta story funciona isoladamente]
 
-### Testes da Fase
+### Contrato da Fase
 
-- [ ] T003 [P] [US1] Teste de [comportamento] em `[caminho real do repositório]`
+<!--
+  Testes de contrato (sdd-plan passo 7.5) que esta fase deve deixar verdes.
+  Já existem e estão TRAVADOS em contract-tests.lock — o sdd-execute não os
+  escreve nem edita. Omita este bloco se a fase não tem contrato.
+-->
+
+- `[nome do teste]` — [origem: FR-### / US1-AC1]
+- Comando: `[comando exato que roda só os contratos]`
 
 ### Implementation
 
-- [ ] T004 [P] [US1] [Descrição] em `[caminho real do repositório]`
-- [ ] T005 [US1] [Descrição] em `[caminho real do repositório]`
+- [ ] T003 [P] [US1] [Descrição] em `[caminho real do repositório]` → contrato: `[nome do teste]`
+- [ ] T004 [US1] [Descrição] em `[caminho real do repositório]`
 
-**Critério de Conclusão**: [Prosa explícita do que "pronto" significa nesta story]
+### Testes da Fase
+
+<!-- Testes ADICIONAIS escritos pelo sdd-execute, fora dos arquivos de contrato. -->
+
+- [ ] T005 [P] [US1] Teste de [comportamento] em `[caminho real do repositório]`
+
+**Critério de Conclusão**: [Começa pelo contrato, como comando verificável — ex: "`<comando>` → N/N verdes e `check-contract-tests.ps1` íntegro" — depois o resto do que "pronto" significa nesta story]
 
 **Checkpoint**: User Story 1 funcional e testável isoladamente.
 
@@ -79,6 +92,7 @@ description: "Template de lista de tasks para implementação de feature"
 
 - Status: (vazio — preenchido pelo sdd-execute ao fechar o checkpoint)
 - Feito:
+- Contrato:
 - Testes executados:
 - Pendências:
 
@@ -103,6 +117,7 @@ description: "Template de lista de tasks para implementação de feature"
 -->
 
 - [ ] Fase 3 (User Story 1) concluída
+- [ ] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro (omita se a feature não tem contrato)
 - [ ] Backend disponível e validado
 - [ ] Frontend disponível e validado
 - [ ] CORS e conectividade validados

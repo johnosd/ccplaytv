@@ -155,6 +155,77 @@ Preencha `## Project Structure` com a árvore **real** deste repositório,
 exatamente como encontrada no passo 2 — nunca com um exemplo genérico nem com
 a estrutura de outro projeto.
 
+### 7.5. Testes de contrato — executáveis, vermelhos, travados
+
+O `sdd-execute` costuma rodar num modelo mais barato. Em vez de descrever em
+prosa os testes que ele deveria escrever (e deixar que ele interprete, e
+depois valide o próprio código), este passo escreve **o código dos testes
+que definem "pronto"**. O executor só pode fazê-los passar, nunca editá-los.
+
+**Orçamento: no máximo 5 casos de teste (`it`/`test`) na feature inteira.**
+O script de trava recusa mais que isso. Com 5, cada teste precisa valer a
+pena — priorize nesta ordem e pare quando o orçamento acabar:
+
+1. O cenário de aceite central de cada story **P1** (o que prova que a
+   story existe).
+2. O caso traiçoeiro onde um executor errar é mais provável e mais caro:
+   corridas/reentrância, estado intermediário, a regra de `logic/*.md` que
+   parece contraintuitiva.
+3. Um invariante da constitution que esta feature toca de fato (ex: foco em
+   estado vazio/erro, restauração por id e não por índice, identidade lógica
+   em vez de URL, segredo fora de log/erro).
+
+**Fica de fora**: estilo, fiação trivial, stories P2+ que não são arriscadas,
+E2E (fica no Polish do `sdd-execute`), e tudo que só é verificável em
+hardware real/manualmente — isso vai pro `quickstart.md`. Se a feature for
+pequena ou puramente visual, **zero testes de contrato é uma resposta
+válida**: registre o porquê em `## Estratégia de Testes` e pule o resto
+deste passo.
+
+Regras de escrita:
+
+- **Só pela interface pública** — props, retorno de função/hook exportado,
+  DOM visível, chamadas a colaboradores injetados. Nunca estado interno,
+  nome de variável privada ou ordem de chamadas irrelevante. Um teste que
+  amarra detalhes de implementação trava o executor sem motivo.
+- **Arquivo dedicado à feature**, seguindo a convenção de nome de teste
+  deste repositório com um sufixo de contrato (ex: `Foo.<feature>.contract.test.tsx`),
+  nunca misturado num arquivo de teste existente — a trava vale pro arquivo
+  inteiro.
+- **Reuse helpers/fakes/fixtures que já existem** nos testes da mesma área
+  (achados no passo 2). Se precisar de um helper novo, ele também é
+  entregue aqui e fica travado junto — o executor não deve inventar
+  infraestrutura de teste.
+- **Stubs em vez de só pseudocódigo**: crie os arquivos/assinaturas que os
+  testes importam (tipos, props novas, funções exportadas com corpo
+  `throw new Error('not implemented')` ou equivalente idiomático), pra que
+  o teste compile. Isso fixa o "como" melhor que markdown; `logic/*.md`
+  continua explicando o porquê. Os stubs **não** são travados — são o ponto
+  de partida do executor.
+- Proibido nos arquivos de contrato: `.skip`, `.only`, `.todo`, `.each` (o
+  script recusa), timeouts inflados, e mockar a própria unidade sob teste.
+- Cada teste cita no nome ou num comentário de uma linha a origem que
+  cobre (`FR-###`, `US1/AC3`, `Constitution: <princípio>`).
+
+Prove que estão vermelhos **pelo motivo certo**: rode só esses arquivos
+(comando real do repositório, ex: `npx vitest run <arquivos>`) e confira que
+cada teste falha por asserção ou por `not implemented` — **nunca** por erro
+de import, sintaxe ou tipo. Rode também a suíte da área tocada pra confirmar
+que os stubs não quebraram nenhum teste existente. Se algum contrato passar
+já agora, ele não prova nada: reescreva ou remova.
+
+Trave:
+
+```powershell
+.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug <NNN-slug> -Write -Paths <arquivo1>,<arquivo2>
+```
+
+Isso grava `sdd/specs/<slug>/contract-tests.lock` (caminho + SHA256) e
+recusa se passar de 5 testes ou tiver `.skip`/`.only`/`.todo`/`.each`.
+Registre em `## Estratégia de Testes` de `plan.md`: os arquivos de
+contrato, o comando exato pra rodá-los, a saída vermelha esperada (1 linha
+por teste) e o mapeamento teste → origem.
+
 ### 8. Constitution Check — gate pós-design
 
 Reavalie os princípios contra o design final (coluna Pós-Design da mesma
@@ -182,17 +253,29 @@ Decision de `plan.md`). Organize por user story (P1, P2, P3... em ordem de
 prioridade), cada fase seguindo o template de 5 blocos:
 
 1. **Goal/Objetivo** — 1 frase.
-2. **Implementation/Checklist** — tasks com `[TaskID] [P?] [Story?]` e
-   caminho de arquivo real (nunca um placeholder). Se a task envolver lógica complexa, referencie aqui o arquivo `logic/<nome>.md` criado no passo 7 ou anexe um breve pseudocódigo/assinatura de interface diretamente na task para guiar o executor.
-3. **Tests/Testes da fase** — checklist **separado** dos itens de
-   implementação.
-4. **Critério de Conclusão** — prosa explícita do que "pronto" significa
-   nesta fase/story.
-5. **Registro da Fase** — deixe o bloco vazio (`Status:` / `Feito:` /
-   `Testes executados:` / `Pendências:`); só o `sdd-execute` preenche.
+2. **Contrato da fase** (se houver teste de contrato nela) — os testes do
+   passo 7.5 que esta fase deve deixar verdes, pelo nome, e o comando exato
+   pra rodá-los. Esses testes já existem e estão travados: **não** viram
+   task de escrita.
+3. **Implementation/Checklist** — tasks com `[TaskID] [P?] [Story?]` e
+   caminho de arquivo real (nunca um placeholder). Cada task que contribui
+   pra um contrato cita qual (`→ contrato: <nome do teste>`). Se a task envolver lógica complexa, referencie aqui o arquivo `logic/<nome>.md` criado no passo 7 ou o stub criado no passo 7.5.
+4. **Tests/Testes da fase** — checklist **separado** dos itens de
+   implementação, só com testes **adicionais** que o executor escreve (em
+   arquivos que não são de contrato) — cobertura complementar, não a
+   definição de pronto.
+5. **Critério de Conclusão** — prosa explícita do que "pronto" significa
+   nesta fase/story. Se a fase tem contrato, o critério começa por ele,
+   como comando verificável (ex: "`<comando>` → 3/3 verdes, e
+   `check-contract-tests.ps1` íntegro").
+6. **Registro da Fase** — deixe o bloco vazio (`Status:` / `Feito:` /
+   `Contrato:` / `Testes executados:` / `Pendências:`); só o `sdd-execute`
+   preenche.
 
 A fase final Polish inclui o **Checklist de Release**: um item por fase
-concluída, mais os gates cross-cutting relevantes a este projeto.
+concluída, mais os gates cross-cutting relevantes a este projeto, mais (se
+houver contrato) "todos os testes de contrato verdes e
+`check-contract-tests.ps1` íntegro".
 
 ### 11. Analyze — checagem final, estritamente read-only
 
@@ -204,6 +287,9 @@ Cruze `spec.md`, `plan.md`, `tasks.md` e a constitution procurando:
 - **Alinhamento com a Constitution** — qualquer princípio dela não coberto.
 - **Lacunas de Cobertura** — todo `FR-###`/`SC-###` deveria ter pelo menos uma task rastreável.
 - **Inconsistência** — terminologia divergente entre os 3 arquivos.
+- **Contrato** — a story P1 central sem teste de contrato nem justificativa
+  registrada; teste de contrato sem origem citada; teste de contrato que
+  depende de detalhe interno; nenhuma task apontando pra um contrato.
 
 Apresente uma tabela de achados (ID | Categoria | Severidade | Local | Resumo
 | Recomendação, no máximo 50 linhas) com severidade CRITICAL (viola a
@@ -218,13 +304,17 @@ arquivo. Sugira correções, não as aplique sozinho.
 
 ### 13. Relata
 
-O que foi escrito, resultado do Constitution Check (pré e pós), resumo do
-Analyze, e uma recomendação explícita: resolver achados CRITICAL antes de
+O que foi escrito, resultado do Constitution Check (pré e pós), os testes de
+contrato (quantos de 5, o que cada um cobre, a saída vermelha confirmada — ou
+por que a feature não tem nenhum), resumo do Analyze, e uma recomendação
+explícita: resolver achados CRITICAL antes de
 rodar `sdd-execute`, ou seguir em frente se estiver tudo limpo.
 
 ## Handoff
 
-`sdd-execute` exige `spec.md` + `plan.md` + `tasks.md`. O Analyze não deixa
+`sdd-execute` exige `spec.md` + `plan.md` + `tasks.md`. Se existir
+`contract-tests.lock`, ele herda os testes travados como definição de pronto
+— e é proibido de editá-los. O Analyze não deixa
 rastro em arquivo — se a sessão terminar com um CRITICAL não resolvido, uma
 sessão futura do `sdd-execute` não vai saber disso automaticamente (risco
 aceito; ver plano em `docs/features/` ou o histórico da conversa que aprovou

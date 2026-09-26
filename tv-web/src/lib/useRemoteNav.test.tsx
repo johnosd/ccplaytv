@@ -72,6 +72,20 @@ describe('useRemoteNav', () => {
     expect(onSelect).not.toHaveBeenCalled()
     expect(onDirection).not.toHaveBeenCalled()
   })
+
+  it('sem alvo editável, Backspace/espaço/Enter continuam exatamente como antes (regressão da guarda de campo, feature 017)', () => {
+    const onBack = vi.fn()
+    const onSelect = vi.fn()
+    renderHook(() => useRemoteNav({ onBack, onSelect }))
+
+    // `event.target` de um `fireEvent` sem alvo explícito é `document` —
+    // nunca um campo editável.
+    fireEvent.keyDown(document, { key: 'Backspace' })
+    expect(onBack).toHaveBeenCalledTimes(1)
+
+    fireEvent.keyDown(document, { key: ' ' })
+    expect(onSelect).toHaveBeenCalledTimes(1)
+  })
 })
 
 /**

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { CatalogDb, type CatalogRecord, type SourceRecord } from './db'
+import { CatalogDb, type CatalogRecord, type SourceRecord, type UserStateRecord } from './db'
 import {
   allocateGeneration,
   countChannels,
@@ -11,6 +11,7 @@ import {
   listEpisodes,
   markCategoryFetched,
   publishGeneration,
+  resolveContinueWatching,
   resolveFavorites,
   storeBatch,
   storeCategories,
@@ -19,7 +20,7 @@ import {
   StorageFullError,
   type NewCategory,
 } from './catalogRepository'
-import type { StableIdParts } from './userStateRepository'
+import { buildStableId, type StableIdParts } from './userStateRepository'
 
 let database: CatalogDb
 
@@ -714,5 +715,76 @@ describe('resolveFavorites (feature 013)', () => {
     } finally {
       await reopened.delete()
     }
+  })
+})
+
+describe('resolveContinueWatching (feature 019, D-009/R-002/R-004)', () => {
+  function userState(stableId: string, progressSeconds: number): UserStateRecord {
+    return { stableId, sourceId: SOURCE_ID, isFavorite: false, progressSeconds, createdAt: 0, updatedAt: 0 }
+  }
+
+  it('filme com progresso resolve direto para o registro do filme', async () => {
+    await seedSource({ activeGeneration: 1 })
+    await database.channels.add({
+      sourceId: SOURCE_ID,
+      generation: 1,
+      kind: 'movie',
+      name: 'Dune',
+      originalName: 'Dune',
+      groupOrder: 0,
+      providerStreamId: '1',
+    })
+    const stableId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: '1' })
+
+    const records = await resolveContinueWatching(SOURCE_ID, [userState(stableId, 300)], database)
+
+    expect(records.map((r) => ({ kind: r.kind, name: r.name }))).toEqual([{ kind: 'movie', name: 'Dune' }])
+  })
+
+  it('episódio com progresso resolve para a SÉRIE-pai, nunca para o episódio isolado (R-002/R-004, D-011)', async () => {
+    await seedSource({ activeGeneration: 1 })
+    await database.channels.bulkAdd([
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'series',
+        name: 'Breaking Bad',
+        originalName: 'Breaking Bad',
+        groupOrder: 0,
+        seriesId: 'srv-200',
+      },
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'episode',
+        name: 'Piloto',
+        originalName: 'Piloto',
+        groupOrder: 0,
+        seriesId: 'srv-200',
+        providerStreamId: '55',
+        seasonNumber: 1,
+        episodeNumber: 1,
+      },
+    ])
+    const stableId = buildStableId({
+      sourceId: SOURCE_ID,
+      kind: 'episode',
+      providerStreamId: '55',
+      seasonNumber: 1,
+      episodeNumber: 1,
+    })
+
+    const records = await resolveContinueWatching(SOURCE_ID, [userState(stableId, 120)], database)
+
+    expect(records.map((r) => ({ kind: r.kind, name: r.name }))).toEqual([{ kind: 'series', name: 'Breaking Bad' }])
+  })
+
+  it('item sem correspondência no catálogo atual é omitido, nunca lança (D-016/FR-016)', async () => {
+    await seedSource({ activeGeneration: 1 })
+    const stableId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: '999' })
+
+    const records = await resolveContinueWatching(SOURCE_ID, [userState(stableId, 300)], database)
+
+    expect(records).toEqual([])
   })
 })

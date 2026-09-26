@@ -124,6 +124,23 @@ export async function listFavorites(
 }
 
 /**
+ * `stableId`s assistidos de uma fonte/tipo (feature 019, D-006) — mesmo
+ * espírito de `listFavorites`, mas sem índice próprio: `completedAt` não é
+ * indexado (diferente de `favoritedAt`), então filtra em memória sobre o
+ * que já é indexado por `sourceId` — escala com o que a pessoa já
+ * interagiu, nunca com o catálogo inteiro.
+ */
+export async function listWatched(
+  sourceId: string,
+  kind: CatalogItemKind,
+  database: CatalogDb = db,
+): Promise<UserStateRecord[]> {
+  const prefix = `${sourceId}|${kind}|`
+  const states = await database.userStates.where('sourceId').equals(sourceId).toArray()
+  return states.filter((state) => state.completedAt != null && state.stableId.startsWith(prefix))
+}
+
+/**
  * Remove TODO o estado do usuário (favoritos e retomada) de uma fonte —
  * chamado ao remover a fonte (feature 013, `plan.md` D-007, FR-017). Uma
  * fonte readicionada ganha `sourceId` novo (UUID), então nada aqui fica
@@ -261,6 +278,26 @@ export async function markCompleted(
   )
 }
 
+/**
+ * Correção manual de "assistido" (feature 019, D-004) — distinta de
+ * `markCompleted` (automática, via reprodução real): marcar (`true`) grava
+ * o mesmo par `completedAt`/`progressSeconds` que `markCompleted` já grava
+ * (não inventa posição nem duração, FR-005); desmarcar (`false`) só limpa
+ * `completedAt`, sem tocar `progressSeconds`.
+ */
+export async function setWatchedManually(
+  stableId: string,
+  sourceId: string,
+  watched: boolean,
+  database: CatalogDb = db,
+): Promise<void> {
+  if (watched) {
+    await markCompleted(stableId, sourceId, database)
+    return
+  }
+  await upsert(stableId, sourceId, (current) => ({ ...current, completedAt: undefined }), database)
+}
+
 export async function getGlobalFavorites(
   database: CatalogDb = db,
 ): Promise<UserStateRecord[]> {
@@ -269,9 +306,17 @@ export async function getGlobalFavorites(
   return database.userStates.orderBy('favoritedAt').reverse().toArray()
 }
 
+/**
+ * `sourceId` (feature 019, D-009) é opcional: informado, filtra pra uma
+ * fonte só (uso do hub, FR-012); omitido, preserva o comportamento
+ * original (todas as fontes juntas — `userStateRepository.test.ts`,
+ * "should fetch continue watching across sources").
+ */
 export async function getContinueWatching(
+  sourceId?: string,
   database: CatalogDb = db,
 ): Promise<UserStateRecord[]> {
   const started = await database.userStates.orderBy('lastWatched').reverse().toArray()
-  return started.filter((state) => (state.progressSeconds ?? 0) > 0)
+  const filtered = sourceId === undefined ? started : started.filter((state) => state.sourceId === sourceId)
+  return filtered.filter((state) => (state.progressSeconds ?? 0) > 0)
 }

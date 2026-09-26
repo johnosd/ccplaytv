@@ -16,10 +16,21 @@ export const RESUME_MIN_SECONDS = 30
  * Acima desta fração da duração, o filme conta como terminado: a retomada é
  * apagada e a ação primária volta a ser "Assistir" (FR-014).
  *
- * Distinto do limiar de "assistido" de ~90% que o guia Samsung 06 sugere para
- * histórico — esse é o item 13 do backlog e não existe nesta feature.
+ * Segue sendo o limiar de episódio (feature 012, `recordCompletion`). Filme
+ * ganhou o próprio, mais baixo, na feature 019 — ver `MOVIE_WATCHED_RATIO`.
  */
 export const RESUME_MAX_RATIO = 0.95
+
+/**
+ * Acima desta fração da duração, um FILME conta como assistido de verdade
+ * (feature 019, RF-001) — sugestão do guia Samsung 06 ("conclusão automática
+ * a partir de 90% como ponto inicial de teste"). Distinto de
+ * `RESUME_MAX_RATIO`: ao cruzar este limiar, `progressRecorder` grava
+ * `completedAt` (como episódio já faz desde a feature 012) em vez de só
+ * apagar a retomada — 90% se torna o ponto efetivo de conclusão para filme,
+ * sempre cruzado antes dos 95% de `RESUME_MAX_RATIO`.
+ */
+export const MOVIE_WATCHED_RATIO = 0.9
 
 /** Cadência de gravação durante a reprodução (R0-4). */
 export const PROGRESS_WRITE_INTERVAL_SECONDS = 5
@@ -34,10 +45,14 @@ export function isResumable(progressSeconds: number | undefined): boolean {
  *
  * Sem duração conhecida devolve `false` — nada é estimado (FR-004). O fim,
  * nesse caso, só chega por conclusão real do motor.
+ *
+ * `ratio` (feature 019): o chamador escolhe o limiar — episódio continua
+ * usando o default (`RESUME_MAX_RATIO`, 95%), filme passa
+ * `MOVIE_WATCHED_RATIO` (90%) explicitamente.
  */
-export function isPastEnd(positionMs: number, durationMs: number | undefined): boolean {
+export function isPastEnd(positionMs: number, durationMs: number | undefined, ratio: number = RESUME_MAX_RATIO): boolean {
   if (durationMs === undefined || durationMs <= 0) return false
-  return positionMs / durationMs >= RESUME_MAX_RATIO
+  return positionMs / durationMs >= ratio
 }
 
 /**

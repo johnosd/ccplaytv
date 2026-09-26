@@ -18,6 +18,7 @@ import { MovieDetailScreen } from './features/movies/MovieDetailScreen'
 import { SeriesScreen } from './features/series/SeriesScreen'
 import { SeriesDetailScreen } from './features/series/SeriesDetailScreen'
 import { registerFavoriteColorKey } from './lib/tizenColorKey'
+import type { CategoryScreenSnapshot } from './features/catalog/categoryScreenSnapshot'
 
 type Screen =
   | { name: 'splash' }
@@ -27,9 +28,9 @@ type Screen =
   | { name: 'progress'; jobId: string }
   | { name: 'list-home'; source: SourceOut }
   | { name: 'live'; source: SourceOut }
-  | { name: 'movies'; source: SourceOut }
+  | { name: 'movies'; source: SourceOut; restore?: CategoryScreenSnapshot }
   | { name: 'movie-detail'; source: SourceOut; movieId: string }
-  | { name: 'series'; source: SourceOut }
+  | { name: 'series'; source: SourceOut; restore?: CategoryScreenSnapshot }
   | { name: 'series-detail'; source: SourceOut; seriesId: string }
 
 interface NavState {
@@ -169,6 +170,13 @@ function App() {
         <ListHomeScreen
           source={screen.source}
           onSelect={(destination: ListDestination) => goto({ name: destination, source: screen.source } as Screen)}
+          onOpenContinueWatching={(item) =>
+            goto(
+              item.kind === 'movie'
+                ? { name: 'movie-detail', source: screen.source, movieId: item.id }
+                : { name: 'series-detail', source: screen.source, seriesId: item.id },
+            )
+          }
           onBack={back}
         />
       )
@@ -186,7 +194,13 @@ function App() {
       return (
         <MoviesScreen
           sourceId={screen.source.id}
-          onOpenMovie={(movieId) => goto({ name: 'movie-detail', source: screen.source, movieId } as Screen)}
+          restore={screen.restore}
+          onOpenMovie={(movieId, snapshot) =>
+            setNav((s) => ({
+              screen: { name: 'movie-detail', source: screen.source, movieId },
+              history: [...s.history, { ...screen, restore: snapshot }],
+            }))
+          }
           onBack={back}
           onResync={() => resyncFromCategoryScreen(screen.source.id)}
         />
@@ -199,7 +213,13 @@ function App() {
       return (
         <SeriesScreen
           sourceId={screen.source.id}
-          onOpenSeries={(seriesId) => goto({ name: 'series-detail', source: screen.source, seriesId } as Screen)}
+          restore={screen.restore}
+          onOpenSeries={(seriesId, snapshot) =>
+            setNav((s) => ({
+              screen: { name: 'series-detail', source: screen.source, seriesId },
+              history: [...s.history, { ...screen, restore: snapshot }],
+            }))
+          }
           onBack={back}
           onResync={() => resyncFromCategoryScreen(screen.source.id)}
         />

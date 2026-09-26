@@ -318,6 +318,25 @@ describe('categoryLoader — ensureCategory, categoria stored (feature 014, T028
     expect(await database.categories.get(category.id)).toBeDefined()
   })
 
+  it('já lida (blocos consumidos) com um `category` desatualizado (sem itemsFetchedAt) sai fresh, nunca source_missing, quando os itens já estão em channels', async () => {
+    // Achado no gate final da feature 018: um remount de tela com o cache
+    // do React Query (`staleTime` padrão) refaz `ensureCategory` com o
+    // `category` que `useCategoryList` ainda tinha em cache — sem
+    // `itemsFetchedAt`, mesmo que a leitura já tenha ocorrido e apagado os
+    // blocos de `storedEntries`. Sem essa proteção, isso mostrava "conteúdo
+    // não está mais no aparelho" com os itens certos já em `channels`.
+    const category = await seedStoredCategory([storedMovie('Duna')], { kind: 'movie', name: 'Filmes' })
+    await ensureCategory(SOURCE_ID, category, { database, now: () => 1000 })
+
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    // `category` original, SEM `itemsFetchedAt` — simula o objeto desatualizado.
+    const result = await ensureCategory(SOURCE_ID, category, { database, now: () => 2000 })
+
+    expect(result.outcome).toBe('fresh')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('chamadas concorrentes para a mesma categoria stored compartilham uma leitura só (contrato §2, regra 2)', async () => {
     const category = await seedStoredCategory([storedMovie('Duna'), storedMovie('Arrival')], {
       kind: 'movie',

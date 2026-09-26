@@ -6,7 +6,7 @@ import * as catalogApi from '../catalog/catalogApi'
 import type { CatalogItemOut } from '../catalog/catalogApi'
 import { PlayerLayer } from '../../components/PlayerLayer'
 import { db } from '../../lib/catalog/db'
-import { buildStableId, clearProgress, updateProgress } from '../../lib/catalog/userStateRepository'
+import { buildStableId, clearProgress, getUserState, updateProgress } from '../../lib/catalog/userStateRepository'
 import { RESUME_MIN_SECONDS } from '../../lib/player/resumePolicy'
 
 // `useCatalogItem` é mockado (não depende do catálogo real pra estes
@@ -242,6 +242,42 @@ describe('MovieDetailScreen', () => {
 
       expect(await screen.findByText('▶ Assistir')).toBeInTheDocument()
       expect(screen.queryByText('↺ Reiniciar')).not.toBeInTheDocument()
+    })
+  })
+
+  // --- Feature 019 (US2): correção manual de "assistido" ---
+
+  describe('marcar/desmarcar assistido manualmente (feature 019, US2)', () => {
+    it('sem posição salva: "Marcar como assistido" é a última ação, sem deslocar o foco da ação primária', () => {
+      renderScreen()
+
+      const primary = screen.getByText('▶ Assistir')
+      expect(primary.className).toContain('tv-focus') // ação primária continua no índice 1
+
+      const buttons = screen.getAllByText(/./, { selector: '.detail-button' })
+      expect(buttons[buttons.length - 1].textContent).toBe('✓ Marcar como assistido')
+    })
+
+    it('com posição salva (Retomar/Reiniciar): a ação de assistido continua por último, sem deslocar a ação primária', async () => {
+      await updateProgress(STABLE_ID, 'src1', 300)
+      renderScreen()
+      await screen.findByText(/▶ Retomar/)
+
+      const primary = screen.getByText(/▶ Retomar/)
+      expect(primary.className).toContain('tv-focus') // ainda índice 1
+
+      const buttons = screen.getAllByText(/./, { selector: '.detail-button' })
+      expect(buttons[buttons.length - 1].textContent).toBe('✓ Marcar como assistido')
+    })
+
+    it('confirmar "Marcar como assistido" grava completedAt e alterna o rótulo para "Desmarcar"', async () => {
+      renderScreen()
+
+      press('ArrowRight') // Assistir(1) -> toggle-watched(2), a última ação
+      press('Enter')
+
+      await waitFor(async () => expect((await getUserState(STABLE_ID))?.completedAt).toBeDefined())
+      expect(await screen.findByText('✗ Desmarcar assistido')).toBeInTheDocument()
     })
   })
 })

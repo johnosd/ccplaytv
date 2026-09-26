@@ -139,6 +139,19 @@ async function favoriteMovie(providerStreamId: string, favoritedAt: number): Pro
   })
 }
 
+/** Feature 019, D-006 — mesmo espírito de `favoriteMovie`, mas grava `completedAt`. */
+async function watchMovie(providerStreamId: string, completedAt: number): Promise<void> {
+  const stableId = `${SOURCE_ID}|movie|id:${providerStreamId}`
+  await db.userStates.put({
+    stableId,
+    sourceId: SOURCE_ID,
+    isFavorite: false,
+    completedAt,
+    createdAt: completedAt,
+    updatedAt: completedAt,
+  })
+}
+
 function mockCategories(categories: CatalogCategory[]) {
   vi.mocked(catalogApi.useCategoryList).mockReturnValue({
     data: categories,
@@ -229,10 +242,10 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
 
     keyup('Enter')
     tap('Enter')
-    expect(onOpenMovie).toHaveBeenCalledWith('id-Duna')
+    expect(onOpenMovie).toHaveBeenCalledWith('id-Duna', expect.any(Object))
   }, 10000)
 
-  it('"★ Favoritos" é a primeira entrada da trilha, lista os filmes carregados e abre o detalhe por OK', async () => {
+  it('"★ Favoritos" é a primeira entrada da trilha (antes de "Todos", feature 018), lista os filmes carregados e abre o detalhe por OK', async () => {
     await seedSource()
     const dunaId = await seedRealMovie('Duna', '1')
     await favoriteMovie('1', 100)
@@ -240,16 +253,18 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     const { onOpenMovie } = renderMovies()
 
     const groups = document.querySelectorAll('.live-column-groups .live-item')
-    expect([...groups].map((g) => g.textContent)).toEqual(['★Favoritos', 'G1'])
+    expect([...groups].map((g) => g.textContent)).toEqual(['★Favoritos', 'Todos', 'G1'])
 
-    keydown('ArrowUp')
+    keydown('ArrowUp') // "Todos"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
     keydown('ArrowRight')
     keyup('ArrowRight')
 
     await waitFor(() => expect(screen.getByText('Duna')).toBeInTheDocument())
     tap('Enter')
-    expect(onOpenMovie).toHaveBeenCalledWith(String(dunaId))
+    expect(onOpenMovie).toHaveBeenCalledWith(String(dunaId), expect.any(Object))
   })
 
   it('"Favoritos" vazia: OK no botão devolve o foco à trilha (ativação por tecla)', async () => {
@@ -257,6 +272,8 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     mockCategories([category(1, 'G1', 0)])
     renderMovies()
 
+    keydown('ArrowUp')
+    keyup('ArrowUp')
     keydown('ArrowUp')
     keyup('ArrowUp')
     keydown('ArrowRight')
@@ -271,6 +288,27 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('★Favoritos')
   })
 
+  it('selo "Assistido" (feature 019) aparece só para o filme com completedAt, nunca para os demais', async () => {
+    await seedSource()
+    await watchMovie('1', 100)
+    mockCategories([category(1, 'G1', 0)])
+    mockContentByCategory({ 1: [movie('Duna', '1'), movie('Arrival', '2')] })
+    renderMovies()
+
+    keydown('ArrowRight')
+    keyup('ArrowRight')
+
+    await waitFor(() => expect(screen.getByText('Duna')).toBeInTheDocument())
+    await waitFor(() => expect(document.querySelector('.watched-badge')).toBeInTheDocument())
+
+    const cards = [...document.querySelectorAll('.poster-cell')]
+    const duna = cards.find((c) => c.textContent?.includes('Duna'))
+    const arrival = cards.find((c) => c.textContent?.includes('Arrival'))
+
+    expect(duna?.querySelector('.watched-badge')).toBeInTheDocument()
+    expect(arrival?.querySelector('.watched-badge')).not.toBeInTheDocument()
+  })
+
   it('desfavoritar o focado dentro de "Favoritos" move o foco ao vizinho da grade', async () => {
     await seedSource()
     await seedRealMovie('A', '1', 0)
@@ -280,6 +318,8 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     mockCategories([category(1, 'G1', 0)])
     renderMovies()
 
+    keydown('ArrowUp')
+    keyup('ArrowUp')
     keydown('ArrowUp')
     keyup('ArrowUp')
     keydown('ArrowRight')

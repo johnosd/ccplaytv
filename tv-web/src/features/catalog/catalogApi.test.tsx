@@ -5,16 +5,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   prefetchCategoryContent,
   stableIdOf,
+  useAggregatedItems,
   useCatalogCounts,
   useCategoryContent,
   useCategoryFocusPrefetch,
   useFavoriteIds,
   useFavoritesContent,
+  useSeriesWatchedSummary,
   useToggleFavorite,
   type CatalogCategory,
   type CatalogItemOut,
 } from './catalogApi'
 import * as categoryLoader from '../../lib/catalog/categoryLoader'
+import * as seriesLoader from '../../lib/catalog/seriesLoader'
 import { buildStableId } from '../../lib/catalog/userStateRepository'
 import { db, type CategoryRecord } from '../../lib/catalog/db'
 
@@ -82,7 +85,12 @@ describe('useCategoryFocusPrefetch (feature 010 — desvio deliberado de FR-004)
     vi.advanceTimersByTime(400) // além do amortecimento, parado em "2"
 
     expect(categoryLoader.ensureCategory).toHaveBeenCalledTimes(1)
-    expect(categoryLoader.ensureCategory).toHaveBeenCalledWith('source-1', category(2))
+    // Terceiro argumento: `{ signal }` — bug
+    // `prefetch-concorrente-categoria-sem-cancelamento-requisicao`, todo
+    // prefetch agora carrega um `AbortController` próprio.
+    expect(categoryLoader.ensureCategory).toHaveBeenCalledWith('source-1', category(2), {
+      signal: expect.any(AbortSignal),
+    })
   })
 
   it('sem categoria em foco (undefined), não agenda nada', () => {
@@ -94,6 +102,87 @@ describe('useCategoryFocusPrefetch (feature 010 — desvio deliberado de FR-004)
     vi.advanceTimersByTime(1000)
 
     expect(categoryLoader.ensureCategory).not.toHaveBeenCalled()
+  })
+
+  // Feature 015: achado ao testar a capa real numa categoria `stored`
+  // grande — sem este cuidado, um timer já agendado antes da entrada
+  // disparava depois dela, relia uma categoria `stored` já consumida e
+  // sobrescrevia o cache de `useCategoryContent` com `source_missing`,
+  // fazendo o conteúdo já exibido sumir sozinho da tela.
+  it('categoria já entrada nunca prefetcha, mesmo depois do amortecimento', () => {
+    renderHook(() => useCategoryFocusPrefetch('source-1', category(1), 1), { wrapper: wrapper() })
+
+    vi.advanceTimersByTime(1000)
+
+    expect(categoryLoader.ensureCategory).not.toHaveBeenCalled()
+  })
+
+  it('entrar na categoria focada cancela um timer de prefetch já agendado', () => {
+    const { rerender } = renderHook(
+      ({ enteredId }: { enteredId?: number }) => useCategoryFocusPrefetch('source-1', category(1), enteredId),
+      { wrapper: wrapper(), initialProps: { enteredId: undefined as number | undefined } },
+    )
+
+    vi.advanceTimersByTime(100) // menos que o amortecimento — timer ainda pendente
+    rerender({ enteredId: 1 }) // a pessoa entrou na categoria 1 antes do timer disparar
+    vi.advanceTimersByTime(1000) // bem além do amortecimento original
+
+    expect(categoryLoader.ensureCategory).not.toHaveBeenCalled()
+  })
+
+  it('categoria diferente da entrada continua prefetchando normalmente', () => {
+    renderHook(() => useCategoryFocusPrefetch('source-1', category(2), 1), { wrapper: wrapper() })
+
+    vi.advanceTimersByTime(400)
+
+    expect(categoryLoader.ensureCategory).toHaveBeenCalledTimes(1)
+    expect(categoryLoader.ensureCategory).toHaveBeenCalledWith('source-1', category(2), {
+      signal: expect.any(AbortSignal),
+    })
+  })
+
+  // Bug prefetch-concorrente-categoria-sem-cancelamento-requisicao: cada
+  // busca de prefetch some assim que deixa de ser a categoria focada — só
+  // a última em que o cursor de fato ficou chega a `ensureCategory`.
+  it('focar uma segunda categoria aborta o prefetch em voo da primeira', () => {
+    const { rerender } = renderHook(
+      ({ cat }: { cat: CatalogCategory | undefined }) => useCategoryFocusPrefetch('source-1', cat),
+      { wrapper: wrapper(), initialProps: { cat: category(1) } },
+    )
+    vi.advanceTimersByTime(400) // categoria 1 dispara e fica "em voo" (ensureCategory nunca resolve neste teste)
+
+    const [, , firstOptions] = vi.mocked(categoryLoader.ensureCategory).mock.calls[0]!
+    const firstSignal = (firstOptions as { signal: AbortSignal }).signal
+    expect(firstSignal.aborted).toBe(false)
+
+    rerender({ cat: category(2) })
+    vi.advanceTimersByTime(400) // categoria 2 dispara — deve abortar o sinal da categoria 1
+
+    expect(firstSignal.aborted).toBe(true)
+    expect(categoryLoader.ensureCategory).toHaveBeenCalledTimes(2)
+  })
+
+  // A categoria que a pessoa efetivamente ENTROU nunca pode ser abortada
+  // por um prefetch de outra categoria — ela pode estar compartilhando a
+  // mesma busca em voo via dedup do categoryLoader (D-008 desta feature/
+  // R-013), e abortar isso quebraria a entrada real, não só o prefetch.
+  it('entrar de fato numa categoria nunca é abortada por um prefetch de outra', () => {
+    const { rerender } = renderHook(
+      ({ cat, enteredId }: { cat: CatalogCategory | undefined; enteredId?: number }) =>
+        useCategoryFocusPrefetch('source-1', cat, enteredId),
+      { wrapper: wrapper(), initialProps: { cat: category(1), enteredId: undefined as number | undefined } },
+    )
+    vi.advanceTimersByTime(400) // prefetch da categoria 1 dispara
+
+    const [, , enteredOptions] = vi.mocked(categoryLoader.ensureCategory).mock.calls[0]!
+    const enteredSignal = (enteredOptions as { signal: AbortSignal }).signal
+
+    // A pessoa entra de fato na categoria 1 (a busca acima passa a servir
+    // a entrada real via dedup) e o cursor da trilha segue para a 2.
+    rerender({ cat: category(2), enteredId: 1 })
+    vi.advanceTimersByTime(400) // prefetch da categoria 2 dispara
+
+    expect(enteredSignal.aborted).toBe(false)
   })
 })
 
@@ -566,5 +655,139 @@ describe('useFavoriteIds / useFavoritesContent / useToggleFavorite (feature 013)
       expect(result.current.data?.items.map((item) => item.name)).toEqual(['Duna'])
       expect(result.current.data?.unresolved).toBe(0)
     })
+  })
+})
+
+describe('useAggregatedItems (feature 018 — categoria virtual "Todos")', () => {
+  const SOURCE_ID = 'source-todos'
+
+  afterEach(async () => {
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.categories.where('sourceId').equals(SOURCE_ID).delete()
+    vi.restoreAllMocks()
+  })
+
+  async function seed(): Promise<void> {
+    await db.sources.put({
+      id: SOURCE_ID,
+      type: 'provider_credentials',
+      displayName: 'Fonte Todos',
+      connectionState: 'synced',
+      activeGeneration: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    await db.categories.bulkAdd([
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'movie',
+        name: 'Ação',
+        order: 0,
+        fetchMode: 'on_demand',
+        providerCategoryId: '1',
+        itemsFetchedAt: 1, // já coberta
+      },
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'movie',
+        name: 'Comédia',
+        order: 1,
+        fetchMode: 'on_demand',
+        providerCategoryId: '2', // nunca aberta — não coberta
+      },
+    ])
+    await db.channels.bulkAdd([
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'movie',
+        name: 'Duna',
+        originalName: 'Duna',
+        group: 'Ação',
+        groupOrder: 0,
+        providerStreamId: '1',
+      },
+    ])
+  }
+
+  it('agrega itens de todas as categorias já cobertas; categoria nunca aberta fica de fora da lista e da cobertura', async () => {
+    await seed()
+    const { result } = renderHook(() => useAggregatedItems(SOURCE_ID, 'movie', true), { wrapper: wrapper() })
+
+    await waitFor(() => expect(result.current.items.map((item) => item.name)).toEqual(['Duna']))
+    expect(result.current.coveredCategories).toBe(1)
+    expect(result.current.totalCategories).toBe(2)
+  })
+
+  it('enabled: false não lê nada do banco', async () => {
+    await seed()
+    const spy = vi.spyOn(db.channels, 'where')
+
+    renderHook(() => useAggregatedItems(SOURCE_ID, 'movie', false), { wrapper: wrapper() })
+    await new Promise((resolve) => setTimeout(resolve, 200))
+
+    expect(spy).not.toHaveBeenCalled()
+  })
+})
+
+describe('useSeriesWatchedSummary (feature 019, D-007/D-008)', () => {
+  const SOURCE_ID = 'source-watched-summary'
+
+  afterEach(async () => {
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+    vi.restoreAllMocks()
+  })
+
+  async function seed(): Promise<void> {
+    await db.sources.put({
+      id: SOURCE_ID,
+      type: 'provider_credentials',
+      displayName: 'Fonte Watched Summary',
+      connectionState: 'synced',
+      activeGeneration: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    await db.channels.bulkAdd([
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'episode',
+        name: 'S01E01',
+        originalName: 'S01E01',
+        groupOrder: 0,
+        seriesId: 'serie-1',
+        providerStreamId: '1',
+        seasonNumber: 1,
+        episodeNumber: 1,
+      },
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'episode',
+        name: 'S01E02',
+        originalName: 'S01E02',
+        groupOrder: 0,
+        seriesId: 'serie-1',
+        providerStreamId: '2',
+        seasonNumber: 1,
+        episodeNumber: 2,
+      },
+    ])
+  }
+
+  it('nunca chama ensureSeriesEpisodes/rede — só lê o que já está local (Constitution: Comandos Locais Independem de Rede)', async () => {
+    await seed()
+    const spy = vi.spyOn(seriesLoader, 'ensureSeriesEpisodes')
+
+    const { result } = renderHook(() => useSeriesWatchedSummary(SOURCE_ID), { wrapper: wrapper() })
+
+    await waitFor(() => expect(result.current.data?.get('serie-1')).toEqual({ known: 2, watched: 0, upToDate: false }))
+    expect(spy).not.toHaveBeenCalled()
   })
 })

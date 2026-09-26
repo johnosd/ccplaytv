@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { CatalogApiError, fetchPlayback, stableIdOf, type CatalogItemPlayback } from '../features/catalog/catalogApi'
 import {
   createPlayerSession,
@@ -9,6 +9,7 @@ import {
   type PlayerState,
 } from '../lib/player/PlayerService'
 import { createProgressRecorder, type ProgressRecorder, type ProgressRecorderIdentity } from '../lib/player/progressRecorder'
+import { MOVIE_WATCHED_RATIO } from '../lib/player/resumePolicy'
 import { clamp, useRemoteNav } from '../lib/useRemoteNav'
 import { PlayerControls, playerControlsActions } from './PlayerControls'
 
@@ -22,6 +23,31 @@ import { PlayerControls, playerControlsActions } from './PlayerControls'
 function computeIdentity(playback: CatalogItemPlayback): ProgressRecorderIdentity | null {
   const stableId = stableIdOf(playback)
   return stableId ? { stableId, sourceId: playback.source_id } : null
+}
+
+export interface PlayerLayerTopLayer {
+  /** Árvore React a desenhar por cima do vídeo, dentro do próprio
+   *  `.player-overlay` deste componente — nunca como filho de `.screen` por
+   *  fora, ou a regra de `visibility:hidden` do plano de hardware (screens.css,
+   *  seletor `:root.video-plane-visible .screen > *:not(.player-overlay)`)
+   *  a esconde. */
+  content: ReactNode
+  onDirection: (direction: 'up' | 'down' | 'left' | 'right') => void
+  onSelect: () => void
+  /** RETURN com esta camada aberta — fecha só ELA. Nunca dispara `onClose`
+   *  do player inteiro. */
+  onBack: () => void
+  /**
+   * Opcional (feature 016, edge case da spec): segurar OK sobre um item
+   * favoritável desta camada continua favoritando/desfavoritando (feature
+   * 013), sem conflito com o toque curto que aciona `onSelect` — mesmo
+   * gesto por tempo de tecla já usado no resto do app. `undefined` quando
+   * não há item focável pra favoritar (ex.: foco na trilha de categorias) —
+   * nesse caso o OK age direto no keydown, como toque comum.
+   */
+  onLongSelect?: () => void
+  /** Mesmo gesto de `onLongSelect`, via a tecla amarela do controle (feature 013). */
+  onFavoriteKey?: () => void
 }
 
 export interface PlayerLayerProps {
@@ -48,6 +74,31 @@ export interface PlayerLayerProps {
    * não mudam de comportamento.
    */
   onCompleted?: () => void
+  
+  /** `null`/ausente (padrão): comportamento de sempre. Não-nulo: PlayerLayer
+   *  desenha `content` por cima do vídeo e redireciona onDirection/onSelect/
+   *  onBack do seu modal para os handlers daqui, em vez do comportamento
+   *  padrão de controles de reprodução. */
+  topLayer?: PlayerLayerTopLayer | null
+
+  /** SELECT chega aqui em vez de "revelar controles" quando `topLayer` é
+   *  `null` E a mídia atual não tem nenhuma ação de controle (hoje: canal ao
+   *  vivo, sempre `playerControlsActions(...).length === 0`). Ausente: SELECT
+   *  nesse caso continua só revelando a barra vazia — Filmes/Séries não
+   *  passam isto, comportamento inalterado (FR-013). */
+  onIdleSelect?: () => void
+
+  /** Dispara na primeira vez que a sessão ATUAL (a do `itemId`/`attempt`
+   *  correntes) atinge `state === 'playing'`. Não dispara de novo por
+   *  rebuffering do mesmo item. */
+  onEnteredPlaying?: () => void
+
+  /** Dispara quando a sessão ATUAL cai em erro — ADEMAIS do desenho padrão
+   *  da tela de erro nativa do PlayerLayer (que só fica de fato visível
+   *  quando `topLayer` for `null`; com `topLayer` aberto, o scrim+conteúdo
+   *  do zapping cobre a tela de erro por trás dela). Mensagem já sanitizada
+   *  (a mesma que a tela de erro nativa usaria). */
+  onSessionError?: (message: string) => void
 }
 
 type Phase =
@@ -100,6 +151,10 @@ export function PlayerLayer({
   unavailableMessage = DEFAULT_UNAVAILABLE_MESSAGE,
   genericErrorMessage = DEFAULT_GENERIC_ERROR_MESSAGE,
   onCompleted,
+  topLayer,
+  onIdleSelect,
+  onEnteredPlaying,
+  onSessionError,
 }: PlayerLayerProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'resolving' })
   const [errorFocus, setErrorFocus] = useState<0 | 1>(0)
@@ -191,16 +246,22 @@ export function PlayerLayer({
 
         // Gravador de progresso (feature 011). Identidade calculada uma vez
         // por sessão — nunca lançando até aqui (D-010). `recordCompletion`
-        // só liga pra episódio (feature 012, D-007) — "assistido" de filme
-        // continua fora de escopo (item 13 do backlog).
+        // liga pra episódio (feature 012, D-007) e, desde a feature 019,
+        // também pra filme — com um limiar próprio, mais baixo
+        // (`MOVIE_WATCHED_RATIO`, 90%) que o de episódio (95%, default de
+        // `isPastEnd`, D-002/D-003 do plano da 019).
         const recorder = createProgressRecorder(
           computeIdentity(playback),
           session.capabilities.reportsPosition,
           undefined,
-          { recordCompletion: playback.kind === 'episode' },
+          {
+            recordCompletion: playback.kind === 'episode' || playback.kind === 'movie',
+            completionRatio: playback.kind === 'movie' ? MOVIE_WATCHED_RATIO : undefined,
+          },
         )
         recorderRef.current = recorder
         let previousState: PlayerState | null = null
+        let enteredPlayingFired = false
 
         // O erro é copiado para o estado no momento em que acontece, em vez
         // de ser lido do ref durante o render — um ref não dispara
@@ -225,11 +286,24 @@ export function PlayerLayer({
           // tela quer decidir o que vem depois (autoplay) em vez de só sair.
           if (session.state === 'completed' && previousState !== 'completed') {
             previousState = session.state
-            recorder.onExit('completed')
-            ;(onCompleted ?? onClose)()
+            // Aguarda a escrita (markCompleted/clearProgress) terminar ANTES
+            // de fechar — achado real na feature 019, T023: fechar direto
+            // disparava a invalidação de `useUserState` numa corrida com a
+            // transação de conclusão ainda em voo (2 operações Dexie
+            // sequenciais), e o refetch mais simples podia vencer, deixando
+            // a tela presa no estado antigo até remontar.
+            void recorder.onExit('completed').then(() => {
+              if (cancelled) return
+              ;(onCompleted ?? onClose)()
+            })
             return
           }
           previousState = session.state
+
+          if (session.state === 'playing' && !enteredPlayingFired) {
+            enteredPlayingFired = true
+            onEnteredPlaying?.()
+          }
 
           if (session.state === 'error') {
             setPhase({
@@ -237,6 +311,7 @@ export function PlayerLayer({
               message: session.error?.message ?? genericErrorMessage,
               retryable: true,
             })
+            onSessionError?.(session.error?.message ?? genericErrorMessage)
             return
           }
           setPhase({ kind: 'session', state: session.state })
@@ -254,6 +329,7 @@ export function PlayerLayer({
           message: unavailable ? unavailableMessage : genericErrorMessage,
           retryable: !unavailable,
         })
+        onSessionError?.(unavailable ? unavailableMessage : genericErrorMessage)
       }
     }
 
@@ -303,6 +379,7 @@ export function PlayerLayer({
   useRemoteNav(
     {
       onDirection: (dir) => {
+        if (topLayer) { topLayer.onDirection(dir); return }
         if (isErrorScreen) {
           if (!canRetry) return
           if (dir === 'left') setErrorFocus(0)
@@ -360,7 +437,8 @@ export function PlayerLayer({
         }
         scheduleHide()
       },
-      onSelect: () => {
+      onSelect: () => { 
+        if (topLayer) { topLayer.onSelect(); return }
         if (isErrorScreen) {
           if (canRetry && errorFocus === 0) {
             setErrorFocus(0)
@@ -372,11 +450,18 @@ export function PlayerLayer({
         }
         const session = sessionRef.current
         if (!session) return
+        
+        const actions = playerControlsActions(session.capabilities, session.progress)
+        if (actions.length === 0) {
+          onIdleSelect?.()
+          return
+        }
+
         if (!controlsVisible) {
           revealControls()
           return
         }
-        const actions = playerControlsActions(session.capabilities, session.progress)
+        
         const action = actions[focusedIndex]
         if (!action) return
         if (action.id === 'playPause') session.togglePause()
@@ -388,14 +473,28 @@ export function PlayerLayer({
       // RETURN encerra de qualquer estado — inclusive de `playing`, que não
       // tem elemento focável com os controles ocultos. É a saída garantida
       // (D-010 da feature 003).
-      onBack: onClose,
+      onBack: () => {
+        if (topLayer) { topLayer.onBack(); return }
+        onClose()
+      },
+      // Repassados só quando `topLayer` os define (feature 016) — sem
+      // `topLayer`, `undefined` preserva o comportamento legado de sempre
+      // (OK sem gesto, agindo no keydown).
+      onLongSelect: topLayer?.onLongSelect,
+      onFavoriteKey: topLayer?.onFavoriteKey,
     },
     { modal: true },
   )
 
-  if (isErrorScreen) {
-    return (
-      <div className="player-overlay" role="dialog" aria-label="Erro de reprodução">
+  const label = phase.kind === 'resolving' ? 'Preparando…' : (phase.kind === 'session' ? STATE_LABEL[phase.state] : '')
+  const session = sessionRef.current
+
+  return (
+    <div className="player-overlay" role="dialog" aria-label={isErrorScreen ? 'Erro de reprodução' : `Reproduzindo ${title}`}>
+      {/* O adaptador de desenvolvimento monta o <video> aqui. O AVPlay não usa
+          este nó: ele desenha num plano de hardware atrás da camada web. */}
+      <div id="player-surface" className="player-surface" />
+      {isErrorScreen ? (
         <div className="player-message">
           <div className="player-message-title">{title}</div>
           {/* Mensagem sanitizada: nunca inclui URL, endereço de provedor ou
@@ -418,31 +517,26 @@ export function PlayerLayer({
             </button>
           </div>
         </div>
-      </div>
-    )
-  }
-
-  const label = phase.kind === 'resolving' ? 'Preparando…' : STATE_LABEL[phase.state]
-  const session = sessionRef.current
-
-  return (
-    <div className="player-overlay" role="dialog" aria-label={`Reproduzindo ${title}`}>
-      {/* O adaptador de desenvolvimento monta o <video> aqui. O AVPlay não usa
-          este nó: ele desenha num plano de hardware atrás da camada web. */}
-      <div id="player-surface" className="player-surface" />
-      {label !== '' && (
-        <div className="player-status">
-          <div className="player-status-channel">{title}</div>
-          <div className="player-status-label">{label}</div>
-        </div>
+      ) : (
+        <>
+          {label !== '' && (
+            <div className="player-status">
+              <div className="player-status-channel">{title}</div>
+              <div className="player-status-label">{label}</div>
+            </div>
+          )}
+          {controlsVisible && session && phase.kind === 'session' && (
+            <PlayerControls
+              capabilities={session.capabilities}
+              state={phase.state}
+              progress={session.progress}
+              focusedIndex={focusedIndex}
+            />
+          )}
+        </>
       )}
-      {controlsVisible && session && phase.kind === 'session' && (
-        <PlayerControls
-          capabilities={session.capabilities}
-          state={phase.state}
-          progress={session.progress}
-          focusedIndex={focusedIndex}
-        />
+      {topLayer && (
+        <div className="player-zap-scrim">{topLayer.content}</div>
       )}
     </div>
   )

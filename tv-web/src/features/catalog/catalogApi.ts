@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   db,
@@ -10,9 +10,11 @@ import {
 import {
   countChannels,
   getChannel,
+  listAllEpisodes,
   listCategories,
   listChannels,
   listEpisodes,
+  resolveContinueWatching,
   resolveFavorites,
   type CatalogCategory,
 } from '../../lib/catalog/catalogRepository'
@@ -21,13 +23,18 @@ import { ensureSeriesEpisodes, type SeriesFetchOutcome } from '../../lib/catalog
 import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
 import {
   buildStableId,
+  getContinueWatching,
   getUserState,
   getUserStates,
   listFavorites,
+  listWatched,
   parseStableId,
+  setWatchedManually,
   toggleFavorite,
 } from '../../lib/catalog/userStateRepository'
 import { UNGROUPED_LABEL } from '../live/groupChannels'
+import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
+import { loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
 
@@ -188,8 +195,18 @@ const NO_LIMIT = 0xffffffff
  * extraído para ser reusado por `prefetchCategoryContent` sem duplicar a
  * lógica.
  */
-async function loadCategoryContent(sourceId: string, category: CatalogCategory): Promise<CategoryContent> {
-  const result = await ensureCategory(sourceId, category)
+async function loadCategoryContent(
+  sourceId: string,
+  category: CatalogCategory,
+  signal?: AbortSignal,
+): Promise<CategoryContent> {
+  // Só passa `{ signal }` quando há um sinal de verdade (prefetch) — a
+  // entrada real (`useCategoryContent`, sem `signal`) nunca é abortável e
+  // mantém a mesma chamada de sempre (bug
+  // `prefetch-concorrente-categoria-sem-cancelamento-requisicao`).
+  const result = signal
+    ? await ensureCategory(sourceId, category, { signal })
+    : await ensureCategory(sourceId, category)
   // As três seções buscam a categoria inteira, sem teto de leitura (feature
   // 009, D-002 completo) — painel de canais e grades de pôsteres agora
   // virtualizam o que renderizam, então não precisam mais de um corte
@@ -249,10 +266,11 @@ export function prefetchCategoryContent(
   queryClient: QueryClient,
   sourceId: string,
   category: CatalogCategory,
+  signal?: AbortSignal,
 ): Promise<void> {
   return queryClient.prefetchQuery({
     queryKey: categoryContentKey(sourceId, category.id),
-    queryFn: () => loadCategoryContent(sourceId, category),
+    queryFn: () => loadCategoryContent(sourceId, category, signal),
   })
 }
 
@@ -286,6 +304,22 @@ export function prefetchCategoryContent(
  * de dependências do efeito) fecha a corrida na raiz, sem precisar
  * invalidar a query de categorias nem tornar `ensureCategory` ciente de
  * cache alheio.
+ *
+ * **Bug `prefetch-concorrente-categoria-sem-cancelamento-requisicao`
+ * (2026-09-25)**: até aqui, o `clearTimeout` do cleanup só cancelava um
+ * timer que ainda não tinha disparado — uma vez que a busca de rede
+ * começava, nada a interrompia, mesmo que o cursor já tivesse saído
+ * daquela categoria há muito. Numa trilha longa (dezenas de categorias),
+ * navegação humana normal deixava várias dessas buscas "esquecidas"
+ * correndo ao mesmo tempo, competindo por banda/conexões contra a mesma
+ * origem — achado na TV física contra uma fonte real, onde a categoria em
+ * que a pessoa de fato queria entrar podia demorar mais de um minuto por
+ * estar na fila atrás delas. Agora cada busca carrega um `AbortController`
+ * próprio, guardado em `inFlightRef`; iniciar a busca seguinte aborta a
+ * anterior — **exceto** quando essa anterior é a categoria já **entrada**
+ * (`enteredCategoryId`): essa busca passou a ser compartilhada com a
+ * entrada real via `dedup` do `categoryLoader`, e abortá-la quebraria a
+ * entrada também.
  */
 export function useCategoryFocusPrefetch(
   sourceId: string | null,
@@ -293,13 +327,20 @@ export function useCategoryFocusPrefetch(
   enteredCategoryId?: number,
 ) {
   const queryClient = useQueryClient()
+  const inFlightRef = useRef<{ categoryId: number; controller: AbortController } | null>(null)
 
   useEffect(() => {
     if (!sourceId || !focusedCategory) return
     if (focusedCategory.id === enteredCategoryId) return
 
     const timer = setTimeout(() => {
-      void prefetchCategoryContent(queryClient, sourceId, focusedCategory)
+      const previous = inFlightRef.current
+      if (previous && previous.categoryId !== focusedCategory.id && previous.categoryId !== enteredCategoryId) {
+        previous.controller.abort()
+      }
+      const controller = new AbortController()
+      inFlightRef.current = { categoryId: focusedCategory.id, controller }
+      void prefetchCategoryContent(queryClient, sourceId, focusedCategory, controller.signal)
     }, CATEGORY_PREFETCH_DEBOUNCE_MS)
 
     return () => clearTimeout(timer)
@@ -536,6 +577,58 @@ export function useSeriesEpisodes(seriesItemId: string | null) {
 }
 
 /**
+ * Estado agregado "Em dia" por série (feature 019, D-008,
+ * `logic/agregacao-serie.md`). Lê, numa única consulta local, TODOS os
+ * episódios já conhecidos da fonte (`listAllEpisodes` — nunca chama
+ * `ensureSeriesEpisodes`/rede, constitution "Comandos Locais Independem de
+ * Rede"), agrupa por `seriesId`, lê os `UserStateRecord` correspondentes em
+ * lote e aplica `summarizeSeriesWatched` por grupo.
+ */
+export function useSeriesWatchedSummary(sourceId: string | null) {
+  return useQuery({
+    queryKey: ['series-watched-summary', sourceId],
+    queryFn: async (): Promise<Map<string, SeriesWatchedSummary>> => {
+      if (!sourceId) return new Map()
+      const episodes = await listAllEpisodes(sourceId, db)
+
+      const stableIdBySeriesId = new Map<string, string[]>()
+      for (const episode of episodes) {
+        if (!episode.seriesId) continue
+        let stableId: string
+        try {
+          stableId = buildStableId({
+            sourceId,
+            kind: 'episode',
+            providerStreamId: episode.providerStreamId,
+            seriesId: episode.seriesId,
+            seasonNumber: episode.seasonNumber,
+            episodeNumber: episode.episodeNumber,
+            originalName: episode.originalName,
+          })
+        } catch {
+          continue // D-010: episódio sem identidade estável não entra na agregação
+        }
+        const list = stableIdBySeriesId.get(episode.seriesId)
+        if (list) list.push(stableId)
+        else stableIdBySeriesId.set(episode.seriesId, [stableId])
+      }
+
+      const allStableIds = [...stableIdBySeriesId.values()].flat()
+      const allStates = await getUserStates(allStableIds, db)
+      const stateByStableId = new Map(allStableIds.map((id, i) => [id, allStates[i]]))
+
+      const summaryBySeriesId = new Map<string, SeriesWatchedSummary>()
+      for (const [seriesId, stableIds] of stableIdBySeriesId) {
+        const episodeStates = stableIds.map((id) => ({ completedAt: stateByStableId.get(id)?.completedAt }))
+        summaryBySeriesId.set(seriesId, summarizeSeriesWatched(episodeStates))
+      }
+      return summaryBySeriesId
+    },
+    enabled: sourceId !== null,
+  })
+}
+
+/**
  * O estado do usuário de vários itens de uma vez, na mesma ordem pedida —
  * a lista de episódios não lê um por um (feature 012).
  */
@@ -588,6 +681,91 @@ export function useFavoriteIds(sourceId: string | null, kind: FavoritableKind) {
     },
     enabled: sourceId !== null,
   })
+}
+
+/**
+ * O conjunto de `stableId`s assistidos de uma fonte e tipo (feature 019,
+ * D-006) — mesmo padrão de `useFavoriteIds`: uma leitura local por
+ * fonte/tipo, nunca uma consulta por card. Alimenta o selo "Assistido" na
+ * grade de Filmes (SC-001).
+ */
+export function useWatchedIds(sourceId: string | null, kind: FavoritableKind) {
+  return useQuery({
+    queryKey: ['watched-ids', sourceId, kind],
+    queryFn: async (): Promise<Set<string>> => {
+      if (!sourceId) return new Set()
+      const watched = await listWatched(sourceId, kind, db)
+      return new Set(watched.map((state) => state.stableId))
+    },
+    enabled: sourceId !== null,
+  })
+}
+
+/**
+ * Itens (filme/episódio) com progresso de retomada nesta fonte, mais
+ * recente primeiro (feature 019, D-009, FR-012/FR-013). `getContinueWatching`
+ * já filtra por `progressSeconds > 0` — um item concluído (sem retomada)
+ * nunca chega aqui. Itens sem correspondência no catálogo atual (fonte/
+ * categoria removida) são omitidos por `resolveContinueWatching`, nunca
+ * quebram a lista inteira (D-016/FR-016).
+ */
+export function useContinueWatchingContent(sourceId: string | null) {
+  return useQuery({
+    queryKey: ['continue-watching', sourceId],
+    queryFn: async (): Promise<CatalogItemOut[]> => {
+      if (!sourceId) return []
+      const states = await getContinueWatching(sourceId, db)
+      const records = await resolveContinueWatching(sourceId, states, db)
+      return records.map((record) => toItemOut(record, record.kind))
+    },
+    enabled: sourceId !== null,
+  })
+}
+
+export interface AggregatedItems {
+  /** Todos os itens do tipo já lidos no aparelho, de todas as categorias já cobertas — sem filtro. */
+  items: CatalogItemOut[]
+  /** Categorias do tipo com conteúdo já no aparelho (FR-010/FR-014 da feature 018). */
+  coveredCategories: number
+  /** Todas as categorias do tipo na geração ativa. */
+  totalCategories: number
+  isLoading: boolean
+}
+
+/**
+ * Itens da categoria virtual "Todos" (feature 018, D-005) — reaproveita o
+ * mesmo índice agregado de `useCatalogSearch`/`loadSearchIndex`, mas SEM
+ * aplicar filtro de termo: quem quiser filtrar chama `searchWithinItems`
+ * (catalogSearch.ts) por cima do array devolvido aqui, client-side. `enabled`
+ * só é verdadeiro com "Todos" entrada — fora dela, nada é lido.
+ */
+export function useAggregatedItems(
+  sourceId: string | null,
+  kind: FavoritableKind,
+  enabled: boolean,
+): AggregatedItems {
+  // `refetchOnMount: 'always'` + `staleTime: 0`: cada entrada em "Todos" relê
+  // o índice — categorias abertas desde a última vez entram na lista e na
+  // cobertura (mesmo padrão de `useCatalogSearch`, D-005 do plan.md).
+  const indexQuery = useQuery({
+    queryKey: ['catalog-search-index', sourceId, kind],
+    queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
+    enabled: enabled && sourceId !== null,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
+
+  const items = useMemo(() => {
+    if (!indexQuery.data) return []
+    return indexQuery.data.entries.map((entry) => toItemOut(entry.record, kind))
+  }, [indexQuery.data, kind])
+
+  return {
+    items,
+    coveredCategories: indexQuery.data?.coveredCategories ?? 0,
+    totalCategories: indexQuery.data?.totalCategories ?? 0,
+    isLoading: indexQuery.isLoading,
+  }
 }
 
 export interface FavoritesContent {
@@ -654,6 +832,35 @@ export function useToggleFavorite() {
       void queryClient.invalidateQueries({ queryKey: ['favorite-ids', item.source_id, item.kind] })
       void queryClient.invalidateQueries({ queryKey: ['favorites-content', item.source_id, item.kind] })
       if (stableId) void queryClient.invalidateQueries({ queryKey: ['user-state', stableId] })
+    },
+  })
+}
+
+/**
+ * Correção manual de "assistido" (feature 019, D-004) — recebe a
+ * identidade já calculada pela tela (`MovieDetailScreen`, mesmo par
+ * `stableId`/`sourceId` que `progressRecorder`/`useUserState` usam), não
+ * um `CatalogItemOut`: diferente de favorito, "assistido" não depende do
+ * `kind` do item pra decidir se é aplicável.
+ */
+export function useToggleWatched() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (params: { stableId: string; sourceId: string; watched: boolean }): Promise<void> => {
+      await setWatchedManually(params.stableId, params.sourceId, params.watched, db)
+    },
+    onSuccess: (_result, params) => {
+      void queryClient.invalidateQueries({ queryKey: ['user-state', params.stableId] })
+      // Prefixo, não uma combinação sourceId/kind específica — mesmo padrão
+      // de `invalidateUserStates`: o card na grade (D-006) não precisa saber
+      // qual tela disparou o toggle.
+      void queryClient.invalidateQueries({ queryKey: ['watched-ids'] })
+      // Marcar manualmente como assistido apaga o progresso de retomada
+      // (D-004) — sem isto, o hub continuaria mostrando o item em
+      // "Continuar assistindo" até uma navegação nova forçar releitura
+      // (achado real durante o E2E desta feature, T023).
+      void queryClient.invalidateQueries({ queryKey: ['continue-watching', params.sourceId] })
     },
   })
 }

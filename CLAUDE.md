@@ -80,7 +80,7 @@ because a browser can't prove how the real remote's `keydown` auto-repeat
 and `keyup` behave. See `sdd/specs/013-favoritos/plan.md` →
 `## Estado Atual` and R-001/R-011.
 
-**In execution**: `014-m3u-sob-demanda` — closes the gap feature 010 left
+**Converged**: `014-m3u-sob-demanda` — closes the gap feature 010 left
 on purpose: an M3U source (URL or "Modo limitado") used to import every
 item eagerly, because a flat M3U file has no per-category network
 protocol. Code is now complete for two paths, chosen per import: (1) if
@@ -105,11 +105,148 @@ gave no way to understand or act on it. Along the way, a pre-existing bug
 surfaced and was fixed with the user's explicit approval: the "Tentar de
 novo" retry button on all three category screens (Live/Movies/Series,
 present since feature 010) looked focused (`tv-focus`) but SELECT never
-activated it — only a mouse click did. All code-complete, three E2E
-scenarios (`tv-web/e2e/m3u-sob-demanda.mjs`) green; only the two
-performance measurements that need the user's real list (SC-001/SC-002)
-are outstanding. See `sdd/specs/014-m3u-sob-demanda/plan.md` →
-`## Estado Atual` for the phase-by-phase detail.
+activated it — only a mouse click did. Three E2E scenarios
+(`tv-web/e2e/m3u-sob-demanda.mjs`) green; the two performance
+measurements that need the user's real list (SC-001/SC-002) remain open,
+tracked in the spec, not a convergence blocker. See
+`sdd/specs/014-m3u-sob-demanda/plan.md` → `## Resultado Final`.
+
+**In execution**: `015-capa-real-filmes-series` — closes a real gap the
+user noticed: no cover art loaded anywhere, for either movies or series.
+The connector/parser never captured it and the grid always drew the same
+placeholder. Now `stream_icon`/`cover` (Xtream) and the M3U `tvg-logo`
+attribute are captured into a new `iconUrl` field (`CatalogRecord`, no
+Dexie version bump — it's an unindexed value field) through both import
+paths (provider `on_demand`, M3U `stored`), and a new shared component,
+`PosterArt` (`tv-web/src/components/PosterArt.tsx`), renders it with a
+fallback to the existing placeholder — for a missing cover or a failed
+load, never the browser's own broken-image icon. Live TV is deliberately
+untouched. Loading follows the grid's existing virtualization window
+(feature 009) by construction, not a new mechanism — confirmed by E2E
+with 500 items in one category. Along the way, a real pre-existing bug
+surfaced and was fixed with the user's explicit approval: `useCategory
+FocusPrefetch` (feature 010's debounced trail-prefetch) kept a timer tied
+to the trail's focused category even after the person had already
+entered it; for a `stored` category (feature 014), that stale timer could
+re-read already-consumed `storedEntries` blocks and overwrite the good,
+already-displayed content with `source_missing` — content silently
+vanishing ~300ms after entry, no user action needed. Fixed by cancelling
+that timer once the focused category is the entered one. See
+`sdd/specs/015-capa-real-filmes-series/plan.md` → `## Estado Atual`.
+
+**Code-complete**: `016-zapping-live-tv` — pressing OK while a channel
+plays fullscreen brings the category rail and channel list back on top of
+the video, which keeps playing, dimmed behind it; picking another channel
+switches the session, and only once it's actually playing does the list
+close — never before, so there's no perceptible black/frozen frame during
+the swap. A real hardware constraint shaped the design: `webapis.avplay`
+is a singleton (only one video session can ever be open), so "no gap" is
+achieved by keeping the zapping list itself as the opaque layer during the
+swap, not by holding two concurrent sessions. `PlayerLayer.tsx` stayed
+generic — it gained an optional `topLayer` (content + redirected
+direction/select/back/longSelect/favoriteKey handlers, since its
+`useRemoteNav({modal:true})` can only own one keyboard registration at a
+time), `onIdleSelect` (fires when SELECT arrives with no control action
+available, i.e. always true for a live channel), `onEnteredPlaying` and
+`onSessionError` — it never learns what a "channel" is. All of that logic
+lives in `LiveScreen.tsx`, reusing the exact same navigation functions as
+the non-zapping path (extracted, not duplicated). Session swapping itself
+is untouched — the existing `useEffect` on `[itemId, attempt,
+createAdapter]` already closes-then-opens sequentially, and already
+discards superseded in-flight switches, so rapid channel-hopping was free.
+Holding OK (or the yellow key) inside the zapping list favorites the
+focused channel without triggering a switch, per the spec's edge case —
+this required extending `PlayerLayerTopLayer` with the same gesture
+`LiveScreen` already had outside of zapping. 679 tests passing,
+`tsc`/lint/build clean, a new Playwright E2E script
+(`tv-web/e2e/zapping-live-tv.mjs`, 11 assertions) verified end-to-end in a
+real Chromium (note: its `executablePath` targets the Linux sandbox path
+already hardcoded by every other `e2e/*.mjs` script — running locally on
+Windows needs a temporary path override, same as the others). See
+`sdd/specs/016-zapping-live-tv/plan.md` → `## Estado Atual` and
+`logic/zapping.md` for the full contract.
+
+**Superseded by feature 018 below**: `017-busca-local-catalogo` shipped
+local search as a single "🔍 Buscar" entry pinned atop each section's
+category trail, searching that whole catalog type at once regardless of
+category. It converged `Implementada` in that shape, but the user asked
+for a redesign right after (recorded as R-006 in that feature's `plan.md`)
+— the design actually in production is `018-busca-por-categoria` below.
+What 017 still contributes unchanged: the `CategoryScreenSnapshot`
+mechanism (restoring the exact category/search term, scroll position and
+focused item when going back from a movie/series detail screen instead of
+resetting to the top) and the `useRemoteNav` editable-target guard that
+lets a text field coexist with remote-control navigation (ADR-009
+amendment) — both reused as-is by 018. See
+`sdd/specs/017-busca-local-catalogo/plan.md` → `## Estado Atual` and its
+`R-006` for the full history.
+
+**Code-complete**: `018-busca-por-categoria` — redesigns search per the
+user's explicit request: instead of one catalog-wide entry, search is now
+a 44×44px icon that appears inside each already-entered trail item — a
+real category, "★ Favoritos", or a new virtual "Todos" category — once
+that entry has at least one item loaded. Typing filters only what's
+already loaded there (no debounce, unlike 017 — pure client-side filter
+over in-memory items). "Todos" is a fixed second trail entry (right after
+"★ Favoritos", `VIRTUAL_TRAIL_COUNT = 2`) that aggregates every category's
+items already read into `channels` and lets search span all of them,
+still excluded from Live TV zapping's search icon (FR-018) though "Todos"
+itself is a normal zappable category (D-009). A category/Favorites never
+entered, or a `stored` M3U category (feature 014) never opened, is left
+out of "Todos" and the screen says so ("Busca em X de Y categorias") even
+before typing anything, never silently narrowing without explanation.
+`CategoryScreenSnapshot` gained a `{kind:'all'}` trail key and a
+`searchActive` flag, replacing 017's separate `{kind:'search'}` state —
+removed everywhere, along with the now-dead `useCatalogSearch` hook and
+the orphaned `useDebouncedValue` helper it was the last caller of.
+`searchIndex()` (the lower-level scan) survives unchanged as the engine
+behind "Todos"; only the React hook wrapping it for the old design is
+gone. 712 tests passing (one pre-existing `LiveScreen.favorites.test.tsx`
+flake, confirmed 15/15 isolated), `tsc`/lint/build clean, a new Playwright
+E2E script (`tv-web/e2e/busca-por-categoria.mjs`, 17 assertions) replacing
+017's `busca-local.mjs`. See
+`sdd/specs/018-busca-por-categoria/plan.md` → `## Estado Atual` for the
+phase-by-phase detail.
+
+**Code-complete**: `019-historico-continuar-assistindo` — closes the RF-014
+gap left after `UserStateRepository` (008), movie resume (011) and
+per-episode "watched" (012) shipped: a finished movie kept only losing its
+resume position, never gaining an explicit "watched" mark, series had no
+aggregated view of how many known episodes were seen, and
+`getContinueWatching()` (008) had no consumer anywhere in the UI. Movie
+reuses the exact same `completedAt` field episode already uses (no Dexie
+migration) with its own auto-completion threshold, `MOVIE_WATCHED_RATIO =
+0.9` (`resumePolicy.ts`), distinct from the pre-existing `RESUME_MAX_RATIO
+= 0.95` that only clears resume — `isPastEnd`/`ProgressRecorderOptions`
+both gained an optional ratio parameter, defaulting to the old constant so
+episode behavior is untouched. `MovieDetailScreen` gained a manual
+"Marcar/Desmarcar assistido" action, always last in the action array so the
+primary action's fixed index never shifts. Series aggregation
+(`summarizeSeriesWatched`, a pure function with no React/DB) treats episode
+coverage as binary — "known" means every episode from that source's last
+read, never partial, because `fetchSeriesInfo`/M3U category reads always
+bring all episodes at once — and only ever reports "Em dia" with full
+coverage and everything watched, never with partial or zero data. The hub
+screen (`ListHomeScreen`) gained a "Continuar assistindo" section above the
+three tiles, present only when at least one item has progress; an episode
+never resolves to itself there (the app has no standalone episode route) —
+`resolveContinueWatching` swaps it for its parent series record before
+returning, reusing `resolveFavorites`' resolution core. Two real
+concurrency/invalidation bugs surfaced only through the E2E script and were
+fixed: `PlayerLayer`'s completion handler called `recorder.onExit
+('completed')` fire-and-forget, so the cheaper 1-op `user-state`
+invalidation could resolve before `markCompleted`'s 2-op (get+put)
+transaction committed, leaving a still-mounted `MovieDetailScreen` stuck
+showing "not watched"; `onExit` is now `async`/awaited before `onClose`/
+`onCompleted` fire. Separately, `useToggleWatched` didn't invalidate the
+`continue-watching` query key, so manually marking an item watched didn't
+remove it from the hub section until an unrelated navigation forced a
+refetch. 732 tests (5 pre-existing `*.favorites.test.tsx`/`LiveScreen.
+test.tsx` flakes under full-suite parallelism, confirmed 64/64 passing
+isolated), `tsc`/lint/build clean, a new Playwright E2E script
+(`tv-web/e2e/historico-continuar-assistindo.mjs`, 11 assertions). See
+`sdd/specs/019-historico-continuar-assistindo/plan.md` → `## Estado Atual`
+for the phase-by-phase detail.
 
 The four top-level directories:
 
@@ -342,6 +479,7 @@ under Windows PowerShell 5.1; `pwsh` is not installed on this machine.
 | `update-feature-status.ps1 -Slug <NNN-slug> [-Status <value>] [-Json]` | Recalculates progress in `backlog.md` and (if `-Status` given) the `**Status**:` line in `spec.md` |
 | `resolve-bug.ps1 [-Slug <slug>] [-Title "<description>"] [-Json]` | Creates/finds `sdd/bugs/<slug>/`, reports next phase (`assess`/`fix`/`test`/`complete`) |
 | `update-bug-status.ps1` | Recalculates the `## Bugs` panel in `backlog.md` from `sdd/bugs/<slug>/*.md` |
+| `check-contract-tests.ps1 -Slug <slug> [-Write [-Paths <files>]] [-Json]` | Locks a feature's contract tests (written by `sdd-plan`, max 5 test cases) in `contract-tests.lock` by SHA256; without `-Write` it verifies nothing changed — `sdd-execute` must make them pass, never edit them |
 | `resolve-assessment.ps1 [-Slug <slug>] [-Title "<description>"] [-Json]` | Creates/finds `sdd/assessments/<slug>/`, reports next phase (`define`/`decide`/`complete`) |
 
 The `.specify/` / `.github/skills/speckit-*` tooling, if present in a

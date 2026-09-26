@@ -6,11 +6,14 @@ update-bug-status.ps1.
 
 ## Ideias Futuras
 
-Revisado em 2026-09-24 para refletir o progresso da feature
+Revisado em 2026-09-25 para refletir a convergência das features
+`013-favoritos`, `014-m3u-sob-demanda` e `015-capa-real-filmes-series`
+(favoritos em canal/filme/série; fonte M3U estrutura-primeiro com detecção
+de painel Xtream; capa real de filmes e séries capturada da própria
+fonte). A revisão anterior, de 24/09, refletia o progresso da feature
 `011-assistir-filme-retomada` (contrato de capacidades, reprodução de
-filme, retomada — verificação na TV física em andamento). A revisão
-anterior, de 23/09, refletia a convergência das features 006 a 010
-(conector VOD/séries, higiene de credenciais, `UserStateRepository`,
+filme, retomada). A de 23/09 refletia a convergência das features 006 a
+010 (conector VOD/séries, higiene de credenciais, `UserStateRepository`,
 virtualização e carga sob demanda por categoria), e a de 22/09 a
 **decisão ADR-008** (arquitetura client-first) e a conclusão da feature
 005.
@@ -50,7 +53,21 @@ entregues (4, 5, 6 e 9) e o bug de lint resolvido; os itens parcialmente
 entregues (7, 8, 13) dizem só o que falta. O item 11 (Favoritos) virou a
 feature **013-favoritos**, especificada no mesmo dia.
 
-**O que já existe hoje** (estado pós-feature 012):
+**Revisão de 2026-09-25 (pós-015)**: item 8 (arte de filmes/séries) —
+a parte de capa real foi **entregue** pela feature `015-capa-real-filmes-series`;
+só o hero de detalhe (que depende de TMDB, item 28) e itens menores
+continuam pendentes. Item 13 (histórico) ganhou a marca "assistido" por
+episódio da feature `012-series-episodios-temporadas` — a semântica
+agregada por série e o hero da Home continuam pendentes. Itens 16 e 24
+tinham "feature 013 (favoritos)" como pré-requisito ainda não cumprido —
+**013 convergiu em 24/09/2026**, então esse pré-requisito específico já
+está satisfeito; o que falta em cada item é só o que o próprio item ainda
+lista. O bug "Botões 'Tentar de novo'/'Voltar' não ativáveis por controle
+remoto" foi **corrigido nas três telas de categoria** (Live/Filmes/
+Séries) pela feature `014-m3u-sob-demanda` — a entrada ficou só com o que
+não foi coberto por essa correção pontual.
+
+**O que já existe hoje** (estado pós-feature 015):
 - **Importação client-first ponta a ponta** (feature 005, convergida em
   22/09/2026): o app obtém dados da fonte (provedor Xtream ou URL M3U)
   diretamente do aparelho, interpreta e classifica em Web Worker
@@ -65,15 +82,28 @@ feature **013-favoritos**, especificada no mesmo dia.
   **Substituiu o descarte de VOD/séries da FR-008 da 005**: os três tipos
   são gravados hoje.
 - **Fonte M3U também estrutura-primeiro** (feature `014-m3u-sob-demanda`,
-  código completo em 24/09/2026, ADR-010): uma URL M3U de painel Xtream
+  convergida em 24/09/2026, ADR-010): uma URL M3U de painel Xtream
   reconhecido segue a 010 por inteiro; o resto (URL avulsa, painel não
   confirmado, "Modo limitado") guarda o conteúdo já classificado e
   separado por categoria — nunca mais em `channels` durante a
   importação — e lê cada categoria desse conteúdo guardado ao entrar,
   sem rede nova. O selo "Modo limitado" ganhou explicação no hub da
   lista. Faltam só as duas medições de tempo com a lista real do
-  usuário (SC-001/SC-002); ver `sdd/specs/014-m3u-sob-demanda/plan.md`
-  → `## Estado Atual`.
+  usuário (SC-001/SC-002), fora do gate de convergência; ver
+  `sdd/specs/014-m3u-sob-demanda/plan.md` → `## Resultado Final`.
+- **Favoritos em canal, filme e série** (feature `013-favoritos`,
+  convergida em 24/09/2026): segurar OK (ou a tecla amarela, segundo
+  caminho achado necessário na TV física) favorita/desfavorita qualquer
+  item, com "★ Favoritos" fixo no topo da trilha de categorias das três
+  telas. Sobrevive a ressincronização e remoção de fonte. Primeiro
+  consumidor real dos favoritos do `UserStateRepository` (feature 008).
+- **Capa real de filmes e séries** (feature `015-capa-real-filmes-series`,
+  convergida em 25/09/2026, pedido direto do usuário): captura
+  `stream_icon`/`cover` (Xtream) e `tvg-logo` (M3U) na importação, com
+  fallback ao placeholder de sempre — sem capa declarada ou falha de
+  carregamento, nunca o ícone nativo de imagem quebrada. Carregamento
+  segue a janela da virtualização (feature 009): nunca a categoria
+  inteira de uma vez. Live TV fica de fora, de propósito.
 - **Splash + Home de listas + formulário de adicionar lista** (feature
   002).
 - **Live TV com catálogo real e reprodução AVPlay** (feature 003,
@@ -134,12 +164,17 @@ de "assistido" agregada por série, hero de "continuar assistindo").
    A feature 003 entregou a tela com três estados (vazio, selecionado,
    reproduzindo), troca do preview de ruído por informação real e Enter →
    AVPlay. As features 009 e 010 entregaram a lista virtualizada e o reset
-   ao trocar de categoria. **Fica para este item**:
-   - Hand-off direcional com foco real no contêiner rolável (para o
-     scroll nativo funcionar).
-   - Botão "voltar ao canal que está tocando".
-   - Zapping por cima do vídeo — detalhado no item 10, que é onde a
-     decisão de desenho mora.
+   ao trocar de categoria.
+
+   **Especificada como feature `016-zapping-live-tv`** (25/09/2026): o
+   zapping por cima do vídeo e o "botão voltar ao canal que está tocando"
+   (que só fazia sentido dado o zapping — virou o próprio RETURN da lista
+   sobreposta, com foco padrão no canal tocando, não um botão à parte).
+
+   **Saiu de escopo, considerado já resolvido**: hand-off direcional de
+   foco no contêiner rolável — a lista de canais já tem scroll
+   sincronizado ao foco (`scrollToIndex`, feature 009), sem gap
+   conhecido.
 
    (RF-008; ADR-005 §3; ADR-007 §4/§5;
    `docs/iptvnator/07-tela-canais.md` #1–5/#8)
@@ -152,19 +187,21 @@ de "assistido" agregada por série, hero de "continuar assistindo").
    **Já entregue pela feature 011**: Assistir/Retomar/Reiniciar, controles
    de VOD e retomada por identidade estável.
 
-   **Especificada como feature `015-capa-real-filmes-series`** (24/09/2026,
-   pedido direto do usuário — percebeu que nenhuma capa carrega): captura
-   de `stream_icon`/`cover` (Xtream) e `tvg-logo` (M3U) para filme e
-   série, guardada no catálogo local, exibida nas grades de Filmes e
-   Séries com fallback ao placeholder atual (sem capa declarada, ou falha
-   de carregamento — nunca o ícone nativo de imagem quebrada). Deixou
-   fora de escopo, de propósito: Live TV, detecção de "capa em branco",
-   e o hero de detalhe (abaixo, que depende de TMDB).
+   **Entregue pela feature `015-capa-real-filmes-series`** (convergida em
+   25/09/2026, pedido direto do usuário — percebeu que nenhuma capa
+   carrega): captura de `stream_icon`/`cover` (Xtream) e `tvg-logo` (M3U)
+   para filme e série, guardada no catálogo local, exibida nas grades de
+   Filmes e Séries com fallback ao placeholder atual (sem capa declarada,
+   ou falha de carregamento — nunca o ícone nativo de imagem quebrada).
+   Deixou fora de escopo, de propósito: Live TV, detecção de "capa em
+   branco", e o hero de detalhe (abaixo, que depende de TMDB).
+
+   **Entregue pela feature `017-busca-local-catalogo`** (25/09/2026):
+   empty state de "sem resultado de busca", distinto do de categoria vazia
+   — nas três telas (Live TV, Filmes, Séries).
 
    **Continua fora de escopo, depende de outros itens**:
    - Skeleton de mesma geometria do card.
-   - Empty state de "sem resultado de busca", **distinto** do de categoria
-     vazia que já existe (depende do item 12).
    - Detalhe com hero real (backdrop, sinopse com "ver mais" acionável por
      Enter). Sem TMDB (item 28) a sinopse não existe na fonte — hoje a tela
      diz isso em vez de inventar.
@@ -177,31 +214,25 @@ de "assistido" agregada por série, hero de "continuar assistindo").
 
 10. **Ciclo de vida do player na TV**
 
-    Absorve o resto do antigo item 4: o contrato de capacidades e a
-    identidade lógica de reprodução foram entregues pela feature 011; o
-    progresso intermediário também (`progressRecorder.ts`). Falta:
+    **Especificada como feature `020-ciclo-vida-player`** (26/09/2026):
+    desligar screensaver durante reprodução (religa ao pausar/encerrar),
+    pausa automática ao ocultar o app (`visibilitychange`) com revalidação
+    da URL de reprodução ao voltar a ficar visível, e tratamento de
+    conclusão detectada ao voltar como conclusão normal. Preservar
+    preferência de áudio/legenda ficou **fora do escopo** — não existe
+    seletor de faixa hoje, decisão explícita do usuário na entrevista. Ver
+    `sdd/specs/020-ciclo-vida-player/spec.md`.
 
-    - Desligar screensaver durante reprodução, reativá-lo ao
-      pausar/parar.
-    - Tratar `visibilitychange` executando fluxo de interrupção completo
-      (sem áudio residual em segundo plano) e revalidando rede/dados
-      expirados ao retomar.
-    - Impedir sessões sobrepostas na troca rápida de canal, descartando
-      callbacks atrasados da mídia anterior.
-    - Preservar preferência de áudio/legenda quando a próxima mídia
-      oferecer equivalente, sem afirmar que a faixa existe sempre.
-
-    **Pedido do usuário** (18/09/2026, observado na TV durante a
-    convergência da 003): **zapping por cima do vídeo** — com o canal em
-    tela cheia, pressionar OK traz de volta a lista de canais **sobre** a
-    reprodução; escolher outro canal troca o stream; a lista some de novo.
-    Decisões necessárias:
-    - O que a lista mostra por cima do vídeo e quanto da tela ocupa.
-    - Se o player continua tocando enquanto se navega.
-    - O que acontece se o canal novo falhar (volta para o anterior ou fica
-      no erro?).
-    - Em que momento a sessão antiga é encerrada.
-    Merece spec própria via `sdd-specify`, não ajuste ad-hoc.
+    **O zapping por cima do vídeo** (pedido do usuário, 18/09/2026,
+    observado na TV durante a convergência da 003) **virou a feature
+    `016-zapping-live-tv`** (especificada em 25/09/2026), com todas as
+    decisões de design já resolvidas lá (o que a lista mostra, se o
+    player continua tocando, o que fazer se o canal novo falhar, quando
+    a sessão antiga encerra). **"Impedir sessões sobrepostas na troca
+    rápida de canal" também saiu daqui** — na prática só acontece através
+    do zapping (a navegação normal não permite reselecionar rápido com
+    um canal já tocando), então virou FR-009/SC-003 da 016, não uma
+    pendência solta deste item.
 
     **Nota client-first**: o progresso é gravado no `UserStateRepository`
     (feature 008), não num banco remoto. A revalidação de dados expirados ao
@@ -212,51 +243,39 @@ de "assistido" agregada por série, hero de "continuar assistindo").
 
 12. **Pesquisa nos três tipos**
 
-    Busca local no catálogo já salvo no IndexedDB, indicando escopo ativo
-    e cobertura parcial quando o catálogo estiver truncado
-    (`truncatedByStorage`).
-
-    **Entregáveis**:
-    - Campo de busca com debounce (~300 ms, ajustável) usando
-      `catalogRepository` para consulta local.
-    - Cancelar respostas antigas quando o termo muda.
-    - Mover o foco para o primeiro resultado ao confirmar.
-    - RETURN volta ao termo sem apagar o contexto.
-    - Tratar acentos e caixa de forma consistente (normalização Unicode).
-    - Não enviar todo termo digitado a serviço externo por padrão.
-
-    **Nota client-first**: a busca é 100% local (IndexedDB). Pode usar
-    `Dexie.where()` com filtro ou criar índice de texto conforme o volume
-    justifique.
+    **Virou a feature `017-busca-local-catalogo`** (especificada em
+    25/09/2026): entrada "🔍 Buscar" no topo da trilha de cada seção,
+    busca por nome só no que já está no aparelho (nunca no provedor), a
+    partir de 3 caracteres, com aviso "busca em X de Y categorias" quando
+    a cobertura for parcial. Ficaram fora de escopo, de propósito: busca
+    global no hub, achar categorias pelo nome, buscar episódios, buscar
+    no provedor pela rede para ampliar a cobertura, e teclado próprio
+    (item 18). Ver `sdd/specs/017-busca-local-catalogo/spec.md`.
 
     (RF-012; ADR-005 §3; `docs/guia-praticas-app-tv/05` §2)
 
 13. **Histórico e "continuar assistindo"**
 
-    Semântica distinta por mídia:
-    - **Filme**: progresso e conclusão. Conclusão automática a ~90%,
-      ajustável, com correção manual.
-    - **Série**: agrega avanço dos episódios, distingue "em dia".
-    - **Canal ao vivo**: registra acesso recente, nunca conclusão.
-    - Tentativa de play com erro **não** registra visualização.
-
-    Persistido em `userStateRepository`. Alimenta o hero de
-    "continuar assistindo" na Home (item 16).
-
     **O repositório já existe** (feature 008): `updateProgress` e
-    `getContinueWatching` prontos e testados, **sem nenhum consumidor**.
-    **A feature `011-assistir-filme-retomada` (24/09/2026) resolveu o
-    bloqueio e é o primeiro consumidor real do repositório**: `progressRecorder.ts`
-    grava a posição de filme em pontos intermediários (a cada 5s de avanço),
-    chaveada por identidade estável, com limiar inicial (ignora os primeiros
-    ~30s) e final (apaga ao ultrapassar ~95% ou ao concluir de verdade —
-    nunca por estimativa). Tentativa de play com erro não grava nada
-    (nenhum avanço aconteceu). **Continua neste item**: a semântica de
-    conclusão por tipo de mídia como sinal de HISTÓRICO (filme "assistido" a
-    ~90% independente de retomada, série agrega episódios e distingue "em
-    dia", canal ao vivo registra acesso recente nunca conclusão) e o hero de
-    "continuar assistindo" na Home (item 16) — a 011 grava e apaga posição
-    de retomada, não decide nem persiste "assistido".
+    `getContinueWatching` prontos e testados. **A feature
+    `011-assistir-filme-retomada` (24/09/2026)** é o primeiro consumidor
+    real: `progressRecorder.ts` grava a posição de filme em pontos
+    intermediários, com limiar inicial (~30s) e final (apaga ao
+    ultrapassar ~95% ou concluir de verdade). **A feature
+    `012-series-episodios-temporadas` (24/09/2026)** somou o segundo
+    consumidor: marca "assistido" por episódio, independente da retomada
+    do episódio em si e do resumo de filme.
+
+    **A parte que faltava virou a feature `019-historico-continuar-
+    assistindo`** (especificada em 26/09/2026): filme concluído passa a
+    ficar marcado como assistido de verdade (hoje só perde o progresso,
+    ~90%, com correção manual no detalhe); série ganha agregação "em dia"
+    exposta na grade (só quando a cobertura de episódios for completa,
+    nunca escondendo cobertura parcial); e uma seção "Continuar
+    assistindo" aparece no hub da fonte (não na Home de múltiplas listas,
+    que continua sendo o item 16). Canal ao vivo e marcação em lote de
+    episódios ficaram de propósito fora do escopo dessa feature. Ver
+    `sdd/specs/019-historico-continuar-assistindo/spec.md`.
 
     (RF-014; ADR-005 §4; `docs/guia-praticas-app-tv/06` §2 e
     `docs/guia-praticas-app-tv/01` §2)
@@ -285,8 +304,15 @@ função nova; todos mudam a sensação de uso.
 
 15. **Biblioteca de componentes de TV**
 
-    - `PosterCard`: área reservada por `aspect-ratio`, badges de
-      progresso/assistido na base do pôster.
+    **Primeiro passo real, feature 015**: `PosterArt`
+    (`tv-web/src/components/PosterArt.tsx`) já reserva área por
+    `aspect-ratio`, mostra a capa real com fallback seguro (placeholder
+    sem capa, nunca o ícone nativo de imagem quebrada) e aceita overlay
+    (`children`, hoje só `.fav-star`). Falta o resto do `PosterCard`
+    completo:
+    - Badges de progresso/assistido na base do pôster (depende do item 13,
+      que ainda não persiste "assistido" agregado nem progresso de filme
+      exposto como badge visual).
     - `ChannelRow`: logo com fallback + nome + slot de "agora" + barra de
       progresso.
     - `EmptyState` e `ErrorState`: ambos com CTA focável.
@@ -315,8 +341,9 @@ função nova; todos mudam a sensação de uso.
     - Sem listas, o shell da Home permanece e só o conteúdo vira
       empty-state de boas-vindas.
 
-    **Pré-requisitos**: feature 013 (favoritos) e item 13 (histórico) para o
-    hero funcionar.
+    **Pré-requisitos**: feature 013 (favoritos) — **já entregue,
+    convergida em 24/09/2026** — e o restante do item 13 (histórico
+    agregado por série + hero) para o hero funcionar.
 
     (`docs/iptvnator/09-dashboard-home.md` #1–6/#8;
     `docs/guia-praticas-app-tv/01` §2)
@@ -439,8 +466,8 @@ função nova; todos mudam a sensação de uso.
     anterior como indisponível, sem ser atribuído a outra obra por
     aproximação.
 
-    **Pré-requisitos**: feature 008 (`UserStateRepository`, já entregue) e
-    a feature 013 (favoritos) e o item 13 (histórico).
+    **Pré-requisitos**: feature 008 (`UserStateRepository`) e feature 013
+    (favoritos) — **as duas já entregues** — e o item 13 (histórico).
 
     (ADR-005 §2/§4;
     `docs/iptvnator/06-carga-listas-url-xtream.md` #8/#12)
@@ -858,47 +885,26 @@ mudaram de natureza** com a arquitetura client-first:
    na fase Polish**. Caminho normal: `sdd-bugfix`.
 
 0. **[Bug] Botões "Tentar de novo"/"Voltar" de estados de carregando/erro
-   não são ativáveis por controle remoto** — em `LiveScreen.tsx` (e
-   provavelmente em outras telas com o mesmo padrão), esses `<button>`
-   ganham a classe `.tv-focus` mas nenhum `.focus()` real é chamado, e
-   `useRemoteNav`'s `onSelect` não roteia Enter para eles (só trata
-   `col`/`activeChannel`/`focusedCategory`). O botão satisfaz a letra da
-   constitution ("tem elemento focável"), mas não o espírito: pressionar
-   OK no controle físico não ativa o clique. Só funciona por mouse (que
-   nunca passa pelo listener de `keydown` do `useRemoteNav`), por isso
-   nunca apareceu num teste manual só de mouse.
+   não são ativáveis por controle remoto** — **parcialmente corrigido**:
+   a feature `014-m3u-sob-demanda` (T039, 24/09/2026) consertou o
+   "Tentar de novo" nas três telas de categoria (`LiveScreen.tsx`,
+   `MoviesScreen.tsx`, `SeriesScreen.tsx`), no mesmo `onSelect` que ganhou
+   o caso `source_missing` — aprovado pelo usuário como desvio pequeno
+   dentro daquela feature, por ser exatamente o mesmo padrão que a task
+   em questão já estava mexendo. **O que fica**: conferir se o mesmo
+   padrão (`.tv-focus` sem roteamento real em `onSelect`) se repete em
+   outras telas fora dessas três (a suspeita original — "provavelmente em
+   outras telas" — nunca foi varrida no app inteiro, só nas três
+   corrigidas).
 
    **Origem**: achado durante a feature 010, Fase 3 (T033), em
-   23/09/2026 — pré-existente ao `LiveScreen` original (rewrite só
-   reproduziu o padrão fielmente, e acrescentou 2 instâncias novas no
-   painel de conteúdo da categoria). Fora do escopo da US2, que é sobre
-   obter itens sob demanda, não sobre o mecanismo de ativação por
-   controle. Corrigir provavelmente exige um roteamento genérico
-   "onSelect ativa o botão .tv-focus atual" dentro de `useRemoteNav`, ou
-   cada tela wireificar esses botões manualmente — decisão de design,
-   não um typo. Caminho normal: `sdd-bugfix`.
+   23/09/2026 — pré-existente ao `LiveScreen` original. Corrigido nas três
+   telas de categoria pela feature 014; permanece como item de backlog só
+   pela parte não varrida. Caminho normal: `sdd-bugfix`.
 
 0. **Decidir o destino de `api/delete_sources.py`** — o lint foi
    corrigido em 18/09/2026 (T052 da 003); fica em aberto se o script
    continua versionado junto do pacote congelado ou sai dele.
-
-0. **[Bug] Voltar do detalhe pra grade não restaura foco nem posição** — em
-   `tv-web/src/App.tsx`, o roteador é um `switch` que renderiza uma tela por
-   vez: abrir `MovieDetailScreen`/`SeriesDetailScreen` a partir de
-   `MoviesScreen`/`SeriesScreen` **desmonta** a tela de origem. Voltar
-   reconstrói do zero — categoria não entrada, foco no primeiro item,
-   rolagem no topo — violando "Voltar Restaura Foco e Posição" da
-   constitution. A camada de reprodução (`PlayerLayer`) não sofre disso
-   porque é montada como camada por cima da tela de detalhe, não como uma
-   troca de rota — só a navegação **entre telas do roteador** tem o
-   problema.
-
-   **Origem**: achado na exploração da feature `011-assistir-filme-retomada`
-   (24/09/2026) — pré-existente, não introduzido por ela, e fora do escopo
-   dela (a 011 trata do retorno do player pro detalhe, que já funciona).
-   Corrigir exige guardar estado de foco no histórico de navegação do
-   `App.tsx` ou manter as telas montadas em vez de trocar — decisão de
-   design, não um ajuste pequeno. Caminho normal: `sdd-bugfix`.
 
 0. **[Bug] Mensagem genérica de erro de reprodução sempre diz "canal"**
    — `tv-web/src/lib/player/avplayAdapter.ts` (`toPlayerError`) e
@@ -1041,7 +1047,12 @@ mudaram de natureza** com a arquitetura client-first:
 | 012-series-episodios-temporadas | Séries — Episódios e Temporadas | Convergida | 52/55 tasks | 2026-09-24 |
 | 013-favoritos | Favoritos em Canais, Filmes e Séries | Convergida | 47/47 tasks | 2026-09-24 |
 | 014-m3u-sob-demanda | Fonte M3U Estrutura-Primeiro (Detecção de Painel Xtream ou Arquivo Guardado) | Convergida | 58/62 tasks | 2026-09-24 |
-| 015-capa-real-filmes-series | Capa Real de Filmes e Séries | Em Execução | 19/34 tasks | 2026-09-24 |
+| 015-capa-real-filmes-series | Capa Real de Filmes e Séries | Convergida | 34/34 tasks | 2026-09-25 |
+| 016-zapping-live-tv | Zapping por Cima do Vídeo em Live TV | Convergida | 41/41 tasks | 2026-09-25 |
+| 017-busca-local-catalogo | Busca Local em Live TV, Filmes e Séries | Implementada | 40/42 tasks | 2026-09-25 |
+| 018-busca-por-categoria | Busca por categoria com ícone de entrada e categoria virtual "Todos" | Convergida | 36/36 tasks | 2026-09-26 |
+| 019-historico-continuar-assistindo | Histórico e Continuar Assistindo | Convergida | 30/31 tasks | 2026-09-26 |
+| 020-ciclo-vida-player | Ciclo de Vida do Player na TV | Especificada | N/A | 2026-09-26 |
 
 ## Bugs
 
@@ -1050,6 +1061,7 @@ mudaram de natureza** com a arquitetura client-first:
 | tecla-voltar-return-nao-funciona-na | Tecla Voltar (RETURN) não funciona na TV física | Test | verified | Concluído | 2026-09-17 |
 | live-tv-toca-audio-sem-imagem | Live TV toca áudio sem imagem na TV física | Test | verified | Concluído | 2026-09-17 |
 | enter-controle-remoto-nao-ativa-botoes | Enter do controle remoto não ativa botões em telas de foco DOM nativo | Test | verified | Concluído | 2026-09-18 |
+| prefetch-concorrente-categoria-sem-cancelamento-requisicao | Prefetch de categoria sem cancelamento de requisição HTTP em voo | Test | verified | Concluído | 2026-09-25 |
 
 ## Melhorias Ad-hoc
 
