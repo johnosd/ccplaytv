@@ -109,6 +109,7 @@ if (Test-Path -LiteralPath $paths.DATA_MODEL -PathType Leaf) { $docs += 'data-mo
 if ((Test-Path -LiteralPath $paths.CONTRACTS_DIR -PathType Container) -and (Get-ChildItem -Path $paths.CONTRACTS_DIR -ErrorAction SilentlyContinue | Select-Object -First 1)) { $docs += 'contracts/' }
 if (Test-Path -LiteralPath $paths.QUICKSTART -PathType Leaf) { $docs += 'quickstart.md' }
 if (Test-Path -LiteralPath $paths.HISTORY -PathType Leaf) { $docs += 'history.md' }
+if (Test-Path -LiteralPath (Join-Path $paths.FEATURE_DIR 'contract-tests.lock') -PathType Leaf) { $docs += 'contract-tests.lock' }
 
 if ($Json) {
     [PSCustomObject]@{

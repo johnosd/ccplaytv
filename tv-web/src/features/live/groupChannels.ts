@@ -39,6 +39,13 @@ export interface ChannelGroup {
 export function groupChannels(
   items: CatalogItemOut[],
   cap: number = CHANNELS_PER_GROUP_CAP,
+  /**
+   * Total real por grupo, quando quem chama o conhece. A consulta também
+   * limita o que lê do armazenamento, então contar os itens recebidos
+   * responderia "500 de 500" para um grupo que tem 12 mil — a nota de
+   * truncamento diria que não há truncamento.
+   */
+  totals?: Record<string, number>,
 ): ChannelGroup[] {
   const order: string[] = []
   const byName = new Map<string, CatalogItemOut[]>()
@@ -56,11 +63,13 @@ export function groupChannels(
 
   return order.map((name) => {
     const all = byName.get(name) ?? []
+    const channels = all.slice(0, cap)
+    const totalCount = totals?.[name] ?? all.length
     return {
       name,
-      channels: all.slice(0, cap),
-      totalCount: all.length,
-      truncated: all.length > cap,
+      channels,
+      totalCount,
+      truncated: totalCount > channels.length,
     }
   })
 }

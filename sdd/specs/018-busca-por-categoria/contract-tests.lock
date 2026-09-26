@@ -1,0 +1,17 @@
+{
+    "feature":  "018-busca-por-categoria",
+    "lockedAt":  "2026-09-25 19:12",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/features/live/LiveScreen.busca-categoria.contract.test.tsx",
+                      "sha256":  "5911babd4478a2234f9b0ba28a0f8d589f1c6b5cc46d1c20528d7f020155ac82",
+                      "tests":  4
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/catalogSearch.busca-categoria.contract.test.ts",
+                      "sha256":  "30c07b6644255b0631c6da845ef11776d2677cffc5dea89031801d5a2b1cd9a4",
+                      "tests":  1
+                  }
+              ]
+}

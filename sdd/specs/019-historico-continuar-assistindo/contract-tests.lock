@@ -1,0 +1,22 @@
+{
+    "feature":  "019-historico-continuar-assistindo",
+    "lockedAt":  "2026-09-26 00:55",
+    "total":  3,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/player/progressRecorder.historico.contract.test.ts",
+                      "sha256":  "f40f73012f88a7e6696e8020fa0574d5580807bcc0f98eb01496f3b5975a3d80",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/userStateRepository.historico.contract.test.ts",
+                      "sha256":  "e2809573421daa1108a75ff2c53a789fc3fcf6c0c8e209330103da2ea570f3cb",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/series/seriesWatchedSummary.historico.contract.test.ts",
+                      "sha256":  "e2fb83b3dd1fa3ad3b6bdb65af1a0352befe1682ca890af12049fbdf3f185354",
+                      "tests":  1
+                  }
+              ]
+}

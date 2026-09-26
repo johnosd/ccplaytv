@@ -8,6 +8,7 @@ import {
   TERMINAL_STATUSES,
   useImportJob,
   useOpenSource,
+  useResyncSource,
   type SourceOut,
 } from './features/import/importApi'
 import { ListHomeScreen, type ListDestination } from './features/list-home/ListHomeScreen'
@@ -16,7 +17,8 @@ import { MoviesScreen } from './features/movies/MoviesScreen'
 import { MovieDetailScreen } from './features/movies/MovieDetailScreen'
 import { SeriesScreen } from './features/series/SeriesScreen'
 import { SeriesDetailScreen } from './features/series/SeriesDetailScreen'
-import { MOVIES, SERIES } from './features/catalog/mockCatalog'
+import { registerFavoriteColorKey } from './lib/tizenColorKey'
+import type { CategoryScreenSnapshot } from './features/catalog/categoryScreenSnapshot'
 
 type Screen =
   | { name: 'splash' }
@@ -26,10 +28,10 @@ type Screen =
   | { name: 'progress'; jobId: string }
   | { name: 'list-home'; source: SourceOut }
   | { name: 'live'; source: SourceOut }
-  | { name: 'movies' }
-  | { name: 'movie-detail'; movieId: string }
-  | { name: 'series' }
-  | { name: 'series-detail'; seriesId: string }
+  | { name: 'movies'; source: SourceOut; restore?: CategoryScreenSnapshot }
+  | { name: 'movie-detail'; source: SourceOut; movieId: string }
+  | { name: 'series'; source: SourceOut; restore?: CategoryScreenSnapshot }
+  | { name: 'series-detail'; source: SourceOut; seriesId: string }
 
 interface NavState {
   screen: Screen
@@ -40,12 +42,21 @@ function App() {
   const [nav, setNav] = useState<NavState>({ screen: { name: 'splash' }, history: [] })
   const { screen } = nav
 
+  // Tecla amarela como atalho de favoritar (feature 013) — registra uma
+  // vez, na raiz do app, nunca por tela: `tizen.tvinputdevice.registerKey`
+  // é global à sessão do widget, registrar de novo em cada tela seria
+  // redundante. No-op fora da TV (`tizenColorKey.ts`).
+  useEffect(() => {
+    registerFavoriteColorKey()
+  }, [])
+
   // Migração única e atualização por idade (feature 004, D-004): a TV só
   // avisa "abri esta fonte" — quem decide migrar/atualizar/nada é o
   // backend. Fica no componente raiz, não em ListHomeScreen/LiveScreen,
   // porque a atualização pode terminar depois que o usuário já navegou
   // para outra tela, e o acompanhamento não pode se perder na troca.
   const openSource = useOpenSource()
+  const resyncSource = useResyncSource()
   const [autoRefreshJobId, setAutoRefreshJobId] = useState<string | null>(null)
   const autoRefreshJob = useImportJob(autoRefreshJobId)
   const queryClient = useQueryClient()
@@ -65,6 +76,8 @@ function App() {
     // muda nada visível aqui: connection_state/last_successful_sync_at já
     // não avançam no backend quando o job falha (FR-023).
     void queryClient.invalidateQueries({ queryKey: ['catalog-items'] })
+    void queryClient.invalidateQueries({ queryKey: ['catalog-counts'] })
+    void queryClient.invalidateQueries({ queryKey: ['catalog-item'] })
     void queryClient.invalidateQueries({ queryKey: ['sources'] })
   }, [autoRefreshJobId, autoRefreshJob.data?.status, queryClient])
 
@@ -79,6 +92,19 @@ function App() {
           setAutoRefreshJobId(result.import_job_id)
         }
       },
+    })
+  }
+
+  /**
+   * Ressincroniza a fonte a partir de uma tela de categoria (feature 014,
+   * D-008): o conteúdo guardado de uma categoria `stored` sumiu do
+   * aparelho, e "Tentar de novo" não resolve isso — só uma importação
+   * nova. Navega pra tela de progresso, igual ao botão de ressincronizar
+   * da Home.
+   */
+  function resyncFromCategoryScreen(sourceId: string) {
+    resyncSource.mutate(sourceId, {
+      onSuccess: (result) => goto({ name: 'progress', jobId: result.import_job_id }),
     })
   }
 
@@ -142,16 +168,13 @@ function App() {
     case 'list-home':
       return (
         <ListHomeScreen
-          sourceName={screen.source.display_name}
-          movieCount={MOVIES.length}
-          seriesCount={SERIES.length}
-          onSelect={(destination: ListDestination) =>
-            // A Live TV precisa saber de qual fonte ler o catálogo; Filmes e
-            // Séries ainda leem o mock e não recebem a fonte.
+          source={screen.source}
+          onSelect={(destination: ListDestination) => goto({ name: destination, source: screen.source } as Screen)}
+          onOpenContinueWatching={(item) =>
             goto(
-              destination === 'live'
-                ? { name: 'live', source: screen.source }
-                : { name: destination },
+              item.kind === 'movie'
+                ? { name: 'movie-detail', source: screen.source, movieId: item.id }
+                : { name: 'series-detail', source: screen.source, seriesId: item.id },
             )
           }
           onBack={back}
@@ -159,11 +182,28 @@ function App() {
       )
 
     case 'live':
-      return <LiveScreen sourceId={screen.source.id} onBack={back} />
+      return (
+        <LiveScreen
+          sourceId={screen.source.id}
+          onBack={back}
+          onResync={() => resyncFromCategoryScreen(screen.source.id)}
+        />
+      )
 
     case 'movies':
       return (
-        <MoviesScreen onOpenMovie={(movieId) => goto({ name: 'movie-detail', movieId })} onBack={back} />
+        <MoviesScreen
+          sourceId={screen.source.id}
+          restore={screen.restore}
+          onOpenMovie={(movieId, snapshot) =>
+            setNav((s) => ({
+              screen: { name: 'movie-detail', source: screen.source, movieId },
+              history: [...s.history, { ...screen, restore: snapshot }],
+            }))
+          }
+          onBack={back}
+          onResync={() => resyncFromCategoryScreen(screen.source.id)}
+        />
       )
 
     case 'movie-detail':
@@ -172,8 +212,16 @@ function App() {
     case 'series':
       return (
         <SeriesScreen
-          onOpenSeries={(seriesId) => goto({ name: 'series-detail', seriesId })}
+          sourceId={screen.source.id}
+          restore={screen.restore}
+          onOpenSeries={(seriesId, snapshot) =>
+            setNav((s) => ({
+              screen: { name: 'series-detail', source: screen.source, seriesId },
+              history: [...s.history, { ...screen, restore: snapshot }],
+            }))
+          }
           onBack={back}
+          onResync={() => resyncFromCategoryScreen(screen.source.id)}
         />
       )
 

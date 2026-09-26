@@ -57,7 +57,7 @@ Ausência de teto informado permite comparar soluções pagas; não equivale a a
 | Área | Biblioteca / SDK | Encaminhamento e limite |
 | --- | --- | --- |
 | Plataforma e mídia | SDK/extensões Tizen, Samsung AVPlay e APIs Tizen necessárias | **Preservar.** AVPlay para mídia compatível; Filesystem para a entrada por arquivo quando validada. Não são substituídos por um player React.[^avplay][^usb] |
-| Foco direcional | Norigin Spatial Navigation, implementação web React | **Recomendada.** O projeto declara suporte a Tizen; homologar junto da grade. Conferir o pacote web e seus peer dependencies na release escolhida.[^norigin] |
+| Foco direcional | Norigin Spatial Navigation, implementação web React | **Recomendada.** O projeto declara suporte a Tizen; homologar junto da grade. Conferir o pacote web e seus peer dependencies na release escolhida.[^norigin] **Atualização (ADR-009):** nunca foi instalada nem homologada — todas as telas construídas desde a feature 002 usam um hook próprio (`useRemoteNav`, foco por estado React + classe CSS, não por DOM). Ver ADR-009 para o raciocínio completo. |
 | Grades/listas | TanStack Virtual, `@tanstack/react-virtual` | **Recomendada.** Virtualizar linhas/cartões sem impor design visual; construir integração explícita com foco.[^virtual] |
 | Persistência na TV | `dexie`; `dexie-react-hooks` apenas onde útil | **Recomendada.** IndexedDB atrás de `CatalogRepository` e `UserStateRepository`. Não inclui Dexie Cloud nem sincronização automática com FastAPI.[^dexie] |
 | Estado remoto | TanStack Query, `@tanstack/react-query` | **Recomendada com escopo limitado.** Jobs, fontes e integrações; não duplicar todo o catálogo persistente em seu cache de memória.[^query] |
@@ -87,6 +87,8 @@ Usar identificador estável e índice lógico por cartão. Para um destino ainda
 Testar bordas, repetição de tecla, diálogos, categorias vazias, alteração de filtros e remoção do item focado. Voltar de detalhes, player ou trailer deve restaurar foco/posição. Capas carregadas depois não devem alterar imprevisivelmente as dimensões do grid. Manter tamanho reservado para imagens e um overscan pequeno, ajustado por medição.
 
 Não executar consultas externas por movimento de foco, nem reproduzir mídia automaticamente ao focar. Norigin não é um kit visual; Virtual não é o gerenciador do controle. Os componentes de TV serão próprios sobre essas duas peças.
+
+**Atualização (ADR-009):** "próprios sobre essas duas peças" se confirmou ao pé da letra, mas sem a segunda peça — os componentes de TV são próprios sobre `@tanstack/react-virtual` **e sobre um hook de foco próprio** (`useRemoteNav`), nunca sobre Norigin, que não chegou a ser instalado. Ver ADR-009 para o raciocínio completo e o que isso muda para virtualização (feature `009-virtualizacao-foco`).
 
 **Atualização (ADR-007):** o "como o foco se parece" desses componentes próprios deixou de ser decisão de cada tela — a receita única de foco, a paleta, a escala tipográfica e os estados obrigatórios por superfície estão na ADR-007, implementados como tokens CSS. Esta seção continua valendo para o **comportamento** (índice lógico, ordem de montagem, bordas, restauração); a ADR-007 cobre a **aparência**. Ver ADR-007 para o raciocínio completo.
 

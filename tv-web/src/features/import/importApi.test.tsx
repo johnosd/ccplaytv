@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCreateSource, useImportJob } from './importApi'
+import { db } from '../../lib/catalog/db'
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -13,86 +14,78 @@ function createWrapper() {
   }
 }
 
-describe('useCreateSource', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
+const LISTA = ['#EXTM3U', '#EXTINF:-1 group-title="Canais",Canal Um', 'http://exemplo.test/1.ts'].join(
+  '\n',
+)
 
-  it('envia a requisição e retorna source_id/import_job_id', async () => {
+describe('importApi', () => {
+  beforeEach(() => {
+    // A importação dispara de verdade ao criar a fonte. Sem isto, o teste
+    // sai para a rede e escreve no banco compartilhado depois que o
+    // `afterEach` já limpou as tabelas.
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        async () =>
-          new Response(JSON.stringify({ source_id: 'source-1', import_job_id: 'job-1' }), {
-            status: 201,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-      ),
+      vi.fn().mockImplementation(() => Promise.resolve(new Response(LISTA, { status: 200 }))),
     )
+  })
 
-    const { result } = renderHook(() => useCreateSource(), { wrapper: createWrapper() })
+  afterEach(async () => {
+    vi.unstubAllGlobals()
+    await db.sources.clear()
+    await db.importRuns.clear()
+    await db.channels.clear()
+  })
 
-    result.current.mutate({
-      type: 'm3u_url',
-      display_name: 'Minha lista',
-      m3u_url: 'https://exemplo.test/lista.m3u',
+  describe('useCreateSource', () => {
+    it('cria a fonte no IndexedDB e retorna source_id/import_job_id', async () => {
+      const { result } = renderHook(() => useCreateSource(), { wrapper: createWrapper() })
+
+      result.current.mutate({
+        type: 'm3u_url',
+        display_name: 'Minha lista local',
+        m3u_url: 'https://exemplo.test/lista.m3u',
+      })
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+      const data = result.current.data
+      expect(data?.source_id).toBeTruthy()
+      expect(data?.import_job_id).toBeTruthy()
+
+      const source = await db.sources.get(data!.source_id)
+      expect(source).toBeTruthy()
+      expect(source?.displayName).toBe('Minha lista local')
+      expect(source?.m3uUrl).toBe('https://exemplo.test/lista.m3u')
+
+      // A importação termina antes do teste seguinte limpar as tabelas.
+      await waitFor(async () =>
+        expect((await db.importRuns.get(data!.import_job_id))?.finishedAt).toBeDefined(),
+      )
     })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data).toEqual({ source_id: 'source-1', import_job_id: 'job-1' })
-
-    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toContain('/sources')
-    const body = JSON.parse(init.body as string)
-    expect(body.type).toBe('m3u_url')
-    expect(body.request_key).toBeTruthy()
-  })
-})
-
-describe('useImportJob', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals()
   })
 
-  it('faz polling ate o job chegar a um estado terminal', async () => {
-    let callCount = 0
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        callCount += 1
-        const status = callCount === 1 ? 'running' : 'completed'
-        return new Response(
-          JSON.stringify({
-            id: 'job-1',
-            source_id: 'source-1',
-            status,
-            current_step: status === 'completed' ? 'done' : 'classifying',
-            counts: {
-              entries_read: 0,
-              channels: 0,
-              movies: 0,
-              series: 0,
-              episodes: 0,
-              unclassified: 0,
-              invalid: 0,
-            },
-            warnings: [],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            finished_at: null,
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } },
-        )
-      }),
-    )
+  describe('useImportJob', () => {
+    it('busca o status do job do IndexedDB', async () => {
+      const jobId = 'test-job'
+      await db.importRuns.put({
+        id: jobId,
+        sourceId: 'test-source',
+        generation: 1,
+        status: 'running',
+        step: 'parsing',
+        entriesRead: 42,
+        channelsStored: 10,
+        discardedByType: 2,
+        invalidCount: 0,
+        truncatedByStorage: false,
+        startedAt: Date.now(),
+      })
 
-    const { result } = renderHook(() => useImportJob('job-1'), { wrapper: createWrapper() })
+      const { result } = renderHook(() => useImportJob(jobId), { wrapper: createWrapper() })
 
-    await waitFor(() => expect(result.current.data?.status).toBe('completed'), { timeout: 4000 })
-
-    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>
-    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2)
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+      expect(result.current.data?.status).toBe('running')
+      expect(result.current.data?.counts.entries_read).toBe(42)
+    })
   })
 })

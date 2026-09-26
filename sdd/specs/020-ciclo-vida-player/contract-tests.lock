@@ -1,0 +1,12 @@
+{
+    "feature":  "020-ciclo-vida-player",
+    "lockedAt":  "2026-09-26 11:51",
+    "total":  4,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/components/PlayerLayer.ciclo-vida-player.contract.test.tsx",
+                      "sha256":  "99fef1bb0ff75b3a9e8f8fe70b505dae93f4e90403f33858893e83ee67666a22",
+                      "tests":  4
+                  }
+              ]
+}

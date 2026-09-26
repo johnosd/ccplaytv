@@ -114,6 +114,24 @@ dotnet build
 dotnet test
 ```
 
+### Testes de Contrato
+
+<!--
+  Escritos e travados pelo sdd-plan (passo 7.5), máximo 5 casos de teste.
+  O sdd-execute só pode fazê-los passar, nunca editá-los. Se a feature não
+  tem nenhum, troque a tabela por uma linha dizendo por quê.
+-->
+
+Arquivos travados em `contract-tests.lock`: `[caminho real do arquivo de contrato]`
+
+Comando: `[comando exato que roda só os arquivos de contrato]`
+
+| Teste | Origem | Fase | Vermelho esperado (antes do execute) |
+| --- | --- | --- | --- |
+| [nome do teste] | [FR-### / US1-AC1 / Constitution: ...] | [Fase N] | [ex: `Error: not implemented` / asserção X] |
+
+Stubs criados pelo plan (ponto de partida do execute, não travados): `[caminhos]`
+
 ## Estado Atual
 
 <!-- Sobrescrita a cada checkpoint pelo sdd-execute. Vazia na criação. -->

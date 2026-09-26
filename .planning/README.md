@@ -413,6 +413,7 @@ flowchart TD
 | `update-feature-status.ps1` | Recalcula progresso, atualiza `backlog.md` e a linha `**Status**:` de `spec.md`; autocria `backlog.md` se não existir |
 | `resolve-bug.ps1` | Cria/acha `sdd/bugs/<slug>/` (sem numeração, só slug) e reporta qual fase (assess/fix/test/complete) rodar a seguir, baseado em quais relatórios já existem |
 | `update-bug-status.ps1` | Recalcula fase/veredito/próximo passo a partir de `sdd/bugs/<slug>/*.md` e atualiza o painel `## Bugs` em `backlog.md`; autocria `backlog.md` se não existir |
+| `check-contract-tests.ps1 -Slug <slug> [-Write [-Paths <arquivos>]] [-Json]` | Trava dos testes de contrato de uma feature: `-Write` grava `sdd/specs/<slug>/contract-tests.lock` (caminho + SHA256, máx. 5 testes, sem `.skip`/`.only`/`.todo`/`.each`); sem `-Write` confere se nada mudou. Escrito pelo `sdd-plan`, checado pelo `sdd-execute` a cada checkpoint e pelo `sdd-converge` |
 | `resolve-assessment.ps1` | Cria/acha `sdd/assessments/<slug>/` (sem numeração, só slug) e reporta qual fase (define/decide/complete) rodar a seguir — Explora é opcional e nunca entra nessa resolução automática |
 
 Todos são agnósticos de projeto — funcionam em qualquer repositório que tenha
