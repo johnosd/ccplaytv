@@ -12,7 +12,7 @@
 // Dados: só fictícios (`fixtures/favoritos.m3u`), servidos por um HTTP
 // server local criado por este próprio script — nunca uma fonte real.
 import { createServer } from 'node:http'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
@@ -100,11 +100,14 @@ async function run() {
   // O binário `chrome-headless-shell` que o Playwright pediria por padrão
   // em `headless: true` não está pré-instalado neste ambiente (só a
   // versão não-headless, em `/opt/pw-browsers/chromium`) — apontar
-  // direto pro binário evita a tentativa de baixar um novo.
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: '/opt/pw-browsers/chromium',
-  })
+  // direto pro binário evita a tentativa de baixar um novo. Fora desse
+  // ambiente (ex.: Windows local, feature 021), o caminho não existe e a
+  // resolução normal do Playwright assume — mesmo padrão dos demais
+  // scripts em `e2e/`.
+  const fixedPath = '/opt/pw-browsers/chromium'
+  const browser = await chromium.launch(
+    existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true },
+  )
   const context = await browser.newContext() // storage isolado — sem limpeza manual de IndexedDB
   const page = await context.newPage()
 
@@ -136,7 +139,13 @@ async function run() {
 
     console.log('=== "★ Favoritos" no topo da trilha resolve o canal favoritado ===')
     await page.keyboard.press('ArrowLeft') // volta pra trilha (col 0)
-    await page.keyboard.press('ArrowUp') // sobe da categoria real pra "★ Favoritos"
+    // Trilha: ★ Favoritos(0), Todos(1), categoria real(2) — feature 018
+    // inseriu "Todos" como 2ª entrada fixa (VIRTUAL_TRAIL_COUNT=2); duas
+    // setas pra cima chegam em Favoritos, não uma só (achado ao rodar
+    // este script no Windows pela 1ª vez, feature 021 — nunca detectado
+    // porque faltava o fallback de executável acima).
+    await page.keyboard.press('ArrowUp') // categoria real -> "Todos"
+    await page.keyboard.press('ArrowUp') // "Todos" -> "★ Favoritos"
     const favoritesLabel = await page.locator('.live-column-groups .tv-focus').textContent()
     assert(favoritesLabel === '★Favoritos', 'trilha focada em "★ Favoritos"')
     await page.keyboard.press('ArrowRight') // entra
@@ -153,7 +162,10 @@ async function run() {
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     await page.keyboard.press('Enter')
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('ArrowUp') // padrão cai na 1ª categoria real; sobe pra Favoritos
+    // Padrão cai na 1ª categoria real (índice 2) — duas setas pra cima
+    // chegam em "★ Favoritos", passando por "Todos" (ver comentário acima).
+    await page.keyboard.press('ArrowUp') // categoria real -> "Todos"
+    await page.keyboard.press('ArrowUp') // "Todos" -> "★ Favoritos"
     await page.keyboard.press('ArrowRight')
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(

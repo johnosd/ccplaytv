@@ -19,7 +19,7 @@
 // eventos do <video> manualmente para avançar a máquina de estados do
 // PlayerLayer sem depender de decodificação real.
 import { createServer } from 'node:http'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
@@ -94,11 +94,13 @@ async function run() {
   // O binário `chrome-headless-shell` que o Playwright pediria por padrão
   // em `headless: true` não está pré-instalado neste ambiente (só a versão
   // não-headless, em `/opt/pw-browsers/chromium`) — apontar direto pro
-  // binário evita a tentativa de baixar um novo.
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: '/opt/pw-browsers/chromium',
-  })
+  // binário evita a tentativa de baixar um novo. Fora desse ambiente (ex.:
+  // Windows local, feature 021), o caminho não existe e a resolução normal
+  // do Playwright assume — mesmo padrão dos demais scripts em `e2e/`.
+  const fixedPath = '/opt/pw-browsers/chromium'
+  const browser = await chromium.launch(
+    existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true },
+  )
   const context = await browser.newContext()
   const page = await context.newPage()
   // As URLs de "stream" da fixture não são servidas de verdade (só o .m3u

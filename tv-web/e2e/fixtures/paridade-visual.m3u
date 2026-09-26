@@ -1,0 +1,17 @@
+#EXTM3U
+#EXTINF:-1 group-title="Canais Notícias",Canal Manhã
+http://exemplo.test/live/1.ts
+#EXTINF:-1 group-title="Canais Notícias",Canal Noite
+http://exemplo.test/live/2.ts
+#EXTINF:-1 group-title="Canais Esportes",Canal Campeonato Nacional de Futebol Feminino Sub-20
+http://exemplo.test/live/3.ts
+#EXTINF:-1 group-title="Filmes",Aventura na Amazônia
+http://exemplo.test/vod/1.mp4
+#EXTINF:-1 group-title="Filmes",Coração de Ferro
+http://exemplo.test/vod/2.mp4
+#EXTINF:-1 group-title="Filmes",A Grande Jornada Através das Montanhas Nevadas do Extremo Norte
+http://exemplo.test/vod/3.mp4
+#EXTINF:-1 group-title="Séries",Órfãos da Estação S01E01
+http://exemplo.test/series/1.mp4
+#EXTINF:-1 group-title="Séries",Órfãos da Estação S01E02
+http://exemplo.test/series/2.mp4

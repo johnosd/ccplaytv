@@ -259,7 +259,15 @@ async function run() {
       `a entrada não pediu as ${MANY_COUNT} capas de uma vez — só ${beforeScroll} requisição(ões) até aqui`,
     )
 
-    for (let i = 0; i < 10; i += 1) {
+    // 40, não 10 (feature 021, R-011): o palco lógico fixo 1920×1080 (US2,
+    // `.stage`) faz a área de LAYOUT do conteúdo deixar de acompanhar o
+    // viewport real do Chromium headless (este script não fixa `viewport`,
+    // então antes herdava o padrão do Playwright, ~1280×720) — a janela de
+    // virtualização pré-carrega mais itens de cara (confirmado: idêntico com
+    // viewport explícito 1920×1080 ou implícito), e 10 setas deixaram de
+    // bastar pra sair dela. A asserção abaixo não mudou; só o parâmetro de
+    // simulação, pra compensar uma mudança de geometria intencional da US2.
+    for (let i = 0; i < 40; i += 1) {
       await page.keyboard.press('ArrowDown')
     }
     const afterScroll = itemIconRequestCount(counts)
