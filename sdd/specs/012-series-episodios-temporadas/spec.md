@@ -24,7 +24,7 @@ próximo episódio com aviso cancelável.
   episódio (ex.: "Nome S01E02") em uma série navegável, por título
   normalizado dentro da mesma fonte.
 - Detalhe de série com abas de temporada e lista de episódios abaixo —
-  layout já desenhado no protótipo (`docs/design/CCPlayTv Prototype -
+  layout já desenhado no protótipo (`docs/design/old/CCPlayTv Prototype -
   Standalone.html`, tela "detalhe série").
 - Reprodução de episódio com retomada por identidade estável, mesmo
   mecanismo já usado para filme (feature 011).
@@ -365,7 +365,7 @@ próximo episódio começar sozinho.
   distinta de "com progresso" e de "nunca aberto". Ver User Story 3,
   FR-011/FR-012.
 - Q: Layout do detalhe de série (não há protótipo desenhado pra isso na
-  ADR-007)? → A: Existe sim, na tela "detalhe série" de `docs/design/
+  ADR-007)? → A: Existe sim, na tela "detalhe série" de `docs/design/old/
   CCPlayTv Prototype - Standalone.html` — abas de temporada horizontais +
   lista de episódios abaixo, cabeçalho igual ao de filme. Ver FR-007.
   Ação do usuário: `CLAUDE.md` deve passar a dizer explicitamente para

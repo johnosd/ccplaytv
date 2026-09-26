@@ -68,7 +68,7 @@ type Mode =
 
 /**
  * Detalhe de uma série: cabeçalho, abas de temporada e lista de episódios
- * — layout do protótipo (`docs/design/CCPlayTv Prototype - Standalone.html`,
+ * — layout do protótipo antigo (`docs/design/old/CCPlayTv Prototype - Standalone.html`,
  * tela "detalhe série"; as classes `.series-detail-*`/`.season-tab`/
  * `.episode-row` já existiam em `screens.css`, prontas e nunca consumidas).
  *

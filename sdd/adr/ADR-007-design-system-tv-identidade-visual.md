@@ -18,6 +18,24 @@ Virtual como base de foco/virtualização). Esta ADR trata da **linguagem
 visual e das regras de estado por superfície**; a ADR-006 trata das
 **bibliotecas** que executam a navegação.
 
+**Atualização (ADR-011):** o protótipo citado abaixo foi movido para
+`docs/design/old/CCPlayTv Prototype - Standalone.html` e deixou de ser a
+referência de intenção. A referência passa a ser o Design System V14
+Spectrum em `docs/design/design-system/`, com a precedência constitution >
+ADRs > Spec V14 > Component Lab > protótipo. A paleta, a tipografia e a
+receita de foco desta ADR **continuam válidas**, porque o V14 as mantém.
+Mudam a estrutura de telas e os tokens:
+- shell com topbar;
+- perfil = lista;
+- fonte ativa;
+- Configurações;
+- política de mock "Em breve";
+- tokens ganham espaçamento, raio, elevação e motion;
+- fontes tipográficas passam a ser empacotadas localmente.
+
+As menções a `docs/design/CCPlayTv Prototype - Standalone.html` no texto
+abaixo são históricas. Ver ADR-011 para o raciocínio completo.
+
 ## Data
 
 2026-09-16

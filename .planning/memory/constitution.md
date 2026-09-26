@@ -32,6 +32,10 @@ Histórico:
   passa a exigir roteiro E2E
 - 1.5.0 (2026-09-24): exceção de "Segredos Fora dos Clientes e dos Logs"
   estendida à URL completa de fonte e ao arquivo M3U (ADR-010)
+- 1.5.1 (2026-09-26): restrição "Design system de TV" passa a apontar o
+  DS V14 Spectrum (`docs/design/design-system/`) como referência de
+  intenção; o protótipo antigo foi movido para `docs/design/old/`. Explicita
+  que a constitution prevalece sobre o DS em conflito (ex.: preview em foco)
 -->
 
 # Constitution do CCPlay TV
@@ -232,9 +236,10 @@ caminho como único meio de acesso.
 **Design system de TV**: palco 1920×1080 escalado uniformemente, tema
 escuro, paleta/tipografia/raios e receita de foco definidos na ADR-007 e
 implementados como tokens em `tv-web/src/index.css`. Tela nova consome
-token — não define cor, raio ou tamanho de fonte literal. O protótipo
-`docs/design/CCPlayTv Prototype - Standalone.html` é a referência de
-intenção; o CSS é o contrato executável.
+token — não define cor, raio ou tamanho de fonte literal. O Design System
+V14 Spectrum (`docs/design/design-system/`: Spec, Component Lab e
+protótipo de telas) é a referência de intenção; o CSS é o contrato
+executável. Em conflito, esta constitution prevalece sobre o DS.
 
 **Validação em hardware real**: emulador e navegador são suficientes para
 o desenvolvimento do dia a dia nesta fase do projeto. Teste na TV real é
@@ -302,4 +307,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.5.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-24
+**Versão**: 1.5.1 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-26
