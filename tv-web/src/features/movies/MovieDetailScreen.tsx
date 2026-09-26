@@ -111,7 +111,7 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
   // camada (mesmo padrão de `LiveScreen.tsx`).
   const [playing, setPlaying] = useState(false)
   const [startAtMs, setStartAtMs] = useState<number | undefined>(undefined)
-  const { toastMessage, showToast } = useToast()
+  const { toastMessage, toastKey, showToast } = useToast()
 
   function openPlayer(action: MovieAction) {
     if (playing) return
@@ -192,7 +192,7 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
           ))}
         </div>
       </div>
-      <Toast message={toastMessage} />
+      <Toast message={toastMessage} messageKey={toastKey} />
       {playing && (
         <PlayerLayer
           itemId={movieId}

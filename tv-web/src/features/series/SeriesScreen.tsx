@@ -84,7 +84,7 @@ function defaultTrailIdx(trail: TrailEntry[]): number {
 
 export function SeriesScreen({ sourceId, onOpenSeries, restore, onBack, onResync }: SeriesScreenProps) {
   const [col, setCol] = useState<0 | 1>(restore?.col ?? 0)
-  const { toastMessage, showToast } = useToast()
+  const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
   // Estrutura: rápida, nunca toca rede (FR-004).
@@ -693,7 +693,7 @@ export function SeriesScreen({ sourceId, onOpenSeries, restore, onBack, onResync
         )}
       </div>
 
-      <Toast message={toastMessage} />
+      <Toast message={toastMessage} messageKey={toastKey} />
     </div>
   )
 }

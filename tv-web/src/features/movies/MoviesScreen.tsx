@@ -91,7 +91,7 @@ function defaultTrailIdx(trail: TrailEntry[]): number {
 
 export function MoviesScreen({ sourceId, onOpenMovie, restore, onBack, onResync }: MoviesScreenProps) {
   const [col, setCol] = useState<0 | 1>(restore?.col ?? 0)
-  const { toastMessage, showToast } = useToast()
+  const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
   // Estrutura: rápida, nunca toca rede (FR-004).
@@ -730,7 +730,7 @@ export function MoviesScreen({ sourceId, onOpenMovie, restore, onBack, onResync 
         )}
       </div>
 
-      <Toast message={toastMessage} />
+      <Toast message={toastMessage} messageKey={toastKey} />
     </div>
   )
 }

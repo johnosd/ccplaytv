@@ -104,7 +104,7 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
   const [playing, setPlaying] = useState<CatalogItemOut | null>(null)
   const [zapOpen, setZapOpen] = useState(false)
   const lastGoodChannelRef = useRef<CatalogItemOut | null>(null)
-  const { toastMessage, showToast } = useToast()
+  const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
   // Estrutura: rápida, sempre segura de ler — nunca toca rede (FR-004).
@@ -552,7 +552,7 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
             Voltar
           </button>
         </div>
-        <Toast message={toastMessage} />
+        <Toast message={toastMessage} messageKey={toastKey} />
       </div>
     )
   }
@@ -579,7 +579,7 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
             </button>
           </div>
         </div>
-        <Toast message={toastMessage} />
+        <Toast message={toastMessage} messageKey={toastKey} />
       </div>
     )
   }
@@ -597,7 +597,7 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
             Voltar
           </button>
         </div>
-        <Toast message={toastMessage} />
+        <Toast message={toastMessage} messageKey={toastKey} />
       </div>
     )
   }

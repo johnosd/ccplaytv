@@ -41,7 +41,7 @@ export function HomeScreen({
   const { data, isLoading, isError } = useSources()
   const deleteSource = useDeleteSource()
   const resyncSource = useResyncSource()
-  const { toastMessage, showToast } = useToast()
+  const { toastMessage, toastKey, showToast } = useToast()
   const [showExitConfirm, setShowExitConfirm] = useState(false)
 
   const sources = data?.sources ?? []
@@ -202,7 +202,7 @@ export function HomeScreen({
         </div>
       </div>
 
-      <Toast message={toastMessage} />
+      <Toast message={toastMessage} messageKey={toastKey} />
     </div>
   )
 }
