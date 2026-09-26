@@ -375,12 +375,12 @@ Stubs criados pelo plan (ponto de partida do execute, não travados):
 | --- | --- | --- | --- |
 | R-001 | Com a viewport diferente de 1920×1080, o retângulo do AVPlay (`setDisplayRect` em base 1920×1080) pode não coincidir com o palco escalado (ex.: faixas laterais em proporção não 16:9). | Médio em aparelhos fora da referência; nulo na QN50Q60 (escala 1). | Tela cheia continua cobrindo a tela inteira (FR-012). O alinhamento fino em outras resoluções não é verificável sem outro aparelho, e a pendência fica registrada. Revisitar quando a matriz de TVs (item 37) existir. |
 | R-002 | Um `transform` no ancestral poderia afetar a composição da camada web sobre o plano de vídeo de hardware. | Alto se acontecesse (vídeo sem imagem). | D-003: na escala 1 não há `transform`, então a TV de referência fica idêntica. Roteiro recomendado de TV no `quickstart.md`. |
-| R-003 | Texto do toast duplicado no DOM (região + toast) quebraria `getByText` em 6 suítes e o modo estrito da E2E. | Alto (viola FR-027). | D-004: o toast é portado **para dentro** da região, e sem região renderiza como hoje. O contrato C4 garante exatamente um nó. |
-| R-004 | Um arquivo de fonte ausente em `files:` só falha na TV. | Médio (fonte cai no fallback em silêncio). | D-009: a guarda no `sync-tizen.mjs` e o contrato C2 conferem o YAML real. |
-| R-005 | `e2e.mjs` já está quebrado antes desta feature (bug no backlog: Escape em `AddSourceScreen`). | Baixo, mas pode ser confundido com regressão. | Baseline E2E registrada na Fase 1 antes de qualquer mudança. FR-027 compara com ela. O bug continua no backlog, fora de escopo. |
-| R-006 | Scripts E2E têm `executablePath` do Chromium fixado no caminho Linux do sandbox. | Baixo (atrito local no Windows). | Override temporário, sem commit, como nas features anteriores (CLAUDE.md). O `paridade-visual.mjs` novo segue o mesmo padrão dos demais para não divergir. |
-| R-007 | A fonte local renderizando diferente da fonte do CDN (versão diferente do Poppins/Inter) mudaria métricas e quebras de linha. | Médio (viola SC-003). | Fontsource v5 e Google Fonts servem as mesmas versões upstream. As capturas antes/depois (D-011) detectam a diferença; se aparecer, registrar e escolher a versão que empata. |
-| R-008 | Mudar a pilha de fallback de `system-ui, 'Segoe UI'` para `Arial, Helvetica` altera a aparência **só** quando a fonte não carrega. | Baixo. | Exigido pela Spec V14 §2.3 (FR-003). Não afeta a paridade com fonte carregada. |
+| R-003 | Texto do toast duplicado no DOM (região + toast) quebraria `getByText` em 6 suítes e o modo estrito da E2E. | Alto (viola FR-027). | **Resolvido** (confirmado no `sdd-converge`): D-004 — o toast é portado **para dentro** da região, e sem região renderiza como hoje. O contrato C4 passa de verdade, e a suíte completa mais o E2E de `favoritos.mjs` no app real confirmam exatamente um nó, sem regressão nas 6 suítes de tela. |
+| R-004 | Um arquivo de fonte ausente em `files:` só falha na TV. | Médio (fonte cai no fallback em silêncio). | **Resolvido** (confirmado no `sdd-converge`): D-009 — a guarda no `sync-tizen.mjs` e o contrato C2 conferem o YAML real, e a guarda foi testada de propósito (bloqueou um arquivo fictício antes de sincronizar). |
+| R-005 | `e2e.mjs` já está quebrado antes desta feature (bug no backlog: Escape em `AddSourceScreen`). | Baixo, mas pode ser confundido com regressão. | Baseline E2E registrada na Fase 1 antes de qualquer mudança. FR-027 compara com ela. O bug continua no backlog, fora de escopo. Confirmado idêntico à baseline no Polish e de novo no `sdd-converge` — não é regressão desta feature, mas continua sem correção (não é desta feature corrigir). |
+| R-006 | Scripts E2E têm `executablePath` do Chromium fixado no caminho Linux do sandbox. | Baixo (atrito local no Windows). | **Resolvido** (confirmado no `sdd-converge`): o fallback `existsSync` que faltava em 2 dos 8 scripts (`favoritos.mjs`, `zapping-live-tv.mjs`) foi adicionado permanentemente como parte do R-009 — os 8 scripts de `e2e/` agora têm o mesmo padrão, sem precisar de override manual local. |
+| R-007 | A fonte local renderizando diferente da fonte do CDN (versão diferente do Poppins/Inter) mudaria métricas e quebras de linha. | Médio (viola SC-003). | **Resolvido**: Fontsource v5 e Google Fonts servem as mesmas versões upstream. As capturas antes/depois (D-011) foram comparadas manualmente, 8 telas em 1920×1080 — zero diferença de layout confirmada. |
+| R-008 | Mudar a pilha de fallback de `system-ui, 'Segoe UI'` para `Arial, Helvetica` altera a aparência **só** quando a fonte não carrega. | Baixo. | **Resolvido**: exigido pela Spec V14 §2.3 (FR-003). Confirmado que não afeta a paridade com fonte carregada (capturas antes/depois idênticas) — o fallback só se manifesta na simulação manual de fonte ausente feita na Fase 3, não em uso normal. |
 | R-009 | **Resolvido**: `tv-web/e2e/favoritos.mjs` tinha um bug pré-existente (não desta feature) — 2 pontos pressionavam `ArrowUp` uma única vez pra alcançar "★ Favoritos" na trilha, mas a feature 018 inseriu "Todos" como 2ª entrada fixa (`VIRTUAL_TRAIL_COUNT=2`); uma seta só chega em "Todos". Nunca detectado porque o script também não tinha o fallback `existsSync` que os outros 6 scripts de `e2e/` têm pra rodar fora do ambiente Linux fixo — achado na Fase 1 (T004) ao estabelecer o baseline nesta feature, no Windows. | Alto antes da correção (o gate de E2E de favoritos ficava mudo em qualquer plataforma sem o caminho fixo; a US3 desta feature depende justamente do toast que esse script exercita). | **Resolvido** (T004a, aprovado pelo usuário como desvio pequeno): 2ª `ArrowUp` adicionada nos dois pontos, e o fallback `existsSync` adicionado em `favoritos.mjs` e `zapping-live-tv.mjs` (mesmo padrão dos demais). 18/18 e 11/11 verdes, respectivamente. |
 | R-010 | `tv-web/e2e/m3u-sob-demanda.mjs` (feature 014, fora do escopo desta feature) se mostrou intermitente neste ambiente sob carga: 3 execuções do baseline, 2 falharam em pontos diferentes da suíte (timeout de seletor), 1 passou completa (26/26). Nenhum arquivo de produção foi tocado até a Fase 1, então não é causado por esta feature. | Baixo para esta feature; pode voltar a aparecer nas comparações de baseline das fases seguintes. | Tratado como instabilidade de ambiente (mesma categoria das `*.favorites.test.tsx` sob paralelismo). Confirmado de novo no Polish: `favoritos.mjs` também apresentou o mesmo padrão (2 falhas na navegação Filmes/Séries, depois 18/18 completo) — mesma causa (carga do ambiente, não regressão). Se reaparecer, rodar isolado antes de atribuir a uma regressão; não investigar/corrigir dentro desta feature. |
 | R-012 | Verificação na TV física (`quickstart.md` §6) não foi executada — decisão explícita do usuário em 2026-09-26, feature fechando sem esse gate. | Baixo nesta fase (constitution: TV física é recomendada, não obrigatória, por padrão). O risco residual é o mesmo do R-002/R-004: um `.woff2` faltando na lista do pacote, ou o palco desalinhando o plano de vídeo em hardware real, só apareceriam lá. | Pendência aberta, não bloqueante. Recomendado rodar via skill `tizen-tv` antes da Onda 1 (feature 022) começar a consumir os ícones/utilitários desta feature, ou antes de qualquer preparação comercial. |
@@ -443,3 +443,43 @@ Stubs criados pelo plan (ponto de partida do execute, não travados):
 - **`.css?raw`/`.css?inline` sob Vitest voltam string vazia** — `vite.config.ts` não liga `test.css`, e o Vitest troca todo import de `.css` por um módulo vazio por padrão, com ou sem query de asset. Pra ler CSS de verdade num teste, usar `node:fs` (`readFileSync(path.resolve(process.cwd(), 'src/...'))`), como em `tokens.test.ts` — e lembrar do `/// <reference types="node" />` no topo do arquivo, porque `tsconfig.app.json` restringe `types` a `["vite/client"]` (sem isso, `tsc -b` falha com "Cannot find name 'node:fs'"/`'process'`).
 - **`favoritos.mjs`/`zapping-live-tv.mjs`** já têm o fallback `existsSync` pro Windows (R-009) — não precisa mais editar na hora de rodar localmente.
 - **`node e2e/m3u-sob-demanda.mjs`** pode falhar de forma intermitente neste ambiente (R-010) — rodar de novo isolado antes de suspeitar de regressão.
+
+## Resultado Final
+
+**Convergência em 2026-09-26 — sem achados.** Auditoria FR-por-FR (28
+requisitos), SC-por-SC (7 critérios) e das 5 Acceptance Scenarios de cada
+user story contra o código real, mais releitura crítica de cada
+implementação que faz um contrato passar (nenhum atalho — nenhuma lógica
+condicionada a valor exato de teste, nenhum mock da própria unidade).
+Nenhuma lacuna `missing`/`partial`/`contradicts`/`unrequested` encontrada.
+
+O que foi de fato construído bate com o planejado nas 8 fases, sem desvio
+de arquitetura — as únicas diferenças em relação ao plano original são as
+já registradas nas Decisões Invariantes e nos Riscos (D-001 a D-011,
+R-001 a R-012), todas descobertas e resolvidas durante o próprio
+`sdd-execute`, nunca escondidas:
+
+- **US1–US5 completas**: fontes locais + guarda do pacote, tokens V14
+  completos, palco 1920×1080, região de anúncio sem duplicar toast,
+  reduzir movimento (duas fontes), 17 ícones + utilitários de estado
+  prontos para a Onda 1.
+- **Zero mudança de layout**, provada por captura de tela (não só
+  alegada) das 8 telas principais em 1920×1080, mais 1280×720/3840×2160.
+- **5/5 contratos verdes** de verdade (rodados nesta convergência, não só
+  a trava por hash conferida).
+- **Dois achados em features de terceiros** (`e2e/favoritos.mjs` da
+  feature 018, `e2e/capa-real.mjs` da feature 015) corrigidos como desvio
+  pequeno aprovado pelo usuário — o segundo é notável: uma consequência
+  *real e correta* da US2 (o palco fixo muda quanto a virtualização de
+  outra feature pré-carrega) que só apareceu ao rodar o E2E de ponta a
+  ponta no Polish, não algo que o design ou os testes de contrato desta
+  feature pudessem prever isoladamente.
+- **Pendência única e consciente**: verificação em TV física (R-012),
+  recomendada pela constitution mas não obrigatória, adiada por decisão
+  explícita do usuário. Nenhum outro item em aberto bloqueia o uso desta
+  fundação pela Onda 1.
+
+Nenhuma mudança no `README.md` do projeto: é um documento voltado a quem
+usa o app, e esta feature não muda nenhuma funcionalidade visível — é
+fundação interna, com paridade de layout como critério de aceite
+explícito (FR-027/SC-003).

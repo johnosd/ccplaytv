@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-26
 
-**Status**: Implementada
+**Status**: Convergida
 
 **Input**: "Feature 021 — Onda 0 da migração para o DS V14 Spectrum (fundação
 visual): fontes Poppins/Inter empacotadas localmente (sai Google Fonts CDN),
