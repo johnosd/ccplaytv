@@ -137,6 +137,17 @@ export interface CatalogRecord {
    * `undefined` = registro gravado antes desta feature.
    */
   categoryPosition?: number
+  /**
+   * Ano declarado pela fonte (feature 025, FR-049) — filme/série do
+   * provedor. Campo de valor sem índice, sem bump de versão (mesmo padrão
+   * de `iconUrl`). `undefined` = não declarado, ilegível, ou registro
+   * gravado antes da feature.
+   */
+  year?: number
+  /** Inclusão declarada pela fonte, epoch ms (feature 025) — só filme do provedor (`added`). */
+  addedAt?: number
+  /** Duração declarada pela fonte, em segundos (feature 025) — só episódio do provedor (`info.duration_secs`). */
+  durationSeconds?: number
 }
 
 /** As três seções que o painel expõe por categoria (feature 010). */

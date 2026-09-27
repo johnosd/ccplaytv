@@ -71,6 +71,10 @@ export interface CatalogItemOut {
    * prática.
    */
   source_number?: number | null
+  /** Ano declarado pela fonte (feature 025). `null` = não declarado. Ainda não mapeado em `toItemOut` (stub do plan). */
+  year?: number | null
+  /** Inclusão declarada pela fonte, epoch ms (feature 025). `null` = não declarada. Ainda não mapeado (stub do plan). */
+  added_at?: number | null
 }
 
 export interface CatalogItemPlayback {
@@ -549,6 +553,10 @@ export interface EpisodeOut {
   provider_stream_id: string | null
   series_id: string
   original_name: string
+  /** Imagem do episódio declarada pela fonte (feature 025). Ainda não mapeada (stub do plan). */
+  icon_url?: string | null
+  /** Duração declarada pela fonte, em segundos (feature 025) — denominador da barra de progresso. Ainda não mapeada. */
+  duration_seconds?: number | null
 }
 
 function toEpisodeOut(record: CatalogRecord): EpisodeOut {

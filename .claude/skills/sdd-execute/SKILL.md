@@ -134,6 +134,19 @@ pra emendar. Uma emenda aprovada:
 
 Nunca regrave a trava sem essa aprovação explícita.
 
+### 5c. QA visual: script automatizado antes de exploração interativa
+
+Quando a fase envolve UI e o comportamento esperado já está coberto por teste
+unitário/de contrato (o DOM/estado esperado já é conhecido), escreva e rode
+o script E2E automatizado deste repositório (`tv-web/e2e/*.mjs` ou
+equivalente) diretamente, em vez de abrir antes uma sessão de navegador
+interativa (Playwright MCP ou similar) só pra "olhar a tela" — isso custa
+tempo e tokens sem agregar confiança que os testes já não dão. Reserve a
+exploração interativa pra dúvida genuinamente visual/UX que nenhum teste
+cobre (um layout novo cujo resultado ninguém verificou ainda, incerteza
+sobre onde exatamente um elemento aparece). Não é proibida — é um recurso pra
+quando sobra dúvida real, não o primeiro passo.
+
 ### 6. Bugs encontrados durante implementação/teste
 
 Cerimônia proporcional ao tamanho do bug — nunca o ciclo completo de
@@ -165,6 +178,11 @@ Cerimônia proporcional ao tamanho do bug — nunca o ciclo completo de
 
 Atualização **obrigatória, não condicional** — isso é o mecanismo estrutural
 que substitui "lembrar de atualizar a doc":
+
+Sempre que as checagens abaixo forem independentes entre si (a trava de
+contrato, um teste estreito de arquivo específico, `tsc`, lint), dispare-as
+numa única leva de chamadas em paralelo em vez de uma de cada vez — mesma
+cobertura, menos idas e vindas.
 
 - Rode `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug <NNN-slug>`.
   Se der `FAIL`, a fase **não** fecha: desfaça a mudança no arquivo de

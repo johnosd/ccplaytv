@@ -23,6 +23,7 @@ import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 import { PosterArt } from '../../components/PosterArt'
 import type { CategoryScreenSnapshot } from '../catalog/categoryScreenSnapshot'
+import type { VodShellProps } from '../vod/vodShell'
 
 const GRID_COLS = 6
 /**
@@ -47,6 +48,8 @@ export interface MoviesScreenProps {
   onBack: () => void
   /** Feature 014, D-008: ressincroniza a fonte quando o arquivo guardado de uma categoria sumiu do aparelho. */
   onResync: () => void
+  /** Feature 025 (FR-001..FR-004) — STUB do plan: ainda ignorada. */
+  shell?: VodShellProps
 }
 
 /**

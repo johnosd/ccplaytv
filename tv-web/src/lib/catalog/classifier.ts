@@ -38,6 +38,20 @@ export interface ClassifiedEntry {
    * riscos já resolvidos por `normalizeIconUrl`).
    */
   iconUrl?: string
+  /**
+   * Ano declarado pela fonte em campo próprio (feature 025, FR-049/FR-050) —
+   * filme e série do provedor. Nunca inferido do título. `undefined` =
+   * ausente, ilegível ou fora de faixa plausível (`logic/metadados-vod.md`).
+   */
+  year?: number
+  /**
+   * Instante (epoch ms) em que a fonte declara ter incluído o item (feature
+   * 025) — `added` do provedor, só para filme. `last_modified` nunca vira
+   * isto (é atualização, não inclusão).
+   */
+  addedAt?: number
+  /** Duração declarada pela fonte, em segundos (feature 025) — só episódio do provedor. */
+  durationSeconds?: number
 }
 
 /**

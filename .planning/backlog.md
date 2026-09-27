@@ -90,8 +90,10 @@ M3. **Onda 2 — Shell, navegação e entrada**: especificada como
 M4. **Onda 3 — Live TV**: especificada como `024-live-tv-ds-v14` (ver
     `## Features`). Traz junto a captura do logo do canal e o número do
     canal derivado da ordem da fonte.
-M5. **Onda 4 — Filmes e Séries** (feature 025): side nav com **↺ Histórico**
-    (dado real, `lastWatched`), Ordenar, hero band, detalhes V14.
+M5. **Onda 4 — Filmes e Séries**: especificada como
+    `025-filmes-series-ds-v14` (ver `## Features`). Traz junto a captura do
+    ano e da data de inclusão declarados pela fonte (para Ordenar) e a
+    memória de foco por entrada (§41).
 M6. **Onda 5 — Home, Busca global e Configurações** (feature 026): absorve o
     item 16. Remove `HomeScreen`/`ListHomeScreen` antigos.
 M7. **Onda 6/7 — Player chrome, limpeza e QA** (feature 027): chrome com
@@ -982,6 +984,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 022-biblioteca-componentes-ds-v14 | Biblioteca de Componentes do Design System V14 (Onda 1 da migração) | Convergida | 80/80 tasks | 2026-09-26 |
 | 023-shell-navegacao-entrada-ds-v14 | Shell, Navegação e Entrada do Design System V14 (Onda 2 da migração) | Convergida | 59/59 tasks | 2026-09-27 |
 | 024-live-tv-ds-v14 | Live TV no Design System V14 (Onda 3) | Convergida | 59/60 tasks | 2026-09-27 |
+| 025-filmes-series-ds-v14 | Filmes e Séries no Design System V14 (Onda 4) | Planejada | 0/80 tasks | 2026-09-27 |
 
 ## Bugs
 
