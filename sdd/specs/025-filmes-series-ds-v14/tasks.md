@@ -186,23 +186,23 @@ US2.
 
 ### Implementation
 
-- [ ] T043 [US3] Conferir e ajustar em `VodCatalogScreen.tsx`: segurar OK/tecla amarela só com card focado (nunca na toolbar); ★ vazio com `FavoritesEmptyState`; desfavoritar dentro de ★ move o foco para o vizinho; prefetch nunca para ★/↺/Todos nem para a categoria já entrada (`useCategoryFocusPrefetch` com `undefined`) (FR-044, FR-045)
-- [ ] T044 [US3] Conferir a busca na toolbar em "Todos": aviso "Busca em X de Y categorias" antes e durante a digitação; "Pesquisar" ausente sem itens carregados ou com conteúdo indisponível (`!contentUnavailable`, achado T029 da 018) (FR-017)
+- [X] T043 [US3] Conferir e ajustar em `VodCatalogScreen.tsx`: segurar OK/tecla amarela só com card focado (nunca na toolbar); ★ vazio com `FavoritesEmptyState`; desfavoritar dentro de ★ move o foco para o vizinho; prefetch nunca para ★/↺/Todos nem para a categoria já entrada (`useCategoryFocusPrefetch` com `undefined`) (FR-044, FR-045)
+- [X] T044 [US3] Conferir a busca na toolbar em "Todos": aviso "Busca em X de Y categorias" antes e durante a digitação; "Pesquisar" ausente sem itens carregados ou com conteúdo indisponível (`!contentUnavailable`, achado T029 da 018) (FR-017)
 
 ### Testes da Fase
 
-- [ ] T045 [P] [US3] Atualizar `tv-web/src/features/movies/MoviesScreen.favorites.test.tsx` e `tv-web/src/features/series/SeriesScreen.favorites.test.tsx` para os novos seletores, sem mudar comportamento (rodar isolados antes de tratar falha como regressão)
-- [ ] T046 [US3] Rodar os contratos travados de 018–024 e o de `seriesWatchedSummary` da 019 (`..\.planning\scripts\powershell\check-contract-tests.ps1 -Slug <slug>` para cada um + `npx vitest run` dos arquivos) e registrar o resultado
+- [X] T045 [P] [US3] Atualizar `tv-web/src/features/movies/MoviesScreen.favorites.test.tsx` e `tv-web/src/features/series/SeriesScreen.favorites.test.tsx` para os novos seletores, sem mudar comportamento (rodar isolados antes de tratar falha como regressão)
+- [X] T046 [US3] Rodar os contratos travados de 018–024 e o de `seriesWatchedSummary` da 019 (`..\.planning\scripts\powershell\check-contract-tests.ps1 -Slug <slug>` para cada um + `npx vitest run` dos arquivos) e registrar o resultado
 
 **Critério de Conclusão**: suíte completa verde (com a regra do flake), travas de 018–025 íntegras, e nenhum teste de comportamento com asserção alterada sem registro em R-003.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída. T043/T044 eram "conferir e ajustar" — conferido no código de `VodCatalogScreen.tsx` (linhas de `canToggleFavorite`, `useCategoryFocusPrefetch`, `canSearch`, `searchCoveragePartial`): as quatro regras já saíram corretas da Fase 3 (a tela nunca tratou favoritos/busca/prefetch como comportamento "a adicionar depois" — foram portados junto com o resto). Nenhum ajuste de código foi necessário. T045 também já estava feito (Fase 3, junto com T033, já que os quatro arquivos de teste pré-existentes — `MoviesScreen`/`SeriesScreen` + `.favorites` de ambos — precisavam ficar verdes para o checkpoint daquela fase).
+- Feito: verificação de código (T043/T044, sem mudança); confirmação de que T045 já estava feito; T046 (contratos de 018, 019 — incluindo `seriesWatchedSummary` nomeado explicitamente —, 020, 021, 022, 023, 024, todos rodados individualmente).
+- Contrato: `check-contract-tests.ps1` para 018, 019, 020, 021, 022, 023, 024 e 025 → todos **PASS, trava íntegra**. `seriesWatchedSummary.historico.contract.test.ts` (019) → 1/1 verde, confirmado nominalmente.
+- Testes executados: `npm run test` (suíte completa) → 120 arquivos, 1161 testes verdes, sem flake nesta rodada.
+- Pendências: nenhuma. Os E2E citados no "Independent Test" desta fase (`capa-real.mjs` etc.) são atualizados na Fase 9 (Polish, T062) — não são gate deste checkpoint.
 
 ---
 
