@@ -292,6 +292,9 @@ passou 19/19 e 67/67 isolado.
 
 | Área | Estado |
 | --- | --- |
+| Fase 1 (Setup) | Concluída, com uma pendência de ambiente: T001 não pôde consultar o painel real (sem `.env`/credencial neste container). T002 (mocks) e T003 (ícone) feitos. |
+| Fase 2 (Foundational) | Não iniciada. |
+| Fases 3–9 | Não iniciadas. |
 
 ## Riscos e Decisões
 
@@ -302,7 +305,7 @@ passou 19/19 e 67/67 isolado.
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | Os nomes dos campos de ano, inclusão, duração e imagem de episódio no painel real não foram confirmados neste repositório (`research.md` R1). | "Ano"/"Recém-adicionados"/barra podem nunca aparecer para a fonte real, mesmo com o código certo. | T001 verifica contra o painel real (credencial do `.env`, nunca impressa) antes da Fase 2. Nome adicional encontrado entra sem mexer no contrato. Se o painel não declarar, a ausência é o comportamento correto. |
+| R-001 | Os nomes dos campos de ano, inclusão, duração e imagem de episódio no painel real não foram confirmados neste repositório (`research.md` R1). | "Ano"/"Recém-adicionados"/barra podem nunca aparecer para a fonte real, mesmo com o código certo. | T001 verifica contra o painel real (credencial do `.env`, nunca impressa) antes da Fase 2. Nome adicional encontrado entra sem mexer no contrato. Se o painel não declarar, a ausência é o comportamento correto. **Ainda não verificado**: a sessão de execução em 2026-09-27 rodou num container remoto sem `.env` real (só `.env.example`), sem painel acessível — T001 não pôde ser executado. Implementação seguiu com os nomes de `research.md` R1 (já toleram ausência/nome diferente sem inventar dado). Uma sessão com acesso ao painel real e ao `.env` preenchido deve rodar T001 antes de fechar este risco. |
 | R-002 | Altura útil da grade com toolbar + hero band fixa (`research.md` R3). | Menos de 2 linhas de cards visíveis vira uma faixa difícil de navegar. | Título da entrada na toolbar, hero ≈150px; conferir por screenshot no E2E e, se possível, na TV. Reduzir a hero antes do card. |
 | R-003 | Unificar `MoviesScreen`/`SeriesScreen` num `VodCatalogScreen` é uma reescrita grande de ~1400 linhas com comportamento acumulado de 009/010/013/014/015/017/018/019. | Regressão silenciosa de um caso de borda (prefetch com a categoria já entrada, `source_missing`, cobertura de "Todos", selo "Em dia"). | Os testes de comportamento existentes das duas telas são a rede. Eles mudam só seletores, e qualquer asserção que mudar é registrada aqui antes. US3 é uma fase própria de verificação. |
 | R-004 | Histórico de Séries não resolve episódio cujos episódios não foram obtidos na geração atual (fonte ressincronizada). | A série some do Histórico até ser aberta de novo. | Mesma limitação aceita do "Continuar assistindo" (019); a nota de não exibíveis diz quantos episódios ficaram de fora. Não chamar rede no Histórico (constitution). |
@@ -320,17 +323,22 @@ passou 19/19 e 67/67 isolado.
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-09-27 | Fase 1 (Setup) | T002 (mocks `trailer`/`cast`/`similar`) e T003 (ícone `history`) feitos e testados. T001 bloqueado por ambiente (sem `.env`/painel real neste container remoto) — documentado em `research.md`/R-001, não fingido. | T001 pendente de uma sessão com acesso ao painel real. |
 
-**PRÓXIMO**: —
+**PRÓXIMO**: Fase 2 (Foundational) — T004..T021.
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- (nenhum ainda)
+- `tv-web/src/lib/comingSoon.ts` / `comingSoon.test.ts` — mocks `trailer`/`cast`/`similar`.
+- `tv-web/src/components/iconPaths.ts` — ícone `history`.
+- `sdd/specs/025-filmes-series-ds-v14/research.md` — nota de bloqueio do T001.
 
 ## Cuidados para Retomada
 
 <!-- Armadilhas operacionais específicas desta feature, anexadas conforme descobertas. -->
 
-- (nenhum ainda)
+- Este container de execução remota não tem o `.env` da raiz (só `.env.example`) — T001 (e qualquer verificação futura contra o painel real) não pode ser feito aqui. Precisa de uma sessão com o `.env` preenchido.
+- PowerShell (`pwsh`) não vem pré-instalado neste container Linux; foi instalado manualmente em `/opt/microsoft/powershell/7` (tarball oficial) e linkado em `/usr/bin/pwsh` para os scripts de `.planning/scripts/powershell/` funcionarem. Uma sessão nova no mesmo tipo de container pode precisar repetir isso.
+- `npm ci` em `tv-web/` precisou ser rodado manualmente (node_modules não vinha instalado neste checkout).

@@ -103,6 +103,10 @@ export const ICON_PATHS = {
     { tag: 'polygon', points: '13 19 22 12 13 5 13 19' },
     { tag: 'polygon', points: '2 19 11 12 2 5 2 19' },
   ],
+  history: [
+    { tag: 'polyline', points: '1 4 1 10 7 10' },
+    { tag: 'path', d: 'M3.51 15a9 9 0 1 0 2.13-9.36L1 10' },
+  ],
 } as const satisfies Record<string, readonly IconShape[]>
 
 export type IconName = keyof typeof ICON_PATHS

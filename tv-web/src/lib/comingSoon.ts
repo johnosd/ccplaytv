@@ -23,6 +23,10 @@ export const COMING_SOON: Record<string, ComingSoonEntry> = {
   'pair-phone': { message: 'Conectar a lista pelo celular, com QR code.', backlogItem: 22 },
   // Preview da Live TV (feature 024, FR-017) — "Guia completo".
   'epg-guide': { message: 'Guia de programação completo dos canais.', backlogItem: 42 },
+  // Detalhe de filme/série (feature 025, D-011, FR-043).
+  trailer: { message: 'Trailer do filme ou da série.', backlogItem: 32 },
+  cast: { message: 'Elenco e equipe técnica.', backlogItem: 45 },
+  similar: { message: 'Títulos semelhantes a este.', backlogItem: 45 },
 }
 
 /**

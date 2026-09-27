@@ -23,9 +23,17 @@ describe('getComingSoon', () => {
     expect(() => getComingSoon('id-inexistente')).toThrow(/id-inexistente/)
   })
 
-  it('o registro de produção tem exatamente os mocks das features 023/024 — a fixture de teste não vaza para ele', () => {
+  it('o registro de produção tem exatamente os mocks das features 023/024/025 — a fixture de teste não vaza para ele', () => {
     delete COMING_SOON[FIXTURE_ID]
-    expect(Object.keys(COMING_SOON).sort()).toEqual(['epg-guide', 'pair-phone', 'search-global', 'settings'])
+    expect(Object.keys(COMING_SOON).sort()).toEqual([
+      'cast',
+      'epg-guide',
+      'pair-phone',
+      'search-global',
+      'settings',
+      'similar',
+      'trailer',
+    ])
   })
 
   it('cada mock aponta para um item de backlog ou marco, com mensagem preenchida', () => {

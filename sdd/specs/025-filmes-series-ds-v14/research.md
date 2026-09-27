@@ -26,6 +26,17 @@ vêm preenchidos e em que formato. Resultado vai para `Riscos e Decisões`
 contrato travado. Se `year` nunca vier preenchido nesse painel, "Ano" fica
 ausente para essa fonte, o que é o comportamento correto, não um defeito.
 
+**Execução (2026-09-27, sessão em ambiente remoto)**: T001 não pôde ser
+executado nesta sessão — o container de execução remota não tem o `.env` da
+raiz (só `.env.example`, com valores de exemplo), então não há credencial de
+teste nem painel real acessível para confirmar os nomes de campo. Isso é
+uma lacuna de ambiente, não uma decisão de projeto: registrado como
+verificação pendente em R-001 de `plan.md`, sem fingir uma confirmação que
+não ocorreu. A implementação segue com os nomes já documentados acima (o
+código já trata ausência/nome diferente como estado legítimo — "Ano" some
+para a fonte, nunca um valor inventado), e uma sessão com acesso ao painel
+real deve rodar a verificação de T001 antes de considerar R-001 encerrado.
+
 **Alternativas consideradas**:
 
 - Extrair o ano do título ("Filme (2020)"): rejeitada pela spec (FR-050) e

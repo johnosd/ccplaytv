@@ -32,19 +32,19 @@ US2.
 
 **Purpose**: verificar o dado real e registrar o que as telas vão consumir.
 
-- [ ] T001 Verificar no painel Xtream real (credencial de teste do `.env` da raiz, **nunca** impressa em log, arquivo ou commit — mesmo procedimento do T001 da 024) quais campos vêm em `get_vod_streams` (`year`, `releaseDate`/`release_date`, `added`), `get_series` (`year`, `releaseDate`, `added`, `last_modified`) e `get_series_info` (`info.duration_secs`, `info.duration`, `info.movie_image`), e em que formato. Registrar o resultado, sem valores identificáveis, em `research.md` R1 e em R-001 de `plan.md`
-- [ ] T002 [P] Registrar os mocks `trailer` (32), `cast` (45) e `similar` (45) em `tv-web/src/lib/comingSoon.ts` e cobrir em `tv-web/src/lib/comingSoon.test.ts` (D-011, FR-043)
-- [ ] T003 [P] Adicionar o ícone `history` (↺) em `tv-web/src/components/iconPaths.ts`, com teste em `tv-web/src/components/Icon.test.tsx`
+- [ ] T001 Verificar no painel Xtream real (credencial de teste do `.env` da raiz, **nunca** impressa em log, arquivo ou commit — mesmo procedimento do T001 da 024) quais campos vêm em `get_vod_streams` (`year`, `releaseDate`/`release_date`, `added`), `get_series` (`year`, `releaseDate`, `added`, `last_modified`) e `get_series_info` (`info.duration_secs`, `info.duration`, `info.movie_image`), e em que formato. Registrar o resultado, sem valores identificáveis, em `research.md` R1 e em R-001 de `plan.md` — **bloqueado no ambiente desta sessão**: container remoto sem `.env` real (só `.env.example`), sem painel para consultar. Documentado como pendente em `research.md`/R-001, não fingido como feito.
+- [X] T002 [P] Registrar os mocks `trailer` (32), `cast` (45) e `similar` (45) em `tv-web/src/lib/comingSoon.ts` e cobrir em `tv-web/src/lib/comingSoon.test.ts` (D-011, FR-043)
+- [X] T003 [P] Adicionar o ícone `history` (↺) em `tv-web/src/components/iconPaths.ts`, com teste em `tv-web/src/components/Icon.test.tsx`
 
 **Checkpoint**: campos reais conhecidos; mocks e ícone disponíveis.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída com uma pendência de ambiente (T001)
+- Feito: T002 (mocks `trailer`/`cast`/`similar` em `comingSoon.ts`, teste atualizado) e T003 (ícone `history` em `iconPaths.ts`, cobertura automática por `Icon.test.tsx`).
+- Contrato: sem contrato nesta fase.
+- Testes executados: `npx vitest run src/lib/comingSoon.test.ts src/components/Icon.test.tsx` → 2 arquivos, 24 testes, todos verdes.
+- Pendências: T001 não executado neste ambiente (sem `.env` real / painel acessível). A implementação segue com os nomes de campo já documentados em `research.md` R1 (o código trata ausência como estado legítimo). Uma sessão com acesso ao painel real deve rodar T001 e atualizar R-001 antes de considerar essa lacuna fechada.
 
 ---
 
