@@ -55,7 +55,11 @@ function startFixtureServer() {
 
 async function addSource(page, m3uUrl) {
   console.log('=== Adicionar fonte M3U fictícia ===')
+  // Sem lista, a entrada é a tela de perfis (feature 023): "Adicionar lista"
+  // já nasce em foco, e OK abre o formulário.
   await page.goto(APP_URL)
+  await page.waitForSelector('.add-card.tv-focus', { timeout: 10000 })
+  await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
 
   await page.getByLabel('Nome de exibição').fill('Fonte E2E Zapping')
@@ -65,6 +69,8 @@ async function addSource(page, m3uUrl) {
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   console.log('  ✓ importação concluída')
   await page.getByRole('button', { name: 'Voltar' }).click()
+  // Os perfis montam com o cache anterior; a lista nova chega logo depois.
+  await page.locator('.source-card-wrap', { hasText: 'Fonte E2E Zapping' }).waitFor({ timeout: 8000 })
 }
 
 async function openLiveTv(page) {

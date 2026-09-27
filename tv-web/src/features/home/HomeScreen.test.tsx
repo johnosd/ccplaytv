@@ -1,308 +1,285 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import type { ReactNode } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { HomeScreen } from './HomeScreen'
-import * as importApi from '../import/importApi'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { HomeScreen, type HomeScreenProps } from './HomeScreen'
+import * as catalogApi from '../catalog/catalogApi'
+import type { SourceOut } from '../import/importApi'
+import { db } from '../../lib/catalog/db'
+import { buildStableId, updateProgress } from '../../lib/catalog/userStateRepository'
 
-vi.mock('../import/importApi', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../import/importApi')>()
-  return {
-    ...actual,
-    useSources: vi.fn(),
-    useDeleteSource: vi.fn(() => ({ mutate: vi.fn() })),
-    useResyncSource: vi.fn(() => ({ mutate: vi.fn() })),
-  }
+vi.mock('../catalog/catalogApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../catalog/catalogApi')>()
+  return { ...actual, useCatalogCounts: vi.fn() }
 })
 
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  })
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+const SOURCE_ID = 'src-1'
+
+function makeSource(overrides: Partial<SourceOut> = {}): SourceOut {
+  return {
+    id: SOURCE_ID,
+    type: 'm3u_url',
+    display_name: 'Minha fonte',
+    connection_state: 'synced',
+    last_successful_sync_at: null,
+    provider_import_mode: null,
+    limited_reason: null,
+    provider_dns: null,
+    last_truncated_by_storage: false,
+    last_discarded_by_type: 0,
+    ...overrides,
   }
 }
 
-function renderHome() {
-  const Wrapper = createWrapper()
-  return render(
-    <Wrapper>
-      <HomeScreen
-        onAddSource={() => {}}
-        onOpenSource={() => {}}
-        onEditSource={() => {}}
-        onResyncStarted={() => {}}
-        onSourceCreated={() => {}}
-        
-      />
-    </Wrapper>,
+function renderHome(overrides: Partial<HomeScreenProps> = {}) {
+  const props: HomeScreenProps = {
+    source: makeSource(),
+    onNavigate: vi.fn(),
+    onOpenContinueWatching: vi.fn(),
+    onOpenProfiles: vi.fn(),
+    ...overrides,
+  }
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <QueryClientProvider client={queryClient}>
+      <HomeScreen {...props} />
+    </QueryClientProvider>,
   )
+  return props
 }
 
-describe('HomeScreen', () => {
-  afterEach(() => {
-    cleanup()
-    vi.clearAllMocks()
-  })
+// Teclas em `document.body` (nunca em `document`): só assim a captura de um
+// `Modal` roda antes das telas por trás — mesmo cuidado dos contratos da 022.
+function press(key: string) {
+  fireEvent.keyDown(document.body, { key, bubbles: true })
+}
 
-  it('mostra indicador de carregamento enquanto isLoading, nunca o formulário nem os cards', () => {
-    vi.mocked(importApi.useSources).mockReturnValue({
-      data: undefined,
-      isLoading: true,
-      isError: false,
-    } as unknown as ReturnType<typeof importApi.useSources>)
+const shortcut = (name: RegExp | string) =>
+  within(screen.getByRole('group', { name: 'Atalhos' })).getByRole('button', { name })
+const topbarItem = (name: RegExp | string) =>
+  within(screen.getByRole('navigation', { name: 'Navegação principal' })).getByRole('button', { name })
+const profileIndicator = () => screen.getByRole('button', { name: /Lista ativa/ })
+const focusedInTopbar = () => [...document.querySelectorAll('.topbar .tv-focus')]
 
+beforeEach(() => {
+  vi.mocked(catalogApi.useCatalogCounts).mockReturnValue({
+    data: {
+      channels: { items: 42, categories: 5 },
+      movies: { categories: 3 },
+      series: { categories: 2 },
+    },
+  } as unknown as ReturnType<typeof catalogApi.useCatalogCounts>)
+})
+
+afterEach(() => {
+  cleanup()
+  vi.clearAllMocks()
+})
+
+describe('HomeScreen (Início) — topbar e conteúdo', () => {
+  it('mostra a topbar com o nome da lista ativa e "Início" como destino atual; foco inicial no atalho "TV ao vivo" (FR-013, FR-014, FR-024)', () => {
     renderHome()
 
-    expect(screen.getByText(/Carregando/)).toBeInTheDocument()
-    expect(screen.queryByText('Nome de exibição')).not.toBeInTheDocument()
-    expect(screen.queryByText('Adicionar lista')).not.toBeInTheDocument()
+    expect(profileIndicator()).toHaveAccessibleName('Lista ativa: Minha fonte. Trocar de lista')
+    expect(topbarItem('Início')).toHaveAttribute('aria-current', 'page')
+    expect(shortcut(/TV ao vivo/)).toHaveClass('tv-focus')
+    expect(focusedInTopbar()).toHaveLength(0)
+    // Contagem honesta do hub, sem mudança (feature 010).
+    expect(screen.getByText('42 títulos')).toBeInTheDocument()
   })
 
-  it('mostra indicativo de erro quando a busca de fontes falha', () => {
-    vi.mocked(importApi.useSources).mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: true,
-    } as unknown as ReturnType<typeof importApi.useSources>)
+  it('OK no atalho focado abre o destino e informa de onde saiu, para o RETURN devolver o foco (FR-016, FR-029)', () => {
+    const props = renderHome()
 
-    renderHome()
+    press('ArrowRight') // TV ao vivo -> Filmes
+    press('Enter')
 
-    expect(screen.getByText(/Não foi possível carregar suas listas/)).toBeInTheDocument()
+    expect(props.onNavigate).toHaveBeenCalledTimes(1)
+    expect(props.onNavigate).toHaveBeenCalledWith('movies', { zone: 'shortcuts', destination: 'movies' })
   })
 
-  it('sem nenhuma lista, renderiza o formulário de adicionar lista diretamente (FR-005)', () => {
-    vi.mocked(importApi.useSources).mockReturnValue({
-      data: { sources: [] },
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof importApi.useSources>)
-
+  it('UP no topo do conteúdo leva à topbar em "Início" sem mexer no foco dentro dela; DOWN devolve o foco ao MESMO atalho (FR-015, R-002)', () => {
     renderHome()
 
-    expect(screen.getByText('Nome de exibição')).toBeInTheDocument()
+    press('ArrowRight') // -> Filmes
+    press('ArrowUp')
+
+    expect(focusedInTopbar()).toHaveLength(1)
+    expect(topbarItem('Início')).toHaveClass('tv-focus')
+    expect(document.querySelectorAll('.tile.tv-focus')).toHaveLength(0)
+
+    press('ArrowDown')
+
+    expect(focusedInTopbar()).toHaveLength(0)
+    expect(shortcut(/Filmes/)).toHaveClass('tv-focus')
+    expect(shortcut(/TV ao vivo/)).not.toHaveClass('tv-focus')
+    expect(shortcut(/Séries/)).not.toHaveClass('tv-focus')
   })
 
-  it('Back na Home vazia abre a confirmação de saída, e Back de novo fecha o diálogo (FR-008)', () => {
-    vi.mocked(importApi.useSources).mockReturnValue({
-      data: { sources: [] },
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof importApi.useSources>)
+  it('OK em "Filmes" na topbar abre o mesmo destino do atalho, com foco de origem na topbar (FR-016)', () => {
+    const props = renderHome()
 
-    renderHome()
+    press('ArrowUp')
+    press('ArrowRight') // Início -> TV ao vivo
+    press('ArrowRight') // -> Filmes
+    expect(topbarItem('Filmes')).toHaveClass('tv-focus')
+    press('Enter')
 
-    expect(screen.queryByText('Sair do CCPlayTv?')).not.toBeInTheDocument()
-
-    fireEvent.keyDown(document, { key: 'Backspace' })
-    expect(screen.getByText('Sair do CCPlayTv?')).toBeInTheDocument()
-
-    fireEvent.keyDown(document, { key: 'Backspace' })
-    expect(screen.queryByText('Sair do CCPlayTv?')).not.toBeInTheDocument()
+    expect(props.onNavigate).toHaveBeenCalledWith('movies', { zone: 'topbar', item: 'movies' })
   })
 
-  it('com listas cadastradas, renderiza um card por lista mais o card "Adicionar lista"', () => {
-    vi.mocked(importApi.useSources).mockReturnValue({
-      data: {
-        sources: [
-          {
-            id: 'src-1',
-            type: 'm3u_url',
-            display_name: 'Minha Lista',
-            connection_state: 'synced',
-            last_successful_sync_at: new Date().toISOString(),
-          },
-        ],
-      },
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof importApi.useSources>)
+  it('OK no indicador da lista abre os perfis, com foco de origem no indicador (FR-017)', () => {
+    const props = renderHome()
 
-    renderHome()
+    press('ArrowUp')
+    for (let i = 0; i < 4; i += 1) press('ArrowRight') // Início -> ... -> indicador
+    expect(profileIndicator()).toHaveClass('tv-focus')
+    press('Enter')
 
-    expect(screen.getByText('Minha Lista')).toBeInTheDocument()
-    expect(screen.getByText('Adicionar lista')).toBeInTheDocument()
-    expect(screen.queryByText('Nome de exibição')).not.toBeInTheDocument()
+    expect(props.onOpenProfiles).toHaveBeenCalledWith({ zone: 'topbar', item: 'profile' })
+    expect(props.onNavigate).not.toHaveBeenCalled()
   })
 
-  // --- Feature 004 (US3, T025) — indicação de modo limitado ---
+  it('Busca e Configurações são "Em breve": OK não navega nem abre nada (FR-018)', () => {
+    const props = renderHome()
 
-  it('fonte em modo limitado mostra a indicação discreta (FR-011)', () => {
-    vi.mocked(importApi.useSources).mockReturnValue({
-      data: {
-        sources: [
-          {
-            id: 'src-limitado',
-            type: 'provider_credentials',
-            display_name: 'Provedor sem protocolo JSON',
-            connection_state: 'synced',
-            last_successful_sync_at: new Date().toISOString(),
-            provider_import_mode: 'legacy_m3u',
-          },
-        ],
-      },
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof importApi.useSources>)
+    press('ArrowUp')
+    for (let i = 0; i < 5; i += 1) press('ArrowRight') // ... -> Buscar
+    expect(screen.getByRole('button', { name: 'Buscar' })).toHaveClass('tv-focus')
+    press('Enter')
+    press('ArrowRight') // -> Configurações
+    expect(screen.getByRole('button', { name: 'Configurações' })).toHaveClass('tv-focus')
+    press('Enter')
 
-    renderHome()
-
-    expect(screen.getByText('Modo limitado')).toBeInTheDocument()
+    expect(props.onNavigate).not.toHaveBeenCalled()
+    expect(props.onOpenProfiles).not.toHaveBeenCalled()
   })
 
-  it('fonte normal (protocolo falado, ou m3u_url) não mostra a indicação', () => {
-    vi.mocked(importApi.useSources).mockReturnValue({
-      data: {
-        sources: [
-          {
-            id: 'src-normal',
-            type: 'provider_credentials',
-            display_name: 'Provedor com protocolo JSON',
-            connection_state: 'synced',
-            last_successful_sync_at: new Date().toISOString(),
-            provider_import_mode: 'xtream_api',
-          },
-          {
-            id: 'src-m3u',
-            type: 'm3u_url',
-            display_name: 'Lista M3U direta',
-            connection_state: 'synced',
-            last_successful_sync_at: new Date().toISOString(),
-            provider_import_mode: null,
-          },
-        ],
-      },
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof importApi.useSources>)
+  it('initialFocus na topbar restaura o item e deixa o conteúdo sem foco (FR-029)', () => {
+    renderHome({ initialFocus: { zone: 'topbar', item: 'series' } })
 
-    renderHome()
+    expect(topbarItem('Séries')).toHaveClass('tv-focus')
+    expect(document.querySelectorAll('.tile.tv-focus')).toHaveLength(0)
 
-    expect(screen.queryByText('Modo limitado')).not.toBeInTheDocument()
+    press('ArrowDown')
+    // O conteúdo volta ao foco padrão (TV ao vivo), nunca a um item inexistente.
+    expect(shortcut(/TV ao vivo/)).toHaveClass('tv-focus')
   })
 
-  it('fonte com truncamento mostra o alerta correspondente na Home (T038)', () => {
-    vi.mocked(importApi.useSources).mockReturnValue({
-      data: {
-        sources: [
-          {
-            id: 'src-truncado',
-            type: 'm3u_url',
-            display_name: 'Lista Truncada',
-            connection_state: 'synced',
-            last_successful_sync_at: new Date().toISOString(),
-            provider_import_mode: null,
-            last_truncated_by_storage: true,
-            last_discarded_by_type: 0,
-          },
-        ],
-      },
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof importApi.useSources>)
+  it('initialFocus em atalho restaura o atalho (FR-029)', () => {
+    renderHome({ initialFocus: { zone: 'shortcuts', destination: 'series' } })
 
+    expect(shortcut(/Séries/)).toHaveClass('tv-focus')
+    expect(shortcut(/TV ao vivo/)).not.toHaveClass('tv-focus')
+  })
+})
+
+describe('HomeScreen (Início) — RETURN e modal de saída', () => {
+  it('RETURN abre "Sair do CCPlayTV?" com Cancelar em foco; com o modal aberto as setas não movem o Início; RETURN fecha e o foco fica onde estava (FR-027, FR-030)', () => {
     renderHome()
 
-    expect(screen.getByText('A lista não coube inteira')).toBeInTheDocument()
+    press('ArrowRight') // -> Filmes
+    press('Escape')
+
+    const dialog = screen.getByRole('dialog', { name: 'Sair do CCPlayTV?' })
+    expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toHaveClass('tv-focus')
+
+    press('ArrowRight') // move só o foco do modal (Cancelar -> Sair)
+    expect(within(dialog).getByRole('button', { name: 'Sair' })).toHaveClass('tv-focus')
+    press('ArrowLeft')
+    expect(shortcut(/Séries/)).not.toHaveClass('tv-focus')
+
+    press('Escape')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(shortcut(/Filmes/)).toHaveClass('tv-focus')
   })
 
-  it('fonte com entradas descartadas mostra o alerta correspondente na Home (T038)', () => {
-    vi.mocked(importApi.useSources).mockReturnValue({
-      data: {
-        sources: [
-          {
-            id: 'src-s-canais',
-            type: 'm3u_url',
-            display_name: 'Lista Só Canais',
-            connection_state: 'synced',
-            last_successful_sync_at: new Date().toISOString(),
-            provider_import_mode: null,
-            last_truncated_by_storage: false,
-            last_discarded_by_type: 100,
-          },
-        ],
-      },
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof importApi.useSources>)
-
+  it('RETURN na topbar também abre o modal de saída, e o foco volta à topbar ao fechar (FR-030)', () => {
     renderHome()
 
-    expect(screen.getByText('Entradas não reconhecidas ficaram de fora')).toBeInTheDocument()
+    press('ArrowUp')
+    press('ArrowRight') // -> TV ao vivo
+    press('Escape')
+    expect(screen.getByRole('dialog', { name: 'Sair do CCPlayTV?' })).toBeInTheDocument()
+
+    press('Enter') // Cancelar
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(topbarItem('TV ao vivo')).toHaveClass('tv-focus')
+  })
+})
+
+describe('HomeScreen (Início) — restauração de "Continuar assistindo" por id (FR-029)', () => {
+  afterEach(async () => {
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
   })
 
-  it('a ação Excluir é alcançável pelo controle (três ações na linha, não duas)', () => {
-    const deleteMutate = vi.fn()
-    vi.mocked(importApi.useDeleteSource).mockReturnValue({
-      mutate: deleteMutate,
-    } as unknown as ReturnType<typeof importApi.useDeleteSource>)
-    vi.mocked(importApi.useSources).mockReturnValue({
-      data: {
-        sources: [
-          {
-            id: 'src-1',
-            type: 'm3u_url',
-            display_name: 'Minha Lista',
-            connection_state: 'synced',
-            last_successful_sync_at: new Date().toISOString(),
-            provider_import_mode: null,
-            last_truncated_by_storage: false,
-            last_discarded_by_type: 0,
-          },
-        ],
-      },
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof importApi.useSources>)
+  async function seedMovies(names: string[]): Promise<number[]> {
+    await db.sources.put({
+      id: SOURCE_ID,
+      type: 'provider_credentials',
+      displayName: 'Fonte de teste',
+      connectionState: 'synced',
+      activeGeneration: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    const ids = (await db.channels.bulkAdd(
+      names.map((name, index) => ({
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'movie' as const,
+        name,
+        originalName: name,
+        groupOrder: 0,
+        providerStreamId: String(index + 1),
+      })),
+      { allKeys: true },
+    )) as number[]
+    for (let index = 0; index < names.length; index += 1) {
+      await updateProgress(
+        buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: String(index + 1) }),
+        SOURCE_ID,
+        300,
+      )
+    }
+    return ids
+  }
 
-    renderHome()
+  const focusedContinueTitle = () =>
+    document.querySelector('.continue-watching-card .tv-focus')?.closest('.continue-watching-card')?.querySelector('.continue-watching-title')
+      ?.textContent
 
-    // Baixo abre as ações do card; depois Ressincronizar → Editar → Excluir.
-    fireEvent.keyDown(document, { key: 'ArrowDown' })
-    fireEvent.keyDown(document, { key: 'ArrowRight' })
-    fireEvent.keyDown(document, { key: 'ArrowRight' })
-    fireEvent.keyDown(document, { key: 'Enter' })
+  it('volta ao item de "Continuar assistindo" de onde se saiu, achado pelo id — não pela posição', async () => {
+    const [firstId] = await seedMovies(['Filme A', 'Filme B'])
+    renderHome({ initialFocus: { zone: 'continue', itemId: String(firstId) } })
 
-    expect(deleteMutate).toHaveBeenCalledWith('src-1')
+    await screen.findByText('Filme A')
+    await waitFor(() => expect(focusedContinueTitle()).toBe('Filme A'))
+    expect(document.querySelectorAll('.tile.tv-focus')).toHaveLength(0)
   })
 
-  it('descer no segundo card entra pela primeira ação, não pela coluna herdada do card', () => {
-    const resyncMutate = vi.fn()
-    const deleteMutate = vi.fn()
-    vi.mocked(importApi.useResyncSource).mockReturnValue({
-      mutate: resyncMutate,
-    } as unknown as ReturnType<typeof importApi.useResyncSource>)
-    vi.mocked(importApi.useDeleteSource).mockReturnValue({
-      mutate: deleteMutate,
-    } as unknown as ReturnType<typeof importApi.useDeleteSource>)
-    vi.mocked(importApi.useSources).mockReturnValue({
-      data: {
-        sources: [1, 2, 3].map((n) => ({
-          id: `src-${n}`,
-          type: 'm3u_url',
-          display_name: `Lista ${n}`,
-          connection_state: 'synced',
-          last_successful_sync_at: new Date().toISOString(),
-          provider_import_mode: null,
-          last_truncated_by_storage: false,
-          last_discarded_by_type: 0,
-        })),
-      },
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof importApi.useSources>)
+  it('id que sumiu (item concluído enquanto se assistia) cai no atalho "TV ao vivo", nunca em outro item', async () => {
+    await seedMovies(['Filme A'])
+    renderHome({ initialFocus: { zone: 'continue', itemId: 'id-que-nao-existe-mais' } })
 
+    await screen.findByText('Filme A')
+    expect(focusedContinueTitle()).toBeUndefined()
+    expect(shortcut(/TV ao vivo/)).toHaveClass('tv-focus')
+  })
+
+  it('UP na rail de "Continuar assistindo" leva à topbar; DOWN devolve o foco à MESMA rail, sem descer aos atalhos (R-002)', async () => {
+    await seedMovies(['Filme A'])
     renderHome()
+    await screen.findByText('Filme A')
 
-    // Terceiro card: sem zerar a coluna, descer já chegava com Excluir em
-    // foco e o OK seguinte apagaria a lista.
-    fireEvent.keyDown(document, { key: 'ArrowRight' })
-    fireEvent.keyDown(document, { key: 'ArrowRight' })
-    fireEvent.keyDown(document, { key: 'ArrowDown' })
-    fireEvent.keyDown(document, { key: 'Enter' })
+    press('ArrowUp') // atalhos -> rail
+    expect(focusedContinueTitle()).toBe('Filme A')
+    press('ArrowUp') // rail -> topbar
+    expect(topbarItem('Início')).toHaveClass('tv-focus')
+    press('ArrowDown') // topbar -> conteúdo
 
-    expect(deleteMutate).not.toHaveBeenCalled()
-    expect(resyncMutate).toHaveBeenCalledWith('src-3', expect.anything())
+    expect(focusedContinueTitle()).toBe('Filme A')
+    expect(document.querySelectorAll('.tile.tv-focus')).toHaveLength(0)
   })
 })

@@ -1,0 +1,187 @@
+/*
+ * Shell do app (feature 023, D-012 do plan.md): topbar, HintBar, moldura do
+ * Início e relógio. Só tokens de `index.css` — nenhuma cor, raio, espaçamento
+ * ou tamanho de fonte literal. Importado depois de `features/screens.css`
+ * (ver `main.tsx`), então estas regras vencem as antigas quando há empate.
+ */
+
+/* Conteúdo de modais sobre o `Modal` da feature 022 (`ExitModal`, exclusão de
+   lista em `ProfilesScreen`) — o painel em si é de `components.css`. */
+
+.modal-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.modal-description {
+  margin: 0 0 var(--space-4);
+  max-width: calc(var(--space-7) * 6);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* ---------- AppShell (feature 023, T024) ---------- */
+
+/* Moldura do Início dentro da safe zone do palco 1920×1080. Sem `overflow`
+   escondido: o glow e a escala de `.tv-focus` precisam de folga (ADR-007). */
+.app-shell {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--safe-y) var(--safe-x);
+  color: var(--text-secondary);
+}
+
+.app-shell-content {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* O banner é só sinal (ADR-002): ocupa a própria linha, sem cobrir a topbar. */
+.app-shell .offline-banner {
+  align-self: flex-start;
+}
+
+/* ---------- TopBar (feature 023, T014/T020) ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+/* Gradiente de marca reservado à identidade (ADR-007) — o logo é identidade. */
+.topbar-logo-mark {
+  width: var(--space-5);
+  height: var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--brand-gradient-diagonal);
+}
+
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.topbar-item {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-body);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+}
+
+/* Destino atual (FR-014): peso, cor e pastilha — nunca só cor — e nunca a
+   receita de foco, que continua sendo só de `.tv-focus`. */
+.topbar-item--current {
+  color: var(--text-primary);
+  font-weight: 700;
+  background: var(--accent-tint);
+  border-color: var(--accent-tint-border);
+}
+
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Indicador da lista ativa: o nome trunca com reticências, sem empurrar
+   Busca, Configurações nem o relógio (edge case da spec). */
+.topbar-profile {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: calc(var(--space-7) * 3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
+  cursor: pointer;
+}
+
+.topbar-profile-avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-5);
+  height: var(--space-5);
+  border-radius: var(--radius-pill);
+  background: var(--brand-gradient-diagonal);
+  color: var(--accent-ink);
+  font-family: var(--font-heading);
+  font-weight: 700;
+}
+
+.topbar-profile-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-clock {
+  min-width: var(--space-7);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+/* ---------- HintBar (feature 023, T024) ---------- */
+
+.hint-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.hint-bar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.hint-bar-key {
+  padding: 0 var(--space-1);
+  border: 1px solid var(--text-annotation);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  color: var(--text-secondary);
+}

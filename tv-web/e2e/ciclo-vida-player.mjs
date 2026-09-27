@@ -64,7 +64,11 @@ function startFixtureServer() {
 
 async function addSource(page, m3uUrl) {
   console.log('=== Adicionar fonte M3U fictícia ===')
+  // Sem lista, a entrada é a tela de perfis (feature 023): "Adicionar lista"
+  // já nasce em foco, e OK abre o formulário.
   await page.goto(APP_URL)
+  await page.waitForSelector('.add-card.tv-focus', { timeout: 10000 })
+  await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
 
   await page.getByLabel('Nome de exibição').fill('Fonte E2E Ciclo de Vida')
@@ -74,6 +78,13 @@ async function addSource(page, m3uUrl) {
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   console.log('  ✓ importação concluída')
   await page.getByRole('button', { name: 'Voltar' }).click()
+  // Os perfis montam com o cache anterior; a lista nova chega logo depois.
+  await page.locator('.source-card-wrap', { hasText: 'Fonte E2E Ciclo de Vida' }).waitFor({ timeout: 8000 })
+}
+
+/** Espera o trilho de categorias carregar (★ Favoritos, Todos e ao menos uma real) — o `ArrowRight` que "entra" na categoria antes disso cai em "Todos". */
+async function waitForCategoryTrail(page) {
+  await page.waitForFunction(() => document.querySelectorAll('.live-item').length >= 3, null, { timeout: 8000 })
 }
 
 /** Dispara um evento do <video> ATUAL (o adaptador de dev não decodifica conteúdo fictício). */
@@ -139,7 +150,7 @@ async function run() {
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // Live TV -> Filmes
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
+    await waitForCategoryTrail(page)
     await page.keyboard.press('ArrowRight') // entra em "Filmes" (categoria única)
     await page.waitForSelector('.poster-card-title', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre o detalhe
@@ -181,9 +192,12 @@ async function run() {
     await page.waitForSelector('.poster-grid', { timeout: 8000 })
     await page.keyboard.press('Escape') // grade -> trilha
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('Escape') // trilha -> hub
+    await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('Enter') // Live TV
+    // O Início restaura o foco de origem (feature 023, FR-029): volta em
+    // "Filmes", de onde se saiu — um passo à esquerda até "TV ao vivo".
+    await page.keyboard.press('ArrowLeft')
+    await page.keyboard.press('Enter') // TV ao vivo
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria de canais
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })

@@ -34,55 +34,8 @@
   margin-bottom: 6px;
 }
 
-/* ---------- Splash ---------- */
-
-.splash {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 45%, #15101c 0%, var(--bg) 70%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-}
-
-.splash-icon {
-  width: 220px;
-  height: 220px;
-  border-radius: 52px;
-  background: var(--brand-gradient-diagonal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 30px 80px rgba(255, 122, 61, 0.3);
-  animation: ccp-pop 900ms ease-out;
-}
-
-.splash-icon-triangle {
-  width: 0;
-  height: 0;
-  border-top: 46px solid transparent;
-  border-bottom: 46px solid transparent;
-  border-left: 70px solid var(--bg);
-  margin-left: 10px;
-}
-
-.splash-wordmark {
-  font: 800 76px var(--font-heading);
-  background: var(--brand-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: ccp-fade 1000ms 300ms both;
-}
-
-.splash-tagline {
-  font: 500 16px var(--font-body);
-  color: var(--text-muted);
-  margin: 8px 0 0;
-  animation: ccp-fade 800ms 900ms both;
-}
+/* O Splash (`.splash*`) mora em `styles/onboarding.css` desde a feature 023.
+   Os keyframes abaixo continuam aqui: `onboarding.css` os reutiliza. */
 
 @keyframes ccp-fade {
   from {
@@ -120,116 +73,8 @@
 
 /* ---------- Home ("Minhas Listas") ---------- */
 
-.source-row {
-  display: flex;
-  gap: 32px;
-  flex-wrap: wrap;
-  align-items: flex-start;
-}
-
-.source-card-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.source-card {
-  width: 260px;
-  height: 220px;
-  border-radius: 20px;
-  background: var(--surface);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 28px;
-  box-sizing: border-box;
-}
-
-.source-card.tv-focus {
-  background: var(--surface-active);
-}
-
-.source-card-icon {
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
-  background: var(--brand-gradient-diagonal);
-  flex: none;
-}
-
-.source-card-name {
-  font: 700 24px var(--font-body);
-  color: var(--text-primary);
-}
-
-.source-card-status {
-  font: 500 15px var(--font-body);
-  color: var(--text-tertiary);
-}
-
-/* Fonte de provedor importada em modo limitado (feature 004, FR-011) â€” o
-   painel nÃ£o fala o protocolo JSON e a fonte caiu no caminho M3U existente.
-   Estado normal, nÃ£o erro (D-008): mesma linguagem visual do selo
-   "IndisponÃ­vel" de um canal (.live-item-badge), discreta, sem alarme. */
-.source-card-badge {
-  font: 600 13px var(--font-body);
-  color: var(--text-muted);
-  border: 2px solid var(--border-dashed);
-  border-radius: 999px;
-  padding: 2px 10px;
-  align-self: flex-start;
-}
-
-.source-actions {
-  display: flex;
-  gap: 14px;
-  margin-top: 16px;
-}
-
-.source-action {
-  padding: 10px 18px;
-  border-radius: 999px;
-  background: var(--surface-field-active);
-  color: var(--text-secondary);
-  font-weight: 700;
-  font-size: 15px;
-}
-
-.source-action.tv-focus {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-
-.add-card {
-  width: 260px;
-  height: 220px;
-  border-radius: 20px;
-  background: var(--surface);
-  border: 3px dashed var(--border-dashed);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-}
-
-.add-card.tv-focus {
-  background: var(--surface-active);
-}
-
-.add-card-plus {
-  font: 60px var(--font-body);
-  color: var(--accent);
-  line-height: 1;
-}
-
-.add-card-label {
-  font: 700 22px var(--font-body);
-  color: var(--text-primary);
-}
+/* Os cartões de lista (`.source-*`, `.add-card*`) passaram para
+   `styles/profiles.css` (feature 023, tela de perfis). */
 
 .home-empty {
   flex: 1;
@@ -356,70 +201,9 @@
   color: var(--brand-1);
 }
 
-/* ---------- Tela da lista (tiles) ---------- */
-
-.tiles-row {
-  display: flex;
-  gap: 40px;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-}
-
-.tile {
-  width: 340px;
-  height: 280px;
-  border-radius: 24px;
-  background: var(--surface);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: center;
-  justify-content: center;
-}
-
-.tile.tv-focus {
-  background: var(--surface-active);
-}
-
-.tile-icon {
-  font: 56px var(--font-body);
-}
-
-.tile-label {
-  font: 700 30px var(--font-body);
-  color: var(--text-primary);
-}
-
-.tile-meta {
-  font: 500 16px var(--font-body);
-  color: var(--text-tertiary);
-}
-
-/* Seção "Continuar assistindo" no hub da lista (feature 019, D-010) — rail
-   simples, acima dos tiles. Cards menores que .tile: só capa + título. */
-.continue-watching-row {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 40px;
-  overflow-x: hidden;
-}
-
-.continue-watching-card {
-  width: 180px;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.continue-watching-title {
-  font: 500 16px var(--font-body);
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* ---------- Tela da lista (tiles) ----------
+   Feature 023 (D-012): `.tiles-row`, `.tile*` e `.continue-watching*` saíram
+   daqui — o conteúdo do Início mora em `styles/home.css`. */
 
 /* Explicação do Modo limitado no hub da lista (feature 014, FR-021/FR-022).
    Tom informativo, nunca de erro — nunca a cor de `.form-error`. */

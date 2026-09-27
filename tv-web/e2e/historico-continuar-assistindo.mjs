@@ -53,18 +53,37 @@ function startFixtureServer() {
   })
 }
 
+const SOURCE_NAME = 'Fonte E2E Histórico'
+
 async function addSource(page, m3uUrl) {
   console.log('=== Adicionar fonte M3U fictícia ===')
   await page.goto(APP_URL)
+  // Splash (~2,6 s) -> "Quem está assistindo?". Sem lista, só "Adicionar lista", já em foco
+  // (feature 023): OK abre o formulário — ele não é mais a tela de entrada.
+  await page.waitForSelector('.add-card', { timeout: 10000 })
+  await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
 
-  await page.getByLabel('Nome de exibição').fill('Fonte E2E Histórico')
+  await page.getByLabel('Nome de exibição').fill(SOURCE_NAME)
   await page.getByLabel('URL da lista M3U').fill(m3uUrl)
   await page.getByRole('button', { name: 'Adicionar lista' }).click()
 
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   console.log('  ✓ importação concluída')
   await page.getByRole('button', { name: 'Voltar' }).click()
+  // Os perfis montam com o cache anterior e a lista nova chega logo depois: esperar por ela.
+  await page.locator('.source-card-wrap', { hasText: SOURCE_NAME }).waitFor({ timeout: 8000 })
+}
+
+/**
+ * Entra na categoria `name` de Filmes/Séries. Espera o item REAL do trilho estar em foco antes do
+ * ArrowRight: enquanto as categorias carregam o trilho só tem "★ Favoritos" e "Todos", e o padrão cai
+ * em "Todos" — um ArrowRight nesse instante entra numa grade vazia (corrida do roteiro antigo, T047).
+ */
+async function enterCategory(page, name) {
+  await page.locator('.live-column-groups .live-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
+  await page.keyboard.press('ArrowRight')
+  await page.waitForSelector('.poster-card-title', { timeout: 8000 })
 }
 
 /** Dispara um evento do <video> ATUAL (o adaptador de dev não decodifica conteúdo fictício). */
@@ -138,11 +157,9 @@ async function run() {
     // de navegar — sem fonte com progresso ainda, fica vazio, mas a consulta
     // em voo pode competir com o keydown seguinte nesta máquina.
     await page.waitForTimeout(300)
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
+    await page.keyboard.press('ArrowRight') // TV ao vivo -> Filmes (o foco do Início nasce em "TV ao vivo")
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra em "Filmes" (categoria única)
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await enterCategory(page, 'Filmes') // entra em "Filmes" (categoria única)
     assert(
       (await page.locator('.poster-card-title').first().textContent()) === 'Duna Fictício',
       'categoria "Filmes" mostra "Duna Fictício" primeiro',
@@ -186,7 +203,7 @@ async function run() {
     await page.waitForSelector('.poster-grid', { timeout: 8000 })
     await page.keyboard.press('Escape') // grade -> trilha
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('Escape') // trilha -> hub da fonte
+    await page.keyboard.press('Escape') // trilha -> Início (o foco volta ao atalho "Filmes", FR-029)
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     await page.waitForSelector('.continue-watching-row', { timeout: 8000 })
     assert(
@@ -194,7 +211,28 @@ async function run() {
       '"Continuar assistindo" mostra Arrival com progresso parcial',
     )
 
-    await page.keyboard.press('ArrowUp') // tiles -> "Continuar assistindo"
+    await page.keyboard.press('ArrowUp') // atalhos -> "Continuar assistindo"
+    assert(
+      (await page.locator('.continue-watching-card .tv-focus').count()) === 1,
+      'UP nos atalhos leva à rail "Continuar assistindo"',
+    )
+    // R-002 (plano da 023): UP na rail leva à topbar e DOWN devolve o foco à MESMA rail — sem descer
+    // aos atalhos. A topbar ativa consome a tecla em captura; se o conteúdo a processasse de novo
+    // (o React descarrega o setState entre dois listeners do mesmo evento no Chromium), o foco
+    // pularia para os atalhos. Só o navegador real prova isso — o jsdom não reproduz.
+    await page.keyboard.press('ArrowUp') // rail -> topbar
+    assert(
+      (await page.locator('.topbar .tv-focus').allTextContents()).join('|') === 'Início' &&
+        (await page.locator('.continue-watching-card .tv-focus').count()) === 0,
+      'UP na rail leva à topbar, em "Início"',
+    )
+    await page.keyboard.press('ArrowDown') // topbar -> conteúdo
+    assert(
+      (await page.locator('.continue-watching-card .tv-focus').count()) === 1 &&
+        (await page.locator('.tile.tv-focus').count()) === 0 &&
+        (await page.locator('.topbar .tv-focus').count()) === 0,
+      'R-002: DOWN na topbar devolve o foco à MESMA rail "Continuar assistindo", sem tecla dupla',
+    )
     await page.keyboard.press('Enter') // SELECT no item
     await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
     assert(
@@ -209,20 +247,24 @@ async function run() {
     await page.waitForSelector('text=/Desmarcar assistido/', { timeout: 8000 })
     assert(true, 'correção manual marcou Arrival como assistido')
 
-    await page.keyboard.press('Escape') // volta pro hub
+    await page.keyboard.press('Escape') // volta ao Início (Arrival concluído saiu da rail: o foco cai em "TV ao vivo")
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    // O cache da consulta ainda tem Arrival por alguns ms depois de o Início montar: esperar a rail sair,
+    // em vez de checar no primeiro instante.
+    await page.locator('.continue-watching-row').waitFor({ state: 'detached', timeout: 8000 })
+    assert(true, 'Arrival concluído (sem progresso de retomada) some de "Continuar assistindo"')
+    // O item que o Início tentava restaurar sumiu: o foco cai no padrão (FR-024/FR-029), nunca some.
     assert(
-      !(await page.locator('.continue-watching-row').isVisible().catch(() => false)),
-      'Arrival concluído (sem progresso de retomada) some de "Continuar assistindo"',
+      (await page.locator('.tile.tv-focus').allTextContents()).join('|').includes('TV ao vivo') &&
+        (await page.locator('.topbar .tv-focus').count()) === 0,
+      'sem o item na rail, o foco do Início cai no atalho "TV ao vivo" (nunca fica sem foco visível)',
     )
 
     console.log('=== Cenário C: série só fica "Em dia" com todos os episódios conhecidos assistidos ===')
+    await page.keyboard.press('ArrowRight') // TV ao vivo -> Filmes
     await page.keyboard.press('ArrowRight') // Filmes -> Séries
-    await page.keyboard.press('ArrowRight') // Séries
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra em "Series" (categoria única)
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await enterCategory(page, 'Series') // entra em "Series" (categoria única)
     assert(
       !(await page.locator('.watched-badge').isVisible().catch(() => false)),
       'série nunca aberta não mostra nenhum selo agregado',

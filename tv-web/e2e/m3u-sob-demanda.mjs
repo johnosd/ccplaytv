@@ -175,13 +175,31 @@ async function addSource(page, m3uUrl, displayName = 'Fonte E2E M3U Painel') {
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   console.log('  ✓ importação concluída')
   await page.getByRole('button', { name: 'Voltar' }).click()
+  // Feature 023: "Voltar" abre a tela de perfis com o foco na lista recém-
+  // importada. Ela monta com o cache anterior e a consulta traz a lista nova
+  // logo depois — só então o foco inicial cai nela (FR-039).
+  await page.locator('.source-card-wrap', { hasText: displayName }).waitFor({ timeout: 8000 })
 }
 
 /**
- * Abre "Adicionar lista" a partir da Home, navegando pelo controle (sem
- * clique — o card "+" só responde a SELECT, como o resto da tela).
- * `existingSourceCount` é quantos cards de fonte já existem antes deste:
- * é a distância, em `ArrowRight`, do primeiro card até o card "+".
+ * Do Início, abre o atalho `index` (0 = Live TV, 1 = Filmes, 2 = Séries).
+ * RETURN devolve o foco ao atalho de onde se saiu (feature 023, FR-029), em
+ * vez de reiniciar sempre em "Live TV" — então a posição de partida varia, e
+ * contar setas a partir dela deixou de ser confiável: volta ao começo antes.
+ */
+async function openShortcut(page, index) {
+  for (let i = 0; i < 2; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < index; i += 1) await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
+}
+
+/**
+ * Abre "Adicionar lista" a partir da tela de perfis, navegando pelo controle
+ * (sem clique — o card "+" só responde a SELECT, como o resto da tela).
+ * `existingSourceCount` é quantos cards de fonte já existem antes deste. O
+ * foco inicial dos perfis é a última lista usada (feature 023, FR-004), não
+ * necessariamente a primeira: `existingSourceCount` setas sempre bastam para
+ * chegar ao card "+", de onde quer que se comece (o foco para na ponta).
  */
 async function openAddSourceFromHome(page, existingSourceCount) {
   await page.waitForSelector('.source-card', { timeout: 8000 })
@@ -224,6 +242,9 @@ async function run() {
   try {
     console.log('=== Cenário A (US1): painel confirmado importa só categorias ===')
     await page.goto(APP_URL)
+    // Sem lista, a tela de perfis só tem "Adicionar lista", já em foco (feature 023).
+    await page.waitForSelector('.add-card', { timeout: 10000 })
+    await page.keyboard.press('Enter')
     await addSource(page, m3uUrl)
 
     assert(panel.counts.getPhp === 0, 'nenhuma requisição a get.php durante a importação')
@@ -278,7 +299,8 @@ async function run() {
     )
 
     console.log('=== Hub da lista explica o motivo, sem vazar usuário/senha ===')
-    await page.keyboard.press('ArrowRight') // 1º card (painel) -> 2º card (Modo limitado)
+    // O foco dos perfis já está na lista recém-importada (Modo limitado) — "Voltar"
+    // do progresso o coloca lá (FR-039) — então só OK abre o Início dela.
     await page.keyboard.press('Enter')
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     assert(
@@ -304,14 +326,14 @@ async function run() {
 
     await page.waitForSelector('.source-card', { timeout: 8000 })
     const avulsaCard = page.locator('.source-card-wrap', { hasText: 'Fonte E2E Avulsa' })
+    await avulsaCard.waitFor({ timeout: 8000 }) // sem isto o `count() === 0` abaixo passa antes de o cartão existir
     assert(
       (await avulsaCard.locator('.source-card-badge', { hasText: 'Modo limitado' }).count()) === 0,
       'lista avulsa não ganha o selo "Modo limitado" (nunca houve painel)',
     )
 
     console.log('--- Live TV: duas categorias, sem nenhuma requisição nova ---')
-    await page.keyboard.press('ArrowRight') // painel -> Modo limitado
-    await page.keyboard.press('ArrowRight') // Modo limitado -> Avulsa
+    // O foco dos perfis já está na lista recém-importada (Avulsa), como no cenário B.
     await page.keyboard.press('Enter')
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     await page.keyboard.press('Enter') // Live TV
@@ -358,8 +380,7 @@ async function run() {
     await page.keyboard.press('Escape') // sai da categoria -> trilha
     await page.keyboard.press('Escape') // sai da trilha -> hub da lista
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('Enter')
+    await openShortcut(page, 1) // Filmes
     await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria "Filmes"
     await page.waitForSelector('.poster-card-title', { timeout: 8000 })
@@ -373,9 +394,7 @@ async function run() {
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('ArrowRight') // Filmes -> Séries
-    await page.keyboard.press('Enter')
+    await openShortcut(page, 2) // Séries
     await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria "Series"
     await page.waitForSelector('.poster-card-title', { timeout: 8000 })

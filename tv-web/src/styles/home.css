@@ -1,0 +1,114 @@
+/*
+ * Conteúdo do Início provisório (feature 023): atalhos, "Continuar assistindo"
+ * e aviso de Modo limitado, no visual V14. Substitui as regras `.tile*`,
+ * `.tiles-row` e `.continue-watching*` de `features/screens.css`. Só tokens de
+ * `index.css`. A moldura (topbar, safe zone, HintBar) é de `shell.css`.
+ */
+
+.home-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.home-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.home-section-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+/* "Continuar assistindo" (feature 019, D-010): rail simples, só capa + título.
+   O padding dá folga para o glow e a escala do foco (ADR-007) — sem ele o
+   `overflow` cortaria o contorno do primeiro card. */
+.continue-watching-row {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  overflow-x: hidden;
+}
+
+.continue-watching-card {
+  flex: none;
+  width: calc(var(--space-7) * 2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.continue-watching-title {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-caption);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Atalhos TV ao vivo / Filmes / Séries — `<button>` só para o clique de mouse e
+   o nome acessível; o foco é de estado (`.tv-focus`, ADR-009). */
+.tiles-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+}
+
+.tile {
+  appearance: none;
+  border: none;
+  width: calc(var(--space-7) * 3.5);
+  height: calc(var(--space-7) * 3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.tile.tv-focus {
+  background: var(--bg-hover);
+}
+
+.tile-icon {
+  --icon-size: var(--fs-display);
+  color: var(--text-primary);
+}
+
+.tile-label {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.tile-meta {
+  min-height: var(--fs-caption);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+}
+
+.home-coverage-note {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-body);
+  color: var(--text-tertiary);
+}

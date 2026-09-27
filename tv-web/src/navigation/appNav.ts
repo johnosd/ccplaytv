@@ -1,0 +1,127 @@
+import type { SourceOut } from '../features/import/importApi'
+import type { CategoryScreenSnapshot } from '../features/catalog/categoryScreenSnapshot'
+
+/**
+ * Navegação do app como função pura (feature 023, D-003 do plan.md —
+ * `sdd/specs/023-shell-navegacao-entrada-ds-v14/logic/navegacao-app.md`).
+ * `App.tsx` só despacha ações e renderiza `state.screen`; toda regra de
+ * "para onde RETURN leva" e de "o que zera a pilha" mora aqui.
+ */
+
+/** Destinos de topo alcançáveis pelo Início (atalhos ou topbar). */
+export type TopDestination = 'live' | 'movies' | 'series'
+
+/** Item da topbar, na ordem visual (FR-013). */
+export type TopbarItem = 'home' | TopDestination | 'profile' | 'search' | 'settings'
+
+/**
+ * Onde estava o foco do Início quando a pessoa saiu dele — restaurado no
+ * RETURN (FR-029). "Continuar assistindo" é por id, nunca por índice
+ * (constitution, "Voltar Restaura Foco e Posição").
+ */
+export type HomeFocus =
+  | { zone: 'topbar'; item: TopbarItem }
+  | { zone: 'shortcuts'; destination: TopDestination }
+  | { zone: 'continue'; itemId: string }
+
+export type AppScreen =
+  | { name: 'splash' }
+  /** `base`: primeira tela da pilha (abertura, pós-falha de importação, lista ativa removida). `switch`: aberta pelo indicador da topbar. */
+  | { name: 'profiles'; mode: 'base' | 'switch'; focusSourceId?: string | null }
+  | { name: 'add-source' }
+  | { name: 'edit-source'; source: SourceOut }
+  | { name: 'progress'; jobId: string }
+  | { name: 'home'; focus?: HomeFocus }
+  | { name: 'live' }
+  | { name: 'movies'; restore?: CategoryScreenSnapshot }
+  | { name: 'movie-detail'; movieId: string }
+  | { name: 'series'; restore?: CategoryScreenSnapshot }
+  | { name: 'series-detail'; seriesId: string }
+
+export interface AppNavState {
+  screen: AppScreen
+  /** Pilha de RETURN — o topo é `history[history.length - 1]`. Vazia = tela base (RETURN nela é decisão da própria tela: modal de saída). */
+  history: AppScreen[]
+  /** Fonte ativa da sessão (ADR-011 §3). `null` até a primeira escolha, ou depois de a lista ativa ser removida. */
+  activeSource: SourceOut | null
+}
+
+export type AppNavAction =
+  | { type: 'splash-finished' }
+  /** Escolher uma lista na tela de perfis, ou concluir a importação dela: vira a fonte ativa, Início com pilha zerada (FR-006, FR-032, FR-038). */
+  | { type: 'choose-source'; source: SourceOut }
+  /**
+   * Empilha a tela atual e abre `screen`. `from`, quando presente, substitui
+   * a tela atual ao empilhá-la — é assim que o Início guarda o próprio foco
+   * e Filmes/Séries guardam o snapshot de restauração (feature 017).
+   */
+  | { type: 'open'; screen: AppScreen; from?: AppScreen }
+  /** Indicador da lista ativa na topbar (FR-017). */
+  | { type: 'open-profiles'; from?: AppScreen }
+  | { type: 'back' }
+  /** Uma lista foi excluída. Se era a ativa, a tela de perfis vira a base (edge case da spec). */
+  | { type: 'source-removed'; sourceId: string }
+  /** "Voltar" da tela de progresso sem abrir a lista (FR-039): perfis como base, foco na lista importada. */
+  | { type: 'import-back'; sourceId?: string | null }
+
+export function initialAppNav(): AppNavState {
+  return { screen: { name: 'splash' }, history: [], activeSource: null }
+}
+
+/** Perfis como tela base: pilha vazia, sem fonte ativa (não há Início de lista para onde voltar). */
+function profilesAsBase(focusSourceId?: string | null): AppNavState {
+  const screen: AppScreen =
+    focusSourceId === undefined
+      ? { name: 'profiles', mode: 'base' }
+      : { name: 'profiles', mode: 'base', focusSourceId }
+  return { screen, history: [], activeSource: null }
+}
+
+export function appNavReducer(state: AppNavState, action: AppNavAction): AppNavState {
+  switch (action.type) {
+    case 'splash-finished':
+      // O Splash nunca entra na pilha (é só a abertura).
+      return { ...state, screen: { name: 'profiles', mode: 'base' }, history: [] }
+
+    case 'choose-source':
+      return { screen: { name: 'home' }, history: [], activeSource: action.source }
+
+    case 'open':
+      return {
+        ...state,
+        screen: action.screen,
+        history: [...state.history, action.from ?? state.screen],
+      }
+
+    case 'open-profiles': {
+      // Sem fonte ativa não há Início de lista para onde RETURN voltar: os
+      // perfis viram a base, em vez de um modo "troca" sem destino.
+      if (!state.activeSource) return profilesAsBase()
+      return {
+        ...state,
+        screen: { name: 'profiles', mode: 'switch', focusSourceId: state.activeSource.id },
+        history: [...state.history, action.from ?? state.screen],
+      }
+    }
+
+    case 'back': {
+      if (state.history.length === 0) return state
+      return {
+        ...state,
+        screen: state.history[state.history.length - 1],
+        history: state.history.slice(0, -1),
+      }
+    }
+
+    case 'source-removed': {
+      if (state.activeSource?.id !== action.sourceId) return state
+      return profilesAsBase()
+    }
+
+    case 'import-back':
+      return profilesAsBase(action.sourceId ?? null)
+
+    default:
+      return state
+  }
+}

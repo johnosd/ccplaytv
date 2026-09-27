@@ -133,12 +133,31 @@ async function waitUntil(fn, timeoutMs = 5000, stepMs = 100) {
 }
 
 async function addSource(page, m3uUrl, displayName) {
+  // Feature 023: sem lista, a tela de perfis só tem "Adicionar lista", já em
+  // foco — OK abre o formulário (ele não é mais a primeira tela).
+  await page.waitForSelector('.add-card', { timeout: 10000 })
+  await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
   await page.getByLabel('Nome de exibição').fill(displayName)
   await page.getByLabel('URL da lista M3U').fill(m3uUrl)
   await page.getByRole('button', { name: 'Adicionar lista' }).click()
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   await page.getByRole('button', { name: 'Voltar' }).click()
+  // Os perfis montam com o cache anterior e a consulta traz a lista nova logo
+  // depois — só então o foco inicial cai nela (FR-039).
+  await page.locator('.source-card-wrap', { hasText: displayName }).waitFor({ timeout: 8000 })
+}
+
+/**
+ * Do Início, abre o atalho `index` (0 = TV ao vivo, 1 = Filmes, 2 = Séries).
+ * RETURN devolve o foco ao atalho de onde se saiu (feature 023, FR-029), em
+ * vez de reiniciar sempre em "TV ao vivo" — então a posição de partida varia,
+ * e contar setas a partir dela deixou de ser confiável: volta ao começo antes.
+ */
+async function openShortcut(page, index) {
+  for (let i = 0; i < 2; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < index; i += 1) await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
 }
 
 /** Mesmo binário fixo de `favoritos.mjs` quando existe; senão, resolução padrão do Playwright (mesmo padrão de `m3u-sob-demanda.mjs`). */
@@ -186,8 +205,7 @@ async function run() {
     await page.keyboard.press('Escape') // sai da categoria -> trilha
     await page.keyboard.press('Escape') // sai da trilha -> hub da lista
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('Enter')
+    await openShortcut(page, 1) // Filmes
     // Espera a categoria REAL aparecer na trilha (não só ".live-state"/
     // ".poster-grid" — o primeiro também casa com o carregamento de
     // *categorias*, ainda antes de entrar em qualquer uma; entrar cedo
@@ -221,9 +239,7 @@ async function run() {
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('ArrowRight') // Filmes -> Séries
-    await page.keyboard.press('Enter')
+    await openShortcut(page, 2) // Séries
     await page.waitForSelector('.live-item:not(.live-item-favorites)', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria "Series"
     await page.waitForSelector('.poster-card-title', { timeout: 8000 })
@@ -239,8 +255,7 @@ async function run() {
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('Enter')
+    await openShortcut(page, 1) // Filmes
     // Espera a categoria "Muitos" especificamente — não só "alguma categoria
     // real" (".live-item:not(.live-item-favorites)" já casa só com "Filmes",
     // a primeira a chegar; navegar antes de "Muitos" também estar na trilha

@@ -5,12 +5,16 @@ import App from './App'
 import type { CategoryScreenSnapshot } from './features/catalog/categoryScreenSnapshot'
 
 /**
- * T025 (feature 017): confirma que o `App` grava, na entrada de histórico da
- * tela de origem, o snapshot que `MoviesScreen`/`SeriesScreen` entregam ao
- * abrir um detalhe — e o devolve em `restore` quando a pessoa volta (D-006,
- * fecha o bug de backlog "Voltar do detalhe pra grade não restaura foco nem
- * posição"). As telas reais são pesadas (IndexedDB, virtualização, foco) e
- * já têm cobertura própria; aqui só o roteamento do `App` está sob teste.
+ * T025 (feature 017), atualizado na feature 023 para o caminho de entrada
+ * novo (perfis → Início → destinos): confirma que o `App` grava, na entrada
+ * de histórico da tela de origem, o snapshot que `MoviesScreen`/
+ * `SeriesScreen` entregam ao abrir um detalhe — e o devolve em `restore`
+ * quando a pessoa volta (D-006, fecha o bug de backlog "Voltar do detalhe
+ * pra grade não restaura foco nem posição"). As telas pesadas (IndexedDB,
+ * virtualização, foco) continuam mockadas e já têm cobertura própria; aqui
+ * só o roteamento do `App` está sob teste. O `HomeScreen` (Início) não é
+ * mockado: é uma casca fina sobre `AppShell`/`TopBar`/`ListHomeScreen` sem
+ * IndexedDB própria — mockar `ListHomeScreen` já basta.
  */
 
 vi.mock('./lib/tizenColorKey', () => ({ registerFavoriteColorKey: vi.fn() }))
@@ -22,18 +26,18 @@ vi.mock('./features/splash/SplashScreen', () => ({
   },
 }))
 
-vi.mock('./features/home/HomeScreen', () => ({
-  HomeScreen: ({ onOpenSource }: { onOpenSource: (source: unknown) => void }) => (
+vi.mock('./features/profiles/ProfilesScreen', () => ({
+  ProfilesScreen: ({ onChooseSource }: { onChooseSource: (source: unknown) => void }) => (
     <button
       type="button"
       onClick={() =>
-        onOpenSource({
+        onChooseSource({
           id: 'src-1',
-          type: 'xtream',
+          type: 'm3u_url',
           display_name: 'Fonte 1',
-          connection_state: 'connected',
+          connection_state: 'synced',
           last_successful_sync_at: null,
-          provider_import_mode: 'on_demand',
+          provider_import_mode: null,
           limited_reason: null,
           provider_dns: null,
           last_truncated_by_storage: false,
@@ -41,7 +45,7 @@ vi.mock('./features/home/HomeScreen', () => ({
         })
       }
     >
-      abrir-fonte
+      escolher-fonte
     </button>
   ),
 }))
@@ -100,11 +104,11 @@ function renderApp() {
   )
 }
 
-describe('App — navegação e snapshot de volta do detalhe (feature 017, T025)', () => {
+describe('App — navegação e snapshot de volta do detalhe (feature 017, T025; feature 023, entrada nova)', () => {
   it('abrir um filme grava o snapshot na tela de origem; voltar do detalhe o devolve em restore', async () => {
     renderApp()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'abrir-fonte' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'escolher-fonte' }))
     fireEvent.click(await screen.findByRole('button', { name: 'ir-para-filmes' }))
 
     expect(screen.getByTestId('movies-restore').textContent).toBe('sem-restore')

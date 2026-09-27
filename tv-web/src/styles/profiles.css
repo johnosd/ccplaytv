@@ -1,0 +1,152 @@
+/*
+ * Tela de perfis "Quem está assistindo?" (feature 023): cartões de lista,
+ * cartão "Adicionar lista", linha de ações e estados. Substitui as regras
+ * `.source-card*`/`.add-card*`/`.source-actions` de `features/screens.css`.
+ * Só tokens de `index.css`. Os NOMES de classe `.source-card`,
+ * `.source-card-wrap` e `.source-card-badge` são mantidos de propósito
+ * (D-006): os scripts E2E os usam como seletores.
+ */
+
+/* Geometria única do cartão — compartilhada com os esqueletos de carregamento
+   (`Skeleton` recebe estas variáveis), para o card real e o placeholder terem
+   exatamente as mesmas dimensões. */
+.profiles-screen {
+  --profile-card-width: calc(var(--space-7) * 3);
+  --profile-card-height: calc(var(--space-5) * 5);
+}
+
+.profiles-screen .screen-title {
+  margin-bottom: var(--space-1);
+  font-size: var(--fs-display);
+}
+
+.profiles-screen .screen-subtitle {
+  margin-bottom: var(--space-6);
+  font-size: var(--fs-body-lg);
+}
+
+/* Fileira horizontal: rola acompanhando o foco (`scrollIntoView`), sem barra.
+   O padding dá folga ao glow e à escala do foco (ADR-007) — sem ele o
+   `overflow` cortaria o contorno do primeiro e do último cartão. */
+.source-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  margin: calc(-1 * var(--space-3));
+  overflow-x: hidden;
+  scroll-padding-inline: var(--space-3);
+}
+
+.source-card-wrap,
+.profiles-skeleton-wrap {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.profiles-skeleton-wrap .skeleton {
+  border-radius: var(--radius-lg);
+}
+
+/* Cartão de lista e "Adicionar lista" são `<button>` para o clique de mouse e
+   o nome acessível; o foco é de estado (`.tv-focus`, ADR-009). */
+.source-card,
+.add-card {
+  appearance: none;
+  width: var(--profile-card-width);
+  height: var(--profile-card-height);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: inherit;
+  font-family: var(--font-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.source-card {
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+.source-card.tv-focus,
+.add-card.tv-focus {
+  background: var(--bg-hover);
+}
+
+/* Cartão de onde se desceu às ações: continua marcado sem repetir a receita de
+   foco (que passa para a ação em foco). */
+.source-card.is-current:not(.tv-focus) {
+  background: var(--bg-elevated);
+}
+
+/* O avatar é identidade da lista — o gradiente de marca é reservado a isso (ADR-007). */
+.source-card-icon {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-md);
+  background: var(--brand-gradient-diagonal);
+}
+
+.source-card-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+.source-card-type,
+.source-card-status {
+  font-weight: 500;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+}
+
+/* Selos discretos: estado normal, não erro (feature 004, D-008) — pastilha com
+   texto, nunca só cor. */
+.source-card-badge {
+  align-self: flex-start;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--accent-tint-border);
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.source-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.add-card {
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border: 3px dashed var(--text-disabled);
+}
+
+.add-card-plus {
+  --icon-size: var(--fs-display);
+  color: var(--accent);
+}
+
+.add-card-label {
+  font-weight: 700;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}

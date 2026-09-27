@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ImportProgressScreen } from './ImportProgressScreen'
@@ -44,7 +44,7 @@ describe('ImportProgressScreen', () => {
     const Wrapper = createWrapper()
     render(
       <Wrapper>
-        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} onOpenSource={() => {}} />
       </Wrapper>,
     )
 
@@ -58,7 +58,7 @@ describe('ImportProgressScreen', () => {
     const Wrapper = createWrapper()
     render(
       <Wrapper>
-        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} onOpenSource={() => {}} />
       </Wrapper>,
     )
 
@@ -76,7 +76,7 @@ describe('ImportProgressScreen', () => {
     const Wrapper = createWrapper()
     render(
       <Wrapper>
-        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} onOpenSource={() => {}} />
       </Wrapper>,
     )
 
@@ -92,7 +92,7 @@ describe('ImportProgressScreen', () => {
     const Wrapper = createWrapper()
     render(
       <Wrapper>
-        <ImportProgressScreen jobId="job-sumido" onRetried={() => {}} onBack={() => {}} />
+        <ImportProgressScreen jobId="job-sumido" onRetried={() => {}} onBack={() => {}} onOpenSource={() => {}} />
       </Wrapper>,
     )
 
@@ -108,7 +108,7 @@ describe('ImportProgressScreen', () => {
     const Wrapper = createWrapper()
     render(
       <Wrapper>
-        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} onOpenSource={() => {}} />
       </Wrapper>,
     )
 
@@ -131,7 +131,7 @@ describe('ImportProgressScreen', () => {
     const Wrapper = createWrapper()
     render(
       <Wrapper>
-        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} onOpenSource={() => {}} />
       </Wrapper>,
     )
 
@@ -160,7 +160,7 @@ describe('ImportProgressScreen', () => {
     const Wrapper = createWrapper()
     render(
       <Wrapper>
-        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} onOpenSource={() => {}} />
       </Wrapper>,
     )
 
@@ -178,7 +178,7 @@ describe('ImportProgressScreen', () => {
     const Wrapper = createWrapper()
     render(
       <Wrapper>
-        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} onOpenSource={() => {}} />
       </Wrapper>,
     )
 
@@ -193,7 +193,7 @@ describe('ImportProgressScreen', () => {
     const Wrapper = createWrapper()
     render(
       <Wrapper>
-        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} />
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} onOpenSource={() => {}} />
       </Wrapper>,
     )
 
@@ -206,5 +206,134 @@ describe('ImportProgressScreen', () => {
 
     expect(retryBtn).toBeInTheDocument()
     expect(backBtn).toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Feature 023, US4 (D-009, FR-037/FR-038/FR-039): ao concluir, "Abrir lista".
+// ---------------------------------------------------------------------------
+
+function renderProgress(overrides: Partial<React.ComponentProps<typeof ImportProgressScreen>> = {}) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+  const props = {
+    jobId: 'job-1',
+    onRetried: vi.fn(),
+    onBack: vi.fn(),
+    onOpenSource: vi.fn(),
+    ...overrides,
+  }
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ImportProgressScreen {...props} />
+    </QueryClientProvider>,
+  )
+  return { ...props, queryClient }
+}
+
+/** Importação concluída SEM nenhum aviso (nada descartado, nada inválido, nada truncado). */
+const COMPLETED_CLEAN: Partial<ImportRunRecord> = {
+  status: 'completed',
+  step: 'done',
+  discardedByType: 0,
+  invalidCount: 0,
+  finishedAt: Date.now(),
+}
+
+describe('ImportProgressScreen — abrir a lista ao concluir (feature 023, US4)', () => {
+  afterEach(async () => {
+    cleanup()
+    vi.clearAllMocks()
+    await db.importRuns.clear()
+  })
+
+  it('concluída sem avisos: mostra "Abrir lista" já em foco e o texto "Concluída", sem percentual (FR-037/FR-038)', async () => {
+    await db.importRuns.put(mockJobRecord(COMPLETED_CLEAN))
+    renderProgress()
+
+    const open = await screen.findByRole('button', { name: 'Abrir lista' })
+    expect(screen.getByText(/Concluída/)).toBeInTheDocument()
+    expect(screen.queryByText(/Avisos/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument()
+    await waitFor(() => expect(document.activeElement).toBe(open))
+  })
+
+  it('concluída COM avisos (status continua `completed`): "Abrir lista" aparece junto dos avisos, que ficam legíveis — sem avanço automático', async () => {
+    await db.importRuns.put(mockJobRecord({ ...COMPLETED_CLEAN, discardedByType: 5, truncatedByStorage: true }))
+    const props = renderProgress()
+
+    const open = await screen.findByRole('button', { name: 'Abrir lista' })
+    expect(screen.getByText('A lista não coube inteira no aparelho.')).toBeInTheDocument()
+    expect(screen.getByText('Entradas de tipo não reconhecido ficaram de fora.')).toBeInTheDocument()
+    await waitFor(() => expect(document.activeElement).toBe(open))
+    // Nada saiu sozinho: só a pessoa decide abrir.
+    expect(props.onOpenSource).not.toHaveBeenCalled()
+    expect(props.onBack).not.toHaveBeenCalled()
+  })
+
+  it('OK em "Abrir lista" chama onOpenSource com o id da lista do job', async () => {
+    await db.importRuns.put(mockJobRecord({ ...COMPLETED_CLEAN, sourceId: 'lista-42' }))
+    const props = renderProgress()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Abrir lista' }))
+    expect(props.onOpenSource).toHaveBeenCalledTimes(1)
+    expect(props.onOpenSource).toHaveBeenCalledWith('lista-42')
+  })
+
+  it('em andamento e falhou: não há "Abrir lista"', async () => {
+    await db.importRuns.put(mockJobRecord()) // running
+    const running = renderProgress()
+    await screen.findByRole('button', { name: 'Cancelar' })
+    expect(screen.queryByRole('button', { name: 'Abrir lista' })).not.toBeInTheDocument()
+    cleanup()
+    running.queryClient.clear()
+
+    await db.importRuns.put(mockJobRecord({ status: 'failed', errorKind: 'network_failure' }))
+    renderProgress()
+    await screen.findByRole('button', { name: 'Tentar novamente' })
+    expect(screen.queryByRole('button', { name: 'Abrir lista' })).not.toBeInTheDocument()
+  })
+
+  it('"Voltar" está sempre presente e chama onBack com o id da lista — botão e RETURN (FR-039)', async () => {
+    await db.importRuns.put(mockJobRecord({ ...COMPLETED_CLEAN, sourceId: 'lista-42' }))
+    const props = renderProgress()
+
+    // O estado de carregando também tem "Voltar" — sem esperar o job, o clique
+    // sairia antes de haver lista a apontar (e sem argumento, corretamente).
+    await screen.findByRole('button', { name: 'Abrir lista' })
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar' }))
+    expect(props.onBack).toHaveBeenCalledTimes(1)
+    expect(props.onBack).toHaveBeenLastCalledWith('lista-42')
+
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(props.onBack).toHaveBeenCalledTimes(2)
+    expect(props.onBack).toHaveBeenLastCalledWith('lista-42')
+  })
+
+  it('sem job (importação sumida): "Voltar" chama onBack SEM argumento — não há lista a apontar', async () => {
+    const props = renderProgress({ jobId: 'job-sumido' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Voltar' }))
+    expect(props.onBack).toHaveBeenCalledTimes(1)
+    expect(props.onBack).toHaveBeenCalledWith()
+  })
+
+  it('o foco vai para "Abrir lista" na virada para concluída, mesmo com a pessoa já parada em "Voltar" (D-009)', async () => {
+    await db.importRuns.put(mockJobRecord()) // running
+    const { queryClient } = renderProgress()
+
+    await screen.findByRole('button', { name: 'Cancelar' })
+    const back = screen.getByRole('button', { name: 'Voltar' })
+    back.focus()
+    expect(document.activeElement).toBe(back)
+
+    // A importação termina: o registro muda e a consulta é refeita.
+    await db.importRuns.put(mockJobRecord(COMPLETED_CLEAN))
+    await queryClient.invalidateQueries({ queryKey: ['import-job', 'job-1'] })
+
+    const open = await screen.findByRole('button', { name: 'Abrir lista' })
+    await waitFor(() => expect(document.activeElement).toBe(open))
+    expect(screen.queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument()
   })
 })

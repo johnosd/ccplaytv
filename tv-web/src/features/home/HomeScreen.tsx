@@ -1,208 +1,91 @@
 import { useState } from 'react'
-import {
-  useDeleteSource,
-  useResyncSource,
-  useSources,
-  type SourceOut,
-} from '../import/importApi'
-import { AddSourceScreen } from '../import/AddSourceScreen'
-import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
-import { useToast } from '../../lib/useToast'
-import { Toast } from '../../components/Toast'
-import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { exitApp } from '../../lib/tizenExit'
+import type { ReactNode } from 'react'
+import type { SourceOut } from '../import/importApi'
+import type { CatalogItemOut } from '../catalog/catalogApi'
+import { ListHomeScreen } from '../list-home/ListHomeScreen'
+import { AppShell } from '../shell/AppShell'
+import { TopBar } from '../shell/TopBar'
+import { ExitModal } from '../shell/ExitModal'
+import type { HintItem } from '../shell/HintBar'
+import type { HomeFocus, TopbarItem, TopDestination } from '../../navigation/appNav'
 
 export interface HomeScreenProps {
-  onAddSource: () => void
-  onOpenSource: (source: SourceOut) => void
-  onEditSource: (source: SourceOut) => void
-  onResyncStarted: (jobId: string) => void
-  onSourceCreated: (result: { sourceId: string; jobId: string }) => void
+  /** Fonte ativa da sessão (ADR-011 §3) — o nome vai no indicador da topbar, o resto no conteúdo. */
+  source: SourceOut
+  /** Onde estava o foco quando a pessoa saiu daqui, restaurado ao voltar (FR-029). */
+  initialFocus?: HomeFocus
+  /**
+   * Abrir TV ao vivo, Filmes ou Séries — por atalho do conteúdo ou pela topbar
+   * (FR-016). `from` é o foco de origem, para o RETURN devolvê-lo ao mesmo lugar.
+   */
+  onNavigate: (destination: TopDestination, from: HomeFocus) => void
+  /** SELECT num item de "Continuar assistindo" — abre o detalhe do filme ou da série (FR-025). */
+  onOpenContinueWatching: (item: CatalogItemOut, from: HomeFocus) => void
+  /** Indicador da lista ativa na topbar (FR-017). */
+  onOpenProfiles: (from: HomeFocus) => void
 }
 
-/** Ressincronizar, Editar, Excluir — a linha de ações de um card de fonte. */
-const ACTION_COUNT = 3
+const HINTS: HintItem[] = [
+  { keyLabel: 'OK', action: 'Selecionar' },
+  { keyLabel: 'RETURN', action: 'Sair' },
+]
 
-function formatStatus(source: SourceOut): string {
-  if (source.connection_state === 'error') return 'Erro na última sincronização'
-  if (source.connection_state === 'never_synced' || !source.last_successful_sync_at) {
-    return 'Nunca sincronizada'
-  }
-  return `Sincronizada em ${new Date(source.last_successful_sync_at).toLocaleString('pt-BR')}`
-}
+/**
+ * Início (feature 023, D-002/D-004 do plan.md): moldura do app — topbar,
+ * banner offline e barra de teclas — em volta do conteúdo provisório do hub
+ * da lista (`ListHomeScreen`, que a Onda 5 troca pela Home definitiva).
+ *
+ * Dois escopos de teclado, um ativo por vez (`logic/foco-shell.md`): `content`
+ * e `topbar`. Cada um só reage e só desenha foco quando ativo; o estado do
+ * outro fica guardado, e é isso que faz DOWN devolver o foco ao mesmo item de
+ * onde ele saiu. RETURN, em qualquer escopo, abre o modal de saída — Início é
+ * a base da navegação (ADR-011 §3).
+ */
+export function HomeScreen({ source, initialFocus, onNavigate, onOpenContinueWatching, onOpenProfiles }: HomeScreenProps): ReactNode {
+  const [zone, setZone] = useState<'topbar' | 'content'>(initialFocus?.zone === 'topbar' ? 'topbar' : 'content')
+  const [topbarItem, setTopbarItem] = useState<TopbarItem>(initialFocus?.zone === 'topbar' ? initialFocus.item : 'home')
+  const [showExit, setShowExit] = useState(false)
 
-export function HomeScreen({
-  onAddSource,
-  onOpenSource,
-  onEditSource,
-  onResyncStarted,
-  onSourceCreated,
-}: HomeScreenProps) {
-  const { data, isLoading, isError } = useSources()
-  const deleteSource = useDeleteSource()
-  const resyncSource = useResyncSource()
-  const { toastMessage, toastKey, showToast } = useToast()
-  const [showExitConfirm, setShowExitConfirm] = useState(false)
-
-  const sources = data?.sources ?? []
-  const hasSources = !isLoading && !isError && sources.length > 0
-  const isEmpty = !isLoading && !isError && sources.length === 0
-  // + card "Adicionar lista".
-  const total = sources.length + 1
-  const addCardIdx = sources.length
-
-  const [focusRow, setFocusRow] = useState<0 | 1>(0)
-  const [focusCol, setFocusCol] = useState(0)
-  const [activeCardIdx, setActiveCardIdx] = useState(0)
-
-  useRemoteNav({
-    onDirection: (dir) => {
-      if (!hasSources) return
-      if (focusRow === 0) {
-        if (dir === 'left') setFocusCol((c) => clamp(c - 1, 0, total - 1))
-        if (dir === 'right') setFocusCol((c) => clamp(c + 1, 0, total - 1))
-        if (dir === 'down' && focusCol < sources.length) {
-          setFocusRow(1)
-          setActiveCardIdx(focusCol)
-          // A coluna volta para a primeira ação. Sem isto ela herdava o
-          // índice do card: descer no terceiro card já chegava com Excluir
-          // em foco, e um OK seguido apagaria a lista sem o usuário ter
-          // navegado até lá.
-          setFocusCol(0)
-        }
-      } else {
-        // Três ações nesta linha: Ressincronizar (0), Editar (1), Excluir
-        // (2). O limite tem que alcançar a última, ou ela fica renderizada e
-        // inalcançável pelo controle.
-        if (dir === 'up') {
-          setFocusRow(0)
-          // Voltar restaura o card de onde se desceu. Sem isto o índice da
-          // ação virava índice de card e o foco saltava para outra lista —
-          // a constitution exige que voltar restaure a posição, não adivinhe.
-          setFocusCol(activeCardIdx)
-        }
-        if (dir === 'left') setFocusCol((c) => clamp(c - 1, 0, ACTION_COUNT - 1))
-        if (dir === 'right') setFocusCol((c) => clamp(c + 1, 0, ACTION_COUNT - 1))
-      }
-    },
-    onSelect: () => {
-      if (!hasSources) return
-      if (focusRow === 0) {
-        if (focusCol === addCardIdx) {
-          onAddSource()
-          return
-        }
-        const source = sources[focusCol]
-        if (source) onOpenSource(source)
-        return
-      }
-
-      const source = sources[activeCardIdx]
-      if (!source) return
-      if (focusCol === 0) {
-        showToast('Ressincronizando lista...')
-        resyncSource.mutate(source.id, {
-          onSuccess: (result) => onResyncStarted(result.import_job_id),
-        })
-      } else if (focusCol === 1) {
-        onEditSource(source)
-      } else {
-        deleteSource.mutate(source.id)
-        setFocusRow(0)
-        setFocusCol(0)
-      }
-    },
-  })
-
-  if (isLoading) {
-    return (
-      <div className="screen">
-        <p className="screen-subtitle">Carregando suas listas…</p>
-      </div>
-    )
-  }
-
-  if (isError) {
-    return (
-      <div className="screen">
-        <p className="form-error">
-          Não foi possível carregar suas listas. Verifique a conexão com o backend e tente
-          novamente.
-        </p>
-      </div>
-    )
-  }
-
-  if (isEmpty) {
-    return (
-      <>
-        <AddSourceScreen
-          onSourceCreated={onSourceCreated}
-          onBack={() => setShowExitConfirm(true)}
-        />
-        {showExitConfirm && (
-          <ConfirmDialog
-            message="Sair do CCPlayTv?"
-            confirmLabel="Sair"
-            cancelLabel="Cancelar"
-            onConfirm={exitApp}
-            onCancel={() => setShowExitConfirm(false)}
-          />
-        )}
-      </>
-    )
-  }
+  const contentFocus = initialFocus && initialFocus.zone !== 'topbar' ? initialFocus : undefined
+  // Com o modal de saída aberto nenhum escopo reage ao teclado: o `Modal`
+  // (captura) já vence, e assim a topbar — que, ativa, também registra em
+  // captura para ser dona da tecla que trata (`logic/foco-shell.md`) — nunca
+  // disputa a mesma tecla com ele.
+  const topbarActive = zone === 'topbar' && !showExit
+  const contentActive = zone === 'content' && !showExit
 
   return (
-    <div className="screen">
-      <h1 className="screen-title">Minhas Listas</h1>
-      <p className="screen-subtitle">Selecione uma lista para navegar, ou adicione uma nova</p>
-
-      <div className="source-row">
-        {sources.map((source, i) => {
-          const focused = focusRow === 0 && focusCol === i
-          const actionsVisible = focusRow === 1 && activeCardIdx === i
-          return (
-            <div className="source-card-wrap" key={source.id}>
-              <div className={`source-card${focused ? ' tv-focus' : ''}`}>
-                <div className="source-card-icon" />
-                <div className="source-card-name">{source.display_name}</div>
-                <div className="source-card-status">{formatStatus(source)}</div>
-                {source.provider_import_mode === 'legacy_m3u' && (
-                  <div className="source-card-badge">Modo limitado</div>
-                )}
-                {source.last_truncated_by_storage && (
-                  <div className="source-card-badge" style={{ marginTop: 4 }}>A lista não coube inteira</div>
-                )}
-                {source.last_discarded_by_type > 0 && (
-                  <div className="source-card-badge" style={{ marginTop: 4 }}>
-                    Entradas não reconhecidas ficaram de fora
-                  </div>
-                )}
-              </div>
-              {actionsVisible && (
-                <div className="source-actions">
-                  <div className={`source-action${focusCol === 0 ? ' tv-focus' : ''}`}>
-                    ↻ Ressincronizar
-                  </div>
-                  <div className={`source-action${focusCol === 1 ? ' tv-focus' : ''}`}>✎ Editar</div>
-                  <div className={`source-action${focusCol === 2 ? ' tv-focus' : ''}`}>🗑 Excluir</div>
-                </div>
-              )}
-            </div>
-          )
-        })}
-        <div className="source-card-wrap">
-          <div
-            className={`add-card${focusRow === 0 && focusCol === addCardIdx ? ' tv-focus' : ''}`}
-          >
-            <div className="add-card-plus">+</div>
-            <div className="add-card-label">Adicionar lista</div>
-          </div>
-        </div>
-      </div>
-
-      <Toast message={toastMessage} messageKey={toastKey} />
-    </div>
+    <>
+      <AppShell
+        hints={HINTS}
+        topBar={
+          <TopBar
+            sourceName={source.display_name}
+            active={topbarActive}
+            focusedItem={topbarItem}
+            onFocusItem={setTopbarItem}
+            onExitDown={() => setZone('content')}
+            onNavigate={(destination) => onNavigate(destination, { zone: 'topbar', item: destination })}
+            onOpenProfiles={() => onOpenProfiles({ zone: 'topbar', item: 'profile' })}
+            onBack={() => setShowExit(true)}
+          />
+        }
+      >
+        <ListHomeScreen
+          source={source}
+          active={contentActive}
+          initialFocus={contentFocus}
+          // Entrar na topbar sempre em "Início" — o destino atual (FR-015).
+          onExitUp={() => {
+            setTopbarItem('home')
+            setZone('topbar')
+          }}
+          onSelect={(destination) => onNavigate(destination, { zone: 'shortcuts', destination })}
+          onOpenContinueWatching={(item) => onOpenContinueWatching(item, { zone: 'continue', itemId: item.id })}
+          onBack={() => setShowExit(true)}
+        />
+      </AppShell>
+      {showExit && <ExitModal onCancel={() => setShowExit(false)} />}
+    </>
   )
 }

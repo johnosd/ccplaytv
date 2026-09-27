@@ -53,18 +53,36 @@ function startFixtureServer() {
   })
 }
 
+const SOURCE_NAME = 'Fonte E2E Busca por Categoria'
+
 async function addSource(page, m3uUrl) {
   console.log('=== Adicionar fonte M3U fictícia ===')
   await page.goto(APP_URL)
+  // Splash (~2,6 s) -> "Quem está assistindo?". Sem lista, só "Adicionar lista", já em foco
+  // (feature 023): OK abre o formulário — ele não é mais a tela de entrada.
+  await page.waitForSelector('.add-card', { timeout: 10000 })
+  await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
 
-  await page.getByLabel('Nome de exibição').fill('Fonte E2E Busca por Categoria')
+  await page.getByLabel('Nome de exibição').fill(SOURCE_NAME)
   await page.getByLabel('URL da lista M3U').fill(m3uUrl)
   await page.getByRole('button', { name: 'Adicionar lista' }).click()
 
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   console.log('  ✓ importação concluída')
   await page.getByRole('button', { name: 'Voltar' }).click()
+  // Os perfis montam com o cache anterior e a lista nova chega logo depois: esperar por ela.
+  await page.locator('.source-card-wrap', { hasText: SOURCE_NAME }).waitFor({ timeout: 8000 })
+}
+
+/**
+ * Espera o item REAL do trilho (a 1ª categoria depois de "★ Favoritos" e "Todos") estar em foco
+ * antes do ArrowRight que entra nela: enquanto as categorias carregam o trilho só tem as duas
+ * entradas virtuais e o padrão cai em "Todos" — um ArrowRight nesse instante entra numa lista
+ * vazia (mesma corrida do roteiro de histórico, T047 da feature 023).
+ */
+async function waitForTrailFocus(page, name) {
+  await page.locator('.live-column-groups .live-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
 }
 
 /** Dispara um evento do <video> ATUAL (o adaptador de dev não decodifica conteúdo fictício). */
@@ -118,6 +136,7 @@ async function run() {
     await page.keyboard.press('Enter') // Live TV é o primeiro tile
 
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await waitForTrailFocus(page, 'Esportes')
     await page.keyboard.press('ArrowRight') // entra em "Canais | Esportes" (padrão: 1ª categoria real)
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
@@ -188,9 +207,9 @@ async function run() {
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre a fonte
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
+    await page.keyboard.press('ArrowRight') // TV ao vivo -> Filmes (o foco do Início nasce em "TV ao vivo")
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
+    await waitForTrailFocus(page, 'Filmes A')
     await page.keyboard.press('ArrowRight') // entra em "Filmes A" (padrão: 1ª categoria real)
     await page.waitForSelector('.poster-card-title', { timeout: 8000 })
     assert(
@@ -241,7 +260,7 @@ async function run() {
     await page.keyboard.press('Escape') // ícone -> trilha
     await page.waitForSelector('.live-column-groups .tv-focus', { timeout: 8000 })
     assert(true, 'RETURN a partir do ícone saiu da categoria para a trilha')
-    await page.keyboard.press('Escape') // trilha -> hub da lista
+    await page.keyboard.press('Escape') // trilha -> Início (a topbar só existe lá)
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     assert(true, 'RETURN a partir da trilha saiu da tela de Filmes sem travar')
   } catch (error) {

@@ -457,6 +457,11 @@
   border-color: var(--danger);
 }
 
+.text-field-hint {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
 .text-field-error {
   display: flex;
   align-items: center;

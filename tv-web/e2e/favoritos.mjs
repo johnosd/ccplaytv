@@ -66,9 +66,18 @@ async function pressFavoriteColorKey(page) {
   }, FAVORITE_COLOR_KEY)
 }
 
+/** Espera o trilho de categorias carregar (★ Favoritos, Todos e ao menos uma real) — o `ArrowRight` que "entra" na categoria antes disso cai em "Todos". */
+async function waitForCategoryTrail(page) {
+  await page.waitForFunction(() => document.querySelectorAll('.live-item').length >= 3, null, { timeout: 8000 })
+}
+
 async function addSource(page, m3uUrl) {
   console.log('=== Adicionar fonte M3U fictícia ===')
+  // Sem lista, a entrada é a tela de perfis (feature 023): "Adicionar lista"
+  // já nasce em foco, e OK abre o formulário.
   await page.goto(APP_URL)
+  await page.waitForSelector('.add-card.tv-focus', { timeout: 10000 })
+  await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
 
   await page.getByLabel('Nome de exibição').fill('Fonte E2E Favoritos')
@@ -78,6 +87,8 @@ async function addSource(page, m3uUrl) {
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   console.log('  ✓ importação concluída')
   await page.getByRole('button', { name: 'Voltar' }).click()
+  // Os perfis montam com o cache anterior; a lista nova chega logo depois.
+  await page.locator('.source-card-wrap', { hasText: 'Fonte E2E Favoritos' }).waitFor({ timeout: 8000 })
 }
 
 async function openLiveTv(page) {
@@ -189,11 +200,11 @@ async function run() {
     assert(trailFocus === '★Favoritos', 'OK no vazio devolveu o foco à trilha, em "★ Favoritos"')
 
     console.log('=== Filmes: mesmo gesto funciona na grade de pôsteres ===')
-    await page.keyboard.press('Escape') // volta ao hub da lista
+    await page.keyboard.press('Escape') // volta ao Início — foco restaurado em "TV ao vivo", de onde se saiu
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // Live TV -> Filmes
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
+    await waitForCategoryTrail(page)
     await page.keyboard.press('ArrowRight') // entra na 1ª categoria real de Filmes
     await page.waitForSelector('.poster-card-title', { timeout: 8000 })
     await holdEnter(page)
@@ -202,13 +213,13 @@ async function run() {
 
     console.log('=== Séries: tecla amarela favorita no toque único — segundo caminho, mesma ação ===')
     await page.keyboard.press('Escape') // sai da categoria (col 1 -> col 0, trilha)
-    await page.keyboard.press('Escape') // sai da trilha -> hub da lista
+    await page.keyboard.press('Escape') // sai da trilha -> Início
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    // ListHomeScreen remonta ao voltar do hub — foco reinicia em "Live TV" (índice 0).
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
+    // O Início restaura o foco de origem (feature 023, FR-029): volta em "Filmes",
+    // de onde a categoria foi aberta — não reinicia mais em "TV ao vivo".
     await page.keyboard.press('ArrowRight') // Filmes -> Séries
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
+    await waitForCategoryTrail(page)
     await page.keyboard.press('ArrowRight') // entra na 1ª categoria real de Séries
     await page.waitForSelector('.poster-card-title', { timeout: 8000 })
 

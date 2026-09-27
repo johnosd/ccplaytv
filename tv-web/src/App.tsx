@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { SplashScreen } from './features/splash/SplashScreen'
+import { ProfilesScreen } from './features/profiles/ProfilesScreen'
 import { HomeScreen } from './features/home/HomeScreen'
 import { AddSourceScreen } from './features/import/AddSourceScreen'
 import { ImportProgressScreen } from './features/import/ImportProgressScreen'
@@ -9,38 +10,25 @@ import {
   useImportJob,
   useOpenSource,
   useResyncSource,
+  useSources,
+  type SourceListResponse,
   type SourceOut,
 } from './features/import/importApi'
-import { ListHomeScreen, type ListDestination } from './features/list-home/ListHomeScreen'
 import { LiveScreen } from './features/live/LiveScreen'
 import { MoviesScreen } from './features/movies/MoviesScreen'
 import { MovieDetailScreen } from './features/movies/MovieDetailScreen'
 import { SeriesScreen } from './features/series/SeriesScreen'
 import { SeriesDetailScreen } from './features/series/SeriesDetailScreen'
 import { registerFavoriteColorKey } from './lib/tizenColorKey'
-import type { CategoryScreenSnapshot } from './features/catalog/categoryScreenSnapshot'
-
-type Screen =
-  | { name: 'splash' }
-  | { name: 'home' }
-  | { name: 'add-source' }
-  | { name: 'edit-source'; source: SourceOut }
-  | { name: 'progress'; jobId: string }
-  | { name: 'list-home'; source: SourceOut }
-  | { name: 'live'; source: SourceOut }
-  | { name: 'movies'; source: SourceOut; restore?: CategoryScreenSnapshot }
-  | { name: 'movie-detail'; source: SourceOut; movieId: string }
-  | { name: 'series'; source: SourceOut; restore?: CategoryScreenSnapshot }
-  | { name: 'series-detail'; source: SourceOut; seriesId: string }
-
-interface NavState {
-  screen: Screen
-  history: Screen[]
-}
+import { appNavReducer, initialAppNav } from './navigation/appNav'
+import { readLastSourceId, writeLastSourceId } from './navigation/lastSource'
 
 function App() {
-  const [nav, setNav] = useState<NavState>({ screen: { name: 'splash' }, history: [] })
-  const { screen } = nav
+  // A navegação é um redutor puro (feature 023, D-003): aqui só se despacham
+  // ações e se renderiza a tela atual. Toda regra de "para onde RETURN leva" e
+  // de "o que zera a pilha" mora em `navigation/appNav.ts`.
+  const [nav, dispatch] = useReducer(appNavReducer, undefined, initialAppNav)
+  const { screen, activeSource } = nav
 
   // Tecla amarela como atalho de favoritar (feature 013) — registra uma
   // vez, na raiz do app, nunca por tela: `tizen.tvinputdevice.registerKey`
@@ -52,9 +40,9 @@ function App() {
 
   // Migração única e atualização por idade (feature 004, D-004): a TV só
   // avisa "abri esta fonte" — quem decide migrar/atualizar/nada é o
-  // backend. Fica no componente raiz, não em ListHomeScreen/LiveScreen,
-  // porque a atualização pode terminar depois que o usuário já navegou
-  // para outra tela, e o acompanhamento não pode se perder na troca.
+  // backend. Fica no componente raiz, não em telas, porque a atualização
+  // pode terminar depois que o usuário já navegou para outra tela, e o
+  // acompanhamento não pode se perder na troca.
   const openSource = useOpenSource()
   const resyncSource = useResyncSource()
   const [autoRefreshJobId, setAutoRefreshJobId] = useState<string | null>(null)
@@ -64,6 +52,15 @@ function App() {
   // cada poll, não só na virada pra terminal) — sem precisar de outro
   // setState dentro do efeito pra "desarmar" o acompanhamento.
   const reconciledJobRef = useRef<string | null>(null)
+
+  // Observador ativo da lista de fontes na raiz: mantém `['sources']` vivo
+  // durante a sessão e dá ao Início a versão mais nova da fonte ativa (o
+  // `activeSource` do redutor é só o retrato do momento da escolha — uma
+  // sincronização depois dele pode ter mudado o selo de Modo limitado).
+  const sourcesQuery = useSources()
+  const currentSource: SourceOut | null = activeSource
+    ? (sourcesQuery.data?.sources.find((source) => source.id === activeSource.id) ?? activeSource)
+    : null
 
   useEffect(() => {
     const status = autoRefreshJob.data?.status
@@ -81,8 +78,15 @@ function App() {
     void queryClient.invalidateQueries({ queryKey: ['sources'] })
   }, [autoRefreshJobId, autoRefreshJob.data?.status, queryClient])
 
-  function openSourceCatalog(source: SourceOut) {
-    goto({ name: 'list-home', source })
+  /**
+   * Escolher uma lista (feature 023, FR-005/FR-006/FR-007): vira a fonte
+   * ativa e abre o Início dela com a pilha zerada, grava a "última usada" e
+   * dispara a mesma verificação de atualização por idade que abrir uma fonte
+   * sempre disparou (feature 004).
+   */
+  function chooseSource(source: SourceOut) {
+    dispatch({ type: 'choose-source', source })
+    writeLastSourceId(source.id)
     // Fogo e esquece: a leitura do catálogo sempre serve o que está
     // publicado agora (cache-first, ADR-002); a navegação nunca espera essa
     // decisão.
@@ -96,53 +100,66 @@ function App() {
   }
 
   /**
+   * "Abrir lista" no fim de uma importação (FR-038). Sempre relê a lista de
+   * fontes antes: `useCreateSource` não invalida `['sources']`, então o
+   * cache pode ainda nem ter a lista nova, ou tê-la com o estado de antes da
+   * importação (sem o selo de Modo limitado que ela acabou de ganhar).
+   */
+  async function openImportedSource(sourceId: string) {
+    await queryClient.refetchQueries({ queryKey: ['sources'] })
+    const fresh = queryClient
+      .getQueryData<SourceListResponse>(['sources'])
+      ?.sources.find((source) => source.id === sourceId)
+    if (fresh) chooseSource(fresh)
+    // Sem a lista (removida no meio do caminho): cai nos perfis, nunca num beco.
+    else dispatch({ type: 'import-back', sourceId: null })
+  }
+
+  /**
    * Ressincroniza a fonte a partir de uma tela de categoria (feature 014,
    * D-008): o conteúdo guardado de uma categoria `stored` sumiu do
    * aparelho, e "Tentar de novo" não resolve isso — só uma importação
-   * nova. Navega pra tela de progresso, igual ao botão de ressincronizar
-   * da Home.
+   * nova. Navega pra tela de progresso; "Abrir lista" volta ao Início da
+   * fonte ativa (FR-033).
    */
   function resyncFromCategoryScreen(sourceId: string) {
     resyncSource.mutate(sourceId, {
-      onSuccess: (result) => goto({ name: 'progress', jobId: result.import_job_id }),
+      onSuccess: (result) => dispatch({ type: 'open', screen: { name: 'progress', jobId: result.import_job_id } }),
     })
   }
 
-  function goto(next: Screen) {
-    setNav((s) => ({ screen: next, history: [...s.history, s.screen] }))
-  }
+  const goBack = () => dispatch({ type: 'back' })
+  // Estável de propósito: `SplashScreen` reagenda o timer a cada mudança da
+  // identidade do callback, e este componente re-renderiza com as consultas.
+  const finishSplash = useCallback(() => dispatch({ type: 'splash-finished' }), [])
 
-  function back() {
-    setNav((s) => {
-      if (s.history.length === 0) return s
-      return { screen: s.history[s.history.length - 1], history: s.history.slice(0, -1) }
-    })
-  }
-
-  function goHome() {
-    setNav({ screen: { name: 'home' }, history: [] })
-  }
+  // Toda tela abaixo do Início existe só com uma fonte ativa — o único caminho
+  // até elas é escolher uma lista. Sem fonte não há o que mostrar.
+  const source = currentSource
 
   switch (screen.name) {
     case 'splash':
-      return <SplashScreen onFinished={goHome} />
+      return <SplashScreen onFinished={finishSplash} />
 
-    case 'home':
+    case 'profiles':
       return (
-        <HomeScreen
-          onAddSource={() => goto({ name: 'add-source' })}
-          onOpenSource={openSourceCatalog}
-          onEditSource={(source) => goto({ name: 'edit-source', source })}
-          onResyncStarted={(jobId) => goto({ name: 'progress', jobId })}
-          onSourceCreated={({ jobId }) => goto({ name: 'progress', jobId })}
+        <ProfilesScreen
+          mode={screen.mode}
+          initialFocusSourceId={screen.focusSourceId ?? readLastSourceId()}
+          onChooseSource={chooseSource}
+          onAddSource={() => dispatch({ type: 'open', screen: { name: 'add-source' } })}
+          onEditSource={(sourceToEdit) => dispatch({ type: 'open', screen: { name: 'edit-source', source: sourceToEdit } })}
+          onResyncStarted={(jobId) => dispatch({ type: 'open', screen: { name: 'progress', jobId } })}
+          onSourceDeleted={(sourceId) => dispatch({ type: 'source-removed', sourceId })}
+          onBack={goBack}
         />
       )
 
     case 'add-source':
       return (
         <AddSourceScreen
-          onSourceCreated={({ jobId }) => goto({ name: 'progress', jobId })}
-          onBack={back}
+          onSourceCreated={({ jobId }) => dispatch({ type: 'open', screen: { name: 'progress', jobId } })}
+          onBack={goBack}
         />
       )
 
@@ -150,9 +167,9 @@ function App() {
       return (
         <AddSourceScreen
           existingSource={screen.source}
-          onSourceCreated={({ jobId }) => goto({ name: 'progress', jobId })}
-          onSourceUpdated={back}
-          onBack={back}
+          onSourceCreated={({ jobId }) => dispatch({ type: 'open', screen: { name: 'progress', jobId } })}
+          onSourceUpdated={goBack}
+          onBack={goBack}
         />
       )
 
@@ -160,73 +177,80 @@ function App() {
       return (
         <ImportProgressScreen
           jobId={screen.jobId}
-          onRetried={(newJobId) => goto({ name: 'progress', jobId: newJobId })}
-          onBack={goHome}
+          onRetried={(newJobId) => dispatch({ type: 'open', screen: { name: 'progress', jobId: newJobId } })}
+          onOpenSource={(sourceId) => void openImportedSource(sourceId)}
+          onBack={(sourceId) => dispatch({ type: 'import-back', sourceId })}
         />
       )
 
-    case 'list-home':
+    case 'home':
+      if (!source) return null
       return (
-        <ListHomeScreen
-          source={screen.source}
-          onSelect={(destination: ListDestination) => goto({ name: destination, source: screen.source } as Screen)}
-          onOpenContinueWatching={(item) =>
-            goto(
-              item.kind === 'movie'
-                ? { name: 'movie-detail', source: screen.source, movieId: item.id }
-                : { name: 'series-detail', source: screen.source, seriesId: item.id },
-            )
+        <HomeScreen
+          source={source}
+          initialFocus={screen.focus}
+          onNavigate={(destination, from) =>
+            dispatch({ type: 'open', screen: { name: destination }, from: { name: 'home', focus: from } })
           }
-          onBack={back}
+          onOpenContinueWatching={(item, from) =>
+            dispatch({
+              type: 'open',
+              screen:
+                item.kind === 'movie'
+                  ? { name: 'movie-detail', movieId: item.id }
+                  : { name: 'series-detail', seriesId: item.id },
+              from: { name: 'home', focus: from },
+            })
+          }
+          onOpenProfiles={(from) => dispatch({ type: 'open-profiles', from: { name: 'home', focus: from } })}
         />
       )
 
     case 'live':
-      return (
-        <LiveScreen
-          sourceId={screen.source.id}
-          onBack={back}
-          onResync={() => resyncFromCategoryScreen(screen.source.id)}
-        />
-      )
+      if (!source) return null
+      return <LiveScreen sourceId={source.id} onBack={goBack} onResync={() => resyncFromCategoryScreen(source.id)} />
 
     case 'movies':
+      if (!source) return null
       return (
         <MoviesScreen
-          sourceId={screen.source.id}
+          sourceId={source.id}
           restore={screen.restore}
           onOpenMovie={(movieId, snapshot) =>
-            setNav((s) => ({
-              screen: { name: 'movie-detail', source: screen.source, movieId },
-              history: [...s.history, { ...screen, restore: snapshot }],
-            }))
+            dispatch({
+              type: 'open',
+              screen: { name: 'movie-detail', movieId },
+              from: { ...screen, restore: snapshot },
+            })
           }
-          onBack={back}
-          onResync={() => resyncFromCategoryScreen(screen.source.id)}
+          onBack={goBack}
+          onResync={() => resyncFromCategoryScreen(source.id)}
         />
       )
 
     case 'movie-detail':
-      return <MovieDetailScreen movieId={screen.movieId} onBack={back} />
+      return <MovieDetailScreen movieId={screen.movieId} onBack={goBack} />
 
     case 'series':
+      if (!source) return null
       return (
         <SeriesScreen
-          sourceId={screen.source.id}
+          sourceId={source.id}
           restore={screen.restore}
           onOpenSeries={(seriesId, snapshot) =>
-            setNav((s) => ({
-              screen: { name: 'series-detail', source: screen.source, seriesId },
-              history: [...s.history, { ...screen, restore: snapshot }],
-            }))
+            dispatch({
+              type: 'open',
+              screen: { name: 'series-detail', seriesId },
+              from: { ...screen, restore: snapshot },
+            })
           }
-          onBack={back}
-          onResync={() => resyncFromCategoryScreen(screen.source.id)}
+          onBack={goBack}
+          onResync={() => resyncFromCategoryScreen(source.id)}
         />
       )
 
     case 'series-detail':
-      return <SeriesDetailScreen seriesId={screen.seriesId} onBack={back} />
+      return <SeriesDetailScreen seriesId={screen.seriesId} onBack={goBack} />
 
     default:
       return null

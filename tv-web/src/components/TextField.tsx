@@ -10,6 +10,12 @@ export interface TextFieldProps {
   onChange: (value: string) => void
   purpose: TextFieldPurpose
   error?: string
+  /**
+   * Texto de apoio sempre visível sob o campo (feature 023, D-013) — no lugar
+   * de um placeholder que some ao digitar (DS V14 §37), por exemplo "Deixe em
+   * branco para manter a senha atual". Ligado ao campo por `aria-describedby`.
+   */
+  hint?: string
   id?: string
 }
 
@@ -33,11 +39,13 @@ const PURPOSE_ATTRS: Record<TextFieldPurpose, PurposeAttrs> = {
  * desaparece ao digitar. Sem encadeamento com outros campos (fora de
  * escopo desta feature).
  */
-export function TextField({ label, value, onChange, purpose, error, id }: TextFieldProps): ReactNode {
+export function TextField({ label, value, onChange, purpose, error, hint, id }: TextFieldProps): ReactNode {
   const generatedId = useId()
   const fieldId = id ?? generatedId
   const errorId = `${fieldId}-error`
+  const hintId = `${fieldId}-hint`
   const attrs = PURPOSE_ATTRS[purpose] ?? PURPOSE_ATTRS.text
+  const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined
 
   return (
     <div className="text-field">
@@ -53,8 +61,13 @@ export function TextField({ label, value, onChange, purpose, error, id }: TextFi
         type={attrs.type ?? 'text'}
         autoComplete={attrs.autoComplete}
         aria-invalid={error ? 'true' : undefined}
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={describedBy}
       />
+      {hint && (
+        <p id={hintId} className="text-field-hint">
+          {hint}
+        </p>
+      )}
       {error && (
         <p id={errorId} className="text-field-error">
           <Icon name="info" />

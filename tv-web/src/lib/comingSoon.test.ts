@@ -23,8 +23,18 @@ describe('getComingSoon', () => {
     expect(() => getComingSoon('id-inexistente')).toThrow(/id-inexistente/)
   })
 
-  it('o registro de produção nasce vazio — a fixture de teste não vaza para ele', () => {
+  it('o registro de produção tem exatamente os mocks da feature 023 — a fixture de teste não vaza para ele', () => {
     delete COMING_SOON[FIXTURE_ID]
-    expect(Object.keys(COMING_SOON)).toEqual([])
+    expect(Object.keys(COMING_SOON).sort()).toEqual(['pair-phone', 'search-global', 'settings'])
+  })
+
+  it('cada mock aponta para um item de backlog ou marco, com mensagem preenchida', () => {
+    delete COMING_SOON[FIXTURE_ID]
+    for (const [id, entry] of Object.entries(COMING_SOON)) {
+      expect(entry.message.trim(), `mensagem de ${id}`).not.toBe('')
+      expect(String(entry.backlogItem).trim(), `backlogItem de ${id}`).not.toBe('')
+    }
+    expect(getComingSoon('pair-phone').backlogItem).toBe(22)
+    expect(getComingSoon('search-global').backlogItem).toBe('M6')
   })
 })
