@@ -398,12 +398,70 @@ none of the 17 icons is a check). See
 `sdd/specs/022-biblioteca-componentes-ds-v14/plan.md` → `## Estado Atual` and
 `## Riscos e Decisões` (R-001–R-006).
 
+**Code-complete**: `023-shell-navegacao-entrada-ds-v14` — Onda 2 of the DS V14
+migration, per ADR-011: the app's entry point changes from "Home of sources →
+source hub (3 tiles) → Live/Movies/Series" to **Splash → "Quem está
+assistindo?" (profile = list) → Início (hub content) of the active source,
+under a persistent topbar** — Live TV, Filmes, Séries and the detail screens
+keep today's full-screen layout unchanged (that redesign is Ondas 3/4); only
+where their root-level RETURN goes changes. Navigation moved out of inline
+`setNav` calls in `App.tsx` into a pure reducer
+(`tv-web/src/navigation/appNav.ts`, `logic/navegacao-app.md`) — `App.tsx` now
+only dispatches actions and renders `state.screen`, which is what let RETURN-
+in-layers (modal → detail-restore-by-snapshot → Início-with-origin-focus →
+Início-is-base → exit modal) and "picking a list zeroes the stack" become
+unit-testable without mounting the whole app. `ProfilesScreen.tsx` replaces
+the old `HomeScreen.tsx` (source list): same cards, now with a focusable
+`ErrorState`+"Tentar de novo" on read failure (closes a backlog bug) and
+delete-with-confirmation through a `Modal` (feature 022) instead of the old
+immediate delete. `HomeScreen.tsx` was repurposed into the **Início**: an
+`AppShell`+`TopBar` shell (`tv-web/src/features/shell/`) wrapping the same
+hub content (`ListHomeScreen.tsx`, restyled, now one of two keyboard scopes
+alongside the topbar — `logic/foco-shell.md`). The topbar, active, registers
+in the capture phase and stops propagation on the keys it handles
+(`useRemoteNav({...}, {modal: active})`) — without that, a Chromium key
+event's `setState` flush between two `document`-level listeners let the
+content scope double-process the same key that just handed it focus back (a
+real, reproducible race the E2E scripts caught; jsdom never shows it because
+`act()` batches differently). A real, in-scope bug surfaced only through that
+same E2E pass: when the focused "Continuar assistindo" item disappears while
+the screen is still mounted (completed elsewhere, the query revalidates), the
+keyboard-focus state used to stay pinned to the now-empty row with nothing
+rendered to hold it — no visible focus anywhere, a real "Foco Visível e Sem
+Becos Sem Saída" violation — fixed by deriving an effective row (falls back
+to the shortcuts row whenever the row it's set to no longer has content)
+instead of reading the raw state, the same pattern `ProfilesScreen` already
+used for its own focus-by-id. Onboarding, the import-progress screen and the
+Splash got the V14 visual, with one behavior change requested by the spec:
+progress no longer advances on its own — it ends on a focused "Abrir lista"
+action, so import warnings can actually be read before the person moves on.
+All 9 `e2e/*.mjs` scripts plus the root `e2e.mjs` (fully rewritten — the old
+one tested an exit dialog that hadn't existed in `AddSourceScreen` since
+before this repo's single squashed initial commit, closing that backlog bug
+too) pass green in a real Chromium. 1049/1051 unit tests (the 2 failures are
+the same `*.favorites.test.tsx` flake-under-parallelism pattern already
+documented for earlier features, confirmed 20/20 passing isolated),
+`tsc`/lint/build/`build:tizen` clean, all 5 contract tests green. Not done
+here, by design: Configurações, global search and the definitive Home (all
+Onda 5); the topbar over Live/Filmes/Séries (Ondas 3/4); real phone/QR
+pairing (item 22 of the backlog — the onboarding card is a soft-disabled
+mock). Along the way, a **pre-existing, out-of-scope** gap surfaced by
+accident and was **not** fixed here, only logged: feature
+`017-busca-local-catalogo`'s contract lock references two screen-level test
+files that no longer exist (dead code removed, most likely, when
+`018-busca-por-categoria` replaced that whole search UI without re-locking
+017's now-stale contract) — see the backlog's Bugs section. See
+`sdd/specs/023-shell-navegacao-entrada-ds-v14/plan.md` → `## Estado Atual`
+and `## Riscos e Decisões` for the full detail.
+
 The four top-level directories:
 
-- **`tv-web/`** — React 19 + TypeScript + Vite. Splash, Home (sources), the
-  Add-source form, the list hub, **Live TV, Filmes and Séries** all read the
-  **real local catalog** (`tv-web/src/lib/catalog/`, IndexedDB via Dexie) —
-  no mock data remains anywhere in the app. Live TV/Filmes/Séries are
+- **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Quem está
+  assistindo?" profile screen (one card per IPTV list plus "Adicionar
+  lista", ADR-011 §2), the Add-list form, the Início (hub content under a
+  persistent topbar, feature 023), **Live TV, Filmes and Séries** all read
+  the **real local catalog** (`tv-web/src/lib/catalog/`, IndexedDB via
+  Dexie) — no mock data remains anywhere in the app. Live TV/Filmes/Séries are
   category-first: a category rail, with items obtained only when the person
   enters a category (feature 010) — never the whole catalog at once. All
   three are virtualized via `@tanstack/react-virtual` (feature 009), with

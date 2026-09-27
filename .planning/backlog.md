@@ -83,10 +83,10 @@ M1. **Onda 0 — Fundação visual**: especificada como
 M2. **Onda 1 — Biblioteca de componentes**: especificada como
     `022-biblioteca-componentes-ds-v14` (ver `## Features`). Absorve o
     item 15.
-M3. **Onda 2 — Shell, navegação e entrada** (feature 023): topbar, tela de
-    perfis = listas (a `HomeScreen` atual reaproveitada), fonte ativa,
-    roteamento com RETURN em camadas, Splash/onboarding/progresso de
-    importação.
+M3. **Onda 2 — Shell, navegação e entrada**: especificada como
+    `023-shell-navegacao-entrada-ds-v14` (ver `## Features`). Absorve os
+    bugs "Estado de erro da Home não tem elemento focável" e "`e2e.mjs`
+    testa um diálogo de saída que não existe mais".
 M4. **Onda 3 — Live TV** (feature 024): 3 colunas + preview sem vídeo,
     preservando zapping/favoritos/busca.
 M5. **Onda 4 — Filmes e Séries** (feature 025): side nav com **↺ Histórico**
@@ -767,6 +767,29 @@ mudaram de natureza** com a arquitetura client-first:
 
 ### Processo, documentação e qualidade de código
 
+0. **[Bug] Trava de contrato da feature `017-busca-local-catalogo` está
+   quebrada** — `sdd/specs/017-busca-local-catalogo/contract-tests.lock`
+   referencia `tv-web/src/features/movies/MoviesScreen.busca.contract.test.tsx`
+   e `tv-web/src/features/live/LiveScreen.busca.contract.test.tsx`, que não
+   existem mais no repositório (`check-contract-tests.ps1 -Slug
+   017-busca-local-catalogo` → `FAIL`, 2 arquivos `[MISSING]`; os outros 2
+   testes da mesma trava, `catalogSearch.contract.test.ts` e
+   `useRemoteNav.busca.contract.test.tsx`, continuam íntegros).
+
+   **Origem**: achado ao conferir todas as travas do repositório durante a
+   feature `023-shell-navegacao-entrada-ds-v14` (T044, 27/09/2026) — pré-
+   existente, sem relação com esta feature (que não toca busca). Explicação
+   mais provável: a feature `018-busca-por-categoria` removeu as telas
+   antigas de busca (`{kind:'search'}`) que esses dois contratos cobriam,
+   sem atualizar a trava de `017` — a 018 tem sua própria trava, íntegra
+   (`LiveScreen.busca-categoria.contract.test.tsx` +
+   `catalogSearch.busca-categoria.contract.test.ts`). Corrigir exige decidir
+   se a trava de `017` é reaberta (removendo os 2 testes mortos e
+   regravando) ou se a feature é tratada como obsoleta o bastante para
+   arquivar a trava — decisão de quem mexer nisso, não automática. Caminho
+   normal: `sdd-bugfix` ou uma decisão pontual antes de tocar em `017` de
+   novo.
+
 0. **[Bug] Estado de erro da Home não tem elemento focável** — em
    `tv-web/src/features/home/HomeScreen.tsx`, o ramo `isError` renderiza
    só um parágrafo. Com o backend fora do ar (ou, no cenário client-first,
@@ -778,6 +801,10 @@ mudaram de natureza** com a arquitetura client-first:
    mascarado: a tela de diagnóstico da US1 acrescentou um botão nesse
    estado, e **a armadilha volta quando essa tela temporária for removida
    na fase Polish**. Caminho normal: `sdd-bugfix`.
+
+   **Absorvido pela feature `023-shell-navegacao-entrada-ds-v14`**
+   (FR-008): a `HomeScreen` vira a tela de perfis, com `ErrorState` e
+   "Tentar de novo" focável. Sai daqui quando a 023 convergir.
 
 0. **[Bug] Botões "Tentar de novo"/"Voltar" de estados de carregando/erro
    não são ativáveis por controle remoto** — **parcialmente corrigido**:
@@ -824,7 +851,9 @@ mudaram de natureza** com a arquitetura client-first:
    chamadora. Caminho normal: `sdd-bugfix`.
 
 0. **[Bug] `e2e.mjs` testa um diálogo de saída que não existe mais em
-   `AddSourceScreen`** — o script `tv-web/e2e.mjs` (cenário "US1: Sem lista
+   `AddSourceScreen`** — **absorvido pela feature
+   `023-shell-navegacao-entrada-ds-v14`** (FR-047), que reescreve a entrada
+   e o modal de saída; sai daqui quando a 023 convergir. O script `tv-web/e2e.mjs` (cenário "US1: Sem lista
    cadastrada") pressiona Escape na tela de Adicionar Fonte esperando um
    `.confirm-dialog` com botão "Sair" (`page.click('button:has-text("Sair")')`,
    linha 45), mas nem `AddSourceScreen.tsx` nem `App.tsx` têm hoje qualquer
@@ -950,6 +979,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 020-ciclo-vida-player | Ciclo de Vida do Player na TV | Convergida | 15/16 tasks | 2026-09-26 |
 | 021-fundacao-visual-ds-v14 | Fundação Visual do Design System V14 (Onda 0 da migração) | Convergida | 65/65 tasks | 2026-09-26 |
 | 022-biblioteca-componentes-ds-v14 | Biblioteca de Componentes do Design System V14 (Onda 1 da migração) | Convergida | 80/80 tasks | 2026-09-26 |
+| 023-shell-navegacao-entrada-ds-v14 | Shell, Navegação e Entrada do Design System V14 (Onda 2 da migração) | Convergida | 59/59 tasks | 2026-09-27 |
 
 ## Bugs
 

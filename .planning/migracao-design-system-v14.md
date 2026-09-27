@@ -3,7 +3,11 @@
 **Criado**: 2026-09-26
 **Status**: Decisões fechadas na ADR-011. **Onda 0 concluída** (feature
 021-fundacao-visual-ds-v14, código completo, 5/5 contratos verdes, zero
-mudança de layout). Onda 1 (feature 022) ainda não especificada.
+mudança de layout). **Onda 1 concluída** (feature
+022-biblioteca-componentes-ds-v14, biblioteca isolada, 5/5 contratos
+verdes). **Onda 2 code-complete** (feature
+023-shell-navegacao-entrada-ds-v14: Splash → perfis (= listas) → Início com
+topbar, RETURN em camadas, 5/5 contratos verdes, 9/9 scripts E2E verdes).
 **Branch de trabalho**: `feature/novo-design-system`
 
 Migração do frontend (`tv-web/`) do protótipo antigo de 9 telas
