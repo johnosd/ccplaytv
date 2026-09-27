@@ -129,8 +129,15 @@ async function run() {
     await page.keyboard.press('ArrowRight')
     assert((await focusedText(page, '.topbar')).join('|') === 'Filmes', 'RIGHT×2 chega em "Filmes" (um único item em foco)')
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.live-item', { timeout: 8000 })
-    assert((await page.locator('.topbar').count()) === 0, 'Filmes abre em tela cheia, sem topbar (FR-020)')
+    await page.waitForSelector('.side-category-nav-item', { timeout: 8000 })
+    // Feature 025 (Onda 4) estende a topbar/shell persistente da Live TV
+    // (024) a Filmes/Séries — Filmes deixou de abrir em tela cheia sem
+    // topbar (FR-020 original da 023): mudança de conteúdo esperada pela
+    // própria migração, não regressão (mesmo padrão de R-003 da 025).
+    assert(
+      (await page.locator('.topbar-item[aria-current="page"]').textContent()) === 'Filmes',
+      'Filmes agora abre sob a topbar persistente, com "Filmes" marcado como atual (feature 025)',
+    )
     await page.keyboard.press('Escape')
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     assert((await focusedText(page, '.topbar')).join('|') === 'Filmes', 'RETURN em Filmes volta ao Início com o foco em "Filmes" na topbar (FR-029)')
@@ -140,7 +147,7 @@ async function run() {
 
     await page.keyboard.press('ArrowRight') // Filmes
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.live-item', { timeout: 8000 })
+    await page.waitForSelector('.side-category-nav-item', { timeout: 8000 })
     await page.keyboard.press('Escape')
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     assert((await focusedText(page, '.tiles-row')).join('|').includes('Filmes'), 'RETURN em Filmes aberto por atalho devolve o foco ao atalho "Filmes"')

@@ -81,9 +81,9 @@ async function addSource(page, m3uUrl) {
  * em "Todos" — um ArrowRight nesse instante entra numa grade vazia (corrida do roteiro antigo, T047).
  */
 async function enterCategory(page, name) {
-  await page.locator('.live-column-groups .live-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
+  await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
   await page.keyboard.press('ArrowRight')
-  await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+  await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
 /** Dispara um evento do <video> ATUAL (o adaptador de dev não decodifica conteúdo fictício). */
@@ -161,13 +161,13 @@ async function run() {
     await page.keyboard.press('Enter')
     await enterCategory(page, 'Filmes') // entra em "Filmes" (categoria única)
     assert(
-      (await page.locator('.poster-card-title').first().textContent()) === 'Duna Fictício',
+      (await page.locator('.content-card-title').first().textContent()) === 'Duna Fictício',
       'categoria "Filmes" mostra "Duna Fictício" primeiro',
     )
 
     await page.keyboard.press('Enter') // abre o detalhe de Duna
-    await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
-    await page.keyboard.press('Enter') // ação primária "Assistir" já focada
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
+    await page.keyboard.press('Enter') // ação primária "Assistir" já focada (índice 0)
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
 
     await completePlayback(page)
@@ -176,18 +176,18 @@ async function run() {
 
     await page.waitForSelector('text=/Desmarcar assistido/', { timeout: 8000 })
     assert(true, 'o filme concluído ganhou a ação "Desmarcar assistido"')
-    const actionsAfterWatch = await page.locator('.detail-button').allTextContents()
+    const actionsAfterWatch = await page.locator('.vod-detail-action').allTextContents()
     assert(actionsAfterWatch.some((label) => label.includes('Assistir')), 'a ação primária continua "Assistir" (sem retomada)')
 
     console.log('=== Cenário B: correção manual + "Continuar assistindo" no hub ===')
     await page.keyboard.press('Escape') // volta pra grade de Filmes
-    await page.waitForSelector('.poster-grid', { timeout: 8000 })
+    await page.waitForSelector('.vod-grid', { timeout: 8000 })
     await page.waitForSelector('.watched-badge', { timeout: 8000 })
     assert(true, 'a grade de Filmes mostra o selo "Assistido" em Duna')
 
     await page.keyboard.press('ArrowRight') // Duna -> Arrival
     await page.keyboard.press('Enter') // abre o detalhe de Arrival
-    await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
     await page.keyboard.press('Enter') // "Assistir"
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
     await fireVideoEvent(page, 'playing')
@@ -198,11 +198,11 @@ async function run() {
     await page.keyboard.press('Escape') // RETURN/pause fecha sem concluir
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
 
-    await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
     await page.keyboard.press('Escape') // detalhe -> grade da categoria
-    await page.waitForSelector('.poster-grid', { timeout: 8000 })
+    await page.waitForSelector('.vod-grid', { timeout: 8000 })
     await page.keyboard.press('Escape') // grade -> trilha
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.vod-side-nav', { timeout: 8000 })
     await page.keyboard.press('Escape') // trilha -> Início (o foco volta ao atalho "Filmes", FR-029)
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     await page.waitForSelector('.continue-watching-row', { timeout: 8000 })
@@ -234,15 +234,17 @@ async function run() {
       'R-002: DOWN na topbar devolve o foco à MESMA rail "Continuar assistindo", sem tecla dupla',
     )
     await page.keyboard.press('Enter') // SELECT no item
-    await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
     assert(
-      (await page.locator('.detail-button').allTextContents()).some((label) => label.includes('Retomar')),
-      'abrir pelo hub retoma a posição salva (ação primária "Retomar")',
+      (await page.locator('.vod-detail-action').allTextContents()).some((label) => label.includes('Continuar')),
+      'abrir pelo hub retoma a posição salva (ação primária "Continuar", índice 0)',
     )
 
     // Correção manual: marca Arrival como assistido sem reproduzir mais.
-    await page.keyboard.press('ArrowRight') // Retomar -> Reiniciar
-    await page.keyboard.press('ArrowRight') // Reiniciar -> toggle-watched
+    // Ordem das ações agora é [Continuar, Reiniciar, Minha Lista, Trailer,
+    // toggle-watched] — 5x ArrowRight garante o último índice (clamp),
+    // sem depender de contar quantas ações existem (feature 025, D-009).
+    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight')
     await page.keyboard.press('Enter')
     await page.waitForSelector('text=/Desmarcar assistido/', { timeout: 8000 })
     assert(true, 'correção manual marcou Arrival como assistido')
@@ -271,15 +273,22 @@ async function run() {
     )
 
     await page.keyboard.press('Enter') // abre o detalhe da série
-    await page.waitForSelector('.episode-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowDown') // abas de temporada (foco inicial) -> episódios
-    await page.keyboard.press('Enter') // SELECT no episódio 1
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
+    // Ação primária (índice 0, foco inicial) já é "Assistir T.:E1" — abre o
+    // episódio 1 direto, sem precisar navegar (feature 025, D-009).
+    await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
     await completePlayback(page)
     await page.waitForSelector('[role="dialog"][aria-label="Próximo episódio"]', { timeout: 8000 })
     await page.keyboard.press('Escape') // cancela o autoplay — volta à lista, foco no episódio concluído
 
-    await page.waitForSelector('.episode-row', { timeout: 8000 })
+    // actions -> tabs -> season -> episodes (3 setas, `logic/detalhe-vod.md`
+    // §6) — o foco no episódio 1, guardado pelo cancelamento, é preservado
+    // ao entrar na linha de episódios; uma seta BAIXO move pro episódio 2.
+    await page.waitForSelector('.vod-episode-row', { timeout: 8000 })
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown')
     await page.keyboard.press('ArrowDown') // episódio 1 -> episódio 2
     await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
@@ -288,7 +297,7 @@ async function run() {
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
 
     await page.keyboard.press('Escape') // volta pra grade de Séries
-    await page.waitForSelector('.poster-grid', { timeout: 8000 })
+    await page.waitForSelector('.vod-grid', { timeout: 8000 })
     await page.waitForSelector('.watched-badge', { timeout: 8000 })
     assert(
       (await page.locator('.watched-badge').first().textContent()) === 'Em dia',

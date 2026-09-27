@@ -875,6 +875,26 @@ mudaram de natureza** com a arquitetura client-first:
    refletir que Escape ali simplesmente não faz nada — decisão pequena mas
    que precisa ser tomada, não um typo. Caminho normal: `sdd-bugfix`.
 
+0. **[Bug] `Icon.tsx` grava `width`/`height` como `var(--icon-size)` em
+   atributos SVG, que não aceitam `var()`** — `<svg width="var(--icon-size)"
+   height="var(--icon-size)">` (`tv-web/src/components/Icon.tsx`, linhas
+   38-39) gera `Error: <svg> attribute width: Expected length,
+   "var(--icon-size)"` no console a cada `<Icon>` renderizado (confirmado em
+   Chromium via Playwright). O ícone ainda aparece (o navegador cai pro
+   tamanho intrínseco do SVG), mas o dimensionamento real fica fora do
+   controle do token — não é só ruído de console. Afeta qualquer tela que
+   usa `<Icon>`, inclusive as entradas fixas (★/↺) de `SideCategoryNav`
+   desde a feature 024. Correção provável: mover `--icon-size` pra `style`
+   (`style={{ width: 'var(--icon-size)', height: 'var(--icon-size)' }}`) em
+   vez dos atributos `width`/`height`.
+
+   **Origem**: achado ao rodar `tv-web/e2e/capa-real.mjs` durante a Fase 9
+   (Polish) da feature `025-filmes-series-ds-v14` (27/09/2026) — pré-
+   existente desde a feature 021 (`Icon.tsx`), fora do escopo desta feature
+   (que não toca esse arquivo). Não corrigido aqui; nenhuma asserção deste
+   ou de outro E2E/teste unitário falhou por causa disso. Caminho normal:
+   `sdd-bugfix`.
+
 47. **Skills de domínio + mapa de validação por área**
 
     Skills curtos (~500 palavras) no formato "gatilho + Read First → doc

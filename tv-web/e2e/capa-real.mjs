@@ -218,12 +218,12 @@ async function run() {
     // demais pousa em "★ Favoritos", vazia, por ArrowRight ainda valer o
     // índice padrão sem a lista de categorias carregada — achado ao rodar
     // este script, não previsto no plano).
-    await page.waitForSelector('.live-item:not(.live-item-favorites)', { timeout: 8000 })
+    await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria "Filmes"
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
-    const comCapaCard = page.locator('.poster-cell', { hasText: 'Filme Com Capa' })
-    const semCapaCard = page.locator('.poster-cell', { hasText: 'Filme Sem Capa' })
+    const comCapaCard = page.locator('.vod-grid-cell', { hasText: 'Filme Com Capa' })
+    const semCapaCard = page.locator('.vod-grid-cell', { hasText: 'Filme Sem Capa' })
     assert((await comCapaCard.locator('img.poster-box-art').count()) === 1, '"Filme Com Capa" tem <img> de capa')
     assert(
       (await comCapaCard.locator('img.poster-box-art').getAttribute('src'))?.endsWith('/capa-filme.png') ?? false,
@@ -232,7 +232,7 @@ async function run() {
     assert((await semCapaCard.locator('img.poster-box-art').count()) === 0, '"Filme Sem Capa" continua no placeholder')
 
     console.log('--- Cenário 2 (US2): capa quebrada (404) cai no placeholder, sem ícone de imagem quebrada ---')
-    const quebradaCard = page.locator('.poster-cell', { hasText: 'Filme Capa Quebrada' })
+    const quebradaCard = page.locator('.vod-grid-cell', { hasText: 'Filme Capa Quebrada' })
     const semImagemQuebrada = await waitUntil(async () => (await quebradaCard.locator('img').count()) === 0)
     assert(semImagemQuebrada, 'depois da falha de carregamento, nenhum elemento <img> resta no card (nunca o ícone nativo de imagem quebrada)')
     assert(
@@ -246,11 +246,11 @@ async function run() {
     await page.keyboard.press('Escape')
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     await openShortcut(page, 2) // Séries
-    await page.waitForSelector('.live-item:not(.live-item-favorites)', { timeout: 8000 })
+    await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria "Series"
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
-    const serieCard = page.locator('.poster-cell', { hasText: 'Serie Com Capa' })
+    const serieCard = page.locator('.vod-grid-cell', { hasText: 'Serie Com Capa' })
     assert((await serieCard.locator('img.poster-box-art').count()) === 1, '"Serie Com Capa" tem <img> de capa')
     assert(
       (await serieCard.locator('img.poster-box-art').getAttribute('src'))?.endsWith('/capa-serie.png') ?? false,
@@ -267,10 +267,10 @@ async function run() {
     // a primeira a chegar; navegar antes de "Muitos" também estar na trilha
     // clampa o ArrowDown de volta pra "Filmes", já visitada — mesma classe
     // de corrida do R-004, agora contra a 2ª categoria, não a 1ª).
-    await page.waitForSelector('.live-item:has-text("Muitos")', { timeout: 8000 })
+    await page.waitForSelector('.side-category-nav-item:has-text("Muitos")', { timeout: 8000 })
     await page.keyboard.press('ArrowDown') // "Filmes" (1ª categoria de filme) -> "Muitos" (2ª)
     await page.keyboard.press('ArrowRight') // entra na categoria "Muitos"
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await page.waitForTimeout(500) // as imagens visíveis terminam de carregar
 
     const beforeScroll = itemIconRequestCount(counts)

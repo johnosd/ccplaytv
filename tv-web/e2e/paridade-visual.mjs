@@ -54,6 +54,12 @@ async function launchBrowser() {
 
 async function addSource(page, m3uUrl, displayName) {
   await page.goto(APP_URL)
+  // Sem lista, só "Adicionar lista", já em foco (feature 023): OK abre o
+  // formulário — ele não é mais a tela de entrada (mesmo padrão dos demais
+  // scripts em `e2e/`; achado ao rodar este script pela primeira vez desde
+  // a 023, pré-existente, corrigido aqui pra script poder rodar).
+  await page.waitForSelector('.add-card', { timeout: 10000 })
+  await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
   await page.getByLabel('Nome de exibição').fill(displayName)
   await page.getByLabel('URL da lista M3U').fill(m3uUrl)
@@ -89,11 +95,15 @@ async function capture(page, dir, name) {
 /**
  * Do hub (tiles-row, foco em "Live TV") até a categoria de canais já entrada.
  *
- * Feature 024 (Onda 3) redesenhou a Live TV pro V14 — esta função não serve
- * mais pra provar "zero layout change" da 021 (esse baseline já fechou),
- * só evita que o script trave se alguém rodar de novo (T041 do plan.md da
- * 024, R-002): a linha de canal virtualizada trocou de `.live-item` pra
- * `.live-channel-row`.
+ * Feature 024 (Onda 3) redesenhou a Live TV pro V14, e a feature 025 (Onda
+ * 4) redesenhou Filmes/Séries e seus detalhes — este script não serve mais
+ * pra provar "zero layout change" da 021 (esse baseline já fechou), só
+ * evita que trave se alguém rodar de novo, e passa a servir de referência
+ * visual do layout novo (T041 do plan.md da 024, R-002; T062/R-00X da 025):
+ * a linha de canal virtualizada trocou de `.live-item` pra
+ * `.live-channel-row`; a grade e o detalhe de Filmes/Séries trocaram de
+ * `.poster-*`/`.movie-detail-layout`/`.series-detail-header` pra
+ * `.vod-grid`/`.content-card*`/`.vod-detail` (feature 025).
  */
 async function openLiveCategory(page) {
   await page.keyboard.press('Enter') // tile "Live TV" (foco inicial)
@@ -103,13 +113,26 @@ async function openLiveCategory(page) {
   await page.waitForSelector('.live-preview-panel', { timeout: 8000 })
 }
 
+/**
+ * Espera o trilho ter uma categoria REAL (depois de ★ Favoritos, ↺ Histórico
+ * e Todos — feature 025, `VIRTUAL_TRAIL_COUNT = 3`) antes do `ArrowRight`
+ * que entra: enquanto as categorias carregam, o trilho só tem as 3 virtuais
+ * e o padrão cai em "Todos" — entrar cedo demais pousa numa lista vazia
+ * (mesma corrida documentada em `busca-por-categoria.mjs`/`favoritos.mjs`).
+ */
+async function waitForRealCategory(page) {
+  await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, {
+    timeout: 8000,
+  })
+}
+
 /** Do hub até a grade de Filmes já entrada (categoria única desta fixture). */
 async function openMoviesGrid(page) {
   await page.keyboard.press('ArrowRight') // Live TV -> Filmes
   await page.keyboard.press('Enter')
-  await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
+  await waitForRealCategory(page)
   await page.keyboard.press('ArrowRight') // trilha -> entra em "Filmes"
-  await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+  await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
 /** Do hub até a grade de Séries já entrada (categoria única desta fixture). */
@@ -117,9 +140,9 @@ async function openSeriesGrid(page) {
   await page.keyboard.press('ArrowRight') // Live TV -> Filmes
   await page.keyboard.press('ArrowRight') // Filmes -> Séries
   await page.keyboard.press('Enter')
-  await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
+  await waitForRealCategory(page)
   await page.keyboard.press('ArrowRight') // trilha -> entra em "Séries"
-  await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+  await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
 /** Abre o detalhe do 1º item já focado na grade e, em seguida, o player (ação primária). */
@@ -161,15 +184,15 @@ async function runMainWalkthrough(page, m3uUrl, outDir) {
   await openMoviesGrid(page)
   await capture(page, outDir, '04-filmes')
 
-  await openDetailAndPlayer(page, '.movie-detail-layout')
+  await openDetailAndPlayer(page, '.vod-detail')
   await capture(page, outDir, '06-detalhe-filme')
 
   await openPlayerFromDetail(page)
   await capture(page, outDir, '08-player')
   await page.keyboard.press('Escape') // player -> detalhe
-  await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
+  await page.waitForSelector('.vod-detail', { timeout: 8000 })
   await page.keyboard.press('Escape') // detalhe -> grade
-  await page.waitForSelector('.poster-grid', { timeout: 8000 })
+  await page.waitForSelector('.vod-grid', { timeout: 8000 })
   await page.keyboard.press('Escape') // grade -> trilha
   await page.keyboard.press('Escape') // trilha -> hub
   await page.waitForSelector('.tiles-row', { timeout: 8000 })
@@ -177,7 +200,7 @@ async function runMainWalkthrough(page, m3uUrl, outDir) {
   await openSeriesGrid(page)
   await capture(page, outDir, '05-series')
 
-  await openDetailAndPlayer(page, '.series-detail-header')
+  await openDetailAndPlayer(page, '.vod-detail')
   await capture(page, outDir, '07-detalhe-serie')
 }
 
@@ -201,7 +224,7 @@ async function runViewportWalkthrough(browser, m3uUrl, width, height, suffix, ou
     await openMoviesGrid(page)
     await capture(page, outDir, `04-filmes-${suffix}`)
 
-    await openDetailAndPlayer(page, '.movie-detail-layout')
+    await openDetailAndPlayer(page, '.vod-detail')
     await openPlayerFromDetail(page)
     await capture(page, outDir, `08-player-${suffix}`)
   } finally {

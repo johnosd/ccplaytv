@@ -82,9 +82,13 @@ async function addSource(page, m3uUrl) {
   await page.locator('.source-card-wrap', { hasText: 'Fonte E2E Ciclo de Vida' }).waitFor({ timeout: 8000 })
 }
 
-/** Espera o trilho de categorias carregar (★ Favoritos, Todos e ao menos uma real) — o `ArrowRight` que "entra" na categoria antes disso cai em "Todos". */
+/**
+ * Espera o trilho de Filmes carregar (★ Favoritos, ↺ Histórico, Todos e ao
+ * menos uma categoria real — feature 025, `VIRTUAL_TRAIL_COUNT = 3`) — o
+ * `ArrowRight` que "entra" na categoria antes disso cai em "Todos".
+ */
 async function waitForCategoryTrail(page) {
-  await page.waitForFunction(() => document.querySelectorAll('.live-item').length >= 3, null, { timeout: 8000 })
+  await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
 }
 
 /** Dispara um evento do <video> ATUAL (o adaptador de dev não decodifica conteúdo fictício). */
@@ -152,10 +156,10 @@ async function run() {
     await page.keyboard.press('Enter')
     await waitForCategoryTrail(page)
     await page.keyboard.press('ArrowRight') // entra em "Filmes" (categoria única)
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre o detalhe
-    await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
-    await page.keyboard.press('Enter') // "Assistir"
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
+    await page.keyboard.press('Enter') // "Assistir" (ação primária, índice 0)
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
     await fireVideoEvent(page, 'playing')
 
@@ -168,7 +172,7 @@ async function run() {
     assert(calls.some((c) => c[0] === 'release'), 'proteção de tela religada (tizen.power.release) ao encerrar a reprodução')
 
     console.log('=== Cenário B: ocultar o app durante um filme nunca fecha a camada (US2, D-002 ramo pausável) ===')
-    await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
     await page.keyboard.press('Enter') // reabre
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
     await fireVideoEvent(page, 'playing')
@@ -187,11 +191,11 @@ async function run() {
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
 
     console.log('=== Cenário D: ocultar o app com um canal ao vivo fecha a sessão (sem pausa real, D-002 ramo canal) ===')
-    await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
     await page.keyboard.press('Escape') // detalhe -> grade
-    await page.waitForSelector('.poster-grid', { timeout: 8000 })
+    await page.waitForSelector('.vod-grid', { timeout: 8000 })
     await page.keyboard.press('Escape') // grade -> trilha
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.vod-side-nav', { timeout: 8000 })
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     // O Início restaura o foco de origem (feature 023, FR-029): volta em

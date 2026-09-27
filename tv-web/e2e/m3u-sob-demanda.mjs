@@ -381,11 +381,15 @@ async function run() {
     await page.keyboard.press('Escape') // sai da trilha -> hub da lista
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     await openShortcut(page, 1) // Filmes
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
+    // Espera a categoria REAL aparecer na trilha (feature 025,
+    // `VIRTUAL_TRAIL_COUNT = 3`: ★ Favoritos, ↺ Histórico, Todos) — entrar
+    // cedo demais pousa em "Todos" antes de as categorias carregarem (mesma
+    // corrida documentada em `busca-por-categoria.mjs`/`favoritos.mjs`).
+    await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria "Filmes"
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
-      (await page.locator('.poster-card-title').first().textContent()) === 'Um Filme Fictício',
+      (await page.locator('.content-card-title').first().textContent()) === 'Um Filme Fictício',
       'categoria "Filmes" mostra o filme fictício',
     )
     assert(avulsa.counts.requests === 1, 'entrar em Filmes também não pediu o arquivo de novo')
@@ -395,11 +399,11 @@ async function run() {
     await page.keyboard.press('Escape')
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     await openShortcut(page, 2) // Séries
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
+    await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria "Series"
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
-      (await page.locator('.poster-card-title').first().textContent()) === 'Série Fictícia',
+      (await page.locator('.content-card-title').first().textContent()) === 'Série Fictícia',
       'categoria "Series" mostra a série sintética (agrupada dos dois episódios)',
     )
     assert(avulsa.counts.requests === 1, 'entrar em Séries também não pediu o arquivo de novo — a série veio do mesmo bloco guardado')

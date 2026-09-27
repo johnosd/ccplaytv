@@ -66,9 +66,13 @@ async function pressFavoriteColorKey(page) {
   }, FAVORITE_COLOR_KEY)
 }
 
-/** Espera o trilho de categorias carregar (★ Favoritos, Todos e ao menos uma real) — o `ArrowRight` que "entra" na categoria antes disso cai em "Todos". */
+/**
+ * Espera o trilho de Filmes/Séries carregar (★ Favoritos, ↺ Histórico, Todos
+ * e ao menos uma categoria real — feature 025, `VIRTUAL_TRAIL_COUNT = 3`) —
+ * o `ArrowRight` que "entra" na categoria antes disso cai em "Todos".
+ */
 async function waitForCategoryTrail(page) {
-  await page.waitForFunction(() => document.querySelectorAll('.live-item').length >= 3, null, { timeout: 8000 })
+  await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
 }
 
 async function addSource(page, m3uUrl) {
@@ -209,7 +213,7 @@ async function run() {
     await page.keyboard.press('Enter')
     await waitForCategoryTrail(page)
     await page.keyboard.press('ArrowRight') // entra na 1ª categoria real de Filmes
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await holdEnter(page)
     await page.waitForSelector('.fav-star', { timeout: 4000 })
     assert(true, 'segurar OK favorita um filme na grade')
@@ -224,7 +228,7 @@ async function run() {
     await page.keyboard.press('Enter')
     await waitForCategoryTrail(page)
     await page.keyboard.press('ArrowRight') // entra na 1ª categoria real de Séries
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
     await pressFavoriteColorKey(page)
     // Ao contrário de `holdEnter`, a tecla de cor dispara num só toque —
