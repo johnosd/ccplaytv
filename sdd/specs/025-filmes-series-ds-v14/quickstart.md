@@ -68,18 +68,37 @@ node e2e/ciclo-vida-player.mjs
 
 ## Itens cross-cutting da constitution
 
-- [ ] Todo estado das quatro telas tem um elemento focável acionável por
+- [X] Todo estado das quatro telas tem um elemento focável acionável por
       SELECT (carregando, erro, vazio, ★ vazio, ↺ vazio, fonte ausente,
-      modais).
-- [ ] Nenhuma URL de capa/reprodução/fonte em log, erro ou texto visível
-      (inspecionar console durante o cenário).
-- [ ] Nenhum dado inventado: sem sinopse, sem ano tirado do título, sem
+      modais). Verificado pelos testes de componente (`EmptyState`/
+      `ErrorState` com `focused`/`focusedActionIndex`) e pelo E2E novo.
+- [X] Nenhuma URL de capa/reprodução/fonte em log, erro ou texto visível —
+      console inspecionado em todos os E2E desta fase; só o 404
+      deliberado de `capa-real.mjs` (Cenário 2, teste da própria falha de
+      carregamento) aparece.
+- [X] Nenhum dado inventado: sem sinopse, sem ano tirado do título, sem
       barra de progresso sem duração, sem "Recém-adicionados" em série sem
-      `added`.
-- [ ] Categorias da fonte na ordem declarada; ★/↺/Todos nunca as substituem.
-- [ ] Voltar do detalhe restaura o card por identidade.
-- [ ] Favorito, retomada e histórico continuam chaveados pela identidade
-      estável (nada novo usa URL).
+      `added`. Coberto pelos 4 contratos travados da fase 2 mais os
+      cenários de "Ordenar por Ano"/barra vs. texto do E2E novo.
+- [X] Categorias da fonte na ordem declarada; ★/↺/Todos nunca as
+      substituem. Verificado (grade em ordem da fonte antes de ordenar).
+- [X] Voltar do detalhe restaura o card por identidade. Verificado
+      (memória de foco por entrada, inclusive via Início e volta).
+- [X] Favorito, retomada e histórico continuam chaveados pela identidade
+      estável (nada novo usa URL). Inalterado — suíte completa (1192
+      testes) e `favoritos.mjs`/`historico-continuar-assistindo.mjs`
+      verdes.
 - [ ] Passada na TV física (recomendada, não gate): rolagem da grade com
       capas, hero band, plano de hardware nos dois detalhes, modal de
-      temporada, teclas do controle.
+      temporada, teclas do controle. **Não feita nesta sessão** (ambiente
+      remoto sem acesso à TV física).
+
+**Executado em 2026-09-27**: todas as checagens automatizadas (contratos,
+`npm run test` — 1192 testes —, `tsc -b`, `lint`, `build`, `build:tizen`),
+`check-contract-tests.ps1` para 018–025, e todos os E2E (`npm run
+test:e2e` completo + `filmes-series-ds-v14.mjs`, 7/7 rodadas seguidas
+verdes) — ver `plan.md` → `## Estado Atual`/`## Execution Notes` (Fase 9)
+para o detalhe. O cenário ponta a ponta do navegador foi coberto pelo
+script novo (mesma sequência de passos) em vez de uma sessão interativa
+separada, mais a inspeção visual das capturas de `paridade-visual.mjs`
+(`06-detalhe-filme.png`/`07-detalhe-serie.png`).

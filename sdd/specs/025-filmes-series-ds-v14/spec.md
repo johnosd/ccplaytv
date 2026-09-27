@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-27
 
-**Status**: Em Execução
+**Status**: Implementada
 
 **Input**: Onda 4 da migração para o Design System V14 Spectrum — item M5
 do backlog (`.planning/backlog.md`) e seção "Onda 4" de

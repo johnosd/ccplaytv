@@ -166,9 +166,11 @@ async function run() {
     await page.keyboard.press('ArrowRight') // "TV ao vivo" -> "Filmes"
     assert((await page.locator('.topbar-item.tv-focus').textContent()) === 'Filmes', 'seta pra direita move o foco pra "Filmes" na topbar')
     await page.keyboard.press('Enter') // switch-top: troca sem empilhar a Live
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
+    await page.waitForSelector('.vod-screen, .live-state', { timeout: 8000 })
     assert(true, '"Filmes" na topbar da Live troca de tela (switch-top)')
-    await page.keyboard.press('Escape') // Filmes não tem topbar ainda (Onda 4) — RETURN na trilha vai à Home
+    // Filmes também ganhou topbar persistente (feature 025, Onda 4) — RETURN
+    // na trilha (col 0) continua indo direto ao Início (D-003 da 025).
+    await page.keyboard.press('Escape')
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
     assert(true, 'RETURN a partir de Filmes volta ao Início — nunca à Live (D-004)')
 

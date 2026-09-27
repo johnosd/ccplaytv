@@ -297,11 +297,19 @@ US2.
 
 **Purpose**: E2E, limpeza de CSS, documentação e gates finais.
 
-- [ ] T062 Atualizar os E2E que tocam Filmes/Séries para os novos seletores, sem perder asserções: `tv-web/e2e/capa-real.mjs`, `tv-web/e2e/historico-continuar-assistindo.mjs`, `tv-web/e2e/favoritos.mjs`, `tv-web/e2e/busca-por-categoria.mjs`, `tv-web/e2e/paridade-visual.mjs`; conferir `shell-visual.mjs`, `m3u-sob-demanda.mjs`, `ciclo-vida-player.mjs` e `tv-web/e2e.mjs` (FR-052)
-- [ ] T063 Criar `tv-web/e2e/filmes-series-ds-v14.mjs` cobrindo: topbar ↔ side nav, memória por entrada (inclusive ir ao Início e voltar), ↺ com filme e série, Ordenar com ano, detalhe de filme (ações, mocks, sem placeholder), detalhe de série (modal de temporada, barra/texto), screenshot da grade para R-002
-- [ ] T064 Remover de `tv-web/src/features/screens.css` as regras antigas de Filmes/Séries/detalhes sem uso, **só depois** de provar por busca no código que nenhuma tela as usa, incluindo a linha de `.movie-detail-layout` da regra do plano de hardware (D-015, R-006)
-- [ ] T065 Rodar `quickstart.md` inteiro (checagens, E2E, cenário ponta a ponta, itens cross-cutting) e registrar o resultado em `plan.md`
-- [ ] T066 Gates finais: `npm run test`, `npx tsc -b`, `npm run lint`, `npm run build`, `npm run build:tizen` (a guarda de `tizenFiles.mjs` deve passar sem arquivo novo emitido; se `vod.css` virar arquivo separado, listá-lo em `tizen_web_project.yaml`), `check-contract-tests.ps1` de 018–025
+- [X] T062 Atualizar os E2E que tocam Filmes/Séries para os novos seletores, sem perder asserções: `tv-web/e2e/capa-real.mjs`, `tv-web/e2e/historico-continuar-assistindo.mjs`, `tv-web/e2e/favoritos.mjs`, `tv-web/e2e/busca-por-categoria.mjs`, `tv-web/e2e/paridade-visual.mjs`; conferir `shell-visual.mjs`, `m3u-sob-demanda.mjs`, `ciclo-vida-player.mjs` e `tv-web/e2e.mjs` (FR-052)
+- [X] T063 Criar `tv-web/e2e/filmes-series-ds-v14.mjs` cobrindo: topbar ↔ side nav, memória por entrada (inclusive ir ao Início e voltar), ↺ com filme e série, Ordenar com ano, detalhe de filme (ações, mocks, sem placeholder), detalhe de série (modal de temporada, barra/texto), screenshot da grade para R-002
+- [X] T064 Remover de `tv-web/src/features/screens.css` as regras antigas de Filmes/Séries/detalhes sem uso, **só depois** de provar por busca no código que nenhuma tela as usa, incluindo a linha de `.movie-detail-layout` da regra do plano de hardware (D-015, R-006)
+- [X] T065 Rodar `quickstart.md` inteiro (checagens, E2E, cenário ponta a ponta, itens cross-cutting) e registrar o resultado em `plan.md`
+- [X] T066 Gates finais: `npm run test`, `npx tsc -b`, `npm run lint`, `npm run build`, `npm run build:tizen` (a guarda de `tizenFiles.mjs` deve passar sem arquivo novo emitido; se `vod.css` virar arquivo separado, listá-lo em `tizen_web_project.yaml`), `check-contract-tests.ps1` de 018–025
+
+**Registro da Fase**:
+
+- Status: Concluída. Feature `025-filmes-series-ds-v14` 100% implementada (66/66 tasks).
+- Feito: T062 — seletores atualizados em `capa-real.mjs`, `favoritos.mjs`, `busca-por-categoria.mjs`, `historico-continuar-assistindo.mjs`, `paridade-visual.mjs`, `ciclo-vida-player.mjs` e `e2e.mjs` (raiz); achado durante a checagem e corrigido também `live-tv-ds-v14.mjs` (feature 024), que esperava `.poster-grid` ao trocar pra Filmes pela topbar — não estava na lista original de T062, mas toca a mesma mudança de classe. Bugs pré-existentes corrigidos de passagem, achados ao rodar os scripts: `addSource()` de `paridade-visual.mjs` não passava pela tela de perfis (pré-existente desde a 023); corrida de foco em "Todos" antes das categorias carregarem em `paridade-visual.mjs`/`m3u-sob-demanda.mjs`/`ciclo-vida-player.mjs` (mesma classe já documentada em `busca-por-categoria.mjs`). T063 — `filmes-series-ds-v14.mjs` novo, com painel Xtream fictício (único jeito de exercitar "Ano" de verdade, M3U não declara o campo): topbar↔side nav, memória de foco por entrada, ↺ Histórico com filme e série, Ordenar por Ano, detalhe de filme e de série (modal de temporada, barra × texto conforme duração); estabilizado com pequenas esperas após abrir modais (setas em sequência rápida logo após montar podem se perder — achado ao rodar, 7/7 rodadas seguidas verdes depois do ajuste). T064 — removidas de `screens.css`, após busca confirmando nenhum `.tsx` de produção as usa: `.poster-grid`/`.poster-grid-inner`/`.poster-cell`/`.poster-card-title`/`.poster-card-meta`, todo o bloco de `.movie-detail-*`/`.detail-button`/`.series-detail-*`/`.season-tab*`/`.episode-list*`/`.episode-row`/`.episode-thumb`/`.episode-title`/`.episode-meta`/`.episode-badge`, `.category-content`, e a linha `.movie-detail-layout` da regra do plano de hardware (D-015/R-006) — `.poster-box*` (ainda usado por `PosterArt.tsx`) e `.live-state*`/`.category-title-row` (ainda usados por Live TV/favoritos) foram preservados. `index.css` do bundle caiu de 44.86kB para 41.65kB, confirmando a remoção. De passagem, corrigida a codificação UTF-8 corrompida (mojibake pré-existente) do parágrafo de comentário que estava sendo editado mesmo assim, sem tocar o resto do arquivo. T065 — `quickstart.md` executado por completo, checklist marcado. T066 — todos os gates verdes.
+- Contrato: `check-contract-tests.ps1` para 018, 019, 020, 021, 022, 023, 024 e 025 → todos **PASS, trava íntegra**.
+- Testes executados: `npm run test` → 120 arquivos, 1192 testes, todos verdes. `npx tsc -b` limpo. `npm run lint` limpo (mesmas categorias de warning pré-existentes aceitas). `npm run build`/`npm run build:tizen` limpos (guarda de arquivos passou). `npm run test:e2e` (9 scripts) + `node e2e/filmes-series-ds-v14.mjs` (7 rodadas) — todos verdes, exceto um flake conhecido e confirmado em `ciclo-vida-player.mjs` (timing do screensaver, já documentado em features anteriores, não relacionado a esta feature — passou isolado ao rodar de novo).
+- Pendências: T001 (verificação dos nomes de campo contra um painel Xtream real, R-001) e a passada na TV física (R-002/R-003 e demais riscos de UI real) continuam abertas — ambas fora do alcance deste ambiente remoto, não são gate de convergência desta feature.
 
 ### Checklist de Release
 
@@ -313,12 +321,12 @@ US2.
 - [X] Fase 6 (US4) concluída
 - [X] Fase 7 (US5) concluída
 - [X] Fase 8 (US6) concluída
-- [ ] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro (025 e 018–024)
-- [ ] E2E de Filmes/Séries e o novo `filmes-series-ds-v14.mjs` verdes contra um dev server recém-iniciado
-- [ ] `build:tizen` limpo (guarda de arquivos listados)
-- [ ] Nenhuma URL de catálogo em log, erro ou texto; nenhum dado inventado (checklist do `quickstart.md`)
-- [ ] `quickstart.md` executado com sucesso
-- [ ] Passada na TV física registrada como feita ou pendente (recomendada, não gate)
+- [X] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro (025 e 018–024)
+- [X] E2E de Filmes/Séries e o novo `filmes-series-ds-v14.mjs` verdes contra um dev server recém-iniciado
+- [X] `build:tizen` limpo (guarda de arquivos listados)
+- [X] Nenhuma URL de catálogo em log, erro ou texto; nenhum dado inventado (checklist do `quickstart.md`)
+- [X] `quickstart.md` executado com sucesso
+- [X] Passada na TV física registrada como feita ou pendente (recomendada, não gate) — pendente, sem acesso à TV física nesta sessão
 
 ---
 
