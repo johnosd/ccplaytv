@@ -1,0 +1,27 @@
+{
+    "feature":  "022-biblioteca-componentes-ds-v14",
+    "lockedAt":  "2026-09-26 20:04",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/components/Modal.biblioteca-componentes.contract.test.tsx",
+                      "sha256":  "566d14ea946a7ad6792011a1eea0e533372c6a77b75b2c828b8aeef57510610d",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/components/EmptyErrorState.biblioteca-componentes.contract.test.tsx",
+                      "sha256":  "e163347dd72b41c87a4111a8787311b046a7ede786558d61275afce9aed7f2cc",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/components/Rail.biblioteca-componentes.contract.test.tsx",
+                      "sha256":  "22a2bcf591338cae731e24dabd902503212e3ed88aba8a0521f028e2e0d533ae",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/components/ContentCard.biblioteca-componentes.contract.test.tsx",
+                      "sha256":  "8853015f45687f4f12e22fcf11ae510a6a0ba12f299657db3c69cd12c02ca402",
+                      "tests":  1
+                  }
+              ]
+}
