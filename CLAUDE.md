@@ -359,8 +359,15 @@ opener" is free — but it does **not** move focus or pick which child starts
 focused (focus here is state, owned by whoever renders the content; R-006),
 and a second `Modal` mounted while one is active renders nothing (module-level
 singleton, FR-009). `Rail` is the project's first *horizontal* use of
-`@tanstack/react-virtual`, with a fixed `itemWidth` prop instead of the
-`ResizeObserver` measuring the vertical grid needs (R-002). `ContentCard` and
+`@tanstack/react-virtual`, with fixed, **both required**, `itemWidth`/
+`itemHeight` props instead of the `ResizeObserver` measuring the vertical grid
+needs (R-002) — its items are absolutely positioned, so without `itemHeight`
+the rail collapses to height 0 and nothing shows (R-007; the contract tests
+passed anyway because jsdom computes no layout — only a real-browser check
+caught it), and its edge fade only appears on a side that actually has more
+content. Interactive components take `focused` (`focusedId` on `Tabs`/
+`SideCategoryNav`, `focusedActionIndex` on `ErrorState`) to show `.tv-focus`
+for state-driven focus, the app's usual pattern (ADR-009). `ContentCard` and
 `ChannelRow` wrap the existing `PosterArt` rather than re-implementing its
 cover/fallback logic. `EmptyState`/`ErrorState` use a plain
 `<button className="button-secondary">` on purpose — importing `Button` would
@@ -369,11 +376,16 @@ instead. `ComingSoon` announces "Em breve — {message}" itself through
 `useAnnounce()` (feature 021), so it satisfies FR-035 even with no `onSelect`
 from the consumer; `getComingSoon(id)` throws on an unregistered id, in any
 environment. `OfflineBanner` reads real `navigator.onLine` + the
-`online`/`offline` events. 909 tests (907 passing; 2 `*.favorites.test.tsx`
-flakes under full-suite parallelism, confirmed 18/18 passing isolated — same
+`online`/`offline` events. 927 tests (925 passing; 2 `*.favorites.test.tsx`
+flakes under full-suite parallelism, confirmed 20/20 passing isolated — same
 known pattern as earlier features), `tsc`/lint clean, 5/5 contract tests
-green, 7/8 E2E scripts green (`e2e.mjs` fails on the same pre-existing
-"Sair" dialog bug as before, feature 021's R-005). Two things came up
+green, 7/8 E2E scripts green against a freshly started dev server (`e2e.mjs`
+fails on the same pre-existing "Sair" dialog bug as before, feature 021's
+R-005; against a dev server left running for ~9 h the sequence became
+intermittently unstable, also on the previous commit — restart it before
+running E2E). `sdd-converge` then found 8 gaps, all fixed in a Phase 13
+(`Rail` height above all; the `Modal` focus question was resolved by amending
+spec/plan — state-driven focus, no DOM focus — not by adding code). Two things came up
 during execution: the locked contract C5 asserted `getByText('pôster')`,
 which can never match `PosterArt`'s label (the `<br/>` splits it, so Testing
 Library sees `"pôsterFilme Exemplo"`) — fixed with the user's explicit

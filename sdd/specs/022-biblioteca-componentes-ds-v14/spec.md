@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-26
 
-**Status**: Implementada
+**Status**: Convergida
 
 **Input**: "Feature 022 — Onda 1 da migração para o DS V14 Spectrum (biblioteca
 de componentes): Button (primary pill/secondary/ghost/accent), IconButton,
@@ -107,6 +107,11 @@ setas/RETURN, fechar, e verificar o foco.
 1. **Given** um `Modal` fechado com um botão de gatilho focado, **When** o
    gatilho é ativado, **Then** o modal abre com foco no primeiro elemento
    focável do seu conteúdo, sem exigir uma segunda ação para "entrar" nele.
+   **Emenda (converge 2026-09-26):** neste projeto o foco é de estado, não
+   foco DOM (ADR-009). "Já opera dentro dele" significa que o `Modal`
+   intercepta o teclado desde o primeiro evento (`useRemoteNav({modal:true})`);
+   qual elemento do conteúdo começa focado é do conteúdo (`children`), dono
+   do consumidor — o `Modal` não move foco DOM nem escolhe um filho.
 2. **Given** um `Modal` aberto, **When** RETURN é pressionado, **Then** o
    modal fecha e o foco volta exatamente ao elemento que o abriu.
 3. **Given** um `Modal` aberto, **When** as setas movem o foco, **Then**
@@ -374,7 +379,11 @@ de OK.
 - **Foco perdido ao fechar o Modal** se o elemento que o abriu não existir
   mais (ex.: a lista por trás mudou enquanto o modal estava aberto): o
   foco cai num destino de recuperação razoável (ex.: o container da tela),
-  nunca em `<body>`/lugar nenhum.
+  nunca em `<body>`/lugar nenhum. **Emenda (converge 2026-09-26):** como o
+  estado de foco da tela por trás nunca muda enquanto o `Modal` intercepta o
+  teclado, não há foco a "perder" no fechamento; se a lista mudou por baixo,
+  a reconciliação por id é da própria tela (constitution, "Voltar Restaura
+  Foco e Posição"), não do `Modal`.
 - **Dois `ErrorState`/`EmptyState` na mesma tela** (não deveria acontecer,
   mas o componente não pode presumir que é o único foco possível da
   página): cada instância se comporta corretamente mesmo se houver mais de
@@ -420,9 +429,15 @@ de OK.
 
 - **FR-006**: `Modal` DEVE, ao abrir, colocar o foco no primeiro elemento
   focável do seu conteúdo, sem exigir uma ação adicional.
+  **Emenda (converge 2026-09-26):** o `Modal` DEVE interceptar o teclado
+  desde o primeiro evento após abrir, sem exigir ação adicional; o foco
+  visível dentro do conteúdo é de estado e do consumidor (ver US1/AC1).
 - **FR-007**: `Modal` DEVE fechar ao receber RETURN, devolvendo o foco ao
   elemento que o abriu (ou a um destino de recuperação, se esse elemento
-  não existir mais).
+  não existir mais). **Emenda (converge 2026-09-26):** "devolver" acontece
+  por construção — o estado de foco da tela por trás não muda enquanto o
+  `Modal` está aberto —, sem `.focus()` de DOM nem destino de recuperação no
+  `Modal`.
 - **FR-008**: `Modal` NÃO DEVE permitir foco em elementos fora dele
   enquanto estiver aberto.
 - **FR-009**: `Modal` NÃO DEVE permitir duas instâncias visíveis ao mesmo

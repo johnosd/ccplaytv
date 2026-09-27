@@ -178,7 +178,13 @@ registro de dados (`comingSoon.ts`) + 1 arquivo de estilos
   que o segundo `<Modal>` montado por engano fica inerte e invisível, sem
   travar o primeiro. `role="dialog"`, `aria-modal="true"`,
   `aria-label={ariaLabel}`, `z-index: var(--z-overlay)`, fundo opaco (sem
-  `backdrop-filter` — Spec V14 §28.2).
+  `backdrop-filter` — Spec V14 §28.2). **Emenda (converge 2026-09-26, R-006):**
+  decisão do usuário — o `Modal` **não** move foco DOM nem guarda/restaura
+  `document.activeElement`. Garante só o escopo do teclado
+  (`useRemoteNav({modal:true})`) e que o estado da tela por trás nunca muda;
+  qual filho começa focado é do conteúdo. A Spec V14 (§13, §41) só pede
+  "restaurar o foco anterior quando possível", o que já ocorre por
+  construção.
 - **D-011 — `EmptyState`/`ErrorState`.** `src/components/EmptyState.tsx` +
   `ErrorState.tsx`. `EmptyState` props: `icon?: IconName`, `title`,
   `description?`, `action: {label: string; onSelect: () => void}`
@@ -402,7 +408,9 @@ Stubs criados pelo plan (ponto de partida do execute, não travados):
 | US8 (TextField) | Concluído — mapa fixo `purpose → atributos IME`, sem encadeamento entre campos. |
 | US9 (ComingSoon) | Concluído — anuncia "Em breve" por conta própria (FR-035), sem depender de `onSelect` do consumidor (correção do achado A-001). |
 | Polish | Concluído — SC-001/003/006/007 conferidos, SC-002 pelo contrato C3, SC-004 pelo contrato C2 + teste de `ComingSoon`, SC-005 só parcial (R-004). `CLAUDE.md` atualizado. |
-| Suíte | 909 testes: 907 passando, 2 flakes de `*.favorites.test.tsx` sob paralelismo (18/18 isolados). 5/5 contratos verdes, trava íntegra. `tsc`/lint limpos. E2E 7/8 (`e2e.mjs` = bug pré-existente da 021). |
+| Suíte | 927 testes: 925 passando, 2 flakes de `*.favorites.test.tsx` sob paralelismo (20/20 isolados). 5/5 contratos verdes, trava íntegra (regravada 1x, emenda R-007). `tsc`/lint limpos. |
+| Fase 13 (Convergência) | T057–T064 concluídas: `Rail` com altura (`itemHeight` obrigatório) e fade condicional, `focused`/`focusedId` nos componentes interativos, `IconButton` 52×52, `COMING_SOON` vazio em produção, `.modal-panel` pela zona segura do palco; `Modal` sem foco DOM por decisão (R-006 resolvido). Layout provado no Chromium real. |
+| E2E | Contra Vite fresco: 7/8 (só `e2e.mjs`, pré-existente). Contra o dev server da 5173 (~9 h no ar): instável em sequência completa, inclusive com `HEAD` — ambiental. |
 
 ## Riscos e Decisões
 
@@ -413,12 +421,13 @@ Stubs criados pelo plan (ponto de partida do execute, não travados):
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | Dois `Modal` montados ao mesmo tempo deixariam o segundo surdo ao teclado (nenhum consegue nem fechar) se cada um registrasse seu próprio `useRemoteNav({modal:true})` sem coordenação — ordem de registro dos listeners de captura decide quem "vence", e não é o mais recente. | Alto se acontecesse (controle remoto preso). | D-010: singleton por variável de módulo — o segundo `Modal` não registra `useRemoteNav` nem renderiza conteúdo enquanto o primeiro estiver ativo. Contrato C4 prova o efeito. |
+| R-001 | Dois `Modal` montados ao mesmo tempo deixariam o segundo surdo ao teclado (nenhum consegue nem fechar) se cada um registrasse seu próprio `useRemoteNav({modal:true})` sem coordenação — ordem de registro dos listeners de captura decide quem "vence", e não é o mais recente. | Alto se acontecesse (controle remoto preso). | **Resolvido:** D-010: singleton por variável de módulo — o segundo `Modal` não registra `useRemoteNav` nem renderiza conteúdo enquanto o primeiro estiver ativo. Contrato C4 prova o efeito. |
 | R-002 | `Rail` sem medição automática de largura (D-008, ao contrário da grade vertical que usa `usePosterColumnWidth`/`ResizeObserver`) exige que quem o consome sempre saiba a largura exata do item — se estiver errada, a virtualização desalinha. | Médio (é erro de uso, não do componente). | Documentado explicitamente na prop `itemWidth` e no `quickstart.md`. Reavaliar se a Onda 2 mostrar necessidade real de medição automática — não anexar essa complexidade sem um caso de uso concreto. |
-| R-003 | `ComingSoon`/`comingSoon.ts` lançando `Error` para id não registrado poderia derrubar uma tela inteira em produção se alguém errar o id ao copiar/colar. | Baixo (só acontece por erro de programação, pego em teste/dev antes de qualquer tela real usar isso — nenhuma tela usa `ComingSoon` ainda). | Aceito: o objetivo é falhar alto e cedo (constitution: nunca inventar dado — silenciar um id errado seria pior, mostraria um `ComingSoon` com mensagem indefinida). Reavaliar só se uma tela real vier a montar `ComingSoon` com um id vindo de dado dinâmico (hoje sempre é literal no código). |
+| R-003 | `ComingSoon`/`comingSoon.ts` lançando `Error` para id não registrado poderia derrubar uma tela inteira em produção se alguém errar o id ao copiar/colar. | Baixo (só acontece por erro de programação, pego em teste/dev antes de qualquer tela real usar isso — nenhuma tela usa `ComingSoon` ainda). | **Resolvido:** aceito — o objetivo é falhar alto e cedo (constitution: nunca inventar dado — silenciar um id errado seria pior, mostraria um `ComingSoon` com mensagem indefinida). Reavaliar só se uma tela real vier a montar `ComingSoon` com um id vindo de dado dinâmico (hoje sempre é literal no código). |
 | R-004 | SC-005 pede dimensões idênticas entre `ContentCard` e `Skeleton` da mesma variante, "medido em teste" — mas `Skeleton` (D-014) é genérico (`width`/`height` livres, sem as 4 variantes do `ContentCard`), e nenhuma tela real ainda combina os dois (FR-003), então a igualdade byte-a-byte não é observável nesta feature. | Baixo (SC-005 é de uma story P3, sem consumidor real ainda). | Aceito parcialmente: esta feature garante que `Skeleton` aceita geometria controlável e a aplica corretamente (T043); a comparação real com um `ContentCard` montado lado a lado fica para quando a Onda 2 de fato consumir os dois na mesma tela — achado A-002 do Analyze do `sdd-plan`, 2026-09-26. |
 | R-005 | Contrato C5 (travado) usava `screen.getByText('pôster')` (busca exata) para provar que `ContentCard` delega no `PosterArt` real — mas o rótulo do `PosterArt` (feature 015) tem "pôster" e o título no mesmo `<span>`, separados por `<br/>`; Testing Library concatena só os nós de texto diretos do elemento ("pôsterFilme Exemplo"), então uma busca exata por "pôster" nunca bate — confirmado empiricamente com um teste de sanidade isolado do `PosterArt`, sem `ContentCard` no meio. | Médio (bloqueava US4/P2 sem violar nenhuma Decisão Invariante — só a asserção do teste estava tecnicamente errada). | **Resolvido** (aprovado pelo usuário, 2026-09-26, sdd-execute Fase 6): trocada a asserção para `getByText('pôster', { exact: false })` — mesma verificação (o texto "pôster" está presente no rótulo), sem tocar em `PosterArt`. Trava regravada (`check-contract-tests.ps1 -Write`). |
-| R-006 | FR-006 diz que o `Modal` "coloca o foco no primeiro elemento focável do seu conteúdo" ao abrir, e o edge case da spec pede um destino de recuperação se quem abriu não existir mais. O `Modal` implementado (D-010) **não** move foco nem escolhe qual filho começa focado: neste projeto o foco é de estado (`.tv-focus` aplicada por quem renderiza), e o conteúdo (`children`) é do consumidor. O que o componente garante é interceptação imediata do teclado desde o primeiro evento (`useRemoteNav({modal:true})`) e que o estado da tela por trás nunca muda enquanto ele está aberto — logo "voltar a quem abriu" acontece sozinho. | Médio: é uma leitura de FR-006/edge case, não uma implementação literal; pode ser apontada pelo `sdd-converge`. Sem consumidor real ainda (FR-003), então nenhum fluxo é afetado hoje. | Aberto, decisão registrada na execução (2026-09-26). Quem consumir o `Modal` na Onda 2 passa o conteúdo já com o primeiro item focado por estado; se um destino de recuperação explícito for necessário (opener desmontado durante o modal), isso vira comportamento do consumidor ou uma emenda ao `Modal` — não inventar antes de existir um caso real. |
+| R-006 | FR-006 diz que o `Modal` "coloca o foco no primeiro elemento focável do seu conteúdo" ao abrir, e o edge case da spec pede um destino de recuperação se quem abriu não existir mais. O `Modal` implementado (D-010) **não** move foco nem escolhe qual filho começa focado: neste projeto o foco é de estado (`.tv-focus` aplicada por quem renderiza), e o conteúdo (`children`) é do consumidor. O que o componente garante é interceptação imediata do teclado desde o primeiro evento (`useRemoteNav({modal:true})`) e que o estado da tela por trás nunca muda enquanto ele está aberto — logo "voltar a quem abriu" acontece sozinho. | Médio: é uma leitura de FR-006/edge case, não uma implementação literal; pode ser apontada pelo `sdd-converge`. Sem consumidor real ainda (FR-003), então nenhum fluxo é afetado hoje. | **Resolvido:** decisão do usuário (converge 2026-09-26, AskUserQuestion) — o foco é de estado e dono do consumidor; emendas inline em `spec.md` (US1/AC1, FR-006, FR-007, edge case) e `plan.md` (D-010), nenhum código. Registro anterior: aberto, decisão registrada na execução (2026-09-26). Quem consumir o `Modal` na Onda 2 passa o conteúdo já com o primeiro item focado por estado; se um destino de recuperação explícito for necessário (opener desmontado durante o modal), isso vira comportamento do consumidor ou uma emenda ao `Modal` — não inventar antes de existir um caso real. |
+| R-007 | (converge 2026-09-26, F-001) O `Rail` renderizava com altura 0 no Chromium real: `.rail-inner`/`.rail-item` usam `height:100%` de um pai sem altura, com filhos absolutos (virtualização) e `overflow-y:hidden` escondendo tudo. O contrato C3 e `Rail.test.tsx` passavam porque jsdom não calcula layout. | Alto: US3 (P1) entregava um trilho invisível. | **Resolvido**: `itemHeight` obrigatório em `RailProps` (aplicado como `height` em `.rail`), simétrico a `itemWidth`. Emenda aprovada pelo usuário no contrato C3: 1 linha (`itemHeight={200}` na renderização), nenhuma asserção alterada, trava regravada (`git diff` do contrato: 1 inserção). Prova no Chromium com o DOM real do componente: `.rail` 1200×200 e item 300×200 (antes 0×0). |
 
 ## Execution Notes
 
@@ -439,8 +448,9 @@ Stubs criados pelo plan (ponto de partida do execute, não travados):
 | 2026-09-26 | US7 + US8 | `Spinner`/`Skeleton`/`OfflineBanner` (detecção real de conectividade) e `TextField` (mapa fixo de `purpose`) implementados, sem contrato. 15/15 testes unitários verdes. | Nenhuma. |
 | 2026-09-26 | US9 (ComingSoon) | Implementado conforme D-016 revisado (achado A-001 corrigido no `sdd-plan`) — anuncia "Em breve" por conta própria via `useAnnounce()`. 5/5 testes verdes, todas as 9 stories completas. | Nenhuma. |
 | 2026-09-26 | Polish | SC-001 reforçado (+4 testes), SC-003 por grep, regressão completa (907/909, 2 flakes conhecidas isoladamente verdes), E2E 7/8 (mesma falha pré-existente da 021), `CLAUDE.md` atualizado, R-006 registrado (foco do `Modal`). Todas as 56 tasks de `tasks.md` marcadas. | Flakes `*.favorites.test.tsx` sob paralelismo; R-004 e R-006 abertos para o converge. |
+| 2026-09-26 | Fase 13 (Convergência) | Achados F-001…F-008 do `sdd-converge` corrigidos: `Rail` invisível por altura 0 (R-007, `itemHeight` obrigatório, emenda mínima do contrato C3), fade condicional, foco de estado, `IconButton` 52×52, registro `COMING_SOON` vazio, `.modal-panel` no palco lógico; `Modal` sem foco DOM por decisão do usuário (R-006 resolvido). Layout provado no Chromium real com o DOM do componente. | Flakes `*.favorites`; dev server 5173 instável (ambiental); rodar `sdd-converge` de novo. |
 
-**PRÓXIMO**: `sdd-converge` na feature 022 — auditar código contra spec/plan, em especial R-006 (FR-006 do `Modal` lido como "teclado interceptado", não "foco movido") e R-004 (SC-005).
+**PRÓXIMO**: `sdd-converge` de novo na feature 022 — confirmar que F-001…F-008 fecharam e, se limpo, gerar o `## Resultado Final` (corrigindo lá a nota "efeito visível idêntico" do fade do `Rail`). Antes de qualquer E2E, reiniciar o dev server da porta 5173.
 
 ## Arquivos Principais
 
@@ -449,6 +459,7 @@ Stubs criados pelo plan (ponto de partida do execute, não travados):
 - `tv-web/src/styles/components.css` (D-001, CSS dos 16 componentes) + `tv-web/src/main.tsx` (import entre `utilities.css` e `screens.css`)
 - `tv-web/src/components/`: os 16 componentes (`Modal`, `EmptyState`, `ErrorState`, `Rail`, `ContentCard`, `ChannelRow`, `SideCategoryNav`, `Tabs`, `Button`, `IconButton`, `Chip`, `Spinner`, `Skeleton`, `OfflineBanner`, `TextField`, `ComingSoon`), cada um com seu `.test.tsx`; 4 arquivos `*.biblioteca-componentes.contract.test.tsx` travados
 - `tv-web/src/lib/onlineStatus.ts`, `tv-web/src/lib/comingSoon.ts` (+ testes)
+- `tv-web/src/components/focoDeEstado.test.tsx` (Fase 13: `.tv-focus` de todos os componentes interativos + SELECT por foco de estado sob `useRemoteNav`)
 
 ## Cuidados para Retomada
 
@@ -461,3 +472,38 @@ Stubs criados pelo plan (ponto de partida do execute, não travados):
 - **`.css?raw`/`.css?inline` sob Vitest voltam vazio** — se algum teste
   precisar ler `styles/components.css`, usar `node:fs` +
   `/// <reference types="node" />`, como `tokens.test.ts` da feature 021.
+
+- **Layout de componente só se prova em navegador real, nunca em jsdom** (F-001: o `Rail` passou nos contratos com altura 0). Técnica usada na Fase 13: um teste temporário renderiza o componente e grava `container.innerHTML`; um script Playwright (fora do repo) carrega esse HTML com o CSS de produção (`index.css` + `utilities.css` + `components.css` + `screens.css`) e mede `getBoundingClientRect`/`getComputedStyle`; para pixels, `screenshot` decodificado num `<canvas>`. Apagar o teste temporário e o script depois.
+- **E2E: reiniciar o dev server antes de rodar.** O da porta 5173 chegou a ~9 h no ar, com um segundo Vite na 5174 observando os mesmos arquivos; na sequência completa os scripts passaram a falhar de forma intermitente (também contra `HEAD`). Um Vite recém-criado (ex.: `node node_modules\vite\bin\vite.js --port 5175 --strictPort`) rodou 2 rodadas completas sem nenhuma falha além do `e2e.mjs` pré-existente. Os scripts têm `localhost:5173` fixo — para outra porta, usar cópias temporárias, não editar os originais.
+- **`user-event` não está instalado**: `fireEvent.keyDown(button, {key:'Enter'})` não dispara `click` nativo em jsdom. Para provar SELECT, montar uma tela mínima com `useRemoteNav({onSelect})` e disparar `keyDown` em `document.body`.
+- **Comandos PowerShell com `///` (ex.: `/// <reference types="node" />` dentro de here-string) podem ser barrados pela ferramenta** como se fossem um caminho; criar o arquivo com a ferramenta `Write` em vez de here-string.
+
+## Resultado Final
+
+**Convergida em 2026-09-26**, em duas rodadas de `sdd-converge`. A primeira achou 8 lacunas (F-001…F-008), todas corrigidas na Phase 13; a segunda as confirmou fechadas com os componentes reais rodando no Chromium sob `StrictMode` (o que jsdom não prova).
+
+### O que foi construído
+
+Dezesseis componentes isolados em `tv-web/src/components/` (`Modal`, `EmptyState`, `ErrorState`, `Rail`, `ContentCard`, `ChannelRow`, `SideCategoryNav`, `Tabs`, `Button`, `IconButton`, `Chip`, `Spinner`, `Skeleton`, `OfflineBanner`, `TextField`, `ComingSoon`), mais `lib/onlineStatus.ts`, `lib/comingSoon.ts` e a camada `styles/components.css`. **Nenhuma tela os consome** e nada em `tv-web/src/features/` mudou (FR-003/SC-006). Verificação final: `tsc` e lint limpos; 5/5 contratos verdes com a trava íntegra; 927 testes, 925 passando e 2 flakes de `*.favorites.test.tsx` sob paralelismo (20/20 isoladas); E2E 7/8 contra um dev server recém-iniciado (o 8º, `e2e.mjs`, é o bug pré-existente da feature 021).
+
+### Desvios em relação ao plano original
+
+- **D-008 `Rail`:** `itemHeight` passou a ser obrigatório (R-007) — sem ele o trilho colapsava a altura 0 e ficava invisível, algo que só um navegador real mostra; o fade de borda é `mask-image` escolhido por classe (`rail--fade-start`/`rail--fade-end`), não `::before`/`::after` sticky. A Execution Note da US3 diz que o efeito visível era "idêntico", o que estava impreciso: a primeira versão da máscara era incondicional e esmaecia a borda mesmo com 1 único item (F-003).
+- **D-010 `Modal`:** devolve `null` (não "contêiner vazio") quando inativo e chama `useRemoteNav` sempre, com handlers vazios, por causa da regra dos hooks. Por decisão do usuário **não move foco DOM** (R-006, emendas inline na spec e em D-010).
+- **D-002/D-004/D-005/D-009/D-011 (foco de estado):** `focused` (e `focusedId`/`focusedActionIndex`) acrescentados na Phase 13 para cumprir FR-002 no padrão de foco de estado do app (ADR-009). O plano só previa foco nativo de `<button>`.
+- **D-009 `SideCategoryNav`:** a spec (FR-020) fala em "índice selecionado"; foi implementado `selectedId`, coerente com a constitution (reconciliar por id, não por índice).
+- **D-003 `IconButton`:** 52×52 fixo (a primeira versão usava `--space-6` = 64px).
+- **D-004 `Chip`:** glifo `✓` literal, porque nenhum dos 17 ícones da feature 021 é um "check".
+- **D-016 `ComingSoon`:** `COMING_SOON` nasce vazio em produção (fixture só nos testes); o próprio componente anuncia "Em breve — {mensagem}" via `useAnnounce()` (A-001 do Analyze), sem depender de `onSelect`.
+- **`.modal-panel`:** limitado pela zona segura do palco (`--stage-*`/`--safe-*`), não por `vw/vh`.
+- **Contratos emendados, com aprovação:** C5 (asserção `getByText('pôster')` → `{exact:false}`, R-005) e C3 (uma linha, `itemHeight`, R-007). Trava regravada duas vezes. O nome do contrato C2 na tabela da Estratégia de Testes diz "click/Enter", mas o teste travado só exercita `click`; a prova de SELECT/Enter por foco de estado está em `focoDeEstado.test.tsx` (não travado).
+- **Registro de R-002:** cita o `quickstart.md` como lugar onde `itemWidth` está documentado, mas o `quickstart.md` não menciona `itemWidth`/`itemHeight`; a documentação vive no JSDoc de `RailProps`. Sem efeito em comportamento; por isso R-002 continua aberto.
+
+### Riscos que continuam abertos
+
+- **R-002:** `Rail` exige largura e altura exatas do item; reavaliar na Onda 2 se aparecer necessidade real de medição automática.
+- **R-004:** SC-005 (`Skeleton` com as mesmas dimensões do `ContentCard`) só é totalmente provável quando uma tela renderizar os dois juntos.
+
+### Fora do escopo, por desenho
+
+Nenhuma verificação em TV física (nada visível entrega nesta onda); sem encadeamento entre `TextField`s; sem ícones novos. A Onda 2 (feature 023) é quem passa a consumir a biblioteca.
