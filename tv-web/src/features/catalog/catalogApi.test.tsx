@@ -13,6 +13,7 @@ import {
   useFavoritesContent,
   useHistoryContent,
   useResumePositions,
+  invalidateUserState,
   useSeriesEpisodes,
   useSeriesWatchedSummary,
   useToggleFavorite,
@@ -954,6 +955,43 @@ describe('useHistoryContent (feature 025, FR-007/FR-009)', () => {
     const { result } = renderHook(() => useHistoryContent(null, 'movie', true), { wrapper: wrapper() })
     expect(result.current.isLoading).toBe(false)
     expect(result.current.data).toBeUndefined()
+  })
+
+  // T042 (feature 025, US2): reproduzir → invalidar → contagem de ↺
+  // atualizada — o mesmo caminho que o fechamento real do player já chama
+  // (`invalidateUserState`, T013), sem precisar remontar a tela.
+  it('reproduzir um filme e invalidar (fechamento do player) atualiza o conteúdo já habilitado', async () => {
+    await db.sources.put({
+      id: SOURCE_ID,
+      type: 'provider_credentials',
+      displayName: 'Fonte',
+      connectionState: 'synced',
+      activeGeneration: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    await db.channels.add({
+      sourceId: SOURCE_ID,
+      generation: 1,
+      kind: 'movie',
+      name: 'Filme',
+      originalName: 'Filme',
+      groupOrder: 0,
+      providerStreamId: 'm1',
+    })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    }
+    const { result } = renderHook(() => useHistoryContent(SOURCE_ID, 'movie', true), { wrapper: Wrapper })
+    await waitFor(() => expect(result.current.data?.items).toHaveLength(0))
+
+    const stableId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: 'm1' })
+    await updateProgress(stableId, SOURCE_ID, 30)
+    invalidateUserState(queryClient, stableId)
+
+    await waitFor(() => expect(result.current.data?.items).toHaveLength(1))
+    expect(result.current.data?.items[0].name).toBe('Filme')
   })
 })
 

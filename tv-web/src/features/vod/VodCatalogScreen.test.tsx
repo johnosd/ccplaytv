@@ -5,7 +5,7 @@
  * mesmo mecanismo compartilhado por Filmes/Séries.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VodCatalogScreen } from './VodCatalogScreen'
@@ -251,5 +251,154 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     press('ArrowRight') // volta a "Ação": restaura o último card focado ali
 
     expect(document.querySelector('.vod-hero-band .vod-hero-title')?.textContent).toBe('Filme C')
+  })
+})
+
+/** Títulos na grade (mesmo cuidado do `gridTitles` dos testes de tela — hero band duplica o texto do item focado). */
+function gridTitles(): string[] {
+  return [...document.querySelectorAll('.vod-grid .content-card-title')].map((el) => el.textContent ?? '')
+}
+
+function navEntryText(label: string): string | undefined {
+  return [...document.querySelectorAll<HTMLElement>('.side-category-nav-item')]
+    .find((el) => el.textContent?.includes(label))
+    ?.textContent
+}
+
+describe('VodCatalogScreen — "↺ Histórico" (feature 025, US2, T041)', () => {
+  beforeEach(async () => {
+    resetVodSessionMemory()
+    await seedSource()
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({})
+    mockAggregated([])
+  })
+
+  afterEach(async () => {
+    cleanup()
+    vi.clearAllMocks()
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+  })
+
+  function renderMovies(onOpenItem: (id: string, snapshot?: unknown) => void = vi.fn(), restore?: never) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    }
+    return render(
+      <Wrapper>
+        <VodCatalogScreen
+          section="movies"
+          sourceId={SOURCE_ID}
+          onOpenItem={onOpenItem}
+          onBack={vi.fn()}
+          onResync={vi.fn()}
+          restore={restore}
+        />
+      </Wrapper>,
+    )
+  }
+
+  /** Sobe da categoria padrão (Todos, Histórico) e entra em "↺ Histórico". */
+  function navigateToHistory() {
+    press('ArrowUp') // "Todos"
+    press('ArrowUp') // "↺ Histórico"
+    press('ArrowRight') // entra
+  }
+
+  async function seedMovie(name: string, streamId: string): Promise<number> {
+    const id = await db.channels.add({
+      sourceId: SOURCE_ID,
+      generation: 1,
+      kind: 'movie',
+      name,
+      originalName: name,
+      groupOrder: 0,
+      providerStreamId: streamId,
+    })
+    return id as number
+  }
+
+  it('lista os reproduzidos do mais recente pro mais antigo, com concluídos; a contagem só aparece depois da 1ª entrada', async () => {
+    await seedMovie('Filme A', 'a')
+    await seedMovie('Filme B', 'b')
+    await updateProgress(`${SOURCE_ID}|movie|id:a`, SOURCE_ID, 100) // reproduzido primeiro
+    await updateProgress(`${SOURCE_ID}|movie|id:b`, SOURCE_ID, 50)
+    await db.userStates.update(`${SOURCE_ID}|movie|id:b`, { completedAt: Date.now() }) // concluído, mais recente
+
+    renderMovies()
+
+    // Antes de entrar: nenhuma contagem (FR-007) — "Histórico" sozinho.
+    expect(navEntryText('Histórico')).toBe('Histórico')
+
+    navigateToHistory()
+
+    await waitFor(() => expect(gridTitles()).toEqual(['Filme B', 'Filme A'])) // aguarda a consulta resolver
+    expect(navEntryText('Histórico')).toBe('Histórico2')
+  })
+
+  it('vazio: estado instrutivo com "Voltar" focável, sem beco sem saída', async () => {
+    renderMovies()
+    navigateToHistory()
+
+    expect(await screen.findByText('Seu histórico está vazio')).toBeInTheDocument()
+    expect(screen.getByText(/reproduzidos neste perfil aparecerão aqui/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('tv-focus')
+  })
+
+  it('reprodução sem correspondência no catálogo atual não vira card — nota diz quantas, nunca inventa título/capa', async () => {
+    await seedMovie('Filme A', 'a')
+    await updateProgress(`${SOURCE_ID}|movie|id:a`, SOURCE_ID, 100)
+    await updateProgress(`${SOURCE_ID}|movie|id:removido`, SOURCE_ID, 200) // sem registro correspondente
+
+    renderMovies()
+    navigateToHistory()
+
+    await waitFor(() => expect(gridTitles()).toEqual(['Filme A']))
+    expect(screen.getByText('1 filme assistido não está mais nesta lista.')).toBeInTheDocument()
+  })
+
+  it('sem "Ordenar" dentro de "↺ Histórico" (FR-022 — ordem própria, mais recente primeiro)', async () => {
+    await seedMovie('Filme A', 'a')
+    await updateProgress(`${SOURCE_ID}|movie|id:a`, SOURCE_ID, 100)
+    renderMovies()
+    navigateToHistory()
+
+    await waitFor(() => expect(gridTitles()).toEqual(['Filme A']))
+    expect(document.querySelector('[class*="sort"]')).toBeNull()
+    expect(screen.queryByText('Ordenar')).not.toBeInTheDocument()
+  })
+
+  it('OK abre o detalhe com snapshot {kind:"history"}; devolvido ao remontar, restaura a entrada e o card', async () => {
+    await seedMovie('Filme A', 'a')
+    const idB = await seedMovie('Filme B', 'b')
+    await updateProgress(`${SOURCE_ID}|movie|id:a`, SOURCE_ID, 100)
+    await updateProgress(`${SOURCE_ID}|movie|id:b`, SOURCE_ID, 200)
+
+    const onOpenItem = vi.fn()
+    renderMovies(onOpenItem)
+    navigateToHistory()
+    await waitFor(() => expect(gridTitles()).toEqual(['Filme B', 'Filme A']))
+
+    press('Enter') // hero/card focado por padrão: "Filme B" (mais recente)
+    // `press` não dispara `keyup`; OK real precisa do gesto completo (feature 013).
+    act(() => document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true })))
+
+    expect(onOpenItem).toHaveBeenCalledTimes(1)
+    const [openedId, snapshot] = onOpenItem.mock.calls[0]
+    expect(openedId).toBe(String(idB))
+    expect(snapshot).toMatchObject({
+      trailKey: { kind: 'history' },
+      entered: { kind: 'history' },
+      focusedItemId: String(idB),
+    })
+
+    cleanup()
+    renderMovies(vi.fn(), snapshot)
+    await waitFor(() => expect(gridTitles().length).toBeGreaterThan(0))
+    const focusedCell = [...document.querySelectorAll('.vod-grid-cell')].find((c) => c.querySelector('.tv-focus'))
+    expect(focusedCell?.querySelector('.content-card-title')?.textContent).toBe('Filme B')
   })
 })

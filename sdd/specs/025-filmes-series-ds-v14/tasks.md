@@ -154,15 +154,15 @@ US2.
 
 ### Implementation
 
-- [ ] T037 [US2] Conteúdo de ↺ em `VodCatalogScreen.tsx`: grade com os itens de `useHistoryContent`; sem "Ordenar"; "Pesquisar" filtra o Histórico; OK abre o detalhe com snapshot `{kind:'history'}` (`logic/historico.md` §6)
-- [ ] T038 [US2] Estado vazio de ↺ (`EmptyState` "Seu histórico está vazio" / "Os filmes e séries reproduzidos neste perfil aparecerão aqui." + "Voltar" acionável por SELECT) e nota de não exibíveis (texto por seção, `logic/historico.md` §4 e §6), em `VodCatalogScreen.tsx` (FR-012, FR-013)
-- [ ] T039 [US2] Contagem de ↺ na side nav: só com `data` presente; consulta habilitada após a primeira entrada na sessão (`isHistoryKnown`); atualiza ao voltar do player pelas invalidações do T013 (FR-007)
-- [ ] T040 [P] [US2] Corrigir só o comentário de `markCompleted` em `tv-web/src/lib/catalog/userStateRepository.ts` (não atualiza `lastWatched`; por que isso importa para FR-011), sem mudar o código (R-007)
+- [X] T037 [US2] Conteúdo de ↺ em `VodCatalogScreen.tsx`: grade com os itens de `useHistoryContent`; sem "Ordenar"; "Pesquisar" filtra o Histórico; OK abre o detalhe com snapshot `{kind:'history'}` (`logic/historico.md` §6)
+- [X] T038 [US2] Estado vazio de ↺ (`EmptyState` "Seu histórico está vazio" / "Os filmes e séries reproduzidos neste perfil aparecerão aqui." + "Voltar" acionável por SELECT) e nota de não exibíveis (texto por seção, `logic/historico.md` §4 e §6), em `VodCatalogScreen.tsx` (FR-012, FR-013)
+- [X] T039 [US2] Contagem de ↺ na side nav: só com `data` presente; consulta habilitada após a primeira entrada na sessão (`isHistoryKnown`); atualiza ao voltar do player pelas invalidações do T013 (FR-007)
+- [X] T040 [P] [US2] Corrigir só o comentário de `markCompleted` em `tv-web/src/lib/catalog/userStateRepository.ts` (não atualiza `lastWatched`; por que isso importa para FR-011), sem mudar o código (R-007)
 
 ### Testes da Fase
 
-- [ ] T041 [P] [US2] Testes de tela de ↺ (lista na ordem, vazio focável, nota de não exibíveis, sem "Ordenar", contagem ausente antes e presente depois da 1ª entrada, restauração ao voltar do detalhe) em `tv-web/src/features/vod/VodCatalogScreen.test.tsx`
-- [ ] T042 [P] [US2] Teste de integração com `fake-indexeddb`: reproduzir (gravar progresso) → invalidar → contagem de ↺ atualizada, em `tv-web/src/features/catalog/catalogApi.test.tsx`
+- [X] T041 [P] [US2] Testes de tela de ↺ (lista na ordem, vazio focável, nota de não exibíveis, sem "Ordenar", contagem ausente antes e presente depois da 1ª entrada, restauração ao voltar do detalhe) em `tv-web/src/features/vod/VodCatalogScreen.test.tsx`
+- [X] T042 [P] [US2] Teste de integração com `fake-indexeddb`: reproduzir (gravar progresso) → invalidar → contagem de ↺ atualizada, em `tv-web/src/features/catalog/catalogApi.test.tsx`
 
 **Critério de Conclusão**: os contratos de `loadHistory` continuam 2/2 verdes, `check-contract-tests.ps1` fica íntegro e os testes da fase passam. No navegador, com o banco semeado, ↺ mostra filmes e séries na ordem certa, com o vazio focável.
 
@@ -170,11 +170,11 @@ US2.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída. A maior parte da implementação (T037–T039) já saiu pronta da Fase 3 — construí `VodCatalogScreen.tsx` tratando "↺ Histórico" como uma entrada de primeira classe desde o início (mesmo padrão de ★/Todos/categoria), não como um adicional depois. Esta fase focou em confirmar isso com teste e fechar o T040.
+- Feito: T040 (comentário de `markCompleted` corrigido, código intocado). T041 (5 testes novos em `VodCatalogScreen.test.tsx`: ordem/concluídos, vazio focável, nota de não exibíveis com contagem correta, ausência de "Ordenar", snapshot `{kind:'history'}` + restauração). T042 (teste de integração em `catalogApi.test.tsx`: `updateProgress` + `invalidateUserState` atualiza `useHistoryContent` já habilitado, sem remontar).
+- Contrato: `npx vitest run src/lib/catalog/history.filmes-series-ds-v14.contract.test.ts` → 2/2 verde. `check-contract-tests.ps1 -Slug 025-filmes-series-ds-v14` → trava íntegra (5/5).
+- Testes executados: `npx vitest run src/features/vod/VodCatalogScreen.test.tsx src/features/catalog/catalogApi.test.tsx` → 51 testes verdes. `npm run test` completo → 120 arquivos, 1161 testes verdes, sem flake. `npx tsc -b`, `npm run lint`, `npm run build` limpos.
+- Pendências: nenhuma nova. Passada visual no navegador não feita nesta sessão.
 
 ---
 

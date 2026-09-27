@@ -276,9 +276,13 @@ export async function clearProgress(
 }
 
 /**
- * Marca conclusão real (feature 012, D-007): grava `completedAt`, apaga
+ * Marca conclusão real (feature 012, D-007): grava `completedAt` e apaga
  * `progressSeconds` (mesma limpeza de `clearProgress` — não faz sentido
- * "assistido" e "retomar do meio" coexistirem) e atualiza `lastWatched`.
+ * "assistido" e "retomar do meio" coexistirem). NÃO toca `lastWatched`
+ * (feature 025, R-007): isso é o que mantém FR-011 do "↺ Histórico" —
+ * marcar assistido à mão (`setWatchedManually`, que chama esta função)
+ * nunca pode fazer um item nunca reproduzido aparecer no Histórico, que é
+ * lido por `lastWatched` (`logic/historico.md` §1).
  *
  * Persistente por design: gravar progresso depois (reassistir e sair no
  * meio) não apaga `completedAt` — os dois convivem, o selo continua ligado
