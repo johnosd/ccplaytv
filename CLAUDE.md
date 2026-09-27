@@ -342,6 +342,50 @@ went from 10 to 40. See `sdd/specs/021-fundacao-visual-ds-v14/plan.md` →
 `## Estado Atual` and R-009/R-011 for both. Next: Onda 1 (feature 022,
 component library) consumes the icons/utilities built here.
 
+**Code-complete**: `022-biblioteca-componentes-ds-v14` — Onda 1 of the DS V14
+migration: a library of 16 isolated components in `tv-web/src/components/`
+(`Modal`, `EmptyState`, `ErrorState`, `Rail`, `ContentCard`, `ChannelRow`,
+`SideCategoryNav`, `Tabs`, `Button`, `IconButton`, `Chip`, `Spinner`,
+`Skeleton`, `OfflineBanner`, `TextField`, `ComingSoon`) plus two small libs
+(`lib/onlineStatus.ts`, `lib/comingSoon.ts`) and one CSS layer
+(`styles/components.css`, imported in `main.tsx` between `utilities.css` and
+`screens.css`). **No screen consumes any of them yet** — that starts with
+Onda 2 — and no file under `tv-web/src/features/` changed (SC-006); the
+proof is each component's own tests, not a new screen. Design points worth
+knowing before reusing them: `Modal` is a thin shell over
+`useRemoteNav({modal:true})` (capture phase + `stopImmediatePropagation`), so
+the screen behind never sees a key while it's open and "focus returns to the
+opener" is free — but it does **not** move focus or pick which child starts
+focused (focus here is state, owned by whoever renders the content; R-006),
+and a second `Modal` mounted while one is active renders nothing (module-level
+singleton, FR-009). `Rail` is the project's first *horizontal* use of
+`@tanstack/react-virtual`, with a fixed `itemWidth` prop instead of the
+`ResizeObserver` measuring the vertical grid needs (R-002). `ContentCard` and
+`ChannelRow` wrap the existing `PosterArt` rather than re-implementing its
+cover/fallback logic. `EmptyState`/`ErrorState` use a plain
+`<button className="button-secondary">` on purpose — importing `Button` would
+make a P1 story depend on a P3 one; both converge on the same CSS class
+instead. `ComingSoon` announces "Em breve — {message}" itself through
+`useAnnounce()` (feature 021), so it satisfies FR-035 even with no `onSelect`
+from the consumer; `getComingSoon(id)` throws on an unregistered id, in any
+environment. `OfflineBanner` reads real `navigator.onLine` + the
+`online`/`offline` events. 909 tests (907 passing; 2 `*.favorites.test.tsx`
+flakes under full-suite parallelism, confirmed 18/18 passing isolated — same
+known pattern as earlier features), `tsc`/lint clean, 5/5 contract tests
+green, 7/8 E2E scripts green (`e2e.mjs` fails on the same pre-existing
+"Sair" dialog bug as before, feature 021's R-005). Two things came up
+during execution: the locked contract C5 asserted `getByText('pôster')`,
+which can never match `PosterArt`'s label (the `<br/>` splits it, so Testing
+Library sees `"pôsterFilme Exemplo"`) — fixed with the user's explicit
+approval by switching to `{exact:false}` and re-locking (R-005); and
+`SC-005` (Skeleton vs ContentCard identical dimensions) is only partially
+provable until a screen renders both together (R-004). Not done here, by
+design: no physical-TV pass (nothing user-visible ships in this wave), no
+`TextField` field chaining, no new icons (`Chip` uses a literal `✓` because
+none of the 17 icons is a check). See
+`sdd/specs/022-biblioteca-componentes-ds-v14/plan.md` → `## Estado Atual` and
+`## Riscos e Decisões` (R-001–R-006).
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, Home (sources), the

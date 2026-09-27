@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-26
 
-**Status**: Especificada
+**Status**: Implementada
 
 **Input**: "Feature 022 — Onda 1 da migração para o DS V14 Spectrum (biblioteca
 de componentes): Button (primary pill/secondary/ghost/accent), IconButton,
