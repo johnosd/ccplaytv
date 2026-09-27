@@ -247,3 +247,201 @@
   top: 0;
   width: 205px;
 }
+
+/* ---------- Detalhe de filme/série (US5/US6, `logic/detalhe-vod.md`) ----------
+   Compartilhado entre MovieDetailScreen e SeriesDetailScreen — as duas telas
+   usam a mesma raiz `.screen.vod-detail`, sem `shell` (FR-004). */
+
+.vod-detail {
+  gap: var(--space-4);
+  overflow: auto;
+}
+
+.vod-detail-hero {
+  display: flex;
+  gap: var(--space-4);
+  flex: none;
+}
+
+.vod-detail-poster {
+  width: 220px;
+  flex: none;
+}
+
+.vod-detail-poster .poster-box {
+  aspect-ratio: 205 / 302;
+}
+
+.vod-detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  justify-content: center;
+}
+
+.vod-detail-eyebrow {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.vod-detail-title {
+  font-size: var(--fs-h1);
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.vod-detail-meta {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.vod-detail-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.vod-detail-action {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: var(--fs-body);
+}
+
+.vod-detail-action.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.vod-detail-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.vod-detail-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 620px;
+}
+
+.vod-detail-fact {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--bg-surface);
+  padding-bottom: var(--space-1);
+}
+
+.vod-detail-fact dt {
+  color: var(--text-annotation);
+  font-size: var(--fs-caption);
+}
+
+.vod-detail-fact dd {
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  margin: 0;
+  text-align: right;
+}
+
+/* ---------- Seletor de temporada (US6, modal) ---------- */
+
+.vod-season-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.vod-season-button {
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.vod-season-button.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.vod-season-count {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.vod-season-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 280px;
+}
+
+.vod-season-modal-item {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.vod-season-modal-item.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- Lista de episódios (US6) — ContentCard landscape (D-006) ---------- */
+
+.vod-episode-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.vod-episode-list-inner {
+  position: relative;
+}
+
+.vod-episode-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+.vod-episode-progress {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+}
+
+.vod-episode-progress-bar {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  overflow: hidden;
+  max-width: 320px;
+}
+
+.vod-episode-progress-fill {
+  height: 100%;
+  background: var(--accent);
+}

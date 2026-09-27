@@ -242,23 +242,23 @@ US2.
 
 ### Implementation
 
-- [ ] T051 [US5] Reescrever o layout de `tv-web/src/features/movies/MovieDetailScreen.tsx`: raiz `.screen.vod-detail`, hero com `PosterArt`, eyebrow, título, meta real (ano, categoria, selo), ações `[Continuar|Assistir] [Reiniciar?] [Minha Lista] [Trailer] [Marcar assistido]` com foco inicial em 0 (`logic/detalhe-vod.md` §1–§3; FR-033..FR-036)
-- [ ] T052 [US5] "Minha Lista" via `useFavoriteToggle` + rótulo por `useUserState(...).isFavorite`; "Trailer" soft disabled com toast "Em breve" do registro (FR-035, FR-043)
-- [ ] T053 [US5] Abas com `Tabs` e navegação por linhas (actions ↔ tabs); aba Detalhes só com campos existentes; Elenco/Semelhantes mocks (`logic/detalhe-vod.md` §4 e §6; FR-037)
+- [X] T051 [US5] Reescrever o layout de `tv-web/src/features/movies/MovieDetailScreen.tsx`: raiz `.screen.vod-detail`, hero com `PosterArt`, eyebrow, título, meta real (ano, categoria, selo), ações `[Continuar|Assistir] [Reiniciar?] [Minha Lista] [Trailer] [Marcar assistido]` com foco inicial em 0 (`logic/detalhe-vod.md` §1–§3; FR-033..FR-036)
+- [X] T052 [US5] "Minha Lista" via `useFavoriteToggle` + rótulo por `useUserState(...).isFavorite`; "Trailer" soft disabled com toast "Em breve" do registro (FR-035, FR-043)
+- [X] T053 [US5] Abas com `Tabs` e navegação por linhas (actions ↔ tabs); aba Detalhes só com campos existentes; Elenco/Semelhantes mocks (`logic/detalhe-vod.md` §4 e §6; FR-037)
 
 ### Testes da Fase
 
-- [ ] T054 [US5] Atualizar `tv-web/src/features/movies/MovieDetailScreen.test.tsx`: foco inicial 1 → 0 (registrar em R-003), ordem das ações, "Reiniciar" só com retomada, Minha Lista, Trailer/abas mock, ausência de "backdrop / still", "Resumo não disponível" e "Elenco: Desconhecido", player abre e fecha como antes
+- [X] T054 [US5] Atualizar `tv-web/src/features/movies/MovieDetailScreen.test.tsx`: foco inicial 1 → 0 (registrar em R-003), ordem das ações, "Reiniciar" só com retomada, Minha Lista, Trailer/abas mock, ausência de "backdrop / still", "Resumo não disponível" e "Elenco: Desconhecido", player abre e fecha como antes
 
 **Critério de Conclusão**: `npx vitest run src/features/movies` verde; a checagem da regra de transparência (a raiz tem a classe `.screen`) passa; o contrato da 020 (`PlayerLayer.ciclo-vida-player.contract.test.tsx`) continua verde.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída.
+- Feito: `MovieDetailScreen.tsx` reescrito por completo: raiz `.screen.vod-detail` (cai na regra genérica de transparência do plano de hardware, sem precisar de linha própria em `screens.css` — a antiga `.movie-detail-layout` fica candidata a remoção na Fase 9); hero com `PosterArt` portrait, eyebrow "FILME", meta (ano · categoria · "✓ Assistido"); ações na ordem `[Continuar/Assistir] [Reiniciar?] [Minha Lista] [Trailer] [Marcar assistido]`, foco inicial fixo no índice 0 (T051); "Minha Lista" via `useFavoriteToggle` real, rótulo por `useUserState(...).isFavorite` (T052); abas `Tabs` (Detalhes ativa; Elenco/Semelhantes `softDisabled`, novo campo em `TabItem`) com navegação por linha (`row: 'actions'|'tabs'`), aba Detalhes mostrando só fatos existentes (Tipo, Categoria, Ano, Adicionado em — `Intl.DateTimeFormat('pt-BR')`, Disponível), nunca "—"/"Desconhecido" (T053). `Tabs.tsx` ganhou `softDisabled?` (aditivo, coberto pelo teste existente).
+- Contrato: sem contrato próprio nesta fase (P2/apresentação). Trava da feature (`check-contract-tests.ps1 -Slug 025-filmes-series-ds-v14`) → íntegra (5/5). Contrato da 020 (`PlayerLayer.ciclo-vida-player.contract.test.tsx`) → verde.
+- Testes executados: `MovieDetailScreen.test.tsx` reescrito (21 testes: ação primária no índice 0, retomada/reiniciar, Minha Lista + toast, Trailer soft-disabled + toast sem abrir player, abas incl. Elenco soft-disabled sem trocar aba ativa, aba Detalhes com os fatos exatos, marcar/desmarcar assistido sempre por último) — 21/21 verdes. `npx vitest run src/features/movies` → verde.
+- Pendências: nenhuma nova. Passada visual no navegador real não feita nesta sessão (recomendada, não gate).
 
 ---
 
@@ -270,26 +270,26 @@ US2.
 
 ### Implementation
 
-- [ ] T055 [US6] `seriesPrimaryAction` e `episodeCode` em `tv-web/src/features/series/episodeNavigation.ts` (`logic/detalhe-vod.md` §3)
-- [ ] T056 [US6] Reescrever o layout de `tv-web/src/features/series/SeriesDetailScreen.tsx`: raiz `.screen.vod-detail`, hero, ações `[Continuar TX:EY | Assistir TX:EY] [Minha Lista] [Trailer]`, abas Episódios/Detalhes/Elenco/Semelhantes, linhas de foco actions → tabs → season → episodes (`logic/detalhe-vod.md` §2–§6)
-- [ ] T057 [US6] Botão "Temporada N ▾" + "M episódios" e modal de temporada (`Modal`, sempre abre, ✓ e foco na atual, OK troca, RETURN fecha, foco volta ao botão) (FR-040)
-- [ ] T058 [US6] Linha de episódio com `ContentCard` landscape (imagem do episódio → da série → fallback), `episodeCode`, título, duração, barra só com `duration_seconds` senão "Continuar de mm:ss", selo "✓ Concluído"; ajustar `EPISODE_ROW_HEIGHT` (FR-041; D-010)
-- [ ] T059 [US6] Aba Detalhes da série (temporadas/episódios conhecidos, categoria, ano, resumo da 019 só com cobertura total) (FR-039)
+- [X] T055 [US6] `seriesPrimaryAction` e `episodeCode` em `tv-web/src/features/series/episodeNavigation.ts` (`logic/detalhe-vod.md` §3)
+- [X] T056 [US6] Reescrever o layout de `tv-web/src/features/series/SeriesDetailScreen.tsx`: raiz `.screen.vod-detail`, hero, ações `[Continuar TX:EY | Assistir TX:EY] [Minha Lista] [Trailer]`, abas Episódios/Detalhes/Elenco/Semelhantes, linhas de foco actions → tabs → season → episodes (`logic/detalhe-vod.md` §2–§6)
+- [X] T057 [US6] Botão "Temporada N ▾" + "M episódios" e modal de temporada (`Modal`, sempre abre, ✓ e foco na atual, OK troca, RETURN fecha, foco volta ao botão) (FR-040)
+- [X] T058 [US6] Linha de episódio com `ContentCard` landscape (imagem do episódio → da série → fallback), `episodeCode`, título, duração, barra só com `duration_seconds` senão "Continuar de mm:ss", selo "✓ Concluído"; ajustar `EPISODE_ROW_HEIGHT` (FR-041; D-010)
+- [X] T059 [US6] Aba Detalhes da série (temporadas/episódios conhecidos, categoria, ano, resumo da 019 só com cobertura total) (FR-039)
 
 ### Testes da Fase
 
-- [ ] T060 [P] [US6] Testes de `seriesPrimaryAction`/`episodeCode` (retomada mais recente, 1º episódio, sem temporada, sem episódio) em `tv-web/src/features/series/episodeNavigation.test.ts`
-- [ ] T061 [US6] Atualizar `tv-web/src/features/series/SeriesDetailScreen.test.tsx`: seletor de temporada em modal (em vez das abas antigas), linhas de foco, barra × texto conforme a duração, ação primária, autoplay e contagem inalterados (a máquina `Mode` não muda)
+- [X] T060 [P] [US6] Testes de `seriesPrimaryAction`/`episodeCode` (retomada mais recente, 1º episódio, sem temporada, sem episódio) em `tv-web/src/features/series/episodeNavigation.test.ts`
+- [X] T061 [US6] Atualizar `tv-web/src/features/series/SeriesDetailScreen.test.tsx`: seletor de temporada em modal (em vez das abas antigas), linhas de foco, barra × texto conforme a duração, ação primária, autoplay e contagem inalterados (a máquina `Mode` não muda)
 
 **Critério de Conclusão**: `npx vitest run src/features/series` verde (com a regra do flake); o contrato da 019 (`seriesWatchedSummary.historico.contract.test.ts`) continua verde; `NextEpisodeCountdown.test.tsx` intocado e verde.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída.
+- Feito: `seriesPrimaryAction`/`episodeCode` em `episodeNavigation.ts` (T055) — funções puras, sem React/banco, cobertas por 8 testes novos. `SeriesDetailScreen.tsx` reescrito por completo (T056): raiz `.screen.vod-detail`; hero com `ContentCard` portrait (capa da série), ações `[Continuar/Assistir TX:EY] [Minha Lista] [Trailer]`, foco inicial no índice 0 (ação primária); abas Episódios (ativa)/Detalhes/Elenco/Semelhantes; linhas de foco `actions → tabs → season → episodes` exatamente como o `logic/detalhe-vod.md` §6 especifica, com `↓`/`↑` cruzando as quatro linhas e `RETURN` sempre voltando (modal fecha primeiro, de graça, via interceptação em captura do `Modal`, sem guarda extra). O antigo par de abas de temporada por seta (`.season-tab*`) saiu por completo, substituído pelo botão "Temporada N ▾" + modal (T057) — sempre abre, mesmo com uma única temporada, ✓/foco na atual, OK troca e devolve o foco ao botão, RETURN fecha sem trocar. Linha de episódio agora é `ContentCard` landscape (292×164) + código/duração/progresso ao lado (T058): barra real só com `duration_seconds` conhecida, senão "Continuar de mm:ss" (reaproveita `formatTime`); `EPISODE_ROW_HEIGHT` ajustada para 232 (card 164px + título/meta + respiro). Aba Detalhes (T059): temporadas/episódios conhecidos, categoria, ano e o resumo da 019 (`useSeriesWatchedSummary`, só com cobertura total — "Em dia" ou "N de M assistidos"), nunca parcial nem zero. Autoplay/contagem/máquina `Mode` **inalterados** (mesmas funções `handlePlayerClose`/`handlePlayerCompleted`/`playNext`/`cancelCountdown`, só a navegação por linha em volta mudou).
+- Contrato: sem contrato próprio nesta fase (P2/apresentação). Trava da feature íntegra (5/5). Contrato da 019 (`seriesWatchedSummary.historico.contract.test.ts`) → verde. `NextEpisodeCountdown.test.tsx` → intocado, verde.
+- Testes executados: `episodeNavigation.test.ts` com 8 testes novos de `seriesPrimaryAction`/`episodeCode` (T060) — 26/26 verdes no arquivo. `SeriesDetailScreen.test.tsx` reescrito por completo (T061, 32 testes): estados de carregando/erro/vazio inalterados, ação primária no índice 0, Minha Lista + toast, Trailer soft-disabled, abas com Detalhes/Elenco (mock), modal de temporada (abre/escolhe/RETURN cancela), entrada na lista de episódios via `actions→tabs→season→episodes` (3 setas, `enterEpisodesRow()`), selo/retomada/fechar-camada/identidade-ausente, autoplay completo (conclusão, cruzar temporada, cancelar contagem, último episódio) — 32/32 verdes. `npx vitest run src/features/movies src/features/series` (as duas fases juntas) → 53 testes, todos verdes.
+- Pendências: nenhuma nova. Passada visual no navegador real não feita nesta sessão (recomendada, não gate).
 
 ---
 
@@ -305,14 +305,14 @@ US2.
 
 ### Checklist de Release
 
-- [ ] Fase 1 (Setup) concluída
-- [ ] Fase 2 (Foundational) concluída
-- [ ] Fase 3 (US1) concluída
-- [ ] Fase 4 (US2) concluída
-- [ ] Fase 5 (US3) concluída
-- [ ] Fase 6 (US4) concluída
-- [ ] Fase 7 (US5) concluída
-- [ ] Fase 8 (US6) concluída
+- [X] Fase 1 (Setup) concluída (com a pendência de ambiente T001, ver Riscos e Decisões R-001)
+- [X] Fase 2 (Foundational) concluída
+- [X] Fase 3 (US1) concluída
+- [X] Fase 4 (US2) concluída
+- [X] Fase 5 (US3) concluída
+- [X] Fase 6 (US4) concluída
+- [X] Fase 7 (US5) concluída
+- [X] Fase 8 (US6) concluída
 - [ ] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro (025 e 018–024)
 - [ ] E2E de Filmes/Séries e o novo `filmes-series-ds-v14.mjs` verdes contra um dev server recém-iniciado
 - [ ] `build:tizen` limpo (guarda de arquivos listados)

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SeriesDetailScreen } from './SeriesDetailScreen'
 import * as catalogApi from '../catalog/catalogApi'
@@ -9,9 +9,10 @@ import { db } from '../../lib/catalog/db'
 import { buildStableId, markCompleted, updateProgress } from '../../lib/catalog/userStateRepository'
 
 // `useCatalogItem`/`useSeriesEpisodes` são mockados (controlados por teste,
-// sem depender do catálogo real). `useUserStates`/`invalidateUserStates`
-// ficam com a implementação REAL — mesmo padrão de `MovieDetailScreen.
-// test.tsx` para `useUserState`/`invalidateUserState`.
+// sem depender do catálogo real). `useUserStates`/`invalidateUserStates`/
+// `useUserState`/`useToggleFavorite`/`useSeriesWatchedSummary` ficam com a
+// implementação REAL — mesmo padrão de `MovieDetailScreen.test.tsx` para
+// `useUserState`/`invalidateUserState`.
 vi.mock('../catalog/catalogApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../catalog/catalogApi')>()
   return { ...actual, useCatalogItem: vi.fn(), useSeriesEpisodes: vi.fn() }
@@ -90,6 +91,13 @@ function press(key: string) {
   act(() => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
   })
+}
+
+/** actions → tabs → season → episodes, focando o 1º episódio da temporada exibida (3 setas). */
+function enterEpisodesRow() {
+  press('ArrowDown')
+  press('ArrowDown')
+  press('ArrowDown')
 }
 
 function renderScreen(onBack = () => {}) {
@@ -227,48 +235,173 @@ describe('SeriesDetailScreen', () => {
     expect(screen.getByText('Piloto')).toBeInTheDocument()
   })
 
-  // --- foco inicial e navegação (FR-020, FR-008, D-013) ---
+  // --- hero V14: ação primária, Minha Lista, Trailer (US6, FR-038) ---
 
-  it('foco inicial está na primeira aba de temporada (FR-020)', () => {
+  it('foco inicial está na ação primária "Assistir T1:E1" (sem estado salvo, 1º episódio)', () => {
     renderScreen()
 
-    const tabs = screen.getAllByRole('button').filter((b) => b.className.includes('season-tab'))
-    expect(tabs[0].className).toContain('tv-focus')
-    expect(tabs[0]).toHaveTextContent('Temporada 1')
+    const primary = screen.getByText('▶ Assistir T1:E1')
+    expect(primary.className).toContain('tv-focus')
   })
 
-  it('direita troca a temporada exibida sem nova obtenção (FR-008) — a lista mostra os episódios da temporada 2', () => {
+  it('com retomada em algum episódio, a ação primária é "Continuar" com o código do episódio', async () => {
+    await updateProgress(stableIdOfEpisode(S1E2), 'src1', 90)
     renderScreen()
 
-    press('ArrowRight')
+    expect(await screen.findByText('▶ Continuar T1:E2')).toBeInTheDocument()
+  })
 
-    const tabs = screen.getAllByRole('button').filter((b) => b.className.includes('season-tab'))
-    expect(tabs[1].className).toContain('tv-focus')
-    expect(tabs[1]).toHaveTextContent('Temporada 2')
+  it('"Minha Lista" alterna o favorito e mostra o toast', async () => {
+    renderScreen()
+    press('ArrowRight') // primária(0) -> Minha Lista(1)
+    press('Enter')
+
+    expect(await screen.findByText('Adicionado aos favoritos')).toBeInTheDocument()
+    expect(await screen.findByText('✓ Na Minha Lista')).toBeInTheDocument()
+  })
+
+  it('"Trailer" é soft-disabled e anuncia "Em breve" sem abrir o player', () => {
+    renderScreen()
+    press('ArrowRight') // primária(0) -> Minha Lista(1)
+    press('ArrowRight') // Minha Lista(1) -> Trailer(2)
+
+    const trailer = screen.getByText('▶ Trailer')
+    expect(trailer.className).toContain('is-soft-disabled')
+    press('Enter')
+
+    expect(screen.getByText('Em breve — Trailer do filme ou da série.')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  // --- abas (US6, FR-039) ---
+
+  it('BAIXO nas ações entra nas abas, com "Episódios" focada e ativa', () => {
+    renderScreen()
+    press('ArrowDown')
+
+    const tab = screen.getByRole('tab', { name: 'Episódios' })
+    expect(tab.className).toContain('tv-focus')
+    expect(tab).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('←/→ nas abas move o foco sem trocar a aba ativa; OK troca de verdade (Detalhes)', () => {
+    renderScreen()
+    press('ArrowDown') // tabs, foco em Episódios
+    press('ArrowRight') // foco em Detalhes, sem trocar
+
+    let details = screen.getByRole('tab', { name: 'Detalhes' })
+    expect(details.className).toContain('tv-focus')
+    expect(details).toHaveAttribute('aria-selected', 'false')
+
+    press('Enter')
+
+    details = screen.getByRole('tab', { name: 'Detalhes' })
+    expect(details).toHaveAttribute('aria-selected', 'true')
+    const panel = document.querySelector('.vod-detail-panel') as HTMLElement
+    expect(within(panel).getByText('Temporadas conhecidas')).toBeInTheDocument()
+    expect(within(panel).getByText('2')).toBeInTheDocument() // 2 temporadas
+    expect(within(panel).getByText('3')).toBeInTheDocument() // 3 episódios conhecidos
+    expect(within(panel).getByText('Drama')).toBeInTheDocument()
+  })
+
+  it('aba "Elenco" é soft-disabled: OK anuncia "Em breve" sem trocar a aba ativa', () => {
+    renderScreen()
+    press('ArrowDown') // tabs, foco em Episódios
+    press('ArrowRight') // Detalhes
+    press('ArrowRight') // Elenco
+
+    const cast = screen.getByRole('tab', { name: 'Elenco' })
+    expect(cast.className).toContain('is-soft-disabled')
+    press('Enter')
+
+    expect(screen.getByText('Em breve — Elenco e equipe técnica.')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Episódios' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('CIMA nas abas volta para as ações', () => {
+    renderScreen()
+    press('ArrowDown') // tabs
+    press('ArrowUp') // ações
+
+    expect(screen.getByText('▶ Assistir T1:E1').className).toContain('tv-focus')
+  })
+
+  // --- seletor de temporada em modal (US6, FR-040) ---
+
+  it('BAIXO nas abas (Episódios ativa) entra na linha de temporada', () => {
+    renderScreen()
+    press('ArrowDown') // tabs
+    press('ArrowDown') // season
+
+    const seasonButton = screen.getByText(/Temporada 1/).closest('.vod-season-button')
+    expect(seasonButton?.className).toContain('tv-focus')
+    expect(screen.getByText('2 episódios')).toBeInTheDocument()
+  })
+
+  it('OK na linha de temporada abre o modal, mesmo havendo várias — a atual vem com ✓ e foco', () => {
+    renderScreen()
+    press('ArrowDown')
+    press('ArrowDown')
+    press('Enter')
+
+    expect(screen.getByRole('dialog', { name: 'Selecionar temporada' })).toBeInTheDocument()
+    const first = screen.getByText('Temporada 1').closest('.vod-season-modal-item')
+    expect(first?.textContent).toContain('✓')
+    expect(first?.className).toContain('tv-focus')
+  })
+
+  it('escolher outra temporada no modal troca a lista e devolve o foco ao botão', () => {
+    renderScreen()
+    press('ArrowDown')
+    press('ArrowDown')
+    press('Enter') // abre modal
+
+    press('ArrowDown') // foco em Temporada 2
+    press('Enter') // escolhe
+
+    expect(screen.queryByRole('dialog', { name: 'Selecionar temporada' })).not.toBeInTheDocument()
     expect(screen.getByText('Seven Thirty-Seven')).toBeInTheDocument()
     expect(screen.queryByText('Piloto')).not.toBeInTheDocument()
-    // useSeriesEpisodes não foi chamado de novo com argumento diferente —
-    // trocar de aba é leitura local do que já veio.
+    expect(screen.getByText(/Temporada 2/).closest('.vod-season-button')?.className).toContain('tv-focus')
+    // useSeriesEpisodes não foi chamado de novo — trocar de temporada é leitura local.
     expect(catalogApi.useSeriesEpisodes).toHaveBeenCalledWith('series-1')
   })
 
-  it('BAIXO nas abas entra na lista de episódios; CIMA no primeiro episódio volta às abas', () => {
+  it('RETURN no modal fecha sem trocar a temporada', () => {
     renderScreen()
-
     press('ArrowDown')
-    expect(screen.getByText('Piloto').closest('.episode-row')?.className).toContain('tv-focus')
+    press('ArrowDown')
+    press('Enter')
 
+    press('Escape')
+
+    expect(screen.queryByRole('dialog', { name: 'Selecionar temporada' })).not.toBeInTheDocument()
+    expect(screen.getByText('Piloto')).toBeInTheDocument()
+  })
+
+  // --- lista de episódios (D-013, FR-041) ---
+
+  it('BAIXO na linha de temporada entra na lista de episódios, no 1º episódio', () => {
+    renderScreen()
+    enterEpisodesRow()
+
+    expect(screen.getByText('Piloto').closest('.vod-episode-row')?.className).toContain('tv-focus')
+  })
+
+  it('CIMA no primeiro episódio volta à linha de temporada', () => {
+    renderScreen()
+    enterEpisodesRow()
     press('ArrowUp')
-    const tabs = screen.getAllByRole('button').filter((b) => b.className.includes('season-tab'))
-    expect(tabs[0].className).toContain('tv-focus')
+
+    expect(screen.getByText(/Temporada 1/).closest('.vod-season-button')?.className).toContain('tv-focus')
   })
 
   it('CIMA/BAIXO dentro da lista move entre episódios da mesma temporada', () => {
     renderScreen()
-    press('ArrowDown') // entra na lista, foco no Piloto
+    enterEpisodesRow()
 
-    press('ArrowDown') // desce pro próximo episódio
-    expect(screen.getByText('Cat in the Bag').closest('.episode-row')?.className).toContain('tv-focus')
+    press('ArrowDown')
+    expect(screen.getByText('Cat in the Bag').closest('.vod-episode-row')?.className).toContain('tv-focus')
   })
 
   it('RETURN volta para a tela Séries (FR-021)', () => {
@@ -283,7 +416,7 @@ describe('SeriesDetailScreen', () => {
 
   it('OK num episódio sem retomada abre o player direto, sem menu (startAtMs indefinido)', () => {
     renderScreen()
-    press('ArrowDown')
+    enterEpisodesRow()
 
     press('Enter')
 
@@ -294,7 +427,7 @@ describe('SeriesDetailScreen', () => {
   it('OK num episódio com posição salva retoma dela (startAtMs em ms)', async () => {
     await updateProgress(stableIdOfEpisode(S1E1), 'src1', 300) // 5min
     renderScreen()
-    press('ArrowDown')
+    enterEpisodesRow()
 
     // Espera a leitura real de `useUserStates` assentar antes do OK.
     await screen.findByText('Continuar de 5:00')
@@ -305,18 +438,18 @@ describe('SeriesDetailScreen', () => {
 
   // --- selo de assistido (US3, D-007) ---
 
-  it('episódio concluído mostra "✓ Assistido"; em andamento e nunca aberto não mostram', async () => {
+  it('episódio concluído mostra "✓ Concluído"; em andamento e nunca aberto não mostram', async () => {
     await markCompleted(stableIdOfEpisode(S1E1), 'src1')
     await updateProgress(stableIdOfEpisode(S1E2), 'src1', 90) // em andamento, não concluído
     renderScreen()
 
     await waitFor(() => {
-      const piloto = screen.getByText('Piloto').closest('.episode-row')
-      expect(piloto?.textContent).toContain('✓ Assistido')
+      const piloto = screen.getByText('Piloto').closest('.vod-episode-row')
+      expect(piloto?.textContent).toContain('✓ Concluído')
     })
 
-    const emAndamento = screen.getByText('Cat in the Bag').closest('.episode-row')
-    expect(emAndamento?.textContent).not.toContain('✓ Assistido')
+    const emAndamento = screen.getByText('Cat in the Bag').closest('.vod-episode-row')
+    expect(emAndamento?.textContent).not.toContain('✓ Concluído')
     expect(emAndamento?.textContent).toContain('Continuar de 1:30')
 
     // "Seven Thirty-Seven" está na Temporada 2 — nem chega a montar
@@ -330,15 +463,15 @@ describe('SeriesDetailScreen', () => {
     renderScreen()
 
     await waitFor(() => {
-      const piloto = screen.getByText('Piloto').closest('.episode-row')
-      expect(piloto?.textContent).toContain('✓ Assistido')
+      const piloto = screen.getByText('Piloto').closest('.vod-episode-row')
+      expect(piloto?.textContent).toContain('✓ Concluído')
       expect(piloto?.textContent).toContain('Continuar de 0:40')
     })
   })
 
   it('fechar a camada devolve o foco ao episódio e invalida o estado do usuário (releitura sem manual)', async () => {
     renderScreen()
-    press('ArrowDown')
+    enterEpisodesRow()
     press('Enter')
     expect(screen.getByRole('dialog')).toBeInTheDocument()
 
@@ -348,7 +481,7 @@ describe('SeriesDetailScreen', () => {
     })
 
     await waitFor(() => expect(screen.getByText('Continuar de 1:30')).toBeInTheDocument())
-    expect(screen.getByText('Piloto').closest('.episode-row')?.className).toContain('tv-focus')
+    expect(screen.getByText('Piloto').closest('.vod-episode-row')?.className).toContain('tv-focus')
   })
 
   it('episódio sem identidade estável ainda abre o player, sem linha de retomada (FR-018)', () => {
@@ -365,7 +498,7 @@ describe('SeriesDetailScreen', () => {
       episodesResult({ episodes: [noIdentity], outcome: 'fetched' }),
     )
     renderScreen()
-    press('ArrowDown')
+    enterEpisodesRow()
 
     expect(screen.queryByText(/Continuar de/)).not.toBeInTheDocument()
     press('Enter')
@@ -393,7 +526,7 @@ describe('SeriesDetailScreen', () => {
 
     it('a conclusão desmonta o player antes de mostrar a contagem — nunca as duas camadas juntas (FR-013)', () => {
       renderScreen()
-      press('ArrowDown') // foco no Piloto (S1E1)
+      enterEpisodesRow() // foco no Piloto (S1E1)
       press('Enter')
       expect(screen.getByRole('dialog', { name: 'Reproduzindo Piloto' })).toBeInTheDocument()
 
@@ -405,7 +538,7 @@ describe('SeriesDetailScreen', () => {
 
     it('a contagem expira, toca o próximo e muda de temporada quando o próximo está em outra (D-010)', () => {
       renderScreen()
-      press('ArrowDown') // Piloto
+      enterEpisodesRow() // Piloto
       press('ArrowDown') // Cat in the Bag (último da Temporada 1)
       press('Enter')
       conclude()
@@ -415,13 +548,12 @@ describe('SeriesDetailScreen', () => {
       act(() => vi.advanceTimersByTime(10_000))
 
       expect(screen.getByRole('dialog', { name: 'Reproduzindo Seven Thirty-Seven' })).toBeInTheDocument()
-      const tabs = screen.getAllByRole('button').filter((b) => b.className.includes('season-tab'))
-      expect(tabs[1].getAttribute('aria-selected')).toBe('true')
+      expect(screen.getByText(/Temporada 2/).closest('.vod-season-button')).toBeInTheDocument()
     })
 
     it('cancelar a contagem volta à lista com foco no episódio que acabou de concluir, sem tocar o próximo', () => {
       renderScreen()
-      press('ArrowDown') // Piloto
+      enterEpisodesRow() // Piloto
       press('Enter')
       conclude()
       expect(screen.getByRole('dialog', { name: 'Próximo episódio' })).toBeInTheDocument()
@@ -429,20 +561,31 @@ describe('SeriesDetailScreen', () => {
       press('Escape') // RETURN cancela, igual a SELECT
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-      expect(screen.getByText('Piloto').closest('.episode-row')?.className).toContain('tv-focus')
+      expect(screen.getByText('Piloto').closest('.vod-episode-row')?.className).toContain('tv-focus')
     })
 
     it('último episódio da última temporada: fecha e volta à lista, sem aviso de autoplay (FR-016)', () => {
       renderScreen()
-      press('ArrowRight') // Temporada 2
-      press('ArrowDown') // Seven Thirty-Seven (único episódio, também o último de todos)
+      enterEpisodesRow()
+      press('Enter') // abre o modal? não — Piloto está focado, ArrowRight não é usado aqui
+
+      // Reabre a tela do zero e navega até a Temporada 2 pelo modal, que é o
+      // único caminho agora (a troca inline por seta saiu, US6).
+      act(() => {
+        screen.getByRole('button', { name: 'Fechar (teste)' }).click()
+      })
+      press('ArrowUp') // volta pra season
+      press('Enter') // abre modal
+      press('ArrowDown') // Temporada 2
+      press('Enter') // escolhe — foco fica no botão de temporada
+      press('ArrowDown') // entra na lista, único episódio
       press('Enter')
       expect(screen.getByRole('dialog', { name: 'Reproduzindo Seven Thirty-Seven' })).toBeInTheDocument()
 
       conclude()
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-      expect(screen.getByText('Seven Thirty-Seven').closest('.episode-row')?.className).toContain('tv-focus')
+      expect(screen.getByText('Seven Thirty-Seven').closest('.vod-episode-row')?.className).toContain('tv-focus')
     })
   })
 })

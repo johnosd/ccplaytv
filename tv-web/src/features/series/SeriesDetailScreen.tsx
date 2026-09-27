@@ -2,32 +2,87 @@ import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
+  groupLabel,
   invalidateUserStates,
   stableIdOf,
   useCatalogItem,
   useSeriesEpisodes,
+  useSeriesWatchedSummary,
+  useUserState,
   useUserStates,
   type EpisodeOut,
 } from '../catalog/catalogApi'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
-import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
-import { episodeBadge, groupBySeason, nextEpisode, type Season } from './episodeNavigation'
+import {
+  episodeBadge,
+  episodeCode,
+  groupBySeason,
+  nextEpisode,
+  seriesPrimaryAction,
+  type Season,
+  type SeriesPrimary,
+} from './episodeNavigation'
 import { PlayerLayer } from '../../components/PlayerLayer'
 import { NextEpisodeCountdown } from './NextEpisodeCountdown'
+import { ContentCard } from '../../components/ContentCard'
+import { Tabs, type TabItem } from '../../components/Tabs'
+import { Modal } from '../../components/Modal'
 import { isResumable } from '../../lib/player/resumePolicy'
 import { formatTime } from '../../lib/player/formatTime'
+import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
+import { useToast } from '../../lib/useToast'
+import { Toast } from '../../components/Toast'
+import { getComingSoon } from '../../lib/comingSoon'
 
 export interface SeriesDetailScreenProps {
   seriesId: string
   onBack: () => void
 }
 
+type DetailTab = 'episodes' | 'details' | 'cast' | 'similar'
+type Row = 'actions' | 'tabs' | 'season' | 'episodes'
+
+const TABS: TabItem[] = [
+  { id: 'episodes', label: 'Episódios' },
+  { id: 'details', label: 'Detalhes' },
+  { id: 'cast', label: 'Elenco', softDisabled: true },
+  { id: 'similar', label: 'Semelhantes', softDisabled: true },
+]
+
+type SeriesAction =
+  | { id: 'primary'; primary: SeriesPrimary }
+  | { id: 'favorite'; isFavorite: boolean }
+  | { id: 'trailer' }
+
+/** Ações do hero, na ordem de foco (feature 025, FR-038): `[Continuar|Assistir TX:EY] [Minha Lista] [Trailer]`. */
+function buildActions(primary: SeriesPrimary | null, isFavorite: boolean): SeriesAction[] {
+  const actions: SeriesAction[] = []
+  if (primary) actions.push({ id: 'primary', primary })
+  actions.push({ id: 'favorite', isFavorite })
+  actions.push({ id: 'trailer' })
+  return actions
+}
+
+function actionLabel(action: SeriesAction): string {
+  switch (action.id) {
+    case 'primary': {
+      const code = episodeCode(action.primary.episode)
+      return action.primary.kind === 'resume' ? `▶ Continuar ${code}` : `▶ Assistir ${code}`
+    }
+    case 'favorite':
+      return action.isFavorite ? '✓ Na Minha Lista' : '+ Minha Lista'
+    case 'trailer':
+      return '▶ Trailer'
+  }
+}
+
 /**
- * Altura de linha de `.episode-row` — miniatura de 68px + padding (16px de
- * cada lado) do CSS (`screens.css`).
+ * Altura de linha de `.vod-episode-row` — `ContentCard` landscape (292×164,
+ * feature 022) + título/meta abaixo + o respiro do layout (feature 025,
+ * FR-041).
  */
-const EPISODE_ROW_HEIGHT = 100
+const EPISODE_ROW_HEIGHT = 232
 const EPISODE_OVERSCAN = 6
 
 /**
@@ -67,14 +122,13 @@ type Mode =
   | { kind: 'countdown'; finished: EpisodeOut; next: EpisodeOut }
 
 /**
- * Detalhe de uma série: cabeçalho, abas de temporada e lista de episódios
- * — layout do protótipo antigo (`docs/design/old/CCPlayTv Prototype - Standalone.html`,
- * tela "detalhe série"; as classes `.series-detail-*`/`.season-tab`/
- * `.episode-row` já existiam em `screens.css`, prontas e nunca consumidas).
- *
- * Foco em duas linhas (`logic/episodios-autoplay.md` §8, D-013): abas de
- * temporada (esquerda/direita, sem tocar rede) e lista de episódios
- * (cima/baixo). OK num episódio toca direto, sem menu — FR-009.
+ * Detalhe de série no layout V14 (feature 025, US6): hero com ação primária
+ * "Continuar/Assistir TX:EY", Minha Lista, Trailer mock; abas Episódios/
+ * Detalhes/Elenco/Semelhantes; seletor de temporada em modal; episódios em
+ * `ContentCard` landscape com progresso real (`logic/detalhe-vod.md`). Sem
+ * topbar (FR-004) — raiz `.screen`, coberta pela regra de transparência do
+ * plano de hardware. Autoplay/contagem/máquina `Mode` **inalterados** desde
+ * a feature 012.
  */
 export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps) {
   const queryClient = useQueryClient()
@@ -96,19 +150,35 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
     return idx === -1 ? null : (userStatesQuery.data?.[idx] ?? null)
   }
 
-  const [row, setRow] = useState<'seasons' | 'episodes'>('seasons')
+  const seriesStableId = series ? stableIdOf(series) : null
+  const seriesUserStateQuery = useUserState(seriesStableId)
+  const isFavorite = seriesUserStateQuery.data?.isFavorite ?? false
+  const watchedSummaryQuery = useSeriesWatchedSummary(series?.source_id ?? null)
+  const watchedSummary = series?.series_id ? watchedSummaryQuery.data?.get(series.series_id) : undefined
+
+  const primary = seriesPrimaryAction(seasons, stateFor)
+  const actions = buildActions(primary, isFavorite)
+  const { toastMessage, toastKey, showToast } = useToast()
+  const favoriteToggle = useFavoriteToggle(showToast)
+
+  const [row, setRow] = useState<Row>('actions')
+  const [actionFocus, setActionFocus] = useState(0)
+  const safeActionFocus = clamp(actionFocus, 0, actions.length - 1)
+  const [activeTab, setActiveTab] = useState<DetailTab>('episodes')
+  const [focusedTabId, setFocusedTabId] = useState<string>('episodes')
+
   const [seasonIdx, setSeasonIdx] = useState(0)
   const safeSeasonIdx = clamp(seasonIdx, 0, Math.max(0, seasons.length - 1))
   const currentSeason = seasons[safeSeasonIdx]
   const seasonEpisodes = currentSeason?.episodes ?? []
+  const [seasonModalOpen, setSeasonModalOpen] = useState(false)
+  const [seasonModalFocusIdx, setSeasonModalFocusIdx] = useState(0)
 
   const [focusedEpisodeId, setFocusedEpisodeId] = useState<string | null>(null)
   const episodeIdx = Math.max(
     0,
     seasonEpisodes.findIndex((episode) => episode.id === focusedEpisodeId),
   )
-
-  const focusedSeasonRef = useScrollFocusedIntoView<HTMLButtonElement>(safeSeasonIdx)
 
   const episodeListRef = useRef<HTMLDivElement>(null)
   const episodeVirtualizer = useVirtualizer({
@@ -126,12 +196,6 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
     scrollToIndex: episodeVirtualizer.scrollToIndex,
     enabled: episodesNavigable,
   })
-
-  function enterSeason(index: number) {
-    setSeasonIdx(index)
-    setRow('episodes')
-    setFocusedEpisodeId(seasons[index]?.episodes[0]?.id ?? null)
-  }
 
   /**
    * `undefined` (motor decide) e `0` não existem aqui como distinção —
@@ -171,7 +235,7 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
     setMode({ kind: 'countdown', finished: justPlayed, next })
   }
 
-  /** Contagem expirou sem cancelar — toca o próximo, movendo aba/foco se ele estiver noutra temporada (D-008). */
+  /** Contagem expirou sem cancelar — toca o próximo, movendo temporada/foco se ele estiver noutra (D-008). */
   function playNext(next: EpisodeOut) {
     const seasonIndex = locateSeason(seasons, next.id)
     setSeasonIdx(seasonIndex)
@@ -186,22 +250,64 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
     setFocusedEpisodeId(finished.id)
   }
 
+  /** Troca a aba real (Episódios/Detalhes) ou anuncia "Em breve" pra Elenco/Semelhantes (mock). */
+  function activateTab(id: string) {
+    if (id === 'episodes' || id === 'details') {
+      setActiveTab(id)
+      return
+    }
+    showToast(`Em breve — ${getComingSoon(id).message}`)
+  }
+
+  function openSeasonModal() {
+    setSeasonModalFocusIdx(safeSeasonIdx)
+    setSeasonModalOpen(true)
+  }
+
+  /** OK no modal de temporada — troca `seasonIdx`, fecha e deixa o foco no botão (FR-040). */
+  function chooseSeason(index: number) {
+    setSeasonIdx(index)
+    setFocusedEpisodeId(seasons[index]?.episodes[0]?.id ?? null)
+    setSeasonModalOpen(false)
+    setRow('season')
+  }
+
   useRemoteNav({
     onDirection: (dir) => {
       if (!series || mode.kind !== 'browsing') return
-      if (row === 'seasons') {
-        if (dir === 'left') setSeasonIdx((i) => clamp(i - 1, 0, seasons.length - 1))
-        if (dir === 'right') setSeasonIdx((i) => clamp(i + 1, 0, seasons.length - 1))
+      if (row === 'actions') {
+        if (dir === 'left') setActionFocus((f) => clamp(f - 1, 0, actions.length - 1))
+        if (dir === 'right') setActionFocus((f) => clamp(f + 1, 0, actions.length - 1))
+        if (dir === 'down') {
+          setFocusedTabId(activeTab)
+          setRow('tabs')
+        }
+        return
+      }
+      if (row === 'tabs') {
+        if (dir === 'left' || dir === 'right') {
+          const idx = TABS.findIndex((t) => t.id === focusedTabId)
+          const next = clamp(idx + (dir === 'left' ? -1 : 1), 0, TABS.length - 1)
+          setFocusedTabId(TABS[next].id)
+        }
+        if (dir === 'up') setRow('actions')
+        if (dir === 'down' && activeTab === 'episodes') setRow('season')
+        return
+      }
+      if (row === 'season') {
+        if (dir === 'up') setRow('tabs')
         if (dir === 'down' && seasonEpisodes.length > 0) {
           setRow('episodes')
-          setFocusedEpisodeId(seasonEpisodes[0]?.id ?? null)
+          if (!seasonEpisodes.some((ep) => ep.id === focusedEpisodeId)) {
+            setFocusedEpisodeId(seasonEpisodes[0]?.id ?? null)
+          }
         }
         return
       }
       // row === 'episodes'
       if (dir === 'up') {
         if (episodeIdx === 0) {
-          setRow('seasons')
+          setRow('season')
           return
         }
         setFocusedEpisodeId(seasonEpisodes[episodeIdx - 1]?.id ?? null)
@@ -232,8 +338,26 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
         onBack()
         return
       }
-      if (row === 'seasons') {
-        if (seasonEpisodes.length > 0) enterSeason(safeSeasonIdx)
+      if (row === 'actions') {
+        const action = actions[safeActionFocus]
+        if (!action) return
+        if (action.id === 'trailer') {
+          showToast(`Em breve — ${getComingSoon('trailer').message}`)
+          return
+        }
+        if (action.id === 'favorite') {
+          void favoriteToggle.toggle(series)
+          return
+        }
+        openEpisode(action.primary.episode)
+        return
+      }
+      if (row === 'tabs') {
+        activateTab(focusedTabId)
+        return
+      }
+      if (row === 'season') {
+        openSeasonModal()
         return
       }
       const episode = seasonEpisodes[episodeIdx]
@@ -304,16 +428,33 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
     )
   }
 
+  const metaParts: string[] = []
+  if (series.year != null) metaParts.push(String(series.year))
+  metaParts.push(groupLabel(series.original_group ?? undefined))
+  if (watchedSummary && watchedSummary.known > 0) {
+    metaParts.push(watchedSummary.upToDate ? 'Em dia' : `${watchedSummary.watched}/${watchedSummary.known}`)
+  }
+
   return (
-    <div className="screen">
-      <div className="series-detail-header">
-        <div className="series-detail-thumb">
-          <div className="backdrop-noise" />
+    <div className="screen vod-detail">
+      <div className="vod-detail-hero">
+        <div className="vod-detail-poster">
+          <ContentCard variant="portrait" title={series.name} iconUrl={series.icon_url ?? undefined} />
         </div>
-        <div className="series-detail-info">
-          <div className="series-detail-title">{series.name}</div>
-          <p className="series-detail-synopsis">Resumo não disponível na extração M3U/Xtream nativa.</p>
-          <div className="series-detail-cast">Elenco: Desconhecido</div>
+        <div className="vod-detail-info">
+          <div className="vod-detail-eyebrow">SÉRIE</div>
+          <div className="vod-detail-title">{series.name}</div>
+          <div className="vod-detail-meta">{metaParts.join(' · ')}</div>
+          <div className="vod-detail-actions">
+            {actions.map((action, i) => (
+              <div
+                key={action.id}
+                className={`vod-detail-action${row === 'actions' && i === safeActionFocus ? ' tv-focus' : ''}${action.id === 'trailer' ? ' is-soft-disabled' : ''}`}
+              >
+                {actionLabel(action)}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -323,45 +464,118 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
         </div>
       )}
 
-      <div className="season-tabs">
-        {seasons.map((season, i) => (
-          <button
-            key={season.key}
-            ref={i === safeSeasonIdx ? focusedSeasonRef : undefined}
-            type="button"
-            aria-selected={i === safeSeasonIdx}
-            className={`season-tab${row === 'seasons' && i === safeSeasonIdx ? ' tv-focus' : ''}`}
-          >
-            {season.label}
-          </button>
-        ))}
+      <Tabs items={TABS} activeId={activeTab} focusedId={row === 'tabs' ? focusedTabId : undefined} onSelect={activateTab} />
+
+      <div className="vod-detail-panel">
+        {activeTab === 'details' && (
+          <dl className="vod-detail-facts">
+            <div className="vod-detail-fact">
+              <dt>Temporadas conhecidas</dt>
+              <dd>{seasons.length}</dd>
+            </div>
+            <div className="vod-detail-fact">
+              <dt>Episódios conhecidos</dt>
+              <dd>{episodes.length}</dd>
+            </div>
+            <div className="vod-detail-fact">
+              <dt>Categoria</dt>
+              <dd>{groupLabel(series.original_group ?? undefined)}</dd>
+            </div>
+            {series.year != null && (
+              <div className="vod-detail-fact">
+                <dt>Ano</dt>
+                <dd>{series.year}</dd>
+              </div>
+            )}
+            {watchedSummary && watchedSummary.known > 0 && (
+              <div className="vod-detail-fact">
+                <dt>Progresso</dt>
+                <dd>{watchedSummary.upToDate ? 'Em dia' : `${watchedSummary.watched} de ${watchedSummary.known} assistidos`}</dd>
+              </div>
+            )}
+          </dl>
+        )}
+
+        {activeTab === 'episodes' && (
+          <>
+            <div className="vod-season-row">
+              <div className={`vod-season-button${row === 'season' ? ' tv-focus' : ''}`}>{currentSeason?.label ?? 'Temporada'} ▾</div>
+              <span className="vod-season-count">{seasonEpisodes.length} episódios</span>
+            </div>
+
+            <div ref={episodeListRef} className="vod-episode-list">
+              <div className="vod-episode-list-inner" style={{ height: episodeVirtualizer.getTotalSize() }}>
+                {episodeVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const episode = seasonEpisodes[virtualRow.index]
+                  if (!episode) return null
+                  const badge = episodeBadge(stateFor(episode))
+                  const durationSeconds = episode.duration_seconds ?? null
+                  const pct =
+                    durationSeconds != null && badge.resumeSeconds != null
+                      ? Math.min(100, (badge.resumeSeconds / durationSeconds) * 100)
+                      : null
+                  const metaText = [episodeCode(episode), durationSeconds != null ? formatTime(durationSeconds * 1000) : null]
+                    .filter(Boolean)
+                    .join(' · ')
+                  const focused = row === 'episodes' && episodeIdx === virtualRow.index
+                  return (
+                    <div
+                      key={episode.id}
+                      className={`vod-episode-row${focused ? ' tv-focus' : ''}`}
+                      style={{ transform: `translateY(${virtualRow.start}px)` }}
+                    >
+                      <ContentCard
+                        variant="landscape"
+                        title={episode.name}
+                        meta={metaText}
+                        iconUrl={episode.icon_url ?? series.icon_url ?? undefined}
+                        focused={focused}
+                        badge={badge.watched && <span className="watched-badge">✓ Concluído</span>}
+                      />
+                      <div className="vod-episode-progress">
+                        {pct != null ? (
+                          <div className="vod-episode-progress-bar">
+                            <div className="vod-episode-progress-fill" style={{ width: `${pct}%` }} />
+                          </div>
+                        ) : badge.resumeSeconds != null ? (
+                          <span>Continuar de {formatTime(badge.resumeSeconds * 1000)}</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      <div ref={episodeListRef} className="episode-list">
-        <div className="episode-list-inner" style={{ height: episodeVirtualizer.getTotalSize() }}>
-          {episodeVirtualizer.getVirtualItems().map((virtualRow) => {
-            const episode = seasonEpisodes[virtualRow.index]
-            if (!episode) return null
-            const badge = episodeBadge(stateFor(episode))
-            return (
-              <div
-                key={episode.id}
-                className={`episode-row${row === 'episodes' && episodeIdx === virtualRow.index ? ' tv-focus' : ''}`}
-                style={{ transform: `translateY(${virtualRow.start}px)` }}
+      {seasonModalOpen && (
+        <Modal
+          ariaLabel="Selecionar temporada"
+          onBack={() => setSeasonModalOpen(false)}
+          onDirection={(dir) => {
+            if (dir === 'up' || dir === 'down') {
+              setSeasonModalFocusIdx((i) => clamp(i + (dir === 'down' ? 1 : -1), 0, seasons.length - 1))
+            }
+          }}
+          onSelect={() => chooseSeason(seasonModalFocusIdx)}
+        >
+          <ul className="vod-season-modal-list">
+            {seasons.map((season, index) => (
+              <li
+                key={season.key}
+                className={`vod-season-modal-item${index === seasonModalFocusIdx ? ' tv-focus' : ''}`}
               >
-                <div className="episode-thumb" aria-hidden="true" />
-                <div>
-                  <div className="episode-title">{episode.name}</div>
-                  {badge.resumeSeconds !== null && (
-                    <div className="episode-meta">Continuar de {formatTime(badge.resumeSeconds * 1000)}</div>
-                  )}
-                </div>
-                {badge.watched && <span className="episode-badge">✓ Assistido</span>}
-              </div>
-            )
-          })}
-        </div>
-      </div>
+                {index === safeSeasonIdx && <span aria-hidden="true">✓ </span>}
+                {season.label}
+              </li>
+            ))}
+          </ul>
+        </Modal>
+      )}
+
+      <Toast message={toastMessage} messageKey={toastKey} />
 
       {mode.kind === 'playing' && (
         <PlayerLayer

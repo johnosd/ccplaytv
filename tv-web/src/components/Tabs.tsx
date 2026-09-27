@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 export interface TabItem {
   id: string
   label: string
+  /** Aba que ainda não faz nada além de anunciar "Em breve" (feature 025, D-011) — continua focável e clicável. */
+  softDisabled?: boolean
 }
 
 export interface TabsProps {
@@ -28,7 +30,7 @@ export function Tabs({ items, activeId, focusedId, onSelect }: TabsProps): React
           type="button"
           role="tab"
           aria-selected={item.id === activeId}
-          className={`tabs-item${item.id === activeId ? ' tabs-item-active' : ''}${item.id === focusedId ? ' tv-focus' : ''}`}
+          className={`tabs-item${item.id === activeId ? ' tabs-item-active' : ''}${item.id === focusedId ? ' tv-focus' : ''}${item.softDisabled ? ' is-soft-disabled' : ''}`}
           onClick={() => onSelect(item.id)}
         >
           {item.label}

@@ -91,6 +91,52 @@ export interface EpisodeBadge {
   resumeSeconds: number | null
 }
 
+export type SeriesPrimary =
+  | { kind: 'resume'; episode: EpisodeOut; resumeSeconds: number }
+  | { kind: 'start'; episode: EpisodeOut }
+
+/**
+ * Ação primária do detalhe de série (feature 025, `logic/detalhe-vod.md`
+ * §3): o episódio com retomada mais recente (maior `lastWatched`), senão o
+ * 1º episódio da 1ª temporada (ordem de `groupBySeason`). Sem episódio
+ * nenhum, `null` — a tela já cobre esse caso com o estado "Episódios ainda
+ * não disponíveis" antes de chegar aqui. "Próximo depois do último
+ * concluído" não entra (US6/AC1 pede só retomada ou o primeiro).
+ */
+export function seriesPrimaryAction(
+  seasons: Season[],
+  stateFor: (episode: EpisodeOut) => UserStateRecord | null,
+): SeriesPrimary | null {
+  let best: { episode: EpisodeOut; resumeSeconds: number; lastWatched: number } | null = null
+  for (const season of seasons) {
+    for (const episode of season.episodes) {
+      const state = stateFor(episode)
+      if (!state || !isResumable(state.progressSeconds)) continue
+      const lastWatched = state.lastWatched ?? 0
+      if (!best || lastWatched > best.lastWatched) {
+        best = { episode, resumeSeconds: state.progressSeconds as number, lastWatched }
+      }
+    }
+  }
+  if (best) return { kind: 'resume', episode: best.episode, resumeSeconds: best.resumeSeconds }
+
+  const first = seasons[0]?.episodes[0]
+  return first ? { kind: 'start', episode: first } : null
+}
+
+/**
+ * `T{s}:E{e}` com os dois números; só `E{e}` sem temporada; o nome do
+ * episódio quando nem episódio a fonte declarou (`logic/detalhe-vod.md`
+ * §3) — nunca "—" nem um número inventado.
+ */
+export function episodeCode(episode: EpisodeOut): string {
+  if (episode.season_number != null && episode.episode_number != null) {
+    return `T${episode.season_number}:E${episode.episode_number}`
+  }
+  if (episode.episode_number != null) return `E${episode.episode_number}`
+  return episode.name
+}
+
 /**
  * O selo de um episódio a partir do estado do usuário (`logic` §5, D-007).
  * Assistido e retomada convivem: reassistir um episódio concluído mostra

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MovieDetailScreen } from './MovieDetailScreen'
 import * as catalogApi from '../catalog/catalogApi'
@@ -10,9 +10,9 @@ import { buildStableId, clearProgress, getUserState, updateProgress } from '../.
 import { RESUME_MIN_SECONDS } from '../../lib/player/resumePolicy'
 
 // `useCatalogItem` é mockado (não depende do catálogo real pra estes
-// testes). `useUserState`/`invalidateUserState` ficam com a implementação
-// REAL — são elas que este arquivo testa (T031: invalidação de verdade
-// contra o Dexie/fake-indexeddb, não um mock que já "sabe" a resposta).
+// testes). `useUserState`/`invalidateUserState`/`useToggleFavorite` ficam
+// com a implementação REAL — são elas que este arquivo testa (T031: invalidação
+// de verdade contra o Dexie/fake-indexeddb, não um mock que já "sabe" a resposta).
 vi.mock('../catalog/catalogApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../catalog/catalogApi')>()
   return { ...actual, useCatalogItem: vi.fn() }
@@ -43,6 +43,8 @@ const MOVIE: CatalogItemOut = {
   source_id: 'src1',
   provider_stream_id: '100',
   original_name: 'Duna',
+  year: 2021,
+  added_at: Date.UTC(2024, 8, 23), // 23/09/2024
 }
 
 const STABLE_ID = buildStableId({ sourceId: 'src1', kind: 'movie', providerStreamId: '100' })
@@ -84,13 +86,12 @@ describe('MovieDetailScreen', () => {
     vi.restoreAllMocks()
   })
 
-  // --- US1 (Fase 3), preservados ---
+  // --- hero V14: ação primária (sempre índice 0), Minha Lista, Trailer (feature 025, US5) ---
 
-  it('sem posição salva, a ação primária é "Assistir", focada por padrão (FR-015)', () => {
+  it('sem posição salva, a ação primária é "Assistir", focada no índice 0 (FR-033)', () => {
     renderScreen()
 
     expect(screen.getByText('▶ Assistir').className).toContain('tv-focus')
-    expect(screen.getByText('▶ Trailer').className).not.toContain('tv-focus')
   })
 
   it('SELECT em Assistir abre a camada, sem posição de retomada (startAtMs indefinido)', () => {
@@ -113,13 +114,25 @@ describe('MovieDetailScreen', () => {
     expect(vi.mocked(PlayerLayer)).toHaveBeenCalledTimes(1)
   })
 
-  it('Trailer continua como placeholder — fora de escopo desta feature', () => {
+  it('"Minha Lista" alterna o favorito e mostra o toast (US3, D-002)', async () => {
     renderScreen()
-
-    press('ArrowLeft') // move o foco pra Trailer (índice 0)
+    press('ArrowRight') // Assistir(0) -> Minha Lista(1)
     press('Enter')
 
-    expect(screen.getByText('Reproduzindo trailer...')).toBeInTheDocument()
+    expect(await screen.findByText('Adicionado aos favoritos')).toBeInTheDocument()
+    expect(await screen.findByText('✓ Na Minha Lista')).toBeInTheDocument()
+  })
+
+  it('"Trailer" é soft-disabled e anuncia "Em breve" sem abrir o player', () => {
+    renderScreen()
+    press('ArrowRight') // Assistir(0) -> Minha Lista(1)
+    press('ArrowRight') // Minha Lista(1) -> Trailer(2)
+
+    const trailer = screen.getByText('▶ Trailer')
+    expect(trailer.className).toContain('is-soft-disabled')
+    press('Enter')
+
+    expect(screen.getByText('Em breve — Trailer do filme ou da série.')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
@@ -155,16 +168,16 @@ describe('MovieDetailScreen', () => {
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 
-  // --- T029: alternância Assistir / Retomar / Reiniciar ---
+  // --- alternância Assistir / Continuar / Reiniciar ---
 
-  describe('retomada (T029)', () => {
-    it('com progresso ≥30s, a ação primária é "Retomar" com o tempo formatado, e "Reiniciar" existe', async () => {
+  describe('retomada', () => {
+    it('com progresso ≥30s, a ação primária é "Continuar de mm:ss", e "Reiniciar" existe', async () => {
       await updateProgress(STABLE_ID, 'src1', RESUME_MIN_SECONDS + 65) // 30+65=95s = 1:35
 
       renderScreen()
 
-      const resume = await screen.findByText('▶ Retomar (1:35)')
-      expect(resume.className).toContain('tv-focus') // ação primária continua no índice 1
+      const resume = await screen.findByText('▶ Continuar de 1:35')
+      expect(resume.className).toContain('tv-focus') // ação primária continua no índice 0
       expect(screen.getByText('↺ Reiniciar')).toBeInTheDocument()
       expect(screen.queryByText('▶ Assistir')).not.toBeInTheDocument()
     })
@@ -176,37 +189,37 @@ describe('MovieDetailScreen', () => {
 
       await waitFor(() => expect(screen.getByText('▶ Assistir')).toBeInTheDocument())
       expect(screen.queryByText('↺ Reiniciar')).not.toBeInTheDocument()
-      expect(screen.queryByText(/▶ Retomar/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/▶ Continuar/)).not.toBeInTheDocument()
     })
 
-    it('"Retomar" abre a camada passando a posição salva em milissegundos', async () => {
+    it('"Continuar" abre a camada passando a posição salva em milissegundos', async () => {
       await updateProgress(STABLE_ID, 'src1', 300) // 5min
 
       renderScreen()
-      await screen.findByText(/▶ Retomar/)
+      await screen.findByText(/▶ Continuar/)
 
-      press('Enter') // ação primária (Retomar) já está focada
+      press('Enter') // ação primária (Continuar) já está focada
 
       expect(lastPlayerLayerProps()?.startAtMs).toBe(300_000)
     })
 
-    it('"Reiniciar" abre a camada com startAtMs 0 — não undefined (distinção deliberada, logic §5)', async () => {
+    it('"Reiniciar" abre a camada com startAtMs 0 — não undefined (distinção deliberada, logic §3)', async () => {
       await updateProgress(STABLE_ID, 'src1', 300)
 
       renderScreen()
-      await screen.findByText(/▶ Retomar/)
+      await screen.findByText(/▶ Continuar/)
 
-      press('ArrowRight') // move de Retomar (1) pra Reiniciar (2)
+      press('ArrowRight') // move de Continuar (0) pra Reiniciar (1)
       press('Enter')
 
       expect(lastPlayerLayerProps()?.startAtMs).toBe(0)
     })
   })
 
-  // --- T031: frescor — a leitura não pode ficar defasada depois de fechar a camada ---
+  // --- frescor — a leitura não pode ficar defasada depois de fechar a camada ---
 
-  describe('frescor do estado ao fechar a camada (T031, logic §5.1)', () => {
-    it('assistir e voltar atualiza a ação primária pra "Retomar", sem releitura manual', async () => {
+  describe('frescor do estado ao fechar a camada (logic §3)', () => {
+    it('assistir e voltar atualiza a ação primária pra "Continuar", sem releitura manual', async () => {
       renderScreen()
       expect(screen.getByText('▶ Assistir')).toBeInTheDocument()
 
@@ -221,16 +234,16 @@ describe('MovieDetailScreen', () => {
         screen.getByRole('button', { name: 'Fechar (teste)' }).click()
       })
 
-      // Sem a invalidação de T037, a tela continuaria mostrando "Assistir"
-      // (leitura de quando montou) mesmo com 90s já gravados.
-      expect(await screen.findByText('▶ Retomar (1:30)')).toBeInTheDocument()
+      // Sem a invalidação, a tela continuaria mostrando "Assistir" (leitura
+      // de quando montou) mesmo com 90s já gravados.
+      expect(await screen.findByText('▶ Continuar de 1:30')).toBeInTheDocument()
       expect(screen.queryByText('▶ Assistir')).not.toBeInTheDocument()
     })
 
     it('concluir o filme (progresso apagado) e voltar restaura "Assistir"', async () => {
       await updateProgress(STABLE_ID, 'src1', 200)
       renderScreen()
-      await screen.findByText(/▶ Retomar/)
+      await screen.findByText(/▶ Continuar/)
 
       press('Enter')
       // Conclusão real limpa o progresso (FR-020) — aqui simulado direto.
@@ -252,32 +265,79 @@ describe('MovieDetailScreen', () => {
       renderScreen()
 
       const primary = screen.getByText('▶ Assistir')
-      expect(primary.className).toContain('tv-focus') // ação primária continua no índice 1
+      expect(primary.className).toContain('tv-focus') // ação primária no índice 0
 
-      const buttons = screen.getAllByText(/./, { selector: '.detail-button' })
+      const buttons = screen.getAllByText(/./, { selector: '.vod-detail-action' })
       expect(buttons[buttons.length - 1].textContent).toBe('✓ Marcar como assistido')
     })
 
-    it('com posição salva (Retomar/Reiniciar): a ação de assistido continua por último, sem deslocar a ação primária', async () => {
+    it('com posição salva (Continuar/Reiniciar): a ação de assistido continua por último, sem deslocar a ação primária', async () => {
       await updateProgress(STABLE_ID, 'src1', 300)
       renderScreen()
-      await screen.findByText(/▶ Retomar/)
+      await screen.findByText(/▶ Continuar/)
 
-      const primary = screen.getByText(/▶ Retomar/)
-      expect(primary.className).toContain('tv-focus') // ainda índice 1
+      const primary = screen.getByText(/▶ Continuar/)
+      expect(primary.className).toContain('tv-focus') // ainda índice 0
 
-      const buttons = screen.getAllByText(/./, { selector: '.detail-button' })
+      const buttons = screen.getAllByText(/./, { selector: '.vod-detail-action' })
       expect(buttons[buttons.length - 1].textContent).toBe('✓ Marcar como assistido')
     })
 
     it('confirmar "Marcar como assistido" grava completedAt e alterna o rótulo para "Desmarcar"', async () => {
       renderScreen()
 
-      press('ArrowRight') // Assistir(1) -> toggle-watched(2), a última ação
+      // Assistir(0) -> Minha Lista(1) -> Trailer(2) -> toggle-watched(3), a última ação
+      press('ArrowRight')
+      press('ArrowRight')
+      press('ArrowRight')
       press('Enter')
 
       await waitFor(async () => expect((await getUserState(STABLE_ID))?.completedAt).toBeDefined())
       expect(await screen.findByText('✗ Desmarcar assistido')).toBeInTheDocument()
     })
+  })
+
+  // --- abas (US5, FR-037) ---
+
+  it('BAIXO nas ações entra nas abas, com "Detalhes" focada e ativa', () => {
+    renderScreen()
+    press('ArrowDown')
+
+    const tab = screen.getByRole('tab', { name: 'Detalhes' })
+    expect(tab.className).toContain('tv-focus')
+    expect(tab).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('a aba Detalhes mostra só os fatos que existem — ano, categoria, inclusão, disponibilidade', () => {
+    renderScreen()
+
+    const panel = document.querySelector('.vod-detail-panel') as HTMLElement
+    expect(within(panel).getByText('2021')).toBeInTheDocument()
+    expect(within(panel).getByText('Ficção científica')).toBeInTheDocument()
+    expect(within(panel).getByText('23/09/2024')).toBeInTheDocument()
+    expect(within(panel).getByText('Sim')).toBeInTheDocument()
+    expect(screen.queryByText('Elenco: Desconhecido')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Resumo não disponível/)).not.toBeInTheDocument()
+  })
+
+  it('aba "Elenco" é soft-disabled: OK anuncia "Em breve" sem trocar a aba ativa', () => {
+    renderScreen()
+    press('ArrowDown') // tabs, foco em Detalhes
+    press('ArrowRight') // Elenco
+
+    const cast = screen.getByRole('tab', { name: 'Elenco' })
+    expect(cast.className).toContain('is-soft-disabled')
+    press('Enter')
+
+    expect(screen.getByText('Em breve — Elenco e equipe técnica.')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Detalhes' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('CIMA nas abas volta para as ações', () => {
+    renderScreen()
+    press('ArrowDown')
+    press('ArrowUp')
+
+    expect(screen.getByText('▶ Assistir').className).toContain('tv-focus')
   })
 })

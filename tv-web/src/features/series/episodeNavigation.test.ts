@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { episodeBadge, groupBySeason, nextEpisode, type EpisodeOut } from './episodeNavigation'
+import { episodeBadge, episodeCode, groupBySeason, nextEpisode, seriesPrimaryAction, type EpisodeOut } from './episodeNavigation'
 import type { UserStateRecord } from '../../lib/catalog/db'
 
 function episode(overrides: Partial<EpisodeOut> & { id: string }): EpisodeOut {
@@ -142,5 +142,68 @@ describe('episodeBadge (feature 012, D-007, logic §5)', () => {
   it('progresso abaixo do limiar de retomada não conta como "em andamento" pra exibição', () => {
     const badge = episodeBadge(userState({ progressSeconds: 5 }))
     expect(badge.resumeSeconds).toBeNull()
+  })
+})
+
+describe('episodeCode (feature 025, logic/detalhe-vod.md §3)', () => {
+  it('temporada e episódio conhecidos: T{s}:E{e}', () => {
+    expect(episodeCode(episode({ id: '1', season_number: 2, episode_number: 3 }))).toBe('T2:E3')
+  })
+
+  it('só episódio conhecido (sem temporada): E{e}', () => {
+    expect(episodeCode(episode({ id: '1', season_number: null, episode_number: 5 }))).toBe('E5')
+  })
+
+  it('nem temporada nem episódio: o nome do episódio, nunca "—" nem um número inventado', () => {
+    expect(episodeCode(episode({ id: '1', season_number: null, episode_number: null, name: 'Sem código' }))).toBe(
+      'Sem código',
+    )
+  })
+})
+
+describe('seriesPrimaryAction (feature 025, US6/AC1, logic/detalhe-vod.md §3)', () => {
+  it('sem nenhum episódio com retomada: o 1º episódio da 1ª temporada, kind "start"', () => {
+    const seasons = groupBySeason([
+      episode({ id: '2', season_number: 2, episode_number: 1 }),
+      episode({ id: '1', season_number: 1, episode_number: 1 }),
+    ])
+
+    const primary = seriesPrimaryAction(seasons, () => null)
+    expect(primary).toEqual({ kind: 'start', episode: seasons[0].episodes[0] })
+  })
+
+  it('com um episódio retomável: kind "resume" com a posição salva', () => {
+    const ep = episode({ id: '1', episode_number: 1 })
+    const seasons = groupBySeason([ep])
+    const state = userState({ progressSeconds: 90, lastWatched: 100 })
+
+    const primary = seriesPrimaryAction(seasons, (e) => (e.id === '1' ? state : null))
+    expect(primary).toEqual({ kind: 'resume', episode: ep, resumeSeconds: 90 })
+  })
+
+  it('vários episódios retomáveis: o de maior lastWatched vence', () => {
+    const older = episode({ id: '1', episode_number: 1 })
+    const newer = episode({ id: '2', episode_number: 2 })
+    const seasons = groupBySeason([older, newer])
+    const states = new Map([
+      ['1', userState({ progressSeconds: 40, lastWatched: 100 })],
+      ['2', userState({ progressSeconds: 90, lastWatched: 200 })],
+    ])
+
+    const primary = seriesPrimaryAction(seasons, (e) => states.get(e.id) ?? null)
+    expect(primary).toEqual({ kind: 'resume', episode: newer, resumeSeconds: 90 })
+  })
+
+  it('progresso abaixo do limiar de retomada não conta — cai no 1º episódio', () => {
+    const ep = episode({ id: '1', episode_number: 1 })
+    const seasons = groupBySeason([ep])
+    const state = userState({ progressSeconds: 5, lastWatched: 100 })
+
+    const primary = seriesPrimaryAction(seasons, () => state)
+    expect(primary).toEqual({ kind: 'start', episode: ep })
+  })
+
+  it('sem episódio nenhum: null — a tela já cobre esse caso com o próprio estado vazio', () => {
+    expect(seriesPrimaryAction([], () => null)).toBeNull()
   })
 })
