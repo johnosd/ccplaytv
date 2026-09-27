@@ -297,7 +297,8 @@ passou 19/19 e 67/67 isolado.
 | Fase 3 (US1) | Concluída. 5º contrato da feature (`MoviesScreen`) verde — os 5/5 contratos da feature 025 estão verdes. `VodCatalogScreen.tsx` sob a topbar, side nav V14, toolbar (Pesquisar), hero band, grade `ContentCard`, memória de foco por entrada, `MoviesScreen`/`SeriesScreen` como invólucros finos. |
 | Fase 4 (US2) | Concluída. "↺ Histórico" já saiu funcional da Fase 3 (tratado como entrada de primeira classe desde o início); esta fase adicionou os testes (T041/T042) e corrigiu o comentário de `markCompleted` (T040, R-007). |
 | Fase 5 (US3) | Concluída. Regras de favoritos/busca/prefetch (013/015/017/018) confirmadas sem regressão (nenhum ajuste necessário — já corretas desde a Fase 3). Contratos travados de 018–024 (incluindo `seriesWatchedSummary` da 019) e da própria 025 íntegros. |
-| Fases 6–9 | Não iniciadas. |
+| Fase 6 (US4) | Concluída. Botão "Ordenar" na toolbar, modal (022) com opções condicionais, pipeline base→busca→`sortVodItems`, foco por identidade preservado (de graça via `itemIdx`/`useVirtualFocusSync`), persistência por sessão/seção, ausência em ★/↺. |
+| Fases 7–9 | Não iniciadas. |
 
 ## Riscos e Decisões
 
@@ -331,8 +332,9 @@ passou 19/19 e 67/67 isolado.
 | 2026-09-27 | Fase 3 (US1) | `VodCatalogScreen.tsx` novo (shell/topbar↔conteúdo, side nav V14 com ↺ Histórico, toolbar "Pesquisar", hero band, grade `ContentCard` 205×302, memória de foco por entrada via `vodSessionMemory`, estados V14). `MoviesScreen`/`SeriesScreen` viraram invólucros finos. `App.tsx` passa `shell`. `vod.css` novo. 5º contrato da feature (`MoviesScreen`) verde de primeira — **5/5 contratos da feature agora verdes**. Testes pré-existentes (`MoviesScreen`/`SeriesScreen` + `.favorites`) atualizados (seletor + 2 mudanças de conteúdo esperadas pela spec, documentadas em R-003) — 130 testes da área, 1155 da suíte completa, `tsc`/lint/build/`build:tizen` limpos. | Passada visual no navegador real não feita nesta sessão (recomendada antes da TV física, não gate). |
 | 2026-09-27 | Fase 4 (US2) | "↺ Histórico" confirmado funcional (já saído pronto da Fase 3: grade via `useHistoryContent`, vazio, nota de não exibíveis, contagem, snapshot `{kind:'history'}`, sem "Ordenar"). T040: comentário de `markCompleted` corrigido (R-007 resolvido). 5 testes novos em `VodCatalogScreen.test.tsx` (T041) + 1 em `catalogApi.test.tsx` (T042, integração reproduzir→invalidar→atualiza). 1161 testes da suíte completa verdes, `tsc`/lint/build limpos. | Nenhuma nova. |
 | 2026-09-27 | Fase 5 (US3) | T043/T044 (favoritos/busca/prefetch) confirmados sem regressão, sem ajuste de código — já corretos desde a Fase 3. T045 já estava feito (Fase 3). T046: contratos travados de 018, 019 (incl. `seriesWatchedSummary`), 020, 021, 022, 023, 024 e 025 — todos íntegros. Suíte completa (1161 testes) verde, sem flake. | Nenhuma nova. |
+| 2026-09-27 | Fase 6 (US4) | Botão "Ordenar · <rótulo> ▾" na toolbar (T047), modal com `Modal` (022) e `sortFocusIdx` (T048), pipeline `items` estendido com `sortVodItems` fora de ★/↺ (T049). Foco por identidade após reordenar e `scrollToIndex` na nova posição vieram "de graça" do `itemIdx`/`useVirtualFocusSync` já existentes — nenhuma lógica nova de foco precisou ser escrita. 7 cenários novos em `VodCatalogScreen.test.tsx` (T050). 1168 testes da suíte completa verdes, `tsc`/lint/build limpos. `vod.css` ganhou `.vod-toolbar-sort-button`/`.vod-sort-modal-*`. | Nenhuma nova. |
 
-**PRÓXIMO**: Fase 6 (US4, "Ordenar") — T047..T050: botão "Ordenar · <opção> ▾" na toolbar, modal com `vodSort.ts` (já implementado na Fase 2), pipeline base→busca→ordenação, ausência em ★/↺.
+**PRÓXIMO**: Fase 7 (US5, detalhe de filme) e Fase 8 (US6, detalhe de série) — podem rodar em paralelo entre si (dependem só da Fundação, Fase 2); T051..T054 (filme) e T055..T061 (série).
 
 ## Arquivos Principais
 
@@ -353,6 +355,8 @@ passou 19/19 e 67/67 isolado.
 - `tv-web/src/styles/vod.css` — CSS próprio da feature (D-015).
 - `tv-web/src/App.tsx` — `shell` para Filmes/Séries.
 - `tv-web/src/lib/catalog/userStateRepository.ts` — comentário de `markCompleted` corrigido (T040).
+- `tv-web/src/features/vod/VodCatalogScreen.tsx` — botão/modal de Ordenar, pipeline de ordenação (Fase 6).
+- `tv-web/src/styles/vod.css` — `.vod-toolbar-sort-button`/`.vod-sort-modal-*` (Fase 6).
 
 ## Cuidados para Retomada
 

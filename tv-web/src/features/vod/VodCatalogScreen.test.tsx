@@ -5,7 +5,7 @@
  * mesmo mecanismo compartilhado por Filmes/Séries.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VodCatalogScreen } from './VodCatalogScreen'
@@ -400,5 +400,211 @@ describe('VodCatalogScreen — "↺ Histórico" (feature 025, US2, T041)', () =>
     await waitFor(() => expect(gridTitles().length).toBeGreaterThan(0))
     const focusedCell = [...document.querySelectorAll('.vod-grid-cell')].find((c) => c.querySelector('.tv-focus'))
     expect(focusedCell?.querySelector('.content-card-title')?.textContent).toBe('Filme B')
+  })
+})
+
+describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
+  beforeEach(async () => {
+    resetVodSessionMemory()
+    await seedSource()
+    mockAggregated([])
+  })
+
+  afterEach(async () => {
+    cleanup()
+    vi.clearAllMocks()
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+  })
+
+  function renderMovies() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    }
+    return render(
+      <Wrapper>
+        <VodCatalogScreen section="movies" sourceId={SOURCE_ID} onOpenItem={vi.fn()} onBack={vi.fn()} onResync={vi.fn()} />
+      </Wrapper>,
+    )
+  }
+
+  /** Sobe da grade até o botão "Ordenar" (Pesquisar → Ordenar) e abre o modal. */
+  function openSortFromGrid() {
+    press('ArrowUp') // 1ª linha da grade -> "Pesquisar"
+    press('ArrowRight') // "Pesquisar" -> "Ordenar"
+    press('Enter') // abre o modal
+  }
+
+  function sortModalLabels(): string[] {
+    return [...document.querySelectorAll('.vod-sort-modal-item')].map((el) => el.textContent ?? '')
+  }
+
+  it('só oferece opções com dado real na entrada; escolher "Ano" reordena e itens sem ano vão ao fim', async () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({ 1: [movie('Filme A', 'a', 2001), movie('Filme B', 'b'), movie('Filme C', 'c', 2020)] })
+    renderMovies()
+
+    press('ArrowRight') // entra em "Ação"
+    openSortFromGrid()
+
+    // Sem `added_at` em nenhum item: "Recém-adicionados" não aparece.
+    // "✓" marca a opção atual (padrão: "Ordem da fonte").
+    expect(sortModalLabels()).toEqual(['✓ Ordem da fonte', 'A–Z', 'Ano'])
+
+    press('ArrowDown') // "A–Z"
+    press('ArrowDown') // "Ano"
+    press('Enter') // escolhe
+
+    expect(document.querySelector('.vod-toolbar-sort-button')?.textContent).toBe('Ordenar · Ano ▾')
+    expect(gridTitles()).toEqual(['Filme C', 'Filme A', 'Filme B']) // mais novo primeiro; sem ano no fim
+  })
+
+  it('o foco segue o mesmo item (por identidade) depois de reordenar, visível na nova posição', async () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({ 1: [movie('Filme A', 'a', 2001), movie('Filme B', 'b', 2020)] })
+    renderMovies()
+
+    press('ArrowRight') // entra na grade (índice 0)
+    // Estabelece o foco por IDENTIDADE em "Filme A" (ida e volta) — sem
+    // isso, `focusedItemId` continua `null` (o índice 0 é só fallback de
+    // `locate()`, não identidade real) e o teste não provaria FR-024.
+    press('ArrowRight')
+    press('ArrowLeft')
+    openSortFromGrid()
+    press('ArrowDown') // "A–Z"
+    press('ArrowDown') // "Ano"
+    press('Enter') // escolhe — o foco (de estado) volta ao botão "Ordenar", nunca à grade (FR-018)
+
+    // "Filme A" (2001) foi para a 2ª posição — a ordem já reflete isso.
+    expect(gridTitles()).toEqual(['Filme B', 'Filme A'])
+    expect(document.querySelector('.vod-toolbar-sort-button')).toHaveClass('tv-focus')
+
+    // O item lembrado (por identidade, nunca índice) sobrevive: sair da
+    // grade e voltar à MESMA categoria devolve o foco a "Filme A", agora na
+    // 2ª posição (FR-024) — sem reabrir "Ordenar" nem tocar `focusedItemId`.
+    press('Escape') // "Ordenar" -> side nav (a mesma tecla, quando não há busca em camada)
+    press('ArrowRight') // reentra em "Ação" — a mesma categoria, foco preservado
+    const focusedCell = [...document.querySelectorAll('.vod-grid-cell')].find((c) => c.querySelector('.tv-focus'))
+    expect(focusedCell?.querySelector('.content-card-title')?.textContent).toBe('Filme A')
+  })
+
+  it('a ordenação escolhida vale para outra categoria da mesma seção e sobrevive a desmontar/remontar', async () => {
+    mockCategories([category(1, 'Ação', 0), category(2, 'Drama', 1)])
+    mockContentByCategory({
+      1: [movie('Filme A', 'a', 2001), movie('Filme B', 'b', 2020)],
+      2: [movie('Filme D', 'd', 1999), movie('Filme E', 'e', 2015)],
+    })
+    const { unmount } = renderMovies()
+
+    press('ArrowRight') // entra em "Ação"
+    openSortFromGrid()
+    press('ArrowDown') // "A–Z"
+    press('ArrowDown') // "Ano"
+    press('Enter')
+    expect(gridTitles()).toEqual(['Filme B', 'Filme A'])
+
+    press('Escape') // volta à side nav
+    press('ArrowDown')
+    press('ArrowRight') // entra em "Drama" — mesma seção, mesma ordenação
+    expect(gridTitles()).toEqual(['Filme E', 'Filme D'])
+
+    unmount() // ida ao Início — vodSessionMemory sobrevive (só reseta ao reabrir o app)
+    renderMovies()
+    press('ArrowRight') // entra em "Ação" de novo
+    expect(gridTitles()).toEqual(['Filme B', 'Filme A'])
+  })
+
+  it('RETURN no modal fecha sem mudar nada, e o foco volta ao botão "Ordenar"', async () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({ 1: [movie('Filme A', 'a', 2001), movie('Filme B', 'b', 2020)] })
+    renderMovies()
+
+    press('ArrowRight')
+    openSortFromGrid()
+    press('ArrowDown') // foca "Ano", sem escolher
+    press('Escape') // RETURN no modal
+
+    expect(document.querySelector('.modal-overlay')).toBeNull()
+    expect(document.querySelector('.vod-toolbar-sort-button')?.textContent).toBe('Ordenar · Ordem da fonte ▾')
+    expect(document.querySelector('.vod-toolbar-sort-button')).toHaveClass('tv-focus')
+    expect(gridTitles()).toEqual(['Filme A', 'Filme B']) // ordem da fonte, inalterada
+  })
+
+  it('nunca oferece "Ordenar" em "★ Favoritos" (FR-022)', async () => {
+    await db.channels.add({
+      sourceId: SOURCE_ID,
+      generation: 1,
+      kind: 'movie',
+      name: 'Filme Favorito',
+      originalName: 'Filme Favorito',
+      groupOrder: 0,
+      providerStreamId: 'fav1',
+    })
+    await db.userStates.put({
+      stableId: `${SOURCE_ID}|movie|id:fav1`,
+      sourceId: SOURCE_ID,
+      isFavorite: true,
+      favoritedAt: 100,
+      createdAt: 100,
+      updatedAt: 100,
+    })
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({ 1: [] })
+    renderMovies()
+
+    press('ArrowUp') // "Todos"
+    press('ArrowUp') // "↺ Histórico"
+    press('ArrowUp') // "★ Favoritos"
+    press('ArrowRight') // entra
+
+    await waitFor(() => expect(gridTitles()).toEqual(['Filme Favorito']))
+    expect(document.querySelector('.vod-toolbar-sort-button')).toBeNull()
+  })
+
+  it('nunca oferece "Ordenar" em "↺ Histórico" (FR-022)', async () => {
+    await db.channels.add({
+      sourceId: SOURCE_ID,
+      generation: 1,
+      kind: 'movie',
+      name: 'Filme Visto',
+      originalName: 'Filme Visto',
+      groupOrder: 0,
+      providerStreamId: 'watched1',
+    })
+    await updateProgress(`${SOURCE_ID}|movie|id:watched1`, SOURCE_ID, 30)
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({ 1: [] })
+    renderMovies()
+
+    press('ArrowUp') // "Todos"
+    press('ArrowUp') // "↺ Histórico"
+    press('ArrowRight') // entra
+
+    await waitFor(() => expect(gridTitles()).toEqual(['Filme Visto']))
+    expect(document.querySelector('.vod-toolbar-sort-button')).toBeNull()
+  })
+
+  it('busca e ordenação ativas juntas: o resultado filtrado aparece na ordem escolhida (FR-023)', async () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({
+      1: [movie('Filme Alfa', 'a', 2001), movie('Filme Beta', 'b', 2020), movie('Filme Gama', 'c', 2010)],
+    })
+    renderMovies()
+
+    press('ArrowRight')
+    openSortFromGrid()
+    press('ArrowDown') // "A–Z"
+    press('ArrowDown') // "Ano"
+    press('Enter')
+    expect(gridTitles()).toEqual(['Filme Beta', 'Filme Gama', 'Filme Alfa'])
+
+    press('ArrowLeft') // "Ordenar" -> "Pesquisar"
+    press('Enter') // abre o campo
+    const field = document.querySelector<HTMLInputElement>('input.search-field')
+    act(() => fireEvent.change(field!, { target: { value: 'filme' } }))
+    // Os três têm "filme" no nome — o resultado (idêntico à base) segue "Ano".
+    await waitFor(() => expect(gridTitles()).toEqual(['Filme Beta', 'Filme Gama', 'Filme Alfa']))
   })
 })

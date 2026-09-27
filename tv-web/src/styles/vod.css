@@ -97,6 +97,46 @@
   flex-direction: column;
 }
 
+/* ---------- Ordenar (US4, FR-016..FR-024) ---------- */
+
+.vod-toolbar-sort-button {
+  flex: none;
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.vod-toolbar-sort-button.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.vod-sort-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 280px;
+}
+
+.vod-sort-modal-item {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.vod-sort-modal-item.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
 /* ---------- Hero band (§13.2, FR-025/FR-026) — fixa, não focável ---------- */
 
 .vod-hero-band {

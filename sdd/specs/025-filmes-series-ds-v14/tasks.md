@@ -214,23 +214,23 @@ US2.
 
 ### Implementation
 
-- [ ] T047 [US4] Botão "Ordenar · <rótulo> ▾" na toolbar de `VodCatalogScreen.tsx` (só em categoria/Todos com itens; ←/→ entre Pesquisar e Ordenar; rótulo "Ordem da fonte" quando a opção salva não está disponível na entrada) (FR-016, FR-022)
-- [ ] T048 [US4] Modal de ordenação com `Modal` (022): opções de `availableSortOptions`, ✓ e foco inicial na atual, ↑/↓ com clamp, OK escolhe (`setSessionSort`) e fecha, RETURN fecha; o foco volta ao botão (FR-018)
-- [ ] T049 [US4] Pipeline base → busca → `sortVodItems` e foco no mesmo item após reordenar, com `scrollToIndex` na nova posição (FR-023, FR-024)
+- [X] T047 [US4] Botão "Ordenar · <rótulo> ▾" na toolbar de `VodCatalogScreen.tsx` (só em categoria/Todos com itens; ←/→ entre Pesquisar e Ordenar; rótulo "Ordem da fonte" quando a opção salva não está disponível na entrada) (FR-016, FR-022)
+- [X] T048 [US4] Modal de ordenação com `Modal` (022): opções de `availableSortOptions`, ✓ e foco inicial na atual, ↑/↓ com clamp, OK escolhe (`setSessionSort`) e fecha, RETURN fecha; o foco volta ao botão (FR-018)
+- [X] T049 [US4] Pipeline base → busca → `sortVodItems` e foco no mesmo item após reordenar, com `scrollToIndex` na nova posição (FR-023, FR-024)
 
 ### Testes da Fase
 
-- [ ] T050 [P] [US4] Testes de tela de Ordenar (opções só com dado, reordenação, foco preservado, persistência na sessão entre categorias e entre montagens, ausência em ★/↺, RETURN no modal, busca + ordenação juntas) em `tv-web/src/features/vod/VodCatalogScreen.test.tsx`
+- [X] T050 [P] [US4] Testes de tela de Ordenar (opções só com dado, reordenação, foco preservado, persistência na sessão entre categorias e entre montagens, ausência em ★/↺, RETURN no modal, busca + ordenação juntas) em `tv-web/src/features/vod/VodCatalogScreen.test.tsx`
 
 **Critério de Conclusão**: o contrato de `vodSort` continua 1/1 verde, `check-contract-tests.ps1` fica íntegro e T050 passa. No navegador, com uma fonte de provedor, "Ano" aparece quando o painel declara e some numa lista M3U.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída.
+- Feito: `toolbarFocus` ampliado para `'search' | 'sort' | null`; `canSort`/`canSearch` hospedados antes do `useRemoteNav` (usados nos handlers); botão "Ordenar · <rótulo> ▾" (T047); `Modal` (022) com lista de opções, ✓ na atual, `sortFocusIdx` com clamp, `chooseSort`/`openSortModal` (T048); pipeline `items` estendido para `base → busca → sortVodItems` fora de ★/↺ (T049) — o foco por identidade e o `scrollToIndex` continuam de graça, via o mesmo `itemIdx`/`useVirtualFocusSync` já existentes. CSS novo em `vod.css` (`.vod-toolbar-sort-button`, `.vod-sort-modal-*`).
+- Contrato: `npx vitest run src/features/vod/vodSort.filmes-series-ds-v14.contract.test.ts` → 1/1 verde. `check-contract-tests.ps1 -Slug 025-filmes-series-ds-v14` → trava íntegra (5/5).
+- Testes executados: 17 testes novos/ajustados em `VodCatalogScreen.test.tsx` (T050 — 7 cenários: opções condicionais, reordenação, foco por identidade sobrevivendo a Escape+reentrada, persistência entre categorias/montagens, ausência em ★ e em ↺ [dois testes separados], RETURN no modal, busca+ordenação juntas). `npm run test` completo → 120 arquivos, 1168 testes verdes. `tsc`/lint/build limpos (só o padrão de warning `useMemo`/`baseItems` já presente em `LiveScreen.tsx`, agora também em `VodCatalogScreen.tsx` — mesma categoria aceita, não nova).
+- Pendências: nenhuma nova. Achado durante a escrita dos testes (não um bug, uma correção de premissa): antes de qualquer navegação explícita na grade, `focusedItemId` fica `null` e o item "focado" é só o índice 0 por fallback de `locate()` — não é identidade real ainda. Isso é comportamento pré-existente (desde a feature 010), não algo que esta fase mudou; só exigiu que os testes de "foco por identidade" navegassem de verdade na grade antes de medir. Passada visual no navegador não feita nesta sessão.
 
 ---
 

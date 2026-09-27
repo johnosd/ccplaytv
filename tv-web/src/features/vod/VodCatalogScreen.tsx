@@ -30,6 +30,7 @@ import { PosterArt } from '../../components/PosterArt'
 import { SideCategoryNav, type SideCategoryNavEntry } from '../../components/SideCategoryNav'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorState } from '../../components/ErrorState'
+import { Modal } from '../../components/Modal'
 import { Spinner } from '../../components/Spinner'
 import { Chip } from '../../components/Chip'
 import { Icon } from '../../components/Icon'
@@ -40,11 +41,14 @@ import type { HintItem } from '../shell/HintBar'
 import type { TopbarItem } from '../../navigation/appNav'
 import type { CategoryScreenSnapshot } from '../catalog/categoryScreenSnapshot'
 import type { VodShellProps } from './vodShell'
+import { availableSortOptions, sortVodItems, VOD_SORT_LABELS, type VodSortOption } from './vodSort'
 import {
   isHistoryKnown,
   markHistoryKnown,
   recalledFocus,
   rememberFocus,
+  sessionSort,
+  setSessionSort,
   type VodEntryKey,
   type VodSection,
 } from './vodSessionMemory'
@@ -238,9 +242,15 @@ export function VodCatalogScreen({ section, sourceId, onOpenItem, restore, onBac
 
   const [searchActive, setSearchActive] = useState(restore?.searchActive ?? false)
   const [searchTerm, setSearchTerm] = useState(restore?.searchTerm ?? '')
-  const [toolbarFocus, setToolbarFocus] = useState<'search' | null>(null)
+  const [toolbarFocus, setToolbarFocus] = useState<'search' | 'sort' | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const belowMinimum = normalizeForSearch(searchTerm).length < SEARCH_MIN_CHARS
+
+  // Ordenar (feature 025, US4, `logic/foco-vod.md` §5) — escolha por seção
+  // na sessão (D-008); nunca em ★/↺, que têm ordem própria (FR-022).
+  const [sortOption, setSortOption] = useState<VodSortOption>(() => sessionSort(section))
+  const [sortOpen, setSortOpen] = useState(false)
+  const [sortFocusIdx, setSortFocusIdx] = useState(0)
 
   useEffect(() => {
     if (searchActive && toolbarFocus === 'search') searchInputRef.current?.focus()
@@ -293,11 +303,26 @@ export function VodCatalogScreen({ section, sourceId, onOpenItem, restore, onBac
   const contentMissing = entered?.kind === 'category' && content.data?.outcome === 'source_missing'
   const contentUnavailable = contentFailed || contentMissing
 
+  // "Pesquisar" e "Ordenar" só com a entrada aberta e itens carregados
+  // (FR-016/FR-017); "Ordenar" nunca em ★/↺ (FR-022).
+  const canSearch = col === 1 && !contentUnavailable && baseItems.length > 0
+  const canSort = canSearch && !enteredFavorites && !enteredHistory
+
+  // "Ordenar" nunca em ★/↺ — ordem própria (mais recente primeiro, FR-022).
+  const availableOptions = useMemo(
+    () => (enteredFavorites || enteredHistory ? [] : availableSortOptions(baseItems)),
+    [enteredFavorites, enteredHistory, baseItems],
+  )
+  // Opção salva pode não estar disponível nesta entrada (ex.: "Ano" numa
+  // categoria M3U) — a grade usa "Ordem da fonte" sem apagar a escolha da
+  // seção (D-008).
+  const effectiveSortOption: VodSortOption = availableOptions.includes(sortOption) ? sortOption : 'source'
+
   const items = useMemo(() => {
-    if (!searchActive) return baseItems
-    if (belowMinimum) return []
-    return searchWithinItems(baseItems, searchTerm, (item) => item.name)
-  }, [searchActive, belowMinimum, baseItems, searchTerm])
+    const filtered = !searchActive ? baseItems : belowMinimum ? [] : searchWithinItems(baseItems, searchTerm, (item) => item.name)
+    if (enteredFavorites || enteredHistory || effectiveSortOption === 'source') return filtered
+    return sortVodItems(filtered, effectiveSortOption)
+  }, [searchActive, belowMinimum, baseItems, searchTerm, enteredFavorites, enteredHistory, effectiveSortOption])
 
   const [focusedItemId, setFocusedItemId] = useState<string | null>(restore?.focusedItemId ?? null)
   const itemIdx = locate(items, (item) => item.id === focusedItemId)
@@ -402,20 +427,52 @@ export function VodCatalogScreen({ section, sourceId, onOpenItem, restore, onBac
     })
   }
 
+  /** Abre o modal de Ordenar com a opção atual marcada e focada (FR-018). */
+  function openSortModal() {
+    const idx = availableOptions.indexOf(effectiveSortOption)
+    setSortFocusIdx(idx === -1 ? 0 : idx)
+    setSortOpen(true)
+  }
+
+  /** Escolhe a ordenação (FR-018/FR-021): vale pela sessão, para a seção inteira. */
+  function chooseSort(option: VodSortOption) {
+    setSessionSort(section, option)
+    setSortOption(option)
+    setSortOpen(false)
+    setToolbarFocus('sort')
+  }
+
   useRemoteNav(
     contentActive
       ? {
           onDirection: (dir) => {
             const hasTop = col === 1 && items.length > 0
-            if (hasTop && toolbarFocus === 'search') {
+            if (hasTop && toolbarFocus !== null) {
               if (dir === 'down') {
                 setToolbarFocus(null)
                 setFocusedItemId(items[0].id)
+                return
               }
-              if (dir === 'up' || dir === 'down') return
+              // ←/→ dentro da toolbar (D-007 do plan.md, `logic/foco-vod.md` §3)
+              // — nunca alcançados com o campo de busca com foco DOM real
+              // (a guarda de alvo editável intercepta antes).
+              if (dir === 'right' && toolbarFocus === 'search' && canSort) {
+                setToolbarFocus('sort')
+                return
+              }
+              if (dir === 'left' && toolbarFocus === 'sort') {
+                if (canSearch) setToolbarFocus('search')
+                else setCol(0)
+                return
+              }
+              if (dir === 'left' && toolbarFocus === 'search') {
+                setCol(0)
+                return
+              }
+              return
             }
             if (hasTop && toolbarFocus === null && dir === 'up' && itemIdx < GRID_COLS) {
-              setToolbarFocus('search')
+              setToolbarFocus(canSearch ? 'search' : canSort ? 'sort' : null)
               return
             }
 
@@ -472,6 +529,10 @@ export function VodCatalogScreen({ section, sourceId, onOpenItem, restore, onBac
             if (toolbarFocus === 'search') {
               setSearchActive(true)
               setSearchTerm('')
+              return
+            }
+            if (toolbarFocus === 'sort') {
+              openSortModal()
               return
             }
             const item = items[itemIdx]
@@ -608,9 +669,6 @@ export function VodCatalogScreen({ section, sourceId, onOpenItem, restore, onBac
         ? '↺ Histórico'
         : groupLabel(focusedCategory?.name)
 
-  const canSearch = showingContent && !contentUnavailable && baseItems.length > 0
-  // "Ordenar" nunca em ★/↺ (FR-022) — chega na Fase 6 (US4); por ora a
-  // toolbar só tem "Pesquisar".
 
   const sideEntries: SideCategoryNavEntry[] = trail.map((entry) => {
     if (entry.key.kind === 'favorites') {
@@ -724,7 +782,46 @@ export function VodCatalogScreen({ section, sourceId, onOpenItem, restore, onBac
                     </div>
                   </div>
                 )}
+                {canSort && (
+                  <button
+                    type="button"
+                    className={`vod-toolbar-sort-button${toolbarFocus === 'sort' ? ' tv-focus' : ''}`}
+                  >
+                    Ordenar · {VOD_SORT_LABELS[effectiveSortOption]} ▾
+                  </button>
+                )}
               </div>
+
+              {sortOpen && (
+                <Modal
+                  ariaLabel="Ordenar"
+                  onBack={() => {
+                    setSortOpen(false)
+                    setToolbarFocus('sort')
+                  }}
+                  onDirection={(dir) => {
+                    if (dir === 'up' || dir === 'down') {
+                      setSortFocusIdx((i) => clamp(i + (dir === 'down' ? 1 : -1), 0, availableOptions.length - 1))
+                    }
+                  }}
+                  onSelect={() => {
+                    const option = availableOptions[sortFocusIdx]
+                    if (option) chooseSort(option)
+                  }}
+                >
+                  <ul className="vod-sort-modal-list">
+                    {availableOptions.map((option, index) => (
+                      <li
+                        key={option}
+                        className={`vod-sort-modal-item${index === sortFocusIdx ? ' tv-focus' : ''}`}
+                      >
+                        {option === effectiveSortOption && <span aria-hidden="true">✓ </span>}
+                        {VOD_SORT_LABELS[option]}
+                      </li>
+                    ))}
+                  </ul>
+                </Modal>
+              )}
 
               {!showingContent && (
                 <div className="vod-state-copy">Aponte para uma categoria e pressione OK para ver os títulos.</div>
