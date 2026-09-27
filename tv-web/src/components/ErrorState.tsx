@@ -15,10 +15,12 @@ export interface ErrorStateProps {
   code?: string
   /** 1 ou 2 ações — nunca 0, nunca 3+ (FR-011). */
   actions: [ErrorStateAction] | [ErrorStateAction, ErrorStateAction]
+  /** Foco de estado (ADR-009): índice da ação focada em `actions` — aplica `.tv-focus`. */
+  focusedActionIndex?: number
 }
 
 /** Estado de erro, sempre com 1-2 ações focáveis e ativáveis (feature 022, D-011). */
-export function ErrorState({ icon, title, description, code, actions }: ErrorStateProps): ReactNode {
+export function ErrorState({ icon, title, description, code, actions, focusedActionIndex }: ErrorStateProps): ReactNode {
   return (
     <div className="error-state">
       {icon && <Icon name={icon} className="error-state-icon" />}
@@ -30,8 +32,13 @@ export function ErrorState({ icon, title, description, code, actions }: ErrorSta
         </span>
       )}
       <div className="error-state-actions">
-        {actions.map((action) => (
-          <button key={action.label} type="button" className="button-secondary" onClick={action.onSelect}>
+        {actions.map((action, index) => (
+          <button
+            key={action.label}
+            type="button"
+            className={`button-secondary${index === focusedActionIndex ? ' tv-focus' : ''}`}
+            onClick={action.onSelect}
+          >
             {action.label}
           </button>
         ))}

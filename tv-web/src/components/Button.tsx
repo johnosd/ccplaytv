@@ -9,6 +9,8 @@ export interface ButtonProps {
   icon?: IconName
   loading?: boolean
   disabled?: boolean
+  /** Foco de estado (padrão das telas de catálogo, ADR-009) — aplica `.tv-focus`. */
+  focused?: boolean
   onSelect: () => void
   children: ReactNode
 }
@@ -20,11 +22,11 @@ export interface ButtonProps {
  * atuais. `loading` nunca usa `disabled` real (manteria a semântica de
  * foco), só ignora o clique e sinaliza `aria-busy` — nunca mostra número.
  */
-export function Button({ variant, icon, loading, disabled, onSelect, children }: ButtonProps): ReactNode {
+export function Button({ variant, icon, loading, disabled, focused, onSelect, children }: ButtonProps): ReactNode {
   return (
     <button
       type="button"
-      className={`button-${variant}${disabled ? ' is-hard-disabled' : ''}`}
+      className={`button-${variant}${disabled ? ' is-hard-disabled' : ''}${focused ? ' tv-focus' : ''}`}
       aria-busy={loading || undefined}
       aria-disabled={disabled || undefined}
       onClick={() => {

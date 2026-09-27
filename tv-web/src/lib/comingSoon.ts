@@ -6,16 +6,12 @@ export interface ComingSoonEntry {
 
 /**
  * Registro único de mocks "Em breve" (feature 022, D-016 do plan.md) —
- * ADR-011/`migracao-design-system-v14.md`. A Onda 2 em diante adiciona
- * suas próprias entradas aqui conforme cada tela migrar com uma
- * funcionalidade ainda não construída.
+ * ADR-011/`migracao-design-system-v14.md`. Nasce vazio: cada tela da Onda 2
+ * em diante registra aqui a sua entrada quando migrar com uma
+ * funcionalidade ainda não construída, apontando para o item de backlog
+ * que a substituirá (FR-033).
  */
-export const COMING_SOON: Record<string, ComingSoonEntry> = {
-  'exemplo-onda-2': {
-    message: 'Esta função ainda não foi construída.',
-    backlogItem: 15,
-  },
-}
+export const COMING_SOON: Record<string, ComingSoonEntry> = {}
 
 /**
  * Erro cedo, em qualquer ambiente: um id não registrado é erro de

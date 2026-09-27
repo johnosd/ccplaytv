@@ -9,6 +9,12 @@ export interface RailProps<T> {
   focusedIndex: number
   /** Largura fixa de cada item, em px — sem medição automática nesta v1 (D-008). */
   itemWidth: number
+  /**
+   * Altura fixa do trilho, em px. Obrigatória: os itens são posicionados de
+   * forma absoluta (virtualização), então sem altura explícita o trilho
+   * colapsa a 0 e nada aparece (achado F-001 do converge, R-007).
+   */
+  itemHeight: number
 }
 
 /**
@@ -19,7 +25,7 @@ export interface RailProps<T> {
  * focado sempre montado, sem `ResizeObserver` — quem usa o `Rail` já sabe
  * a largura fixa do seu item.
  */
-export function Rail<T>({ items, renderItem, focusedIndex, itemWidth }: RailProps<T>): ReactNode {
+export function Rail<T>({ items, renderItem, focusedIndex, itemWidth, itemHeight }: RailProps<T>): ReactNode {
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   const virtualizer = useVirtualizer({
@@ -43,10 +49,20 @@ export function Rail<T>({ items, renderItem, focusedIndex, itemWidth }: RailProp
   const showPosition = items.length > 1
   const progress = showPosition ? focusedIndex / (items.length - 1) : 0
 
+  // Fade só onde há conteúdo além daquela borda (F-003): esquerda com rolagem
+  // > 0, direita com itens além da janela — nunca com 1 item só, nem quando
+  // tudo cabe. `scrollRect` ainda nulo (antes da 1ª medição) = sem fade.
+  const total = virtualizer.getTotalSize()
+  const offset = virtualizer.scrollOffset ?? 0
+  const viewport = virtualizer.scrollRect?.width ?? 0
+  const fadeStart = offset > 0
+  const fadeEnd = viewport > 0 && total - offset - viewport > 1
+  const railClass = `rail${fadeStart ? ' rail--fade-start' : ''}${fadeEnd ? ' rail--fade-end' : ''}`
+
   return (
     <div className="rail-wrapper">
-      <div ref={scrollRef} className="rail">
-        <div className="rail-inner" style={{ width: virtualizer.getTotalSize() }}>
+      <div ref={scrollRef} className={railClass} style={{ height: itemHeight }}>
+        <div className="rail-inner" style={{ width: total }}>
           {virtualizer.getVirtualItems().map((virtualItem) => (
             <div
               key={virtualItem.key}

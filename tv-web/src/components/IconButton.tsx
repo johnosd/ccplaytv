@@ -8,14 +8,16 @@ export interface IconButtonProps {
   label: string
   onSelect: () => void
   disabled?: boolean
+  /** Foco de estado (padrão das telas de catálogo, ADR-009) — aplica `.tv-focus`. */
+  focused?: boolean
 }
 
 /** Botão só de ícone, área mínima 52×52 (feature 022, D-003 do plan.md). */
-export function IconButton({ icon, label, onSelect, disabled }: IconButtonProps): ReactNode {
+export function IconButton({ icon, label, onSelect, disabled, focused }: IconButtonProps): ReactNode {
   return (
     <button
       type="button"
-      className={`icon-button${disabled ? ' is-hard-disabled' : ''}`}
+      className={`icon-button${disabled ? ' is-hard-disabled' : ''}${focused ? ' tv-focus' : ''}`}
       aria-disabled={disabled || undefined}
       onClick={() => {
         if (disabled) return

@@ -13,6 +13,8 @@ export interface SideCategoryNavEntry {
 export interface SideCategoryNavProps {
   entries: SideCategoryNavEntry[]
   selectedId: string
+  /** Entrada com o foco de estado (ADR-009) — aplica `.tv-focus`; distinta da selecionada. */
+  focusedId?: string
   onSelect: (id: string) => void
 }
 
@@ -23,7 +25,7 @@ export interface SideCategoryNavProps {
  * topo, na ordem em que vierem (FR-021) — partição explícita, nunca
  * `.sort()`, que não garante ordem relativa estável para chaves iguais.
  */
-export function SideCategoryNav({ entries, selectedId, onSelect }: SideCategoryNavProps): ReactNode {
+export function SideCategoryNav({ entries, selectedId, focusedId, onSelect }: SideCategoryNavProps): ReactNode {
   const ordered = [...entries.filter((entry) => entry.pinned), ...entries.filter((entry) => !entry.pinned)]
 
   return (
@@ -32,7 +34,7 @@ export function SideCategoryNav({ entries, selectedId, onSelect }: SideCategoryN
         <li key={entry.id}>
           <button
             type="button"
-            className={`side-category-nav-item${entry.id === selectedId ? ' is-selected' : ''}`}
+            className={`side-category-nav-item${entry.id === selectedId ? ' is-selected' : ''}${entry.id === focusedId ? ' tv-focus' : ''}`}
             onClick={() => onSelect(entry.id)}
           >
             {entry.icon && <Icon name={entry.icon} />}

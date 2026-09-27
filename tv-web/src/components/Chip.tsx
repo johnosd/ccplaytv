@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 
 export interface ChipProps {
   selected: boolean
+  /** Foco de estado (padrão das telas de catálogo, ADR-009) — aplica `.tv-focus`. */
+  focused?: boolean
   children: ReactNode
   onSelect?: () => void
 }
@@ -12,11 +14,11 @@ export interface ChipProps {
  * feature 021 cobre "check", e um ícone novo está fora de escopo desta
  * feature) mais a borda mais grossa como sinais adicionais (FR-026).
  */
-export function Chip({ selected, children, onSelect }: ChipProps): ReactNode {
+export function Chip({ selected, focused, children, onSelect }: ChipProps): ReactNode {
   return (
     <button
       type="button"
-      className={`chip${selected ? ' chip-selected' : ''}`}
+      className={`chip${selected ? ' chip-selected' : ''}${focused ? ' tv-focus' : ''}`}
       aria-pressed={selected}
       onClick={onSelect}
     >

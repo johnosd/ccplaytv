@@ -33,6 +33,7 @@ describe('022 — Rail virtualizado', () => {
       <Rail
         items={items}
         itemWidth={ITEM_WIDTH}
+        itemHeight={200}
         focusedIndex={0}
         renderItem={(item) => <div data-rail-item={item}>{`Item ${item}`}</div>}
       />,

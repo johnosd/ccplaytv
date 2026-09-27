@@ -18,8 +18,8 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-3);
   padding: var(--space-4);
-  max-width: 90vw;
-  max-height: 90vh;
+  max-width: calc(var(--stage-width) - 2 * var(--safe-x));
+  max-height: calc(var(--stage-height) - 2 * var(--safe-y));
   overflow: auto;
 }
 
@@ -85,6 +85,20 @@
   position: relative;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+/* Fade só na borda com conteúdo além (F-003): sem classe = sem máscara. */
+.rail--fade-start {
+  -webkit-mask-image: linear-gradient(to right, transparent, black var(--space-3));
+  mask-image: linear-gradient(to right, transparent, black var(--space-3));
+}
+
+.rail--fade-end {
+  -webkit-mask-image: linear-gradient(to left, transparent, black var(--space-3));
+  mask-image: linear-gradient(to left, transparent, black var(--space-3));
+}
+
+.rail--fade-start.rail--fade-end {
   -webkit-mask-image: linear-gradient(
     to right,
     transparent,
@@ -342,8 +356,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--space-6);
-  height: var(--space-6);
+  width: 52px;
+  height: 52px;
   border: none;
   border-radius: var(--radius-pill);
   background: transparent;

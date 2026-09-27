@@ -8,6 +8,8 @@ export interface TabItem {
 export interface TabsProps {
   items: TabItem[]
   activeId: string
+  /** Aba com o foco de estado (ADR-009) — aplica `.tv-focus`; distinta da ativa. */
+  focusedId?: string
   onSelect: (id: string) => void
 }
 
@@ -17,7 +19,7 @@ export interface TabsProps {
  * fica de quem usa; este componente só desenha e reporta ativação —
  * mudar de conteúdo só por SELECT, nunca só por mover o foco (FR-022).
  */
-export function Tabs({ items, activeId, onSelect }: TabsProps): ReactNode {
+export function Tabs({ items, activeId, focusedId, onSelect }: TabsProps): ReactNode {
   return (
     <div className="tabs" role="tablist">
       {items.map((item) => (
@@ -26,7 +28,7 @@ export function Tabs({ items, activeId, onSelect }: TabsProps): ReactNode {
           type="button"
           role="tab"
           aria-selected={item.id === activeId}
-          className={`tabs-item${item.id === activeId ? ' tabs-item-active' : ''}`}
+          className={`tabs-item${item.id === activeId ? ' tabs-item-active' : ''}${item.id === focusedId ? ' tv-focus' : ''}`}
           onClick={() => onSelect(item.id)}
         >
           {item.label}
