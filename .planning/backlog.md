@@ -94,8 +94,11 @@ M5. **Onda 4 — Filmes e Séries**: especificada como
     `025-filmes-series-ds-v14` (ver `## Features`). Traz junto a captura do
     ano e da data de inclusão declarados pela fonte (para Ordenar) e a
     memória de foco por entrada (§41).
-M6. **Onda 5 — Home, Busca global e Configurações** (feature 026): absorve o
-    item 16. Remove `HomeScreen`/`ListHomeScreen` antigos.
+M6. **Onda 5 — Home, Busca global e Configurações**: especificada como
+    `026-home-busca-configuracoes-ds-v14` (ver `## Features`). Absorve o
+    item 16. Remove o `ListHomeScreen` (hub provisório) e dá à gestão de
+    listas um lugar completo em Configurações › Fontes IPTV (a tela de
+    perfis mantém as ações por cartão).
 M7. **Onda 6/7 — Player chrome, limpeza e QA** (feature 027): chrome com
     auto-hide, media keys, quebra do `screens.css`, matriz QA Tizen, passada
     na TV física.
@@ -241,6 +244,17 @@ função nova; todos mudam a sensação de uso.
     campo de busca ("Buscar nesta fonte").
 
     (`docs/iptvnator/01-ui-ux.md` #4/#8)
+
+57. **Limpar histórico e remover item do `↺ Histórico`**
+
+    Remover um item individual do `↺ Histórico` de Filmes/Séries e limpar
+    todo o histórico da lista, sempre com confirmação e sem apagar
+    favoritos. A feature 025 adiou isso para a Onda 5, e a feature
+    `026-home-busca-configuracoes-ds-v14` deixou fora do escopo (decisão
+    de 27/09/2026) — não há aba "Privacidade" em Configurações ainda.
+
+    (V14 §13.3/§48.4; `sdd/specs/025-filmes-series-ds-v14/spec.md` →
+    Fora de Escopo)
 
 ---
 
@@ -1005,6 +1019,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 023-shell-navegacao-entrada-ds-v14 | Shell, Navegação e Entrada do Design System V14 (Onda 2 da migração) | Convergida | 59/59 tasks | 2026-09-27 |
 | 024-live-tv-ds-v14 | Live TV no Design System V14 (Onda 3) | Convergida | 59/60 tasks | 2026-09-27 |
 | 025-filmes-series-ds-v14 | Filmes e Séries no Design System V14 (Onda 4) | Convergida | 79/80 tasks | 2026-09-27 |
+| 026-home-busca-configuracoes-ds-v14 | Home definitiva, Busca global e Configurações no Design System V14 (Onda 5) | Planejada | 0/50 tasks | 2026-09-27 |
 
 ## Bugs
 

@@ -19,10 +19,23 @@ export interface HomeScreenProps {
    * (FR-016). `from` é o foco de origem, para o RETURN devolvê-lo ao mesmo lugar.
    */
   onNavigate: (destination: TopDestination, from: HomeFocus) => void
-  /** SELECT num item de "Continuar assistindo" — abre o detalhe do filme ou da série (FR-025). */
-  onOpenContinueWatching: (item: CatalogItemOut, from: HomeFocus) => void
+  /**
+   * SELECT num item de "Continuar assistindo" — abre o detalhe do filme ou da série (FR-025 da 023).
+   * Feature 026: substituído por `onOpenItem`; opcional só até o `sdd-execute` remover.
+   */
+  onOpenContinueWatching?: (item: CatalogItemOut, from: HomeFocus) => void
   /** Indicador da lista ativa na topbar (FR-017). */
   onOpenProfiles: (from: HomeFocus) => void
+  /** Feature 026 (FR-007, FR-012): "Mais informações" do hero ou card de filme/série — abre o detalhe. */
+  onOpenItem?: (item: CatalogItemOut, from: HomeFocus) => void
+  /** Feature 026 (FR-013): card de "Canais favoritos" — TV ao vivo em ★ Favoritos com o canal tocando. */
+  onOpenChannel?: (channel: CatalogItemOut, from: HomeFocus) => void
+  /** Feature 026 (FR-014): "Ver todos (N)"/"Filmes (N)"/"Séries (N)" — o destino em ★ Favoritos. */
+  onOpenFavorites?: (destination: TopDestination, from: HomeFocus) => void
+  /** Feature 026 (FR-035): lupa da topbar. */
+  onOpenSearch?: (from: HomeFocus) => void
+  /** Feature 026 (FR-021): engrenagem da topbar. */
+  onOpenSettings?: (from: HomeFocus) => void
 }
 
 const HINTS: HintItem[] = [
@@ -81,7 +94,7 @@ export function HomeScreen({ source, initialFocus, onNavigate, onOpenContinueWat
             setZone('topbar')
           }}
           onSelect={(destination) => onNavigate(destination, { zone: 'shortcuts', destination })}
-          onOpenContinueWatching={(item) => onOpenContinueWatching(item, { zone: 'continue', itemId: item.id })}
+          onOpenContinueWatching={(item) => onOpenContinueWatching?.(item, { zone: 'continue', itemId: item.id })}
           onBack={() => setShowExit(true)}
         />
       </AppShell>

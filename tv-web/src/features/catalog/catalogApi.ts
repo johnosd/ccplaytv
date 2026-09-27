@@ -36,6 +36,7 @@ import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
 import { loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
 import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
+import type { HeroPrimary } from '../../lib/catalog/homeHero'
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
 
@@ -808,6 +809,30 @@ export function useContinueWatchingContent(sourceId: string | null) {
       const states = await getContinueWatching(sourceId, db)
       const records = await resolveContinueWatching(sourceId, states, db)
       return records.map((record) => toItemOut(record, record.kind))
+    },
+    enabled: sourceId !== null,
+  })
+}
+
+/**
+ * Hero do Início pronto para a tela (feature 026, FR-002..FR-006) — o
+ * `HomeHero` de `lib/catalog/homeHero.ts` com o registro já convertido em
+ * `CatalogItemOut`.
+ */
+export type HomeHeroOut =
+  | { kind: 'continue' | 'favorite'; item: CatalogItemOut; primary: HeroPrimary }
+  | { kind: 'welcome' }
+
+/**
+ * Leitura local do hero (`loadHomeHero`). Chave `['home-hero', sourceId]` —
+ * invalidada junto de "Continuar assistindo"/favoritos (`logic/hero-home.md`
+ * §5). Stub da feature 026: o `sdd-execute` implementa.
+ */
+export function useHomeHero(sourceId: string | null) {
+  return useQuery({
+    queryKey: ['home-hero', sourceId],
+    queryFn: async (): Promise<HomeHeroOut> => {
+      throw new Error('not implemented')
     },
     enabled: sourceId !== null,
   })
