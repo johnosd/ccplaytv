@@ -380,3 +380,55 @@ passou 19/19 e 67/67 isolado.
 - Este container de execução remota não tem o `.env` da raiz (só `.env.example`) — T001 (e qualquer verificação futura contra o painel real) não pode ser feito aqui. Precisa de uma sessão com o `.env` preenchido.
 - PowerShell (`pwsh`) não vem pré-instalado neste container Linux; foi instalado manualmente em `/opt/microsoft/powershell/7` (tarball oficial) e linkado em `/usr/bin/pwsh` para os scripts de `.planning/scripts/powershell/` funcionarem. Uma sessão nova no mesmo tipo de container pode precisar repetir isso.
 - `npm ci` em `tv-web/` precisou ser rodado manualmente (node_modules não vinha instalado neste checkout).
+
+## Resultado Final
+
+<!-- Anexado pelo sdd-converge ao fechar a feature sem achado. Nunca reescreve o que já existe acima. -->
+
+Convergência em 2026-09-27, sem achado acionável. As nove fases de
+`tasks.md` foram implementadas como planejado, com desvios de conteúdo
+(não de comportamento) já registrados em R-003 ao longo da execução —
+nenhum novo foi encontrado nesta auditoria.
+
+**O que foi de fato construído**: `MoviesScreen`/`SeriesScreen` viraram
+invólucros finos de um `VodCatalogScreen` compartilhado, sob a topbar
+persistente da feature 023, com side nav V14 ("Sua biblioteca":
+★ Favoritos, ↺ Histórico; "Catálogo": Todos + categorias da fonte),
+toolbar (Pesquisar/Ordenar), hero band fixa não focável e grade
+virtualizada de `ContentCard`. `↺ Histórico` lê `lastWatched` já gravado
+pelas features 011/012 (nunca rede), com séries agregadas por episódio
+mais recente. Ano/inclusão (filme e série) e duração/imagem de episódio
+passaram a ser capturados de campos próprios do provedor
+(`normalizeYear`/`normalizeAddedAt`/`normalizeDurationSeconds`), nunca do
+título nem de `last_modified`. Ordenar (Ordem da fonte/A–Z/Ano/Recém-
+adicionados) é uma opção por seção na sessão, nunca persistida, ausente
+sem dado real. Os dois detalhes (`MovieDetailScreen`/`SeriesDetailScreen`)
+ganharam o hero V14, ações em pill com foco inicial na ação primária
+(índice 0), abas (Detalhes/Elenco/Semelhantes ou Episódios/Detalhes/
+Elenco/Semelhantes), seletor de temporada em modal (substituindo as
+antigas abas por seta) e episódios em `ContentCard` landscape com
+progresso real — barra só com duração declarada, senão "Continuar de
+mm:ss", nunca um percentual inventado.
+
+**Desvios de conteúdo acumulados** (todos já documentados em R-003,
+nenhum é regressão de comportamento): seletores `.poster-*`/
+`.movie-detail-*`/`.series-detail-*`/`.season-tab*`/`.episode-row`/
+`.detail-button` → `.vod-grid`/`.content-card*`/`.vod-detail`/
+`.vod-season-*`/`.vod-episode-row`/`.vod-detail-action`; a ação primária
+do filme passou do índice 1 para o 0 (Trailer deixou de ser a primeira
+ação); as abas de temporada por seta saíram, substituídas por botão +
+modal; rótulo "Retomar" → "Continuar"; selo de episódio "✓ Assistido" →
+"✓ Concluído".
+
+**Decisões técnicas que ficaram diferentes do plano original**: nenhuma —
+as 15 Decisões Invariantes (D-001 a D-015) valeram como escritas, sem
+necessidade de emenda durante a execução.
+
+**Riscos que seguem abertos, não resolvidos por esta auditoria** (nenhum
+é gate desta feature): R-001 (nomes de campo do painel real, ambiente sem
+acesso) e R-002 (altura útil da grade com muitos itens, sem uma captura
+com item suficiente para confirmar visualmente 2 linhas) — os dois
+exigem um ambiente que esta sessão não tinha (painel real / mais dados de
+teste ou TV física) e por isso continuam registrados como estavam, sem
+`Resolvido:` forçado. A passada na TV física (recomendada, não gate)
+também segue pendente.

@@ -53,10 +53,12 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   segurando OK ou pela tecla amarela do controle sobre o item focado.
 - Indicação de "já assistido" (filme, com correção manual) e "em dia"
   (série, por cobertura de episódios conhecidos), além de "continuar
-  assistindo" no hub da fonte para o que tem retomada salva — canal ao
-  vivo não tem histórico nem "já assistido" (decisão de escopo, feature
-  019). *A avaliar:* agregação de favoritos/histórico entre todas as
-  fontes.
+  assistindo" no hub da fonte para o que tem retomada salva, e uma lista
+  "↺ Histórico" em Filmes e Séries com tudo que já foi reproduzido, do
+  mais recente ao mais antigo, incluindo o que já terminou (feature 025)
+  — canal ao vivo não tem histórico nem "já assistido" (decisão de
+  escopo, feature 019). *A avaliar:* agregação de favoritos/histórico
+  entre todas as fontes.
 
 ## Arquitetura
 

@@ -1004,7 +1004,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 022-biblioteca-componentes-ds-v14 | Biblioteca de Componentes do Design System V14 (Onda 1 da migração) | Convergida | 80/80 tasks | 2026-09-26 |
 | 023-shell-navegacao-entrada-ds-v14 | Shell, Navegação e Entrada do Design System V14 (Onda 2 da migração) | Convergida | 59/59 tasks | 2026-09-27 |
 | 024-live-tv-ds-v14 | Live TV no Design System V14 (Onda 3) | Convergida | 59/60 tasks | 2026-09-27 |
-| 025-filmes-series-ds-v14 | Filmes e Séries no Design System V14 (Onda 4) | Implementada | 79/80 tasks | 2026-09-27 |
+| 025-filmes-series-ds-v14 | Filmes e Séries no Design System V14 (Onda 4) | Convergida | 79/80 tasks | 2026-09-27 |
 
 ## Bugs
 
