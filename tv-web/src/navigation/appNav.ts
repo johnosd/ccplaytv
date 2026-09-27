@@ -56,6 +56,12 @@ export type AppNavAction =
    * e Filmes/Séries guardam o snapshot de restauração (feature 017).
    */
   | { type: 'open'; screen: AppScreen; from?: AppScreen }
+  /**
+   * Topbar de um destino de topo (Live, feature 024) escolhendo OUTRO destino
+   * de topo: troca a tela atual sem empilhá-la — RETURN no novo destino volta
+   * ao Início, nunca ao destino de onde se saiu (D-004 do plan.md da 024).
+   */
+  | { type: 'switch-top'; screen: AppScreen }
   /** Indicador da lista ativa na topbar (FR-017). */
   | { type: 'open-profiles'; from?: AppScreen }
   | { type: 'back' }
@@ -92,6 +98,11 @@ export function appNavReducer(state: AppNavState, action: AppNavAction): AppNavS
         screen: action.screen,
         history: [...state.history, action.from ?? state.screen],
       }
+
+    case 'switch-top':
+      // Troca o destino de topo sem empilhar (D-004 da feature 024) — a
+      // pilha e a fonte ativa continuam as mesmas; só `screen` muda.
+      return { ...state, screen: action.screen }
 
     case 'open-profiles': {
       // Sem fonte ativa não há Início de lista para onde RETURN voltar: os

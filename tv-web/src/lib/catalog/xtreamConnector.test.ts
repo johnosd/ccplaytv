@@ -226,13 +226,13 @@ describe('mapLiveEntry', () => {
     expect(mapped?.url).toBeUndefined()
   })
 
-  it('canal NUNCA ganha iconUrl, mesmo que o provedor declare stream_icon (feature 015, FR-009)', () => {
+  it('canal ganha iconUrl de stream_icon (feature 024, R-003 — inverte a exclusão original da 015)', () => {
     const mapped = mapLiveEntry(
       { name: 'ESPN', stream_id: 5, category_id: 10, stream_icon: 'http://exemplo.test/espn.png' },
       categories,
       buildUrl,
     )
-    expect(mapped?.iconUrl).toBeUndefined()
+    expect(mapped?.iconUrl).toBe('http://exemplo.test/espn.png')
   })
 })
 

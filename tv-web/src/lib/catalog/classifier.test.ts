@@ -86,9 +86,9 @@ describe('classifier', () => {
       expect(episode.iconUrl).toBe('http://exemplo.test/ep.png')
     })
 
-    it('canal NUNCA captura iconUrl, mesmo com tvg-logo declarado (FR-009)', () => {
+    it('canal captura iconUrl de tvg-logo (feature 024, R-003 — inverte a exclusão original da 015)', () => {
       const channel = classifyEntry(entry('ESPN', 'Canais Esportes', { 'tvg-logo': 'http://exemplo.test/espn.png' }))
-      expect(channel.iconUrl).toBeUndefined()
+      expect(channel.iconUrl).toBe('http://exemplo.test/espn.png')
     })
 
     it('atributo ausente vira iconUrl undefined', () => {

@@ -136,7 +136,7 @@ function toItemRecord(
     streamExtension: channel.streamExtension,
     // Provedor nunca guarda URL — ver `noUrl` acima.
     directUrl: undefined,
-    // Feature 015: capa declarada pela fonte (nunca para canal — mapLiveEntry não a preenche).
+    // Feature 015/024: capa/logo declarado pela fonte (também canal desde a 024 — mapLiveEntry preenche).
     iconUrl: channel.iconUrl,
   }
 }

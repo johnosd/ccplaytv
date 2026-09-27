@@ -929,9 +929,9 @@ describe('importPipeline — URL M3U reconhecida como painel Xtream (feature 014
   })
 
   // Feature 015 — caminho `stored` (scanToStored/toStoredRecord) propaga
-  // tvg-logo pra iconUrl: filme, série sintética (herdado do 1º episódio,
-  // D-003) e nunca canal (FR-009).
-  it('varredura captura tvg-logo pra filme e série, e a série sintética herda do 1º episódio', async () => {
+  // tvg-logo pra iconUrl: filme e série sintética (herdado do 1º episódio,
+  // D-003). Feature 024 (R-003) estende a captura a canal também.
+  it('varredura captura tvg-logo pra filme, série e canal, e a série sintética herda do 1º episódio', async () => {
     const lines = [
       '#EXTM3U',
       '#EXTINF:-1 tvg-logo="http://exemplo.test/espn.png" group-title="Canais",ESPN',
@@ -955,7 +955,7 @@ describe('importPipeline — URL M3U reconhecida como painel Xtream (feature 014
     const orderOf = (name: string) => categories.find((c) => c.name === name)!.order
 
     const channels = await listChannels(M3U_SOURCE.id, orderOf('Canais'), 0, 10, 'channel', database)
-    expect(channels[0].iconUrl).toBeUndefined() // FR-009: canal nunca ganha capa
+    expect(channels[0].iconUrl).toBe('http://exemplo.test/espn.png') // feature 024: canal ganha logo
 
     const movies = await listChannels(M3U_SOURCE.id, orderOf('Filmes'), 0, 10, 'movie', database)
     const withIcon = movies.find((m) => m.name === 'Um Filme')

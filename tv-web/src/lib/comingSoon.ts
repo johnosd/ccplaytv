@@ -21,6 +21,8 @@ export const COMING_SOON: Record<string, ComingSoonEntry> = {
   settings: { message: 'Configurações do aplicativo e gestão das suas listas.', backlogItem: 'M6' },
   // Onboarding de lista (feature 023, FR-035).
   'pair-phone': { message: 'Conectar a lista pelo celular, com QR code.', backlogItem: 22 },
+  // Preview da Live TV (feature 024, FR-017) — "Guia completo".
+  'epg-guide': { message: 'Guia de programação completo dos canais.', backlogItem: 42 },
 }
 
 /**

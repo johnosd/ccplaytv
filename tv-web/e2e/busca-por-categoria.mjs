@@ -80,9 +80,18 @@ async function addSource(page, m3uUrl) {
  * antes do ArrowRight que entra nela: enquanto as categorias carregam o trilho só tem as duas
  * entradas virtuais e o padrão cai em "Todos" — um ArrowRight nesse instante entra numa lista
  * vazia (mesma corrida do roteiro de histórico, T047 da feature 023).
+ *
+ * Live TV migrou pro V14 (feature 024): a trilha agora é `SideCategoryNav`
+ * (`.side-category-nav-item`, texto em `.side-category-nav-label`). Filmes/
+ * Séries ainda não migraram (Onda 4) e continuam com o `.live-item` cru —
+ * por isso este helper aceita os dois padrões.
  */
 async function waitForTrailFocus(page, name) {
-  await page.locator('.live-column-groups .live-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
+  await page
+    .locator('.live-column-groups .side-category-nav-item.tv-focus, .live-column-groups .live-item.tv-focus', {
+      hasText: name,
+    })
+    .waitFor({ timeout: 8000 })
 }
 
 /** Dispara um evento do <video> ATUAL (o adaptador de dev não decodifica conteúdo fictício). */

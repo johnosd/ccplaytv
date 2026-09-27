@@ -126,4 +126,45 @@ describe('appNavReducer — regras além dos contratos (feature 023)', () => {
     expect(state.screen).toEqual({ name: 'movies', restore: snapshot })
     expect((state.screen as { restore?: unknown }).restore).toBe(snapshot)
   })
+
+  // Feature 024, T026: a topbar da Live troca de destino de topo (Filmes)
+  // sem empilhar, e RETURN de lá volta direto ao Início — nunca pra Live.
+  it('"Filmes" na topbar da Live abre Filmes via switch-top, e RETURN volta ao Início (não à Live)', () => {
+    const homeFocus = { name: 'home', focus: { zone: 'topbar', item: 'live' } } as const
+    let state = run(
+      initialAppNav(),
+      { type: 'splash-finished' },
+      { type: 'choose-source', source: A },
+      { type: 'open', screen: { name: 'live' }, from: homeFocus },
+    )
+    expect(state.screen).toEqual({ name: 'live' })
+    expect(state.history).toEqual([homeFocus])
+
+    state = run(state, { type: 'switch-top', screen: { name: 'movies' } })
+    expect(state.screen).toEqual({ name: 'movies' })
+    expect(state.history).toEqual([homeFocus]) // não empilhou a Live
+
+    state = run(state, { type: 'back' })
+    expect(state.screen).toEqual(homeFocus)
+    expect(state.history).toEqual([])
+  })
+
+  // Feature 024: o indicador da lista ativa na topbar da Live abre os
+  // perfis (mesmo caminho da topbar do Início), e RETURN volta à Live.
+  it('open-profiles a partir da topbar da Live empilha a Live, e RETURN volta a ela', () => {
+    const liveFocus = { name: 'home', focus: { zone: 'shortcuts', destination: 'live' } } as const
+    let state = run(
+      initialAppNav(),
+      { type: 'splash-finished' },
+      { type: 'choose-source', source: A },
+      { type: 'open', screen: { name: 'live' }, from: liveFocus },
+      { type: 'open-profiles', from: { name: 'live' } },
+    )
+    expect(state.screen).toEqual({ name: 'profiles', mode: 'switch', focusSourceId: 'a' })
+    expect(state.history).toEqual([liveFocus, { name: 'live' }])
+
+    state = run(state, { type: 'back' })
+    expect(state.screen).toEqual({ name: 'live' })
+    expect(state.activeSource?.id).toBe('a')
+  })
 })

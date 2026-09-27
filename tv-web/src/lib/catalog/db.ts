@@ -119,14 +119,24 @@ export interface CatalogRecord {
    */
   episodesFetchedAt?: number
   /**
-   * Capa declarada pela própria fonte para um filme ou série (feature 015,
-   * D-001/D-002 do plan.md) — Xtream `stream_icon`/`cover`, ou `tvg-logo`
-   * do M3U. `undefined` = fonte não declarou, ou o item é um canal
-   * (nunca lido nem gravado para `kind: 'channel'`, FR-009). Campo de
-   * valor comum, sem índice — não exige bump de versão do Dexie (D-009);
-   * registro gravado antes desta feature simplesmente não o tem.
+   * Capa/logo declarada pela própria fonte (feature 015, D-001/D-002 do
+   * plan.md, para filme/série) — Xtream `stream_icon`/`cover`, ou
+   * `tvg-logo` do M3U. Feature 024 (R-003): também para `kind: 'channel'`
+   * — a exclusão original era de escopo, não técnica. `undefined` = fonte
+   * não declarou, ou registro gravado antes da feature que passou a
+   * capturar aquele `kind`. Campo de valor comum, sem índice — não exige
+   * bump de versão do Dexie (D-009).
    */
   iconUrl?: string
+  /**
+   * Posição 0-based do item dentro da categoria, na ordem em que a fonte o
+   * entregou (feature 024, `logic/numero-do-canal.md` §4). Gravada por
+   * `storeCategoryItems`/`storeStoredCategory` (as duas funções que
+   * escrevem uma categoria inteira de uma vez, na ordem recebida) para
+   * todo `kind` — só a Live TV a lê, para o número de exibição do canal.
+   * `undefined` = registro gravado antes desta feature.
+   */
+  categoryPosition?: number
 }
 
 /** As três seções que o painel expõe por categoria (feature 010). */

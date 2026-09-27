@@ -247,6 +247,22 @@
   background: var(--accent);
 }
 
+/* Estrela de favorito e selo de indisponível (feature 024, FR-009/D-007) —
+   sempre no fim da linha, nunca disputando espaço com o nome (que já trunca
+   com `text-overflow: ellipsis`). */
+.channel-row .fav-star {
+  margin-left: auto;
+}
+
+.channel-row-badge {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+  border: 1px solid var(--text-annotation);
+  border-radius: var(--radius-pill);
+  padding: 2px var(--space-1);
+  flex: none;
+}
+
 /* SideCategoryNav (D-009) */
 
 .side-category-nav {

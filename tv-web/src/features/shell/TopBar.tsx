@@ -13,12 +13,25 @@ export interface TopBarProps {
   active: boolean
   /** Item em foco de estado (`.tv-focus`) — só é desenhado quando `active`. */
   focusedItem: TopbarItem
+  /**
+   * Destino de topo atual (feature 024, D-004 do plan.md da feature 024).
+   * Padrão `'home'` — idêntico ao comportamento anterior à feature 024, em
+   * que o Início era sempre o atual. Recebe a marcação `topbar-item--current`/
+   * `aria-current`; OK nele não faz nada.
+   */
+  currentItem?: 'home' | TopDestination
   /** LEFT/RIGHT (linear, com clamp nas pontas). */
   onFocusItem: (item: TopbarItem) => void
   /** DOWN — devolve o foco ao conteúdo. */
   onExitDown: () => void
-  /** OK em TV ao vivo / Filmes / Séries. */
+  /** OK em TV ao vivo / Filmes / Séries, quando não é o `currentItem`. */
   onNavigate: (destination: TopDestination) => void
+  /**
+   * OK em "Início" quando `currentItem` não é `'home'` (feature 024) — ex.:
+   * a topbar da Live trocando de volta pro Início. Com `currentItem: 'home'`
+   * (padrão), OK em "Início" não faz nada e este callback nunca é chamado.
+   */
+  onGoHome?: () => void
   /** OK no indicador da lista ativa — abre a tela de perfis para trocar de lista. */
   onOpenProfiles: () => void
   /** RETURN. */
@@ -71,9 +84,11 @@ export function TopBar({
   sourceName,
   active,
   focusedItem,
+  currentItem = 'home',
   onFocusItem,
   onExitDown,
   onNavigate,
+  onGoHome,
   onOpenProfiles,
   onBack,
 }: TopBarProps): ReactNode {
@@ -81,9 +96,12 @@ export function TopBar({
   const announce = useAnnounce()
 
   function activate(item: TopbarItem) {
+    // Já está neste destino — inclui "Início" quando `currentItem` é o
+    // padrão, mesmo comportamento de antes da feature 024.
+    if (item === currentItem) return
     switch (item) {
       case 'home':
-        // Já está no Início.
+        onGoHome?.()
         return
       case 'live':
       case 'movies':
@@ -135,7 +153,7 @@ export function TopBar({
 
       <nav className="topbar-nav" aria-label="Navegação principal">
         {NAV_ITEMS.map((item) => {
-          const current = item.key === 'home'
+          const current = item.key === currentItem
           return (
             <button
               key={item.key}

@@ -201,6 +201,25 @@ describe('catalogRepository', () => {
       expect(category.count).toBe(1)
     })
 
+    it('storeCategoryItems grava categoryPosition na ordem recebida (feature 024, base do número do canal)', async () => {
+      await seedSource({ activeGeneration: 1 })
+      const [categoryId] = await storeCategories(
+        [newCategory({ kind: 'channel', order: 0, name: 'Esportes' })],
+        database,
+      )
+
+      await storeCategoryItems(
+        { sourceId: SOURCE_ID, generation: 1, kind: 'channel', categoryId, groupOrder: 0 },
+        [channel(1, 'Canal A', 'Esportes', 0), channel(1, 'Canal B', 'Esportes', 0), channel(1, 'Canal C', 'Esportes', 0)],
+        1000,
+        database,
+      )
+
+      const items = await listChannels(SOURCE_ID, 0, 0, 10, 'channel', database)
+      const byName = Object.fromEntries(items.map((i) => [i.name, i.categoryPosition]))
+      expect(byName).toEqual({ 'Canal A': 0, 'Canal B': 1, 'Canal C': 2 })
+    })
+
     it('markCategoryFetched carimba instante e contagem sem tocar nos itens já gravados', async () => {
       await seedSource({ activeGeneration: 1 })
       const [categoryId] = await storeCategories(

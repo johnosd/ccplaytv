@@ -86,12 +86,20 @@ async function capture(page, dir, name) {
   console.log(`  📸 ${name} (${dir})`)
 }
 
-/** Do hub (tiles-row, foco em "Live TV") até a categoria de canais já entrada. */
+/**
+ * Do hub (tiles-row, foco em "Live TV") até a categoria de canais já entrada.
+ *
+ * Feature 024 (Onda 3) redesenhou a Live TV pro V14 — esta função não serve
+ * mais pra provar "zero layout change" da 021 (esse baseline já fechou),
+ * só evita que o script trave se alguém rodar de novo (T041 do plan.md da
+ * 024, R-002): a linha de canal virtualizada trocou de `.live-item` pra
+ * `.live-channel-row`.
+ */
 async function openLiveCategory(page) {
   await page.keyboard.press('Enter') // tile "Live TV" (foco inicial)
   await page.waitForSelector('.live-column-groups', { timeout: 8000 })
   await page.keyboard.press('ArrowRight') // trilha -> entra na 1ª categoria real
-  await page.waitForSelector('.live-channel-list .live-item', { timeout: 8000 })
+  await page.waitForSelector('.live-channel-list .live-channel-row', { timeout: 8000 })
   await page.waitForSelector('.live-preview-panel', { timeout: 8000 })
 }
 

@@ -416,7 +416,7 @@ export async function startImport(
           episodeNumber: channel.episodeNumber,
           streamExtension: channel.streamExtension,
           directUrl: keepUrl ? channel.url : undefined,
-          // Feature 015: capa declarada pela fonte (nunca para canal — classifyEntry não a preenche).
+          // Feature 015/024: capa/logo declarado pela fonte (também canal desde a 024 — classifyEntry preenche).
           iconUrl: channel.iconUrl,
         }
       }

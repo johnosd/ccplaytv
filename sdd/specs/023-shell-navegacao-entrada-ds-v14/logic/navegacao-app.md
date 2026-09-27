@@ -40,6 +40,7 @@ interface AppNavState {
 | `back` | `history` vazio → estado igual. Senão, desempilha: `screen = topo`, `history` sem o topo. |
 | `source-removed(id)` | Se `id !== activeSource?.id`, nada muda. Se é a ativa: `activeSource = null`, `history = []`, e `screen = profiles{mode:'base'}`. Qualquer tela de perfis aberta vira base (edge case da spec). |
 | `import-back(sourceId?)` | `screen = profiles{mode:'base', focusSourceId: sourceId}`, `history = []`, `activeSource = null`. É o "Voltar" da tela de progresso sem abrir a lista (FR-039). |
+| `switch-top(screen)` | **Atualização (feature 024):** `screen = screen`, `history` e `activeSource` inalterados — nunca empilha. É como a topbar de um destino de topo (ex.: Live) troca para outro (Filmes/Séries) sem passar pelo Início. |
 
 ### Casos que parecem estranhos, mas são intencionais
 
@@ -47,7 +48,11 @@ interface AppNavState {
   O único caminho até eles é o Início (atalho ou topbar), então o topo da
   pilha já é `home{focus}`. Não crie um caso "destino de topo → Início"
   separado. Isso duplicaria a regra e quebraria se um dia houver outro
-  caminho.
+  caminho. **Atualização (feature 024):** trocar de destino de topo pela
+  própria topbar (`switch-top`) nunca mexe na pilha, então isso continua
+  valendo depois de qualquer número de trocas — `back` sempre volta ao
+  `home{focus}` de onde a sequência começou, nunca a um destino
+  intermediário.
 - **`open-profiles` guarda o Início na pilha**, e é por isso que RETURN nos
   perfis em modo `switch` volta ao Início. Quem decide o que RETURN faz nos
   perfis é o `mode`, que a tela recebe por prop. Em `switch` ela chama

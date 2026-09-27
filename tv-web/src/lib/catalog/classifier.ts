@@ -30,7 +30,13 @@ export interface ClassifiedEntry {
   streamExtension?: string
   providerStreamId?: string
   providerCategoryId?: string
-  /** Capa declarada pela fonte (feature 015, D-002 do plan.md) — nunca para `kind: 'channel'` (FR-009). */
+  /**
+   * Capa/logo declarada pela fonte. Feature 015 (D-002 do plan.md): filme,
+   * série e episódio. Feature 024 (R-003, spec Clarifications): também
+   * canal — inverte a exclusão original da 015, que era de escopo, não
+   * técnica (logo de canal é o mesmo dado, `tvg-logo`, com os mesmos
+   * riscos já resolvidos por `normalizeIconUrl`).
+   */
   iconUrl?: string
 }
 
@@ -70,9 +76,9 @@ function groupKeywordKind(group: string | undefined): CatalogItemKind | undefine
 }
 
 export function classifyEntry(entry: ParsedEntry): ClassifiedEntry {
-  // Feature 015 (D-001/FR-002/FR-008): nunca para canal (FR-009) — só
-  // episódio (pra a série sintética herdar, D-003 de m3uSeriesGrouping.ts)
-  // e filme/série capturam.
+  // Feature 015 (D-001/FR-002/FR-008): episódio (pra a série sintética
+  // herdar, D-003 de m3uSeriesGrouping.ts), filme e série capturam.
+  // Feature 024 (R-003): canal também captura, desde aqui.
   const iconUrl = normalizeIconUrl(entry.attributes['tvg-logo'])
 
   const episodeMatch = EPISODE_PATTERN.exec(entry.name.trim())
@@ -100,7 +106,7 @@ export function classifyEntry(entry: ParsedEntry): ClassifiedEntry {
       originalName: entry.name,
       group: entry.group,
       url: entry.url,
-      iconUrl: byGroup === 'channel' ? undefined : iconUrl,
+      iconUrl,
     }
   }
 

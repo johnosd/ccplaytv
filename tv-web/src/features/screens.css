@@ -239,14 +239,15 @@
   gap: 4px;
 }
 
-/* ---------- Live TV ---------- */
-
-.live-layout {
-  display: flex;
-  gap: 40px;
-  flex: 1;
-  min-height: 0;
-}
+/* ---------- Trilha de categorias e estados de borda (Filmes/Séries) ----------
+   Compartilhado por MoviesScreen/SeriesScreen (feature 010/018), que ainda
+   não migraram pro V14 (Onda 4) — a Live TV migrou (feature 024) e passou a
+   usar `SideCategoryNav`/`ErrorState`/`EmptyState` (`styles/live.css`), mas
+   estas classes continuam vivas aqui para as outras duas telas. Achado
+   corrigido durante a feature 024: T022 removeu estas regras junto das
+   genuinamente exclusivas da Live, sem checar que Filmes/Séries também as
+   usam — pego pelo E2E `busca-por-categoria.mjs` (Filmes), não por nenhum
+   teste unitário (jsdom não aplica CSS). */
 
 .live-column {
   display: flex;
@@ -257,10 +258,6 @@
 
 .live-column-groups {
   width: 340px;
-}
-
-.live-column-channels {
-  width: 400px;
 }
 
 .live-column-title {
@@ -277,6 +274,9 @@
   font-weight: 600;
   font-size: 18px;
   text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .live-item.tv-focus {
@@ -284,106 +284,12 @@
   color: var(--text-primary);
 }
 
-.live-preview-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  min-width: 0;
-}
-
-.live-preview-box {
-  flex: 1;
-  border-radius: 20px;
-  background: linear-gradient(135deg, var(--surface-field-active), var(--surface-deep));
+.live-item-favorites,
+.live-item-all {
   display: flex;
   align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
+  gap: 10px;
 }
-
-/* Slot de logo do canal: Ã¡rea reservada com proporÃ§Ã£o fixa para a chegada da
-   imagem nÃ£o mudar a geometria nem derrubar o foco (ADR-007 Â§6). Hoje o
-   `tvg-logo` nÃ£o Ã© persistido, entÃ£o o slot fica vazio â€” item 16 do backlog. */
-.live-preview-logo {
-  width: 200px;
-  height: 200px;
-  border-radius: 24px;
-  background: var(--surface-field-active);
-  border: 3px dashed var(--border-dashed);
-}
-
-.live-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.live-item-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: var(--surface-field-active);
-  flex: none;
-}
-
-.live-item-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.live-item-unavailable .live-item-name {
-  color: var(--text-muted);
-}
-
-.live-item-badge {
-  font: 600 13px var(--font-body);
-  color: var(--text-muted);
-  border: 2px solid var(--border-dashed);
-  border-radius: 999px;
-  padding: 2px 10px;
-  flex: none;
-}
-
-/* Painel de canais virtualizado (feature 009) — só o painel de conteúdo
-   (col 1) vira lista de janela deslizante; a trilha de categorias
-   (.live-column-groups) continua em fluxo normal (D-004). */
-.live-channel-list {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  position: relative;
-}
-
-.live-channel-list-inner {
-  position: relative;
-  width: 100%;
-}
-
-.live-column-channels .live-item {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 72px;
-}
-
-.live-truncated-note {
-  font: 500 15px var(--font-body);
-  color: var(--text-tertiary);
-  padding: 12px 20px;
-}
-
-/* Slot de "Agora:" (EPG). Reservado sem rÃ³tulo: exibir "Agora:" vazio
-   pareceria defeito, e inventar dado Ã© proibido. Fonte de dados no item 44. */
-.live-channel-now {
-  min-height: 28px;
-}
-
-/* ---------- Estados de borda da Live TV ---------- */
 
 .live-state {
   flex: 1;
@@ -426,7 +332,73 @@
   color: var(--accent-ink);
 }
 
-/* ---------- Camada de reproduÃ§Ã£o ---------- */
+.live-truncated-note {
+  font: 500 15px var(--font-body);
+  color: var(--text-tertiary);
+  padding: 12px 20px;
+}
+
+/* Título da coluna de conteúdo + ícone de busca lado a lado (feature 018,
+   FR-001) — o ícone só existe quando a entrada atual tem itens (D-006). */
+.category-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.category-title-row .live-column-title {
+  margin-bottom: 0;
+}
+
+/* Botão pequeno, focável — mesma receita de foco de qualquer outro
+   elemento (.tv-focus, ADR-007), nunca uma cor/raio literal aqui. */
+.search-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 20px;
+  flex: none;
+}
+
+.search-icon-button.tv-focus {
+  background: var(--surface-active);
+  color: var(--text-primary);
+}
+
+.search-field-row {
+  margin-bottom: 16px;
+}
+
+/* Reusa .field-box (mesmo campo do formulário de fonte), com altura menor
+   para caber no topo da coluna de conteúdo sem empurrar a lista — nunca uma
+   cor/raio literal (ADR-007), só o token já usado por .field-box. */
+.search-field {
+  height: 56px;
+  max-width: 100%;
+  font-size: 17px;
+}
+
+.search-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 4px 0;
+  font: 500 15px var(--font-body);
+  color: var(--text-tertiary);
+}
+
+.search-coverage {
+  color: var(--text-muted);
+}
+
+/* ---------- Camada de reprodução ---------- */
 
 .player-overlay {
   position: absolute;
@@ -597,16 +569,6 @@
   color: var(--accent-ink);
 }
 
-.live-channel-name {
-  font: 700 26px var(--font-body);
-  color: var(--text-primary);
-}
-
-.live-channel-meta {
-  font: 500 16px var(--font-body);
-  color: var(--text-tertiary);
-}
-
 /* ---------- Grids (Filmes / SÃ©ries) ---------- */
 
 /**
@@ -689,6 +651,21 @@
   color: var(--text-muted);
   text-align: center;
   padding: 0 8px;
+}
+
+/* Variante de logo (feature 024, D-007): placeholder de canal — iniciais
+   grandes em vez do rótulo "pôster" + título. `.poster-box-logo` também
+   troca a proporção do card, mais próxima de um logo do que de um pôster
+   de filme (2:3). */
+.poster-box-logo {
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+}
+
+.poster-box-initials {
+  font: 700 var(--fs-h2) var(--font-heading);
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
 }
 
 /* Capa real (feature 015) — cobre a camada de placeholder por cima; some
@@ -988,19 +965,15 @@
 /* ---------- Favoritos (feature 013) ---------- */
 
 /* Estrela no cartao/linha de item favorito. Sobreposta no canto do
-   poster (.poster-box) ou apos o nome na lista de canais (.live-item) —
-   nunca a unica pista: o rotulo textual da categoria "Favoritos" e a
-   dica fixa (.fav-hint) tambem comunicam o estado, para nao depender so
-   de cor (ADR-007). */
+   poster (.poster-box) ou apos o nome na linha de canal (.channel-row,
+   feature 024) — nunca a unica pista: o rotulo textual da categoria
+   "Favoritos" e a dica fixa (.fav-hint) tambem comunicam o estado, para
+   nao depender so de cor (ADR-007). */
 .fav-star {
   color: var(--accent);
   font-size: 16px;
   line-height: 1;
   flex: none;
-}
-
-.live-item .fav-star {
-  margin-left: 8px;
 }
 
 .poster-box .fav-star {
@@ -1025,16 +998,6 @@
   padding: 2px 8px;
 }
 
-/* Entrada virtual "Favoritos" no topo da trilha de categorias — mesma
-   classe .live-item, com um rotulo fixo (icone + texto) que nunca
-   depende so da posicao para ser distinguivel de uma categoria real da
-   fonte com o mesmo nome (edge case da spec). */
-.live-item-favorites {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 /* Dica fixa no rodape da coluna de conteudo, discreta (mesmo tom de
    .live-truncated-note), lembrando o gesto de segurar OK enquanto houver
    itens favoritaveis na tela (FR-012). */
@@ -1050,94 +1013,4 @@
   inset: 0;
   display: flex;
   background: var(--player-zap-scrim);
-}
-
-.player-zap-columns {
-  position: absolute;
-  inset: 0;
-  padding: 80px 96px;
-  display: flex;
-  flex-direction: row;
-  gap: 40px;
-}
-
-/* ---------- Busca local (feature 017) ---------- */
-
-/* Entrada "Todos" no topo da trilha (feature 018) — mesmo padrão de
-   .live-item-favorites (feature 013): ícone + texto, nunca confundido com
-   uma categoria real da fonte. Substitui .live-item-search (feature 017,
-   removida — a busca deixou de ser uma entrada de trilha). */
-.live-item-all {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Título da coluna de conteúdo + ícone de busca lado a lado (feature 018,
-   FR-001) — o ícone só existe quando a entrada atual tem itens (D-006). */
-.category-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.category-title-row .live-column-title {
-  margin-bottom: 0;
-}
-
-/* Botão pequeno, focável — mesma receita de foco de qualquer outro
-   elemento (.tv-focus, ADR-007), nunca uma cor/raio literal aqui. */
-.search-icon-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--text-secondary);
-  font-size: 20px;
-  flex: none;
-}
-
-.search-icon-button.tv-focus {
-  background: var(--surface-active);
-  color: var(--text-primary);
-}
-
-.search-field-row {
-  margin-bottom: 16px;
-}
-
-/* Reusa .field-box (mesmo campo do formulário de fonte), com altura menor
-   para caber no topo da coluna de conteúdo sem empurrar a lista — nunca uma
-   cor/raio literal (ADR-007), só o token já usado por .field-box. */
-.search-field {
-  height: 56px;
-  max-width: 100%;
-  font-size: 17px;
-}
-
-.search-status {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 4px 0;
-  font: 500 15px var(--font-body);
-  color: var(--text-tertiary);
-}
-
-.search-coverage {
-  color: var(--text-muted);
-}
-
-/* Rótulo de categoria em cada resultado (FR-011) — só existe em modo busca,
-   nunca na navegação normal por categoria (que já mostra isso no cabeçalho). */
-.live-item-group {
-  font: 500 13px var(--font-body);
-  color: var(--text-muted);
-  flex: none;
-  margin-left: 8px;
 }

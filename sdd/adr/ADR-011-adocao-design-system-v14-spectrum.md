@@ -192,6 +192,19 @@ estável (constitution, "Identidade de Reprodução Não Depende da URL").
 Quando o item 25 do backlog trouxer `tvg-chno` ou equivalente, o número
 declarado pela fonte substitui a posição.
 
+**Atualização (feature 024):** a obtenção sob demanda (feature 010) só
+conhece as contagens das categorias que já foram lidas — "dentro de Todos"
+não é uma posição calculável de antemão para uma fonte de provedor. A
+posição real é a ordem da categoria (declarada pela fonte) mais a posição
+do canal dentro dela, somada às contagens **conhecidas** das categorias
+anteriores; falta uma contagem, o número não aparece — nunca inventado
+(`sdd/specs/024-live-tv-ds-v14/logic/numero-do-canal.md`). Verificado contra
+um painel Xtream real (T001 daquela feature): o campo `num` de
+`get_live_streams` não é global (é recalculado por resposta, não serve como
+atalho), então a regra derivada acima é a única usada — `tvg-chno`/item 25
+continua sendo o caminho que a substituiria por um número declarado pela
+fonte.
+
 ## Alternativas Consideradas
 
 ### Perfis como entidade própria, independente das listas

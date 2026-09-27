@@ -87,8 +87,9 @@ M3. **Onda 2 — Shell, navegação e entrada**: especificada como
     `023-shell-navegacao-entrada-ds-v14` (ver `## Features`). Absorve os
     bugs "Estado de erro da Home não tem elemento focável" e "`e2e.mjs`
     testa um diálogo de saída que não existe mais".
-M4. **Onda 3 — Live TV** (feature 024): 3 colunas + preview sem vídeo,
-    preservando zapping/favoritos/busca.
+M4. **Onda 3 — Live TV**: especificada como `024-live-tv-ds-v14` (ver
+    `## Features`). Traz junto a captura do logo do canal e o número do
+    canal derivado da ordem da fonte.
 M5. **Onda 4 — Filmes e Séries** (feature 025): side nav com **↺ Histórico**
     (dado real, `lastWatched`), Ordenar, hero band, detalhes V14.
 M6. **Onda 5 — Home, Busca global e Configurações** (feature 026): absorve o
@@ -980,6 +981,7 @@ mudaram de natureza** com a arquitetura client-first:
 | 021-fundacao-visual-ds-v14 | Fundação Visual do Design System V14 (Onda 0 da migração) | Convergida | 65/65 tasks | 2026-09-26 |
 | 022-biblioteca-componentes-ds-v14 | Biblioteca de Componentes do Design System V14 (Onda 1 da migração) | Convergida | 80/80 tasks | 2026-09-26 |
 | 023-shell-navegacao-entrada-ds-v14 | Shell, Navegação e Entrada do Design System V14 (Onda 2 da migração) | Convergida | 59/59 tasks | 2026-09-27 |
+| 024-live-tv-ds-v14 | Live TV no Design System V14 (Onda 3) | Convergida | 59/60 tasks | 2026-09-27 |
 
 ## Bugs
 

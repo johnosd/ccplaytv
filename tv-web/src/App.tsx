@@ -208,7 +208,22 @@ function App() {
 
     case 'live':
       if (!source) return null
-      return <LiveScreen sourceId={source.id} onBack={goBack} onResync={() => resyncFromCategoryScreen(source.id)} />
+      return (
+        <LiveScreen
+          sourceId={source.id}
+          onBack={goBack}
+          onResync={() => resyncFromCategoryScreen(source.id)}
+          shell={{
+            sourceName: source.display_name,
+            // "Início" na topbar da Live é `back` (D-004 do plan.md da 024):
+            // a Live só é alcançável a partir do Início, então o topo da
+            // pilha já é o Início — igual à regra de RETURN.
+            onGoHome: goBack,
+            onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
+            onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
+          }}
+        />
+      )
 
     case 'movies':
       if (!source) return null

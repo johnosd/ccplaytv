@@ -157,8 +157,11 @@ async function run() {
     // porque faltava o fallback de executável acima).
     await page.keyboard.press('ArrowUp') // categoria real -> "Todos"
     await page.keyboard.press('ArrowUp') // "Todos" -> "★ Favoritos"
-    const favoritesLabel = await page.locator('.live-column-groups .tv-focus').textContent()
-    assert(favoritesLabel === '★Favoritos', 'trilha focada em "★ Favoritos"')
+    // Live TV migrou pro V14 (feature 024): a trilha usa `SideCategoryNav`,
+    // ícone SVG (não glifo de texto) + `.side-category-nav-label` com só
+    // "Favoritos" (sem o "★" embutido no nó de texto).
+    const favoritesLabel = await page.locator('.live-column-groups .tv-focus .side-category-nav-label').textContent()
+    assert(favoritesLabel === 'Favoritos', 'trilha focada em "★ Favoritos"')
     await page.keyboard.press('ArrowRight') // entra
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
@@ -196,8 +199,8 @@ async function run() {
 
     await page.keyboard.press('Enter') // ativação por tecla, não clique
     await page.waitForSelector('text=Nenhum favorito ainda', { state: 'detached', timeout: 8000 })
-    const trailFocus = await page.locator('.live-column-groups .tv-focus').textContent()
-    assert(trailFocus === '★Favoritos', 'OK no vazio devolveu o foco à trilha, em "★ Favoritos"')
+    const trailFocus = await page.locator('.live-column-groups .tv-focus .side-category-nav-label').textContent()
+    assert(trailFocus === 'Favoritos', 'OK no vazio devolveu o foco à trilha, em "★ Favoritos"')
 
     console.log('=== Filmes: mesmo gesto funciona na grade de pôsteres ===')
     await page.keyboard.press('Escape') // volta ao Início — foco restaurado em "TV ao vivo", de onde se saiu

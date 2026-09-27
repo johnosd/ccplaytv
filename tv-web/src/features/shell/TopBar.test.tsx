@@ -17,6 +17,7 @@ function makeCallbacks() {
     onFocusItem: vi.fn(),
     onExitDown: vi.fn(),
     onNavigate: vi.fn(),
+    onGoHome: vi.fn(),
     onOpenProfiles: vi.fn(),
     onBack: vi.fn(),
   }
@@ -396,6 +397,37 @@ describe('TopBar — Início ativo, acessibilidade e relógio (FR-014, FR-019, F
       vi.advanceTimersByTime(60_000)
     })
     expect(screen.getByText('09:06')).toBeInTheDocument()
+  })
+
+  it('currentItem="live": "TV ao vivo" é o destino atual, "Início" deixa de ser (feature 024)', () => {
+    const callbacks = makeCallbacks()
+    render(<TopBar sourceName="Sala" active focusedItem="movies" currentItem="live" {...callbacks} />)
+    const live = screen.getByRole('button', { name: 'TV ao vivo' })
+    const home = screen.getByRole('button', { name: 'Início' })
+    expect(live).toHaveAttribute('aria-current', 'page')
+    expect(live).toHaveClass('topbar-item--current')
+    expect(home).not.toHaveAttribute('aria-current')
+    expect(home).not.toHaveClass('topbar-item--current')
+  })
+
+  it('OK em "Início" com currentItem !== "home" chama onGoHome, nunca onNavigate; no item atual, OK não faz nada', () => {
+    const callbacks = makeCallbacks()
+    const { rerender } = render(<TopBar sourceName="Sala" active focusedItem="home" currentItem="live" {...callbacks} />)
+    press('Enter')
+    expect(callbacks.onGoHome).toHaveBeenCalledTimes(1)
+    expect(callbacks.onNavigate).not.toHaveBeenCalled()
+
+    rerender(<TopBar sourceName="Sala" active focusedItem="live" currentItem="live" {...callbacks} />)
+    press('Enter')
+    expect(callbacks.onNavigate).not.toHaveBeenCalled()
+    expect(callbacks.onGoHome).toHaveBeenCalledTimes(1)
+  })
+
+  it('sem currentItem (padrão "home"), OK em "Início" não chama onGoHome — mesmo comportamento de antes da feature 024', () => {
+    const callbacks = makeCallbacks()
+    render(<TopBar sourceName="Sala" active focusedItem="home" {...callbacks} />)
+    press('Enter')
+    expect(callbacks.onGoHome).not.toHaveBeenCalled()
   })
 
   it('o nome da lista aparece inteiro no DOM (a truncagem é CSS) e a inicial vira o avatar', () => {

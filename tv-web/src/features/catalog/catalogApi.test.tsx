@@ -359,6 +359,8 @@ describe('prefetchCategoryContent / useCategoryContent — categoria stored (fea
         name: 'Com capa',
         originalName: 'Com capa',
         groupOrder: 4,
+        categoryId: 4,
+        categoryPosition: 0,
         iconUrl: 'http://exemplo.test/capa.png',
       },
       {
@@ -378,6 +380,55 @@ describe('prefetchCategoryContent / useCategoryContent — categoria stored (fea
     const items = result.current.data?.items ?? []
     expect(items.find((i) => i.name === 'Com capa')?.icon_url).toBe('http://exemplo.test/capa.png')
     expect(items.find((i) => i.name === 'Sem capa')?.icon_url).toBeNull()
+  })
+
+  // feature 024, T014/T007: category_id/category_position (base do número do
+  // canal) e source_number (nunca populado — ver o comentário do campo).
+  it('toItemOut expõe category_id/category_position/source_number a partir do registro (feature 024)', async () => {
+    vi.mocked(categoryLoader.ensureCategory).mockResolvedValue({ outcome: 'fresh' })
+    await db.sources.put({
+      id: SOURCE_ID,
+      type: 'm3u_url',
+      displayName: 'Fonte com posição',
+      connectionState: 'synced',
+      activeGeneration: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    await db.channels.bulkAdd([
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'channel',
+        name: 'Com posição',
+        originalName: 'Com posição',
+        groupOrder: 5,
+        categoryId: 5,
+        categoryPosition: 2,
+      },
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'channel',
+        name: 'Gravado antes da 024',
+        originalName: 'Gravado antes da 024',
+        groupOrder: 5,
+      },
+    ])
+    const cat = category(5, { fetchMode: 'stored', kind: 'channel' })
+
+    const { result } = renderHook(() => useCategoryContent(SOURCE_ID, cat), { wrapper: wrapper() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    const items = result.current.data?.items ?? []
+    const withPosition = items.find((i) => i.name === 'Com posição')
+    expect(withPosition?.category_id).toBe(5)
+    expect(withPosition?.category_position).toBe(2)
+    expect(withPosition?.source_number).toBeNull()
+
+    const legacy = items.find((i) => i.name === 'Gravado antes da 024')
+    expect(legacy?.category_id).toBeNull()
+    expect(legacy?.category_position).toBeNull()
   })
 })
 

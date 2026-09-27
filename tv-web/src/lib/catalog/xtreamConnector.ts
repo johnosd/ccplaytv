@@ -361,6 +361,11 @@ export function mapLiveEntry(
     url: streamId ? buildUrl(streamId) : undefined,
     providerStreamId: streamId,
     providerCategoryId: categoryId,
+    // Feature 024 (R-003, inverte a exclusão da 015): `get_live_streams`
+    // declara o logo do canal em `stream_icon`, mesmo campo de valor que
+    // filme/série já usam. `num` foi verificado (T001, research.md R1) e
+    // refutado como posição global — não é capturado.
+    iconUrl: normalizeIconUrl(raw.stream_icon),
   }
 }
 

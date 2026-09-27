@@ -187,9 +187,15 @@ async function run() {
     await page.keyboard.press('Enter') // abre a fonte
     await page.waitForSelector('.tiles-row', { timeout: 8000 })
 
-    console.log('--- Live TV: canal nunca mostra capa, mesmo com tvg-logo (FR-009) ---')
+    // Feature 024 (R-003, com aprovação explícita do usuário) INVERTE a
+    // regra original desta seção: Live TV passou a capturar e mostrar o
+    // logo do canal — o que a 015 proibia de propósito (FR-009 daquela
+    // feature) virou o oposto. A trilha migrou pro V14 (`SideCategoryNav`),
+    // por isso os seletores também mudaram (achado ao rodar este script
+    // durante a Fase 7 da 024 — não previsto no plan.md, T047 ad-hoc).
+    console.log('--- Live TV: canal AGORA mostra o logo declarado (tvg-logo) — feature 024 inverte a regra da 015 ---')
     await page.keyboard.press('Enter') // Live TV é o primeiro tile
-    await page.waitForSelector('.live-item:not(.live-item-favorites)', { timeout: 8000 })
+    await page.waitForSelector('.side-category-nav-item.tv-focus', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na única categoria
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
@@ -197,8 +203,8 @@ async function run() {
       'entrou na categoria real de canais (não em Favoritos vazio)',
     )
     assert(
-      (await page.locator('.live-item img').count()) === 0,
-      'nenhum item de Live TV tem <img> de capa, mesmo com tvg-logo declarado',
+      (await page.locator('.live-channel-row img').count()) === 1,
+      '"Canal Com Logo" mostra a <img> do logo (feature 024) — antes proibido (FR-009 da 015), agora invertido',
     )
 
     console.log('--- Filmes: capa real onde há tvg-logo, placeholder onde não há ---')

@@ -56,8 +56,21 @@ export interface CatalogItemOut {
   original_name?: string
   /** Liga um episódio à série (feature 012). `undefined` fora do detalhe de série, como os demais campos de identidade. */
   series_id?: string | null
-  /** Capa declarada pela fonte (feature 015). `null` = fonte não declarou, ou o item é um canal (nunca preenchido para canal, FR-009). */
+  /** Capa/logo declarada pela fonte (feature 015, estendida a canal pela 024, R-003). `null` = fonte não declarou. */
   icon_url?: string | null
+  /** Categoria local do item (feature 024) — base do número de exibição do canal (`channelNumber.ts`). */
+  category_id?: number | null
+  /** Posição 0-based do item dentro da categoria, na ordem da fonte (feature 024). `null` = gravado antes desta feature. */
+  category_position?: number | null
+  /**
+   * Número que o próprio painel declara para o canal — nunca populado hoje:
+   * o `num` de `get_live_streams` foi verificado (feature 024, T001,
+   * `research.md` R1) e refutado como posição global, então não é
+   * capturado. O campo existe só para `channelNumberOf` (que o usaria se um
+   * dia um provedor confiável declarar algo assim), sempre `null` na
+   * prática.
+   */
+  source_number?: number | null
 }
 
 export interface CatalogItemPlayback {
@@ -147,6 +160,10 @@ function toItemOut(record: CatalogRecord, kind: CatalogItemKind): CatalogItemOut
     original_name: record.originalName,
     series_id: record.seriesId ?? null,
     icon_url: record.iconUrl ?? null,
+    category_id: record.categoryId ?? null,
+    category_position: record.categoryPosition ?? null,
+    // Nunca capturado (T001 refutou `num` como posição global — ver o comentário do campo).
+    source_number: null,
   }
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   groupLabel,
@@ -21,20 +21,62 @@ import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { FavoriteHint, FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
+import { AppShell } from '../shell/AppShell'
+import { TopBar } from '../shell/TopBar'
+import type { HintItem } from '../shell/HintBar'
+import type { TopbarItem } from '../../navigation/appNav'
+import { SideCategoryNav, type SideCategoryNavEntry } from '../../components/SideCategoryNav'
+import { ChannelRow } from '../../components/ChannelRow'
+import { PosterArt } from '../../components/PosterArt'
+import { ErrorState } from '../../components/ErrorState'
+import { EmptyState } from '../../components/EmptyState'
+import { Spinner } from '../../components/Spinner'
+import { Chip } from '../../components/Chip'
+import { Icon } from '../../components/Icon'
+import { getComingSoon } from '../../lib/comingSoon'
+import { channelNumberOf, knownCategoryCount } from './channelNumber'
 
 /**
  * Altura de linha do painel de canais (feature 009) — soma da altura fixa
- * de `.live-item` (72px, `screens.css`) com o espaçamento entre itens
- * (12px) que a posição absoluta não herda mais do `gap` do flex column.
+ * de `.live-channel-row` (`live.css`, feature 024) com o espaçamento entre
+ * itens que a posição absoluta não herda mais do `gap` do flex column.
  */
 const LIVE_ITEM_ROW_HEIGHT = 84
 const LIVE_ITEM_OVERSCAN = 6
+
+/** Ações do painel de preview, na ordem vertical (feature 024, D-005). */
+const PREVIEW_ACTION_COUNT = 3
+
+const LIVE_HINTS: HintItem[] = [
+  { keyLabel: 'OK', action: 'Assistir' },
+  { keyLabel: 'Segurar OK', action: 'Favoritar' },
+  { keyLabel: 'RETURN', action: 'Voltar' },
+]
+
+/**
+ * Moldura V14 da Live (feature 024, FR-001..FR-004): topbar persistente por
+ * cima das colunas. Opcional — sem ela, a tela funciona sozinha como antes
+ * (é assim que os testes de comportamento e o contrato travado da 018 a
+ * montam). `logic/foco-live-shell.md` da 024.
+ */
+export interface LiveShellProps {
+  /** Nome da lista ativa, para o indicador da topbar. */
+  sourceName: string
+  /** OK em "Início" na topbar. */
+  onGoHome: () => void
+  /** OK em Filmes/Séries na topbar — troca de destino sem empilhar a Live (D-004). */
+  onSwitchTop: (destination: 'movies' | 'series') => void
+  /** OK no indicador da lista ativa. */
+  onOpenProfiles: () => void
+}
 
 export interface LiveScreenProps {
   sourceId: string
   onBack: () => void
   /** Feature 014, D-008: ressincroniza a fonte quando o arquivo guardado de uma categoria sumiu do aparelho. */
   onResync: () => void
+  /** Feature 024. */
+  shell?: LiveShellProps
 }
 
 /**
@@ -58,6 +100,12 @@ function sameTrailKey(a: TrailKey, b: TrailKey): boolean {
 interface TrailEntry {
   key: TrailKey
   category?: CatalogCategory
+}
+
+/** Chave de string estável de uma entrada da trilha — só para o `id` do `SideCategoryNav` (feature 024, componente burro, D-009 da 022). */
+function trailEntryId(entry: TrailEntry): string {
+  if (entry.key.kind === 'category') return `cat-${entry.category!.id}`
+  return entry.key.kind
 }
 
 /**
@@ -99,17 +147,42 @@ function defaultTrailIdx(trail: TrailEntry[]): number {
 /** O que entrou de fato na coluna de conteúdo — Favoritos, Todos, ou uma categoria por id. */
 type EnteredKey = { kind: 'favorites' } | { kind: 'all' } | { kind: 'category'; id: number }
 
-export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
-  const [col, setCol] = useState<0 | 1>(0)
+export function LiveScreen({ sourceId, onBack, onResync, shell }: LiveScreenProps) {
+  const [col, setCol] = useState<0 | 1 | 2>(0)
+  const [previewAction, setPreviewAction] = useState(0)
   const [playing, setPlaying] = useState<CatalogItemOut | null>(null)
   const [zapOpen, setZapOpen] = useState(false)
   const lastGoodChannelRef = useRef<CatalogItemOut | null>(null)
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
+  // Composição de foco topbar ↔ conteúdo (feature 024, D-003 do plan.md —
+  // `logic/foco-live-shell.md` §2), mesmo mecanismo da feature 023. Só
+  // existe de fato com `shell`; sem ele, `zone` nunca sai de 'content'.
+  const [zone, setZone] = useState<'topbar' | 'content'>('content')
+  const [topbarItem, setTopbarItem] = useState<TopbarItem>('live')
+  const contentActive = !shell || zone === 'content'
+
   // Estrutura: rápida, sempre segura de ler — nunca toca rede (FR-004).
   const categoriesQuery = useCategoryList(sourceId, 'channel')
   const categories = categoriesQuery.data ?? []
+
+  /**
+   * Estado de topo da tela inteira — carregando/erro/vazio a estrutura, ou
+   * "normal" (trilha + conteúdo). Cada um tem um foco próprio, mais simples
+   * que a navegação normal (feature 024, T021/R-005: nenhum tinha SELECT
+   * ligado antes desta feature, apesar da aparência de foco).
+   */
+  const topPhase: 'loading' | 'error' | 'empty' | 'normal' = categoriesQuery.isLoading
+    ? 'loading'
+    : categoriesQuery.isError
+      ? 'error'
+      : categories.length === 0
+        ? 'empty'
+        : 'normal'
+  // Alterna entre "Tentar de novo" (0) e "Voltar" (1) no estado de erro de
+  // topo — os outros dois (loading/empty) têm uma ação só, sempre focada.
+  const [topErrorActionIndex, setTopErrorActionIndex] = useState(0)
 
   // "Todos" (feature 018, D-001) sempre presente, inclusive no zapping —
   // só o ÍCONE de busca fica fora dele (FR-018), tratado no JSX/navegação.
@@ -250,6 +323,11 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
 
   const channelIdx = locate(items, (c) => c.id === focusedIdentity.channelId)
   const activeChannel = items[channelIdx]
+  // Canal que sumiu com o preview aberto (feature 024, `logic/foco-live-
+  // shell.md` §3): cai de volta pra coluna de canais em vez de deixar o
+  // preview "órfão", sem foco algum sobre ele.
+  const effectiveCol = col === 2 && !activeChannel ? 1 : col
+  const activeChannelIsFavorite = activeChannel ? favoriteIds.has(stableIdOf(activeChannel) ?? '') : false
 
   // Só o painel de conteúdo (col 1) é virtualizado — nunca a trilha de
   // categorias (D-004). Uma única lane: lista 1D de canais, sem `lanes`.
@@ -261,7 +339,7 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
     overscan: LIVE_ITEM_OVERSCAN,
   })
 
-  const channelsNavigable = col === 1 && !contentIsLoading && !contentUnavailable && items.length > 0
+  const channelsNavigable = effectiveCol === 1 && !contentIsLoading && !contentUnavailable && items.length > 0
   useVirtualFocusSync({
     focusedIndex: channelIdx,
     scrollToIndex: channelVirtualizer.scrollToIndex,
@@ -284,6 +362,7 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
     }
     resetSearchState()
     setCol(1)
+    setPreviewAction(0)
   }
 
   function enterFavorites() {
@@ -293,6 +372,7 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
     }
     resetSearchState()
     setCol(1)
+    setPreviewAction(0)
   }
 
   /** Entra em "Todos" (feature 018, D-001) — mesmo padrão de `enterFavorites`. */
@@ -303,13 +383,19 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
     }
     resetSearchState()
     setCol(1)
+    setPreviewAction(0)
+  }
+
+  /** Entra numa entrada específica da trilha — Favoritos, Todos ou uma categoria. */
+  function enterTrailEntry(entry: TrailEntry) {
+    if (entry.key.kind === 'favorites') enterFavorites()
+    else if (entry.key.kind === 'all') enterAll()
+    else if (entry.category) enterCategory(entry.category)
   }
 
   /** Entra no que está focado na trilha agora — Favoritos, Todos ou uma categoria. */
   function enterFocusedTrailItem() {
-    if (isFavoritesFocused) enterFavorites()
-    else if (isAllFocused) enterAll()
-    else if (focusedCategory) enterCategory(focusedCategory)
+    if (focusedTrailEntry) enterTrailEntry(focusedTrailEntry)
   }
 
   function retryContent() {
@@ -320,21 +406,25 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
   /**
    * Segurar OK favorita/desfavorita o canal focado (feature 013) — só
    * quando a coluna de conteúdo está em foco, há um canal ali (não o
-   * ícone/campo de busca, feature 018) e nada está tocando; nos demais
-   * casos `onLongSelect` fica `undefined` e o OK volta a agir no keydown,
-   * como sempre agiu (D-002 do plan.md — o modo é decidido no instante do
-   * keydown, então isto nunca pode depender de um cálculo feito DEPOIS).
+   * ícone/campo de busca, feature 018, nem o preview, feature 024 — D-005:
+   * os gestos de segurar só valem na coluna de canais) e nada está tocando;
+   * nos demais casos `onLongSelect` fica `undefined` e o OK volta a agir no
+   * keydown, como sempre agiu (D-002 do plan.md original — o modo é
+   * decidido no instante do keydown, então isto nunca pode depender de um
+   * cálculo feito DEPOIS).
    */
-  const canToggleFavorite = col === 1 && !playing && !topFocused && activeChannel !== undefined
+  const canToggleFavorite = effectiveCol === 1 && !playing && !topFocused && activeChannel !== undefined
 
   /**
    * Mesma regra de `canToggleFavorite`, mas para DENTRO do zapping (feature
    * 016, edge case da spec) — `playing` está sempre presente aqui (é a
    * própria sessão que o zapping cobre), então não reaproveita a guarda
    * `!playing` acima. `topFocused` nunca é `true` dentro do zapping na
-   * prática (FR-018/D-009), mas a guarda fica por segurança.
+   * prática (FR-018/D-009), mas a guarda fica por segurança. Zapping nunca
+   * alcança `col === 2` (D-009 da feature 024), então `effectiveCol` aqui é
+   * sempre 0 ou 1 na prática.
    */
-  const canToggleFavoriteInZap = zapOpen && col === 1 && !topFocused && activeChannel !== undefined
+  const canToggleFavoriteInZap = zapOpen && effectiveCol === 1 && !topFocused && activeChannel !== undefined
 
   // Busca (feature 018): declarado ANTES de `handleTrailSelect`/`useRemoteNav`
   // — o closure de `onSelect` precisa enxergar esta variável já inicializada
@@ -348,14 +438,24 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
   const showResultsList = searchActive
     ? !belowMinimum && items.length > 0
     : !contentIsLoading && !contentUnavailable && items.length > 0
+  // Estado "só existe um Voltar" (feature 024, T021/R-005): conteúdo vazio
+  // sem outra ação — cobre Favoritos/Todos/categoria, cada um com seu texto
+  // próprio no render, mas a mesma saída no teclado (volta à trilha).
+  const contentEmptyNeedsBack =
+    showResultsList === false &&
+    !searchActive &&
+    !contentIsLoading &&
+    !contentUnavailable &&
+    items.length === 0 &&
+    (enteredFavorites || enteredAll || entered?.kind === 'category')
 
   /**
    * Alterna o favorito do canal focado — chamada tanto por segurar OK
    * (`onLongSelect`) quanto pela tecla amarela (`onFavoriteKey`, achado em
    * 24/09/2026 testando na TV física: um controle substituto não entregava
-   * o mesmo padrão de segurar do navegador). As duas são o MESMO caminho
-   * de ação, nunca dois comportamentos diferentes — só dois jeitos de
-   * chegar nele.
+   * o mesmo padrão de segurar do navegador) quanto pelo botão "Favoritar"/
+   * "Favorito" do preview (feature 024, FR-016) — as três são o MESMO
+   * caminho de ação, nunca comportamentos diferentes.
    */
   function toggleFocusedFavorite() {
     if (!activeChannel) return
@@ -369,7 +469,7 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
     })
   }
 
-  const showingContent = col === 1
+  const showingContent = effectiveCol >= 1
   const contentStale = entered?.kind === 'category' && showingContent && content.data?.outcome === 'stale-served'
   const declaredCount = focusedCategory?.declaredCount
   const realCount = content.data?.totalCount
@@ -381,6 +481,29 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
     realCount !== undefined &&
     declaredCount !== realCount
   const unresolvedFavorites = enteredFavorites ? (favoritesContent.data?.unresolved ?? 0) : 0
+
+  /** OK/Assistir sobre o canal focado — mesmo caminho a partir da lista ou do preview (feature 024). */
+  function playActiveChannel() {
+    if (!activeChannel) return
+    if (!activeChannel.playable) {
+      // Canal existe no catálogo mas não tem fonte de reprodução: explica,
+      // não tenta abrir o player (FR-012/FR-019).
+      showToast('Este canal não tem uma fonte de reprodução disponível.')
+      return
+    }
+
+    if (zapOpen) {
+      if (activeChannel.id === playing?.id) {
+        setZapOpen(false) // D-007: mesmo canal — só fecha, sem trocar
+        return
+      }
+      lastGoodChannelRef.current = playing // D-008: guarda ANTES da troca
+      setPlaying(activeChannel) // troca a sessão — topLayer continua aberto
+      return
+    }
+
+    setPlaying(activeChannel)
+  }
 
   function openZapping() {
     if (!playing) return
@@ -408,7 +531,7 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
     // useRemoteNav antes de chegar aqui — o que sobra de ←/→ (ícone
     // focado, sem foco DOM) precisa continuar pro fluxo padrão abaixo, por
     // isso só ↑/↓ retornam cedo aqui, nunca ← nem →.
-    const hasTop = col === 1 && !zapOpen && items.length > 0
+    const hasTop = effectiveCol === 1 && !zapOpen && items.length > 0
     if (hasTop && topFocused) {
       if (dir === 'down') {
         setTopFocused(false)
@@ -422,20 +545,45 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
     }
 
     if (dir === 'left') {
+      if (effectiveCol === 2) {
+        setCol(1) // preview → o mesmo canal de onde saiu (D-005)
+        return
+      }
       setCol(0)
       return
     }
     if (dir === 'right') {
-      enterFocusedTrailItem()
+      if (effectiveCol === 0) {
+        enterFocusedTrailItem()
+        return
+      }
+      // → do canal focado pro preview (feature 024, FR-014) — nunca dentro
+      // do zapping, que não tem preview (D-009): mantém o comportamento
+      // antigo (sem efeito) lá.
+      if (effectiveCol === 1 && !zapOpen && !topFocused && activeChannel) {
+        setCol(2)
+        setPreviewAction(0)
+      }
       return
     }
 
-    if (col === 0) {
+    if (effectiveCol === 0) {
+      // Sobe da trilha para a topbar (feature 024, D-003) — só fora do
+      // zapping (que não tem topbar) e só no topo real da trilha.
+      if (dir === 'up' && categoryIdx === 0 && shell && !zapOpen) {
+        setTopbarItem('live')
+        setZone('topbar')
+        return
+      }
       if (dir === 'up' || dir === 'down') {
         const next = clamp(categoryIdx + (dir === 'down' ? 1 : -1), 0, trail.length - 1)
         if (next !== categoryIdx) {
           setFocusedIdentity({ trailKey: trail[next]?.key ?? { kind: 'favorites' }, channelId: null })
         }
+      }
+    } else if (effectiveCol === 2) {
+      if (dir === 'up' || dir === 'down') {
+        setPreviewAction((prev) => clamp(prev + (dir === 'down' ? 1 : -1), 0, PREVIEW_ACTION_COUNT - 1))
       }
     } else if (!topFocused) {
       const total = items.length
@@ -447,15 +595,36 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
   }
 
   function handleTrailSelect() {
-    if (col === 0) {
+    if (effectiveCol === 0) {
       enterFocusedTrailItem()
       return
     }
-    // "Favoritos" vazia (FR-008): o único elemento acionável da tela é o
-    // botão "Voltar" do `FavoritesEmptyState` — sem isto, OK não faz
-    // nada aqui (o botão só tem `onClick`, e o `onSelect` deste hook é
-    // quem de fato responde ao controle remoto, não o clique de mouse).
-    if (enteredFavorites && !contentIsLoading && !contentFailed && items.length === 0) {
+
+    if (effectiveCol === 2) {
+      if (previewAction === 0) {
+        playActiveChannel()
+        return
+      }
+      if (previewAction === 1) {
+        toggleFocusedFavorite()
+        return
+      }
+      // "Guia completo" — mock "Em breve" (feature 024, FR-017, item 42).
+      showToast(`Em breve — ${getComingSoon('epg-guide').message}`)
+      return
+    }
+
+    // Estados só com "Voltar" (feature 024, T021/R-005): carregando o
+    // conteúdo, ou conteúdo vazio sem outra ação (Favoritos/Todos/categoria
+    // vazios) — nos três, o único elemento acionável é "Voltar", que devolve
+    // o foco à trilha. Sem isto, os botões apareciam com aparência de foco
+    // sem SELECT fazer nada (constitution, "Foco Visível e Sem Becos Sem
+    // Saída").
+    if (showingContent && !searchActive && contentIsLoading) {
+      setCol(0)
+      return
+    }
+    if (contentEmptyNeedsBack) {
       setCol(0)
       return
     }
@@ -480,129 +649,158 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
       setSearchTerm('')
       return
     }
-    if (!activeChannel) return
-    if (!activeChannel.playable) {
-      // Canal existe no catálogo mas não tem fonte de reprodução: explica,
-      // não tenta abrir o player (FR-012).
-      showToast('Este canal não tem uma fonte de reprodução disponível.')
-      return
-    }
-
-    if (zapOpen) {
-      if (activeChannel.id === playing?.id) {
-        setZapOpen(false)              // D-007: mesmo canal — só fecha, sem trocar
-        return
-      }
-      lastGoodChannelRef.current = playing   // D-008: guarda ANTES da troca
-      setPlaying(activeChannel)              // troca a sessão — topLayer continua aberto
-      return
-    }
-
-    setPlaying(activeChannel)
+    playActiveChannel()
   }
 
   // Quando a camada de reprodução está aberta, ela é dona do teclado
   // (`modal: true`), então esta tela ignora as teclas — nada de navegar a
-  // lista por trás do player.
-  useRemoteNav({
-    onDirection: (dir) => {
-      if (playing) return
-      handleTrailDirection(dir)
-    },
-    onSelect: () => {
-      if (playing) return
-      handleTrailSelect()
-    },
-    onLongSelect: canToggleFavorite ? toggleFocusedFavorite : undefined,
-    onFavoriteKey: canToggleFavorite ? toggleFocusedFavorite : undefined,
-    onBack: () => {
-      if (playing) return
-      // Busca (feature 018): RETURN só ganha uma camada extra quando a
-      // busca está ATIVA — resultado focado volta ao campo; campo focado
-      // FECHA a busca (volta ao ícone, sem sair da categoria). Fora da
-      // busca (item normal OU ícone parado), RETURN vai direto pra trilha,
-      // igual à navegação normal — nunca força passar pelo ícone.
-      // RETURN físico (10009/Escape/XF86Back) nunca é interceptado pela
-      // guarda de alvo editável do useRemoteNav, então chega aqui
-      // normalmente mesmo com o campo focado.
-      if (col === 1 && searchActive && !topFocused) {
-        setTopFocused(true)
-        return
-      }
-      if (col === 1 && searchActive && topFocused) {
-        setSearchActive(false)
-        setSearchTerm('')
-        return
-      }
-      if (col === 1) {
-        setCol(0)
-        return
-      }
-      onBack()
-    },
-  })
+  // lista por trás do player. Com `shell`, só o escopo ATIVO (topbar ou
+  // conteúdo) recebe handlers — o outro ganha `{}` (mesmo padrão de
+  // `TopBar`/`logic/foco-live-shell.md` §2 da feature 024).
+  useRemoteNav(
+    contentActive
+      ? {
+          onDirection: (dir) => {
+            if (playing) return
+            if (topPhase === 'error') {
+              if (dir === 'left' || dir === 'right') setTopErrorActionIndex((i) => (i === 0 ? 1 : 0))
+              return
+            }
+            if (topPhase !== 'normal') return // loading/empty: uma ação só, nada pra mover
+            handleTrailDirection(dir)
+          },
+          onSelect: () => {
+            if (playing) return
+            if (topPhase === 'loading' || topPhase === 'empty') {
+              onBack()
+              return
+            }
+            if (topPhase === 'error') {
+              if (topErrorActionIndex === 0) void categoriesQuery.refetch()
+              else onBack()
+              return
+            }
+            handleTrailSelect()
+          },
+          onLongSelect: topPhase === 'normal' && canToggleFavorite ? toggleFocusedFavorite : undefined,
+          onFavoriteKey: topPhase === 'normal' && canToggleFavorite ? toggleFocusedFavorite : undefined,
+          onBack: () => {
+            if (playing) return
+            if (topPhase !== 'normal') {
+              onBack()
+              return
+            }
+            // Preview (feature 024): volta ao mesmo canal, nunca à trilha
+            // direto (D-005).
+            if (effectiveCol === 2) {
+              setCol(1)
+              return
+            }
+            // Busca (feature 018): RETURN só ganha uma camada extra quando a
+            // busca está ATIVA — resultado focado volta ao campo; campo focado
+            // FECHA a busca (volta ao ícone, sem sair da categoria). Fora da
+            // busca (item normal OU ícone parado), RETURN vai direto pra trilha,
+            // igual à navegação normal — nunca força passar pelo ícone.
+            // RETURN físico (10009/Escape/XF86Back) nunca é interceptado pela
+            // guarda de alvo editável do useRemoteNav, então chega aqui
+            // normalmente mesmo com o campo focado.
+            if (effectiveCol === 1 && searchActive && !topFocused) {
+              setTopFocused(true)
+              return
+            }
+            if (effectiveCol === 1 && searchActive && topFocused) {
+              setSearchActive(false)
+              setSearchTerm('')
+              return
+            }
+            if (effectiveCol === 1) {
+              setCol(0)
+              return
+            }
+            onBack()
+          },
+        }
+      : {},
+  )
 
-  if (categoriesQuery.isLoading) {
+  /**
+   * Envolve `children` na moldura V14 (feature 024, D-002) quando `shell`
+   * existe — topbar persistente, com "TV ao vivo" como destino atual (D-004).
+   * Sem `shell`, devolve `children` sozinho: é assim que a tela funciona
+   * quando ninguém a monta com moldura (contrato travado da 018, testes de
+   * comportamento existentes).
+   */
+  function withShell(children: ReactNode): ReactNode {
+    if (!shell) return children
     return (
-      <div className="screen">
-        <div className="screen-title">Live TV</div>
-        <div className="live-state">
-          <div className="live-state-copy">Carregando canais…</div>
-          <button type="button" className="live-state-action tv-focus">
-            Voltar
-          </button>
-        </div>
-        <Toast message={toastMessage} messageKey={toastKey} />
-      </div>
+      <AppShell
+        hints={LIVE_HINTS}
+        topBar={
+          <TopBar
+            sourceName={shell.sourceName}
+            active={zone === 'topbar'}
+            focusedItem={topbarItem}
+            currentItem="live"
+            onFocusItem={setTopbarItem}
+            onExitDown={() => setZone('content')}
+            onNavigate={(destination) => {
+              if (destination === 'movies' || destination === 'series') shell.onSwitchTop(destination)
+            }}
+            onGoHome={shell.onGoHome}
+            onOpenProfiles={shell.onOpenProfiles}
+            onBack={onBack}
+          />
+        }
+      >
+        {children}
+      </AppShell>
     )
   }
 
-  if (categoriesQuery.isError) {
-    return (
-      <div className="screen">
-        <div className="screen-title">Live TV</div>
-        <div className="live-state">
-          <div className="live-state-title">Não foi possível carregar os canais</div>
-          <div className="live-state-copy">
-            Verifique a conexão com o servidor e tente novamente.
-          </div>
-          <div className="live-state-actions">
-            <button
-              type="button"
-              className="live-state-action tv-focus"
-              onClick={() => void categoriesQuery.refetch()}
-            >
-              Tentar de novo
-            </button>
-            <button type="button" className="live-state-action">
-              Voltar
-            </button>
-          </div>
+  if (topPhase === 'loading') {
+    return withShell(
+      <div className="screen live-screen">
+        <div className="live-state-wrapper">
+          <Spinner size={48} />
+          <EmptyState title="Carregando canais…" action={{ label: 'Voltar', onSelect: onBack }} focused />
         </div>
         <Toast message={toastMessage} messageKey={toastKey} />
-      </div>
+      </div>,
     )
   }
 
-  if (categories.length === 0) {
-    return (
-      <div className="screen">
-        <div className="screen-title">Live TV</div>
-        <div className="live-state">
-          <div className="live-state-title">Nenhum canal nesta lista</div>
-          <div className="live-state-copy">
-            A importação pode não ter encontrado canais nesta fonte, ou ainda estar em andamento.
-          </div>
-          <button type="button" className="live-state-action tv-focus">
-            Voltar
-          </button>
-        </div>
+  if (topPhase === 'error') {
+    return withShell(
+      <div className="screen live-screen">
+        <ErrorState
+          title="Não foi possível carregar os canais"
+          description="Verifique a conexão com o servidor e tente novamente."
+          actions={[
+            { label: 'Tentar de novo', onSelect: () => void categoriesQuery.refetch() },
+            { label: 'Voltar', onSelect: onBack },
+          ]}
+          focusedActionIndex={topErrorActionIndex}
+        />
         <Toast message={toastMessage} messageKey={toastKey} />
-      </div>
+      </div>,
     )
   }
 
-  function renderColumns() {
+  if (topPhase === 'empty') {
+    return withShell(
+      <div className="screen live-screen">
+        <EmptyState
+          title="Nenhum canal nesta lista"
+          description="A importação pode não ter encontrado canais nesta fonte, ou ainda estar em andamento."
+          action={{ label: 'Voltar', onSelect: onBack }}
+          focused
+        />
+        <Toast message={toastMessage} messageKey={toastKey} />
+      </div>,
+    )
+  }
+
+  function renderColumns(withPreview: boolean) {
     // Rótulo da entrada atualmente focada/entrada — Favoritos, Todos ou o
     // nome da categoria real (feature 018).
     const entryLabel = isAllFocused || enteredAll
@@ -611,29 +809,50 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
         ? '★ Favoritos'
         : groupLabel(focusedCategory?.name)
 
+    const sideEntries: SideCategoryNavEntry[] = trail.map((entry) => {
+      if (entry.key.kind === 'favorites') {
+        return {
+          id: trailEntryId(entry),
+          label: 'Favoritos',
+          icon: 'favorite',
+          count: favoriteIds.size,
+          pinned: true,
+          pinnedBadge: false,
+        }
+      }
+      if (entry.key.kind === 'all') {
+        return { id: trailEntryId(entry), label: 'Todos', pinned: true, pinnedBadge: false }
+      }
+      return {
+        id: trailEntryId(entry),
+        label: groupLabel(entry.category?.name),
+        count: entry.category ? knownCategoryCount(entry.category) : undefined,
+      }
+    })
+    const selectedTrailId = entered
+      ? entered.kind === 'category'
+        ? `cat-${entered.id}`
+        : entered.kind
+      : ''
+    // Sem foco visual na trilha enquanto a topbar estiver ativa (feature
+    // 024, D-003) — o estado interno (`categoryIdx`) continua o mesmo, só
+    // a marcação `.tv-focus` some, exatamente como a topbar da 023 faz com
+    // o conteúdo do Início.
+    const focusedTrailId = contentActive && effectiveCol === 0 && focusedTrailEntry ? trailEntryId(focusedTrailEntry) : undefined
+
     return (
       <>
         <div className="live-column live-column-groups">
-          <div className="live-column-title">Grupos</div>
-          {trail.map((entry, i) => (
-            <button
-              key={entry.key.kind === 'category' ? `cat-${entry.category!.id}` : entry.key.kind}
-              ref={categoryIdx === i ? focusedCategoryRef : undefined}
-              type="button"
-              className={`live-item${entry.key.kind === 'all' ? ' live-item-all' : ''}${
-                entry.key.kind === 'favorites' ? ' live-item-favorites' : ''
-              }${col === 0 && categoryIdx === i ? ' tv-focus' : ''}`}
-            >
-              {entry.key.kind === 'all' && <span>Todos</span>}
-              {entry.key.kind === 'favorites' && (
-                <>
-                  <span aria-hidden="true">★</span>
-                  <span>Favoritos</span>
-                </>
-              )}
-              {entry.key.kind === 'category' && groupLabel(entry.category?.name)}
-            </button>
-          ))}
+          <SideCategoryNav
+            entries={sideEntries}
+            selectedId={selectedTrailId}
+            focusedId={focusedTrailId}
+            focusedRef={focusedCategoryRef}
+            onSelect={(id) => {
+              const target = trail.find((entry) => trailEntryId(entry) === id)
+              if (target) enterTrailEntry(target)
+            }}
+          />
         </div>
 
         <div className="live-column live-column-channels">
@@ -645,14 +864,14 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
                 `baseItems` obsoleto — `loadCategoryContent` sempre lê
                 `channels`, que pode reter registros de uma geração
                 anterior mesmo com outcome `source_missing`/`failed`
-                (achado durante o gate final desta feature, T029). */}
+                (achado durante o gate final da feature 018, T029). */}
             {!zapOpen && !searchActive && !contentUnavailable && baseItems.length > 0 && (
               <button
                 type="button"
-                className={`search-icon-button${col === 1 && topFocused ? ' tv-focus' : ''}`}
+                className={`search-icon-button${effectiveCol === 1 && topFocused ? ' tv-focus' : ''}`}
                 aria-label="Buscar"
               >
-                🔍
+                <Icon name="search" />
               </button>
             )}
           </div>
@@ -716,30 +935,26 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
           )}
 
           {showingContent && !searchActive && contentIsLoading && (
-            <div className="live-state">
-              <div className="live-state-copy">Carregando canais…</div>
-              <button type="button" className="live-state-action tv-focus">
-                Voltar
-              </button>
+            <div className="live-state-wrapper">
+              <Spinner size={32} />
+              <EmptyState title="Carregando canais…" action={{ label: 'Voltar', onSelect: () => setCol(0) }} focused />
             </div>
           )}
 
           {showingContent && !searchActive && !contentIsLoading && contentFailed && (
-            <div className="live-state">
-              <div className="live-state-title">Não foi possível carregar esta categoria</div>
-              <button type="button" className="live-state-action tv-focus" onClick={retryContent}>
-                Tentar de novo
-              </button>
-            </div>
+            <ErrorState
+              title="Não foi possível carregar esta categoria"
+              actions={[{ label: 'Tentar de novo', onSelect: retryContent }]}
+              focusedActionIndex={0}
+            />
           )}
 
           {showingContent && !searchActive && !contentIsLoading && contentMissing && (
-            <div className="live-state">
-              <div className="live-state-title">O conteúdo desta lista não está mais no aparelho</div>
-              <button type="button" className="live-state-action tv-focus" onClick={onResync}>
-                Ressincronizar lista
-              </button>
-            </div>
+            <ErrorState
+              title="O conteúdo desta lista não está mais no aparelho"
+              actions={[{ label: 'Ressincronizar lista', onSelect: onResync }]}
+              focusedActionIndex={0}
+            />
           )}
 
           {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && enteredFavorites && items.length === 0 && (
@@ -747,11 +962,16 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
           )}
 
           {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && enteredAll && items.length === 0 && (
-            <div className="live-state-copy">Nenhuma categoria foi obtida ainda — entre numa categoria para trazê-la para "Todos".</div>
+            <EmptyState
+              title="Nenhuma categoria foi obtida ainda"
+              description='Entre numa categoria para trazê-la para "Todos".'
+              action={{ label: 'Voltar', onSelect: () => setCol(0) }}
+              focused
+            />
           )}
 
           {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && entered?.kind === 'category' && items.length === 0 && (
-            <div className="live-state-copy">Este grupo está vazio.</div>
+            <EmptyState title="Este grupo está vazio." action={{ label: 'Voltar', onSelect: () => setCol(0) }} focused />
           )}
 
           {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && contentStale && (
@@ -786,22 +1006,22 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
                       <button
                         key={channel.id}
                         type="button"
-                        className={`live-item${
-                          col === 1 && !topFocused && channelIdx === virtualRow.index ? ' tv-focus' : ''
-                        }${channel.playable ? '' : ' live-item-unavailable'}`}
+                        className={`live-channel-row${
+                          effectiveCol === 1 && !topFocused && channelIdx === virtualRow.index ? ' tv-focus' : ''
+                        }`}
                         style={{ transform: `translateY(${virtualRow.start}px)` }}
                       >
-                        <span className="live-item-logo" aria-hidden="true" />
-                        <span className="live-item-name">{channel.name}</span>
+                        <ChannelRow
+                          number={channelNumberOf(channel, categories) ?? undefined}
+                          logoUrl={channel.icon_url ?? undefined}
+                          name={channel.name}
+                          nameClassName="live-item-name"
+                          favorite={isFavorite}
+                          unavailable={!channel.playable}
+                        />
                         {enteredAll && (
                           <span className="live-item-group">{groupLabel(channel.original_group ?? undefined)}</span>
                         )}
-                        {isFavorite && (
-                          <span className="fav-star" aria-hidden="true">
-                            ★
-                          </span>
-                        )}
-                        {!channel.playable && <span className="live-item-badge">Indisponível</span>}
                       </button>
                     )
                   })}
@@ -821,27 +1041,84 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
           )}
         </div>
 
-        <div className="live-preview-panel">
-          <div className="live-preview-box">
-            <div className="live-preview-logo" aria-hidden="true" />
+        {withPreview && (
+          <div className="live-preview-panel">
+            {activeChannel ? (
+              <>
+                <PosterArt url={activeChannel.icon_url ?? undefined} title={activeChannel.name} variant="logo" />
+                <div className="live-channel-name">{activeChannel.name}</div>
+                {channelNumberOf(activeChannel, categories) && (
+                  <div className="live-channel-number">{channelNumberOf(activeChannel, categories)}</div>
+                )}
+                <div className="live-channel-meta">{groupLabel(activeChannel.original_group ?? undefined)}</div>
+                {/* Slot de EPG: nasce vazio e sem rótulo até existir fonte de
+                    dados (item 42 do backlog). Reservar a área evita o
+                    layout pular depois. */}
+                <div className="live-channel-now" />
+                <div className="live-preview-actions">
+                  <button
+                    type="button"
+                    className={`live-preview-action${effectiveCol === 2 && previewAction === 0 ? ' tv-focus' : ''}${
+                      !activeChannel.playable ? ' is-soft-disabled' : ''
+                    }`}
+                  >
+                    Assistir
+                  </button>
+                  <button
+                    type="button"
+                    className={`live-preview-action${effectiveCol === 2 && previewAction === 1 ? ' tv-focus' : ''}`}
+                  >
+                    {activeChannelIsFavorite ? 'Favorito' : 'Favoritar'}
+                  </button>
+                  <button
+                    type="button"
+                    className={`live-preview-action is-soft-disabled${
+                      effectiveCol === 2 && previewAction === 2 ? ' tv-focus' : ''
+                    }`}
+                  >
+                    Guia completo
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="live-preview-empty">
+                {showingContent ? 'Selecione um canal' : 'Nenhum canal selecionado.'}
+              </div>
+            )}
           </div>
-          <div className="live-channel-name">{activeChannel?.name ?? 'Selecione um canal'}</div>
-          <div className="live-channel-meta">{entryLabel}</div>
-          {/* Slot de EPG: nasce vazio e sem rótulo até existir fonte de dados
-              (item 44 do backlog). Reservar a área evita o layout pular depois. */}
-          <div className="live-channel-now" />
-        </div>
+        )}
       </>
     )
   }
 
+  // Contagem conhecida da entrada exibida no cabeçalho (FR-006) — a mesma
+  // regra do trilho (FR-008): nunca inventada, ausente quando desconhecida.
+  const headerCount = isFavoritesFocused || enteredFavorites
+    ? favoriteIds.size
+    : focusedCategory
+      ? knownCategoryCount(focusedCategory)
+      : undefined
+  const headerLabel = isAllFocused || enteredAll
+    ? 'Todos'
+    : isFavoritesFocused || enteredFavorites
+      ? '★ Favoritos'
+      : groupLabel(focusedCategory?.name)
+
   return (
     <>
-      {!playing && (
-        <div className="screen screen-row">
-          {renderColumns()}
-        </div>
-      )}
+      {!playing &&
+        withShell(
+          <div className="screen live-screen">
+            <div className="live-header">
+              <h1 className="screen-title">TV ao vivo</h1>
+              <div className="live-header-chips">
+                <Chip selected={false}>{headerLabel}</Chip>
+                {headerCount !== undefined && <Chip selected={false}>{headerCount} canais</Chip>}
+              </div>
+            </div>
+            <div className="live-body">{renderColumns(true)}</div>
+          </div>,
+        )}
 
       {playing && (
         <PlayerLayer
@@ -853,14 +1130,14 @@ export function LiveScreen({ sourceId, onBack, onResync }: LiveScreenProps) {
           onSessionError={() => {
             const fallback = lastGoodChannelRef.current
             if (!fallback) return
-            lastGoodChannelRef.current = null;
+            lastGoodChannelRef.current = null
             setPlaying(fallback)
             showToast(`Não foi possível trocar de canal. Voltando para ${fallback.name}.`)
           }}
           topLayer={
             zapOpen
               ? {
-                  content: <div className="player-zap-columns">{renderColumns()}</div>,
+                  content: <div className="player-zap-columns">{renderColumns(false)}</div>,
                   onDirection: handleTrailDirection,
                   onSelect: handleTrailSelect,
                   onBack: () => setZapOpen(false),

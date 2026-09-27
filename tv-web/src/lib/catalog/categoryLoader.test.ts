@@ -369,4 +369,68 @@ describe('categoryLoader — ensureCategory, categoria stored (feature 014, T028
     const remainingBlocks = await database.storedEntries.filter((entry) => entry.categoryId === category.id).count()
     expect(remainingBlocks).toBe(1)
   })
+
+  // Feature 024, T039: logo e posição do canal, ponta a ponta pelos dois
+  // caminhos de leitura — provedor (`on_demand`) e M3U guardado (`stored`).
+  describe('logo e categoryPosition de canal (feature 024)', () => {
+    it('provedor: get_live_streams grava iconUrl (stream_icon) e categoryPosition, na ordem da resposta', async () => {
+      await database.sources.add(PROVIDER_SOURCE)
+      const [categoryId] = await storeCategories(
+        [
+          {
+            sourceId: SOURCE_ID,
+            generation: 1,
+            kind: 'channel',
+            fetchMode: 'on_demand',
+            providerCategoryId: '20',
+            name: 'Esportes',
+            order: 0,
+          },
+        ],
+        database,
+      )
+      const category: CatalogCategory = {
+        id: categoryId,
+        kind: 'channel',
+        name: 'Esportes',
+        order: 0,
+        count: 0,
+        fetchMode: 'on_demand',
+        providerCategoryId: '20',
+      }
+      vi.stubGlobal(
+        'fetch',
+        panelFetch([
+          { stream_id: 1, name: 'Canal A', category_id: '20', stream_icon: 'http://exemplo.test/a.png' },
+          { stream_id: 2, name: 'Canal B', category_id: '20', stream_icon: 'http://exemplo.test/b.png' },
+        ]),
+      )
+
+      const result = await ensureCategory(SOURCE_ID, category, { database, now: () => 1000 })
+      expect(result.outcome).toBe('fetched')
+
+      const channels = await listChannels(SOURCE_ID, 0, 0, 10, 'channel', database)
+      const byName = Object.fromEntries(channels.map((c) => [c.name, { icon: c.iconUrl, pos: c.categoryPosition }]))
+      expect(byName['Canal A']).toEqual({ icon: 'http://exemplo.test/a.png', pos: 0 })
+      expect(byName['Canal B']).toEqual({ icon: 'http://exemplo.test/b.png', pos: 1 })
+    })
+
+    it('stored (M3U guardado): lê o bloco e grava iconUrl (tvg-logo) e categoryPosition, na ordem do arquivo', async () => {
+      function storedChannel(name: string, iconUrl?: string): StoredCatalogRecord {
+        return { kind: 'channel', name, originalName: name, groupOrder: 0, iconUrl }
+      }
+      const category = await seedStoredCategory(
+        [storedChannel('Canal X', 'http://exemplo.test/x.png'), storedChannel('Canal Y')],
+        { kind: 'channel', name: 'Canais' },
+      )
+
+      const result = await ensureCategory(SOURCE_ID, category, { database, now: () => 1000 })
+      expect(result.outcome).toBe('fetched')
+
+      const channels = await listChannels(SOURCE_ID, 0, 0, 10, 'channel', database)
+      const byName = Object.fromEntries(channels.map((c) => [c.name, { icon: c.iconUrl, pos: c.categoryPosition }]))
+      expect(byName['Canal X']).toEqual({ icon: 'http://exemplo.test/x.png', pos: 0 })
+      expect(byName['Canal Y']).toEqual({ icon: undefined, pos: 1 })
+    })
+  })
 })
