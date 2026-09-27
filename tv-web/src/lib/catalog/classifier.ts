@@ -74,6 +74,61 @@ export function normalizeIconUrl(raw: unknown): string | undefined {
   }
 }
 
+const YEAR_DATE_PATTERN = /^(\d{4})(-\d{2}(-\d{2})?)?$/
+
+/**
+ * Ano de 4 dígitos entre 1888 (primeiro filme conhecido) e o ano corrente
+ * mais 1 (lançamento anunciado). Aceita número, `"2019"` ou uma data
+ * `"2019-06-01"`/`"2019"` — nunca procura um ano dentro de texto livre
+ * (feature 025, FR-050, `logic/metadados-vod.md` §1).
+ */
+export function normalizeYear(raw: unknown, now: number = Date.now()): number | undefined {
+  if (typeof raw !== 'number' && typeof raw !== 'string') return undefined
+  const text = String(raw).trim()
+  const match = YEAR_DATE_PATTERN.exec(text)
+  if (!match) return undefined
+  const year = Number(match[1])
+  const maxYear = new Date(now).getUTCFullYear() + 1
+  if (year < 1888 || year > maxYear) return undefined
+  return year
+}
+
+const MIN_ADDED_AT_MS = new Date('2000-01-01T00:00:00Z').getTime()
+const DIGITS_PATTERN = /^\d+$/
+
+/**
+ * Epoch em segundos (número ou string só de dígitos) convertido para epoch
+ * em ms. Entre 2000-01-01 e agora + 1 dia — fora dessa faixa, texto,
+ * negativo ou `"0"` viram ausência (feature 025, `logic/metadados-vod.md` §1).
+ */
+export function normalizeAddedAt(raw: unknown, now: number = Date.now()): number | undefined {
+  if (typeof raw !== 'number' && typeof raw !== 'string') return undefined
+  const text = String(raw).trim()
+  if (!DIGITS_PATTERN.test(text)) return undefined
+  const seconds = Number(text)
+  if (!Number.isFinite(seconds)) return undefined
+  const ms = seconds * 1000
+  const maxMs = now + 24 * 60 * 60 * 1000
+  if (ms < MIN_ADDED_AT_MS || ms > maxMs) return undefined
+  return ms
+}
+
+const MAX_DURATION_SECONDS = 24 * 60 * 60
+
+/**
+ * Segundos inteiros positivos e menores que 24h. Aceita número ou string de
+ * dígitos — a conversão de `"HH:MM:SS"` acontece antes de chegar aqui
+ * (feature 025, `logic/metadados-vod.md` §1).
+ */
+export function normalizeDurationSeconds(raw: unknown): number | undefined {
+  if (typeof raw !== 'number' && typeof raw !== 'string') return undefined
+  const text = String(raw).trim()
+  if (!DIGITS_PATTERN.test(text)) return undefined
+  const seconds = Number(text)
+  if (!Number.isFinite(seconds) || seconds <= 0 || seconds >= MAX_DURATION_SECONDS) return undefined
+  return seconds
+}
+
 const EPISODE_PATTERN = /^(?<base>.*?)[\s._-]*S(?<season>\d{1,2})\s*E(?<episode>\d{1,3})\b.*$/i
 
 const MOVIE_KEYWORDS = ['filme', 'filmes', 'movie', 'movies', 'vod']

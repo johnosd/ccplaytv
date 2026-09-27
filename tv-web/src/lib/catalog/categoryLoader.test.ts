@@ -187,6 +187,31 @@ describe('categoryLoader — ensureCategory (feature 010, T024-T027)', () => {
     expect(items[0].iconUrl).toBeUndefined()
   })
 
+  it('categoria on_demand propaga year/addedAt do provedor pro registro gravado (feature 025)', async () => {
+    const category = await seedOnDemandCategory()
+    vi.stubGlobal(
+      'fetch',
+      panelFetch([{ stream_id: 1, name: 'Filme', stream_type: 'movie', year: '2019', added: '1700000000' }]),
+    )
+
+    await ensureCategory(SOURCE_ID, category, { database, now: () => 1000 })
+
+    const items = await listChannels(SOURCE_ID, 0, 0, 10, 'movie', database)
+    expect(items[0].year).toBe(2019)
+    expect(items[0].addedAt).toBe(1_700_000_000_000)
+  })
+
+  it('categoria on_demand sem year/added grava os dois ausentes, sem inventar (feature 025)', async () => {
+    const category = await seedOnDemandCategory()
+    vi.stubGlobal('fetch', panelFetch([{ stream_id: 1, name: 'Filme', stream_type: 'movie' }]))
+
+    await ensureCategory(SOURCE_ID, category, { database, now: () => 1000 })
+
+    const items = await listChannels(SOURCE_ID, 0, 0, 10, 'movie', database)
+    expect(items[0].year).toBeUndefined()
+    expect(items[0].addedAt).toBeUndefined()
+  })
+
   it('categoria on_demand dentro do prazo sai fresh, sem tocar a rede', async () => {
     const category = await seedOnDemandCategory({ itemsFetchedAt: 1000 })
     const fetchMock = vi.fn()

@@ -141,6 +141,25 @@ export async function listWatched(
 }
 
 /**
+ * Estados reproduzidos (com `lastWatched`) de uma fonte e tipo, do mais
+ * recente para o mais antigo — feature 025, "↺ Histórico"
+ * (`logic/historico.md` §2). Pelo índice `lastWatched`, que já existe
+ * (`getContinueWatching` o usa): registro sem `lastWatched` não entra no
+ * índice, então não precisa filtro extra para excluí-lo — só o marcado à
+ * mão via `setWatchedManually` fica de fora (FR-011), porque nunca grava
+ * `lastWatched`.
+ */
+export async function listPlayed(
+  sourceId: string,
+  kind: 'movie' | 'episode',
+  database: CatalogDb = db,
+): Promise<UserStateRecord[]> {
+  const prefix = `${sourceId}|${kind}|`
+  const played = await database.userStates.orderBy('lastWatched').reverse().toArray()
+  return played.filter((state) => state.sourceId === sourceId && state.stableId.startsWith(prefix))
+}
+
+/**
  * Remove TODO o estado do usuário (favoritos e retomada) de uma fonte —
  * chamado ao remover a fonte (feature 013, `plan.md` D-007, FR-017). Uma
  * fonte readicionada ganha `sourceId` novo (UUID), então nada aqui fica

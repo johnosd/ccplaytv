@@ -293,8 +293,9 @@ passou 19/19 e 67/67 isolado.
 | Área | Estado |
 | --- | --- |
 | Fase 1 (Setup) | Concluída, com uma pendência de ambiente: T001 não pôde consultar o painel real (sem `.env`/credencial neste container). T002 (mocks) e T003 (ícone) feitos. |
-| Fase 2 (Foundational) | Não iniciada. |
-| Fases 3–9 | Não iniciadas. |
+| Fase 2 (Foundational) | Concluída. 4/4 contratos da fase verdes; dados (ano/inclusão/duração/imagem/histórico), `vodSort`, extensões de `CategoryScreenSnapshot`/`SideCategoryNav` prontos. |
+| Fase 3 (US1) | Não iniciada — próxima. |
+| Fases 4–9 | Não iniciadas. |
 
 ## Riscos e Decisões
 
@@ -324,16 +325,23 @@ passou 19/19 e 67/67 isolado.
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
 | 2026-09-27 | Fase 1 (Setup) | T002 (mocks `trailer`/`cast`/`similar`) e T003 (ícone `history`) feitos e testados. T001 bloqueado por ambiente (sem `.env`/painel real neste container remoto) — documentado em `research.md`/R-001, não fingido. | T001 pendente de uma sessão com acesso ao painel real. |
+| 2026-09-27 | Fase 2 (Foundational) | `normalizeYear`/`normalizeAddedAt`/`normalizeDurationSeconds` (`classifier.ts`); captura em `mapVodEntry`/`mapSeriesEntry`/`fetchSeriesInfo` (`xtreamConnector.ts`); cópia em `categoryLoader.ts`/`importPipeline.ts`/`seriesLoader.ts`; mapeamento em `catalogApi.ts`; `vodSort.ts` completo; `listPlayed` (`userStateRepository.ts`); `loadHistory` (`history.ts`); `useHistoryContent`/`useResumePositions` + invalidações; `CategoryScreenSnapshot`/`SideCategoryNav` estendidos. 4/4 contratos da fase verdes, 517 testes da área verdes, `tsc -b` limpo, travas 018–024 íntegras. | Nenhuma nova. |
 
-**PRÓXIMO**: Fase 2 (Foundational) — T004..T021.
+**PRÓXIMO**: Fase 3 (US1) — T022..T036 (VodCatalogScreen compartilhado, shell topbar↔conteúdo, side nav V14, toolbar, grade, memória de foco; 5º contrato da feature, `MoviesScreen`, precisa fechar verde).
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- `tv-web/src/lib/comingSoon.ts` / `comingSoon.test.ts` — mocks `trailer`/`cast`/`similar`.
-- `tv-web/src/components/iconPaths.ts` — ícone `history`.
-- `sdd/specs/025-filmes-series-ds-v14/research.md` — nota de bloqueio do T001.
+- `tv-web/src/lib/catalog/classifier.ts` — `normalizeYear`/`normalizeAddedAt`/`normalizeDurationSeconds`.
+- `tv-web/src/lib/catalog/xtreamConnector.ts` — captura de ano/inclusão/duração/imagem.
+- `tv-web/src/lib/catalog/categoryLoader.ts`, `importPipeline.ts`, `seriesLoader.ts` — cópia dos campos.
+- `tv-web/src/lib/catalog/history.ts` — `loadHistory`.
+- `tv-web/src/lib/catalog/userStateRepository.ts` — `listPlayed`.
+- `tv-web/src/features/catalog/catalogApi.ts` — `toItemOut`/`toEpisodeOut`, `useHistoryContent`, `useResumePositions`, invalidações.
+- `tv-web/src/features/vod/vodSort.ts` — `availableSortOptions`/`sortVodItems`.
+- `tv-web/src/features/catalog/categoryScreenSnapshot.ts` — `{kind:'history'}`, `focusedIndexHint`.
+- `tv-web/src/components/SideCategoryNav.tsx` — `groupLabel?`.
 
 ## Cuidados para Retomada
 

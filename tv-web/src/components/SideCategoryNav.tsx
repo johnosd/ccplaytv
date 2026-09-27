@@ -1,4 +1,4 @@
-import type { Ref, ReactNode } from 'react'
+import { Fragment, type Ref, type ReactNode } from 'react'
 import { Icon } from './Icon'
 import type { IconName } from './iconPaths'
 
@@ -10,6 +10,14 @@ export interface SideCategoryNavEntry {
   pinned?: boolean
   /** Só relevante com `pinned: true`. Padrão `true` (idêntico ao comportamento anterior à feature 024) — `false` some com o selo ★ desta entrada (ex.: "Todos", que é fixa mas não é uma preferência pessoal). */
   pinnedBadge?: boolean
+  /**
+   * Cabeçalho de grupo (feature 025, D-013) — desenhado só antes da
+   * primeira entrada de cada grupo (a mesma string do que a entrada
+   * anterior, na ordem já particionada por `pinned`, não repete o
+   * cabeçalho). `undefined` = sem cabeçalho, comportamento inalterado (a
+   * Live não passa nada e fica idêntica).
+   */
+  groupLabel?: string
 }
 
 export interface SideCategoryNavProps {
@@ -31,29 +39,39 @@ export interface SideCategoryNavProps {
  */
 export function SideCategoryNav({ entries, selectedId, focusedId, onSelect, focusedRef }: SideCategoryNavProps): ReactNode {
   const ordered = [...entries.filter((entry) => entry.pinned), ...entries.filter((entry) => !entry.pinned)]
+  let previousGroupLabel: string | undefined
 
   return (
     <ul className="side-category-nav">
       {ordered.map((entry) => {
         const isFocused = entry.id === focusedId
+        const showGroupLabel = entry.groupLabel !== undefined && entry.groupLabel !== previousGroupLabel
+        previousGroupLabel = entry.groupLabel
         return (
-          <li key={entry.id}>
-            <button
-              ref={isFocused ? focusedRef : undefined}
-              type="button"
-              className={`side-category-nav-item${entry.id === selectedId ? ' is-selected' : ''}${isFocused ? ' tv-focus' : ''}`}
-              onClick={() => onSelect(entry.id)}
-            >
-              {entry.icon && <Icon name={entry.icon} />}
-              <span className="side-category-nav-label">{entry.label}</span>
-              {entry.pinned && entry.pinnedBadge !== false && (
-                <span className="side-category-nav-pinned-badge" aria-hidden="true">
-                  ★
-                </span>
-              )}
-              {entry.count !== undefined && <span className="side-category-nav-count">{entry.count}</span>}
-            </button>
-          </li>
+          <Fragment key={entry.id}>
+            {showGroupLabel && (
+              <li className="side-category-nav-group-label" aria-hidden="true">
+                {entry.groupLabel}
+              </li>
+            )}
+            <li>
+              <button
+                ref={isFocused ? focusedRef : undefined}
+                type="button"
+                className={`side-category-nav-item${entry.id === selectedId ? ' is-selected' : ''}${isFocused ? ' tv-focus' : ''}`}
+                onClick={() => onSelect(entry.id)}
+              >
+                {entry.icon && <Icon name={entry.icon} />}
+                <span className="side-category-nav-label">{entry.label}</span>
+                {entry.pinned && entry.pinnedBadge !== false && (
+                  <span className="side-category-nav-pinned-badge" aria-hidden="true">
+                    ★
+                  </span>
+                )}
+                {entry.count !== undefined && <span className="side-category-nav-count">{entry.count}</span>}
+              </button>
+            </li>
+          </Fragment>
         )
       })}
     </ul>

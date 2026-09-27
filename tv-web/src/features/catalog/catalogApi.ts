@@ -35,6 +35,7 @@ import {
 import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
 import { loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
+import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
 
@@ -71,9 +72,9 @@ export interface CatalogItemOut {
    * prática.
    */
   source_number?: number | null
-  /** Ano declarado pela fonte (feature 025). `null` = não declarado. Ainda não mapeado em `toItemOut` (stub do plan). */
+  /** Ano declarado pela fonte (feature 025). `null` = não declarado. */
   year?: number | null
-  /** Inclusão declarada pela fonte, epoch ms (feature 025). `null` = não declarada. Ainda não mapeado (stub do plan). */
+  /** Inclusão declarada pela fonte, epoch ms (feature 025). `null` = não declarada. */
   added_at?: number | null
 }
 
@@ -168,6 +169,8 @@ function toItemOut(record: CatalogRecord, kind: CatalogItemKind): CatalogItemOut
     category_position: record.categoryPosition ?? null,
     // Nunca capturado (T001 refutou `num` como posição global — ver o comentário do campo).
     source_number: null,
+    year: record.year ?? null,
+    added_at: record.addedAt ?? null,
   }
 }
 
@@ -536,6 +539,9 @@ export function useUserState(stableId: string | null) {
  */
 export function invalidateUserState(queryClient: QueryClient, stableId: string): void {
   void queryClient.invalidateQueries({ queryKey: ['user-state', stableId] })
+  // Feature 025: a contagem/conteúdo de "↺ Histórico" também depende do
+  // que acabou de ser gravado (`lastWatched`/`completedAt`).
+  void queryClient.invalidateQueries({ queryKey: ['history-content'] })
 }
 
 /**
@@ -553,9 +559,9 @@ export interface EpisodeOut {
   provider_stream_id: string | null
   series_id: string
   original_name: string
-  /** Imagem do episódio declarada pela fonte (feature 025). Ainda não mapeada (stub do plan). */
+  /** Imagem do episódio declarada pela fonte (feature 025). */
   icon_url?: string | null
-  /** Duração declarada pela fonte, em segundos (feature 025) — denominador da barra de progresso. Ainda não mapeada. */
+  /** Duração declarada pela fonte, em segundos (feature 025) — denominador da barra de progresso. */
   duration_seconds?: number | null
 }
 
@@ -570,6 +576,8 @@ function toEpisodeOut(record: CatalogRecord): EpisodeOut {
     provider_stream_id: record.providerStreamId ?? null,
     series_id: record.seriesId ?? '',
     original_name: record.originalName,
+    icon_url: record.iconUrl ?? null,
+    duration_seconds: record.durationSeconds ?? null,
   }
 }
 
@@ -677,6 +685,8 @@ export function useUserStates(stableIds: (string | null)[]) {
  */
 export function invalidateUserStates(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ['user-states'] })
+  // Feature 025: idem `invalidateUserState`, para o fechamento de episódio.
+  void queryClient.invalidateQueries({ queryKey: ['history-content'] })
 }
 
 /**
@@ -721,6 +731,62 @@ export function useWatchedIds(sourceId: string | null, kind: FavoritableKind) {
       if (!sourceId) return new Set()
       const watched = await listWatched(sourceId, kind, db)
       return new Set(watched.map((state) => state.stableId))
+    },
+    enabled: sourceId !== null,
+  })
+}
+
+/**
+ * "↺ Histórico" de Filmes ou Séries (feature 025, FR-007, FR-009..FR-015,
+ * `logic/historico.md` §5) — leitura local do que foi reproduzido
+ * (`lastWatched`), agregada por série quando `kind === 'series'`.
+ *
+ * `enabled` reflete a regra da contagem na side nav: a consulta só liga
+ * quando a pessoa já entrou em "↺ Histórico" nesta sessão
+ * (`isHistoryKnown`, `vodSessionMemory.ts`) — nada é resolvido só por abrir
+ * a tela. `gcTime: Infinity`: a contagem, uma vez conhecida, vale pela
+ * sessão inteira; invalidações explícitas (`invalidateUserState`/
+ * `invalidateUserStates`/`useToggleWatched`) é que a atualizam.
+ */
+export interface HistoryContent {
+  items: CatalogItemOut[]
+  /** Reproduções que não resolveram em nenhum registro exibível (FR-012). */
+  unresolved: number
+}
+
+export function useHistoryContent(sourceId: string | null, kind: HistoryKind, enabled: boolean) {
+  return useQuery({
+    queryKey: ['history-content', sourceId, kind],
+    queryFn: async (): Promise<HistoryContent> => {
+      if (!sourceId) return { items: [], unresolved: 0 }
+      const { records, unresolved } = await loadHistory(sourceId, kind, db)
+      return { items: records.map((record) => toItemOut(record, record.kind)), unresolved }
+    },
+    enabled: sourceId !== null && enabled,
+    gcTime: Infinity,
+  })
+}
+
+/**
+ * Posição de retomada por `stableId`, de uma fonte e tipo — uma leitura só,
+ * nunca por card (feature 025, D-014, mesma forma de `useWatchedIds`).
+ * Alimenta a hero band ("Continuar de mm:ss") sem disparar nada ao mudar o
+ * foco.
+ */
+export function useResumePositions(sourceId: string | null, kind: FavoritableKind) {
+  return useQuery({
+    queryKey: ['resume-positions', sourceId, kind],
+    queryFn: async (): Promise<Map<string, number>> => {
+      if (!sourceId) return new Map()
+      const prefix = `${sourceId}|${kind}|`
+      const states = await getContinueWatching(sourceId, db)
+      const positions = new Map<string, number>()
+      for (const state of states) {
+        if (state.stableId.startsWith(prefix) && state.progressSeconds) {
+          positions.set(state.stableId, state.progressSeconds)
+        }
+      }
+      return positions
     },
     enabled: sourceId !== null,
   })
@@ -886,6 +952,10 @@ export function useToggleWatched() {
       // "Continuar assistindo" até uma navegação nova forçar releitura
       // (achado real durante o E2E desta feature, T023).
       void queryClient.invalidateQueries({ queryKey: ['continue-watching', params.sourceId] })
+      // Feature 025: o selo de assistido no Histórico e o denominador da
+      // hero band de retomada dependem do mesmo `UserStateRecord`.
+      void queryClient.invalidateQueries({ queryKey: ['history-content'] })
+      void queryClient.invalidateQueries({ queryKey: ['resume-positions'] })
     },
   })
 }

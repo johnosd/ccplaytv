@@ -620,4 +620,52 @@ describe('parseXtreamStreamUrl', () => {
       const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
       expect(episode.seasonNumber).toBe(1)
     })
+
+    // Feature 025 (T006, T017) — `logic/metadados-vod.md` §2.
+    describe('duração e imagem do episódio (info.*)', () => {
+      it('captura duration_secs e movie_image quando presentes', async () => {
+        stubSeriesInfo([
+          {
+            id: '1001',
+            episode_num: 1,
+            title: 'Pilot',
+            container_extension: 'mp4',
+            info: { duration_secs: '1500', movie_image: 'http://exemplo.test/ep.png' },
+          },
+        ])
+
+        const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+        expect(episode.durationSeconds).toBe(1500)
+        expect(episode.iconUrl).toBe('http://exemplo.test/ep.png')
+      })
+
+      it('sem duration_secs, usa duration "HH:MM:SS" como alternativa', async () => {
+        stubSeriesInfo([
+          { id: '1001', episode_num: 1, title: 'Pilot', container_extension: 'mp4', info: { duration: '00:25:00' } },
+        ])
+
+        const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+        expect(episode.durationSeconds).toBe(1500)
+      })
+
+      it('ausentes ou inválidos (info ausente, duration malformada, movie_image inválida) viram ausência', async () => {
+        stubSeriesInfo([{ id: '1001', episode_num: 1, title: 'Pilot', container_extension: 'mp4' }])
+        const [withoutInfo] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+        expect(withoutInfo.durationSeconds).toBeUndefined()
+        expect(withoutInfo.iconUrl).toBeUndefined()
+
+        stubSeriesInfo([
+          {
+            id: '1001',
+            episode_num: 1,
+            title: 'Pilot',
+            container_extension: 'mp4',
+            info: { duration: 'não é hora', movie_image: 'não é url' },
+          },
+        ])
+        const [invalid] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+        expect(invalid.durationSeconds).toBeUndefined()
+        expect(invalid.iconUrl).toBeUndefined()
+      })
+    })
   })

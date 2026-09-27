@@ -66,4 +66,36 @@ describe('SideCategoryNav', () => {
     expect(screen.getByRole('button', { name: /Todos/ }).querySelector('.side-category-nav-pinned-badge')).toBeNull()
     expect(screen.getByRole('button', { name: /Favoritos/ }).querySelector('.side-category-nav-pinned-badge')).not.toBeNull()
   })
+
+  // Feature 025 (D-013): cabeçalho de grupo opcional.
+  it('sem groupLabel em nenhuma entrada, nenhum cabeçalho aparece (Live, inalterada)', () => {
+    render(
+      <SideCategoryNav
+        entries={[
+          { id: 'a', label: 'A' },
+          { id: 'b', label: 'B' },
+        ]}
+        selectedId="a"
+        onSelect={vi.fn()}
+      />,
+    )
+    expect(document.querySelector('.side-category-nav-group-label')).toBeNull()
+  })
+
+  it('desenha o cabeçalho só antes da primeira entrada de cada grupo', () => {
+    render(
+      <SideCategoryNav
+        entries={[
+          { id: 'fav', label: 'Favoritos', pinned: true, groupLabel: 'Sua biblioteca' },
+          { id: 'hist', label: 'Histórico', pinned: true, groupLabel: 'Sua biblioteca' },
+          { id: 'todos', label: 'Todos', groupLabel: 'Catálogo' },
+          { id: 'a', label: 'A', groupLabel: 'Catálogo' },
+        ]}
+        selectedId="fav"
+        onSelect={vi.fn()}
+      />,
+    )
+    const headers = [...document.querySelectorAll('.side-category-nav-group-label')].map((el) => el.textContent)
+    expect(headers).toEqual(['Sua biblioteca', 'Catálogo'])
+  })
 })

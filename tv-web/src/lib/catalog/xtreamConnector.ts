@@ -15,7 +15,14 @@
  *    descrita em `probeFailureKind`.
  */
 
-import { classifyEntry, normalizeIconUrl, type ClassifiedEntry } from './classifier'
+import {
+  classifyEntry,
+  normalizeAddedAt,
+  normalizeDurationSeconds,
+  normalizeIconUrl,
+  normalizeYear,
+  type ClassifiedEntry,
+} from './classifier'
 
 /** TS quando a conta permite mais de um formato — o que reproduziu na TV de referência. */
 const PREFERRED_FORMAT = 'ts'
@@ -528,6 +535,10 @@ export function mapVodEntry(
     streamExtension: ext,
     // Feature 015 (D-001/FR-001/FR-008): `get_vod_streams` declara a capa em `stream_icon`.
     iconUrl: normalizeIconUrl(raw.stream_icon),
+    // Feature 025 (FR-049/FR-050): `year`, com `releaseDate`/`release_date` como
+    // alternativa; nunca do título. `added` é a inclusão, só para filme.
+    year: normalizeYear(raw.year) ?? normalizeYear(raw.releaseDate) ?? normalizeYear(raw.release_date),
+    addedAt: normalizeAddedAt(raw.added),
   }
 }
 
@@ -609,6 +620,10 @@ export function mapSeriesEntry(
     seriesId,
     // Feature 015 (D-001/FR-001/FR-008): `get_series` declara a capa em `cover`.
     iconUrl: normalizeIconUrl(raw.cover),
+    // Feature 025 (FR-049/FR-050): `year`, com `releaseDate`/`release_date` como
+    // alternativa. `last_modified` é atualização, nunca inclusão — série não
+    // ganha `addedAt` (`logic/metadados-vod.md` §2).
+    year: normalizeYear(raw.year) ?? normalizeYear(raw.releaseDate) ?? normalizeYear(raw.release_date),
   }
 }
 
@@ -646,6 +661,15 @@ function toNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string' && /^\d+$/.test(value.trim())) return parseInt(value, 10)
   return undefined
+}
+
+/** `"HH:MM:SS"` → segundos. Formato inválido vira `undefined`, nunca `0`. */
+function parseHhMmSsToSeconds(raw: unknown): number | undefined {
+  if (typeof raw !== 'string') return undefined
+  const match = /^(\d{1,2}):(\d{2}):(\d{2})$/.exec(raw.trim())
+  if (!match) return undefined
+  const [, h, m, s] = match
+  return Number(h) * 3600 + Number(m) * 60 + Number(s)
 }
 
 export async function fetchSeriesInfo(
@@ -691,6 +715,14 @@ export async function fetchSeriesInfo(
       // nunca descartada.
       const seasonNumber = toNumber(seasonStr) ?? toNumber(rawEp.season) ?? 1
 
+      // Feature 025 (FR-049, `logic/metadados-vod.md` §2/§4): `info.duration_secs`,
+      // com `info.duration` ("HH:MM:SS") como alternativa; `info.movie_image`
+      // é a imagem do episódio.
+      const info = typeof rawEp.info === 'object' && rawEp.info !== null ? (rawEp.info as Record<string, unknown>) : {}
+      const durationSeconds =
+        normalizeDurationSeconds(info.duration_secs) ?? normalizeDurationSeconds(parseHhMmSsToSeconds(info.duration))
+      const iconUrl = normalizeIconUrl(info.movie_image)
+
       episodes.push({
         kind: 'episode',
         name: epName,
@@ -702,6 +734,8 @@ export async function fetchSeriesInfo(
         seriesId,
         seasonNumber,
         episodeNumber,
+        durationSeconds,
+        iconUrl,
       })
     }
   }

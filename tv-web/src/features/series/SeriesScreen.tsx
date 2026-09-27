@@ -51,7 +51,11 @@ export interface SeriesScreenProps {
  * `MoviesScreen.tsx` (D-004 do plan.md). "Todos" (feature 018, D-001)
  * segue o mesmo modelo — categoria virtual, nunca gravada.
  */
-type TrailKey = { kind: 'favorites' } | { kind: 'all' } | { kind: 'category'; name: string }
+type TrailKey =
+  | { kind: 'favorites' }
+  | { kind: 'history' }
+  | { kind: 'all' }
+  | { kind: 'category'; name: string }
 
 function sameTrailKey(a: TrailKey, b: TrailKey): boolean {
   if (a.kind === 'category') return b.kind === 'category' && b.name === a.name
@@ -64,7 +68,7 @@ interface TrailEntry {
 }
 
 /** O que entrou de fato na grade — Favoritos, Todos, ou uma categoria por id. */
-type EnteredKey = { kind: 'favorites' } | { kind: 'all' } | { kind: 'category'; id: number }
+type EnteredKey = { kind: 'favorites' } | { kind: 'history' } | { kind: 'all' } | { kind: 'category'; id: number }
 
 function locate<T>(items: T[], matches: (item: T) => boolean): number {
   const idx = items.findIndex(matches)

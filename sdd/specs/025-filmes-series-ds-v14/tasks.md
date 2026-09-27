@@ -64,27 +64,27 @@ US2.
 
 ### Implementation
 
-- [ ] T004 [P] Implementar `normalizeYear`, `normalizeAddedAt` e `normalizeDurationSeconds` em `tv-web/src/lib/catalog/classifier.ts` (`logic/metadados-vod.md` §1) → contrato: `metadados — …`
-- [ ] T005 Capturar `year`/`addedAt` em `mapVodEntry` e `year` em `mapSeriesEntry` (nunca `last_modified`), mais qualquer nome adicional confirmado no T001, em `tv-web/src/lib/catalog/xtreamConnector.ts` (`logic/metadados-vod.md` §2) → contrato: `metadados — …`
-- [ ] T006 Capturar `durationSeconds` (`info.duration_secs`, alternativa `info.duration`) e `iconUrl` (`info.movie_image` via `normalizeIconUrl`) por episódio em `fetchSeriesInfo`, em `tv-web/src/lib/catalog/xtreamConnector.ts`
-- [ ] T007 [P] Copiar `year`/`addedAt` para o registro em `toItemRecord` (`tv-web/src/lib/catalog/categoryLoader.ts`) e no caminho integral legado do provedor (`tv-web/src/lib/catalog/importPipeline.ts`, ~linha 420)
-- [ ] T008 [P] Copiar `iconUrl`/`durationSeconds` do episódio em `toEpisodeRecord` (`tv-web/src/lib/catalog/seriesLoader.ts`)
-- [ ] T009 Mapear `year`/`added_at` em `toItemOut` e `icon_url`/`duration_seconds` em `toEpisodeOut` (`tv-web/src/features/catalog/catalogApi.ts`)
-- [ ] T010 [P] Implementar `availableSortOptions`/`sortVodItems` em `tv-web/src/features/vod/vodSort.ts` (`logic/foco-vod.md` §5) → contrato: `vodSort — …`
-- [ ] T011 Implementar `listPlayed(sourceId, 'movie' | 'episode')` em `tv-web/src/lib/catalog/userStateRepository.ts` (`logic/historico.md` §2)
-- [ ] T012 Implementar `loadHistory` em `tv-web/src/lib/catalog/history.ts` (`logic/historico.md` §3–§4; contagem de episódios em `unresolved`; nunca rede) → contrato: `loadHistory — Filmes …`, `loadHistory — Séries …`
-- [ ] T013 Adicionar `useHistoryContent(sourceId, kind, enabled)` (gcTime infinito) e `useResumePositions(sourceId, kind)` em `tv-web/src/features/catalog/catalogApi.ts`. Invalidar `['history-content']` em `invalidateUserState`, `invalidateUserStates` e `useToggleWatched`, e `['resume-positions']` onde `['continue-watching']` já é invalidado (`logic/historico.md` §5; D-014)
-- [ ] T014 [P] Estender `CategoryScreenSnapshot` com `{kind:'history'}` em `SnapshotTrailKey`/`SnapshotEntered` e `focusedIndexHint?` em `tv-web/src/features/catalog/categoryScreenSnapshot.ts` (`data-model.md` §5)
-- [ ] T015 [P] Adicionar o cabeçalho de grupo opcional (`groupLabel?` por entrada, desenhado antes da primeira de cada grupo, sem mudar nada para quem não passa) em `tv-web/src/components/SideCategoryNav.tsx` (D-013)
+- [X] T004 [P] Implementar `normalizeYear`, `normalizeAddedAt` e `normalizeDurationSeconds` em `tv-web/src/lib/catalog/classifier.ts` (`logic/metadados-vod.md` §1) → contrato: `metadados — …`
+- [X] T005 Capturar `year`/`addedAt` em `mapVodEntry` e `year` em `mapSeriesEntry` (nunca `last_modified`), mais qualquer nome adicional confirmado no T001, em `tv-web/src/lib/catalog/xtreamConnector.ts` (`logic/metadados-vod.md` §2) → contrato: `metadados — …`
+- [X] T006 Capturar `durationSeconds` (`info.duration_secs`, alternativa `info.duration`) e `iconUrl` (`info.movie_image` via `normalizeIconUrl`) por episódio em `fetchSeriesInfo`, em `tv-web/src/lib/catalog/xtreamConnector.ts`
+- [X] T007 [P] Copiar `year`/`addedAt` para o registro em `toItemRecord` (`tv-web/src/lib/catalog/categoryLoader.ts`) e no caminho integral legado do provedor (`tv-web/src/lib/catalog/importPipeline.ts`, ~linha 420)
+- [X] T008 [P] Copiar `iconUrl`/`durationSeconds` do episódio em `toEpisodeRecord` (`tv-web/src/lib/catalog/seriesLoader.ts`)
+- [X] T009 Mapear `year`/`added_at` em `toItemOut` e `icon_url`/`duration_seconds` em `toEpisodeOut` (`tv-web/src/features/catalog/catalogApi.ts`)
+- [X] T010 [P] Implementar `availableSortOptions`/`sortVodItems` em `tv-web/src/features/vod/vodSort.ts` (`logic/foco-vod.md` §5) → contrato: `vodSort — …`
+- [X] T011 Implementar `listPlayed(sourceId, 'movie' | 'episode')` em `tv-web/src/lib/catalog/userStateRepository.ts` (`logic/historico.md` §2)
+- [X] T012 Implementar `loadHistory` em `tv-web/src/lib/catalog/history.ts` (`logic/historico.md` §3–§4; contagem de episódios em `unresolved`; nunca rede) → contrato: `loadHistory — Filmes …`, `loadHistory — Séries …`
+- [X] T013 Adicionar `useHistoryContent(sourceId, kind, enabled)` (gcTime infinito) e `useResumePositions(sourceId, kind)` em `tv-web/src/features/catalog/catalogApi.ts`. Invalidar `['history-content']` em `invalidateUserState`, `invalidateUserStates` e `useToggleWatched`, e `['resume-positions']` onde `['continue-watching']` já é invalidado (`logic/historico.md` §5; D-014)
+- [X] T014 [P] Estender `CategoryScreenSnapshot` com `{kind:'history'}` em `SnapshotTrailKey`/`SnapshotEntered` e `focusedIndexHint?` em `tv-web/src/features/catalog/categoryScreenSnapshot.ts` (`data-model.md` §5)
+- [X] T015 [P] Adicionar o cabeçalho de grupo opcional (`groupLabel?` por entrada, desenhado antes da primeira de cada grupo, sem mudar nada para quem não passa) em `tv-web/src/components/SideCategoryNav.tsx` (D-013)
 
 ### Testes da Fase
 
-- [ ] T016 [P] Testes de `normalizeYear`/`normalizeAddedAt`/`normalizeDurationSeconds` (bordas: data parcial, epoch 0, futuro, "HH:MM:SS", lixo) em `tv-web/src/lib/catalog/classifier.test.ts`
-- [ ] T017 [P] Teste de `fetchSeriesInfo` com `info.duration_secs`/`info.duration`/`info.movie_image` presentes, ausentes e inválidos em `tv-web/src/lib/catalog/xtreamConnector.test.ts`
-- [ ] T018 [P] Testes de cópia dos campos em `tv-web/src/lib/catalog/categoryLoader.test.ts`, `tv-web/src/lib/catalog/importPipeline.test.ts` e `tv-web/src/lib/catalog/seriesLoader.test.ts`
-- [ ] T019 [P] Testes de `listPlayed` (ordem, prefixo por tipo, isolamento por fonte, estado sem `lastWatched` fora) em `tv-web/src/lib/catalog/userStateRepository.test.ts`
-- [ ] T020 [P] Testes de mapeamento (`toItemOut`/`toEpisodeOut`) e de `useHistoryContent`/`useResumePositions`, incluindo a invalidação após `useToggleWatched`, em `tv-web/src/features/catalog/catalogApi.test.tsx`
-- [ ] T021 [P] Teste do cabeçalho de grupo (presente com `groupLabel`, ausente sem) em `tv-web/src/components/SideCategoryNav.test.tsx`
+- [X] T016 [P] Testes de `normalizeYear`/`normalizeAddedAt`/`normalizeDurationSeconds` (bordas: data parcial, epoch 0, futuro, "HH:MM:SS", lixo) em `tv-web/src/lib/catalog/classifier.test.ts`
+- [X] T017 [P] Teste de `fetchSeriesInfo` com `info.duration_secs`/`info.duration`/`info.movie_image` presentes, ausentes e inválidos em `tv-web/src/lib/catalog/xtreamConnector.test.ts`
+- [X] T018 [P] Testes de cópia dos campos em `tv-web/src/lib/catalog/categoryLoader.test.ts`, `tv-web/src/lib/catalog/importPipeline.test.ts` e `tv-web/src/lib/catalog/seriesLoader.test.ts`
+- [X] T019 [P] Testes de `listPlayed` (ordem, prefixo por tipo, isolamento por fonte, estado sem `lastWatched` fora) em `tv-web/src/lib/catalog/userStateRepository.test.ts`
+- [X] T020 [P] Testes de mapeamento (`toItemOut`/`toEpisodeOut`) e de `useHistoryContent`/`useResumePositions`, incluindo a invalidação após `useToggleWatched`, em `tv-web/src/features/catalog/catalogApi.test.tsx`
+- [X] T021 [P] Teste do cabeçalho de grupo (presente com `groupLabel`, ausente sem) em `tv-web/src/components/SideCategoryNav.test.tsx`
 
 **Critério de Conclusão**: o comando do contrato da fase dá 4/4 verdes, e `..\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 025-filmes-series-ds-v14` fica íntegro. Além disso: `npx vitest run src/lib/catalog src/features/catalog src/components` verde (com a regra do flake), `npx tsc -b` limpo, e nenhum outro contrato travado alterado.
 
@@ -92,11 +92,11 @@ US2.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída.
+- Feito: normalize*/captura de ano/inclusão/duração/imagem em `classifier.ts`/`xtreamConnector.ts`; cópia dos campos em `categoryLoader.ts`/`importPipeline.ts`/`seriesLoader.ts`; mapeamento em `catalogApi.ts` (`toItemOut`/`toEpisodeOut`); `vodSort.ts` (availableSortOptions/sortVodItems); `listPlayed` em `userStateRepository.ts`; `loadHistory` em `history.ts`; `useHistoryContent`/`useResumePositions` + invalidações (`invalidateUserState`/`invalidateUserStates`/`useToggleWatched`); extensão de `CategoryScreenSnapshot` (`{kind:'history'}`, `focusedIndexHint`); `groupLabel?` em `SideCategoryNav`. `TrailKey`/`EnteredKey` locais de `MoviesScreen.tsx`/`SeriesScreen.tsx` ganharam o variante `history` (widening aditivo, sem mudar comportamento) só para o `tsc -b` ficar limpo até a Fase 3 substituir essas telas.
+- Contrato: `npx vitest run src/lib/catalog/history.filmes-series-ds-v14.contract.test.ts src/features/vod/vodSort.filmes-series-ds-v14.contract.test.ts src/lib/catalog/vodMetadata.filmes-series-ds-v14.contract.test.ts` → 4/4 verdes. `check-contract-tests.ps1 -Slug 025-filmes-series-ds-v14` → trava íntegra (5 testes; o 5º, `MoviesScreen`, é da Fase 3 e continua vermelho como esperado). Travas de 018–024 verificadas íntegras também.
+- Testes executados: `npx vitest run src/lib/catalog src/features/catalog src/components` → 53 arquivos, 517 testes, todos verdes. `npx tsc -b` limpo.
+- Pendências: nenhuma nova além da já registrada (T001, ambiente sem painel real).
 
 ---
 

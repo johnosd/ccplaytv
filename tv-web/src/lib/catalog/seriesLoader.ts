@@ -55,6 +55,9 @@ function toEpisodeRecord(episode: XtreamEpisode): CatalogRecord {
     streamExtension: episode.streamExtension,
     // D-004: provedor nunca grava URL de episódio.
     directUrl: undefined,
+    // Feature 025: imagem e duração do episódio declaradas pela fonte.
+    iconUrl: episode.iconUrl,
+    durationSeconds: episode.durationSeconds,
   }
 }
 

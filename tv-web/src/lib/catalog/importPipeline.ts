@@ -418,6 +418,9 @@ export async function startImport(
           directUrl: keepUrl ? channel.url : undefined,
           // Feature 015/024: capa/logo declarado pela fonte (também canal desde a 024 — classifyEntry preenche).
           iconUrl: channel.iconUrl,
+          // Feature 025: ano/inclusão declarados pela fonte (ausentes no caminho M3U).
+          year: channel.year,
+          addedAt: channel.addedAt,
         }
       }
 

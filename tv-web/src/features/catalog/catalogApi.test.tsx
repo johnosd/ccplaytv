@@ -11,14 +11,18 @@ import {
   useCategoryFocusPrefetch,
   useFavoriteIds,
   useFavoritesContent,
+  useHistoryContent,
+  useResumePositions,
+  useSeriesEpisodes,
   useSeriesWatchedSummary,
   useToggleFavorite,
+  useToggleWatched,
   type CatalogCategory,
   type CatalogItemOut,
 } from './catalogApi'
 import * as categoryLoader from '../../lib/catalog/categoryLoader'
 import * as seriesLoader from '../../lib/catalog/seriesLoader'
-import { buildStableId } from '../../lib/catalog/userStateRepository'
+import { buildStableId, updateProgress } from '../../lib/catalog/userStateRepository'
 import { db, type CategoryRecord } from '../../lib/catalog/db'
 
 vi.mock('../../lib/catalog/categoryLoader', async (importOriginal) => {
@@ -840,5 +844,171 @@ describe('useSeriesWatchedSummary (feature 019, D-007/D-008)', () => {
 
     await waitFor(() => expect(result.current.data?.get('serie-1')).toEqual({ known: 2, watched: 0, upToDate: false }))
     expect(spy).not.toHaveBeenCalled()
+  })
+})
+
+describe('mapeamento de ano/inclusão/duração/imagem — feature 025 (T009, T020)', () => {
+  const SOURCE_ID = 'source-metadados-025'
+
+  afterEach(async () => {
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+  })
+
+  it('toItemOut mapeia year/added_at do registro (via useHistoryContent)', async () => {
+    await db.sources.put({
+      id: SOURCE_ID,
+      type: 'provider_credentials',
+      displayName: 'Fonte',
+      connectionState: 'synced',
+      activeGeneration: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    await db.channels.add({
+      sourceId: SOURCE_ID,
+      generation: 1,
+      kind: 'movie',
+      name: 'Filme',
+      originalName: 'Filme',
+      groupOrder: 0,
+      providerStreamId: 'm1',
+      year: 2019,
+      addedAt: 1_700_000_000_000,
+    })
+    const stableId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: 'm1' })
+    await updateProgress(stableId, SOURCE_ID, 30)
+
+    const { result } = renderHook(() => useHistoryContent(SOURCE_ID, 'movie', true), { wrapper: wrapper() })
+
+    await waitFor(() => expect(result.current.data?.items).toHaveLength(1))
+    expect(result.current.data?.items[0].year).toBe(2019)
+    expect(result.current.data?.items[0].added_at).toBe(1_700_000_000_000)
+  })
+
+  it('toEpisodeOut mapeia icon_url/duration_seconds do registro (via useSeriesEpisodes, categoria fresca)', async () => {
+    await db.sources.put({
+      id: SOURCE_ID,
+      type: 'provider_credentials',
+      displayName: 'Fonte',
+      connectionState: 'synced',
+      activeGeneration: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    const [seriesRecordId] = await db.channels.bulkAdd(
+      [
+        {
+          sourceId: SOURCE_ID,
+          generation: 1,
+          kind: 'series',
+          name: 'Série',
+          originalName: 'Série',
+          groupOrder: 0,
+          seriesId: 's1',
+          episodesFetchedAt: Date.now(),
+        },
+        {
+          sourceId: SOURCE_ID,
+          generation: 1,
+          kind: 'episode',
+          name: 'S01E01',
+          originalName: 'S01E01',
+          groupOrder: 0,
+          seriesId: 's1',
+          providerStreamId: 'e1',
+          seasonNumber: 1,
+          episodeNumber: 1,
+          iconUrl: 'http://exemplo.test/ep.png',
+          durationSeconds: 1500,
+        },
+      ],
+      { allKeys: true },
+    )
+
+    const { result } = renderHook(() => useSeriesEpisodes(String(seriesRecordId)), { wrapper: wrapper() })
+
+    await waitFor(() => expect(result.current.data?.episodes).toHaveLength(1))
+    expect(result.current.data?.episodes[0].icon_url).toBe('http://exemplo.test/ep.png')
+    expect(result.current.data?.episodes[0].duration_seconds).toBe(1500)
+  })
+})
+
+describe('useHistoryContent (feature 025, FR-007/FR-009)', () => {
+  const SOURCE_ID = 'source-history-025'
+
+  afterEach(async () => {
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+  })
+
+  it('enabled: false não lê nada (a contagem só existe depois da 1ª entrada na sessão)', async () => {
+    const { result } = renderHook(() => useHistoryContent(SOURCE_ID, 'movie', false), { wrapper: wrapper() })
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.data).toBeUndefined()
+  })
+
+  it('sourceId nulo desliga a consulta (mesmo padrão de useFavoriteIds/useAggregatedItems)', () => {
+    const { result } = renderHook(() => useHistoryContent(null, 'movie', true), { wrapper: wrapper() })
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.data).toBeUndefined()
+  })
+})
+
+describe('useResumePositions (feature 025, D-014)', () => {
+  const SOURCE_ID = 'source-resume-025'
+
+  afterEach(async () => {
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+  })
+
+  it('devolve a posição por stableId, isolada por fonte e tipo', async () => {
+    const movieId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: 'm1' })
+    const episodeId = buildStableId({
+      sourceId: SOURCE_ID,
+      kind: 'episode',
+      providerStreamId: 'e1',
+      seasonNumber: 1,
+      episodeNumber: 1,
+    })
+    await updateProgress(movieId, SOURCE_ID, 42)
+    await updateProgress(episodeId, SOURCE_ID, 99)
+
+    const { result } = renderHook(() => useResumePositions(SOURCE_ID, 'movie'), { wrapper: wrapper() })
+
+    await waitFor(() => expect(result.current.data?.get(movieId)).toBe(42))
+    expect(result.current.data?.has(episodeId)).toBe(false)
+  })
+})
+
+describe('useToggleWatched invalida history-content e resume-positions (feature 025, `logic/historico.md` §5)', () => {
+  const SOURCE_ID = 'source-toggle-watched-025'
+
+  afterEach(async () => {
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+  })
+
+  it('marcar assistido invalida as duas chaves de consulta', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    }
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const stableId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: 'm1' })
+
+    const { result } = renderHook(() => useToggleWatched(), { wrapper: Wrapper })
+    await act(async () => {
+      await result.current.mutateAsync({ stableId, sourceId: SOURCE_ID, watched: true })
+    })
+
+    const keys = invalidateSpy.mock.calls.map((call) => (call[0] as { queryKey: unknown[] }).queryKey[0])
+    expect(keys).toContain('history-content')
+    expect(keys).toContain('resume-positions')
   })
 })

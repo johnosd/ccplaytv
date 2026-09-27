@@ -968,6 +968,29 @@ describe('importPipeline — URL M3U reconhecida como painel Xtream (feature 014
     expect(series[0].iconUrl).toBe('http://exemplo.test/serie-ep1.png')
   })
 
+  // Feature 025 (T007, T018): o caminho M3U (avulso, painel não confirmado
+  // ou Modo limitado — o "legado" desta função) nunca declara ano/inclusão;
+  // os campos passam pelo mesmo `toStoredRecord` que copia iconUrl, e ficam
+  // ausentes, nunca inventados.
+  it('varredura M3U nunca grava year/addedAt — a fonte não os declara', async () => {
+    const lines = [
+      '#EXTM3U',
+      '#EXTINF:-1 group-title="Filmes",Um Filme',
+      'http://exemplo.test/vod/1.mp4',
+    ].join('\n')
+
+    await database.sources.add(M3U_SOURCE)
+    vi.stubGlobal('fetch', respondWith(lines))
+    await (await startImport(M3U_SOURCE.id, { database })).completion
+    await readAllCategories(M3U_SOURCE.id)
+
+    const categories = await listCategories(M3U_SOURCE.id, undefined, database)
+    const orderOf = (name: string) => categories.find((c) => c.name === name)!.order
+    const movies = await listChannels(M3U_SOURCE.id, orderOf('Filmes'), 0, 10, 'movie', database)
+    expect(movies[0].year).toBeUndefined()
+    expect(movies[0].addedAt).toBeUndefined()
+  })
+
   // T012 — SC-007: nenhum ramo de falha ou de Modo limitado vaza usuário, senha ou URL.
   it('nenhum ramo desta fonte vaza usuário, senha ou URL, nem em run nem em log (SC-007)', async () => {
     const warnSpy = vi.spyOn(logger, 'warn')
