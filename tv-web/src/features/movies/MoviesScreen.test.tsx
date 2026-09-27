@@ -5,6 +5,7 @@ import { MoviesScreen } from './MoviesScreen'
 import * as catalogApi from '../catalog/catalogApi'
 import type { CatalogCategory, CatalogItemOut, CategoryFetchOutcome } from '../catalog/catalogApi'
 import type { CategoryScreenSnapshot } from '../catalog/categoryScreenSnapshot'
+import { resetVodSessionMemory } from '../vod/vodSessionMemory'
 
 /**
  * jsdom não faz layout de verdade nem implementa `Element.scrollTo`
@@ -151,11 +152,21 @@ function press(key: string) {
   })
 }
 
+/**
+ * Títulos na grade (feature 025) — nunca `screen.getByText` direto pro
+ * título de um card: a hero band (fixa, não focável) repete o texto do
+ * item focado, então `getByText` acharia dois nós pro mesmo nome.
+ */
+function gridTitles(): string[] {
+  return [...document.querySelectorAll('.vod-grid .content-card-title')].map((el) => el.textContent ?? '')
+}
+
 describe('MoviesScreen', () => {
   const onOpenMovie = vi.fn()
   const onBack = vi.fn()
 
   beforeEach(() => {
+    resetVodSessionMemory()
     onOpenMovie.mockReset()
     onBack.mockReset()
     mockContentByCategory({})
@@ -234,12 +245,12 @@ describe('MoviesScreen', () => {
 
     press('ArrowRight')
 
-    const rendered = document.querySelectorAll('.poster-grid .poster-card-title')
+    const rendered = document.querySelectorAll('.vod-grid .content-card-title')
     expect(rendered.length).toBeGreaterThan(0)
     expect(rendered.length).toBeLessThan(many.length)
 
     const lefts = new Set(
-      [...document.querySelectorAll('.poster-grid .poster-cell')].map((el) => (el as HTMLElement).style.left),
+      [...document.querySelectorAll('.vod-grid .vod-grid-cell')].map((el) => (el as HTMLElement).style.left),
     )
     expect(lefts.size).toBe(6)
   })
@@ -250,8 +261,7 @@ describe('MoviesScreen', () => {
     renderMovies()
 
     press('ArrowRight') // entra
-    expect(screen.getByText('Filme A')).toBeInTheDocument()
-    expect(screen.getByText('Filme B')).toBeInTheDocument()
+    expect(gridTitles()).toEqual(['Filme A', 'Filme B'])
 
     press('Enter')
     expect(onOpenMovie).toHaveBeenCalledWith('id-Filme A', expect.any(Object))
@@ -269,7 +279,7 @@ describe('MoviesScreen', () => {
 
     press('ArrowRight')
 
-    const cards = [...container.querySelectorAll('.poster-cell')]
+    const cards = [...container.querySelectorAll('.vod-grid-cell')]
     const comCapa = cards.find((c) => c.textContent?.includes('Com Capa'))
     const semCapa = cards.find((c) => c.textContent?.includes('Sem Capa'))
 
@@ -361,9 +371,9 @@ describe('MoviesScreen', () => {
     })
     renderMovies(vi.fn(), snapshot)
 
-    expect(screen.getByText('Filme C')).toBeInTheDocument()
-    const focusedCell = [...document.querySelectorAll('.poster-cell')].find((c) => c.querySelector('.tv-focus'))
-    expect(focusedCell?.querySelector('.poster-card-title')?.textContent).toBe('Filme C')
+    expect(gridTitles()).toEqual(['Filme C'])
+    const focusedCell = [...document.querySelectorAll('.vod-grid-cell')].find((c) => c.querySelector('.tv-focus'))
+    expect(focusedCell?.querySelector('.content-card-title')?.textContent).toBe('Filme C')
   })
 
   // T024 (feature 017, FR-022): a categoria do snapshot pode não existir mais
@@ -389,8 +399,9 @@ describe('MoviesScreen', () => {
     // continua mostrando só as categorias que existem de fato no catálogo.
     expect(screen.queryByText('Categoria Removida')).not.toBeInTheDocument()
     expect(screen.queryByText('Filme A')).not.toBeInTheDocument()
-    const groups = [...document.querySelectorAll('.live-column-groups .live-item')].map((g) => g.textContent)
-    expect(groups).toEqual(['★Favoritos', 'Todos', 'Ação'])
+    const groups = [...document.querySelectorAll('.side-category-nav-item')].map((g) => g.textContent)
+    // "★ Favoritos" sempre mostra a contagem real do tipo (mesma regra da Live, feature 025 FR-007) — 0 aqui, sem favorito nenhum seedado.
+    expect(groups).toEqual(['Favoritos0', 'Histórico', 'Todos', 'Ação'])
   })
 
   // T029 (feature 018, US1) — espelha o teste equivalente de LiveScreen.test.tsx.
@@ -417,7 +428,7 @@ describe('MoviesScreen', () => {
 
     act(() => fireEvent.keyDown(field!, { keyCode: 10009, bubbles: true }))
     expect(onBack).not.toHaveBeenCalled()
-    expect(document.querySelector('.search-icon-button.tv-focus')).not.toBeNull()
+    expect(document.querySelector('.vod-toolbar-search-button.tv-focus')).not.toBeNull()
   })
 
   // Achado no gate final desta feature (T029): `loadCategoryContent` sempre
@@ -430,7 +441,7 @@ describe('MoviesScreen', () => {
     renderMovies()
 
     press('ArrowRight') // entra em "Ação" — item obsoleto, outcome indisponível
-    expect(document.querySelector('.search-icon-button')).toBeNull()
+    expect(document.querySelector('.vod-toolbar-search-button')).toBeNull()
   })
 
   // T029 (feature 018, US2, FR-010/FR-011): cobertura total dentro de
@@ -448,7 +459,7 @@ describe('MoviesScreen', () => {
     const field = document.querySelector<HTMLInputElement>('input.search-field')
     act(() => fireEvent.change(field!, { target: { value: 'duna' } }))
 
-    expect(screen.getByText('Duna')).toBeInTheDocument()
+    expect(gridTitles()).toEqual(['Duna'])
     expect(screen.queryByText(/Busca em \d+ de \d+ categorias/)).not.toBeInTheDocument()
   })
 })

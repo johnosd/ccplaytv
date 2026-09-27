@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import type { CategoryScreenSnapshot } from './features/catalog/categoryScreenSnapshot'
+import type { VodShellProps } from './features/vod/vodShell'
 
 /**
  * T025 (feature 017), atualizado na feature 023 para o caminho de entrada
@@ -71,14 +72,42 @@ vi.mock('./features/movies/MoviesScreen', () => ({
   MoviesScreen: ({
     restore,
     onOpenMovie,
+    onBack,
+    shell,
   }: {
     restore?: CategoryScreenSnapshot
     onOpenMovie: (movieId: string, snapshot?: CategoryScreenSnapshot) => void
+    onBack: () => void
+    shell?: VodShellProps
   }) => (
     <div>
       <span data-testid="movies-restore">{restore ? JSON.stringify(restore) : 'sem-restore'}</span>
       <button type="button" onClick={() => onOpenMovie('filme-1', fakeSnapshot)}>
         abrir-filme
+      </button>
+      <button type="button" onClick={onBack}>
+        voltar-filmes
+      </button>
+      {shell && (
+        <>
+          <button type="button" onClick={shell.onGoHome}>
+            shell-go-home
+          </button>
+          <button type="button" onClick={() => shell.onSwitchTop('series')}>
+            shell-switch-series
+          </button>
+        </>
+      )}
+    </div>
+  ),
+}))
+
+vi.mock('./features/series/SeriesScreen', () => ({
+  SeriesScreen: ({ onBack }: { onBack: () => void }) => (
+    <div>
+      <span data-testid="series-screen">séries</span>
+      <button type="button" onClick={onBack}>
+        voltar-series
       </button>
     </div>
   ),
@@ -105,6 +134,8 @@ function renderApp() {
 }
 
 describe('App — navegação e snapshot de volta do detalhe (feature 017, T025; feature 023, entrada nova)', () => {
+  afterEach(cleanup)
+
   it('abrir um filme grava o snapshot na tela de origem; voltar do detalhe o devolve em restore', async () => {
     renderApp()
 
@@ -119,5 +150,28 @@ describe('App — navegação e snapshot de volta do detalhe (feature 017, T025;
     fireEvent.click(screen.getByRole('button', { name: 'voltar' }))
 
     expect(await screen.findByTestId('movies-restore')).toHaveTextContent(JSON.stringify(fakeSnapshot))
+  })
+
+  // T036 (feature 025, D-003 do plan.md): `App` passa `shell` a
+  // `MoviesScreen`/`SeriesScreen` — `onSwitchTop` troca de destino sem
+  // empilhar (mesmo padrão da Live, feature 024), e `onGoHome`/RETURN volta
+  // ao Início.
+  it('shell.onSwitchTop troca de Filmes para Séries sem empilhar; shell.onGoHome volta ao Início', async () => {
+    renderApp()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'escolher-fonte' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'ir-para-filmes' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'shell-switch-series' }))
+    expect(await screen.findByTestId('series-screen')).toBeInTheDocument()
+
+    // Sem pilha: RETURN em Séries (chamando o mesmo onBack que a tela usa)
+    // volta direto ao Início, não a Filmes — switch-top nunca empilha.
+    fireEvent.click(screen.getByRole('button', { name: 'voltar-series' }))
+    expect(await screen.findByRole('button', { name: 'ir-para-filmes' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'ir-para-filmes' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'shell-go-home' }))
+    expect(await screen.findByRole('button', { name: 'ir-para-filmes' })).toBeInTheDocument()
   })
 })

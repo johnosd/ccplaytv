@@ -1,0 +1,209 @@
+/**
+ * Filmes e Séries — Design System V14 (feature 025, Onda 4).
+ *
+ * Arquivo próprio (D-015 do plan.md): nenhuma classe daqui é compartilhada
+ * com telas ainda não migradas — `.search-field`/`.search-status`/
+ * `.field-box`/`.fav-star`/`.watched-badge`/`.fav-hint` continuam vindo de
+ * `features/screens.css` (compartilhadas com a Live, que também os usa).
+ * Só tokens de `index.css` — nenhuma cor/raio/tamanho de fonte literal.
+ * Importado depois de `live.css` e antes de `screens.css`.
+ */
+
+.vod-screen {
+  gap: var(--space-4);
+}
+
+.vod-body {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-4);
+  min-height: 0;
+}
+
+/* ---------- Side nav (§13.2) ---------- */
+
+.vod-side-nav {
+  width: 320px;
+  flex: none;
+  overflow: auto;
+}
+
+.side-category-nav-group-label {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-annotation);
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  list-style: none;
+}
+
+.side-category-nav-group-label:first-child {
+  padding-top: 0;
+}
+
+/* ---------- Coluna de conteúdo ---------- */
+
+.vod-content-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  overflow: hidden;
+}
+
+.vod-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.vod-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.vod-toolbar-title .chip {
+  cursor: default;
+}
+
+.vod-toolbar-search-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.vod-toolbar-search-button.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.vod-toolbar-search-field {
+  flex: 1;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Hero band (§13.2, FR-025/FR-026) — fixa, não focável ---------- */
+
+.vod-hero-band {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.vod-hero-poster {
+  width: 80px;
+  flex: none;
+}
+
+.vod-hero-poster .poster-box {
+  aspect-ratio: 205 / 302;
+}
+
+.vod-hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.vod-hero-eyebrow {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.vod-hero-title {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vod-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+/* ---------- Estados de borda ---------- */
+
+.vod-state-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.vod-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.vod-state-title {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.vod-state-copy {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+  max-width: 620px;
+}
+
+.vod-truncated-note {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+  padding: var(--space-1) 0;
+  flex: none;
+}
+
+/* ---------- Grade virtualizada de ContentCard (D-006) ----------
+   Geometria fixa (205×302 + gap 24px), sem `ResizeObserver` — mesma
+   escolha do `Rail` (feature 022, R-002). */
+
+.vod-grid {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.vod-grid-inner {
+  position: relative;
+}
+
+.vod-grid-cell {
+  position: absolute;
+  top: 0;
+  width: 205px;
+}

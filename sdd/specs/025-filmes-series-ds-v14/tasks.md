@@ -113,24 +113,24 @@ US2.
 
 ### Implementation
 
-- [ ] T022 [US1] Criar `tv-web/src/features/vod/VodCatalogScreen.tsx` portando o comportamento de `MoviesScreen.tsx`/`SeriesScreen.tsx` (trilha, entrada, busca 018, prefetch, favoritos, estados, notas) parametrizado por `section` (`logic/foco-vod.md` §1), sem mudar nenhum comportamento ainda (base para as tasks seguintes)
-- [ ] T023 [US1] Transformar `tv-web/src/features/movies/MoviesScreen.tsx` e `tv-web/src/features/series/SeriesScreen.tsx` em invólucros de `VodCatalogScreen`, com as props atuais mais `shell?` (D-002)
-- [ ] T024 [US1] Moldura `shell` + composição de foco topbar ↔ conteúdo em `VodCatalogScreen.tsx`, igual à 024: `zone`, `TopBar currentItem`, saída só por ↑ em ★, RETURN na topbar/side nav = `onBack`, estados de topo dentro da moldura (`logic/foco-vod.md` §1 e §3) → contrato: `MoviesScreen — …`
-- [ ] T025 [US1] Side nav V14: entradas ★ (contagem = favoritos do tipo), ↺ (sem contagem até conhecida, §5 de `logic/historico.md`), Todos e categorias (contagem só quando lidas — reaproveitar `knownCategoryCount` de `features/live/channelNumber.ts` por meio de um helper comum em `features/catalog/`, nunca importando `features/live` direto), com cabeçalhos "Sua biblioteca"/"Catálogo"; padrão sem navegação = 1ª categoria real (`VIRTUAL_TRAIL_COUNT = 3`); entrar em ↺ usa `useHistoryContent` e chama `markHistoryKnown` → contrato: `MoviesScreen — …`
-- [ ] T026 [US1] Toolbar (título da entrada + chip "N títulos" quando conhecido + "Pesquisar" no lugar do ícone da 018, `toolbarFocus`) com a mecânica da busca inalterada e o `<input class="search-field">` (D-007; `logic/foco-vod.md` §3). "Ordenar" entra na US4
-- [ ] T027 [US1] Grade de `ContentCard` portrait com geometria fixa (D-006): estrela, selo "Assistido" (filme), resumo "Em dia"/"N/M" (série), meta = grupo; um virtualizador com `lanes`, `useVirtualFocusSync` → contrato: `MoviesScreen — …`
-- [ ] T028 [US1] Memória de foco por entrada com `vodSessionMemory` (gravar a cada foco na grade; ao entrar: `restore` → memória → 1º item) e `focusedIndexHint` no snapshot ao abrir o detalhe (`logic/foco-vod.md` §4) → contrato: `MoviesScreen — …`
-- [ ] T029 [US1] Hero band fixa e não focável (card focado ou lembrado/1º; eyebrow, capa pequena, título, ano, grupo, selos via `useWatchedIds`/`useResumePositions`/resumo 019; some sem itens), sem nenhuma leitura disparada por foco (D-014; `logic/foco-vod.md` §6)
-- [ ] T030 [US1] Estados com componentes V14 (carregando, erro de estrutura, lista sem itens, conteúdo carregando/erro/fonte ausente, Todos vazio, categoria vazia), todos acionáveis por SELECT, no padrão da 024 (`logic/foco-vod.md` §7)
-- [ ] T031 [US1] `tv-web/src/App.tsx`: passar `shell` a `MoviesScreen`/`SeriesScreen` (`onGoHome: goBack`, `onSwitchTop` → `switch-top` para `live`/`movies`/`series`, `onOpenProfiles`) — mesmo padrão da Live
-- [ ] T032 [P] [US1] Criar `tv-web/src/styles/vod.css` (side nav, toolbar, hero band, grade, só tokens; sem `:has()`/`backdrop-filter`) e importá-lo em `tv-web/src/main.tsx` depois de `live.css` (D-015)
+- [X] T022 [US1] Criar `tv-web/src/features/vod/VodCatalogScreen.tsx` portando o comportamento de `MoviesScreen.tsx`/`SeriesScreen.tsx` (trilha, entrada, busca 018, prefetch, favoritos, estados, notas) parametrizado por `section` (`logic/foco-vod.md` §1), sem mudar nenhum comportamento ainda (base para as tasks seguintes)
+- [X] T023 [US1] Transformar `tv-web/src/features/movies/MoviesScreen.tsx` e `tv-web/src/features/series/SeriesScreen.tsx` em invólucros de `VodCatalogScreen`, com as props atuais mais `shell?` (D-002)
+- [X] T024 [US1] Moldura `shell` + composição de foco topbar ↔ conteúdo em `VodCatalogScreen.tsx`, igual à 024: `zone`, `TopBar currentItem`, saída só por ↑ em ★, RETURN na topbar/side nav = `onBack`, estados de topo dentro da moldura (`logic/foco-vod.md` §1 e §3) → contrato: `MoviesScreen — …`
+- [X] T025 [US1] Side nav V14: entradas ★ (contagem = favoritos do tipo), ↺ (sem contagem até conhecida, §5 de `logic/historico.md`), Todos e categorias (contagem só quando lidas — reaproveitar `knownCategoryCount` de `features/live/channelNumber.ts` por meio de um helper comum em `features/catalog/`, nunca importando `features/live` direto), com cabeçalhos "Sua biblioteca"/"Catálogo"; padrão sem navegação = 1ª categoria real (`VIRTUAL_TRAIL_COUNT = 3`); entrar em ↺ usa `useHistoryContent` e chama `markHistoryKnown` → contrato: `MoviesScreen — …`
+- [X] T026 [US1] Toolbar (título da entrada + chip "N títulos" quando conhecido + "Pesquisar" no lugar do ícone da 018, `toolbarFocus`) com a mecânica da busca inalterada e o `<input class="search-field">` (D-007; `logic/foco-vod.md` §3). "Ordenar" entra na US4
+- [X] T027 [US1] Grade de `ContentCard` portrait com geometria fixa (D-006): estrela, selo "Assistido" (filme), resumo "Em dia"/"N/M" (série), meta = grupo; um virtualizador com `lanes`, `useVirtualFocusSync` → contrato: `MoviesScreen — …`
+- [X] T028 [US1] Memória de foco por entrada com `vodSessionMemory` (gravar a cada foco na grade; ao entrar: `restore` → memória → 1º item) e `focusedIndexHint` no snapshot ao abrir o detalhe (`logic/foco-vod.md` §4) → contrato: `MoviesScreen — …`
+- [X] T029 [US1] Hero band fixa e não focável (card focado ou lembrado/1º; eyebrow, capa pequena, título, ano, grupo, selos via `useWatchedIds`/`useResumePositions`/resumo 019; some sem itens), sem nenhuma leitura disparada por foco (D-014; `logic/foco-vod.md` §6)
+- [X] T030 [US1] Estados com componentes V14 (carregando, erro de estrutura, lista sem itens, conteúdo carregando/erro/fonte ausente, Todos vazio, categoria vazia), todos acionáveis por SELECT, no padrão da 024 (`logic/foco-vod.md` §7)
+- [X] T031 [US1] `tv-web/src/App.tsx`: passar `shell` a `MoviesScreen`/`SeriesScreen` (`onGoHome: goBack`, `onSwitchTop` → `switch-top` para `live`/`movies`/`series`, `onOpenProfiles`) — mesmo padrão da Live
+- [X] T032 [P] [US1] Criar `tv-web/src/styles/vod.css` (side nav, toolbar, hero band, grade, só tokens; sem `:has()`/`backdrop-filter`) e importá-lo em `tv-web/src/main.tsx` depois de `live.css` (D-015)
 
 ### Testes da Fase
 
-- [ ] T033 [US1] Atualizar `tv-web/src/features/movies/MoviesScreen.test.tsx` e `tv-web/src/features/series/SeriesScreen.test.tsx` para os novos seletores (ícone → "Pesquisar", `.poster-*` → `.content-card`, 3 entradas virtuais), sem mudar nenhuma asserção de comportamento. Registrar em R-003 qualquer uma que precise mudar
-- [ ] T034 [P] [US1] Teste de Séries sob a topbar + memória de foco por entrada (espelho do contrato, para a seção `series`) em `tv-web/src/features/series/SeriesScreen.test.tsx`
-- [ ] T035 [P] [US1] Testes da hero band (acompanha o foco, some sem itens, sem texto descritivo, "Continuar de mm:ss" com retomada) e da memória entre montagens (desmontar e remontar a tela mantém o foco da entrada) em `tv-web/src/features/vod/VodCatalogScreen.test.tsx`
-- [ ] T036 [P] [US1] Teste de `App` passando `shell` e trocando Filmes → Séries/Live por `switch-top` (RETURN volta ao Início) em `tv-web/src/App.test.tsx`
+- [X] T033 [US1] Atualizar `tv-web/src/features/movies/MoviesScreen.test.tsx` e `tv-web/src/features/series/SeriesScreen.test.tsx` para os novos seletores (ícone → "Pesquisar", `.poster-*` → `.content-card`, 3 entradas virtuais), sem mudar nenhuma asserção de comportamento. Registrar em R-003 qualquer uma que precise mudar
+- [X] T034 [P] [US1] Teste de Séries sob a topbar + memória de foco por entrada (espelho do contrato, para a seção `series`) em `tv-web/src/features/series/SeriesScreen.test.tsx`
+- [X] T035 [P] [US1] Testes da hero band (acompanha o foco, some sem itens, sem texto descritivo, "Continuar de mm:ss" com retomada) e da memória entre montagens (desmontar e remontar a tela mantém o foco da entrada) em `tv-web/src/features/vod/VodCatalogScreen.test.tsx`
+- [X] T036 [P] [US1] Teste de `App` passando `shell` e trocando Filmes → Séries/Live por `switch-top` (RETURN volta ao Início) em `tv-web/src/App.test.tsx`
 
 **Critério de Conclusão**: `npx vitest run src/features/movies/MoviesScreen.filmes-series-ds-v14.contract.test.tsx` dá 1/1 verde e `check-contract-tests.ps1` fica íntegro. Além disso: `npx vitest run src/features/movies src/features/series src/features/vod src/navigation` verde (com a regra do flake), `npx tsc -b` limpo, e no navegador Filmes/Séries abrem pela topbar com o foco correto.
 
@@ -138,11 +138,11 @@ US2.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída.
+- Feito: `VodCatalogScreen.tsx` novo (grade/side nav/toolbar/hero band/estados/memória de foco/shell), `MoviesScreen.tsx`/`SeriesScreen.tsx` reduzidos a invólucros finos, `categoryCount.ts` (reexport de `knownCategoryCount` sem `features/vod` importar `features/live`), `SideCategoryNav.tsx` com `groupLabel?` (T015, já feito na Fase 2) consumido aqui, `App.tsx` passando `shell` a Filmes/Séries, `vod.css` novo importado em `main.tsx`. Widening aditivo de `TrailKey`/`EnteredKey` locais nas telas antigas (Fase 2) já não é mais necessário como workaround — as telas passaram a ser invólucros, mas o tipo continua correto. Corrigido junto: `formatResumeTime` duplicada removida em favor do `formatTime` já existente (`lib/player/formatTime.ts`), mesmo formato "Continuar de mm:ss" do resto do app.
+- Contrato: `npx vitest run src/features/movies/MoviesScreen.filmes-series-ds-v14.contract.test.tsx` → 1/1 verde, de primeira. `check-contract-tests.ps1 -Slug 025-filmes-series-ds-v14` → trava íntegra (5/5, todos os contratos da feature agora verdes).
+- Testes executados: `npx vitest run src/features/movies src/features/series src/features/vod src/navigation` → 16 arquivos, 130 testes verdes (incluía atualizar seletores em `MoviesScreen.test.tsx`/`.favorites.test.tsx`/`SeriesScreen.test.tsx`/`.favorites.test.tsx` — nenhuma asserção de comportamento mudou, só seletor/contagem síncrona da side nav antes da 1ª resolução de query, ver nota abaixo). `npm run test` completo → 120 arquivos, 1155 testes verdes, sem flake nesta rodada. `npx tsc -b` limpo. `npm run lint` limpo (só os warnings pré-existentes de `useVirtualizer`/`useMemo` já presentes em `LiveScreen.tsx`, mesmo padrão). `npm run build` e `npm run build:tizen` limpos (guarda de arquivos não listados passou).
+- Pendências: nenhuma nova. A passada no navegador real (visual) não foi feita nesta sessão — só testes automatizados; recomendado antes da TV física, não gate desta fase.
 
 ---
 

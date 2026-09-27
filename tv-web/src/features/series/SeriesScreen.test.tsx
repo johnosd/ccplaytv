@@ -7,6 +7,8 @@ import type { CatalogCategory, CatalogItemOut, CategoryFetchOutcome } from '../c
 import type { CategoryScreenSnapshot } from '../catalog/categoryScreenSnapshot'
 import { db } from '../../lib/catalog/db'
 import { buildStableId } from '../../lib/catalog/userStateRepository'
+import { resetVodSessionMemory } from '../vod/vodSessionMemory'
+import type { VodShellProps } from '../vod/vodShell'
 
 /**
  * jsdom não faz layout de verdade nem implementa `Element.scrollTo`
@@ -161,11 +163,21 @@ function press(key: string) {
   })
 }
 
+/**
+ * Títulos na grade (feature 025) — nunca `screen.getByText` direto pro
+ * título de um card: a hero band (fixa, não focável) repete o texto do
+ * item focado, então `getByText` acharia dois nós pro mesmo nome.
+ */
+function gridTitles(): string[] {
+  return [...document.querySelectorAll('.vod-grid .content-card-title')].map((el) => el.textContent ?? '')
+}
+
 describe('SeriesScreen', () => {
   const onOpenSeries = vi.fn()
   const onBack = vi.fn()
 
   beforeEach(() => {
+    resetVodSessionMemory()
     onOpenSeries.mockReset()
     onBack.mockReset()
     mockContentByCategory({})
@@ -244,12 +256,12 @@ describe('SeriesScreen', () => {
 
     press('ArrowRight')
 
-    const rendered = document.querySelectorAll('.poster-grid .poster-card-title')
+    const rendered = document.querySelectorAll('.vod-grid .content-card-title')
     expect(rendered.length).toBeGreaterThan(0)
     expect(rendered.length).toBeLessThan(many.length)
 
     const lefts = new Set(
-      [...document.querySelectorAll('.poster-grid .poster-cell')].map((el) => (el as HTMLElement).style.left),
+      [...document.querySelectorAll('.vod-grid .vod-grid-cell')].map((el) => (el as HTMLElement).style.left),
     )
     expect(lefts.size).toBe(6)
   })
@@ -260,8 +272,7 @@ describe('SeriesScreen', () => {
     renderSeries()
 
     press('ArrowRight')
-    expect(screen.getByText('Série A')).toBeInTheDocument()
-    expect(screen.getByText('Série B')).toBeInTheDocument()
+    expect(gridTitles()).toEqual(['Série A', 'Série B'])
 
     press('Enter')
     expect(onOpenSeries).toHaveBeenCalledWith('id-Série A', expect.any(Object))
@@ -279,7 +290,7 @@ describe('SeriesScreen', () => {
 
     press('ArrowRight')
 
-    const cards = [...container.querySelectorAll('.poster-cell')]
+    const cards = [...container.querySelectorAll('.vod-grid-cell')]
     const comCapa = cards.find((c) => c.textContent?.includes('Com Capa'))
     const semCapa = cards.find((c) => c.textContent?.includes('Sem Capa'))
 
@@ -378,8 +389,8 @@ describe('SeriesScreen', () => {
     renderSeries(vi.fn(), snapshot)
 
     expect(document.querySelector<HTMLInputElement>('input.search-field')?.value).toBe('break')
-    const focusedCell = [...document.querySelectorAll('.poster-cell')].find((c) => c.querySelector('.tv-focus'))
-    expect(focusedCell?.querySelector('.poster-card-title')?.textContent).toBe('Breaking Bad')
+    const focusedCell = [...document.querySelectorAll('.vod-grid-cell')].find((c) => c.querySelector('.tv-focus'))
+    expect(focusedCell?.querySelector('.content-card-title')?.textContent).toBe('Breaking Bad')
   })
 
   // T023 (feature 018, US2): "Todos" lista séries de mais de uma categoria
@@ -395,7 +406,7 @@ describe('SeriesScreen', () => {
     press('ArrowUp') // de "Drama" (padrão) para "Todos"
     press('ArrowRight') // entra em "Todos"
 
-    const titlesBeforeSearch = [...document.querySelectorAll('.poster-card-title')].map((t) => t.textContent)
+    const titlesBeforeSearch = gridTitles()
     expect(titlesBeforeSearch.sort()).toEqual(['Better Call Saul', 'Breaking Bad'].sort())
     expect(document.body.textContent).toContain('Busca em 1 de 2 categorias')
 
@@ -404,8 +415,7 @@ describe('SeriesScreen', () => {
     const field = document.querySelector<HTMLInputElement>('input.search-field')
     act(() => fireEvent.change(field!, { target: { value: 'saul' } }))
 
-    const titlesAfterSearch = [...document.querySelectorAll('.poster-card-title')].map((t) => t.textContent)
-    expect(titlesAfterSearch).toEqual(['Better Call Saul'])
+    expect(gridTitles()).toEqual(['Better Call Saul'])
   })
 
   // Achado no gate final desta feature (T029): `loadCategoryContent` sempre
@@ -418,7 +428,7 @@ describe('SeriesScreen', () => {
     renderSeries()
 
     press('ArrowRight') // entra em "Drama" — item obsoleto, outcome indisponível
-    expect(document.querySelector('.search-icon-button')).toBeNull()
+    expect(document.querySelector('.vod-toolbar-search-button')).toBeNull()
   })
 
   // Feature 019 (US3): selo agregado "Em dia"/contagem — `useSeriesWatchedSummary`
@@ -490,7 +500,7 @@ describe('SeriesScreen', () => {
       press('ArrowRight') // entra em "Drama"
 
       await waitFor(() => expect(document.querySelector('.watched-badge')).toBeInTheDocument())
-      const cards = [...document.querySelectorAll('.poster-cell')]
+      const cards = [...document.querySelectorAll('.vod-grid-cell')]
       const emDia = cards.find((c) => c.textContent?.includes('Em Dia'))
       const parcial = cards.find((c) => c.textContent?.includes('Parcial'))
       const nuncaAberta = cards.find((c) => c.textContent?.includes('Nunca Aberta'))
@@ -498,6 +508,84 @@ describe('SeriesScreen', () => {
       expect(emDia?.querySelector('.watched-badge')?.textContent).toBe('Em dia')
       expect(parcial?.querySelector('.watched-badge')?.textContent).toBe('1/2')
       expect(nuncaAberta?.querySelector('.watched-badge')).not.toBeInTheDocument()
+    })
+  })
+
+  // T034 (feature 025) — espelho do contrato travado de Filmes
+  // (`MoviesScreen.filmes-series-ds-v14.contract.test.tsx`), para a seção
+  // `series`: sob a topbar, side nav V14, e cada entrada lembra o último
+  // card focado (US1/AC1-AC3, US1/AC6, FR-001..FR-003, FR-006, FR-027,
+  // FR-030, SC-007).
+  describe('sob a topbar, com shell (feature 025)', () => {
+    function renderSeriesWithShell(shellOverrides: Partial<VodShellProps> = {}) {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+      const onBack = vi.fn()
+      const shell: VodShellProps = {
+        sourceName: 'Sala',
+        onGoHome: vi.fn(),
+        onSwitchTop: vi.fn(),
+        onOpenProfiles: vi.fn(),
+        ...shellOverrides,
+      }
+      render(
+        <QueryClientProvider client={queryClient}>
+          <SeriesScreen sourceId="source-1" onOpenSeries={vi.fn()} onBack={onBack} onResync={vi.fn()} shell={shell} />
+        </QueryClientProvider>,
+      )
+      return { onBack, shell }
+    }
+
+    function topbarItem(label: string): HTMLElement | undefined {
+      return [...document.querySelectorAll<HTMLElement>('.topbar-item')].find((el) => el.textContent?.includes(label))
+    }
+
+    function navEntry(label: string): HTMLElement | undefined {
+      return [...document.querySelectorAll<HTMLElement>('.side-category-nav-item')].find((el) =>
+        el.textContent?.includes(label),
+      )
+    }
+
+    it('a aba "Séries" fica ativa, e a memória de foco por entrada sobrevive à troca de categoria', () => {
+      mockCategories([category(1, 'Comédia', 0), category(2, 'Drama', 1)])
+      mockContentByCategory({
+        1: [series('Série A1', 'Comédia'), series('Série A2', 'Comédia'), series('Série A3', 'Comédia')],
+        2: [series('Série D1', 'Drama')],
+      })
+      const { onBack } = renderSeriesWithShell()
+
+      const seriesTab = topbarItem('Séries')
+      expect(seriesTab).toBeDefined()
+      expect(seriesTab!.getAttribute('aria-current')).toBe('page')
+      expect(navEntry('Comédia')?.classList.contains('tv-focus')).toBe(true)
+
+      press('ArrowRight') // entra em "Comédia"
+      press('ArrowRight')
+      press('ArrowRight')
+      expect(gridTitles()[gridTitles().length - 1]).toBe('Série A3')
+
+      press('Escape') // RETURN na grade → side nav
+      press('ArrowDown')
+      press('ArrowRight') // entra em "Drama": começa no primeiro card
+      expect(gridTitles()).toEqual(['Série D1'])
+
+      press('Escape')
+      press('ArrowUp')
+      press('ArrowRight') // volta a "Comédia": restaura o último card focado ali
+      expect(gridTitles()[gridTitles().length - 1]).toBe('Série A3')
+
+      press('Escape')
+      press('ArrowUp') // Todos
+      press('ArrowUp') // ↺ Histórico
+      press('ArrowUp') // ★ Favoritos
+      expect(navEntry('Favoritos')?.classList.contains('tv-focus')).toBe(true)
+      press('ArrowUp') // sobe para a topbar
+      expect(topbarItem('Séries')?.classList.contains('tv-focus')).toBe(true)
+      expect(document.querySelector('.side-category-nav-item.tv-focus')).toBeNull()
+      press('ArrowDown')
+      expect(navEntry('Favoritos')?.classList.contains('tv-focus')).toBe(true)
+
+      press('Escape') // RETURN na side nav → Início
+      expect(onBack).toHaveBeenCalledTimes(1)
     })
   })
 })

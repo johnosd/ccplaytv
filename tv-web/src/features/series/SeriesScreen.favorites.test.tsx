@@ -11,6 +11,7 @@ import { SeriesScreen } from './SeriesScreen'
 import * as catalogApi from '../catalog/catalogApi'
 import type { CatalogCategory, CatalogItemOut } from '../catalog/catalogApi'
 import { db } from '../../lib/catalog/db'
+import { resetVodSessionMemory } from '../vod/vodSessionMemory'
 
 let restoreOffsetHeight: PropertyDescriptor | undefined
 let restoreOffsetWidth: PropertyDescriptor | undefined
@@ -201,6 +202,7 @@ async function holdEnter(ms = 850): Promise<void> {
 
 describe('SeriesScreen — favoritos (feature 013)', () => {
   beforeEach(() => {
+    resetVodSessionMemory()
     mockContentByCategory({})
   })
 
@@ -250,10 +252,14 @@ describe('SeriesScreen — favoritos (feature 013)', () => {
     mockCategories([category(1, 'G1', 0)])
     const { onOpenSeries } = renderSeries()
 
-    const groups = document.querySelectorAll('.live-column-groups .live-item')
-    expect([...groups].map((g) => g.textContent)).toEqual(['★Favoritos', 'Todos', 'G1'])
+    const groups = document.querySelectorAll('.side-category-nav-item')
+    // "★ Favoritos" mostra a contagem real do tipo (feature 025, FR-007) — a
+    // consulta ainda não resolveu neste instante síncrono, então é 0.
+    expect([...groups].map((g) => g.textContent)).toEqual(['Favoritos0', 'Histórico', 'Todos', 'G1'])
 
     keydown('ArrowUp') // "Todos"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // "↺ Histórico"
     keyup('ArrowUp')
     keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
@@ -261,7 +267,7 @@ describe('SeriesScreen — favoritos (feature 013)', () => {
     keyup('ArrowRight')
 
     await waitFor(() => {
-      const titles = document.querySelectorAll('.poster-card-title')
+      const titles = document.querySelectorAll('.content-card-title')
       expect([...titles].map((t) => t.textContent)).toEqual(['Breaking Bad'])
     })
 
@@ -274,9 +280,11 @@ describe('SeriesScreen — favoritos (feature 013)', () => {
     mockCategories([category(1, 'G1', 0)])
     renderSeries()
 
-    keydown('ArrowUp')
+    keydown('ArrowUp') // "Todos"
     keyup('ArrowUp')
-    keydown('ArrowUp')
+    keydown('ArrowUp') // "↺ Histórico"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
     keydown('ArrowRight')
     keyup('ArrowRight')
@@ -287,6 +295,6 @@ describe('SeriesScreen — favoritos (feature 013)', () => {
     tap('Enter')
 
     expect(screen.queryByText('Nenhum favorito ainda')).not.toBeInTheDocument()
-    expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('★Favoritos')
+    expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toBe('Favoritos0')
   })
 })

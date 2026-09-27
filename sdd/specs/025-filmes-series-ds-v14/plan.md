@@ -294,7 +294,7 @@ passou 19/19 e 67/67 isolado.
 | --- | --- |
 | Fase 1 (Setup) | Concluída, com uma pendência de ambiente: T001 não pôde consultar o painel real (sem `.env`/credencial neste container). T002 (mocks) e T003 (ícone) feitos. |
 | Fase 2 (Foundational) | Concluída. 4/4 contratos da fase verdes; dados (ano/inclusão/duração/imagem/histórico), `vodSort`, extensões de `CategoryScreenSnapshot`/`SideCategoryNav` prontos. |
-| Fase 3 (US1) | Não iniciada — próxima. |
+| Fase 3 (US1) | Concluída. 5º contrato da feature (`MoviesScreen`) verde — os 5/5 contratos da feature 025 estão verdes. `VodCatalogScreen.tsx` sob a topbar, side nav V14, toolbar (Pesquisar), hero band, grade `ContentCard`, memória de foco por entrada, `MoviesScreen`/`SeriesScreen` como invólucros finos. |
 | Fases 4–9 | Não iniciadas. |
 
 ## Riscos e Decisões
@@ -308,7 +308,7 @@ passou 19/19 e 67/67 isolado.
 | --- | --- | --- | --- |
 | R-001 | Os nomes dos campos de ano, inclusão, duração e imagem de episódio no painel real não foram confirmados neste repositório (`research.md` R1). | "Ano"/"Recém-adicionados"/barra podem nunca aparecer para a fonte real, mesmo com o código certo. | T001 verifica contra o painel real (credencial do `.env`, nunca impressa) antes da Fase 2. Nome adicional encontrado entra sem mexer no contrato. Se o painel não declarar, a ausência é o comportamento correto. **Ainda não verificado**: a sessão de execução em 2026-09-27 rodou num container remoto sem `.env` real (só `.env.example`), sem painel acessível — T001 não pôde ser executado. Implementação seguiu com os nomes de `research.md` R1 (já toleram ausência/nome diferente sem inventar dado). Uma sessão com acesso ao painel real e ao `.env` preenchido deve rodar T001 antes de fechar este risco. |
 | R-002 | Altura útil da grade com toolbar + hero band fixa (`research.md` R3). | Menos de 2 linhas de cards visíveis vira uma faixa difícil de navegar. | Título da entrada na toolbar, hero ≈150px; conferir por screenshot no E2E e, se possível, na TV. Reduzir a hero antes do card. |
-| R-003 | Unificar `MoviesScreen`/`SeriesScreen` num `VodCatalogScreen` é uma reescrita grande de ~1400 linhas com comportamento acumulado de 009/010/013/014/015/017/018/019. | Regressão silenciosa de um caso de borda (prefetch com a categoria já entrada, `source_missing`, cobertura de "Todos", selo "Em dia"). | Os testes de comportamento existentes das duas telas são a rede. Eles mudam só seletores, e qualquer asserção que mudar é registrada aqui antes. US3 é uma fase própria de verificação. |
+| R-003 | Unificar `MoviesScreen`/`SeriesScreen` num `VodCatalogScreen` é uma reescrita grande de ~1400 linhas com comportamento acumulado de 009/010/013/014/015/017/018/019. | Regressão silenciosa de um caso de borda (prefetch com a categoria já entrada, `source_missing`, cobertura de "Todos", selo "Em dia"). | Os testes de comportamento existentes das duas telas são a rede. Eles mudam só seletores, e qualquer asserção que mudar é registrada aqui antes. US3 é uma fase própria de verificação. **Fase 3 (T033)**: as mudanças em `MoviesScreen.test.tsx`/`.favorites.test.tsx`/`SeriesScreen.test.tsx`/`.favorites.test.tsx` foram só seletor (`.poster-*`→`.content-card*`/`.vod-grid*`, `.live-column-groups .live-item`→`.side-category-nav-item`, `.search-icon-button`→`.vod-toolbar-search-button`) **mais duas mudanças de conteúdo esperadas pela própria spec, não regressão**: (1) a lista de entradas da side nav ganhou "Histórico" (FR-006, nova nesta feature); (2) "★ Favoritos" passou a mostrar sua contagem real também nos testes que não seedam favorito nenhum, aparecendo como "Favoritos0" no instante síncrono antes da consulta resolver (mesma regra de contagem honesta da Live, FR-007) — nenhuma asserção de comportamento pré-existente foi invalidada, só passou a refletir uma entrada/contagem que a própria US1 introduz. |
 | R-004 | Histórico de Séries não resolve episódio cujos episódios não foram obtidos na geração atual (fonte ressincronizada). | A série some do Histórico até ser aberta de novo. | Mesma limitação aceita do "Continuar assistindo" (019); a nota de não exibíveis diz quantos episódios ficaram de fora. Não chamar rede no Histórico (constitution). |
 | R-005 | `lastWatched` de um item concluído é o da última gravação de progresso, não o instante da conclusão. | A ordem do Histórico pode ficar alguns minutos defasada para itens concluídos. | Aceito: gravar `lastWatched` em `markCompleted` colocaria no Histórico o que foi marcado à mão (FR-011). Registrado em `logic/historico.md` §1. |
 | R-006 | CSS antiga compartilhada entre telas migradas e não migradas (`.live-state*`, `.search-field*`, `.live-truncated-note`, `.poster-*`). | Remover uma regra usada por outra tela quebra o visual dela sem teste pegar. | D-015: só remover depois de busca no código; `paridade-visual.mjs`/`shell-visual.mjs` como rede. |
@@ -326,8 +326,9 @@ passou 19/19 e 67/67 isolado.
 | --- | --- | --- | --- |
 | 2026-09-27 | Fase 1 (Setup) | T002 (mocks `trailer`/`cast`/`similar`) e T003 (ícone `history`) feitos e testados. T001 bloqueado por ambiente (sem `.env`/painel real neste container remoto) — documentado em `research.md`/R-001, não fingido. | T001 pendente de uma sessão com acesso ao painel real. |
 | 2026-09-27 | Fase 2 (Foundational) | `normalizeYear`/`normalizeAddedAt`/`normalizeDurationSeconds` (`classifier.ts`); captura em `mapVodEntry`/`mapSeriesEntry`/`fetchSeriesInfo` (`xtreamConnector.ts`); cópia em `categoryLoader.ts`/`importPipeline.ts`/`seriesLoader.ts`; mapeamento em `catalogApi.ts`; `vodSort.ts` completo; `listPlayed` (`userStateRepository.ts`); `loadHistory` (`history.ts`); `useHistoryContent`/`useResumePositions` + invalidações; `CategoryScreenSnapshot`/`SideCategoryNav` estendidos. 4/4 contratos da fase verdes, 517 testes da área verdes, `tsc -b` limpo, travas 018–024 íntegras. | Nenhuma nova. |
+| 2026-09-27 | Fase 3 (US1) | `VodCatalogScreen.tsx` novo (shell/topbar↔conteúdo, side nav V14 com ↺ Histórico, toolbar "Pesquisar", hero band, grade `ContentCard` 205×302, memória de foco por entrada via `vodSessionMemory`, estados V14). `MoviesScreen`/`SeriesScreen` viraram invólucros finos. `App.tsx` passa `shell`. `vod.css` novo. 5º contrato da feature (`MoviesScreen`) verde de primeira — **5/5 contratos da feature agora verdes**. Testes pré-existentes (`MoviesScreen`/`SeriesScreen` + `.favorites`) atualizados (seletor + 2 mudanças de conteúdo esperadas pela spec, documentadas em R-003) — 130 testes da área, 1155 da suíte completa, `tsc`/lint/build/`build:tizen` limpos. | Passada visual no navegador real não feita nesta sessão (recomendada antes da TV física, não gate). |
 
-**PRÓXIMO**: Fase 3 (US1) — T022..T036 (VodCatalogScreen compartilhado, shell topbar↔conteúdo, side nav V14, toolbar, grade, memória de foco; 5º contrato da feature, `MoviesScreen`, precisa fechar verde).
+**PRÓXIMO**: Fase 4 (US2, "↺ Histórico") — T037..T042: conteúdo/estado vazio/nota de não exibíveis/contagem na side nav para a entrada já wireada na Fase 3, mais T040 (corrigir só o comentário de `markCompleted`).
 
 ## Arquivos Principais
 
@@ -342,6 +343,11 @@ passou 19/19 e 67/67 isolado.
 - `tv-web/src/features/vod/vodSort.ts` — `availableSortOptions`/`sortVodItems`.
 - `tv-web/src/features/catalog/categoryScreenSnapshot.ts` — `{kind:'history'}`, `focusedIndexHint`.
 - `tv-web/src/components/SideCategoryNav.tsx` — `groupLabel?`.
+- `tv-web/src/features/vod/VodCatalogScreen.tsx` — a tela compartilhada (novo, foco da Fase 3).
+- `tv-web/src/features/movies/MoviesScreen.tsx` / `tv-web/src/features/series/SeriesScreen.tsx` — agora invólucros finos.
+- `tv-web/src/features/catalog/categoryCount.ts` — reexport de `knownCategoryCount`.
+- `tv-web/src/styles/vod.css` — CSS próprio da feature (D-015).
+- `tv-web/src/App.tsx` — `shell` para Filmes/Séries.
 
 ## Cuidados para Retomada
 

@@ -240,6 +240,12 @@ function App() {
           }
           onBack={goBack}
           onResync={() => resyncFromCategoryScreen(source.id)}
+          shell={{
+            sourceName: source.display_name,
+            onGoHome: goBack,
+            onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
+            onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
+          }}
         />
       )
 
@@ -261,6 +267,12 @@ function App() {
           }
           onBack={goBack}
           onResync={() => resyncFromCategoryScreen(source.id)}
+          shell={{
+            sourceName: source.display_name,
+            onGoHome: goBack,
+            onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
+            onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
+          }}
         />
       )
 
