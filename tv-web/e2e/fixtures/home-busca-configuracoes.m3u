@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:-1 group-title="Canais",Canal Favorito
+http://exemplo.test/live/1.ts
+#EXTINF:-1 group-title="Filmes",Filme Hero
+http://exemplo.test/vod/1.mp4
