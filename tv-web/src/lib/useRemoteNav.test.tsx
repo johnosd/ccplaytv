@@ -325,3 +325,54 @@ describe('useRemoteNav — onFavoriteKey (tecla amarela, feature 013)', () => {
     expect(onLongSelect).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * Tecla de mídia do controle (feature 027, D-007) — só o `PlayerLayer` passa
+ * `onMediaKey`; sem ele, a tecla precisa continuar completamente inerte
+ * (sem `preventDefault`), pra nunca competir com o roving-focus nativo de
+ * outras telas nem interceptar teclas que a plataforma também usa por outro
+ * motivo.
+ */
+describe('useRemoteNav — onMediaKey (teclas de mídia, feature 027)', () => {
+  afterEach(() => cleanup())
+
+  it('com onMediaKey, recebe a tecla reconhecida e chama preventDefault', () => {
+    const onMediaKey = vi.fn()
+    renderHook(() => useRemoteNav({ onMediaKey }))
+
+    const event = new KeyboardEvent('keydown', { key: 'MediaPlayPause', cancelable: true })
+    document.dispatchEvent(event)
+
+    expect(onMediaKey).toHaveBeenCalledWith('MediaPlayPause')
+    expect(event.defaultPrevented).toBe(true)
+  })
+
+  it('reconhece por keyCode quando event.key não é o nome da tecla', () => {
+    const onMediaKey = vi.fn()
+    renderHook(() => useRemoteNav({ onMediaKey }))
+
+    fireEvent.keyDown(document, { key: 'Unidentified', keyCode: 413 }) // MediaStop
+
+    expect(onMediaKey).toHaveBeenCalledWith('MediaStop')
+  })
+
+  it('sem onMediaKey, o evento não tem defaultPrevented (tecla ignorada, D-007/FR-029)', () => {
+    renderHook(() => useRemoteNav({}))
+
+    const event = new KeyboardEvent('keydown', { key: 'MediaPlayPause', cancelable: true })
+    document.dispatchEvent(event)
+
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('tecla que não é de mídia não chama onMediaKey', () => {
+    const onMediaKey = vi.fn()
+    const onDirection = vi.fn()
+    renderHook(() => useRemoteNav({ onMediaKey, onDirection }))
+
+    fireEvent.keyDown(document, { key: 'ArrowUp' })
+
+    expect(onMediaKey).not.toHaveBeenCalled()
+    expect(onDirection).toHaveBeenCalledWith('up')
+  })
+})

@@ -180,6 +180,13 @@ async function run() {
     await page.keyboard.press('Enter') // "Assistir" (ação primária, índice 0)
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
     await fireVideoEvent(page, 'playing')
+    // Pequena folga (feature 027, desvio pequeno registrado em R-005 do
+    // `plan.md` da 027): o chrome novo faz mais um ou dois re-renders síncronos
+    // a mais que a barra antiga ao processar a sessão nova (refs +
+    // `renderTick`, não `useState` direto — ver R-008 da 027), e sem esperar
+    // isso o `page.evaluate` seguinte corria à frente do efeito de
+    // `disableScreenSaver`.
+    await page.waitForTimeout(200)
 
     let calls = await screenSaverCalls(page)
     assert(calls.some((c) => c[0] === 'request'), 'proteção de tela desligada (tizen.power.request) ao entrar em playing')

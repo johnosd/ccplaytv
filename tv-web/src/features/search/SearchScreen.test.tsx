@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { SearchScreen, type SearchScreenProps } from './SearchScreen'
 import type { SearchSnapshot } from './searchSnapshot'
 import { db } from '../../lib/catalog/db'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 /**
  * Testes de comportamento de `SearchScreen` (feature 026, T035) — contra
@@ -109,6 +110,12 @@ describe('SearchScreen — abertura e digitação (US3/AC1-AC3)', () => {
     await waitFor(() => expect(screen.getByText('Busca em 2 de 2 categorias')).toBeInTheDocument())
   })
 
+  it('corpo rola sem barra nativa (feature 028, FR-006)', async () => {
+    await seedSource()
+    renderSearch()
+    expect(document.querySelector('.search-body')).toHaveClass('no-scrollbar')
+  })
+
   it('menos de 2 caracteres: nenhum resultado, mesmo com itens que combinam', async () => {
     await seedSource()
     await seedCategory('movie')
@@ -148,6 +155,43 @@ describe('SearchScreen — abertura e digitação (US3/AC1-AC3)', () => {
       expect(screen.getAllByText('Busca em 1 de 1 categorias').length).toBeGreaterThan(0)
     })
     expect(screen.getByRole('button', { name: 'Editar busca' })).toHaveClass('tv-focus')
+  })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível: sem resultado', async () => {
+    await seedSource()
+    await seedCategory('movie')
+    await seedMovie('Duna', 'd1')
+    renderSearch()
+    await typeTerm('zzz')
+    await waitFor(() => expect(screen.getByText('Nada encontrado para "zzz"')).toBeInTheDocument())
+    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
+  })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível: com resultado', async () => {
+    await seedSource()
+    await seedCategory('movie')
+    await seedMovie('Duna', 'd1')
+    renderSearch()
+    await typeTerm('du')
+    await waitFor(() => expect(screen.getByText('Duna')).toBeInTheDocument())
+    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
+  })
+
+  // Feature 028, FR-007/FR-009: SELECT devolve o foco DOM ao campo (não só o clique do mouse).
+  it('sem resultado: SELECT em "Editar busca" devolve o foco DOM ao campo', async () => {
+    await seedSource()
+    await seedCategory('movie')
+    await seedMovie('Duna', 'd1')
+    renderSearch()
+
+    await typeTerm('zzz')
+    await waitFor(() => expect(screen.getByText('Nada encontrado para "zzz"')).toBeInTheDocument())
+
+    press('Enter')
+    const field = screen.getByLabelText('Buscar nesta lista')
+    expect(document.activeElement).toBe(field)
   })
 })
 

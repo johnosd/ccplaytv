@@ -1,7 +1,8 @@
 /**
  * Utilitários globais do Design System V14 (feature 021). Importado depois
- * de `index.css` (consome os tokens) e antes de `features/screens.css`
- * (D-007 do plan.md) — uma tela pode sobrescrever, nunca o contrário.
+ * de `index.css` (consome os tokens) e antes de `styles/shared.css`
+ * (D-007 do plan.md; sucessor de `features/screens.css`, eliminado na
+ * feature 028) — uma tela pode sobrescrever, nunca o contrário.
  */
 
 /* ---------- Palco (§4.1, US2, D-003) ---------- */
@@ -23,7 +24,7 @@
 /* Contêiner sem tamanho e sem recorte: hospeda o `.toast` visível, portado
    pra dentro dela — por isso não é `sr-only` (ver `logic/regiao-de-
    anuncio.md`). O `.toast` continua com o próprio `position: fixed` de
-   `screens.css`, então a aparência dele não muda. */
+   `shared.css`, então a aparência dele não muda. */
 .announcer-region {
   position: fixed;
   top: 0;
@@ -91,4 +92,18 @@
   outline: none;
   box-shadow: none;
   transform: none;
+}
+
+/* ---------- Rolagem por foco, sem barra nativa (feature 028, D-002/FR-001) ---------- */
+/* A rolagem em si continua (`overflow: auto`/`scroll` no elemento — nunca
+   trocado por `hidden`, que quebraria `scrollIntoView`/a virtualização); só
+   a barra visível some. `scrollbar-width: none` cobre navegadores atuais,
+   mas o Chromium 108 da TV só reconhece `scrollbar-width` a partir do 121 —
+   sem o `::-webkit-scrollbar`, a barra continuaria aparecendo lá. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

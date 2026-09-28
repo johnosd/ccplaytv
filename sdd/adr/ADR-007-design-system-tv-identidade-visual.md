@@ -36,6 +36,22 @@ Mudam a estrutura de telas e os tokens:
 As menções a `docs/design/CCPlayTv Prototype - Standalone.html` no texto
 abaixo são históricas. Ver ADR-011 para o raciocínio completo.
 
+**Atualização (028):** a migração para o Design System V14 Spectrum
+anunciada na nota da ADR-011 está **concluída** — Ondas 0 a 7 (features
+`021` a `028`) convergidas ou código-completas, cada tela do app hoje sob a
+topbar/shell V14. A forma executável desta ADR e da ADR-011 vive em
+`tv-web/src/index.css` (o conjunto completo de tokens V14: espaçamento,
+raio, elevação, motion, cores semânticas, camadas z, safe zone — feature
+021) e em `tv-web/src/components/Stage.tsx` (o palco lógico 1920×1080,
+escalado uniformemente para o viewport real — também feature 021). A
+paleta e a receita de foco (contorno 4px + offset + glow + `scale(1.06)`,
+140ms) permanecem exatamente como descritas abaixo. `tv-web/src/features/
+screens.css`, citado no texto original desta ADR como o outro artefato
+executável junto de `index.css`, foi eliminado na feature 028 (Onda 7,
+limpeza de CSS) — seu conteúdo vivo foi redistribuído entre
+`tv-web/src/styles/shared.css` e os arquivos de cada tela; nenhuma regra
+descrita nesta ADR mudou de valor nessa migração, só de arquivo.
+
 ## Data
 
 2026-09-16

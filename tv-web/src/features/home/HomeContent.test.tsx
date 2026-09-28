@@ -7,6 +7,7 @@ import { HomeContent, type HomeContentProps } from './HomeContent'
 import { AnnouncerContext } from '../../lib/announcer'
 import { db } from '../../lib/catalog/db'
 import { buildStableId, toggleFavorite, updateProgress } from '../../lib/catalog/userStateRepository'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 /**
  * Testes de comportamento de `HomeContent` (feature 026, T020) — hero,
@@ -158,6 +159,9 @@ describe('HomeContent — hero de boas-vindas (US1/AC3, FR-008)', () => {
     expect(screen.getByText('Curadoria IA')).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Serviços' })).toBeInTheDocument()
 
+    // Feature 028, FR-001: barra nativa escondida, sem trocar overflow por hidden.
+    expect(document.querySelector('.home-content')).toHaveClass('no-scrollbar')
+
     press('Enter')
     expect(props.onNavigate).toHaveBeenCalledWith('live', { zone: 'shortcuts', destination: 'live' })
 
@@ -165,6 +169,16 @@ describe('HomeContent — hero de boas-vindas (US1/AC3, FR-008)', () => {
     expect(movies).toHaveClass('tv-focus')
     press('Enter')
     expect(props.onNavigate).toHaveBeenCalledWith('movies', { zone: 'shortcuts', destination: 'movies' })
+  })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível: sem conteúdo (boas-vindas)', async () => {
+    const { container } = renderHome()
+    await waitFor(() => {
+      expect(screen.getByText('Bem-vindo(a) ao CCPlayTV')).toBeInTheDocument()
+      expect(document.querySelectorAll('.home-row[aria-busy="true"]')).toHaveLength(0)
+    })
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 })
 
@@ -273,6 +287,21 @@ describe('HomeContent — rails: "Filmes (N)"/"Séries (N)"/"Ver todos (N)" (FR-
     press('ArrowRight') // Globo -> Ver todos (1)
     press('Enter')
     expect(props.onOpenFavorites).toHaveBeenCalledWith('live', expect.objectContaining({ zone: 'rail', rail: 'channels' }))
+  })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível: com conteúdo (hero + rails)', async () => {
+    await seedSource()
+    await seedMovie('Duna', 'd1')
+    await favoriteMovie('d1', 200)
+    await seedSeriesNoEpisodes('Dark', 's1')
+    await favoriteSeries('s1', 100)
+    await seedChannel('Globo', 'c1')
+    await favoriteChannel('c1', 50)
+    const { container } = renderHome()
+
+    await waitFor(() => expect(screen.getByText('Filmes (1)')).toBeInTheDocument())
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 
   it('sem nenhum favorito de filme/série, "Minha Lista" nem aparece (rail vazia não renderiza)', async () => {

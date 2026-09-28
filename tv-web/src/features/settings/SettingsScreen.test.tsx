@@ -6,6 +6,7 @@ import { SettingsScreen, type SettingsScreenProps, type SettingsShellProps } fro
 import * as importApi from '../import/importApi'
 import type { SourceOut } from '../import/importApi'
 import { REDUCED_MOTION_CLASS, REDUCED_MOTION_STORAGE_KEY } from '../../lib/motionPreference'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 /**
  * Testes de comportamento de `SettingsScreen` (feature 026, T029) — o
@@ -107,6 +108,56 @@ function press(key: string) {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+})
+
+describe('SettingsScreen — barra de rolagem (feature 028, FR-006)', () => {
+  it('painel rola sem barra nativa', () => {
+    mockSources([SALA])
+    mockDelete()
+    mockResync()
+    renderSettings()
+    expect(document.querySelector('.settings-panel')).toHaveClass('no-scrollbar')
+  })
+})
+
+describe('SettingsScreen — nomes acessíveis (feature 028, FR-015/FR-017)', () => {
+  it('todo controle tem nome acessível: aba Fontes IPTV (padrão)', () => {
+    mockSources([SALA])
+    mockDelete()
+    mockResync()
+    renderSettings()
+    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
+  })
+
+  it('todo controle tem nome acessível: aba mock "Em breve"', () => {
+    mockSources([SALA])
+    mockDelete()
+    mockResync()
+    renderSettings()
+    press('ArrowUp') // tabs: sources (1) -> integrations (0)
+    press('ArrowRight') // entra no painel mock
+    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
+  })
+})
+
+// Feature 028, FR-007: SELECT em "Voltar às abas" (aba mock "Em breve") devolve o foco à trilha de abas.
+describe('SettingsScreen — aba mock "Em breve" (feature 028, FR-007)', () => {
+  it('"Voltar às abas" (SELECT) sai do painel mock e volta pra trilha de abas', () => {
+    mockSources([SALA])
+    mockDelete()
+    mockResync()
+    renderSettings()
+
+    press('ArrowUp') // tabs: sources (1) -> integrations (0)
+    press('ArrowRight') // entra no painel "Integrações & BYOK" (mock)
+    expect(screen.getByText(/Em breve/)).toBeInTheDocument()
+    const back = screen.getByRole('button', { name: 'Voltar às abas' })
+    expect(back).toHaveClass('tv-focus')
+
+    press('Enter')
+    expect(screen.getByRole('button', { name: 'Voltar às abas' })).not.toHaveClass('tv-focus')
+    expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toContain('Integrações & BYOK')
+  })
 })
 
 describe('SettingsScreen — Editar/Ressincronizar (US2, FR-026/FR-027)', () => {

@@ -5,6 +5,7 @@ import * as catalogApi from '../features/catalog/catalogApi'
 import * as userStateRepository from '../lib/catalog/userStateRepository'
 import * as screenSaver from '../lib/player/screenSaver'
 import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerAdapterFactory } from '../lib/player/PlayerService'
+import { findUnnamedControls } from '../testing/accessibleNames'
 
 vi.mock('../features/catalog/catalogApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../features/catalog/catalogApi')>()
@@ -352,6 +353,45 @@ describe('PlayerLayer', () => {
     expect(await screen.findByText('Não foi possível reproduzir este canal.')).toBeInTheDocument()
   })
 
+  // Bug `mensagem-generica-erro-reproducao-sempre-diz`: o motor não sabe se o
+  // item é canal, filme ou episódio — falha dele sem `message` usa a
+  // mensagem de quem monta a camada, nunca um texto fixo de canal.
+  async function failEngineWithoutMessage() {
+    await waitFor(() => expect(driver.callbacks).not.toBeNull())
+    act(() => driver.callbacks?.onStateChange('playing'))
+    act(() => {
+      driver.callbacks?.onError({ code: 'PLAYER_ERROR_CONNECTION_FAILED' })
+      driver.callbacks?.onStateChange('error')
+    })
+  }
+
+  it('falha do motor sem mensagem usa a genericErrorMessage da tela', async () => {
+    vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
+    render(
+      <PlayerLayer
+        itemId="item-1"
+        title="Canal"
+        onClose={() => {}}
+        createAdapter={createAdapter}
+        genericErrorMessage="Não foi possível reproduzir este canal."
+      />,
+    )
+
+    await failEngineWithoutMessage()
+
+    expect(await screen.findByText('Não foi possível reproduzir este canal.')).toBeInTheDocument()
+  })
+
+  it('falha do motor sem mensagem, sem prop, cai no texto neutro — nunca "canal" num filme', async () => {
+    vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
+    render(<PlayerLayer itemId="item-1" title="Filme" onClose={() => {}} createAdapter={createAdapter} />)
+
+    await failEngineWithoutMessage()
+
+    expect(await screen.findByText('Não foi possível reproduzir isto.')).toBeInTheDocument()
+    expect(screen.queryByText(/canal/)).not.toBeInTheDocument()
+  })
+
   // --- Plano de hardware: sem liberar a área, o canal toca sem imagem ---
 
   function planeVisible(): boolean {
@@ -462,8 +502,10 @@ describe('PlayerLayer', () => {
 
     it('controles começam visíveis, com foco no play/pause', async () => {
       await renderPlaying()
+      // Feature 027: a linha do VOD ganhou 5 mocks "Em breve" além dos 3
+      // controles reais (jumpBack, playPause, jumpForward) — 8 no total.
       const buttons = screen.getAllByRole('button')
-      expect(buttons).toHaveLength(3) // jumpBack, playPause, jumpForward
+      expect(buttons).toHaveLength(8)
       expect(buttons[1].className).toContain('tv-focus') // play/pause é o índice 1
     })
 
@@ -480,7 +522,7 @@ describe('PlayerLayer', () => {
       })
 
       expect(driver.jumpCalls).toEqual([10_000])
-      expect(screen.getAllByRole('button')).toHaveLength(3) // revelou de novo
+      expect(screen.getAllByRole('button')).toHaveLength(8) // revelou de novo
     })
 
     it('com controles VISÍVEIS, esquerda/direita NAVEGAM entre ações, sem saltar', async () => {
@@ -492,27 +534,29 @@ describe('PlayerLayer', () => {
       expect(buttons[2].className).toContain('tv-focus')
     })
 
-    // --- Achado na TV física (Fase 6): barra de progresso como 4º alvo de
-    // foco, acima dos botões — CIMA entra nela, BAIXO sai. Esquerda/direita
-    // continuam só entre os três botões (nunca alcançam a barra). ---
+    // --- Achado na TV física (Fase 6): barra de progresso como alvo de foco
+    // ACIMA da linha — CIMA entra nela, BAIXO sai. Esquerda/direita navegam
+    // só dentro da linha de controles (feature 027: agora com os 5 mocks
+    // "Em breve" além dos 3 reais), nunca alcançam a barra. ---
 
-    it('esquerda/direita entre os botões nunca alcançam a barra, mesmo insistindo', async () => {
+    it('esquerda/direita percorrem toda a linha (8 controles) sem nunca alcançar a barra', async () => {
       const { container } = await renderPlaying()
-      press('ArrowRight') // playPause(1) -> jumpForward(2)
-      press('ArrowRight') // já no último botão — clampado, não avança pra barra
+      // playPause(1) -> jumpForward(2) -> tracks(3) -> quality(4) -> speed(5)
+      // -> aspect(6) -> info(7) -> clampado no último (não avança pra barra).
+      for (let i = 0; i < 8; i += 1) press('ArrowRight')
 
       expect(driver.jumpCalls).toEqual([])
-      expect(container.querySelector('.player-time-bar')?.className).not.toContain('tv-focus')
+      expect(container.querySelector('.player-chrome-time-bar')?.className).not.toContain('tv-focus')
       const buttons = screen.getAllByRole('button')
-      expect(buttons[2].className).toContain('tv-focus') // continua em jumpForward
+      expect(buttons[7].className).toContain('tv-focus') // clampado em "Info do stream"
     })
 
-    it('CIMA a partir de um botão entra na barra (4º alvo), sem saltar', async () => {
+    it('CIMA a partir de um botão entra na barra, sem saltar', async () => {
       const { container } = await renderPlaying()
       press('ArrowUp') // playPause -> seekBar
 
       expect(driver.jumpCalls).toEqual([])
-      expect(container.querySelector('.player-time-bar')?.className).toContain('tv-focus')
+      expect(container.querySelector('.player-chrome-time-bar')?.className).toContain('tv-focus')
     })
 
     it('com a BARRA focada, esquerda/direita buscam direto, sem mover o foco', async () => {
@@ -522,12 +566,12 @@ describe('PlayerLayer', () => {
       press('ArrowRight') // busca, não navega
 
       expect(driver.jumpCalls).toEqual([10_000])
-      expect(container.querySelector('.player-time-bar')?.className).toContain('tv-focus') // continua na barra
+      expect(container.querySelector('.player-chrome-time-bar')?.className).toContain('tv-focus') // continua na barra
 
       press('ArrowLeft') // busca pra trás, ainda sem sair da barra
 
       expect(driver.jumpCalls).toEqual([10_000, -10_000])
-      expect(container.querySelector('.player-time-bar')?.className).toContain('tv-focus')
+      expect(container.querySelector('.player-chrome-time-bar')?.className).toContain('tv-focus')
     })
 
     it('BAIXO com a barra focada volta o foco pro play/pause', async () => {
@@ -536,7 +580,7 @@ describe('PlayerLayer', () => {
 
       press('ArrowDown')
 
-      expect(container.querySelector('.player-time-bar')?.className).not.toContain('tv-focus')
+      expect(container.querySelector('.player-chrome-time-bar')?.className).not.toContain('tv-focus')
       const buttons = screen.getAllByRole('button')
       expect(buttons[1].className).toContain('tv-focus') // de volta ao play/pause
     })
@@ -547,7 +591,7 @@ describe('PlayerLayer', () => {
       press('ArrowUp') // já no topo
 
       expect(driver.jumpCalls).toEqual([])
-      expect(container.querySelector('.player-time-bar')?.className).toContain('tv-focus')
+      expect(container.querySelector('.player-chrome-time-bar')?.className).toContain('tv-focus')
     })
 
     it('SELECT com a barra focada não executa nenhuma ação (o gesto dela é esquerda/direita)', async () => {
@@ -572,7 +616,7 @@ describe('PlayerLayer', () => {
       })
 
       expect(driver.pauseCount).toBe(0)
-      expect(screen.getAllByRole('button')).toHaveLength(3)
+      expect(screen.getAllByRole('button')).toHaveLength(8)
     })
 
     it('SELECT com controles visíveis executa a ação focada (play/pause)', async () => {
@@ -585,7 +629,7 @@ describe('PlayerLayer', () => {
 
     it('oculta sozinho após 5s sem interação', async () => {
       await renderPlaying()
-      expect(screen.getAllByRole('button')).toHaveLength(3)
+      expect(screen.getAllByRole('button')).toHaveLength(8)
 
       act(() => {
         vi.advanceTimersByTime(5000)
@@ -930,6 +974,267 @@ describe('PlayerLayer', () => {
       act(() => driver.callbacks?.onStateChange('completed'))
 
       await waitFor(() => expect(onCompleted).toHaveBeenCalledTimes(1))
+    })
+  })
+
+  // --- Feature 027 (Fases 3/4/5): testes da fase que não fazem parte do contrato ---
+
+  describe('chrome V14 — testes da fase (feature 027)', () => {
+    it('T019: episódio mostra identity.subtitle (US1/AC4)', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(EPISODE_PLAYBACK)
+      render(
+        <PlayerLayer
+          itemId="item-1"
+          title="Piloto"
+          identity={{ title: 'Série Exemplo', subtitle: 'T1:E1 • Piloto' }}
+          onClose={vi.fn()}
+          createAdapter={createAdapter}
+        />,
+      )
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+
+      expect(screen.getByText('Série Exemplo')).toBeInTheDocument()
+      expect(screen.getByText('T1:E1 • Piloto')).toBeInTheDocument()
+    })
+
+    it('T019: timeline ausente sem duração conhecida (FR-008)', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
+      const { container } = render(
+        <PlayerLayer itemId="item-1" title="Filme" identity={{ title: 'Filme' }} onClose={vi.fn()} createAdapter={createAdapter} />,
+      )
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => {
+        driver.callbacks?.onStateChange('playing')
+        driver.callbacks?.onProgress?.({ positionMs: 30_000 }) // sem durationMs
+      })
+
+      expect(screen.getByText('0:30')).toBeInTheDocument()
+      expect(container.querySelector('.player-chrome-time-bar')).not.toBeInTheDocument()
+    })
+
+    it('T019: motor sem canSeek → sem ⏪/⏩ nem timeline (US1/AC5)', async () => {
+      createAdapter = (callbacks: PlayerAdapterCallbacks): PlayerAdapter => {
+        driver.callbacks = callbacks
+        return {
+          name: 'fake-sem-seek',
+          rendersOnHardwarePlane: false,
+          capabilities: { canPause: true, canSeek: false, reportsPosition: true, reportsDuration: true },
+          open: () => {},
+          close: () => {
+            driver.closeCount += 1
+          },
+          pause: () => {
+            driver.pauseCount += 1
+          },
+          resume: () => {
+            driver.resumeCount += 1
+          },
+        }
+      }
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
+      const { container } = render(
+        <PlayerLayer itemId="item-1" title="Filme" identity={{ title: 'Filme' }} onClose={vi.fn()} createAdapter={createAdapter} />,
+      )
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => {
+        driver.callbacks?.onStateChange('playing')
+        driver.callbacks?.onProgress?.({ positionMs: 30_000, durationMs: 600_000 })
+      })
+
+      expect(screen.queryByRole('button', { name: /10 segundos/ })).not.toBeInTheDocument()
+      expect(container.querySelector('.player-chrome-time-bar')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
+    })
+
+    it('T025: faixa e linha do canal somem sozinhas em 5s (D-015)', async () => {
+      vi.useFakeTimers()
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
+      render(
+        <PlayerLayer itemId="item-1" title="Canal" identity={{ title: 'Canal', channelNumber: '1' }} onClose={vi.fn()} createAdapter={createAdapter} />,
+      )
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      act(() => driver.callbacks?.onStateChange('playing'))
+      expect(screen.getByText('AO VIVO')).toBeInTheDocument()
+
+      act(() => vi.advanceTimersByTime(5000))
+
+      expect(screen.queryByText('AO VIVO')).not.toBeInTheDocument()
+    })
+
+    it('T025: com topLayer aberto, nenhum chrome renderiza (FR-005)', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
+      const topLayer = {
+        content: <div data-testid="top">zap</div>,
+        onDirection: vi.fn(),
+        onSelect: vi.fn(),
+        onBack: vi.fn(),
+      }
+      const { container } = render(
+        <PlayerLayer
+          itemId="item-1"
+          title="Filme"
+          identity={{ title: 'Filme' }}
+          onClose={vi.fn()}
+          createAdapter={createAdapter}
+          topLayer={topLayer}
+        />,
+      )
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+
+      expect(container.querySelector('.player-chrome')).not.toBeInTheDocument()
+      expect(screen.getByTestId('top')).toBeInTheDocument()
+    })
+
+    it('T027: MediaPause é idempotente (só pausa se estava tocando/bufferizando)', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
+      render(<PlayerLayer itemId="item-1" title="Filme" identity={{ title: 'Filme' }} onClose={vi.fn()} createAdapter={createAdapter} />)
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+
+      press('MediaPause')
+      expect(driver.pauseCount).toBe(1)
+      act(() => driver.callbacks?.onStateChange('paused'))
+
+      press('MediaPause') // já pausado — nada muda
+      expect(driver.pauseCount).toBe(1)
+    })
+
+    it('T027: MediaRewind salta -10s só com canSeek', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
+      render(<PlayerLayer itemId="item-1" title="Filme" identity={{ title: 'Filme' }} onClose={vi.fn()} createAdapter={createAdapter} />)
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => {
+        driver.callbacks?.onStateChange('playing')
+        driver.callbacks?.onProgress?.({ positionMs: 60_000, durationMs: 600_000 }) // longe do início — sem clamp em -0
+      })
+
+      press('MediaRewind')
+      expect(driver.jumpCalls).toEqual([-10_000])
+    })
+
+    it('T027: no canal, Play/Pause/⏪/⏩ só revelam a faixa; CH+/CH− chamam onChannelStep', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
+      const onChannelStep = vi.fn(() => true)
+      render(
+        <PlayerLayer
+          itemId="item-1"
+          title="Canal"
+          identity={{ title: 'Canal' }}
+          onChannelStep={onChannelStep}
+          onClose={vi.fn()}
+          createAdapter={createAdapter}
+        />,
+      )
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+
+      press('MediaPlayPause')
+      expect(driver.pauseCount).toBe(0) // canPause=false no canal — no-op
+
+      press('ChannelUp')
+      expect(onChannelStep).toHaveBeenCalledWith('previous')
+      press('ChannelDown')
+      expect(onChannelStep).toHaveBeenCalledWith('next')
+    })
+
+    it('T027: com topLayer aberto, só MediaStop age (fecha o player inteiro)', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
+      const onClose = vi.fn()
+      const topLayer = {
+        content: <div data-testid="top">zap</div>,
+        onDirection: vi.fn(),
+        onSelect: vi.fn(),
+        onBack: vi.fn(),
+      }
+      render(
+        <PlayerLayer
+          itemId="item-1"
+          title="Filme"
+          identity={{ title: 'Filme' }}
+          onClose={onClose}
+          createAdapter={createAdapter}
+          topLayer={topLayer}
+        />,
+      )
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+
+      press('MediaFastForward')
+      expect(driver.jumpCalls).toEqual([])
+      press('MediaStop')
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('T027: tecla de mídia antes de a sessão estar tocando (preparing/idle) não trava — ignorada', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
+      render(<PlayerLayer itemId="item-1" title="Filme" identity={{ title: 'Filme' }} onClose={vi.fn()} createAdapter={createAdapter} />)
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      // Ainda não chamamos onStateChange('playing') — sessão em 'idle'.
+
+      expect(() => press('MediaFastForward')).not.toThrow()
+      expect(driver.jumpCalls).toEqual([])
+    })
+  })
+
+  describe('todo controle tem nome acessível (feature 028, FR-015/FR-017)', () => {
+    it('chrome VOD com a linha visível', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
+      const { container } = render(
+        <PlayerLayer itemId="item-1" title="Filme" identity={{ title: 'Filme' }} onClose={vi.fn()} createAdapter={createAdapter} />,
+      )
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => {
+        driver.callbacks?.onStateChange('playing')
+        driver.callbacks?.onProgress?.({ positionMs: 60_000, durationMs: 600_000 })
+      })
+
+      expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+    })
+
+    it('Live: faixa (band) recém-revelada, sem linha', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
+      const { container } = render(
+        <PlayerLayer itemId="item-1" title="Canal" identity={{ title: 'Canal', channelNumber: '1' }} onClose={vi.fn()} createAdapter={createAdapter} />,
+      )
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+      expect(screen.getByText('AO VIVO')).toBeInTheDocument()
+
+      expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+    })
+
+    it('Live: linha (row) revelada por esquerda/direita', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
+      const { container } = render(
+        <PlayerLayer itemId="item-1" title="Canal" identity={{ title: 'Canal', channelNumber: '1' }} onClose={vi.fn()} createAdapter={createAdapter} />,
+      )
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+      press('ArrowRight') // faixa -> linha (revealFull)
+
+      expect(container.querySelector('.player-chrome-row')).toBeInTheDocument()
+      expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+    })
+
+    it('estado de erro (retry + voltar)', async () => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
+      const { container } = render(
+        <PlayerLayer itemId="item-1" title="Canal" onClose={vi.fn()} createAdapter={createAdapter} />,
+      )
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+      act(() => {
+        driver.callbacks?.onError?.({ code: null, message: 'Falha fatal' })
+        driver.callbacks?.onStateChange('error')
+      })
+
+      expect(container.querySelector('.player-message')).toBeInTheDocument()
+      expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
     })
   })
 })

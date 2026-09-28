@@ -23,6 +23,7 @@ import { SettingsScreen } from './features/settings/SettingsScreen'
 import { SearchScreen } from './features/search/SearchScreen'
 import { FAVORITES_SNAPSHOT } from './features/catalog/categoryScreenSnapshot'
 import { registerFavoriteColorKey } from './lib/tizenColorKey'
+import { registerMediaKeys } from './lib/tizenMediaKeys'
 import { appNavReducer, initialAppNav, type AppScreen, type TopDestination } from './navigation/appNav'
 import { readLastSourceId, writeLastSourceId } from './navigation/lastSource'
 
@@ -46,12 +47,14 @@ function App() {
   const [nav, dispatch] = useReducer(appNavReducer, undefined, initialAppNav)
   const { screen, activeSource } = nav
 
-  // Tecla amarela como atalho de favoritar (feature 013) — registra uma
-  // vez, na raiz do app, nunca por tela: `tizen.tvinputdevice.registerKey`
-  // é global à sessão do widget, registrar de novo em cada tela seria
-  // redundante. No-op fora da TV (`tizenColorKey.ts`).
+  // Tecla amarela como atalho de favoritar (feature 013) e teclas de mídia
+  // do controle (feature 027, FR-023) — registram uma vez, na raiz do app,
+  // nunca por tela: `tizen.tvinputdevice.registerKey` é global à sessão do
+  // widget, registrar de novo em cada tela seria redundante. No-op fora da
+  // TV (`tizenColorKey.ts`/`tizenMediaKeys.ts`).
   useEffect(() => {
     registerFavoriteColorKey()
+    registerMediaKeys()
   }, [])
 
   // Migração única e atualização por idade (feature 004, D-004): a TV só

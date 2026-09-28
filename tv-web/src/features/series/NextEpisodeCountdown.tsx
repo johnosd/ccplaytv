@@ -55,7 +55,7 @@ export function NextEpisodeCountdown({
   }, [remaining])
 
   // Modal: intercepta a tecla antes da tela por baixo — mesmo padrão de
-  // `ConfirmDialog`/`PlayerLayer`. Único alvo focável é "Cancelar"; SELECT e
+  // `Modal`/`PlayerLayer`. Único alvo focável é "Cancelar"; SELECT e
   // RETURN fazem a mesma coisa (D-009).
   useRemoteNav({ onSelect: onCancel, onBack: onCancel }, { modal: true })
 

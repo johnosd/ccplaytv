@@ -71,11 +71,9 @@ export function createHtmlVideoAdapter(callbacks: PlayerAdapterCallbacks): Playe
       video.addEventListener('ended', () => callbacks.onCompleted?.())
       video.addEventListener('error', () => {
         // O objeto de erro do elemento não é repassado: além de pobre, pode
-        // trazer a URL em alguns navegadores.
-        callbacks.onError({
-          code: null,
-          message: 'Não foi possível reproduzir este canal.',
-        })
+        // trazer a URL em alguns navegadores. Sem `message`: o texto fica com
+        // quem apresenta o erro, que sabe o tipo da mídia (`PlayerError`).
+        callbacks.onError({ code: null })
       })
 
       const mount = document.getElementById('player-surface') ?? document.body

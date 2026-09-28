@@ -1,8 +1,9 @@
 /*
  * Shell do app (feature 023, D-012 do plan.md): topbar, HintBar, moldura do
  * Início e relógio. Só tokens de `index.css` — nenhuma cor, raio, espaçamento
- * ou tamanho de fonte literal. Importado depois de `features/screens.css`
- * (ver `main.tsx`), então estas regras vencem as antigas quando há empate.
+ * ou tamanho de fonte literal. Importado depois de `styles/shared.css`
+ * (ver `main.tsx`; sucessor de `features/screens.css`, eliminado na feature
+ * 028), então estas regras vencem as antigas quando há empate.
  */
 
 /* Conteúdo de modais sobre o `Modal` da feature 022 (`ExitModal`, exclusão de
@@ -47,6 +48,18 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Achado real da feature 028 (T010, R-003): telas com topbar (Live/Filmes/
+   Séries, features 024/025) passam `.screen` (`padding: 80px 96px`,
+   shared.css) como conteúdo do `AppShell`, que já reserva a safe zone
+   (`padding: var(--safe-y) var(--safe-x)` em `.app-shell`) — as duas
+   camadas empilhadas cortavam ~192px de largura útil da grade de Filmes,
+   deixando as 6 colunas fixas (D-006 do plan.md) sem espaço pra caber
+   (transbordo horizontal real, medido em `logic/migracao-css.md`). Uma
+   tela dentro do shell usa só o padding do shell — nunca as duas. */
+.app-shell-content > .screen {
+  padding: 0;
 }
 
 /* O banner é só sinal (ADR-002): ocupa a própria linha, sem cobrir a topbar. */

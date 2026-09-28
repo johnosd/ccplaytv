@@ -57,7 +57,8 @@ export function Rail<T>({ items, renderItem, focusedIndex, itemWidth, itemHeight
   const viewport = virtualizer.scrollRect?.width ?? 0
   const fadeStart = offset > 0
   const fadeEnd = viewport > 0 && total - offset - viewport > 1
-  const railClass = `rail${fadeStart ? ' rail--fade-start' : ''}${fadeEnd ? ' rail--fade-end' : ''}`
+  // Rolagem por foco continua (`overflow-x: auto` em `.rail`, components.css) — só a barra nativa some (feature 028, FR-001).
+  const railClass = `rail no-scrollbar${fadeStart ? ' rail--fade-start' : ''}${fadeEnd ? ' rail--fade-end' : ''}`
 
   return (
     <div className="rail-wrapper">

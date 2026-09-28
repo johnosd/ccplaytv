@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { TopbarItem } from '../../navigation/appNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
 import { TopBar } from './TopBar'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 // Teclas em `document.body` (nunca em `document`) — mesmo cuidado dos demais
 // testes de teclado deste repositório.
@@ -65,6 +66,28 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
+})
+
+describe('TopBar — nomes acessíveis (feature 028, FR-015/FR-017)', () => {
+  // Com `onOpenSearch`/`onOpenSettings` (o `App` sempre os passa, D-005 da 026
+  // — o estado sem eles só existe em teste, comentário do próprio TopBar.tsx).
+  it('todo controle tem nome acessível', () => {
+    const { container } = render(
+      <TopBar
+        sourceName="Sala"
+        active
+        focusedItem="home"
+        onFocusItem={vi.fn()}
+        onExitDown={vi.fn()}
+        onNavigate={vi.fn()}
+        onOpenProfiles={vi.fn()}
+        onOpenSearch={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
 })
 
 describe('TopBar — ordem, foco e navegação (US2, FR-013–FR-016)', () => {

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SeriesDetailScreen } from './SeriesDetailScreen'
 import * as catalogApi from '../catalog/catalogApi'
@@ -7,6 +7,7 @@ import type { CatalogItemOut, EpisodeOut, SeriesEpisodesContent } from '../catal
 import { PlayerLayer } from '../../components/PlayerLayer'
 import { db } from '../../lib/catalog/db'
 import { buildStableId, markCompleted, updateProgress } from '../../lib/catalog/userStateRepository'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 // `useCatalogItem`/`useSeriesEpisodes` são mockados (controlados por teste,
 // sem depender do catálogo real). `useUserStates`/`invalidateUserStates`/
@@ -338,6 +339,27 @@ describe('SeriesDetailScreen', () => {
     expect(screen.getByText('2 episódios')).toBeInTheDocument()
   })
 
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível: lista de episódios', () => {
+    renderScreen()
+    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
+  })
+
+  it('tela e lista de episódios rolam sem barra nativa (feature 028, FR-006)', () => {
+    renderScreen()
+    expect(document.querySelector('.vod-detail')).toHaveClass('no-scrollbar')
+    expect(document.querySelector('.vod-episode-list')).toHaveClass('no-scrollbar')
+  })
+
+  it('todo controle tem nome acessível: modal de temporada aberto', () => {
+    renderScreen()
+    press('ArrowDown')
+    press('ArrowDown')
+    press('Enter')
+    expect(screen.getByRole('dialog', { name: 'Selecionar temporada' })).toBeInTheDocument()
+    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
+  })
+
   it('OK na linha de temporada abre o modal, mesmo havendo várias — a atual vem com ✓ e foco', () => {
     renderScreen()
     press('ArrowDown')
@@ -365,6 +387,70 @@ describe('SeriesDetailScreen', () => {
     expect(screen.getByText(/Temporada 2/).closest('.vod-season-button')?.className).toContain('tv-focus')
     // useSeriesEpisodes não foi chamado de novo — trocar de temporada é leitura local.
     expect(catalogApi.useSeriesEpisodes).toHaveBeenCalledWith('series-1')
+  })
+
+  // Bug `modal-temporada-sem-indicador-mais-itens`: o foco do modal é estado
+  // + `tv-focus` (ADR-009), então nada rola sozinho — a lista precisa trazer
+  // o item focado à vista e sinalizar continuação (DS §17). A prova em layout
+  // real é `e2e/modal-temporada.mjs`; aqui, o contrato com o DOM. Neste
+  // arquivo, `scrollHeight` (1.000.000) > `clientHeight` (640): a lista
+  // "transborda" em todo teste.
+  describe('modal de temporada com mais itens do que cabem', () => {
+    function openSeasonModal() {
+      press('ArrowDown')
+      press('ArrowDown')
+      press('Enter')
+      return document.querySelector('.vod-season-modal-list') as HTMLUListElement
+    }
+
+    it('a lista é o contêiner rolável, sem barra nativa', () => {
+      renderScreen()
+      expect(openSeasonModal()).toHaveClass('no-scrollbar')
+    })
+
+    it('mover o foco traz a temporada focada à vista (scrollIntoView no item focado)', () => {
+      const scrolled: string[] = []
+      const spy = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (this: Element) {
+        scrolled.push(this.textContent ?? '')
+      })
+      try {
+        renderScreen()
+        openSeasonModal()
+        scrolled.length = 0
+        press('ArrowDown')
+        expect(scrolled.some((text) => text.includes('Temporada 2'))).toBe(true)
+      } finally {
+        spy.mockRestore()
+      }
+    })
+
+    it('na abertura, a temporada atual já é trazida à vista', () => {
+      const scrolled: string[] = []
+      const spy = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (this: Element) {
+        scrolled.push(this.textContent ?? '')
+      })
+      try {
+        renderScreen()
+        openSeasonModal()
+        expect(scrolled.some((text) => text.includes('Temporada 1'))).toBe(true)
+      } finally {
+        spy.mockRestore()
+      }
+    })
+
+    it('fade só na borda com mais conteúdo: embaixo na abertura, nas duas no meio', () => {
+      renderScreen()
+      const list = openSeasonModal()
+      expect(list).toHaveClass('vod-season-modal-list--fade-end')
+      expect(list).not.toHaveClass('vod-season-modal-list--fade-start')
+
+      act(() => {
+        list.scrollTop = 500
+        fireEvent.scroll(list)
+      })
+      expect(list).toHaveClass('vod-season-modal-list--fade-start')
+      expect(list).toHaveClass('vod-season-modal-list--fade-end')
+    })
   })
 
   it('RETURN no modal fecha sem trocar a temporada', () => {
@@ -505,6 +591,44 @@ describe('SeriesDetailScreen', () => {
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(lastPlayerLayerProps()?.startAtMs).toBeUndefined()
+  })
+
+  // --- chrome do player (feature 027, T032, FR-018) ---
+
+  it('episodeStep do chrome: no último episódio da T1, "Próximo episódio" troca pro 1º da T2, movendo temporada/foco', () => {
+    renderScreen()
+    enterEpisodesRow() // S1E1 focado
+    press('ArrowDown') // S1E2 focado (último da T1)
+    press('Enter') // abre S1E2
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(lastPlayerLayerProps()?.title).toBe('Cat in the Bag')
+    const step = lastPlayerLayerProps()?.episodeStep
+    expect(step?.hasPrevious).toBe(true)
+    expect(step?.hasNext).toBe(true) // atravessa pra T2 (D-010)
+
+    act(() => step?.onStep('next'))
+
+    // Trocou pro S2E1 sem passar por onClose — mesmo caminho do autoplay (FR-018).
+    expect(lastPlayerLayerProps()?.title).toBe('Seven Thirty-Seven')
+    expect(lastPlayerLayerProps()?.identity).toEqual({ title: 'Breaking Bad', subtitle: 'T2:E1 • Seven Thirty-Seven' })
+
+    // A troca já moveu temporada/linha/foco (switchEpisode) — fechar mostra
+    // o episódio novo focado, não o antigo.
+    act(() => {
+      screen.getByRole('button', { name: 'Fechar (teste)' }).click()
+    })
+    expect(screen.getByText('Seven Thirty-Seven').closest('.vod-episode-row')?.className).toContain('tv-focus')
+  })
+
+  it('episodeStep do chrome: no primeiro episódio conhecido, hasPrevious é false (FR-017)', () => {
+    renderScreen()
+    enterEpisodesRow() // S1E1 — primeiro episódio conhecido
+    press('Enter')
+
+    const step = lastPlayerLayerProps()?.episodeStep
+    expect(step?.hasPrevious).toBe(false)
+    expect(step?.hasNext).toBe(true)
   })
 
   // --- autoplay (US4, D-008/D-009) ---

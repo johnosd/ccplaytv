@@ -316,7 +316,7 @@ export function HomeContent({
   }
 
   return (
-    <div className="home-content">
+    <div className="home-content no-scrollbar">
       <section className="home-hero" aria-label={hero.kind === 'welcome' ? 'Boas-vindas' : hero.item.name}>
         <div className="home-hero-poster">
           {hero.kind !== 'welcome' && <PosterArt url={hero.item.icon_url ?? undefined} title={hero.item.name} />}
@@ -338,6 +338,9 @@ export function HomeContent({
                 key={action.id}
                 type="button"
                 className={`home-hero-action${effectiveRow === 'hero' && active && index === heroFocus.index ? ' tv-focus' : ''}${action.softDisabled ? ' is-soft-disabled' : ''}`}
+                // Achado real (feature 028, FR-016): nome ("▶ Trailer") não dizia
+                // indisponível, e faltava o sinal estático pra tecnologia assistiva.
+                aria-disabled={action.softDisabled ? 'true' : undefined}
               >
                 {action.label}
               </button>
@@ -444,6 +447,9 @@ export function HomeContent({
             type="button"
             className={`home-dock-icon is-soft-disabled${active && effectiveRow === 'dock' && index === dockFocus.index ? ' tv-focus' : ''}`}
             aria-label={iconDef.label}
+            // Achado real (feature 028, FR-016): sempre "Em breve" (DOCK_ICONS
+            // inteiro é mock), mas o nome não dizia indisponível.
+            aria-disabled="true"
           >
             <Icon name={iconDef.icon} />
           </button>

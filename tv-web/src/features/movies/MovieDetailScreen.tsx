@@ -247,7 +247,8 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
   if (watched) metaParts.push('✓ Assistido')
 
   return (
-    <div className="screen vod-detail">
+    // Achado real (feature 028, FR-006): rolava com a barra nativa visível.
+    <div className="screen vod-detail no-scrollbar">
       <div className="vod-detail-hero">
         <div className="vod-detail-poster">
           <PosterArt url={movie.icon_url ?? undefined} title={movie.name} />
@@ -308,6 +309,7 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
           itemId={movieId}
           title={movie.name}
           startAtMs={startAtMs}
+          identity={{ title: movie.name }}
           onClose={() => {
             setPlaying(false)
             // Sem isto, o detalhe continuaria com a leitura de quando montou

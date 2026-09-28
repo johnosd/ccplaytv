@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { episodeBadge, episodeCode, groupBySeason, nextEpisode, seriesPrimaryAction, type EpisodeOut } from './episodeNavigation'
+import {
+  episodeBadge,
+  episodeCode,
+  groupBySeason,
+  nextEpisode,
+  previousEpisode,
+  seriesPrimaryAction,
+  type EpisodeOut,
+} from './episodeNavigation'
 import type { UserStateRecord } from '../../lib/catalog/db'
 
 function episode(overrides: Partial<EpisodeOut> & { id: string }): EpisodeOut {
@@ -114,6 +122,57 @@ describe('nextEpisode (feature 012, D-010, logic §4)', () => {
 function userState(overrides: Partial<UserStateRecord> = {}): UserStateRecord {
   return { stableId: 'x', sourceId: 'src1', isFavorite: false, createdAt: 0, updatedAt: 0, ...overrides }
 }
+
+describe('previousEpisode (feature 027, D-010, logic/chrome-player.md §8)', () => {
+  it('mesma temporada: devolve o episódio anterior', () => {
+    const seasons = groupBySeason([
+      episode({ id: '1', episode_number: 1 }),
+      episode({ id: '2', episode_number: 2 }),
+      episode({ id: '3', episode_number: 3 }),
+    ])
+
+    expect(previousEpisode(seasons, '3')?.id).toBe('2')
+    expect(previousEpisode(seasons, '2')?.id).toBe('1')
+  })
+
+  it('1º episódio da temporada: atravessa pro ÚLTIMO da temporada anterior', () => {
+    const seasons = groupBySeason([
+      episode({ id: '1', season_number: 1, episode_number: 1 }),
+      episode({ id: '2', season_number: 1, episode_number: 2 }),
+      episode({ id: '3', season_number: 2, episode_number: 1 }),
+    ])
+
+    expect(previousEpisode(seasons, '3')?.id).toBe('2')
+  })
+
+  it('1º episódio da 1ª temporada: não há anterior (FR-017)', () => {
+    const seasons = groupBySeason([
+      episode({ id: '1', season_number: 1, episode_number: 1 }),
+      episode({ id: '2', season_number: 2, episode_number: 1 }),
+    ])
+
+    expect(previousEpisode(seasons, '1')).toBeNull()
+  })
+
+  it('id desconhecido: não há anterior, sem lançar', () => {
+    const seasons = groupBySeason([episode({ id: '1' })])
+    expect(previousEpisode(seasons, 'inexistente')).toBeNull()
+  })
+
+  it('lista de temporadas vazia: não há anterior', () => {
+    expect(previousEpisode([], '1')).toBeNull()
+  })
+
+  it('temporada sem número (M3U/Modo limitado): funciona igual, por posição na lista', () => {
+    const seasons = groupBySeason([
+      episode({ id: '1', season_number: null, episode_number: null }),
+      episode({ id: '2', season_number: null, episode_number: null }),
+    ])
+
+    expect(previousEpisode(seasons, '2')?.id).toBe('1')
+    expect(previousEpisode(seasons, '1')).toBeNull()
+  })
+})
 
 describe('episodeBadge (feature 012, D-007, logic §5)', () => {
   it('nunca aberto (ausente): não assistido, sem retomada', () => {

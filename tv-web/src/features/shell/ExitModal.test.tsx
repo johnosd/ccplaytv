@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { ExitModal } from './ExitModal'
 import { useRemoteNav } from '../../lib/useRemoteNav'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 afterEach(cleanup)
 
@@ -70,5 +71,11 @@ describe('ExitModal', () => {
     expect(behind.onDirection).not.toHaveBeenCalled()
     expect(behind.onSelect).not.toHaveBeenCalled()
     expect(behind.onBack).not.toHaveBeenCalled()
+  })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível', () => {
+    const { container } = render(<ExitModal onCancel={vi.fn()} onExit={vi.fn()} />)
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 })

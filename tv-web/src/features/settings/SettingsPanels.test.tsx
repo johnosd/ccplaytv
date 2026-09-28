@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AccessibilityPanel } from './AccessibilityPanel'
 import { AboutPanel } from './AboutPanel'
 import { ComingSoonPanel } from './ComingSoonPanel'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 /**
  * Testes isolados dos painéis de Configurações (feature 026, T030) — sem
@@ -36,6 +37,12 @@ describe('AccessibilityPanel', () => {
       expect(screen.getByText(label).closest('button')).toHaveClass('is-soft-disabled')
     }
   })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível', () => {
+    const { container } = render(<AccessibilityPanel reducedMotion={false} focusedRow={0} onActivateRow={vi.fn()} />)
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
 })
 
 describe('AboutPanel', () => {
@@ -45,6 +52,12 @@ describe('AboutPanel', () => {
     expect(screen.getByText(`Versão ${__APP_VERSION__}`)).toBeInTheDocument()
     expect(screen.getByText(/Poppins.*SIL Open Font License/)).toBeInTheDocument()
     expect(screen.getByText(/Inter.*SIL Open Font License/)).toBeInTheDocument()
+  })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível', () => {
+    const { container } = render(<AboutPanel focused />)
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 })
 
@@ -60,5 +73,11 @@ describe('ComingSoonPanel', () => {
 
     fireEvent.click(back)
     expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível', () => {
+    const { container } = render(<ComingSoonPanel tab="player" focused onBack={vi.fn()} />)
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 })

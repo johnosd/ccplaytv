@@ -21,6 +21,15 @@
   display: flex;
   align-items: flex-end;
   gap: var(--space-3);
+  /* `margin-bottom: 16px` (feature 018, antes em `features/screens.css`):
+     achado ao mover CSS na feature 028 — `.search-field-row` é usada tanto
+     aqui quanto na busca por categoria de Live/Filmes/Séries (feature 018),
+     e as duas folhas já colidiam de verdade (mesmo seletor, mesma
+     especificidade); como esta carrega por último, ela já vencia — só esta
+     propriedade nunca tinha equivalente aqui e sobrevivia por baixo.
+     Mesclada pra um lugar só (D-003 do plan.md da 028), sem mudar o
+     resultado visual de nenhuma das duas telas. */
+  margin-bottom: 16px;
 }
 
 .search-field-row .text-field {

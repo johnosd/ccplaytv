@@ -1,7 +1,8 @@
 /*
  * Entrada do app (feature 023): Splash, onboarding de lista ("Adicionar
  * lista") e progresso de importação no visual V14. Substitui as regras
- * `.splash*` de `features/screens.css`. Só tokens de `index.css`.
+ * `.splash*` do antigo `features/screens.css` (eliminado na feature 028).
+ * Só tokens de `index.css`.
  *
  * O foco das telas de formulário é DOM real (`useTvKeyNav`): a receita de foco
  * global (`button:focus`, `input:focus`, `.tv-focus` em `index.css`) já cobre
@@ -70,7 +71,7 @@
 
 /* ---------- Moldura das telas de entrada (onboarding e progresso) ---------- */
 
-/* Sobrescreve o padding em px de `.screen` (`screens.css`) pela safe zone do
+/* Sobrescreve o padding em px de `.screen` (`shared.css`) pela safe zone do
    palco 1920×1080 (§4). */
 .screen.onboarding {
   padding: var(--safe-y) var(--safe-x);

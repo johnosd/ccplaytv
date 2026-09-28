@@ -27,16 +27,18 @@ function renderShape(shape: IconShape, i: number) {
  * `stroke="currentColor"` (herda a cor do texto ao redor), sem
  * preenchimento, tamanho controlado por `--icon-size` (padrão `1em`).
  *
- * Nenhuma tela consome este componente ainda nesta feature (FR-022) — ele
- * só precisa existir, pronto e testado, para a Onda 1 (feature 022).
+ * Tamanho por `style`, não por atributo (feature 028, D-007 do plan.md):
+ * o atributo SVG `width`/`height` não aceita `var()` — o navegador o
+ * ignora e cai no tamanho intrínseco do SVG (achado real, backlog item,
+ * confirmado na TV física onde `--icon-size` resolvia de forma instável
+ * nesse caminho). `style` aceita `var()` normalmente.
  */
 export function Icon({ name, label, className }: IconProps) {
   const shapes = ICON_PATHS[name]
   return (
     <svg
       viewBox="0 0 24 24"
-      width="var(--icon-size)"
-      height="var(--icon-size)"
+      style={{ width: 'var(--icon-size)', height: 'var(--icon-size)' }}
       fill="none"
       stroke="currentColor"
       strokeWidth={2}

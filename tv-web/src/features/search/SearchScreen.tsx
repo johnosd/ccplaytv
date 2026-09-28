@@ -218,7 +218,8 @@ export function SearchScreen({ sourceId, shell, restore, onOpenItem, onOpenChann
   const coverageText = `Busca em ${result.coveredCategories} de ${result.totalCategories} categorias`
 
   const body = (
-    <div className="search-body">
+    // Achado real (feature 028, FR-006): rolava com a barra nativa visível.
+    <div className="search-body no-scrollbar">
       <div className="search-field-row" onKeyDown={handleFieldKeyDown}>
         <TextField
           id="search-field"

@@ -454,6 +454,190 @@ files that no longer exist (dead code removed, most likely, when
 `sdd/specs/023-shell-navegacao-entrada-ds-v14/plan.md` → `## Estado Atual`
 and `## Riscos e Decisões` for the full detail.
 
+**Converged**: `024-live-tv-ds-v14` — Onda 3 of the DS V14 migration: Live TV
+moves under the persistent topbar shell (feature 023), with the V14 side
+nav/toolbar/states it shares with the rest of the app from here on. The
+channel number shown next to a channel is never the provider's own `num`
+field (ADR-011) — verified against a real Xtream panel and refuted as a
+stable global position, so it stays the app's own derived rule
+(`logic/numero-do-canal.md`), exactly as the plan's fallback already
+anticipated. Two real, out-of-scope bugs surfaced during execution and were
+fixed: the Fase 3 CSS cleanup removed rules that `MoviesScreen`/
+`SeriesScreen` (not yet migrated at the time) also depended on, caught only
+by the E2E script (jsdom doesn't apply CSS); and `e2e/capa-real.mjs`
+(feature 015) also exercised Live TV without being listed in any task,
+fixed as an ad-hoc task. Converged clean by `sdd-converge` (2026-09-27): all
+33 functional requirements and 6 measurable outcomes met, 1113 unit tests
+(3 pre-existing flakes, confirmed passing isolated), 5/5 of this feature's
+own contract tests plus 4 other features' locks intact,
+`tsc`/lint/build/`build:tizen` clean, 9 E2E scripts green including a new
+`live-tv-ds-v14.mjs` (27 assertions). The physical-TV pass stays
+recommended, not a gate, for this feature — not done this session for lack
+of device access. See `sdd/specs/024-live-tv-ds-v14/plan.md` →
+`## Resultado Final`.
+
+**Converged**: `025-filmes-series-ds-v14` — Onda 4 of the DS V14 migration:
+`MoviesScreen`/`SeriesScreen` became thin wrappers over one shared
+`VodCatalogScreen`, under the same topbar shell, with the V14 side nav
+("Sua biblioteca": ★ Favoritos, ↺ Histórico; "Catálogo": Todos + the
+source's own categories), a toolbar (search/sort), a fixed non-focusable
+hero band, and a virtualized grid of `ContentCard`. `↺ Histórico` reads
+`lastWatched` already written by features 011/012 (never a network call),
+series aggregated by their most-recently-watched episode. Year/added-date
+(movie and series) and episode duration/image now come from the provider's
+own dedicated fields, never parsed out of a title or reused from
+`last_modified`. Sort (source order/A–Z/Year/Recently added) is a
+per-session, per-section choice, never persisted, and absent where there's
+no real data to sort by. Both detail screens
+(`MovieDetailScreen`/`SeriesDetailScreen`) gained the V14 hero, pill
+actions (primary action now at index 0 — a real content deviation from the
+old layout, where Trailer used to be first), tabs, a season picker in a
+modal (replacing the old arrow-driven tabs), and episodes as landscape
+`ContentCard`s with real progress (a duration-backed bar, or "Continuar de
+mm:ss" when there's no known duration — never an invented percentage).
+Converged clean by `sdd-converge` (2026-09-27): all nine phases built as
+planned, no new deviation found in the audit beyond what execution already
+logged (R-003). Two risks stay open, not gates: real provider field names
+(no live panel access this session) and grid height with a large item count
+(no fixture with enough items to confirm two full rows visually) — both
+need an environment this session didn't have. See
+`sdd/specs/025-filmes-series-ds-v14/plan.md` → `## Resultado Final`.
+
+**Converged**: `026-home-busca-configuracoes-ds-v14` — Onda 5 of the DS V14
+migration, closing the migration's shell/navigation arc: `HomeContent.tsx`/
+`HomeScreen.tsx` fully replace the old provisional hub (`ListHomeScreen` is
+confirmed gone from the codebase, surviving only in explanatory comments) —
+a hero cascade (continue-watching → favorite → welcome), real rails
+("Continuar assistindo"/"Minha Lista"/"Canais favoritos") with
+skeleton+virtualization, "Ver todos (N)"/"Filmes (N)"/"Séries (N)" opening
+the right destination's `★ Favoritos`, and two honestly-labeled mocks (AI
+curation, a service dock) — never fake content passed off as real.
+`SettingsScreen.tsx` ships all 6 tabs in the right order (Fontes IPTV
+first), full source management (Edit/Resync/Delete-with-confirmation/Add),
+a Modo-limitado badge with no credential ever visible, a real persistent
+"Reduzir movimento" toggle, and "Gerenciar listas" from the profiles screen
+opening Configurações with no topbar and no active source. `SearchScreen.tsx`
+is the app's first global search: a real IME field, a permanent coverage
+notice, a 2-character threshold, rails by content type, an empty state, and
+layered RETURN (keyboard → screen). One pre-existing, out-of-scope bug
+surfaced by accident and was fixed with the user's explicit approval:
+`MovieDetailScreen.tsx`'s `formatShortDate` formatted in local time instead
+of UTC. Converged clean by `sdd-converge` (2026-09-28): all three user
+stories built exactly as specified, no scope deviation, all Decisões
+Invariantes held without amendment. The physical-TV pass isn't a gate for
+this feature (no exception declared) — rail render cost, the TV's real IME
+and hardware-plane confirmation stay open as recommendations. See
+`sdd/specs/026-home-busca-configuracoes-ds-v14/plan.md` → `## Resultado
+Final`.
+
+**Code-complete**: `027-player-chrome-ds-v14` — Onda 6 of the DS V14
+migration: replaces `PlayerLayer`'s old controls bar (feature 011) with the
+V14 chrome for all three media kinds. VOD (movie/episode) keeps every key
+behavior from feature 011 unchanged (↑/↓/OK reveal, ←/→ jump ∓10s when
+hidden, the 5s auto-hide, pause never hiding) but now shows title/subtitle,
+a real timeline (only with `canSeek` **and** known duration — a real
+deviation from FR-002 caught writing this feature's own tests: the old code
+already required both, the first draft of the new chrome only checked
+duration), and a row of controls built by a new pure function,
+`chromeControls()` (`components/chromeControls.ts` — renamed from the
+plan's original `playerChrome.ts`, see below), covering real seek/pause,
+episode-neighbor buttons (soft disabled at the boundary, crossing seasons)
+and five "Em breve" mocks (Áudio, Qualidade, Velocidade, Aspecto, Info).
+Live gained the two-level chrome the spec asked for: a **band** (live bug,
+channel number, logo, name — deliberately zero `<button>`, the one
+`Complexity Tracking` deviation in the plan) shown on entry and after every
+channel switch, and a **row** (Guia + four mocks, never Velocidade/never
+play-pause) revealed by ←/→; ↑/↓/CH± switch channels directly even with the
+chrome hidden, via a new `onChannelStep` prop `LiveScreen` implements with
+a `zapSequenceRef` snapshot of whatever list the channel started from
+(category, "★ Favoritos", or "Todos" — the mechanism doesn't care which).
+Media keys (`MediaPlayPause/Play/Pause/Stop/Rewind/FastForward`,
+`ChannelUp/Down`) are registered by a new `lib/tizenMediaKeys.ts`, strictly
+(unlike the yellow-key precedent: an empty/missing `getSupportedKeys()`
+list registers nothing here, not "assume supported") and routed through a
+new optional `useRemoteNav` handler, `onMediaKey`. Two real bugs surfaced
+during execution, both fixed: a Windows-only module-resolution collision
+(`playerChrome.ts` and the new `PlayerChrome.tsx` differ only in the first
+letter's case — on a case-insensitive filesystem, Vite's extension-probe
+order resolved the extension-less import to the wrong file, silently
+returning `undefined`; the logic module was renamed to `chromeControls.ts`
+to remove the collision entirely) and a stale-closure race
+(`chromeMedia`/`chromeLevel`/`focusedIndex`/`seekBarFocused` were
+`useState`, but `sessionRef.current` — a ref — updates synchronously the
+moment a new session is created; a key landing in the gap between that and
+the next React commit read the new session through the *old* render's
+closure, executing the wrong branch — reproduced by 11 zapping tests in
+`LiveScreen.test.tsx`; fixed by moving all four to refs, the same pattern
+`sessionRef.current.state` already used in this file for exactly this
+reason). Contract 5/5 green, 1269/1273 unit tests (the same
+flake-under-parallelism pattern already documented for earlier features,
+confirmed passing isolated), `tsc`/lint/`build`/`build:tizen` clean, a new
+Playwright E2E script (`tv-web/e2e/player-chrome.mjs`, 33 assertions) plus
+every existing `e2e/*.mjs` and `npm run test:e2e` green (one, `ciclo-vida-
+player.mjs`, needed a small timing-wait addition — the new chrome's extra
+render cycle from the ref+forced-render pattern above left a real, if
+narrow, race against the screensaver-effect check that script already
+made). `quickstart.md`'s five scenarios were exercised: 1–3 and 5 through
+the new E2E script in a real browser, and scenario 4 (channel neighborhood
+scoped to "★ Favoritos") interactively via Playwright MCP, since
+`LiveScreen.test.tsx` doesn't mock `useFavoritesContent` — confirmed
+working end to end. **The one gate still open is the physical-TV pass**
+(SC-004, explicitly mandatory per this feature's spec, same pattern as
+013/011): media-key names/`keyCode`s, `getSupportedKeys()` on the real
+QN50Q60DAGXZD, chrome/toast over the AVPlay hardware plane, and whether
+↑=previous/↓=next feels natural all only provable there. A **pre-existing,
+out-of-scope** gap surfaced by accident and was **not** fixed here, only
+logged: `CLAUDE.md` itself was never updated by the convergence of
+features 024, 025 or 026 (this section jumps from 023 straight to this
+paragraph) — see the backlog's Bugs section. See
+`sdd/specs/027-player-chrome-ds-v14/plan.md` → `## Estado Atual` and
+`## Riscos e Decisões` (R-008/R-009/R-010) for the full detail.
+
+**Code-complete**: `028-limpeza-qa-ds-v14` — Onda 7 of the DS V14 migration
+and its closing wave: cleanup and QA, not new UI. `features/screens.css`
+(754 lines, the last pre-V14 CSS file) is gone — its live rules moved to a
+new `styles/shared.css` (same import slot in `main.tsx`) or to the owning
+screen's own file, 13 dead rules deleted, and the playback-layer block
+moved verbatim to the top of `player.css`. A real CSS collision surfaced
+and was fixed along the way (`.search-field-row`/`.search-coverage`, same
+bare selector and specificity in two files — resolved per property, not by
+picking a file). `findUnnamedControls` (`tv-web/src/testing/
+accessibleNames.ts`, built on `dom-accessibility-api`) is now applied
+across every screen's main states, closing 8 real FR-015/FR-016 gaps (a
+soft/hard-disabled control with no `aria-disabled` and no "em breve" in its
+name, or an interactive element with no accessible name at all) —
+`ComingSoon`, `HomeContent`, `AccessibilityPanel`, `LiveScreen`,
+`VodCatalogScreen` and the shared `Tabs` component (the last one closing
+the gap for `MovieDetailScreen`/`SeriesDetailScreen` for free).
+`PlayerLayer`/`PlayerChrome` needed no fix — already correct since feature
+027. The full §34 Tizen QA matrix (`sdd/specs/028-limpeza-qa-ds-v14/
+matriz-qa.md`) was run across every screen, finding and fixing this
+feature's own absorbed bug — native scrollbars visible on a D-pad-only
+app — in 6 more places beyond the Filmes/Início cases the bug report named
+(`Modal`, the Live TV channel list, Busca's body, the Configurações panel,
+the shared movie/series detail root, and the episode list), each with
+`.no-scrollbar` and its own unit test; one related, smaller gap (the season-
+picker modal has no dedicated "more below" indicator for an unrealistically
+long season list) was logged to the backlog instead, since it needs a
+design decision. The stale contract lock on feature `017-busca-local-
+catalogo` (flagged by accident during feature 023 — it referenced two
+screen-level test files removed when feature 018 replaced that whole search
+UI) was retired down to the two files that still exist and still matter.
+1329/1333 unit tests (4 flakes matching the same parallelism pattern
+documented for earlier features, confirmed passing isolated), all 12
+contract locks in the repository intact, `tsc`/lint/`build`/`build:tizen`
+clean, every `e2e/*.mjs` script green including a new `limpeza-qa.mjs`
+(now part of `test:e2e`) and `paridade-limpeza.mjs` (21 screens/states,
+zero unintended pixel diff across every phase). **The physical-TV pass is
+this feature's own explicitly mandatory gate (SC-008)** — done, in a
+follow-up session, once the reference QN50Q60DAGXZD became reachable
+(`deploy-tv.ps1` auto-discovered its real IP and installed/launched the
+app). The user ran a script covering splash, Início, Live TV/zapping,
+Filmes/Séries, detail screens, player chrome and rapid-repeat (holding
+down ↓). See `sdd/specs/028-limpeza-qa-ds-v14/plan.md` →
+`## Estado Atual` and `## Riscos e Decisões` (R-009/R-016) for the full
+detail.
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Quem está
@@ -569,11 +753,14 @@ formally planned features. The ones most easily violated by accident:
 
 ## Design system
 
-**The app is migrating to the CCPlayTV Design System V14 "Spectrum"** — see
-`.planning/migracao-design-system-v14.md` for the wave-by-wave plan
-(Onda 0–7, one SDD feature each from 021 on), the real-vs-mock matrix and
-the mock policy. Until that migration converges, some screens still carry
-the old layout; new work follows V14.
+**The app has migrated to the CCPlayTV Design System V14 "Spectrum"** — see
+`.planning/migracao-design-system-v14.md` for the wave-by-wave history
+(Onda 0–7, one SDD feature each, 021 through 028). Every screen runs under
+the V14 shell/tokens now; there is no pre-V14 layout left in the codebase
+(feature 028, Onda 7, removed the last pre-V14 CSS file,
+`features/screens.css`). Feature 028's own mandatory physical-TV pass
+(SC-008) is done — see `sdd/specs/028-limpeza-qa-ds-v14/plan.md` →
+`R-009`. New work still follows V14, same as always.
 
 **Before creating or changing any screen or component, consult the V14
 design system — all three artifacts, in `docs/design/design-system/`:**

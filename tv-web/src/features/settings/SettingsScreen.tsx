@@ -302,7 +302,8 @@ export function SettingsScreen({
         focusedId={zone === 'tabs' ? focusedTab : undefined}
         onSelect={(id) => enterPanel(id as SettingsTab)}
       />
-      <div className="settings-panel">
+      {/* Achado real (feature 028, FR-006): rolava com a barra nativa visível. */}
+      <div className="settings-panel no-scrollbar">
         {activeTab === 'sources' && (
           <SourcesPanel
             sources={sources}

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ImportProgressScreen } from './ImportProgressScreen'
 import { db, type ImportRunRecord } from '../../lib/catalog/db'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -293,6 +294,43 @@ describe('ImportProgressScreen — abrir a lista ao concluir (feature 023, US4)'
     renderProgress()
     await screen.findByRole('button', { name: 'Tentar novamente' })
     expect(screen.queryByRole('button', { name: 'Abrir lista' })).not.toBeInTheDocument()
+  })
+
+  // Feature 028, FR-015/FR-017 — um caso por estado principal.
+  it('todo controle tem nome acessível: andamento', async () => {
+    await db.importRuns.put(mockJobRecord({ status: 'running' }))
+    const Wrapper = createWrapper()
+    const { container } = render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} onOpenSource={() => {}} />
+      </Wrapper>,
+    )
+    await waitFor(() => expect(screen.getByText(/Em andamento/)).toBeInTheDocument())
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
+
+  it('todo controle tem nome acessível: concluída', async () => {
+    await db.importRuns.put(mockJobRecord({ status: 'completed' }))
+    const Wrapper = createWrapper()
+    const { container } = render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} onOpenSource={() => {}} />
+      </Wrapper>,
+    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Abrir lista' })).toBeInTheDocument())
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
+
+  it('todo controle tem nome acessível: falha', async () => {
+    await db.importRuns.put(mockJobRecord({ status: 'failed', errorKind: 'network_failure' }))
+    const Wrapper = createWrapper()
+    const { container } = render(
+      <Wrapper>
+        <ImportProgressScreen jobId="job-1" onRetried={() => {}} onBack={() => {}} onOpenSource={() => {}} />
+      </Wrapper>,
+    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument())
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 
   it('"Voltar" está sempre presente e chama onBack com o id da lista — botão e RETURN (FR-039)', async () => {

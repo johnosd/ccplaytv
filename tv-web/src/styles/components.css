@@ -1,5 +1,6 @@
 /* CSS dos componentes da biblioteca V14 — Onda 1 da migração (feature 022),
-   importado depois de utilities.css e antes de screens.css (D-001). */
+   importado depois de utilities.css e antes de shared.css (D-001; sucessor
+   de screens.css, eliminado na feature 028). */
 
 /* Modal (D-010) */
 
@@ -285,6 +286,14 @@
   background: transparent;
   color: var(--text-primary);
   font-size: var(--fs-body);
+  /* Achado na TV física (28/09/2026, fora do escopo da feature 027): sem um
+     valor explícito, o padrão global `--icon-size: 1em` (index.css) não
+     resolvia de forma confiável dentro do atributo width/height do <svg>
+     neste motor — os ícones "★ Favoritos"/"↺ Histórico" apareciam enormes,
+     nunca reproduzido em navegador/emulador. Mesmo padrão já usado por
+     `.icon-button`/`.empty-state-icon` neste arquivo: declarar um valor
+     concreto em vez de confiar no herdado. */
+  --icon-size: var(--fs-body-lg);
   cursor: pointer;
   text-align: left;
 }

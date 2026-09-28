@@ -31,6 +31,8 @@ export function Tabs({ items, activeId, focusedId, onSelect }: TabsProps): React
           role="tab"
           aria-selected={item.id === activeId}
           className={`tabs-item${item.id === activeId ? ' tabs-item-active' : ''}${item.id === focusedId ? ' tv-focus' : ''}${item.softDisabled ? ' is-soft-disabled' : ''}`}
+          // Achado real (feature 028, FR-016): aba soft disabled sem sinal estático pra tecnologia assistiva.
+          aria-disabled={item.softDisabled ? 'true' : undefined}
           onClick={() => onSelect(item.id)}
         >
           {item.label}

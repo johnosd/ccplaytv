@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { SplashScreen } from './SplashScreen'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 beforeEach(() => vi.useFakeTimers())
 
@@ -36,5 +37,11 @@ describe('SplashScreen (feature 023, US5)', () => {
     expect(status).toBeInTheDocument()
     expect(status.textContent ?? '').not.toMatch(/\d/)
     expect(screen.queryByText(/%/)).not.toBeInTheDocument()
+  })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle focável/interativo tem nome acessível', () => {
+    const { container } = render(<SplashScreen onFinished={vi.fn()} />)
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 })

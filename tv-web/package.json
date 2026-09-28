@@ -10,7 +10,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:e2e": "node e2e.mjs && node e2e/favoritos.mjs && node e2e/m3u-sob-demanda.mjs && node e2e/capa-real.mjs && node e2e/zapping-live-tv.mjs && node e2e/busca-por-categoria.mjs && node e2e/historico-continuar-assistindo.mjs && node e2e/ciclo-vida-player.mjs && node e2e/live-tv-ds-v14.mjs && node e2e/home-busca-configuracoes.mjs"
+    "test:e2e": "node e2e.mjs && node e2e/favoritos.mjs && node e2e/m3u-sob-demanda.mjs && node e2e/capa-real.mjs && node e2e/zapping-live-tv.mjs && node e2e/busca-por-categoria.mjs && node e2e/historico-continuar-assistindo.mjs && node e2e/ciclo-vida-player.mjs && node e2e/live-tv-ds-v14.mjs && node e2e/home-busca-configuracoes.mjs && node e2e/limpeza-qa.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",
@@ -27,6 +27,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "dom-accessibility-api": "0.6.3",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.1.1",
     "oxlint": "^1.81.0",

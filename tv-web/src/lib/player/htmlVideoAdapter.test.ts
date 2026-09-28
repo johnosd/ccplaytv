@@ -109,6 +109,16 @@ describe('htmlVideoAdapter', () => {
     expect(callbacks.onCompleted).toHaveBeenCalledTimes(1)
   })
 
+  it("'error' vira onError sem mensagem — o texto é de quem sabe o tipo da mídia", () => {
+    const callbacks = fakeCallbacks()
+    const adapter = createHtmlVideoAdapter(callbacks)
+    adapter.open('http://exemplo.invalid/x.mp4', FULLSCREEN_REGION)
+
+    currentVideo().dispatchEvent(new Event('error'))
+
+    expect(callbacks.onError).toHaveBeenCalledWith({ code: null })
+  })
+
   describe('seekTo / jumpBy', () => {
     it('seekTo ajusta currentTime e chama onSettled', () => {
       const adapter = createHtmlVideoAdapter(fakeCallbacks())

@@ -1,4 +1,4 @@
-import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerRegion } from './PlayerService'
+import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerError, PlayerRegion } from './PlayerService'
 import type { EngineCapabilities } from './capabilities'
 
 /**
@@ -86,9 +86,10 @@ const AVPLAY_CAPABILITIES: EngineCapabilities = {
  * O objeto de erro do AVPlay é deliberadamente NÃO repassado: ele pode
  * carregar a URL do stream, que em fontes Xtream embute usuário e senha
  * (constitution, "Segredos Fora dos Clientes e dos Logs"). Só um código
- * curto, quando existir, atravessa.
+ * curto, quando existir, atravessa. Sem `message`: o motor não sabe o tipo
+ * da mídia, então o texto fica com quem apresenta o erro (`PlayerError`).
  */
-function toPlayerError(raw: unknown): { code: string | null; message: string } {
+function toPlayerError(raw: unknown): PlayerError {
   let code: string | null = null
   if (typeof raw === 'string') {
     code = raw
@@ -96,7 +97,7 @@ function toPlayerError(raw: unknown): { code: string | null; message: string } {
     const name = (raw as { name?: unknown }).name
     if (typeof name === 'string') code = name
   }
-  return { code, message: 'Não foi possível reproduzir este canal.' }
+  return { code }
 }
 
 /**

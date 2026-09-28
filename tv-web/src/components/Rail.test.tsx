@@ -56,6 +56,12 @@ describe('Rail', () => {
     expect(container.querySelector<HTMLElement>('.rail')).toHaveStyle({ height: '180px' })
   })
 
+  // Feature 028, FR-001: barra nativa escondida sem trocar overflow por hidden (a rolagem por foco continua).
+  it('o contêiner rolável tem .no-scrollbar', () => {
+    const { container } = renderRail(3)
+    expect(container.querySelector('.rail')).toHaveClass('no-scrollbar')
+  })
+
   describe('fade de borda só onde há conteúdo além (F-003)', () => {
     it('com 1 item (cabe inteiro), nenhuma borda esmaece', () => {
       const { container } = renderRail(1)

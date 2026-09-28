@@ -4,9 +4,10 @@
  * Arquivo próprio (D-015 do plan.md): nenhuma classe daqui é compartilhada
  * com telas ainda não migradas — `.search-field`/`.search-status`/
  * `.field-box`/`.fav-star`/`.watched-badge`/`.fav-hint` continuam vindo de
- * `features/screens.css` (compartilhadas com a Live, que também os usa).
+ * `styles/shared.css` (compartilhadas com a Live, que também os usa;
+ * `features/screens.css` foi eliminado na feature 028).
  * Só tokens de `index.css` — nenhuma cor/raio/tamanho de fonte literal.
- * Importado depois de `live.css` e antes de `screens.css`.
+ * Importado depois de `live.css` e antes de `shared.css`.
  */
 
 .vod-screen {
@@ -380,14 +381,51 @@
   color: var(--text-annotation);
 }
 
+/* A lista é o próprio contêiner rolável (não o `.modal-panel`), com a altura
+   útil do painel: é ela que acompanha o foco e mostra o edge fade (DS §17).
+   O padding + margem negativa dá espaço à receita de foco (escala/glow) sem
+   mudar o tamanho do modal; `scroll-padding` faz o item focado parar fora da
+   faixa do fade ao rolar (`scrollIntoView` respeita scroll-padding). */
 .vod-season-modal-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   list-style: none;
-  margin: 0;
-  padding: 0;
-  min-width: 280px;
+  margin: calc(-1 * var(--space-3));
+  padding: var(--space-3);
+  /* As duas medidas somam o padding de volta (a margem negativa o desconta
+     do tamanho do painel), para o modal manter as dimensões de antes. */
+  min-width: calc(280px + 2 * var(--space-3));
+  max-height: calc(var(--stage-height) - 2 * var(--safe-y) - 2 * var(--space-4) + 2 * var(--space-3));
+  overflow-y: auto;
+  scroll-padding-block: var(--space-4);
+}
+
+.vod-season-modal-list--fade-start {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--space-4));
+  mask-image: linear-gradient(to bottom, transparent, black var(--space-4));
+}
+
+.vod-season-modal-list--fade-end {
+  -webkit-mask-image: linear-gradient(to top, transparent, black var(--space-4));
+  mask-image: linear-gradient(to top, transparent, black var(--space-4));
+}
+
+.vod-season-modal-list--fade-start.vod-season-modal-list--fade-end {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black var(--space-4),
+    black calc(100% - var(--space-4)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black var(--space-4),
+    black calc(100% - var(--space-4)),
+    transparent
+  );
 }
 
 .vod-season-modal-item {

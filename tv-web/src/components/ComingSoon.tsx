@@ -29,6 +29,11 @@ export function ComingSoon({ id, focused, onSelect }: ComingSoonProps): ReactNod
     <button
       type="button"
       className={`coming-soon is-soft-disabled${focused ? ' tv-focus' : ''}`}
+      // Achado real (feature 028, FR-016): o nome acessível é só `message`
+      // — "Em breve" nunca aparecia no nome persistente, só no anúncio
+      // dinâmico ao ativar. `aria-disabled` é o sinal estático que a
+      // tecnologia assistiva lê sem precisar ativar o controle primeiro.
+      aria-disabled="true"
       onClick={handleSelect}
     >
       <Icon name="info" />

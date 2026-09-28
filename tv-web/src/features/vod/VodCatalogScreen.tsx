@@ -523,20 +523,40 @@ export function VodCatalogScreen({
               enterFocusedTrailItem()
               return
             }
-            if (enteredFavorites && !contentIsLoading && !contentFailed && items.length === 0) {
+            // Achado real (feature 028, FR-007/FR-009): estes três estados já
+            // desenhavam "Voltar" com aparência de foco (`EmptyState`,
+            // `focused`), mas nenhum ramo daqui os alcançava — SELECT caía
+            // direto em `items[itemIdx]` (undefined) e não fazia nada, com o
+            // botão visivelmente focado (mesmo padrão de bug já corrigido na
+            // 014/024). Carregando (T021).
+            if (contentIsLoading) {
               setCol(0)
               return
             }
-            if (enteredHistory && !contentIsLoading && !contentFailed && items.length === 0) {
+            if (enteredFavorites && !contentFailed && items.length === 0) {
               setCol(0)
               return
             }
-            if (!contentIsLoading && contentMissing) {
+            if (enteredHistory && !contentFailed && items.length === 0) {
+              setCol(0)
+              return
+            }
+            // "Todos" vazio (T021).
+            if (enteredAll && items.length === 0) {
+              setCol(0)
+              return
+            }
+            if (contentMissing) {
               onResync()
               return
             }
-            if (!contentIsLoading && contentFailed) {
+            if (contentFailed) {
               retryContent()
+              return
+            }
+            // Categoria real vazia, sem falha nem "Modo limitado" (T021).
+            if (entered?.kind === 'category' && items.length === 0) {
+              setCol(0)
               return
             }
             if (toolbarFocus === 'search') {
@@ -733,7 +753,7 @@ export function VodCatalogScreen({
       {withShell(
         <div className="screen vod-screen">
           <div className="vod-body">
-            <div className="vod-side-nav">
+            <div className="vod-side-nav no-scrollbar">
               <SideCategoryNav
                 entries={sideEntries}
                 selectedId={selectedTrailId}
@@ -774,6 +794,8 @@ export function VodCatalogScreen({
                       ref={searchInputRef}
                       type="text"
                       className="search-field field-box"
+                      // Achado real (feature 028, FR-015): sem aria-label nem <label>, o campo não tinha nome acessível.
+                      aria-label="Pesquisar nesta categoria"
                       value={searchTerm}
                       onChange={(event) => setSearchTerm(event.target.value)}
                       onKeyDown={(event) => {
@@ -973,7 +995,7 @@ export function VodCatalogScreen({
               {showResultsGrid && <FavoriteHint />}
 
               {showResultsGrid && (
-                <div ref={gridContainerRef} className="vod-grid">
+                <div ref={gridContainerRef} className="vod-grid no-scrollbar">
                   <div
                     className="vod-grid-inner"
                     style={{

@@ -57,7 +57,10 @@ export const FULLSCREEN_REGION: PlayerRegion = {
 
 /**
  * Falha de reprodução já sanitizada. `code` é o que o motor reportou, quando
- * reporta algo; `message` é texto para o usuário.
+ * reporta algo; `message` é texto para o usuário, e fica **ausente** quando
+ * quem falha é o motor sem saber mais do que "não tocou": o motor não sabe
+ * se o item é canal, filme ou episódio, então quem apresenta o erro usa a
+ * sua própria mensagem genérica (`PlayerLayer`, prop `genericErrorMessage`).
  *
  * Invariante: nem `code` nem `message` podem conter a URL do stream, o
  * endereço do provedor ou credenciais (constitution, "Segredos Fora dos
@@ -66,7 +69,7 @@ export const FULLSCREEN_REGION: PlayerRegion = {
  */
 export interface PlayerError {
   code: string | null
-  message: string
+  message?: string
 }
 
 export interface PlayerAdapter {

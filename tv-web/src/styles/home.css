@@ -19,10 +19,16 @@
 /* Hero: banner de largura total, texto/ações sobrepostos na base — a capa
    (`PosterArt`) preenche a área toda, atrás de um degradê que garante
    contraste do texto sem esconder a imagem (ADR-007 — sem preview em
-   foco, sem dado inventado: só capa real, título e metadados já conhecidos). */
+   foco, sem dado inventado: só capa real, título e metadados já conhecidos).
+   `flex: 1 0 420px` (feature 028, D-005/FR-004): único item flexível de
+   `.home-content` — cresce pra ocupar a altura livre do palco quando há
+   pouco conteúdo (poucos rails), sem inventar rail/card novo; nunca encolhe
+   abaixo do mínimo de 420px quando há muito conteúdo (`.home-content`
+   rola, `overflow-y: auto`, em vez de espremer o hero ou os rails, que
+   continuam `flex: none`). */
 .home-hero {
   position: relative;
-  flex: none;
+  flex: 1 0 420px;
   min-height: 420px;
   border-radius: var(--radius-lg);
   overflow: hidden;

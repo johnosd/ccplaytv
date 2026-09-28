@@ -187,6 +187,15 @@ export function LiveScreen({
   const [playing, setPlaying] = useState<CatalogItemOut | null>(null)
   const [zapOpen, setZapOpen] = useState(false)
   const lastGoodChannelRef = useRef<CatalogItemOut | null>(null)
+  /**
+   * Vizinhança de canal do chrome (feature 027, D-008, `logic/chrome-player.md`
+   * §7) — um SNAPSHOT da lista exibida no momento em que o canal começou a
+   * tocar pela lista (inclusive a partir do zapping), nunca o `items`
+   * corrente: `openZapping` troca `entered` para a categoria de
+   * `original_group`, então ler `items` ao vivo mudaria a sequência debaixo
+   * do pé de ↑/↓ no meio de uma sessão.
+   */
+  const zapSequenceRef = useRef<CatalogItemOut[]>([])
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
@@ -575,12 +584,38 @@ export function LiveScreen({
         setZapOpen(false) // D-007: mesmo canal — só fecha, sem trocar
         return
       }
+      // feature 027, D-008: novo início pela lista — recaptura a vizinhança.
+      zapSequenceRef.current = items
       lastGoodChannelRef.current = playing // D-008: guarda ANTES da troca
       setPlaying(activeChannel) // troca a sessão — topLayer continua aberto
       return
     }
 
+    zapSequenceRef.current = items // feature 027, D-008
     setPlaying(activeChannel)
+  }
+
+  /**
+   * ↑/↓ e CH± do chrome (feature 027, US2, `logic/chrome-player.md` §7):
+   * troca para o canal anterior/seguinte REPRODUZÍVEL da vizinhança
+   * capturada, sem voltar nas pontas (FR-011). Devolve `false` no limite —
+   * `PlayerLayer` avisa e não altera a sessão.
+   */
+  function stepChannel(direction: 'previous' | 'next'): boolean {
+    if (!playing) return false
+    const seq = zapSequenceRef.current
+    let i = seq.findIndex((c) => c.id === playing.id)
+    if (i === -1) return false
+    const delta = direction === 'next' ? 1 : -1
+    do {
+      i += delta
+    } while (seq[i] && !seq[i].playable)
+    const target = seq[i]
+    if (!target) return false
+    lastGoodChannelRef.current = playing // D-008: mesmo fallback de erro da 016
+    setPlaying(target)
+    setFocusedIdentity((prev) => ({ ...prev, channelId: target.id })) // FR-014
+    return true
   }
 
   function openZapping() {
@@ -966,6 +1001,8 @@ export function LiveScreen({
                 ref={searchInputRef}
                 type="text"
                 className="search-field field-box"
+                // Achado real (feature 028, FR-015): sem aria-label nem <label>, o campo não tinha nome acessível.
+                aria-label="Pesquisar nesta categoria"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 onKeyDown={(event) => {
@@ -1073,7 +1110,8 @@ export function LiveScreen({
           {showResultsList && (
             <>
               <FavoriteHint />
-              <div ref={channelListRef} className="live-channel-list">
+              {/* Achado real (feature 028, FR-006): rolava com a barra nativa visível. */}
+              <div ref={channelListRef} className="live-channel-list no-scrollbar">
                 <div
                   className="live-channel-list-inner"
                   style={{ height: channelVirtualizer.getTotalSize() }}
@@ -1141,6 +1179,8 @@ export function LiveScreen({
                     className={`live-preview-action${effectiveCol === 2 && previewAction === 0 ? ' tv-focus' : ''}${
                       !activeChannel.playable ? ' is-soft-disabled' : ''
                     }`}
+                    // Achado real (feature 028, FR-016): sem sinal estático da indisponibilidade quando o canal não é reproduzível.
+                    aria-disabled={!activeChannel.playable ? 'true' : undefined}
                   >
                     Assistir
                   </button>
@@ -1155,6 +1195,8 @@ export function LiveScreen({
                     className={`live-preview-action is-soft-disabled${
                       effectiveCol === 2 && previewAction === 2 ? ' tv-focus' : ''
                     }`}
+                    // Achado real (feature 028, FR-016): sempre "Em breve" (item 42), mas sem sinal estático.
+                    aria-disabled="true"
                   >
                     Guia completo
                   </button>
@@ -1204,6 +1246,12 @@ export function LiveScreen({
         <PlayerLayer
           itemId={playing.id}
           title={playing.name}
+          identity={{
+            title: playing.name,
+            channelNumber: channelNumberOf(playing, categories),
+            logoUrl: playing.icon_url ?? undefined,
+          }}
+          onChannelStep={stepChannel}
           onClose={() => setPlaying(null)}
           onIdleSelect={openZapping}
           onEnteredPlaying={() => setZapOpen(false)}

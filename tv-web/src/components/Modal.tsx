@@ -18,8 +18,8 @@ let activeModalId: symbol | null = null
 
 /**
  * Casca genérica de modal (feature 022, D-010 do plan.md): abre já
- * interceptando o teclado (`useRemoteNav({modal:true})`, mesmo mecanismo
- * de `ConfirmDialog`), e no máximo um `Modal` fica visível/ativo por vez —
+ * interceptando o teclado (`useRemoteNav({modal:true})`), e no máximo um
+ * `Modal` fica visível/ativo por vez —
  * o segundo montado enquanto o primeiro está ativo não renderiza
  * `children` nem registra `useRemoteNav`.
  */
@@ -58,7 +58,9 @@ export function Modal({ onDirection, onSelect, onBack, ariaLabel, children }: Mo
 
   return (
     <div className="modal-overlay">
-      <div className="modal-panel" role="dialog" aria-modal="true" aria-label={ariaLabel}>
+      {/* Achado real (feature 028, FR-006): conteúdo alto (ex.: muitas
+          temporadas) rolava com a barra nativa do navegador visível. */}
+      <div className="modal-panel no-scrollbar" role="dialog" aria-modal="true" aria-label={ariaLabel}>
         {children}
       </div>
     </div>

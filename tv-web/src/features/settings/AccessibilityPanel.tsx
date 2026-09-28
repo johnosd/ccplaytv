@@ -51,6 +51,9 @@ export function AccessibilityPanel({ reducedMotion, focusedRow, onActivateRow }:
             key={label}
             type="button"
             className={`accessibility-panel-toggle is-soft-disabled${focusedRow === row ? ' tv-focus' : ''}`}
+            // Achado real (feature 028, FR-016): mock sempre indisponível, mas
+            // sem sinal estático pra tecnologia assistiva.
+            aria-disabled="true"
             onClick={() => onActivateRow(row)}
           >
             {label}

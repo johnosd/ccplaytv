@@ -1,7 +1,8 @@
 /*
  * Tela de perfis "Quem está assistindo?" (feature 023): cartões de lista,
  * cartão "Adicionar lista", linha de ações e estados. Substitui as regras
- * `.source-card*`/`.add-card*`/`.source-actions` de `features/screens.css`.
+ * `.source-card*`/`.add-card*`/`.source-actions` do antigo `features/
+ * screens.css` (eliminado na feature 028).
  * Só tokens de `index.css`. Os NOMES de classe `.source-card`,
  * `.source-card-wrap` e `.source-card-badge` são mantidos de propósito
  * (D-006): os scripts E2E os usam como seletores.

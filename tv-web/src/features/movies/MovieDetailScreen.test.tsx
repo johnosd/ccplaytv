@@ -8,6 +8,7 @@ import { PlayerLayer } from '../../components/PlayerLayer'
 import { db } from '../../lib/catalog/db'
 import { buildStableId, clearProgress, getUserState, updateProgress } from '../../lib/catalog/userStateRepository'
 import { RESUME_MIN_SECONDS } from '../../lib/player/resumePolicy'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 // `useCatalogItem` é mockado (não depende do catálogo real pra estes
 // testes). `useUserState`/`invalidateUserState`/`useToggleFavorite` ficam
@@ -134,6 +135,17 @@ describe('MovieDetailScreen', () => {
 
     expect(screen.getByText('Em breve — Trailer do filme ou da série.')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível', () => {
+    renderScreen()
+    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
+  })
+
+  it('tela rola sem barra nativa (feature 028, FR-006)', () => {
+    renderScreen()
+    expect(document.querySelector('.vod-detail')).toHaveClass('no-scrollbar')
   })
 
   it('o botão "Voltar" do estado de erro é ativável por OK do controle (R-005)', () => {

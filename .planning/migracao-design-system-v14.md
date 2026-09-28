@@ -335,22 +335,38 @@ Absorve o item 16 do backlog.
 
 ### Onda 6 — Player chrome (feature 027)
 
-- Chrome V14 com auto-hide (§27, §43): live bug e canal/programa no Live;
-  timeline e ±10 s no VOD; anterior/próximo episódio.
+- **Implementada, 54/54 tasks, gate da TV física cumprido**: Chrome V14 com
+  auto-hide (§27, §43) — live bug/número/logo/nome no Live (sem "programa
+  atual", nunca especificado como real); timeline e ±10 s no VOD;
+  anterior/próximo episódio atravessando temporada.
 - Botões de áudio/legenda/qualidade/velocidade/aspecto/info como soft
   disabled, dirigidos pelo contrato de capacidades (nunca por "é AVPlay?").
-- Media keys registradas só se disponíveis.
-- **Critério**: `PlayerLayer.ciclo-vida-player.contract.test.tsx`,
-  `ciclo-vida-player.mjs` verdes; **passada na TV física recomendada**
-  (plano de hardware, teclas de mídia).
+- Media keys (Play/Pause, Play, Pause, Stop, Rewind, Fast Forward, CH±)
+  registradas só se `getSupportedKeys()` as listar.
+- **Critério**: contrato 5/5, `PlayerLayer.ciclo-vida-player.contract.
+  test.tsx` (020) intacto, `ciclo-vida-player.mjs`/`player-chrome.mjs`
+  (novo) verdes — todos passando. **Passada na TV física era gate
+  obrigatório** (decisão do usuário na spec) — cumprida e confirmada pelo
+  usuário na QN50Q60DAGXZD em 28/09/2026 (T040): teclas de mídia, zapping
+  por ↑/↓ e a direção ↑=anterior/↓=próximo funcionando.
 
-### Onda 7 — Limpeza e QA (dentro da 027 ou feature própria)
+### Onda 7 — Limpeza e QA (feature 028, separada da 027 em 2026-09-28)
 
-- Quebrar `screens.css` (~30 KB) por componente/tela e remover o CSS morto.
-- Matriz de QA Tizen (§34) em todas as telas.
-- Varredura de `aria-label`.
-- Passada na TV física com a skill `tizen-tv`.
-- Atualizar a ADR-007 (emenda final), o CLAUDE.md e o backlog.
+- **Implementada, 78/78 tasks, gate da TV física cumprido**: `screens.css`
+  quebrado — conteúdo redistribuído para `shared.css` (novo) e para o arquivo
+  de cada tela, 13 regras mortas removidas. Matriz de QA Tizen (§34) completa
+  em todas as telas (`matriz-qa.md`): 6 achados reais de barra de rolagem
+  nativa fora de Filmes/Início (o bug absorvido por esta Onda), todos
+  corrigidos; 1 achado "grande" (indicador de overflow do modal de temporada)
+  registrado no backlog. Varredura de nome acessível
+  (`findUnnamedControls`) aplicada a todo estado principal de toda tela: 8
+  achados reais (`aria-disabled`/`aria-label` faltando), corrigidos. ADR-007
+  emendada, `CLAUDE.md` fechado (parágrafos 024–028), trava da 017 aposentada
+  (superada pela 018). **Passada na TV física** feita numa sessão seguinte,
+  quando o QN50Q60DAGXZD ficou acessível (`deploy-tv.ps1` descobriu o IP real
+  e instalou): roteiro completo (splash, Início, Live TV/zapping, Filmes/
+  Séries, detalhe, player/chrome, repetição rápida) executado. Ver
+  `sdd/specs/028-limpeza-qa-ds-v14/plan.md` → `R-009`.
 
 ## 7. Decisões fechadas pela ADR-011 (2026-09-26)
 

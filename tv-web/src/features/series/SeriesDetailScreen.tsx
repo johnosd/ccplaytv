@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
@@ -14,16 +14,19 @@ import {
 } from '../catalog/catalogApi'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
+import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
+import { verticalScrollEdges, type ScrollEdges } from '../../lib/focus/scrollEdges'
 import {
   episodeBadge,
   episodeCode,
   groupBySeason,
   nextEpisode,
+  previousEpisode,
   seriesPrimaryAction,
   type Season,
   type SeriesPrimary,
 } from './episodeNavigation'
-import { PlayerLayer } from '../../components/PlayerLayer'
+import { PlayerLayer, type PlayerEpisodeStep } from '../../components/PlayerLayer'
 import { NextEpisodeCountdown } from './NextEpisodeCountdown'
 import { ContentCard } from '../../components/ContentCard'
 import { Tabs, type TabItem } from '../../components/Tabs'
@@ -111,6 +114,16 @@ function locateSeason(seasons: Season[], episodeId: string): number {
 }
 
 /**
+ * Subtítulo do chrome do player (feature 027, `logic/chrome-player.md` §8):
+ * `T1:E2 • Nome`, sem repetir o nome quando `episodeCode` já É o nome (M3U/
+ * Modo limitado sem temporada/episódio identificável).
+ */
+function episodeSubtitle(episode: EpisodeOut): string {
+  const code = episodeCode(episode)
+  return code === episode.name ? episode.name : `${code} • ${episode.name}`
+}
+
+/**
  * Máquina do detalhe (`logic/episodios-autoplay.md` §7, D-008): `playing` e
  * `countdown` nunca coexistem — a camada do player sempre desmonta (fecha a
  * sessão) antes de a contagem montar, nunca duas sessões de reprodução ao
@@ -173,6 +186,22 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
   const seasonEpisodes = currentSeason?.episodes ?? []
   const [seasonModalOpen, setSeasonModalOpen] = useState(false)
   const [seasonModalFocusIdx, setSeasonModalFocusIdx] = useState(0)
+  // Série com mais temporadas do que cabem no modal: o foco aqui é estado +
+  // `tv-focus`, não foco de DOM, então nada rola sozinho — a lista acompanha
+  // o item focado e mostra edge fade só na borda com mais conteúdo (DS V14
+  // §17; bug `modal-temporada-sem-indicador-mais-itens`).
+  const focusedSeasonRef = useScrollFocusedIntoView<HTMLLIElement>(seasonModalFocusIdx)
+  const [seasonListEdges, setSeasonListEdges] = useState<ScrollEdges>({ start: false, end: false })
+  // Na abertura, o `Modal` só renderiza os filhos no render seguinte ao da
+  // montagem (ele se ativa num efeito) — um efeito deste componente chegaria
+  // antes da lista existir. O callback ref roda quando a lista de fato monta:
+  // traz a temporada atual à vista (pode estar abaixo da dobra) e calcula o
+  // fade inicial, já que sem rolagem nenhum `scroll` dispararia.
+  const seasonListRef = useCallback((list: HTMLUListElement | null) => {
+    if (!list) return
+    list.querySelector<HTMLElement>('.tv-focus')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    setSeasonListEdges(verticalScrollEdges(list))
+  }, [])
 
   const [focusedEpisodeId, setFocusedEpisodeId] = useState<string | null>(null)
   const episodeIdx = Math.max(
@@ -235,13 +264,42 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
     setMode({ kind: 'countdown', finished: justPlayed, next })
   }
 
-  /** Contagem expirou sem cancelar — toca o próximo, movendo temporada/foco se ele estiver noutra (D-008). */
-  function playNext(next: EpisodeOut) {
-    const seasonIndex = locateSeason(seasons, next.id)
+  /**
+   * Troca para outro episódio da série, movendo temporada/linha/foco se ele
+   * estiver noutra (D-008) — caminho comum do autoplay (`playNext`) e do
+   * "Episódio anterior"/"Próximo episódio" do chrome (feature 027, FR-018:
+   * "abrir o outro pelo mesmo caminho do autoplay"). A troca de `itemId`
+   * (novo `mode.episode.id`) já grava o progresso do atual no teardown do
+   * `PlayerLayer` (`recorder.onExit('close')`) — nada extra a fazer aqui.
+   */
+  function switchEpisode(target: EpisodeOut) {
+    const seasonIndex = locateSeason(seasons, target.id)
     setSeasonIdx(seasonIndex)
     setRow('episodes')
-    setFocusedEpisodeId(next.id)
-    setMode({ kind: 'playing', episode: next, startAtMs: startAtMsFor(next) })
+    setFocusedEpisodeId(target.id)
+    setMode({ kind: 'playing', episode: target, startAtMs: startAtMsFor(target) })
+  }
+
+  /** Contagem expirou sem cancelar — toca o próximo (D-008). */
+  function playNext(next: EpisodeOut) {
+    switchEpisode(next)
+  }
+
+  /**
+   * Vizinhança de episódio pro chrome do player (feature 027, D-010 do
+   * plan.md): `hasPrevious`/`hasNext` vêm de `previousEpisode`/`nextEpisode`
+   * sobre a lista já carregada — nunca consulta rede. Só existe enquanto
+   * `mode.kind === 'playing'` (o único caminho que monta `PlayerLayer` aqui).
+   */
+  function episodeStepFor(current: EpisodeOut): PlayerEpisodeStep {
+    return {
+      hasPrevious: previousEpisode(seasons, current.id) !== null,
+      hasNext: nextEpisode(seasons, current.id) !== null,
+      onStep: (direction) => {
+        const target = direction === 'previous' ? previousEpisode(seasons, current.id) : nextEpisode(seasons, current.id)
+        if (target) switchEpisode(target)
+      },
+    }
   }
 
   /** Cancelar a contagem — volta à lista, foco no episódio que acabou de concluir, sem tocar nada (FR-015). */
@@ -436,7 +494,8 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
   }
 
   return (
-    <div className="screen vod-detail">
+    // Achado real (feature 028, FR-006): rolava com a barra nativa visível.
+    <div className="screen vod-detail no-scrollbar">
       <div className="vod-detail-hero">
         <div className="vod-detail-poster">
           <ContentCard variant="portrait" title={series.name} iconUrl={series.icon_url ?? undefined} />
@@ -503,7 +562,8 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
               <span className="vod-season-count">{seasonEpisodes.length} episódios</span>
             </div>
 
-            <div ref={episodeListRef} className="vod-episode-list">
+            {/* Achado real (feature 028, FR-006): rolava com a barra nativa visível. */}
+            <div ref={episodeListRef} className="vod-episode-list no-scrollbar">
               <div className="vod-episode-list-inner" style={{ height: episodeVirtualizer.getTotalSize() }}>
                 {episodeVirtualizer.getVirtualItems().map((virtualRow) => {
                   const episode = seasonEpisodes[virtualRow.index]
@@ -561,10 +621,15 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
           }}
           onSelect={() => chooseSeason(seasonModalFocusIdx)}
         >
-          <ul className="vod-season-modal-list">
+          <ul
+            ref={seasonListRef}
+            className={`vod-season-modal-list no-scrollbar${seasonListEdges.start ? ' vod-season-modal-list--fade-start' : ''}${seasonListEdges.end ? ' vod-season-modal-list--fade-end' : ''}`}
+            onScroll={(event) => setSeasonListEdges(verticalScrollEdges(event.currentTarget))}
+          >
             {seasons.map((season, index) => (
               <li
                 key={season.key}
+                ref={index === seasonModalFocusIdx ? focusedSeasonRef : undefined}
                 className={`vod-season-modal-item${index === seasonModalFocusIdx ? ' tv-focus' : ''}`}
               >
                 {index === safeSeasonIdx && <span aria-hidden="true">✓ </span>}
@@ -584,6 +649,8 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
           startAtMs={mode.startAtMs}
           onClose={() => handlePlayerClose(mode.episode)}
           onCompleted={() => handlePlayerCompleted(mode.episode)}
+          identity={{ title: series.name, subtitle: episodeSubtitle(mode.episode) }}
+          episodeStep={episodeStepFor(mode.episode)}
         />
       )}
 

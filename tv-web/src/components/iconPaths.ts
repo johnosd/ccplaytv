@@ -107,6 +107,32 @@ export const ICON_PATHS = {
     { tag: 'polyline', points: '1 4 1 10 7 10' },
     { tag: 'path', d: 'M3.51 15a9 9 0 1 0 2.13-9.36L1 10' },
   ],
+  // Feature 027 (D-013, chrome do player): velocidade, proporção de tela,
+  // guia de programação e episódio anterior/próximo.
+  speed: [
+    { tag: 'circle', cx: 12, cy: 13, r: 8 },
+    { tag: 'path', d: 'M12 13 16 9' },
+    { tag: 'path', d: 'M9 3h6' },
+  ],
+  aspect: [
+    { tag: 'rect', x: 3, y: 6, width: 18, height: 12, rx: 2 },
+    { tag: 'path', d: 'M8 10v4M16 10v4' },
+  ],
+  guide: [
+    { tag: 'rect', x: 3, y: 4, width: 18, height: 16, rx: 2 },
+    { tag: 'line', x1: 3, y1: 10, x2: 21, y2: 10 },
+    { tag: 'line', x1: 8, y1: 4, x2: 8, y2: 10 },
+  ],
+  // Ícone clássico de "faixa anterior"/"próxima faixa" (barra + triângulo) —
+  // distinto de rewind/forward (duplo triângulo, usados no salto de 10s).
+  skipPrevious: [
+    { tag: 'line', x1: 5, y1: 5, x2: 5, y2: 19 },
+    { tag: 'polygon', points: '19 4 9 12 19 20 19 4' },
+  ],
+  skipNext: [
+    { tag: 'polygon', points: '5 4 15 12 5 20 5 4' },
+    { tag: 'line', x1: 19, y1: 5, x2: 19, y2: 19 },
+  ],
 } as const satisfies Record<string, readonly IconShape[]>
 
 export type IconName = keyof typeof ICON_PATHS

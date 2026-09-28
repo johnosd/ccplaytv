@@ -1,10 +1,10 @@
 /**
  * Live TV — Design System V14 (feature 024, Onda 3, T022 do plan.md).
  *
- * Consolida aqui todo o CSS específico da tela (antes espalhado em
- * `features/screens.css`, que perde as regras `.live-*` correspondentes).
+ * Consolida aqui todo o CSS específico da tela (antes espalhado no antigo
+ * `features/screens.css`, eliminado na feature 028).
  * Só tokens de `index.css` — nenhuma cor/raio/espaçamento literal (D-010).
- * Importado depois de `components.css` e antes de `screens.css`.
+ * Importado depois de `components.css` e antes de `shared.css`.
  */
 
 .live-screen {
@@ -46,11 +46,12 @@
 }
 
 /* `.live-column`/`.live-column-groups`/`.live-column-title`,
-   `.category-title-row`, `.search-icon-button`, `.search-field-row`/
-   `.search-field`, `.search-status`/`.search-coverage` são compartilhados
-   com Filmes/Séries (feature 010/018, ainda não migradas) — ficam em
-   `features/screens.css`, não aqui. Só o que é exclusivo da Live vive
-   neste arquivo. */
+   `.category-title-row`, `.search-icon-button`, `.search-field`,
+   `.search-status` são compartilhados com Filmes/Séries (feature
+   010/018, ainda não migradas) — ficam em `styles/shared.css`, não aqui.
+   `.search-coverage` cada tela tem a sua própria (Busca global, feature
+   026, tem regra própria em `search.css`; esta tela usa a cor genérica de
+   `shared.css`). Só o que é exclusivo da Live vive neste arquivo. */
 
 .live-column-channels {
   width: 400px;
@@ -80,7 +81,7 @@
 /* `.live-state`/`.live-state-title`/`.live-state-copy` (o estado "resultado
    de busca vazio", que a Live não trocou por `ErrorState`/`EmptyState` de
    propósito — o campo continua com foco DOM real ali) e
-   `.live-truncated-note` também são compartilhados — em `screens.css`. */
+   `.live-truncated-note` também são compartilhados — em `shared.css`. */
 
 /* ---------- Painel de canais virtualizado (feature 009) ----------
    Só o painel de conteúdo (col 1) vira lista de janela deslizante; a

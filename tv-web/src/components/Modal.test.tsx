@@ -36,4 +36,13 @@ describe('Modal', () => {
     fireEvent.keyDown(document.body, { key: 'Enter', bubbles: true })
     expect(onSelectB).toHaveBeenCalledTimes(1)
   })
+
+  it('painel rola sem barra nativa (feature 028, FR-006)', () => {
+    render(
+      <Modal onBack={vi.fn()} ariaLabel="Diálogo de teste">
+        <span>conteúdo</span>
+      </Modal>,
+    )
+    expect(document.querySelector('.modal-panel')).toHaveClass('no-scrollbar')
+  })
 })

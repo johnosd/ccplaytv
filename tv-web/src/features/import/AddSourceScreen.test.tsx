@@ -8,6 +8,7 @@ import { db } from '../../lib/catalog/db'
 import * as importPipeline from '../../lib/catalog/importPipeline'
 import { AnnouncerContext } from '../../lib/announcer'
 import { getComingSoon } from '../../lib/comingSoon'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 vi.spyOn(globalThis, 'fetch')
 
@@ -130,6 +131,14 @@ describe('AddSourceScreen — onboarding V14 (feature 023)', () => {
     expect(screen.getByRole('button', { name: 'Adicionar lista' })).toBeInTheDocument()
     expect(screen.getByRole('tablist')).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Forma de entrada' })).toBeInTheDocument()
+  })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível', () => {
+    const { container } = render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, {
+      wrapper: createWrapper(),
+    })
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 
   it('cada campo declara o teclado certo para a TV: inputmode/type/autocomplete por finalidade (FR-034, DS §37)', () => {

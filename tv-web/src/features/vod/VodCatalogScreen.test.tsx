@@ -14,6 +14,7 @@ import type { CatalogCategory, CatalogItemOut } from '../catalog/catalogApi'
 import { resetVodSessionMemory } from './vodSessionMemory'
 import { db } from '../../lib/catalog/db'
 import { updateProgress } from '../../lib/catalog/userStateRepository'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 let restoreOffsetHeight: PropertyDescriptor | undefined
 let restoreOffsetWidth: PropertyDescriptor | undefined
@@ -194,6 +195,73 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     expect(document.querySelector('.vod-hero-band')?.textContent).toContain('2020')
   })
 
+  // Feature 028, FR-007/FR-009: SELECT em "Voltar" devolve o foco à trilha (achado real — não roteava, T021).
+  it('carregando: SELECT em "Voltar" devolve o foco à trilha', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    vi.mocked(catalogApi.useCategoryContent).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof catalogApi.useCategoryContent>)
+    renderMovies()
+
+    press('ArrowRight') // entra em "Ação" — conteúdo ainda carregando
+    press('Enter')
+    expect(document.querySelector('.side-category-nav-item.tv-focus')).not.toBeNull()
+  })
+
+  it('categoria vazia (sem falha): SELECT em "Voltar" devolve o foco à trilha', () => {
+    mockCategories([category(1, 'Vazia', 0)])
+    mockContentByCategory({ 1: [] })
+    renderMovies()
+
+    press('ArrowRight') // entra em "Vazia"
+    expect(screen.getByText('Esta categoria está vazia.')).toBeInTheDocument()
+    press('Enter')
+    expect(document.querySelector('.side-category-nav-item.tv-focus')).not.toBeNull()
+  })
+
+  it('"Todos" vazio: SELECT em "Voltar" devolve o foco à trilha', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockAggregated([]) // "Todos" sem nenhum item agregado
+    renderMovies()
+
+    press('ArrowUp') // trilha: Ação (3) -> Todos (2)
+    press('ArrowRight') // entra em "Todos" (vazio)
+    press('Enter')
+    expect(document.querySelector('.side-category-nav-item.tv-focus')).not.toBeNull()
+  })
+
+  it('erro de conteúdo: SELECT em "Tentar de novo" chama o refetch', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    const refetch = vi.fn()
+    vi.mocked(catalogApi.useCategoryContent).mockReturnValue({
+      data: { items: [], totalCount: 0, outcome: 'failed' },
+      isLoading: false,
+      isError: false,
+      refetch,
+    } as unknown as ReturnType<typeof catalogApi.useCategoryContent>)
+    renderMovies()
+
+    press('ArrowRight') // entra em "Ação" — conteúdo falhou
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toHaveClass('tv-focus')
+    press('Enter')
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  // Feature 028, FR-001: barra nativa escondida na trilha e na grade, sem trocar overflow por hidden.
+  it('trilha e grade têm .no-scrollbar', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({ 1: [movie('Filme A', 'a')] })
+    renderMovies()
+
+    press('ArrowRight') // entra em "Ação", grade renderiza
+
+    expect(document.querySelector('.vod-side-nav')).toHaveClass('no-scrollbar')
+    expect(document.querySelector('.vod-grid')).toHaveClass('no-scrollbar')
+  })
+
   it('some quando a entrada não tem itens (carregando/vazio)', () => {
     mockCategories([category(1, 'Ação', 0)])
     mockContentByCategory({ 1: [] })
@@ -251,6 +319,75 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     press('ArrowRight') // volta a "Ação": restaura o último card focado ali
 
     expect(document.querySelector('.vod-hero-band .vod-hero-title')?.textContent).toBe('Filme C')
+  })
+})
+
+describe('VodCatalogScreen — nomes acessíveis (feature 028, FR-015/FR-017)', () => {
+  beforeEach(async () => {
+    resetVodSessionMemory()
+    await seedSource()
+    mockAggregated([])
+  })
+
+  afterEach(async () => {
+    cleanup()
+    vi.clearAllMocks()
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+  })
+
+  function renderMovies() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    }
+    return render(
+      <Wrapper>
+        <VodCatalogScreen section="movies" sourceId={SOURCE_ID} onOpenItem={vi.fn()} onBack={vi.fn()} onResync={vi.fn()} />
+      </Wrapper>,
+    )
+  }
+
+  it('grade com itens', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({ 1: [movie('Filme A', 'a'), movie('Filme B', 'b')] })
+    const { container } = renderMovies()
+    press('ArrowRight')
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
+
+  it('busca aberta dentro da categoria', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockContentByCategory({ 1: [movie('Filme A', 'a')] })
+    const { container } = renderMovies()
+    press('ArrowRight')
+    press('ArrowUp') // grade -> "Pesquisar"
+    press('Enter') // abre o campo
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
+
+  it('categoria vazia', () => {
+    mockCategories([category(1, 'Vazia', 0)])
+    mockContentByCategory({ 1: [] })
+    const { container } = renderMovies()
+    press('ArrowRight')
+    expect(screen.getByText('Esta categoria está vazia.')).toBeInTheDocument()
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
+
+  it('erro de conteúdo', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    vi.mocked(catalogApi.useCategoryContent).mockReturnValue({
+      data: { items: [], totalCount: 0, outcome: 'failed' },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof catalogApi.useCategoryContent>)
+    const { container } = renderMovies()
+    press('ArrowRight')
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 })
 

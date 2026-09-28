@@ -150,6 +150,7 @@ export function HomeScreen({
           itemId={playing.itemId}
           title={playing.title}
           startAtMs={playing.startAtMs}
+          identity={{ title: playing.title }}
           onClose={closePlayer}
         />
       )}

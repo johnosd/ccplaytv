@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProfilesScreen, type ProfilesScreenProps } from './ProfilesScreen'
 import * as importApi from '../import/importApi'
 import type { SourceOut } from '../import/importApi'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 vi.mock('../import/importApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../import/importApi')>()
@@ -181,6 +182,25 @@ describe('ProfilesScreen — estados e listas (US1)', () => {
     expect(within(card(/Descartada/)).getByText('Entradas não reconhecidas ficaram de fora')).toBeInTheDocument()
   })
 
+  // Feature 028, FR-015/FR-017 — um caso por estado principal.
+  it('todo controle tem nome acessível: com listas', () => {
+    mockLoaded(LISTA_1, LISTA_2)
+    renderProfiles()
+    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
+  })
+
+  it('todo controle tem nome acessível: sem nenhuma lista', () => {
+    mockLoaded()
+    renderProfiles()
+    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
+  })
+
+  it('todo controle tem nome acessível: carregando', () => {
+    mockSources({ data: undefined, isLoading: true, isError: false })
+    renderProfiles()
+    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
+  })
+
   it('NUNCA renderiza o endereço do provedor, URL nem credencial (FR-048)', () => {
     mockLoaded(
       makeSource('x', 'Provedor', {
@@ -336,6 +356,24 @@ describe('ProfilesScreen — RETURN (FR-030, FR-031, FR-042)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
     expect(refetch).toHaveBeenCalledTimes(1)
   })
+
+  // Feature 028, FR-007/FR-009: SELECT no botão focado, não só o clique do mouse.
+  it('erro de leitura: SELECT (OK do controle) em "Tentar de novo" chama refetch', () => {
+    const refetch = vi.fn()
+    mockSources({ data: undefined, isLoading: false, isError: true, refetch } as Partial<UseSourcesResult>)
+    renderProfiles()
+
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toHaveClass('tv-focus')
+    press('Enter')
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível: erro de leitura', () => {
+    mockSources({ data: undefined, isLoading: false, isError: true, refetch: vi.fn() } as Partial<UseSourcesResult>)
+    renderProfiles()
+    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
+  })
 })
 
 describe('ProfilesScreen — ações da lista (US3)', () => {
@@ -424,6 +462,14 @@ describe('ProfilesScreen — exclusão confirmada (FR-010, FR-011)', () => {
     press('ArrowRight', 'Enter')
     expect(remove).toHaveBeenCalledTimes(1)
     expect(remove).toHaveBeenCalledWith('src-1', expect.anything())
+  })
+
+  // Feature 028, FR-015/FR-017.
+  it('todo controle tem nome acessível: modal de exclusão aberto', () => {
+    mockLoaded(LISTA_1)
+    renderProfiles()
+    openDeleteDialogFor('Lista 1')
+    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
   })
 
   it('onSourceDeleted só é chamado no sucesso da exclusão, com o id', () => {

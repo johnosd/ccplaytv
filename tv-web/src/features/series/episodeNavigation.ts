@@ -86,6 +86,27 @@ export function nextEpisode(seasons: Season[], currentId: string): EpisodeOut | 
   return seasons[seasonIndex + 1]?.episodes[0] ?? null
 }
 
+/**
+ * O episódio anterior a `currentId`, na mesma ordem de exibição — espelho de
+ * `nextEpisode` (feature 027, `logic/chrome-player.md` §8). Atravessa para o
+ * ÚLTIMO episódio da temporada anterior quando `currentId` é o primeiro da
+ * atual; sem temporada anterior, não há anterior (FR-017). Só sobre a lista
+ * já carregada, igual `nextEpisode` (FR-017 por construção — nunca consulta
+ * rede nem outra série).
+ */
+export function previousEpisode(seasons: Season[], currentId: string): EpisodeOut | null {
+  const seasonIndex = seasons.findIndex((season) => season.episodes.some((ep) => ep.id === currentId))
+  if (seasonIndex === -1) return null
+
+  const episodeIndex = seasons[seasonIndex].episodes.findIndex((ep) => ep.id === currentId)
+  const sameSeason = seasons[seasonIndex].episodes[episodeIndex - 1]
+  if (sameSeason) return sameSeason
+
+  const previousSeason = seasons[seasonIndex - 1]
+  if (!previousSeason) return null
+  return previousSeason.episodes[previousSeason.episodes.length - 1] ?? null
+}
+
 export interface EpisodeBadge {
   watched: boolean
   resumeSeconds: number | null

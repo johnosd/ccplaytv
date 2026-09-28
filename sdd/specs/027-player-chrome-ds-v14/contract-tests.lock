@@ -1,0 +1,12 @@
+{
+    "feature":  "027-player-chrome-ds-v14",
+    "lockedAt":  "2026-09-28 00:58",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/components/PlayerLayer.player-chrome.contract.test.tsx",
+                      "sha256":  "866ef853a1074e4e74908a3a0761cf4984b8021df7c57c41d8e977783430c461",
+                      "tests":  5
+                  }
+              ]
+}
