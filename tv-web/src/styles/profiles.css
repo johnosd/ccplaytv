@@ -150,3 +150,24 @@
   font-size: var(--fs-body-lg);
   color: var(--text-primary);
 }
+
+/* "Gerenciar listas" (feature 026, FR-032) — alcançado por BAIXO a partir de
+   "Adicionar lista"; abre Configurações › Fontes IPTV sem lista ativa. */
+.profiles-manage-sources {
+  appearance: none;
+  border: none;
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.profiles-manage-sources.tv-focus {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}

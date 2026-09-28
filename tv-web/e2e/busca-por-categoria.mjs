@@ -89,6 +89,25 @@ async function waitForTrailFocus(page, name) {
   await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
 }
 
+/**
+ * Do Início (hero, rails ou topbar — qualquer foco restaurado), abre TV ao
+ * vivo/Filmes/Séries pela topbar. Substitui o antigo hub de atalhos
+ * (`.tiles-row`, removido na feature 026 — US1 troca o hub provisório pela
+ * Home definitiva com hero+rails; a entrada nas 3 categorias passa a ser só
+ * pela topbar). Sobe até a topbar (não importa em que linha do conteúdo o
+ * foco esteja — `ArrowUp` de sobra não faz nada uma vez lá dentro), reseta
+ * a posição horizontal pra "Início" (`ArrowLeft` de sobra, com clamp) e só
+ * então conta as setas certas — nunca assume de onde o foco restaurado
+ * (FR-017/FR-029) partiu.
+ */
+async function openViaTopbar(page, destination) {
+  const ORDER = ['home', 'live', 'movies', 'series']
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < ORDER.indexOf(destination); i += 1) await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
+}
+
 /** Dispara um evento do <video> ATUAL (o adaptador de dev não decodifica conteúdo fictício). */
 async function fireVideoEvent(page, type) {
   await page.waitForSelector('.player-video', { timeout: 8000 })
@@ -136,8 +155,8 @@ async function run() {
     console.log('=== Live TV: entra em "Canais | Esportes" (cobre essa categoria) ===')
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre a fonte
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('Enter') // Live TV é o primeiro tile
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'live')
 
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
     await waitForTrailFocus(page, 'Esportes')
@@ -210,9 +229,8 @@ async function run() {
     await page.goto(APP_URL)
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre a fonte
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // TV ao vivo -> Filmes (o foco do Início nasce em "TV ao vivo")
-    await page.keyboard.press('Enter')
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'movies')
     await waitForTrailFocus(page, 'Filmes A')
     await page.keyboard.press('ArrowRight') // entra em "Filmes A" (padrão: 1ª categoria real)
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
@@ -265,7 +283,7 @@ async function run() {
     await page.waitForSelector('.vod-side-nav .tv-focus', { timeout: 8000 })
     assert(true, 'RETURN a partir do botão de busca saiu da categoria para a trilha')
     await page.keyboard.press('Escape') // trilha -> Início (a topbar só existe lá)
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
     assert(true, 'RETURN a partir da trilha saiu da tela de Filmes sem travar')
   } catch (error) {
     failures += 1

@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { Icon } from './Icon'
 
 export type TextFieldPurpose = 'search' | 'url' | 'username' | 'password' | 'text'
@@ -17,6 +17,10 @@ export interface TextFieldProps {
    */
   hint?: string
   id?: string
+  /** Acesso ao `<input>` real (feature 026) — para dar/tirar foco de fato (abrir/fechar o IME). Aditivo, sem contrato travado. */
+  inputRef?: Ref<HTMLInputElement>
+  /** Foco de estado (ADR-009) — aplica `.tv-focus` no campo. Aditivo, sem contrato travado. */
+  focused?: boolean
 }
 
 interface PurposeAttrs {
@@ -39,7 +43,7 @@ const PURPOSE_ATTRS: Record<TextFieldPurpose, PurposeAttrs> = {
  * desaparece ao digitar. Sem encadeamento com outros campos (fora de
  * escopo desta feature).
  */
-export function TextField({ label, value, onChange, purpose, error, hint, id }: TextFieldProps): ReactNode {
+export function TextField({ label, value, onChange, purpose, error, hint, id, inputRef, focused }: TextFieldProps): ReactNode {
   const generatedId = useId()
   const fieldId = id ?? generatedId
   const errorId = `${fieldId}-error`
@@ -48,11 +52,12 @@ export function TextField({ label, value, onChange, purpose, error, hint, id }: 
   const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined
 
   return (
-    <div className="text-field">
+    <div className={`text-field${focused ? ' tv-focus' : ''}`}>
       <label className="text-field-label" htmlFor={fieldId}>
         {label}
       </label>
       <input
+        ref={inputRef}
         id={fieldId}
         className="text-field-input"
         value={value}

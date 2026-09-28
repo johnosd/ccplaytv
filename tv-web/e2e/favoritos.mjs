@@ -95,14 +95,32 @@ async function addSource(page, m3uUrl) {
   await page.locator('.source-card-wrap', { hasText: 'Fonte E2E Favoritos' }).waitFor({ timeout: 8000 })
 }
 
+/**
+ * Do Início (hero, rails ou topbar — qualquer foco restaurado), abre TV ao
+ * vivo/Filmes/Séries pela topbar. Substitui o antigo hub de atalhos
+ * (`.tiles-row`, removido na feature 026 — US1 troca o hub provisório pela
+ * Home definitiva com hero+rails; a entrada nas 3 categorias passa a ser só
+ * pela topbar). Sobe até a topbar (não importa em que linha do conteúdo o
+ * foco esteja — `ArrowUp` de sobra não faz nada uma vez lá dentro), reseta
+ * a posição horizontal pra "Início" (`ArrowLeft` de sobra, com clamp) e só
+ * então conta as setas certas — nunca assume de onde o foco restaurado
+ * (FR-017/FR-029) partiu.
+ */
+async function openViaTopbar(page, destination) {
+  const ORDER = ['home', 'live', 'movies', 'series']
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < ORDER.indexOf(destination); i += 1) await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
+}
+
 async function openLiveTv(page) {
   // Home: fonte única, card focado por padrão (col 0, linha 0) — Enter abre.
   await page.waitForSelector('.source-card', { timeout: 8000 })
   await page.keyboard.press('Enter')
 
-  // Hub da lista: "Live TV" é o primeiro tile, focado por padrão.
-  await page.waitForSelector('.tiles-row', { timeout: 8000 })
-  await page.keyboard.press('Enter')
+  await page.waitForSelector('.home-content', { timeout: 8000 })
+  await openViaTopbar(page, 'live')
 
   await page.waitForSelector('.live-column-groups', { timeout: 8000 })
 }
@@ -177,8 +195,8 @@ async function run() {
     await page.reload()
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('Enter')
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'live')
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
     // Padrão cai na 1ª categoria real (índice 2) — duas setas pra cima
     // chegam em "★ Favoritos", passando por "Todos" (ver comentário acima).
@@ -207,10 +225,9 @@ async function run() {
     assert(trailFocus === 'Favoritos', 'OK no vazio devolveu o foco à trilha, em "★ Favoritos"')
 
     console.log('=== Filmes: mesmo gesto funciona na grade de pôsteres ===')
-    await page.keyboard.press('Escape') // volta ao Início — foco restaurado em "TV ao vivo", de onde se saiu
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('Enter')
+    await page.keyboard.press('Escape') // volta ao Início — foco restaurado na topbar, em "TV ao vivo" (FR-029)
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'movies')
     await waitForCategoryTrail(page)
     await page.keyboard.press('ArrowRight') // entra na 1ª categoria real de Filmes
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
@@ -221,11 +238,11 @@ async function run() {
     console.log('=== Séries: tecla amarela favorita no toque único — segundo caminho, mesma ação ===')
     await page.keyboard.press('Escape') // sai da categoria (col 1 -> col 0, trilha)
     await page.keyboard.press('Escape') // sai da trilha -> Início
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    // O Início restaura o foco de origem (feature 023, FR-029): volta em "Filmes",
-    // de onde a categoria foi aberta — não reinicia mais em "TV ao vivo".
-    await page.keyboard.press('ArrowRight') // Filmes -> Séries
-    await page.keyboard.press('Enter')
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    // O Início restaura o foco de origem na topbar (FR-017/FR-029): volta em
+    // "Filmes", de onde a categoria foi aberta — `openViaTopbar` não depende
+    // disso (reseta pra "Início" antes de contar), então funciona igual.
+    await openViaTopbar(page, 'series')
     await waitForCategoryTrail(page)
     await page.keyboard.press('ArrowRight') // entra na 1ª categoria real de Séries
     await page.waitForSelector('.content-card-title', { timeout: 8000 })

@@ -1,5 +1,7 @@
 import type { SourceOut } from '../features/import/importApi'
 import type { CategoryScreenSnapshot } from '../features/catalog/categoryScreenSnapshot'
+import type { SearchSnapshot } from '../features/search/searchSnapshot'
+import type { SettingsFocus } from '../features/settings/SettingsScreen'
 
 /**
  * Navegação do app como função pura (feature 023, D-003 do plan.md —
@@ -16,13 +18,17 @@ export type TopbarItem = 'home' | TopDestination | 'profile' | 'search' | 'setti
 
 /**
  * Onde estava o foco do Início quando a pessoa saiu dele — restaurado no
- * RETURN (FR-029). "Continuar assistindo" é por id, nunca por índice
- * (constitution, "Voltar Restaura Foco e Posição").
+ * RETURN (FR-029). Tudo por id, nunca por índice (constitution, "Voltar
+ * Restaura Foco e Posição"). `hero`/`rail`/`dock` são da Home definitiva
+ * (feature 026, `logic/foco-home.md` §5); `topbar`/`shortcuts` são da
+ * feature 023 e não podem mudar de forma (contratos travados 023/024).
  */
 export type HomeFocus =
   | { zone: 'topbar'; item: TopbarItem }
   | { zone: 'shortcuts'; destination: TopDestination }
-  | { zone: 'continue'; itemId: string }
+  | { zone: 'hero'; action: 'primary' | 'details' | 'mylist' | 'trailer' }
+  | { zone: 'rail'; rail: 'continue' | 'mylist' | 'channels' | 'ai'; itemId: string }
+  | { zone: 'dock'; service: string }
 
 export type AppScreen =
   | { name: 'splash' }
@@ -32,11 +38,23 @@ export type AppScreen =
   | { name: 'edit-source'; source: SourceOut }
   | { name: 'progress'; jobId: string }
   | { name: 'home'; focus?: HomeFocus }
-  | { name: 'live' }
-  | { name: 'movies'; restore?: CategoryScreenSnapshot }
+  | {
+      name: 'live'
+      /** Entra tocando este canal (feature 026, `logic/navegacao.md` §3) — uma única vez. */
+      initialChannel?: { channelId: string; entry: 'favorites' | 'category' }
+      /** Entra direto em `★ Favoritos`, sem canal específico ("Ver todos"). */
+      openFavorites?: boolean
+      /** Remonta com a topbar ativa neste item — volta de Busca/Configurações (FR-034/FR-044). */
+      topbarFocus?: TopbarItem
+    }
+  | { name: 'movies'; restore?: CategoryScreenSnapshot; topbarFocus?: TopbarItem; openFavorites?: boolean }
   | { name: 'movie-detail'; movieId: string }
-  | { name: 'series'; restore?: CategoryScreenSnapshot }
+  | { name: 'series'; restore?: CategoryScreenSnapshot; topbarFocus?: TopbarItem; openFavorites?: boolean }
   | { name: 'series-detail'; seriesId: string }
+  /** Busca global (feature 026, US3). */
+  | { name: 'search'; restore?: SearchSnapshot }
+  /** Configurações (feature 026, US2). `standalone`: sem lista ativa, sem topbar (FR-033, "Gerenciar listas"). */
+  | { name: 'settings'; restore?: SettingsFocus; standalone?: boolean }
 
 export interface AppNavState {
   screen: AppScreen
@@ -69,6 +87,15 @@ export type AppNavAction =
   | { type: 'source-removed'; sourceId: string }
   /** "Voltar" da tela de progresso sem abrir a lista (FR-039): perfis como base, foco na lista importada. */
   | { type: 'import-back'; sourceId?: string | null }
+  /**
+   * "Início" na topbar de Live/Filmes/Séries/Busca/Configurações (feature
+   * 026, `logic/navegacao.md` §2) — diferente de `back`, porque a Live
+   * agora pode ser aberta a partir da Busca (RETURN nela não pode voltar
+   * pra Busca). Com um `home` na pilha, volta até ele (descarta tudo acima,
+   * preservando o `focus` que ele guardou); sem um `home` na pilha, troca a
+   * tela atual por `{ name: 'home' }` com a pilha zerada.
+   */
+  | { type: 'go-home' }
 
 export function initialAppNav(): AppNavState {
   return { screen: { name: 'splash' }, history: [], activeSource: null }
@@ -131,6 +158,16 @@ export function appNavReducer(state: AppNavState, action: AppNavAction): AppNavS
 
     case 'import-back':
       return profilesAsBase(action.sourceId ?? null)
+
+    case 'go-home': {
+      const homeIndex = state.history.findIndex((entry) => entry.name === 'home')
+      if (homeIndex === -1) return { ...state, screen: { name: 'home' }, history: [] }
+      return {
+        ...state,
+        screen: state.history[homeIndex],
+        history: state.history.slice(0, homeIndex),
+      }
+    }
 
     default:
       return state

@@ -105,8 +105,27 @@ async function capture(page, dir, name) {
  * `.poster-*`/`.movie-detail-layout`/`.series-detail-header` pra
  * `.vod-grid`/`.content-card*`/`.vod-detail` (feature 025).
  */
+/**
+ * Do Início (hero, rails ou topbar — qualquer foco restaurado), abre TV ao
+ * vivo/Filmes/Séries pela topbar. Substitui o antigo hub de atalhos
+ * (`.tiles-row`, removido na feature 026 — US1 troca o hub provisório pela
+ * Home definitiva com hero+rails; a entrada nas 3 categorias passa a ser só
+ * pela topbar). Sobe até a topbar (não importa em que linha do conteúdo o
+ * foco esteja — `ArrowUp` de sobra não faz nada uma vez lá dentro), reseta
+ * a posição horizontal pra "Início" (`ArrowLeft` de sobra, com clamp) e só
+ * então conta as setas certas — nunca assume de onde o foco restaurado
+ * (FR-017/FR-029) partiu.
+ */
+async function openViaTopbar(page, destination) {
+  const ORDER = ['home', 'live', 'movies', 'series']
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < ORDER.indexOf(destination); i += 1) await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
+}
+
 async function openLiveCategory(page) {
-  await page.keyboard.press('Enter') // tile "Live TV" (foco inicial)
+  await openViaTopbar(page, 'live')
   await page.waitForSelector('.live-column-groups', { timeout: 8000 })
   await page.keyboard.press('ArrowRight') // trilha -> entra na 1ª categoria real
   await page.waitForSelector('.live-channel-list .live-channel-row', { timeout: 8000 })
@@ -126,20 +145,17 @@ async function waitForRealCategory(page) {
   })
 }
 
-/** Do hub até a grade de Filmes já entrada (categoria única desta fixture). */
+/** Do Início até a grade de Filmes já entrada (categoria única desta fixture). */
 async function openMoviesGrid(page) {
-  await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-  await page.keyboard.press('Enter')
+  await openViaTopbar(page, 'movies')
   await waitForRealCategory(page)
   await page.keyboard.press('ArrowRight') // trilha -> entra em "Filmes"
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
-/** Do hub até a grade de Séries já entrada (categoria única desta fixture). */
+/** Do Início até a grade de Séries já entrada (categoria única desta fixture). */
 async function openSeriesGrid(page) {
-  await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-  await page.keyboard.press('ArrowRight') // Filmes -> Séries
-  await page.keyboard.press('Enter')
+  await openViaTopbar(page, 'series')
   await waitForRealCategory(page)
   await page.keyboard.press('ArrowRight') // trilha -> entra em "Séries"
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
@@ -170,7 +186,7 @@ async function runMainWalkthrough(page, m3uUrl, outDir) {
   await capture(page, outDir, '01-lista-fontes')
 
   await page.keyboard.press('Enter') // abre a fonte
-  await page.waitForSelector('.tiles-row', { timeout: 8000 })
+  await page.waitForSelector('.home-content', { timeout: 8000 })
   await capture(page, outDir, '02-hub')
 
   await stubPlaybackNetwork(page)
@@ -178,8 +194,8 @@ async function runMainWalkthrough(page, m3uUrl, outDir) {
   await openLiveCategory(page)
   await capture(page, outDir, '03-live')
   await page.keyboard.press('Escape') // canais -> trilha
-  await page.keyboard.press('Escape') // trilha -> hub
-  await page.waitForSelector('.tiles-row', { timeout: 8000 })
+  await page.keyboard.press('Escape') // trilha -> Início
+  await page.waitForSelector('.home-content', { timeout: 8000 })
 
   await openMoviesGrid(page)
   await capture(page, outDir, '04-filmes')
@@ -194,8 +210,8 @@ async function runMainWalkthrough(page, m3uUrl, outDir) {
   await page.keyboard.press('Escape') // detalhe -> grade
   await page.waitForSelector('.vod-grid', { timeout: 8000 })
   await page.keyboard.press('Escape') // grade -> trilha
-  await page.keyboard.press('Escape') // trilha -> hub
-  await page.waitForSelector('.tiles-row', { timeout: 8000 })
+  await page.keyboard.press('Escape') // trilha -> Início
+  await page.waitForSelector('.home-content', { timeout: 8000 })
 
   await openSeriesGrid(page)
   await capture(page, outDir, '05-series')
@@ -211,7 +227,7 @@ async function runViewportWalkthrough(browser, m3uUrl, width, height, suffix, ou
   try {
     await addSource(page, m3uUrl, `Fonte E2E Paridade Visual ${suffix}`)
     await page.keyboard.press('Enter') // abre a fonte
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
 
     await stubPlaybackNetwork(page)
 
@@ -219,7 +235,7 @@ async function runViewportWalkthrough(browser, m3uUrl, width, height, suffix, ou
     await capture(page, outDir, `03-live-${suffix}`)
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
 
     await openMoviesGrid(page)
     await capture(page, outDir, `04-filmes-${suffix}`)

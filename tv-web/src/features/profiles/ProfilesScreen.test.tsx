@@ -66,6 +66,7 @@ function renderProfiles(overrides: Partial<ProfilesScreenProps> = {}) {
     onEditSource: vi.fn(),
     onResyncStarted: vi.fn(),
     onSourceDeleted: vi.fn(),
+    onManageSources: vi.fn(),
     onBack: vi.fn(),
     ...overrides,
   }
@@ -113,7 +114,9 @@ describe('ProfilesScreen — estados e listas (US1)', () => {
     const { props } = renderProfiles()
 
     expect(card('Adicionar lista')).toHaveClass('tv-focus')
-    expect(screen.getAllByRole('button')).toHaveLength(1)
+    // "Adicionar lista" + "Gerenciar listas" (feature 026, FR-032).
+    expect(screen.getAllByRole('button')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Gerenciar listas' })).not.toHaveClass('tv-focus')
     expect(screen.queryByText('Nome de exibição')).not.toBeInTheDocument()
     expect(screen.getByText(/nenhuma lista/i)).toBeInTheDocument()
 
@@ -243,13 +246,31 @@ describe('ProfilesScreen — foco inicial e navegação (FR-004)', () => {
     expect(props.onChooseSource).toHaveBeenCalledWith(LISTA_2)
   })
 
-  it('DOWN em "Adicionar lista" não faz nada (não há ações para ela)', () => {
+  it('DOWN em "Adicionar lista" abre "Gerenciar listas" (feature 026, FR-032) — nunca as ações de cartão', () => {
+    mockLoaded(LISTA_1)
+    const { props } = renderProfiles()
+
+    press('ArrowRight', 'ArrowDown')
+    expect(card('Adicionar lista')).not.toHaveClass('tv-focus')
+    expect(screen.getByRole('button', { name: 'Gerenciar listas' })).toHaveClass('tv-focus')
+    expect(screen.queryByRole('button', { name: 'Ressincronizar' })).not.toBeInTheDocument()
+
+    press('Enter')
+    expect(props.onManageSources).toHaveBeenCalledTimes(1)
+  })
+
+  it('RETURN em "Gerenciar listas" fecha a camada e devolve o foco a "Adicionar lista"; UP faz o mesmo', () => {
     mockLoaded(LISTA_1)
     renderProfiles()
 
     press('ArrowRight', 'ArrowDown')
+    expect(screen.getByRole('button', { name: 'Gerenciar listas' })).toHaveClass('tv-focus')
+
+    press('Escape')
     expect(card('Adicionar lista')).toHaveClass('tv-focus')
-    expect(screen.queryByRole('button', { name: 'Ressincronizar' })).not.toBeInTheDocument()
+
+    press('ArrowDown', 'ArrowUp')
+    expect(card('Adicionar lista')).toHaveClass('tv-focus')
   })
 
   it('o clique de mouse também escolhe a lista e abre "Adicionar lista"', () => {
@@ -465,7 +486,7 @@ describe('ProfilesScreen — exclusão confirmada (FR-010, FR-011)', () => {
     rerender()
 
     expect(card('Adicionar lista')).toHaveClass('tv-focus')
-    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getAllByRole('button')).toHaveLength(2) // + "Gerenciar listas"
   })
 
   it('falha ao excluir avisa e não move o foco nem chama onSourceDeleted', () => {

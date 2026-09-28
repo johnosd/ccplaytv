@@ -1,7 +1,9 @@
 /*
- * Conteúdo do Início provisório (feature 023): atalhos, "Continuar assistindo"
- * e aviso de Modo limitado, no visual V14. Substitui as regras `.tile*`,
- * `.tiles-row` e `.continue-watching*` de `features/screens.css`. Só tokens de
+ * Início definitivo (feature 026): hero de largura total + rails reais
+ * ("Continuar assistindo", "Minha Lista", "Canais favoritos") + mocks
+ * honestos (Curadoria IA, dock de serviços). Substitui o conteúdo
+ * provisório do hub (`ListHomeScreen`, feature 023) — `.tile*`/
+ * `.continue-watching*`/`.home-section*` saíram com ele. Só tokens de
  * `index.css`. A moldura (topbar, safe zone, HintBar) é de `shell.css`.
  */
 
@@ -10,16 +12,109 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
+  overflow-y: auto;
 }
 
-.home-section {
+/* Hero: banner de largura total, texto/ações sobrepostos na base — a capa
+   (`PosterArt`) preenche a área toda, atrás de um degradê que garante
+   contraste do texto sem esconder a imagem (ADR-007 — sem preview em
+   foco, sem dado inventado: só capa real, título e metadados já conhecidos). */
+.home-hero {
+  position: relative;
+  flex: none;
+  min-height: 420px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.home-hero-poster {
+  position: absolute;
+  inset: 0;
+}
+
+.home-hero-poster .poster-box {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.home-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--bg-base) 10%, transparent 65%);
+  pointer-events: none;
+}
+
+.home-hero-info {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  max-width: 60%;
+  padding: var(--space-5);
 }
 
-.home-section-title {
+.home-hero-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-h1);
+  color: var(--text-primary);
+}
+
+.home-hero-description {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.home-hero-meta {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.home-hero-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.home-hero-action {
+  appearance: none;
+  border: none;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.home-hero-action.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Rails ("Continuar assistindo"/"Minha Lista"/"Canais favoritos"/"Curadoria IA"). */
+.home-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.home-row-title {
   margin: 0;
   font-family: var(--font-heading);
   font-weight: 700;
@@ -27,88 +122,58 @@
   color: var(--text-primary);
 }
 
-/* "Continuar assistindo" (feature 019, D-010): rail simples, só capa + título.
-   O padding dá folga para o glow e a escala do foco (ADR-007) — sem ele o
-   `overflow` cortaria o contorno do primeiro card. */
-.continue-watching-row {
+.home-row-skeleton {
   display: flex;
   gap: var(--space-3);
-  padding: var(--space-2);
-  overflow-x: hidden;
 }
 
-.continue-watching-card {
-  flex: none;
-  width: calc(var(--space-7) * 2);
+.home-row-single {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
 }
 
-.continue-watching-title {
-  font-family: var(--font-body);
-  font-weight: 500;
-  font-size: var(--fs-caption);
+/* "Ver todos (N)"/"Filmes (N)"/"Séries (N)" — mesmo slot do card da rail (FR-014). */
+.home-see-all {
+  height: 100%;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Atalhos TV ao vivo / Filmes / Séries — `<button>` só para o clique de mouse e
-   o nome acessível; o foco é de estado (`.tv-focus`, ADR-009). */
-.tiles-row {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-5);
+  text-align: center;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--fs-body);
+  padding: var(--space-3);
 }
 
-.tile {
+.home-see-all.tv-focus {
+  background: var(--bg-hover);
+}
+
+/* Dock de serviços (FR-016) — soft disabled, nunca dado inventado. */
+.home-dock {
+  display: flex;
+  gap: var(--space-3);
+  flex: none;
+}
+
+.home-dock-icon {
+  --icon-size: var(--fs-h2);
   appearance: none;
   border: none;
-  width: calc(var(--space-7) * 3.5);
-  height: calc(var(--space-7) * 3);
-  border-radius: var(--radius-lg);
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
   background: var(--bg-surface);
-  color: inherit;
+  color: var(--text-secondary);
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
   align-items: center;
   justify-content: center;
   cursor: pointer;
 }
 
-.tile.tv-focus {
+.home-dock-icon.tv-focus {
   background: var(--bg-hover);
-}
-
-.tile-icon {
-  --icon-size: var(--fs-display);
   color: var(--text-primary);
-}
-
-.tile-label {
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: var(--fs-h2);
-  color: var(--text-primary);
-}
-
-.tile-meta {
-  min-height: var(--fs-caption);
-  font-family: var(--font-body);
-  font-weight: 500;
-  font-size: var(--fs-caption);
-  color: var(--text-tertiary);
-}
-
-.home-coverage-note {
-  margin: 0;
-  font-family: var(--font-body);
-  font-weight: 500;
-  font-size: var(--fs-body);
-  color: var(--text-tertiary);
 }

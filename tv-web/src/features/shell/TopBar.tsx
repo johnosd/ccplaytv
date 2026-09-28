@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react'
 import { Icon } from '../../components/Icon'
-import { useAnnounce } from '../../lib/announcer'
-import { getComingSoon } from '../../lib/comingSoon'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import type { TopbarItem, TopDestination } from '../../navigation/appNav'
 import { useClock } from './clock'
@@ -14,12 +12,13 @@ export interface TopBarProps {
   /** Item em foco de estado (`.tv-focus`) — só é desenhado quando `active`. */
   focusedItem: TopbarItem
   /**
-   * Destino de topo atual (feature 024, D-004 do plan.md da feature 024).
-   * Padrão `'home'` — idêntico ao comportamento anterior à feature 024, em
-   * que o Início era sempre o atual. Recebe a marcação `topbar-item--current`/
+   * Destino de topo atual (feature 024, D-004 do plan.md da feature 024;
+   * estendido pela feature 026, D-005, a `search`/`settings`). Padrão
+   * `'home'` — idêntico ao comportamento anterior à feature 024, em que o
+   * Início era sempre o atual. Recebe a marcação `topbar-item--current`/
    * `aria-current`; OK nele não faz nada.
    */
-  currentItem?: 'home' | TopDestination
+  currentItem?: 'home' | TopDestination | 'search' | 'settings'
   /** LEFT/RIGHT (linear, com clamp nas pontas). */
   onFocusItem: (item: TopbarItem) => void
   /** DOWN — devolve o foco ao conteúdo. */
@@ -34,6 +33,14 @@ export interface TopBarProps {
   onGoHome?: () => void
   /** OK no indicador da lista ativa — abre a tela de perfis para trocar de lista. */
   onOpenProfiles: () => void
+  /**
+   * OK na lupa (feature 026, D-005, FR-035). Ausente = soft disabled e OK
+   * sem efeito — só acontece em testes que montam a topbar crua; o `App`
+   * sempre passa os dois.
+   */
+  onOpenSearch?: () => void
+  /** OK na engrenagem (feature 026, D-005, FR-021). Mesma regra de `onOpenSearch`. */
+  onOpenSettings?: () => void
   /** RETURN. */
   onBack: () => void
 }
@@ -48,10 +55,10 @@ const NAV_ITEMS: { key: 'home' | TopDestination; label: string }[] = [
   { key: 'series', label: 'Séries' },
 ]
 
-/** Mocks "Em breve" da topbar (FR-018) — o texto vem do registro único, nunca escrito aqui. */
-const COMING_SOON_ITEMS: { key: 'search' | 'settings'; id: string; label: string; icon: 'search' | 'settings' }[] = [
-  { key: 'search', id: 'search-global', label: 'Buscar', icon: 'search' },
-  { key: 'settings', id: 'settings', label: 'Configurações', icon: 'settings' },
+/** Busca e Configurações (feature 026, D-005) — reais quando o callback correspondente existe. */
+const ACTION_ITEMS: { key: 'search' | 'settings'; label: string; icon: 'search' | 'settings' }[] = [
+  { key: 'search', label: 'Buscar', icon: 'search' },
+  { key: 'settings', label: 'Configurações', icon: 'settings' },
 ]
 
 function initialOf(name: string): string {
@@ -61,7 +68,8 @@ function initialOf(name: string): string {
 
 /**
  * Topbar do Início (feature 023, FR-013..FR-019). Logo, destinos, indicador
- * da lista ativa, Busca e Configurações (mocks "Em breve") e relógio.
+ * da lista ativa, Busca e Configurações (reais desde a feature 026, D-005 —
+ * soft disabled só quando o callback correspondente não é passado) e relógio.
  *
  * Foco é estado (ADR-009): `focusedItem` é decidido por quem monta a topbar,
  * e aqui só vira `.tv-focus`. `useRemoteNav` é chamado SEMPRE (regra dos
@@ -90,10 +98,11 @@ export function TopBar({
   onNavigate,
   onGoHome,
   onOpenProfiles,
+  onOpenSearch,
+  onOpenSettings,
   onBack,
 }: TopBarProps): ReactNode {
   const clock = useClock()
-  const announce = useAnnounce()
 
   function activate(item: TopbarItem) {
     // Já está neste destino — inclui "Início" quando `currentItem` é o
@@ -112,11 +121,11 @@ export function TopBar({
         onOpenProfiles()
         return
       case 'search':
-      case 'settings': {
-        const entry = COMING_SOON_ITEMS.find((candidate) => candidate.key === item)
-        if (entry) announce(`Em breve — ${getComingSoon(entry.id).message}`)
+        onOpenSearch?.()
         return
-      }
+      case 'settings':
+        onOpenSettings?.()
+        return
     }
   }
 
@@ -183,17 +192,22 @@ export function TopBar({
           </span>
         </button>
 
-        {COMING_SOON_ITEMS.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            className={`icon-button is-soft-disabled${focusClass(item.key)}`}
-            aria-label={item.label}
-            onClick={() => activate(item.key)}
-          >
-            <Icon name={item.icon} />
-          </button>
-        ))}
+        {ACTION_ITEMS.map((item) => {
+          const hasCallback = Boolean(item.key === 'search' ? onOpenSearch : onOpenSettings)
+          const current = item.key === currentItem
+          return (
+            <button
+              key={item.key}
+              type="button"
+              className={`icon-button${hasCallback ? '' : ' is-soft-disabled'}${current ? ' topbar-item--current' : ''}${focusClass(item.key)}`}
+              aria-current={current ? 'page' : undefined}
+              aria-label={item.label}
+              onClick={() => activate(item.key)}
+            >
+              <Icon name={item.icon} />
+            </button>
+          )
+        })}
 
         <span className="topbar-clock">{clock}</span>
       </div>

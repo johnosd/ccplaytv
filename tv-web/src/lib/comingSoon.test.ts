@@ -23,16 +23,27 @@ describe('getComingSoon', () => {
     expect(() => getComingSoon('id-inexistente')).toThrow(/id-inexistente/)
   })
 
-  it('o registro de produção tem exatamente os mocks das features 023/024/025 — a fixture de teste não vaza para ele', () => {
+  it('o registro de produção tem exatamente os mocks das features 023/024/025/026 — a fixture de teste não vaza para ele', () => {
     delete COMING_SOON[FIXTURE_ID]
     expect(Object.keys(COMING_SOON).sort()).toEqual([
+      'a11y-high-contrast',
+      'a11y-subtitles',
+      'a11y-voice-guide',
       'cast',
+      'dock-ai',
+      'dock-speedtest',
+      'dock-tmdb',
+      'dock-weather',
       'epg-guide',
+      'home-ai-curation',
       'pair-phone',
-      'search-global',
-      'settings',
+      'settings-epg',
+      'settings-integrations',
+      'settings-parental',
+      'settings-player',
       'similar',
       'trailer',
+      'voice-search',
     ])
   })
 
@@ -43,7 +54,8 @@ describe('getComingSoon', () => {
       expect(String(entry.backlogItem).trim(), `backlogItem de ${id}`).not.toBe('')
     }
     expect(getComingSoon('pair-phone').backlogItem).toBe(22)
-    expect(getComingSoon('search-global').backlogItem).toBe('M6')
     expect(getComingSoon('epg-guide').backlogItem).toBe(42)
+    expect(getComingSoon('home-ai-curation').backlogItem).toBe(30)
+    expect(getComingSoon('settings-epg').backlogItem).toBe(42)
   })
 })

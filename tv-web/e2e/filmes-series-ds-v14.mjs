@@ -119,10 +119,22 @@ async function addSource(page, m3uUrl, displayName) {
   await page.locator('.source-card-wrap', { hasText: displayName }).waitFor({ timeout: 8000 })
 }
 
-/** Do Início, abre o atalho `index` (0 = TV ao vivo, 1 = Filmes, 2 = Séries) — sempre volta ao começo antes de contar (feature 023, FR-029 muda o ponto de partida). */
-async function openShortcut(page, index) {
-  for (let i = 0; i < 2; i += 1) await page.keyboard.press('ArrowLeft')
-  for (let i = 0; i < index; i += 1) await page.keyboard.press('ArrowRight')
+/**
+ * Do Início (hero, rails ou topbar — qualquer foco restaurado), abre TV ao
+ * vivo/Filmes/Séries pela topbar. Substitui o antigo hub de atalhos
+ * (`.tiles-row`, removido na feature 026 — US1 troca o hub provisório pela
+ * Home definitiva com hero+rails; a entrada nas 3 categorias passa a ser só
+ * pela topbar). Sobe até a topbar (não importa em que linha do conteúdo o
+ * foco esteja — `ArrowUp` de sobra não faz nada uma vez lá dentro), reseta
+ * a posição horizontal pra "Início" (`ArrowLeft` de sobra, com clamp) e só
+ * então conta as setas certas — nunca assume de onde o foco restaurado
+ * (FR-017/FR-029) partiu.
+ */
+async function openViaTopbar(page, destination) {
+  const ORDER = ['home', 'live', 'movies', 'series']
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < ORDER.indexOf(destination); i += 1) await page.keyboard.press('ArrowRight')
   await page.keyboard.press('Enter')
 }
 
@@ -194,12 +206,12 @@ async function run() {
     console.log('=== Adicionar fonte via painel Xtream fictício (com ano/duração) ===')
     await addSource(page, m3uUrl, 'Fonte E2E DS V14')
     await page.keyboard.press('Enter') // abre a fonte
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
     await page.route('**/movie/**', () => {})
     await page.route('**/series/**', () => {})
 
     console.log('=== Composição de foco: topbar ↔ side nav ===')
-    await openShortcut(page, 1) // Filmes
+    await openViaTopbar(page, 'movies')
     await waitForRealCategory(page)
     assert(
       (await page.locator('.side-category-nav-item.tv-focus').textContent())?.includes('Filmes') ?? false,
@@ -240,8 +252,8 @@ async function run() {
     await page.keyboard.press('ArrowRight') // Filme Antigo -> Filme Novo
     await page.keyboard.press('Escape') // grade -> trilha
     await page.keyboard.press('Escape') // trilha -> Início
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await openShortcut(page, 1) // volta a Filmes
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'movies') // volta a Filmes
     await waitForRealCategory(page)
     await page.keyboard.press('ArrowRight') // entra de novo em "Filmes"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
@@ -320,10 +332,10 @@ async function run() {
     await page.waitForSelector('.vod-grid', { timeout: 8000 })
     await page.keyboard.press('Escape') // grade -> trilha
     await page.keyboard.press('Escape') // trilha -> Início
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
 
     console.log('=== Séries: histórico parcial e o modal de temporada (US6) ===')
-    await openShortcut(page, 2) // Séries
+    await openViaTopbar(page, 'series')
     await waitForRealCategory(page)
     await page.keyboard.press('ArrowRight') // entra em "Séries"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })

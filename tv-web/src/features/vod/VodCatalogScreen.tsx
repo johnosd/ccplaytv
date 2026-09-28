@@ -123,6 +123,8 @@ export interface VodCatalogScreenProps {
   onResync: () => void
   /** Feature 025 (FR-001..FR-004): moldura V14, mesmo padrão da Live (024). */
   shell?: VodShellProps
+  /** Remonta com a topbar ativa neste item — volta de Busca/Configurações (feature 026, FR-034/FR-044). */
+  initialTopbarItem?: TopbarItem
 }
 
 /**
@@ -181,7 +183,16 @@ function defaultTrailIdx(trail: TrailEntry[]): number {
   return Math.min(VIRTUAL_TRAIL_COUNT, trail.length - 1)
 }
 
-export function VodCatalogScreen({ section, sourceId, onOpenItem, restore, onBack, onResync, shell }: VodCatalogScreenProps): ReactNode {
+export function VodCatalogScreen({
+  section,
+  sourceId,
+  onOpenItem,
+  restore,
+  onBack,
+  onResync,
+  shell,
+  initialTopbarItem,
+}: VodCatalogScreenProps): ReactNode {
   const config = SECTION_CONFIG[section]
   const [col, setCol] = useState<0 | 1>(restore?.col ?? 0)
   const { toastMessage, toastKey, showToast } = useToast()
@@ -189,8 +200,10 @@ export function VodCatalogScreen({ section, sourceId, onOpenItem, restore, onBac
 
   // Composição de foco topbar ↔ conteúdo (feature 023/024, `logic/foco-vod.md`
   // §1) — só existe de fato com `shell`; sem ele, `zone` nunca sai de 'content'.
-  const [zone, setZone] = useState<'topbar' | 'content'>('content')
-  const [topbarItem, setTopbarItem] = useState<TopbarItem>(section)
+  // `initialTopbarItem` (feature 026, FR-034/FR-044) começa com a topbar já
+  // ativa nesse item, em vez do conteúdo.
+  const [zone, setZone] = useState<'topbar' | 'content'>(initialTopbarItem ? 'topbar' : 'content')
+  const [topbarItem, setTopbarItem] = useState<TopbarItem>(initialTopbarItem ?? section)
   const contentActive = !shell || zone === 'content'
 
   // Estrutura: rápida, nunca toca rede (FR-004).
@@ -589,6 +602,8 @@ export function VodCatalogScreen({ section, sourceId, onOpenItem, restore, onBac
             onNavigate={(destination) => shell.onSwitchTop(destination)}
             onGoHome={shell.onGoHome}
             onOpenProfiles={shell.onOpenProfiles}
+            onOpenSearch={shell.onOpenSearch}
+            onOpenSettings={shell.onOpenSettings}
             onBack={onBack}
           />
         }

@@ -6,8 +6,8 @@
  * `sdd/specs/026-home-busca-configuracoes-ds-v14/logic/busca-global.md`.
  */
 
+import { loadSearchIndex, normalizeForSearch, searchWithinItems, type SearchIndex } from './catalogSearch'
 import { db, type CatalogDb, type CatalogRecord } from './db'
-import type { SearchIndex } from './catalogSearch'
 
 /**
  * Mínimo do termo NORMALIZADO para haver resultado (FR-039). Próprio da
@@ -34,9 +34,23 @@ export interface GlobalSearchResult {
 
 /** Lê os três índices da lista (um `loadSearchIndex` por tipo). */
 export async function loadGlobalSearchIndex(sourceId: string, database: CatalogDb = db): Promise<GlobalSearchIndex> {
-  void sourceId
-  void database
-  throw new Error('not implemented')
+  const [channel, movie, series] = await Promise.all([
+    loadSearchIndex(sourceId, 'channel', database),
+    loadSearchIndex(sourceId, 'movie', database),
+    loadSearchIndex(sourceId, 'series', database),
+  ])
+  return { channel, movie, series }
+}
+
+function coverageOf(index: GlobalSearchIndex): { coveredCategories: number; totalCategories: number } {
+  return {
+    coveredCategories: index.channel.coveredCategories + index.movie.coveredCategories + index.series.coveredCategories,
+    totalCategories: index.channel.totalCategories + index.movie.totalCategories + index.series.totalCategories,
+  }
+}
+
+function recordsOf(index: SearchIndex): CatalogRecord[] {
+  return index.entries.map((entry) => entry.record)
 }
 
 /**
@@ -45,7 +59,16 @@ export async function loadGlobalSearchIndex(sourceId: string, database: CatalogD
  * listas vazias — mas a cobertura é devolvida sempre.
  */
 export function searchGlobal(index: GlobalSearchIndex, term: string): GlobalSearchResult {
-  void index
-  void term
-  throw new Error('not implemented')
+  const coverage = coverageOf(index)
+
+  if (normalizeForSearch(term).length < GLOBAL_SEARCH_MIN_CHARS) {
+    return { channels: [], movies: [], series: [], ...coverage }
+  }
+
+  return {
+    channels: searchWithinItems(recordsOf(index.channel), term, (record) => record.name),
+    movies: searchWithinItems(recordsOf(index.movie), term, (record) => record.name),
+    series: searchWithinItems(recordsOf(index.series), term, (record) => record.name),
+    ...coverage,
+  }
 }

@@ -16,9 +16,6 @@ export interface ComingSoonEntry {
  * mock é apagar a entrada. A `message` é lida como "Em breve — {message}".
  */
 export const COMING_SOON: Record<string, ComingSoonEntry> = {
-  // Topbar do Início (feature 023, FR-018) — ambos chegam na Onda 5.
-  'search-global': { message: 'Busca global em filmes, séries e canais.', backlogItem: 'M6' },
-  settings: { message: 'Configurações do aplicativo e gestão das suas listas.', backlogItem: 'M6' },
   // Onboarding de lista (feature 023, FR-035).
   'pair-phone': { message: 'Conectar a lista pelo celular, com QR code.', backlogItem: 22 },
   // Preview da Live TV (feature 024, FR-017) — "Guia completo".
@@ -27,6 +24,25 @@ export const COMING_SOON: Record<string, ComingSoonEntry> = {
   trailer: { message: 'Trailer do filme ou da série.', backlogItem: 32 },
   cast: { message: 'Elenco e equipe técnica.', backlogItem: 45 },
   similar: { message: 'Títulos semelhantes a este.', backlogItem: 45 },
+  // Home definitiva (feature 026, FR-016).
+  'home-ai-curation': { message: 'Sugestões de conteúdo por IA, com base no que você assiste.', backlogItem: 30 },
+  'dock-tmdb': { message: 'Detalhes e sinopses do TMDB direto no dock.', backlogItem: 28 },
+  'dock-ai': { message: 'Assistente de IA para perguntas sobre o catálogo.', backlogItem: 31 },
+  'dock-weather': { message: 'Previsão do tempo no dock de serviços.', backlogItem: 54 },
+  'dock-speedtest': { message: 'Teste de velocidade da sua conexão.', backlogItem: 54 },
+  // Busca global (feature 026, FR-043).
+  'voice-search': { message: 'Busca por voz.', backlogItem: 33 },
+  // Configurações (feature 026, FR-031).
+  'settings-integrations': {
+    message: 'Integrações com serviços externos e chaves próprias (BYOK).',
+    backlogItem: 54,
+  },
+  'settings-player': { message: 'Preferências de qualidade e trilhas do player.', backlogItem: 55 },
+  'settings-parental': { message: 'Perfis de pessoa e controle parental.', backlogItem: 52 },
+  'settings-epg': { message: 'Guia de programação (EPG) por lista.', backlogItem: 42 },
+  'a11y-voice-guide': { message: 'Narração de tela (Voice Guide).', backlogItem: 56 },
+  'a11y-high-contrast': { message: 'Modo de alto contraste.', backlogItem: 56 },
+  'a11y-subtitles': { message: 'Aparência das legendas.', backlogItem: 56 },
 }
 
 /**

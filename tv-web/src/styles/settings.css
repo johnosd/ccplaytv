@@ -1,0 +1,190 @@
+/*
+ * Configurações em abas laterais (feature 026, US2): coluna de abas
+ * (`SideCategoryNav`, feature 022) + painel da aba ativa. Só tokens de
+ * `index.css`. A moldura (topbar, safe zone, HintBar) é de `shell.css`.
+ */
+
+.settings-screen .screen-title {
+  margin-bottom: var(--space-4);
+}
+
+.settings-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: var(--space-6);
+}
+
+.settings-body .side-category-nav {
+  flex: none;
+  width: calc(var(--space-7) * 3);
+}
+
+.settings-panel {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* Fontes IPTV. */
+.sources-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sources-panel-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.sources-panel-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sources-panel-name {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+.sources-panel-type,
+.sources-panel-status {
+  font-weight: 500;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+}
+
+.sources-panel-badge {
+  padding: 0 var(--space-1);
+  border: 1px solid var(--accent-tint-border);
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.sources-panel-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.sources-panel-add {
+  appearance: none;
+  border: 3px dashed var(--text-disabled);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text-primary);
+  padding: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--fs-body-lg);
+  cursor: pointer;
+}
+
+.sources-panel-add.tv-focus {
+  background: var(--bg-hover);
+}
+
+/* Acessibilidade & sistema. */
+.accessibility-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.accessibility-panel-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.accessibility-panel-toggle {
+  appearance: none;
+  border: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.accessibility-panel-toggle.tv-focus {
+  background: var(--bg-hover);
+}
+
+.accessibility-panel-value {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.accessibility-panel-note {
+  margin: 0;
+  padding: 0 var(--space-3);
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+}
+
+/* Sobre & créditos. */
+.about-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.about-panel-version {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.about-panel-name {
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.about-panel-value {
+  font-weight: 500;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.about-panel-licenses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+}
+
+.about-panel-licenses-title {
+  font-weight: 700;
+  color: var(--text-secondary);
+}

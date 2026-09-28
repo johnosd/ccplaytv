@@ -149,14 +149,21 @@ async function addSource(page, m3uUrl, displayName) {
 }
 
 /**
- * Do Início, abre o atalho `index` (0 = TV ao vivo, 1 = Filmes, 2 = Séries).
- * RETURN devolve o foco ao atalho de onde se saiu (feature 023, FR-029), em
- * vez de reiniciar sempre em "TV ao vivo" — então a posição de partida varia,
- * e contar setas a partir dela deixou de ser confiável: volta ao começo antes.
+ * Do Início (hero, rails ou topbar — qualquer foco restaurado), abre TV ao
+ * vivo/Filmes/Séries pela topbar. Substitui o antigo hub de atalhos
+ * (`.tiles-row`, removido na feature 026 — US1 troca o hub provisório pela
+ * Home definitiva com hero+rails; a entrada nas 3 categorias passa a ser só
+ * pela topbar). Sobe até a topbar (não importa em que linha do conteúdo o
+ * foco esteja — `ArrowUp` de sobra não faz nada uma vez lá dentro), reseta
+ * a posição horizontal pra "Início" (`ArrowLeft` de sobra, com clamp) e só
+ * então conta as setas certas — nunca assume de onde o foco restaurado
+ * (FR-017/FR-029) partiu.
  */
-async function openShortcut(page, index) {
-  for (let i = 0; i < 2; i += 1) await page.keyboard.press('ArrowLeft')
-  for (let i = 0; i < index; i += 1) await page.keyboard.press('ArrowRight')
+async function openViaTopbar(page, destination) {
+  const ORDER = ['home', 'live', 'movies', 'series']
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < ORDER.indexOf(destination); i += 1) await page.keyboard.press('ArrowRight')
   await page.keyboard.press('Enter')
 }
 
@@ -185,7 +192,7 @@ async function run() {
 
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre a fonte
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
 
     // Feature 024 (R-003, com aprovação explícita do usuário) INVERTE a
     // regra original desta seção: Live TV passou a capturar e mostrar o
@@ -194,7 +201,7 @@ async function run() {
     // por isso os seletores também mudaram (achado ao rodar este script
     // durante a Fase 7 da 024 — não previsto no plan.md, T047 ad-hoc).
     console.log('--- Live TV: canal AGORA mostra o logo declarado (tvg-logo) — feature 024 inverte a regra da 015 ---')
-    await page.keyboard.press('Enter') // Live TV é o primeiro tile
+    await openViaTopbar(page, 'live')
     await page.waitForSelector('.side-category-nav-item.tv-focus', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na única categoria
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
@@ -209,9 +216,9 @@ async function run() {
 
     console.log('--- Filmes: capa real onde há tvg-logo, placeholder onde não há ---')
     await page.keyboard.press('Escape') // sai da categoria -> trilha
-    await page.keyboard.press('Escape') // sai da trilha -> hub da lista
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await openShortcut(page, 1) // Filmes
+    await page.keyboard.press('Escape') // sai da trilha -> Início
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'movies')
     // Espera a categoria REAL aparecer na trilha (não só ".live-state"/
     // ".poster-grid" — o primeiro também casa com o carregamento de
     // *categorias*, ainda antes de entrar em qualquer uma; entrar cedo
@@ -244,8 +251,8 @@ async function run() {
     console.log('--- Séries: série sintética (SxxEyy) mostra a capa do primeiro episódio ---')
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await openShortcut(page, 2) // Séries
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'series')
     await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria "Series"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
@@ -260,8 +267,8 @@ async function run() {
     console.log('--- Cenário 3 (US2, D-007): capa segue a janela da virtualização, nunca a categoria inteira de uma vez ---')
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await openShortcut(page, 1) // Filmes
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'movies')
     // Espera a categoria "Muitos" especificamente — não só "alguma categoria
     // real" (".live-item:not(.live-item-favorites)" já casa só com "Filmes",
     // a primeira a chegar; navegar antes de "Muitos" também estar na trilha

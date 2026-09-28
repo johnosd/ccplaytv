@@ -5,11 +5,12 @@ import { clamp, useRemoteNav, type RemoteDirection } from '../../lib/useRemoteNa
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 import { Button } from '../../components/Button'
-import { Modal } from '../../components/Modal'
 import { ErrorState } from '../../components/ErrorState'
 import { Skeleton } from '../../components/Skeleton'
 import { Icon } from '../../components/Icon'
 import { ExitModal } from '../shell/ExitModal'
+import { DeleteSourceModal } from '../sources/DeleteSourceModal'
+import { formatStatus, formatType } from '../sources/sourceFormat'
 
 export interface ProfilesScreenProps {
   /** `base`: RETURN abre o modal "Sair do CCPlayTV?". `switch`: RETURN chama `onBack` (volta ao Início da lista ativa, FR-031). */
@@ -22,6 +23,12 @@ export interface ProfilesScreenProps {
   onResyncStarted: (jobId: string) => void
   /** Depois de a exclusão confirmada terminar (FR-010/FR-011) — o App despacha `source-removed`. */
   onSourceDeleted?: (sourceId: string) => void
+  /**
+   * "Gerenciar listas" (feature 026, FR-032) — abre Configurações › Fontes
+   * IPTV sem lista ativa. Opcional (D-001): o contrato travado da 023
+   * monta `ProfilesScreenProps` sem este campo.
+   */
+  onManageSources?: () => void
   /** Só chamado em `mode: 'switch'`. */
   onBack: () => void
 }
@@ -36,19 +43,6 @@ const EDIT = 1
 
 /** Cartões de esqueleto enquanto as listas carregam (só geometria, sem dado). */
 const SKELETON_COUNT = 3
-
-function formatStatus(source: SourceOut): string {
-  if (source.connection_state === 'error') return 'Erro na última sincronização'
-  if (source.connection_state === 'never_synced' || !source.last_successful_sync_at) {
-    return 'Nunca sincronizada'
-  }
-  return `Sincronizada em ${new Date(source.last_successful_sync_at).toLocaleString('pt-BR')}`
-}
-
-/** Tipo da lista para o cartão (FR-002). Nunca o endereço nem a credencial (FR-048). */
-function formatType(source: SourceOut): string {
-  return source.type === 'provider_credentials' ? 'Xtream' : 'M3U'
-}
 
 type ScreenState = 'error' | 'loading' | 'empty' | 'ready'
 
@@ -69,6 +63,7 @@ export function ProfilesScreen({
   onEditSource,
   onResyncStarted,
   onSourceDeleted,
+  onManageSources,
   onBack,
 }: ProfilesScreenProps): ReactNode {
   const { data, isLoading, isError, refetch } = useSources()
@@ -84,10 +79,12 @@ export function ProfilesScreen({
   // recalculado a cada render — assim ele "chega" sozinho quando as listas
   // terminam de carregar, e nunca briga com um movimento depois (FR-004).
   const [focusedId, setFocusedId] = useState<string | null>(null)
-  const [row, setRow] = useState<'cards' | 'actions'>('cards')
+  // `manage` (feature 026, FR-032): "Gerenciar listas", alcançada por BAIXO a
+  // partir do cartão "Adicionar lista" — nunca a partir de uma lista real
+  // (esse BAIXO já abre as ações dela, contrato travado da 023).
+  const [row, setRow] = useState<'cards' | 'actions' | 'manage'>('cards')
   const [actionIdx, setActionIdx] = useState(0)
   const [confirmDelete, setConfirmDelete] = useState<SourceOut | null>(null)
-  const [confirmIdx, setConfirmIdx] = useState<0 | 1>(0) // 0 = Cancelar (o mais seguro)
   const [showExit, setShowExit] = useState(false)
 
   const initialId =
@@ -95,7 +92,12 @@ export function ProfilesScreen({
       ? initialFocusSourceId
       : (sources[0]?.id ?? ADD_ID)
   const effectiveId = focusedId !== null && ids.includes(focusedId) ? focusedId : initialId
-  const effectiveRow = state === 'ready' && row === 'actions' && effectiveId !== ADD_ID ? 'actions' : 'cards'
+  const effectiveRow: 'cards' | 'actions' | 'manage' =
+    state === 'ready' && row === 'actions' && effectiveId !== ADD_ID
+      ? 'actions'
+      : row === 'manage'
+        ? 'manage'
+        : 'cards'
   const focusedSource = sources.find((source) => source.id === effectiveId)
 
   // Rolagem horizontal acompanha o foco (FR-012). `scrollIntoView` não existe
@@ -115,7 +117,6 @@ export function ProfilesScreen({
       onEditSource(source)
     } else {
       if (deleteSource.isPending) return
-      setConfirmIdx(0)
       setConfirmDelete(source)
     }
   }
@@ -141,6 +142,11 @@ export function ProfilesScreen({
     onDirection: (direction: RemoteDirection) => {
       if (state === 'error') return
 
+      if (effectiveRow === 'manage') {
+        if (direction === 'up') setRow('cards') // "Adicionar lista" continua em foco (`focusedId` intocado)
+        return
+      }
+
       if (effectiveRow === 'actions') {
         // O limite alcança a última ação (Excluir): senão ela ficaria
         // renderizada e inalcançável pelo controle.
@@ -165,10 +171,18 @@ export function ProfilesScreen({
         // e um OK seguido apagaria a lista sem a pessoa ter navegado até lá.
         setActionIdx(0)
       }
+      // "Gerenciar listas" (feature 026, FR-032) — só a partir do cartão
+      // "Adicionar lista", nunca de uma lista real (essa já abre as ações
+      // dela, contrato travado da 023).
+      if (direction === 'down' && effectiveId === ADD_ID) setRow('manage')
     },
     onSelect: () => {
       if (state === 'error') {
         void refetch()
+        return
+      }
+      if (effectiveRow === 'manage') {
+        onManageSources?.()
         return
       }
       if (effectiveRow === 'actions') {
@@ -179,8 +193,9 @@ export function ProfilesScreen({
       else if (focusedSource) onChooseSource(focusedSource)
     },
     onBack: () => {
-      // RETURN em camadas: a linha de ações é uma camada aberta dentro da tela.
-      if (effectiveRow === 'actions') {
+      // RETURN em camadas: "Gerenciar listas"/a linha de ações são camadas
+      // abertas dentro da tela.
+      if (effectiveRow === 'manage' || effectiveRow === 'actions') {
         setRow('cards')
         return
       }
@@ -272,7 +287,7 @@ export function ProfilesScreen({
           <div className="source-card-wrap">
             <button
               type="button"
-              className={`add-card${effectiveId === ADD_ID && !showExit ? ' tv-focus' : ''}`}
+              className={`add-card${effectiveId === ADD_ID && effectiveRow === 'cards' && !showExit ? ' tv-focus' : ''}`}
               ref={effectiveId === ADD_ID ? focusedCardRef : undefined}
               onClick={onAddSource}
             >
@@ -283,31 +298,24 @@ export function ProfilesScreen({
         </div>
       )}
 
+      {state !== 'error' && (
+        <button
+          type="button"
+          className={`profiles-manage-sources${effectiveRow === 'manage' && !showExit ? ' tv-focus' : ''}`}
+          onClick={() => onManageSources?.()}
+        >
+          Gerenciar listas
+        </button>
+      )}
+
       <Toast message={toastMessage} messageKey={toastKey} />
 
       {confirmDelete && (
-        <Modal
-          ariaLabel={`Excluir a lista ${confirmDelete.display_name}?`}
-          onBack={() => setConfirmDelete(null)}
-          onDirection={(direction) => {
-            if (direction === 'left') setConfirmIdx(0)
-            if (direction === 'right') setConfirmIdx(1)
-          }}
-          onSelect={() => (confirmIdx === 0 ? setConfirmDelete(null) : confirmDeletion())}
-        >
-          <p className="modal-title">Excluir a lista {confirmDelete.display_name}?</p>
-          <p className="modal-description">
-            Os favoritos e o ponto de retomada desta lista também serão apagados. Isso não pode ser desfeito.
-          </p>
-          <div className="modal-actions">
-            <Button variant="secondary" focused={confirmIdx === 0} onSelect={() => setConfirmDelete(null)}>
-              Cancelar
-            </Button>
-            <Button variant="accent" focused={confirmIdx === 1} onSelect={confirmDeletion}>
-              Excluir
-            </Button>
-          </div>
-        </Modal>
+        <DeleteSourceModal
+          source={confirmDelete}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={confirmDeletion}
+        />
       )}
 
       {showExit && <ExitModal onCancel={() => setShowExit(false)} />}

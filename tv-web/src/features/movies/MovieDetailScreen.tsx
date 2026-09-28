@@ -65,11 +65,22 @@ function actionLabel(action: MovieAction): string {
   }
 }
 
-/** "23/09/2024" — nunca hora, só a data (§4 do `logic/detalhe-vod.md`). */
+/**
+ * "23/09/2024" — nunca hora, só a data (§4 do `logic/detalhe-vod.md`).
+ *
+ * `timeZone: 'UTC'` é deliberado (bug pré-existente achado durante a feature
+ * 026, corrigido como desvio pequeno aprovado): `added_at` é uma DATA
+ * declarada pela fonte, sem componente de hora — formatá-la no fuso local
+ * fazia a exibição recuar um dia inteiro em qualquer fuso atrás de UTC
+ * (ex.: America/Sao_Paulo, UTC-3).
+ */
 function formatShortDate(epochMs: number): string {
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(
-    new Date(epochMs),
-  )
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(epochMs))
 }
 
 interface MovieIdentity {

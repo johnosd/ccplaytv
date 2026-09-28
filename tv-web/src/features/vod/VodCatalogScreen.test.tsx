@@ -608,3 +608,54 @@ describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
     await waitFor(() => expect(gridTitles()).toEqual(['Filme Beta', 'Filme Gama', 'Filme Alfa']))
   })
 })
+
+describe('VodCatalogScreen — initialTopbarItem (feature 026, FR-034/FR-044)', () => {
+  beforeEach(async () => {
+    resetVodSessionMemory()
+    await seedSource()
+    mockCategories([category(1, 'G1', 0)])
+    mockContentByCategory({})
+    mockAggregated([])
+  })
+
+  afterEach(async () => {
+    cleanup()
+    vi.clearAllMocks()
+    await db.sources.delete(SOURCE_ID)
+  })
+
+  function renderWithShell(initialTopbarItem?: 'search' | 'settings') {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    }
+    return render(
+      <Wrapper>
+        <VodCatalogScreen
+          section="movies"
+          sourceId={SOURCE_ID}
+          onOpenItem={vi.fn()}
+          onBack={vi.fn()}
+          onResync={vi.fn()}
+          initialTopbarItem={initialTopbarItem}
+          shell={{
+            sourceName: 'Sala',
+            onGoHome: vi.fn(),
+            onSwitchTop: vi.fn(),
+            onOpenProfiles: vi.fn(),
+          }}
+        />
+      </Wrapper>,
+    )
+  }
+
+  it('sem initialTopbarItem, começa com o foco no conteúdo (comportamento de sempre)', () => {
+    renderWithShell()
+    expect(document.querySelectorAll('.topbar .tv-focus')).toHaveLength(0)
+  })
+
+  it('com initialTopbarItem, remonta com a topbar já ativa nesse item (volta de Busca/Configurações)', () => {
+    renderWithShell('search')
+    expect(screen.getByRole('button', { name: 'Buscar' })).toHaveClass('tv-focus')
+  })
+})

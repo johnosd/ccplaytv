@@ -117,10 +117,13 @@ async function run() {
       '"Abrir lista" aparece já focado quando a importação termina (sem avançar sozinha)',
     )
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
     const indicator = await page.locator('.topbar-profile').getAttribute('aria-label')
     assert(indicator?.includes('Lista E2E Um') === true, 'o Início abre com a topbar mostrando a lista ativa')
-    assert((await focusedText(page, '.tiles-row')).join('|').includes('TV ao vivo'), 'o foco inicial do Início está no atalho "TV ao vivo"')
+    assert(
+      (await focusedText(page, '.home-hero')).join('|').includes('TV ao vivo'),
+      'o foco inicial do Início está na ação do hero "Abrir TV ao vivo" (feature 026, sem favoritos/histórico ainda)',
+    )
 
     console.log('=== US2: topbar e RETURN em camadas ===')
     await page.keyboard.press('ArrowUp')
@@ -139,44 +142,58 @@ async function run() {
       'Filmes agora abre sob a topbar persistente, com "Filmes" marcado como atual (feature 025)',
     )
     await page.keyboard.press('Escape')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
     assert((await focusedText(page, '.topbar')).join('|') === 'Filmes', 'RETURN em Filmes volta ao Início com o foco em "Filmes" na topbar (FR-029)')
     await page.keyboard.press('ArrowDown')
     assert((await focusedText(page, '.topbar')).length === 0, 'DOWN devolve o foco ao conteúdo')
-    assert((await focusedText(page, '.tiles-row')).join('|').includes('TV ao vivo'), '...no atalho padrão "TV ao vivo"')
+    assert(
+      (await focusedText(page, '.home-hero')).join('|').includes('TV ao vivo'),
+      '...na ação padrão do hero "Abrir TV ao vivo" (Início monta de novo: sem favoritos/histórico, começa no hero)',
+    )
 
-    await page.keyboard.press('ArrowRight') // Filmes
+    await page.keyboard.press('ArrowRight') // hero: "Abrir TV ao vivo" -> "Abrir Filmes"
     await page.keyboard.press('Enter')
     await page.waitForSelector('.side-category-nav-item', { timeout: 8000 })
     await page.keyboard.press('Escape')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    assert((await focusedText(page, '.tiles-row')).join('|').includes('Filmes'), 'RETURN em Filmes aberto por atalho devolve o foco ao atalho "Filmes"')
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    assert(
+      (await focusedText(page, '.home-hero')).join('|').includes('Filmes'),
+      'RETURN em Filmes aberto pelo atalho do hero devolve o foco à ação "Abrir Filmes"',
+    )
 
-    console.log('=== FR-018: Busca e Configurações são "Em breve" ===')
-    await page.keyboard.press('ArrowUp')
+    console.log('=== FR-035/FR-021 (feature 026): Buscar e Configurações agora são reais, não mais "Em breve" ===')
+    await page.keyboard.press('ArrowUp') // hero -> topbar (sempre pousa em "Início")
     for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight') // Início → … → Buscar
     await page.keyboard.press('Enter')
-    await page.waitForFunction(
-      () => [...document.querySelectorAll('[aria-live]')].some((el) => el.textContent?.includes('Em breve')),
-      null,
-      { timeout: 3000 },
-    )
-    assert((await page.locator('.topbar').count()) === 1 && (await page.locator('.tiles-row').count()) === 1, 'OK em "Buscar" anuncia "Em breve" e não navega')
+    await page.waitForSelector('.search-screen', { timeout: 8000 })
+    assert(true, 'OK em "Buscar" abre a tela de busca de verdade (deixou de ser "Em breve" na feature 026)')
+    await page.keyboard.press('Escape') // campo nunca ganhou foco DOM (teclado não abriu) — RETURN sai direto
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+
+    await page.keyboard.press('ArrowUp')
+    for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowRight') // Início → … → Configurações
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('.settings-screen', { timeout: 8000 })
+    assert(true, 'OK em "Configurações" abre a tela de configurações de verdade (deixou de ser "Em breve" na feature 026)')
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('.home-content', { timeout: 8000 })
 
     console.log('=== FR-030: RETURN no Início abre o modal de saída ===')
+    // Voltar de Configurações restaura o foco na topbar, na engrenagem (FR-017/FR-029) — entramos por lá.
     await page.keyboard.press('Escape')
     await page.waitForSelector(EXIT_DIALOG, { timeout: 5000 })
     await page.keyboard.press('Enter') // "Cancelar"
     await page.waitForSelector(EXIT_DIALOG, { state: 'detached', timeout: 5000 })
-    assert((await page.locator('.topbar .tv-focus').getAttribute('aria-label')) === 'Buscar', 'cancelar a saída devolve o foco onde estava (o botão é só ícone: o nome está no aria-label)')
+    assert((await page.locator('.topbar .tv-focus').getAttribute('aria-label')) === 'Configurações', 'cancelar a saída devolve o foco onde estava (o botão é só ícone: o nome está no aria-label)')
 
     console.log('=== US2/AC6-AC7: trocar de lista pelo indicador ===')
+    await page.keyboard.press('ArrowLeft') // Configurações → Buscar
     await page.keyboard.press('ArrowLeft') // Buscar → indicador da lista
     await page.keyboard.press('Enter')
     await page.waitForSelector('.source-card', { timeout: 8000 })
     assert((await focusedText(page, '.source-card-wrap')).join('|').includes('Lista E2E Um'), 'os perfis abrem com o foco na lista ativa')
     await page.keyboard.press('Escape')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
     assert(true, 'RETURN nos perfis (aberto pelo indicador) volta ao Início da mesma lista, sem trocar nada')
 
     console.log('=== US4: segunda lista pelo caminho da troca ===')
@@ -194,7 +211,7 @@ async function run() {
       '"Voltar" do progresso abre os perfis com o foco na lista recém-importada (FR-039)',
     )
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
     assert(
       (await page.locator('.topbar-profile').getAttribute('aria-label'))?.includes('Lista E2E Dois') === true,
       'escolher outra lista abre o Início dela (pilha zerada)',

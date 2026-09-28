@@ -93,7 +93,7 @@ async function run() {
     await shot(page, 'progresso-concluido')
 
     await page.keyboard.press('Enter') // Abrir lista
-    await page.waitForSelector('.tiles-row')
+    await page.waitForSelector('.home-content')
     await shot(page, 'inicio')
 
     await page.keyboard.press('ArrowUp')
@@ -145,7 +145,7 @@ async function run() {
     await shot(page, 'perfis-muitas-listas-foco-na-primeira')
 
     await page.keyboard.press('Enter') // abre a primeira lista com nome de 13 caracteres
-    await page.waitForSelector('.tiles-row')
+    await page.waitForSelector('.home-content')
     await shot(page, 'inicio-lista-escolhida')
 
     // Formulário de edição (hint no lugar de placeholder)

@@ -1,0 +1,59 @@
+/*
+ * Busca global (feature 026, US3): campo + aviso de cobertura + rails de
+ * resultado por tipo. Só tokens de `index.css`. A moldura (topbar, safe
+ * zone, HintBar) é de `shell.css`.
+ */
+
+.search-screen .screen-title {
+  margin-bottom: var(--space-4);
+}
+
+.search-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  overflow-y: auto;
+}
+
+.search-field-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.search-field-row .text-field {
+  flex: 1;
+  max-width: 560px;
+}
+
+.search-coverage {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.search-coverage-hint {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+}
+
+.search-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.search-row-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}

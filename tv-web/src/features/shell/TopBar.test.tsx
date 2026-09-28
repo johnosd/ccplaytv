@@ -1,7 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { AnnouncerContext } from '../../lib/announcer'
 import type { TopbarItem } from '../../navigation/appNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
 import { TopBar } from './TopBar'
@@ -56,19 +55,6 @@ function Harness({
 function focusedName(): string | null {
   const el = document.querySelector('.tv-focus')
   return el ? (el.getAttribute('aria-label') ?? el.textContent) : null
-}
-
-/** Região de anúncio no formato de `AnnouncerRegion` (só o slot `.sr-only` importa a `useAnnounce`). */
-function WithRegion({ children }: { children: ReactNode }) {
-  const [region, setRegion] = useState<HTMLElement | null>(null)
-  return (
-    <AnnouncerContext.Provider value={region}>
-      {children}
-      <div ref={setRegion} className="announcer-region">
-        <span className="sr-only" />
-      </div>
-    </AnnouncerContext.Provider>
-  )
 }
 
 beforeEach(() => {
@@ -307,36 +293,34 @@ describe('TopBar — evento único por escopo (D-004, R-002)', () => {
   })
 })
 
-describe('TopBar — Busca e Configurações são "Em breve" (FR-018)', () => {
-  function renderWithRegion(item: TopbarItem, callbacks: ReturnType<typeof makeCallbacks>) {
-    render(
-      <WithRegion>
-        <TopBar sourceName="Sala" active focusedItem={item} {...callbacks} />
-      </WithRegion>,
-    )
-  }
-
-  function announced(): string {
-    act(() => {
-      vi.advanceTimersByTime(20)
-    })
-    return document.querySelector('.sr-only')?.textContent ?? ''
-  }
-
+describe('TopBar — Busca e Configurações são reais (feature 026, D-005, FR-021, FR-035)', () => {
   it.each([
-    ['search', 'Em breve — Busca global em filmes, séries e canais.'],
-    ['settings', 'Em breve — Configurações do aplicativo e gestão das suas listas.'],
-  ] as const)('OK em %s anuncia "Em breve" pela região e NÃO navega', (item, message) => {
+    ['search', 'onOpenSearch'],
+    ['settings', 'onOpenSettings'],
+  ] as const)('com callback: OK em %s chama %s, e o botão não é soft disabled', (item, callbackName) => {
+    const callback = vi.fn()
     const callbacks = makeCallbacks()
-    renderWithRegion(item, callbacks)
+    render(
+      <TopBar
+        sourceName="Sala"
+        active
+        focusedItem={item}
+        {...callbacks}
+        {...{ [callbackName]: callback }}
+      />,
+    )
+    const button = screen.getByRole('button', { name: item === 'search' ? 'Buscar' : 'Configurações' })
+    expect(button).not.toHaveClass('is-soft-disabled')
+
     press('Enter')
-    expect(announced()).toBe(message)
+    expect(callback).toHaveBeenCalledTimes(1)
     expect(callbacks.onNavigate).not.toHaveBeenCalled()
     expect(callbacks.onOpenProfiles).not.toHaveBeenCalled()
   })
 
-  it('os dois são focáveis e soft disabled (aparência reduzida, mas alcançáveis e com nome acessível)', () => {
-    render(<TopBar sourceName="Sala" active focusedItem="search" {...makeCallbacks()} />)
+  it('sem callback (só a topbar montada crua, como em teste): soft disabled, e OK não faz nada', () => {
+    const callbacks = makeCallbacks()
+    render(<TopBar sourceName="Sala" active focusedItem="search" {...callbacks} />)
     const search = screen.getByRole('button', { name: 'Buscar' })
     const settings = screen.getByRole('button', { name: 'Configurações' })
     expect(search).toHaveClass('is-soft-disabled')
@@ -344,13 +328,36 @@ describe('TopBar — Busca e Configurações são "Em breve" (FR-018)', () => {
     expect(search).toHaveClass('tv-focus')
     expect(search).not.toBeDisabled()
     expect(settings).not.toBeDisabled()
+
+    press('Enter')
+    expect(callbacks.onNavigate).not.toHaveBeenCalled()
+    expect(callbacks.onOpenProfiles).not.toHaveBeenCalled()
   })
 
-  it('o clique de mouse também anuncia, e o texto vem do registro único (não é escrito no componente)', () => {
+  it('currentItem "search"/"settings" marca aria-current, igual aos destinos de topo', () => {
     const callbacks = makeCallbacks()
-    renderWithRegion('home', callbacks)
+    render(
+      <TopBar
+        sourceName="Sala"
+        active
+        focusedItem="home"
+        currentItem="search"
+        {...callbacks}
+        onOpenSearch={vi.fn()}
+      />,
+    )
+    const search = screen.getByRole('button', { name: 'Buscar' })
+    expect(search).toHaveAttribute('aria-current', 'page')
+    expect(search).toHaveClass('topbar-item--current')
+    expect(screen.getByRole('button', { name: 'Início' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('o clique de mouse chama o mesmo callback do OK', () => {
+    const callbacks = makeCallbacks()
+    const onOpenSettings = vi.fn()
+    render(<TopBar sourceName="Sala" active focusedItem="home" {...callbacks} onOpenSettings={onOpenSettings} />)
     fireEvent.click(screen.getByRole('button', { name: 'Configurações' }))
-    expect(announced()).toContain('Em breve —')
+    expect(onOpenSettings).toHaveBeenCalledTimes(1)
   })
 })
 

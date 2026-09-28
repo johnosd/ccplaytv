@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { VodCatalogScreen } from '../vod/VodCatalogScreen'
 import type { CategoryScreenSnapshot } from '../catalog/categoryScreenSnapshot'
 import type { VodShellProps } from '../vod/vodShell'
+import type { TopbarItem } from '../../navigation/appNav'
 
 export interface SeriesScreenProps {
   sourceId: string
@@ -14,6 +15,8 @@ export interface SeriesScreenProps {
   onResync: () => void
   /** Feature 025 (FR-001..FR-004): moldura V14 sob a topbar, mesmo padrão da Live (024). */
   shell?: VodShellProps
+  /** Remonta com a topbar ativa neste item — volta de Busca/Configurações (feature 026, FR-034/FR-044). */
+  initialTopbarItem?: TopbarItem
 }
 
 /**
@@ -22,7 +25,15 @@ export interface SeriesScreenProps {
  * comportamento (trilha, busca, favoritos, prefetch, snapshot) vive lá,
  * compartilhado com Filmes.
  */
-export function SeriesScreen({ sourceId, onOpenSeries, restore, onBack, onResync, shell }: SeriesScreenProps): ReactNode {
+export function SeriesScreen({
+  sourceId,
+  onOpenSeries,
+  restore,
+  onBack,
+  onResync,
+  shell,
+  initialTopbarItem,
+}: SeriesScreenProps): ReactNode {
   return (
     <VodCatalogScreen
       section="series"
@@ -32,6 +43,7 @@ export function SeriesScreen({ sourceId, onOpenSeries, restore, onBack, onResync
       onBack={onBack}
       onResync={onResync}
       shell={shell}
+      initialTopbarItem={initialTopbarItem}
     />
   )
 }

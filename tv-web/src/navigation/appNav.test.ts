@@ -47,10 +47,10 @@ describe('appNavReducer — regras além dos contratos (feature 023)', () => {
       {
         type: 'open',
         screen: { name: 'series' },
-        from: { name: 'home', focus: { zone: 'continue', itemId: 'serie-7' } },
+        from: { name: 'home', focus: { zone: 'rail', rail: 'continue', itemId: 'serie-7' } },
       },
     )
-    expect(state.history).toEqual([{ name: 'home', focus: { zone: 'continue', itemId: 'serie-7' } }])
+    expect(state.history).toEqual([{ name: 'home', focus: { zone: 'rail', rail: 'continue', itemId: 'serie-7' } }])
   })
 
   it('editar uma lista e salvar (back) volta aos perfis, sem perder a base (FR-040)', () => {
@@ -166,5 +166,106 @@ describe('appNavReducer — regras além dos contratos (feature 023)', () => {
     state = run(state, { type: 'back' })
     expect(state.screen).toEqual({ name: 'live' })
     expect(state.activeSource?.id).toBe('a')
+  })
+})
+
+describe('appNavReducer — extensões da feature 026 (Home definitiva, Busca global, Configurações)', () => {
+  it('abre a Busca a partir da Live, empilhando a Live com `topbarFocus` (nunca `initialChannel`, senão voltar tocaria o canal de novo)', () => {
+    let state = run(
+      initialAppNav(),
+      { type: 'splash-finished' },
+      { type: 'choose-source', source: A },
+      { type: 'open', screen: { name: 'live' }, from: { name: 'home' } },
+    )
+    state = run(state, {
+      type: 'open',
+      screen: { name: 'search' },
+      from: { name: 'live', topbarFocus: 'search' },
+    })
+    expect(state.screen).toEqual({ name: 'search' })
+    expect(state.history).toEqual([{ name: 'home' }, { name: 'live', topbarFocus: 'search' }])
+  })
+
+  it('switch-top troca entre Busca e Configurações sem empilhar', () => {
+    let state = run(
+      initialAppNav(),
+      { type: 'splash-finished' },
+      { type: 'choose-source', source: A },
+      { type: 'open', screen: { name: 'search' }, from: { name: 'home' } },
+    )
+    expect(state.history).toEqual([{ name: 'home' }])
+
+    state = run(state, { type: 'switch-top', screen: { name: 'settings' } })
+    expect(state.screen).toEqual({ name: 'settings' })
+    expect(state.history).toEqual([{ name: 'home' }]) // não empilhou a Busca
+
+    state = run(state, { type: 'switch-top', screen: { name: 'search' } })
+    expect(state.screen).toEqual({ name: 'search' })
+    expect(state.history).toEqual([{ name: 'home' }])
+  })
+
+  it('go-home com um Início na pilha: descarta tudo acima dele e preserva o `focus` que ele guardou', () => {
+    const homeFocus = { name: 'home', focus: { zone: 'topbar', item: 'live' } } as const
+    let state = run(
+      initialAppNav(),
+      { type: 'splash-finished' },
+      { type: 'choose-source', source: A },
+      { type: 'open', screen: { name: 'live' }, from: homeFocus },
+      { type: 'open', screen: { name: 'search' }, from: { name: 'live', topbarFocus: 'search' } },
+    )
+    expect(state.history).toEqual([homeFocus, { name: 'live', topbarFocus: 'search' }])
+
+    state = run(state, { type: 'go-home' })
+    expect(state.screen).toEqual(homeFocus)
+    expect(state.history).toEqual([])
+    expect(state.activeSource?.id).toBe('a')
+  })
+
+  it('go-home sem nenhum Início na pilha troca a tela atual por Início com a pilha zerada', () => {
+    const state = run(initialAppNav(), { type: 'splash-finished' }, { type: 'choose-source', source: A })
+    expect(state.screen.name).toBe('home')
+    expect(state.history).toEqual([])
+
+    const after = run(state, { type: 'go-home' })
+    expect(after.screen).toEqual({ name: 'home' })
+    expect(after.history).toEqual([])
+    expect(after.activeSource?.id).toBe('a')
+  })
+
+  it('Configurações `standalone` (atalho "Gerenciar listas" dos perfis) abre sem lista ativa, e RETURN volta aos perfis', () => {
+    const state = run(
+      initialAppNav(),
+      { type: 'splash-finished' },
+      {
+        type: 'open',
+        screen: { name: 'settings', standalone: true },
+        from: { name: 'profiles', mode: 'base' },
+      },
+    )
+    expect(state.screen).toEqual({ name: 'settings', standalone: true })
+    expect(state.history).toEqual([{ name: 'profiles', mode: 'base' }])
+    expect(state.activeSource).toBeNull()
+
+    const after = run(state, { type: 'back' })
+    expect(after.screen).toEqual({ name: 'profiles', mode: 'base' })
+    expect(after.history).toEqual([])
+  })
+
+  it('source-removed com Configurações aberta pela topbar: se era a lista ativa, os perfis viram a base direto (igual a qualquer outra tela)', () => {
+    const state = run(
+      initialAppNav(),
+      { type: 'splash-finished' },
+      { type: 'choose-source', source: A },
+      {
+        type: 'open',
+        screen: { name: 'settings' },
+        from: { name: 'home', focus: { zone: 'topbar', item: 'settings' } },
+      },
+    )
+
+    const after = run(state, { type: 'source-removed', sourceId: 'a' })
+    expect(after.screen).toMatchObject({ name: 'profiles', mode: 'base' })
+    expect(after.history).toEqual([])
+    expect(after.activeSource).toBeNull()
   })
 })

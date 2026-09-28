@@ -14,4 +14,11 @@ export interface VodShellProps {
   onSwitchTop: (destination: TopDestination) => void
   /** OK no indicador da lista ativa. */
   onOpenProfiles: () => void
+  /**
+   * OK na lupa/engrenagem da topbar (feature 026, D-001 — opcional: os
+   * contratos travados das features 024/025 montam este objeto com 4
+   * campos, e o `tsc -b` compila esses arquivos). Ausente = soft disabled.
+   */
+  onOpenSearch?: () => void
+  onOpenSettings?: () => void
 }

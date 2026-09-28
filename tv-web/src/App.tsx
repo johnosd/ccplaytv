@@ -19,9 +19,25 @@ import { MoviesScreen } from './features/movies/MoviesScreen'
 import { MovieDetailScreen } from './features/movies/MovieDetailScreen'
 import { SeriesScreen } from './features/series/SeriesScreen'
 import { SeriesDetailScreen } from './features/series/SeriesDetailScreen'
+import { SettingsScreen } from './features/settings/SettingsScreen'
+import { SearchScreen } from './features/search/SearchScreen'
+import { FAVORITES_SNAPSHOT } from './features/catalog/categoryScreenSnapshot'
 import { registerFavoriteColorKey } from './lib/tizenColorKey'
-import { appNavReducer, initialAppNav } from './navigation/appNav'
+import { appNavReducer, initialAppNav, type AppScreen, type TopDestination } from './navigation/appNav'
 import { readLastSourceId, writeLastSourceId } from './navigation/lastSource'
+
+/**
+ * "Ver todos (N)"/"Filmes (N)"/"Séries (N)" do Início (feature 026, FR-014)
+ * abrem `★ Favoritos` do destino escolhido. Função à parte (em vez de um
+ * objeto literal `{ name: destination, openFavorites: true }` inline): o
+ * `tsc` não distribui bem um objeto com campo de discriminante não-literal
+ * contra a união `AppScreen` quando o objeto tem mais de um campo.
+ */
+function openFavoritesScreen(destination: TopDestination): AppScreen {
+  if (destination === 'live') return { name: 'live', openFavorites: true }
+  if (destination === 'movies') return { name: 'movies', openFavorites: true }
+  return { name: 'series', openFavorites: true }
+}
 
 function App() {
   // A navegação é um redutor puro (feature 023, D-003): aqui só se despacham
@@ -151,6 +167,9 @@ function App() {
           onEditSource={(sourceToEdit) => dispatch({ type: 'open', screen: { name: 'edit-source', source: sourceToEdit } })}
           onResyncStarted={(jobId) => dispatch({ type: 'open', screen: { name: 'progress', jobId } })}
           onSourceDeleted={(sourceId) => dispatch({ type: 'source-removed', sourceId })}
+          // "Gerenciar listas" (feature 026, FR-032): Configurações › Fontes
+          // IPTV sem lista ativa, sem topbar (`standalone`).
+          onManageSources={() => dispatch({ type: 'open', screen: { name: 'settings', standalone: true } })}
           onBack={goBack}
         />
       )
@@ -192,7 +211,8 @@ function App() {
           onNavigate={(destination, from) =>
             dispatch({ type: 'open', screen: { name: destination }, from: { name: 'home', focus: from } })
           }
-          onOpenContinueWatching={(item, from) =>
+          onOpenProfiles={(from) => dispatch({ type: 'open-profiles', from: { name: 'home', focus: from } })}
+          onOpenItem={(item, from) =>
             dispatch({
               type: 'open',
               screen:
@@ -202,7 +222,20 @@ function App() {
               from: { name: 'home', focus: from },
             })
           }
-          onOpenProfiles={(from) => dispatch({ type: 'open-profiles', from: { name: 'home', focus: from } })}
+          onOpenChannel={(channel, from) =>
+            dispatch({
+              type: 'open',
+              screen: { name: 'live', initialChannel: { channelId: channel.id, entry: 'favorites' } },
+              from: { name: 'home', focus: from },
+            })
+          }
+          onOpenFavorites={(destination, from) =>
+            dispatch({ type: 'open', screen: openFavoritesScreen(destination), from: { name: 'home', focus: from } })
+          }
+          onOpenSearch={(from) => dispatch({ type: 'open', screen: { name: 'search' }, from: { name: 'home', focus: from } })}
+          onOpenSettings={(from) =>
+            dispatch({ type: 'open', screen: { name: 'settings' }, from: { name: 'home', focus: from } })
+          }
         />
       )
 
@@ -211,16 +244,26 @@ function App() {
       return (
         <LiveScreen
           sourceId={source.id}
+          initialChannel={screen.initialChannel}
+          openFavorites={screen.openFavorites}
+          initialTopbarItem={screen.topbarFocus}
           onBack={goBack}
           onResync={() => resyncFromCategoryScreen(source.id)}
           shell={{
             sourceName: source.display_name,
-            // "Início" na topbar da Live é `back` (D-004 do plan.md da 024):
-            // a Live só é alcançável a partir do Início, então o topo da
-            // pilha já é o Início — igual à regra de RETURN.
-            onGoHome: goBack,
+            // "Início" na topbar leva ao Início mais próximo da pilha, nunca
+            // `back` (feature 026, D-006 — a Live agora também pode ser
+            // aberta a partir da Busca; `back` voltaria pra lá, não pro Início).
+            onGoHome: () => dispatch({ type: 'go-home' }),
             onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
             onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
+            // Empilha a Live SEM `initialChannel` (nunca com ele) — senão
+            // voltar da Busca/Configurações tocaria o canal de novo
+            // (feature 026, `logic/navegacao.md` §3).
+            onOpenSettings: () =>
+              dispatch({ type: 'open', screen: { name: 'settings' }, from: { name: 'live', topbarFocus: 'settings' } }),
+            onOpenSearch: () =>
+              dispatch({ type: 'open', screen: { name: 'search' }, from: { name: 'live', topbarFocus: 'search' } }),
           }}
         />
       )
@@ -230,7 +273,11 @@ function App() {
       return (
         <MoviesScreen
           sourceId={source.id}
-          restore={screen.restore}
+          // "Filmes (N)" do Início (feature 026, FR-014): sem snapshot próprio
+          // ainda, abre direto em ★ Favoritos com uma restauração sintética
+          // (`logic/navegacao.md` §1) — sem precisar de uma prop nova aqui.
+          restore={screen.restore ?? (screen.openFavorites ? FAVORITES_SNAPSHOT : undefined)}
+          initialTopbarItem={screen.topbarFocus}
           onOpenMovie={(movieId, snapshot) =>
             dispatch({
               type: 'open',
@@ -242,9 +289,15 @@ function App() {
           onResync={() => resyncFromCategoryScreen(source.id)}
           shell={{
             sourceName: source.display_name,
-            onGoHome: goBack,
+            // "Início" leva ao Início mais próximo da pilha (feature 026,
+            // D-006), nunca `back` — mesmo motivo da Live.
+            onGoHome: () => dispatch({ type: 'go-home' }),
             onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
             onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
+            onOpenSettings: () =>
+              dispatch({ type: 'open', screen: { name: 'settings' }, from: { ...screen, topbarFocus: 'settings' } }),
+            onOpenSearch: () =>
+              dispatch({ type: 'open', screen: { name: 'search' }, from: { ...screen, topbarFocus: 'search' } }),
           }}
         />
       )
@@ -257,7 +310,10 @@ function App() {
       return (
         <SeriesScreen
           sourceId={source.id}
-          restore={screen.restore}
+          // "Séries (N)" do Início (feature 026, FR-014) — mesma restauração
+          // sintética de "Filmes (N)".
+          restore={screen.restore ?? (screen.openFavorites ? FAVORITES_SNAPSHOT : undefined)}
+          initialTopbarItem={screen.topbarFocus}
           onOpenSeries={(seriesId, snapshot) =>
             dispatch({
               type: 'open',
@@ -269,15 +325,97 @@ function App() {
           onResync={() => resyncFromCategoryScreen(source.id)}
           shell={{
             sourceName: source.display_name,
-            onGoHome: goBack,
+            // "Início" leva ao Início mais próximo da pilha (feature 026,
+            // D-006), nunca `back` — mesmo motivo da Live.
+            onGoHome: () => dispatch({ type: 'go-home' }),
             onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
             onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
+            onOpenSettings: () =>
+              dispatch({ type: 'open', screen: { name: 'settings' }, from: { ...screen, topbarFocus: 'settings' } }),
+            onOpenSearch: () =>
+              dispatch({ type: 'open', screen: { name: 'search' }, from: { ...screen, topbarFocus: 'search' } }),
           }}
         />
       )
 
     case 'series-detail':
       return <SeriesDetailScreen seriesId={screen.seriesId} onBack={goBack} />
+
+    case 'settings':
+      return (
+        <SettingsScreen
+          activeSourceId={source?.id ?? null}
+          initialFocus={screen.restore}
+          onAddSource={(from) =>
+            dispatch({
+              type: 'open',
+              screen: { name: 'add-source' },
+              from: { name: 'settings', restore: from, standalone: screen.standalone },
+            })
+          }
+          onEditSource={(sourceToEdit, from) =>
+            dispatch({
+              type: 'open',
+              screen: { name: 'edit-source', source: sourceToEdit },
+              from: { name: 'settings', restore: from, standalone: screen.standalone },
+            })
+          }
+          onResyncStarted={(jobId, from) =>
+            dispatch({
+              type: 'open',
+              screen: { name: 'progress', jobId },
+              from: { name: 'settings', restore: from, standalone: screen.standalone },
+            })
+          }
+          onSourceDeleted={(sourceId) => dispatch({ type: 'source-removed', sourceId })}
+          onBack={goBack}
+          shell={
+            !screen.standalone && source
+              ? {
+                  sourceName: source.display_name,
+                  onGoHome: () => dispatch({ type: 'go-home' }),
+                  onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
+                  onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
+                  onOpenSearch: () => dispatch({ type: 'switch-top', screen: { name: 'search' } }),
+                }
+              : undefined
+          }
+        />
+      )
+
+    case 'search':
+      if (!source) return null
+      return (
+        <SearchScreen
+          sourceId={source.id}
+          restore={screen.restore}
+          onOpenItem={(item, snapshot) =>
+            dispatch({
+              type: 'open',
+              screen:
+                item.kind === 'movie'
+                  ? { name: 'movie-detail', movieId: item.id }
+                  : { name: 'series-detail', seriesId: item.id },
+              from: { name: 'search', restore: snapshot },
+            })
+          }
+          onOpenChannel={(channel, snapshot) =>
+            dispatch({
+              type: 'open',
+              screen: { name: 'live', initialChannel: { channelId: channel.id, entry: 'category' } },
+              from: { name: 'search', restore: snapshot },
+            })
+          }
+          onBack={goBack}
+          shell={{
+            sourceName: source.display_name,
+            onGoHome: () => dispatch({ type: 'go-home' }),
+            onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
+            onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
+            onOpenSettings: () => dispatch({ type: 'switch-top', screen: { name: 'settings' } }),
+          }}
+        />
+      )
 
     default:
       return null

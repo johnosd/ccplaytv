@@ -14,8 +14,8 @@ import type { VodShellProps } from './features/vod/vodShell'
  * pra grade não restaura foco nem posição"). As telas pesadas (IndexedDB,
  * virtualização, foco) continuam mockadas e já têm cobertura própria; aqui
  * só o roteamento do `App` está sob teste. O `HomeScreen` (Início) não é
- * mockado: é uma casca fina sobre `AppShell`/`TopBar`/`ListHomeScreen` sem
- * IndexedDB própria — mockar `ListHomeScreen` já basta.
+ * mockado: é uma casca fina sobre `AppShell`/`TopBar`/`HomeContent` (feature
+ * 026) sem IndexedDB própria — mockar `HomeContent` já basta.
  */
 
 vi.mock('./lib/tizenColorKey', () => ({ registerFavoriteColorKey: vi.fn() }))
@@ -51,9 +51,9 @@ vi.mock('./features/profiles/ProfilesScreen', () => ({
   ),
 }))
 
-vi.mock('./features/list-home/ListHomeScreen', () => ({
-  ListHomeScreen: ({ onSelect }: { onSelect: (destination: string) => void }) => (
-    <button type="button" onClick={() => onSelect('movies')}>
+vi.mock('./features/home/HomeContent', () => ({
+  HomeContent: ({ onNavigate }: { onNavigate: (destination: string, from: unknown) => void }) => (
+    <button type="button" onClick={() => onNavigate('movies', { zone: 'hero', action: 'primary' })}>
       ir-para-filmes
     </button>
   ),

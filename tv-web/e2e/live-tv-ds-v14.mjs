@@ -156,7 +156,7 @@ async function run() {
 
     await page.keyboard.press('ArrowUp') // trilha -> topbar de novo
     await page.keyboard.press('Escape') // RETURN na topbar -> Início
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
     assert(true, 'RETURN na topbar (dentro da Live) volta ao Início')
 
     await openLiveFromTopbar(page)
@@ -171,7 +171,7 @@ async function run() {
     // Filmes também ganhou topbar persistente (feature 025, Onda 4) — RETURN
     // na trilha (col 0) continua indo direto ao Início (D-003 da 025).
     await page.keyboard.press('Escape')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
     assert(true, 'RETURN a partir de Filmes volta ao Início — nunca à Live (D-004)')
 
     console.log('=== Preview: Assistir, Favoritar, Guia completo, ← volta ao canal ===')

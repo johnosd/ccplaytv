@@ -12,6 +12,7 @@ import {
   useFavoriteIds,
   useFavoritesContent,
   useHistoryContent,
+  useMyListContent,
   useResumePositions,
   invalidateUserState,
   useSeriesEpisodes,
@@ -711,6 +712,79 @@ describe('useFavoriteIds / useFavoritesContent / useToggleFavorite (feature 013)
       expect(result.current.data?.items.map((item) => item.name)).toEqual(['Duna'])
       expect(result.current.data?.unresolved).toBe(0)
     })
+  })
+})
+
+describe('useMyListContent (feature 026, `logic/foco-home.md` §6)', () => {
+  const SOURCE_ID = 'source-my-list'
+
+  async function seedSource(): Promise<void> {
+    await db.sources.put({
+      id: SOURCE_ID,
+      type: 'provider_credentials',
+      displayName: 'Fonte Minha Lista',
+      connectionState: 'synced',
+      activeGeneration: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+  }
+
+  afterEach(async () => {
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+  })
+
+  it('mistura favoritos de filme e série por favoritedAt desc entre os dois tipos, e conta só os RESOLVIDOS', async () => {
+    await seedSource()
+    await db.channels.bulkAdd([
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'movie',
+        name: 'Duna',
+        originalName: 'Duna',
+        groupOrder: 0,
+        providerStreamId: 'm1',
+      },
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'series',
+        name: 'Dark',
+        originalName: 'Dark',
+        groupOrder: 0,
+        seriesId: 's1',
+      },
+    ])
+
+    const movieStableId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: 'm1' })
+    const seriesStableId = buildStableId({ sourceId: SOURCE_ID, kind: 'series', seriesId: 's1' })
+    // Mais recente de todos, mas nunca resolveu no catálogo atual: pulado, nunca conta.
+    const missingStableId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: 'zz' })
+
+    await db.userStates.bulkPut([
+      { stableId: movieStableId, sourceId: SOURCE_ID, isFavorite: true, favoritedAt: 100, createdAt: 1, updatedAt: 1 },
+      { stableId: seriesStableId, sourceId: SOURCE_ID, isFavorite: true, favoritedAt: 200, createdAt: 1, updatedAt: 1 },
+      { stableId: missingStableId, sourceId: SOURCE_ID, isFavorite: true, favoritedAt: 300, createdAt: 1, updatedAt: 1 },
+    ])
+
+    const { result } = renderHook(() => useMyListContent(SOURCE_ID), { wrapper: wrapper() })
+
+    await waitFor(() => expect(result.current.data).toBeDefined())
+    expect(result.current.data?.items.map((item) => item.name)).toEqual(['Dark', 'Duna'])
+    expect(result.current.data?.movieCount).toBe(1)
+    expect(result.current.data?.seriesCount).toBe(1)
+  })
+
+  it('sem fonte devolve vazio, sem consultar nada', async () => {
+    const { result } = renderHook(() => useMyListContent(null), { wrapper: wrapper() })
+
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(result.current.data).toBeUndefined()
   })
 })
 

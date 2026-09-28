@@ -1,14 +1,16 @@
 /**
- * Explicação do Modo limitado no hub da lista (feature 014, US2, FR-021).
+ * Explicação do Modo limitado (feature 014, US2, FR-021) — compartilhada
+ * entre o hub e Configurações › Fontes IPTV (feature 026, D-007; movida de
+ * `features/list-home/`).
  *
- * O selo "Modo limitado" da Home (feature 004) já dizia QUE a fonte estava
- * assim; esta explicação diz POR QUÊ, o que a fonte perde em relação ao
- * protocolo completo e o que a pessoa pode fazer — sem isso, a pessoa não
- * tinha como entender nem agir.
+ * O selo "Modo limitado" (feature 004) já dizia QUE a fonte estava assim;
+ * esta explicação diz POR QUÊ, o que a fonte perde em relação ao protocolo
+ * completo e o que a pessoa pode fazer — sem isso, a pessoa não tinha como
+ * entender nem agir.
  *
  * Informação, não erro (D-008 da feature 004): mesmo tom do selo, nunca a
  * cor/estilo de `.form-error`. E nunca o endereço do painel, o usuário ou
- * a senha (FR-022) — o componente nem recebe esses dados como prop.
+ * a senha (FR-022/FR-024) — o componente nem recebe esses dados como prop.
  */
 
 const REASON_TEXT: Record<string, string> = {

@@ -57,6 +57,12 @@ Invariantes, Estratégia de Testes, Execution Notes acumuladas), `spec.md`
 `AVAILABLE_DOCS` que o script do passo 1 reportou (`research.md`,
 `data-model.md`, `contracts/`, `quickstart.md`, `history.md` se existir).
 
+Se existir `handoff.md` no diretório da feature (escrito pelo `sdd-plan`,
+passo 14), leia-o **primeiro**: ele diz a ordem de leitura, as armadilhas já
+mapeadas e as pendências do Analyze que não ficaram registradas em nenhum
+outro arquivo. Em conflito com `tasks.md`/`plan.md`, estes prevalecem — o
+handoff é o retrato do fim do planejamento, eles são a documentação viva.
+
 Se existir `contract-tests.lock` no diretório da feature, leia os arquivos
 de teste listados nele **antes** do código de produção: eles são a
 definição executável de "pronto" que o `sdd-plan` deixou, e valem mais que

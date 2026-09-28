@@ -182,14 +182,21 @@ async function addSource(page, m3uUrl, displayName = 'Fonte E2E M3U Painel') {
 }
 
 /**
- * Do Início, abre o atalho `index` (0 = Live TV, 1 = Filmes, 2 = Séries).
- * RETURN devolve o foco ao atalho de onde se saiu (feature 023, FR-029), em
- * vez de reiniciar sempre em "Live TV" — então a posição de partida varia, e
- * contar setas a partir dela deixou de ser confiável: volta ao começo antes.
+ * Do Início (hero, rails ou topbar — qualquer foco restaurado), abre TV ao
+ * vivo/Filmes/Séries pela topbar. Substitui o antigo hub de atalhos
+ * (`.tiles-row`, removido na feature 026 — US1 troca o hub provisório pela
+ * Home definitiva com hero+rails; a entrada nas 3 categorias passa a ser só
+ * pela topbar). Sobe até a topbar (não importa em que linha do conteúdo o
+ * foco esteja — `ArrowUp` de sobra não faz nada uma vez lá dentro), reseta
+ * a posição horizontal pra "Início" (`ArrowLeft` de sobra, com clamp) e só
+ * então conta as setas certas — nunca assume de onde o foco restaurado
+ * (FR-017/FR-029) partiu.
  */
-async function openShortcut(page, index) {
-  for (let i = 0; i < 2; i += 1) await page.keyboard.press('ArrowLeft')
-  for (let i = 0; i < index; i += 1) await page.keyboard.press('ArrowRight')
+async function openViaTopbar(page, destination) {
+  const ORDER = ['home', 'live', 'movies', 'series']
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < ORDER.indexOf(destination); i += 1) await page.keyboard.press('ArrowRight')
   await page.keyboard.press('Enter')
 }
 
@@ -258,8 +265,8 @@ async function run() {
 
     console.log('=== Live TV: categoria única mostra o canal do painel ===')
     await page.keyboard.press('Enter') // abre a fonte
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('Enter') // Live TV é o primeiro tile
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'live')
 
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria "Esportes"
@@ -298,18 +305,30 @@ async function run() {
       'a primeira fonte (painel confirmado) continua sem o selo',
     )
 
-    console.log('=== Hub da lista explica o motivo, sem vazar usuário/senha ===')
-    // O foco dos perfis já está na lista recém-importada (Modo limitado) — "Voltar"
-    // do progresso o coloca lá (FR-039) — então só OK abre o Início dela.
+    console.log('=== Configurações › Fontes IPTV explica o motivo, sem vazar usuário/senha ===')
+    // Feature 026 (US1/US2) tirou o aviso do hub do Início (removido — hero+
+    // rails no lugar) e moveu a explicação pra Configurações › Fontes IPTV
+    // (D-007 do plan.md da 026), a mesma aba pra qualquer lista, não só a
+    // ativa. O foco dos perfis já está na lista recém-importada (Modo
+    // limitado) — "Voltar" do progresso o coloca lá (FR-039) — então só OK
+    // abre o Início dela (indiferente: a aba lista todas as fontes).
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    // Sobe até a topbar (de onde estiver) e vai até "Configurações" (a
+    // última posição — a mesma lógica de clamp de `openViaTopbar`).
+    for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
+    for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('Enter')
+    // "Fontes IPTV" já é a aba inicial de Configurações (`SettingsScreen`,
+    // `initialTab = 'sources'`) — o painel já está montado sem precisar
+    // entrar nele.
     assert(
       await page.locator('.limited-mode-notice-title', { hasText: 'Modo limitado' }).isVisible(),
-      'hub mostra o título "Modo limitado"',
+      'Configurações › Fontes IPTV mostra o título "Modo limitado" na linha da fonte',
     )
     assert(
       await page.getByText(/não respondeu ao protocolo completo/).isVisible(),
-      'hub explica o motivo protocol_unavailable',
+      'Configurações › Fontes IPTV explica o motivo protocol_unavailable',
     )
 
     const pageText = (await page.locator('body').textContent()) ?? ''
@@ -335,8 +354,8 @@ async function run() {
     console.log('--- Live TV: duas categorias, sem nenhuma requisição nova ---')
     // O foco dos perfis já está na lista recém-importada (Avulsa), como no cenário B.
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('Enter') // Live TV
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'live')
 
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra em "Canais | Esportes" (1ª categoria)
@@ -364,9 +383,9 @@ async function run() {
     // trilha por índice relativo, e o padrão continua o mesmo: o foco
     // volta à 1ª categoria real (favoritos.mjs já assume isso).
     await page.keyboard.press('ArrowLeft') // sai da categoria -> trilha
-    await page.keyboard.press('Escape') // sai da trilha -> hub da lista
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('Enter') // Live TV de novo
+    await page.keyboard.press('Escape') // sai da trilha -> Início
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'live') // Live TV de novo
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // 1ª categoria real: "Canais | Esportes"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
@@ -378,9 +397,9 @@ async function run() {
 
     console.log('--- Filmes: categoria própria, mesma garantia ---')
     await page.keyboard.press('Escape') // sai da categoria -> trilha
-    await page.keyboard.press('Escape') // sai da trilha -> hub da lista
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await openShortcut(page, 1) // Filmes
+    await page.keyboard.press('Escape') // sai da trilha -> Início
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'movies')
     // Espera a categoria REAL aparecer na trilha (feature 025,
     // `VIRTUAL_TRAIL_COUNT = 3`: ★ Favoritos, ↺ Histórico, Todos) — entrar
     // cedo demais pousa em "Todos" antes de as categorias carregarem (mesma
@@ -397,8 +416,8 @@ async function run() {
     console.log('--- Séries: série sintética (SxxEyy) na própria categoria ---')
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await openShortcut(page, 2) // Séries
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'series')
     await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria "Series"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })

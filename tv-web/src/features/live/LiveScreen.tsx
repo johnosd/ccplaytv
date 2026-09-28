@@ -4,6 +4,7 @@ import {
   groupLabel,
   stableIdOf,
   useAggregatedItems,
+  useCatalogItem,
   useCategoryContent,
   useCategoryFocusPrefetch,
   useCategoryList,
@@ -68,6 +69,13 @@ export interface LiveShellProps {
   onSwitchTop: (destination: 'movies' | 'series') => void
   /** OK no indicador da lista ativa. */
   onOpenProfiles: () => void
+  /**
+   * OK na lupa/engrenagem da topbar (feature 026, D-001 — opcional: o
+   * contrato travado da 024 monta este objeto com 4 campos, e o `tsc -b`
+   * compila esse arquivo). Ausente = soft disabled.
+   */
+  onOpenSearch?: () => void
+  onOpenSettings?: () => void
 }
 
 export interface LiveScreenProps {
@@ -77,6 +85,19 @@ export interface LiveScreenProps {
   onResync: () => void
   /** Feature 024. */
   shell?: LiveShellProps
+  /**
+   * Entra tocando este canal, uma única vez (feature 026, `logic/
+   * navegacao.md` §3) — do Início (card de "Canais favoritos") ou da Busca
+   * global (resultado de canal). `entry: 'favorites'` entra em
+   * `★ Favoritos`; `entry: 'category'` lê a categoria do canal
+   * (`useCatalogItem`) e entra nela. Canal não encontrado: fica na entrada
+   * padrão, sem reprodução nem mensagem de erro inventada.
+   */
+  initialChannel?: { channelId: string; entry: 'favorites' | 'category' }
+  /** Entra direto em `★ Favoritos`, sem canal específico ("Ver todos" do Início). */
+  openFavorites?: boolean
+  /** Remonta com a topbar ativa neste item — volta de Busca/Configurações (FR-034/FR-044). */
+  initialTopbarItem?: TopbarItem
 }
 
 /**
@@ -147,8 +168,21 @@ function defaultTrailIdx(trail: TrailEntry[]): number {
 /** O que entrou de fato na coluna de conteúdo — Favoritos, Todos, ou uma categoria por id. */
 type EnteredKey = { kind: 'favorites' } | { kind: 'all' } | { kind: 'category'; id: number }
 
-export function LiveScreen({ sourceId, onBack, onResync, shell }: LiveScreenProps) {
-  const [col, setCol] = useState<0 | 1 | 2>(0)
+export function LiveScreen({
+  sourceId,
+  onBack,
+  onResync,
+  shell,
+  initialChannel,
+  openFavorites,
+  initialTopbarItem,
+}: LiveScreenProps) {
+  // Entra direto em ★ Favoritos quando pedido pelo Início/Busca (feature
+  // 026) — `openFavorites` ou qualquer `initialChannel` com `entry:
+  // 'favorites'`; `entry: 'category'` precisa de um efeito (a categoria só
+  // se sabe depois de ler o registro do canal), tratado abaixo.
+  const startsInFavorites = openFavorites || initialChannel?.entry === 'favorites'
+  const [col, setCol] = useState<0 | 1 | 2>(startsInFavorites ? 1 : 0)
   const [previewAction, setPreviewAction] = useState(0)
   const [playing, setPlaying] = useState<CatalogItemOut | null>(null)
   const [zapOpen, setZapOpen] = useState(false)
@@ -159,8 +193,10 @@ export function LiveScreen({ sourceId, onBack, onResync, shell }: LiveScreenProp
   // Composição de foco topbar ↔ conteúdo (feature 024, D-003 do plan.md —
   // `logic/foco-live-shell.md` §2), mesmo mecanismo da feature 023. Só
   // existe de fato com `shell`; sem ele, `zone` nunca sai de 'content'.
-  const [zone, setZone] = useState<'topbar' | 'content'>('content')
-  const [topbarItem, setTopbarItem] = useState<TopbarItem>('live')
+  // `initialTopbarItem` (feature 026, FR-034/FR-044) começa com a topbar já
+  // ativa nesse item, em vez do conteúdo.
+  const [zone, setZone] = useState<'topbar' | 'content'>(initialTopbarItem ? 'topbar' : 'content')
+  const [topbarItem, setTopbarItem] = useState<TopbarItem>(initialTopbarItem ?? 'live')
   const contentActive = !shell || zone === 'content'
 
   // Estrutura: rápida, sempre segura de ler — nunca toca rede (FR-004).
@@ -195,10 +231,11 @@ export function LiveScreen({ sourceId, onBack, onResync, shell }: LiveScreenProp
     })),
   ]
 
-  const [focusedIdentity, setFocusedIdentity] = useState<FocusIdentity>({
-    trailKey: null,
-    channelId: null,
-  })
+  const [focusedIdentity, setFocusedIdentity] = useState<FocusIdentity>(
+    startsInFavorites
+      ? { trailKey: { kind: 'favorites' }, channelId: initialChannel?.channelId ?? null }
+      : { trailKey: null, channelId: null },
+  )
   // Sem identidade ainda, OU identidade que sumiu de vez do catálogo novo
   // (ex.: categoria revalidada em segundo plano sem ela): cai na primeira
   // categoria REAL, não numa entrada virtual — perder o grupo que se olhava
@@ -229,7 +266,7 @@ export function LiveScreen({ sourceId, onBack, onResync, shell }: LiveScreenProp
    * abaixo, que precisa saber a categoria já entrada pra nunca reler nem
    * deixar um timer pendente (feature 015).
    */
-  const [entered, setEntered] = useState<EnteredKey | null>(null)
+  const [entered, setEntered] = useState<EnteredKey | null>(startsInFavorites ? { kind: 'favorites' } : null)
   const enteredCategory = entered?.kind === 'category' ? categories.find((c) => c.id === entered.id) : undefined
   const enteredFavorites = entered?.kind === 'favorites'
   const enteredAll = entered?.kind === 'all'
@@ -268,6 +305,31 @@ export function LiveScreen({ sourceId, onBack, onResync, shell }: LiveScreenProp
     focusedCategory,
     entered?.kind === 'category' ? entered.id : undefined,
   )
+
+  // `initialChannel.entry === 'category'` (feature 026, `logic/navegacao.md`
+  // §3): a categoria só se sabe depois de ler o registro do canal — ao
+  // contrário de `entry: 'favorites'`/`openFavorites`, que já entram direto
+  // no estado inicial (síncrono). `enteredCategoryOnceRef` garante que isto
+  // roda uma única vez, mesmo que `categories`/a consulta do canal mudem de
+  // novo depois (ex.: revalidação em segundo plano).
+  const categoryLookupChannelId = initialChannel?.entry === 'category' ? initialChannel.channelId : null
+  const initialChannelRecordQuery = useCatalogItem(categoryLookupChannelId)
+  const enteredCategoryOnceRef = useRef(false)
+  useEffect(() => {
+    if (!categoryLookupChannelId || enteredCategoryOnceRef.current) return
+    if (categoriesQuery.isLoading || initialChannelRecordQuery.isLoading) return
+    const record = initialChannelRecordQuery.data
+    if (!record || record.category_id == null) {
+      enteredCategoryOnceRef.current = true // canal não encontrado — fica na entrada padrão, sem erro inventado
+      return
+    }
+    const category = categories.find((c) => c.id === record.category_id)
+    if (!category) return // categorias ainda podem não ter chegado — tenta de novo no próximo render
+    enteredCategoryOnceRef.current = true
+    setEntered({ kind: 'category', id: category.id })
+    setFocusedIdentity({ trailKey: { kind: 'category', name: groupLabel(category.name) }, channelId: categoryLookupChannelId })
+    setCol(1)
+  }, [categoryLookupChannelId, categoriesQuery.isLoading, initialChannelRecordQuery.data, initialChannelRecordQuery.isLoading, categories])
 
   const content = useCategoryContent(sourceId, enteredCategory)
   // A estrela precisa do conjunto de favoritos mesmo numa categoria comum
@@ -328,6 +390,22 @@ export function LiveScreen({ sourceId, onBack, onResync, shell }: LiveScreenProp
   // preview "órfão", sem foco algum sobre ele.
   const effectiveCol = col === 2 && !activeChannel ? 1 : col
   const activeChannelIsFavorite = activeChannel ? favoriteIds.has(stableIdOf(activeChannel) ?? '') : false
+
+  // Reproduz o canal pedido (feature 026, `logic/navegacao.md` §3) uma
+  // única vez, assim que ele aparecer na lista exibida — nunca antes
+  // (carregando ainda não tem `items`), nunca de novo (trocar de canal
+  // depois é decisão da pessoa, não deste efeito). Mesmo caminho do OK
+  // (`playActiveChannel`, abaixo) — inclusive o aviso de "sem fonte de
+  // reprodução" se for o caso.
+  const autoPlayedInitialChannelRef = useRef(false)
+  useEffect(() => {
+    if (!initialChannel || autoPlayedInitialChannelRef.current) return
+    if (contentIsLoading) return
+    if (!activeChannel || activeChannel.id !== initialChannel.channelId) return
+    autoPlayedInitialChannelRef.current = true
+    playActiveChannel()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `playActiveChannel` é recriada a cada render (lê refs/estado), mas o guard `autoPlayedInitialChannelRef` já impede qualquer segunda chamada
+  }, [initialChannel, contentIsLoading, activeChannel])
 
   // Só o painel de conteúdo (col 1) é virtualizado — nunca a trilha de
   // categorias (D-004). Uma única lane: lista 1D de canais, sem `lanes`.
@@ -748,6 +826,8 @@ export function LiveScreen({ sourceId, onBack, onResync, shell }: LiveScreenProp
             }}
             onGoHome={shell.onGoHome}
             onOpenProfiles={shell.onOpenProfiles}
+            onOpenSearch={shell.onOpenSearch}
+            onOpenSettings={shell.onOpenSettings}
             onBack={onBack}
           />
         }

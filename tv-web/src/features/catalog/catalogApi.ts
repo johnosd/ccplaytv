@@ -24,6 +24,7 @@ import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/
 import {
   buildStableId,
   getContinueWatching,
+  getGlobalFavorites,
   getUserState,
   getUserStates,
   listFavorites,
@@ -36,7 +37,8 @@ import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
 import { loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
 import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
-import type { HeroPrimary } from '../../lib/catalog/homeHero'
+import { loadHomeHero, type HeroPrimary } from '../../lib/catalog/homeHero'
+import { loadGlobalSearchIndex, searchGlobal } from '../../lib/catalog/globalSearch'
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
 
@@ -826,16 +828,124 @@ export type HomeHeroOut =
 /**
  * Leitura local do hero (`loadHomeHero`). Chave `['home-hero', sourceId]` —
  * invalidada junto de "Continuar assistindo"/favoritos (`logic/hero-home.md`
- * §5). Stub da feature 026: o `sdd-execute` implementa.
+ * §5).
  */
 export function useHomeHero(sourceId: string | null) {
   return useQuery({
     queryKey: ['home-hero', sourceId],
     queryFn: async (): Promise<HomeHeroOut> => {
-      throw new Error('not implemented')
+      if (!sourceId) return { kind: 'welcome' }
+      const hero = await loadHomeHero(sourceId, db)
+      if (hero.kind === 'welcome') return hero
+      return { kind: hero.kind, item: toItemOut(hero.record, hero.record.kind), primary: hero.primary }
     },
     enabled: sourceId !== null,
   })
+}
+
+export interface MyListContent {
+  items: CatalogItemOut[]
+  /** Contagem real de favoritos de filme RESOLVIDOS (FR-014) — nunca a bruta gravada. */
+  movieCount: number
+  /** Idem, de série. */
+  seriesCount: number
+}
+
+/**
+ * "Minha Lista" do Início (feature 026, `logic/foco-home.md` §6): favoritos
+ * de filme E série da fonte, misturados por `favoritedAt` desc (mais recente
+ * primeiro, entre os dois tipos). Resolve item a item, como
+ * `resolveContinueWatching` — a lista de favoritos é pequena (dezenas a
+ * centenas), nunca o catálogo inteiro.
+ */
+export function useMyListContent(sourceId: string | null) {
+  return useQuery({
+    queryKey: ['my-list-content', sourceId],
+    queryFn: async (): Promise<MyListContent> => {
+      if (!sourceId) return { items: [], movieCount: 0, seriesCount: 0 }
+      const favorites = await getGlobalFavorites(db)
+
+      const items: CatalogItemOut[] = []
+      let movieCount = 0
+      let seriesCount = 0
+      for (const favorite of favorites) {
+        if (favorite.sourceId !== sourceId) continue
+        const parts = parseStableId(favorite.stableId)
+        if (!parts || (parts.kind !== 'movie' && parts.kind !== 'series')) continue
+
+        const { records } = await resolveFavorites(sourceId, parts.kind, [parts], db)
+        const record = records[0]
+        if (!record) continue
+
+        items.push(toItemOut(record, record.kind))
+        if (record.kind === 'movie') movieCount += 1
+        else if (record.kind === 'series') seriesCount += 1
+      }
+      return { items, movieCount, seriesCount }
+    },
+    enabled: sourceId !== null,
+  })
+}
+
+/**
+ * Índice da busca global (feature 026, `logic/busca-global.md` §2) — os três
+ * tipos de uma vez. `staleTime: 0` + `refetchOnMount: 'always'`: mesmo
+ * padrão de `useAggregatedItems` — categorias abertas desde a última vez
+ * entram na próxima busca.
+ */
+export function useGlobalSearchIndex(sourceId: string | null) {
+  return useQuery({
+    queryKey: ['global-search-index', sourceId],
+    queryFn: () => loadGlobalSearchIndex(sourceId as string, db),
+    enabled: sourceId !== null,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
+}
+
+export interface GlobalSearchResultOut {
+  channels: CatalogItemOut[]
+  movies: CatalogItemOut[]
+  series: CatalogItemOut[]
+  /** "Busca em X de Y categorias" (FR-038) — soma dos três tipos, sempre presente, mesmo com termo curto. */
+  coveredCategories: number
+  totalCategories: number
+}
+
+const EMPTY_GLOBAL_SEARCH_RESULT: GlobalSearchResultOut = {
+  channels: [],
+  movies: [],
+  series: [],
+  coveredCategories: 0,
+  totalCategories: 0,
+}
+
+/**
+ * `searchGlobal` (puro, `lib/catalog/globalSearch.ts`) já convertido em
+ * `CatalogItemOut` — a tela de Busca (feature 026, US3) nunca fala com
+ * `CatalogRecord` direto (mesmo motivo de D-001: telas só falam com
+ * `catalogApi`). Sem debounce (FR-039, clarificação) — recalcula a cada
+ * tecla, client-side, sobre o índice já carregado.
+ */
+export function useGlobalSearchResult(
+  sourceId: string | null,
+  term: string,
+): { data: GlobalSearchResultOut; isLoading: boolean } {
+  const indexQuery = useGlobalSearchIndex(sourceId)
+
+  const data = useMemo(() => {
+    if (!indexQuery.data) return EMPTY_GLOBAL_SEARCH_RESULT
+    const result = searchGlobal(indexQuery.data, term)
+    return {
+      channels: result.channels.map((record) => toItemOut(record, 'channel')),
+      movies: result.movies.map((record) => toItemOut(record, 'movie')),
+      series: result.series.map((record) => toItemOut(record, 'series')),
+      coveredCategories: result.coveredCategories,
+      totalCategories: result.totalCategories,
+    }
+  }, [indexQuery.data, term])
+
+  return { data, isLoading: indexQuery.isLoading }
 }
 
 export interface AggregatedItems {
@@ -948,6 +1058,10 @@ export function useToggleFavorite() {
       void queryClient.invalidateQueries({ queryKey: ['favorite-ids', item.source_id, item.kind] })
       void queryClient.invalidateQueries({ queryKey: ['favorites-content', item.source_id, item.kind] })
       if (stableId) void queryClient.invalidateQueries({ queryKey: ['user-state', stableId] })
+      // Feature 026: o hero e a rail "Minha Lista" do Início dependem do
+      // mesmo favorito (`logic/hero-home.md` §6).
+      void queryClient.invalidateQueries({ queryKey: ['home-hero'] })
+      void queryClient.invalidateQueries({ queryKey: ['my-list-content'] })
     },
   })
 }
@@ -981,6 +1095,9 @@ export function useToggleWatched() {
       // hero band de retomada dependem do mesmo `UserStateRecord`.
       void queryClient.invalidateQueries({ queryKey: ['history-content'] })
       void queryClient.invalidateQueries({ queryKey: ['resume-positions'] })
+      // Feature 026: marcar assistido pode tirar o item de "Continuar
+      // assistindo" e mudar o hero (`logic/hero-home.md` §6).
+      void queryClient.invalidateQueries({ queryKey: ['home-hero'] })
     },
   })
 }
