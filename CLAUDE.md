@@ -638,6 +638,48 @@ down ↓). See `sdd/specs/028-limpeza-qa-ds-v14/plan.md` →
 `## Estado Atual` and `## Riscos e Decisões` (R-009/R-016) for the full
 detail.
 
+**Code-complete**: `029-audio-legendas-info-player` — backlog item 55a: the
+player chrome's "Áudio e legendas" and "Info do stream" buttons (feature 027
+mocks `player-tracks`/`player-info`, now removed from `comingSoon.ts`) are
+real, in VOD and Live. `PlayerAdapter` gained **optional** methods
+(`getTracks`, `selectAudioTrack`, `selectTextTrack`, `getStreamInfo`) and an
+`onSubtitle` callback; a missing method means a missing capability, and the
+button shows soft-disabled "— indisponível" (`chromeControls` got an
+`availability: 'unavailable'` and a `features` parameter), never a fake
+option. The AVPlay adapter mutes subtitles on `open()` (they start **off**)
+and never forwards the raw engine error. Subtitles are drawn by the app
+(`SubtitleOverlay`, fixed style — configurable appearance is backlog item
+56), and the panel shows only what the engine reports: no invented codec,
+FPS, buffer or protocol, and protocol is never derived from the URL.
+Advancing an embedded subtitle (−500/−1000 ms) is soft disabled — the AVPlay
+reference says `setSubtitlePosition` only applies to external subtitles — so
+only delaying (+500/+1000 ms) is real. The audio/subtitle/delay choice is
+kept in memory and re-applied **by language** (never by track id) on the next
+channel (zapping/CH±, the layer stays mounted) or episode (autoplay's
+countdown unmounts the layer, so `SeriesDetailScreen` holds it in a ref and
+clears it when the sequence ends). A real design constraint: `PlayerLayer`
+already intercepts the keyboard in the capture phase, so a child `Modal`
+would never receive a key — the two panels are the layer's own state
+(`panelRef`, priority `topLayer` → panel → error → chrome), with `Modal`'s
+CSS but not the component. Contract `PlayerLayer.audio-legendas-info.
+contract.test.tsx` 5/5 locked; the 027 contract was amended, with the
+user's explicit approval, only on the line requiring the two mocks
+(recorded as R-011 in that plan) and re-locked. 1433/1437 unit tests (the 4
+failures are the same `*.favorites.test.tsx`/`LiveScreen.test.tsx`
+flake-under-parallelism pattern already documented, confirmed 106/106
+passing isolated), `tsc`/lint/`build`/`build:tizen` clean, a new Playwright
+E2E script (`tv-web/e2e/audio-legendas-info.mjs`, 39 assertions, part of
+`test:e2e`) that injects a **fake** `webapis.avplay` to exercise the real
+adapter mapping in Chromium, and the full `npm run test:e2e` (12 scripts)
+green. **Not verified, deliberately**: the user deferred the AVPlay spike
+(Phase 1, T001/T002) because the TV wasn't reachable — the real
+`getTotalTrackInfo`/`extra_info` shape, `setSelectTrack` while paused,
+`onsubtitlechange` and the subtitle over the hardware plane are all built
+from Samsung's reference only (R-001–R-004 stay "não testado"; the physical
+pass is recommended, not a gate, per the spec). See
+`sdd/specs/029-audio-legendas-info-player/plan.md` → `## Estado Atual` and
+`## Riscos e Decisões`.
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Quem está

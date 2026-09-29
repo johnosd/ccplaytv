@@ -200,7 +200,8 @@ fato. A política que concilia as duas coisas:
 | Detalhe série: Continuar TX:EY, seletor de temporada, episódios 16:9 com progresso/concluído | **Real** | Feature 012/019 |
 | Player VOD: play/pause, ±10 s, timeline, retomada, próximo episódio com countdown | **Real** | Features 011/012/020 |
 | Player: episódio anterior | **Real** (soft disabled no primeiro, §43.2) | `episodeNavigation.ts` |
-| Player: áudio/legendas, qualidade, velocidade, aspecto, info do stream | **Mock** (soft disabled por capacidade) | Novo item 55; exige estender o contrato de capacidades do `PlayerService` |
+| Player: qualidade, velocidade, aspecto | **Mock** (soft disabled por capacidade) | Novo item 55 (55b); exige estender o contrato de capacidades do `PlayerService` |
+| Player: áudio e legendas (embutidas) e info do stream | **Real** desde a feature 029 (item 55a): só o que o motor informa; "— indisponível" (soft disabled) quando o motor não sabe; adiantar legenda embutida segue soft disabled | Mocks `player-tracks`/`player-info` removidos. Formato real do AVPlay ainda não confirmado na TV (R-001…R-004 de `sdd/specs/029-audio-legendas-info-player/plan.md`) |
 | Player: media keys (Play/Pause/FF/RW/Stop) | **Real** se a tecla estiver disponível, senão ausente | Parte do item 44; registrar só as teclas usadas (item 38) |
 | Configurações › Fontes IPTV | **Real**: listar, adicionar, editar, ressincronizar, remover, aviso de Modo limitado, fonte ativa | Migra `HomeScreen`/`ListHomeScreen`/`LimitedModeNotice` |
 | Configurações › Fontes: EPG por fonte | **Mock** | Item 42 |

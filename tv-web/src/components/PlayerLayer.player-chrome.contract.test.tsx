@@ -112,7 +112,8 @@ describe('PlayerLayer — chrome V14 (feature 027)', () => {
 
     expect(screen.getByText('Filme Exemplo')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Pausar' })).toHaveClass('tv-focus')
-    for (const name of ['Áudio e legendas — em breve', 'Qualidade — em breve', 'Velocidade — em breve', 'Aspecto — em breve', 'Info do stream — em breve']) {
+    // Emenda da feature 029 (aprovada pelo usuário, 2026-09-28): Áudio e legendas e Info do stream deixaram de ser mock.
+    for (const name of ['Qualidade — em breve', 'Velocidade — em breve', 'Aspecto — em breve']) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument()
     }
     expect(screen.queryByRole('button', { name: /Episódio anterior|Próximo episódio/ })).not.toBeInTheDocument()

@@ -7,6 +7,7 @@ import {
   type PlayerCapabilities,
   type PlayerServiceSession,
   type PlayerState,
+  type TrackChoice,
 } from '../lib/player/PlayerService'
 import { createProgressRecorder, type ProgressRecorder, type ProgressRecorderIdentity } from '../lib/player/progressRecorder'
 import { MOVIE_WATCHED_RATIO } from '../lib/player/resumePolicy'
@@ -14,11 +15,29 @@ import { disableScreenSaver, enableScreenSaver } from '../lib/player/screenSaver
 import { clamp, useRemoteNav } from '../lib/useRemoteNav'
 import { useToast } from '../lib/useToast'
 import { getComingSoon } from '../lib/comingSoon'
+import {
+  DEFAULT_TRACK_CHOICE,
+  normalizeLanguage,
+  pickTracksForChoice,
+  trackLabels,
+  type MediaTrack,
+  type StreamInfo,
+} from '../lib/player/tracks'
 import { Toast } from './Toast'
 import { PlayerChrome } from './PlayerChrome'
+import { PlayerInfoPanel } from './PlayerInfoPanel'
+import { PlayerTracksPanel } from './PlayerTracksPanel'
+import { SubtitleOverlay } from './SubtitleOverlay'
+import {
+  buildTracksPanel,
+  initialTracksFocusKey,
+  moveTracksFocus,
+  reconcileTracksFocus,
+} from './playerPanels'
 import {
   chromeControls,
   hasSeekBar,
+  type ChromeControl,
   type ChromeEpisodeNeighbors,
   type ChromeMedia,
   type PlayerEpisodeStep,
@@ -133,6 +152,18 @@ export interface PlayerLayerProps {
    * aberto de fora do detalhe da série): sem botões de episódio.
    */
   episodeStep?: PlayerEpisodeStep | null
+
+  /**
+   * Feature 029 (FR-021/FR-023, D-008): escolha de áudio/legenda/atraso a
+   * reaplicar, por idioma, na primeira sessão desta montagem. Ausente = padrão
+   * (sem preferência de áudio, legenda desativada, atraso 0). Trocas de
+   * `itemId` DENTRO da mesma montagem (zapping, CH±, "Próximo episódio")
+   * herdam a escolha sozinhas; esta prop existe para quem desmonta a camada
+   * entre dois itens da mesma sequência (autoplay da série, via countdown).
+   */
+  initialTrackChoice?: TrackChoice | null
+  /** Feature 029: chamada a cada escolha feita pela pessoa no painel. */
+  onTrackChoiceChange?: (choice: TrackChoice) => void
 }
 
 type Phase =
@@ -159,6 +190,30 @@ const JUMP_MS = 10_000
 
 const DEFAULT_UNAVAILABLE_MESSAGE = 'Este item não tem uma fonte de reprodução disponível.'
 const DEFAULT_GENERIC_ERROR_MESSAGE = 'Não foi possível reproduzir isto.'
+
+const TRACKS_UNAVAILABLE_MESSAGE = 'Este aparelho não informou as faixas deste conteúdo.'
+const TRACK_SWITCH_FAILED = {
+  audio: 'Não foi possível trocar o áudio.',
+  text: 'Não foi possível trocar a legenda.',
+} as const
+
+/**
+ * Painel aberto por cima do vídeo (feature 029, D-002) — estado do próprio
+ * `PlayerLayer`, não um `Modal` filho: esta camada já intercepta o teclado na
+ * captura, e um `Modal` só recebe tecla quando é o primeiro interceptador.
+ * `originIndex` é o botão do chrome que abriu o painel (o foco volta a ele).
+ */
+type PanelState =
+  | { kind: 'tracks'; focusKey: string; originIndex: number }
+  | { kind: 'info'; originIndex: number }
+
+/** Última leitura do painel de info: o que o motor disse e a faixa de áudio ativa. */
+interface InfoSnapshot {
+  info: StreamInfo | null
+  activeAudioLabel: string | undefined
+}
+
+const INFO_UNAVAILABLE_MESSAGE = 'Este aparelho não informou dados técnicos deste stream.'
 
 const LIMIT_MESSAGE = {
   channel: { previous: 'Este é o primeiro canal desta lista.', next: 'Este é o último canal desta lista.' },
@@ -205,6 +260,8 @@ export function PlayerLayer({
   identity,
   onChannelStep,
   episodeStep,
+  initialTrackChoice,
+  onTrackChoiceChange,
 }: PlayerLayerProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'resolving' })
   const [errorFocus, setErrorFocus] = useState<0 | 1>(0)
@@ -233,6 +290,19 @@ export function PlayerLayer({
   const focusedIndexRef = useRef(0)
   const seekBarFocusedRef = useRef(false)
   const [, setRenderTick] = useState(0)
+
+  /**
+   * Painel de faixas aberto (feature 029) — em ref pelo mesmo motivo do chrome
+   * acima (uma tecla chega entre a mutação e o commit). `panelTracksRef` é a
+   * última leitura do motor; `choiceRef` a escolha da pessoa (áudio, legenda,
+   * atraso), semeada só na montagem — trocas de `itemId` na mesma montagem a
+   * herdam, e quem desmonta a camada entre dois itens a passa por
+   * `initialTrackChoice`.
+   */
+  const panelRef = useRef<PanelState | null>(null)
+  const panelTracksRef = useRef<MediaTrack[]>([])
+  const panelInfoRef = useRef<InfoSnapshot>({ info: null, activeAudioLabel: undefined })
+  const choiceRef = useRef<TrackChoice>(initialTrackChoice ?? DEFAULT_TRACK_CHOICE)
 
   function rerender() {
     setRenderTick((n) => n + 1)
@@ -268,7 +338,152 @@ export function PlayerLayer({
 
   /** Linha de controles da mídia/nível atuais (`logic/chrome-player.md` §2). */
   function controlsFor(capabilities: PlayerCapabilities, paused: boolean) {
-    return chromeControls(chromeMediaRef.current, capabilities, paused, episodeNeighborsOf())
+    const session = sessionRef.current
+    return chromeControls(chromeMediaRef.current, capabilities, paused, episodeNeighborsOf(), {
+      tracks: session?.supportsTracks ?? false,
+      info: session?.supportsStreamInfo ?? false,
+    })
+  }
+
+  /**
+   * Reaplica, por IDIOMA, a escolha da sequência (FR-021/FR-022) — ids e
+   * códigos de faixa mudam de uma sessão para outra. Síncrona, no mesmo
+   * `publish()` da primeira entrada em `playing`. Silenciosa na falha, sem
+   * aviso (FR-022), e nunca conta como escolha da pessoa. Legenda só é
+   * mexida quando há idioma a ligar: a sessão já nasce desativada (D-005).
+   */
+  function reapplyTrackChoice(session: PlayerServiceSession) {
+    if (!session.supportsTracks) return
+    const tracks = session.getTracks()
+    if (!tracks) return
+    const { audioId, textId } = pickTracksForChoice(tracks, choiceRef.current)
+    const audioAlreadyActive = tracks.some((t) => t.kind === 'audio' && t.id === audioId && t.active)
+    if (audioId !== undefined && !audioAlreadyActive) session.selectAudioTrack(audioId)
+    if (textId !== null) session.selectTextTrack(textId)
+  }
+
+  /** Grava uma escolha da pessoa (nunca a reaplicação automática) e avisa quem guarda entre itens. */
+  function commitChoice(patch: Partial<TrackChoice>) {
+    choiceRef.current = { ...choiceRef.current, ...patch }
+    onTrackChoiceChange?.(choiceRef.current)
+  }
+
+  /** Lê do motor o que o painel de info mostra: dados técnicos + rótulo do áudio ativo. */
+  function readInfoSnapshot(session: PlayerServiceSession): InfoSnapshot {
+    const tracks = session.getTracks() ?? []
+    const labels = trackLabels(tracks)
+    const activeIndex = tracks.findIndex((t) => t.kind === 'audio' && t.active)
+    return { info: session.getStreamInfo(), activeAudioLabel: activeIndex === -1 ? undefined : labels[activeIndex] }
+  }
+
+  /** Relê o painel aberto (FR-012/FR-016): mantém o foco pela chave, nunca pelo índice. */
+  function refreshPanel() {
+    const session = sessionRef.current
+    const panel = panelRef.current
+    if (!session || !panel) return
+    if (panel.kind === 'info') {
+      panelInfoRef.current = readInfoSnapshot(session)
+    } else {
+      const tracks = session.getTracks()
+      if (tracks) panelTracksRef.current = tracks
+      const model = buildTracksPanel(panelTracksRef.current, choiceRef.current)
+      panelRef.current = { ...panel, focusKey: reconcileTracksFocus(model, panel.focusKey) }
+    }
+    rerender()
+  }
+
+  function openInfoPanel(session: PlayerServiceSession) {
+    panelInfoRef.current = readInfoSnapshot(session)
+    clearHideTimer()
+    panelRef.current = { kind: 'info', originIndex: focusedIndexRef.current }
+    rerender()
+  }
+
+  function openTracksPanel(session: PlayerServiceSession) {
+    const tracks = session.getTracks()
+    if (!tracks || tracks.length === 0) {
+      showToast(TRACKS_UNAVAILABLE_MESSAGE)
+      scheduleHide()
+      return
+    }
+    panelTracksRef.current = tracks
+    const model = buildTracksPanel(tracks, choiceRef.current)
+    clearHideTimer()
+    panelRef.current = { kind: 'tracks', focusKey: initialTracksFocusKey(model), originIndex: focusedIndexRef.current }
+    rerender()
+  }
+
+  /** Fecha o painel e devolve o foco ao botão que o abriu (FR-010) — no Live, à linha, não à faixa. */
+  function closePanel() {
+    const panel = panelRef.current
+    if (!panel) return
+    panelRef.current = null
+    seekBarFocusedRef.current = false
+    setLevel('full')
+    setFocused(panel.originIndex)
+    scheduleHide()
+  }
+
+  /**
+   * SELECT num botão do chrome que abre painel (ou explica por que não abre).
+   * Devolve `true` quando o controle é dele — quem chama não faz mais nada.
+   */
+  function activatePanelControl(control: ChromeControl, session: PlayerServiceSession): boolean {
+    if (control.id !== 'tracks' && control.id !== 'info') return false
+    if (control.availability === 'real') {
+      if (control.id === 'tracks') openTracksPanel(session)
+      else openInfoPanel(session)
+    } else {
+      showToast(control.id === 'tracks' ? TRACKS_UNAVAILABLE_MESSAGE : INFO_UNAVAILABLE_MESSAGE)
+      scheduleHide()
+    }
+    return true
+  }
+
+  function handlePanelDirection(direction: 'up' | 'down' | 'left' | 'right') {
+    const panel = panelRef.current
+    // Info só tem "Fechar": setas não movem nada. Em tracks, ←/→ também não.
+    if (!panel || panel.kind !== 'tracks' || direction === 'left' || direction === 'right') return
+    const model = buildTracksPanel(panelTracksRef.current, choiceRef.current)
+    panelRef.current = { ...panel, focusKey: moveTracksFocus(model, panel.focusKey, direction) }
+    rerender()
+  }
+
+  function handlePanelSelect() {
+    const session = sessionRef.current
+    const panel = panelRef.current
+    if (!session || !panel) return
+    // Info: o único focável é "Fechar".
+    if (panel.kind === 'info') {
+      closePanel()
+      return
+    }
+    const model = buildTracksPanel(panelTracksRef.current, choiceRef.current)
+    const row = model.rows.find((r) => r.key === panel.focusKey)
+    if (!row) return
+    if (row.disabled) {
+      if (row.disabledMessage) showToast(row.disabledMessage)
+      return
+    }
+    const track = panelTracksRef.current.find((t) => t.id === row.trackId)
+    if (row.group === 'audio' || row.group === 'ad') {
+      if (row.trackId === undefined || !session.selectAudioTrack(row.trackId)) {
+        showToast(TRACK_SWITCH_FAILED.audio)
+      } else if (row.group === 'audio') {
+        // Áudio-descrição é um modo, não um idioma: não redefine a preferência.
+        commitChoice({ audioLanguage: normalizeLanguage(track?.language) ?? null })
+      }
+    } else if (row.group === 'text') {
+      if (!session.selectTextTrack(row.trackId ?? null)) {
+        showToast(TRACK_SWITCH_FAILED.text)
+      } else {
+        commitChoice({ textLanguage: normalizeLanguage(track?.language) ?? null })
+      }
+    } else if (row.delayMs !== undefined) {
+      commitChoice({ subtitleDelayMs: row.delayMs })
+    }
+    // A marcação reflete o que o motor realmente fez (FR-009), inclusive na falha.
+    refreshPanel()
   }
 
   /**
@@ -297,6 +512,9 @@ export function PlayerLayer({
    */
   function scheduleHide() {
     clearHideTimer()
+    // Com um painel aberto o chrome nem é desenhado; quem fecha o painel
+    // reagenda (feature 029).
+    if (panelRef.current) return
     // Não oculta enquanto pausado: a pessoa parou de propósito e precisa ver
     // os controles pra retomar. Live nunca chega a `paused` de verdade (sem
     // capacidade de pausa), então esta guarda nunca o afeta.
@@ -328,6 +546,8 @@ export function PlayerLayer({
     function teardown() {
       document.removeEventListener('visibilitychange', onVisibilityChange)
       clearHideTimer()
+      // Um painel de faixas nunca sobrevive à sessão a que pertence (feature 029).
+      panelRef.current = null
       // Ponto de saída (RETURN, desmontagem, nova tentativa): grava o resto
       // que ainda não tinha cruzado o intervalo periódico (`logic/
       // reproducao-vod.md` §2, `aoSair`). Vem antes de fechar a sessão —
@@ -435,6 +655,9 @@ export function PlayerLayer({
         // re-render, então a mensagem poderia ficar defasada.
         const publish = () => {
           if (cancelled) return
+          // Erro/conclusão fecham o painel aberto (feature 029): o foco vai
+          // para a tela de erro ou para quem trata a conclusão.
+          if (session.state === 'error' || session.state === 'completed') panelRef.current = null
           // Alimenta o gravador a cada emissão da sessão — inclusive as que
           // só trazem progresso novo (a cadência de 5s vive dentro do
           // próprio gravador, não aqui).
@@ -469,6 +692,7 @@ export function PlayerLayer({
 
           if (session.state === 'playing' && !enteredPlayingFired) {
             enteredPlayingFired = true
+            reapplyTrackChoice(session)
             onEnteredPlaying?.()
           }
 
@@ -549,11 +773,29 @@ export function PlayerLayer({
     return () => enableScreenSaver()
   }, [isPlaying])
 
+  // Releitura de 1 s só com painel aberto (feature 029, D-009): faixas mudam
+  // (Live troca de programa, stream adaptativo reanuncia) e a marcação precisa
+  // acompanhar. Pula com o app oculto e para ao fechar o painel.
+  const panelKind = panelRef.current?.kind ?? null
+  useEffect(() => {
+    if (panelKind === null) return
+    const id = setInterval(() => {
+      if (document.visibilityState === 'hidden') return
+      refreshPanel()
+    }, 1000)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshPanel só lê refs estáveis; o intervalo depende apenas de haver painel aberto
+  }, [panelKind])
+
   useRemoteNav(
     {
       onDirection: (dir) => {
         if (topLayer) {
           topLayer.onDirection(dir)
+          return
+        }
+        if (panelRef.current) {
+          handlePanelDirection(dir)
           return
         }
         if (isErrorScreen) {
@@ -639,6 +881,10 @@ export function PlayerLayer({
           topLayer.onSelect()
           return
         }
+        if (panelRef.current) {
+          handlePanelSelect()
+          return
+        }
         if (isErrorScreen) {
           if (canRetry && errorFocus === 0) {
             setErrorFocus(0)
@@ -657,8 +903,10 @@ export function PlayerLayer({
             onIdleSelect?.()
             return
           }
-          // Linha: OK aciona o controle focado — todos "Em breve" no Live (FR-022).
+          // Linha: OK aciona o controle focado — Áudio e legendas abre o painel
+          // (feature 029); os demais são "Em breve" (FR-022).
           const control = controlsFor(session.capabilities, false)[focusedIndexRef.current]
+          if (control && activatePanelControl(control, session)) return
           if (control?.availability === 'soon' && control.comingSoonId) {
             showToast(`Em breve — ${getComingSoon(control.comingSoonId).message}`)
           }
@@ -680,6 +928,7 @@ export function PlayerLayer({
         const paused = session.state === 'paused'
         const control = controlsFor(session.capabilities, paused)[focusedIndexRef.current]
         if (!control) return
+        if (activatePanelControl(control, session)) return
 
         if (control.id === 'playPause') session.togglePause()
         else if (control.id === 'jumpBack') session.jumpBy(-JUMP_MS)
@@ -700,7 +949,8 @@ export function PlayerLayer({
           onClose()
           return
         }
-        if (topLayer || isErrorScreen) return
+        // Com um painel aberto as demais teclas de mídia esperam (feature 029).
+        if (topLayer || isErrorScreen || panelRef.current) return
         const session = sessionRef.current
         if (!session || session.state === 'idle' || session.state === 'preparing') return
 
@@ -756,6 +1006,11 @@ export function PlayerLayer({
           topLayer.onBack()
           return
         }
+        // RETURN fecha primeiro o painel, depois a linha do Live, depois o player.
+        if (panelRef.current) {
+          closePanel()
+          return
+        }
         if (!isErrorScreen && chromeMediaRef.current === 'live' && chromeLevelRef.current === 'full') {
           setLevel('band')
           scheduleHide()
@@ -777,7 +1032,11 @@ export function PlayerLayer({
   const paused = phase.kind === 'session' && phase.state === 'paused'
   const chromeMedia = chromeMediaRef.current
   const chromeLevel = chromeLevelRef.current
-  const chromeVisible = !topLayer && !isErrorScreen && session !== null && phase.kind === 'session' && chromeLevel !== 'hidden'
+  const panel = panelRef.current
+  // O painel aberto substitui o chrome (feature 029); ao fechar, ele volta com o foco de origem.
+  const chromeVisible =
+    !topLayer && !isErrorScreen && session !== null && phase.kind === 'session' && chromeLevel !== 'hidden' && panel === null
+  const tracksModel = panel?.kind === 'tracks' ? buildTracksPanel(panelTracksRef.current, choiceRef.current) : null
 
   return (
     <div className="player-overlay" role="dialog" aria-label={isErrorScreen ? 'Erro de reprodução' : `Reproduzindo ${title}`}>
@@ -832,6 +1091,20 @@ export function PlayerLayer({
               progress={session.progress}
               seekBarFocused={chromeMedia === 'vod' && seekBarFocusedRef.current}
             />
+          )}
+          {/* Legenda embutida desenhada pelo app (feature 029, D-004): não
+              aparece sob o zapping (FR-008) nem na tela de erro. */}
+          {session && phase.kind === 'session' && !topLayer && (
+            <SubtitleOverlay
+              session={session}
+              delayMs={choiceRef.current.subtitleDelayMs}
+              paused={paused}
+              raised={chromeVisible}
+            />
+          )}
+          {panel?.kind === 'tracks' && tracksModel && <PlayerTracksPanel model={tracksModel} focusedKey={panel.focusKey} />}
+          {panel?.kind === 'info' && (
+            <PlayerInfoPanel info={panelInfoRef.current.info} activeAudioLabel={panelInfoRef.current.activeAudioLabel} />
           )}
         </>
       )}

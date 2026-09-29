@@ -186,14 +186,17 @@ async function run() {
       (await page.getByRole('button', { name: 'Pausar' }).getAttribute('class'))?.includes('tv-focus'),
       'chrome do filme abre com o foco em Play/Pause ("Pausar", tocando)',
     )
+    // Feature 029: no navegador de desenvolvimento (`<video>`) não há faixas de
+    // áudio (Áudio e legendas fica "— indisponível") e a Info do stream é real
+    // (o elemento informa a resolução). Qualidade/Velocidade/Aspecto seguem mock.
     for (const label of [
-      'Áudio e legendas — em breve',
+      'Áudio e legendas — indisponível',
       'Qualidade — em breve',
       'Velocidade — em breve',
       'Aspecto — em breve',
-      'Info do stream — em breve',
+      'Info do stream',
     ]) {
-      assert(await page.getByRole('button', { name: label }).isVisible(), `mock "${label}" está na linha`)
+      assert(await page.getByRole('button', { name: label }).isVisible(), `controle "${label}" está na linha`)
     }
     assert(
       (await page.locator('button', { hasText: /Episódio anterior|Próximo episódio/ }).count()) === 0,

@@ -25,7 +25,31 @@ export type ChromeControlId =
  * `lib/comingSoon.ts`). `limit`: episódio anterior/próximo que não existe
  * no conjunto conhecido — soft disabled, explica o limite.
  */
-export type ChromeControlAvailability = 'real' | 'soon' | 'limit'
+export type ChromeControlAvailability = 'real' | 'soon' | 'limit' | 'unavailable'
+
+/**
+ * Feature 029: o que o motor da sessão sabe fazer além do contrato de
+ * capacidades da 011. `false` → o controle aparece soft disabled
+ * ("— indisponível"), nunca some e nunca vira mock "Em breve".
+ */
+export interface ChromeFeatures {
+  tracks: boolean
+  info: boolean
+}
+
+const NO_FEATURES: ChromeFeatures = { tracks: false, info: false }
+
+function tracksControl(features: ChromeFeatures): ChromeControl {
+  return features.tracks
+    ? { id: 'tracks', availability: 'real', label: 'Áudio e legendas' }
+    : { id: 'tracks', availability: 'unavailable', label: 'Áudio e legendas — indisponível' }
+}
+
+function infoControl(features: ChromeFeatures): ChromeControl {
+  return features.info
+    ? { id: 'info', availability: 'real', label: 'Info do stream' }
+    : { id: 'info', availability: 'unavailable', label: 'Info do stream — indisponível' }
+}
 
 export interface ChromeControl {
   id: ChromeControlId
@@ -80,20 +104,25 @@ export function hasSeekBar(capabilities: PlayerCapabilities, progress: PlayerPro
  * `episodePrevious`/`episodeNext` só entram com `episode` não nulo —
  * `availability: 'limit'` quando o lado correspondente de
  * `hasPrevious`/`hasNext` é `false`, senão `'real'`.
+ *
+ * Feature 029: Áudio e legendas / Info do stream são reais quando o motor
+ * sabe fazer (`features`) e `'unavailable'` quando não; o padrão é "nenhum
+ * sabe", então chamadas anteriores à 029 continuam válidas.
  */
 export function chromeControls(
   media: ChromeMedia,
   capabilities: PlayerCapabilities,
   paused: boolean,
   episode: ChromeEpisodeNeighbors | null,
+  features: ChromeFeatures = NO_FEATURES,
 ): ChromeControl[] {
   if (media === 'live') {
     return [
       { id: 'guide', availability: 'soon', label: 'Guia — em breve', comingSoonId: 'epg-guide' },
-      { id: 'tracks', availability: 'soon', label: 'Áudio e legendas — em breve', comingSoonId: 'player-tracks' },
+      tracksControl(features),
       { id: 'quality', availability: 'soon', label: 'Qualidade — em breve', comingSoonId: 'player-quality' },
       { id: 'aspect', availability: 'soon', label: 'Aspecto — em breve', comingSoonId: 'player-aspect' },
-      { id: 'info', availability: 'soon', label: 'Info do stream — em breve', comingSoonId: 'player-info' },
+      infoControl(features),
     ]
   }
 
@@ -122,11 +151,11 @@ export function chromeControls(
       label: episode.hasNext ? 'Próximo episódio' : 'Próximo episódio — indisponível',
     })
   }
-  controls.push({ id: 'tracks', availability: 'soon', label: 'Áudio e legendas — em breve', comingSoonId: 'player-tracks' })
+  controls.push(tracksControl(features))
   controls.push({ id: 'quality', availability: 'soon', label: 'Qualidade — em breve', comingSoonId: 'player-quality' })
   controls.push({ id: 'speed', availability: 'soon', label: 'Velocidade — em breve', comingSoonId: 'player-speed' })
   controls.push({ id: 'aspect', availability: 'soon', label: 'Aspecto — em breve', comingSoonId: 'player-aspect' })
-  controls.push({ id: 'info', availability: 'soon', label: 'Info do stream — em breve', comingSoonId: 'player-info' })
+  controls.push(infoControl(features))
 
   return controls
 }

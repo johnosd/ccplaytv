@@ -43,13 +43,12 @@ export const COMING_SOON: Record<string, ComingSoonEntry> = {
   'a11y-voice-guide': { message: 'Narração de tela (Voice Guide).', backlogItem: 56 },
   'a11y-high-contrast': { message: 'Modo de alto contraste.', backlogItem: 56 },
   'a11y-subtitles': { message: 'Aparência das legendas.', backlogItem: 56 },
-  // Chrome do player (feature 027, D-014) — Áudio/Qualidade/Velocidade/
-  // Aspecto/Info do stream, canal e VOD. Guia reusa 'epg-guide' (item 42).
-  'player-tracks': { message: 'Seleção de faixa de áudio e legendas.', backlogItem: 55 },
+  // Chrome do player (feature 027, D-014) — Qualidade/Velocidade/Aspecto,
+  // canal e VOD. Guia reusa 'epg-guide' (item 42). Áudio e legendas e Info
+  // do stream deixaram de ser mock na feature 029 (item 55a).
   'player-quality': { message: 'Seleção manual de qualidade do stream.', backlogItem: 55 },
   'player-speed': { message: 'Velocidade de reprodução.', backlogItem: 55 },
   'player-aspect': { message: 'Proporção de tela do vídeo.', backlogItem: 55 },
-  'player-info': { message: 'Informações técnicas do stream (resolução, codec, bitrate).', backlogItem: 55 },
 }
 
 /**

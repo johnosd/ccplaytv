@@ -6,12 +6,32 @@ const FULL: PlayerCapabilities = { canPause: true, canSeek: true, reportsPositio
 const NONE: PlayerCapabilities = { canPause: false, canSeek: false, reportsPosition: false, reportsDuration: false }
 
 describe('chromeControls (feature 027, logic/chrome-player.md §2)', () => {
-  it('Live: ordem fixa guide/tracks/quality/aspect/info, tudo "soon", nunca playPause/speed', () => {
+  it('Live: ordem fixa guide/tracks/quality/aspect/info, nunca playPause/speed', () => {
     const controls = chromeControls('live', FULL, false, null)
     expect(controls.map((c) => c.id)).toEqual(['guide', 'tracks', 'quality', 'aspect', 'info'])
-    expect(controls.every((c) => c.availability === 'soon')).toBe(true)
     expect(controls.find((c) => c.id === 'speed')).toBeUndefined()
     expect(controls.find((c) => c.id === 'playPause')).toBeUndefined()
+  })
+
+  it('Guia/Qualidade/Aspecto continuam "soon"; Áudio e Info seguem o motor (feature 029)', () => {
+    const none = chromeControls('live', FULL, false, null)
+    expect(none.filter((c) => c.availability === 'soon').map((c) => c.id)).toEqual(['guide', 'quality', 'aspect'])
+    expect(none.find((c) => c.id === 'tracks')).toMatchObject({ availability: 'unavailable', label: 'Áudio e legendas — indisponível' })
+    expect(none.find((c) => c.id === 'info')).toMatchObject({ availability: 'unavailable', label: 'Info do stream — indisponível' })
+
+    const both = chromeControls('live', FULL, false, null, { tracks: true, info: true })
+    expect(both.find((c) => c.id === 'tracks')).toMatchObject({ availability: 'real', label: 'Áudio e legendas' })
+    expect(both.find((c) => c.id === 'info')).toMatchObject({ availability: 'real', label: 'Info do stream' })
+
+    const onlyInfo = chromeControls('vod', FULL, false, null, { tracks: false, info: true })
+    expect(onlyInfo.find((c) => c.id === 'tracks')?.availability).toBe('unavailable')
+    expect(onlyInfo.find((c) => c.id === 'info')?.availability).toBe('real')
+  })
+
+  it('features não muda a ordem nem a posição dos controles (a linha da 027 continua a mesma)', () => {
+    const without = chromeControls('vod', FULL, false, { hasPrevious: true, hasNext: true })
+    const withAll = chromeControls('vod', FULL, false, { hasPrevious: true, hasNext: true }, { tracks: true, info: true })
+    expect(withAll.map((c) => c.id)).toEqual(without.map((c) => c.id))
   })
 
   it('Live ignora capabilities e episódio (não fazem sentido no canal)', () => {
@@ -81,13 +101,13 @@ describe('chromeControls (feature 027, logic/chrome-player.md §2)', () => {
     expect(playing.findIndex((c) => c.id === 'playPause')).toBe(paused.findIndex((c) => c.id === 'playPause'))
   })
 
-  it('cada mock aponta pro seu id em COMING_SOON, e Guia reusa "epg-guide" (feature 024)', () => {
+  it('cada mock aponta pro seu id em COMING_SOON, e Guia reusa "epg-guide" (feature 024); Áudio/Info não são mais mock (029)', () => {
     const vod = chromeControls('vod', FULL, false, null)
-    expect(vod.find((c) => c.id === 'tracks')?.comingSoonId).toBe('player-tracks')
+    expect(vod.find((c) => c.id === 'tracks')?.comingSoonId).toBeUndefined()
+    expect(vod.find((c) => c.id === 'info')?.comingSoonId).toBeUndefined()
     expect(vod.find((c) => c.id === 'quality')?.comingSoonId).toBe('player-quality')
     expect(vod.find((c) => c.id === 'speed')?.comingSoonId).toBe('player-speed')
     expect(vod.find((c) => c.id === 'aspect')?.comingSoonId).toBe('player-aspect')
-    expect(vod.find((c) => c.id === 'info')?.comingSoonId).toBe('player-info')
     const live = chromeControls('live', FULL, false, null)
     expect(live.find((c) => c.id === 'guide')?.comingSoonId).toBe('epg-guide')
   })

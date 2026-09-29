@@ -27,6 +27,7 @@ import {
   type SeriesPrimary,
 } from './episodeNavigation'
 import { PlayerLayer, type PlayerEpisodeStep } from '../../components/PlayerLayer'
+import type { TrackChoice } from '../../lib/player/PlayerService'
 import { NextEpisodeCountdown } from './NextEpisodeCountdown'
 import { ContentCard } from '../../components/ContentCard'
 import { Tabs, type TabItem } from '../../components/Tabs'
@@ -218,6 +219,11 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
   })
 
   const [mode, setMode] = useState<Mode>({ kind: 'browsing' })
+  // Escolha de áudio/legenda/atraso da sequência em andamento (feature 029,
+  // FR-021/FR-023): o autoplay passa pela contagem, que DESMONTA o
+  // `PlayerLayer`, então quem guarda a escolha entre um episódio e o próximo
+  // é esta tela. Zera quando a sequência acaba (sair, cancelar, último).
+  const trackChoiceRef = useRef<TrackChoice | null>(null)
 
   const episodesNavigable = row === 'episodes' && mode.kind === 'browsing' && seasonEpisodes.length > 0
   useVirtualFocusSync({
@@ -244,6 +250,7 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
 
   /** RETURN/erro do player — sempre volta à lista, nunca ao próximo (D-008). */
   function handlePlayerClose(justPlayed: EpisodeOut) {
+    trackChoiceRef.current = null
     setMode({ kind: 'browsing' })
     setFocusedEpisodeId(justPlayed.id)
     // Sem isto, a lista continuaria com a leitura de quando montou — mesmo
@@ -257,6 +264,7 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
     invalidateUserStates(queryClient)
     const next = nextEpisode(seasons, justPlayed.id)
     if (!next) {
+      trackChoiceRef.current = null
       setMode({ kind: 'browsing' })
       setFocusedEpisodeId(justPlayed.id)
       return
@@ -304,6 +312,7 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
 
   /** Cancelar a contagem — volta à lista, foco no episódio que acabou de concluir, sem tocar nada (FR-015). */
   function cancelCountdown(finished: EpisodeOut) {
+    trackChoiceRef.current = null
     setMode({ kind: 'browsing' })
     setFocusedEpisodeId(finished.id)
   }
@@ -651,6 +660,10 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
           onCompleted={() => handlePlayerCompleted(mode.episode)}
           identity={{ title: series.name, subtitle: episodeSubtitle(mode.episode) }}
           episodeStep={episodeStepFor(mode.episode)}
+          initialTrackChoice={trackChoiceRef.current}
+          onTrackChoiceChange={(choice) => {
+            trackChoiceRef.current = choice
+          }}
         />
       )}
 

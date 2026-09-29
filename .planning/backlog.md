@@ -44,7 +44,7 @@ gates de hardware abertos, integridade do estado do usuário).
 | # | Entrega | Itens | Tipo | Mocks que remove |
 | --- | --- | --- | --- | --- |
 | 1 | Passada física dos gates abertos (013, 027) | 58 | verificação | — |
-| 2 | Áudio, legendas e info do stream no player | 55 (55a) | feature | `player-tracks`, `player-info` |
+| 2 | Áudio, legendas e info do stream no player (`029`, código completo em 28/09/2026; falta a passada física) | 55 (55a) | feature | `player-tracks`, `player-info` |
 | 3 | Entrada numérica de canal | 44 | feature | — (regra §44 sem UI) |
 | 4 | EPG: dados + "Agora" na Live TV e no player | 42 (42a/42b) | feature | `settings-epg` |
 | 5 | EPG: Guia completo em tela cheia | 42 (42c) | feature | `epg-guide` |
@@ -117,7 +117,10 @@ AVPlay já entregam.
     possível a aparência configurável do item 56.
 
     Duas features sugeridas, nesta ordem:
-    - **55a — Áudio, legendas e info (§27.4, §27.8)**: modal de trilhas
+    - **55a — Áudio, legendas e info (§27.4, §27.8)** — *código completo como
+      `029-audio-legendas-info-player` (28/09/2026); o formato real do AVPlay
+      (spike) e a legenda sobre o plano de hardware ainda não foram vistos na
+      TV — ver `plan.md` R-001…R-004*: modal de trilhas
       com idiomas disponíveis, legenda Off, ajuste de sincronização de
       legenda (−1000…+1000 ms), áudio-descrição como soft disabled quando
       não houver faixa (§39.4); modal de info técnica (resolução, codec,
@@ -745,6 +748,7 @@ Registrados para que referências antigas continuem rastreáveis:
 | 026-home-busca-configuracoes-ds-v14 | Home definitiva, Busca global e Configurações no Design System V14 (Onda 5) | Convergida | 50/50 tasks | 2026-09-28 |
 | 027-player-chrome-ds-v14 | Player chrome do Design System V14 com auto-hide e teclas de mídia (Onda 6) | Convergida | 55/55 tasks | 2026-09-28 |
 | 028-limpeza-qa-ds-v14 | Limpeza e QA do Design System V14 (Onda 7) | Implementada | 78/78 tasks | 2026-09-28 |
+| 029-audio-legendas-info-player | Player — Trilhas de Áudio, Legendas e Info do Stream | Implementada | 50/52 tasks | 2026-09-28 |
 
 ## Bugs
 

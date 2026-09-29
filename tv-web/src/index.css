@@ -78,6 +78,9 @@
   /* Fundo mais profundo que `--bg-surface`, para caixas de mídia. */
   --player-backdrop: #000;
   --player-zap-scrim: rgba(5, 6, 10, 0.85);
+  /* Fundo fixo da legenda embutida desenhada pelo app (feature 029, D-004);
+     o item 56 o torna configurável. */
+  --subtitle-bg: rgba(0, 0, 0, 0.6);
 
   /* ---------- Tipografia (§6) ---------- */
   /* Pilhas de fonte: só os nomes de família ainda vêm daqui — a fonte

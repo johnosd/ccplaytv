@@ -711,5 +711,63 @@ describe('SeriesDetailScreen', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       expect(screen.getByText('Seven Thirty-Seven').closest('.vod-episode-row')?.className).toContain('tv-focus')
     })
+
+    // --- escolha de áudio/legenda entre episódios (feature 029, FR-021/FR-023, logic §4) ---
+
+    const CHOICE = { audioLanguage: 'en', textLanguage: 'pt', subtitleDelayMs: 500 }
+
+    it('a escolha de faixas atravessa a contagem do autoplay: o próximo episódio nasce com ela (FR-021)', () => {
+      renderScreen()
+      enterEpisodesRow() // Piloto
+      press('Enter')
+      expect(lastPlayerLayerProps()?.initialTrackChoice).toBeNull()
+
+      act(() => lastPlayerLayerProps()?.onTrackChoiceChange?.(CHOICE))
+      conclude() // a contagem desmonta o player — quem guarda a escolha é a tela
+      act(() => vi.advanceTimersByTime(10_000))
+
+      expect(screen.getByRole('dialog', { name: 'Reproduzindo Cat in the Bag' })).toBeInTheDocument()
+      expect(lastPlayerLayerProps()?.initialTrackChoice).toEqual(CHOICE)
+    })
+
+    it('RETURN do player encerra a sequência: reabrir um episódio começa sem escolha (FR-023)', () => {
+      renderScreen()
+      enterEpisodesRow()
+      press('Enter')
+      act(() => lastPlayerLayerProps()?.onTrackChoiceChange?.(CHOICE))
+
+      act(() => {
+        screen.getByRole('button', { name: 'Fechar (teste)' }).click()
+      })
+      press('Enter') // o episódio segue focado — reabre
+      expect(screen.getByRole('dialog', { name: 'Reproduzindo Piloto' })).toBeInTheDocument()
+      expect(lastPlayerLayerProps()?.initialTrackChoice).toBeNull()
+    })
+
+    it('cancelar a contagem encerra a sequência: o episódio aberto depois começa sem escolha (FR-023)', () => {
+      renderScreen()
+      enterEpisodesRow()
+      press('Enter')
+      act(() => lastPlayerLayerProps()?.onTrackChoiceChange?.(CHOICE))
+      conclude()
+
+      press('Escape') // cancela a contagem
+      press('Enter') // foco no episódio que acabou de concluir — reabre
+      expect(screen.getByRole('dialog', { name: 'Reproduzindo Piloto' })).toBeInTheDocument()
+      expect(lastPlayerLayerProps()?.initialTrackChoice).toBeNull()
+    })
+
+    it('concluir o último episódio conhecido encerra a sequência (não há próximo para herdar)', () => {
+      vi.mocked(catalogApi.useSeriesEpisodes).mockReturnValue(episodesResult({ episodes: [S1E1], outcome: 'fetched' }))
+      renderScreen()
+      enterEpisodesRow()
+      press('Enter')
+      act(() => lastPlayerLayerProps()?.onTrackChoiceChange?.(CHOICE))
+      conclude()
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      press('Enter')
+      expect(lastPlayerLayerProps()?.initialTrackChoice).toBeNull()
+    })
   })
 })

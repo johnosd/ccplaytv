@@ -1,5 +1,6 @@
 import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerError, PlayerRegion } from './PlayerService'
 import type { EngineCapabilities } from './capabilities'
+import type { MediaTrack, StreamInfo } from './tracks'
 
 /**
  * Adaptador do player nativo da Samsung (`webapis.avplay`) — o motor de
@@ -32,6 +33,15 @@ interface AvplayListener {
   oncurrentplaytime?: (currentTimeMs: number) => void
   onstreamcompleted?: () => void
   onerror?: (error: unknown) => void
+  /** Legenda embutida: o app recebe cada linha no instante de exibi-la (feature 029). */
+  onsubtitlechange?: (duration: string, text: string, type?: string, attributes?: unknown) => void
+}
+
+/** Item de `getTotalTrackInfo()`/`getCurrentStreamInfo()`; `extra_info` é uma string JSON. */
+interface AvplayTrackInfo {
+  index: number
+  type: string
+  extra_info: string
 }
 
 interface AvplayApi {
@@ -52,6 +62,13 @@ interface AvplayApi {
   setListener: (listener: AvplayListener) => void
   setDisplayRect: (x: number, y: number, width: number, height: number) => void
   setDisplayMethod?: (method: string) => void
+  // Feature 029 — opcionais: a referência os documenta, mas a superfície não
+  // foi verificada na TV ainda (R-001 do plano). Qualquer falha vira `null`/`false`.
+  getTotalTrackInfo?: () => AvplayTrackInfo[]
+  getCurrentStreamInfo?: () => AvplayTrackInfo[]
+  setSelectTrack?: (trackType: 'AUDIO' | 'TEXT', trackIndex: number) => void
+  setSilentSubtitle?: (silent: boolean) => void
+  getStreamingProperty?: (name: string) => string
 }
 
 interface WebapisGlobal {
@@ -115,6 +132,85 @@ function safeDuration(avplay: AvplayApi): number | undefined {
   }
 }
 
+/** `extra_info` malformado vira `{}`: a faixa continua listada, só sem os campos (logic §1.2). */
+function parseExtraInfo(raw: unknown): Record<string, unknown> {
+  if (typeof raw !== 'string') return {}
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {}
+  } catch {
+    return {}
+  }
+}
+
+function textOf(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined
+}
+
+/** O motor entrega números como string (`"1920"`); só valores finitos e positivos contam. */
+function positiveNumber(value: unknown): number | undefined {
+  const n = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
+function isType(info: AvplayTrackInfo, type: string): boolean {
+  return typeof info.type === 'string' && info.type.toUpperCase() === type
+}
+
+function readTracks(avplay: AvplayApi): MediaTrack[] | null {
+  if (!avplay.getTotalTrackInfo) return null
+  const total = avplay.getTotalTrackInfo()
+  if (!Array.isArray(total)) return null
+  const activeAudio = new Set<number>()
+  for (const info of avplay.getCurrentStreamInfo?.() ?? []) {
+    if (isType(info, 'AUDIO')) activeAudio.add(info.index)
+  }
+  const tracks: MediaTrack[] = []
+  for (const info of total) {
+    const extra = parseExtraInfo(info.extra_info)
+    if (isType(info, 'AUDIO')) {
+      tracks.push({
+        id: String(info.index),
+        kind: 'audio',
+        language: textOf(extra.language),
+        codec: textOf(extra.fourCC),
+        channels: positiveNumber(extra.channels),
+        active: activeAudio.has(info.index),
+      })
+    } else if (isType(info, 'TEXT')) {
+      // O AVPlay não diz qual legenda está ativa: `active` fica `false` e a
+      // sessão sobrescreve pela própria seleção.
+      tracks.push({ id: String(info.index), kind: 'text', language: textOf(extra.track_lang), active: false })
+    }
+  }
+  return tracks
+}
+
+function readStreamInfo(avplay: AvplayApi): StreamInfo | null {
+  const info: StreamInfo = {}
+  const video = (avplay.getCurrentStreamInfo?.() ?? []).find((i) => isType(i, 'VIDEO'))
+  const extra = video ? parseExtraInfo(video.extra_info) : {}
+  const width = positiveNumber(extra.Width)
+  const height = positiveNumber(extra.Height)
+  if (width !== undefined && height !== undefined) {
+    info.width = width
+    info.height = height
+  }
+  const codec = textOf(extra.fourCC)
+  if (codec) info.videoCodec = codec
+  // Taxa de bits em kbps: a banda atual (streaming adaptativo) quando o
+  // motor informa; senão o `Bit_rate` do vídeo. Ambos chegam em bits/s.
+  let bandwidth: number | undefined
+  try {
+    bandwidth = positiveNumber(avplay.getStreamingProperty?.('CURRENT_BANDWIDTH'))
+  } catch {
+    bandwidth = undefined
+  }
+  const bitsPerSecond = bandwidth ?? positiveNumber(extra.Bit_rate)
+  if (bitsPerSecond !== undefined) info.bitrateKbps = Math.round(bitsPerSecond / 1000)
+  return info
+}
+
 export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAdapter {
   let opened = false
 
@@ -149,7 +245,20 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
         // é a sessão, pela capacidade resolvida da mídia (D-008).
         onstreamcompleted: () => callbacks.onCompleted?.(),
         onerror: (error: unknown) => callbacks.onError(toPlayerError(error)),
+        // Só o texto e a duração atravessam; `type`/`attributes` (estilo do
+        // stream) são ignorados de propósito — o estilo é o do DS (D-004).
+        onsubtitlechange: (duration: string, text: string) => {
+          callbacks.onSubtitle?.({ text: typeof text === 'string' ? text : '', durationMs: Number(duration) || 0 })
+        },
       })
+
+      // Legenda começa desativada (D-005): sem isto, uma legenda marcada como
+      // padrão no stream apareceria sem a pessoa ter pedido.
+      try {
+        avplay.setSilentSubtitle?.(true)
+      } catch {
+        /* estado sem suporte a legenda — nada a silenciar */
+      }
 
       avplay.setDisplayRect(region.x, region.y, region.width, region.height)
 
@@ -229,6 +338,55 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
         }
       } catch {
         onSettled()
+      }
+    },
+
+    getTracks(): MediaTrack[] | null {
+      const avplay = getAvplay()
+      if (!avplay) return null
+      try {
+        return readTracks(avplay)
+      } catch {
+        return null
+      }
+    },
+
+    selectAudioTrack(id: string): boolean {
+      const avplay = getAvplay()
+      if (!avplay?.setSelectTrack) return false
+      try {
+        avplay.setSelectTrack('AUDIO', Number(id))
+        return true
+      } catch {
+        return false
+      }
+    },
+
+    selectTextTrack(id: string | null): boolean {
+      const avplay = getAvplay()
+      if (!avplay) return false
+      try {
+        if (id === null) {
+          if (!avplay.setSilentSubtitle) return false
+          avplay.setSilentSubtitle(true)
+          return true
+        }
+        if (!avplay.setSelectTrack) return false
+        avplay.setSelectTrack('TEXT', Number(id))
+        avplay.setSilentSubtitle?.(false)
+        return true
+      } catch {
+        return false
+      }
+    },
+
+    getStreamInfo(): StreamInfo | null {
+      const avplay = getAvplay()
+      if (!avplay) return null
+      try {
+        return readStreamInfo(avplay)
+      } catch {
+        return null
       }
     },
 
