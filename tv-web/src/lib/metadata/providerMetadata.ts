@@ -1,5 +1,6 @@
-import type { TitleFields } from '../catalog/db'
+import type { TitleFields, TrailerVideoRef } from '../catalog/db'
 import { normalizeDurationSeconds, normalizeIconUrl } from '../catalog/classifier'
+import { isYoutubeVideoId } from '../trailer/trailerCandidates'
 
 /**
  * Normalização da metadata descritiva que o painel Xtream já entrega
@@ -59,6 +60,15 @@ function positiveInteger(value: unknown): number | undefined {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
 }
 
+/**
+ * `info.youtube_trailer`: só o id de 11 caracteres vale (feature 033, FR-002).
+ * Vazio, `"0"`, URL ou qualquer outra forma é ausente — nunca "consertado".
+ */
+function providerTrailer(value: unknown): TrailerVideoRef[] | undefined {
+  const id = text(value)
+  return isYoutubeVideoId(id) ? [{ videoId: id, kind: 'trailer' }] : undefined
+}
+
 /** Remove chaves `undefined` — o registro guardado só tem o que existe. */
 function compact(fields: TitleFields): TitleFields {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as TitleFields
@@ -77,6 +87,7 @@ export function normalizeVodInfo(info: Record<string, unknown> | undefined): Nor
       director: text(info.director),
       country: text(info.country),
       cast: firstText(info.cast, info.actors),
+      trailerVideos: providerTrailer(info.youtube_trailer),
     }),
     tmdbId: positiveInteger(info.tmdb_id),
   }
@@ -97,6 +108,7 @@ export function normalizeSeriesInfo(info: Record<string, unknown> | undefined): 
       durationSeconds: minutesToSeconds(info.episode_run_time),
       director: text(info.director),
       cast: firstText(info.cast, info.actors),
+      trailerVideos: providerTrailer(info.youtube_trailer),
     }),
   }
 }

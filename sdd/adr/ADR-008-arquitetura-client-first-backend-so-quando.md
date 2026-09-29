@@ -67,6 +67,14 @@ barreira real que o cliente não pode cruzar sozinho (ex.: proteger uma
 chave compartilhada que o produto decida oferecer), tratado como
 complemento opcional, nunca como pré-requisito de uso.**
 
+**Atualização (ADR-012):** surge uma terceira categoria que esta decisão não previa:
+a **página-ponte estática HTTPS** — um HTML estático em hospedagem gratuita, sem
+lógica de servidor, sem dados e sem segredo, cujo único papel é dar origem http(s) a
+um embed de terceiro que não funciona a partir do `file://` do app (caso concreto: o
+YouTube IFrame Player recusa com erro 153 sem `Referer`, provado na TV em
+2026-09-29). Não é backend sempre ligado e fica permitida sob os critérios da
+ADR-012. Ver ADR-012 para o raciocínio completo.
+
 Por área concreta:
 
 1. **Import de fonte por provedor (Xtream) e por M3U** — passa a rodar no

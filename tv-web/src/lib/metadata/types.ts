@@ -1,4 +1,5 @@
 import type { CatalogDb } from '../catalog/db'
+import type { TrailerCandidate } from '../trailer/trailerCandidates'
 
 /**
  * Metadata descritiva de filme/série (feature 032, `data-model.md`,
@@ -25,6 +26,13 @@ export interface TitleMetadataView {
   country?: MetadataField<string>
   /** Elenco em texto ("A, B, C"). A aba Elenco navegável é o item 45 do backlog. */
   cast?: MetadataField<string>
+  /**
+   * Feature 033: candidatos a trailer, já na ordem de preferência — provedor
+   * primeiro, depois TMDB (`buildTrailerCandidates`). NÃO segue a regra
+   * "provedor vence" dos outros campos: as duas fontes somam. Ausente quando
+   * não há nenhum candidato.
+   */
+  trailers?: TrailerCandidate[]
 }
 
 export type TmdbKeyFormat = 'v3' | 'v4'

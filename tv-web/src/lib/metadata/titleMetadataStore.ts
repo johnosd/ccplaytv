@@ -9,6 +9,13 @@ import { buildStableId } from '../catalog/userStateRepository'
  * (`seriesLoader`, que já traz o `info` da série na mesma resposta — D-009).
  */
 
+/**
+ * Versão do conjunto de campos do provedor que guardamos. Registro com versão
+ * menor conta como vencido mesmo dentro das 24 h (033/D-006: 1 = até a 032,
+ * 2 = passa a incluir `trailerVideos`).
+ */
+export const PROVIDER_FIELDS_VERSION = 2
+
 type IdentityRecord = Pick<CatalogRecord, 'sourceId' | 'kind' | 'providerStreamId' | 'seriesId' | 'originalName'>
 
 /**
@@ -83,6 +90,7 @@ export async function storeProviderMetadata(
       provider: fields,
       providerTmdbId,
       providerFetchedAt: now,
+      providerVersion: PROVIDER_FIELDS_VERSION,
     })
   })
 }

@@ -1,4 +1,5 @@
 import type { TitleFields } from '../catalog/db'
+import { trailerRefsFromTmdbVideos } from '../trailer/trailerCandidates'
 import { tmdbImageUrl } from './tmdbConnector'
 
 /**
@@ -97,6 +98,8 @@ export function mapTmdbDetail(kind: TmdbKind, rawDetail: unknown): TitleFields {
     director: kind === 'movie' ? directors(credits) : undefined,
     country: countries(detail),
     cast: joined(names(credits.cast, 10)),
+    // Só quando a resposta trouxe `videos` (pode ser `[]`): a ausência da chave é o que marca um registro anterior à 033.
+    trailerVideos: 'videos' in detail ? trailerRefsFromTmdbVideos(detail.videos) : undefined,
   }
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as TitleFields
 }

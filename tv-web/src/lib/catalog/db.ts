@@ -208,7 +208,28 @@ export interface EpgProgramRecord {
  * Todos opcionais: ausente = nenhuma fonte tem valor real, nunca um texto de
  * preenchimento.
  */
+/**
+ * Referência a um vídeo de trailer no YouTube (feature 033,
+ * `logic/candidatos-de-trailer.md`). Só o id público do vídeo — nunca URL de
+ * mídia, nunca promessa de que o vídeo ainda exista.
+ */
+export interface TrailerVideoRef {
+  /** Id de vídeo do YouTube (11 caracteres `[A-Za-z0-9_-]`). */
+  videoId: string
+  kind: 'trailer' | 'teaser'
+  /** ISO 639-1 quando a fonte declara; ausente = desconhecido (caso do provedor). */
+  language?: string
+  /** Ausente = desconhecido, nunca "falso". */
+  official?: boolean
+}
+
 export interface TitleFields {
+  /**
+   * Feature 033. Provedor: no máximo um (`youtube_trailer`). TMDB: `[]` quando
+   * os vídeos foram pedidos e nenhum serve; AUSENTE num registro `matched`
+   * gravado antes da 033 (sem `videos`) — é o sinal para pedir de novo uma vez.
+   */
+  trailerVideos?: TrailerVideoRef[]
   synopsis?: string
   /** Só presente quando a sinopse NÃO está em português (código ISO 639-1) — FR-021. */
   synopsisLanguage?: string
@@ -236,6 +257,13 @@ export interface TitleMetadataRecord {
   provider?: TitleFields
   /** Última obtenção bem-sucedida do provedor — falha não avança. */
   providerFetchedAt?: number
+  /**
+   * Versão dos campos lidos do provedor (feature 033, D-006). Registro com
+   * versão menor que `PROVIDER_FIELDS_VERSION` conta como vencido, mesmo
+   * dentro das 24 h — senão um título aberto antes da 033 ficaria até um dia
+   * sem o `youtube_trailer`. Ausente = gravado antes da 033.
+   */
+  providerVersion?: number
   /** `info.tmdb_id` do `get_vod_info` — só filme (o painel não declara para série). */
   providerTmdbId?: number
   tmdb?: TmdbResultRecord

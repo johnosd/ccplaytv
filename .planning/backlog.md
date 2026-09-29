@@ -61,7 +61,7 @@ gates de hardware abertos, integridade do estado do usuário).
 | 8 | Qualidade, velocidade e aspecto no player + preferências | 55 (55b) | feature | `player-quality`, `player-speed`, `player-aspect`, `settings-player` |
 | 9 | Acessibilidade: legendas, alto contraste, Voice Guide | 56 | feature | `a11y-subtitles`, `a11y-high-contrast`, `a11y-voice-guide` |
 | 10 | Elenco e Semelhantes | 45 | feature | `cast`, `similar` |
-| 11 | Trailers | 32 | feature | `trailer` |
+| 11 | Trailers (`033`, especificada) | 32 | feature | `trailer` |
 | 12 | Reconciliação pós-resync | 24 | feature | — |
 | 13 | IA: curadoria na Home e "Descobrir com IA" | 27, 30, 31 | feature | `home-ai-curation`, `dock-ai` |
 
@@ -370,19 +370,13 @@ histórico) para não inventar justificativa.
 
     (`docs/iptvnator/03-apis.md` #11; `00-resumo.md`; V14 §32)
 
-32. **Trailers para filmes e séries**
-
-    Ação "Trailer" no detalhe; TMDB para descoberta (preferir tipo
-    Trailer, oficial, em português; teaser não é rotulado silenciosamente
-    como trailer); YouTube IFrame Player API via `TrailerService`
-    **separado** do `PlayerService`. Tratar vídeo removido/privado,
-    embedding desabilitado, indisponibilidade regional e autoplay
-    bloqueado. Ver um trailer não marca a obra como assistida nem altera
-    progresso. **Sem preview no foco** (ADR-011): só por ação explícita.
-    Depende do 28. Remove `trailer`.
-
-    (RF-019; ESPECIFICACAO-TRAILERS.md; ADR-006 §4.8 e Incremento C;
-    ADR-011)
+32. **Trailers para filmes e séries** — *avaliado `go` em 29/09/2026;
+    registro permanente em `sdd/assessments/viabilidade-youtube-iframe-na-tv-
+    campo/decision.md` (spike na TV: IFrame direto do `file://` dá erro 153;
+    via página estática HTTPS intermediária toca e o RETURN fica com o app).
+    Página-ponte aceita pela ADR-012 (emenda a ADR-008). **Especificado
+    como `033-trailers-filmes-series`** (ver `## Features`); o número 32
+    segue só como referência de `comingSoon.ts`. Remove `trailer`.*
 
 29. **Nota IMDb com procedência**
 
@@ -833,6 +827,7 @@ Registrados para que referências antigas continuem rastreáveis:
 | 030-epg-dados-agora | EPG — Dados de Programação e "Agora" na Live TV, no Player e na Home | Convergida | 55/56 tasks | 2026-09-29 |
 | 031-epg-guia-completo | EPG — Guia Completo em Tela Cheia | Convergida | 47/48 tasks | 2026-09-29 |
 | 032-metadata-tmdb-integracoes | Metadata de Filmes e Séries — Provedor Primeiro, TMDB (BYOK) Completa, e Tela Integrações | Convergida | 58/58 tasks | 2026-09-29 |
+| 033-trailers-filmes-series | Trailers de Filmes e Séries | Em Execução | 3/52 tasks | 2026-09-29 |
 
 ## Bugs
 

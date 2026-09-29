@@ -1,4 +1,11 @@
-import { db, type CatalogDb, type CatalogRecord, type TitleFields, type TmdbResultRecord } from '../catalog/db'
+import {
+  db,
+  type CatalogDb,
+  type CatalogRecord,
+  type TitleFields,
+  type TitleMetadataRecord,
+  type TmdbResultRecord,
+} from '../catalog/db'
 import { getCategory, getChannel } from '../catalog/catalogRepository'
 import { isCategoryFresh } from '../catalog/freshness'
 import { readCredential } from '../catalog/sourceRepository'
@@ -7,7 +14,8 @@ import { normalizeSeriesInfo, normalizeVodInfo } from './providerMetadata'
 import { lookupTmdb } from './tmdbLookup'
 import { TmdbError } from './tmdbConnector'
 import { markTmdbState, readTmdbCredential } from './tmdbKeyRepository'
-import { storeProviderMetadata, storeTmdbResult, titleStableId } from './titleMetadataStore'
+import { buildTrailerCandidates } from '../trailer/trailerCandidates'
+import { PROVIDER_FIELDS_VERSION, storeProviderMetadata, storeTmdbResult, titleStableId } from './titleMetadataStore'
 import type { MetadataOptions, TitleMetadataView } from './types'
 
 /** Validade do que veio do TMDB — 6 meses (termos do TMDB, FR-023), inclusive "sem correspondência" e "id morto". */
@@ -22,8 +30,15 @@ function providerLeavesGaps(provider: TitleFields | undefined): boolean {
     provider.durationSeconds === undefined ||
     provider.director === undefined ||
     provider.country === undefined ||
-    provider.cast === undefined
+    provider.cast === undefined ||
+    provider.trailerVideos === undefined ||
+    provider.trailerVideos.length === 0
   )
+}
+
+/** `matched` gravado antes da 033 não tem a chave `trailerVideos` (D-005) — repete-se uma vez. */
+function tmdbLacksVideos(tmdb: TmdbResultRecord | undefined): boolean {
+  return tmdb?.status === 'matched' && tmdb.fields.trailerVideos === undefined
 }
 
 /**
@@ -61,6 +76,10 @@ export function mergeTitleMetadata(provider: TitleFields | undefined, tmdb: Tmdb
   const cast = provider?.cast ?? fromTmdb.cast
   if (cast !== undefined) view.cast = { value: cast, origin: provider?.cast !== undefined ? 'provider' : 'tmdb' }
 
+  // Único campo em que as duas fontes SOMAM (provedor primeiro), em vez de "provedor vence".
+  const trailers = buildTrailerCandidates(provider?.trailerVideos, fromTmdb.trailerVideos)
+  if (trailers.length > 0) view.trailers = trailers
+
   return view
 }
 
@@ -80,12 +99,15 @@ const inFlight = new Map<string, Promise<TitleMetadataView>>()
  */
 async function refreshFromProvider(
   record: CatalogRecord,
-  providerFetchedAt: number | undefined,
+  cached: TitleMetadataRecord | undefined,
   database: CatalogDb,
   now: number,
   fetchImpl: typeof fetch | undefined,
 ): Promise<{ fields: TitleFields; tmdbId: number | undefined } | 'deferred' | undefined> {
-  if (isCategoryFresh(providerFetchedAt, now)) return undefined
+  // Versão antiga do conjunto de campos conta como vencida (D-006).
+  if (isCategoryFresh(cached?.providerFetchedAt, now) && cached?.providerVersion === PROVIDER_FIELDS_VERSION) {
+    return undefined
+  }
   try {
     const credential = await readCredential(record.sourceId, database)
     if (!credential) return undefined
@@ -145,8 +167,9 @@ async function enrichFromTmdb(
 ): Promise<void> {
   try {
     const cached = await database.titleMetadata.get(titleStableId(record) ?? '')
-    if (!providerLeavesGaps(cached?.provider)) return
-    if (cached?.tmdbFetchedAt !== undefined && now - cached.tmdbFetchedAt <= TMDB_CACHE_MS) return
+    const lacksVideos = tmdbLacksVideos(cached?.tmdb)
+    if (!providerLeavesGaps(cached?.provider) && !lacksVideos) return
+    if (!lacksVideos && cached?.tmdbFetchedAt !== undefined && now - cached.tmdbFetchedAt <= TMDB_CACHE_MS) return
 
     const credential = await readTmdbCredential({ database })
     if (!credential || credential.state === 'refused') return
@@ -178,7 +201,7 @@ async function ensure(record: CatalogRecord, stableId: string, options: Metadata
 
   const cached = await database.titleMetadata.get(stableId)
 
-  const fresh = await refreshFromProvider(record, cached?.providerFetchedAt, database, now, options.fetchImpl)
+  const fresh = await refreshFromProvider(record, cached, database, now, options.fetchImpl)
   if (fresh && fresh !== 'deferred') {
     await storeProviderMetadata(database, record, fresh.fields, fresh.tmdbId, now)
   }

@@ -64,7 +64,12 @@ export async function lookupTmdb(input: TmdbLookupInput): Promise<TmdbResultReco
   const { record, providerTmdbId, credential, fetchImpl } = input
   const kind = kindOf(record)
   const year = record.year ?? yearHintFromTitle(record.originalName)
-  const detailParams = { language: PT_BR, append_to_response: 'credits' }
+  // `include_video_language`: sem ele o TMDB só devolve vídeos em pt-BR, e quase todo trailer é `en` (D-004).
+  const detailParams = {
+    language: PT_BR,
+    append_to_response: 'credits,videos',
+    include_video_language: 'pt,en,null',
+  }
 
   let deadId: number | undefined
   if (providerTmdbId !== undefined) {

@@ -1121,7 +1121,7 @@ and never reads or modifies.
 
 ## Architecture (from `sdd/adr/`)
 
-ADR-001 to ADR-011 are accepted decisions — read the relevant one in full
+ADR-001 to ADR-012 are accepted decisions — read the relevant one in full
 before proposing anything that conflicts, and amend with an inline
 `**Atualização (ADR-0XX):**` note rather than rewriting history.
 
@@ -1138,6 +1138,7 @@ before proposing anything that conflicts, and amend with an inline
 | ADR-009 | Directional navigation is the project's own `useRemoteNav` hook (state + CSS class, no DOM-ref focus library) — Norigin Spatial Navigation, recommended by ADR-006, was never installed |
 | ADR-010 | Full source URL, per-item playback URLs and the downloaded M3U file may be stored on the device (extends ADR-008's credential exception); still never logged, displayed, sent to third parties or exported |
 | ADR-011 | Adopts Design System V14 Spectrum (updates ADR-007's reference): precedence constitution > ADRs > V14 Spec > Component Lab > prototype; no media preview on focus; topbar shell; **profile = IPTV list**; single active source; "Em breve" soft-disabled mocks, never fake content; channel number = source order position |
+| ADR-012 | "Bridge page": a static HTTPS page on free static hosting (no server logic, no data, no secrets) is allowed solely to give an http(s) origin to a third-party embed that fails from the app's `file://` origin — the YouTube IFrame player returns error 153 without a `Referer` (proven on the TV, 2026-09-29). Updates ADR-008; each bridge page is listed in ADR-012 |
 
 Plus `REQUISITOS-FUNCIONAIS.md` (RF-001 to RF-019) and
 `ESPECIFICACAO-TRAILERS.md` (RF-019 detail).
