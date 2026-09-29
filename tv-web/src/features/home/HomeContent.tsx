@@ -7,7 +7,10 @@ import {
   useUserState,
   type CatalogItemOut,
 } from '../catalog/catalogApi'
-import { stableIdOf } from '../catalog/catalogApi'
+import { stableIdOf, useEpgPrograms, useTmdbStatus } from '../catalog/catalogApi'
+import { TMDB_DOCK_LABEL } from '../settings/integrationsModel'
+import { nowNextForChannel } from '../../lib/epg/nowNext'
+import { useNow } from '../../lib/useNow'
 import type { HomeFocus, TopDestination } from '../../navigation/appNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
 import { useIdFocus } from '../../lib/focus/useIdFocus'
@@ -43,6 +46,12 @@ export interface HomeContentProps {
   onOpenChannel: (channel: CatalogItemOut, from: HomeFocus) => void
   /** "Ver todos (N)"/"Filmes (N)"/"Séries (N)" (FR-014). */
   onOpenFavorites: (destination: TopDestination, from: HomeFocus) => void
+  /**
+   * Ícone "TMDB" do dock (feature 032, FR-016): leva a Configurações › Integrações
+   * & BYOK. Opcional só porque os contratos travados da 026 montam o Início sem
+   * ele; ausente, o ícone volta a só anunciar o estado.
+   */
+  onOpenIntegrations?: (from: HomeFocus) => void
   /** Ação primária do hero quando resolve em reprodução (FR-005). */
   onPlay: (params: { itemId: string; title: string; startAtMs: number | undefined }) => void
   /** Foco a restaurar ao voltar de um destino (FR-017/FR-029). */
@@ -74,8 +83,11 @@ interface DockIconDef {
   label: string
 }
 
+/** Único ícone do dock que já é real (feature 032); o id não é mais um mock registrado em `comingSoon.ts`. */
+const TMDB_DOCK_ID = 'dock-tmdb'
+
 const DOCK_ICONS: DockIconDef[] = [
-  { id: 'dock-tmdb', icon: 'info', label: 'TMDB' },
+  { id: TMDB_DOCK_ID, icon: 'info', label: 'TMDB' },
   { id: 'dock-ai', icon: 'device', label: 'Assistente de IA' },
   { id: 'dock-weather', icon: 'live', label: 'Clima' },
   { id: 'dock-speedtest', icon: 'quality', label: 'Teste de velocidade' },
@@ -119,6 +131,7 @@ export function HomeContent({
   onOpenItem,
   onOpenChannel,
   onOpenFavorites,
+  onOpenIntegrations,
   onPlay,
   initialFocus,
 }: HomeContentProps): ReactNode {
@@ -130,6 +143,8 @@ export function HomeContent({
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
   const announce = useAnnounce()
+  // Estado do TMDB no dock (feature 032): lê só o IndexedDB, nunca a rede — seguro ao focar.
+  const tmdbState = useTmdbStatus().data?.state ?? 'not_configured'
 
   const heroStableId = hero.kind !== 'welcome' ? stableIdOf(hero.item) : null
   const heroUserState = useUserState(heroStableId)
@@ -138,6 +153,13 @@ export function HomeContent({
   const continueItems = continueQuery.data ?? []
   const myListContent = myListQuery.data ?? { items: [], movieCount: 0, seriesCount: 0 }
   const channelsContent = channelsQuery.data ?? { items: [], unresolved: 0 }
+  // EPG (feature 030, FR-027): programa atual de cada canal favorito, lido só
+  // do aparelho; `useNow` faz o título virar sem sair da Home.
+  const epgNow = useNow()
+  const epgLookup = useEpgPrograms(
+    sourceId,
+    channelsContent.items.map((item) => item.epg_channel_id),
+  ).data
 
   const mylistRailItems: MyListRailItem[] = [
     ...myListContent.items.map((item): MyListRailItem => ({ kind: 'item', item })),
@@ -284,7 +306,14 @@ export function HomeContent({
     }
     if (effectiveRow === 'dock') {
       const icon = DOCK_ICONS[dockFocus.index]
-      if (icon) announce(`Em breve — ${getComingSoon(icon.id).message}`)
+      if (!icon) return
+      if (icon.id === TMDB_DOCK_ID) {
+        // Real desde a feature 032: leva ao card do TMDB (sem o callback, só diz o estado).
+        if (onOpenIntegrations) onOpenIntegrations({ zone: 'dock', service: icon.id })
+        else announce(TMDB_DOCK_LABEL[tmdbState])
+        return
+      }
+      announce(`Em breve — ${getComingSoon(icon.id).message}`)
     }
   }
 
@@ -422,6 +451,7 @@ export function HomeContent({
                     <ChannelRow
                       logoUrl={entry.item.icon_url ?? undefined}
                       name={entry.item.name}
+                      nowPlaying={nowNextForChannel(epgLookup, entry.item.epg_channel_id, epgNow).now?.title}
                       focused={focused}
                     />
                   )
@@ -441,19 +471,38 @@ export function HomeContent({
       </section>
 
       <div className="home-dock" role="group" aria-label="Serviços">
-        {DOCK_ICONS.map((iconDef, index) => (
-          <button
-            key={iconDef.id}
-            type="button"
-            className={`home-dock-icon is-soft-disabled${active && effectiveRow === 'dock' && index === dockFocus.index ? ' tv-focus' : ''}`}
-            aria-label={iconDef.label}
-            // Achado real (feature 028, FR-016): sempre "Em breve" (DOCK_ICONS
-            // inteiro é mock), mas o nome não dizia indisponível.
-            aria-disabled="true"
-          >
-            <Icon name={iconDef.icon} />
-          </button>
-        ))}
+        {DOCK_ICONS.map((iconDef, index) => {
+          const focused = active && effectiveRow === 'dock' && index === dockFocus.index
+          if (iconDef.id === TMDB_DOCK_ID) {
+            // Real (feature 032, FR-016): o estado vai no nome acessível e num
+            // marcador (`data-state`) — nunca só por cor.
+            return (
+              <button
+                key={iconDef.id}
+                type="button"
+                className={`home-dock-icon home-dock-icon--service${focused ? ' tv-focus' : ''}`}
+                aria-label={TMDB_DOCK_LABEL[tmdbState]}
+                title={TMDB_DOCK_LABEL[tmdbState]}
+                data-state={tmdbState}
+              >
+                <Icon name={iconDef.icon} />
+              </button>
+            )
+          }
+          return (
+            <button
+              key={iconDef.id}
+              type="button"
+              className={`home-dock-icon is-soft-disabled${focused ? ' tv-focus' : ''}`}
+              aria-label={iconDef.label}
+              // Achado real (feature 028, FR-016): "Em breve" — o nome não
+              // dizia indisponível, `aria-disabled` diz.
+              aria-disabled="true"
+            >
+              <Icon name={iconDef.icon} />
+            </button>
+          )
+        })}
       </div>
 
       <Toast message={toastMessage} messageKey={toastKey} />

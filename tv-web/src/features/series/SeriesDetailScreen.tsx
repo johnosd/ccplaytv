@@ -8,10 +8,13 @@ import {
   useCatalogItem,
   useSeriesEpisodes,
   useSeriesWatchedSummary,
+  useTitleMetadata,
   useUserState,
   useUserStates,
   type EpisodeOut,
 } from '../catalog/catalogApi'
+import { CastPanel, DetailBackdrop, MetadataFacts, SynopsisBlock, SynopsisModal } from '../vod/DetailMetadata'
+import { isSynopsisTruncated, metadataFactRows } from '../vod/detailMetadataFormat'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
@@ -45,12 +48,12 @@ export interface SeriesDetailScreenProps {
 }
 
 type DetailTab = 'episodes' | 'details' | 'cast' | 'similar'
-type Row = 'actions' | 'tabs' | 'season' | 'episodes'
+type Row = 'more' | 'actions' | 'tabs' | 'season' | 'episodes'
 
 const TABS: TabItem[] = [
   { id: 'episodes', label: 'Episódios' },
   { id: 'details', label: 'Detalhes' },
-  { id: 'cast', label: 'Elenco', softDisabled: true },
+  { id: 'cast', label: 'Elenco' },
   { id: 'similar', label: 'Semelhantes', softDisabled: true },
 ]
 
@@ -175,7 +178,17 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
-  const [row, setRow] = useState<Row>('actions')
+  // Metadata descritiva (feature 032): nunca bloqueia a tela nem a ação
+  // primária (FR-005). Lê o cache que a obtenção de episódios já gravou.
+  const metadataQuery = useTitleMetadata(series ? seriesId : null)
+  const metadata = metadataQuery.data
+  const synopsis = metadata?.synopsis
+  const hasMore = synopsis !== undefined && isSynopsisTruncated(synopsis.value)
+
+  const [rawRow, setRow] = useState<Row>('actions')
+  // Sem o botão "Ver mais" a linha `more` não existe: o foco cai nas ações.
+  const row: Row = rawRow === 'more' && !hasMore ? 'actions' : rawRow
+  const [synopsisOpen, setSynopsisOpen] = useState(false)
   const [actionFocus, setActionFocus] = useState(0)
   const safeActionFocus = clamp(actionFocus, 0, actions.length - 1)
   const [activeTab, setActiveTab] = useState<DetailTab>('episodes')
@@ -317,9 +330,9 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
     setFocusedEpisodeId(finished.id)
   }
 
-  /** Troca a aba real (Episódios/Detalhes) ou anuncia "Em breve" pra Elenco/Semelhantes (mock). */
+  /** Troca a aba real (Episódios/Detalhes/Elenco) ou anuncia "Em breve" pra Semelhantes (mock). */
   function activateTab(id: string) {
-    if (id === 'episodes' || id === 'details') {
+    if (id === 'episodes' || id === 'details' || id === 'cast') {
       setActiveTab(id)
       return
     }
@@ -342,9 +355,14 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
   useRemoteNav({
     onDirection: (dir) => {
       if (!series || mode.kind !== 'browsing') return
+      if (row === 'more') {
+        if (dir === 'down') setRow('actions')
+        return
+      }
       if (row === 'actions') {
         if (dir === 'left') setActionFocus((f) => clamp(f - 1, 0, actions.length - 1))
         if (dir === 'right') setActionFocus((f) => clamp(f + 1, 0, actions.length - 1))
+        if (dir === 'up' && hasMore) setRow('more')
         if (dir === 'down') {
           setFocusedTabId(activeTab)
           setRow('tabs')
@@ -403,6 +421,10 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
       }
       if (episodes.length === 0) {
         onBack()
+        return
+      }
+      if (row === 'more') {
+        setSynopsisOpen(true)
         return
       }
       if (row === 'actions') {
@@ -506,6 +528,7 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
     // Achado real (feature 028, FR-006): rolava com a barra nativa visível.
     <div className="screen vod-detail no-scrollbar">
       <div className="vod-detail-hero">
+        <DetailBackdrop url={metadata?.backdropUrl?.value} origin={metadata?.backdropUrl?.origin} />
         <div className="vod-detail-poster">
           <ContentCard variant="portrait" title={series.name} iconUrl={series.icon_url ?? undefined} />
         </div>
@@ -513,6 +536,7 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
           <div className="vod-detail-eyebrow">SÉRIE</div>
           <div className="vod-detail-title">{series.name}</div>
           <div className="vod-detail-meta">{metaParts.join(' · ')}</div>
+          <SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />
           <div className="vod-detail-actions">
             {actions.map((action, i) => (
               <div
@@ -555,6 +579,7 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
                 <dd>{series.year}</dd>
               </div>
             )}
+            <MetadataFacts rows={metadataFactRows(metadata, true)} />
             {watchedSummary && watchedSummary.known > 0 && (
               <div className="vod-detail-fact">
                 <dt>Progresso</dt>
@@ -564,12 +589,25 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
           </dl>
         )}
 
+        {activeTab === 'cast' && <CastPanel cast={metadata?.cast} loading={metadataQuery.isLoading === true} />}
+
         {activeTab === 'episodes' && (
           <>
             <div className="vod-season-row">
               <div className={`vod-season-button${row === 'season' ? ' tv-focus' : ''}`}>{currentSeason?.label ?? 'Temporada'} ▾</div>
               <span className="vod-season-count">{seasonEpisodes.length} episódios</span>
             </div>
+
+            {/* Sinopse do episódio focado (feature 032, FR-028): só dado já
+                guardado, nenhuma consulta ao focar. A faixa tem altura fixa
+                enquanto algum episódio da temporada tiver sinopse — a lista
+                não pula ao mover o foco entre um com e um sem. Nunca usa a
+                sinopse da série no lugar da do episódio. */}
+            {seasonEpisodes.some((episode) => episode.synopsis) && (
+              <p className="vod-episode-synopsis" aria-live="polite">
+                {row === 'episodes' ? (seasonEpisodes[episodeIdx]?.synopsis ?? '') : ''}
+              </p>
+            )}
 
             {/* Achado real (feature 028, FR-006): rolava com a barra nativa visível. */}
             <div ref={episodeListRef} className="vod-episode-list no-scrollbar">
@@ -650,6 +688,8 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
       )}
 
       <Toast message={toastMessage} messageKey={toastKey} />
+
+      {synopsisOpen && synopsis && <SynopsisModal text={synopsis.value} onClose={() => setSynopsisOpen(false)} />}
 
       {mode.kind === 'playing' && (
         <PlayerLayer

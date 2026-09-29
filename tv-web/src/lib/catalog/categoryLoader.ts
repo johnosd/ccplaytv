@@ -138,6 +138,8 @@ function toItemRecord(
     directUrl: undefined,
     // Feature 015/024: capa/logo declarado pela fonte (também canal desde a 024 — mapLiveEntry preenche).
     iconUrl: channel.iconUrl,
+    // Feature 030: id de EPG só no canal (FR-006/FR-008).
+    epgChannelId: channel.kind === 'channel' ? channel.epgChannelId : undefined,
     // Feature 025: ano/inclusão declarados pela fonte (filme/série do provedor).
     year: channel.year,
     addedAt: channel.addedAt,

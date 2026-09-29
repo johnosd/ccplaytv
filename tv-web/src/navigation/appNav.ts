@@ -36,6 +36,10 @@ export type AppScreen =
   | { name: 'profiles'; mode: 'base' | 'switch'; focusSourceId?: string | null }
   | { name: 'add-source' }
   | { name: 'edit-source'; source: SourceOut }
+  /** EPG da lista (feature 030, US2) — aberta por Configurações › Fontes IPTV › EPG. RETURN volta ao botão "EPG" (`restore` da tela de Configurações). */
+  | { name: 'epg-settings'; source: SourceOut }
+  /** Chave do TMDB (feature 032, US2) — aberta por Configurações › Integrações & BYOK. RETURN volta ao card do TMDB (`restore` da tela de Configurações). */
+  | { name: 'tmdb-key' }
   | { name: 'progress'; jobId: string }
   | { name: 'home'; focus?: HomeFocus }
   | {

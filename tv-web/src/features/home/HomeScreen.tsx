@@ -30,6 +30,8 @@ export interface HomeScreenProps {
   onOpenChannel: (channel: CatalogItemOut, from: HomeFocus) => void
   /** "Ver todos (N)"/"Filmes (N)"/"Séries (N)" — o destino em ★ Favoritos (FR-014). */
   onOpenFavorites: (destination: TopDestination, from: HomeFocus) => void
+  /** Ícone TMDB do dock (feature 032, FR-016) — Configurações › Integrações & BYOK. */
+  onOpenIntegrations?: (from: HomeFocus) => void
   /** Lupa da topbar (FR-035). */
   onOpenSearch: (from: HomeFocus) => void
   /** Engrenagem da topbar (FR-021). */
@@ -68,6 +70,7 @@ export function HomeScreen({
   onOpenItem,
   onOpenChannel,
   onOpenFavorites,
+  onOpenIntegrations,
   onOpenSearch,
   onOpenSettings,
 }: HomeScreenProps): ReactNode {
@@ -142,6 +145,7 @@ export function HomeScreen({
           onOpenItem={onOpenItem}
           onOpenChannel={onOpenChannel}
           onOpenFavorites={onOpenFavorites}
+          onOpenIntegrations={onOpenIntegrations}
           onPlay={startPlaying}
         />
       </AppShell>

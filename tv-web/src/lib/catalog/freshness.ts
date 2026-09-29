@@ -24,6 +24,14 @@ export function decideOnOpen(source: SourceRecord, now: number): FreshnessAction
     return 'migrate'
   }
 
+  // Feature 030 (D-007/FR-007): fonte sincronizada antes do EPG existir não
+  // tem o id de EPG dos canais (nem o `url-tvg` do cabeçalho) — uma
+  // importação silenciosa em segundo plano resolve, pelo mesmo caminho da
+  // migração acima. Só quando a importação bem-sucedida já aconteceu.
+  if (source.lastSuccessfulSyncAt !== undefined && source.epgIdsCapturedAt === undefined) {
+    return 'migrate'
+  }
+
   // Atualização por idade (FR-020): qualquer fonte cuja última
   // sincronização bem-sucedida passou de STALE_AFTER.
   if (source.lastSuccessfulSyncAt !== undefined) {

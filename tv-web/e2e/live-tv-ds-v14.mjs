@@ -194,10 +194,20 @@ async function run() {
     await page.keyboard.press('ArrowDown') // "Favorito" -> "Guia completo"
     assert((await page.locator('.live-preview-action.tv-focus').textContent()) === 'Guia completo', '↓ move o foco pra "Guia completo"')
     await page.keyboard.press('Enter')
-    await page.waitForSelector('text=/Em breve.*programação/', { timeout: 4000 })
-    assert(true, '"Guia completo" mostra o aviso "Em breve", sem navegar nem abrir o player')
+    // Feature 031: "Guia completo" deixou de ser mock — abre o guia em tela cheia.
+    await page.waitForSelector('.epg-guide', { timeout: 4000 })
+    assert((await page.locator('text=/Em breve/').count()) === 0, '"Guia completo" não mostra mais aviso "Em breve"')
     assert((await page.locator('[role="dialog"]').count()) === 0, '"Guia completo" nunca abre o player')
+    await page.keyboard.press('Escape') // RETURN fecha o guia e devolve o foco ao canal de origem
+    await page.waitForSelector('.epg-guide', { state: 'detached', timeout: 4000 })
+    await page.waitForSelector('.live-channel-row.tv-focus', { timeout: 4000 })
+    assert(
+      (await page.locator('.live-channel-row.tv-focus').textContent())?.includes('Globo Esportes'),
+      'RETURN do guia volta ao mesmo canal de origem',
+    )
 
+    await page.keyboard.press('ArrowRight') // canal -> preview
+    await page.waitForSelector('.live-preview-action.tv-focus', { timeout: 4000 })
     await page.keyboard.press('ArrowLeft') // preview -> o MESMO canal
     await page.waitForSelector('.live-channel-row.tv-focus', { timeout: 4000 })
     assert(

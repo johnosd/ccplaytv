@@ -35,16 +35,29 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
 **TV ao vivo e EPG**
 - Canais organizados pelos grupos definidos na própria lista, com
   pesquisa e reprodução.
-- *A avaliar:* guia de programação (EPG) via XMLTV, com timeline "ao vivo"
-  e grade multi-canal; TV archive/catch-up/timeshift; seleção de canal por
-  número.
+- Programa atual ("Agora") com barra de progresso na lista de canais, e
+  "A seguir" com sinopse no preview, na faixa do player e nos canais
+  favoritos da Home, a partir de EPG em XMLTV (do painel Xtream, do
+  `url-tvg` da lista M3U ou de um endereço informado, com deslocamento de
+  horário e sincronização por lista em Configurações; feature 030 — ainda
+  sem passada na TV física).
+- Guia completo em tela cheia (grade canais × programas, Hoje/Amanhã, CH±,\n  seletor de lista), aberto do preview da Live TV ou do player sem parar o\n  canal (feature 031 — ainda sem passada na TV física).\n- *A avaliar:* TV archive/catch-up/timeshift;
+  multi-canal (feature 031, especificada); TV archive/catch-up/timeshift;
+  seleção de canal por número.
 
 **Descoberta e metadados**
 - Pesquisa nos três tipos de conteúdo (canais, filmes, séries).
-- Enriquecimento por TMDB (opcional, com chave própria do usuário):
-  sinopse, capas e trailers para filmes e séries.
-- *A avaliar:* elenco e equipe técnica, páginas de ator navegáveis, trilha
-  "Similares" e rail de tendências num dashboard.
+- Detalhe de filme e série com backdrop, sinopse (truncada, com "Ver mais"),
+  gênero, duração, direção, país e elenco em texto (aba Elenco), buscados
+  **só ao abrir o detalhe** — o que o provedor da lista já informa vem
+  primeiro, e a sinopse do episódio focado aparece quando o provedor a manda
+  (feature 032, verificada na TV física).
+- Enriquecimento por TMDB (opcional, com chave própria do usuário, digitada
+  em Configurações › Integrações & BYOK): completa só o que o provedor deixou
+  vazio, com o selo "Dados: TMDB"; um título só é casado quando o casamento é
+  inequívoco (id do provedor, ou título + ano com um único candidato).
+- *A avaliar:* trailers, equipe técnica além da direção, páginas de ator
+  navegáveis, trilha "Similares" e rail de tendências num dashboard.
 - Recomendações a partir de filmes marcados como "Gostei"; ordenação por
   nota IMDb (fonte/licença dos dados ainda não definida).
 

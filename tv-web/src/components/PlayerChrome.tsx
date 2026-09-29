@@ -106,7 +106,19 @@ export function PlayerChrome({
           <span className="player-chrome-live-badge">AO VIVO</span>
           {identity.channelNumber != null && <span className="player-chrome-number">{identity.channelNumber}</span>}
           <PosterArt url={identity.logoUrl ?? undefined} title={identity.title} variant="logo" />
-          <span className="player-chrome-name">{identity.title}</span>
+          <div className="player-chrome-band-text">
+            <span className="player-chrome-name">{identity.title}</span>
+            {identity.now && (
+              // Feature 030 (FR-026): programa atual + progresso real. Sem
+              // `<button>` — a banda continua sem nenhum controle focável.
+              <div className="player-chrome-now">
+                <span className="player-chrome-now-title">{identity.now.title}</span>
+                <div className="player-chrome-now-progress" aria-hidden="true">
+                  <div className="player-chrome-now-progress-fill" style={{ transform: `scaleX(${identity.now.progress})` }} />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="player-chrome-identity">

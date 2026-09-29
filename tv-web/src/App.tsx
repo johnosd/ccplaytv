@@ -20,10 +20,13 @@ import { MovieDetailScreen } from './features/movies/MovieDetailScreen'
 import { SeriesScreen } from './features/series/SeriesScreen'
 import { SeriesDetailScreen } from './features/series/SeriesDetailScreen'
 import { SettingsScreen } from './features/settings/SettingsScreen'
+import { EpgSettingsScreen } from './features/settings/EpgSettingsScreen'
+import { TmdbKeyScreen } from './features/settings/TmdbKeyScreen'
 import { SearchScreen } from './features/search/SearchScreen'
 import { FAVORITES_SNAPSHOT } from './features/catalog/categoryScreenSnapshot'
 import { registerFavoriteColorKey } from './lib/tizenColorKey'
 import { registerMediaKeys } from './lib/tizenMediaKeys'
+import { onEpgSyncFinished } from './lib/epg/epgRunner'
 import { appNavReducer, initialAppNav, type AppScreen, type TopDestination } from './navigation/appNav'
 import { readLastSourceId, writeLastSourceId } from './navigation/lastSource'
 
@@ -71,6 +74,19 @@ function App() {
   // cada poll, não só na virada pra terminal) — sem precisar de outro
   // setState dentro do efeito pra "desarmar" o acompanhamento.
   const reconciledJobRef = useRef<string | null>(null)
+
+  // Feature 030 (D-009): uma sincronização de EPG terminou, com sucesso ou
+  // não — a programação e/ou o estado da fonte mudaram. Fica na raiz pelo
+  // mesmo motivo da atualização por idade acima: pode terminar depois de a
+  // pessoa já ter navegado para outra tela.
+  useEffect(
+    () =>
+      onEpgSyncFinished(() => {
+        void queryClient.invalidateQueries({ queryKey: ['epg'] })
+        void queryClient.invalidateQueries({ queryKey: ['sources'] })
+      }),
+    [queryClient],
+  )
 
   // Observador ativo da lista de fontes na raiz: mantém `['sources']` vivo
   // durante a sessão e dá ao Início a versão mais nova da fonte ativa (o
@@ -195,6 +211,12 @@ function App() {
         />
       )
 
+    case 'epg-settings':
+      return <EpgSettingsScreen sourceId={screen.source.id} onBack={goBack} />
+
+    case 'tmdb-key':
+      return <TmdbKeyScreen onSaved={goBack} onBack={goBack} />
+
     case 'progress':
       return (
         <ImportProgressScreen
@@ -235,6 +257,13 @@ function App() {
           onOpenFavorites={(destination, from) =>
             dispatch({ type: 'open', screen: openFavoritesScreen(destination), from: { name: 'home', focus: from } })
           }
+          onOpenIntegrations={(from) =>
+            dispatch({
+              type: 'open',
+              screen: { name: 'settings', restore: { zone: 'panel', tab: 'integrations' } },
+              from: { name: 'home', focus: from },
+            })
+          }
           onOpenSearch={(from) => dispatch({ type: 'open', screen: { name: 'search' }, from: { name: 'home', focus: from } })}
           onOpenSettings={(from) =>
             dispatch({ type: 'open', screen: { name: 'settings' }, from: { name: 'home', focus: from } })
@@ -252,6 +281,11 @@ function App() {
           initialTopbarItem={screen.topbarFocus}
           onBack={goBack}
           onResync={() => resyncFromCategoryScreen(source.id)}
+          // Guia completo sem programação (feature 031, FR-013): leva à tela de
+          // EPG da lista (feature 030). RETURN de lá volta à Live TV.
+          onOpenEpgSettings={() =>
+            dispatch({ type: 'open', screen: { name: 'epg-settings', source }, from: { name: 'live' } })
+          }
           shell={{
             sourceName: source.display_name,
             // "Início" na topbar leva ao Início mais próximo da pilha, nunca
@@ -367,6 +401,20 @@ function App() {
             dispatch({
               type: 'open',
               screen: { name: 'progress', jobId },
+              from: { name: 'settings', restore: from, standalone: screen.standalone },
+            })
+          }
+          onOpenEpg={(sourceToOpen, from) =>
+            dispatch({
+              type: 'open',
+              screen: { name: 'epg-settings', source: sourceToOpen },
+              from: { name: 'settings', restore: from, standalone: screen.standalone },
+            })
+          }
+          onOpenTmdbKey={(from) =>
+            dispatch({
+              type: 'open',
+              screen: { name: 'tmdb-key' },
               from: { name: 'settings', restore: from, standalone: screen.standalone },
             })
           }

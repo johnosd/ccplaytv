@@ -67,6 +67,7 @@ import {
   type MappedChannel,
 } from './xtreamConnector'
 import { createSeriesGrouper } from './m3uSeriesGrouping'
+import { firstEpgUrl } from '../epg/epgStatus'
 import { parsePanelUrl, type PanelCredential } from './m3uPanelUrl'
 
 /**
@@ -303,6 +304,9 @@ export async function startImport(
   let mode: ProviderImportMode | undefined
   let allowedFormats: string[] | undefined
   let limitedReason: LimitedReason | undefined
+  // Feature 030: `url-tvg`/`x-tvg-url` do cabeçalho M3U; ausente quando a
+  // fonte segue o protocolo Xtream (o painel já tem o próprio XMLTV).
+  let epgDeclaredUrl: string | undefined
 
   async function persist(): Promise<void> {
     run.heartbeatAt = now()
@@ -418,6 +422,9 @@ export async function startImport(
           directUrl: keepUrl ? channel.url : undefined,
           // Feature 015/024: capa/logo declarado pela fonte (também canal desde a 024 — classifyEntry preenche).
           iconUrl: channel.iconUrl,
+          // Feature 030: id de EPG (`tvg-id`) só no canal, também depois de o
+          // Modo limitado refinar o tipo pela URL (FR-006/FR-008).
+          epgChannelId: channel.kind === 'channel' ? channel.epgChannelId : undefined,
           // Feature 025: ano/inclusão declarados pela fonte (ausentes no caminho M3U).
           year: channel.year,
           addedAt: channel.addedAt,
@@ -498,6 +505,10 @@ export async function startImport(
         }
       }
       run.invalidCount = tally.invalidCount
+      // Feature 030 (FR-001): EPG declarado pelo cabeçalho da lista. Vai só
+      // para `markSynced` — nunca para `run`, progresso ou log (ADR-010).
+      const header = tally.headerAttributes
+      epgDeclaredUrl = firstEpgUrl(header?.['url-tvg'] || header?.['x-tvg-url'])
       if (!sawAny) throw new EmptyPlaylistError()
 
       await flush()
@@ -709,7 +720,8 @@ export async function startImport(
       limitedReason,
       allowedFormats,
       truncatedByStorage: run.truncatedByStorage,
-      discardedByType: run.discardedByType
+      discardedByType: run.discardedByType,
+      epgDeclaredUrl,
     }, database)
 
     run.status = 'completed'

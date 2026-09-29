@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { HomeContent, type HomeContentProps } from './HomeContent'
 import { AnnouncerContext } from '../../lib/announcer'
 import { db } from '../../lib/catalog/db'
+import { writeEpgPrograms } from '../../lib/epg/epgRepository'
 import { buildStableId, toggleFavorite, updateProgress } from '../../lib/catalog/userStateRepository'
 import { findUnnamedControls } from '../../testing/accessibleNames'
 
@@ -364,9 +365,65 @@ describe('HomeContent — mocks anunciam "Em breve" (FR-016)', () => {
     press('Enter')
     expect(await announced()).toContain('Em breve —')
 
-    press('ArrowDown') // ai -> dock
+    press('ArrowDown') // ai -> dock (1º ícone = TMDB, real desde a feature 032)
+    press('ArrowRight') // 2º ícone = Assistente de IA, ainda mock
     press('Enter')
     expect(await announced()).toContain('Em breve —')
+  })
+})
+
+describe('HomeContent — ícone TMDB do dock (feature 032, FR-016)', () => {
+  async function focusDock() {
+    await waitFor(() => expect(screen.getByText('Curadoria IA')).toBeInTheDocument())
+    press('ArrowDown') // hero -> ai
+    press('ArrowDown') // ai -> dock (1º ícone)
+  }
+
+  it('sem chave: nome acessível "não configurado", sem aria-disabled; OK abre Integrações com o foco de origem', async () => {
+    await seedSource()
+    const { props } = renderHome({ onOpenIntegrations: vi.fn() })
+    await focusDock()
+
+    const tmdb = await screen.findByRole('button', { name: 'TMDB — não configurado' })
+    expect(tmdb).toHaveClass('tv-focus')
+    expect(tmdb).not.toHaveAttribute('aria-disabled')
+    expect(tmdb).toHaveAttribute('data-state', 'not_configured')
+
+    press('Enter')
+    expect(props.onOpenIntegrations).toHaveBeenCalledWith({ zone: 'dock', service: 'dock-tmdb' })
+  })
+
+  it('com chave guardada o ícone mostra "conectado" — só a leitura local, sem rede', async () => {
+    await seedSource()
+    await db.integrations.put({ id: 'tmdb', key: '0123456789abcdef0123456789abcdef', format: 'v3', state: 'connected', lastTestedAt: 1 })
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    try {
+      renderHome({ onOpenIntegrations: vi.fn() })
+      expect(await screen.findByRole('button', { name: 'TMDB — conectado' })).toHaveAttribute('data-state', 'connected')
+      expect(fetchSpy).not.toHaveBeenCalled()
+      // A chave nunca chega ao DOM.
+      expect(document.body.innerHTML).not.toContain('0123456789abcdef0123456789abcdef')
+    } finally {
+      fetchSpy.mockRestore()
+      await db.integrations.clear()
+    }
+  })
+
+  it('sem o callback (contratos antigos), OK só anuncia o estado e não quebra', async () => {
+    await seedSource()
+    renderHome()
+    await focusDock()
+    press('Enter')
+    expect(await announced()).toContain('TMDB — não configurado')
+  })
+
+  it('os outros três ícones continuam "Em breve" e soft disabled', async () => {
+    await seedSource()
+    renderHome()
+    await screen.findByRole('group', { name: 'Serviços' })
+    for (const name of ['Assistente de IA', 'Clima', 'Teste de velocidade']) {
+      expect(screen.getByRole('button', { name })).toHaveAttribute('aria-disabled', 'true')
+    }
   })
 })
 
@@ -397,5 +454,47 @@ describe('HomeContent — restauração de initialFocus por id (FR-017/FR-029)',
       const focused = document.querySelector('.home-row .tv-focus')
       expect(focused?.closest('.content-card')?.querySelector('.content-card-title')?.textContent).toBe('Alfa')
     })
+  })
+})
+
+// Feature 030, US4 (FR-027): programa atual nos cards de "Canais favoritos".
+describe('HomeContent — EPG na rail "Canais favoritos" (feature 030)', () => {
+  afterEach(async () => {
+    await db.epgPrograms.clear()
+  })
+
+  async function seedChannelWithEpg(name: string, streamId: string, epgId: string | undefined): Promise<void> {
+    const id = await seedChannel(name, streamId)
+    if (epgId) await db.channels.update(id, { epgChannelId: epgId })
+    await favoriteChannel(streamId, 50)
+  }
+
+  it('mostra o título do programa atual só nos canais com EPG; os demais ficam como eram', async () => {
+    await seedSource()
+    await seedChannelWithEpg('Globo', 'c1', 'globo.br')
+    await seedChannelWithEpg('Sem Guia', 'c2', undefined)
+    const now = Date.now()
+    await writeEpgPrograms(SOURCE_ID, [
+      { channelKey: 'globo.br', start: now - 30 * 60_000, end: now + 30 * 60_000, title: 'Jornal Nacional' },
+      { channelKey: 'globo.br', start: now + 30 * 60_000, end: now + 90 * 60_000, title: 'Novela das Nove' },
+    ])
+    renderHome()
+
+    await waitFor(() => expect(screen.getByText('Jornal Nacional')).toBeInTheDocument())
+    const rowOf = (name: string) =>
+      [...document.querySelectorAll('.home-row .channel-row')].find((row) => row.querySelector('.channel-row-name')?.textContent === name)
+    expect(rowOf('Globo')?.querySelector('.channel-row-now')?.textContent).toBe('Jornal Nacional')
+    expect(rowOf('Sem Guia')?.querySelector('.channel-row-now')?.textContent).toBe('')
+    // FR-027: só o título — o "A seguir" não entra no card.
+    expect(screen.queryByText('Novela das Nove')).not.toBeInTheDocument()
+  })
+
+  it('sem programação guardada, os cards ficam exatamente como eram', async () => {
+    await seedSource()
+    await seedChannelWithEpg('Globo', 'c1', 'globo.br')
+    renderHome()
+
+    await waitFor(() => expect(screen.getByText('Globo')).toBeInTheDocument())
+    expect(document.querySelector('.home-row .channel-row-now')?.textContent).toBe('')
   })
 })

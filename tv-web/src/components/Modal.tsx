@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useRemoteNav } from '../lib/useRemoteNav'
 import type { RemoteDirection } from '../lib/useRemoteNav'
@@ -27,7 +27,13 @@ export function Modal({ onDirection, onSelect, onBack, ariaLabel, children }: Mo
   const idRef = useRef<symbol>(Symbol('modal'))
   const [isActive, setIsActive] = useState(false)
 
-  useEffect(() => {
+  // `useLayoutEffect` (não `useEffect`): o `setIsActive` daqui força um
+  // re-render síncrono ANTES do paint, e o React descarrega os efeitos
+  // passivos (o registro do listener em captura de `useRemoteNav`) no fim
+  // desse mesmo commit. Com `useEffect`, o diálogo já aparecia no DOM com o
+  // listener ainda inerte (bubble, sem handlers): uma tecla nessa janela
+  // vazava pra tela de baixo (corrida achada no E2E de Configurações).
+  useLayoutEffect(() => {
     const id = idRef.current
     if (activeModalId === null) {
       activeModalId = id

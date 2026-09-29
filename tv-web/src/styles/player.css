@@ -193,6 +193,40 @@
   color: var(--text-primary);
 }
 
+/* Programa atual do canal na faixa (feature 030, FR-026). Sem `now`, o
+   invólucro tem um filho só — a faixa fica como era. */
+.player-chrome-band-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.player-chrome-now {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 560px;
+}
+
+.player-chrome-now-title {
+  font: 500 20px var(--font-body);
+  color: var(--text-secondary);
+}
+
+.player-chrome-now-progress {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-field-active);
+  overflow: hidden;
+}
+
+.player-chrome-now-progress-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  background: var(--accent);
+}
+
 /* ---------- Timeline (VOD apenas, FR-008) ---------- */
 
 .player-chrome-time {

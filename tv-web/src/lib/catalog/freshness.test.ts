@@ -13,6 +13,7 @@ describe('freshness / decideOnOpen', () => {
       displayName: 'Test',
       connectionState: 'synced',
       lastSuccessfulSyncAt: now - (STALE_AFTER_MS - 1000), // less than 24h ago
+      epgIdsCapturedAt: 1, // já capturou o id de EPG (feature 030)
       createdAt: now - STALE_AFTER_MS,
       updatedAt: now,
     }
@@ -27,6 +28,7 @@ describe('freshness / decideOnOpen', () => {
       displayName: 'Test',
       connectionState: 'synced',
       lastSuccessfulSyncAt: now - (STALE_AFTER_MS + 1000), // more than 24h ago
+      epgIdsCapturedAt: 1,
       createdAt: now - STALE_AFTER_MS * 2,
       updatedAt: now,
     }
@@ -55,6 +57,36 @@ describe('freshness / decideOnOpen', () => {
       displayName: 'Test',
       connectionState: 'synced',
       lastSuccessfulSyncAt: now + 10000, // Sincronizou no futuro (relógio estava adiantado)
+      epgIdsCapturedAt: 1,
+      createdAt: now - 10000,
+      updatedAt: now,
+    }
+    expect(decideOnOpen(source, now)).toBe('none')
+  })
+
+  // Feature 030 (D-007/FR-007): canais gravados antes do EPG não têm o id de EPG.
+  it('dispara migrate para fonte sincronizada sem epgIdsCapturedAt (migração única do EPG)', () => {
+    const now = 1000000000
+    const source: SourceRecord = {
+      id: 'src-1',
+      type: 'm3u_url',
+      displayName: 'Test',
+      connectionState: 'synced',
+      lastSuccessfulSyncAt: now - 1000,
+      createdAt: now - 10000,
+      updatedAt: now,
+    }
+    expect(decideOnOpen(source, now)).toBe('migrate')
+    expect(decideOnOpen({ ...source, epgIdsCapturedAt: now - 500 }, now)).toBe('none')
+  })
+
+  it('a migração do EPG não vale para fonte que nunca sincronizou', () => {
+    const now = 1000000000
+    const source: SourceRecord = {
+      id: 'src-1',
+      type: 'm3u_url',
+      displayName: 'Test',
+      connectionState: 'never_synced',
       createdAt: now - 10000,
       updatedAt: now,
     }

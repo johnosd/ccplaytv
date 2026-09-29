@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-28
 
-**Status**: Planejada
+**Status**: Convergida
 
 **Input**: Item 42 do backlog, incrementos 42a e 42b — entrega #4 da tabela
 "Próximas entregas": "EPG: dados + 'Agora' na Live TV e no player". 42a —

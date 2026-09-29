@@ -18,34 +18,27 @@ export interface ComingSoonEntry {
 export const COMING_SOON: Record<string, ComingSoonEntry> = {
   // Onboarding de lista (feature 023, FR-035).
   'pair-phone': { message: 'Conectar a lista pelo celular, com QR code.', backlogItem: 22 },
-  // Preview da Live TV (feature 024, FR-017) — "Guia completo".
-  'epg-guide': { message: 'Guia de programação completo dos canais.', backlogItem: 42 },
   // Detalhe de filme/série (feature 025, D-011, FR-043).
   trailer: { message: 'Trailer do filme ou da série.', backlogItem: 32 },
-  cast: { message: 'Elenco e equipe técnica.', backlogItem: 45 },
   similar: { message: 'Títulos semelhantes a este.', backlogItem: 45 },
   // Home definitiva (feature 026, FR-016).
   'home-ai-curation': { message: 'Sugestões de conteúdo por IA, com base no que você assiste.', backlogItem: 30 },
-  'dock-tmdb': { message: 'Detalhes e sinopses do TMDB direto no dock.', backlogItem: 28 },
   'dock-ai': { message: 'Assistente de IA para perguntas sobre o catálogo.', backlogItem: 31 },
   'dock-weather': { message: 'Previsão do tempo no dock de serviços.', backlogItem: 54 },
   'dock-speedtest': { message: 'Teste de velocidade da sua conexão.', backlogItem: 54 },
   // Busca global (feature 026, FR-043).
   'voice-search': { message: 'Busca por voz.', backlogItem: 33 },
-  // Configurações (feature 026, FR-031).
-  'settings-integrations': {
-    message: 'Integrações com serviços externos e chaves próprias (BYOK).',
-    backlogItem: 54,
-  },
+  // Configurações (feature 026, FR-031). `settings-integrations` deixou de ser
+  // mock na feature 032 (item 28: aba real Integrações & BYOK); `dock-tmdb`
+  // também (ícone TMDB do dock com estado real).
   'settings-player': { message: 'Preferências de qualidade e trilhas do player.', backlogItem: 55 },
   'settings-parental': { message: 'Perfis de pessoa e controle parental.', backlogItem: 52 },
-  'settings-epg': { message: 'Guia de programação (EPG) por lista.', backlogItem: 42 },
   'a11y-voice-guide': { message: 'Narração de tela (Voice Guide).', backlogItem: 56 },
   'a11y-high-contrast': { message: 'Modo de alto contraste.', backlogItem: 56 },
   'a11y-subtitles': { message: 'Aparência das legendas.', backlogItem: 56 },
   // Chrome do player (feature 027, D-014) — Qualidade/Velocidade/Aspecto,
-  // canal e VOD. Guia reusa 'epg-guide' (item 42). Áudio e legendas e Info
-  // do stream deixaram de ser mock na feature 029 (item 55a).
+  // canal e VOD. Áudio e legendas e Info do stream deixaram de ser mock na
+  // feature 029 (item 55a); o Guia completo, na 031 (item 42c).
   'player-quality': { message: 'Seleção manual de qualidade do stream.', backlogItem: 55 },
   'player-speed': { message: 'Velocidade de reprodução.', backlogItem: 55 },
   'player-aspect': { message: 'Proporção de tela do vídeo.', backlogItem: 55 },

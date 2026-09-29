@@ -12,10 +12,14 @@ import { SideCategoryNav, type SideCategoryNavEntry } from '../../components/Sid
 import { DeleteSourceModal } from '../sources/DeleteSourceModal'
 import { getComingSoon } from '../../lib/comingSoon'
 import { applyMotionPreference, readReducedMotionPreference, writeReducedMotionPreference } from '../../lib/motionPreference'
+import { useRemoveTmdbKey, useTestTmdbKey, useTmdbStatus } from '../catalog/catalogApi'
 import { ADD_SOURCE_ID, SourcesPanel, SOURCES_ACTION_COUNT } from './SourcesPanel'
 import { AccessibilityPanel, ACCESSIBILITY_ROW_COUNT } from './AccessibilityPanel'
 import { AboutPanel } from './AboutPanel'
 import { ComingSoonPanel } from './ComingSoonPanel'
+import { IntegrationsPanel } from './IntegrationsPanel'
+import { RemoveTmdbKeyModal } from './RemoveTmdbKeyModal'
+import { INTEGRATION_SOON_CARDS, INTEGRATIONS_ROW_COUNT, TMDB_STATE_LABEL, tmdbActions } from './integrationsModel'
 
 /** Abas na ordem do DS (FR-022). `sources` é a inicial. */
 export type SettingsTab = 'integrations' | 'sources' | 'player' | 'accessibility' | 'parental' | 'about'
@@ -53,6 +57,18 @@ export interface SettingsScreenProps {
   onAddSource: (from: SettingsFocus) => void
   onEditSource: (source: SourceOut, from: SettingsFocus) => void
   onResyncStarted: (jobId: string, from: SettingsFocus) => void
+  /**
+   * Botão "EPG" da linha da lista (feature 030, US2) — abre a tela de EPG.
+   * Opcional só porque o contrato travado da 026 monta esta tela sem ele;
+   * ausente, o botão não faz nada (nunca volta a ser o toast "Em breve").
+   */
+  onOpenEpg?: (source: SourceOut, from: SettingsFocus) => void
+  /**
+   * "Configurar"/"Editar" do card do TMDB (feature 032, US2) — abre a tela da
+   * chave. Opcional só porque os contratos travados das features 026/028
+   * montam esta tela sem ele; ausente, o botão não faz nada.
+   */
+  onOpenTmdbKey?: (from: SettingsFocus) => void
   /** Depois de a exclusão confirmada terminar — o App despacha `source-removed` (FR-028). */
   onSourceDeleted: (sourceId: string) => void
   /** RETURN na base da tela (FR-033/FR-034). */
@@ -95,6 +111,8 @@ export function SettingsScreen({
   onAddSource,
   onEditSource,
   onResyncStarted,
+  onOpenEpg,
+  onOpenTmdbKey,
   onSourceDeleted,
   onBack,
 }: SettingsScreenProps): ReactNode {
@@ -120,6 +138,16 @@ export function SettingsScreen({
   const [reducedMotion, setReducedMotion] = useState(() => readReducedMotionPreference())
   const [confirmDelete, setConfirmDelete] = useState<SourceOut | null>(null)
 
+  // Integrações & BYOK (feature 032): linha 0 = card do TMDB (colunas = ações), demais = "Em breve".
+  const [integrationsRow, setIntegrationsRow] = useState(0)
+  const [integrationsCol, setIntegrationsCol] = useState(0)
+  const [confirmRemoveTmdb, setConfirmRemoveTmdb] = useState(false)
+  const tmdbStatusQuery = useTmdbStatus()
+  const testTmdbKey = useTestTmdbKey()
+  const removeTmdbKey = useRemoveTmdbKey()
+  const tmdbActionList = tmdbActions(tmdbStatusQuery.data)
+  const effectiveIntegrationsCol = clamp(integrationsCol, 0, tmdbActionList.length - 1)
+
   const { toastMessage, toastKey, showToast } = useToast()
   const resyncSource = useResyncSource()
   const deleteSource = useDeleteSource()
@@ -137,6 +165,10 @@ export function SettingsScreen({
       setSourcesCol(0)
     }
     if (tab === 'accessibility') setAccessibilityRow(0)
+    if (tab === 'integrations') {
+      setIntegrationsRow(0)
+      setIntegrationsCol(0)
+    }
   }
 
   function exitToTabs() {
@@ -164,6 +196,43 @@ export function SettingsScreen({
       return
     }
     showToast(`Em breve — ${getComingSoon(A11Y_MOCK_IDS[row - 1]).message}`)
+  }
+
+  /** Mesmo caminho para o teclado (foco corrente) e o clique de mouse (linha/coluna do evento). */
+  function activateIntegrations(row: number, col: number) {
+    setIntegrationsRow(row)
+    setIntegrationsCol(col)
+    if (row > 0) {
+      showToast(`Em breve — ${getComingSoon(INTEGRATION_SOON_CARDS[row - 1].id).message}`)
+      return
+    }
+    const action = tmdbActionList[col]
+    if (action === 'configure' || action === 'edit') {
+      onOpenTmdbKey?.({ zone: 'panel', tab: 'integrations' })
+      return
+    }
+    if (action === 'test') {
+      if (testTmdbKey.isPending) return
+      showToast('Testando a chave…')
+      testTmdbKey.mutate(undefined, {
+        onSuccess: (status) => showToast(TMDB_STATE_LABEL[status.state]),
+        onError: () => showToast(TMDB_STATE_LABEL.offline),
+      })
+      return
+    }
+    if (action === 'remove') setConfirmRemoveTmdb(true)
+  }
+
+  function confirmTmdbRemoval() {
+    setConfirmRemoveTmdb(false)
+    removeTmdbKey.mutate(undefined, {
+      onSuccess: () => {
+        // Sem chave só resta "Configurar": a coluna volta ao começo.
+        setIntegrationsCol(0)
+        showToast('Chave do TMDB removida.')
+      },
+      onError: () => showToast('Não foi possível remover a chave.'),
+    })
   }
 
   function confirmSourceDeletion() {
@@ -210,7 +279,8 @@ export function SettingsScreen({
       setConfirmDelete(source)
       return
     }
-    showToast(`Em breve — ${getComingSoon('settings-epg').message}`)
+    // col === 3: EPG da lista (feature 030) — tela própria, sem toast.
+    onOpenEpg?.(source, from)
   }
 
   useRemoteNav({
@@ -270,6 +340,24 @@ export function SettingsScreen({
         }
         return
       }
+      if (activeTab === 'integrations') {
+        if (direction === 'left') {
+          if (integrationsRow === 0 && effectiveIntegrationsCol > 0) setIntegrationsCol(effectiveIntegrationsCol - 1)
+          else exitToTabs()
+          return
+        }
+        if (direction === 'right') {
+          if (integrationsRow === 0) setIntegrationsCol(clamp(effectiveIntegrationsCol + 1, 0, tmdbActionList.length - 1))
+          return
+        }
+        if (direction === 'up') {
+          if (integrationsRow === 0) goToTopbar()
+          else setIntegrationsRow(integrationsRow - 1)
+          return
+        }
+        setIntegrationsRow(clamp(integrationsRow + 1, 0, INTEGRATIONS_ROW_COUNT - 1))
+        return
+      }
       // 'about' e abas mock: uma linha só.
       if (direction === 'left') exitToTabs()
       if (direction === 'up') goToTopbar()
@@ -286,6 +374,10 @@ export function SettingsScreen({
       }
       if (activeTab === 'accessibility') {
         activateAccessibilityRow(accessibilityRow)
+        return
+      }
+      if (activeTab === 'integrations') {
+        activateIntegrations(integrationsRow, effectiveIntegrationsCol)
         return
       }
       if (activeTab === 'about') return
@@ -323,7 +415,16 @@ export function SettingsScreen({
           />
         )}
         {activeTab === 'about' && <AboutPanel focused={zone === 'panel'} />}
-        {(activeTab === 'integrations' || activeTab === 'player' || activeTab === 'parental') && (
+        {activeTab === 'integrations' && (
+          <IntegrationsPanel
+            status={tmdbStatusQuery.data}
+            focusedRow={zone === 'panel' ? integrationsRow : undefined}
+            focusedCol={effectiveIntegrationsCol}
+            testing={testTmdbKey.isPending}
+            onActivate={activateIntegrations}
+          />
+        )}
+        {(activeTab === 'player' || activeTab === 'parental') && (
           <ComingSoonPanel tab={activeTab} focused={zone === 'panel'} onBack={exitToTabs} />
         )}
       </div>
@@ -362,6 +463,7 @@ export function SettingsScreen({
       {confirmDelete && (
         <DeleteSourceModal source={confirmDelete} onCancel={() => setConfirmDelete(null)} onConfirm={confirmSourceDeletion} />
       )}
+      {confirmRemoveTmdb && <RemoveTmdbKeyModal onCancel={() => setConfirmRemoveTmdb(false)} onConfirm={confirmTmdbRemoval} />}
       <Toast message={toastMessage} messageKey={toastKey} />
     </div>
   )

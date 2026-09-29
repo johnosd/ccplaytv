@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   db,
   type CategoryKind,
@@ -39,6 +39,51 @@ import { loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogS
 import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
 import { loadHomeHero, type HeroPrimary } from '../../lib/catalog/homeHero'
 import { loadGlobalSearchIndex, searchGlobal } from '../../lib/catalog/globalSearch'
+import { listProgramsForChannels } from '../../lib/epg/epgRepository'
+import type { EpgLookup } from '../../lib/epg/types'
+import { ensureTitleMetadata } from '../../lib/metadata/titleMetadata'
+import { getTmdbStatus, removeTmdbKey, saveTmdbKey, testTmdbKey } from '../../lib/metadata/tmdbKeyRepository'
+
+const EPG_READ_BEFORE_MS = 24 * 60 * 60 * 1000
+const EPG_READ_AFTER_MS = 48 * 60 * 60 * 1000
+const EPG_HOUR_MS = 60 * 60 * 1000
+
+/**
+ * Programação (feature 030) dos canais informados, lida **só do aparelho**
+ * (FR-029): nunca rede, portanto seguro de chamar ao focar/rolar. Recebe os
+ * ids de EPG (`epg_channel_id`) dos canais visíveis — repetidos e vazios são
+ * ignorados; sem nenhum, a consulta nem roda.
+ *
+ * O deslocamento manual da fonte vem junto: quem exibe aplica em
+ * `nowNextForChannel`. A leitura cobre `[agora − 24 h, agora + 48 h]` **já
+ * descontado o deslocamento**, para o que aparece deslocado caber (D-013).
+ * Uma sincronização que termina invalida `['epg']` (`App.tsx`).
+ */
+export function useEpgPrograms(sourceId: string | null, epgChannelIds: readonly (string | null | undefined)[]) {
+  const keys = useMemo(
+    () => [...new Set(epgChannelIds.filter((id): id is string => typeof id === 'string' && id !== ''))].sort(),
+    [epgChannelIds],
+  )
+  return useQuery({
+    queryKey: ['epg', sourceId, keys.join('\u0001')],
+    enabled: sourceId !== null && keys.length > 0,
+    staleTime: 5 * 60 * 1000,
+    // Digitar na busca por categoria troca o conjunto de canais a cada
+    // tecla; sem isto o "Agora" das linhas que continuam na tela piscaria.
+    placeholderData: keepPreviousData,
+    queryFn: async (): Promise<EpgLookup> => {
+      const now = Date.now()
+      const source = await db.sources.get(sourceId as string)
+      const offsetMs = (source?.epgOffsetHours ?? 0) * EPG_HOUR_MS
+      const byKey = await listProgramsForChannels(
+        sourceId as string,
+        keys,
+        { from: now - EPG_READ_BEFORE_MS - offsetMs, to: now + EPG_READ_AFTER_MS - offsetMs },
+      )
+      return { byKey, offsetMs }
+    },
+  })
+}
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
 
@@ -82,8 +127,7 @@ export interface CatalogItemOut {
   /**
    * Id de EPG que a fonte declara para o canal (feature 030, FR-006/FR-008):
    * `epg_channel_id` do Xtream, `tvg-id` do M3U. `null` = não declarado —
-   * canal sem EPG, nunca casado por nome. STUB do sdd-plan: `toItemOut`
-   * ainda não preenche (T005).
+   * canal sem EPG, nunca casado por nome.
    */
   epg_channel_id?: string | null
 }
@@ -181,6 +225,7 @@ function toItemOut(record: CatalogRecord, kind: CatalogItemKind): CatalogItemOut
     source_number: null,
     year: record.year ?? null,
     added_at: record.addedAt ?? null,
+    epg_channel_id: record.epgChannelId ?? null,
   }
 }
 
@@ -485,6 +530,82 @@ export function useCatalogItem(itemId: string | null) {
   })
 }
 
+/**
+ * Metadata descritiva de filme/série para o detalhe (feature 032, US1/US3).
+ * Só a tela de detalhe chama — abrir o detalhe é a ação explícita que
+ * autoriza a consulta externa (FR-002); nunca usar numa grade ou por foco.
+ * Não bloqueia a tela: quem usa renderiza sem `data` e completa quando
+ * chegar (FR-005).
+ */
+export function useTitleMetadata(itemId: string | null) {
+  const queryClient = useQueryClient()
+  return useQuery({
+    queryKey: ['title-metadata', itemId],
+    queryFn: async () => {
+      const view = await ensureTitleMetadata(Number(itemId))
+      // A consulta pode ter mudado o estado do TMDB (chave recusada, sem
+      // conexão, limite de uso — FR-024): Integrações e o dock releem, sem
+      // aviso no detalhe.
+      void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
+      return view
+    },
+    enabled: itemId !== null,
+  })
+}
+
+/**
+ * Estado do TMDB (feature 032, US2): lê **só o IndexedDB**, nunca a rede —
+ * seguro de chamar ao focar (o dock da Home o usa). Nunca carrega a chave
+ * inteira, só a mascarada (FR-013).
+ */
+export function useTmdbStatus() {
+  return useQuery({ queryKey: ['tmdb-status'], queryFn: () => getTmdbStatus() })
+}
+
+/** O estado do TMDB e a metadata já aberta dependem da chave: tudo é relido depois de mudá-la. */
+function invalidateTmdb(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
+  void queryClient.invalidateQueries({ queryKey: ['title-metadata'] })
+}
+
+/** Testa a chave contra o TMDB e só grava se aceita (FR-012). */
+export function useSaveTmdbKey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (rawKey: string) => saveTmdbKey(rawKey),
+    // A chave digitada é a `variables` da mutação: sem isto ela ficaria no
+    // cache de mutações (em memória) por minutos depois de gravada.
+    gcTime: 0,
+    onSuccess: () => invalidateTmdb(queryClient),
+  })
+}
+
+/** "Testar": refaz a autenticação com a chave guardada e atualiza o estado. */
+export function useTestTmdbKey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => testTmdbKey(),
+    onSuccess: () => invalidateTmdb(queryClient),
+  })
+}
+
+/**
+ * Remove a chave e a metadata que veio do TMDB (FR-014). O banco já foi
+ * limpo; aqui o cache em memória também é DESCARTADO (não só invalidado):
+ * invalidar deixaria a sinopse do TMDB aparecer por um instante na próxima
+ * abertura do detalhe, até a releitura terminar.
+ */
+export function useRemoveTmdbKey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => removeTmdbKey(),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ['title-metadata'] })
+      void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
+    },
+  })
+}
+
 export async function fetchPlayback(itemId: string): Promise<CatalogItemPlayback> {
   const id = Number(itemId)
   const record = await getChannel(id, db)
@@ -573,6 +694,8 @@ export interface EpisodeOut {
   icon_url?: string | null
   /** Duração declarada pela fonte, em segundos (feature 025) — denominador da barra de progresso. */
   duration_seconds?: number | null
+  /** Sinopse do episódio declarada pelo provedor (feature 032, FR-028). `null` = não declarada. */
+  synopsis?: string | null
 }
 
 function toEpisodeOut(record: CatalogRecord): EpisodeOut {
@@ -588,6 +711,7 @@ function toEpisodeOut(record: CatalogRecord): EpisodeOut {
     original_name: record.originalName,
     icon_url: record.iconUrl ?? null,
     duration_seconds: record.durationSeconds ?? null,
+    synopsis: record.synopsis ?? null,
   }
 }
 
@@ -603,6 +727,7 @@ export interface SeriesEpisodesContent {
  * `kind:'series'`, o mesmo que `useCatalogItem`/`fetchPlayback` recebem.
  */
 export function useSeriesEpisodes(seriesItemId: string | null) {
+  const queryClient = useQueryClient()
   return useQuery({
     queryKey: ['series-episodes', seriesItemId],
     queryFn: async (): Promise<SeriesEpisodesContent> => {
@@ -612,6 +737,13 @@ export function useSeriesEpisodes(seriesItemId: string | null) {
       if (!series || !series.seriesId) return { episodes: [], outcome: 'failed' }
 
       const result = await ensureSeriesEpisodes(id, { database: db })
+      // Feature 032 (D-009): a mesma resposta que trouxe os episódios gravou a
+      // metadata da série. `useTitleMetadata` não pergunta ao provedor enquanto
+      // os episódios ainda vão ser buscados (senão seriam duas requisições
+      // idênticas a cada série aberta) — então relê aqui, ao fim.
+      if (result.outcome === 'fetched') {
+        void queryClient.invalidateQueries({ queryKey: ['title-metadata', seriesItemId] })
+      }
       const records = await listEpisodes(series.sourceId, series.seriesId, db)
       return { episodes: records.map(toEpisodeOut), outcome: result.outcome }
     },

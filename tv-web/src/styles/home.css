@@ -183,3 +183,33 @@
   background: var(--bg-hover);
   color: var(--text-primary);
 }
+
+/* Ícone de serviço real (feature 032): um ponto de estado no canto. O estado
+   também está no `aria-label`/`title` — a cor nunca é o único sinal. */
+.home-dock-icon--service {
+  position: relative;
+}
+
+.home-dock-icon--service::after {
+  content: '';
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  width: var(--space-1);
+  height: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--text-disabled);
+}
+
+.home-dock-icon--service[data-state='connected']::after {
+  background: var(--success);
+}
+
+.home-dock-icon--service[data-state='refused']::after {
+  background: var(--danger);
+}
+
+.home-dock-icon--service[data-state='offline']::after,
+.home-dock-icon--service[data-state='rate_limited']::after {
+  background: var(--warning);
+}

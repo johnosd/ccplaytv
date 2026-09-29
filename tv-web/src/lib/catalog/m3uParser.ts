@@ -90,6 +90,12 @@ function parseAttributes(head: string): Record<string, string> {
 export interface ParseTally {
   /** Entradas com `#EXTINF` que não puderam virar item (ex.: sem URL). */
   invalidCount: number
+  /**
+   * Atributos da linha `#EXTM3U` (feature 030): `url-tvg`/`x-tvg-url` levam ao
+   * EPG da lista. Preenchido assim que o cabeçalho é lido; pode carregar
+   * credencial — quem usa trata como segredo (ADR-010).
+   */
+  headerAttributes?: Record<string, string>
 }
 
 /**
@@ -121,6 +127,7 @@ export async function* parseM3uLines(
         throw new InvalidPlaylistError('Conteúdo não começa com #EXTM3U.')
       }
       sawHeader = true
+      tally.headerAttributes = parseAttributes(line)
       continue
     }
 

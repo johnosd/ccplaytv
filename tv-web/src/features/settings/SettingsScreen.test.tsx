@@ -134,7 +134,7 @@ describe('SettingsScreen — nomes acessíveis (feature 028, FR-015/FR-017)', ()
     mockDelete()
     mockResync()
     renderSettings()
-    press('ArrowUp') // tabs: sources (1) -> integrations (0)
+    press('ArrowDown') // tabs: sources (1) -> player (2), ainda mock depois da feature 032
     press('ArrowRight') // entra no painel mock
     expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
   })
@@ -148,15 +148,17 @@ describe('SettingsScreen — aba mock "Em breve" (feature 028, FR-007)', () => {
     mockResync()
     renderSettings()
 
-    press('ArrowUp') // tabs: sources (1) -> integrations (0)
-    press('ArrowRight') // entra no painel "Integrações & BYOK" (mock)
+    // "Integrações & BYOK" era o mock usado aqui; virou real na feature 032 —
+    // "Player & reprodução" (item 55b) é um mock que continua.
+    press('ArrowDown') // tabs: sources (1) -> player (2)
+    press('ArrowRight') // entra no painel "Player & reprodução" (mock)
     expect(screen.getByText(/Em breve/)).toBeInTheDocument()
     const back = screen.getByRole('button', { name: 'Voltar às abas' })
     expect(back).toHaveClass('tv-focus')
 
     press('Enter')
     expect(screen.getByRole('button', { name: 'Voltar às abas' })).not.toHaveClass('tv-focus')
-    expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toContain('Integrações & BYOK')
+    expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toContain('Player & reprodução')
   })
 })
 
@@ -197,6 +199,23 @@ describe('SettingsScreen — Editar/Ressincronizar (US2, FR-026/FR-027)', () => 
     press('ArrowRight')
     press('Enter')
     expect(mutate).toHaveBeenCalledTimes(1)
+  })
+
+  // Feature 030 (US2, FR-016): o botão "EPG" deixou de ser o toast "Em breve".
+  it('OK em "EPG" abre a tela de EPG da lista, com o SettingsFocus de origem, e não avisa "Em breve"', () => {
+    mockSources([SALA])
+    mockDelete()
+    mockResync()
+    const props = renderSettings({ onOpenEpg: vi.fn() })
+
+    press('ArrowRight') // tabs -> panel, coluna 0
+    press('ArrowRight')
+    press('ArrowRight')
+    press('ArrowRight') // coluna 3 = EPG
+    press('Enter')
+
+    expect(props.onOpenEpg).toHaveBeenCalledWith(SALA, { zone: 'sources', sourceId: 'sala', action: 'epg' })
+    expect(screen.queryByText(/Em breve/)).not.toBeInTheDocument()
   })
 
   it('restaura o foco por sourceId (não pela posição)', () => {

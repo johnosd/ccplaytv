@@ -267,6 +267,15 @@ single-flight/descartar após desativar, migração `decideOnOpen`, tela de EPG
 
 | Área | Estado |
 | --- | --- |
+| Fase 1 (Setup) | Concluída — T002: `DecompressionStream` existe e funciona no Vitest/jsdom; nenhum polyfill nem injeção necessária. |
+| Fase 2 (Foundational) | Concluída — 4/4 contratos verdes, trava íntegra, 60 testes novos/ajustados verdes. |
+| Fase 3 (US1) | Concluída — 5/5 contratos verdes, `build:tizen` verde com `assets/epgWorker.js` listado, "Agora" + barra em toda linha de canal da Live TV. |
+| Fase 4 (US2) | Concluída — tela "EPG da lista" real, estado por lista, mock `settings-epg` removido; 157 testes da área verdes. |
+| Fase 5 (US3) | Concluída — preview com "Agora"/"A seguir"/sinopse; 8/8 testes de `LiveScreen.epg`. |
+| Fase 6 (US4) | Concluída — banda do player Live e rail "Canais favoritos" da Home com o programa atual. |
+| Fase 7 (Polish) | Concluída, salvo T045 — E2E fictício (no `test:e2e`) e com lista/EPG reais do `.env` verdes; suíte 1534/1537 (só os 3 flakes de favoritos, 27/27 isolados); `tsc`/lint/`build:tizen` limpos; revisão de segredos limpa; ADR-010 emendada; docs atualizadas. |
+| Gate físico | **Aberto, recomendado (não obrigatório)** — T045: `DecompressionStream` no Chromium 108 (R-007), Worker sem plano B (R-005), fluidez durante sync grande (SC-002/R-006), URL XMLTV externa do `.env` (R-001). Nada disso foi testado em TV. |
+| Quickstart | Passos 1–11 cobertos pelo E2E. **Cenários "offline" e "fonte antiga" só têm cobertura de unidade** (`decideOnOpen`, `importApi.epg.test.tsx`, leitura só do IndexedDB) — não foram rodados num navegador. |
 
 ## Riscos e Decisões
 
@@ -278,14 +287,18 @@ single-flight/descartar após desativar, migração `decideOnOpen`, tela de EPG
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
 | R-001 | URL XMLTV externa do `.env` (`CCPLAY_PROBE_EPG`) expirou a conexão a partir da máquina de desenvolvimento (research R3). | Caminho "endereço manual" sem prova com dado real. | E2E com fixture local; repetir com a URL real da rede de casa/TV (quickstart passo 9). "Não testado" nunca vira "aprovado". |
-| R-002 | FR-007 diz "categoria renovada na próxima entrada"; categorias `stored` antigas não têm de onde reler o `tvg-id` (research R6). | Mecanismo difere do texto da spec (resultado igual: nenhuma ação da pessoa). | D-007: migração única por ressincronização silenciosa ao abrir. Registrado aqui; sem reescrever a spec. |
-| R-003 | Vários canais compartilham o mesmo `epg_channel_id` (variantes HD/SD). | Nenhum — muitos→um é o comportamento correto. | Consulta por conjunto de chaves únicas; mesma programação em todas as variantes. |
-| R-004 | XMLTV real tem `<channel id="">`. | Chave vazia casaria canal sem id por engano. | Parser descarta `channel` vazio; canal sem id nunca consulta. |
-| R-005 | Worker novo pode fazer o Vite emitir chunk compartilhado extra (ex.: Dexie). | `build:tizen` recusa (guard `findUnlistedFiles`) — bom — mas precisa listar. | T021: listar tudo que o build emitir; nunca desligar o guard. |
+| R-002 | FR-007 diz "categoria renovada na próxima entrada"; categorias `stored` antigas não têm de onde reler o `tvg-id` (research R6). | Mecanismo difere do texto da spec (resultado igual: nenhuma ação da pessoa). | Resolvido: D-007: migração única por ressincronização silenciosa ao abrir. Registrado aqui; sem reescrever a spec. |
+| R-003 | Vários canais compartilham o mesmo `epg_channel_id` (variantes HD/SD). | Nenhum — muitos→um é o comportamento correto. | Resolvido: Consulta por conjunto de chaves únicas; mesma programação em todas as variantes. |
+| R-004 | XMLTV real tem `<channel id="">`. | Chave vazia casaria canal sem id por engano. | Resolvido: Parser descarta `channel` vazio; canal sem id nunca consulta. |
+| R-005 | Worker novo pode fazer o Vite emitir chunk compartilhado extra (ex.: Dexie). | `build:tizen` recusa (guard `findUnlistedFiles`) — bom — mas precisa listar. | Resolvido: T021: listar tudo que o build emitir; nunca desligar o guard. |
 | R-006 | Tamanho/tempo de XMLTV grande de terceiros não medido (o do painel tem 2,2 MB). | SC-002 pode falhar na TV com arquivo de dezenas de MB. | Leitura em fluxo + gravação em lotes; medir na passada física; descarte por quota é o item 51 do backlog. |
 | R-007 | `DecompressionStream` no Chromium 108 da TV não verificado no aparelho. | `.xml.gz` falharia só na TV. | Teste unitário do caminho gzip; conferir na passada física; falha vira `unreadable`/`not_xmltv` declarado, nunca silêncio. |
 | R-008 | CORS de hosts `url-tvg` de terceiros desconhecido (o painel real libera `*`). | Alguma lista M3U fica com `EPG-02 network`. | Erro declarado; backend congelado não é caminho (ADR-008). |
 | R-009 | Relógio da TV errado distorce "Agora". | Programa errado exibido. | Fora de escopo (spec, edge case); deslocamento manual ajuda em fuso. |
+| R-012 | **Bug pré-existente corrigido com aprovação explícita do usuário (fora do escopo da 030):** `Modal` ativava num `useEffect`, então uma tecla logo após o diálogo aparecer vazava para a tela de baixo — o `Enter` seguinte caía em "Cancelar". Aparecia como falha intermitente da exclusão em `e2e/home-busca-configuracoes.mjs` (feature 026): ~36% (5/14) no código pré-030, medido num worktree do `HEAD`. | Corrida de teclado em componente compartilhado, real também no controle remoto. | Resolvido: Corrigido por subagente: `useEffect` → `useLayoutEffect` em `Modal.tsx`, teste de regressão `Modal.teclas-na-montagem.test.tsx` (falha no código antigo). Verificado depois de forma independente: 7 travas íntegras (022/023/024/026/027/029/030), `tsc` limpo, `src/components/Modal*` 6/6; o passo de exclusão do E2E deu 0 falhas em 26 rodadas do subagente. |
+| R-013 | **Bug pré-existente NÃO corrigido**: o mesmo roteiro (`home-busca-configuracoes.mjs`) falha no passo "com progresso salvo, a ação primária do detalhe vira 'Continuar'" — ~19% (3/16) no código pré-030. O script lê `.vod-detail-action` logo após o player fechar, sem esperar a revalidação assíncrona do estado do usuário. | Roteiro E2E instável (e possivelmente uma corrida real de invalidação em `MovieDetailScreen`). | Aguardando decisão do usuário: registrar como `[Bug]` no backlog, ou corrigir. Não bloqueia a 030. |
+| R-011 | `EpgSettingsScreen` usa foco DOM real (`useTvKeyNav`, o molde da tela de edição de lista, com IME já provado na TV) e botões "− 1 h"/"+ 1 h" para o deslocamento, em vez da navegação por ←/→ custom sobre uma linha de estado que `logic/tela-epg-configuracoes.md` descrevia. A ordem de foco também mudou: "Sincronizar agora"/"Tentar novamente" vem primeiro (evita abrir o IME ao entrar). | Mesma cobertura de FR-016/FR-018/FR-021/FR-022, com menos código de foco e sem risco de ←/→ colidir com a edição de texto do campo. | Resolvido: Decisão de execução, 2026-09-29. `logic/tela-epg-configuracoes.md` continua válido no conteúdo (campos, mensagens, confirmação); só o mecanismo de foco difere. |
+| R-010 | `resolveEpgUrl(record)` (em `epgStatus.ts`) recebe só o `SourceRecord` e deriva a credencial do painel dele mesmo (`panelCredentialOf`), em vez de receber o resultado de `readCredential` como dizia `logic/sincronizacao-epg.md` §1. | Nenhum: mesma regra (provedor, ou `m3uUrl` em formato de painel via `parsePanelUrl`), sem chamada assíncrona extra; `epgStatusOf` precisa da mesma derivação de forma síncrona. | Resolvido: Decisão de execução, 2026-09-29. Comportamento coberto por `epgStatus.test.ts`. |
 
 ## Execution Notes
 
@@ -297,17 +310,56 @@ single-flight/descartar após desativar, migração `decideOnOpen`, tela de EPG
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-09-29 | Fases 1–2 (Setup + Foundational) | Schema v11, captura de id/`url-tvg`, `lib/epg/` completo (parser, nowNext, repositório, fetch/gzip, sync, Worker+runner), `SourceView.epg`, migração por `epgIdsCapturedAt`. 4/4 contratos verdes; 60 testes novos. | Fase 3: ligar gatilhos (importApi/App), pacote Tizen (`epgWorker.js`) e a linha de canal. |
+| 2026-09-29 | Fase 3 (US1) | Gatilhos de sincronização (importação concluída / abrir com EPG > 12 h), invalidação na raiz, `epgWorker.js` no pacote, `useNow`/`useEpgPrograms`/`nowNextForChannel`, "Agora" + barra na `ChannelRow` da Live TV. 5/5 contratos; 10 testes novos. | Flake `LiveScreen.favorites` sob paralelismo (passa isolado). |
+| 2026-09-29 | Fase 4 (US2) | Tela `EpgSettingsScreen` (foco DOM real + botões ±), estado do EPG na linha da lista, `onOpenEpg`, mutations/`useEpgSyncing` em `importApi`, mock `settings-epg` removido. 157/157 na área. | Nenhuma; R-011 registra o desvio de foco. |
+| 2026-09-29 | Fases 5–6 (US3 + US4) | Preview da Live TV com "Agora"/"A seguir"/sinopse (`formatEpgTime.ts`); `PlayerIdentity.now` + faixa do player Live; título do programa nos cards de canais favoritos da Home. 8+3+2 testes novos; 281/281 em `home`+`components`. | Banda→`LiveScreen` sem teste de unidade (E2E cobre). |
 
-**PRÓXIMO**: —
+| 2026-09-29 | Fase 7 (Polish) | E2E fictício e real, gates finais, revisão de segredos, ADR-010, docs. Achados: XMLTV do painel real só cobre 10 ids de canal; falha pré-existente do `Modal` (R-012, corrigida com aprovação) e do passo "Continuar" (R-013, aberta). | T045 (TV física, recomendada); decisão sobre R-013. |
+
+**PRÓXIMO**: T045 — passada na TV física (`tizen-tv`), recomendada, não gate; decisão do usuário sobre R-013; depois `sdd-converge`.
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- (nenhum ainda)
+- `tv-web/e2e/epg-dados-agora.mjs` e `tv-web/e2e/epg-dados-agora-real.mjs` (novos), `tv-web/package.json` (`test:e2e`)
+- Modelos: `tv-web/e2e/live-tv-ds-v14.mjs`, `tv-web/e2e/capa-real.mjs` (servidor fictício no próprio script)
+- Docs: `CLAUDE.md`, `.planning/backlog.md`, `.planning/migracao-design-system-v14.md`, `sdd/adr/ADR-010-*.md`
 
 ## Cuidados para Retomada
 
 <!-- Armadilhas operacionais específicas desta feature, anexadas conforme descobertas. -->
 
 - (nenhum ainda)
+
+## Resultado Final
+
+Convergida em 2026-09-29. Tudo o que a spec pede foi construído e verificado no
+navegador (unidade, contrato 5/5 travado e íntegro, E2E fictício e E2E com a lista
+e o EPG reais do `.env`); o que só a TV física prova ficou de fora e está declarado.
+
+**O que foi construído.** EPG por fonte em XMLTV: endereço resolvido na ordem manual →
+painel Xtream (`xmltv.php`, derivado da credencial na hora, nunca guardado) → `url-tvg`
+do cabeçalho M3U; download em fluxo num Worker próprio (`assets/epgWorker.js`, no
+`tizen_web_project.yaml`), gzip reconhecido pelo conteúdo; janela −12 h…+48 h numa
+tabela Dexie v11 (`epgPrograms`) substituída por geração; associação só por id exato
+(`epgChannelId`). "Agora"/barra em toda lista de canais da Live TV (inclusive zapping),
+"Agora"/"A seguir"/sinopse no preview, programa na faixa do player Live e na rail
+"Canais favoritos" da Home; tela "EPG da lista" real em Configurações; mock
+`settings-epg` removido; ADR-010 emendada.
+
+**Desvios do plano original (todos registrados).** R-002: FR-007 vira ressincronização
+única silenciosa (`epgIdsCapturedAt`), não "renovar a categoria" — resultado igual para a
+pessoa. R-010: `resolveEpgUrl(record)` deriva o painel do registro. R-011: tela de EPG com
+foco DOM real e botões ± 1 h, em vez de ←/→ customizado. R-012: correção do `Modal`
+(`useLayoutEffect`), bug pré-existente fora do escopo, com aprovação explícita e teste
+de regressão. Achado de dado real: o XMLTV do painel de referência só tem programação
+para 10 ids de canal na janela.
+
+**Continua aberto (não é bloqueio).** T045 — passada na TV física (recomendada, não gate):
+R-001 (URL XMLTV externa do `.env` deu timeout), R-006 (fluidez com XMLTV grande, SC-002),
+R-007 (`DecompressionStream` no Chromium 108), R-008 (CORS de `url-tvg` de terceiros),
+R-009 (relógio do aparelho). R-013 — passo "Continuar" do E2E da 026 (~19% de falha já
+no código pré-030), aguardando decisão do usuário. Cenários "offline" e "fonte antiga" do
+quickstart só têm cobertura de unidade.

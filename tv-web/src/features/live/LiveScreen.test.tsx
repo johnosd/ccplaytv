@@ -1366,7 +1366,8 @@ describe('LiveScreen', () => {
   })
 
   describe('preview do canal (feature 024, US2)', () => {
-    it('"Guia completo" mostra o toast "Em breve" e não navega nem abre o player', () => {
+    // Feature 031 (FR-011): "Guia completo" deixou de ser mock "Em breve" — abre o guia em tela cheia.
+    it('"Guia completo" abre o guia em tela cheia, sem aviso "Em breve" e sem abrir o player', () => {
       mockCategories([category(1, 'Esportes', 0)])
       mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
       renderLive()
@@ -1377,7 +1378,8 @@ describe('LiveScreen', () => {
       press('ArrowDown') // "Guia completo"
       press('Enter')
 
-      expect(screen.getByText(/Em breve — Guia de programação completo dos canais\./)).toBeInTheDocument()
+      expect(document.querySelector('.epg-guide')).not.toBeNull()
+      expect(screen.queryByText(/Em breve/)).not.toBeInTheDocument()
       expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })

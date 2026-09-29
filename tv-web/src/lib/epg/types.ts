@@ -7,6 +7,8 @@
  * mudar o deslocamento sem baixar de novo (FR-020).
  */
 
+import type { EpgErrorKind } from '../catalog/db'
+
 /** Intervalo `[from, to)` em epoch ms — um programa entra se se sobrepõe a ele. */
 export interface EpgWindow {
   from: number
@@ -22,6 +24,16 @@ export interface EpgProgramInput {
   /** Nunca vazio — programa sem título não é gravado (FR-030). */
   title: string
   description?: string
+}
+
+/**
+ * O que `useEpgPrograms` entrega às telas: programas por id de canal do
+ * XMLTV (já lidos do aparelho) e o deslocamento manual da fonte em ms —
+ * aplicado só ao calcular `nowAndNext`, nunca gravado (D-012).
+ */
+export interface EpgLookup {
+  byKey: Map<string, EpgProgram[]>
+  offsetMs: number
 }
 
 /** Um programa lido do aparelho. */
@@ -45,18 +57,13 @@ export interface NowNext {
   next?: EpgSlot
 }
 
-/** Motivo de uma falha de sincronização — categoria, nunca a mensagem crua da rede (FR-013/FR-019). */
-export type EpgErrorKind =
-  /** Rede ou servidor inalcançável. */
-  | 'network'
-  /** O servidor recusou (401/403). */
-  | 'refused'
-  /** A resposta não é XMLTV. */
-  | 'not_xmltv'
-  /** Arquivo corrompido/ilegível no meio da leitura. */
-  | 'unreadable'
-  /** Sem espaço no aparelho para gravar a programação. */
-  | 'storage_full'
+/**
+ * Motivo de uma falha de sincronização — categoria, nunca a mensagem crua da
+ * rede (FR-013/FR-019). Definido em `catalog/db.ts` (o registro da fonte o
+ * guarda): `network` (rede/servidor), `refused` (401/403), `not_xmltv`
+ * (resposta que não é XMLTV), `unreadable` (arquivo ilegível), `storage_full`.
+ */
+export type { EpgErrorKind }
 
 /** De onde vem o endereço XMLTV em uso (FR-001). */
 export type EpgUrlOrigin = 'manual' | 'panel' | 'playlist'

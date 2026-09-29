@@ -9,10 +9,14 @@ import {
   useCategoryFocusPrefetch,
   useCategoryList,
   useFavoriteIds,
+  useEpgPrograms,
   useFavoritesContent,
   type CatalogCategory,
   type CatalogItemOut,
 } from '../catalog/catalogApi'
+import { nowNextForChannel } from '../../lib/epg/nowNext'
+import { formatEpgTimeRange } from '../../lib/epg/formatEpgTime'
+import { useNow } from '../../lib/useNow'
 import { normalizeForSearch, searchWithinItems, SEARCH_MIN_CHARS } from '../../lib/catalog/catalogSearch'
 import { PlayerLayer } from '../../components/PlayerLayer'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
@@ -34,8 +38,8 @@ import { EmptyState } from '../../components/EmptyState'
 import { Spinner } from '../../components/Spinner'
 import { Chip } from '../../components/Chip'
 import { Icon } from '../../components/Icon'
-import { getComingSoon } from '../../lib/comingSoon'
 import { channelNumberOf, knownCategoryCount } from './channelNumber'
+import { EpgGuide, type EpgGuideHandle } from './guide/EpgGuide'
 
 /**
  * Altura de linha do painel de canais (feature 009) — soma da altura fixa
@@ -98,6 +102,12 @@ export interface LiveScreenProps {
   openFavorites?: boolean
   /** Remonta com a topbar ativa neste item — volta de Busca/Configurações (FR-034/FR-044). */
   initialTopbarItem?: TopbarItem
+  /**
+   * Feature 031 (FR-013): "Configurar EPG" no guia sem programação — leva ao
+   * painel de EPG da fonte em Configurações (feature 030). Ausente = a ação
+   * não aparece. STUB do sdd-plan: ainda não é lida (T012/T013).
+   */
+  onOpenEpgSettings?: () => void
 }
 
 /**
@@ -176,6 +186,7 @@ export function LiveScreen({
   initialChannel,
   openFavorites,
   initialTopbarItem,
+  onOpenEpgSettings,
 }: LiveScreenProps) {
   // Entra direto em ★ Favoritos quando pedido pelo Início/Busca (feature
   // 026) — `openFavorites` ou qualquer `initialChannel` com `entry:
@@ -196,6 +207,17 @@ export function LiveScreen({
    * do pé de ↑/↓ no meio de uma sessão.
    */
   const zapSequenceRef = useRef<CatalogItemOut[]>([])
+  /** Lista de onde o canal começou a tocar — par de `zapSequenceRef`; o "Guia" do player abre nela (feature 031, FR-010). */
+  const zapKeyRef = useRef<EnteredKey | null>(null)
+  /**
+   * Guia completo aberto (feature 031): a lista e o canal de origem. Vive
+   * aqui porque o guia pode estar no lugar do conteúdo (parado) ou no
+   * `topLayer` do player (tocando) — nunca nos dois.
+   */
+  const [guide, setGuide] = useState<{ list: EnteredKey; originId: string | null } | null>(null)
+  const guideRef = useRef<EpgGuideHandle>(null)
+  /** `true` entre "OK num programa" com o guia aberto no player e o canal escolhido começar a tocar. */
+  const guideWatchPendingRef = useRef(false)
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
@@ -400,6 +422,20 @@ export function LiveScreen({
   const effectiveCol = col === 2 && !activeChannel ? 1 : col
   const activeChannelIsFavorite = activeChannel ? favoriteIds.has(stableIdOf(activeChannel) ?? '') : false
 
+  // EPG (feature 030): programação lida só do aparelho (FR-029) para os
+  // canais da lista exibida — inclusive a do zapping, que reaproveita
+  // `renderColumns` — e para o canal em reprodução (banda do player, US4).
+  // `useNow` faz a barra andar e o programa virar sem sair da tela (FR-028).
+  const epgNow = useNow()
+  const epgChannelIds = useMemo(
+    () => [...items.map((item) => item.epg_channel_id), playing?.epg_channel_id],
+    [items, playing],
+  )
+  const epgLookup = useEpgPrograms(sourceId, epgChannelIds).data
+  const activeNowNext = nowNextForChannel(epgLookup, activeChannel?.epg_channel_id, epgNow)
+  const playingOnAir = nowNextForChannel(epgLookup, playing?.epg_channel_id, epgNow).now
+  const playingNow = playingOnAir ? { title: playingOnAir.title, progress: playingOnAir.progress } : undefined
+
   // Reproduz o canal pedido (feature 026, `logic/navegacao.md` §3) uma
   // única vez, assim que ele aparecer na lista exibida — nunca antes
   // (carregando ainda não tem `items`), nunca de novo (trocar de canal
@@ -586,13 +622,65 @@ export function LiveScreen({
       }
       // feature 027, D-008: novo início pela lista — recaptura a vizinhança.
       zapSequenceRef.current = items
+      zapKeyRef.current = entered
       lastGoodChannelRef.current = playing // D-008: guarda ANTES da troca
       setPlaying(activeChannel) // troca a sessão — topLayer continua aberto
       return
     }
 
     zapSequenceRef.current = items // feature 027, D-008
+    zapKeyRef.current = entered
     setPlaying(activeChannel)
+  }
+
+  /**
+   * "Guia completo" do preview (feature 031, FR-009): abre o guia na lista de
+   * origem, com o foco no canal de origem. `setCol(1)` devolve o foco de
+   * volta à lista de canais — assim, ao voltar (RETURN), o foco cai no canal
+   * de origem (FR-012), e não no preview.
+   */
+  function openGuideFromPreview() {
+    if (!activeChannel || !entered) return
+    setCol(1)
+    setGuide({ list: entered, originId: activeChannel.id })
+  }
+
+  /**
+   * OK num programa/bloco vazio do guia (feature 031, FR-020, D-007): a lista
+   * exibida vira a vizinhança de zapping e o foco da Live TV vai para o canal
+   * escolhido (assim RETURN do player cai nele — FR-012). Mesmo canal: só
+   * fecha. Aberto do player o guia fica até `onEnteredPlaying` (FR-022); parado,
+   * o player cobre tudo e o guia fecha na hora.
+   */
+  function watchFromGuide(channel: CatalogItemOut, list: CatalogItemOut[], listKey: EnteredKey) {
+    zapSequenceRef.current = list
+    zapKeyRef.current = listKey
+    const category = listKey.kind === 'category' ? categories.find((candidate) => candidate.id === listKey.id) : undefined
+    if (listKey.kind === 'category' && !category) {
+      // Categoria que já não existe: não mexe na entrada, só no canal focado.
+      setFocusedIdentity((prev) => ({ ...prev, channelId: channel.id }))
+    } else {
+      const trailKey: TrailKey = category ? { kind: 'category', name: groupLabel(category.name) } : { kind: listKey.kind === 'all' ? 'all' : 'favorites' }
+      setEntered(listKey)
+      setFocusedIdentity({ trailKey, channelId: channel.id })
+    }
+    setCol(1)
+    resetSearchState()
+    if (playing?.id === channel.id) {
+      setGuide(null) // mesmo canal: só fecha, sem trocar a sessão
+      return
+    }
+    lastGoodChannelRef.current = playing // D-008 da 027: fallback de erro
+    setPlaying(channel)
+    if (!playing) setGuide(null)
+    else guideWatchPendingRef.current = true // player: o guia só fecha em `onEnteredPlaying`
+  }
+
+  /** "Guia" do chrome do player (feature 031, FR-010): abre na lista de origem do canal, com o foco nele; a sessão segue tocando. */
+  function openGuideFromPlayer() {
+    if (!playing) return
+    guideWatchPendingRef.current = false
+    setGuide({ list: zapKeyRef.current ?? { kind: 'all' }, originId: playing.id })
   }
 
   /**
@@ -722,8 +810,8 @@ export function LiveScreen({
         toggleFocusedFavorite()
         return
       }
-      // "Guia completo" — mock "Em breve" (feature 024, FR-017, item 42).
-      showToast(`Em breve — ${getComingSoon('epg-guide').message}`)
+      // "Guia completo" (feature 031): o guia em tela cheia — já não é mock.
+      openGuideFromPreview()
       return
     }
 
@@ -775,6 +863,10 @@ export function LiveScreen({
       ? {
           onDirection: (dir) => {
             if (playing) return
+            if (guide) {
+              guideRef.current?.onDirection(dir) // feature 031: o guia parado não registra teclado próprio
+              return
+            }
             if (topPhase === 'error') {
               if (dir === 'left' || dir === 'right') setTopErrorActionIndex((i) => (i === 0 ? 1 : 0))
               return
@@ -784,6 +876,10 @@ export function LiveScreen({
           },
           onSelect: () => {
             if (playing) return
+            if (guide) {
+              guideRef.current?.onSelect()
+              return
+            }
             if (topPhase === 'loading' || topPhase === 'empty') {
               onBack()
               return
@@ -795,10 +891,26 @@ export function LiveScreen({
             }
             handleTrailSelect()
           },
-          onLongSelect: topPhase === 'normal' && canToggleFavorite ? toggleFocusedFavorite : undefined,
-          onFavoriteKey: topPhase === 'normal' && canToggleFavorite ? toggleFocusedFavorite : undefined,
+          // CH±/ChannelUp/Down (feature 031, FR-015): pagina o guia parado. Só existe
+          // handler com o guia aberto — sem ele a tecla segue sendo "não mapeada",
+          // como fora do player (feature 027, FR-029). Mesma convenção do player:
+          // ChannelUp = anterior.
+          onMediaKey:
+            guide && !playing
+              ? (key) => {
+                  if (key === 'ChannelUp') guideRef.current?.onPage('previous')
+                  else if (key === 'ChannelDown') guideRef.current?.onPage('next')
+                }
+              : undefined,
+          // Favoritar não é do guia (feature 031): sem os gestos enquanto ele está aberto.
+          onLongSelect: !guide && topPhase === 'normal' && canToggleFavorite ? toggleFocusedFavorite : undefined,
+          onFavoriteKey: !guide && topPhase === 'normal' && canToggleFavorite ? toggleFocusedFavorite : undefined,
           onBack: () => {
             if (playing) return
+            if (guide) {
+              guideRef.current?.onBack()
+              return
+            }
             if (topPhase !== 'normal') {
               onBack()
               return
@@ -1120,6 +1232,7 @@ export function LiveScreen({
                     const channel = items[virtualRow.index]
                     if (!channel) return null
                     const isFavorite = favoriteIds.has(stableIdOf(channel) ?? '')
+                    const { now: onAir } = nowNextForChannel(epgLookup, channel.epg_channel_id, epgNow)
                     return (
                       <button
                         key={channel.id}
@@ -1134,6 +1247,8 @@ export function LiveScreen({
                           logoUrl={channel.icon_url ?? undefined}
                           name={channel.name}
                           nameClassName="live-item-name"
+                          nowPlaying={onAir?.title}
+                          progress={onAir?.progress}
                           favorite={isFavorite}
                           unavailable={!channel.playable}
                         />
@@ -1169,10 +1284,39 @@ export function LiveScreen({
                   <div className="live-channel-number">{channelNumberOf(activeChannel, categories)}</div>
                 )}
                 <div className="live-channel-meta">{groupLabel(activeChannel.original_group ?? undefined)}</div>
-                {/* Slot de EPG: nasce vazio e sem rótulo até existir fonte de
-                    dados (item 42 do backlog). Reservar a área evita o
-                    layout pular depois. */}
-                <div className="live-channel-now" />
+                {/* EPG (feature 030, FR-025): "Agora" e "A seguir" só com dado
+                    real — sem programação, a área fica vazia e sem rótulo
+                    solto. Reservar a área evita o layout pular quando o dado
+                    chega. */}
+                <div className="live-channel-now">
+                  {activeNowNext.now && (
+                    <div className="live-epg-block">
+                      <span className="live-epg-label">Agora</span>
+                      <span className="live-epg-title">{activeNowNext.now.title}</span>
+                      <span className="live-epg-time">
+                        {formatEpgTimeRange(activeNowNext.now.start, activeNowNext.now.end)}
+                      </span>
+                      <div className="live-epg-progress" aria-hidden="true">
+                        <div
+                          className="live-epg-progress-fill"
+                          style={{ transform: `scaleX(${activeNowNext.now.progress})` }}
+                        />
+                      </div>
+                      {activeNowNext.now.description && (
+                        <p className="live-epg-description">{activeNowNext.now.description}</p>
+                      )}
+                    </div>
+                  )}
+                  {activeNowNext.next && (
+                    <div className="live-epg-block">
+                      <span className="live-epg-label">A seguir</span>
+                      <span className="live-epg-title">{activeNowNext.next.title}</span>
+                      <span className="live-epg-time">
+                        {formatEpgTimeRange(activeNowNext.next.start, activeNowNext.next.end)}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <div className="live-preview-actions">
                   <button
                     type="button"
@@ -1192,11 +1336,7 @@ export function LiveScreen({
                   </button>
                   <button
                     type="button"
-                    className={`live-preview-action is-soft-disabled${
-                      effectiveCol === 2 && previewAction === 2 ? ' tv-focus' : ''
-                    }`}
-                    // Achado real (feature 028, FR-016): sempre "Em breve" (item 42), mas sem sinal estático.
-                    aria-disabled="true"
+                    className={`live-preview-action${effectiveCol === 2 && previewAction === 2 ? ' tv-focus' : ''}`}
                   >
                     Guia completo
                   </button>
@@ -1228,7 +1368,25 @@ export function LiveScreen({
 
   return (
     <>
+      {/* Guia completo parado (feature 031, FR-001): tela cheia, sem topbar, no lugar do conteúdo. */}
+      {!playing && guide && (
+        <div className="screen epg-guide-screen">
+          <EpgGuide
+            handleRef={guideRef}
+            sourceId={sourceId}
+            categories={categories}
+            initialList={guide.list}
+            initialChannelId={guide.originId}
+            onWatch={watchFromGuide}
+            onClose={() => setGuide(null)}
+            onOpenEpgSettings={onOpenEpgSettings}
+            onNotify={showToast}
+          />
+        </div>
+      )}
+
       {!playing &&
+        !guide &&
         withShell(
           <div className="screen live-screen">
             <div className="live-header">
@@ -1250,11 +1408,23 @@ export function LiveScreen({
             title: playing.name,
             channelNumber: channelNumberOf(playing, categories),
             logoUrl: playing.icon_url ?? undefined,
+            // Feature 030 (FR-026): programa atual do canal em reprodução;
+            // acompanha a troca de canal (zapping/CH±) porque `playing` muda.
+            now: playingNow,
           }}
           onChannelStep={stepChannel}
           onClose={() => setPlaying(null)}
           onIdleSelect={openZapping}
-          onEnteredPlaying={() => setZapOpen(false)}
+          onGuide={openGuideFromPlayer}
+          onEnteredPlaying={() => {
+            setZapOpen(false)
+            // O guia aberto do player só fecha quando o canal ESCOLHIDO nele está de fato
+            // tocando (FR-022) — nunca num "voltou a tocar" qualquer da sessão atual.
+            if (guideWatchPendingRef.current) {
+              guideWatchPendingRef.current = false
+              setGuide(null)
+            }
+          }}
           onSessionError={() => {
             const fallback = lastGoodChannelRef.current
             if (!fallback) return
@@ -1272,7 +1442,32 @@ export function LiveScreen({
                   onLongSelect: canToggleFavoriteInZap ? toggleFocusedFavorite : undefined,
                   onFavoriteKey: canToggleFavoriteInZap ? toggleFocusedFavorite : undefined,
                 }
-              : null
+              : guide
+                ? {
+                    // Guia completo com o canal tocando (feature 031, D-001/D-002): a sessão
+                    // segue viva atrás dele; o `PlayerLayer` encaminha as teclas por aqui.
+                    content: (
+                      <EpgGuide
+                        handleRef={guideRef}
+                        sourceId={sourceId}
+                        categories={categories}
+                        initialList={guide.list}
+                        initialChannelId={guide.originId}
+                        onWatch={watchFromGuide}
+                        onClose={() => setGuide(null)}
+                        onOpenEpgSettings={onOpenEpgSettings}
+                        onNotify={showToast}
+                      />
+                    ),
+                    onDirection: (dir) => guideRef.current?.onDirection(dir),
+                    onSelect: () => guideRef.current?.onSelect(),
+                    onBack: () => guideRef.current?.onBack(),
+                    onMediaKey: (key) => {
+                      if (key === 'ChannelUp') guideRef.current?.onPage('previous')
+                      else if (key === 'ChannelDown') guideRef.current?.onPage('next')
+                    },
+                  }
+                : null
           }
           unavailableMessage="Este canal não tem uma fonte de reprodução disponível."
           genericErrorMessage="Não foi possível reproduzir este canal."

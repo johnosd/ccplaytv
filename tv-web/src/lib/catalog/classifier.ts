@@ -52,6 +52,12 @@ export interface ClassifiedEntry {
   addedAt?: number
   /** Duração declarada pela fonte, em segundos (feature 025) — só episódio do provedor. */
   durationSeconds?: number
+  /**
+   * Id de EPG declarado pela fonte (feature 030): `epg_channel_id` (Xtream)
+   * ou `tvg-id` (M3U). Só faz sentido em `kind: 'channel'`; quem grava
+   * descarta nos demais tipos.
+   */
+  epgChannelId?: string
 }
 
 /**
@@ -74,7 +80,19 @@ export function normalizeIconUrl(raw: unknown): string | undefined {
   }
 }
 
-const YEAR_DATE_PATTERN = /^(\d{4})(-\d{2}(-\d{2})?)?$/
+/**
+ * Id de EPG declarado pela fonte para um canal (feature 030, FR-006):
+ * `epg_channel_id` (Xtream) ou `tvg-id` (M3U). String com `trim()` não vazia,
+ * senão ausente — nunca derivado do nome (FR-008). Não é URL: sem validação
+ * de forma além de não ser vazio.
+ */
+export function normalizeEpgChannelId(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined
+  const trimmed = raw.trim()
+  return trimmed === '' ? undefined : trimmed
+}
+
+const YEAR_DATE_PATTERN =/^(\d{4})(-\d{2}(-\d{2})?)?$/
 
 /**
  * Ano de 4 dígitos entre 1888 (primeiro filme conhecido) e o ano corrente
@@ -176,6 +194,10 @@ export function classifyEntry(entry: ParsedEntry): ClassifiedEntry {
       group: entry.group,
       url: entry.url,
       iconUrl,
+      // Feature 030: só canal carrega o id de EPG (o Modo limitado pode
+      // refinar o tipo pela URL depois, ver `refineFromUrl` — quem grava
+      // filtra por `kind === 'channel'`).
+      epgChannelId: normalizeEpgChannelId(entry.attributes['tvg-id']),
     }
   }
 

@@ -101,7 +101,7 @@ describe('chromeControls (feature 027, logic/chrome-player.md §2)', () => {
     expect(playing.findIndex((c) => c.id === 'playPause')).toBe(paused.findIndex((c) => c.id === 'playPause'))
   })
 
-  it('cada mock aponta pro seu id em COMING_SOON, e Guia reusa "epg-guide" (feature 024); Áudio/Info não são mais mock (029)', () => {
+  it('cada mock aponta pro seu id em COMING_SOON; Áudio/Info não são mais mock (029) e Guia é real com `features.guide` (031), senão "em breve" sem id de mock', () => {
     const vod = chromeControls('vod', FULL, false, null)
     expect(vod.find((c) => c.id === 'tracks')?.comingSoonId).toBeUndefined()
     expect(vod.find((c) => c.id === 'info')?.comingSoonId).toBeUndefined()
@@ -109,7 +109,9 @@ describe('chromeControls (feature 027, logic/chrome-player.md §2)', () => {
     expect(vod.find((c) => c.id === 'speed')?.comingSoonId).toBe('player-speed')
     expect(vod.find((c) => c.id === 'aspect')?.comingSoonId).toBe('player-aspect')
     const live = chromeControls('live', FULL, false, null)
-    expect(live.find((c) => c.id === 'guide')?.comingSoonId).toBe('epg-guide')
+    expect(live.find((c) => c.id === 'guide')).toEqual({ id: 'guide', availability: 'soon', label: 'Guia — em breve' })
+    const liveWithGuide = chromeControls('live', FULL, false, null, { tracks: false, info: false, guide: true })
+    expect(liveWithGuide.find((c) => c.id === 'guide')).toEqual({ id: 'guide', availability: 'real', label: 'Guia' })
   })
 })
 

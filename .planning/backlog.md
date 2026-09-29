@@ -12,6 +12,14 @@ v1.5.0, do **Design System V14 Spectrum** (`docs/design/design-system/`:
 Spec normativa, Component Lab e protótipo de telas) e da análise de
 `docs/iptvnator/` e `docs/guia-praticas-app-tv/`.
 
+**Atualização de 29/09/2026:** as features `029` (áudio/legendas/info),
+`030` (EPG: dados e "Agora") e `031` (Guia completo) foram entregues em
+código e removeram 4 mocks (`player-tracks`, `player-info`, `settings-epg`,
+`epg-guide`); restam **19**. Os itens 55a e 42 saíram da lista de próximas
+entregas e estão na seção "Entregues". Em seguida a `032` (item 28) removeu
+mais 2 (`settings-integrations`, `dock-tmdb`): restam **17**. O texto abaixo é
+o da revisão de 28/09, mantido como histórico.
+
 **Revisão de 28/09/2026 — reorganização pós-migração.** A migração visual
 para o DS V14 (features `021`–`028`) terminou, mas deixou **23 mocks "Em
 breve"** registrados em `tv-web/src/lib/comingSoon.ts` e várias regras
@@ -26,7 +34,7 @@ gates de hardware abertos, integridade do estado do usuário).
 - **Os números são identificadores estáveis, não ordem.**
   `comingSoon.ts` (campo `backlogItem`) e
   `.planning/migracao-design-system-v14.md` apontam para eles. Nunca
-  renumerar; item novo recebe o próximo número livre (hoje: 62).
+  renumerar; item novo recebe o próximo número livre (hoje: 63).
 - **A ordem de execução é a das fases e, dentro delas, a da tabela
   "Próximas entregas" logo abaixo.** Cada fase assume a anterior pronta
   ou, quando não, diz explicitamente do que depende.
@@ -43,22 +51,25 @@ gates de hardware abertos, integridade do estado do usuário).
 
 | # | Entrega | Itens | Tipo | Mocks que remove |
 | --- | --- | --- | --- | --- |
-| 1 | Passada física dos gates abertos (013, 027) | 58 | verificação | — |
-| 2 | Áudio, legendas e info do stream no player (`029`, código completo em 28/09/2026; falta a passada física) | 55 (55a) | feature | `player-tracks`, `player-info` |
+| 1 | Passada física dos gates abertos (013, 027) e dos cenários recomendados (029, 030, 031 e anteriores) | 58 | verificação | — |
+| 2 | Pendências abertas do EPG e do E2E (fechar player ao configurar EPG, desempenho do Guia, flake de E2E) | 62 | correção | — |
 | 3 | Entrada numérica de canal | 44 | feature | — (regra §44 sem UI) |
-| 4 | EPG: dados + "Agora" na Live TV e no player (`030`, especificada em 28/09/2026) | 42 (42a/42b) | feature | `settings-epg` |
-| 5 | EPG: Guia completo em tela cheia (`031`, especificada em 28/09/2026) | 42 (42c) | feature | `epg-guide` |
-| 6 | Limpar histórico + aba Privacidade | 57 | feature | — (regra §48.4 sem UI) |
-| 7 | Memória de foco por área + key repeat | 14 | feature | — (regra §41/§42) |
-| 8 | Rede e lifecycle + erros acionáveis com código | 61, 19 | feature | — (regras §40/§45) |
-| 9 | Fontes IPTV completas (estado, contagem, expiração) | 46 | feature | — (regra §24) |
-| 10 | Qualidade, velocidade e aspecto no player + preferências | 55 (55b) | feature | `player-quality`, `player-speed`, `player-aspect`, `settings-player` |
-| 11 | Acessibilidade: legendas, alto contraste, Voice Guide | 56 | feature | `a11y-subtitles`, `a11y-high-contrast`, `a11y-voice-guide` |
-| 12 | TMDB BYOK + tela Integrações & BYOK | 28 | feature | `dock-tmdb`, `settings-integrations` (parcial) |
-| 13 | Elenco e Semelhantes | 45 | feature | `cast`, `similar` |
-| 14 | Trailers | 32 | feature | `trailer` |
-| 15 | Reconciliação pós-resync | 24 | feature | — |
-| 16 | IA: curadoria na Home e "Descobrir com IA" | 27, 30, 31 | feature | `home-ai-curation`, `dock-ai` |
+| 4 | Limpar histórico + aba Privacidade | 57 | feature | — (regra §48.4 sem UI) |
+| 5 | Memória de foco por área + key repeat | 14 | feature | — (regra §41/§42) |
+| 6 | Rede e lifecycle + erros acionáveis com código | 61, 19 | feature | — (regras §40/§45) |
+| 7 | Fontes IPTV completas (estado, contagem, expiração) | 46 | feature | — (regra §24) |
+| 8 | Qualidade, velocidade e aspecto no player + preferências | 55 (55b) | feature | `player-quality`, `player-speed`, `player-aspect`, `settings-player` |
+| 9 | Acessibilidade: legendas, alto contraste, Voice Guide | 56 | feature | `a11y-subtitles`, `a11y-high-contrast`, `a11y-voice-guide` |
+| 10 | Elenco e Semelhantes | 45 | feature | `cast`, `similar` |
+| 11 | Trailers | 32 | feature | `trailer` |
+| 12 | Reconciliação pós-resync | 24 | feature | — |
+| 13 | IA: curadoria na Home e "Descobrir com IA" | 27, 30, 31 | feature | `home-ai-curation`, `dock-ai` |
+
+**Já entregues em código, só com a passada física em aberto** (saíram desta
+tabela em 29/09/2026; a verificação segue no item 58): áudio, legendas e info
+do stream (`029`, item 55a), o EPG completo — dados, "Agora" e Guia (`030`
+e `031`, item 42) e a metadata do provedor + TMDB BYOK + aba Integrações &
+BYOK (`032`, item 28). Ver a seção "Entregues" mais abaixo.
 
 Os demais mocks (`pair-phone`, `voice-search`, `dock-weather`,
 `dock-speedtest`, `settings-parental`) dependem de itens em `A avaliar` ou
@@ -88,11 +99,47 @@ Os dois bugs conhecidos desta fase estão em andamento via `sdd-bugfix`
 
     Aproveitar a mesma sessão para os cenários **recomendados** (não
     gates) de 012, 020 (nome da API de screensaver, R-001), 024, 025 e
-    026 (IME real, custo das rails). Usa o skill `tizen-tv`; resultado de
-    cada cenário registrado no `plan.md` da feature correspondente,
-    "não testado" nunca vira "aprovado".
+    026 (IME real, custo das rails), e das três features entregues depois:
+    - `029`: formato real de `getTotalTrackInfo`/`extra_info`,
+      `setSelectTrack` com o vídeo pausado, `onsubtitlechange` e a legenda
+      sobre o plano de hardware (R-001–R-004; o spike foi adiado por falta
+      da TV).
+    - `030`: `DecompressionStream` real no Chromium 108 (R-007), o Worker
+      carregando sem cair no fallback (R-005), navegação fluida durante uma
+      sincronização grande (SC-002, R-006) e o endereço XMLTV externo do
+      `.env`, que deu timeout da máquina de desenvolvimento (R-001).
+    - `031`: Guia opaco sobre o plano de hardware do AVPlay com o áudio
+      acompanhando (R-002), segurar ↓/→ numa lista real e a entrega das
+      teclas CH± (R-003).
+    - `032`: **feito em 29/09/2026** (deploy por `deploy-tv.ps1`, visto pelo
+      usuário) — backdrop sem cobrir o vídeo, CORS do TMDB, chave pelo IME da
+      TV com "Mostrar", dock "conectado": tudo aprovado. Nada a repetir.
 
-    (constitution "Validação em hardware real"; `plan.md` de 013 e 027)
+    Usa o skill `tizen-tv`; resultado de cada cenário registrado no
+    `plan.md` da feature correspondente, "não testado" nunca vira
+    "aprovado".
+
+    (constitution "Validação em hardware real"; `plan.md` de 013, 027, 029,
+    030 e 031)
+
+62. **Pendências abertas do EPG e do E2E**
+
+    Três itens que as features 030/031 deixaram registrados nos `plan.md`
+    mas sem dono no backlog:
+    - **Configurar EPG com um canal tocando fecha o player** (`031` R-010):
+      abrir "Configurar EPG" a partir do Guia sobre o vídeo desmonta o
+      `PlayerLayer`. Decidir se o fluxo deve preservar a sessão ou se
+      fechar é aceitável e dito à pessoa.
+    - **Desempenho do Guia com milhares de canais** (`031` R-003): a
+      medição com a lista real cobriu só 2 das 41 categorias no "Todos";
+      p95 de 128 ms numa amostra pequena não prova o caso grande.
+    - **Flake do E2E `home-busca-configuracoes.mjs`**: o passo "com
+      progresso salvo… vira Continuar" falha em ~19% das execuções, já no
+      código anterior à 030 (medido num worktree de `HEAD`). Sem correção,
+      aguardando decisão; investigar por `sdd-bugfix`.
+
+    (`sdd/specs/031-epg-guia-completo/plan.md` R-003/R-010;
+    `sdd/specs/030-epg-dados-agora/plan.md` → `## Estado Atual`)
 
 ---
 
@@ -153,41 +200,6 @@ AVPlay já entregam.
 
     (V14 §44/§46 "Remote"; `docs/guia-praticas-app-tv/03` §1; `/10` §2;
     `docs/iptvnator/07-tela-canais.md`, resumo #4)
-
-42. **EPG — guia de programação** *(promovido de `A avaliar`: é a maior
-    lacuna do DS, com slot reservado em 5 superfícies)*
-
-    O DS trata EPG como parte canônica da Live TV (§25 "Categorias →
-    Canais → Preview / Programação", §26, §24.2). Hoje há um slot "Agora"
-    vazio na linha de canal (feature 024), "A seguir"/"Guia completo" em
-    mock, o "Agora na TV" da Home sem programa e o player Live sem
-    programa atual.
-
-    **Fonte do dado**: painel Xtream expõe `xmltv.php` com a mesma
-    credencial (e `get_short_epg` por canal) — sem nova configuração para
-    a maioria das fontes; M3U usa `url-tvg`/`x-tvg-url` do cabeçalho ou URL
-    XMLTV informada pela pessoa (§24.2: EPG configurável sem recriar a
-    fonte). Associação por `tvg-id`/`epg_channel_id`, nunca por nome
-    aproximado. XMLTV pode ser grande: parse em Web Worker e por stream,
-    mesmo cuidado da feature 005; janela limitada (ex.: hoje + amanhã).
-
-    Três incrementos; 42a e 42b foram especificados juntos como
-    `030-epg-dados-agora` e 42c como `031-epg-guia-completo` (ambas
-    especificadas em 28/09/2026):
-    - **42a — Dados**: download/parse/armazenamento no IndexedDB por fonte,
-      frescor e sincronização manual, estados "EPG vinculado"/"EPG não
-      configurado"/erro `EPG-02` (§24.3, §45). Remove `settings-epg`.
-    - **42b — "Agora" em todo lugar**: programa atual + progresso real na
-      linha de canal, "A seguir" no preview, programa atual na banda do
-      player Live e no "Agora na TV" da Home. Sem EPG para um canal, o
-      slot fica vazio — nunca texto inventado.
-    - **42c — Guia completo (§26)**: grade em tela cheia com coluna de
-      canal, timeline horizontal com largura proporcional, marcador
-      "Agora", Hoje/Amanhã, linha de hora atual, componentes `.no-scale`,
-      RETURN ao canal/programa de origem (§41). Remove `epg-guide`.
-
-    (V14 §24/§25/§26; `docs/iptvnator/03-apis.md` #10;
-    `07-tela-canais.md` #3/#8)
 
 57. **Limpar histórico e remover item do `↺ Histórico`**
 
@@ -256,7 +268,9 @@ AVPlay já entregam.
     real: tipo (Xtream/M3U), contagem conhecida (sem "0" inventado para
     categoria não carregada), estado de sincronização
     (Sincronizada/Sincronizando/Erro/**Credencial inválida**), estado do
-    EPG (depois do 42a), e o `exp_date` da conta Xtream como chip passivo
+    EPG (o 42a já entregou os estados "EPG vinculado"/"não configurado"/erro
+    `EPG-02`; aqui entra só o chip na linha de fonte e no cartão), e o
+    `exp_date` da conta Xtream como chip passivo
     (âmbar perto do vencimento, erro quando expirado; 0/negativo/ausente =
     sem expiração; "ativa" com data no passado = expirada). `exp_date` já
     é obtido por `xtreamConnector.ts` — falta persistir e exibir.
@@ -303,6 +317,14 @@ histórico) para não inventar justificativa.
 
 28. **Conector TMDB client-first (BYOK) + tela Integrações & BYOK**
 
+    *Entregue em código como `032-metadata-tmdb-integracoes` (29/09/2026;
+    ver a seção "Entregues"), com escopo revisto: uma medição na lista real
+    mostrou que o provedor Xtream já entrega sinopse, backdrop, gênero,
+    elenco, diretor, país e `tmdb_id` (séries na listagem, filmes em
+    `get_vod_info`). A feature captura isso primeiro e o TMDB só completa
+    lacunas; a constitution foi emendada para 1.6.0 (chave BYOK no
+    aparelho). O texto abaixo é o original.*
+
     **Desbloqueia o hero de detalhe de Filmes/Séries** (backdrop, sinopse
     com "ver mais" acionável por Enter): sem TMDB a sinopse não existe na
     fonte, e a tela hoje diz isso em vez de inventar.
@@ -337,11 +359,14 @@ histórico) para não inventar justificativa.
 
 45. **Elenco e Semelhantes** *(promovido de `A avaliar`)*
 
-    Preenche as abas hoje mock do detalhe (feature 025). Elenco e equipe
-    técnica; Semelhantes **cruzados com o catálogo local** — só aparece o
-    que a pessoa consegue assistir. Séries usam `aggregate_credits`, não
-    `credits`. Páginas de ator navegáveis e rail de tendências ficam para
-    depois, se houver demanda. Depende do 28. Remove `cast` e `similar`.
+    Preenche as abas hoje mock do detalhe (feature 025). **Atualização
+    (29/09/2026): a aba Elenco já é real, só com a lista de nomes em texto
+    (feature 032, task ad-hoc T044; o mock `cast` saiu). O que sobra aqui:**
+    equipe técnica além da direção, foto/página de ator navegável e, sobretudo,
+    Semelhantes **cruzados com o catálogo local** — só aparece o que a pessoa
+    consegue assistir. Séries usam `aggregate_credits`, não `credits`. Rail de
+    tendências fica para depois, se houver demanda. A dependência do 28 está
+    cumprida. Remove só `similar`.
 
     (`docs/iptvnator/03-apis.md` #11; `00-resumo.md`; V14 §32)
 
@@ -525,7 +550,8 @@ classificador não soube tipar.
     Fixtures sintéticas de 1.000/10.000/100.000 entradas servidas
     localmente, medindo fetch/parse/classify/store isoladamente, com
     aparelho e commit registrados e sem misturar warm-up. Incluir o parse
-    de XMLTV (item 42) quando existir.
+    de XMLTV (item 42, já entregue pela feature 030, com o Worker
+    `assets/epgWorker.js`).
 
     (ADR-006 §2; V14 §30; `docs/iptvnator/02-arquitetura.md` #8)
 
@@ -588,7 +614,8 @@ Os mocks que apontam para cá **continuam mock** até lá.
     provedor oferecer. Duas variantes de URL (REST `/timeshift/...` e
     legado `/streaming/timeshift.php?...`) exigem probe concreto,
     preferindo TS antes de HLS. Liberaria também Play/Pause em Live (§43.3).
-    Depende do item 42.
+    Depende do item 42 (já entregue: o Guia completo da feature 031 é onde
+    um programa passado poderia virar reprodução).
 
     (`docs/iptvnator/03-apis.md` #8; V14 §43.3)
 
@@ -632,11 +659,12 @@ Os mocks que apontam para cá **continuam mock** até lá.
 
 51. **Política de descarte quando o espaço do aparelho acaba**
 
-    Com a carga sob demanda (feature 010) e o EPG (item 42), o banco cresce
-    com o uso. Decidir: descartar a categoria menos usada (reobtenível),
-    parar de gravar e declarar (comportamento atual, FR-018 da 010), ou
-    teto configurável. Depende de medir quanto uma categoria e um XMLTV
-    ocupam e qual é a quota real na TV de referência.
+    Com a carga sob demanda (feature 010) e o EPG (item 42, já entregue), o
+    banco cresce com o uso. Decidir: descartar a categoria menos usada
+    (reobtenível), parar de gravar e declarar (comportamento atual, FR-018
+    da 010), ou teto configurável. Depende de medir quanto uma categoria e
+    um XMLTV ocupam (o EPG já existe, então a medição é possível) e qual é a
+    quota real na TV de referência.
 
     (feature 010, `Clarifications` 2026-09-23)
 
@@ -703,6 +731,57 @@ Os mocks que apontam para cá **continuam mock** até lá.
 
 ---
 
+### Entregues (código completo; falta só a passada física)
+
+Saíram das fases acima em 29/09/2026. A verificação na TV física segue no
+item 58; nada aqui é dado como "aprovado em hardware".
+
+- **42. EPG — guia de programação** *(promovido de `A avaliar`)* — três
+  incrementos, todos com código completo e E2E verdes (com fixtures e com
+  a lista/EPG reais do `.env`):
+  - **42a — Dados** e **42b — "Agora" em todo lugar**: `030-epg-dados-agora`.
+    XMLTV do painel Xtream (`xmltv.php`), do `url-tvg`/`x-tvg-url` do M3U ou
+    de um endereço digitado (o manual vence), lido por stream em Web Worker,
+    janela −12h…+48h no IndexedDB, vínculo canal↔programa só por id exato
+    (`epg_channel_id`/`tvg-id`). "Agora"/"A seguir" na linha de canal, no
+    preview, na banda do player Live e na Home; tela real em Configurações
+    › Fontes IPTV › EPG. Removeu `settings-epg`.
+  - **42c — Guia completo (§26)**: `031-epg-guia-completo`. Grade
+    canal × programa em tela cheia, parada ou sobre o player. Removeu
+    `epg-guide`.
+  - **Limite conhecido**: no painel de referência só ~10 canais têm
+    programação na janela, apesar de os 954 ids casarem. Uma avaliação de
+    EPG externo como fallback (`sdd/assessments/epg-externo-como-fallback-
+    por-canal/`, 29/09/2026) mediu o ganho possível em ~50–100 dos ~324
+    canais com potencial e foi **descartada** (`kill`); a alternativa sem
+    mudança no app é apontar o endereço XMLTV manual para um arquivo gerado
+    pelo scraper do próprio usuário, com `channel id` iguais aos
+    `epg_channel_id` do provedor.
+  - Pendências abertas: item 62 (correções) e item 58 (passada física).
+  - (V14 §24/§25/§26; `docs/iptvnator/03-apis.md` #10; `07-tela-canais.md`
+    #3/#8)
+- **55a — Áudio, legendas e info do stream**: `029-audio-legendas-info-player`
+  (ver o item 55, que segue aberto só para o 55b).
+- **28 — Conector TMDB client-first (BYOK) + tela Integrações & BYOK**:
+  `032-metadata-tmdb-integracoes`, código completo com E2E (fictício, 3/3
+  execuções verdes) e medição na lista real (sinopse + backdrop em 90 % das
+  9 663 séries e 87–93 % dos filmes amostrados). O detalhe de filme/série
+  mostra backdrop, sinopse com "Ver mais" e Gênero/Duração/Direção/País/Elenco
+  em texto, buscados **só ao abrir o detalhe**; o TMDB só completa o que o
+  provedor deixou vazio (`tmdb_id` do provedor, ou título + ano com candidato
+  único); a sinopse do episódio focado (quando o provedor a manda — ~4–30 %
+  dos episódios neste painel) aparece na série; Configurações › Integrações &
+  BYOK é real (card do TMDB, tela da chave) e o dock da Home mostra o estado
+  real. Removeu `settings-integrations` e `dock-tmdb`. Constitution → 1.6.0.
+  **Fora, ainda mock**: Elenco/Semelhantes navegáveis (45), Trailer (32),
+  nota (29), TMDB por episódio. **Verificada na TV física em 29/09/2026**
+  (CORS do TMDB, IME para a chave, backdrop sobre o plano do AVPlay —
+  aprovados pelo usuário); SC-003 medido com chave real (0 casamentos
+  errados em 80 filmes). A pedido do usuário depois da passada física, a aba
+  "Elenco" do detalhe virou **real** (lista os nomes do elenco em texto; mock
+  `cast` removido — task ad-hoc T044); "Semelhantes" e as páginas de ator
+  seguem no item 45.
+
 ### Retirados ou absorvidos nesta revisão
 
 Registrados para que referências antigas continuem rastreáveis:
@@ -751,8 +830,9 @@ Registrados para que referências antigas continuem rastreáveis:
 | 027-player-chrome-ds-v14 | Player chrome do Design System V14 com auto-hide e teclas de mídia (Onda 6) | Convergida | 55/55 tasks | 2026-09-28 |
 | 028-limpeza-qa-ds-v14 | Limpeza e QA do Design System V14 (Onda 7) | Implementada | 78/78 tasks | 2026-09-28 |
 | 029-audio-legendas-info-player | Player — Trilhas de Áudio, Legendas e Info do Stream | Convergida | 50/52 tasks | 2026-09-28 |
-| 030-epg-dados-agora | EPG — Dados de Programação e "Agora" na Live TV, no Player e na Home | Planejada | 1/56 tasks | 2026-09-29 |
-| 031-epg-guia-completo | EPG — Guia Completo em Tela Cheia | Especificada | N/A | 2026-09-28 |
+| 030-epg-dados-agora | EPG — Dados de Programação e "Agora" na Live TV, no Player e na Home | Convergida | 55/56 tasks | 2026-09-29 |
+| 031-epg-guia-completo | EPG — Guia Completo em Tela Cheia | Convergida | 47/48 tasks | 2026-09-29 |
+| 032-metadata-tmdb-integracoes | Metadata de Filmes e Séries — Provedor Primeiro, TMDB (BYOK) Completa, e Tela Integrações | Convergida | 58/58 tasks | 2026-09-29 |
 
 ## Bugs
 

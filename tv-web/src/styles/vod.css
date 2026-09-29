@@ -262,6 +262,142 @@
   display: flex;
   gap: var(--space-4);
   flex: none;
+  /* Contexto de empilhamento próprio: o backdrop (z-index negativo) fica
+     ATRÁS do conteúdo do hero mas nunca escapa dele — e, sendo descendente do
+     `.screen`, some junto quando o AVPlay exibe (`player.css`, D-008 da 032). */
+  position: relative;
+  isolation: isolate;
+}
+
+.vod-detail-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.vod-detail-backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.32;
+}
+
+/* Escurece a esquerda (onde ficam o pôster e o texto) e deixa a imagem à direita. */
+.vod-detail-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--bg-canvas) 12%, transparent 75%);
+}
+
+.vod-detail-synopsis-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  max-width: 900px;
+}
+
+.vod-detail-synopsis {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.vod-detail-origin {
+  margin-left: var(--space-1);
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.vod-detail-synopsis-block .vod-detail-origin {
+  margin-left: 0;
+}
+
+/* Selo do backdrop vindo do TMDB (FR-022): canto do hero, discreto, por cima da imagem. */
+.vod-detail-backdrop-origin {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-1);
+  margin: 0;
+}
+
+.vod-detail-more {
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vod-detail-more.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Aba Elenco (feature 032, ad-hoc T044): nomes em lista corrida, só texto. */
+.vod-cast {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.vod-cast-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: 1200px;
+}
+
+.vod-cast-item {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+}
+
+.vod-cast-empty {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+/* Sinopse completa (modal): rola por ↑/↓ sem barra nativa. */
+.synopsis-modal-text {
+  max-height: 480px;
+  overflow-y: auto;
+  font-size: var(--fs-body-lg);
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-line;
+}
+
+/* Sinopse do episódio focado (FR-028): altura fixa de 3 linhas enquanto houver alguma. */
+.vod-episode-synopsis {
+  flex: none;
+  min-height: calc(3 * 1.4 * var(--fs-body));
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: 1.4;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .vod-detail-poster {

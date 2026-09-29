@@ -178,25 +178,28 @@ fato. A política que concilia as duas coisas:
 | Home: hero | **Real**: primeiro item de "Continue assistindo", senão o primeiro favorito, senão boas-vindas | Feature 019 + 013. Sem sinopse, nota ou "relevância" (sem TMDB) |
 | Home: Continue assistindo | **Real** | `getContinueWatching()` (feature 019) |
 | Home: Minha Lista | **Real** (= favoritos de filmes e séries) | `resolveFavorites` (feature 013) |
-| Home: Agora na TV | **Real parcial**: canais favoritos, slot "Agora" vazio | EPG = item 42 |
+| Home: Agora na TV | **Real** desde a feature 030: canais favoritos com o título do programa atual (só de canal com EPG; sem EPG, o card fica como era) | EPG = item 42 (42a/42b, feature `030-epg-dados-agora`) |
 | Home: Curadoria IA, Top/trending | **Mock** (1 card "Em breve") | Itens 30/31 (IA), 45 (trending) |
-| Home: dock de serviços (Weather, Speed Test, TMDB, IA) | **Mock** (ícones soft disabled) | Novo item 54; TMDB = item 28 |
+| Home: dock de serviços (Weather, Speed Test, TMDB, IA) | **Real só o TMDB**, desde a feature 032: ícone com o estado da chave (nome acessível + marcador, nunca só cor) que abre Configurações › Integrações; Clima, Teste de velocidade e IA seguem **mock** (ícones soft disabled) | Mock `dock-tmdb` removido. Item 28 (feature `032-metadata-tmdb-integracoes`); os demais, itens 30/31/54 |
 | Live: categorias com contagem, ★ Favoritos, Todos | **Real** | Features 010/013/018. Contagem só quando conhecida (categoria sob demanda ainda não carregada = sem número, nunca "0") |
 | Live: canal com número, logo, nome | **Real**. Número = posição na ordem da fonte | Números declarados pela fonte (`tvg-chno`) = item 25 |
-| Live: "Agora" + barra de progresso do programa | **Slot reservado vazio** (já é assim hoje) | Item 42 (EPG) |
-| Live: painel de preview | **Real, sem vídeo**: logo/nome/grupo + Assistir / Favorito | Ver conflito na seção 1 |
-| Live: "Guia completo", cartões "A seguir" | **Mock** | Item 42 |
+| Live: "Agora" + barra de progresso do programa | **Real** desde a feature 030: linha de canal (inclusive "★ Favoritos", "Todos" e a lista de zapping), preview e faixa do player Live; canal sem id de EPG ou sem programa = slot vazio, nunca texto inventado | Item 42 (42a/42b). Associação só por id exato (`epg_channel_id`/`tvg-id`) |
+| Live: painel de preview | **Real, sem vídeo**: logo/nome/grupo + Assistir / Favorito, e "Agora"/"A seguir" com sinopse quando há EPG | Ver conflito na seção 1 |
+| Live: "Guia completo" | **Real** desde a feature 031: grade em tela cheia (canais × programas, linha da hora atual, Hoje/Amanhã, CH±, seletor de lista), aberta do preview (Live parada) ou do "Guia" do player (canal segue tocando); mock `epg-guide` removido | Item 42 (42c, feature `031-epg-guia-completo`) |
+| Player Live: controle "Guia" | **Real** desde a feature 031 quando a tela sabe abrir o guia (`onGuide`); senão continua "Guia — em breve" | Item 42 (42c) |
+| Live: cartão "A seguir" | **Real** desde a feature 030 (título + horário, no preview) | Item 42 (42b) |
 | Live: zapping por cima do vídeo | **Real** | Feature 016, restilizada |
 | Live: entrada numérica de canal (§44) | **Fora da migração** | Item 44 |
 | Filmes/Séries: ★ Favoritos, Todos, categorias da fonte | **Real** | Features 010/013/018 |
 | Filmes/Séries: **↺ Histórico** | **Real (novo)**: itens com `lastWatched`, do mais recente para o mais antigo, incluindo concluídos | `UserStateRecord.lastWatched`/`completedAt` já existem (features 011/012/019), sem migração Dexie |
 | Filmes/Séries: campo de busca | **Real** | Feature 018 (filtro sobre o que já foi carregado) |
 | Filmes/Séries: Ordenar | **Real parcial**: "Ordem da fonte", "A–Z", "Ano" (se o provedor informar); "Mais vistos"/"Mais recentes" só com dado real | Sem dado = opção ausente (hard disabled) |
-| Filmes/Séries: hero band | **Real**: item focado/primeiro da categoria com capa real (feature 015); sem sinopse inventada | Backdrop/sinopse = item 28 |
+| Filmes/Séries: hero band | **Real**: item focado/primeiro da categoria com capa real (feature 015); sem sinopse inventada. **Sem sinopse/backdrop na grade de propósito**: a metadata só é buscada ao abrir o detalhe (nunca por foco) | Feature 032 trouxe backdrop/sinopse só ao **detalhe** (item 28); mostrá-los no hero da grade exigiria cache já preenchido e continua fora |
 | Filmes/Séries: rails editoriais ("Em destaque", "Mais assistidos") | **Não adotar**: manter grade virtualizada por categoria | Rail editorial exige sinal que não existe |
 | Detalhe filme: Assistir/Continuar, Minha Lista (favoritar), Marcar assistido | **Real** | Features 011/013/019 |
-| Detalhe: Trailer, abas Elenco/Semelhantes | **Mock** | Itens 32, 45 |
-| Detalhe: aba Detalhes (dados técnicos) | **Real parcial**: só o que o catálogo tem | — |
+| Detalhe: Trailer, aba Semelhantes | **Mock** | Itens 32, 45 |
+| Detalhe: aba Elenco | **Real** desde a feature 032 (ad-hoc T044): lista de nomes em texto (provedor; TMDB só onde o provedor não disse), estado vazio honesto; mock `cast` removido | Páginas de ator navegáveis = item 45 |
+| Detalhe: aba Detalhes (dados técnicos) | **Real** desde a feature 032: Gênero, Duração, Direção, País e Elenco (texto) só com valor real — do provedor, ou do TMDB (com a chave da pessoa) só onde o provedor deixou vazio, com o selo "Dados: TMDB" | Item 28. Backdrop e sinopse ("Ver mais" em modal) no hero; sinopse do episódio focado na série |
 | Detalhe série: Continuar TX:EY, seletor de temporada, episódios 16:9 com progresso/concluído | **Real** | Feature 012/019 |
 | Player VOD: play/pause, ±10 s, timeline, retomada, próximo episódio com countdown | **Real** | Features 011/012/020 |
 | Player: episódio anterior | **Real** (soft disabled no primeiro, §43.2) | `episodeNavigation.ts` |
@@ -204,8 +207,8 @@ fato. A política que concilia as duas coisas:
 | Player: áudio e legendas (embutidas) e info do stream | **Real** desde a feature 029 (item 55a): só o que o motor informa; "— indisponível" (soft disabled) quando o motor não sabe; adiantar legenda embutida segue soft disabled | Mocks `player-tracks`/`player-info` removidos. Formato real do AVPlay ainda não confirmado na TV (R-001…R-004 de `sdd/specs/029-audio-legendas-info-player/plan.md`) |
 | Player: media keys (Play/Pause/FF/RW/Stop) | **Real** se a tecla estiver disponível, senão ausente | Parte do item 44; registrar só as teclas usadas (item 38) |
 | Configurações › Fontes IPTV | **Real**: listar, adicionar, editar, ressincronizar, remover, aviso de Modo limitado, fonte ativa | Migra `HomeScreen`/`ListHomeScreen`/`LimitedModeNotice` |
-| Configurações › Fontes: EPG por fonte | **Mock** | Item 42 |
-| Configurações › Integrações & BYOK | **Mock** | Itens 28 (TMDB), 31 (IA), 54 |
+| Configurações › Fontes: EPG por fonte | **Real** desde a feature 030: estado na linha da lista e tela "EPG da lista" (endereço XMLTV manual, deslocamento de horário, sincronizar, desativar) | Mock `settings-epg` removido. Item 42 (42a) |
+| Configurações › Integrações & BYOK | **Real** desde a feature 032: card do TMDB (estado, chave mascarada, Configurar/Testar/Editar/Remover, atribuição exigida) e tela própria da chave; cards de IA, Clima e Teste de velocidade seguem **mock** ("Em breve") | Mock `settings-integrations` removido. Item 28; IA = item 31, clima/teste = item 54 |
 | Configurações › Player & reprodução | **Mock** | Item 55 |
 | Configurações › Acessibilidade & sistema | **Real parcial**: "Reduzir movimento" (classe no `<html>` mais a media query); resto mock | Novo item 56 (legendas acessíveis, alto contraste, Voice Guide) |
 | Configurações › Parental | **Mock** | Item 52 |

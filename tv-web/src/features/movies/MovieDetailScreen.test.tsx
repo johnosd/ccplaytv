@@ -332,17 +332,26 @@ describe('MovieDetailScreen', () => {
     expect(screen.queryByText(/Resumo não disponível/)).not.toBeInTheDocument()
   })
 
-  it('aba "Elenco" é soft-disabled: OK anuncia "Em breve" sem trocar a aba ativa', () => {
+  // Feature 032 (ad-hoc T044): "Elenco" deixou de ser mock — é uma aba real com o elenco em texto.
+  it('aba "Elenco" é real: OK troca a aba (sem "Em breve"); sem elenco informado, diz isso; "Semelhantes" segue "Em breve"', async () => {
     renderScreen()
     press('ArrowDown') // tabs, foco em Detalhes
     press('ArrowRight') // Elenco
 
     const cast = screen.getByRole('tab', { name: 'Elenco' })
-    expect(cast.className).toContain('is-soft-disabled')
+    expect(cast.className).not.toContain('is-soft-disabled')
+    expect(cast).not.toHaveAttribute('aria-disabled')
     press('Enter')
 
-    expect(screen.getByText('Em breve — Elenco e equipe técnica.')).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Detalhes' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Elenco' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Detalhes' })).toHaveAttribute('aria-selected', 'false')
+    expect(await screen.findByText('O elenco deste título não foi informado.')).toBeInTheDocument()
+    expect(screen.queryByText(/Em breve/)).not.toBeInTheDocument()
+
+    press('ArrowRight') // Semelhantes
+    press('Enter')
+    expect(screen.getByText('Em breve — Títulos semelhantes a este.')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Elenco' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('CIMA nas abas volta para as ações', () => {

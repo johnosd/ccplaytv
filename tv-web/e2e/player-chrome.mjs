@@ -275,9 +275,10 @@ async function run() {
     // Rótulo acessível vem do `aria-label` (D-030), não do texto visível do
     // botão (só o ícone + rótulo curto) — `getByRole` computa o nome
     // acessível; um seletor CSS de texto não acharia nada.
-    await page.getByRole('button', { name: 'Guia — em breve' }).waitFor({ timeout: 4000 })
+    // Feature 031: o LiveScreen sempre passa `onGuide`, então o controle é "Guia" (real), não "em breve".
+    await page.getByRole('button', { name: 'Guia', exact: true }).waitFor({ timeout: 4000 })
     assert(
-      (await page.getByRole('button', { name: 'Guia — em breve' }).getAttribute('class'))?.includes('tv-focus'),
+      (await page.getByRole('button', { name: 'Guia', exact: true }).getAttribute('class'))?.includes('tv-focus'),
       '→ na faixa revela a linha, com foco no primeiro controle ("Guia")',
     )
     assert((await page.locator('button', { hasText: /Velocidade/ }).count()) === 0, 'linha do canal nunca tem "Velocidade"')

@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-28
 
-**Status**: Especificada
+**Status**: Convergida
 
 **Input**: Item 42 do backlog, incremento 42c — entrega #5 da tabela
 "Próximas entregas": "Guia completo (§26): grade em tela cheia com coluna de

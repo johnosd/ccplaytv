@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCatalogItem, useUserState, invalidateUserState, useToggleWatched, groupLabel } from '../catalog/catalogApi'
+import {
+  useCatalogItem,
+  useTitleMetadata,
+  useUserState,
+  invalidateUserState,
+  useToggleWatched,
+  groupLabel,
+} from '../catalog/catalogApi'
+import { CastPanel, DetailBackdrop, MetadataFacts, SynopsisBlock, SynopsisModal } from '../vod/DetailMetadata'
+import { isSynopsisTruncated, metadataFactRows } from '../vod/detailMetadataFormat'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
@@ -30,7 +39,7 @@ type DetailTab = 'details' | 'cast' | 'similar'
 
 const TABS: TabItem[] = [
   { id: 'details', label: 'Detalhes' },
-  { id: 'cast', label: 'Elenco', softDisabled: true },
+  { id: 'cast', label: 'Elenco' },
   { id: 'similar', label: 'Semelhantes', softDisabled: true },
 ]
 
@@ -141,7 +150,19 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
-  const [row, setRow] = useState<'actions' | 'tabs'>('actions')
+  // Metadata descritiva (feature 032): nunca bloqueia a tela nem a ação
+  // primária (FR-005) — sem `data`, tudo abaixo simplesmente não aparece.
+  const metadataQuery = useTitleMetadata(movie ? movieId : null)
+  const metadata = metadataQuery.data
+  const synopsis = metadata?.synopsis
+  const hasMore = synopsis !== undefined && isSynopsisTruncated(synopsis.value)
+
+  // `more` = o botão "Ver mais" da sinopse, uma linha acima das ações.
+  const [rawRow, setRow] = useState<'more' | 'actions' | 'tabs'>('actions')
+  // A sinopse pode chegar (ou sumir) depois de o foco já estar aqui: sem o
+  // botão, a linha `more` não existe e o foco cai nas ações — nunca em nada.
+  const row = rawRow === 'more' && !hasMore ? 'actions' : rawRow
+  const [synopsisOpen, setSynopsisOpen] = useState(false)
   const [actionFocus, setActionFocus] = useState(0) // ação primária — sempre índice 0
   const safeActionFocus = clamp(actionFocus, 0, actions.length - 1)
   const [activeTab, setActiveTab] = useState<DetailTab>('details')
@@ -165,10 +186,10 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
     setPlaying(true)
   }
 
-  /** Troca a aba real (Detalhes) ou anuncia "Em breve" pra Elenco/Semelhantes (mock). */
+  /** Troca a aba real (Detalhes, Elenco) ou anuncia "Em breve" pra Semelhantes (mock). */
   function activateTab(id: string) {
-    if (id === 'details') {
-      setActiveTab('details')
+    if (id === 'details' || id === 'cast') {
+      setActiveTab(id)
       return
     }
     showToast(`Em breve — ${getComingSoon(id).message}`)
@@ -177,9 +198,14 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
   useRemoteNav({
     onDirection: (dir) => {
       if (!movie) return
+      if (row === 'more') {
+        if (dir === 'down') setRow('actions')
+        return
+      }
       if (row === 'actions') {
         if (dir === 'left') setActionFocus((f) => clamp(f - 1, 0, actions.length - 1))
         if (dir === 'right') setActionFocus((f) => clamp(f + 1, 0, actions.length - 1))
+        if (dir === 'up' && hasMore) setRow('more')
         if (dir === 'down') {
           setFocusedTabId(activeTab)
           setRow('tabs')
@@ -200,6 +226,10 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
       // 010; corrigido aqui localmente, sem tocar `useRemoteNav` global).
       if (!movie) {
         onBack()
+        return
+      }
+      if (row === 'more') {
+        setSynopsisOpen(true)
         return
       }
       if (row === 'tabs') {
@@ -250,6 +280,7 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
     // Achado real (feature 028, FR-006): rolava com a barra nativa visível.
     <div className="screen vod-detail no-scrollbar">
       <div className="vod-detail-hero">
+        <DetailBackdrop url={metadata?.backdropUrl?.value} origin={metadata?.backdropUrl?.origin} />
         <div className="vod-detail-poster">
           <PosterArt url={movie.icon_url ?? undefined} title={movie.name} />
         </div>
@@ -257,6 +288,7 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
           <div className="vod-detail-eyebrow">FILME</div>
           <div className="vod-detail-title">{movie.name}</div>
           <div className="vod-detail-meta">{metaParts.join(' · ')}</div>
+          <SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />
           <div className="vod-detail-actions">
             {actions.map((action, i) => (
               <div
@@ -295,15 +327,19 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
                 <dd>{formatShortDate(movie.added_at)}</dd>
               </div>
             )}
+            <MetadataFacts rows={metadataFactRows(metadata, false)} />
             <div className="vod-detail-fact">
               <dt>Disponível</dt>
               <dd>{movie.playable ? 'Sim' : 'Não'}</dd>
             </div>
           </dl>
         )}
+
+        {activeTab === 'cast' && <CastPanel cast={metadata?.cast} loading={metadataQuery.isLoading === true} />}
       </div>
 
       <Toast message={toastMessage} messageKey={toastKey} />
+      {synopsisOpen && synopsis && <SynopsisModal text={synopsis.value} onClose={() => setSynopsisOpen(false)} />}
       {playing && (
         <PlayerLayer
           itemId={movieId}

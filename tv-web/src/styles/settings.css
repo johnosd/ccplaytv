@@ -60,7 +60,8 @@
 }
 
 .sources-panel-type,
-.sources-panel-status {
+.sources-panel-status,
+.sources-panel-epg {
   font-weight: 500;
   font-size: var(--fs-caption);
   color: var(--text-tertiary);
@@ -148,6 +149,97 @@
   color: var(--text-tertiary);
 }
 
+/* Integrações & BYOK (feature 032, `logic/integracoes-e-dock.md` §1). */
+.integrations-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.integration-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.integration-card-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.integration-card-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+/* O estado é sempre texto; a cor só reforça (nunca é o único sinal). */
+.integration-card-state {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.integration-card-state[data-state='connected'] {
+  color: var(--success);
+}
+
+.integration-card-state[data-state='refused'] {
+  color: var(--danger);
+}
+
+.integration-card-state[data-state='offline'],
+.integration-card-state[data-state='rate_limited'] {
+  color: var(--warning);
+}
+
+.integration-card-description,
+.integration-card-attribution {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.integration-card-attribution {
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+}
+
+.integration-card-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.integration-card-fact {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.integration-card-fact dt {
+  min-width: calc(var(--space-7) * 2);
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.integration-card-fact dd {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.integration-card-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
 /* Sobre & créditos. */
 .about-panel {
   display: flex;
@@ -187,4 +279,72 @@
 .about-panel-licenses-title {
   font-weight: 700;
   color: var(--text-secondary);
+}
+
+/* EPG da lista (feature 030, US2, `logic/tela-epg-configuracoes.md`). Tela
+   própria, na moldura padrão `.screen`; só tokens de `index.css`. */
+.epg-settings {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.epg-settings-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.epg-settings-state {
+  margin: 0;
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.epg-settings-note {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.epg-settings-error {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--danger);
+}
+
+.epg-settings-code {
+  font-weight: 700;
+  font-size: var(--fs-caption);
+}
+
+.epg-settings-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: calc(var(--space-7) * 6);
+  max-width: 100%;
+}
+
+.epg-settings-offset {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.epg-settings-offset-label {
+  font-weight: 600;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.epg-settings-offset-value {
+  min-width: var(--space-6);
+  text-align: center;
+  font-weight: 700;
+  font-size: var(--fs-body);
+  color: var(--text-primary);
 }

@@ -680,6 +680,162 @@ pass is recommended, not a gate, per the spec). See
 `sdd/specs/029-audio-legendas-info-player/plan.md` → `## Estado Atual` and
 `## Riscos e Decisões`.
 
+**Code-complete**: `030-epg-dados-agora` — items 42a+42b of the backlog: EPG
+data and "Now" everywhere it was reserved. Each source now gets XMLTV
+programming stored on the device: from the Xtream panel's own `xmltv.php`
+(URL derived from the source's credential at read time, never stored), from
+an M3U's `url-tvg`/`x-tvg-url` header, or from an address the person types
+(manual wins). Read as a stream in a dedicated Web Worker
+(`assets/epgWorker.js`, listed in `tizen_web_project.yaml` — the sync guard
+refuses to build without it), gzip detected by the body's magic bytes, only
+the −12h…+48h window kept in a new Dexie v11 `epgPrograms` table replaced
+per generation (a failed sync never wipes the previous programming).
+Channel↔programme matching is by **exact id only** (`epg_channel_id`/`tvg-id`,
+new `epgChannelId` on channel records) — never by name. Sources imported
+before this feature have no stored channel ids, so opening one triggers a
+single silent resync (`decideOnOpen` → `'migrate'` by `epgIdsCapturedAt`);
+that differs from the spec's FR-007 wording ("renew the category on entry"),
+recorded as R-002. Surfaces: `ChannelRow` "Agora" + real progress bar in every
+Live list (categories, ★ Favoritos, Todos, search, zapping — they share
+`renderColumns`), preview with "Agora"/"A seguir"/synopsis, the Live player
+band (`PlayerIdentity.now`, PlayerLayer stays EPG-agnostic) and the Home
+"Canais favoritos" rail. No EPG for a channel = empty slot, never invented
+text. Settings › Fontes IPTV › EPG is a real screen (`EpgSettingsScreen`,
+real DOM focus with ± 1 h buttons — R-011 — instead of the ←/→ design in
+`logic/`), the `settings-epg` mock is gone, `SourceView` still carries no
+URL (only the manual address's hostname), every failure is `EPG-02` with a
+categorized reason and never logs the raw error. ADR-010 was amended inline
+to cover the stored EPG addresses (the constitution's exception text was not
+changed). "Guia completo"/"Guia" were still `epg-guide` mocks at this point
+(they became real in feature 031, below).
+Contract 5/5 locked, 1534/1537 unit tests (the 3 failures are the known
+`*.favorites.test.tsx` parallelism flakes, 27/27 isolated), `tsc`/lint/
+`build:tizen` clean, `npm run test:e2e` green including the new
+`e2e/epg-dados-agora.mjs` (fake server, gzip XMLTV, Worker, all four
+surfaces, the settings screen) plus `e2e/epg-dados-agora-real.mjs` (kept out
+of `test:e2e`; reads the root `.env`, prints only counts) which passed
+against the real panel. Worth knowing before touching this: the reference
+panel's XMLTV only carries programming for **10 channel ids** in the window
+(954/954 channel ids match, but few have programmes), and the channel lists
+are virtualized, so a "Now" row can be dozens of rows down. Two real
+pre-existing bugs surfaced through the E2E and were dealt with: `Modal`
+activated in a `useEffect`, so a key pressed right after the dialog appeared
+leaked to the screen underneath (`home-busca-configuracoes.mjs` failed ~36%
+of runs on the pre-030 code before the fix — measured on a `HEAD` worktree;
+fixed with the user's explicit approval by switching to `useLayoutEffect`,
+regression test `Modal.teclas-na-montagem.test.tsx`); and the same script's
+"com progresso salvo… vira Continuar" step still fails ~19% of runs on the
+pre-030 code (unfixed, awaiting a decision). **Still open**: the physical-TV
+pass is recommended, not a gate — real `DecompressionStream` on Chromium 108
+(R-007), the Worker loading without falling back (R-005), navigation staying
+fluid during a large sync (SC-002, R-006), and the `.env`'s external XMLTV
+URL, which timed out from the dev machine (R-001). See
+`sdd/specs/030-epg-dados-agora/plan.md` → `## Estado Atual` and
+`## Riscos e Decisões`.
+
+**Code-complete**: `031-epg-guia-completo` — backlog item 42c: the full-screen
+programme guide, so "Guia completo" (Live preview) and "Guia" (player chrome)
+are real and the `epg-guide` mock is gone. `EpgGuide`
+(`features/live/guide/`) is a channel × programme grid over the data feature
+030 already stores: a pure model (`guideGrid.ts`, `guideRows.ts` — focus is
+`{channelId, programStart|null}` plus a `refTime` column, a 2 h visible window
+inside the stored −12 h…+48 h, block geometry in % of that window, local-calendar
+Hoje/Amanhã) and one component with two hosts. **Stopped**: it replaces the Live
+screen's content, no topbar (`.epg-guide-screen`). **Playing**: it is the
+`PlayerLayer` `topLayer`, opaque, with the channel session alive behind it; it
+closes only once the channel picked in it is actually playing
+(`guideWatchPendingRef`, so a buffering blip never closes it). The guide
+registers no keyboard of its own — the host forwards keys through
+`EpgGuideHandle` (`onDirection/onSelect/onBack/onPage`), because `PlayerLayer`
+captures the keyboard and a child `Modal` would never receive a key (same
+constraint as feature 029; the list selector is therefore the guide's own
+panel, not `Modal`). `PlayerLayerTopLayer` gained an optional `onMediaKey` so
+CH±/ChannelUp/Down reach the guide (page = visible rows − 1); the chrome's
+"Guia" is real only when the screen passes `onGuide`, otherwise it stays
+"Guia — em breve" without a mock id (this keeps feature 027's locked contract
+intact). OK on a current/future programme plays that channel and makes the
+guide's list the zapping neighbourhood; OK on a finished one only says so;
+focus is state + `.tv-focus`/`.no-scale`, one focus at all times, every state
+(loading/error/empty/no-EPG) has a focusable action, and moving focus never
+fires a request. A real CSS bug only a browser could show: overriding
+`.screen` to `position: relative` collapsed the guide to 0 px height (jsdom
+computes no layout; found by the new E2E). One real logic bug found by a
+locked contract: `onGuide` had been wired into the VOD branch of the chrome's
+`onSelect` instead of the Live one. Contract 5/5 locked, all 15 repository
+locks intact, 1579/1583 unit tests (the 4 failures are the known
+`*.favorites.test.tsx`/`LiveScreen.test.tsx` parallelism flakes, 106/106
+isolated in 3 runs), `tsc`/`build:tizen` clean, new
+`e2e/epg-guia-completo.mjs` (part of `test:e2e`) and
+`e2e/epg-guia-completo-real.mjs` (kept out of it; reads the root `.env`,
+prints only counts/ms) both green — the real run found a channel with real
+programming (p95 key→focus 128 ms) but its "Todos" only covered 2 of 41
+categories, so **R-003 (performance with thousands of channels) is not proven**.
+**Open, not gates**: the physical-TV pass (opaque guide over the AVPlay
+hardware plane with audio following — R-002; holding ↓/→ on a real list; CH±
+delivery), and "Configurar EPG" opened while a channel plays closes the player
+(R-010). See `sdd/specs/031-epg-guia-completo/plan.md` → `## Estado Atual` and
+`## Riscos e Decisões`.
+
+**Code-complete**: `032-metadata-tmdb-integracoes` — backlog item 28, with a
+scope the spec revised after measuring the real panel: the Xtream provider
+**already ships** synopsis, backdrop, genre, cast, director, country and
+`tmdb_id` (movies in `get_vod_info`, series in `get_series_info.info` — and
+in `get_series` itself), and the app captured none of it. Now the movie/series
+detail shows backdrop (a real `<img>` inside the hero — never a
+`background-image` on the `.screen`, or it paints over the AVPlay plane),
+synopsis truncated at ~3 lines with a focusable "Ver mais" (rule: more than
+220 characters, never a layout measurement) opening a modal, and
+Gênero/Duração/Direção/País/Elenco (text) in the Detalhes tab, all fetched
+**only when the detail opens** (never on focus, never in bulk — verified in
+a real Chromium: walking the grid makes zero metadata requests) into a new
+`titleMetadata` table keyed by `stableId` (Dexie v12; 24 h for the provider,
+6 months for TMDB). The TMDB (`lib/metadata/`) only fills fields the
+provider left empty (provider always wins, merged at read time), by the
+provider's `tmdb_id` (dropped if its year is off by more than 1 or the TMDB
+404s) or by normalized title + year with exactly **one** plausible
+candidate — no year, zero or several candidates means no enrichment, cached
+as "no match". Series episodes now also keep the provider's own `plot`
+(FR-028, the user's request) shown for the focused episode — from data
+already stored, so moving focus never hits the network; on this provider only
+~4–30 % of episodes carry one. `fetchSeriesDetail` returns `{episodes,
+info}` from the SAME response the episode loader already made
+(`fetchSeriesInfo` keeps its signature), so opening a series is one request,
+not two — `ensureTitleMetadata` defers to that loader and
+`useSeriesEpisodes` re-reads metadata when it lands. **The constitution was
+amended to 1.6.0**: a key the person typed on the TV (BYOK — TMDB, later
+OpenAI) may live in the device's IndexedDB, with the provider-credential
+mitigations (never logged, shown whole, put in a query key, toast or `aria-*`,
+or sent to any host but its own service); a developer-owned or shared key
+stays forbidden. Settings › **Integrações & BYOK** is real (TMDB card:
+state, masked key, capabilities, the attribution TMDB requires,
+Configurar/Testar/Editar/Remover, plus "Em breve" cards for AI/weather/speed
+test reusing the dock mocks), `TmdbKeyScreen` types the key through the TV's
+IME with an always-empty field, and the Home dock's TMDB icon shows the real
+state (name + `data-state`, never colour alone) and opens that card. The mocks
+`settings-integrations` and `dock-tmdb` are gone. Failures (401/429/offline)
+update the TMDB state shown in Integrações/dock without a toast per detail and
+are never cached or retried in a loop; a 429 pauses calls for 10 min; removing
+the key drops the TMDB half of the cache **and the in-memory query cache**
+(invalidating alone flashed the stale TMDB synopsis on the next open — a real
+bug the E2E found). Real-panel measurement (`e2e/metadata-tmdb-real.mjs`):
+synopsis+backdrop on 90 % of all 9 663 series and 87–93 % of sampled movies
+(SC-001 met). 5/5 contract tests locked, `tsc`/lint clean, the new
+`e2e/metadata-tmdb.mjs` (part of `test:e2e`, 3/3 green runs) covers the whole
+flow in Chromium. **Verified on the physical TV** (QN50Q60DAGXZD, 2026-09-29,
+seen by the user): CORS of `api.themoviedb.org` from the WebView, typing the
+key with the TV's IME, and the backdrop not painting over the AVPlay plane.
+SC-003 was measured with a real key (`e2e/metadata-tmdb-real-match.mjs`): 80
+movies matched by title + year without the `tmdb_id`, 74 right / 0 wrong /
+6 no match against the provider's own id as ground truth. After the physical
+pass the user asked for the **Elenco tab** to stop saying "Em breve": it is now
+a real tab listing the cast names as text (provider, or TMDB where the
+provider was silent; an honest empty message otherwise — ad-hoc T044, R-012;
+the `cast` mock is gone). Out of scope and still mocks: Semelhantes and
+navigable actor pages (item 45), Trailer (32), any rating (29), TMDB per
+episode. See
+`sdd/specs/032-metadata-tmdb-integracoes/plan.md` → `## Estado Atual` and
+`## Riscos e Decisões`.
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Quem está
@@ -766,7 +922,7 @@ requesting a `tizen-tv`/`tizen-emulator` validation pass.
 
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.5.0) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.6.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 
@@ -781,13 +937,16 @@ formally planned features. The ones most easily violated by accident:
   URL.
 - Secrets never reach logs, error messages or visible UI, and are never
   logged/interpolated raw (a caught fetch error can embed the full URL with
-  credentials). TMDB/OpenAI keys never reach the client at all.
+  credentials). A developer-owned or shared TMDB/OpenAI key never reaches
+  the client at all.
   **Exception (ADR-008, extended by ADR-010)**: provider credentials (dns,
   username, password), the full source URL, each item's playback URL and
   the downloaded M3U file may live in the device's IndexedDB — that's what
   lets the client re-authenticate and play without a backend — but still
   never in a log, a rendered card, an error message, a third-party request,
-  or an export/backup.
+  or an export/backup. **Extension (constitution 1.6.0, feature 032)**: a
+  BYOK key the *person* typed on the TV (TMDB, later OpenAI) may live there
+  too, under the same rules, and is only ever sent to its own service.
 - No invented progress percentages, and player controls must match the
   media's real capabilities (no seek bar on live without a DVR window).
 - Source-declared groups/categories are never silently replaced by external

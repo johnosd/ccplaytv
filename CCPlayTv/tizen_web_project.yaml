@@ -42,6 +42,11 @@ files:
   # apontava para um caminho inexistente. Ausência do arquivo NÃO falha no
   # navegador nem nos testes — só na TV. Ver R-002.
   - assets/importWorker.js
+  # Worker de EPG (feature 030), alcançado a partir de `epgRunner.ts` — que
+  # `importApi.ts` chama. Mesmo risco do Worker de importação: arquivo fora
+  # desta lista só falha na TV (R-005 da 030); o guard `findUnlistedFiles`
+  # do `sync-tizen.mjs` recusa sincronizar se ele sumir daqui.
+  - assets/epgWorker.js
   # Fontes Poppins/Inter empacotadas localmente (feature 021, D-002) — sem
   # elas o app cai no fallback Arial/Helvetica em silêncio, só perceptível
   # na TV. `tv-web/scripts/sync-tizen.mjs` recusa sincronizar se alguma

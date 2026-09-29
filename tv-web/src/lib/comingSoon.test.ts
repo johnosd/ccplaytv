@@ -23,25 +23,20 @@ describe('getComingSoon', () => {
     expect(() => getComingSoon('id-inexistente')).toThrow(/id-inexistente/)
   })
 
-  it('o registro de produção tem exatamente os mocks das features 023/024/025/026/027 (menos os que a 029 tornou reais) — a fixture de teste não vaza para ele', () => {
+  it('o registro de produção tem exatamente os mocks das features 023/024/025/026/027 (menos os que a 029, a 030, a 031 e a 032 tornaram reais) — a fixture de teste não vaza para ele', () => {
     delete COMING_SOON[FIXTURE_ID]
     expect(Object.keys(COMING_SOON).sort()).toEqual([
       'a11y-high-contrast',
       'a11y-subtitles',
       'a11y-voice-guide',
-      'cast',
       'dock-ai',
       'dock-speedtest',
-      'dock-tmdb',
       'dock-weather',
-      'epg-guide',
       'home-ai-curation',
       'pair-phone',
       'player-aspect',
       'player-quality',
       'player-speed',
-      'settings-epg',
-      'settings-integrations',
       'settings-parental',
       'settings-player',
       'similar',
@@ -57,8 +52,10 @@ describe('getComingSoon', () => {
       expect(String(entry.backlogItem).trim(), `backlogItem de ${id}`).not.toBe('')
     }
     expect(getComingSoon('pair-phone').backlogItem).toBe(22)
-    expect(getComingSoon('epg-guide').backlogItem).toBe(42)
+    expect(() => getComingSoon('epg-guide')).toThrow() // deixou de ser mock na 031
+    expect(() => getComingSoon('dock-tmdb')).toThrow() // deixou de ser mock na 032 (ícone real do dock)
+    expect(() => getComingSoon('settings-integrations')).toThrow() // deixou de ser mock na 032 (aba real)
+    expect(() => getComingSoon('cast')).toThrow() // deixou de ser mock na 032 (aba Elenco com o elenco em texto)
     expect(getComingSoon('home-ai-curation').backlogItem).toBe(30)
-    expect(getComingSoon('settings-epg').backlogItem).toBe(42)
   })
 })

@@ -234,3 +234,5 @@
 {"level":"info","message":"Discovered 0 devices in 161ms Discovered 0 devices in 161ms","source":"DeviceManager","timestamp":"2026-09-28T21:42:18.676Z"}
 {"level":"info","message":"PlaywrightGuideManager initialized PlaywrightGuideManager initialized","source":"PlaywrightGuideManager","timestamp":"2026-09-29T00:58:09.194Z"}
 {"context":{"node":"v20.19.6","platform":"win32-x64","version":"1.0.0"},"level":"info","message":"Tizen MCP Server v1.0.0 started and connected Tizen MCP Server v1.0.0 started and connected","source":"TizenMCPServer","timestamp":"2026-09-29T00:58:09.208Z"}
+{"level":"info","message":"PlaywrightGuideManager initialized PlaywrightGuideManager initialized","source":"PlaywrightGuideManager","timestamp":"2026-09-29T11:21:16.102Z"}
+{"context":{"node":"v20.19.6","platform":"win32-x64","version":"1.0.0"},"level":"info","message":"Tizen MCP Server v1.0.0 started and connected Tizen MCP Server v1.0.0 started and connected","source":"TizenMCPServer","timestamp":"2026-09-29T11:21:16.106Z"}

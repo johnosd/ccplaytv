@@ -327,7 +327,10 @@ async function run() {
     await page.keyboard.press('ArrowDown') // ações -> abas
     await page.keyboard.press('ArrowRight') // Detalhes -> Elenco
     await page.keyboard.press('Enter')
-    assert(await page.getByText(/Em breve — Elenco/).isVisible(), 'aba "Elenco" soft-disabled anuncia "Em breve"')
+    // Feature 032 (ad-hoc T044): "Elenco" virou aba real. Este painel fictício não
+    // informa elenco, então a aba diz isso — sem "Em breve" e sem nome inventado.
+    await page.waitForSelector('text=/O elenco deste título não foi informado/', { timeout: 5000 })
+    assert(!(await page.getByText(/Em breve — Elenco/).isVisible().catch(() => false)), 'aba "Elenco" deixou de anunciar "Em breve"')
     await page.keyboard.press('Escape') // detalhe -> grade (↺ Histórico)
     await page.waitForSelector('.vod-grid', { timeout: 8000 })
     await page.keyboard.press('Escape') // grade -> trilha

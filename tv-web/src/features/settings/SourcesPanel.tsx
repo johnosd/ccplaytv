@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
-import type { SourceOut } from '../import/importApi'
+import { useEpgSyncing, type SourceOut } from '../import/importApi'
 import { Button } from '../../components/Button'
 import { Icon } from '../../components/Icon'
-import { formatStatus, formatType } from '../sources/sourceFormat'
+import { formatEpgStatus, formatStatus, formatType } from '../sources/sourceFormat'
 import { LimitedModeNotice } from '../sources/LimitedModeNotice'
 
 /** Sentinela do "Adicionar lista" (nunca um id real, `logic/foco-configuracoes.md` §3). */
@@ -11,6 +11,12 @@ export const ADD_SOURCE_ID = '__add-source__'
 /** Editar, Ressincronizar, Excluir, EPG (feature 026, `logic/foco-configuracoes.md` §3). */
 export const SOURCES_ACTION_COUNT = 4
 const ACTION_LABELS = ['Editar', 'Ressincronizar', 'Excluir', 'EPG']
+
+/** Linha de estado do EPG (feature 030, FR-015) — componente próprio para poder assinar "sincronizando" por lista. */
+function SourceEpgStatus({ source }: { source: SourceOut }): ReactNode {
+  const syncing = useEpgSyncing(source.id)
+  return <span className="sources-panel-epg">{formatEpgStatus(source, syncing)}</span>
+}
 
 export interface SourcesPanelProps {
   sources: SourceOut[]
@@ -48,6 +54,7 @@ export function SourcesPanel({
               <span className="sources-panel-type">{formatType(source)}</span>
               {source.id === activeSourceId && <span className="sources-panel-badge">Lista ativa</span>}
               <span className="sources-panel-status">{formatStatus(source)}</span>
+              <SourceEpgStatus source={source} />
               {source.provider_import_mode === 'legacy_m3u' && (
                 // O próprio título de `LimitedModeNotice` já diz "Modo limitado" — não
                 // duplicar como badge separado (ficaria ambíguo para quem lê a tela).

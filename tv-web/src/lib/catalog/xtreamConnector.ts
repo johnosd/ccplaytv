@@ -19,6 +19,7 @@ import {
   classifyEntry,
   normalizeAddedAt,
   normalizeDurationSeconds,
+  normalizeEpgChannelId,
   normalizeIconUrl,
   normalizeYear,
   type ClassifiedEntry,
@@ -143,7 +144,13 @@ export function isAbortError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'AbortError'
 }
 
-async function fetchJsonDirect(url: string, signal?: AbortSignal): Promise<unknown> {
+/**
+ * @param fetchImpl Injeção (feature 032, metadata): quando informado, é ele que
+ *   faz a requisição e uma falha vira `network_failure` SEM a sondagem
+ *   `no-cors` — quem injeta não quer uma segunda requisição pelo `fetch`
+ *   global (o metadata do detalhe não distingue CORS de rede).
+ */
+async function fetchJsonDirect(url: string, signal?: AbortSignal, fetchImpl?: typeof fetch): Promise<unknown> {
   let response: Response
   try {
     // **Sem cabeçalho de requisição próprio, de propósito.** Qualquer
@@ -153,14 +160,14 @@ async function fetchJsonDirect(url: string, signal?: AbortSignal): Promise<unkno
     // falha antes do GET acontecer e *toda* conversa pelo protocolo JSON
     // morre — que é justamente o caminho direto que a ADR-008 confirmou
     // funcionar contra o provedor real.
-    response = await fetch(url, signal ? { signal } : undefined)
+    response = await (fetchImpl ?? fetch)(url, signal ? { signal } : undefined)
   } catch (error) {
     // Cancelamento deliberado (bug acima): nunca sonda o provedor de novo
     // por causa de algo que a própria pessoa que chamou já desistiu de
     // esperar — `probeFailureKind` dispararia uma SEGUNDA requisição à toa.
     if (isAbortError(error)) throw error
     throw new ProviderError(
-      await probeFailureKind(url),
+      fetchImpl ? 'network_failure' : await probeFailureKind(url),
       'Não foi possível falar com o provedor a partir deste aparelho.',
     )
   }
@@ -373,6 +380,10 @@ export function mapLiveEntry(
     // filme/série já usam. `num` foi verificado (T001, research.md R1) e
     // refutado como posição global — não é capturado.
     iconUrl: normalizeIconUrl(raw.stream_icon),
+    // Feature 030 (research R1): `epg_channel_id` do painel — string não
+    // vazia, senão ausente (`null` = canal sem EPG). Vários canais podem
+    // compartilhar o mesmo id (variantes HD/SD).
+    epgChannelId: normalizeEpgChannelId(raw.epg_channel_id),
   }
 }
 
@@ -649,6 +660,18 @@ export interface XtreamEpisode extends MappedChannel {
   seasonNumber: number
   episodeNumber?: number
   seriesId: string
+  /** Sinopse do episódio declarada pelo provedor, `info.plot`/`description` (feature 032, FR-028). */
+  synopsis?: string
+}
+
+/** Sinopse útil: texto não vazio e diferente de `"0"`; qualquer outra coisa é ausência. */
+function normalizeSynopsis(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value !== 'string') continue
+    const trimmed = value.trim()
+    if (trimmed !== '' && trimmed !== '0') return trimmed
+  }
+  return undefined
 }
 
 /**
@@ -672,19 +695,70 @@ function parseHhMmSsToSeconds(raw: unknown): number | undefined {
   return Number(h) * 3600 + Number(m) * 60 + Number(s)
 }
 
+/**
+ * Objeto `info` de uma resposta do painel, ou `undefined`. Painel sem dado
+ * costuma devolver `[]` no lugar do objeto — tratado como ausente.
+ */
+function infoObject(payload: unknown): Record<string, unknown> | undefined {
+  if (typeof payload !== 'object' || payload === null) return undefined
+  const info = (payload as Record<string, unknown>).info
+  return typeof info === 'object' && info !== null && !Array.isArray(info) ? (info as Record<string, unknown>) : undefined
+}
+
+/**
+ * `get_vod_info` (feature 032, FR-002): metadata descritiva de UM filme —
+ * só chamada quando a pessoa abre o detalhe, nunca ao focar um cartão nem em
+ * lote. Devolve o objeto `info` cru; quem normaliza é
+ * `lib/metadata/providerMetadata.ts`. Erro sai como `ProviderError`
+ * (mensagem sem URL).
+ */
+export async function fetchVodInfo(
+  base: string,
+  username: string,
+  password: string,
+  vodId: string,
+  signal?: AbortSignal,
+  fetchImpl?: typeof fetch,
+): Promise<Record<string, unknown> | undefined> {
+  const url = playerApiUrl(base, username, password, { action: 'get_vod_info', vod_id: vodId })
+  return infoObject(await fetchJsonDirect(url, signal, fetchImpl))
+}
+
+export interface XtreamSeriesDetail {
+  episodes: XtreamEpisode[]
+  /** `info` da série (sinopse, elenco, backdrop…), crua — feature 032. `undefined` = painel não mandou. */
+  info?: Record<string, unknown>
+}
+
 export async function fetchSeriesInfo(
   base: string,
   username: string,
   password: string,
   seriesId: string
 ): Promise<XtreamEpisode[]> {
+  return (await fetchSeriesDetail(base, username, password, seriesId)).episodes
+}
+
+/**
+ * A mesma ida de `get_series_info`, agora também devolvendo o `info` da série
+ * (feature 032, D-009): episódios e metadata numa requisição só.
+ * `fetchSeriesInfo` continua devolvendo só os episódios, para quem não usa o `info`.
+ */
+export async function fetchSeriesDetail(
+  base: string,
+  username: string,
+  password: string,
+  seriesId: string,
+  fetchImpl?: typeof fetch,
+): Promise<XtreamSeriesDetail> {
   const url = playerApiUrl(base, username, password, { action: 'get_series_info', series_id: seriesId })
-  const payload = await fetchJsonDirect(url)
-  if (typeof payload !== 'object' || payload === null) return []
+  const payload = await fetchJsonDirect(url, undefined, fetchImpl)
+  if (typeof payload !== 'object' || payload === null) return { episodes: [] }
 
   const record = payload as Record<string, unknown>
+  const info = infoObject(payload)
   const episodesObj = record.episodes
-  if (typeof episodesObj !== 'object' || episodesObj === null) return []
+  if (typeof episodesObj !== 'object' || episodesObj === null) return { episodes: [], info }
 
   const episodes: XtreamEpisode[] = []
   for (const [seasonStr, epsArray] of Object.entries(episodesObj)) {
@@ -722,6 +796,8 @@ export async function fetchSeriesInfo(
       const durationSeconds =
         normalizeDurationSeconds(info.duration_secs) ?? normalizeDurationSeconds(parseHhMmSsToSeconds(info.duration))
       const iconUrl = normalizeIconUrl(info.movie_image)
+      // Feature 032 (FR-028): sinopse do episódio, quando o painel a manda.
+      const synopsis = normalizeSynopsis(info.plot, info.description)
 
       episodes.push({
         kind: 'episode',
@@ -736,8 +812,9 @@ export async function fetchSeriesInfo(
         episodeNumber,
         durationSeconds,
         iconUrl,
+        synopsis,
       })
     }
   }
-  return episodes
+  return { episodes, info }
 }

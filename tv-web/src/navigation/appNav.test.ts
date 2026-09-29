@@ -64,6 +64,47 @@ describe('appNavReducer — regras além dos contratos (feature 023)', () => {
     expect(state.history).toEqual([])
   })
 
+  // Feature 030 (US2, FR-022): RETURN na tela de EPG volta às Configurações com o foco no botão "EPG".
+  it('abrir o EPG de uma lista e voltar restaura Configurações com o foco no botão "EPG" daquela lista', () => {
+    const settings = { name: 'settings' as const, restore: { zone: 'sources' as const, sourceId: 'a', action: 'epg' as const } }
+    const state = run(
+      initialAppNav(),
+      { type: 'splash-finished' },
+      { type: 'choose-source', source: A },
+      { type: 'open', screen: { name: 'settings' } },
+      { type: 'open', screen: { name: 'epg-settings', source: A }, from: settings },
+    )
+    expect(state.screen).toEqual({ name: 'epg-settings', source: A })
+
+    const back = appNavReducer(state, { type: 'back' })
+    expect(back.screen).toEqual(settings)
+  })
+
+  // Feature 032 (US2): a tela da chave TMDB volta ao card do TMDB; do dock da Home, RETURN volta ao ícone do dock.
+  it('abrir a chave do TMDB e voltar restaura Configurações no card do TMDB', () => {
+    const settings = { name: 'settings' as const, restore: { zone: 'panel' as const, tab: 'integrations' as const } }
+    const state = run(
+      initialAppNav(),
+      { type: 'splash-finished' },
+      { type: 'choose-source', source: A },
+      { type: 'open', screen: { name: 'settings' } },
+      { type: 'open', screen: { name: 'tmdb-key' }, from: settings },
+    )
+    expect(state.screen).toEqual({ name: 'tmdb-key' })
+    expect(appNavReducer(state, { type: 'back' }).screen).toEqual(settings)
+  })
+
+  it('Integrações aberta pelo dock do Início: RETURN devolve o Início com o foco no ícone do dock', () => {
+    const atHome = run(initialAppNav(), { type: 'splash-finished' }, { type: 'choose-source', source: A })
+    const state = appNavReducer(atHome, {
+      type: 'open',
+      screen: { name: 'settings', restore: { zone: 'panel', tab: 'integrations' } },
+      from: { name: 'home', focus: { zone: 'dock', service: 'dock-tmdb' } },
+    })
+    expect(state.screen).toEqual({ name: 'settings', restore: { zone: 'panel', tab: 'integrations' } })
+    expect(appNavReducer(state, { type: 'back' }).screen).toEqual({ name: 'home', focus: { zone: 'dock', service: 'dock-tmdb' } })
+  })
+
   it('back numa tela base devolve o MESMO estado (a tela decide o que RETURN faz)', () => {
     const atHome = run(initialAppNav(), { type: 'splash-finished' }, { type: 'choose-source', source: A })
     expect(appNavReducer(atHome, { type: 'back' })).toBe(atHome)

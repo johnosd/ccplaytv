@@ -13,6 +13,7 @@ import { createProgressRecorder, type ProgressRecorder, type ProgressRecorderIde
 import { MOVIE_WATCHED_RATIO } from '../lib/player/resumePolicy'
 import { disableScreenSaver, enableScreenSaver } from '../lib/player/screenSaver'
 import { clamp, useRemoteNav } from '../lib/useRemoteNav'
+import type { MediaKey } from '../lib/tizenMediaKeys'
 import { useToast } from '../lib/useToast'
 import { getComingSoon } from '../lib/comingSoon'
 import {
@@ -81,6 +82,12 @@ export interface PlayerLayerTopLayer {
   onLongSelect?: () => void
   /** Mesmo gesto de `onLongSelect`, via a tecla amarela do controle (feature 013). */
   onFavoriteKey?: () => void
+  /**
+   * Opcional (feature 031, D-011): tecla de mídia com esta camada aberta.
+   * Sem isto, o `PlayerLayer` ignora as teclas de mídia sob um `topLayer`
+   * (só `MediaStop` fecha) — o guia precisa de CH±.
+   */
+  onMediaKey?: (key: MediaKey) => void
 }
 
 export interface PlayerLayerProps {
@@ -148,6 +155,14 @@ export interface PlayerLayerProps {
   onChannelStep?: (direction: 'previous' | 'next') => boolean
 
   /**
+   * Feature 031 (D-004): o Guia completo. Presente = o controle "Guia" da
+   * linha do Live é REAL e OK nele chama isto; ausente = continua o
+   * "Guia — em breve" de sempre (o contrato travado da 027 monta o player
+   * sem isto). STUB do sdd-plan: ainda não é lida — a T021 liga.
+   */
+  onGuide?: () => void
+
+  /**
    * Feature 027: anterior/próximo episódio. Ausente (filme, ou episódio
    * aberto de fora do detalhe da série): sem botões de episódio.
    */
@@ -191,6 +206,7 @@ const JUMP_MS = 10_000
 const DEFAULT_UNAVAILABLE_MESSAGE = 'Este item não tem uma fonte de reprodução disponível.'
 const DEFAULT_GENERIC_ERROR_MESSAGE = 'Não foi possível reproduzir isto.'
 
+const GUIDE_UNAVAILABLE_MESSAGE = 'O guia não está disponível neste player.'
 const TRACKS_UNAVAILABLE_MESSAGE = 'Este aparelho não informou as faixas deste conteúdo.'
 const TRACK_SWITCH_FAILED = {
   audio: 'Não foi possível trocar o áudio.',
@@ -259,6 +275,7 @@ export function PlayerLayer({
   onSessionError,
   identity,
   onChannelStep,
+  onGuide,
   episodeStep,
   initialTrackChoice,
   onTrackChoiceChange,
@@ -342,6 +359,7 @@ export function PlayerLayer({
     return chromeControls(chromeMediaRef.current, capabilities, paused, episodeNeighborsOf(), {
       tracks: session?.supportsTracks ?? false,
       info: session?.supportsStreamInfo ?? false,
+      guide: onGuide !== undefined,
     })
   }
 
@@ -907,6 +925,13 @@ export function PlayerLayer({
           // (feature 029); os demais são "Em breve" (FR-022).
           const control = controlsFor(session.capabilities, false)[focusedIndexRef.current]
           if (control && activatePanelControl(control, session)) return
+          if (control?.id === 'guide') {
+            // Feature 031: real quando a tela sabe abrir o guia (`onGuide`); senão só explica.
+            if (control.availability === 'real') onGuide?.()
+            else showToast(GUIDE_UNAVAILABLE_MESSAGE)
+            scheduleHide()
+            return
+          }
           if (control?.availability === 'soon' && control.comingSoonId) {
             showToast(`Em breve — ${getComingSoon(control.comingSoonId).message}`)
           }
@@ -950,7 +975,11 @@ export function PlayerLayer({
           return
         }
         // Com um painel aberto as demais teclas de mídia esperam (feature 029).
-        if (topLayer || isErrorScreen || panelRef.current) return
+        if (topLayer) {
+          topLayer.onMediaKey?.(key)
+          return
+        }
+        if (isErrorScreen || panelRef.current) return
         const session = sessionRef.current
         if (!session || session.state === 'idle' || session.state === 'preparing') return
 

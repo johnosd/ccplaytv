@@ -35,6 +35,13 @@ export type ChromeControlAvailability = 'real' | 'soon' | 'limit' | 'unavailable
 export interface ChromeFeatures {
   tracks: boolean
   info: boolean
+  /**
+   * Feature 031: a tela sabe abrir o Guia completo. Opcional (padrão
+   * `false`) para as chamadas anteriores à 031 continuarem válidas — sem
+   * isso, "Guia" segue "em breve" (sem entrada em `comingSoon.ts`: o guia é
+   * real, só falta a tela que monta o player saber abri-lo).
+   */
+  guide?: boolean
 }
 
 const NO_FEATURES: ChromeFeatures = { tracks: false, info: false }
@@ -78,6 +85,12 @@ export interface PlayerIdentity {
   channelNumber?: string | null
   /** Só faz sentido no canal. */
   logoUrl?: string | null
+  /**
+   * Programa em exibição no canal (feature 030, D-014, FR-026): título e
+   * progresso 0–1, já calculados pela tela — o player nunca sabe o que é EPG.
+   * Ausente = a banda fica exatamente como era. Só faz sentido no canal.
+   */
+  now?: { title: string; progress: number }
 }
 
 /** Vizinhança de episódio já calculada pela tela da série (feature 027). */
@@ -118,7 +131,7 @@ export function chromeControls(
 ): ChromeControl[] {
   if (media === 'live') {
     return [
-      { id: 'guide', availability: 'soon', label: 'Guia — em breve', comingSoonId: 'epg-guide' },
+      features.guide ? { id: 'guide', availability: 'real', label: 'Guia' } : { id: 'guide', availability: 'soon', label: 'Guia — em breve' },
       tracksControl(features),
       { id: 'quality', availability: 'soon', label: 'Qualidade — em breve', comingSoonId: 'player-quality' },
       { id: 'aspect', availability: 'soon', label: 'Aspecto — em breve', comingSoonId: 'player-aspect' },
