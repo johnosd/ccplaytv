@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-28
 
-**Status**: Implementada
+**Status**: Convergida
 
 **Input**: Item 55 do backlog, sub-entrega 55a — "Áudio, legendas e info
 (§27.4, §27.8)": modal de trilhas com idiomas disponíveis, legenda Off,

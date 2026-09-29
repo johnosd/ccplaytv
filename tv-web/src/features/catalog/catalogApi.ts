@@ -79,6 +79,13 @@ export interface CatalogItemOut {
   year?: number | null
   /** Inclusão declarada pela fonte, epoch ms (feature 025). `null` = não declarada. */
   added_at?: number | null
+  /**
+   * Id de EPG que a fonte declara para o canal (feature 030, FR-006/FR-008):
+   * `epg_channel_id` do Xtream, `tvg-id` do M3U. `null` = não declarado —
+   * canal sem EPG, nunca casado por nome. STUB do sdd-plan: `toItemOut`
+   * ainda não preenche (T005).
+   */
+  epg_channel_id?: string | null
 }
 
 export interface CatalogItemPlayback {

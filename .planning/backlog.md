@@ -46,8 +46,8 @@ gates de hardware abertos, integridade do estado do usuário).
 | 1 | Passada física dos gates abertos (013, 027) | 58 | verificação | — |
 | 2 | Áudio, legendas e info do stream no player (`029`, código completo em 28/09/2026; falta a passada física) | 55 (55a) | feature | `player-tracks`, `player-info` |
 | 3 | Entrada numérica de canal | 44 | feature | — (regra §44 sem UI) |
-| 4 | EPG: dados + "Agora" na Live TV e no player | 42 (42a/42b) | feature | `settings-epg` |
-| 5 | EPG: Guia completo em tela cheia | 42 (42c) | feature | `epg-guide` |
+| 4 | EPG: dados + "Agora" na Live TV e no player (`030`, especificada em 28/09/2026) | 42 (42a/42b) | feature | `settings-epg` |
+| 5 | EPG: Guia completo em tela cheia (`031`, especificada em 28/09/2026) | 42 (42c) | feature | `epg-guide` |
 | 6 | Limpar histórico + aba Privacidade | 57 | feature | — (regra §48.4 sem UI) |
 | 7 | Memória de foco por área + key repeat | 14 | feature | — (regra §41/§42) |
 | 8 | Rede e lifecycle + erros acionáveis com código | 61, 19 | feature | — (regras §40/§45) |
@@ -171,7 +171,9 @@ AVPlay já entregam.
     aproximado. XMLTV pode ser grande: parse em Web Worker e por stream,
     mesmo cuidado da feature 005; janela limitada (ex.: hoje + amanhã).
 
-    Três incrementos, cada um uma feature:
+    Três incrementos; 42a e 42b foram especificados juntos como
+    `030-epg-dados-agora` e 42c como `031-epg-guia-completo` (ambas
+    especificadas em 28/09/2026):
     - **42a — Dados**: download/parse/armazenamento no IndexedDB por fonte,
       frescor e sincronização manual, estados "EPG vinculado"/"EPG não
       configurado"/erro `EPG-02` (§24.3, §45). Remove `settings-epg`.
@@ -748,7 +750,9 @@ Registrados para que referências antigas continuem rastreáveis:
 | 026-home-busca-configuracoes-ds-v14 | Home definitiva, Busca global e Configurações no Design System V14 (Onda 5) | Convergida | 50/50 tasks | 2026-09-28 |
 | 027-player-chrome-ds-v14 | Player chrome do Design System V14 com auto-hide e teclas de mídia (Onda 6) | Convergida | 55/55 tasks | 2026-09-28 |
 | 028-limpeza-qa-ds-v14 | Limpeza e QA do Design System V14 (Onda 7) | Implementada | 78/78 tasks | 2026-09-28 |
-| 029-audio-legendas-info-player | Player — Trilhas de Áudio, Legendas e Info do Stream | Implementada | 50/52 tasks | 2026-09-28 |
+| 029-audio-legendas-info-player | Player — Trilhas de Áudio, Legendas e Info do Stream | Convergida | 50/52 tasks | 2026-09-28 |
+| 030-epg-dados-agora | EPG — Dados de Programação e "Agora" na Live TV, no Player e na Home | Planejada | 1/56 tasks | 2026-09-29 |
+| 031-epg-guia-completo | EPG — Guia Completo em Tela Cheia | Especificada | N/A | 2026-09-28 |
 
 ## Bugs
 

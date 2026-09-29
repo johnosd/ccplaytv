@@ -1,0 +1,27 @@
+{
+    "feature":  "030-epg-dados-agora",
+    "lockedAt":  "2026-09-29 00:11",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/epg/xmltvParser.epg-dados-agora.contract.test.ts",
+                      "sha256":  "05facc4e4ca82fd4eafac91df11295601625c6a0dbf8848da6338c3d03707544",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/epg/nowNext.epg-dados-agora.contract.test.ts",
+                      "sha256":  "acbb5efb71a50bdd4e376c5552bee98e54660ebbdf5a9ecc46145951affcdbd5",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/epg/epgSync.epg-dados-agora.contract.test.ts",
+                      "sha256":  "b6fabe98392a83792f68d6c82d39c93e040c61eb3fbe932b1447362ce22e26ae",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/live/LiveScreen.epg-dados-agora.contract.test.tsx",
+                      "sha256":  "6eb2d79b41c88be2cced656fa14cda7ee82a00138cd547ba60a82070888a0028",
+                      "tests":  1
+                  }
+              ]
+}
