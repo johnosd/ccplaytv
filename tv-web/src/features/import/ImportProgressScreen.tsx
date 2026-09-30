@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { useCancelImportJob, useImportJob, useRetryImportJob } from './importApi'
+import { useCancelImportJob, useEpgSyncing, useImportJob, useRetryImportJob, useSources } from './importApi'
+import { guideRow, isGuideSettled, sectionRows } from './importSections'
 import { useTvKeyNav } from '../../lib/useTvKeyNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
 import { Button } from '../../components/Button'
@@ -88,9 +89,24 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
   // durante a execução, o foco ficaria lá. Este efeito move o foco de forma
   // explícita, uma vez, na virada para concluída.
   const isDone = job?.status === 'completed' || job?.status === 'completed_with_warnings'
+
+  // Feature 038 (US3): a linha "Guia" vem do estado do EPG da fonte, que
+  // sincroniza depois da importação, em segundo plano.
+  const sourceId = job?.source_id ?? null
+  const epg = useSources().data?.sources.find((source) => source.id === sourceId)?.epg
+  const epgSyncing = useEpgSyncing(sourceId)
+  const guide = guideRow({
+    importSucceeded: isDone,
+    epg,
+    syncing: epgSyncing,
+    runStartedAt: job ? Date.parse(job.created_at) : 0,
+  })
+  // D-012: "Abrir lista" já aparece com a estrutura pronta; o foco vai para ele
+  // quando o guia também se resolve (FR-019).
+  const settled = isDone && isGuideSettled(guide)
   useEffect(() => {
-    if (isDone) openListRef.current?.querySelector<HTMLElement>('button')?.focus()
-  }, [isDone])
+    if (settled) openListRef.current?.querySelector<HTMLElement>('button')?.focus()
+  }, [settled])
 
   // Carregando e "não existe mais" são estados distintos, e nenhum dos dois
   // pode ficar sem saída: a tela precisa de pelo menos um elemento focável
@@ -161,6 +177,23 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
           {stepLabels[job.current_step] ?? job.current_step}
         </p>
       </div>
+
+      {/* Feature 038 (FR-015..FR-017): uma linha por parte, com estado e
+          contagem reais — texto, nunca só cor, nunca percentual. */}
+      <ul aria-label="O que está sendo carregado" className="progress-sections">
+        {[...sectionRows(job.sections), guide].map((row) => (
+          <li key={row.key} className="progress-section" data-state={row.state}>
+            <span className="progress-section-label">{row.label}</span>
+            <span className="progress-section-state">{row.text}</span>
+          </li>
+        ))}
+      </ul>
+
+      {settled && (
+        <p className="progress-background-note">
+          Os itens de cada categoria continuam chegando em segundo plano.
+        </p>
+      )}
 
       <ul aria-label="Contadores" className="progress-counters">
         <li className="progress-counter">

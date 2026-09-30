@@ -27,6 +27,7 @@ import { FAVORITES_SNAPSHOT } from './features/catalog/categoryScreenSnapshot'
 import { registerFavoriteColorKey } from './lib/tizenColorKey'
 import { registerMediaKeys } from './lib/tizenMediaKeys'
 import { onEpgSyncFinished } from './lib/epg/epgRunner'
+import { usePrefetchForSource, wakePrefetch } from './features/catalog/prefetchApi'
 import { appNavReducer, initialAppNav, type AppScreen, type TopDestination } from './navigation/appNav'
 import { readLastSourceId, writeLastSourceId } from './navigation/lastSource'
 import type { OpenPersonTarget, OpenTitleTarget } from './features/vod/detailSnapshot'
@@ -113,7 +114,15 @@ function App() {
     void queryClient.invalidateQueries({ queryKey: ['catalog-counts'] })
     void queryClient.invalidateQueries({ queryKey: ['catalog-item'] })
     void queryClient.invalidateQueries({ queryKey: ['sources'] })
+    // Feature 038: a estrutura pode ter mudado (categorias novas/removidas,
+    // renovação pedida) — a trilha relê e a pré-carga relê o disco.
+    void queryClient.invalidateQueries({ queryKey: ['categories'] })
+    void queryClient.invalidateQueries({ queryKey: ['category-content'] })
+    wakePrefetch()
   }, [autoRefreshJobId, autoRefreshJob.data?.status, queryClient])
+
+  // Feature 038 (D-010): a pré-carga acompanha a lista ativa.
+  usePrefetchForSource(activeSource?.id ?? null)
 
   /**
    * Escolher uma lista (feature 023, FR-005/FR-006/FR-007): vira a fonte
@@ -124,6 +133,9 @@ function App() {
   function chooseSource(source: SourceOut) {
     dispatch({ type: 'choose-source', source })
     writeLastSourceId(source.id)
+    // Mesma lista de antes (ex.: "Abrir lista" depois de ressincronizar): a
+    // pré-carga já roda, mas a estrutura pode ter mudado — relê o disco.
+    wakePrefetch()
     // Fogo e esquece: a leitura do catálogo sempre serve o que está
     // publicado agora (cache-first, ADR-002); a navegação nunca espera essa
     // decisão.
@@ -269,6 +281,11 @@ function App() {
         <HomeScreen
           source={source}
           initialFocus={screen.focus}
+          // Feature 038 (US6): a atualização automática por idade roda calada —
+          // o Início diz "Atualizando catálogo…" enquanto ela não termina.
+          updating={
+            autoRefreshJob.data?.source_id === source.id && !TERMINAL_STATUSES.includes(autoRefreshJob.data.status)
+          }
           onNavigate={(destination, from) =>
             dispatch({ type: 'open', screen: { name: destination }, from: { name: 'home', focus: from } })
           }

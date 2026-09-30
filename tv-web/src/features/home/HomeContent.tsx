@@ -56,6 +56,11 @@ export interface HomeContentProps {
   onPlay: (params: { itemId: string; title: string; startAtMs: number | undefined }) => void
   /** Foco a restaurar ao voltar de um destino (FR-017/FR-029). */
   initialFocus?: HomeContentFocus
+  /**
+   * Linha de estado do catálogo (feature 038, US6, FR-031): informativa, nunca
+   * focável. Ausente/`null` = nada a dizer.
+   */
+  statusLine?: string | null
 }
 
 type RowKey = 'hero' | 'continue' | 'mylist' | 'channels' | 'ai' | 'dock'
@@ -134,6 +139,7 @@ export function HomeContent({
   onOpenIntegrations,
   onPlay,
   initialFocus,
+  statusLine,
 }: HomeContentProps): ReactNode {
   const heroQuery = useHomeHero(sourceId)
   const hero = heroQuery.data ?? { kind: 'welcome' as const }
@@ -346,6 +352,8 @@ export function HomeContent({
 
   return (
     <div className="home-content no-scrollbar">
+      {/* Feature 038 (FR-031/FR-032): texto, não controle — sem tabIndex, fora da navegação. */}
+      {statusLine && <p className="home-status-line">{statusLine}</p>}
       <section className="home-hero" aria-label={hero.kind === 'welcome' ? 'Boas-vindas' : hero.item.name}>
         <div className="home-hero-poster">
           {hero.kind !== 'welcome' && <PosterArt url={hero.item.icon_url ?? undefined} title={hero.item.name} />}

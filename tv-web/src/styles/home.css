@@ -16,6 +16,18 @@
   overflow-y: auto;
 }
 
+/* Feature 038 (US6): linha discreta de estado do catálogo — texto, não
+   controle; nunca focável. A margem negativa devolve o `gap` da coluna para
+   o hero não descer um espaço inteiro por causa de uma linha de legenda. */
+.home-status-line {
+  flex-shrink: 0;
+  margin: 0 0 calc(var(--space-5) * -1 + var(--space-1));
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Hero: banner de largura total, texto/ações sobrepostos na base — a capa
    (`PosterArt`) preenche a área toda, atrás de um degradê que garante
    contraste do texto sem esconder a imagem (ADR-007 — sem preview em
