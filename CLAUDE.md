@@ -1116,7 +1116,10 @@ to under-deliver on from memory.
   (sequenced by dependency, phases 0–6 plus `A avaliar` and process items),
   `## Features`, `## Bugs`, `## Melhorias Ad-hoc`. **The status/progress
   columns are maintained by the PowerShell scripts — don't hand-edit them.**
-  The idea list above them is hand-maintained prose.
+  The idea list above them is one hand-maintained table (since 2026-09-29)
+  with each item's dependencies, code zones and "trilha" (lane) — two items
+  can run in parallel only if their zones don't overlap; see "Regras para
+  trabalhar em paralelo" there.
 - `.planning/migracao-design-system-v14.md` — the roadmap for migrating the
   frontend to Design System V14 (waves → features 021+, real-vs-mock matrix,
   mock policy, open decisions, risks). Hand-maintained prose, like the idea
