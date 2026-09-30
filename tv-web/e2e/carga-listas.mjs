@@ -19,6 +19,8 @@ const PANEL_USER = 'usuario'
 const PANEL_PASS = 'senha'
 /** Atraso de cada resposta de categoria — a pré-carga do catálogo leva segundos, não milissegundos. */
 const CATEGORY_DELAY_MS = 250
+/** Atraso da seção inteira — maior, para os cenários verem a gravação pausar (tecla/player). */
+const SECTION_DELAY_MS = 1200
 
 let failures = 0
 function assert(condition, message) {
@@ -107,6 +109,19 @@ function startPanelServer(log) {
       log.push({ at: Date.now(), action, categoryId })
       return send(itemsFor(action, categoryId), CATEGORY_DELAY_MS)
     }
+    // Seção inteira (feature 038, R0-3): todos os itens de todas as categorias declaradas.
+    if (['get_live_streams', 'get_vod_streams', 'get_series'].includes(action)) {
+      log.push({ at: Date.now(), action, categoryId: '*' })
+      const declared =
+        action === 'get_live_streams'
+          ? LIVE
+          : action === 'get_vod_streams'
+            ? VOD.filter((c) => !panel.removedVod.has(c.category_id))
+            : panel.seriesEmpty
+              ? []
+              : SERIES
+      return send(declared.flatMap((c) => itemsFor(action, c.category_id)), SECTION_DELAY_MS)
+    }
     if (action) return send([])
     return send({ user_info: { auth: 1, exp_date: '0', allowed_output_formats: ['ts'] } })
   })
@@ -144,6 +159,23 @@ async function freshListOpen(browser, panelUrl, name) {
 }
 
 const TOTAL_CATEGORIES = LIVE.length + VOD.length + SERIES.length
+
+/** Quantas categorias já têm itens no aparelho (lido do IndexedDB do próprio app). */
+async function readyCount(page) {
+  return page.evaluate(async () => {
+    const request = indexedDB.open('ccplaytv')
+    const handle = await new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    const all = await new Promise((resolve) => {
+      const query = handle.transaction('categories').objectStore('categories').getAll()
+      query.onsuccess = () => resolve(query.result)
+    })
+    handle.close()
+    return all.filter((category) => category.itemsFetchedAt !== undefined).length
+  })
+}
 
 /** Configurações › Fontes IPTV › "Ressincronizar" da (única) lista, até voltar ao Início. */
 async function resyncViaSettings(page) {
@@ -266,14 +298,19 @@ async function run() {
       })
       assert(!lineFocusable, 'a linha de estado não é focável nem tem foco')
       const deadline = Date.now() + 30000
-      while (new Set(log.map((e) => `${e.action}:${e.categoryId}`)).size < TOTAL_CATEGORIES && Date.now() < deadline) {
+      while ((await readyCount(page)) < TOTAL_CATEGORIES && Date.now() < deadline) {
         await page.waitForTimeout(250)
       }
-      const distinct = new Set(log.map((e) => `${e.action}:${e.categoryId}`))
-      assert(distinct.size === TOTAL_CATEGORIES, `parado no Início, as ${TOTAL_CATEGORIES} categorias chegam sozinhas (${distinct.size})`)
+      assert((await readyCount(page)) === TOTAL_CATEGORIES, `parado no Início, as ${TOTAL_CATEGORIES} categorias ficam prontas sozinhas`)
+      // R0-3: uma requisição por SEÇÃO, nunca uma por categoria (o painel limita a frequência).
+      const sections = log.filter((e) => e.categoryId === '*').map((e) => e.action)
+      assert(
+        JSON.stringify(sections) === JSON.stringify(['get_live_streams', 'get_vod_streams', 'get_series']),
+        `3 pedidos, um por seção, Canais primeiro (${sections.join(', ')})`,
+      )
+      assert(log.filter((e) => e.categoryId !== '*').length === 0, 'nenhum pedido por categoria com a pessoa parada')
       const gaps = log.slice(1).map((e, i) => e.at - log[i].at)
-      assert(gaps.every((gap) => gap >= CATEGORY_DELAY_MS), 'uma categoria por vez (nenhum pedido começa antes do anterior responder)')
-      assert(log[0]?.action === 'get_live_streams', 'sem dica de foco, Canais vêm primeiro')
+      assert(gaps.every((gap) => gap >= SECTION_DELAY_MS), 'uma seção por vez (nenhum pedido começa antes do anterior responder)')
       await page
         .waitForFunction(() => (document.querySelector('.home-status-line')?.textContent ?? '').startsWith('Catálogo atualizado'), null, {
           timeout: 5000,
@@ -330,8 +367,13 @@ async function run() {
       assert((await focusedLabel()) === 'Filmes 3', 'o foco continua em "Filmes 3" enquanto os números chegam')
       const scrollAfter = await page.evaluate(() => document.querySelector('.side-category-nav')?.scrollTop ?? 0)
       assert(scrollAfter === scrollBefore, 'a rolagem do trilho não muda')
-      const firstMovie = log.find((e) => e.action === 'get_vod_streams')
-      assert(firstMovie?.categoryId === '102', `a pré-carga começa pela categoria em foco (${firstMovie?.categoryId})`)
+      const sectionOrder = log.filter((e) => e.categoryId === '*').map((e) => e.action)
+      // Canais já foram pedidos no Início (sem dica ainda); com a pessoa em Filmes, Filmes passa na frente de Séries.
+      assert(
+        sectionOrder.indexOf('get_vod_streams') !== -1 &&
+          (sectionOrder.indexOf('get_series') === -1 || sectionOrder.indexOf('get_vod_streams') < sectionOrder.indexOf('get_series')),
+        `a seção de onde a pessoa está (Filmes) vem antes de Séries (${sectionOrder.join(', ')})`,
+      )
       await context.close()
     }
 
@@ -345,12 +387,13 @@ async function run() {
         await page.keyboard.press(Math.floor((Date.now() - start) / 600) % 2 === 0 ? 'ArrowRight' : 'ArrowLeft')
         await page.waitForTimeout(150)
       }
-      const pressingEnd = Date.now()
-      // Tolerância: um pedido que já tinha começado antes da 1ª tecla pode aparecer no início.
-      const startedWhilePressing = log.filter((e) => e.at > start + 400 && e.at < pressingEnd)
-      assert(startedWhilePressing.length === 0, `nenhuma categoria começa enquanto a pessoa aperta teclas (${startedWhilePressing.length})`)
+      const readyWhilePressing = await readyCount(page)
+      // A seção de canais já chegou (1,2 s), mas nada foi gravado com a pessoa apertando teclas.
+      assert(log.some((e) => e.categoryId === '*'), 'a seção foi pedida')
+      assert(readyWhilePressing === 0, `nenhuma categoria é gravada enquanto a pessoa aperta teclas (${readyWhilePressing})`)
       await page.waitForTimeout(3500)
-      assert(log.some((e) => e.at >= pressingEnd), 'uns 2 s depois da última tecla, a pré-carga retoma sozinha')
+      const readyAfter = await readyCount(page)
+      assert(readyAfter > 0, `uns 2 s depois da última tecla, a gravação retoma sozinha (${readyAfter})`)
       await context.close()
     }
 
@@ -365,14 +408,16 @@ async function run() {
       await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
       await page.keyboard.press('Enter') // abre o canal: camada de reprodução montada
       await page.waitForSelector('.player-layer, [data-testid="player-layer"], .player-video', { timeout: 8000 })
-      const opened = Date.now()
+      await page.waitForTimeout(400) // uma gravação já em curso pode terminar
+      const readyAtOpen = await readyCount(page)
       await page.waitForTimeout(6000)
-      const startedWhilePlaying = log.filter((e) => e.at > opened + 400 && e.at < opened + 6000)
-      assert(startedWhilePlaying.length === 0, `nenhuma categoria começa com o player aberto (${startedWhilePlaying.length})`)
+      const readyWhilePlaying = await readyCount(page)
+      assert(readyWhilePlaying === readyAtOpen, `nada é gravado com o player aberto (${readyAtOpen} → ${readyWhilePlaying})`)
+      assert(readyAtOpen < TOTAL_CATEGORIES, `ainda havia categorias por gravar (${readyAtOpen} de ${TOTAL_CATEGORIES})`)
       await page.keyboard.press('Escape') // RETURN fecha a camada
-      const closed = Date.now()
       await page.waitForTimeout(4000)
-      assert(log.some((e) => e.at >= closed), 'ao fechar o player, a pré-carga volta sozinha')
+      const readyAfterClose = await readyCount(page)
+      assert(readyAfterClose > readyWhilePlaying, `ao fechar o player, a pré-carga volta sozinha (${readyAfterClose})`)
       await context.close()
     }
 

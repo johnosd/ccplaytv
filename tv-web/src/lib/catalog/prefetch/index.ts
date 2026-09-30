@@ -9,7 +9,8 @@ import { collectStaleGenerations, listCategories } from '../catalogRepository'
 import { ensureCategory } from '../categoryLoader'
 import { isAbortError } from '../xtreamConnector'
 import { createActivityGate } from './activityGate'
-import { createPrefetchScheduler, type PrefetchRunOutcome } from './prefetchScheduler'
+import { createPrefetchScheduler, IDLE_AFTER_KEY_MS, type PrefetchRunOutcome } from './prefetchScheduler'
+import { runSectionLoad } from '../sectionRunner'
 
 export const prefetchGate = createActivityGate()
 
@@ -56,6 +57,14 @@ export const prefetchScheduler = createPrefetchScheduler({
   onCategoryDone: (sourceId, categoryId) => onCategoryDone?.(sourceId, categoryId),
   // Limpeza em partes das gerações que não servem mais (D-008), com o mesmo portão.
   housekeeping: (sourceId) => collectStaleGenerations(sourceId),
+  // Seção inteira num Worker (R0-3): um pedido por seção em vez de um por
+  // categoria; a gravação pausa sempre que o portão fecha.
+  runSection: (sourceId, kind, categoryIds, { signal, onCategory }) =>
+    runSectionLoad(sourceId, kind, categoryIds, {
+      signal,
+      onCategory,
+      isBlocked: () => prefetchGate.blockReason(Date.now(), IDLE_AFTER_KEY_MS) !== undefined,
+    }),
 })
 
 /** A raiz do app registra quem invalida as consultas quando uma categoria chega (D-014). */

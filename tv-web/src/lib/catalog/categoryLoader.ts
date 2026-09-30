@@ -132,7 +132,8 @@ async function fetchMappedItems(
     .filter((item): item is MappedChannel => item !== undefined)
 }
 
-function toItemRecord(
+/** Um item mapeado do provedor como registro do catálogo — mesmo formato na carga por categoria e por seção (feature 038). */
+export function toItemRecord(
   channel: MappedChannel,
   sourceId: string,
   generation: number,

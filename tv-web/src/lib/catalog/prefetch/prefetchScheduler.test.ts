@@ -98,6 +98,52 @@ describe('prefetchScheduler (feature 038)', () => {
     expect(runCategory.mock.calls.filter(([source]) => source === 'b')).toHaveLength(3)
   })
 
+  it('seção com várias categorias a obter vai num pedido só; o que sobra segue por categoria (R0-3)', async () => {
+    const categories: PrefetchCategoryState[] = [
+      ...channels(3),
+      { id: 10, kind: 'movie', order: 0, fetchMode: 'on_demand' },
+    ]
+    const runSection = vi.fn(async (_s: string, _k: string, ids: number[], options: { onCategory: (id: number) => void }) => {
+      for (const id of ids) {
+        categories.find((c) => c.id === id)!.itemsFetchedAt = Date.now()
+        options.onCategory(id)
+      }
+      return 'done' as const
+    })
+    const onCategoryDone = vi.fn()
+    const { scheduler, runCategory } = setup(categories, { runSection, onCategoryDone })
+    scheduler.start('f')
+    await vi.advanceTimersByTimeAsync(5000)
+
+    expect(runSection).toHaveBeenCalledTimes(1)
+    expect(runSection.mock.calls[0].slice(1, 3)).toEqual(['channel', [1, 2, 3]])
+    expect(onCategoryDone.mock.calls.map(([, id]) => id)).toEqual([1, 2, 3, 10])
+    // Filmes tinha só 1 categoria: não vale a seção inteira.
+    expect(runCategory.mock.calls.map(([, id]) => id)).toEqual([10])
+  })
+
+  it('a seção da dica vem primeiro; parar cancela a seção em andamento', async () => {
+    const categories: PrefetchCategoryState[] = [
+      ...channels(2),
+      { id: 10, kind: 'movie', order: 0, fetchMode: 'on_demand' },
+      { id: 11, kind: 'movie', order: 1, fetchMode: 'on_demand' },
+    ]
+    let seenSignal: AbortSignal | undefined
+    const runSection = vi.fn(
+      (_s: string, _k: string, _ids: number[], options: { signal: AbortSignal }) =>
+        new Promise<'done'>(() => {
+          seenSignal = options.signal
+        }),
+    )
+    const { scheduler } = setup(categories, { runSection })
+    scheduler.setHint({ kind: 'movie' })
+    scheduler.start('f')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(runSection.mock.calls[0][1]).toBe('movie')
+    scheduler.stop()
+    expect(seenSignal?.aborted).toBe(true)
+  })
+
   it('limpeza em partes roda entre categorias e quando não há mais nada, só com o portão aberto', async () => {
     let batches = 3
     const housekeeping = vi.fn(async () => {

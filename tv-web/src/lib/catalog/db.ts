@@ -545,7 +545,11 @@ export class CatalogDb extends Dexie {
   tmdbPeople!: EntityTable<TmdbPersonRecord, 'personId'>
 
   constructor(name: string = DB_NAME) {
-    super(name)
+    // Feature 038 (R0-3): o Chrome grava em modo "relaxed" por padrão desde a
+    // versão 121; a TV de referência é Chromium 120 e ainda gravaria em modo
+    // estrito (espera o disco a cada transação). Catálogo é rebaixável, e
+    // retomada/favoritos já toleram perder a última escrita num corte de energia.
+    super(name, { chromeTransactionDurability: 'relaxed' })
     this.version(1).stores({
       sources: 'id',
       channels: '++id, [sourceId+generation], [sourceId+generation+groupOrder]',
