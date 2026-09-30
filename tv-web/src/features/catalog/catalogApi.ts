@@ -8,7 +8,6 @@ import {
   type UserStateRecord,
 } from '../../lib/catalog/db'
 import {
-  countChannels,
   getChannel,
   listAllEpisodes,
   listCategories,
@@ -310,7 +309,9 @@ async function loadCategoryContent(
   // virtualizam o que renderizam, então não precisam mais de um corte
   // artificial pra não travar a TV.
   const records = await listChannels(sourceId, category.order, 0, NO_LIMIT, category.kind)
-  const totalCount = await countChannels(sourceId, category.order, category.kind)
+  // Feature 039: a leitura sem teto já é a categoria inteira — contar de novo
+  // seria uma segunda leitura do mesmo bloco.
+  const totalCount = records.length
   // Feature 038 (FR-012): medição desligada por padrão, só números.
   if (!signal) markEntry(category.id, category.kind, 'read', totalCount)
   return {

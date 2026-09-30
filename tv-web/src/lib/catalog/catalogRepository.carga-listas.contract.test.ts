@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CatalogDb, type CatalogRecord } from './db'
-import { listChannels, renewCategoryItems, storeCategories, storeCategoryItems } from './catalogRepository'
+import {
+  getChannel,
+  listChannels,
+  renewCategoryItems,
+  storeCategories,
+  storeCategoryItems,
+  storeSeriesEpisodes,
+} from './catalogRepository'
 
 let database: CatalogDb
 
@@ -42,7 +49,14 @@ describe('Renovação preserva o id local — contrato da feature 038', () => {
     await storeCategoryItems(target, [series('a', 'Alfa'), series('b', 'Beta'), series('c', 'Gama')], 1000, database)
     const before = await listChannels(SOURCE_ID, 0, 0, 100, 'series', database)
     const idOf = (records: CatalogRecord[], seriesId: string) => records.find((r) => r.seriesId === seriesId)?.id
-    await database.channels.update(idOf(before, 'a') as number, { episodesFetchedAt: 900 })
+    // Emenda aprovada (feature 039, R-001): a marca de episódios obtidos é gravada pela API pública
+    // (vale para item em linha ou em bloco), não escrevendo direto na tabela `channels`.
+    await storeSeriesEpisodes(
+      { sourceId: SOURCE_ID, generation: 1, seriesId: 'a', seriesRecordId: idOf(before, 'a') as number },
+      [],
+      900,
+      database,
+    )
 
     const first = await renewCategoryItems(
       target,
@@ -60,7 +74,7 @@ describe('Renovação preserva o id local — contrato da feature 038', () => {
     expect(after.find((r) => r.seriesId === 'b')?.name).toBe('Beta (nova capa)')
     expect(after.find((r) => r.seriesId === 'a')?.episodesFetchedAt).toBe(900)
     expect(idOf(after, 'c')).toBeUndefined()
-    expect(await database.channels.get(idOf(before, 'c') as number)).toBeUndefined()
+    expect(await getChannel(idOf(before, 'c') as number, database)).toBeUndefined()
     const category = await database.categories.get(categoryId)
     expect(category?.itemsCount).toBe(3)
     expect(category?.itemsFetchedAt).toBe(2000)

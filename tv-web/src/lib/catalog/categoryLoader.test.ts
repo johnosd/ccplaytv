@@ -400,7 +400,7 @@ describe('categoryLoader — ensureCategory, categoria stored (feature 014, T028
 
   it('falta de espaço ao gravar a categoria stored vira failed, sem apagar os blocos (categoria continua tentável de novo)', async () => {
     const category = await seedStoredCategory([storedMovie('Duna')], { kind: 'movie', name: 'Filmes' })
-    vi.spyOn(database.channels, 'bulkAdd').mockRejectedValue(
+    vi.spyOn(database.categoryBlocks, 'put').mockRejectedValue(
       new DOMException('QuotaExceededError', 'QuotaExceededError'),
     )
 

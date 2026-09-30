@@ -88,7 +88,7 @@ describe('ensureCategory — renovação (feature 038)', () => {
     const category = await seedMovies(NOW - 25 * HOUR)
     vi.stubGlobal('fetch', streams([{ stream_id: 9, name: 'Outro', stream_type: 'movie' }]))
     const quota = Object.assign(new Error('cheio'), { name: 'QuotaExceededError' })
-    vi.spyOn(database.channels, 'bulkAdd').mockRejectedValue(quota)
+    vi.spyOn(database.categoryBlocks, 'put').mockRejectedValue(quota)
     const result = await ensureCategory(SOURCE_ID, category, { database, now: () => NOW, renew: true })
     expect(result).toEqual({ outcome: 'stale-served', reason: 'storage_full' })
   })

@@ -412,6 +412,31 @@ export interface CategoryRecord {
 }
 
 /**
+ * Um item dentro de um bloco de categoria (feature 039) — o `CatalogRecord`
+ * sem o que o bloco já diz (fonte, geração, tipo, categoria, posição), com
+ * `id` **negativo** estável (`categoryBlocks.ts`, `blockItemId`).
+ */
+export type BlockItem = Omit<
+  CatalogRecord,
+  'id' | 'sourceId' | 'generation' | 'kind' | 'groupOrder' | 'categoryId' | 'categoryPosition'
+> & { id: number }
+
+/**
+ * Os itens de uma categoria num registro só (feature 039, `data-model.md`).
+ * Substituído inteiro a cada obtenção. Chave: o id local da categoria.
+ */
+export interface CategoryBlockRecord {
+  categoryId: number
+  sourceId: string
+  generation: number
+  kind: CategoryKind
+  /** = `categories.order` (imutável — chave dos itens, D-005 da 038). */
+  groupOrder: number
+  /** Na ordem da fonte. */
+  items: BlockItem[]
+}
+
+/**
  * Um registro de `CatalogRecord` como fica guardado em `storedEntries`
  * (feature 014) — os mesmos campos, exceto os que só existem depois da
  * leitura da categoria (`id`, `sourceId`, `generation`, `categoryId`).
@@ -543,6 +568,7 @@ export class CatalogDb extends Dexie {
   titleMetadata!: EntityTable<TitleMetadataRecord, 'stableId'>
   integrations!: EntityTable<IntegrationRecord, 'id'>
   tmdbPeople!: EntityTable<TmdbPersonRecord, 'personId'>
+  categoryBlocks!: EntityTable<CategoryBlockRecord, 'categoryId'>
 
   constructor(name: string = DB_NAME) {
     // Feature 038 (R0-3): o Chrome grava em modo "relaxed" por padrão desde a
@@ -674,6 +700,13 @@ export class CatalogDb extends Dexie {
     // fonte nem de geração. Sem `.upgrade()`: tabela nova.
     this.version(13).stores({
       tmdbPeople: 'personId',
+    })
+    // v14 (feature 039): os itens de cada categoria num bloco só — gravado e
+    // lido de uma vez (`logic/blocos-e-identidade.md`). Só acrescenta a
+    // tabela: a conversão das listas já guardadas roda depois, em segundo
+    // plano, uma categoria por vez (nunca no upgrade, que travaria a TV).
+    this.version(14).stores({
+      categoryBlocks: 'categoryId, [sourceId+generation+kind]',
     })
   }
 }

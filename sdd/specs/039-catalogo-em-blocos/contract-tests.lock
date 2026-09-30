@@ -1,0 +1,12 @@
+{
+    "feature":  "039-catalogo-em-blocos",
+    "lockedAt":  "2026-09-30 17:20",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/catalog/categoryBlocks.catalogo-em-blocos.contract.test.ts",
+                      "sha256":  "20a6c05d85447abed971371f444e77b2cb1e7ff83b2a65a7cfae0ec592ae4e56",
+                      "tests":  5
+                  }
+              ]
+}

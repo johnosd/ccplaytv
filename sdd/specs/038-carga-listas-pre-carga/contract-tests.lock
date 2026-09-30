@@ -1,6 +1,6 @@
 {
     "feature":  "038-carga-listas-pre-carga",
-    "lockedAt":  "2026-09-30 10:19",
+    "lockedAt":  "2026-09-30 17:20",
     "total":  5,
     "files":  [
                   {
@@ -20,7 +20,7 @@
                   },
                   {
                       "path":  "tv-web/src/lib/catalog/catalogRepository.carga-listas.contract.test.ts",
-                      "sha256":  "38135dbb33a8edead87ed304c77487afd43d0cb6c2abaabd9f9510625b5d6e43",
+                      "sha256":  "9467ef99865c0f29260f60416740f932efb5238ddd15c4fdab4a1e693359edb0",
                       "tests":  1
                   },
                   {

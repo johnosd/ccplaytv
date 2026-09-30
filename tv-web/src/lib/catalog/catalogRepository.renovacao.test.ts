@@ -68,7 +68,7 @@ describe('renewCategoryItems (feature 038)', () => {
   it('falta de espaço vira StorageFullError', async () => {
     const categoryId = await seedCategory()
     const quota = Object.assign(new Error('cheio'), { name: 'QuotaExceededError' })
-    vi.spyOn(database.channels, 'bulkAdd').mockRejectedValue(quota)
+    vi.spyOn(database.categoryBlocks, 'put').mockRejectedValue(quota)
     await expect(
       renewCategoryItems({ sourceId: SOURCE_ID, generation: 1, kind: 'channel', categoryId, groupOrder: 0 }, [channel('A')], 1, database),
     ).rejects.toBeInstanceOf(StorageFullError)
