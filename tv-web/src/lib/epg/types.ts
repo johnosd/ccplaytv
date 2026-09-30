@@ -84,6 +84,8 @@ export interface EpgStatus {
   lastSyncAt?: number
   /** Só quando `state === 'error'`. */
   errorKind?: EpgErrorKind
+  /** Quando a falha aconteceu (feature 038) — só quando `state === 'error'`. */
+  lastErrorAt?: number
   /** Deslocamento manual, −12…+12, padrão 0 (FR-016). */
   offsetHours: number
 }

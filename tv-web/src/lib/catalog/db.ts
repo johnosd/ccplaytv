@@ -391,6 +391,24 @@ export interface CategoryRecord {
   itemsFetchedAt?: number
   /** Quantos itens de fato estão gravados agora — fato do disco, nunca fundido com `declaredCount` (D-005). */
   itemsCount?: number
+  /**
+   * Posição de exibição (feature 038, `logic/atualizacao-sem-esfriar.md` §3).
+   * Separada de `order` porque `order` é também a chave (`groupOrder`) dos
+   * itens gravados — mudar `order` de uma categoria mantida obrigaria
+   * regravar todos os itens dela. `undefined` = igual a `order` (registro
+   * gravado antes da 038). Valor sem índice, sem bump de versão.
+   */
+  position?: number
+  /** Atualização de estrutura que pediu renovação dos itens (feature 038, FR-025). Pendente quando > `itemsFetchedAt`. */
+  renewRequestedAt?: number
+  /** Assinatura dos itens gravados — renovação idêntica só carimba o instante (feature 038, D-006). */
+  itemsSignature?: string
+  /**
+   * Categoria `stored` mantida numa atualização (feature 038): de onde vem o
+   * conteúdo novo, ainda não materializado, em `storedEntries`. Ausente = o
+   * conteúdo está na própria categoria (`generation`/`id`), como na 014.
+   */
+  storedFrom?: { generation: number; categoryId: number }
 }
 
 /**
@@ -442,6 +460,17 @@ export type ImportErrorKind =
 /** Seções do painel que não responderam, declaradas em vez de viradas em lista vazia. */
 export type CatalogSection = 'movie' | 'series'
 
+/** Estado de uma parte da lista numa importação (feature 038, FR-015/FR-017). */
+export type SectionRunState = 'waiting' | 'loading' | 'ready' | 'failed' | 'unavailable'
+
+export interface SectionRun {
+  state: SectionRunState
+  /** Categorias lidas (Xtream). */
+  categories?: number
+  /** Itens lidos (M3U) — série conta série, nunca episódio. */
+  items?: number
+}
+
 export interface ImportRunRecord {
   id: string
   sourceId: string
@@ -471,6 +500,11 @@ export interface ImportRunRecord {
    * perguntar por filmes" são coisas diferentes para quem olha a tela.
    */
   unavailableSections?: CatalogSection[]
+  /**
+   * Estado e contagem reais por parte da lista (feature 038, FR-015,
+   * `logic/progresso-importacao.md` §1). Sem índice, sem subir versão.
+   */
+  sections?: Record<CategoryKind, SectionRun>
   errorKind?: ImportErrorKind
   /**
    * Quando cada etapa começou, em epoch ms.

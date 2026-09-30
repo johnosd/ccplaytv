@@ -9,8 +9,14 @@
  * 1. **Leitura é sempre da geração ativa**, e quem chama não informa
  *    geração. Isso impede uma tela de ler pela metade um catálogo que
  *    ainda está sendo escrito.
- * 2. **Escrita é sempre numa geração nova**, publicada só no fim (D-004).
- *    A anterior continua legível enquanto isso.
+ * 2. **Importação que troca de caminho escreve numa geração nova**, publicada
+ *    só no fim (D-004 da 005) — a anterior continua legível enquanto isso.
+ *    **Desde a feature 038 (D-004, R-010)**, a atualização pelo mesmo caminho
+ *    (Xtream→Xtream, conteúdo guardado→conteúdo guardado) e a renovação dos
+ *    itens de uma categoria escrevem **na geração ativa**: com a pré-carga, a
+ *    geração nova apagaria o catálogo inteiro numa transação só e esfriaria
+ *    tudo. Cada escrita deixa a categoria inteira antiga ou inteira nova, nunca
+ *    pela metade (`applyStructureRefresh`, `renewCategoryItems`).
  */
 
 import {
@@ -25,6 +31,7 @@ import {
   type UserStateRecord,
 } from './db'
 import { parseStableId, type StableIdParts } from './userStateRepository'
+import { categoryMatchKey, diffCategories } from './structureDiff'
 
 /**
  * Limites da faixa de `generation` e de `groupOrder` nas consultas por
@@ -87,6 +94,8 @@ export interface CatalogCategory {
   declaredCount?: number
   /** Instante da última obtenção dos itens. `undefined` = nunca obtida. */
   itemsFetchedAt?: number
+  /** Renovação pedida por uma atualização de estrutura (feature 038, FR-025). Pendente quando > `itemsFetchedAt`. */
+  renewRequestedAt?: number
 }
 
 /** O que se grava ao registrar a estrutura de uma fonte (feature 010). */
@@ -227,8 +236,11 @@ export async function listCategories(
         (record) => record.generation === generation,
       )
 
+  // Feature 038 (D-005): `order` é a chave dos itens e nunca muda depois de
+  // criada; a posição de exibição que a última atualização declarou é
+  // `position` (ausente = `order`, registro anterior à 038).
   return records
-    .sort((a, b) => a.order - b.order)
+    .sort((a, b) => (a.position ?? a.order) - (b.position ?? b.order) || a.order - b.order)
     .map((record) => ({
       id: record.id as number,
       kind: record.kind,
@@ -239,6 +251,7 @@ export async function listCategories(
       providerCategoryId: record.providerCategoryId,
       declaredCount: record.declaredCount,
       itemsFetchedAt: record.itemsFetchedAt,
+      renewRequestedAt: record.renewRequestedAt,
     }))
 }
 
@@ -315,6 +328,260 @@ export async function storeCategoryItems(
 }
 
 /**
+ * Renova os itens de uma categoria **preservando o id local** de cada item que
+ * continua na fonte (feature 038, FR-027, `logic/atualizacao-sem-esfriar.md`
+ * §4) — foco, detalhe aberto e snapshot de volta guardam esse id. Casa por
+ * identidade (id do provedor; série pelo `seriesId`; M3U pelo nome original),
+ * nunca por posição nem por URL. Item que saiu é removido, item novo ganha id
+ * novo, e campos gravados por outros carregadores (`episodesFetchedAt`) são
+ * mantidos. Assinatura igual à gravada = nada é escrito além do instante
+ * (`written: false`).
+ */
+export async function renewCategoryItems(
+  target: CategoryItemsTarget,
+  items: CatalogRecord[],
+  now: number,
+  database: CatalogDb = db,
+): Promise<{ written: boolean }> {
+  try {
+    return await database.transaction('rw', database.channels, database.categories, async () => ({
+      written: await renewWithin(target, items, now, database),
+    }))
+  } catch (error) {
+    if (isQuotaError(error)) throw new StorageFullError()
+    throw error
+  }
+}
+
+/** Corpo de `renewCategoryItems`, para rodar dentro de uma transação já aberta (também `storeStoredCategory`). */
+async function renewWithin(
+  target: CategoryItemsTarget,
+  items: CatalogRecord[],
+  now: number,
+  database: CatalogDb,
+): Promise<boolean> {
+  const signature = itemsSignature(items)
+  // A categoria saiu numa atualização enquanto esta busca voava: não grava
+  // itens órfãos (feature 038).
+  if (!(await database.categories.get(target.categoryId))) return false
+  const existing = await database.channels
+    .where('[sourceId+generation+kind+groupOrder]')
+    .equals([target.sourceId, target.generation, target.kind, target.groupOrder])
+    .sortBy('id')
+  const category = await database.categories.get(target.categoryId)
+
+  if (category?.itemsSignature === signature && existing.length === items.length) {
+    await database.categories.update(target.categoryId, { itemsFetchedAt: now })
+    return false
+  }
+
+  // Fila por identidade, na ordem de id: nomes repetidos (M3U) casam em ordem (R-005).
+  const byKey = new Map<string, CatalogRecord[]>()
+  for (const record of existing) {
+    const key = identityKey(record)
+    const queue = byKey.get(key)
+    if (queue) queue.push(record)
+    else byKey.set(key, [record])
+  }
+
+  const reused = new Set<number>()
+  const toPut: CatalogRecord[] = []
+  const toAdd: CatalogRecord[] = []
+  items.forEach((item, index) => {
+    const { id: _ignored, ...fields } = item
+    void _ignored
+    const record: CatalogRecord = {
+      ...fields,
+      sourceId: target.sourceId,
+      generation: target.generation,
+      kind: target.kind,
+      groupOrder: target.groupOrder,
+      categoryId: target.categoryId,
+      categoryPosition: index,
+    }
+    const match = byKey.get(identityKey(record))?.shift()
+    if (match?.id !== undefined) {
+      reused.add(match.id)
+      // `episodesFetchedAt` é do carregador de episódios, não da listagem — mantido.
+      toPut.push({ ...record, id: match.id, episodesFetchedAt: match.episodesFetchedAt })
+    } else {
+      toAdd.push(record)
+    }
+  })
+
+  const removed = existing
+    .map((record) => record.id)
+    .filter((id): id is number => id !== undefined && !reused.has(id))
+  if (removed.length > 0) await database.channels.bulkDelete(removed)
+  if (toPut.length > 0) await database.channels.bulkPut(toPut)
+  if (toAdd.length > 0) await database.channels.bulkAdd(toAdd)
+
+  await database.categories.update(target.categoryId, {
+    itemsFetchedAt: now,
+    itemsCount: items.length,
+    itemsSignature: signature,
+  })
+  return true
+}
+
+/** Uma categoria lida numa atualização (feature 038, `logic/atualizacao-sem-esfriar.md` §4). */
+export interface RefreshedCategory {
+  kind: CategoryKind
+  fetchMode: CatalogFetchMode
+  providerCategoryId?: string
+  name?: string
+  /** Posição de exibição declarada nesta atualização. */
+  position: number
+  declaredCount?: number
+  /** Só `stored`: onde está o conteúdo novo (geração de varredura). */
+  storedFrom?: { generation: number; categoryId: number }
+}
+
+export interface StructureRefreshResult {
+  kept: number
+  added: number
+  removed: number
+}
+
+/**
+ * Aplica uma atualização de estrutura **na geração ativa** (feature 038,
+ * D-004, `logic/atualizacao-sem-esfriar.md` §4.2/§4.3): categoria mantida
+ * conserva id, `order` e itens (servidos até a renovação chegar) e ganha
+ * nome/posição/contagem novos e `renewRequestedAt`; categoria nova entra fria,
+ * com o próximo `order` livre da seção; categoria que saiu vai embora com os
+ * itens (e, se de séries, os episódios delas). Seções fora de `kinds` (o
+ * painel não as serviu) ficam intactas. Uma transação: ou tudo, ou nada
+ * (FR-030).
+ */
+export async function applyStructureRefresh(
+  sourceId: string,
+  generation: number,
+  kinds: readonly CategoryKind[],
+  incoming: readonly RefreshedCategory[],
+  now: number,
+  database: CatalogDb = db,
+): Promise<StructureRefreshResult> {
+  return database.transaction('rw', database.categories, database.channels, async () => {
+    const existing = (await database.categories.where('sourceId').equals(sourceId).toArray()).filter(
+      (record) => record.generation === generation && kinds.includes(record.kind),
+    )
+    const diff = diffCategories(
+      existing.map((record) => ({
+        id: record.id as number,
+        kind: record.kind,
+        matchKey: categoryMatchKey(record.providerCategoryId, record.name),
+      })),
+      incoming.map((category, index) => ({
+        kind: category.kind,
+        matchKey: categoryMatchKey(category.providerCategoryId, category.name),
+        name: category.name,
+        position: index,
+        declaredCount: category.declaredCount,
+      })),
+    )
+    // O diff devolve os `IncomingCategory` que recebeu — voltar ao registro completo pela posição.
+    const full = (position: number) => incoming[position]
+
+    for (const { id, incoming: next } of diff.keep) {
+      const source = full(next.position)
+      await database.categories.update(id, {
+        name: source.name,
+        position: source.position,
+        declaredCount: source.declaredCount,
+        renewRequestedAt: now,
+        ...(source.storedFrom ? { storedFrom: source.storedFrom } : {}),
+      })
+    }
+
+    const nextOrder = new Map<CategoryKind, number>()
+    for (const record of existing) {
+      nextOrder.set(record.kind, Math.max(nextOrder.get(record.kind) ?? -1, record.order))
+    }
+    for (const next of diff.add) {
+      const source = full(next.position)
+      const order = (nextOrder.get(source.kind) ?? -1) + 1
+      nextOrder.set(source.kind, order)
+      await database.categories.add({
+        sourceId,
+        generation,
+        kind: source.kind,
+        fetchMode: source.fetchMode,
+        providerCategoryId: source.providerCategoryId,
+        name: source.name,
+        order,
+        position: source.position,
+        declaredCount: source.declaredCount,
+        storedFrom: source.storedFrom,
+      } as CategoryRecord)
+    }
+
+    for (const id of diff.remove) {
+      const record = existing.find((candidate) => candidate.id === id)
+      if (!record) continue
+      const items = await database.channels
+        .where('[sourceId+generation+kind+groupOrder]')
+        .equals([sourceId, generation, record.kind, record.order])
+        .toArray()
+      if (record.kind === 'series') {
+        for (const seriesId of new Set(items.map((item) => item.seriesId).filter((value): value is string => !!value))) {
+          await database.channels
+            .where('[sourceId+generation+seriesId]')
+            .equals([sourceId, generation, seriesId])
+            .delete()
+        }
+        // Episódios de série M3U guardam o `groupOrder` da categoria.
+        await database.channels
+          .where('[sourceId+generation+kind+groupOrder]')
+          .equals([sourceId, generation, 'episode', record.order])
+          .delete()
+      }
+      await database.channels.bulkDelete(items.map((item) => item.id as number))
+      await database.categories.delete(id)
+    }
+
+    return { kept: diff.keep.length, added: diff.add.length, removed: diff.remove.length }
+  })
+}
+
+/**
+ * Identidade de um item para a renovação (feature 038, `logic/atualizacao-
+ * sem-esfriar.md` §6): série pelo `seriesId`, item do provedor pelo id dele,
+ * M3U pelo nome original. Nunca pela URL nem pela posição.
+ */
+function identityKey(record: CatalogRecord): string {
+  if (record.kind === 'series' && record.seriesId) return `s:${record.seriesId}`
+  if (record.providerStreamId) return `p:${record.providerStreamId}`
+  return `n:${record.originalName}`
+}
+
+/**
+ * Assinatura FNV-1a (32 bits, hex) dos campos que a listagem traz, na ordem
+ * da fonte. Fica só no aparelho — nunca vai para log nem tela (contém a URL
+ * de reprodução do M3U, que muda quando o token muda).
+ */
+function itemsSignature(items: CatalogRecord[]): string {
+  const text = JSON.stringify(
+    items.map((item) => [
+      identityKey(item),
+      item.name,
+      item.iconUrl ?? null,
+      item.year ?? null,
+      item.addedAt ?? null,
+      item.epgChannelId ?? null,
+      item.streamExtension ?? null,
+      item.directUrl ?? null,
+      item.group ?? null,
+    ]),
+  )
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return `${items.length}:${(hash >>> 0).toString(16)}`
+}
+
+/**
  * Carimba a obtenção de uma categoria sem tocar nos itens dela.
  *
  * Usada pelo caminho integral (M3U): os itens já foram gravados pelo fluxo
@@ -365,6 +632,12 @@ export async function storeStoredCategory(
   episodes: StoredCatalogRecord[],
   now: number,
   database: CatalogDb = db,
+  /**
+   * Feature 038 (`logic/atualizacao-sem-esfriar.md` §4.3): de onde vieram os
+   * blocos — a geração de varredura de uma atualização (`storedFrom`).
+   * Ausente = os blocos são da própria categoria (regra da 014).
+   */
+  chunksFrom?: { generation: number; categoryId: number },
 ): Promise<void> {
   try {
     await database.transaction(
@@ -373,34 +646,22 @@ export async function storeStoredCategory(
       database.categories,
       database.storedEntries,
       async () => {
-        // Substituição integral, não parcial — mesmo motivo de
-        // `storeCategoryItems`, ainda que numa primeira leitura não haja
-        // nada prévio para remover.
-        await database.channels
-          .where('[sourceId+generation+kind+groupOrder]')
-          .equals([target.sourceId, target.generation, target.kind, target.groupOrder])
-          .delete()
+        // Episódios: substituição integral (D-011 da 038) — retomada e
+        // "assistido" são por `stableId`, não pelo id local do episódio.
         await database.channels
           .where('[sourceId+generation+kind+groupOrder]')
           .equals([target.sourceId, target.generation, 'episode', target.groupOrder])
           .delete()
 
-        if (items.length > 0) {
-          await database.channels.bulkAdd(
-            items.map((item, index) => ({
-              ...item,
-              sourceId: target.sourceId,
-              generation: target.generation,
-              kind: target.kind,
-              groupOrder: target.groupOrder,
-              categoryId: target.categoryId,
-              // Feature 024: posição na ordem do arquivo — base do número
-              // de exibição do canal (`logic/numero-do-canal.md` §4). Só
-              // os itens da categoria, nunca os episódios (abaixo).
-              categoryPosition: index,
-            })),
-          )
-        }
+        // Itens: renovação com id preservado (feature 038, D-006; a posição
+        // na ordem do arquivo continua sendo `categoryPosition`, base do
+        // número do canal — `logic/numero-do-canal.md` §4).
+        await renewWithin(
+          target,
+          items.map((item) => ({ ...item, sourceId: target.sourceId, generation: target.generation })),
+          now,
+          database,
+        )
 
         if (episodes.length > 0) {
           await database.channels.bulkAdd(
@@ -416,16 +677,16 @@ export async function storeStoredCategory(
           )
         }
 
-        await database.categories.update(target.categoryId, {
-          itemsFetchedAt: now,
-          itemsCount: items.length,
-        })
+        // `renewWithin` já carimbou `itemsFetchedAt`/`itemsCount`; o ponteiro
+        // para os blocos da atualização some junto com os blocos.
+        await database.categories.update(target.categoryId, { storedFrom: undefined })
 
+        const from = chunksFrom ?? { generation: target.generation, categoryId: target.categoryId }
         await database.storedEntries
           .where('[sourceId+generation+categoryId+chunk]')
           .between(
-            [target.sourceId, target.generation, target.categoryId, KEY_MIN],
-            [target.sourceId, target.generation, target.categoryId, KEY_MAX],
+            [target.sourceId, from.generation, from.categoryId, KEY_MIN],
+            [target.sourceId, from.generation, from.categoryId, KEY_MAX],
             true,
             true,
           )
@@ -468,7 +729,16 @@ export async function listChannels(
 ): Promise<CatalogRecord[]> {
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return []
-  return query(database, sourceId, generation, groupOrder, kind).offset(offset).limit(limit).toArray()
+  // Feature 038 (D-006): a renovação preserva ids, então a ordem por id deixa
+  // de ser a da fonte — a ordem é `categoryPosition` (ausente = depois, por
+  // id, como gravado antes da 024). Ordena antes de fatiar.
+  const records = await query(database, sourceId, generation, groupOrder, kind).toArray()
+  records.sort((a, b) => {
+    const pa = a.categoryPosition ?? Number.MAX_SAFE_INTEGER
+    const pb = b.categoryPosition ?? Number.MAX_SAFE_INTEGER
+    return pa - pb || (a.id ?? 0) - (b.id ?? 0)
+  })
+  return records.slice(offset, offset + limit)
 }
 
 /**
@@ -779,22 +1049,80 @@ export async function publishGeneration(
     database.storedEntries,
     async () => {
       await database.sources.update(sourceId, { activeGeneration: generation, updatedAt: Date.now() })
-      await allGenerations(database, sourceId)
-        .and((channel) => channel.generation !== generation)
-        .delete()
       // Estrutura da geração anterior sai junto (feature 010) — nunca
-      // `userStates`, que não tem noção de geração (D-002 do plan.md).
+      // `userStates`, que não tem noção de geração (D-002 do plan.md). É
+      // pequena (centenas de linhas).
       await allCategoryGenerations(database, sourceId)
         .and((category) => category.generation !== generation)
         .delete()
-      // Conteúdo guardado da geração anterior (feature 014) — mesmo motivo:
-      // uma categoria `stored` ainda não lida da geração que saiu de ar não
-      // tem para onde apontar depois da troca.
-      await allStoredEntriesGenerations(database, sourceId)
-        .and((entry) => entry.generation !== generation)
-        .delete()
+      // Itens e conteúdo guardado da geração anterior NÃO saem aqui (feature
+      // 038, D-008): com o catálogo pré-carregado, apagá-los nesta transação
+      // seria o gargalo que congelou a TV na 010. Ficam invisíveis (toda
+      // leitura filtra pela geração ativa) e a pré-carga os apaga em partes
+      // (`collectStaleGenerations`).
     },
   )
+}
+
+/**
+ * Apaga, **uma parte por vez**, itens e blocos guardados de gerações que não
+ * servem mais (feature 038, D-008, `logic/atualizacao-sem-esfriar.md` §7) — o
+ * que `publishGeneration` deixou de apagar numa transação só (com o catálogo
+ * pré-carregado, essa transação congelaria a TV). Nunca toca: a geração ativa,
+ * gerações apontadas por `storedFrom` (conteúdo novo ainda não lido) e
+ * gerações de importação em andamento. Usa só faixas do índice
+ * `[sourceId+generation]` entre as protegidas — nunca varre a geração ativa.
+ *
+ * @returns `true` se ainda sobrou algo para apagar.
+ */
+export async function collectStaleGenerations(
+  sourceId: string,
+  options: { batchSize?: number } = {},
+  database: CatalogDb = db,
+): Promise<boolean> {
+  const batchSize = options.batchSize ?? 2000
+  const active = await activeGenerationOf(sourceId, database)
+  if (active === undefined) return false
+
+  const protectedGenerations = new Set<number>([active])
+  const categories = await allCategoryGenerations(database, sourceId).toArray()
+  for (const category of categories) {
+    if (category.generation === active && category.storedFrom) protectedGenerations.add(category.storedFrom.generation)
+  }
+  const runs = await database.importRuns.where('[sourceId+status]').equals([sourceId, 'running']).toArray()
+  for (const run of runs) protectedGenerations.add(run.generation)
+
+  const sorted = [...protectedGenerations].sort((a, b) => a - b)
+  const ranges: Array<[number, number]> = []
+  let low = KEY_MIN
+  for (const generation of sorted) {
+    if (generation - 1 >= low) ranges.push([low, generation - 1])
+    low = generation + 1
+  }
+  ranges.push([low, KEY_MAX])
+
+  let deleted = 0
+  for (const [from, to] of ranges) {
+    if (deleted >= batchSize) break
+    const channelKeys = await database.channels
+      .where('[sourceId+generation]')
+      .between([sourceId, from], [sourceId, to], true, true)
+      .limit(batchSize - deleted)
+      .primaryKeys()
+    if (channelKeys.length > 0) await database.channels.bulkDelete(channelKeys)
+    deleted += channelKeys.length
+    if (deleted >= batchSize) break
+    const entryKeys = await database.storedEntries
+      .where('[sourceId+generation]')
+      .between([sourceId, from], [sourceId, to], true, true)
+      .limit(batchSize - deleted)
+      .primaryKeys()
+    if (entryKeys.length > 0) await database.storedEntries.bulkDelete(entryKeys)
+    deleted += entryKeys.length
+  }
+  // Blocos de uma varredura que já não é apontada: o `storedFrom` limpo pela
+  // renovação libera a geração de varredura inteira para a próxima parte.
+  return deleted >= batchSize
 }
 
 /** Limpa uma importação que não chegou ao fim, sem tocar na geração ativa. */

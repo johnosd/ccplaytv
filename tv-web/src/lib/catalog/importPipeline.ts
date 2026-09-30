@@ -26,6 +26,7 @@ import {
   type CategoryKind,
   type ImportErrorKind,
   type ImportRunRecord,
+  type SectionRun,
   type ImportStep,
   type LimitedReason,
   type ProviderImportMode,
@@ -34,12 +35,14 @@ import {
 } from './db'
 import {
   allocateGeneration,
+  applyStructureRefresh,
   discardGeneration,
   publishGeneration,
   setDeclaredCount,
   storeCategories,
   StorageFullError,
   type NewCategory,
+  type RefreshedCategory,
 } from './catalogRepository'
 import { storeEntryChunks } from './storedEntries'
 import { markConnectionError, markSynced, readCredential } from './sourceRepository'
@@ -295,6 +298,28 @@ export async function startImport(
   // inicial para ser medida contra.
   options.onProgress?.({ ...run })
 
+  // Feature 038 (D-004, `logic/atualizacao-sem-esfriar.md` §4): uma
+  // atualização pelo mesmo caminho acontece NA GERAÇÃO ATIVA — publicar uma
+  // geração nova apagaria o catálogo inteiro (já pré-carregado) numa
+  // transação só e esfriaria tudo. O caminho de antes é o `fetchMode` das
+  // categorias publicadas; o desta execução só se sabe depois de falar com a
+  // fonte (`route`).
+  const previousGeneration = source.activeGeneration
+  const previousFetchMode =
+    previousGeneration === undefined
+      ? undefined
+      : (
+          await database.categories
+            .where('sourceId')
+            .equals(sourceId)
+            .filter((category) => category.generation === previousGeneration)
+            .first()
+        )?.fetchMode
+  /** Xtream no lugar: a estrutura é lida inteira em memória antes de tocar o disco. */
+  const refreshBuffer: RefreshedCategory[] | undefined =
+    previousGeneration !== undefined && previousFetchMode === 'on_demand' ? [] : undefined
+  let route: 'xtream' | 'stored' | undefined
+
   let cancelled = false
   // Fora de `execute()`, de propósito: `fail()` (o caminho de publicação
   // parcial por falta de espaço) precisa do mesmo `mode`/`limitedReason`
@@ -319,6 +344,20 @@ export async function startImport(
   function enterStep(step: ImportStep): void {
     run.step = step
     run.stepStartedAt = { ...run.stepStartedAt, [step]: now() }
+  }
+
+  /** Feature 038 (FR-015): estado real de cada parte da lista, para a tela de importação. */
+  function setSection(kind: CategoryKind, section: SectionRun): void {
+    run.sections = {
+      channel: run.sections?.channel ?? { state: 'waiting' },
+      movie: run.sections?.movie ?? { state: 'waiting' },
+      series: run.sections?.series ?? { state: 'waiting' },
+      [kind]: section,
+    }
+  }
+
+  function setAllSections(section: SectionRun): void {
+    run.sections = { channel: { ...section }, movie: { ...section }, series: { ...section } }
   }
 
   async function execute(): Promise<void> {
@@ -350,6 +389,9 @@ export async function startImport(
       }
 
       enterStep('parsing')
+      route = 'stored'
+      // Feature 038 (FR-015): M3U conta itens por tipo conforme lê.
+      setAllSections({ state: 'loading', items: 0 })
       await persist()
 
       const keepUrl = source!.type === 'm3u_url'
@@ -403,8 +445,10 @@ export async function startImport(
           database,
         )
         categoryIdsByKey.set(key, id)
+        categoryKinds.set(id, categoryKind)
         return id
       }
+      const categoryKinds = new Map<number, CategoryKind>()
 
       function toStoredRecord(channel: MappedChannel): StoredCatalogRecord {
         return {
@@ -462,6 +506,8 @@ export async function startImport(
         buffered += 1
         if (countsAsItem) {
           categoryItemCounts.set(categoryId, (categoryItemCounts.get(categoryId) ?? 0) + 1)
+          const kind = categoryKinds.get(categoryId)
+          if (kind) setSection(kind, { state: 'loading', items: (run.sections?.[kind]?.items ?? 0) + 1 })
         }
         if (buffered >= batchSize) await flush()
       }
@@ -519,6 +565,10 @@ export async function startImport(
       for (const [categoryId, count] of categoryItemCounts) {
         await setDeclaredCount(categoryId, count, database)
       }
+      for (const kind of ['channel', 'movie', 'series'] as const) {
+        const items = run.sections?.[kind]?.items ?? 0
+        setSection(kind, items > 0 ? { state: 'ready', items } : { state: 'unavailable' })
+      }
     }
 
     /**
@@ -534,6 +584,23 @@ export async function startImport(
     ): Promise<void> {
       if (cancelled) throw new ImportCancelledError()
       run.entriesRead += categories.length
+      // "A lista não tem esta parte" nunca vira "0 categorias" (FR-017).
+      setSection(kind, categories.length > 0 ? { state: 'ready', categories: categories.length } : { state: 'unavailable' })
+      if (refreshBuffer) {
+        // Atualização no lugar (feature 038): só em memória até o fim.
+        for (const category of categories) {
+          refreshBuffer.push({
+            kind,
+            fetchMode: 'on_demand',
+            providerCategoryId: category.id,
+            name: category.name,
+            position: category.order,
+            declaredCount: category.declaredCount,
+          })
+        }
+        run.channelsStored += categories.length
+        return
+      }
       await storeCategories(
         categories.map(
           (category): NewCategory => ({
@@ -564,12 +631,15 @@ export async function startImport(
       fetchCategories: () => Promise<LiveCategory[]>,
     ): Promise<void> {
       let categories: LiveCategory[]
+      setSection(kind, { state: 'loading' })
+      await persist()
       try {
         categories = await fetchCategories()
       } catch (error) {
         if (!(error instanceof ProviderIncompatibleError)) throw error
         logger.warn(`Painel não serviu a seção ${section}`, error)
         run.unavailableSections = [...(run.unavailableSections ?? []), section]
+        setSection(kind, { state: 'failed' })
         return
       }
       await ingestCategories(kind, categories)
@@ -592,6 +662,9 @@ export async function startImport(
       // Contadores desta execução passam a significar categorias, não
       // itens — é o que a tela de progresso relata (FR-013, contrato §3).
       run.unit = 'categories'
+      setAllSections({ state: 'waiting' })
+      setSection('channel', { state: 'loading' })
+      await persist()
 
       const liveCategories = await fetchLiveCategories(
         credential.dns,
@@ -611,6 +684,7 @@ export async function startImport(
       await ingestCategoriesOptional('series', 'series', () =>
         fetchSeriesCategories(credential.dns, credential.username, credential.password),
       )
+      route = 'xtream'
     }
 
     /**
@@ -713,7 +787,43 @@ export async function startImport(
     await persist()
     if (cancelled) throw new ImportCancelledError()
 
-    await publishGeneration(sourceId, generation, database)
+    if (route === 'xtream' && refreshBuffer && previousGeneration !== undefined) {
+      // Feature 038 (§4.2): Xtream → Xtream, no lugar. Seção que o painel não
+      // serviu fica fora do diff — nunca se apaga Filmes porque
+      // `get_vod_categories` falhou desta vez.
+      const unavailable = run.unavailableSections ?? []
+      const kinds: CategoryKind[] = ['channel', ...(['movie', 'series'] as const).filter((kind) => !unavailable.includes(kind))]
+      await applyStructureRefresh(sourceId, previousGeneration, kinds, refreshBuffer, now(), database)
+      await discardGeneration(sourceId, generation, database)
+      run.generation = previousGeneration
+    } else if (route === 'stored' && previousFetchMode === 'stored' && previousGeneration !== undefined) {
+      // Feature 038 (§4.3): conteúdo guardado → conteúdo guardado, no lugar.
+      // A varredura gravou categorias e blocos numa geração própria; as
+      // categorias ativas passam a apontar para os blocos novos
+      // (`storedFrom`) e continuam servindo os itens de antes até a renovação.
+      const scanCategories = (await database.categories.where('sourceId').equals(sourceId).toArray())
+        .filter((category) => category.generation === generation)
+        .sort((a, b) => a.order - b.order)
+      await applyStructureRefresh(
+        sourceId,
+        previousGeneration,
+        ['channel', 'movie', 'series'],
+        scanCategories.map((category) => ({
+          kind: category.kind,
+          fetchMode: 'stored' as const,
+          name: category.name,
+          position: category.order,
+          declaredCount: category.declaredCount,
+          storedFrom: { generation, categoryId: category.id as number },
+        })),
+        now(),
+        database,
+      )
+      await database.categories.bulkDelete(scanCategories.map((category) => category.id as number))
+      run.generation = previousGeneration
+    } else {
+      await publishGeneration(sourceId, generation, database)
+    }
     await markSynced(sourceId, {
       at: now(),
       mode,
@@ -735,6 +845,15 @@ export async function startImport(
       run.status = 'cancelled'
       await discardSilently()
       return
+    }
+
+    // Feature 038 (FR-015): o que ainda estava por fazer não terminou — nunca
+    // "Carregando" para sempre na tela de importação.
+    if (run.sections) {
+      for (const kind of ['channel', 'movie', 'series'] as const) {
+        const state = run.sections[kind].state
+        if (state === 'waiting' || state === 'loading') setSection(kind, { ...run.sections[kind], state: 'failed' })
+      }
     }
 
     if (error instanceof StorageFullError) {

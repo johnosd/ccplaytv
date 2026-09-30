@@ -10,6 +10,7 @@ import {
   listChannels,
   listEpisodes,
   markCategoryFetched,
+  collectStaleGenerations,
   publishGeneration,
   resolveContinueWatching,
   resolveFavorites,
@@ -285,6 +286,11 @@ describe('catalogRepository', () => {
       await database.storedEntries.bulkAdd([stubBlock(1, 10), stubBlock(2, 20)])
 
       await publishGeneration(SOURCE_ID, 2, database)
+      // Feature 038 (D-008): a exclusão sai da transação de publicar e vira
+      // limpeza em partes — o resultado final é o mesmo.
+      while (await collectStaleGenerations(SOURCE_ID, { batchSize: 1 }, database)) {
+        // parte por parte
+      }
 
       const remaining = await database.storedEntries.toArray()
       expect(remaining.map((b) => b.generation)).toEqual([2])
@@ -353,8 +359,10 @@ describe('catalogRepository', () => {
 
     const visible = await listChannels(SOURCE_ID, 0, 0, 100, undefined, database)
     expect(visible.map((item) => item.name)).toEqual(['Novo'])
-    // A anterior saiu do disco — não fica ocupando espaço num aparelho que
-    // já é apertado.
+    // A anterior sai do disco — não fica ocupando espaço num aparelho que já
+    // é apertado —, mas em partes (feature 038, D-008), não na publicação.
+    expect(await database.channels.count()).toBe(2)
+    expect(await collectStaleGenerations(SOURCE_ID, {}, database)).toBe(false)
     expect(await database.channels.count()).toBe(1)
   })
 

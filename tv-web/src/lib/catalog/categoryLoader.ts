@@ -23,12 +23,14 @@ import { db, type CatalogDb, type CatalogRecord, type CategoryKind } from './db'
 import {
   activeGeneration,
   countChannels,
-  storeCategoryItems,
+  renewCategoryItems,
+  StorageFullError,
   storeStoredCategory,
   type CatalogCategory,
 } from './catalogRepository'
 import { readEntryChunks } from './storedEntries'
 import { isCategoryFresh } from './freshness'
+import { markEntry } from '../perf/entryTiming'
 import { readCredential } from './sourceRepository'
 import {
   fetchLiveStreams,
@@ -52,6 +54,8 @@ export type CategoryFetchOutcome =
 
 export interface EnsureCategoryResult {
   outcome: CategoryFetchOutcome
+  /** Feature 038 (FR-008): a gravação parou por falta de espaço no aparelho. */
+  reason?: 'storage_full'
 }
 
 export interface EnsureCategoryOptions {
@@ -65,6 +69,21 @@ export interface EnsureCategoryOptions {
    * `stale-served` (ver `fetchAndStore`).
    */
   signal?: AbortSignal
+  /**
+   * Feature 038 (FR-024/FR-026): quando informado, uma categoria que já tem
+   * itens no aparelho mas está vencida (> 24 h) ou com renovação pendente
+   * (`renewRequestedAt` > `itemsFetchedAt`) é servida do disco **na hora**
+   * (`stale-served`), sem tocar a rede — e este callback recebe o id para a
+   * renovação acontecer em segundo plano (agendador). Sem ele, o
+   * comportamento é o de antes (busca e espera).
+   */
+  serveStale?: (categoryId: number) => void
+  /**
+   * Feature 038 (pré-carga, FR-025): obtém de novo mesmo com itens no
+   * aparelho, quando vencida ou com renovação pendente. Tem precedência sobre
+   * `serveStale`.
+   */
+  renew?: boolean
 }
 
 /**
@@ -146,21 +165,28 @@ function toItemRecord(
   }
 }
 
+/** Falha de gravação por falta de espaço vira dado, nunca exceção (feature 038, FR-008). */
+function failureOf(error: unknown, hadItems: boolean): EnsureCategoryResult {
+  const outcome: CategoryFetchOutcome = hadItems ? 'stale-served' : 'failed'
+  return error instanceof StorageFullError ? { outcome, reason: 'storage_full' } : { outcome }
+}
+
 async function fetchAndStore(
   sourceId: string,
   category: CatalogCategory,
-  wasNeverFetched: boolean,
+  hadItems: boolean,
   database: CatalogDb,
   now: number,
   signal?: AbortSignal,
 ): Promise<EnsureCategoryResult> {
   const credential = await readCredential(sourceId, database)
-  if (!credential) return { outcome: wasNeverFetched ? 'failed' : 'stale-served' }
+  if (!credential) return { outcome: hadItems ? 'stale-served' : 'failed' }
 
   const generation = await activeGeneration(sourceId, database)
-  if (generation === undefined) return { outcome: wasNeverFetched ? 'failed' : 'stale-served' }
+  if (generation === undefined) return { outcome: hadItems ? 'stale-served' : 'failed' }
 
   try {
+    markEntry(category.id, category.kind, 'request')
     const items = await fetchMappedItems(
       category.kind,
       credential.dns,
@@ -169,12 +195,16 @@ async function fetchAndStore(
       category,
       signal,
     )
-    await storeCategoryItems(
+    markEntry(category.id, category.kind, 'mapped', items.length)
+    // Feature 038 (D-006): um caminho de escrita só — preserva o id local de
+    // quem continua na fonte e não regrava uma lista idêntica.
+    await renewCategoryItems(
       { sourceId, generation, kind: category.kind, categoryId: category.id, groupOrder: category.order },
       items.map((item) => toItemRecord(item, sourceId, generation, category)),
       now,
       database,
     )
+    markEntry(category.id, category.kind, 'written')
     return { outcome: 'fetched' }
   } catch (error) {
     // Cancelamento deliberado (bug
@@ -187,7 +217,7 @@ async function fetchAndStore(
     // (regra 5): o que aconteceu já não importa aqui, só que não deu
     // certo. Falha nunca remove a categoria nem invalida as demais (regra
     // 3) — o disco, se tiver algo, continua servindo (regra 4).
-    return { outcome: wasNeverFetched ? 'failed' : 'stale-served' }
+    return failureOf(error, hadItems)
   }
 }
 
@@ -206,17 +236,24 @@ async function fetchAndStore(
  * limpou armazenamento, ou algo apagou a geração pela metade) — aí sim
  * `source_missing`: diferente de `failed`, "Tentar de novo" não resolve
  * isso, só ressincronizar a fonte (D-008).
+ *
+ * Feature 038 (`logic/atualizacao-sem-esfriar.md` §4.3): depois de uma
+ * atualização, o conteúdo novo de uma categoria mantida está nos blocos da
+ * geração de varredura (`storedFrom`); é de lá que se lê, e a gravação
+ * preserva o id de quem continua.
  */
 async function readStored(
   sourceId: string,
   category: CatalogCategory,
+  storedFrom: { generation: number; categoryId: number } | undefined,
   database: CatalogDb,
   now: number,
 ): Promise<EnsureCategoryResult> {
   const generation = await activeGeneration(sourceId, database)
   if (generation === undefined) return { outcome: 'failed' }
 
-  const chunks = await readEntryChunks(sourceId, generation, category.id, database)
+  const from = storedFrom ?? { generation, categoryId: category.id }
+  const chunks = await readEntryChunks(sourceId, from.generation, from.categoryId, database)
   if (chunks.length === 0) {
     const alreadyStored = await countChannels(sourceId, category.order, category.kind, database)
     return { outcome: alreadyStored > 0 ? 'fresh' : 'source_missing' }
@@ -233,13 +270,15 @@ async function readStored(
       episodes,
       now,
       database,
+      storedFrom,
     )
     return { outcome: 'fetched' }
-  } catch {
+  } catch (error) {
     // Erro sai como categoria, nunca mensagem crua (regra 5) — mesmo padrão
     // de `fetchAndStore`. Falha aqui não some com os blocos: uma quota
     // cheia deixa `storedEntries` intacto para a pessoa tentar de novo.
-    return { outcome: 'failed' }
+    const failed = failureOf(error, false)
+    return storedFrom ? { ...failed, outcome: 'stale-served' } : failed
   }
 }
 
@@ -260,6 +299,12 @@ function dedup(categoryId: number, run: () => Promise<EnsureCategoryResult>): Pr
  * perguntar. `stored` (feature 014) também nunca toca rede — lê do
  * conteúdo guardado uma única vez por geração (D-007). É o que permite a
  * tela chamar esta operação sempre, sem saber de que tipo é a fonte.
+ *
+ * Feature 038 (`logic/atualizacao-sem-esfriar.md` §5): uma categoria com
+ * itens no aparelho que está vencida (`on_demand` > 24 h) ou com renovação
+ * pendente (`renewRequestedAt` > `itemsFetchedAt`) é **renovada** com
+ * `renew`, **servida do disco na hora** com `serveStale` (entrada da tela) ou,
+ * sem nenhum dos dois, buscada e esperada como antes.
  */
 export async function ensureCategory(
   sourceId: string,
@@ -278,21 +323,30 @@ export async function ensureCategory(
   // debaixo dos cards (bug `catalogo-refaz-busca-ao-voltar-do-detalhe`, achado
   // pelo E2E da feature 033). A verdade é o registro gravado; o retrato só vale
   // quando o registro não existe (categoria ainda não persistida) ou é mais velho.
-  const persisted = (await database.categories.get(category.id))?.itemsFetchedAt
+  const record = await database.categories.get(category.id)
+  const persisted = record?.itemsFetchedAt
   const itemsFetchedAt =
     persisted !== undefined && category.itemsFetchedAt !== undefined
       ? Math.max(persisted, category.itemsFetchedAt)
       : (persisted ?? category.itemsFetchedAt)
+  const renewRequestedAt = record?.renewRequestedAt ?? category.renewRequestedAt
+  const hasItems = itemsFetchedAt !== undefined
+  const renewPending = hasItems && renewRequestedAt !== undefined && renewRequestedAt > itemsFetchedAt
+  // `stored` não vence por idade: o conteúdo vem de um arquivo que não muda —
+  // reler produziria o mesmo resultado (D-007/FR-011 da 014). Só uma
+  // atualização (renovação pendente) o torna velho.
+  const stale =
+    hasItems && (renewPending || (category.fetchMode === 'on_demand' && !isCategoryFresh(itemsFetchedAt, now)))
 
-  if (category.fetchMode === 'stored') {
-    // Diferente de `on_demand`, sem validade por idade: o conteúdo vem de
-    // um arquivo que não muda — reler produziria o mesmo resultado, então
-    // só a geração (ressincronização) invalida (D-007/FR-011).
-    if (itemsFetchedAt !== undefined) return { outcome: 'fresh' }
-    return dedup(category.id, () => readStored(sourceId, category, database, now))
+  if (hasItems && !stale) return { outcome: 'fresh' }
+
+  if (stale && !options.renew && options.serveStale) {
+    options.serveStale(category.id)
+    return { outcome: 'stale-served' }
   }
 
-  if (isCategoryFresh(itemsFetchedAt, now)) return { outcome: 'fresh' }
-  const wasNeverFetched = itemsFetchedAt === undefined
-  return dedup(category.id, () => fetchAndStore(sourceId, category, wasNeverFetched, database, now, options.signal))
+  if (category.fetchMode === 'stored') {
+    return dedup(category.id, () => readStored(sourceId, category, record?.storedFrom, database, now))
+  }
+  return dedup(category.id, () => fetchAndStore(sourceId, category, hasItems, database, now, options.signal))
 }
