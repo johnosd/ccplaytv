@@ -557,7 +557,7 @@ classificador não soube tipar.
 
     Registrar modelo, firmware, `navigator.userAgent`, protocolo,
     contêiner, codecs, resolução, DRM e legendas em cada teste de mídia.
-    Hoje apenas a QN50Q60DAGXZD (Tizen 8.0 / Chromium 108) foi testada.
+    Hoje apenas a QN50Q60DAGXZD (Tizen 9.0 / Chromium 120, medido em 2026-09-29) foi testada.
 
     (ADR-006 E1/V1; `docs/guia-praticas-app-tv/12` §3 e `/13` §3)
 

@@ -1,17 +1,23 @@
 <!--
 Relatório de Impacto de Sincronização
-- Mudança de versão: 1.5.1 -> 1.6.0
-- Princípios modificados: "Segredos Fora dos Clientes e dos Logs" — a
-  exceção client-first passa a cobrir a chave BYOK de serviço de terceiro
-  (TMDB, OpenAI) digitada pela própria pessoa na TV; antes, "chaves de
-  OpenAI/TMDB continuam proibidas no cliente, sem exceção", o que
-  contradizia a ADR-008 §3/§4 (BYOK direto do cliente)
+- Mudança de versão: 1.6.0 -> 1.6.1 (PATCH)
+- Princípios modificados: nenhum
 - Princípios adicionados: nenhum
-- Restrições do Projeto: nenhuma mudança
-- Origem da mudança: decisão explícita do usuário em 2026-09-29, durante o
-  `sdd-specify` da feature 032-metadata-tmdb-integracoes (FR-027)
+- Restrições do Projeto: "Plataforma-alvo" — correção FACTUAL da engine de
+  referência: o aparelho QN50Q60DAGXZD reportou Tizen 9.0 / Chromium 120 (o
+  texto dizia Tizen 8.0 / Chromium 108). É o MESMO aparelho, então não é
+  mudança de plataforma-alvo (que exigiria ADR antes, ver Governança); a
+  medição está em `sdd/assessments/viabilidade-youtube-iframe-na-tv-campo/`
+  e na ADR-012. O build segue mirando `chrome108` como piso seguro.
+- Origem da mudança: decisão explícita do usuário em 2026-09-30, sugerida
+  pelo `sdd-plan` da feature 033 (R-006 do plano)
 - Seções removidas: nenhuma
 - Pendências: nenhuma
+
+Relatório anterior (1.5.1 -> 1.6.0): "Segredos Fora dos Clientes e dos
+Logs" — a exceção client-first passou a cobrir a chave BYOK de serviço de
+terceiro (TMDB, OpenAI) digitada pela própria pessoa na TV (decisão do
+usuário em 2026-09-29, `sdd-specify` da feature 032, FR-027).
 
 Histórico:
 - 1.0.0 (2026-09-14): criação inicial — Princípios Fundamentais (8),
@@ -38,6 +44,9 @@ Histórico:
 - 1.6.0 (2026-09-29): exceção de "Segredos Fora dos Clientes e dos Logs"
   estendida à chave BYOK digitada pela pessoa (TMDB/OpenAI), alinhando com
   a ADR-008 §3/§4 (feature 032)
+- 1.6.1 (2026-09-30): "Plataforma-alvo" corrigida para a engine medida no
+  aparelho de referência, Tizen 9.0 / Chromium 120 (era 8.0 / 108); mesmo
+  aparelho, correção factual (feature 033, R-006)
 -->
 
 # Constitution do CCPlay TV
@@ -212,8 +221,10 @@ honesto já em vigor no `sdd-bugfix` e no `sdd-converge`.
 
 ## Restrições do Projeto
 
-**Plataforma-alvo**: Samsung QN50Q60DAGXZD (referência de engine: Tizen 8.0
-/ Chromium 108). Nenhuma outra TV, geração ou firmware é presumida
+**Plataforma-alvo**: Samsung QN50Q60DAGXZD (referência de engine: Tizen 9.0
+/ Chromium 120, medido no próprio aparelho em 2026-09-29, com o app rodando
+em origem `file://`). O build continua mirando `chrome108` como piso seguro
+(não é a engine medida). Nenhuma outra TV, geração ou firmware é presumida
 compatível sem validação própria (ADR-006 E1).
 
 **Reprodução**: Direct Play é o padrão — o vídeo flui da origem indicada
@@ -314,4 +325,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.6.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-29
+**Versão**: 1.6.1 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-30
