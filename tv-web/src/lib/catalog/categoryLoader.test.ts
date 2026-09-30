@@ -162,6 +162,25 @@ describe('categoryLoader — ensureCategory (feature 010, T024-T027)', () => {
     expect(items[0].categoryId).toBe(category.id)
   })
 
+  // Bug `catalogo-refaz-busca-ao-voltar-do-detalhe` (achado pelo E2E da 033): a tela
+  // guarda o retrato da categoria de ANTES da obtenção (`itemsFetchedAt` ausente); ao
+  // voltar do detalhe ele chegava de novo aqui, a categoria parecia "nunca obtida" e
+  // o painel era consultado outra vez — com os ids dos canais trocando debaixo dos cards.
+  it('retrato velho (sem itemsFetchedAt) de categoria já obtida sai fresh: o registro gravado manda', async () => {
+    const staleSnapshot = await seedOnDemandCategory()
+    const fetchMock = panelFetch()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const first = await ensureCategory(SOURCE_ID, staleSnapshot, { database, now: () => 1000 })
+    const idsAfterFirst = (await listChannels(SOURCE_ID, 0, 0, 10, 'movie', database)).map((i) => i.id)
+    const second = await ensureCategory(SOURCE_ID, staleSnapshot, { database, now: () => 2000 })
+
+    expect(first.outcome).toBe('fetched')
+    expect(second.outcome).toBe('fresh')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect((await listChannels(SOURCE_ID, 0, 0, 10, 'movie', database)).map((i) => i.id)).toEqual(idsAfterFirst)
+  })
+
   it('categoria on_demand propaga iconUrl do provedor pro registro gravado (feature 015)', async () => {
     const category = await seedOnDemandCategory()
     vi.stubGlobal(
