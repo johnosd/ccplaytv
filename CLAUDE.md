@@ -836,6 +836,51 @@ episode. See
 `sdd/specs/032-metadata-tmdb-integracoes/plan.md` → `## Estado Atual` and
 `## Riscos e Decisões`.
 
+**Code-complete**: `033-trailers-filmes-series` — backlog item 32: the detail
+screens' "▶ Trailer" button is real (the `trailer` mock is gone from
+`comingSoon.ts`; the Início hero keeps its own `home-trailer` mock, out of
+scope). Candidates come from data feature 032 already fetches when a detail
+opens — no new request, never on focus: the provider's `youtube_trailer`
+(`get_vod_info` / `get_series_info.info`) first, then the TMDB `videos`
+(`append_to_response=credits,videos` with `include_video_language=pt,en,null`,
+without which TMDB only returns pt-BR videos). Only a valid 11-character id
+counts (`isYoutubeVideoId`); a teaser never becomes "Trailer"; a `matched`
+TMDB record saved before this feature is re-asked once, and provider metadata
+saved with an older `PROVIDER_FIELDS_VERSION` counts as expired.
+`TrailerLayer` (`components/`, generic — knows no catalog, no user state, no
+AVPlay) is a full-screen layer that loads **ADR-012's bridge page**
+(`bridge/trailer/index.html`, served by GitHub Pages from the repo's `bridge/`
+folder via `.github/workflows/bridge-pages.yml`) in an `<iframe>`; the app
+**never** loads YouTube directly (`file://` sends no `Referer`, so YouTube
+answers error 153 — proven on the TV, and hidden on a PC browser). Only the
+video id travels in the bridge URL; app ↔ bridge is a validated `postMessage`
+protocol v1 (`lib/trailer/bridgeConfig.ts`: origin **and** the current
+iframe's window), and a pure state machine (`lib/trailer/trailerSession.ts`)
+decides loading/playing/paused/error, the 15 s start limit, the single swap to
+the reserve candidate (only 100/101/150/2; 153 never swaps) and the error
+codes. `PlayerLayer`'s lessons apply: session state read through a ref, a seek
+that arrives while one is pending is discarded, never queued. Two real bugs
+only the E2E showed: React StrictMode's dev-only mount/unmount/remount made an
+unmount cleanup mark the layer "closed" for good (the end of the video stopped
+closing it), and the `stop` sent on unmount needs a `useLayoutEffect` because
+React detaches the iframe ref before passive cleanups. 5/5 contract tests
+locked (C1 amended with the user's approval: the example "invalid id"
+`nao-e-um-id` has 11 characters — R-009), unit + component tests, and
+`e2e/trailers.mjs` (part of `test:e2e`) serves the REAL bridge from disk under
+the production URL with a fake YouTube player. Measured on the real panel
+(`e2e/trailers-real.mjs`, counts only): the provider carries `youtube_trailer`
+for 12/60 sampled series and 8/60 sampled movies; the TMDB share is not
+measured (no `CCPLAY_PROBE_TMDB_KEY` in `.env`). **The gate still open is the
+physical TV** (SC-001: ≥ 9/10 trailers start within 15 s; SC-002: 10/10 RETURN
+closes with focus back and no leftover audio), which needs the bridge
+**published** (enable Pages with "Source: GitHub Actions" and merge `bridge/` +
+the workflow to `main` — external actions the executor never takes on its own).
+Also pending, not gates: ads/autoplay behavior (R-005/R-008) and the TV
+actually reporting Tizen 9.0 / Chromium 120 (measured by the spike; the build
+stays `chrome108`, which is safe). See
+`sdd/specs/033-trailers-filmes-series/plan.md` → `## Estado Atual` and
+`## Riscos e Decisões`.
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Quem está
@@ -862,8 +907,9 @@ The four top-level directories:
   added there — `SeriesDetailScreen` avoided this by staying `.screen`-
   rooted), or the video paints behind whatever that screen renders on top
   of it. The build targets `chrome108` explicitly, because Vite 8's
-  default is Chrome 111 — above the TV's engine. Don't drop that from
-  `vite.config.ts`.
+  default is Chrome 111 — above what older docs assumed for the TV (the
+  device was later measured at Chromium 120, but 108 stays as the safe
+  floor). Don't drop that from `vite.config.ts`.
 - **`api/`** — Python 3.13 + FastAPI + SQLAlchemy 2 (async) + Alembic +
   PostgreSQL, managed with `uv`. **Frozen fallback per ADR-008** — not the
   primary path for any feature. It exists only for a provider panel that
@@ -1147,8 +1193,9 @@ Plus `REQUISITOS-FUNCIONAIS.md` (RF-001 to RF-019) and
 always-on backend in the loop:
 
 - **Frontend (Tizen app)**: TypeScript, React, CSS, Vite (targeted at
-  Tizen 8.0 / Chromium 108 on the reference Samsung QN50Q60DAGXZD, not
-  generic web). Parses M3U and talks the Xtream JSON protocol directly from
+  the reference Samsung QN50Q60DAGXZD — measured on 2026-09-29 as Tizen
+  9.0 / Chromium 120, origin `file://`; older docs say 8.0 / 108, and the
+  build still targets `chrome108` as a safe floor — not generic web). Parses M3U and talks the Xtream JSON protocol directly from
   the browser (`tv-web/src/lib/catalog/xtreamConnector.ts`,
   `m3uParser.ts`), classifies, and stores the result in IndexedDB via Dexie
   (`db.ts`, `catalogRepository.ts`) — no backend round-trip for any of this.

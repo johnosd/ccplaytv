@@ -197,7 +197,8 @@ fato. A política que concilia as duas coisas:
 | Filmes/Séries: hero band | **Real**: item focado/primeiro da categoria com capa real (feature 015); sem sinopse inventada. **Sem sinopse/backdrop na grade de propósito**: a metadata só é buscada ao abrir o detalhe (nunca por foco) | Feature 032 trouxe backdrop/sinopse só ao **detalhe** (item 28); mostrá-los no hero da grade exigiria cache já preenchido e continua fora |
 | Filmes/Séries: rails editoriais ("Em destaque", "Mais assistidos") | **Não adotar**: manter grade virtualizada por categoria | Rail editorial exige sinal que não existe |
 | Detalhe filme: Assistir/Continuar, Minha Lista (favoritar), Marcar assistido | **Real** | Features 011/013/019 |
-| Detalhe: Trailer, aba Semelhantes | **Mock** | Itens 32, 45 |
+| Detalhe: Trailer | **Real** desde a feature 033 (código completo; gate da TV aberto): página-ponte da ADR-012 + IFrame Player, mock `trailer` removido | Item 32; o herói do Início segue mock (`home-trailer`) |
+| Detalhe: aba Semelhantes | **Mock** | Item 45 |
 | Detalhe: aba Elenco | **Real** desde a feature 032 (ad-hoc T044): lista de nomes em texto (provedor; TMDB só onde o provedor não disse), estado vazio honesto; mock `cast` removido | Páginas de ator navegáveis = item 45 |
 | Detalhe: aba Detalhes (dados técnicos) | **Real** desde a feature 032: Gênero, Duração, Direção, País e Elenco (texto) só com valor real — do provedor, ou do TMDB (com a chave da pessoa) só onde o provedor deixou vazio, com o selo "Dados: TMDB" | Item 28. Backdrop e sinopse ("Ver mais" em modal) no hero; sinopse do episódio focado na série |
 | Detalhe série: Continuar TX:EY, seletor de temporada, episódios 16:9 com progresso/concluído | **Real** | Feature 012/019 |
