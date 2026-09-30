@@ -831,7 +831,7 @@ Registrados para que referências antigas continuem rastreáveis:
 | 030-epg-dados-agora | EPG — Dados de Programação e "Agora" na Live TV, no Player e na Home | Convergida | 55/56 tasks | 2026-09-29 |
 | 031-epg-guia-completo | EPG — Guia Completo em Tela Cheia | Convergida | 47/48 tasks | 2026-09-29 |
 | 032-metadata-tmdb-integracoes | Metadata de Filmes e Séries — Provedor Primeiro, TMDB (BYOK) Completa, e Tela Integrações | Convergida | 58/58 tasks | 2026-09-29 |
-| 033-trailers-filmes-series | Trailers de Filmes e Séries | Em Execução | 50/53 tasks | 2026-09-29 |
+| 033-trailers-filmes-series | Trailers de Filmes e Séries | Implementada | 55/55 tasks | 2026-09-29 |
 
 ## Bugs
 
