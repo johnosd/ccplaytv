@@ -184,6 +184,19 @@ describe('avplayAdapter', () => {
     })
   })
 
+  describe('onerror', () => {
+    it('repassa só o código — sem mensagem, que é de quem sabe o tipo da mídia', () => {
+      const fake = installFakeAvplay()
+      const callbacks = fakeCallbacks()
+      const adapter = createAvplayAdapter(callbacks)
+      adapter.open('http://exemplo.invalid/x.mp4', { x: 0, y: 0, width: 1920, height: 1080 })
+
+      fake.listeners.onerror?.('PLAYER_ERROR_CONNECTION_FAILED')
+
+      expect(callbacks.onError).toHaveBeenCalledWith({ code: 'PLAYER_ERROR_CONNECTION_FAILED' })
+    })
+  })
+
   describe('seekTo / jumpBy', () => {
     it('seekTo delega ao motor e chama onSettled ao voltar', () => {
       const fake = installFakeAvplay()

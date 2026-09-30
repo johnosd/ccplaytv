@@ -136,8 +136,13 @@ function toItemRecord(
     streamExtension: channel.streamExtension,
     // Provedor nunca guarda URL — ver `noUrl` acima.
     directUrl: undefined,
-    // Feature 015: capa declarada pela fonte (nunca para canal — mapLiveEntry não a preenche).
+    // Feature 015/024: capa/logo declarado pela fonte (também canal desde a 024 — mapLiveEntry preenche).
     iconUrl: channel.iconUrl,
+    // Feature 030: id de EPG só no canal (FR-006/FR-008).
+    epgChannelId: channel.kind === 'channel' ? channel.epgChannelId : undefined,
+    // Feature 025: ano/inclusão declarados pela fonte (filme/série do provedor).
+    year: channel.year,
+    addedAt: channel.addedAt,
   }
 }
 
@@ -266,15 +271,28 @@ export async function ensureCategory(
 
   if (category.fetchMode === 'eager') return { outcome: 'fresh' }
 
+  // O `category` recebido é um retrato: a lista de categorias das telas nunca é
+  // relida depois de uma obtenção (`useCategoryList`), então o retrato pode não
+  // ter o `itemsFetchedAt` que o disco já tem. Voltar do detalhe para a grade
+  // refazia o `get_vod_streams` por causa disso, e os ids dos canais mudavam
+  // debaixo dos cards (bug `catalogo-refaz-busca-ao-voltar-do-detalhe`, achado
+  // pelo E2E da feature 033). A verdade é o registro gravado; o retrato só vale
+  // quando o registro não existe (categoria ainda não persistida) ou é mais velho.
+  const persisted = (await database.categories.get(category.id))?.itemsFetchedAt
+  const itemsFetchedAt =
+    persisted !== undefined && category.itemsFetchedAt !== undefined
+      ? Math.max(persisted, category.itemsFetchedAt)
+      : (persisted ?? category.itemsFetchedAt)
+
   if (category.fetchMode === 'stored') {
     // Diferente de `on_demand`, sem validade por idade: o conteúdo vem de
     // um arquivo que não muda — reler produziria o mesmo resultado, então
     // só a geração (ressincronização) invalida (D-007/FR-011).
-    if (category.itemsFetchedAt !== undefined) return { outcome: 'fresh' }
+    if (itemsFetchedAt !== undefined) return { outcome: 'fresh' }
     return dedup(category.id, () => readStored(sourceId, category, database, now))
   }
 
-  if (isCategoryFresh(category.itemsFetchedAt, now)) return { outcome: 'fresh' }
-  const wasNeverFetched = category.itemsFetchedAt === undefined
+  if (isCategoryFresh(itemsFetchedAt, now)) return { outcome: 'fresh' }
+  const wasNeverFetched = itemsFetchedAt === undefined
   return dedup(category.id, () => fetchAndStore(sourceId, category, wasNeverFetched, database, now, options.signal))
 }

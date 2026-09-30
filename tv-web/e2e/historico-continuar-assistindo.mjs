@@ -53,18 +53,56 @@ function startFixtureServer() {
   })
 }
 
+const SOURCE_NAME = 'Fonte E2E Histórico'
+
 async function addSource(page, m3uUrl) {
   console.log('=== Adicionar fonte M3U fictícia ===')
   await page.goto(APP_URL)
+  // Splash (~2,6 s) -> "Quem está assistindo?". Sem lista, só "Adicionar lista", já em foco
+  // (feature 023): OK abre o formulário — ele não é mais a tela de entrada.
+  await page.waitForSelector('.add-card', { timeout: 10000 })
+  await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
 
-  await page.getByLabel('Nome de exibição').fill('Fonte E2E Histórico')
+  await page.getByLabel('Nome de exibição').fill(SOURCE_NAME)
   await page.getByLabel('URL da lista M3U').fill(m3uUrl)
   await page.getByRole('button', { name: 'Adicionar lista' }).click()
 
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   console.log('  ✓ importação concluída')
   await page.getByRole('button', { name: 'Voltar' }).click()
+  // Os perfis montam com o cache anterior e a lista nova chega logo depois: esperar por ela.
+  await page.locator('.source-card-wrap', { hasText: SOURCE_NAME }).waitFor({ timeout: 8000 })
+}
+
+/**
+ * Entra na categoria `name` de Filmes/Séries. Espera o item REAL do trilho estar em foco antes do
+ * ArrowRight: enquanto as categorias carregam o trilho só tem "★ Favoritos" e "Todos", e o padrão cai
+ * em "Todos" — um ArrowRight nesse instante entra numa grade vazia (corrida do roteiro antigo, T047).
+ */
+async function enterCategory(page, name) {
+  await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
+  await page.keyboard.press('ArrowRight')
+  await page.waitForSelector('.content-card-title', { timeout: 8000 })
+}
+
+/**
+ * Do Início (hero, rails ou topbar — qualquer foco restaurado), abre TV ao
+ * vivo/Filmes/Séries pela topbar. Substitui o antigo hub de atalhos
+ * (`.tiles-row`, removido na feature 026 — US1 troca o hub provisório pela
+ * Home definitiva com hero+rails; a entrada nas 3 categorias passa a ser só
+ * pela topbar). Sobe até a topbar (não importa em que linha do conteúdo o
+ * foco esteja — `ArrowUp` de sobra não faz nada uma vez lá dentro), reseta
+ * a posição horizontal pra "Início" (`ArrowLeft` de sobra, com clamp) e só
+ * então conta as setas certas — nunca assume de onde o foco restaurado
+ * (FR-017/FR-029) partiu.
+ */
+async function openViaTopbar(page, destination) {
+  const ORDER = ['home', 'live', 'movies', 'series']
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < ORDER.indexOf(destination); i += 1) await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
 }
 
 /** Dispara um evento do <video> ATUAL (o adaptador de dev não decodifica conteúdo fictício). */
@@ -133,24 +171,22 @@ async function run() {
     console.log('=== Cenário A: filme concluído fica marcado como assistido automaticamente ===')
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre a fonte
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    // Dá tempo de `useContinueWatchingContent` (feature 019) resolver antes
-    // de navegar — sem fonte com progresso ainda, fica vazio, mas a consulta
-    // em voo pode competir com o keydown seguinte nesta máquina.
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    // Dá tempo de `useContinueWatchingContent`/`useHomeHero` (features
+    // 019/026) resolverem antes de navegar — sem fonte com progresso ainda,
+    // ficam vazios, mas a consulta em voo pode competir com o keydown
+    // seguinte nesta máquina.
     await page.waitForTimeout(300)
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra em "Filmes" (categoria única)
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await openViaTopbar(page, 'movies')
+    await enterCategory(page, 'Filmes') // entra em "Filmes" (categoria única)
     assert(
-      (await page.locator('.poster-card-title').first().textContent()) === 'Duna Fictício',
+      (await page.locator('.content-card-title').first().textContent()) === 'Duna Fictício',
       'categoria "Filmes" mostra "Duna Fictício" primeiro',
     )
 
     await page.keyboard.press('Enter') // abre o detalhe de Duna
-    await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
-    await page.keyboard.press('Enter') // ação primária "Assistir" já focada
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
+    await page.keyboard.press('Enter') // ação primária "Assistir" já focada (índice 0)
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
 
     await completePlayback(page)
@@ -159,18 +195,18 @@ async function run() {
 
     await page.waitForSelector('text=/Desmarcar assistido/', { timeout: 8000 })
     assert(true, 'o filme concluído ganhou a ação "Desmarcar assistido"')
-    const actionsAfterWatch = await page.locator('.detail-button').allTextContents()
+    const actionsAfterWatch = await page.locator('.vod-detail-action').allTextContents()
     assert(actionsAfterWatch.some((label) => label.includes('Assistir')), 'a ação primária continua "Assistir" (sem retomada)')
 
     console.log('=== Cenário B: correção manual + "Continuar assistindo" no hub ===')
     await page.keyboard.press('Escape') // volta pra grade de Filmes
-    await page.waitForSelector('.poster-grid', { timeout: 8000 })
+    await page.waitForSelector('.vod-grid', { timeout: 8000 })
     await page.waitForSelector('.watched-badge', { timeout: 8000 })
     assert(true, 'a grade de Filmes mostra o selo "Assistido" em Duna')
 
     await page.keyboard.press('ArrowRight') // Duna -> Arrival
     await page.keyboard.press('Enter') // abre o detalhe de Arrival
-    await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
     await page.keyboard.press('Enter') // "Assistir"
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
     await fireVideoEvent(page, 'playing')
@@ -181,63 +217,109 @@ async function run() {
     await page.keyboard.press('Escape') // RETURN/pause fecha sem concluir
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
 
-    await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
     await page.keyboard.press('Escape') // detalhe -> grade da categoria
-    await page.waitForSelector('.poster-grid', { timeout: 8000 })
+    await page.waitForSelector('.vod-grid', { timeout: 8000 })
     await page.keyboard.press('Escape') // grade -> trilha
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('Escape') // trilha -> hub da fonte
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.waitForSelector('.continue-watching-row', { timeout: 8000 })
+    await page.waitForSelector('.vod-side-nav', { timeout: 8000 })
+    await page.keyboard.press('Escape') // trilha -> Início — o foco volta à topbar, em "Filmes" (FR-017/FR-029, entramos por lá)
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await page.waitForSelector('section.home-row[aria-label="Continuar assistindo"]', { timeout: 8000 })
     assert(
-      (await page.locator('.continue-watching-title').first().textContent()) === 'Arrival Fictício',
+      (await page
+        .locator('section.home-row[aria-label="Continuar assistindo"] .content-card-title')
+        .first()
+        .textContent()) === 'Arrival Fictício',
       '"Continuar assistindo" mostra Arrival com progresso parcial',
     )
 
-    await page.keyboard.press('ArrowUp') // tiles -> "Continuar assistindo"
-    await page.keyboard.press('Enter') // SELECT no item
-    await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
+    await page.keyboard.press('ArrowDown') // topbar -> conteúdo (Início monta de novo: começa no hero)
+    await page.keyboard.press('ArrowDown') // hero -> "Continuar assistindo" (2ª linha, logo abaixo)
     assert(
-      (await page.locator('.detail-button').allTextContents()).some((label) => label.includes('Retomar')),
-      'abrir pelo hub retoma a posição salva (ação primária "Retomar")',
+      (await page.locator('section.home-row[aria-label="Continuar assistindo"] .tv-focus').count()) === 1,
+      'descer do hero leva à rail "Continuar assistindo"',
+    )
+    await page.keyboard.press('ArrowUp') // rail -> hero (1 linha só — ainda no conteúdo, não sai pra topbar)
+
+    // R-002 (plano da 023, ainda válido no Início definitivo da 026 — só que agora é o HERO, não mais
+    // "Continuar assistindo", que fica adjacente à topbar): UP no hero leva à topbar e DOWN devolve o
+    // foco ao MESMO hero, num só salto — sem passar por cima dele por a topbar ativa reprocessar a
+    // mesma tecla que acabou de lhe devolver o foco. A topbar registra em fase de captura e para a
+    // propagação da tecla que trata; se o conteúdo a processasse de novo (o React descarrega o
+    // setState entre dois listeners do mesmo evento no Chromium), o foco pularia por cima do hero. Só
+    // o navegador real prova isso — o jsdom não reproduz.
+    await page.keyboard.press('ArrowUp') // hero -> topbar
+    assert(
+      (await page.locator('.topbar .tv-focus').allTextContents()).join('|') === 'Início' &&
+        (await page.locator('.home-hero-action.tv-focus').count()) === 0,
+      'UP no hero leva à topbar, em "Início"',
+    )
+    await page.keyboard.press('ArrowDown') // topbar -> conteúdo
+    assert(
+      (await page.locator('.home-hero-action.tv-focus').count()) === 1 &&
+        (await page.locator('section.home-row[aria-label="Continuar assistindo"] .tv-focus').count()) === 0 &&
+        (await page.locator('.topbar .tv-focus').count()) === 0,
+      'R-002: DOWN na topbar devolve o foco ao MESMO hero, num só salto — sem tecla dupla',
+    )
+
+    await page.keyboard.press('ArrowDown') // hero -> "Continuar assistindo" de novo, pra abrir o item
+    await page.keyboard.press('Enter') // SELECT no item
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
+    assert(
+      (await page.locator('.vod-detail-action').allTextContents()).some((label) => label.includes('Continuar')),
+      'abrir pelo hub retoma a posição salva (ação primária "Continuar", índice 0)',
     )
 
     // Correção manual: marca Arrival como assistido sem reproduzir mais.
-    await page.keyboard.press('ArrowRight') // Retomar -> Reiniciar
-    await page.keyboard.press('ArrowRight') // Reiniciar -> toggle-watched
+    // Ordem das ações agora é [Continuar, Reiniciar, Minha Lista, Trailer,
+    // toggle-watched] — 5x ArrowRight garante o último índice (clamp),
+    // sem depender de contar quantas ações existem (feature 025, D-009).
+    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight')
     await page.keyboard.press('Enter')
     await page.waitForSelector('text=/Desmarcar assistido/', { timeout: 8000 })
     assert(true, 'correção manual marcou Arrival como assistido')
 
-    await page.keyboard.press('Escape') // volta pro hub
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.keyboard.press('Escape') // volta ao Início (Arrival concluído saiu da rail: o foco cai no hero)
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    // O cache da consulta ainda tem Arrival por alguns ms depois de o Início montar: esperar a rail sair,
+    // em vez de checar no primeiro instante.
+    await page.locator('section.home-row[aria-label="Continuar assistindo"]').waitFor({ state: 'detached', timeout: 8000 })
+    assert(true, 'Arrival concluído (sem progresso de retomada) some de "Continuar assistindo"')
+    // O item que o Início tentava restaurar sumiu: o foco cai no padrão (FR-024/FR-029), no hero —
+    // sem favorito nem retomada, a 1ª ação do hero é "Abrir TV ao vivo" — nunca some.
     assert(
-      !(await page.locator('.continue-watching-row').isVisible().catch(() => false)),
-      'Arrival concluído (sem progresso de retomada) some de "Continuar assistindo"',
+      (await page.locator('.home-hero-action.tv-focus').textContent())?.includes('TV ao vivo') &&
+        (await page.locator('.topbar .tv-focus').count()) === 0,
+      'sem o item na rail, o foco do Início cai na ação do hero "Abrir TV ao vivo" (nunca fica sem foco visível)',
     )
 
     console.log('=== Cenário C: série só fica "Em dia" com todos os episódios conhecidos assistidos ===')
-    await page.keyboard.press('ArrowRight') // Filmes -> Séries
-    await page.keyboard.press('ArrowRight') // Séries
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra em "Series" (categoria única)
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    // O hero em estado de boas-vindas só tem atalhos pra TV ao vivo/Filmes
+    // (nunca Séries) — pela topbar chega em qualquer uma das três, sempre.
+    await openViaTopbar(page, 'series')
+    await enterCategory(page, 'Series') // entra em "Series" (categoria única)
     assert(
       !(await page.locator('.watched-badge').isVisible().catch(() => false)),
       'série nunca aberta não mostra nenhum selo agregado',
     )
 
     await page.keyboard.press('Enter') // abre o detalhe da série
-    await page.waitForSelector('.episode-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowDown') // abas de temporada (foco inicial) -> episódios
-    await page.keyboard.press('Enter') // SELECT no episódio 1
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
+    // Ação primária (índice 0, foco inicial) já é "Assistir T.:E1" — abre o
+    // episódio 1 direto, sem precisar navegar (feature 025, D-009).
+    await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
     await completePlayback(page)
     await page.waitForSelector('[role="dialog"][aria-label="Próximo episódio"]', { timeout: 8000 })
     await page.keyboard.press('Escape') // cancela o autoplay — volta à lista, foco no episódio concluído
 
-    await page.waitForSelector('.episode-row', { timeout: 8000 })
+    // actions -> tabs -> season -> episodes (3 setas, `logic/detalhe-vod.md`
+    // §6) — o foco no episódio 1, guardado pelo cancelamento, é preservado
+    // ao entrar na linha de episódios; uma seta BAIXO move pro episódio 2.
+    await page.waitForSelector('.vod-episode-row', { timeout: 8000 })
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown')
     await page.keyboard.press('ArrowDown') // episódio 1 -> episódio 2
     await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
@@ -246,7 +328,7 @@ async function run() {
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
 
     await page.keyboard.press('Escape') // volta pra grade de Séries
-    await page.waitForSelector('.poster-grid', { timeout: 8000 })
+    await page.waitForSelector('.vod-grid', { timeout: 8000 })
     await page.waitForSelector('.watched-badge', { timeout: 8000 })
     assert(
       (await page.locator('.watched-badge').first().textContent()) === 'Em dia',

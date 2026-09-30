@@ -2,6 +2,11 @@ import { useRef, useState } from 'react'
 import { useCreateSource, useUpdateSource, type SourceOut } from './importApi'
 import { useTvKeyNav } from '../../lib/useTvKeyNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
+import { Button } from '../../components/Button'
+import { ComingSoon } from '../../components/ComingSoon'
+import { Tabs } from '../../components/Tabs'
+import { TextField } from '../../components/TextField'
+import { OnboardingBrand } from './OnboardingBrand'
 
 export interface AddSourceScreenProps {
   /** Presente = tela em modo edição de uma fonte já existente. */
@@ -13,6 +18,22 @@ export interface AddSourceScreenProps {
 
 type EntryMode = 'url' | 'provider'
 
+const ENTRY_TABS: { id: EntryMode; label: string }[] = [
+  { id: 'url', label: 'URL da lista M3U' },
+  { id: 'provider', label: 'Endereço, usuário e senha' },
+]
+
+/**
+ * Onboarding de lista no visual V14 (feature 023, US4/FR-034..FR-036): o
+ * formulário real M3U/Xtream (mesma validação e mesmos erros de sempre) com os
+ * campos da feature 022 (`TextField`, rótulo permanente e IME por finalidade) e
+ * um cartão "Conectar pelo celular" que é só mock "Em breve" (FR-035) — o
+ * formulário manual continua sendo o caminho real, nunca o celular.
+ *
+ * Foco: roving DOM (`useTvKeyNav`) sobre `<button>`/`<input>` reais, como
+ * sempre foi aqui — o `Button`/`Tabs`/`ComingSoon` da 022 são `<button>`
+ * nativos e entram no percurso sem nada extra.
+ */
 export function AddSourceScreen({
   existingSource,
   onSourceCreated,
@@ -103,112 +124,111 @@ export function AddSourceScreen({
     )
   }
 
+  const submitLabel = isEditing
+    ? updateSource.isPending
+      ? 'Salvando…'
+      : 'Salvar alterações'
+    : createSource.isPending
+      ? 'Adicionando…'
+      : 'Adicionar lista'
+
   return (
-    <section className="screen" aria-labelledby="add-source-title" ref={containerRef}>
-      <h1 id="add-source-title" className="screen-title" style={{ marginBottom: 44 }}>
+    <section className="screen onboarding" aria-labelledby="add-source-title" ref={containerRef}>
+      <OnboardingBrand />
+      <p className="onboarding-kicker">{isEditing ? 'Suas listas' : 'Configuração inicial'}</p>
+      <h1 id="add-source-title" className="onboarding-title">
         {isEditing ? 'Editar lista' : 'Adicionar lista'}
       </h1>
+      <p className="onboarding-subtitle">
+        {isEditing
+          ? 'Altere o que precisar. Usuário e senha em branco continuam como estão.'
+          : 'Preencha os dados da sua lista M3U ou Xtream para começar.'}
+      </p>
 
-      {!isEditing && (
-        <div className="tabs-row" role="tablist" aria-label="Forma de entrada">
-          <button
-            type="button"
-            role="tab"
-            className="tab-pill"
-            aria-selected={mode === 'url'}
-            onClick={() => setMode('url')}
-          >
-            URL da lista M3U
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className="tab-pill"
-            aria-selected={mode === 'provider'}
-            onClick={() => setMode('provider')}
-          >
-            Endereço, usuário e senha
-          </button>
+      <div className="onboarding-layout">
+        <div className="onboarding-form">
+          {/* O `Tabs` da 022 não tem nome próprio — o grupo preserva o rótulo
+              "Forma de entrada" que a lista de abas sempre teve. */}
+          {!isEditing && (
+            <div role="group" aria-label="Forma de entrada" className="onboarding-tabs">
+              <Tabs items={ENTRY_TABS} activeId={mode} onSelect={(id) => setMode(id as EntryMode)} />
+            </div>
+          )}
+
+          <div className="onboarding-fields">
+            <TextField label="Nome de exibição" purpose="text" value={displayName} onChange={setDisplayName} />
+
+            {mode === 'url' ? (
+              <TextField
+                label="URL da lista M3U"
+                purpose="url"
+                value={m3uUrl}
+                onChange={setM3uUrl}
+                hint={isEditing ? 'Deixe em branco para manter a URL atual' : undefined}
+              />
+            ) : (
+              <>
+                <TextField
+                  label="Endereço do servidor (DNS do provedor)"
+                  purpose="url"
+                  value={dns}
+                  onChange={setDns}
+                />
+                <TextField
+                  label="Usuário"
+                  purpose="username"
+                  value={username}
+                  onChange={setUsername}
+                  hint={isEditing ? 'Deixe em branco para manter o usuário atual' : undefined}
+                />
+                <TextField
+                  label="Senha"
+                  purpose="password"
+                  value={password}
+                  onChange={setPassword}
+                  hint={isEditing ? 'Deixe em branco para manter a senha atual' : undefined}
+                />
+              </>
+            )}
+          </div>
+
+          {validationError && (
+            <p className="form-error onboarding-error" role="alert">
+              {validationError}
+            </p>
+          )}
+          {createSource.isError && (
+            <p className="form-error onboarding-error" role="alert">
+              Não foi possível adicionar a fonte: {createSource.error.message}
+            </p>
+          )}
+          {updateSource.isError && (
+            <p className="form-error onboarding-error" role="alert">
+              Não foi possível salvar as alterações: {updateSource.error.message}
+            </p>
+          )}
+
+          {/* `loading` em vez de `disabled`: durante o envio o botão continua
+              focável (constitution, "Foco Visível e Sem Becos Sem Saída") e só
+              ignora um segundo OK, sem submissão duplicada. */}
+          <div className="onboarding-submit">
+            <Button variant="accent" loading={isPending} onSelect={handleSubmit}>
+              {submitLabel}
+            </Button>
+          </div>
         </div>
-      )}
 
-      <div className="field-group">
-        <label>
-          <span className="field-label">Nome de exibição</span>
-          <input
-            className="field-box"
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-          />
-        </label>
-
-        {mode === 'url' ? (
-          <label>
-            <span className="field-label">URL da lista M3U</span>
-            <input
-              className="field-box"
-              value={m3uUrl}
-              onChange={(event) => setM3uUrl(event.target.value)}
-              placeholder={isEditing ? 'Deixe em branco para manter a URL atual' : undefined}
-            />
-          </label>
-        ) : (
-          <>
-            <label>
-              <span className="field-label">Endereço do servidor (DNS do provedor)</span>
-              <input
-                className="field-box"
-                value={dns}
-                onChange={(event) => setDns(event.target.value)}
-              />
-            </label>
-            <label>
-              <span className="field-label">Usuário</span>
-              <input
-                className="field-box"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                placeholder={isEditing ? 'Deixe em branco para manter o usuário atual' : undefined}
-              />
-            </label>
-            <label>
-              <span className="field-label">Senha</span>
-              <input
-                className="field-box"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder={isEditing ? 'Deixe em branco para manter a senha atual' : undefined}
-              />
-            </label>
-          </>
+        {!isEditing && (
+          <aside className="onboarding-side" aria-labelledby="pair-phone-title">
+            <h2 id="pair-phone-title" className="onboarding-side-title">
+              Conectar pelo celular
+            </h2>
+            <p className="onboarding-side-text">
+              Ainda não está disponível. Por enquanto, preencha os dados ao lado.
+            </p>
+            <ComingSoon id="pair-phone" />
+          </aside>
         )}
-
-        {validationError && (
-          <p className="form-error" role="alert">
-            {validationError}
-          </p>
-        )}
-        {createSource.isError && (
-          <p className="form-error" role="alert">
-            Não foi possível adicionar a fonte: {createSource.error.message}
-          </p>
-        )}
-        {updateSource.isError && (
-          <p className="form-error" role="alert">
-            Não foi possível salvar as alterações: {updateSource.error.message}
-          </p>
-        )}
-
-          <button className="submit-button" type="button" onClick={handleSubmit} disabled={isPending}>
-          {isEditing
-            ? updateSource.isPending
-              ? 'Salvando…'
-              : 'Salvar alterações'
-            : createSource.isPending
-              ? 'Adicionando…'
-              : 'Adicionar lista'}
-        </button>
       </div>
     </section>
   )

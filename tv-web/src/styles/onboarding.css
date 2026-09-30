@@ -1,0 +1,303 @@
+/*
+ * Entrada do app (feature 023): Splash, onboarding de lista ("Adicionar
+ * lista") e progresso de importação no visual V14. Substitui as regras
+ * `.splash*` do antigo `features/screens.css` (eliminado na feature 028).
+ * Só tokens de `index.css`.
+ *
+ * O foco das telas de formulário é DOM real (`useTvKeyNav`): a receita de foco
+ * global (`button:focus`, `input:focus`, `.tv-focus` em `index.css`) já cobre
+ * `<button>`/`<input>` — aqui só entram o realce de borda e o respiro para o
+ * glow e a escala do foco (ADR-007) não serem cortados.
+ */
+
+/* ---------- Splash (US5, FR-041) ---------- */
+
+.splash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 45%, var(--bg-elevated) 0%, var(--bg) 70%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+/* O gradiente de marca é reservado à identidade (ADR-007) — a marca é isso. */
+.splash-mark {
+  width: calc(var(--space-7) * 2);
+  height: calc(var(--space-7) * 2);
+  border-radius: var(--radius-lg);
+  background: var(--brand-gradient-diagonal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--elevation-3);
+  animation: ccp-pop calc(var(--duration-slow) * 3) var(--ease);
+}
+
+.splash-mark-triangle {
+  width: 0;
+  height: 0;
+  border-top: var(--space-5) solid transparent;
+  border-bottom: var(--space-5) solid transparent;
+  border-left: calc(var(--space-6) + var(--space-1)) solid var(--bg);
+  margin-left: var(--space-1);
+}
+
+.splash-wordmark {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-display);
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ccp-fade calc(var(--duration-slow) * 3) var(--duration-standard) both;
+}
+
+.splash-tagline {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+  animation: ccp-fade calc(var(--duration-slow) * 3) calc(var(--duration-slow) * 2) both;
+}
+
+.splash-loader {
+  margin-top: var(--space-2);
+}
+
+/* ---------- Moldura das telas de entrada (onboarding e progresso) ---------- */
+
+/* Sobrescreve o padding em px de `.screen` (`shared.css`) pela safe zone do
+   palco 1920×1080 (§4). */
+.screen.onboarding {
+  padding: var(--safe-y) var(--safe-x);
+}
+
+.onboarding-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.onboarding-brand-mark {
+  width: var(--space-5);
+  height: var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--brand-gradient-diagonal);
+}
+
+.onboarding-brand-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+.onboarding-kicker {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+  color: var(--accent);
+}
+
+.onboarding-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-h1);
+  color: var(--text-primary);
+}
+
+.onboarding-subtitle {
+  margin: 0 0 var(--space-5);
+  max-width: calc(var(--space-7) * 8);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-body-lg);
+  color: var(--text-secondary);
+}
+
+/* ---------- Formulário de lista (US4, FR-034) ---------- */
+
+/* Formulário à esquerda, cartão "Conectar pelo celular" à direita. O respiro
+   (padding + margem negativa) deixa o glow do foco aparecer sem ser cortado. */
+.onboarding-layout {
+  display: grid;
+  grid-template-columns: minmax(0, calc(var(--space-7) * 8)) minmax(0, calc(var(--space-7) * 3.5));
+  align-items: start;
+  gap: var(--space-6);
+  padding: var(--space-3);
+  margin: calc(-1 * var(--space-3));
+}
+
+.onboarding-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.onboarding-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.onboarding .text-field-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.onboarding .text-field-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: calc(var(--space-6) + var(--space-1));
+  padding: 0 var(--space-3);
+  border: 3px solid var(--border-dashed);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+}
+
+.onboarding .text-field-input:focus {
+  background: var(--surface-field-active);
+  border-color: var(--accent);
+}
+
+.onboarding .text-field-input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.onboarding-error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-body);
+  color: var(--danger);
+}
+
+.onboarding-submit {
+  display: flex;
+  margin-top: var(--space-1);
+}
+
+/* Cartão do celular (mock "Em breve"): mesmo peso visual de um painel do
+   sistema, sem prometer a função — o texto diz que ainda não existe. */
+.onboarding-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.onboarding-side-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.onboarding-side-text {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.onboarding-side .coming-soon {
+  background: var(--bg-elevated);
+  text-align: left;
+}
+
+/* ---------- Progresso da importação (US4, FR-037) ---------- */
+
+.progress-status-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.progress-status {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+/* Contadores reais do importador — nunca um percentual (FR-037). */
+.progress-counters {
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  max-width: calc(var(--space-7) * 8);
+}
+
+.progress-counter {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-error {
+  max-width: calc(var(--space-7) * 8);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+/* Avisos: o texto já diz tudo; a barra lateral acentua sem depender só de cor. */
+.progress-warnings {
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: calc(var(--space-7) * 8);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.progress-warnings li {
+  padding-left: var(--space-2);
+  border-left: 3px solid var(--accent);
+}
+
+/* Respiro no entorno dos botões: o glow e a escala do foco não podem ser
+   cortados por nenhum contêiner (ADR-007). */
+.progress-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  margin-left: calc(-1 * var(--space-2));
+}

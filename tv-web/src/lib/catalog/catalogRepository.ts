@@ -289,13 +289,16 @@ export async function storeCategoryItems(
 
       if (items.length > 0) {
         await database.channels.bulkAdd(
-          items.map((item) => ({
+          items.map((item, index) => ({
             ...item,
             sourceId: target.sourceId,
             generation: target.generation,
             kind: target.kind,
             groupOrder: target.groupOrder,
             categoryId: target.categoryId,
+            // Feature 024: posição na ordem em que o provedor entregou —
+            // base do número de exibição do canal (`logic/numero-do-canal.md` §4).
+            categoryPosition: index,
           })),
         )
       }
@@ -384,13 +387,17 @@ export async function storeStoredCategory(
 
         if (items.length > 0) {
           await database.channels.bulkAdd(
-            items.map((item) => ({
+            items.map((item, index) => ({
               ...item,
               sourceId: target.sourceId,
               generation: target.generation,
               kind: target.kind,
               groupOrder: target.groupOrder,
               categoryId: target.categoryId,
+              // Feature 024: posição na ordem do arquivo — base do número
+              // de exibição do canal (`logic/numero-do-canal.md` §4). Só
+              // os itens da categoria, nunca os episódios (abaixo).
+              categoryPosition: index,
             })),
           )
         }

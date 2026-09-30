@@ -22,7 +22,9 @@ import { db, type CatalogDb, type CatalogRecord } from './db'
 import { activeGeneration, getCategory, getChannel, storeSeriesEpisodes } from './catalogRepository'
 import { isCategoryFresh } from './freshness'
 import { readCredential } from './sourceRepository'
-import { fetchSeriesInfo, type XtreamEpisode } from './xtreamConnector'
+import { fetchSeriesDetail, type XtreamEpisode } from './xtreamConnector'
+import { normalizeSeriesInfo } from '../metadata/providerMetadata'
+import { storeProviderMetadata } from '../metadata/titleMetadataStore'
 
 export type SeriesFetchOutcome = 'fresh' | 'fetched' | 'stale-served' | 'failed'
 
@@ -55,6 +57,11 @@ function toEpisodeRecord(episode: XtreamEpisode): CatalogRecord {
     streamExtension: episode.streamExtension,
     // D-004: provedor nunca grava URL de episódio.
     directUrl: undefined,
+    // Feature 025: imagem e duração do episódio declaradas pela fonte.
+    iconUrl: episode.iconUrl,
+    durationSeconds: episode.durationSeconds,
+    // Feature 032 (FR-028): sinopse do episódio, quando o provedor a mandou.
+    synopsis: episode.synopsis,
   }
 }
 
@@ -71,7 +78,9 @@ async function fetchAndStore(
   if (generation === undefined) return { outcome: wasNeverFetched ? 'failed' : 'stale-served' }
 
   try {
-    const episodes = await fetchSeriesInfo(
+    // Feature 032 (D-009): a mesma resposta traz os episódios e o `info` da
+    // série — uma requisição só serve às duas coisas.
+    const { episodes, info } = await fetchSeriesDetail(
       credential.dns,
       credential.username,
       credential.password,
@@ -88,6 +97,13 @@ async function fetchAndStore(
       now,
       database,
     )
+    // A metadata da série é acessória: gravá-la nunca pode fazer a obtenção
+    // dos episódios (o que a tela precisa) virar falha.
+    try {
+      await storeProviderMetadata(database, series, normalizeSeriesInfo(info).fields, undefined, now)
+    } catch {
+      // ignorado de propósito: a próxima abertura do detalhe tenta de novo.
+    }
     return { outcome: 'fetched' }
   } catch {
     // Erro sai como desfecho, nunca como mensagem de rede (regra 5): o que

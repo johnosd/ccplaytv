@@ -929,9 +929,9 @@ describe('importPipeline — URL M3U reconhecida como painel Xtream (feature 014
   })
 
   // Feature 015 — caminho `stored` (scanToStored/toStoredRecord) propaga
-  // tvg-logo pra iconUrl: filme, série sintética (herdado do 1º episódio,
-  // D-003) e nunca canal (FR-009).
-  it('varredura captura tvg-logo pra filme e série, e a série sintética herda do 1º episódio', async () => {
+  // tvg-logo pra iconUrl: filme e série sintética (herdado do 1º episódio,
+  // D-003). Feature 024 (R-003) estende a captura a canal também.
+  it('varredura captura tvg-logo pra filme, série e canal, e a série sintética herda do 1º episódio', async () => {
     const lines = [
       '#EXTM3U',
       '#EXTINF:-1 tvg-logo="http://exemplo.test/espn.png" group-title="Canais",ESPN',
@@ -955,7 +955,7 @@ describe('importPipeline — URL M3U reconhecida como painel Xtream (feature 014
     const orderOf = (name: string) => categories.find((c) => c.name === name)!.order
 
     const channels = await listChannels(M3U_SOURCE.id, orderOf('Canais'), 0, 10, 'channel', database)
-    expect(channels[0].iconUrl).toBeUndefined() // FR-009: canal nunca ganha capa
+    expect(channels[0].iconUrl).toBe('http://exemplo.test/espn.png') // feature 024: canal ganha logo
 
     const movies = await listChannels(M3U_SOURCE.id, orderOf('Filmes'), 0, 10, 'movie', database)
     const withIcon = movies.find((m) => m.name === 'Um Filme')
@@ -966,6 +966,29 @@ describe('importPipeline — URL M3U reconhecida como painel Xtream (feature 014
     const series = await listChannels(M3U_SOURCE.id, orderOf('Series'), 0, 10, 'series', database)
     // Série sintética herda a capa do 1º episódio (S01E01), não do 2º.
     expect(series[0].iconUrl).toBe('http://exemplo.test/serie-ep1.png')
+  })
+
+  // Feature 025 (T007, T018): o caminho M3U (avulso, painel não confirmado
+  // ou Modo limitado — o "legado" desta função) nunca declara ano/inclusão;
+  // os campos passam pelo mesmo `toStoredRecord` que copia iconUrl, e ficam
+  // ausentes, nunca inventados.
+  it('varredura M3U nunca grava year/addedAt — a fonte não os declara', async () => {
+    const lines = [
+      '#EXTM3U',
+      '#EXTINF:-1 group-title="Filmes",Um Filme',
+      'http://exemplo.test/vod/1.mp4',
+    ].join('\n')
+
+    await database.sources.add(M3U_SOURCE)
+    vi.stubGlobal('fetch', respondWith(lines))
+    await (await startImport(M3U_SOURCE.id, { database })).completion
+    await readAllCategories(M3U_SOURCE.id)
+
+    const categories = await listCategories(M3U_SOURCE.id, undefined, database)
+    const orderOf = (name: string) => categories.find((c) => c.name === name)!.order
+    const movies = await listChannels(M3U_SOURCE.id, orderOf('Filmes'), 0, 10, 'movie', database)
+    expect(movies[0].year).toBeUndefined()
+    expect(movies[0].addedAt).toBeUndefined()
   })
 
   // T012 — SC-007: nenhum ramo de falha ou de Modo limitado vaza usuário, senha ou URL.

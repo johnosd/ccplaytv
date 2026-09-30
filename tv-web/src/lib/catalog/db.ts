@@ -25,6 +25,8 @@ export type ProviderImportMode = 'xtream_api' | 'legacy_m3u'
  * (FR-002 da spec 014).
  */
 export type LimitedReason = 'protocol_unavailable' | 'panel_unreachable'
+/** Categoria de falha de uma sincronização de EPG (feature 030) — nunca a mensagem crua da rede. */
+export type EpgErrorKind = 'network' | 'refused' | 'not_xmltv' | 'unreadable' | 'storage_full'
 
 export interface SourceRecord {
   id: string
@@ -49,6 +51,24 @@ export interface SourceRecord {
   lastDiscardedByType?: number
   /** Geração publicada do catálogo. `undefined` = nenhuma ainda (D-004). */
   activeGeneration?: number
+  /**
+   * EPG (feature 030, `data-model.md` §1). Endereços podem carregar
+   * credencial/token: mesma regra da ADR-010 — nunca em log, tela, erro,
+   * terceiro ou exportação. `SourceView` não os expõe.
+   */
+  epgManualUrl?: string
+  /** `url-tvg`/`x-tvg-url` do cabeçalho M3U; regravado (inclusive ausente) a cada importação. */
+  epgDeclaredUrl?: string
+  /** Deslocamento manual −12…+12; ausente = 0. Aplicado só na leitura. */
+  epgOffsetHours?: number
+  epgDisabled?: boolean
+  /** Última sincronização **bem-sucedida** — não avança em falha. */
+  epgLastSyncAt?: number
+  epgLastErrorKind?: EpgErrorKind
+  epgLastErrorAt?: number
+  epgActiveGeneration?: number
+  /** A última importação já capturou id de EPG dos canais (D-007). Ausente numa fonte sincronizada → migração única. */
+  epgIdsCapturedAt?: number
   createdAt: number
   updatedAt: number
 }
@@ -119,17 +139,155 @@ export interface CatalogRecord {
    */
   episodesFetchedAt?: number
   /**
-   * Capa declarada pela própria fonte para um filme ou série (feature 015,
-   * D-001/D-002 do plan.md) — Xtream `stream_icon`/`cover`, ou `tvg-logo`
-   * do M3U. `undefined` = fonte não declarou, ou o item é um canal
-   * (nunca lido nem gravado para `kind: 'channel'`, FR-009). Campo de
-   * valor comum, sem índice — não exige bump de versão do Dexie (D-009);
-   * registro gravado antes desta feature simplesmente não o tem.
+   * Capa/logo declarada pela própria fonte (feature 015, D-001/D-002 do
+   * plan.md, para filme/série) — Xtream `stream_icon`/`cover`, ou
+   * `tvg-logo` do M3U. Feature 024 (R-003): também para `kind: 'channel'`
+   * — a exclusão original era de escopo, não técnica. `undefined` = fonte
+   * não declarou, ou registro gravado antes da feature que passou a
+   * capturar aquele `kind`. Campo de valor comum, sem índice — não exige
+   * bump de versão do Dexie (D-009).
    */
   iconUrl?: string
+  /**
+   * Posição 0-based do item dentro da categoria, na ordem em que a fonte o
+   * entregou (feature 024, `logic/numero-do-canal.md` §4). Gravada por
+   * `storeCategoryItems`/`storeStoredCategory` (as duas funções que
+   * escrevem uma categoria inteira de uma vez, na ordem recebida) para
+   * todo `kind` — só a Live TV a lê, para o número de exibição do canal.
+   * `undefined` = registro gravado antes desta feature.
+   */
+  categoryPosition?: number
+  /**
+   * Ano declarado pela fonte (feature 025, FR-049) — filme/série do
+   * provedor. Campo de valor sem índice, sem bump de versão (mesmo padrão
+   * de `iconUrl`). `undefined` = não declarado, ilegível, ou registro
+   * gravado antes da feature.
+   */
+  year?: number
+  /** Inclusão declarada pela fonte, epoch ms (feature 025) — só filme do provedor (`added`). */
+  addedAt?: number
+  /** Duração declarada pela fonte, em segundos (feature 025) — só episódio do provedor (`info.duration_secs`). */
+  durationSeconds?: number
+  /**
+   * Id de EPG declarado pela fonte para o canal (feature 030, FR-006/FR-008):
+   * `epg_channel_id` (Xtream) ou `tvg-id` (M3U), já com `trim()`. Só
+   * `kind: 'channel'`. `undefined` = não declarado, ou registro gravado antes
+   * desta feature — nunca casado por nome. Valor sem índice, sem bump.
+   */
+  epgChannelId?: string
+  /**
+   * Sinopse do episódio declarada pelo provedor (feature 032, FR-028) —
+   * `info.plot` de `get_series_info`, gravada junto com o episódio. Só
+   * `kind: 'episode'`. Valor sem índice, sem bump. `undefined` = não declarada
+   * ou episódio gravado antes desta feature.
+   */
+  synopsis?: string
+}
+
+/**
+ * Um programa da programação guardada (feature 030, `data-model.md` §2).
+ * Horários em epoch ms como o XMLTV declarou (fuso já resolvido); o
+ * deslocamento manual da fonte só é aplicado na leitura.
+ */
+export interface EpgProgramRecord {
+  id?: number
+  sourceId: string
+  generation: number
+  /** `<programme channel="…">`, comparado por igualdade exata. Nunca vazio. */
+  channelKey: string
+  start: number
+  end: number
+  title: string
+  description?: string
 }
 
 /** As três seções que o painel expõe por categoria (feature 010). */
+/**
+ * Campos descritivos de um filme/série (feature 032, `data-model.md` §3) —
+ * o mesmo formato para o que o provedor declarou e para o que o TMDB devolveu.
+ * Todos opcionais: ausente = nenhuma fonte tem valor real, nunca um texto de
+ * preenchimento.
+ */
+/**
+ * Referência a um vídeo de trailer no YouTube (feature 033,
+ * `logic/candidatos-de-trailer.md`). Só o id público do vídeo — nunca URL de
+ * mídia, nunca promessa de que o vídeo ainda exista.
+ */
+export interface TrailerVideoRef {
+  /** Id de vídeo do YouTube (11 caracteres `[A-Za-z0-9_-]`). */
+  videoId: string
+  kind: 'trailer' | 'teaser'
+  /** ISO 639-1 quando a fonte declara; ausente = desconhecido (caso do provedor). */
+  language?: string
+  /** Ausente = desconhecido, nunca "falso". */
+  official?: boolean
+}
+
+export interface TitleFields {
+  /**
+   * Feature 033. Provedor: no máximo um (`youtube_trailer`). TMDB: `[]` quando
+   * os vídeos foram pedidos e nenhum serve; AUSENTE num registro `matched`
+   * gravado antes da 033 (sem `videos`) — é o sinal para pedir de novo uma vez.
+   */
+  trailerVideos?: TrailerVideoRef[]
+  synopsis?: string
+  /** Só presente quando a sinopse NÃO está em português (código ISO 639-1) — FR-021. */
+  synopsisLanguage?: string
+  backdropUrl?: string
+  genres?: string
+  durationSeconds?: number
+  director?: string
+  country?: string
+  cast?: string
+}
+
+export type TmdbResultRecord =
+  | { status: 'matched'; tmdbId: number; fields: TitleFields }
+  | { status: 'no_match' }
+  | { status: 'dead_id'; tmdbId: number }
+
+/**
+ * Cache de metadata por título (feature 032, `data-model.md` §1). Chave =
+ * `stableId` (nunca URL); sobrevive a nova geração e é apagada com a fonte.
+ */
+export interface TitleMetadataRecord {
+  stableId: string
+  sourceId: string
+  kind: 'movie' | 'series'
+  provider?: TitleFields
+  /** Última obtenção bem-sucedida do provedor — falha não avança. */
+  providerFetchedAt?: number
+  /**
+   * Versão dos campos lidos do provedor (feature 033, D-006). Registro com
+   * versão menor que `PROVIDER_FIELDS_VERSION` conta como vencido, mesmo
+   * dentro das 24 h — senão um título aberto antes da 033 ficaria até um dia
+   * sem o `youtube_trailer`. Ausente = gravado antes da 033.
+   */
+  providerVersion?: number
+  /** `info.tmdb_id` do `get_vod_info` — só filme (o painel não declara para série). */
+  providerTmdbId?: number
+  tmdb?: TmdbResultRecord
+  tmdbFetchedAt?: number
+}
+
+export type IntegrationState = 'connected' | 'refused' | 'offline' | 'rate_limited'
+
+/**
+ * Chave BYOK de um serviço de terceiro (constitution 1.6.0, feature 032).
+ * **Segredo**: só `lib/metadata/tmdbKeyRepository.ts` e `tmdbConnector.ts`
+ * leem `key`; nunca em log, estado de tela, erro, exportação ou requisição a
+ * outro host que não o do próprio serviço.
+ */
+export interface IntegrationRecord {
+  id: 'tmdb'
+  key: string
+  format: 'v3' | 'v4'
+  state: IntegrationState
+  lastTestedAt: number
+  /** Depois de `429`: nenhuma chamada até este instante. */
+  pausedUntil?: number
+}
+
 export type CategoryKind = 'channel' | 'movie' | 'series'
 
 /** Como os itens de uma categoria chegam (data-model.md §2.1). */
@@ -278,6 +436,9 @@ export class CatalogDb extends Dexie {
   userStates!: EntityTable<UserStateRecord, 'stableId'>
   categories!: EntityTable<CategoryRecord, 'id'>
   storedEntries!: EntityTable<StoredEntriesRecord, 'id'>
+  epgPrograms!: EntityTable<EpgProgramRecord, 'id'>
+  titleMetadata!: EntityTable<TitleMetadataRecord, 'stableId'>
+  integrations!: EntityTable<IntegrationRecord, 'id'>
 
   constructor(name: string = DB_NAME) {
     super(name)
@@ -381,6 +542,24 @@ export class CatalogDb extends Dexie {
     // para migrar para uma tabela que não existia.
     this.version(10).stores({
       storedEntries: '++id, [sourceId+generation], [sourceId+generation+categoryId+chunk]',
+    })
+    // v11 (feature 030): programação de EPG por fonte. `[sourceId+generation]`
+    // é o eixo de descarte/substituição por geração; o composto com
+    // `channelKey+start` é o de leitura por canal, já em ordem de início.
+    // Sem `.upgrade()`: tabela nova. Os campos novos em `sources`/`channels`
+    // são de valor, sem índice.
+    this.version(11).stores({
+      epgPrograms: '++id, [sourceId+generation], [sourceId+generation+channelKey+start]',
+    })
+    // v12 (feature 032): metadata descritiva por título e chave BYOK.
+    // `titleMetadata` é chaveada por `stableId` (fonte+tipo+id estável — nunca
+    // URL) e por isso NÃO depende de geração: um resync não a invalida.
+    // `sourceId` é o eixo de descarte quando a fonte é removida.
+    // `integrations` é uma linha por serviço (hoje só `tmdb`). Sem
+    // `.upgrade()`: tabelas novas, não há dado antigo a converter.
+    this.version(12).stores({
+      titleMetadata: 'stableId, sourceId',
+      integrations: 'id',
     })
   }
 }

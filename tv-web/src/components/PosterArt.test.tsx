@@ -57,4 +57,32 @@ describe('PosterArt', () => {
     expect(container.querySelector('.poster-box.tv-focus')).toBeInTheDocument()
     expect(screen.getByText('★')).toBeInTheDocument()
   })
+
+  describe('variant="logo" (feature 024, D-007 — logo de canal da Live TV)', () => {
+    it('sem url, mostra as iniciais do título em vez do rótulo "pôster"', () => {
+      render(<PosterArt title="Globo Esportes" variant="logo" />)
+      expect(screen.getByText('GE')).toBeInTheDocument()
+      expect(screen.queryByText('pôster', { exact: false })).not.toBeInTheDocument()
+    })
+
+    it('nome de uma palavra só usa as 3 primeiras letras, maiúsculas', () => {
+      render(<PosterArt title="espn" variant="logo" />)
+      expect(screen.getByText('ESP')).toBeInTheDocument()
+    })
+
+    it('três palavras ou mais: iniciais até 3 caracteres', () => {
+      render(<PosterArt title="Rede Globo Interior Extra" variant="logo" />)
+      expect(screen.getByText('RGI')).toBeInTheDocument()
+    })
+
+    it('com url válida, monta a <img> por cima igual à variante padrão', () => {
+      const { container } = render(<PosterArt url="http://exemplo.test/logo.png" title="ESPN" variant="logo" />)
+      expect(container.querySelector('img')).toHaveAttribute('src', 'http://exemplo.test/logo.png')
+    })
+
+    it('variant padrão (sem passar a prop) continua idêntica — rótulo "pôster" (contrato travado da 022, C5)', () => {
+      render(<PosterArt title="Um Filme" />)
+      expect(screen.getByText('pôster', { exact: false })).toBeInTheDocument()
+    })
+  })
 })

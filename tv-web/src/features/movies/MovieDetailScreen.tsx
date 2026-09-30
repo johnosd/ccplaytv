@@ -1,13 +1,34 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCatalogItem, useUserState, invalidateUserState, useToggleWatched } from '../catalog/catalogApi'
+import {
+  useCatalogItem,
+  useTitleMetadata,
+  useTmdbStatus,
+  useUserState,
+  invalidateUserState,
+  useToggleWatched,
+  groupLabel,
+} from '../catalog/catalogApi'
+import { CastPanel, DetailBackdrop, MetadataFacts, SynopsisBlock, SynopsisModal } from '../vod/DetailMetadata'
+import { isSynopsisTruncated, metadataFactRows } from '../vod/detailMetadataFormat'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 import { PlayerLayer } from '../../components/PlayerLayer'
+import { TrailerLayer } from '../../components/TrailerLayer'
+import { PosterArt } from '../../components/PosterArt'
+import { Tabs, type TabItem } from '../../components/Tabs'
 import { buildStableId } from '../../lib/catalog/userStateRepository'
 import { isResumable } from '../../lib/player/resumePolicy'
 import { formatTime } from '../../lib/player/formatTime'
+import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
+import { getComingSoon } from '../../lib/comingSoon'
+import {
+  trailerActionLabel,
+  trailerActionSoftDisabled,
+  trailerActionState,
+  trailerActionToast,
+} from '../vod/trailerAction'
 
 export interface MovieDetailScreenProps {
   movieId: string
@@ -15,44 +36,68 @@ export interface MovieDetailScreenProps {
 }
 
 type MovieAction =
-  | { id: 'trailer' }
   | { id: 'watch' }
   | { id: 'resume'; progressSeconds: number }
   | { id: 'restart' }
+  | { id: 'favorite'; isFavorite: boolean }
+  | { id: 'trailer' }
   | { id: 'toggle-watched'; watched: boolean }
 
+type DetailTab = 'details' | 'cast' | 'similar'
+
+const TABS: TabItem[] = [
+  { id: 'details', label: 'Detalhes' },
+  { id: 'cast', label: 'Elenco' },
+  { id: 'similar', label: 'Semelhantes', softDisabled: true },
+]
+
 /**
- * As ações do detalhe, na ordem de foco. Trailer é sempre a primeira — fora
- * de escopo desta feature (item 32 do backlog), preservado como já estava.
- * A ação PRIMÁRIA (Assistir, ou Retomar quando há posição salva) é sempre a
- * segunda: é o que FR-015 e `logic/reproducao-vod.md` §5 chamam de "foco
- * inicial na ação primária" — nesta estrutura isso é sempre o índice 1,
- * então o foco não precisa ser recalculado quando o array muda de tamanho.
- *
- * `toggle-watched` (feature 019, D-005) entra **sempre por último** — nunca
- * desloca o índice 1 da ação primária, esteja o array com 2 ou 3 ações
- * antes dela.
+ * As ações do detalhe, na ordem de foco (feature 025, `logic/detalhe-vod.md`
+ * §3, FR-033): `[Continuar|Assistir] [Reiniciar?] [Minha Lista] [Trailer]
+ * [Marcar assistido]`. A ação PRIMÁRIA é sempre o índice 0 — diferente da
+ * versão anterior à 025, que usava o índice 1 porque "Trailer" vinha
+ * primeiro; "Trailer" virou soft-disabled e saiu do topo.
  */
-function buildActions(progressSeconds: number | undefined, watched: boolean): MovieAction[] {
-  const base: MovieAction[] = isResumable(progressSeconds)
-    ? [{ id: 'trailer' }, { id: 'resume', progressSeconds: progressSeconds as number }, { id: 'restart' }]
-    : [{ id: 'trailer' }, { id: 'watch' }]
-  return [...base, { id: 'toggle-watched', watched }]
+function buildActions(progressSeconds: number | undefined, watched: boolean, isFavorite: boolean): MovieAction[] {
+  const primary: MovieAction[] = isResumable(progressSeconds)
+    ? [{ id: 'resume', progressSeconds: progressSeconds as number }, { id: 'restart' }]
+    : [{ id: 'watch' }]
+  return [...primary, { id: 'favorite', isFavorite }, { id: 'trailer' }, { id: 'toggle-watched', watched }]
 }
 
 function actionLabel(action: MovieAction): string {
   switch (action.id) {
-    case 'trailer':
-      return '▶ Trailer'
     case 'watch':
       return '▶ Assistir'
     case 'resume':
-      return `▶ Retomar (${formatTime(action.progressSeconds * 1000)})`
+      return `▶ Continuar de ${formatTime(action.progressSeconds * 1000)}`
     case 'restart':
       return '↺ Reiniciar'
+    case 'favorite':
+      return action.isFavorite ? '✓ Na Minha Lista' : '+ Minha Lista'
+    case 'trailer':
+      return '▶ Trailer'
     case 'toggle-watched':
       return action.watched ? '✗ Desmarcar assistido' : '✓ Marcar como assistido'
   }
+}
+
+/**
+ * "23/09/2024" — nunca hora, só a data (§4 do `logic/detalhe-vod.md`).
+ *
+ * `timeZone: 'UTC'` é deliberado (bug pré-existente achado durante a feature
+ * 026, corrigido como desvio pequeno aprovado): `added_at` é uma DATA
+ * declarada pela fonte, sem componente de hora — formatá-la no fuso local
+ * fazia a exibição recuar um dia inteiro em qualquer fuso atrás de UTC
+ * (ex.: America/Sao_Paulo, UTC-3).
+ */
+function formatShortDate(epochMs: number): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(epochMs))
 }
 
 interface MovieIdentity {
@@ -81,6 +126,13 @@ function computeIdentity(movie: {
   return { stableId, sourceId: movie.source_id ?? '' }
 }
 
+/**
+ * Detalhe de filme no layout V14 (feature 025, US5): hero com capa real,
+ * meta só com o que a fonte declarou, ações em pill e abas
+ * Detalhes/Elenco/Semelhantes (`logic/detalhe-vod.md`). Sem topbar
+ * (FR-004) — raiz `.screen`, coberta pela regra de transparência do plano
+ * de hardware.
+ */
 export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
   const queryClient = useQueryClient()
   // Pelo id, direto na chave primária. Carregar a lista de filmes inteira só
@@ -100,18 +152,46 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
 
   const userStateQuery = useUserState(identity?.stableId ?? null)
   const watched = userStateQuery.data?.completedAt != null
-  const actions = buildActions(userStateQuery.data?.progressSeconds ?? undefined, watched)
+  const isFavorite = userStateQuery.data?.isFavorite ?? false
+  const actions = buildActions(userStateQuery.data?.progressSeconds ?? undefined, watched, isFavorite)
   const toggleWatched = useToggleWatched()
+  const { toastMessage, toastKey, showToast } = useToast()
+  const favoriteToggle = useFavoriteToggle(showToast)
 
-  const [focus, setFocus] = useState(1) // ação primária — ver buildActions
-  const safeFocus = clamp(focus, 0, actions.length - 1)
+  // Metadata descritiva (feature 032): nunca bloqueia a tela nem a ação
+  // primária (FR-005) — sem `data`, tudo abaixo simplesmente não aparece.
+  const metadataQuery = useTitleMetadata(movie ? movieId : null)
+  const metadata = metadataQuery.data
+  const synopsis = metadata?.synopsis
+  const hasMore = synopsis !== undefined && isSynopsisTruncated(synopsis.value)
+
+  // Trailer (feature 033): os candidatos vêm da MESMA consulta da metadata —
+  // nada é buscado ao focar o botão (FR-002). `useTmdbStatus` só lê o IndexedDB.
+  const tmdbStatusQuery = useTmdbStatus()
+  const trailerState = trailerActionState({
+    metadata,
+    checking: metadataQuery.isFetching || metadataQuery.data === undefined,
+    tmdbState: tmdbStatusQuery.data?.state,
+  })
+  const [trailerOpen, setTrailerOpen] = useState(false)
+
+  // `more` = o botão "Ver mais" da sinopse, uma linha acima das ações.
+  const [rawRow, setRow] = useState<'more' | 'actions' | 'tabs'>('actions')
+  // A sinopse pode chegar (ou sumir) depois de o foco já estar aqui: sem o
+  // botão, a linha `more` não existe e o foco cai nas ações — nunca em nada.
+  const row = rawRow === 'more' && !hasMore ? 'actions' : rawRow
+  const [synopsisOpen, setSynopsisOpen] = useState(false)
+  const [actionFocus, setActionFocus] = useState(0) // ação primária — sempre índice 0
+  const safeActionFocus = clamp(actionFocus, 0, actions.length - 1)
+  const [activeTab, setActiveTab] = useState<DetailTab>('details')
+  const [focusedTabId, setFocusedTabId] = useState<string>('details')
+
   // Guarda de sessão única (FR-010): `{playing && <PlayerLayer/>}` já impede
   // duas camadas montadas ao mesmo tempo, e o `if (playing) return` abaixo
   // cobre o instante entre um SELECT repetido e o re-render que monta a
   // camada (mesmo padrão de `LiveScreen.tsx`).
   const [playing, setPlaying] = useState(false)
   const [startAtMs, setStartAtMs] = useState<number | undefined>(undefined)
-  const { toastMessage, showToast } = useToast()
 
   function openPlayer(action: MovieAction) {
     if (playing) return
@@ -124,11 +204,39 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
     setPlaying(true)
   }
 
+  /** Troca a aba real (Detalhes, Elenco) ou anuncia "Em breve" pra Semelhantes (mock). */
+  function activateTab(id: string) {
+    if (id === 'details' || id === 'cast') {
+      setActiveTab(id)
+      return
+    }
+    showToast(`Em breve — ${getComingSoon(id).message}`)
+  }
+
   useRemoteNav({
     onDirection: (dir) => {
       if (!movie) return
-      if (dir === 'left') setFocus(clamp(safeFocus - 1, 0, actions.length - 1))
-      if (dir === 'right') setFocus(clamp(safeFocus + 1, 0, actions.length - 1))
+      if (row === 'more') {
+        if (dir === 'down') setRow('actions')
+        return
+      }
+      if (row === 'actions') {
+        if (dir === 'left') setActionFocus((f) => clamp(f - 1, 0, actions.length - 1))
+        if (dir === 'right') setActionFocus((f) => clamp(f + 1, 0, actions.length - 1))
+        if (dir === 'up' && hasMore) setRow('more')
+        if (dir === 'down') {
+          setFocusedTabId(activeTab)
+          setRow('tabs')
+        }
+        return
+      }
+      // row === 'tabs'
+      if (dir === 'left' || dir === 'right') {
+        const idx = TABS.findIndex((t) => t.id === focusedTabId)
+        const next = clamp(idx + (dir === 'left' ? -1 : 1), 0, TABS.length - 1)
+        setFocusedTabId(TABS[next].id)
+      }
+      if (dir === 'up') setRow('actions')
     },
     onSelect: () => {
       // Estado de carregando/erro tem uma única saída ("Voltar") — sem isto,
@@ -138,12 +246,25 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
         onBack()
         return
       }
-      const action = actions[safeFocus]
+      if (row === 'more') {
+        setSynopsisOpen(true)
+        return
+      }
+      if (row === 'tabs') {
+        activateTab(focusedTabId)
+        return
+      }
+      const action = actions[safeActionFocus]
       if (!action) return
       if (action.id === 'trailer') {
-        // Trailer não é escopo desta feature (item 32 do backlog) — placeholder
-        // mantido como já estava, intocado.
-        showToast('Reproduzindo trailer...')
+        const toast = trailerActionToast(trailerState)
+        if (toast !== null) showToast(toast)
+        // `playing` cobre o instante entre um OK repetido e a camada do player montar (FR-012).
+        else if (!playing) setTrailerOpen(true)
+        return
+      }
+      if (action.id === 'favorite') {
+        void favoriteToggle.toggle(movie)
         return
       }
       if (action.id === 'toggle-watched') {
@@ -171,33 +292,89 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
     )
   }
 
+  const metaParts: string[] = []
+  if (movie.year != null) metaParts.push(String(movie.year))
+  metaParts.push(groupLabel(movie.original_group ?? undefined))
+  if (watched) metaParts.push('✓ Assistido')
+
   return (
-    <div className="movie-detail-layout">
-      <div className="movie-detail-backdrop">
-        <div className="backdrop-noise" />
-        <span className="backdrop-caption">backdrop / still do filme</span>
-      </div>
-      <div className="movie-detail-body">
-        <div className="movie-detail-title">{movie.name}</div>
-        <div className="movie-detail-meta">
-          {movie.original_group ?? 'VOD'} - {movie.playable ? 'Disponível' : 'Indisponível'}
+    // Achado real (feature 028, FR-006): rolava com a barra nativa visível.
+    <div className="screen vod-detail no-scrollbar">
+      <div className="vod-detail-hero">
+        <DetailBackdrop url={metadata?.backdropUrl?.value} origin={metadata?.backdropUrl?.origin} />
+        <div className="vod-detail-poster">
+          <PosterArt url={movie.icon_url ?? undefined} title={movie.name} />
         </div>
-        <p className="movie-detail-synopsis">Resumo não disponível na extração M3U/Xtream nativa.</p>
-        <div className="movie-detail-cast">Elenco: Desconhecido</div>
-        <div className="movie-detail-actions">
-          {actions.map((action, i) => (
-            <div key={action.id} className={`detail-button${i === safeFocus ? ' tv-focus' : ''}`}>
-              {actionLabel(action)}
+        <div className="vod-detail-info">
+          <div className="vod-detail-eyebrow">FILME</div>
+          <div className="vod-detail-title">{movie.name}</div>
+          <div className="vod-detail-meta">{metaParts.join(' · ')}</div>
+          <SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />
+          <div className="vod-detail-actions">
+            {actions.map((action, i) => {
+              const softDisabled = action.id === 'trailer' && trailerActionSoftDisabled(trailerState)
+              return (
+                <div
+                  key={action.id}
+                  className={`vod-detail-action${row === 'actions' && i === safeActionFocus ? ' tv-focus' : ''}${softDisabled ? ' is-soft-disabled' : ''}`}
+                  aria-disabled={softDisabled ? 'true' : undefined}
+                >
+                  {action.id === 'trailer' ? trailerActionLabel(trailerState) : actionLabel(action)}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      <Tabs items={TABS} activeId={activeTab} focusedId={row === 'tabs' ? focusedTabId : undefined} onSelect={activateTab} />
+
+      <div className="vod-detail-panel">
+        {activeTab === 'details' && (
+          <dl className="vod-detail-facts">
+            <div className="vod-detail-fact">
+              <dt>Tipo</dt>
+              <dd>Filme</dd>
             </div>
-          ))}
-        </div>
+            <div className="vod-detail-fact">
+              <dt>Categoria</dt>
+              <dd>{groupLabel(movie.original_group ?? undefined)}</dd>
+            </div>
+            {movie.year != null && (
+              <div className="vod-detail-fact">
+                <dt>Ano</dt>
+                <dd>{movie.year}</dd>
+              </div>
+            )}
+            {movie.added_at != null && (
+              <div className="vod-detail-fact">
+                <dt>Adicionado em</dt>
+                <dd>{formatShortDate(movie.added_at)}</dd>
+              </div>
+            )}
+            <MetadataFacts rows={metadataFactRows(metadata, false)} />
+            <div className="vod-detail-fact">
+              <dt>Disponível</dt>
+              <dd>{movie.playable ? 'Sim' : 'Não'}</dd>
+            </div>
+          </dl>
+        )}
+
+        {activeTab === 'cast' && <CastPanel cast={metadata?.cast} loading={metadataQuery.isLoading === true} />}
       </div>
-      <Toast message={toastMessage} />
+
+      <Toast message={toastMessage} messageKey={toastKey} />
+      {synopsisOpen && synopsis && <SynopsisModal text={synopsis.value} onClose={() => setSynopsisOpen(false)} />}
+      {/* Fechar o trailer não invalida nada: ver trailer não muda estado do usuário (FR-016). */}
+      {trailerOpen && trailerState.status === 'available' && (
+        <TrailerLayer title={movie.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)} />
+      )}
       {playing && (
         <PlayerLayer
           itemId={movieId}
           title={movie.name}
           startAtMs={startAtMs}
+          identity={{ title: movie.name }}
           onClose={() => {
             setPlaying(false)
             // Sem isto, o detalhe continuaria com a leitura de quando montou

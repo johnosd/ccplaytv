@@ -1,0 +1,109 @@
+/**
+ * Utilitários globais do Design System V14 (feature 021). Importado depois
+ * de `index.css` (consome os tokens) e antes de `styles/shared.css`
+ * (D-007 do plan.md; sucessor de `features/screens.css`, eliminado na
+ * feature 028) — uma tela pode sobrescrever, nunca o contrário.
+ */
+
+/* ---------- Palco (§4.1, US2, D-003) ---------- */
+.stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--stage-width);
+  height: var(--stage-height);
+  transform-origin: 0 0;
+  overflow: hidden;
+  /* Sem `background`: a cor do palco (e a transparência quando o AVPlay
+     está exibindo) continua vindo de `:root`/`:root.video-plane-visible`
+     em `index.css` — o palco não pode introduzir um fundo próprio que
+     escondesse o plano de vídeo de hardware. */
+}
+
+/* ---------- Anúncios (§38.3, US3, D-004) ---------- */
+/* Contêiner sem tamanho e sem recorte: hospeda o `.toast` visível, portado
+   pra dentro dela — por isso não é `sr-only` (ver `logic/regiao-de-
+   anuncio.md`). O `.toast` continua com o próprio `position: fixed` de
+   `shared.css`, então a aparência dele não muda. */
+.announcer-region {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  z-index: var(--z-overlay);
+}
+
+/* Texto só para tecnologia assistiva — usado pelo slot de `useAnnounce()`
+   dentro da região acima. Nunca aplicado ao `.toast` em si (esse continua
+   visível). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Estados (§11.2–§11.4, US5, D-007) ---------- */
+
+/* Rows, EPG, opções, tabelas: mantêm a receita de foco (borda, halo, glow),
+   sem a escala — geometria não pode mudar nesses componentes. */
+.tv-focus.no-scale,
+.no-scale:focus {
+  transform: none;
+}
+
+/* Feedback tátil curto após OK — quem dispara/remove a classe é de quem
+   consome (não há um "auto-remove" aqui). */
+.pressed {
+  transform: scale(0.985);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+/* Ação indisponível mas com explicação útil (§11.4): continua focável —
+   quem tira do fluxo de foco quando é hard disabled é o componente/
+   `useRemoteNav` que o renderiza, nunca o CSS sozinho. */
+.is-soft-disabled {
+  opacity: 0.5;
+}
+
+.is-soft-disabled.tv-focus,
+.is-soft-disabled:focus {
+  opacity: 1;
+}
+
+/* Ação que não faz sentido no contexto, sem informação adicional (§11.4):
+   fora do foco, sem a receita de foco mesmo que alguém force `:focus`
+   (ex.: clique de mouse em dev) — nunca só por cor (constitution, "Foco
+   Visível e Sem Becos Sem Saída"). */
+.is-hard-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.is-hard-disabled.tv-focus,
+.is-hard-disabled:focus {
+  outline: none;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ---------- Rolagem por foco, sem barra nativa (feature 028, D-002/FR-001) ---------- */
+/* A rolagem em si continua (`overflow: auto`/`scroll` no elemento — nunca
+   trocado por `hidden`, que quebraria `scrollIntoView`/a virtualização); só
+   a barra visível some. `scrollbar-width: none` cobre navegadores atuais,
+   mas o Chromium 108 da TV só reconhece `scrollbar-width` a partir do 121 —
+   sem o `::-webkit-scrollbar`, a barra continuaria aparecendo lá. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

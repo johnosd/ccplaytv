@@ -1,5 +1,6 @@
 import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerRegion } from './PlayerService'
 import type { EngineCapabilities } from './capabilities'
+import type { StreamInfo } from './tracks'
 
 /**
  * Adaptador de desenvolvimento, para o navegador do computador.
@@ -71,11 +72,9 @@ export function createHtmlVideoAdapter(callbacks: PlayerAdapterCallbacks): Playe
       video.addEventListener('ended', () => callbacks.onCompleted?.())
       video.addEventListener('error', () => {
         // O objeto de erro do elemento não é repassado: além de pobre, pode
-        // trazer a URL em alguns navegadores.
-        callbacks.onError({
-          code: null,
-          message: 'Não foi possível reproduzir este canal.',
-        })
+        // trazer a URL em alguns navegadores. Sem `message`: o texto fica com
+        // quem apresenta o erro, que sabe o tipo da mídia (`PlayerError`).
+        callbacks.onError({ code: null })
       })
 
       const mount = document.getElementById('player-surface') ?? document.body
@@ -112,6 +111,19 @@ export function createHtmlVideoAdapter(callbacks: PlayerAdapterCallbacks): Playe
     jumpBy(deltaMs: number, onSettled: () => void): void {
       if (element) element.currentTime = element.currentTime + deltaMs / 1000
       onSettled()
+    },
+
+    // Só o que o elemento realmente sabe. Sem métodos de faixa: o Chromium
+    // não expõe faixas de áudio sem flag, então no navegador "Áudio e
+    // legendas" fica indisponível (feature 029, logic §1.3).
+    getStreamInfo(): StreamInfo | null {
+      if (!element) return null
+      const info: StreamInfo = {}
+      if (element.videoWidth > 0 && element.videoHeight > 0) {
+        info.width = element.videoWidth
+        info.height = element.videoHeight
+      }
+      return info
     },
 
     close(): void {

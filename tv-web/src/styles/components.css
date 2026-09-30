@@ -1,0 +1,511 @@
+/* CSS dos componentes da biblioteca V14 — Onda 1 da migração (feature 022),
+   importado depois de utilities.css e antes de shared.css (D-001; sucessor
+   de screens.css, eliminado na feature 028). */
+
+/* Modal (D-010) */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--player-zap-scrim);
+}
+
+.modal-panel {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-3);
+  padding: var(--space-4);
+  max-width: calc(var(--stage-width) - 2 * var(--safe-x));
+  max-height: calc(var(--stage-height) - 2 * var(--safe-y));
+  overflow: auto;
+}
+
+/* EmptyState / ErrorState (D-011) */
+
+.empty-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.empty-state-icon,
+.error-state-icon {
+  --icon-size: var(--fs-h1);
+  color: var(--text-secondary);
+}
+
+.empty-state-title,
+.error-state-title {
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.empty-state-description,
+.error-state-description {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.error-state-code {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.error-state-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.button-secondary {
+  font-size: var(--fs-body);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--text-secondary);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+/* Rail (D-008) */
+
+.rail-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.rail {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Fade só na borda com conteúdo além (F-003): sem classe = sem máscara. */
+.rail--fade-start {
+  -webkit-mask-image: linear-gradient(to right, transparent, black var(--space-3));
+  mask-image: linear-gradient(to right, transparent, black var(--space-3));
+}
+
+.rail--fade-end {
+  -webkit-mask-image: linear-gradient(to left, transparent, black var(--space-3));
+  mask-image: linear-gradient(to left, transparent, black var(--space-3));
+}
+
+.rail--fade-start.rail--fade-end {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--space-3),
+    black calc(100% - var(--space-3)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--space-3),
+    black calc(100% - var(--space-3)),
+    transparent
+  );
+}
+
+.rail-inner {
+  position: relative;
+  height: 100%;
+}
+
+.rail-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+}
+
+.rail-position {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.rail-position-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  background: var(--accent);
+}
+
+/* ContentCard (D-006) — geometria fixa por variante, Spec V14 §16 */
+
+.content-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  cursor: pointer;
+}
+
+.content-card--portrait {
+  width: 205px;
+}
+.content-card--portrait .poster-box {
+  aspect-ratio: 205 / 302;
+}
+
+.content-card--landscape {
+  width: 292px;
+}
+.content-card--landscape .poster-box {
+  aspect-ratio: 292 / 164;
+}
+
+.content-card--wide {
+  width: 356px;
+}
+.content-card--wide .poster-box {
+  aspect-ratio: 356 / 200;
+}
+
+.content-card--compact {
+  width: 250px;
+}
+.content-card--compact .poster-box {
+  aspect-ratio: 250 / 126;
+}
+
+.content-card-title {
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.content-card-meta {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+/* ChannelRow (D-007) */
+
+.channel-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.channel-row .poster-box {
+  width: var(--space-6);
+  aspect-ratio: 1;
+  flex-shrink: 0;
+}
+
+.channel-row-number {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+  min-width: var(--space-3);
+  text-align: right;
+}
+
+.channel-row-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.channel-row-name {
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.channel-row-now {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.channel-row-progress {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.channel-row-progress-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  background: var(--accent);
+}
+
+/* Estrela de favorito e selo de indisponível (feature 024, FR-009/D-007) —
+   sempre no fim da linha, nunca disputando espaço com o nome (que já trunca
+   com `text-overflow: ellipsis`). */
+.channel-row .fav-star {
+  margin-left: auto;
+}
+
+.channel-row-badge {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+  border: 1px solid var(--text-annotation);
+  border-radius: var(--radius-pill);
+  padding: 2px var(--space-1);
+  flex: none;
+}
+
+/* SideCategoryNav (D-009) */
+
+.side-category-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.side-category-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  /* Achado na TV física (28/09/2026, fora do escopo da feature 027): sem um
+     valor explícito, o padrão global `--icon-size: 1em` (index.css) não
+     resolvia de forma confiável dentro do atributo width/height do <svg>
+     neste motor — os ícones "★ Favoritos"/"↺ Histórico" apareciam enormes,
+     nunca reproduzido em navegador/emulador. Mesmo padrão já usado por
+     `.icon-button`/`.empty-state-icon` neste arquivo: declarar um valor
+     concreto em vez de confiar no herdado. */
+  --icon-size: var(--fs-body-lg);
+  cursor: pointer;
+  text-align: left;
+}
+
+.side-category-nav-item.is-selected {
+  background: var(--accent-tint);
+  border: 1px solid var(--accent-tint-border);
+}
+
+.side-category-nav-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-category-nav-pinned-badge {
+  color: var(--accent);
+}
+
+.side-category-nav-count {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+/* Tabs (D-005) */
+
+.tabs {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.tabs-item {
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.tabs-item-active {
+  background: var(--accent-tint);
+  color: var(--text-primary);
+}
+
+/* Button (D-002) */
+
+.button-primary,
+.button-secondary,
+.button-ghost,
+.button-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-body);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.button-primary {
+  border: none;
+  background: var(--text-primary);
+  color: var(--bg-canvas);
+}
+
+.button-ghost {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.button-accent {
+  border: none;
+  background: var(--accent);
+  color: var(--text-primary);
+}
+
+/* IconButton (D-003) */
+
+.icon-button {
+  --icon-size: var(--fs-h2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+/* Chip (D-004) */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--text-secondary);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-caption);
+  cursor: pointer;
+}
+
+.chip-selected {
+  border-width: 2px;
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.chip-check {
+  color: var(--accent);
+}
+
+/* Spinner (D-013) */
+
+.spinner {
+  border-radius: var(--radius-pill);
+  border: 3px solid var(--text-disabled);
+  border-top-color: var(--accent);
+  animation: spinner-rotate calc(var(--duration-slow) * 3) linear infinite;
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* OfflineBanner (D-012) */
+
+.offline-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* Skeleton (D-014) */
+
+.skeleton {
+  background: var(--bg-hover);
+}
+
+.skeleton-rect {
+  border-radius: var(--radius-md);
+}
+
+.skeleton-text {
+  border-radius: var(--radius-sm);
+}
+
+/* TextField (D-015) */
+
+.text-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.text-field-label {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.text-field-input {
+  font-size: var(--fs-body);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--text-secondary);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.text-field-input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.text-field-hint {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.text-field-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-caption);
+  color: var(--danger);
+}
+
+/* ComingSoon (D-016) — .is-soft-disabled já vem de utilities.css (feature 021) */
+
+.coming-soon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  cursor: pointer;
+}

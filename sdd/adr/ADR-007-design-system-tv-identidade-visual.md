@@ -18,6 +18,40 @@ Virtual como base de foco/virtualização). Esta ADR trata da **linguagem
 visual e das regras de estado por superfície**; a ADR-006 trata das
 **bibliotecas** que executam a navegação.
 
+**Atualização (ADR-011):** o protótipo citado abaixo foi movido para
+`docs/design/old/CCPlayTv Prototype - Standalone.html` e deixou de ser a
+referência de intenção. A referência passa a ser o Design System V14
+Spectrum em `docs/design/design-system/`, com a precedência constitution >
+ADRs > Spec V14 > Component Lab > protótipo. A paleta, a tipografia e a
+receita de foco desta ADR **continuam válidas**, porque o V14 as mantém.
+Mudam a estrutura de telas e os tokens:
+- shell com topbar;
+- perfil = lista;
+- fonte ativa;
+- Configurações;
+- política de mock "Em breve";
+- tokens ganham espaçamento, raio, elevação e motion;
+- fontes tipográficas passam a ser empacotadas localmente.
+
+As menções a `docs/design/CCPlayTv Prototype - Standalone.html` no texto
+abaixo são históricas. Ver ADR-011 para o raciocínio completo.
+
+**Atualização (028):** a migração para o Design System V14 Spectrum
+anunciada na nota da ADR-011 está **concluída** — Ondas 0 a 7 (features
+`021` a `028`) convergidas ou código-completas, cada tela do app hoje sob a
+topbar/shell V14. A forma executável desta ADR e da ADR-011 vive em
+`tv-web/src/index.css` (o conjunto completo de tokens V14: espaçamento,
+raio, elevação, motion, cores semânticas, camadas z, safe zone — feature
+021) e em `tv-web/src/components/Stage.tsx` (o palco lógico 1920×1080,
+escalado uniformemente para o viewport real — também feature 021). A
+paleta e a receita de foco (contorno 4px + offset + glow + `scale(1.06)`,
+140ms) permanecem exatamente como descritas abaixo. `tv-web/src/features/
+screens.css`, citado no texto original desta ADR como o outro artefato
+executável junto de `index.css`, foi eliminado na feature 028 (Onda 7,
+limpeza de CSS) — seu conteúdo vivo foi redistribuído entre
+`tv-web/src/styles/shared.css` e os arquivos de cada tela; nenhuma regra
+descrita nesta ADR mudou de valor nessa migração, só de arquivo.
+
 ## Data
 
 2026-09-16

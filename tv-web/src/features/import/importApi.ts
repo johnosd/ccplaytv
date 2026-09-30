@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { db, type ImportRunRecord } from '../../lib/catalog/db'
 import {
@@ -10,6 +11,15 @@ import {
 import { reconcileRun, type ImportHandle } from '../../lib/catalog/importPipeline'
 import { runImport } from '../../lib/catalog/importRunner'
 import { decideOnOpen } from '../../lib/catalog/freshness'
+import { EPG_ERROR_CODE, epgErrorMessage, isEpgStale, isValidEpgUrl } from '../../lib/epg/epgStatus'
+import { isEpgSyncing, requestEpgSync, subscribeEpgSyncing } from '../../lib/epg/epgRunner'
+import { setEpgEnabled, setEpgManualUrl, setEpgOffsetHours } from '../../lib/epg/epgRepository'
+import type { EpgStatus } from '../../lib/epg/types'
+
+// Telas falam só com `importApi`/`catalogApi`, nunca com `lib/` direto (D-001
+// da feature 005): o que a tela de EPG precisa de `lib/epg` sai por aqui.
+export { EPG_ERROR_CODE, epgErrorMessage, isValidEpgUrl }
+export type { EpgStatus }
 import { logger } from '../../lib/logger'
 
 export type SourceType = 'm3u_url' | 'provider_credentials'
@@ -105,6 +115,14 @@ export interface SourceOut {
   provider_dns: string | null
   last_truncated_by_storage: boolean
   last_discarded_by_type: number
+  /**
+   * Estado do EPG da fonte (feature 030) — nunca traz endereço. Opcional só
+   * para não obrigar os fixtures de tela existentes a declará-lo; ausente
+   * equivale a "EPG não configurado".
+   */
+  epg?: EpgStatus
+  /** Só o hostname do endereço XMLTV informado pela pessoa (FR-017). */
+  epg_manual_host?: string | null
 }
 
 export interface ProviderCredentialsPatch {
@@ -180,6 +198,8 @@ function toSourceOut(source: Awaited<ReturnType<typeof listSources>>[number]): S
     provider_dns: source.providerDns ?? null,
     last_truncated_by_storage: source.lastTruncatedByStorage ?? false,
     last_discarded_by_type: source.lastDiscardedByType ?? 0,
+    epg: source.epg,
+    epg_manual_host: source.epgManualHost ?? null,
   }
 }
 
@@ -232,6 +252,17 @@ async function startLocalImport(sourceId: string): Promise<ImportHandle> {
   // que faz o empacotador emitir `assets/importWorker.js`.
   const handle = await runImport(sourceId)
   runningImports.set(handle.runId, handle)
+  // Feature 030 (D-008/FR-009): importação concluída = o endereço de EPG
+  // pode ter mudado (`url-tvg`), então sincroniza — em segundo plano, sem
+  // bloquear a tela de progresso. Falha/cancelamento não dispara nada.
+  void handle.completion.then(
+    (run) => {
+      if (run.status === 'completed') void requestEpgSync(sourceId)
+    },
+    () => {
+      // Já tratado abaixo (erro não categorizado).
+    },
+  )
   void handle.completion
     .catch((error: unknown) => {
       // A categoria do erro já está no registro da execução, que é o que a
@@ -420,10 +451,72 @@ export function useOpenSource() {
         } satisfies OpenSourceResponse
       }
 
+      // Feature 030 (FR-009): sem importação a fazer, o EPG vencido (> 12 h)
+      // atualiza em segundo plano. Nunca bloqueia a abertura da lista.
+      if (isEpgStale(source, Date.now())) void requestEpgSync(sourceId)
+
       return {
         triggered: false,
         import_job_id: null,
       } satisfies OpenSourceResponse
+    },
+  })
+}
+
+/**
+ * "Sincronizando EPG" (feature 030, FR-015): estado de execução, nunca
+ * persistido — vem do executor (`epgRunner`), não do disco.
+ */
+export function useEpgSyncing(sourceId: string | null): boolean {
+  return useSyncExternalStore(subscribeEpgSyncing, () => (sourceId !== null && isEpgSyncing(sourceId)))
+}
+
+/** Estado e origem de uma fonte mudaram: relê a lista de fontes e a programação. */
+function invalidateEpg(queryClient: ReturnType<typeof useQueryClient>): void {
+  void queryClient.invalidateQueries({ queryKey: ['sources'] })
+  void queryClient.invalidateQueries({ queryKey: ['epg'] })
+}
+
+/** "Sincronizar agora" / "Tentar novamente" (FR-016/FR-019). O resultado chega pelo estado da fonte. */
+export function useSyncEpgNow() {
+  return useMutation({ mutationFn: (sourceId: string) => requestEpgSync(sourceId) })
+}
+
+/**
+ * Grava (ou limpa, com `undefined`/vazio) o endereço XMLTV manual e
+ * sincroniza (FR-016). Endereço inválido lança `InvalidEpgUrlError` **antes**
+ * de qualquer download (FR-018); a mensagem nunca ecoa o endereço.
+ */
+export function useSetEpgManualUrl() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ sourceId, url }: { sourceId: string; url: string | undefined }) => {
+      await setEpgManualUrl(sourceId, url)
+      invalidateEpg(queryClient)
+      return requestEpgSync(sourceId)
+    },
+  })
+}
+
+/** Deslocamento manual de horário, sem baixar nada (FR-020): só relê. */
+export function useSetEpgOffset() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ sourceId, hours }: { sourceId: string; hours: number }) => {
+      await setEpgOffsetHours(sourceId, hours)
+    },
+    onSuccess: () => invalidateEpg(queryClient),
+  })
+}
+
+/** Desativar apaga a programação (FR-021); ativar volta a sincronizar. */
+export function useSetEpgEnabled() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ sourceId, enabled }: { sourceId: string; enabled: boolean }) => {
+      await setEpgEnabled(sourceId, enabled)
+      invalidateEpg(queryClient)
+      if (enabled) await requestEpgSync(sourceId)
     },
   })
 }

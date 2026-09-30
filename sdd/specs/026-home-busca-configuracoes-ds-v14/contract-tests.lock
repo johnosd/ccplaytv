@@ -1,0 +1,27 @@
+{
+    "feature":  "026-home-busca-configuracoes-ds-v14",
+    "lockedAt":  "2026-09-27 18:27",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/catalog/homeHero.home-busca-configuracoes-ds-v14.contract.test.ts",
+                      "sha256":  "5b8d7bfba411f94bfe5b81eef2cd695bb83f1e694fbf589d3cf7454f7459fcaf",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/globalSearch.home-busca-configuracoes-ds-v14.contract.test.ts",
+                      "sha256":  "ec01c7191060d958bff6fb3e84eef93c856ed79d717b7e515c69eb3469c63a97",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/home/HomeScreen.home-busca-configuracoes-ds-v14.contract.test.tsx",
+                      "sha256":  "9844ca7f5dc1cdbc00785134103a570af09e193771dff1961af0c54a6c3f0913",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/settings/SettingsScreen.home-busca-configuracoes-ds-v14.contract.test.tsx",
+                      "sha256":  "b697d945a555fdf2c1cd6632c3300a79f441128fd04c4dbe37fc4a6e5f1233ea",
+                      "tests":  1
+                  }
+              ]
+}

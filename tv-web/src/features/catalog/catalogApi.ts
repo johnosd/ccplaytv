@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   db,
   type CategoryKind,
@@ -24,6 +24,7 @@ import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/
 import {
   buildStableId,
   getContinueWatching,
+  getGlobalFavorites,
   getUserState,
   getUserStates,
   listFavorites,
@@ -35,6 +36,54 @@ import {
 import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
 import { loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
+import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
+import { loadHomeHero, type HeroPrimary } from '../../lib/catalog/homeHero'
+import { loadGlobalSearchIndex, searchGlobal } from '../../lib/catalog/globalSearch'
+import { listProgramsForChannels } from '../../lib/epg/epgRepository'
+import type { EpgLookup } from '../../lib/epg/types'
+import { ensureTitleMetadata } from '../../lib/metadata/titleMetadata'
+import { getTmdbStatus, removeTmdbKey, saveTmdbKey, testTmdbKey } from '../../lib/metadata/tmdbKeyRepository'
+
+const EPG_READ_BEFORE_MS = 24 * 60 * 60 * 1000
+const EPG_READ_AFTER_MS = 48 * 60 * 60 * 1000
+const EPG_HOUR_MS = 60 * 60 * 1000
+
+/**
+ * Programação (feature 030) dos canais informados, lida **só do aparelho**
+ * (FR-029): nunca rede, portanto seguro de chamar ao focar/rolar. Recebe os
+ * ids de EPG (`epg_channel_id`) dos canais visíveis — repetidos e vazios são
+ * ignorados; sem nenhum, a consulta nem roda.
+ *
+ * O deslocamento manual da fonte vem junto: quem exibe aplica em
+ * `nowNextForChannel`. A leitura cobre `[agora − 24 h, agora + 48 h]` **já
+ * descontado o deslocamento**, para o que aparece deslocado caber (D-013).
+ * Uma sincronização que termina invalida `['epg']` (`App.tsx`).
+ */
+export function useEpgPrograms(sourceId: string | null, epgChannelIds: readonly (string | null | undefined)[]) {
+  const keys = useMemo(
+    () => [...new Set(epgChannelIds.filter((id): id is string => typeof id === 'string' && id !== ''))].sort(),
+    [epgChannelIds],
+  )
+  return useQuery({
+    queryKey: ['epg', sourceId, keys.join('\u0001')],
+    enabled: sourceId !== null && keys.length > 0,
+    staleTime: 5 * 60 * 1000,
+    // Digitar na busca por categoria troca o conjunto de canais a cada
+    // tecla; sem isto o "Agora" das linhas que continuam na tela piscaria.
+    placeholderData: keepPreviousData,
+    queryFn: async (): Promise<EpgLookup> => {
+      const now = Date.now()
+      const source = await db.sources.get(sourceId as string)
+      const offsetMs = (source?.epgOffsetHours ?? 0) * EPG_HOUR_MS
+      const byKey = await listProgramsForChannels(
+        sourceId as string,
+        keys,
+        { from: now - EPG_READ_BEFORE_MS - offsetMs, to: now + EPG_READ_AFTER_MS - offsetMs },
+      )
+      return { byKey, offsetMs }
+    },
+  })
+}
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
 
@@ -56,8 +105,31 @@ export interface CatalogItemOut {
   original_name?: string
   /** Liga um episódio à série (feature 012). `undefined` fora do detalhe de série, como os demais campos de identidade. */
   series_id?: string | null
-  /** Capa declarada pela fonte (feature 015). `null` = fonte não declarou, ou o item é um canal (nunca preenchido para canal, FR-009). */
+  /** Capa/logo declarada pela fonte (feature 015, estendida a canal pela 024, R-003). `null` = fonte não declarou. */
   icon_url?: string | null
+  /** Categoria local do item (feature 024) — base do número de exibição do canal (`channelNumber.ts`). */
+  category_id?: number | null
+  /** Posição 0-based do item dentro da categoria, na ordem da fonte (feature 024). `null` = gravado antes desta feature. */
+  category_position?: number | null
+  /**
+   * Número que o próprio painel declara para o canal — nunca populado hoje:
+   * o `num` de `get_live_streams` foi verificado (feature 024, T001,
+   * `research.md` R1) e refutado como posição global, então não é
+   * capturado. O campo existe só para `channelNumberOf` (que o usaria se um
+   * dia um provedor confiável declarar algo assim), sempre `null` na
+   * prática.
+   */
+  source_number?: number | null
+  /** Ano declarado pela fonte (feature 025). `null` = não declarado. */
+  year?: number | null
+  /** Inclusão declarada pela fonte, epoch ms (feature 025). `null` = não declarada. */
+  added_at?: number | null
+  /**
+   * Id de EPG que a fonte declara para o canal (feature 030, FR-006/FR-008):
+   * `epg_channel_id` do Xtream, `tvg-id` do M3U. `null` = não declarado —
+   * canal sem EPG, nunca casado por nome.
+   */
+  epg_channel_id?: string | null
 }
 
 export interface CatalogItemPlayback {
@@ -147,6 +219,13 @@ function toItemOut(record: CatalogRecord, kind: CatalogItemKind): CatalogItemOut
     original_name: record.originalName,
     series_id: record.seriesId ?? null,
     icon_url: record.iconUrl ?? null,
+    category_id: record.categoryId ?? null,
+    category_position: record.categoryPosition ?? null,
+    // Nunca capturado (T001 refutou `num` como posição global — ver o comentário do campo).
+    source_number: null,
+    year: record.year ?? null,
+    added_at: record.addedAt ?? null,
+    epg_channel_id: record.epgChannelId ?? null,
   }
 }
 
@@ -451,6 +530,82 @@ export function useCatalogItem(itemId: string | null) {
   })
 }
 
+/**
+ * Metadata descritiva de filme/série para o detalhe (feature 032, US1/US3).
+ * Só a tela de detalhe chama — abrir o detalhe é a ação explícita que
+ * autoriza a consulta externa (FR-002); nunca usar numa grade ou por foco.
+ * Não bloqueia a tela: quem usa renderiza sem `data` e completa quando
+ * chegar (FR-005).
+ */
+export function useTitleMetadata(itemId: string | null) {
+  const queryClient = useQueryClient()
+  return useQuery({
+    queryKey: ['title-metadata', itemId],
+    queryFn: async () => {
+      const view = await ensureTitleMetadata(Number(itemId))
+      // A consulta pode ter mudado o estado do TMDB (chave recusada, sem
+      // conexão, limite de uso — FR-024): Integrações e o dock releem, sem
+      // aviso no detalhe.
+      void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
+      return view
+    },
+    enabled: itemId !== null,
+  })
+}
+
+/**
+ * Estado do TMDB (feature 032, US2): lê **só o IndexedDB**, nunca a rede —
+ * seguro de chamar ao focar (o dock da Home o usa). Nunca carrega a chave
+ * inteira, só a mascarada (FR-013).
+ */
+export function useTmdbStatus() {
+  return useQuery({ queryKey: ['tmdb-status'], queryFn: () => getTmdbStatus() })
+}
+
+/** O estado do TMDB e a metadata já aberta dependem da chave: tudo é relido depois de mudá-la. */
+function invalidateTmdb(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
+  void queryClient.invalidateQueries({ queryKey: ['title-metadata'] })
+}
+
+/** Testa a chave contra o TMDB e só grava se aceita (FR-012). */
+export function useSaveTmdbKey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (rawKey: string) => saveTmdbKey(rawKey),
+    // A chave digitada é a `variables` da mutação: sem isto ela ficaria no
+    // cache de mutações (em memória) por minutos depois de gravada.
+    gcTime: 0,
+    onSuccess: () => invalidateTmdb(queryClient),
+  })
+}
+
+/** "Testar": refaz a autenticação com a chave guardada e atualiza o estado. */
+export function useTestTmdbKey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => testTmdbKey(),
+    onSuccess: () => invalidateTmdb(queryClient),
+  })
+}
+
+/**
+ * Remove a chave e a metadata que veio do TMDB (FR-014). O banco já foi
+ * limpo; aqui o cache em memória também é DESCARTADO (não só invalidado):
+ * invalidar deixaria a sinopse do TMDB aparecer por um instante na próxima
+ * abertura do detalhe, até a releitura terminar.
+ */
+export function useRemoveTmdbKey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => removeTmdbKey(),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ['title-metadata'] })
+      void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
+    },
+  })
+}
+
 export async function fetchPlayback(itemId: string): Promise<CatalogItemPlayback> {
   const id = Number(itemId)
   const record = await getChannel(id, db)
@@ -515,6 +670,9 @@ export function useUserState(stableId: string | null) {
  */
 export function invalidateUserState(queryClient: QueryClient, stableId: string): void {
   void queryClient.invalidateQueries({ queryKey: ['user-state', stableId] })
+  // Feature 025: a contagem/conteúdo de "↺ Histórico" também depende do
+  // que acabou de ser gravado (`lastWatched`/`completedAt`).
+  void queryClient.invalidateQueries({ queryKey: ['history-content'] })
 }
 
 /**
@@ -532,6 +690,12 @@ export interface EpisodeOut {
   provider_stream_id: string | null
   series_id: string
   original_name: string
+  /** Imagem do episódio declarada pela fonte (feature 025). */
+  icon_url?: string | null
+  /** Duração declarada pela fonte, em segundos (feature 025) — denominador da barra de progresso. */
+  duration_seconds?: number | null
+  /** Sinopse do episódio declarada pelo provedor (feature 032, FR-028). `null` = não declarada. */
+  synopsis?: string | null
 }
 
 function toEpisodeOut(record: CatalogRecord): EpisodeOut {
@@ -545,6 +709,9 @@ function toEpisodeOut(record: CatalogRecord): EpisodeOut {
     provider_stream_id: record.providerStreamId ?? null,
     series_id: record.seriesId ?? '',
     original_name: record.originalName,
+    icon_url: record.iconUrl ?? null,
+    duration_seconds: record.durationSeconds ?? null,
+    synopsis: record.synopsis ?? null,
   }
 }
 
@@ -560,6 +727,7 @@ export interface SeriesEpisodesContent {
  * `kind:'series'`, o mesmo que `useCatalogItem`/`fetchPlayback` recebem.
  */
 export function useSeriesEpisodes(seriesItemId: string | null) {
+  const queryClient = useQueryClient()
   return useQuery({
     queryKey: ['series-episodes', seriesItemId],
     queryFn: async (): Promise<SeriesEpisodesContent> => {
@@ -569,6 +737,13 @@ export function useSeriesEpisodes(seriesItemId: string | null) {
       if (!series || !series.seriesId) return { episodes: [], outcome: 'failed' }
 
       const result = await ensureSeriesEpisodes(id, { database: db })
+      // Feature 032 (D-009): a mesma resposta que trouxe os episódios gravou a
+      // metadata da série. `useTitleMetadata` não pergunta ao provedor enquanto
+      // os episódios ainda vão ser buscados (senão seriam duas requisições
+      // idênticas a cada série aberta) — então relê aqui, ao fim.
+      if (result.outcome === 'fetched') {
+        void queryClient.invalidateQueries({ queryKey: ['title-metadata', seriesItemId] })
+      }
       const records = await listEpisodes(series.sourceId, series.seriesId, db)
       return { episodes: records.map(toEpisodeOut), outcome: result.outcome }
     },
@@ -652,6 +827,8 @@ export function useUserStates(stableIds: (string | null)[]) {
  */
 export function invalidateUserStates(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ['user-states'] })
+  // Feature 025: idem `invalidateUserState`, para o fechamento de episódio.
+  void queryClient.invalidateQueries({ queryKey: ['history-content'] })
 }
 
 /**
@@ -702,6 +879,62 @@ export function useWatchedIds(sourceId: string | null, kind: FavoritableKind) {
 }
 
 /**
+ * "↺ Histórico" de Filmes ou Séries (feature 025, FR-007, FR-009..FR-015,
+ * `logic/historico.md` §5) — leitura local do que foi reproduzido
+ * (`lastWatched`), agregada por série quando `kind === 'series'`.
+ *
+ * `enabled` reflete a regra da contagem na side nav: a consulta só liga
+ * quando a pessoa já entrou em "↺ Histórico" nesta sessão
+ * (`isHistoryKnown`, `vodSessionMemory.ts`) — nada é resolvido só por abrir
+ * a tela. `gcTime: Infinity`: a contagem, uma vez conhecida, vale pela
+ * sessão inteira; invalidações explícitas (`invalidateUserState`/
+ * `invalidateUserStates`/`useToggleWatched`) é que a atualizam.
+ */
+export interface HistoryContent {
+  items: CatalogItemOut[]
+  /** Reproduções que não resolveram em nenhum registro exibível (FR-012). */
+  unresolved: number
+}
+
+export function useHistoryContent(sourceId: string | null, kind: HistoryKind, enabled: boolean) {
+  return useQuery({
+    queryKey: ['history-content', sourceId, kind],
+    queryFn: async (): Promise<HistoryContent> => {
+      if (!sourceId) return { items: [], unresolved: 0 }
+      const { records, unresolved } = await loadHistory(sourceId, kind, db)
+      return { items: records.map((record) => toItemOut(record, record.kind)), unresolved }
+    },
+    enabled: sourceId !== null && enabled,
+    gcTime: Infinity,
+  })
+}
+
+/**
+ * Posição de retomada por `stableId`, de uma fonte e tipo — uma leitura só,
+ * nunca por card (feature 025, D-014, mesma forma de `useWatchedIds`).
+ * Alimenta a hero band ("Continuar de mm:ss") sem disparar nada ao mudar o
+ * foco.
+ */
+export function useResumePositions(sourceId: string | null, kind: FavoritableKind) {
+  return useQuery({
+    queryKey: ['resume-positions', sourceId, kind],
+    queryFn: async (): Promise<Map<string, number>> => {
+      if (!sourceId) return new Map()
+      const prefix = `${sourceId}|${kind}|`
+      const states = await getContinueWatching(sourceId, db)
+      const positions = new Map<string, number>()
+      for (const state of states) {
+        if (state.stableId.startsWith(prefix) && state.progressSeconds) {
+          positions.set(state.stableId, state.progressSeconds)
+        }
+      }
+      return positions
+    },
+    enabled: sourceId !== null,
+  })
+}
+
+/**
  * Itens (filme/episódio) com progresso de retomada nesta fonte, mais
  * recente primeiro (feature 019, D-009, FR-012/FR-013). `getContinueWatching`
  * já filtra por `progressSeconds > 0` — um item concluído (sem retomada)
@@ -720,6 +953,138 @@ export function useContinueWatchingContent(sourceId: string | null) {
     },
     enabled: sourceId !== null,
   })
+}
+
+/**
+ * Hero do Início pronto para a tela (feature 026, FR-002..FR-006) — o
+ * `HomeHero` de `lib/catalog/homeHero.ts` com o registro já convertido em
+ * `CatalogItemOut`.
+ */
+export type HomeHeroOut =
+  | { kind: 'continue' | 'favorite'; item: CatalogItemOut; primary: HeroPrimary }
+  | { kind: 'welcome' }
+
+/**
+ * Leitura local do hero (`loadHomeHero`). Chave `['home-hero', sourceId]` —
+ * invalidada junto de "Continuar assistindo"/favoritos (`logic/hero-home.md`
+ * §5).
+ */
+export function useHomeHero(sourceId: string | null) {
+  return useQuery({
+    queryKey: ['home-hero', sourceId],
+    queryFn: async (): Promise<HomeHeroOut> => {
+      if (!sourceId) return { kind: 'welcome' }
+      const hero = await loadHomeHero(sourceId, db)
+      if (hero.kind === 'welcome') return hero
+      return { kind: hero.kind, item: toItemOut(hero.record, hero.record.kind), primary: hero.primary }
+    },
+    enabled: sourceId !== null,
+  })
+}
+
+export interface MyListContent {
+  items: CatalogItemOut[]
+  /** Contagem real de favoritos de filme RESOLVIDOS (FR-014) — nunca a bruta gravada. */
+  movieCount: number
+  /** Idem, de série. */
+  seriesCount: number
+}
+
+/**
+ * "Minha Lista" do Início (feature 026, `logic/foco-home.md` §6): favoritos
+ * de filme E série da fonte, misturados por `favoritedAt` desc (mais recente
+ * primeiro, entre os dois tipos). Resolve item a item, como
+ * `resolveContinueWatching` — a lista de favoritos é pequena (dezenas a
+ * centenas), nunca o catálogo inteiro.
+ */
+export function useMyListContent(sourceId: string | null) {
+  return useQuery({
+    queryKey: ['my-list-content', sourceId],
+    queryFn: async (): Promise<MyListContent> => {
+      if (!sourceId) return { items: [], movieCount: 0, seriesCount: 0 }
+      const favorites = await getGlobalFavorites(db)
+
+      const items: CatalogItemOut[] = []
+      let movieCount = 0
+      let seriesCount = 0
+      for (const favorite of favorites) {
+        if (favorite.sourceId !== sourceId) continue
+        const parts = parseStableId(favorite.stableId)
+        if (!parts || (parts.kind !== 'movie' && parts.kind !== 'series')) continue
+
+        const { records } = await resolveFavorites(sourceId, parts.kind, [parts], db)
+        const record = records[0]
+        if (!record) continue
+
+        items.push(toItemOut(record, record.kind))
+        if (record.kind === 'movie') movieCount += 1
+        else if (record.kind === 'series') seriesCount += 1
+      }
+      return { items, movieCount, seriesCount }
+    },
+    enabled: sourceId !== null,
+  })
+}
+
+/**
+ * Índice da busca global (feature 026, `logic/busca-global.md` §2) — os três
+ * tipos de uma vez. `staleTime: 0` + `refetchOnMount: 'always'`: mesmo
+ * padrão de `useAggregatedItems` — categorias abertas desde a última vez
+ * entram na próxima busca.
+ */
+export function useGlobalSearchIndex(sourceId: string | null) {
+  return useQuery({
+    queryKey: ['global-search-index', sourceId],
+    queryFn: () => loadGlobalSearchIndex(sourceId as string, db),
+    enabled: sourceId !== null,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
+}
+
+export interface GlobalSearchResultOut {
+  channels: CatalogItemOut[]
+  movies: CatalogItemOut[]
+  series: CatalogItemOut[]
+  /** "Busca em X de Y categorias" (FR-038) — soma dos três tipos, sempre presente, mesmo com termo curto. */
+  coveredCategories: number
+  totalCategories: number
+}
+
+const EMPTY_GLOBAL_SEARCH_RESULT: GlobalSearchResultOut = {
+  channels: [],
+  movies: [],
+  series: [],
+  coveredCategories: 0,
+  totalCategories: 0,
+}
+
+/**
+ * `searchGlobal` (puro, `lib/catalog/globalSearch.ts`) já convertido em
+ * `CatalogItemOut` — a tela de Busca (feature 026, US3) nunca fala com
+ * `CatalogRecord` direto (mesmo motivo de D-001: telas só falam com
+ * `catalogApi`). Sem debounce (FR-039, clarificação) — recalcula a cada
+ * tecla, client-side, sobre o índice já carregado.
+ */
+export function useGlobalSearchResult(
+  sourceId: string | null,
+  term: string,
+): { data: GlobalSearchResultOut; isLoading: boolean } {
+  const indexQuery = useGlobalSearchIndex(sourceId)
+
+  const data = useMemo(() => {
+    if (!indexQuery.data) return EMPTY_GLOBAL_SEARCH_RESULT
+    const result = searchGlobal(indexQuery.data, term)
+    return {
+      channels: result.channels.map((record) => toItemOut(record, 'channel')),
+      movies: result.movies.map((record) => toItemOut(record, 'movie')),
+      series: result.series.map((record) => toItemOut(record, 'series')),
+      coveredCategories: result.coveredCategories,
+      totalCategories: result.totalCategories,
+    }
+  }, [indexQuery.data, term])
+
+  return { data, isLoading: indexQuery.isLoading }
 }
 
 export interface AggregatedItems {
@@ -832,6 +1197,10 @@ export function useToggleFavorite() {
       void queryClient.invalidateQueries({ queryKey: ['favorite-ids', item.source_id, item.kind] })
       void queryClient.invalidateQueries({ queryKey: ['favorites-content', item.source_id, item.kind] })
       if (stableId) void queryClient.invalidateQueries({ queryKey: ['user-state', stableId] })
+      // Feature 026: o hero e a rail "Minha Lista" do Início dependem do
+      // mesmo favorito (`logic/hero-home.md` §6).
+      void queryClient.invalidateQueries({ queryKey: ['home-hero'] })
+      void queryClient.invalidateQueries({ queryKey: ['my-list-content'] })
     },
   })
 }
@@ -861,6 +1230,13 @@ export function useToggleWatched() {
       // "Continuar assistindo" até uma navegação nova forçar releitura
       // (achado real durante o E2E desta feature, T023).
       void queryClient.invalidateQueries({ queryKey: ['continue-watching', params.sourceId] })
+      // Feature 025: o selo de assistido no Histórico e o denominador da
+      // hero band de retomada dependem do mesmo `UserStateRecord`.
+      void queryClient.invalidateQueries({ queryKey: ['history-content'] })
+      void queryClient.invalidateQueries({ queryKey: ['resume-positions'] })
+      // Feature 026: marcar assistido pode tirar o item de "Continuar
+      // assistindo" e mudar o hero (`logic/hero-home.md` §6).
+      void queryClient.invalidateQueries({ queryKey: ['home-hero'] })
     },
   })
 }

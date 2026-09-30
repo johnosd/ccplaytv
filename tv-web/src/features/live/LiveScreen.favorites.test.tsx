@@ -11,7 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LiveScreen } from './LiveScreen'
+import { LiveScreen, type LiveScreenProps } from './LiveScreen'
 import * as catalogApi from '../catalog/catalogApi'
 import * as catalogRepository from '../../lib/catalog/catalogRepository'
 import type { CatalogCategory, CatalogItemOut } from '../catalog/catalogApi'
@@ -135,6 +135,31 @@ async function seedRealChannel(name: string, providerStreamId: string, groupOrde
   return id as number
 }
 
+/** Idem `seedRealChannel`, mas com `categoryId` (feature 026, `entry: 'category'`). */
+async function seedRealChannelWithCategory(
+  name: string,
+  providerStreamId: string,
+  categoryId: number,
+  groupOrder = 0,
+): Promise<number> {
+  const [id] = await db.channels.bulkAdd(
+    [
+      {
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'channel',
+        name,
+        originalName: name,
+        groupOrder,
+        providerStreamId,
+        categoryId,
+      },
+    ],
+    { allKeys: true },
+  )
+  return id as number
+}
+
 async function favoriteChannel(providerStreamId: string, favoritedAt: number): Promise<void> {
   const stableId = `${SOURCE_ID}|channel|id:${providerStreamId}`
   await db.userStates.put({
@@ -168,7 +193,7 @@ function mockContentByCategory(byId: Record<number, CatalogItemOut[]>) {
   })
 }
 
-function renderLive() {
+function renderLive(overrides: Partial<LiveScreenProps> = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -178,7 +203,7 @@ function renderLive() {
   function buildUi() {
     return (
       <Wrapper>
-        <LiveScreen sourceId={SOURCE_ID} onBack={() => {}} onResync={() => {}} />
+        <LiveScreen sourceId={SOURCE_ID} onBack={() => {}} onResync={() => {}} {...overrides} />
       </Wrapper>
     )
   }
@@ -320,14 +345,20 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     mockCategories([category(1, 'Esportes', 0)])
     renderLive()
 
-    const groups = document.querySelectorAll('.live-column-groups .live-item')
-    expect([...groups].map((g) => g.textContent)).toEqual(['★Favoritos', 'Todos', 'Esportes'])
+    const groups = document.querySelectorAll('.live-column-groups .side-category-nav-item')
+    expect([...groups].map((g) => g.querySelector('.side-category-nav-label')?.textContent)).toEqual([
+      'Favoritos',
+      'Todos',
+      'Esportes',
+    ])
 
     keydown('ArrowUp') // do padrão (primeira categoria real) sobe pra "Todos"
     keyup('ArrowUp')
     keydown('ArrowUp') // sobe mais uma vez, para "★ Favoritos"
     keyup('ArrowUp')
-    expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('★Favoritos')
+    expect(
+      document.querySelector('.live-column-groups .tv-focus .side-category-nav-label')?.textContent,
+    ).toBe('Favoritos')
 
     // Segurar OK aqui (col 0, trilha) age como OK comum — no keydown, sem
     // esperar soltar, porque `onLongSelect` nunca é passado fora da coluna
@@ -395,7 +426,9 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     tap('Enter') // nunca um clique — o controle remoto usa OK
 
     expect(screen.queryByText('Nenhum favorito ainda')).not.toBeInTheDocument()
-    expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('★Favoritos')
+    expect(
+      document.querySelector('.live-column-groups .tv-focus .side-category-nav-label')?.textContent,
+    ).toBe('Favoritos')
   })
 
   it('(g) favorito gravado sem item carregado: nota avisa, sem citar número', async () => {
@@ -459,6 +492,39 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     })
     expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('A')
   }, 10000)
+
+  // Feature 024, T035: desfavoritar pelo botão "Favoritar" do preview, sendo
+  // o ÚLTIMO favorito, não pode deixar o preview "órfão" (sem canal, mas
+  // ainda em col 2) — cai pra col 1, e o estado vazio de Favoritos aparece.
+  it('(h2) desfavoritar o único favorito com o foco no preview volta pra coluna de canais, sem preview órfão', async () => {
+    await seedSource()
+    await seedRealChannel('Único', '1')
+    await favoriteChannel('1', 100)
+    mockCategories([category(1, 'G1', 0)])
+    renderLive()
+
+    keydown('ArrowUp')
+    keyup('ArrowUp')
+    keydown('ArrowUp')
+    keyup('ArrowUp')
+    keydown('ArrowRight')
+    keyup('ArrowRight')
+
+    await waitFor(() =>
+      expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('Único'),
+    )
+
+    keydown('ArrowRight') // canal → preview
+    keyup('ArrowRight')
+    keydown('ArrowDown') // "Assistir" → "Favoritar"
+    keyup('ArrowDown')
+    expect(document.querySelector('.live-preview-action.tv-focus')?.textContent).toBe('Favorito')
+
+    tap('Enter') // desfavorita pelo preview — toque comum, sem onLongSelect ali
+
+    await waitFor(() => expect(screen.getByText('Nenhum favorito ainda')).toBeInTheDocument())
+    expect(document.querySelector('.live-preview-panel button')).toBeNull()
+  })
 
   it('(i) fechar o player devolve o foco ao mesmo canal dentro de "Favoritos"', async () => {
     await seedSource()
@@ -524,7 +590,9 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp') // sobe mais uma vez, para a entrada virtual "★ Favoritos"
     keyup('ArrowUp')
-    expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('★Favoritos')
+    expect(
+      document.querySelector('.live-column-groups .tv-focus .side-category-nav-label')?.textContent,
+    ).toBe('Favoritos')
 
     keydown('ArrowRight')
     keyup('ArrowRight')
@@ -660,5 +728,81 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     keyup('ArrowDown')
 
     expect(resolveSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('LiveScreen — initialChannel (feature 026, `logic/navegacao.md` §3, T022)', () => {
+  beforeEach(() => {
+    vi.mocked(catalogApi.fetchPlayback).mockReset()
+  })
+
+  afterEach(async () => {
+    cleanup()
+    vi.clearAllMocks()
+    await db.sources.delete(SOURCE_ID)
+    await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+    await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+  })
+
+  function mockPlaybackFor(realId: number, providerStreamId: string, name: string) {
+    vi.mocked(catalogApi.fetchPlayback).mockResolvedValue({
+      item_id: String(realId),
+      kind: 'channel',
+      url: 'http://exemplo.invalid/x.ts',
+      container_hint: 'ts',
+      source_id: SOURCE_ID,
+      provider_stream_id: providerStreamId,
+      original_name: name,
+      series_id: null,
+      season_number: null,
+      episode_number: null,
+    })
+  }
+
+  it('entry "favorites": entra em ★ Favoritos com o canal focado e toca uma única vez', async () => {
+    await seedSource()
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({})
+    const realId = await seedRealChannel('Globo', '10')
+    await favoriteChannel('10', 100)
+    mockPlaybackFor(realId, '10', 'Globo')
+
+    renderLive({ initialChannel: { channelId: String(realId), entry: 'favorites' } })
+
+    // Enquanto `playing`, a tela inteira (inclusive a lista de canais) some
+    // — só `<PlayerLayer>` fica montado (`!playing && withShell(...)`) — a
+    // prova de que entrou no canal certo é o próprio diálogo com o nome dele.
+    await waitFor(() => expect(screen.getByRole('dialog', { name: /Globo/ })).toBeInTheDocument())
+    expect(catalogApi.fetchPlayback).toHaveBeenCalledTimes(1)
+  })
+
+  it('entry "category": lê a categoria do canal (`useCatalogItem`) e entra nela tocando', async () => {
+    await seedSource()
+    mockCategories([category(1, 'Esportes', 0)])
+    const realId = await seedRealChannelWithCategory('Globo', '10', 1)
+    mockContentByCategory({ 1: [{ ...channel('Globo', '10'), id: String(realId) }] })
+    mockPlaybackFor(realId, '10', 'Globo')
+
+    renderLive({ initialChannel: { channelId: String(realId), entry: 'category' } })
+
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    expect(catalogApi.fetchPlayback).toHaveBeenCalledTimes(1)
+  })
+
+  it('canal ausente (sem `categoryId` conhecido): fica na entrada padrão, sem reprodução nem erro inventado', async () => {
+    await seedSource()
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({})
+    const realId = await seedRealChannel('SemCategoria', '20') // sem categoryId
+
+    renderLive({ initialChannel: { channelId: String(realId), entry: 'category' } })
+
+    await waitFor(() =>
+      expect(document.querySelector('.live-column-groups .tv-focus .side-category-nav-label')?.textContent).toBe(
+        'Esportes',
+      ),
+    )
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
   })
 })

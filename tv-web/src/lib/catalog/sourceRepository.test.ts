@@ -222,6 +222,24 @@ describe('sourceRepository', () => {
     expect((await database.userStates.get(otherStableId))?.isFavorite).toBe(true)
   })
 
+  it('remover a fonte apaga a metadata dela (provedor e TMDB), preservando a de outra fonte e a chave TMDB (feature 032, FR-026)', async () => {
+    const id = await createSource(CREDENTIAL, database)
+    const otherId = await createSource({ ...CREDENTIAL, displayName: 'Outra lista' }, database)
+    const stableId = buildStableId({ sourceId: id, kind: 'movie', providerStreamId: '1' })
+    const otherStableId = buildStableId({ sourceId: otherId, kind: 'movie', providerStreamId: '1' })
+    await database.titleMetadata.bulkAdd([
+      { stableId, sourceId: id, kind: 'movie', provider: { synopsis: 'a' }, tmdb: { status: 'no_match' } },
+      { stableId: otherStableId, sourceId: otherId, kind: 'movie', provider: { synopsis: 'b' } },
+    ])
+    await database.integrations.add({ id: 'tmdb', key: 'k', format: 'v3', state: 'connected', lastTestedAt: 1 })
+
+    await deleteSource(id, database)
+
+    expect(await database.titleMetadata.get(stableId)).toBeUndefined()
+    expect((await database.titleMetadata.get(otherStableId))?.provider?.synopsis).toBe('b')
+    expect(await database.integrations.get('tmdb')).toBeDefined()
+  })
+
   it('falha de conexão não avança a marca de sincronização (FR-016)', async () => {
     const id = await createSource(CREDENTIAL, database)
     await markSynced(id, { at: 1000, mode: 'xtream_api' }, database)

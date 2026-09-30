@@ -1,0 +1,32 @@
+{
+    "feature":  "033-trailers-filmes-series",
+    "lockedAt":  "2026-09-29 22:36",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/trailer/trailerCandidates.trailers.contract.test.ts",
+                      "sha256":  "a5b58d2d4ad8adaac475bfb56c2978a58710b162dbc680602eb94476e9f8fd2f",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/metadata/titleMetadata.trailers.contract.test.ts",
+                      "sha256":  "a92ca93a149c725d5a30458f16a2ebbf0c6e9816318bb90708d9d780df319d3f",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/trailer/trailerSession.trailers.contract.test.ts",
+                      "sha256":  "95dc7d0d7d8ed2557bfa7ba74720a8029d94d58e9a107389e0b8d370a04792a4",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/components/TrailerLayer.trailers.contract.test.tsx",
+                      "sha256":  "6c24acb3a5fd12fbe9270e75f465b9acf0a080f7901e812024d3681457c83bbd",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/movies/MovieDetailScreen.trailers.contract.test.tsx",
+                      "sha256":  "23e21f6c07a2127132e740e32f3ff08c22245860dbd14dbc6f1318728929358e",
+                      "tests":  1
+                  }
+              ]
+}

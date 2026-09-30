@@ -12,7 +12,7 @@
 // Dados: só fictícios (`fixtures/favoritos.m3u`), servidos por um HTTP
 // server local criado por este próprio script — nunca uma fonte real.
 import { createServer } from 'node:http'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
@@ -66,9 +66,22 @@ async function pressFavoriteColorKey(page) {
   }, FAVORITE_COLOR_KEY)
 }
 
+/**
+ * Espera o trilho de Filmes/Séries carregar (★ Favoritos, ↺ Histórico, Todos
+ * e ao menos uma categoria real — feature 025, `VIRTUAL_TRAIL_COUNT = 3`) —
+ * o `ArrowRight` que "entra" na categoria antes disso cai em "Todos".
+ */
+async function waitForCategoryTrail(page) {
+  await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
+}
+
 async function addSource(page, m3uUrl) {
   console.log('=== Adicionar fonte M3U fictícia ===')
+  // Sem lista, a entrada é a tela de perfis (feature 023): "Adicionar lista"
+  // já nasce em foco, e OK abre o formulário.
   await page.goto(APP_URL)
+  await page.waitForSelector('.add-card.tv-focus', { timeout: 10000 })
+  await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
 
   await page.getByLabel('Nome de exibição').fill('Fonte E2E Favoritos')
@@ -78,6 +91,27 @@ async function addSource(page, m3uUrl) {
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   console.log('  ✓ importação concluída')
   await page.getByRole('button', { name: 'Voltar' }).click()
+  // Os perfis montam com o cache anterior; a lista nova chega logo depois.
+  await page.locator('.source-card-wrap', { hasText: 'Fonte E2E Favoritos' }).waitFor({ timeout: 8000 })
+}
+
+/**
+ * Do Início (hero, rails ou topbar — qualquer foco restaurado), abre TV ao
+ * vivo/Filmes/Séries pela topbar. Substitui o antigo hub de atalhos
+ * (`.tiles-row`, removido na feature 026 — US1 troca o hub provisório pela
+ * Home definitiva com hero+rails; a entrada nas 3 categorias passa a ser só
+ * pela topbar). Sobe até a topbar (não importa em que linha do conteúdo o
+ * foco esteja — `ArrowUp` de sobra não faz nada uma vez lá dentro), reseta
+ * a posição horizontal pra "Início" (`ArrowLeft` de sobra, com clamp) e só
+ * então conta as setas certas — nunca assume de onde o foco restaurado
+ * (FR-017/FR-029) partiu.
+ */
+async function openViaTopbar(page, destination) {
+  const ORDER = ['home', 'live', 'movies', 'series']
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < ORDER.indexOf(destination); i += 1) await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
 }
 
 async function openLiveTv(page) {
@@ -85,9 +119,8 @@ async function openLiveTv(page) {
   await page.waitForSelector('.source-card', { timeout: 8000 })
   await page.keyboard.press('Enter')
 
-  // Hub da lista: "Live TV" é o primeiro tile, focado por padrão.
-  await page.waitForSelector('.tiles-row', { timeout: 8000 })
-  await page.keyboard.press('Enter')
+  await page.waitForSelector('.home-content', { timeout: 8000 })
+  await openViaTopbar(page, 'live')
 
   await page.waitForSelector('.live-column-groups', { timeout: 8000 })
 }
@@ -100,11 +133,14 @@ async function run() {
   // O binário `chrome-headless-shell` que o Playwright pediria por padrão
   // em `headless: true` não está pré-instalado neste ambiente (só a
   // versão não-headless, em `/opt/pw-browsers/chromium`) — apontar
-  // direto pro binário evita a tentativa de baixar um novo.
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: '/opt/pw-browsers/chromium',
-  })
+  // direto pro binário evita a tentativa de baixar um novo. Fora desse
+  // ambiente (ex.: Windows local, feature 021), o caminho não existe e a
+  // resolução normal do Playwright assume — mesmo padrão dos demais
+  // scripts em `e2e/`.
+  const fixedPath = '/opt/pw-browsers/chromium'
+  const browser = await chromium.launch(
+    existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true },
+  )
   const context = await browser.newContext() // storage isolado — sem limpeza manual de IndexedDB
   const page = await context.newPage()
 
@@ -136,9 +172,18 @@ async function run() {
 
     console.log('=== "★ Favoritos" no topo da trilha resolve o canal favoritado ===')
     await page.keyboard.press('ArrowLeft') // volta pra trilha (col 0)
-    await page.keyboard.press('ArrowUp') // sobe da categoria real pra "★ Favoritos"
-    const favoritesLabel = await page.locator('.live-column-groups .tv-focus').textContent()
-    assert(favoritesLabel === '★Favoritos', 'trilha focada em "★ Favoritos"')
+    // Trilha: ★ Favoritos(0), Todos(1), categoria real(2) — feature 018
+    // inseriu "Todos" como 2ª entrada fixa (VIRTUAL_TRAIL_COUNT=2); duas
+    // setas pra cima chegam em Favoritos, não uma só (achado ao rodar
+    // este script no Windows pela 1ª vez, feature 021 — nunca detectado
+    // porque faltava o fallback de executável acima).
+    await page.keyboard.press('ArrowUp') // categoria real -> "Todos"
+    await page.keyboard.press('ArrowUp') // "Todos" -> "★ Favoritos"
+    // Live TV migrou pro V14 (feature 024): a trilha usa `SideCategoryNav`,
+    // ícone SVG (não glifo de texto) + `.side-category-nav-label` com só
+    // "Favoritos" (sem o "★" embutido no nó de texto).
+    const favoritesLabel = await page.locator('.live-column-groups .tv-focus .side-category-nav-label').textContent()
+    assert(favoritesLabel === 'Favoritos', 'trilha focada em "★ Favoritos"')
     await page.keyboard.press('ArrowRight') // entra
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
@@ -150,10 +195,13 @@ async function run() {
     await page.reload()
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('Enter')
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'live')
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('ArrowUp') // padrão cai na 1ª categoria real; sobe pra Favoritos
+    // Padrão cai na 1ª categoria real (índice 2) — duas setas pra cima
+    // chegam em "★ Favoritos", passando por "Todos" (ver comentário acima).
+    await page.keyboard.press('ArrowUp') // categoria real -> "Todos"
+    await page.keyboard.press('ArrowUp') // "Todos" -> "★ Favoritos"
     await page.keyboard.press('ArrowRight')
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
@@ -173,32 +221,31 @@ async function run() {
 
     await page.keyboard.press('Enter') // ativação por tecla, não clique
     await page.waitForSelector('text=Nenhum favorito ainda', { state: 'detached', timeout: 8000 })
-    const trailFocus = await page.locator('.live-column-groups .tv-focus').textContent()
-    assert(trailFocus === '★Favoritos', 'OK no vazio devolveu o foco à trilha, em "★ Favoritos"')
+    const trailFocus = await page.locator('.live-column-groups .tv-focus .side-category-nav-label').textContent()
+    assert(trailFocus === 'Favoritos', 'OK no vazio devolveu o foco à trilha, em "★ Favoritos"')
 
     console.log('=== Filmes: mesmo gesto funciona na grade de pôsteres ===')
-    await page.keyboard.press('Escape') // volta ao hub da lista
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
+    await page.keyboard.press('Escape') // volta ao Início — foco restaurado na topbar, em "TV ao vivo" (FR-029)
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'movies')
+    await waitForCategoryTrail(page)
     await page.keyboard.press('ArrowRight') // entra na 1ª categoria real de Filmes
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await holdEnter(page)
     await page.waitForSelector('.fav-star', { timeout: 4000 })
     assert(true, 'segurar OK favorita um filme na grade')
 
     console.log('=== Séries: tecla amarela favorita no toque único — segundo caminho, mesma ação ===')
     await page.keyboard.press('Escape') // sai da categoria (col 1 -> col 0, trilha)
-    await page.keyboard.press('Escape') // sai da trilha -> hub da lista
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    // ListHomeScreen remonta ao voltar do hub — foco reinicia em "Live TV" (índice 0).
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('ArrowRight') // Filmes -> Séries
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
+    await page.keyboard.press('Escape') // sai da trilha -> Início
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    // O Início restaura o foco de origem na topbar (FR-017/FR-029): volta em
+    // "Filmes", de onde a categoria foi aberta — `openViaTopbar` não depende
+    // disso (reseta pra "Início" antes de contar), então funciona igual.
+    await openViaTopbar(page, 'series')
+    await waitForCategoryTrail(page)
     await page.keyboard.press('ArrowRight') // entra na 1ª categoria real de Séries
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
     await pressFavoriteColorKey(page)
     // Ao contrário de `holdEnter`, a tecla de cor dispara num só toque —

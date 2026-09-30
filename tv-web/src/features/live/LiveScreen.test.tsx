@@ -2,9 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LiveScreen } from './LiveScreen'
+import { LiveScreen, type LiveShellProps } from './LiveScreen'
 import * as catalogApi from '../catalog/catalogApi'
 import type { CatalogCategory, CatalogItemOut, CategoryFetchOutcome } from '../catalog/catalogApi'
+import { findUnnamedControls } from '../../testing/accessibleNames'
 
 /**
  * jsdom não faz layout de verdade nem implementa `Element.scrollTo`
@@ -184,6 +185,25 @@ function renderLive(onResync: () => void = vi.fn(), onBack: () => void = vi.fn()
   return { ...result, rerenderLive: () => result.rerender(buildUi()) }
 }
 
+/** Mesmo padrão de `renderLive`, com a moldura V14 (feature 024). */
+function renderLiveWithShell(overrides: Partial<LiveShellProps> = {}) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  const shell: LiveShellProps = {
+    sourceName: 'Sala',
+    onGoHome: vi.fn(),
+    onSwitchTop: vi.fn(),
+    onOpenProfiles: vi.fn(),
+    ...overrides,
+  }
+  const onBack = vi.fn()
+  render(
+    <QueryClientProvider client={queryClient}>
+      <LiveScreen sourceId="source-1" onBack={onBack} onResync={vi.fn()} shell={shell} />
+    </QueryClientProvider>,
+  )
+  return { shell, onBack }
+}
+
 /**
  * Simula um toque rápido no controle. Para OK (feature 013), um toque
  * rápido de verdade solta a tecla quase no mesmo instante — sem o `keyup`
@@ -230,6 +250,46 @@ describe('LiveScreen', () => {
     expect(container.querySelectorAll('.tv-focus').length).toBeGreaterThan(0)
   })
 
+  // Feature 028, FR-007/FR-009: SELECT em "Voltar" devolve o foco à trilha (não só a aparência de foco).
+  it('carregando: SELECT em "Voltar" devolve o foco à trilha', async () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentLoading()
+    renderLive()
+
+    press('ArrowRight') // entra em "Esportes" — conteúdo ainda carregando
+    expect(screen.getByText(/Carregando canais/)).toBeInTheDocument()
+    press('Enter')
+    expect(document.querySelector('.side-category-nav-item.tv-focus')).not.toBeNull()
+  })
+
+  it('grupo vazio: SELECT em "Voltar" devolve o foco à trilha', () => {
+    mockCategories([category(1, 'Vazio', 0)])
+    mockContentByCategory({ 1: [] })
+    renderLive()
+
+    press('ArrowRight') // entra em "Vazio" — categoria sem canais
+    expect(screen.getByText('Este grupo está vazio.')).toBeInTheDocument()
+    press('Enter')
+    expect(document.querySelector('.side-category-nav-item.tv-focus')).not.toBeNull()
+  })
+
+  it('★ Favoritos vazio: SELECT em "Voltar" devolve o foco à trilha', async () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({ 1: [channel('Globo', 'Esportes')] })
+    renderLive()
+
+    press('ArrowRight') // trilha -> entra na 1ª categoria real (índice 2)
+    press('ArrowLeft') // canal -> trilha (continua na categoria real)
+    press('ArrowUp') // categoria real (2) -> "Todos" (1)
+    press('ArrowUp') // "Todos" (1) -> "★ Favoritos" (0)
+    press('ArrowRight') // entra em "★ Favoritos" (vazio, sem nenhum favorito salvo)
+    await waitFor(() => expect(screen.getByText('Nenhum favorito ainda')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('tv-focus')
+
+    press('Enter')
+    expect(document.querySelector('.side-category-nav-item.tv-focus')).not.toBeNull()
+  })
+
   it('mostra erro de carga com "Tentar de novo" focável', () => {
     mockCategoriesState({ isError: true })
     const { container } = renderLive()
@@ -246,6 +306,249 @@ describe('LiveScreen', () => {
     expect(screen.getByText('Nenhum canal nesta lista')).toBeInTheDocument()
     expect(screen.queryByText(/Não foi possível carregar/)).not.toBeInTheDocument()
     expect(container.querySelectorAll('.tv-focus').length).toBeGreaterThan(0)
+  })
+
+  // --- feature 024, T025/R-005: SELECT nos 3 estados de topo agora aciona
+  // a ação focada — antes, o botão só tinha aparência de foco (bug
+  // pré-existente, corrigido junto no escopo desta feature).
+
+  it('SELECT em "Voltar" no carregando chama onBack (R-005)', () => {
+    mockCategoriesState({ isLoading: true })
+    const onBack = vi.fn()
+    renderLive(undefined, onBack)
+
+    press('Enter')
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('no erro de topo, LEFT/RIGHT alternam entre "Tentar de novo" e "Voltar", e SELECT aciona o focado (R-005)', () => {
+    mockCategoriesState({ isError: true })
+    const onBack = vi.fn()
+    renderLive(undefined, onBack)
+
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toHaveClass('tv-focus')
+    press('ArrowRight')
+    expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('tv-focus')
+    press('Enter')
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('SELECT em "Voltar" na lista sem canais chama onBack (R-005)', () => {
+    mockCategories([])
+    const onBack = vi.fn()
+    renderLive(undefined, onBack)
+
+    press('Enter')
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('RETURN com o foco na trilha (col 0) chama onBack, sem entrar em nenhuma categoria', () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    const onBack = vi.fn()
+    renderLive(undefined, onBack)
+
+    press('Escape')
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  // --- feature 024, US1: cabeçalho (FR-006), contagem honesta (FR-008) e
+  // moldura (FR-004) ---
+
+  describe('cabeçalho, contagem e moldura (feature 024)', () => {
+    it('contagem só aparece quando conhecida: "Todos" nunca mostra número, categoria nunca lida também não (nunca "0")', () => {
+      mockCategories([category(1, 'Esportes', 0)]) // on_demand, sem itemsFetchedAt — nunca lida
+      mockAggregated([], 0, 1)
+      renderLive()
+
+      const entries = [...document.querySelectorAll('.side-category-nav-item')]
+      const todos = entries.find((e) => e.querySelector('.side-category-nav-label')?.textContent === 'Todos')
+      const esportes = entries.find((e) => e.querySelector('.side-category-nav-label')?.textContent === 'Esportes')
+      expect(todos?.querySelector('.side-category-nav-count')).toBeNull()
+      expect(esportes?.querySelector('.side-category-nav-count')).toBeNull()
+    })
+
+    it('categoria já lida mostra a contagem real na trilha e no chip "N canais" do cabeçalho', () => {
+      mockCategories([category(1, 'Esportes', 0, { fetchMode: 'eager', count: 3 })])
+      mockContentByCategory({ 1: [channel('A', 'Esportes'), channel('B', 'Esportes'), channel('C', 'Esportes')] })
+      renderLive()
+
+      const esportes = [...document.querySelectorAll('.side-category-nav-item')].find(
+        (e) => e.querySelector('.side-category-nav-label')?.textContent === 'Esportes',
+      )
+      expect(esportes?.querySelector('.side-category-nav-count')?.textContent).toBe('3')
+      expect(screen.getByText('3 canais')).toBeInTheDocument()
+    })
+
+    it('sem contagem conhecida, o chip "N canais" não aparece (nunca inventado)', () => {
+      mockCategories([category(1, 'Esportes', 0)]) // on_demand, nunca lida
+      renderLive()
+
+      expect(screen.queryByText(/canais$/)).not.toBeInTheDocument()
+    })
+
+    it('com shell, o player aberto em tela cheia não desenha a topbar (FR-004/D-002)', async () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue({
+        item_id: 'id-C10',
+        kind: 'channel',
+        url: 'http://exemplo.invalid/x.ts',
+        container_hint: 'ts',
+        source_id: 'source-1',
+        provider_stream_id: null,
+        original_name: 'C10',
+        series_id: null,
+        season_number: null,
+        episode_number: null,
+      })
+      renderLiveWithShell()
+      expect(document.querySelector('.topbar')).not.toBeNull()
+
+      press('ArrowRight')
+      press('Enter')
+
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+      expect(document.querySelector('.topbar')).toBeNull()
+    })
+  })
+
+  // --- feature 028, FR-015/FR-017: um caso por estado principal ---
+
+  it('todo controle tem nome acessível: trilha (antes de entrar em qualquer categoria)', () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
+    const { container } = renderLive()
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
+
+  it('todo controle tem nome acessível: lista de canais de uma categoria', () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({ 1: [channel('C10', 'Esportes'), channel('C11', 'Esportes')] })
+    const { container } = renderLive()
+    press('ArrowRight')
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
+
+  it('lista de canais rola sem barra nativa (feature 028, FR-006)', () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({ 1: [channel('C10', 'Esportes'), channel('C11', 'Esportes')] })
+    renderLive()
+    press('ArrowRight')
+    expect(document.querySelector('.live-channel-list')).toHaveClass('no-scrollbar')
+  })
+
+  it('todo controle tem nome acessível: ★ Favoritos vazio', async () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({ 1: [channel('Globo', 'Esportes')] })
+    const { container } = renderLive()
+    press('ArrowRight')
+    press('ArrowLeft')
+    press('ArrowUp')
+    press('ArrowUp')
+    press('ArrowRight')
+    await waitFor(() => expect(screen.getByText('Nenhum favorito ainda')).toBeInTheDocument())
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
+
+  it('todo controle tem nome acessível: zapping aberto', async () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
+    vi.mocked(catalogApi.fetchPlayback).mockResolvedValue({
+      item_id: 'id-C10',
+      kind: 'channel',
+      url: 'http://exemplo.invalid/x.ts',
+      container_hint: 'ts',
+      source_id: 'source-1',
+      provider_stream_id: null,
+      original_name: 'C10',
+      series_id: null,
+      season_number: null,
+      episode_number: null,
+    })
+    const { container } = renderLive()
+    press('ArrowRight')
+    press('Enter') // toca o canal
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    press('Enter') // abre o zapping
+    await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
+
+  // --- feature 024, SC-002: todo estado da tela tem exatamente um foco
+  // visível, e SELECT o aciona — nunca dois, nunca nenhum. Um teste por
+  // estado (sem `.each`, proibido nos arquivos de contrato e evitado aqui
+  // por clareza de qual estado falhou).
+  describe('SC-002 — exatamente um foco visível por estado (feature 024)', () => {
+    function countTvFocus(): number {
+      return document.querySelectorAll('.tv-focus').length
+    }
+
+    it('carregando categorias', () => {
+      mockCategoriesState({ isLoading: true })
+      renderLive()
+      expect(countTvFocus()).toBe(1)
+    })
+
+    it('erro ao carregar categorias', () => {
+      mockCategoriesState({ isError: true })
+      renderLive()
+      expect(countTvFocus()).toBe(1)
+    })
+
+    it('nenhum canal na fonte', () => {
+      mockCategories([])
+      renderLive()
+      expect(countTvFocus()).toBe(1)
+    })
+
+    it('trilha em foco, sem nada entrado (estado inicial)', () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      renderLive()
+      expect(countTvFocus()).toBe(1)
+    })
+
+    it('categoria vazia (grupo vazio)', () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: [] })
+      renderLive()
+      press('ArrowRight')
+      expect(countTvFocus()).toBe(1)
+    })
+
+    it('"Todos" vazio (nenhuma categoria obtida ainda)', () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      mockAggregated([], 0, 1)
+      renderLive()
+      press('ArrowUp')
+      press('ArrowRight')
+      expect(countTvFocus()).toBe(1)
+    })
+
+    it('"★ Favoritos" vazio', () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      renderLive()
+      press('ArrowUp')
+      press('ArrowUp')
+      press('ArrowRight')
+      expect(countTvFocus()).toBe(1)
+    })
+
+    it('lista de canais, com um item focado', () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
+      renderLive()
+      press('ArrowRight')
+      expect(countTvFocus()).toBe(1)
+    })
+
+    it('preview, com uma ação focada', () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
+      renderLive()
+      press('ArrowRight')
+      press('ArrowRight')
+      expect(countTvFocus()).toBe(1)
+    })
   })
 
   // --- T028: mover o foco sobre categorias não busca; SELECT/entrar busca ---
@@ -276,9 +579,14 @@ describe('LiveScreen', () => {
 
     // "★ Favoritos" (feature 013) e "Todos" (feature 018) são sempre as
     // duas primeiras entradas da trilha, antes de qualquer categoria
-    // declarada pela fonte.
-    const groups = document.querySelectorAll('.live-column-groups .live-item')
-    expect([...groups].map((g) => g.textContent)).toEqual(['★Favoritos', 'Todos', 'Esportes', 'Notícias'])
+    // declarada pela fonte (feature 024: trilha via `SideCategoryNav`).
+    const groups = document.querySelectorAll('.live-column-groups .side-category-nav-item')
+    expect([...groups].map((g) => g.querySelector('.side-category-nav-label')?.textContent)).toEqual([
+      'Favoritos',
+      'Todos',
+      'Esportes',
+      'Notícias',
+    ])
 
     press('ArrowRight') // padrão é focar a primeira categoria REAL — entra em "Esportes"
 
@@ -624,6 +932,72 @@ describe('LiveScreen', () => {
     expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('G1')
   })
 
+  describe('logo e número do canal (feature 024, US4)', () => {
+    /** Canal com identidade completa pra `channelNumberOf` (category_id/category_position) e capa. */
+    function positionedChannel(
+      name: string,
+      group: string,
+      overrides: Partial<CatalogItemOut> = {},
+    ): CatalogItemOut {
+      return { ...channel(name, group), ...overrides }
+    }
+
+    it('canal com icon_url monta <img>; sem ele, mostra as iniciais (nunca a imagem quebrada do navegador)', () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({
+        1: [
+          positionedChannel('Com Logo', 'Esportes', { icon_url: 'http://exemplo.test/logo.png' }),
+          positionedChannel('Sem Logo', 'Esportes'),
+        ],
+      })
+      renderLive()
+
+      press('ArrowRight')
+
+      const rows = document.querySelectorAll('.live-channel-list .channel-row')
+      expect(rows[0].querySelector('img')).toHaveAttribute('src', 'http://exemplo.test/logo.png')
+      expect(rows[1].querySelector('img')).not.toBeInTheDocument()
+      expect(rows[1].textContent).toContain('SL') // iniciais de "Sem Logo"
+    })
+
+    it('o mesmo canal mostra o mesmo número na categoria e em "Todos" (SC-005)', () => {
+      const cat = category(1, 'Esportes', 0, { fetchMode: 'eager', count: 2 })
+      mockCategories([cat])
+      const sharedChannel = positionedChannel('C10', 'Esportes', { category_id: 1, category_position: 1 })
+      mockContentByCategory({ 1: [positionedChannel('C1', 'Esportes', { category_id: 1, category_position: 0 }), sharedChannel] })
+      mockAggregated([sharedChannel], 1, 1)
+      renderLive()
+
+      press('ArrowRight') // entra em Esportes
+      const numberInCategory = document.querySelectorAll('.channel-row-number')[1]?.textContent
+
+      press('ArrowLeft')
+      press('ArrowUp') // Esportes → Todos
+      press('ArrowRight') // entra em Todos
+
+      const numberInAll = document.querySelector('.channel-row-number')?.textContent
+      expect(numberInCategory).toBe('002')
+      expect(numberInAll).toBe(numberInCategory)
+    })
+
+    it('categoria anterior ainda não lida deixa o canal sem número — nunca "000" ou inventado', () => {
+      mockCategories([
+        category(1, 'Esportes', 0), // on_demand, nunca lida (sem itemsFetchedAt)
+        category(2, 'Notícias', 1, { fetchMode: 'on_demand', count: 3, itemsFetchedAt: 1000 }),
+      ])
+      mockContentByCategory({
+        2: [positionedChannel('C1', 'Notícias', { category_id: 2, category_position: 0 })],
+      })
+      renderLive()
+
+      press('ArrowDown') // foca "Notícias"
+      press('ArrowRight') // entra nela
+
+      expect(document.querySelector('.channel-row-number')).toBeNull()
+      expect(document.querySelector('.live-column-channels')?.textContent).not.toContain('000')
+    })
+  })
+
   describe('suporte a zapping (feature 016, US1)', () => {
     beforeEach(() => {
       // Mock global para esta suíte para resolver imediatamente, simulando canal Live de sucesso.
@@ -891,9 +1265,9 @@ describe('LiveScreen', () => {
       press('Enter') // abre o zapping
       await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
 
-      const zapGroups = document.querySelectorAll('.player-zap-columns .live-column-groups .live-item')
-      const zapGroupLabels = [...zapGroups].map((g) => g.textContent)
-      expect(zapGroupLabels).toEqual(['★Favoritos', 'Todos', 'Esportes'])
+      const zapGroups = document.querySelectorAll('.player-zap-columns .live-column-groups .side-category-nav-item')
+      const zapGroupLabels = [...zapGroups].map((g) => g.querySelector('.side-category-nav-label')?.textContent)
+      expect(zapGroupLabels).toEqual(['Favoritos', 'Todos', 'Esportes'])
       // FR-018: o ícone de busca nunca aparece dentro do zapping.
       expect(document.querySelector('.player-zap-columns .search-icon-button')).toBeNull()
 
@@ -901,6 +1275,165 @@ describe('LiveScreen', () => {
         'C10',
       )
     })
+
+    // Feature 024, D-009: zapping nunca tem preview nem topbar.
+    it('o zapping nunca tem painel de preview, e → no canal focado não abre um (D-009)', async () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: [channel('C10', 'Esportes'), channel('C11', 'Esportes')] })
+      renderLive()
+
+      press('ArrowRight')
+      press('Enter')
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+      press('Enter') // abre o zapping
+      await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
+      expect(document.querySelector('.player-zap-columns .live-preview-panel')).toBeNull()
+
+      // → sobre o canal focado (col 1, fora do zapping levaria ao preview) —
+      // dentro do zapping continua sem efeito, como sempre foi.
+      press('ArrowRight')
+      expect(document.querySelector('.player-zap-columns .live-preview-panel')).toBeNull()
+      expect(document.querySelector('.player-zap-columns .live-channel-list .tv-focus')?.textContent).toContain('C10')
+    })
+
+    // Feature 024, `logic/foco-live-shell.md` §5: dentro do zapping, ↑ em
+    // "★ Favoritos" nunca sobe pra topbar (que nem existe ali).
+    it('↑ em "★ Favoritos" dentro do zapping não sobe pra lugar nenhum (sem topbar no zapping)', async () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
+      renderLive()
+
+      press('ArrowRight')
+      press('Enter')
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+      press('Enter') // abre o zapping
+      await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
+
+      press('ArrowLeft') // canal → trilha
+      press('ArrowUp') // Esportes → Todos
+      press('ArrowUp') // Todos → ★ Favoritos
+      expect(
+        document.querySelector('.player-zap-columns .tv-focus .side-category-nav-label')?.textContent,
+      ).toBe('Favoritos')
+
+      press('ArrowUp') // no topo — sem shell/topbar aqui dentro, não muda nada
+      expect(
+        document.querySelector('.player-zap-columns .tv-focus .side-category-nav-label')?.textContent,
+      ).toBe('Favoritos')
+      expect(document.querySelector('.player-zap-columns')).toBeInTheDocument()
+    })
+
+    // Mesmo com `shell` (topbar existiria fora do zapping): ↑ dentro do
+    // zapping não corrompe a `zone` — fechar o zapping e o player devolve a
+    // uma tela onde a topbar continua alcançável normalmente (D-009, a
+    // guarda é `shell && !zapOpen`, não só a ausência de `shell`).
+    it('↑ dentro do zapping com shell não deixa a topbar inacessível depois de fechar o player', async () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
+      const shell: LiveShellProps = {
+        sourceName: 'Sala',
+        onGoHome: vi.fn(),
+        onSwitchTop: vi.fn(),
+        onOpenProfiles: vi.fn(),
+      }
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+      render(
+        <QueryClientProvider client={queryClient}>
+          <LiveScreen sourceId="source-1" onBack={vi.fn()} onResync={vi.fn()} shell={shell} />
+        </QueryClientProvider>,
+      )
+
+      press('ArrowRight')
+      press('Enter')
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+      press('Enter') // abre o zapping
+      await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
+      press('ArrowLeft')
+      press('ArrowUp')
+      press('ArrowUp') // foco em "★ Favoritos", dentro do zapping
+      press('ArrowUp') // tentativa de sair pra topbar — sem efeito (D-009)
+
+      press('Escape') // fecha o zapping
+      press('Escape') // fecha o player
+
+      // De volta à tela normal: ↑ no topo da trilha alcança a topbar como sempre.
+      press('ArrowUp')
+      expect(document.querySelector('.topbar-item.tv-focus')).not.toBeNull()
+    })
+  })
+
+  describe('preview do canal (feature 024, US2)', () => {
+    // Feature 031 (FR-011): "Guia completo" deixou de ser mock "Em breve" — abre o guia em tela cheia.
+    it('"Guia completo" abre o guia em tela cheia, sem aviso "Em breve" e sem abrir o player', () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
+      renderLive()
+
+      press('ArrowRight') // entra em Esportes, foca C10
+      press('ArrowRight') // canal → preview, foco em "Assistir"
+      press('ArrowDown') // "Favoritar"
+      press('ArrowDown') // "Guia completo"
+      press('Enter')
+
+      expect(document.querySelector('.epg-guide')).not.toBeNull()
+      expect(screen.queryByText(/Em breve/)).not.toBeInTheDocument()
+      expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('"Assistir" soft disabled num canal sem fonte: o mesmo toast explicativo, sem abrir o player', () => {
+      mockCategories([category(1, 'Grupo', 0)])
+      mockContentByCategory({ 1: [channel('Sem fonte', 'Grupo', false)] })
+      renderLive()
+
+      press('ArrowRight')
+      press('ArrowRight') // canal → preview, foco em "Assistir"
+      expect(document.querySelector('.live-preview-action.is-soft-disabled.tv-focus')).not.toBeNull()
+
+      press('Enter')
+
+      expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.getByText(/não tem uma fonte de reprodução/)).toBeInTheDocument()
+    })
+
+    it('segurar OK com o foco no preview não favorita — sem onLongSelect ali, age como toque comum (D-005)', async () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue({
+        item_id: 'id-C10',
+        kind: 'channel',
+        url: 'http://exemplo.invalid/x.ts',
+        container_hint: 'ts',
+        source_id: 'source-1',
+        provider_stream_id: null,
+        original_name: 'C10',
+        series_id: null,
+        season_number: null,
+        episode_number: null,
+      })
+      renderLive()
+
+      press('ArrowRight')
+      press('ArrowRight') // canal → preview, foco em "Assistir" (não "Favoritar")
+
+      // O gesto de segurar (`onLongSelect`) só existe na coluna de canais
+      // (D-005); no preview, sem ele, o OK age direto no keydown, "modo
+      // legado" (useRemoteNav.ts) — nunca favorita por segurar aqui.
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+      await act(() => new Promise((resolve) => setTimeout(resolve, 900)))
+      document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }))
+
+      expect(screen.queryByText('Adicionado aos favoritos')).not.toBeInTheDocument()
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    })
+    // "Favoritar" no preview alterna o favorito de verdade (identidade real,
+    // fake-indexeddb) — coberto em `LiveScreen.favorites.test.tsx` (h2), que
+    // já tem a infraestrutura de fonte/canal seedados e a limpeza de banco
+    // que este arquivo (100% mocado) não tem.
   })
 
   describe('busca por categoria (feature 018)', () => {
@@ -1059,6 +1592,103 @@ describe('LiveScreen', () => {
 
       press('ArrowRight') // entra em "Esportes" — item obsoleto, outcome indisponível
       expect(document.querySelector('.search-icon-button')).toBeNull()
+    })
+  })
+
+  // --- Feature 027 (T024): vizinhança de canal do chrome (↑/↓, logic/chrome-player.md §7) ---
+  describe('vizinhança de canal do chrome (feature 027)', () => {
+    function mockPlaybackFor(channels: CatalogItemOut[]) {
+      vi.mocked(catalogApi.fetchPlayback).mockImplementation(async (itemId: string) => {
+        const found = channels.find((c) => c.id === itemId)
+        return {
+          item_id: itemId,
+          kind: 'channel',
+          url: `http://exemplo.invalid/${itemId}.ts`,
+          container_hint: 'ts',
+          source_id: 'src1',
+          provider_stream_id: itemId,
+          original_name: found?.name ?? itemId,
+          series_id: null,
+          season_number: null,
+          episode_number: null,
+        }
+      })
+    }
+
+    /** Espera a faixa do chrome (band) aparecer — só existe com a sessão já criada (evita a corrida achada nesta feature). */
+    async function waitForBand(name: string) {
+      await waitFor(() => expect(document.querySelector('.player-chrome-name')?.textContent).toBe(name))
+    }
+
+    it('↓ troca para o canal seguinte da categoria, pulando o não reprodutível; ↑ volta', async () => {
+      const channels = [channel('C1', 'Esportes'), channel('C2', 'Esportes', false), channel('C3', 'Esportes')]
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: channels })
+      mockPlaybackFor(channels)
+      renderLive()
+
+      enterAndDescend(0) // foca C1
+      press('Enter')
+      await waitForBand('C1')
+
+      press('ArrowDown') // C2 não é reprodutível — pula pro C3
+      await waitForBand('C3')
+
+      press('ArrowUp') // volta — pula o C2 de novo
+      await waitForBand('C1')
+    })
+
+    it('no último canal da lista, ↓ avisa o limite e não troca de sessão', async () => {
+      const channels = [channel('C1', 'Esportes'), channel('C2', 'Esportes')]
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: channels })
+      mockPlaybackFor(channels)
+      renderLive()
+
+      enterAndDescend(1) // foca C2 (último)
+      press('Enter')
+      await waitForBand('C2')
+
+      press('ArrowDown')
+
+      expect(screen.getByText('Este é o último canal desta lista.')).toBeInTheDocument()
+      expect(document.querySelector('.player-chrome-name')?.textContent).toBe('C2') // não trocou
+    })
+
+    it('FR-014: ao sair do player depois de trocar por ↓, o foco da lista reflete o último canal assistido', async () => {
+      const channels = [channel('C1', 'Esportes'), channel('C2', 'Esportes')]
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: channels })
+      mockPlaybackFor(channels)
+      renderLive()
+
+      enterAndDescend(0) // foca C1
+      press('Enter')
+      await waitForBand('C1')
+
+      press('ArrowDown') // troca pra C2 por ↓, sem passar pela lista
+      await waitForBand('C2')
+
+      press('Escape') // sai do player
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+      expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('C2')
+    })
+
+    it('canal aberto de "Todos": ↓ percorre a lista agregada, na ordem exibida (D-008, mesma vizinhança de qualquer entrada)', async () => {
+      const channels = [channel('T1', 'Esportes'), channel('T2', 'Notícias')]
+      mockCategories([category(1, 'Esportes', 0)])
+      mockAggregated(channels, 1, 1)
+      mockPlaybackFor(channels)
+      renderLive()
+
+      press('ArrowUp') // de "Esportes" (padrão) para "Todos"
+      press('ArrowRight') // entra em "Todos"
+      press('Enter') // toca T1
+      await waitForBand('T1')
+
+      press('ArrowDown')
+      await waitForBand('T2')
     })
   })
 })

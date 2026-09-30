@@ -1,0 +1,215 @@
+/*
+ * Início definitivo (feature 026): hero de largura total + rails reais
+ * ("Continuar assistindo", "Minha Lista", "Canais favoritos") + mocks
+ * honestos (Curadoria IA, dock de serviços). Substitui o conteúdo
+ * provisório do hub (`ListHomeScreen`, feature 023) — `.tile*`/
+ * `.continue-watching*`/`.home-section*` saíram com ele. Só tokens de
+ * `index.css`. A moldura (topbar, safe zone, HintBar) é de `shell.css`.
+ */
+
+.home-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  overflow-y: auto;
+}
+
+/* Hero: banner de largura total, texto/ações sobrepostos na base — a capa
+   (`PosterArt`) preenche a área toda, atrás de um degradê que garante
+   contraste do texto sem esconder a imagem (ADR-007 — sem preview em
+   foco, sem dado inventado: só capa real, título e metadados já conhecidos).
+   `flex: 1 0 420px` (feature 028, D-005/FR-004): único item flexível de
+   `.home-content` — cresce pra ocupar a altura livre do palco quando há
+   pouco conteúdo (poucos rails), sem inventar rail/card novo; nunca encolhe
+   abaixo do mínimo de 420px quando há muito conteúdo (`.home-content`
+   rola, `overflow-y: auto`, em vez de espremer o hero ou os rails, que
+   continuam `flex: none`). */
+.home-hero {
+  position: relative;
+  flex: 1 0 420px;
+  min-height: 420px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.home-hero-poster {
+  position: absolute;
+  inset: 0;
+}
+
+.home-hero-poster .poster-box {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.home-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--bg-base) 10%, transparent 65%);
+  pointer-events: none;
+}
+
+.home-hero-info {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 60%;
+  padding: var(--space-5);
+}
+
+.home-hero-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-h1);
+  color: var(--text-primary);
+}
+
+.home-hero-description {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.home-hero-meta {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.home-hero-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.home-hero-action {
+  appearance: none;
+  border: none;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.home-hero-action.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Rails ("Continuar assistindo"/"Minha Lista"/"Canais favoritos"/"Curadoria IA"). */
+.home-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.home-row-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.home-row-skeleton {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.home-row-single {
+  display: flex;
+}
+
+/* "Ver todos (N)"/"Filmes (N)"/"Séries (N)" — mesmo slot do card da rail (FR-014). */
+.home-see-all {
+  height: 100%;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--fs-body);
+  padding: var(--space-3);
+}
+
+.home-see-all.tv-focus {
+  background: var(--bg-hover);
+}
+
+/* Dock de serviços (FR-016) — soft disabled, nunca dado inventado. */
+.home-dock {
+  display: flex;
+  gap: var(--space-3);
+  flex: none;
+}
+
+.home-dock-icon {
+  --icon-size: var(--fs-h2);
+  appearance: none;
+  border: none;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.home-dock-icon.tv-focus {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Ícone de serviço real (feature 032): um ponto de estado no canto. O estado
+   também está no `aria-label`/`title` — a cor nunca é o único sinal. */
+.home-dock-icon--service {
+  position: relative;
+}
+
+.home-dock-icon--service::after {
+  content: '';
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  width: var(--space-1);
+  height: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--text-disabled);
+}
+
+.home-dock-icon--service[data-state='connected']::after {
+  background: var(--success);
+}
+
+.home-dock-icon--service[data-state='refused']::after {
+  background: var(--danger);
+}
+
+.home-dock-icon--service[data-state='offline']::after,
+.home-dock-icon--service[data-state='rate_limited']::after {
+  background: var(--warning);
+}

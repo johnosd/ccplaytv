@@ -1,208 +1,164 @@
 import { useState } from 'react'
-import {
-  useDeleteSource,
-  useResyncSource,
-  useSources,
-  type SourceOut,
-} from '../import/importApi'
-import { AddSourceScreen } from '../import/AddSourceScreen'
-import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
-import { useToast } from '../../lib/useToast'
-import { Toast } from '../../components/Toast'
-import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { exitApp } from '../../lib/tizenExit'
+import type { ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import type { SourceOut } from '../import/importApi'
+import { invalidateUserStates, type CatalogItemOut } from '../catalog/catalogApi'
+import { HomeContent, type HomeContentFocus } from './HomeContent'
+import { AppShell } from '../shell/AppShell'
+import { TopBar } from '../shell/TopBar'
+import { ExitModal } from '../shell/ExitModal'
+import { PlayerLayer } from '../../components/PlayerLayer'
+import type { HintItem } from '../shell/HintBar'
+import type { HomeFocus, TopbarItem, TopDestination } from '../../navigation/appNav'
 
 export interface HomeScreenProps {
-  onAddSource: () => void
-  onOpenSource: (source: SourceOut) => void
-  onEditSource: (source: SourceOut) => void
-  onResyncStarted: (jobId: string) => void
-  onSourceCreated: (result: { sourceId: string; jobId: string }) => void
+  /** Fonte ativa da sessão (ADR-011 §3) — o nome vai no indicador da topbar, o resto no conteúdo. */
+  source: SourceOut
+  /** Onde estava o foco quando a pessoa saiu daqui, restaurado ao voltar (FR-017/FR-029). */
+  initialFocus?: HomeFocus
+  /**
+   * Abrir TV ao vivo, Filmes ou Séries — por ação do hero de boas-vindas ou
+   * pela topbar (FR-008/FR-016). `from` é o foco de origem, para o RETURN
+   * devolvê-lo ao mesmo lugar.
+   */
+  onNavigate: (destination: TopDestination, from: HomeFocus) => void
+  /** Indicador da lista ativa na topbar (FR-017). */
+  onOpenProfiles: (from: HomeFocus) => void
+  /** "Mais informações" do hero, ou card de filme/série de uma rail (FR-007/FR-012). */
+  onOpenItem: (item: CatalogItemOut, from: HomeFocus) => void
+  /** Card de "Canais favoritos" — TV ao vivo em ★ Favoritos com o canal tocando (FR-013). */
+  onOpenChannel: (channel: CatalogItemOut, from: HomeFocus) => void
+  /** "Ver todos (N)"/"Filmes (N)"/"Séries (N)" — o destino em ★ Favoritos (FR-014). */
+  onOpenFavorites: (destination: TopDestination, from: HomeFocus) => void
+  /** Ícone TMDB do dock (feature 032, FR-016) — Configurações › Integrações & BYOK. */
+  onOpenIntegrations?: (from: HomeFocus) => void
+  /** Lupa da topbar (FR-035). */
+  onOpenSearch: (from: HomeFocus) => void
+  /** Engrenagem da topbar (FR-021). */
+  onOpenSettings: (from: HomeFocus) => void
 }
 
-/** Ressincronizar, Editar, Excluir — a linha de ações de um card de fonte. */
-const ACTION_COUNT = 3
+const HINTS: HintItem[] = [
+  { keyLabel: 'OK', action: 'Selecionar' },
+  { keyLabel: 'RETURN', action: 'Sair' },
+]
 
-function formatStatus(source: SourceOut): string {
-  if (source.connection_state === 'error') return 'Erro na última sincronização'
-  if (source.connection_state === 'never_synced' || !source.last_successful_sync_at) {
-    return 'Nunca sincronizada'
-  }
-  return `Sincronizada em ${new Date(source.last_successful_sync_at).toLocaleString('pt-BR')}`
+interface PlayingState {
+  itemId: string
+  title: string
+  startAtMs: number | undefined
 }
 
+/**
+ * Início (feature 026, US1 — substitui o conteúdo provisório de
+ * `ListHomeScreen` pela Home definitiva, `logic/foco-home.md`/`logic/
+ * hero-home.md`). Raiz `.screen.home-screen`: `AppShell` e `PlayerLayer`
+ * como filhos diretos (D-008) — a regra de plano de hardware
+ * (`:root.video-plane-visible .screen > *:not(.player-overlay)`) esconde a
+ * moldura sem desmontar `HomeContent`, que é o que permite voltar exatamente
+ * ao hero (mesmo estado de foco) sem reler as rails.
+ *
+ * Dois escopos de teclado (feature 023, `logic/foco-shell.md`): `content` e
+ * `topbar`, mais o estado `playing` (feature 026, D-004) — os dois primeiros
+ * ficam inativos enquanto o player está aberto.
+ */
 export function HomeScreen({
-  onAddSource,
-  onOpenSource,
-  onEditSource,
-  onResyncStarted,
-  onSourceCreated,
-}: HomeScreenProps) {
-  const { data, isLoading, isError } = useSources()
-  const deleteSource = useDeleteSource()
-  const resyncSource = useResyncSource()
-  const { toastMessage, showToast } = useToast()
-  const [showExitConfirm, setShowExitConfirm] = useState(false)
+  source,
+  initialFocus,
+  onNavigate,
+  onOpenProfiles,
+  onOpenItem,
+  onOpenChannel,
+  onOpenFavorites,
+  onOpenIntegrations,
+  onOpenSearch,
+  onOpenSettings,
+}: HomeScreenProps): ReactNode {
+  const queryClient = useQueryClient()
+  const [zone, setZone] = useState<'topbar' | 'content'>(initialFocus?.zone === 'topbar' ? 'topbar' : 'content')
+  const [topbarItem, setTopbarItem] = useState<TopbarItem>(
+    initialFocus?.zone === 'topbar' ? initialFocus.item : 'home',
+  )
+  const [showExit, setShowExit] = useState(false)
+  const [playing, setPlaying] = useState<PlayingState | null>(null)
 
-  const sources = data?.sources ?? []
-  const hasSources = !isLoading && !isError && sources.length > 0
-  const isEmpty = !isLoading && !isError && sources.length === 0
-  // + card "Adicionar lista".
-  const total = sources.length + 1
-  const addCardIdx = sources.length
+  const contentFocus: HomeContentFocus | undefined =
+    initialFocus && initialFocus.zone !== 'topbar' ? initialFocus : undefined
 
-  const [focusRow, setFocusRow] = useState<0 | 1>(0)
-  const [focusCol, setFocusCol] = useState(0)
-  const [activeCardIdx, setActiveCardIdx] = useState(0)
+  // Com o player ou o modal de saída abertos, nenhum dos dois escopos reage
+  // ao teclado nem desenha foco — mesmo padrão de `logic/foco-shell.md`.
+  const topbarActive = zone === 'topbar' && !showExit && !playing
+  const contentActive = zone === 'content' && !showExit && !playing
 
-  useRemoteNav({
-    onDirection: (dir) => {
-      if (!hasSources) return
-      if (focusRow === 0) {
-        if (dir === 'left') setFocusCol((c) => clamp(c - 1, 0, total - 1))
-        if (dir === 'right') setFocusCol((c) => clamp(c + 1, 0, total - 1))
-        if (dir === 'down' && focusCol < sources.length) {
-          setFocusRow(1)
-          setActiveCardIdx(focusCol)
-          // A coluna volta para a primeira ação. Sem isto ela herdava o
-          // índice do card: descer no terceiro card já chegava com Excluir
-          // em foco, e um OK seguido apagaria a lista sem o usuário ter
-          // navegado até lá.
-          setFocusCol(0)
-        }
-      } else {
-        // Três ações nesta linha: Ressincronizar (0), Editar (1), Excluir
-        // (2). O limite tem que alcançar a última, ou ela fica renderizada e
-        // inalcançável pelo controle.
-        if (dir === 'up') {
-          setFocusRow(0)
-          // Voltar restaura o card de onde se desceu. Sem isto o índice da
-          // ação virava índice de card e o foco saltava para outra lista —
-          // a constitution exige que voltar restaure a posição, não adivinhe.
-          setFocusCol(activeCardIdx)
-        }
-        if (dir === 'left') setFocusCol((c) => clamp(c - 1, 0, ACTION_COUNT - 1))
-        if (dir === 'right') setFocusCol((c) => clamp(c + 1, 0, ACTION_COUNT - 1))
-      }
-    },
-    onSelect: () => {
-      if (!hasSources) return
-      if (focusRow === 0) {
-        if (focusCol === addCardIdx) {
-          onAddSource()
-          return
-        }
-        const source = sources[focusCol]
-        if (source) onOpenSource(source)
-        return
-      }
-
-      const source = sources[activeCardIdx]
-      if (!source) return
-      if (focusCol === 0) {
-        showToast('Ressincronizando lista...')
-        resyncSource.mutate(source.id, {
-          onSuccess: (result) => onResyncStarted(result.import_job_id),
-        })
-      } else if (focusCol === 1) {
-        onEditSource(source)
-      } else {
-        deleteSource.mutate(source.id)
-        setFocusRow(0)
-        setFocusCol(0)
-      }
-    },
-  })
-
-  if (isLoading) {
-    return (
-      <div className="screen">
-        <p className="screen-subtitle">Carregando suas listas…</p>
-      </div>
-    )
+  function startPlaying(params: PlayingState) {
+    // Guarda de sessão única (mesmo padrão de `MovieDetailScreen`/
+    // `LiveScreen`) — na prática já coberta por `contentActive` desligar o
+    // escopo assim que `playing` deixa de ser `null`.
+    if (playing) return
+    setPlaying(params)
   }
 
-  if (isError) {
-    return (
-      <div className="screen">
-        <p className="form-error">
-          Não foi possível carregar suas listas. Verifique a conexão com o backend e tente
-          novamente.
-        </p>
-      </div>
-    )
-  }
-
-  if (isEmpty) {
-    return (
-      <>
-        <AddSourceScreen
-          onSourceCreated={onSourceCreated}
-          onBack={() => setShowExitConfirm(true)}
-        />
-        {showExitConfirm && (
-          <ConfirmDialog
-            message="Sair do CCPlayTv?"
-            confirmLabel="Sair"
-            cancelLabel="Cancelar"
-            onConfirm={exitApp}
-            onCancel={() => setShowExitConfirm(false)}
-          />
-        )}
-      </>
-    )
+  function closePlayer() {
+    setPlaying(null)
+    // Sem isto, o hero continuaria com a leitura de quando montou — um
+    // filme assistido por alguns minutos voltaria mostrando "Assistir" em
+    // vez de "Continuar" (`logic/hero-home.md` §5). `invalidateUserStates`
+    // cobre o prefixo `user-states` (plural, usado em lote) e
+    // `history-content`; o estado do PRÓPRIO hero (favorito, via
+    // `useUserState`) usa a chave singular `user-state`, invalidada à parte.
+    void invalidateUserStates(queryClient)
+    void queryClient.invalidateQueries({ queryKey: ['user-state'] })
+    void queryClient.invalidateQueries({ queryKey: ['home-hero', source.id] })
+    void queryClient.invalidateQueries({ queryKey: ['continue-watching', source.id] })
   }
 
   return (
-    <div className="screen">
-      <h1 className="screen-title">Minhas Listas</h1>
-      <p className="screen-subtitle">Selecione uma lista para navegar, ou adicione uma nova</p>
-
-      <div className="source-row">
-        {sources.map((source, i) => {
-          const focused = focusRow === 0 && focusCol === i
-          const actionsVisible = focusRow === 1 && activeCardIdx === i
-          return (
-            <div className="source-card-wrap" key={source.id}>
-              <div className={`source-card${focused ? ' tv-focus' : ''}`}>
-                <div className="source-card-icon" />
-                <div className="source-card-name">{source.display_name}</div>
-                <div className="source-card-status">{formatStatus(source)}</div>
-                {source.provider_import_mode === 'legacy_m3u' && (
-                  <div className="source-card-badge">Modo limitado</div>
-                )}
-                {source.last_truncated_by_storage && (
-                  <div className="source-card-badge" style={{ marginTop: 4 }}>A lista não coube inteira</div>
-                )}
-                {source.last_discarded_by_type > 0 && (
-                  <div className="source-card-badge" style={{ marginTop: 4 }}>
-                    Entradas não reconhecidas ficaram de fora
-                  </div>
-                )}
-              </div>
-              {actionsVisible && (
-                <div className="source-actions">
-                  <div className={`source-action${focusCol === 0 ? ' tv-focus' : ''}`}>
-                    ↻ Ressincronizar
-                  </div>
-                  <div className={`source-action${focusCol === 1 ? ' tv-focus' : ''}`}>✎ Editar</div>
-                  <div className={`source-action${focusCol === 2 ? ' tv-focus' : ''}`}>🗑 Excluir</div>
-                </div>
-              )}
-            </div>
-          )
-        })}
-        <div className="source-card-wrap">
-          <div
-            className={`add-card${focusRow === 0 && focusCol === addCardIdx ? ' tv-focus' : ''}`}
-          >
-            <div className="add-card-plus">+</div>
-            <div className="add-card-label">Adicionar lista</div>
-          </div>
-        </div>
-      </div>
-
-      <Toast message={toastMessage} />
+    <div className="screen home-screen">
+      <AppShell
+        hints={HINTS}
+        topBar={
+          <TopBar
+            sourceName={source.display_name}
+            active={topbarActive}
+            focusedItem={topbarItem}
+            onFocusItem={setTopbarItem}
+            onExitDown={() => setZone('content')}
+            onNavigate={(destination) => onNavigate(destination, { zone: 'topbar', item: destination })}
+            onOpenProfiles={() => onOpenProfiles({ zone: 'topbar', item: 'profile' })}
+            onOpenSearch={() => onOpenSearch({ zone: 'topbar', item: 'search' })}
+            onOpenSettings={() => onOpenSettings({ zone: 'topbar', item: 'settings' })}
+            onBack={() => setShowExit(true)}
+          />
+        }
+      >
+        <HomeContent
+          sourceId={source.id}
+          active={contentActive}
+          initialFocus={contentFocus}
+          // Entrar na topbar sempre em "Início" — o destino atual (FR-015).
+          onExitUp={() => {
+            setTopbarItem('home')
+            setZone('topbar')
+          }}
+          onBack={() => setShowExit(true)}
+          onNavigate={onNavigate}
+          onOpenItem={onOpenItem}
+          onOpenChannel={onOpenChannel}
+          onOpenFavorites={onOpenFavorites}
+          onOpenIntegrations={onOpenIntegrations}
+          onPlay={startPlaying}
+        />
+      </AppShell>
+      {playing && (
+        <PlayerLayer
+          itemId={playing.itemId}
+          title={playing.title}
+          startAtMs={playing.startAtMs}
+          identity={{ title: playing.title }}
+          onClose={closePlayer}
+        />
+      )}
+      {showExit && <ExitModal onCancel={() => setShowExit(false)} />}
     </div>
   )
 }

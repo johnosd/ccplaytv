@@ -7,7 +7,7 @@
 **Status**: Implementada
 
 **Input**: "gostaria de ajustar o icone inicial do app conforme no arquivo
-docs\design\CCPlayTv Prototype - Standalone.html esse icone deve aparecer
+docs\design\old\CCPlayTv Prototype - Standalone.html esse icone deve aparecer
 quando o usuario ver o app na tv. quero que crie uma tela splash conforme
 aba '1 splash' essa tela deve aparecer quando o usuario abre o app. quero
 que remodere a tela inicial que contem os perfis (listas que o usuario

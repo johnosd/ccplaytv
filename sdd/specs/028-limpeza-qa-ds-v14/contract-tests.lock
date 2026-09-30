@@ -1,0 +1,17 @@
+{
+    "feature":  "028-limpeza-qa-ds-v14",
+    "lockedAt":  "2026-09-28 11:44",
+    "total":  3,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/testing/accessibleNames.limpeza-qa-ds-v14.contract.test.tsx",
+                      "sha256":  "38e009d0611ded8055a4a461a39e11a8888f26c95862cbf8896baf4600d4b9fd",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/components/Icon.limpeza-qa-ds-v14.contract.test.tsx",
+                      "sha256":  "cedd426d7a3b7c7d731eb626f1e9b588a20a09ab0ccb83c066aa5e7c1292e0ce",
+                      "tests":  1
+                  }
+              ]
+}

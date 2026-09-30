@@ -1,58 +1,73 @@
 ---
 name: tizen-tv
-description: Instala ou atualiza o app direto na TV Samsung física pela rede (sdb), do build ao app rodando na tela — descobre o IP atual da TV, confere Developer Mode e certificado, gera o build com `npm run build:tizen` (client-first, ADR-008 — o backend não é pré-requisito), empacota e assina o `.wgt` com o perfil Samsung que cobre o DUID do aparelho, instala, lança e coleta a evidência que existe (`applist`, observação visual), sem prometer a que não existe (a TV não expõe console). Use quando o usuário pedir para instalar, atualizar, reinstalar, publicar ou rodar o app na TV, testar na TV física, "manda pra TV", ou validar uma correção no aparelho de verdade. Também cobre os becos conhecidos: IP trocado pelo DHCP, `failed to connect` com a porta 26101 aberta, `Author certificate not match`, e o certificado Samsung que precisa de author próprio. NÃO use para o emulador (use `tizen-emulator`, que tem seu próprio beco documentado), para corrigir bugs encontrados no aparelho (use `sdd-bugfix`), nem para implementar feature (use `sdd-execute`).
+description: Instala ou atualiza o app direto na TV Samsung física pela rede (sdb), do build ao app rodando — um comando (`deploy-tv.ps1`) que acha o IP atual da TV, confere a conexão ANTES de gastar build, empacota/assina com o perfil Samsung, instala, lança e confirma no `applist`. Diz a causa e o que fazer quando para (Host PC IP errado, `failed to connect` com a porta 26101 aberta, `Author certificate not match`, perfil de assinatura errado). Use quando o usuário pedir para instalar, atualizar, reinstalar, publicar ou rodar o app na TV, "manda pra TV", testar na TV física ou validar uma correção no aparelho de verdade. Client-first (ADR-008): o backend não é pré-requisito. NÃO use para o emulador (`tizen-emulator`), para corrigir bugs achados no aparelho (`sdd-bugfix`) nem para implementar feature (`sdd-execute`).
 ---
 
 # tizen-tv
 
-Skill operacional, fora da pipeline SDD. Instala o app na TV de referência
-(**Samsung QN50Q60DAGXZD**, Tizen 8.0 / Chromium 108) pela rede, sem
-Apps2Samsung e sem pendrive. Procedimento verificado ponta a ponta em
-17/09/2026 — foi por aqui que a porta V1 da ADR-006 (reprodução por
-`webapis.avplay` com fonte IPTV real) saiu de "não executada".
+Instala o app na TV de referência (**Samsung QN50Q60DAGXZD**, Tizen 8.0 /
+Chromium 108) pela rede, sem Apps2Samsung nem pendrive. **A TV é o único
+veredito** para reprodução, codec, DRM, desempenho e teclas; o navegador não
+tem `webapis` e o emulador não instala este app.
 
-**A TV é o único veredito que vale** para reprodução, codec, DRM, desempenho
-e teclas do controle. O emulador não instala este app (ver `tizen-emulator`)
-e o navegador não tem `webapis`. O que esta skill entrega é o ciclo curto:
-do código à tela em cerca de um minuto, quando os pré-requisitos estão de pé.
+Shell: **Windows PowerShell 5.1** (sem `&&`, sem `??`; encadeie com `;`).
+Arquivo `.ps1` com acento/travessão precisa de **UTF-8 com BOM**, senão o 5.1
+quebra as strings — e `package.json`/JSON **nunca** com BOM.
 
-## Pré-requisitos (gate — falhou, pare e peça ao usuário)
+## Uso (o caminho normal — um comando)
 
-| Item | Como conferir | Se faltar |
-|---|---|---|
-| TV na mesma LAN, ligada | `Test-NetConnection <ip-tv> -Port 8001` | TV em standby profundo cai da rede; peça para ligar |
-| Developer Mode ligado | `Test-NetConnection <ip-tv> -Port 26101` → `True` | Na TV: **Apps** → digitar **12345** → Developer mode **On** |
-| Host PC IP correto na TV | campo da mesma tela de Developer Mode | Tem que ser o IP **atual** do PC; depois de salvar, **reiniciar a TV** (o daemon só relê no boot) |
-| Certificado Samsung com author próprio | `Get-ChildItem $env:USERPROFILE\SamsungCertificate\<perfil>` deve ter **`author.p12` e `distributor.p12`** | Ver "O certificado" abaixo |
-| DUID da TV no certificado | `device-profile.xml` → `<TestDevice>` | Idem |
-| CLI apontando para o perfil certo | `tizen.bat security-profiles list` deve listar o perfil e marcá-lo ativo | Ver "O certificado" abaixo |
-
-Shell é **Windows PowerShell 5.1** (`pwsh` não instalado): sem `&&`, sem
-`??`. Encadeie com `;`.
-
-**O backend (`api/`) NÃO é pré-requisito** (ADR-008, client-first,
-confirmado 25/09/2026): import de fonte, catálogo e reprodução rodam
-inteiramente no navegador da TV, com IndexedDB via Dexie como fonte de
-verdade — não há chamada ao backend no caminho normal de abrir a Home,
-navegar o catálogo ou reproduzir. Nunca pare o deploy por ele estar fora
-do ar. Ele só entra em jogo como contorno opcional para um provedor Xtream
-específico que bloqueia CORS direto do navegador (ADR-006 E4) — se uma
-fonte desse tipo precisar ser adicionada/ressincronizada durante a sessão
-de teste e isso falhar, aí sim vale subir o backend (`docker compose up -d
-postgres` + `uv run python main.py` em `api/`, com `HOST=0.0.0.0`) como
-diagnóstico pontual, não como passo padrão do fluxo de deploy.
-
-## O certificado (a parte que mais custa quando falta)
-
-A TV exige a cadeia Samsung nos **dois** lados da assinatura. Confira o que
-está dentro do `.wgt` antes de culpar a rede ou o aparelho:
+Da raiz do repositório:
 
 ```powershell
-# Extrai e lê os emissores das duas assinaturas do pacote
+.\.planning\scripts\powershell\deploy-tv.ps1              # build + instala
+.\.planning\scripts\powershell\deploy-tv.ps1 -SkipBuild   # o build:tizen já está atual
+.\.planning\scripts\powershell\deploy-tv.ps1 -TvIp 192.168.0.2   # pula a varredura da LAN
+```
+
+O script, nesta ordem: acha a TV (porta 26101 aberta) → **preflight do sdb,
+que para aqui se a TV recusa** (antes de build e assinatura) → build →
+empacota/assina → instala (connect encadeado) → lança → confirma no
+`applist`. Sai com código ≠ 0 e a causa provável quando falha; só imprime
+"Pronto" depois de confirmar. Não desinstala nada: reinstalar com o mesmo
+certificado **preserva** o IndexedDB (fontes, favoritos, retomada, chave TMDB).
+
+Antes de rodar, se o código mudou, confira que o `build:tizen` está atual (ou
+não use `-SkipBuild`). Depois de instalar, o veredito é **visual**: pergunte
+o específico ("a splash apareceu?", "o foco está visível nesta tela?"), nunca
+"funcionou?".
+
+## Quando o script para
+
+| Saída (exit) | Causa | Quem resolve |
+|---|---|---|
+| `TV não encontrada` (2) | TV desligada/standby profundo, ou Developer Mode off | Usuário: ligar a TV; **Apps → 12345 → Developer mode On** |
+| `porta 26101 aberta mas recusa o sdb` (3) | **Host PC IP** salvo na TV ≠ IP atual do PC, ou TV não reiniciada depois de salvar | Usuário: na TV, Host PC IP = o IP que o script imprime (o da MESMA sub-rede da TV, não o do Hyper-V/WSL) e **reiniciar a TV** (o daemon só relê no boot) |
+| `Author certificate not match` / `-11` (4) | App já instalado, assinado com outro author | **Avisar e pedir confirmação** (apaga o IndexedDB), depois `tizen uninstall -p 8tZqMtwANL.CCPlayTv -t QN50Q60DAGXZD` — precisa do id **completo** |
+| `Check certificate error` / `-12` (4), ou `.wgt` sem assinatura | Perfil errado, ou cadeia/DUID inválidos | Ver "O certificado"; perfil sem a letra `O` da coluna `[Active]` |
+| `build:tizen falhou` | Erro de build (ex.: arquivo emitido fora do `tizen_web_project.yaml` — o guard lista qual) | Corrigir; não mexer em `config.xml`/yaml/build só para passar |
+| `There is no connected target` solto | O daemon do sdb caiu no Windows | Já mitigado (connect encadeado); rode de novo |
+| IP da TV mudou | DHCP | O script varre sozinho; ideal: IP fixo para a TV no roteador |
+
+Cada linha "usuário" é ação **na TV** — não há como fazer daqui. Diga exatamente
+o passo, o IP certo, e espere o retorno antes de tentar de novo.
+
+## Pré-requisitos (uma vez; o script cobre o que dá para checar)
+
+- TV na mesma LAN, ligada; Developer Mode On; Host PC IP atual + TV reiniciada.
+- Certificado Samsung **com author próprio** e DUID da TV: o `.wgt` precisa de
+  `author-signature.xml` → `CN=Samsung VD Author CA` **e** `signature1.xml` →
+  `CN=VD DEVELOPER Public CA Class`. Author `CN=Tizen Developers CA` instala em
+  emulador genérico, **não na TV**.
+- CLI apontando para o perfil certo: `tizen.bat security-profiles list`.
+
+## O certificado (só quando o script acusa assinatura)
+
+Conferir o que está dentro do pacote:
+
+```powershell
 $tmp = "$env:TEMP\wgtcheck"; Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory $tmp | Out-Null
-Copy-Item ".\CCPlayTv\.buildResult\CCPlayTv.wgt" "$tmp\p.zip"
-Expand-Archive "$tmp\p.zip" -DestinationPath "$tmp\x" -Force
+Copy-Item ".\CCPlayTv\.buildResult\CCPlayTv.wgt" "$tmp\p.zip"; Expand-Archive "$tmp\p.zip" -DestinationPath "$tmp\x" -Force
 foreach ($f in @("author-signature.xml","signature1.xml")) {
   $b64 = ([xml](Get-Content "$tmp\x\$f")).Signature.KeyInfo.X509Data.X509Certificate | Select-Object -First 1
   $c = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(,[Convert]::FromBase64String(($b64 -replace '\s','')))
@@ -60,200 +75,66 @@ foreach ($f in @("author-signature.xml","signature1.xml")) {
 }
 ```
 
-O que a TV aceita (verificado):
-
-```
-author-signature.xml -> CN=Samsung VD Author CA, ...
-signature1.xml       -> CN=VD DEVELOPER Public CA Class, ...
-```
-
-Se o author sair como `CN=Tizen Developers CA`, o pacote instala em emulador
-Tizen genérico e **não** na TV. Foi o caso até 17/09/2026: três perfis
-Samsung existiam, todos só com distribuidor, reaproveitando o author Tizen.
-
-**Criar o certificado completo**: pela **extensão Tizen do VS Code** — o
-Certificate Manager do Tizen Studio não concluiu nesta máquina. No fluxo,
-escolha **criar um author novo** (não reutilizar o existente) e inclua os
-DUIDs de todos os aparelhos que vão receber o app:
-
-```powershell
-& "C:\tizen-studio\tools\sdb.exe" -s <serial> shell 0 getduid     # DUID de um alvo conectado
-```
-
-A extensão registra o perfil no SDK **dela**, não no do Tizen Studio. Aponte
-o CLI clássico para lá — e note que o `.bat` engole o `=`, então passe pelo
-`cmd`:
+**Criar** o certificado: pela **extensão Tizen do VS Code** (o Certificate
+Manager do Tizen Studio não concluiu nesta máquina). Escolha **author novo**
+e inclua o DUID de cada aparelho (`sdb -s <serial> shell 0 getduid`). A
+extensão grava o perfil no SDK **dela**; aponte o CLI para lá (o `.bat`
+engole o `=`, passe pelo `cmd`) e confira o slot: o distribuidor **Samsung**
+tem de ser o **1º**.
 
 ```powershell
 cmd /c 'C:\tizen-studio\tools\ide\bin\tizen.bat cli-config "default.profiles.path=C:/Users/<user>/.tizen-extension-platform/server/sdktools/sdk-data/profile/profiles.xml"'
 & "C:\tizen-studio\tools\ide\bin\tizen.bat" security-profiles list
 ```
 
-Diferença que importa: a extensão põe o distribuidor Samsung no **slot 1**.
-Perfil com distribuidor Tizen no slot 1 e Samsung no slot 2 é recusado.
+Trocar o perfil ativo ou o `cli-config` muda a máquina do usuário: comunique e
+diga como reverter. Relógio do aparelho atrás do `NotBefore` do certificado
+(`not valid yet`) → reiniciar o aparelho, não reempacotar.
 
-## Script de Deploy Automático (Recomendado)
-
-O fluxo manual descrito nas fases abaixo foi inteiramente automatizado no script `.planning\scripts\powershell\deploy-tv.ps1`. 
-Ele cuida da descoberta do IP da TV, build do frontend, empacotamento (evitando a armadilha do nome do certificado) e instalação encadeada (para evitar quedas do daemon `sdb`).
-
-A partir da raiz do projeto, rode:
-```powershell
-.\.planning\scripts\powershell\deploy-tv.ps1
-```
-*(Adicione a flag `-SkipBuild` se quiser apenas instalar alterações que não precisem de recompilação do frontend).*
-
-## Fase 1 — Achar a TV
-
-O DHCP troca o IP da TV entre sessões (aconteceu duas vezes num dia). Não
-confie no IP da última vez:
+## Manual (só se o script não servir)
 
 ```powershell
-$sdb = "C:\tizen-studio\tools\sdb.exe"
-& $sdb connect <ip-conhecido>:26101
-```
-
-Se falhar, varra a rede pela porta da API da TV (8001) e depois pela do sdb:
-
-```powershell
-$hosts = (arp -a | Select-String "192\.168\.0\." | ForEach-Object { ($_.ToString().Trim() -split "\s+")[0] }) |
-  Where-Object { $_ -match "^\d+\.\d+\.\d+\.\d+$" } | Sort-Object -Unique
-foreach ($h in $hosts) {
-  if (Test-NetConnection -ComputerName $h -Port 26101 -InformationLevel Quiet -WarningAction SilentlyContinue) { "sdb aberto em: $h" }
-}
-```
-
-`& $sdb devices` deve mostrar o modelo como nome do alvo, ex.:
-
-```
-192.168.0.4:26101   device    QN50Q60DAGXZD
-```
-
-Esse nome (`QN50Q60DAGXZD`) é o que vai em `-t` nos comandos seguintes.
-
-## Fase 2 — Build
-
-```powershell
-Push-Location .\tv-web
-npm run build:tizen
-Pop-Location
-```
-
-`VITE_API_URL` **não precisa mais ser setada** (client-first, ADR-008) — a
-Home lê o catálogo do IndexedDB local, sem chamada ao backend no caminho
-normal. Se, durante a sessão de teste, for preciso adicionar/ressincronizar
-uma fonte Xtream que bloqueia CORS direto do navegador (o único caso onde o
-backend entra), aí sim sete a env var antes do build, apontando para o IP
-do PC na LAN (dentro da TV, `127.0.0.1` é a própria TV):
-
-```powershell
-(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -eq 'Dhcp' }).IPAddress
-$env:VITE_API_URL = "http://<ip-do-pc>:3000"
-```
-
-O CORS da API já aceita `Origin: null`, que é o que o app empacotado envia.
-
-## Fase 3 — Empacotar e assinar
-
-```powershell
-$tizen = "C:\tizen-studio\tools\ide\bin\tizen.bat"
+$sdb = "C:\tizen-studio\tools\sdb.exe"; $tizen = "C:\tizen-studio\tools\ide\bin\tizen.bat"
+Push-Location .\tv-web; npm run build:tizen; Pop-Location
 Remove-Item ".\CCPlayTv\.buildResult" -Recurse -Force -ErrorAction SilentlyContinue
-& $tizen build-web -e "Debug/*" -- "$PWD\CCPlayTv"
-& $tizen package -t wgt -s <perfil-samsung> -- "$PWD\CCPlayTv\.buildResult"
+& $tizen build-web -e "Debug/*" -- "$PWD\CCPlayTv"       # -e evita empacotar o build anterior dentro do novo
+& $tizen package -t wgt -s <perfil> -- "$PWD\CCPlayTv\.buildResult"
+& $sdb connect <ip>:26101; & $tizen install -n CCPlayTv.wgt -t QN50Q60DAGXZD -- "$PWD\CCPlayTv\.buildResult"
+& $sdb connect <ip>:26101; & $tizen run -p 8tZqMtwANL.CCPlayTv -t QN50Q60DAGXZD
+& $sdb -s <ip>:26101 shell 0 applist | Select-String "CCPlay"    # confirma a instalação
 ```
 
-O `-e "Debug/*"` evita empacotar o build anterior dentro do novo (sem ele o
-`.wgt` dobra de tamanho). Saída: `CCPlayTv\.buildResult\CCPlayTv.wgt`.
+`.buildResult/` e `.tizen-rds/` são artefatos: fora do commit. `tz install`/`tz run`
+não funcionam aqui — use `tizen.bat` com `-t <nome do alvo>`.
 
-`.buildResult/` e `.tizen-rds/` são artefatos — mantenha fora do commit.
+## O que dá para provar
 
-## Fase 4 — Instalar e lançar
-
-Para evitar o erro `There is no connected target` (causado pelo daemon do `sdb` no Windows caindo ou derrubando a sessão muito rápido), **encadeie a reconexão e a instalação na mesma linha de comando**:
-
-```powershell
-& "C:\tizen-studio\tools\sdb.exe" connect <ip-da-tv>:26101; $tizen = "C:\tizen-studio\tools\ide\bin\tizen.bat"; & $tizen install -n CCPlayTv.wgt -t QN50Q60DAGXZD -- "$PWD\CCPlayTv\.buildResult"
-& "C:\tizen-studio\tools\sdb.exe" connect <ip-da-tv>:26101; & $tizen run -p 8tZqMtwANL.CCPlayTv -t QN50Q60DAGXZD
-```
-
-Se aparecer **`install failed[118, -11], reason: Author certificate not
-match`**: já existe o app instalado, assinado com outro author. Desinstale
-pelo **id completo** e repita:
-
-```powershell
-& $tizen uninstall -p 8tZqMtwANL.CCPlayTv -t QN50Q60DAGXZD
-```
-
-Avise o usuário antes: isso apaga o IndexedDB local do app na TV — fontes,
-catálogo e estado de usuário (favoritos, retomada). Nada disso vem de um
-backend (client-first); a fonte só volta se for readicionada/
-ressincronizada a partir da URL/credencial original.
-
-Atualizações seguintes, com o mesmo certificado, dispensam o uninstall: o
-install sobrescreve em ~6 segundos.
-
-## Fase 5 — Evidência do que dá para provar
-
-A TV **não** entrega console: `sdb root on` → `Permission denied`, `dlog`
-volta vazio, e a porta 7011 do Web Inspector fica fechada. O que sobra:
-
-```powershell
-& $sdb -s <ip>:26101 shell 0 applist | Select-String "CCPlay"   # confirma instalação
-```
-
-Isso confirma que o pacote está instalado — não que abriu nem que o
-catálogo carregou. Como o caminho normal é client-first (sem chamada ao
-backend), não há mais uma linha de log de rede para provar que os dados
-apareceram: o veredito é visual, o usuário olhando a tela (splash, Home com
-a fonte já sincronizada, categoria abrindo). Só quando o cenário de teste
-envolve de propósito uma fonte que passa pelo backend (contorno de CORS,
-ver "Fase 2") é que `Get-Content "$env:TEMP\ccplay-api.log" -Tail 15`
-mostrando uma linha como `INFO: 192.168.0.4:51798 - "GET /..." 200 OK`, com
-o IP **da TV**, vale como prova objetiva adicional desse caminho
-específico.
-
-Por isso **as perguntas ao usuário precisam ser específicas** — "a splash
-apareceu?", "o foco está visível neste estado?", "mover o foco disparou
-requisição?" — e não "funcionou?".
+A TV **não** entrega console (`sdb root on` → `Permission denied`, `dlog` vazio,
+porta 7011 fechada). `applist` prova que **está instalado**, não que abriu nem
+que o catálogo carregou.
 
 ## Regras invioláveis
 
-1. Nunca declare reprodução, codec, DRM ou desempenho a partir de "o app
-   abriu". Só do que foi visto na tela, e diga quem viu.
-2. Nenhuma URL de stream, host de provedor ou credencial em relatório, log
-   colado ou commit. O `.wgt`, o dlog e a aba de rede carregam isso.
-3. Não altere `config.xml`, `tizen_web_project.yaml` ou configuração de
-   build para fazer um passo passar — diagnostique e proponha.
-4. Desinstalar da TV apaga dado do usuário: avise antes, sempre.
-5. Trocar o perfil de assinatura ativo ou o `cli-config` muda a máquina
-   dele — comunique a mudança e como reverter.
-6. Cenário não observado é "não executado", nunca "aprovado".
+1. Nunca declare reprodução, codec, DRM ou desempenho a partir de "o app abriu";
+   só do que foi visto na tela, dizendo **quem** viu. Cenário não observado é
+   "não executado", nunca "aprovado".
+2. Nenhuma URL de stream, host de provedor, credencial ou chave (TMDB/OpenAI) em
+   relatório, log colado ou commit. O `.wgt`, o dlog e a aba de rede carregam isso.
+3. Não altere `config.xml`, `tizen_web_project.yaml` ou a configuração de build
+   para fazer um passo passar — diagnostique e proponha.
+4. Desinstalar apaga dado do usuário (IndexedDB inteiro): avise antes, sempre.
+5. Reinstalar **preserva** IndexedDB/localStorage. Para testar primeira execução
+   (splash sem cache), desinstale — avisando.
 
-## Armadilhas conhecidas (todas verificadas em 17/09/2026)
+## Armadilhas que já custaram tempo
 
-- **`sdb connect` falha com a porta 26101 aberta** → o Host PC IP na TV não é
-  o IP atual do PC, ou a TV não foi reiniciada depois de salvar. A conexão
-  TCP abre e o daemon derruba o handshake.
-- **IP da TV muda sozinho** (DHCP). Fixe um IP para ela no roteador, ou
-  repita a varredura da Fase 1 a cada sessão.
-- **A armadilha da letra `O` no Certificado**: O comando `tizen.bat security-profiles list` formata a coluna `[Active]` com a letra `O`. Se o nome do perfil for longo, o `O` gruda no nome (ex: `meu_certificadoO`). **Não inclua o `O` no nome** ao usar `-s <perfil>`. Se o nome estiver errado, o `tizen package` esconde o erro emitindo apenas `Warning: Not found tizen signature file`, gerando um `.wgt` não assinado. A instalação na TV então falha com `install failed[118, -12], reason: Check certificate error`.
-- **Erro `There is no connected target` ao instalar**: O daemon do `sdb.exe` pode morrer ou derrubar a sessão quase que imediatamente após conectar no Windows. **Solução**: sempre rode o `sdb connect` na **mesma linha** (separado por `;`) do `tizen install` ou `tizen run`, como mostrado na Fase 4.
-- **`tizen uninstall -p 8tZqMtwANL`** responde `The package is not exist`
-  mesmo com o app instalado — nesta TV o uninstall quer o **app id completo**
-  (`8tZqMtwANL.CCPlayTv`). O `applist` mostra os dois valores.
-- **`tz install` / `tz run` não funcionam** neste ambiente (rejeitam o serial,
-  confundem-se com dois alvos, e chamam `sdb ... | grep`, que não existe no
-  Windows). Use `tizen.bat` com `-t <nome do alvo>`. `tz pack` funciona, mas
-  usa o `profiles.xml` do Tizen Studio, não o da extensão.
-- **Certificado recém-criado, erro `Certificate in signature is not valid
-  yet`** → relógio do aparelho atrás do `NotBefore` do certificado. Reinicie
-  o aparelho em vez de reempacotar.
-- **A TV emite RETURN como `keyCode` 10009**, não `Backspace`/`Escape`; e o
-  AVPlay pinta num plano de hardware **atrás** da camada web, então fundo
-  opaco dá áudio sem imagem. Os dois já estão corrigidos no código
-  (`sdd/bugs/tecla-voltar-return-nao-funciona-na`,
-  `sdd/bugs/live-tv-toca-audio-sem-imagem`) — mas se algum comportamento
-  parecido aparecer numa tela nova, é a mesma família de causa.
-- **Reinstalar preserva IndexedDB/localStorage.** Para testar primeira
-  execução (splash sem cache, caminho offline-first da ADR-002), desinstale
-  antes — avisando o usuário.
+- **A letra `O`**: `security-profiles list` cola o `O` da coluna `[Active]` no nome
+  do perfil (`meu_certificadoO`). Não inclua o `O` em `-s`; com o nome errado o
+  `tizen package` só avisa `Not found tizen signature file` e gera `.wgt` sem
+  assinatura (a TV então dá `-12`). O script já detecta isso.
+- **PC com vários adaptadores** (Hyper-V/WSL/VirtualBox): o "IP do PC" que importa
+  é o da sub-rede da TV. Pegar o primeiro IP da máquina dá um endereço virtual.
+- **RETURN da TV** é `keyCode` 10009, não `Backspace`/`Escape`; e o AVPlay pinta
+  num plano de hardware **atrás** da camada web (fundo opaco = áudio sem imagem).
+  Os dois já estão tratados no código — tela nova com raiz diferente de `.screen`
+  precisa entrar na regra de transparência de `styles/player.css`.

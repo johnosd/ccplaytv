@@ -1,0 +1,380 @@
+/*
+ * Regras compartilhadas por mais de uma tela/componente, movidas de
+ * `features/screens.css` (feature 028, eliminado — D-003/T027 do plan.md).
+ * Importado no MESMO lugar da ordem de `main.tsx` onde `screens.css`
+ * estava — mover pra cá não muda quem vence a cascata em nenhuma classe.
+ * Só tokens de `index.css`.
+ */
+
+.screen {
+  position: absolute;
+  inset: 0;
+  padding: 80px 96px;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-secondary);
+}
+
+.screen-row {
+  flex-direction: row;
+  gap: 40px;
+}
+
+.screen-title {
+  font: 800 40px var(--font-heading);
+  color: var(--text-primary);
+  margin-bottom: 36px;
+}
+
+.screen-subtitle {
+  font: 500 20px var(--font-body);
+  color: var(--text-tertiary);
+  margin-bottom: 56px;
+}
+
+.screen-eyebrow {
+  font: 500 20px var(--font-body);
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+
+/* O Splash (`.splash*`) mora em `styles/onboarding.css` desde a feature 023.
+   Os keyframes abaixo continuam aqui: `onboarding.css` os reutiliza. */
+
+@keyframes ccp-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ccp-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes ccp-toast {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- Campo de formulário (Adicionar lista) ---------- */
+
+.field-box {
+  width: 100%;
+  max-width: 820px;
+  height: 72px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 3px solid var(--border-dashed);
+  color: var(--text-primary);
+  font-size: 19px;
+  font-family: var(--font-body);
+  padding: 0 24px;
+  box-sizing: border-box;
+}
+
+.field-box:focus {
+  background: var(--surface-field-active);
+  border-color: var(--accent);
+}
+
+.form-error {
+  font: 500 16px var(--font-body);
+  color: var(--brand-1);
+}
+
+/* Explicação do Modo limitado no hub da lista (feature 014, FR-021/FR-022).
+   Tom informativo, nunca de erro — nunca a cor de `.form-error`. */
+.limited-mode-notice {
+  max-width: 640px;
+  margin-top: 32px;
+  padding: 24px 28px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 2px solid var(--border-dashed);
+  color: var(--text-secondary);
+  font: 500 16px var(--font-body);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.limited-mode-notice-title {
+  font: 700 18px var(--font-body);
+  color: var(--text-primary);
+}
+
+.limited-mode-notice-subhead {
+  margin-top: 8px;
+  color: var(--text-tertiary);
+}
+
+.limited-mode-notice-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---------- Trilha de categorias e estados de borda (Filmes/Séries) ----------
+   Compartilhado por MoviesScreen/SeriesScreen (feature 010/018), que ainda
+   não migraram pro V14 (Onda 4) — a Live TV migrou (feature 024) e passou a
+   usar `SideCategoryNav`/`ErrorState`/`EmptyState` (`styles/live.css`), mas
+   estas classes continuam vivas aqui para as outras duas telas. Achado
+   corrigido durante a feature 024: T022 removeu estas regras junto das
+   genuinamente exclusivas da Live, sem checar que Filmes/Séries também as
+   usam — pego pelo E2E `busca-por-categoria.mjs` (Filmes), não por nenhum
+   teste unitário (jsdom não aplica CSS). */
+
+.live-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+}
+
+.live-column-groups {
+  width: 340px;
+}
+
+.live-column-title {
+  font: 700 22px var(--font-body);
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.live-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.live-state-title {
+  font: 700 30px var(--font-body);
+  color: var(--text-primary);
+}
+
+.live-state-copy {
+  font: 500 18px var(--font-body);
+  color: var(--text-tertiary);
+  max-width: 620px;
+  text-align: center;
+}
+
+.live-state-action {
+  padding: 16px 36px;
+  border-radius: 999px;
+  background: var(--surface-field-active);
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 19px;
+}
+
+.live-state-action.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.live-truncated-note {
+  font: 500 15px var(--font-body);
+  color: var(--text-tertiary);
+  padding: 12px 20px;
+}
+
+/* Título da coluna de conteúdo + ícone de busca lado a lado (feature 018,
+   FR-001) — o ícone só existe quando a entrada atual tem itens (D-006). */
+.category-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.category-title-row .live-column-title {
+  margin-bottom: 0;
+}
+
+/* Botão pequeno, focável — mesma receita de foco de qualquer outro
+   elemento (.tv-focus, ADR-007), nunca uma cor/raio literal aqui. */
+.search-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 20px;
+  flex: none;
+}
+
+.search-icon-button.tv-focus {
+  background: var(--surface-active);
+  color: var(--text-primary);
+}
+
+/* Reusa .field-box (mesmo campo do formulário de fonte), com altura menor
+   para caber no topo da coluna de conteúdo sem empurrar a lista — nunca uma
+   cor/raio literal (ADR-007), só o token já usado por .field-box. */
+.search-field {
+  height: 56px;
+  max-width: 100%;
+  font-size: 17px;
+}
+
+.search-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 4px 0;
+  font: 500 15px var(--font-body);
+  color: var(--text-tertiary);
+}
+
+/* ---------- Capas (PosterArt) ---------- */
+
+.poster-box {
+  aspect-ratio: 2 / 3;
+  border-radius: 14px;
+  background: var(--surface-field-active);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.poster-box.tv-focus {
+  background: var(--surface-active);
+}
+
+.poster-box-noise {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.05) 0 10px,
+    transparent 10px 20px
+  );
+}
+
+.poster-box-label {
+  position: relative;
+  font: 11px ui-monospace, monospace;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 0 8px;
+}
+
+/* Variante de logo (feature 024, D-007): placeholder de canal — iniciais
+   grandes em vez do rótulo "pôster" + título. `.poster-box-logo` também
+   troca a proporção do card, mais próxima de um logo do que de um pôster
+   de filme (2:3). */
+.poster-box-logo {
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+}
+
+.poster-box-initials {
+  font: 700 var(--fs-h2) var(--font-heading);
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+/* Capa real (feature 015) — cobre a camada de placeholder por cima; some
+   sozinha ao falhar (PosterArt.tsx), revelando o placeholder que nunca
+   deixou de existir por baixo. */
+.poster-box-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------- Toast ---------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  background: #1d212b;
+  border: 2px solid var(--accent);
+  border-radius: 14px;
+  padding: 18px 32px;
+  font: 600 18px var(--font-body);
+  color: var(--text-primary);
+  animation: ccp-toast 180ms ease-out;
+  z-index: 1000;
+}
+
+/* ---------- Favoritos (feature 013) ---------- */
+
+/* Estrela no cartão/linha de item favorito. Sobreposta no canto do pôster
+   (.poster-box) ou após o nome na linha de canal (.channel-row, feature
+   024) — nunca a única pista: o rótulo textual da categoria "Favoritos" e
+   a dica fixa (.fav-hint) também comunicam o estado, pra não depender só
+   de cor (ADR-007). */
+.fav-star {
+  color: var(--accent);
+  font-size: 16px;
+  line-height: 1;
+  flex: none;
+}
+
+.poster-box .fav-star {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 20px;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+/* Selo "Assistido" (feature 019, D-006) — canto inferior, nunca disputa
+   posição com .fav-star (superior). Texto sempre, nunca só cor
+   (constitution, "Foco Visível e Sem Becos Sem Saída"). */
+.poster-box .watched-badge {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  font: 700 12px var(--font-body);
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+/* Dica fixa no rodapé da coluna de conteúdo, discreta (mesmo tom de
+   .live-truncated-note), lembrando o gesto de segurar OK enquanto houver
+   itens favoritáveis na tela (FR-012). */
+.fav-hint {
+  font: 500 14px var(--font-body);
+  color: var(--text-tertiary);
+  padding: 8px 20px;
+  flex: none;
+}

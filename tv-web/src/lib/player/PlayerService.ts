@@ -26,6 +26,7 @@ import {
   type PlayerCapabilities,
   type PlayerProgress,
 } from './capabilities'
+import type { MediaTrack, StreamInfo, SubtitleCue } from './tracks'
 
 export type PlayerState =
   | 'idle'
@@ -57,7 +58,10 @@ export const FULLSCREEN_REGION: PlayerRegion = {
 
 /**
  * Falha de reprodução já sanitizada. `code` é o que o motor reportou, quando
- * reporta algo; `message` é texto para o usuário.
+ * reporta algo; `message` é texto para o usuário, e fica **ausente** quando
+ * quem falha é o motor sem saber mais do que "não tocou": o motor não sabe
+ * se o item é canal, filme ou episódio, então quem apresenta o erro usa a
+ * sua própria mensagem genérica (`PlayerLayer`, prop `genericErrorMessage`).
  *
  * Invariante: nem `code` nem `message` podem conter a URL do stream, o
  * endereço do provedor ou credenciais (constitution, "Segredos Fora dos
@@ -66,7 +70,7 @@ export const FULLSCREEN_REGION: PlayerRegion = {
  */
 export interface PlayerError {
   code: string | null
-  message: string
+  message?: string
 }
 
 export interface PlayerAdapter {
@@ -114,6 +118,18 @@ export interface PlayerAdapter {
    * chamado quando `canSeek`. Mesma regra de `onSettled` de `seekTo`.
    */
   jumpBy?(deltaMs: number, onSettled: () => void): void
+
+  /**
+   * Feature 029 (`logic/faixas-e-legendas.md` §1). Todos opcionais: motor
+   * sem o método = capacidade ausente (botão soft disabled, FR-002).
+   * `null` = o motor tem a API mas não conseguiu informar agora.
+   */
+  getTracks?(): MediaTrack[] | null
+  /** `true` se o motor aceitou a troca. Nunca reinicia a mídia (FR-006). */
+  selectAudioTrack?(id: string): boolean
+  /** `null` desativa a legenda. `true` se o motor aceitou. */
+  selectTextTrack?(id: string | null): boolean
+  getStreamInfo?(): StreamInfo | null
 }
 
 export interface PlayerAdapterCallbacks {
@@ -127,6 +143,8 @@ export interface PlayerAdapterCallbacks {
    * D-008) — o adaptador só relata o fato.
    */
   onCompleted?(): void
+  /** Feature 029: linha de legenda embutida entregue pelo motor (texto vazio = apagar). */
+  onSubtitle?(cue: SubtitleCue): void
 }
 
 export type PlayerAdapterFactory = (callbacks: PlayerAdapterCallbacks) => PlayerAdapter
@@ -140,6 +158,20 @@ export interface PlayerSession {
   readonly capabilities: PlayerCapabilities
   /** Último progresso informado pelo motor, ou `null` antes do primeiro. */
   readonly progress: PlayerProgress | null
+  /** O motor sabe listar/trocar faixas (feature 029). Falso = botão "— indisponível". */
+  readonly supportsTracks: boolean
+  /** O motor sabe informar dados técnicos do stream (feature 029). */
+  readonly supportsStreamInfo: boolean
+
+  /** Faixas atuais, ou `null` (motor sem a API, sessão fechada, ou falha agora). */
+  getTracks(): MediaTrack[] | null
+  /** `true` se o motor aceitou. Não reinicia a mídia nem mexe na posição. */
+  selectAudioTrack(id: string): boolean
+  /** `null` desativa a legenda. `true` se o motor aceitou. */
+  selectTextTrack(id: string | null): boolean
+  getStreamInfo(): StreamInfo | null
+  /** `null` = apagar a linha exibida. Devolve a função que cancela a assinatura. */
+  subscribeSubtitles(listener: (cue: SubtitleCue | null) => void): () => void
 
   /** Sem efeito se `!capabilities.canPause`. */
   togglePause(): void
@@ -204,6 +236,16 @@ export class PlayerServiceSession implements PlayerSession {
   private readonly _capabilities: PlayerCapabilities
   private readonly listeners = new Set<() => void>()
 
+  // Feature 029 (`logic/faixas-e-legendas.md` §1.4). Legenda começa
+  // desativada (D-005): enquanto `selectedTextId` for `null`, linhas do motor
+  // são descartadas. Nada disso passa pelo `emit()` de estado/progresso —
+  // uma linha de legenda nunca deve re-renderizar quem assina a sessão.
+  private selectedTextId: string | null = null
+  private lastAudioId: string | undefined
+  private readonly subtitleListeners = new Set<(cue: SubtitleCue | null) => void>()
+  readonly supportsTracks: boolean
+  readonly supportsStreamInfo: boolean
+
   // Porta single-flight de saltos (contrato §5; logic/reproducao-vod.md §3).
   private seekInFlight = false
   private pendingSeek: PendingSeek | null = null
@@ -220,8 +262,11 @@ export class PlayerServiceSession implements PlayerSession {
       onError: (error) => this.applyError(error),
       onProgress: (progress) => this.applyProgress(progress),
       onCompleted: () => this.applyCompleted(),
+      onSubtitle: (cue) => this.applySubtitle(cue),
     })
     this._rendersOnHardwarePlane = this.adapter.rendersOnHardwarePlane
+    this.supportsTracks = typeof this.adapter.getTracks === 'function'
+    this.supportsStreamInfo = typeof this.adapter.getStreamInfo === 'function'
     // Resolvida uma vez, na construção: nem o motor nem o tipo de mídia mudam
     // durante a vida da sessão (D-001).
     this._capabilities = resolveCapabilities(this.adapter.capabilities, kind)
@@ -302,6 +347,76 @@ export class PlayerServiceSession implements PlayerSession {
     // assim que o anterior liberar a porta.
     if (this.seekInFlight) return
     this.dispatchJump(deltaMs)
+  }
+
+  getTracks(): MediaTrack[] | null {
+    const adapter = this.adapter
+    if (this._state === 'closed' || !adapter?.getTracks) return null
+    let raw: MediaTrack[] | null
+    try {
+      raw = adapter.getTracks()
+    } catch {
+      return null
+    }
+    if (!raw) return null
+    // O AVPlay não informa a legenda ativa: a sessão é a fonte da verdade.
+    // Áudio vem do motor; só se o motor não marcar nenhuma, vale a última
+    // troca aceita.
+    const engineHasActiveAudio = raw.some((t) => t.kind === 'audio' && t.active)
+    return raw.map((track) => {
+      if (track.kind === 'text') return { ...track, active: track.id === this.selectedTextId }
+      if (!engineHasActiveAudio && this.lastAudioId !== undefined) {
+        return { ...track, active: track.id === this.lastAudioId }
+      }
+      return track
+    })
+  }
+
+  selectAudioTrack(id: string): boolean {
+    const adapter = this.adapter
+    if (this._state === 'closed' || !adapter?.selectAudioTrack) return false
+    let ok = false
+    try {
+      ok = adapter.selectAudioTrack(id)
+    } catch {
+      ok = false
+    }
+    if (ok) this.lastAudioId = id
+    return ok
+  }
+
+  selectTextTrack(id: string | null): boolean {
+    const adapter = this.adapter
+    if (this._state === 'closed' || !adapter?.selectTextTrack) return false
+    let ok = false
+    try {
+      ok = adapter.selectTextTrack(id)
+    } catch {
+      ok = false
+    }
+    if (ok) {
+      this.selectedTextId = id
+      // A linha da faixa anterior (ou de "Desativadas") sai da tela na hora.
+      this.emitSubtitle(null)
+    }
+    return ok
+  }
+
+  getStreamInfo(): StreamInfo | null {
+    const adapter = this.adapter
+    if (this._state === 'closed' || !adapter?.getStreamInfo) return null
+    try {
+      return adapter.getStreamInfo()
+    } catch {
+      return null
+    }
+  }
+
+  subscribeSubtitles(listener: (cue: SubtitleCue | null) => void): () => void {
+    this.subtitleListeners.add(listener)
+    return () => {
+      this.subtitleListeners.delete(listener)
+    }
   }
 
   close(): void {
@@ -401,6 +516,16 @@ export class PlayerServiceSession implements PlayerSession {
     this.applyError({ code: 'stream_completed', message: 'A transmissão foi interrompida.' })
   }
 
+  /** Linha do motor: só passa com uma legenda selecionada (D-005) e sessão aberta. */
+  private applySubtitle(cue: SubtitleCue): void {
+    if (this._state === 'closed' || this.selectedTextId === null) return
+    this.emitSubtitle(cue)
+  }
+
+  private emitSubtitle(cue: SubtitleCue | null): void {
+    for (const listener of this.subtitleListeners) listener(cue)
+  }
+
   private emit(): void {
     for (const listener of this.listeners) listener()
   }
@@ -432,6 +557,7 @@ export function resolveAdapterFactory(): PlayerAdapterFactory {
 }
 
 export type { PlayableKind, PlayerCapabilities, PlayerProgress } from './capabilities'
+export type { MediaTrack, StreamInfo, SubtitleCue, TrackChoice } from './tracks'
 
 // Importações no fim para evitar ciclo: os adaptadores dependem dos tipos
 // declarados acima.

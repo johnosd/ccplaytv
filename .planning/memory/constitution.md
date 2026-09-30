@@ -1,16 +1,15 @@
 <!--
 Relatório de Impacto de Sincronização
-- Mudança de versão: 1.4.0 -> 1.5.0
+- Mudança de versão: 1.5.1 -> 1.6.0
 - Princípios modificados: "Segredos Fora dos Clientes e dos Logs" — a
-  exceção client-first passa a cobrir URL completa de fonte, URL de
-  reprodução de cada item e o arquivo M3U baixado (ADR-010); antes, a URL
-  completa era proibida no cliente sem exceção
+  exceção client-first passa a cobrir a chave BYOK de serviço de terceiro
+  (TMDB, OpenAI) digitada pela própria pessoa na TV; antes, "chaves de
+  OpenAI/TMDB continuam proibidas no cliente, sem exceção", o que
+  contradizia a ADR-008 §3/§4 (BYOK direto do cliente)
 - Princípios adicionados: nenhum
 - Restrições do Projeto: nenhuma mudança
-- Origem da mudança: pedido direto do usuário em 2026-09-24, durante o
-  planejamento da feature 014-m3u-sob-demanda ("vamos expor a url"); a
-  fonte por URL M3U já guardava a URL completa desde a feature 005, em
-  violação silenciosa do texto anterior
+- Origem da mudança: decisão explícita do usuário em 2026-09-29, durante o
+  `sdd-specify` da feature 032-metadata-tmdb-integracoes (FR-027)
 - Seções removidas: nenhuma
 - Pendências: nenhuma
 
@@ -32,6 +31,13 @@ Histórico:
   passa a exigir roteiro E2E
 - 1.5.0 (2026-09-24): exceção de "Segredos Fora dos Clientes e dos Logs"
   estendida à URL completa de fonte e ao arquivo M3U (ADR-010)
+- 1.5.1 (2026-09-26): restrição "Design system de TV" passa a apontar o
+  DS V14 Spectrum (`docs/design/design-system/`) como referência de
+  intenção; o protótipo antigo foi movido para `docs/design/old/`. Explicita
+  que a constitution prevalece sobre o DS em conflito (ex.: preview em foco)
+- 1.6.0 (2026-09-29): exceção de "Segredos Fora dos Clientes e dos Logs"
+  estendida à chave BYOK digitada pela pessoa (TMDB/OpenAI), alinhando com
+  a ADR-008 §3/§4 (feature 032)
 -->
 
 # Constitution do CCPlay TV
@@ -66,8 +72,13 @@ dispositivo (ex.: IndexedDB) — é o que permite ao cliente reautenticar sem
 backend. **Extensão (ADR-010, 2026-09-24)**: pelo mesmo motivo, a URL
 completa de uma fonte, a URL de reprodução de cada item e o conteúdo do
 arquivo M3U baixado — que numa lista de painel repetem usuário e senha —
-também PODEM residir no dispositivo. Chaves de OpenAI/TMDB continuam
-proibidas no cliente, sem exceção. Tudo o que esta exceção permite guardar
+também PODEM residir no dispositivo. **Extensão (BYOK, 2026-09-29, feature
+032)**: a chave de API de um serviço de terceiro (TMDB e, quando existir,
+OpenAI) que a **própria pessoa digitou na TV**, da conta dela, PODE residir
+no dispositivo — é o modelo "traga sua chave" da ADR-008 §3/§4. Continua
+proibido embutir chave do desenvolvedor ou chave compartilhada no pacote,
+em variável pública do frontend ou em qualquer cliente; uma chave BYOK só é
+enviada ao serviço a que pertence, nunca a outro. Tudo o que esta exceção permite guardar
 ainda NÃO DEVE ser logado, exibido em tela, cartão ou mensagem de erro
 (a credencial, nem depois de digitada), enviado a TMDB/OpenAI ou a
 qualquer terceiro, nem exposto por um canal de exportação/backup, e DEVE
@@ -232,9 +243,10 @@ caminho como único meio de acesso.
 **Design system de TV**: palco 1920×1080 escalado uniformemente, tema
 escuro, paleta/tipografia/raios e receita de foco definidos na ADR-007 e
 implementados como tokens em `tv-web/src/index.css`. Tela nova consome
-token — não define cor, raio ou tamanho de fonte literal. O protótipo
-`docs/design/CCPlayTv Prototype - Standalone.html` é a referência de
-intenção; o CSS é o contrato executável.
+token — não define cor, raio ou tamanho de fonte literal. O Design System
+V14 Spectrum (`docs/design/design-system/`: Spec, Component Lab e
+protótipo de telas) é a referência de intenção; o CSS é o contrato
+executável. Em conflito, esta constitution prevalece sobre o DS.
 
 **Validação em hardware real**: emulador e navegador são suficientes para
 o desenvolvimento do dia a dia nesta fase do projeto. Teste na TV real é
@@ -302,4 +314,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.5.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-24
+**Versão**: 1.6.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-29

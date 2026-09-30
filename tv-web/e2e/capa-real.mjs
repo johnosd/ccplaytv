@@ -133,12 +133,38 @@ async function waitUntil(fn, timeoutMs = 5000, stepMs = 100) {
 }
 
 async function addSource(page, m3uUrl, displayName) {
+  // Feature 023: sem lista, a tela de perfis só tem "Adicionar lista", já em
+  // foco — OK abre o formulário (ele não é mais a primeira tela).
+  await page.waitForSelector('.add-card', { timeout: 10000 })
+  await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
   await page.getByLabel('Nome de exibição').fill(displayName)
   await page.getByLabel('URL da lista M3U').fill(m3uUrl)
   await page.getByRole('button', { name: 'Adicionar lista' }).click()
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   await page.getByRole('button', { name: 'Voltar' }).click()
+  // Os perfis montam com o cache anterior e a consulta traz a lista nova logo
+  // depois — só então o foco inicial cai nela (FR-039).
+  await page.locator('.source-card-wrap', { hasText: displayName }).waitFor({ timeout: 8000 })
+}
+
+/**
+ * Do Início (hero, rails ou topbar — qualquer foco restaurado), abre TV ao
+ * vivo/Filmes/Séries pela topbar. Substitui o antigo hub de atalhos
+ * (`.tiles-row`, removido na feature 026 — US1 troca o hub provisório pela
+ * Home definitiva com hero+rails; a entrada nas 3 categorias passa a ser só
+ * pela topbar). Sobe até a topbar (não importa em que linha do conteúdo o
+ * foco esteja — `ArrowUp` de sobra não faz nada uma vez lá dentro), reseta
+ * a posição horizontal pra "Início" (`ArrowLeft` de sobra, com clamp) e só
+ * então conta as setas certas — nunca assume de onde o foco restaurado
+ * (FR-017/FR-029) partiu.
+ */
+async function openViaTopbar(page, destination) {
+  const ORDER = ['home', 'live', 'movies', 'series']
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < ORDER.indexOf(destination); i += 1) await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
 }
 
 /** Mesmo binário fixo de `favoritos.mjs` quando existe; senão, resolução padrão do Playwright (mesmo padrão de `m3u-sob-demanda.mjs`). */
@@ -166,11 +192,17 @@ async function run() {
 
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre a fonte
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
 
-    console.log('--- Live TV: canal nunca mostra capa, mesmo com tvg-logo (FR-009) ---')
-    await page.keyboard.press('Enter') // Live TV é o primeiro tile
-    await page.waitForSelector('.live-item:not(.live-item-favorites)', { timeout: 8000 })
+    // Feature 024 (R-003, com aprovação explícita do usuário) INVERTE a
+    // regra original desta seção: Live TV passou a capturar e mostrar o
+    // logo do canal — o que a 015 proibia de propósito (FR-009 daquela
+    // feature) virou o oposto. A trilha migrou pro V14 (`SideCategoryNav`),
+    // por isso os seletores também mudaram (achado ao rodar este script
+    // durante a Fase 7 da 024 — não previsto no plan.md, T047 ad-hoc).
+    console.log('--- Live TV: canal AGORA mostra o logo declarado (tvg-logo) — feature 024 inverte a regra da 015 ---')
+    await openViaTopbar(page, 'live')
+    await page.waitForSelector('.side-category-nav-item.tv-focus', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na única categoria
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
@@ -178,28 +210,27 @@ async function run() {
       'entrou na categoria real de canais (não em Favoritos vazio)',
     )
     assert(
-      (await page.locator('.live-item img').count()) === 0,
-      'nenhum item de Live TV tem <img> de capa, mesmo com tvg-logo declarado',
+      (await page.locator('.live-channel-row img').count()) === 1,
+      '"Canal Com Logo" mostra a <img> do logo (feature 024) — antes proibido (FR-009 da 015), agora invertido',
     )
 
     console.log('--- Filmes: capa real onde há tvg-logo, placeholder onde não há ---')
     await page.keyboard.press('Escape') // sai da categoria -> trilha
-    await page.keyboard.press('Escape') // sai da trilha -> hub da lista
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('Enter')
+    await page.keyboard.press('Escape') // sai da trilha -> Início
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'movies')
     // Espera a categoria REAL aparecer na trilha (não só ".live-state"/
     // ".poster-grid" — o primeiro também casa com o carregamento de
     // *categorias*, ainda antes de entrar em qualquer uma; entrar cedo
     // demais pousa em "★ Favoritos", vazia, por ArrowRight ainda valer o
     // índice padrão sem a lista de categorias carregada — achado ao rodar
     // este script, não previsto no plano).
-    await page.waitForSelector('.live-item:not(.live-item-favorites)', { timeout: 8000 })
+    await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria "Filmes"
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
-    const comCapaCard = page.locator('.poster-cell', { hasText: 'Filme Com Capa' })
-    const semCapaCard = page.locator('.poster-cell', { hasText: 'Filme Sem Capa' })
+    const comCapaCard = page.locator('.vod-grid-cell', { hasText: 'Filme Com Capa' })
+    const semCapaCard = page.locator('.vod-grid-cell', { hasText: 'Filme Sem Capa' })
     assert((await comCapaCard.locator('img.poster-box-art').count()) === 1, '"Filme Com Capa" tem <img> de capa')
     assert(
       (await comCapaCard.locator('img.poster-box-art').getAttribute('src'))?.endsWith('/capa-filme.png') ?? false,
@@ -208,7 +239,7 @@ async function run() {
     assert((await semCapaCard.locator('img.poster-box-art').count()) === 0, '"Filme Sem Capa" continua no placeholder')
 
     console.log('--- Cenário 2 (US2): capa quebrada (404) cai no placeholder, sem ícone de imagem quebrada ---')
-    const quebradaCard = page.locator('.poster-cell', { hasText: 'Filme Capa Quebrada' })
+    const quebradaCard = page.locator('.vod-grid-cell', { hasText: 'Filme Capa Quebrada' })
     const semImagemQuebrada = await waitUntil(async () => (await quebradaCard.locator('img').count()) === 0)
     assert(semImagemQuebrada, 'depois da falha de carregamento, nenhum elemento <img> resta no card (nunca o ícone nativo de imagem quebrada)')
     assert(
@@ -220,15 +251,13 @@ async function run() {
     console.log('--- Séries: série sintética (SxxEyy) mostra a capa do primeiro episódio ---')
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('ArrowRight') // Filmes -> Séries
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.live-item:not(.live-item-favorites)', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'series')
+    await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra na categoria "Series"
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
-    const serieCard = page.locator('.poster-cell', { hasText: 'Serie Com Capa' })
+    const serieCard = page.locator('.vod-grid-cell', { hasText: 'Serie Com Capa' })
     assert((await serieCard.locator('img.poster-box-art').count()) === 1, '"Serie Com Capa" tem <img> de capa')
     assert(
       (await serieCard.locator('img.poster-box-art').getAttribute('src'))?.endsWith('/capa-serie.png') ?? false,
@@ -238,18 +267,17 @@ async function run() {
     console.log('--- Cenário 3 (US2, D-007): capa segue a janela da virtualização, nunca a categoria inteira de uma vez ---')
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('Enter')
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'movies')
     // Espera a categoria "Muitos" especificamente — não só "alguma categoria
     // real" (".live-item:not(.live-item-favorites)" já casa só com "Filmes",
     // a primeira a chegar; navegar antes de "Muitos" também estar na trilha
     // clampa o ArrowDown de volta pra "Filmes", já visitada — mesma classe
     // de corrida do R-004, agora contra a 2ª categoria, não a 1ª).
-    await page.waitForSelector('.live-item:has-text("Muitos")', { timeout: 8000 })
+    await page.waitForSelector('.side-category-nav-item:has-text("Muitos")', { timeout: 8000 })
     await page.keyboard.press('ArrowDown') // "Filmes" (1ª categoria de filme) -> "Muitos" (2ª)
     await page.keyboard.press('ArrowRight') // entra na categoria "Muitos"
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await page.waitForTimeout(500) // as imagens visíveis terminam de carregar
 
     const beforeScroll = itemIconRequestCount(counts)
@@ -259,7 +287,15 @@ async function run() {
       `a entrada não pediu as ${MANY_COUNT} capas de uma vez — só ${beforeScroll} requisição(ões) até aqui`,
     )
 
-    for (let i = 0; i < 10; i += 1) {
+    // 40, não 10 (feature 021, R-011): o palco lógico fixo 1920×1080 (US2,
+    // `.stage`) faz a área de LAYOUT do conteúdo deixar de acompanhar o
+    // viewport real do Chromium headless (este script não fixa `viewport`,
+    // então antes herdava o padrão do Playwright, ~1280×720) — a janela de
+    // virtualização pré-carrega mais itens de cara (confirmado: idêntico com
+    // viewport explícito 1920×1080 ou implícito), e 10 setas deixaram de
+    // bastar pra sair dela. A asserção abaixo não mudou; só o parâmetro de
+    // simulação, pra compensar uma mudança de geometria intencional da US2.
+    for (let i = 0; i < 40; i += 1) {
       await page.keyboard.press('ArrowDown')
     }
     const afterScroll = itemIconRequestCount(counts)

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { FAVORITE_COLOR_KEY } from './tizenColorKey'
+import { mediaKeyOf, type MediaKey } from './tizenMediaKeys'
 
 export type RemoteDirection = 'up' | 'down' | 'left' | 'right'
 
@@ -27,13 +28,20 @@ export interface RemoteNavHandlers {
    */
   onFavoriteKey?: () => void
   onBack?: () => void
+  /**
+   * Opcional (feature 027, FR-023/FR-029, D-007). Só o `PlayerLayer` passa
+   * isto — sem o handler, uma tecla de mídia (`MediaPlayPause` etc.) chega
+   * aqui como tecla não mapeada, sem `preventDefault` nem efeito nenhum, o
+   * que garante por construção que ela nunca age fora do player.
+   */
+  onMediaKey?: (key: MediaKey) => void
 }
 
 export interface RemoteNavOptions {
   /**
    * Registra o listener na fase de captura e para a propagação do evento
    * assim que tratado (`stopImmediatePropagation`) — uso exclusivo de
-   * componentes modais (ex.: `ConfirmDialog`) que precisam interceptar a
+   * componentes modais (ex.: `Modal`) que precisam interceptar a
    * tecla ANTES da tela por baixo reagir a ela, sem depender da ordem de
    * registro dos listeners. Tela normal nunca precisa disso.
    */
@@ -111,10 +119,10 @@ export const TIZEN_RETURN_KEYCODE = 10009
  * decide o que "próximo"/"anterior" significa via `onDirection`.
  */
 export function useRemoteNav(
-  { onDirection, onSelect, onLongSelect, onFavoriteKey, onBack }: RemoteNavHandlers,
+  { onDirection, onSelect, onLongSelect, onFavoriteKey, onBack, onMediaKey }: RemoteNavHandlers,
   { modal = false, longSelectMs = LONG_SELECT_MS }: RemoteNavOptions = {},
 ) {
-  const handlersRef = useRef({ onDirection, onSelect, onLongSelect, onFavoriteKey, onBack })
+  const handlersRef = useRef({ onDirection, onSelect, onLongSelect, onFavoriteKey, onBack, onMediaKey })
   // Gesto de OK em andamento (feature 013) — `null` fora de um
   // pressionamento. Vive em `useRef`, não em estado: nada aqui precisa
   // re-renderizar a tela, só decidir o que o próximo evento de teclado faz.
@@ -122,7 +130,7 @@ export function useRemoteNav(
   const lastFavoriteKeyAtRef = useRef(0)
 
   useEffect(() => {
-    handlersRef.current = { onDirection, onSelect, onLongSelect, onFavoriteKey, onBack }
+    handlersRef.current = { onDirection, onSelect, onLongSelect, onFavoriteKey, onBack, onMediaKey }
   })
 
   useEffect(() => {
@@ -187,8 +195,13 @@ export function useRemoteNav(
       // `onFavoriteKey`; nas demais, chega aqui e cai no `return` de baixo
       // como tecla não mapeada, sem interceptar nada.
       const isFavoriteKey = event.key === FAVORITE_COLOR_KEY && Boolean(handlersRef.current.onFavoriteKey)
+      // Tecla de mídia (feature 027, D-007) — mesma regra: só existe evento
+      // se a tela passou `onMediaKey` (só o `PlayerLayer` passa). Sem
+      // handler, `mediaKeyOf` nem chega a ser chamada — a tecla cai como não
+      // mapeada, sem `preventDefault`, garantindo FR-029 por construção.
+      const mediaKey = handlersRef.current.onMediaKey ? mediaKeyOf(event) : null
 
-      if (!direction && !isSelect && !isBack && !isFavoriteKey) return
+      if (!direction && !isSelect && !isBack && !isFavoriteKey && !mediaKey) return
       // Telas de "roving DOM focus" (useTvKeyNav + <button>/<input> reais,
       // ex. AddSourceScreen, ImportProgressScreen) não passam onSelect —
       // contam com o Enter nativo do navegador pra ativar o elemento
@@ -221,6 +234,8 @@ export function useRemoteNav(
           lastFavoriteKeyAtRef.current = now
           handlersRef.current.onFavoriteKey?.()
         }
+      } else if (mediaKey) {
+        handlersRef.current.onMediaKey?.(mediaKey)
       }
     }
 

@@ -1,0 +1,80 @@
+/**
+ * Camada do trailer (`TrailerLayer`, feature 033). Tela cheia, opaca (o vídeo
+ * é o iframe da página-ponte, um nó do DOM — não o plano de hardware do
+ * AVPlay). Só tokens V14.
+ */
+
+.trailer-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trailer-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--bg-canvas);
+}
+
+.trailer-loading,
+.trailer-error {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.trailer-loading-text {
+  font-size: var(--fs-body-lg);
+  color: var(--text-secondary);
+}
+
+.trailer-title {
+  font-family: var(--font-heading);
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.trailer-hint {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.trailer-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-canvas);
+  transition: opacity var(--duration-fast);
+}
+
+.trailer-bar-hidden {
+  opacity: 0;
+}
+
+.trailer-bar .trailer-hint {
+  flex: 1;
+}
+
+.trailer-pill {
+  font-size: var(--fs-body);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--text-secondary);
+  background: transparent;
+  color: var(--text-primary);
+}

@@ -1,0 +1,12 @@
+{
+    "feature":  "029-audio-legendas-info-player",
+    "lockedAt":  "2026-09-28 20:36",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/components/PlayerLayer.audio-legendas-info.contract.test.tsx",
+                      "sha256":  "b4d3c2485f064544703e6746cb23c5f496dd2a7ed74844f8cd5cbbb28a85a467",
+                      "tests":  5
+                  }
+              ]
+}

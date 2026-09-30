@@ -1,0 +1,22 @@
+{
+    "feature":  "032-metadata-tmdb-integracoes",
+    "lockedAt":  "2026-09-29 15:34",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/metadata/titleMetadata.metadata-tmdb.contract.test.ts",
+                      "sha256":  "e316a0c25387b757534ff0456f322c728c38aed365eaac8d4aa52b67fe0c3bfd",
+                      "tests":  3
+                  },
+                  {
+                      "path":  "tv-web/src/lib/metadata/tmdbKeyRepository.metadata-tmdb.contract.test.ts",
+                      "sha256":  "1ffeb3094b70579becc34977143e809c9f4d04718d1adbf7f89aed4eaac7ab13",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/movies/MovieDetailScreen.metadata-tmdb.contract.test.tsx",
+                      "sha256":  "8c371c00b667002948a821da0b0372b46b7461c0ae89980b700be3de20eefa06",
+                      "tests":  1
+                  }
+              ]
+}

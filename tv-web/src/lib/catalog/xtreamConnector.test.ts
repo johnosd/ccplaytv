@@ -1,4 +1,4 @@
-import { acquireXtreamVod, acquireXtreamSeries, fetchSeriesInfo } from './xtreamConnector';
+import { acquireXtreamVod, acquireXtreamSeries, fetchSeriesDetail, fetchSeriesInfo, fetchVodInfo } from './xtreamConnector';
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   acquireXtreamChannels,
@@ -226,13 +226,13 @@ describe('mapLiveEntry', () => {
     expect(mapped?.url).toBeUndefined()
   })
 
-  it('canal NUNCA ganha iconUrl, mesmo que o provedor declare stream_icon (feature 015, FR-009)', () => {
+  it('canal ganha iconUrl de stream_icon (feature 024, R-003 — inverte a exclusão original da 015)', () => {
     const mapped = mapLiveEntry(
       { name: 'ESPN', stream_id: 5, category_id: 10, stream_icon: 'http://exemplo.test/espn.png' },
       categories,
       buildUrl,
     )
-    expect(mapped?.iconUrl).toBeUndefined()
+    expect(mapped?.iconUrl).toBe('http://exemplo.test/espn.png')
   })
 })
 
@@ -619,5 +619,97 @@ describe('parseXtreamStreamUrl', () => {
 
       const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
       expect(episode.seasonNumber).toBe(1)
+    })
+
+    // Feature 032 (T041, FR-028) — sinopse do episódio e `info` da série.
+    describe('sinopse do episódio (info.plot) e info da série (feature 032)', () => {
+      it('captura info.plot (ou description); vazio, só espaços e "0" viram ausência', async () => {
+        stubSeriesInfo([
+          { id: '1', episode_num: 1, title: 'A', info: { plot: '  Um piloto.  ' } },
+          { id: '2', episode_num: 2, title: 'B', info: { description: 'Só descrição.' } },
+          { id: '3', episode_num: 3, title: 'C', info: { plot: '   ' } },
+          { id: '4', episode_num: 4, title: 'D', info: { plot: '0' } },
+          { id: '5', episode_num: 5, title: 'E' },
+        ])
+        const episodes = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+        expect(episodes.map((e) => e.synopsis)).toEqual(['Um piloto.', 'Só descrição.', undefined, undefined, undefined])
+      })
+
+      it('fetchSeriesDetail devolve o info da série junto dos episódios; painel que manda info como lista não tem info', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockImplementation(async () =>
+          jsonResponse({ info: { plot: 'Sobre a série.' }, episodes: { '1': [{ id: '1', episode_num: 1, title: 'A' }] } }),
+        ))
+        const detail = await fetchSeriesDetail('http://mock', 'user', 'pass', '200')
+        expect(detail.info).toEqual({ plot: 'Sobre a série.' })
+        expect(detail.episodes).toHaveLength(1)
+
+        vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => jsonResponse({ info: [], episodes: {} })))
+        expect((await fetchSeriesDetail('http://mock', 'user', 'pass', '200')).info).toBeUndefined()
+      })
+
+      it('fetchVodInfo pede get_vod_info pelo id, usa o fetch injetado e não sonda o provedor quando ele falha', async () => {
+        const injected = vi.fn().mockImplementation(async () => jsonResponse({ info: { plot: 'Filme.' }, movie_data: {} }))
+        const info = await fetchVodInfo('http://mock', 'user', 'pass', '100', undefined, injected as unknown as typeof fetch)
+        expect(info).toEqual({ plot: 'Filme.' })
+        const url = new URL(String(injected.mock.calls[0][0]))
+        expect(url.searchParams.get('action')).toBe('get_vod_info')
+        expect(url.searchParams.get('vod_id')).toBe('100')
+
+        const globalFetch = vi.fn()
+        vi.stubGlobal('fetch', globalFetch)
+        const failing = vi.fn().mockRejectedValue(new TypeError('boom'))
+        await expect(fetchVodInfo('http://mock', 'user', 'pass', '100', undefined, failing as unknown as typeof fetch)).rejects.toMatchObject({
+          kind: 'network_failure',
+        })
+        expect(globalFetch).not.toHaveBeenCalled()
+      })
+    })
+
+    // Feature 025 (T006, T017) — `logic/metadados-vod.md` §2.
+    describe('duração e imagem do episódio (info.*)', () => {
+      it('captura duration_secs e movie_image quando presentes', async () => {
+        stubSeriesInfo([
+          {
+            id: '1001',
+            episode_num: 1,
+            title: 'Pilot',
+            container_extension: 'mp4',
+            info: { duration_secs: '1500', movie_image: 'http://exemplo.test/ep.png' },
+          },
+        ])
+
+        const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+        expect(episode.durationSeconds).toBe(1500)
+        expect(episode.iconUrl).toBe('http://exemplo.test/ep.png')
+      })
+
+      it('sem duration_secs, usa duration "HH:MM:SS" como alternativa', async () => {
+        stubSeriesInfo([
+          { id: '1001', episode_num: 1, title: 'Pilot', container_extension: 'mp4', info: { duration: '00:25:00' } },
+        ])
+
+        const [episode] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+        expect(episode.durationSeconds).toBe(1500)
+      })
+
+      it('ausentes ou inválidos (info ausente, duration malformada, movie_image inválida) viram ausência', async () => {
+        stubSeriesInfo([{ id: '1001', episode_num: 1, title: 'Pilot', container_extension: 'mp4' }])
+        const [withoutInfo] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+        expect(withoutInfo.durationSeconds).toBeUndefined()
+        expect(withoutInfo.iconUrl).toBeUndefined()
+
+        stubSeriesInfo([
+          {
+            id: '1001',
+            episode_num: 1,
+            title: 'Pilot',
+            container_extension: 'mp4',
+            info: { duration: 'não é hora', movie_image: 'não é url' },
+          },
+        ])
+        const [invalid] = await fetchSeriesInfo('http://mock', 'user', 'pass', '200')
+        expect(invalid.durationSeconds).toBeUndefined()
+        expect(invalid.iconUrl).toBeUndefined()
+      })
     })
   })

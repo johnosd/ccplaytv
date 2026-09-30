@@ -25,6 +25,9 @@ import { parsePanelUrl } from './m3uPanelUrl'
 import { deleteAllForSource } from './catalogRepository'
 import { normalizeServerAddress } from './xtreamConnector'
 import { deleteUserStatesForSource } from './userStateRepository'
+import { epgManualHostOf, epgStatusOf } from '../epg/epgStatus'
+import { deleteEpgForSource } from '../epg/epgRepository'
+import type { EpgStatus } from '../epg/types'
 
 /** A fonte como as telas a veem — sem credencial, por construção. */
 export interface SourceView {
@@ -43,6 +46,10 @@ export interface SourceView {
   lastTruncatedByStorage?: boolean
   lastDiscardedByType?: number
   activeGeneration?: number
+  /** Estado do EPG (feature 030) — derivado, sem nenhum endereço. */
+  epg: EpgStatus
+  /** Só o hostname do endereço XMLTV informado pela pessoa (FR-017) — nunca caminho, query ou credencial. */
+  epgManualHost?: string
   createdAt: number
   updatedAt: number
 }
@@ -65,6 +72,8 @@ function toView(record: SourceRecord): SourceView {
     lastTruncatedByStorage: record.lastTruncatedByStorage,
     lastDiscardedByType: record.lastDiscardedByType,
     activeGeneration: record.activeGeneration,
+    epg: epgStatusOf(record),
+    epgManualHost: epgManualHostOf(record),
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   }
@@ -194,6 +203,12 @@ export async function deleteSource(id: string, database: CatalogDb = db): Promis
   // uma fonte readicionada ganha `sourceId` novo (UUID), então nada aqui
   // fica órfão-mas-recuperável; manter o registro só ocuparia espaço.
   await deleteUserStatesForSource(id, database)
+  // Feature 030 (FR-012): a programação e a configuração de EPG (que vive no
+  // próprio registro da fonte) saem junto.
+  await deleteEpgForSource(id, database)
+  // Feature 032 (FR-026): a metadata descritiva da fonte (provedor e TMDB)
+  // sai junto. A chave TMDB é da pessoa, não da fonte — fica.
+  await database.titleMetadata.where('sourceId').equals(id).delete()
   await database.sources.delete(id)
 }
 
@@ -205,6 +220,8 @@ export interface SyncMark {
   allowedFormats?: string[]
   truncatedByStorage?: boolean
   discardedByType?: number
+  /** `url-tvg`/`x-tvg-url` do cabeçalho M3U (feature 030). Gravado sempre, inclusive como ausente. */
+  epgDeclaredUrl?: string
 }
 
 /**
@@ -230,6 +247,11 @@ export async function markSynced(
     updatedAt: mark.at,
     providerImportMode: mark.mode,
     limitedReason: mark.limitedReason,
+    // Feature 030: como o modo limitado, regravado sempre — uma lista que
+    // perdeu o `url-tvg` não pode manter o endereço antigo. E a marca de que
+    // esta importação já captura o id de EPG dos canais (D-007).
+    epgDeclaredUrl: mark.epgDeclaredUrl,
+    epgIdsCapturedAt: mark.at,
   }
   if (mark.mode !== undefined) patch.providerMigratedAt = mark.at
   if (mark.allowedFormats !== undefined) patch.providerAllowedFormats = mark.allowedFormats
