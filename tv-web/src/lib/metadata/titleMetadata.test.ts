@@ -212,7 +212,10 @@ describe('mergeTitleMetadata (D-003: provedor vence, TMDB só preenche vazio)', 
       origin: 'tmdb',
       language: 'en',
     })
-    expect(mergeTitleMetadata({ synopsis: 'P' }, { status: 'no_match' })).toEqual({ synopsis: { value: 'P', origin: 'provider' } })
+    expect(mergeTitleMetadata({ synopsis: 'P' }, { status: 'no_match' })).toEqual({
+      synopsis: { value: 'P', origin: 'provider' },
+      tmdbMatch: 'no_match',
+    })
     expect(mergeTitleMetadata(undefined, undefined)).toEqual({})
   })
 })

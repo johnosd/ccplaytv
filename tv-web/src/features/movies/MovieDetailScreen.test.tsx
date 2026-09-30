@@ -326,7 +326,8 @@ describe('MovieDetailScreen', () => {
     it('confirmar "Marcar como assistido" grava completedAt e alterna o rótulo para "Desmarcar"', async () => {
       renderScreen()
 
-      // Assistir(0) -> Minha Lista(1) -> Trailer(2) -> toggle-watched(3), a última ação
+      // Assistir(0) -> Minha Lista(1) -> Trailer(2) -> Semelhantes(3) -> toggle-watched(4), a última ação
+      press('ArrowRight')
       press('ArrowRight')
       press('ArrowRight')
       press('ArrowRight')
@@ -335,6 +336,27 @@ describe('MovieDetailScreen', () => {
       await waitFor(async () => expect((await getUserState(STABLE_ID))?.completedAt).toBeDefined())
       expect(await screen.findByText('✗ Desmarcar assistido')).toBeInTheDocument()
     })
+  })
+
+  // --- ação "Semelhantes" no hero (feature 035, pedido pós-TV) ---
+
+  it('"Semelhantes" fica entre Trailer e Marcar assistido; OK ativa a aba e leva o foco ao painel (sem chave: "Configurar TMDB")', async () => {
+    renderScreen()
+
+    const labels = screen.getAllByText(/./, { selector: '.vod-detail-action' }).map((el) => el.textContent)
+    expect(labels.indexOf('☰ Semelhantes')).toBe(labels.length - 2)
+
+    press('ArrowRight') // Minha Lista
+    press('ArrowRight') // Trailer
+    press('ArrowRight') // Semelhantes
+    expect(screen.getByText('☰ Semelhantes').className).toContain('tv-focus')
+    press('Enter')
+
+    expect(screen.getByRole('tab', { name: 'Semelhantes' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByText(/Semelhantes vêm do TMDB/i)).toBeInTheDocument()
+    // O foco saiu do hero e foi para o painel ("Configurar TMDB"), nunca fica em lugar nenhum.
+    await waitFor(() => expect(screen.getByText('☰ Semelhantes').className).not.toContain('tv-focus'))
+    expect(screen.getByRole('button', { name: 'Configurar TMDB' }).className).toContain('tv-focus')
   })
 
   // --- abas (US5, FR-037) ---
@@ -361,7 +383,7 @@ describe('MovieDetailScreen', () => {
   })
 
   // Feature 032 (ad-hoc T044): "Elenco" deixou de ser mock — é uma aba real com o elenco em texto.
-  it('aba "Elenco" é real: OK troca a aba (sem "Em breve"); sem elenco informado, diz isso; "Semelhantes" segue "Em breve"', async () => {
+  it('aba "Elenco" é real: OK troca a aba (sem "Em breve"); sem elenco informado, diz isso; "Semelhantes" também é real (035)', async () => {
     renderScreen()
     press('ArrowDown') // tabs, foco em Detalhes
     press('ArrowRight') // Elenco
@@ -378,8 +400,9 @@ describe('MovieDetailScreen', () => {
 
     press('ArrowRight') // Semelhantes
     press('Enter')
-    expect(screen.getByText('Em breve — Títulos semelhantes a este.')).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Elenco' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByText(/Em breve/)).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Semelhantes' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Semelhantes' })).not.toHaveAttribute('aria-disabled')
   })
 
   it('CIMA nas abas volta para as ações', () => {

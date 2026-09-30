@@ -69,9 +69,23 @@ export interface SourceRecord {
   epgActiveGeneration?: number
   /** A última importação já capturou id de EPG dos canais (D-007). Ausente numa fonte sincronizada → migração única. */
   epgIdsCapturedAt?: number
+  /**
+   * Conta Xtream (feature 034, `data-model.md` §1). Sem índice — não sobe a
+   * versão do Dexie. `undefined` = nunca verificada.
+   */
+  accountStatus?: AccountStatusKind
+  /** Vencimento declarado pelo painel, em ms. `null` = painel declarou "sem data"; `undefined` = desconhecido. */
+  accountExpiresAt?: number | null
+  /** Instante da última verificação que obteve resposta do painel (sincronização ou consulta leve). */
+  accountCheckedAt?: number
+  /** Seções que não responderam na última sincronização bem-sucedida (feature 034, FR-018). */
+  lastUnavailableSections?: CatalogSection[]
   createdAt: number
   updatedAt: number
 }
+
+/** Resultado da última verificação da conta Xtream (feature 034). */
+export type AccountStatusKind = 'active' | 'expired' | 'refused'
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
 
@@ -98,6 +112,14 @@ export interface UserStateRecord {
    * de novo não apaga este campo — os dois convivem (retomada + selo).
    */
   completedAt?: number
+  /**
+   * Instante em que a pessoa tirou o item do "↺ Histórico" (feature 036,
+   * `logic/remocao-historico.md`). O item só está no Histórico quando
+   * `lastWatched > historyHiddenAt` — uma reprodução nova o traz de volta sem
+   * ninguém apagar este campo. Nunca apaga `lastWatched` (é por ele que
+   * "Continuar assistindo" ordena). Valor sem índice, sem bump do Dexie.
+   */
+  historyHiddenAt?: number
   createdAt: number
   updatedAt: number
 }
@@ -223,7 +245,40 @@ export interface TrailerVideoRef {
   official?: boolean
 }
 
+/**
+ * Um título do TMDB citado por outro (Semelhantes, filmografia de ator —
+ * feature 035, `data-model.md` §1). Só o que o TMDB devolveu, já em pt-BR;
+ * ausente = o TMDB não informou. `posterUrl` é montada SEM chave.
+ */
+export interface TmdbTitleRef {
+  tmdbId: number
+  kind: 'movie' | 'series'
+  title: string
+  originalTitle?: string
+  year?: number
+  posterUrl?: string
+  overview?: string
+}
+
+/** Uma pessoa do elenco com identidade TMDB (feature 035, `data-model.md` §1). */
+export interface CastPerson {
+  personId: number
+  name: string
+  /** Personagem — só quando o TMDB informa. */
+  character?: string
+  /** Foto (`profile_path`), montada SEM chave. */
+  photoUrl?: string
+}
+
 export interface TitleFields {
+  /**
+   * Feature 035 — só no lado TMDB. Recomendações + similares, sem repetir, sem
+   * o próprio título, até 20. `[]` = pedidos e nada veio; AUSENTE num registro
+   * `matched` gravado antes da 035 — o sinal para pedir de novo uma vez (FR-004).
+   */
+  similar?: TmdbTitleRef[]
+  /** Feature 035 — só no lado TMDB. Elenco com identidade (filme: `credits`; série: `aggregate_credits`). */
+  castPeople?: CastPerson[]
   /**
    * Feature 033. Provedor: no máximo um (`youtube_trailer`). TMDB: `[]` quando
    * os vídeos foram pedidos e nenhum serve; AUSENTE num registro `matched`
@@ -268,6 +323,20 @@ export interface TitleMetadataRecord {
   providerTmdbId?: number
   tmdb?: TmdbResultRecord
   tmdbFetchedAt?: number
+}
+
+/**
+ * Filmografia de uma pessoa (feature 035, `data-model.md` §3). Só o que a
+ * página de ator exibe — biografia e datas pessoais nunca são lidas. Guardada
+ * só em sucesso; removida junto com a chave TMDB.
+ */
+export interface TmdbPersonRecord {
+  personId: number
+  name: string
+  photoUrl?: string
+  /** Já filtrada e ordenada, no máximo `FILMOGRAPHY_STORED_MAX`. */
+  credits: TmdbTitleRef[]
+  fetchedAt: number
 }
 
 export type IntegrationState = 'connected' | 'refused' | 'offline' | 'rate_limited'
@@ -439,6 +508,7 @@ export class CatalogDb extends Dexie {
   epgPrograms!: EntityTable<EpgProgramRecord, 'id'>
   titleMetadata!: EntityTable<TitleMetadataRecord, 'stableId'>
   integrations!: EntityTable<IntegrationRecord, 'id'>
+  tmdbPeople!: EntityTable<TmdbPersonRecord, 'personId'>
 
   constructor(name: string = DB_NAME) {
     super(name)
@@ -560,6 +630,12 @@ export class CatalogDb extends Dexie {
     this.version(12).stores({
       titleMetadata: 'stableId, sourceId',
       integrations: 'id',
+    })
+    // v13 (feature 035): filmografia de uma pessoa do elenco, guardada por
+    // `personId` (do TMDB) com a validade do cache do TMDB. Não depende de
+    // fonte nem de geração. Sem `.upgrade()`: tabela nova.
+    this.version(13).stores({
+      tmdbPeople: 'personId',
     })
   }
 }

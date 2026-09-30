@@ -15,6 +15,7 @@ import { EPG_ERROR_CODE, epgErrorMessage, isEpgStale, isValidEpgUrl } from '../.
 import { isEpgSyncing, requestEpgSync, subscribeEpgSyncing } from '../../lib/epg/epgRunner'
 import { setEpgEnabled, setEpgManualUrl, setEpgOffsetHours } from '../../lib/epg/epgRepository'
 import type { EpgStatus } from '../../lib/epg/types'
+import type { SourceAccount } from '../../lib/catalog/sourceAccount'
 
 // Telas falam só com `importApi`/`catalogApi`, nunca com `lib/` direto (D-001
 // da feature 005): o que a tela de EPG precisa de `lib/epg` sai por aqui.
@@ -123,6 +124,11 @@ export interface SourceOut {
   epg?: EpgStatus
   /** Só o hostname do endereço XMLTV informado pela pessoa (FR-017). */
   epg_manual_host?: string | null
+  /**
+   * Conta Xtream (feature 034): vencimento e resultado da última verificação,
+   * nunca credencial. Opcional pelo mesmo motivo de `epg`.
+   */
+  account?: SourceAccount
 }
 
 export interface ProviderCredentialsPatch {

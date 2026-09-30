@@ -57,7 +57,7 @@ export function buildSearchIndex(
  * (`itemsFetchedAt` carimbado). `stored` nunca aberta NÃO conta — o
  * conteúdo guardado ainda não é registro de catálogo.
  */
-function isCovered(category: { fetchMode: string; itemsFetchedAt?: number }): boolean {
+export function isCovered(category: { fetchMode: string; itemsFetchedAt?: number }): boolean {
   return category.fetchMode === 'eager' || category.itemsFetchedAt !== undefined
 }
 

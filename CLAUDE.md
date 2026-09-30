@@ -889,6 +889,50 @@ stays `chrome108`, which is safe). See
 `sdd/specs/033-trailers-filmes-series/plan.md` → `## Estado Atual` and
 `## Riscos e Decisões`.
 
+**Code-complete**: `035-semelhantes-elenco-ator` — backlog item 45: the detail
+screens' "Semelhantes" tab is real (the `similar` mock is gone), the "Elenco"
+tab shows photo/name/character when the title matched on TMDB, and OK on a
+person opens a new actor page (`features/person/PersonScreen.tsx`, screen
+`person` in `appNav.ts`, no topbar). Semelhantes and cast with identity come in
+the **same** TMDB detail call feature 032 already made (`append_to_response`
+grew: `credits|aggregate_credits,videos,recommendations,similar`) and live in
+the same `titleMetadata` record (`similar`/`castPeople`, no version bump);
+only the filmography is its own call (`/person/{id}?append_to_response=
+combined_credits`, on OK, cached 6 months in a new Dexie v13 `tmdbPeople`
+table, cleared with the key). **Deliberate change to feature 032**: with a
+usable key the TMDB is now asked once when a detail opens even if the provider
+filled everything (D-002) — Semelhantes/photos exist only there; the merge rule
+"provider wins" is unchanged, and a `matched` record saved before 035 is asked
+again once (`tmdbLacks035`). The cross-match with the catalog
+(`lib/metadata/localTitleMatch.ts`, `resolveTmdbTitles`) reads only
+IndexedDB — active generation, same type, never the network, never
+`storedEntries`: TMDB identity first (`titleMetadata` `matched`), else
+normalized title + year ±1 (a local record with no known year never matches by
+title); copies of the same year → first in source order, different years →
+"not found". Not-found titles carry the chip "Não encontrado na sua lista" and
+open a summary modal (no play), coverage is stated ("Procurado em X de Y
+categorias"). Focus in the new panels is a key (`tmdb:<kind>:<id>`,
+`person:<id>`), the back stack is plain `open`/`back` with a `restore`
+snapshot on the detail screens (`DetailSnapshot`). Two deviations from the
+plan's `logic/`, both recorded there: the mapper always returns `similar: []`
+(never absent) — a locked feature-033 contract returns a detail without those
+keys, and absent would re-ask on every open; and the panels use a plain
+horizontal row, not the virtualized `Rail` — the locked contract renders with
+no layout (jsdom), where `Rail` draws nothing, and the lists are ≤ 20 items.
+5/5 contract tests locked, all other locks intact, new
+`e2e/semelhantes-elenco-ator.mjs` (part of `test:e2e`, counts TMDB requests:
+zero extra on focus/tab change, one on OK for a person) green.
+**Measured on the real list (`e2e/semelhantes-real.mjs`, out of `test:e2e`)**:
+resolution p50 ≈ 150 ms / p95 ≈ 170 ms over 11 129 movies. Matching by title
+first accepted year ±1 and produced 3–4 wrong matches in ~250 checked
+(homonyms); with the user's approval (plan R-012) it now requires the **exact**
+year — the locked contract was amended and re-locked — leaving ~1 (two
+different films with the same title and year, which title + year cannot tell
+apart), so SC-002 is met **with that stated caveat**. Found cards carry a
+"✓ Na sua lista" marker; not-found ones the "Não encontrado na sua lista" chip.
+Physical TV: recommended, not a gate. See
+`sdd/specs/035-semelhantes-elenco-ator/plan.md` → `## Estado Atual`.
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Quem está
@@ -976,7 +1020,7 @@ requesting a `tizen-tv`/`tizen-emulator` validation pass.
 
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.6.1) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.7.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 

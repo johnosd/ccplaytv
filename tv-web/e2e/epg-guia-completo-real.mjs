@@ -18,6 +18,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { cadastrarListaXtream } from './lib/entrada.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ENV_PATH = path.resolve(__dirname, '..', '..', '.env')
@@ -109,12 +110,7 @@ async function run() {
     await page.waitForSelector('.add-card', { timeout: 10000 })
     await page.keyboard.press('Enter')
     await page.waitForSelector('#add-source-title', { timeout: 8000 })
-    await page.getByText('Endereço, usuário e senha', { exact: true }).click()
-    await page.getByLabel('Nome de exibição').fill(SOURCE_NAME)
-    await page.getByLabel('Endereço do servidor (DNS do provedor)').fill(dns)
-    await page.getByLabel('Usuário', { exact: true }).fill(user)
-    await page.getByLabel('Senha', { exact: true }).fill(pass)
-    await page.getByRole('button', { name: 'Adicionar lista' }).click()
+    await cadastrarListaXtream(page, { nome: SOURCE_NAME, servidor: dns, usuario: user, senha: pass })
     await page.waitForSelector('text=/Concluída/', { timeout: 60000 })
     await page.getByRole('button', { name: 'Abrir lista' }).click()
     await page.waitForSelector('.topbar', { timeout: 10000 })

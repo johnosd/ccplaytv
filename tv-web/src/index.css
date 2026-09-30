@@ -75,6 +75,21 @@
     var(--brand-5) 100%
   );
 
+  /* Avatar da lista (feature 037, D-003): 6 pares estáveis por id
+     (`listAvatarVariant`), só com as cores de marca — nenhuma cor nova. */
+  --list-avatar-0-from: var(--brand-1);
+  --list-avatar-0-to: var(--brand-2);
+  --list-avatar-1-from: var(--brand-2);
+  --list-avatar-1-to: var(--brand-3);
+  --list-avatar-2-from: var(--brand-4);
+  --list-avatar-2-to: var(--brand-5);
+  --list-avatar-3-from: var(--brand-5);
+  --list-avatar-3-to: var(--brand-1);
+  --list-avatar-4-from: var(--brand-3);
+  --list-avatar-4-to: var(--brand-4);
+  --list-avatar-5-from: var(--brand-1);
+  --list-avatar-5-to: var(--brand-5);
+
   /* Fundo mais profundo que `--bg-surface`, para caixas de mídia. */
   --player-backdrop: #000;
   --player-zap-scrim: rgba(5, 6, 10, 0.85);

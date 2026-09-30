@@ -1,4 +1,4 @@
-import type { CatalogDb } from '../catalog/db'
+import type { CastPerson, CatalogDb, TmdbTitleRef } from '../catalog/db'
 import type { TrailerCandidate } from '../trailer/trailerCandidates'
 
 /**
@@ -24,7 +24,7 @@ export interface TitleMetadataView {
   durationSeconds?: MetadataField<number>
   director?: MetadataField<string>
   country?: MetadataField<string>
-  /** Elenco em texto ("A, B, C"). A aba Elenco navegável é o item 45 do backlog. */
+  /** Elenco em texto ("A, B, C"). Com casamento no TMDB a aba Elenco mostra `castPeople` no lugar (feature 035). */
   cast?: MetadataField<string>
   /**
    * Feature 033: candidatos a trailer, já na ordem de preferência — provedor
@@ -33,7 +33,55 @@ export interface TitleMetadataView {
    * não há nenhum candidato.
    */
   trailers?: TrailerCandidate[]
+  /**
+   * Feature 035: resultado do casamento com o TMDB. Ausente = o TMDB ainda não
+   * foi consultado para este título (sem chave, falha, ou esperando o provedor).
+   */
+  tmdbMatch?: 'matched' | 'no_match' | 'dead_id'
+  /** Feature 035: Semelhantes do TMDB (só com `tmdbMatch === 'matched'`), na ordem do TMDB. */
+  similar?: TmdbTitleRef[]
+  /** Feature 035: elenco com foto/identidade do TMDB (só com `tmdbMatch === 'matched'`). */
+  castPeople?: CastPerson[]
 }
+
+/** Cobertura do cruzamento de um tipo: categorias com conteúdo no aparelho × categorias declaradas (feature 035, FR-007). */
+export interface KindCoverage {
+  covered: number
+  total: number
+}
+
+/**
+ * Um título do TMDB depois do cruzamento com o catálogo local (feature 035,
+ * `logic/cruzamento-local.md`). `key` = `tmdb:<kind>:<tmdbId>` — identidade
+ * estável usada para restaurar o foco. `localItemId` só existe quando
+ * encontrado (id local do registro em `channels`, como string).
+ */
+export interface ResolvedTitle extends TmdbTitleRef {
+  key: string
+  localItemId?: string
+}
+
+export interface TitleResolution {
+  /** Encontrados primeiro, depois os não encontrados — cada grupo na ordem recebida. */
+  titles: ResolvedTitle[]
+  coverage: { movie?: KindCoverage; series?: KindCoverage }
+}
+
+/** Estado da aba Semelhantes (feature 035, `logic/aba-semelhantes.md` §1). */
+export type SimilarTabStatus = 'loading' | 'no_key' | 'no_match' | 'unavailable' | 'empty' | 'ready'
+
+export interface SimilarTabView {
+  status: SimilarTabStatus
+  titles: ResolvedTitle[]
+  coverage?: KindCoverage
+}
+
+export type PersonCreditsFailure = 'no_key' | 'refused' | 'offline' | 'rate_limited' | 'not_found'
+
+/** Página de ator (feature 035, `logic/pagina-de-ator.md`). Nunca carrega chave. */
+export type PersonCreditsResult =
+  | { status: 'ok'; person: { personId: number; name: string; photoUrl?: string; credits: TmdbTitleRef[] } }
+  | { status: 'error'; reason: PersonCreditsFailure }
 
 export type TmdbKeyFormat = 'v3' | 'v4'
 

@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Modal } from '../../components/Modal'
+import type { CastPerson } from '../../lib/catalog/db'
 import type { MetadataField, MetadataOrigin } from '../../lib/metadata/types'
 import { castNames, isSynopsisTruncated, type FactRow } from './detailMetadataFormat'
 
@@ -108,8 +109,8 @@ export function SynopsisModal({ text, onClose }: { text: string; onClose: () => 
 
 /**
  * Aba "Elenco" (feature 032, ad-hoc T044): os nomes que o provedor (ou o TMDB,
- * onde o provedor não disse) informou, em lista. É só texto — páginas de ator
- * navegáveis são o item 45 do backlog. Sem elenco informado a aba diz isso, em
+ * onde o provedor não disse) informou, em lista. É só texto — com casamento no
+ * TMDB a aba mostra `CastPeoplePanel` (feature 035) no lugar deste. Sem elenco informado a aba diz isso, em
  * vez de ficar vazia ou de inventar um nome; a fileira de abas continua o
  * elemento focável (nenhum beco sem saída).
  */
@@ -128,6 +129,77 @@ export function CastPanel({ cast, loading }: { cast: MetadataField<string> | und
         ))}
       </ul>
       <OriginTag origin={cast.origin} />
+    </div>
+  )
+}
+
+/**
+ * Foto de uma pessoa do TMDB (feature 035). Sem foto, ou se ela falhar ao
+ * carregar, o marcador neutro (iniciais) cobre — nunca o ícone de imagem
+ * quebrada do navegador (mesma regra do `PosterArt`).
+ */
+export function PersonPhoto({ url, name, focused }: { url: string | undefined; name: string; focused?: boolean }): ReactNode {
+  const [failedUrl, setFailedUrl] = useState<string | undefined>(undefined)
+  const showImage = Boolean(url) && url !== failedUrl
+  const initials = name
+    .split(/\s+/)
+    .filter((part) => part !== '')
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+  return (
+    <div className={`person-photo${focused ? ' tv-focus' : ''}`}>
+      <span className="person-photo-initials" aria-hidden="true">
+        {initials}
+      </span>
+      {showImage && <img className="person-photo-img" src={url} alt="" loading="lazy" decoding="async" onError={() => setFailedUrl(url)} />}
+    </div>
+  )
+}
+
+export const personFocusKey = (personId: number): string => `person:${personId}`
+
+/**
+ * Aba "Elenco" com identidade TMDB (feature 035, US3, D-006): foto, nome e
+ * personagem (só quando o TMDB informa), navegáveis. Substitui o texto da 032
+ * só quando o título casou — nunca mistura as duas listas. Fileira simples
+ * (no máximo 20 pessoas) pelo mesmo motivo do `SimilarPanel`.
+ */
+export function CastPeoplePanel({
+  people,
+  focusedKey,
+  onSelectPerson,
+}: {
+  people: CastPerson[]
+  focusedKey: string | undefined
+  onSelectPerson: (person: CastPerson) => void
+}): ReactNode {
+  const rowRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (focusedKey === undefined) return
+    const cards = rowRef.current?.querySelectorAll<HTMLElement>('[data-person-key]')
+    for (const card of cards ?? []) {
+      if (card.dataset.personKey === focusedKey) card.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+    }
+  }, [focusedKey])
+
+  return (
+    <div className="cast-people">
+      <div ref={rowRef} className="cast-people-row no-scrollbar" aria-label="Elenco">
+        {people.map((person) => (
+          <div
+            key={person.personId}
+            className="cast-person"
+            data-person-key={personFocusKey(person.personId)}
+            onClick={() => onSelectPerson(person)}
+          >
+            <PersonPhoto url={person.photoUrl} name={person.name} focused={focusedKey === personFocusKey(person.personId)} />
+            <div className="cast-person-name">{person.name}</div>
+            {person.character && <div className="cast-person-character">{person.character}</div>}
+          </div>
+        ))}
+      </div>
+      <OriginTag origin="tmdb" />
     </div>
   )
 }

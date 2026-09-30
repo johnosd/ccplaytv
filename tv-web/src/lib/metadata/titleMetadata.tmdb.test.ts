@@ -104,7 +104,7 @@ async function open(movieId: number, fetchImpl: ReturnType<typeof vi.fn>, now = 
 }
 
 describe('ensureTitleMetadata — TMDB (feature 032, US3)', () => {
-  it('provedor completo: zero chamadas ao TMDB, mesmo com chave (FR-018)', async () => {
+  it('provedor completo: com chave o TMDB é consultado uma vez (035, D-002) e o provedor continua vencendo', async () => {
     const movieId = await addMovie({ year: 1999 })
     const complete = {
       plot: 'P',
@@ -118,13 +118,14 @@ describe('ensureTitleMetadata — TMDB (feature 032, US3)', () => {
       youtube_trailer: 'provTrail01',
       tmdb_id: 603,
     }
-    const fetchImpl = panelAndTmdb(complete, [])
+    const fetchImpl = panelAndTmdb(complete, [(url) => (url.pathname === '/3/movie/603' ? json(movieDetail({ overview: 'Do TMDB.' })) : undefined)])
     await saveTmdbKey(KEY, { database, now: () => NOW, fetchImpl: fetchImpl as unknown as typeof fetch })
     const before = tmdbCalls(fetchImpl).length
 
-    await open(movieId, fetchImpl)
+    const view = await open(movieId, fetchImpl)
 
-    expect(tmdbCalls(fetchImpl).length).toBe(before)
+    expect(tmdbCalls(fetchImpl).length).toBe(before + 1)
+    expect(view.synopsis).toEqual({ value: 'P', origin: 'provider' })
   })
 
   it('tmdb_id com ano contraditório é descartado e vale a busca por título + ano (FR-019)', async () => {

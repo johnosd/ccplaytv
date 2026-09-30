@@ -221,6 +221,327 @@
   text-align: left;
 }
 
+/* ---------- Cadastro "Conecte sua lista IPTV" (feature 037) ----------
+   Formato do `sourceSetup()` do protótipo V13.2: painel lateral "Como
+   funciona" + painel principal "Adicionar serviço". Tudo escopado em
+   `.source-setup` — as regras acima, compartilhadas com a tela de progresso,
+   não mudam (D-012). Rola na vertical sem barra (D-013): o `focus()` do
+   `useTvKeyNav` traz o campo em foco para a vista. */
+
+.screen.onboarding.source-setup {
+  overflow-y: auto;
+  scroll-padding-block: var(--safe-y);
+}
+
+.source-setup > * {
+  flex: none;
+}
+
+.source-setup .onboarding-brand {
+  margin-bottom: var(--space-2);
+}
+
+.source-setup .onboarding-kicker {
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.source-setup .onboarding-title {
+  margin: 0;
+  font-size: var(--fs-display);
+  line-height: 1;
+}
+
+.source-setup .onboarding-subtitle {
+  margin: var(--space-1) 0 0;
+  max-width: none;
+  font-size: var(--fs-body);
+}
+
+/* Lateral fixa + principal flexível. O padding (com margem negativa) é o
+   respiro para o glow e a escala do foco não serem cortados (ADR-007). */
+.source-setup-layout {
+  display: grid;
+  grid-template-columns: calc(var(--space-7) * 4) minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--space-4);
+  margin: var(--space-2) calc(-1 * var(--space-2)) 0;
+  padding: var(--space-2);
+}
+
+.source-setup-layout--edit {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.source-setup-side,
+.source-setup-main {
+  box-sizing: border-box;
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.source-setup-side {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+}
+
+.source-setup-side-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+.source-setup-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.source-setup-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--bg-hover);
+}
+
+.source-setup-step:first-child {
+  border-top: 0;
+}
+
+/* Numeração neutra: nenhum passo aparece "concluído" (constitution,
+   "Progresso e Capacidades São Reais"). */
+.source-setup-step-number {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--space-5);
+  height: var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.source-setup-step-copy {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-1) / 2);
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.source-setup-step-copy b {
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.source-setup-note {
+  margin: auto 0 0;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.source-setup-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2) var(--space-4) var(--space-3);
+}
+
+.source-setup-main-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.source-setup-main-text {
+  margin: calc(-1 * var(--space-1)) 0 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+/* Celular e manual lado a lado, como no protótipo (1.2fr / 1fr). */
+.source-setup-methods {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.source-setup-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-base);
+}
+
+.source-setup-eyebrow {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: var(--fs-caption);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-annotation);
+}
+
+.source-setup-panel-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+.source-setup-panel-text {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.source-setup-pair .coming-soon {
+  margin-top: auto;
+  background: var(--bg-elevated);
+  text-align: left;
+}
+
+/* Cartões de tipo: são o próprio seletor (D-008). O selecionado tem borda de
+   destaque E a marca ✓ — nunca só a cor (FR-015). */
+.source-type-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  width: 100%;
+  margin-top: var(--space-1);
+}
+
+.source-type {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--space-2);
+  border: 3px solid var(--bg-hover);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  text-align: left;
+  cursor: pointer;
+}
+
+.source-type.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.source-type-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+.source-type-head b {
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.source-type-check {
+  display: grid;
+  place-items: center;
+  width: var(--space-3);
+  height: var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 800;
+}
+
+/* Campos em 2 colunas; Nome e Servidor/URL em largura total. O rótulo
+   permanente fica dentro da caixa, como no protótipo (DS §37 — nunca
+   placeholder); o anel de foco vai na caixa inteira. */
+.source-setup-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1) var(--space-2);
+}
+
+.source-setup-field--wide {
+  grid-column: 1 / -1;
+}
+
+.source-setup .text-field {
+  box-sizing: border-box;
+  gap: calc(var(--space-1) / 2);
+  padding: var(--space-1) var(--space-2);
+  border: 3px solid var(--bg-hover);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+}
+
+.source-setup .text-field:focus-within {
+  border-color: var(--accent);
+  background: var(--surface-field-active);
+  outline: var(--focus-ring-width) solid var(--accent);
+  outline-offset: var(--focus-ring-offset);
+  box-shadow: var(--focus-halo);
+}
+
+.source-setup .text-field-label {
+  font-weight: 700;
+  font-size: var(--fs-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-annotation);
+}
+
+.source-setup .text-field-input,
+.source-setup .text-field-input:focus {
+  height: auto;
+  padding: 0;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  font-size: var(--fs-body);
+}
+
+.source-setup .text-field-hint {
+  margin: 0;
+}
+
+.source-setup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
 /* ---------- Progresso da importação (US4, FR-037) ---------- */
 
 .progress-status-row {

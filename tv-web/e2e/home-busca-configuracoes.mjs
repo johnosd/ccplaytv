@@ -25,6 +25,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { cadastrarListaM3u } from './lib/entrada.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'home-busca-configuracoes.m3u')
@@ -96,9 +97,7 @@ async function addSourceAndOpen(page, m3uUrl, displayName) {
   await page.waitForSelector('.add-card', { timeout: 10000 })
   await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
-  await page.getByLabel('Nome de exibição').fill(displayName)
-  await page.getByLabel('URL da lista M3U').fill(m3uUrl)
-  await page.getByRole('button', { name: 'Adicionar lista' }).click()
+  await cadastrarListaM3u(page, { nome: displayName, url: m3uUrl })
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   // "Abrir lista" (FR-038) já entra direto no Início da fonte recém-criada.
   await page.getByRole('button', { name: 'Abrir lista' }).click()
@@ -386,9 +385,7 @@ async function run() {
     for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowDown')
     await page.keyboard.press('Enter')
     await page.waitForSelector('#add-source-title', { timeout: 8000 })
-    await page.getByLabel('Nome de exibição').fill('Fonte E2E Home Limitada')
-    await page.getByLabel('URL da lista M3U').fill(limitedM3uUrl)
-    await page.getByRole('button', { name: 'Adicionar lista' }).click()
+    await cadastrarListaM3u(page, { nome: 'Fonte E2E Home Limitada', url: limitedM3uUrl })
     await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
     // "Voltar" da tela de progresso sempre vai pros perfis, como base (FR-039) — nunca de volta a
     // Configurações. Importante escolher aqui a fonte PRINCIPAL (nunca a recém-criada, "Modo

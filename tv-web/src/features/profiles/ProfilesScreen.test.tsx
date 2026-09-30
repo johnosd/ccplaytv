@@ -115,26 +115,26 @@ describe('ProfilesScreen — estados e listas (US1)', () => {
     const { props } = renderProfiles()
 
     expect(card('Adicionar lista')).toHaveClass('tv-focus')
-    // "Adicionar lista" + "Gerenciar listas" (feature 026, FR-032).
+    // "Adicionar lista" + "Configurações" (feature 026, FR-032; canto desde a 037).
     expect(screen.getAllByRole('button')).toHaveLength(2)
-    expect(screen.getByRole('button', { name: 'Gerenciar listas' })).not.toHaveClass('tv-focus')
-    expect(screen.queryByText('Nome de exibição')).not.toBeInTheDocument()
-    expect(screen.getByText(/nenhuma lista/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Configurações' })).not.toHaveClass('tv-focus')
+    expect(screen.queryByText('Nome da lista')).not.toBeInTheDocument()
+    expect(screen.getByText('Adicione sua primeira lista para começar.')).toBeInTheDocument()
 
     press('Enter')
     expect(props.onAddSource).toHaveBeenCalledTimes(1)
   })
 
-  it('com listas: um cartão por lista mais "Adicionar lista", com o subtítulo que explica que perfil é lista (FR-002, FR-003)', () => {
+  it('com listas: um cartão por lista mais "Adicionar lista", com o título e o subtítulo da escolha de lista (FR-002, FR-003; 037 FR-003)', () => {
     mockLoaded(LISTA_1, LISTA_2)
     renderProfiles()
 
-    expect(screen.getByText('Quem está assistindo?')).toBeInTheDocument()
-    expect(screen.getByText('Escolha uma lista')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Selecione ou Adicione sua lista')
+    expect(screen.getByText('Escolha uma lista para continuar ou adicione uma nova.')).toBeInTheDocument()
     expect(card(/Lista 1/)).toBeInTheDocument()
     expect(card(/Lista 2/)).toBeInTheDocument()
     expect(card('Adicionar lista')).toBeInTheDocument()
-    expect(screen.queryByText('Nome de exibição')).not.toBeInTheDocument()
+    expect(screen.queryByText('Nome da lista')).not.toBeInTheDocument()
   })
 
   it('cada cartão diz o tipo da lista: Xtream para provedor, M3U para URL (FR-002)', () => {
@@ -148,15 +148,40 @@ describe('ProfilesScreen — estados e listas (US1)', () => {
     expect(within(card(/Lista direta/)).getByText('M3U')).toBeInTheDocument()
   })
 
-  it('estado de sincronização: nunca sincronizada e erro na última sincronização', () => {
+  // Feature 037, FR-006: a data/estado de sincronização sai do cartão (continua em Configurações).
+  it('o cartão não mostra o estado de sincronização em nenhum caso', () => {
     mockLoaded(
       makeSource('a', 'Nova', { connection_state: 'never_synced', last_successful_sync_at: null }),
       makeSource('b', 'Quebrada', { connection_state: 'error' }),
+      makeSource('c', 'Em dia'),
     )
     renderProfiles()
 
-    expect(within(card(/Nova/)).getByText('Nunca sincronizada')).toBeInTheDocument()
-    expect(within(card(/Quebrada/)).getByText('Erro na última sincronização')).toBeInTheDocument()
+    expect(screen.queryByText('Nunca sincronizada')).not.toBeInTheDocument()
+    expect(screen.queryByText('Erro na última sincronização')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Sincronizada em/)).not.toBeInTheDocument()
+  })
+
+  it('cartão com avatar de iniciais decorativo: fora do nome acessível, par de cores estável por id (FR-005)', () => {
+    mockLoaded(makeSource('src-1', 'Minha Lista Principal'))
+    renderProfiles()
+
+    const avatar = document.querySelector('.source-card-avatar')
+    expect(avatar).toHaveTextContent('ML')
+    expect(avatar).toHaveAttribute('aria-hidden', 'true')
+    expect(avatar?.className).toMatch(/list-avatar--[0-5]\b/)
+    expect(card(/Minha Lista Principal/).getAttribute('aria-label')).toBeNull()
+    expect(screen.queryByRole('button', { name: /ML/ })).not.toBeInTheDocument()
+  })
+
+  it('nome longo: o texto é truncado só por CSS, o nome acessível mantém o nome inteiro (Edge Case)', () => {
+    const longo = 'Lista com um nome muito comprido que não cabe na largura do cartão'
+    mockLoaded(makeSource('longa', longo))
+    renderProfiles()
+
+    const name = document.querySelector('.source-card-name')
+    expect(name).toHaveTextContent(longo)
+    expect(card(new RegExp(longo))).toBeInTheDocument()
   })
 
   it('fonte em Modo limitado mostra o selo; fonte normal não (feature 004, FR-011)', () => {
@@ -180,6 +205,32 @@ describe('ProfilesScreen — estados e listas (US1)', () => {
 
     expect(within(card(/Truncada/)).getByText('A lista não coube inteira')).toBeInTheDocument()
     expect(within(card(/Descartada/)).getByText('Entradas não reconhecidas ficaram de fora')).toBeInTheDocument()
+  })
+
+  it('os avisos ficam juntos na linha compacta abaixo do nome (FR-006)', () => {
+    mockLoaded(
+      makeSource('tudo', 'Tudo', {
+        type: 'provider_credentials',
+        provider_import_mode: 'legacy_m3u',
+        last_truncated_by_storage: true,
+        last_discarded_by_type: 3,
+      }),
+      makeSource('nada', 'Nada'),
+    )
+    renderProfiles()
+
+    const notices = card(/Tudo/).querySelector('.source-card-notices')
+    expect(notices).not.toBeNull()
+    expect(within(notices as HTMLElement).getAllByText(/./).map((el) => el.textContent)).toEqual([
+      'Modo limitado',
+      'A lista não coube inteira',
+      'Entradas não reconhecidas ficaram de fora',
+    ])
+    // A linha vem depois do nome, dentro do cartão.
+    const name = card(/Tudo/).querySelector('.source-card-name') as HTMLElement
+    expect(name.compareDocumentPosition(notices as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // Sem aviso, sem linha vazia.
+    expect(card(/Nada/).querySelector('.source-card-notices')).toBeNull()
   })
 
   // Feature 028, FR-015/FR-017 — um caso por estado principal.
@@ -266,25 +317,25 @@ describe('ProfilesScreen — foco inicial e navegação (FR-004)', () => {
     expect(props.onChooseSource).toHaveBeenCalledWith(LISTA_2)
   })
 
-  it('DOWN em "Adicionar lista" abre "Gerenciar listas" (feature 026, FR-032) — nunca as ações de cartão', () => {
+  it('DOWN em "Adicionar lista" leva a "Configurações" (feature 026, FR-032; 037 D-006) — nunca as ações de cartão', () => {
     mockLoaded(LISTA_1)
     const { props } = renderProfiles()
 
     press('ArrowRight', 'ArrowDown')
     expect(card('Adicionar lista')).not.toHaveClass('tv-focus')
-    expect(screen.getByRole('button', { name: 'Gerenciar listas' })).toHaveClass('tv-focus')
+    expect(screen.getByRole('button', { name: 'Configurações' })).toHaveClass('tv-focus')
     expect(screen.queryByRole('button', { name: 'Ressincronizar' })).not.toBeInTheDocument()
 
     press('Enter')
     expect(props.onManageSources).toHaveBeenCalledTimes(1)
   })
 
-  it('RETURN em "Gerenciar listas" fecha a camada e devolve o foco a "Adicionar lista"; UP faz o mesmo', () => {
+  it('RETURN em "Configurações" fecha a camada e devolve o foco a "Adicionar lista"; UP faz o mesmo', () => {
     mockLoaded(LISTA_1)
     renderProfiles()
 
     press('ArrowRight', 'ArrowDown')
-    expect(screen.getByRole('button', { name: 'Gerenciar listas' })).toHaveClass('tv-focus')
+    expect(screen.getByRole('button', { name: 'Configurações' })).toHaveClass('tv-focus')
 
     press('Escape')
     expect(card('Adicionar lista')).toHaveClass('tv-focus')
@@ -532,7 +583,7 @@ describe('ProfilesScreen — exclusão confirmada (FR-010, FR-011)', () => {
     rerender()
 
     expect(card('Adicionar lista')).toHaveClass('tv-focus')
-    expect(screen.getAllByRole('button')).toHaveLength(2) // + "Gerenciar listas"
+    expect(screen.getAllByRole('button')).toHaveLength(2) // + "Configurações"
   })
 
   it('falha ao excluir avisa e não move o foco nem chama onSourceDeleted', () => {

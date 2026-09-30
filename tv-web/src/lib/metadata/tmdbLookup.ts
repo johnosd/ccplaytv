@@ -67,7 +67,9 @@ export async function lookupTmdb(input: TmdbLookupInput): Promise<TmdbResultReco
   // `include_video_language`: sem ele o TMDB só devolve vídeos em pt-BR, e quase todo trailer é `en` (D-004).
   const detailParams = {
     language: PT_BR,
-    append_to_response: 'credits,videos',
+    // Semelhantes e elenco com identidade vêm na MESMA chamada (035, D-001).
+    append_to_response:
+      kind === 'movie' ? 'credits,videos,recommendations,similar' : 'aggregate_credits,videos,recommendations,similar',
     include_video_language: 'pt,en,null',
   }
 

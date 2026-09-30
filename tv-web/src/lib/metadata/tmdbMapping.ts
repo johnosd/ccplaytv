@@ -1,6 +1,7 @@
-import type { TitleFields } from '../catalog/db'
+import type { CastPerson, TitleFields, TmdbTitleRef } from '../catalog/db'
 import { trailerRefsFromTmdbVideos } from '../trailer/trailerCandidates'
 import { tmdbImageUrl } from './tmdbConnector'
+import { yearOfDate } from './tmdbMatch'
 
 /**
  * Detalhe do TMDB → campos do app (feature 032, `data-model.md` §3). Só o que
@@ -79,6 +80,95 @@ export function overviewOf(detail: unknown): string | undefined {
  * o fallback de idioma (FR-021) é decidido por quem chama, que sabe se pediu
  * o idioma original.
  */
+const SIMILAR_MAX = 20
+const CAST_PEOPLE_MAX = 20
+
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined
+}
+
+/**
+ * Recomendações ++ similares, sem repetir nem citar o próprio título, até 20 (D-004).
+ * Sempre presente (`[]` se nada serve): as listas são pedidas na mesma chamada, então
+ * a chave ausente na resposta é "nada veio", e o registro não pode ser repetido a cada abertura.
+ */
+function mapSimilar(kind: TmdbKind, detail: Record<string, unknown>): TmdbTitleRef[] {
+  const lists = [record(detail.recommendations).results, record(detail.similar).results]
+  const selfId = typeof detail.id === 'number' ? detail.id : undefined
+  const seen = new Set<number>()
+  const refs: TmdbTitleRef[] = []
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue
+    for (const entry of list) {
+      if (refs.length >= SIMILAR_MAX) break
+      const item = record(entry)
+      const id = item.id
+      const title = nonEmptyString(item.title) ?? nonEmptyString(item.name)
+      if (typeof id !== 'number' || !Number.isFinite(id) || title === undefined) continue
+      if (id === selfId || seen.has(id)) continue
+      seen.add(id)
+      const ref: TmdbTitleRef = { tmdbId: id, kind: kind === 'movie' ? 'movie' : 'series', title }
+      const originalTitle = nonEmptyString(item.original_title) ?? nonEmptyString(item.original_name)
+      if (originalTitle !== undefined) ref.originalTitle = originalTitle
+      const year = yearOfDate(item.release_date) ?? yearOfDate(item.first_air_date)
+      if (year !== undefined) ref.year = year
+      const poster = nonEmptyString(item.poster_path)
+      if (poster !== undefined) ref.posterUrl = tmdbImageUrl(poster, 'w342')
+      const overview = nonEmptyString(item.overview)
+      if (overview !== undefined) ref.overview = overview
+      refs.push(ref)
+    }
+  }
+  return refs
+}
+
+/** Papel de mais episódios de uma pessoa em `aggregate_credits` (série). */
+function mainRole(roles: unknown): string | undefined {
+  if (!Array.isArray(roles)) return undefined
+  let best: { character: string; count: number } | undefined
+  for (const role of roles) {
+    const item = record(role)
+    const character = nonEmptyString(item.character)
+    if (character === undefined) continue
+    const count = typeof item.episode_count === 'number' ? item.episode_count : 0
+    if (best === undefined || count > best.count) best = { character, count }
+  }
+  return best?.character
+}
+
+/** Elenco por `order`, até 20; filme lê `credits.cast`, série `aggregate_credits.cast`. */
+function orderedCast(kind: TmdbKind, detail: Record<string, unknown>): Record<string, unknown>[] {
+  const source = record(kind === 'movie' ? detail.credits : detail.aggregate_credits)
+  if (!Array.isArray(source.cast)) return []
+  return (source.cast as unknown[])
+    .map((entry, index) => ({ item: record(entry), index }))
+    .sort((a, b) => {
+      const orderA = typeof a.item.order === 'number' ? a.item.order : Number.POSITIVE_INFINITY
+      const orderB = typeof b.item.order === 'number' ? b.item.order : Number.POSITIVE_INFINITY
+      return orderA === orderB ? a.index - b.index : orderA - orderB
+    })
+    .map(({ item }) => item)
+}
+
+function mapCastPeople(kind: TmdbKind, detail: Record<string, unknown>): CastPerson[] {
+  const seen = new Set<number>()
+  const people: CastPerson[] = []
+  for (const item of orderedCast(kind, detail)) {
+    if (people.length >= CAST_PEOPLE_MAX) break
+    const id = item.id
+    const name = nonEmptyString(item.name)
+    if (typeof id !== 'number' || !Number.isFinite(id) || name === undefined || seen.has(id)) continue
+    seen.add(id)
+    const person: CastPerson = { personId: id, name }
+    const character = kind === 'movie' ? nonEmptyString(item.character) : mainRole(item.roles)
+    if (character !== undefined) person.character = character
+    const photo = nonEmptyString(item.profile_path)
+    if (photo !== undefined) person.photoUrl = tmdbImageUrl(photo, 'w185')
+    people.push(person)
+  }
+  return people
+}
+
 export function mapTmdbDetail(kind: TmdbKind, rawDetail: unknown): TitleFields {
   const detail = record(rawDetail)
   const credits = record(detail.credits)
@@ -97,7 +187,12 @@ export function mapTmdbDetail(kind: TmdbKind, rawDetail: unknown): TitleFields {
     // Série: a direção por episódio varia; o TMDB não a tem no nível da série.
     director: kind === 'movie' ? directors(credits) : undefined,
     country: countries(detail),
-    cast: joined(names(credits.cast, 10)),
+    cast: joined(orderedCast(kind, detail).slice(0, 10).map((item) => nonEmptyString(item.name) ?? '').filter((name) => name !== '')),
+    similar: mapSimilar(kind, detail),
+    castPeople: (() => {
+      const people = mapCastPeople(kind, detail)
+      return people.length > 0 ? people : undefined
+    })(),
     // Só quando a resposta trouxe `videos` (pode ser `[]`): a ausência da chave é o que marca um registro anterior à 033.
     trailerVideos: 'videos' in detail ? trailerRefsFromTmdbVideos(detail.videos) : undefined,
   }

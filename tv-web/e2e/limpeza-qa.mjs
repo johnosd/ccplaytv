@@ -19,6 +19,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { cadastrarListaM3u } from './lib/entrada.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'limpeza-qa.m3u')
@@ -64,9 +65,7 @@ async function addSourceAndOpen(page, m3uUrl, displayName) {
   await page.waitForSelector('.add-card', { timeout: 10000 })
   await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
-  await page.getByLabel('Nome de exibição').fill(displayName)
-  await page.getByLabel('URL da lista M3U').fill(m3uUrl)
-  await page.getByRole('button', { name: 'Adicionar lista' }).click()
+  await cadastrarListaM3u(page, { nome: displayName, url: m3uUrl })
   await page.waitForSelector('text=/Concluída/', { timeout: 20000 })
   await page.getByRole('button', { name: 'Abrir lista' }).click()
   await page.waitForSelector('.home-content', { timeout: 8000 })

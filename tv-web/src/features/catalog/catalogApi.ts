@@ -43,6 +43,11 @@ import { listProgramsForChannels } from '../../lib/epg/epgRepository'
 import type { EpgLookup } from '../../lib/epg/types'
 import { ensureTitleMetadata } from '../../lib/metadata/titleMetadata'
 import { getTmdbStatus, removeTmdbKey, saveTmdbKey, testTmdbKey } from '../../lib/metadata/tmdbKeyRepository'
+import type { KindCoverage, ResolvedTitle, SimilarTabView } from '../../lib/metadata/types'
+import type { TmdbTitleRef } from '../../lib/catalog/db'
+import { FILMOGRAPHY_SHOWN_MAX, loadPersonCredits } from '../../lib/metadata/tmdbPeople'
+import { resolveTmdbTitles } from '../../lib/metadata/localTitleMatch'
+import { similarTabStatus } from '../../lib/metadata/similarTab'
 
 const EPG_READ_BEFORE_MS = 24 * 60 * 60 * 1000
 const EPG_READ_AFTER_MS = 48 * 60 * 60 * 1000
@@ -554,6 +559,72 @@ export function useTitleMetadata(itemId: string | null) {
 }
 
 /**
+ * Aba Semelhantes (feature 035, US1/US2 — `logic/aba-semelhantes.md`): deriva
+ * o estado da aba da metadata JÁ obtida ao abrir o detalhe (nenhuma consulta
+ * externa nova, FR-003/SC-005) e cruza os títulos com o catálogo guardado
+ * (`resolveTmdbTitles`, só IndexedDB). `enabled` só com a aba ativa.
+ */
+export function useSimilarTitles(itemId: string | null, enabled: boolean): SimilarTabView {
+  const item = useCatalogItem(itemId).data
+  // Mesma chave da consulta que o detalhe já montou: o react-query a compartilha, nada novo é pedido.
+  const metadata = useTitleMetadata(itemId).data
+  const tmdbState = useTmdbStatus().data?.state
+  const kind = item?.kind === 'movie' || item?.kind === 'series' ? item.kind : undefined
+  const sourceId = item?.source_id
+  const similar = metadata?.tmdbMatch === 'matched' ? metadata.similar : undefined
+
+  const resolution = useQuery({
+    queryKey: ['similar-titles', itemId],
+    queryFn: () => resolveTmdbTitles(sourceId as string, similar ?? [], [kind as 'movie' | 'series']),
+    enabled: enabled && kind !== undefined && !!sourceId && similar !== undefined && similar.length > 0,
+    // Categorias abertas desde a última vez entram (mesmo padrão de "Todos").
+    staleTime: 0,
+  })
+
+  const resolving = enabled && similar !== undefined && similar.length > 0 && resolution.data === undefined
+  const status = similarTabStatus({ tmdbState, metadata, resolving })
+  return {
+    status,
+    titles: status === 'ready' ? (resolution.data?.titles ?? []) : [],
+    coverage: kind !== undefined ? resolution.data?.coverage[kind] : undefined,
+  }
+}
+
+/**
+ * Filmografia de uma pessoa do elenco (feature 035, US4). Só a página de ator
+ * chama — a consulta nasce do OK na pessoa, nunca de foco. O resultado de erro
+ * é dado (`status: 'error'`), não exceção: nada de falha é guardado no banco, e
+ * "Tentar de novo" só refaz esta consulta.
+ */
+export function usePersonCredits(personId: number | null) {
+  return useQuery({
+    queryKey: ['person-credits', personId],
+    queryFn: () => loadPersonCredits(personId as number),
+    enabled: personId !== null,
+    retry: false,
+  })
+}
+
+export interface PersonTitlesView {
+  /** Encontrados primeiro; no máximo `FILMOGRAPHY_SHOWN_MAX`. */
+  titles: ResolvedTitle[]
+  coverage: { movie?: KindCoverage; series?: KindCoverage }
+}
+
+/** Filmografia cruzada com o catálogo guardado (só IndexedDB; `staleTime: 0` pega categorias abertas desde a última vez). */
+export function usePersonTitles(personId: number | null, sourceId: string | null, credits: TmdbTitleRef[] | undefined) {
+  return useQuery({
+    queryKey: ['person-titles', personId, sourceId],
+    queryFn: async (): Promise<PersonTitlesView> => {
+      const resolution = await resolveTmdbTitles(sourceId as string, credits ?? [], ['movie', 'series'])
+      return { titles: resolution.titles.slice(0, FILMOGRAPHY_SHOWN_MAX), coverage: resolution.coverage }
+    },
+    enabled: personId !== null && sourceId !== null && credits !== undefined,
+    staleTime: 0,
+  })
+}
+
+/**
  * Estado do TMDB (feature 032, US2): lê **só o IndexedDB**, nunca a rede —
  * seguro de chamar ao focar (o dock da Home o usa). Nunca carrega a chave
  * inteira, só a mascarada (FR-013).
@@ -601,6 +672,10 @@ export function useRemoveTmdbKey() {
     mutationFn: () => removeTmdbKey(),
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ['title-metadata'] })
+      queryClient.removeQueries({ queryKey: ['similar-titles'] })
+      // Filmografias também vieram do TMDB: só invalidar mostraria o dado velho por um instante (FR-021).
+      queryClient.removeQueries({ queryKey: ['person-credits'] })
+      queryClient.removeQueries({ queryKey: ['person-titles'] })
       void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
     },
   })

@@ -103,11 +103,13 @@ export async function testTmdbKey(options: MetadataOptions = {}): Promise<TmdbSt
   }
 }
 
-/** Apaga a chave e toda a metadata que veio do TMDB, preservando a do provedor (FR-014). */
+/** Apaga a chave e toda a metadata que veio do TMDB (inclusive filmografias), preservando a do provedor (FR-014). */
 export async function removeTmdbKey(options: MetadataOptions = {}): Promise<void> {
   const database: CatalogDb = options.database ?? db
-  await database.transaction('rw', database.integrations, database.titleMetadata, async () => {
+  await database.transaction('rw', database.integrations, database.titleMetadata, database.tmdbPeople, async () => {
     await database.integrations.delete(TMDB_ID)
+    // Filmografias também vieram do TMDB (feature 035, FR-021).
+    await database.tmdbPeople.clear()
     await database.titleMetadata.toCollection().modify((record) => {
       delete record.tmdb
       delete record.tmdbFetchedAt

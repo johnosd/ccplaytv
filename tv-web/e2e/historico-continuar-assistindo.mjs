@@ -26,6 +26,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { cadastrarListaM3u } from './lib/entrada.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'historico-continuar-assistindo.m3u')
@@ -64,9 +65,7 @@ async function addSource(page, m3uUrl) {
   await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
 
-  await page.getByLabel('Nome de exibição').fill(SOURCE_NAME)
-  await page.getByLabel('URL da lista M3U').fill(m3uUrl)
-  await page.getByRole('button', { name: 'Adicionar lista' }).click()
+  await cadastrarListaM3u(page, { nome: SOURCE_NAME, url: m3uUrl })
 
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   console.log('  ✓ importação concluída')
@@ -272,9 +271,9 @@ async function run() {
 
     // Correção manual: marca Arrival como assistido sem reproduzir mais.
     // Ordem das ações agora é [Continuar, Reiniciar, Minha Lista, Trailer,
-    // toggle-watched] — 5x ArrowRight garante o último índice (clamp),
-    // sem depender de contar quantas ações existem (feature 025, D-009).
-    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight')
+    // Semelhantes, toggle-watched] — 6x ArrowRight garante o último índice
+    // (clamp), sem depender de contar quantas ações existem (features 025/035).
+    for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowRight')
     await page.keyboard.press('Enter')
     await page.waitForSelector('text=/Desmarcar assistido/', { timeout: 8000 })
     assert(true, 'correção manual marcou Arrival como assistido')

@@ -19,7 +19,6 @@ export const COMING_SOON: Record<string, ComingSoonEntry> = {
   // Onboarding de lista (feature 023, FR-035).
   'pair-phone': { message: 'Conectar a lista pelo celular, com QR code.', backlogItem: 22 },
   // Detalhe de filme/série (feature 025, D-011, FR-043).
-  similar: { message: 'Títulos semelhantes a este.', backlogItem: 45 },
   // O `trailer` do detalhe virou real na 033 (FR-021); o do herói do Início segue fora do escopo dela.
   'home-trailer': { message: 'Trailer do filme ou da série.', backlogItem: 32 },
   // Home definitiva (feature 026, FR-016).
