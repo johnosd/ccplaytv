@@ -12,6 +12,7 @@ import {
 import { createProgressRecorder, type ProgressRecorder, type ProgressRecorderIdentity } from '../lib/player/progressRecorder'
 import { MOVIE_WATCHED_RATIO } from '../lib/player/resumePolicy'
 import { disableScreenSaver, enableScreenSaver } from '../lib/player/screenSaver'
+import { prefetchGate } from '../lib/catalog/prefetch'
 import { clamp, useRemoteNav } from '../lib/useRemoteNav'
 import type { MediaKey } from '../lib/tizenMediaKeys'
 import { useToast } from '../lib/useToast'
@@ -288,6 +289,10 @@ export function PlayerLayer({
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const recorderRef = useRef<ProgressRecorder | null>(null)
   const { toastMessage, toastKey, showToast } = useToast()
+
+  // Feature 038 (FR-004/SC-004): camada aberta = nenhuma categoria da
+  // pré-carga começa. Montou/desmontou; zapping não remonta a camada.
+  useEffect(() => prefetchGate.acquirePlayback(), [])
 
   /**
    * Nível/mídia/foco do chrome vivem em REFS, não em `useState` — mesmo

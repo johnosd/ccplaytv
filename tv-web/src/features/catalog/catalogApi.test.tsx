@@ -96,6 +96,8 @@ describe('useCategoryFocusPrefetch (feature 010 — desvio deliberado de FR-004)
     // prefetch agora carrega um `AbortController` próprio.
     expect(categoryLoader.ensureCategory).toHaveBeenCalledWith('source-1', category(2), {
       signal: expect.any(AbortSignal),
+      // Feature 038 (D-007): a entrada serve vencida do disco e pede a renovação.
+      serveStale: expect.any(Function),
     })
   })
 
@@ -144,6 +146,8 @@ describe('useCategoryFocusPrefetch (feature 010 — desvio deliberado de FR-004)
     expect(categoryLoader.ensureCategory).toHaveBeenCalledTimes(1)
     expect(categoryLoader.ensureCategory).toHaveBeenCalledWith('source-1', category(2), {
       signal: expect.any(AbortSignal),
+      // Feature 038 (D-007): a entrada serve vencida do disco e pede a renovação.
+      serveStale: expect.any(Function),
     })
   })
 
@@ -295,7 +299,7 @@ describe('prefetchCategoryContent / useCategoryContent — categoria stored (fea
     const { result } = renderHook(() => useCategoryContent(SOURCE_ID, cat), { wrapper: wrapper() })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(categoryLoader.ensureCategory).toHaveBeenCalledWith(SOURCE_ID, cat)
+    expect(categoryLoader.ensureCategory).toHaveBeenCalledWith(SOURCE_ID, cat, { serveStale: expect.any(Function) })
   })
 
   it('pré-carga seguida da entrada explícita mostra o conteúdo já pronto, sem esperar nova leitura', async () => {

@@ -12,9 +12,11 @@ export type ChannelNumberInput = Pick<CatalogItemOut, 'category_id' | 'category_
 export function knownCategoryCount(category: CatalogCategory): number | undefined {
   switch (category.fetchMode) {
     case 'stored':
-      // A importação grava a contagem real da varredura antes de a
-      // categoria ser lida (feature 014, D-011).
-      return category.declaredCount
+      // Depois de lida, o número é o do disco (feature 038, SC-007): numa
+      // atualização, `declaredCount` já é o do arquivo novo enquanto os itens
+      // mostrados ainda são os de antes, até a renovação chegar. Antes de ler,
+      // a importação já sabe a contagem real da varredura (feature 014, D-011).
+      return category.itemsFetchedAt !== undefined ? category.count : category.declaredCount
     case 'eager':
       // Os itens já estão todos gravados (M3U legado, anterior à 014).
       return category.count

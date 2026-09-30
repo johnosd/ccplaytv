@@ -19,6 +19,8 @@ import {
   type CatalogCategory,
 } from '../../lib/catalog/catalogRepository'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
+import { markEntry } from '../../lib/perf/entryTiming'
+import { prefetchScheduler } from '../../lib/catalog/prefetch'
 import { ensureSeriesEpisodes, type SeriesFetchOutcome } from '../../lib/catalog/seriesLoader'
 import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
 import {
@@ -288,15 +290,29 @@ async function loadCategoryContent(
   // entrada real (`useCategoryContent`, sem `signal`) nunca é abortável e
   // mantém a mesma chamada de sempre (bug
   // `prefetch-concorrente-categoria-sem-cancelamento-requisicao`).
-  const result = signal
-    ? await ensureCategory(sourceId, category, { signal })
-    : await ensureCategory(sourceId, category)
+  // Feature 038 (D-007/FR-026): com itens no aparelho, uma categoria vencida
+  // (ou com renovação pendente depois de uma atualização) abre na hora com o
+  // que tem; a renovação vai para a frente da fila da pré-carga.
+  // Servir do disco de propósito não é falha: a nota "Não foi possível
+  // atualizar agora" das telas só vale para `stale-served` de verdade (a
+  // busca falhou), então aqui o resultado sai como `fresh`.
+  let renewalQueued = false
+  const serveStale = (categoryId: number) => {
+    renewalQueued = true
+    prefetchScheduler.prioritize(categoryId)
+  }
+  const ensured = signal
+    ? await ensureCategory(sourceId, category, { signal, serveStale })
+    : await ensureCategory(sourceId, category, { serveStale })
+  const result = renewalQueued ? { ...ensured, outcome: 'fresh' as const } : ensured
   // As três seções buscam a categoria inteira, sem teto de leitura (feature
   // 009, D-002 completo) — painel de canais e grades de pôsteres agora
   // virtualizam o que renderizam, então não precisam mais de um corte
   // artificial pra não travar a TV.
   const records = await listChannels(sourceId, category.order, 0, NO_LIMIT, category.kind)
   const totalCount = await countChannels(sourceId, category.order, category.kind)
+  // Feature 038 (FR-012): medição desligada por padrão, só números.
+  if (!signal) markEntry(category.id, category.kind, 'read', totalCount)
   return {
     items: records.map((record) => toItemOut(record, category.kind)),
     totalCount,
@@ -319,7 +335,7 @@ function categoryContentKey(sourceId: string | null, categoryId: number | undefi
  * tocada antes da entrada, e é deliberadamente separada e amortecida.
  */
 export function useCategoryContent(sourceId: string | null, category: CatalogCategory | undefined) {
-  return useQuery({
+  const query = useQuery({
     queryKey: categoryContentKey(sourceId, category?.id),
     queryFn: async (): Promise<CategoryContent> => {
       if (!sourceId || !category) return { items: [], totalCount: 0, outcome: 'fresh' }
@@ -327,6 +343,17 @@ export function useCategoryContent(sourceId: string | null, category: CatalogCat
     },
     enabled: sourceId !== null && category !== undefined,
   })
+  // Feature 038 (FR-012): fecha a medição da entrada no primeiro quadro com
+  // itens — efeito roda depois do commit, o `requestAnimationFrame` depois da
+  // pintura. Sem `ccplaytv:perf`, `markEntry` não faz nada.
+  const paintedId = query.data && query.data.items.length > 0 ? category?.id : undefined
+  const paintedKind = category?.kind
+  useEffect(() => {
+    if (paintedId === undefined || paintedKind === undefined) return
+    const frame = requestAnimationFrame(() => markEntry(paintedId, paintedKind, 'firstPaint'))
+    return () => cancelAnimationFrame(frame)
+  }, [paintedId, paintedKind])
+  return query
 }
 
 /**

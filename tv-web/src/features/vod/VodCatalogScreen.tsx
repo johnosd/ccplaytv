@@ -16,10 +16,12 @@ import {
   type CatalogCategory,
   type CatalogItemOut,
 } from '../catalog/catalogApi'
+import { usePrefetchHint } from '../catalog/prefetchApi'
 import { normalizeForSearch, searchWithinItems, SEARCH_MIN_CHARS } from '../../lib/catalog/catalogSearch'
 import { formatTime } from '../../lib/player/formatTime'
 import { clamp, gridNextIndex, useRemoteNav } from '../../lib/useRemoteNav'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
+import { locateOrNeighbor, type LastFocus } from '../../lib/focus/reconcileFocus'
 import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { FavoriteHint, FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
@@ -166,10 +168,6 @@ function trailEntryId(entry: TrailEntry): string {
   return entry.key.kind
 }
 
-function locate<T>(items: T[], matches: (item: T) => boolean): number {
-  const idx = items.findIndex(matches)
-  return idx === -1 ? 0 : idx
-}
 
 /**
  * Padrão sem navegação prévia: a primeira categoria REAL, depois de
@@ -274,6 +272,8 @@ export function VodCatalogScreen({
   // FR-004 — ver `LiveScreen.tsx`). "★"/"↺"/"Todos" nunca prefetcham, nem a
   // categoria já entrada.
   useCategoryFocusPrefetch(sourceId, focusedCategory, entered?.kind === 'category' ? entered.id : undefined)
+  // Feature 038 (FR-005/FR-011): só reordena a fila da pré-carga — nenhuma consulta nasce do foco.
+  usePrefetchHint(config.kind, focusedCategory?.id)
 
   const content = useCategoryContent(sourceId, enteredCategory)
   const favoriteIdsQuery = useFavoriteIds(sourceId, config.kind)
@@ -338,7 +338,14 @@ export function VodCatalogScreen({
   }, [searchActive, belowMinimum, baseItems, searchTerm, enteredFavorites, enteredHistory, effectiveSortOption])
 
   const [focusedItemId, setFocusedItemId] = useState<string | null>(restore?.focusedItemId ?? null)
-  const itemIdx = locate(items, (item) => item.id === focusedItemId)
+  // Feature 038 (FR-027): se a renovação em segundo plano tirou o item em
+  // foco, o foco fica no vizinho (mesma posição), não volta ao topo.
+  const lastItemFocusRef = useRef<LastFocus | null>(null)
+  const itemListKey = JSON.stringify(enteredEntryKey)
+  const itemIdx = locateOrNeighbor(items, (item) => item.id === focusedItemId, itemListKey, lastItemFocusRef.current)
+  useEffect(() => {
+    lastItemFocusRef.current = { listKey: itemListKey, index: itemIdx }
+  }, [itemListKey, itemIdx])
   const activeItem: CatalogItemOut | undefined = items[itemIdx]
 
   const gridContainerRef = useRef<HTMLDivElement | null>(null)
