@@ -93,7 +93,7 @@ que criar a primeira página-ponte.
 
 | Página | Terceiro | Feature | Recebe |
 | --- | --- | --- | --- |
-| Player de trailer (`bridge/trailer/index.html`, `https://johnosd.github.io/ccplaytv/trailer/?v=<id>`) | YouTube IFrame Player API | `033-trailers-filmes-series` — código completo em 2026-09-29; **publicação e passada na TV pendentes** (não há como marcar "publicada" sem a URL responder) | ID do vídeo |
+| Player de trailer (`bridge/trailer/index.html`, `https://johnosd.github.io/ccplaytv/trailer/?v=<id>`) | YouTube IFrame Player API | `033-trailers-filmes-series` — código completo e **publicada em 2026-09-29** (a URL responde 200 e só `bridge/` é servido; o `static.yml` genérico foi removido do `main`); **passada na TV pendente** | ID do vídeo |
 
 ## Alternativas Consideradas
 

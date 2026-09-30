@@ -878,9 +878,11 @@ the production URL with a fake YouTube player. Measured on the real panel
 for 12/60 sampled series and 8/60 sampled movies; the TMDB share is not
 measured (no `CCPLAY_PROBE_TMDB_KEY` in `.env`). **The gate still open is the
 physical TV** (SC-001: ≥ 9/10 trailers start within 15 s; SC-002: 10/10 RETURN
-closes with focus back and no leftover audio), which needs the bridge
-**published** (enable Pages with "Source: GitHub Actions" and merge `bridge/` +
-the workflow to `main` — external actions the executor never takes on its own).
+closes with focus back and no leftover audio). The bridge is **published**
+(2026-09-29, with the user's confirmation): `main` carries only `bridge/` +
+`bridge-pages.yml` (the generic `static.yml`, which published the whole repo and
+raced the same Pages deploy, was removed there), and the URL answers 200 with
+the real official player mounted under `https://johnosd.github.io`.
 Also pending, not gates: ads/autoplay behavior (R-005/R-008) and the TV
 actually reporting Tizen 9.0 / Chromium 120 (measured by the spike; the build
 stays `chrome108`, which is safe). See

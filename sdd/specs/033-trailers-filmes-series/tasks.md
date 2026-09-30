@@ -33,15 +33,15 @@ description: "Tasks da feature 033 — trailers de filmes e séries"
 - [X] T001 [P] Criar `bridge/trailer/index.html` exatamente como `logic/pagina-ponte.md` §3–§5 (protocolo v1, validação do comando por `event.source === window.parent`, id validado, `api-failed` em 10 s, sem cookies/analytics/log de dados)
 - [X] T002 [P] Criar `.github/workflows/bridge-pages.yml` (`logic/pagina-ponte.md` §6: `workflow_dispatch` + push em `main` com `paths: bridge/**`, publica só `bridge/`)
 - [X] T003 Verificar a ponte localmente no navegador: servir `bridge/` (`python -m http.server` na raiz de `bridge/`) e abrir `http://localhost:8000/trailer/?v=M7lc1UVf-VE` — o vídeo toca; `?v=invalido` não carrega o player
-- [ ] T004 **[AÇÃO DO USUÁRIO — pedir confirmação, nunca fazer sozinho]** Habilitar GitHub Pages ("Source: GitHub Actions") em `johnosd/ccplaytv` e publicar (merge/push em `main` ou rodar o workflow). Registrar em `plan.md` a data e se `https://johnosd.github.io/ccplaytv/trailer/?v=M7lc1UVf-VE` toca no navegador do PC (primeira evidência de R-001). Não bloqueia as fases 2–5.
+- [X] T004 **[AÇÃO DO USUÁRIO — pedir confirmação, nunca fazer sozinho]** Habilitar GitHub Pages ("Source: GitHub Actions") em `johnosd/ccplaytv` e publicar (merge/push em `main` ou rodar o workflow). Registrar em `plan.md` a data e se `https://johnosd.github.io/ccplaytv/trailer/?v=M7lc1UVf-VE` toca no navegador do PC (primeira evidência de R-001). Não bloqueia as fases 2–5.
 
 **Registro da Fase**:
 
-- Status: parcial — T001–T003 concluídas; T004 aguarda ação do usuário (não bloqueia as fases 2–5)
+- Status: concluída — T001–T004 (T004 publicada em 2026-09-29, ver Pendências)
 - Feito: `bridge/trailer/index.html` (protocolo v1, id validado, `api-failed` em 10 s, comandos só de `window.parent`, `seek-by` com clamp 0…duração) e `.github/workflows/bridge-pages.yml` (publica só `bridge/`).
 - Contrato: sem contrato nesta fase (trava 033 íntegra, 5/5)
 - Testes executados: `python -m http.server 8000 --directory bridge` + Playwright MCP: `?v=M7lc1UVf-VE` cria o iframe do player oficial do YouTube; `?v=invalido` não cria player. Reprodução real com áudio não foi observada (navegador headless) — fica para o gate da TV.
-- Pendências: T004 — habilitar Pages ("Source: GitHub Actions") em `johnosd/ccplaytv` e publicar em `main`; ação externa, o executor pede confirmação. Sem isso o gate T042 fica aberto (A-03).
+- Pendências: nenhuma. **T004 feita com confirmação do usuário (2026-09-29):** o `main` já tinha um `static.yml` genérico que publicava o repositório inteiro e disputava o deploy; com a escolha do usuário ele foi removido no `main` e entrou só o commit da ponte (cherry-pick, `bridge/` + `bridge-pages.yml`). Run `Publicar página-ponte` com sucesso; `https://johnosd.github.io/ccplaytv/trailer/?v=M7lc1UVf-VE` responde 200 com a página real e cria o player oficial (`youtube.com/embed/M7lc1UVf-VE`) sob a origem `https://johnosd.github.io` (primeira evidência de R-001 no navegador do PC; reprodução real com áudio ainda só na TV). `CLAUDE.md`, `bridge/trailer/` e `tv-web/package.json` respondem 404 no Pages: só `bridge/` é publicado.
 
 ---
 
@@ -212,7 +212,7 @@ description: "Tasks da feature 033 — trailers de filmes e séries"
 
 ### Checklist de Release
 
-- [ ] Fase 1 (ponte + workflow) concluída; ponte publicada (T004) — ação do usuário
+- [X] Fase 1 (ponte + workflow) concluída; ponte publicada (T004) — ação do usuário
 - [X] Fase 2 (fundação) concluída
 - [X] Fase 3 (US1) concluída
 - [X] Fase 4 (US2) concluída

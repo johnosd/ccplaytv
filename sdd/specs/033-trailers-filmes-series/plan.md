@@ -273,7 +273,7 @@ Travas de **outras** features que esta toca: 032 (`titleMetadata.metadata-tmdb`,
 | Fase 2 — fundação | concluída: candidatos, sessão, `parseBridgeMessage`, captura provedor/TMDB, refetch D-005/D-006 |
 | Fases 3–5 — US1/US2/US3 | código e testes de unidade concluídos: `TrailerLayer`, `trailerAction`, botão real em filme e série, reserva automática, seek/teclas de mídia, faixa |
 | Fase 6 — Polish | T037–T041 concluídas (E2E 3/3 verde, suíte completa, `test:e2e` 16 scripts, segredos, docs); T042 (gate da TV) aberto e depende da ponte publicada (T004) |
-| Ponte publicada (T004) | **não**: `https://johnosd.github.io/ccplaytv/trailer/` responde 404 em 2026-09-29; o `main` remoto tem só um workflow genérico de Pages, e `bridge/` + `bridge-pages.yml` desta feature estão só locais (não rastreados) |
+| Ponte publicada (T004) | **sim, em 2026-09-29**: `main` recebeu só o commit da ponte + remoção do `static.yml` genérico (que publicava o repo inteiro); `https://johnosd.github.io/ccplaytv/trailer/?v=…` responde 200 e monta o player oficial; só `bridge/` é servido (raiz, `bridge/trailer/` e `tv-web/` dão 404). Falta o gate da TV (T042) |
 | Contratos | 5/5 travados, íntegros e verdes (C1 emendado, R-009) |
 | SC-005 (medição real) | provedor: 20 % das séries (12/60) e 13 % dos filmes (8/60) têm `youtube_trailer`; TMDB não medido (sem chave no `.env`) |
 | Ponte publicada (T004) | o usuário disse ter publicado o workflow em `main`, mas `https://johnosd.github.io/ccplaytv/trailer/` respondeu 404 em 2026-09-29 — `bridge/` ainda não está versionado/enviado |
@@ -303,7 +303,9 @@ Travas de **outras** features que esta toca: 032 (`titleMetadata.metadata-tmdb`,
 | 2026-09-29 | Fases 3–5 | `TrailerLayer` + botão real + reserva + seek/teclas de mídia; C4/C5 verdes; 3 flakes sob paralelismo (isolados passam); SC-005 parcial | TMDB de SC-005 sem chave; ponte ainda não publicada |
 | 2026-09-29 | Fase 6 | E2E `trailers.mjs` (ponte real + YT falso) 3/3; `test:e2e` 16 scripts exit 0; vitest 1780/1784 (4 flakes, 106/106 isolados); 17 travas íntegras; docs atualizados | T004 (ponte não publicada, URL 404) e T042 (gate da TV); R-011 aguarda decisão |
 
-**PRÓXIMO**: T004 (usuário: versionar/enviar `bridge/` + `.github/workflows/bridge-pages.yml` ao `main` e habilitar Pages com "Source: GitHub Actions") → T042 (passada na TV com `tizen-tv`, SC-001/SC-002). Decidir R-011. `sdd-converge` só depois disso.
+| 2026-09-29 | T004 + T043 | Ponte publicada no Pages (`static.yml` removido do `main`, só `bridge/`); R-011 corrigido em `ensureCategory` (ad-hoc T043); suíte 1781/1785 (4 flakes isolados 106/106) e `test:e2e` 16 scripts verdes | T042 (gate da TV) |
+
+**PRÓXIMO**: T042 — passada na TV física com a skill `tizen-tv` (SC-001: ≥ 9/10 trailers começam em 15 s; SC-002: 10/10 RETURN fecha com foco e sem áudio), com o app instalado de um build que use a ponte publicada. Depois `sdd-converge`.
 
 ## Arquivos Principais
 
