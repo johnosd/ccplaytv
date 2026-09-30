@@ -10,7 +10,7 @@ Projeto em desenvolvimento ativo. Conforme a arquitetura atualizada (ADR-008), o
 
 O objetivo é carregar múltiplas listas M3U, reproduzir canais, filmes e séries compatíveis, permitir favoritos e organizar capas e detalhes do catálogo. As evoluções previstas incluem recomendações, pesquisa por voz com transcrição, integração com OpenAI e controle por aplicativo Android.
 
-TMDB é a integração inicial escolhida para metadados. As menções originais a **YouTube, “TV local”, IMDb e Google** permanecem como intenções a esclarecer: forma de acesso, requisitos, APIs e compatibilidade ainda não foram definidos. Elas não são consideradas integrações prontas nem substituições automáticas do TMDB.
+TMDB é a integração inicial escolhida para metadados. O **YouTube** entrou só para os trailers (feature 033), pelo player oficial dentro de uma página-ponte estática (ADR-012). As menções originais a **“TV local”, IMDb e Google** permanecem como intenções a esclarecer: forma de acesso, requisitos, APIs e compatibilidade ainda não foram definidos. Elas não são consideradas integrações prontas nem substituições automáticas do TMDB.
 
 ### Funcionalidades
 
@@ -56,7 +56,12 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   em Configurações › Integrações & BYOK): completa só o que o provedor deixou
   vazio, com o selo "Dados: TMDB"; um título só é casado quando o casamento é
   inequívoco (id do provedor, ou título + ano com um único candidato).
-- *A avaliar:* trailers, equipe técnica além da direção, páginas de ator
+- Trailer de filme e de série no detalhe (feature 033): o do provedor
+  primeiro, depois os do TMDB (oficial antes de idioma), tocado pelo player
+  oficial do YouTube numa página-ponte estática publicada no GitHub Pages
+  (só a pasta `bridge/`), com os anúncios do YouTube como vierem. Testado na
+  TV física em parte — as contagens de SC-001/SC-002 não foram medidas.
+- *A avaliar:* equipe técnica além da direção, páginas de ator
   navegáveis, trilha "Similares" e rail de tendências num dashboard.
 - Recomendações a partir de filmes marcados como "Gostei"; ordenação por
   nota IMDb (fonte/licença dos dados ainda não definida).
@@ -78,7 +83,7 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
 **TV:** aplicativo web empacotado para Tizen, com React, TypeScript, CSS e Vite; `PlayerService` usando AVPlay na Samsung; cache de catálogo em IndexedDB, condicionado à validação no aparelho.
 
 
-**Mídia:** reprodução direta da origem para a TV por padrão. O aplicativo não retransmite nem transcodifica o vídeo. Navegação e comandos são processados localmente.
+**Mídia:** reprodução direta da origem para a TV por padrão. O aplicativo não retransmite nem transcodifica o vídeo. Navegação e comandos são processados localmente. A única exceção hospedada é a página-ponte do trailer (ADR-012): uma página estática, sem lógica de servidor nem dado da pessoa, que só recebe o id do vídeo.
 
 **Resiliência:** o catálogo salvo em IndexedDB garante navegação instantânea. Isso não significa que vídeos remotos funcionem sem internet, que URLs nunca expirem ou que todas as capas estejam armazenadas.
 

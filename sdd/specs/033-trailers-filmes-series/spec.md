@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-29
 
-**Status**: Implementada
+**Status**: Convergida
 
 **Input**: Item 32 do backlog ("Trailers para filmes e séries", RF-019), a partir da
 avaliação `sdd/assessments/viabilidade-youtube-iframe-na-tv-campo/` (veredito `go`) e

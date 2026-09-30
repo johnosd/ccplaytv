@@ -282,19 +282,19 @@ Travas de **outras** features que esta toca: 032 (`titleMetadata.metadata-tmdb`,
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | A ponte em **HTTPS público** pode não se comportar como a http da LAN usada no spike (ex.: YouTube tratar `github.io` diferente) | Alto — sem isso a feature não entrega | Primeira verificação da passada física (SC-001). Antes dela, dá para testar a ponte publicada no navegador do PC abrindo `?v=<id>` direto. |
-| R-002 | O YouTube (ou o iframe) pode puxar o foco do documento do app na TV, e as teclas pararem de chegar | Alto — RETURN preso | Spike mostrou `activeElement=BODY` e teclas no app; o host chama `window.focus()` após carregar e ao receber `ready`. Gate SC-002. |
-| R-003 | Publicar a ponte depende de ações externas do usuário (habilitar Pages, merge em `main`) | Médio — bloqueia o gate, não o código | Tarefa explícita que pede confirmação; até lá o app mostra erro com "Tentar de novo", nunca trava. |
-| R-004 | Leitura de estado velho em tecla rápida (lição da 027 no `PlayerLayer`) | Médio | Estado da sessão em ref + render forçado, ou `useReducer` com handlers lendo ref; teste de OK repetido. |
-| R-005 | Anúncio do YouTube antes do trailer pode passar dos 15 s | Baixo | Prazo conta até `playing`; se o anúncio reportar `playing`, ok; senão vira `TRL-TEMPO` com "Tentar de novo". Medir na TV. |
+| R-001 | A ponte em **HTTPS público** pode não se comportar como a http da LAN usada no spike (ex.: YouTube tratar `github.io` diferente) | Alto — sem isso a feature não entrega | Resolvido (confirmado na TV em 2026-09-29 (o trailer tocou pela ponte em https).) Primeira verificação da passada física (SC-001). Antes dela, dá para testar a ponte publicada no navegador do PC abrindo `?v=<id>` direto. |
+| R-002 | O YouTube (ou o iframe) pode puxar o foco do documento do app na TV, e as teclas pararem de chegar | Alto — RETURN preso | Resolvido (RETURN e as teclas seguiram chegando ao app na TV; `window.focus()` no `ready` funcionou.) Spike mostrou `activeElement=BODY` e teclas no app; o host chama `window.focus()` após carregar e ao receber `ready`. Gate SC-002. |
+| R-003 | Publicar a ponte depende de ações externas do usuário (habilitar Pages, merge em `main`) | Médio — bloqueia o gate, não o código | Resolvido (ponte publicada com confirmação do usuário (T004).) Tarefa explícita que pede confirmação; até lá o app mostra erro com "Tentar de novo", nunca trava. |
+| R-004 | Leitura de estado velho em tecla rápida (lição da 027 no `PlayerLayer`) | Médio | Resolvido (estado da sessão por ref, coberto por testes (OK repetido, seek, fechamento uma única vez).) Estado da sessão em ref + render forçado, ou `useReducer` com handlers lendo ref; teste de OK repetido. |
+| R-005 | Anúncio do YouTube antes do trailer pode passar dos 15 s | Baixo | Resolvido (anúncios passam de 15 s na TV; tratado por R-013 (prazo de 90 s com o player vivo), confirmado no Wardriver.) Prazo conta até `playing`; se o anúncio reportar `playing`, ok; senão vira `TRL-TEMPO` com "Tentar de novo". Medir na TV. |
 | R-006 | Constitution/CLAUDE.md dizem Tizen 8.0/Chromium 108; o aparelho reportou 9.0/120 | Baixo (documental) | Polish corrige `CLAUDE.md`; a constitution é emendada só pelo usuário — registrar a sugestão. |
-| R-007 | Refetch de TMDB para `matched` antigos (D-005) e provedor versão 1 (D-006) aumentam chamadas na primeira abertura de cada título depois do deploy | Baixo | Só ao abrir detalhe, uma vez por título; sem laço. |
-| R-008 | Autoplay com som pode ser bloqueado em algum firmware | Baixo | A ponte chama `playVideo()` no `onReady`; se não tocar, prazo → erro com "Tentar de novo" (o OK é gesto do usuário na TV). |
-| R-009 | Emenda do contrato C1 (aprovada pelo usuário, 2026-09-29): o teste usava `'nao-e-um-id'` como id inválido, mas a string tem 11 caracteres e passa em `/^[A-Za-z0-9_-]{11}$/` — impossível de rejeitar sem tratar o valor do teste de forma especial | Médio — contrato inalcançável por implementação honesta | Só essa linha mudou (`'nao-e-um-id'` → `'curto'`, 5 caracteres, já usado no mesmo teste como inválido); trava regravada com `-Write`. A regra real de id do YouTube não mudou. |
-| R-010 | O herói do Início (`HomeContent`) usava o mesmo mock `trailer` que FR-021 manda remover; removê-lo faria o OK no herói lançar erro | Baixo | Ganhou o mock próprio `home-trailer` (mesma mensagem, item 32): o herói do Início segue fora do escopo da 033 (spec, "Trailers fora do detalhe"). Desvio pequeno; `comingSoon.test.ts` atualizado. |
+| R-007 | Refetch de TMDB para `matched` antigos (D-005) e provedor versão 1 (D-006) aumentam chamadas na primeira abertura de cada título depois do deploy | Baixo | Resolvido (sem laço: uma vez por título (testes de `titleMetadata.trailers.test.ts`).) Só ao abrir detalhe, uma vez por título; sem laço. |
+| R-008 | Autoplay com som pode ser bloqueado em algum firmware | Baixo | Resolvido (o autoplay tocou na TV; sem indício de bloqueio.) A ponte chama `playVideo()` no `onReady`; se não tocar, prazo → erro com "Tentar de novo" (o OK é gesto do usuário na TV). |
+| R-009 | Emenda do contrato C1 (aprovada pelo usuário, 2026-09-29): o teste usava `'nao-e-um-id'` como id inválido, mas a string tem 11 caracteres e passa em `/^[A-Za-z0-9_-]{11}$/` — impossível de rejeitar sem tratar o valor do teste de forma especial | Médio — contrato inalcançável por implementação honesta | Resolvido (contrato emendado, trava regravada e íntegra.) Só essa linha mudou (`'nao-e-um-id'` → `'curto'`, 5 caracteres, já usado no mesmo teste como inválido); trava regravada com `-Write`. A regra real de id do YouTube não mudou. |
+| R-010 | O herói do Início (`HomeContent`) usava o mesmo mock `trailer` que FR-021 manda remover; removê-lo faria o OK no herói lançar erro | Baixo | Resolvido (`comingSoon.test.ts` e `HomeContent` verdes.) Ganhou o mock próprio `home-trailer` (mesma mensagem, item 32): o herói do Início segue fora do escopo da 033 (spec, "Trailers fora do detalhe"). Desvio pequeno; `comingSoon.test.ts` atualizado. |
 | R-011 | **Resolvido (ad-hoc T043, aprovado pelo usuário em 2026-09-29): causa = `ensureCategory` julgava a frescura pelo retrato da categoria que a tela guarda (a lista `useCategoryList` nunca é relida depois de uma obtenção), sem `itemsFetchedAt`; ao voltar do detalhe a categoria parecia "nunca obtida" e o painel era consultado de novo. Agora vale o registro gravado; regressão em `categoryLoader.test.ts`; conferido no navegador (um só `get_vod_streams` e o 2º detalhe abre).** Achado original: no E2E com painel fictício, voltar do detalhe de um filme para a grade refaz o `get_vod_streams` e troca os ids dos canais (ids 1–5 → 6–10); abrir OUTRO filme dali mostra "Este filme não está mais no catálogo". Reproduzido SEM abrir trailer (baseline: detalhe → Escape → grade → 2ª chamada de `get_vod_streams`), portanto anterior à 033. Não verificado contra painel real (o `itemsFetchedAt` fresco deveria impedir o novo fetch) | Possivelmente alto (se ocorrer com painel real) | O E2E da 033 contorna abrindo uma grade nova por filme (`openMovieDetail`, `fresh`). Reportado ao usuário para decidir: corrigir agora ou logar `[Bug]` no backlog. |
-| R-012 | Passada na TV (Wardriver): o TMDB lista o dublado de um canal agregador e dois oficiais das distribuidoras; a ordem "português antes de oficial" escolhia o agregador, cheio de anúncios | Médio | Emenda aprovada pelo usuário: "tipo, oficial, idioma". C1 emendado (só a ordem esperada) e regravado; spec FR-004, `logic/candidatos-de-trailer.md` e T044. Não elimina anúncios (são do YouTube, ADR-012 §4). |
-| R-013 | Passada na TV: dois anúncios seguidos passam de 15 s (anúncio não conta como "tocando") e o app derrubava tudo com TRL-TEMPO | Alto — gate SC-001 | `bridge-ready` alarga o prazo para 90 s com o player vivo; faixa avisa dos anúncios; "Cancelar" sempre ativável; spec FR-018 e T045. A decisão de 90 s é estimativa — reavaliar na próxima passada. |
+| R-012 | Passada na TV (Wardriver): o TMDB lista o dublado de um canal agregador e dois oficiais das distribuidoras; a ordem "português antes de oficial" escolhia o agregador, cheio de anúncios | Médio | Resolvido (ordem oficial>idioma aplicada e testada; C1 regravado.) Emenda aprovada pelo usuário: "tipo, oficial, idioma". C1 emendado (só a ordem esperada) e regravado; spec FR-004, `logic/candidatos-de-trailer.md` e T044. Não elimina anúncios (são do YouTube, ADR-012 §4). |
+| R-013 | Passada na TV: dois anúncios seguidos passam de 15 s (anúncio não conta como "tocando") e o app derrubava tudo com TRL-TEMPO | Alto — gate SC-001 | Resolvido (confirmado na TV: dois anúncios e depois o trailer.) `bridge-ready` alarga o prazo para 90 s com o player vivo; faixa avisa dos anúncios; "Cancelar" sempre ativável; spec FR-018 e T045. A decisão de 90 s é estimativa — reavaliar na próxima passada. |
 | R-014 | **Aberto, não explicado:** na TV o usuário viu "vídeo sem relação com o filme" depois de anúncios (Wardriver). O código fecha a camada no fim do vídeo e não encadeia outro; o TMDB só lista trailers desse filme. Hipóteses: o próprio anúncio, ou vídeo diferente do pedido | Médio | Reobservar com o build novo. Se repetir, anotar o que aparece (título/canal) e considerar validar `getVideoData().video_id` na ponte contra o id pedido. |
 | R-015 | **Passada na TV física, 2026-09-29 (relato do usuário, build com R-012/R-013).** Observado pelo usuário: Wardriver passou por dois anúncios e depois tocou o trailer (R-013 confirmado na TV); "o resto funcionou tudo conforme esperado"; ao terminar o trailer a tela volta ao detalhe do filme; RETURN fechou corretamente. **Não informado, portanto "não testado" até dizerem o contrário:** contagem de SC-001 (≥ 9/10 começando em 15 s, com ou sem anúncio), contagem de SC-002 (10/10 RETURN sem áudio remanescente), teclas Play/Pause e ←/→ no trailer, sair do app com o trailer tocando, filme (AVPlay) seguido do trailer sem áudio duplo, e o "vídeo sem relação" de R-014 (não reapareceu no relato) | Gate T042 | **Gate T042 fechado por DECISÃO EXPLÍCITA do usuário em 2026-09-29** (escolheu "fechar com o que foi visto"): os itens "não testados" acima ficam como risco aceito, não como aprovados. Reabrir se algum aparecer com defeito. |
 
@@ -319,3 +319,45 @@ Travas de **outras** features que esta toca: 032 (`titleMetadata.metadata-tmdb`,
 ## Cuidados para Retomada
 
 - (nenhum ainda)
+
+
+## Resultado Final
+
+**Convergida em 2026-09-29** (`sdd-converge`): sem achado CRITICAL nem HIGH; os 23 FRs e os 6 SCs
+têm evidência no código ou na verificação, com as exceções abaixo, todas aceitas ou registradas.
+
+**O que foi construído.** O botão "▶ Trailer" é real no detalhe de filme e de série (o mock `trailer` saiu
+de `comingSoon.ts`). Os candidatos vêm do `youtube_trailer` do provedor e dos `videos` do TMDB, na
+mesma chamada de detalhe que a 032 já faz, sem requisição nova e nunca por foco. `TrailerLayer` é uma
+camada de tela cheia, genérica, que carrega a página-ponte da ADR-012
+(`https://johnosd.github.io/ccplaytv/trailer/`, publicada em 2026-09-29, só `bridge/`) num iframe; só o id
+do vídeo vai na URL; app e ponte falam por `postMessage` v1 validado (origem e janela do iframe). A
+máquina de estados pura (`trailerSession.ts`) decide carregando/tocando/pausado/erro, o prazo e a
+troca única para o reserva. 5/5 contratos verdes e travados; testes de unidade, de componente e
+`e2e/trailers.mjs` (ponte real + player do YouTube falso) no `test:e2e`.
+
+**Desvios em relação ao plano original** (todos com R-00X e aprovados quando exigiam decisão):
+- **R-009**: contrato C1 emendado — o id inválido de exemplo tinha 11 caracteres.
+- **R-010**: o herói do Início ganhou o mock `home-trailer` (fora do escopo da 033).
+- **R-011 / T043**: bug pré-existente em `ensureCategory` (frescura pelo retrato da categoria) corrigido
+  com aprovação; voltar do detalhe para a grade refazia o `get_vod_streams` e trocava os ids.
+- **R-012 / T044**: prioridade do TMDB passou a "tipo, oficial, idioma" (C1 emendado de novo, só a ordem).
+- **R-013 / T045**: prazo de 90 s depois do `ready` da ponte (dois anúncios seguidos derrubavam o trailer
+  com TRL-TEMPO na TV); a faixa avisa dos anúncios e o vídeo fica à vista.
+- **T004**: o `main` tinha um `static.yml` genérico que publicava o repositório inteiro; foi removido
+  (com confirmação do usuário) e só o commit da ponte foi ao `main`.
+- Dois bugs da `TrailerLayer` achados só pelo E2E: o StrictMode (dev) do remonte de efeito e o `stop` do
+  desmonte, que exigiu `useLayoutEffect`.
+
+**Decisões que ficaram diferentes do plano.** D-002 (ordem dos candidatos) e D-008 (prazo de 15 s) foram
+emendadas por R-012 e R-013 — a redação original das Decisões Invariantes ficou como estava, e a
+spec (FR-004, FR-018) e `logic/` já refletem as emendas.
+
+**Aberto, registrado, sem bloquear a convergência:**
+- **R-015**: o gate da TV (T042) foi fechado por decisão explícita do usuário. Confirmado na TV: Wardriver
+  com dois anúncios e depois o trailer, fim voltando ao detalhe, RETURN correto. **Não testados:** as
+  contagens SC-001 (9/10) e SC-002 (10/10), Play/Pause e ←/→, sair do app com o trailer tocando e
+  filme + trailer sem áudio duplo.
+- **R-014**: "vídeo sem relação" visto uma vez depois de anúncios, sem explicação; não reapareceu.
+- **R-006**: a constitution ainda cita Tizen 8.0 / Chromium 108 (o aparelho é 9.0 / 120); só o usuário a emenda.
+- **SC-005**: só o lado do provedor foi medido (12/60 séries, 8/60 filmes); o do TMDB depende de uma chave no `.env`.
