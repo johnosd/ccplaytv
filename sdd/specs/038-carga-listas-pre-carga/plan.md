@@ -274,7 +274,7 @@ campos novos de `CategoryRecord` (`db.ts`) e `CatalogCategory.renewRequestedAt`.
 | --- | --- | --- | --- |
 | R-001 | Causa dos ~60 s da primeira entrada fria é desconhecida (20× a meta aprovada pela 010 na TV). | Sem ela, SC-005 e o prazo de SC-002 não se fixam; a pré-carga poderia esconder uma regressão. | Fase 2 mede e decompõe (research R0-1) **antes** das correções; tabela registrada aqui. **Atualização 2026-09-30 (PC)**: no navegador do PC a pior entrada fria leva 3,8 s (11.130 filmes; rede ~2,2 s + gravação ~1,5 s); canais 0,6 s, séries 1,3 s. O minuto é da TV ou de navegação real — medição na TV pendente (build com painel de números instalado). |
 | R-002 | Parse de JSON grande + gravação na thread principal durante a pré-carga pode pesar na navegação da TV (SC-003). | Engasgo ao navegar. | Portão de tecla (2 s) + uma por vez + pausa de 500 ms; se SC-003 falhar na TV, recuo FR-014 (só T0/T1). Worker fica para depois (research R0-2). |
-| R-003 | Horas de pedidos sequenciais ao painel (~22 MB) podem acionar limite de taxa. | Falhas em série; pré-carga não progride. | Uma por vez + intervalo; falha → fim da fila, 3 por sessão; medir na TV com a lista real; se aparecer 429, backoff (task ad-hoc). |
+| R-003 | Horas de pedidos sequenciais ao painel (~22 MB) podem acionar limite de taxa. | Falhas em série; pré-carga não progride. | Uma por vez + intervalo; falha → fim da fila, 3 por sessão; medir na TV com a lista real; se aparecer 429, backoff (task ad-hoc). **Resolvido (2026-09-30):** confirmado com a lista real — o painel passa a recusar após ~34 pedidos a ~1/s (erro sem CORS). A pré-carga agora pede a **seção inteira** (3 pedidos, `research.md` R0-3 Entrega 1); o caminho por categoria fica só para entrada fria e prioridades. |
 | R-004 | Invalidar `['categories']` entrega objetos novos às telas e pode rearmar a pré-busca de 300 ms. | Rajada de `ensureCategory` (sem rede, `fresh`) ou foco pulando. | Invalidação agrupada (D-014); conferir o efeito de `useCategoryFocusPrefetch`; se rearmar, depender de `id` + `itemsFetchedAt`. |
 | R-005 | Identidade de item M3U por `originalName`: nomes repetidos (ex.: "Canal HD" duas vezes) trocam ids entre gêmeos. | Foco pode cair no gêmeo de mesmo nome após renovar. | Aceito (raro, sem perda de estado — estado do usuário é por `stableId`); registrado. |
 | R-006 | Troca de caminho (Xtream ↔ Modo limitado) ou fonte `eager` legada continua criando geração nova — frio depois disso. | FR-024 não vale nesse caso raro. | Aceito e registrado; limpeza em partes (D-008) evita o congelamento. |
@@ -307,7 +307,9 @@ campos novos de `CategoryRecord` (`db.ts`) e `CatalogCategory.renewRequestedAt`.
 
 | 2026-09-30 | Fases 7 (fim), 8 e 9 (automático) | E2E cenários 6–8 (atualização Xtream/M3U, vencida > 24 h); linha de estado no Início; suíte completa, lint, build:tizen, test:e2e 19/19; CLAUDE.md e nota na research da 010 | Gate na TV + medição da Fase 4 |
 
-**PRÓXIMO**: na TV — (1) ler o painel do build de medição já instalado (primeira entrada fria, 3 categorias por seção) → T004/T005 → correções T040+; (2) reinstalar o build normal e fazer o gate SC-008 (T073) e o quickstart (T075).
+| 2026-09-30 | Fase 4 (US2) — teste na TV + R0-3 Entrega 1 | Usuário na TV: pré-carga e tela de importação ok, canais lentos (10–30 s), pré-carga demorada. Diagnóstico: limite de frequência do painel. Estratégia R0-3 (5 soluções, eleita "seção inteira em fluxo + blocos"); Entrega 1 feita: 3 pedidos por seção num Worker, `relaxed`. Lista real, CPU 4×: canais prontos em 3,6 s, tudo em 17,1 s, categoria de canais abre em 0,3–0,5 s; E2E 2×verde | Validar na TV; Entrega 2 como feature própria |
+
+**PRÓXIMO**: TV — validar a Entrega 1 (canais/filmes/séries prontos e memória) e fechar o gate SC-008 (T073/T075); abrir a Entrega 2 (blocos por categoria + chave estável) com `/sdd-specify`.
 
 ## Arquivos Principais
 

@@ -153,7 +153,15 @@ ao painel com números (FR-013, SC-005).
 
 ### Implementation
 
-- [ ] T040 [US2] (placeholder — T005 substitui por tasks reais, uma por gargalo atribuído ao app, com arquivo e medição-alvo)
+- [X] T040 [US2] (placeholder substituído pelas tasks T076–T083 abaixo — `research.md` R0-3: o painel limita a frequência dos pedidos por categoria, e gravar uma linha por item é o gargalo de escrita)
+- [X] T076 [US2] (ad-hoc, R0-3 Entrega 1) `lib/catalog/jsonArrayStream.ts`: leitor incremental de array JSON de objetos (um objeto por vez, sem guardar o texto inteiro), tolerante a corte de bloco no meio de string/escape
+- [X] T077 [US2] (ad-hoc) `lib/catalog/sectionLoader.ts`: `loadSection(sourceId, kind, categoryIds)` — um pedido da seção inteira (sem `category_id`), leitura em fluxo, mapeamento pelos mesmos `mapLiveEntry/mapVodEntry/mapSeriesEntry`, agrupamento por categoria e gravação por `renewCategoryItems` só das categorias pedidas, com pausa entre categorias e cancelamento
+- [X] T078 [US2] (ad-hoc) `lib/catalog/sectionWorker.ts` + `sectionRunner.ts`: roda `loadSection` num Web Worker (pausa/retoma pelo portão de atividade, avisa cada categoria gravada), com plano B na thread principal; `assets/sectionWorker.js` listado em `CCPlayTv/tizen_web_project.yaml`
+- [X] T079 [US2] (ad-hoc) Agendador: dep opcional `runSection` — quando uma seção tem ≥ 2 categorias `on_demand` a obter, busca a seção inteira uma vez por sessão (seção da dica primeiro, depois Canais → Filmes → Séries); o que sobrar segue por categoria; `stop()` cancela
+- [X] T080 [US2] (ad-hoc) `db.ts`: `chromeTransactionDurability: 'relaxed'` (padrão do Chrome desde o 121; a TV é Chromium 120)
+- [X] T081 [US2] (ad-hoc) Testes: `jsonArrayStream.test.ts`, `sectionLoader.test.ts`, agendador com `runSection`
+- [X] T082 [US2] (ad-hoc) E2E `e2e/carga-listas.mjs`: a pré-carga pede a seção inteira (3 pedidos), não uma por categoria; todas as categorias prontas
+- [X] T083 [US2] (ad-hoc) Medir com a lista real (`carga-listas-real`/diagnóstico): tempo até canais/filmes/séries prontos e pedidos ao painel; registrar em `research.md` R0-3
 - [ ] T041 [US2] Repetir a medição (PC e, se acessível, TV) e registrar antes × depois em `research.md` R0-1 e `plan.md` R-001; fixar o prazo de SC-002 a partir do tempo por categoria medido
 - [ ] T042 [US2] Decidir e registrar o destino da instrumentação (`entryTiming.ts`): manter desligada por padrão ou remover
 
