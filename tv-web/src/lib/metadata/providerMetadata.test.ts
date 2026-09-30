@@ -80,3 +80,22 @@ describe('normalizeSeriesInfo', () => {
     expect(result.tmdbId).toBeUndefined()
   })
 })
+
+describe('youtube_trailer (feature 033)', () => {
+  it('id válido vira o trailer do provedor, em filme e em série', () => {
+    expect(normalizeVodInfo({ youtube_trailer: 'M7lc1UVf-VE' }).fields.trailerVideos).toEqual([
+      { videoId: 'M7lc1UVf-VE', kind: 'trailer' },
+    ])
+    expect(normalizeSeriesInfo({ youtube_trailer: ' M7lc1UVf-VE ' }).fields.trailerVideos).toEqual([
+      { videoId: 'M7lc1UVf-VE', kind: 'trailer' },
+    ])
+  })
+
+  it.each([undefined, '', '   ', '0', 0, null, 'curto', 'https://youtu.be/M7lc1UVf-VE', 'id com espaco'])(
+    'valor %j é ausente, nunca consertado',
+    (value) => {
+      expect('trailerVideos' in normalizeVodInfo({ youtube_trailer: value }).fields).toBe(false)
+      expect('trailerVideos' in normalizeSeriesInfo({ youtube_trailer: value }).fields).toBe(false)
+    },
+  )
+})

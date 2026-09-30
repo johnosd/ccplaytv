@@ -43,6 +43,6 @@ describe('trailerCandidates — contrato da feature 033', () => {
     )
 
     expect(buildTrailerCandidates(undefined, undefined)).toEqual([])
-    expect(buildTrailerCandidates([{ videoId: 'nao-e-um-id', kind: 'trailer' }], [])).toEqual([])
+    expect(buildTrailerCandidates([{ videoId: 'curto', kind: 'trailer' }], [])).toEqual([])
   })
 })

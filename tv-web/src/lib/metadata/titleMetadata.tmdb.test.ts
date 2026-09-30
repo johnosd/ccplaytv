@@ -62,6 +62,8 @@ const movieDetail = (overrides: Record<string, unknown> = {}) => ({
   runtime: 136,
   production_countries: [{ iso_3166_1: 'US' }],
   credits: { cast: [{ name: 'Keanu Reeves' }], crew: [{ job: 'Director', name: 'Lana Wachowski' }] },
+  // O detalhe passou a pedir `videos` (feature 033): sem a chave, o registro contaria como anterior à 033 e seria repedido.
+  videos: { results: [] },
   ...overrides,
 })
 
@@ -112,6 +114,8 @@ describe('ensureTitleMetadata — TMDB (feature 032, US3)', () => {
       country: 'C',
       cast: 'A',
       backdrop_path: ['http://img.test/b.jpg'],
+      // Trailer também conta como campo do provedor (feature 033): sem ele, o TMDB seria consultado.
+      youtube_trailer: 'provTrail01',
       tmdb_id: 603,
     }
     const fetchImpl = panelAndTmdb(complete, [])
