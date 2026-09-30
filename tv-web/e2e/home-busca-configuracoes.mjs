@@ -220,10 +220,18 @@ async function run() {
     await page.keyboard.press('Escape') // RETURN/pause fecha sem concluir
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
     await page.waitForSelector('.vod-detail', { timeout: 8000 })
-    assert(
-      (await page.locator('.vod-detail-action').first().textContent())?.includes('Continuar') ?? false,
-      'com progresso salvo, a ação primária do detalhe vira "Continuar"',
-    )
+    // Espera (não lê na hora): ao fechar o player o detalhe mostra por ~60 ms o estado em cache
+    // ("Assistir") até a releitura invalidada terminar. O progresso já está gravado nesse ponto —
+    // medido em sdd/bugs/flake-e2e-home-busca-configuracoes-passo-continuar-progresso/.
+    const resumeLabelShown = await page
+      .locator('.vod-detail-action', { hasText: 'Continuar' })
+      .first()
+      .waitFor({ timeout: 3000 })
+      .then(
+        () => true,
+        () => false,
+      )
+    assert(resumeLabelShown, 'com progresso salvo, a ação primária do detalhe vira "Continuar"')
 
     await page.keyboard.press('Escape') // detalhe -> grade
     await page.waitForSelector('.vod-grid', { timeout: 8000 })
