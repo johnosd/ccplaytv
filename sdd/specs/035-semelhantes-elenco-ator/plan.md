@@ -242,7 +242,7 @@ Travas de outras features que esta pode quebrar: 032 (`titleMetadata`/`tmdbKeyRe
 | 2026-09-30 | Fase 7 | E2E com TMDB falso verde (em `test:e2e`); medição real: p95 ≈ 250 ms, mas SC-002 não atendido (R-011); revisão de segredos; docs. | R-011: decisão do usuário. |
 | 2026-09-30 | Fase 9 (pós-TV) | Ação "☰ Semelhantes" no hero de filme e série (pedido do usuário após o teste na TV: a aba ficava escondida). | Reexecutar E2E; rever na TV. |
 
-**PRÓXIMO**: reexecutar `npm run test:e2e` (com `npm run dev` recém-iniciado) e rever o hero na TV física.
+**PRÓXIMO**: nada pendente na 035 — `npm run test:e2e` completo verde (18 scripts) e TV física verificada (2026-09-30). Falta só commitar.
 
 ## Arquivos Principais
 
@@ -282,3 +282,5 @@ Travas de outras features que esta pode quebrar: 032 (`titleMetadata`/`tmdbKeyRe
 **Verificação**: 5/5 contratos e trava íntegra; travas 022–025, 032 e 033 íntegras; `tsc`/lint/`build:tizen` limpos; `test:e2e` com 18 scripts verdes, incluindo `semelhantes-elenco-ator.mjs` (zero requisição ao focar/trocar de aba, 10 sequências e 10 cadeias com ator restauradas). Medição real: resolução p50 ≈ 150 ms / p95 ≈ 170 ms sobre 11 129 filmes; SC-002 atendido com a ressalva de ~1 homônimo do mesmo ano em ~250 (R-011).
 
 **Em aberto, não bloqueia**: passada na TV física (imagens do `image.tmdb.org` no WebView, fluidez dos cartões). As falhas remanescentes da suíte completa são contratos das features 034/036/037 (ainda sem implementação) e flakes conhecidos, fora deste escopo.
+
+

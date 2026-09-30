@@ -97,6 +97,50 @@ afterEach(() => {
 
 const card = (name: RegExp | string) => screen.getByRole('button', { name })
 
+describe('ProfilesScreen — primeiro uso e carregando (feature 037, US3)', () => {
+  it('sem listas: textos de primeiro uso no lugar de "Bem-vindo de volta", só "Adicionar lista" em foco, rodapé e "Configurações" (FR-004, US3/AC1)', () => {
+    mockLoaded()
+    const { props } = renderProfiles()
+
+    expect(screen.getByText('Configuração inicial')).toBeInTheDocument()
+    expect(screen.queryByText('Bem-vindo de volta')).not.toBeInTheDocument()
+    expect(screen.getByText('Adicione sua primeira lista para começar.')).toBeInTheDocument()
+    expect(screen.queryByText('Escolha uma lista para continuar ou adicione uma nova.')).not.toBeInTheDocument()
+    expect(document.querySelectorAll('.source-card')).toHaveLength(0)
+    expect(card('Adicionar lista')).toHaveClass('tv-focus')
+    expect(screen.getByText('Cada lista mantém seu próprio histórico, favoritos e recomendações.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Configurações' })).toBeInTheDocument()
+
+    press('Enter')
+    expect(props.onAddSource).toHaveBeenCalledTimes(1)
+  })
+
+  it('sem listas, RETURN abre "Sair do CCPlayTV?" (US3/AC3)', () => {
+    mockLoaded()
+    renderProfiles()
+    press('Escape')
+    expect(screen.getByRole('dialog', { name: 'Sair do CCPlayTV?' })).toBeInTheDocument()
+  })
+
+  it('carregando: esqueletos com a geometria do cartão novo, sem kicker de volta nem de primeiro uso, e dois focáveis reais', () => {
+    mockSources({ data: undefined, isLoading: true, isError: false })
+    renderProfiles()
+
+    const skeletons = Array.from(document.querySelectorAll<HTMLElement>('.skeleton'))
+    expect(skeletons).toHaveLength(3)
+    for (const skeleton of skeletons) {
+      expect(skeleton.style.width).toBe('var(--profile-card-width)')
+      expect(skeleton.style.height).toBe('var(--profile-card-height)')
+    }
+    expect(screen.getByText('Carregando suas listas…')).toBeInTheDocument()
+    expect(screen.queryByText('Bem-vindo de volta')).not.toBeInTheDocument()
+    expect(screen.queryByText('Configuração inicial')).not.toBeInTheDocument()
+    expect(card('Adicionar lista')).toHaveClass('tv-focus')
+    expect(screen.getByRole('button', { name: 'Configurações' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Suas listas' })).toHaveAttribute('aria-busy', 'true')
+  })
+})
+
 describe('ProfilesScreen — estados e listas (US1)', () => {
   it('carregando: esqueletos + "Adicionar lista" real, focado e ativável (FR-042)', () => {
     mockSources({ data: undefined, isLoading: true, isError: false })

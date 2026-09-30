@@ -976,11 +976,47 @@ no console) is needed for Phase 4. **The physical-TV pass is this feature's
 mandatory gate (SC-008).** See `sdd/specs/038-carga-listas-pre-carga/plan.md`
 → `## Estado Atual`.
 
+**Code-complete**: `037-entrada-listas-prototipo` — the two entry screens now
+match the V13.2 prototype, with the same flow (Splash → list screen → pick a
+list or add one). `ProfilesScreen` became "Selecione ou Adicione sua lista"
+(`profiles()`): vertical cards with a type badge, an initials avatar whose
+gradient comes from an FNV-1a hash of the source **id** over six
+`--list-avatar-N-from/to` tokens that only reference `--brand-1..5`
+(`features/profiles/listAvatar.ts`, `logic/avatar-da-lista.md`, nothing
+persisted), the name and the real notices. The sync date is gone from the
+card. "Adicionar lista" is a dashed card-button, and "Gerenciar listas"
+became a "⚙ Configurações" corner button with the same navigation. The
+↓ action row (Ressincronizar/Editar/Excluir) stays. Coming back from the
+add form lands on "Adicionar lista" (exported sentinel `ADD_LIST_FOCUS_ID`,
+passed through `appNav`'s existing `from`). `AddSourceScreen` became "Conecte
+sua lista IPTV" (`sourceSetup()`): a "Como funciona" side panel and an
+"Adicionar serviço" panel with "Conectar com celular" as an honest "Em breve"
+mock (`pair-phone`, no QR/code/address), plus two `aria-pressed` type cards,
+**Xtream Codes by default** and focused through a new additive `initialFocus`
+option on `useTvKeyNav`. Labels are "Nome da lista"/"Servidor"/"Usuário"/
+"Senha"/"URL M3U", and the actions "Voltar"/"Conectar e sincronizar". The
+same validation and `mutate` run as before; only the empty-name message
+changed. Editing shows only the manual panel. It fits 1080 inside the safe
+zone and scrolls as a fallback. `useTvKeyNav` now also sorts focusables by
+document position: jsdom's scoped `querySelectorAll` with a selector list
+groups by selector (buttons before inputs), a real test-fidelity trap
+(R-009). **Every E2E script now registers a list through
+`tv-web/e2e/lib/entrada.mjs`** (`cadastrarListaM3u`/`cadastrarListaXtream`),
+so the next form change touches one file, and the old labels are gone from
+`tv-web/e2e*`. 5/5 contract tests locked (the 023/026/028 locks are intact),
+and `npm run test:e2e` is 18/18 green. SC-002 is measured in `e2e.mjs`: 2 OK
+presses from an empty app to the progress screen. **Verified on the physical TV**
+(QN50Q60DAGXZD, 2026-09-30, seen by the user): list screen, focus, add form with
+Xtream Codes focused and scrolling, TV IME per field, RETURN back to "Adicionar
+lista" and initials legibility (the empty first-use state was not seen on the
+device — reinstalling preserves IndexedDB). See
+`sdd/specs/037-entrada-listas-prototipo/plan.md` → `## Estado Atual`.
+
 The four top-level directories:
 
-- **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Quem está
-  assistindo?" profile screen (one card per IPTV list plus "Adicionar
-  lista", ADR-011 §2), the Add-list form, the Início (hub content under a
+- **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Selecione ou
+  Adicione sua lista" profile screen (one card per IPTV list plus "Adicionar
+  lista", ADR-011 §2; feature 037), the "Conecte sua lista IPTV" add-list form, the Início (hub content under a
   persistent topbar, feature 023), **Live TV, Filmes and Séries** all read
   the **real local catalog** (`tv-web/src/lib/catalog/`, IndexedDB via
   Dexie) — no mock data remains anywhere in the app. Live TV/Filmes/Séries are

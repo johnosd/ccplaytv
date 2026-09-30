@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-30
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: Pedido do usuário (2026-09-30): "ele deve ter a entrada o máximo
 parecida com o protótipo — fluxo padrão: usuário abre o app > Tela de listas >

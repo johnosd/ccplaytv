@@ -1,4 +1,4 @@
----
+﻿---
 description: "Tasks da feature 035 — Semelhantes, fotos do elenco e página de ator"
 ---
 
@@ -257,7 +257,7 @@ description: "Tasks da feature 035 — Semelhantes, fotos do elenco e página de
 - [X] `npm run build:tizen` limpo (nenhum arquivo emitido fora de `tizen_web_project.yaml`)
 - [X] SC-002 medido com a lista real — atendido com ressalva: ~1 homônimo do mesmo ano em ~250 (R-011/R-012, ano exato aprovado)
 - [X] `quickstart.md` executado com sucesso
-- [ ] TV física: recomendada, não é gate (imagens TMDB no WebView, fluidez dos rails)
+- [X] TV física: recomendada, não é gate (verificada pelo usuário em 2026-09-30, incluindo a ação "Semelhantes" do hero) (imagens TMDB no WebView, fluidez dos rails)
 
 ---
 
@@ -321,3 +321,4 @@ description: "Tasks da feature 035 — Semelhantes, fotos do elenco e página de
 - Contrato: `check-contract-tests.ps1 -Slug 035-semelhantes-elenco-ator` — 5/5 travados, trava íntegra
 - Testes executados: `npx tsc -b` limpo; `npx vitest run src/features/movies/MovieDetailScreen src/features/series/SeriesDetailScreen` 108/108
 - Pendências: `VodCatalogScreen.limpar-historico.contract.test.tsx` (feature 036, arquivo não commitado, não tocado aqui) falha também isolado; `MoviesScreen.favorites` é o flake conhecido de paralelismo (passou isolado). E2E de `historico-continuar-assistindo.mjs` e da própria 035 não foram reexecutados nesta sessão. Lint: 2 avisos novos (`react(refs)` no `ref=` do painel e `set-state-in-effect` no hook), só warnings
+

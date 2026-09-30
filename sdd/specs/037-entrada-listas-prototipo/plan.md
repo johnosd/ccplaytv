@@ -303,15 +303,16 @@ verdes: 023 (`ProfilesScreen.shell-navegacao.contract.test.tsx`,
 
 | Área | Estado |
 | --- | --- |
-| Setup (Fase 1) | Concluída — contratos 5/5 vermelhos pelos motivos esperados, trava íntegra |
-| Chips da 034 no cartão | Ainda não existem (`sourceFormat.ts` sem `sourceAlertChips`); a linha `.source-card-notices` fica pronta para recebê-los (R-001) |
-| Fundação (Fase 2) | Concluída — `listAvatar.ts`, tokens `--list-avatar-N-*`, `initialFocus` no `useTvKeyNav`, helper `e2e/lib/entrada.mjs` |
-| US1 — tela de listas (Fase 3) | Concluída — formato `profiles()`, avatar, cartão-botão, "Configurações" no canto, voltar do cadastro em "Adicionar lista" |
-| US2 — cadastro (Fase 4) | Concluída — formato `sourceSetup()`, Xtream Codes padrão e em foco, celular "Em breve", "Voltar"/"Conectar e sincronizar"; cabe em 1080 dentro da safe zone; contratos 037 5/5 verdes |
-| E2E | Todos os cadastros de lista em `tv-web/e2e*` passam por `e2e/lib/entrada.mjs`; `npm run test:e2e` 18/18 verdes; SC-002 medido (2 OK) |
-| `useTvKeyNav` | + `initialFocus` (Fase 2) e ordenação por posição no documento (T027a, R-009) — sem efeito no navegador |
-| Textos de primeiro uso (T029) e modo edição (T031) | Já no código (mesmos blocos de JSX das Fases 3/4); testes nas Fases 5 e 6 |
-| US3/US4/Polish | Não iniciadas |
+| US1 — tela de listas | Concluída — formato `profiles()`, avatar por id, cartão-botão, "Configurações" no canto, voltar do cadastro em "Adicionar lista" |
+| US2 — cadastro | Concluída — formato `sourceSetup()`, Xtream Codes padrão e em foco, celular "Em breve", cabe em 1080 dentro da safe zone |
+| US3 — primeiro uso | Concluída — textos de primeiro uso/carregando, só "Adicionar lista" em foco |
+| US4 — edição | Concluída — só o painel manual, sem celular/seletor/"Como funciona" |
+| Contratos | 037 5/5 verdes; travas 037/023/026/028 íntegras |
+| Suítes | Unitária completa: 1872/1886 — 4 flakes conhecidos (106/106 isolados) + 10 contratos das features 034/036 (planejadas, stubs `not implemented`, vermelhos por design); `tsc`/lint/`build:tizen` limpos; `test:e2e` 18/18 |
+| E2E | Todos os cadastros de lista em `tv-web/e2e*` via `e2e/lib/entrada.mjs`; `paridade-*`/`shell-visual`/`-real` migrados e não rodados |
+| Chips da 034 no cartão | Ainda não existem; a linha `.source-card-notices` está pronta (R-001) |
+| SC-001 (capturas) | Os 7 estados capturados: com/sem listas, carregando, erro, cadastro Xtream/M3U, edição (T038 fechou CV-001) |
+| TV física | Feita em 2026-09-30 na QN50Q60DAGXZD (192.168.0.2), reinstalação com o mesmo certificado (IndexedDB preservado): o usuário conferiu tela de listas, foco, cadastro com Xtream Codes em foco e rolagem, teclado da TV por campo, RETURN para "Adicionar lista" e legibilidade das iniciais — "tudo funcionou conforme esperado". O estado "sem listas" na TV não foi visto (exigiria desinstalar). |
 
 ## Riscos e Decisões
 
@@ -323,11 +324,11 @@ verdes: 023 (`ProfilesScreen.shell-navegacao.contract.test.tsx`,
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
 | R-001 | A feature 034 (planejada, código parcial no working tree) também põe chips de conta e "Sincronizando" no cartão da lista (`sourceAlertChips` em `sourceFormat.ts`). | Conflito de merge / chips perdidos no cartão novo. | O cartão novo tem a linha `.source-card-notices` (D-004); quem entrar por último renderiza ali os chips da outra. Conferir `git log`/working tree de `ProfilesScreen.tsx` e `sourceFormat.ts` ao começar a Fase 3. |
-| R-002 | ~24 scripts E2E (incluindo `-real`, fora do `test:e2e`) preenchem "Nome de exibição"/"URL da lista M3U" contando com M3U como padrão e clicam "Adicionar lista" como envio. | `test:e2e` inteiro vermelho após a Fase 4. | Helper `e2e/lib/entrada.mjs` (D-011) e migração de todos os scripts na mesma fase da troca dos rótulos. |
-| R-003 | O `sourceSetup()` do protótipo não cabe em 1080 (corta Usuário/Senha). | Campo/ação fora da tela no controle remoto. | Grade 2 colunas + alturas por token; rolagem vertical com o foco como garantia (D-013); conferir no E2E e na captura. |
-| R-004 | Tamanhos de fonte do protótipo sem token (76/66/58 px). | Tela menos "igual" ao protótipo. | Token mais próximo (D-014) — precedência ADR-011; registrado como desvio aceito. |
-| R-005 | `ProfilesScreen.test.tsx` e `AddSourceScreen.test.tsx` têm muitas asserções nos textos antigos ("Quem está assistindo?", "Gerenciar listas", "Nome de exibição", `tablist`, "Nunca sincronizada"). | Suíte vermelha por texto, não por comportamento. | Não são travados: atualizar para os textos novos, preservando o comportamento que cada teste cobre (não apagar cobertura). |
-| R-006 | `useTvKeyNav` é compartilhado por 4 telas. | Regressão de foco inicial em outra tela. | Opção aditiva e opcional (D-009) + teste novo em `useTvKeyNav.test.tsx`; as outras telas não passam a opção. |
+| R-002 | ~24 scripts E2E (incluindo `-real`, fora do `test:e2e`) preenchem "Nome de exibição"/"URL da lista M3U" contando com M3U como padrão e clicam "Adicionar lista" como envio. | `test:e2e` inteiro vermelho após a Fase 4. | Resolvido: helper `e2e/lib/entrada.mjs` (D-011); 25 scripts migrados na Fase 4, grep sem rótulo antigo, `test:e2e` 18/18. |
+| R-003 | O `sourceSetup()` do protótipo não cabe em 1080 (corta Usuário/Senha). | Campo/ação fora da tela no controle remoto. | Resolvido: grade 2 colunas + espaçamentos compactados — cadastro Xtream cabe em 1080 dentro da safe zone (painel termina em y=990); rolagem com `scroll-padding-block` como garantia; quickstart B confirma todo focável inteiro na tela. |
+| R-004 | Tamanhos de fonte do protótipo sem token (76/66/58 px). | Tela menos "igual" ao protótipo. | Resolvido: `--fs-display` (64 px) nas duas telas (D-014), desvio aceito e conferido nas capturas. |
+| R-005 | `ProfilesScreen.test.tsx` e `AddSourceScreen.test.tsx` têm muitas asserções nos textos antigos ("Quem está assistindo?", "Gerenciar listas", "Nome de exibição", `tablist`, "Nunca sincronizada"). | Suíte vermelha por texto, não por comportamento. | Resolvido: os dois arquivos reescritos para os textos novos com a mesma cobertura de comportamento e casos a mais (54 e 46 testes verdes). |
+| R-006 | `useTvKeyNav` é compartilhado por 4 telas. | Regressão de foco inicial em outra tela. | Resolvido: `initialFocus` aditivo (só o cadastro passa) + ordenação por documento (R-009); testes das outras telas que usam o hook verdes. |
 | R-008 | Com `onBackField`, RETURN no cadastro volta um focável por vez e só sai no **primeiro** focável do DOM. Com o foco inicial em "Xtream Codes" (D-009) e o mock do celular antes dele no DOM, o RETURN logo ao abrir iria para o mock, não para a tela de listas — contraria US2/AC6 e FR-019. | RETURN "não volta" na primeira tentativa. | Resolvido: a premissa não vale — o `AddSourceScreen` nunca usou `onBackField`; o RETURN é do `useRemoteNav({ onBack })` e sai da tela de qualquer focável (inclusive de um campo: Escape/10009 não estão entre as teclas que o campo editável segura). Nada mudou no hook; coberto por teste ("RETURN com o foco num campo também sai da tela") e pelo `e2e.mjs`. |
 | R-007 | FR-023 da spec diz que mock deve ter "em breve" no nome **e** `aria-disabled`; o `ComingSoon` (022/028) tem só a mensagem no nome + `aria-disabled`, e o verificador da 028 aceita isso. | Ambiguidade na leitura do FR. | Resolvido: FR-023 emendado (Analyze A-01, 2026-09-30) para o padrão do `ComingSoon` — `aria-disabled` + "Em breve" visível e anunciado (contrato 037 #5). |
 | R-009 | No jsdom (nwsapi), `container.querySelectorAll` com lista de seletores devolve os elementos agrupados por seletor (todos os `button` antes dos `input`), não na ordem do documento. O `useTvKeyNav` navegava, nos testes, numa ordem que o navegador nunca tem (tipos → Voltar → Conectar → campos). | Testes de ordem de foco enganosos; bug real escondido ou falso. | Resolvido: `getFocusable` ordena por `compareDocumentPosition` (no navegador, no-op); teste de botões e campos misturados em `useTvKeyNav.test.tsx` (T027a). |
@@ -348,17 +349,26 @@ verdes: 023 (`ProfilesScreen.shell-navegacao.contract.test.tsx`,
 
 | 2026-09-30 | Fase 4 (US2) | T020–T028a + T027a (ad-hoc): cadastro reescrito no formato `sourceSetup()` (edição já no mesmo JSX); bloco `.source-setup` só com tokens, compactado para caber na safe zone; 25 scripts E2E migrados para o helper; `AddSourceScreen.test.tsx` reescrito (15 testes, +ordem de foco, RETURN num campo, "Voltar", OK duplo, validação completa); `e2e.mjs` +SC-002. R-008 resolvido sem código; R-009 (ordem do jsdom) corrigido no hook. `test:e2e` 18/18. | Paridade/`shell-visual`/`-real` migrados mas não rodados |
 
-**PRÓXIMO**: Fase 5 (US3) — T029 (textos de primeiro uso já no código: só conferir) e T030 (testes do estado vazio/carregando em `ProfilesScreen.test.tsx`).
+| 2026-09-30 | Fase 5 (US3) | T029 conferido (já no código desde a Fase 3); T030: +3 testes de primeiro uso/carregando em `ProfilesScreen.test.tsx`. 54/54. | — |
+| 2026-09-30 | Fase 6 (US4) | T031 conferido (já no JSX da Fase 4); T032: +3 testes de edição (Xtream, gravação via `updateSource`, M3U). 46/46. | — |
+| 2026-09-30 | Fase 7 (Polish) | T033 regras órfãs do `onboarding.css` removidas (só `.onboarding-error` ficou); T034 suíte completa (falhas = flakes conhecidos + contratos de 034/036 ainda não executadas), `tsc`/lint/`build:tizen` limpos; T035 travas íntegras; T036 quickstart A–D por roteiro Playwright + capturas do app e do protótipo (fora do repo); T037 `CLAUDE.md` e `migracao-design-system-v14.md`. | TV física (recomendada) |
+
+| 2026-09-30 | Phase 8 (Convergence) | T038 (CV-001, SC-001): capturas de carregando e erro num Chromium real via `addInitScript` sobre `IDBFactory.prototype.open`; 9/9 verificações. Sem código de produção. | — |
+
+| 2026-09-30 | Pós-convergência (TV física) | `deploy-tv.ps1` instalou e lançou na QN50Q60DAGXZD; o usuário verificou os 6 pontos do roteiro (tela de listas, foco, cadastro/rolagem, IME, RETURN, iniciais) e aprovou. Primeiro uso na TV não observado. | — |
+
+**PRÓXIMO**: nada pendente nesta feature; R-001 fica com a feature 034.
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- `tv-web/src/features/import/AddSourceScreen.tsx` + `AddSourceScreen.test.tsx` (US2 pronta; modo edição já no JSX)
-- `tv-web/src/styles/onboarding.css` (bloco `.source-setup`; regras antigas `.onboarding-layout/-form/-fields/-side*/-submit` ainda lá — T033)
-- `tv-web/src/lib/useTvKeyNav.ts` + teste (ordem por posição no documento)
-- `tv-web/e2e/lib/entrada.mjs` + `tv-web/e2e.mjs` (SC-002) + 24 scripts migrados
-- Próximos: `tv-web/src/features/profiles/ProfilesScreen.test.tsx` (T030), `AddSourceScreen.test.tsx` (T032)
+- `tv-web/src/features/profiles/ProfilesScreen.tsx`, `listAvatar.ts` + testes
+- `tv-web/src/features/import/AddSourceScreen.tsx` + `AddSourceScreen.test.tsx`
+- `tv-web/src/styles/profiles.css`, `tv-web/src/styles/onboarding.css` (bloco `.source-setup`), tokens `--list-avatar-N-*` em `index.css`
+- `tv-web/src/lib/useTvKeyNav.ts` (`initialFocus`, ordem por documento)
+- `tv-web/src/App.tsx` (`from` com `ADD_LIST_FOCUS_ID`)
+- `tv-web/e2e/lib/entrada.mjs`, `tv-web/e2e.mjs` (SC-002)
 
 ## Cuidados para Retomada
 
@@ -366,3 +376,22 @@ verdes: 023 (`ProfilesScreen.shell-navegacao.contract.test.tsx`,
 
 - Captura do protótipo com Playwright: a tela inicial dele já é `profiles()`, mas o splash dele fica por cima por ~6 s — esperar antes de capturar. `go()` não é global (está numa closure); o cadastro abre clicando em `[data-action="newProfile"]`.
 - Não editar arquivos com acento via `Get-Content`/`Set-Content` do Windows PowerShell 5.1 sem `-Encoding UTF8`: ele lê como ANSI e grava mojibake. Usar Edit/Write, ou `[IO.File]::ReadAllText/WriteAllText` com UTF-8.
+- O Playwright não clica em controle com `aria-disabled="true"` (o mock `ComingSoon` é soft-disabled de propósito): num roteiro, usar `click({ force: true })` ou foco + Enter.
+- Iniciais seguem a regra à risca: "Sala de Estar" → "SD" (primeira letra das duas primeiras palavras, conta "de").
+
+## Resultado Final
+
+Convergida em 2026-09-30 (segunda passada do `sdd-converge`; a primeira achou só CV-001, fechado pela T038).
+
+**Construído**: `ProfilesScreen` no formato `profiles()` ("Selecione ou Adicione sua lista"): cartão com selo do tipo, avatar de iniciais com par de cores por FNV-1a do id (`listAvatar.ts`, 6 pares de tokens sobre `--brand-*`), nome e avisos, sem data; cartão-botão "Adicionar lista"; "⚙ Configurações" no canto; volta do cadastro com foco em "Adicionar lista" (`ADD_LIST_FOCUS_ID` + `from` no `App.tsx`). `AddSourceScreen` no formato `sourceSetup()` ("Conecte sua lista IPTV"): "Como funciona", celular como mock "Em breve", seletor Xtream Codes (padrão, em foco via `initialFocus`) / Lista M3U, campos e ações novos, mesma validação e `mutate`; edição só com o painel manual. Todos os cadastros E2E via `e2e/lib/entrada.mjs`. SC-002 medido: 2 OK.
+
+**Desvios em relação ao plano original**:
+- R-008 não exigiu código: o cadastro nunca usou `onBackField`; RETURN já saía de qualquer focável.
+- T027a (ad-hoc): `useTvKeyNav` passou a ordenar os focáveis pela posição no documento — o jsdom agrupava por seletor (R-009). Sem efeito no navegador.
+- O modo edição (T031) e os textos de primeiro uso (T029) entraram junto com as Fases 4 e 3, por serem o mesmo JSX; as Fases 5/6 ficaram só com os testes.
+- Edição: selo com o tipo da lista + h2 "Configuração manual" (a tabela "Textos" não fixava esse cabeçalho).
+- Espaçamentos do cadastro compactados para caber na safe zone (em vez de só rolar).
+
+**Ficam em aberto (não gates)**: R-001 (chips de conta da 034 no cartão — a 034 ainda não tem código; a linha `.source-card-notices` está pronta); passada na TV física (recomendada); scripts de captura `paridade-*`/`shell-visual` e os dois `-real` migrados mas não rodados.
+
+**Atualização (2026-09-30, pós-convergência):** a passada na TV física, recomendada, foi feita e aprovada pelo usuário (ver `## Estado Atual` → TV física); só o estado "sem listas" não foi observado no aparelho.

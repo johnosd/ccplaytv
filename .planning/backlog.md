@@ -206,9 +206,9 @@ Duas features em paralelo só se os conjuntos de zonas forem **disjuntos**.
 | 032-metadata-tmdb-integracoes | Metadata de Filmes e Séries — Provedor Primeiro, TMDB (BYOK) Completa, e Tela Integrações | Convergida | 58/58 tasks | 2026-09-29 |
 | 033-trailers-filmes-series | Trailers de Filmes e Séries | Convergida | 55/55 tasks | 2026-09-29 |
 | 034-fontes-estado-expiracao | Fontes IPTV completas — estado, contagem e expiração da conta | Especificada | N/A | 2026-09-30 |
-| 035-semelhantes-elenco-ator | Semelhantes, fotos do elenco e página de ator | Convergida | 62/63 tasks | 2026-09-30 |
+| 035-semelhantes-elenco-ator | Semelhantes, fotos do elenco e página de ator | Convergida | 63/63 tasks | 2026-09-30 |
 | 036-limpar-historico | Limpar histórico e remover item do Histórico | Planejada | 0/43 tasks | 2026-09-30 |
-| 037-entrada-listas-prototipo | Entrada fiel ao protótipo — tela de listas e cadastro de lista | Em Execução | 34/50 tasks | 2026-09-30 |
+| 037-entrada-listas-prototipo | Entrada fiel ao protótipo — tela de listas e cadastro de lista | Convergida | 51/51 tasks | 2026-09-30 |
 | 038-carga-listas-pre-carga | Carga de listas — progresso claro, pré-carga em segundo plano, contagens e atualização visível | Em Execução | 72/84 tasks | 2026-09-30 |
 
 ## Bugs

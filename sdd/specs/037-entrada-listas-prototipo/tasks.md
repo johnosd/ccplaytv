@@ -165,21 +165,21 @@ description: "Tasks da feature 037 — entrada fiel ao protótipo"
 
 ### Implementation
 
-- [ ] T029 [US3] Textos de primeiro uso (kicker "Configuração inicial", subtítulo "Adicione sua primeira lista para começar.") no estado `empty` e texto de carregando no estado `loading`, em `tv-web/src/features/profiles/ProfilesScreen.tsx`; rodapé e botão do canto presentes nos três estados não-erro
+- [X] T029 [US3] Textos de primeiro uso (kicker "Configuração inicial", subtítulo "Adicione sua primeira lista para começar.") no estado `empty` e texto de carregando no estado `loading`, em `tv-web/src/features/profiles/ProfilesScreen.tsx`; rodapé e botão do canto presentes nos três estados não-erro
 
 ### Testes da Fase
 
-- [ ] T030 [US3] Em `tv-web/src/features/profiles/ProfilesScreen.test.tsx`: estado vazio mostra só "Adicionar lista" em foco + textos de primeiro uso; OK chama `onAddSource`; RETURN abre "Sair do CCPlayTV?"; carregando tem esqueletos com a geometria do cartão novo e um focável
+- [X] T030 [US3] Em `tv-web/src/features/profiles/ProfilesScreen.test.tsx`: estado vazio mostra só "Adicionar lista" em foco + textos de primeiro uso; OK chama `onAddSource`; RETURN abre "Sair do CCPlayTV?"; carregando tem esqueletos com a geometria do cartão novo e um focável
 
 **Critério de Conclusão**: testes de T030 verdes; o `e2e.mjs` (que começa sem lista) segue verde.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: concluída (2026-09-30)
+- Feito: T029 conferido — os textos de primeiro uso (kicker "Configuração inicial", subtítulo "Adicione sua primeira lista para começar.") e de carregando ("Carregando suas listas…", sem kicker) já tinham entrado na Fase 3; rodapé e "Configurações" presentes em carregando/vazio/com listas. T030: novo bloco "primeiro uso e carregando" em `ProfilesScreen.test.tsx` (3 testes: textos e foco do vazio + OK chama `onAddSource`; RETURN abre "Sair do CCPlayTV?"; esqueletos com `--profile-card-width/height`, sem kicker, `aria-busy` e dois focáveis reais).
+- Contrato: sem contrato nesta fase; contratos da 037/023 da tela de listas seguem verdes na mesma rodada (`src/features/profiles`).
+- Testes executados: `npx vitest run src/features/profiles` → 54/54, uma iteração. `node e2e.mjs` (começa sem lista) verde na Fase 4, sem mudança de código de produção desde então.
+- Pendências: nenhuma.
 
 ---
 
@@ -191,21 +191,21 @@ description: "Tasks da feature 037 — entrada fiel ao protótipo"
 
 ### Implementation
 
-- [ ] T031 [US4] Modo edição em `tv-web/src/features/import/AddSourceScreen.tsx` conforme D-015: kicker "Suas listas", título "Editar lista", subtítulo de edição de hoje, sem painel do celular, sem seletor de tipo e sem o painel lateral "Como funciona" (painel manual em largura total), campos do tipo da lista com os `hint`s de hoje, ações "Voltar" e "Salvar alterações" (FR-021); sem `initialFocus` (foco no primeiro campo)
+- [X] T031 [US4] Modo edição em `tv-web/src/features/import/AddSourceScreen.tsx` conforme D-015: kicker "Suas listas", título "Editar lista", subtítulo de edição de hoje, sem painel do celular, sem seletor de tipo e sem o painel lateral "Como funciona" (painel manual em largura total), campos do tipo da lista com os `hint`s de hoje, ações "Voltar" e "Salvar alterações" (FR-021); sem `initialFocus` (foco no primeiro campo)
 
 ### Testes da Fase
 
-- [ ] T032 [US4] Em `tv-web/src/features/import/AddSourceScreen.test.tsx`: edição Xtream (Servidor preenchido, Usuário/Senha vazios com hint ligado por `aria-describedby`, sem `aria-pressed` de tipo, sem "Conectar com celular", sem "Como funciona", "Salvar alterações" chama `useUpdateSource` com só o que mudou) e edição M3U (URL vazia com hint)
+- [X] T032 [US4] Em `tv-web/src/features/import/AddSourceScreen.test.tsx`: edição Xtream (Servidor preenchido, Usuário/Senha vazios com hint ligado por `aria-describedby`, sem `aria-pressed` de tipo, sem "Conectar com celular", sem "Como funciona", "Salvar alterações" chama `useUpdateSource` com só o que mudou) e edição M3U (URL vazia com hint)
 
 **Critério de Conclusão**: testes de T032 verdes; contratos da 037 seguem verdes.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: concluída (2026-09-30)
+- Feito: T031 conferido — o modo edição entrou no mesmo JSX da Fase 4 (kicker "Suas listas", título "Editar lista", subtítulo de hoje, só o painel manual em largura total com o tipo da lista como selo, campos do tipo com os `hint`s, "Voltar"/"Salvar alterações", sem `initialFocus` → foco no primeiro campo). T032: bloco "edição no visual novo" em `AddSourceScreen.test.tsx` (3 testes: Xtream sem `aria-pressed`/celular/"Como funciona" e foco em "Nome da lista"; "Salvar alterações" chama `updateSource` com usuário/senha `undefined` e dispara `onSourceUpdated`; M3U com URL vazia e dica ligada por `aria-describedby`, nomes acessíveis completos).
+- Contrato: `npx vitest run src/features/import` inclui `AddSourceScreen.entrada-listas.contract.test.tsx` → 2/2 verdes; trava conferida no Polish (T035).
+- Testes executados: `npx vitest run src/features/import` → 46/46, uma iteração.
+- Pendências: nenhuma.
 
 ---
 
@@ -213,25 +213,25 @@ description: "Tasks da feature 037 — entrada fiel ao protótipo"
 
 **Purpose**: Limpeza, verificação completa e documentação.
 
-- [ ] T033 Remover de `tv-web/src/styles/onboarding.css` as regras que ficaram sem uso (`.onboarding-layout`, `.onboarding-form`, `.onboarding-fields`, `.onboarding-tabs`, `.onboarding-side*`, `.onboarding-submit`, `.onboarding .text-field-*` se substituídas) — confirmar por grep em `tv-web/src` antes de cada remoção (D-012)
-- [ ] T034 Suíte completa `npm run test` (flakes conhecidos confirmados isolados), `npx tsc -b`, `npm run lint`, `npm run build:tizen`
-- [ ] T035 Integridade das travas: `check-contract-tests.ps1` para `037-entrada-listas-prototipo`, `023-shell-navegacao-entrada-ds-v14`, `026-home-busca-configuracoes-ds-v14`, `028-limpeza-qa-ds-v14`
-- [ ] T036 Rodar `quickstart.md` (Cenários A–D) com capturas 1920×1080 lado a lado com o protótipo (SC-001), guardando as capturas fora do repositório
-- [ ] T037 Atualizar a documentação: seção da feature 037 em `CLAUDE.md` (Project status) e o cabeçalho de `.planning/migracao-design-system-v14.md` se citar a tela de perfis; status via `update-feature-status.ps1`
+- [X] T033 Remover de `tv-web/src/styles/onboarding.css` as regras que ficaram sem uso (`.onboarding-layout`, `.onboarding-form`, `.onboarding-fields`, `.onboarding-tabs`, `.onboarding-side*`, `.onboarding-submit`, `.onboarding .text-field-*` se substituídas) — confirmar por grep em `tv-web/src` antes de cada remoção (D-012)
+- [X] T034 Suíte completa `npm run test` (flakes conhecidos confirmados isolados), `npx tsc -b`, `npm run lint`, `npm run build:tizen`
+- [X] T035 Integridade das travas: `check-contract-tests.ps1` para `037-entrada-listas-prototipo`, `023-shell-navegacao-entrada-ds-v14`, `026-home-busca-configuracoes-ds-v14`, `028-limpeza-qa-ds-v14`
+- [X] T036 Rodar `quickstart.md` (Cenários A–D) com capturas 1920×1080 lado a lado com o protótipo (SC-001), guardando as capturas fora do repositório
+- [X] T037 Atualizar a documentação: seção da feature 037 em `CLAUDE.md` (Project status) e o cabeçalho de `.planning/migracao-design-system-v14.md` se citar a tela de perfis; status via `update-feature-status.ps1`
 
 ### Checklist de Release
 
 - [X] Fase 2 (Foundational) concluída
 - [X] Fase 3 (User Story 1) concluída
 - [X] Fase 4 (User Story 2) concluída
-- [ ] Fase 5 (User Story 3) concluída
-- [ ] Fase 6 (User Story 4) concluída
-- [ ] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro (037, 023, 026, 028)
-- [ ] `npm run test`, `tsc -b`, `lint`, `build:tizen` limpos
-- [ ] `npm run test:e2e` verde (dev server recém-iniciado)
+- [X] Fase 5 (User Story 3) concluída
+- [X] Fase 6 (User Story 4) concluída
+- [X] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro (037, 023, 026, 028)
+- [X] `npm run test`, `tsc -b`, `lint`, `build:tizen` limpos (falhas só dos flakes conhecidos, 106/106 isolados, e dos contratos de 034/036 ainda não executadas)
+- [X] `npm run test:e2e` verde (dev server recém-iniciado)
 - [X] Nenhum "Nome de exibição"/"URL da lista M3U"/"Endereço, usuário e senha" restante em `tv-web/e2e*`
-- [ ] `quickstart.md` executado com sucesso
-- [ ] Passada na TV física: recomendada, não gate (spec sem exceção declarada)
+- [X] `quickstart.md` executado com sucesso
+- [X] Passada na TV física: recomendada, não gate (spec sem exceção declarada) — **feita** em 2026-09-30 (QN50Q60DAGXZD), aprovada pelo usuário; estado "sem listas" não observado no aparelho
 
 ---
 
@@ -287,3 +287,17 @@ Task: "T006 [P] e2e/lib/entrada.mjs"
 - Parar em qualquer checkpoint pra validar a story isoladamente
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->
+
+## Phase 8: Convergence
+
+**Purpose**: Lacunas achadas pelo `sdd-converge` (2026-09-30).
+
+- [X] T038 [US1] SC-001 (CV-001, LOW): capturar em 1920×1080, num Chromium real, os estados **carregando** (atrasando a leitura do IndexedDB, ex. `page.addInitScript`) e **erro** (fazendo a leitura das listas falhar → STO-01 + "Tentar de novo" focável) da tela de listas, conferir contra os demais estados e o `profiles()` (mesma marca/título/posição; o protótipo não desenha esses dois estados), guardando as capturas fora do repositório e registrando o resultado no Registro desta fase
+
+**Registro da Fase**:
+
+- Status: concluída (2026-09-30)
+- Feito: T038 — roteiro Playwright fora do repositório (Chromium, 1920×1080) com ``addInitScript`` sobre ``IDBFactory.prototype.open``: **carregando** (pedido de abertura que nunca responde) e **erro** (abertura lança ``DOMException``). Carregando: marca e título iguais aos demais estados, "Carregando suas listas…", 3 esqueletos com a geometria exata do cartão (240×272 medidos por ``offsetWidth/Height``; a 1ª medição por ``getBoundingClientRect`` incluía a escala de foco 1,06 do "Adicionar lista" — artefato do roteiro), "Adicionar lista" focado, rodapé e "Configurações". Erro: marca e título iguais, "Não foi possível carregar suas listas", STO-01 e "Tentar de novo" focado, sem rodapé nem canto (como em FR-011/código). O protótipo não desenha esses dois estados: conferência por blocos contra os outros 5 estados já capturados. Capturas ``app-listas-carregando.png``/``app-listas-erro.png`` guardadas fora do repositório.
+- Contrato: sem contrato nesta fase; ``check-contract-tests.ps1 -Slug 037-entrada-listas-prototipo`` → PASS, trava íntegra.
+- Testes executados: roteiro de estados → 9/9 verificações (duas iterações, a 1ª com o artefato de medida acima). Nenhuma mudança de código de produção nesta fase.
+- Pendências: nenhuma.

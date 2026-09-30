@@ -6,6 +6,7 @@ import { AddSourceScreen } from './AddSourceScreen'
 import type { SourceOut } from './importApi'
 import { db } from '../../lib/catalog/db'
 import * as importPipeline from '../../lib/catalog/importPipeline'
+import * as sourceRepository from '../../lib/catalog/sourceRepository'
 import { AnnouncerContext } from '../../lib/announcer'
 import { getComingSoon } from '../../lib/comingSoon'
 import { findUnnamedControls } from '../../testing/accessibleNames'
@@ -336,5 +337,90 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
 
     await waitFor(() => expect(onSourceCreated).toHaveBeenCalledTimes(1))
     expect(await db.sources.count()).toBe(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Feature 037, US4 (T032): edição na tela nova — sem celular, sem "Como
+// funciona", sem trocar o tipo (D-015, FR-021).
+// ---------------------------------------------------------------------------
+
+describe('AddSourceScreen — edição no visual novo (feature 037, US4)', () => {
+  beforeEach(() => {
+    vi.mocked(globalThis.fetch).mockRejectedValue(new TypeError('Failed to fetch'))
+  })
+
+  afterEach(async () => {
+    cleanup()
+    vi.restoreAllMocks()
+    vi.spyOn(globalThis, 'fetch')
+    await db.sources.clear()
+  })
+
+  it('Xtream: título/kicker de edição, só o painel manual com os campos do tipo, foco no primeiro campo', () => {
+    render(<AddSourceScreen existingSource={makeProviderSource()} onSourceCreated={vi.fn()} onBack={vi.fn()} />, {
+      wrapper: createWrapper(),
+    })
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Editar lista')
+    expect(screen.getByText('Suas listas')).toBeInTheDocument()
+    expect(screen.getByText('Altere o que precisar. Usuário e senha em branco continuam como estão.')).toBeInTheDocument()
+    expect(screen.getByText('Xtream Codes')).toBeInTheDocument()
+
+    expect(document.querySelector('[aria-pressed]')).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Conectar com celular' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Como funciona' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /celular/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('URL M3U')).not.toBeInTheDocument()
+
+    expect(screen.getByLabelText('Nome da lista')).toHaveFocus()
+    expect(screen.getByLabelText('Usuário')).toHaveAttribute('aria-describedby')
+    expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Conectar e sincronizar' })).not.toBeInTheDocument()
+  })
+
+  it('"Salvar alterações" grava pelo caminho de hoje: usuário e senha em branco vão vazios (mantêm o valor), e volta pelo onSourceUpdated', async () => {
+    const update = vi.spyOn(sourceRepository, 'updateSource').mockResolvedValue(undefined)
+    const onSourceUpdated = vi.fn()
+    render(
+      <AddSourceScreen
+        existingSource={makeProviderSource()}
+        onSourceCreated={vi.fn()}
+        onSourceUpdated={onSourceUpdated}
+        onBack={vi.fn()}
+      />,
+      { wrapper: createWrapper() },
+    )
+
+    fireEvent.change(screen.getByLabelText('Nome da lista'), { target: { value: 'Sala' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }))
+
+    await waitFor(() => expect(onSourceUpdated).toHaveBeenCalledTimes(1))
+    expect(update).toHaveBeenCalledWith('src-prov', {
+      displayName: 'Sala',
+      m3uUrl: undefined,
+      providerDns: 'http://prov.test',
+      providerUsername: undefined,
+      providerPassword: undefined,
+    })
+  })
+
+  it('M3U: só "Nome da lista" e "URL M3U" (vazia, com a dica ligada), sem seletor e sem celular', () => {
+    const m3u = makeProviderSource({ type: 'm3u_url', provider_dns: null, display_name: 'Minha M3U' })
+    const { container } = render(<AddSourceScreen existingSource={m3u} onSourceCreated={vi.fn()} onBack={vi.fn()} />, {
+      wrapper: createWrapper(),
+    })
+
+    expect(screen.getByText('Lista M3U')).toBeInTheDocument()
+    expect(screen.getByLabelText('Nome da lista')).toHaveValue('Minha M3U')
+    const url = screen.getByLabelText('URL M3U')
+    expect(url).toHaveValue('')
+    expect(document.getElementById(url.getAttribute('aria-describedby')!)).toHaveTextContent(
+      'Deixe em branco para manter a URL atual',
+    )
+    expect(screen.queryByLabelText('Servidor')).not.toBeInTheDocument()
+    expect(document.querySelector('[aria-pressed]')).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Conectar com celular' })).not.toBeInTheDocument()
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 })
