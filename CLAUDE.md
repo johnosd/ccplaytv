@@ -933,6 +933,49 @@ apart), so SC-002 is met **with that stated caveat**. Found cards carry a
 Physical TV: recommended, not a gate. See
 `sdd/specs/035-semelhantes-elenco-ator/plan.md` → `## Estado Atual`.
 
+**In execution**: `038-carga-listas-pre-carga` — from the assessment
+`sdd/assessments/carga-listas-progresso-claro-entrada-instantanea/`: a
+**background prefetch** (`tv-web/src/lib/catalog/prefetch/`) fetches every
+category of the active list, one at a time, through the same
+`ensureCategory` the entry uses — only after ~2 s with no key pressed, never
+while `PlayerLayer`/`TrailerLayer` is mounted, the app is hidden or offline,
+focused category and its neighbours first (`pickNextCategory`), failures to
+the back of the queue (3 per session), storage full stops it. It **never
+aborts** an in-flight category (it's shared with the real entry via the
+loader's `dedup`); the 300 ms focus prefetch (feature 010, R-013) still exists
+separately. **This reopens feature 010's D-007/R0-1 on purpose** (recorded in
+the spec and `research.md` R0-2). The bigger structural change: an update of a
+list along the **same path** (Xtream→Xtream, stored M3U→stored M3U) no longer
+publishes a new generation — `applyStructureRefresh` reconciles categories
+**in the active generation** (`structureDiff.ts`: by section + provider id, or
+exact name for M3U; kept categories keep id/`order`/items and get
+`renewRequestedAt`; `order` is immutable because it's the items' `groupOrder`,
+display order is the new `position`), stored M3U points kept categories at the
+rescanned content via `storedFrom`, and `publishGeneration` (first import /
+path switch only) no longer deletes items — `collectStaleGenerations` deletes
+old generations **in chunks** from the scheduler. Item writes go through one
+path, `renewCategoryItems`, which **preserves each item's local id** by
+identity (`seriesId` / `providerStreamId` / `originalName`, never URL) and
+skips identical lists by signature; `listChannels` therefore orders by
+`categoryPosition`, not id. Entering a stale (>24 h) or renewal-pending
+category serves the device copy immediately (`serveStale` → the scheduler's
+`prioritize`) and `loadCategoryContent` reports it as `fresh`, so the
+"Não foi possível atualizar agora" note still only means a real failure.
+Focus in the grid/channel list falls to the nearest neighbour (same list only)
+when a renewal removes the focused item (`lib/focus/reconcileFocus.ts`). Also:
+the import screen now shows one line per part (Canais/Filmes/Séries/Guia,
+`importSections.ts`, `ImportRunRecord.sections`), the trail shows the real
+count as soon as a category is on the device, and the Início shows a
+non-focusable status line ("Preparando catálogo — N de M", "Atualizando
+catálogo…", "Catálogo atualizado há …"). No Dexie version bump (value fields
+only). Measured on a PC against the real list, the first cold entry is 0.6 s
+(channels) to 3.8 s (an 11,130-movie category) — **the ~1 min the owner sees
+is TV-specific and still unmeasured**: a measurement build
+(`VITE_CCPLAY_PERF=1`, on-screen number panel `PerfOverlay`, since the TV has
+no console) is needed for Phase 4. **The physical-TV pass is this feature's
+mandatory gate (SC-008).** See `sdd/specs/038-carga-listas-pre-carga/plan.md`
+→ `## Estado Atual`.
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Quem está
@@ -1305,6 +1348,11 @@ straight to `channels`; entering a category reads it from there once per
 generation, never the network again. Code-complete; only the SC-001/SC-002
 timing measurements against a real user list remain open. See
 `sdd/specs/014-m3u-sob-demanda/`.
+
+**Update (2026-09-30, feature 038)**: "obtained only on entry" is no longer
+the whole story — a background prefetch now fills every category of the
+active list over time, and a same-path update keeps the active generation
+(long-lived) instead of replacing it. See feature 038 above.
 
 ## Language
 
