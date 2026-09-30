@@ -33,6 +33,7 @@ describe('getComingSoon', () => {
       'dock-speedtest',
       'dock-weather',
       'home-ai-curation',
+      'home-trailer',
       'pair-phone',
       'player-aspect',
       'player-quality',
@@ -40,7 +41,6 @@ describe('getComingSoon', () => {
       'settings-parental',
       'settings-player',
       'similar',
-      'trailer',
       'voice-search',
     ])
   })
@@ -56,6 +56,7 @@ describe('getComingSoon', () => {
     expect(() => getComingSoon('dock-tmdb')).toThrow() // deixou de ser mock na 032 (ícone real do dock)
     expect(() => getComingSoon('settings-integrations')).toThrow() // deixou de ser mock na 032 (aba real)
     expect(() => getComingSoon('cast')).toThrow() // deixou de ser mock na 032 (aba Elenco com o elenco em texto)
+    expect(() => getComingSoon('trailer')).toThrow() // deixou de ser mock na 033 (botão real)
     expect(getComingSoon('home-ai-curation').backlogItem).toBe(30)
   })
 })

@@ -269,7 +269,7 @@ export function HomeContent({
       return
     }
     if (action.id === 'trailer') {
-      announce(`Em breve — ${getComingSoon('trailer').message}`)
+      announce(`Em breve — ${getComingSoon('home-trailer').message}`)
     }
   }
 

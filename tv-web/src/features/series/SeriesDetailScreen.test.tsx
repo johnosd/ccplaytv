@@ -45,6 +45,16 @@ vi.mock('../../components/PlayerLayer', () => ({
   ),
 }))
 
+vi.mock('../../components/TrailerLayer', () => ({
+  TrailerLayer: vi.fn(({ title, onClose }: { title: string; onClose: () => void }) => (
+    <div role="dialog" aria-label={`Trailer de ${title}`}>
+      <button type="button" onClick={onClose}>
+        Fechar trailer
+      </button>
+    </div>
+  )),
+}))
+
 const SERIES: CatalogItemOut = {
   id: 'series-1',
   kind: 'series',
@@ -261,17 +271,74 @@ describe('SeriesDetailScreen', () => {
     expect(await screen.findByText('✓ Na Minha Lista')).toBeInTheDocument()
   })
 
-  it('"Trailer" é soft-disabled e anuncia "Em breve" sem abrir o player', () => {
+  // Feature 033: o botão deixou de ser mock.
+  it('"Trailer" sem candidato é soft-disabled, se declara e o OK explica sem abrir nenhuma camada', () => {
+    vi.spyOn(catalogApi, 'useTitleMetadata').mockReturnValue({
+      data: {},
+      isLoading: false,
+      isFetching: false,
+    } as unknown as ReturnType<typeof catalogApi.useTitleMetadata>)
+    vi.spyOn(catalogApi, 'useTmdbStatus').mockReturnValue({
+      data: { state: 'connected' },
+    } as unknown as ReturnType<typeof catalogApi.useTmdbStatus>)
     renderScreen()
     press('ArrowRight') // primária(0) -> Minha Lista(1)
     press('ArrowRight') // Minha Lista(1) -> Trailer(2)
 
-    const trailer = screen.getByText('▶ Trailer')
+    const trailer = screen.getByText('Trailer — indisponível')
     expect(trailer.className).toContain('is-soft-disabled')
+    expect(trailer.getAttribute('aria-disabled')).toBe('true')
     press('Enter')
 
-    expect(screen.getByText('Em breve — Trailer do filme ou da série.')).toBeInTheDocument()
+    expect(screen.getByText('Trailer indisponível para este título')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  // --- trailer (feature 033, T028) ---
+
+  function trailerMetadata(data: object | undefined, fetching = false) {
+    vi.spyOn(catalogApi, 'useTitleMetadata').mockReturnValue({
+      data,
+      isLoading: data === undefined && fetching,
+      isFetching: fetching,
+    } as unknown as ReturnType<typeof catalogApi.useTitleMetadata>)
+    vi.spyOn(catalogApi, 'useTmdbStatus').mockReturnValue({
+      data: { state: 'not_configured' },
+    } as unknown as ReturnType<typeof catalogApi.useTmdbStatus>)
+  }
+
+  it('"Trailer…" enquanto os episódios ainda chegam, mesmo com a metadata vazia (não pisca "indisponível")', () => {
+    trailerMetadata({})
+    vi.mocked(catalogApi.useSeriesEpisodes).mockReturnValue({
+      data: { episodes: [S1E1], outcome: 'fetched' },
+      isLoading: false,
+      isPending: true,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof catalogApi.useSeriesEpisodes>)
+    renderScreen()
+
+    expect(screen.getByText('Trailer…').className).toContain('is-soft-disabled')
+    expect(screen.queryByText('Trailer — indisponível')).not.toBeInTheDocument()
+  })
+
+  it('com o trailer do provedor o botão abre a camada e fechar devolve o foco a ele', () => {
+    trailerMetadata({ trailers: [{ videoId: 'provTrail01', kind: 'trailer', origin: 'provider' }] })
+    renderScreen()
+    press('ArrowRight') // primária(0) -> Minha Lista(1)
+    press('ArrowRight') // Minha Lista(1) -> Trailer(2)
+
+    const button = screen.getByText('▶ Trailer')
+    expect(button.className).not.toContain('is-soft-disabled')
+    expect(button.className).toContain('tv-focus')
+    press('Enter')
+    expect(screen.getByRole('dialog', { name: 'Trailer de Breaking Bad' })).toBeInTheDocument()
+
+    act(() => {
+      screen.getByRole('button', { name: 'Fechar trailer' }).click()
+    })
+
+    expect(screen.queryByRole('dialog', { name: /Trailer de/ })).not.toBeInTheDocument()
+    expect(screen.getByText('▶ Trailer').className).toContain('tv-focus')
   })
 
   // --- abas (US6, FR-039) ---

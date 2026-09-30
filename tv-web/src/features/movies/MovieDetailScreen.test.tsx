@@ -124,17 +124,45 @@ describe('MovieDetailScreen', () => {
     expect(await screen.findByText('✓ Na Minha Lista')).toBeInTheDocument()
   })
 
-  it('"Trailer" é soft-disabled e anuncia "Em breve" sem abrir o player', () => {
+  // Feature 033: o botão deixou de ser mock (os três estados e a camada têm o contrato próprio).
+  it('"Trailer" sem candidato é soft-disabled, se declara e o OK explica sem abrir nenhuma camada', () => {
+    vi.spyOn(catalogApi, 'useTitleMetadata').mockReturnValue({
+      data: {},
+      isLoading: false,
+      isFetching: false,
+    } as unknown as ReturnType<typeof catalogApi.useTitleMetadata>)
+    vi.spyOn(catalogApi, 'useTmdbStatus').mockReturnValue({
+      data: { state: 'connected' },
+    } as unknown as ReturnType<typeof catalogApi.useTmdbStatus>)
     renderScreen()
     press('ArrowRight') // Assistir(0) -> Minha Lista(1)
     press('ArrowRight') // Minha Lista(1) -> Trailer(2)
 
-    const trailer = screen.getByText('▶ Trailer')
+    const trailer = screen.getByText('Trailer — indisponível')
     expect(trailer.className).toContain('is-soft-disabled')
+    expect(trailer.getAttribute('aria-disabled')).toBe('true')
     press('Enter')
 
-    expect(screen.getByText('Em breve — Trailer do filme ou da série.')).toBeInTheDocument()
+    expect(screen.getByText('Trailer indisponível para este título')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    [{ videoId: 'enTrailer01', kind: 'trailer', language: 'en', origin: 'tmdb' }, '▶ Trailer · Inglês'],
+    [{ videoId: 'ptTeaser001', kind: 'teaser', language: 'pt', origin: 'tmdb' }, '▶ Teaser'],
+    [{ videoId: 'enTeaser001', kind: 'teaser', language: 'en', origin: 'tmdb' }, '▶ Teaser · Inglês'],
+  ])('rótulo do botão segue o 1º candidato (%j → %s)', (candidate, label) => {
+    vi.spyOn(catalogApi, 'useTitleMetadata').mockReturnValue({
+      data: { trailers: [candidate] },
+      isLoading: false,
+      isFetching: false,
+    } as unknown as ReturnType<typeof catalogApi.useTitleMetadata>)
+    vi.spyOn(catalogApi, 'useTmdbStatus').mockReturnValue({
+      data: { state: 'connected' },
+    } as unknown as ReturnType<typeof catalogApi.useTmdbStatus>)
+    renderScreen()
+
+    expect(screen.getByText(label).className).not.toContain('is-soft-disabled')
   })
 
   // Feature 028, FR-015/FR-017.

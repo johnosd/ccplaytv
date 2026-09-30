@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
   useCatalogItem,
   useTitleMetadata,
+  useTmdbStatus,
   useUserState,
   invalidateUserState,
   useToggleWatched,
@@ -14,6 +15,7 @@ import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 import { PlayerLayer } from '../../components/PlayerLayer'
+import { TrailerLayer } from '../../components/TrailerLayer'
 import { PosterArt } from '../../components/PosterArt'
 import { Tabs, type TabItem } from '../../components/Tabs'
 import { buildStableId } from '../../lib/catalog/userStateRepository'
@@ -21,6 +23,12 @@ import { isResumable } from '../../lib/player/resumePolicy'
 import { formatTime } from '../../lib/player/formatTime'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { getComingSoon } from '../../lib/comingSoon'
+import {
+  trailerActionLabel,
+  trailerActionSoftDisabled,
+  trailerActionState,
+  trailerActionToast,
+} from '../vod/trailerAction'
 
 export interface MovieDetailScreenProps {
   movieId: string
@@ -157,6 +165,16 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
   const synopsis = metadata?.synopsis
   const hasMore = synopsis !== undefined && isSynopsisTruncated(synopsis.value)
 
+  // Trailer (feature 033): os candidatos vêm da MESMA consulta da metadata —
+  // nada é buscado ao focar o botão (FR-002). `useTmdbStatus` só lê o IndexedDB.
+  const tmdbStatusQuery = useTmdbStatus()
+  const trailerState = trailerActionState({
+    metadata,
+    checking: metadataQuery.isFetching || metadataQuery.data === undefined,
+    tmdbState: tmdbStatusQuery.data?.state,
+  })
+  const [trailerOpen, setTrailerOpen] = useState(false)
+
   // `more` = o botão "Ver mais" da sinopse, uma linha acima das ações.
   const [rawRow, setRow] = useState<'more' | 'actions' | 'tabs'>('actions')
   // A sinopse pode chegar (ou sumir) depois de o foco já estar aqui: sem o
@@ -239,7 +257,10 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
       const action = actions[safeActionFocus]
       if (!action) return
       if (action.id === 'trailer') {
-        showToast(`Em breve — ${getComingSoon('trailer').message}`)
+        const toast = trailerActionToast(trailerState)
+        if (toast !== null) showToast(toast)
+        // `playing` cobre o instante entre um OK repetido e a camada do player montar (FR-012).
+        else if (!playing) setTrailerOpen(true)
         return
       }
       if (action.id === 'favorite') {
@@ -290,14 +311,18 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
           <div className="vod-detail-meta">{metaParts.join(' · ')}</div>
           <SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />
           <div className="vod-detail-actions">
-            {actions.map((action, i) => (
-              <div
-                key={action.id}
-                className={`vod-detail-action${row === 'actions' && i === safeActionFocus ? ' tv-focus' : ''}${action.id === 'trailer' ? ' is-soft-disabled' : ''}`}
-              >
-                {actionLabel(action)}
-              </div>
-            ))}
+            {actions.map((action, i) => {
+              const softDisabled = action.id === 'trailer' && trailerActionSoftDisabled(trailerState)
+              return (
+                <div
+                  key={action.id}
+                  className={`vod-detail-action${row === 'actions' && i === safeActionFocus ? ' tv-focus' : ''}${softDisabled ? ' is-soft-disabled' : ''}`}
+                  aria-disabled={softDisabled ? 'true' : undefined}
+                >
+                  {action.id === 'trailer' ? trailerActionLabel(trailerState) : actionLabel(action)}
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -340,6 +365,10 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
 
       <Toast message={toastMessage} messageKey={toastKey} />
       {synopsisOpen && synopsis && <SynopsisModal text={synopsis.value} onClose={() => setSynopsisOpen(false)} />}
+      {/* Fechar o trailer não invalida nada: ver trailer não muda estado do usuário (FR-016). */}
+      {trailerOpen && trailerState.status === 'available' && (
+        <TrailerLayer title={movie.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)} />
+      )}
       {playing && (
         <PlayerLayer
           itemId={movieId}

@@ -9,6 +9,7 @@ import {
   useSeriesEpisodes,
   useSeriesWatchedSummary,
   useTitleMetadata,
+  useTmdbStatus,
   useUserState,
   useUserStates,
   type EpisodeOut,
@@ -41,6 +42,13 @@ import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 import { getComingSoon } from '../../lib/comingSoon'
+import { TrailerLayer } from '../../components/TrailerLayer'
+import {
+  trailerActionLabel,
+  trailerActionSoftDisabled,
+  trailerActionState,
+  trailerActionToast,
+} from '../vod/trailerAction'
 
 export interface SeriesDetailScreenProps {
   seriesId: string
@@ -184,6 +192,18 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
   const metadata = metadataQuery.data
   const synopsis = metadata?.synopsis
   const hasMore = synopsis !== undefined && isSynopsisTruncated(synopsis.value)
+
+  // Trailer (feature 033): mesma consulta da metadata, nada ao focar (FR-002).
+  // A metadata da série só fica completa depois que os episódios chegam e o
+  // `seriesLoader` grava o `get_series_info` — sem esperar por eles o botão
+  // piscaria "indisponível" antes do trailer do provedor aparecer.
+  const tmdbStatusQuery = useTmdbStatus()
+  const trailerState = trailerActionState({
+    metadata,
+    checking: metadataQuery.isFetching || metadataQuery.data === undefined || episodesQuery.isPending,
+    tmdbState: tmdbStatusQuery.data?.state,
+  })
+  const [trailerOpen, setTrailerOpen] = useState(false)
 
   const [rawRow, setRow] = useState<Row>('actions')
   // Sem o botão "Ver mais" a linha `more` não existe: o foco cai nas ações.
@@ -431,7 +451,10 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
         const action = actions[safeActionFocus]
         if (!action) return
         if (action.id === 'trailer') {
-          showToast(`Em breve — ${getComingSoon('trailer').message}`)
+          const toast = trailerActionToast(trailerState)
+          if (toast !== null) showToast(toast)
+          // Com o player aberto o teclado é dele; a guarda cobre o instante entre um OK repetido e o render (FR-012).
+          else if (mode.kind === 'browsing') setTrailerOpen(true)
           return
         }
         if (action.id === 'favorite') {
@@ -538,14 +561,18 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
           <div className="vod-detail-meta">{metaParts.join(' · ')}</div>
           <SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />
           <div className="vod-detail-actions">
-            {actions.map((action, i) => (
-              <div
-                key={action.id}
-                className={`vod-detail-action${row === 'actions' && i === safeActionFocus ? ' tv-focus' : ''}${action.id === 'trailer' ? ' is-soft-disabled' : ''}`}
-              >
-                {actionLabel(action)}
-              </div>
-            ))}
+            {actions.map((action, i) => {
+              const softDisabled = action.id === 'trailer' && trailerActionSoftDisabled(trailerState)
+              return (
+                <div
+                  key={action.id}
+                  className={`vod-detail-action${row === 'actions' && i === safeActionFocus ? ' tv-focus' : ''}${softDisabled ? ' is-soft-disabled' : ''}`}
+                  aria-disabled={softDisabled ? 'true' : undefined}
+                >
+                  {action.id === 'trailer' ? trailerActionLabel(trailerState) : actionLabel(action)}
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -690,6 +717,11 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
       <Toast message={toastMessage} messageKey={toastKey} />
 
       {synopsisOpen && synopsis && <SynopsisModal text={synopsis.value} onClose={() => setSynopsisOpen(false)} />}
+
+      {/* Fechar o trailer não invalida nada: ver trailer não muda estado do usuário (FR-016). */}
+      {trailerOpen && trailerState.status === 'available' && (
+        <TrailerLayer title={series.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)} />
+      )}
 
       {mode.kind === 'playing' && (
         <PlayerLayer
