@@ -863,7 +863,13 @@ that arrives while one is pending is discarded, never queued. Two real bugs
 only the E2E showed: React StrictMode's dev-only mount/unmount/remount made an
 unmount cleanup mark the layer "closed" for good (the end of the video stopped
 closing it), and the `stop` sent on unmount needs a `useLayoutEffect` because
-React detaches the iframe ref before passive cleanups. 5/5 contract tests
+React detaches the iframe ref before passive cleanups. A third, pre-existing
+bug surfaced through the same E2E and was fixed with the user's approval
+(ad-hoc T043, R-011): `ensureCategory` judged freshness by the category
+snapshot the screen holds (never re-read after a fetch, so no
+`itemsFetchedAt`), so coming back from a detail screen to the grid re-called
+`get_vod_streams` and swapped the channel ids under the cards — it now trusts
+the persisted `itemsFetchedAt`. 5/5 contract tests
 locked (C1 amended with the user's approval: the example "invalid id"
 `nao-e-um-id` has 11 characters — R-009), unit + component tests, and
 `e2e/trailers.mjs` (part of `test:e2e`) serves the REAL bridge from disk under

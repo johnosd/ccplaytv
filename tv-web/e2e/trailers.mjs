@@ -252,10 +252,10 @@ async function goHome(page) {
 
 /**
  * Abre o detalhe do filme `title` e espera o botão sair de "Trailer…". Por padrão
- * parte de uma grade NOVA (Início → Filmes → categoria): voltar do detalhe para a
- * grade refaz o `get_vod_streams` e troca os ids dos canais (observado também SEM
- * abrir trailer — ver plan.md, R-011), então o card restaurado pode apontar para um id
- * que já não existe. Esse comportamento é anterior à 033 e não faz parte dela.
+ * parte de uma grade NOVA (Início → Filmes → categoria), o que isola cada cenário. Antes do
+ * ad-hoc T043 da 033 isso era obrigatório: voltar do detalhe para a grade refazia o
+ * `get_vod_streams` e trocava os ids dos canais (R-011, já corrigido em `ensureCategory`);
+ * `{ fresh: false }` segue disponível para reaproveitar a grade aberta.
  */
 async function openMovieDetail(page, title, { fresh = true } = {}) {
   if (fresh) {
