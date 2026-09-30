@@ -38,6 +38,7 @@ a camada sem candidato.
 | `loading`/`playing`/`paused` | `bridge-state: playing` | `playing` |
 | `loading`/`playing`/`paused` | `bridge-state: paused` | `paused` |
 | `loading`/`playing`/`paused` | `bridge-state: ended` | `closed` |
+| `loading` | `bridge-ready(now)` | `loading`, `deadline = max(deadline, now + 90 s)` (R-013: anúncios do YouTube; só alarga, nunca encurta) |
 | `loading` | `timeout` | `error TRL-TEMPO (retryable)` |
 | `playing`/`paused`/`error` | `timeout` | igual (o prazo só vale carregando) |
 | `loading`/`playing`/`paused` | `bridge-failed` | `error TRL-PONTE (retryable)` |

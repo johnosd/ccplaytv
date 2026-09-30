@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TrailerLayer } from './TrailerLayer'
 import { findUnnamedControls } from '../testing/accessibleNames'
 import { TRAILER_BRIDGE_ORIGIN } from '../lib/trailer/bridgeConfig'
-import { TRAILER_START_TIMEOUT_MS } from '../lib/trailer/trailerSession'
+import { TRAILER_READY_TOLERANCE_MS, TRAILER_START_TIMEOUT_MS } from '../lib/trailer/trailerSession'
 import type { TrailerCandidate } from '../lib/trailer/trailerCandidates'
 
 const CANDIDATES: TrailerCandidate[] = [
@@ -306,5 +306,56 @@ describe('TrailerLayer — controle e acessibilidade (feature 033, US3)', () => 
 
     fromBridge(target, bridge('error', { code: 153 }))
     expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
+  })
+})
+
+describe('TrailerLayer — anúncios do YouTube (R-013)', () => {
+  it('com o player vivo ("ready") passar de 15 s carregando NÃO vira erro; o vídeo fica à vista e "Cancelar" segue focado', () => {
+    vi.useFakeTimers()
+    const { frame } = mount()
+    fromBridge(frame().window, bridge('ready'))
+
+    act(() => {
+      vi.advanceTimersByTime(TRAILER_START_TIMEOUT_MS * 3)
+    })
+
+    expect(screen.queryByTestId('error-state-code')).not.toBeInTheDocument()
+    expect(document.querySelector('iframe')).not.toBeNull()
+    expect(screen.queryByText('Carregando trailer')).not.toBeInTheDocument()
+    expect(screen.getByText(/Anúncios do YouTube/)).toBeInTheDocument()
+    expect(screen.getByText('Cancelar').className).toContain('tv-focus')
+    expect(document.querySelectorAll('.trailer-layer .tv-focus')).toHaveLength(1)
+  })
+
+  it('mas o prazo maior existe: sem tocar até TRAILER_READY_TOLERANCE_MS vira TRL-TEMPO', () => {
+    vi.useFakeTimers()
+    const { frame } = mount()
+    fromBridge(frame().window, bridge('ready'))
+
+    act(() => {
+      vi.advanceTimersByTime(TRAILER_READY_TOLERANCE_MS + 1)
+    })
+
+    expect(screen.getByTestId('error-state-code').textContent).toBe('TRL-TEMPO')
+  })
+
+  it('"Cancelar" fecha mesmo com o player vivo esperando anúncio', () => {
+    const onClose = vi.fn()
+    const { frame } = mount(onClose)
+    fromBridge(frame().window, bridge('ready'))
+
+    press('Enter')
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('a troca para o reserva volta ao "Carregando" até o novo iframe dizer "ready"', () => {
+    const { frame } = mount()
+    fromBridge(frame().window, bridge('ready'))
+    fromBridge(frame().window, bridge('error', { code: 150 }))
+
+    expect(screen.getByText('Carregando trailer')).toBeInTheDocument()
+    fromBridge(frame().window, bridge('ready'))
+    expect(screen.queryByText('Carregando trailer')).not.toBeInTheDocument()
   })
 })

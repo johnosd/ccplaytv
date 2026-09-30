@@ -64,6 +64,10 @@ export function TrailerLayer({ title, candidates, onClose }: TrailerLayerProps):
   )
   const stateRef = useRef(state)
   const [attempt, setAttempt] = useState(0)
+  // Qual iframe já respondeu "ready": com o player vivo, o que falta é o YouTube (anúncios),
+  // e a tela deve deixar o vídeo à vista em vez de escondê-lo atrás de um "Carregando".
+  const [aliveKey, setAliveKey] = useState<string | null>(null)
+  const frameKeyRef = useRef('')
   const [errorFocus, setErrorFocus] = useState(0)
   const errorFocusRef = useRef(0)
   const [barVisible, setBarVisible] = useState(true)
@@ -192,6 +196,8 @@ export function TrailerLayer({ title, candidates, onClose }: TrailerLayerProps):
           dispatch({ type: 'bridge-failed' })
           break
         case 'ready':
+          dispatch({ type: 'bridge-ready', now: Date.now() })
+          setAliveKey(frameKeyRef.current)
           // O YouTube pode puxar o foco do documento; sem isto as teclas param de chegar (R-002).
           window.focus()
           break
@@ -265,13 +271,16 @@ export function TrailerLayer({ title, candidates, onClose }: TrailerLayerProps):
   // `closed` mantém o iframe até o dono desmontar a camada: o `stop` do fechamento
   // ainda precisa da janela dele.
   const showFrame = phase !== 'error' && candidate !== undefined
+  const frameKey = `${state.candidateIndex}-${attempt}`
+  frameKeyRef.current = frameKey
+  const playerAlive = aliveKey === frameKey
 
   return (
     <div className="trailer-layer" role="dialog" aria-modal="true" aria-label={`Trailer de ${title}`}>
       {showFrame && (
         <iframe
           // Trocar de candidato ou tentar de novo REMONTA o iframe: nunca reaproveita a janela antiga.
-          key={`${state.candidateIndex}-${attempt}`}
+          key={frameKey}
           ref={iframeRef}
           className="trailer-frame"
           src={trailerBridgeSrc(candidate.videoId)}
@@ -283,7 +292,16 @@ export function TrailerLayer({ title, candidates, onClose }: TrailerLayerProps):
         />
       )}
 
-      {phase === 'loading' && (
+      {phase === 'loading' && playerAlive && (
+        // Player vivo, esperando o YouTube (anúncios): o vídeo fica à vista e só a faixa de baixo aparece.
+        <div className="trailer-bar">
+          <p className="trailer-title">{title}</p>
+          <p className="trailer-hint">Anúncios do YouTube podem passar antes do trailer</p>
+          <div className="trailer-pill tv-focus">Cancelar</div>
+        </div>
+      )}
+
+      {phase === 'loading' && !playerAlive && (
         <div className="trailer-loading">
           <Spinner size={48} />
           <p className="trailer-loading-text">Carregando trailer</p>

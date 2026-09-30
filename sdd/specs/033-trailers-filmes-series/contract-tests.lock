@@ -1,11 +1,11 @@
 {
     "feature":  "033-trailers-filmes-series",
-    "lockedAt":  "2026-09-29 20:14",
+    "lockedAt":  "2026-09-29 22:36",
     "total":  5,
     "files":  [
                   {
                       "path":  "tv-web/src/lib/trailer/trailerCandidates.trailers.contract.test.ts",
-                      "sha256":  "8d54202e821777c02847a8b77373c60bf5394c4858b56aef8ae7cc0bc830d65c",
+                      "sha256":  "a5b58d2d4ad8adaac475bfb56c2978a58710b162dbc680602eb94476e9f8fd2f",
                       "tests":  1
                   },
                   {

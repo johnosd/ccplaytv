@@ -48,9 +48,14 @@ export function trailerRefsFromTmdbVideos(raw: unknown): TrailerVideoRef[] {
   return refs
 }
 
-/** Menor = melhor. `Array.prototype.sort` é estável, então o empate mantém a ordem do TMDB. */
+/**
+ * Menor = melhor. `Array.prototype.sort` é estável, então o empate mantém a ordem do TMDB.
+ * Oficial vem ANTES do idioma (R-012): no TMDB, dublagens em português costumam ser
+ * reenvios de canais agregadores, cheios de anúncio; o oficial da distribuidora é o
+ * que mais se parece com "o trailer" do título.
+ */
 function tmdbRank(ref: TrailerVideoRef): [number, number, number] {
-  return [ref.kind === 'trailer' ? 0 : 1, ref.language === 'pt' ? 0 : 1, ref.official === true ? 0 : 1]
+  return [ref.kind === 'trailer' ? 0 : 1, ref.official === true ? 0 : 1, ref.language === 'pt' ? 0 : 1]
 }
 
 function compareTmdb(a: TrailerVideoRef, b: TrailerVideoRef): number {

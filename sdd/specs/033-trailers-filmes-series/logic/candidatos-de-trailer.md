@@ -21,8 +21,9 @@ antes de ser guardado ou usado. Valor inválido = ausente (nunca "consertado").
 1. Os do provedor, na ordem em que vieram, só os de id válido (na prática, 0 ou 1).
 2. Os do TMDB, ordenados por uma chave estável:
    1. `kind`: `trailer` antes de `teaser`;
-   2. idioma: `language === 'pt'` antes de qualquer outro (inclusive ausente);
-   3. `official === true` antes de `false`/ausente;
+   2. `official === true` antes de `false`/ausente (**R-012**: antes era o idioma; o
+      dublado de um canal agregador passava na frente do oficial da distribuidora);
+   3. idioma: `language === 'pt'` antes de qualquer outro (inclusive ausente);
    4. empate: a ordem em que o TMDB entregou (sort estável — nunca por id).
 3. Remove repetidos por `videoId`, mantendo a PRIMEIRA ocorrência (o do provedor
    vence o mesmo vídeo vindo do TMDB — por isso a origem fica `provider`).

@@ -61,6 +61,15 @@ describe('buildTrailerCandidates', () => {
     ])
   })
 
+  it('oficial vem antes do idioma: o oficial em inglês passa o não oficial em português (R-012)', () => {
+    const result = buildTrailerCandidates(undefined, [
+      { videoId: 'ptAgregador', kind: 'trailer', language: 'pt', official: false },
+      { videoId: 'enDistribui', kind: 'trailer', language: 'en', official: true },
+      { videoId: 'ptDistribui', kind: 'trailer', language: 'pt', official: true },
+    ])
+    expect(result.map((c) => c.videoId)).toEqual(['ptDistribui', 'enDistribui', 'ptAgregador'])
+  })
+
   it('empate mantém a ordem em que o TMDB entregou', () => {
     const result = buildTrailerCandidates(undefined, [
       { videoId: 'zzzzzzzzzzz', kind: 'trailer', language: 'en' },

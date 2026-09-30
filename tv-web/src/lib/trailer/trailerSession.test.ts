@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  TRAILER_READY_TOLERANCE_MS,
   TRAILER_START_TIMEOUT_MS,
   reduceTrailerSession,
   startTrailerSession,
@@ -91,5 +92,30 @@ describe('trailerErrorMessage', () => {
     expect(trailerErrorMessage({ code: 'TRL-TEMPO', retryable: true })).toMatch(/demorou/)
     expect(trailerErrorMessage({ code: 'YT-153', retryable: true })).toBe(generic)
     expect(trailerErrorMessage({ code: 'qualquer coisa http://x?key=segredo', retryable: true })).toBe(generic)
+  })
+})
+
+describe('bridge-ready — anúncios do YouTube não derrubam o trailer (R-013)', () => {
+  it('com o player vivo o prazo passa de 15 s para 90 s, contados do "ready"', () => {
+    const ready = reduceTrailerSession(start(), { type: 'bridge-ready', now: T0 + 2_000 })
+    expect(ready.phase).toBe('loading')
+    expect(ready.deadline).toBe(T0 + 2_000 + TRAILER_READY_TOLERANCE_MS)
+    expect(ready.deadline).toBeGreaterThan(T0 + TRAILER_START_TIMEOUT_MS)
+  })
+
+  it('nunca encurta um prazo maior e é ignorado fora de "loading"', () => {
+    const late = reduceTrailerSession(start(), { type: 'bridge-ready', now: T0 + 50_000 })
+    const again = reduceTrailerSession(late, { type: 'bridge-ready', now: T0 })
+    expect(again.deadline).toBe(late.deadline)
+
+    const playing = reduceTrailerSession(start(), { type: 'bridge-state', state: 'playing' })
+    expect(reduceTrailerSession(playing, { type: 'bridge-ready', now: T0 + 1 })).toBe(playing)
+    const errored = reduceTrailerSession(start(), { type: 'bridge-failed' })
+    expect(reduceTrailerSession(errored, { type: 'bridge-ready', now: T0 + 1 })).toBe(errored)
+  })
+
+  it('sem "ready" o prazo continua sendo 15 s, e depois dele o timeout ainda dá TRL-TEMPO', () => {
+    const s = reduceTrailerSession(reduceTrailerSession(start(), { type: 'bridge-ready', now: T0 }), { type: 'timeout' })
+    expect(s.error).toEqual({ code: 'TRL-TEMPO', retryable: true })
   })
 })

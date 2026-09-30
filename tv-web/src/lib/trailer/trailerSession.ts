@@ -8,6 +8,14 @@
 /** FR-018: do OK até o player começar a tocar. Um prazo só por abertura (o 2º candidato herda o que sobrou). */
 export const TRAILER_START_TIMEOUT_MS = 15_000
 
+/**
+ * Depois que a ponte diz "ready" o player está VIVO, e o que o atrasa é o próprio YouTube:
+ * anúncios antes do trailer (um, dois em sequência) não contam como "tocando" e passavam
+ * dos 15 s — o app derrubava o anúncio com TRL-TEMPO (achado na TV física, R-013). Com o
+ * player vivo o prazo passa a ser este; o "Cancelar" continua ativável o tempo todo.
+ */
+export const TRAILER_READY_TOLERANCE_MS = 90_000
+
 export type TrailerPhase = 'loading' | 'playing' | 'paused' | 'error' | 'closed'
 
 /** `code` é o código técnico discreto mostrado na tela (`YT-150`, `TRL-TEMPO`…). */
@@ -36,6 +44,8 @@ export type TrailerSessionEvent =
   | { type: 'bridge-failed' }
   /** O host dispara quando o relógio passa de `deadline` ainda em `loading`. */
   | { type: 'timeout' }
+  /** A ponte carregou a API e o player respondeu: só falta o YouTube (anúncios) — ver `TRAILER_READY_TOLERANCE_MS`. */
+  | { type: 'bridge-ready'; now: number }
   | { type: 'retry'; now: number }
   | { type: 'close' }
 
@@ -82,6 +92,11 @@ export function reduceTrailerSession(state: TrailerSessionState, event: TrailerS
     case 'bridge-state':
       if (event.state === 'ended') return { ...state, phase: 'closed' }
       return { ...state, phase: event.state }
+    case 'bridge-ready':
+      // Só alarga, nunca encurta (um retry/reserva já pode ter um prazo maior).
+      return state.phase === 'loading'
+        ? { ...state, deadline: Math.max(state.deadline, event.now + TRAILER_READY_TOLERANCE_MS) }
+        : state
     case 'timeout':
       return state.phase === 'loading' ? toError(state, { code: 'TRL-TEMPO', retryable: true }) : state
     case 'bridge-failed':

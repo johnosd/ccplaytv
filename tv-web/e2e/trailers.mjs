@@ -436,6 +436,12 @@ async function run() {
     await waitBridgeFrame(page, 'noplay00001')
     assert(((await pill(page).textContent()) ?? '') === 'Cancelar', 'carregando: a pill é "Cancelar"')
     await assertLayerOneFocus(page, 'carregando')
+    // R-013 (achado na TV): anúncios do YouTube não contam como "tocando" e passavam dos 15 s.
+    // Player vivo ("ready") esperando o YouTube NÃO pode virar TRL-TEMPO aos 15 s.
+    await page.waitForTimeout(16_500)
+    assert((await page.locator('.trailer-layer .error-state').count()) === 0, 'player vivo esperando anúncio passa de 15 s sem virar TRL-TEMPO')
+    assert(((await page.locator('.trailer-layer .trailer-hint').textContent()) ?? '').includes('Anúncios do YouTube'), 'a faixa avisa que anúncios podem passar antes do trailer')
+    assert(((await pill(page).textContent()) ?? '') === 'Cancelar', 'e "Cancelar" segue ativável')
     await page.keyboard.press('Enter')
     await layerGone(page)
     assert(bridgeFrame(page) === undefined, '"Cancelar" removeu o iframe da ponte')

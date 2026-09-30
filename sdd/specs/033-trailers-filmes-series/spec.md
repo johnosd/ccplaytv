@@ -91,8 +91,8 @@ voltar com RETURN ao botão "Trailer".
 ### User Story 2 - TMDB completa quando o provedor não informa (Priority: P2)
 
 Para títulos sem trailer do provedor — quase todos os filmes — o app usa os vídeos do
-TMDB do título, se a pessoa configurou a chave. Prefere trailer oficial em português;
-quando só há outro idioma ou só um teaser, o botão diz isso antes de tocar. Se o
+TMDB do título, se a pessoa configurou a chave. Prefere trailer oficial (e, entre oficiais, o
+em português); quando só há outro idioma ou só um teaser, o botão diz isso antes de tocar. Se o
 vídeo escolhido estiver removido ou com embed bloqueado, o app tenta o próximo
 candidato uma vez. Sem chave configurada, a mensagem do "indisponível" diz que
 configurar o TMDB encontra mais trailers.
@@ -172,7 +172,11 @@ rede cortada, OK em "Trailer" leva à tela de erro com "Tentar de novo" focado, 
   vídeo — não tenta o próximo candidato; mostra erro com "Tentar de novo".
 - **Autoplay bloqueado**: o app pede a reprodução; se não começar em 15 s, é timeout.
 - **Anúncio antes do trailer**: o player do YouTube pode exibir anúncio; o app não o
-  oculta nem pula. O tempo de 15 s conta até o player começar a tocar, anúncio incluso.
+  oculta nem pula. **Emenda R-013 (2026-09-29, achado na TV: dois anúncios seguidos
+  derrubavam o trailer com TRL-TEMPO):** os 15 s valem até a ponte avisar que o player
+  está vivo ("ready"); daí em diante o prazo é de 90 s (`TRAILER_READY_TOLERANCE_MS`),
+  porque o que atrasa é o anúncio do YouTube. A faixa avisa que anúncios podem passar
+  e "Cancelar" segue ativável o tempo todo.
 - **Detalhe fechado com a consulta em andamento**: a resposta é descartada, sem erro.
 - **Catálogo re-sincronizado enquanto o trailer toca**: ao fechar, o foco volta ao
   botão do mesmo título se ele ainda existir; senão, segue a regra de volta do detalhe.
@@ -192,8 +196,10 @@ rede cortada, OK em "Trailer" leva à tela de erro com "Tentar de novo" focado, 
   identificador de vídeo válido.
 - **FR-004**: Com a chave TMDB configurada, o sistema DEVE obter os vídeos do título no
   TMDB e acrescentá-los como candidatos depois do provedor, ordenados por: tipo
-  Trailer antes de Teaser, português antes de outro idioma, oficial antes de não
-  oficial. Outros tipos (making-of, clipe, bastidores) NÃO DEVEM virar candidatos.
+  Trailer antes de Teaser, oficial antes de não oficial, português antes de outro
+  idioma (**emenda R-012, 2026-09-29**: era "português antes de outro idioma, oficial
+  antes de não oficial"; a passada na TV mostrou o dublado de um canal agregador,
+  cheio de anúncio, passando na frente do oficial da distribuidora). Outros tipos (making-of, clipe, bastidores) NÃO DEVEM virar candidatos.
 - **FR-005**: A consulta ao TMDB DEVE reaproveitar a identificação do título e a
   chamada que a feature 032 já faz ao abrir o detalhe, sem requisição adicional por
   título quando for possível obter os vídeos na mesma resposta.
@@ -231,7 +237,8 @@ rede cortada, OK em "Trailer" leva à tela de erro com "Tentar de novo" focado, 
   e houver outro candidato, o sistema DEVE tentar o próximo automaticamente, **uma
   única vez** por abertura; nunca em laço.
 - **FR-018**: Se o vídeo não começar a tocar em até 15 s depois do OK, o sistema DEVE
-  encerrar a tentativa e mostrar a tela de erro.
+  encerrar a tentativa e mostrar a tela de erro. Exceção (R-013): depois que a ponte
+  disser "ready" o prazo é de 90 s, para não derrubar anúncios do YouTube.
 - **FR-019**: A tela de erro DEVE dizer o que aconteceu em linguagem simples, mostrar
   um código técnico discreto e oferecer ações focáveis: "Tentar de novo" (só para
   falha de rede, página-ponte indisponível, erro de configuração do player ou tempo

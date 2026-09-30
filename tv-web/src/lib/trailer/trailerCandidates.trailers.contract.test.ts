@@ -10,7 +10,7 @@ import { buildTrailerCandidates, trailerButtonLabel, trailerRefsFromTmdbVideos }
 
 describe('trailerCandidates — contrato da feature 033', () => {
   // FR-003/FR-004/FR-007; Constitution: "IA e Classificação Nunca Inventam Dados" (teaser nunca vira trailer; making-of, Vimeo e id inválido ficam fora)
-  it('provedor primeiro e TMDB ordenado (trailer>teaser, pt>outro, oficial>não), só YouTube com id válido, sem repetir; rótulo só diz tipo/idioma fora do trailer em português', () => {
+  it('provedor primeiro e TMDB ordenado (trailer>teaser, oficial>não, pt>outro), só YouTube com id válido, sem repetir; rótulo só diz tipo/idioma fora do trailer em português', () => {
     const tmdb = trailerRefsFromTmdbVideos({
       results: [
         { site: 'YouTube', type: 'Teaser', key: 'teaserPt001', iso_639_1: 'pt', official: true },
@@ -29,14 +29,14 @@ describe('trailerCandidates — contrato da feature 033', () => {
     expect(candidates.map((c) => [c.videoId, c.origin])).toEqual([
       ['provTrail01', 'provider'],
       ['trailerPt01', 'tmdb'],
-      ['trailerPt02', 'tmdb'],
       ['trailerEn01', 'tmdb'],
+      ['trailerPt02', 'tmdb'],
       ['teaserPt001', 'tmdb'],
     ])
 
     expect(trailerButtonLabel(candidates[0])).toBe('▶ Trailer')
     expect(trailerButtonLabel(candidates[1])).toBe('▶ Trailer')
-    expect(trailerButtonLabel(candidates[3])).toBe('▶ Trailer · Inglês')
+    expect(trailerButtonLabel(candidates[2])).toBe('▶ Trailer · Inglês')
     expect(trailerButtonLabel(candidates[4])).toBe('▶ Teaser')
     expect(trailerButtonLabel({ videoId: 'teaserEn001', kind: 'teaser', language: 'en', origin: 'tmdb' })).toBe(
       '▶ Teaser · Inglês',
