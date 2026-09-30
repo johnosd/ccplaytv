@@ -1,0 +1,27 @@
+{
+    "feature":  "031-epg-guia-completo",
+    "lockedAt":  "2026-09-29 11:25",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/features/live/guide/guideGrid.epg-guia-completo.contract.test.ts",
+                      "sha256":  "83adee52f214eb05848b7cb1906976af8ade511734a265b7a43fc7465d46eaaf",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/live/guide/EpgGuide.epg-guia-completo.contract.test.tsx",
+                      "sha256":  "56f4bbf46f703baf1e6e7e70e39c8a7c9fde81e4a36a48740e8aaeb7bddfc723",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/live/LiveScreen.epg-guia-completo.contract.test.tsx",
+                      "sha256":  "d3fa8f3b47d7bea3e46ded5f9af801e52d8922a2407d34425b4be2d7bb1d6196",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/components/PlayerLayer.epg-guia-completo.contract.test.tsx",
+                      "sha256":  "40e4151a5d8943116a57fb8f4051e076d6c449ddff63063bfd526f439829af10",
+                      "tests":  1
+                  }
+              ]
+}
