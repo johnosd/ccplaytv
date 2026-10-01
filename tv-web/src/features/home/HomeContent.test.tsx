@@ -244,7 +244,8 @@ describe('HomeContent — "Minha Lista" do hero (US1/AC7)', () => {
 
     press('Enter')
     await waitFor(() => expect(screen.getByRole('button', { name: '+ Minha Lista' })).toBeInTheDocument())
-    expect(screen.getByText('Removido dos favoritos')).toBeInTheDocument()
+    // O aviso sai depois da gravação (`mutateAsync`) — sob carga chega depois do botão.
+    await waitFor(() => expect(screen.getByText('Removido dos favoritos')).toBeInTheDocument())
     // O hero continua sendo Duna (via "Continuar assistindo"); a rail
     // "Minha Lista" perde o card dela, mas continua existindo (por "Dark").
     // "Duna" ainda aparece em "Continuar assistindo" — a checagem é só

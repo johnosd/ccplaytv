@@ -621,13 +621,21 @@ describe('LiveScreen', () => {
     // O evento de scroll do polyfill acima é assíncrono (como num navegador
     // real), então a janela só se assenta depois de um microtask — daí o
     // `waitFor`.
-    enterAndDescend(200)
+    // 60 posições: a janela inicial monta ~14 (640 px / 84 px ≈ 8 + overscan 6),
+    // então "Canal 60" só aparece se o `scrollToIndex` mover a janela. Eram 200
+    // teclas (~20 ms cada no jsdom): o teste levava 4–5 s sozinho, colado no
+    // limite de 5 s, e estourava com a suíte em paralelo (achado na feature 039).
+    press('ArrowRight')
+    expect(screen.queryByText('Canal 60')).not.toBeInTheDocument()
+    for (let i = 0; i < 60; i += 1) press('ArrowDown')
 
     await waitFor(() => {
       const focused = document.querySelector('.live-column-channels .tv-focus')
-      expect(focused?.textContent).toContain('Canal 200')
+      expect(focused?.textContent).toContain('Canal 60')
     })
-  })
+    // ~1,7 s sozinho; com outros processos disputando a CPU, 3–4× isso —
+    // mesmo limite dos outros testes pesados deste projeto.
+  }, 10000)
 
   it('não exibe contagem total nem "fim do catálogo" (FR-016)', () => {
     mockCategories([category(1, 'G', 0)])
