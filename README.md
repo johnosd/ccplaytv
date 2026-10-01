@@ -96,6 +96,17 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   feita durante a reprodução vale só até o fim da sequência e nunca altera
   essas preferências (feature 041). A troca de resolução num stream com várias
   variantes ainda não foi provada na TV.
+- **Estado e vencimento da conta das listas:** para uma lista Xtream, a linha
+  em Configurações › Fontes IPTV mostra "Conta válida até DD/MM/AAAA" (com chip
+  âmbar a partir de 7 dias do vencimento e chip de erro quando vence), o estado
+  de sincronização com o motivo ("Sincronizando", "Credencial inválida",
+  "Conta expirada") e a contagem conhecida ("41 categorias de canais · 31 de
+  filmes · 27 de séries"), nunca "0" inventado. O cartão da lista só ganha um
+  chip quando há algo a fazer. Escolher uma lista cuja assinatura venceu, ou
+  cuja credencial o provedor recusou, não abre o Início: aparece uma tela com o
+  motivo e as ações "Editar lista", "Verificar de novo" e "Voltar" (a consulta
+  ao painel é uma por dia, com limite de 5 s, e uma falha de rede sozinha nunca
+  impede a lista). M3U avulsa e "Modo limitado" não têm conta (feature 034).
 
 ## Arquitetura
 

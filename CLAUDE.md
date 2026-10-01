@@ -1173,6 +1173,46 @@ fallback behaviours, a multi-variant HLS if one exists). See
 `sdd/specs/041-player-qualidade-aspecto/plan.md` → `## Estado Atual` and
 `## Riscos e Decisões` (R-001, R-009).
 
+**Code-complete**: `034-fontes-estado-expiracao` — backlog item 46. The Xtream
+`exp_date` the connector always read and threw away is now kept on the
+`sources` record (three unindexed fields, `accountStatus`/`accountExpiresAt`/
+`accountCheckedAt`, plus `lastUnavailableSections` — **no Dexie bump**, still
+v15) and drives: Configurações › Fontes IPTV (the line shows "Conta válida até
+DD/MM/AAAA", an amber chip within 7 calendar days — "Vence hoje/amanhã/em N
+dias" — and an error chip once expired; the sync state with its reason —
+"Sincronizando", "Credencial inválida", "Conta expirada"; and the real count,
+"41 categorias de canais · 31 de filmes · 27 de séries", never an invented
+"0"), a chip on the list card only when there is something to act on (FR-006,
+incl. "Erro na última sincronização" and "Erro no EPG"), and a **gate when a
+list is chosen**: a Xtream list whose account the panel confirmed expired or
+refused does not open the Início — `SourceAccessGate` (via `SourceAccessRoute`,
+a new `AppScreen` `source-access`, no new reducer action) shows the reason with
+"Editar lista"/"Verificar de novo"/"Voltar". This needed **constitution 1.7.0**
+(a narrow exception to "Sem Conta Obrigatória": only a list the panel
+confirmed, never a network failure alone, nothing local is erased). Rules live
+in pure `lib/catalog/sourceAccount.ts` (`describeAccount`, `decideSourceAccess`:
+calendar days, never `ms / dia`; `exp_date` = Unix seconds, ≤ 0 or non-numeric =
+no date); the light check is `lib/catalog/accountCheck.ts` — one per 24 h, on
+choosing the list or "Verificar de novo", **never on focus** (FR-020), bounded
+by a `Promise.race` + timer (5 s) because a `fetch` may ignore the abort signal;
+the sync writes the account at its single `markSynced` (not for
+`legacy_m3u`) and `fail()` marks `refused` only if the panel was actually asked.
+"Sincronizando" is an in-memory per-list store (`features/import/
+sourceSyncing.ts`, fed by `startLocalImport`), never persisted. Two real
+decisions: the user chose to **show** the card chip "Erro na última sincronização"
+(R-008) — this amended one assertion of the 037 test that said the card never
+shows it, while the sync date and "Nunca sincronizada" stay off the card — and
+`AppScreen` `source-access` carries no `decision` (derived on every mount, so
+coming back from "Editar lista" re-decides, R-009). 5/5 contract tests locked
+and green, suite 2210/2210, `tsc`/lint/`build:tizen` clean, new
+`tv-web/e2e/fontes-estado.mjs` (part of `test:e2e`, 3/3 green runs: +30/+3 days,
+expired, slow panel ≤ 5.5 s, offline, refused and fixed, "Sincronizando", plus
+a secret sweep) and `fontes-estado-real.mjs` (out of `test:e2e`, prints only the
+derived date and counts): **SC-006 confirmed on the real list** (the app showed
+the same expiry date the panel declares). Physical TV: recommended, not a gate.
+See `sdd/specs/034-fontes-estado-expiracao/plan.md` → `## Estado Atual` and
+`## Riscos e Decisões` (R-005–R-009).
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Selecione ou

@@ -1,4 +1,6 @@
-# Implementation Plan: Fontes IPTV completas — estado, contagem e expiração da conta
+
+| R-009 | Desvio do `data-model.md` §4/D-008: `AppScreen` ganhou `{ name: 'source-access'; source }` **sem** o campo `decision`. | Nenhum: a decisão é derivada. | A rota `SourceAccessRoute` (nova, `features/sources/`) recalcula `decideSourceAccess` a cada montagem a partir da fonte mais nova de `['sources']`, então voltar de "Editar lista" refaz a decisão e uma conta que ficou válida abre o Início sem mostrar o bloqueio de novo (`logic` §5). Mantém o redutor sem ação nova (D-008). |
+| R-008 | Conflito entre a 034 (FR-006: chip "Erro na última sincronização" no cartão) e um teste da 037 (`ProfilesScreen.test.tsx`: o cartão nunca mostra esse texto), achado na Fase 3. | Dois requisitos do usuário em sentido oposto. | **Resolvido pelo usuário (2026-10-01): mostrar o chip.** A 037 continua valendo para a data e "Nunca sincronizada" (fora do cartão); só a asserção do texto de erro foi ajustada no teste da 037 (arquivo não travado), mantendo o resto. |# Implementation Plan: Fontes IPTV completas — estado, contagem e expiração da conta
 
 **Slug**: `034-fontes-estado-expiracao` | **Date**: 2026-09-30 | **Spec**: `sdd/specs/034-fontes-estado-expiracao/spec.md`
 
@@ -29,8 +31,10 @@ permitir o impedimento (decisão do usuário, ver R-001).
 `useRemoteNav` do projeto (ADR-009), componentes V14 (`Button`, `Spinner`,
 `Chip`).
 
-**Storage**: IndexedDB via Dexie v12 — só campos novos sem índice em
-`sources` (`data-model.md` §1). Nenhuma tabela, índice ou versão nova.
+**Storage**: IndexedDB via Dexie (hoje **v15**; o plano nasceu na v12, as 039
+subiram para v14/v15) — só campos novos sem índice em `sources`
+(`data-model.md` §1). Nenhuma tabela, índice ou versão nova; se um dia um
+campo precisar de índice, a próxima é a v16.
 
 **Testing**: Vitest + Testing Library + fake-indexeddb (um `CatalogDb` por
 teste, nome aleatório); Playwright (script `tv-web/e2e/*.mjs` com painel
@@ -136,7 +140,7 @@ tv-web/src/
 │   ├── sources/
 │   │   ├── sourceFormat.ts                   # formatStatus(syncing), formatAccount, sourceAlertChips, formatCounts
 │   │   └── SourceAccessGate.tsx              # NOVO — tela de acesso (stub)
-│   ├── profiles/ProfilesScreen.tsx           # chips de problema + "Sincronizando" no cartão
+│   ├── profiles/ProfilesScreen.tsx           # chips de problema + "Sincronizando" em `.source-card-notices` (desde a 037 o cartão não mostra estado de sincronização)
 │   └── settings/SourcesPanel.tsx             # linha: conta, contagem, "Sincronizando"
 └── e2e/fontes-estado.mjs                     # NOVO — painel falso, cenários do quickstart
 ```
@@ -199,26 +203,41 @@ em `db.ts` (`SourceRecord`), `sourceRepository.ts` (`SourceView.account`) e
 
 ## Estado Atual
 
-<!-- Sobrescrita a cada checkpoint pelo sdd-execute. Vazia na criação. -->
-
-| Área | Estado |
+| 
+Á
+rea | Estado |
 | --- | --- |
+| Fases 1–6 | Concluídas |
+| Fase 7 — Polish | **Concluída**: E2E novo e real, gates, docs |
+| Contratos | 5/5 verdes; 24 travas íntegras |
+| Suíte | 2210/2210; test:e2e 24/24; tsc, lint e build:tizen limpos |
+| Pendências | Passada na TV física (recomendada, não gate); salvar da edição só em teste de componente |
 
 ## Riscos e Decisões
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
 | R-001 | A decisão do usuário "lista vencida/recusada não abre" violava "Sem Conta Obrigatória" (v1.6.1: expiração não pode bloquear o estado local já sincronizado). | Sem resolver, a US2 inteira seria inconstitucional. | Resolvido: o usuário decidiu emendar (2026-09-30); constitution 1.7.0 com exceção estreita — só a lista confirmada vencida/recusada, com tela de motivo e caminho de correção, sem apagar estado local; falha de rede sozinha nunca impede (D-003, D-007). |
-| R-002 | O formato real de `exp_date` no painel de referência (segundos Unix em string) só foi visto no conector e em fixtures; outro painel pode mandar ms ou data ISO. | Data errada na tela e bloqueio indevido. | `parseExpDate` aceita só número; não numérico = "sem data" (nunca bloqueia). SC-006 confere a data contra a lista real do `.env` (T030). |
+| R-002 | O formato real de `exp_date` no painel de referência (segundos Unix em string) só foi visto no conector e em fixtures; outro painel pode mandar ms ou data ISO. | Data errada na tela e bloqueio indevido. | Resolvido (SC-006, 01/10/2026: na lista real do `.env` o app mostrou a mesma data de vencimento que o painel declara — `exp_date` em segundos Unix): `parseExpDate` aceita só número; não numérico = "sem data" (nunca bloqueia). SC-006 confere a data contra a lista real do `.env` (T030). |
 | R-003 | Relógio da TV errado faz a comparação errar. | Bloqueio indevido ou aviso fora de hora. | A tela mostra a data para a pessoa conferir; "Verificar de novo" reconsulta. Fora do escopo corrigir relógio. |
 | R-004 | Uma verificação > 24 h dispara uma requisição ao escolher a lista, com até 5 s de espera. | Abrir a lista fica mais lento uma vez por dia. | Limite de 5 s (D-005); a resposta atualiza `checkedAt`, então só a primeira escolha do dia paga. |
+| R-005 | **Deriva desde 30/09 (checada em 01/10/2026 no `sdd-plan`, antes do `tasks.md`)**: o Dexie está na v15 (não v12) e o plano/`data-model.md` ainda diziam v12. | Texto desatualizado; risco de alguém achar que precisa migrar. | Atualizado aqui e em `data-model.md`; continua **sem** versão nova (campos sem índice). |
+| R-006 | A 037 refez o cartão de "Selecione ou Adicione sua lista" (`ProfilesScreen.tsx`): hoje ele tem tipo (`source-card-kind`) e avisos reais em `.source-card-notices` (`sourceNotices`), **sem** estado/data de sincronização. A spec fala em "tipo e estado como hoje". | O chip de problema e o "Sincronizando" não têm onde entrar se o executor procurar o estado antigo. | Eles entram na linha `.source-card-notices` (T014/T025); `formatStatus` fica só em Configurações. Nenhuma mudança de FR: o FR-006 já pede só chips para os casos de agir. |
+| R-007 | A 038 mudou `importPipeline.ts` (atualização no mesmo caminho em `applyStructureRefresh`, novo `publishGeneration`), mas há **um único** `markSynced` (~l.827) depois dos dois caminhos, e os dois `resolveAccountStatus` (~l.703 e ~l.723) seguem onde o `logic` §7 os previa. `run.unavailableSections` existe (`db.ts` ~l.547). | Gravar a conta num ponto que um caminho da 038 pula. | T006 grava a conta no `markSynced` único e em `fail()`; C4 trava o resultado. |
 
 ## Execution Notes
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-10-01 | Fase 7 (Polish) | T030–T035: E2E fontes-estado + real (SC-006 conferido), gates, docs | Passada na TV recomendada |
+| 2026-10-01 | Fase 6 (US4) | T027–T029: formatCounts e a contagem na linha de Configurações | nenhuma |
+| 2026-10-01 | Fase 5 (US3) | T024–T026: store Sincronizando, formatStatus com motivo da falha, linha e cartão assinam por lista | nenhuma |
+| 2026-10-01 | Fase 4 (US2) | T017–T023: tela e rota de acesso, appNav, App.chooseSource/enterSource; 5/5 contratos | E2E de FR-014/FR-020 na Fase 7 |
+| 2026-10-01 | Fase 3 (US1) | T012–T016: formatAccount/sourceAlertChips, linha de Configurações e chips do cartão; conflito com teste da 037 resolvido pelo usuário (R-008) | "Sincronizando" só na Fase 5 |
+| 2026-10-01 | Fase 2 (Foundational) | T002–T011: regras de conta, consulta leve com limite, markAccount/markSynced, pipeline grava a conta, SourceOut.account; C1–C4 verdes | nenhuma |
+| 2026-10-01 | Fase 1 (baseline) | T001: contratos vermelhos pelo motivo certo, trava íntegra, stubs e campos de `db.ts` no lugar | nenhuma |
 
-**PRÓXIMO**: —
+**PRÓXIMO**: sdd-converge 034-fontes-estado-expiracao
 
 ## Arquivos Principais
 
