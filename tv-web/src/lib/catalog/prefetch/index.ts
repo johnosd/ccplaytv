@@ -7,6 +7,7 @@
 
 import { collectStaleGenerations, listCategories } from '../catalogRepository'
 import { ensureCategory } from '../categoryLoader'
+import { convertLegacyCategories } from '../categoryBlocks'
 import { isAbortError } from '../xtreamConnector'
 import { createActivityGate } from './activityGate'
 import { createPrefetchScheduler, IDLE_AFTER_KEY_MS, type PrefetchRunOutcome } from './prefetchScheduler'
@@ -55,8 +56,18 @@ export const prefetchScheduler = createPrefetchScheduler({
   gate: prefetchGate,
   scope: PREFETCH_SCOPE,
   onCategoryDone: (sourceId, categoryId) => onCategoryDone?.(sourceId, categoryId),
-  // Limpeza em partes das gerações que não servem mais (D-008), com o mesmo portão.
-  housekeeping: (sourceId) => collectStaleGenerations(sourceId),
+  // Com o mesmo portão, uma parte por chamada: primeiro a conversão do formato
+  // antigo para blocos (feature 039, FR-008/FR-012 — uma categoria por vez,
+  // avisando a tela porque os ids mudam, R-003), depois a limpeza das gerações
+  // que não servem mais (D-008). `true` = ainda há trabalho; o agendador chama de novo.
+  housekeeping: async (sourceId) => {
+    const moreToConvert = await convertLegacyCategories(sourceId, {
+      maxCategories: 1,
+      onConverted: (categoryId) => onCategoryDone?.(sourceId, categoryId),
+    })
+    if (moreToConvert) return true
+    return collectStaleGenerations(sourceId)
+  },
   // Seção inteira num Worker (R0-3): um pedido por seção em vez de um por
   // categoria; a gravação pausa sempre que o portão fecha.
   runSection: (sourceId, kind, categoryIds, { signal, onCategory }) =>

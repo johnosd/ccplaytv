@@ -247,11 +247,58 @@ export function blocksOfKind(database: CatalogDb, sourceId: string, generation: 
  */
 export async function convertLegacyCategories(
   sourceId: string,
-  options: { maxCategories?: number } = {},
+  options: {
+    maxCategories?: number
+    /**
+     * Avisado por categoria convertida: os ids dos itens mudaram (R-003), então
+     * quem guarda a lista em memória precisa relê-la.
+     */
+    onConverted?: (categoryId: number) => void
+  } = {},
   database: CatalogDb = db,
 ): Promise<boolean> {
-  void sourceId
-  void options
-  void database
-  throw new Error('not implemented')
+  const maxCategories = options.maxCategories ?? 1
+  const generation = (await database.sources.get(sourceId))?.activeGeneration
+  if (generation === undefined) return false
+
+  const categories = (await database.categories.where('sourceId').equals(sourceId).toArray())
+    .filter((category) => category.generation === generation)
+    .sort((a, b) => (a.id as number) - (b.id as number))
+
+  let converted = 0
+  for (const category of categories) {
+    const categoryId = category.id as number
+    const target: BlockTarget = {
+      sourceId,
+      generation,
+      kind: category.kind,
+      categoryId,
+      groupOrder: category.order,
+    }
+    // Já em bloco, ou sem nada no formato antigo: nada a converter aqui.
+    if (await database.categoryBlocks.get(categoryId)) continue
+    if (!(await legacyRowsOf(database, target).first())) continue
+    // Sobrou pelo menos uma depois do limite desta parte.
+    if (converted >= maxCategories) return true
+
+    const done = await database.transaction('rw', database.channels, database.categories, database.categoryBlocks, async () => {
+      const current = await database.categories.get(categoryId)
+      if (!current || (await database.categoryBlocks.get(categoryId))) return false
+      const rows = await legacyRowsOf(database, target).toArray()
+      if (rows.length === 0) return false
+      // Mesma ordem que a leitura de linhas usava (`listChannels`).
+      rows.sort((a, b) => {
+        const pa = a.categoryPosition ?? Number.MAX_SAFE_INTEGER
+        const pb = b.categoryPosition ?? Number.MAX_SAFE_INTEGER
+        return pa - pb || (a.id ?? 0) - (b.id ?? 0)
+      })
+      await writeBlockWithin(target, rows, current.itemsFetchedAt ?? 0, database)
+      // Converter não é renovar: o instante da última obtenção fica como estava.
+      await database.categories.update(categoryId, { itemsFetchedAt: current.itemsFetchedAt })
+      return true
+    })
+    if (done) options.onConverted?.(categoryId)
+    converted += 1
+  }
+  return false
 }
