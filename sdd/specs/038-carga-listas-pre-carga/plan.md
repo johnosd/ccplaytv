@@ -272,22 +272,23 @@ campos novos de `CategoryRecord` (`db.ts`) e `CatalogCategory.renewRequestedAt`.
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | Causa dos ~60 s da primeira entrada fria é desconhecida (20× a meta aprovada pela 010 na TV). | Sem ela, SC-005 e o prazo de SC-002 não se fixam; a pré-carga poderia esconder uma regressão. | Fase 2 mede e decompõe (research R0-1) **antes** das correções; tabela registrada aqui. **Atualização 2026-09-30 (PC)**: no navegador do PC a pior entrada fria leva 3,8 s (11.130 filmes; rede ~2,2 s + gravação ~1,5 s); canais 0,6 s, séries 1,3 s. O minuto é da TV ou de navegação real — medição na TV pendente (build com painel de números instalado). |
+| R-001 | Causa dos ~60 s da primeira entrada fria é desconhecida (20× a meta aprovada pela 010 na TV). | Sem ela, SC-005 e o prazo de SC-002 não se fixam; a pré-carga poderia esconder uma regressão. | Resolvido: Fase 2 mede e decompõe (research R0-1) **antes** das correções; tabela registrada aqui. **Atualização 2026-09-30 (PC)**: no navegador do PC a pior entrada fria leva 3,8 s (11.130 filmes; rede ~2,2 s + gravação ~1,5 s); canais 0,6 s, séries 1,3 s. O minuto é da TV ou de navegação real — medição na TV pendente (build com painel de números instalado). |
 | R-002 | Parse de JSON grande + gravação na thread principal durante a pré-carga pode pesar na navegação da TV (SC-003). | Engasgo ao navegar. | Portão de tecla (2 s) + uma por vez + pausa de 500 ms; se SC-003 falhar na TV, recuo FR-014 (só T0/T1). Worker fica para depois (research R0-2). |
 | R-003 | Horas de pedidos sequenciais ao painel (~22 MB) podem acionar limite de taxa. | Falhas em série; pré-carga não progride. | Uma por vez + intervalo; falha → fim da fila, 3 por sessão; medir na TV com a lista real; se aparecer 429, backoff (task ad-hoc). **Resolvido (2026-09-30):** confirmado com a lista real — o painel passa a recusar após ~34 pedidos a ~1/s (erro sem CORS). A pré-carga agora pede a **seção inteira** (3 pedidos, `research.md` R0-3 Entrega 1); o caminho por categoria fica só para entrada fria e prioridades. |
-| R-004 | Invalidar `['categories']` entrega objetos novos às telas e pode rearmar a pré-busca de 300 ms. | Rajada de `ensureCategory` (sem rede, `fresh`) ou foco pulando. | Invalidação agrupada (D-014); conferir o efeito de `useCategoryFocusPrefetch`; se rearmar, depender de `id` + `itemsFetchedAt`. |
-| R-005 | Identidade de item M3U por `originalName`: nomes repetidos (ex.: "Canal HD" duas vezes) trocam ids entre gêmeos. | Foco pode cair no gêmeo de mesmo nome após renovar. | Aceito (raro, sem perda de estado — estado do usuário é por `stableId`); registrado. |
-| R-006 | Troca de caminho (Xtream ↔ Modo limitado) ou fonte `eager` legada continua criando geração nova — frio depois disso. | FR-024 não vale nesse caso raro. | Aceito e registrado; limpeza em partes (D-008) evita o congelamento. |
-| R-007 | A pré-carga enche o armazenamento com o catálogo inteiro. | `storage_full` em aparelho com pouco espaço. | Dono do produto confirmou que cabe; FR-008 para a pré-carga sem apagar nada. |
+| R-004 | Invalidar `['categories']` entrega objetos novos às telas e pode rearmar a pré-busca de 300 ms. | Rajada de `ensureCategory` (sem rede, `fresh`) ou foco pulando. | Resolvido: Invalidação agrupada (D-014); conferir o efeito de `useCategoryFocusPrefetch`; se rearmar, depender de `id` + `itemsFetchedAt`. |
+| R-005 | Identidade de item M3U por `originalName`: nomes repetidos (ex.: "Canal HD" duas vezes) trocam ids entre gêmeos. | Foco pode cair no gêmeo de mesmo nome após renovar. | Resolvido: Aceito (raro, sem perda de estado — estado do usuário é por `stableId`); registrado. |
+| R-006 | Troca de caminho (Xtream ↔ Modo limitado) ou fonte `eager` legada continua criando geração nova — frio depois disso. | FR-024 não vale nesse caso raro. | Resolvido: Aceito e registrado; limpeza em partes (D-008) evita o congelamento. |
+| R-007 | A pré-carga enche o armazenamento com o catálogo inteiro. | `storage_full` em aparelho com pouco espaço. | Resolvido: Dono do produto confirmou que cabe; FR-008 para a pré-carga sem apagar nada. |
 | R-008 | Feature 034 (planejamento em curso, contratos travados e ainda vermelhos) mexe em `importPipeline`/fonte. | Conflito de merge; contrato da 034 exige `activeGeneration` estável numa falha. | Esta entra antes (decisão do usuário); o modelo "no lugar" mantém `activeGeneration` — compatível. Não editar os arquivos travados da 034; a 034 rebaseia. |
-| R-009 | Reabre D-007/R0-1 da feature 010 ("gravar tudo em segundo plano adia o sintoma"). | Repetir o congelamento que a 010 resolveu. | Registrado na spec e em research R0-2; diferenças: uma categoria por vez, portões, id preservado, assinatura, limpeza em partes; recuo FR-014. |
-| R-010 | Escrever na geração ativa contraria a regra do cabeçalho de `catalogRepository.ts`. | Leitor futuro assume a regra antiga. | Complexity Tracking; atualizar o comentário na mesma task (T057, `applyStructureRefresh`). |
-| R-011 | Detalhe aberto de um item que a renovação removeu (`useCatalogItem` → `null`). | Tela de detalhe sem item. | Conferir o estado atual de "item não encontrado" do detalhe (T062); garantir saída focável. |
-| R-012 | M3U guardada: a pessoa escolheu construir o mecanismo "no lugar" também (em vez de aceitar o desvio). | Mais código (`storedFrom`, geração de varredura). | Desenho em `logic/atualizacao-sem-esfriar.md` §4.3; E2E cenário 7. |
-| R-013 | `ensureCategory` devolve `stale-served` ao servir do disco de propósito (contrato), mas as telas usam `stale-served` para dizer "Não foi possível atualizar agora". | Aviso mentiroso a cada entrada numa categoria vencida. | Decidido (Fase 3): `loadCategoryContent` converte para `fresh` quando a renovação foi agendada; `stale-served` na tela continua significando falha real. |
+| R-009 | Reabre D-007/R0-1 da feature 010 ("gravar tudo em segundo plano adia o sintoma"). | Repetir o congelamento que a 010 resolveu. | Resolvido: Registrado na spec e em research R0-2; diferenças: uma categoria por vez, portões, id preservado, assinatura, limpeza em partes; recuo FR-014. |
+| R-010 | Escrever na geração ativa contraria a regra do cabeçalho de `catalogRepository.ts`. | Leitor futuro assume a regra antiga. | Resolvido: Complexity Tracking; atualizar o comentário na mesma task (T057, `applyStructureRefresh`). |
+| R-011 | Detalhe aberto de um item que a renovação removeu (`useCatalogItem` → `null`). | Tela de detalhe sem item. | Resolvido: Conferir o estado atual de "item não encontrado" do detalhe (T062); garantir saída focável. |
+| R-012 | M3U guardada: a pessoa escolheu construir o mecanismo "no lugar" também (em vez de aceitar o desvio). | Mais código (`storedFrom`, geração de varredura). | Resolvido: Desenho em `logic/atualizacao-sem-esfriar.md` §4.3; E2E cenário 7. |
+| R-013 | `ensureCategory` devolve `stale-served` ao servir do disco de propósito (contrato), mas as telas usam `stale-served` para dizer "Não foi possível atualizar agora". | Aviso mentiroso a cada entrada numa categoria vencida. | Resolvido: Decidido (Fase 3): `loadCategoryContent` converte para `fresh` quando a renovação foi agendada; `stale-served` na tela continua significando falha real. |
 | R-014 | Pré-busca por foco (com `AbortSignal`) e agendador compartilham a mesma busca pelo `dedup`; o cursor saindo aborta a busca compartilhada. | O agendador contaria como falha e gastaria tentativas. | Resolvido: `runCategory` tenta de novo uma vez quando o erro é cancelamento. |
-| R-016 | O contrato travado `catalogRepository.carga-listas` escrevia `episodesFetchedAt` direto na linha de `channels` e lia a linha por `database.channels.get` — amarrado ao formato em linhas que a feature 039 substitui por blocos. | Travaria a 039. | Emenda **aprovada pelo usuário (2026-09-30)**: as duas linhas passaram a usar `storeSeriesEpisodes` e `getChannel` (APIs públicas, valem nos dois formatos); intenção intacta (id estável na renovação, marca de episódios preservada, lista idêntica não regravada). Trava regravada. |
-| R-015 | A TV não entrega console (`dlog` vazio), então a instrumentação de medição não é legível lá. | Sem medição na TV, FR-012/SC-005 ficam sem veredito. | Build de medição `VITE_CCPLAY_PERF=1` com painel de números (`PerfOverlay`) — fora dele o código some do pacote; leitura feita por quem está em frente à TV. |
+| R-016 | O contrato travado `catalogRepository.carga-listas` escrevia `episodesFetchedAt` direto na linha de `channels` e lia a linha por `database.channels.get` — amarrado ao formato em linhas que a feature 039 substitui por blocos. | Travaria a 039. | Resolvido: Emenda **aprovada pelo usuário (2026-09-30)**: as duas linhas passaram a usar `storeSeriesEpisodes` e `getChannel` (APIs públicas, valem nos dois formatos); intenção intacta (id estável na renovação, marca de episódios preservada, lista idêntica não regravada). Trava regravada. |
+| R-015 | A TV não entrega console (`dlog` vazio), então a instrumentação de medição não é legível lá. | Sem medição na TV, FR-012/SC-005 ficam sem veredito. | Resolvido: Build de medição `VITE_CCPLAY_PERF=1` com painel de números (`PerfOverlay`) — fora dele o código some do pacote; leitura feita por quem está em frente à TV. |
+| R-017 | Gate SC-008 (fechamento, 2026-09-30): a 038 ficou com as medições da Fase 1/4 e o gate na TV abertos enquanto a estratégia R0-3 (Entrega 1 aqui, Entrega 2 = feature 039) mudava o caminho da carga. | Parte das metas sem veredito próprio no aparelho. | **Decisão explícita do usuário (2026-09-30): fechar a 038 com a evidência da passada na TV da 039.** Medidos na TV: SC-001 (categorias já no aparelho em 24–56 ms, inclusive a de 11 mil filmes) e SC-002 (catálogo inteiro ≤ 60 s — prazo fixado em 60 s). Primeira entrada fria pela rede (SC-005): 5,0 s para 11 mil filmes, dos quais 2,9 s são rede + leitura do painel (excedente atribuído com números, como o SC-005 permite). **Não medidos na TV**: SC-003 (latência da navegação com a pré-carga rodando), SC-004 (pré-carga nunca com o player aberto — coberto por testes do agendador/portão) e SC-006 (sem "carregando" depois de ressincronizar — coberto pelos testes de renovação sem esfriar). |
 
 ## Execution Notes
 
@@ -310,7 +311,9 @@ campos novos de `CategoryRecord` (`db.ts`) e `CatalogCategory.renewRequestedAt`.
 
 | 2026-09-30 | Fase 4 (US2) — teste na TV + R0-3 Entrega 1 | Usuário na TV: pré-carga e tela de importação ok, canais lentos (10–30 s), pré-carga demorada. Diagnóstico: limite de frequência do painel. Estratégia R0-3 (5 soluções, eleita "seção inteira em fluxo + blocos"); Entrega 1 feita: 3 pedidos por seção num Worker, `relaxed`. Lista real, CPU 4×: canais prontos em 3,6 s, tudo em 17,1 s, categoria de canais abre em 0,3–0,5 s; E2E 2×verde | Validar na TV; Entrega 2 como feature própria |
 
-**PRÓXIMO**: TV — validar a Entrega 1 (canais/filmes/séries prontos e memória) e fechar o gate SC-008 (T073/T075); abrir a Entrega 2 (blocos por categoria + chave estável) com `/sdd-specify`.
+| 2026-09-30 | Fechamento | Entrega 2 entregue como a feature 039 (convergida, verificada na TV). Tasks abertas da 038 (T004/T005/T041–T043, T073, T075) fechadas por decisão do usuário com a evidência da 039; instrumentação mantida, desligada por padrão (T042). | R-017: SC-003/004/006 sem medida no aparelho. |
+
+**PRÓXIMO**: `sdd-converge` da 038.
 
 ## Arquivos Principais
 
@@ -328,3 +331,26 @@ campos novos de `CategoryRecord` (`db.ts`) e `CatalogCategory.renewRequestedAt`.
 - A TV não entrega console (`dlog` vazio): qualquer medição lá é pelo painel na tela, lida por uma pessoa.
 - Rodar `vitest`/`node e2e/...` sempre de dentro de `tv-web/` — da raiz, o vitest não acha a config e marca tudo como falho.
 - Os cenários de atualização do E2E (6/8) dependem de a fila de renovação esvaziar antes de envelhecer uma categoria — sem isso, o cenário 8 falha por corrida do roteiro.
+
+## Resultado Final
+
+Convergida em 2026-09-30, fechada com a evidência da passada na TV da feature 039 por decisão do usuário (R-017).
+
+**O que foi construído**
+
+- Pré-carga em segundo plano de todas as categorias da lista ativa (`lib/catalog/prefetch/`), só com o app ocioso (2 s sem tecla), sem player/trailer, visível e online, categoria em foco e vizinhas primeiro, falhas para o fim da fila, parada em armazenamento cheio.
+- Entrega 1 da estratégia R0-3: a seção inteira num pedido só, lida em fluxo num Web Worker (`sectionLoader`, `sectionWorker`, `jsonArrayStream`) — 3 pedidos ao painel em vez de ~99, acabando com o limite de frequência que deixava os canais lentos na TV.
+- Atualização pelo mesmo caminho sem esfriar: reconciliação das categorias na geração ativa (`applyStructureRefresh`, `structureDiff`), id local preservado por identidade, lista idêntica não regravada, limpeza de gerações em partes; categoria vencida servida do disco na hora.
+- Tela de importação com uma linha por parte, contagem real no trilho e linha de estado no Início.
+
+**Desvios em relação ao plano original**
+
+- A Fase 4 (correção da entrada fria) não seguiu a decomposição planejada: a medição levou à estratégia R0-3, com a Entrega 1 aqui (T076–T083, no lugar do placeholder T040) e a **Entrega 2 como feature própria, a 039** (blocos por categoria, conversão, "Todos" aos poucos, Worker gravando por partes).
+- O gate SC-008 foi fechado com a passada na TV da 039 (R-017). Medidos no aparelho: SC-001 (categorias já no aparelho em 24–56 ms, inclusive a de 11 mil filmes) e SC-002 (catálogo inteiro ≤ 60 s, prazo fixado). SC-005: primeira entrada fria pela rede em 5,0 s para 11 mil filmes, 2,9 s deles de rede + leitura do painel.
+- Instrumentação de medição mantida, desligada por padrão (T042).
+
+**O que continua aberto**
+
+- R-002 / SC-003: latência da navegação com a pré-carga rodando não foi medida na TV.
+- SC-004 e SC-006 sem medida no aparelho (cobertos por testes automáticos).
+- R-008: a 034 ainda vai mexer em `importPipeline`/fonte.

@@ -36,8 +36,8 @@ hoje**, antes de mudar o caminho de escrita.
 - [X] T001 [US2] Criar `tv-web/src/lib/perf/entryTiming.ts`: marcas por fase (`request`, `firstByte`, `responseEnd`, `mapped`, `written`, `read`, `firstPaint`) com `performance.now()`, ligadas só com `localStorage['ccplaytv:perf'] === '1'` (try/catch), relatório por `logger.info` **só com números** (ms, nº de itens, bytes) e a seção — nunca URL (research R0-1)
 - [X] T002 [US2] Instrumentar sem mudar comportamento: `categoryLoader.fetchAndStore` (request/firstByte/responseEnd/mapped/written — `xtreamConnector.fetchListDirect` se precisar do primeiro byte), `catalogApi.loadCategoryContent` (read), e o primeiro quadro com cartões em `features/vod/VodCatalogScreen.tsx`/`features/live/LiveScreen.tsx` (`requestAnimationFrame` depois de itens > 0)
 - [X] T003 [P] [US2] Criar `tv-web/e2e/carga-listas-real.mjs` (fora de `test:e2e`, mesmo molde de `e2e/epg-dados-agora-real.mjs`): lê `CCPLAY_PROBE_*` do `.env` da raiz, importa a lista real, entra em 3 categorias de cada seção × 3 repetições com `ccplaytv:perf` ligado, imprime **só** a tabela de tempos por fase
-- [ ] T004 [US2] Rodar T003 no PC; rodar a mesma sequência na TV de referência (skill `tizen-tv`, `sdb dlog`/Web Inspector). Se a TV não estiver acessível, registrar "não medido na TV" em R-001 e seguir com a medição do PC (a da TV volta no gate SC-008)
-- [ ] T005 [US2] Registrar a decomposição em `research.md` R0-1 (tabela) e em `plan.md` R-001, atribuindo cada parcela a **app** ou **painel**; criar as tasks de correção correspondentes na Fase 4 (T040+) com o gargalo medido
+- [X] T004 [US2] (fechada em 2026-09-30 por decisão do usuário, com a evidência da 039: PC medido em R0-1/R0-3; na TV, o painel `PerfOverlay` da 039 mostrou a entrada fria da categoria de 11 mil filmes pela rede em `reque=0 mappe=2937 first=5010` e as entradas já no aparelho em 24–56 ms — `039` T029) Rodar T003 no PC; rodar a mesma sequência na TV de referência (skill `tizen-tv`, `sdb dlog`/Web Inspector). Se a TV não estiver acessível, registrar "não medido na TV" em R-001 e seguir com a medição do PC (a da TV volta no gate SC-008)
+- [X] T005 [US2] (fechada em 2026-09-30: a decomposição e o gargalo ficaram em `research.md` R0-3 — limite de frequência do painel + gravação de uma linha por item —, corrigidos pela Entrega 1 (T076–T083) e pela 039; na TV, da entrada fria de 5,0 s, 2,9 s são rede + leitura do painel) Registrar a decomposição em `research.md` R0-1 (tabela) e em `plan.md` R-001, atribuindo cada parcela a **app** ou **painel**; criar as tasks de correção correspondentes na Fase 4 (T040+) com o gargalo medido
 
 ### Testes da Fase
 
@@ -162,12 +162,12 @@ ao painel com números (FR-013, SC-005).
 - [X] T081 [US2] (ad-hoc) Testes: `jsonArrayStream.test.ts`, `sectionLoader.test.ts`, agendador com `runSection`
 - [X] T082 [US2] (ad-hoc) E2E `e2e/carga-listas.mjs`: a pré-carga pede a seção inteira (3 pedidos), não uma por categoria; todas as categorias prontas
 - [X] T083 [US2] (ad-hoc) Medir com a lista real (`carga-listas-real`/diagnóstico): tempo até canais/filmes/séries prontos e pedidos ao painel; registrar em `research.md` R0-3
-- [ ] T041 [US2] Repetir a medição (PC e, se acessível, TV) e registrar antes × depois em `research.md` R0-1 e `plan.md` R-001; fixar o prazo de SC-002 a partir do tempo por categoria medido
-- [ ] T042 [US2] Decidir e registrar o destino da instrumentação (`entryTiming.ts`): manter desligada por padrão ou remover
+- [X] T041 [US2] (fechada em 2026-09-30 com a evidência da 039: PC CPU 4× — catálogo inteiro 17,1 s na Entrega 1, 9,5–12,8 s com a 039; TV — catálogo inteiro ≤ 60 s, relatado pelo usuário; prazo de SC-002 fixado em 60 s, o mesmo da 039 SC-002) Repetir a medição (PC e, se acessível, TV) e registrar antes × depois em `research.md` R0-1 e `plan.md` R-001; fixar o prazo de SC-002 a partir do tempo por categoria medido
+- [X] T042 [US2] (decidido em 2026-09-30: **manter**, desligada por padrão — `ccplaytv:perf` no navegador e o build `VITE_CCPLAY_PERF=1` com o `PerfOverlay` na TV, usado na medição da 039; a 039 acrescentou as fases `start`/`ensured`/`itemsOut` e corrigiu o recomeço na entrada) Decidir e registrar o destino da instrumentação (`entryTiming.ts`): manter desligada por padrão ou remover
 
 ### Testes da Fase
 
-- [ ] T043 [US2] Teste de regressão para cada correção de T040 (arquivo e caso definidos junto com a correção)
+- [X] T043 [US2] (coberta: as correções de T040 viraram T076–T083, com testes próprios em `sectionLoader.test.ts` e nos de `jsonArrayStream`; a 039 acrescentou os do preparo do Worker) Teste de regressão para cada correção de T040 (arquivo e caso definidos junto com a correção)
 
 **Critério de Conclusão**: medição depois das correções registrada; SC-005
 cumprido ou excedente atribuído ao painel com números; prazo de SC-002 fixado
@@ -321,25 +321,25 @@ verdes; os 5 contratos desta feature verdes juntos; trava da 034 íntegra.
 - [X] T070 `npm run lint`, `npx tsc -b`, `npm run build`, `npm run build:tizen` (nenhum arquivo emitido novo fora de `tizen_web_project.yaml`)
 - [X] T071 `npm run test` completo (flakes conhecidos confirmados isolados) + `npm run test:e2e` completo com dev server recém-iniciado
 - [X] T072 Revisão de segredos: nenhum `logger`/erro/tela novo com URL, credencial ou conteúdo; `sdb dlog` da passada na TV filtrado por `http`
-- [ ] T073 Gate na TV física (SC-008, obrigatório): cenários do `quickstart.md` → tabela aprovado/reprovado em `plan.md`; se SC-003 reprovar, aplicar o recuo FR-014 (ordem só T0/T1) e re-medir; fechar sem o gate só com decisão explícita do usuário registrada em Riscos
+- [X] T073 (fechada em 2026-09-30 **por decisão explícita do usuário**, registrada em `plan.md` R-017: gate considerado com a passada na TV da 039 — SC-001 e SC-002 medidos; SC-003, SC-004 e SC-005 não medidos no aparelho) Gate na TV física (SC-008, obrigatório): cenários do `quickstart.md` → tabela aprovado/reprovado em `plan.md`; se SC-003 reprovar, aplicar o recuo FR-014 (ordem só T0/T1) e re-medir; fechar sem o gate só com decisão explícita do usuário registrada em Riscos
 - [X] T074 Documentação: `CLAUDE.md` (parágrafo da 038 no Project status + atualização do "Known deviation" sobre geração longeva), `.planning/backlog.md` (via script), nota em `sdd/specs/010-catalogo-sob-demanda/research.md` R0-1 apontando para a reabertura registrada aqui
-- [ ] T075 Validar `quickstart.md` de ponta a ponta
+- [X] T075 (fechada em 2026-09-30 por decisão do usuário, R-017: as checagens automáticas do `quickstart.md` rodaram na 039 — `npm run test`, `test:e2e` 20/20, travas; os cenários na TV não foram repetidos) Validar `quickstart.md` de ponta a ponta
 
 ### Checklist de Release
 
-- [ ] Fase 1 (medição) concluída
+- [X] Fase 1 (medição) concluída — fechada com a evidência da 039 (2026-09-30)
 - [X] Fase 2 (fundação de escrita) concluída
 - [X] Fase 3 (US1) concluída
-- [ ] Fase 4 (US2) concluída
+- [X] Fase 4 (US2) concluída — correção pela Entrega 1 (T076–T083) e pela 039
 - [X] Fase 5 (US4) concluída
 - [X] Fase 6 (US3) concluída
 - [X] Fase 7 (US5) concluída
 - [X] Fase 8 (US6) concluída
 - [X] Os 5 testes de contrato verdes na suíte completa e `check-contract-tests.ps1 -Slug 038-carga-listas-pre-carga` íntegro
-- [ ] Travas das outras features íntegras (020, 024, 026, 027, 029, 030, 031, 033, 034, 036, 018)
+- [X] Travas das outras features íntegras (020, 024, 026, 027, 029, 030, 031, 033, 034, 036, 018) — as 23 travas do repositório conferidas em 2026-09-30
 - [X] `npm run test:e2e` verde (inclui `e2e/carga-listas.mjs`)
-- [ ] Gate SC-008 na TV física aprovado (ou decisão explícita do usuário registrada)
-- [ ] `quickstart.md` executado
+- [X] Gate SC-008 na TV física aprovado (ou decisão explícita do usuário registrada) — decisão do usuário, `plan.md` R-017
+- [X] `quickstart.md` executado — parte automática (na 039); parte na TV por decisão do usuário, R-017
 
 ---
 

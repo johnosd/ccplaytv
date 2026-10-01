@@ -933,7 +933,7 @@ apart), so SC-002 is met **with that stated caveat**. Found cards carry a
 Physical TV: recommended, not a gate. See
 `sdd/specs/035-semelhantes-elenco-ator/plan.md` → `## Estado Atual`.
 
-**In execution**: `038-carga-listas-pre-carga` — from the assessment
+**Converged**: `038-carga-listas-pre-carga` — from the assessment
 `sdd/assessments/carga-listas-progresso-claro-entrada-instantanea/`: a
 **background prefetch** (`tv-web/src/lib/catalog/prefetch/`) fetches every
 category of the active list, one at a time, through the same
@@ -968,13 +968,16 @@ the import screen now shows one line per part (Canais/Filmes/Séries/Guia,
 count as soon as a category is on the device, and the Início shows a
 non-focusable status line ("Preparando catálogo — N de M", "Atualizando
 catálogo…", "Catálogo atualizado há …"). No Dexie version bump (value fields
-only). Measured on a PC against the real list, the first cold entry is 0.6 s
-(channels) to 3.8 s (an 11,130-movie category) — **the ~1 min the owner sees
-is TV-specific and still unmeasured**: a measurement build
-(`VITE_CCPLAY_PERF=1`, on-screen number panel `PerfOverlay`, since the TV has
-no console) is needed for Phase 4. **The physical-TV pass is this feature's
-mandatory gate (SC-008).** See `sdd/specs/038-carga-listas-pre-carga/plan.md`
-→ `## Estado Atual`.
+only). The measurement led to strategy R0-3: Entrega 1 here (the whole
+section in one request, streamed in a Web Worker — 3 requests instead of ~99,
+ending the panel's rate limit) and Entrega 2 as feature 039 (blocks). The
+measurement build (`VITE_CCPLAY_PERF=1`, on-screen panel `PerfOverlay`, since
+the TV has no console) stays, off by default. **Closed by the user's decision
+with feature 039's TV pass (R-017)**: categories already on the device open
+in 24–56 ms and the whole catalog is ready in ≤ 60 s on the TV; SC-003
+(navigation latency while prefetching), SC-004 and SC-006 weren't measured on
+the device. See `sdd/specs/038-carga-listas-pre-carga/plan.md` →
+`## Resultado Final`.
 
 **Code-complete**: `037-entrada-listas-prototipo` — the two entry screens now
 match the V13.2 prototype, with the same flow (Splash → list screen → pick a
