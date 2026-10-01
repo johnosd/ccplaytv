@@ -223,7 +223,7 @@ Duas features em paralelo só se os conjuntos de zonas forem **disjuntos**.
 | 037-entrada-listas-prototipo | Entrada fiel ao protótipo — tela de listas e cadastro de lista | Convergida | 51/51 tasks | 2026-09-30 |
 | 038-carga-listas-pre-carga | Carga de listas — progresso claro, pré-carga em segundo plano, contagens e atualização visível | Convergida | 84/84 tasks | 2026-09-30 |
 | 039-catalogo-em-blocos | Catálogo em blocos por categoria — leitura e gravação instantâneas | Convergida | 44/44 tasks | 2026-09-30 |
-| 040-dividir-player-live | Dividir PlayerLayer e LiveScreen por responsabilidade | Implementada | 33/34 tasks | 2026-10-01 |
+| 040-dividir-player-live | Dividir PlayerLayer e LiveScreen por responsabilidade | Convergida | 35/35 tasks | 2026-10-01 |
 
 ## Bugs
 

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { groupLabel, type CatalogItemOut } from '../catalog/catalogApi'
+import type { PlayerLayerTopLayer } from '../../components/PlayerLayer'
 import type { EnteredKey } from './liveTrail'
 import type { LiveChannels, LiveTrail } from './useLiveCatalog'
 import type { LiveGuideState } from './useLiveGuide'
@@ -156,7 +157,24 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
     showToast(`Não foi possível trocar de canal. Voltando para ${fallback.name}.`)
   }
 
-  return { playActiveChannel, stepChannel, openZapping, onEnteredPlaying, onSessionError }
+  /**
+   * A lista de zapping por cima do vídeo (feature 016): `content` é a trilha +
+   * lista desenhadas sem preview; a navegação é a mesma da tela parada
+   * (`onDirection`/`onSelect` do teclado da Live). RETURN fecha só a lista.
+   * Segurar OK/tecla amarela favoritam o canal focado (edge case da 016).
+   */
+  function zapTopLayer(content: ReactNode, onDirection: PlayerLayerTopLayer['onDirection'], onSelect: () => void): PlayerLayerTopLayer {
+    return {
+      content,
+      onDirection,
+      onSelect,
+      onBack: () => setZapOpen(false),
+      onLongSelect: channels.canToggleFavoriteInZap ? channels.toggleFocusedFavorite : undefined,
+      onFavoriteKey: channels.canToggleFavoriteInZap ? channels.toggleFocusedFavorite : undefined,
+    }
+  }
+
+  return { playActiveChannel, stepChannel, openZapping, onEnteredPlaying, onSessionError, zapTopLayer }
 }
 
 export type LiveZapping = ReturnType<typeof useLiveZapping>

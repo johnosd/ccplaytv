@@ -74,7 +74,7 @@ export function useLiveKeyboard({
   const { playing, zapOpen } = zap
   const { playActiveChannel } = zapping
   const { guide: openGuide, guideRef } = guide
-  const { openGuideFromPreview } = liveGuide
+  const { openGuideFromPreview, pageGuide } = liveGuide
 
   function enterCategory(category: CatalogCategory) {
     if (entered?.kind !== 'category' || entered.id !== category.id) {
@@ -290,15 +290,9 @@ export function useLiveKeyboard({
           },
           // CH±/ChannelUp/Down (feature 031, FR-015): pagina o guia parado. Só existe
           // handler com o guia aberto — sem ele a tecla segue sendo "não mapeada",
-          // como fora do player (feature 027, FR-029). Mesma convenção do player:
-          // ChannelUp = anterior.
-          onMediaKey:
-            openGuide && !playing
-              ? (key) => {
-                  if (key === 'ChannelUp') guideRef.current?.onPage('previous')
-                  else if (key === 'ChannelDown') guideRef.current?.onPage('next')
-                }
-              : undefined,
+          // como fora do player (feature 027, FR-029). O mapeamento é o mesmo do
+          // guia sobre o player (`pageGuide`, em `useLiveGuide`).
+          onMediaKey: openGuide && !playing ? pageGuide : undefined,
           // Favoritar não é do guia (feature 031): sem os gestos enquanto ele está aberto.
           onLongSelect: !openGuide && topPhase === 'normal' && canToggleFavorite ? toggleFocusedFavorite : undefined,
           onFavoriteKey: !openGuide && topPhase === 'normal' && canToggleFavorite ? toggleFocusedFavorite : undefined,

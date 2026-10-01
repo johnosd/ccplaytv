@@ -1,6 +1,8 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { groupLabel, type CatalogItemOut } from '../catalog/catalogApi'
-import type { EpgGuideHandle } from './guide/EpgGuide'
+import type { PlayerLayerTopLayer } from '../../components/PlayerLayer'
+import type { MediaKey } from '../../lib/tizenMediaKeys'
+import { EpgGuide, type EpgGuideHandle } from './guide/EpgGuide'
 import type { EnteredKey, TrailKey } from './liveTrail'
 import type { LiveChannels, LiveTrail } from './useLiveCatalog'
 import type { LiveSearch } from './useLiveSearch'
@@ -29,11 +31,29 @@ export interface LiveGuideParams {
   channels: LiveChannels
   search: LiveSearch
   setCol: Dispatch<SetStateAction<0 | 1 | 2>>
+  sourceId: string
+  onOpenEpgSettings: (() => void) | undefined
+  showToast: (message: string) => void
 }
 
-/** Abrir/assistir pelo guia completo (feature 031). Extraído da `LiveScreen` na feature 040 sem mudar nada. */
-export function useLiveGuide({ guide, zap, trail, channels, search, setCol }: LiveGuideParams) {
-  const { setGuide, guideWatchPendingRef } = guide
+/**
+ * Abrir/assistir pelo guia completo (feature 031) e o próprio guia: o
+ * elemento `<EpgGuide>` (um só, desenhado parado no lugar do conteúdo OU
+ * tocando como `topLayer` do player — nunca nos dois) e o encaminhamento de
+ * teclas para ele. Extraído da `LiveScreen` na feature 040 sem mudar nada.
+ */
+export function useLiveGuide({
+  guide,
+  zap,
+  trail,
+  channels,
+  search,
+  setCol,
+  sourceId,
+  onOpenEpgSettings,
+  showToast,
+}: LiveGuideParams) {
+  const { guide: openGuide, setGuide, guideRef, guideWatchPendingRef } = guide
   const { playing, setPlaying, lastGoodChannelRef, zapSequenceRef, zapKeyRef } = zap
   const { categories, entered, setEntered, setFocusedIdentity } = trail
   const { activeChannel } = channels
@@ -88,7 +108,51 @@ export function useLiveGuide({ guide, zap, trail, channels, search, setCol }: Li
     setGuide({ list: zapKeyRef.current ?? { kind: 'all' }, originId: playing.id })
   }
 
-  return { openGuideFromPreview, watchFromGuide, openGuideFromPlayer }
+  /**
+   * CH±/ChannelUp/Down (feature 031, FR-015): pagina o guia — parado (teclado
+   * da tela) ou tocando (`topLayer` do player). Mesma convenção do player:
+   * ChannelUp = anterior.
+   */
+  function pageGuide(key: MediaKey) {
+    if (key === 'ChannelUp') guideRef.current?.onPage('previous')
+    else if (key === 'ChannelDown') guideRef.current?.onPage('next')
+  }
+
+  /** O guia aberto, ou `null` — o mesmo elemento serve parado e sobre o player. */
+  const guideElement = openGuide ? (
+    <EpgGuide
+      handleRef={guideRef}
+      sourceId={sourceId}
+      categories={categories}
+      initialList={openGuide.list}
+      initialChannelId={openGuide.originId}
+      onWatch={watchFromGuide}
+      onClose={() => setGuide(null)}
+      onOpenEpgSettings={onOpenEpgSettings}
+      onNotify={showToast}
+    />
+  ) : null
+
+  /**
+   * Guia completo com o canal tocando (feature 031, D-001/D-002): a sessão
+   * segue viva atrás dele; o `PlayerLayer` encaminha as teclas por aqui (o
+   * guia não registra teclado próprio). Retorna `null` quando não há guia
+   * aberto — `LiveScreen` passa direto ao `topLayer` do `PlayerLayer`.
+   * O `\u003cEpgGuide\u003e` vem de `guideElement` (gerado uma vez só) para não
+   * duplicar a montagem (feature 040, C-01).
+   */
+  function guideTopLayer(): PlayerLayerTopLayer | null {
+    if (!guideElement) return null
+    return {
+      content: guideElement,
+      onDirection: (dir) => guideRef.current?.onDirection(dir),
+      onSelect: () => guideRef.current?.onSelect(),
+      onBack: () => guideRef.current?.onBack(),
+      onMediaKey: pageGuide,
+    }
+  }
+
+  return { openGuideFromPreview, watchFromGuide, openGuideFromPlayer, pageGuide, guideElement, guideTopLayer }
 }
 
 export type LiveGuide = ReturnType<typeof useLiveGuide>

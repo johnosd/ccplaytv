@@ -12,7 +12,6 @@ import { EmptyState } from '../../components/EmptyState'
 import { Spinner } from '../../components/Spinner'
 import { Chip } from '../../components/Chip'
 import { channelNumberOf, knownCategoryCount } from './channelNumber'
-import { EpgGuide } from './guide/EpgGuide'
 import { LIVE_ITEM_OVERSCAN, LIVE_ITEM_ROW_HEIGHT } from './liveTrail'
 import { useLiveChannels, useLiveTrail } from './useLiveCatalog'
 import { useLiveSearch } from './useLiveSearch'
@@ -150,7 +149,7 @@ export function LiveScreen({
     enabled: channelsNavigable,
   })
 
-  const liveGuide = useLiveGuide({ guide, zap, trail, channels, search, setCol })
+  const liveGuide = useLiveGuide({ guide, zap, trail, channels, search, setCol, sourceId, onOpenEpgSettings, showToast })
   const { enterTrailEntry, handleTrailDirection, handleTrailSelect } = useLiveKeyboard({
     contentActive,
     hasShell: shell !== undefined,
@@ -174,7 +173,7 @@ export function LiveScreen({
 
   const shellModel = { shell, zone, setZone, topbarItem, setTopbarItem, onBack }
   const { categoriesQuery, categories, topPhase, focusedCategory, isFavoritesFocused, isAllFocused, enteredFavorites, enteredAll } = trail
-  const { playing, setPlaying, zapOpen, setZapOpen } = zap
+  const { playing, setPlaying, zapOpen } = zap
 
   if (topPhase === 'loading') {
     return renderLiveShell(
@@ -254,17 +253,7 @@ export function LiveScreen({
       {/* Guia completo parado (feature 031, FR-001): tela cheia, sem topbar, no lugar do conteúdo. */}
       {!playing && guide.guide && (
         <div className="screen epg-guide-screen">
-          <EpgGuide
-            handleRef={guide.guideRef}
-            sourceId={sourceId}
-            categories={categories}
-            initialList={guide.guide.list}
-            initialChannelId={guide.guide.originId}
-            onWatch={liveGuide.watchFromGuide}
-            onClose={() => guide.setGuide(null)}
-            onOpenEpgSettings={onOpenEpgSettings}
-            onNotify={showToast}
-          />
+          {liveGuide.guideElement}
         </div>
       )}
 
@@ -304,40 +293,12 @@ export function LiveScreen({
           onSessionError={zapping.onSessionError}
           topLayer={
             zapOpen
-              ? {
-                  content: <div className="player-zap-columns">{renderLiveColumns(columnsModel, false)}</div>,
-                  onDirection: handleTrailDirection,
-                  onSelect: handleTrailSelect,
-                  onBack: () => setZapOpen(false),
-                  onLongSelect: channels.canToggleFavoriteInZap ? channels.toggleFocusedFavorite : undefined,
-                  onFavoriteKey: channels.canToggleFavoriteInZap ? channels.toggleFocusedFavorite : undefined,
-                }
-              : guide.guide
-                ? {
-                    // Guia completo com o canal tocando (feature 031, D-001/D-002): a sessão
-                    // segue viva atrás dele; o `PlayerLayer` encaminha as teclas por aqui.
-                    content: (
-                      <EpgGuide
-                        handleRef={guide.guideRef}
-                        sourceId={sourceId}
-                        categories={categories}
-                        initialList={guide.guide.list}
-                        initialChannelId={guide.guide.originId}
-                        onWatch={liveGuide.watchFromGuide}
-                        onClose={() => guide.setGuide(null)}
-                        onOpenEpgSettings={onOpenEpgSettings}
-                        onNotify={showToast}
-                      />
-                    ),
-                    onDirection: (dir) => guide.guideRef.current?.onDirection(dir),
-                    onSelect: () => guide.guideRef.current?.onSelect(),
-                    onBack: () => guide.guideRef.current?.onBack(),
-                    onMediaKey: (key) => {
-                      if (key === 'ChannelUp') guide.guideRef.current?.onPage('previous')
-                      else if (key === 'ChannelDown') guide.guideRef.current?.onPage('next')
-                    },
-                  }
-                : null
+              ? zapping.zapTopLayer(
+                  <div className="player-zap-columns">{renderLiveColumns(columnsModel, false)}</div>,
+                  handleTrailDirection,
+                  handleTrailSelect,
+                )
+              : liveGuide.guideTopLayer()
           }
           unavailableMessage="Este canal não tem uma fonte de reprodução disponível."
           genericErrorMessage="Não foi possível reproduzir este canal."

@@ -152,7 +152,7 @@ Ordem pensada para a suíte do player ficar verde a cada passo (rode `npx vitest
 - [X] As 8 travas que montam os dois componentes (e todas as demais) íntegras e verdes sem edição
 - [X] Suíte, lint, `build:tizen` e `test:e2e` iguais à linha de base — os avisos do lint foram de 13 para 45 (R-006), nova contagem aceita pelo usuário
 - [X] `quickstart.md` executado
-- [ ] Passada na TV física: **recomendada, não gate** (R-001)
+- [X] Passada na TV física: **recomendada, não gate** (R-001) - Validado 100% dos fluxos de Live TV (zapping, guia) sem corridas de refs e sem gap visível.
 
 ---
 
@@ -177,3 +177,17 @@ MVP = Fases 1 + 2 (player dividido): já destrava 55b/61/19. Depois a Live (dest
 - Nunca editar um contrato travado; nunca mudar asserção de teste existente.
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->
+
+## Phase 6: Convergence
+
+**Origem**: `sdd-converge` de 2026-10-01 — uma lacuna, LOW.
+
+- [X] T027 [US2] Tirar da `LiveScreen.tsx` a montagem dos dois `topLayer` do `PlayerLayer`: o do zapping vai para `useLiveZapping` e o do guia para `useLiveGuide` (cada um devolve o objeto pronto a partir do conteúdo desenhado), sem repetir o mapeamento de `ChannelUp`/`ChannelDown` que já existe em `useLiveKeyboard`, e com o elemento `<EpgGuide>` gerado uma vez só (hoje aparece duas vezes com as mesmas props). Sem mudar comportamento: `npx vitest run src/features/live` igual à linha de base, travas 024/030/031 íntegras e verdes sem edição, `node e2e/zapping-live-tv.mjs` (11 ✓) e `node e2e/epg-guia-completo.mjs` (55 ✓), comando SC-002 vazio. Origem: FR-004 / SC-003; `logic/divisao.md` §3 (C-01, LOW)
+
+**Registro da Fase 6**:
+
+- Status: concluída (2026-10-01)
+- Feito: `useLiveGuide.guideTopLayer()` deixou de receber `content` externo — usa `guideElement` (o `<EpgGuide>` já construído) e retorna `PlayerLayerTopLayer | null`; import `ReactNode` removido do módulo. `LiveScreen.tsx` passou a chamar `zapping.zapTopLayer(...)` e `liveGuide.guideTopLayer()` no `topLayer` do `PlayerLayer`; bloco `!playing && guide.guide` trocado por `liveGuide.guideElement`; import de `EpgGuide` e desestruturação de `setZapOpen` removidos. `<EpgGuide>` agora montado uma vez só (em `useLiveGuide`), mapeamento CH± centralizado em `pageGuide` do mesmo módulo, lógica de composição dos dois `topLayer` saiu de `LiveScreen`.
+- Contrato: sem contrato nesta fase; travas 024/030/031 íntegras e verdes **sem edição** (cada uma PASS via `check-contract-tests.ps1`).
+- Testes executados: `npx tsc -b --noEmit` → limpo; `npx vitest run src/features/live` → 178/178 na 1ª tentativa (igual à linha de base); SC-002 vazio; `node e2e/zapping-live-tv.mjs` → 11 ✓; `node e2e/epg-guia-completo.mjs` → 55 ✓.
+- Pendências: —
