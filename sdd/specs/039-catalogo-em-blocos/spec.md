@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-30
 
-**Status**: Em Execução
+**Status**: Convergência Pendente
 
 **Input**: Entrega 2 da estratégia `sdd/specs/038-carga-listas-pre-carga/research.md`
 R0-3, pedida pelo dono do produto: "guardar cada categoria como um bloco, o que

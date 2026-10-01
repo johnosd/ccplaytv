@@ -1012,6 +1012,42 @@ lista" and initials legibility (the empty first-use state was not seen on the
 device — reinstalling preserves IndexedDB). See
 `sdd/specs/037-entrada-listas-prototipo/plan.md` → `## Estado Atual`.
 
+**In execution**: `039-catalogo-em-blocos` — feature 038's "Entrega 2": the
+items of each category (channels, movies, series; Xtream and M3U) now live in
+**one record per category** — a block, in a new Dexie v14 `categoryBlocks`
+table (`tv-web/src/lib/catalog/categoryBlocks.ts`) — instead of one
+`channels` row per item. Episodes stay rows. Each block item gets a
+**negative** numeric id that encodes its category plus a hash of its stable
+identity (`s:<seriesId>`/`p:<providerStreamId>`/`n:<originalName>`, never the
+URL or position), reused on every renewal, so `getChannel(id)`,
+`Number(itemId)` and `CatalogItemOut.id` work unchanged. Positive ids are old
+rows: every public read in `catalogRepository.ts` (`listChannels`,
+`getChannel`, `listAllOfKind`, `resolveFavorites`, …) reads **blocks first,
+old rows as fallback** — that's what keeps ten locked contracts of other
+features that seed rows directly green, and what lets lists saved before this
+feature keep working while `convertLegacyCategories` turns them into blocks in
+the background (prefetch `housekeeping`, one category per call, same gate as
+the prefetch, preserving `itemsFetchedAt`; the open screen is told to re-read
+because ids change once). Favorites/progress/history are by `stableId` and
+untouched. Measured on the real list (production build, CPU 4× in the PC
+browser — `e2e/catalogo-em-blocos-real.mjs`, kept out of `test:e2e`): whole
+catalog ready in ~9.5 s (17.1 s in 038); opening a category reads its block
+by key with one conversion per item (`getActiveCategoryBlock`) — 11k movies
+365–464 ms, still above SC-001's 300 ms on the PC (the remaining cost is
+IndexedDB deserializing the block; the user chose to measure on the TV before
+changing the format, R-009). "Todos" in source order now **loads as the
+person scrolls down** (`readKindPage` + `useAggregatedItems({ progressive })`,
+next page 10 rows before the end, and until the item being restored is read);
+sorting and searching inside "Todos" still read the whole type. 300k-movie
+stress test (`CCPLAY_E2E_ESTRESSE=so node e2e/catalogo-em-blocos.mjs`):
+"Todos" opens in 155 ms with ~17 MB of heap (was 959 ms / ~217 MB); the sync
+Worker still peaks at ~123–132 MB. Also: the search index normalizes names
+lazily, search keystrokes reuse each item's normalized name, and "Continuar
+assistindo" resolves in one pass per kind. **The physical-TV pass is this
+feature's mandatory gate (SC-007)** — see
+`sdd/specs/039-catalogo-em-blocos/plan.md` → `## Estado Atual` and
+`## Riscos e Decisões` (R-009–R-011).
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Selecione ou
@@ -1389,6 +1425,13 @@ timing measurements against a real user list remain open. See
 the whole story — a background prefetch now fills every category of the
 active list over time, and a same-path update keeps the active generation
 (long-lived) instead of replacing it. See feature 038 above.
+
+**Update (2026-09-30, feature 039)**: a category's items are no longer one
+`channels` row each — they're one block per category (`categoryBlocks`), read
+and written at once; old rows are read as a fallback and converted in the
+background. Code that needs a category's or a kind's items must go through
+`catalogRepository.ts`, never `db.channels` directly (only episodes are still
+rows). See feature 039 above.
 
 ## Language
 

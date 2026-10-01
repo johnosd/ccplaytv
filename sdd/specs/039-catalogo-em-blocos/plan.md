@@ -175,10 +175,15 @@ Stubs: `tv-web/src/lib/catalog/categoryBlocks.ts` (`BLOCK_ID_SPACE`,
 | --- | --- |
 | Fase 1 (Dexie v14, `categoryBlocks`) | Concluída |
 | Fase 2 (blocos, identidade, leitura com reserva) | Concluída — toda escrita de itens de categoria vai para bloco; leituras públicas acham blocos e, na falta, linhas |
-| Contrato 039 | 4/5 verdes (o de conversão é da Fase 3, ainda `not implemented`); trava íntegra |
+| Contrato 039 | 5/5 verdes; trava íntegra |
 | Travas das outras features | 23/23 íntegras |
-| Conversão do formato antigo (Fase 3) | Não iniciada |
-| Medições / E2E / TV | Não iniciados |
+| Conversão do formato antigo (Fase 3) | Concluída — `convertLegacyCategories` na housekeeping da pré-carga, 1 categoria por vez, avisando a tela |
+| E2E `e2e/catalogo-em-blocos.mjs` | Cenários 1 (lista nova) e 2 (migração) verdes; cenário 3 (300 mil, opt-in `CCPLAY_E2E_ESTRESSE`) verde; ainda fora do `test:e2e` (T023) |
+| Fase 6 (US5) | Concluída — 300 mil sem quebrar; "Todos" aos poucos: abre em 155 ms com ~17 MB (antes 959 ms / ~217 MB); Worker da carga ~123–132 MB mantido |
+| Medições no PC (Fase 4) | Build de produção, CPU 4×: catálogo inteiro 9,5 s (SC-002 ✅); canais 142–260 ms; categoria de 11 mil filmes 365–464 ms depois da T028 (antes 455–536; SC-001 ≤ 300 ❌ no PC); "Todos" de Filmes 790–1.006 ms (SC-003 no limite) — R-009; T028 fechada por decisão do usuário, SC-001 vai para a TV |
+| Fase 4 (US1/US2) | Concluída |
+| Fase 5 (US3) | Concluída — índice de busca sob demanda + cache por item na busca; "Continuar assistindo" em lote; ★/↺/Semelhantes iguais antes/depois da conversão (teste de integração). "Todos" de Filmes 677–920 ms (SC-003 ✅ no PC) |
+| TV | Não iniciada (gate SC-007, T026) |
 
 ## Riscos e Decisões
 
@@ -190,13 +195,17 @@ Stubs: `tv-web/src/lib/catalog/categoryBlocks.ts` (`BLOCK_ID_SPACE`,
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
 | R-001 | Contrato travado da 038 fixava o formato em linhas. | Travaria a 039. | Resolvido: emenda aprovada pelo usuário (2026-09-30), APIs públicas no lugar de escrita direta; trava regravada (038 R-016). |
-| R-002 | Metas na TV (300 ms / 60 s / 1 s) medidas só no PC até aqui. | Pode não bastar na TV. | Probe real CPU 4× + gate SC-007; se "Todos" passar de 1 s, cachear o índice agregado por sessão (task ad-hoc). |
+| R-002 | Metas na TV (300 ms / 60 s / 1 s) medidas só no PC até aqui. | Pode não bastar na TV. | Probe real CPU 4× + gate SC-007; se "Todos" passar de 1 s, cachear o índice agregado por sessão (task ad-hoc). **Medido (2026-09-30, `e2e/catalogo-em-blocos-real.mjs`, build de produção, CPU 4×)**: catálogo inteiro 9,5–9,6 s; 11.131 filmes 653–907 ms; "Todos" 939–1.073 ms; canais 142–260 ms. Ver R-009. |
 | R-003 | A conversão troca o id de cada item uma vez (linha positiva → bloco negativo). | Detalhe aberto/tocando no exato momento pode perder o item na próxima leitura; foco da grade cai no vizinho. | Conversão só com portão aberto (sem player, 2 s sem tecla); estado do usuário é por `stableId`; registrado. |
 | R-004 | Colisão de hash de identidade em listas enormes (300 mil itens numa categoria). | Dois itens com o mesmo slot. | Avanço determinístico de slot + reaproveitamento do id anterior na renovação (D-003); teste unitário com colisão forçada. |
-| R-005 | "Todos"/busca de uma lista de 300 mil itens junta um tipo inteiro na memória. | Pico de memória. | Já é o comportamento atual; medir no teste de estresse (SC-004); se estourar, busca por blocos em fluxo (task ad-hoc). |
+| R-005 | "Todos"/busca de uma lista de 300 mil itens junta um tipo inteiro na memória. | Pico de memória. | Já é o comportamento atual; medir no teste de estresse (SC-004); se estourar, busca por blocos em fluxo (task ad-hoc). **Medido (2026-09-30, cenário 3, 300 mil filmes, produção)**: "Todos" pico de heap da página ~217 MB (hoje o tipo fica em até 3 cópias: blocos desserializados → `CatalogRecord` → entradas do índice → `CatalogItemOut`); carga: Worker ~123 MB (seção inteira em `groups`) + página 46 MB. Nada quebrou. Resolvido (T022, opção do usuário): "Todos" lê aos poucos (`readKindPage` + `useAggregatedItems({ progressive })`) — estresse 300 mil: abrir 959 → 155 ms, heap ~217 → ~17 MB (~45 MB após 300 fileiras). Worker da carga (~123–132 MB) mantido. |
 | R-006 | Dez contratos de outras features gravam linhas direto. | Qualquer quebra da leitura de reserva os deixa vermelhos. | D-002; rodar todas as travas a cada fase. |
 | R-007 | `storeCategoryItems` passou a ser a mesma escrita de `renewCategoryItems` (bloco com id preservado). Antes apagava e regravava (ids novos) e gravava mesmo com a categoria já removida. | Categoria removida durante a busca não recebe mais itens órfãos; ids estáveis também nesse caminho. | Decidido na Fase 2 (§4 do `logic/`): uma escrita só. Testes não travados que liam `channels` cru ou espionavam `channels.bulkAdd` foram trocados para `storedItems` (`src/testing/catalogStorage.ts`) e `categoryBlocks.put` — o formato mudou por design, a API pública não. |
 | R-008 | `Dexie.minKey`/`maxKey` dentro de chave composta dá `DataError` no fake-indexeddb. | Faixas de blocos por fonte quebravam. | Resolvido: faixa explícita (`GENERATION_MIN/MAX`, `KIND_MIN = ''`, `KIND_MAX = '￿'`) em `categoryBlocks.ts`. |
+| R-012 | Desvio aprovado pelo usuário em 2026-09-30 ("corrigir agora todos erros e bugs"): defeitos anteriores à 039 corrigidos aqui — roteiro `paridade-limpeza.mjs` (passo desatualizado desde a 032; data da sincronização deslocando a linha) e 7 testes instáveis antigos (`*Screen.favorites`, `LiveScreen.favorites` b/l/n, `HomeContent`, `LiveScreen` T010). | Escopo da 039 maior que o planejado; nenhuma mudança no app. | Resolvido: causas identificadas (aviso de favorito depois de gravação assíncrona; teste pesado com limite de 5 s; captura dependente de data) e corrigidas nos testes/roteiro; nenhum contrato travado tocado. |
+| R-011 | "Todos" aos poucos (T022, escolha do usuário em 2026-09-30): na ordem da fonte só as categorias até onde a pessoa desceu ficam na memória; ordenar e buscar leem o tipo inteiro. As opções do modal "Ordenar" (`availableSortOptions`) passam a ser calculadas sobre o que já foi lido — se as primeiras categorias não declaram ano/data de inclusão e as seguintes sim, "Ano"/"Recém-adicionados" podem não aparecer até descer. A 1ª tecla da busca em "Todos" inclui ler o tipo inteiro (~1 s com CPU 4× na lista real). | Opção de ordenação escondida num caso raro; 1ª busca um pouco mais lenta. | Aceito; registrado. Se incomodar: calcular a disponibilidade de ordenação no repositório (uma varredura leve só dos campos `year`/`addedAt`) ou pré-ler o índice ao focar "Pesquisar". |
+| R-010 | `loadSeriesHistory` (↺ Histórico de Séries) resolve episódio e série-pai um por vez — cada série pode varrer os blocos de séries (mesmo padrão que a T019 tirou de "Continuar assistindo"). | Histórico de séries com muitos itens pode demorar. | Aberto, fora das tasks (achado na Fase 5); não medido. Se a TV mostrar lentidão em ↺ de Séries, reusar `resolveStableIdsIn`/`findSeriesManyIn`. |
+| R-009 | Abrir a categoria de 11 mil filmes custa 653–907 ms no PC com CPU 4× (build de produção); a meta SC-001 é ≤ 300 ms. Com CPU 1×: 102 ms. A leitura do bloco não é o gargalo (038: 0,12–0,19 s): ~300–400 ms vão de OK até a leitura e ~350–500 ms da leitura à pintura. O custo é proporcional ao nº de itens (dois mapeamentos por item — bloco → `CatalogRecord` → `CatalogItemOut` —, medição de 11 mil posições no virtualizador); nenhum sort/filtro roda com a busca fechada. "Todos" de Filmes (939–1.073 ms) está no limite de SC-003. | SC-001 pode falhar na TV para as categorias muito grandes; as de até ~3,5 mil itens ficam em 191–413 ms. | Aberto. Usuário escolheu atacar agora (T028, 2026-09-30). Feito: leitura direta do bloco (`getActiveCategoryBlock` + `blockItemOut`) → 11 mil filmes 365–464 ms (antes 455–536, medidos sem o custo da 1ª montagem). Descartados com medição: leitura iniciada no OK (sem ganho) e bloco como string JSON (~0–30 ms). Layout não cresce com o nº de itens (~0,5 ms). O que resta crescendo com o tamanho é desserializar o bloco (~+150 ms para 11 mil) — cortar exige mudar o formato (itens enxutos ou "cabeça" do bloco). **Decisão do usuário (2026-09-30): parar aqui e medir na TV** (T026, SC-001); se a TV não bater 300 ms, a "cabeça" do bloco é o caminho que garante a meta. |
 
 ## Execution Notes
 
@@ -209,14 +218,36 @@ Stubs: `tv-web/src/lib/catalog/categoryBlocks.ts` (`BLOCK_ID_SPACE`,
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
 | 2026-09-30 | Fases 1–2 | Dexie v14; `categoryBlocks.ts` (identidade, id negativo, `writeBlockWithin`); repositório lê blocos com reserva nas linhas, `findSeriesRecord`, episódios carimbam o bloco, gerações limpam blocos; `loadCategoryContent` numa leitura só; testes não travados adaptados ao formato novo (R-007). | Fase 3: `convertLegacyCategories` + housekeeping. |
+| 2026-09-30 | Fase 3 (US4) | Conversão em partes na housekeeping (conversão antes da limpeza de gerações), `onConverted` avisa a tela; testes de interrupção/retomada; E2E cenário 2 semeando o formato antigo no IndexedDB do app → 10/10. | Fase 4: E2E cenário 1 e medições com a lista real. |
 
-**PRÓXIMO**: Fase 3 — T011 `convertLegacyCategories` (§6, preservando `itemsFetchedAt`), T012 housekeeping da pré-carga, T013/T014.
+| 2026-09-30 | Fase 4 (US1/US2) | E2E cenário 1 (lista nova só com blocos, navegação completa, série com episódios em linhas) → 27/27 com o cenário 2, duas rodadas; probe real `catalogo-em-blocos-real.mjs` (CPU N×, build de produção, perfil opcional): catálogo inteiro 9,5 s (antes 17,1 s), 11 mil filmes 653–907 ms, "Todos" 939–1.073 ms. T017 não se aplicou (o total melhorou). | R-009: SC-001 não bate no PC CPU 4× para a categoria de 11 mil — decisão do usuário. |
+
+| 2026-09-30 | Fase 4 — T028 (ad-hoc, R-009) | Leitura direta do bloco na entrada (−~90 ms na categoria de 11 mil: 365–464 ms, CPU 4×); leitura no OK e bloco-JSON medidos e descartados; layout não escala com n. Probe ganhou `CCPLAY_USER_DATA` (reaproveita a lista), `CCPLAY_TRACE`, `CCPLAY_BIGGEST_LAST`, `CCPLAY_LAYOUT`. | Custo restante é a desserialização do bloco — decisão do usuário sobre mudar o formato. |
+
+| 2026-09-30 | Fase 4 fechada | Usuário escolheu parar a T028 e medir na TV; Fase 4 concluída. | SC-001 da categoria de 11 mil fica para o gate da TV (T026). |
+
+| 2026-09-30 | Fase 5 (US3) | "Todos": índice normaliza sob demanda (−~150 ms); busca guarda nome normalizado por item + `Intl.Collator`; `resolveContinueWatching` em lote (`resolveStableIdsIn`, `findSeriesManyIn`); teste de integração ★/↺/Semelhantes antes × depois da conversão. "Todos" 677–920 ms, busca 172–271 ms/tecla (CPU 4×). | R-010 (↺ de Séries um por vez) aberto; Fase 6. |
+
+| 2026-09-30 | Fase 6 — T021 | Cenário 3 (300 mil filmes, painel falso em fluxo, heap da página e do Worker por CDP), opt-in por `CCPLAY_E2E_ESTRESSE`: carga 6 s sem quebrar; Worker ~123 MB, página 46 MB; "Todos" 959 ms com ~217 MB de heap. | T022: orçamento de memória — decisão do usuário. |
+
+| 2026-09-30 | Fase 6 — T022 | Usuário escolheu "Todos" aos poucos: `readKindPage`, `useAggregatedItems({ progressive })`, página seguinte a 10 fileiras do fim ou até achar o item a restaurar; ordenar/buscar leem o tipo inteiro. 300 mil: 155 ms / ~17 MB ao abrir; lista real CPU 4×: 242–317 ms. | R-011 (ordenação calculada sobre o lido; 1ª busca ~1 s). Fase 7. |
+
+| 2026-09-30 | Fase 7 — T023/T024/T027 | `test:e2e` com o roteiro da 039 (20/20 verdes); tsc/lint/`build:tizen` limpos; `npm run test` 1968/1983 (só vermelhos já conhecidos); 23 travas íntegras; `CLAUDE.md` atualizado. T025 travada: `paridade-limpeza.mjs` (da 028) desatualizado desde a 032. | Decidir T025; gate na TV (T026). |
+
+**PRÓXIMO**: T025 (decisão: atualizar o passo "Integrações" do roteiro de paridade da 028 ou registrar e seguir) e T026 — gate na TV física (tabela do `quickstart.md`, inclusive a migração: instalar o build anterior, usar, instalar este por cima).
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- `tv-web/src/lib/catalog/categoryBlocks.ts` — bloco, identidade, id, escrita, faixas; `convertLegacyCategories` ainda stub.
+- `tv-web/e2e/catalogo-em-blocos-real.mjs` — medição com a lista real (CPU N×; `CCPLAY_APP_URL`, `CCPLAY_USER_DATA`, `CCPLAY_PROFILE`, `CCPLAY_PROFILE_ALL`, `CCPLAY_TRACE`, `CCPLAY_BIGGEST_LAST`, `CCPLAY_LAYOUT`); mede também a busca por tecla em "Todos". O cenário 3 (~300 mil, Fase 6) entra em `e2e/catalogo-em-blocos.mjs`.
+- `tv-web/src/lib/catalog/catalogSearch.ts` — índice sob demanda e cache de normalização na busca (T018).
+- `tv-web/src/lib/catalog/catalogRepository.ts` — `resolveStableIdsIn`/`findSeriesManyIn` (T019), `getActiveCategoryBlock` (T028).
+- `tv-web/src/lib/catalog/categoryBlocks.conversao-leitores.test.ts` — ★/↺/Semelhantes antes × depois da conversão (T020).
+- `tv-web/src/lib/catalog/catalogRepository.ts` (`getActiveCategoryBlock`) e `tv-web/src/features/catalog/catalogApi.ts` (`loadCategoryContent`, `blockItemOut`) — leitura direta do bloco (T028).
+- `tv-web/e2e/catalogo-em-blocos.mjs` — cenários 1 (lista nova) e 2 (migração); o 3 (~300 mil) entra na Fase 6.
+- `tv-web/src/features/catalog/catalogApi.ts` (`loadCategoryContent`, `toItemOut`) e `tv-web/src/features/vod/VodCatalogScreen.tsx` — onde está o custo restante de abrir 11 mil itens (R-009).
+- `tv-web/src/lib/catalog/categoryBlocks.ts` — bloco, identidade, id, escrita, faixas, `convertLegacyCategories`.
 - `tv-web/src/lib/catalog/catalogRepository.ts` — API pública inalterada, agora sobre blocos + reserva.
 - `tv-web/src/lib/catalog/categoryBlocks.test.ts` — testes extras (colisão, nomes repetidos, geração).
 - `tv-web/src/testing/catalogStorage.ts` — `storedItems()` para testes que conferem o que foi gravado.
@@ -229,4 +260,9 @@ Stubs: `tv-web/src/lib/catalog/categoryBlocks.ts` (`BLOCK_ID_SPACE`,
 - Teste que confere o que foi gravado não pode ler `database.channels` cru: itens de categoria estão em `categoryBlocks`. Use `storedItems()` de `src/testing/catalogStorage.ts`.
 - Para simular falta de espaço na gravação de uma categoria, espione `database.categoryBlocks.put`, não `channels.bulkAdd`.
 - Não use `Dexie.minKey`/`maxKey` dentro de chave composta (DataError no fake-indexeddb) — use `KIND_MIN`/`KIND_MAX` e a faixa de geração.
+- Medir desempenho no **build de produção** (`npm run build; npx vite preview --port 4173`, `CCPLAY_APP_URL=http://localhost:4173`): o React do dev server infla a pintura ~2×. O dev server só serve para o perfil com nomes legíveis.
+- Para iterar medições sem reimportar (o painel limita): `CCPLAY_USER_DATA=<pasta>` no probe; a pasta vale por origem (4173 ≠ 5173). Use `CCPLAY_BIGGEST_LAST=1` — a 1ª entrada da sessão custa ~150 ms a mais em qualquer categoria e mascara o efeito do tamanho. Variação entre rodadas é de ±80 ms: compare 3 rodadas, nunca uma.
+- `paridade-limpeza.mjs` grava por padrão nas evidências da **028**. Para a 039, sempre `CCPLAY_PARIDADE_DIR=…\sdd\specs\039-catalogo-em-blocos\evidencias\paridade` **no mesmo comando** (cada chamada de PowerShell é um processo novo — a variável não persiste). A linha de base "antes" é o código pré-039 (commit 06a2304) servido de uma worktree em :5173.
+- Em E2E, nunca `page.route('**/series/**')`/`'**/movie/**'` genérico: casa com os módulos do Vite (`src/features/series/…`) e o `page.goto` trava. Filtrar pelo host do painel falso.
+- O painel real recusa importações seguidas (limite de frequência): a tela mostra "Status: Falhou … Requer uso do servidor". Esperar ~90 s e repetir, sem concluir que o app travou.
 - Vermelhos já conhecidos e fora desta feature: contratos de 034 (`*.fontes-estado.contract.*`) e 036 (`historyRemoval…`) — ainda não executadas/outra sessão.
