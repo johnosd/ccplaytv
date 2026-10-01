@@ -16,6 +16,13 @@ vi.mock('../import/importApi', async (importOriginal) => {
 
 const SOURCE_ID = 'src-privacidade'
 
+/**
+ * Leituras do IndexedDB (resumo do Histórico, limpeza) podem passar de 1 s, o
+ * padrão do `waitFor`, com a suíte inteira rodando em paralelo — achado ao
+ * medir a linha de base da feature 040 (falhava só lá; isolado passava).
+ */
+const IDB_WAIT = { timeout: 5000 }
+
 function press(key: string) {
   act(() => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
@@ -87,7 +94,7 @@ describe('SettingsScreen › Privacidade (feature 036)', () => {
     enterPrivacy()
 
     expect(screen.getByText('Histórico de Sala')).toBeInTheDocument()
-    await waitFor(() => expect(row('Filmes')).toHaveAccessibleName('Limpar histórico de Filmes — 1 título · 1 indisponíveis'))
+    await waitFor(() => expect(row('Filmes')).toHaveAccessibleName('Limpar histórico de Filmes — 1 título · 1 indisponíveis'), IDB_WAIT)
     expect(row('Filmes')).toHaveClass('tv-focus')
     expect(row('Séries')).toHaveAttribute('aria-disabled', 'true')
     expect(row('Séries')).toHaveAccessibleName('Limpar histórico de Séries — histórico vazio')
@@ -104,6 +111,7 @@ describe('SettingsScreen › Privacidade (feature 036)', () => {
     enterPrivacy()
     await waitFor(() =>
       expect(row('Filmes e Séries')).toHaveAccessibleName('Limpar ambos — 1 título · 1 indisponíveis'),
+      IDB_WAIT,
     )
 
     press('ArrowDown')
@@ -117,10 +125,10 @@ describe('SettingsScreen › Privacidade (feature 036)', () => {
     expect(within(dialog).getByRole('button', { name: 'Limpar e apagar progresso' })).toHaveClass('tv-focus')
     press('Enter')
 
-    await waitFor(() => expect(screen.getByText('Histórico de Filmes e Séries limpo.')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Histórico de Filmes e Séries limpo.')).toBeInTheDocument(), IDB_WAIT)
     expect(await listPlayed(SOURCE_ID, 'movie', db)).toEqual([])
     expect(await getContinueWatching(SOURCE_ID, db)).toEqual([])
-    await waitFor(() => expect(row('Filmes e Séries')).toHaveAttribute('aria-disabled', 'true'))
+    await waitFor(() => expect(row('Filmes e Séries')).toHaveAttribute('aria-disabled', 'true'), IDB_WAIT)
     expect(row('Filmes e Séries')).toHaveClass('tv-focus')
   })
 
