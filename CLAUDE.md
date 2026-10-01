@@ -1134,6 +1134,45 @@ the old, larger component; the `HEAD` version alone reports 0) — R-006.
 Physical TV: recommended, not a gate. See
 `sdd/specs/040-dividir-player-live/plan.md` → `## Estado Atual`.
 
+**Code-complete**: `041-player-qualidade-aspecto` — backlog item 55b: the
+player chrome's "Aspecto" and "Qualidade" buttons are real (the `player-quality`/
+`player-aspect` mocks are gone), **"Velocidade" was removed for good** (no
+control, no "Em breve" mock, no `speed` id — the user's decision, a deviation
+from DS §27.6 allowed by ADR-011), and Configurações › **Player & reprodução**
+is a real tab (`features/settings/tabs/PlayerTab.tsx`, no active list needed):
+default aspect, default quality (Auto/Máxima/Econômica), audio language and
+subtitle language, stored **per device** in `localStorage`
+(`ccplaytv:player-preferences`, `lib/player/playerPreferences.ts`), never per
+list. Same model as 029: optional `PlayerAdapter` methods (`getAspectModes`/
+`setAspectMode`/`getQualities`/`selectQuality`) = capability, a missing method
+= "— indisponível", panels are `PlayerLayer` state (`PlayerChoicePanel`, not a
+`Modal`). A separate `ViewChoice` (aspect + quality) rides the sequence next to
+029's `TrackChoice` (zapping, CH±, next episode; `initialViewChoice`/
+`onViewChoiceChange` for the series autoplay), seeded from the preferences on
+every **new** playback and **never written back by the player** (SC-003 — a
+new movie after a Zoom starts from the saved aspect again). Aspect is
+re-applied on the first `playing` of every session, `fit` included. **Proven on
+the QN50Q60DAGXZD (2026-10-01, seen by the user, a non-16:9 title)**: all four
+modes work through `setDisplayMethod` + `setDisplayRect`; `setVideoRoi` is
+refused (`NotSupportedError`), so Zoom is a display rect 10% larger than the
+screen; calls answer in 6–28 ms. Quality: `getTotalTrackInfo` returns the
+VIDEO entry and a single-quality stream shows "Qualidade — só uma
+disponível"; **switching variant (`setSelectTrack('VIDEO')`) was NOT proven on
+the TV** — the user's catalog splits HD/4K into separate items, so there is no
+multi-variant stream (R-009); it fails safe (refused → "Não foi possível mudar a
+qualidade", keeps the previous one) and "Auto" after forcing a variant is
+refused honestly (going back to adaptive would need reopening the stream).
+The 027 contract's first test was amended with the user's approval (R-012 of
+027); 029's needed nothing. The AVPlay probe used for the spike
+(`VITE_CCPLAY_AVPLAY_PROBE`) was removed. New E2E `tv-web/e2e/qualidade-aspecto.mjs`
+(30 checks, in `test:e2e`: real `<video>` object-fit, the settings tab, a new
+movie starting from the preference, and a fake `webapis.avplay` for quality,
+aspect, "Máxima" and the Info do stream's new resolution). **Still open**: the
+mandatory physical-TV pass (Phase 7 of that plan: the new tab, Zoom, the
+fallback behaviours, a multi-variant HLS if one exists). See
+`sdd/specs/041-player-qualidade-aspecto/plan.md` → `## Estado Atual` and
+`## Riscos e Decisões` (R-001, R-009).
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Selecione ou

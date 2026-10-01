@@ -87,6 +87,15 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   sempre com confirmação e a escolha de manter ou apagar a retomada, sem
   tocar em favoritos nem em "assistido" (feature 036). *A avaliar:*
   agregação de favoritos/histórico entre todas as fontes.
+- **Aspecto, qualidade e preferências do player:** no player de filme, série e
+  canal, "Aspecto" (Ajustar, Preencher, Original e Zoom — verificado na TV) e
+  "Qualidade" (Auto mais só as resoluções que o stream anuncia; com uma só,
+  o botão explica) são reais; "Velocidade" foi retirada por decisão de
+  produto. Configurações › Player & reprodução guarda, por aparelho,
+  o aspecto e a qualidade padrão e o idioma de áudio e de legenda; a escolha
+  feita durante a reprodução vale só até o fim da sequência e nunca altera
+  essas preferências (feature 041). A troca de resolução num stream com várias
+  variantes ainda não foi provada na TV.
 
 ## Arquitetura
 

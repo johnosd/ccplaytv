@@ -358,6 +358,7 @@ Stubs criados pelo plan (ponto de partida do execute, não travados):
 - `chromeControls` tem Áudio/Info `'unavailable'` por padrão; o `PlayerLayer` passa `features` a partir de `session.supportsTracks`/`supportsStreamInfo` — quem criar outro ponto de chamada de `chromeControls` precisa passar o 5º parâmetro, senão os dois botões ficam "— indisponível" mesmo com motor de faixas.
 - E2E: `.player-chrome` é um contêiner sem tamanho (filhos absolutos) — o Playwright o trata como "hidden"; esperar com `state: 'attached'` ou contar (`.count()`), nunca por visibilidade. Verificação logo após uma tecla precisa de `eventually` (render assíncrono do React) na suíte completa.
 - `e2e/paridade-limpeza.mjs depois` sobrescreve `sdd/specs/028-.../evidencias/paridade/depois/`: não rodar só para "ver"; o `18-player-vod` vai mudar de propósito (botões Áudio/Info).
+- Feature 041 (2026-10-01): "Velocidade" saiu do chrome. O contrato travado desta feature (`PlayerLayer.audio-legendas-info.contract.test.tsx`) **não precisou de emenda** — os 6 passos ainda terminam em "Info do stream" porque o foco para no fim da linha — mas o comentário da linha 315 ainda cita "Velocidade" e, por estar travado, não foi editado. `e2e/audio-legendas-info.mjs` passou de 4 para 3 passos até "Info do stream" (Áudio → Qualidade → Aspecto → Info).
 - Os testes de faixas/info/continuidade estão em arquivos próprios (`PlayerLayer.faixas/info/continuidade.test.tsx`), fora da trava; `PlayerLayer.test.tsx` não precisou mudar.
 
 ## Resultado Final
