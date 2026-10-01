@@ -1,0 +1,27 @@
+{
+    "feature":  "035-semelhantes-elenco-ator",
+    "lockedAt":  "2026-09-30 08:23",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/metadata/localTitleMatch.semelhantes.contract.test.ts",
+                      "sha256":  "2b6413eeaa98be0c1d22f0aa64ccbd24a5a47c98779d4e251827fb0a97b7c7ea",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/metadata/titleMetadata.semelhantes.contract.test.ts",
+                      "sha256":  "c5307a67b0010ef3f15f4164c676783598ec2ce326dfbbeac6a7b3e68d1746d5",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/metadata/tmdbPeople.semelhantes.contract.test.ts",
+                      "sha256":  "81f5098e0c60abb85ba81aca57b7325a74366101087d6d218eeb53ea52e05052",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/movies/MovieDetailScreen.semelhantes.contract.test.tsx",
+                      "sha256":  "580987b6ff71f02afbb8e88f82a6d2d376605041fff7327f4643de522e5165b8",
+                      "tests":  2
+                  }
+              ]
+}

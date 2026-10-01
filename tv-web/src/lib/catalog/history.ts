@@ -8,7 +8,7 @@
  */
 
 import { db, type CatalogDb, type CatalogRecord } from './db'
-import { resolveFavorites } from './catalogRepository'
+import { resolveFavorites, resolveStableIds } from './catalogRepository'
 import { listPlayed, parseStableId, type StableIdParts } from './userStateRepository'
 
 export type HistoryKind = 'movie' | 'series'
@@ -43,24 +43,33 @@ async function loadMovieHistory(sourceId: string, database: CatalogDb): Promise<
 
 /**
  * Séries: o dado gravado é por episódio, o card é por série
- * (`logic/historico.md` §4). Resolve um estado por vez (nunca em lote) para
- * saber exatamente qual episódio não resolveu e manter a ordem — a mesma
- * escolha de `resolveContinueWatching`.
+ * (`logic/historico.md` §4). Feature 039 (T034): em lote — todos os
+ * episódios numa resolução, todas as séries-pai em outra; o mapa de
+ * `resolveStableIds` diz qual episódio não resolveu, e a ordem é a dos
+ * estados (mesma escolha de `resolveContinueWatching`).
  */
 async function loadSeriesHistory(sourceId: string, database: CatalogDb): Promise<HistoryResult> {
   const states = await listPlayed(sourceId, 'episode', database)
+  const parsed = states.map((state) => parseStableId(state.stableId))
+  const episodes = await resolveStableIds(
+    sourceId,
+    'episode',
+    parsed.filter((parts): parts is StableIdParts => parts !== null),
+    database,
+  )
+  const seriesParts = new Map<string, StableIdParts>()
+  for (const episode of episodes.values()) {
+    if (episode.seriesId && !seriesParts.has(episode.seriesId)) {
+      seriesParts.set(episode.seriesId, { sourceId, kind: 'series', identifier: { type: 'id', value: episode.seriesId } })
+    }
+  }
+  const series = await resolveStableIds(sourceId, 'series', [...seriesParts.values()], database)
+
   const seen = new Set<string>()
   const records: CatalogRecord[] = []
   let unresolved = 0
-
-  for (const state of states) {
-    const parts = parseStableId(state.stableId)
-    if (!parts) {
-      unresolved += 1
-      continue
-    }
-    const { records: episodeRecords } = await resolveFavorites(sourceId, 'episode', [parts], database)
-    const episode = episodeRecords[0]
+  for (const parts of parsed) {
+    const episode = parts ? episodes.get(parts) : undefined
     if (!episode || !episode.seriesId) {
       unresolved += 1
       continue
@@ -69,20 +78,13 @@ async function loadSeriesHistory(sourceId: string, database: CatalogDb): Promise
     // (states vem do mais recente para o mais antigo) — não é um episódio
     // sem série exibível, então não conta como não resolvido.
     if (seen.has(episode.seriesId)) continue
-
-    const seriesParts: StableIdParts = {
-      sourceId,
-      kind: 'series',
-      identifier: { type: 'id', value: episode.seriesId },
-    }
-    const { records: seriesRecords } = await resolveFavorites(sourceId, 'series', [seriesParts], database)
-    const series = seriesRecords[0]
-    if (!series) {
+    const record = series.get(seriesParts.get(episode.seriesId) as StableIdParts)
+    if (!record) {
       unresolved += 1
       continue
     }
     seen.add(episode.seriesId)
-    records.push(series)
+    records.push(record)
   }
 
   return { records, unresolved }

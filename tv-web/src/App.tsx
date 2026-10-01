@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { SplashScreen } from './features/splash/SplashScreen'
-import { ProfilesScreen } from './features/profiles/ProfilesScreen'
+import { ADD_LIST_FOCUS_ID, ProfilesScreen } from './features/profiles/ProfilesScreen'
 import { HomeScreen } from './features/home/HomeScreen'
 import { AddSourceScreen } from './features/import/AddSourceScreen'
 import { ImportProgressScreen } from './features/import/ImportProgressScreen'
@@ -27,8 +27,11 @@ import { FAVORITES_SNAPSHOT } from './features/catalog/categoryScreenSnapshot'
 import { registerFavoriteColorKey } from './lib/tizenColorKey'
 import { registerMediaKeys } from './lib/tizenMediaKeys'
 import { onEpgSyncFinished } from './lib/epg/epgRunner'
+import { usePrefetchForSource, wakePrefetch } from './features/catalog/prefetchApi'
 import { appNavReducer, initialAppNav, type AppScreen, type TopDestination } from './navigation/appNav'
 import { readLastSourceId, writeLastSourceId } from './navigation/lastSource'
+import type { OpenPersonTarget, OpenTitleTarget } from './features/vod/detailSnapshot'
+import { PersonScreen } from './features/person/PersonScreen'
 
 /**
  * "Ver todos (N)"/"Filmes (N)"/"Séries (N)" do Início (feature 026, FR-014)
@@ -48,7 +51,7 @@ function App() {
   // ações e se renderiza a tela atual. Toda regra de "para onde RETURN leva" e
   // de "o que zera a pilha" mora em `navigation/appNav.ts`.
   const [nav, dispatch] = useReducer(appNavReducer, undefined, initialAppNav)
-  const { screen, activeSource } = nav
+  const { screen, activeSource, history } = nav
 
   // Tecla amarela como atalho de favoritar (feature 013) e teclas de mídia
   // do controle (feature 027, FR-023) — registram uma vez, na raiz do app,
@@ -111,7 +114,15 @@ function App() {
     void queryClient.invalidateQueries({ queryKey: ['catalog-counts'] })
     void queryClient.invalidateQueries({ queryKey: ['catalog-item'] })
     void queryClient.invalidateQueries({ queryKey: ['sources'] })
+    // Feature 038: a estrutura pode ter mudado (categorias novas/removidas,
+    // renovação pedida) — a trilha relê e a pré-carga relê o disco.
+    void queryClient.invalidateQueries({ queryKey: ['categories'] })
+    void queryClient.invalidateQueries({ queryKey: ['category-content'] })
+    wakePrefetch()
   }, [autoRefreshJobId, autoRefreshJob.data?.status, queryClient])
+
+  // Feature 038 (D-010): a pré-carga acompanha a lista ativa.
+  usePrefetchForSource(activeSource?.id ?? null)
 
   /**
    * Escolher uma lista (feature 023, FR-005/FR-006/FR-007): vira a fonte
@@ -122,6 +133,9 @@ function App() {
   function chooseSource(source: SourceOut) {
     dispatch({ type: 'choose-source', source })
     writeLastSourceId(source.id)
+    // Mesma lista de antes (ex.: "Abrir lista" depois de ressincronizar): a
+    // pré-carga já roda, mas a estrutura pode ter mudado — relê o disco.
+    wakePrefetch()
     // Fogo e esquece: a leitura do catálogo sempre serve o que está
     // publicado agora (cache-first, ADR-002); a navegação nunca espera essa
     // decisão.
@@ -132,6 +146,32 @@ function App() {
         }
       },
     })
+  }
+
+  /**
+   * Detalhe → outro detalhe (Semelhantes, feature 035, `logic/navegacao-detalhe.md`
+   * §1): empilha a tela de origem já com o snapshot de onde o foco estava, para
+   * o RETURN restaurar aba e cartão por identidade.
+   */
+  function openDetail(target: OpenTitleTarget, from: AppScreen) {
+    dispatch({
+      type: 'open',
+      screen:
+        target.kind === 'movie'
+          ? { name: 'movie-detail', movieId: target.itemId }
+          : { name: 'series-detail', seriesId: target.itemId },
+      from,
+    })
+  }
+
+  /** Elenco → página de ator (feature 035, US4); RETURN volta ao detalhe com a aba Elenco e a pessoa focada. */
+  function openPerson(person: OpenPersonTarget, from: AppScreen) {
+    dispatch({ type: 'open', screen: { name: 'person', personId: person.personId, personName: person.name }, from })
+  }
+
+  /** "Configurar TMDB" da aba Semelhantes → Configurações › Integrações & BYOK; RETURN volta ao detalhe. */
+  function openTmdbSettings(from: AppScreen) {
+    dispatch({ type: 'open', screen: { name: 'settings', restore: { zone: 'panel', tab: 'integrations' } }, from })
   }
 
   /**
@@ -182,7 +222,15 @@ function App() {
           mode={screen.mode}
           initialFocusSourceId={screen.focusSourceId ?? readLastSourceId()}
           onChooseSource={chooseSource}
-          onAddSource={() => dispatch({ type: 'open', screen: { name: 'add-source' } })}
+          // Voltar do cadastro cai em "Adicionar lista", não na última lista
+          // usada (feature 037, FR-019/D-007): a pilha guarda este `from`.
+          onAddSource={() =>
+            dispatch({
+              type: 'open',
+              screen: { name: 'add-source' },
+              from: { ...screen, focusSourceId: ADD_LIST_FOCUS_ID },
+            })
+          }
           onEditSource={(sourceToEdit) => dispatch({ type: 'open', screen: { name: 'edit-source', source: sourceToEdit } })}
           onResyncStarted={(jobId) => dispatch({ type: 'open', screen: { name: 'progress', jobId } })}
           onSourceDeleted={(sourceId) => dispatch({ type: 'source-removed', sourceId })}
@@ -233,6 +281,11 @@ function App() {
         <HomeScreen
           source={source}
           initialFocus={screen.focus}
+          // Feature 038 (US6): a atualização automática por idade roda calada —
+          // o Início diz "Atualizando catálogo…" enquanto ela não termina.
+          updating={
+            autoRefreshJob.data?.source_id === source.id && !TERMINAL_STATUSES.includes(autoRefreshJob.data.status)
+          }
           onNavigate={(destination, from) =>
             dispatch({ type: 'open', screen: { name: destination }, from: { name: 'home', focus: from } })
           }
@@ -340,7 +393,18 @@ function App() {
       )
 
     case 'movie-detail':
-      return <MovieDetailScreen movieId={screen.movieId} onBack={goBack} />
+      return (
+        <MovieDetailScreen
+          // Um detalhe novo (Semelhantes → outro título) nunca reaproveita o estado do anterior.
+          key={`movie-${screen.movieId}-${history.length}`}
+          movieId={screen.movieId}
+          restore={screen.restore}
+          onBack={goBack}
+          onOpenTitle={(target, from) => openDetail(target, { ...screen, restore: from })}
+          onOpenPerson={(person, from) => openPerson(person, { ...screen, restore: from })}
+          onOpenTmdbSettings={(from) => openTmdbSettings({ ...screen, restore: from })}
+        />
+      )
 
     case 'series':
       if (!source) return null
@@ -376,7 +440,30 @@ function App() {
       )
 
     case 'series-detail':
-      return <SeriesDetailScreen seriesId={screen.seriesId} onBack={goBack} />
+      return (
+        <SeriesDetailScreen
+          key={`series-${screen.seriesId}-${history.length}`}
+          seriesId={screen.seriesId}
+          restore={screen.restore}
+          onBack={goBack}
+          onOpenTitle={(target, from) => openDetail(target, { ...screen, restore: from })}
+          onOpenPerson={(person, from) => openPerson(person, { ...screen, restore: from })}
+          onOpenTmdbSettings={(from) => openTmdbSettings({ ...screen, restore: from })}
+        />
+      )
+
+    case 'person':
+      return (
+        <PersonScreen
+          key={`person-${screen.personId}-${history.length}`}
+          personId={screen.personId}
+          personName={screen.personName}
+          sourceId={source?.id ?? ''}
+          restore={screen.restore}
+          onOpenTitle={(target, from) => openDetail(target, { ...screen, restore: from })}
+          onBack={goBack}
+        />
+      )
 
     case 'settings':
       return (

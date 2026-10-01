@@ -53,6 +53,15 @@ com nenhuma das alternativas sem reabrir o design** (D-007 em `plan.md`).
 Escolher em silêncio uma que muda o perfil de memória seria desfazer, sem
 registro, a decisão que a feature 005 tomou por medição.
 
+**Atualização (feature 038, 2026-09-30):** a alternativa "gravar tudo em
+segundo plano" foi **reaberta de forma registrada** pela feature
+`038-carga-listas-pre-carga`, numa forma diferente da descartada aqui: uma
+categoria por vez, pelo mesmo `ensureCategory` (ainda com `category_id` —
+nada de baixar a seção inteira), suspensa com tecla recente, player aberto,
+app oculto ou sem rede, com id preservado na renovação e exclusão de gerações
+antigas em partes, e com critério de recuo (FR-014) se a TV mostrar
+degradação. Ver `sdd/specs/038-carga-listas-pre-carga/research.md` R0-2.
+
 ## R0-2. Onde mora o prazo de validade de uma categoria
 
 **Decisão**: um instante de obtenção por categoria, comparado contra o

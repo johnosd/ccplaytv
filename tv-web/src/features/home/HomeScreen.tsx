@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { SourceOut } from '../import/importApi'
 import { invalidateUserStates, type CatalogItemOut } from '../catalog/catalogApi'
+import { usePrefetchProgress } from '../catalog/prefetchApi'
+import { homeStatusLine } from './homeStatusLine'
 import { HomeContent, type HomeContentFocus } from './HomeContent'
 import { AppShell } from '../shell/AppShell'
 import { TopBar } from '../shell/TopBar'
@@ -36,6 +38,8 @@ export interface HomeScreenProps {
   onOpenSearch: (from: HomeFocus) => void
   /** Engrenagem da topbar (FR-021). */
   onOpenSettings: (from: HomeFocus) => void
+  /** Feature 038 (US6): uma atualização da lista ativa está em andamento. */
+  updating?: boolean
 }
 
 const HINTS: HintItem[] = [
@@ -73,8 +77,25 @@ export function HomeScreen({
   onOpenIntegrations,
   onOpenSearch,
   onOpenSettings,
+  updating = false,
 }: HomeScreenProps): ReactNode {
   const queryClient = useQueryClient()
+
+  // Feature 038 (US6): "Preparando catálogo — N de M" / "Atualizando…" /
+  // "Catálogo atualizado há …". A idade anda sozinha: relê a cada minuto.
+  const prefetchProgress = usePrefetchProgress()
+  const [clock, setClock] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 60 * 1000)
+    return () => clearInterval(timer)
+  }, [])
+  const statusLine = homeStatusLine({
+    sourceId: source.id,
+    updating,
+    progress: prefetchProgress,
+    lastSuccessfulSyncAt: source.last_successful_sync_at ? Date.parse(source.last_successful_sync_at) : null,
+    now: clock,
+  })
   const [zone, setZone] = useState<'topbar' | 'content'>(initialFocus?.zone === 'topbar' ? 'topbar' : 'content')
   const [topbarItem, setTopbarItem] = useState<TopbarItem>(
     initialFocus?.zone === 'topbar' ? initialFocus.item : 'home',
@@ -147,6 +168,7 @@ export function HomeScreen({
           onOpenFavorites={onOpenFavorites}
           onOpenIntegrations={onOpenIntegrations}
           onPlay={startPlaying}
+          statusLine={statusLine}
         />
       </AppShell>
       {playing && (

@@ -619,3 +619,192 @@
   height: 100%;
   background: var(--accent);
 }
+
+/* Semelhantes e resumo de título (feature 035): só tokens V14. */
+.similar-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.similar-coverage,
+.similar-state {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.similar-chip {
+  position: absolute;
+  left: var(--space-1);
+  bottom: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--fs-caption);
+}
+
+.title-summary {
+  display: flex;
+  gap: var(--space-4);
+  max-width: 900px;
+}
+
+.title-summary-poster {
+  width: 205px;
+  flex: none;
+}
+
+.title-summary-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.title-summary-title {
+  font-size: var(--fs-h2, var(--fs-body));
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.title-summary-meta,
+.title-summary-note {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.title-summary-overview {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.similar-row {
+  display: flex;
+  gap: var(--space-3);
+  max-width: 100%;
+  padding: var(--space-2);
+  overflow-x: auto;
+}
+
+.similar-card {
+  position: relative;
+  flex: none;
+}
+
+/* Elenco com foto (feature 035, US3): só tokens V14. */
+.cast-people {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  max-width: 100%;
+}
+
+.cast-people-row {
+  display: flex;
+  gap: var(--space-3);
+  max-width: 100%;
+  padding: var(--space-2);
+  overflow-x: auto;
+}
+
+.cast-person {
+  flex: none;
+  width: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  text-align: center;
+}
+
+.cast-person-name {
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.cast-person-character {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.person-photo {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.person-photo-initials {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.person-photo-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Página de ator (feature 035, US4): raiz `.screen`, sem topbar. */
+.person-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  overflow-y: auto;
+}
+
+.person-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.person-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.person-name {
+  font-size: var(--fs-h2, var(--fs-body));
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.person-state,
+.person-coverage {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.person-rail-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.person-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.similar-chip--found {
+  color: var(--accent);
+}

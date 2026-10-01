@@ -19,6 +19,7 @@ import { createServer } from 'node:http'
 import { existsSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
 import { chromium } from 'playwright'
+import { cadastrarListaM3u } from './lib/entrada.mjs'
 
 const APP_URL = 'http://localhost:5173'
 const MINUTE = 60_000
@@ -126,9 +127,7 @@ async function addSource(page, name, m3uUrl, { first }) {
   if (first) await page.keyboard.press('Enter')
   else await page.locator('.add-card').click()
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
-  await page.getByLabel('Nome de exibição').fill(name)
-  await page.getByLabel('URL da lista M3U').fill(m3uUrl)
-  await page.getByRole('button', { name: 'Adicionar lista' }).click()
+  await cadastrarListaM3u(page, { nome: name, url: m3uUrl })
   await page.waitForSelector('text=/Concluída/', { timeout: 20000 })
   await page.getByRole('button', { name: 'Abrir lista' }).click()
   await page.waitForSelector('.topbar', { timeout: 8000 })

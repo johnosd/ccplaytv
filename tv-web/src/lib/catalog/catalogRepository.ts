@@ -9,8 +9,14 @@
  * 1. **Leitura é sempre da geração ativa**, e quem chama não informa
  *    geração. Isso impede uma tela de ler pela metade um catálogo que
  *    ainda está sendo escrito.
- * 2. **Escrita é sempre numa geração nova**, publicada só no fim (D-004).
- *    A anterior continua legível enquanto isso.
+ * 2. **Importação que troca de caminho escreve numa geração nova**, publicada
+ *    só no fim (D-004 da 005) — a anterior continua legível enquanto isso.
+ *    **Desde a feature 038 (D-004, R-010)**, a atualização pelo mesmo caminho
+ *    (Xtream→Xtream, conteúdo guardado→conteúdo guardado) e a renovação dos
+ *    itens de uma categoria escrevem **na geração ativa**: com a pré-carga, a
+ *    geração nova apagaria o catálogo inteiro numa transação só e esfriaria
+ *    tudo. Cada escrita deixa a categoria inteira antiga ou inteira nova, nunca
+ *    pela metade (`applyStructureRefresh`, `renewCategoryItems`).
  */
 
 import {
@@ -18,6 +24,7 @@ import {
   type CatalogDb,
   type CatalogRecord,
   type CatalogItemKind,
+  type CategoryBlockRecord,
   type CategoryKind,
   type CategoryRecord,
   type CatalogFetchMode,
@@ -25,6 +32,17 @@ import {
   type UserStateRecord,
 } from './db'
 import { parseStableId, type StableIdParts } from './userStateRepository'
+import { categoryMatchKey, diffCategories } from './structureDiff'
+import {
+  blockRecord,
+  blockRecords,
+  blocksOfKind,
+  blocksOfSource,
+  categoryIdOfBlockItem,
+  KIND_MAX,
+  KIND_MIN,
+  writeBlockWithin,
+} from './categoryBlocks'
 
 /**
  * Limites da faixa de `generation` e de `groupOrder` nas consultas por
@@ -87,6 +105,8 @@ export interface CatalogCategory {
   declaredCount?: number
   /** Instante da última obtenção dos itens. `undefined` = nunca obtida. */
   itemsFetchedAt?: number
+  /** Renovação pedida por uma atualização de estrutura (feature 038, FR-025). Pendente quando > `itemsFetchedAt`. */
+  renewRequestedAt?: number
 }
 
 /** O que se grava ao registrar a estrutura de uma fonte (feature 010). */
@@ -227,8 +247,11 @@ export async function listCategories(
         (record) => record.generation === generation,
       )
 
+  // Feature 038 (D-005): `order` é a chave dos itens e nunca muda depois de
+  // criada; a posição de exibição que a última atualização declarou é
+  // `position` (ausente = `order`, registro anterior à 038).
   return records
-    .sort((a, b) => a.order - b.order)
+    .sort((a, b) => (a.position ?? a.order) - (b.position ?? b.order) || a.order - b.order)
     .map((record) => ({
       id: record.id as number,
       kind: record.kind,
@@ -239,6 +262,7 @@ export async function listCategories(
       providerCategoryId: record.providerCategoryId,
       declaredCount: record.declaredCount,
       itemsFetchedAt: record.itemsFetchedAt,
+      renewRequestedAt: record.renewRequestedAt,
     }))
 }
 
@@ -268,11 +292,11 @@ export async function storeCategories(
  * Substitui integralmente os itens de uma categoria e carimba a obtenção,
  * numa única transação (contrato §1, D-006).
  *
- * Substituição **parcial** deixaria item órfão de uma obtenção anterior —
- * por isso os itens antigos daquela categoria são removidos antes dos
- * novos entrarem, no mesmo lock. Localiza pelo mesmo `groupOrder` que a
- * categoria declara: é o eixo que já ordena a leitura paginada, e cada
- * categoria tem o seu, sem colisão com outra do mesmo `kind`.
+ * Desde a feature 039 os itens vão para o **bloco** da categoria
+ * (`categoryBlocks.ts`), e as linhas antigas daquela categoria saem no mesmo
+ * lock — nunca item órfão, nunca duas cópias. A posição na ordem em que o
+ * provedor entregou continua sendo a base do número do canal (feature 024,
+ * `logic/numero-do-canal.md` §4): é a posição no bloco.
  */
 export async function storeCategoryItems(
   target: CategoryItemsTarget,
@@ -280,38 +304,161 @@ export async function storeCategoryItems(
   now: number,
   database: CatalogDb = db,
 ): Promise<void> {
+  await renewCategoryItems(target, items, now, database)
+}
+
+/**
+ * Renova os itens de uma categoria **preservando o id local** de cada item que
+ * continua na fonte (feature 038, FR-027, `logic/atualizacao-sem-esfriar.md`
+ * §4) — foco, detalhe aberto e snapshot de volta guardam esse id. Casa por
+ * identidade (id do provedor; série pelo `seriesId`; M3U pelo nome original),
+ * nunca por posição nem por URL. Item que saiu é removido, item novo ganha id
+ * novo, e campos gravados por outros carregadores (`episodesFetchedAt`) são
+ * mantidos. Assinatura igual à gravada = nada é escrito além do instante
+ * (`written: false`).
+ */
+export async function renewCategoryItems(
+  target: CategoryItemsTarget,
+  items: CatalogRecord[],
+  now: number,
+  database: CatalogDb = db,
+): Promise<{ written: boolean }> {
   try {
-    await database.transaction('rw', database.channels, database.categories, async () => {
-      await database.channels
-        .where('[sourceId+generation+kind+groupOrder]')
-        .equals([target.sourceId, target.generation, target.kind, target.groupOrder])
-        .delete()
-
-      if (items.length > 0) {
-        await database.channels.bulkAdd(
-          items.map((item, index) => ({
-            ...item,
-            sourceId: target.sourceId,
-            generation: target.generation,
-            kind: target.kind,
-            groupOrder: target.groupOrder,
-            categoryId: target.categoryId,
-            // Feature 024: posição na ordem em que o provedor entregou —
-            // base do número de exibição do canal (`logic/numero-do-canal.md` §4).
-            categoryPosition: index,
-          })),
-        )
-      }
-
-      await database.categories.update(target.categoryId, {
-        itemsFetchedAt: now,
-        itemsCount: items.length,
-      })
-    })
+    return await database.transaction(
+      'rw',
+      database.channels,
+      database.categories,
+      database.categoryBlocks,
+      async () => ({ written: await writeBlockWithin(target, items, now, database) }),
+    )
   } catch (error) {
     if (isQuotaError(error)) throw new StorageFullError()
     throw error
   }
+}
+
+/** Uma categoria lida numa atualização (feature 038, `logic/atualizacao-sem-esfriar.md` §4). */
+export interface RefreshedCategory {
+  kind: CategoryKind
+  fetchMode: CatalogFetchMode
+  providerCategoryId?: string
+  name?: string
+  /** Posição de exibição declarada nesta atualização. */
+  position: number
+  declaredCount?: number
+  /** Só `stored`: onde está o conteúdo novo (geração de varredura). */
+  storedFrom?: { generation: number; categoryId: number }
+}
+
+export interface StructureRefreshResult {
+  kept: number
+  added: number
+  removed: number
+}
+
+/**
+ * Aplica uma atualização de estrutura **na geração ativa** (feature 038,
+ * D-004, `logic/atualizacao-sem-esfriar.md` §4.2/§4.3): categoria mantida
+ * conserva id, `order` e itens (servidos até a renovação chegar) e ganha
+ * nome/posição/contagem novos e `renewRequestedAt`; categoria nova entra fria,
+ * com o próximo `order` livre da seção; categoria que saiu vai embora com os
+ * itens (e, se de séries, os episódios delas). Seções fora de `kinds` (o
+ * painel não as serviu) ficam intactas. Uma transação: ou tudo, ou nada
+ * (FR-030).
+ */
+export async function applyStructureRefresh(
+  sourceId: string,
+  generation: number,
+  kinds: readonly CategoryKind[],
+  incoming: readonly RefreshedCategory[],
+  now: number,
+  database: CatalogDb = db,
+): Promise<StructureRefreshResult> {
+  return database.transaction('rw', database.categories, database.channels, database.categoryBlocks, async () => {
+    const existing = (await database.categories.where('sourceId').equals(sourceId).toArray()).filter(
+      (record) => record.generation === generation && kinds.includes(record.kind),
+    )
+    const diff = diffCategories(
+      existing.map((record) => ({
+        id: record.id as number,
+        kind: record.kind,
+        matchKey: categoryMatchKey(record.providerCategoryId, record.name),
+      })),
+      incoming.map((category, index) => ({
+        kind: category.kind,
+        matchKey: categoryMatchKey(category.providerCategoryId, category.name),
+        name: category.name,
+        position: index,
+        declaredCount: category.declaredCount,
+      })),
+    )
+    // O diff devolve os `IncomingCategory` que recebeu — voltar ao registro completo pela posição.
+    const full = (position: number) => incoming[position]
+
+    for (const { id, incoming: next } of diff.keep) {
+      const source = full(next.position)
+      await database.categories.update(id, {
+        name: source.name,
+        position: source.position,
+        declaredCount: source.declaredCount,
+        renewRequestedAt: now,
+        ...(source.storedFrom ? { storedFrom: source.storedFrom } : {}),
+      })
+    }
+
+    const nextOrder = new Map<CategoryKind, number>()
+    for (const record of existing) {
+      nextOrder.set(record.kind, Math.max(nextOrder.get(record.kind) ?? -1, record.order))
+    }
+    for (const next of diff.add) {
+      const source = full(next.position)
+      const order = (nextOrder.get(source.kind) ?? -1) + 1
+      nextOrder.set(source.kind, order)
+      await database.categories.add({
+        sourceId,
+        generation,
+        kind: source.kind,
+        fetchMode: source.fetchMode,
+        providerCategoryId: source.providerCategoryId,
+        name: source.name,
+        order,
+        position: source.position,
+        declaredCount: source.declaredCount,
+        storedFrom: source.storedFrom,
+      } as CategoryRecord)
+    }
+
+    for (const id of diff.remove) {
+      const record = existing.find((candidate) => candidate.id === id)
+      if (!record) continue
+      const rows = await database.channels
+        .where('[sourceId+generation+kind+groupOrder]')
+        .equals([sourceId, generation, record.kind, record.order])
+        .toArray()
+      // Feature 039: a categoria pode estar em bloco (formato novo) ou em
+      // linhas (antigo, ainda não convertida) — as duas saem.
+      const block = await database.categoryBlocks.get(id)
+      const items = [...rows, ...(block ? blockRecords(block) : [])]
+      if (block) await database.categoryBlocks.delete(id)
+      if (record.kind === 'series') {
+        for (const seriesId of new Set(items.map((item) => item.seriesId).filter((value): value is string => !!value))) {
+          await database.channels
+            .where('[sourceId+generation+seriesId]')
+            .equals([sourceId, generation, seriesId])
+            .delete()
+        }
+        // Episódios de série M3U guardam o `groupOrder` da categoria.
+        await database.channels
+          .where('[sourceId+generation+kind+groupOrder]')
+          .equals([sourceId, generation, 'episode', record.order])
+          .delete()
+      }
+      await database.channels.bulkDelete(rows.map((item) => item.id as number))
+      await database.categories.delete(id)
+    }
+
+    return { kept: diff.keep.length, added: diff.add.length, removed: diff.remove.length }
+  })
 }
 
 /**
@@ -365,6 +512,12 @@ export async function storeStoredCategory(
   episodes: StoredCatalogRecord[],
   now: number,
   database: CatalogDb = db,
+  /**
+   * Feature 038 (`logic/atualizacao-sem-esfriar.md` §4.3): de onde vieram os
+   * blocos — a geração de varredura de uma atualização (`storedFrom`).
+   * Ausente = os blocos são da própria categoria (regra da 014).
+   */
+  chunksFrom?: { generation: number; categoryId: number },
 ): Promise<void> {
   try {
     await database.transaction(
@@ -372,35 +525,24 @@ export async function storeStoredCategory(
       database.channels,
       database.categories,
       database.storedEntries,
+      database.categoryBlocks,
       async () => {
-        // Substituição integral, não parcial — mesmo motivo de
-        // `storeCategoryItems`, ainda que numa primeira leitura não haja
-        // nada prévio para remover.
-        await database.channels
-          .where('[sourceId+generation+kind+groupOrder]')
-          .equals([target.sourceId, target.generation, target.kind, target.groupOrder])
-          .delete()
+        // Episódios: substituição integral (D-011 da 038) — retomada e
+        // "assistido" são por `stableId`, não pelo id local do episódio.
         await database.channels
           .where('[sourceId+generation+kind+groupOrder]')
           .equals([target.sourceId, target.generation, 'episode', target.groupOrder])
           .delete()
 
-        if (items.length > 0) {
-          await database.channels.bulkAdd(
-            items.map((item, index) => ({
-              ...item,
-              sourceId: target.sourceId,
-              generation: target.generation,
-              kind: target.kind,
-              groupOrder: target.groupOrder,
-              categoryId: target.categoryId,
-              // Feature 024: posição na ordem do arquivo — base do número
-              // de exibição do canal (`logic/numero-do-canal.md` §4). Só
-              // os itens da categoria, nunca os episódios (abaixo).
-              categoryPosition: index,
-            })),
-          )
-        }
+        // Itens: bloco da categoria, com id preservado (feature 038, D-006;
+        // feature 039). A posição na ordem do arquivo continua sendo
+        // `categoryPosition`, base do número do canal — `logic/numero-do-canal.md` §4.
+        await writeBlockWithin(
+          target,
+          items.map((item) => ({ ...item, sourceId: target.sourceId, generation: target.generation })),
+          now,
+          database,
+        )
 
         if (episodes.length > 0) {
           await database.channels.bulkAdd(
@@ -416,16 +558,16 @@ export async function storeStoredCategory(
           )
         }
 
-        await database.categories.update(target.categoryId, {
-          itemsFetchedAt: now,
-          itemsCount: items.length,
-        })
+        // `writeBlockWithin` já carimbou `itemsFetchedAt`/`itemsCount`; o ponteiro
+        // para os blocos da atualização some junto com os blocos.
+        await database.categories.update(target.categoryId, { storedFrom: undefined })
 
+        const from = chunksFrom ?? { generation: target.generation, categoryId: target.categoryId }
         await database.storedEntries
           .where('[sourceId+generation+categoryId+chunk]')
           .between(
-            [target.sourceId, target.generation, target.categoryId, KEY_MIN],
-            [target.sourceId, target.generation, target.categoryId, KEY_MAX],
+            [target.sourceId, from.generation, from.categoryId, KEY_MIN],
+            [target.sourceId, from.generation, from.categoryId, KEY_MAX],
             true,
             true,
           )
@@ -451,7 +593,141 @@ export async function listAllOfKind(
 ): Promise<CatalogRecord[]> {
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return []
-  return query(database, sourceId, generation, undefined, kind).toArray()
+  // Feature 039 (`logic/blocos-e-identidade.md` §5): blocos do tipo + linhas
+  // das categorias ainda no formato antigo. Uma categoria é ou uma ou outra,
+  // então juntar não duplica. Ordem: `groupOrder` (a da leitura por índice de
+  // antes), e dentro da categoria a da fonte — `sort` é estável.
+  const blocks = await blocksOfKind(database, sourceId, generation, kind).toArray()
+  const rows = await query(database, sourceId, generation, undefined, kind).toArray()
+  if (blocks.length === 0) return rows
+  blocks.sort((a, b) => a.groupOrder - b.groupOrder)
+  const records = blocks.flatMap(blockRecords)
+  if (rows.length === 0) return records
+  return [...records, ...rows].sort((a, b) => a.groupOrder - b.groupOrder)
+}
+
+/** Um pedaço de uma página de "Todos": o bloco de uma categoria, ou as linhas dela (formato antigo). */
+export type KindPageChunk = { block: CategoryBlockRecord } | { rows: CatalogRecord[] }
+
+export interface KindPage {
+  chunks: KindPageChunk[]
+  /** Cursor da próxima página; `undefined` = acabou. */
+  next: number | undefined
+}
+
+/**
+ * "Todos" aos poucos (feature 039, T022): a partir da categoria `cursor` (na
+ * ordem de `order`, a mesma de `listAllOfKind`), lê categoria por categoria —
+ * bloco, ou as linhas se ainda no formato antigo — até juntar `minItems`
+ * itens. Uma categoria nunca é partida. Concatenar todas as páginas dá a mesma
+ * sequência de `listAllOfKind`, sem nunca ter o tipo inteiro na memória.
+ */
+export async function readKindPage(
+  sourceId: string,
+  kind: CatalogItemKind,
+  cursor: number,
+  minItems: number,
+  database: CatalogDb = db,
+): Promise<KindPage> {
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined || kind === 'episode') return { chunks: [], next: undefined }
+  const categories = await database.categories
+    .where('[sourceId+generation+kind+order]')
+    .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
+    .toArray()
+  const chunks: KindPageChunk[] = []
+  let count = 0
+  let index = cursor
+  while (index < categories.length && count < minItems) {
+    const category = categories[index]
+    index += 1
+    const block = await database.categoryBlocks.get(category.id as number)
+    if (block && block.sourceId === sourceId && block.generation === generation) {
+      if (block.items.length > 0) chunks.push({ block })
+      count += block.items.length
+      continue
+    }
+    const rows = await query(database, sourceId, generation, category.order, kind).toArray()
+    if (rows.length > 0) chunks.push({ rows })
+    count += rows.length
+  }
+  return { chunks, next: index < categories.length ? index : undefined }
+}
+
+/**
+ * Se algum item do tipo declara ano / data de inclusão (feature 039, T033) —
+ * decide as opções "Ano"/"Recém-adicionados" de "Ordenar" em "Todos" aos
+ * poucos, que só tem parte do tipo na memória. Lê um bloco por vez (FR-013)
+ * e para assim que achar os dois; depois, as linhas do formato antigo.
+ */
+export async function kindSortFields(
+  sourceId: string,
+  kind: CatalogItemKind,
+  database: CatalogDb = db,
+): Promise<{ year: boolean; addedAt: boolean }> {
+  const found = { year: false, addedAt: false }
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined || kind === 'episode') return found
+  const take = (item: { year?: number; addedAt?: number }) => {
+    if (item.year != null) found.year = true
+    if (item.addedAt != null) found.addedAt = true
+  }
+  try {
+    await blocksOfKind(database, sourceId, generation, kind).each((block) => {
+      for (const item of block.items) take(item)
+      if (found.year && found.addedAt) throw new FavoritesScanComplete()
+    })
+    await query(database, sourceId, generation, undefined, kind).each((record) => {
+      take(record)
+      if (found.year && found.addedAt) throw new FavoritesScanComplete()
+    })
+  } catch (error) {
+    if (!(error instanceof FavoritesScanComplete)) throw error
+  }
+  return found
+}
+
+/** Categorias da geração ativa com um dado `order` (e `kind`, se informado). */
+async function categoriesAtOrder(
+  database: CatalogDb,
+  sourceId: string,
+  generation: number,
+  groupOrder: number,
+  kind?: CatalogItemKind,
+): Promise<CategoryRecord[]> {
+  if (kind) {
+    if (kind === 'episode') return []
+    return database.categories
+      .where('[sourceId+generation+kind+order]')
+      .equals([sourceId, generation, kind, groupOrder])
+      .toArray()
+  }
+  return (await database.categories.where('sourceId').equals(sourceId).toArray()).filter(
+    (record) => record.generation === generation && record.order === groupOrder,
+  )
+}
+
+/**
+ * Itens de uma categoria (ou de todas as que têm aquele `order`, sem `kind`):
+ * do bloco, se houver; das linhas antigas, senão (feature 039, §5).
+ */
+async function readCategory(
+  database: CatalogDb,
+  sourceId: string,
+  generation: number,
+  groupOrder: number,
+  kind?: CatalogItemKind,
+): Promise<CatalogRecord[]> {
+  const categories = await categoriesAtOrder(database, sourceId, generation, groupOrder, kind)
+  const blocks = (await database.categoryBlocks.bulkGet(categories.map((category) => category.id as number))).filter(
+    (block): block is NonNullable<typeof block> => !!block && block.generation === generation,
+  )
+  const fromBlocks = blocks.flatMap(blockRecords)
+  // Com `kind` e bloco achado, não há linha antiga daquela categoria (escrever
+  // o bloco as apaga) — poupa a segunda leitura no caminho quente.
+  if (kind && blocks.length > 0) return fromBlocks
+  const rows = await query(database, sourceId, generation, groupOrder, kind).toArray()
+  return fromBlocks.length > 0 ? [...fromBlocks, ...rows] : rows
 }
 
 /**
@@ -468,7 +744,36 @@ export async function listChannels(
 ): Promise<CatalogRecord[]> {
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return []
-  return query(database, sourceId, generation, groupOrder, kind).offset(offset).limit(limit).toArray()
+  // Feature 038 (D-006): a renovação preserva ids, então a ordem por id deixa
+  // de ser a da fonte — a ordem é `categoryPosition` (ausente = depois, por
+  // id, como gravado antes da 024). Ordena antes de fatiar.
+  const records = await readCategory(database, sourceId, generation, groupOrder, kind)
+  records.sort((a, b) => {
+    const pa = a.categoryPosition ?? Number.MAX_SAFE_INTEGER
+    const pb = b.categoryPosition ?? Number.MAX_SAFE_INTEGER
+    return pa - pb || (a.id ?? 0) - (b.id ?? 0)
+  })
+  return records.slice(offset, offset + limit)
+}
+
+/**
+ * O bloco de uma categoria da geração ativa, lido pela chave — o caminho
+ * rápido de abrir uma categoria (feature 039, R-009): uma leitura só, sem
+ * reidratar cada item num `CatalogRecord`, sem ordenar (o bloco já está na
+ * ordem da fonte). `undefined` = a categoria não tem bloco (formato antigo, ou
+ * nada no aparelho) — quem chama cai em `listChannels`, que lê as linhas.
+ */
+export async function getActiveCategoryBlock(
+  sourceId: string,
+  categoryId: number,
+  database: CatalogDb = db,
+): Promise<CategoryBlockRecord | undefined> {
+  const [generation, block] = await Promise.all([
+    activeGenerationOf(sourceId, database),
+    database.categoryBlocks.get(categoryId),
+  ])
+  if (!block || block.sourceId !== sourceId || block.generation !== generation) return undefined
+  return block
 }
 
 /**
@@ -483,14 +788,77 @@ export async function countChannels(
 ): Promise<number> {
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return 0
-  return query(database, sourceId, generation, groupOrder, kind).count()
+  if (groupOrder !== undefined) {
+    return (await readCategory(database, sourceId, generation, groupOrder, kind)).length
+  }
+  // Tipo (ou geração) inteiro: blocos + linhas — nunca a mesma categoria nos dois.
+  const blocks =
+    kind === 'episode'
+      ? []
+      : kind
+        ? await blocksOfKind(database, sourceId, generation, kind).toArray()
+        : (await blocksOfSource(database, sourceId).toArray()).filter((block) => block.generation === generation)
+  const inBlocks = blocks.reduce((total, block) => total + block.items.length, 0)
+  return inBlocks + (await query(database, sourceId, generation, undefined, kind).count())
 }
 
+/**
+ * Um item pelo id local. Id negativo = item de bloco (feature 039,
+ * `categoryIdOfBlockItem`); só é devolvido se o bloco for da geração ativa.
+ * Id positivo = linha (formato antigo, ou episódio).
+ */
 export async function getChannel(
   id: number,
   database: CatalogDb = db,
 ): Promise<CatalogRecord | undefined> {
-  return database.channels.get(id)
+  const categoryId = categoryIdOfBlockItem(id)
+  if (categoryId === undefined) return database.channels.get(id)
+  const block = await database.categoryBlocks.get(categoryId)
+  if (!block) return undefined
+  if ((await activeGenerationOf(block.sourceId, database)) !== block.generation) return undefined
+  const index = block.items.findIndex((item) => item.id === id)
+  return index < 0 ? undefined : blockRecord(block, block.items[index], index)
+}
+
+/**
+ * O registro `kind:'series'` de uma série pelo `seriesId`, na geração ativa
+ * (feature 039, §5): linhas pelo índice; senão, blocos de séries um por vez.
+ */
+export async function findSeriesRecord(
+  sourceId: string,
+  seriesId: string,
+  database: CatalogDb = db,
+): Promise<CatalogRecord | undefined> {
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined) return undefined
+  return findSeriesIn(database, sourceId, generation, seriesId)
+}
+
+async function findSeriesIn(
+  database: CatalogDb,
+  sourceId: string,
+  generation: number,
+  seriesId: string,
+): Promise<CatalogRecord | undefined> {
+  const row = await database.channels
+    .where('[sourceId+generation+seriesId]')
+    .equals([sourceId, generation, seriesId])
+    .and((candidate) => candidate.kind === 'series')
+    .first()
+  if (row) return row
+  let found: CatalogRecord | undefined
+  try {
+    await blocksOfKind(database, sourceId, generation, 'series').each((block) => {
+      const index = block.items.findIndex((item) => item.seriesId === seriesId)
+      if (index >= 0) {
+        found = blockRecord(block, block.items[index], index)
+        throw new FavoritesScanComplete()
+      }
+    })
+  } catch (error) {
+    if (!(error instanceof FavoritesScanComplete)) throw error
+  }
+  return found
 }
 
 /** Sentinela pra encerrar `.each()` mais cedo — nunca vaza pra fora desta função. */
@@ -515,11 +883,83 @@ export async function resolveFavorites(
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return { records: [], unresolved: favorites.length }
 
+  const resolved = await resolveStableIdsIn(database, sourceId, generation, kind, favorites)
+  const records: CatalogRecord[] = []
+  let unresolved = 0
+  for (const favorite of favorites) {
+    const record = resolved.get(favorite)
+    if (record) records.push(record)
+    else unresolved += 1
+  }
+  return { records, unresolved }
+}
+
+/**
+ * Várias identidades do mesmo `kind` → registro, numa passada (feature 039,
+ * T034) — o mapa diz de quem é cada registro; identidade sem registro não
+ * entra. Mesma resolução de `resolveFavorites`.
+ */
+export async function resolveStableIds(
+  sourceId: string,
+  kind: CatalogItemKind,
+  parts: StableIdParts[],
+  database: CatalogDb = db,
+): Promise<Map<StableIdParts, CatalogRecord>> {
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined) return new Map()
+  return resolveStableIdsIn(database, sourceId, generation, kind, parts)
+}
+
+/**
+ * Núcleo de `resolveFavorites`: cada identidade (todas do mesmo `kind`) →
+ * registro da geração ativa, numa passada só pelos blocos do tipo e depois
+ * pelas linhas. O mapa diz de QUEM é cada registro — o que permite resolver
+ * vários itens de uma vez (feature 039, T019).
+ */
+async function resolveStableIdsIn(
+  database: CatalogDb,
+  sourceId: string,
+  generation: number,
+  kind: CatalogItemKind,
+  favorites: StableIdParts[],
+): Promise<Map<StableIdParts, CatalogRecord>> {
   const resolved = new Map<StableIdParts, CatalogRecord>()
+
+  // Feature 039 (§5): primeiro os blocos do tipo, UM POR VEZ (memória,
+  // FR-013), parando assim que todos os favoritos forem achados; depois as
+  // linhas antigas, só para o que sobrou. Uma categoria é ou bloco ou linhas.
+  if (kind !== 'episode' && favorites.length > 0) {
+    const byId = new Map<string, StableIdParts>()
+    const byNameKey = new Map<string, StableIdParts>()
+    for (const favorite of favorites) {
+      if (favorite.identifier.type === 'id') byId.set(favorite.identifier.value, favorite)
+      else byNameKey.set(favorite.identifier.value, favorite)
+    }
+    let remaining = favorites.length
+    const take = (target: StableIdParts | undefined, record: () => CatalogRecord) => {
+      if (!target || resolved.has(target)) return
+      resolved.set(target, record())
+      remaining -= 1
+    }
+    try {
+      await blocksOfKind(database, sourceId, generation, kind).each((block) => {
+        block.items.forEach((item, index) => {
+          const record = () => blockRecord(block, item, index)
+          if (item.providerStreamId) take(byId.get(item.providerStreamId), record)
+          if (kind === 'series' && item.seriesId) take(byId.get(item.seriesId), record)
+          if (byNameKey.size > 0) take(byNameKey.get(item.originalName.trim().toLowerCase()), record)
+        })
+        if (remaining === 0) throw new FavoritesScanComplete()
+      })
+    } catch (error) {
+      if (!(error instanceof FavoritesScanComplete)) throw error
+    }
+    if (remaining === 0) return resolved
+  }
 
   // Id do painel: um lookup pelo índice por favorito — nunca uma varredura.
   for (const favorite of favorites) {
-    if (favorite.identifier.type !== 'id') continue
+    if (favorite.identifier.type !== 'id' || resolved.has(favorite)) continue
     const value = favorite.identifier.value
 
     let record = await database.channels
@@ -546,7 +986,7 @@ export async function resolveFavorites(
   // nunca por item, nunca ao focar (D-005 do plan.md).
   const byName = favorites.filter(
     (favorite): favorite is StableIdParts & { identifier: { type: 'name'; value: string } } =>
-      favorite.identifier.type === 'name',
+      favorite.identifier.type === 'name' && !resolved.has(favorite),
   )
   if (byName.length > 0) {
     const targetsByName = new Map(byName.map((favorite) => [favorite.identifier.value, favorite]))
@@ -574,14 +1014,7 @@ export async function resolveFavorites(
     }
   }
 
-  const records: CatalogRecord[] = []
-  let unresolved = 0
-  for (const favorite of favorites) {
-    const record = resolved.get(favorite)
-    if (record) records.push(record)
-    else unresolved += 1
-  }
-  return { records, unresolved }
+  return resolved
 }
 
 /**
@@ -609,32 +1042,80 @@ export async function resolveContinueWatching(
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return []
 
-  const records: CatalogRecord[] = []
-  for (const state of states) {
-    const parts = parseStableId(state.stableId)
+  // Feature 039 (T019): em lote — uma resolução por TIPO (uma passada pelos
+  // blocos daquele tipo), não uma por item; o mapa de `resolveStableIdsIn`
+  // diz a que item cada registro pertence, então a ordem de entrada é mantida.
+  const parsed = states.map((state) => parseStableId(state.stableId))
+  const byKind = new Map<CatalogItemKind, StableIdParts[]>()
+  for (const parts of parsed) {
     if (!parts) continue
-    // Um item por vez (não em lote): `resolveFavorites` devolve só os
-    // resolvidos, sem dizer QUAL `StableIdParts` cada um era — em lote não
-    // dá pra saber com segurança se `records[i]` corresponde a `parts[i]`
-    // quando algum item no meio não resolve. A lista de "Continuar
-    // assistindo" é pequena (itens em progresso, não o catálogo inteiro),
-    // então o custo de uma resolução por item é aceitável.
-    const { records: resolved } = await resolveFavorites(sourceId, parts.kind, [parts], database)
-    const record = resolved[0]
-    if (!record) continue
+    const group = byKind.get(parts.kind)
+    if (group) group.push(parts)
+    else byKind.set(parts.kind, [parts])
+  }
+  const resolved = new Map<StableIdParts, CatalogRecord>()
+  for (const [kind, group] of byKind) {
+    for (const [parts, record] of await resolveStableIdsIn(database, sourceId, generation, kind, group)) {
+      resolved.set(parts, record)
+    }
+  }
 
+  // Episódio vira a série-pai — todas as séries numa passada só.
+  const seriesIds = new Set<string>()
+  for (const record of resolved.values()) {
+    if (record.kind === 'episode' && record.seriesId) seriesIds.add(record.seriesId)
+  }
+  const seriesById = await findSeriesManyIn(database, sourceId, generation, seriesIds)
+
+  const records: CatalogRecord[] = []
+  for (const parts of parsed) {
+    const record = parts ? resolved.get(parts) : undefined
+    if (!record) continue
     if (record.kind !== 'episode' || !record.seriesId) {
       records.push(record)
       continue
     }
-    const series = await database.channels
-      .where('[sourceId+generation+seriesId]')
-      .equals([sourceId, generation, record.seriesId])
-      .and((candidate) => candidate.kind === 'series')
-      .first()
+    const series = seriesById.get(record.seriesId)
     if (series) records.push(series)
   }
   return records
+}
+
+/**
+ * Vários registros `kind:'series'` por `seriesId` (feature 039, T019): linhas
+ * pelo índice, uma consulta por série; o que faltar, numa passada só pelos
+ * blocos de séries, parando quando todas forem achadas. Mesmo resultado de
+ * `findSeriesIn` para cada id.
+ */
+async function findSeriesManyIn(
+  database: CatalogDb,
+  sourceId: string,
+  generation: number,
+  seriesIds: ReadonlySet<string>,
+): Promise<Map<string, CatalogRecord>> {
+  const found = new Map<string, CatalogRecord>()
+  for (const seriesId of seriesIds) {
+    const row = await database.channels
+      .where('[sourceId+generation+seriesId]')
+      .equals([sourceId, generation, seriesId])
+      .and((candidate) => candidate.kind === 'series')
+      .first()
+    if (row) found.set(seriesId, row)
+  }
+  if (found.size === seriesIds.size) return found
+  try {
+    await blocksOfKind(database, sourceId, generation, 'series').each((block) => {
+      block.items.forEach((item, index) => {
+        if (item.seriesId && seriesIds.has(item.seriesId) && !found.has(item.seriesId)) {
+          found.set(item.seriesId, blockRecord(block, item, index))
+        }
+      })
+      if (found.size === seriesIds.size) throw new FavoritesScanComplete()
+    })
+  } catch (error) {
+    if (!(error instanceof FavoritesScanComplete)) throw error
+  }
+  return found
 }
 
 /**
@@ -690,7 +1171,7 @@ export async function storeSeriesEpisodes(
   database: CatalogDb = db,
 ): Promise<void> {
   try {
-    await database.transaction('rw', database.channels, async () => {
+    await database.transaction('rw', database.channels, database.categoryBlocks, async () => {
       const existing = await database.channels
         .where('[sourceId+generation+seriesId]')
         .equals([target.sourceId, target.generation, target.seriesId])
@@ -712,7 +1193,19 @@ export async function storeSeriesEpisodes(
         )
       }
 
-      await database.channels.update(target.seriesRecordId, { episodesFetchedAt: now })
+      // Feature 039 (§7): série em bloco (id negativo) recebe o carimbo dentro
+      // do bloco — um `put` por abertura de série.
+      const categoryId = categoryIdOfBlockItem(target.seriesRecordId)
+      if (categoryId === undefined) {
+        await database.channels.update(target.seriesRecordId, { episodesFetchedAt: now })
+      } else {
+        const block = await database.categoryBlocks.get(categoryId)
+        const item = block?.items.find((candidate) => candidate.id === target.seriesRecordId)
+        if (block && item) {
+          item.episodesFetchedAt = now
+          await database.categoryBlocks.put(block)
+        }
+      }
     })
   } catch (error) {
     if (isQuotaError(error)) throw new StorageFullError()
@@ -777,24 +1270,96 @@ export async function publishGeneration(
     database.channels,
     database.categories,
     database.storedEntries,
+    database.categoryBlocks,
     async () => {
       await database.sources.update(sourceId, { activeGeneration: generation, updatedAt: Date.now() })
-      await allGenerations(database, sourceId)
-        .and((channel) => channel.generation !== generation)
+      // Blocos de outras gerações (feature 039, §8): um registro por categoria — barato.
+      await blocksOfSource(database, sourceId)
+        .and((block) => block.generation !== generation)
         .delete()
       // Estrutura da geração anterior sai junto (feature 010) — nunca
-      // `userStates`, que não tem noção de geração (D-002 do plan.md).
+      // `userStates`, que não tem noção de geração (D-002 do plan.md). É
+      // pequena (centenas de linhas).
       await allCategoryGenerations(database, sourceId)
         .and((category) => category.generation !== generation)
         .delete()
-      // Conteúdo guardado da geração anterior (feature 014) — mesmo motivo:
-      // uma categoria `stored` ainda não lida da geração que saiu de ar não
-      // tem para onde apontar depois da troca.
-      await allStoredEntriesGenerations(database, sourceId)
-        .and((entry) => entry.generation !== generation)
-        .delete()
+      // Itens e conteúdo guardado da geração anterior NÃO saem aqui (feature
+      // 038, D-008): com o catálogo pré-carregado, apagá-los nesta transação
+      // seria o gargalo que congelou a TV na 010. Ficam invisíveis (toda
+      // leitura filtra pela geração ativa) e a pré-carga os apaga em partes
+      // (`collectStaleGenerations`).
     },
   )
+}
+
+/**
+ * Apaga, **uma parte por vez**, itens e blocos guardados de gerações que não
+ * servem mais (feature 038, D-008, `logic/atualizacao-sem-esfriar.md` §7) — o
+ * que `publishGeneration` deixou de apagar numa transação só (com o catálogo
+ * pré-carregado, essa transação congelaria a TV). Nunca toca: a geração ativa,
+ * gerações apontadas por `storedFrom` (conteúdo novo ainda não lido) e
+ * gerações de importação em andamento. Usa só faixas do índice
+ * `[sourceId+generation]` entre as protegidas — nunca varre a geração ativa.
+ *
+ * @returns `true` se ainda sobrou algo para apagar.
+ */
+export async function collectStaleGenerations(
+  sourceId: string,
+  options: { batchSize?: number } = {},
+  database: CatalogDb = db,
+): Promise<boolean> {
+  const batchSize = options.batchSize ?? 2000
+  const active = await activeGenerationOf(sourceId, database)
+  if (active === undefined) return false
+
+  const protectedGenerations = new Set<number>([active])
+  const categories = await allCategoryGenerations(database, sourceId).toArray()
+  for (const category of categories) {
+    if (category.generation === active && category.storedFrom) protectedGenerations.add(category.storedFrom.generation)
+  }
+  const runs = await database.importRuns.where('[sourceId+status]').equals([sourceId, 'running']).toArray()
+  for (const run of runs) protectedGenerations.add(run.generation)
+
+  const sorted = [...protectedGenerations].sort((a, b) => a - b)
+  const ranges: Array<[number, number]> = []
+  let low = KEY_MIN
+  for (const generation of sorted) {
+    if (generation - 1 >= low) ranges.push([low, generation - 1])
+    low = generation + 1
+  }
+  ranges.push([low, KEY_MAX])
+
+  let deleted = 0
+  for (const [from, to] of ranges) {
+    if (deleted >= batchSize) break
+    const channelKeys = await database.channels
+      .where('[sourceId+generation]')
+      .between([sourceId, from], [sourceId, to], true, true)
+      .limit(batchSize - deleted)
+      .primaryKeys()
+    if (channelKeys.length > 0) await database.channels.bulkDelete(channelKeys)
+    deleted += channelKeys.length
+    if (deleted >= batchSize) break
+    const entryKeys = await database.storedEntries
+      .where('[sourceId+generation]')
+      .between([sourceId, from], [sourceId, to], true, true)
+      .limit(batchSize - deleted)
+      .primaryKeys()
+    if (entryKeys.length > 0) await database.storedEntries.bulkDelete(entryKeys)
+    deleted += entryKeys.length
+    if (deleted >= batchSize) break
+    // Blocos (feature 039, §8): cada um conta como um registro.
+    const blockKeys = await database.categoryBlocks
+      .where('[sourceId+generation+kind]')
+      .between([sourceId, from, KIND_MIN], [sourceId, to, KIND_MAX], true, true)
+      .limit(batchSize - deleted)
+      .primaryKeys()
+    if (blockKeys.length > 0) await database.categoryBlocks.bulkDelete(blockKeys)
+    deleted += blockKeys.length
+  }
+  // Blocos de uma varredura que já não é apontada: o `storedFrom` limpo pela
+  // renovação libera a geração de varredura inteira para a próxima parte.
+  return deleted >= batchSize
 }
 
 /** Limpa uma importação que não chegou ao fim, sem tocar na geração ativa. */
@@ -816,6 +1381,9 @@ export async function discardGeneration(
   await allStoredEntriesGenerations(database, sourceId)
     .and((entry) => entry.generation === generation)
     .delete()
+  await blocksOfSource(database, sourceId)
+    .and((block) => block.generation === generation)
+    .delete()
 }
 
 /** Remove todo o catálogo de uma fonte, de todas as gerações. */
@@ -826,4 +1394,42 @@ export async function deleteAllForSource(
   await allGenerations(database, sourceId).delete()
   await allCategoryGenerations(database, sourceId).delete()
   await allStoredEntriesGenerations(database, sourceId).delete()
+  await blocksOfSource(database, sourceId).delete()
+  await clearStagedItems(sourceId, undefined, database)
+}
+
+/** Faixa do preparo de uma fonte (ou de uma categoria dela) — sem `Dexie.minKey` em chave composta (R-008). */
+function stagingOf(database: CatalogDb, sourceId: string, categoryId?: number) {
+  return categoryId === undefined
+    ? database.sectionStaging.where('[sourceId+categoryId]').between([sourceId, KEY_MIN], [sourceId, KEY_MAX], true, true)
+    : database.sectionStaging.where('[sourceId+categoryId]').equals([sourceId, categoryId])
+}
+
+/**
+ * Descarrega partes da carga por seção na área de preparo (feature 039, T031,
+ * FR-013) — o Worker não segura a seção inteira até o fluxo acabar.
+ */
+export async function stageSectionItems(
+  parts: Array<{ sourceId: string; categoryId: number; items: CatalogRecord[] }>,
+  database: CatalogDb = db,
+): Promise<void> {
+  if (parts.length === 0) return
+  try {
+    await database.sectionStaging.bulkAdd(parts)
+  } catch (error) {
+    if (isQuotaError(error)) throw new StorageFullError()
+    throw error
+  }
+}
+
+/** Os itens preparados de uma categoria, na ordem em que foram descarregados (a da fonte). */
+export async function stagedItemsOf(sourceId: string, categoryId: number, database: CatalogDb = db): Promise<CatalogRecord[]> {
+  const parts = await stagingOf(database, sourceId, categoryId).toArray()
+  parts.sort((a, b) => (a.id ?? 0) - (b.id ?? 0))
+  return parts.flatMap((part) => part.items)
+}
+
+/** Apaga o preparo de uma categoria, ou de toda a fonte (sobra de uma carga interrompida). */
+export async function clearStagedItems(sourceId: string, categoryId?: number, database: CatalogDb = db): Promise<void> {
+  await stagingOf(database, sourceId, categoryId).delete()
 }

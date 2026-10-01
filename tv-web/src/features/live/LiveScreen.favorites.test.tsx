@@ -301,7 +301,8 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     enterAndDescend()
     await holdEnter()
 
-    expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument()
+    // O aviso sai depois da gravação (`useFavoriteToggle` → `mutateAsync`): sob carga, além dos 850 ms do gesto.
+    await waitFor(() => expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument())
     await waitFor(() => expect(document.querySelector('.fav-star')).toBeInTheDocument())
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
@@ -633,7 +634,7 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     vi.mocked(catalogApi.fetchPlayback).mockClear()
     await holdEnter()
 
-    expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument())
     await waitFor(() => expect(document.querySelector('.player-zap-columns .fav-star')).toBeInTheDocument())
     // Zapping continua aberto, e nenhuma troca de canal foi disparada
     expect(document.querySelector('.player-zap-columns')).toBeInTheDocument()
@@ -702,7 +703,7 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     keyup('ArrowDown')
 
     await holdEnter()
-    expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument())
     await waitFor(() => expect(document.querySelector('.fav-star')).toBeInTheDocument())
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()

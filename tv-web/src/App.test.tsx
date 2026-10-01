@@ -28,25 +28,48 @@ vi.mock('./features/splash/SplashScreen', () => ({
 }))
 
 vi.mock('./features/profiles/ProfilesScreen', () => ({
-  ProfilesScreen: ({ onChooseSource }: { onChooseSource: (source: unknown) => void }) => (
-    <button
-      type="button"
-      onClick={() =>
-        onChooseSource({
-          id: 'src-1',
-          type: 'm3u_url',
-          display_name: 'Fonte 1',
-          connection_state: 'synced',
-          last_successful_sync_at: null,
-          provider_import_mode: null,
-          limited_reason: null,
-          provider_dns: null,
-          last_truncated_by_storage: false,
-          last_discarded_by_type: 0,
-        })
-      }
-    >
-      escolher-fonte
+  ADD_LIST_FOCUS_ID: '__add__',
+  ProfilesScreen: ({
+    onChooseSource,
+    onAddSource,
+    initialFocusSourceId,
+  }: {
+    onChooseSource: (source: unknown) => void
+    onAddSource: () => void
+    initialFocusSourceId?: string | null
+  }) => (
+    <div>
+      <span data-testid="profiles-initial-focus">{String(initialFocusSourceId ?? 'sem-foco')}</span>
+      <button type="button" onClick={onAddSource}>
+        adicionar-lista
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onChooseSource({
+            id: 'src-1',
+            type: 'm3u_url',
+            display_name: 'Fonte 1',
+            connection_state: 'synced',
+            last_successful_sync_at: null,
+            provider_import_mode: null,
+            limited_reason: null,
+            provider_dns: null,
+            last_truncated_by_storage: false,
+            last_discarded_by_type: 0,
+          })
+        }
+      >
+        escolher-fonte
+      </button>
+    </div>
+  ),
+}))
+
+vi.mock('./features/import/AddSourceScreen', () => ({
+  AddSourceScreen: ({ onBack }: { onBack: () => void }) => (
+    <button type="button" onClick={onBack}>
+      voltar-cadastro
     </button>
   ),
 }))
@@ -173,5 +196,17 @@ describe('App — navegação e snapshot de volta do detalhe (feature 017, T025;
     fireEvent.click(screen.getByRole('button', { name: 'ir-para-filmes' }))
     fireEvent.click(await screen.findByRole('button', { name: 'shell-go-home' }))
     expect(await screen.findByRole('button', { name: 'ir-para-filmes' })).toBeInTheDocument()
+  })
+
+  // Feature 037, FR-019/D-007: o cadastro aberto pela tela de listas volta
+  // com o foco em "Adicionar lista", não na última lista usada.
+  it('abrir o cadastro pela tela de listas e voltar deixa o foco em "Adicionar lista"', async () => {
+    renderApp()
+
+    expect(await screen.findByTestId('profiles-initial-focus')).not.toHaveTextContent('__add__')
+    fireEvent.click(screen.getByRole('button', { name: 'adicionar-lista' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'voltar-cadastro' }))
+
+    expect(await screen.findByTestId('profiles-initial-focus')).toHaveTextContent('__add__')
   })
 })

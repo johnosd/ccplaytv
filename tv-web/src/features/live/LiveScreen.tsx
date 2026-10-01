@@ -14,6 +14,7 @@ import {
   type CatalogCategory,
   type CatalogItemOut,
 } from '../catalog/catalogApi'
+import { usePrefetchHint } from '../catalog/prefetchApi'
 import { nowNextForChannel } from '../../lib/epg/nowNext'
 import { formatEpgTimeRange } from '../../lib/epg/formatEpgTime'
 import { useNow } from '../../lib/useNow'
@@ -23,6 +24,7 @@ import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
+import { locateOrNeighbor, type LastFocus } from '../../lib/focus/reconcileFocus'
 import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { FavoriteHint, FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
@@ -151,11 +153,6 @@ interface FocusIdentity {
   channelId: string | null
 }
 
-/** Índice da identidade na lista, ou 0 se ela não existir mais — cai no início em vez de adivinhar. */
-function locate<T>(items: T[], matches: (item: T) => boolean): number {
-  const idx = items.findIndex(matches)
-  return idx === -1 ? 0 : idx
-}
 
 /**
  * Qual entrada da trilha uma sessão SEM navegação prévia (recém-aberta)
@@ -336,6 +333,8 @@ export function LiveScreen({
     focusedCategory,
     entered?.kind === 'category' ? entered.id : undefined,
   )
+  // Feature 038 (FR-005/FR-011): só reordena a fila da pré-carga — nenhuma consulta nasce do foco.
+  usePrefetchHint('channel', focusedCategory?.id)
 
   // `initialChannel.entry === 'category'` (feature 026, `logic/navegacao.md`
   // §3): a categoria só se sabe depois de ler o registro do canal — ao
@@ -414,7 +413,19 @@ export function LiveScreen({
     return searchWithinItems(baseItems, searchTerm, (item) => item.name)
   }, [searchActive, belowMinimum, baseItems, searchTerm])
 
-  const channelIdx = locate(items, (c) => c.id === focusedIdentity.channelId)
+  // Feature 038 (FR-027): canal que a renovação em segundo plano tirou da
+  // lista cede o foco ao vizinho (mesma posição), nunca ao topo.
+  const lastChannelFocusRef = useRef<LastFocus | null>(null)
+  const channelListKey = JSON.stringify(entered)
+  const channelIdx = locateOrNeighbor(
+    items,
+    (c) => c.id === focusedIdentity.channelId,
+    channelListKey,
+    lastChannelFocusRef.current,
+  )
+  useEffect(() => {
+    lastChannelFocusRef.current = { listKey: channelListKey, index: channelIdx }
+  }, [channelListKey, channelIdx])
   const activeChannel = items[channelIdx]
   // Canal que sumiu com o preview aberto (feature 024, `logic/foco-live-
   // shell.md` §3): cai de volta pra coluna de canais em vez de deixar o

@@ -40,7 +40,6 @@ describe('getComingSoon', () => {
       'player-speed',
       'settings-parental',
       'settings-player',
-      'similar',
       'voice-search',
     ])
   })
@@ -57,6 +56,7 @@ describe('getComingSoon', () => {
     expect(() => getComingSoon('settings-integrations')).toThrow() // deixou de ser mock na 032 (aba real)
     expect(() => getComingSoon('cast')).toThrow() // deixou de ser mock na 032 (aba Elenco com o elenco em texto)
     expect(() => getComingSoon('trailer')).toThrow() // deixou de ser mock na 033 (botão real)
+    expect(() => getComingSoon('similar')).toThrow() // deixou de ser mock na 035 (aba Semelhantes real)
     expect(getComingSoon('home-ai-curation').backlogItem).toBe(30)
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appNavReducer, initialAppNav, type AppNavAction, type AppNavState } from './appNav'
+import { appNavReducer, initialAppNav, type AppNavAction, type AppNavState, type AppScreen } from './appNav'
 import type { SourceOut } from '../features/import/importApi'
 
 function makeSource(id: string): SourceOut {
@@ -207,6 +207,48 @@ describe('appNavReducer — regras além dos contratos (feature 023)', () => {
     state = run(state, { type: 'back' })
     expect(state.screen).toEqual({ name: 'live' })
     expect(state.activeSource?.id).toBe('a')
+  })
+})
+
+describe('appNavReducer — pilha de detalhes (feature 035)', () => {
+  const detailA: AppScreen = { name: 'movie-detail', movieId: 'a' }
+
+  it('detalhe → detalhe → back devolve o restore certo, e A → B → A mantém dois snapshots', () => {
+    const fromA: AppScreen = { ...detailA, restore: { tab: 'similar', focusKey: 'tmdb:movie:2' } }
+    const inB = run(
+      { screen: detailA, history: [{ name: 'home' }], activeSource: A },
+      { type: 'open', screen: { name: 'movie-detail', movieId: 'b' }, from: fromA },
+    )
+    expect(inB.screen).toEqual({ name: 'movie-detail', movieId: 'b' })
+
+    const fromB: AppScreen = { name: 'movie-detail', movieId: 'b', restore: { tab: 'similar', focusKey: 'tmdb:movie:1' } }
+    const backInA = run(inB, { type: 'open', screen: { name: 'movie-detail', movieId: 'a' }, from: fromB })
+    expect(backInA.history.slice(-2)).toEqual([fromA, fromB])
+
+    const afterBack = run(backInA, { type: 'back' })
+    expect(afterBack.screen).toEqual(fromB)
+    expect(run(afterBack, { type: 'back' }).screen).toEqual(fromA)
+  })
+
+  it('detalhe → ator → detalhe → back ×2 restaura a pessoa e depois a aba Elenco com a pessoa focada', () => {
+    const fromDetail: AppScreen = { name: 'movie-detail', movieId: 'a', restore: { tab: 'cast', focusKey: 'person:6384' } }
+    const person: AppScreen = { name: 'person', personId: 6384, personName: 'Keanu' }
+    const fromPerson: AppScreen = { ...person, restore: { focusKey: 'tmdb:movie:2' } }
+
+    const inPerson = run({ screen: { name: 'movie-detail', movieId: 'a' }, history: [], activeSource: A }, { type: 'open', screen: person, from: fromDetail })
+    const inOther = run(inPerson, { type: 'open', screen: { name: 'movie-detail', movieId: 'b' }, from: fromPerson })
+    expect(run(inOther, { type: 'back' }).screen).toEqual(fromPerson)
+    expect(run(inOther, { type: 'back' }, { type: 'back' }).screen).toEqual(fromDetail)
+  })
+
+  it('Configurar TMDB abre Configurações e o RETURN volta ao detalhe com aba e item', () => {
+    const from: AppScreen = { name: 'series-detail', seriesId: 's', restore: { tab: 'similar' } }
+    const state = run(
+      { screen: { name: 'series-detail', seriesId: 's' }, history: [], activeSource: A },
+      { type: 'open', screen: { name: 'settings', restore: { zone: 'panel', tab: 'integrations' } }, from },
+      { type: 'back' },
+    )
+    expect(state.screen).toEqual(from)
   })
 })
 

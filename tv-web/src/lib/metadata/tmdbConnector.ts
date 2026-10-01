@@ -11,7 +11,9 @@ import type { TmdbKeyFormat } from './types'
  */
 
 const API_BASE = 'https://api.themoviedb.org/3'
-const IMAGE_BASE = 'https://image.tmdb.org/t/p/w1280'
+const IMAGE_BASE = 'https://image.tmdb.org/t/p'
+
+export type TmdbImageSize = 'w185' | 'w342' | 'w1280'
 
 export type TmdbFailure = 'refused' | 'rate_limited' | 'offline' | 'not_found'
 
@@ -42,9 +44,9 @@ export function detectKeyFormat(raw: string): TmdbKeyFormat | undefined {
   return undefined
 }
 
-/** `https://image.tmdb.org/t/p/w1280/<caminho>` — sem chave. */
-export function tmdbImageUrl(path: string): string {
-  return `${IMAGE_BASE}${path.startsWith('/') ? path : `/${path}`}`
+/** `https://image.tmdb.org/t/p/<tamanho>/<caminho>` — sem chave. */
+export function tmdbImageUrl(path: string, size: TmdbImageSize = 'w1280'): string {
+  return `${IMAGE_BASE}/${size}${path.startsWith('/') ? path : `/${path}`}`
 }
 
 /**

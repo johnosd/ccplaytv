@@ -249,6 +249,13 @@ segundo continua sem.
 - **FR-018**: Com chave configurada, ao abrir o detalhe, o sistema DEVE
   consultar o TMDB somente se algum campo de FR-003 estiver vazio após a
   metadata do provedor, e DEVE preencher só esses campos.
+  **Atualização (035):** a condição "somente se algum campo estiver vazio"
+  deixa de valer (`035-semelhantes-elenco-ator`, D-002). Semelhantes e o
+  elenco com identidade existem só no TMDB. Por isso, com chave, o detalhe
+  consulta o TMDB ao abrir sempre que o registro do TMDB estiver ausente,
+  vencido (6 meses) ou for anterior à 033/035, mesmo com o provedor
+  completo. A segunda metade continua valendo: o TMDB só preenche o que o
+  provedor deixou vazio.
 - **FR-019**: Havendo `tmdb_id` do provedor, ele DEVE ser usado como
   primeira opção, e descartado se o ano do TMDB diferir do ano do título
   por mais de 1 ou se o TMDB responder que não existe.

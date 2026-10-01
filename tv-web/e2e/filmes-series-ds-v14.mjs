@@ -21,6 +21,7 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { cadastrarListaM3u } from './lib/entrada.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const APP_URL = 'http://localhost:5173'
@@ -111,9 +112,7 @@ async function addSource(page, m3uUrl, displayName) {
   await page.waitForSelector('.add-card', { timeout: 10000 })
   await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
-  await page.getByLabel('Nome de exibição').fill(displayName)
-  await page.getByLabel('URL da lista M3U').fill(m3uUrl)
-  await page.getByRole('button', { name: 'Adicionar lista' }).click()
+  await cadastrarListaM3u(page, { nome: displayName, url: m3uUrl })
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   await page.getByRole('button', { name: 'Voltar' }).click()
   await page.locator('.source-card-wrap', { hasText: displayName }).waitFor({ timeout: 8000 })
@@ -321,8 +320,17 @@ async function run() {
     assert(!(await page.getByText('Elenco: Desconhecido').isVisible().catch(() => false)), 'sem "Elenco: Desconhecido"')
     await page.keyboard.press('ArrowRight') // Assistir -> Minha Lista
     await page.keyboard.press('ArrowRight') // Minha Lista -> Trailer
-    await page.keyboard.press('Enter') // Trailer (soft-disabled) — só anuncia
-    assert(await page.getByText(/Em breve — Trailer/).isVisible(), 'Trailer soft-disabled anuncia "Em breve" sem abrir o player')
+    await page.keyboard.press('Enter') // Trailer sem candidato (feature 033: não é mais mock) — só anuncia
+    assert(
+      await page
+        .getByText(/Trailer indisponível para este título|Consultando trailer/)
+        .waitFor({ timeout: 3000 })
+        .then(
+          () => true,
+          () => false,
+        ),
+      'Trailer sem candidato anuncia que está indisponível, sem abrir o player',
+    )
     assert((await page.locator('[role="dialog"]').count()) === 0, 'Trailer não abriu nenhuma camada')
     await page.keyboard.press('ArrowDown') // ações -> abas
     await page.keyboard.press('ArrowRight') // Detalhes -> Elenco

@@ -10,16 +10,19 @@ import {
   useFavoriteIds,
   useFavoritesContent,
   useHistoryContent,
+  useKindSortFields,
   useResumePositions,
   useSeriesWatchedSummary,
   useWatchedIds,
   type CatalogCategory,
   type CatalogItemOut,
 } from '../catalog/catalogApi'
+import { usePrefetchHint } from '../catalog/prefetchApi'
 import { normalizeForSearch, searchWithinItems, SEARCH_MIN_CHARS } from '../../lib/catalog/catalogSearch'
 import { formatTime } from '../../lib/player/formatTime'
 import { clamp, gridNextIndex, useRemoteNav } from '../../lib/useRemoteNav'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
+import { locateOrNeighbor, type LastFocus } from '../../lib/focus/reconcileFocus'
 import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { FavoriteHint, FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
@@ -65,6 +68,8 @@ const CARD_GAP = 24 // token --space-3
 const ROW_EXTRA_PX = 68
 const ROW_HEIGHT = (CARD_WIDTH * 302) / 205 + ROW_EXTRA_PX
 const GRID_OVERSCAN = GRID_COLS
+/** "Todos" aos poucos (feature 039, T022): a próxima página é pedida a 10 fileiras do fim. */
+const ALL_LOAD_AHEAD = GRID_COLS * 10
 
 const VOD_HINTS: HintItem[] = [
   { keyLabel: 'OK', action: 'Abrir' },
@@ -166,10 +171,6 @@ function trailEntryId(entry: TrailEntry): string {
   return entry.key.kind
 }
 
-function locate<T>(items: T[], matches: (item: T) => boolean): number {
-  const idx = items.findIndex(matches)
-  return idx === -1 ? 0 : idx
-}
 
 /**
  * Padrão sem navegação prévia: a primeira categoria REAL, depois de
@@ -274,6 +275,8 @@ export function VodCatalogScreen({
   // FR-004 — ver `LiveScreen.tsx`). "★"/"↺"/"Todos" nunca prefetcham, nem a
   // categoria já entrada.
   useCategoryFocusPrefetch(sourceId, focusedCategory, entered?.kind === 'category' ? entered.id : undefined)
+  // Feature 038 (FR-005/FR-011): só reordena a fila da pré-carga — nenhuma consulta nasce do foco.
+  usePrefetchHint(config.kind, focusedCategory?.id)
 
   const content = useCategoryContent(sourceId, enteredCategory)
   const favoriteIdsQuery = useFavoriteIds(sourceId, config.kind)
@@ -285,7 +288,13 @@ export function VodCatalogScreen({
   const resumePositionsQuery = useResumePositions(section === 'movies' ? sourceId : null, 'movie')
   const resumePositions = resumePositionsQuery.data ?? new Map<string, number>()
   const favoritesContent = useFavoritesContent(sourceId, config.kind, enteredFavorites)
-  const aggregated = useAggregatedItems(sourceId, config.kind, enteredAll)
+  // Feature 039 (T022): "Todos" na ordem da fonte e sem busca lê aos poucos,
+  // conforme a pessoa desce; ordenar e buscar precisam do tipo inteiro.
+  const allProgressive = !searchActive && sortOption === 'source'
+  const aggregated = useAggregatedItems(sourceId, config.kind, enteredAll, { progressive: allProgressive })
+  // T033: com "Todos" aos poucos, "Ano"/"Recém-adicionados" podem estar só em
+  // categorias ainda não lidas — o modal pergunta ao tipo inteiro (só aberto).
+  const kindSortFieldsQuery = useKindSortFields(sourceId, config.kind, enteredAll && allProgressive && sortOpen)
   // "↺ Histórico" (feature 025, FR-007): habilitado quando a pessoa entrou
   // nele agora ou já entrou antes nesta sessão — nada é resolvido só por
   // abrir a tela (`logic/historico.md` §5).
@@ -322,10 +331,19 @@ export function VodCatalogScreen({
   const canSort = canSearch && !enteredFavorites && !enteredHistory
 
   // "Ordenar" nunca em ★/↺ — ordem própria (mais recente primeiro, FR-022).
-  const availableOptions = useMemo(
-    () => (enteredFavorites || enteredHistory ? [] : availableSortOptions(baseItems)),
-    [enteredFavorites, enteredHistory, baseItems],
-  )
+  const kindSortFieldsData = kindSortFieldsQuery.data
+  const availableOptions = useMemo(() => {
+    if (enteredFavorites || enteredHistory) return []
+    const loaded = availableSortOptions(baseItems)
+    if (!enteredAll || !kindSortFieldsData) return loaded
+    // União com o tipo inteiro: nunca some uma opção que os itens lidos já mostram.
+    return (['source', 'az', 'year', 'added'] as const).filter(
+      (option) =>
+        loaded.includes(option) ||
+        (option === 'year' && kindSortFieldsData.year) ||
+        (option === 'added' && kindSortFieldsData.addedAt),
+    )
+  }, [enteredFavorites, enteredHistory, enteredAll, baseItems, kindSortFieldsData])
   // Opção salva pode não estar disponível nesta entrada (ex.: "Ano" numa
   // categoria M3U) — a grade usa "Ordem da fonte" sem apagar a escolha da
   // seção (D-008).
@@ -338,8 +356,26 @@ export function VodCatalogScreen({
   }, [searchActive, belowMinimum, baseItems, searchTerm, enteredFavorites, enteredHistory, effectiveSortOption])
 
   const [focusedItemId, setFocusedItemId] = useState<string | null>(restore?.focusedItemId ?? null)
-  const itemIdx = locate(items, (item) => item.id === focusedItemId)
+  // Feature 038 (FR-027): se a renovação em segundo plano tirou o item em
+  // foco, o foco fica no vizinho (mesma posição), não volta ao topo.
+  const lastItemFocusRef = useRef<LastFocus | null>(null)
+  const itemListKey = JSON.stringify(enteredEntryKey)
+  const itemIdx = locateOrNeighbor(items, (item) => item.id === focusedItemId, itemListKey, lastItemFocusRef.current)
+  useEffect(() => {
+    lastItemFocusRef.current = { listKey: itemListKey, index: itemIdx }
+  }, [itemListKey, itemIdx])
   const activeItem: CatalogItemOut | undefined = items[itemIdx]
+
+  // Feature 039 (T022): "Todos" aos poucos pede a próxima página quando o foco
+  // chega perto do fim do que já foi lido — e também enquanto o item a
+  // restaurar (volta do detalhe, memória de foco) ainda não apareceu, para
+  // "Voltar restaura foco" valer mesmo lá embaixo.
+  const { hasMore: allHasMore, loadMore: loadMoreAll } = aggregated
+  const focusedNotLoaded = focusedItemId !== null && !items.some((item) => item.id === focusedItemId)
+  useEffect(() => {
+    if (!enteredAll || !allHasMore || !loadMoreAll) return
+    if (focusedNotLoaded || itemIdx >= items.length - ALL_LOAD_AHEAD) loadMoreAll()
+  }, [enteredAll, allHasMore, loadMoreAll, focusedNotLoaded, itemIdx, items.length])
 
   const gridContainerRef = useRef<HTMLDivElement | null>(null)
   const itemVirtualizer = useVirtualizer({

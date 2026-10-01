@@ -10,7 +10,9 @@ import { Skeleton } from '../../components/Skeleton'
 import { Icon } from '../../components/Icon'
 import { ExitModal } from '../shell/ExitModal'
 import { DeleteSourceModal } from '../sources/DeleteSourceModal'
-import { formatStatus, formatType } from '../sources/sourceFormat'
+import { formatType } from '../sources/sourceFormat'
+import { OnboardingBrand } from '../import/OnboardingBrand'
+import { listAvatarVariant, listInitials } from './listAvatar'
 
 export interface ProfilesScreenProps {
   /** `base`: RETURN abre o modal "Sair do CCPlayTV?". `switch`: RETURN chama `onBack` (volta ao Início da lista ativa, FR-031). */
@@ -36,6 +38,13 @@ export interface ProfilesScreenProps {
 /** Sentinela do cartão "Adicionar lista" — foco é por id, nunca por índice (constitution, "Voltar Restaura Foco e Posição"). */
 const ADD_ID = '__add__'
 
+/**
+ * Feature 037 (FR-019): `initialFocusSourceId` com este valor põe o foco
+ * inicial em "Adicionar lista", mesmo com listas — é o que o App passa ao
+ * voltar do cadastro aberto por esta tela (D-007).
+ */
+export const ADD_LIST_FOCUS_ID = ADD_ID
+
 /** Ressincronizar, Editar, Excluir — a linha de ações de um cartão de lista. */
 const ACTIONS = ['Ressincronizar', 'Editar', 'Excluir'] as const
 const RESYNC = 0
@@ -47,13 +56,18 @@ const SKELETON_COUNT = 3
 type ScreenState = 'error' | 'loading' | 'empty' | 'ready'
 
 /**
- * "Quem está assistindo?" — perfil = lista (feature 023, ADR-011 §2).
- * Substitui a antiga Home de fontes (`features/home/HomeScreen.tsx`).
+ * "Selecione ou Adicione sua lista" — perfil = lista (feature 023, ADR-011 §2),
+ * no formato do `profiles()` do protótipo V13.2 desde a feature 037: marca,
+ * kicker, título, fileira centralizada de cartões (selo do tipo, avatar de
+ * iniciais, nome, avisos), cartão-botão "Adicionar lista", rodapé e
+ * "Configurações" no canto. Os nomes de classe `.source-card*`/`.add-card`
+ * seguem os mesmos de propósito — são seletores de E2E (D-002 da 037).
  *
  * Foco é estado (ADR-009), por **id** de lista — nunca por índice — para
  * sobreviver a exclusão e a refetch (`logic/foco-shell.md`, § Tela de
- * perfis). Duas linhas: `cards` (listas + "Adicionar lista") e `actions`
- * (Ressincronizar/Editar/Excluir do cartão em foco).
+ * perfis). Três linhas: `cards` (listas + "Adicionar lista"), `actions`
+ * (Ressincronizar/Editar/Excluir do cartão em foco) e `manage`
+ * ("Configurações", abaixo de "Adicionar lista").
  */
 export function ProfilesScreen({
   mode,
@@ -79,7 +93,8 @@ export function ProfilesScreen({
   // recalculado a cada render — assim ele "chega" sozinho quando as listas
   // terminam de carregar, e nunca briga com um movimento depois (FR-004).
   const [focusedId, setFocusedId] = useState<string | null>(null)
-  // `manage` (feature 026, FR-032): "Gerenciar listas", alcançada por BAIXO a
+  // `manage` (feature 026, FR-032; botão "Configurações" do canto desde a
+  // 037, D-006): alcançada por BAIXO a
   // partir do cartão "Adicionar lista" — nunca a partir de uma lista real
   // (esse BAIXO já abre as ações dela, contrato travado da 023).
   const [row, setRow] = useState<'cards' | 'actions' | 'manage'>('cards')
@@ -88,9 +103,11 @@ export function ProfilesScreen({
   const [showExit, setShowExit] = useState(false)
 
   const initialId =
-    initialFocusSourceId && sources.some((source) => source.id === initialFocusSourceId)
-      ? initialFocusSourceId
-      : (sources[0]?.id ?? ADD_ID)
+    initialFocusSourceId === ADD_LIST_FOCUS_ID
+      ? ADD_ID
+      : initialFocusSourceId && sources.some((source) => source.id === initialFocusSourceId)
+        ? initialFocusSourceId
+        : (sources[0]?.id ?? ADD_ID)
   const effectiveId = focusedId !== null && ids.includes(focusedId) ? focusedId : initialId
   const effectiveRow: 'cards' | 'actions' | 'manage' =
     state === 'ready' && row === 'actions' && effectiveId !== ADD_ID
@@ -204,17 +221,30 @@ export function ProfilesScreen({
     },
   })
 
+  // Textos da tabela "Textos" do plan.md da 037 (D-010). Carregando não tem
+  // kicker: ainda não se sabe se é primeiro uso ou volta.
+  const kicker = state === 'empty' ? 'Configuração inicial' : state === 'ready' ? 'Bem-vindo de volta' : null
   const subtitle =
     state === 'loading'
       ? 'Carregando suas listas…'
       : state === 'empty'
-        ? 'Você ainda não tem nenhuma lista. Adicione a primeira.'
-        : 'Escolha uma lista'
+        ? 'Adicione sua primeira lista para começar.'
+        : 'Escolha uma lista para continuar ou adicione uma nova.'
 
   return (
-    <div className="screen profiles-screen">
-      <h1 className="screen-title">Quem está assistindo?</h1>
-      {state !== 'error' && <p className="screen-subtitle">{subtitle}</p>}
+    <div className="screen onboarding profiles-screen">
+      <OnboardingBrand />
+      {state !== 'error' && (
+        // Kicker vazio mantém a altura do bloco enquanto carrega — sem pulo de layout.
+        <p className="onboarding-kicker" aria-hidden={kicker === null ? 'true' : undefined}>
+          {kicker ?? ' '}
+        </p>
+      )}
+      <h1 className="onboarding-title">
+        Selecione ou Adicione <br />
+        sua lista
+      </h1>
+      {state !== 'error' && <p className="onboarding-subtitle">{subtitle}</p>}
 
       {state === 'error' ? (
         <ErrorState
@@ -239,26 +269,35 @@ export function ProfilesScreen({
             // `tv-focus` para a ação em foco, mas continua marcado.
             const isCurrent = effectiveId === source.id
             const actionsVisible = effectiveRow === 'actions' && isCurrent
+            const notices = sourceNotices(source)
             return (
               <div className="source-card-wrap" key={source.id}>
+                {/* Nome acessível = selo + nome + avisos; o avatar é
+                    decorativo. O nome é truncado só por CSS, então o texto
+                    inteiro continua no nome acessível. Nunca data, endereço
+                    nem credencial (FR-006, FR-024). */}
                 <button
                   type="button"
                   className={`source-card${isCurrent && effectiveRow === 'cards' && !confirmDelete && !showExit ? ' tv-focus' : ''}${isCurrent ? ' is-current' : ''}`}
                   ref={isCurrent ? focusedCardRef : undefined}
                   onClick={() => onChooseSource(source)}
                 >
-                  <span className="source-card-icon" aria-hidden="true" />
+                  <span className="source-card-kind">{formatType(source)}</span>
+                  <span
+                    className={`source-card-avatar list-avatar--${listAvatarVariant(source.id)}`}
+                    aria-hidden="true"
+                  >
+                    {listInitials(source.display_name)}
+                  </span>
                   <span className="source-card-name">{source.display_name}</span>
-                  <span className="source-card-type">{formatType(source)}</span>
-                  <span className="source-card-status">{formatStatus(source)}</span>
-                  {source.provider_import_mode === 'legacy_m3u' && (
-                    <span className="source-card-badge">Modo limitado</span>
-                  )}
-                  {source.last_truncated_by_storage && (
-                    <span className="source-card-badge">A lista não coube inteira</span>
-                  )}
-                  {source.last_discarded_by_type > 0 && (
-                    <span className="source-card-badge">Entradas não reconhecidas ficaram de fora</span>
+                  {notices.length > 0 && (
+                    <span className="source-card-notices">
+                      {notices.map((notice) => (
+                        <span className="source-card-badge" key={notice}>
+                          {notice}
+                        </span>
+                      ))}
+                    </span>
                   )}
                 </button>
                 {actionsVisible && (
@@ -285,26 +324,41 @@ export function ProfilesScreen({
           })}
 
           <div className="source-card-wrap">
+            {/* Cartão-botão (FR-007, D-005): nome acessível exatamente
+                "Adicionar lista"; círculo e pílula são decorativos. */}
             <button
               type="button"
+              aria-label="Adicionar lista"
               className={`add-card${effectiveId === ADD_ID && effectiveRow === 'cards' && !showExit ? ' tv-focus' : ''}`}
               ref={effectiveId === ADD_ID ? focusedCardRef : undefined}
               onClick={onAddSource}
             >
-              <Icon name="add" className="add-card-plus" />
-              <span className="add-card-label">Adicionar lista</span>
+              <span className="add-card-circle" aria-hidden="true">
+                <Icon name="add" />
+              </span>
+              <span className="add-card-title" aria-hidden="true">
+                Adicionar lista
+              </span>
+              <span className="add-card-cta" aria-hidden="true">
+                ＋ Adicionar
+              </span>
             </button>
           </div>
         </div>
       )}
 
       {state !== 'error' && (
+        <p className="profiles-foot-note">Cada lista mantém seu próprio histórico, favoritos e recomendações.</p>
+      )}
+
+      {state !== 'error' && (
         <button
           type="button"
-          className={`profiles-manage-sources${effectiveRow === 'manage' && !showExit ? ' tv-focus' : ''}`}
+          className={`profiles-settings-corner${effectiveRow === 'manage' && !showExit ? ' tv-focus' : ''}`}
           onClick={() => onManageSources?.()}
         >
-          Gerenciar listas
+          <Icon name="settings" />
+          Configurações
         </button>
       )}
 
@@ -321,4 +375,13 @@ export function ProfilesScreen({
       {showExit && <ExitModal onCancel={() => setShowExit(false)} />}
     </div>
   )
+}
+
+/** Avisos reais do cartão, numa linha compacta abaixo do nome (FR-006) — pastilha com texto, nunca só cor. */
+function sourceNotices(source: SourceOut): string[] {
+  const notices: string[] = []
+  if (source.provider_import_mode === 'legacy_m3u') notices.push('Modo limitado')
+  if (source.last_truncated_by_storage) notices.push('A lista não coube inteira')
+  if (source.last_discarded_by_type > 0) notices.push('Entradas não reconhecidas ficaram de fora')
+  return notices
 }

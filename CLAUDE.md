@@ -889,11 +889,181 @@ stays `chrome108`, which is safe). See
 `sdd/specs/033-trailers-filmes-series/plan.md` → `## Estado Atual` and
 `## Riscos e Decisões`.
 
+**Code-complete**: `035-semelhantes-elenco-ator` — backlog item 45: the detail
+screens' "Semelhantes" tab is real (the `similar` mock is gone), the "Elenco"
+tab shows photo/name/character when the title matched on TMDB, and OK on a
+person opens a new actor page (`features/person/PersonScreen.tsx`, screen
+`person` in `appNav.ts`, no topbar). Semelhantes and cast with identity come in
+the **same** TMDB detail call feature 032 already made (`append_to_response`
+grew: `credits|aggregate_credits,videos,recommendations,similar`) and live in
+the same `titleMetadata` record (`similar`/`castPeople`, no version bump);
+only the filmography is its own call (`/person/{id}?append_to_response=
+combined_credits`, on OK, cached 6 months in a new Dexie v13 `tmdbPeople`
+table, cleared with the key). **Deliberate change to feature 032**: with a
+usable key the TMDB is now asked once when a detail opens even if the provider
+filled everything (D-002) — Semelhantes/photos exist only there; the merge rule
+"provider wins" is unchanged, and a `matched` record saved before 035 is asked
+again once (`tmdbLacks035`). The cross-match with the catalog
+(`lib/metadata/localTitleMatch.ts`, `resolveTmdbTitles`) reads only
+IndexedDB — active generation, same type, never the network, never
+`storedEntries`: TMDB identity first (`titleMetadata` `matched`), else
+normalized title + year ±1 (a local record with no known year never matches by
+title); copies of the same year → first in source order, different years →
+"not found". Not-found titles carry the chip "Não encontrado na sua lista" and
+open a summary modal (no play), coverage is stated ("Procurado em X de Y
+categorias"). Focus in the new panels is a key (`tmdb:<kind>:<id>`,
+`person:<id>`), the back stack is plain `open`/`back` with a `restore`
+snapshot on the detail screens (`DetailSnapshot`). Two deviations from the
+plan's `logic/`, both recorded there: the mapper always returns `similar: []`
+(never absent) — a locked feature-033 contract returns a detail without those
+keys, and absent would re-ask on every open; and the panels use a plain
+horizontal row, not the virtualized `Rail` — the locked contract renders with
+no layout (jsdom), where `Rail` draws nothing, and the lists are ≤ 20 items.
+5/5 contract tests locked, all other locks intact, new
+`e2e/semelhantes-elenco-ator.mjs` (part of `test:e2e`, counts TMDB requests:
+zero extra on focus/tab change, one on OK for a person) green.
+**Measured on the real list (`e2e/semelhantes-real.mjs`, out of `test:e2e`)**:
+resolution p50 ≈ 150 ms / p95 ≈ 170 ms over 11 129 movies. Matching by title
+first accepted year ±1 and produced 3–4 wrong matches in ~250 checked
+(homonyms); with the user's approval (plan R-012) it now requires the **exact**
+year — the locked contract was amended and re-locked — leaving ~1 (two
+different films with the same title and year, which title + year cannot tell
+apart), so SC-002 is met **with that stated caveat**. Found cards carry a
+"✓ Na sua lista" marker; not-found ones the "Não encontrado na sua lista" chip.
+Physical TV: recommended, not a gate. See
+`sdd/specs/035-semelhantes-elenco-ator/plan.md` → `## Estado Atual`.
+
+**Converged**: `038-carga-listas-pre-carga` — from the assessment
+`sdd/assessments/carga-listas-progresso-claro-entrada-instantanea/`: a
+**background prefetch** (`tv-web/src/lib/catalog/prefetch/`) fetches every
+category of the active list, one at a time, through the same
+`ensureCategory` the entry uses — only after ~2 s with no key pressed, never
+while `PlayerLayer`/`TrailerLayer` is mounted, the app is hidden or offline,
+focused category and its neighbours first (`pickNextCategory`), failures to
+the back of the queue (3 per session), storage full stops it. It **never
+aborts** an in-flight category (it's shared with the real entry via the
+loader's `dedup`); the 300 ms focus prefetch (feature 010, R-013) still exists
+separately. **This reopens feature 010's D-007/R0-1 on purpose** (recorded in
+the spec and `research.md` R0-2). The bigger structural change: an update of a
+list along the **same path** (Xtream→Xtream, stored M3U→stored M3U) no longer
+publishes a new generation — `applyStructureRefresh` reconciles categories
+**in the active generation** (`structureDiff.ts`: by section + provider id, or
+exact name for M3U; kept categories keep id/`order`/items and get
+`renewRequestedAt`; `order` is immutable because it's the items' `groupOrder`,
+display order is the new `position`), stored M3U points kept categories at the
+rescanned content via `storedFrom`, and `publishGeneration` (first import /
+path switch only) no longer deletes items — `collectStaleGenerations` deletes
+old generations **in chunks** from the scheduler. Item writes go through one
+path, `renewCategoryItems`, which **preserves each item's local id** by
+identity (`seriesId` / `providerStreamId` / `originalName`, never URL) and
+skips identical lists by signature; `listChannels` therefore orders by
+`categoryPosition`, not id. Entering a stale (>24 h) or renewal-pending
+category serves the device copy immediately (`serveStale` → the scheduler's
+`prioritize`) and `loadCategoryContent` reports it as `fresh`, so the
+"Não foi possível atualizar agora" note still only means a real failure.
+Focus in the grid/channel list falls to the nearest neighbour (same list only)
+when a renewal removes the focused item (`lib/focus/reconcileFocus.ts`). Also:
+the import screen now shows one line per part (Canais/Filmes/Séries/Guia,
+`importSections.ts`, `ImportRunRecord.sections`), the trail shows the real
+count as soon as a category is on the device, and the Início shows a
+non-focusable status line ("Preparando catálogo — N de M", "Atualizando
+catálogo…", "Catálogo atualizado há …"). No Dexie version bump (value fields
+only). The measurement led to strategy R0-3: Entrega 1 here (the whole
+section in one request, streamed in a Web Worker — 3 requests instead of ~99,
+ending the panel's rate limit) and Entrega 2 as feature 039 (blocks). The
+measurement build (`VITE_CCPLAY_PERF=1`, on-screen panel `PerfOverlay`, since
+the TV has no console) stays, off by default. **Closed by the user's decision
+with feature 039's TV pass (R-017)**: categories already on the device open
+in 24–56 ms and the whole catalog is ready in ≤ 60 s on the TV; SC-003
+(navigation latency while prefetching), SC-004 and SC-006 weren't measured on
+the device. See `sdd/specs/038-carga-listas-pre-carga/plan.md` →
+`## Resultado Final`.
+
+**Code-complete**: `037-entrada-listas-prototipo` — the two entry screens now
+match the V13.2 prototype, with the same flow (Splash → list screen → pick a
+list or add one). `ProfilesScreen` became "Selecione ou Adicione sua lista"
+(`profiles()`): vertical cards with a type badge, an initials avatar whose
+gradient comes from an FNV-1a hash of the source **id** over six
+`--list-avatar-N-from/to` tokens that only reference `--brand-1..5`
+(`features/profiles/listAvatar.ts`, `logic/avatar-da-lista.md`, nothing
+persisted), the name and the real notices. The sync date is gone from the
+card. "Adicionar lista" is a dashed card-button, and "Gerenciar listas"
+became a "⚙ Configurações" corner button with the same navigation. The
+↓ action row (Ressincronizar/Editar/Excluir) stays. Coming back from the
+add form lands on "Adicionar lista" (exported sentinel `ADD_LIST_FOCUS_ID`,
+passed through `appNav`'s existing `from`). `AddSourceScreen` became "Conecte
+sua lista IPTV" (`sourceSetup()`): a "Como funciona" side panel and an
+"Adicionar serviço" panel with "Conectar com celular" as an honest "Em breve"
+mock (`pair-phone`, no QR/code/address), plus two `aria-pressed` type cards,
+**Xtream Codes by default** and focused through a new additive `initialFocus`
+option on `useTvKeyNav`. Labels are "Nome da lista"/"Servidor"/"Usuário"/
+"Senha"/"URL M3U", and the actions "Voltar"/"Conectar e sincronizar". The
+same validation and `mutate` run as before; only the empty-name message
+changed. Editing shows only the manual panel. It fits 1080 inside the safe
+zone and scrolls as a fallback. `useTvKeyNav` now also sorts focusables by
+document position: jsdom's scoped `querySelectorAll` with a selector list
+groups by selector (buttons before inputs), a real test-fidelity trap
+(R-009). **Every E2E script now registers a list through
+`tv-web/e2e/lib/entrada.mjs`** (`cadastrarListaM3u`/`cadastrarListaXtream`),
+so the next form change touches one file, and the old labels are gone from
+`tv-web/e2e*`. 5/5 contract tests locked (the 023/026/028 locks are intact),
+and `npm run test:e2e` is 18/18 green. SC-002 is measured in `e2e.mjs`: 2 OK
+presses from an empty app to the progress screen. **Verified on the physical TV**
+(QN50Q60DAGXZD, 2026-09-30, seen by the user): list screen, focus, add form with
+Xtream Codes focused and scrolling, TV IME per field, RETURN back to "Adicionar
+lista" and initials legibility (the empty first-use state was not seen on the
+device — reinstalling preserves IndexedDB). See
+`sdd/specs/037-entrada-listas-prototipo/plan.md` → `## Estado Atual`.
+
+**Converged**: `039-catalogo-em-blocos` — feature 038's "Entrega 2": the
+items of each category (channels, movies, series; Xtream and M3U) now live in
+**one record per category** — a block, in a new Dexie v14 `categoryBlocks`
+table (`tv-web/src/lib/catalog/categoryBlocks.ts`) — instead of one
+`channels` row per item. Episodes stay rows. Each block item gets a
+**negative** numeric id that encodes its category plus a hash of its stable
+identity (`s:<seriesId>`/`p:<providerStreamId>`/`n:<originalName>`, never the
+URL or position), reused on every renewal, so `getChannel(id)`,
+`Number(itemId)` and `CatalogItemOut.id` work unchanged. Positive ids are old
+rows: every public read in `catalogRepository.ts` (`listChannels`,
+`getChannel`, `listAllOfKind`, `resolveFavorites`, …) reads **blocks first,
+old rows as fallback** — that's what keeps ten locked contracts of other
+features that seed rows directly green, and what lets lists saved before this
+feature keep working while `convertLegacyCategories` turns them into blocks in
+the background (prefetch `housekeeping`, one category per call, same gate as
+the prefetch, preserving `itemsFetchedAt`; the open screen is told to re-read
+because ids change once). Favorites/progress/history are by `stableId` and
+untouched. Measured on the real list (production build, CPU 4× in the PC
+browser — `e2e/catalogo-em-blocos-real.mjs`, kept out of `test:e2e`): whole
+catalog ready in ~9.5 s (17.1 s in 038); opening a category reads its block
+by key with one conversion per item (`getActiveCategoryBlock`) — 11k movies
+365–464 ms, still above SC-001's 300 ms on the PC (the remaining cost is
+IndexedDB deserializing the block; the user chose to measure on the TV before
+changing the format, R-009). "Todos" in source order now **loads as the
+person scrolls down** (`readKindPage` + `useAggregatedItems({ progressive })`,
+next page 10 rows before the end, and until the item being restored is read);
+sorting and searching inside "Todos" still read the whole type. 300k-movie
+stress test (`CCPLAY_E2E_ESTRESSE=so node e2e/catalogo-em-blocos.mjs`):
+"Todos" opens in 84–155 ms with ~17–32 MB of heap (was 959 ms / ~217 MB).
+The sync Worker no longer holds a whole section: it flushes what it read
+into a staging table (Dexie **v15** `sectionStaging`) every 20k items and
+writes one category at a time — peak ~123–132 → 50–70 MB. FR-013 was amended
+(searching/sorting inside "Todos" and global search may read a whole type —
+explicit, one-off actions). Also: the search index normalizes names lazily,
+search keystrokes reuse each item's normalized name, and "Continuar
+assistindo" / ↺ Histórico de Séries resolve in one pass per kind. **Verified
+on the physical TV** (2026-09-30, reported by the user): the 11k-movie
+category in 24–56 ms in normal use, whole catalog ≤ 60 s, "Todos" ≤ ~1 s.
+Not run on the TV, by the user's decision: migrating a pre-039 database
+(needs an uninstall that wipes the TV's data) and the 300k stress — both
+proven in the browser only (R-014). Still open: a "cold" read of the 11k
+category (OK with no cursor pause) wasn't measured on the TV (R-009). See
+`sdd/specs/039-catalogo-em-blocos/plan.md` → `## Resultado Final`.
+
 The four top-level directories:
 
-- **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Quem está
-  assistindo?" profile screen (one card per IPTV list plus "Adicionar
-  lista", ADR-011 §2), the Add-list form, the Início (hub content under a
+- **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Selecione ou
+  Adicione sua lista" profile screen (one card per IPTV list plus "Adicionar
+  lista", ADR-011 §2; feature 037), the "Conecte sua lista IPTV" add-list form, the Início (hub content under a
   persistent topbar, feature 023), **Live TV, Filmes and Séries** all read
   the **real local catalog** (`tv-web/src/lib/catalog/`, IndexedDB via
   Dexie) — no mock data remains anywhere in the app. Live TV/Filmes/Séries are
@@ -976,7 +1146,7 @@ requesting a `tizen-tv`/`tizen-emulator` validation pass.
 
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.6.0) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.7.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 
@@ -1116,7 +1286,10 @@ to under-deliver on from memory.
   (sequenced by dependency, phases 0–6 plus `A avaliar` and process items),
   `## Features`, `## Bugs`, `## Melhorias Ad-hoc`. **The status/progress
   columns are maintained by the PowerShell scripts — don't hand-edit them.**
-  The idea list above them is hand-maintained prose.
+  The idea list above them is one hand-maintained table (since 2026-09-29)
+  with each item's dependencies, code zones and "trilha" (lane) — two items
+  can run in parallel only if their zones don't overlap; see "Regras para
+  trabalhar em paralelo" there.
 - `.planning/migracao-design-system-v14.md` — the roadmap for migrating the
   frontend to Design System V14 (waves → features 021+, real-vs-mock matrix,
   mock policy, open decisions, risks). Hand-maintained prose, like the idea
@@ -1258,6 +1431,18 @@ straight to `channels`; entering a category reads it from there once per
 generation, never the network again. Code-complete; only the SC-001/SC-002
 timing measurements against a real user list remain open. See
 `sdd/specs/014-m3u-sob-demanda/`.
+
+**Update (2026-09-30, feature 038)**: "obtained only on entry" is no longer
+the whole story — a background prefetch now fills every category of the
+active list over time, and a same-path update keeps the active generation
+(long-lived) instead of replacing it. See feature 038 above.
+
+**Update (2026-09-30, feature 039)**: a category's items are no longer one
+`channels` row each — they're one block per category (`categoryBlocks`), read
+and written at once; old rows are read as a fallback and converted in the
+background. Code that needs a category's or a kind's items must go through
+`catalogRepository.ts`, never `db.channels` directly (only episodes are still
+rows). See feature 039 above.
 
 ## Language
 

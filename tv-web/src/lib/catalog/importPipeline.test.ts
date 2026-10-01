@@ -5,6 +5,7 @@ import { ImportAlreadyRunningError, startImport } from './importPipeline'
 import { ensureCategory } from './categoryLoader'
 import { getSource } from './sourceRepository'
 import { logger } from '../logger'
+import { storedItems } from '../../testing/catalogStorage'
 
 let database: CatalogDb
 
@@ -576,7 +577,7 @@ describe('importPipeline — fonte de provedor', () => {
     await (await startImport(PROVIDER_SOURCE.id, { database })).completion
     await readAllCategories(PROVIDER_SOURCE.id)
 
-    const stored = await database.channels.toArray()
+    const stored = await storedItems(database)
     const canal = stored.find((item) => item.kind === 'channel')
     const filme = stored.find((item) => item.kind === 'movie')
 
@@ -674,7 +675,7 @@ describe('importPipeline — agrupamento de séries M3U (feature 012, US2)', () 
     await readAllCategories('fonte-bb')
 
     expect(run.status).toBe('completed')
-    const stored = await database.channels.where('sourceId').equals('fonte-bb').toArray()
+    const stored = await storedItems(database, 'fonte-bb')
     const series = stored.filter((item) => item.kind === 'series')
     const episodes = stored.filter((item) => item.kind === 'episode')
 
@@ -709,10 +710,10 @@ describe('importPipeline — agrupamento de séries M3U (feature 012, US2)', () 
     await (await startImport('fonte-b', { database })).completion
     await readAllCategories('fonte-b')
 
-    const seriesA = (await database.channels.where('sourceId').equals('fonte-a').toArray()).find(
+    const seriesA = (await storedItems(database, 'fonte-a')).find(
       (item) => item.kind === 'series',
     )
-    const seriesB = (await database.channels.where('sourceId').equals('fonte-b').toArray()).find(
+    const seriesB = (await storedItems(database, 'fonte-b')).find(
       (item) => item.kind === 'series',
     )
     expect(seriesA).toBeDefined()
@@ -748,7 +749,7 @@ describe('importPipeline — agrupamento de séries M3U (feature 012, US2)', () 
     await readAllCategories(PROVIDER_SOURCE.id)
 
     expect(run.status).toBe('completed')
-    const stored = await database.channels.where('sourceId').equals(PROVIDER_SOURCE.id).toArray()
+    const stored = await storedItems(database, PROVIDER_SOURCE.id)
     const series = stored.filter((item) => item.kind === 'series')
     const episode = stored.find((item) => item.kind === 'episode')
 

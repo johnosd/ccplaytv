@@ -9,7 +9,7 @@
  */
 
 import { isResumable } from '../player/resumePolicy'
-import { activeGeneration, listEpisodes, resolveFavorites } from './catalogRepository'
+import { findSeriesRecord, listEpisodes, resolveFavorites } from './catalogRepository'
 import { db, type CatalogDb, type CatalogRecord } from './db'
 import { getContinueWatching, getGlobalFavorites, parseStableId, type StableIdParts } from './userStateRepository'
 
@@ -46,19 +46,16 @@ async function resolveOne(
   return records[0]
 }
 
-/** Série-pai de um episódio, mesma consulta que `resolveContinueWatching` usa internamente. */
+/**
+ * Série-pai de um episódio, mesma consulta que `resolveContinueWatching` usa
+ * internamente (linhas ou blocos de séries — feature 039).
+ */
 async function resolveSeriesParent(
   sourceId: string,
   seriesId: string,
   database: CatalogDb,
 ): Promise<CatalogRecord | undefined> {
-  const generation = await activeGeneration(sourceId, database)
-  if (generation === undefined) return undefined
-  return database.channels
-    .where('[sourceId+generation+seriesId]')
-    .equals([sourceId, generation, seriesId])
-    .and((candidate) => candidate.kind === 'series')
-    .first()
+  return findSeriesRecord(sourceId, seriesId, database)
 }
 
 /**

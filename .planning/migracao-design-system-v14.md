@@ -8,6 +8,9 @@ mudança de layout). **Onda 1 concluída** (feature
 verdes). **Onda 2 code-complete** (feature
 023-shell-navegacao-entrada-ds-v14: Splash → perfis (= listas) → Início com
 topbar, RETURN em camadas, 5/5 contratos verdes, 9/9 scripts E2E verdes).
+**Atualização (feature 037, 2026-09-30):** a tela de perfis virou
+"Selecione ou Adicione sua lista" e o cadastro virou "Conecte sua lista IPTV",
+fiéis ao `profiles()`/`sourceSetup()` do protótipo V13.2.
 **Branch de trabalho**: `feature/novo-design-system`
 
 Migração do frontend (`tv-web/`) do protótipo antigo de 9 telas
@@ -167,7 +170,7 @@ fato. A política que concilia as duas coisas:
 | Superfície do protótipo | Tratamento | Origem do dado / item que substitui o mock |
 |---|---|---|
 | Splash V14 (logo, tagline, loader) | **Real** | `SplashScreen` restilizado |
-| Perfis "Quem está assistindo?" | **Real**: perfil = lista (ADR-011). Cartões das fontes + "Adicionar lista"; escolher = fonte ativa | Reaproveita `HomeScreen`. Perfis de pessoa independentes das listas = item 52 |
+| Perfis "Quem está assistindo?" (desde a 037: "Selecione ou Adicione sua lista") | **Real**: perfil = lista (ADR-011). Cartões das fontes (selo do tipo, avatar de iniciais derivado do id) + cartão-botão "Adicionar lista"; escolher = fonte ativa | Reaproveita `HomeScreen`. Perfis de pessoa independentes das listas = item 52. "Conectar com celular" no cadastro segue mock `pair-phone` (item 22) |
 | Onboarding de fonte (sourceSetup: M3U / Xtream) | **Real** | `AddSourceScreen` + `importApi` (features 001/004/005/014), IME com `inputmode`/`autocomplete` (§37) |
 | Progresso de importação | **Real** | `ImportProgressScreen` restilizado; o protótipo não desenha esta tela, usar componentes do Lab |
 | Topbar: Início, TV ao vivo, Filmes, Séries | **Real** | Rotas existentes |

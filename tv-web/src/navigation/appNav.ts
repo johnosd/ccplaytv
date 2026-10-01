@@ -2,6 +2,8 @@ import type { SourceOut } from '../features/import/importApi'
 import type { CategoryScreenSnapshot } from '../features/catalog/categoryScreenSnapshot'
 import type { SearchSnapshot } from '../features/search/searchSnapshot'
 import type { SettingsFocus } from '../features/settings/SettingsScreen'
+import type { DetailSnapshot } from '../features/vod/detailSnapshot'
+import type { PersonSnapshot } from '../features/person/personSnapshot'
 
 /**
  * Navegação do app como função pura (feature 023, D-003 do plan.md —
@@ -52,9 +54,12 @@ export type AppScreen =
       topbarFocus?: TopbarItem
     }
   | { name: 'movies'; restore?: CategoryScreenSnapshot; topbarFocus?: TopbarItem; openFavorites?: boolean }
-  | { name: 'movie-detail'; movieId: string }
+  /** `restore` (feature 035): aba e item focado ao voltar de Semelhantes/Elenco/Configurações — por identidade. */
+  | { name: 'movie-detail'; movieId: string; restore?: DetailSnapshot }
   | { name: 'series'; restore?: CategoryScreenSnapshot; topbarFocus?: TopbarItem; openFavorites?: boolean }
-  | { name: 'series-detail'; seriesId: string }
+  | { name: 'series-detail'; seriesId: string; restore?: DetailSnapshot }
+  /** Página de ator (feature 035, US4) — aberta pela aba Elenco de um detalhe; sem topbar. RETURN volta ao detalhe com aba Elenco e a pessoa focada. */
+  | { name: 'person'; personId: number; personName: string; restore?: PersonSnapshot }
   /** Busca global (feature 026, US3). */
   | { name: 'search'; restore?: SearchSnapshot }
   /** Configurações (feature 026, US2). `standalone`: sem lista ativa, sem topbar (FR-033, "Gerenciar listas"). */

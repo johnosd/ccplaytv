@@ -9,12 +9,21 @@ import {
   useSeriesEpisodes,
   useSeriesWatchedSummary,
   useTitleMetadata,
+  useSimilarTitles,
   useTmdbStatus,
   useUserState,
   useUserStates,
   type EpisodeOut,
 } from '../catalog/catalogApi'
-import { CastPanel, DetailBackdrop, MetadataFacts, SynopsisBlock, SynopsisModal } from '../vod/DetailMetadata'
+import {
+  CastPanel,
+  CastPeoplePanel,
+  DetailBackdrop,
+  MetadataFacts,
+  SynopsisBlock,
+  SynopsisModal,
+  personFocusKey,
+} from '../vod/DetailMetadata'
 import { isSynopsisTruncated, metadataFactRows } from '../vod/detailMetadataFormat'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
@@ -41,7 +50,11 @@ import { formatTime } from '../../lib/player/formatTime'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
-import { getComingSoon } from '../../lib/comingSoon'
+import type { DetailSnapshot, OpenPersonTarget, OpenTitleTarget } from '../vod/detailSnapshot'
+import { SimilarPanel } from '../vod/SimilarPanel'
+import { useEnterSimilarPanel } from '../vod/useEnterSimilarPanel'
+import { TitleSummaryModal } from '../vod/TitleSummaryModal'
+import type { ResolvedTitle } from '../../lib/metadata/types'
 import { TrailerLayer } from '../../components/TrailerLayer'
 import {
   trailerActionLabel,
@@ -53,29 +66,41 @@ import {
 export interface SeriesDetailScreenProps {
   seriesId: string
   onBack: () => void
+  /** Feature 035: volta de Semelhantes/Elenco/Configurações com a aba e o item focado (por identidade). */
+  restore?: DetailSnapshot
+  /** Feature 035: OK num cartão "encontrado" de Semelhantes. */
+  onOpenTitle?: (target: OpenTitleTarget, from: DetailSnapshot) => void
+  /** Feature 035: OK numa pessoa do elenco com identidade TMDB. */
+  onOpenPerson?: (person: OpenPersonTarget, from: DetailSnapshot) => void
+  /** Feature 035: "Configurar TMDB" da aba Semelhantes sem chave. */
+  onOpenTmdbSettings?: (from: DetailSnapshot) => void
 }
 
 type DetailTab = 'episodes' | 'details' | 'cast' | 'similar'
-type Row = 'more' | 'actions' | 'tabs' | 'season' | 'episodes'
+type Row = 'more' | 'actions' | 'tabs' | 'season' | 'episodes' | 'panel'
+
+const CONFIGURE_KEY = 'configure'
 
 const TABS: TabItem[] = [
   { id: 'episodes', label: 'Episódios' },
   { id: 'details', label: 'Detalhes' },
   { id: 'cast', label: 'Elenco' },
-  { id: 'similar', label: 'Semelhantes', softDisabled: true },
+  { id: 'similar', label: 'Semelhantes' },
 ]
 
 type SeriesAction =
   | { id: 'primary'; primary: SeriesPrimary }
   | { id: 'favorite'; isFavorite: boolean }
   | { id: 'trailer' }
+  | { id: 'similar' }
 
-/** Ações do hero, na ordem de foco (feature 025, FR-038): `[Continuar|Assistir TX:EY] [Minha Lista] [Trailer]`. */
+/** Ações do hero, na ordem de foco (feature 025, FR-038): `[Continuar|Assistir TX:EY] [Minha Lista] [Trailer] [Semelhantes]`. */
 function buildActions(primary: SeriesPrimary | null, isFavorite: boolean): SeriesAction[] {
   const actions: SeriesAction[] = []
   if (primary) actions.push({ id: 'primary', primary })
   actions.push({ id: 'favorite', isFavorite })
   actions.push({ id: 'trailer' })
+  actions.push({ id: 'similar' })
   return actions
 }
 
@@ -89,6 +114,8 @@ function actionLabel(action: SeriesAction): string {
       return action.isFavorite ? '✓ Na Minha Lista' : '+ Minha Lista'
     case 'trailer':
       return '▶ Trailer'
+    case 'similar':
+      return '☰ Semelhantes'
   }
 }
 
@@ -155,7 +182,7 @@ type Mode =
  * plano de hardware. Autoplay/contagem/máquina `Mode` **inalterados** desde
  * a feature 012.
  */
-export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps) {
+export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onOpenPerson, onOpenTmdbSettings }: SeriesDetailScreenProps) {
   const queryClient = useQueryClient()
   const query = useCatalogItem(seriesId)
   const series = query.data ?? undefined
@@ -205,14 +232,74 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
   })
   const [trailerOpen, setTrailerOpen] = useState(false)
 
-  const [rawRow, setRow] = useState<Row>('actions')
-  // Sem o botão "Ver mais" a linha `more` não existe: o foco cai nas ações.
-  const row: Row = rawRow === 'more' && !hasMore ? 'actions' : rawRow
+  // Voltando de Semelhantes/Configurações (feature 035): aba e item por identidade.
+  const restoredTab: DetailTab = restore?.tab ?? 'episodes'
+  const [rawRow, setRow] = useState<Row>(
+    restore?.focusKey !== undefined ? 'panel' : restore !== undefined ? 'tabs' : 'actions',
+  )
+  const [panelFocusKey, setPanelFocusKey] = useState<string | undefined>(restore?.focusKey)
+  const [summaryTitle, setSummaryTitle] = useState<ResolvedTitle | null>(null)
   const [synopsisOpen, setSynopsisOpen] = useState(false)
   const [actionFocus, setActionFocus] = useState(0)
   const safeActionFocus = clamp(actionFocus, 0, actions.length - 1)
-  const [activeTab, setActiveTab] = useState<DetailTab>('episodes')
-  const [focusedTabId, setFocusedTabId] = useState<string>('episodes')
+  const [activeTab, setActiveTab] = useState<DetailTab>(restoredTab)
+  const [focusedTabId, setFocusedTabId] = useState<string>(restoredTab)
+
+  // Semelhantes: só resolve com a aba ativa; nenhuma requisição externa nasce aqui (FR-003/SC-005).
+  const similar = useSimilarTitles(seriesId, activeTab === 'similar')
+  const castPeople = metadata?.castPeople ?? []
+  const panelKeys: string[] =
+    activeTab === 'cast'
+      ? castPeople.map((person) => personFocusKey(person.personId))
+      : activeTab !== 'similar'
+        ? []
+        : similar.status === 'ready'
+          ? similar.titles.map((title) => title.key)
+          : similar.status === 'no_key'
+            ? [CONFIGURE_KEY]
+            : []
+
+  // Ação "Semelhantes" do hero: ativa a aba, rola até o painel e foca o 1º cartão.
+  const enterSimilar = useEnterSimilarPanel({
+    keys: panelKeys,
+    enter: (firstKey) => {
+      setPanelFocusKey(firstKey)
+      setRow('panel')
+    },
+  })
+
+  // Sem o botão "Ver mais" a linha `more` não existe: o foco cai nas ações.
+  // Chave do painel que sumiu (a lista mudou): o foco cai na aba ativa (D-008).
+  const row: Row =
+    rawRow === 'more' && !hasMore
+      ? 'actions'
+      : rawRow === 'panel' && (panelFocusKey === undefined || !panelKeys.includes(panelFocusKey))
+        ? 'tabs'
+        : rawRow
+  const effectiveTabId = rawRow === 'panel' && row === 'tabs' ? activeTab : focusedTabId
+
+  function snapshot(focusKey?: string): DetailSnapshot {
+    return focusKey === undefined ? { tab: activeTab } : { tab: activeTab, focusKey }
+  }
+
+  function selectPanelKey(key: string) {
+    if (key === CONFIGURE_KEY) {
+      onOpenTmdbSettings?.({ tab: 'similar' })
+      return
+    }
+    if (activeTab === 'cast') {
+      const person = castPeople.find((candidate) => personFocusKey(candidate.personId) === key)
+      if (person) onOpenPerson?.({ personId: person.personId, name: person.name }, snapshot(key))
+      return
+    }
+    const title = similar.titles.find((candidate) => candidate.key === key)
+    if (!title) return
+    if (title.localItemId !== undefined) {
+      onOpenTitle?.({ kind: title.kind, itemId: title.localItemId }, snapshot(key))
+    } else {
+      setSummaryTitle(title)
+    }
+  }
 
   const [seasonIdx, setSeasonIdx] = useState(0)
   const safeSeasonIdx = clamp(seasonIdx, 0, Math.max(0, seasons.length - 1))
@@ -350,13 +437,8 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
     setFocusedEpisodeId(finished.id)
   }
 
-  /** Troca a aba real (Episódios/Detalhes/Elenco) ou anuncia "Em breve" pra Semelhantes (mock). */
   function activateTab(id: string) {
-    if (id === 'episodes' || id === 'details' || id === 'cast') {
-      setActiveTab(id)
-      return
-    }
-    showToast(`Em breve — ${getComingSoon(id).message}`)
+    if (id === 'episodes' || id === 'details' || id === 'cast' || id === 'similar') setActiveTab(id)
   }
 
   function openSeasonModal() {
@@ -375,6 +457,7 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
   useRemoteNav({
     onDirection: (dir) => {
       if (!series || mode.kind !== 'browsing') return
+      enterSimilar.cancel()
       if (row === 'more') {
         if (dir === 'down') setRow('actions')
         return
@@ -389,14 +472,32 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
         }
         return
       }
+      if (row === 'panel') {
+        const index = panelKeys.indexOf(panelFocusKey as string)
+        if (dir === 'left' || dir === 'right') {
+          const next = clamp(index + (dir === 'left' ? -1 : 1), 0, panelKeys.length - 1)
+          setPanelFocusKey(panelKeys[next])
+        }
+        if (dir === 'up') {
+          setFocusedTabId(activeTab)
+          setRow('tabs')
+        }
+        return
+      }
       if (row === 'tabs') {
         if (dir === 'left' || dir === 'right') {
-          const idx = TABS.findIndex((t) => t.id === focusedTabId)
+          const idx = TABS.findIndex((t) => t.id === effectiveTabId)
           const next = clamp(idx + (dir === 'left' ? -1 : 1), 0, TABS.length - 1)
           setFocusedTabId(TABS[next].id)
+          setRow('tabs')
         }
         if (dir === 'up') setRow('actions')
         if (dir === 'down' && activeTab === 'episodes') setRow('season')
+        // ↓ só entra no painel se a aba focada é a ativa e o painel tem focáveis; senão o foco fica na aba.
+        if (dir === 'down' && effectiveTabId === activeTab && panelKeys.length > 0) {
+          setPanelFocusKey((current) => (current !== undefined && panelKeys.includes(current) ? current : panelKeys[0]))
+          setRow('panel')
+        }
         return
       }
       if (row === 'season') {
@@ -461,11 +562,22 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
           void favoriteToggle.toggle(series)
           return
         }
+        if (action.id === 'similar') {
+          setActiveTab('similar')
+          setFocusedTabId('similar')
+          setRow('tabs')
+          enterSimilar.request()
+          return
+        }
         openEpisode(action.primary.episode)
         return
       }
       if (row === 'tabs') {
-        activateTab(focusedTabId)
+        activateTab(effectiveTabId)
+        return
+      }
+      if (row === 'panel') {
+        if (panelFocusKey !== undefined) selectPanelKey(panelFocusKey)
         return
       }
       if (row === 'season') {
@@ -583,9 +695,9 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
         </div>
       )}
 
-      <Tabs items={TABS} activeId={activeTab} focusedId={row === 'tabs' ? focusedTabId : undefined} onSelect={activateTab} />
+      <Tabs items={TABS} activeId={activeTab} focusedId={row === 'tabs' ? effectiveTabId : undefined} onSelect={activateTab} />
 
-      <div className="vod-detail-panel">
+      <div className="vod-detail-panel" ref={enterSimilar.panelRef}>
         {activeTab === 'details' && (
           <dl className="vod-detail-facts">
             <div className="vod-detail-fact">
@@ -616,7 +728,29 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
           </dl>
         )}
 
-        {activeTab === 'cast' && <CastPanel cast={metadata?.cast} loading={metadataQuery.isLoading === true} />}
+        {activeTab === 'cast' &&
+          (castPeople.length > 0 ? (
+            <CastPeoplePanel
+              people={castPeople}
+              focusedKey={row === 'panel' ? panelFocusKey : undefined}
+              onSelectPerson={(person) => selectPanelKey(personFocusKey(person.personId))}
+            />
+          ) : (
+            <CastPanel cast={metadata?.cast} loading={metadataQuery.isLoading === true} />
+          ))}
+
+        {activeTab === 'similar' && (
+          <SimilarPanel
+            status={similar.status}
+            titles={similar.titles}
+            coverage={similar.coverage}
+            kind="series"
+            focusedKey={row === 'panel' ? panelFocusKey : undefined}
+            configureFocused={row === 'panel' && panelFocusKey === CONFIGURE_KEY}
+            onSelectTitle={(title) => selectPanelKey(title.key)}
+            onConfigure={() => selectPanelKey(CONFIGURE_KEY)}
+          />
+        )}
 
         {activeTab === 'episodes' && (
           <>
@@ -717,6 +851,7 @@ export function SeriesDetailScreen({ seriesId, onBack }: SeriesDetailScreenProps
       <Toast message={toastMessage} messageKey={toastKey} />
 
       {synopsisOpen && synopsis && <SynopsisModal text={synopsis.value} onClose={() => setSynopsisOpen(false)} />}
+      {summaryTitle && <TitleSummaryModal title={summaryTitle} onClose={() => setSummaryTitle(null)} />}
 
       {/* Fechar o trailer não invalida nada: ver trailer não muda estado do usuário (FR-016). */}
       {trailerOpen && trailerState.status === 'available' && (

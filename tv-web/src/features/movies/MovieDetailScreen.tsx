@@ -3,13 +3,22 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
   useCatalogItem,
   useTitleMetadata,
+  useSimilarTitles,
   useTmdbStatus,
   useUserState,
   invalidateUserState,
   useToggleWatched,
   groupLabel,
 } from '../catalog/catalogApi'
-import { CastPanel, DetailBackdrop, MetadataFacts, SynopsisBlock, SynopsisModal } from '../vod/DetailMetadata'
+import {
+  CastPanel,
+  CastPeoplePanel,
+  DetailBackdrop,
+  MetadataFacts,
+  SynopsisBlock,
+  SynopsisModal,
+  personFocusKey,
+} from '../vod/DetailMetadata'
 import { isSynopsisTruncated, metadataFactRows } from '../vod/detailMetadataFormat'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
@@ -22,7 +31,11 @@ import { buildStableId } from '../../lib/catalog/userStateRepository'
 import { isResumable } from '../../lib/player/resumePolicy'
 import { formatTime } from '../../lib/player/formatTime'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
-import { getComingSoon } from '../../lib/comingSoon'
+import type { DetailSnapshot, OpenPersonTarget, OpenTitleTarget } from '../vod/detailSnapshot'
+import { SimilarPanel } from '../vod/SimilarPanel'
+import { useEnterSimilarPanel } from '../vod/useEnterSimilarPanel'
+import { TitleSummaryModal } from '../vod/TitleSummaryModal'
+import type { ResolvedTitle } from '../../lib/metadata/types'
 import {
   trailerActionLabel,
   trailerActionSoftDisabled,
@@ -33,6 +46,14 @@ import {
 export interface MovieDetailScreenProps {
   movieId: string
   onBack: () => void
+  /** Feature 035: volta de Semelhantes/Elenco/Configurações com a aba e o item focado (por identidade). */
+  restore?: DetailSnapshot
+  /** Feature 035: OK num cartão "encontrado" de Semelhantes. `from` = onde o foco estava. */
+  onOpenTitle?: (target: OpenTitleTarget, from: DetailSnapshot) => void
+  /** Feature 035: OK numa pessoa do elenco com identidade TMDB. */
+  onOpenPerson?: (person: OpenPersonTarget, from: DetailSnapshot) => void
+  /** Feature 035: "Configurar TMDB" da aba Semelhantes sem chave — abre Configurações › Integrações & BYOK. */
+  onOpenTmdbSettings?: (from: DetailSnapshot) => void
 }
 
 type MovieAction =
@@ -41,6 +62,7 @@ type MovieAction =
   | { id: 'restart' }
   | { id: 'favorite'; isFavorite: boolean }
   | { id: 'trailer' }
+  | { id: 'similar' }
   | { id: 'toggle-watched'; watched: boolean }
 
 type DetailTab = 'details' | 'cast' | 'similar'
@@ -48,13 +70,15 @@ type DetailTab = 'details' | 'cast' | 'similar'
 const TABS: TabItem[] = [
   { id: 'details', label: 'Detalhes' },
   { id: 'cast', label: 'Elenco' },
-  { id: 'similar', label: 'Semelhantes', softDisabled: true },
+  { id: 'similar', label: 'Semelhantes' },
 ]
+
+const CONFIGURE_KEY = 'configure'
 
 /**
  * As ações do detalhe, na ordem de foco (feature 025, `logic/detalhe-vod.md`
  * §3, FR-033): `[Continuar|Assistir] [Reiniciar?] [Minha Lista] [Trailer]
- * [Marcar assistido]`. A ação PRIMÁRIA é sempre o índice 0 — diferente da
+ * [Semelhantes] [Marcar assistido]`. A ação PRIMÁRIA é sempre o índice 0 — diferente da
  * versão anterior à 025, que usava o índice 1 porque "Trailer" vinha
  * primeiro; "Trailer" virou soft-disabled e saiu do topo.
  */
@@ -62,7 +86,7 @@ function buildActions(progressSeconds: number | undefined, watched: boolean, isF
   const primary: MovieAction[] = isResumable(progressSeconds)
     ? [{ id: 'resume', progressSeconds: progressSeconds as number }, { id: 'restart' }]
     : [{ id: 'watch' }]
-  return [...primary, { id: 'favorite', isFavorite }, { id: 'trailer' }, { id: 'toggle-watched', watched }]
+  return [...primary, { id: 'favorite', isFavorite }, { id: 'trailer' }, { id: 'similar' }, { id: 'toggle-watched', watched }]
 }
 
 function actionLabel(action: MovieAction): string {
@@ -77,6 +101,8 @@ function actionLabel(action: MovieAction): string {
       return action.isFavorite ? '✓ Na Minha Lista' : '+ Minha Lista'
     case 'trailer':
       return '▶ Trailer'
+    case 'similar':
+      return '☰ Semelhantes'
     case 'toggle-watched':
       return action.watched ? '✗ Desmarcar assistido' : '✓ Marcar como assistido'
   }
@@ -133,7 +159,7 @@ function computeIdentity(movie: {
  * (FR-004) — raiz `.screen`, coberta pela regra de transparência do plano
  * de hardware.
  */
-export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
+export function MovieDetailScreen({ movieId, onBack, restore, onOpenTitle, onOpenPerson, onOpenTmdbSettings }: MovieDetailScreenProps) {
   const queryClient = useQueryClient()
   // Pelo id, direto na chave primária. Carregar a lista de filmes inteira só
   // para procurar um item dentro dela custava o catálogo todo — e deixava de
@@ -175,16 +201,79 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
   })
   const [trailerOpen, setTrailerOpen] = useState(false)
 
-  // `more` = o botão "Ver mais" da sinopse, uma linha acima das ações.
-  const [rawRow, setRow] = useState<'more' | 'actions' | 'tabs'>('actions')
-  // A sinopse pode chegar (ou sumir) depois de o foco já estar aqui: sem o
-  // botão, a linha `more` não existe e o foco cai nas ações — nunca em nada.
-  const row = rawRow === 'more' && !hasMore ? 'actions' : rawRow
+  // Voltando de Semelhantes/Configurações (feature 035): aba e item por identidade.
+  const restoredTab: DetailTab = restore?.tab === 'cast' || restore?.tab === 'similar' ? restore.tab : 'details'
+
+  // `more` = o botão "Ver mais" da sinopse, uma linha acima das ações;
+  // `panel` = o conteúdo focável da aba ativa (feature 035).
+  const [rawRow, setRow] = useState<'more' | 'actions' | 'tabs' | 'panel'>(
+    restore?.focusKey !== undefined ? 'panel' : restore !== undefined ? 'tabs' : 'actions',
+  )
+  const [panelFocusKey, setPanelFocusKey] = useState<string | undefined>(restore?.focusKey)
+  const [summaryTitle, setSummaryTitle] = useState<ResolvedTitle | null>(null)
   const [synopsisOpen, setSynopsisOpen] = useState(false)
   const [actionFocus, setActionFocus] = useState(0) // ação primária — sempre índice 0
   const safeActionFocus = clamp(actionFocus, 0, actions.length - 1)
-  const [activeTab, setActiveTab] = useState<DetailTab>('details')
-  const [focusedTabId, setFocusedTabId] = useState<string>('details')
+  const [activeTab, setActiveTab] = useState<DetailTab>(restoredTab)
+  const [focusedTabId, setFocusedTabId] = useState<string>(restoredTab)
+
+  // Semelhantes: só resolve com a aba ativa; nenhuma requisição externa nasce aqui (FR-003/SC-005).
+  const similar = useSimilarTitles(movieId, activeTab === 'similar')
+  const castPeople = metadata?.castPeople ?? []
+  const panelKeys: string[] =
+    activeTab === 'cast'
+      ? castPeople.map((person) => personFocusKey(person.personId))
+      : activeTab !== 'similar'
+        ? []
+        : similar.status === 'ready'
+          ? similar.titles.map((title) => title.key)
+          : similar.status === 'no_key'
+            ? [CONFIGURE_KEY]
+            : []
+
+  // Ação "Semelhantes" do hero: ativa a aba, rola até o painel e foca o 1º cartão.
+  const enterSimilar = useEnterSimilarPanel({
+    keys: panelKeys,
+    enter: (firstKey) => {
+      setPanelFocusKey(firstKey)
+      setRow('panel')
+    },
+  })
+
+  // A sinopse pode chegar (ou sumir) depois de o foco já estar aqui: sem o
+  // botão, a linha `more` não existe e o foco cai nas ações — nunca em nada.
+  // Da mesma forma, a chave do painel pode deixar de existir (a lista mudou):
+  // o foco cai na aba ativa, nunca num item invisível (D-008).
+  const row =
+    rawRow === 'more' && !hasMore
+      ? 'actions'
+      : rawRow === 'panel' && (panelFocusKey === undefined || !panelKeys.includes(panelFocusKey))
+        ? 'tabs'
+        : rawRow
+  const effectiveTabId = rawRow === 'panel' && row === 'tabs' ? activeTab : focusedTabId
+
+  function snapshot(focusKey?: string): DetailSnapshot {
+    return focusKey === undefined ? { tab: activeTab } : { tab: activeTab, focusKey }
+  }
+
+  function selectPanelKey(key: string) {
+    if (key === CONFIGURE_KEY) {
+      onOpenTmdbSettings?.({ tab: 'similar' })
+      return
+    }
+    if (activeTab === 'cast') {
+      const person = castPeople.find((candidate) => personFocusKey(candidate.personId) === key)
+      if (person) onOpenPerson?.({ personId: person.personId, name: person.name }, snapshot(key))
+      return
+    }
+    const title = similar.titles.find((candidate) => candidate.key === key)
+    if (!title) return
+    if (title.localItemId !== undefined) {
+      onOpenTitle?.({ kind: title.kind, itemId: title.localItemId }, snapshot(key))
+    } else {
+      setSummaryTitle(title)
+    }
+  }
 
   // Guarda de sessão única (FR-010): `{playing && <PlayerLayer/>}` já impede
   // duas camadas montadas ao mesmo tempo, e o `if (playing) return` abaixo
@@ -204,18 +293,14 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
     setPlaying(true)
   }
 
-  /** Troca a aba real (Detalhes, Elenco) ou anuncia "Em breve" pra Semelhantes (mock). */
   function activateTab(id: string) {
-    if (id === 'details' || id === 'cast') {
-      setActiveTab(id)
-      return
-    }
-    showToast(`Em breve — ${getComingSoon(id).message}`)
+    if (id === 'details' || id === 'cast' || id === 'similar') setActiveTab(id)
   }
 
   useRemoteNav({
     onDirection: (dir) => {
       if (!movie) return
+      enterSimilar.cancel()
       if (row === 'more') {
         if (dir === 'down') setRow('actions')
         return
@@ -230,13 +315,31 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
         }
         return
       }
+      if (row === 'panel') {
+        const index = panelKeys.indexOf(panelFocusKey as string)
+        if (dir === 'left' || dir === 'right') {
+          const next = clamp(index + (dir === 'left' ? -1 : 1), 0, panelKeys.length - 1)
+          setPanelFocusKey(panelKeys[next])
+        }
+        if (dir === 'up') {
+          setFocusedTabId(activeTab)
+          setRow('tabs')
+        }
+        return
+      }
       // row === 'tabs'
       if (dir === 'left' || dir === 'right') {
-        const idx = TABS.findIndex((t) => t.id === focusedTabId)
+        const idx = TABS.findIndex((t) => t.id === effectiveTabId)
         const next = clamp(idx + (dir === 'left' ? -1 : 1), 0, TABS.length - 1)
         setFocusedTabId(TABS[next].id)
+        setRow('tabs')
       }
       if (dir === 'up') setRow('actions')
+      // ↓ só entra no painel se a aba focada é a ativa e o painel tem focáveis; senão o foco fica na aba.
+      if (dir === 'down' && effectiveTabId === activeTab && panelKeys.length > 0) {
+        setPanelFocusKey((current) => (current !== undefined && panelKeys.includes(current) ? current : panelKeys[0]))
+        setRow('panel')
+      }
     },
     onSelect: () => {
       // Estado de carregando/erro tem uma única saída ("Voltar") — sem isto,
@@ -251,7 +354,11 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
         return
       }
       if (row === 'tabs') {
-        activateTab(focusedTabId)
+        activateTab(effectiveTabId)
+        return
+      }
+      if (row === 'panel') {
+        if (panelFocusKey !== undefined) selectPanelKey(panelFocusKey)
         return
       }
       const action = actions[safeActionFocus]
@@ -265,6 +372,13 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
       }
       if (action.id === 'favorite') {
         void favoriteToggle.toggle(movie)
+        return
+      }
+      if (action.id === 'similar') {
+        setActiveTab('similar')
+        setFocusedTabId('similar')
+        setRow('tabs')
+        enterSimilar.request()
         return
       }
       if (action.id === 'toggle-watched') {
@@ -327,9 +441,9 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
         </div>
       </div>
 
-      <Tabs items={TABS} activeId={activeTab} focusedId={row === 'tabs' ? focusedTabId : undefined} onSelect={activateTab} />
+      <Tabs items={TABS} activeId={activeTab} focusedId={row === 'tabs' ? effectiveTabId : undefined} onSelect={activateTab} />
 
-      <div className="vod-detail-panel">
+      <div className="vod-detail-panel" ref={enterSimilar.panelRef}>
         {activeTab === 'details' && (
           <dl className="vod-detail-facts">
             <div className="vod-detail-fact">
@@ -360,11 +474,34 @@ export function MovieDetailScreen({ movieId, onBack }: MovieDetailScreenProps) {
           </dl>
         )}
 
-        {activeTab === 'cast' && <CastPanel cast={metadata?.cast} loading={metadataQuery.isLoading === true} />}
+        {activeTab === 'cast' &&
+          (castPeople.length > 0 ? (
+            <CastPeoplePanel
+              people={castPeople}
+              focusedKey={row === 'panel' ? panelFocusKey : undefined}
+              onSelectPerson={(person) => selectPanelKey(personFocusKey(person.personId))}
+            />
+          ) : (
+            <CastPanel cast={metadata?.cast} loading={metadataQuery.isLoading === true} />
+          ))}
+
+        {activeTab === 'similar' && (
+          <SimilarPanel
+            status={similar.status}
+            titles={similar.titles}
+            coverage={similar.coverage}
+            kind="movie"
+            focusedKey={row === 'panel' ? panelFocusKey : undefined}
+            configureFocused={row === 'panel' && panelFocusKey === CONFIGURE_KEY}
+            onSelectTitle={(title) => selectPanelKey(title.key)}
+            onConfigure={() => selectPanelKey(CONFIGURE_KEY)}
+          />
+        )}
       </div>
 
       <Toast message={toastMessage} messageKey={toastKey} />
       {synopsisOpen && synopsis && <SynopsisModal text={synopsis.value} onClose={() => setSynopsisOpen(false)} />}
+      {summaryTitle && <TitleSummaryModal title={summaryTitle} onClose={() => setSummaryTitle(null)} />}
       {/* Fechar o trailer não invalida nada: ver trailer não muda estado do usuário (FR-016). */}
       {trailerOpen && trailerState.status === 'available' && (
         <TrailerLayer title={movie.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)} />

@@ -21,24 +21,14 @@ import type { MetadataOptions, TitleMetadataView } from './types'
 /** Validade do que veio do TMDB — 6 meses (termos do TMDB, FR-023), inclusive "sem correspondência" e "id morto". */
 export const TMDB_CACHE_MS = 182 * 24 * 60 * 60 * 1000
 
-/** Pelo menos um campo de FR-003 que o provedor deixou vazio — só então vale consultar o TMDB (FR-018). */
-function providerLeavesGaps(provider: TitleFields | undefined): boolean {
-  return (
-    provider?.synopsis === undefined ||
-    provider.backdropUrl === undefined ||
-    provider.genres === undefined ||
-    provider.durationSeconds === undefined ||
-    provider.director === undefined ||
-    provider.country === undefined ||
-    provider.cast === undefined ||
-    provider.trailerVideos === undefined ||
-    provider.trailerVideos.length === 0
-  )
-}
-
 /** `matched` gravado antes da 033 não tem a chave `trailerVideos` (D-005) — repete-se uma vez. */
 function tmdbLacksVideos(tmdb: TmdbResultRecord | undefined): boolean {
   return tmdb?.status === 'matched' && tmdb.fields.trailerVideos === undefined
+}
+
+/** `matched` gravado antes da 035 não tem a chave `similar` (D-003) — repete-se uma vez. */
+function tmdbLacks035(tmdb: TmdbResultRecord | undefined): boolean {
+  return tmdb?.status === 'matched' && tmdb.fields.similar === undefined
 }
 
 /**
@@ -79,6 +69,13 @@ export function mergeTitleMetadata(provider: TitleFields | undefined, tmdb: Tmdb
   // Único campo em que as duas fontes SOMAM (provedor primeiro), em vez de "provedor vence".
   const trailers = buildTrailerCandidates(provider?.trailerVideos, fromTmdb.trailerVideos)
   if (trailers.length > 0) view.trailers = trailers
+
+  // Feature 035: Semelhantes e elenco com identidade existem só no TMDB.
+  if (tmdb) view.tmdbMatch = tmdb.status
+  if (tmdb?.status === 'matched') {
+    if (tmdb.fields.similar !== undefined) view.similar = tmdb.fields.similar
+    if (tmdb.fields.castPeople?.length) view.castPeople = tmdb.fields.castPeople
+  }
 
   return view
 }
@@ -167,9 +164,9 @@ async function enrichFromTmdb(
 ): Promise<void> {
   try {
     const cached = await database.titleMetadata.get(titleStableId(record) ?? '')
-    const lacksVideos = tmdbLacksVideos(cached?.tmdb)
-    if (!providerLeavesGaps(cached?.provider) && !lacksVideos) return
-    if (!lacksVideos && cached?.tmdbFetchedAt !== undefined && now - cached.tmdbFetchedAt <= TMDB_CACHE_MS) return
+    // D-002 (035): com chave, o TMDB é consultado mesmo com o provedor completo — Semelhantes e fotos só existem lá.
+    const lacksNewFields = tmdbLacksVideos(cached?.tmdb) || tmdbLacks035(cached?.tmdb)
+    if (!lacksNewFields && cached?.tmdbFetchedAt !== undefined && now - cached.tmdbFetchedAt <= TMDB_CACHE_MS) return
 
     const credential = await readTmdbCredential({ database })
     if (!credential || credential.state === 'refused') return
@@ -178,7 +175,7 @@ async function enrichFromTmdb(
     try {
       const result = await lookupTmdb({
         record,
-        providerTmdbId: cached?.providerTmdbId,
+        providerTmdbId: cached?.providerTmdbId ?? (cached?.tmdb?.status === 'matched' ? cached.tmdb.tmdbId : undefined),
         credential: { key: credential.key, format: credential.format },
         fetchImpl: options.fetchImpl,
       })

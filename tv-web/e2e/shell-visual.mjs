@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { cadastrarListaM3u } from './lib/entrada.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'favoritos.m3u')
@@ -52,9 +53,7 @@ async function addList(page, m3uUrl, name) {
   await page.waitForSelector('.add-card.tv-focus', { timeout: 8000 })
   await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
-  await page.getByLabel('Nome de exibição').fill(name)
-  await page.getByLabel('URL da lista M3U').fill(m3uUrl)
-  await page.getByRole('button', { name: 'Adicionar lista' }).click()
+  await cadastrarListaM3u(page, { nome: name, url: m3uUrl })
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
 }
 
@@ -85,9 +84,7 @@ async function run() {
     await page.waitForSelector('#add-source-title')
     await shot(page, 'onboarding')
 
-    await page.getByLabel('Nome de exibição').fill('Sala de estar')
-    await page.getByLabel('URL da lista M3U').fill(m3uUrl)
-    await page.getByRole('button', { name: 'Adicionar lista' }).click()
+    await cadastrarListaM3u(page, { nome: 'Sala de estar', url: m3uUrl })
     await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
     await page.getByRole('button', { name: 'Abrir lista' }).waitFor()
     await shot(page, 'progresso-concluido')

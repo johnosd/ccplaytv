@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 
 import { ErrorState } from './ErrorState'
 import { Spinner } from './Spinner'
 import { useAnnounce } from '../lib/announcer'
+import { prefetchGate } from '../lib/catalog/prefetch'
 import { useRemoteNav, type RemoteDirection } from '../lib/useRemoteNav'
 import type { MediaKey } from '../lib/tizenMediaKeys'
 import {
@@ -48,6 +49,8 @@ type ErrorAction = 'retry' | 'back'
 
 export function TrailerLayer({ title, candidates, onClose }: TrailerLayerProps): ReactElement {
   const announce = useAnnounce()
+  // Feature 038 (FR-004): trailer aberto também é reprodução — a pré-carga não começa categoria.
+  useEffect(() => prefetchGate.acquirePlayback(), [])
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const onCloseRef = useRef(onClose)
   const closedRef = useRef(false)

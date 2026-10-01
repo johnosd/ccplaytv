@@ -61,8 +61,14 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   oficial do YouTube numa página-ponte estática publicada no GitHub Pages
   (só a pasta `bridge/`), com os anúncios do YouTube como vierem. Testado na
   TV física em parte — as contagens de SC-001/SC-002 não foram medidas.
-- *A avaliar:* equipe técnica além da direção, páginas de ator
-  navegáveis, trilha "Similares" e rail de tendências num dashboard.
+- Semelhantes, elenco com foto e página de ator (feature 035; exigem a chave
+  do TMDB): a aba Semelhantes cruza os títulos do TMDB com o que já está
+  guardado na sua lista (título + ano exato), marca os que existem ("✓ Na sua
+  lista") e mostra os demais com um resumo; a aba Elenco mostra foto e
+  personagem, e OK numa pessoa abre a filmografia. Pode raramente confundir
+  dois filmes homônimos do mesmo ano. Ainda sem passada na TV física.
+- *A avaliar:* equipe técnica além da direção e rail de tendências num
+  dashboard.
 - Recomendações a partir de filmes marcados como "Gostei"; ordenação por
   nota IMDb (fonte/licença dos dados ainda não definida).
 

@@ -25,6 +25,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { cadastrarListaM3u } from './lib/entrada.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'home-busca-configuracoes.m3u')
@@ -96,9 +97,7 @@ async function addSourceAndOpen(page, m3uUrl, displayName) {
   await page.waitForSelector('.add-card', { timeout: 10000 })
   await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
-  await page.getByLabel('Nome de exibição').fill(displayName)
-  await page.getByLabel('URL da lista M3U').fill(m3uUrl)
-  await page.getByRole('button', { name: 'Adicionar lista' }).click()
+  await cadastrarListaM3u(page, { nome: displayName, url: m3uUrl })
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   // "Abrir lista" (FR-038) já entra direto no Início da fonte recém-criada.
   await page.getByRole('button', { name: 'Abrir lista' }).click()
@@ -220,10 +219,18 @@ async function run() {
     await page.keyboard.press('Escape') // RETURN/pause fecha sem concluir
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
     await page.waitForSelector('.vod-detail', { timeout: 8000 })
-    assert(
-      (await page.locator('.vod-detail-action').first().textContent())?.includes('Continuar') ?? false,
-      'com progresso salvo, a ação primária do detalhe vira "Continuar"',
-    )
+    // Espera (não lê na hora): ao fechar o player o detalhe mostra por ~60 ms o estado em cache
+    // ("Assistir") até a releitura invalidada terminar. O progresso já está gravado nesse ponto —
+    // medido em sdd/bugs/flake-e2e-home-busca-configuracoes-passo-continuar-progresso/.
+    const resumeLabelShown = await page
+      .locator('.vod-detail-action', { hasText: 'Continuar' })
+      .first()
+      .waitFor({ timeout: 3000 })
+      .then(
+        () => true,
+        () => false,
+      )
+    assert(resumeLabelShown, 'com progresso salvo, a ação primária do detalhe vira "Continuar"')
 
     await page.keyboard.press('Escape') // detalhe -> grade
     await page.waitForSelector('.vod-grid', { timeout: 8000 })
@@ -378,9 +385,7 @@ async function run() {
     for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowDown')
     await page.keyboard.press('Enter')
     await page.waitForSelector('#add-source-title', { timeout: 8000 })
-    await page.getByLabel('Nome de exibição').fill('Fonte E2E Home Limitada')
-    await page.getByLabel('URL da lista M3U').fill(limitedM3uUrl)
-    await page.getByRole('button', { name: 'Adicionar lista' }).click()
+    await cadastrarListaM3u(page, { nome: 'Fonte E2E Home Limitada', url: limitedM3uUrl })
     await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
     // "Voltar" da tela de progresso sempre vai pros perfis, como base (FR-039) — nunca de volta a
     // Configurações. Importante escolher aqui a fonte PRINCIPAL (nunca a recém-criada, "Modo

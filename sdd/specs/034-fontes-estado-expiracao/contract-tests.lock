@@ -1,0 +1,27 @@
+{
+    "feature":  "034-fontes-estado-expiracao",
+    "lockedAt":  "2026-09-30 00:32",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/catalog/sourceAccount.fontes-estado.contract.test.ts",
+                      "sha256":  "3d3e184be559baecc7d47e4f6c66383e3869c38a3522b960b62a48835e135254",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/accountCheck.fontes-estado.contract.test.ts",
+                      "sha256":  "94ccc0b1309da8c3c2079a831033ffa18486471e0aa50581c087ffac6c5c87d2",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/importPipeline.fontes-estado.contract.test.ts",
+                      "sha256":  "96c2ffe0557cb64aabc1f751564c8d92ccf6726e0ceae34a33de17ef7fe41cba",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/sources/SourceAccessGate.fontes-estado.contract.test.tsx",
+                      "sha256":  "4d6fd2908ba1f2e1695b7d113c130e8f92a0a3c88c69aae83945210183b0105b",
+                      "tests":  1
+                  }
+              ]
+}

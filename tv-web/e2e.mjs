@@ -4,7 +4,7 @@
 // `AddSourceScreen` que já não existia (bug do backlog, absorvido pela 023).
 //
 // Cobre o caminho novo de ponta a ponta, só por teclado (setas + OK + RETURN):
-//   Splash → "Quem está assistindo?" (sem lista: só "Adicionar lista") →
+//   Splash → "Selecione ou Adicione sua lista" (sem lista: só "Adicionar lista") →
 //   modal de saída → onboarding → progresso → "Abrir lista" → Início com
 //   topbar → destinos → RETURN em camadas → trocar de lista pelo indicador →
 //   última lista usada → exclusão com confirmação.
@@ -19,6 +19,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { cadastrarListaM3u } from './e2e/lib/entrada.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'e2e', 'fixtures', 'favoritos.m3u')
@@ -71,10 +72,24 @@ async function addListFromProfiles(page, m3uUrl, displayName) {
   await page.waitForSelector('.add-card.tv-focus', { timeout: 8000 })
   await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
-  await page.getByLabel('Nome de exibição').fill(displayName)
-  await page.getByLabel('URL da lista M3U').fill(m3uUrl)
-  await page.getByRole('button', { name: 'Adicionar lista' }).click()
+  assert(await xtreamFocused(page), 'o cadastro abre com "Xtream Codes" selecionado e em foco (feature 037, FR-015/D-009)')
+  await cadastrarListaM3u(page, { nome: displayName, url: m3uUrl })
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
+}
+
+/** O foco DOM está no cartão "Xtream Codes", selecionado (`aria-pressed`). */
+async function xtreamFocused(page) {
+  return page
+    .waitForFunction(
+      () => {
+        const el = document.activeElement
+        return el?.getAttribute('aria-pressed') === 'true' && el.textContent?.includes('Xtream Codes') === true
+      },
+      null,
+      { timeout: 3000 },
+    )
+    .then(() => true)
+    .catch(() => false)
 }
 
 async function run() {
@@ -95,6 +110,21 @@ async function run() {
     await openProfiles(page)
     assert((await page.locator('.source-card').count()) === 0, 'sem lista, a tela de perfis não mostra nenhum cartão de lista')
     assert((await page.locator('.add-card.tv-focus').count()) === 1, '"Adicionar lista" já nasce em foco')
+    // Feature 037: a tela no formato do `profiles()` do protótipo.
+    assert(
+      (await page.locator('.profiles-screen h1').textContent())?.replace(/\s+/g, ' ').trim() ===
+        'Selecione ou Adicione sua lista',
+      'título "Selecione ou Adicione sua lista" (feature 037, FR-003)',
+    )
+    assert(
+      (await page.getByRole('button', { name: 'Adicionar lista', exact: true }).count()) === 1,
+      '"Adicionar lista" é um botão com esse nome exato (FR-007)',
+    )
+    assert(
+      (await page.getByRole('button', { name: 'Configurações' }).count()) === 1 &&
+        (await page.getByRole('button', { name: 'Gerenciar listas' }).count()) === 0,
+      '"Configurações" no canto substitui "Gerenciar listas" (FR-008)',
+    )
 
     console.log('=== FR-030: RETURN na tela de perfis (base) abre o modal de saída ===')
     await page.keyboard.press('Escape')
@@ -202,6 +232,27 @@ async function run() {
     await page.keyboard.press('Enter')
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('ArrowRight') // lista atual → "Adicionar lista"
+
+    console.log('=== Feature 037, FR-019: voltar do cadastro devolve o foco a "Adicionar lista", mesmo com listas ===')
+    await page.waitForSelector('.add-card.tv-focus', { timeout: 8000 })
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('#add-source-title', { timeout: 8000 })
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('.add-card', { timeout: 8000 })
+    assert(
+      (await page.locator('.add-card.tv-focus').count()) === 1 &&
+        (await page.locator('.source-card.tv-focus').count()) === 0,
+      'RETURN no cadastro volta à tela de listas com o foco em "Adicionar lista", não na lista ativa',
+    )
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('#add-source-title', { timeout: 8000 })
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click()
+    await page.waitForSelector('.add-card', { timeout: 8000 })
+    assert(
+      (await page.locator('.add-card.tv-focus').count()) === 1,
+      '"Voltar" no cadastro também volta com o foco em "Adicionar lista" (FR-019)',
+    )
+
     await addListFromProfiles(page, m3uUrl, 'Lista E2E Dois')
     await page.getByRole('button', { name: 'Voltar' }).click()
     // Os perfis montam com o cache anterior e a consulta traz a lista nova logo depois: esperar por ela.
@@ -254,6 +305,42 @@ async function run() {
       (await page.locator('.source-card-wrap', { hasText: 'Lista E2E Um' }).count()) === 1,
       'a outra lista continua cadastrada',
     )
+
+    console.log('=== Feature 037, SC-002: primeiro uso, lista Xtream só pelo teclado em ≤ 3 OK ===')
+    // Contexto novo = IndexedDB vazio. Só os `Enter` de navegação contam; setas
+    // e digitação nos campos são o "preenchimento", que o SC-002 não conta.
+    const fresh = await browser.newContext()
+    const freshPage = await fresh.newPage()
+    let okPresses = 0
+    const ok = async () => {
+      okPresses += 1
+      await freshPage.keyboard.press('Enter')
+    }
+    const down = async (n = 1) => {
+      for (let i = 0; i < n; i += 1) await freshPage.keyboard.press('ArrowDown')
+    }
+    await openProfiles(freshPage)
+    await freshPage.waitForSelector('.add-card.tv-focus', { timeout: 8000 })
+    await ok() // "Adicionar lista"
+    await freshPage.waitForSelector('#add-source-title', { timeout: 8000 })
+    assert(await xtreamFocused(freshPage), 'sem nenhuma lista, o cadastro também abre em "Xtream Codes"')
+    await down(2) // Xtream Codes → Lista M3U → Nome da lista
+    await freshPage.keyboard.type('Lista E2E Xtream')
+    await down()
+    await freshPage.keyboard.type(`http://127.0.0.1:${port}`)
+    await down()
+    await freshPage.keyboard.type('usuario-e2e')
+    await down()
+    await freshPage.keyboard.type('senha-e2e')
+    await down(2) // Senha → Voltar → Conectar e sincronizar
+    assert(
+      (await freshPage.evaluate(() => document.activeElement?.textContent?.trim())) === 'Conectar e sincronizar',
+      'as setas levam dos campos até "Conectar e sincronizar"',
+    )
+    await ok() // "Conectar e sincronizar"
+    await freshPage.waitForSelector('#progress-title', { timeout: 8000 })
+    assert(okPresses <= 3, `a tela de progresso abre com ${okPresses} OK de navegação (SC-002: ≤ 3)`)
+    await fresh.close()
   } catch (error) {
     failures += 1
     console.error('  ✗ ERRO NÃO TRATADO:', error)

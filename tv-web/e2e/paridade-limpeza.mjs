@@ -25,11 +25,17 @@ import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { cadastrarListaM3u } from './lib/entrada.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'limpeza-qa.m3u')
 const APP_URL = 'http://localhost:5173'
-const OUT_ROOT = path.resolve(__dirname, '..', '..', 'sdd', 'specs', '028-limpeza-qa-ds-v14', 'evidencias', 'paridade')
+// `CCPLAY_PARIDADE_DIR=<pasta>` (feature 039, T025): reaproveita as 21 capturas
+// com outra linha de base, sem tocar nas evidências da 028 — e, por ser outra
+// base, sem herdar a lista INTENTIONAL dela (toda diferença conta).
+const OUT_ROOT =
+  process.env.CCPLAY_PARIDADE_DIR ??
+  path.resolve(__dirname, '..', '..', 'sdd', 'specs', '028-limpeza-qa-ds-v14', 'evidencias', 'paridade')
 
 /**
  * Diferenças visuais aceitas entre "antes" e "depois", uma por nome de
@@ -140,7 +146,10 @@ async function settle(page) {
  * DD/MM/AAAA, HH:MM:SS") — achado ao rodar este script, não é diferença de
  * CSS. Mascarado (retângulo opaco), nunca comparado.
  */
-const MASK_SELECTORS = ['.topbar-clock', '.sources-panel-status']
+// `.sources-panel-epg` (feature 039, T025): vem logo depois do timestamp na
+// mesma linha — a largura dos dígitos de HH:MM:SS o desloca 1 px entre
+// capturas, mesmo com o timestamp mascarado.
+const MASK_SELECTORS = ['.topbar-clock', '.sources-panel-status', '.sources-panel-epg']
 
 async function capture(page, dir, name) {
   await settle(page)
@@ -162,9 +171,7 @@ async function runWalkthrough(page, m3uUrl, outDir) {
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
   await capture(page, outDir, '02-adicionar-lista')
 
-  await page.getByLabel('Nome de exibição').fill('Fonte E2E Limpeza')
-  await page.getByLabel('URL da lista M3U').fill(m3uUrl)
-  await page.getByRole('button', { name: 'Adicionar lista' }).click()
+  await cadastrarListaM3u(page, { nome: 'Fonte E2E Limpeza', url: m3uUrl })
   await page.waitForSelector('text=/Concluída/', { timeout: 20000 })
   await capture(page, outDir, '03-importacao-concluida')
 
@@ -197,8 +204,11 @@ async function runWalkthrough(page, m3uUrl, outDir) {
   await capture(page, outDir, '09-configuracoes-acessibilidade')
 
   await page.keyboard.press('ArrowLeft') // panel -> tabs (exitToTabs, foco continua em "accessibility", índice 3)
-  for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowUp') // accessibility(3) -> player(2) -> sources(1) -> integrations(0)
-  await page.keyboard.press('ArrowRight') // entra no painel "Integrações & BYOK" (mock "Em breve")
+  // "Integrações & BYOK" virou tela real na feature 032 (o passo antigo ia
+  // até ela e esperava "Em breve" — quebrou ali). O painel "Em breve" de
+  // hoje é "Player" (`ComingSoonPanel`), uma aba acima de Acessibilidade.
+  await page.keyboard.press('ArrowUp') // accessibility(3) -> player(2)
+  await page.keyboard.press('ArrowRight') // entra no painel "Player" (mock "Em breve")
   await page.waitForSelector('text=/Em breve/', { timeout: 4000 })
   await capture(page, outDir, '10-configuracoes-em-breve')
 
@@ -364,6 +374,25 @@ async function run() {
       // mesma janela de animação; não é motivo pra travar o script.
     }
   })
+  // Linha de base nova (feature 039, T025): relógio da página congelado — o
+  // timestamp de sincronização e o relógio da topbar saem iguais nas duas
+  // rodadas. Mascarar não basta: a largura dos dígitos desloca o vizinho
+  // (e a própria máscara) na mesma linha. Só com `CCPLAY_PARIDADE_DIR`, para
+  // não mudar o que as evidências da 028 significam.
+  if (process.env.CCPLAY_PARIDADE_DIR) {
+    await context.clock.setFixedTime(new Date('2026-09-30T12:00:00-03:00'))
+    // A data da sincronização é gravada no Worker de importação, que não vê o
+    // relógio congelado — os dígitos reais mudam a largura do texto e deslocam
+    // a linha. Dígitos de largura fixa SÓ na captura (o app não muda): o texto
+    // mascarado passa a ter sempre a mesma largura.
+    await context.addInitScript(() => {
+      document.addEventListener('DOMContentLoaded', () => {
+        const style = document.createElement('style')
+        style.textContent = '.sources-panel-status, .sources-panel-epg, .topbar-clock { font-variant-numeric: tabular-nums; }'
+        document.head.appendChild(style)
+      })
+    })
+  }
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
@@ -491,7 +520,7 @@ async function compare() {
       console.log(`  ✓ ${name}: ${diff.count} px diferentes em ${diff.box} — ruído de fonte (abaixo do limiar)`)
       continue
     }
-    if (name in INTENTIONAL) {
+    if (!process.env.CCPLAY_PARIDADE_DIR && name in INTENTIONAL) {
       console.log(`  ~ ${name}: ${diff.count} px diferentes em ${diff.box} — intencional (${INTENTIONAL[name]})`)
       continue
     }

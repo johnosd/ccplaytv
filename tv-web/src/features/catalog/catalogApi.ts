@@ -1,24 +1,37 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query'
 import {
   db,
+  type BlockItem,
+  type CategoryBlockRecord,
   type CategoryKind,
   type CatalogItemKind as StoredKind,
   type CatalogRecord,
   type UserStateRecord,
 } from '../../lib/catalog/db'
 import {
-  countChannels,
+  getActiveCategoryBlock,
   getChannel,
+  kindSortFields,
   listAllEpisodes,
   listCategories,
   listChannels,
   listEpisodes,
+  readKindPage,
   resolveContinueWatching,
   resolveFavorites,
   type CatalogCategory,
 } from '../../lib/catalog/catalogRepository'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
+import { markEntry } from '../../lib/perf/entryTiming'
+import { prefetchScheduler } from '../../lib/catalog/prefetch'
 import { ensureSeriesEpisodes, type SeriesFetchOutcome } from '../../lib/catalog/seriesLoader'
 import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
 import {
@@ -35,7 +48,7 @@ import {
 } from '../../lib/catalog/userStateRepository'
 import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
-import { loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
+import { isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
 import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
 import { loadHomeHero, type HeroPrimary } from '../../lib/catalog/homeHero'
 import { loadGlobalSearchIndex, searchGlobal } from '../../lib/catalog/globalSearch'
@@ -43,6 +56,11 @@ import { listProgramsForChannels } from '../../lib/epg/epgRepository'
 import type { EpgLookup } from '../../lib/epg/types'
 import { ensureTitleMetadata } from '../../lib/metadata/titleMetadata'
 import { getTmdbStatus, removeTmdbKey, saveTmdbKey, testTmdbKey } from '../../lib/metadata/tmdbKeyRepository'
+import type { KindCoverage, ResolvedTitle, SimilarTabView } from '../../lib/metadata/types'
+import type { TmdbTitleRef } from '../../lib/catalog/db'
+import { FILMOGRAPHY_SHOWN_MAX, loadPersonCredits } from '../../lib/metadata/tmdbPeople'
+import { resolveTmdbTitles } from '../../lib/metadata/localTitleMatch'
+import { similarTabStatus } from '../../lib/metadata/similarTab'
 
 const EPG_READ_BEFORE_MS = 24 * 60 * 60 * 1000
 const EPG_READ_AFTER_MS = 48 * 60 * 60 * 1000
@@ -202,6 +220,26 @@ export function groupLabel(name: string | undefined): string {
 }
 
 function toItemOut(record: CatalogRecord, kind: CatalogItemKind): CatalogItemOut {
+  return itemOut(record, kind, record.sourceId, record.categoryId ?? null, record.categoryPosition ?? null)
+}
+
+/**
+ * Item de bloco direto para a tela (feature 039, R-009): o que o bloco diz
+ * uma vez só (fonte, categoria) vem do bloco; a posição é o índice (o bloco
+ * está na ordem da fonte). Mesmo resultado de `toItemOut(blockRecord(...))`
+ * sem criar o registro intermediário.
+ */
+function blockItemOut(block: CategoryBlockRecord, item: BlockItem, index: number, kind: CatalogItemKind): CatalogItemOut {
+  return itemOut(item, kind, block.sourceId, block.categoryId, index)
+}
+
+function itemOut(
+  record: Omit<BlockItem, 'id'> & { id?: number },
+  kind: CatalogItemKind,
+  sourceId: string,
+  categoryId: number | null,
+  categoryPosition: number | null,
+): CatalogItemOut {
   return {
     id: String(record.id ?? ''),
     kind,
@@ -214,13 +252,13 @@ function toItemOut(record: CatalogRecord, kind: CatalogItemKind): CatalogItemOut
       kind === 'series'
         ? false
         : Boolean(record.directUrl) || Boolean(record.providerStreamId),
-    source_id: record.sourceId,
+    source_id: sourceId,
     provider_stream_id: record.providerStreamId ?? null,
     original_name: record.originalName,
     series_id: record.seriesId ?? null,
     icon_url: record.iconUrl ?? null,
-    category_id: record.categoryId ?? null,
-    category_position: record.categoryPosition ?? null,
+    category_id: categoryId,
+    category_position: categoryPosition,
     // Nunca capturado (T001 refutou `num` como posição global — ver o comentário do campo).
     source_number: null,
     year: record.year ?? null,
@@ -283,20 +321,42 @@ async function loadCategoryContent(
   // entrada real (`useCategoryContent`, sem `signal`) nunca é abortável e
   // mantém a mesma chamada de sempre (bug
   // `prefetch-concorrente-categoria-sem-cancelamento-requisicao`).
-  const result = signal
-    ? await ensureCategory(sourceId, category, { signal })
-    : await ensureCategory(sourceId, category)
+  // Feature 038 (D-007/FR-026): com itens no aparelho, uma categoria vencida
+  // (ou com renovação pendente depois de uma atualização) abre na hora com o
+  // que tem; a renovação vai para a frente da fila da pré-carga.
+  // Servir do disco de propósito não é falha: a nota "Não foi possível
+  // atualizar agora" das telas só vale para `stale-served` de verdade (a
+  // busca falhou), então aqui o resultado sai como `fresh`.
+  if (!signal) markEntry(category.id, category.kind, 'start')
+  let renewalQueued = false
+  const serveStale = (categoryId: number) => {
+    renewalQueued = true
+    prefetchScheduler.prioritize(categoryId)
+  }
+  const ensured = signal
+    ? await ensureCategory(sourceId, category, { signal, serveStale })
+    : await ensureCategory(sourceId, category, { serveStale })
+  const result = renewalQueued ? { ...ensured, outcome: 'fresh' as const } : ensured
+  if (!signal) markEntry(category.id, category.kind, 'ensured')
   // As três seções buscam a categoria inteira, sem teto de leitura (feature
   // 009, D-002 completo) — painel de canais e grades de pôsteres agora
   // virtualizam o que renderizam, então não precisam mais de um corte
   // artificial pra não travar a TV.
-  const records = await listChannels(sourceId, category.order, 0, NO_LIMIT, category.kind)
-  const totalCount = await countChannels(sourceId, category.order, category.kind)
-  return {
-    items: records.map((record) => toItemOut(record, category.kind)),
-    totalCount,
-    outcome: result.outcome,
-  }
+  //
+  // Feature 039 (R-009): com bloco, uma leitura pela chave e uma conversão por
+  // item; sem bloco (formato antigo ainda não convertido), as linhas.
+  const block = await getActiveCategoryBlock(sourceId, category.id)
+  const records = block ? undefined : await listChannels(sourceId, category.order, 0, NO_LIMIT, category.kind)
+  // Feature 039: a leitura sem teto já é a categoria inteira — contar de novo
+  // seria uma segunda leitura do mesmo bloco.
+  const totalCount = block ? block.items.length : (records?.length ?? 0)
+  // Feature 038 (FR-012): medição desligada por padrão, só números.
+  if (!signal) markEntry(category.id, category.kind, 'read', totalCount)
+  const items = block
+    ? block.items.map((item, index) => blockItemOut(block, item, index, category.kind))
+    : (records ?? []).map((record) => toItemOut(record, category.kind))
+  if (!signal) markEntry(category.id, category.kind, 'itemsOut')
+  return { items, totalCount, outcome: result.outcome }
 }
 
 function categoryContentKey(sourceId: string | null, categoryId: number | undefined) {
@@ -314,13 +374,38 @@ function categoryContentKey(sourceId: string | null, categoryId: number | undefi
  * tocada antes da entrada, e é deliberadamente separada e amortecida.
  */
 export function useCategoryContent(sourceId: string | null, category: CatalogCategory | undefined) {
-  return useQuery({
+  const query = useQuery({
     queryKey: categoryContentKey(sourceId, category?.id),
     queryFn: async (): Promise<CategoryContent> => {
       if (!sourceId || !category) return { items: [], totalCount: 0, outcome: 'fresh' }
       return loadCategoryContent(sourceId, category)
     },
     enabled: sourceId !== null && category !== undefined,
+  })
+  // Feature 038 (FR-012): fecha a medição da entrada no primeiro quadro com
+  // itens — efeito roda depois do commit, o `requestAnimationFrame` depois da
+  // pintura. Sem `ccplaytv:perf`, `markEntry` não faz nada.
+  const paintedId = query.data && query.data.items.length > 0 ? category?.id : undefined
+  const paintedKind = category?.kind
+  useEffect(() => {
+    if (paintedId === undefined || paintedKind === undefined) return
+    const frame = requestAnimationFrame(() => markEntry(paintedId, paintedKind, 'firstPaint'))
+    return () => cancelAnimationFrame(frame)
+  }, [paintedId, paintedKind])
+  return query
+}
+
+/**
+ * Campos de ordenação que o tipo inteiro declara (feature 039, T033) — para o
+ * modal "Ordenar" de "Todos" aos poucos não esconder "Ano"/"Recém-adicionados"
+ * que só aparecem em categorias ainda não lidas. `enabled` só com o modal
+ * aberto: entrar em "Todos" não paga essa varredura.
+ */
+export function useKindSortFields(sourceId: string | null, kind: FavoritableKind, enabled: boolean) {
+  return useQuery({
+    queryKey: ['kind-sort-fields', sourceId, kind],
+    queryFn: () => kindSortFields(sourceId as string, kind),
+    enabled: enabled && sourceId !== null,
   })
 }
 
@@ -554,6 +639,72 @@ export function useTitleMetadata(itemId: string | null) {
 }
 
 /**
+ * Aba Semelhantes (feature 035, US1/US2 — `logic/aba-semelhantes.md`): deriva
+ * o estado da aba da metadata JÁ obtida ao abrir o detalhe (nenhuma consulta
+ * externa nova, FR-003/SC-005) e cruza os títulos com o catálogo guardado
+ * (`resolveTmdbTitles`, só IndexedDB). `enabled` só com a aba ativa.
+ */
+export function useSimilarTitles(itemId: string | null, enabled: boolean): SimilarTabView {
+  const item = useCatalogItem(itemId).data
+  // Mesma chave da consulta que o detalhe já montou: o react-query a compartilha, nada novo é pedido.
+  const metadata = useTitleMetadata(itemId).data
+  const tmdbState = useTmdbStatus().data?.state
+  const kind = item?.kind === 'movie' || item?.kind === 'series' ? item.kind : undefined
+  const sourceId = item?.source_id
+  const similar = metadata?.tmdbMatch === 'matched' ? metadata.similar : undefined
+
+  const resolution = useQuery({
+    queryKey: ['similar-titles', itemId],
+    queryFn: () => resolveTmdbTitles(sourceId as string, similar ?? [], [kind as 'movie' | 'series']),
+    enabled: enabled && kind !== undefined && !!sourceId && similar !== undefined && similar.length > 0,
+    // Categorias abertas desde a última vez entram (mesmo padrão de "Todos").
+    staleTime: 0,
+  })
+
+  const resolving = enabled && similar !== undefined && similar.length > 0 && resolution.data === undefined
+  const status = similarTabStatus({ tmdbState, metadata, resolving })
+  return {
+    status,
+    titles: status === 'ready' ? (resolution.data?.titles ?? []) : [],
+    coverage: kind !== undefined ? resolution.data?.coverage[kind] : undefined,
+  }
+}
+
+/**
+ * Filmografia de uma pessoa do elenco (feature 035, US4). Só a página de ator
+ * chama — a consulta nasce do OK na pessoa, nunca de foco. O resultado de erro
+ * é dado (`status: 'error'`), não exceção: nada de falha é guardado no banco, e
+ * "Tentar de novo" só refaz esta consulta.
+ */
+export function usePersonCredits(personId: number | null) {
+  return useQuery({
+    queryKey: ['person-credits', personId],
+    queryFn: () => loadPersonCredits(personId as number),
+    enabled: personId !== null,
+    retry: false,
+  })
+}
+
+export interface PersonTitlesView {
+  /** Encontrados primeiro; no máximo `FILMOGRAPHY_SHOWN_MAX`. */
+  titles: ResolvedTitle[]
+  coverage: { movie?: KindCoverage; series?: KindCoverage }
+}
+
+/** Filmografia cruzada com o catálogo guardado (só IndexedDB; `staleTime: 0` pega categorias abertas desde a última vez). */
+export function usePersonTitles(personId: number | null, sourceId: string | null, credits: TmdbTitleRef[] | undefined) {
+  return useQuery({
+    queryKey: ['person-titles', personId, sourceId],
+    queryFn: async (): Promise<PersonTitlesView> => {
+      const resolution = await resolveTmdbTitles(sourceId as string, credits ?? [], ['movie', 'series'])
+      return { titles: resolution.titles.slice(0, FILMOGRAPHY_SHOWN_MAX), coverage: resolution.coverage }
+    },
+    enabled: personId !== null && sourceId !== null && credits !== undefined,
+    staleTime: 0,
+  })
+}
+
+/**
  * Estado do TMDB (feature 032, US2): lê **só o IndexedDB**, nunca a rede —
  * seguro de chamar ao focar (o dock da Home o usa). Nunca carrega a chave
  * inteira, só a mascarada (FR-013).
@@ -601,6 +752,10 @@ export function useRemoveTmdbKey() {
     mutationFn: () => removeTmdbKey(),
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ['title-metadata'] })
+      queryClient.removeQueries({ queryKey: ['similar-titles'] })
+      // Filmografias também vieram do TMDB: só invalidar mostraria o dado velho por um instante (FR-021).
+      queryClient.removeQueries({ queryKey: ['person-credits'] })
+      queryClient.removeQueries({ queryKey: ['person-titles'] })
       void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
     },
   })
@@ -1095,7 +1250,20 @@ export interface AggregatedItems {
   /** Todas as categorias do tipo na geração ativa. */
   totalCategories: number
   isLoading: boolean
+  /**
+   * Só no modo `progressive` (feature 039, T022): há mais categorias a ler
+   * depois de `items`. Ausente = a lista já é o tipo inteiro.
+   */
+  hasMore?: boolean
+  /** Lê a próxima página (sem efeito se já está lendo ou acabou). */
+  loadMore?: () => void
 }
+
+/**
+ * Tamanho mínimo de uma página de "Todos" aos poucos (feature 039, T022): uma
+ * página junta categorias inteiras até passar disto — ~40 fileiras da grade.
+ */
+const ALL_PAGE_MIN_ITEMS = 240
 
 /**
  * Itens da categoria virtual "Todos" (feature 018, D-005) — reaproveita o
@@ -1108,25 +1276,72 @@ export function useAggregatedItems(
   sourceId: string | null,
   kind: FavoritableKind,
   enabled: boolean,
+  options: { progressive?: boolean } = {},
 ): AggregatedItems {
+  const progressive = options.progressive === true
   // `refetchOnMount: 'always'` + `staleTime: 0`: cada entrada em "Todos" relê
   // o índice — categorias abertas desde a última vez entram na lista e na
   // cobertura (mesmo padrão de `useCatalogSearch`, D-005 do plan.md).
   const indexQuery = useQuery({
     queryKey: ['catalog-search-index', sourceId, kind],
     queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
-    enabled: enabled && sourceId !== null,
+    enabled: enabled && !progressive && sourceId !== null,
     staleTime: 0,
     refetchOnMount: 'always',
   })
 
-  const items = useMemo(() => {
+  // Feature 039 (T022): "Todos" na ordem da fonte lê aos poucos — só as
+  // categorias até onde a pessoa desceu ficam na memória; a grade virtualizada
+  // pede a próxima página perto do fim (`loadMore`). Ordenar e buscar precisam
+  // do tipo inteiro e continuam no índice acima.
+  const pagesQuery = useInfiniteQuery({
+    queryKey: ['catalog-all-pages', sourceId, kind],
+    queryFn: async ({ pageParam }) => {
+      const [page, categories] = await Promise.all([
+        readKindPage(sourceId as string, kind, pageParam, ALL_PAGE_MIN_ITEMS),
+        pageParam === 0 ? listCategories(sourceId as string, kind) : Promise.resolve(undefined),
+      ])
+      const items = page.chunks.flatMap((chunk) =>
+        'block' in chunk
+          ? chunk.block.items.map((item, index) => blockItemOut(chunk.block, item, index, kind))
+          : chunk.rows.map((record) => toItemOut(record, kind)),
+      )
+      const coverage = categories
+        ? { coveredCategories: categories.filter(isCovered).length, totalCategories: categories.length }
+        : undefined
+      return { items, next: page.next, coverage }
+    },
+    initialPageParam: 0,
+    getNextPageParam: (last) => last.next,
+    enabled: enabled && progressive && sourceId !== null,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
+
+  const indexItems = useMemo(() => {
     if (!indexQuery.data) return []
     return indexQuery.data.entries.map((entry) => toItemOut(entry.record, kind))
   }, [indexQuery.data, kind])
+  const pageItems = useMemo(() => pagesQuery.data?.pages.flatMap((page) => page.items) ?? [], [pagesQuery.data])
 
+  const { hasNextPage, isFetching, fetchNextPage } = pagesQuery
+  const loadMore = useCallback(() => {
+    if (hasNextPage && !isFetching) void fetchNextPage()
+  }, [hasNextPage, isFetching, fetchNextPage])
+
+  if (progressive) {
+    const coverage = pagesQuery.data?.pages[0]?.coverage
+    return {
+      items: pageItems,
+      coveredCategories: coverage?.coveredCategories ?? 0,
+      totalCategories: coverage?.totalCategories ?? 0,
+      isLoading: pagesQuery.isLoading,
+      hasMore: hasNextPage,
+      loadMore,
+    }
+  }
   return {
-    items,
+    items: indexItems,
     coveredCategories: indexQuery.data?.coveredCategories ?? 0,
     totalCategories: indexQuery.data?.totalCategories ?? 0,
     isLoading: indexQuery.isLoading,

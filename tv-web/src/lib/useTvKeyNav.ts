@@ -21,6 +21,13 @@ export interface TvKeyNavOptions {
    * focável do contêiner — ou seja, a hora certa de realmente sair da tela.
    */
   onBack?: () => void
+  /**
+   * Feature 037 (D-009): qual focável recebe o foco ao montar, quando o
+   * primeiro do DOM não é o certo (a ordem do DOM segue a ordem visual). Só
+   * vale se devolver um focável do contêiner; senão, cai no primeiro focável,
+   * como sem a opção.
+   */
+  initialFocus?: () => HTMLElement | null
 }
 
 /**
@@ -32,19 +39,26 @@ export interface TvKeyNavOptions {
  */
 export function useTvKeyNav(
   containerRef: RefObject<HTMLElement | null>,
-  { onBackField = false, onBack }: TvKeyNavOptions = {},
+  { onBackField = false, onBack, initialFocus }: TvKeyNavOptions = {},
 ) {
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
     function getFocusable(): HTMLElement[] {
-      return Array.from(container!.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+      // Ordenado pela posição no documento: é o que o navegador já devolve,
+      // mas o jsdom (nwsapi), num `querySelectorAll` escopado com lista de
+      // seletores, agrupa por seletor — botões antes dos inputs —, e os
+      // testes navegariam numa ordem que a TV nunca tem (feature 037).
+      return Array.from(container!.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).sort((a, b) =>
+        a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+      )
     }
 
     const initial = getFocusable()
     if (initial.length > 0 && !container.contains(document.activeElement)) {
-      initial[0].focus()
+      const requested = initialFocus?.() ?? null
+      ;(requested && initial.includes(requested) ? requested : initial[0]).focus()
     }
 
     function handleKeyDown(event: KeyboardEvent) {

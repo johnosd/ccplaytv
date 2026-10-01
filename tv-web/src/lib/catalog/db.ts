@@ -69,9 +69,23 @@ export interface SourceRecord {
   epgActiveGeneration?: number
   /** A última importação já capturou id de EPG dos canais (D-007). Ausente numa fonte sincronizada → migração única. */
   epgIdsCapturedAt?: number
+  /**
+   * Conta Xtream (feature 034, `data-model.md` §1). Sem índice — não sobe a
+   * versão do Dexie. `undefined` = nunca verificada.
+   */
+  accountStatus?: AccountStatusKind
+  /** Vencimento declarado pelo painel, em ms. `null` = painel declarou "sem data"; `undefined` = desconhecido. */
+  accountExpiresAt?: number | null
+  /** Instante da última verificação que obteve resposta do painel (sincronização ou consulta leve). */
+  accountCheckedAt?: number
+  /** Seções que não responderam na última sincronização bem-sucedida (feature 034, FR-018). */
+  lastUnavailableSections?: CatalogSection[]
   createdAt: number
   updatedAt: number
 }
+
+/** Resultado da última verificação da conta Xtream (feature 034). */
+export type AccountStatusKind = 'active' | 'expired' | 'refused'
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
 
@@ -98,6 +112,14 @@ export interface UserStateRecord {
    * de novo não apaga este campo — os dois convivem (retomada + selo).
    */
   completedAt?: number
+  /**
+   * Instante em que a pessoa tirou o item do "↺ Histórico" (feature 036,
+   * `logic/remocao-historico.md`). O item só está no Histórico quando
+   * `lastWatched > historyHiddenAt` — uma reprodução nova o traz de volta sem
+   * ninguém apagar este campo. Nunca apaga `lastWatched` (é por ele que
+   * "Continuar assistindo" ordena). Valor sem índice, sem bump do Dexie.
+   */
+  historyHiddenAt?: number
   createdAt: number
   updatedAt: number
 }
@@ -223,7 +245,40 @@ export interface TrailerVideoRef {
   official?: boolean
 }
 
+/**
+ * Um título do TMDB citado por outro (Semelhantes, filmografia de ator —
+ * feature 035, `data-model.md` §1). Só o que o TMDB devolveu, já em pt-BR;
+ * ausente = o TMDB não informou. `posterUrl` é montada SEM chave.
+ */
+export interface TmdbTitleRef {
+  tmdbId: number
+  kind: 'movie' | 'series'
+  title: string
+  originalTitle?: string
+  year?: number
+  posterUrl?: string
+  overview?: string
+}
+
+/** Uma pessoa do elenco com identidade TMDB (feature 035, `data-model.md` §1). */
+export interface CastPerson {
+  personId: number
+  name: string
+  /** Personagem — só quando o TMDB informa. */
+  character?: string
+  /** Foto (`profile_path`), montada SEM chave. */
+  photoUrl?: string
+}
+
 export interface TitleFields {
+  /**
+   * Feature 035 — só no lado TMDB. Recomendações + similares, sem repetir, sem
+   * o próprio título, até 20. `[]` = pedidos e nada veio; AUSENTE num registro
+   * `matched` gravado antes da 035 — o sinal para pedir de novo uma vez (FR-004).
+   */
+  similar?: TmdbTitleRef[]
+  /** Feature 035 — só no lado TMDB. Elenco com identidade (filme: `credits`; série: `aggregate_credits`). */
+  castPeople?: CastPerson[]
   /**
    * Feature 033. Provedor: no máximo um (`youtube_trailer`). TMDB: `[]` quando
    * os vídeos foram pedidos e nenhum serve; AUSENTE num registro `matched`
@@ -268,6 +323,20 @@ export interface TitleMetadataRecord {
   providerTmdbId?: number
   tmdb?: TmdbResultRecord
   tmdbFetchedAt?: number
+}
+
+/**
+ * Filmografia de uma pessoa (feature 035, `data-model.md` §3). Só o que a
+ * página de ator exibe — biografia e datas pessoais nunca são lidas. Guardada
+ * só em sucesso; removida junto com a chave TMDB.
+ */
+export interface TmdbPersonRecord {
+  personId: number
+  name: string
+  photoUrl?: string
+  /** Já filtrada e ordenada, no máximo `FILMOGRAPHY_STORED_MAX`. */
+  credits: TmdbTitleRef[]
+  fetchedAt: number
 }
 
 export type IntegrationState = 'connected' | 'refused' | 'offline' | 'rate_limited'
@@ -322,6 +391,61 @@ export interface CategoryRecord {
   itemsFetchedAt?: number
   /** Quantos itens de fato estão gravados agora — fato do disco, nunca fundido com `declaredCount` (D-005). */
   itemsCount?: number
+  /**
+   * Posição de exibição (feature 038, `logic/atualizacao-sem-esfriar.md` §3).
+   * Separada de `order` porque `order` é também a chave (`groupOrder`) dos
+   * itens gravados — mudar `order` de uma categoria mantida obrigaria
+   * regravar todos os itens dela. `undefined` = igual a `order` (registro
+   * gravado antes da 038). Valor sem índice, sem bump de versão.
+   */
+  position?: number
+  /** Atualização de estrutura que pediu renovação dos itens (feature 038, FR-025). Pendente quando > `itemsFetchedAt`. */
+  renewRequestedAt?: number
+  /** Assinatura dos itens gravados — renovação idêntica só carimba o instante (feature 038, D-006). */
+  itemsSignature?: string
+  /**
+   * Categoria `stored` mantida numa atualização (feature 038): de onde vem o
+   * conteúdo novo, ainda não materializado, em `storedEntries`. Ausente = o
+   * conteúdo está na própria categoria (`generation`/`id`), como na 014.
+   */
+  storedFrom?: { generation: number; categoryId: number }
+}
+
+/**
+ * Um item dentro de um bloco de categoria (feature 039) — o `CatalogRecord`
+ * sem o que o bloco já diz (fonte, geração, tipo, categoria, posição), com
+ * `id` **negativo** estável (`categoryBlocks.ts`, `blockItemId`).
+ */
+export type BlockItem = Omit<
+  CatalogRecord,
+  'id' | 'sourceId' | 'generation' | 'kind' | 'groupOrder' | 'categoryId' | 'categoryPosition'
+> & { id: number }
+
+/**
+ * Os itens de uma categoria num registro só (feature 039, `data-model.md`).
+ * Substituído inteiro a cada obtenção. Chave: o id local da categoria.
+ */
+export interface CategoryBlockRecord {
+  categoryId: number
+  sourceId: string
+  generation: number
+  kind: CategoryKind
+  /** = `categories.order` (imutável — chave dos itens, D-005 da 038). */
+  groupOrder: number
+  /** Na ordem da fonte. */
+  items: BlockItem[]
+}
+
+/**
+ * Uma parte dos itens de uma categoria lida do fluxo da seção, à espera de o
+ * fluxo terminar (feature 039, T031). Partes da mesma categoria se juntam na
+ * ordem de `id` (a ordem da fonte). Apagada depois que a categoria é gravada.
+ */
+export interface SectionStagingRecord {
+  id?: number
+  sourceId: string
+  categoryId: number
+  items: CatalogRecord[]
 }
 
 /**
@@ -373,6 +497,17 @@ export type ImportErrorKind =
 /** Seções do painel que não responderam, declaradas em vez de viradas em lista vazia. */
 export type CatalogSection = 'movie' | 'series'
 
+/** Estado de uma parte da lista numa importação (feature 038, FR-015/FR-017). */
+export type SectionRunState = 'waiting' | 'loading' | 'ready' | 'failed' | 'unavailable'
+
+export interface SectionRun {
+  state: SectionRunState
+  /** Categorias lidas (Xtream). */
+  categories?: number
+  /** Itens lidos (M3U) — série conta série, nunca episódio. */
+  items?: number
+}
+
 export interface ImportRunRecord {
   id: string
   sourceId: string
@@ -402,6 +537,11 @@ export interface ImportRunRecord {
    * perguntar por filmes" são coisas diferentes para quem olha a tela.
    */
   unavailableSections?: CatalogSection[]
+  /**
+   * Estado e contagem reais por parte da lista (feature 038, FR-015,
+   * `logic/progresso-importacao.md` §1). Sem índice, sem subir versão.
+   */
+  sections?: Record<CategoryKind, SectionRun>
   errorKind?: ImportErrorKind
   /**
    * Quando cada etapa começou, em epoch ms.
@@ -439,9 +579,16 @@ export class CatalogDb extends Dexie {
   epgPrograms!: EntityTable<EpgProgramRecord, 'id'>
   titleMetadata!: EntityTable<TitleMetadataRecord, 'stableId'>
   integrations!: EntityTable<IntegrationRecord, 'id'>
+  tmdbPeople!: EntityTable<TmdbPersonRecord, 'personId'>
+  categoryBlocks!: EntityTable<CategoryBlockRecord, 'categoryId'>
+  sectionStaging!: EntityTable<SectionStagingRecord, 'id'>
 
   constructor(name: string = DB_NAME) {
-    super(name)
+    // Feature 038 (R0-3): o Chrome grava em modo "relaxed" por padrão desde a
+    // versão 121; a TV de referência é Chromium 120 e ainda gravaria em modo
+    // estrito (espera o disco a cada transação). Catálogo é rebaixável, e
+    // retomada/favoritos já toleram perder a última escrita num corte de energia.
+    super(name, { chromeTransactionDurability: 'relaxed' })
     this.version(1).stores({
       sources: 'id',
       channels: '++id, [sourceId+generation], [sourceId+generation+groupOrder]',
@@ -560,6 +707,26 @@ export class CatalogDb extends Dexie {
     this.version(12).stores({
       titleMetadata: 'stableId, sourceId',
       integrations: 'id',
+    })
+    // v13 (feature 035): filmografia de uma pessoa do elenco, guardada por
+    // `personId` (do TMDB) com a validade do cache do TMDB. Não depende de
+    // fonte nem de geração. Sem `.upgrade()`: tabela nova.
+    this.version(13).stores({
+      tmdbPeople: 'personId',
+    })
+    // v14 (feature 039): os itens de cada categoria num bloco só — gravado e
+    // lido de uma vez (`logic/blocos-e-identidade.md`). Só acrescenta a
+    // tabela: a conversão das listas já guardadas roda depois, em segundo
+    // plano, uma categoria por vez (nunca no upgrade, que travaria a TV).
+    this.version(14).stores({
+      categoryBlocks: 'categoryId, [sourceId+generation+kind]',
+    })
+    // v15 (feature 039, T031/FR-013): área de preparo da carga por seção — o
+    // Worker descarrega aqui, em partes, o que leu do fluxo (as categorias
+    // chegam misturadas), e no fim grava uma categoria por vez. Nunca é lida
+    // pelas telas. Sem `.upgrade()`: tabela nova.
+    this.version(15).stores({
+      sectionStaging: '++id, [sourceId+categoryId]',
     })
   }
 }

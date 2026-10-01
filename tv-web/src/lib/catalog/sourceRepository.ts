@@ -28,6 +28,7 @@ import { deleteUserStatesForSource } from './userStateRepository'
 import { epgManualHostOf, epgStatusOf } from '../epg/epgStatus'
 import { deleteEpgForSource } from '../epg/epgRepository'
 import type { EpgStatus } from '../epg/types'
+import type { SourceAccount } from './sourceAccount'
 
 /** A fonte como as telas a veem — sem credencial, por construção. */
 export interface SourceView {
@@ -50,6 +51,8 @@ export interface SourceView {
   epg: EpgStatus
   /** Só o hostname do endereço XMLTV informado pela pessoa (FR-017) — nunca caminho, query ou credencial. */
   epgManualHost?: string
+  /** Conta Xtream (feature 034) — vencimento e resultado da última verificação; nenhum segredo. */
+  account?: SourceAccount
   createdAt: number
   updatedAt: number
 }

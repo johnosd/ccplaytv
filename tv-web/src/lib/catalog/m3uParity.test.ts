@@ -17,6 +17,7 @@ import { listCategories } from './catalogRepository'
 import { startImport } from './importPipeline'
 import { ensureCategory } from './categoryLoader'
 import { getSource } from './sourceRepository'
+import { storedItems } from '../../testing/catalogStorage'
 import {
   EXPECTED_AVULSA,
   EXPECTED_AVULSA_TALLY,
@@ -78,7 +79,7 @@ describe('paridade M3U — caminho do conteúdo guardado (SC-005)', () => {
     }).toEqual(EXPECTED_AVULSA_TALLY)
 
     // FR-007: a importação conclui sem gravar nenhum item no catálogo.
-    expect(await database.channels.where('sourceId').equals(source.id).count()).toBe(0)
+    expect(await storedItems(database, source.id)).toHaveLength(0)
     const categoriesRightAfterImport = await listCategories(source.id, undefined, database)
     for (const category of categoriesRightAfterImport) {
       expect(category.fetchMode).toBe('stored')
@@ -88,7 +89,7 @@ describe('paridade M3U — caminho do conteúdo guardado (SC-005)', () => {
     await readAllCategories(source.id)
 
     const categories = await listCategories(source.id, undefined, database)
-    const items = await database.channels.where('sourceId').equals(source.id).toArray()
+    const items = await storedItems(database, source.id)
 
     expect(normalizeCategories(categories)).toEqual(EXPECTED_AVULSA.categories)
     expect(normalizeItems(items, categories)).toEqual(EXPECTED_AVULSA.items)
@@ -131,12 +132,12 @@ describe('paridade M3U — caminho do conteúdo guardado (SC-005)', () => {
       channelsStored: run.channelsStored,
     }).toEqual(EXPECTED_LEGACY_TALLY)
 
-    expect(await database.channels.where('sourceId').equals(source.id).count()).toBe(0)
+    expect(await storedItems(database, source.id)).toHaveLength(0)
 
     await readAllCategories(source.id)
 
     const categories = await listCategories(source.id, undefined, database)
-    const items = await database.channels.where('sourceId').equals(source.id).toArray()
+    const items = await storedItems(database, source.id)
 
     expect(normalizeCategories(categories)).toEqual(EXPECTED_LEGACY.categories)
     expect(normalizeItems(items, categories)).toEqual(EXPECTED_LEGACY.items)

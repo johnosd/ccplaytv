@@ -101,7 +101,11 @@ export function epgStatusOf(record: SourceRecord): EpgStatus {
   const failedAfterLastSuccess =
     record.epgLastErrorKind !== undefined &&
     (record.epgLastSyncAt === undefined || (record.epgLastErrorAt ?? 0) > record.epgLastSyncAt)
-  if (failedAfterLastSuccess) return { ...base, state: 'error', errorKind: record.epgLastErrorKind }
+  if (failedAfterLastSuccess) {
+    // `lastErrorAt` (feature 038): a tela de importação distingue a falha
+    // desta sincronização de uma antiga.
+    return { ...base, state: 'error', errorKind: record.epgLastErrorKind, lastErrorAt: record.epgLastErrorAt }
+  }
 
   if (record.epgLastSyncAt !== undefined) return { ...base, state: 'linked' }
   return { ...base, state: 'never_synced' }

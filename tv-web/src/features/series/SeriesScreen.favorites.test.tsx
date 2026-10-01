@@ -224,7 +224,8 @@ describe('SeriesScreen — favoritos (feature 013)', () => {
     keyup('ArrowRight')
 
     await holdEnter()
-    expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument()
+    // O aviso sai depois da gravação (`mutateAsync`): sob carga, além dos 850 ms do gesto.
+    await waitFor(() => expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument())
     await waitFor(() => expect(document.querySelector('.fav-star')).toBeInTheDocument())
     expect(onOpenSeries).not.toHaveBeenCalled()
 
