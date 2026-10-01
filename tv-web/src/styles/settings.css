@@ -68,10 +68,30 @@
 
 .sources-panel-type,
 .sources-panel-status,
+.sources-panel-account,
+.sources-panel-counts,
 .sources-panel-epg {
   font-weight: 500;
   font-size: var(--fs-caption);
   color: var(--text-tertiary);
+}
+
+/* Chip passivo de aviso da conta (feature 034, FR-005/FR-007): texto sempre
+   presente — a cor (âmbar/erro) só reforça. */
+.sources-panel-chip {
+  padding: 0 var(--space-1);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+}
+
+.sources-panel-chip--warning {
+  color: var(--warning);
+}
+
+.sources-panel-chip--error {
+  color: var(--danger);
 }
 
 .sources-panel-badge {

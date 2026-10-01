@@ -206,6 +206,56 @@
   color: var(--text-secondary);
 }
 
+/* Avisos da conta/sincronização/EPG (feature 034, FR-006/FR-007): o texto é o
+   sinal; âmbar e erro só reforçam. "Sincronizando" (neutro) mantém o selo. */
+.source-card-badge--warning {
+  border-color: var(--warning);
+  background: transparent;
+  color: var(--warning);
+}
+
+.source-card-badge--error {
+  border-color: var(--danger);
+  background: transparent;
+  color: var(--danger);
+}
+
+/* ---------- Tela de acesso à lista (feature 034, US2) ----------
+   Entra entre os perfis e o Início quando a conta está vencida/recusada ou
+   precisa de verificação. Tudo por token; o foco é a classe `.tv-focus` dos
+   botões de `Button` (ADR-009). */
+.source-access {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--safe-y) var(--safe-x);
+}
+
+.source-access-message {
+  margin: 0;
+  max-width: calc(var(--space-7) * 12);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.source-access-note {
+  margin: 0;
+  max-width: calc(var(--space-7) * 12);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.source-access-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
 /* A linha de ações (FR-009) é mais larga que o cartão: fica centrada sob ele,
    transbordando para os lados, sem alargar o `.source-card-wrap` — senão a
    fileira centralizada inteira se deslocaria ao abrir as ações. */

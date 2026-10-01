@@ -301,6 +301,7 @@ describe('acquireXtreamChannels', () => {
     const result = await acquireXtreamChannels('http://exemplo.test', 'u', 'p', {
       authorized: true,
       expired: false,
+      expiresAt: null,
       allowedFormats: ['ts'],
     })
 
@@ -327,6 +328,7 @@ describe('acquireXtreamChannels', () => {
     const result = await acquireXtreamChannels('http://exemplo.test', 'u', 'p', {
       authorized: true,
       expired: false,
+      expiresAt: null,
       allowedFormats: undefined,
     })
 

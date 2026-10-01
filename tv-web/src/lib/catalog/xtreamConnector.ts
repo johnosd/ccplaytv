@@ -24,6 +24,7 @@ import {
   normalizeYear,
   type ClassifiedEntry,
 } from './classifier'
+import { parseExpDate } from './sourceAccount'
 
 /** TS quando a conta permite mais de um formato — o que reproduziu na TV de referência. */
 const PREFERRED_FORMAT = 'ts'
@@ -190,15 +191,17 @@ function interpretAuth(value: unknown): boolean {
 }
 
 function isExpired(raw: unknown, now: number = Date.now()): boolean {
-  if (raw === null || raw === undefined || raw === '' || raw === '0' || raw === 0) return false
-  const timestamp = Number(raw)
-  if (!Number.isFinite(timestamp)) return false
-  return timestamp * 1000 < now
+  // Feature 034: a regra de `exp_date` mora em `sourceAccount.parseExpDate`
+  // (segundos Unix; 0, negativo, vazio ou não numérico = sem data = nunca expirada).
+  const expiresAt = parseExpDate(raw)
+  return expiresAt !== null && expiresAt < now
 }
 
 export interface AccountStatus {
   authorized: boolean
   expired: boolean
+  /** Vencimento em ms; `null` = o painel declarou sem data (feature 034, FR-003). */
+  expiresAt: number | null
   /** `undefined` = a conta não declarou formatos — nunca assumir um. */
   allowedFormats?: string[]
 }
@@ -215,6 +218,8 @@ export async function resolveAccountStatus(
   username: string,
   password: string,
   now: number = Date.now(),
+  /** Feature 034: cancelamento da consulta leve (o limite de 5 s também usa um ace, D-005). */
+  options: { signal?: AbortSignal } = {},
 ): Promise<AccountStatus> {
   let lastFailure: ProviderError | undefined
 
@@ -222,7 +227,7 @@ export async function resolveAccountStatus(
     const url = playerApiUrl(base, username, password, action ? { action } : undefined)
     let payload: unknown
     try {
-      payload = await fetchJsonDirect(url)
+      payload = await fetchJsonDirect(url, options.signal)
     } catch (error) {
       if (error instanceof ProviderError) {
         if (error.kind === 'invalid_credentials') throw error
@@ -242,6 +247,7 @@ export async function resolveAccountStatus(
     return {
       authorized: interpretAuth(info.auth),
       expired: isExpired(info.exp_date, now),
+      expiresAt: parseExpDate(info.exp_date),
       allowedFormats: Array.isArray(formats) ? formats.map(String) : undefined,
     }
   }
