@@ -45,6 +45,8 @@ export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = IN
       }
       void queryClient.invalidateQueries({ queryKey: ['catalog-counts', sourceId] })
       void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId] })
+      // Feature 039 (T022): "Todos" aos poucos relê as páginas já lidas.
+      void queryClient.invalidateQueries({ queryKey: ['catalog-all-pages', sourceId] })
       void queryClient.invalidateQueries({ queryKey: ['global-search-index', sourceId] })
     }
     pending.clear()

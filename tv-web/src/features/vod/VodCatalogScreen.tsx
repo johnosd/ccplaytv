@@ -67,6 +67,8 @@ const CARD_GAP = 24 // token --space-3
 const ROW_EXTRA_PX = 68
 const ROW_HEIGHT = (CARD_WIDTH * 302) / 205 + ROW_EXTRA_PX
 const GRID_OVERSCAN = GRID_COLS
+/** "Todos" aos poucos (feature 039, T022): a próxima página é pedida a 10 fileiras do fim. */
+const ALL_LOAD_AHEAD = GRID_COLS * 10
 
 const VOD_HINTS: HintItem[] = [
   { keyLabel: 'OK', action: 'Abrir' },
@@ -285,7 +287,11 @@ export function VodCatalogScreen({
   const resumePositionsQuery = useResumePositions(section === 'movies' ? sourceId : null, 'movie')
   const resumePositions = resumePositionsQuery.data ?? new Map<string, number>()
   const favoritesContent = useFavoritesContent(sourceId, config.kind, enteredFavorites)
-  const aggregated = useAggregatedItems(sourceId, config.kind, enteredAll)
+  // Feature 039 (T022): "Todos" na ordem da fonte e sem busca lê aos poucos,
+  // conforme a pessoa desce; ordenar e buscar precisam do tipo inteiro.
+  const aggregated = useAggregatedItems(sourceId, config.kind, enteredAll, {
+    progressive: !searchActive && sortOption === 'source',
+  })
   // "↺ Histórico" (feature 025, FR-007): habilitado quando a pessoa entrou
   // nele agora ou já entrou antes nesta sessão — nada é resolvido só por
   // abrir a tela (`logic/historico.md` §5).
@@ -347,6 +353,17 @@ export function VodCatalogScreen({
     lastItemFocusRef.current = { listKey: itemListKey, index: itemIdx }
   }, [itemListKey, itemIdx])
   const activeItem: CatalogItemOut | undefined = items[itemIdx]
+
+  // Feature 039 (T022): "Todos" aos poucos pede a próxima página quando o foco
+  // chega perto do fim do que já foi lido — e também enquanto o item a
+  // restaurar (volta do detalhe, memória de foco) ainda não apareceu, para
+  // "Voltar restaura foco" valer mesmo lá embaixo.
+  const { hasMore: allHasMore, loadMore: loadMoreAll } = aggregated
+  const focusedNotLoaded = focusedItemId !== null && !items.some((item) => item.id === focusedItemId)
+  useEffect(() => {
+    if (!enteredAll || !allHasMore || !loadMoreAll) return
+    if (focusedNotLoaded || itemIdx >= items.length - ALL_LOAD_AHEAD) loadMoreAll()
+  }, [enteredAll, allHasMore, loadMoreAll, focusedNotLoaded, itemIdx, items.length])
 
   const gridContainerRef = useRef<HTMLDivElement | null>(null)
   const itemVirtualizer = useVirtualizer({

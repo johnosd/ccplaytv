@@ -24,6 +24,7 @@ import {
   type CatalogDb,
   type CatalogRecord,
   type CatalogItemKind,
+  type CategoryBlockRecord,
   type CategoryKind,
   type CategoryRecord,
   type CatalogFetchMode,
@@ -605,6 +606,54 @@ export async function listAllOfKind(
   return [...records, ...rows].sort((a, b) => a.groupOrder - b.groupOrder)
 }
 
+/** Um pedaço de uma página de "Todos": o bloco de uma categoria, ou as linhas dela (formato antigo). */
+export type KindPageChunk = { block: CategoryBlockRecord } | { rows: CatalogRecord[] }
+
+export interface KindPage {
+  chunks: KindPageChunk[]
+  /** Cursor da próxima página; `undefined` = acabou. */
+  next: number | undefined
+}
+
+/**
+ * "Todos" aos poucos (feature 039, T022): a partir da categoria `cursor` (na
+ * ordem de `order`, a mesma de `listAllOfKind`), lê categoria por categoria —
+ * bloco, ou as linhas se ainda no formato antigo — até juntar `minItems`
+ * itens. Uma categoria nunca é partida. Concatenar todas as páginas dá a mesma
+ * sequência de `listAllOfKind`, sem nunca ter o tipo inteiro na memória.
+ */
+export async function readKindPage(
+  sourceId: string,
+  kind: CatalogItemKind,
+  cursor: number,
+  minItems: number,
+  database: CatalogDb = db,
+): Promise<KindPage> {
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined || kind === 'episode') return { chunks: [], next: undefined }
+  const categories = await database.categories
+    .where('[sourceId+generation+kind+order]')
+    .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
+    .toArray()
+  const chunks: KindPageChunk[] = []
+  let count = 0
+  let index = cursor
+  while (index < categories.length && count < minItems) {
+    const category = categories[index]
+    index += 1
+    const block = await database.categoryBlocks.get(category.id as number)
+    if (block && block.sourceId === sourceId && block.generation === generation) {
+      if (block.items.length > 0) chunks.push({ block })
+      count += block.items.length
+      continue
+    }
+    const rows = await query(database, sourceId, generation, category.order, kind).toArray()
+    if (rows.length > 0) chunks.push({ rows })
+    count += rows.length
+  }
+  return { chunks, next: index < categories.length ? index : undefined }
+}
+
 /** Categorias da geração ativa com um dado `order` (e `kind`, se informado). */
 async function categoriesAtOrder(
   database: CatalogDb,
@@ -672,6 +721,26 @@ export async function listChannels(
     return pa - pb || (a.id ?? 0) - (b.id ?? 0)
   })
   return records.slice(offset, offset + limit)
+}
+
+/**
+ * O bloco de uma categoria da geração ativa, lido pela chave — o caminho
+ * rápido de abrir uma categoria (feature 039, R-009): uma leitura só, sem
+ * reidratar cada item num `CatalogRecord`, sem ordenar (o bloco já está na
+ * ordem da fonte). `undefined` = a categoria não tem bloco (formato antigo, ou
+ * nada no aparelho) — quem chama cai em `listChannels`, que lê as linhas.
+ */
+export async function getActiveCategoryBlock(
+  sourceId: string,
+  categoryId: number,
+  database: CatalogDb = db,
+): Promise<CategoryBlockRecord | undefined> {
+  const [generation, block] = await Promise.all([
+    activeGenerationOf(sourceId, database),
+    database.categoryBlocks.get(categoryId),
+  ])
+  if (!block || block.sourceId !== sourceId || block.generation !== generation) return undefined
+  return block
 }
 
 /**
@@ -781,6 +850,30 @@ export async function resolveFavorites(
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return { records: [], unresolved: favorites.length }
 
+  const resolved = await resolveStableIdsIn(database, sourceId, generation, kind, favorites)
+  const records: CatalogRecord[] = []
+  let unresolved = 0
+  for (const favorite of favorites) {
+    const record = resolved.get(favorite)
+    if (record) records.push(record)
+    else unresolved += 1
+  }
+  return { records, unresolved }
+}
+
+/**
+ * Núcleo de `resolveFavorites`: cada identidade (todas do mesmo `kind`) →
+ * registro da geração ativa, numa passada só pelos blocos do tipo e depois
+ * pelas linhas. O mapa diz de QUEM é cada registro — o que permite resolver
+ * vários itens de uma vez (feature 039, T019).
+ */
+async function resolveStableIdsIn(
+  database: CatalogDb,
+  sourceId: string,
+  generation: number,
+  kind: CatalogItemKind,
+  favorites: StableIdParts[],
+): Promise<Map<StableIdParts, CatalogRecord>> {
   const resolved = new Map<StableIdParts, CatalogRecord>()
 
   // Feature 039 (§5): primeiro os blocos do tipo, UM POR VEZ (memória,
@@ -812,7 +905,7 @@ export async function resolveFavorites(
     } catch (error) {
       if (!(error instanceof FavoritesScanComplete)) throw error
     }
-    if (remaining === 0) return { records: favorites.map((favorite) => resolved.get(favorite) as CatalogRecord), unresolved: 0 }
+    if (remaining === 0) return resolved
   }
 
   // Id do painel: um lookup pelo índice por favorito — nunca uma varredura.
@@ -872,14 +965,7 @@ export async function resolveFavorites(
     }
   }
 
-  const records: CatalogRecord[] = []
-  let unresolved = 0
-  for (const favorite of favorites) {
-    const record = resolved.get(favorite)
-    if (record) records.push(record)
-    else unresolved += 1
-  }
-  return { records, unresolved }
+  return resolved
 }
 
 /**
@@ -907,28 +993,80 @@ export async function resolveContinueWatching(
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return []
 
-  const records: CatalogRecord[] = []
-  for (const state of states) {
-    const parts = parseStableId(state.stableId)
+  // Feature 039 (T019): em lote — uma resolução por TIPO (uma passada pelos
+  // blocos daquele tipo), não uma por item; o mapa de `resolveStableIdsIn`
+  // diz a que item cada registro pertence, então a ordem de entrada é mantida.
+  const parsed = states.map((state) => parseStableId(state.stableId))
+  const byKind = new Map<CatalogItemKind, StableIdParts[]>()
+  for (const parts of parsed) {
     if (!parts) continue
-    // Um item por vez (não em lote): `resolveFavorites` devolve só os
-    // resolvidos, sem dizer QUAL `StableIdParts` cada um era — em lote não
-    // dá pra saber com segurança se `records[i]` corresponde a `parts[i]`
-    // quando algum item no meio não resolve. A lista de "Continuar
-    // assistindo" é pequena (itens em progresso, não o catálogo inteiro),
-    // então o custo de uma resolução por item é aceitável.
-    const { records: resolved } = await resolveFavorites(sourceId, parts.kind, [parts], database)
-    const record = resolved[0]
-    if (!record) continue
+    const group = byKind.get(parts.kind)
+    if (group) group.push(parts)
+    else byKind.set(parts.kind, [parts])
+  }
+  const resolved = new Map<StableIdParts, CatalogRecord>()
+  for (const [kind, group] of byKind) {
+    for (const [parts, record] of await resolveStableIdsIn(database, sourceId, generation, kind, group)) {
+      resolved.set(parts, record)
+    }
+  }
 
+  // Episódio vira a série-pai — todas as séries numa passada só.
+  const seriesIds = new Set<string>()
+  for (const record of resolved.values()) {
+    if (record.kind === 'episode' && record.seriesId) seriesIds.add(record.seriesId)
+  }
+  const seriesById = await findSeriesManyIn(database, sourceId, generation, seriesIds)
+
+  const records: CatalogRecord[] = []
+  for (const parts of parsed) {
+    const record = parts ? resolved.get(parts) : undefined
+    if (!record) continue
     if (record.kind !== 'episode' || !record.seriesId) {
       records.push(record)
       continue
     }
-    const series = await findSeriesIn(database, sourceId, generation, record.seriesId)
+    const series = seriesById.get(record.seriesId)
     if (series) records.push(series)
   }
   return records
+}
+
+/**
+ * Vários registros `kind:'series'` por `seriesId` (feature 039, T019): linhas
+ * pelo índice, uma consulta por série; o que faltar, numa passada só pelos
+ * blocos de séries, parando quando todas forem achadas. Mesmo resultado de
+ * `findSeriesIn` para cada id.
+ */
+async function findSeriesManyIn(
+  database: CatalogDb,
+  sourceId: string,
+  generation: number,
+  seriesIds: ReadonlySet<string>,
+): Promise<Map<string, CatalogRecord>> {
+  const found = new Map<string, CatalogRecord>()
+  for (const seriesId of seriesIds) {
+    const row = await database.channels
+      .where('[sourceId+generation+seriesId]')
+      .equals([sourceId, generation, seriesId])
+      .and((candidate) => candidate.kind === 'series')
+      .first()
+    if (row) found.set(seriesId, row)
+  }
+  if (found.size === seriesIds.size) return found
+  try {
+    await blocksOfKind(database, sourceId, generation, 'series').each((block) => {
+      block.items.forEach((item, index) => {
+        if (item.seriesId && seriesIds.has(item.seriesId) && !found.has(item.seriesId)) {
+          found.set(item.seriesId, blockRecord(block, item, index))
+        }
+      })
+      if (found.size === seriesIds.size) throw new FavoritesScanComplete()
+    })
+  } catch (error) {
+    if (!(error instanceof FavoritesScanComplete)) throw error
+  }
+  return found
 }
 
 /**

@@ -11,7 +11,12 @@
 
 import { logger } from '../logger'
 
-export type EntryPhase = 'request' | 'mapped' | 'written' | 'read' | 'firstPaint'
+/**
+ * `start`/`ensured`/`itemsOut` (feature 039, R-009) detalham a entrada numa
+ * categoria já no aparelho: início da consulta, fim da checagem de frescor,
+ * itens convertidos para a tela.
+ */
+export type EntryPhase = 'start' | 'request' | 'mapped' | 'written' | 'ensured' | 'read' | 'itemsOut' | 'firstPaint'
 
 export interface EntryReport {
   categoryId: number

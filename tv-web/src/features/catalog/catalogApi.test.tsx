@@ -25,7 +25,8 @@ import {
 import * as categoryLoader from '../../lib/catalog/categoryLoader'
 import * as seriesLoader from '../../lib/catalog/seriesLoader'
 import { buildStableId, updateProgress } from '../../lib/catalog/userStateRepository'
-import { db, type CategoryRecord } from '../../lib/catalog/db'
+import { db, type CatalogRecord, type CategoryRecord } from '../../lib/catalog/db'
+import { listChannels, renewCategoryItems, storeCategories } from '../../lib/catalog/catalogRepository'
 
 vi.mock('../../lib/catalog/categoryLoader', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/catalog/categoryLoader')>()
@@ -1011,6 +1012,141 @@ describe('mapeamento de ano/inclusão/duração/imagem — feature 025 (T009, T0
     await waitFor(() => expect(result.current.data?.episodes).toHaveLength(1))
     expect(result.current.data?.episodes[0].icon_url).toBe('http://exemplo.test/ep.png')
     expect(result.current.data?.episodes[0].duration_seconds).toBe(1500)
+  })
+})
+
+describe('useCategoryContent — categoria em bloco (feature 039, R-009: leitura direta)', () => {
+  const SOURCE_ID = 'source-bloco-039'
+
+  afterEach(async () => {
+    vi.restoreAllMocks()
+    await db.sources.delete(SOURCE_ID)
+    await db.categories.where('sourceId').equals(SOURCE_ID).delete()
+    await db.categoryBlocks.where('[sourceId+generation+kind]').between([SOURCE_ID, 0, ''], [SOURCE_ID, 99, '￿']).delete()
+  })
+
+  it('lê o bloco pela categoria e entrega os mesmos itens que a leitura por listChannels', async () => {
+    vi.mocked(categoryLoader.ensureCategory).mockResolvedValue({ outcome: 'fresh' })
+    await db.sources.put({
+      id: SOURCE_ID,
+      type: 'provider_credentials',
+      displayName: 'Fonte em blocos',
+      connectionState: 'synced',
+      activeGeneration: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    const [categoryId] = await storeCategories([
+      { sourceId: SOURCE_ID, generation: 1, kind: 'movie', fetchMode: 'on_demand', name: 'Filmes', order: 7, providerCategoryId: '7' },
+    ])
+    const movie = (name: string, extra: Partial<CatalogRecord> = {}): CatalogRecord => ({
+      sourceId: SOURCE_ID,
+      generation: 1,
+      kind: 'movie',
+      name,
+      originalName: name,
+      groupOrder: 7,
+      group: 'Filmes',
+      ...extra,
+    })
+    await renewCategoryItems(
+      { sourceId: SOURCE_ID, generation: 1, kind: 'movie', categoryId, groupOrder: 7 },
+      [
+        movie('Zeta', { providerStreamId: 'z', iconUrl: 'http://exemplo.test/z.png', year: 2001, addedAt: 5 }),
+        movie('Alfa', { providerStreamId: 'a' }),
+        movie('Sem id', { directUrl: 'http://exemplo.test/sem-id.mp4' }),
+      ],
+      1,
+    )
+    const listed = await listChannels(SOURCE_ID, 7, 0, 100, 'movie')
+    const cat = category(categoryId, { kind: 'movie', order: 7, fetchMode: 'on_demand', itemsFetchedAt: 1 })
+
+    const { result } = renderHook(() => useCategoryContent(SOURCE_ID, cat), { wrapper: wrapper() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    const items = result.current.data?.items ?? []
+    expect(result.current.data?.totalCount).toBe(3)
+    expect(items.map((item) => item.id)).toEqual(listed.map((record) => String(record.id)))
+    expect(items.map((item) => item.name)).toEqual(['Zeta', 'Alfa', 'Sem id'])
+    expect(items[0]).toMatchObject({
+      kind: 'movie',
+      source_id: SOURCE_ID,
+      category_id: categoryId,
+      category_position: 0,
+      provider_stream_id: 'z',
+      icon_url: 'http://exemplo.test/z.png',
+      year: 2001,
+      added_at: 5,
+      original_group: 'Filmes',
+      playable: true,
+    })
+    expect(items[2]).toMatchObject({ category_position: 2, provider_stream_id: null, playable: true })
+  })
+})
+
+describe('useAggregatedItems progressive — "Todos" aos poucos (feature 039, T022)', () => {
+  const SOURCE_ID = 'source-todos-aos-poucos'
+
+  afterEach(async () => {
+    await db.sources.delete(SOURCE_ID)
+    await db.categories.where('sourceId').equals(SOURCE_ID).delete()
+    await db.categoryBlocks.where('[sourceId+generation+kind]').between([SOURCE_ID, 0, ''], [SOURCE_ID, 99, '￿']).delete()
+  })
+
+  it('lê a 1ª página ao entrar e a seguinte só com loadMore; mesmos itens do modo inteiro, na mesma ordem', async () => {
+    await db.sources.put({
+      id: SOURCE_ID,
+      type: 'provider_credentials',
+      displayName: 'Fonte',
+      connectionState: 'synced',
+      activeGeneration: 1,
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    const ids = await storeCategories(
+      [1, 2, 3].map((order) => ({
+        sourceId: SOURCE_ID,
+        generation: 1,
+        kind: 'movie' as const,
+        fetchMode: 'on_demand' as const,
+        name: `Cat ${order}`,
+        order,
+        providerCategoryId: String(order),
+      })),
+    )
+    for (const [i, categoryId] of ids.entries()) {
+      const order = i + 1
+      await renewCategoryItems(
+        { sourceId: SOURCE_ID, generation: 1, kind: 'movie', categoryId, groupOrder: order },
+        Array.from({ length: 200 }, (_, n) => ({
+          sourceId: SOURCE_ID,
+          generation: 1,
+          kind: 'movie' as const,
+          name: `F${order}-${n}`,
+          originalName: `F${order}-${n}`,
+          groupOrder: order,
+          providerStreamId: `${order}-${n}`,
+        })),
+        1,
+      )
+    }
+
+    const { result } = renderHook(() => useAggregatedItems(SOURCE_ID, 'movie', true, { progressive: true }), {
+      wrapper: wrapper(),
+    })
+    // 1ª página: categorias inteiras até passar de 240 → Cat 1 + Cat 2.
+    await waitFor(() => expect(result.current.items).toHaveLength(400))
+    expect(result.current.hasMore).toBe(true)
+    expect(result.current.totalCategories).toBe(3)
+
+    act(() => result.current.loadMore?.())
+    await waitFor(() => expect(result.current.items).toHaveLength(600))
+    expect(result.current.hasMore).toBe(false)
+
+    const whole = renderHook(() => useAggregatedItems(SOURCE_ID, 'movie', true), { wrapper: wrapper() })
+    await waitFor(() => expect(whole.result.current.items).toHaveLength(600))
+    expect(result.current.items.map((item) => item.id)).toEqual(whole.result.current.items.map((item) => item.id))
+    expect(whole.result.current.hasMore).toBeUndefined()
   })
 })
 

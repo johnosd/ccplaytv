@@ -233,6 +233,78 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     expect(document.querySelector('.side-category-nav-item.tv-focus')).not.toBeNull()
   })
 
+  // Feature 039 (T022): "Todos" aos poucos — a tela pede a próxima página perto do fim.
+  it('"Todos" na ordem da fonte lê aos poucos e pede mais quando o foco chega a 10 fileiras do fim', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    const loadMore = vi.fn()
+    const loaded = Array.from({ length: 120 }, (_, i) => movie(`Filme ${i}`, `m${i}`))
+    vi.mocked(catalogApi.useAggregatedItems).mockReturnValue({
+      items: loaded,
+      coveredCategories: 1,
+      totalCategories: 1,
+      isLoading: false,
+      hasMore: true,
+      loadMore,
+    })
+    renderMovies()
+
+    press('ArrowUp') // trilha: Ação -> Todos
+    press('ArrowRight') // entra em "Todos"
+    expect(vi.mocked(catalogApi.useAggregatedItems)).toHaveBeenLastCalledWith(SOURCE_ID, 'movie', true, { progressive: true })
+    expect(loadMore).not.toHaveBeenCalled() // 1º card, longe do fim (120 lidos)
+
+    for (let row = 0; row < 9; row += 1) press('ArrowDown')
+    expect(loadMore).not.toHaveBeenCalled() // fileira 10: índice 54 < 120 − 60
+    press('ArrowDown') // fileira 11: índice 60 = 120 − 60
+    expect(loadMore).toHaveBeenCalled()
+  })
+
+  it('"Todos" com a busca aberta lê o tipo inteiro (sem aos poucos)', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    mockAggregated([movie('Filme A', 'a')])
+    renderMovies()
+
+    press('ArrowUp') // Todos
+    press('ArrowRight') // entra
+    press('ArrowUp') // grade -> "Pesquisar"
+    press('Enter') // abre a busca
+    expect(vi.mocked(catalogApi.useAggregatedItems)).toHaveBeenLastCalledWith(SOURCE_ID, 'movie', true, { progressive: false })
+  })
+
+  it('voltar a "Todos" com o item focado ainda não lido continua lendo páginas até ele aparecer', () => {
+    mockCategories([category(1, 'Ação', 0)])
+    const loadMore = vi.fn()
+    vi.mocked(catalogApi.useAggregatedItems).mockReturnValue({
+      items: Array.from({ length: 300 }, (_, i) => movie(`Filme ${i}`, `m${i}`)),
+      coveredCategories: 1,
+      totalCategories: 1,
+      isLoading: false,
+      hasMore: true,
+      loadMore,
+    })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <VodCatalogScreen
+          section="movies"
+          sourceId={SOURCE_ID}
+          onOpenItem={vi.fn()}
+          onBack={vi.fn()}
+          onResync={vi.fn()}
+          restore={{
+            trailKey: { kind: 'all' },
+            entered: { kind: 'all' },
+            col: 1,
+            focusedItemId: 'id-Filme 5000',
+            searchTerm: '',
+            searchActive: false,
+          }}
+        />
+      </QueryClientProvider>,
+    )
+    expect(loadMore).toHaveBeenCalled()
+  })
+
   it('erro de conteúdo: SELECT em "Tentar de novo" chama o refetch', () => {
     mockCategories([category(1, 'Ação', 0)])
     const refetch = vi.fn()
