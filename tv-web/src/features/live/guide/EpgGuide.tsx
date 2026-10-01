@@ -76,8 +76,6 @@ export interface EpgGuideProps {
   onWatch: (channel: CatalogItemOut, list: CatalogItemOut[], listKey: GuideListKey) => void
   /** RETURN na camada base do guia. */
   onClose: () => void
-  /** Ação de "sem programação" (FR-013): ir ao painel de EPG da fonte. Ausente = a ação não aparece. */
-  onOpenEpgSettings?: () => void
   /** Retorno discreto (toast do host): programa encerrado, canal indisponível. */
   onNotify?: (message: string) => void
   handleRef?: Ref<EpgGuideHandle>
@@ -112,6 +110,13 @@ const EXPLAIN_TEXT: Record<'not_configured' | 'disabled' | 'never_synced' | 'err
   error: 'Não foi possível carregar a programação.',
 }
 
+/**
+ * Onde se configura o EPG (decisão do usuário, item 62a do backlog): só ao
+ * editar a lista, em Configurações — o guia do canal não tem atalho para lá
+ * (antes, "Configurar EPG" saía da Live e fechava o player, R-010 da 031).
+ */
+const EPG_SETTINGS_HINT = 'O EPG é configurado em Configurações › Fontes IPTV, na linha da lista.'
+
 export function EpgGuide({
   sourceId,
   categories,
@@ -119,7 +124,6 @@ export function EpgGuide({
   initialChannelId,
   onWatch,
   onClose,
-  onOpenEpgSettings,
   onNotify,
   handleRef,
 }: EpgGuideProps): ReactNode {
@@ -191,9 +195,7 @@ export function EpgGuide({
       ? { label: 'Tentar de novo', run: retry }
       : bodyState === 'empty'
         ? { label: 'Trocar lista', run: openSelector }
-        : bodyState === 'explain' && onOpenEpgSettings
-          ? { label: 'Configurar EPG', run: onOpenEpgSettings }
-          : null
+        : null
   const barItems: ('selector' | 'today' | 'tomorrow' | 'action')[] =
     bodyState === 'grid' ? ['selector', 'today', 'tomorrow'] : stateAction ? ['selector', 'action'] : ['selector']
   const activeZone = bodyState === 'grid' ? zone : 'bar'
@@ -511,11 +513,8 @@ export function EpgGuide({
           <div className="epg-guide-state">
             <h2 className="epg-guide-state-title">Sem programação</h2>
             <p className="epg-guide-state-text">{EXPLAIN_TEXT[explainReason ?? 'error']}</p>
-            {onOpenEpgSettings && (
-              <button type="button" className={`button-secondary no-scale${actionFocused ? ' tv-focus' : ''}`} onClick={onOpenEpgSettings}>
-                Configurar EPG
-              </button>
-            )}
+            {/* Sem ação aqui: o foco fica no seletor de lista da barra (sempre focável). */}
+            <p className="epg-guide-state-text">{EPG_SETTINGS_HINT}</p>
           </div>
         )
       default:

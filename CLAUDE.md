@@ -777,8 +777,11 @@ programming (p95 key→focus 128 ms) but its "Todos" only covered 2 of 41
 categories, so **R-003 (performance with thousands of channels) is not proven**.
 **Open, not gates**: the physical-TV pass (opaque guide over the AVPlay
 hardware plane with audio following — R-002; holding ↓/→ on a real list; CH±
-delivery), and "Configurar EPG" opened while a channel plays closes the player
-(R-010). See `sdd/specs/031-epg-guia-completo/plan.md` → `## Estado Atual` and
+delivery). **Update (2026-10-01, backlog item 62a, user's decision)**: the
+guide no longer has a "Configurar EPG" action (it used to leave the Live
+screen and close the player, R-010) — EPG is configured only when editing the
+list, in Configurações › Fontes IPTV; the guide's "Sem programação" state
+just says where, and its focus stays on the list selector. See `sdd/specs/031-epg-guia-completo/plan.md` → `## Estado Atual` and
 `## Riscos e Decisões`.
 
 **Code-complete**: `032-metadata-tmdb-integracoes` — backlog item 28, with a

@@ -380,7 +380,7 @@ async function run() {
     await page.keyboard.press('Escape') // fecha o player
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
 
-    console.log('=== US1: lista sem EPG → explicação e caminho para o painel de EPG ===')
+    console.log('=== US1: lista sem EPG → explicação e onde configurar (sem atalho no guia, item 62a) ===')
     await addSource(page, 'Fonte E2E Sem EPG', `${base}/sem-epg.m3u`, { first: false })
     await page.route(`${base}/live/**`, () => {})
     await openLive(page)
@@ -389,13 +389,15 @@ async function run() {
     await openGuideFromPreviewNoGrid(page)
     await page.waitForSelector('.epg-guide-state', { timeout: 6000 })
     assert((await page.locator('.epg-guide-grid').count()) === 0, 'sem EPG: nunca uma grade vazia')
-    assert((await page.locator('.epg-guide-state-text').textContent())?.includes('não tem EPG configurado'), 'a explicação diz por que não há programação')
-    await page.keyboard.press('ArrowDown') // seletor → "Configurar EPG"
-    assert((await page.getByRole('button', { name: 'Configurar EPG' }).getAttribute('class'))?.includes('tv-focus'), '"Configurar EPG" é alcançável pelo controle remoto')
+    const explainText = (await page.locator('.epg-guide-state-text').allTextContents()).join(' ')
+    assert(explainText.includes('não tem EPG configurado'), 'a explicação diz por que não há programação')
+    // Item 62a do backlog (decisão do usuário): o EPG só se configura ao editar a lista em
+    // Configurações — o guia só diz onde, sem atalho que tiraria a pessoa da Live.
+    assert(explainText.includes('Configurações › Fontes IPTV'), 'a explicação diz onde configurar o EPG')
+    assert((await page.getByRole('button', { name: 'Configurar EPG' }).count()) === 0, 'o guia não tem atalho "Configurar EPG"')
+    await page.keyboard.press('ArrowDown') // não há ação de estado: o foco fica no seletor de lista
+    assert((await page.locator('.epg-guide-selector').getAttribute('class'))?.includes('tv-focus'), 'o seletor de lista segue focável')
     await assertOneFocus(page, 'guia sem EPG')
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.epg-settings', { timeout: 8000 })
-    assert(true, '"Configurar EPG" leva ao painel de EPG da lista')
 
     const leaked = consoleLines.some((line) => line.includes('password') || line.includes('username='))
     assert(!leaked, 'nenhuma credencial em console')

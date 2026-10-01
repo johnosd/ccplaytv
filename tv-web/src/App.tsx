@@ -335,11 +335,6 @@ function App() {
           initialTopbarItem={screen.topbarFocus}
           onBack={goBack}
           onResync={() => resyncFromCategoryScreen(source.id)}
-          // Guia completo sem programação (feature 031, FR-013): leva à tela de
-          // EPG da lista (feature 030). RETURN de lá volta à Live TV.
-          onOpenEpgSettings={() =>
-            dispatch({ type: 'open', screen: { name: 'epg-settings', source }, from: { name: 'live' } })
-          }
           shell={{
             sourceName: source.display_name,
             // "Início" na topbar leva ao Início mais próximo da pilha, nunca

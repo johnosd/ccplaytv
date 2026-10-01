@@ -64,12 +64,6 @@ export interface LiveScreenProps {
   openFavorites?: boolean
   /** Remonta com a topbar ativa neste item — volta de Busca/Configurações (FR-034/FR-044). */
   initialTopbarItem?: TopbarItem
-  /**
-   * Feature 031 (FR-013): "Configurar EPG" no guia sem programação — leva ao
-   * painel de EPG da fonte em Configurações (feature 030). Ausente = a ação
-   * não aparece. STUB do sdd-plan: ainda não é lida (T012/T013).
-   */
-  onOpenEpgSettings?: () => void
 }
 
 /**
@@ -89,7 +83,6 @@ export function LiveScreen({
   initialChannel,
   openFavorites,
   initialTopbarItem,
-  onOpenEpgSettings,
 }: LiveScreenProps) {
   // Entra direto em ★ Favoritos quando pedido pelo Início/Busca (feature
   // 026) — `openFavorites` ou qualquer `initialChannel` com `entry:
@@ -149,7 +142,7 @@ export function LiveScreen({
     enabled: channelsNavigable,
   })
 
-  const liveGuide = useLiveGuide({ guide, zap, trail, channels, search, setCol, sourceId, onOpenEpgSettings, showToast })
+  const liveGuide = useLiveGuide({ guide, zap, trail, channels, search, setCol, sourceId, showToast })
   const { enterTrailEntry, handleTrailDirection, handleTrailSelect } = useLiveKeyboard({
     contentActive,
     hasShell: shell !== undefined,

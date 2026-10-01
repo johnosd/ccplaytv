@@ -32,7 +32,6 @@ export interface LiveGuideParams {
   search: LiveSearch
   setCol: Dispatch<SetStateAction<0 | 1 | 2>>
   sourceId: string
-  onOpenEpgSettings: (() => void) | undefined
   showToast: (message: string) => void
 }
 
@@ -50,7 +49,6 @@ export function useLiveGuide({
   search,
   setCol,
   sourceId,
-  onOpenEpgSettings,
   showToast,
 }: LiveGuideParams) {
   const { guide: openGuide, setGuide, guideRef, guideWatchPendingRef } = guide
@@ -128,7 +126,6 @@ export function useLiveGuide({
       initialChannelId={openGuide.originId}
       onWatch={watchFromGuide}
       onClose={() => setGuide(null)}
-      onOpenEpgSettings={onOpenEpgSettings}
       onNotify={showToast}
     />
   ) : null
