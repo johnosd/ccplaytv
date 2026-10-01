@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { FAVORITE_COLOR_KEY } from './tizenColorKey'
+import { FAVORITE_COLOR_KEY, REMOVE_COLOR_KEY, REMOVE_COLOR_KEYCODE } from './tizenColorKey'
 import { mediaKeyOf, type MediaKey } from './tizenMediaKeys'
 
 export type RemoteDirection = 'up' | 'down' | 'left' | 'right'
@@ -35,6 +35,14 @@ export interface RemoteNavHandlers {
    * que garante por construção que ela nunca age fora do player.
    */
   onMediaKey?: (key: MediaKey) => void
+  /**
+   * Opcional (feature 036, `logic/remocao-historico.md` §7). Tecla vermelha
+   * (`REMOVE_COLOR_KEY`, ou `keyCode` 403) — só a grade do "↺ Histórico"
+   * passa isto. Sem o handler, a tecla continua não mapeada (sem
+   * `preventDefault`). Debounce próprio, como a amarela: segurar a tecla não
+   * abre a confirmação várias vezes (FR-021).
+   */
+  onRemoveKey?: () => void
 }
 
 export interface RemoteNavOptions {
@@ -76,6 +84,9 @@ interface PendingPress {
  * não deveria alternar o favorito várias vezes.
  */
 const FAVORITE_KEY_DEBOUNCE_MS = 400
+
+/** Mesmo motivo de `FAVORITE_KEY_DEBOUNCE_MS`, para a tecla vermelha (feature 036, FR-021). */
+const REMOVE_KEY_DEBOUNCE_MS = 400
 
 /**
  * Alvo com edição de texto real (feature 017: campo de busca) — a única
@@ -119,18 +130,19 @@ export const TIZEN_RETURN_KEYCODE = 10009
  * decide o que "próximo"/"anterior" significa via `onDirection`.
  */
 export function useRemoteNav(
-  { onDirection, onSelect, onLongSelect, onFavoriteKey, onBack, onMediaKey }: RemoteNavHandlers,
+  { onDirection, onSelect, onLongSelect, onFavoriteKey, onBack, onMediaKey, onRemoveKey }: RemoteNavHandlers,
   { modal = false, longSelectMs = LONG_SELECT_MS }: RemoteNavOptions = {},
 ) {
-  const handlersRef = useRef({ onDirection, onSelect, onLongSelect, onFavoriteKey, onBack, onMediaKey })
+  const handlersRef = useRef({ onDirection, onSelect, onLongSelect, onFavoriteKey, onBack, onMediaKey, onRemoveKey })
   // Gesto de OK em andamento (feature 013) — `null` fora de um
   // pressionamento. Vive em `useRef`, não em estado: nada aqui precisa
   // re-renderizar a tela, só decidir o que o próximo evento de teclado faz.
   const pressRef = useRef<PendingPress | null>(null)
   const lastFavoriteKeyAtRef = useRef(0)
+  const lastRemoveKeyAtRef = useRef(0)
 
   useEffect(() => {
-    handlersRef.current = { onDirection, onSelect, onLongSelect, onFavoriteKey, onBack, onMediaKey }
+    handlersRef.current = { onDirection, onSelect, onLongSelect, onFavoriteKey, onBack, onMediaKey, onRemoveKey }
   })
 
   useEffect(() => {
@@ -200,8 +212,12 @@ export function useRemoteNav(
       // handler, `mediaKeyOf` nem chega a ser chamada — a tecla cai como não
       // mapeada, sem `preventDefault`, garantindo FR-029 por construção.
       const mediaKey = handlersRef.current.onMediaKey ? mediaKeyOf(event) : null
+      // Tecla vermelha (feature 036) — mesma regra: só com `onRemoveKey`.
+      const isRemoveKey =
+        (event.key === REMOVE_COLOR_KEY || event.keyCode === REMOVE_COLOR_KEYCODE) &&
+        Boolean(handlersRef.current.onRemoveKey)
 
-      if (!direction && !isSelect && !isBack && !isFavoriteKey && !mediaKey) return
+      if (!direction && !isSelect && !isBack && !isFavoriteKey && !mediaKey && !isRemoveKey) return
       // Telas de "roving DOM focus" (useTvKeyNav + <button>/<input> reais,
       // ex. AddSourceScreen, ImportProgressScreen) não passam onSelect —
       // contam com o Enter nativo do navegador pra ativar o elemento
@@ -236,6 +252,12 @@ export function useRemoteNav(
         }
       } else if (mediaKey) {
         handlersRef.current.onMediaKey?.(mediaKey)
+      } else if (isRemoveKey) {
+        const now = Date.now()
+        if (now - lastRemoveKeyAtRef.current >= REMOVE_KEY_DEBOUNCE_MS) {
+          lastRemoveKeyAtRef.current = now
+          handlersRef.current.onRemoveKey?.()
+        }
       }
     }
 

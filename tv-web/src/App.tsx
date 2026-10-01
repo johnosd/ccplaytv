@@ -24,7 +24,7 @@ import { EpgSettingsScreen } from './features/settings/EpgSettingsScreen'
 import { TmdbKeyScreen } from './features/settings/TmdbKeyScreen'
 import { SearchScreen } from './features/search/SearchScreen'
 import { FAVORITES_SNAPSHOT } from './features/catalog/categoryScreenSnapshot'
-import { registerFavoriteColorKey } from './lib/tizenColorKey'
+import { registerFavoriteColorKey, registerRemoveColorKey } from './lib/tizenColorKey'
 import { registerMediaKeys } from './lib/tizenMediaKeys'
 import { onEpgSyncFinished } from './lib/epg/epgRunner'
 import { usePrefetchForSource, wakePrefetch } from './features/catalog/prefetchApi'
@@ -60,6 +60,7 @@ function App() {
   // TV (`tizenColorKey.ts`/`tizenMediaKeys.ts`).
   useEffect(() => {
     registerFavoriteColorKey()
+    registerRemoveColorKey()
     registerMediaKeys()
   }, [])
 

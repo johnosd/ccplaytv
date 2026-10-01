@@ -33,7 +33,7 @@ export function AccessibilityPanel({ reducedMotion, focusedRow, onActivateRow }:
       <div className="accessibility-panel-row">
         <button
           type="button"
-          className={`accessibility-panel-toggle${focusedRow === 0 ? ' tv-focus' : ''}`}
+          className={`accessibility-panel-toggle no-scale${focusedRow === 0 ? ' tv-focus' : ''}`}
           onClick={() => onActivateRow(0)}
         >
           <span>Reduzir movimento</span>
@@ -50,7 +50,7 @@ export function AccessibilityPanel({ reducedMotion, focusedRow, onActivateRow }:
           <button
             key={label}
             type="button"
-            className={`accessibility-panel-toggle is-soft-disabled${focusedRow === row ? ' tv-focus' : ''}`}
+            className={`accessibility-panel-toggle no-scale is-soft-disabled${focusedRow === row ? ' tv-focus' : ''}`}
             // Achado real (feature 028, FR-016): mock sempre indisponível, mas
             // sem sinal estático pra tecnologia assistiva.
             aria-disabled="true"

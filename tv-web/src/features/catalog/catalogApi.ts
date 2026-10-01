@@ -52,6 +52,14 @@ import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
 import { isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
 import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
+import {
+  clearHistory,
+  removeMovieFromHistory,
+  removeSeriesFromHistory,
+  summarizeHistory,
+  type HistoryClearScope,
+  type HistoryRemovalMode,
+} from '../../lib/catalog/historyRemoval'
 import { loadHomeHero, type HeroPrimary } from '../../lib/catalog/homeHero'
 import { loadGlobalSearchIndex, searchGlobal } from '../../lib/catalog/globalSearch'
 import { listProgramsForChannels } from '../../lib/epg/epgRepository'
@@ -1473,5 +1481,62 @@ export function useToggleWatched() {
       // assistindo" e mudar o hero (`logic/hero-home.md` §6).
       void queryClient.invalidateQueries({ queryKey: ['home-hero'] })
     },
+  })
+}
+
+/**
+ * Tudo que remover/limpar o Histórico pode mudar (feature 036, D-010 —
+ * lista fechada, `logic/remocao-historico.md` §10). Prefixo de chave, sem
+ * `sourceId`: faltar uma delas é o bug que a 019 já teve ("Continuar" não
+ * sumia até uma navegação nova).
+ */
+function invalidateHistoryRemoval(queryClient: QueryClient): void {
+  for (const key of [
+    'user-state',
+    'user-states',
+    'history-content',
+    'continue-watching',
+    'resume-positions',
+    'home-hero',
+    'history-summary',
+  ]) {
+    void queryClient.invalidateQueries({ queryKey: [key] })
+  }
+}
+
+/** Filme pelo `stableId`; série pelo `seriesId` do catálogo (todos os episódios dela, D-009). */
+export type HistoryRemovalTarget =
+  | { kind: 'movie'; stableId: string; sourceId: string }
+  | { kind: 'series'; seriesId: string; sourceId: string }
+
+/** Remove um título do "↺ Histórico" — grade (tecla vermelha) e detalhe (feature 036, US1). */
+export function useRemoveFromHistory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ target, mode }: { target: HistoryRemovalTarget; mode: HistoryRemovalMode }): Promise<void> => {
+      if (target.kind === 'movie') await removeMovieFromHistory(target.stableId, target.sourceId, mode, db)
+      else await removeSeriesFromHistory(target.sourceId, target.seriesId, mode, db)
+    },
+    onSuccess: () => invalidateHistoryRemoval(queryClient),
+  })
+}
+
+/** Limpeza em lote da aba Privacidade (feature 036, US2) — só a lista `sourceId`. */
+export function useClearHistory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (params: { sourceId: string; scope: HistoryClearScope; mode: HistoryRemovalMode }): Promise<void> => {
+      await clearHistory(params.sourceId, params.scope, params.mode, db)
+    },
+    onSuccess: () => invalidateHistoryRemoval(queryClient),
+  })
+}
+
+/** Contagens da aba Privacidade — só lida com a aba aberta (`enabled`), nunca só por abrir Configurações. */
+export function useHistorySummary(sourceId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ['history-summary', sourceId],
+    queryFn: () => summarizeHistory(sourceId as string, db),
+    enabled: enabled && sourceId !== null,
   })
 }

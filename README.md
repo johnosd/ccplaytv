@@ -81,8 +81,12 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   "↺ Histórico" em Filmes e Séries com tudo que já foi reproduzido, do
   mais recente ao mais antigo, incluindo o que já terminou (feature 025)
   — canal ao vivo não tem histórico nem "já assistido" (decisão de
-  escopo, feature 019). *A avaliar:* agregação de favoritos/histórico
-  entre todas as fontes.
+  escopo, feature 019). Um título sai do "↺ Histórico" pela tecla vermelha
+  na grade ou pela ação "Remover do histórico" no detalhe, e Configurações ›
+  Privacidade limpa o histórico de Filmes, Séries ou ambos da lista ativa —
+  sempre com confirmação e a escolha de manter ou apagar a retomada, sem
+  tocar em favoritos nem em "assistido" (feature 036). *A avaliar:*
+  agregação de favoritos/histórico entre todas as fontes.
 
 ## Arquitetura
 

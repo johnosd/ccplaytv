@@ -77,8 +77,10 @@ open is the physical-TV verification of both paths — the hold gesture
 this feature explicitly elevates that to a mandatory gate (constitution's
 "Validação em hardware real" exception, same pattern as feature 011),
 because a browser can't prove how the real remote's `keydown` auto-repeat
-and `keyup` behave. See `sdd/specs/013-favoritos/plan.md` →
-`## Estado Atual` and R-001/R-011.
+and `keyup` behave. **Update**: that gate is closed — both paths were
+verified on the QN50Q60DAGXZD on 2026-09-24 (R-001/R-011 resolved, feature
+converged) and reconfirmed by the user on 2026-10-01. See
+`sdd/specs/013-favoritos/plan.md` → `## Estado Atual` and R-001/R-011.
 
 **Converged**: `014-m3u-sob-demanda` — closes the gap feature 010 left
 on purpose: an M3U source (URL or "Modo limitado") used to import every
@@ -585,7 +587,10 @@ working end to end. **The one gate still open is the physical-TV pass**
 (SC-004, explicitly mandatory per this feature's spec, same pattern as
 013/011): media-key names/`keyCode`s, `getSupportedKeys()` on the real
 QN50Q60DAGXZD, chrome/toast over the AVPlay hardware plane, and whether
-↑=previous/↓=next feels natural all only provable there. A **pre-existing,
+↑=previous/↓=next feels natural all only provable there. **Update**: closed —
+confirmed by the user on the TV on 2026-09-28 (media keys, CH±, ↑/↓ zapping,
+↑=previous/↓=next natural; feature converged) and media keys/CH± reconfirmed
+on 2026-10-01. A **pre-existing,
 out-of-scope** gap surfaced by accident and was **not** fixed here, only
 logged: `CLAUDE.md` itself was never updated by the convergence of
 features 024, 025 or 026 (this section jumps from 023 straight to this
@@ -1058,6 +1063,41 @@ Not run on the TV, by the user's decision: migrating a pre-039 database
 proven in the browser only (R-014). Still open: a "cold" read of the 11k
 category (OK with no cursor pause) wasn't measured on the TV (R-009). See
 `sdd/specs/039-catalogo-em-blocos/plan.md` → `## Resultado Final`.
+
+**Converged**: `036-limpar-historico` — backlog item 57: a title can leave
+the `↺ Histórico` (red key on the Filmes/Séries history grid, or a "Remover do
+histórico" action on the detail screen) and Configurações has a new
+**Privacidade** tab that clears the active list's history for Filmes, Séries or
+both. Every path asks first (`features/history/HistoryRemovalModal.tsx`, one
+modal for all three, "Cancelar" focused) and lets the person choose whether the
+resume position goes too — "Remover do histórico" alone keeps the title in
+"Continuar assistindo" (DS V14 §13.3). Favorites and "assistido" never change,
+and only the active list is touched. The key design point: removing **hides**
+instead of deleting — a new value field, `UserStateRecord.historyHiddenAt`
+(no Dexie bump), and `isInHistory()` (`userStateRepository.ts`: `lastWatched >
+historyHiddenAt`) applied **only** in `listPlayed`, the single reader of the
+history, because `lastWatched` is also what "Continuar assistindo" orders by; a
+new playback brings the title back on its own. Rules live in
+`lib/catalog/historyRemoval.ts` (a series = every episode of the active
+generation with that `seriesId`; batch clearing also covers records that no
+longer resolve in the catalog). The red key (`ColorF0Red`, `keyCode` 403) is
+registered **strictly**, like the media keys — no `getSupportedKeys()`
+confirmation, no registration and no "● Remover do histórico" hint — and
+reaches screens through a new optional `useRemoteNav` handler, `onRemoveKey`,
+which the grid never passes while a modal is open (a `Modal` doesn't swallow
+unmapped keys). The detail action is always **last** (index 0 stays the
+primary action), and coming back to the grid after removing the focused title
+there now reads the snapshot's `focusedIndexHint` (written since 025, never
+read before). The Privacidade tab is a module of the Settings tab registry
+(backlog item 63, done right before this feature) — `SettingsScreen.tsx` didn't
+change. 5/5 contract tests locked, new `e2e/limpar-historico.mjs` (part of
+`test:e2e`; injects a fake `tizen.tvinputdevice` to prove the hint) green;
+removal shows on the grid in ~170 ms (SC-003 ≤ 1 s). **Verified on the
+physical TV** (QN50Q60DAGXZD, 2026-10-01, seen by the user): the red key
+registers (hint shown), opens the confirmation with a single focus, removal
+moves focus to the neighbour, plus the detail action and the Privacidade tab
+(R-002 resolved). See
+`sdd/specs/036-limpar-historico/plan.md` → `## Estado Atual`.
 
 The four top-level directories:
 

@@ -311,7 +311,7 @@ describe('MovieDetailScreen', () => {
       expect(buttons[buttons.length - 1].textContent).toBe('✓ Marcar como assistido')
     })
 
-    it('com posição salva (Continuar/Reiniciar): a ação de assistido continua por último, sem deslocar a ação primária', async () => {
+    it('com posição salva (Continuar/Reiniciar): a ação de assistido continua no fim, sem deslocar a ação primária', async () => {
       await updateProgress(STABLE_ID, 'src1', 300)
       renderScreen()
       await screen.findByText(/▶ Continuar/)
@@ -319,8 +319,11 @@ describe('MovieDetailScreen', () => {
       const primary = screen.getByText(/▶ Continuar/)
       expect(primary.className).toContain('tv-focus') // ainda índice 0
 
+      // Com progresso o filme está no "↺ Histórico": desde a feature 036 (§9),
+      // "Remover do histórico" vem logo depois, como última ação.
       const buttons = screen.getAllByText(/./, { selector: '.vod-detail-action' })
-      expect(buttons[buttons.length - 1].textContent).toBe('✓ Marcar como assistido')
+      expect(buttons[buttons.length - 2].textContent).toBe('✓ Marcar como assistido')
+      expect(buttons[buttons.length - 1].textContent).toBe('Remover do histórico')
     })
 
     it('confirmar "Marcar como assistido" grava completedAt e alterna o rótulo para "Desmarcar"', async () => {

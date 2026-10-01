@@ -198,6 +198,13 @@ sem lista ativa, `findUnnamedControls`), e o E2E `e2e/limpar-historico.mjs`.
 
 | Área | Estado |
 | --- | --- |
+| Dados (`historyRemoval.ts`, `listPlayed`) | Pronto — C1–C4 verdes, testes complementares verdes |
+| Hooks (`catalogApi.ts`) | Pronto — `useRemoveFromHistory`, `useClearHistory`, `useHistorySummary`, invalidação fechada |
+| US1 grade (tecla vermelha) | Pronto — C5 verde; modal, tecla estrita, dica condicionada |
+| US1 detalhe | Pronto — ação por último em filme e série; volta à grade pela dica de índice |
+| US2 Privacidade | Pronto — módulo do registro de abas (R-005), antes de "Sobre & créditos" |
+| Gates | `npm run test` 2026/2031 (as 5 falhas são os contratos da 034, não executada); 23 travas íntegras; `tsc`/lint/`build:tizen` limpos; `npm run test:e2e` inteiro verde (622 verificações, 21 roteiros, inclui `e2e/limpar-historico.mjs`) |
+| TV física | Feita em 2026-10-01 (QN50Q60DAGXZD, confirmada pelo usuário): tecla vermelha, dica, confirmação, detalhe, Privacidade e o foco de Acessibilidade — R-002 resolvido |
 
 ## Riscos e Decisões
 
@@ -209,9 +216,12 @@ sem lista ativa, `findUnnamedControls`), e o E2E `e2e/limpar-historico.mjs`.
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
 | R-001 | Item escondido com retomada mantida só sai de "Continuar assistindo" por "Limpar … e apagar progresso" (Privacidade) ou reproduzindo de novo: não há remoção direta na rail da Home (fora de escopo) e a ação do detalhe só aparece para item no Histórico. | Médio — a pessoa pode não achar como tirar um item de Continuar depois de escolher "manter". | Aceito pela spec (Home fora de escopo). Registrar na convergência; candidato a item de backlog se aparecer no uso real. |
-| R-002 | Nome `ColorF0Red` e `keyCode` 403 da tecla vermelha, e se `getSupportedKeys()` a lista na QN50Q60DAGXZD, não confirmados em hardware (mesma classe de risco de R-011 da 013). | Baixo — no pior caso a tecla não desperta; o detalhe cobre. | Registro estrito + dica condicionada (D-007). Verificação recomendada na passada do item 58 do backlog, não gate. |
-| R-003 | `e2e/paridade-limpeza.mjs` compara capturas de Configurações — a aba nova muda a lista de abas. | Baixo — falso positivo de regressão visual. | Atualizar a linha de base só da tela de Configurações no Polish (T031), registrando o porquê. |
-| R-004 | Feature 035 (Semelhantes, especificada) também edita `MovieDetailScreen`/`SeriesDetailScreen` (abas) e tem contratos travados neles. | Baixo — conflito de merge, não de comportamento: esta feature só acrescenta uma ação no fim do array. | Quem fizer o merge por último rebaseia; rodar os contratos das duas. |
+| R-002 | Nome `ColorF0Red` e `keyCode` 403 da tecla vermelha, e se `getSupportedKeys()` a lista na QN50Q60DAGXZD, não confirmados em hardware (mesma classe de risco de R-011 da 013). | Baixo — no pior caso a tecla não desperta; o detalhe cobre. | **Resolvido (2026-10-01)**: passada na TV física (QN50Q60DAGXZD), confirmada pelo usuário — a dica "● Remover do histórico" apareceu (a tecla foi registrada pelo `getSupportedKeys()`), a vermelha abriu a confirmação com "Cancelar" focado e a tela de trás sem foco, a remoção levou o foco ao vizinho; "Remover do histórico" no detalhe e a aba Privacidade com contagens também conferidos, e a linha focada de Acessibilidade inteira (R-007). Nenhuma constante precisou mudar. |
+| R-003 | `e2e/paridade-limpeza.mjs` compara capturas de Configurações — a aba nova muda a lista de abas. | Baixo — falso positivo de regressão visual. | Resolvido: as evidências da 028 **não** foram reescritas — a comparação usou uma base própria (`CCPLAY_PARIDADE_DIR`, recurso da 039), "antes" tirado do `HEAD` com o `src` em stash. 18 de 21 telas idênticas ou ruído; as 3 de Configurações (08/09/10) só diferem na coluna de abas, região (120,505)–(315,590): "Privacidade" entrou e "Sobre & créditos" desceu uma linha — conferido nas imagens. |
+| R-004 | Feature 035 (Semelhantes, especificada) também edita `MovieDetailScreen`/`SeriesDetailScreen` (abas) e tem contratos travados neles. | Baixo — conflito de merge, não de comportamento: esta feature só acrescenta uma ação no fim do array. | Resolvido: a 035 já estava executada quando esta rodou; a ação nova entrou no fim do array e as travas da 035 (e 025/032/033) seguem íntegras e verdes (convergência de 01/10/2026). |
+| R-007 | Bug **anterior** à 036, achado na paridade (T031): em Configurações, a linha focada de largura total escalava (`scale(1.06)`) e o `overflow-y: auto` de `.settings-panel` recortava as bordas e o anel ("eduzir movimento" … "Ligad"); a linha nova da Privacidade herdava o defeito. | Médio — foco visível incompleto (constitution "Foco Visível"). | Resolvido com aprovação explícita do usuário (T034): `.no-scale` nas linhas largas e folga de `var(--space-1)` com margem negativa igual em `.settings-panel` — conteúdo no mesmo lugar (paridade 08/10 sem diferença além da aba nova). |
+| R-006 | A §9 da lógica diz que a ação da série vem "depois de `trailer`"; a 035 (executada depois deste plano) acrescentou "Semelhantes" depois de Trailer. | Baixo — posição relativa. | Resolvido: segue a regra de fundo (FR-005, contratos 025/033), **por último**, depois de Semelhantes. Nunca desloca o índice 0. |
+| R-005 | Depois deste plano, o item 63 do backlog (01/10/2026, `sdd-adhoc`) trocou a união `SettingsTab` + cadeias de `if` de `SettingsScreen.tsx` por um registro de abas (`features/settings/tabs/`). A T025 ("`SettingsScreen.tsx`: `SettingsTab` + `'privacy'`… navegação da aba") fica desatualizada no **onde**, não no **o quê**. | Baixo — mesma regra (§11), outro arquivo. | Resolvido: a aba vira um módulo `tabs/PrivacyTab.tsx` (`SettingsTabProps` + `SettingsTabHandle`), uma linha em `tabs/settingsTabs.ts` antes de "Sobre & créditos" e `'privacy'` na união de `tabs/settingsTab.ts`; `SettingsScreen.tsx` não muda. O `enabled` do `useHistorySummary` (T026) sai de graça: a aba só monta quando está ativa. |
 
 ## Execution Notes
 
@@ -223,17 +233,56 @@ sem lista ativa, `findUnnamedControls`), e o E2E `e2e/limpar-historico.mjs`.
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-10-01 | Fase 1 (dados) | `isInHistory` em `userStateRepository.ts` + `listPlayed` filtrando; `historyRemoval.ts` real; hooks e invalidação em `catalogApi.ts`. C1–C4 verdes na 1ª tentativa, 6 testes complementares. R-005 registrado (aba Privacidade via registro de abas do item 63). | — |
+| 2026-10-01 | Fase 2 (US1 grade) | Tecla vermelha estrita + `onRemoveKey`; `HistoryRemovalModal`; grade do Histórico com remoção, vizinho e dica condicionada; `computeNeighbor` extraída. C5 verde na 1ª tentativa, 14 testes novos. `App.test.tsx` precisou de mock parcial de `tizenColorKey`. | — |
 
-**PRÓXIMO**: —
+| 2026-10-01 | Fase 3 (US1 detalhe) | "Remover do histórico" por último no detalhe de filme e de série; `focusedIndexHint` passa a ser lida ao restaurar a grade. Um teste da 019 (não travado) atualizado: "assistido" agora é a penúltima quando o filme está no Histórico. | — |
+
+| 2026-10-01 | Fase 4 (US2 Privacidade) | Aba Privacidade como módulo do registro de abas (`tabs/PrivacyTab.tsx`, `PrivacyPanel.tsx`, `privacyModel.ts`); `SettingsScreen.tsx` intacto; trava da 026 verde. | — |
+| 2026-10-01 | Fase 5 (Polish) | Suíte inteira 2026/2031 (só a 034 vermelha); 23 travas íntegras; `build:tizen` limpo; `e2e/limpar-historico.mjs` novo (21 verificações, tizen falso para a dica, SC-003 medido em 49–170 ms) no `test:e2e`; `historico-continuar-assistindo.mjs` (019) ajustado — contava "6× → até a última ação" e caía na ação nova; `test:e2e` inteiro verde; paridade em base própria (R-003); CLAUDE.md, item 57 (Entregue) e item 58 (tecla vermelha) atualizados. Achado fora do escopo: a linha focada de Configurações › Acessibilidade aparece cortada (já no `HEAD`) — levado ao usuário. | TV física (recomendada) |
+| 2026-10-01 | Fase 5 (T034 ad-hoc) | Usuário pediu corrigir o recorte: `.no-scale` nas 4 linhas largas de Configurações + folga com margem negativa em `.settings-panel` (R-007). Teste de regressão, paridade (09 corrigida, 08/10 só com a aba nova), 5 roteiros E2E de Configurações verdes, lint e `build:tizen` limpos. | TV física (recomendada) |
+
+| 2026-10-01 | Fase 6 (Convergence) | T035: um foco só com a confirmação aberta (grade, detalhes, Privacidade) — SC-004; T036: "Limpar ambos" como a FR-023 nomeia. Testes de foco 12/12, suítes de Configurações/detalhes/grade verdes, E2E verde. | TV física (recomendada) |
+
+| 2026-10-01 | TV física | Passada na QN50Q60DAGXZD confirmada pelo usuário: dica e tecla vermelha, confirmação com um foco só, remoção com foco no vizinho, ação no detalhe, aba Privacidade, linha de Acessibilidade inteira. R-002 resolvido. | — |
+
+**PRÓXIMO**: nenhum — feature convergida e verificada na TV física.
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- (nenhum ainda)
+- `tv-web/src/lib/catalog/historyRemoval.ts` — regras + `historyTargetHasProgress`
+- `tv-web/src/features/history/HistoryRemovalModal.tsx` — confirmação única (D-006)
+- `tv-web/src/features/vod/VodCatalogScreen.tsx` — tecla vermelha, modal, vizinho, dica
+- `tv-web/src/lib/tizenColorKey.ts`, `tv-web/src/lib/useRemoteNav.ts` — tecla vermelha
+- `tv-web/src/features/movies/MovieDetailScreen.tsx`, `tv-web/src/features/series/SeriesDetailScreen.tsx` — ação no detalhe
+- `tv-web/src/features/settings/tabs/PrivacyTab.tsx`, `PrivacyPanel.tsx`, `privacyModel.ts`, `tabs/settingsTabs.ts` — aba Privacidade
+- `tv-web/e2e/limpar-historico.mjs` — roteiro E2E (no `test:e2e`)
 
 ## Cuidados para Retomada
 
 <!-- Armadilhas operacionais específicas desta feature, anexadas conforme descobertas. -->
 
-- (nenhum ainda)
+- O plano fala em "Dexie v12"; desde a 039 o banco está na v15. O campo `historyHiddenAt` continua sem índice — **não** subir versão.
+- Itens de categoria vivem em blocos desde a 039, mas episódios continuam linhas em `channels` — `listEpisodes` (usado por `removeSeriesFromHistory`) segue válido.
+- Roteiro E2E que chega a uma ação do detalhe contando setas "até a última" quebra quando o título está no Histórico: "Remover do histórico" é a última agora. Conte até a ação certa.
+- Para comparar paridade visual sem reescrever as evidências da 028, use `CCPLAY_PARIDADE_DIR=<pasta temporária>` (antes com o `src` em stash, depois, comparar).
+- Teste que faz `vi.mock('./lib/tizenColorKey', …)` precisa expor `registerRemoveColorKey` (e `isRemoveColorKeyRegistered`, se a tela renderizar a grade do Histórico) — use mock parcial com `importOriginal`, como em `App.test.tsx`.
+
+## Resultado Final
+
+**Convergida em 2026-10-01** (2ª passada do `sdd-converge`; a 1ª achou C-01/C-02, fechados na Fase 6).
+
+**O que foi construído**: remover um título do `↺ Histórico` pela tecla vermelha na grade (Filmes/Séries) ou pela ação "Remover do histórico" no detalhe (sempre a última ação), e limpar o Histórico de Filmes, Séries ou ambos da lista ativa numa aba nova **Privacidade** de Configurações — sempre com o mesmo `HistoryRemovalModal` ("Cancelar" focado; 3ª ação "…e apagar progresso" só com retomada; estado de erro com "Tentar de novo"). Remover **esconde** (`historyHiddenAt`, sem bump do Dexie) em vez de apagar `lastWatched`, e só `listPlayed` aplica `isInHistory` — "Continuar assistindo" segue lendo `lastWatched`, e uma reprodução nova devolve o título sozinha. Favoritos e "assistido" nunca mudam; só a lista ativa é tocada. Todas as 5 provas de contrato verdes; `e2e/limpar-historico.mjs` no `test:e2e`; SC-003 medido em 49–170 ms.
+
+**Desvios acumulados (todos registrados)**:
+- R-005 — a aba Privacidade entrou pelo registro de abas do item 63 (feito como `sdd-adhoc` logo antes), não editando `SettingsScreen.tsx`; o `enabled` do resumo saiu de graça (a aba só monta ativa).
+- R-006 — na série, a ação fica depois de "Semelhantes" (acrescentado pela 035 depois deste plano): a regra de fundo é "por último".
+- R-007 / T034 — bug anterior à feature (recorte do foco das linhas largas de Configurações), corrigido com aprovação explícita do usuário: `.no-scale` + folga com margem negativa em `.settings-panel`.
+- T021 usou a `focusedIndexHint` por derivação (vale enquanto o foco ainda é o id restaurado), não semeando o `lastItemFocusRef` como o plano sugeria — o efeito existente o zerava com a lista vazia.
+- Fora do plano, sem mudar regra: `historyTargetHasProgress` (leitura de "tem progresso" do alvo na grade) e `privacyModel.ts` (texto/soma das linhas, separado para o lint).
+- Testes antigos ajustados por consequência direta (não travados): mock de `tizenColorKey` em `App.test.tsx`; um caso da 019 em `MovieDetailScreen.test.tsx` e o roteiro `historico-continuar-assistindo.mjs`, que contavam "assistido" como última ação.
+- Convergência (Fase 6): um foco só com a confirmação aberta (SC-004) e o rótulo "Limpar ambos" (FR-023).
+
+**Continua aberto**: R-001 (item escondido com retomada mantida só sai de "Continuar assistindo" pela Privacidade com "apagar progresso" ou por nova reprodução — aceito pela spec, candidato a backlog se aparecer no uso real) e R-002 (tecla vermelha na TV física — recomendada, no item 58 do backlog).

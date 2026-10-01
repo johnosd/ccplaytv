@@ -12,12 +12,18 @@ import {
   useFavoritesContent,
   useHistoryContent,
   useKindSortFields,
+  useRemoveFromHistory,
   useResumePositions,
   useSeriesWatchedSummary,
   useWatchedIds,
   type CatalogCategory,
   type CatalogItemOut,
+  type HistoryRemovalTarget,
 } from '../catalog/catalogApi'
+import { historyTargetHasProgress, type HistoryRemovalMode } from '../../lib/catalog/historyRemoval'
+import { isRemoveColorKeyRegistered } from '../../lib/tizenColorKey'
+import { computeNeighbor } from '../favorites/neighbor'
+import { HistoryRemovalModal } from '../history/HistoryRemovalModal'
 import { usePrefetchHint } from '../catalog/prefetchApi'
 import { normalizeForSearch, searchWithinItems, SEARCH_MIN_CHARS } from '../../lib/catalog/catalogSearch'
 import { formatTime } from '../../lib/player/formatTime'
@@ -361,7 +367,24 @@ export function VodCatalogScreen({
   // foco, o foco fica no vizinho (mesma posição), não volta ao topo.
   const lastItemFocusRef = useRef<LastFocus | null>(null)
   const itemListKey = JSON.stringify(enteredEntryKey)
-  const itemIdx = locateOrNeighbor(items, (item) => item.id === focusedItemId, itemListKey, lastItemFocusRef.current)
+  // Feature 036 (T021, US1/AC9): voltando do detalhe, o card de origem pode
+  // não existir mais (removido do Histórico lá). `focusedIndexHint` do
+  // snapshot — gravado desde a 025, nunca lido até aqui — dá o vizinho na
+  // mesma posição. Vale enquanto o foco ainda é o id restaurado e a lista é a
+  // restaurada (a 1ª seta foca um id que existe); não dá para semear o
+  // `lastItemFocusRef`, que o efeito abaixo grava com 0 enquanto a lista
+  // ainda está vazia.
+  const [restoreHint] = useState<LastFocus | null>(() =>
+    restore?.focusedIndexHint !== undefined ? { listKey: itemListKey, index: restore.focusedIndexHint } : null,
+  )
+  const applyRestoreHint =
+    restoreHint !== null && restoreHint.listKey === itemListKey && focusedItemId === (restore?.focusedItemId ?? null)
+  const itemIdx = locateOrNeighbor(
+    items,
+    (item) => item.id === focusedItemId,
+    itemListKey,
+    applyRestoreHint ? restoreHint : lastItemFocusRef.current,
+  )
   useEffect(() => {
     lastItemFocusRef.current = { listKey: itemListKey, index: itemIdx }
   }, [itemListKey, itemIdx])
@@ -499,6 +522,69 @@ export function VodCatalogScreen({
       visibleItems: enteredFavorites ? items : undefined,
       onFocusNeighbor: enteredFavorites ? setFocusedItemId : undefined,
     })
+  }
+
+  // Remover do "↺ Histórico" pela tecla vermelha (feature 036, `logic/
+  // remocao-historico.md` §8). `removal` é o modal aberto; `removalOpening`
+  // cobre a leitura local de "tem progresso" que precede a abertura.
+  const removeFromHistory = useRemoveFromHistory()
+  const [removal, setRemoval] = useState<{ item: CatalogItemOut; hasProgress: boolean; error: boolean } | null>(null)
+  const [removalOpening, setRemovalOpening] = useState(false)
+
+  /**
+   * Só na grade do Histórico, com um item focado, nada aberto por cima. Com o
+   * modal (de remoção ou de Ordenar) aberto a tecla NÃO pode ter handler: o
+   * `Modal` não intercepta tecla não mapeada, e ela chegaria aqui (FR-021).
+   */
+  const canRemoveFromHistory =
+    enteredHistory &&
+    col === 1 &&
+    toolbarFocus === null &&
+    activeItem !== undefined &&
+    removal === null &&
+    !removalOpening &&
+    !removeFromHistory.isPending &&
+    !sortOpen
+
+  /** Filme por `stableId`; série pelo `series_id` do catálogo (todos os episódios, D-009). */
+  function historyTargetOf(item: CatalogItemOut): HistoryRemovalTarget | null {
+    if (section === 'series') return item.series_id ? { kind: 'series', seriesId: item.series_id, sourceId } : null
+    const stableId = stableIdOf(item)
+    return stableId ? { kind: 'movie', stableId, sourceId } : null
+  }
+
+  function openHistoryRemoval() {
+    const item = activeItem
+    const target = item ? historyTargetOf(item) : null
+    if (!item || !target) return
+    setRemovalOpening(true)
+    void historyTargetHasProgress(target)
+      .then(
+        (hasProgress) => setRemoval({ item, hasProgress, error: false }),
+        // Leitura local falhou: oferece só o seguro (sem "apagar progresso").
+        () => setRemoval({ item, hasProgress: false, error: false }),
+      )
+      .finally(() => setRemovalOpening(false))
+  }
+
+  function confirmHistoryRemoval(mode: HistoryRemovalMode) {
+    if (!removal) return
+    const target = historyTargetOf(removal.item)
+    if (!target) return
+    // Vizinho calculado ANTES de a lista mudar (FR-017).
+    const neighbor = computeNeighbor(items, removal.item.id)
+    removeFromHistory.mutate(
+      { target, mode },
+      {
+        onSuccess: () => {
+          setRemoval(null)
+          showToast('Removido do histórico')
+          setFocusedItemId(neighbor)
+        },
+        // O item continua na grade; o modal explica e oferece "Tentar de novo" (FR-020).
+        onError: () => setRemoval((current) => (current ? { ...current, error: true } : current)),
+      },
+    )
   }
 
   /** Abre o modal de Ordenar com a opção atual marcada e focada (FR-018). */
@@ -646,6 +732,7 @@ export function VodCatalogScreen({
           },
           onLongSelect: canToggleFavorite ? toggleFocusedFavorite : undefined,
           onFavoriteKey: canToggleFavorite ? toggleFocusedFavorite : undefined,
+          onRemoveKey: canRemoveFromHistory ? openHistoryRemoval : undefined,
           onBack: () => {
             if (col === 1 && searchActive && toolbarFocus === null) {
               setToolbarFocus('search')
@@ -1054,6 +1141,10 @@ export function VodCatalogScreen({
               )}
 
               {showResultsGrid && <FavoriteHint />}
+              {/* Só com a tecla vermelha registrada de fato (FR-003, D-007): nunca prometer uma tecla que não chega. */}
+              {showResultsGrid && enteredHistory && isRemoveColorKeyRegistered() && (
+                <div className="fav-hint">● Remover do histórico</div>
+              )}
 
               {showResultsGrid && (
                 <div ref={gridContainerRef} className="vod-grid no-scrollbar">
@@ -1086,7 +1177,7 @@ export function VodCatalogScreen({
                             title={item.name}
                             meta={enteredAll ? groupLabel(item.original_group ?? undefined) : (item.original_group ?? config.label)}
                             iconUrl={item.icon_url ?? undefined}
-                            focused={col === 1 && toolbarFocus === null && itemIdx === virtualRow.index}
+                            focused={col === 1 && toolbarFocus === null && itemIdx === virtualRow.index && removal === null}
                             badge={
                               <>
                                 {isFavorite && (
@@ -1113,6 +1204,16 @@ export function VodCatalogScreen({
               )}
             </div>
           </div>
+
+          {removal && (
+            <HistoryRemovalModal
+              subject={{ kind: 'item', name: removal.item.name }}
+              hasProgress={removal.hasProgress}
+              error={removal.error}
+              onCancel={() => setRemoval(null)}
+              onConfirm={confirmHistoryRemoval}
+            />
+          )}
 
           <Toast message={toastMessage} messageKey={toastKey} />
         </div>,

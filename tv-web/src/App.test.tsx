@@ -18,7 +18,11 @@ import type { VodShellProps } from './features/vod/vodShell'
  * 026) sem IndexedDB própria — mockar `HomeContent` já basta.
  */
 
-vi.mock('./lib/tizenColorKey', () => ({ registerFavoriteColorKey: vi.fn() }))
+vi.mock('./lib/tizenColorKey', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./lib/tizenColorKey')>()),
+  registerFavoriteColorKey: vi.fn(),
+  registerRemoveColorKey: vi.fn(() => false),
+}))
 
 vi.mock('./features/splash/SplashScreen', () => ({
   SplashScreen: ({ onFinished }: { onFinished: () => void }) => {

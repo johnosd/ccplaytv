@@ -229,6 +229,36 @@ describe('SettingsScreen — Editar/Ressincronizar (US2, FR-026/FR-027)', () => 
   })
 })
 
+// Item 63 do backlog: cada aba é um módulo do registro; a tela só encaminha as teclas.
+describe('SettingsScreen — registro de abas (item 63)', () => {
+  it('reentrar na mesma aba volta o foco ao começo; o foco restaurado não volta depois de trocar de aba', () => {
+    mockSources([SALA, QUARTO])
+    mockDelete()
+    mockResync()
+    renderSettings({ initialFocus: { zone: 'sources', sourceId: 'quarto', action: 'resync' } })
+
+    const quartoAntes = screen.getByRole('group', { name: 'Lista Quarto' })
+    press('ArrowLeft') // coluna 1 -> 0
+    press('ArrowLeft') // borda: volta às abas
+    press('ArrowRight') // reentra em Fontes IPTV: sem remontar, foco no começo
+    expect(screen.getByRole('group', { name: 'Lista Quarto' })).toBe(quartoAntes)
+    expect(within(screen.getByRole('group', { name: 'Lista Sala' })).getByRole('button', { name: 'Editar' })).toHaveClass(
+      'tv-focus',
+    )
+
+    press('ArrowLeft') // abas
+    press('ArrowDown') // Player & reprodução
+    press('ArrowRight')
+    expect(screen.getByRole('button', { name: 'Voltar às abas' })).toHaveClass('tv-focus')
+    press('Enter') // volta às abas
+    press('ArrowUp') // Fontes IPTV
+    press('ArrowRight')
+    expect(within(screen.getByRole('group', { name: 'Lista Sala' })).getByRole('button', { name: 'Editar' })).toHaveClass(
+      'tv-focus',
+    )
+  })
+})
+
 describe('SettingsScreen — sem listas (FR-025)', () => {
   it('cai em "Adicionar lista", e OK a ativa', () => {
     mockSources([])

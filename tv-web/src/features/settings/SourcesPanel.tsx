@@ -83,7 +83,7 @@ export function SourcesPanel({
 
       <button
         type="button"
-        className={`sources-panel-add${focusedRowId === ADD_SOURCE_ID ? ' tv-focus' : ''}`}
+        className={`sources-panel-add no-scale${focusedRowId === ADD_SOURCE_ID ? ' tv-focus' : ''}`}
         onClick={() => onActivateRow(ADD_SOURCE_ID, 0)}
       >
         <Icon name="add" />
