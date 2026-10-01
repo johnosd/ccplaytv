@@ -74,7 +74,7 @@ Duas features em paralelo só se os conjuntos de zonas forem **disjuntos**.
 | **62b** | **Desempenho do Guia com milhares de canais** (`031` R-003): a medição real cobriu 2 de 41 categorias no "Todos"; p95 de 128 ms numa amostra pequena não prova o caso grande. Medir com `e2e/epg-guia-completo-real.mjs` ampliado; se falhar, vira correção na trilha P. | verificação | Verificação | H · 2 | — | — | — | `031` R-003 |
 | **65** | **Leitura "fria" de uma categoria enorme na TV** (`039` R-009): na TV, a categoria de 11 mil filmes abriu em 24–56 ms no uso normal (a pré-busca do foco já tinha lido), mas o caso "OK sem nenhuma pausa no cursor" não foi medido; no PC com CPU 4× fica em 365–464 ms, acima da meta de 300 ms. Medir com o build `VITE_CCPLAY_PERF=1`; se passar de 300 ms, gravar à parte o começo de cada bloco para a 1ª pintura (vira feature na trilha F). | verificação | Verificação | H · 3 | — | — (correção, se houver: `IMPORT`, `DB`, `VOD`) | — | `039` R-009 |
 | **37** | **Matriz de TVs e evidências de compatibilidade**: modelo, firmware, `userAgent`, protocolo, contêiner, codecs, resolução, DRM e legendas em cada teste de mídia. Hoje só a QN50Q60DAGXZD (Tizen 9.0 / Chromium 120). | verificação | Bloqueado | H · 4 | outro aparelho disponível | — | — | ADR-006 E1/V1; guias `/12` §3, `/13` §3 |
-| **49a** | **Dividir `PlayerLayer.tsx` (1 072 linhas), `LiveScreen.tsx` (1 401) e `catalogRepository.ts` (1 350)** (habilitador): extrair em módulos por responsabilidade (sessão, chrome, painéis, zapping, guia; no repositório: categorias, blocos/leitura, estado do usuário, gerações/limpeza, preparo da carga) sem mudar comportamento nem a API pública, provado pela suíte, pelas travas e pelos E2E atuais. **Reduz o conflito entre os 6 itens da trilha P** e deixa dois deles andarem juntos. O repositório entrou a pedido do usuário em 30/09/2026 (cresceu com a 038/039). Pode ser fatiado: 49a-1 player/live, 49a-2 repositório. | refatoração | 49a-1 Planejada — `040-dividir-player-live` (01/10/2026, 0/34 tasks, sem contrato novo; próximo: `sdd-execute`, depois de commitar o 63/036). 49a-2 (repositório) segue Pronto | P · 1 | — | `PLAYER`, `LIVE`, `IMPORT` (só `catalogRepository.ts`) | — | `docs/iptvnator/02-arquitetura.md` #7 |
+| **49a** | **Dividir `PlayerLayer.tsx` (1 072 linhas), `LiveScreen.tsx` (1 401) e `catalogRepository.ts` (1 350)** (habilitador): extrair em módulos por responsabilidade (sessão, chrome, painéis, zapping, guia; no repositório: categorias, blocos/leitura, estado do usuário, gerações/limpeza, preparo da carga) sem mudar comportamento nem a API pública, provado pela suíte, pelas travas e pelos E2E atuais. **Reduz o conflito entre os 6 itens da trilha P** e deixa dois deles andarem juntos. O repositório entrou a pedido do usuário em 30/09/2026 (cresceu com a 038/039). Pode ser fatiado: 49a-1 player/live, 49a-2 repositório. | refatoração | 49a-1 Implementada — `040-dividir-player-live` (01/10/2026: `PlayerLayer.tsx` 205 linhas, `LiveScreen.tsx` 350, tudo igual à linha de base; próximo: `sdd-converge`). 49a-2 (repositório) segue Pronto | P · 1 | — | `PLAYER`, `LIVE`, `IMPORT` (só `catalogRepository.ts`) | — | `docs/iptvnator/02-arquitetura.md` #7 |
 | **62a** | **Configurar EPG com um canal tocando fecha o player** (`031` R-010): abrir "Configurar EPG" a partir do Guia sobre o vídeo desmonta o `PlayerLayer`. Decidir se preserva a sessão ou se fecha e diz à pessoa. | correção | Pronto | P · 2 | — | `LIVE`, `PLAYER`, navegação (`appNav.ts`) | — | `031` R-010 |
 | **55b** | **Qualidade, velocidade, aspecto e preferências do player** (§27.5–§27.7): Auto por padrão e só as resoluções que o stream anuncia; velocidade 0.5×–2.0× só em VOD com `canSeek`; Ajustar/Preencher/Original/Zoom; aba real "Player & reprodução" (idioma preferido de áudio/legenda, aspecto padrão). Soft disabled quando o stream não oferece. | feature | Pronto | P · 3 | 55a ✅; spike na TV (`setDisplayMethod`, `setSpeed`, `getCurrentStreamInfo`) — no 58; 63 | `PLAYER`, `CONFIG` | `player-quality`, `player-speed`, `player-aspect`, `settings-player` | V14 §27/§43; protótipo `playerQualityModal()`… |
 | **61** | **Rede e lifecycle completos (§40)**: estados `verificando rede` e `reconectando stream` com UI própria; ao retomar, rede → estado → foco → player só quando seguro; ao ocultar, suspender timers e persistir foco (a **pré-carga** já pausa com o app oculto ou offline desde a 038); banner offline com `Tentar novamente` focável, bloqueando só o que depende de internet. | feature | Pronto | P · 4 | 020 ✅ | `PLAYER`, `IMPORT` (prefetch), `OfflineBanner`, `lib/onlineStatus.ts` | — (regra §40) | V14 §40; feature 020 |
@@ -153,7 +153,7 @@ Duas features em paralelo só se os conjuntos de zonas forem **disjuntos**.
 
 | Par | Por que não se cruzam |
 | --- | --- |
-| **49a-1** (dividir player/Live) ∥ **63** (abas de Configurações) | `PLAYER`/`LIVE` × `CONFIG` |
+| ~~**49a-1** ∥ **63**~~ | Feitos em 01/10/2026 (63 como `sdd-adhoc`; 49a-1 como a feature `040`). Desde a 040, `PLAYER` e `LIVE` são módulos separados — 55b/61/19 e 62a já não se cruzam nos mesmos arquivos (ver `logic/divisao.md` da 040) |
 | **62a** (Configurar EPG) ∥ **57** (limpar histórico, `036`) | `LIVE`/`PLAYER` × `USER`/`VOD`/`DETALHE`/`CONFIG` — ambos podem tocar `appNav.ts`; quem fizer o merge por último rebaseia |
 | **55b** (qualidade/velocidade) ∥ **46** (fontes, `034`) | `PLAYER`/`CONFIG` × `FONTE`/`IMPORT` (só o conector)/`DB` — depois do 63, do spike na TV e do `tasks.md` da 034 |
 | **61 + 19** (rede e erros) ∥ **27** (Gostei) | `PLAYER`/`IMPORT` (pré-carga)/`ERRO` × `USER`/`DETALHE` |
@@ -163,7 +163,7 @@ Duas features em paralelo só se os conjuntos de zonas forem **disjuntos**.
 
 **Sequência sugerida** (revisada em 30/09/2026 — **prioridade do usuário: player completo**):
 
-1. Habilitadores curtos, em paralelo: **49a-1** (trilha P) ∥ **63** (trilha U).
+1. ~~Habilitadores curtos, em paralelo: **49a-1** (trilha P) ∥ **63** (trilha U).~~ Feitos em 01/10/2026 (63 ad-hoc; 49a-1 = `040-dividir-player-live`).
    (O antigo **62c**, flake do E2E, foi fechado em 30/09/2026 — a causa era o
    script ler o texto sem esperar; ver o painel `## Bugs`. Sobra só o piscar
    de ~60 ms de "Assistir" no detalhe, a olhar na passada do 58.)
@@ -223,7 +223,7 @@ Duas features em paralelo só se os conjuntos de zonas forem **disjuntos**.
 | 037-entrada-listas-prototipo | Entrada fiel ao protótipo — tela de listas e cadastro de lista | Convergida | 51/51 tasks | 2026-09-30 |
 | 038-carga-listas-pre-carga | Carga de listas — progresso claro, pré-carga em segundo plano, contagens e atualização visível | Convergida | 84/84 tasks | 2026-09-30 |
 | 039-catalogo-em-blocos | Catálogo em blocos por categoria — leitura e gravação instantâneas | Convergida | 44/44 tasks | 2026-09-30 |
-| 040-dividir-player-live | Dividir PlayerLayer e LiveScreen por responsabilidade | Em Execução | 4/34 tasks | 2026-10-01 |
+| 040-dividir-player-live | Dividir PlayerLayer e LiveScreen por responsabilidade | Implementada | 33/34 tasks | 2026-10-01 |
 
 ## Bugs
 

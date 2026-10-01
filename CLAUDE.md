@@ -1099,6 +1099,38 @@ moves focus to the neighbour, plus the detail action and the Privacidade tab
 (R-002 resolved). See
 `sdd/specs/036-limpar-historico/plan.md` → `## Estado Atual`.
 
+**Code-complete**: `040-dividir-player-live` — backlog item 49a-1, a pure
+refactor: `components/PlayerLayer.tsx` (1151 → 205 lines) and
+`features/live/LiveScreen.tsx` (1491 → 350) now only compose modules by
+responsibility, same path and same exports, no consumer changed. Player:
+`components/player/` — `usePlayerSession` (+ `useVideoPlane`,
+`useRescheduleOnState`, `useScreenSaverWhilePlaying`), `usePlayerChrome`,
+`usePlayerPanels` (+ `usePanelRefresh`), `usePlayerKeyboard`,
+`playerLayerTypes`, `playerMessages`. Live: `liveTrail.ts`, `useLiveCatalog`
+(`useLiveTrail` + `useLiveChannels`), `useLiveSearch`, `useLiveZapping`
+(+ `useLiveZappingState`), `useLiveGuide` (+ `useLiveGuideState`),
+`useLiveKeyboard`, `liveColumns.tsx`. The rules that made this safe — and
+that any later change there must keep — are in
+`sdd/specs/040-dividir-player-live/logic/divisao.md` §1: refs stay refs (the
+chrome/panel refs exist because of a 027 race), the order of effect
+declarations is preserved (some modules therefore export an effect as its own
+hook, called at the old position), one `useRemoteNav` per component, render
+helpers stay plain functions (a new component boundary would remount and lose
+focus/scroll), no new React context. Proven against a baseline measured
+before moving any line (`baseline.md`): same unit results (only the 034
+contracts red), all 8 locked contracts that mount the two components green
+**without edits**, no existing test assertion changed, the same 13 build
+files, and every E2E script with the same ✓ count, run one by one. One small
+pre-existing bug the split revealed was fixed by a subagent, per the user's
+choice, with a regression test that fails on the old code: the Live main
+view's `<Toast>` had no `messageKey`, so identical consecutive toasts weren't
+re-announced (R-008). Known side effect, accepted by the user as the new baseline: `oxlint` went
+from 13 to 45 warnings — 32 `react(refs)` on the new `PlayerLayer.tsx` for
+the same render-time ref reads the old file always had (the analyzer skipped
+the old, larger component; the `HEAD` version alone reports 0) — R-006.
+Physical TV: recommended, not a gate. See
+`sdd/specs/040-dividir-player-live/plan.md` → `## Estado Atual`.
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Selecione ou
@@ -1118,7 +1150,15 @@ The four top-level directories:
   branching on which engine is active. `src/components/PlayerLayer.tsx` is
   the one fullscreen playback layer shared by Live TV, Filmes and Séries
   (moved out of `features/live/` in feature 011; `SeriesDetailScreen`
-  became its third consumer in feature 012) — any screen that mounts it
+  became its third consumer in feature 012). Since feature 040 it only
+  composes: session/lifecycle, chrome, panels and keyboard live in
+  `src/components/player/` (`usePlayerSession`, `usePlayerChrome`,
+  `usePlayerPanels`, `usePlayerKeyboard`), and `features/live/LiveScreen.tsx`
+  likewise composes `useLiveCatalog`/`useLiveSearch`/`useLiveZapping`/
+  `useLiveGuide`/`useLiveKeyboard` and `liveColumns.tsx` — read
+  `sdd/specs/040-dividir-player-live/logic/divisao.md` §1 before moving code
+  there (refs stay refs, effect order is preserved, one `useRemoteNav` per
+  component, render helpers stay plain functions) — any screen that mounts it
   needs its root covered by the hardware-plane CSS rule in `screens.css`
   (`.screen`-rooted screens already are; a screen with a different root,
   like `MovieDetailScreen`'s `.movie-detail-layout`, needs its own line

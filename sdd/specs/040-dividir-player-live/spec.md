@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-01
 
-**Status**: Planejada
+**Status**: Implementada
 
 **Input**: Item 49a-1 do backlog — dividir `PlayerLayer.tsx` (1 072 linhas) e
 `LiveScreen.tsx` (1 401 linhas) em módulos por responsabilidade (sessão,

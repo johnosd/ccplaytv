@@ -183,6 +183,10 @@ conferida por lista na convergência, contra `logic/divisao.md` §2/§3.
 
 | Área | Estado |
 | --- | --- |
+| Linha de base | Pronta — `baseline.md` (suíte 2028/2034, lint 13 avisos, build idêntico, E2E 624 ✓ por roteiro) |
+| US1 player | Pronto — `PlayerLayer.tsx` 205 linhas, 6 módulos em `components/player/`; testes, travas e E2E iguais à linha de base; lint com +32 avisos (R-006) |
+| US2 Live | Pronto — `LiveScreen.tsx` 350 linhas, 7 módulos; testes, travas e E2E iguais à linha de base |
+| US3 bugs | 1 achado corrigido por sub-agente, com teste de regressão (R-008) |
 
 ## Riscos e Decisões
 
@@ -197,6 +201,9 @@ conferida por lista na convergência, contra `logic/divisao.md` §2/§3.
 | R-002 | Flakes conhecidos sob paralelismo (`*.favorites.test.tsx`, `LiveScreen.test.tsx`) confundidos com regressão, ou o contrário. | Médio — falso alarme ou regressão escondida. | Linha de base (D-004) com a lista de falhas; qualquer falha nova é rodada isolada 3× antes de virar veredito, e registrada como pendência se oscilar (regra do `sdd-execute`). |
 | R-003 | Converter `renderColumns`/`withShell` em componente mudaria reconciliação (remontagem, refs de DOM, scroll). | Médio — perda de foco/posição ao voltar. | §1.4: continuam funções. |
 | R-004 | Sub-agente corrigindo bug no mesmo arquivo que o principal está movendo. | Médio — conflito/edição perdida. | §4.3: só depois de a fase do módulo fechar; o principal não edita aquele arquivo em paralelo. |
+| R-006 | Depois da divisão, `npx oxlint` passou de 13 para 45 avisos: 32 `react(refs): Cannot access refs during render` no novo `PlayerLayer.tsx`. São as **mesmas** leituras de `sessionRef.current`/`panelRef.current`/refs do chrome durante o render que sempre existiram (desenho da 027 — os refs são a fonte da verdade do chrome); a versão do `HEAD` do arquivo, analisada isolada, dá **0** avisos `refs` — o analisador desistia do componente grande e agora o enxerga. Zero erros; nenhum padrão novo de código. | Baixo — ruído de lint, mas a FR-008 pede o lint "no mesmo estado". | Resolvido (2026-10-01): o usuário escolheu **aceitar** — a linha de base do lint passa a 45 avisos (0 erros), sem supressão; o aviso fica visível de propósito para quem mexer nessas leituras deliberadas. Nunca trocar ref por estado para calá-lo (§1.1). |
+| R-007 | O mapa de `logic/divisao.md` §3 tinha um módulo por responsabilidade, mas a ordem dos efeitos (§1.2) exigiu granularidade maior na Live: o efeito de foco do campo de busca fica **entre** os da trilha e os da lista, e `playing` (zapping) entra na leitura de EPG da lista. | Baixo — mesmas responsabilidades, mais hooks. | Resolvido: `useLiveCatalog.ts` exporta `useLiveTrail` + `useLiveChannels`; zapping e guia ganharam um hook de **estado** chamado no topo (`useLiveZappingState`, `useLiveGuideState`) e outro de **comportamento** na posição dos efeitos deles. A regra (§1) não mudou. |
+| R-008 | Bug pequeno revelado pela divisão (US3): o `<Toast>` da vista principal da Live não recebia `messageKey` — com a região de anúncio (021, D-004), avisos idênticos seguidos não eram reanunciados. Anterior à 040. | Baixo — acessibilidade (leitor de tela). | Resolvido: corrigido por sub-agente (decisão do usuário) com teste de regressão `LiveScreen.toast-repetido.test.tsx`, conferido pelo principal (vermelho com o código antigo, verde com a correção). |
 | R-005 | Árvore com trabalho não commitado (item 63 + 036) misturaria diffs. | Médio — SC-002 inverificável. | D-008: T001 confirma a árvore limpa e pede o commit ao usuário se não estiver. |
 
 ## Execution Notes
@@ -209,17 +216,28 @@ conferida por lista na convergência, contra `logic/divisao.md` §2/§3.
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-10-01 | Fase 1 (linha de base) | Commits do 63/036 e da doc da 040 feitos a pedido do usuário; `baseline.md` gravado (E2E por roteiro: 21/21, 624 ✓); travas íntegras. Módulos do player adiantados sem ligar. | Teste instável da 036 (`SettingsScreen.privacidade`) aguardando decisão do usuário |
+| 2026-10-01 | Fase 1 → 2 | Usuário pediu corrigir o teste instável da 036 (só no teste: `IDB_WAIT = { timeout: 5000 }`, commit `83efcac`, fora da 040) e seguir em modo contínuo. SC-002 passa a ser medido a partir de `83efcac`. | — |
+| 2026-10-01 | Fase 2 (US1 player) | `PlayerLayer.tsx` 1151 → 205 linhas; 6 módulos em `components/player/`; 294/294 + 402/402 na 1ª tentativa; travas íntegras; E2E do player iguais à linha de base; SC-002 vazio. Lint 13 → 45 avisos (R-006). | R-006 com o usuário |
+| 2026-10-01 | Fase 3 (US2 Live) | `LiveScreen.tsx` 1491 → 350 linhas; 7 módulos; 177/177 + 37/37 na 1ª tentativa; travas íntegras; 6 E2E da Live iguais à linha de base; SC-002 vazio. Granularidade ajustada (R-007). Achado: Toast sem `messageKey`. | Fase 4 (sub-agente) |
+| 2026-10-01 | Fase 4 + Polish | Toast da Live corrigido por sub-agente (R-008), conferido pelo principal (vermelho no código antigo, verde no novo). Polish: suíte 2030/2035 (só a 034), 23 travas íntegras, SC-002 vazio, consumidores intactos (A1), build com os mesmos 13 arquivos, E2E por roteiro **idêntico** à linha de base (21/21, 624 ✓). Lint 45 avisos (R-006). Docs: `CLAUDE.md` (status + onde vive o player/Live) e backlog. | TV recomendada |
 
-**PRÓXIMO**: —
+**PRÓXIMO**: `sdd-converge 040-dividir-player-live`. TV física recomendada (R-001).
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- (nenhum ainda)
+- `tv-web/src/components/PlayerLayer.tsx` — composição do player (205 linhas)
+- `tv-web/src/components/player/` — sessão, chrome, painéis, teclado, tipos e mensagens
+- `tv-web/src/features/live/LiveScreen.tsx` — composição da Live (350 linhas)
+- `tv-web/src/features/live/` — `liveTrail.ts`, `useLiveCatalog.ts`, `useLiveSearch.ts`, `useLiveZapping.ts`, `useLiveGuide.ts`, `useLiveKeyboard.ts`, `liveColumns.tsx`, `LiveScreen.toast-repetido.test.tsx`
+- `sdd/specs/040-dividir-player-live/baseline.md` — o "antes"
 
 ## Cuidados para Retomada
 
 <!-- Armadilhas operacionais específicas desta feature, anexadas conforme descobertas. -->
 
-- (nenhum ainda)
+- **E2E por roteiro**, não encadeado: o `npm run test:e2e` encadeado já parou uma vez por `ERR_CONNECTION_REFUSED` passageiro do dev server. Para comparar com `baseline.md`, rode cada roteiro da lista de `package.json` isoladamente e conte `  ✓`/`✗` do log.
+- Script `.ps1` com `✓`/acentos precisa de **UTF-8 com BOM** no PowerShell 5.1 — sem BOM o `Select-String '✓'` conta zero (achado ao medir a linha de base).
+- `git commit -F -` com here-string não funciona no PowerShell 5.1 (vira argumento): escreva a mensagem num arquivo e use `git commit -F <arquivo>`.
