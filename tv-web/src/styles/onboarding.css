@@ -1,0 +1,592 @@
+/*
+ * Entrada do app (feature 023): Splash, cadastro de lista ("Conecte sua lista
+ * IPTV", no formato do `sourceSetup()` desde a feature 037) e progresso de
+ * importação no visual V14. Substitui as regras
+ * `.splash*` do antigo `features/screens.css` (eliminado na feature 028).
+ * Só tokens de `index.css`.
+ *
+ * O foco das telas de formulário é DOM real (`useTvKeyNav`): a receita de foco
+ * global (`button:focus`, `input:focus`, `.tv-focus` em `index.css`) já cobre
+ * `<button>`/`<input>` — aqui só entram o realce de borda e o respiro para o
+ * glow e a escala do foco (ADR-007) não serem cortados.
+ */
+
+/* ---------- Splash (US5, FR-041) ---------- */
+
+.splash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 45%, var(--bg-elevated) 0%, var(--bg) 70%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+/* O gradiente de marca é reservado à identidade (ADR-007) — a marca é isso. */
+.splash-mark {
+  width: calc(var(--space-7) * 2);
+  height: calc(var(--space-7) * 2);
+  border-radius: var(--radius-lg);
+  background: var(--brand-gradient-diagonal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--elevation-3);
+  animation: ccp-pop calc(var(--duration-slow) * 3) var(--ease);
+}
+
+.splash-mark-triangle {
+  width: 0;
+  height: 0;
+  border-top: var(--space-5) solid transparent;
+  border-bottom: var(--space-5) solid transparent;
+  border-left: calc(var(--space-6) + var(--space-1)) solid var(--bg);
+  margin-left: var(--space-1);
+}
+
+.splash-wordmark {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-display);
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ccp-fade calc(var(--duration-slow) * 3) var(--duration-standard) both;
+}
+
+.splash-tagline {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+  animation: ccp-fade calc(var(--duration-slow) * 3) calc(var(--duration-slow) * 2) both;
+}
+
+.splash-loader {
+  margin-top: var(--space-2);
+}
+
+/* ---------- Moldura das telas de entrada (onboarding e progresso) ---------- */
+
+/* Sobrescreve o padding em px de `.screen` (`shared.css`) pela safe zone do
+   palco 1920×1080 (§4). */
+.screen.onboarding {
+  padding: var(--safe-y) var(--safe-x);
+}
+
+.onboarding-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.onboarding-brand-mark {
+  width: var(--space-5);
+  height: var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--brand-gradient-diagonal);
+}
+
+.onboarding-brand-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+.onboarding-kicker {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+  color: var(--accent);
+}
+
+.onboarding-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-h1);
+  color: var(--text-primary);
+}
+
+.onboarding-subtitle {
+  margin: 0 0 var(--space-5);
+  max-width: calc(var(--space-7) * 8);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-body-lg);
+  color: var(--text-secondary);
+}
+
+/* ---------- Mensagens do cadastro (feature 023; único resto do formulário
+   antigo — o layout dele saiu na feature 037, T033) ---------- */
+
+.onboarding-error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-body);
+  color: var(--danger);
+}
+
+/* ---------- Cadastro "Conecte sua lista IPTV" (feature 037) ----------
+   Formato do `sourceSetup()` do protótipo V13.2: painel lateral "Como
+   funciona" + painel principal "Adicionar serviço". Tudo escopado em
+   `.source-setup` — as regras acima, compartilhadas com a tela de progresso,
+   não mudam (D-012). Rola na vertical sem barra (D-013): o `focus()` do
+   `useTvKeyNav` traz o campo em foco para a vista. */
+
+.screen.onboarding.source-setup {
+  overflow-y: auto;
+  scroll-padding-block: var(--safe-y);
+}
+
+.source-setup > * {
+  flex: none;
+}
+
+.source-setup .onboarding-brand {
+  margin-bottom: var(--space-2);
+}
+
+.source-setup .onboarding-kicker {
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.source-setup .onboarding-title {
+  margin: 0;
+  font-size: var(--fs-display);
+  line-height: 1;
+}
+
+.source-setup .onboarding-subtitle {
+  margin: var(--space-1) 0 0;
+  max-width: none;
+  font-size: var(--fs-body);
+}
+
+/* Lateral fixa + principal flexível. O padding (com margem negativa) é o
+   respiro para o glow e a escala do foco não serem cortados (ADR-007). */
+.source-setup-layout {
+  display: grid;
+  grid-template-columns: calc(var(--space-7) * 4) minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--space-4);
+  margin: var(--space-2) calc(-1 * var(--space-2)) 0;
+  padding: var(--space-2);
+}
+
+.source-setup-layout--edit {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.source-setup-side,
+.source-setup-main {
+  box-sizing: border-box;
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.source-setup-side {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+}
+
+.source-setup-side-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+.source-setup-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.source-setup-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--bg-hover);
+}
+
+.source-setup-step:first-child {
+  border-top: 0;
+}
+
+/* Numeração neutra: nenhum passo aparece "concluído" (constitution,
+   "Progresso e Capacidades São Reais"). */
+.source-setup-step-number {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--space-5);
+  height: var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.source-setup-step-copy {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-1) / 2);
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.source-setup-step-copy b {
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.source-setup-note {
+  margin: auto 0 0;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.source-setup-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2) var(--space-4) var(--space-3);
+}
+
+.source-setup-main-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.source-setup-main-text {
+  margin: calc(-1 * var(--space-1)) 0 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+/* Celular e manual lado a lado, como no protótipo (1.2fr / 1fr). */
+.source-setup-methods {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.source-setup-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-base);
+}
+
+.source-setup-eyebrow {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: var(--fs-caption);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-annotation);
+}
+
+.source-setup-panel-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+.source-setup-panel-text {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.source-setup-pair .coming-soon {
+  margin-top: auto;
+  background: var(--bg-elevated);
+  text-align: left;
+}
+
+/* Cartões de tipo: são o próprio seletor (D-008). O selecionado tem borda de
+   destaque E a marca ✓ — nunca só a cor (FR-015). */
+.source-type-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  width: 100%;
+  margin-top: var(--space-1);
+}
+
+.source-type {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--space-2);
+  border: 3px solid var(--bg-hover);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  text-align: left;
+  cursor: pointer;
+}
+
+.source-type.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.source-type-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+.source-type-head b {
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.source-type-check {
+  display: grid;
+  place-items: center;
+  width: var(--space-3);
+  height: var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 800;
+}
+
+/* Campos em 2 colunas; Nome e Servidor/URL em largura total. O rótulo
+   permanente fica dentro da caixa, como no protótipo (DS §37 — nunca
+   placeholder); o anel de foco vai na caixa inteira. */
+.source-setup-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1) var(--space-2);
+}
+
+.source-setup-field--wide {
+  grid-column: 1 / -1;
+}
+
+.source-setup .text-field {
+  box-sizing: border-box;
+  gap: calc(var(--space-1) / 2);
+  padding: var(--space-1) var(--space-2);
+  border: 3px solid var(--bg-hover);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+}
+
+.source-setup .text-field:focus-within {
+  border-color: var(--accent);
+  background: var(--surface-field-active);
+  outline: var(--focus-ring-width) solid var(--accent);
+  outline-offset: var(--focus-ring-offset);
+  box-shadow: var(--focus-halo);
+}
+
+.source-setup .text-field-label {
+  font-weight: 700;
+  font-size: var(--fs-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-annotation);
+}
+
+.source-setup .text-field-input,
+.source-setup .text-field-input:focus {
+  height: auto;
+  padding: 0;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  font-size: var(--fs-body);
+}
+
+.source-setup .text-field-hint {
+  margin: 0;
+}
+
+.source-setup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* ---------- Progresso da importação (US4, FR-037) ---------- */
+
+.progress-status-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.progress-status {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+/* Contadores reais do importador — nunca um percentual (FR-037). */
+.progress-counters {
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  max-width: calc(var(--space-7) * 8);
+}
+
+/* Feature 038 (US3): uma linha por parte da lista. O estado vem escrito —
+   a cor da borda só reforça, nunca é o único sinal. */
+.progress-sections {
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: calc(var(--space-7) * 8);
+}
+
+.progress-section {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--text-secondary);
+  background: var(--bg-surface);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-section[data-state='loading'] {
+  border-left-color: var(--accent);
+}
+
+.progress-section[data-state='ready'] {
+  border-left-color: var(--success);
+}
+
+.progress-section[data-state='failed'] {
+  border-left-color: var(--danger);
+}
+
+.progress-section-label {
+  font-weight: 600;
+}
+
+.progress-section-state {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.progress-background-note {
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.progress-counter {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-error {
+  max-width: calc(var(--space-7) * 8);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+/* Avisos: o texto já diz tudo; a barra lateral acentua sem depender só de cor. */
+.progress-warnings {
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: calc(var(--space-7) * 8);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.progress-warnings li {
+  padding-left: var(--space-2);
+  border-left: 3px solid var(--accent);
+}
+
+/* Respiro no entorno dos botões: o glow e a escala do foco não podem ser
+   cortados por nenhum contêiner (ADR-007). */
+.progress-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  margin-left: calc(-1 * var(--space-2));
+}

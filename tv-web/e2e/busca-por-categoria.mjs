@@ -23,6 +23,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { cadastrarListaM3u } from './lib/entrada.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'busca-por-categoria.m3u')
@@ -53,18 +54,57 @@ function startFixtureServer() {
   })
 }
 
+const SOURCE_NAME = 'Fonte E2E Busca por Categoria'
+
 async function addSource(page, m3uUrl) {
   console.log('=== Adicionar fonte M3U fictícia ===')
   await page.goto(APP_URL)
+  // Splash (~2,6 s) -> "Quem está assistindo?". Sem lista, só "Adicionar lista", já em foco
+  // (feature 023): OK abre o formulário — ele não é mais a tela de entrada.
+  await page.waitForSelector('.add-card', { timeout: 10000 })
+  await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
 
-  await page.getByLabel('Nome de exibição').fill('Fonte E2E Busca por Categoria')
-  await page.getByLabel('URL da lista M3U').fill(m3uUrl)
-  await page.getByRole('button', { name: 'Adicionar lista' }).click()
+  await cadastrarListaM3u(page, { nome: SOURCE_NAME, url: m3uUrl })
 
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   console.log('  ✓ importação concluída')
   await page.getByRole('button', { name: 'Voltar' }).click()
+  // Os perfis montam com o cache anterior e a lista nova chega logo depois: esperar por ela.
+  await page.locator('.source-card-wrap', { hasText: SOURCE_NAME }).waitFor({ timeout: 8000 })
+}
+
+/**
+ * Espera o item REAL do trilho (a 1ª categoria depois de "★ Favoritos" e "Todos") estar em foco
+ * antes do ArrowRight que entra nela: enquanto as categorias carregam o trilho só tem as duas
+ * entradas virtuais e o padrão cai em "Todos" — um ArrowRight nesse instante entra numa lista
+ * vazia (mesma corrida do roteiro de histórico, T047 da feature 023).
+ *
+ * Live TV (feature 024) e Filmes/Séries (feature 025) migraram pro V14: a
+ * trilha das três é `SideCategoryNav` (`.side-category-nav-item`, texto em
+ * `.side-category-nav-label`).
+ */
+async function waitForTrailFocus(page, name) {
+  await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
+}
+
+/**
+ * Do Início (hero, rails ou topbar — qualquer foco restaurado), abre TV ao
+ * vivo/Filmes/Séries pela topbar. Substitui o antigo hub de atalhos
+ * (`.tiles-row`, removido na feature 026 — US1 troca o hub provisório pela
+ * Home definitiva com hero+rails; a entrada nas 3 categorias passa a ser só
+ * pela topbar). Sobe até a topbar (não importa em que linha do conteúdo o
+ * foco esteja — `ArrowUp` de sobra não faz nada uma vez lá dentro), reseta
+ * a posição horizontal pra "Início" (`ArrowLeft` de sobra, com clamp) e só
+ * então conta as setas certas — nunca assume de onde o foco restaurado
+ * (FR-017/FR-029) partiu.
+ */
+async function openViaTopbar(page, destination) {
+  const ORDER = ['home', 'live', 'movies', 'series']
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < ORDER.indexOf(destination); i += 1) await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
 }
 
 /** Dispara um evento do <video> ATUAL (o adaptador de dev não decodifica conteúdo fictício). */
@@ -114,10 +154,11 @@ async function run() {
     console.log('=== Live TV: entra em "Canais | Esportes" (cobre essa categoria) ===')
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre a fonte
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('Enter') // Live TV é o primeiro tile
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'live')
 
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await waitForTrailFocus(page, 'Esportes')
     await page.keyboard.press('ArrowRight') // entra em "Canais | Esportes" (padrão: 1ª categoria real)
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
@@ -187,62 +228,61 @@ async function run() {
     await page.goto(APP_URL)
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre a fonte
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // Live TV -> Filmes
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.poster-grid, .live-state', { timeout: 8000 })
+    await page.waitForSelector('.home-content', { timeout: 8000 })
+    await openViaTopbar(page, 'movies')
+    await waitForTrailFocus(page, 'Filmes A')
     await page.keyboard.press('ArrowRight') // entra em "Filmes A" (padrão: 1ª categoria real)
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
-      (await page.locator('.poster-card-title').first().textContent()) === 'Duna Fictício',
+      (await page.locator('.content-card-title').first().textContent()) === 'Duna Fictício',
       'categoria "Filmes A" mostra "Duna Fictício"',
     )
 
     console.log('=== Busca DENTRO de "Filmes A": acha só o filme desta categoria ===')
-    await page.keyboard.press('ArrowUp') // do 1º filme para o ícone
+    await page.keyboard.press('ArrowUp') // do 1º filme para o botão "Pesquisar" da toolbar (feature 025, D-007)
     await page.keyboard.press('Enter') // abre o campo
 
     const movieField = page.locator('input.search-field')
     await movieField.waitFor({ timeout: 8000 })
     await movieField.fill('duna')
 
-    await page.waitForSelector('.poster-card-title', { timeout: 8000 })
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
-      (await page.locator('.poster-card-title').allTextContents()).join(',') === 'Duna Fictício',
+      (await page.locator('.content-card-title').allTextContents()).join(',') === 'Duna Fictício',
       '"duna" dentro de "Filmes A" acha só "Duna Fictício" — nunca cruza para "Filmes B"',
     )
 
     console.log('=== Abrir o resultado e voltar restaura termo e foco (D-006 herdado da 017) ===')
     await page.keyboard.press('ArrowDown') // do campo para o resultado
     await page.keyboard.press('Enter') // abre o detalhe
-    await page.waitForSelector('.movie-detail-layout', { timeout: 8000 })
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
     assert(true, 'SELECT no resultado da busca abriu o detalhe do filme')
 
     await page.keyboard.press('Escape') // RETURN volta pra Filmes
     await page.waitForSelector('input.search-field', { timeout: 8000 })
     assert((await page.locator('input.search-field').inputValue()) === 'duna', 'o termo "duna" foi restaurado')
     assert(
-      (await page.locator('.poster-cell .tv-focus').locator('..').locator('.poster-card-title').textContent()) ===
+      (await page.locator('.vod-grid-cell .tv-focus').locator('..').locator('.content-card-title').textContent()) ===
         'Duna Fictício',
       'o foco voltou pro item que estava aberto',
     )
 
-    console.log('=== RETURN em camadas: resultado → campo → ícone → trilha → hub ===')
+    console.log('=== RETURN em camadas: resultado → campo → botão de busca → trilha → hub ===')
     await page.keyboard.press('Escape') // resultado -> campo
     assert(
       await page.evaluate(() => document.activeElement === document.querySelector('input.search-field')),
       'RETURN a partir do resultado devolveu o foco DOM ao campo',
     )
-    await page.keyboard.press('Escape') // campo -> fecha a busca, volta ao ícone (sem sair da categoria)
+    await page.keyboard.press('Escape') // campo -> fecha a busca, volta ao botão "Pesquisar" (sem sair da categoria)
     assert(
-      await page.locator('.search-icon-button.tv-focus').isVisible(),
-      'RETURN a partir do campo fechou a busca e devolveu o foco ao ícone, sem sair da categoria',
+      await page.locator('.vod-toolbar-search-button.tv-focus').isVisible(),
+      'RETURN a partir do campo fechou a busca e devolveu o foco ao botão "Pesquisar", sem sair da categoria',
     )
-    await page.keyboard.press('Escape') // ícone -> trilha
-    await page.waitForSelector('.live-column-groups .tv-focus', { timeout: 8000 })
-    assert(true, 'RETURN a partir do ícone saiu da categoria para a trilha')
-    await page.keyboard.press('Escape') // trilha -> hub da lista
-    await page.waitForSelector('.tiles-row', { timeout: 8000 })
+    await page.keyboard.press('Escape') // botão -> trilha
+    await page.waitForSelector('.vod-side-nav .tv-focus', { timeout: 8000 })
+    assert(true, 'RETURN a partir do botão de busca saiu da categoria para a trilha')
+    await page.keyboard.press('Escape') // trilha -> Início (a topbar só existe lá)
+    await page.waitForSelector('.home-content', { timeout: 8000 })
     assert(true, 'RETURN a partir da trilha saiu da tela de Filmes sem travar')
   } catch (error) {
     failures += 1

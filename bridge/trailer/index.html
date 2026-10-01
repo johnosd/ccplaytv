@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>CCPlayTV — trailer</title>
+<style>
+  html, body, #player { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+</style>
+</head>
+<body>
+<div id="player"></div>
+<script>
+(function () {
+  'use strict';
+
+  // Página-ponte da ADR-012: hospeda o player oficial do YouTube com origem
+  // https, para que o app (file://, sem Referer) o consiga tocar. Só conhece o
+  // id do vídeo e conversa por postMessage (protocolo v1). Sem dados, sem cookies.
+  var SOURCE = 'ccplay-trailer';
+  var APP_SOURCE = 'ccplay-app';
+  var VERSION = 1;
+  var API_TIMEOUT_MS = 10000;
+  var ID_RE = /^[A-Za-z0-9_-]{11}$/;
+  var player = null;
+  var ready = false;
+  var apiLoaded = false;
+
+  function send(type, extra) {
+    var msg = { source: SOURCE, v: VERSION, type: type };
+    if (extra) {
+      for (var k in extra) { msg[k] = extra[k]; }
+    }
+    // '*' deliberado: a origem do app é file:// (opaca). O conteúdo não é sensível.
+    window.parent.postMessage(msg, '*');
+  }
+
+  var params = new URLSearchParams(location.search);
+  var videoId = params.get('v') || '';
+  if (!ID_RE.test(videoId)) {
+    send('error', { code: 2 });
+    return;
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function onCommand(event) {
+    if (event.source !== window.parent) return;
+    var data = event.data;
+    if (!data || typeof data !== 'object') return;
+    if (data.source !== APP_SOURCE || data.v !== VERSION) return;
+    if (!player || !ready) return;
+
+    if (data.type === 'toggle') {
+      // 1 = tocando; qualquer outro estado (pausado, parado, fim) volta a tocar.
+      if (player.getPlayerState() === 1) player.pauseVideo();
+      else player.playVideo();
+    } else if (data.type === 'stop') {
+      player.stopVideo();
+    } else if (data.type === 'seek-by') {
+      var seconds = data.seconds;
+      if (typeof seconds !== 'number' || !isFinite(seconds) || seconds < -60 || seconds > 60) return;
+      var duration = player.getDuration();
+      var max = duration > 0 ? duration : Infinity;
+      player.seekTo(clamp(player.getCurrentTime() + seconds, 0, max), true);
+      send('seeked');
+    }
+  }
+  window.addEventListener('message', onCommand);
+
+  window.onYouTubeIframeAPIReady = function () {
+    apiLoaded = true;
+    player = new YT.Player('player', {
+      videoId: videoId,
+      width: '100%',
+      height: '100%',
+      playerVars: { autoplay: 1, playsinline: 1, rel: 0, origin: location.origin },
+      events: {
+        onReady: function () {
+          ready = true;
+          send('ready');
+          player.playVideo();
+        },
+        onStateChange: function (e) {
+          if (e.data === 1) send('playing');
+          else if (e.data === 2) send('paused');
+          else if (e.data === 0) send('ended');
+        },
+        onError: function (e) {
+          send('error', { code: Number(e.data) });
+        }
+      }
+    });
+  };
+
+  var script = document.createElement('script');
+  script.src = 'https://www.youtube.com/iframe_api';
+  script.onerror = function () { send('api-failed'); };
+  document.head.appendChild(script);
+  setTimeout(function () { if (!apiLoaded) send('api-failed'); }, API_TIMEOUT_MS);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+    "feature":  "037-entrada-listas-prototipo",
+    "lockedAt":  "2026-09-30 07:23",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/features/profiles/listAvatar.entrada-listas.contract.test.ts",
+                      "sha256":  "b87fe590bcccf24f94d0def4ba2a44c737eee9ffe15af812d4f78fb3865cd6bf",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/profiles/ProfilesScreen.entrada-listas.contract.test.tsx",
+                      "sha256":  "24ca4dbecc93a74a9ba2869cf5a5091bd3c45faf3f509cedc147cf986231b7e0",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/import/AddSourceScreen.entrada-listas.contract.test.tsx",
+                      "sha256":  "c875ac5629858ae657ff56e1bf5917565dc95d3736d90573674074980281cb76",
+                      "tests":  2
+                  }
+              ]
+}

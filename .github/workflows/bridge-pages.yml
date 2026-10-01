@@ -1,0 +1,33 @@
+name: Publicar página-ponte (GitHub Pages)
+
+# ADR-012: publica SOMENTE a pasta bridge/ — nenhum outro arquivo do repositório.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'bridge/**'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: bridge
+      - id: deployment
+        uses: actions/deploy-pages@v4

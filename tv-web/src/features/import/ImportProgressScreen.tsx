@@ -1,12 +1,23 @@
-import { useRef } from 'react'
-import { useCancelImportJob, useImportJob, useRetryImportJob } from './importApi'
+import { useEffect, useRef } from 'react'
+import { useCancelImportJob, useEpgSyncing, useImportJob, useRetryImportJob, useSources } from './importApi'
+import { guideRow, isGuideSettled, sectionRows } from './importSections'
 import { useTvKeyNav } from '../../lib/useTvKeyNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
+import { Button } from '../../components/Button'
+import { Spinner } from '../../components/Spinner'
+import { OnboardingBrand } from './OnboardingBrand'
 
 export interface ImportProgressScreenProps {
   jobId: string
   onRetried: (newJobId: string) => void
-  onBack: () => void
+  /**
+   * "Voltar" e RETURN. Recebe o id da lista quando o job já carregou (o App
+   * usa para abrir os perfis com foco nela, FR-039) e nenhum argumento nos
+   * estados de carregando/erro, em que não há lista a apontar.
+   */
+  onBack: (sourceId?: string) => void
+  /** "Abrir lista" (feature 023, D-009/FR-038): a lista importada vira a fonte ativa. */
+  onOpenSource: (sourceId: string) => void
 }
 
 const STEP_LABELS: Record<string, string> = {
@@ -52,14 +63,50 @@ const ERROR_MESSAGES: Record<string, string> = {
   storage_full: 'Não há espaço no aparelho para guardar esta lista.',
 }
 
-export function ImportProgressScreen({ jobId, onRetried, onBack }: ImportProgressScreenProps) {
+/**
+ * Progresso da importação no visual V14 (feature 023, US4). O DS não desenha
+ * esta tela — é composta com os componentes da feature 022 (`Button`,
+ * `Spinner`). O que ela mostra continua só o que o importador informa:
+ * etapas e contagens reais, nunca um percentual estimado (FR-037).
+ */
+export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }: ImportProgressScreenProps) {
   const containerRef = useRef<HTMLElement>(null)
+  const openListRef = useRef<HTMLDivElement>(null)
   useTvKeyNav(containerRef)
-  useRemoteNav({ onBack })
 
   const { data: job, isLoading, isError } = useImportJob(jobId)
   const cancelJob = useCancelImportJob()
   const retryJob = useRetryImportJob()
+
+  // Um só caminho de "voltar" para o botão e para RETURN: leva o id da lista
+  // quando existe, e nenhum argumento quando ainda não há job (FR-039).
+  const goBack = () => (job ? onBack(job.source_id) : onBack())
+  useRemoteNav({ onBack: goBack })
+
+  // "Abrir lista" precisa ficar em foco no instante em que a importação
+  // termina (D-009). O `useTvKeyNav` só foca o primeiro focável quando NADA
+  // dentro da tela está focado — se a pessoa já tinha descido até "Voltar"
+  // durante a execução, o foco ficaria lá. Este efeito move o foco de forma
+  // explícita, uma vez, na virada para concluída.
+  const isDone = job?.status === 'completed' || job?.status === 'completed_with_warnings'
+
+  // Feature 038 (US3): a linha "Guia" vem do estado do EPG da fonte, que
+  // sincroniza depois da importação, em segundo plano.
+  const sourceId = job?.source_id ?? null
+  const epg = useSources().data?.sources.find((source) => source.id === sourceId)?.epg
+  const epgSyncing = useEpgSyncing(sourceId)
+  const guide = guideRow({
+    importSucceeded: isDone,
+    epg,
+    syncing: epgSyncing,
+    runStartedAt: job ? Date.parse(job.created_at) : 0,
+  })
+  // D-012: "Abrir lista" já aparece com a estrutura pronta; o foco vai para ele
+  // quando o guia também se resolve (FR-019).
+  const settled = isDone && isGuideSettled(guide)
+  useEffect(() => {
+    if (settled) openListRef.current?.querySelector<HTMLElement>('button')?.focus()
+  }, [settled])
 
   // Carregando e "não existe mais" são estados distintos, e nenhum dos dois
   // pode ficar sem saída: a tela precisa de pelo menos um elemento focável
@@ -67,18 +114,20 @@ export function ImportProgressScreen({ jobId, onRetried, onBack }: ImportProgres
   // Becos Sem Saída").
   if (isError || (!isLoading && !job)) {
     return (
-      <section className="screen" aria-labelledby="progress-title" ref={containerRef}>
-        <h1 id="progress-title" className="screen-title">
+      <section className="screen onboarding" aria-labelledby="progress-title" ref={containerRef}>
+        <OnboardingBrand />
+        <p className="onboarding-kicker">Importação</p>
+        <h1 id="progress-title" className="onboarding-title">
           Progresso da importação
         </h1>
-        <p className="screen-subtitle">
+        <p className="onboarding-subtitle">
           Esta importação não está mais registrada no aparelho. Abra a lista na tela inicial para
           sincronizar de novo.
         </p>
-        <div className="movie-detail-actions" style={{ marginTop: 32 }}>
-          <button className="detail-button" type="button" onClick={onBack}>
+        <div className="progress-actions">
+          <Button variant="secondary" onSelect={goBack}>
             Voltar
-          </button>
+          </Button>
         </div>
       </section>
     )
@@ -86,15 +135,20 @@ export function ImportProgressScreen({ jobId, onRetried, onBack }: ImportProgres
 
   if (!job) {
     return (
-      <section className="screen" aria-labelledby="progress-title" ref={containerRef}>
-        <h1 id="progress-title" className="screen-title">
+      <section className="screen onboarding" aria-labelledby="progress-title" ref={containerRef}>
+        <OnboardingBrand />
+        <p className="onboarding-kicker">Importação</p>
+        <h1 id="progress-title" className="onboarding-title">
           Progresso da importação
         </h1>
-        <p className="screen-subtitle">Carregando estado da importação…</p>
-        <div className="movie-detail-actions" style={{ marginTop: 32 }}>
-          <button className="detail-button" type="button" onClick={onBack}>
+        <div className="progress-status-row">
+          <Spinner size={32} />
+          <p className="progress-status">Carregando estado da importação…</p>
+        </div>
+        <div className="progress-actions">
+          <Button variant="secondary" onSelect={goBack}>
             Voltar
-          </button>
+          </Button>
         </div>
       </section>
     )
@@ -106,21 +160,46 @@ export function ImportProgressScreen({ jobId, onRetried, onBack }: ImportProgres
   const stepLabels = isCategories ? CATEGORY_STEP_LABELS : STEP_LABELS
 
   return (
-    <section className="screen" aria-labelledby="progress-title" ref={containerRef}>
-      <h1 id="progress-title" className="screen-title">
+    <section className="screen onboarding" aria-labelledby="progress-title" ref={containerRef}>
+      <OnboardingBrand />
+      <p className="onboarding-kicker">Importação</p>
+      <h1 id="progress-title" className="onboarding-title">
         Progresso da importação
       </h1>
 
-      <p className="screen-subtitle" style={{ marginBottom: 24 }}>
-        Status: {STATUS_LABELS[job.status] ?? job.status} — Etapa:{' '}
-        {stepLabels[job.current_step] ?? job.current_step}
-      </p>
+      <div className="progress-status-row">
+        {/* Indicador indeterminado: sem denominador confiável, nunca um
+            percentual inventado (constitution, "Progresso e Capacidades São
+            Reais"). */}
+        {isRunning && <Spinner size={32} />}
+        <p className="progress-status">
+          Status: {STATUS_LABELS[job.status] ?? job.status} — Etapa:{' '}
+          {stepLabels[job.current_step] ?? job.current_step}
+        </p>
+      </div>
 
-      <ul aria-label="Contadores" className="episode-list" style={{ maxWidth: 480 }}>
-        <li className="live-item">
+      {/* Feature 038 (FR-015..FR-017): uma linha por parte, com estado e
+          contagem reais — texto, nunca só cor, nunca percentual. */}
+      <ul aria-label="O que está sendo carregado" className="progress-sections">
+        {[...sectionRows(job.sections), guide].map((row) => (
+          <li key={row.key} className="progress-section" data-state={row.state}>
+            <span className="progress-section-label">{row.label}</span>
+            <span className="progress-section-state">{row.text}</span>
+          </li>
+        ))}
+      </ul>
+
+      {settled && (
+        <p className="progress-background-note">
+          Os itens de cada categoria continuam chegando em segundo plano.
+        </p>
+      )}
+
+      <ul aria-label="Contadores" className="progress-counters">
+        <li className="progress-counter">
           {isCategories ? 'Categorias lidas' : 'Entradas lidas'}: {job.counts.entries_read}
         </li>
-        <li className="live-item">
+        <li className="progress-counter">
           {isCategories ? 'Categorias gravadas' : 'Itens gravados'}: {job.counts.channels}
         </li>
         {/* Descarte por tipo e invalidez não têm sentido para uma estrutura
@@ -129,58 +208,64 @@ export function ImportProgressScreen({ jobId, onRetried, onBack }: ImportProgres
             zero, sem informar nada. */}
         {!isCategories && (
           <>
-            <li className="live-item">
+            <li className="progress-counter">
               Descartados (tipo não reconhecido): {job.counts.discarded_by_type}
             </li>
-            <li className="live-item">Inválidos: {job.counts.invalid}</li>
+            <li className="progress-counter">Inválidos: {job.counts.invalid}</li>
           </>
         )}
       </ul>
 
       {job.status === 'failed' && job.error_kind && (
-        <div className="form-error" style={{ marginTop: 24 }} aria-label="Erro">
+        <div className="progress-error" aria-label="Erro">
           {ERROR_MESSAGES[job.error_kind] ?? 'Falha desconhecida'}
         </div>
       )}
 
       {job.warnings.length > 0 && (
-        <ul aria-label="Avisos" className="episode-list" style={{ marginTop: 24, color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+        <ul aria-label="Avisos" className="progress-warnings">
           {job.warnings.map((warning) => (
             <li key={warning}>{warning}</li>
           ))}
         </ul>
       )}
 
-      <div className="movie-detail-actions" style={{ marginTop: 32 }}>
+      <div className="progress-actions">
+        {/* Primeiro na ordem do DOM: quando a importação termina, é o
+            primeiro focável e o alvo do foco explícito acima (D-009). Sem
+            avanço automático — os avisos da importação precisam poder ser
+            lidos (FR-038). */}
+        {isDone && (
+          <div ref={openListRef}>
+            <Button variant="accent" onSelect={() => onOpenSource(job.source_id)}>
+              Abrir lista
+            </Button>
+          </div>
+        )}
+
         {isRunning && (
-          <button
-            className="detail-button"
-            type="button"
-            disabled={cancelRequested}
-            onClick={() => cancelJob.mutate(jobId)}
-          >
+          <Button variant="secondary" loading={cancelRequested} onSelect={() => cancelJob.mutate(jobId)}>
             {cancelRequested ? 'Cancelamento solicitado…' : 'Cancelar'}
-          </button>
+          </Button>
         )}
 
         {job.status === 'failed' && (
-          <button
-            className="detail-button"
-            type="button"
-            disabled={retryJob.isPending}
-            onClick={() =>
+          <Button
+            variant="secondary"
+            loading={retryJob.isPending}
+            onSelect={() =>
               retryJob.mutate(jobId, {
                 onSuccess: (result) => onRetried(result.id),
               })
             }
           >
             {retryJob.isPending ? 'Tentando novamente…' : 'Tentar novamente'}
-          </button>
+          </Button>
         )}
 
-        <button className="detail-button" type="button" onClick={onBack}>
+        <Button variant="secondary" onSelect={goBack}>
           Voltar
-        </button>
+        </Button>
       </div>
     </section>
   )

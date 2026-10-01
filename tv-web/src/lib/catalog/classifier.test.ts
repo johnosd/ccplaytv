@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyEntry, normalizeIconUrl } from './classifier'
+import { classifyEntry, normalizeAddedAt, normalizeDurationSeconds, normalizeIconUrl, normalizeYear } from './classifier'
 import type { ParsedEntry } from './m3uParser'
 
 function entry(name: string, group?: string, attributes: Record<string, string> = {}): ParsedEntry {
@@ -86,14 +86,82 @@ describe('classifier', () => {
       expect(episode.iconUrl).toBe('http://exemplo.test/ep.png')
     })
 
-    it('canal NUNCA captura iconUrl, mesmo com tvg-logo declarado (FR-009)', () => {
+    it('canal captura iconUrl de tvg-logo (feature 024, R-003 — inverte a exclusão original da 015)', () => {
       const channel = classifyEntry(entry('ESPN', 'Canais Esportes', { 'tvg-logo': 'http://exemplo.test/espn.png' }))
-      expect(channel.iconUrl).toBeUndefined()
+      expect(channel.iconUrl).toBe('http://exemplo.test/espn.png')
     })
 
     it('atributo ausente vira iconUrl undefined', () => {
       const movie = classifyEntry(entry('Matrix', 'Filmes Ação'))
       expect(movie.iconUrl).toBeUndefined()
+    })
+  })
+
+  // Feature 025 (T004, T016) — `logic/metadados-vod.md` §1.
+  describe('normalizeYear', () => {
+    const NOW = new Date('2026-09-27T00:00:00Z').getTime()
+
+    it('aceita número, string de 4 dígitos e data completa/parcial', () => {
+      expect(normalizeYear(2019, NOW)).toBe(2019)
+      expect(normalizeYear('2019', NOW)).toBe(2019)
+      expect(normalizeYear('2019-06-01', NOW)).toBe(2019)
+      expect(normalizeYear('2019-06', NOW)).toBe(2019)
+    })
+
+    it('data parcial sem dia, epoch 0 como string e lixo viram ausência', () => {
+      expect(normalizeYear('0', NOW)).toBeUndefined()
+      expect(normalizeYear('N/A', NOW)).toBeUndefined()
+      expect(normalizeYear('ano passado', NOW)).toBeUndefined()
+      expect(normalizeYear(undefined, NOW)).toBeUndefined()
+      expect(normalizeYear(null, NOW)).toBeUndefined()
+    })
+
+    it('fora da faixa plausível (antes de 1888, ou futuro distante) vira ausência', () => {
+      expect(normalizeYear('1700', NOW)).toBeUndefined()
+      expect(normalizeYear('1887', NOW)).toBeUndefined()
+      expect(normalizeYear('1888', NOW)).toBe(1888)
+      expect(normalizeYear(2030, NOW)).toBeUndefined() // corrente (2026) + 1 = 2027 é o teto
+      expect(normalizeYear(2027, NOW)).toBe(2027)
+    })
+
+    it('nunca procura ano dentro de texto livre (título)', () => {
+      expect(normalizeYear('Filme C (2012)', NOW)).toBeUndefined()
+    })
+  })
+
+  describe('normalizeAddedAt', () => {
+    const NOW = new Date('2026-09-27T00:00:00Z').getTime()
+
+    it('aceita epoch em segundos, número ou string, e converte para ms', () => {
+      expect(normalizeAddedAt('1700000000', NOW)).toBe(1_700_000_000_000)
+      expect(normalizeAddedAt(1_700_000_000, NOW)).toBe(1_700_000_000_000)
+    })
+
+    it('"0", negativo, texto e futuro distante viram ausência', () => {
+      expect(normalizeAddedAt('0', NOW)).toBeUndefined()
+      expect(normalizeAddedAt(-100, NOW)).toBeUndefined()
+      expect(normalizeAddedAt('ontem', NOW)).toBeUndefined()
+      expect(normalizeAddedAt(Math.floor(NOW / 1000) + 60 * 60 * 24 * 30, NOW)).toBeUndefined()
+      expect(normalizeAddedAt(undefined, NOW)).toBeUndefined()
+    })
+
+    it('antes de 2000-01-01 vira ausência', () => {
+      expect(normalizeAddedAt('900000000', NOW)).toBeUndefined() // 1998
+    })
+  })
+
+  describe('normalizeDurationSeconds', () => {
+    it('aceita número ou string de dígitos, segundos inteiros positivos', () => {
+      expect(normalizeDurationSeconds(5400)).toBe(5400)
+      expect(normalizeDurationSeconds('5400')).toBe(5400)
+    })
+
+    it('zero, negativo, 24h ou mais, texto e ausente viram ausência', () => {
+      expect(normalizeDurationSeconds(0)).toBeUndefined()
+      expect(normalizeDurationSeconds(-1)).toBeUndefined()
+      expect(normalizeDurationSeconds(24 * 60 * 60)).toBeUndefined()
+      expect(normalizeDurationSeconds('lixo')).toBeUndefined()
+      expect(normalizeDurationSeconds(undefined)).toBeUndefined()
     })
   })
 })

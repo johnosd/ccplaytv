@@ -1,0 +1,68 @@
+/*
+ * Busca global (feature 026, US3): campo + aviso de cobertura + rails de
+ * resultado por tipo. Só tokens de `index.css`. A moldura (topbar, safe
+ * zone, HintBar) é de `shell.css`.
+ */
+
+.search-screen .screen-title {
+  margin-bottom: var(--space-4);
+}
+
+.search-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  overflow-y: auto;
+}
+
+.search-field-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  /* `margin-bottom: 16px` (feature 018, antes em `features/screens.css`):
+     achado ao mover CSS na feature 028 — `.search-field-row` é usada tanto
+     aqui quanto na busca por categoria de Live/Filmes/Séries (feature 018),
+     e as duas folhas já colidiam de verdade (mesmo seletor, mesma
+     especificidade); como esta carrega por último, ela já vencia — só esta
+     propriedade nunca tinha equivalente aqui e sobrevivia por baixo.
+     Mesclada pra um lugar só (D-003 do plan.md da 028), sem mudar o
+     resultado visual de nenhuma das duas telas. */
+  margin-bottom: 16px;
+}
+
+.search-field-row .text-field {
+  flex: 1;
+  max-width: 560px;
+}
+
+.search-coverage {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.search-coverage-hint {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+}
+
+.search-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.search-row-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}

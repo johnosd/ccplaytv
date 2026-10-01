@@ -10,7 +10,7 @@ Projeto em desenvolvimento ativo. Conforme a arquitetura atualizada (ADR-008), o
 
 O objetivo é carregar múltiplas listas M3U, reproduzir canais, filmes e séries compatíveis, permitir favoritos e organizar capas e detalhes do catálogo. As evoluções previstas incluem recomendações, pesquisa por voz com transcrição, integração com OpenAI e controle por aplicativo Android.
 
-TMDB é a integração inicial escolhida para metadados. As menções originais a **YouTube, “TV local”, IMDb e Google** permanecem como intenções a esclarecer: forma de acesso, requisitos, APIs e compatibilidade ainda não foram definidos. Elas não são consideradas integrações prontas nem substituições automáticas do TMDB.
+TMDB é a integração inicial escolhida para metadados. O **YouTube** entrou só para os trailers (feature 033), pelo player oficial dentro de uma página-ponte estática (ADR-012). As menções originais a **“TV local”, IMDb e Google** permanecem como intenções a esclarecer: forma de acesso, requisitos, APIs e compatibilidade ainda não foram definidos. Elas não são consideradas integrações prontas nem substituições automáticas do TMDB.
 
 ### Funcionalidades
 
@@ -35,16 +35,40 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
 **TV ao vivo e EPG**
 - Canais organizados pelos grupos definidos na própria lista, com
   pesquisa e reprodução.
-- *A avaliar:* guia de programação (EPG) via XMLTV, com timeline "ao vivo"
-  e grade multi-canal; TV archive/catch-up/timeshift; seleção de canal por
-  número.
+- Programa atual ("Agora") com barra de progresso na lista de canais, e
+  "A seguir" com sinopse no preview, na faixa do player e nos canais
+  favoritos da Home, a partir de EPG em XMLTV (do painel Xtream, do
+  `url-tvg` da lista M3U ou de um endereço informado, com deslocamento de
+  horário e sincronização por lista em Configurações; feature 030 — ainda
+  sem passada na TV física).
+- Guia completo em tela cheia (grade canais × programas, Hoje/Amanhã, CH±,\n  seletor de lista), aberto do preview da Live TV ou do player sem parar o\n  canal (feature 031 — ainda sem passada na TV física).\n- *A avaliar:* TV archive/catch-up/timeshift;
+  multi-canal (feature 031, especificada); TV archive/catch-up/timeshift;
+  seleção de canal por número.
 
 **Descoberta e metadados**
 - Pesquisa nos três tipos de conteúdo (canais, filmes, séries).
-- Enriquecimento por TMDB (opcional, com chave própria do usuário):
-  sinopse, capas e trailers para filmes e séries.
-- *A avaliar:* elenco e equipe técnica, páginas de ator navegáveis, trilha
-  "Similares" e rail de tendências num dashboard.
+- Detalhe de filme e série com backdrop, sinopse (truncada, com "Ver mais"),
+  gênero, duração, direção, país e elenco em texto (aba Elenco), buscados
+  **só ao abrir o detalhe** — o que o provedor da lista já informa vem
+  primeiro, e a sinopse do episódio focado aparece quando o provedor a manda
+  (feature 032, verificada na TV física).
+- Enriquecimento por TMDB (opcional, com chave própria do usuário, digitada
+  em Configurações › Integrações & BYOK): completa só o que o provedor deixou
+  vazio, com o selo "Dados: TMDB"; um título só é casado quando o casamento é
+  inequívoco (id do provedor, ou título + ano com um único candidato).
+- Trailer de filme e de série no detalhe (feature 033): o do provedor
+  primeiro, depois os do TMDB (oficial antes de idioma), tocado pelo player
+  oficial do YouTube numa página-ponte estática publicada no GitHub Pages
+  (só a pasta `bridge/`), com os anúncios do YouTube como vierem. Testado na
+  TV física em parte — as contagens de SC-001/SC-002 não foram medidas.
+- Semelhantes, elenco com foto e página de ator (feature 035; exigem a chave
+  do TMDB): a aba Semelhantes cruza os títulos do TMDB com o que já está
+  guardado na sua lista (título + ano exato), marca os que existem ("✓ Na sua
+  lista") e mostra os demais com um resumo; a aba Elenco mostra foto e
+  personagem, e OK numa pessoa abre a filmografia. Pode raramente confundir
+  dois filmes homônimos do mesmo ano. Ainda sem passada na TV física.
+- *A avaliar:* equipe técnica além da direção e rail de tendências num
+  dashboard.
 - Recomendações a partir de filmes marcados como "Gostei"; ordenação por
   nota IMDb (fonte/licença dos dados ainda não definida).
 
@@ -53,17 +77,19 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   segurando OK ou pela tecla amarela do controle sobre o item focado.
 - Indicação de "já assistido" (filme, com correção manual) e "em dia"
   (série, por cobertura de episódios conhecidos), além de "continuar
-  assistindo" no hub da fonte para o que tem retomada salva — canal ao
-  vivo não tem histórico nem "já assistido" (decisão de escopo, feature
-  019). *A avaliar:* agregação de favoritos/histórico entre todas as
-  fontes.
+  assistindo" no hub da fonte para o que tem retomada salva, e uma lista
+  "↺ Histórico" em Filmes e Séries com tudo que já foi reproduzido, do
+  mais recente ao mais antigo, incluindo o que já terminou (feature 025)
+  — canal ao vivo não tem histórico nem "já assistido" (decisão de
+  escopo, feature 019). *A avaliar:* agregação de favoritos/histórico
+  entre todas as fontes.
 
 ## Arquitetura
 
 **TV:** aplicativo web empacotado para Tizen, com React, TypeScript, CSS e Vite; `PlayerService` usando AVPlay na Samsung; cache de catálogo em IndexedDB, condicionado à validação no aparelho.
 
 
-**Mídia:** reprodução direta da origem para a TV por padrão. O aplicativo não retransmite nem transcodifica o vídeo. Navegação e comandos são processados localmente.
+**Mídia:** reprodução direta da origem para a TV por padrão. O aplicativo não retransmite nem transcodifica o vídeo. Navegação e comandos são processados localmente. A única exceção hospedada é a página-ponte do trailer (ADR-012): uma página estática, sem lógica de servidor nem dado da pessoa, que só recebe o id do vídeo.
 
 **Resiliência:** o catálogo salvo em IndexedDB garante navegação instantânea. Isso não significa que vídeos remotos funcionem sem internet, que URLs nunca expirem ou que todas as capas estejam armazenadas.
 

@@ -7,8 +7,10 @@ import {
   getUserState,
   getUserStates,
   listFavorites,
+  listPlayed,
   markCompleted,
   parseStableId,
+  setWatchedManually,
   toggleFavorite,
   updateProgress,
   getGlobalFavorites,
@@ -285,6 +287,53 @@ describe('userStateRepository', () => {
 
     it('fonte/tipo sem nenhum favorito devolve lista vazia', async () => {
       expect(await listFavorites('src-sem-favorito', 'movie')).toEqual([])
+    })
+  })
+
+  // Feature 025 (T011, T019) — "↺ Histórico", `logic/historico.md` §2.
+  describe('listPlayed (feature 025)', () => {
+    it('filtra por fonte e tipo, do mais recente para o mais antigo', async () => {
+      const matrixId = buildStableId(MATRIX) // src1, movie
+      const duneId = buildStableId(DUNE) // src1, movie
+      const avatarId = buildStableId(AVATAR) // src2, movie
+      const channelId = buildStableId({ sourceId: 'src1', kind: 'channel', providerStreamId: '9' })
+
+      await updateProgress(matrixId, 'src1', 100)
+      await updateProgress(duneId, 'src1', 50) // reproduzido depois — deve vir primeiro
+      await updateProgress(avatarId, 'src2', 10) // outra fonte — não entra
+      await updateProgress(channelId, 'src1', 10) // outro tipo — não entra
+
+      const played = await listPlayed('src1', 'movie')
+      expect(played.map((state) => state.stableId)).toEqual([duneId, matrixId])
+    })
+
+    it('concluído depois de reproduzido continua no histórico (lastWatched não é apagado)', async () => {
+      const matrixId = buildStableId(MATRIX)
+      await updateProgress(matrixId, 'src1', 100)
+      await markCompleted(matrixId, 'src1')
+
+      const played = await listPlayed('src1', 'movie')
+      expect(played.map((state) => state.stableId)).toEqual([matrixId])
+      expect(played[0].completedAt).toBeDefined()
+    })
+
+    it('marcado como assistido à mão, sem nunca ter sido reproduzido, fica fora (FR-011)', async () => {
+      const matrixId = buildStableId(MATRIX)
+      await setWatchedManually(matrixId, 'src1', true)
+
+      expect(await listPlayed('src1', 'movie')).toEqual([])
+    })
+
+    it('episódio reproduzido não aparece em listPlayed(sourceId, "movie")', async () => {
+      const episodeId = buildStableId({ sourceId: 'src1', kind: 'episode', providerStreamId: 'e1', seasonNumber: 1, episodeNumber: 1 })
+      await updateProgress(episodeId, 'src1', 30)
+
+      expect(await listPlayed('src1', 'movie')).toEqual([])
+      expect((await listPlayed('src1', 'episode')).map((s) => s.stableId)).toEqual([episodeId])
+    })
+
+    it('fonte/tipo sem nenhuma reprodução devolve lista vazia', async () => {
+      expect(await listPlayed('src-sem-reproducao', 'movie')).toEqual([])
     })
   })
 

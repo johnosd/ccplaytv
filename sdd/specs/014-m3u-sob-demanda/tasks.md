@@ -127,7 +127,7 @@ description: "Tasks da feature 014-m3u-sob-demanda"
 
 ### Implementation
 
-- [X] T022 [US2] Antes de desenhar, conferir `docs/design/` (Grep em `CCPlayTv Prototype - Standalone.html` por `O que você quer assistir` e por avisos/estados informativos) e `docs/guia-praticas-app-tv/` (texto em tela de TV, tamanho de leitura). Registrar o que foi encontrado em `plan.md` → Riscos e Decisões.
+- [X] T022 [US2] Antes de desenhar, conferir `docs/design/` (Grep em `old/CCPlayTv Prototype - Standalone.html` por `O que você quer assistir` e por avisos/estados informativos) e `docs/guia-praticas-app-tv/` (texto em tela de TV, tamanho de leitura). Registrar o que foi encontrado em `plan.md` → Riscos e Decisões.
 - [X] T023 [US2] Criar `tv-web/src/features/list-home/LimitedModeNotice.tsx` com o texto da FR-021 por motivo, tom informativo (D-008 da 004), e a classe nova em `tv-web/src/features/screens.css` consumindo só tokens de `tv-web/src/index.css`.
 - [X] T024 [US2] `tv-web/src/features/list-home/ListHomeScreen.tsx` recebe a fonte (`SourceOut`) em vez de só `sourceId`/`sourceName`, e renderiza `LimitedModeNotice` quando a fonte está em Modo limitado; `tv-web/src/App.tsx` passa `screen.source`.
 - [X] T025 [US2] `tv-web/src/lib/catalog/importPipeline.ts`: ramo de provedor passa `limitedReason: 'protocol_unavailable'` ao cair no caminho M3U.

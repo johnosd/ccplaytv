@@ -19,10 +19,11 @@
 // eventos do <video> manualmente para avançar a máquina de estados do
 // PlayerLayer sem depender de decodificação real.
 import { createServer } from 'node:http'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { cadastrarListaM3u } from './lib/entrada.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'zapping-live-tv.m3u')
@@ -55,24 +56,47 @@ function startFixtureServer() {
 
 async function addSource(page, m3uUrl) {
   console.log('=== Adicionar fonte M3U fictícia ===')
+  // Sem lista, a entrada é a tela de perfis (feature 023): "Adicionar lista"
+  // já nasce em foco, e OK abre o formulário.
   await page.goto(APP_URL)
+  await page.waitForSelector('.add-card.tv-focus', { timeout: 10000 })
+  await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
 
-  await page.getByLabel('Nome de exibição').fill('Fonte E2E Zapping')
-  await page.getByLabel('URL da lista M3U').fill(m3uUrl)
-  await page.getByRole('button', { name: 'Adicionar lista' }).click()
+  await cadastrarListaM3u(page, { nome: 'Fonte E2E Zapping', url: m3uUrl })
 
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
   console.log('  ✓ importação concluída')
   await page.getByRole('button', { name: 'Voltar' }).click()
+  // Os perfis montam com o cache anterior; a lista nova chega logo depois.
+  await page.locator('.source-card-wrap', { hasText: 'Fonte E2E Zapping' }).waitFor({ timeout: 8000 })
+}
+
+/**
+ * Do Início (hero, rails ou topbar — qualquer foco restaurado), abre TV ao
+ * vivo/Filmes/Séries pela topbar. Substitui o antigo hub de atalhos
+ * (`.tiles-row`, removido na feature 026 — US1 troca o hub provisório pela
+ * Home definitiva com hero+rails; a entrada nas 3 categorias passa a ser só
+ * pela topbar). Sobe até a topbar (não importa em que linha do conteúdo o
+ * foco esteja — `ArrowUp` de sobra não faz nada uma vez lá dentro), reseta
+ * a posição horizontal pra "Início" (`ArrowLeft` de sobra, com clamp) e só
+ * então conta as setas certas — nunca assume de onde o foco restaurado
+ * (FR-017/FR-029) partiu.
+ */
+async function openViaTopbar(page, destination) {
+  const ORDER = ['home', 'live', 'movies', 'series']
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < ORDER.indexOf(destination); i += 1) await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
 }
 
 async function openLiveTv(page) {
   await page.waitForSelector('.source-card', { timeout: 8000 })
   await page.keyboard.press('Enter')
 
-  await page.waitForSelector('.tiles-row', { timeout: 8000 })
-  await page.keyboard.press('Enter')
+  await page.waitForSelector('.home-content', { timeout: 8000 })
+  await openViaTopbar(page, 'live')
 
   await page.waitForSelector('.live-column-groups', { timeout: 8000 })
 }
@@ -94,11 +118,13 @@ async function run() {
   // O binário `chrome-headless-shell` que o Playwright pediria por padrão
   // em `headless: true` não está pré-instalado neste ambiente (só a versão
   // não-headless, em `/opt/pw-browsers/chromium`) — apontar direto pro
-  // binário evita a tentativa de baixar um novo.
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: '/opt/pw-browsers/chromium',
-  })
+  // binário evita a tentativa de baixar um novo. Fora desse ambiente (ex.:
+  // Windows local, feature 021), o caminho não existe e a resolução normal
+  // do Playwright assume — mesmo padrão dos demais scripts em `e2e/`.
+  const fixedPath = '/opt/pw-browsers/chromium'
+  const browser = await chromium.launch(
+    existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true },
+  )
   const context = await browser.newContext()
   const page = await context.newPage()
   // As URLs de "stream" da fixture não são servidas de verdade (só o .m3u

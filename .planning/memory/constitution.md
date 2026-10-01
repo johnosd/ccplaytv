@@ -1,18 +1,24 @@
 <!--
 Relatório de Impacto de Sincronização
-- Mudança de versão: 1.4.0 -> 1.5.0
-- Princípios modificados: "Segredos Fora dos Clientes e dos Logs" — a
-  exceção client-first passa a cobrir URL completa de fonte, URL de
-  reprodução de cada item e o arquivo M3U baixado (ADR-010); antes, a URL
-  completa era proibida no cliente sem exceção
+- Mudança de versão: 1.6.1 -> 1.7.0 (MINOR)
+- Princípios modificados: "Sem Conta Obrigatória" ganha uma exceção — uma
+  lista cuja conta o painel confirmou vencida ou recusada PODE ser impedida
+  de abrir; a interface, as outras listas e o estado local continuam
+  garantidos. Mesmo formato das exceções anteriores (1.2.0, 1.5.0, 1.6.0).
 - Princípios adicionados: nenhum
-- Restrições do Projeto: nenhuma mudança
-- Origem da mudança: pedido direto do usuário em 2026-09-24, durante o
-  planejamento da feature 014-m3u-sob-demanda ("vamos expor a url"); a
-  fonte por URL M3U já guardava a URL completa desde a feature 005, em
-  violação silenciosa do texto anterior
+- Origem da mudança: decisão explícita do usuário em 2026-09-30 ("é
+  necessário ter uma lista [válida] para abrir"), levantada pelo
+  Constitution Check do `sdd-plan` da feature 034
 - Seções removidas: nenhuma
 - Pendências: nenhuma
+
+Relatório anterior (1.6.0 -> 1.6.1): "Plataforma-alvo" corrigida para a
+engine medida no aparelho (Tizen 9.0 / Chromium 120), feature 033.
+
+Relatório anterior (1.5.1 -> 1.6.0): "Segredos Fora dos Clientes e dos
+Logs" — a exceção client-first passou a cobrir a chave BYOK de serviço de
+terceiro (TMDB, OpenAI) digitada pela própria pessoa na TV (decisão do
+usuário em 2026-09-29, `sdd-specify` da feature 032, FR-027).
 
 Histórico:
 - 1.0.0 (2026-09-14): criação inicial — Princípios Fundamentais (8),
@@ -32,6 +38,19 @@ Histórico:
   passa a exigir roteiro E2E
 - 1.5.0 (2026-09-24): exceção de "Segredos Fora dos Clientes e dos Logs"
   estendida à URL completa de fonte e ao arquivo M3U (ADR-010)
+- 1.5.1 (2026-09-26): restrição "Design system de TV" passa a apontar o
+  DS V14 Spectrum (`docs/design/design-system/`) como referência de
+  intenção; o protótipo antigo foi movido para `docs/design/old/`. Explicita
+  que a constitution prevalece sobre o DS em conflito (ex.: preview em foco)
+- 1.6.0 (2026-09-29): exceção de "Segredos Fora dos Clientes e dos Logs"
+  estendida à chave BYOK digitada pela pessoa (TMDB/OpenAI), alinhando com
+  a ADR-008 §3/§4 (feature 032)
+- 1.6.1 (2026-09-30): "Plataforma-alvo" corrigida para a engine medida no
+  aparelho de referência, Tizen 9.0 / Chromium 120 (era 8.0 / 108); mesmo
+  aparelho, correção factual (feature 033, R-006)
+- 1.7.0 (2026-09-30): "Sem Conta Obrigatória" ganha exceção para impedir a
+  entrada numa lista cuja conta o painel confirmou vencida ou recusada, sem
+  apagar o estado local dela (feature 034)
 -->
 
 # Constitution do CCPlay TV
@@ -45,6 +64,17 @@ fontes) sem exigir login de pessoa. Uma fonte de conteúdo (URL M3U, arquivo
 ou credenciais de provedor) NÃO DEVE ser tratada como conta do CCPlay.
 Indisponibilidade ou expiração de uma credencial de fonte NÃO DEVE bloquear
 a abertura da interface nem o acesso ao estado local já sincronizado.
+
+**Exceção (2026-09-30, feature 034)**: quando o painel da fonte **confirmou**
+— na verificação mais recente, feita agora ou guardada no aparelho — que a
+assinatura venceu ou que a credencial foi recusada, o app PODE impedir a
+entrada **naquela lista**, porque sem conta válida a lista não reproduz nada.
+Mesmo assim: a interface continua abrindo; as outras listas não são afetadas;
+a tela de impedimento DEVE dizer o motivo e oferecer caminho por controle
+remoto para corrigir a lista, verificar de novo e voltar; e o estado local
+daquela lista (favoritos, histórico, retomada, catálogo) NÃO DEVE ser apagado
+— volta a ficar acessível assim que a conta for confirmada válida. Falha de
+rede ou painel fora do ar, sozinhos, nunca impedem a entrada.
 
 **Por quê**: RF-001/RF-002; ADR-004 §1.
 
@@ -66,8 +96,13 @@ dispositivo (ex.: IndexedDB) — é o que permite ao cliente reautenticar sem
 backend. **Extensão (ADR-010, 2026-09-24)**: pelo mesmo motivo, a URL
 completa de uma fonte, a URL de reprodução de cada item e o conteúdo do
 arquivo M3U baixado — que numa lista de painel repetem usuário e senha —
-também PODEM residir no dispositivo. Chaves de OpenAI/TMDB continuam
-proibidas no cliente, sem exceção. Tudo o que esta exceção permite guardar
+também PODEM residir no dispositivo. **Extensão (BYOK, 2026-09-29, feature
+032)**: a chave de API de um serviço de terceiro (TMDB e, quando existir,
+OpenAI) que a **própria pessoa digitou na TV**, da conta dela, PODE residir
+no dispositivo — é o modelo "traga sua chave" da ADR-008 §3/§4. Continua
+proibido embutir chave do desenvolvedor ou chave compartilhada no pacote,
+em variável pública do frontend ou em qualquer cliente; uma chave BYOK só é
+enviada ao serviço a que pertence, nunca a outro. Tudo o que esta exceção permite guardar
 ainda NÃO DEVE ser logado, exibido em tela, cartão ou mensagem de erro
 (a credencial, nem depois de digitada), enviado a TMDB/OpenAI ou a
 qualquer terceiro, nem exposto por um canal de exportação/backup, e DEVE
@@ -201,8 +236,10 @@ honesto já em vigor no `sdd-bugfix` e no `sdd-converge`.
 
 ## Restrições do Projeto
 
-**Plataforma-alvo**: Samsung QN50Q60DAGXZD (referência de engine: Tizen 8.0
-/ Chromium 108). Nenhuma outra TV, geração ou firmware é presumida
+**Plataforma-alvo**: Samsung QN50Q60DAGXZD (referência de engine: Tizen 9.0
+/ Chromium 120, medido no próprio aparelho em 2026-09-29, com o app rodando
+em origem `file://`). O build continua mirando `chrome108` como piso seguro
+(não é a engine medida). Nenhuma outra TV, geração ou firmware é presumida
 compatível sem validação própria (ADR-006 E1).
 
 **Reprodução**: Direct Play é o padrão — o vídeo flui da origem indicada
@@ -232,9 +269,10 @@ caminho como único meio de acesso.
 **Design system de TV**: palco 1920×1080 escalado uniformemente, tema
 escuro, paleta/tipografia/raios e receita de foco definidos na ADR-007 e
 implementados como tokens em `tv-web/src/index.css`. Tela nova consome
-token — não define cor, raio ou tamanho de fonte literal. O protótipo
-`docs/design/CCPlayTv Prototype - Standalone.html` é a referência de
-intenção; o CSS é o contrato executável.
+token — não define cor, raio ou tamanho de fonte literal. O Design System
+V14 Spectrum (`docs/design/design-system/`: Spec, Component Lab e
+protótipo de telas) é a referência de intenção; o CSS é o contrato
+executável. Em conflito, esta constitution prevalece sobre o DS.
 
 **Validação em hardware real**: emulador e navegador são suficientes para
 o desenvolvimento do dia a dia nesta fase do projeto. Teste na TV real é
@@ -302,4 +340,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.5.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-24
+**Versão**: 1.7.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-30

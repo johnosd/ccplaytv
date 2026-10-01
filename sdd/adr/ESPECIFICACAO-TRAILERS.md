@@ -47,6 +47,8 @@ Usar `TrailerService`, não enviar toda URL de trailer para AVPlay indiscriminad
 
 Para YouTube, validar identificação/origem, Referer ou equivalente, CSP, controles e eventos reais no pacote Tizen. O serviço documenta erros de vídeo privado/removido, embedding não permitido e falta de identificação do cliente.[^youtube][^identity] Página HTTPS intermediária sob controle do CCPlay pode ser avaliada, mas não resolve automaticamente todas as restrições.
 
+**Atualização (ADR-012):** avaliada na TV em 2026-09-29 — é o único caminho que funcionou (IFrame direto do `file://` dá erro 153) e foi adotada como página-ponte estática. A consulta `GET /catalog/items/{item_id}/trailers` e o "cliente TypeScript gerado" citados acima são anteriores à ADR-008: a descoberta passa a ser no aparelho (provedor `youtube_trailer` primeiro, TMDB `videos` completa). Ver ADR-012 e `sdd/assessments/viabilidade-youtube-iframe-na-tv-campo/`.
+
 Validar `postMessage` por origem, emissor e esquema. Links externos devem ser construídos por provedor conhecido e ID validado, não por HTML arbitrário vindo da lista. Não passar tokens de pareamento, senha de fonte ou tokens de API em links de vídeo externos.
 
 Não ocultar anúncios/branding/controles contrariando políticas do player, baixar trailers YouTube ou simular um cliente aprovado. Oferecer saída clara em bloqueios, sem instruções de bypass.[^policy]

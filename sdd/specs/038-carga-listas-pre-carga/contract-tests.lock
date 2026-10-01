@@ -1,0 +1,32 @@
+{
+    "feature":  "038-carga-listas-pre-carga",
+    "lockedAt":  "2026-09-30 17:20",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/catalog/prefetch/prefetchOrder.carga-listas.contract.test.ts",
+                      "sha256":  "8695e01f6a46ec1c58c75449ae81ad9a4be9038fa2f488571bb5567b6942bceb",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/prefetch/prefetchScheduler.carga-listas.contract.test.ts",
+                      "sha256":  "019f81a69b28293d6afdd504929238e14d6dbfbe6c24767749b37bb8bc13a512",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/structureDiff.carga-listas.contract.test.ts",
+                      "sha256":  "0d18275c20f79b6bdce82cfe442510b5ba6b5a83c6d7ad31a84c1dc04469638e",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/catalogRepository.carga-listas.contract.test.ts",
+                      "sha256":  "9467ef99865c0f29260f60416740f932efb5238ddd15c4fdab4a1e693359edb0",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/categoryLoader.carga-listas.contract.test.ts",
+                      "sha256":  "399256f468636c5d3a65e070b627412f0961572119817eb2bf19f8e7e926c1fe",
+                      "tests":  1
+                  }
+              ]
+}

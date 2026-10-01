@@ -310,12 +310,56 @@ por que a feature não tem nenhum), resumo do Analyze, e uma recomendação
 explícita: resolver achados CRITICAL antes de
 rodar `sdd-execute`, ou seguir em frente se estiver tudo limpo.
 
+### 14. Handoff para execução em outra sessão — sempre
+
+O `sdd-execute` costuma rodar em outra sessão (às vezes noutro modelo), sem
+nada desta conversa. Ao concluir, **sempre** escreva um resumo de handoff
+autossuficiente, em português, e:
+
+1. grave-o em `sdd/specs/<NNN-slug>/handoff.md` (sobrescreve o anterior, se
+   houver — o `sdd-plan` pode rodar de novo na mesma feature);
+2. mostre o mesmo conteúdo no chat, como fechamento do relato do passo 13.
+
+Tudo que o executor precisa saber e que **não é óbvio** relendo os
+documentos na ordem certa — nunca uma cópia da spec ou do plano. Seções,
+nesta ordem:
+
+- **Contexto**: repositório/branch, stack em uma linha, próximo comando
+  exato (`/sdd-execute <NNN-slug>`), status no backlog, e qualquer arquivo
+  que tenha mudado em disco fora desta sessão e precise ser relido.
+- **O que a feature entrega**: uma linha por user story (prioridade +
+  essência), incluindo decisões do usuário que contrariam a expectativa
+  óbvia (ex.: "a tela X **mantém** Y").
+- **Leitura obrigatória, em ordem**: `spec.md`, `plan.md`, `tasks.md`,
+  cada `logic/*.md`/`data-model.md`/`contracts/*.md` criado, `quickstart.md`,
+  constitution — com uma frase do que cada um tem.
+- **Testes de contrato**: caminho de cada arquivo travado com contagem e
+  fase, o comando exato para rodá-los, o comando de integridade da trava, e
+  as travas de **outras** features que esta pode quebrar (se houver). Se não
+  há contrato, diga por quê.
+- **Stubs criados**: arquivo → o que existe nele e o que é provisório (ex.:
+  prop opcional só até a task T0NN remover).
+- **Armadilhas já mapeadas**: restrições descobertas na exploração que um
+  executor erraria sem saber (tipos presos por contratos travados, regra de
+  CSS/plataforma, constante que não pode mudar, "nunca rede aqui", arquivo
+  que não existe e precisa ser criado, flakes conhecidos, caminhos de E2E).
+  Cada item com o porquê em meia frase.
+- **Pendências do Analyze**: uma linha por achado **não resolvido**
+  (ID, severidade, resumo, recomendação). Esta é a única forma de o
+  resultado do Analyze sobreviver à sessão — a tabela completa continua só
+  no chat (passo 11).
+- **Gate de pronto**: contratos verdes + travas íntegras, comandos de
+  tsc/lint/testes/build/E2E do projeto, quickstart, docs a atualizar no
+  Polish, e se a passada em hardware real é gate ou recomendação.
+
+Seja específico (caminhos, nomes de função, IDs de task/decisão/risco) e
+curto: é um mapa para o executor, não um segundo plano.
+
 ## Handoff
 
 `sdd-execute` exige `spec.md` + `plan.md` + `tasks.md`. Se existir
 `contract-tests.lock`, ele herda os testes travados como definição de pronto
-— e é proibido de editá-los. O Analyze não deixa
-rastro em arquivo — se a sessão terminar com um CRITICAL não resolvido, uma
-sessão futura do `sdd-execute` não vai saber disso automaticamente (risco
-aceito; ver plano em `docs/features/` ou o histórico da conversa que aprovou
-este sistema).
+— e é proibido de editá-los. O Analyze não deixa rastro em arquivo além da
+seção "Pendências do Analyze" de `handoff.md` (passo 14) — é por ali que um
+CRITICAL/HIGH não resolvido chega a uma sessão futura do `sdd-execute`, que
+deve ler `handoff.md` quando ele existir.

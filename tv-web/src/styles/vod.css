@@ -1,0 +1,810 @@
+/**
+ * Filmes e Séries — Design System V14 (feature 025, Onda 4).
+ *
+ * Arquivo próprio (D-015 do plan.md): nenhuma classe daqui é compartilhada
+ * com telas ainda não migradas — `.search-field`/`.search-status`/
+ * `.field-box`/`.fav-star`/`.watched-badge`/`.fav-hint` continuam vindo de
+ * `styles/shared.css` (compartilhadas com a Live, que também os usa;
+ * `features/screens.css` foi eliminado na feature 028).
+ * Só tokens de `index.css` — nenhuma cor/raio/tamanho de fonte literal.
+ * Importado depois de `live.css` e antes de `shared.css`.
+ */
+
+.vod-screen {
+  gap: var(--space-4);
+}
+
+.vod-body {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-4);
+  min-height: 0;
+}
+
+/* ---------- Side nav (§13.2) ---------- */
+
+.vod-side-nav {
+  width: 320px;
+  flex: none;
+  overflow: auto;
+}
+
+.side-category-nav-group-label {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-annotation);
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  list-style: none;
+}
+
+.side-category-nav-group-label:first-child {
+  padding-top: 0;
+}
+
+/* ---------- Coluna de conteúdo ---------- */
+
+.vod-content-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  overflow: hidden;
+}
+
+.vod-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.vod-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.vod-toolbar-title .chip {
+  cursor: default;
+}
+
+.vod-toolbar-search-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.vod-toolbar-search-button.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.vod-toolbar-search-field {
+  flex: 1;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Ordenar (US4, FR-016..FR-024) ---------- */
+
+.vod-toolbar-sort-button {
+  flex: none;
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.vod-toolbar-sort-button.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.vod-sort-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 280px;
+}
+
+.vod-sort-modal-item {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.vod-sort-modal-item.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- Hero band (§13.2, FR-025/FR-026) — fixa, não focável ---------- */
+
+.vod-hero-band {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.vod-hero-poster {
+  width: 80px;
+  flex: none;
+}
+
+.vod-hero-poster .poster-box {
+  aspect-ratio: 205 / 302;
+}
+
+.vod-hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.vod-hero-eyebrow {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.vod-hero-title {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vod-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+/* ---------- Estados de borda ---------- */
+
+.vod-state-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.vod-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.vod-state-title {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.vod-state-copy {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+  max-width: 620px;
+}
+
+.vod-truncated-note {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+  padding: var(--space-1) 0;
+  flex: none;
+}
+
+/* ---------- Grade virtualizada de ContentCard (D-006) ----------
+   Geometria fixa (205×302 + gap 24px), sem `ResizeObserver` — mesma
+   escolha do `Rail` (feature 022, R-002). */
+
+.vod-grid {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.vod-grid-inner {
+  position: relative;
+}
+
+.vod-grid-cell {
+  position: absolute;
+  top: 0;
+  width: 205px;
+}
+
+/* ---------- Detalhe de filme/série (US5/US6, `logic/detalhe-vod.md`) ----------
+   Compartilhado entre MovieDetailScreen e SeriesDetailScreen — as duas telas
+   usam a mesma raiz `.screen.vod-detail`, sem `shell` (FR-004). */
+
+.vod-detail {
+  gap: var(--space-4);
+  overflow: auto;
+}
+
+.vod-detail-hero {
+  display: flex;
+  gap: var(--space-4);
+  flex: none;
+  /* Contexto de empilhamento próprio: o backdrop (z-index negativo) fica
+     ATRÁS do conteúdo do hero mas nunca escapa dele — e, sendo descendente do
+     `.screen`, some junto quando o AVPlay exibe (`player.css`, D-008 da 032). */
+  position: relative;
+  isolation: isolate;
+}
+
+.vod-detail-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.vod-detail-backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.32;
+}
+
+/* Escurece a esquerda (onde ficam o pôster e o texto) e deixa a imagem à direita. */
+.vod-detail-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--bg-canvas) 12%, transparent 75%);
+}
+
+.vod-detail-synopsis-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  max-width: 900px;
+}
+
+.vod-detail-synopsis {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.vod-detail-origin {
+  margin-left: var(--space-1);
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.vod-detail-synopsis-block .vod-detail-origin {
+  margin-left: 0;
+}
+
+/* Selo do backdrop vindo do TMDB (FR-022): canto do hero, discreto, por cima da imagem. */
+.vod-detail-backdrop-origin {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-1);
+  margin: 0;
+}
+
+.vod-detail-more {
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vod-detail-more.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Aba Elenco (feature 032, ad-hoc T044): nomes em lista corrida, só texto. */
+.vod-cast {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.vod-cast-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: 1200px;
+}
+
+.vod-cast-item {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+}
+
+.vod-cast-empty {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+/* Sinopse completa (modal): rola por ↑/↓ sem barra nativa. */
+.synopsis-modal-text {
+  max-height: 480px;
+  overflow-y: auto;
+  font-size: var(--fs-body-lg);
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-line;
+}
+
+/* Sinopse do episódio focado (FR-028): altura fixa de 3 linhas enquanto houver alguma. */
+.vod-episode-synopsis {
+  flex: none;
+  min-height: calc(3 * 1.4 * var(--fs-body));
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: 1.4;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.vod-detail-poster {
+  width: 220px;
+  flex: none;
+}
+
+.vod-detail-poster .poster-box {
+  aspect-ratio: 205 / 302;
+}
+
+.vod-detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  justify-content: center;
+}
+
+.vod-detail-eyebrow {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.vod-detail-title {
+  font-size: var(--fs-h1);
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.vod-detail-meta {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.vod-detail-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.vod-detail-action {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: var(--fs-body);
+}
+
+.vod-detail-action.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.vod-detail-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.vod-detail-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 620px;
+}
+
+.vod-detail-fact {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--bg-surface);
+  padding-bottom: var(--space-1);
+}
+
+.vod-detail-fact dt {
+  color: var(--text-annotation);
+  font-size: var(--fs-caption);
+}
+
+.vod-detail-fact dd {
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  margin: 0;
+  text-align: right;
+}
+
+/* ---------- Seletor de temporada (US6, modal) ---------- */
+
+.vod-season-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.vod-season-button {
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.vod-season-button.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.vod-season-count {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+/* A lista é o próprio contêiner rolável (não o `.modal-panel`), com a altura
+   útil do painel: é ela que acompanha o foco e mostra o edge fade (DS §17).
+   O padding + margem negativa dá espaço à receita de foco (escala/glow) sem
+   mudar o tamanho do modal; `scroll-padding` faz o item focado parar fora da
+   faixa do fade ao rolar (`scrollIntoView` respeita scroll-padding). */
+.vod-season-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  list-style: none;
+  margin: calc(-1 * var(--space-3));
+  padding: var(--space-3);
+  /* As duas medidas somam o padding de volta (a margem negativa o desconta
+     do tamanho do painel), para o modal manter as dimensões de antes. */
+  min-width: calc(280px + 2 * var(--space-3));
+  max-height: calc(var(--stage-height) - 2 * var(--safe-y) - 2 * var(--space-4) + 2 * var(--space-3));
+  overflow-y: auto;
+  scroll-padding-block: var(--space-4);
+}
+
+.vod-season-modal-list--fade-start {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--space-4));
+  mask-image: linear-gradient(to bottom, transparent, black var(--space-4));
+}
+
+.vod-season-modal-list--fade-end {
+  -webkit-mask-image: linear-gradient(to top, transparent, black var(--space-4));
+  mask-image: linear-gradient(to top, transparent, black var(--space-4));
+}
+
+.vod-season-modal-list--fade-start.vod-season-modal-list--fade-end {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black var(--space-4),
+    black calc(100% - var(--space-4)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black var(--space-4),
+    black calc(100% - var(--space-4)),
+    transparent
+  );
+}
+
+.vod-season-modal-item {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.vod-season-modal-item.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- Lista de episódios (US6) — ContentCard landscape (D-006) ---------- */
+
+.vod-episode-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.vod-episode-list-inner {
+  position: relative;
+}
+
+.vod-episode-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+.vod-episode-progress {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+}
+
+.vod-episode-progress-bar {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  overflow: hidden;
+  max-width: 320px;
+}
+
+.vod-episode-progress-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+/* Semelhantes e resumo de título (feature 035): só tokens V14. */
+.similar-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.similar-coverage,
+.similar-state {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.similar-chip {
+  position: absolute;
+  left: var(--space-1);
+  bottom: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--fs-caption);
+}
+
+.title-summary {
+  display: flex;
+  gap: var(--space-4);
+  max-width: 900px;
+}
+
+.title-summary-poster {
+  width: 205px;
+  flex: none;
+}
+
+.title-summary-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.title-summary-title {
+  font-size: var(--fs-h2, var(--fs-body));
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.title-summary-meta,
+.title-summary-note {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.title-summary-overview {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.similar-row {
+  display: flex;
+  gap: var(--space-3);
+  max-width: 100%;
+  padding: var(--space-2);
+  overflow-x: auto;
+}
+
+.similar-card {
+  position: relative;
+  flex: none;
+}
+
+/* Elenco com foto (feature 035, US3): só tokens V14. */
+.cast-people {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  max-width: 100%;
+}
+
+.cast-people-row {
+  display: flex;
+  gap: var(--space-3);
+  max-width: 100%;
+  padding: var(--space-2);
+  overflow-x: auto;
+}
+
+.cast-person {
+  flex: none;
+  width: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  text-align: center;
+}
+
+.cast-person-name {
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.cast-person-character {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.person-photo {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.person-photo-initials {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.person-photo-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Página de ator (feature 035, US4): raiz `.screen`, sem topbar. */
+.person-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  overflow-y: auto;
+}
+
+.person-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.person-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.person-name {
+  font-size: var(--fs-h2, var(--fs-body));
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.person-state,
+.person-coverage {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.person-rail-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.person-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.similar-chip--found {
+  color: var(--accent);
+}

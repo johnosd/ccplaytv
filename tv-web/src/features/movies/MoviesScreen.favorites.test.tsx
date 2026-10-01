@@ -12,6 +12,7 @@ import { MoviesScreen } from './MoviesScreen'
 import * as catalogApi from '../catalog/catalogApi'
 import type { CatalogCategory, CatalogItemOut } from '../catalog/catalogApi'
 import { db } from '../../lib/catalog/db'
+import { resetVodSessionMemory } from '../vod/vodSessionMemory'
 
 let restoreOffsetHeight: PropertyDescriptor | undefined
 let restoreOffsetWidth: PropertyDescriptor | undefined
@@ -215,6 +216,7 @@ async function holdEnter(ms = 850): Promise<void> {
 
 describe('MoviesScreen — favoritos (feature 013)', () => {
   beforeEach(() => {
+    resetVodSessionMemory()
     mockContentByCategory({})
   })
 
@@ -236,7 +238,8 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     keyup('ArrowRight')
 
     await holdEnter()
-    expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument()
+    // O aviso sai depois da gravação (`mutateAsync`): sob carga, além dos 850 ms do gesto.
+    await waitFor(() => expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument())
     await waitFor(() => expect(document.querySelector('.fav-star')).toBeInTheDocument())
     expect(onOpenMovie).not.toHaveBeenCalled()
 
@@ -252,17 +255,25 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     mockCategories([category(1, 'G1', 0)])
     const { onOpenMovie } = renderMovies()
 
-    const groups = document.querySelectorAll('.live-column-groups .live-item')
-    expect([...groups].map((g) => g.textContent)).toEqual(['★Favoritos', 'Todos', 'G1'])
+    const groups = document.querySelectorAll('.side-category-nav-item')
+    // "★ Favoritos" mostra a contagem real do tipo (feature 025, FR-007) — a
+    // consulta ainda não resolveu neste instante síncrono, então é 0.
+    expect([...groups].map((g) => g.textContent)).toEqual(['Favoritos0', 'Histórico', 'Todos', 'G1'])
 
     keydown('ArrowUp') // "Todos"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // "↺ Histórico"
     keyup('ArrowUp')
     keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
     keydown('ArrowRight')
     keyup('ArrowRight')
 
-    await waitFor(() => expect(screen.getByText('Duna')).toBeInTheDocument())
+    // "Duna" aparece na hero band (item focado) e no card da grade — nunca
+    // `screen.getByText` direto (feature 025, dois nós com o mesmo texto).
+    await waitFor(() =>
+      expect(document.querySelector('.vod-grid .content-card-title')?.textContent).toBe('Duna'),
+    )
     tap('Enter')
     expect(onOpenMovie).toHaveBeenCalledWith(String(dunaId), expect.any(Object))
   })
@@ -272,9 +283,11 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     mockCategories([category(1, 'G1', 0)])
     renderMovies()
 
-    keydown('ArrowUp')
+    keydown('ArrowUp') // "Todos"
     keyup('ArrowUp')
-    keydown('ArrowUp')
+    keydown('ArrowUp') // "↺ Histórico"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
     keydown('ArrowRight')
     keyup('ArrowRight')
@@ -285,7 +298,7 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     tap('Enter')
 
     expect(screen.queryByText('Nenhum favorito ainda')).not.toBeInTheDocument()
-    expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('★Favoritos')
+    expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toBe('Favoritos0')
   })
 
   it('selo "Assistido" (feature 019) aparece só para o filme com completedAt, nunca para os demais', async () => {
@@ -298,10 +311,10 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     keydown('ArrowRight')
     keyup('ArrowRight')
 
-    await waitFor(() => expect(screen.getByText('Duna')).toBeInTheDocument())
+    await waitFor(() => expect(document.querySelectorAll('.vod-grid-cell').length).toBe(2))
     await waitFor(() => expect(document.querySelector('.watched-badge')).toBeInTheDocument())
 
-    const cards = [...document.querySelectorAll('.poster-cell')]
+    const cards = [...document.querySelectorAll('.vod-grid-cell')]
     const duna = cards.find((c) => c.textContent?.includes('Duna'))
     const arrival = cards.find((c) => c.textContent?.includes('Arrival'))
 
@@ -318,15 +331,17 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     mockCategories([category(1, 'G1', 0)])
     renderMovies()
 
-    keydown('ArrowUp')
+    keydown('ArrowUp') // "Todos"
     keyup('ArrowUp')
-    keydown('ArrowUp')
+    keydown('ArrowUp') // "↺ Histórico"
+    keyup('ArrowUp')
+    keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
     keydown('ArrowRight')
     keyup('ArrowRight')
 
     await waitFor(() => {
-      const titles = document.querySelectorAll('.poster-card-title')
+      const titles = document.querySelectorAll('.content-card-title')
       expect([...titles].map((t) => t.textContent)).toEqual(['B', 'A'])
     })
     expect(document.querySelector('.poster-box.tv-focus')).toBeTruthy()
@@ -335,7 +350,7 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     keyup('Enter')
 
     await waitFor(() => {
-      const titles = document.querySelectorAll('.poster-card-title')
+      const titles = document.querySelectorAll('.content-card-title')
       expect([...titles].map((t) => t.textContent)).toEqual(['A'])
     })
   }, 10000)

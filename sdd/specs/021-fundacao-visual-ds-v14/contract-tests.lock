@@ -1,0 +1,27 @@
+{
+    "feature":  "021-fundacao-visual-ds-v14",
+    "lockedAt":  "2026-09-26 14:43",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/scripts/pacoteTizen.fundacao-visual.contract.test.mjs",
+                      "sha256":  "5ffca376a81f9f9c761ce34070b56a4af7046cc6199fcc67633b3f40abe0b0b8",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/lib/stage.fundacao-visual.contract.test.ts",
+                      "sha256":  "2a41e9925be4c07d40cd56ada9a9a04054a4edcd38c56e414e8fe67417b5af36",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/components/Toast.fundacao-visual.contract.test.tsx",
+                      "sha256":  "1a8c7385813dfb784961851d310b53ec9209d94417ccb8c68f2911b3dfed683b",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/motionPreference.fundacao-visual.contract.test.ts",
+                      "sha256":  "77577ba7b4627cb77db218870217e864c87872d7cad08416c3283fc473c2a487",
+                      "tests":  1
+                  }
+              ]
+}

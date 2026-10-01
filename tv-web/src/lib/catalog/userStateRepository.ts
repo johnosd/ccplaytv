@@ -141,6 +141,25 @@ export async function listWatched(
 }
 
 /**
+ * Estados reproduzidos (com `lastWatched`) de uma fonte e tipo, do mais
+ * recente para o mais antigo — feature 025, "↺ Histórico"
+ * (`logic/historico.md` §2). Pelo índice `lastWatched`, que já existe
+ * (`getContinueWatching` o usa): registro sem `lastWatched` não entra no
+ * índice, então não precisa filtro extra para excluí-lo — só o marcado à
+ * mão via `setWatchedManually` fica de fora (FR-011), porque nunca grava
+ * `lastWatched`.
+ */
+export async function listPlayed(
+  sourceId: string,
+  kind: 'movie' | 'episode',
+  database: CatalogDb = db,
+): Promise<UserStateRecord[]> {
+  const prefix = `${sourceId}|${kind}|`
+  const played = await database.userStates.orderBy('lastWatched').reverse().toArray()
+  return played.filter((state) => state.sourceId === sourceId && state.stableId.startsWith(prefix))
+}
+
+/**
  * Remove TODO o estado do usuário (favoritos e retomada) de uma fonte —
  * chamado ao remover a fonte (feature 013, `plan.md` D-007, FR-017). Uma
  * fonte readicionada ganha `sourceId` novo (UUID), então nada aqui fica
@@ -257,9 +276,13 @@ export async function clearProgress(
 }
 
 /**
- * Marca conclusão real (feature 012, D-007): grava `completedAt`, apaga
+ * Marca conclusão real (feature 012, D-007): grava `completedAt` e apaga
  * `progressSeconds` (mesma limpeza de `clearProgress` — não faz sentido
- * "assistido" e "retomar do meio" coexistirem) e atualiza `lastWatched`.
+ * "assistido" e "retomar do meio" coexistirem). NÃO toca `lastWatched`
+ * (feature 025, R-007): isso é o que mantém FR-011 do "↺ Histórico" —
+ * marcar assistido à mão (`setWatchedManually`, que chama esta função)
+ * nunca pode fazer um item nunca reproduzido aparecer no Histórico, que é
+ * lido por `lastWatched` (`logic/historico.md` §1).
  *
  * Persistente por design: gravar progresso depois (reassistir e sair no
  * meio) não apaga `completedAt` — os dois convivem, o selo continua ligado

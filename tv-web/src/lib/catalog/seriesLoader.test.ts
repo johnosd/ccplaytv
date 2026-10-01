@@ -183,6 +183,37 @@ describe('seriesLoader — ensureSeriesEpisodes (feature 012)', () => {
     expect(episodes.every((e) => e.directUrl === undefined)).toBe(true)
   })
 
+  // Feature 025 (T008, T018): iconUrl/durationSeconds do episódio propagam
+  // do provedor pro registro gravado, mesmo padrão de iconUrl (015).
+  it('propaga duração e imagem do episódio (info.duration_secs/info.movie_image) pro registro gravado', async () => {
+    const seriesRecordId = await seedOnDemandSeries()
+    vi.stubGlobal(
+      'fetch',
+      panelSeriesInfoFetch({
+        '1': [
+          {
+            id: '1001',
+            episode_num: 1,
+            title: 'Piloto',
+            container_extension: 'mp4',
+            info: { duration_secs: '1500', movie_image: 'http://exemplo.test/piloto.png' },
+          },
+          { id: '1002', episode_num: 2, title: 'Segundo', container_extension: 'mp4' },
+        ],
+      }),
+    )
+
+    await ensureSeriesEpisodes(seriesRecordId, { database, now: () => 1000 })
+
+    const episodes = await listEpisodes(SOURCE_ID, '200', database)
+    const piloto = episodes.find((e) => e.name === 'Piloto')
+    const segundo = episodes.find((e) => e.name === 'Segundo')
+    expect(piloto?.durationSeconds).toBe(1500)
+    expect(piloto?.iconUrl).toBe('http://exemplo.test/piloto.png')
+    expect(segundo?.durationSeconds).toBeUndefined()
+    expect(segundo?.iconUrl).toBeUndefined()
+  })
+
   it('série on_demand dentro do prazo (24h) sai fresh, sem tocar a rede', async () => {
     const seriesRecordId = await seedOnDemandSeries()
     vi.stubGlobal('fetch', panelSeriesInfoFetch())

@@ -57,6 +57,12 @@ Invariantes, Estratégia de Testes, Execution Notes acumuladas), `spec.md`
 `AVAILABLE_DOCS` que o script do passo 1 reportou (`research.md`,
 `data-model.md`, `contracts/`, `quickstart.md`, `history.md` se existir).
 
+Se existir `handoff.md` no diretório da feature (escrito pelo `sdd-plan`,
+passo 14), leia-o **primeiro**: ele diz a ordem de leitura, as armadilhas já
+mapeadas e as pendências do Analyze que não ficaram registradas em nenhum
+outro arquivo. Em conflito com `tasks.md`/`plan.md`, estes prevalecem — o
+handoff é o retrato do fim do planejamento, eles são a documentação viva.
+
 Se existir `contract-tests.lock` no diretório da feature, leia os arquivos
 de teste listados nele **antes** do código de produção: eles são a
 definição executável de "pronto" que o `sdd-plan` deixou, e valem mais que
@@ -134,6 +140,19 @@ pra emendar. Uma emenda aprovada:
 
 Nunca regrave a trava sem essa aprovação explícita.
 
+### 5c. QA visual: script automatizado antes de exploração interativa
+
+Quando a fase envolve UI e o comportamento esperado já está coberto por teste
+unitário/de contrato (o DOM/estado esperado já é conhecido), escreva e rode
+o script E2E automatizado deste repositório (`tv-web/e2e/*.mjs` ou
+equivalente) diretamente, em vez de abrir antes uma sessão de navegador
+interativa (Playwright MCP ou similar) só pra "olhar a tela" — isso custa
+tempo e tokens sem agregar confiança que os testes já não dão. Reserve a
+exploração interativa pra dúvida genuinamente visual/UX que nenhum teste
+cobre (um layout novo cujo resultado ninguém verificou ainda, incerteza
+sobre onde exatamente um elemento aparece). Não é proibida — é um recurso pra
+quando sobra dúvida real, não o primeiro passo.
+
 ### 6. Bugs encontrados durante implementação/teste
 
 Cerimônia proporcional ao tamanho do bug — nunca o ciclo completo de
@@ -165,6 +184,11 @@ Cerimônia proporcional ao tamanho do bug — nunca o ciclo completo de
 
 Atualização **obrigatória, não condicional** — isso é o mecanismo estrutural
 que substitui "lembrar de atualizar a doc":
+
+Sempre que as checagens abaixo forem independentes entre si (a trava de
+contrato, um teste estreito de arquivo específico, `tsc`, lint), dispare-as
+numa única leva de chamadas em paralelo em vez de uma de cada vez — mesma
+cobertura, menos idas e vindas.
 
 - Rode `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug <NNN-slug>`.
   Se der `FAIL`, a fase **não** fecha: desfaça a mudança no arquivo de

@@ -17,9 +17,38 @@
  * migraram para este shape na mesma leva de trabalho, então não houve
  * janela de build quebrado a proteger (D-007 do `plan.md` da 018).
  */
-export type SnapshotTrailKey = { kind: 'favorites' } | { kind: 'all' } | { kind: 'category'; name: string }
+/**
+ * `{ kind: 'history' }` (feature 025) — "↺ Histórico", nova entrada da
+ * side nav V14, ao lado de "★ Favoritos"/"Todos". Só leitura (FR-014):
+ * nunca ganha um `entered` de escrita além de abrir o detalhe do item.
+ */
+export type SnapshotTrailKey =
+  | { kind: 'favorites' }
+  | { kind: 'history' }
+  | { kind: 'all' }
+  | { kind: 'category'; name: string }
 
-export type SnapshotEntered = { kind: 'favorites' } | { kind: 'all' } | { kind: 'category'; id: number }
+export type SnapshotEntered =
+  | { kind: 'favorites' }
+  | { kind: 'history' }
+  | { kind: 'all' }
+  | { kind: 'category'; id: number }
+
+/**
+ * Restauração sintética que abre `★ Favoritos` direto, sem precisar de uma
+ * prop nova em `VodCatalogScreen`/`LiveScreen` (feature 026, `logic/
+ * navegacao.md` §1 — "Ver todos (N)"/"Filmes (N)"/"Séries (N)" do Início,
+ * FR-014). `focusedItemId: null` cai no primeiro item resolvido, como
+ * qualquer entrada nova na trilha.
+ */
+export const FAVORITES_SNAPSHOT: CategoryScreenSnapshot = {
+  trailKey: { kind: 'favorites' },
+  entered: { kind: 'favorites' },
+  col: 1,
+  focusedItemId: null,
+  searchTerm: '',
+  searchActive: false,
+}
 
 export interface CategoryScreenSnapshot {
   trailKey: SnapshotTrailKey | null
@@ -30,4 +59,12 @@ export interface CategoryScreenSnapshot {
   searchTerm: string
   /** Se o campo de busca estava aberto (feature 018) ao abrir o item. */
   searchActive: boolean
+  /**
+   * Posição do card de origem na lista exibida no momento (feature 025,
+   * `logic/foco-vod.md` §4). Só dica de vizinho para quando o card não
+   * existir mais ao voltar — NUNCA identidade: a reconciliação continua
+   * sendo por `focusedItemId` primeiro; isto só decide o vizinho quando
+   * esse id já não existe.
+   */
+  focusedIndexHint?: number
 }

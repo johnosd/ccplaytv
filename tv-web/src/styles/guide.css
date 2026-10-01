@@ -1,0 +1,370 @@
+/*
+ * Guia completo de EPG (feature 031, `logic/grade-e-foco.md`): tela cheia,
+ * OPACA (por cima do plano de hardware do AVPlay quando aberta do player —
+ * diferente do scrim translúcido do zapping), com coluna fixa de canais,
+ * linha do tempo em % da janela visível e foco por estado (`.tv-focus` +
+ * `.no-scale`, FR-005). Só tokens de `index.css`; as duas medidas locais
+ * abaixo são "tokens do componente" (espelham constantes de `EpgGuide.tsx`).
+ */
+
+.epg-guide {
+  /* Espelha `GUIDE_ROW_HEIGHT` em EpgGuide.tsx — o virtualizador precisa da mesma altura. */
+  --guide-row-height: 84px;
+  --guide-channel-width: calc(var(--space-7) * 3.75);
+
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--safe-y) var(--safe-x);
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+}
+
+/* Aberto parado: a Live TV troca o conteúdo pelo guia (sem topbar, FR-001). */
+.screen.epg-guide-screen {
+  /* `.screen` já é `absolute; inset: 0` — só tira o respiro, que o próprio `.epg-guide` aplica. */
+  padding: 0;
+}
+
+/* ---------- Barra do topo: título, lista atual, cobertura ---------- */
+
+.epg-guide-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.epg-guide-title {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-h2);
+}
+
+.epg-guide-selector {
+  appearance: none;
+  border: none;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-caption);
+}
+
+.epg-guide-tabs {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.epg-guide-tab {
+  appearance: none;
+  border: none;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-caption);
+}
+
+.epg-guide-tab.is-active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+.epg-guide-coverage {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+/* ---------- Painel de detalhe do bloco focado (FR-006) ---------- */
+
+.epg-guide-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: calc(var(--space-7) * 1.5);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.epg-guide-detail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.epg-guide-detail-now {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: var(--fw-caption);
+}
+
+.epg-guide-detail-title {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-h2);
+}
+
+.epg-guide-detail-description {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.epg-guide-detail-channel {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+/* ---------- Grade ---------- */
+
+.epg-guide-grid {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.epg-guide-header {
+  display: flex;
+  flex: none;
+  height: var(--space-5);
+}
+
+.epg-guide-corner {
+  flex: none;
+  width: var(--guide-channel-width);
+}
+
+.epg-guide-ticks {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.epg-guide-tick {
+  position: absolute;
+  top: 0;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-caption);
+  color: var(--text-secondary);
+}
+
+.epg-guide-body-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.epg-guide-body {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+}
+
+.epg-guide-rows {
+  position: relative;
+  width: 100%;
+}
+
+.epg-guide-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--guide-row-height);
+  display: flex;
+  align-items: stretch;
+}
+
+/* Coluna fixa do canal: número, logo, nome (FR-001). */
+.epg-guide-channel {
+  flex: none;
+  width: var(--guide-channel-width);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+  box-sizing: border-box;
+}
+
+.epg-guide-channel.is-unavailable {
+  opacity: 0.5;
+}
+
+.epg-guide-channel-number {
+  min-width: var(--space-5);
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.epg-guide-channel .poster-box {
+  flex: none;
+  width: var(--space-5);
+  height: var(--space-5);
+  aspect-ratio: auto;
+}
+
+.epg-guide-channel-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-body);
+  font-weight: var(--fw-caption);
+}
+
+.epg-guide-channel-badge {
+  flex: none;
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.epg-guide-timeline {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Bloco de programa: left/width em % da janela visível (inline); o mínimo legível é daqui (edge "programa curto"). */
+.epg-guide-block {
+  appearance: none;
+  position: absolute;
+  top: calc(var(--space-1) / 2);
+  bottom: calc(var(--space-1) / 2);
+  box-sizing: border-box;
+  min-width: var(--space-5);
+  padding: 0 var(--space-1);
+  border: none;
+  border-inline-start: calc(var(--focus-ring-width) / 2) solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-caption);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.epg-guide-block.is-now {
+  background: var(--accent-tint);
+  border-inline-start-color: var(--accent);
+}
+
+.epg-guide-block-tag {
+  font-size: var(--fs-caption);
+  color: var(--accent);
+  font-weight: var(--fw-caption);
+}
+
+/* Programa encerrado: esmaecido, sem ação (FR-003/FR-021). */
+.epg-guide-block.is-past {
+  opacity: 0.5;
+}
+
+/* Canal sem EPG: um bloco só, largura total (FR-007). */
+.epg-guide-block.is-empty {
+  left: 0;
+  width: 100%;
+  color: var(--text-secondary);
+}
+
+/* Linha vertical da hora atual (FR-002). Sobrepõe só a área da linha do tempo. */
+.epg-guide-overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--guide-channel-width);
+  right: 0;
+  pointer-events: none;
+}
+
+.epg-guide-now-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: calc(var(--focus-ring-width) / 2);
+  background: var(--live);
+}
+
+/* ---------- Estados: carregando, erro, vazio, sem programação ---------- */
+
+.epg-guide-state {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.epg-guide-state-title {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-h2);
+}
+
+.epg-guide-state-text {
+  margin: 0;
+  max-width: calc(var(--space-7) * 6);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+/* ---------- Seletor de lista (camada do próprio guia, D-009) ---------- */
+
+.epg-guide-selector-panel {
+  position: absolute;
+  top: calc(var(--safe-y) + var(--space-6));
+  left: var(--safe-x);
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: calc(var(--space-7) * 4);
+  max-height: calc(var(--stage-height) - 2 * var(--safe-y) - var(--space-7));
+  overflow-y: auto;
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  box-shadow: var(--elevation-3);
+}
+
+.epg-guide-selector-entry {
+  appearance: none;
+  border: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-caption);
+  text-align: left;
+}
+
+.epg-guide-selector-entry.is-current {
+  color: var(--accent);
+}

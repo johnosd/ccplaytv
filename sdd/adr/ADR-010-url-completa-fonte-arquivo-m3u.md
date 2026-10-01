@@ -81,6 +81,22 @@ obrigatórias e se aplicam a todos eles:
 "Expor", nesta ADR, significa **permitir guardar no aparelho**. Não
 autoriza mostrar a URL na interface.
 
+**Atualização (feature 030-epg-dados-agora, 2026-09-29):** a exceção passa
+a cobrir também o **endereço XMLTV do EPG de uma fonte**: o informado pela
+pessoa (`SourceRecord.epgManualUrl`) e o `url-tvg`/`x-tvg-url` lido do
+cabeçalho de uma lista M3U (`SourceRecord.epgDeclaredUrl`), que podem
+carregar usuário, senha ou token na query. É a mesma classe de dado que
+esta ADR já permite (a URL da fonte e o conteúdo do arquivo M3U, de onde o
+`url-tvg` vem) e fica sob as mesmas mitigações, obrigatórias. Na prática,
+nesta feature: `SourceView` nunca os expõe (só o **hostname** do endereço
+manual, para a tela dizer "informado por você (host)"); a sincronização de
+EPG nunca registra o erro cru de rede — só uma categoria (`EpgErrorKind`,
+código `EPG-02`), porque a mensagem de um `fetch` que falhou embute o
+endereço; o endereço do painel Xtream (`xmltv.php` com a credencial) **não
+é guardado**: é derivado do registro da fonte na hora, como a URL de
+reprodução; e excluir a fonte apaga a programação e a configuração de EPG.
+Ver `sdd/specs/030-epg-dados-agora/plan.md` (Complexity Tracking, D-011).
+
 ## Alternativas Consideradas
 
 ### Manter a proibição e guardar só o conteúdo sem URL

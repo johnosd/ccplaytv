@@ -1,0 +1,17 @@
+{
+    "feature":  "023-shell-navegacao-entrada-ds-v14",
+    "lockedAt":  "2026-09-26 23:09",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/navigation/appNav.shell-navegacao.contract.test.ts",
+                      "sha256":  "e290893266d25a60762db695f34938eabd999688de7cc7e39d5b0025d28b0236",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/profiles/ProfilesScreen.shell-navegacao.contract.test.tsx",
+                      "sha256":  "5440b082de20fafccd1ba381fb339875a692117945c25d53ab98a84b60492467",
+                      "tests":  3
+                  }
+              ]
+}

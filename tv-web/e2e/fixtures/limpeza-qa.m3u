@@ -1,0 +1,177 @@
+#EXTM3U
+#EXTINF:-1 group-title="Canais Grandes",Canal 01
+http://limpeza-qa.e2e.test/live/canal-01.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 02
+http://limpeza-qa.e2e.test/live/canal-02.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 03
+http://limpeza-qa.e2e.test/live/canal-03.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 04
+http://limpeza-qa.e2e.test/live/canal-04.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 05
+http://limpeza-qa.e2e.test/live/canal-05.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 06
+http://limpeza-qa.e2e.test/live/canal-06.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 07
+http://limpeza-qa.e2e.test/live/canal-07.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 08
+http://limpeza-qa.e2e.test/live/canal-08.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 09
+http://limpeza-qa.e2e.test/live/canal-09.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 10
+http://limpeza-qa.e2e.test/live/canal-10.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 11
+http://limpeza-qa.e2e.test/live/canal-11.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 12
+http://limpeza-qa.e2e.test/live/canal-12.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 13
+http://limpeza-qa.e2e.test/live/canal-13.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 14
+http://limpeza-qa.e2e.test/live/canal-14.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 15
+http://limpeza-qa.e2e.test/live/canal-15.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 16
+http://limpeza-qa.e2e.test/live/canal-16.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 17
+http://limpeza-qa.e2e.test/live/canal-17.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 18
+http://limpeza-qa.e2e.test/live/canal-18.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 19
+http://limpeza-qa.e2e.test/live/canal-19.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 20
+http://limpeza-qa.e2e.test/live/canal-20.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 21
+http://limpeza-qa.e2e.test/live/canal-21.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 22
+http://limpeza-qa.e2e.test/live/canal-22.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 23
+http://limpeza-qa.e2e.test/live/canal-23.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 24
+http://limpeza-qa.e2e.test/live/canal-24.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 25
+http://limpeza-qa.e2e.test/live/canal-25.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 26
+http://limpeza-qa.e2e.test/live/canal-26.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 27
+http://limpeza-qa.e2e.test/live/canal-27.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 28
+http://limpeza-qa.e2e.test/live/canal-28.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 29
+http://limpeza-qa.e2e.test/live/canal-29.ts
+#EXTINF:-1 group-title="Canais Grandes",Canal 30
+http://limpeza-qa.e2e.test/live/canal-30.ts
+#EXTINF:-1 group-title="Grupo 01",Canal Grupo 01
+http://limpeza-qa.e2e.test/live/grupo-01.ts
+#EXTINF:-1 group-title="Grupo 02",Canal Grupo 02
+http://limpeza-qa.e2e.test/live/grupo-02.ts
+#EXTINF:-1 group-title="Grupo 03",Canal Grupo 03
+http://limpeza-qa.e2e.test/live/grupo-03.ts
+#EXTINF:-1 group-title="Grupo 04",Canal Grupo 04
+http://limpeza-qa.e2e.test/live/grupo-04.ts
+#EXTINF:-1 group-title="Grupo 05",Canal Grupo 05
+http://limpeza-qa.e2e.test/live/grupo-05.ts
+#EXTINF:-1 group-title="Grupo 06",Canal Grupo 06
+http://limpeza-qa.e2e.test/live/grupo-06.ts
+#EXTINF:-1 group-title="Grupo 07",Canal Grupo 07
+http://limpeza-qa.e2e.test/live/grupo-07.ts
+#EXTINF:-1 group-title="Grupo 08",Canal Grupo 08
+http://limpeza-qa.e2e.test/live/grupo-08.ts
+#EXTINF:-1 group-title="Grupo 09",Canal Grupo 09
+http://limpeza-qa.e2e.test/live/grupo-09.ts
+#EXTINF:-1 group-title="Filmes",Filme 01
+http://limpeza-qa.e2e.test/vod/filme-01.mp4
+#EXTINF:-1 group-title="Filmes",Filme 02
+http://limpeza-qa.e2e.test/vod/filme-02.mp4
+#EXTINF:-1 group-title="Filmes",Filme 03
+http://limpeza-qa.e2e.test/vod/filme-03.mp4
+#EXTINF:-1 group-title="Filmes",Filme 04
+http://limpeza-qa.e2e.test/vod/filme-04.mp4
+#EXTINF:-1 group-title="Filmes",Filme 05
+http://limpeza-qa.e2e.test/vod/filme-05.mp4
+#EXTINF:-1 group-title="Filmes",Filme 06
+http://limpeza-qa.e2e.test/vod/filme-06.mp4
+#EXTINF:-1 group-title="Filmes",Filme 07
+http://limpeza-qa.e2e.test/vod/filme-07.mp4
+#EXTINF:-1 group-title="Filmes",Filme 08
+http://limpeza-qa.e2e.test/vod/filme-08.mp4
+#EXTINF:-1 group-title="Filmes",Filme 09
+http://limpeza-qa.e2e.test/vod/filme-09.mp4
+#EXTINF:-1 group-title="Filmes",Filme 10
+http://limpeza-qa.e2e.test/vod/filme-10.mp4
+#EXTINF:-1 group-title="Filmes",Filme 11
+http://limpeza-qa.e2e.test/vod/filme-11.mp4
+#EXTINF:-1 group-title="Filmes",Filme 12
+http://limpeza-qa.e2e.test/vod/filme-12.mp4
+#EXTINF:-1 group-title="Filmes",Filme 13
+http://limpeza-qa.e2e.test/vod/filme-13.mp4
+#EXTINF:-1 group-title="Filmes",Filme 14
+http://limpeza-qa.e2e.test/vod/filme-14.mp4
+#EXTINF:-1 group-title="Filmes",Filme 15
+http://limpeza-qa.e2e.test/vod/filme-15.mp4
+#EXTINF:-1 group-title="Filmes",Filme 16
+http://limpeza-qa.e2e.test/vod/filme-16.mp4
+#EXTINF:-1 group-title="Filmes",Filme 17
+http://limpeza-qa.e2e.test/vod/filme-17.mp4
+#EXTINF:-1 group-title="Filmes",Filme 18
+http://limpeza-qa.e2e.test/vod/filme-18.mp4
+#EXTINF:-1 group-title="Filmes",Filme 19
+http://limpeza-qa.e2e.test/vod/filme-19.mp4
+#EXTINF:-1 group-title="Filmes",Filme 20
+http://limpeza-qa.e2e.test/vod/filme-20.mp4
+#EXTINF:-1 group-title="Filmes",Filme 21
+http://limpeza-qa.e2e.test/vod/filme-21.mp4
+#EXTINF:-1 group-title="Filmes",Filme 22
+http://limpeza-qa.e2e.test/vod/filme-22.mp4
+#EXTINF:-1 group-title="Filmes",Filme 23
+http://limpeza-qa.e2e.test/vod/filme-23.mp4
+#EXTINF:-1 group-title="Filmes",Filme 24
+http://limpeza-qa.e2e.test/vod/filme-24.mp4
+#EXTINF:-1 group-title="Filmes",Filme 25
+http://limpeza-qa.e2e.test/vod/filme-25.mp4
+#EXTINF:-1 group-title="Filmes",Filme 26
+http://limpeza-qa.e2e.test/vod/filme-26.mp4
+#EXTINF:-1 group-title="Filmes",Filme 27
+http://limpeza-qa.e2e.test/vod/filme-27.mp4
+#EXTINF:-1 group-title="Filmes",Filme 28
+http://limpeza-qa.e2e.test/vod/filme-28.mp4
+#EXTINF:-1 group-title="Filmes",Filme 29
+http://limpeza-qa.e2e.test/vod/filme-29.mp4
+#EXTINF:-1 group-title="Filmes",Filme 30
+http://limpeza-qa.e2e.test/vod/filme-30.mp4
+#EXTINF:-1 group-title="Series",Serie Exemplo S01E01
+http://limpeza-qa.e2e.test/series/s01e01.mp4
+#EXTINF:-1 group-title="Series",Serie Exemplo S01E02
+http://limpeza-qa.e2e.test/series/s01e02.mp4
+#EXTINF:-1 group-title="Series",Serie Exemplo S01E03
+http://limpeza-qa.e2e.test/series/s01e03.mp4
+#EXTINF:-1 group-title="Series",Serie Exemplo S01E04
+http://limpeza-qa.e2e.test/series/s01e04.mp4
+#EXTINF:-1 group-title="Series",Serie Exemplo S01E05
+http://limpeza-qa.e2e.test/series/s01e05.mp4
+#EXTINF:-1 group-title="Series",Serie Exemplo S01E06
+http://limpeza-qa.e2e.test/series/s01e06.mp4
+#EXTINF:-1 group-title="Series",Serie Exemplo S02E01
+http://limpeza-qa.e2e.test/series/s02e01.mp4
+#EXTINF:-1 group-title="Series",Serie Exemplo S02E02
+http://limpeza-qa.e2e.test/series/s02e02.mp4
+#EXTINF:-1 group-title="Series",Serie Exemplo S02E03
+http://limpeza-qa.e2e.test/series/s02e03.mp4
+#EXTINF:-1 group-title="Series",Serie Exemplo S02E04
+http://limpeza-qa.e2e.test/series/s02e04.mp4
+#EXTINF:-1 group-title="Filmes Grupo 01",Filme Grupo 01
+http://limpeza-qa.e2e.test/vod/filme-grupo-01.mp4
+#EXTINF:-1 group-title="Filmes Grupo 02",Filme Grupo 02
+http://limpeza-qa.e2e.test/vod/filme-grupo-02.mp4
+#EXTINF:-1 group-title="Filmes Grupo 03",Filme Grupo 03
+http://limpeza-qa.e2e.test/vod/filme-grupo-03.mp4
+#EXTINF:-1 group-title="Filmes Grupo 04",Filme Grupo 04
+http://limpeza-qa.e2e.test/vod/filme-grupo-04.mp4
+#EXTINF:-1 group-title="Filmes Grupo 05",Filme Grupo 05
+http://limpeza-qa.e2e.test/vod/filme-grupo-05.mp4
+#EXTINF:-1 group-title="Filmes Grupo 06",Filme Grupo 06
+http://limpeza-qa.e2e.test/vod/filme-grupo-06.mp4
+#EXTINF:-1 group-title="Filmes Grupo 07",Filme Grupo 07
+http://limpeza-qa.e2e.test/vod/filme-grupo-07.mp4
+#EXTINF:-1 group-title="Filmes Grupo 08",Filme Grupo 08
+http://limpeza-qa.e2e.test/vod/filme-grupo-08.mp4
+#EXTINF:-1 group-title="Filmes Grupo 09",Filme Grupo 09
+http://limpeza-qa.e2e.test/vod/filme-grupo-09.mp4

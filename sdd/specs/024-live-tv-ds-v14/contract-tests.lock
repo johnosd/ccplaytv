@@ -1,0 +1,27 @@
+{
+    "feature":  "024-live-tv-ds-v14",
+    "lockedAt":  "2026-09-27 07:47",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/features/live/channelNumber.live-tv-ds-v14.contract.test.ts",
+                      "sha256":  "de835e7ee95e9e86a0ad596dce43ddc04b119a2f587ec69e8a09b1bebdf5b75d",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/navigation/appNav.live-tv-ds-v14.contract.test.ts",
+                      "sha256":  "4cade2270e1b6b528ffd06c60a8bc0203c1defbd7a5e33480c33438cf46a4605",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/live/LiveScreen.live-tv-ds-v14.contract.test.tsx",
+                      "sha256":  "38a2df4f745e907cbf2e15101d2386eeeafdcda7f4f75827f57462bed53a9162",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/channelLogo.live-tv-ds-v14.contract.test.ts",
+                      "sha256":  "7325e72d7ecf914a8d0a3ebc5110726bee2ea662b58401692982da02275234ae",
+                      "tests":  1
+                  }
+              ]
+}

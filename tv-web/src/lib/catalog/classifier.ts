@@ -30,8 +30,34 @@ export interface ClassifiedEntry {
   streamExtension?: string
   providerStreamId?: string
   providerCategoryId?: string
-  /** Capa declarada pela fonte (feature 015, D-002 do plan.md) — nunca para `kind: 'channel'` (FR-009). */
+  /**
+   * Capa/logo declarada pela fonte. Feature 015 (D-002 do plan.md): filme,
+   * série e episódio. Feature 024 (R-003, spec Clarifications): também
+   * canal — inverte a exclusão original da 015, que era de escopo, não
+   * técnica (logo de canal é o mesmo dado, `tvg-logo`, com os mesmos
+   * riscos já resolvidos por `normalizeIconUrl`).
+   */
   iconUrl?: string
+  /**
+   * Ano declarado pela fonte em campo próprio (feature 025, FR-049/FR-050) —
+   * filme e série do provedor. Nunca inferido do título. `undefined` =
+   * ausente, ilegível ou fora de faixa plausível (`logic/metadados-vod.md`).
+   */
+  year?: number
+  /**
+   * Instante (epoch ms) em que a fonte declara ter incluído o item (feature
+   * 025) — `added` do provedor, só para filme. `last_modified` nunca vira
+   * isto (é atualização, não inclusão).
+   */
+  addedAt?: number
+  /** Duração declarada pela fonte, em segundos (feature 025) — só episódio do provedor. */
+  durationSeconds?: number
+  /**
+   * Id de EPG declarado pela fonte (feature 030): `epg_channel_id` (Xtream)
+   * ou `tvg-id` (M3U). Só faz sentido em `kind: 'channel'`; quem grava
+   * descarta nos demais tipos.
+   */
+  epgChannelId?: string
 }
 
 /**
@@ -54,6 +80,73 @@ export function normalizeIconUrl(raw: unknown): string | undefined {
   }
 }
 
+/**
+ * Id de EPG declarado pela fonte para um canal (feature 030, FR-006):
+ * `epg_channel_id` (Xtream) ou `tvg-id` (M3U). String com `trim()` não vazia,
+ * senão ausente — nunca derivado do nome (FR-008). Não é URL: sem validação
+ * de forma além de não ser vazio.
+ */
+export function normalizeEpgChannelId(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined
+  const trimmed = raw.trim()
+  return trimmed === '' ? undefined : trimmed
+}
+
+const YEAR_DATE_PATTERN =/^(\d{4})(-\d{2}(-\d{2})?)?$/
+
+/**
+ * Ano de 4 dígitos entre 1888 (primeiro filme conhecido) e o ano corrente
+ * mais 1 (lançamento anunciado). Aceita número, `"2019"` ou uma data
+ * `"2019-06-01"`/`"2019"` — nunca procura um ano dentro de texto livre
+ * (feature 025, FR-050, `logic/metadados-vod.md` §1).
+ */
+export function normalizeYear(raw: unknown, now: number = Date.now()): number | undefined {
+  if (typeof raw !== 'number' && typeof raw !== 'string') return undefined
+  const text = String(raw).trim()
+  const match = YEAR_DATE_PATTERN.exec(text)
+  if (!match) return undefined
+  const year = Number(match[1])
+  const maxYear = new Date(now).getUTCFullYear() + 1
+  if (year < 1888 || year > maxYear) return undefined
+  return year
+}
+
+const MIN_ADDED_AT_MS = new Date('2000-01-01T00:00:00Z').getTime()
+const DIGITS_PATTERN = /^\d+$/
+
+/**
+ * Epoch em segundos (número ou string só de dígitos) convertido para epoch
+ * em ms. Entre 2000-01-01 e agora + 1 dia — fora dessa faixa, texto,
+ * negativo ou `"0"` viram ausência (feature 025, `logic/metadados-vod.md` §1).
+ */
+export function normalizeAddedAt(raw: unknown, now: number = Date.now()): number | undefined {
+  if (typeof raw !== 'number' && typeof raw !== 'string') return undefined
+  const text = String(raw).trim()
+  if (!DIGITS_PATTERN.test(text)) return undefined
+  const seconds = Number(text)
+  if (!Number.isFinite(seconds)) return undefined
+  const ms = seconds * 1000
+  const maxMs = now + 24 * 60 * 60 * 1000
+  if (ms < MIN_ADDED_AT_MS || ms > maxMs) return undefined
+  return ms
+}
+
+const MAX_DURATION_SECONDS = 24 * 60 * 60
+
+/**
+ * Segundos inteiros positivos e menores que 24h. Aceita número ou string de
+ * dígitos — a conversão de `"HH:MM:SS"` acontece antes de chegar aqui
+ * (feature 025, `logic/metadados-vod.md` §1).
+ */
+export function normalizeDurationSeconds(raw: unknown): number | undefined {
+  if (typeof raw !== 'number' && typeof raw !== 'string') return undefined
+  const text = String(raw).trim()
+  if (!DIGITS_PATTERN.test(text)) return undefined
+  const seconds = Number(text)
+  if (!Number.isFinite(seconds) || seconds <= 0 || seconds >= MAX_DURATION_SECONDS) return undefined
+  return seconds
+}
+
 const EPISODE_PATTERN = /^(?<base>.*?)[\s._-]*S(?<season>\d{1,2})\s*E(?<episode>\d{1,3})\b.*$/i
 
 const MOVIE_KEYWORDS = ['filme', 'filmes', 'movie', 'movies', 'vod']
@@ -70,9 +163,9 @@ function groupKeywordKind(group: string | undefined): CatalogItemKind | undefine
 }
 
 export function classifyEntry(entry: ParsedEntry): ClassifiedEntry {
-  // Feature 015 (D-001/FR-002/FR-008): nunca para canal (FR-009) — só
-  // episódio (pra a série sintética herdar, D-003 de m3uSeriesGrouping.ts)
-  // e filme/série capturam.
+  // Feature 015 (D-001/FR-002/FR-008): episódio (pra a série sintética
+  // herdar, D-003 de m3uSeriesGrouping.ts), filme e série capturam.
+  // Feature 024 (R-003): canal também captura, desde aqui.
   const iconUrl = normalizeIconUrl(entry.attributes['tvg-logo'])
 
   const episodeMatch = EPISODE_PATTERN.exec(entry.name.trim())
@@ -100,7 +193,11 @@ export function classifyEntry(entry: ParsedEntry): ClassifiedEntry {
       originalName: entry.name,
       group: entry.group,
       url: entry.url,
-      iconUrl: byGroup === 'channel' ? undefined : iconUrl,
+      iconUrl,
+      // Feature 030: só canal carrega o id de EPG (o Modo limitado pode
+      // refinar o tipo pela URL depois, ver `refineFromUrl` — quem grava
+      // filtra por `kind === 'channel'`).
+      epgChannelId: normalizeEpgChannelId(entry.attributes['tvg-id']),
     }
   }
 

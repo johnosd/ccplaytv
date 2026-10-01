@@ -1,0 +1,268 @@
+/**
+ * Live TV — Design System V14 (feature 024, Onda 3, T022 do plan.md).
+ *
+ * Consolida aqui todo o CSS específico da tela (antes espalhado no antigo
+ * `features/screens.css`, eliminado na feature 028).
+ * Só tokens de `index.css` — nenhuma cor/raio/espaçamento literal (D-010).
+ * Importado depois de `components.css` e antes de `shared.css`.
+ */
+
+.live-screen {
+  gap: var(--space-4);
+}
+
+/* ---------- Cabeçalho (FR-006) ---------- */
+
+.live-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.live-header .screen-title {
+  margin-bottom: 0;
+}
+
+.live-header-chips {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Chip informativo (nome da entrada aberta, contagem) — nunca alterna
+   seleção aqui, só exibe (FR-006). */
+.live-header-chips .chip {
+  cursor: default;
+}
+
+/* ---------- 3 colunas (§25) ---------- */
+
+.live-body {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-4);
+  min-height: 0;
+}
+
+/* `.live-column`/`.live-column-groups`/`.live-column-title`,
+   `.category-title-row`, `.search-icon-button`, `.search-field`,
+   `.search-status` são compartilhados com Filmes/Séries (feature
+   010/018, ainda não migradas) — ficam em `styles/shared.css`, não aqui.
+   `.search-coverage` cada tela tem a sua própria (Busca global, feature
+   026, tem regra própria em `search.css`; esta tela usa a cor genérica de
+   `shared.css`). Só o que é exclusivo da Live vive neste arquivo. */
+
+.live-column-channels {
+  width: 400px;
+}
+
+/* Rótulo de categoria em cada resultado de "Todos" (FR-011) — só existe em
+   modo busca/agregado, nunca na navegação normal por categoria (que já
+   mostra isso no cabeçalho). */
+.live-item-group {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+  flex: none;
+  margin-left: var(--space-1);
+}
+
+/* ---------- Estados de borda (loading/erro/vazio) ---------- */
+
+.live-state-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+/* `.live-state`/`.live-state-title`/`.live-state-copy` (o estado "resultado
+   de busca vazio", que a Live não trocou por `ErrorState`/`EmptyState` de
+   propósito — o campo continua com foco DOM real ali) e
+   `.live-truncated-note` também são compartilhados — em `shared.css`. */
+
+/* ---------- Painel de canais virtualizado (feature 009) ----------
+   Só o painel de conteúdo (col 1) vira lista de janela deslizante; a
+   trilha de categorias (.live-column-groups) continua em fluxo normal
+   (D-004 da feature 010). */
+
+.live-channel-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.live-channel-list-inner {
+  position: relative;
+  width: 100%;
+}
+
+/* Linha de canal (feature 024, D-007/D-008): envolve `<ChannelRow>` —
+   `.tv-focus` e o clique/posição absoluta ficam aqui, o conteúdo visual
+   vem do componente. Altura fixa: soma com o espaçamento entre linhas dá
+   `LIVE_ITEM_ROW_HEIGHT` (`LiveScreen.tsx`). */
+.live-channel-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: default;
+}
+
+.live-channel-row .channel-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.live-channel-row.tv-focus {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Slot de "Agora" (EPG). Reservado sem rótulo: exibir "Agora:" vazio
+   pareceria defeito, e inventar dado é proibido. Fonte de dados no item 42. */
+.live-channel-now {
+  min-height: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* "Agora" / "A seguir" do preview (feature 030, FR-025). Só existe com dado
+   real; a sinopse é limitada a 3 linhas. Só tokens. */
+.live-epg-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 420px;
+}
+
+.live-epg-label {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.live-epg-title {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.live-epg-time {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.live-epg-progress {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.live-epg-progress-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  background: var(--accent);
+}
+
+.live-epg-description {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* ---------- Painel de preview, sem vídeo (feature 024, §25) ---------- */
+
+.live-preview-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.live-preview-panel .poster-box {
+  width: 220px;
+  aspect-ratio: 1;
+  align-self: flex-start;
+}
+
+.live-channel-name {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.live-channel-number {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.live-channel-meta {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.live-preview-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  max-width: 420px;
+}
+
+.live-preview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.live-preview-action {
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.live-preview-action.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- Zapping (feature 016) — 2 colunas, sem preview, sem topbar ---------- */
+
+.player-zap-columns {
+  position: absolute;
+  inset: 0;
+  padding: var(--safe-y) var(--safe-x);
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-4);
+}

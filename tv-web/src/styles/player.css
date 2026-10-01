@@ -1,0 +1,407 @@
+/**
+ * Camada de reprodução (`PlayerLayer`) + chrome V14 (feature 027,
+ * `logic/chrome-player.md`). Importado em `main.tsx` no mesmo lugar em que
+ * `features/screens.css` estava antes de ser eliminado (feature 028,
+ * D-012 do plan.md da 027 + T028 do plan.md da 028) — as regras do plano
+ * de hardware (abaixo) são as mesmas de sempre, só de arquivo novo. Só
+ * tokens V14, nenhuma cor/raio/tamanho literal (exceto onde já eram
+ * literais antes da 028 e a migração não pediu para tokenizar).
+ */
+
+/* ---------- Camada (`.player-overlay`) e plano de hardware ---------- */
+
+.player-overlay {
+  position: absolute;
+  inset: 0;
+  /* Preto opaco, não translúcido: um fundo com blur/transparência parcial
+     custa caro no engine da TV (ADR-007 §8). Vale enquanto não há vídeo na
+     tela — preparando, carregando a URL, erro. */
+  background: var(--player-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+
+/* Com o AVPlay exibindo, o preto sai de cena: o vídeo está num plano de
+   hardware ATRÁS desta camada, e fundo opaco aqui é o que fazia o canal tocar
+   sem imagem (bug `live-tv-toca-audio-sem-imagem`). O texto de status e a tela
+   de erro continuam desenhando normalmente por cima do vídeo. */
+:root.video-plane-visible .player-overlay {
+  background: transparent;
+}
+
+/* Liberar só o fundo da camada não basta: as colunas de grupos e canais e o
+   painel de informação são IRMÃOS do overlay e continuam pintando sobre o
+   plano de hardware — na TV o canal toca atrás da lista, que é o que o
+   usuário vê. Enquanto há vídeo, a tela por baixo para de desenhar; ao sair
+   da reprodução a classe some e tudo volta, com foco e rolagem preservados
+   (`visibility` não remonta nada, ao contrário de `display: none`).
+   No navegador de desenvolvimento a regra nunca vale: lá o `<video>` é nó do
+   DOM e a classe não é aplicada.
+
+   Feature 011: PlayerLayer passou a ser consumido também por
+   MovieDetailScreen, cuja raiz era `.movie-detail-layout`, não `.screen` —
+   achado na TV física (verificação da Fase 6): o backdrop com gradiente
+   opaco do detalhe do filme vazava atrás do vídeo, exatamente a mesma causa
+   do bug `live-tv-toca-audio-sem-imagem`, só que num container que a regra
+   original não cobria. Corrigido então listando o seletor explicitamente,
+   no mesmo padrão já comprovado, em vez de introduzir `:has()` (suportado
+   no Chromium 108, mas não testado neste projeto) no meio de uma sessão de
+   depuração ao vivo. A feature 025 (Onda 4) removeu a raiz própria —
+   `MovieDetailScreen`/`SeriesDetailScreen` agora usam `.screen.vod-detail`,
+   cobertos pela regra genérica abaixo — então a listagem extra saiu; a
+   próxima tela que hospedar `PlayerLayer` com uma raiz que não seja
+   `.screen` precisa somá-la aqui de novo. */
+:root.video-plane-visible .screen > *:not(.player-overlay) {
+  visibility: hidden;
+}
+
+.player-surface {
+  position: absolute;
+  inset: 0;
+}
+
+.player-surface .player-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.player-status {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.player-status-channel {
+  font: 700 34px var(--font-body);
+  color: var(--text-primary);
+}
+
+.player-status-label {
+  font: 500 20px var(--font-body);
+  color: var(--text-tertiary);
+}
+
+.player-message {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 760px;
+  text-align: center;
+}
+
+.player-message-title {
+  font: 700 34px var(--font-body);
+  color: var(--text-primary);
+}
+
+.player-message-copy {
+  font: 500 20px var(--font-body);
+  color: var(--text-tertiary);
+}
+
+.player-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.player-action {
+  padding: 16px 36px;
+  border-radius: 999px;
+  background: var(--surface-field-active);
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 19px;
+}
+
+.player-action.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.player-zap-scrim {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  background: var(--player-zap-scrim);
+}
+
+/* ---------- Identidade (VOD: título/subtítulo | Live: faixa) ---------- */
+
+.player-chrome-identity {
+  position: absolute;
+  top: 64px;
+  left: 64px;
+  right: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.player-chrome-title {
+  font: 700 34px var(--font-body);
+  color: var(--text-primary);
+}
+
+.player-chrome-subtitle {
+  font: 500 20px var(--font-body);
+  color: var(--text-tertiary);
+}
+
+/* Faixa do canal (US2, FR-009/FR-034): nenhum <button> aqui de propósito —
+   é o nível "band", sem controle focado (Complexity Tracking do plan.md). */
+.player-chrome-band {
+  position: absolute;
+  top: 64px;
+  left: 64px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.player-chrome-live-badge {
+  padding: 6px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 700 15px var(--font-body);
+  letter-spacing: 0.04em;
+}
+
+.player-chrome-number {
+  min-width: 56px;
+  font: 700 28px var(--font-body);
+  color: var(--text-secondary);
+}
+
+.player-chrome-band .poster-box {
+  width: 72px;
+  height: 72px;
+  aspect-ratio: auto;
+  border-radius: var(--radius-sm);
+}
+
+.player-chrome-name {
+  font: 700 28px var(--font-body);
+  color: var(--text-primary);
+}
+
+/* Programa atual do canal na faixa (feature 030, FR-026). Sem `now`, o
+   invólucro tem um filho só — a faixa fica como era. */
+.player-chrome-band-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.player-chrome-now {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 560px;
+}
+
+.player-chrome-now-title {
+  font: 500 20px var(--font-body);
+  color: var(--text-secondary);
+}
+
+.player-chrome-now-progress {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-field-active);
+  overflow: hidden;
+}
+
+.player-chrome-now-progress-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  background: var(--accent);
+}
+
+/* ---------- Timeline (VOD apenas, FR-008) ---------- */
+
+.player-chrome-time {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 168px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 64px;
+  font: 600 20px var(--font-body);
+  color: var(--text-secondary);
+}
+
+.player-chrome-time-bar {
+  width: 640px;
+  max-width: 50%;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-field-active);
+  overflow: hidden;
+}
+
+.player-chrome-time-bar-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+/* ---------- Linha de controles (VOD "full" | Live "row", FR-034) ---------- */
+
+.player-chrome-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 0 64px;
+}
+
+.player-chrome-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 24px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-field-active);
+  color: var(--text-secondary);
+  font: 700 15px var(--font-body);
+  white-space: nowrap;
+  --icon-size: 22px;
+}
+
+.player-chrome-button.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* `.is-soft-disabled` (utilitário global, feature 021) já cobre opacidade e
+   foco — nada específico do chrome precisa duplicar essa receita. */
+
+/* ---------- Legenda embutida desenhada pelo app (feature 029, D-004) ---------- */
+
+/* Estilo FIXO e legível; aparência configurável é o item 56. Fica dentro da
+   área segura, centralizada, e sobe quando a linha do chrome está visível. */
+.player-subtitle {
+  position: absolute;
+  left: var(--safe-x);
+  right: var(--safe-x);
+  bottom: var(--safe-y);
+  text-align: center;
+  font: 600 var(--fs-body-lg) / 1.35 var(--font-body);
+  color: var(--text-primary);
+  text-shadow: 0 2px 4px var(--player-backdrop);
+  pointer-events: none;
+}
+
+.player-subtitle-text {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--subtitle-bg);
+  /* Cada linha quebrada leva o próprio fundo, sem um bloco só cobrindo tudo. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.player-subtitle--raised {
+  /* Acima da timeline (bottom: 168px) do chrome VOD com folga. */
+  bottom: calc(168px + var(--space-6));
+}
+
+/* ---------- Painéis "Áudio e legendas" e "Info do stream" (feature 029) ---------- */
+
+.player-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 560px;
+}
+
+.player-panel-heading {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-annotation);
+}
+
+.player-panel-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.player-panel-note {
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.player-panel-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-field-active);
+  color: var(--text-secondary);
+  font: 600 var(--fs-body) var(--font-body);
+  text-align: left;
+}
+
+.player-panel-row.is-selected {
+  color: var(--text-primary);
+}
+
+.player-panel-row.tv-focus {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.player-panel-row-mark {
+  min-width: var(--space-3);
+  text-align: center;
+}
+
+.player-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-3);
+}
+
+.player-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--fs-body);
+}
+
+.player-info-row dt {
+  color: var(--text-secondary);
+}
+
+.player-info-row dd {
+  margin: 0;
+  font-weight: 700;
+  color: var(--text-primary);
+}

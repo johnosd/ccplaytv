@@ -1,0 +1,309 @@
+/*
+ * Tela de listas "Selecione ou Adicione sua lista" (feature 023, redesenhada
+ * na feature 037 no formato do `profiles()` do protótipo V13.2): marca,
+ * kicker, título, fileira centralizada de cartões verticais, cartão-botão
+ * "Adicionar lista", rodapé e "Configurações" no canto.
+ * Só tokens de `index.css`. Os NOMES de classe `.source-card`,
+ * `.source-card-wrap`, `.source-card-badge` e `.add-card` são mantidos de
+ * propósito (D-006 da 023, D-002 da 037): os scripts E2E os usam como
+ * seletores. As regras compartilhadas com a tela de progresso
+ * (`.onboarding-*` em `onboarding.css`) só são ajustadas aqui por seletor
+ * escopado em `.profiles-screen` (D-012 da 037).
+ */
+
+/* Geometria única do cartão — compartilhada com os esqueletos de carregamento
+   (`Skeleton` recebe estas variáveis), para o card real e o placeholder terem
+   exatamente as mesmas dimensões. 240 × 272 px, como o protótipo (220 × 270). */
+.profiles-screen {
+  --profile-card-width: calc(var(--space-7) * 2 + var(--space-5));
+  --profile-card-height: calc(var(--space-7) * 2 + var(--space-6) + var(--space-2));
+  --profile-avatar-size: calc(var(--space-7) + var(--space-2));
+
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* ---------- Cabeçalho ---------- */
+
+.profiles-screen .onboarding-brand {
+  justify-content: center;
+  margin-bottom: var(--space-4);
+}
+
+.profiles-screen .onboarding-kicker {
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.profiles-screen .onboarding-title {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-display);
+  line-height: 1;
+}
+
+.profiles-screen .onboarding-subtitle {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-body);
+}
+
+/* ---------- Fileira de cartões ---------- */
+
+/* Uma linha só, centralizada; rola acompanhando o foco (`scrollIntoView`),
+   sem barra (FR-010). Centraliza por `margin: auto` nas pontas, não por
+   `justify-content: center`: com mais cartões do que cabem, `center`
+   empurraria o início da fileira para fora do alcance da rolagem (e o
+   `safe center` só existe a partir do Chromium 115; o piso do build é 108).
+   O padding dá folga ao glow e à escala do foco (ADR-007) — sem ele o
+   `overflow` cortaria o contorno do primeiro e do último cartão. */
+.source-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: var(--space-5);
+  padding: var(--space-3);
+  overflow-x: hidden;
+  scroll-padding-inline: var(--space-3);
+}
+
+.source-row > :first-child {
+  margin-left: auto;
+}
+
+.source-row > :last-child {
+  margin-right: auto;
+}
+
+.source-card-wrap,
+.profiles-skeleton-wrap {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.profiles-skeleton-wrap .skeleton {
+  border-radius: var(--radius-lg);
+}
+
+/* Cartão de lista e "Adicionar lista" são `<button>` para o clique de mouse e
+   o nome acessível; o foco é de estado (`.tv-focus`, ADR-009). */
+.source-card,
+.add-card {
+  appearance: none;
+  width: var(--profile-card-width);
+  height: var(--profile-card-height);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-lg);
+  color: inherit;
+  font-family: var(--font-body);
+  text-align: center;
+  cursor: pointer;
+}
+
+.source-card {
+  gap: var(--space-2);
+  border: 1px solid var(--bg-elevated);
+  background: var(--bg-surface);
+}
+
+.source-card.tv-focus {
+  background: var(--bg-elevated);
+}
+
+/* Cartão de onde se desceu às ações: continua marcado sem repetir a receita de
+   foco (que passa para a ação em foco). */
+.source-card.is-current:not(.tv-focus) {
+  border-color: var(--accent-tint-border);
+}
+
+/* Selo do tipo no topo (FR-005): "Xtream"/"M3U", caixa alta por CSS. */
+.source-card-kind {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  font-weight: 800;
+  font-size: var(--fs-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.source-card.tv-focus .source-card-kind {
+  background: var(--bg-hover);
+}
+
+/* Avatar de iniciais: identidade da lista, então gradiente de marca (ADR-007),
+   num dos 6 pares estáveis por id (`listAvatarVariant`, D-003). Iniciais em
+   tinta escura — `--brand-3` é amarelo, branco não teria contraste. */
+.source-card-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--profile-avatar-size);
+  height: var(--profile-avatar-size);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--avatar-from), var(--avatar-to));
+  box-shadow: var(--elevation-1);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-h1);
+  color: var(--bg-base);
+}
+
+.list-avatar--0 { --avatar-from: var(--list-avatar-0-from); --avatar-to: var(--list-avatar-0-to); }
+.list-avatar--1 { --avatar-from: var(--list-avatar-1-from); --avatar-to: var(--list-avatar-1-to); }
+.list-avatar--2 { --avatar-from: var(--list-avatar-2-from); --avatar-to: var(--list-avatar-2-to); }
+.list-avatar--3 { --avatar-from: var(--list-avatar-3-from); --avatar-to: var(--list-avatar-3-to); }
+.list-avatar--4 { --avatar-from: var(--list-avatar-4-from); --avatar-to: var(--list-avatar-4-to); }
+.list-avatar--5 { --avatar-from: var(--list-avatar-5-from); --avatar-to: var(--list-avatar-5-to); }
+
+.source-card-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+/* Linha compacta de avisos abaixo do nome (FR-006) — é aqui que entram os
+   chips de estado da conta da feature 034 (R-001 da 037). */
+.source-card-notices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(var(--space-1) / 2);
+  max-width: 100%;
+}
+
+/* Selos discretos: estado normal, não erro (feature 004, D-008) — pastilha com
+   texto, nunca só cor. */
+.source-card-badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--accent-tint-border);
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+/* A linha de ações (FR-009) é mais larga que o cartão: fica centrada sob ele,
+   transbordando para os lados, sem alargar o `.source-card-wrap` — senão a
+   fileira centralizada inteira se deslocaria ao abrir as ações. */
+.source-card-wrap {
+  width: var(--profile-card-width);
+}
+
+.source-actions {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+  width: max-content;
+}
+
+/* ---------- Cartão-botão "Adicionar lista" (FR-007, D-005) ---------- */
+
+.add-card {
+  gap: var(--space-3);
+  border: 2px dashed var(--accent-tint-border);
+  background: transparent;
+}
+
+.add-card-circle {
+  --icon-size: var(--fs-h1);
+
+  display: grid;
+  place-items: center;
+  width: calc(var(--space-7) - var(--space-2));
+  height: calc(var(--space-7) - var(--space-2));
+  border: 2px solid var(--accent-tint-border);
+  border-radius: 50%;
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.add-card-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+.add-card-cta {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  font-weight: 800;
+  font-size: var(--fs-caption);
+  color: var(--accent-ink);
+}
+
+/* Em foco: contorno contínuo e círculo preenchido na cor de destaque. */
+.add-card.tv-focus {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.add-card.tv-focus .add-card-circle {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- Rodapé e canto ---------- */
+
+.profiles-foot-note {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+/* "Configurações" (feature 026, FR-032; canto desde a 037, D-006) —
+   alcançado por BAIXO a partir de "Adicionar lista"; abre Configurações ›
+   Fontes IPTV sem lista ativa. Canto inferior direito da safe zone. */
+.profiles-settings-corner {
+  --icon-size: var(--fs-body);
+
+  appearance: none;
+  position: absolute;
+  right: var(--safe-x);
+  bottom: var(--safe-y);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--bg-hover);
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.profiles-settings-corner.tv-focus {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}

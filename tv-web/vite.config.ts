@@ -1,9 +1,27 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
+
+// Versão exibida em Configurações › Sobre (feature 026, D-012) vem do mesmo
+// pacote que é instalado na TV — nunca uma constante duplicada que poderia
+// divergir dele. Falha explícita aqui é melhor que uma versão inventada.
+const configXmlPath = fileURLToPath(new URL('../CCPlayTv/config.xml', import.meta.url))
+const configXml = readFileSync(configXmlPath, 'utf-8')
+const widgetVersionMatch = configXml.match(/<widget\b[^>]*\bversion="([^"]+)"/)
+if (!widgetVersionMatch) {
+  throw new Error(
+    `vite.config.ts: não encontrei version="…" no elemento <widget> de ${configXmlPath} — build interrompido (D-012 da feature 026, nunca uma versão inventada).`,
+  )
+}
+const appVersion = widgetVersionMatch[1]
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   // Caminhos relativos: o pacote Tizen (.wgt) não é servido a partir de uma
   // raiz de domínio convencional.
   base: './',

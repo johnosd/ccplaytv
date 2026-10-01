@@ -16,9 +16,9 @@ export type SearchableKind = 'channel' | 'movie' | 'series'
 export const SEARCH_MIN_CHARS = 3
 
 export interface SearchIndexEntry {
-  record: CatalogRecord
-  /** `normalizeForSearch(record.name)`, calculado uma vez ao montar o índice. */
-  normalizedName: string
+  readonly record: CatalogRecord
+  /** `normalizeForSearch(record.name)`, calculado uma vez, na primeira leitura. */
+  readonly normalizedName: string
 }
 
 export interface SearchIndex {
@@ -39,13 +39,31 @@ export function normalizeForSearch(text: string): string {
     .replace(/\s+/g, ' ')
 }
 
+/**
+ * Entrada do índice com o nome normalizado calculado **só quando lido**
+ * (feature 039, T018): "Todos" monta o índice de um tipo inteiro (31 mil
+ * filmes na lista de referência) e nunca lê este campo — normalizar tudo de
+ * saída custava ~150 ms com CPU 4×. Mesmo formato de `SearchIndexEntry`.
+ */
+class LazySearchIndexEntry implements SearchIndexEntry {
+  readonly record: CatalogRecord
+  private normalized: string | undefined
+  constructor(record: CatalogRecord) {
+    this.record = record
+  }
+  get normalizedName(): string {
+    this.normalized ??= normalizeForSearch(this.record.name)
+    return this.normalized
+  }
+}
+
 /** Monta o índice a partir de registros já lidos — puro, sem banco. */
 export function buildSearchIndex(
   records: CatalogRecord[],
   coverage: { coveredCategories: number; totalCategories: number },
 ): SearchIndex {
   return {
-    entries: records.map((record) => ({ record, normalizedName: normalizeForSearch(record.name) })),
+    entries: records.map((record) => new LazySearchIndexEntry(record)),
     coveredCategories: coverage.coveredCategories,
     totalCategories: coverage.totalCategories,
   }
@@ -57,7 +75,7 @@ export function buildSearchIndex(
  * (`itemsFetchedAt` carimbado). `stored` nunca aberta NÃO conta — o
  * conteúdo guardado ainda não é registro de catálogo.
  */
-function isCovered(category: { fetchMode: string; itemsFetchedAt?: number }): boolean {
+export function isCovered(category: { fetchMode: string; itemsFetchedAt?: number }): boolean {
   return category.fetchMode === 'eager' || category.itemsFetchedAt !== undefined
 }
 
@@ -87,6 +105,26 @@ export async function loadSearchIndex(
  * itens já carregados de uma categoria/Favoritos quanto os itens agregados
  * de "Todos" (`logic/busca-por-categoria.md` §2/§7 da feature 018).
  */
+/**
+ * Nome normalizado por item, reaproveitado entre teclas (feature 039, T018):
+ * digitar em "Todos" renormalizava ~31 mil nomes a cada tecla. Guarda o nome
+ * cru junto — se ele mudar, recalcula. Só objetos entram (chave de WeakMap).
+ */
+const normalizedByItem = new WeakMap<object, { raw: string; normalized: string }>()
+
+function normalizedNameOf<T>(item: T, nameOf: (item: T) => string): string {
+  const raw = nameOf(item)
+  if (typeof item !== 'object' || item === null) return normalizeForSearch(raw)
+  const cached = normalizedByItem.get(item)
+  if (cached && cached.raw === raw) return cached.normalized
+  const normalized = normalizeForSearch(raw)
+  normalizedByItem.set(item, { raw, normalized })
+  return normalized
+}
+
+/** Mesma ordem de `a.localeCompare(b)` sem argumentos (localidade e opções padrão), sem recriar o colador a cada comparação. */
+const compareText = new Intl.Collator().compare
+
 export function searchWithinItems<T>(items: T[], term: string, nameOf: (item: T) => string): T[] {
   const normalizedTerm = normalizeForSearch(term)
 
@@ -95,13 +133,16 @@ export function searchWithinItems<T>(items: T[], term: string, nameOf: (item: T)
     normalizedName: string
   }
 
-  const scored: Scored[] = items.map((item) => ({ item, normalizedName: normalizeForSearch(nameOf(item)) }))
-  const hits = scored.filter((entry) => entry.normalizedName.includes(normalizedTerm))
+  const hits: Scored[] = []
+  for (const item of items) {
+    const normalizedName = normalizedNameOf(item, nameOf)
+    if (normalizedName.includes(normalizedTerm)) hits.push({ item, normalizedName })
+  }
   const starts = hits.filter((entry) => entry.normalizedName.startsWith(normalizedTerm))
   const rest = hits.filter((entry) => !entry.normalizedName.startsWith(normalizedTerm))
 
   const byName = (a: Scored, b: Scored) =>
-    a.normalizedName.localeCompare(b.normalizedName) || nameOf(a.item).localeCompare(nameOf(b.item))
+    compareText(a.normalizedName, b.normalizedName) || compareText(nameOf(a.item), nameOf(b.item))
 
   return [...starts.sort(byName), ...rest.sort(byName)].map((entry) => entry.item)
 }
