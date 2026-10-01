@@ -134,7 +134,7 @@ describe('SettingsScreen — nomes acessíveis (feature 028, FR-015/FR-017)', ()
     mockDelete()
     mockResync()
     renderSettings()
-    press('ArrowDown') // tabs: sources (1) -> player (2), ainda mock depois da feature 032
+    for (let i = 0; i < 3; i += 1) press('ArrowDown') // tabs: sources (1) -> player -> accessibility -> parental (4), o mock que resta
     press('ArrowRight') // entra no painel mock
     expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
   })
@@ -149,16 +149,16 @@ describe('SettingsScreen — aba mock "Em breve" (feature 028, FR-007)', () => {
     renderSettings()
 
     // "Integrações & BYOK" era o mock usado aqui; virou real na feature 032 —
-    // "Player & reprodução" (item 55b) é um mock que continua.
-    press('ArrowDown') // tabs: sources (1) -> player (2)
-    press('ArrowRight') // entra no painel "Player & reprodução" (mock)
+    // "Player & reprodução" virou real na feature 041 — "Perfis & parental" é o mock que continua.
+    for (let i = 0; i < 3; i += 1) press('ArrowDown') // tabs: sources (1) -> player -> accessibility -> parental (4)
+    press('ArrowRight') // entra no painel "Perfis & parental" (mock)
     expect(screen.getByText(/Em breve/)).toBeInTheDocument()
     const back = screen.getByRole('button', { name: 'Voltar às abas' })
     expect(back).toHaveClass('tv-focus')
 
     press('Enter')
     expect(screen.getByRole('button', { name: 'Voltar às abas' })).not.toHaveClass('tv-focus')
-    expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toContain('Player & reprodução')
+    expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toContain('Perfis & parental')
   })
 })
 
@@ -247,10 +247,10 @@ describe('SettingsScreen — registro de abas (item 63)', () => {
     )
 
     press('ArrowLeft') // abas
-    press('ArrowDown') // Player & reprodução
+    press('ArrowDown') // Player & reprodução (aba real desde a feature 041)
     press('ArrowRight')
-    expect(screen.getByRole('button', { name: 'Voltar às abas' })).toHaveClass('tv-focus')
-    press('Enter') // volta às abas
+    expect(screen.getByRole('button', { name: 'Aspecto padrão: Ajustar' })).toHaveClass('tv-focus')
+    press('ArrowLeft') // volta às abas
     press('ArrowUp') // Fontes IPTV
     press('ArrowRight')
     expect(within(screen.getByRole('group', { name: 'Lista Sala' })).getByRole('button', { name: 'Editar' })).toHaveClass(

@@ -1,6 +1,7 @@
 import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerRegion } from './PlayerService'
 import type { EngineCapabilities } from './capabilities'
 import type { StreamInfo } from './tracks'
+import { ASPECT_MODES, type AspectMode } from './viewChoice'
 
 /**
  * Adaptador de desenvolvimento, para o navegador do computador.
@@ -126,8 +127,23 @@ export function createHtmlVideoAdapter(callbacks: PlayerAdapterCallbacks): Playe
       return info
     },
 
+    // Feature 041 (research R0-3): aspecto por `object-fit`, os quatro modos.
+    // Sem métodos de qualidade — o elemento não expõe variantes, então no
+    // navegador "Qualidade" fica indisponível, honesto.
+    getAspectModes(): AspectMode[] {
+      return [...ASPECT_MODES]
+    },
+
+    setAspectMode(mode: AspectMode): boolean {
+      if (!element) return false
+      element.style.objectFit = OBJECT_FIT[mode]
+      return true
+    },
+
     close(): void {
       detach()
     },
   }
 }
+
+const OBJECT_FIT: Record<AspectMode, string> = { fit: 'contain', fill: 'fill', original: 'none', zoom: 'cover' }

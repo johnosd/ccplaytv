@@ -1,5 +1,5 @@
 import { useRef, useState, type RefObject } from 'react'
-import type { PlayerCapabilities, PlayerServiceSession } from '../../lib/player/PlayerService'
+import type { PlayerCapabilities, PlayerServiceSession, QualityOption } from '../../lib/player/PlayerService'
 import {
   chromeControls,
   type ChromeControl,
@@ -13,6 +13,12 @@ import type { ChromeLevel, PanelState } from './playerLayerTypes'
 export interface PlayerChromeParams {
   sessionRef: RefObject<PlayerServiceSession | null>
   panelRef: RefObject<PanelState | null>
+  /**
+   * Qualidades distintas da última leitura (feature 041, `logic` §2.4): escrita
+   * só em pontos discretos por `usePlayerPanels`, lida aqui — nunca se lê o
+   * motor a cada render.
+   */
+  qualityOptionsRef: RefObject<QualityOption[]>
   episodeStep: PlayerEpisodeStep | null | undefined
   onGuide: (() => void) | undefined
 }
@@ -41,7 +47,13 @@ export interface PlayerChrome {
  * `sessionRef`/`panelRef` chegam como os próprios objetos ref
  * (`logic/divisao.md` §1.1).
  */
-export function usePlayerChrome({ sessionRef, panelRef, episodeStep, onGuide }: PlayerChromeParams): PlayerChrome {
+export function usePlayerChrome({
+  sessionRef,
+  panelRef,
+  qualityOptionsRef,
+  episodeStep,
+  onGuide,
+}: PlayerChromeParams): PlayerChrome {
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /**
@@ -98,10 +110,13 @@ export function usePlayerChrome({ sessionRef, panelRef, episodeStep, onGuide }: 
   /** Linha de controles da mídia/nível atuais (`logic/chrome-player.md` §2). */
   function controlsFor(capabilities: PlayerCapabilities, paused: boolean) {
     const session = sessionRef.current
+    const qualityCount = session?.supportsQuality ? qualityOptionsRef.current.length : 0
     return chromeControls(chromeMediaRef.current, capabilities, paused, episodeNeighborsOf(), {
       tracks: session?.supportsTracks ?? false,
       info: session?.supportsStreamInfo ?? false,
       guide: onGuide !== undefined,
+      aspect: (session?.aspectModes.length ?? 0) > 0,
+      quality: qualityCount >= 2 ? 'many' : qualityCount === 1 ? 'single' : 'none',
     })
   }
 

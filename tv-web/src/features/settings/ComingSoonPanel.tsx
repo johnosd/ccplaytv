@@ -3,7 +3,6 @@ import { EmptyState } from '../../components/EmptyState'
 import { getComingSoon } from '../../lib/comingSoon'
 
 const TAB_INFO = {
-  player: { label: 'Player & reprodução', id: 'settings-player' },
   parental: { label: 'Perfis & parental', id: 'settings-parental' },
 } as const
 

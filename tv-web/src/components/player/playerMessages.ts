@@ -29,6 +29,13 @@ export const TRACK_SWITCH_FAILED = {
 
 export const INFO_UNAVAILABLE_MESSAGE = 'Este aparelho não informou dados técnicos deste stream.'
 
+/** Feature 041 (`logic/aspecto-qualidade.md` §1.4/§2.4/§2.5). */
+export const ASPECT_UNAVAILABLE_MESSAGE = 'Este aparelho não permite ajustar o aspecto.'
+export const QUALITY_UNAVAILABLE_MESSAGE = 'Este stream não informou qualidades.'
+export const QUALITY_SINGLE_MESSAGE = 'Este stream oferece uma única qualidade.'
+export const ASPECT_SWITCH_FAILED = 'Não foi possível mudar o aspecto.'
+export const QUALITY_SWITCH_FAILED = 'Não foi possível mudar a qualidade.'
+
 export const LIMIT_MESSAGE = {
   channel: { previous: 'Este é o primeiro canal desta lista.', next: 'Este é o último canal desta lista.' },
   episode: { previous: 'Este é o primeiro episódio disponível.', next: 'Este é o último episódio disponível.' },

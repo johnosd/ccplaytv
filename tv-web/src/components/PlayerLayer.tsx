@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
-import type { PlayerServiceSession } from '../lib/player/PlayerService'
+import type { PlayerServiceSession, QualityOption } from '../lib/player/PlayerService'
+import { readPlayerPreferences } from '../lib/player/playerPreferences'
 import { useToast } from '../lib/useToast'
 import { Toast } from './Toast'
 import { PlayerChrome } from './PlayerChrome'
+import { PlayerChoicePanel } from './PlayerChoicePanel'
 import { PlayerInfoPanel } from './PlayerInfoPanel'
 import { PlayerTracksPanel } from './PlayerTracksPanel'
 import { SubtitleOverlay } from './SubtitleOverlay'
@@ -54,14 +56,31 @@ export function PlayerLayer({
   episodeStep,
   initialTrackChoice,
   onTrackChoiceChange,
+  initialViewChoice,
+  onViewChoiceChange,
 }: PlayerLayerProps) {
   const [errorFocus, setErrorFocus] = useState<0 | 1>(0)
   const sessionRef = useRef<PlayerServiceSession | null>(null)
   const panelRef = useRef<PanelState | null>(null)
+  const qualityOptionsRef = useRef<QualityOption[]>([])
+  // Preferências do aparelho: lidas UMA vez por montagem (feature 041, FR-012);
+  // mudar uma com o player aberto não afeta a sequência em andamento.
+  const [preferences] = useState(() => readPlayerPreferences())
   const { toastMessage, toastKey, showToast } = useToast()
 
-  const chrome = usePlayerChrome({ sessionRef, panelRef, episodeStep, onGuide })
-  const panels = usePlayerPanels({ sessionRef, panelRef, chrome, showToast, initialTrackChoice, onTrackChoiceChange })
+  const chrome = usePlayerChrome({ sessionRef, panelRef, qualityOptionsRef, episodeStep, onGuide })
+  const panels = usePlayerPanels({
+    sessionRef,
+    panelRef,
+    chrome,
+    showToast,
+    preferences,
+    qualityOptionsRef,
+    initialTrackChoice,
+    onTrackChoiceChange,
+    initialViewChoice,
+    onViewChoiceChange,
+  })
   const { phase, hardwarePlane, retry } = usePlayerSession({
     itemId,
     createAdapter,
@@ -76,6 +95,7 @@ export function PlayerLayer({
     panelRef,
     chrome,
     reapplyTrackChoice: panels.reapplyTrackChoice,
+    reapplyViewChoice: panels.reapplyViewChoice,
   })
 
   const isErrorScreen = phase.kind === 'error'
@@ -188,6 +208,9 @@ export function PlayerLayer({
             />
           )}
           {panel?.kind === 'tracks' && tracksModel && <PlayerTracksPanel model={tracksModel} focusedKey={panel.focusKey} />}
+          {(panel?.kind === 'aspect' || panel?.kind === 'quality') && session && (
+            <PlayerChoicePanel model={panels.choiceModelFor(session, panel.kind)} focusedKey={panel.focusKey} />
+          )}
           {panel?.kind === 'info' && (
             <PlayerInfoPanel
               info={panels.panelInfoRef.current.info}

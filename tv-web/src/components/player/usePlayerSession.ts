@@ -41,6 +41,8 @@ export interface PlayerSessionParams {
   panelRef: RefObject<PanelState | null>
   chrome: PlayerChrome
   reapplyTrackChoice: (session: PlayerServiceSession) => void
+  /** Feature 041: aspecto e qualidade da sequência, logo depois das faixas. */
+  reapplyViewChoice: (session: PlayerServiceSession) => void
 }
 
 export interface PlayerSessionState {
@@ -71,6 +73,7 @@ export function usePlayerSession({
   panelRef,
   chrome,
   reapplyTrackChoice,
+  reapplyViewChoice,
 }: PlayerSessionParams): PlayerSessionState {
   const [phase, setPhase] = useState<Phase>({ kind: 'resolving' })
   const [attempt, setAttempt] = useState(0)
@@ -235,6 +238,7 @@ export function usePlayerSession({
           if (session.state === 'playing' && !enteredPlayingFired) {
             enteredPlayingFired = true
             reapplyTrackChoice(session)
+            reapplyViewChoice(session)
             onEnteredPlaying?.()
           }
 

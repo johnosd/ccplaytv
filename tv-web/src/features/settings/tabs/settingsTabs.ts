@@ -1,7 +1,8 @@
 import { AccessibilityTab } from './AccessibilityTab'
 import { IntegrationsTab } from './IntegrationsTab'
 import { PrivacyTab } from './PrivacyTab'
-import { AboutTab, ParentalSoonTab, PlayerSoonTab } from './SimpleTabs'
+import { PlayerTab } from './PlayerTab'
+import { AboutTab, ParentalSoonTab } from './SimpleTabs'
 import { SourcesTab } from './SourcesTab'
 import type { SettingsTabDefinition } from './settingsTab'
 
@@ -14,7 +15,7 @@ import type { SettingsTabDefinition } from './settingsTab'
 export const SETTINGS_TABS: SettingsTabDefinition[] = [
   { id: 'integrations', label: 'Integrações & BYOK', icon: 'device', Panel: IntegrationsTab },
   { id: 'sources', label: 'Fontes IPTV', icon: 'live', Panel: SourcesTab },
-  { id: 'player', label: 'Player & reprodução', icon: 'play', Panel: PlayerSoonTab },
+  { id: 'player', label: 'Player & reprodução', icon: 'play', Panel: PlayerTab },
   { id: 'accessibility', label: 'Acessibilidade & sistema', icon: 'settings', Panel: AccessibilityTab },
   { id: 'parental', label: 'Perfis & parental', icon: 'favorite', Panel: ParentalSoonTab },
   // Feature 036 (D-008): antes de "Sobre & créditos", o rodapé informativo.

@@ -187,16 +187,18 @@ async function run() {
     )
     // Feature 029: no navegador de desenvolvimento (`<video>`) não há faixas de
     // áudio (Áudio e legendas fica "— indisponível") e a Info do stream é real
-    // (o elemento informa a resolução). Qualidade/Velocidade/Aspecto seguem mock.
+    // (o elemento informa a resolução). Feature 041: Aspecto é real no `<video>`
+    // (object-fit), Qualidade fica "— indisponível" (o elemento não expõe
+    // variantes) e Velocidade não existe mais.
     for (const label of [
       'Áudio e legendas — indisponível',
-      'Qualidade — em breve',
-      'Velocidade — em breve',
-      'Aspecto — em breve',
+      'Qualidade — indisponível',
+      'Aspecto',
       'Info do stream',
     ]) {
-      assert(await page.getByRole('button', { name: label }).isVisible(), `controle "${label}" está na linha`)
+      assert(await page.getByRole('button', { name: label, exact: true }).isVisible(), `controle "${label}" está na linha`)
     }
+    assert((await page.locator('button', { hasText: /Velocidade/ }).count()) === 0, 'filme também não tem "Velocidade"')
     assert(
       (await page.locator('button', { hasText: /Episódio anterior|Próximo episódio/ }).count()) === 0,
       'filme não mostra botões de episódio',
@@ -205,16 +207,16 @@ async function run() {
     await setProgress(page, 60, 600) // duração conhecida — timeline aparece
     assert(await page.locator('.player-chrome-time-bar').isVisible(), 'timeline aparece com duração conhecida')
 
-    for (let i = 0; i < 4; i += 1) await page.keyboard.press('ArrowRight') // playPause -> jumpForward -> tracks -> quality -> speed
+    for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowRight') // playPause -> jumpForward -> tracks -> quality
     assert(
-      (await page.getByRole('button', { name: 'Velocidade — em breve' }).getAttribute('class'))?.includes('tv-focus'),
-      '4× → a partir de Play/Pause chega em "Velocidade"',
+      (await page.getByRole('button', { name: 'Qualidade — indisponível' }).getAttribute('class'))?.includes('tv-focus'),
+      '3× → a partir de Play/Pause chega em "Qualidade"',
     )
     const timeBeforeMock = await videoCurrentTime(page)
     await page.keyboard.press('Enter')
-    await page.waitForSelector('text=/^Em breve — /', { timeout: 4000 })
-    assert(true, 'selecionar o mock avisa "Em breve — …", sem abrir nada')
-    assert((await videoCurrentTime(page)) === timeBeforeMock, 'nenhum salto/busca aconteceu ao selecionar o mock')
+    await page.waitForSelector('text="Este stream não informou qualidades."', { timeout: 4000 })
+    assert(true, 'selecionar o controle indisponível só explica o motivo, sem abrir nada')
+    assert((await videoCurrentTime(page)) === timeBeforeMock, 'nenhum salto/busca aconteceu ao selecionar o controle indisponível')
 
     await page.waitForTimeout(5300) // > HIDE_CONTROLS_MS (5000ms)
     assert((await page.locator('.player-chrome').count()) === 0, 'o chrome some sozinho após 5s de reprodução contínua')

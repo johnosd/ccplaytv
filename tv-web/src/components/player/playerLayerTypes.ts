@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { PlayerAdapterFactory, PlayerState, TrackChoice } from '../../lib/player/PlayerService'
+import type { PlayerAdapterFactory, PlayerState, TrackChoice, ViewChoice } from '../../lib/player/PlayerService'
 import type { MediaKey } from '../../lib/tizenMediaKeys'
 import type { StreamInfo } from '../../lib/player/tracks'
 import type { PlayerEpisodeStep, PlayerIdentity } from '../chromeControls'
@@ -124,6 +124,16 @@ export interface PlayerLayerProps {
   initialTrackChoice?: TrackChoice | null
   /** Feature 029: chamada a cada escolha feita pela pessoa no painel. */
   onTrackChoiceChange?: (choice: TrackChoice) => void
+
+  /**
+   * Feature 041 (FR-003/FR-008/FR-012, D-003): aspecto/qualidade da sequência,
+   * mesmo papel de `initialTrackChoice`. Ausente = reprodução NOVA: parte das
+   * preferências do aparelho (`readPlayerPreferences`), lidas na montagem —
+   * vale também para `initialTrackChoice` ausente.
+   */
+  initialViewChoice?: ViewChoice | null
+  /** Feature 041: chamada a cada escolha de aspecto/qualidade feita pela pessoa no player. */
+  onViewChoiceChange?: (choice: ViewChoice) => void
 }
 
 export type Phase =
@@ -140,6 +150,9 @@ export type Phase =
 export type PanelState =
   | { kind: 'tracks'; focusKey: string; originIndex: number }
   | { kind: 'info'; originIndex: number }
+  // Feature 041: painéis de escolha única (`PlayerChoicePanel`).
+  | { kind: 'aspect'; focusKey: string; originIndex: number }
+  | { kind: 'quality'; focusKey: string; originIndex: number }
 
 /** Última leitura do painel de info: o que o motor disse e a faixa de áudio ativa. */
 export interface InfoSnapshot {

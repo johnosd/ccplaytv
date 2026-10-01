@@ -111,6 +111,14 @@ const LANGUAGE_NAMES: Record<string, string> = {
   hi: 'Híndi',
 }
 
+/**
+ * Idiomas oferecidos nas Configurações (feature 041), na ordem da tabela acima
+ * — nunca `Intl.DisplayNames`, que varia entre o Chromium da TV e o Node.
+ */
+export const LANGUAGE_OPTIONS: { code: string; label: string }[] = Object.entries(LANGUAGE_NAMES).map(
+  ([code, label]) => ({ code, label }),
+)
+
 /** Códigos que significam "sem idioma" (indeterminado, desconhecido, sem conteúdo linguístico…). */
 const NO_LANGUAGE = new Set(['', 'und', 'unk', 'mis', 'zxx', 'qaa'])
 

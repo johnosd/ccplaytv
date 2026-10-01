@@ -1,6 +1,7 @@
 import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerError, PlayerRegion } from './PlayerService'
 import type { EngineCapabilities } from './capabilities'
 import type { MediaTrack, StreamInfo } from './tracks'
+import type { AspectMode, QualityOption } from './viewChoice'
 
 /**
  * Adaptador do player nativo da Samsung (`webapis.avplay`) — o motor de
@@ -66,7 +67,7 @@ interface AvplayApi {
   // foi verificada na TV ainda (R-001 do plano). Qualquer falha vira `null`/`false`.
   getTotalTrackInfo?: () => AvplayTrackInfo[]
   getCurrentStreamInfo?: () => AvplayTrackInfo[]
-  setSelectTrack?: (trackType: 'AUDIO' | 'TEXT', trackIndex: number) => void
+  setSelectTrack?: (trackType: 'AUDIO' | 'TEXT' | 'VIDEO', trackIndex: number) => void
   setSilentSubtitle?: (silent: boolean) => void
   getStreamingProperty?: (name: string) => string
 }
@@ -211,8 +212,74 @@ function readStreamInfo(avplay: AvplayApi): StreamInfo | null {
   return info
 }
 
+/**
+ * Aspecto no AVPlay (feature 041, R0-1) — mapeamento PROVADO na QN50Q60DAGXZD
+ * (2026-10-01, visto pelo usuário): `setDisplayMethod` + `setDisplayRect`.
+ * `setVideoRoi` é recusado pelo aparelho (`NotSupportedError`), então o Zoom é
+ * um retângulo 10% maior que a região, centrado — corta as bordas.
+ * Original = retângulo do tamanho do vídeo (limitado à região), centrado.
+ */
+/** Uma opção por entrada `VIDEO`; sem largura/altura válidas a entrada fica de fora (nunca inventa resolução). */
+function readQualities(avplay: AvplayApi): QualityOption[] | null {
+  if (!avplay.getTotalTrackInfo) return null
+  const total = avplay.getTotalTrackInfo()
+  if (!Array.isArray(total)) return null
+  const options: QualityOption[] = []
+  for (const info of total) {
+    if (!isType(info, 'VIDEO')) continue
+    const extra = parseExtraInfo(info.extra_info)
+    const height = positiveNumber(extra.Height)
+    if (height === undefined) continue
+    const bits = positiveNumber(extra.Bit_rate)
+    options.push({
+      id: String(info.index),
+      height,
+      width: positiveNumber(extra.Width),
+      bitrateKbps: bits === undefined ? undefined : Math.round(bits / 1000),
+    })
+  }
+  return options
+}
+
+const ASPECT_MODES_AVPLAY: AspectMode[] = ['fit', 'fill', 'original', 'zoom']
+const ZOOM_FACTOR = 1.1
+
+function applyAspect(avplay: AvplayApi, region: PlayerRegion, mode: AspectMode): void {
+  if (typeof avplay.setDisplayMethod !== 'function') throw new Error('setDisplayMethod ausente')
+  let rect = { x: region.x, y: region.y, width: region.width, height: region.height }
+  let method = 'PLAYER_DISPLAY_MODE_LETTER_BOX'
+  if (mode === 'fill') {
+    method = 'PLAYER_DISPLAY_MODE_FULL_SCREEN'
+  } else if (mode === 'original') {
+    const info = readStreamInfo(avplay)
+    if (info?.width === undefined || info.height === undefined) throw new Error('tamanho do vídeo desconhecido')
+    const width = Math.min(info.width, region.width)
+    const height = Math.min(info.height, region.height)
+    rect = {
+      x: region.x + Math.round((region.width - width) / 2),
+      y: region.y + Math.round((region.height - height) / 2),
+      width,
+      height,
+    }
+  } else if (mode === 'zoom') {
+    const width = Math.round(region.width * ZOOM_FACTOR)
+    const height = Math.round(region.height * ZOOM_FACTOR)
+    rect = {
+      x: region.x - Math.round((width - region.width) / 2),
+      y: region.y - Math.round((height - region.height) / 2),
+      width,
+      height,
+    }
+  }
+  avplay.setDisplayRect(rect.x, rect.y, rect.width, rect.height)
+  avplay.setDisplayMethod(method)
+}
+
 export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAdapter {
   let opened = false
+  let displayRegion: PlayerRegion = { x: 0, y: 0, width: 1920, height: 1080 }
+  /** Índice VIDEO forçado por `selectQuality`; `null` = adaptativo (Auto). */
+  let forcedVideoIndex: number | null = null
 
   return {
     name: 'avplay',
@@ -230,6 +297,7 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
 
       avplay.open(url)
       opened = true
+      displayRegion = region
 
       avplay.setListener({
         onbufferingstart: () => callbacks.onStateChange('buffering'),
@@ -387,6 +455,57 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
         return readStreamInfo(avplay)
       } catch {
         return null
+      }
+    },
+
+    // Feature 041: aspecto provado na TV (ver `applyAspect`). Os quatro modos.
+    getAspectModes(): AspectMode[] {
+      return [...ASPECT_MODES_AVPLAY]
+    },
+
+    setAspectMode(mode: AspectMode): boolean {
+      const avplay = getAvplay()
+      if (!avplay || !opened) return false
+      try {
+        applyAspect(avplay, displayRegion, mode)
+        return true
+      } catch {
+        // Erro do motor nunca repassado (pode embutir a URL).
+        return false
+      }
+    },
+
+    // Qualidade (feature 041, R0-2). PROVADO na TV: `getTotalTrackInfo()` devolve
+    // a entrada VIDEO de um stream de qualidade única (o botão mostra "só uma
+    // disponível"). NÃO provado (nenhum stream multi-variante disponível):
+    // `setSelectTrack('VIDEO', i)` trocando de fato a resolução. Falha segura —
+    // se a TV recusar, `false` e a sessão segue na variante anterior (FR-007).
+    getQualities(): QualityOption[] | null {
+      const avplay = getAvplay()
+      if (!avplay) return null
+      try {
+        return readQualities(avplay)
+      } catch {
+        return null
+      }
+    },
+
+    selectQuality(id: string | null): boolean {
+      const avplay = getAvplay()
+      if (!avplay || !opened) return false
+      try {
+        if (id === null) {
+          // Voltar ao adaptativo exigiria reabrir o stream (R-002, não provado):
+          // sem variante forçada já é Auto (nada a fazer); com uma forçada,
+          // recusa honestamente em vez de fingir.
+          return forcedVideoIndex === null
+        }
+        if (!avplay.setSelectTrack) return false
+        avplay.setSelectTrack('VIDEO', Number(id))
+        forcedVideoIndex = Number(id)
+        return true
+      } catch {
+        return false
       }
     },
 

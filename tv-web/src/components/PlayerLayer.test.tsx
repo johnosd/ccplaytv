@@ -502,10 +502,10 @@ describe('PlayerLayer', () => {
 
     it('controles começam visíveis, com foco no play/pause', async () => {
       await renderPlaying()
-      // Feature 027: a linha do VOD ganhou 5 mocks "Em breve" além dos 3
-      // controles reais (jumpBack, playPause, jumpForward) — 8 no total.
+      // Linha do VOD: jumpBack, playPause, jumpForward + Áudio, Qualidade,
+      // Aspecto e Info — 7 no total (sem Velocidade, feature 041).
       const buttons = screen.getAllByRole('button')
-      expect(buttons).toHaveLength(8)
+      expect(buttons).toHaveLength(7)
       expect(buttons[1].className).toContain('tv-focus') // play/pause é o índice 1
     })
 
@@ -522,7 +522,7 @@ describe('PlayerLayer', () => {
       })
 
       expect(driver.jumpCalls).toEqual([10_000])
-      expect(screen.getAllByRole('button')).toHaveLength(8) // revelou de novo
+      expect(screen.getAllByRole('button')).toHaveLength(7) // revelou de novo
     })
 
     it('com controles VISÍVEIS, esquerda/direita NAVEGAM entre ações, sem saltar', async () => {
@@ -539,16 +539,16 @@ describe('PlayerLayer', () => {
     // só dentro da linha de controles (feature 027: agora com os 5 mocks
     // "Em breve" além dos 3 reais), nunca alcançam a barra. ---
 
-    it('esquerda/direita percorrem toda a linha (8 controles) sem nunca alcançar a barra', async () => {
+    it('esquerda/direita percorrem toda a linha (7 controles) sem nunca alcançar a barra', async () => {
       const { container } = await renderPlaying()
-      // playPause(1) -> jumpForward(2) -> tracks(3) -> quality(4) -> speed(5)
-      // -> aspect(6) -> info(7) -> clampado no último (não avança pra barra).
-      for (let i = 0; i < 8; i += 1) press('ArrowRight')
+      // playPause(1) -> jumpForward(2) -> tracks(3) -> quality(4) -> aspect(5)
+      // -> info(6) -> clampado no último (não avança pra barra).
+      for (let i = 0; i < 7; i += 1) press('ArrowRight')
 
       expect(driver.jumpCalls).toEqual([])
       expect(container.querySelector('.player-chrome-time-bar')?.className).not.toContain('tv-focus')
       const buttons = screen.getAllByRole('button')
-      expect(buttons[7].className).toContain('tv-focus') // clampado em "Info do stream"
+      expect(buttons[6].className).toContain('tv-focus') // clampado em "Info do stream"
     })
 
     it('CIMA a partir de um botão entra na barra, sem saltar', async () => {
@@ -616,7 +616,7 @@ describe('PlayerLayer', () => {
       })
 
       expect(driver.pauseCount).toBe(0)
-      expect(screen.getAllByRole('button')).toHaveLength(8)
+      expect(screen.getAllByRole('button')).toHaveLength(7)
     })
 
     it('SELECT com controles visíveis executa a ação focada (play/pause)', async () => {
@@ -629,7 +629,7 @@ describe('PlayerLayer', () => {
 
     it('oculta sozinho após 5s sem interação', async () => {
       await renderPlaying()
-      expect(screen.getAllByRole('button')).toHaveLength(8)
+      expect(screen.getAllByRole('button')).toHaveLength(7)
 
       act(() => {
         vi.advanceTimersByTime(5000)

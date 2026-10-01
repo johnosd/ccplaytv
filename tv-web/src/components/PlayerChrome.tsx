@@ -13,7 +13,6 @@ const CONTROL_ICON: Record<ChromeControlId, IconName> = {
   episodeNext: 'skipNext',
   tracks: 'audio',
   quality: 'quality',
-  speed: 'speed',
   aspect: 'aspect',
   info: 'info',
   guide: 'guide',
@@ -41,8 +40,6 @@ function shortText(control: ChromeControl, paused: boolean): string {
       return 'Áudio'
     case 'quality':
       return 'Qualidade'
-    case 'speed':
-      return 'Velocidade'
     case 'aspect':
       return 'Aspecto'
     case 'info':

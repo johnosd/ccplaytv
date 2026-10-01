@@ -339,9 +339,9 @@ async function run() {
     await tracksDialog(page).waitFor({ state: 'detached', timeout: 4000 })
 
     console.log('=== Cenário 3: info do stream — só o que o motor informa, relida a cada ~1 s ===')
-    await pressTimes(page, 'ArrowRight', 4) // "Áudio e legendas" → Qualidade → Velocidade → Aspecto → "Info do stream"
+    await pressTimes(page, 'ArrowRight', 3) // "Áudio e legendas" → Qualidade → Aspecto → "Info do stream" (sem Velocidade, feature 041)
     const infoButton = page.getByRole('button', { name: 'Info do stream' })
-    await eventually(() => isFocused(infoButton), '4× → chega em "Info do stream" (botão real)')
+    await eventually(() => isFocused(infoButton), '3× → chega em "Info do stream" (botão real)')
     await page.keyboard.press('Enter')
     const infoDialog = page.getByRole('dialog', { name: 'Info do stream' })
     await infoDialog.waitFor({ timeout: 4000 })
