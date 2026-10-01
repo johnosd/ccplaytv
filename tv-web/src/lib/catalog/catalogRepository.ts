@@ -654,6 +654,39 @@ export async function readKindPage(
   return { chunks, next: index < categories.length ? index : undefined }
 }
 
+/**
+ * Se algum item do tipo declara ano / data de inclusão (feature 039, T033) —
+ * decide as opções "Ano"/"Recém-adicionados" de "Ordenar" em "Todos" aos
+ * poucos, que só tem parte do tipo na memória. Lê um bloco por vez (FR-013)
+ * e para assim que achar os dois; depois, as linhas do formato antigo.
+ */
+export async function kindSortFields(
+  sourceId: string,
+  kind: CatalogItemKind,
+  database: CatalogDb = db,
+): Promise<{ year: boolean; addedAt: boolean }> {
+  const found = { year: false, addedAt: false }
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined || kind === 'episode') return found
+  const take = (item: { year?: number; addedAt?: number }) => {
+    if (item.year != null) found.year = true
+    if (item.addedAt != null) found.addedAt = true
+  }
+  try {
+    await blocksOfKind(database, sourceId, generation, kind).each((block) => {
+      for (const item of block.items) take(item)
+      if (found.year && found.addedAt) throw new FavoritesScanComplete()
+    })
+    await query(database, sourceId, generation, undefined, kind).each((record) => {
+      take(record)
+      if (found.year && found.addedAt) throw new FavoritesScanComplete()
+    })
+  } catch (error) {
+    if (!(error instanceof FavoritesScanComplete)) throw error
+  }
+  return found
+}
+
 /** Categorias da geração ativa com um dado `order` (e `kind`, se informado). */
 async function categoriesAtOrder(
   database: CatalogDb,
@@ -859,6 +892,22 @@ export async function resolveFavorites(
     else unresolved += 1
   }
   return { records, unresolved }
+}
+
+/**
+ * Várias identidades do mesmo `kind` → registro, numa passada (feature 039,
+ * T034) — o mapa diz de quem é cada registro; identidade sem registro não
+ * entra. Mesma resolução de `resolveFavorites`.
+ */
+export async function resolveStableIds(
+  sourceId: string,
+  kind: CatalogItemKind,
+  parts: StableIdParts[],
+  database: CatalogDb = db,
+): Promise<Map<StableIdParts, CatalogRecord>> {
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined) return new Map()
+  return resolveStableIdsIn(database, sourceId, generation, kind, parts)
 }
 
 /**
@@ -1346,4 +1395,41 @@ export async function deleteAllForSource(
   await allCategoryGenerations(database, sourceId).delete()
   await allStoredEntriesGenerations(database, sourceId).delete()
   await blocksOfSource(database, sourceId).delete()
+  await clearStagedItems(sourceId, undefined, database)
+}
+
+/** Faixa do preparo de uma fonte (ou de uma categoria dela) — sem `Dexie.minKey` em chave composta (R-008). */
+function stagingOf(database: CatalogDb, sourceId: string, categoryId?: number) {
+  return categoryId === undefined
+    ? database.sectionStaging.where('[sourceId+categoryId]').between([sourceId, KEY_MIN], [sourceId, KEY_MAX], true, true)
+    : database.sectionStaging.where('[sourceId+categoryId]').equals([sourceId, categoryId])
+}
+
+/**
+ * Descarrega partes da carga por seção na área de preparo (feature 039, T031,
+ * FR-013) — o Worker não segura a seção inteira até o fluxo acabar.
+ */
+export async function stageSectionItems(
+  parts: Array<{ sourceId: string; categoryId: number; items: CatalogRecord[] }>,
+  database: CatalogDb = db,
+): Promise<void> {
+  if (parts.length === 0) return
+  try {
+    await database.sectionStaging.bulkAdd(parts)
+  } catch (error) {
+    if (isQuotaError(error)) throw new StorageFullError()
+    throw error
+  }
+}
+
+/** Os itens preparados de uma categoria, na ordem em que foram descarregados (a da fonte). */
+export async function stagedItemsOf(sourceId: string, categoryId: number, database: CatalogDb = db): Promise<CatalogRecord[]> {
+  const parts = await stagingOf(database, sourceId, categoryId).toArray()
+  parts.sort((a, b) => (a.id ?? 0) - (b.id ?? 0))
+  return parts.flatMap((part) => part.items)
+}
+
+/** Apaga o preparo de uma categoria, ou de toda a fonte (sobra de uma carga interrompida). */
+export async function clearStagedItems(sourceId: string, categoryId?: number, database: CatalogDb = db): Promise<void> {
+  await stagingOf(database, sourceId, categoryId).delete()
 }

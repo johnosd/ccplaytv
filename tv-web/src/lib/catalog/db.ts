@@ -437,6 +437,18 @@ export interface CategoryBlockRecord {
 }
 
 /**
+ * Uma parte dos itens de uma categoria lida do fluxo da seção, à espera de o
+ * fluxo terminar (feature 039, T031). Partes da mesma categoria se juntam na
+ * ordem de `id` (a ordem da fonte). Apagada depois que a categoria é gravada.
+ */
+export interface SectionStagingRecord {
+  id?: number
+  sourceId: string
+  categoryId: number
+  items: CatalogRecord[]
+}
+
+/**
  * Um registro de `CatalogRecord` como fica guardado em `storedEntries`
  * (feature 014) — os mesmos campos, exceto os que só existem depois da
  * leitura da categoria (`id`, `sourceId`, `generation`, `categoryId`).
@@ -569,6 +581,7 @@ export class CatalogDb extends Dexie {
   integrations!: EntityTable<IntegrationRecord, 'id'>
   tmdbPeople!: EntityTable<TmdbPersonRecord, 'personId'>
   categoryBlocks!: EntityTable<CategoryBlockRecord, 'categoryId'>
+  sectionStaging!: EntityTable<SectionStagingRecord, 'id'>
 
   constructor(name: string = DB_NAME) {
     // Feature 038 (R0-3): o Chrome grava em modo "relaxed" por padrão desde a
@@ -707,6 +720,13 @@ export class CatalogDb extends Dexie {
     // plano, uma categoria por vez (nunca no upgrade, que travaria a TV).
     this.version(14).stores({
       categoryBlocks: 'categoryId, [sourceId+generation+kind]',
+    })
+    // v15 (feature 039, T031/FR-013): área de preparo da carga por seção — o
+    // Worker descarrega aqui, em partes, o que leu do fluxo (as categorias
+    // chegam misturadas), e no fim grava uma categoria por vez. Nunca é lida
+    // pelas telas. Sem `.upgrade()`: tabela nova.
+    this.version(15).stores({
+      sectionStaging: '++id, [sourceId+categoryId]',
     })
   }
 }

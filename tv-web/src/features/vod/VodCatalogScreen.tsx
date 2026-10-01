@@ -10,6 +10,7 @@ import {
   useFavoriteIds,
   useFavoritesContent,
   useHistoryContent,
+  useKindSortFields,
   useResumePositions,
   useSeriesWatchedSummary,
   useWatchedIds,
@@ -289,9 +290,11 @@ export function VodCatalogScreen({
   const favoritesContent = useFavoritesContent(sourceId, config.kind, enteredFavorites)
   // Feature 039 (T022): "Todos" na ordem da fonte e sem busca lê aos poucos,
   // conforme a pessoa desce; ordenar e buscar precisam do tipo inteiro.
-  const aggregated = useAggregatedItems(sourceId, config.kind, enteredAll, {
-    progressive: !searchActive && sortOption === 'source',
-  })
+  const allProgressive = !searchActive && sortOption === 'source'
+  const aggregated = useAggregatedItems(sourceId, config.kind, enteredAll, { progressive: allProgressive })
+  // T033: com "Todos" aos poucos, "Ano"/"Recém-adicionados" podem estar só em
+  // categorias ainda não lidas — o modal pergunta ao tipo inteiro (só aberto).
+  const kindSortFieldsQuery = useKindSortFields(sourceId, config.kind, enteredAll && allProgressive && sortOpen)
   // "↺ Histórico" (feature 025, FR-007): habilitado quando a pessoa entrou
   // nele agora ou já entrou antes nesta sessão — nada é resolvido só por
   // abrir a tela (`logic/historico.md` §5).
@@ -328,10 +331,19 @@ export function VodCatalogScreen({
   const canSort = canSearch && !enteredFavorites && !enteredHistory
 
   // "Ordenar" nunca em ★/↺ — ordem própria (mais recente primeiro, FR-022).
-  const availableOptions = useMemo(
-    () => (enteredFavorites || enteredHistory ? [] : availableSortOptions(baseItems)),
-    [enteredFavorites, enteredHistory, baseItems],
-  )
+  const kindSortFieldsData = kindSortFieldsQuery.data
+  const availableOptions = useMemo(() => {
+    if (enteredFavorites || enteredHistory) return []
+    const loaded = availableSortOptions(baseItems)
+    if (!enteredAll || !kindSortFieldsData) return loaded
+    // União com o tipo inteiro: nunca some uma opção que os itens lidos já mostram.
+    return (['source', 'az', 'year', 'added'] as const).filter(
+      (option) =>
+        loaded.includes(option) ||
+        (option === 'year' && kindSortFieldsData.year) ||
+        (option === 'added' && kindSortFieldsData.addedAt),
+    )
+  }, [enteredFavorites, enteredHistory, enteredAll, baseItems, kindSortFieldsData])
   // Opção salva pode não estar disponível nesta entrada (ex.: "Ano" numa
   // categoria M3U) — a grade usa "Ordem da fonte" sem apagar a escolha da
   // seção (D-008).

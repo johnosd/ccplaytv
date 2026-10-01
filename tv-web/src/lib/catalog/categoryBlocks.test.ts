@@ -3,6 +3,7 @@ import { CatalogDb, type CatalogRecord, type UserStateRecord } from './db'
 import {
   getActiveCategoryBlock,
   getChannel,
+  kindSortFields,
   listAllOfKind,
   listChannels,
   readKindPage,
@@ -11,6 +12,7 @@ import {
   storeCategories,
 } from './catalogRepository'
 import { buildStableId } from './userStateRepository'
+import { loadHistory } from './history'
 import { BLOCK_ID_SPACE, blockItemId, categoryIdOfBlockItem, convertLegacyCategories, identityKey } from './categoryBlocks'
 
 let database: CatalogDb
@@ -247,6 +249,72 @@ describe('readKindPage — "Todos" aos poucos (feature 039, T022)', () => {
     expect(await readKindPage(SOURCE_ID, 'episode', 0, 10, database)).toEqual({ chunks: [], next: undefined })
     await database.sources.update(SOURCE_ID, { activeGeneration: undefined })
     expect(await readKindPage(SOURCE_ID, 'channel', 0, 10, database)).toEqual({ chunks: [], next: undefined })
+  })
+})
+
+describe('↺ Histórico de Séries em lote (feature 039, T034)', () => {
+  it('uma passada pelos blocos de séries; série uma vez só, na ordem do mais recente; episódio sem série conta como não resolvido', async () => {
+    const [seriesCat] = await storeCategories(
+      [{ sourceId: SOURCE_ID, generation: 1, kind: 'series', fetchMode: 'on_demand', name: 'Séries', order: 1 }],
+      database,
+    )
+    const series = (name: string, seriesId: string): CatalogRecord => ({
+      sourceId: SOURCE_ID,
+      generation: 1,
+      kind: 'series',
+      name,
+      originalName: name,
+      groupOrder: 1,
+      seriesId,
+    })
+    await renewCategoryItems({ sourceId: SOURCE_ID, generation: 1, kind: 'series', categoryId: seriesCat, groupOrder: 1 }, [series('Dark', 's1'), series('Lost', 's2')], 1, database)
+    const episode = (id: string, seriesId: string, n: number): CatalogRecord => ({
+      sourceId: SOURCE_ID,
+      generation: 1,
+      kind: 'episode',
+      name: id,
+      originalName: id,
+      groupOrder: 1,
+      seriesId,
+      providerStreamId: id,
+      seasonNumber: 1,
+      episodeNumber: n,
+    })
+    await database.channels.bulkAdd([episode('e1', 's1', 1), episode('e2', 's2', 1), episode('e3', 's1', 2), episode('orfao', 's9', 1)])
+    const played = (id: string, seriesId: string, n: number, at: number) => ({
+      stableId: buildStableId({ sourceId: SOURCE_ID, kind: 'episode', providerStreamId: id, seriesId, seasonNumber: 1, episodeNumber: n }),
+      sourceId: SOURCE_ID,
+      isFavorite: false,
+      progressSeconds: 10,
+      lastWatched: at,
+      createdAt: 1,
+      updatedAt: at,
+    })
+    await database.userStates.bulkPut([played('e3', 's1', 2, 40), played('e2', 's2', 1, 30), played('e1', 's1', 1, 20), played('orfao', 's9', 1, 10)])
+    const where = vi.spyOn(database.categoryBlocks, 'where')
+
+    const result = await loadHistory(SOURCE_ID, 'series', database)
+
+    expect(result.records.map((record) => record.name)).toEqual(['Dark', 'Lost'])
+    expect(result.unresolved).toBe(1) // o episódio da série que não está na lista
+    expect(where).toHaveBeenCalledTimes(1) // antes: uma varredura por série
+  })
+})
+
+describe('kindSortFields (feature 039, T033)', () => {
+  it('acha ano/data de inclusão em qualquer bloco do tipo e nas linhas antigas; sem nenhum, false', async () => {
+    const [a, b] = await storeCategories(
+      [1, 2].map((order) => ({ sourceId: SOURCE_ID, generation: 1, kind: 'channel' as const, fetchMode: 'on_demand' as const, name: `C${order}`, order })),
+      database,
+    )
+    await renewCategoryItems({ sourceId: SOURCE_ID, generation: 1, kind: 'channel', categoryId: a, groupOrder: 1 }, [channel('Sem nada', { groupOrder: 1 })], 1, database)
+    expect(await kindSortFields(SOURCE_ID, 'channel', database)).toEqual({ year: false, addedAt: false })
+
+    await renewCategoryItems({ sourceId: SOURCE_ID, generation: 1, kind: 'channel', categoryId: b, groupOrder: 2 }, [channel('Com ano', { groupOrder: 2, year: 2001 })], 1, database)
+    expect(await kindSortFields(SOURCE_ID, 'channel', database)).toEqual({ year: true, addedAt: false })
+
+    await database.channels.add(channel('Linha antiga', { groupOrder: 3, addedAt: 5 }))
+    expect(await kindSortFields(SOURCE_ID, 'channel', database)).toEqual({ year: true, addedAt: true })
   })
 })
 

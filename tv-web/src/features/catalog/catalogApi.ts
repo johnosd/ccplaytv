@@ -19,6 +19,7 @@ import {
 import {
   getActiveCategoryBlock,
   getChannel,
+  kindSortFields,
   listAllEpisodes,
   listCategories,
   listChannels,
@@ -392,6 +393,20 @@ export function useCategoryContent(sourceId: string | null, category: CatalogCat
     return () => cancelAnimationFrame(frame)
   }, [paintedId, paintedKind])
   return query
+}
+
+/**
+ * Campos de ordenação que o tipo inteiro declara (feature 039, T033) — para o
+ * modal "Ordenar" de "Todos" aos poucos não esconder "Ano"/"Recém-adicionados"
+ * que só aparecem em categorias ainda não lidas. `enabled` só com o modal
+ * aberto: entrar em "Todos" não paga essa varredura.
+ */
+export function useKindSortFields(sourceId: string | null, kind: FavoritableKind, enabled: boolean) {
+  return useQuery({
+    queryKey: ['kind-sort-fields', sourceId, kind],
+    queryFn: () => kindSortFields(sourceId as string, kind),
+    enabled: enabled && sourceId !== null,
+  })
 }
 
 /**

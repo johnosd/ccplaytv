@@ -232,6 +232,14 @@ navegar pelas seções durante e depois da carga.
 
 - **FR-013**: Nenhuma operação DEVE manter o catálogo inteiro de uma lista de
   ~300 mil itens na memória ao mesmo tempo.
+  **Emenda (2026-09-30, decisão do usuário na convergência, T031)**: valem
+  como exceção as ações pontuais que a pessoa pede de propósito e que precisam
+  do conjunto inteiro — **buscar e ordenar dentro de "Todos"** (o tipo inteiro)
+  e a **busca global** (os três tipos). A navegação normal ("Todos" na ordem da
+  fonte, categorias, listas) e a **sincronização em segundo plano** continuam
+  obrigadas a não segurar o catálogo inteiro: "Todos" lê aos poucos e o Worker
+  da carga por seção descarrega numa área de preparo, gravando uma categoria
+  por vez.
 - **FR-014**: As regras da 038 (pré-carga por seção, portão de atividade, uma
   seção/categoria por vez, renovação sem esfriar) DEVEM continuar valendo.
 

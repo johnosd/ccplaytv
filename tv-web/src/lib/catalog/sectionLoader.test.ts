@@ -122,6 +122,69 @@ describe('loadSection (feature 038, R0-3)', () => {
     expect(result).toEqual({ outcome: 'failed', written: [] })
   })
 
+  // Feature 039 (T031, FR-013): a seção nunca fica inteira na memória do Worker.
+  it('descarregando no preparo a cada 2 itens, grava o mesmo que sem preparo e não deixa sobra', async () => {
+    const [c1, c2, c3] = await seedLive()
+    // Categorias intercaladas, como chegam de um painel de verdade.
+    const interleaved = [
+      { stream_id: 11, name: 'A1', category_id: '1' },
+      { stream_id: 21, name: 'B1', category_id: '2' },
+      { stream_id: 12, name: 'A2', category_id: '1' },
+      { stream_id: 31, name: 'C1', category_id: '3' },
+      { stream_id: 13, name: 'A3', category_id: '1' },
+      { stream_id: 22, name: 'B2', category_id: '2' },
+      { stream_id: 14, name: 'A4', category_id: '1' },
+    ]
+    const bulkAdd = vi.spyOn(database.sectionStaging, 'bulkAdd')
+
+    const result = await loadSection(SOURCE_ID, 'channel', [c1, c2, c3], {
+      database,
+      fetchImpl: async () => streamed(interleaved, 5),
+      stageFlushItems: 2,
+    })
+
+    expect(result).toEqual({ outcome: 'done', written: [c1, c2, c3] })
+    expect(bulkAdd).toHaveBeenCalled() // de fato passou pelo preparo
+    expect((await listChannels(SOURCE_ID, 0, 0, 10, 'channel', database)).map((r) => r.name)).toEqual(['A1', 'A2', 'A3', 'A4'])
+    expect((await listChannels(SOURCE_ID, 1, 0, 10, 'channel', database)).map((r) => r.name)).toEqual(['B1', 'B2'])
+    expect((await listChannels(SOURCE_ID, 2, 0, 10, 'channel', database)).map((r) => r.name)).toEqual(['C1'])
+    expect(await database.sectionStaging.count()).toBe(0)
+  })
+
+  it('sobra de uma carga interrompida (app fechado no meio) não entra na próxima', async () => {
+    const [c1] = await seedLive()
+    await database.sectionStaging.add({
+      sourceId: SOURCE_ID,
+      categoryId: c1,
+      items: [{ sourceId: SOURCE_ID, generation: 1, kind: 'channel', name: 'Velho', originalName: 'Velho', groupOrder: 0 }],
+    })
+
+    await loadSection(SOURCE_ID, 'channel', [c1], { database, fetchImpl: async () => streamed(SECTION), stageFlushItems: 1 })
+
+    expect((await listChannels(SOURCE_ID, 0, 0, 10, 'channel', database)).map((r) => r.name)).toEqual(['Canal A', 'Canal B'])
+    expect(await database.sectionStaging.count()).toBe(0)
+  })
+
+  it('falha de rede no meio do fluxo apaga o preparo e não grava categoria pela metade', async () => {
+    const [c1] = await seedLive()
+    let sent = 0
+    const failing = new Response(
+      new ReadableStream<Uint8Array>({
+        pull(controller) {
+          sent += 1
+          if (sent === 1) controller.enqueue(new TextEncoder().encode('[{"stream_id":11,"name":"A","category_id":"1"},'))
+          else controller.error(new TypeError('network'))
+        },
+      }),
+    )
+
+    const result = await loadSection(SOURCE_ID, 'channel', [c1], { database, fetchImpl: async () => failing, stageFlushItems: 1 })
+
+    expect(result).toEqual({ outcome: 'failed', written: [] })
+    expect(await database.sectionStaging.count()).toBe(0)
+    expect(await listChannels(SOURCE_ID, 0, 0, 10, 'channel', database)).toEqual([])
+  })
+
   it('cancelado: propaga AbortError', async () => {
     const [c1] = await seedLive()
     const controller = new AbortController()

@@ -14,6 +14,7 @@ import type { CatalogCategory, CatalogItemOut } from '../catalog/catalogApi'
 import { resetVodSessionMemory } from './vodSessionMemory'
 import { db } from '../../lib/catalog/db'
 import { updateProgress } from '../../lib/catalog/userStateRepository'
+import { renewCategoryItems, storeCategories } from '../../lib/catalog/catalogRepository'
 import { findUnnamedControls } from '../../testing/accessibleNames'
 
 let restoreOffsetHeight: PropertyDescriptor | undefined
@@ -668,6 +669,36 @@ describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
 
     expect(document.querySelector('.vod-toolbar-sort-button')?.textContent).toBe('Ordenar · Ano ▾')
     expect(gridTitles()).toEqual(['Filme C', 'Filme A', 'Filme B']) // mais novo primeiro; sem ano no fim
+  })
+
+  // Feature 039, T033: "Todos" aos poucos só tem parte do tipo lida — "Ano" vem do tipo inteiro.
+  it('"Todos" aos poucos: o modal oferece "Ano" mesmo se só uma categoria ainda não lida declara ano', async () => {
+    const [categoryId] = await storeCategories([
+      { sourceId: SOURCE_ID, generation: 1, kind: 'movie', fetchMode: 'on_demand', name: 'Lá embaixo', order: 9, providerCategoryId: '9' },
+    ])
+    await renewCategoryItems(
+      { sourceId: SOURCE_ID, generation: 1, kind: 'movie', categoryId, groupOrder: 9 },
+      [{ sourceId: SOURCE_ID, generation: 1, kind: 'movie', name: 'Com ano', originalName: 'Com ano', groupOrder: 9, providerStreamId: 'y', year: 1999 }],
+      1,
+    )
+    mockCategories([category(1, 'Ação', 0)])
+    vi.mocked(catalogApi.useAggregatedItems).mockReturnValue({
+      items: [movie('Filme A', 'a'), movie('Filme B', 'b')], // sem ano: só a 1ª página lida
+      coveredCategories: 1,
+      totalCategories: 2,
+      isLoading: false,
+      hasMore: true,
+      loadMore: vi.fn(),
+    })
+    renderMovies()
+
+    press('ArrowUp') // Ação -> Todos
+    press('ArrowRight') // entra em "Todos"
+    openSortFromGrid()
+
+    await waitFor(() => expect(sortModalLabels()).toEqual(['✓ Ordem da fonte', 'A–Z', 'Ano']))
+    await db.categoryBlocks.delete(categoryId)
+    await db.categories.delete(categoryId)
   })
 
   it('o foco segue o mesmo item (por identidade) depois de reordenar, visível na nova posição', async () => {

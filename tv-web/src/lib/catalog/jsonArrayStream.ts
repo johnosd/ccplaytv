@@ -82,6 +82,11 @@ export async function readJsonArrayStream(
   body: ReadableStream<Uint8Array>,
   onItem: (item: Record<string, unknown>) => void,
   signal?: AbortSignal,
+  /**
+   * Chamado depois de cada pedaço lido (feature 039, T031): a leitura espera a
+   * promessa — é onde quem lê descarrega o que acumulou, sem segurar tudo.
+   */
+  afterChunk?: () => Promise<void>,
 ): Promise<void> {
   const parser = createJsonArrayItemParser(onItem)
   const reader = body.getReader()
@@ -92,6 +97,7 @@ export async function readJsonArrayStream(
       const { done, value } = await reader.read()
       if (done) break
       parser.push(decoder.decode(value, { stream: true }))
+      if (afterChunk) await afterChunk()
     }
     parser.push(decoder.decode())
     parser.end()

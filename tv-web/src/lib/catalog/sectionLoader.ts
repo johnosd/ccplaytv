@@ -15,7 +15,16 @@
  */
 
 import { db, type CatalogDb, type CatalogRecord, type CategoryKind } from './db'
-import { activeGeneration, listCategories, renewCategoryItems, StorageFullError, type CatalogCategory } from './catalogRepository'
+import {
+  activeGeneration,
+  clearStagedItems,
+  listCategories,
+  renewCategoryItems,
+  stagedItemsOf,
+  stageSectionItems,
+  StorageFullError,
+  type CatalogCategory,
+} from './catalogRepository'
 import { toItemRecord } from './categoryLoader'
 import { readJsonArrayStream } from './jsonArrayStream'
 import { readCredential } from './sourceRepository'
@@ -46,7 +55,16 @@ export interface SectionLoadOptions {
   onCategory?: (categoryId: number) => void
   /** Chamada antes de gravar cada categoria: resolve quando pode continuar (portão de atividade). */
   waitUntilAllowed?: () => Promise<void>
+  /** A cada quantos itens lidos o acumulado vai para a área de preparo (testes; padrão `STAGE_FLUSH_ITEMS`). */
+  stageFlushItems?: number
 }
+
+/**
+ * Feature 039 (T031, FR-013): itens lidos do fluxo antes de descarregar na área
+ * de preparo — o pico de memória do Worker passa a ser isto mais a maior
+ * categoria, não a seção inteira (~123–132 MB com 300 mil filmes antes).
+ */
+export const STAGE_FLUSH_ITEMS = 20_000
 
 export interface SectionLoadResult {
   outcome: SectionLoadOutcome
@@ -94,8 +112,29 @@ export async function loadSection(
   )
   const map = mapperFor(kind, categoryMap)
   const groups = new Map<number, CatalogRecord[]>(categories.map((c) => [c.id, []]))
+  // Feature 039 (T031, FR-013): as categorias chegam misturadas no fluxo, então
+  // nenhuma pode ser gravada antes do fim (meia categoria à vista violaria
+  // FR-002). Em vez de segurar a seção inteira, a cada `STAGE_FLUSH_ITEMS`
+  // itens o acumulado vai para a área de preparo; no fim, cada categoria é
+  // montada (preparo + resto) e gravada uma por vez.
+  const flushAt = options.stageFlushItems ?? STAGE_FLUSH_ITEMS
+  const staged = new Set<number>()
+  let buffered = 0
+  const flush = async () => {
+    const parts: Array<{ sourceId: string; categoryId: number; items: CatalogRecord[] }> = []
+    for (const [categoryId, items] of groups) {
+      if (items.length === 0) continue
+      parts.push({ sourceId, categoryId, items })
+      staged.add(categoryId)
+      groups.set(categoryId, [])
+    }
+    buffered = 0
+    await stageSectionItems(parts, database)
+  }
 
   try {
+    // Sobra de uma carga interrompida (app fechado, aborto) nunca entra nesta.
+    await clearStagedItems(sourceId, undefined, database)
     const response = await (options.fetchImpl ?? fetch)(
       playerApiUrl(credential.dns, credential.username, credential.password, { action: ACTION[kind] }),
       options.signal ? { signal: options.signal } : undefined,
@@ -108,12 +147,19 @@ export async function loadSection(
         const category = providerCategoryId ? byProviderId.get(providerCategoryId) : undefined
         if (!category) return // categoria que a pré-carga não pediu (ou que a fonte não declara)
         const item: MappedChannel | undefined = map(raw)
-        if (item) groups.get(category.id)?.push(toItemRecord(item, sourceId, generation, category))
+        if (!item) return
+        groups.get(category.id)?.push(toItemRecord(item, sourceId, generation, category))
+        buffered += 1
       },
       options.signal,
+      async () => {
+        if (buffered >= flushAt) await flush()
+      },
     )
   } catch (error) {
     if (isAbortError(error)) throw error
+    await clearStagedItems(sourceId, undefined, database).catch(() => {})
+    if (error instanceof StorageFullError) return { outcome: 'storage_full', written }
     return { outcome: 'failed', written }
   }
 
@@ -121,7 +167,8 @@ export async function loadSection(
     for (const category of categories) {
       if (options.signal?.aborted) throw new DOMException('Carga cancelada.', 'AbortError')
       await options.waitUntilAllowed?.()
-      const items = groups.get(category.id) ?? []
+      const rest = groups.get(category.id) ?? []
+      const items = staged.has(category.id) ? [...(await stagedItemsOf(sourceId, category.id, database)), ...rest] : rest
       await renewCategoryItems(
         { sourceId, generation, kind, categoryId: category.id, groupOrder: category.order },
         items,
@@ -129,10 +176,14 @@ export async function loadSection(
         database,
       )
       groups.delete(category.id) // libera a memória desta categoria já gravada
+      if (staged.has(category.id)) await clearStagedItems(sourceId, category.id, database)
       written.push(category.id)
       options.onCategory?.(category.id)
     }
   } catch (error) {
+    // Interrompida no meio: as categorias já gravadas ficam; o preparo das
+    // demais sai agora (e, se o app fechou, na próxima carga desta fonte).
+    await clearStagedItems(sourceId, undefined, database).catch(() => {})
     if (isAbortError(error)) throw error
     if (error instanceof StorageFullError) return { outcome: 'storage_full', written }
     return { outcome: 'failed', written }
