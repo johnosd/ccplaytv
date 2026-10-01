@@ -299,3 +299,32 @@ Convergida em 2026-09-30 (segunda passada do `sdd-converge`; a primeira abriu a 
 
 - R-009: a leitura "fria" da categoria de 11 mil (OK sem pausa no cursor) não foi medida na TV; no PC com CPU 4× fica acima de 300 ms. Se incomodar na TV, o caminho é gravar à parte o começo de cada bloco.
 - R-014: migração (SC-005) e 300 mil itens (SC-004) não foram executados na TV, por decisão do usuário; provados no navegador.
+
+## Correções pós-convergência (code review, 2026-10-01)
+
+Um code review dos commits desta feature achou 2 bugs e 8 problemas de velocidade/memória. Todos foram corrigidos, a pedido do usuário. A verificação foi feita com testes unitários novos, a suíte inteira, as 23 travas de contrato intactas e a E2E. Não houve medição na TV.
+
+- **Id antigo depois da conversão.** `convertLegacyCategories` troca os ids e apaga as linhas, e as telas abertas (detalhe, hero, Minha Lista, pilha de navegação) guardavam o id antigo. Agora `writeBlockWithin` registra a troca em memória (`blockMemo.ts`), avisando também os outros contextos (o Worker) por `BroadcastChannel`, e `getChannel` segue a troca quando a linha some.
+- **"Todos" lendo o tipo inteiro.** Voltar a "Todos" com um item em foco que não existe mais fazia a tela ler todas as páginas. Agora `VodCatalogScreen` confere o item primeiro (`resolveCatalogItemId`, que lê só o bloco dele) e só pede mais páginas se ele existir. Um id trocado vira o id novo.
+- **Leituras de bloco evitadas:**
+  - `convertLegacyCategories` confere a existência só pelas chaves (`primaryKeys`/`count`).
+  - `getChannel`/`getActiveCategoryBlock` usam um cache curto de blocos (2 entradas). Toda escrita em `categoryBlocks` o esvazia, via middleware do Dexie em `db.ts`, e ele não guarda nada lido com escrita pendente. Escritas do Worker chegam por `BroadcastChannel`.
+- **Favoritos repetidos.** Uma identidade repetida não impede mais o fim da varredura, e todas as cópias resolvem.
+- **Resolução em lote.** O hero do Início (`homeHero.ts`) e "Minha Lista" (`useMyListContent`) resolvem uma vez por tipo, não uma vez por item.
+- **Abrir série sem regravar o bloco.** O carimbo de episódios de uma série em bloco vai para `CategoryRecord.seriesEpisodesFetchedAt`, um valor sem índice que não pede nova versão do Dexie. `getChannel` junta esse carimbo ao item. A próxima regravação do bloco incorpora o carimbo ao item e esvazia o mapa (contrato travado da 038 preservado).
+- **Gerações antigas pelo índice.** `publishGeneration` apaga os blocos de outras gerações por duas faixas do índice (`blockKeysOutsideGeneration`), sem filtro `.and()`. O mesmo vale para `countChannels`/`deleteGeneration` (`blocksOfGeneration`).
+- **"Todos" e a pré-carga.** Com mais de 2 páginas lidas, um lote da pré-carga só marca "Todos" como velho (`refetchType: 'none'`), e a releitura acontece na próxima entrada. Com até 2 páginas, relê na hora.
+- **Preparo da carga por seção:**
+  - A descarga no preparo espera o portão de atividade.
+  - Uma carga cancelada apaga o preparo antes de propagar o `AbortError`.
+  - A manutenção da pré-carga apaga o preparo que sobrou de outras listas (`clearStagedItemsOfOtherSources`).
+
+**Verificado na TV física** (QN50Q60DAGXZD, 2026-10-01, relatado pelo usuário). Todos os cinco cenários abaixo funcionaram:
+
+- No Início, o hero e "Minha Lista" abrem o detalhe e tocam.
+- O detalhe de filme abre e o ▶ começa a tocar.
+- Uma série nova carrega os episódios e, ao voltar a ela, não busca de novo.
+- Em "Todos", descer bastante, abrir um filme e voltar restaura o foco no mesmo filme, com a navegação fluida.
+- A navegação rápida durante a pré-carga não trava.
+
+Nenhum número foi medido. A instalação preservou o IndexedDB, então a conversão de uma lista anterior à 039 não foi exercitada na TV.

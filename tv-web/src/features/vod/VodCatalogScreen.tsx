@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   groupLabel,
+  resolveCatalogItemId,
   stableIdOf,
   useAggregatedItems,
   useCategoryContent,
@@ -372,10 +373,34 @@ export function VodCatalogScreen({
   // "Voltar restaura foco" valer mesmo lá embaixo.
   const { hasMore: allHasMore, loadMore: loadMoreAll } = aggregated
   const focusedNotLoaded = focusedItemId !== null && !items.some((item) => item.id === focusedItemId)
+  // Só persegue um item que ainda existe: um que saiu numa renovação (ou um id
+  // antigo que a conversão para blocos trocou) faria ler todas as páginas do
+  // tipo atrás de algo que nunca aparece. Confere primeiro, lendo só o bloco
+  // do item; id trocado vira o id novo.
+  const [focusCheck, setFocusCheck] = useState<{ id: string; exists: boolean } | null>(null)
+  useEffect(() => {
+    if (!enteredAll || !focusedNotLoaded || focusedItemId === null) return
+    if (focusCheck?.id === focusedItemId) return
+    let cancelled = false
+    void resolveCatalogItemId(focusedItemId).then(
+      (currentId) => {
+        if (cancelled) return
+        if (currentId !== null && currentId !== focusedItemId) setFocusedItemId(currentId)
+        else setFocusCheck({ id: focusedItemId, exists: currentId !== null })
+      },
+      () => {
+        if (!cancelled) setFocusCheck({ id: focusedItemId, exists: false })
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [enteredAll, focusedNotLoaded, focusedItemId, focusCheck])
+  const chasingFocus = focusedNotLoaded && focusCheck?.id === focusedItemId && focusCheck.exists
   useEffect(() => {
     if (!enteredAll || !allHasMore || !loadMoreAll) return
-    if (focusedNotLoaded || itemIdx >= items.length - ALL_LOAD_AHEAD) loadMoreAll()
-  }, [enteredAll, allHasMore, loadMoreAll, focusedNotLoaded, itemIdx, items.length])
+    if (chasingFocus || itemIdx >= items.length - ALL_LOAD_AHEAD) loadMoreAll()
+  }, [enteredAll, allHasMore, loadMoreAll, chasingFocus, itemIdx, items.length])
 
   const gridContainerRef = useRef<HTMLDivElement | null>(null)
   const itemVirtualizer = useVirtualizer({

@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
+import { noteBlockWrite } from './blockMemo'
 
 /**
  * Armazenamento local do aparelho — a fonte de verdade das telas depois da
@@ -404,6 +405,13 @@ export interface CategoryRecord {
   /** Assinatura dos itens gravados — renovação idêntica só carimba o instante (feature 038, D-006). */
   itemsSignature?: string
   /**
+   * Séries em bloco desta categoria: `seriesId` → quando os episódios foram
+   * obtidos (feature 039). Fica aqui, e não no item do bloco, para abrir uma
+   * série não regravar o bloco inteiro (milhares de séries). Só cresce com as
+   * séries abertas. Valor sem índice, sem bump de versão.
+   */
+  seriesEpisodesFetchedAt?: Record<string, number>
+  /**
    * Categoria `stored` mantida numa atualização (feature 038): de onde vem o
    * conteúdo novo, ainda não materializado, em `storedEntries`. Ausente = o
    * conteúdo está na própria categoria (`generation`/`id`), como na 014.
@@ -727,6 +735,26 @@ export class CatalogDb extends Dexie {
     // pelas telas. Sem `.upgrade()`: tabela nova.
     this.version(15).stores({
       sectionStaging: '++id, [sourceId+categoryId]',
+    })
+    // Toda escrita em `categoryBlocks`, por qualquer caminho, esvazia o cache
+    // de blocos lidos (`blockMemo.ts`) — sem depender de cada função lembrar.
+    this.use({
+      stack: 'dbcore',
+      name: 'categoryBlocksMemo',
+      create: (down) => ({
+        ...down,
+        table: (tableName) => {
+          const table = down.table(tableName)
+          if (tableName !== 'categoryBlocks') return table
+          return {
+            ...table,
+            mutate: (request) => {
+              noteBlockWrite(this, request.trans)
+              return table.mutate(request)
+            },
+          }
+        },
+      }),
     })
   }
 }

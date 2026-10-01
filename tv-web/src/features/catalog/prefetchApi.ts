@@ -26,6 +26,9 @@ export function usePrefetchHint(kind: PrefetchHint['kind'], focusedCategoryId: n
 /** Uma rodada de invalidação a cada tanto, no máximo (D-014). */
 export const INVALIDATE_BATCH_MS = 1000
 
+/** "Todos" com até tantas páginas lidas é relido na hora quando uma categoria chega. */
+export const ALL_PAGES_REFETCH_MAX = 2
+
 /**
  * Invalida, agrupado, o que depende de uma categoria que acabou de chegar ao
  * aparelho (`logic/agendador-pre-carga.md` §6): a lista de categorias (o
@@ -45,8 +48,21 @@ export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = IN
       }
       void queryClient.invalidateQueries({ queryKey: ['catalog-counts', sourceId] })
       void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId] })
-      // Feature 039 (T022): "Todos" aos poucos relê as páginas já lidas.
-      void queryClient.invalidateQueries({ queryKey: ['catalog-all-pages', sourceId] })
+      // Feature 039 (T022): "Todos" aos poucos. Reler uma consulta infinita relê
+      // TODAS as páginas já lidas, uma por vez — com 30 páginas, a cada lote
+      // (até 1 por segundo), a navegação travaria. Então: só marca como velha
+      // (relida na próxima entrada, `refetchOnMount: 'always'`) e relê agora
+      // apenas quem leu pouco — o caso de "Todos" ainda vazio esperando a
+      // pré-carga. Categoria nova depois do que foi lido entra pelo `loadMore`.
+      void queryClient.invalidateQueries({ queryKey: ['catalog-all-pages', sourceId], refetchType: 'none' })
+      void queryClient.refetchQueries({
+        queryKey: ['catalog-all-pages', sourceId],
+        type: 'active',
+        predicate: (query) => {
+          const pages = (query.state.data as { pages?: unknown[] } | undefined)?.pages
+          return (pages?.length ?? 0) <= ALL_PAGES_REFETCH_MAX
+        },
+      })
       void queryClient.invalidateQueries({ queryKey: ['kind-sort-fields', sourceId] })
       void queryClient.invalidateQueries({ queryKey: ['global-search-index', sourceId] })
     }

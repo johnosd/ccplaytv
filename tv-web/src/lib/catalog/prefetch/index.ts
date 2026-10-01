@@ -5,7 +5,7 @@
  * `createPrefetchScheduler`), nunca este módulo.
  */
 
-import { collectStaleGenerations, listCategories } from '../catalogRepository'
+import { clearStagedItemsOfOtherSources, collectStaleGenerations, listCategories } from '../catalogRepository'
 import { ensureCategory } from '../categoryLoader'
 import { convertLegacyCategories } from '../categoryBlocks'
 import { isAbortError } from '../xtreamConnector'
@@ -66,6 +66,9 @@ export const prefetchScheduler = createPrefetchScheduler({
       onConverted: (categoryId) => onCategoryDone?.(sourceId, categoryId),
     })
     if (moreToConvert) return true
+    // Preparo que sobrou de outra lista (carga interrompida e troca de lista):
+    // só as chaves são lidas; sem sobra, não custa nada.
+    if (await clearStagedItemsOfOtherSources(sourceId)) return true
     return collectStaleGenerations(sourceId)
   },
   // Seção inteira num Worker (R0-3): um pedido por seção em vez de um por

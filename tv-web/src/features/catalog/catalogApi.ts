@@ -27,6 +27,7 @@ import {
   readKindPage,
   resolveContinueWatching,
   resolveFavorites,
+  resolveStableIds,
   type CatalogCategory,
 } from '../../lib/catalog/catalogRepository'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
@@ -45,6 +46,7 @@ import {
   parseStableId,
   setWatchedManually,
   toggleFavorite,
+  type StableIdParts,
 } from '../../lib/catalog/userStateRepository'
 import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
@@ -616,6 +618,16 @@ export function useCatalogItem(itemId: string | null) {
 }
 
 /**
+ * O id atual de um item no aparelho, ou `null` se ele não existe mais (saiu
+ * numa renovação). Um id de linha antiga já convertida em bloco (feature 039)
+ * devolve o id novo. Lê só o bloco daquele item — nunca o tipo inteiro.
+ */
+export async function resolveCatalogItemId(itemId: string): Promise<string | null> {
+  const record = await getChannel(Number(itemId))
+  return record?.id === undefined ? null : String(record.id)
+}
+
+/**
  * Metadata descritiva de filme/série para o detalhe (feature 032, US1/US3).
  * Só a tela de detalhe chama — abrir o detalhe é a ação explícita que
  * autoriza a consulta externa (FR-002); nunca usar numa grade ou por foco.
@@ -1159,16 +1171,24 @@ export function useMyListContent(sourceId: string | null) {
       if (!sourceId) return { items: [], movieCount: 0, seriesCount: 0 }
       const favorites = await getGlobalFavorites(db)
 
+      const all = favorites
+        .filter((favorite) => favorite.sourceId === sourceId)
+        .map((favorite) => parseStableId(favorite.stableId))
+        .filter((parts): parts is StableIdParts => parts?.kind === 'movie' || parts?.kind === 'series')
+      // Uma resolução por tipo (uma passada pelos blocos), nunca uma por
+      // favorito — um favorito que não resolve custaria uma varredura inteira.
+      const resolved = new Map<StableIdParts, CatalogRecord>()
+      for (const kind of ['movie', 'series'] as const) {
+        const group = all.filter((parts) => parts.kind === kind)
+        if (group.length === 0) continue
+        for (const [parts, record] of await resolveStableIds(sourceId, kind, group, db)) resolved.set(parts, record)
+      }
+
       const items: CatalogItemOut[] = []
       let movieCount = 0
       let seriesCount = 0
-      for (const favorite of favorites) {
-        if (favorite.sourceId !== sourceId) continue
-        const parts = parseStableId(favorite.stableId)
-        if (!parts || (parts.kind !== 'movie' && parts.kind !== 'series')) continue
-
-        const { records } = await resolveFavorites(sourceId, parts.kind, [parts], db)
-        const record = records[0]
+      for (const parts of all) {
+        const record = resolved.get(parts)
         if (!record) continue
 
         items.push(toItemOut(record, record.kind))

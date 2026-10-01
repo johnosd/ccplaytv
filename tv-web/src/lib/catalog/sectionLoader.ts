@@ -153,12 +153,20 @@ export async function loadSection(
       },
       options.signal,
       async () => {
-        if (buffered >= flushAt) await flush()
+        if (buffered < flushAt) return
+        // Descarregar grava vários MB: espera o mesmo portão da gravação de
+        // cada categoria, para não competir com a categoria que a pessoa abre.
+        // Enquanto espera, o fluxo não é lido (a rede segura o resto).
+        await options.waitUntilAllowed?.()
+        if (options.signal?.aborted) throw new DOMException('Carga cancelada.', 'AbortError')
+        await flush()
       },
     )
   } catch (error) {
-    if (isAbortError(error)) throw error
+    // Cancelada (troca de lista, `stop`) ou falha: o preparo desta carga sai
+    // agora — senão ocuparia espaço até a próxima carga desta mesma fonte.
     await clearStagedItems(sourceId, undefined, database).catch(() => {})
+    if (isAbortError(error)) throw error
     if (error instanceof StorageFullError) return { outcome: 'storage_full', written }
     return { outcome: 'failed', written }
   }
