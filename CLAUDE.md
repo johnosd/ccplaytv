@@ -1012,7 +1012,7 @@ lista" and initials legibility (the empty first-use state was not seen on the
 device — reinstalling preserves IndexedDB). See
 `sdd/specs/037-entrada-listas-prototipo/plan.md` → `## Estado Atual`.
 
-**In execution**: `039-catalogo-em-blocos` — feature 038's "Entrega 2": the
+**Converged**: `039-catalogo-em-blocos` — feature 038's "Entrega 2": the
 items of each category (channels, movies, series; Xtream and M3U) now live in
 **one record per category** — a block, in a new Dexie v14 `categoryBlocks`
 table (`tv-web/src/lib/catalog/categoryBlocks.ts`) — instead of one
@@ -1040,13 +1040,21 @@ person scrolls down** (`readKindPage` + `useAggregatedItems({ progressive })`,
 next page 10 rows before the end, and until the item being restored is read);
 sorting and searching inside "Todos" still read the whole type. 300k-movie
 stress test (`CCPLAY_E2E_ESTRESSE=so node e2e/catalogo-em-blocos.mjs`):
-"Todos" opens in 155 ms with ~17 MB of heap (was 959 ms / ~217 MB); the sync
-Worker still peaks at ~123–132 MB. Also: the search index normalizes names
-lazily, search keystrokes reuse each item's normalized name, and "Continuar
-assistindo" resolves in one pass per kind. **The physical-TV pass is this
-feature's mandatory gate (SC-007)** — see
-`sdd/specs/039-catalogo-em-blocos/plan.md` → `## Estado Atual` and
-`## Riscos e Decisões` (R-009–R-011).
+"Todos" opens in 84–155 ms with ~17–32 MB of heap (was 959 ms / ~217 MB).
+The sync Worker no longer holds a whole section: it flushes what it read
+into a staging table (Dexie **v15** `sectionStaging`) every 20k items and
+writes one category at a time — peak ~123–132 → 50–70 MB. FR-013 was amended
+(searching/sorting inside "Todos" and global search may read a whole type —
+explicit, one-off actions). Also: the search index normalizes names lazily,
+search keystrokes reuse each item's normalized name, and "Continuar
+assistindo" / ↺ Histórico de Séries resolve in one pass per kind. **Verified
+on the physical TV** (2026-09-30, reported by the user): the 11k-movie
+category in 24–56 ms in normal use, whole catalog ≤ 60 s, "Todos" ≤ ~1 s.
+Not run on the TV, by the user's decision: migrating a pre-039 database
+(needs an uninstall that wipes the TV's data) and the 300k stress — both
+proven in the browser only (R-014). Still open: a "cold" read of the 11k
+category (OK with no cursor pause) wasn't measured on the TV (R-009). See
+`sdd/specs/039-catalogo-em-blocos/plan.md` → `## Resultado Final`.
 
 The four top-level directories:
 
