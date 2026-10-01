@@ -61,7 +61,10 @@ export function markEntry(categoryId: number, kind: string, phase: EntryPhase, i
   if (!isPerfEnabled()) return
   const now = performance.now()
   let entry = pending.get(categoryId)
-  if (!entry || phase === 'request') {
+  // `start` (entrada da tela) também recomeça: sem isto, um registro deixado
+  // por uma busca em segundo plano da mesma categoria minutos antes somava
+  // esse tempo à entrada (visto na TV: `start=240247`).
+  if (!entry || phase === 'request' || phase === 'start') {
     entry = { kind, start: now, phases: {} }
     pending.set(categoryId, entry)
   }

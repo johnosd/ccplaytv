@@ -34,4 +34,19 @@ describe('entryTiming', () => {
     expect(printed).not.toMatch(/https?:/)
     expect(printed).toContain('itens=120')
   })
+
+  it('a entrada da tela (start) recomeça a medição — um registro velho da mesma categoria não soma tempo', () => {
+    localStorage.setItem('ccplaytv:perf', '1')
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const now = vi.spyOn(performance, 'now')
+    now.mockReturnValue(1_000)
+    markEntry(9, 'movie', 'request') // busca em segundo plano que nunca pintou
+    now.mockReturnValue(241_000)
+    markEntry(9, 'movie', 'start') // a pessoa entra 4 min depois
+    now.mockReturnValue(241_026)
+    markEntry(9, 'movie', 'firstPaint')
+
+    const [report] = takeEntryReports()
+    expect(report.phases).toEqual({ start: 0, firstPaint: 26 })
+  })
 })
