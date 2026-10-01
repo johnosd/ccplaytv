@@ -217,7 +217,7 @@ Duas features em paralelo só se os conjuntos de zonas forem **disjuntos**.
 | 031-epg-guia-completo | EPG — Guia Completo em Tela Cheia | Convergida | 47/48 tasks | 2026-09-29 |
 | 032-metadata-tmdb-integracoes | Metadata de Filmes e Séries — Provedor Primeiro, TMDB (BYOK) Completa, e Tela Integrações | Convergida | 58/58 tasks | 2026-09-29 |
 | 033-trailers-filmes-series | Trailers de Filmes e Séries | Convergida | 55/55 tasks | 2026-09-29 |
-| 034-fontes-estado-expiracao | Fontes IPTV completas — estado, contagem e expiração da conta | Implementada | 45/45 tasks | 2026-10-01 |
+| 034-fontes-estado-expiracao | Fontes IPTV completas — estado, contagem e expiração da conta | Convergida | 45/45 tasks | 2026-10-01 |
 | 035-semelhantes-elenco-ator | Semelhantes, fotos do elenco e página de ator | Convergida | 63/63 tasks | 2026-09-30 |
 | 036-limpar-historico | Limpar histórico e remover item do Histórico | Convergida | 46/46 tasks | 2026-10-01 |
 | 037-entrada-listas-prototipo | Entrada fiel ao protótipo — tela de listas e cadastro de lista | Convergida | 51/51 tasks | 2026-09-30 |
