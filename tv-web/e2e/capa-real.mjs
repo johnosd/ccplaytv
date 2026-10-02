@@ -303,7 +303,7 @@ async function run() {
       `rolar até o fim pediu mais capas (${beforeScroll} -> ${afterScroll}) — carrega conforme a pessoa navega, nunca tudo de uma vez`,
     )
 
-    assert((counts.get('/lista.m3u') ?? 0) === 1, 'o M3U foi baixado uma única vez durante toda a navegação')
+    assert((counts.get('/lista.m3u') ?? 0) === 2, 'o M3U foi pedido só 2 vezes na navegação toda (1 da confirmação do cadastro, que lê só o começo — feature 045 —, e 1 do download)')
   } catch (error) {
     failures += 1
     console.error('  ✗ ERRO NÃO TRATADO:', error)

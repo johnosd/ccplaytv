@@ -185,6 +185,53 @@ describe('loadSection (feature 038, R0-3)', () => {
     expect(await listChannels(SOURCE_ID, 0, 0, 10, 'channel', database)).toEqual([])
   })
 
+  it('descarregar no preparo também espera o portão (não compete com a categoria que a pessoa abre)', async () => {
+    const [c1, c2, c3] = await seedLive()
+    const order: string[] = []
+    const realBulkAdd = database.sectionStaging.bulkAdd.bind(database.sectionStaging)
+    vi.spyOn(database.sectionStaging, 'bulkAdd').mockImplementation(((...args: Parameters<typeof realBulkAdd>) => {
+      order.push('preparo')
+      return realBulkAdd(...args)
+    }) as typeof realBulkAdd)
+
+    await loadSection(SOURCE_ID, 'channel', [c1, c2, c3], {
+      database,
+      fetchImpl: async () => streamed(SECTION, 5),
+      stageFlushItems: 1,
+      waitUntilAllowed: async () => {
+        order.push('portão')
+      },
+    })
+
+    expect(order).toContain('preparo')
+    order.forEach((step, index) => {
+      if (step === 'preparo') expect(order[index - 1]).toBe('portão')
+    })
+  })
+
+  it('cancelada no meio do fluxo: apaga o preparo antes de propagar o AbortError', async () => {
+    const [c1, c2] = await seedLive()
+    const controller = new AbortController()
+    let calls = 0
+
+    await expect(
+      loadSection(SOURCE_ID, 'channel', [c1, c2], {
+        database,
+        fetchImpl: async () => streamed(SECTION, 5),
+        stageFlushItems: 1,
+        signal: controller.signal,
+        waitUntilAllowed: async () => {
+          calls += 1
+          // A 1ª descarga acontece; na 2ª, a lista é trocada.
+          if (calls === 2) controller.abort()
+        },
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' })
+
+    expect(calls).toBeGreaterThanOrEqual(2)
+    expect(await database.sectionStaging.count()).toBe(0)
+  })
+
   it('cancelado: propaga AbortError', async () => {
     const [c1] = await seedLive()
     const controller = new AbortController()

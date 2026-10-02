@@ -16,7 +16,7 @@ import type { PersonSnapshot } from '../features/person/personSnapshot'
 export type TopDestination = 'live' | 'movies' | 'series'
 
 /** Item da topbar, na ordem visual (FR-013). */
-export type TopbarItem = 'home' | TopDestination | 'profile' | 'search' | 'settings'
+export type TopbarItem = 'home' | TopDestination | 'profile' | 'search' | 'settings' | 'connection'
 
 /**
  * Onde estava o foco do Início quando a pessoa saiu dele — restaurado no
@@ -38,6 +38,13 @@ export type AppScreen =
   | { name: 'profiles'; mode: 'base' | 'switch'; focusSourceId?: string | null }
   | { name: 'add-source' }
   | { name: 'edit-source'; source: SourceOut }
+  /**
+   * Tela de acesso à lista (feature 034, US2): empilhada por `open` entre
+   * "Quem está assistindo?" e o Início quando a conta está vencida/recusada ou
+   * precisa de verificação. RETURN volta aos perfis com o foco nesta lista
+   * (`from.focusSourceId`). Sem ação nova no redutor (D-008).
+   */
+  | { name: 'source-access'; source: SourceOut }
   /** EPG da lista (feature 030, US2) — aberta por Configurações › Fontes IPTV › EPG. RETURN volta ao botão "EPG" (`restore` da tela de Configurações). */
   | { name: 'epg-settings'; source: SourceOut }
   /** Chave do TMDB (feature 032, US2) — aberta por Configurações › Integrações & BYOK. RETURN volta ao card do TMDB (`restore` da tela de Configurações). */

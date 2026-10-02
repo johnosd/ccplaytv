@@ -78,6 +78,7 @@ vi.mock('../catalog/catalogApi', async (importOriginal) => {
     useCategoryContent: vi.fn(),
     useCategoryFocusPrefetch: vi.fn(),
     useAggregatedItems: vi.fn(),
+    resolveCatalogItemId: vi.fn(async (itemId: string) => itemId),
     // Favoritos/assistidos/histórico/retomada: reais, contra fake-indexeddb.
   }
 })
@@ -272,9 +273,8 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     expect(vi.mocked(catalogApi.useAggregatedItems)).toHaveBeenLastCalledWith(SOURCE_ID, 'movie', true, { progressive: false })
   })
 
-  it('voltar a "Todos" com o item focado ainda não lido continua lendo páginas até ele aparecer', () => {
+  function renderAllRestoringFocus(focusedItemId: string, loadMore: () => void) {
     mockCategories([category(1, 'Ação', 0)])
-    const loadMore = vi.fn()
     vi.mocked(catalogApi.useAggregatedItems).mockReturnValue({
       items: Array.from({ length: 300 }, (_, i) => movie(`Filme ${i}`, `m${i}`)),
       coveredCategories: 1,
@@ -296,14 +296,28 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
             trailKey: { kind: 'all' },
             entered: { kind: 'all' },
             col: 1,
-            focusedItemId: 'id-Filme 5000',
+            focusedItemId,
             searchTerm: '',
             searchActive: false,
           }}
         />
       </QueryClientProvider>,
     )
-    expect(loadMore).toHaveBeenCalled()
+  }
+
+  it('voltar a "Todos" com um item focado que saiu da lista não lê o tipo inteiro atrás dele', async () => {
+    vi.mocked(catalogApi.resolveCatalogItemId).mockResolvedValueOnce(null)
+    const loadMore = vi.fn()
+    renderAllRestoringFocus('id-Saiu', loadMore)
+    await waitFor(() => expect(catalogApi.resolveCatalogItemId).toHaveBeenCalledWith('id-Saiu'))
+    await act(async () => {})
+    expect(loadMore).not.toHaveBeenCalled()
+  })
+
+  it('voltar a "Todos" com o item focado ainda não lido continua lendo páginas até ele aparecer', async () => {
+    const loadMore = vi.fn()
+    renderAllRestoringFocus('id-Filme 5000', loadMore)
+    await waitFor(() => expect(loadMore).toHaveBeenCalled())
   })
 
   it('erro de conteúdo: SELECT em "Tentar de novo" chama o refetch', () => {

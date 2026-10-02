@@ -8,8 +8,11 @@ import {
   useUserState,
   invalidateUserState,
   useToggleWatched,
+  useRemoveFromHistory,
   groupLabel,
 } from '../catalog/catalogApi'
+import { isInHistory, type HistoryRemovalMode } from '../../lib/catalog/historyRemoval'
+import { HistoryRemovalModal } from '../history/HistoryRemovalModal'
 import {
   CastPanel,
   CastPeoplePanel,
@@ -54,6 +57,8 @@ export interface MovieDetailScreenProps {
   onOpenPerson?: (person: OpenPersonTarget, from: DetailSnapshot) => void
   /** Feature 035: "Configurar TMDB" da aba Semelhantes sem chave — abre Configurações › Integrações & BYOK. */
   onOpenTmdbSettings?: (from: DetailSnapshot) => void
+  /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
+  onEditSource?: (sourceId: string) => void
 }
 
 type MovieAction =
@@ -64,6 +69,7 @@ type MovieAction =
   | { id: 'trailer' }
   | { id: 'similar' }
   | { id: 'toggle-watched'; watched: boolean }
+  | { id: 'remove-history' }
 
 type DetailTab = 'details' | 'cast' | 'similar'
 
@@ -80,13 +86,27 @@ const CONFIGURE_KEY = 'configure'
  * §3, FR-033): `[Continuar|Assistir] [Reiniciar?] [Minha Lista] [Trailer]
  * [Semelhantes] [Marcar assistido]`. A ação PRIMÁRIA é sempre o índice 0 — diferente da
  * versão anterior à 025, que usava o índice 1 porque "Trailer" vinha
- * primeiro; "Trailer" virou soft-disabled e saiu do topo.
+ * primeiro; "Trailer" virou soft-disabled e saiu do topo. "Remover do
+ * histórico" (feature 036, FR-004/FR-005) só existe com o filme no
+ * "↺ Histórico" e vem sempre por último — nunca desloca o índice 0.
  */
-function buildActions(progressSeconds: number | undefined, watched: boolean, isFavorite: boolean): MovieAction[] {
+function buildActions(
+  progressSeconds: number | undefined,
+  watched: boolean,
+  isFavorite: boolean,
+  inHistory: boolean,
+): MovieAction[] {
   const primary: MovieAction[] = isResumable(progressSeconds)
     ? [{ id: 'resume', progressSeconds: progressSeconds as number }, { id: 'restart' }]
     : [{ id: 'watch' }]
-  return [...primary, { id: 'favorite', isFavorite }, { id: 'trailer' }, { id: 'similar' }, { id: 'toggle-watched', watched }]
+  return [
+    ...primary,
+    { id: 'favorite', isFavorite },
+    { id: 'trailer' },
+    { id: 'similar' },
+    { id: 'toggle-watched', watched },
+    ...(inHistory ? [{ id: 'remove-history' } as const] : []),
+  ]
 }
 
 function actionLabel(action: MovieAction): string {
@@ -105,6 +125,8 @@ function actionLabel(action: MovieAction): string {
       return '☰ Semelhantes'
     case 'toggle-watched':
       return action.watched ? '✗ Desmarcar assistido' : '✓ Marcar como assistido'
+    case 'remove-history':
+      return 'Remover do histórico'
   }
 }
 
@@ -159,7 +181,15 @@ function computeIdentity(movie: {
  * (FR-004) — raiz `.screen`, coberta pela regra de transparência do plano
  * de hardware.
  */
-export function MovieDetailScreen({ movieId, onBack, restore, onOpenTitle, onOpenPerson, onOpenTmdbSettings }: MovieDetailScreenProps) {
+export function MovieDetailScreen({
+  movieId,
+  onBack,
+  restore,
+  onOpenTitle,
+  onOpenPerson,
+  onOpenTmdbSettings,
+  onEditSource,
+}: MovieDetailScreenProps) {
   const queryClient = useQueryClient()
   // Pelo id, direto na chave primária. Carregar a lista de filmes inteira só
   // para procurar um item dentro dela custava o catálogo todo — e deixava de
@@ -179,10 +209,35 @@ export function MovieDetailScreen({ movieId, onBack, restore, onOpenTitle, onOpe
   const userStateQuery = useUserState(identity?.stableId ?? null)
   const watched = userStateQuery.data?.completedAt != null
   const isFavorite = userStateQuery.data?.isFavorite ?? false
-  const actions = buildActions(userStateQuery.data?.progressSeconds ?? undefined, watched, isFavorite)
+  const actions = buildActions(
+    userStateQuery.data?.progressSeconds ?? undefined,
+    watched,
+    isFavorite,
+    isInHistory(userStateQuery.data),
+  )
   const toggleWatched = useToggleWatched()
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
+
+  // "Remover do histórico" (feature 036, §9): o `Modal` intercepta o teclado
+  // enquanto aberto, então o `onSelect` desta tela não reabre nada (T020).
+  const removeFromHistory = useRemoveFromHistory()
+  const [removal, setRemoval] = useState<{ error: boolean } | null>(null)
+
+  function confirmHistoryRemoval(mode: HistoryRemovalMode) {
+    if (!identity || removeFromHistory.isPending) return
+    removeFromHistory.mutate(
+      { target: { kind: 'movie', ...identity }, mode },
+      {
+        onSuccess: () => {
+          // A ação some na releitura; `safeActionFocus` cai na anterior.
+          setRemoval(null)
+          showToast('Removido do histórico')
+        },
+        onError: () => setRemoval({ error: true }),
+      },
+    )
+  }
 
   // Metadata descritiva (feature 032): nunca bloqueia a tela nem a ação
   // primária (FR-005) — sem `data`, tudo abaixo simplesmente não aparece.
@@ -385,6 +440,10 @@ export function MovieDetailScreen({ movieId, onBack, restore, onOpenTitle, onOpe
         if (identity) toggleWatched.mutate({ ...identity, watched: !action.watched })
         return
       }
+      if (action.id === 'remove-history') {
+        if (identity) setRemoval({ error: false })
+        return
+      }
       openPlayer(action)
     },
     onBack,
@@ -430,7 +489,7 @@ export function MovieDetailScreen({ movieId, onBack, restore, onOpenTitle, onOpe
               return (
                 <div
                   key={action.id}
-                  className={`vod-detail-action${row === 'actions' && i === safeActionFocus ? ' tv-focus' : ''}${softDisabled ? ' is-soft-disabled' : ''}`}
+                  className={`vod-detail-action${row === 'actions' && i === safeActionFocus && !removal ? ' tv-focus' : ''}${softDisabled ? ' is-soft-disabled' : ''}`}
                   aria-disabled={softDisabled ? 'true' : undefined}
                 >
                   {action.id === 'trailer' ? trailerActionLabel(trailerState) : actionLabel(action)}
@@ -502,6 +561,15 @@ export function MovieDetailScreen({ movieId, onBack, restore, onOpenTitle, onOpe
       <Toast message={toastMessage} messageKey={toastKey} />
       {synopsisOpen && synopsis && <SynopsisModal text={synopsis.value} onClose={() => setSynopsisOpen(false)} />}
       {summaryTitle && <TitleSummaryModal title={summaryTitle} onClose={() => setSummaryTitle(null)} />}
+      {removal && (
+        <HistoryRemovalModal
+          subject={{ kind: 'item', name: movie.name }}
+          hasProgress={(userStateQuery.data?.progressSeconds ?? 0) > 0}
+          error={removal.error}
+          onCancel={() => setRemoval(null)}
+          onConfirm={confirmHistoryRemoval}
+        />
+      )}
       {/* Fechar o trailer não invalida nada: ver trailer não muda estado do usuário (FR-016). */}
       {trailerOpen && trailerState.status === 'available' && (
         <TrailerLayer title={movie.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)} />
@@ -512,6 +580,7 @@ export function MovieDetailScreen({ movieId, onBack, restore, onOpenTitle, onOpe
           title={movie.name}
           startAtMs={startAtMs}
           identity={{ title: movie.name }}
+          onEditSource={onEditSource}
           onClose={() => {
             setPlaying(false)
             // Sem isto, o detalhe continuaria com a leitura de quando montou

@@ -412,3 +412,8 @@ com os 7 itens do checklist da constitution evidenciados.
 spec (Assumptions), nunca gate desta feature, não realizada nesta sessão
 por falta de acesso ao aparelho. R-007 (custo de render na TV) continua em
 aberto por esse mesmo motivo.
+
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.

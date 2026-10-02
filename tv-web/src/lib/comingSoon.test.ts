@@ -35,11 +35,7 @@ describe('getComingSoon', () => {
       'home-ai-curation',
       'home-trailer',
       'pair-phone',
-      'player-aspect',
-      'player-quality',
-      'player-speed',
       'settings-parental',
-      'settings-player',
       'voice-search',
     ])
   })
@@ -57,6 +53,10 @@ describe('getComingSoon', () => {
     expect(() => getComingSoon('cast')).toThrow() // deixou de ser mock na 032 (aba Elenco com o elenco em texto)
     expect(() => getComingSoon('trailer')).toThrow() // deixou de ser mock na 033 (botão real)
     expect(() => getComingSoon('similar')).toThrow() // deixou de ser mock na 035 (aba Semelhantes real)
+    expect(() => getComingSoon('player-quality')).toThrow() // deixou de ser mock na 041 (Qualidade real)
+    expect(() => getComingSoon('player-aspect')).toThrow() // deixou de ser mock na 041 (Aspecto real)
+    expect(() => getComingSoon('player-speed')).toThrow() // 041, D-001: Velocidade saiu de vez, nem como mock
+    expect(() => getComingSoon('settings-player')).toThrow() // deixou de ser mock na 041 (aba Player real)
     expect(getComingSoon('home-ai-curation').backlogItem).toBe(30)
   })
 })

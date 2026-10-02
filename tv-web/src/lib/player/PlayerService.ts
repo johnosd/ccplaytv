@@ -27,6 +27,7 @@ import {
   type PlayerProgress,
 } from './capabilities'
 import type { MediaTrack, StreamInfo, SubtitleCue } from './tracks'
+import { ASPECT_MODES, type AspectMode, type QualityOption } from './viewChoice'
 
 export type PlayerState =
   | 'idle'
@@ -130,6 +131,20 @@ export interface PlayerAdapter {
   /** `null` desativa a legenda. `true` se o motor aceitou. */
   selectTextTrack?(id: string | null): boolean
   getStreamInfo?(): StreamInfo | null
+
+  /**
+   * Feature 041 (`logic/aspecto-qualidade.md` §1/§2). Mesma regra da 029:
+   * método ausente = capacidade ausente (controle "— indisponível").
+   * Modos que este motor de fato aplica — fixos por motor, provados no spike
+   * da TV (R-001); lista vazia = nenhum.
+   */
+  getAspectModes?(): AspectMode[]
+  /** `true` se o motor aceitou. Nunca reinicia a mídia nem mexe na posição. */
+  setAspectMode?(mode: AspectMode): boolean
+  /** Variantes que o stream anuncia agora, ou `null` (não conseguiu informar). */
+  getQualities?(): QualityOption[] | null
+  /** `null` = Auto (adaptativo). `true` se o motor aceitou (R-002: pode reabrir por dentro). */
+  selectQuality?(id: string | null): boolean
 }
 
 export interface PlayerAdapterCallbacks {
@@ -172,6 +187,21 @@ export interface PlayerSession {
   getStreamInfo(): StreamInfo | null
   /** `null` = apagar a linha exibida. Devolve a função que cancela a assinatura. */
   subscribeSubtitles(listener: (cue: SubtitleCue | null) => void): () => void
+
+  /** Feature 041: modos que o motor aplica (ordem de `ASPECT_MODES`); `[]` = nenhum. */
+  readonly aspectModes: readonly AspectMode[]
+  /** Último modo que o motor aceitou nesta sessão, ou `null`. */
+  readonly currentAspect: AspectMode | null
+  /** `false`: sessão fechada, modo fora de `aspectModes` ou o motor recusou. Nunca pausa nem salta. */
+  setAspectMode(mode: AspectMode): boolean
+  /** O motor sabe listar e trocar variantes. Falso = "Qualidade — indisponível". */
+  readonly supportsQuality: boolean
+  /** Variantes que o stream anuncia (cru do motor), ou `null`. */
+  getQualities(): QualityOption[] | null
+  /** Id da variante aceita pelo motor; `null` = Auto. */
+  readonly selectedQualityId: string | null
+  /** `null` = Auto. `true` só se o motor aceitou (e só então `selectedQualityId` muda). */
+  selectQuality(id: string | null): boolean
 
   /** Sem efeito se `!capabilities.canPause`. */
   togglePause(): void
@@ -245,6 +275,15 @@ export class PlayerServiceSession implements PlayerSession {
   private readonly subtitleListeners = new Set<(cue: SubtitleCue | null) => void>()
   readonly supportsTracks: boolean
   readonly supportsStreamInfo: boolean
+  /** Feature 042: `PlayerAdapter.name` (nunca inclui dado sensível) — vai para a "Info técnica". */
+  readonly engine: string
+
+  // Feature 041 (`logic/aspecto-qualidade.md` §1.1/§2.3). Como as faixas da
+  // 029: método ausente = capacidade ausente; fora do `emit()` de estado.
+  readonly aspectModes: readonly AspectMode[]
+  readonly supportsQuality: boolean
+  private _currentAspect: AspectMode | null = null
+  private _selectedQualityId: string | null = null
 
   // Porta single-flight de saltos (contrato §5; logic/reproducao-vod.md §3).
   private seekInFlight = false
@@ -265,8 +304,12 @@ export class PlayerServiceSession implements PlayerSession {
       onSubtitle: (cue) => this.applySubtitle(cue),
     })
     this._rendersOnHardwarePlane = this.adapter.rendersOnHardwarePlane
+    this.engine = this.adapter.name
     this.supportsTracks = typeof this.adapter.getTracks === 'function'
     this.supportsStreamInfo = typeof this.adapter.getStreamInfo === 'function'
+    this.aspectModes = readAspectModes(this.adapter)
+    this.supportsQuality =
+      typeof this.adapter.getQualities === 'function' && typeof this.adapter.selectQuality === 'function'
     // Resolvida uma vez, na construção: nem o motor nem o tipo de mídia mudam
     // durante a vida da sessão (D-001).
     this._capabilities = resolveCapabilities(this.adapter.capabilities, kind)
@@ -419,6 +462,50 @@ export class PlayerServiceSession implements PlayerSession {
     }
   }
 
+  get currentAspect(): AspectMode | null {
+    return this._currentAspect
+  }
+
+  get selectedQualityId(): string | null {
+    return this._selectedQualityId
+  }
+
+  setAspectMode(mode: AspectMode): boolean {
+    const adapter = this.adapter
+    if (this._state === 'closed' || !adapter?.setAspectMode || !this.aspectModes.includes(mode)) return false
+    let ok = false
+    try {
+      ok = adapter.setAspectMode(mode)
+    } catch {
+      ok = false
+    }
+    if (ok) this._currentAspect = mode
+    return ok
+  }
+
+  getQualities(): QualityOption[] | null {
+    const adapter = this.adapter
+    if (this._state === 'closed' || !adapter?.getQualities) return null
+    try {
+      return adapter.getQualities()
+    } catch {
+      return null
+    }
+  }
+
+  selectQuality(id: string | null): boolean {
+    const adapter = this.adapter
+    if (this._state === 'closed' || !adapter?.selectQuality) return false
+    let ok = false
+    try {
+      ok = adapter.selectQuality(id)
+    } catch {
+      ok = false
+    }
+    if (ok) this._selectedQualityId = id
+    return ok
+  }
+
   close(): void {
     if (this._state === 'closed') return
     try {
@@ -531,6 +618,17 @@ export class PlayerServiceSession implements PlayerSession {
   }
 }
 
+/** `ASPECT_MODES ∩ getAspectModes()`, na ordem de `ASPECT_MODES`; `[]` sem o método ou se ele lançar. */
+function readAspectModes(adapter: PlayerAdapter): readonly AspectMode[] {
+  if (typeof adapter.getAspectModes !== 'function') return []
+  try {
+    const declared = adapter.getAspectModes()
+    return ASPECT_MODES.filter((mode) => declared.includes(mode))
+  } catch {
+    return []
+  }
+}
+
 /**
  * `kind` é obrigatório e sem valor padrão (D-004): um padrão `'channel'`
  * faria um filme perder a barra por esquecimento numa chamada nova, sem
@@ -558,6 +656,7 @@ export function resolveAdapterFactory(): PlayerAdapterFactory {
 
 export type { PlayableKind, PlayerCapabilities, PlayerProgress } from './capabilities'
 export type { MediaTrack, StreamInfo, SubtitleCue, TrackChoice } from './tracks'
+export type { AspectMode, QualityChoice, QualityOption, ViewChoice } from './viewChoice'
 
 // Importações no fim para evitar ciclo: os adaptadores dependem dos tipos
 // declarados acima.

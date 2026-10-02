@@ -8,31 +8,20 @@ export interface AppShellProps {
   /** Teclas úteis do contexto atual (FR-021). */
   hints: HintItem[]
   children: ReactNode
-  /** Opcional. Padrão: re-lê o estado real do navegador (`recheckConnection`). */
-  onTestConnection?: () => void
-}
-
-/**
- * "Testar conexão" sem inventar conectividade: a única fonte da verdade é
- * `navigator.onLine`, que `useOnlineStatus` já lê e escuta. Republicar o
- * evento correspondente ao valor real faz o banner se recalcular sem
- * consultar rede nenhuma.
- */
-function recheckConnection() {
-  window.dispatchEvent(new Event(navigator.onLine ? 'online' : 'offline'))
 }
 
 /**
  * Moldura do Início (feature 023, D-002 do plan.md): topbar, banner de
  * conexão, conteúdo e a `HintBar`, dentro da safe zone do palco 1920×1080.
  * O banner é só um sinal — nunca bloqueia a navegação; o catálogo local
- * continua disponível offline (ADR-002).
+ * continua disponível offline (ADR-002). A ação "Tentar de novo" é um item da
+ * topbar, alcançável pelo controle remoto (feature 042, D-007).
  */
-export function AppShell({ topBar, hints, children, onTestConnection = recheckConnection }: AppShellProps): ReactNode {
+export function AppShell({ topBar, hints, children }: AppShellProps): ReactNode {
   return (
     <div className="app-shell">
       {topBar}
-      <OfflineBanner onTestConnection={onTestConnection} />
+      <OfflineBanner />
       <main className="app-shell-content">{children}</main>
       <HintBar hints={hints} />
     </div>

@@ -1,27 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useNetworkState } from './network/networkState'
 
 /**
  * Estado real de conectividade (feature 022, D-012 do plan.md) — nunca um
- * valor estático recebido por prop (FR-029). Inicializa de
- * `navigator.onLine` e assina os eventos `online`/`offline` da janela.
+ * valor estático recebido por prop (FR-029). Desde a feature 042 lê do mesmo
+ * redutor que o resto do app (`lib/network/networkState.ts`): uma fonte só.
  */
 export function useOnlineStatus(): boolean {
-  const [online, setOnline] = useState(() => navigator.onLine)
-
-  useEffect(() => {
-    function handleOnline() {
-      setOnline(true)
-    }
-    function handleOffline() {
-      setOnline(false)
-    }
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
-  }, [])
-
-  return online
+  return useNetworkState().online
 }

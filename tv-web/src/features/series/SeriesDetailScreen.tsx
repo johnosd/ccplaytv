@@ -13,8 +13,11 @@ import {
   useTmdbStatus,
   useUserState,
   useUserStates,
+  useRemoveFromHistory,
   type EpisodeOut,
 } from '../catalog/catalogApi'
+import { isInHistory, type HistoryRemovalMode } from '../../lib/catalog/historyRemoval'
+import { HistoryRemovalModal } from '../history/HistoryRemovalModal'
 import {
   CastPanel,
   CastPeoplePanel,
@@ -40,7 +43,7 @@ import {
   type SeriesPrimary,
 } from './episodeNavigation'
 import { PlayerLayer, type PlayerEpisodeStep } from '../../components/PlayerLayer'
-import type { TrackChoice } from '../../lib/player/PlayerService'
+import type { TrackChoice, ViewChoice } from '../../lib/player/PlayerService'
 import { NextEpisodeCountdown } from './NextEpisodeCountdown'
 import { ContentCard } from '../../components/ContentCard'
 import { Tabs, type TabItem } from '../../components/Tabs'
@@ -74,6 +77,8 @@ export interface SeriesDetailScreenProps {
   onOpenPerson?: (person: OpenPersonTarget, from: DetailSnapshot) => void
   /** Feature 035: "Configurar TMDB" da aba Semelhantes sem chave. */
   onOpenTmdbSettings?: (from: DetailSnapshot) => void
+  /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
+  onEditSource?: (sourceId: string) => void
 }
 
 type DetailTab = 'episodes' | 'details' | 'cast' | 'similar'
@@ -93,14 +98,20 @@ type SeriesAction =
   | { id: 'favorite'; isFavorite: boolean }
   | { id: 'trailer' }
   | { id: 'similar' }
+  | { id: 'remove-history' }
 
-/** Ações do hero, na ordem de foco (feature 025, FR-038): `[Continuar|Assistir TX:EY] [Minha Lista] [Trailer] [Semelhantes]`. */
-function buildActions(primary: SeriesPrimary | null, isFavorite: boolean): SeriesAction[] {
+/**
+ * Ações do hero, na ordem de foco (feature 025, FR-038): `[Continuar|Assistir
+ * TX:EY] [Minha Lista] [Trailer] [Semelhantes]`, e "Remover do histórico"
+ * (feature 036, §9) por último, só com algum episódio no "↺ Histórico".
+ */
+function buildActions(primary: SeriesPrimary | null, isFavorite: boolean, inHistory: boolean): SeriesAction[] {
   const actions: SeriesAction[] = []
   if (primary) actions.push({ id: 'primary', primary })
   actions.push({ id: 'favorite', isFavorite })
   actions.push({ id: 'trailer' })
   actions.push({ id: 'similar' })
+  if (inHistory) actions.push({ id: 'remove-history' })
   return actions
 }
 
@@ -116,6 +127,8 @@ function actionLabel(action: SeriesAction): string {
       return '▶ Trailer'
     case 'similar':
       return '☰ Semelhantes'
+    case 'remove-history':
+      return 'Remover do histórico'
   }
 }
 
@@ -182,7 +195,15 @@ type Mode =
  * plano de hardware. Autoplay/contagem/máquina `Mode` **inalterados** desde
  * a feature 012.
  */
-export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onOpenPerson, onOpenTmdbSettings }: SeriesDetailScreenProps) {
+export function SeriesDetailScreen({
+  seriesId,
+  onBack,
+  restore,
+  onOpenTitle,
+  onOpenPerson,
+  onOpenTmdbSettings,
+  onEditSource,
+}: SeriesDetailScreenProps) {
   const queryClient = useQueryClient()
   const query = useCatalogItem(seriesId)
   const series = query.data ?? undefined
@@ -209,9 +230,29 @@ export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onO
   const watchedSummary = series?.series_id ? watchedSummaryQuery.data?.get(series.series_id) : undefined
 
   const primary = seriesPrimaryAction(seasons, stateFor)
-  const actions = buildActions(primary, isFavorite)
+  const episodeStates = userStatesQuery.data ?? []
+  const actions = buildActions(primary, isFavorite, episodeStates.some((state) => isInHistory(state)))
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
+
+  // "Remover do histórico" (feature 036, §9): a série inteira, pelo
+  // `series_id` do catálogo (D-009). O `Modal` intercepta o teclado (T020).
+  const removeFromHistory = useRemoveFromHistory()
+  const [removal, setRemoval] = useState<{ error: boolean } | null>(null)
+
+  function confirmHistoryRemoval(mode: HistoryRemovalMode) {
+    if (!series?.series_id || !series.source_id || removeFromHistory.isPending) return
+    removeFromHistory.mutate(
+      { target: { kind: 'series', seriesId: series.series_id, sourceId: series.source_id }, mode },
+      {
+        onSuccess: () => {
+          setRemoval(null)
+          showToast('Removido do histórico')
+        },
+        onError: () => setRemoval({ error: true }),
+      },
+    )
+  }
 
   // Metadata descritiva (feature 032): nunca bloqueia a tela nem a ação
   // primária (FR-005). Lê o cache que a obtenção de episódios já gravou.
@@ -344,6 +385,8 @@ export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onO
   // `PlayerLayer`, então quem guarda a escolha entre um episódio e o próximo
   // é esta tela. Zera quando a sequência acaba (sair, cancelar, último).
   const trackChoiceRef = useRef<TrackChoice | null>(null)
+  // Feature 041: aspecto/qualidade da sequência, mesmo papel e mesmos pontos de zerar.
+  const viewChoiceRef = useRef<ViewChoice | null>(null)
 
   const episodesNavigable = row === 'episodes' && mode.kind === 'browsing' && seasonEpisodes.length > 0
   useVirtualFocusSync({
@@ -371,6 +414,7 @@ export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onO
   /** RETURN/erro do player — sempre volta à lista, nunca ao próximo (D-008). */
   function handlePlayerClose(justPlayed: EpisodeOut) {
     trackChoiceRef.current = null
+    viewChoiceRef.current = null
     setMode({ kind: 'browsing' })
     setFocusedEpisodeId(justPlayed.id)
     // Sem isto, a lista continuaria com a leitura de quando montou — mesmo
@@ -385,6 +429,7 @@ export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onO
     const next = nextEpisode(seasons, justPlayed.id)
     if (!next) {
       trackChoiceRef.current = null
+      viewChoiceRef.current = null
       setMode({ kind: 'browsing' })
       setFocusedEpisodeId(justPlayed.id)
       return
@@ -433,6 +478,7 @@ export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onO
   /** Cancelar a contagem — volta à lista, foco no episódio que acabou de concluir, sem tocar nada (FR-015). */
   function cancelCountdown(finished: EpisodeOut) {
     trackChoiceRef.current = null
+    viewChoiceRef.current = null
     setMode({ kind: 'browsing' })
     setFocusedEpisodeId(finished.id)
   }
@@ -569,6 +615,10 @@ export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onO
           enterSimilar.request()
           return
         }
+        if (action.id === 'remove-history') {
+          setRemoval({ error: false })
+          return
+        }
         openEpisode(action.primary.episode)
         return
       }
@@ -678,7 +728,7 @@ export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onO
               return (
                 <div
                   key={action.id}
-                  className={`vod-detail-action${row === 'actions' && i === safeActionFocus ? ' tv-focus' : ''}${softDisabled ? ' is-soft-disabled' : ''}`}
+                  className={`vod-detail-action${row === 'actions' && i === safeActionFocus && !removal ? ' tv-focus' : ''}${softDisabled ? ' is-soft-disabled' : ''}`}
                   aria-disabled={softDisabled ? 'true' : undefined}
                 >
                   {action.id === 'trailer' ? trailerActionLabel(trailerState) : actionLabel(action)}
@@ -852,6 +902,15 @@ export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onO
 
       {synopsisOpen && synopsis && <SynopsisModal text={synopsis.value} onClose={() => setSynopsisOpen(false)} />}
       {summaryTitle && <TitleSummaryModal title={summaryTitle} onClose={() => setSummaryTitle(null)} />}
+      {removal && (
+        <HistoryRemovalModal
+          subject={{ kind: 'item', name: series.name }}
+          hasProgress={episodeStates.some((state) => (state?.progressSeconds ?? 0) > 0)}
+          error={removal.error}
+          onCancel={() => setRemoval(null)}
+          onConfirm={confirmHistoryRemoval}
+        />
+      )}
 
       {/* Fechar o trailer não invalida nada: ver trailer não muda estado do usuário (FR-016). */}
       {trailerOpen && trailerState.status === 'available' && (
@@ -863,6 +922,7 @@ export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onO
           itemId={mode.episode.id}
           title={mode.episode.name}
           startAtMs={mode.startAtMs}
+          onEditSource={onEditSource}
           onClose={() => handlePlayerClose(mode.episode)}
           onCompleted={() => handlePlayerCompleted(mode.episode)}
           identity={{ title: series.name, subtitle: episodeSubtitle(mode.episode) }}
@@ -870,6 +930,10 @@ export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onO
           initialTrackChoice={trackChoiceRef.current}
           onTrackChoiceChange={(choice) => {
             trackChoiceRef.current = choice
+          }}
+          initialViewChoice={viewChoiceRef.current}
+          onViewChoiceChange={(choice) => {
+            viewChoiceRef.current = choice
           }}
         />
       )}

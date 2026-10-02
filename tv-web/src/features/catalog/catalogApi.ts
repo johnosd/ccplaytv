@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
+import type { ErrorCode } from '../../lib/errors/errorCatalog'
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -27,10 +28,12 @@ import {
   readKindPage,
   resolveContinueWatching,
   resolveFavorites,
+  resolveStableIds,
   type CatalogCategory,
 } from '../../lib/catalog/catalogRepository'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
 import { markEntry } from '../../lib/perf/entryTiming'
+import { isKeyRepeatBurst, subscribeKeyRepeatBurst } from '../../lib/focus/keyRepeat'
 import { prefetchScheduler } from '../../lib/catalog/prefetch'
 import { ensureSeriesEpisodes, type SeriesFetchOutcome } from '../../lib/catalog/seriesLoader'
 import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
@@ -45,11 +48,20 @@ import {
   parseStableId,
   setWatchedManually,
   toggleFavorite,
+  type StableIdParts,
 } from '../../lib/catalog/userStateRepository'
 import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
 import { isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
 import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
+import {
+  clearHistory,
+  removeMovieFromHistory,
+  removeSeriesFromHistory,
+  summarizeHistory,
+  type HistoryClearScope,
+  type HistoryRemovalMode,
+} from '../../lib/catalog/historyRemoval'
 import { loadHomeHero, type HeroPrimary } from '../../lib/catalog/homeHero'
 import { loadGlobalSearchIndex, searchGlobal } from '../../lib/catalog/globalSearch'
 import { listProgramsForChannels } from '../../lib/epg/epgRepository'
@@ -289,6 +301,8 @@ export interface CategoryContent {
   /** Contagem real, já depois de garantir a categoria — sempre o fato do disco, nunca a promessa da fonte. */
   totalCount: number
   outcome: CategoryFetchOutcome
+  /** Feature 042: código da tabela de erros quando a falha veio do painel/rede (nunca o erro cru). */
+  errorCode?: ErrorCode
 }
 
 /**
@@ -356,7 +370,7 @@ async function loadCategoryContent(
     ? block.items.map((item, index) => blockItemOut(block, item, index, category.kind))
     : (records ?? []).map((record) => toItemOut(record, category.kind))
   if (!signal) markEntry(category.id, category.kind, 'itemsOut')
-  return { items, totalCount, outcome: result.outcome }
+  return { items, totalCount, outcome: result.outcome, errorCode: result.errorCode }
 }
 
 function categoryContentKey(sourceId: string | null, categoryId: number | undefined) {
@@ -492,22 +506,38 @@ export function useCategoryFocusPrefetch(
 ) {
   const queryClient = useQueryClient()
   const inFlightRef = useRef<{ categoryId: number; controller: AbortController } | null>(null)
-
   useEffect(() => {
     if (!sourceId || !focusedCategory) return
     if (focusedCategory.id === enteredCategoryId) return
 
-    const timer = setTimeout(() => {
-      const previous = inFlightRef.current
-      if (previous && previous.categoryId !== focusedCategory.id && previous.categoryId !== enteredCategoryId) {
-        previous.controller.abort()
-      }
-      const controller = new AbortController()
-      inFlightRef.current = { categoryId: focusedCategory.id, controller }
-      void prefetchCategoryContent(queryClient, sourceId, focusedCategory, controller.signal)
-    }, CATEGORY_PREFETCH_DEBOUNCE_MS)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const arm = () => {
+      timer = setTimeout(() => {
+        const previous = inFlightRef.current
+        if (previous && previous.categoryId !== focusedCategory.id && previous.categoryId !== enteredCategoryId) {
+          previous.controller.abort()
+        }
+        const controller = new AbortController()
+        inFlightRef.current = { categoryId: focusedCategory.id, controller }
+        void prefetchCategoryContent(queryClient, sourceId, focusedCategory, controller.signal)
+      }, CATEGORY_PREFETCH_DEBOUNCE_MS)
+    }
 
-    return () => clearTimeout(timer)
+    // Feature 046: seta segurada (`KeyboardEvent.repeat`) = o foco só está passando. Em rajada nada
+    // é agendado, e uma rajada que começa cancela o timer pendente; ao estabilizar (soltar a tecla ou
+    // silêncio), o amortecimento normal corre para a categoria onde o foco parou. A reação é síncrona
+    // (assinatura direta, sem esperar um render), e nada em andamento é abortado por causa dela — só o
+    // ramo do timer aborta, como antes (FR-004).
+    if (!isKeyRepeatBurst()) arm()
+    const unsubscribe = subscribeKeyRepeatBurst((fast) => {
+      clearTimeout(timer)
+      if (!fast) arm()
+    })
+
+    return () => {
+      clearTimeout(timer)
+      unsubscribe()
+    }
     // `focusedCategory` inteira na lista de dependências, de propósito: o
     // React Query devolve referência estável de `data` enquanto a consulta
     // não refizer de verdade, então isto só rearma o temporizador quando a
@@ -613,6 +643,16 @@ export function useCatalogItem(itemId: string | null) {
     },
     enabled: itemId !== null,
   })
+}
+
+/**
+ * O id atual de um item no aparelho, ou `null` se ele não existe mais (saiu
+ * numa renovação). Um id de linha antiga já convertida em bloco (feature 039)
+ * devolve o id novo. Lê só o bloco daquele item — nunca o tipo inteiro.
+ */
+export async function resolveCatalogItemId(itemId: string): Promise<string | null> {
+  const record = await getChannel(Number(itemId))
+  return record?.id === undefined ? null : String(record.id)
 }
 
 /**
@@ -1159,16 +1199,24 @@ export function useMyListContent(sourceId: string | null) {
       if (!sourceId) return { items: [], movieCount: 0, seriesCount: 0 }
       const favorites = await getGlobalFavorites(db)
 
+      const all = favorites
+        .filter((favorite) => favorite.sourceId === sourceId)
+        .map((favorite) => parseStableId(favorite.stableId))
+        .filter((parts): parts is StableIdParts => parts?.kind === 'movie' || parts?.kind === 'series')
+      // Uma resolução por tipo (uma passada pelos blocos), nunca uma por
+      // favorito — um favorito que não resolve custaria uma varredura inteira.
+      const resolved = new Map<StableIdParts, CatalogRecord>()
+      for (const kind of ['movie', 'series'] as const) {
+        const group = all.filter((parts) => parts.kind === kind)
+        if (group.length === 0) continue
+        for (const [parts, record] of await resolveStableIds(sourceId, kind, group, db)) resolved.set(parts, record)
+      }
+
       const items: CatalogItemOut[] = []
       let movieCount = 0
       let seriesCount = 0
-      for (const favorite of favorites) {
-        if (favorite.sourceId !== sourceId) continue
-        const parts = parseStableId(favorite.stableId)
-        if (!parts || (parts.kind !== 'movie' && parts.kind !== 'series')) continue
-
-        const { records } = await resolveFavorites(sourceId, parts.kind, [parts], db)
-        const record = records[0]
+      for (const parts of all) {
+        const record = resolved.get(parts)
         if (!record) continue
 
         items.push(toItemOut(record, record.kind))
@@ -1453,5 +1501,62 @@ export function useToggleWatched() {
       // assistindo" e mudar o hero (`logic/hero-home.md` §6).
       void queryClient.invalidateQueries({ queryKey: ['home-hero'] })
     },
+  })
+}
+
+/**
+ * Tudo que remover/limpar o Histórico pode mudar (feature 036, D-010 —
+ * lista fechada, `logic/remocao-historico.md` §10). Prefixo de chave, sem
+ * `sourceId`: faltar uma delas é o bug que a 019 já teve ("Continuar" não
+ * sumia até uma navegação nova).
+ */
+function invalidateHistoryRemoval(queryClient: QueryClient): void {
+  for (const key of [
+    'user-state',
+    'user-states',
+    'history-content',
+    'continue-watching',
+    'resume-positions',
+    'home-hero',
+    'history-summary',
+  ]) {
+    void queryClient.invalidateQueries({ queryKey: [key] })
+  }
+}
+
+/** Filme pelo `stableId`; série pelo `seriesId` do catálogo (todos os episódios dela, D-009). */
+export type HistoryRemovalTarget =
+  | { kind: 'movie'; stableId: string; sourceId: string }
+  | { kind: 'series'; seriesId: string; sourceId: string }
+
+/** Remove um título do "↺ Histórico" — grade (tecla vermelha) e detalhe (feature 036, US1). */
+export function useRemoveFromHistory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ target, mode }: { target: HistoryRemovalTarget; mode: HistoryRemovalMode }): Promise<void> => {
+      if (target.kind === 'movie') await removeMovieFromHistory(target.stableId, target.sourceId, mode, db)
+      else await removeSeriesFromHistory(target.sourceId, target.seriesId, mode, db)
+    },
+    onSuccess: () => invalidateHistoryRemoval(queryClient),
+  })
+}
+
+/** Limpeza em lote da aba Privacidade (feature 036, US2) — só a lista `sourceId`. */
+export function useClearHistory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (params: { sourceId: string; scope: HistoryClearScope; mode: HistoryRemovalMode }): Promise<void> => {
+      await clearHistory(params.sourceId, params.scope, params.mode, db)
+    },
+    onSuccess: () => invalidateHistoryRemoval(queryClient),
+  })
+}
+
+/** Contagens da aba Privacidade — só lida com a aba aberta (`enabled`), nunca só por abrir Configurações. */
+export function useHistorySummary(sourceId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ['history-summary', sourceId],
+    queryFn: () => summarizeHistory(sourceId as string, db),
+    enabled: enabled && sourceId !== null,
   })
 }

@@ -96,9 +96,32 @@
   text-align: center;
 }
 
+/* Retomada sem rede (feature 042): aviso sobre o vídeo pausado, sem cobrir o plano inteiro. */
+.player-gate {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 40px;
+  border-radius: 24px;
+  background: var(--player-zap-scrim);
+  text-align: center;
+}
+
 .player-message-title {
   font: 700 34px var(--font-body);
   color: var(--text-primary);
+}
+
+/* Código técnico do erro (feature 042, DS §45): discreto, nunca um console de debug. */
+.player-error-code {
+  font: 500 var(--fs-caption) var(--font-body);
+  letter-spacing: 0.06em;
+  color: var(--text-annotation);
 }
 
 .player-message-copy {

@@ -8,6 +8,7 @@ import {
 } from '../catalog/db'
 import { getCategory, getChannel } from '../catalog/catalogRepository'
 import { isCategoryFresh } from '../catalog/freshness'
+import { isAppHidden } from '../network/networkState'
 import { readCredential } from '../catalog/sourceRepository'
 import { fetchSeriesDetail, fetchVodInfo } from '../catalog/xtreamConnector'
 import { normalizeSeriesInfo, normalizeVodInfo } from './providerMetadata'
@@ -206,7 +207,9 @@ async function ensure(record: CatalogRecord, stableId: string, options: Metadata
   // Provedor ainda por vir (o `seriesLoader` vai gravá-lo): o TMDB só completa
   // o que o provedor NÃO trouxe — sem saber o que ele trouxe, esperar evita
   // uma chamada à toa. A tela relê quando o provedor gravar.
-  if (fresh !== 'deferred') await enrichFromTmdb(record, database, now, options)
+  // Feature 042 (D-009, FR-005): com o app oculto nenhuma busca BYOK/TMDB começa
+  // — nada é gravado (nem "sem correspondência"); o próximo abrir do detalhe pede.
+  if (fresh !== 'deferred' && !isAppHidden()) await enrichFromTmdb(record, database, now, options)
 
   const stored = await database.titleMetadata.get(stableId)
   return mergeTitleMetadata(stored?.provider, stored?.tmdb)

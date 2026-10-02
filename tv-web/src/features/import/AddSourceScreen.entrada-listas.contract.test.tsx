@@ -33,8 +33,11 @@ function RegionHost({ children }: { children: ReactNode }) {
 
 describe('AddSourceScreen — contrato da feature 037', () => {
   beforeEach(() => {
-    // A importação disparada pelo cadastro falha na hora, dentro do teste.
-    vi.mocked(globalThis.fetch).mockRejectedValue(new TypeError('Failed to fetch'))
+    // Emenda aprovada (feature 045, R-003): o cadastro agora confirma a conexão antes de criar a
+    // lista, então a rede precisa servir um M3U mínimo — só o mock mudou, nenhuma asserção.
+    vi.mocked(globalThis.fetch).mockImplementation(() =>
+      Promise.resolve(new Response('#EXTM3U\n#EXTINF:-1 group-title="Canais",Canal\nhttp://lista.exemplo/1.ts\n')),
+    )
   })
 
   afterEach(async () => {

@@ -50,12 +50,32 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelada',
 }
 
+/**
+ * Código discreto da tabela de erros (feature 042, FR-016): endereço inválido,
+ * falha de conexão, autenticação recusada e resposta incompatível têm códigos
+ * próprios. Nunca o erro cru (que embute a URL com a credencial).
+ */
+const ERROR_CODES: Record<string, string> = {
+  invalid_address: 'SRC-001',
+  invalid_credentials: 'SRC-401',
+  subscription_expired: 'SRC-402',
+  direct_connection_refused: 'NET-02',
+  network_failure: 'NET-02',
+  rate_limited: 'API-429',
+  invalid_playlist: 'SRC-422',
+  empty_playlist: 'SRC-422',
+  hls_manifest: 'SRC-422',
+  storage_full: 'STO-01',
+}
+
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_credentials: 'O provedor recusou o usuário ou senha.',
   subscription_expired: 'Sua assinatura com este provedor expirou.',
   direct_connection_refused:
     'O provedor não aceita conexão direta por este aplicativo. Requer uso do servidor.',
   network_failure: 'Falha de rede ao tentar conectar com o provedor.',
+  rate_limited: 'O provedor pediu um intervalo entre as consultas. Tente de novo mais tarde.',
+  invalid_address: 'O endereço do servidor é inválido. Confira o endereço e tente de novo.',
   invalid_playlist: 'O painel não respondeu com um formato de catálogo válido.',
   empty_playlist: 'O painel respondeu com um catálogo vazio.',
   hls_manifest: 'O endereço fornecido aponta para um canal, não para um catálogo.',
@@ -219,6 +239,14 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
       {job.status === 'failed' && job.error_kind && (
         <div className="progress-error" aria-label="Erro">
           {ERROR_MESSAGES[job.error_kind] ?? 'Falha desconhecida'}
+          {ERROR_CODES[job.error_kind] && (
+            <>
+              {' '}
+              <span data-testid="import-error-code" className="error-state-code">
+                {ERROR_CODES[job.error_kind]}
+              </span>
+            </>
+          )}
         </div>
       )}
 

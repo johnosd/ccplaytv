@@ -142,7 +142,7 @@
 }
 
 /* "Agora" / "A seguir" do preview (feature 030, FR-025). Só existe com dado
-   real; a sinopse é limitada a 3 linhas. Só tokens. */
+   real; a sinopse é limitada a 2 linhas. Só tokens. */
 .live-epg-block {
   display: flex;
   flex-direction: column;
@@ -187,7 +187,7 @@
   color: var(--text-secondary);
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   overflow: hidden;
 }
 
@@ -201,8 +201,14 @@
   gap: var(--space-2);
 }
 
+/* Nada encolhe: com a coluna limitada em altura, itens flex encolhiam e o
+   EPG ("A seguir") ficava por baixo dos botões. */
+.live-preview-panel > * {
+  flex-shrink: 0;
+}
+
 .live-preview-panel .poster-box {
-  width: 220px;
+  width: 160px;
   aspect-ratio: 1;
   align-self: flex-start;
 }

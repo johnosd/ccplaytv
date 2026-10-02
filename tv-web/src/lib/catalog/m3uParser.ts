@@ -12,11 +12,16 @@
  * e que mantém o invólucro de Worker trocável (D-003).
  */
 
+import { readDirectiveHeaders, splitUrlHeaders, type PlaybackHeaders } from './m3uHeaders'
+
 export interface ParsedEntry {
   name: string
+  /** URL de reprodução já sem o sufixo de headers (feature 044, FR-001). */
   url: string
   group?: string
   attributes: Record<string, string>
+  /** Headers declarados pela entrada (`|`, `#EXTVLCOPT`, `#KODIPROP`) — só User-Agent/Referer (feature 044). */
+  headers?: PlaybackHeaders
 }
 
 export class HlsManifestDetectedError extends Error {
@@ -96,6 +101,11 @@ export interface ParseTally {
    * credencial — quem usa trata como segredo (ADR-010).
    */
   headerAttributes?: Record<string, string>
+  /**
+   * Diretivas `#EXTVLCOPT`/`#KODIPROP` que o app não usa (ex.: licença DRM),
+   * lidas e descartadas (feature 044, FR-005). Só a contagem — nunca o conteúdo.
+   */
+  unsupportedDirectives?: number
 }
 
 /**
@@ -116,6 +126,8 @@ export async function* parseM3uLines(
 ): AsyncGenerator<ParsedEntry> {
   let sawHeader = false
   let pending: { name: string; group?: string; attributes: Record<string, string> } | null = null
+  // Headers de `#EXTVLCOPT`/`#KODIPROP` à espera da próxima URL (feature 044).
+  let directiveHeaders: PlaybackHeaders | undefined
 
   for await (const rawLine of lines) {
     // Remove BOM da primeira linha e espaços das demais.
@@ -135,25 +147,50 @@ export async function* parseM3uLines(
 
     if (line.startsWith('#EXTINF:')) {
       // Um #EXTINF seguido de outro, sem URL no meio, é entrada inválida.
-      if (pending !== null) tally.invalidCount += 1
+      if (pending !== null) {
+        tally.invalidCount += 1
+        // As diretivas eram daquela entrada sem URL, não desta (feature 044, D-003).
+        directiveHeaders = undefined
+      }
       const { head, name } = splitExtinf(line.slice('#EXTINF:'.length))
       const attributes = parseAttributes(head)
       pending = { name, group: attributes['group-title'] || undefined, attributes }
       continue
     }
 
-    // Outras linhas de diretiva não interessam ao catálogo.
-    if (line.startsWith('#')) continue
+    if (line.startsWith('#')) {
+      // Feature 044: `#EXTVLCOPT`/`#KODIPROP` valem para a próxima URL emitida,
+      // venham antes ou depois do `#EXTINF`. As demais diretivas não interessam.
+      const directive = readDirectiveHeaders(line)
+      if (directive === null) continue
+      if (!directive.supported) tally.unsupportedDirectives = (tally.unsupportedDirectives ?? 0) + 1
+      else if (directive.headers) directiveHeaders = { ...directiveHeaders, ...directive.headers }
+      continue
+    }
 
     if (pending === null) continue // URL solta, sem #EXTINF antes.
 
-    yield {
-      name: pending.name || line,
-      url: line,
+    // Feature 044: o sufixo `|User-Agent=…` não faz parte da URL de reprodução.
+    // Caminho rápido: quase nenhuma URL tem `|`, e esta linha roda por entrada de listas enormes.
+    let url = line
+    let pipeHeaders: PlaybackHeaders | undefined
+    if (line.includes('|')) {
+      const split = splitUrlHeaders(line)
+      url = split.url
+      pipeHeaders = split.headers
+    }
+    // O `|` prevalece sobre a diretiva, por chave (D-002).
+    const headers = directiveHeaders && pipeHeaders ? { ...directiveHeaders, ...pipeHeaders } : (pipeHeaders ?? directiveHeaders)
+    const entry: ParsedEntry = {
+      name: pending.name || url,
+      url,
       group: pending.group,
       attributes: pending.attributes,
     }
+    if (headers) entry.headers = headers
+    yield entry
     pending = null
+    directiveHeaders = undefined
   }
 
   // Um #EXTINF no fim do arquivo, sem URL, também é entrada inválida.

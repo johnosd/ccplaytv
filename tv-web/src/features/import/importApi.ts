@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { db, type ImportRunRecord } from '../../lib/catalog/db'
+import { db, type CatalogSection, type ImportRunRecord } from '../../lib/catalog/db'
+import { checkSourceAccount } from '../../lib/catalog/accountCheck'
 import {
   createSource,
   deleteSource,
@@ -17,6 +18,8 @@ import { setEpgEnabled, setEpgManualUrl, setEpgOffsetHours } from '../../lib/epg
 import type { EpgStatus } from '../../lib/epg/types'
 import type { SourceAccount } from '../../lib/catalog/sourceAccount'
 import type { ImportSections } from './importSections'
+import { beginSourceSync, endSourceSync, isSourceSyncing, subscribeSourceSyncing } from './sourceSyncing'
+import { forgetLiveSource } from '../live/liveSessionMemory'
 
 // Telas falam só com `importApi`/`catalogApi`, nunca com `lib/` direto (D-001
 // da feature 005): o que a tela de EPG precisa de `lib/epg` sai por aqui.
@@ -132,6 +135,8 @@ export interface SourceOut {
    * nunca credencial. Opcional pelo mesmo motivo de `epg`.
    */
   account?: SourceAccount
+  /** Seções que não responderam na última sincronização (feature 034, FR-018) — nunca "0". */
+  unavailable_sections?: CatalogSection[]
 }
 
 export interface ProviderCredentialsPatch {
@@ -209,6 +214,8 @@ function toSourceOut(source: Awaited<ReturnType<typeof listSources>>[number]): S
     last_discarded_by_type: source.lastDiscardedByType ?? 0,
     epg: source.epg,
     epg_manual_host: source.epgManualHost ?? null,
+    account: source.account,
+    unavailable_sections: source.lastUnavailableSections,
   }
 }
 
@@ -260,7 +267,17 @@ async function startLocalImport(sourceId: string): Promise<ImportHandle> {
   // de milhares de entradas na thread de interface — a tela parada e o
   // controle sem resposta que a constitution proíbe (SC-005). É também o
   // que faz o empacotador emitir `assets/importWorker.js`.
-  const handle = await runImport(sourceId)
+  // Feature 034 (FR-015): "Sincronizando" entra no início e sai no fim, de qualquer
+  // desfecho — inclusive quando o próprio `runImport` falha ao começar.
+  beginSourceSync(sourceId)
+  let handle: ImportHandle
+  try {
+    handle = await runImport(sourceId)
+  } catch (error) {
+    endSourceSync(sourceId)
+    throw error
+  }
+  void handle.completion.then(() => endSourceSync(sourceId), () => endSourceSync(sourceId))
   runningImports.set(handle.runId, handle)
   // Feature 030 (D-008/FR-009): importação concluída = o endereço de EPG
   // pode ter mudado (`url-tvg`), então sincroniza — em segundo plano, sem
@@ -395,6 +412,22 @@ export function useSources() {
   })
 }
 
+/**
+ * Consulta leve à conta da lista (feature 034, FR-008/FR-012) — a tela de
+ * acesso chama pelo `checkSourceAccount` direto; este hook é a forma para
+ * quem precisa da invalidação de `['sources']` junto (só quando o painel
+ * respondeu, `fresh`). Nunca por foco (FR-020).
+ */
+export function useCheckSourceAccount() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (sourceId: string) => checkSourceAccount(sourceId),
+    onSuccess: (result) => {
+      if (result.fresh) void queryClient.invalidateQueries({ queryKey: ['sources'] })
+    },
+  })
+}
+
 export function useUpdateSource() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -421,7 +454,8 @@ export function useDeleteSource() {
       await deleteSource(sourceId)
       return undefined
     },
-    onSuccess: () => {
+    onSuccess: (_data, sourceId) => {
+      forgetLiveSource(sourceId) // feature 046, FR-013: a memória de foco da Live some com a lista
       queryClient.invalidateQueries({ queryKey: ['sources'] })
     },
   })
@@ -479,6 +513,14 @@ export function useOpenSource() {
  */
 export function useEpgSyncing(sourceId: string | null): boolean {
   return useSyncExternalStore(subscribeEpgSyncing, () => (sourceId !== null && isEpgSyncing(sourceId)))
+}
+
+/**
+ * A lista está sincronizando agora (feature 034, FR-015) — a linha de Configurações e
+ * o cartão dizem "Sincronizando". Estado em memória, nunca persistido.
+ */
+export function useSourceSyncing(sourceId: string | null): boolean {
+  return useSyncExternalStore(subscribeSourceSyncing, () => sourceId !== null && isSourceSyncing(sourceId))
 }
 
 /** Estado e origem de uma fonte mudaram: relê a lista de fontes e a programação. */

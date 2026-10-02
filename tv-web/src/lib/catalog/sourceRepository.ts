@@ -14,7 +14,9 @@
 
 import {
   db,
+  type AccountStatusKind,
   type CatalogDb,
+  type CatalogSection,
   type ConnectionState,
   type LimitedReason,
   type ProviderImportMode,
@@ -53,8 +55,26 @@ export interface SourceView {
   epgManualHost?: string
   /** Conta Xtream (feature 034) — vencimento e resultado da última verificação; nenhum segredo. */
   account?: SourceAccount
+  /** Seções que não responderam na última sincronização bem-sucedida (feature 034, FR-018). */
+  lastUnavailableSections?: CatalogSection[]
   createdAt: number
   updatedAt: number
+}
+
+/** Os três campos da conta como a visão os expõe; `undefined` enquanto a fonte nunca foi verificada. */
+function accountOf(record: SourceRecord): SourceAccount | undefined {
+  if (
+    record.accountStatus === undefined &&
+    record.accountExpiresAt === undefined &&
+    record.accountCheckedAt === undefined
+  ) {
+    return undefined
+  }
+  const account: SourceAccount = {}
+  if (record.accountStatus !== undefined) account.status = record.accountStatus
+  if (record.accountExpiresAt !== undefined) account.expiresAt = record.accountExpiresAt
+  if (record.accountCheckedAt !== undefined) account.checkedAt = record.accountCheckedAt
+  return account
 }
 
 function toView(record: SourceRecord): SourceView {
@@ -77,6 +97,8 @@ function toView(record: SourceRecord): SourceView {
     activeGeneration: record.activeGeneration,
     epg: epgStatusOf(record),
     epgManualHost: epgManualHostOf(record),
+    account: accountOf(record),
+    lastUnavailableSections: record.lastUnavailableSections,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   }
@@ -225,6 +247,28 @@ export interface SyncMark {
   discardedByType?: number
   /** `url-tvg`/`x-tvg-url` do cabeçalho M3U (feature 030). Gravado sempre, inclusive como ausente. */
   epgDeclaredUrl?: string
+  /** Feature 034: a conta que o painel confirmou nesta sincronização (só fonte Xtream). */
+  account?: { status: 'active'; expiresAt: number | null; checkedAt: number }
+  /** Feature 034: seções que não responderam. Regravado sempre, inclusive como `[]`. */
+  unavailableSections?: CatalogSection[]
+}
+
+/** O que o painel disse da conta (feature 034). `expiresAt` só é regravado quando vem no patch. */
+export interface AccountMark {
+  status: AccountStatusKind
+  expiresAt?: number | null
+  checkedAt: number
+}
+
+/**
+ * Grava o resultado de uma verificação da conta (sincronização ou consulta
+ * leve). **Não** toca `connectionState`, a geração ativa nem o catálogo: um
+ * bloqueio por conta nunca apaga estado local (constitution 1.7.0, D-007).
+ */
+export async function markAccount(id: string, mark: AccountMark, database: CatalogDb = db): Promise<void> {
+  const patch: Partial<SourceRecord> = { accountStatus: mark.status, accountCheckedAt: mark.checkedAt }
+  if (mark.expiresAt !== undefined) patch.accountExpiresAt = mark.expiresAt
+  await database.sources.update(id, patch)
 }
 
 /**
@@ -255,6 +299,13 @@ export async function markSynced(
     // esta importação já captura o id de EPG dos canais (D-007).
     epgDeclaredUrl: mark.epgDeclaredUrl,
     epgIdsCapturedAt: mark.at,
+    // Feature 034 (data-model §1): regravado sempre, inclusive `[]`.
+    lastUnavailableSections: mark.unavailableSections ?? [],
+  }
+  if (mark.account) {
+    patch.accountStatus = mark.account.status
+    patch.accountExpiresAt = mark.account.expiresAt
+    patch.accountCheckedAt = mark.account.checkedAt
   }
   if (mark.mode !== undefined) patch.providerMigratedAt = mark.at
   if (mark.allowedFormats !== undefined) patch.providerAllowedFormats = mark.allowedFormats

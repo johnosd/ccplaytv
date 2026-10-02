@@ -13,7 +13,7 @@ export interface AboutPanelProps {
 export function AboutPanel({ focused }: AboutPanelProps): ReactNode {
   return (
     <div className="about-panel">
-      <div className={`about-panel-version${focused ? ' tv-focus' : ''}`}>
+      <div className={`about-panel-version no-scale${focused ? ' tv-focus' : ''}`}>
         <span className="about-panel-name">CCPlayTV</span>
         <span className="about-panel-value">Versão {__APP_VERSION__}</span>
       </div>

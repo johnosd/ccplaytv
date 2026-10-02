@@ -44,7 +44,8 @@ const ACTION: Record<CategoryKind, string> = {
   series: 'get_series',
 }
 
-export type SectionLoadOutcome = 'done' | 'failed' | 'storage_full'
+/** `rate_limited` (feature 042): o painel respondeu 429 — a pré-carga espera antes de tentar de novo. */
+export type SectionLoadOutcome = 'done' | 'failed' | 'storage_full' | 'rate_limited'
 
 export interface SectionLoadOptions {
   database?: CatalogDb
@@ -139,6 +140,10 @@ export async function loadSection(
       playerApiUrl(credential.dns, credential.username, credential.password, { action: ACTION[kind] }),
       options.signal ? { signal: options.signal } : undefined,
     )
+    if (response.status === 429) {
+      await clearStagedItems(sourceId, undefined, database).catch(() => {})
+      return { outcome: 'rate_limited', written }
+    }
     if (!response.ok || !response.body) return { outcome: 'failed', written }
     await readJsonArrayStream(
       response.body,
@@ -153,12 +158,20 @@ export async function loadSection(
       },
       options.signal,
       async () => {
-        if (buffered >= flushAt) await flush()
+        if (buffered < flushAt) return
+        // Descarregar grava vários MB: espera o mesmo portão da gravação de
+        // cada categoria, para não competir com a categoria que a pessoa abre.
+        // Enquanto espera, o fluxo não é lido (a rede segura o resto).
+        await options.waitUntilAllowed?.()
+        if (options.signal?.aborted) throw new DOMException('Carga cancelada.', 'AbortError')
+        await flush()
       },
     )
   } catch (error) {
-    if (isAbortError(error)) throw error
+    // Cancelada (troca de lista, `stop`) ou falha: o preparo desta carga sai
+    // agora — senão ocuparia espaço até a próxima carga desta mesma fonte.
     await clearStagedItems(sourceId, undefined, database).catch(() => {})
+    if (isAbortError(error)) throw error
     if (error instanceof StorageFullError) return { outcome: 'storage_full', written }
     return { outcome: 'failed', written }
   }

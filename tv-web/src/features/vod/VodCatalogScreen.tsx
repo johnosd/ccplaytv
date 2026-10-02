@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   groupLabel,
+  resolveCatalogItemId,
   stableIdOf,
   useAggregatedItems,
   useCategoryContent,
@@ -11,12 +12,18 @@ import {
   useFavoritesContent,
   useHistoryContent,
   useKindSortFields,
+  useRemoveFromHistory,
   useResumePositions,
   useSeriesWatchedSummary,
   useWatchedIds,
   type CatalogCategory,
   type CatalogItemOut,
+  type HistoryRemovalTarget,
 } from '../catalog/catalogApi'
+import { historyTargetHasProgress, type HistoryRemovalMode } from '../../lib/catalog/historyRemoval'
+import { isRemoveColorKeyRegistered } from '../../lib/tizenColorKey'
+import { computeNeighbor } from '../favorites/neighbor'
+import { HistoryRemovalModal } from '../history/HistoryRemovalModal'
 import { usePrefetchHint } from '../catalog/prefetchApi'
 import { normalizeForSearch, searchWithinItems, SEARCH_MIN_CHARS } from '../../lib/catalog/catalogSearch'
 import { formatTime } from '../../lib/player/formatTime'
@@ -33,6 +40,8 @@ import { PosterArt } from '../../components/PosterArt'
 import { SideCategoryNav, type SideCategoryNavEntry } from '../../components/SideCategoryNav'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorState } from '../../components/ErrorState'
+import { describeError } from '../../lib/errors/errorCatalog'
+import { useOnlineStatus } from '../../lib/onlineStatus'
 import { Modal } from '../../components/Modal'
 import { Spinner } from '../../components/Spinner'
 import { Chip } from '../../components/Chip'
@@ -190,10 +199,14 @@ export function VodCatalogScreen({
   onOpenItem,
   restore,
   onBack,
-  onResync,
+  onResync: onResyncRequested,
   shell,
   initialTopbarItem,
 }: VodCatalogScreenProps): ReactNode {
+  // Feature 042 (FR-004): ressincronizar precisa de internet — offline é soft disabled na
+  // tela e o OK do teclado (mesma função) também não a dispara.
+  const online = useOnlineStatus()
+  const onResync = online ? onResyncRequested : (): void => {}
   const config = SECTION_CONFIG[section]
   const [col, setCol] = useState<0 | 1>(restore?.col ?? 0)
   const { toastMessage, toastKey, showToast } = useToast()
@@ -324,6 +337,8 @@ export function VodCatalogScreen({
         : content.data?.outcome === 'failed' || content.isError
   const contentMissing = entered?.kind === 'category' && content.data?.outcome === 'source_missing'
   const contentUnavailable = contentFailed || contentMissing
+  // Feature 042: código da tabela de erros da falha da categoria (nunca o erro cru).
+  const contentErrorCode = entered?.kind === 'category' ? content.data?.errorCode : undefined
 
   // "Pesquisar" e "Ordenar" só com a entrada aberta e itens carregados
   // (FR-016/FR-017); "Ordenar" nunca em ★/↺ (FR-022).
@@ -360,7 +375,24 @@ export function VodCatalogScreen({
   // foco, o foco fica no vizinho (mesma posição), não volta ao topo.
   const lastItemFocusRef = useRef<LastFocus | null>(null)
   const itemListKey = JSON.stringify(enteredEntryKey)
-  const itemIdx = locateOrNeighbor(items, (item) => item.id === focusedItemId, itemListKey, lastItemFocusRef.current)
+  // Feature 036 (T021, US1/AC9): voltando do detalhe, o card de origem pode
+  // não existir mais (removido do Histórico lá). `focusedIndexHint` do
+  // snapshot — gravado desde a 025, nunca lido até aqui — dá o vizinho na
+  // mesma posição. Vale enquanto o foco ainda é o id restaurado e a lista é a
+  // restaurada (a 1ª seta foca um id que existe); não dá para semear o
+  // `lastItemFocusRef`, que o efeito abaixo grava com 0 enquanto a lista
+  // ainda está vazia.
+  const [restoreHint] = useState<LastFocus | null>(() =>
+    restore?.focusedIndexHint !== undefined ? { listKey: itemListKey, index: restore.focusedIndexHint } : null,
+  )
+  const applyRestoreHint =
+    restoreHint !== null && restoreHint.listKey === itemListKey && focusedItemId === (restore?.focusedItemId ?? null)
+  const itemIdx = locateOrNeighbor(
+    items,
+    (item) => item.id === focusedItemId,
+    itemListKey,
+    applyRestoreHint ? restoreHint : lastItemFocusRef.current,
+  )
   useEffect(() => {
     lastItemFocusRef.current = { listKey: itemListKey, index: itemIdx }
   }, [itemListKey, itemIdx])
@@ -372,10 +404,34 @@ export function VodCatalogScreen({
   // "Voltar restaura foco" valer mesmo lá embaixo.
   const { hasMore: allHasMore, loadMore: loadMoreAll } = aggregated
   const focusedNotLoaded = focusedItemId !== null && !items.some((item) => item.id === focusedItemId)
+  // Só persegue um item que ainda existe: um que saiu numa renovação (ou um id
+  // antigo que a conversão para blocos trocou) faria ler todas as páginas do
+  // tipo atrás de algo que nunca aparece. Confere primeiro, lendo só o bloco
+  // do item; id trocado vira o id novo.
+  const [focusCheck, setFocusCheck] = useState<{ id: string; exists: boolean } | null>(null)
+  useEffect(() => {
+    if (!enteredAll || !focusedNotLoaded || focusedItemId === null) return
+    if (focusCheck?.id === focusedItemId) return
+    let cancelled = false
+    void resolveCatalogItemId(focusedItemId).then(
+      (currentId) => {
+        if (cancelled) return
+        if (currentId !== null && currentId !== focusedItemId) setFocusedItemId(currentId)
+        else setFocusCheck({ id: focusedItemId, exists: currentId !== null })
+      },
+      () => {
+        if (!cancelled) setFocusCheck({ id: focusedItemId, exists: false })
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [enteredAll, focusedNotLoaded, focusedItemId, focusCheck])
+  const chasingFocus = focusedNotLoaded && focusCheck?.id === focusedItemId && focusCheck.exists
   useEffect(() => {
     if (!enteredAll || !allHasMore || !loadMoreAll) return
-    if (focusedNotLoaded || itemIdx >= items.length - ALL_LOAD_AHEAD) loadMoreAll()
-  }, [enteredAll, allHasMore, loadMoreAll, focusedNotLoaded, itemIdx, items.length])
+    if (chasingFocus || itemIdx >= items.length - ALL_LOAD_AHEAD) loadMoreAll()
+  }, [enteredAll, allHasMore, loadMoreAll, chasingFocus, itemIdx, items.length])
 
   const gridContainerRef = useRef<HTMLDivElement | null>(null)
   const itemVirtualizer = useVirtualizer({
@@ -474,6 +530,69 @@ export function VodCatalogScreen({
       visibleItems: enteredFavorites ? items : undefined,
       onFocusNeighbor: enteredFavorites ? setFocusedItemId : undefined,
     })
+  }
+
+  // Remover do "↺ Histórico" pela tecla vermelha (feature 036, `logic/
+  // remocao-historico.md` §8). `removal` é o modal aberto; `removalOpening`
+  // cobre a leitura local de "tem progresso" que precede a abertura.
+  const removeFromHistory = useRemoveFromHistory()
+  const [removal, setRemoval] = useState<{ item: CatalogItemOut; hasProgress: boolean; error: boolean } | null>(null)
+  const [removalOpening, setRemovalOpening] = useState(false)
+
+  /**
+   * Só na grade do Histórico, com um item focado, nada aberto por cima. Com o
+   * modal (de remoção ou de Ordenar) aberto a tecla NÃO pode ter handler: o
+   * `Modal` não intercepta tecla não mapeada, e ela chegaria aqui (FR-021).
+   */
+  const canRemoveFromHistory =
+    enteredHistory &&
+    col === 1 &&
+    toolbarFocus === null &&
+    activeItem !== undefined &&
+    removal === null &&
+    !removalOpening &&
+    !removeFromHistory.isPending &&
+    !sortOpen
+
+  /** Filme por `stableId`; série pelo `series_id` do catálogo (todos os episódios, D-009). */
+  function historyTargetOf(item: CatalogItemOut): HistoryRemovalTarget | null {
+    if (section === 'series') return item.series_id ? { kind: 'series', seriesId: item.series_id, sourceId } : null
+    const stableId = stableIdOf(item)
+    return stableId ? { kind: 'movie', stableId, sourceId } : null
+  }
+
+  function openHistoryRemoval() {
+    const item = activeItem
+    const target = item ? historyTargetOf(item) : null
+    if (!item || !target) return
+    setRemovalOpening(true)
+    void historyTargetHasProgress(target)
+      .then(
+        (hasProgress) => setRemoval({ item, hasProgress, error: false }),
+        // Leitura local falhou: oferece só o seguro (sem "apagar progresso").
+        () => setRemoval({ item, hasProgress: false, error: false }),
+      )
+      .finally(() => setRemovalOpening(false))
+  }
+
+  function confirmHistoryRemoval(mode: HistoryRemovalMode) {
+    if (!removal) return
+    const target = historyTargetOf(removal.item)
+    if (!target) return
+    // Vizinho calculado ANTES de a lista mudar (FR-017).
+    const neighbor = computeNeighbor(items, removal.item.id)
+    removeFromHistory.mutate(
+      { target, mode },
+      {
+        onSuccess: () => {
+          setRemoval(null)
+          showToast('Removido do histórico')
+          setFocusedItemId(neighbor)
+        },
+        // O item continua na grade; o modal explica e oferece "Tentar de novo" (FR-020).
+        onError: () => setRemoval((current) => (current ? { ...current, error: true } : current)),
+      },
+    )
   }
 
   /** Abre o modal de Ordenar com a opção atual marcada e focada (FR-018). */
@@ -621,6 +740,7 @@ export function VodCatalogScreen({
           },
           onLongSelect: canToggleFavorite ? toggleFocusedFavorite : undefined,
           onFavoriteKey: canToggleFavorite ? toggleFocusedFavorite : undefined,
+          onRemoveKey: canRemoveFromHistory ? openHistoryRemoval : undefined,
           onBack: () => {
             if (col === 1 && searchActive && toolbarFocus === null) {
               setToolbarFocus('search')
@@ -967,6 +1087,8 @@ export function VodCatalogScreen({
               {showingContent && !searchActive && !contentIsLoading && contentFailed && (
                 <ErrorState
                   title="Não foi possível carregar esta categoria"
+                  description={contentErrorCode ? describeError(contentErrorCode).title : undefined}
+                  code={contentErrorCode}
                   actions={[{ label: 'Tentar de novo', onSelect: retryContent }]}
                   focusedActionIndex={0}
                 />
@@ -975,7 +1097,14 @@ export function VodCatalogScreen({
               {showingContent && !searchActive && !contentIsLoading && contentMissing && (
                 <ErrorState
                   title="O conteúdo desta lista não está mais no aparelho"
-                  actions={[{ label: 'Ressincronizar lista', onSelect: onResync }]}
+                  description={online ? undefined : 'Sem conexão: ressincronizar precisa de internet.'}
+                  actions={[
+                    {
+                      label: 'Ressincronizar lista',
+                      onSelect: onResync,
+                      softDisabledReason: online ? undefined : 'indisponível sem conexão',
+                    },
+                  ]}
                   focusedActionIndex={0}
                 />
               )}
@@ -1029,6 +1158,10 @@ export function VodCatalogScreen({
               )}
 
               {showResultsGrid && <FavoriteHint />}
+              {/* Só com a tecla vermelha registrada de fato (FR-003, D-007): nunca prometer uma tecla que não chega. */}
+              {showResultsGrid && enteredHistory && isRemoveColorKeyRegistered() && (
+                <div className="fav-hint">● Remover do histórico</div>
+              )}
 
               {showResultsGrid && (
                 <div ref={gridContainerRef} className="vod-grid no-scrollbar">
@@ -1061,7 +1194,7 @@ export function VodCatalogScreen({
                             title={item.name}
                             meta={enteredAll ? groupLabel(item.original_group ?? undefined) : (item.original_group ?? config.label)}
                             iconUrl={item.icon_url ?? undefined}
-                            focused={col === 1 && toolbarFocus === null && itemIdx === virtualRow.index}
+                            focused={col === 1 && toolbarFocus === null && itemIdx === virtualRow.index && removal === null}
                             badge={
                               <>
                                 {isFavorite && (
@@ -1088,6 +1221,16 @@ export function VodCatalogScreen({
               )}
             </div>
           </div>
+
+          {removal && (
+            <HistoryRemovalModal
+              subject={{ kind: 'item', name: removal.item.name }}
+              hasProgress={removal.hasProgress}
+              error={removal.error}
+              onCancel={() => setRemoval(null)}
+              onConfirm={confirmHistoryRemoval}
+            />
+          )}
 
           <Toast message={toastMessage} messageKey={toastKey} />
         </div>,

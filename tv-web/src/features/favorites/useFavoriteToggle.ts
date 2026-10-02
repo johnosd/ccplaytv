@@ -7,6 +7,7 @@
  */
 
 import { useToggleFavorite, type CatalogItemOut } from '../catalog/catalogApi'
+import { computeNeighbor } from './neighbor'
 
 export interface FavoriteToggleOptions {
   /**
@@ -23,13 +24,6 @@ export interface FavoriteToggleOptions {
    * Favoritar nunca move o foco.
    */
   onFocusNeighbor?: (neighborId: string | null) => void
-}
-
-/** Próximo id na lista; se não houver, o anterior; se não sobrar nenhum, `null` (FR-018). */
-function computeNeighbor(items: { id: string }[], currentId: string): string | null {
-  const index = items.findIndex((item) => item.id === currentId)
-  if (index === -1 || items.length <= 1) return null
-  return items[index + 1]?.id ?? items[index - 1]?.id ?? null
 }
 
 /** Mensagem honesta, sem detalhe técnico (FR-013). */

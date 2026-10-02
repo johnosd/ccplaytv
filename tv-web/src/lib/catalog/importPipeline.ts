@@ -45,7 +45,7 @@ import {
   type RefreshedCategory,
 } from './catalogRepository'
 import { storeEntryChunks } from './storedEntries'
-import { markConnectionError, markSynced, readCredential } from './sourceRepository'
+import { markAccount, markConnectionError, markSynced, readCredential } from './sourceRepository'
 import {
   EmptyPlaylistError,
   HlsManifestDetectedError,
@@ -62,6 +62,7 @@ import {
   legacyM3uUrl,
   parseXtreamStreamUrl,
   ProviderError,
+  InvalidServerAddressError,
   ProviderIncompatibleError,
   probeFailureKind,
   resolveAccountStatus,
@@ -137,6 +138,8 @@ function categorize(error: unknown): ImportErrorKind | undefined {
   // Painel que não fala o protocolo e lista ilegível são a mesma coisa para
   // quem está olhando: o que veio não dá para usar como catálogo.
   if (error instanceof InvalidPlaylistError) return 'invalid_playlist'
+  // Feature 042: antes da genérica — a subclasse é a que "nem chega a ser um endereço".
+  if (error instanceof InvalidServerAddressError) return 'invalid_address'
   if (error instanceof ProviderIncompatibleError) return 'invalid_playlist'
   return undefined
 }
@@ -332,6 +335,20 @@ export async function startImport(
   // Feature 030: `url-tvg`/`x-tvg-url` do cabeçalho M3U; ausente quando a
   // fonte segue o protocolo Xtream (o painel já tem o próprio XMLTV).
   let epgDeclaredUrl: string | undefined
+  // Feature 034 (`logic/conta-da-fonte.md` §7): a conta que o painel confirmou
+  // nesta execução, e se a consulta chegou a ser feita (`fail()` só marca
+  // "recusada" quando foi o painel que recusou). Fica em variáveis da
+  // execução, como `mode`: o pipeline roda no Worker e grava pelo Dexie.
+  let accountSeen: AccountStatus | undefined
+  let accountQueried = false
+
+  /** Guarda o resultado da consulta; vencida grava já, antes de a importação falhar. */
+  async function recordAccount(status: AccountStatus): Promise<void> {
+    accountSeen = status
+    if (status.expired) {
+      await markAccount(sourceId, { status: 'expired', expiresAt: status.expiresAt, checkedAt: now() }, database)
+    }
+  }
 
   async function persist(): Promise<void> {
     run.heartbeatAt = now()
@@ -451,7 +468,7 @@ export async function startImport(
       const categoryKinds = new Map<number, CategoryKind>()
 
       function toStoredRecord(channel: MappedChannel): StoredCatalogRecord {
-        return {
+        const record: StoredCatalogRecord = {
           kind: channel.kind,
           name: channel.name,
           originalName: channel.originalName,
@@ -473,6 +490,20 @@ export async function startImport(
           year: channel.year,
           addedAt: channel.addedAt,
         }
+        // Feature 044: compatibilidade M3U. Só entram quando existem — o clone
+        // estruturado do IndexedDB guarda até chave `undefined`, e uma lista de
+        // centenas de milhares de itens não deve ganhar três chaves vazias em
+        // cada um (FR-011, SC-002).
+        // Os headers acompanham a URL guardada (`keepUrl`): sem ela — Modo
+        // limitado, credencial derivada — não há o que mandar com eles, e
+        // guardá-los só ampliaria o segredo no aparelho (ADR-010). `radio` e o
+        // `tvg-chno` declarado só fazem sentido em canal, como o `epgChannelId`.
+        if (keepUrl && channel.playbackHeaders) record.playbackHeaders = channel.playbackHeaders
+        if (channel.kind === 'channel') {
+          if (channel.radio) record.radio = channel.radio
+          if (channel.declaredChannelNumber !== undefined) record.declaredChannelNumber = channel.declaredChannelNumber
+        }
+        return record
       }
 
       /**
@@ -699,6 +730,7 @@ export async function startImport(
       panel: PanelCredential,
     ): Promise<{ kind: 'xtream'; allowedFormats?: string[] } | { kind: 'limited'; reason: LimitedReason }> {
       let status: AccountStatus
+      accountQueried = true
       try {
         status = await resolveAccountStatus(panel.dns, panel.username, panel.password)
       } catch (error) {
@@ -711,6 +743,7 @@ export async function startImport(
         if (error instanceof ProviderIncompatibleError) return { kind: 'limited', reason: 'protocol_unavailable' }
         throw error
       }
+      await recordAccount(status)
       if (status.expired) throw new ProviderError('subscription_expired', 'Assinatura expirada.')
       if (!status.authorized) throw new ProviderError('invalid_credentials', 'Acesso negado.')
       return { kind: 'xtream', allowedFormats: status.allowedFormats }
@@ -720,11 +753,13 @@ export async function startImport(
       const credential = await readCredential(sourceId, database)
       if (!credential) throw new ProviderError('invalid_credentials', 'Fonte sem credencial.')
 
+      accountQueried = true
       const status = await resolveAccountStatus(
         credential.dns,
         credential.username,
         credential.password,
       )
+      await recordAccount(status)
       if (status.expired) throw new ProviderError('subscription_expired', 'Assinatura expirada.')
       if (!status.authorized) throw new ProviderError('invalid_credentials', 'Acesso negado.')
       allowedFormats = status.allowedFormats
@@ -832,6 +867,12 @@ export async function startImport(
       truncatedByStorage: run.truncatedByStorage,
       discardedByType: run.discardedByType,
       epgDeclaredUrl,
+      // Feature 034: Modo limitado (`legacy_m3u`) não declara conta (FR-022).
+      account:
+        accountSeen && mode !== 'legacy_m3u'
+          ? { status: 'active', expiresAt: accountSeen.expiresAt, checkedAt: now() }
+          : undefined,
+      unavailableSections: run.unavailableSections ?? [],
     }, database)
 
     run.status = 'completed'
@@ -875,6 +916,11 @@ export async function startImport(
     run.status = 'failed'
     run.errorKind = categorize(error)
     await markConnectionError(sourceId, database)
+    // Feature 034: o painel recusou a credencial — vira "Credencial inválida"
+    // sem tocar no catálogo já publicado nem em `connectionState` (D-007).
+    if (run.errorKind === 'invalid_credentials' && accountQueried) {
+      await markAccount(sourceId, { status: 'refused', checkedAt: now() }, database)
+    }
 
     if (run.errorKind === undefined) {
       run.finishedAt = now()

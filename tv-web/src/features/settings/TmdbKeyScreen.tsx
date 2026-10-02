@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useSaveTmdbKey } from '../catalog/catalogApi'
 import { useTvKeyNav } from '../../lib/useTvKeyNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
+import { useImeChain } from '../../lib/useImeChain'
 import { Button } from '../../components/Button'
 import { TextField } from '../../components/TextField'
 import type { SaveTmdbKeyFailure } from '../../lib/metadata/types'
@@ -21,6 +22,13 @@ const FAILURE_MESSAGE: Record<SaveTmdbKeyFailure, string> = {
   rate_limited: 'O TMDB pediu para aguardar. Tente de novo em alguns minutos.',
 }
 
+/** Código da tabela de erros de cada motivo (feature 042); `invalid_format` é validação local, sem código. */
+const FAILURE_CODE: Partial<Record<SaveTmdbKeyFailure, string>> = {
+  refused: 'API-401',
+  offline: 'NET-02',
+  rate_limited: 'API-429',
+}
+
 /**
  * Tela da chave TMDB (feature 032, US2, `logic/integracoes-e-dock.md` §2).
  * Foco DOM real (`useTvKeyNav`) e IME da TV, no molde de `EpgSettingsScreen`.
@@ -28,16 +36,18 @@ const FAILURE_MESSAGE: Record<SaveTmdbKeyFailure, string> = {
  * **O campo começa sempre vazio** — a chave guardada nunca volta para a tela
  * (nem para "Editar"): quem edita digita a nova. "Mostrar" só alterna a
  * máscara do que a própria pessoa acabou de digitar. Uma chave recusada nunca
- * é gravada; o foco volta ao campo.
+ * é gravada; o foco volta ao campo. O "Mostrar/Ocultar" é do próprio `TextField`
+ * (feature 045): volta mascarado ao sair da tela.
  */
 export function TmdbKeyScreen({ onSaved, onBack }: TmdbKeyScreenProps): ReactNode {
   const containerRef = useRef<HTMLElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const saveRef = useRef<HTMLButtonElement>(null)
   useTvKeyNav(containerRef)
+  useImeChain(containerRef, saveRef) // Done do IME leva o foco a "Salvar e testar", sem enviar (feature 045)
   useRemoteNav({ onBack })
 
   const [draft, setDraft] = useState('')
-  const [showKey, setShowKey] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
   const save = useSaveTmdbKey()
 
@@ -58,7 +68,9 @@ export function TmdbKeyScreen({ onSaved, onBack }: TmdbKeyScreenProps): ReactNod
           onSaved()
           return
         }
-        setError(FAILURE_MESSAGE[result.reason])
+        // Feature 042: o código vem da tabela de erros (nunca o que foi digitado nem a resposta crua).
+        const code = FAILURE_CODE[result.reason]
+        setError(code ? `${FAILURE_MESSAGE[result.reason]} (${code})` : FAILURE_MESSAGE[result.reason])
         inputRef.current?.focus()
       },
       onError: () => {
@@ -69,7 +81,7 @@ export function TmdbKeyScreen({ onSaved, onBack }: TmdbKeyScreenProps): ReactNod
   }
 
   return (
-    <section className="screen epg-settings tmdb-key" ref={containerRef} aria-labelledby="tmdb-key-title">
+    <section className="screen epg-settings tmdb-key no-scrollbar form-scroll-room" ref={containerRef} aria-labelledby="tmdb-key-title">
       <h1 id="tmdb-key-title" className="screen-title">
         Chave do TMDB
       </h1>
@@ -80,7 +92,10 @@ export function TmdbKeyScreen({ onSaved, onBack }: TmdbKeyScreenProps): ReactNod
       <div className="epg-settings-field">
         <TextField
           label="Chave da API (v3) ou token de leitura (v4)"
-          purpose={showKey ? 'text' : 'password'}
+          purpose="password"
+          revealable
+          revealNoun="chave"
+          enterKeyHint="done"
           value={draft}
           onChange={(value) => {
             setDraft(value)
@@ -90,12 +105,9 @@ export function TmdbKeyScreen({ onSaved, onBack }: TmdbKeyScreenProps): ReactNod
           hint="Prefira a chave da API, que é mais curta de digitar."
           inputRef={inputRef}
         />
-        <Button variant="secondary" onSelect={() => setShowKey((current) => !current)}>
-          {showKey ? 'Ocultar chave' : 'Mostrar chave'}
-        </Button>
       </div>
 
-      <Button variant="accent" loading={save.isPending} onSelect={submit}>
+      <Button variant="accent" loading={save.isPending} onSelect={submit} buttonRef={saveRef}>
         Salvar e testar
       </Button>
       <Button variant="ghost" onSelect={onBack}>

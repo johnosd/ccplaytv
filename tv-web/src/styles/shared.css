@@ -316,6 +316,21 @@
   object-fit: cover;
 }
 
+/* Logo de canal: inteiro (contain, com respiro) e sobre fundo sólido, para
+   as áreas transparentes do logo não deixarem o ruído e as iniciais do
+   placeholder aparecerem por baixo. O placeholder continua no DOM e só
+   reaparece quando a imagem falha (a <img> some). */
+.poster-box-logo .poster-box-art {
+  box-sizing: border-box;
+  padding: 6px;
+  object-fit: contain;
+  background: var(--surface-field-active);
+}
+
+.poster-box-logo.tv-focus .poster-box-art {
+  background: var(--surface-active);
+}
+
 /* ---------- Toast ---------- */
 
 .toast {

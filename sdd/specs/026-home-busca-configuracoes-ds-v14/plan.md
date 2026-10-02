@@ -359,3 +359,8 @@ As três user stories foram construídas exatamente como especificado, sem desvi
 **Decisões técnicas que ficaram diferentes do plano original**: nenhuma — as Decisões Invariantes (D-001 a D-016, não reproduzidas aqui) se sustentaram sem emenda do início ao fim das 6 fases.
 
 **Verificação em TV física**: não é gate desta feature (constitution, "Validação em hardware real" — nenhuma exceção declarada em `spec.md`/`plan.md`). R-003/R-006/R-008 permanecem abertos nesse sentido específico (medição de custo de render das rails, IME real da TV, confirmação visual do plano de hardware) — recomendados, registrados no `quickstart.md`, não bloqueantes.
+
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.

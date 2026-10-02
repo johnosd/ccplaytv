@@ -4,6 +4,17 @@ import '@testing-library/jest-dom/vitest'
 // verificável à mão na TV — contrariando a prioridade de teste do projeto
 // (research.md R6).
 import 'fake-indexeddb/auto'
+import { afterEach } from 'vitest'
+// Estado de módulo da feature 046 não pode vazar de um teste para o seguinte
+// (os contratos travados de outras features montam as mesmas telas e não podem
+// ser editados para limpá-lo).
+import { resetKeyRepeatTracker } from './lib/focus/keyRepeat'
+import { resetLiveSessionMemory } from './features/live/liveSessionMemory'
+
+afterEach(() => {
+  resetKeyRepeatTracker()
+  resetLiveSessionMemory()
+})
 
 // jsdom não implementa `Element.scrollIntoView` (usado por
 // `useScrollFocusedIntoView`, feature 009 — trilha de categorias sem

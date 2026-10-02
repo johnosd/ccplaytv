@@ -271,6 +271,8 @@ describe('PlayerLayer', () => {
     })
     await screen.findByRole('button', { name: 'Voltar' })
 
+    // Feature 042: a ordem agora é Tentar de novo → Info técnica → Voltar.
+    press('ArrowRight')
     press('ArrowRight')
     press('Enter')
 
@@ -358,9 +360,12 @@ describe('PlayerLayer', () => {
   // mensagem de quem monta a camada, nunca um texto fixo de canal.
   async function failEngineWithoutMessage() {
     await waitFor(() => expect(driver.callbacks).not.toBeNull())
-    act(() => driver.callbacks?.onStateChange('playing'))
+    // Feature 042: sem `playing` antes — um stream que nunca tocou vai direto ao
+    // erro; um que CAIU reconecta primeiro (coberto pelo contrato da 042).
     act(() => {
-      driver.callbacks?.onError({ code: 'PLAYER_ERROR_CONNECTION_FAILED' })
+      // Código desconhecido: é ele que cai na mensagem da tela (causas conhecidas,
+      // como rede/formato, usam o texto da tabela de erros — feature 042).
+      driver.callbacks?.onError({ code: 'ALGO_DESCONHECIDO' })
       driver.callbacks?.onStateChange('error')
     })
   }
@@ -460,8 +465,10 @@ describe('PlayerLayer', () => {
     })
     expect(planeVisible()).toBe(true)
 
+    // Feature 042: um erro de formato não reconecta — vai direto à tela de erro
+    // (uma queda de rede reconectaria primeiro, sem o vídeo na tela).
     act(() => {
-      driver.callbacks?.onError({ code: null, message: 'A transmissão foi interrompida.' })
+      driver.callbacks?.onError({ code: 'PLAYER_ERROR_NOT_SUPPORTED_FILE', message: 'A transmissão foi interrompida.' })
     })
     await screen.findByRole('button', { name: 'Voltar' })
 
@@ -502,10 +509,10 @@ describe('PlayerLayer', () => {
 
     it('controles começam visíveis, com foco no play/pause', async () => {
       await renderPlaying()
-      // Feature 027: a linha do VOD ganhou 5 mocks "Em breve" além dos 3
-      // controles reais (jumpBack, playPause, jumpForward) — 8 no total.
+      // Linha do VOD: jumpBack, playPause, jumpForward + Áudio, Qualidade,
+      // Aspecto e Info — 7 no total (sem Velocidade, feature 041).
       const buttons = screen.getAllByRole('button')
-      expect(buttons).toHaveLength(8)
+      expect(buttons).toHaveLength(7)
       expect(buttons[1].className).toContain('tv-focus') // play/pause é o índice 1
     })
 
@@ -522,7 +529,7 @@ describe('PlayerLayer', () => {
       })
 
       expect(driver.jumpCalls).toEqual([10_000])
-      expect(screen.getAllByRole('button')).toHaveLength(8) // revelou de novo
+      expect(screen.getAllByRole('button')).toHaveLength(7) // revelou de novo
     })
 
     it('com controles VISÍVEIS, esquerda/direita NAVEGAM entre ações, sem saltar', async () => {
@@ -539,16 +546,16 @@ describe('PlayerLayer', () => {
     // só dentro da linha de controles (feature 027: agora com os 5 mocks
     // "Em breve" além dos 3 reais), nunca alcançam a barra. ---
 
-    it('esquerda/direita percorrem toda a linha (8 controles) sem nunca alcançar a barra', async () => {
+    it('esquerda/direita percorrem toda a linha (7 controles) sem nunca alcançar a barra', async () => {
       const { container } = await renderPlaying()
-      // playPause(1) -> jumpForward(2) -> tracks(3) -> quality(4) -> speed(5)
-      // -> aspect(6) -> info(7) -> clampado no último (não avança pra barra).
-      for (let i = 0; i < 8; i += 1) press('ArrowRight')
+      // playPause(1) -> jumpForward(2) -> tracks(3) -> quality(4) -> aspect(5)
+      // -> info(6) -> clampado no último (não avança pra barra).
+      for (let i = 0; i < 7; i += 1) press('ArrowRight')
 
       expect(driver.jumpCalls).toEqual([])
       expect(container.querySelector('.player-chrome-time-bar')?.className).not.toContain('tv-focus')
       const buttons = screen.getAllByRole('button')
-      expect(buttons[7].className).toContain('tv-focus') // clampado em "Info do stream"
+      expect(buttons[6].className).toContain('tv-focus') // clampado em "Info do stream"
     })
 
     it('CIMA a partir de um botão entra na barra, sem saltar', async () => {
@@ -616,7 +623,7 @@ describe('PlayerLayer', () => {
       })
 
       expect(driver.pauseCount).toBe(0)
-      expect(screen.getAllByRole('button')).toHaveLength(8)
+      expect(screen.getAllByRole('button')).toHaveLength(7)
     })
 
     it('SELECT com controles visíveis executa a ação focada (play/pause)', async () => {
@@ -629,7 +636,7 @@ describe('PlayerLayer', () => {
 
     it('oculta sozinho após 5s sem interação', async () => {
       await renderPlaying()
-      expect(screen.getAllByRole('button')).toHaveLength(8)
+      expect(screen.getAllByRole('button')).toHaveLength(7)
 
       act(() => {
         vi.advanceTimersByTime(5000)
@@ -693,11 +700,16 @@ describe('PlayerLayer', () => {
     })
 
     it('canal ao vivo: onCompleted continua produzindo a tela de erro de transmissão interrompida (FR-021, não-regressão)', async () => {
+      // Feature 042: um canal que "termina" depois de tocar CAIU — reconecta
+      // sozinho (≤ 3) e só então mostra a mesma tela de erro de sempre.
+      vi.useFakeTimers()
       vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
       const onClose = vi.fn()
       render(<PlayerLayer itemId="item-1" title="Item" onClose={onClose} createAdapter={createAdapter} />)
 
-      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
       act(() => {
         driver.callbacks?.onStateChange('buffering')
         driver.callbacks?.onStateChange('playing')
@@ -706,8 +718,18 @@ describe('PlayerLayer', () => {
       act(() => {
         driver.callbacks?.onCompleted?.()
       })
+      expect(screen.getByText(/Reconectando/)).toBeInTheDocument()
 
-      expect(await screen.findByText('A transmissão foi interrompida.')).toBeInTheDocument()
+      for (const delay of [2_000, 5_000, 10_000]) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(delay)
+        })
+        act(() => {
+          driver.callbacks?.onCompleted?.()
+        })
+      }
+
+      expect(screen.getByText('A transmissão foi interrompida.')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument()
       // Transmissão contínua não conclui — a camada continua aberta em erro,
       // não fechada como o filme.
@@ -874,8 +896,9 @@ describe('PlayerLayer', () => {
       )
 
       await waitFor(() => expect(driver.callbacks).not.toBeNull())
-      act(() => driver.callbacks?.onStateChange('playing'))
-      
+      // Feature 042: um stream que nunca tocou vai direto ao erro (reconectar só
+      // vale para o que CAIU) — o canal escolhido no zapping que não abre.
+
       // dispara erro
       act(() => {
         driver.callbacks?.onError?.({ code: null, message: 'Fatal AVPlay crash' })
@@ -943,8 +966,12 @@ describe('PlayerLayer', () => {
       // novo, o que o guard `isActive` existe pra evitar).
       act(() => driver.callbacks?.onStateChange('paused'))
       setVisibility('visible')
+      // Feature 042: a revalidação agora vem depois da verificação de rede
+      // (assíncrona e single-flight) — espera cada uma terminar.
+      await waitFor(() => expect(vi.mocked(catalogApi.fetchPlayback)).toHaveBeenCalledTimes(2))
       setVisibility('hidden') // já pausado — nenhuma segunda transição
       setVisibility('visible')
+      await waitFor(() => expect(vi.mocked(catalogApi.fetchPlayback)).toHaveBeenCalledTimes(3))
 
       // Uma pausa só (a segunda hidden não fez nada — já estava pausado,
       // edge case da spec) e uma revalidação por 'visible' genuíno.

@@ -238,7 +238,7 @@ player (sessão viva; fecha só em `onEnteredPlaying`), reconciliação quando a
 | R-007 | Fronteiras de dia em horário local (meia-noite, horário de verão) e marcas de hora em fusos com deslocamento não múltiplo de 30 min. | "Hoje/Amanhã" errado por uma hora perto de virada. | Resolvido: `dayOfTime`/`jumpToDay`/`tickTimes` trabalham com `Date` local (`new Date(y, m, d+1)`), não com aritmética de 24 h; contrato 1 cobre a virada. |
 | R-008 | O guia aberto do player pode coexistir com erro de sessão (troca de canal falha). | O erro ficaria escondido atrás do guia. | Já tratado pela 016: `onSessionError` volta ao canal anterior com aviso; o `Toast` do `LiveScreen` fica acima. Cobrir em teste da Fase 5. |
 | R-009 | Foco de estado dentro de `topLayer` compartilha o teclado com o zapping e o chrome (capture). | Tecla vazando para outra camada. | Resolvido: Guia e zapping nunca abertos juntos (D-001); testes de RETURN em camadas na Fase 5. |
-| R-010 | "Configurar EPG" no guia aberto do player navega para as configurações: a Live TV desmonta e o player fecha; RETURN das configurações volta à Live TV parada. | O canal deixa de tocar. | Resolvido: Aceito: é a rota padrão do app (`open epg-settings` com `from: live`), ação explícita da pessoa. |
+| R-010 | "Configurar EPG" no guia aberto do player navega para as configurações: a Live TV desmonta e o player fecha; RETURN das configurações volta à Live TV parada. | O canal deixa de tocar. | Resolvido: Aceito: é a rota padrão do app (`open epg-settings` com `from: live`), ação explícita da pessoa. **Atualização (2026-10-01, item 62a do backlog, decisão do usuário):** a ação "Configurar EPG" saiu do guia — o EPG só se configura ao editar a lista (Configurações › Fontes IPTV); o estado "Sem programação" diz onde e mantém o foco no seletor de lista. FR-013 desta feature fica superado nesse ponto. |
 | R-011 | `PlayerLayerTopLayer.onMediaKey` retorna `void`, não `boolean` como o texto da T022. | Nenhum: o `PlayerLayer` não precisa saber se a tecla foi consumida (D-011). | Resolvido: Registrado como decisão; contratos não dependem disso. |
 
 ## Execution Notes
@@ -283,3 +283,8 @@ Convergida em 2026-09-29 (sdd-converge): os 25 FR e os 5 SC têm código e teste
 **Evidência.** Contratos 5/5 e 15 travas íntegras; vitest 1579/1583 (4 flakes conhecidas, 106/106 isoladas ×3); `tsc`/`build:tizen` limpos; `test:e2e` (14 scripts) exit 0; E2E real com programa real (p95 128 ms).
 
 **Ainda aberto (não bloqueia).** R-002 (guia opaco sobre o plano de hardware do AVPlay com áudio) e R-003/SC-002 (desempenho com milhares de canais: o E2E real cobriu 2 de 41 categorias em "Todos") só se provam na TV física (T036, recomendada). R-008 (falha de troca com o guia aberto) sem teste dedicado. R-013 do usuário (E2E instável da 030) segue sem decisão e é fora desta feature.
+
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.

@@ -153,6 +153,56 @@ cobre (um layout novo cujo resultado ninguém verificou ainda, incerteza
 sobre onde exatamente um elemento aparece). Não é proibida — é um recurso pra
 quando sobra dúvida real, não o primeiro passo.
 
+### 5d. Rodar a suíte E2E de forma rápida
+
+A suíte completa em série passa de 10 minutos. Use o runner paralelo
+(`tv-web/e2e/run.mjs`, com `npm run dev` já rodando):
+
+- **Durante as fases**: rode só os scripts que a fase tocou —
+  `npm run test:e2e -- --only <nome1>,<nome2>` (nome = arquivo sem `.mjs` e sem
+  `e2e/`). Não rode a suíte inteira a cada fase.
+- **Gate final da feature** (constitution, "Fluxo de Desenvolvimento"): suíte
+  completa, `npm run test:e2e` (3 scripts em paralelo por padrão; `--jobs N`
+  muda isso). Reinicie o dev server antes se ele estiver no ar há horas.
+- **Falhou algum?** Reexecute só os que falharam, em série:
+  `npm run test:e2e -- --only <nomes> --jobs 1`. Só conte como flake se passar
+  isolado **e** o motivo da falha for explicável (paralelismo, timing); registre
+  o script e a taxa observada em `Registro da Fase` — nunca marque verde sem
+  ter visto o script passar. `--retry 1` existe, mas esconde flake: use só para
+  triagem, não para o gate.
+- `npm run test:e2e:serial` é o modo antigo (um por vez), para diagnosticar
+  se uma falha vem da concorrência.
+- Script E2E novo: adicione-o à lista `SUITE` de `tv-web/e2e/run.mjs` (fica de
+  fora do gate se não estiver lá). Mantenha-o isolado: Chromium próprio, servidor
+  falso em porta `0`, sem estado compartilhado entre scripts, e prefira espera
+  condicional (`waitForSelector`/`waitForFunction`) a `waitForTimeout`.
+- O resumo do runner lista os 5 scripts mais lentos; se um deles domina o
+  total, otimize esse antes de mexer no resto.
+
+### 5e. Rodar os testes unitários de forma rápida
+
+A suíte unitária completa leva ~5 min (era ~8,6 min antes de separar os
+ambientes). O custo dominante é subir o jsdom: ~5 s **por arquivo**, contra
+~1,2 s no ambiente `node`.
+
+- **Durante as fases**: rode só o que a fase tocou, não a suíte inteira —
+  `npx vitest run <arquivo-ou-pasta>` ou `npx vitest related <arquivos
+  alterados> --run` (roda os testes que importam esses arquivos).
+- **Gate final da feature**: `npm run test` completo.
+- **Dois projetos no vitest** (`tv-web/vite.config.ts`, `test.projects`):
+  `dom` (jsdom) roda todo `*.test.tsx`; `node` roda `*.test.ts` e
+  `scripts/*.test.mjs`. Para rodar um só: `npx vitest run --project node`.
+- **Teste `.ts` novo que falha com "window/document/localStorage/
+  HTMLMediaElement is not defined"**: ele precisa de DOM. Adicione-o a
+  `TESTES_TS_COM_DOM` em `vite.config.ts` (obrigatório se for contrato
+  travado, porque editar o arquivo quebra a trava SHA256), ou ponha
+  `// @vitest-environment jsdom` na primeira linha (só se não for contrato
+  travado). Não troque o ambiente de todos para jsdom.
+- Não use `--no-isolate`: mede mais rápido, mas vaza estado entre arquivos
+  (12 testes quebraram em `src/components` quando foi tentado).
+- Mais de ~6 workers quase não ajuda (a máquina de referência tem 6 núcleos
+  físicos); não vale ajustar `--maxWorkers` para cima.
+
 ### 6. Bugs encontrados durante implementação/teste
 
 Cerimônia proporcional ao tamanho do bug — nunca o ciclo completo de

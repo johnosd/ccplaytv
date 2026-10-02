@@ -193,7 +193,9 @@ describe('ProfilesScreen — estados e listas (US1)', () => {
   })
 
   // Feature 037, FR-006: a data/estado de sincronização sai do cartão (continua em Configurações).
-  it('o cartão não mostra o estado de sincronização em nenhum caso', () => {
+  // Feature 034 (FR-006, decisão do usuário em 01/10/2026, R-008 do plano da 034): a única exceção é o
+  // CHIP de aviso "Erro na última sincronização" — um alerta para agir, não a linha de estado.
+  it('o cartão não mostra a data nem o estado de sincronização em nenhum caso (só o chip de erro da 034)', () => {
     mockLoaded(
       makeSource('a', 'Nova', { connection_state: 'never_synced', last_successful_sync_at: null }),
       makeSource('b', 'Quebrada', { connection_state: 'error' }),
@@ -202,8 +204,10 @@ describe('ProfilesScreen — estados e listas (US1)', () => {
     renderProfiles()
 
     expect(screen.queryByText('Nunca sincronizada')).not.toBeInTheDocument()
-    expect(screen.queryByText('Erro na última sincronização')).not.toBeInTheDocument()
     expect(screen.queryByText(/Sincronizada em/)).not.toBeInTheDocument()
+    // Só a lista que falhou ganha o aviso; as outras duas continuam sem nada.
+    expect(screen.getAllByText('Erro na última sincronização')).toHaveLength(1)
+    expect(card(/Quebrada/)).toHaveAccessibleName(/Erro na última sincronização/)
   })
 
   it('cartão com avatar de iniciais decorativo: fora do nome acessível, par de cores estável por id (FR-005)', () => {

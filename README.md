@@ -81,8 +81,45 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   "↺ Histórico" em Filmes e Séries com tudo que já foi reproduzido, do
   mais recente ao mais antigo, incluindo o que já terminou (feature 025)
   — canal ao vivo não tem histórico nem "já assistido" (decisão de
-  escopo, feature 019). *A avaliar:* agregação de favoritos/histórico
-  entre todas as fontes.
+  escopo, feature 019). Um título sai do "↺ Histórico" pela tecla vermelha
+  na grade ou pela ação "Remover do histórico" no detalhe, e Configurações ›
+  Privacidade limpa o histórico de Filmes, Séries ou ambos da lista ativa —
+  sempre com confirmação e a escolha de manter ou apagar a retomada, sem
+  tocar em favoritos nem em "assistido" (feature 036). *A avaliar:*
+  agregação de favoritos/histórico entre todas as fontes.
+- **Aspecto, qualidade e preferências do player:** no player de filme, série e
+  canal, "Aspecto" (Ajustar, Preencher, Original e Zoom — verificado na TV) e
+  "Qualidade" (Auto mais só as resoluções que o stream anuncia; com uma só,
+  o botão explica) são reais; "Velocidade" foi retirada por decisão de
+  produto. Configurações › Player & reprodução guarda, por aparelho,
+  o aspecto e a qualidade padrão e o idioma de áudio e de legenda; a escolha
+  feita durante a reprodução vale só até o fim da sequência e nunca altera
+  essas preferências (feature 041). A troca de resolução num stream com várias
+  variantes ainda não foi provada na TV.
+- **Estado e vencimento da conta das listas:** para uma lista Xtream, a linha
+  em Configurações › Fontes IPTV mostra "Conta válida até DD/MM/AAAA" (com chip
+  âmbar a partir de 7 dias do vencimento e chip de erro quando vence), o estado
+  de sincronização com o motivo ("Sincronizando", "Credencial inválida",
+  "Conta expirada") e a contagem conhecida ("41 categorias de canais · 31 de
+  filmes · 27 de séries"), nunca "0" inventado. O cartão da lista só ganha um
+  chip quando há algo a fazer. Escolher uma lista cuja assinatura venceu, ou
+  cuja credencial o provedor recusou, não abre o Início: aparece uma tela com o
+  motivo e as ações "Editar lista", "Verificar de novo" e "Voltar" (a consulta
+  ao painel é uma por dia, com limite de 5 s, e uma falha de rede sozinha nunca
+  impede a lista). M3U avulsa e "Modo limitado" não têm conta (feature 034).
+- **Rede, retomada e erros com código:** se o stream cai depois de tocar, o
+  app reconecta sozinho até 3 vezes (filme e episódio retomam da posição em
+  que estavam; canal reabre) e só então mostra o erro; um canal que nunca tocou
+  vai direto ao erro. Ao voltar do app oculto sem rede, o filme continua pausado
+  até a rede voltar. O aviso de "Sem conexão" ganhou a ação "Tentar de novo" no
+  fim da barra de topo (alcançável pelo controle remoto) e "Ressincronizar"
+  fica indisponível, com o motivo, enquanto estiver offline. Todo erro mostra
+  o que houve, uma ação e um código discreto (`NET-`, `SRC-`, `API-`, `PLAY-`,
+  além de `EPG-02`/`STO-01`); o erro de reprodução distingue rede, formato e
+  fonte e tem "Info técnica" sem URL nem credencial, e um limite (429) do
+  painel faz a pré-carga esperar um minuto em vez de insistir (feature 042).
+  Os nomes reais de erro do AVPlay e uma queda de rede de verdade ainda não
+  foram vistos na TV.
 
 ## Arquitetura
 

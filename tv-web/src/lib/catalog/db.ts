@@ -1,4 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
+import { noteBlockWrite } from './blockMemo'
+import type { PlaybackHeaders } from './m3uHeaders'
 
 /**
  * Armazenamento local do aparelho — a fonte de verdade das telas depois da
@@ -204,6 +206,21 @@ export interface CatalogRecord {
    * ou episódio gravado antes desta feature.
    */
   synopsis?: string
+  /**
+   * Headers de reprodução que a lista M3U declarou para este item (feature
+   * 044, FR-002) — só User-Agent/Referer. **Segredo em potencial** (ADR-010):
+   * nunca em log, UI, erro, chave de consulta ou terceiros. Nada os consome
+   * ainda (o repasse ao AVPlay é a feature 25b). Valor sem índice, sem bump.
+   */
+  playbackHeaders?: PlaybackHeaders
+  /** `radio="true"` declarado pela lista M3U (feature 044, FR-007). Só marca; não muda tipo nem UI. Só `kind: 'channel'`. */
+  radio?: true
+  /**
+   * `tvg-chno` declarado pela lista (feature 044, FR-008) — inteiro positivo.
+   * **Não** é o número exibido do canal (ADR-011: posição na fonte); nenhuma
+   * tela o lê. Só `kind: 'channel'`.
+   */
+  declaredChannelNumber?: number
 }
 
 /**
@@ -404,6 +421,13 @@ export interface CategoryRecord {
   /** Assinatura dos itens gravados — renovação idêntica só carimba o instante (feature 038, D-006). */
   itemsSignature?: string
   /**
+   * Séries em bloco desta categoria: `seriesId` → quando os episódios foram
+   * obtidos (feature 039). Fica aqui, e não no item do bloco, para abrir uma
+   * série não regravar o bloco inteiro (milhares de séries). Só cresce com as
+   * séries abertas. Valor sem índice, sem bump de versão.
+   */
+  seriesEpisodesFetchedAt?: Record<string, number>
+  /**
    * Categoria `stored` mantida numa atualização (feature 038): de onde vem o
    * conteúdo novo, ainda não materializado, em `storedEntries`. Ausente = o
    * conteúdo está na própria categoria (`generation`/`id`), como na 014.
@@ -486,6 +510,10 @@ export type ImportErrorKind =
   | 'subscription_expired'
   | 'direct_connection_refused'
   | 'network_failure'
+  /** O painel respondeu 429 (feature 042). Valor de campo: sem versão nova do Dexie. */
+  | 'rate_limited'
+  /** Endereço do servidor inválido (feature 042, `SRC-001`). Valor de campo: sem versão do Dexie. */
+  | 'invalid_address'
   | 'invalid_playlist'
   | 'empty_playlist'
   | 'hls_manifest'
@@ -727,6 +755,26 @@ export class CatalogDb extends Dexie {
     // pelas telas. Sem `.upgrade()`: tabela nova.
     this.version(15).stores({
       sectionStaging: '++id, [sourceId+categoryId]',
+    })
+    // Toda escrita em `categoryBlocks`, por qualquer caminho, esvazia o cache
+    // de blocos lidos (`blockMemo.ts`) — sem depender de cada função lembrar.
+    this.use({
+      stack: 'dbcore',
+      name: 'categoryBlocksMemo',
+      create: (down) => ({
+        ...down,
+        table: (tableName) => {
+          const table = down.table(tableName)
+          if (tableName !== 'categoryBlocks') return table
+          return {
+            ...table,
+            mutate: (request) => {
+              noteBlockWrite(this, request.trans)
+              return table.mutate(request)
+            },
+          }
+        },
+      }),
     })
   }
 }

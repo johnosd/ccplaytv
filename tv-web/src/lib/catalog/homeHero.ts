@@ -9,7 +9,7 @@
  */
 
 import { isResumable } from '../player/resumePolicy'
-import { findSeriesRecord, listEpisodes, resolveFavorites } from './catalogRepository'
+import { findSeriesRecord, listEpisodes, resolveStableIds } from './catalogRepository'
 import { db, type CatalogDb, type CatalogRecord } from './db'
 import { getContinueWatching, getGlobalFavorites, parseStableId, type StableIdParts } from './userStateRepository'
 
@@ -37,13 +37,27 @@ export type HomeHero =
   | { kind: 'favorite'; record: CatalogRecord; primary: HeroPrimary }
   | { kind: 'welcome' }
 
-async function resolveOne(
+/**
+ * Todas as identidades de uma vez, uma resolução por tipo (feature 039): um
+ * item que não resolve custa uma varredura dos blocos do tipo — feita uma vez,
+ * nunca uma por estado de "Continuar assistindo".
+ */
+async function resolveAll(
   sourceId: string,
-  parts: StableIdParts,
+  all: StableIdParts[],
   database: CatalogDb,
-): Promise<CatalogRecord | undefined> {
-  const { records } = await resolveFavorites(sourceId, parts.kind, [parts], database)
-  return records[0]
+): Promise<Map<StableIdParts, CatalogRecord>> {
+  const byKind = new Map<StableIdParts['kind'], StableIdParts[]>()
+  for (const parts of all) {
+    const group = byKind.get(parts.kind)
+    if (group) group.push(parts)
+    else byKind.set(parts.kind, [parts])
+  }
+  const resolved = new Map<StableIdParts, CatalogRecord>()
+  for (const [kind, group] of byKind) {
+    for (const [parts, record] of await resolveStableIds(sourceId, kind, group, database)) resolved.set(parts, record)
+  }
+  return resolved
 }
 
 /**
@@ -104,19 +118,21 @@ function play(record: CatalogRecord, progressSeconds: number | undefined): HeroP
  * recente primeiro) que resolve → senão boas-vindas.
  */
 export async function loadHomeHero(sourceId: string, database: CatalogDb = db): Promise<HomeHero> {
-  const continueStates = await getContinueWatching(sourceId, database)
-  for (const state of continueStates) {
-    const parts = parseStableId(state.stableId)
-    if (!parts) continue
-
+  const continueStates = (await getContinueWatching(sourceId, database))
+    .map((state) => ({ state, parts: parseStableId(state.stableId) }))
+    .filter((entry): entry is { state: (typeof entry)['state']; parts: StableIdParts } =>
+      entry.parts?.kind === 'movie' || entry.parts?.kind === 'episode',
+    )
+  const continueResolved = await resolveAll(sourceId, continueStates.map((entry) => entry.parts), database)
+  for (const { state, parts } of continueStates) {
     if (parts.kind === 'movie') {
-      const movie = await resolveOne(sourceId, parts, database)
+      const movie = continueResolved.get(parts)
       if (movie) return { kind: 'continue', record: movie, primary: play(movie, state.progressSeconds) }
       continue
     }
 
     if (parts.kind === 'episode') {
-      const episode = await resolveOne(sourceId, parts, database)
+      const episode = continueResolved.get(parts)
       if (!episode || !episode.seriesId) continue
       const series = await resolveSeriesParent(sourceId, episode.seriesId, database)
       if (!series) continue
@@ -125,13 +141,13 @@ export async function loadHomeHero(sourceId: string, database: CatalogDb = db): 
     // Qualquer outro kind (canal, etc.) nunca vira hero — próximo estado.
   }
 
-  const favorites = await getGlobalFavorites(database)
-  for (const favorite of favorites) {
-    if (favorite.sourceId !== sourceId) continue
-    const parts = parseStableId(favorite.stableId)
-    if (!parts || (parts.kind !== 'movie' && parts.kind !== 'series')) continue
-
-    const record = await resolveOne(sourceId, parts, database)
+  const favoriteParts = (await getGlobalFavorites(database))
+    .filter((favorite) => favorite.sourceId === sourceId)
+    .map((favorite) => parseStableId(favorite.stableId))
+    .filter((parts): parts is StableIdParts => parts?.kind === 'movie' || parts?.kind === 'series')
+  const favoritesResolved = await resolveAll(sourceId, favoriteParts, database)
+  for (const parts of favoriteParts) {
+    const record = favoritesResolved.get(parts)
     if (!record) continue
 
     if (parts.kind === 'movie') {

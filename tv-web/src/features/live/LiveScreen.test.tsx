@@ -674,6 +674,23 @@ describe('LiveScreen', () => {
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
   })
 
+  it('falha de categoria mostra o código da tabela de erros, sem erro cru (feature 042, FR-011)', () => {
+    mockCategories([category(1, 'Esportes', 0)])
+    mockContentByCategory({}, 'failed')
+    const base = vi.mocked(catalogApi.useCategoryContent).getMockImplementation()!
+    vi.mocked(catalogApi.useCategoryContent).mockImplementation((...args) => {
+      const result = base(...args)
+      return { ...result, data: { ...result.data, errorCode: 'API-429' } } as unknown as ReturnType<typeof catalogApi.useCategoryContent>
+    })
+    renderLive()
+
+    press('ArrowRight')
+
+    expect(screen.getByTestId('error-state-code')).toHaveTextContent('API-429')
+    expect(screen.getByText('Serviço temporariamente limitado')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+  })
+
   it('SELECT em "Tentar de novo" aciona a nova tentativa (achado corrigido junto com a feature 014)', () => {
     mockCategories([category(1, 'Esportes', 0)])
     const refetch = mockContentByCategory({}, 'failed')

@@ -270,10 +270,11 @@ async function run() {
     )
 
     // Correção manual: marca Arrival como assistido sem reproduzir mais.
-    // Ordem das ações agora é [Continuar, Reiniciar, Minha Lista, Trailer,
-    // Semelhantes, toggle-watched] — 6x ArrowRight garante o último índice
-    // (clamp), sem depender de contar quantas ações existem (features 025/035).
-    for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowRight')
+    // Ordem das ações: [Continuar, Reiniciar, Minha Lista, Trailer,
+    // Semelhantes, toggle-watched, Remover do histórico] — com progresso o
+    // filme está no "↺ Histórico", e desde a feature 036 "Remover do
+    // histórico" vem por último. toggle-watched é o índice 5: 5x ArrowRight.
+    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight')
     await page.keyboard.press('Enter')
     await page.waitForSelector('text=/Desmarcar assistido/', { timeout: 8000 })
     assert(true, 'correção manual marcou Arrival como assistido')

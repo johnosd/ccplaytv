@@ -15,7 +15,6 @@ export type ChromeControlId =
   | 'episodeNext'
   | 'tracks'
   | 'quality'
-  | 'speed'
   | 'aspect'
   | 'info'
   | 'guide'
@@ -42,9 +41,36 @@ export interface ChromeFeatures {
    * real, só falta a tela que monta o player saber abri-lo).
    */
   guide?: boolean
+  /**
+   * Feature 041: o motor aplica ao menos um modo de aspecto. Opcional
+   * (ausente = indisponível) para chamadas antigas continuarem válidas.
+   */
+  aspect?: boolean
+  /**
+   * Feature 041: quantas qualidades distintas o stream anuncia — `many` (≥ 2,
+   * real), `single` (1) ou `none` (0 ou motor sem a API). Ausente = `none`.
+   */
+  quality?: 'many' | 'single' | 'none'
 }
 
 const NO_FEATURES: ChromeFeatures = { tracks: false, info: false }
+
+function qualityControl(features: ChromeFeatures): ChromeControl {
+  switch (features.quality) {
+    case 'many':
+      return { id: 'quality', availability: 'real', label: 'Qualidade' }
+    case 'single':
+      return { id: 'quality', availability: 'unavailable', label: 'Qualidade — só uma disponível' }
+    default:
+      return { id: 'quality', availability: 'unavailable', label: 'Qualidade — indisponível' }
+  }
+}
+
+function aspectControl(features: ChromeFeatures): ChromeControl {
+  return features.aspect
+    ? { id: 'aspect', availability: 'real', label: 'Aspecto' }
+    : { id: 'aspect', availability: 'unavailable', label: 'Aspecto — indisponível' }
+}
 
 function tracksControl(features: ChromeFeatures): ChromeControl {
   return features.tracks
@@ -112,7 +138,8 @@ export function hasSeekBar(capabilities: PlayerCapabilities, progress: PlayerPro
 /**
  * Linha de controles, na ordem de foco (←/→, sem volta nas pontas).
  * VOD: [episódio anterior] ⏪ ▶⏸ ⏩ [próximo episódio] Áudio Qualidade
- * Velocidade Aspecto Info. Live: Guia Áudio Qualidade Aspecto Info.
+ * Aspecto Info (sem Velocidade — feature 041, D-001). Live: Guia Áudio
+ * Qualidade Aspecto Info.
  * Controle real cuja capacidade é `false` NÃO entra (regra da 011, D-003).
  * `episodePrevious`/`episodeNext` só entram com `episode` não nulo —
  * `availability: 'limit'` quando o lado correspondente de
@@ -133,8 +160,8 @@ export function chromeControls(
     return [
       features.guide ? { id: 'guide', availability: 'real', label: 'Guia' } : { id: 'guide', availability: 'soon', label: 'Guia — em breve' },
       tracksControl(features),
-      { id: 'quality', availability: 'soon', label: 'Qualidade — em breve', comingSoonId: 'player-quality' },
-      { id: 'aspect', availability: 'soon', label: 'Aspecto — em breve', comingSoonId: 'player-aspect' },
+      qualityControl(features),
+      aspectControl(features),
       infoControl(features),
     ]
   }
@@ -165,9 +192,8 @@ export function chromeControls(
     })
   }
   controls.push(tracksControl(features))
-  controls.push({ id: 'quality', availability: 'soon', label: 'Qualidade — em breve', comingSoonId: 'player-quality' })
-  controls.push({ id: 'speed', availability: 'soon', label: 'Velocidade — em breve', comingSoonId: 'player-speed' })
-  controls.push({ id: 'aspect', availability: 'soon', label: 'Aspecto — em breve', comingSoonId: 'player-aspect' })
+  controls.push(qualityControl(features))
+  controls.push(aspectControl(features))
   controls.push(infoControl(features))
 
   return controls

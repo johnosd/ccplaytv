@@ -21,6 +21,7 @@ import App from './App.tsx'
 import { Stage } from './components/Stage.tsx'
 import { AnnouncerRegion } from './components/AnnouncerRegion.tsx'
 import { PerfOverlay } from './components/PerfOverlay.tsx'
+import { ImeProbeOverlay } from './components/ImeProbeOverlay.tsx'
 import { applyMotionPreference } from './lib/motionPreference.ts'
 
 const queryClient = new QueryClient()
@@ -40,6 +41,8 @@ createRoot(document.getElementById('root')!).render(
       </AnnouncerRegion>
       {/* Build de medição da feature 038 (FR-012) — fora dele, este ramo some do pacote. */}
       {import.meta.env.VITE_CCPLAY_PERF === '1' && <PerfOverlay />}
+      {/* Sonda do IME da feature 045 (T001) — só com `VITE_CCPLAY_IME_PROBE=1`. */}
+      {import.meta.env.VITE_CCPLAY_IME_PROBE === '1' && <ImeProbeOverlay />}
     </Stage>
   </StrictMode>,
 )

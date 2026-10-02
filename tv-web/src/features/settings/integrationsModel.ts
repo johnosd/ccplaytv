@@ -1,3 +1,4 @@
+import type { ErrorCode } from '../../lib/errors/errorCatalog'
 import type { TmdbState, TmdbStatusView } from '../../lib/metadata/types'
 
 /**
@@ -30,6 +31,16 @@ export const TMDB_STATE_LABEL: Record<TmdbState, string> = {
   refused: 'Chave recusada pelo TMDB',
   offline: 'Sem conexão com o TMDB',
   rate_limited: 'Limite de uso atingido; tentaremos mais tarde',
+}
+
+/**
+ * Código discreto da tabela de erros para os estados de falha do TMDB (feature
+ * 042, FR-011/FR-015). `connected`/`not_configured` não são erro — sem código.
+ */
+export const TMDB_STATE_CODE: Partial<Record<TmdbState, ErrorCode>> = {
+  refused: 'API-401',
+  offline: 'NET-02',
+  rate_limited: 'API-429',
 }
 
 /** Nome acessível do ícone TMDB no dock da Home (`logic/chave-tmdb.md` §7). */

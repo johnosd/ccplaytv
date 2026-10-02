@@ -24,6 +24,13 @@
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  /* Achado na feature 036: o `overflow` recortava o anel de foco (contorno +
+     deslocamento + halo, ~8px para fora) das linhas de largura total, que
+     encostam na borda do painel. A folga interna dá espaço ao anel, e a
+     margem negativa igual mantém o conteúdo exatamente onde estava. As
+     linhas largas também usam `.no-scale` (§11: linhas não escalam). */
+  padding: var(--space-1);
+  margin: calc(-1 * var(--space-1));
 }
 
 /* Fontes IPTV. */
@@ -61,10 +68,30 @@
 
 .sources-panel-type,
 .sources-panel-status,
+.sources-panel-account,
+.sources-panel-counts,
 .sources-panel-epg {
   font-weight: 500;
   font-size: var(--fs-caption);
   color: var(--text-tertiary);
+}
+
+/* Chip passivo de aviso da conta (feature 034, FR-005/FR-007): texto sempre
+   presente — a cor (âmbar/erro) só reforça. */
+.sources-panel-chip {
+  padding: 0 var(--space-1);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+}
+
+.sources-panel-chip--warning {
+  color: var(--warning);
+}
+
+.sources-panel-chip--error {
+  color: var(--danger);
 }
 
 .sources-panel-badge {
@@ -147,6 +174,53 @@
   padding: 0 var(--space-3);
   font-size: var(--fs-caption);
   color: var(--text-tertiary);
+}
+
+/* Privacidade (feature 036, `logic/remocao-historico.md` §11). */
+.privacy-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.privacy-panel-heading {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-heading);
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.privacy-panel-note {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+}
+
+.privacy-panel-row {
+  appearance: none;
+  border: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.privacy-panel-row.tv-focus {
+  background: var(--bg-hover);
+}
+
+.privacy-panel-value {
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 /* Integrações & BYOK (feature 032, `logic/integracoes-e-dock.md` §1). */
@@ -288,6 +362,9 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
+  /* Feature 045 (US3): a tela rola para o campo focado subir à metade de cima.
+     O anel de foco fica dentro do padding de `.screen`, então o recorte não o alcança. */
+  overflow-y: auto;
 }
 
 .epg-settings-status {

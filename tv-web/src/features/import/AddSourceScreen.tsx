@@ -1,11 +1,20 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useCreateSource, useUpdateSource, type SourceOut } from './importApi'
 import { useTvKeyNav } from '../../lib/useTvKeyNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
+import { useImeChain } from '../../lib/useImeChain'
 import { Button } from '../../components/Button'
 import { ComingSoon } from '../../components/ComingSoon'
 import { TextField } from '../../components/TextField'
 import { OnboardingBrand } from './OnboardingBrand'
+import { checkSourceConnection } from '../../lib/catalog/sourceConnectionCheck'
+import { isQuotaError, StorageFullError } from '../../lib/catalog/catalogRepository'
+import { bannerFor, RETRY_LABEL, type ConnectionBanner } from './connectionBanner'
+import { ConnectionErrorBanner } from './ConnectionErrorBanner'
+import { connectionInputFor } from './connectionInput'
+
+/** `idle` → `checking` (confirma a conexão, cancelável) → `saving` (grava a lista). */
+type SubmitPhase = 'idle' | 'checking' | 'saving'
 
 export interface AddSourceScreenProps {
   /** Presente = tela em modo edição de uma fonte já existente. */
@@ -55,8 +64,36 @@ export function AddSourceScreen({
   const isEditing = existingSource != null
   const containerRef = useRef<HTMLElement>(null)
   const selectedTypeRef = useRef<HTMLButtonElement>(null)
+  const submitRef = useRef<HTMLButtonElement>(null)
   useTvKeyNav(containerRef, isEditing ? {} : { initialFocus: () => selectedTypeRef.current })
-  useRemoteNav({ onBack })
+  // Done do IME leva o foco à ação principal, sem enviar (feature 045, US2).
+  useImeChain(containerRef, submitRef)
+
+  // Trava **síncrona** (feature 045, D-007): `phase` só muda no render seguinte, e
+  // dois OK seguidos passariam. `abortRef` só existe enquanto a conexão é confirmada.
+  const lockRef = useRef(false)
+  const abortRef = useRef<AbortController | null>(null)
+  const [phase, setPhase] = useState<SubmitPhase>('idle')
+  const [banner, setBanner] = useState<ConnectionBanner | null>(null)
+
+  // RETURN fecha primeiro a camada aberta: com a confirmação em andamento só a
+  // cancela (dados preservados, foco na ação); sem ela, sai da tela (FR-009).
+  function handleBack() {
+    if (abortRef.current) {
+      abortRef.current.abort()
+      return
+    }
+    onBack()
+  }
+  useRemoteNav({ onBack: handleBack })
+
+  // Sair da tela no meio da confirmação não deixa a requisição pendurada.
+  useEffect(
+    () => () => {
+      abortRef.current?.abort()
+    },
+    [],
+  )
 
   const [mode, setMode] = useState<EntryMode>(
     existingSource == null || existingSource.type === 'provider_credentials' ? 'provider' : 'url',
@@ -73,7 +110,20 @@ export function AddSourceScreen({
 
   const createSource = useCreateSource()
   const updateSource = useUpdateSource()
-  const isPending = createSource.isPending || updateSource.isPending
+
+  /** Devolve a tela ao repouso e o foco à ação principal (nunca uma tela sem foco, SC-003). */
+  function settle(next: ConnectionBanner | null) {
+    abortRef.current = null
+    lockRef.current = false
+    setPhase('idle')
+    setBanner(next)
+    submitRef.current?.focus()
+  }
+
+  /** Falha ao gravar: disco cheio tem código próprio; o resto mantém a linha genérica de sempre. */
+  function settleSaveError(error: unknown) {
+    settle(isQuotaError(error) || error instanceof StorageFullError ? bannerFor('STO-01') : null)
+  }
 
   // Sem <form>: salvar só acontece no clique/OK deste botão especificamente,
   // nunca implicitamente. Um <form> com <input> dentro submete sozinho no
@@ -82,13 +132,58 @@ export function AddSourceScreen({
   // pelo mesmo keydown que um controle físico dispara. Sem <form>, esse
   // mecanismo do navegador nem existe: nada aciona handleSubmit a não ser
   // este onClick.
-  function handleSubmit() {
+  async function handleSubmit() {
+    if (lockRef.current) return
     setValidationError(null)
 
     if (!displayName.trim()) {
+      setBanner(null)
       setValidationError('Informe um nome para a lista.')
       return
     }
+    if (!isEditing) {
+      if (mode === 'url' && !m3uUrl.trim()) {
+        setBanner(null)
+        setValidationError('Informe a URL da lista M3U.')
+        return
+      }
+      if (mode === 'provider' && (!dns.trim() || !username.trim() || !password.trim())) {
+        setBanner(null)
+        setValidationError('Informe endereço do servidor, usuário e senha.')
+        return
+      }
+    }
+
+    // Confirma a conexão ANTES de criar/atualizar (feature 045, D-001): uma falha
+    // não deixa fonte órfã e a pessoa continua aqui, com os dados preenchidos.
+    lockRef.current = true
+    setBanner(null)
+    setPhase('checking')
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    try {
+      const input = await connectionInputFor(
+        { mode, m3uUrl, dns, username, password },
+        existingSource ? { id: existingSource.id, providerDns: existingSource.provider_dns } : undefined,
+      )
+      if (input) {
+        const result = await checkSourceConnection(input, { signal: controller.signal })
+        if (result.status === 'cancelled') return settle(null)
+        if (result.status === 'failed') return settle(bannerFor(result.code))
+      }
+    } catch {
+      // Defeito nosso não vira "falha de rede" (D-009): cai na linha genérica, sem a mensagem crua.
+      settle(null)
+      setValidationError(
+        isEditing ? 'Não foi possível salvar as alterações.' : 'Não foi possível adicionar a fonte.',
+      )
+      return
+    }
+    if (controller.signal.aborted) return settle(null)
+
+    abortRef.current = null
+    setPhase('saving')
 
     if (isEditing) {
       updateSource.mutate(
@@ -102,28 +197,19 @@ export function AddSourceScreen({
               : {}),
           },
         },
-        { onSuccess: () => onSourceUpdated?.() },
+        { onSuccess: () => onSourceUpdated?.(), onError: settleSaveError },
       )
       return
     }
+
+    const onSuccess = (result: { source_id: string; import_job_id: string }) =>
+      onSourceCreated({ sourceId: result.source_id, jobId: result.import_job_id })
 
     if (mode === 'url') {
-      if (!m3uUrl.trim()) {
-        setValidationError('Informe a URL da lista M3U.')
-        return
-      }
       createSource.mutate(
         { type: 'm3u_url', display_name: displayName, m3u_url: m3uUrl },
-        {
-          onSuccess: (result) =>
-            onSourceCreated({ sourceId: result.source_id, jobId: result.import_job_id }),
-        },
+        { onSuccess, onError: settleSaveError },
       )
-      return
-    }
-
-    if (!dns.trim() || !username.trim() || !password.trim()) {
-      setValidationError('Informe endereço do servidor, usuário e senha.')
       return
     }
     createSource.mutate(
@@ -132,31 +218,32 @@ export function AddSourceScreen({
         display_name: displayName,
         provider: { dns, username, password },
       },
-      {
-        onSuccess: (result) =>
-          onSourceCreated({ sourceId: result.source_id, jobId: result.import_job_id }),
-      },
+      { onSuccess, onError: settleSaveError },
     )
   }
 
-  const submitLabel = isEditing
-    ? updateSource.isPending
+  const submitLabel =
+    phase === 'saving' && isEditing
       ? 'Salvando…'
-      : 'Salvar alterações'
-    : createSource.isPending
-      ? 'Conectando…'
-      : 'Conectar e sincronizar'
+      : phase !== 'idle'
+        ? 'Conectando…'
+        : banner?.retryable
+          ? RETRY_LABEL
+          : isEditing
+            ? 'Salvar alterações'
+            : 'Conectar e sincronizar'
 
   const fields = (
     <div className="source-setup-fields">
       <div className="source-setup-field--wide">
-        <TextField label="Nome da lista" purpose="text" value={displayName} onChange={setDisplayName} />
+        <TextField label="Nome da lista" purpose="text" enterKeyHint="next" value={displayName} onChange={setDisplayName} />
       </div>
       {mode === 'url' ? (
         <div className="source-setup-field--wide">
           <TextField
             label="URL M3U"
             purpose="url"
+            enterKeyHint="done"
             value={m3uUrl}
             onChange={setM3uUrl}
             hint={isEditing ? 'Deixe em branco para manter a URL atual' : undefined}
@@ -165,11 +252,12 @@ export function AddSourceScreen({
       ) : (
         <>
           <div className="source-setup-field--wide">
-            <TextField label="Servidor" purpose="url" value={dns} onChange={setDns} />
+            <TextField label="Servidor" purpose="url" enterKeyHint="next" value={dns} onChange={setDns} />
           </div>
           <TextField
             label="Usuário"
             purpose="username"
+            enterKeyHint="next"
             value={username}
             onChange={setUsername}
             hint={isEditing ? 'Deixe em branco para manter o usuário atual' : undefined}
@@ -177,6 +265,9 @@ export function AddSourceScreen({
           <TextField
             label="Senha"
             purpose="password"
+            revealable
+            revealNoun="senha"
+            enterKeyHint="done"
             value={password}
             onChange={setPassword}
             hint={isEditing ? 'Deixe em branco para manter a senha atual' : undefined}
@@ -193,12 +284,13 @@ export function AddSourceScreen({
           {validationError}
         </p>
       )}
-      {createSource.isError && (
+      {banner && <ConnectionErrorBanner banner={banner} />}
+      {!banner && !validationError && createSource.isError && (
         <p className="form-error onboarding-error" role="alert">
           Não foi possível adicionar a fonte: {createSource.error.message}
         </p>
       )}
-      {updateSource.isError && (
+      {!banner && !validationError && updateSource.isError && (
         <p className="form-error onboarding-error" role="alert">
           Não foi possível salvar as alterações: {updateSource.error.message}
         </p>
@@ -211,7 +303,7 @@ export function AddSourceScreen({
         <Button variant="secondary" onSelect={onBack}>
           Voltar
         </Button>
-        <Button variant="accent" loading={isPending} onSelect={handleSubmit}>
+        <Button variant="accent" loading={phase !== 'idle'} onSelect={handleSubmit} buttonRef={submitRef}>
           {submitLabel}
         </Button>
       </div>
@@ -222,7 +314,7 @@ export function AddSourceScreen({
 
   return (
     <section
-      className="screen onboarding source-setup no-scrollbar"
+      className="screen onboarding source-setup no-scrollbar form-scroll-room"
       aria-labelledby="add-source-title"
       ref={containerRef}
     >

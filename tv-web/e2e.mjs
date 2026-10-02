@@ -332,7 +332,7 @@ async function run() {
     await freshPage.keyboard.type('usuario-e2e')
     await down()
     await freshPage.keyboard.type('senha-e2e')
-    await down(2) // Senha → Voltar → Conectar e sincronizar
+    await down(3) // Senha → Mostrar (feature 045) → Voltar → Conectar e sincronizar
     assert(
       (await freshPage.evaluate(() => document.activeElement?.textContent?.trim())) === 'Conectar e sincronizar',
       'as setas levam dos campos até "Conectar e sincronizar"',

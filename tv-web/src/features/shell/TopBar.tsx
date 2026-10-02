@@ -1,5 +1,7 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { Icon } from '../../components/Icon'
+import { runConnectionCheck, useConnectionCheckStatus } from '../../lib/network/connectionCheck'
+import { useOnlineStatus } from '../../lib/onlineStatus'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import type { TopbarItem, TopDestination } from '../../navigation/appNav'
 import { useClock } from './clock'
@@ -47,6 +49,9 @@ export interface TopBarProps {
 
 /** Ordem de foco, igual à ordem visual (logo e relógio não são focáveis). */
 const FOCUS_ORDER: TopbarItem[] = ['home', 'live', 'movies', 'series', 'profile', 'search', 'settings']
+
+/** Feature 042 (D-007): "Tentar de novo" entra no FIM da ordem, só enquanto offline. */
+const FOCUS_ORDER_OFFLINE: TopbarItem[] = [...FOCUS_ORDER, 'connection']
 
 const NAV_ITEMS: { key: 'home' | TopDestination; label: string }[] = [
   { key: 'home', label: 'Início' },
@@ -103,6 +108,15 @@ export function TopBar({
   onBack,
 }: TopBarProps): ReactNode {
   const clock = useClock()
+  const online = useOnlineStatus()
+  const connectionCheck = useConnectionCheckStatus()
+  const focusOrder = online ? FOCUS_ORDER : FOCUS_ORDER_OFFLINE
+
+  // O foco nunca fica num item que sumiu: com a rede de volta, "Tentar de novo"
+  // deixa de existir e o foco cai em "Início" (constituição: sem becos).
+  useEffect(() => {
+    if (active && online && focusedItem === 'connection') onFocusItem('home')
+  }, [active, online, focusedItem, onFocusItem])
 
   function activate(item: TopbarItem) {
     // Já está neste destino — inclui "Início" quando `currentItem` é o
@@ -126,6 +140,9 @@ export function TopBar({
       case 'settings':
         onOpenSettings?.()
         return
+      case 'connection':
+        void runConnectionCheck()
+        return
     }
   }
 
@@ -138,8 +155,8 @@ export function TopBar({
               return
             }
             if (direction === 'up') return
-            const index = FOCUS_ORDER.indexOf(focusedItem)
-            const next = FOCUS_ORDER[clamp(index + (direction === 'right' ? 1 : -1), 0, FOCUS_ORDER.length - 1)]
+            const index = focusOrder.indexOf(focusedItem)
+            const next = focusOrder[clamp(index + (direction === 'right' ? 1 : -1), 0, focusOrder.length - 1)]
             if (next !== focusedItem) onFocusItem(next)
           },
           onSelect: () => activate(focusedItem),
@@ -208,6 +225,18 @@ export function TopBar({
             </button>
           )
         })}
+
+        {!online && (
+          <button
+            type="button"
+            className={`topbar-item${focusClass('connection')}`}
+            aria-label="Tentar de novo: verificar a conexão"
+            aria-disabled={connectionCheck === 'verifying' ? true : undefined}
+            onClick={() => activate('connection')}
+          >
+            {connectionCheck === 'verifying' ? 'Verificando…' : 'Tentar de novo'}
+          </button>
+        )}
 
         <span className="topbar-clock">{clock}</span>
       </div>

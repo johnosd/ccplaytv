@@ -150,28 +150,18 @@ describe('EpgGuide — estados (US1)', () => {
     ['not_configured', 'Esta lista não tem EPG configurado.', { type: 'm3u_url' as const, m3uUrl: 'http://lista.test/avulsa.m3u', providerDns: undefined, providerUsername: undefined, providerPassword: undefined, epgLastSyncAt: undefined }],
     ['disabled', 'O EPG desta lista está desativado.', { epgDisabled: true }],
     ['never_synced', 'O EPG desta lista ainda não foi sincronizado.', { epgLastSyncAt: undefined }],
-  ])('sem programação (%s): explica e leva ao painel de EPG — nunca uma grade vazia sem saída', async (_state, text, patch) => {
+  ])('sem programação (%s): explica e diz onde configurar, sem atalho para fora do guia — o seletor segue focável', async (_state, text, patch) => {
+    // Item 62a do backlog (decisão do usuário): o EPG só se configura ao editar
+    // a lista em Configurações — nunca a partir do guia do canal.
     await db.sources.put({ ...linkedSource, ...patch })
     mockContent({ items: [CHANNEL] })
-    const onOpenEpgSettings = vi.fn()
-    const { handle } = renderGuide({ onOpenEpgSettings })
+    const { handle } = renderGuide()
 
     expect(await screen.findByText(text)).toBeInTheDocument()
+    expect(screen.getByText('O EPG é configurado em Configurações › Fontes IPTV, na linha da lista.')).toBeInTheDocument()
     expect(document.querySelector('.epg-guide-grid')).toBeNull()
-    await press(handle, 'down')
-    expect(screen.getByRole('button', { name: 'Configurar EPG' })).toHaveClass('tv-focus')
-    oneFocus()
-    act(() => handle.current!.onSelect())
-    expect(onOpenEpgSettings).toHaveBeenCalledTimes(1)
-  })
-
-  it('sem programação e sem destino de configuração: a ação some, mas o seletor segue focável', async () => {
-    await db.sources.put({ ...linkedSource, epgDisabled: true })
-    mockContent({ items: [CHANNEL] })
-    renderGuide()
-
-    await screen.findByText('O EPG desta lista está desativado.')
     expect(screen.queryByRole('button', { name: 'Configurar EPG' })).not.toBeInTheDocument()
+    await press(handle, 'down')
     expect(document.querySelector('.epg-guide-selector')).toHaveClass('tv-focus')
     oneFocus()
   })

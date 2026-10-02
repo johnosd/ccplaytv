@@ -97,6 +97,20 @@ endereço; o endereço do painel Xtream (`xmltv.php` com a credencial) **não
 reprodução; e excluir a fonte apaga a programação e a configuração de EPG.
 Ver `sdd/specs/030-epg-dados-agora/plan.md` (Complexity Tracking, D-011).
 
+**Atualização (feature 044-parser-m3u-headers, 2026-10-02):** a exceção passa
+a cobrir também os **headers de reprodução de um item M3U** — `User-Agent` e
+`Referer`, lidos do sufixo `|` da URL ou de `#EXTVLCOPT`/`#KODIPROP`
+(`CatalogRecord.playbackHeaders`). Podem carregar token, então são a mesma
+classe de dado da URL de reprodução do item e ficam sob as mesmas mitigações,
+obrigatórias: nunca em log, tela, mensagem de erro, chave de consulta,
+`aria-*`, exportação ou requisição a terceiros; descartados com a fonte ou a
+geração. Na prática: só ficam gravados junto com a URL que os acompanha
+(`m3u_url`; no Modo limitado, onde a URL é derivada da credencial, não são
+guardados); `CatalogItemOut` e a UI nunca os expõem; só `User-Agent`/`Referer`
+são guardados, qualquer outro header e toda chave de licença/DRM é descartado
+na leitura; e o valor só é lido por quem for repassá-lo ao player (feature
+25b). A constituição não muda. Ver `sdd/specs/044-parser-m3u-headers/plan.md`.
+
 ## Alternativas Consideradas
 
 ### Manter a proibição e guardar só o conteúdo sem URL

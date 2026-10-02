@@ -31,6 +31,10 @@ export function formatAge(ageMs: number): string {
 
 export function homeStatusLine({ sourceId, updating, progress, lastSuccessfulSyncAt, now }: HomeStatusInput): string | null {
   if (updating) return 'Atualizando catálogo…'
+  // Feature 042 (FR-017): o painel pediu um intervalo — uma linha só, nunca um aviso por categoria.
+  if (progress.sourceId === sourceId && progress.pausedReason === 'rate_limited') {
+    return 'Pré-carga em pausa — o painel pediu um intervalo'
+  }
   const preparing =
     progress.sourceId === sourceId &&
     (progress.state === 'running' || progress.state === 'paused') &&

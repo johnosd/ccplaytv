@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { Icon } from './Icon'
 import type { IconName } from './iconPaths'
 
@@ -9,9 +9,17 @@ export interface ButtonProps {
   icon?: IconName
   loading?: boolean
   disabled?: boolean
+  /**
+   * Soft disabled (DS §11): continua focável e ativável — quem recebe o
+   * `onSelect` é que explica o motivo (feature 042, FR-004: ação que depende de
+   * internet, offline). O motivo também vai no nome acessível, por `children`.
+   */
+  softDisabled?: boolean
   /** Foco de estado (padrão das telas de catálogo, ADR-009) — aplica `.tv-focus`. */
   focused?: boolean
   onSelect: () => void
+  /** Acesso ao `<button>` real (feature 045) — para a tela mandar o foco à ação principal. Aditivo. */
+  buttonRef?: Ref<HTMLButtonElement>
   children: ReactNode
 }
 
@@ -22,13 +30,14 @@ export interface ButtonProps {
  * atuais. `loading` nunca usa `disabled` real (manteria a semântica de
  * foco), só ignora o clique e sinaliza `aria-busy` — nunca mostra número.
  */
-export function Button({ variant, icon, loading, disabled, focused, onSelect, children }: ButtonProps): ReactNode {
+export function Button({ variant, icon, loading, disabled, softDisabled, focused, onSelect, buttonRef, children }: ButtonProps): ReactNode {
   return (
     <button
+      ref={buttonRef}
       type="button"
-      className={`button-${variant}${disabled ? ' is-hard-disabled' : ''}${focused ? ' tv-focus' : ''}`}
+      className={`button-${variant}${disabled ? ' is-hard-disabled' : ''}${softDisabled ? ' is-soft-disabled' : ''}${focused ? ' tv-focus' : ''}`}
       aria-busy={loading || undefined}
-      aria-disabled={disabled || undefined}
+      aria-disabled={disabled || softDisabled || undefined}
       onClick={() => {
         if (loading || disabled) return
         onSelect()

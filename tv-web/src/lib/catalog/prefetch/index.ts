@@ -5,7 +5,7 @@
  * `createPrefetchScheduler`), nunca este módulo.
  */
 
-import { collectStaleGenerations, listCategories } from '../catalogRepository'
+import { clearStagedItemsOfOtherSources, collectStaleGenerations, listCategories } from '../catalogRepository'
 import { ensureCategory } from '../categoryLoader'
 import { convertLegacyCategories } from '../categoryBlocks'
 import { isAbortError } from '../xtreamConnector'
@@ -32,6 +32,7 @@ async function runCategory(sourceId: string, categoryId: number): Promise<Prefet
     try {
       const result = await ensureCategory(sourceId, category, { renew: true })
       if (result.reason === 'storage_full') return 'storage_full'
+      if (result.reason === 'rate_limited') return 'rate_limited'
       return result.outcome === 'fetched' || result.outcome === 'fresh' ? 'done' : 'failed'
     } catch (error) {
       if (!isAbortError(error)) return 'failed'
@@ -66,6 +67,9 @@ export const prefetchScheduler = createPrefetchScheduler({
       onConverted: (categoryId) => onCategoryDone?.(sourceId, categoryId),
     })
     if (moreToConvert) return true
+    // Preparo que sobrou de outra lista (carga interrompida e troca de lista):
+    // só as chaves são lidas; sem sobra, não custa nada.
+    if (await clearStagedItemsOfOtherSources(sourceId)) return true
     return collectStaleGenerations(sourceId)
   },
   // Seção inteira num Worker (R0-3): um pedido por seção em vez de um por

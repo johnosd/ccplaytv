@@ -5,6 +5,12 @@ import type { IconName } from './iconPaths'
 export interface ErrorStateAction {
   label: string
   onSelect: () => void
+  /**
+   * Feature 042 (FR-004): ação que depende de internet, sem conexão. Fica
+   * focável (soft disabled, DS §11), com o motivo no nome acessível, e NÃO
+   * dispara `onSelect` — quem a monta explica o motivo na própria tela.
+   */
+  softDisabledReason?: string
 }
 
 export interface ErrorStateProps {
@@ -36,10 +42,12 @@ export function ErrorState({ icon, title, description, code, actions, focusedAct
           <button
             key={action.label}
             type="button"
-            className={`button-secondary${index === focusedActionIndex ? ' tv-focus' : ''}`}
-            onClick={action.onSelect}
+            className={`button-secondary${action.softDisabledReason ? ' is-soft-disabled' : ''}${index === focusedActionIndex ? ' tv-focus' : ''}`}
+            aria-disabled={action.softDisabledReason ? true : undefined}
+            onClick={action.softDisabledReason ? undefined : action.onSelect}
           >
             {action.label}
+            {action.softDisabledReason && <span className="sr-only">, {action.softDisabledReason}</span>}
           </button>
         ))}
       </div>

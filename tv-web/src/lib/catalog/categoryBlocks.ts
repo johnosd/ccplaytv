@@ -21,6 +21,7 @@ import {
   type CategoryBlockRecord,
   type CategoryKind,
 } from './db'
+import { noteMovedIds } from './blockMemo'
 
 /** Espaço de ids por categoria: `id = -(categoryId * BLOCK_ID_SPACE + slot)`. */
 export const BLOCK_ID_SPACE = 2 ** 32
@@ -52,17 +53,31 @@ function fnv1a32(text: string): number {
  */
 export function itemsSignature(items: CatalogRecord[]): string {
   const text = JSON.stringify(
-    items.map((item) => [
-      identityKey(item),
-      item.name,
-      item.iconUrl ?? null,
-      item.year ?? null,
-      item.addedAt ?? null,
-      item.epgChannelId ?? null,
-      item.streamExtension ?? null,
-      item.directUrl ?? null,
-      item.group ?? null,
-    ]),
+    items.map((item) => {
+      const fields: unknown[] = [
+        identityKey(item),
+        item.name,
+        item.iconUrl ?? null,
+        item.year ?? null,
+        item.addedAt ?? null,
+        item.epgChannelId ?? null,
+        item.streamExtension ?? null,
+        item.directUrl ?? null,
+        item.group ?? null,
+      ]
+      // Feature 044 (D-006): só entram quando existem — um item sem eles gera o
+      // mesmo vetor de antes, para uma lista antiga não regravar todos os blocos.
+      // Só o hash sai daqui; o valor do header nunca é guardado nem logado.
+      if (item.playbackHeaders || item.radio || item.declaredChannelNumber !== undefined) {
+        fields.push(
+          item.playbackHeaders?.userAgent ?? null,
+          item.playbackHeaders?.referer ?? null,
+          item.radio ?? null,
+          item.declaredChannelNumber ?? null,
+        )
+      }
+      return fields
+    }),
   )
   return `${items.length}:${fnv1a32(text).toString(16)}`
 }
@@ -172,8 +187,9 @@ export async function writeBlockWithin(
   const legacy = old ? [] : await legacyRowsOf(database, target).sortBy('id')
 
   // Anteriores por identidade, em ordem: nomes repetidos (M3U) casam em ordem.
-  const previous = new Map<string, Array<{ id?: number; episodesFetchedAt?: number }>>()
-  const push = (key: string, value: { id?: number; episodesFetchedAt?: number }) => {
+  type Previous = { id?: number; legacyId?: number; episodesFetchedAt?: number }
+  const previous = new Map<string, Previous[]>()
+  const push = (key: string, value: Previous) => {
     const queue = previous.get(key)
     if (queue) queue.push(value)
     else previous.set(key, [value])
@@ -181,7 +197,7 @@ export async function writeBlockWithin(
   if (old) {
     for (const item of old.items) push(identityKey({ ...item, kind: old.kind }), { id: item.id, episodesFetchedAt: item.episodesFetchedAt })
   }
-  for (const row of legacy) push(identityKey(row), { episodesFetchedAt: row.episodesFetchedAt })
+  for (const row of legacy) push(identityKey(row), { legacyId: row.id, episodesFetchedAt: row.episodesFetchedAt })
 
   // 1ª passada: reserva os ids reaproveitados (um item novo nunca "rouba" o
   // slot de um que continua). 2ª: ids novos para quem entrou.
@@ -191,6 +207,10 @@ export async function writeBlockWithin(
     if (prev?.id !== undefined && prev.id < 0) taken.add(prev.id)
     return prev
   })
+  // Carimbos de episódios gravados na categoria (`storeSeriesEpisodes`, para
+  // não regravar o bloco a cada série aberta) entram nos itens agora, que o
+  // bloco é regravado de qualquer jeito — e o mapa da categoria é esvaziado.
+  const stamps = category.seriesEpisodesFetchedAt
   const blockItems = items.map((item, index) => {
     const prev = matched[index]
     let id = prev?.id !== undefined && prev.id < 0 ? prev.id : undefined
@@ -198,7 +218,10 @@ export async function writeBlockWithin(
       id = blockItemId(target.categoryId, identityKey({ ...item, kind: target.kind }), taken)
       taken.add(id)
     }
-    return toBlockItem(item, id, prev?.episodesFetchedAt ?? item.episodesFetchedAt)
+    let fetchedAt = prev?.episodesFetchedAt ?? item.episodesFetchedAt
+    const stamp = item.seriesId ? stamps?.[item.seriesId] : undefined
+    if (stamp !== undefined && (fetchedAt === undefined || stamp > fetchedAt)) fetchedAt = stamp
+    return toBlockItem(item, id, fetchedAt)
   })
 
   await database.categoryBlocks.put({
@@ -209,11 +232,21 @@ export async function writeBlockWithin(
     groupOrder: target.groupOrder,
     items: blockItems,
   })
-  if (legacy.length > 0) await database.channels.bulkDelete(legacy.map((row) => row.id as number))
+  if (legacy.length > 0) {
+    await database.channels.bulkDelete(legacy.map((row) => row.id as number))
+    // O id antigo continua levando ao item (tela aberta, pilha de navegação,
+    // consulta em cache): `getChannel` consulta esta troca quando a linha some.
+    const moves: Array<[number, number]> = []
+    matched.forEach((prev, index) => {
+      if (prev?.legacyId !== undefined) moves.push([prev.legacyId, blockItems[index].id])
+    })
+    noteMovedIds(database, moves)
+  }
   await database.categories.update(target.categoryId, {
     itemsFetchedAt: now,
     itemsCount: items.length,
     itemsSignature: signature,
+    seriesEpisodesFetchedAt: undefined,
   })
   return true
 }
@@ -223,6 +256,31 @@ export function blocksOfSource(database: CatalogDb, sourceId: string) {
   return database.categoryBlocks
     .where('[sourceId+generation+kind]')
     .between([sourceId, GENERATION_MIN, KIND_MIN], [sourceId, GENERATION_MAX, KIND_MAX], true, true)
+}
+
+/** Faixa de chave dos blocos de uma geração (qualquer tipo) — pelo índice, sem ler os outros. */
+export function blocksOfGeneration(database: CatalogDb, sourceId: string, generation: number) {
+  return database.categoryBlocks
+    .where('[sourceId+generation+kind]')
+    .between([sourceId, generation, KIND_MIN], [sourceId, generation, KIND_MAX], true, true)
+}
+
+/**
+ * Chaves dos blocos de uma fonte em gerações DIFERENTES de `generation`: duas
+ * faixas pelo índice (antes e depois dela). Um filtro `.and()` obrigaria a ler
+ * cada bloco — de todas as gerações, inclusive a nova — só para decidir.
+ */
+export async function blockKeysOutsideGeneration(
+  database: CatalogDb,
+  sourceId: string,
+  generation: number,
+): Promise<number[]> {
+  const index = database.categoryBlocks.where('[sourceId+generation+kind]')
+  const [before, after] = await Promise.all([
+    index.between([sourceId, GENERATION_MIN, KIND_MIN], [sourceId, generation, KIND_MIN], true, false).primaryKeys(),
+    index.between([sourceId, generation, KIND_MAX], [sourceId, GENERATION_MAX, KIND_MAX], false, true).primaryKeys(),
+  ])
+  return [...before, ...after]
 }
 
 /** Faixa de `generation` (mesma de `catalogRepository`) e de `kind` (texto) no índice dos blocos. */
@@ -265,6 +323,10 @@ export async function convertLegacyCategories(
     .filter((category) => category.generation === generation)
     .sort((a, b) => (a.id as number) - (b.id as number))
 
+  // Só as chaves (nunca os blocos inteiros): esta checagem roda a cada parte da
+  // limpeza em segundo plano, mesmo quando já não há nada a converter.
+  const withBlock = new Set(await blocksOfSource(database, sourceId).primaryKeys())
+
   let converted = 0
   for (const category of categories) {
     const categoryId = category.id as number
@@ -276,14 +338,14 @@ export async function convertLegacyCategories(
       groupOrder: category.order,
     }
     // Já em bloco, ou sem nada no formato antigo: nada a converter aqui.
-    if (await database.categoryBlocks.get(categoryId)) continue
+    if (withBlock.has(categoryId)) continue
     if (!(await legacyRowsOf(database, target).first())) continue
     // Sobrou pelo menos uma depois do limite desta parte.
     if (converted >= maxCategories) return true
 
     const done = await database.transaction('rw', database.channels, database.categories, database.categoryBlocks, async () => {
       const current = await database.categories.get(categoryId)
-      if (!current || (await database.categoryBlocks.get(categoryId))) return false
+      if (!current || (await database.categoryBlocks.where(':id').equals(categoryId).count()) > 0) return false
       const rows = await legacyRowsOf(database, target).toArray()
       if (rows.length === 0) return false
       // Mesma ordem que a leitura de linhas usava (`listChannels`).

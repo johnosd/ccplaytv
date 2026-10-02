@@ -24,6 +24,7 @@ import {
   normalizeYear,
   type ClassifiedEntry,
 } from './classifier'
+import { parseExpDate } from './sourceAccount'
 
 /** TS quando a conta permite mais de um formato — o que reproduziu na TV de referência. */
 const PREFERRED_FORMAT = 'ts'
@@ -38,6 +39,8 @@ export type ProviderFailureKind =
   | 'subscription_expired'
   | 'direct_connection_refused'
   | 'network_failure'
+  /** HTTP 429 do painel (feature 042): pede um intervalo, não é incompatibilidade. */
+  | 'rate_limited'
 
 export class ProviderError extends Error {
   kind: ProviderFailureKind
@@ -57,13 +60,26 @@ export class ProviderIncompatibleError extends Error {
 }
 
 /**
+ * Endereço do servidor que nem chega a ser um endereço (vazio, ilegível, com
+ * credencial embutida, sem host). Subclasse de `ProviderIncompatibleError` de
+ * propósito: o fallback M3U de quem chama continua igual — a feature 042 só
+ * precisa distingui-lo ("Endereço inválido", `SRC-001`) dos demais.
+ */
+export class InvalidServerAddressError extends ProviderIncompatibleError {
+  constructor(message: string) {
+    super(message)
+    this.name = 'InvalidServerAddressError'
+  }
+}
+
+/**
  * Reduz qualquer forma comum à base normalizada, preservando subpath.
  * Recusa credencial embutida no endereço: ela vive nos campos próprios da
  * fonte, nunca na URL guardada (FR-003).
  */
 export function normalizeServerAddress(raw: string): string {
   const value = raw.trim()
-  if (value === '') throw new ProviderIncompatibleError('Endereço do servidor vazio.')
+  if (value === '') throw new InvalidServerAddressError('Endereço do servidor vazio.')
 
   const withScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(value) ? value : `http://${value}`
 
@@ -71,15 +87,15 @@ export function normalizeServerAddress(raw: string): string {
   try {
     parsed = new URL(withScheme)
   } catch {
-    throw new ProviderIncompatibleError('Endereço do servidor inválido.')
+    throw new InvalidServerAddressError('Endereço do servidor inválido.')
   }
 
   if (parsed.username !== '' || parsed.password !== '') {
-    throw new ProviderIncompatibleError(
+    throw new InvalidServerAddressError(
       'O endereço do servidor não deve conter usuário ou senha embutidos.',
     )
   }
-  if (parsed.hostname === '') throw new ProviderIncompatibleError('Endereço do servidor sem host.')
+  if (parsed.hostname === '') throw new InvalidServerAddressError('Endereço do servidor sem host.')
 
   let path = parsed.pathname
   for (const suffix of LEGACY_SUFFIXES) {
@@ -174,6 +190,9 @@ async function fetchJsonDirect(url: string, signal?: AbortSignal, fetchImpl?: ty
   if (response.status === 401 || response.status === 403) {
     throw new ProviderError('invalid_credentials', 'O provedor recusou as credenciais.')
   }
+  if (response.status === 429) {
+    throw new ProviderError('rate_limited', 'O provedor pediu um intervalo entre as consultas.')
+  }
   if (!response.ok) {
     // Status inesperado: o endpoint pode não existir nesta forma. Quem
     // chama decide se tenta a próxima ação ou cai no fallback.
@@ -190,15 +209,17 @@ function interpretAuth(value: unknown): boolean {
 }
 
 function isExpired(raw: unknown, now: number = Date.now()): boolean {
-  if (raw === null || raw === undefined || raw === '' || raw === '0' || raw === 0) return false
-  const timestamp = Number(raw)
-  if (!Number.isFinite(timestamp)) return false
-  return timestamp * 1000 < now
+  // Feature 034: a regra de `exp_date` mora em `sourceAccount.parseExpDate`
+  // (segundos Unix; 0, negativo, vazio ou não numérico = sem data = nunca expirada).
+  const expiresAt = parseExpDate(raw)
+  return expiresAt !== null && expiresAt < now
 }
 
 export interface AccountStatus {
   authorized: boolean
   expired: boolean
+  /** Vencimento em ms; `null` = o painel declarou sem data (feature 034, FR-003). */
+  expiresAt: number | null
   /** `undefined` = a conta não declarou formatos — nunca assumir um. */
   allowedFormats?: string[]
 }
@@ -215,6 +236,8 @@ export async function resolveAccountStatus(
   username: string,
   password: string,
   now: number = Date.now(),
+  /** Feature 034: cancelamento da consulta leve (o limite de 5 s também usa um ace, D-005). */
+  options: { signal?: AbortSignal } = {},
 ): Promise<AccountStatus> {
   let lastFailure: ProviderError | undefined
 
@@ -222,7 +245,7 @@ export async function resolveAccountStatus(
     const url = playerApiUrl(base, username, password, action ? { action } : undefined)
     let payload: unknown
     try {
-      payload = await fetchJsonDirect(url)
+      payload = await fetchJsonDirect(url, options.signal)
     } catch (error) {
       if (error instanceof ProviderError) {
         if (error.kind === 'invalid_credentials') throw error
@@ -242,6 +265,7 @@ export async function resolveAccountStatus(
     return {
       authorized: interpretAuth(info.auth),
       expired: isExpired(info.exp_date, now),
+      expiresAt: parseExpDate(info.exp_date),
       allowedFormats: Array.isArray(formats) ? formats.map(String) : undefined,
     }
   }

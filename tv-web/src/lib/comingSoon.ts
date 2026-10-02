@@ -31,17 +31,13 @@ export const COMING_SOON: Record<string, ComingSoonEntry> = {
   // Configurações (feature 026, FR-031). `settings-integrations` deixou de ser
   // mock na feature 032 (item 28: aba real Integrações & BYOK); `dock-tmdb`
   // também (ícone TMDB do dock com estado real).
-  'settings-player': { message: 'Preferências de qualidade e trilhas do player.', backlogItem: 55 },
   'settings-parental': { message: 'Perfis de pessoa e controle parental.', backlogItem: 52 },
   'a11y-voice-guide': { message: 'Narração de tela (Voice Guide).', backlogItem: 56 },
   'a11y-high-contrast': { message: 'Modo de alto contraste.', backlogItem: 56 },
   'a11y-subtitles': { message: 'Aparência das legendas.', backlogItem: 56 },
-  // Chrome do player (feature 027, D-014) — Qualidade/Velocidade/Aspecto,
-  // canal e VOD. Áudio e legendas e Info do stream deixaram de ser mock na
-  // feature 029 (item 55a); o Guia completo, na 031 (item 42c).
-  'player-quality': { message: 'Seleção manual de qualidade do stream.', backlogItem: 55 },
-  'player-speed': { message: 'Velocidade de reprodução.', backlogItem: 55 },
-  'player-aspect': { message: 'Proporção de tela do vídeo.', backlogItem: 55 },
+  // Chrome do player (feature 027): Áudio e legendas e Info do stream
+  // deixaram de ser mock na 029 (item 55a); o Guia completo, na 031 (42c);
+  // Qualidade e Aspecto, na 041 (55b). Velocidade saiu de vez (041, D-001).
 }
 
 /**

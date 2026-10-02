@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { useDeleteSource, useResyncSource, useSources, type SourceOut } from '../import/importApi'
+import { useDeleteSource, useResyncSource, useSources, useSourceSyncing, type SourceOut } from '../import/importApi'
 import { clamp, useRemoteNav, type RemoteDirection } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
+import { useOnlineStatus } from '../../lib/onlineStatus'
 import { Toast } from '../../components/Toast'
 import { Button } from '../../components/Button'
 import { ErrorState } from '../../components/ErrorState'
@@ -10,7 +11,7 @@ import { Skeleton } from '../../components/Skeleton'
 import { Icon } from '../../components/Icon'
 import { ExitModal } from '../shell/ExitModal'
 import { DeleteSourceModal } from '../sources/DeleteSourceModal'
-import { formatType } from '../sources/sourceFormat'
+import { formatType, sourceAlertChips } from '../sources/sourceFormat'
 import { OnboardingBrand } from '../import/OnboardingBrand'
 import { listAvatarVariant, listInitials } from './listAvatar'
 
@@ -84,6 +85,7 @@ export function ProfilesScreen({
   const deleteSource = useDeleteSource()
   const resyncSource = useResyncSource()
   const { toastMessage, toastKey, showToast } = useToast()
+  const online = useOnlineStatus()
 
   const sources = data?.sources ?? []
   const state: ScreenState = isError ? 'error' : isLoading ? 'loading' : sources.length === 0 ? 'empty' : 'ready'
@@ -126,6 +128,11 @@ export function ProfilesScreen({
 
   function runAction(index: number, source: SourceOut) {
     if (index === RESYNC) {
+      // Feature 042 (FR-004): ressincronizar precisa de internet — explica, não tenta.
+      if (!online) {
+        showToast('Sem conexão. Ressincronizar precisa de internet.')
+        return
+      }
       showToast('Ressincronizando lista...')
       resyncSource.mutate(source.id, {
         onSuccess: (result) => onResyncStarted(result.import_job_id),
@@ -290,15 +297,7 @@ export function ProfilesScreen({
                     {listInitials(source.display_name)}
                   </span>
                   <span className="source-card-name">{source.display_name}</span>
-                  {notices.length > 0 && (
-                    <span className="source-card-notices">
-                      {notices.map((notice) => (
-                        <span className="source-card-badge" key={notice}>
-                          {notice}
-                        </span>
-                      ))}
-                    </span>
-                  )}
+                  <SourceCardNotices source={source} notices={notices} />
                 </button>
                 {actionsVisible && (
                   <div className="source-actions" role="group" aria-label={`Ações de ${source.display_name}`}>
@@ -312,9 +311,11 @@ export function ProfilesScreen({
                         // é quem tem o teclado (achado na evidência visual da
                         // 023, T045: dois anéis de foco ao mesmo tempo).
                         focused={actionIdx === index && !confirmDelete}
+                        softDisabled={index === RESYNC && !online}
                         onSelect={() => runAction(index, source)}
                       >
                         {label}
+                        {index === RESYNC && !online && <span className="sr-only">, indisponível sem conexão</span>}
                       </Button>
                     ))}
                   </div>
@@ -384,4 +385,33 @@ function sourceNotices(source: SourceOut): string[] {
   if (source.last_truncated_by_storage) notices.push('A lista não coube inteira')
   if (source.last_discarded_by_type > 0) notices.push('Entradas não reconhecidas ficaram de fora')
   return notices
+}
+
+/**
+ * Avisos do cartão (feature 034, FR-006/FR-015): os avisos reais de sempre mais
+ * os chips de "há algo a agir" — vence em até 7 dias, expirada, credencial
+ * inválida, erro de sincronização ou de EPG — e "Sincronizando" enquanto a
+ * execução existe. Componente próprio para assinar o estado por lista. Texto
+ * sempre presente, no nome acessível do cartão; nunca data, endereço nem credencial.
+ */
+function SourceCardNotices({ source, notices }: { source: SourceOut; notices: string[] }) {
+  const syncing = useSourceSyncing(source.id)
+  // Uma leitura do relógio por montagem do cartão (a tela de perfis remonta ao voltar).
+  const [now] = useState(() => Date.now())
+  const alerts = sourceAlertChips(source, now, { syncing })
+  if (notices.length === 0 && alerts.length === 0) return null
+  return (
+    <span className="source-card-notices">
+      {notices.map((notice) => (
+        <span className="source-card-badge" key={notice}>
+          {notice}
+        </span>
+      ))}
+      {alerts.map((alert) => (
+        <span className={`source-card-badge source-card-badge--${alert.tone}`} key={alert.label}>
+          {alert.label}
+        </span>
+      ))}
+    </span>
+  )
 }

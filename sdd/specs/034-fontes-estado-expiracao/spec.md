@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-30
 
-**Status**: Especificada
+**Status**: Convergida
 
 **Input**: Item 46 do backlog — "Fontes IPTV completas: estado, contagem e
 expiração da conta". A linha de fonte em Configurações e o cartão em "Quem

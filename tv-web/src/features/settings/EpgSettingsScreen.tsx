@@ -15,6 +15,7 @@ import {
 import { formatEpgStatus } from '../sources/sourceFormat'
 import { useTvKeyNav } from '../../lib/useTvKeyNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
+import { useImeChain } from '../../lib/useImeChain'
 import { useToast } from '../../lib/useToast'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
@@ -90,7 +91,9 @@ function DisableEpgModal({ onCancel, onConfirm }: { onCancel: () => void; onConf
 export function EpgSettingsScreen({ sourceId, onBack }: EpgSettingsScreenProps): ReactNode {
   const containerRef = useRef<HTMLElement>(null)
   const urlInputRef = useRef<HTMLInputElement>(null)
+  const saveUrlRef = useRef<HTMLButtonElement>(null)
   useTvKeyNav(containerRef)
+  useImeChain(containerRef, saveUrlRef) // Done do IME leva o foco a "Salvar endereço", sem enviar (feature 045)
   useRemoteNav({ onBack })
 
   const sourcesQuery = useSources()
@@ -167,7 +170,7 @@ export function EpgSettingsScreen({ sourceId, onBack }: EpgSettingsScreenProps):
   }
 
   return (
-    <section className="screen epg-settings" ref={containerRef} aria-labelledby="epg-settings-title">
+    <section className="screen epg-settings no-scrollbar form-scroll-room" ref={containerRef} aria-labelledby="epg-settings-title">
       <h1 id="epg-settings-title" className="screen-title">
         EPG da lista {source.display_name}
       </h1>
@@ -205,6 +208,7 @@ export function EpgSettingsScreen({ sourceId, onBack }: EpgSettingsScreenProps):
             <TextField
               label="Endereço XMLTV (opcional)"
               purpose="url"
+              enterKeyHint="done"
               value={urlDraft}
               onChange={(value) => {
                 setUrlDraft(value)
@@ -214,7 +218,7 @@ export function EpgSettingsScreen({ sourceId, onBack }: EpgSettingsScreenProps):
               hint="Deixe em branco e salve para usar o endereço da própria lista."
               inputRef={urlInputRef}
             />
-            <Button variant="secondary" loading={setManualUrl.isPending} onSelect={saveUrl}>
+            <Button variant="secondary" loading={setManualUrl.isPending} onSelect={saveUrl} buttonRef={saveUrlRef}>
               Salvar endereço
             </Button>
           </div>

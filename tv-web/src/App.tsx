@@ -2,6 +2,8 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { SplashScreen } from './features/splash/SplashScreen'
 import { ADD_LIST_FOCUS_ID, ProfilesScreen } from './features/profiles/ProfilesScreen'
+import { SourceAccessRoute } from './features/sources/SourceAccessRoute'
+import { decideSourceAccess } from './lib/catalog/sourceAccount'
 import { HomeScreen } from './features/home/HomeScreen'
 import { AddSourceScreen } from './features/import/AddSourceScreen'
 import { ImportProgressScreen } from './features/import/ImportProgressScreen'
@@ -24,9 +26,10 @@ import { EpgSettingsScreen } from './features/settings/EpgSettingsScreen'
 import { TmdbKeyScreen } from './features/settings/TmdbKeyScreen'
 import { SearchScreen } from './features/search/SearchScreen'
 import { FAVORITES_SNAPSHOT } from './features/catalog/categoryScreenSnapshot'
-import { registerFavoriteColorKey } from './lib/tizenColorKey'
+import { registerFavoriteColorKey, registerRemoveColorKey } from './lib/tizenColorKey'
 import { registerMediaKeys } from './lib/tizenMediaKeys'
 import { onEpgSyncFinished } from './lib/epg/epgRunner'
+import { onSourceSyncFinished } from './features/import/sourceSyncing'
 import { usePrefetchForSource, wakePrefetch } from './features/catalog/prefetchApi'
 import { appNavReducer, initialAppNav, type AppScreen, type TopDestination } from './navigation/appNav'
 import { readLastSourceId, writeLastSourceId } from './navigation/lastSource'
@@ -60,6 +63,7 @@ function App() {
   // TV (`tizenColorKey.ts`/`tizenMediaKeys.ts`).
   useEffect(() => {
     registerFavoriteColorKey()
+    registerRemoveColorKey()
     registerMediaKeys()
   }, [])
 
@@ -90,6 +94,15 @@ function App() {
       }),
     [queryClient],
   )
+
+  // Feature 034: o fim de uma sincronização muda a conta, o estado e as contagens da
+  // lista — Configurações e o cartão relêem em vez de ficarem em Sincronizando.
+  useEffect(() => {
+    return onSourceSyncFinished(() => {
+      void queryClient.invalidateQueries({ queryKey: ['sources'] })
+      void queryClient.invalidateQueries({ queryKey: ['catalog-counts'] })
+    })
+  }, [queryClient])
 
   // Observador ativo da lista de fontes na raiz: mantém `['sources']` vivo
   // durante a sessão e dá ao Início a versão mais nova da fonte ativa (o
@@ -125,12 +138,41 @@ function App() {
   usePrefetchForSource(activeSource?.id ?? null)
 
   /**
+   * Feature 042: "Editar lista" do erro de fonte do player (credencial recusada,
+   * conta expirada). Empilha a edição da lista pelo id — a camada do player
+   * desmonta junto da tela, então não sobra áudio nem plano de vídeo.
+   */
+  function editSourceFromPlayer(sourceId: string, from: AppScreen) {
+    const target = sourcesQuery.data?.sources.find((candidate) => candidate.id === sourceId) ?? currentSource
+    if (!target) return
+    dispatch({ type: 'open', screen: { name: 'edit-source', source: target }, from })
+  }
+
+  /**
    * Escolher uma lista (feature 023, FR-005/FR-006/FR-007): vira a fonte
    * ativa e abre o Início dela com a pilha zerada, grava a "última usada" e
    * dispara a mesma verificação de atualização por idade que abrir uma fonte
    * sempre disparou (feature 004).
    */
   function chooseSource(source: SourceOut) {
+    // Feature 034 (US2, `logic/conta-da-fonte.md` §5): uma lista Xtream com
+    // conta vencida/recusada — ou ainda por verificar — passa pela tela de
+    // acesso em vez de abrir o Início. M3U avulsa e Modo limitado nunca passam
+    // (FR-022). Nada abaixo (última lista usada, pré-carga, atualização por
+    // idade) acontece enquanto o acesso não abrir (D-004, D-007).
+    if (decideSourceAccess(source, Date.now()).action !== 'open') {
+      dispatch({
+        type: 'open',
+        screen: { name: 'source-access', source },
+        from: { name: 'profiles', mode: screen.name === 'profiles' ? screen.mode : 'base', focusSourceId: source.id },
+      })
+      return
+    }
+    enterSource(source)
+  }
+
+  /** O que escolher uma lista sempre fez (feature 023) — agora só depois de o acesso abrir. */
+  function enterSource(source: SourceOut) {
     dispatch({ type: 'choose-source', source })
     writeLastSourceId(source.id)
     // Mesma lista de antes (ex.: "Abrir lista" depois de ressincronizar): a
@@ -241,6 +283,17 @@ function App() {
         />
       )
 
+    case 'source-access':
+      return (
+        <SourceAccessRoute
+          // A versão mais nova da lista: voltar de "Editar lista" já traz a conta atualizada.
+          source={sourcesQuery.data?.sources.find((candidate) => candidate.id === screen.source.id) ?? screen.source}
+          onOpen={enterSource}
+          onEdit={(sourceToEdit) => dispatch({ type: 'open', screen: { name: 'edit-source', source: sourceToEdit } })}
+          onBack={goBack}
+        />
+      )
+
     case 'add-source':
       return (
         <AddSourceScreen
@@ -321,6 +374,7 @@ function App() {
           onOpenSettings={(from) =>
             dispatch({ type: 'open', screen: { name: 'settings' }, from: { name: 'home', focus: from } })
           }
+          onEditSource={(sourceId) => editSourceFromPlayer(sourceId, { name: 'home' })}
         />
       )
 
@@ -334,11 +388,9 @@ function App() {
           initialTopbarItem={screen.topbarFocus}
           onBack={goBack}
           onResync={() => resyncFromCategoryScreen(source.id)}
-          // Guia completo sem programação (feature 031, FR-013): leva à tela de
-          // EPG da lista (feature 030). RETURN de lá volta à Live TV.
-          onOpenEpgSettings={() =>
-            dispatch({ type: 'open', screen: { name: 'epg-settings', source }, from: { name: 'live' } })
-          }
+          // Reempilha a Live SEM `initialChannel` (nunca com ele) — senão voltar da
+          // edição tocaria o canal de novo (mesma regra da Busca/Configurações).
+          onEditSource={(sourceId) => editSourceFromPlayer(sourceId, { name: 'live' })}
           shell={{
             sourceName: source.display_name,
             // "Início" na topbar leva ao Início mais próximo da pilha, nunca
@@ -399,6 +451,7 @@ function App() {
           key={`movie-${screen.movieId}-${history.length}`}
           movieId={screen.movieId}
           restore={screen.restore}
+          onEditSource={(sourceId) => editSourceFromPlayer(sourceId, screen)}
           onBack={goBack}
           onOpenTitle={(target, from) => openDetail(target, { ...screen, restore: from })}
           onOpenPerson={(person, from) => openPerson(person, { ...screen, restore: from })}
@@ -445,6 +498,7 @@ function App() {
           key={`series-${screen.seriesId}-${history.length}`}
           seriesId={screen.seriesId}
           restore={screen.restore}
+          onEditSource={(sourceId) => editSourceFromPlayer(sourceId, screen)}
           onBack={goBack}
           onOpenTitle={(target, from) => openDetail(target, { ...screen, restore: from })}
           onOpenPerson={(person, from) => openPerson(person, { ...screen, restore: from })}

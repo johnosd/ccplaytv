@@ -1,6 +1,6 @@
 # Data Model — 034 Fontes IPTV completas
 
-## §1 `SourceRecord` (tabela `sources`, Dexie v12 — **sem mudança de versão**)
+## §1 `SourceRecord` (tabela `sources`, Dexie hoje v15 — **sem mudança de versão**)
 
 Campos novos, todos opcionais e sem índice:
 
