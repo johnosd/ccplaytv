@@ -227,9 +227,9 @@ Duas features em paralelo só se os conjuntos de zonas forem **disjuntos**.
 | 042-rede-lifecycle-erros | Rede, lifecycle e erros acionáveis | Convergida | 61/62 tasks | 2026-10-01 |
 | 043-gostei-filmes-series | "Gostei" em filmes e séries | Especificada | N/A | 2026-10-01 |
 | 044-parser-m3u-headers | Contrato de compatibilidade do parser M3U (headers, radio, tvg-chno) | Convergida | 26/27 tasks | 2026-10-02 |
-| 045-ime-formularios-tv | IME da TV nos formulários — teclado, Next/Done, senha e erros de conexão | Em Execução | 20/42 tasks | 2026-10-02 |
+| 045-ime-formularios-tv | IME da TV nos formulários — teclado, Next/Done, senha e erros de conexão | Convergida | 39/42 tasks | 2026-10-02 |
 | 046-memoria-foco-key-repeat | Memória de foco por área e key repeat | Planejada | 0/27 tasks | 2026-10-02 |
-| 047-player-dev-mpegts | Reprodução de canais ao vivo MPEG-TS no navegador do dev | Especificada | N/A | 2026-10-02 |
+| 047-player-dev-mpegts | Reprodução de canais ao vivo MPEG-TS no navegador do dev | Planejada | 0/35 tasks | 2026-10-02 |
 
 ## Bugs
 

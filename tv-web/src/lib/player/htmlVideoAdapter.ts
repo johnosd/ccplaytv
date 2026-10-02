@@ -2,6 +2,7 @@ import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerRegion } from './Play
 import type { EngineCapabilities } from './capabilities'
 import type { StreamInfo } from './tracks'
 import { ASPECT_MODES, type AspectMode } from './viewChoice'
+import type { DemuxStarter } from './devDemux'
 
 /**
  * Adaptador de desenvolvimento, para o navegador do computador.
@@ -25,7 +26,15 @@ const HTML_VIDEO_CAPABILITIES: EngineCapabilities = {
   reportsDuration: true,
 }
 
-export function createHtmlVideoAdapter(callbacks: PlayerAdapterCallbacks): PlayerAdapter {
+/** Feature 047 (stub do plan): `startDemux: null` desliga o fallback; ausente = padrão (dev + MediaSource). */
+export interface HtmlVideoAdapterOptions {
+  startDemux?: DemuxStarter | null
+}
+
+export function createHtmlVideoAdapter(
+  callbacks: PlayerAdapterCallbacks,
+  _options?: HtmlVideoAdapterOptions,
+): PlayerAdapter {
   let element: HTMLVideoElement | null = null
 
   function detach(): void {

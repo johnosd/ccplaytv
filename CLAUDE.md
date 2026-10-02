@@ -1385,7 +1385,7 @@ Frontend (`tv-web/`):
 
 ```bash
 npm run dev            # Vite dev server (API CORS expects :5173)
-npm run test           # vitest run
+npm run test           # vitest run — two projects: `dom` (jsdom, *.test.tsx) and `node` (*.test.ts); a .ts test needing DOM goes in TESTES_TS_COM_DOM (vite.config.ts)
 npm run test:e2e       # whole E2E suite, parallel runner (tv-web/e2e/run.mjs); --only a,b / --jobs N / --retry N
 npm run test:e2e:serial # old one-at-a-time chain, to tell a concurrency flake from a real failure
 npm run lint           # oxlint
