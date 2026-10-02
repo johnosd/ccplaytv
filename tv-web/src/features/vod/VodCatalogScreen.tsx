@@ -40,6 +40,8 @@ import { PosterArt } from '../../components/PosterArt'
 import { SideCategoryNav, type SideCategoryNavEntry } from '../../components/SideCategoryNav'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorState } from '../../components/ErrorState'
+import { describeError } from '../../lib/errors/errorCatalog'
+import { useOnlineStatus } from '../../lib/onlineStatus'
 import { Modal } from '../../components/Modal'
 import { Spinner } from '../../components/Spinner'
 import { Chip } from '../../components/Chip'
@@ -197,10 +199,14 @@ export function VodCatalogScreen({
   onOpenItem,
   restore,
   onBack,
-  onResync,
+  onResync: onResyncRequested,
   shell,
   initialTopbarItem,
 }: VodCatalogScreenProps): ReactNode {
+  // Feature 042 (FR-004): ressincronizar precisa de internet — offline é soft disabled na
+  // tela e o OK do teclado (mesma função) também não a dispara.
+  const online = useOnlineStatus()
+  const onResync = online ? onResyncRequested : (): void => {}
   const config = SECTION_CONFIG[section]
   const [col, setCol] = useState<0 | 1>(restore?.col ?? 0)
   const { toastMessage, toastKey, showToast } = useToast()
@@ -331,6 +337,8 @@ export function VodCatalogScreen({
         : content.data?.outcome === 'failed' || content.isError
   const contentMissing = entered?.kind === 'category' && content.data?.outcome === 'source_missing'
   const contentUnavailable = contentFailed || contentMissing
+  // Feature 042: código da tabela de erros da falha da categoria (nunca o erro cru).
+  const contentErrorCode = entered?.kind === 'category' ? content.data?.errorCode : undefined
 
   // "Pesquisar" e "Ordenar" só com a entrada aberta e itens carregados
   // (FR-016/FR-017); "Ordenar" nunca em ★/↺ (FR-022).
@@ -1079,6 +1087,8 @@ export function VodCatalogScreen({
               {showingContent && !searchActive && !contentIsLoading && contentFailed && (
                 <ErrorState
                   title="Não foi possível carregar esta categoria"
+                  description={contentErrorCode ? describeError(contentErrorCode).title : undefined}
+                  code={contentErrorCode}
                   actions={[{ label: 'Tentar de novo', onSelect: retryContent }]}
                   focusedActionIndex={0}
                 />
@@ -1087,7 +1097,14 @@ export function VodCatalogScreen({
               {showingContent && !searchActive && !contentIsLoading && contentMissing && (
                 <ErrorState
                   title="O conteúdo desta lista não está mais no aparelho"
-                  actions={[{ label: 'Ressincronizar lista', onSelect: onResync }]}
+                  description={online ? undefined : 'Sem conexão: ressincronizar precisa de internet.'}
+                  actions={[
+                    {
+                      label: 'Ressincronizar lista',
+                      onSelect: onResync,
+                      softDisabledReason: online ? undefined : 'indisponível sem conexão',
+                    },
+                  ]}
                   focusedActionIndex={0}
                 />
               )}

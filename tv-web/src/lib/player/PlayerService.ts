@@ -275,6 +275,8 @@ export class PlayerServiceSession implements PlayerSession {
   private readonly subtitleListeners = new Set<(cue: SubtitleCue | null) => void>()
   readonly supportsTracks: boolean
   readonly supportsStreamInfo: boolean
+  /** Feature 042: `PlayerAdapter.name` (nunca inclui dado sensível) — vai para a "Info técnica". */
+  readonly engine: string
 
   // Feature 041 (`logic/aspecto-qualidade.md` §1.1/§2.3). Como as faixas da
   // 029: método ausente = capacidade ausente; fora do `emit()` de estado.
@@ -302,6 +304,7 @@ export class PlayerServiceSession implements PlayerSession {
       onSubtitle: (cue) => this.applySubtitle(cue),
     })
     this._rendersOnHardwarePlane = this.adapter.rendersOnHardwarePlane
+    this.engine = this.adapter.name
     this.supportsTracks = typeof this.adapter.getTracks === 'function'
     this.supportsStreamInfo = typeof this.adapter.getStreamInfo === 'function'
     this.aspectModes = readAspectModes(this.adapter)

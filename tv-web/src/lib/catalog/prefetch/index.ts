@@ -32,6 +32,7 @@ async function runCategory(sourceId: string, categoryId: number): Promise<Prefet
     try {
       const result = await ensureCategory(sourceId, category, { renew: true })
       if (result.reason === 'storage_full') return 'storage_full'
+      if (result.reason === 'rate_limited') return 'rate_limited'
       return result.outcome === 'fetched' || result.outcome === 'fresh' ? 'done' : 'failed'
     } catch (error) {
       if (!isAbortError(error)) return 'failed'

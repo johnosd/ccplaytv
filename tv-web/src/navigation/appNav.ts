@@ -16,7 +16,7 @@ import type { PersonSnapshot } from '../features/person/personSnapshot'
 export type TopDestination = 'live' | 'movies' | 'series'
 
 /** Item da topbar, na ordem visual (FR-013). */
-export type TopbarItem = 'home' | TopDestination | 'profile' | 'search' | 'settings'
+export type TopbarItem = 'home' | TopDestination | 'profile' | 'search' | 'settings' | 'connection'
 
 /**
  * Onde estava o foco do Início quando a pessoa saiu dele — restaurado no

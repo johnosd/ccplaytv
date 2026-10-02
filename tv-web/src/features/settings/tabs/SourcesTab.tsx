@@ -1,6 +1,7 @@
 import { useImperativeHandle, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useDeleteSource, useResyncSource, useSources, type SourceOut } from '../../import/importApi'
+import { useOnlineStatus } from '../../../lib/onlineStatus'
 import { clamp } from '../../../lib/useRemoteNav'
 import { DeleteSourceModal } from '../../sources/DeleteSourceModal'
 import { ADD_SOURCE_ID, SourcesPanel, SOURCES_ACTION_COUNT } from '../SourcesPanel'
@@ -23,6 +24,7 @@ export function SourcesTab({
   showToast,
   handleRef,
 }: SettingsTabProps): ReactNode {
+  const online = useOnlineStatus()
   const sourcesQuery = useSources()
   const sources = sourcesQuery.data?.sources ?? []
   const sourceIds = [...sources.map((source) => source.id), ADD_SOURCE_ID]
@@ -72,6 +74,11 @@ export function SourcesTab({
     }
     if (targetCol === 1) {
       if (resyncSource.isPending) return
+      // Feature 042 (FR-004): ressincronizar precisa de internet — explica, não tenta.
+      if (!online) {
+        showToast('Sem conexão. Ressincronizar precisa de internet.')
+        return
+      }
       showToast('Ressincronizando lista…')
       resyncSource.mutate(source.id, {
         onSuccess: (result) => navigation.onResyncStarted(result.import_job_id, from),
@@ -122,6 +129,7 @@ export function SourcesTab({
         focusedCol={effectiveCol}
         resyncPending={resyncSource.isPending}
         deletePending={deleteSource.isPending}
+        offline={!online}
         onActivateRow={activateRow}
       />
       {confirmDelete && (

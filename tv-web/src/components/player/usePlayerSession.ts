@@ -10,9 +10,13 @@ import {
 import { createProgressRecorder, type ProgressRecorder, type ProgressRecorderIdentity } from '../../lib/player/progressRecorder'
 import { MOVIE_WATCHED_RATIO } from '../../lib/player/resumePolicy'
 import { disableScreenSaver, enableScreenSaver } from '../../lib/player/screenSaver'
+import { diagnoseFetchFailure, diagnosePlayback, type PlaybackDiagnosis } from '../../lib/player/playbackDiagnosis'
+import { readPlaybackSourceAccess, type PlaybackSourceAccess } from '../../lib/player/playbackSourceAccess'
+import { nextReconnect, RECONNECT_DELAYS_MS, RECONNECT_STABLE_MS } from '../../lib/player/reconnectPolicy'
+import { verifyNetwork } from '../../lib/network/verifyNetwork'
 import { prefetchGate } from '../../lib/catalog/prefetch'
 import type { ChromeMedia } from '../chromeControls'
-import type { PanelState, Phase } from './playerLayerTypes'
+import type { PanelState, Phase, ResumeGate } from './playerLayerTypes'
 import type { PlayerChrome } from './usePlayerChrome'
 
 /**
@@ -50,6 +54,14 @@ export interface PlayerSessionState {
   hardwarePlane: boolean
   /** "Tentar de novo" da tela de erro: nova tentativa da mesma sessão. */
   retry: () => void
+  /** Feature 042: estado para desenhar o aviso da retomada sem rede. */
+  resumeGate: ResumeGate
+  /** Feature 042: o mesmo valor, para o teclado ler sem esperar um commit (refs, 027). */
+  resumeGateRef: RefObject<ResumeGate>
+  /** "Tentar de novo" do aviso da retomada: repete a verificação (single-flight). */
+  recheckResume: () => void
+  /** Id da lista do item que toca (`null` antes de resolver). */
+  sourceIdRef: RefObject<string | null>
 }
 
 /**
@@ -79,6 +91,27 @@ export function usePlayerSession({
   const [attempt, setAttempt] = useState(0)
   const [hardwarePlane, setHardwarePlane] = useState(false)
   const recorderRef = useRef<ProgressRecorder | null>(null)
+
+  // Feature 042 (`logic/rede-e-lifecycle.md` §3/§4). Tudo em refs: o teclado e
+  // os timers leem outro turno, sem esperar um commit (lição da 027).
+  const attemptsRef = useRef(0)
+  const resumeAtRef = useRef<number | undefined>(undefined)
+  const lastItemRef = useRef(itemId)
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const stableTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Estado da conta da lista que toca (feature 034), lido uma vez por sessão —
+  // alimenta o diagnóstico (credencial recusada/conta expirada, R-002).
+  const sourceAccessRef = useRef<PlaybackSourceAccess>(null)
+  /** Lista do item que toca — para a ação "Editar lista" do erro de fonte (id da lista, não segredo). */
+  const sourceIdRef = useRef<string | null>(null)
+  const resumeGateRef = useRef<ResumeGate>(null)
+  const [resumeGate, setResumeGateState] = useState<ResumeGate>(null)
+  const recheckResumeRef = useRef<() => void>(() => {})
+  function setResumeGate(value: ResumeGate) {
+    resumeGateRef.current = value
+    setResumeGateState(value)
+  }
+
   const { clearHideTimer, playPauseIndexOf, scheduleHide, seekBarFocusedRef, setFocused, setLevel, setMedia } = chrome
 
   // Feature 038 (FR-004/SC-004): camada aberta = nenhuma categoria da
@@ -87,9 +120,28 @@ export function usePlayerSession({
 
   useEffect(() => {
     let cancelled = false
+    let verifyingResume = false
+
+    // Outro item (zapping, CH±, próximo episódio): a posição e a contagem do
+    // anterior nunca vazam (`logic/rede-e-lifecycle.md` §3.6).
+    if (lastItemRef.current !== itemId) {
+      lastItemRef.current = itemId
+      resumeAtRef.current = undefined
+      attemptsRef.current = 0
+    }
+
+    function clearReconnectTimers() {
+      if (reconnectTimerRef.current !== null) clearTimeout(reconnectTimerRef.current)
+      if (stableTimerRef.current !== null) clearTimeout(stableTimerRef.current)
+      reconnectTimerRef.current = null
+      stableTimerRef.current = null
+    }
 
     function teardown() {
       document.removeEventListener('visibilitychange', onVisibilityChange)
+      clearReconnectTimers()
+      recheckResumeRef.current = () => {}
+      setResumeGate(null)
       clearHideTimer()
       // Um painel de faixas nunca sobrevive à sessão a que pertence (feature 029).
       panelRef.current = null
@@ -109,10 +161,16 @@ export function usePlayerSession({
     function applyFetchError(error: unknown) {
       if (cancelled) return
       const unavailable = error instanceof CatalogApiError && error.status === 409
+      const diagnosis = diagnoseFetchFailure({
+        status: error instanceof CatalogApiError ? error.status : null,
+        online: navigator.onLine,
+        at: Date.now(),
+      })
       setPhase({
         kind: 'error',
         message: unavailable ? unavailableMessage : genericErrorMessage,
         retryable: !unavailable,
+        diagnosis,
       })
       onSessionError?.(unavailable ? unavailableMessage : genericErrorMessage)
     }
@@ -142,17 +200,62 @@ export function usePlayerSession({
         }
         return
       }
-      void fetchPlayback(itemId).catch(applyFetchError)
+      void verifyResume()
+    }
+
+    /**
+     * Feature 042 (D-006, `logic/rede-e-lifecycle.md` §4): ao voltar do app
+     * oculto, rede → URL → só então libera RETOMAR. Single-flight. A
+     * verificação usa só o sinal do aparelho (sem origem): a confirmação real
+     * é a reabertura/retomada em si, que cai no mesmo caminho de erro.
+     */
+    async function verifyResume() {
+      const session = sessionRef.current
+      if (!session || session.state === 'error' || session.state === 'completed' || session.state === 'closed') return
+      if (verifyingResume) return
+      verifyingResume = true
+      setResumeGate('verifying')
+      const online = await verifyNetwork()
+      if (cancelled) return
+      if (!online) {
+        verifyingResume = false
+        setResumeGate('blocked')
+        return
+      }
+      try {
+        await fetchPlayback(itemId)
+      } catch (error) {
+        verifyingResume = false
+        if (cancelled) return
+        setResumeGate(null)
+        applyFetchError(error)
+        return
+      }
+      verifyingResume = false
+      if (!cancelled) setResumeGate(null)
+    }
+
+    recheckResumeRef.current = () => {
+      if (resumeGateRef.current === 'blocked') void verifyResume()
     }
 
     async function start() {
-      setPhase({ kind: 'resolving' })
+      setPhase(
+        attemptsRef.current > 0
+          ? { kind: 'reconnecting', attempt: attemptsRef.current, max: RECONNECT_DELAYS_MS.length }
+          : { kind: 'resolving' },
+      )
       try {
         // Uma busca por tentativa, sempre pelo id do item: a URL anterior
         // nunca é reaproveitada, para não contornar expiração ou revogação
         // (ADR-002 §5; contrato, regra 3).
         const playback = await fetchPlayback(itemId)
         if (cancelled) return
+        sourceAccessRef.current = null
+        sourceIdRef.current = playback.source_id
+        void readPlaybackSourceAccess(playback.source_id).then((access) => {
+          if (!cancelled) sourceAccessRef.current = access
+        })
 
         // `playback.kind` vem do catálogo real — nunca fixo. É ele que
         // resolve as capacidades desta sessão (motor ∩ mídia, D-001) e a
@@ -160,7 +263,9 @@ export function usePlayerSession({
         const media: ChromeMedia = playback.kind === 'channel' ? 'live' : 'vod'
         const session = createPlayerSession(playback.url, FULLSCREEN_REGION, playback.kind, {
           createAdapter,
-          startAtMs,
+          // Reconexão do VOD retoma da última posição conhecida (FR-009); sem
+          // ela vale a posição de retomada que a tela pediu.
+          startAtMs: resumeAtRef.current ?? startAtMs,
         })
         sessionRef.current = session
         setHardwarePlane(session.rendersOnHardwarePlane)
@@ -194,6 +299,9 @@ export function usePlayerSession({
         recorderRef.current = recorder
         let previousState: PlayerState | null = null
         let enteredPlayingFired = false
+        // Um stream que nunca tocou (canal morto, URL ruim) vai direto ao erro:
+        // reconectar só vale para o que CAIU (D-003).
+        let playedThisSession = false
 
         // O erro é copiado para o estado no momento em que acontece, em vez
         // de ser lido do ref durante o render — um ref não dispara
@@ -242,13 +350,57 @@ export function usePlayerSession({
             onEnteredPlaying?.()
           }
 
+          // 30 s ininterruptos em `playing` zeram a contagem de tentativas (D-003).
+          if (session.state === 'playing') {
+            playedThisSession = true
+            if (stableTimerRef.current === null) {
+              stableTimerRef.current = setTimeout(() => {
+                stableTimerRef.current = null
+                attemptsRef.current = 0
+              }, RECONNECT_STABLE_MS)
+            }
+          } else if (stableTimerRef.current !== null) {
+            clearTimeout(stableTimerRef.current)
+            stableTimerRef.current = null
+          }
+
           if (session.state === 'error') {
-            setPhase({
-              kind: 'error',
-              message: session.error?.message ?? genericErrorMessage,
-              retryable: true,
+            // Reconexão automática (feature 042, D-003/D-004): só um stream que
+            // já tocou (ou que já está numa sequência), com rede e permissão do
+            // diagnóstico. Reabre pelo MESMO caminho do "Tentar de novo".
+            const diagnosis: PlaybackDiagnosis = diagnosePlayback({
+              error: session.error,
+              online: navigator.onLine,
+              mediaKind: playback.kind,
+              engine: session.engine,
+              at: Date.now(),
+              sourceAccess: sourceAccessRef.current,
             })
-            onSessionError?.(session.error?.message ?? genericErrorMessage)
+            const decision = nextReconnect({
+              attempt: attemptsRef.current,
+              online: navigator.onLine,
+              autoReconnect: (playedThisSession || attemptsRef.current > 0) && diagnosis.autoReconnect,
+            })
+            if (decision.action === 'retry' && document.visibilityState !== 'hidden') {
+              const positionMs = session.progress?.positionMs
+              if (playback.kind !== 'channel' && positionMs !== undefined && positionMs > 0) {
+                resumeAtRef.current = positionMs
+              }
+              attemptsRef.current += 1
+              setPhase({ kind: 'reconnecting', attempt: attemptsRef.current, max: RECONNECT_DELAYS_MS.length })
+              reconnectTimerRef.current = setTimeout(() => {
+                reconnectTimerRef.current = null
+                setAttempt((n) => n + 1)
+              }, decision.delayMs)
+              return
+            }
+            // O texto sanitizado que o próprio motor/sessão informou vence; sem
+            // ele, o desconhecido usa a mensagem da tela ("este canal"/"este
+            // filme") e as causas conhecidas usam o texto da tabela de erros.
+            const message =
+              session.error?.message ?? (diagnosis.category === 'unknown' ? genericErrorMessage : diagnosis.message)
+            setPhase({ kind: 'error', message, retryable: true, diagnosis })
+            onSessionError?.(message)
             return
           }
           setPhase({ kind: 'session', state: session.state })
@@ -273,7 +425,19 @@ export function usePlayerSession({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- unavailableMessage/genericErrorMessage/startAtMs/onClose/onCompleted são props de configuração, estáveis na prática (não recriam a sessão por si)
   }, [itemId, attempt, createAdapter])
 
-  return { phase, hardwarePlane, retry: () => setAttempt((n) => n + 1) }
+  return {
+    phase,
+    hardwarePlane,
+    // A pessoa assumiu o controle: a contagem automática recomeça (D-003).
+    retry: () => {
+      attemptsRef.current = 0
+      setAttempt((n) => n + 1)
+    },
+    resumeGate,
+    resumeGateRef,
+    recheckResume: () => recheckResumeRef.current(),
+    sourceIdRef,
+  }
 }
 
 /**

@@ -3,18 +3,29 @@ import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { getComingSoon } from '../../lib/comingSoon'
 import type { PlayerServiceSession } from '../../lib/player/PlayerService'
 import { hasSeekBar, type PlayerEpisodeStep } from '../chromeControls'
-import { GUIDE_UNAVAILABLE_MESSAGE, JUMP_MS, LIMIT_MESSAGE } from './playerMessages'
-import type { PanelState, PlayerLayerTopLayer } from './playerLayerTypes'
+import {
+  GUIDE_UNAVAILABLE_MESSAGE,
+  JUMP_MS,
+  LIMIT_MESSAGE,
+  RESUME_BLOCKED_MESSAGE,
+  RESUME_WAIT_MESSAGE,
+} from './playerMessages'
+import type { PanelState, PlayerLayerTopLayer, ResumeGate } from './playerLayerTypes'
+import type { ErrorActionId } from './playerErrorActions'
 import type { PlayerChrome } from './usePlayerChrome'
 import type { PlayerPanels } from './usePlayerPanels'
 
 export interface PlayerKeyboardParams {
   topLayer: PlayerLayerTopLayer | null | undefined
   isErrorScreen: boolean
-  canRetry: boolean
-  errorFocus: 0 | 1
-  setErrorFocus: (value: 0 | 1) => void
-  retry: () => void
+  /** Feature 042: ações visíveis da tela de erro (a última é sempre `back`) e a focada. */
+  errorActions: ErrorActionId[]
+  errorFocus: number
+  setErrorFocus: (value: number) => void
+  /** O painel "Info técnica" está aberto por cima da tela de erro. */
+  errorInfoOpen: boolean
+  closeErrorInfo: () => void
+  onErrorAction: (action: ErrorActionId) => void
   sessionRef: RefObject<PlayerServiceSession | null>
   panelRef: RefObject<PanelState | null>
   chrome: PlayerChrome
@@ -25,6 +36,10 @@ export interface PlayerKeyboardParams {
   onChannelStep: ((direction: 'previous' | 'next') => boolean) | undefined
   onGuide: (() => void) | undefined
   episodeStep: PlayerEpisodeStep | null | undefined
+  /** Feature 042 (D-006): enquanto não for `null`, nada que RETOMA a reprodução age. */
+  resumeGateRef: RefObject<ResumeGate>
+  /** "Tentar de novo" do aviso da retomada sem rede (OK com o gate `blocked`). */
+  recheckResume: () => void
 }
 
 /**
@@ -41,10 +56,12 @@ export interface PlayerKeyboardParams {
 export function usePlayerKeyboard({
   topLayer,
   isErrorScreen,
-  canRetry,
+  errorActions,
   errorFocus,
   setErrorFocus,
-  retry,
+  errorInfoOpen,
+  closeErrorInfo,
+  onErrorAction,
   sessionRef,
   panelRef,
   chrome,
@@ -55,6 +72,8 @@ export function usePlayerKeyboard({
   onChannelStep,
   onGuide,
   episodeStep,
+  resumeGateRef,
+  recheckResume,
 }: PlayerKeyboardParams): void {
   const {
     chromeLevelRef,
@@ -72,6 +91,20 @@ export function usePlayerKeyboard({
   } = chrome
   const { activatePanelControl, closePanel, handlePanelDirection, handlePanelSelect } = panels
 
+  /**
+   * Feature 042 (D-006): TODA entrada que RETOMA (SELECT no play/pause,
+   * `MediaPlay`, `MediaPlayPause`) passa por aqui. Com o gate ativo, só avisa;
+   * PAUSAR nunca é bloqueado.
+   */
+  function togglePauseGuarded(session: PlayerServiceSession) {
+    const gate = resumeGateRef.current
+    if (gate !== null && session.state === 'paused') {
+      showToast(gate === 'blocked' ? RESUME_BLOCKED_MESSAGE : RESUME_WAIT_MESSAGE)
+      return
+    }
+    session.togglePause()
+  }
+
   useRemoteNav(
     {
       onDirection: (dir) => {
@@ -84,13 +117,14 @@ export function usePlayerKeyboard({
           return
         }
         if (isErrorScreen) {
-          if (!canRetry) return
-          if (dir === 'left') setErrorFocus(0)
-          if (dir === 'right') setErrorFocus(1)
+          if (errorInfoOpen) return
+          if (dir === 'left') setErrorFocus(clamp(errorFocus - 1, 0, errorActions.length - 1))
+          if (dir === 'right') setErrorFocus(clamp(errorFocus + 1, 0, errorActions.length - 1))
           return
         }
         const session = sessionRef.current
-        if (!session) return
+        // Sessão em erro sem tela de erro = reconectando (feature 042): só RETURN age.
+        if (!session || session.state === 'error') return
 
         if (chromeMediaRef.current === 'live') {
           if (dir === 'up' || dir === 'down') {
@@ -171,16 +205,21 @@ export function usePlayerKeyboard({
           return
         }
         if (isErrorScreen) {
-          if (canRetry && errorFocus === 0) {
-            setErrorFocus(0)
-            retry()
+          if (errorInfoOpen) {
+            closeErrorInfo()
             return
           }
-          onClose()
+          onErrorAction(errorActions[errorFocus] ?? 'back')
           return
         }
         const session = sessionRef.current
-        if (!session) return
+        if (!session || session.state === 'error') return
+
+        // Retomada sem rede (feature 042): OK repete a verificação, em vez de agir no chrome.
+        if (resumeGateRef.current === 'blocked') {
+          recheckResume()
+          return
+        }
 
         if (chromeMediaRef.current === 'live') {
           if (chromeLevelRef.current !== 'full') {
@@ -222,7 +261,7 @@ export function usePlayerKeyboard({
         if (!control) return
         if (activatePanelControl(control, session)) return
 
-        if (control.id === 'playPause') session.togglePause()
+        if (control.id === 'playPause') togglePauseGuarded(session)
         else if (control.id === 'jumpBack') session.jumpBy(-JUMP_MS)
         else if (control.id === 'jumpForward') session.jumpBy(JUMP_MS)
         else if (control.id === 'episodePrevious' || control.id === 'episodeNext') {
@@ -248,7 +287,7 @@ export function usePlayerKeyboard({
         }
         if (isErrorScreen || panelRef.current) return
         const session = sessionRef.current
-        if (!session || session.state === 'idle' || session.state === 'preparing') return
+        if (!session || session.state === 'idle' || session.state === 'preparing' || session.state === 'error') return
 
         if (chromeMediaRef.current === 'live') {
           if (key === 'ChannelUp' || key === 'ChannelDown') {
@@ -269,12 +308,12 @@ export function usePlayerKeyboard({
         if (key === 'ChannelUp' || key === 'ChannelDown') return // ignoradas (FR-027)
 
         if (key === 'MediaPlayPause') {
-          session.togglePause() // já no-op sem canPause (mesma porta que o SELECT usa)
+          togglePauseGuarded(session) // já no-op sem canPause (mesma porta que o SELECT usa)
           revealFull()
           return
         }
         if (key === 'MediaPlay') {
-          if (session.state === 'paused') session.togglePause() // idempotente: só age se estava pausado
+          if (session.state === 'paused') togglePauseGuarded(session) // idempotente: só age se estava pausado
           revealFull()
           return
         }
@@ -300,6 +339,11 @@ export function usePlayerKeyboard({
       onBack: () => {
         if (topLayer) {
           topLayer.onBack()
+          return
+        }
+        // Feature 042: a "Info técnica" do erro fecha antes de o player fechar.
+        if (isErrorScreen && errorInfoOpen) {
+          closeErrorInfo()
           return
         }
         // RETURN fecha primeiro o painel, depois a linha do Live, depois o player.

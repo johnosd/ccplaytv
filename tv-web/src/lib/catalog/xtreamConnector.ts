@@ -39,6 +39,8 @@ export type ProviderFailureKind =
   | 'subscription_expired'
   | 'direct_connection_refused'
   | 'network_failure'
+  /** HTTP 429 do painel (feature 042): pede um intervalo, não é incompatibilidade. */
+  | 'rate_limited'
 
 export class ProviderError extends Error {
   kind: ProviderFailureKind
@@ -58,13 +60,26 @@ export class ProviderIncompatibleError extends Error {
 }
 
 /**
+ * Endereço do servidor que nem chega a ser um endereço (vazio, ilegível, com
+ * credencial embutida, sem host). Subclasse de `ProviderIncompatibleError` de
+ * propósito: o fallback M3U de quem chama continua igual — a feature 042 só
+ * precisa distingui-lo ("Endereço inválido", `SRC-001`) dos demais.
+ */
+export class InvalidServerAddressError extends ProviderIncompatibleError {
+  constructor(message: string) {
+    super(message)
+    this.name = 'InvalidServerAddressError'
+  }
+}
+
+/**
  * Reduz qualquer forma comum à base normalizada, preservando subpath.
  * Recusa credencial embutida no endereço: ela vive nos campos próprios da
  * fonte, nunca na URL guardada (FR-003).
  */
 export function normalizeServerAddress(raw: string): string {
   const value = raw.trim()
-  if (value === '') throw new ProviderIncompatibleError('Endereço do servidor vazio.')
+  if (value === '') throw new InvalidServerAddressError('Endereço do servidor vazio.')
 
   const withScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(value) ? value : `http://${value}`
 
@@ -72,15 +87,15 @@ export function normalizeServerAddress(raw: string): string {
   try {
     parsed = new URL(withScheme)
   } catch {
-    throw new ProviderIncompatibleError('Endereço do servidor inválido.')
+    throw new InvalidServerAddressError('Endereço do servidor inválido.')
   }
 
   if (parsed.username !== '' || parsed.password !== '') {
-    throw new ProviderIncompatibleError(
+    throw new InvalidServerAddressError(
       'O endereço do servidor não deve conter usuário ou senha embutidos.',
     )
   }
-  if (parsed.hostname === '') throw new ProviderIncompatibleError('Endereço do servidor sem host.')
+  if (parsed.hostname === '') throw new InvalidServerAddressError('Endereço do servidor sem host.')
 
   let path = parsed.pathname
   for (const suffix of LEGACY_SUFFIXES) {
@@ -174,6 +189,9 @@ async function fetchJsonDirect(url: string, signal?: AbortSignal, fetchImpl?: ty
   }
   if (response.status === 401 || response.status === 403) {
     throw new ProviderError('invalid_credentials', 'O provedor recusou as credenciais.')
+  }
+  if (response.status === 429) {
+    throw new ProviderError('rate_limited', 'O provedor pediu um intervalo entre as consultas.')
   }
   if (!response.ok) {
     // Status inesperado: o endpoint pode não existir nesta forma. Quem

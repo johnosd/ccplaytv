@@ -34,6 +34,8 @@ export interface HomeScreenProps {
   onOpenFavorites: (destination: TopDestination, from: HomeFocus) => void
   /** Ícone TMDB do dock (feature 032, FR-016) — Configurações › Integrações & BYOK. */
   onOpenIntegrations?: (from: HomeFocus) => void
+  /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
+  onEditSource?: (sourceId: string) => void
   /** Lupa da topbar (FR-035). */
   onOpenSearch: (from: HomeFocus) => void
   /** Engrenagem da topbar (FR-021). */
@@ -75,6 +77,7 @@ export function HomeScreen({
   onOpenChannel,
   onOpenFavorites,
   onOpenIntegrations,
+  onEditSource,
   onOpenSearch,
   onOpenSettings,
   updating = false,
@@ -177,6 +180,7 @@ export function HomeScreen({
           title={playing.title}
           startAtMs={playing.startAtMs}
           identity={{ title: playing.title }}
+          onEditSource={onEditSource}
           onClose={closePlayer}
         />
       )}

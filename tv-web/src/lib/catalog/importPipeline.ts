@@ -62,6 +62,7 @@ import {
   legacyM3uUrl,
   parseXtreamStreamUrl,
   ProviderError,
+  InvalidServerAddressError,
   ProviderIncompatibleError,
   probeFailureKind,
   resolveAccountStatus,
@@ -137,6 +138,8 @@ function categorize(error: unknown): ImportErrorKind | undefined {
   // Painel que não fala o protocolo e lista ilegível são a mesma coisa para
   // quem está olhando: o que veio não dá para usar como catálogo.
   if (error instanceof InvalidPlaylistError) return 'invalid_playlist'
+  // Feature 042: antes da genérica — a subclasse é a que "nem chega a ser um endereço".
+  if (error instanceof InvalidServerAddressError) return 'invalid_address'
   if (error instanceof ProviderIncompatibleError) return 'invalid_playlist'
   return undefined
 }

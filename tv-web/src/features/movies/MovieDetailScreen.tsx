@@ -57,6 +57,8 @@ export interface MovieDetailScreenProps {
   onOpenPerson?: (person: OpenPersonTarget, from: DetailSnapshot) => void
   /** Feature 035: "Configurar TMDB" da aba Semelhantes sem chave — abre Configurações › Integrações & BYOK. */
   onOpenTmdbSettings?: (from: DetailSnapshot) => void
+  /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
+  onEditSource?: (sourceId: string) => void
 }
 
 type MovieAction =
@@ -179,7 +181,15 @@ function computeIdentity(movie: {
  * (FR-004) — raiz `.screen`, coberta pela regra de transparência do plano
  * de hardware.
  */
-export function MovieDetailScreen({ movieId, onBack, restore, onOpenTitle, onOpenPerson, onOpenTmdbSettings }: MovieDetailScreenProps) {
+export function MovieDetailScreen({
+  movieId,
+  onBack,
+  restore,
+  onOpenTitle,
+  onOpenPerson,
+  onOpenTmdbSettings,
+  onEditSource,
+}: MovieDetailScreenProps) {
   const queryClient = useQueryClient()
   // Pelo id, direto na chave primária. Carregar a lista de filmes inteira só
   // para procurar um item dentro dela custava o catálogo todo — e deixava de
@@ -570,6 +580,7 @@ export function MovieDetailScreen({ movieId, onBack, restore, onOpenTitle, onOpe
           title={movie.name}
           startAtMs={startAtMs}
           identity={{ title: movie.name }}
+          onEditSource={onEditSource}
           onClose={() => {
             setPlaying(false)
             // Sem isto, o detalhe continuaria com a leitura de quando montou

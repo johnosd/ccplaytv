@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { PlayerLayer } from '../../components/PlayerLayer'
 import { useToast } from '../../lib/useToast'
+import { useOnlineStatus } from '../../lib/onlineStatus'
 import { Toast } from '../../components/Toast'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
@@ -49,6 +50,8 @@ export interface LiveScreenProps {
   onBack: () => void
   /** Feature 014, D-008: ressincroniza a fonte quando o arquivo guardado de uma categoria sumiu do aparelho. */
   onResync: () => void
+  /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
+  onEditSource?: (sourceId: string) => void
   /** Feature 024. */
   shell?: LiveShellProps
   /**
@@ -75,15 +78,22 @@ export interface LiveScreenProps {
  * efeitos sempre rodaram: toast → favoritar → trilha → busca → lista/EPG →
  * entrar tocando → lista virtualizada → teclado.
  */
+const noop = (): void => {}
+
 export function LiveScreen({
   sourceId,
   onBack,
-  onResync,
+  onResync: onResyncRequested,
+  onEditSource,
   shell,
   initialChannel,
   openFavorites,
   initialTopbarItem,
 }: LiveScreenProps) {
+  // Feature 042 (FR-004): ressincronizar precisa de internet. Offline a ação é soft
+  // disabled na tela e o OK do teclado (que chama a mesma função) também não a dispara.
+  const online = useOnlineStatus()
+  const onResync = online ? onResyncRequested : noop
   // Entra direto em ★ Favoritos quando pedido pelo Início/Busca (feature
   // 026) — `openFavorites` ou qualquer `initialChannel` com `entry:
   // 'favorites'`; `entry: 'category'` precisa de um efeito (a categoria só
@@ -224,6 +234,7 @@ export function LiveScreen({
     setCol,
     enterTrailEntry,
     onResync,
+    offline: !online,
     channelListRef,
     channelVirtualizer,
   }
@@ -279,6 +290,7 @@ export function LiveScreen({
             now: channels.playingNow,
           }}
           onChannelStep={zapping.stepChannel}
+          onEditSource={onEditSource}
           onClose={() => setPlaying(null)}
           onIdleSelect={zapping.openZapping}
           onGuide={liveGuide.openGuideFromPlayer}

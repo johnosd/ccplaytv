@@ -5,17 +5,26 @@ import { useToast } from '../lib/useToast'
 import { Toast } from './Toast'
 import { PlayerChrome } from './PlayerChrome'
 import { PlayerChoicePanel } from './PlayerChoicePanel'
+import { PlayerErrorInfoPanel } from './PlayerErrorInfoPanel'
 import { PlayerInfoPanel } from './PlayerInfoPanel'
 import { PlayerTracksPanel } from './PlayerTracksPanel'
 import { SubtitleOverlay } from './SubtitleOverlay'
 import { buildTracksPanel } from './playerPanels'
 import type { PlayerEpisodeStep, PlayerIdentity } from './chromeControls'
-import { DEFAULT_GENERIC_ERROR_MESSAGE, DEFAULT_UNAVAILABLE_MESSAGE, STATE_LABEL } from './player/playerMessages'
+import {
+  DEFAULT_GENERIC_ERROR_MESSAGE,
+  DEFAULT_UNAVAILABLE_MESSAGE,
+  RECONNECTING_LABEL,
+  RESUME_BLOCKED_MESSAGE,
+  STATE_LABEL,
+  VERIFYING_NETWORK_LABEL,
+} from './player/playerMessages'
 import type { PanelState, PlayerLayerProps, PlayerLayerTopLayer } from './player/playerLayerTypes'
 import { usePlayerChrome } from './player/usePlayerChrome'
 import { usePanelRefresh, usePlayerPanels } from './player/usePlayerPanels'
 import { usePlayerSession, useRescheduleOnState, useScreenSaverWhilePlaying, useVideoPlane } from './player/usePlayerSession'
 import { usePlayerKeyboard } from './player/usePlayerKeyboard'
+import { buildErrorActions, ERROR_ACTION_LABEL, type ErrorActionId } from './player/playerErrorActions'
 
 export type { PlayerIdentity, PlayerEpisodeStep, PlayerLayerProps, PlayerLayerTopLayer }
 
@@ -58,8 +67,10 @@ export function PlayerLayer({
   onTrackChoiceChange,
   initialViewChoice,
   onViewChoiceChange,
+  onEditSource,
 }: PlayerLayerProps) {
-  const [errorFocus, setErrorFocus] = useState<0 | 1>(0)
+  const [errorFocus, setErrorFocus] = useState(0)
+  const [errorInfoOpen, setErrorInfoOpen] = useState(false)
   const sessionRef = useRef<PlayerServiceSession | null>(null)
   const panelRef = useRef<PanelState | null>(null)
   const qualityOptionsRef = useRef<QualityOption[]>([])
@@ -81,7 +92,7 @@ export function PlayerLayer({
     initialViewChoice,
     onViewChoiceChange,
   })
-  const { phase, hardwarePlane, retry } = usePlayerSession({
+  const { phase, hardwarePlane, retry, resumeGate, resumeGateRef, recheckResume, sourceIdRef } = usePlayerSession({
     itemId,
     createAdapter,
     startAtMs,
@@ -100,7 +111,29 @@ export function PlayerLayer({
 
   const isErrorScreen = phase.kind === 'error'
   const errorMessage = phase.kind === 'error' ? phase.message : ''
-  const canRetry = phase.kind === 'error' ? phase.retryable : false
+  const errorDiagnosis = phase.kind === 'error' ? phase.diagnosis : undefined
+  const errorActions: ErrorActionId[] = isErrorScreen
+    ? buildErrorActions({
+        retryable: phase.retryable,
+        diagnosis: errorDiagnosis,
+        canEditSource: onEditSource !== undefined,
+      })
+    : []
+
+  function handleErrorAction(action: ErrorActionId) {
+    if (action === 'retry') {
+      setErrorFocus(0)
+      setErrorInfoOpen(false)
+      retry()
+    } else if (action === 'info') {
+      setErrorInfoOpen(true)
+    } else if (action === 'edit') {
+      const sourceId = sourceIdRef.current
+      if (sourceId !== null) onEditSource?.(sourceId)
+    } else {
+      onClose()
+    }
+  }
 
   const showsVideo =
     hardwarePlane &&
@@ -116,10 +149,12 @@ export function PlayerLayer({
   usePlayerKeyboard({
     topLayer,
     isErrorScreen,
-    canRetry,
+    errorActions,
     errorFocus,
     setErrorFocus,
-    retry,
+    errorInfoOpen,
+    closeErrorInfo: () => setErrorInfoOpen(false),
+    onErrorAction: handleErrorAction,
     sessionRef,
     panelRef,
     chrome,
@@ -130,9 +165,20 @@ export function PlayerLayer({
     onChannelStep,
     onGuide,
     episodeStep,
+    resumeGateRef,
+    recheckResume,
   })
 
-  const label = phase.kind === 'resolving' ? 'Preparando…' : (phase.kind === 'session' ? STATE_LABEL[phase.state] : '')
+  const label =
+    phase.kind === 'resolving'
+      ? 'Preparando…'
+      : phase.kind === 'reconnecting'
+        ? RECONNECTING_LABEL(phase.attempt, phase.max)
+        : phase.kind === 'session'
+          ? resumeGate === 'verifying'
+            ? VERIFYING_NETWORK_LABEL
+            : STATE_LABEL[phase.state]
+          : ''
   const session = sessionRef.current
   const paused = phase.kind === 'session' && phase.state === 'paused'
   const chromeMedia = chrome.chromeMediaRef.current
@@ -144,7 +190,15 @@ export function PlayerLayer({
   const tracksModel = panel?.kind === 'tracks' ? buildTracksPanel(panels.panelTracksRef.current, panels.choiceRef.current) : null
 
   return (
-    <div className="player-overlay" role="dialog" aria-label={isErrorScreen ? 'Erro de reprodução' : `Reproduzindo ${title}`}>
+    <div
+      className="player-overlay"
+      role="dialog"
+      aria-label={
+        isErrorScreen
+          ? `Erro de reprodução${errorDiagnosis ? `, código ${errorDiagnosis.code}` : ''}`
+          : `Reproduzindo ${title}`
+      }
+    >
       {/* O adaptador de desenvolvimento monta o <video> aqui. O AVPlay não usa
           este nó: ele desenha num plano de hardware atrás da camada web. */}
       <div id="player-surface" className="player-surface" />
@@ -154,29 +208,43 @@ export function PlayerLayer({
           {/* Mensagem sanitizada: nunca inclui URL, endereço de provedor ou
               credencial (FR-011). */}
           <div className="player-message-copy">{errorMessage}</div>
+          {errorDiagnosis && (
+            <span data-testid="player-error-code" className="player-error-code">
+              {errorDiagnosis.code}
+            </span>
+          )}
           <div className="player-actions">
-            {canRetry && (
+            {errorActions.map((action, index) => (
               <button
+                key={action}
                 type="button"
-                className={`player-action${errorFocus === 0 ? ' tv-focus' : ''}`}
+                className={`player-action${errorFocus === index && !errorInfoOpen ? ' tv-focus' : ''}`}
+                onClick={() => handleErrorAction(action)}
               >
-                Tentar de novo
+                {ERROR_ACTION_LABEL[action]}
               </button>
-            )}
-            <button
-              type="button"
-              className={`player-action${!canRetry || errorFocus === 1 ? ' tv-focus' : ''}`}
-            >
-              Voltar
-            </button>
+            ))}
           </div>
+          {errorInfoOpen && errorDiagnosis && <PlayerErrorInfoPanel info={errorDiagnosis.technical} />}
         </div>
       ) : (
         <>
           {label !== '' && (
-            <div className="player-status">
+            <div className="player-status" role="status">
               <div className="player-status-channel">{title}</div>
               <div className="player-status-label">{label}</div>
+            </div>
+          )}
+          {/* Retomada sem rede (feature 042, D-006): o filme segue pausado na mesma
+              posição; OK (ou clique) repete a verificação. Foco por estado. */}
+          {resumeGate === 'blocked' && (
+            <div className="player-gate" role="status">
+              <div className="player-message-copy">{RESUME_BLOCKED_MESSAGE}</div>
+              <div className="player-actions">
+                <button type="button" className="player-action tv-focus" onClick={recheckResume}>
+                  Tentar de novo
+                </button>
+              </div>
             </div>
           )}
           {chromeVisible && session && (

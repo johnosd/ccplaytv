@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { PlayerAdapterFactory, PlayerState, TrackChoice, ViewChoice } from '../../lib/player/PlayerService'
 import type { MediaKey } from '../../lib/tizenMediaKeys'
 import type { StreamInfo } from '../../lib/player/tracks'
+import type { PlaybackDiagnosis } from '../../lib/player/playbackDiagnosis'
 import type { PlayerEpisodeStep, PlayerIdentity } from '../chromeControls'
 
 export interface PlayerLayerTopLayer {
@@ -134,12 +135,28 @@ export interface PlayerLayerProps {
   initialViewChoice?: ViewChoice | null
   /** Feature 041: chamada a cada escolha de aspecto/qualidade feita pela pessoa no player. */
   onViewChoiceChange?: (choice: ViewChoice) => void
+
+  /**
+   * Feature 042 (`logic/erros-acionaveis.md` §3): abre "Editar lista" da lista
+   * que está tocando (`sourceId` vem do item). Sem esta prop a ação
+   * "Editar lista" do erro de fonte NÃO aparece — nunca um botão sem efeito.
+   */
+  onEditSource?: (sourceId: string) => void
 }
 
 export type Phase =
   | { kind: 'resolving' }
   | { kind: 'session'; state: PlayerState }
-  | { kind: 'error'; message: string; retryable: boolean }
+  /** Feature 042 (D-003): o stream caiu e o app tenta de novo sozinho (≤ 3). */
+  | { kind: 'reconnecting'; attempt: number; max: number }
+  | { kind: 'error'; message: string; retryable: boolean; diagnosis?: PlaybackDiagnosis }
+
+/**
+ * Feature 042 (D-006): enquanto não for `null`, nada que RETOMA a reprodução
+ * age. `verifying` = checando a rede ao voltar do app oculto; `blocked` = sem
+ * rede, o filme continua pausado e a pessoa pode tentar de novo.
+ */
+export type ResumeGate = 'verifying' | 'blocked' | null
 
 /**
  * Painel aberto por cima do vídeo (feature 029, D-002) — estado do próprio

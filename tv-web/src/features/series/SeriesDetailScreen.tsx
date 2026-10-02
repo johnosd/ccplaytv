@@ -77,6 +77,8 @@ export interface SeriesDetailScreenProps {
   onOpenPerson?: (person: OpenPersonTarget, from: DetailSnapshot) => void
   /** Feature 035: "Configurar TMDB" da aba Semelhantes sem chave. */
   onOpenTmdbSettings?: (from: DetailSnapshot) => void
+  /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
+  onEditSource?: (sourceId: string) => void
 }
 
 type DetailTab = 'episodes' | 'details' | 'cast' | 'similar'
@@ -193,7 +195,15 @@ type Mode =
  * plano de hardware. Autoplay/contagem/máquina `Mode` **inalterados** desde
  * a feature 012.
  */
-export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onOpenPerson, onOpenTmdbSettings }: SeriesDetailScreenProps) {
+export function SeriesDetailScreen({
+  seriesId,
+  onBack,
+  restore,
+  onOpenTitle,
+  onOpenPerson,
+  onOpenTmdbSettings,
+  onEditSource,
+}: SeriesDetailScreenProps) {
   const queryClient = useQueryClient()
   const query = useCatalogItem(seriesId)
   const series = query.data ?? undefined
@@ -912,6 +922,7 @@ export function SeriesDetailScreen({ seriesId, onBack, restore, onOpenTitle, onO
           itemId={mode.episode.id}
           title={mode.episode.name}
           startAtMs={mode.startAtMs}
+          onEditSource={onEditSource}
           onClose={() => handlePlayerClose(mode.episode)}
           onCompleted={() => handlePlayerCompleted(mode.episode)}
           identity={{ title: series.name, subtitle: episodeSubtitle(mode.episode) }}

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useDeleteSource, useResyncSource, useSources, useSourceSyncing, type SourceOut } from '../import/importApi'
 import { clamp, useRemoteNav, type RemoteDirection } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
+import { useOnlineStatus } from '../../lib/onlineStatus'
 import { Toast } from '../../components/Toast'
 import { Button } from '../../components/Button'
 import { ErrorState } from '../../components/ErrorState'
@@ -84,6 +85,7 @@ export function ProfilesScreen({
   const deleteSource = useDeleteSource()
   const resyncSource = useResyncSource()
   const { toastMessage, toastKey, showToast } = useToast()
+  const online = useOnlineStatus()
 
   const sources = data?.sources ?? []
   const state: ScreenState = isError ? 'error' : isLoading ? 'loading' : sources.length === 0 ? 'empty' : 'ready'
@@ -126,6 +128,11 @@ export function ProfilesScreen({
 
   function runAction(index: number, source: SourceOut) {
     if (index === RESYNC) {
+      // Feature 042 (FR-004): ressincronizar precisa de internet — explica, não tenta.
+      if (!online) {
+        showToast('Sem conexão. Ressincronizar precisa de internet.')
+        return
+      }
       showToast('Ressincronizando lista...')
       resyncSource.mutate(source.id, {
         onSuccess: (result) => onResyncStarted(result.import_job_id),
@@ -304,9 +311,11 @@ export function ProfilesScreen({
                         // é quem tem o teclado (achado na evidência visual da
                         // 023, T045: dois anéis de foco ao mesmo tempo).
                         focused={actionIdx === index && !confirmDelete}
+                        softDisabled={index === RESYNC && !online}
                         onSelect={() => runAction(index, source)}
                       >
                         {label}
+                        {index === RESYNC && !online && <span className="sr-only">, indisponível sem conexão</span>}
                       </Button>
                     ))}
                   </div>

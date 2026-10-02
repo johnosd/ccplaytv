@@ -44,7 +44,8 @@ const ACTION: Record<CategoryKind, string> = {
   series: 'get_series',
 }
 
-export type SectionLoadOutcome = 'done' | 'failed' | 'storage_full'
+/** `rate_limited` (feature 042): o painel respondeu 429 — a pré-carga espera antes de tentar de novo. */
+export type SectionLoadOutcome = 'done' | 'failed' | 'storage_full' | 'rate_limited'
 
 export interface SectionLoadOptions {
   database?: CatalogDb
@@ -139,6 +140,10 @@ export async function loadSection(
       playerApiUrl(credential.dns, credential.username, credential.password, { action: ACTION[kind] }),
       options.signal ? { signal: options.signal } : undefined,
     )
+    if (response.status === 429) {
+      await clearStagedItems(sourceId, undefined, database).catch(() => {})
+      return { outcome: 'rate_limited', written }
+    }
     if (!response.ok || !response.body) return { outcome: 'failed', written }
     await readJsonArrayStream(
       response.body,

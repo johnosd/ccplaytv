@@ -32,6 +32,7 @@ import { readEntryChunks } from './storedEntries'
 import { isCategoryFresh } from './freshness'
 import { markEntry } from '../perf/entryTiming'
 import { readCredential } from './sourceRepository'
+import { providerErrorCode, type ErrorCode } from '../errors/errorCatalog'
 import {
   fetchLiveStreams,
   fetchSeries,
@@ -40,6 +41,8 @@ import {
   mapLiveEntry,
   mapSeriesEntry,
   mapVodEntry,
+  ProviderError,
+  ProviderIncompatibleError,
   type LiveCategory,
   type MappedChannel,
 } from './xtreamConnector'
@@ -55,7 +58,12 @@ export type CategoryFetchOutcome =
 export interface EnsureCategoryResult {
   outcome: CategoryFetchOutcome
   /** Feature 038 (FR-008): a gravação parou por falta de espaço no aparelho. */
-  reason?: 'storage_full'
+  reason?: 'storage_full' | 'rate_limited'
+  /**
+   * Feature 042 (FR-011/FR-015): código da tabela de erros para a falha que o
+   * painel/rede causou — só o código, nunca o erro cru (que embute a URL).
+   */
+  errorCode?: ErrorCode
 }
 
 export interface EnsureCategoryOptions {
@@ -169,7 +177,14 @@ export function toItemRecord(
 /** Falha de gravação por falta de espaço vira dado, nunca exceção (feature 038, FR-008). */
 function failureOf(error: unknown, hadItems: boolean): EnsureCategoryResult {
   const outcome: CategoryFetchOutcome = hadItems ? 'stale-served' : 'failed'
-  return error instanceof StorageFullError ? { outcome, reason: 'storage_full' } : { outcome }
+  if (error instanceof StorageFullError) return { outcome, reason: 'storage_full' }
+  // Feature 042 (FR-017): 429 do painel é dado, não exceção — a pré-carga espera; a entrada mostra `API-429`.
+  if (error instanceof ProviderError && error.kind === 'rate_limited') {
+    return { outcome, reason: 'rate_limited', errorCode: 'API-429' }
+  }
+  if (error instanceof ProviderError) return { outcome, errorCode: providerErrorCode(error.kind, navigator.onLine) }
+  if (error instanceof ProviderIncompatibleError) return { outcome, errorCode: 'SRC-422' }
+  return { outcome }
 }
 
 async function fetchAndStore(

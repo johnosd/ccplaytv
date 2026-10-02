@@ -20,6 +20,12 @@ export const JUMP_MS = 10_000
 export const DEFAULT_UNAVAILABLE_MESSAGE = 'Este item não tem uma fonte de reprodução disponível.'
 export const DEFAULT_GENERIC_ERROR_MESSAGE = 'Não foi possível reproduzir isto.'
 
+/** Feature 042 (`logic/rede-e-lifecycle.md` §3/§4). */
+export const RECONNECTING_LABEL = (attempt: number, max: number) => `Reconectando… (tentativa ${attempt} de ${max})`
+export const VERIFYING_NETWORK_LABEL = 'Verificando rede…'
+export const RESUME_BLOCKED_MESSAGE = 'Sem conexão. O filme continua pausado.'
+export const RESUME_WAIT_MESSAGE = 'Aguarde: verificando a conexão antes de retomar.'
+
 export const GUIDE_UNAVAILABLE_MESSAGE = 'O guia não está disponível neste player.'
 export const TRACKS_UNAVAILABLE_MESSAGE = 'Este aparelho não informou as faixas deste conteúdo.'
 export const TRACK_SWITCH_FAILED = {

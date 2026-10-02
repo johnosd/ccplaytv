@@ -73,6 +73,8 @@ export interface SourcesPanelProps {
   focusedCol: number
   resyncPending: boolean
   deletePending: boolean
+  /** Feature 042 (FR-004): sem conexão, "Ressincronizar" fica soft disabled com o motivo no nome. */
+  offline?: boolean
   onActivateRow: (rowId: string, col: number) => void
 }
 
@@ -88,6 +90,7 @@ export function SourcesPanel({
   focusedCol,
   resyncPending,
   deletePending,
+  offline = false,
   onActivateRow,
 }: SourcesPanelProps): ReactNode {
   return (
@@ -119,10 +122,12 @@ export function SourcesPanel({
                   key={label}
                   variant="secondary"
                   loading={(index === 1 && resyncPending) || (index === 2 && deletePending)}
+                  softDisabled={index === 1 && offline}
                   focused={isFocusedRow && focusedCol === index}
                   onSelect={() => onActivateRow(source.id, index)}
                 >
                   {label}
+                  {index === 1 && offline && <span className="sr-only">, indisponível sem conexão</span>}
                 </Button>
               ))}
             </div>

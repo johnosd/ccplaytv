@@ -5,6 +5,7 @@ import type { TmdbStatusView } from '../../lib/metadata/types'
 import {
   INTEGRATION_SOON_CARDS,
   TMDB_ACTION_LABEL,
+  TMDB_STATE_CODE,
   TMDB_STATE_LABEL,
   tmdbActions,
 } from './integrationsModel'
@@ -44,6 +45,11 @@ export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onA
           <span className="integration-card-state" data-state={view.state}>
             {TMDB_STATE_LABEL[view.state]}
           </span>
+          {TMDB_STATE_CODE[view.state] && (
+            <span data-testid="tmdb-state-code" className="error-state-code">
+              {TMDB_STATE_CODE[view.state]}
+            </span>
+          )}
         </header>
         <p className="integration-card-description">
           Sinopses, imagens e detalhes de filmes e séries que a sua lista não traz. Usa a sua própria chave da conta TMDB.

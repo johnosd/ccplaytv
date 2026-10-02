@@ -138,6 +138,17 @@ function App() {
   usePrefetchForSource(activeSource?.id ?? null)
 
   /**
+   * Feature 042: "Editar lista" do erro de fonte do player (credencial recusada,
+   * conta expirada). Empilha a edição da lista pelo id — a camada do player
+   * desmonta junto da tela, então não sobra áudio nem plano de vídeo.
+   */
+  function editSourceFromPlayer(sourceId: string, from: AppScreen) {
+    const target = sourcesQuery.data?.sources.find((candidate) => candidate.id === sourceId) ?? currentSource
+    if (!target) return
+    dispatch({ type: 'open', screen: { name: 'edit-source', source: target }, from })
+  }
+
+  /**
    * Escolher uma lista (feature 023, FR-005/FR-006/FR-007): vira a fonte
    * ativa e abre o Início dela com a pilha zerada, grava a "última usada" e
    * dispara a mesma verificação de atualização por idade que abrir uma fonte
@@ -363,6 +374,7 @@ function App() {
           onOpenSettings={(from) =>
             dispatch({ type: 'open', screen: { name: 'settings' }, from: { name: 'home', focus: from } })
           }
+          onEditSource={(sourceId) => editSourceFromPlayer(sourceId, { name: 'home' })}
         />
       )
 
@@ -376,6 +388,9 @@ function App() {
           initialTopbarItem={screen.topbarFocus}
           onBack={goBack}
           onResync={() => resyncFromCategoryScreen(source.id)}
+          // Reempilha a Live SEM `initialChannel` (nunca com ele) — senão voltar da
+          // edição tocaria o canal de novo (mesma regra da Busca/Configurações).
+          onEditSource={(sourceId) => editSourceFromPlayer(sourceId, { name: 'live' })}
           shell={{
             sourceName: source.display_name,
             // "Início" na topbar leva ao Início mais próximo da pilha, nunca
@@ -436,6 +451,7 @@ function App() {
           key={`movie-${screen.movieId}-${history.length}`}
           movieId={screen.movieId}
           restore={screen.restore}
+          onEditSource={(sourceId) => editSourceFromPlayer(sourceId, screen)}
           onBack={goBack}
           onOpenTitle={(target, from) => openDetail(target, { ...screen, restore: from })}
           onOpenPerson={(person, from) => openPerson(person, { ...screen, restore: from })}
@@ -482,6 +498,7 @@ function App() {
           key={`series-${screen.seriesId}-${history.length}`}
           seriesId={screen.seriesId}
           restore={screen.restore}
+          onEditSource={(sourceId) => editSourceFromPlayer(sourceId, screen)}
           onBack={goBack}
           onOpenTitle={(target, from) => openDetail(target, { ...screen, restore: from })}
           onOpenPerson={(person, from) => openPerson(person, { ...screen, restore: from })}

@@ -1213,6 +1213,38 @@ the same expiry date the panel declares). Physical TV: recommended, not a gate.
 See `sdd/specs/034-fontes-estado-expiracao/plan.md` → `## Estado Atual` and
 `## Riscos e Decisões` (R-005–R-009).
 
+**Code-complete**: `042-rede-lifecycle-erros` — backlog
+items 61 + 19: the app now knows its network state and every error is
+"what happened + why + one action + a code". `PlayerLayer` reconnects a
+stream that **dropped** (one that never played goes straight to the error —
+a dead channel must not make the person wait 17 s) up to 3 times (2/5/10 s,
+only with network, VOD resuming from the last position, Live reopening the
+channel, the counter only resets after 30 s of uninterrupted `playing`),
+reusing the same `setAttempt` path as "Tentar de novo" so AVPlay's singleton
+is never doubled. Coming back from hidden with a paused movie runs a
+`resumeGate` (`verifyNetwork()` + the 020 URL re-confirmation): while it's
+not `null`, nothing that **resumes** acts (`togglePauseGuarded`), but pausing
+and jumping do. The offline banner became text-only: its button only answered
+to a click, which a TV remote can't deliver, so "Tentar de novo" is now the
+last item of the `TopBar` focus order (`TopbarItem` gained `'connection'`,
+offline only; focus falls back to "Início" if the connection returns while it
+holds focus). One error table (`lib/errors/errorCatalog.ts`: `NET`, `SRC`,
+`API`, `PLAY` plus the pre-existing `EPG-02`/`STO-01`/`TRL-*`/`YT-n`, never
+renamed) and a pure `diagnosePlayback` (whitelist of AVPlay error names,
+anything else is `PLAY-04`, text always from the table, "Info técnica" with
+exactly five fields, never the raw engine error). The panel's HTTP 429 became
+its own `ProviderError('rate_limited')` (it used to be read as "incompatible
+panel") and the prefetch scheduler waits 60 s on it without counting an
+attempt. 2270/2270 unit tests, `tsc`/build clean, 5/5 contracts locked (the
+5th was amended with the user's approval, R-013 of that plan: it asserted
+exactly 2 calls in a window where the scheduler, correctly, makes 3), a new
+`tv-web/e2e/rede-lifecycle-erros.mjs` (25 checks, in `test:e2e`, full suite
+green). Not done on purpose: `build:tizen`
+(it rewrites an already-modified artifact), the P3 toasts (R-014) and the
+physical-TV pass (AVPlay's real error names — R-001 — and a real network
+drop). See `sdd/specs/042-rede-lifecycle-erros/plan.md` → `## Estado Atual`
+and `## Riscos e Decisões`.
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Selecione ou

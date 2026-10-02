@@ -134,9 +134,18 @@ export function SourceAccessGate({
         {source.display_name}
       </h1>
       <p className="source-access-message">{message}</p>
+      {/* Feature 042 (FR-011): código discreto da tabela de erros — nunca o erro cru. */}
+      {phase !== 'checking' && blocked && (
+        <span data-testid="source-access-code" className="error-state-code">
+          {blocked.reason === 'refused' ? 'SRC-401' : 'SRC-402'}
+        </span>
+      )}
       {phase !== 'checking' && unconfirmed && (
         <p className="source-access-note">
-          Não foi possível confirmar agora — o aparelho está sem conexão com o provedor.
+          Não foi possível confirmar agora — o aparelho está sem conexão com o provedor.{' '}
+          <span data-testid="source-access-note-code" className="error-state-code">
+            NET-02
+          </span>
         </p>
       )}
       {phase !== 'blocked' && <Spinner size={32} />}

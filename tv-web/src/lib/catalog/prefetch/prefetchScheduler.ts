@@ -21,7 +21,10 @@ import {
   type PrefetchHint,
 } from './prefetchOrder'
 
-export type PrefetchRunOutcome = 'done' | 'failed' | 'storage_full'
+export type PrefetchRunOutcome = 'done' | 'failed' | 'storage_full' | 'rate_limited'
+
+/** Feature 042 (FR-017): espera depois de um 429 do painel, sem contar como tentativa. */
+export const RATE_LIMIT_PAUSE_MS = 60_000
 
 export interface PrefetchSchedulerDeps {
   /** Estado atual das categorias da lista (lido do disco a cada rodada — FR-006). */
@@ -75,6 +78,8 @@ export interface PrefetchProgress {
   total: number
   /** Motivo de parada definitiva nesta sessão (FR-008). */
   stoppedReason?: 'storage_full'
+  /** Feature 042: motivo da pausa temporária por limite do painel (some quando a espera acaba). */
+  pausedReason?: 'rate_limited'
 }
 
 export interface PrefetchScheduler {
@@ -115,7 +120,8 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
       candidate.sourceId === progress.sourceId &&
       candidate.ready === progress.ready &&
       candidate.total === progress.total &&
-      candidate.stoppedReason === progress.stoppedReason
+      candidate.stoppedReason === progress.stoppedReason &&
+      candidate.pausedReason === progress.pausedReason
     ) {
       return
     }
@@ -160,6 +166,17 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
       }
     }
     return false
+  }
+
+  /**
+   * Feature 042 (FR-017, `logic/rede-e-lifecycle.md` §5): espera `RATE_LIMIT_PAUSE_MS`
+   * mostrando o motivo (`pausedReason`), pela mesma espera cancelável dos demais
+   * recuos (`stop()`/novo `start()` a acordam). `false` = esta época acabou.
+   */
+  async function pauseForRateLimit(myEpoch: number, last: { ready: number; total: number }): Promise<boolean> {
+    setProgress({ state: 'paused', ...last, pausedReason: 'rate_limited' })
+    await wait(RATE_LIMIT_PAUSE_MS)
+    return epoch === myEpoch
   }
 
   /** Seções já buscadas inteiras nesta sessão (zera ao começar e quando a estrutura muda). */
@@ -246,6 +263,12 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
           setProgress({ state: 'stopped', ...last, stoppedReason: 'storage_full' })
           return
         }
+        if (outcome === 'rate_limited') {
+          // O painel pediu um intervalo (feature 042, FR-017): a seção volta a ser tentada depois da espera.
+          bulkTried.delete(bulk.kind)
+          if (!(await pauseForRateLimit(myEpoch, last))) return
+          continue
+        }
         await wait(gapMs)
         continue
       }
@@ -273,6 +296,11 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
       if (outcome === 'storage_full') {
         setProgress({ state: 'stopped', ...last, stoppedReason: 'storage_full' })
         return
+      }
+      if (outcome === 'rate_limited') {
+        // Não é tentativa e a categoria não vai para o fim da fila: o 429 não é culpa dela.
+        if (!(await pauseForRateLimit(myEpoch, last))) return
+        continue
       }
       const index = prioritized.indexOf(next)
       if (outcome === 'done') {

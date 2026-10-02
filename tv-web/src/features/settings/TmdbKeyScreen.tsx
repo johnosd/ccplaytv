@@ -21,6 +21,13 @@ const FAILURE_MESSAGE: Record<SaveTmdbKeyFailure, string> = {
   rate_limited: 'O TMDB pediu para aguardar. Tente de novo em alguns minutos.',
 }
 
+/** Código da tabela de erros de cada motivo (feature 042); `invalid_format` é validação local, sem código. */
+const FAILURE_CODE: Partial<Record<SaveTmdbKeyFailure, string>> = {
+  refused: 'API-401',
+  offline: 'NET-02',
+  rate_limited: 'API-429',
+}
+
 /**
  * Tela da chave TMDB (feature 032, US2, `logic/integracoes-e-dock.md` §2).
  * Foco DOM real (`useTvKeyNav`) e IME da TV, no molde de `EpgSettingsScreen`.
@@ -58,7 +65,9 @@ export function TmdbKeyScreen({ onSaved, onBack }: TmdbKeyScreenProps): ReactNod
           onSaved()
           return
         }
-        setError(FAILURE_MESSAGE[result.reason])
+        // Feature 042: o código vem da tabela de erros (nunca o que foi digitado nem a resposta crua).
+        const code = FAILURE_CODE[result.reason]
+        setError(code ? `${FAILURE_MESSAGE[result.reason]} (${code})` : FAILURE_MESSAGE[result.reason])
         inputRef.current?.focus()
       },
       onError: () => {

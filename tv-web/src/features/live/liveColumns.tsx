@@ -14,6 +14,7 @@ import { ErrorState } from '../../components/ErrorState'
 import { EmptyState } from '../../components/EmptyState'
 import { Spinner } from '../../components/Spinner'
 import { Icon } from '../../components/Icon'
+import { describeError } from '../../lib/errors/errorCatalog'
 import { channelNumberOf, knownCategoryCount } from './channelNumber'
 import { LIVE_HINTS, trailEntryId, type TrailEntry } from './liveTrail'
 import type { LiveShellProps } from './LiveScreen'
@@ -84,6 +85,8 @@ export interface LiveColumnsModel {
   setCol: Dispatch<SetStateAction<0 | 1 | 2>>
   enterTrailEntry: (entry: TrailEntry) => void
   onResync: () => void
+  /** Feature 042 (FR-004): sem conexão, "Ressincronizar lista" fica soft disabled com o motivo. */
+  offline: boolean
   channelListRef: RefObject<HTMLDivElement | null>
   channelVirtualizer: Virtualizer<HTMLDivElement, Element>
 }
@@ -112,6 +115,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
     baseItems,
     contentIsLoading,
     contentFailed,
+    contentErrorCode,
     contentMissing,
     contentUnavailable,
     items,
@@ -279,6 +283,8 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
         {showingContent && !searchActive && !contentIsLoading && contentFailed && (
           <ErrorState
             title="Não foi possível carregar esta categoria"
+            description={contentErrorCode ? describeError(contentErrorCode).title : undefined}
+            code={contentErrorCode}
             actions={[{ label: 'Tentar de novo', onSelect: retryContent }]}
             focusedActionIndex={0}
           />
@@ -287,7 +293,14 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
         {showingContent && !searchActive && !contentIsLoading && contentMissing && (
           <ErrorState
             title="O conteúdo desta lista não está mais no aparelho"
-            actions={[{ label: 'Ressincronizar lista', onSelect: onResync }]}
+            description={model.offline ? 'Sem conexão: ressincronizar precisa de internet.' : undefined}
+            actions={[
+              {
+                label: 'Ressincronizar lista',
+                onSelect: onResync,
+                softDisabledReason: model.offline ? 'indisponível sem conexão' : undefined,
+              },
+            ]}
             focusedActionIndex={0}
           />
         )}

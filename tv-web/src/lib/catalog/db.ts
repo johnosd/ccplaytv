@@ -494,6 +494,10 @@ export type ImportErrorKind =
   | 'subscription_expired'
   | 'direct_connection_refused'
   | 'network_failure'
+  /** O painel respondeu 429 (feature 042). Valor de campo: sem versão nova do Dexie. */
+  | 'rate_limited'
+  /** Endereço do servidor inválido (feature 042, `SRC-001`). Valor de campo: sem versão do Dexie. */
+  | 'invalid_address'
   | 'invalid_playlist'
   | 'empty_playlist'
   | 'hls_manifest'

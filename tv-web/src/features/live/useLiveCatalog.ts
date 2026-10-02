@@ -388,6 +388,8 @@ export function useLiveChannels({
     baseItems,
     contentIsLoading,
     contentFailed,
+    // Feature 042: código da tabela de erros da última falha desta categoria (nunca o erro cru).
+    contentErrorCode: enteredFavorites || enteredAll ? undefined : content.data?.errorCode,
     contentMissing,
     contentUnavailable,
     items,

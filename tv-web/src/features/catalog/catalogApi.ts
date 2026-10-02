@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
+import type { ErrorCode } from '../../lib/errors/errorCatalog'
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -299,6 +300,8 @@ export interface CategoryContent {
   /** Contagem real, já depois de garantir a categoria — sempre o fato do disco, nunca a promessa da fonte. */
   totalCount: number
   outcome: CategoryFetchOutcome
+  /** Feature 042: código da tabela de erros quando a falha veio do painel/rede (nunca o erro cru). */
+  errorCode?: ErrorCode
 }
 
 /**
@@ -366,7 +369,7 @@ async function loadCategoryContent(
     ? block.items.map((item, index) => blockItemOut(block, item, index, category.kind))
     : (records ?? []).map((record) => toItemOut(record, category.kind))
   if (!signal) markEntry(category.id, category.kind, 'itemsOut')
-  return { items, totalCount, outcome: result.outcome }
+  return { items, totalCount, outcome: result.outcome, errorCode: result.errorCode }
 }
 
 function categoryContentKey(sourceId: string | null, categoryId: number | undefined) {

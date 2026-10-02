@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { AppShell } from './AppShell'
 import { HintBar } from './HintBar'
 
@@ -70,34 +70,17 @@ describe('AppShell', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('"Testar conexão" usa o handler recebido, se houver', () => {
-    setNavigatorOnLine(false)
-    const onTestConnection = vi.fn()
-    render(
-      <AppShell topBar={<div>topbar</div>} hints={HINTS} onTestConnection={onTestConnection}>
-        <p>x</p>
-      </AppShell>,
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Testar conexão' }))
-    expect(onTestConnection).toHaveBeenCalledTimes(1)
-  })
-
-  it('"Testar conexão" sem handler re-lê o estado REAL do navegador, sem inventar conectividade', () => {
+  // Feature 042 (D-007): a ação "Tentar de novo" saiu do banner e foi para a topbar
+  // (coberta em `TopBar.conexao.test.tsx`); o banner offline é só texto.
+  it('offline: o banner é só texto — nenhum botão dentro dele', () => {
     setNavigatorOnLine(false)
     render(
       <AppShell topBar={<div>topbar</div>} hints={HINTS}>
         <p>x</p>
       </AppShell>,
     )
-    // Continua offline: o navegador ainda diz que não há conexão.
-    fireEvent.click(screen.getByRole('button', { name: 'Testar conexão' }))
-    expect(screen.getByRole('status')).toBeInTheDocument()
-
-    // O navegador passou a dizer que há conexão, mas o evento se perdeu (TV
-    // que volta de standby): o botão republica o valor real e o banner some.
-    setNavigatorOnLine(true)
-    fireEvent.click(screen.getByRole('button', { name: 'Testar conexão' }))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Sem conexão com a internet.')
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 })
 
