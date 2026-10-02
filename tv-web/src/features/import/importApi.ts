@@ -19,6 +19,7 @@ import type { EpgStatus } from '../../lib/epg/types'
 import type { SourceAccount } from '../../lib/catalog/sourceAccount'
 import type { ImportSections } from './importSections'
 import { beginSourceSync, endSourceSync, isSourceSyncing, subscribeSourceSyncing } from './sourceSyncing'
+import { forgetLiveSource } from '../live/liveSessionMemory'
 
 // Telas falam só com `importApi`/`catalogApi`, nunca com `lib/` direto (D-001
 // da feature 005): o que a tela de EPG precisa de `lib/epg` sai por aqui.
@@ -453,7 +454,8 @@ export function useDeleteSource() {
       await deleteSource(sourceId)
       return undefined
     },
-    onSuccess: () => {
+    onSuccess: (_data, sourceId) => {
+      forgetLiveSource(sourceId) // feature 046, FR-013: a memória de foco da Live some com a lista
       queryClient.invalidateQueries({ queryKey: ['sources'] })
     },
   })

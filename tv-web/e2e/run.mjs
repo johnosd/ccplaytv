@@ -47,6 +47,8 @@ export const SUITE = [
   'e2e/limpar-historico.mjs',
   'e2e/rede-lifecycle-erros.mjs',
   'e2e/ime-formularios.mjs',
+  'e2e/memoria-foco-key-repeat.mjs',
+  'e2e/player-dev-mpegts.mjs',
 ]
 
 function lerArgs(argv) {

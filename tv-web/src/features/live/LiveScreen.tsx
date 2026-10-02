@@ -154,6 +154,7 @@ export function LiveScreen({
 
   const liveGuide = useLiveGuide({ guide, zap, trail, channels, search, setCol, sourceId, showToast })
   const { enterTrailEntry, handleTrailDirection, handleTrailSelect } = useLiveKeyboard({
+    sourceId,
     contentActive,
     hasShell: shell !== undefined,
     setZone,
@@ -176,7 +177,7 @@ export function LiveScreen({
 
   const shellModel = { shell, zone, setZone, topbarItem, setTopbarItem, onBack }
   const { categoriesQuery, categories, topPhase, focusedCategory, isFavoritesFocused, isAllFocused, enteredFavorites, enteredAll } = trail
-  const { playing, setPlaying, zapOpen } = zap
+  const { playing, zapOpen } = zap
 
   if (topPhase === 'loading') {
     return renderLiveShell(
@@ -291,7 +292,7 @@ export function LiveScreen({
           }}
           onChannelStep={zapping.stepChannel}
           onEditSource={onEditSource}
-          onClose={() => setPlaying(null)}
+          onClose={zapping.onPlayerClosed}
           onIdleSelect={zapping.openZapping}
           onGuide={liveGuide.openGuideFromPlayer}
           onEnteredPlaying={zapping.onEnteredPlaying}

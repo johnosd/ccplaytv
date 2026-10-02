@@ -14,12 +14,22 @@ import {
 } from '../catalog/catalogApi'
 import { usePrefetchHint } from '../catalog/prefetchApi'
 import { nowNextForChannel } from '../../lib/epg/nowNext'
+import { upcomingForChannel } from '../../lib/epg/upcoming'
 import { useNow } from '../../lib/useNow'
 import { searchWithinItems } from '../../lib/catalog/catalogSearch'
 import { locateOrNeighbor, type LastFocus } from '../../lib/focus/reconcileFocus'
 import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
 import type { useFavoriteToggle } from '../favorites/useFavoriteToggle'
-import { defaultTrailIdx, sameTrailKey, type EnteredKey, type FocusIdentity, type TrailEntry, type TrailKey } from './liveTrail'
+import {
+  defaultTrailIdx,
+  liveEntryKey,
+  sameTrailKey,
+  type EnteredKey,
+  type FocusIdentity,
+  type TrailEntry,
+  type TrailKey,
+} from './liveTrail'
+import { recalledLiveFocus, rememberLiveFocus } from './liveSessionMemory'
 import type { LiveSearch } from './useLiveSearch'
 
 /**
@@ -266,12 +276,15 @@ export function useLiveChannels({
   // lista cede o foco ao vizinho (mesma posição), nunca ao topo.
   const lastChannelFocusRef = useRef<LastFocus | null>(null)
   const channelListKey = JSON.stringify(entered)
-  const channelIdx = locateOrNeighbor(
-    items,
-    (c) => c.id === focusedIdentity.channelId,
-    channelListKey,
-    lastChannelFocusRef.current,
-  )
+  // Feature 046 (FR-010): ao REENTRAR numa entrada cujo canal lembrado já não existe, a posição
+  // lembrada serve de dica de vizinho — nunca o topo sem motivo. Na mesma entrada já aberta, vale
+  // a dica da feature 038 acima.
+  const entryKey = entered ? liveEntryKey(entered, categories) : undefined
+  const memory = entryKey ? recalledLiveFocus(sourceId, entryKey) : null
+  const lastFocus = lastChannelFocusRef.current
+  const focusHint: LastFocus | null =
+    lastFocus?.listKey === channelListKey ? lastFocus : memory ? { listKey: channelListKey, index: memory.index } : null
+  const channelIdx = locateOrNeighbor(items, (c) => c.id === focusedIdentity.channelId, channelListKey, focusHint)
   useEffect(() => {
     lastChannelFocusRef.current = { listKey: channelListKey, index: channelIdx }
   }, [channelListKey, channelIdx])
@@ -280,6 +293,17 @@ export function useLiveChannels({
   // shell.md` §3): cai de volta pra coluna de canais em vez de deixar o
   // preview "órfão", sem foco algum sobre ele.
   const effectiveCol = col === 2 && !activeChannel ? 1 : col
+
+  // Feature 046 (`logic/memoria-foco-live.md` §2): grava o canal focado por entrada. Só com a
+  // coluna de canais/preview ativa, fora da busca (a posição numa lista filtrada nunca vira
+  // memória — FR-014) e só se o canal focado É o da lista exibida (um `channelId` de outra
+  // vizinhança, como o de CH±, nunca é gravado como se fosse desta entrada).
+  useEffect(() => {
+    if (!entryKey || effectiveCol < 1 || topFocused || searchActive) return
+    if (!activeChannel || activeChannel.id !== focusedIdentity.channelId) return
+    rememberLiveFocus(sourceId, entryKey, activeChannel.id, channelIdx)
+  }, [sourceId, entryKey, effectiveCol, topFocused, searchActive, activeChannel, focusedIdentity.channelId, channelIdx])
+
   const activeChannelIsFavorite = activeChannel ? favoriteIds.has(stableIdOf(activeChannel) ?? '') : false
 
   // EPG (feature 030): programação lida só do aparelho (FR-029) para os
@@ -293,6 +317,8 @@ export function useLiveChannels({
   )
   const epgLookup = useEpgPrograms(sourceId, epgChannelIds).data
   const activeNowNext = nowNextForChannel(epgLookup, activeChannel?.epg_channel_id, epgNow)
+  // Próximos programas (feature 048): mesmo `epgNow`, nenhuma consulta nova.
+  const activeUpcoming = upcomingForChannel(epgLookup, activeChannel?.epg_channel_id, epgNow)
   const playingOnAir = nowNextForChannel(epgLookup, playing?.epg_channel_id, epgNow).now
   const playingNow = playingOnAir ? { title: playingOnAir.title, progress: playingOnAir.progress } : undefined
 
@@ -400,6 +426,7 @@ export function useLiveChannels({
     epgNow,
     epgLookup,
     activeNowNext,
+    activeUpcoming,
     playingNow,
     retryContent,
     canToggleFavorite,

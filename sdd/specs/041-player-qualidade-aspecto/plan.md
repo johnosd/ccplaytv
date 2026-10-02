@@ -297,3 +297,10 @@ não lidas).
 **Verificação**: 15/15 contratos (5 da 041, 5 da 027, 5 da 029) e 24 travas íntegras; `npx vitest run` 2113/2118 (as 5 são os contratos da 034, vermelho de base anterior à 041); `tsc` limpo; `npm run test:e2e` com 22 scripts verdes, incluindo `e2e/qualidade-aspecto.mjs` (30 verificações); passada na TV (gate obrigatório) confirmada pelo usuário nos 7 itens do quickstart.
 
 **Em aberto, registrado** (não bloqueia a convergência): R-009/R-002 (troca de variante e Auto no AVPlay — precisam de um HLS multi-variante), R-006 (piscada ao aplicar só em `playing` — sem relato). A cobertura do edge case "Guia/zapping abertos sobre o vídeo" é por leitura da ordem de teclado (LOW). Achados desta convergência: F-01 (MEDIUM, = R-009) e F-02 (LOW).
+
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.
+
+**Ressalva (041):** o R-009 (troca de variante) foi encerrado por relato do usuário; não houve HLS multi-variante dedicado nos registros.

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { groupLabel, type CatalogItemOut } from '../catalog/catalogApi'
 import type { PlayerLayerTopLayer } from '../../components/PlayerLayer'
-import type { EnteredKey } from './liveTrail'
+import { trailKeyOf, type EnteredKey } from './liveTrail'
 import type { LiveChannels, LiveTrail } from './useLiveCatalog'
 import type { LiveGuideState } from './useLiveGuide'
 import type { LiveSearch } from './useLiveSearch'
@@ -139,6 +139,27 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
     search.resetSearchState()
   }
 
+  /**
+   * Fecha o player (feature 046, FR-011, `logic/memoria-foco-live.md` §4): o foco volta ao canal que
+   * tocava por último, na entrada de ONDE a sessão começou (`zapKeyRef`). Sem isto, o zapping já
+   * trocou a entrada exibida para a categoria do canal, e ↑/↓/CH± caminharam por outra vizinhança
+   * ("Todos"/"★ Favoritos"): o canal que tocava não está na lista exibida e o foco caía no topo.
+   * A memória da entrada é gravada pelo efeito de `useLiveChannels` assim que o canal está em `items`.
+   */
+  function onPlayerClosed() {
+    const last = playing
+    const origin = zapKeyRef.current
+    setPlaying(null)
+    if (!last || !origin) return
+    // O canal que tocava já está na lista exibida: nada a restaurar — o foco fica onde a pessoa o
+    // deixou (inclusive a trilha, que ela pode ter movido de propósito dentro do zapping).
+    if (items.some((item) => item.id === last.id)) return
+    const trailKey = trailKeyOf(origin, categories)
+    if (!trailKey) return // categoria de origem sumiu: fica como está (vizinho pela 038)
+    setEntered(origin)
+    setFocusedIdentity({ trailKey, channelId: last.id })
+  }
+
   function onEnteredPlaying() {
     setZapOpen(false)
     // O guia aberto do player só fecha quando o canal ESCOLHIDO nele está de fato
@@ -174,7 +195,7 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
     }
   }
 
-  return { playActiveChannel, stepChannel, openZapping, onEnteredPlaying, onSessionError, zapTopLayer }
+  return { playActiveChannel, stepChannel, openZapping, onPlayerClosed, onEnteredPlaying, onSessionError, zapTopLayer }
 }
 
 export type LiveZapping = ReturnType<typeof useLiveZapping>

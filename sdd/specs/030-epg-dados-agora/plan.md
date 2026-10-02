@@ -363,3 +363,7 @@ R-007 (`DecompressionStream` no Chromium 108), R-008 (CORS de `url-tvg` de terce
 R-009 (relógio do aparelho). R-013 — passo "Continuar" do E2E da 026 (~19% de falha já
 no código pré-030), aguardando decisão do usuário. Cenários "offline" e "fonte antiga" do
 quickstart só têm cobertura de unidade.
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.

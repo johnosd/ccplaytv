@@ -432,3 +432,8 @@ exigem um ambiente que esta sessão não tinha (painel real / mais dados de
 teste ou TV física) e por isso continuam registrados como estavam, sem
 `Resolvido:` forçado. A passada na TV física (recomendada, não gate)
 também segue pendente.
+
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.

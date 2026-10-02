@@ -51,6 +51,14 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
   },
+  // Feature 047: `mpegts.js` só é carregada por `import()` dinâmico no
+  // adaptador de dev (`lib/player/devDemux.ts`). Sem pré-otimizá-la, o Vite a
+  // descobre no meio da reprodução e RECARREGA a página. Só afeta `npm run
+  // dev`; o build de produção não a inclui (verificado por
+  // `scripts/check-no-demux-in-build.mjs`).
+  optimizeDeps: {
+    include: ['mpegts.js'],
+  },
   // Caminhos relativos: o pacote Tizen (.wgt) não é servido a partir de uma
   // raiz de domínio convencional.
   base: './',

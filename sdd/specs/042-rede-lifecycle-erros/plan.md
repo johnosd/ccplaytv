@@ -239,3 +239,7 @@ Fora do contrato (orçamento de 5): foco do item `'connection'` na `TopBar`, tel
 **Verificação.** 5/5 contratos travados e verdes; suíte 2279/2279; `tsc` limpo; lint 0 erros (54 avisos `react(refs)`, mesma categoria aceita na 040); 25/25 travas do repositório íntegras; `npm run build` ok; `npm run test:e2e` completo verde, incluindo o novo `e2e/rede-lifecycle-erros.mjs` (25 verificações).
 
 **Ainda aberto (não bloqueia a convergência).** R-001/R-008: os nomes reais de erro do AVPlay e a reconexão numa queda de rede de verdade só a TV prova — passada **recomendada**, não gate (T046). R-016: `npm run build:tizen` não foi rodado (reescreveria `CCPlayTv/assets/index.js`, já modificado antes da sessão); rodar ao commitar.
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.

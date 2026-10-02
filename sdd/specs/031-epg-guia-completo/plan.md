@@ -283,3 +283,8 @@ Convergida em 2026-09-29 (sdd-converge): os 25 FR e os 5 SC têm código e teste
 **Evidência.** Contratos 5/5 e 15 travas íntegras; vitest 1579/1583 (4 flakes conhecidas, 106/106 isoladas ×3); `tsc`/`build:tizen` limpos; `test:e2e` (14 scripts) exit 0; E2E real com programa real (p95 128 ms).
 
 **Ainda aberto (não bloqueia).** R-002 (guia opaco sobre o plano de hardware do AVPlay com áudio) e R-003/SC-002 (desempenho com milhares de canais: o E2E real cobriu 2 de 41 categorias em "Todos") só se provam na TV física (T036, recomendada). R-008 (falha de troca com o guia aberto) sem teste dedicado. R-013 do usuário (E2E instável da 030) segue sem decisão e é fora desta feature.
+
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.

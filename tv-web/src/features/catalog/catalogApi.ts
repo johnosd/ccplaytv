@@ -33,6 +33,7 @@ import {
 } from '../../lib/catalog/catalogRepository'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
 import { markEntry } from '../../lib/perf/entryTiming'
+import { isKeyRepeatBurst, subscribeKeyRepeatBurst } from '../../lib/focus/keyRepeat'
 import { prefetchScheduler } from '../../lib/catalog/prefetch'
 import { ensureSeriesEpisodes, type SeriesFetchOutcome } from '../../lib/catalog/seriesLoader'
 import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
@@ -505,22 +506,38 @@ export function useCategoryFocusPrefetch(
 ) {
   const queryClient = useQueryClient()
   const inFlightRef = useRef<{ categoryId: number; controller: AbortController } | null>(null)
-
   useEffect(() => {
     if (!sourceId || !focusedCategory) return
     if (focusedCategory.id === enteredCategoryId) return
 
-    const timer = setTimeout(() => {
-      const previous = inFlightRef.current
-      if (previous && previous.categoryId !== focusedCategory.id && previous.categoryId !== enteredCategoryId) {
-        previous.controller.abort()
-      }
-      const controller = new AbortController()
-      inFlightRef.current = { categoryId: focusedCategory.id, controller }
-      void prefetchCategoryContent(queryClient, sourceId, focusedCategory, controller.signal)
-    }, CATEGORY_PREFETCH_DEBOUNCE_MS)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const arm = () => {
+      timer = setTimeout(() => {
+        const previous = inFlightRef.current
+        if (previous && previous.categoryId !== focusedCategory.id && previous.categoryId !== enteredCategoryId) {
+          previous.controller.abort()
+        }
+        const controller = new AbortController()
+        inFlightRef.current = { categoryId: focusedCategory.id, controller }
+        void prefetchCategoryContent(queryClient, sourceId, focusedCategory, controller.signal)
+      }, CATEGORY_PREFETCH_DEBOUNCE_MS)
+    }
 
-    return () => clearTimeout(timer)
+    // Feature 046: seta segurada (`KeyboardEvent.repeat`) = o foco só está passando. Em rajada nada
+    // é agendado, e uma rajada que começa cancela o timer pendente; ao estabilizar (soltar a tecla ou
+    // silêncio), o amortecimento normal corre para a categoria onde o foco parou. A reação é síncrona
+    // (assinatura direta, sem esperar um render), e nada em andamento é abortado por causa dela — só o
+    // ramo do timer aborta, como antes (FR-004).
+    if (!isKeyRepeatBurst()) arm()
+    const unsubscribe = subscribeKeyRepeatBurst((fast) => {
+      clearTimeout(timer)
+      if (!fast) arm()
+    })
+
+    return () => {
+      clearTimeout(timer)
+      unsubscribe()
+    }
     // `focusedCategory` inteira na lista de dependências, de propósito: o
     // React Query devolve referência estável de `data` enquanto a consulta
     // não refizer de verdade, então isto só rearma o temporizador quando a

@@ -18,6 +18,14 @@ export interface SideCategoryNavEntry {
    * Live não passa nada e fica idêntica).
    */
   groupLabel?: string
+  /**
+   * Tile curto antes do rótulo (feature 048, FR-011) — iniciais do grupo, ★
+   * ou ∞. Opt-in: `undefined` = nenhum tile desenhado, e Filmes/Séries/
+   * Configurações (que não passam nada) ficam idênticas (FR-017). Desenhado
+   * FORA de `.side-category-nav-label`, cujo texto é fixado por testes.
+   * (Stub do sdd-plan: ainda não desenhado — T0xx.)
+   */
+  tile?: string
 }
 
 export interface SideCategoryNavProps {

@@ -1,5 +1,6 @@
-import type { CatalogCategory } from '../catalog/catalogApi'
+import { groupLabel, type CatalogCategory } from '../catalog/catalogApi'
 import type { HintItem } from '../shell/HintBar'
+import type { LiveEntryKey } from './liveSessionMemory'
 
 /**
  * Tipos, regras puras e constantes da trilha e da lista da TV ao vivo.
@@ -85,3 +86,21 @@ export function defaultTrailIdx(trail: TrailEntry[]): number {
 
 /** O que entrou de fato na coluna de conteúdo — Favoritos, Todos, ou uma categoria por id. */
 export type EnteredKey = { kind: 'favorites' } | { kind: 'all' } | { kind: 'category'; id: number }
+
+/**
+ * Chave de memória de foco da entrada (feature 046) — categoria pelo NOME do
+ * grupo, como a trilha identifica (sobrevive a uma nova geração). `undefined`
+ * se a categoria entrada já não existe.
+ */
+export function liveEntryKey(entered: EnteredKey, categories: readonly CatalogCategory[]): LiveEntryKey | undefined {
+  if (entered.kind !== 'category') return entered.kind
+  const category = categories.find((c) => c.id === entered.id)
+  return category ? `category:${groupLabel(category.name)}` : undefined
+}
+
+/** A entrada da trilha que corresponde a uma entrada exibida (feature 046) — `undefined` se a categoria sumiu. */
+export function trailKeyOf(entered: EnteredKey, categories: readonly CatalogCategory[]): TrailKey | undefined {
+  if (entered.kind !== 'category') return { kind: entered.kind }
+  const category = categories.find((c) => c.id === entered.id)
+  return category ? { kind: 'category', name: groupLabel(category.name) } : undefined
+}

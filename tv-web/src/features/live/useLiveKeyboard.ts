@@ -2,13 +2,16 @@ import type { Dispatch, SetStateAction } from 'react'
 import { groupLabel, type CatalogCategory } from '../catalog/catalogApi'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import type { TopbarItem } from '../../navigation/appNav'
-import { PREVIEW_ACTION_COUNT, type TrailEntry } from './liveTrail'
+import { liveEntryKey, PREVIEW_ACTION_COUNT, type EnteredKey, type TrailEntry } from './liveTrail'
+import { recalledLiveFocus } from './liveSessionMemory'
 import type { LiveChannels, LiveTrail } from './useLiveCatalog'
 import type { LiveGuide, LiveGuideState } from './useLiveGuide'
 import type { LiveSearch } from './useLiveSearch'
 import type { LiveZapping, LiveZappingState } from './useLiveZapping'
 
 export interface LiveKeyboardParams {
+  /** Lista ativa — chave da memória de foco por entrada (feature 046). */
+  sourceId: string
   contentActive: boolean
   hasShell: boolean
   setZone: Dispatch<SetStateAction<'topbar' | 'content'>>
@@ -36,6 +39,7 @@ export interface LiveKeyboardParams {
  * mudar nada. Devolve o que o desenho e o zapping também usam.
  */
 export function useLiveKeyboard({
+  sourceId,
   contentActive,
   hasShell,
   setZone,
@@ -55,7 +59,7 @@ export function useLiveKeyboard({
   guide,
   liveGuide,
 }: LiveKeyboardParams) {
-  const { categoriesQuery, topPhase, trail: entries, categoryIdx, focusedTrailEntry, entered, setEntered, setFocusedIdentity } = trail
+  const { categories, categoriesQuery, topPhase, trail: entries, categoryIdx, focusedTrailEntry, entered, setEntered, setFocusedIdentity } = trail
   const { searchActive, setSearchActive, setSearchTerm, topFocused, setTopFocused, resetSearchState } = search
   const {
     activeChannel,
@@ -76,12 +80,24 @@ export function useLiveKeyboard({
   const { guide: openGuide, guideRef } = guide
   const { openGuideFromPreview, pageGuide } = liveGuide
 
+  /**
+   * Canal a focar ao ENTRAR numa entrada (feature 046, FR-008/FR-009): o último lembrado nesta
+   * sessão, ou `null` — o primeiro item — se nunca foi visitada.
+   */
+  function rememberedChannelFor(key: EnteredKey): string | null {
+    const entryKey = liveEntryKey(key, categories)
+    return (entryKey && recalledLiveFocus(sourceId, entryKey)?.channelId) || null
+  }
+
   function enterCategory(category: CatalogCategory) {
     if (entered?.kind !== 'category' || entered.id !== category.id) {
       setEntered({ kind: 'category', id: category.id })
-      // Trocar de categoria recomeça no primeiro canal — o item anterior de
-      // OUTRA categoria/de Favoritos/Todos não é uma posição significativa.
-      setFocusedIdentity({ trailKey: { kind: 'category', name: groupLabel(category.name) }, channelId: null })
+      // Trocar de categoria começa no último canal lembrado dela — ou no primeiro, se nunca
+      // visitada: o item de OUTRA categoria/de Favoritos/Todos não é uma posição significativa.
+      setFocusedIdentity({
+        trailKey: { kind: 'category', name: groupLabel(category.name) },
+        channelId: rememberedChannelFor({ kind: 'category', id: category.id }),
+      })
     }
     resetSearchState()
     setCol(1)
@@ -91,7 +107,7 @@ export function useLiveKeyboard({
   function enterFavorites() {
     if (entered?.kind !== 'favorites') {
       setEntered({ kind: 'favorites' })
-      setFocusedIdentity({ trailKey: { kind: 'favorites' }, channelId: null })
+      setFocusedIdentity({ trailKey: { kind: 'favorites' }, channelId: rememberedChannelFor({ kind: 'favorites' }) })
     }
     resetSearchState()
     setCol(1)
@@ -102,7 +118,7 @@ export function useLiveKeyboard({
   function enterAll() {
     if (entered?.kind !== 'all') {
       setEntered({ kind: 'all' })
-      setFocusedIdentity({ trailKey: { kind: 'all' }, channelId: null })
+      setFocusedIdentity({ trailKey: { kind: 'all' }, channelId: rememberedChannelFor({ kind: 'all' }) })
     }
     resetSearchState()
     setCol(1)

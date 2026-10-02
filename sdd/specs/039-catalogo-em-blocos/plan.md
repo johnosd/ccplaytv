@@ -328,3 +328,7 @@ Um code review dos commits desta feature achou 2 bugs e 8 problemas de velocidad
 - A navegação rápida durante a pré-carga não trava.
 
 Nenhum número foi medido. A instalação preservou o IndexedDB, então a conversão de uma lista anterior à 039 não foi exercitada na TV.
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.

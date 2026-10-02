@@ -262,3 +262,5 @@
 {"context":{"node":"v20.19.6","platform":"win32-x64","version":"1.0.0"},"level":"info","message":"Tizen MCP Server v1.0.0 started and connected Tizen MCP Server v1.0.0 started and connected","source":"TizenMCPServer","timestamp":"2026-10-02T09:53:58.501Z"}
 {"level":"info","message":"PlaywrightGuideManager initialized PlaywrightGuideManager initialized","source":"PlaywrightGuideManager","timestamp":"2026-10-02T12:13:10.777Z"}
 {"context":{"node":"v20.19.6","platform":"win32-x64","version":"1.0.0"},"level":"info","message":"Tizen MCP Server v1.0.0 started and connected Tizen MCP Server v1.0.0 started and connected","source":"TizenMCPServer","timestamp":"2026-10-02T12:13:10.794Z"}
+{"level":"info","message":"PlaywrightGuideManager initialized PlaywrightGuideManager initialized","source":"PlaywrightGuideManager","timestamp":"2026-10-02T14:47:01.368Z"}
+{"context":{"node":"v20.19.6","platform":"win32-x64","version":"1.0.0"},"level":"info","message":"Tizen MCP Server v1.0.0 started and connected Tizen MCP Server v1.0.0 started and connected","source":"TizenMCPServer","timestamp":"2026-10-02T14:47:01.374Z"}

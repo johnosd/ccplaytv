@@ -262,3 +262,8 @@ rea | Estado |
 **Verificação**: 5/5 contratos (C1–C5) e 24 travas do repositório íntegras; `npx vitest run` 281 arquivos, 2210/2210; `tsc`/`oxlint`/`build:tizen` limpos; `npm run test:e2e` 24 scripts verdes, incluindo `e2e/fontes-estado.mjs` (3 rodadas verdes, varredura de segredo em cada tela); **SC-006 conferido na lista real** (`e2e/fontes-estado-real.mjs`: a data exibida bate com a do painel).
 
 **Em aberto, registrado** (não bloqueia a convergência): passada na TV física (recomendada, não gate: tela de acesso e chips no aparelho); o salvar de "Editar lista" só em teste de componente (F-03). Achados desta convergência: F-01, F-02, F-03 (todos LOW).
+
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.

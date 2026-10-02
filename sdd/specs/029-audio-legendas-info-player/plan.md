@@ -382,3 +382,9 @@ Stubs criados pelo plan (ponto de partida do execute, não travados):
 **Verificação:** 5/5 contratos da 029 (14/14 com 027 e 020), 13 travas do repositório íntegras; `npm run test` 1433/1437 (4 falhas do padrão instável já documentado, 106/106 isoladas); `tsc`/lint/`build`/`build:tizen` limpos; `e2e/audio-legendas-info.mjs` (39 verificações, AVPlay **falso**) e `npm run test:e2e` completo (12 roteiros) verdes. Auditoria do `sdd-converge`: nenhum atalho para os contratos e nenhum desvio por ambiente; FR-001…FR-025 e SC-001…SC-005 rastreáveis a código e teste.
 
 **Resíduo aberto (registrado, não bloqueia):** R-001…R-004 (formato real do AVPlay, troca de áudio pausado, `subtitle_type` bitmap, `setSubtitlePosition`), R-005 (tamanho do `PlayerLayer`), R-007 (`paridade-limpeza.mjs` não re-executado, evidência da 028), R-009 e SC-006 (passada física); SC-003 (±100 ms) só provado com relógio falso; o edge case "app oculto/retomado" vale por construção (a sessão não é recriada) e não tem teste próprio. Para fechar o resíduo: `quickstart.md` §Spike e passada física, e se o formato divergir só o `avplayAdapter.ts` e `logic §1.2` mudam.
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.
+
+**Ressalva (029):** a troca de trilha de áudio não foi observada — os filmes testados têm um único áudio. Encerrado por decisão explícita do usuário; SC-006 fica como aprovado só no que foi visto (legenda, info do stream).

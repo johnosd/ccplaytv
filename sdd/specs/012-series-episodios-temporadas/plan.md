@@ -428,3 +428,8 @@ Xtream/M3U real nem TV física disponíveis nesta sessão.
   `avplayAdapter`/`htmlVideoAdapter` sempre dizem "Não foi possível
   reproduzir este canal" em qualquer falha genérica, mesmo para filme ou
   episódio — pré-existente, cosmético, não corrigido por esta feature.
+
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.
