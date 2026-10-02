@@ -33,6 +33,10 @@ import { cadastrarListaM3u } from './lib/entrada.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURES_DIR = path.join(__dirname, 'fixtures', 'm3u-sob-demanda')
+
+// Feature 045: o cadastro confirma a conexão antes de criar a lista, lendo só o começo do M3U
+// (e cancelando) — 1 pedido da confirmação + 1 do download da importação. Depois disso, nenhum a mais.
+const M3U_PEDIDOS = 2
 const PAINEL_M3U = readFileSync(path.join(FIXTURES_DIR, 'painel.m3u'))
 const AVULSA_M3U = readFileSync(path.join(FIXTURES_DIR, 'avulsa.m3u'))
 const APP_URL = 'http://localhost:5173'
@@ -340,7 +344,7 @@ async function run() {
     await openAddSourceFromHome(page, 2) // painel + Modo limitado já cadastrados
     await addSource(page, avulsaUrl, 'Fonte E2E Avulsa')
 
-    assert(avulsa.counts.requests === 1, 'a importação baixou o arquivo uma única vez')
+    assert(avulsa.counts.requests === M3U_PEDIDOS, 'a importação baixou o arquivo uma única vez')
 
     await page.waitForSelector('.source-card', { timeout: 8000 })
     const avulsaCard = page.locator('.source-card-wrap', { hasText: 'Fonte E2E Avulsa' })
@@ -364,7 +368,7 @@ async function run() {
         'ESPN Fictício,Fox Sports Fictício',
       'categoria "Canais | Esportes" mostra os dois canais fictícios',
     )
-    assert(avulsa.counts.requests === 1, 'entrar na 1ª categoria não pediu o arquivo de novo')
+    assert(avulsa.counts.requests === M3U_PEDIDOS, 'entrar na 1ª categoria não pediu o arquivo de novo')
 
     await page.keyboard.press('ArrowLeft') // volta pra trilha
     await page.keyboard.press('ArrowDown') // "Canais | Esportes" -> "Canais | Variedades"
@@ -375,7 +379,7 @@ async function run() {
         'Canal Variedades Fictício',
       'categoria "Canais | Variedades" mostra o canal fictício',
     )
-    assert(avulsa.counts.requests === 1, 'entrar na 2ª categoria também não pediu o arquivo de novo')
+    assert(avulsa.counts.requests === M3U_PEDIDOS, 'entrar na 2ª categoria também não pediu o arquivo de novo')
 
     console.log('--- Voltar à 1ª categoria: itens na hora, sem releitura ---')
     // Sai até a Home e reentra em Live TV — mais robusto que navegar a
@@ -392,7 +396,7 @@ async function run() {
       (await page.locator('.live-column-channels .live-item-name').first().textContent()) === 'ESPN Fictício',
       'voltar à 1ª categoria mostra os itens sem esperar',
     )
-    assert(avulsa.counts.requests === 1, 'voltar a uma categoria já lida não relê o arquivo')
+    assert(avulsa.counts.requests === M3U_PEDIDOS, 'voltar a uma categoria já lida não relê o arquivo')
 
     console.log('--- Filmes: categoria própria, mesma garantia ---')
     await page.keyboard.press('Escape') // sai da categoria -> trilha
@@ -410,7 +414,7 @@ async function run() {
       (await page.locator('.content-card-title').first().textContent()) === 'Um Filme Fictício',
       'categoria "Filmes" mostra o filme fictício',
     )
-    assert(avulsa.counts.requests === 1, 'entrar em Filmes também não pediu o arquivo de novo')
+    assert(avulsa.counts.requests === M3U_PEDIDOS, 'entrar em Filmes também não pediu o arquivo de novo')
 
     console.log('--- Séries: série sintética (SxxEyy) na própria categoria ---')
     await page.keyboard.press('Escape')
@@ -424,7 +428,7 @@ async function run() {
       (await page.locator('.content-card-title').first().textContent()) === 'Série Fictícia',
       'categoria "Series" mostra a série sintética (agrupada dos dois episódios)',
     )
-    assert(avulsa.counts.requests === 1, 'entrar em Séries também não pediu o arquivo de novo — a série veio do mesmo bloco guardado')
+    assert(avulsa.counts.requests === M3U_PEDIDOS, 'entrar em Séries também não pediu o arquivo de novo — a série veio do mesmo bloco guardado')
   } catch (error) {
     failures += 1
     console.error('  ✗ ERRO NÃO TRATADO:', error)

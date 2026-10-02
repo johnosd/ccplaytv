@@ -13,6 +13,7 @@
  */
 
 import type { ParsedEntry } from './m3uParser'
+import type { PlaybackHeaders } from './m3uHeaders'
 
 import type { CatalogItemKind } from './db'
 
@@ -58,6 +59,12 @@ export interface ClassifiedEntry {
    * descarta nos demais tipos.
    */
   epgChannelId?: string
+  /** Headers declarados pela entrada M3U (feature 044) — só User-Agent/Referer. Segredo em potencial (ADR-010). */
+  playbackHeaders?: PlaybackHeaders
+  /** `radio="true"` da lista (feature 044). Quem grava descarta fora de `kind: 'channel'`. */
+  radio?: true
+  /** `tvg-chno` válido da lista (feature 044) — não é o número exibido (ADR-011). Quem grava descarta fora de canal. */
+  declaredChannelNumber?: number
 }
 
 /**
@@ -90,6 +97,37 @@ export function normalizeEpgChannelId(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined
   const trimmed = raw.trim()
   return trimmed === '' ? undefined : trimmed
+}
+
+/** `radio="true"` (sem importar caixa nem espaços); qualquer outra coisa é ausência (feature 044, FR-007). */
+export function normalizeRadio(raw: unknown): true | undefined {
+  return typeof raw === 'string' && raw.trim().toLowerCase() === 'true' ? true : undefined
+}
+
+const CHANNEL_NUMBER_PATTERN = /^[1-9]\d{0,5}$/
+
+/** `tvg-chno`: só inteiro positivo de até 6 dígitos; o resto é ausência (feature 044, FR-008). */
+export function normalizeDeclaredChannelNumber(raw: unknown): number | undefined {
+  if (typeof raw !== 'string') return undefined
+  const text = raw.trim()
+  return CHANNEL_NUMBER_PATTERN.test(text) ? Number(text) : undefined
+}
+
+/**
+ * Campos de compatibilidade M3U da feature 044, acrescentados ao resultado só
+ * quando existem — um item sem nenhum dos três sai idêntico ao de antes
+ * (FR-011), e sem alocar nada: isto roda uma vez por entrada de listas de
+ * centenas de milhares (SC-004).
+ */
+function withDeclaredExtras<T extends ClassifiedEntry>(result: T, entry: ParsedEntry): T {
+  if (entry.headers) result.playbackHeaders = entry.headers
+  const attributes = entry.attributes
+  if (attributes['radio'] !== undefined && normalizeRadio(attributes['radio'])) result.radio = true
+  if (attributes['tvg-chno'] !== undefined) {
+    const declaredChannelNumber = normalizeDeclaredChannelNumber(attributes['tvg-chno'])
+    if (declaredChannelNumber !== undefined) result.declaredChannelNumber = declaredChannelNumber
+  }
+  return result
 }
 
 const YEAR_DATE_PATTERN =/^(\d{4})(-\d{2}(-\d{2})?)?$/
@@ -171,42 +209,51 @@ export function classifyEntry(entry: ParsedEntry): ClassifiedEntry {
   const episodeMatch = EPISODE_PATTERN.exec(entry.name.trim())
   if (episodeMatch?.groups) {
     const base = episodeMatch.groups.base.replace(/[\s\-._]+$/, '').trim() || entry.name
-    return {
-      kind: 'episode',
-      name: entry.name,
-      originalName: entry.name,
-      group: entry.group,
-      url: entry.url,
-      seriesKey: base.toLowerCase(),
-      seriesName: base,
-      seasonNumber: Number(episodeMatch.groups.season),
-      episodeNumber: Number(episodeMatch.groups.episode),
-      iconUrl,
-    }
+    return withDeclaredExtras(
+      {
+        kind: 'episode',
+        name: entry.name,
+        originalName: entry.name,
+        group: entry.group,
+        url: entry.url,
+        seriesKey: base.toLowerCase(),
+        seriesName: base,
+        seasonNumber: Number(episodeMatch.groups.season),
+        episodeNumber: Number(episodeMatch.groups.episode),
+        iconUrl,
+      },
+      entry,
+    )
   }
 
   const byGroup = groupKeywordKind(entry.group)
   if (byGroup !== undefined) {
-    return {
-      kind: byGroup,
+    return withDeclaredExtras(
+      {
+        kind: byGroup,
+        name: entry.name,
+        originalName: entry.name,
+        group: entry.group,
+        url: entry.url,
+        iconUrl,
+        // Feature 030: só canal carrega o id de EPG (o Modo limitado pode
+        // refinar o tipo pela URL depois, ver `refineFromUrl` — quem grava
+        // filtra por `kind === 'channel'`).
+        epgChannelId: normalizeEpgChannelId(entry.attributes['tvg-id']),
+      },
+      entry,
+    )
+  }
+
+  // Evidência insuficiente — sem hierarquia nem tipo inventado.
+  return withDeclaredExtras(
+    {
+      kind: 'unclassified',
       name: entry.name,
       originalName: entry.name,
       group: entry.group,
       url: entry.url,
-      iconUrl,
-      // Feature 030: só canal carrega o id de EPG (o Modo limitado pode
-      // refinar o tipo pela URL depois, ver `refineFromUrl` — quem grava
-      // filtra por `kind === 'channel'`).
-      epgChannelId: normalizeEpgChannelId(entry.attributes['tvg-id']),
-    }
-  }
-
-  // Evidência insuficiente — sem hierarquia nem tipo inventado.
-  return {
-    kind: 'unclassified',
-    name: entry.name,
-    originalName: entry.name,
-    group: entry.group,
-    url: entry.url,
-  }
+    },
+    entry,
+  )
 }

@@ -468,7 +468,7 @@ export async function startImport(
       const categoryKinds = new Map<number, CategoryKind>()
 
       function toStoredRecord(channel: MappedChannel): StoredCatalogRecord {
-        return {
+        const record: StoredCatalogRecord = {
           kind: channel.kind,
           name: channel.name,
           originalName: channel.originalName,
@@ -490,6 +490,20 @@ export async function startImport(
           year: channel.year,
           addedAt: channel.addedAt,
         }
+        // Feature 044: compatibilidade M3U. Só entram quando existem — o clone
+        // estruturado do IndexedDB guarda até chave `undefined`, e uma lista de
+        // centenas de milhares de itens não deve ganhar três chaves vazias em
+        // cada um (FR-011, SC-002).
+        // Os headers acompanham a URL guardada (`keepUrl`): sem ela — Modo
+        // limitado, credencial derivada — não há o que mandar com eles, e
+        // guardá-los só ampliaria o segredo no aparelho (ADR-010). `radio` e o
+        // `tvg-chno` declarado só fazem sentido em canal, como o `epgChannelId`.
+        if (keepUrl && channel.playbackHeaders) record.playbackHeaders = channel.playbackHeaders
+        if (channel.kind === 'channel') {
+          if (channel.radio) record.radio = channel.radio
+          if (channel.declaredChannelNumber !== undefined) record.declaredChannelNumber = channel.declaredChannelNumber
+        }
+        return record
       }
 
       /**

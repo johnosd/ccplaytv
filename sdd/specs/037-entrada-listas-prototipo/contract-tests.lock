@@ -1,6 +1,6 @@
 {
     "feature":  "037-entrada-listas-prototipo",
-    "lockedAt":  "2026-09-30 07:23",
+    "lockedAt":  "2026-10-02 08:55",
     "total":  5,
     "files":  [
                   {
@@ -15,7 +15,7 @@
                   },
                   {
                       "path":  "tv-web/src/features/import/AddSourceScreen.entrada-listas.contract.test.tsx",
-                      "sha256":  "c875ac5629858ae657ff56e1bf5917565dc95d3736d90573674074980281cb76",
+                      "sha256":  "64c1cc3b5a8fa2fac6b04161e041978ff1711c1b2678cb482bb9153652acd230",
                       "tests":  2
                   }
               ]

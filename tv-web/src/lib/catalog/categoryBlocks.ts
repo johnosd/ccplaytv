@@ -53,17 +53,31 @@ function fnv1a32(text: string): number {
  */
 export function itemsSignature(items: CatalogRecord[]): string {
   const text = JSON.stringify(
-    items.map((item) => [
-      identityKey(item),
-      item.name,
-      item.iconUrl ?? null,
-      item.year ?? null,
-      item.addedAt ?? null,
-      item.epgChannelId ?? null,
-      item.streamExtension ?? null,
-      item.directUrl ?? null,
-      item.group ?? null,
-    ]),
+    items.map((item) => {
+      const fields: unknown[] = [
+        identityKey(item),
+        item.name,
+        item.iconUrl ?? null,
+        item.year ?? null,
+        item.addedAt ?? null,
+        item.epgChannelId ?? null,
+        item.streamExtension ?? null,
+        item.directUrl ?? null,
+        item.group ?? null,
+      ]
+      // Feature 044 (D-006): só entram quando existem — um item sem eles gera o
+      // mesmo vetor de antes, para uma lista antiga não regravar todos os blocos.
+      // Só o hash sai daqui; o valor do header nunca é guardado nem logado.
+      if (item.playbackHeaders || item.radio || item.declaredChannelNumber !== undefined) {
+        fields.push(
+          item.playbackHeaders?.userAgent ?? null,
+          item.playbackHeaders?.referer ?? null,
+          item.radio ?? null,
+          item.declaredChannelNumber ?? null,
+        )
+      }
+      return fields
+    }),
   )
   return `${items.length}:${fnv1a32(text).toString(16)}`
 }

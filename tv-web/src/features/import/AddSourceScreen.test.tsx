@@ -43,6 +43,12 @@ describe('AddSourceScreen', () => {
     const onBack = vi.fn()
 
     const startImportSpy = vi.spyOn(importPipeline, 'startImport')
+    // Feature 045: o painel confirma a conta antes de criar a lista; o resto da importação falha na hora.
+    vi.mocked(globalThis.fetch).mockImplementation((input) =>
+      String(input).includes('get_account_info')
+        ? Promise.resolve(new Response(JSON.stringify({ user_info: { auth: 1 } })))
+        : Promise.reject(new TypeError('Failed to fetch')),
+    )
 
     render(
       <AddSourceScreen
@@ -60,9 +66,13 @@ describe('AddSourceScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Conectar e sincronizar' }))
 
-    await waitFor(() => {
-      expect(onSourceCreated).toHaveBeenCalled()
-    })
+    // Feature 045: confirmar a conexão + criar a lista leva um pouco mais sob a suíte em paralelo.
+    await waitFor(
+      () => {
+        expect(onSourceCreated).toHaveBeenCalled()
+      },
+      { timeout: 5000 },
+    )
 
     const fetchMock = globalThis.fetch as any
     const calledUrls = fetchMock.mock.calls.map((c: any) => c[0] as string)
@@ -254,7 +264,7 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
   it('as setas percorrem tipos → campos → Voltar → "Conectar e sincronizar", na ordem visual', () => {
     render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
 
-    const expected = ['Lista M3U', 'Nome da lista', 'Servidor', 'Usuário', 'Senha', 'Voltar', 'Conectar e sincronizar']
+    const expected = ['Lista M3U', 'Nome da lista', 'Servidor', 'Usuário', 'Senha', 'Mostrar', 'Voltar', 'Conectar e sincronizar']
     const seen: string[] = []
     for (let i = 0; i < expected.length; i += 1) {
       fireEvent.keyDown(document, { key: 'ArrowDown' })
@@ -324,6 +334,10 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
 
   it('OK duplo em "Conectar e sincronizar" cria uma lista só; o botão segue focável durante o envio', async () => {
     const onSourceCreated = vi.fn()
+    // Feature 045: a lista só é criada depois que a conexão é confirmada.
+    vi.mocked(globalThis.fetch).mockImplementation(() =>
+      Promise.resolve(new Response('#EXTM3U\n#EXTINF:-1,Canal\nhttp://lista.exemplo/1.ts\n')),
+    )
     render(<AddSourceScreen onSourceCreated={onSourceCreated} onBack={vi.fn()} />, { wrapper: createWrapper() })
 
     chooseM3u()
@@ -367,7 +381,8 @@ describe('AddSourceScreen — edição no visual novo (feature 037, US4)', () =>
     expect(screen.getByText('Altere o que precisar. Usuário e senha em branco continuam como estão.')).toBeInTheDocument()
     expect(screen.getByText('Xtream Codes')).toBeInTheDocument()
 
-    expect(document.querySelector('[aria-pressed]')).toBeNull()
+    // Feature 045: o ria-pressed do Mostrar senha é outro; o que não existe em edição é o seletor de tipo.
+    expect(document.querySelector('.source-type[aria-pressed]')).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Conectar com celular' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Como funciona' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /celular/i })).not.toBeInTheDocument()
@@ -419,7 +434,8 @@ describe('AddSourceScreen — edição no visual novo (feature 037, US4)', () =>
       'Deixe em branco para manter a URL atual',
     )
     expect(screen.queryByLabelText('Servidor')).not.toBeInTheDocument()
-    expect(document.querySelector('[aria-pressed]')).toBeNull()
+    // Feature 045: o ria-pressed do Mostrar senha é outro; o que não existe em edição é o seletor de tipo.
+    expect(document.querySelector('.source-type[aria-pressed]')).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Conectar com celular' })).not.toBeInTheDocument()
     expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })

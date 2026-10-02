@@ -362,6 +362,9 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
+  /* Feature 045 (US3): a tela rola para o campo focado subir à metade de cima.
+     O anel de foco fica dentro do padding de `.screen`, então o recorte não o alcança. */
+  overflow-y: auto;
 }
 
 .epg-settings-status {

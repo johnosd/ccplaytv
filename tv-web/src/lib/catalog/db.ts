@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import { noteBlockWrite } from './blockMemo'
+import type { PlaybackHeaders } from './m3uHeaders'
 
 /**
  * Armazenamento local do aparelho — a fonte de verdade das telas depois da
@@ -205,6 +206,21 @@ export interface CatalogRecord {
    * ou episódio gravado antes desta feature.
    */
   synopsis?: string
+  /**
+   * Headers de reprodução que a lista M3U declarou para este item (feature
+   * 044, FR-002) — só User-Agent/Referer. **Segredo em potencial** (ADR-010):
+   * nunca em log, UI, erro, chave de consulta ou terceiros. Nada os consome
+   * ainda (o repasse ao AVPlay é a feature 25b). Valor sem índice, sem bump.
+   */
+  playbackHeaders?: PlaybackHeaders
+  /** `radio="true"` declarado pela lista M3U (feature 044, FR-007). Só marca; não muda tipo nem UI. Só `kind: 'channel'`. */
+  radio?: true
+  /**
+   * `tvg-chno` declarado pela lista (feature 044, FR-008) — inteiro positivo.
+   * **Não** é o número exibido do canal (ADR-011: posição na fonte); nenhuma
+   * tela o lê. Só `kind: 'channel'`.
+   */
+  declaredChannelNumber?: number
 }
 
 /**

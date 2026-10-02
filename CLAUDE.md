@@ -1245,6 +1245,69 @@ physical-TV pass (AVPlay's real error names — R-001 — and a real network
 drop). See `sdd/specs/042-rede-lifecycle-erros/plan.md` → `## Estado Atual`
 and `## Riscos e Decisões`.
 
+**Converged**: `044-parser-m3u-headers` — backlog item 25a (the parser slice
+of item 25; 25b, handing the headers to AVPlay, stays blocked on the item-58
+spike). The M3U parser (`tv-web/src/lib/catalog/m3uParser.ts` +
+the pure `m3uHeaders.ts`, rules in `sdd/specs/044-parser-m3u-headers/logic/
+headers-m3u.md`) splits a `URL|User-Agent=…&Referer=…` suffix at the first `|`
+(only when what follows is empty or starts with a known HTTP header name, so
+`http://x/a|b.ts` stays intact; a `&y=2` inside an unencoded Referer is not a
+pair boundary), reads `#EXTVLCOPT`/`#KODIPROP` directives for the *next* URL
+only (the `|` wins per key; DRM/licence keys are counted in
+`ParseTally.unsupportedDirectives` and their value discarded), and
+`classifyEntry` carries `playbackHeaders`/`radio`/`declaredChannelNumber`
+(`tvg-chno`, **not** the displayed channel number — ADR-011 still rules) on all
+three return branches. Persisted only on the `stored` path (the Xtream-panel
+URL path never parses items), as unindexed value fields on `CatalogRecord` — no
+Dexie bump, still v15; `playbackHeaders` is stored only alongside the stored
+playback URL (`keepUrl`), never in Modo limitado, and `catalogApi.itemOut` is an
+explicit mapping so nothing reaches the UI. `directUrl` is now the clean URL,
+so until 25b the player opens it **without** headers (a server that requires
+one still refuses — expected). `itemsSignature` appends the new fields only
+when present, pinned against the pre-feature algorithm so old lists don't
+rewrite every block on renewal. ADR-010 amended inline (headers are the same
+class of data as the playback URL, same mitigations). Two spec refinements came
+out of planning (R-001: `|Cookie=x` alone is also cleaned; R-002: only the
+`stored` path persists). SC-004 measured: +3% parse+classify on 100k entries
+without headers (+5–6% with 5% header lines) after moving to a fast path.
+5/5 contract tests locked, all 27 repository locks intact, 2307 unit tests
+passing (only the 5 red contracts of feature 045, not yet executed, fail),
+`tsc`/lint/`build` clean, all 25 `test:e2e` scripts green (not `build:tizen`:
+nothing new is emitted). Not done on purpose: the manual quickstart steps
+(DevTools inspection, playing a channel) and any physical-TV pass —
+recommended, not a gate. See `sdd/specs/044-parser-m3u-headers/plan.md` →
+`## Estado Atual` and `## Riscos e Decisões` (R-001–R-009).
+
+**In execution (code-complete, TV pass open)**: `045-ime-formularios-tv` — backlog
+item 18. The add/edit-list form now **confirms the connection before leaving the
+screen** (`lib/catalog/sourceConnectionCheck.ts`, no React): Xtream is one account
+query, an M3U reads only up to its first entry and cancels the download, and it
+reuses the importer's own connector/parser so the form never disagrees with what
+the import can do. A failure keeps the form with every field filled and shows one
+`role="alert"` banner (table-042 text + code only — `SRC-001`/`SRC-401`/`SRC-422`/
+`NET-01`/`NET-02`, never a URL, user or password) with focus on the action button,
+which becomes "Tentar de novo" for retryable codes; a panel without the Xtream
+protocol whose M3U serves is **not** an error (Modo limitado, feature 014). A
+15 s limit (`Promise.race` + abort), a synchronous ref lock against double OK, and
+RETURN that cancels the wait before leaving (layered) come with it; editing only
+checks when address/user/password/URL actually changed. `TextField` gained
+`revealable` ("Mostrar/Ocultar senha|chave", `aria-pressed`, same `<input>`, resets
+on unmount), `enterKeyHint`, and `onFocus` → `lib/focus/revealInTopHalf.ts` (the
+field block lands in the top half of the scroll container, with half a stage of
+scroll room on the form screens). `lib/useImeChain.ts` + `lib/imeKeys.ts` send the
+IME **Done** key to the next field / the primary action **without submitting**;
+`Enter` is never intercepted (on the TV, OK on a focused field opens the system
+keyboard). **Honest limit**: what the real Samsung IME delivers was never measured —
+`IME_KEYCODES` (`done` 65376, `cancel` 65385 from memory, `next` empty) is one table,
+and the dev-only probe (`VITE_CCPLAY_IME_PROBE=1`, `ImeProbeOverlay`) exists to fill
+it on the TV; Next/Done/RETURN-with-keyboard-open and the keyboard actually not
+covering the field are **not verified** (R-001/R-002). The 037 contract was amended,
+with the user's approval, only in its `fetch` mock (R-003), and two E2E scripts now
+expect 2 requests to the M3U (confirmation + download, R-013). Contract 5/5, 5 E2E
+scenario groups in `e2e/ime-formularios.mjs` (part of `test:e2e`). See
+`sdd/specs/045-ime-formularios-tv/plan.md` → `## Estado Atual` and
+`## Riscos e Decisões`.
+
 The four top-level directories:
 
 - **`tv-web/`** — React 19 + TypeScript + Vite. Splash, the "Selecione ou
@@ -1323,7 +1386,8 @@ Frontend (`tv-web/`):
 ```bash
 npm run dev            # Vite dev server (API CORS expects :5173)
 npm run test           # vitest run
-npm run test:e2e       # Playwright E2E script against the dev server (tv-web/e2e.mjs)
+npm run test:e2e       # whole E2E suite, parallel runner (tv-web/e2e/run.mjs); --only a,b / --jobs N / --retry N
+npm run test:e2e:serial # old one-at-a-time chain, to tell a concurrency flake from a real failure
 npm run lint           # oxlint
 npm run build          # tsc -b && vite build
 npm run build:tizen    # build + sync into CCPlayTv/

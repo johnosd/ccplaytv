@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { createRef } from 'react'
 import { Button } from './Button'
 
 afterEach(cleanup)
@@ -39,5 +40,15 @@ describe('Button', () => {
     expect(onSelect).not.toHaveBeenCalled()
     expect(button).toHaveAttribute('aria-busy', 'true')
     expect(button.textContent).not.toMatch(/%|\d/)
+  })
+
+  it('buttonRef entrega o <button> real (feature 045: foco na ação principal)', () => {
+    const ref = createRef<HTMLButtonElement>()
+    render(
+      <Button variant="accent" onSelect={vi.fn()} buttonRef={ref}>
+        Conectar
+      </Button>,
+    )
+    expect(ref.current).toBe(screen.getByRole('button', { name: 'Conectar' }))
   })
 })
