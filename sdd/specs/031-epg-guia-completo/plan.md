@@ -240,6 +240,7 @@ player (sessão viva; fecha só em `onEnteredPlaying`), reconciliação quando a
 | R-009 | Foco de estado dentro de `topLayer` compartilha o teclado com o zapping e o chrome (capture). | Tecla vazando para outra camada. | Resolvido: Guia e zapping nunca abertos juntos (D-001); testes de RETURN em camadas na Fase 5. |
 | R-010 | "Configurar EPG" no guia aberto do player navega para as configurações: a Live TV desmonta e o player fecha; RETURN das configurações volta à Live TV parada. | O canal deixa de tocar. | Resolvido: Aceito: é a rota padrão do app (`open epg-settings` com `from: live`), ação explícita da pessoa. **Atualização (2026-10-01, item 62a do backlog, decisão do usuário):** a ação "Configurar EPG" saiu do guia — o EPG só se configura ao editar a lista (Configurações › Fontes IPTV); o estado "Sem programação" diz onde e mantém o foco no seletor de lista. FR-013 desta feature fica superado nesse ponto. |
 | R-011 | `PlayerLayerTopLayer.onMediaKey` retorna `void`, não `boolean` como o texto da T022. | Nenhum: o `PlayerLayer` não precisa saber se a tecla foi consumida (D-011). | Resolvido: Registrado como decisão; contratos não dependem disso. |
+| R-0xx | Feature 049: o `Guia completo` do preview vira o ícone ao lado da lupa (↑ do 1º canal → →); o guia abre no canal onde o ícone foi alcançado (o 1º da lista). Contrato emendado e trava regravada. | Médio — abrir o guia num canal qualquer por seta deixou de ser possível | Candidato a follow-up: tecla GUIDE do controle abrindo o guia no canal focado. |
 
 ## Execution Notes
 

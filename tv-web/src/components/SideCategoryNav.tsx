@@ -23,7 +23,6 @@ export interface SideCategoryNavEntry {
    * ou ∞. Opt-in: `undefined` = nenhum tile desenhado, e Filmes/Séries/
    * Configurações (que não passam nada) ficam idênticas (FR-017). Desenhado
    * FORA de `.side-category-nav-label`, cujo texto é fixado por testes.
-   * (Stub do sdd-plan: ainda não desenhado — T0xx.)
    */
   tile?: string
 }
@@ -69,6 +68,11 @@ export function SideCategoryNav({ entries, selectedId, focusedId, onSelect, focu
                 className={`side-category-nav-item${entry.id === selectedId ? ' is-selected' : ''}${isFocused ? ' tv-focus' : ''}`}
                 onClick={() => onSelect(entry.id)}
               >
+                {entry.tile !== undefined && (
+                  <span className="side-category-nav-tile" aria-hidden="true">
+                    {entry.tile}
+                  </span>
+                )}
                 {entry.icon && <Icon name={entry.icon} />}
                 <span className="side-category-nav-label">{entry.label}</span>
                 {entry.pinned && entry.pinnedBadge !== false && (

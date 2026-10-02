@@ -35,13 +35,16 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
 **TV ao vivo e EPG**
 - Canais organizados pelos grupos definidos na própria lista, com
   pesquisa e reprodução.
+- Navegação por página nas listas (trilha de categorias e canais da Live TV,
+  zapping e trilha de Filmes e Séries): "→" avança uma página, "←" volta,
+  OK entra na categoria ou toca o canal e RETURN volta à trilha (feature 049).
 - Programa atual ("Agora") com barra de progresso na lista de canais, e
   "A seguir" com sinopse no preview, na faixa do player e nos canais
   favoritos da Home, a partir de EPG em XMLTV (do painel Xtream, do
   `url-tvg` da lista M3U ou de um endereço informado, com deslocamento de
   horário e sincronização por lista em Configurações; feature 030 — ainda
   sem passada na TV física).
-- Guia completo em tela cheia (grade canais × programas, Hoje/Amanhã, CH±,\n  seletor de lista), aberto do preview da Live TV ou do player sem parar o\n  canal (feature 031 — ainda sem passada na TV física).\n- *A avaliar:* TV archive/catch-up/timeshift;
+- Guia completo em tela cheia (grade canais × programas, Hoje/Amanhã, CH±,\n  seletor de lista), aberto pelo ícone ao lado da lupa na lista de canais da Live TV ou do player sem parar o\n  canal (feature 031 — ainda sem passada na TV física).\n- *A avaliar:* TV archive/catch-up/timeshift;
   multi-canal (feature 031, especificada); TV archive/catch-up/timeshift;
   seleção de canal por número.
 

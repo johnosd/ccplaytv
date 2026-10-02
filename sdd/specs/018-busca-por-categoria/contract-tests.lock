@@ -1,11 +1,11 @@
 {
     "feature":  "018-busca-por-categoria",
-    "lockedAt":  "2026-09-25 19:12",
+    "lockedAt":  "2026-10-02 19:25",
     "total":  5,
     "files":  [
                   {
                       "path":  "tv-web/src/features/live/LiveScreen.busca-categoria.contract.test.tsx",
-                      "sha256":  "5911babd4478a2234f9b0ba28a0f8d589f1c6b5cc46d1c20528d7f020155ac82",
+                      "sha256":  "3f74ce8b7a7cf2d2ea4468cafed28925b199109448dac57edc7954e469d68f00",
                       "tests":  4
                   },
                   {

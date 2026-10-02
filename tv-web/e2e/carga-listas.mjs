@@ -342,7 +342,7 @@ async function run() {
         console.log('  [debug trilho]', JSON.stringify(dom))
       }
       assert(counted === '5', `a contagem real aparece no trilho antes de entrar (${counted})`)
-      await page.keyboard.press('ArrowRight')
+      await page.keyboard.press('Enter')
       await page.waitForSelector('.vod-grid .content-card, .vod-grid-cell', { timeout: 3000 })
       await page.waitForTimeout(500)
       assert(log.length === before, 'entrar numa categoria já pré-carregada não pede nada ao painel')
@@ -404,7 +404,7 @@ async function run() {
       await page.route('**/live/**', (route) => route.abort())
       await openViaTopbar(page, 'live')
       await page.waitForSelector('.live-column-groups', { timeout: 10000 })
-      await page.keyboard.press('ArrowRight') // entra na categoria em foco
+      await page.keyboard.press('Enter') // entra na categoria em foco
       await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
       await page.keyboard.press('Enter') // abre o canal: camada de reprodução montada
       await page.waitForSelector('.player-layer, [data-testid="player-layer"], .player-video', { timeout: 8000 })
@@ -440,7 +440,7 @@ async function run() {
       assert(labels.includes('Filmes 11'), 'as demais continuam')
 
       const t0 = Date.now()
-      await page.keyboard.press('ArrowRight') // entra em "Filmes 1" (já carregada antes da atualização)
+      await page.keyboard.press('Enter') // entra em "Filmes 1" (já carregada antes da atualização)
       await page.waitForSelector('.vod-grid-cell .content-card-title', { timeout: 3000 })
       const elapsed = Date.now() - t0
       assert(elapsed < 1500, `categoria que estava pronta abre na hora depois de atualizar (${elapsed} ms)`)
@@ -473,7 +473,7 @@ async function run() {
       await ageCategory(page, 'Filmes 2', 25 * 60 * 60 * 1000)
       await page.keyboard.press('ArrowDown') // "Filmes 2"
       const t1 = Date.now()
-      await page.keyboard.press('ArrowRight') // entra antes dos 300 ms da pré-busca por foco
+      await page.keyboard.press('Enter') // entra antes dos 300 ms da pré-busca por foco
       await page.waitForSelector('.vod-grid-cell .content-card-title', { timeout: 3000 })
       const openedAt = Date.now()
       assert(openedAt - t1 < 1500, `vencida abre na hora com o que tem (${openedAt - t1} ms)`)
@@ -505,7 +505,7 @@ async function run() {
       await openViaTopbar(page, 'live')
       await page.waitForSelector('.live-column-groups', { timeout: 10000 })
       const t0 = Date.now()
-      await page.keyboard.press('ArrowRight')
+      await page.keyboard.press('Enter')
       await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 3000 })
       const elapsed = Date.now() - t0
       assert(elapsed < 1500, `categoria M3U que estava pronta abre na hora depois de atualizar (${elapsed} ms)`)

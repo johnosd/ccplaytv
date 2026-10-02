@@ -173,27 +173,27 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     assert(true, 'RETURN a partir de Filmes volta ao Início — nunca à Live (D-004)')
 
-    console.log('=== Preview: Assistir, Favoritar, Guia completo, ← volta ao canal ===')
+    console.log('=== Destaque informativo: Segurar OK favorita, ícone de Guia ao lado da lupa, RETURN (feature 049) ===')
     await openLiveFromTopbar(page)
-    await page.keyboard.press('ArrowRight') // entra em "Canais | Esportes"
+    await page.keyboard.press('Enter') // entra em "Canais | Esportes"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await assertOneFocus(page, 'canal focado na lista')
+    assert((await page.locator('.live-preview-panel button').count()) === 0, 'o destaque não tem botões nem ação focável')
 
-    await page.keyboard.press('ArrowRight') // canal -> preview
-    await page.waitForSelector('.live-preview-action.tv-focus', { timeout: 4000 })
-    assert((await page.locator('.live-preview-action.tv-focus').textContent()) === 'Assistir', '→ no canal foca "Assistir" no preview')
-    await assertOneFocus(page, 'preview, "Assistir" focado')
-
-    await page.keyboard.press('ArrowDown') // "Assistir" -> "Favoritar"
-    assert((await page.locator('.live-preview-action.tv-focus').textContent()) === 'Favoritar', '↓ move o foco pra "Favoritar"')
-    await page.keyboard.press('Enter')
+    await page.keyboard.down('Enter') // Segurar OK: favorita o canal focado
+    await page.waitForTimeout(1100)
+    await page.keyboard.up('Enter')
     await page.waitForSelector('text=Adicionado aos favoritos', { timeout: 4000 })
-    assert((await page.locator('.live-preview-action.tv-focus').textContent()) === 'Favorito', 'depois de favoritar, o rótulo vira "Favorito"')
+    assert(true, 'Segurar OK no canal focado o favorita')
 
-    await page.keyboard.press('ArrowDown') // "Favorito" -> "Guia completo"
-    assert((await page.locator('.live-preview-action.tv-focus').textContent()) === 'Guia completo', '↓ move o foco pra "Guia completo"')
+    await page.keyboard.press('ArrowUp') // 1º canal -> lupa
+    await page.waitForSelector('.search-icon-button.tv-focus', { timeout: 4000 })
+    await page.keyboard.press('ArrowRight') // lupa -> ícone de Guia completo
+    await page.waitForSelector('.live-guide-button.tv-focus', { timeout: 4000 })
+    assert((await page.locator('.live-guide-button.tv-focus').getAttribute('aria-label')) === 'Guia completo', '→ na lupa foca o ícone de Guia completo')
+    await assertOneFocus(page, 'ícone de Guia focado')
     await page.keyboard.press('Enter')
-    // Feature 031: "Guia completo" deixou de ser mock — abre o guia em tela cheia.
+    // Feature 031: o guia abre em tela cheia.
     await page.waitForSelector('.epg-guide', { timeout: 4000 })
     assert((await page.locator('text=/Em breve/').count()) === 0, '"Guia completo" não mostra mais aviso "Em breve"')
     assert((await page.locator('[role="dialog"]').count()) === 0, '"Guia completo" nunca abre o player')
@@ -204,17 +204,7 @@ async function run() {
       (await page.locator('.live-channel-row.tv-focus').textContent())?.includes('Globo Esportes'),
       'RETURN do guia volta ao mesmo canal de origem',
     )
-
-    await page.keyboard.press('ArrowRight') // canal -> preview
-    await page.waitForSelector('.live-preview-action.tv-focus', { timeout: 4000 })
-    await page.keyboard.press('ArrowLeft') // preview -> o MESMO canal
-    await page.waitForSelector('.live-channel-row.tv-focus', { timeout: 4000 })
-    assert(
-      (await page.locator('.live-channel-row.tv-focus').textContent())?.includes('Globo Esportes'),
-      '← a partir do preview volta ao mesmo canal de onde saiu',
-    )
-    await assertOneFocus(page, 'de volta ao canal, depois do preview')
-
+    await assertOneFocus(page, 'de volta ao canal, depois do guia')
     console.log('=== Logo quebrado: fallback de iniciais, nunca o ícone nativo de imagem quebrada ===')
     await page.keyboard.press('ArrowDown') // "Globo Esportes" -> "ESPN Quebrado"
     await page.waitForSelector('.live-channel-row.tv-focus', { timeout: 4000 })
@@ -237,9 +227,9 @@ async function run() {
       .textContent()
     assert(numberInCategory === '001', '"Globo Esportes" é o canal 001 (1ª categoria, 1º da ordem)')
 
-    await page.keyboard.press('ArrowLeft') // canal -> trilha
+    await page.keyboard.press('Escape') // canal -> trilha
     await page.keyboard.press('ArrowUp') // Esportes -> Todos
-    await page.keyboard.press('ArrowRight') // entra em "Todos"
+    await page.keyboard.press('Enter') // entra em "Todos"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     const numberInAll = await page
       .locator('.live-channel-row', { hasText: 'Globo Esportes' })
@@ -247,9 +237,9 @@ async function run() {
       .textContent()
     assert(numberInAll === numberInCategory, '"Todos" mostra o mesmo número 001 pro mesmo canal')
 
-    await page.keyboard.press('ArrowLeft')
+    await page.keyboard.press('Escape') // lista -> trilha
     await page.keyboard.press('ArrowUp') // Todos -> ★ Favoritos
-    await page.keyboard.press('ArrowRight') // entra em "★ Favoritos" (Globo Esportes foi favoritado acima)
+    await page.keyboard.press('Enter') // entra em "★ Favoritos" (Globo Esportes foi favoritado acima)
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     const numberInFavorites = await page
       .locator('.live-channel-row', { hasText: 'Globo Esportes' })
@@ -258,13 +248,13 @@ async function run() {
     assert(numberInFavorites === numberInCategory, '"★ Favoritos" também mostra o mesmo número 001')
 
     console.log('=== 500 canais: só a janela visível (+ overscan) é montada (SC-004) ===')
-    await page.keyboard.press('ArrowLeft')
+    await page.keyboard.press('Escape') // lista -> trilha
     await page.keyboard.press('ArrowDown') // ★ Favoritos -> Todos
     await page.keyboard.press('ArrowDown') // Todos -> Esportes
     await page.keyboard.press('ArrowDown') // Esportes -> Notícias
     await page.keyboard.press('ArrowDown') // Notícias -> Muitos
     await page.waitForSelector('.side-category-nav-item.tv-focus:has-text("Muitos")', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra em "Muitos" (500 canais)
+    await page.keyboard.press('Enter') // entra em "Muitos" (500 canais)
     await page.waitForSelector('.live-channel-list .live-channel-row', { timeout: 8000 })
 
     const mountedBefore = await page.locator('.live-channel-list .live-channel-row').count()

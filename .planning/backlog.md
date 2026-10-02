@@ -354,7 +354,9 @@ medição), `Bugfix` (segue em `## Bugs`).
 | 045-ime-formularios-tv | IME da TV nos formulários — teclado, Next/Done, senha e erros de conexão | Convergida | 39/42 tasks | 2026-10-02 |
 | 046-memoria-foco-key-repeat | Memória de foco por área e key repeat | Convergida | 27/27 tasks | 2026-10-02 |
 | 047-player-dev-mpegts | Reprodução de canais ao vivo MPEG-TS no navegador do dev | Convergência Pendente | 35/38 tasks | 2026-10-02 |
-| 048-live-paridade-v14 | Paridade visual da TV ao vivo com o Design System V14 | Em Execução | 4/47 tasks | 2026-10-02 |
+| 048-live-paridade-v14 | Paridade visual da TV ao vivo com o Design System V14 | Em Execução | 43/47 tasks | 2026-10-02 |
+| 050-filmes-series-paridade-v14 | Paridade visual de Filmes e Séries com o Design System V14 | Implementada | 30/30 tasks | 2026-10-02 |
+| 049-navegacao-por-pagina | Navegação por página nas listas | Convergida | 42/42 tasks | 2026-10-02 |
 
 ## Bugs
 

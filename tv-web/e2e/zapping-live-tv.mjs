@@ -140,7 +140,7 @@ async function run() {
     await openLiveTv(page)
 
     console.log('=== Toca Canal Um ===')
-    await page.keyboard.press('ArrowRight') // entra em "Zap Teste"
+    await page.keyboard.press('Enter') // entra em "Zap Teste"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').first().textContent()) === 'Canal Um',
@@ -172,7 +172,8 @@ async function run() {
     console.log('=== Cenário 3: RETURN fecha só a lista, sem interromper a reprodução ===')
     await page.keyboard.press('Enter') // reabre o zap
     await page.waitForSelector('.player-zap-columns', { timeout: 8000 })
-    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape') // 049: lista de canais -> trilha
+    await page.keyboard.press('Escape') // trilha -> fecha só a lista
     await page.waitForSelector('.player-zap-columns', { state: 'detached', timeout: 8000 })
     assert((await page.locator('[role="dialog"]').count()) === 1, 'player continua aberto depois do RETURN')
 

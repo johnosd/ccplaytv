@@ -31,6 +31,7 @@ import { clamp, gridNextIndex, useRemoteNav } from '../../lib/useRemoteNav'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 import { locateOrNeighbor, type LastFocus } from '../../lib/focus/reconcileFocus'
 import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
+import { measuredRowPitch, pagedIndex, pageSizeFor, scrollByPage } from '../../lib/focus/paging'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { FavoriteHint, FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
 import { useToast } from '../../lib/useToast'
@@ -82,6 +83,7 @@ const ALL_LOAD_AHEAD = GRID_COLS * 10
 
 const VOD_HINTS: HintItem[] = [
   { keyLabel: 'OK', action: 'Abrir' },
+  { keyLabel: '← →', action: 'Página' },
   { keyLabel: 'Segurar OK', action: 'Favoritar' },
   { keyLabel: 'RETURN', action: 'Voltar' },
 ]
@@ -249,6 +251,8 @@ export function VodCatalogScreen({
   const isAllFocused = focusedTrailEntry?.key.kind === 'all'
 
   const focusedCategoryRef = useScrollFocusedIntoView<HTMLButtonElement>(categoryIdx)
+  // Contêiner rolável da trilha: a página é o que cabe nele (feature 049).
+  const trailScrollRef = useRef<HTMLDivElement>(null)
 
   const [entered, setEntered] = useState<EnteredKey | null>(restore?.entered ?? null)
   const enteredCategory = entered?.kind === 'category' ? categories.find((c) => c.id === entered.id) : undefined
@@ -645,8 +649,16 @@ export function VodCatalogScreen({
             }
 
             if (col === 0) {
-              if (dir === 'right') {
-                enterFocusedTrailItem()
+              // → = próxima página, ← = página anterior da trilha (feature 049): nunca entra — só OK.
+              if (dir === 'right' || dir === 'left') {
+                const container = trailScrollRef.current
+                const pitch = measuredRowPitch(container, '.side-category-nav-item')
+                const direction = dir === 'right' ? 'next' : 'previous'
+                const next = pagedIndex(categoryIdx, trail.length, pageSizeFor(container?.clientHeight ?? 0, pitch), direction)
+                if (next !== null && next !== categoryIdx) {
+                  scrollByPage(container, direction, Math.abs(next - categoryIdx), pitch)
+                  setFocusedTrailKey(trail[next]?.key ?? { kind: 'favorites' })
+                }
                 return
               }
               if (dir === 'up' && categoryIdx === 0 && shell) {
@@ -909,7 +921,7 @@ export function VodCatalogScreen({
       {withShell(
         <div className="screen vod-screen">
           <div className="vod-body">
-            <div className="vod-side-nav no-scrollbar">
+            <div ref={trailScrollRef} className="vod-side-nav no-scrollbar">
               <SideCategoryNav
                 entries={sideEntries}
                 selectedId={selectedTrailId}

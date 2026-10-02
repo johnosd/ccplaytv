@@ -310,6 +310,20 @@
   white-space: nowrap;
 }
 
+.side-category-nav-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
 .side-category-nav-pinned-badge {
   color: var(--accent);
 }

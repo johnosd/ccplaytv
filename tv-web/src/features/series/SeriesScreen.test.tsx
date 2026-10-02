@@ -254,7 +254,7 @@ describe('SeriesScreen', () => {
     mockContentByCategory({ 1: many })
     renderSeries()
 
-    press('ArrowRight')
+    press('Enter')
 
     const rendered = document.querySelectorAll('.vod-grid .content-card-title')
     expect(rendered.length).toBeGreaterThan(0)
@@ -271,7 +271,7 @@ describe('SeriesScreen', () => {
     mockContentByCategory({ 1: [series('Série A', 'Comédia'), series('Série B', 'Comédia')] })
     renderSeries()
 
-    press('ArrowRight')
+    press('Enter')
     expect(gridTitles()).toEqual(['Série A', 'Série B'])
 
     press('Enter')
@@ -288,7 +288,7 @@ describe('SeriesScreen', () => {
     })
     const { container } = renderSeries()
 
-    press('ArrowRight')
+    press('Enter')
 
     const cards = [...container.querySelectorAll('.vod-grid-cell')]
     const comCapa = cards.find((c) => c.textContent?.includes('Com Capa'))
@@ -303,7 +303,7 @@ describe('SeriesScreen', () => {
     mockContentByCategory({}, 'failed')
     renderSeries()
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(screen.getByText('Não foi possível carregar esta categoria')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
@@ -314,7 +314,7 @@ describe('SeriesScreen', () => {
     const refetch = mockContentByCategory({}, 'failed')
     renderSeries()
 
-    press('ArrowRight')
+    press('Enter')
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
     press('Enter')
 
@@ -327,7 +327,7 @@ describe('SeriesScreen', () => {
     const onResync = vi.fn()
     renderSeries(onResync)
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(screen.getByText('O conteúdo desta lista não está mais no aparelho')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ressincronizar lista' })).toBeInTheDocument()
@@ -342,7 +342,7 @@ describe('SeriesScreen', () => {
     mockContentByCategory({ 1: [series('Série A', 'Comédia'), series('Série B', 'Comédia')] })
     const { rerenderSeries } = renderSeries()
 
-    press('ArrowRight')
+    press('Enter')
     press('ArrowRight') // move dentro da grade para o segundo item
 
     mockContentByCategory({ 1: [series('Série A', 'Comédia')] })
@@ -363,7 +363,7 @@ describe('SeriesScreen', () => {
     mockContentByCategory({ 1: [series('Breaking Bad', 'Drama'), series('Better Call Saul', 'Drama')] })
     renderSeries()
 
-    press('ArrowRight') // entra em "Drama" (padrão: 1ª categoria real)
+    press('Enter') // entra em "Drama" (padrão: 1ª categoria real)
     press('ArrowUp') // 1º item -> ícone
     press('Enter') // abre o campo
 
@@ -404,7 +404,7 @@ describe('SeriesScreen', () => {
     renderSeries()
 
     press('ArrowUp') // de "Drama" (padrão) para "Todos"
-    press('ArrowRight') // entra em "Todos"
+    press('Enter') // entra em "Todos"
 
     const titlesBeforeSearch = gridTitles()
     expect(titlesBeforeSearch.sort()).toEqual(['Better Call Saul', 'Breaking Bad'].sort())
@@ -427,7 +427,7 @@ describe('SeriesScreen', () => {
     mockContentByCategory({ 1: [series('Breaking Bad', 'Drama')] }, 'source_missing')
     renderSeries()
 
-    press('ArrowRight') // entra em "Drama" — item obsoleto, outcome indisponível
+    press('Enter') // entra em "Drama" — item obsoleto, outcome indisponível
     expect(document.querySelector('.vod-toolbar-search-button')).toBeNull()
   })
 
@@ -497,7 +497,7 @@ describe('SeriesScreen', () => {
       })
       renderSeries()
 
-      press('ArrowRight') // entra em "Drama"
+      press('Enter') // entra em "Drama"
 
       await waitFor(() => expect(document.querySelector('.watched-badge')).toBeInTheDocument())
       const cards = [...document.querySelectorAll('.vod-grid-cell')]
@@ -558,19 +558,19 @@ describe('SeriesScreen', () => {
       expect(seriesTab!.getAttribute('aria-current')).toBe('page')
       expect(navEntry('Comédia')?.classList.contains('tv-focus')).toBe(true)
 
-      press('ArrowRight') // entra em "Comédia"
+      press('Enter') // entra em "Comédia"
       press('ArrowRight')
       press('ArrowRight')
       expect(gridTitles()[gridTitles().length - 1]).toBe('Série A3')
 
       press('Escape') // RETURN na grade → side nav
       press('ArrowDown')
-      press('ArrowRight') // entra em "Drama": começa no primeiro card
+      press('Enter') // entra em "Drama": começa no primeiro card
       expect(gridTitles()).toEqual(['Série D1'])
 
       press('Escape')
       press('ArrowUp')
-      press('ArrowRight') // volta a "Comédia": restaura o último card focado ali
+      press('Enter') // volta a "Comédia": restaura o último card focado ali
       expect(gridTitles()[gridTitles().length - 1]).toBe('Série A3')
 
       press('Escape')

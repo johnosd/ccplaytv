@@ -223,7 +223,7 @@ describe('MoviesScreen — contrato da feature 025', () => {
     // Sem navegação prévia: a primeira categoria real da fonte.
     expect(navEntry('Ação')?.classList.contains('tv-focus')).toBe(true)
 
-    tap('ArrowRight') // entra em "Ação"
+    tap('Enter') // entra em "Ação"
     expect(focusedCardTitle()).toBe('Filme A1')
     tap('ArrowRight')
     tap('ArrowRight')
@@ -232,12 +232,12 @@ describe('MoviesScreen — contrato da feature 025', () => {
     tap('Escape') // RETURN na grade → side nav
     expect(navEntry('Ação')?.classList.contains('tv-focus')).toBe(true)
     tap('ArrowDown')
-    tap('ArrowRight') // entra em "Drama": começa no primeiro card
+    tap('Enter') // entra em "Drama": começa no primeiro card
     expect(focusedCardTitle()).toBe('Filme D1')
 
     tap('Escape')
     tap('ArrowUp')
-    tap('ArrowRight') // volta a "Ação": restaura o último card focado ali
+    tap('Enter') // volta a "Ação": restaura o último card focado ali
     expect(focusedCardTitle()).toBe('Filme A3')
 
     tap('Escape')

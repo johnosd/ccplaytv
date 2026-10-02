@@ -6,14 +6,20 @@ import { useOnlineStatus } from '../../lib/onlineStatus'
 import { Toast } from '../../components/Toast'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
-import { groupLabel } from '../catalog/catalogApi'
 import type { TopbarItem } from '../../navigation/appNav'
 import { ErrorState } from '../../components/ErrorState'
 import { EmptyState } from '../../components/EmptyState'
 import { Spinner } from '../../components/Spinner'
 import { Chip } from '../../components/Chip'
 import { channelNumberOf, knownCategoryCount } from './channelNumber'
-import { LIVE_ITEM_OVERSCAN, LIVE_ITEM_ROW_HEIGHT } from './liveTrail'
+import { useOverflowEdges } from '../../lib/focus/useOverflowEdges'
+import {
+  LIVE_EDGE_SCROLL_PADDING_END,
+  LIVE_EDGE_SCROLL_PADDING_START,
+  LIVE_ITEM_OVERSCAN,
+  LIVE_ITEM_ROW_HEIGHT,
+  liveGroupDisplay,
+} from './liveTrail'
 import { useLiveChannels, useLiveTrail } from './useLiveCatalog'
 import { useLiveSearch } from './useLiveSearch'
 import { useLiveZapping, useLiveZappingState } from './useLiveZapping'
@@ -99,8 +105,7 @@ export function LiveScreen({
   // 'favorites'`; `entry: 'category'` precisa de um efeito (a categoria só
   // se sabe depois de ler o registro do canal), tratado em `useLiveChannels`.
   const startsInFavorites = openFavorites || initialChannel?.entry === 'favorites'
-  const [col, setCol] = useState<0 | 1 | 2>(startsInFavorites ? 1 : 0)
-  const [previewAction, setPreviewAction] = useState(0)
+  const [col, setCol] = useState<0 | 1>(startsInFavorites ? 1 : 0)
   const zap = useLiveZappingState()
   const guide = useLiveGuideState()
   const { toastMessage, toastKey, showToast } = useToast()
@@ -142,7 +147,13 @@ export function LiveScreen({
     getScrollElement: () => channelListRef.current,
     estimateSize: () => LIVE_ITEM_ROW_HEIGHT,
     overscan: LIVE_ITEM_OVERSCAN,
+    // O item focado nunca fica sob o degradê de continuação (feature 048, FR-021).
+    scrollPaddingStart: LIVE_EDGE_SCROLL_PADDING_START,
+    scrollPaddingEnd: LIVE_EDGE_SCROLL_PADDING_END,
   })
+  const trailScrollRef = useRef<HTMLDivElement>(null)
+  const channelEdges = useOverflowEdges(channelListRef, channels.items.length)
+  const trailEdges = useOverflowEdges(trailScrollRef, trail.trail.length)
 
   const channelsNavigable =
     channels.effectiveCol === 1 && !channels.contentIsLoading && !channels.contentUnavailable && channels.items.length > 0
@@ -160,8 +171,8 @@ export function LiveScreen({
     setZone,
     setTopbarItem,
     setCol,
-    previewAction,
-    setPreviewAction,
+    channelListRef,
+    trailScrollRef,
     topErrorActionIndex,
     setTopErrorActionIndex,
     onBack,
@@ -231,13 +242,16 @@ export function LiveScreen({
     channels,
     zapOpen,
     contentActive,
-    previewAction,
     setCol,
     enterTrailEntry,
     onResync,
     offline: !online,
     channelListRef,
     channelVirtualizer,
+    trailScrollRef,
+    trailEdges,
+    channelEdges,
+    playingId: zap.playing?.id,
   }
 
   // Contagem conhecida da entrada exibida no cabeçalho (FR-006) — a mesma
@@ -251,7 +265,7 @@ export function LiveScreen({
     ? 'Todos'
     : isFavoritesFocused || enteredFavorites
       ? '★ Favoritos'
-      : groupLabel(focusedCategory?.name)
+      : liveGroupDisplay(focusedCategory?.name)
 
   return (
     <>
@@ -268,9 +282,12 @@ export function LiveScreen({
           shellModel,
           <div className="screen live-screen">
             <div className="live-header">
-              <h1 className="screen-title">TV ao vivo</h1>
+              <div className="live-header-titles">
+                <h1 className="screen-title">TV ao vivo</h1>
+                <p className="live-header-sub">Canais, programação e guia em um só lugar</p>
+              </div>
               <div className="live-header-chips">
-                <Chip selected={false}>{headerLabel}</Chip>
+                <Chip selected>{headerLabel}</Chip>
                 {headerCount !== undefined && <Chip selected={false}>{headerCount} canais</Chip>}
               </div>
             </div>

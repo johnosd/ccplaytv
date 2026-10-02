@@ -209,7 +209,7 @@ async function openViaTopbar(page, destination) {
 /** Entra na categoria `name` de Filmes/Séries (grade real do trilho já em foco). */
 async function enterCategory(page, name) {
   await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
@@ -378,7 +378,7 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra em "Canais Chrome"
+    await page.keyboard.press('Enter') // entra em "Canais Chrome"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     // Histórico limpo: as asserções abaixo só valem se a chamada ao motor for
     // DESTE cenário, não sobra do filme (o `select:AUDIO:2` do canal um é o mesmo).

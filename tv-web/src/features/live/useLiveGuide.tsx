@@ -30,7 +30,7 @@ export interface LiveGuideParams {
   trail: LiveTrail
   channels: LiveChannels
   search: LiveSearch
-  setCol: Dispatch<SetStateAction<0 | 1 | 2>>
+  setCol: Dispatch<SetStateAction<0 | 1>>
   sourceId: string
   showToast: (message: string) => void
 }

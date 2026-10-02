@@ -141,24 +141,24 @@ describe('LiveScreen — contrato da feature 031', () => {
   })
 
   // US1/AC1, US1/AC4, FR-009, FR-011, FR-012, Constitution: "Voltar Restaura Foco e Posição"
-  it('"Guia completo" do preview abre o guia (já não é "Em breve") no canal de origem, e RETURN volta à lista com o foco nesse mesmo canal', async () => {
+  // Emendado na 049: o "Guia completo" deixou de ser ação do destaque e virou o ícone ao lado da lupa (↑ do 1º canal
+  // → ícone de Guia → OK); a origem é, portanto, o canal onde o ícone foi alcançado (o 1º da lista).
+  it('ícone de Guia completo abre o guia (já não é "Em breve") no canal de origem, e RETURN volta à lista com o foco nesse mesmo canal', async () => {
     renderLive()
-    tap('ArrowRight') // entra em "Notícias"
-    tap('ArrowDown') // foca "Canal B" — a origem NÃO é o primeiro da lista
-    expect(focusedChannelName()).toBe('Canal B')
+    tap('Enter') // entra em "Notícias"
+    expect(focusedChannelName()).toBe('Canal A')
 
-    tap('ArrowRight') // canal → "Assistir" no preview
-    tap('ArrowDown') // "Favoritar"
-    tap('ArrowDown') // "Guia completo"
+    tap('ArrowUp') // lupa
+    tap('ArrowRight') // ícone de Guia completo
     tap('Enter')
 
     await waitFor(() => expect(document.querySelector('.epg-guide')).not.toBeNull())
     expect(document.body.textContent).not.toMatch(/Em breve/)
     // O foco do guia está no programa do canal de origem, não no primeiro canal.
-    await waitFor(() => expect(document.querySelector('.epg-guide-block.tv-focus')?.textContent).toContain('Programa do B'))
+    await waitFor(() => expect(document.querySelector('.epg-guide-block.tv-focus')?.textContent).toContain('Programa do A'))
 
     tap('Escape') // RETURN: fecha o guia
     await waitFor(() => expect(document.querySelector('.epg-guide')).toBeNull())
-    expect(focusedChannelName()).toBe('Canal B')
+    expect(focusedChannelName()).toBe('Canal A')
   })
 })

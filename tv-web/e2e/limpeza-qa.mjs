@@ -126,7 +126,7 @@ async function run() {
     console.log('=== US1: Filmes — trilha e grade sem barra nativa (FR-001) ===')
     await openViaTopbar(page, 'movies')
     await waitForRealCategory(page)
-    await page.keyboard.press('ArrowRight') // trilha -> entra em "Filmes" (30 itens, transborda)
+    await page.keyboard.press('Enter') // trilha -> entra em "Filmes" (30 itens, transborda)
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
     const trilha = await scrollbarThickness(page, '.vod-side-nav')

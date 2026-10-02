@@ -2,7 +2,9 @@ import type { Dispatch, SetStateAction } from 'react'
 import { groupLabel, type CatalogCategory } from '../catalog/catalogApi'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import type { TopbarItem } from '../../navigation/appNav'
-import { liveEntryKey, PREVIEW_ACTION_COUNT, type EnteredKey, type TrailEntry } from './liveTrail'
+import { useEffect, useRef, type RefObject } from 'react'
+import { measuredRowPitch, pagedIndex, pageSizeFor, scrollByPage } from '../../lib/focus/paging'
+import { LIVE_ITEM_ROW_HEIGHT, liveEntryKey, type EnteredKey, type TrailEntry } from './liveTrail'
 import { recalledLiveFocus } from './liveSessionMemory'
 import type { LiveChannels, LiveTrail } from './useLiveCatalog'
 import type { LiveGuide, LiveGuideState } from './useLiveGuide'
@@ -16,9 +18,10 @@ export interface LiveKeyboardParams {
   hasShell: boolean
   setZone: Dispatch<SetStateAction<'topbar' | 'content'>>
   setTopbarItem: Dispatch<SetStateAction<TopbarItem>>
-  setCol: Dispatch<SetStateAction<0 | 1 | 2>>
-  previewAction: number
-  setPreviewAction: Dispatch<SetStateAction<number>>
+  setCol: Dispatch<SetStateAction<0 | 1>>
+  /** Contêineres roláveis da lista de canais e da trilha — a página é o que cabe neles (feature 049). */
+  channelListRef: RefObject<HTMLDivElement | null>
+  trailScrollRef: RefObject<HTMLDivElement | null>
   topErrorActionIndex: number
   setTopErrorActionIndex: Dispatch<SetStateAction<number>>
   onBack: () => void
@@ -45,8 +48,8 @@ export function useLiveKeyboard({
   setZone,
   setTopbarItem,
   setCol,
-  previewAction,
-  setPreviewAction,
+  channelListRef,
+  trailScrollRef,
   topErrorActionIndex,
   setTopErrorActionIndex,
   onBack,
@@ -60,9 +63,8 @@ export function useLiveKeyboard({
   liveGuide,
 }: LiveKeyboardParams) {
   const { categories, categoriesQuery, topPhase, trail: entries, categoryIdx, focusedTrailEntry, entered, setEntered, setFocusedIdentity } = trail
-  const { searchActive, setSearchActive, setSearchTerm, topFocused, setTopFocused, resetSearchState } = search
+  const { searchActive, setSearchActive, setSearchTerm, topFocused, setTopFocused, topIcon, setTopIcon, resetSearchState } = search
   const {
-    activeChannel,
     canToggleFavorite,
     channelIdx,
     contentEmptyNeedsBack,
@@ -79,6 +81,27 @@ export function useLiveKeyboard({
   const { playActiveChannel } = zapping
   const { guide: openGuide, guideRef } = guide
   const { openGuideFromPreview, pageGuide } = liveGuide
+
+  // Destino de uma paginação de canais já decidida mas ainda não aplicada ao estado (ver `pageList`).
+  const pendingChannelIdxRef = useRef<number | null>(null)
+  useEffect(() => {
+    pendingChannelIdxRef.current = null
+  }, [channelIdx, items])
+
+  // Ao fechar o guia aberto pelo ícone, o foco volta ao canal de origem (FR-008), não ao ícone.
+  const guideWasOpenRef = useRef(false)
+  useEffect(() => {
+    if (openGuide) {
+      guideWasOpenRef.current = true
+      return
+    }
+    if (!guideWasOpenRef.current) return
+    guideWasOpenRef.current = false
+    if (topFocused && topIcon === 'guide') {
+      setTopFocused(false)
+      setTopIcon('search')
+    }
+  }, [openGuide, topFocused, topIcon, setTopFocused, setTopIcon])
 
   /**
    * Canal a focar ao ENTRAR numa entrada (feature 046, FR-008/FR-009): o último lembrado nesta
@@ -101,7 +124,6 @@ export function useLiveKeyboard({
     }
     resetSearchState()
     setCol(1)
-    setPreviewAction(0)
   }
 
   function enterFavorites() {
@@ -111,7 +133,6 @@ export function useLiveKeyboard({
     }
     resetSearchState()
     setCol(1)
-    setPreviewAction(0)
   }
 
   /** Entra em "Todos" (feature 018, D-001) — mesmo padrão de `enterFavorites`. */
@@ -122,7 +143,6 @@ export function useLiveKeyboard({
     }
     resetSearchState()
     setCol(1)
-    setPreviewAction(0)
   }
 
   /** Entra numa entrada específica da trilha — Favoritos, Todos ou uma categoria. */
@@ -149,35 +169,28 @@ export function useLiveKeyboard({
     if (hasTop && topFocused) {
       if (dir === 'down') {
         setTopFocused(false)
+        setTopIcon('search')
         setFocusedIdentity((prev) => ({ ...prev, channelId: items[0].id }))
+        return
       }
-      if (dir === 'up' || dir === 'down') return
+      if (dir === 'up') return
+      // Linha do topo (feature 049, FR-008): → vai da lupa ao Guia, ← volta. Com o campo de busca
+      // aberto não há ícones, e ←/→ são do cursor (guarda de alvo editável do useRemoteNav).
+      if (!searchActive) {
+        if (dir === 'right' && topIcon === 'search') setTopIcon('guide')
+        else if (dir === 'left' && topIcon === 'guide') setTopIcon('search')
+      }
+      return
     }
     if (hasTop && !topFocused && dir === 'up' && channelIdx === 0) {
       setTopFocused(true)
+      setTopIcon('search')
       return
     }
 
-    if (dir === 'left') {
-      if (effectiveCol === 2) {
-        setCol(1) // preview → o mesmo canal de onde saiu (D-005)
-        return
-      }
-      setCol(0)
-      return
-    }
-    if (dir === 'right') {
-      if (effectiveCol === 0) {
-        enterFocusedTrailItem()
-        return
-      }
-      // → do canal focado pro preview (feature 024, FR-014) — nunca dentro
-      // do zapping, que não tem preview (D-009): mantém o comportamento
-      // antigo (sem efeito) lá.
-      if (effectiveCol === 1 && !zapOpen && !topFocused && activeChannel) {
-        setCol(2)
-        setPreviewAction(0)
-      }
+    // → = próxima página, ← = página anterior (feature 049): nunca entra, toca nem troca de coluna.
+    if (dir === 'left' || dir === 'right') {
+      pageList(dir === 'right' ? 'next' : 'previous')
       return
     }
 
@@ -195,10 +208,6 @@ export function useLiveKeyboard({
           setFocusedIdentity({ trailKey: entries[next]?.key ?? { kind: 'favorites' }, channelId: null })
         }
       }
-    } else if (effectiveCol === 2) {
-      if (dir === 'up' || dir === 'down') {
-        setPreviewAction((prev) => clamp(prev + (dir === 'down' ? 1 : -1), 0, PREVIEW_ACTION_COUNT - 1))
-      }
     } else if (!topFocused) {
       const total = items.length
       if (dir === 'up' || dir === 'down') {
@@ -208,23 +217,38 @@ export function useLiveKeyboard({
     }
   }
 
+  /**
+   * Paginar a trilha ou a lista de canais (feature 049, `logic/paginacao.md` §1-§4): o foco anda
+   * uma página, presa às pontas, e a lista rola o mesmo tanto para o item cair na mesma linha da tela.
+   */
+  function pageList(direction: 'next' | 'previous') {
+    if (effectiveCol === 0) {
+      const container = trailScrollRef.current
+      const pitch = measuredRowPitch(container, '.side-category-nav-item')
+      const next = pagedIndex(categoryIdx, entries.length, pageSizeFor(container?.clientHeight ?? 0, pitch), direction)
+      if (next === null || next === categoryIdx) return
+      scrollByPage(container, direction, Math.abs(next - categoryIdx), pitch)
+      setFocusedIdentity({ trailKey: entries[next]?.key ?? { kind: 'favorites' }, channelId: null })
+      return
+    }
+    const container = channelListRef.current
+    // Com a seta segurada chegam vários toques antes de o foco adiado (abaixo) virar estado: parte-se do
+    // destino já decidido, não do índice ainda desatualizado.
+    const from = pendingChannelIdxRef.current ?? channelIdx
+    const next = pagedIndex(from, items.length, pageSizeFor(container?.clientHeight ?? 0, LIVE_ITEM_ROW_HEIGHT), direction)
+    if (next === null || next === from) return
+    pendingChannelIdxRef.current = next
+    scrollByPage(container, direction, Math.abs(next - from), LIVE_ITEM_ROW_HEIGHT)
+    // A lista é virtualizada: o virtualizador só sabe da rolagem nova no evento de scroll. Mudar o foco no
+    // mesmo instante o faria achar o item fora da janela e rolar de novo (item na borda, não na mesma linha).
+    // Adiar para o quadro seguinte deixa o `scrollToIndex` do foco já enxergar o item visível.
+    const nextId = items[next]?.id ?? null
+    const defer = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (callback: () => void) => setTimeout(callback, 0)
+    defer(() => setFocusedIdentity((prev) => ({ ...prev, channelId: nextId })))
+  }
   function handleTrailSelect() {
     if (effectiveCol === 0) {
       enterFocusedTrailItem()
-      return
-    }
-
-    if (effectiveCol === 2) {
-      if (previewAction === 0) {
-        playActiveChannel()
-        return
-      }
-      if (previewAction === 1) {
-        toggleFocusedFavorite()
-        return
-      }
-      // "Guia completo" (feature 031): o guia em tela cheia — já não é mock.
-      openGuideFromPreview()
       return
     }
 
@@ -258,6 +282,13 @@ export function useLiveKeyboard({
     // alcançado com `!searchActive` — quando o campo já tem foco DOM real
     // (`searchActive && topFocused`), a guarda de alvo editável do
     // useRemoteNav intercepta Enter antes de chegar aqui.
+    if (topFocused && topIcon === 'guide') {
+      // Guia completo no canal de origem (feature 031). O foco só sai da linha do topo quando o guia
+      // fecha (efeito acima): trocar `topFocused` no meio do toque mudaria o modo do OK entre o keydown
+      // e o keyup e ativaria o guia duas vezes.
+      openGuideFromPreview()
+      return
+    }
     if (topFocused) {
       setSearchActive(true)
       setSearchTerm('')
@@ -320,12 +351,6 @@ export function useLiveKeyboard({
             }
             if (topPhase !== 'normal') {
               onBack()
-              return
-            }
-            // Preview (feature 024): volta ao mesmo canal, nunca à trilha
-            // direto (D-005).
-            if (effectiveCol === 2) {
-              setCol(1)
               return
             }
             // Busca (feature 018): RETURN só ganha uma camada extra quando a

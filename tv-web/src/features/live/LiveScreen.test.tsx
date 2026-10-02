@@ -224,7 +224,7 @@ function press(key: string) {
 
 /** Entra na categoria em foco (dispara a obtenção) e desce `n` posições dentro dela. */
 function enterAndDescend(n = 0) {
-  press('ArrowRight')
+  press('Enter')
   for (let i = 0; i < n; i += 1) press('ArrowDown')
 }
 
@@ -256,7 +256,7 @@ describe('LiveScreen', () => {
     mockContentLoading()
     renderLive()
 
-    press('ArrowRight') // entra em "Esportes" — conteúdo ainda carregando
+    press('Enter') // entra em "Esportes" — conteúdo ainda carregando
     expect(screen.getByText(/Carregando canais/)).toBeInTheDocument()
     press('Enter')
     expect(document.querySelector('.side-category-nav-item.tv-focus')).not.toBeNull()
@@ -267,7 +267,7 @@ describe('LiveScreen', () => {
     mockContentByCategory({ 1: [] })
     renderLive()
 
-    press('ArrowRight') // entra em "Vazio" — categoria sem canais
+    press('Enter') // entra em "Vazio" — categoria sem canais
     expect(screen.getByText('Este grupo está vazio.')).toBeInTheDocument()
     press('Enter')
     expect(document.querySelector('.side-category-nav-item.tv-focus')).not.toBeNull()
@@ -278,11 +278,11 @@ describe('LiveScreen', () => {
     mockContentByCategory({ 1: [channel('Globo', 'Esportes')] })
     renderLive()
 
-    press('ArrowRight') // trilha -> entra na 1ª categoria real (índice 2)
-    press('ArrowLeft') // canal -> trilha (continua na categoria real)
+    press('Enter') // trilha -> entra na 1ª categoria real (índice 2)
+    press('Escape') // canal -> trilha (continua na categoria real)
     press('ArrowUp') // categoria real (2) -> "Todos" (1)
     press('ArrowUp') // "Todos" (1) -> "★ Favoritos" (0)
-    press('ArrowRight') // entra em "★ Favoritos" (vazio, sem nenhum favorito salvo)
+    press('Enter') // entra em "★ Favoritos" (vazio, sem nenhum favorito salvo)
     await waitFor(() => expect(screen.getByText('Nenhum favorito ainda')).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('tv-focus')
 
@@ -404,7 +404,7 @@ describe('LiveScreen', () => {
       renderLiveWithShell()
       expect(document.querySelector('.topbar')).not.toBeNull()
 
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
 
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
@@ -425,7 +425,7 @@ describe('LiveScreen', () => {
     mockCategories([category(1, 'Esportes', 0)])
     mockContentByCategory({ 1: [channel('C10', 'Esportes'), channel('C11', 'Esportes')] })
     const { container } = renderLive()
-    press('ArrowRight')
+    press('Enter')
     expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 
@@ -433,7 +433,7 @@ describe('LiveScreen', () => {
     mockCategories([category(1, 'Esportes', 0)])
     mockContentByCategory({ 1: [channel('C10', 'Esportes'), channel('C11', 'Esportes')] })
     renderLive()
-    press('ArrowRight')
+    press('Enter')
     expect(document.querySelector('.live-channel-list')).toHaveClass('no-scrollbar')
   })
 
@@ -441,11 +441,11 @@ describe('LiveScreen', () => {
     mockCategories([category(1, 'Esportes', 0)])
     mockContentByCategory({ 1: [channel('Globo', 'Esportes')] })
     const { container } = renderLive()
-    press('ArrowRight')
-    press('ArrowLeft')
+    press('Enter')
+    press('Escape')
     press('ArrowUp')
     press('ArrowUp')
-    press('ArrowRight')
+    press('Enter')
     await waitFor(() => expect(screen.getByText('Nenhum favorito ainda')).toBeInTheDocument())
     expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
@@ -466,7 +466,7 @@ describe('LiveScreen', () => {
       episode_number: null,
     })
     const { container } = renderLive()
-    press('ArrowRight')
+    press('Enter')
     press('Enter') // toca o canal
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
     press('Enter') // abre o zapping
@@ -511,7 +511,7 @@ describe('LiveScreen', () => {
       mockCategories([category(1, 'Esportes', 0)])
       mockContentByCategory({ 1: [] })
       renderLive()
-      press('ArrowRight')
+      press('Enter')
       expect(countTvFocus()).toBe(1)
     })
 
@@ -520,7 +520,7 @@ describe('LiveScreen', () => {
       mockAggregated([], 0, 1)
       renderLive()
       press('ArrowUp')
-      press('ArrowRight')
+      press('Enter')
       expect(countTvFocus()).toBe(1)
     })
 
@@ -529,7 +529,7 @@ describe('LiveScreen', () => {
       renderLive()
       press('ArrowUp')
       press('ArrowUp')
-      press('ArrowRight')
+      press('Enter')
       expect(countTvFocus()).toBe(1)
     })
 
@@ -537,16 +537,17 @@ describe('LiveScreen', () => {
       mockCategories([category(1, 'Esportes', 0)])
       mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
       renderLive()
-      press('ArrowRight')
+      press('Enter')
       expect(countTvFocus()).toBe(1)
     })
 
-    it('preview, com uma ação focada', () => {
+    it('linha do topo da lista, com o ícone de Guia focado (feature 049)', () => {
       mockCategories([category(1, 'Esportes', 0)])
       mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
       renderLive()
-      press('ArrowRight')
-      press('ArrowRight')
+      press('Enter') // entra em Esportes
+      press('ArrowUp') // lupa
+      press('ArrowRight') // ícone de Guia
       expect(countTvFocus()).toBe(1)
     })
   })
@@ -567,7 +568,7 @@ describe('LiveScreen', () => {
     const calls = vi.mocked(catalogApi.useCategoryContent).mock.calls
     expect(calls.every(([, cat]) => cat === undefined)).toBe(true)
 
-    press('ArrowRight') // agora sim: entrar passa a categoria concreta
+    press('Enter') // agora sim: entrar passa a categoria concreta
     const callsAfterEnter = vi.mocked(catalogApi.useCategoryContent).mock.calls
     expect(callsAfterEnter.some(([, cat]) => cat?.id === 1)).toBe(true)
   })
@@ -588,7 +589,7 @@ describe('LiveScreen', () => {
       'Notícias',
     ])
 
-    press('ArrowRight') // padrão é focar a primeira categoria REAL — entra em "Esportes"
+    press('Enter') // padrão é focar a primeira categoria REAL — entra em "Esportes"
 
     const channels = document.querySelectorAll('.live-column-channels .live-item-name')
     expect([...channels].map((c) => c.textContent)).toEqual(['Zulu', 'Yankee'])
@@ -602,7 +603,7 @@ describe('LiveScreen', () => {
     mockContentByCategory({ 1: many })
     renderLive()
 
-    press('ArrowRight')
+    press('Enter')
 
     const rendered = document.querySelectorAll('.live-column-channels .live-item-name')
     expect(rendered.length).toBeGreaterThan(0)
@@ -625,7 +626,7 @@ describe('LiveScreen', () => {
     // então "Canal 60" só aparece se o `scrollToIndex` mover a janela. Eram 200
     // teclas (~20 ms cada no jsdom): o teste levava 4–5 s sozinho, colado no
     // limite de 5 s, e estourava com a suíte em paralelo (achado na feature 039).
-    press('ArrowRight')
+    press('Enter')
     expect(screen.queryByText('Canal 60')).not.toBeInTheDocument()
     for (let i = 0; i < 60; i += 1) press('ArrowDown')
 
@@ -642,7 +643,7 @@ describe('LiveScreen', () => {
     mockContentByCategory({ 1: [channel('A', 'G'), channel('B', 'G')] })
     renderLive()
 
-    press('ArrowRight')
+    press('Enter')
 
     // O catálogo publicado pode ser parcial durante uma importação; a tela
     // não pode sugerir completude.
@@ -658,7 +659,7 @@ describe('LiveScreen', () => {
     mockContentLoading()
     renderLive()
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(screen.getByText(/Carregando canais/)).toBeInTheDocument()
   })
@@ -668,7 +669,7 @@ describe('LiveScreen', () => {
     mockContentByCategory({}, 'failed')
     renderLive()
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(screen.getByText('Não foi possível carregar esta categoria')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
@@ -684,7 +685,7 @@ describe('LiveScreen', () => {
     })
     renderLive()
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(screen.getByTestId('error-state-code')).toHaveTextContent('API-429')
     expect(screen.getByText('Serviço temporariamente limitado')).toBeInTheDocument()
@@ -696,7 +697,7 @@ describe('LiveScreen', () => {
     const refetch = mockContentByCategory({}, 'failed')
     renderLive()
 
-    press('ArrowRight')
+    press('Enter')
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
     press('Enter')
 
@@ -709,7 +710,7 @@ describe('LiveScreen', () => {
     const onResync = vi.fn()
     renderLive(onResync)
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(screen.getByText('O conteúdo desta lista não está mais no aparelho')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ressincronizar lista' })).toBeInTheDocument()
@@ -725,7 +726,7 @@ describe('LiveScreen', () => {
     mockContentByCategory({ 1: [channel('Zulu', 'Esportes')] }, 'stale-served')
     renderLive()
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(screen.getByText(/Não foi possível atualizar agora/)).toBeInTheDocument()
     expect(document.querySelector('.live-column-channels .live-item-name')?.textContent).toBe('Zulu')
@@ -762,7 +763,7 @@ describe('LiveScreen', () => {
     press('ArrowUp')
     enterAndDescend(1)
     press('ArrowUp')
-    press('ArrowLeft')
+    press('Escape')
     press('ArrowDown')
 
     expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
@@ -848,9 +849,9 @@ describe('LiveScreen', () => {
     enterAndDescend(1)
     expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('A2')
 
-    press('ArrowLeft')
+    press('Escape')
     press('ArrowDown')
-    press('ArrowRight')
+    press('Enter')
 
     expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('B1')
   })
@@ -908,7 +909,7 @@ describe('LiveScreen', () => {
     mockContentByCategory({ 1: [channel('Zulu', 'Esportes')] })
     renderLive()
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(screen.getByText('O provedor declarou 5 canais nesta categoria, mas entregou 1.')).toBeInTheDocument()
   })
@@ -918,7 +919,7 @@ describe('LiveScreen', () => {
     mockContentByCategory({ 1: [channel('Zulu', 'Esportes')] })
     renderLive()
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(screen.queryByText(/O provedor declarou/)).not.toBeInTheDocument()
   })
@@ -948,13 +949,13 @@ describe('LiveScreen', () => {
     const { rerenderLive } = renderLive()
 
     press('ArrowDown') // move o cursor da trilha pro grupo G2 — sem entrar
-    expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('G2')
+    expect(document.querySelector('.live-column-groups .tv-focus .side-category-nav-label')?.textContent).toBe('G2')
 
     // G2 deixou de existir.
     mockCategories([category(1, 'G1', 0), category(3, 'G3', 1)])
     rerenderLive()
 
-    expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('G1')
+    expect(document.querySelector('.live-column-groups .tv-focus .side-category-nav-label')?.textContent).toBe('G1')
   })
 
   describe('logo e número do canal (feature 024, US4)', () => {
@@ -977,7 +978,7 @@ describe('LiveScreen', () => {
       })
       renderLive()
 
-      press('ArrowRight')
+      press('Enter')
 
       const rows = document.querySelectorAll('.live-channel-list .channel-row')
       expect(rows[0].querySelector('img')).toHaveAttribute('src', 'http://exemplo.test/logo.png')
@@ -993,12 +994,12 @@ describe('LiveScreen', () => {
       mockAggregated([sharedChannel], 1, 1)
       renderLive()
 
-      press('ArrowRight') // entra em Esportes
+      press('Enter') // entra em Esportes
       const numberInCategory = document.querySelectorAll('.channel-row-number')[1]?.textContent
 
-      press('ArrowLeft')
+      press('Escape')
       press('ArrowUp') // Esportes → Todos
-      press('ArrowRight') // entra em Todos
+      press('Enter') // entra em Todos
 
       const numberInAll = document.querySelector('.channel-row-number')?.textContent
       expect(numberInCategory).toBe('002')
@@ -1016,7 +1017,7 @@ describe('LiveScreen', () => {
       renderLive()
 
       press('ArrowDown') // foca "Notícias"
-      press('ArrowRight') // entra nela
+      press('Enter') // entra nela
 
       expect(document.querySelector('.channel-row-number')).toBeNull()
       expect(document.querySelector('.live-column-channels')?.textContent).not.toContain('000')
@@ -1046,7 +1047,7 @@ describe('LiveScreen', () => {
       renderLive()
 
       // Vai pra Esportes e Canal 10, toca
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
@@ -1066,7 +1067,7 @@ describe('LiveScreen', () => {
       mockContentByCategory({ 1: [channel('C10', 'Esportes'), channel('C11', 'Esportes')] })
       renderLive()
 
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
@@ -1106,7 +1107,7 @@ describe('LiveScreen', () => {
       mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
       renderLive()
 
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
@@ -1125,19 +1126,44 @@ describe('LiveScreen', () => {
       expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
     })
 
-    it('T023: RETURN com o zapping aberto fecha só ele, sem fechar a tela', async () => {
+    it('feature 048 (FR-014): no zapping, a linha do canal que toca tem is-playing e ela não acompanha o foco', async () => {
+      mockCategories([category(1, 'Esportes', 0)])
+      mockContentByCategory({ 1: [channel('C10', 'Esportes'), channel('C11', 'Esportes')] })
+      renderLive()
+
+      press('Enter') // entra
+      press('Enter') // toca C10
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+      press('Enter') // abre o zapping
+      await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
+
+      const playingNames = () =>
+        [...document.querySelectorAll('.player-zap-columns .live-channel-row.is-playing .live-item-name')].map(
+          (el) => el.textContent,
+        )
+      expect(playingNames()).toEqual(['C10'])
+
+      press('ArrowDown') // foco em C11 (a lista de canais já abre com o foco)
+      expect(document.querySelector('.player-zap-columns .live-channel-row.tv-focus .live-item-name')?.textContent).toBe('C11')
+      expect(playingNames()).toEqual(['C10'])
+    })
+
+    it('T023: RETURN com o zapping aberto volta à trilha e, de novo, fecha só a lista, sem fechar a tela', async () => {
       mockCategories([category(1, 'Esportes', 0)])
       mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
       const onBack = vi.fn()
       renderLive(undefined, onBack)
 
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
       press('Enter') // Abre o zap
       await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
-      press('Escape') // Back
+      press('Escape') // Back: da lista de canais para a trilha (feature 049)
+      expect(document.querySelector('.player-zap-columns')).toBeInTheDocument()
+      expect(document.querySelector('.player-zap-columns .live-column-groups .tv-focus')).not.toBeNull()
+      press('Escape') // Back: da trilha, fecha só a lista
 
       expect(document.querySelector('.player-zap-columns')).not.toBeInTheDocument()
       // Mas o player continua aberto
@@ -1150,21 +1176,21 @@ describe('LiveScreen', () => {
       mockContentByCategory({ 1: [channel('C10', 'G1')], 2: [channel('C20', 'G2')] })
       renderLive()
 
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
       press('Enter') // Abre o zap
       await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
 
-      press('ArrowLeft')
+      press('Escape')
       // Agora o player-zap-columns contém as colunas renderizadas. 
       // Como PlayerLayer repassa onDirection para o topLayer, as teclas navegam a lista do zap.
       const zapColumns = document.querySelector('.player-zap-columns')!
-      expect(zapColumns.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('G1')
+      expect(zapColumns.querySelector('.live-column-groups .tv-focus .side-category-nav-label')?.textContent).toBe('G1')
       
       press('ArrowDown')
-      press('ArrowRight')
+      press('Enter')
       
       expect(zapColumns.querySelector('.live-column-channels .live-column-title')?.textContent).toBe('G2')
       expect(zapColumns.querySelector('.live-channel-list .tv-focus')?.textContent).toContain('C20')
@@ -1175,7 +1201,7 @@ describe('LiveScreen', () => {
       mockContentByCategory({ 1: [channel('C10', 'Esportes'), channel('C11', 'Esportes'), channel('C12', 'Esportes')] })
       renderLive()
 
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
@@ -1225,7 +1251,7 @@ describe('LiveScreen', () => {
       renderLive()
 
       // Toca C10
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
@@ -1267,7 +1293,7 @@ describe('LiveScreen', () => {
       renderLive()
 
       // Toca C10
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
@@ -1283,7 +1309,7 @@ describe('LiveScreen', () => {
       mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
       renderLive()
 
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
@@ -1302,12 +1328,12 @@ describe('LiveScreen', () => {
     })
 
     // Feature 024, D-009: zapping nunca tem preview nem topbar.
-    it('o zapping nunca tem painel de preview, e → no canal focado não abre um (D-009)', async () => {
+    it('o zapping nunca tem painel de preview, e → pagina a lista em vez de abrir um (D-009, feature 049)', async () => {
       mockCategories([category(1, 'Esportes', 0)])
       mockContentByCategory({ 1: [channel('C10', 'Esportes'), channel('C11', 'Esportes')] })
       renderLive()
 
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
@@ -1315,11 +1341,13 @@ describe('LiveScreen', () => {
       await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
       expect(document.querySelector('.player-zap-columns .live-preview-panel')).toBeNull()
 
-      // → sobre o canal focado (col 1, fora do zapping levaria ao preview) —
-      // dentro do zapping continua sem efeito, como sempre foi.
+      // → no zapping pagina a lista (2 canais cabem numa página: vai ao último) e nunca abre preview.
       press('ArrowRight')
       expect(document.querySelector('.player-zap-columns .live-preview-panel')).toBeNull()
-      expect(document.querySelector('.player-zap-columns .live-channel-list .tv-focus')?.textContent).toContain('C10')
+      // O foco da página é aplicado no quadro seguinte (lista virtualizada).
+      await waitFor(() =>
+        expect(document.querySelector('.player-zap-columns .live-channel-list .tv-focus')?.textContent).toContain('C11'),
+      )
     })
 
     // Feature 024, `logic/foco-live-shell.md` §5: dentro do zapping, ↑ em
@@ -1329,14 +1357,14 @@ describe('LiveScreen', () => {
       mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
       renderLive()
 
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
       press('Enter') // abre o zapping
       await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
 
-      press('ArrowLeft') // canal → trilha
+      press('Escape') // canal → trilha
       press('ArrowUp') // Esportes → Todos
       press('ArrowUp') // Todos → ★ Favoritos
       expect(
@@ -1370,13 +1398,13 @@ describe('LiveScreen', () => {
         </QueryClientProvider>,
       )
 
-      press('ArrowRight')
+      press('Enter')
       press('Enter')
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
       press('Enter') // abre o zapping
       await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
-      press('ArrowLeft')
+      press('Escape')
       press('ArrowUp')
       press('ArrowUp') // foco em "★ Favoritos", dentro do zapping
       press('ArrowUp') // tentativa de sair pra topbar — sem efeito (D-009)
@@ -1392,15 +1420,14 @@ describe('LiveScreen', () => {
 
   describe('preview do canal (feature 024, US2)', () => {
     // Feature 031 (FR-011): "Guia completo" deixou de ser mock "Em breve" — abre o guia em tela cheia.
-    it('"Guia completo" abre o guia em tela cheia, sem aviso "Em breve" e sem abrir o player', () => {
+    it('ícone de Guia completo (ao lado da lupa) abre o guia em tela cheia, sem aviso "Em breve" e sem abrir o player', () => {
       mockCategories([category(1, 'Esportes', 0)])
       mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
       renderLive()
 
-      press('ArrowRight') // entra em Esportes, foca C10
-      press('ArrowRight') // canal → preview, foco em "Assistir"
-      press('ArrowDown') // "Favoritar"
-      press('ArrowDown') // "Guia completo"
+      press('Enter') // entra em Esportes, foca C10
+      press('ArrowUp') // lupa
+      press('ArrowRight') // ícone de Guia completo
       press('Enter')
 
       expect(document.querySelector('.epg-guide')).not.toBeNull()
@@ -1409,56 +1436,19 @@ describe('LiveScreen', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
-    it('"Assistir" soft disabled num canal sem fonte: o mesmo toast explicativo, sem abrir o player', () => {
+    it('OK num canal sem fonte: o toast explicativo, sem abrir o player', () => {
       mockCategories([category(1, 'Grupo', 0)])
       mockContentByCategory({ 1: [channel('Sem fonte', 'Grupo', false)] })
       renderLive()
 
-      press('ArrowRight')
-      press('ArrowRight') // canal → preview, foco em "Assistir"
-      expect(document.querySelector('.live-preview-action.is-soft-disabled.tv-focus')).not.toBeNull()
-
-      press('Enter')
+      press('Enter') // entra
+      press('Enter') // OK no canal sem fonte
 
       expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       expect(screen.getByText(/não tem uma fonte de reprodução/)).toBeInTheDocument()
     })
 
-    it('segurar OK com o foco no preview não favorita — sem onLongSelect ali, age como toque comum (D-005)', async () => {
-      mockCategories([category(1, 'Esportes', 0)])
-      mockContentByCategory({ 1: [channel('C10', 'Esportes')] })
-      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue({
-        item_id: 'id-C10',
-        kind: 'channel',
-        url: 'http://exemplo.invalid/x.ts',
-        container_hint: 'ts',
-        source_id: 'source-1',
-        provider_stream_id: null,
-        original_name: 'C10',
-        series_id: null,
-        season_number: null,
-        episode_number: null,
-      })
-      renderLive()
-
-      press('ArrowRight')
-      press('ArrowRight') // canal → preview, foco em "Assistir" (não "Favoritar")
-
-      // O gesto de segurar (`onLongSelect`) só existe na coluna de canais
-      // (D-005); no preview, sem ele, o OK age direto no keydown, "modo
-      // legado" (useRemoteNav.ts) — nunca favorita por segurar aqui.
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
-      await act(() => new Promise((resolve) => setTimeout(resolve, 900)))
-      document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }))
-
-      expect(screen.queryByText('Adicionado aos favoritos')).not.toBeInTheDocument()
-      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
-    })
-    // "Favoritar" no preview alterna o favorito de verdade (identidade real,
-    // fake-indexeddb) — coberto em `LiveScreen.favorites.test.tsx` (h2), que
-    // já tem a infraestrutura de fonte/canal seedados e a limpeza de banco
-    // que este arquivo (100% mocado) não tem.
   })
 
   describe('busca por categoria (feature 018)', () => {
@@ -1467,7 +1457,7 @@ describe('LiveScreen', () => {
       mockContentByCategory({ 1: [channel('Globo', 'Esportes'), channel('ESPN', 'Esportes')] })
       renderLive()
 
-      press('ArrowRight') // entra em "Esportes"
+      press('Enter') // entra em "Esportes"
       press('ArrowUp') // 1º item -> ícone
       press('Enter') // abre o campo
 
@@ -1502,7 +1492,7 @@ describe('LiveScreen', () => {
       mockContentByCategory({ 1: [channel('Globo', 'Esportes'), channel('TV Globo', 'Esportes')] })
       renderLive()
 
-      press('ArrowRight')
+      press('Enter')
       press('ArrowUp')
       press('Enter')
 
@@ -1522,7 +1512,7 @@ describe('LiveScreen', () => {
       })
       renderLive()
 
-      press('ArrowRight') // entra em "Esportes"
+      press('Enter') // entra em "Esportes"
       press('ArrowUp')
       press('Enter')
 
@@ -1539,7 +1529,7 @@ describe('LiveScreen', () => {
       renderLive()
 
       press('ArrowUp') // de "Esportes" (padrão) para "Todos"
-      press('ArrowRight') // entra em "Todos"
+      press('Enter') // entra em "Todos"
       press('ArrowUp') // 1º item -> ícone
       press('Enter') // abre o campo
 
@@ -1557,7 +1547,7 @@ describe('LiveScreen', () => {
       renderLive()
 
       press('ArrowUp')
-      press('ArrowRight') // entra em "Todos"
+      press('Enter') // entra em "Todos"
       expect(document.querySelector('.live-channel-list')?.textContent).toContain('Globo')
       expect(screen.queryByText(/Busca em \d+ de \d+ categorias/)).not.toBeInTheDocument()
 
@@ -1575,7 +1565,7 @@ describe('LiveScreen', () => {
       mockContentByCategory({ 1: [channel('Globo', 'Esportes')] })
       renderLive()
 
-      press('ArrowRight')
+      press('Enter')
       press('ArrowUp')
       press('Enter')
 
@@ -1596,12 +1586,12 @@ describe('LiveScreen', () => {
       mockContentByCategory({ 1: [channel('Globo', 'Esportes')], 2: [] })
       renderLive()
 
-      press('ArrowRight') // entra em "Esportes" (com item)
+      press('Enter') // entra em "Esportes" (com item)
       expect(document.querySelector('.search-icon-button')).not.toBeNull()
 
-      press('ArrowLeft')
+      press('Escape')
       press('ArrowDown')
-      press('ArrowRight') // entra em "Vazia" (sem item)
+      press('Enter') // entra em "Vazia" (sem item)
       expect(document.querySelector('.search-icon-button')).toBeNull()
     })
 
@@ -1615,7 +1605,7 @@ describe('LiveScreen', () => {
       mockContentByCategory({ 1: [channel('Globo', 'Esportes')] }, 'source_missing')
       renderLive()
 
-      press('ArrowRight') // entra em "Esportes" — item obsoleto, outcome indisponível
+      press('Enter') // entra em "Esportes" — item obsoleto, outcome indisponível
       expect(document.querySelector('.search-icon-button')).toBeNull()
     })
   })
@@ -1708,7 +1698,7 @@ describe('LiveScreen', () => {
       renderLive()
 
       press('ArrowUp') // de "Esportes" (padrão) para "Todos"
-      press('ArrowRight') // entra em "Todos"
+      press('Enter') // entra em "Todos"
       press('Enter') // toca T1
       await waitForBand('T1')
 

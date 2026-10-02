@@ -49,6 +49,9 @@ export const SUITE = [
   'e2e/ime-formularios.mjs',
   'e2e/memoria-foco-key-repeat.mjs',
   'e2e/player-dev-mpegts.mjs',
+  'e2e/live-paridade-v14.mjs',
+  'e2e/navegacao-por-pagina.mjs',
+  'e2e/filmes-series-paridade-v14.mjs',
 ]
 
 function lerArgs(argv) {

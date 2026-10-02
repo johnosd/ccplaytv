@@ -124,7 +124,7 @@ async function run() {
     for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowRight') // Início -> TV -> Filmes -> Séries
     await page.keyboard.press('Enter')
     await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra em "Séries"
+    await page.keyboard.press('Enter') // entra em "Séries"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await page.keyboard.press('Enter') // detalhe
     await page.waitForSelector('.vod-detail', { timeout: 8000 })

@@ -17,6 +17,8 @@ export function useLiveSearch() {
   const [searchActive, setSearchActive] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [topFocused, setTopFocused] = useState(false)
+  // Qual ícone da linha do topo tem o foco (feature 049): a lupa ou o Guia completo.
+  const [topIcon, setTopIcon] = useState<'search' | 'guide'>('search')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const belowMinimum = normalizeForSearch(searchTerm).length < SEARCH_MIN_CHARS
 
@@ -30,6 +32,7 @@ export function useLiveSearch() {
     setSearchActive(false)
     setSearchTerm('')
     setTopFocused(false)
+    setTopIcon('search')
   }
 
   return {
@@ -39,6 +42,8 @@ export function useLiveSearch() {
     setSearchTerm,
     topFocused,
     setTopFocused,
+    topIcon,
+    setTopIcon,
     searchInputRef,
     belowMinimum,
     resetSearchState,

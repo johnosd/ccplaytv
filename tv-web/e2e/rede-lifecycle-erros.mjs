@@ -150,7 +150,7 @@ async function openViaTopbar(page, destination) {
 
 async function enterCategory(page, name) {
   await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 

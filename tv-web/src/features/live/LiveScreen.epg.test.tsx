@@ -140,7 +140,7 @@ describe('LiveScreen — "Agora" (feature 030, US1)', () => {
     mockCatalog([channel('Canal Com Guia', 'a.br'), channel('Canal Sem Guia', null)])
     renderLive()
     tap('ArrowUp') // da 1ª categoria real para "Todos"
-    tap('ArrowRight') // entra
+    tap('Enter') // entra
     await settle(() => nowText('Canal Com Guia') === 'Jornal da Manhã')
 
     expect(nowText('Canal Com Guia')).toBe('Jornal da Manhã')
@@ -151,7 +151,7 @@ describe('LiveScreen — "Agora" (feature 030, US1)', () => {
     mockCatalog([channel('Canal Com Guia', 'a.br')])
     renderLive()
     tap('ArrowUp')
-    tap('ArrowRight')
+    tap('Enter')
     await settle(() => nowText('Canal Com Guia') === 'Jornal da Manhã')
     expect(nowText('Canal Com Guia')).toBe('Jornal da Manhã')
 
@@ -168,7 +168,7 @@ describe('LiveScreen — "Agora" (feature 030, US1)', () => {
     mockCatalog([channel('Canal Com Guia', 'a.br')])
     renderLive()
     tap('ArrowUp')
-    tap('ArrowRight')
+    tap('Enter')
     await settle(() => nowText('Canal Com Guia') === 'Jornal da Manhã')
 
     await act(async () => {
@@ -187,7 +187,7 @@ describe('LiveScreen — "Agora" (feature 030, US1)', () => {
     mockCatalog([channel('Canal A', 'a.br'), channel('Canal B', 'a.br'), channel('Canal C', null)])
     renderLive()
     tap('ArrowUp')
-    tap('ArrowRight')
+    tap('Enter')
     await settle(() => nowText('Canal A') === 'Jornal da Manhã')
 
     tap('ArrowDown')
@@ -203,20 +203,24 @@ describe('LiveScreen — "Agora" (feature 030, US1)', () => {
     mockCatalog([channel('Canal Com Guia', 'a.br')])
     renderLive()
     tap('ArrowUp')
-    tap('ArrowRight')
+    tap('Enter')
     await settle(previewIncludes('A seguir'))
 
     const preview = document.querySelector('.live-preview-panel') as HTMLElement
     expect(preview).not.toBeNull()
-    expect(preview.textContent).toContain('Agora')
-    expect(preview.textContent).toContain('Jornal da Manhã')
-    expect(preview.textContent).toContain('Resumo das notícias do dia.')
-    expect(preview.textContent).toContain('A seguir')
-    expect(preview.textContent).toContain('Esporte Total')
-    const times = [...preview.querySelectorAll('.live-epg-time')].map((el) => el.textContent)
-    expect(times).toHaveLength(2)
-    for (const range of times) expect(range).toMatch(/^\d{2}:\d{2} – \d{2}:\d{2}$/)
-    expect(preview.querySelector('.live-epg-progress-fill')).not.toBeNull()
+    // Feature 048: o atual vive no destaque (`.live-hero`); o próximo é o 1º cartão da programação.
+    const hero = preview.querySelector('.live-hero') as HTMLElement
+    expect(hero.querySelector('.live-hero-live')?.textContent).toContain('Jornal da Manhã')
+    expect(hero.querySelector('.live-hero-live')?.textContent).toContain('ao vivo agora')
+    expect(hero.textContent).toContain('Resumo das notícias do dia.')
+    const times = [...hero.querySelectorAll('.live-epg-time')].map((el) => el.textContent)
+    expect(times).toHaveLength(1)
+    expect(times[0]).toMatch(/^\d{2}:\d{2} – \d{2}:\d{2}$/)
+    expect(hero.querySelector('.live-epg-progress-fill')).not.toBeNull()
+    const card = preview.querySelector('.live-schedule-card') as HTMLElement
+    expect(card.querySelector('.live-schedule-label')?.textContent).toBe('A seguir')
+    expect(card.querySelector('.live-schedule-title')?.textContent).toBe('Esporte Total')
+    expect(card.querySelector('.live-schedule-time')?.textContent).toMatch(/^\d{2}:\d{2}$/)
   })
 
   it('preview numa lacuna: só "A seguir", sem "Agora" nem barra (FR-030)', async () => {
@@ -224,7 +228,7 @@ describe('LiveScreen — "Agora" (feature 030, US1)', () => {
     mockCatalog([channel('Canal Com Guia', 'a.br')])
     renderLive()
     tap('ArrowUp')
-    tap('ArrowRight')
+    tap('Enter')
     await settle(previewIncludes('Cinema em Casa'))
 
     const preview = document.querySelector('.live-preview-panel') as HTMLElement
@@ -238,7 +242,7 @@ describe('LiveScreen — "Agora" (feature 030, US1)', () => {
     mockCatalog([channel('Canal Sem Guia', null)])
     renderLive()
     tap('ArrowUp')
-    tap('ArrowRight')
+    tap('Enter')
     await settle(() => nowText('Canal Sem Guia') !== null)
     await settle()
 
@@ -246,7 +250,10 @@ describe('LiveScreen — "Agora" (feature 030, US1)', () => {
     expect(preview).not.toBeNull()
     expect(preview.textContent).not.toContain('Agora')
     expect(preview.textContent).not.toContain('A seguir')
-    expect(preview.querySelector('.live-channel-now')?.textContent).toBe('')
+    // Sem EPG: só "Ao vivo" no destaque, nenhum título/horário solto, nenhum cartão (feature 048).
+    expect(preview.querySelector('.live-hero-live')?.textContent).toBe('Ao vivo')
+    expect(preview.querySelector('.live-epg-block')).toBeNull()
+    expect(preview.querySelector('.live-schedule-card')).toBeNull()
   })
 
   it('EPG desativado (programação apagada): slots vazios, sem erro', async () => {
@@ -254,7 +261,7 @@ describe('LiveScreen — "Agora" (feature 030, US1)', () => {
     mockCatalog([channel('Canal Com Guia', 'a.br')])
     renderLive()
     tap('ArrowUp')
-    tap('ArrowRight')
+    tap('Enter')
     await settle(() => nowText('Canal Com Guia') !== null)
     await settle()
 

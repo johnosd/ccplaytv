@@ -159,7 +159,7 @@ async function run() {
 
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
     await waitForTrailFocus(page, 'Esportes')
-    await page.keyboard.press('ArrowRight') // entra em "Canais | Esportes" (padrão: 1ª categoria real)
+    await page.keyboard.press('Enter') // entra em "Canais | Esportes" (padrão: 1ª categoria real)
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').allTextContents()).join(',') ===
@@ -205,9 +205,13 @@ async function run() {
     // sai até a trilha e sobe até "Todos" (logo após "★ Favoritos", ou
     // seja, 1 ArrowUp a partir de "Esportes" já chega em "Todos").
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('ArrowLeft') // categoria -> trilha (se ainda não estiver lá)
+    // RETURN em camadas (049): fechar o player devolve o foco aos resultados da busca; RETURN até chegar à trilha.
+    for (let i = 0; i < 4 && (await page.locator('.live-column-groups .side-category-nav-item.tv-focus').count()) === 0; i += 1) {
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(100)
+    }
     await page.keyboard.press('ArrowUp') // "Todos"
-    await page.keyboard.press('ArrowRight') // entra em "Todos"
+    await page.keyboard.press('Enter') // entra em "Todos"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').allTextContents()).join(',') ===
@@ -231,7 +235,7 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'movies')
     await waitForTrailFocus(page, 'Filmes A')
-    await page.keyboard.press('ArrowRight') // entra em "Filmes A" (padrão: 1ª categoria real)
+    await page.keyboard.press('Enter') // entra em "Filmes A" (padrão: 1ª categoria real)
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
       (await page.locator('.content-card-title').first().textContent()) === 'Duna Fictício',

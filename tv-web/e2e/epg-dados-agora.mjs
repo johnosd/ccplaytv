@@ -252,7 +252,7 @@ async function run() {
     console.log('=== US1: "Agora" + barra na linha de canal ===')
     await page.keyboard.press('Escape') // RETURN em Configurações → Início
     await openLive(page)
-    await page.keyboard.press('ArrowRight') // entra em "Canais | Notícias"
+    await page.keyboard.press('Enter') // entra em "Canais | Notícias"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       await eventually(page, () => {
@@ -274,20 +274,21 @@ async function run() {
     const previewText = () => page.locator('.live-preview-panel').innerText()
     let text = await previewText()
     assert(
-      /Agora/.test(text) && text.includes('Jornal da Noite') && text.includes('Resumo do dia para o E2E.'),
+      // Feature 048: o atual vive na linha "ao vivo agora" do destaque (innerText já vem com a caixa alta do CSS).
+      /ao vivo agora/i.test(text) && text.includes('Jornal da Noite') && text.includes('Resumo do dia para o E2E.'),
       'preview de "Canal A": "Agora" com título e sinopse',
     )
-    assert(/A seguir/.test(text) && text.includes('Filme da Noite'), 'preview de "Canal A": "A seguir" com o próximo programa')
+    assert(/A seguir/i.test(text) && text.includes('Filme da Noite'), 'preview de "Canal A": "A seguir" com o próximo programa')
     assert(/\d{2}:\d{2} – \d{2}:\d{2}/.test(text), 'os horários aparecem como "HH:MM – HH:MM"')
 
     await page.keyboard.press('ArrowDown') // Canal B
     await page.waitForTimeout(150)
     text = await previewText()
-    assert(text.includes('Esporte ao Vivo') && !/A seguir/.test(text), 'preview de "Canal B": só o "Agora" (não há próximo na janela)')
+    assert(text.includes('Esporte ao Vivo') && !/A seguir/i.test(text), 'preview de "Canal B": só o "Agora" (não há próximo na janela)')
     await page.keyboard.press('ArrowDown') // Canal Sem Guia
     await page.waitForTimeout(150)
     text = await previewText()
-    assert(!/Agora/.test(text) && !/A seguir/.test(text), 'preview de canal sem EPG: nenhum "Agora"/"A seguir" solto')
+    assert(!/Agora/i.test(text) && !/A seguir/i.test(text), 'preview de canal sem EPG: nenhum "Agora"/"A seguir" solto')
     await page.keyboard.press('ArrowUp')
     await page.keyboard.press('ArrowUp')
     assert(
@@ -328,7 +329,8 @@ async function run() {
       }),
       'a lista de zapping por cima do vídeo também mostra o "Agora"',
     )
-    await page.keyboard.press('Escape') // fecha o zapping
+    await page.keyboard.press('Escape') // zapping: lista de canais -> trilha (049)
+    await page.keyboard.press('Escape') // trilha -> fecha o zapping
     await page.keyboard.press('Escape') // fecha o player
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
 

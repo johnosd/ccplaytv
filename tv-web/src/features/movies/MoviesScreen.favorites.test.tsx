@@ -234,7 +234,7 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     mockContentByCategory({ 1: [movie('Duna', '1')] })
     const { onOpenMovie } = renderMovies()
 
-    keydown('ArrowRight')
+    keydown('Enter')
     keyup('ArrowRight')
 
     await holdEnter()
@@ -266,7 +266,7 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
-    keydown('ArrowRight')
+    keydown('Enter')
     keyup('ArrowRight')
 
     // "Duna" aparece na hero band (item focado) e no card da grade — nunca
@@ -289,7 +289,7 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
-    keydown('ArrowRight')
+    keydown('Enter')
     keyup('ArrowRight')
 
     await waitFor(() => expect(screen.getByText('Nenhum favorito ainda')).toBeInTheDocument())
@@ -308,7 +308,7 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     mockContentByCategory({ 1: [movie('Duna', '1'), movie('Arrival', '2')] })
     renderMovies()
 
-    keydown('ArrowRight')
+    keydown('Enter')
     keyup('ArrowRight')
 
     await waitFor(() => expect(document.querySelectorAll('.vod-grid-cell').length).toBe(2))
@@ -337,7 +337,7 @@ describe('MoviesScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
-    keydown('ArrowRight')
+    keydown('Enter')
     keyup('ArrowRight')
 
     await waitFor(() => {

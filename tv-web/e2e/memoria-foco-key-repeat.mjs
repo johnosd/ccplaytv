@@ -148,20 +148,20 @@ async function run() {
     await press(page, 'ArrowDown', 2)
 
     console.log('=== Cenário 2: idas e voltas entre categorias devolvem o mesmo canal (SC-003) ===')
-    await page.keyboard.press('ArrowRight') // entra em Grupo A
+    await page.keyboard.press('Enter') // entra em Grupo A
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await press(page, 'ArrowDown', 3) // Canal A4
     assert((await focusedChannel(page)).includes('Canal A4'), 'foco em "Canal A4" no Grupo A')
     for (let round = 1; round <= 10; round += 1) {
-      await page.keyboard.press('ArrowLeft')
+      await page.keyboard.press('Escape')
       await page.keyboard.press('ArrowDown') // Grupo B
-      await page.keyboard.press('ArrowRight')
+      await page.keyboard.press('Enter')
       await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
       const inB = await focusedChannel(page)
       if (round === 1) assert(inB.includes('Canal B1'), 'primeira visita ao Grupo B abre no primeiro canal')
-      await page.keyboard.press('ArrowLeft')
+      await page.keyboard.press('Escape')
       await page.keyboard.press('ArrowUp') // Grupo A
-      await page.keyboard.press('ArrowRight')
+      await page.keyboard.press('Enter')
       const back = await focusedChannel(page)
       if (!back.includes('Canal A4')) {
         assert(false, `volta ${round}: foco em "${back}" em vez de "Canal A4"`)
@@ -170,16 +170,16 @@ async function run() {
       if (round === 10) assert(true, '10 de 10 voltas ao Grupo A devolveram o foco a "Canal A4"')
     }
     // cobre Grupo B e C para que "Todos" os inclua
-    await page.keyboard.press('ArrowLeft')
+    await page.keyboard.press('Escape')
     await gotoTrail(page, 'Canais C')
-    await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('Enter')
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
 
     console.log('=== Cenário 3: fechar o player depois de zapping devolve o canal que tocava (SC-004) ===')
     for (const zaps of [1, 3, 5]) {
-      await page.keyboard.press('ArrowLeft')
+      await page.keyboard.press('Escape')
       await gotoTrail(page, 'Todos')
-      await page.keyboard.press('ArrowRight')
+      await page.keyboard.press('Enter')
       await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
       assert(
         ((await page.locator('.live-column-channels .live-column-title').textContent()) ?? '') === 'Todos',
@@ -198,7 +198,8 @@ async function run() {
       await fireVideoEvent(page, 'playing')
       await page.keyboard.press('Enter') // abre o zapping
       await page.waitForSelector('.player-zap-columns', { timeout: 8000 })
-      await page.keyboard.press('Escape') // fecha só a lista
+      await page.keyboard.press('Escape') // lista de canais -> trilha (049: RETURN em camadas no zapping)
+      await page.keyboard.press('Escape') // trilha -> fecha só a lista
       await page.waitForSelector('.player-zap-columns', { state: 'detached', timeout: 8000 })
       for (let i = 0; i < zaps; i += 1) {
         await page.keyboard.press('ArrowDown') // próximo da vizinhança de "Todos"
@@ -211,6 +212,9 @@ async function run() {
         await page.waitForTimeout(150)
       }
       await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
+      // 049: o zapping foi fechado pela trilha, então o foco volta à trilha; OK reentra e a memória devolve o canal.
+      await page.keyboard.press('Enter')
+      await page.waitForSelector('.live-channel-row.tv-focus', { timeout: 8000 })
       const title = (await page.locator('.live-column-channels .live-column-title').textContent()) ?? ''
       const focused = await focusedChannel(page)
       // A lista exibida é "Todos" (a de origem) ou a categoria do canal, se o zapping já a tinha

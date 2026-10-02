@@ -182,7 +182,7 @@ async function run() {
     await page.locator('.side-category-nav-item.tv-focus:not(:has-text("Favoritos")):not(:has-text("Todos"))').waitFor({
       timeout: 8000,
     })
-    await page.keyboard.press('ArrowRight') // trilha -> entra na categoria real de canais
+    await page.keyboard.press('Enter') // trilha -> entra na categoria real de canais
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').first().textContent()) === 'Canal Favorito',
@@ -191,7 +191,7 @@ async function run() {
     await holdEnter(page)
     await page.waitForSelector('.fav-star', { timeout: 4000 })
     assert(true, 'canal favoritado sem abrir o player')
-    await page.keyboard.press('ArrowLeft') // canal -> trilha
+    await page.keyboard.press('Escape') // canal -> trilha
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
@@ -200,7 +200,7 @@ async function run() {
     await page.locator('.side-category-nav-item.tv-focus:not(:has-text("Favoritos")):not(:has-text("Todos"))').waitFor({
       timeout: 8000,
     })
-    await page.keyboard.press('ArrowRight') // trilha -> entra na categoria real de filmes
+    await page.keyboard.press('Enter') // trilha -> entra na categoria real de filmes
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
       (await page.locator('.content-card-title').first().textContent()) === 'Filme Hero',
@@ -322,7 +322,7 @@ async function run() {
     await page.keyboard.press('Escape') // fecha o player
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
-    await page.keyboard.press('ArrowLeft') // canal -> trilha
+    await page.keyboard.press('Escape') // canal -> trilha
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
 

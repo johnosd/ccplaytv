@@ -202,7 +202,7 @@ async function run() {
     console.log('--- Live TV: canal AGORA mostra o logo declarado (tvg-logo) — feature 024 inverte a regra da 015 ---')
     await openViaTopbar(page, 'live')
     await page.waitForSelector('.side-category-nav-item.tv-focus', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra na única categoria
+    await page.keyboard.press('Enter') // entra na única categoria
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').first().textContent()) === 'Canal Com Logo',
@@ -225,7 +225,7 @@ async function run() {
     // índice padrão sem a lista de categorias carregada — achado ao rodar
     // este script, não previsto no plano).
     await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra na categoria "Filmes"
+    await page.keyboard.press('Enter') // entra na categoria "Filmes"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
     const comCapaCard = page.locator('.vod-grid-cell', { hasText: 'Filme Com Capa' })
@@ -253,7 +253,7 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'series')
     await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra na categoria "Series"
+    await page.keyboard.press('Enter') // entra na categoria "Series"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
     const serieCard = page.locator('.vod-grid-cell', { hasText: 'Serie Com Capa' })
@@ -275,7 +275,7 @@ async function run() {
     // de corrida do R-004, agora contra a 2ª categoria, não a 1ª).
     await page.waitForSelector('.side-category-nav-item:has-text("Muitos")', { timeout: 8000 })
     await page.keyboard.press('ArrowDown') // "Filmes" (1ª categoria de filme) -> "Muitos" (2ª)
-    await page.keyboard.press('ArrowRight') // entra na categoria "Muitos"
+    await page.keyboard.press('Enter') // entra na categoria "Muitos"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await page.waitForTimeout(500) // as imagens visíveis terminam de carregar
 

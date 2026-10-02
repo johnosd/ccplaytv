@@ -119,17 +119,17 @@ describe('LiveScreen — memória de foco (feature 046, cobertura complementar)'
     renderLive()
 
     press('ArrowUp') // trilha: G1 → Todos
-    press('ArrowRight')
+    press('Enter')
     press('ArrowDown')
     press('ArrowDown') // A3
     expect(focusedChannelText()).toContain('A3')
 
-    press('ArrowLeft')
+    press('Escape')
     press('ArrowDown') // G1
-    press('ArrowRight') // entra em G1: primeira visita
-    press('ArrowLeft')
+    press('Enter') // entra em G1: primeira visita
+    press('Escape')
     press('ArrowUp') // Todos
-    press('ArrowRight')
+    press('Enter')
 
     expect(focusedChannelText()).toContain('A3')
     expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
@@ -140,7 +140,7 @@ describe('LiveScreen — memória de foco (feature 046, cobertura complementar)'
     mockCatalog({ 1: G1, 2: G2 }, [category(1, 'G1', 0), category(2, 'G2', 1)], [...G1, ...G2])
     renderLive()
 
-    press('ArrowRight') // entra em G1
+    press('Enter') // entra em G1
     press('ArrowDown') // A2
     press('ArrowUp') // A1
     press('ArrowUp') // ícone de busca
@@ -163,19 +163,19 @@ describe('LiveScreen — memória de foco (feature 046, cobertura complementar)'
     mockCatalog(byId, [category(1, 'G1', 0), category(2, 'G2', 1)], [])
     renderLive()
 
-    press('ArrowRight')
+    press('Enter')
     press('ArrowDown')
     press('ArrowDown')
     press('ArrowDown') // A4 (índice 3)
     expect(focusedChannelText()).toContain('A4')
 
-    press('ArrowLeft')
+    press('Escape')
     press('ArrowDown') // G2
-    press('ArrowRight')
+    press('Enter')
     byId[1] = G1.filter((c) => c.name !== 'CanalA4') // renovação em segundo plano tirou A4
-    press('ArrowLeft')
+    press('Escape')
     press('ArrowUp') // G1
-    press('ArrowRight')
+    press('Enter')
 
     expect(focusedChannelText()).toContain('A5') // ocupa a posição 3 agora
     expect(focusedChannelText()).not.toContain('A1')
@@ -187,15 +187,15 @@ describe('LiveScreen — memória de foco (feature 046, cobertura complementar)'
     mockCatalog(byId, [category(1, 'G1', 0), category(2, 'G2', 1)], [])
     renderLive()
 
-    press('ArrowRight')
+    press('Enter')
     press('ArrowDown') // A2
-    press('ArrowLeft')
+    press('Escape')
     press('ArrowDown')
-    press('ArrowRight') // G2
+    press('Enter') // G2
     byId[1] = []
-    press('ArrowLeft')
+    press('Escape')
     press('ArrowUp')
-    press('ArrowRight') // G1, agora vazia
+    press('Enter') // G1, agora vazia
 
     expect(document.querySelectorAll('.tv-focus').length).toBeGreaterThan(0)
   })

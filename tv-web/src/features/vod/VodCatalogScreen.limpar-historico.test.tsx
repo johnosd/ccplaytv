@@ -96,7 +96,7 @@ function renderScreen(section: 'movies' | 'series') {
 function enterHistory() {
   press('ArrowUp') // "Todos"
   press('ArrowUp') // "↺ Histórico"
-  press('ArrowRight')
+  press('Enter')
 }
 
 beforeEach(async () => {
@@ -140,7 +140,7 @@ afterEach(async () => {
 describe('VodCatalogScreen — remover do Histórico (feature 036, complementar)', () => {
   it('tecla vermelha numa categoria comum não faz nada', async () => {
     renderScreen('movies')
-    press('ArrowRight') // entra em "Ação"
+    press('Enter') // entra em "Ação"
     await waitFor(() => expect(gridTitles()).toEqual(['Filme Categoria']))
 
     press('ColorF0Red')

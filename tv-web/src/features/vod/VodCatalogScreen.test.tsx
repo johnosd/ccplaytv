@@ -184,7 +184,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     mockContentByCategory({ 1: [movie('Filme A', 'a', 2019), movie('Filme B', 'b', 2020)] })
     renderMovies()
 
-    press('ArrowRight') // entra em "Ação", foco no 1º card
+    press('Enter') // entra em "Ação", foco no 1º card
 
     const hero = document.querySelector('.vod-hero-band')
     expect(hero).not.toBeNull()
@@ -208,7 +208,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     } as unknown as ReturnType<typeof catalogApi.useCategoryContent>)
     renderMovies()
 
-    press('ArrowRight') // entra em "Ação" — conteúdo ainda carregando
+    press('Enter') // entra em "Ação" — conteúdo ainda carregando
     press('Enter')
     expect(document.querySelector('.side-category-nav-item.tv-focus')).not.toBeNull()
   })
@@ -218,7 +218,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     mockContentByCategory({ 1: [] })
     renderMovies()
 
-    press('ArrowRight') // entra em "Vazia"
+    press('Enter') // entra em "Vazia"
     expect(screen.getByText('Esta categoria está vazia.')).toBeInTheDocument()
     press('Enter')
     expect(document.querySelector('.side-category-nav-item.tv-focus')).not.toBeNull()
@@ -230,7 +230,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     renderMovies()
 
     press('ArrowUp') // trilha: Ação (3) -> Todos (2)
-    press('ArrowRight') // entra em "Todos" (vazio)
+    press('Enter') // entra em "Todos" (vazio)
     press('Enter')
     expect(document.querySelector('.side-category-nav-item.tv-focus')).not.toBeNull()
   })
@@ -251,7 +251,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     renderMovies()
 
     press('ArrowUp') // trilha: Ação -> Todos
-    press('ArrowRight') // entra em "Todos"
+    press('Enter') // entra em "Todos"
     expect(vi.mocked(catalogApi.useAggregatedItems)).toHaveBeenLastCalledWith(SOURCE_ID, 'movie', true, { progressive: true })
     expect(loadMore).not.toHaveBeenCalled() // 1º card, longe do fim (120 lidos)
 
@@ -267,7 +267,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     renderMovies()
 
     press('ArrowUp') // Todos
-    press('ArrowRight') // entra
+    press('Enter') // entra
     press('ArrowUp') // grade -> "Pesquisar"
     press('Enter') // abre a busca
     expect(vi.mocked(catalogApi.useAggregatedItems)).toHaveBeenLastCalledWith(SOURCE_ID, 'movie', true, { progressive: false })
@@ -331,7 +331,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     } as unknown as ReturnType<typeof catalogApi.useCategoryContent>)
     renderMovies()
 
-    press('ArrowRight') // entra em "Ação" — conteúdo falhou
+    press('Enter') // entra em "Ação" — conteúdo falhou
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toHaveClass('tv-focus')
     press('Enter')
     expect(refetch).toHaveBeenCalledTimes(1)
@@ -343,7 +343,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     mockContentByCategory({ 1: [movie('Filme A', 'a')] })
     renderMovies()
 
-    press('ArrowRight') // entra em "Ação", grade renderiza
+    press('Enter') // entra em "Ação", grade renderiza
 
     expect(document.querySelector('.vod-side-nav')).toHaveClass('no-scrollbar')
     expect(document.querySelector('.vod-grid')).toHaveClass('no-scrollbar')
@@ -354,7 +354,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     mockContentByCategory({ 1: [] })
     renderMovies()
 
-    press('ArrowRight') // entra em "Ação", vazia
+    press('Enter') // entra em "Ação", vazia
 
     expect(document.querySelector('.vod-hero-band')).toBeNull()
   })
@@ -365,7 +365,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     await updateProgress(`${SOURCE_ID}|movie|id:a`, SOURCE_ID, 125)
     renderMovies()
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(await screen.findByText('Continuar de 2:05')).toBeInTheDocument()
     expect(document.querySelector('.vod-hero-band progress')).toBeNull()
@@ -376,7 +376,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     mockContentByCategory({ 1: [movie('Filme A', 'a'), movie('Filme B', 'b')] })
     renderMovies()
 
-    press('ArrowRight') // entra em "Ação"
+    press('Enter') // entra em "Ação"
     press('ArrowRight') // move o foco dentro da grade já carregada
     press('ArrowLeft')
 
@@ -395,7 +395,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     mockContentByCategory({ 1: [movie('Filme A', 'a'), movie('Filme B', 'b'), movie('Filme C', 'c')] })
     const { unmount } = renderMovies()
 
-    press('ArrowRight') // entra em "Ação", foco em "Filme A"
+    press('Enter') // entra em "Ação", foco em "Filme A"
     press('ArrowRight') // "Filme B"
     press('ArrowRight') // "Filme C"
     expect(document.querySelector('.vod-hero-band .vod-hero-title')?.textContent).toBe('Filme C')
@@ -403,7 +403,7 @@ describe('VodCatalogScreen — hero band (FR-025/FR-026) e memória entre montag
     unmount() // sair da tela (ida ao Início) — vodSessionMemory é módulo, sobrevive
 
     renderMovies()
-    press('ArrowRight') // volta a "Ação": restaura o último card focado ali
+    press('Enter') // volta a "Ação": restaura o último card focado ali
 
     expect(document.querySelector('.vod-hero-band .vod-hero-title')?.textContent).toBe('Filme C')
   })
@@ -458,7 +458,7 @@ describe('VodCatalogScreen — nomes acessíveis (feature 028, FR-015/FR-017)', 
     mockCategories([category(1, 'Vazia', 0)])
     mockContentByCategory({ 1: [] })
     const { container } = renderMovies()
-    press('ArrowRight')
+    press('Enter')
     expect(screen.getByText('Esta categoria está vazia.')).toBeInTheDocument()
     expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
@@ -472,7 +472,7 @@ describe('VodCatalogScreen — nomes acessíveis (feature 028, FR-015/FR-017)', 
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof catalogApi.useCategoryContent>)
     const { container } = renderMovies()
-    press('ArrowRight')
+    press('Enter')
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
     expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
@@ -529,7 +529,7 @@ describe('VodCatalogScreen — "↺ Histórico" (feature 025, US2, T041)', () =>
   function navigateToHistory() {
     press('ArrowUp') // "Todos"
     press('ArrowUp') // "↺ Histórico"
-    press('ArrowRight') // entra
+    press('Enter') // entra
   }
 
   async function seedMovie(name: string, streamId: string): Promise<number> {
@@ -670,7 +670,7 @@ describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
     mockContentByCategory({ 1: [movie('Filme A', 'a', 2001), movie('Filme B', 'b'), movie('Filme C', 'c', 2020)] })
     renderMovies()
 
-    press('ArrowRight') // entra em "Ação"
+    press('Enter') // entra em "Ação"
     openSortFromGrid()
 
     // Sem `added_at` em nenhum item: "Recém-adicionados" não aparece.
@@ -707,7 +707,7 @@ describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
     renderMovies()
 
     press('ArrowUp') // Ação -> Todos
-    press('ArrowRight') // entra em "Todos"
+    press('Enter') // entra em "Todos"
     openSortFromGrid()
 
     await waitFor(() => expect(sortModalLabels()).toEqual(['✓ Ordem da fonte', 'A–Z', 'Ano']))
@@ -720,7 +720,7 @@ describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
     mockContentByCategory({ 1: [movie('Filme A', 'a', 2001), movie('Filme B', 'b', 2020)] })
     renderMovies()
 
-    press('ArrowRight') // entra na grade (índice 0)
+    press('Enter') // entra na grade (índice 0)
     // Estabelece o foco por IDENTIDADE em "Filme A" (ida e volta) — sem
     // isso, `focusedItemId` continua `null` (o índice 0 é só fallback de
     // `locate()`, não identidade real) e o teste não provaria FR-024.
@@ -739,7 +739,7 @@ describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
     // grade e voltar à MESMA categoria devolve o foco a "Filme A", agora na
     // 2ª posição (FR-024) — sem reabrir "Ordenar" nem tocar `focusedItemId`.
     press('Escape') // "Ordenar" -> side nav (a mesma tecla, quando não há busca em camada)
-    press('ArrowRight') // reentra em "Ação" — a mesma categoria, foco preservado
+    press('Enter') // reentra em "Ação" — a mesma categoria, foco preservado
     const focusedCell = [...document.querySelectorAll('.vod-grid-cell')].find((c) => c.querySelector('.tv-focus'))
     expect(focusedCell?.querySelector('.content-card-title')?.textContent).toBe('Filme A')
   })
@@ -752,7 +752,7 @@ describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
     })
     const { unmount } = renderMovies()
 
-    press('ArrowRight') // entra em "Ação"
+    press('Enter') // entra em "Ação"
     openSortFromGrid()
     press('ArrowDown') // "A–Z"
     press('ArrowDown') // "Ano"
@@ -761,12 +761,12 @@ describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
 
     press('Escape') // volta à side nav
     press('ArrowDown')
-    press('ArrowRight') // entra em "Drama" — mesma seção, mesma ordenação
+    press('Enter') // entra em "Drama" — mesma seção, mesma ordenação
     expect(gridTitles()).toEqual(['Filme E', 'Filme D'])
 
     unmount() // ida ao Início — vodSessionMemory sobrevive (só reseta ao reabrir o app)
     renderMovies()
-    press('ArrowRight') // entra em "Ação" de novo
+    press('Enter') // entra em "Ação" de novo
     expect(gridTitles()).toEqual(['Filme B', 'Filme A'])
   })
 
@@ -775,7 +775,7 @@ describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
     mockContentByCategory({ 1: [movie('Filme A', 'a', 2001), movie('Filme B', 'b', 2020)] })
     renderMovies()
 
-    press('ArrowRight')
+    press('Enter')
     openSortFromGrid()
     press('ArrowDown') // foca "Ano", sem escolher
     press('Escape') // RETURN no modal
@@ -811,7 +811,7 @@ describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
     press('ArrowUp') // "Todos"
     press('ArrowUp') // "↺ Histórico"
     press('ArrowUp') // "★ Favoritos"
-    press('ArrowRight') // entra
+    press('Enter') // entra
 
     await waitFor(() => expect(gridTitles()).toEqual(['Filme Favorito']))
     expect(document.querySelector('.vod-toolbar-sort-button')).toBeNull()
@@ -834,7 +834,7 @@ describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
 
     press('ArrowUp') // "Todos"
     press('ArrowUp') // "↺ Histórico"
-    press('ArrowRight') // entra
+    press('Enter') // entra
 
     await waitFor(() => expect(gridTitles()).toEqual(['Filme Visto']))
     expect(document.querySelector('.vod-toolbar-sort-button')).toBeNull()
@@ -847,7 +847,7 @@ describe('VodCatalogScreen — Ordenar (feature 025, US4, T050)', () => {
     })
     renderMovies()
 
-    press('ArrowRight')
+    press('Enter')
     openSortFromGrid()
     press('ArrowDown') // "A–Z"
     press('ArrowDown') // "Ano"

@@ -158,7 +158,7 @@ describe('VodCatalogScreen — remover do "↺ Histórico" (contrato da feature 
 
     press('ArrowUp') // "Todos"
     press('ArrowUp') // "↺ Histórico"
-    press('ArrowRight') // entra
+    press('Enter') // entra
     await waitFor(() => expect(gridTitles()).toEqual(['Filme B', 'Filme A']))
     expect(focusedGridTitle()).toBe('Filme B')
 

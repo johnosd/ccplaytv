@@ -157,7 +157,7 @@ async function openViaTopbar(page, destination) {
 
 async function enterCategory(page, name) {
   await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
@@ -358,7 +358,7 @@ async function scenarioAvplay(m3uUrl) {
     await backToHome(page)
     await openViaTopbar(page, 'live')
     await page.locator('.side-category-nav-item.tv-focus').first().waitFor({ timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra na categoria
+    await page.keyboard.press('Enter') // entra na categoria
     await page.waitForSelector('.channel-row', { timeout: 8000 })
     await page.keyboard.press('Enter') // toca o canal
     await page.waitForSelector('.player-chrome', { state: 'attached', timeout: 8000 })

@@ -1,25 +1,30 @@
 import type { Dispatch, ReactNode, RefObject, SetStateAction } from 'react'
 import type { Virtualizer } from '@tanstack/react-virtual'
-import { groupLabel, stableIdOf } from '../catalog/catalogApi'
+import { stableIdOf } from '../catalog/catalogApi'
 import { nowNextForChannel } from '../../lib/epg/nowNext'
-import { formatEpgTimeRange } from '../../lib/epg/formatEpgTime'
-import { FavoriteHint, FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
+import { formatEpgClock, formatEpgTimeRange } from '../../lib/epg/formatEpgTime'
+import { FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/FavoritesState'
 import { AppShell } from '../shell/AppShell'
 import { TopBar } from '../shell/TopBar'
 import type { TopbarItem } from '../../navigation/appNav'
 import { SideCategoryNav, type SideCategoryNavEntry } from '../../components/SideCategoryNav'
 import { ChannelRow } from '../../components/ChannelRow'
-import { PosterArt } from '../../components/PosterArt'
 import { ErrorState } from '../../components/ErrorState'
 import { EmptyState } from '../../components/EmptyState'
 import { Spinner } from '../../components/Spinner'
 import { Icon } from '../../components/Icon'
 import { describeError } from '../../lib/errors/errorCatalog'
 import { channelNumberOf, knownCategoryCount } from './channelNumber'
-import { LIVE_HINTS, trailEntryId, type TrailEntry } from './liveTrail'
+import { LIVE_HINTS, liveGroupDisplay, trailEntryId, type TrailEntry } from './liveTrail'
 import type { LiveShellProps } from './LiveScreen'
 import type { LiveChannels, LiveTrail } from './useLiveCatalog'
 import type { LiveSearch } from './useLiveSearch'
+import type { OverflowEdges } from '../../lib/focus/useOverflowEdges'
+import { listInitials } from '../../lib/initials'
+import { LiveHeroArt } from './LiveHeroArt'
+
+/** Rótulos dos cartões de programação, na ordem (feature 048, D-004). */
+const SCHEDULE_LABELS = ['A seguir', 'Depois', 'Mais tarde']
 
 /**
  * Desenho da TV ao vivo. Extraído da `LiveScreen` na feature 040 sem mudar
@@ -81,19 +86,28 @@ export interface LiveColumnsModel {
   channels: LiveChannels
   zapOpen: boolean
   contentActive: boolean
-  previewAction: number
-  setCol: Dispatch<SetStateAction<0 | 1 | 2>>
+  setCol: Dispatch<SetStateAction<0 | 1>>
   enterTrailEntry: (entry: TrailEntry) => void
   onResync: () => void
   /** Feature 042 (FR-004): sem conexão, "Ressincronizar lista" fica soft disabled com o motivo. */
   offline: boolean
   channelListRef: RefObject<HTMLDivElement | null>
   channelVirtualizer: Virtualizer<HTMLDivElement, Element>
+  /** Contêiner rolável da trilha (feature 048, FR-021) e os lados com itens ocultos de cada lista. */
+  trailScrollRef: RefObject<HTMLDivElement | null>
+  trailEdges: OverflowEdges
+  channelEdges: OverflowEdges
+  /** Canal em reprodução, para marcar a linha no zapping (feature 048, FR-014). */
+  playingId?: string
+}
+
+function scrollFrameClass(edges: OverflowEdges): string {
+  return `live-scroll-frame${edges.above ? ' is-more-above' : ''}${edges.below ? ' is-more-below' : ''}`
 }
 
 export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean): ReactNode {
-  const { trail, search, channels, zapOpen, contentActive, previewAction, setCol, enterTrailEntry, onResync } = model
-  const { channelListRef, channelVirtualizer } = model
+  const { trail, search, channels, zapOpen, contentActive, setCol, enterTrailEntry, onResync } = model
+  const { channelListRef, channelVirtualizer, trailScrollRef, trailEdges, channelEdges, playingId } = model
   const {
     categories,
     trail: entries,
@@ -107,7 +121,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
     enteredAll,
     setFocusedIdentity,
   } = trail
-  const { searchActive, searchTerm, setSearchTerm, topFocused, setTopFocused, searchInputRef, belowMinimum } = search
+  const { searchActive, searchTerm, setSearchTerm, topFocused, setTopFocused, topIcon, searchInputRef, belowMinimum } = search
   const {
     content,
     favoriteIds,
@@ -122,10 +136,10 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
     channelIdx,
     activeChannel,
     effectiveCol,
-    activeChannelIsFavorite,
     epgNow,
     epgLookup,
     activeNowNext,
+    activeUpcoming,
     retryContent,
     searchNoResults,
     searchCoveragePartial,
@@ -144,25 +158,30 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
     ? 'Todos'
     : isFavoritesFocused || enteredFavorites
       ? '★ Favoritos'
-      : groupLabel(focusedCategory?.name)
+      : liveGroupDisplay(focusedCategory?.name)
+
+  // Rótulo do destaque (feature 048, §1.1): grupo declarado pela fonte, com a entrada quando não é uma categoria.
+  const activeGroup = liveGroupDisplay(activeChannel?.original_group ?? undefined)
+  const heroEyebrow = isAllFocused || enteredAll ? `Todos • ${activeGroup}` : isFavoritesFocused || enteredFavorites ? `★ Favoritos • ${activeGroup}` : activeGroup
 
   const sideEntries: SideCategoryNavEntry[] = entries.map((entry) => {
     if (entry.key.kind === 'favorites') {
       return {
         id: trailEntryId(entry),
         label: 'Favoritos',
-        icon: 'favorite',
+        tile: '★',
         count: favoriteIds.size,
         pinned: true,
         pinnedBadge: false,
       }
     }
     if (entry.key.kind === 'all') {
-      return { id: trailEntryId(entry), label: 'Todos', pinned: true, pinnedBadge: false }
+      return { id: trailEntryId(entry), label: 'Todos', tile: '∞', pinned: true, pinnedBadge: false }
     }
     return {
       id: trailEntryId(entry),
-      label: groupLabel(entry.category?.name),
+      label: liveGroupDisplay(entry.category?.name),
+      tile: listInitials(liveGroupDisplay(entry.category?.name)),
       count: entry.category ? knownCategoryCount(entry.category) : undefined,
     }
   })
@@ -180,21 +199,34 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
   return (
     <>
       <div className="live-column live-column-groups">
-        <SideCategoryNav
-          entries={sideEntries}
-          selectedId={selectedTrailId}
-          focusedId={focusedTrailId}
-          focusedRef={focusedCategoryRef}
-          onSelect={(id) => {
-            const target = entries.find((entry) => trailEntryId(entry) === id)
-            if (target) enterTrailEntry(target)
-          }}
-        />
+        <div className="live-panel-head">
+          <div className="live-column-title">Categorias</div>
+          <div className="live-panel-sub">Grupos</div>
+        </div>
+        {/* Moldura com degradê de continuação (feature 048, FR-021): overlay,
+            nunca máscara no contêiner rolável (esmaeceria o anel de foco). */}
+        <div className={scrollFrameClass(trailEdges)}>
+          <div ref={trailScrollRef} className="live-scroll-area no-scrollbar">
+            <SideCategoryNav
+              entries={sideEntries}
+              selectedId={selectedTrailId}
+              focusedId={focusedTrailId}
+              focusedRef={focusedCategoryRef}
+              onSelect={(id) => {
+                const target = entries.find((entry) => trailEntryId(entry) === id)
+                if (target) enterTrailEntry(target)
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="live-column live-column-channels">
         <div className="category-title-row">
-          <div className="live-column-title">{entryLabel}</div>
+          <div className="live-panel-titles">
+            <div className="live-column-title">{entryLabel}</div>
+            <div className="live-panel-sub">Canais</div>
+          </div>
           {/* Ícone de busca (feature 018, FR-001): só quando há itens
               carregados (D-006) e nunca dentro do zapping (FR-018).
               `!contentUnavailable` evita o ícone aparecer sobre um
@@ -203,13 +235,23 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
               anterior mesmo com outcome `source_missing`/`failed`
               (achado durante o gate final da feature 018, T029). */}
           {!zapOpen && !searchActive && !contentUnavailable && baseItems.length > 0 && (
-            <button
-              type="button"
-              className={`search-icon-button${effectiveCol === 1 && topFocused ? ' tv-focus' : ''}`}
-              aria-label="Buscar"
-            >
-              <Icon name="search" />
-            </button>
+            <div className="live-top-icons">
+              <button
+                type="button"
+                className={`search-icon-button${effectiveCol === 1 && topFocused && topIcon === 'search' ? ' tv-focus' : ''}`}
+                aria-label="Buscar"
+              >
+                <Icon name="search" />
+              </button>
+              {/* Guia completo (feature 049, FR-008): ícone focável ao lado da lupa — o destaque não tem mais botões. */}
+              <button
+                type="button"
+                className={`live-guide-button${effectiveCol === 1 && topFocused && topIcon === 'guide' ? ' tv-focus' : ''}`}
+                aria-label="Guia completo"
+              >
+                <Icon name="guide" />
+              </button>
+            </div>
           )}
         </div>
 
@@ -339,8 +381,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
         )}
 
         {showResultsList && (
-          <>
-            <FavoriteHint />
+          <div className={scrollFrameClass(channelEdges)}>
             {/* Achado real (feature 028, FR-006): rolava com a barra nativa visível. */}
             <div ref={channelListRef} className="live-channel-list no-scrollbar">
               <div
@@ -356,9 +397,9 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
                     <button
                       key={channel.id}
                       type="button"
-                      className={`live-channel-row${
+                      className={`live-channel-row no-scale${
                         effectiveCol === 1 && !topFocused && channelIdx === virtualRow.index ? ' tv-focus' : ''
-                      }`}
+                      }${playingId !== undefined && channel.id === playingId ? ' is-playing' : ''}`}
                       style={{ transform: `translateY(${virtualRow.start}px)` }}
                     >
                       <ChannelRow
@@ -370,16 +411,15 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
                         progress={onAir?.progress}
                         favorite={isFavorite}
                         unavailable={!channel.playable}
+                        group={enteredAll ? liveGroupDisplay(channel.original_group ?? undefined) : undefined}
+                        groupClassName="live-item-group"
                       />
-                      {enteredAll && (
-                        <span className="live-item-group">{groupLabel(channel.original_group ?? undefined)}</span>
-                      )}
                     </button>
                   )
                 })}
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && entered?.kind === 'category' && content.data && (
@@ -397,69 +437,57 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
         <div className="live-preview-panel">
           {activeChannel ? (
             <>
-              <PosterArt url={activeChannel.icon_url ?? undefined} title={activeChannel.name} variant="logo" />
-              <div className="live-channel-name">{activeChannel.name}</div>
-              {channelNumberOf(activeChannel, categories) && (
-                <div className="live-channel-number">{channelNumberOf(activeChannel, categories)}</div>
-              )}
-              <div className="live-channel-meta">{groupLabel(activeChannel.original_group ?? undefined)}</div>
-              {/* EPG (feature 030, FR-025): "Agora" e "A seguir" só com dado
-                  real — sem programação, a área fica vazia e sem rótulo
-                  solto. Reservar a área evita o layout pular quando o dado
-                  chega. */}
-              <div className="live-channel-now">
-                {activeNowNext.now && (
-                  <div className="live-epg-block">
-                    <span className="live-epg-label">Agora</span>
-                    <span className="live-epg-title">{activeNowNext.now.title}</span>
-                    <span className="live-epg-time">
-                      {formatEpgTimeRange(activeNowNext.now.start, activeNowNext.now.end)}
-                    </span>
-                    <div className="live-epg-progress" aria-hidden="true">
-                      <div
-                        className="live-epg-progress-fill"
-                        style={{ transform: `scaleX(${activeNowNext.now.progress})` }}
-                      />
-                    </div>
-                    {activeNowNext.now.description && (
-                      <p className="live-epg-description">{activeNowNext.now.description}</p>
+              <div className="live-hero">
+                <LiveHeroArt url={activeChannel.icon_url ?? undefined} />
+                <div className="live-hero-copy">
+                  <div className="live-hero-eyebrow">{heroEyebrow}</div>
+                  <div className="live-hero-name">{activeChannel.name}</div>
+                  {channelNumberOf(activeChannel, categories) && (
+                    <div className="live-hero-number">{channelNumberOf(activeChannel, categories)}</div>
+                  )}
+                  {/* EPG (feature 030, FR-025): só com dado real. Sem programa
+                      atual, apenas "Ao vivo" — nunca título inventado. */}
+                  <div className="live-hero-live">
+                    <i className="live-hero-dot" aria-hidden="true" />
+                    {activeNowNext.now ? (
+                      <>
+                        <b>{activeNowNext.now.title}</b>
+                        <span> • ao vivo agora</span>
+                      </>
+                    ) : (
+                      <span>Ao vivo</span>
                     )}
                   </div>
-                )}
-                {activeNowNext.next && (
-                  <div className="live-epg-block">
-                    <span className="live-epg-label">A seguir</span>
-                    <span className="live-epg-title">{activeNowNext.next.title}</span>
-                    <span className="live-epg-time">
-                      {formatEpgTimeRange(activeNowNext.next.start, activeNowNext.next.end)}
-                    </span>
-                  </div>
-                )}
+                  {activeNowNext.now && (
+                    <div className="live-epg-block">
+                      <span className="live-epg-time">
+                        {formatEpgTimeRange(activeNowNext.now.start, activeNowNext.now.end)}
+                      </span>
+                      <div className="live-epg-progress" aria-hidden="true">
+                        <div
+                          className="live-epg-progress-fill"
+                          style={{ transform: `scaleX(${activeNowNext.now.progress})` }}
+                        />
+                      </div>
+                      {activeNowNext.now.description && (
+                        <p className="live-epg-description">{activeNowNext.now.description}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="live-preview-actions">
-                <button
-                  type="button"
-                  className={`live-preview-action${effectiveCol === 2 && previewAction === 0 ? ' tv-focus' : ''}${
-                    !activeChannel.playable ? ' is-soft-disabled' : ''
-                  }`}
-                  // Achado real (feature 028, FR-016): sem sinal estático da indisponibilidade quando o canal não é reproduzível.
-                  aria-disabled={!activeChannel.playable ? 'true' : undefined}
-                >
-                  Assistir
-                </button>
-                <button
-                  type="button"
-                  className={`live-preview-action${effectiveCol === 2 && previewAction === 1 ? ' tv-focus' : ''}`}
-                >
-                  {activeChannelIsFavorite ? 'Favorito' : 'Favoritar'}
-                </button>
-                <button
-                  type="button"
-                  className={`live-preview-action${effectiveCol === 2 && previewAction === 2 ? ' tv-focus' : ''}`}
-                >
-                  Guia completo
-                </button>
-              </div>
+              {/* Próximos programas reais (feature 048, FR-009): sem EPG, sem faixa. */}
+              {activeUpcoming.length > 0 && (
+                <div className="live-schedule">
+                  {activeUpcoming.map((slot, index) => (
+                    <div key={`${slot.start}-${index}`} className="live-schedule-card">
+                      <span className="live-schedule-label">{SCHEDULE_LABELS[index]}</span>
+                      <span className="live-schedule-title">{slot.title}</span>
+                      <span className="live-schedule-time">{formatEpgClock(slot.start)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           ) : (
             <div className="live-preview-empty">
@@ -467,7 +495,6 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
             </div>
           )}
         </div>
-      )}
-    </>
+      )}    </>
   )
 }

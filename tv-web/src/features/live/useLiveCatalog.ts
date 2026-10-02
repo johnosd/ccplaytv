@@ -144,8 +144,8 @@ export interface LiveChannelsParams {
   initialChannelCategoryLookup: string | null
   trail: LiveTrail
   search: LiveSearch
-  col: 0 | 1 | 2
-  setCol: Dispatch<SetStateAction<0 | 1 | 2>>
+  col: 0 | 1
+  setCol: Dispatch<SetStateAction<0 | 1>>
   playing: CatalogItemOut | null
   zapOpen: boolean
   favoriteToggle: ReturnType<typeof useFavoriteToggle>
@@ -289,10 +289,8 @@ export function useLiveChannels({
     lastChannelFocusRef.current = { listKey: channelListKey, index: channelIdx }
   }, [channelListKey, channelIdx])
   const activeChannel = items[channelIdx]
-  // Canal que sumiu com o preview aberto (feature 024, `logic/foco-live-
-  // shell.md` §3): cai de volta pra coluna de canais em vez de deixar o
-  // preview "órfão", sem foco algum sobre ele.
-  const effectiveCol = col === 2 && !activeChannel ? 1 : col
+  // Desde a feature 049 só há duas colunas de foco (0 trilha, 1 canais): o destaque não é focável.
+  const effectiveCol = col
 
   // Feature 046 (`logic/memoria-foco-live.md` §2): grava o canal focado por entrada. Só com a
   // coluna de canais/preview ativa, fora da busca (a posição numa lista filtrada nunca vira
@@ -344,9 +342,7 @@ export function useLiveChannels({
    * 016, edge case da spec) — `playing` está sempre presente aqui (é a
    * própria sessão que o zapping cobre), então não reaproveita a guarda
    * `!playing` acima. `topFocused` nunca é `true` dentro do zapping na
-   * prática (FR-018/D-009), mas a guarda fica por segurança. Zapping nunca
-   * alcança `col === 2` (D-009 da feature 024), então `effectiveCol` aqui é
-   * sempre 0 ou 1 na prática.
+   * prática (FR-018/D-009), mas a guarda fica por segurança. `effectiveCol` é sempre 0 ou 1.
    */
   const canToggleFavoriteInZap = zapOpen && effectiveCol === 1 && !topFocused && activeChannel !== undefined
 

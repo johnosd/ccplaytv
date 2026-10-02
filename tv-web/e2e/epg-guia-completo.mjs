@@ -159,12 +159,14 @@ const focusedBlockText = (page) => page.locator('.epg-guide-block.tv-focus').fir
 const detailChannel = (page) => page.locator('.epg-guide-detail-channel').textContent()
 const activeTab = (page) => page.locator('.epg-guide-tab.is-active').textContent()
 
-/** Da lista de canais (col 1, no canal já focado): preview → "Guia completo" → abre o guia. */
+/**
+ * Da lista de canais, com o foco no 1º canal (049): ↑ vai à lupa, → ao ícone de Guia completo, OK abre o guia.
+ * A origem é o canal onde o ícone foi alcançado — o 1º da lista.
+ */
 async function openGuideFromPreview(page) {
-  await page.keyboard.press('ArrowRight') // canal → preview ("Assistir")
-  await page.waitForSelector('.live-preview-action.tv-focus', { timeout: 4000 })
-  await page.keyboard.press('ArrowDown') // Favoritar
-  await page.keyboard.press('ArrowDown') // Guia completo
+  await page.keyboard.press('ArrowUp') // 1º canal -> lupa
+  await page.keyboard.press('ArrowRight') // lupa -> ícone de Guia completo
+  await page.waitForSelector('.live-guide-button.tv-focus', { timeout: 4000 })
   await page.keyboard.press('Enter')
   await page.waitForSelector('.epg-guide', { timeout: 6000 })
   try {
@@ -218,18 +220,17 @@ async function run() {
     assert(synced, 'o EPG da lista foi sincronizado pela importação')
     await page.waitForTimeout(800) // o Worker termina de gravar
 
-    console.log('=== US1: abrir o guia do preview, no 2º canal ===')
+    console.log('=== US1: abrir o guia pelo ícone, no 1º canal (049) ===')
     await openLive(page)
-    await page.keyboard.press('ArrowRight') // entra em "Canais | Notícias"
+    await page.keyboard.press('Enter') // entra em "Canais | Notícias"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
-    await page.keyboard.press('ArrowDown') // "Canal B"
     await openGuideFromPreview(page)
     assert((await page.locator('text=/Em breve/').count()) === 0, '"Guia completo" abre o guia, sem aviso "Em breve"')
     assert((await page.locator('[role="dialog"]').count()) === 0, 'abrir o guia não abre o player')
     assert((await page.locator('.topbar').count()) === 0, 'o guia parado é tela cheia, sem topbar')
-    assert((await focusedBlockText(page)).includes('Esporte ao Vivo'), 'o foco cai no programa atual do canal de origem ("Canal B")')
-    assert((await detailChannel(page)) === 'Canal B', 'o painel de detalhe mostra o canal de origem')
-    assert((await page.locator('.epg-guide-detail').innerText()).includes('Esporte ao Vivo'), 'o painel de detalhe mostra o programa focado')
+    assert((await focusedBlockText(page)).includes('Jornal da Noite'), 'o foco cai no programa atual do canal de origem ("Canal A")')
+    assert((await detailChannel(page)) === 'Canal A', 'o painel de detalhe mostra o canal de origem')
+    assert((await page.locator('.epg-guide-detail').innerText()).includes('Jornal da Noite'), 'o painel de detalhe mostra o programa focado')
     assert((await page.locator('.epg-guide-now-line').count()) === 1, 'há a linha da hora atual')
     assert((await page.locator('.epg-guide-block.is-now').count()) >= 1, 'o programa atual está marcado "Agora"')
     assert((await activeTab(page)) === 'Hoje', 'a aba ativa é "Hoje"')
@@ -245,7 +246,7 @@ async function run() {
 
     console.log('=== US1/US2: navegação por programa e canal; nenhuma rede ao mover o foco ===')
     const hitsBeforeFocus = hits.guia
-    await page.keyboard.press('ArrowUp') // "Canal A", mesma coluna de tempo
+    // (049) a origem do guia já é o "Canal A": não há ↑ para o canal de cima.
     assert((await detailChannel(page)) === 'Canal A', '↑ vai para o canal de cima')
     assert((await focusedBlockText(page)).includes('Jornal da Noite'), '↑ preserva a coluna de tempo (programa em curso do "Canal A")')
     await page.keyboard.press('ArrowLeft') // programa anterior (encerrado)
@@ -384,7 +385,7 @@ async function run() {
     await addSource(page, 'Fonte E2E Sem EPG', `${base}/sem-epg.m3u`, { first: false })
     await page.route(`${base}/live/**`, () => {})
     await openLive(page)
-    await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('Enter')
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await openGuideFromPreviewNoGrid(page)
     await page.waitForSelector('.epg-guide-state', { timeout: 6000 })
@@ -415,10 +416,9 @@ async function run() {
 
 /** Igual a `openGuideFromPreview`, mas sem esperar a grade (o estado "sem EPG" não a desenha). */
 async function openGuideFromPreviewNoGrid(page) {
-  await page.keyboard.press('ArrowRight')
-  await page.waitForSelector('.live-preview-action.tv-focus', { timeout: 4000 })
-  await page.keyboard.press('ArrowDown')
-  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('ArrowUp') // 1º canal -> lupa
+  await page.keyboard.press('ArrowRight') // lupa -> ícone de Guia completo
+  await page.waitForSelector('.live-guide-button.tv-focus', { timeout: 4000 })
   await page.keyboard.press('Enter')
   await page.waitForSelector('.epg-guide', { timeout: 6000 })
 }

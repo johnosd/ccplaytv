@@ -16,11 +16,28 @@ import type { LiveEntryKey } from './liveSessionMemory'
 export const LIVE_ITEM_ROW_HEIGHT = 84
 export const LIVE_ITEM_OVERSCAN = 6
 
-/** Ações do painel de preview, na ordem vertical (feature 024, D-005). */
-export const PREVIEW_ACTION_COUNT = 3
+/**
+ * Folga rolável nas bordas da lista de canais (feature 048, FR-021): o item focado fica fora do degradê de continuação
+ * (`--space-5`, 48px). O virtualizador mede a partir do início do conteúdo, sem o padding de 16px (`--space-2`) que dá folga ao
+ * anel de foco; por isso o fim soma 2 × 16px (o padding e a margem da moldura) e o início não.
+ */
+export const LIVE_EDGE_SCROLL_PADDING_START = 48
+export const LIVE_EDGE_SCROLL_PADDING_END = 48 + 2 * 16
+
+/**
+ * Rótulo de exibição de um grupo na Live: tira o prefixo redundante "Canais |" (separador obrigatório — "Canais A"
+ * fica como está). Só apresentação: a identidade (chaves da trilha, memória de foco) continua a do nome declarado
+ * pela fonte, via `groupLabel`.
+ */
+export function liveGroupDisplay(name: string | undefined): string {
+  const label = groupLabel(name)
+  const stripped = label.replace(/^canais?\s*[|:\u2013\u2014-]\s*/i, '').trim()
+  return stripped || label
+}
 
 export const LIVE_HINTS: HintItem[] = [
-  { keyLabel: 'OK', action: 'Assistir' },
+  { keyLabel: 'OK', action: 'Entrar / Assistir' },
+  { keyLabel: '← →', action: 'Página' },
   { keyLabel: 'Segurar OK', action: 'Favoritar' },
   { keyLabel: 'RETURN', action: 'Voltar' },
 ]

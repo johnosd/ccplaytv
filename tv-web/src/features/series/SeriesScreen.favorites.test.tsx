@@ -220,7 +220,7 @@ describe('SeriesScreen — favoritos (feature 013)', () => {
     mockContentByCategory({ 1: [series('Breaking Bad', 'srv-1')] })
     const { onOpenSeries } = renderSeries()
 
-    keydown('ArrowRight')
+    keydown('Enter')
     keyup('ArrowRight')
 
     await holdEnter()
@@ -264,7 +264,7 @@ describe('SeriesScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
-    keydown('ArrowRight')
+    keydown('Enter')
     keyup('ArrowRight')
 
     await waitFor(() => {
@@ -287,7 +287,7 @@ describe('SeriesScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
-    keydown('ArrowRight')
+    keydown('Enter')
     keyup('ArrowRight')
 
     await waitFor(() => expect(screen.getByText('Nenhum favorito ainda')).toBeInTheDocument())

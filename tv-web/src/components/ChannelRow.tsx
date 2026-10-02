@@ -17,6 +17,10 @@ export interface ChannelRowProps {
   favorite?: boolean
   /** Sem fonte de reprodução (feature 024, FR-019/FR-009 pré-existente): selo "Indisponível" + aparência reduzida. */
   unavailable?: boolean
+  /** Rótulo do grupo/categoria do canal (feature 048): só quando a lista mistura categorias ("Todos"); fica na coluna de texto, abaixo do nome. */
+  group?: string
+  /** Classe do rótulo de grupo — a Live fixa .live-item-group por contrato da feature 018. */
+  groupClassName?: string
 }
 
 /**
@@ -35,6 +39,8 @@ export function ChannelRow({
   nameClassName,
   favorite,
   unavailable,
+  group,
+  groupClassName,
 }: ChannelRowProps): ReactNode {
   return (
     <div className={`channel-row${unavailable ? ' is-soft-disabled' : ''}`}>
@@ -43,6 +49,7 @@ export function ChannelRow({
       <div className="channel-row-info">
         <span className={nameClassName ? `channel-row-name ${nameClassName}` : 'channel-row-name'}>{name}</span>
         <span className="channel-row-now">{nowPlaying ?? ''}</span>
+        {group !== undefined && <span className={groupClassName ? `channel-row-group ${groupClassName}` : 'channel-row-group'}>{group}</span>}
       </div>
       {progress !== undefined && (
         <div className="channel-row-progress">

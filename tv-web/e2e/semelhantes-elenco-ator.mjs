@@ -161,7 +161,7 @@ async function openViaTopbar(page, destination) {
 
 async function enterFirstRealCategory(page) {
   await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 

@@ -243,7 +243,7 @@ describe('MoviesScreen', () => {
     mockContentByCategory({ 1: many })
     renderMovies()
 
-    press('ArrowRight')
+    press('Enter')
 
     const rendered = document.querySelectorAll('.vod-grid .content-card-title')
     expect(rendered.length).toBeGreaterThan(0)
@@ -260,7 +260,7 @@ describe('MoviesScreen', () => {
     mockContentByCategory({ 1: [movie('Filme A', 'Ação'), movie('Filme B', 'Ação')] })
     renderMovies()
 
-    press('ArrowRight') // entra
+    press('Enter') // entra
     expect(gridTitles()).toEqual(['Filme A', 'Filme B'])
 
     press('Enter')
@@ -277,7 +277,7 @@ describe('MoviesScreen', () => {
     })
     const { container } = renderMovies()
 
-    press('ArrowRight')
+    press('Enter')
 
     const cards = [...container.querySelectorAll('.vod-grid-cell')]
     const comCapa = cards.find((c) => c.textContent?.includes('Com Capa'))
@@ -292,7 +292,7 @@ describe('MoviesScreen', () => {
     mockContentByCategory({}, 'failed')
     renderMovies()
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(screen.getByText('Não foi possível carregar esta categoria')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
@@ -308,7 +308,7 @@ describe('MoviesScreen', () => {
     })
     renderMovies()
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(screen.getByTestId('error-state-code')).toHaveTextContent('NET-02')
     expect(screen.getByText('O servidor não respondeu')).toBeInTheDocument()
@@ -320,7 +320,7 @@ describe('MoviesScreen', () => {
     const refetch = mockContentByCategory({}, 'failed')
     renderMovies()
 
-    press('ArrowRight')
+    press('Enter')
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
     press('Enter')
 
@@ -333,7 +333,7 @@ describe('MoviesScreen', () => {
     const onResync = vi.fn()
     renderMovies(onResync)
 
-    press('ArrowRight')
+    press('Enter')
 
     expect(screen.getByText('O conteúdo desta lista não está mais no aparelho')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ressincronizar lista' })).toBeInTheDocument()
@@ -348,7 +348,7 @@ describe('MoviesScreen', () => {
     mockContentByCategory({ 1: [movie('Filme A', 'Ação'), movie('Filme B', 'Ação')] })
     const { rerenderMovies } = renderMovies()
 
-    press('ArrowRight')
+    press('Enter')
     press('ArrowRight') // move dentro da grade para o segundo item
 
     mockContentByCategory({ 1: [movie('Filme A', 'Ação')] })
@@ -371,7 +371,7 @@ describe('MoviesScreen', () => {
     renderMovies()
 
     press('ArrowDown') // categoria "Comédia"
-    press('ArrowRight') // entra
+    press('Enter') // entra
     press('Enter') // abre "Filme C"
 
     expect(onOpenMovie).toHaveBeenCalledTimes(1)
@@ -430,7 +430,7 @@ describe('MoviesScreen', () => {
     mockContentByCategory({ 1: [movie('Duna', 'Ação')] })
     renderMovies()
 
-    press('ArrowRight') // entra em "Ação"
+    press('Enter') // entra em "Ação"
     press('ArrowUp') // 1º item -> ícone
     press('Enter') // abre o campo
 
@@ -457,7 +457,7 @@ describe('MoviesScreen', () => {
     mockContentByCategory({ 1: [movie('Duna', 'Ação')] }, 'source_missing')
     renderMovies()
 
-    press('ArrowRight') // entra em "Ação" — item obsoleto, outcome indisponível
+    press('Enter') // entra em "Ação" — item obsoleto, outcome indisponível
     expect(document.querySelector('.vod-toolbar-search-button')).toBeNull()
   })
 
@@ -469,7 +469,7 @@ describe('MoviesScreen', () => {
     renderMovies()
 
     press('ArrowUp') // de "Ação" (padrão) para "Todos"
-    press('ArrowRight') // entra em "Todos"
+    press('Enter') // entra em "Todos"
     press('ArrowUp') // 1º item -> ícone
     press('Enter') // abre o campo
 

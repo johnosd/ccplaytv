@@ -188,7 +188,7 @@ async function openViaTopbar(page, destination) {
 /** Entra na 1ª categoria real da trilha (★/↺/Todos + a real) e espera a grade. */
 async function enterFirstRealCategory(page) {
   await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 

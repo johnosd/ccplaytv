@@ -172,7 +172,7 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'movies')
     await waitForCategoryTrail(page)
-    await page.keyboard.press('ArrowRight') // entra em "Filmes" (categoria única)
+    await page.keyboard.press('Enter') // entra em "Filmes" (categoria única)
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre o detalhe
     await page.waitForSelector('.vod-detail', { timeout: 8000 })
@@ -227,7 +227,7 @@ async function run() {
     // pra "Início" antes de contar), então funciona igual.
     await openViaTopbar(page, 'live')
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra na categoria de canais
+    await page.keyboard.press('Enter') // entra na categoria de canais
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await page.keyboard.press('Enter') // toca o canal
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })

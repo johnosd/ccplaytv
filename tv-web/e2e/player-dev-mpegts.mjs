@@ -188,7 +188,7 @@ async function run() {
     await page.waitForSelector('.live-column-groups', { timeout: 8000 })
 
     console.log('=== US2: o canal .ts toca no dev (fallback de demux) ===')
-    await page.keyboard.press('ArrowRight') // entra na categoria
+    await page.keyboard.press('Enter') // entra na categoria
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await page.evaluate(() => {
       window.__e2e047 = 'sem-reload'
@@ -229,6 +229,8 @@ async function run() {
     console.log('=== T026 (US2/AC4): canal que o navegador não decodifica cai no mesmo PLAY-04 ===')
     // Depois do RETURN o foco volta ao Canal 1; o Canal 4 é três linhas abaixo.
     for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowDown')
+    // Espera o foco chegar ao Canal 4 antes do OK: as 3 setas + OK sem pausa corriam com o render e tocavam outro canal.
+    await page.waitForFunction(() => document.querySelector('.live-channel-row.tv-focus')?.textContent?.includes('Canal 4'), null, { timeout: 4000 })
     await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
     const errorShown = await page
