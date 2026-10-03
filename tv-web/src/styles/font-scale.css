@@ -1,0 +1,21 @@
+﻿/**
+ * Escala global de fonte para leitura a ~2 m da TV.
+ *
+ * Um único botão: `--font-scale`. Todas as telas consomem `--fs-*` (Spec V14 §6),
+ * então mudar só este número escala o app inteiro; 1 = valores originais da Spec
+ * (64/40/28/24/20/16px). Os tokens base continuam em `index.css` (e no
+ * `tokens.test.ts`); aqui eles são sobrescritos. Só afeta `font-size` — espaçamentos,
+ * alturas e larguras fixas NÃO acompanham, então ao subir a escala confira textos
+ * que passam a truncar ou quebrar em linhas/cards de altura fixa.
+ */
+:root {
+  --font-scale: 1;
+
+  --fs-display: calc(64px * var(--font-scale));
+  --fs-h1: calc(40px * var(--font-scale));
+  --fs-h2: calc(28px * var(--font-scale));
+  --fs-body-lg: calc(24px * var(--font-scale));
+  --fs-body: calc(20px * var(--font-scale));
+  --fs-caption: calc(16px * var(--font-scale));
+}
+

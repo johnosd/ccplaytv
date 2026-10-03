@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Live TV — Design System V14 (feature 024, Onda 3, T022 do plan.md).
  *
  * Consolida aqui todo o CSS específico da tela (antes espalhado no antigo
@@ -577,3 +577,5 @@
   flex-direction: row;
   gap: var(--space-4);
 }
+
+

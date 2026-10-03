@@ -357,6 +357,7 @@ medição), `Bugfix` (segue em `## Bugs`).
 | 048-live-paridade-v14 | Paridade visual da TV ao vivo com o Design System V14 | Em Execução | 43/47 tasks | 2026-10-02 |
 | 050-filmes-series-paridade-v14 | Paridade visual de Filmes e Séries com o Design System V14 | Implementada | 30/30 tasks | 2026-10-02 |
 | 049-navegacao-por-pagina | Navegação por página nas listas | Convergida | 42/42 tasks | 2026-10-02 |
+| 051-detalhe-filme-paridade-v14 | Paridade visual do detalhe do filme com o Design System V14 | Planejada | 0/31 tasks | 2026-10-02 |
 
 ## Bugs
 

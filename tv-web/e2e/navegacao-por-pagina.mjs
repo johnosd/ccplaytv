@@ -1,4 +1,4 @@
-// Roteiro E2E da feature 049 (navegação por página nas listas) — gate da
+﻿// Roteiro E2E da feature 049 (navegação por página nas listas) — gate da
 // constitution ("Testes E2E (Playwright) antes de validação em TV física").
 //
 // Num Chromium de verdade, a 1920×1080, mede o que o jsdom não vê: a lista rola
@@ -171,7 +171,8 @@ async function run() {
 
     await press(page, 'ArrowRight', 20) // além do fim
     await page.waitForTimeout(250) // o foco da página é aplicado no quadro seguinte
-    assert((await focusedChannel(page)) === `Longo ${LONGO}`, `→ para no último canal (Longo ${LONGO})`)
+    const lastFocused = await focusedChannel(page)
+    assert(lastFocused === `Longo ${LONGO}`, `→ para no último canal (Longo ${LONGO}; ficou em ${lastFocused})`)
     await page.keyboard.press('ArrowLeft')
     await page.waitForTimeout(250)
     const back = Number((await focusedChannel(page)).replace('Longo ', ''))
@@ -286,3 +287,4 @@ async function run() {
 }
 
 run()
+

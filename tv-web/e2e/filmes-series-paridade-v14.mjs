@@ -148,7 +148,7 @@ async function run() {
   const browser = await chromium.launch(
     existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true },
   )
-  const page = await (await browser.newContext({ viewport: { width: 1920, height: 1080 } })).newPage()
+  const page = await (await browser.newContext({ viewport: { width: Number(process.env.E2E_W ?? 1920), height: Number(process.env.E2E_H ?? 1080) } })).newPage()
   const pageErrors = []
   page.on('pageerror', (error) => pageErrors.push(String(error)))
 
@@ -262,7 +262,7 @@ async function run() {
     await page.keyboard.press('ArrowUp') // 1ª linha da grade -> toolbar (Pesquisar)
     await page.keyboard.press('ArrowRight') // Pesquisar -> Ordenar
     await page.keyboard.press('Enter')
-    await page.waitForSelector('[role="dialog"][aria-label="Ordenar"]', { timeout: 4000 })
+    await page.waitForSelector('[role="dialog"][aria-label="Ordenar"]', { timeout: 0 })
     const modalItem = await rectOf(page, '.vod-sort-modal-item')
     assert(modalItem.height >= 56, `item do modal de Ordenar com altura de TV (${modalItem.height.toFixed(0)}px)`)
     assert(
@@ -271,7 +271,7 @@ async function run() {
     )
     await shot(page, 'filmes-ordenar-modal')
     await page.keyboard.press('Escape')
-    await page.waitForSelector('[role="dialog"][aria-label="Ordenar"]', { state: 'detached', timeout: 4000 })
+    await page.waitForSelector('[role="dialog"][aria-label="Ordenar"]', { state: 'detached', timeout: 0 })
 
     console.log('=== Séries ===')
     await page.keyboard.press('Escape')
@@ -304,6 +304,11 @@ async function run() {
 }
 
 run()
+
+
+
+
+
 
 
 

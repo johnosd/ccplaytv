@@ -417,18 +417,27 @@
   overflow: auto;
   position: relative;
   /* Folga para anel + deslocamento + halo (~15px) e a escala 1.06 do card (~9px). */
-  padding: var(--space-3);
-  margin: calc(-1 * var(--space-3));
-  scroll-padding-block: calc(var(--space-5) + var(--space-3));
+  padding: calc(var(--space-3) + var(--space-1) / 2);
+  margin: calc(-1 * (var(--space-3) + var(--space-1) / 2));
+  scroll-padding-block: calc(var(--space-5) + var(--space-3) + var(--space-1) / 2);
 }
 
 .vod-grid-inner {
   position: relative;
+  /* 6 colunas de 205px com, no mínimo, 24px (--space-3) entre elas. */
+  min-width: calc(6 * 205px + 5 * var(--space-3));
 }
 
 .vod-grid-cell {
   position: absolute;
   top: 0;
+  width: 205px; /* = CARD_WIDTH em VodCatalogScreen.tsx */
+  /* --lane (0..5) vem do JSX; o espaço entre colunas absorve a largura que sobra (feature 050). */
+  left: calc(var(--lane, 0) * (205px + (100% - 6 * 205px) / 5));
+}
+
+/* Card portrait um pouco mais largo só nesta grade, para ocupar a largura que sobrou (a proporção do pôster é mantida). */
+.vod-grid-cell .content-card--portrait {
   width: 205px;
 }
 
@@ -991,6 +1000,12 @@
 .similar-chip--found {
   color: var(--accent);
 }
+
+
+
+
+
+
 
 
 

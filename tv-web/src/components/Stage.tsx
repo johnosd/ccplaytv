@@ -21,7 +21,18 @@ export function Stage({ children }: StageProps) {
     if (!node) return
 
     function applyLayout() {
-      const { transform } = computeStageLayout(window.innerWidth, window.innerHeight)
+      const { transform, scale, offsetX } = computeStageLayout(window.innerWidth, window.innerHeight)
+      // Janela mais larga que 16:9 (ex.: navegador no desktop): em vez de faixas pretas nas laterais, o palco
+      // se estica na horizontal até a borda (largura lógica = viewport / escala) e fica colado à esquerda. Em
+      // 16:9 (a TV) `offsetX` é 0 e nada muda; mais estreita que 16:9 mantém o letterbox vertical.
+      if (offsetX > 0) {
+        node!.style.width = `${window.innerWidth / scale}px`
+        node!.style.setProperty('--stage-width', `${window.innerWidth / scale}px`)
+        node!.style.transform = `scale(${scale})`
+        return
+      }
+      node!.style.removeProperty('width')
+      node!.style.removeProperty('--stage-width')
       if (transform) node!.style.transform = transform
       else node!.style.removeProperty('transform')
     }

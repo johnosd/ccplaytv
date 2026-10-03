@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+﻿import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MoviesScreen } from './MoviesScreen'
@@ -249,8 +249,9 @@ describe('MoviesScreen', () => {
     expect(rendered.length).toBeGreaterThan(0)
     expect(rendered.length).toBeLessThan(many.length)
 
+    // A coluna é a variável CSS --lane (o left é calculado em vod.css, feature 050).
     const lefts = new Set(
-      [...document.querySelectorAll('.vod-grid .vod-grid-cell')].map((el) => (el as HTMLElement).style.left),
+      [...document.querySelectorAll('.vod-grid .vod-grid-cell')].map((el) => (el as HTMLElement).style.getPropertyValue('--lane')),
     )
     expect(lefts.size).toBe(6)
   })
@@ -480,3 +481,4 @@ describe('MoviesScreen', () => {
     expect(screen.queryByText(/Busca em \d+ de \d+ categorias/)).not.toBeInTheDocument()
   })
 })
+

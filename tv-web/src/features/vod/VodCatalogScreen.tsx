@@ -39,6 +39,7 @@ import { Toast } from '../../components/Toast'
 import { ContentCard } from '../../components/ContentCard'
 import { VodHeroArt } from './VodHeroArt'
 import { vodGroupDisplay } from './vodGroupDisplay'
+import { fontScale } from '../../lib/fontScale'
 import { useOverflowEdges, type OverflowEdges } from '../../lib/focus/useOverflowEdges'
 import { SideCategoryNav, type SideCategoryNavEntry } from '../../components/SideCategoryNav'
 import { EmptyState } from '../../components/EmptyState'
@@ -76,14 +77,16 @@ function scrollFrameClass(edges: OverflowEdges): string {
 /** Card portrait de geometria fixa (D-006 do plan.md — sem `ResizeObserver`, mesma escolha do `Rail`, feature 022 R-002). */
 const GRID_COLS = 6
 const CARD_WIDTH = 205
-const CARD_GAP = 24 // token --space-3
 /**
  * Espaço vertical que cada linha precisa além da altura do pôster
  * (205×302): título + metadado + o espaçamento entre linhas que a posição
  * absoluta não herda de `gap` (mesmo valor já validado pela feature 009).
  */
 const ROW_EXTRA_PX = 68
-const ROW_HEIGHT = (CARD_WIDTH * 302) / 205 + ROW_EXTRA_PX
+/** Altura da linha: o texto de baixo do card cresce com --font-scale, o pôster não (lida do CSS, 1 em testes). */
+function rowHeight(): number {
+  return (CARD_WIDTH * 302) / 205 + Math.round(ROW_EXTRA_PX * fontScale())
+}
 const GRID_OVERSCAN = GRID_COLS
 /** "Todos" aos poucos (feature 039, T022): a próxima página é pedida a 10 fileiras do fim. */
 const ALL_LOAD_AHEAD = GRID_COLS * 10
@@ -448,7 +451,7 @@ export function VodCatalogScreen({
   const itemVirtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => gridContainerRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: rowHeight,
     lanes: GRID_COLS,
     overscan: GRID_OVERSCAN,
   })
@@ -1202,7 +1205,6 @@ export function VodCatalogScreen({
                       className="vod-grid-inner"
                       style={{
                         height: itemVirtualizer.getTotalSize(),
-                        width: GRID_COLS * CARD_WIDTH + (GRID_COLS - 1) * CARD_GAP,
                       }}
                     >
                       {itemVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -1218,7 +1220,8 @@ export function VodCatalogScreen({
                             key={item.id}
                             className="vod-grid-cell"
                             style={{
-                              left: (virtualRow.lane % GRID_COLS) * (CARD_WIDTH + CARD_GAP),
+                              // A coluna vira `left` em CSS (`.vod-grid-cell`): as 6 colunas se distribuem pela largura disponível.
+                              ['--lane' as string]: virtualRow.lane % GRID_COLS,
                               transform: `translateY(${virtualRow.start}px)`,
                             }}
                           >
@@ -1272,6 +1275,11 @@ export function VodCatalogScreen({
     </>
   )
 }
+
+
+
+
+
 
 
 

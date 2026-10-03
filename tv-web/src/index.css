@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Tokens do Design System V14 Spectrum (ADR-011; Spec §5–§10, §29).
  *
  * Regra desta feature (021, D-001 do plan.md): todo nome V14 é declarado
@@ -175,7 +175,7 @@
      ATRÁS da camada web, e qualquer pixel opaco aqui o esconde — canal toca
      sem imagem. Só vale para motor de hardware; com o `<video>` do desktop a
      classe nunca é aplicada. */
-  font: 500 18px/1.5 var(--font-body);
+  font: 500 calc(18px * var(--font-scale))/1.5 var(--font-body);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -273,3 +273,4 @@ button:focus,
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+

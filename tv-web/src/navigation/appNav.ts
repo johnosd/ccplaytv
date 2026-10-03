@@ -49,7 +49,7 @@ export type AppScreen =
   | { name: 'epg-settings'; source: SourceOut }
   /** Chave do TMDB (feature 032, US2) — aberta por Configurações › Integrações & BYOK. RETURN volta ao card do TMDB (`restore` da tela de Configurações). */
   | { name: 'tmdb-key' }
-  | { name: 'progress'; jobId: string }
+  | { name: 'progress'; jobId: string; returnTo?: 'back' }
   | { name: 'home'; focus?: HomeFocus }
   | {
       name: 'live'

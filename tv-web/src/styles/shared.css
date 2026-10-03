@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Regras compartilhadas por mais de uma tela/componente, movidas de
  * `features/screens.css` (feature 028, eliminado — D-003/T027 do plan.md).
  * Importado no MESMO lugar da ordem de `main.tsx` onde `screens.css`
@@ -9,7 +9,7 @@
 .screen {
   position: absolute;
   inset: 0;
-  padding: 80px 96px;
+  padding: var(--safe-y) var(--safe-x);
   display: flex;
   flex-direction: column;
   color: var(--text-secondary);
@@ -21,19 +21,19 @@
 }
 
 .screen-title {
-  font: 800 40px var(--font-heading);
+  font: 800 calc(40px * var(--font-scale)) var(--font-heading);
   color: var(--text-primary);
   margin-bottom: 36px;
 }
 
 .screen-subtitle {
-  font: 500 20px var(--font-body);
+  font: 500 calc(20px * var(--font-scale)) var(--font-body);
   color: var(--text-tertiary);
   margin-bottom: 56px;
 }
 
 .screen-eyebrow {
-  font: 500 20px var(--font-body);
+  font: 500 calc(20px * var(--font-scale)) var(--font-body);
   color: var(--text-tertiary);
   margin-bottom: 6px;
 }
@@ -85,7 +85,7 @@
   background: var(--surface);
   border: 3px solid var(--border-dashed);
   color: var(--text-primary);
-  font-size: 19px;
+  font-size: calc(19px * var(--font-scale));
   font-family: var(--font-body);
   padding: 0 24px;
   box-sizing: border-box;
@@ -97,7 +97,7 @@
 }
 
 .form-error {
-  font: 500 16px var(--font-body);
+  font: 500 calc(16px * var(--font-scale)) var(--font-body);
   color: var(--brand-1);
 }
 
@@ -111,14 +111,14 @@
   background: var(--surface);
   border: 2px solid var(--border-dashed);
   color: var(--text-secondary);
-  font: 500 16px var(--font-body);
+  font: 500 calc(16px * var(--font-scale)) var(--font-body);
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 .limited-mode-notice-title {
-  font: 700 18px var(--font-body);
+  font: 700 calc(18px * var(--font-scale)) var(--font-body);
   color: var(--text-primary);
 }
 
@@ -157,7 +157,7 @@
 }
 
 .live-column-title {
-  font: 700 22px var(--font-body);
+  font: 700 calc(22px * var(--font-scale)) var(--font-body);
   color: var(--text-primary);
   margin-bottom: 8px;
 }
@@ -172,12 +172,12 @@
 }
 
 .live-state-title {
-  font: 700 30px var(--font-body);
+  font: 700 calc(30px * var(--font-scale)) var(--font-body);
   color: var(--text-primary);
 }
 
 .live-state-copy {
-  font: 500 18px var(--font-body);
+  font: 500 calc(18px * var(--font-scale)) var(--font-body);
   color: var(--text-tertiary);
   max-width: 620px;
   text-align: center;
@@ -189,7 +189,7 @@
   background: var(--surface-field-active);
   color: var(--text-secondary);
   font-weight: 700;
-  font-size: 19px;
+  font-size: calc(19px * var(--font-scale));
 }
 
 .live-state-action.tv-focus {
@@ -198,7 +198,7 @@
 }
 
 .live-truncated-note {
-  font: 500 15px var(--font-body);
+  font: 500 calc(15px * var(--font-scale)) var(--font-body);
   color: var(--text-tertiary);
   padding: 12px 20px;
 }
@@ -228,7 +228,7 @@
   border-radius: 12px;
   background: var(--surface);
   color: var(--text-secondary);
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale));
   flex: none;
 }
 
@@ -243,7 +243,7 @@
 .search-field {
   height: 56px;
   max-width: 100%;
-  font-size: 17px;
+  font-size: calc(17px * var(--font-scale));
 }
 
 .search-status {
@@ -251,7 +251,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px 4px 0;
-  font: 500 15px var(--font-body);
+  font: 500 calc(15px * var(--font-scale)) var(--font-body);
   color: var(--text-tertiary);
 }
 
@@ -284,7 +284,7 @@
 
 .poster-box-label {
   position: relative;
-  font: 11px ui-monospace, monospace;
+  font: calc(11px * var(--font-scale)) ui-monospace, monospace;
   color: var(--text-muted);
   text-align: center;
   padding: 0 8px;
@@ -342,7 +342,7 @@
   border: 2px solid var(--accent);
   border-radius: 14px;
   padding: 18px 32px;
-  font: 600 18px var(--font-body);
+  font: 600 calc(18px * var(--font-scale)) var(--font-body);
   color: var(--text-primary);
   animation: ccp-toast 180ms ease-out;
   z-index: 1000;
@@ -357,7 +357,7 @@
    de cor (ADR-007). */
 .fav-star {
   color: var(--accent);
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale));
   line-height: 1;
   flex: none;
 }
@@ -366,7 +366,7 @@
   position: absolute;
   top: 10px;
   right: 10px;
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale));
   text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
 }
 
@@ -377,7 +377,7 @@
   position: absolute;
   left: 10px;
   bottom: 10px;
-  font: 700 12px var(--font-body);
+  font: 700 calc(12px * var(--font-scale)) var(--font-body);
   color: var(--text-primary);
   background: rgba(0, 0, 0, 0.6);
   border-radius: 6px;
@@ -388,8 +388,10 @@
    .live-truncated-note), lembrando o gesto de segurar OK enquanto houver
    itens favoritáveis na tela (FR-012). */
 .fav-hint {
-  font: 500 14px var(--font-body);
+  font: 500 calc(14px * var(--font-scale)) var(--font-body);
   color: var(--text-tertiary);
   padding: 8px 20px;
   flex: none;
 }
+
+

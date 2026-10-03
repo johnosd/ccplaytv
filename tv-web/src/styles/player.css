@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Camada de reprodução (`PlayerLayer`) + chrome V14 (feature 027,
  * `logic/chrome-player.md`). Importado em `main.tsx` no mesmo lugar em que
  * `features/screens.css` estava antes de ser eliminado (feature 028,
@@ -77,12 +77,12 @@
 }
 
 .player-status-channel {
-  font: 700 34px var(--font-body);
+  font: 700 calc(34px * var(--font-scale)) var(--font-body);
   color: var(--text-primary);
 }
 
 .player-status-label {
-  font: 500 20px var(--font-body);
+  font: 500 calc(20px * var(--font-scale)) var(--font-body);
   color: var(--text-tertiary);
 }
 
@@ -113,7 +113,7 @@
 }
 
 .player-message-title {
-  font: 700 34px var(--font-body);
+  font: 700 calc(34px * var(--font-scale)) var(--font-body);
   color: var(--text-primary);
 }
 
@@ -125,7 +125,7 @@
 }
 
 .player-message-copy {
-  font: 500 20px var(--font-body);
+  font: 500 calc(20px * var(--font-scale)) var(--font-body);
   color: var(--text-tertiary);
 }
 
@@ -141,7 +141,7 @@
   background: var(--surface-field-active);
   color: var(--text-secondary);
   font-weight: 700;
-  font-size: 19px;
+  font-size: calc(19px * var(--font-scale));
 }
 
 .player-action.tv-focus {
@@ -169,12 +169,12 @@
 }
 
 .player-chrome-title {
-  font: 700 34px var(--font-body);
+  font: 700 calc(34px * var(--font-scale)) var(--font-body);
   color: var(--text-primary);
 }
 
 .player-chrome-subtitle {
-  font: 500 20px var(--font-body);
+  font: 500 calc(20px * var(--font-scale)) var(--font-body);
   color: var(--text-tertiary);
 }
 
@@ -194,13 +194,13 @@
   border-radius: var(--radius-pill);
   background: var(--accent);
   color: var(--accent-ink);
-  font: 700 15px var(--font-body);
+  font: 700 calc(15px * var(--font-scale)) var(--font-body);
   letter-spacing: 0.04em;
 }
 
 .player-chrome-number {
   min-width: 56px;
-  font: 700 28px var(--font-body);
+  font: 700 calc(28px * var(--font-scale)) var(--font-body);
   color: var(--text-secondary);
 }
 
@@ -212,7 +212,7 @@
 }
 
 .player-chrome-name {
-  font: 700 28px var(--font-body);
+  font: 700 calc(28px * var(--font-scale)) var(--font-body);
   color: var(--text-primary);
 }
 
@@ -232,7 +232,7 @@
 }
 
 .player-chrome-now-title {
-  font: 500 20px var(--font-body);
+  font: 500 calc(20px * var(--font-scale)) var(--font-body);
   color: var(--text-secondary);
 }
 
@@ -262,7 +262,7 @@
   justify-content: center;
   gap: 12px;
   padding: 0 64px;
-  font: 600 20px var(--font-body);
+  font: 600 calc(20px * var(--font-scale)) var(--font-body);
   color: var(--text-secondary);
 }
 
@@ -304,7 +304,7 @@
   border-radius: var(--radius-pill);
   background: var(--surface-field-active);
   color: var(--text-secondary);
-  font: 700 15px var(--font-body);
+  font: 700 calc(15px * var(--font-scale)) var(--font-body);
   white-space: nowrap;
   --icon-size: 22px;
 }
@@ -428,3 +428,4 @@
   font-weight: 700;
   color: var(--text-primary);
 }
+
