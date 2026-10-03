@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react'
 import { Button } from '../../components/Button'
 import { ComingSoon } from '../../components/ComingSoon'
+import { useLanguage, useT } from '../../lib/i18n/I18nProvider'
+import { APP_LANGUAGE_LOCALE } from '../../lib/i18n/languages'
 import type { TmdbStatusView } from '../../lib/metadata/types'
 import {
   INTEGRATION_SOON_CARDS,
-  TMDB_ACTION_LABEL,
+  TMDB_ACTION_LABEL_KEY,
   TMDB_STATE_CODE,
-  TMDB_STATE_LABEL,
+  TMDB_STATE_LABEL_KEY,
   tmdbActions,
 } from './integrationsModel'
 
@@ -22,8 +24,8 @@ export interface IntegrationsPanelProps {
   onActivate: (row: number, col: number) => void
 }
 
-function formatWhen(epochMs: number): string {
-  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(epochMs))
+function formatWhen(epochMs: number, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(epochMs))
 }
 
 /**
@@ -34,6 +36,8 @@ function formatWhen(epochMs: number): string {
  * focável, em qualquer estado.
  */
 export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onActivate }: IntegrationsPanelProps): ReactNode {
+  const t = useT()
+  const language = useLanguage()
   const view: TmdbStatusView = status ?? { state: 'not_configured' }
   const actions = tmdbActions(view)
 
@@ -43,7 +47,7 @@ export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onA
         <header className="integration-card-header">
           <h2 className="integration-card-title">TMDB</h2>
           <span className="integration-card-state" data-state={view.state}>
-            {TMDB_STATE_LABEL[view.state]}
+            {t(TMDB_STATE_LABEL_KEY[view.state])}
           </span>
           {TMDB_STATE_CODE[view.state] && (
             <span data-testid="tmdb-state-code" className="error-state-code">
@@ -51,13 +55,11 @@ export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onA
             </span>
           )}
         </header>
-        <p className="integration-card-description">
-          Sinopses, imagens e detalhes de filmes e séries que a sua lista não traz. Usa a sua própria chave da conta TMDB.
-        </p>
+        <p className="integration-card-description">{t('settings.integrations.tmdbDescription')}</p>
         <dl className="integration-card-facts">
           {view.maskedKey && (
             <div className="integration-card-fact">
-              <dt>Chave</dt>
+              <dt>{t('settings.integrations.key')}</dt>
               <dd>
                 {view.maskedKey}
                 {view.format ? ` (${view.format})` : ''}
@@ -66,18 +68,16 @@ export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onA
           )}
           {view.lastTestedAt !== undefined && (
             <div className="integration-card-fact">
-              <dt>Última verificação</dt>
-              <dd>{formatWhen(view.lastTestedAt)}</dd>
+              <dt>{t('settings.integrations.lastTested')}</dt>
+              <dd>{formatWhen(view.lastTestedAt, APP_LANGUAGE_LOCALE[language])}</dd>
             </div>
           )}
           <div className="integration-card-fact">
-            <dt>Usado para</dt>
-            <dd>Metadata, Imagens</dd>
+            <dt>{t('settings.integrations.usedFor')}</dt>
+            <dd>{t('settings.integrations.usedForValue')}</dd>
           </div>
         </dl>
-        <p className="integration-card-attribution">
-          Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.
-        </p>
+        <p className="integration-card-attribution">{t('settings.integrations.attribution')}</p>
         <div className="integration-card-actions">
           {actions.map((action, col) => (
             <Button
@@ -87,15 +87,15 @@ export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onA
               loading={action === 'test' && testing}
               onSelect={() => onActivate(0, col)}
             >
-              {TMDB_ACTION_LABEL[action]}
+              {t(TMDB_ACTION_LABEL_KEY[action])}
             </Button>
           ))}
         </div>
       </section>
 
       {INTEGRATION_SOON_CARDS.map((card, index) => (
-        <section key={card.id} className="integration-card integration-card--soon" aria-label={card.title}>
-          <h2 className="integration-card-title">{card.title}</h2>
+        <section key={card.id} className="integration-card integration-card--soon" aria-label={t(card.titleKey)}>
+          <h2 className="integration-card-title">{t(card.titleKey)}</h2>
           {/* Sem `onSelect`: `ComingSoon` já anuncia "Em breve" no clique; o teclado passa por `onActivate` na tela. */}
           <ComingSoon id={card.id} focused={focusedRow === index + 1} />
         </section>

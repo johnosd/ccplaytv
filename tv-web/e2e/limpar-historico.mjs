@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusSideItem } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'historico-continuar-assistindo.m3u')
@@ -68,7 +69,7 @@ async function openViaTopbar(page, destination) {
 }
 
 async function enterCategory(page, name) {
-  await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
+  await focusSideItem(page, name)
   await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
@@ -130,7 +131,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/historico-continuar-assistindo.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   // `tizen.tvinputdevice` falso: só a vermelha e a amarela "suportadas".
   await context.addInitScript(() => {
     window.__registeredKeys = []

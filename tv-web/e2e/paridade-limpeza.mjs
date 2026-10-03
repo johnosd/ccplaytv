@@ -360,7 +360,7 @@ async function run() {
   const outDir = path.join(OUT_ROOT, MODE)
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   // Determinismo (`logic/migracao-css.md` §5): reduzir movimento ligado
   // ANTES do primeiro load — sem isso, uma captura pega um modal/painel no
   // meio da transição de 180ms (`ccp-toast`) e a outra não, um punhado de

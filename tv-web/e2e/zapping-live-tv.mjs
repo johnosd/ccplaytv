@@ -125,7 +125,7 @@ async function run() {
   const browser = await chromium.launch(
     existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true },
   )
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   // As URLs de "stream" da fixture não são servidas de verdade (só o .m3u
   // é) — sem interceptar, o Chromium tenta a conexão de verdade, ela é

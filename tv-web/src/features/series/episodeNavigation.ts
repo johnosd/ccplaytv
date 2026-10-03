@@ -5,6 +5,7 @@
  * `SeriesDetailScreen.tsx`.
  */
 
+import { createTranslator, type Translator } from '../../lib/i18n/translate'
 import type { UserStateRecord } from '../../lib/catalog/db'
 import { isResumable } from '../../lib/player/resumePolicy'
 
@@ -45,7 +46,7 @@ function sortEpisodes(episodes: EpisodeOut[]): EpisodeOut[] {
  * `season_number: null` vira um único grupo "Episódios", sempre por
  * último (M3U/Modo limitado sem temporada identificável no nome, D-011).
  */
-export function groupBySeason(episodes: EpisodeOut[]): Season[] {
+export function groupBySeason(episodes: EpisodeOut[], t: Translator = createTranslator('pt')): Season[] {
   const bySeason = new Map<number | null, EpisodeOut[]>()
   for (const episode of episodes) {
     const list = bySeason.get(episode.season_number)
@@ -58,14 +59,14 @@ export function groupBySeason(episodes: EpisodeOut[]): Season[] {
     .sort((a, b) => a[0] - b[0])
     .map(([number, list]) => ({
       key: String(number),
-      label: `Temporada ${number}`,
+      label: t('detail.seasonNumbered', { n: number }),
       number,
       episodes: sortEpisodes(list),
     }))
 
   const unnumbered = bySeason.get(null)
   if (!unnumbered) return numbered
-  return [...numbered, { key: 'none', label: 'Episódios', number: null, episodes: sortEpisodes(unnumbered) }]
+  return [...numbered, { key: 'none', label: t('detail.seasonNone'), number: null, episodes: sortEpisodes(unnumbered) }]
 }
 
 /**

@@ -1,3 +1,5 @@
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
 import { useEffect, useRef } from 'react'
 import { useCancelImportJob, useEpgSyncing, useImportJob, useRetryImportJob, useSources } from './importApi'
 import { guideRow, isGuideSettled, sectionRows } from './importSections'
@@ -20,12 +22,12 @@ export interface ImportProgressScreenProps {
   onOpenSource: (sourceId: string) => void
 }
 
-const STEP_LABELS: Record<string, string> = {
-  acquiring: 'Obtendo a lista',
-  parsing: 'Lendo entradas',
-  classifying: 'Classificando canais, filmes e séries',
-  publishing: 'Publicando catálogo',
-  done: 'Concluído',
+const STEP_LABEL_KEYS: Record<string, MessageKey> = {
+  acquiring: 'import.step.acquiring',
+  parsing: 'import.step.parsing',
+  classifying: 'import.step.classifying',
+  publishing: 'import.step.publishing',
+  done: 'import.step.done',
 }
 
 /**
@@ -33,21 +35,21 @@ const STEP_LABELS: Record<string, string> = {
  * segundos (feature 010) — as etapas falam de categoria, não de item, e a
  * tela precisa dizer a verdade sobre o que está acontecendo (FR-013).
  */
-const CATEGORY_STEP_LABELS: Record<string, string> = {
-  acquiring: 'Obtendo a estrutura',
-  parsing: 'Lendo categorias',
-  classifying: 'Organizando categorias',
-  publishing: 'Publicando estrutura',
-  done: 'Concluído',
+const CATEGORY_STEP_LABEL_KEYS: Record<string, MessageKey> = {
+  acquiring: 'import.catStep.acquiring',
+  parsing: 'import.catStep.parsing',
+  classifying: 'import.catStep.classifying',
+  publishing: 'import.catStep.publishing',
+  done: 'import.step.done',
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  queued: 'Na fila',
-  running: 'Em andamento',
-  completed: 'Concluída',
-  completed_with_warnings: 'Concluída com avisos',
-  failed: 'Falhou',
-  cancelled: 'Cancelada',
+const STATUS_LABEL_KEYS: Record<string, MessageKey> = {
+  queued: 'import.statusName.queued',
+  running: 'import.statusName.running',
+  completed: 'import.statusName.completed',
+  completed_with_warnings: 'import.statusName.completed_with_warnings',
+  failed: 'import.statusName.failed',
+  cancelled: 'import.statusName.cancelled',
 }
 
 /**
@@ -68,19 +70,27 @@ const ERROR_CODES: Record<string, string> = {
   storage_full: 'STO-01',
 }
 
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid_credentials: 'O provedor recusou o usuário ou senha.',
-  subscription_expired: 'Sua assinatura com este provedor expirou.',
-  direct_connection_refused:
-    'O provedor não aceita conexão direta por este aplicativo. Requer uso do servidor.',
-  network_failure: 'Falha de rede ao tentar conectar com o provedor.',
-  rate_limited: 'O provedor pediu um intervalo entre as consultas. Tente de novo mais tarde.',
-  invalid_address: 'O endereço do servidor é inválido. Confira o endereço e tente de novo.',
-  invalid_playlist: 'O painel não respondeu com um formato de catálogo válido.',
-  empty_playlist: 'O painel respondeu com um catálogo vazio.',
-  hls_manifest: 'O endereço fornecido aponta para um canal, não para um catálogo.',
-  interrupted: 'A importação foi interrompida antes de terminar. O aplicativo foi fechado no meio.',
-  storage_full: 'Não há espaço no aparelho para guardar esta lista.',
+const ERROR_MESSAGE_KEYS: Record<string, MessageKey> = {
+  invalid_credentials: 'import.error.invalid_credentials',
+  subscription_expired: 'import.error.subscription_expired',
+  direct_connection_refused: 'import.error.direct_connection_refused',
+  network_failure: 'import.error.network_failure',
+  rate_limited: 'import.error.rate_limited',
+  invalid_address: 'import.error.invalid_address',
+  invalid_playlist: 'import.error.invalid_playlist',
+  empty_playlist: 'import.error.empty_playlist',
+  hls_manifest: 'import.error.hls_manifest',
+  interrupted: 'import.error.interrupted',
+  storage_full: 'import.error.storage_full',
+}
+
+/** Avisos que o importador grava em português → chave do catálogo (a tela mostra no idioma do app; texto novo passa como veio). */
+const WARNING_KEYS: Record<string, MessageKey> = {
+  'A lista não coube inteira no aparelho.': 'import.warn.truncated',
+  'Entradas inválidas foram ignoradas.': 'import.warn.invalid',
+  'Entradas de tipo não reconhecido ficaram de fora.': 'import.warn.discarded',
+  'O provedor não respondeu à lista de filmes.': 'import.warn.movie',
+  'O provedor não respondeu à lista de séries.': 'import.warn.series',
 }
 
 /**
@@ -90,6 +100,7 @@ const ERROR_MESSAGES: Record<string, string> = {
  * etapas e contagens reais, nunca um percentual estimado (FR-037).
  */
 export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }: ImportProgressScreenProps) {
+  const t = useT()
   const containerRef = useRef<HTMLElement>(null)
   const openListRef = useRef<HTMLDivElement>(null)
   useTvKeyNav(containerRef)
@@ -115,12 +126,15 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
   const sourceId = job?.source_id ?? null
   const epg = useSources().data?.sources.find((source) => source.id === sourceId)?.epg
   const epgSyncing = useEpgSyncing(sourceId)
-  const guide = guideRow({
-    importSucceeded: isDone,
-    epg,
-    syncing: epgSyncing,
-    runStartedAt: job ? Date.parse(job.created_at) : 0,
-  })
+  const guide = guideRow(
+    {
+      importSucceeded: isDone,
+      epg,
+      syncing: epgSyncing,
+      runStartedAt: job ? Date.parse(job.created_at) : 0,
+    },
+    t,
+  )
   // D-012: "Abrir lista" já aparece com a estrutura pronta; o foco vai para ele
   // quando o guia também se resolve (FR-019).
   const settled = isDone && isGuideSettled(guide)
@@ -136,17 +150,14 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
     return (
       <section className="screen onboarding" aria-labelledby="progress-title" ref={containerRef}>
         <OnboardingBrand />
-        <p className="onboarding-kicker">Importação</p>
+        <p className="onboarding-kicker">{t('import.kicker')}</p>
         <h1 id="progress-title" className="onboarding-title">
-          Progresso da importação
+          {t('import.title')}
         </h1>
-        <p className="onboarding-subtitle">
-          Esta importação não está mais registrada no aparelho. Abra a lista na tela inicial para
-          sincronizar de novo.
-        </p>
+        <p className="onboarding-subtitle">{t('import.missing')}</p>
         <div className="progress-actions">
           <Button variant="secondary" onSelect={goBack}>
-            Voltar
+            {t('common.back')}
           </Button>
         </div>
       </section>
@@ -157,17 +168,17 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
     return (
       <section className="screen onboarding" aria-labelledby="progress-title" ref={containerRef}>
         <OnboardingBrand />
-        <p className="onboarding-kicker">Importação</p>
+        <p className="onboarding-kicker">{t('import.kicker')}</p>
         <h1 id="progress-title" className="onboarding-title">
-          Progresso da importação
+          {t('import.title')}
         </h1>
         <div className="progress-status-row">
           <Spinner size={32} />
-          <p className="progress-status">Carregando estado da importação…</p>
+          <p className="progress-status">{t('import.loading')}</p>
         </div>
         <div className="progress-actions">
           <Button variant="secondary" onSelect={goBack}>
-            Voltar
+            {t('common.back')}
           </Button>
         </div>
       </section>
@@ -177,14 +188,16 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
   const isRunning = job.status === 'queued' || job.status === 'running'
   const cancelRequested = cancelJob.isSuccess || cancelJob.isPending
   const isCategories = job.counts.unit === 'categories'
-  const stepLabels = isCategories ? CATEGORY_STEP_LABELS : STEP_LABELS
+  const stepLabelKeys = isCategories ? CATEGORY_STEP_LABEL_KEYS : STEP_LABEL_KEYS
+  const stepKey = stepLabelKeys[job.current_step]
+  const statusKey = STATUS_LABEL_KEYS[job.status]
 
   return (
     <section className="screen onboarding" aria-labelledby="progress-title" ref={containerRef}>
       <OnboardingBrand />
-      <p className="onboarding-kicker">Importação</p>
+      <p className="onboarding-kicker">{t('import.kicker')}</p>
       <h1 id="progress-title" className="onboarding-title">
-        Progresso da importação
+        {t('import.title')}
       </h1>
 
       <div className="progress-status-row">
@@ -193,15 +206,17 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
             Reais"). */}
         {isRunning && <Spinner size={32} />}
         <p className="progress-status">
-          Status: {STATUS_LABELS[job.status] ?? job.status} — Etapa:{' '}
-          {stepLabels[job.current_step] ?? job.current_step}
+          {t('import.status', {
+            status: statusKey ? t(statusKey) : job.status,
+            step: stepKey ? t(stepKey) : job.current_step,
+          })}
         </p>
       </div>
 
       {/* Feature 038 (FR-015..FR-017): uma linha por parte, com estado e
           contagem reais — texto, nunca só cor, nunca percentual. */}
-      <ul aria-label="O que está sendo carregado" className="progress-sections">
-        {[...sectionRows(job.sections), guide].map((row) => (
+      <ul aria-label={t('import.sectionsAria')} className="progress-sections">
+        {[...sectionRows(job.sections, t), guide].map((row) => (
           <li key={row.key} className="progress-section" data-state={row.state}>
             <span className="progress-section-label">{row.label}</span>
             <span className="progress-section-state">{row.text}</span>
@@ -210,17 +225,15 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
       </ul>
 
       {settled && (
-        <p className="progress-background-note">
-          Os itens de cada categoria continuam chegando em segundo plano.
-        </p>
+        <p className="progress-background-note">{t('import.background')}</p>
       )}
 
-      <ul aria-label="Contadores" className="progress-counters">
+      <ul aria-label={t('import.countersAria')} className="progress-counters">
         <li className="progress-counter">
-          {isCategories ? 'Categorias lidas' : 'Entradas lidas'}: {job.counts.entries_read}
+          {isCategories ? t('import.counter.categoriesRead') : t('import.counter.entriesRead')}: {job.counts.entries_read}
         </li>
         <li className="progress-counter">
-          {isCategories ? 'Categorias gravadas' : 'Itens gravados'}: {job.counts.channels}
+          {isCategories ? t('import.counter.categoriesSaved') : t('import.counter.itemsSaved')}: {job.counts.channels}
         </li>
         {/* Descarte por tipo e invalidez não têm sentido para uma estrutura
             de categorias — nenhuma categoria é "descartada por tipo" ou
@@ -229,16 +242,16 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
         {!isCategories && (
           <>
             <li className="progress-counter">
-              Descartados (tipo não reconhecido): {job.counts.discarded_by_type}
+              {t('import.counter.discarded')}: {job.counts.discarded_by_type}
             </li>
-            <li className="progress-counter">Inválidos: {job.counts.invalid}</li>
+            <li className="progress-counter">{t('import.counter.invalid')}: {job.counts.invalid}</li>
           </>
         )}
       </ul>
 
       {job.status === 'failed' && job.error_kind && (
-        <div className="progress-error" aria-label="Erro">
-          {ERROR_MESSAGES[job.error_kind] ?? 'Falha desconhecida'}
+        <div className="progress-error" aria-label={t('import.errorAria')}>
+          {ERROR_MESSAGE_KEYS[job.error_kind] ? t(ERROR_MESSAGE_KEYS[job.error_kind]) : t('import.error.unknown')}
           {ERROR_CODES[job.error_kind] && (
             <>
               {' '}
@@ -251,9 +264,9 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
       )}
 
       {job.warnings.length > 0 && (
-        <ul aria-label="Avisos" className="progress-warnings">
+        <ul aria-label={t('import.warningsAria')} className="progress-warnings">
           {job.warnings.map((warning) => (
-            <li key={warning}>{warning}</li>
+            <li key={warning}>{WARNING_KEYS[warning] ? t(WARNING_KEYS[warning]) : warning}</li>
           ))}
         </ul>
       )}
@@ -266,14 +279,14 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
         {isDone && (
           <div ref={openListRef}>
             <Button variant="accent" onSelect={() => onOpenSource(job.source_id)}>
-              Abrir lista
+              {t('import.openList')}
             </Button>
           </div>
         )}
 
         {isRunning && (
           <Button variant="secondary" loading={cancelRequested} onSelect={() => cancelJob.mutate(jobId)}>
-            {cancelRequested ? 'Cancelamento solicitado…' : 'Cancelar'}
+            {cancelRequested ? t('import.cancelRequested') : t('common.cancel')}
           </Button>
         )}
 
@@ -287,12 +300,12 @@ export function ImportProgressScreen({ jobId, onRetried, onBack, onOpenSource }:
               })
             }
           >
-            {retryJob.isPending ? 'Tentando novamente…' : 'Tentar novamente'}
+            {retryJob.isPending ? t('import.retrying') : t('import.retry')}
           </Button>
         )}
 
         <Button variant="secondary" onSelect={goBack}>
-          Voltar
+          {t('common.back')}
         </Button>
       </div>
     </section>

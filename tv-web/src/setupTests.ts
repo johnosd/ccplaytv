@@ -23,3 +23,8 @@ afterEach(() => {
 // foco, nunca a posição real de rolagem — isso só a TV física confirma
 // (FR-008/SC-002).
 Element.prototype.scrollIntoView ??= function scrollIntoView() {}
+
+// Idioma do app (feature 054): sem preferência gravada o app segue o idioma do sistema, e o jsdom diz en-US.
+// Os testes existentes esperam português — o padrão deles é pt; testes de en/es gravam o idioma de propósito.
+Object.defineProperty(window.navigator, 'languages', { value: ['pt-BR'], configurable: true })
+Object.defineProperty(window.navigator, 'language', { value: 'pt-BR', configurable: true })

@@ -22,6 +22,22 @@ function seedPages(client: QueryClient, kind: string, pages: number, queryFn: ()
   return { key, unsubscribe }
 }
 
+describe('createPrefetchInvalidator × prévia do carrossel (feature 053)', () => {
+  it('invalida a prévia da categoria que chegou', async () => {
+    vi.useFakeTimers()
+    const client = new QueryClient()
+    client.setQueryData(['category-preview', 'fonte', 7], { status: 'pending', items: [] })
+    client.setQueryData(['category-preview', 'fonte', 8], { status: 'pending', items: [] })
+    const invalidator = createPrefetchInvalidator(client, 10)
+    invalidator.categoryDone('fonte', 7)
+    await vi.advanceTimersByTimeAsync(10)
+    expect(client.getQueryState(['category-preview', 'fonte', 7])?.isInvalidated).toBe(true)
+    expect(client.getQueryState(['category-preview', 'fonte', 8])?.isInvalidated).toBe(false)
+    invalidator.dispose()
+    client.clear()
+  })
+})
+
 describe('createPrefetchInvalidator × "Todos" aos poucos', () => {
   it('com muitas páginas lidas: marca como velha sem reler; com poucas: relê', async () => {
     vi.useFakeTimers()

@@ -127,7 +127,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${server.address().port}/lista.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
 

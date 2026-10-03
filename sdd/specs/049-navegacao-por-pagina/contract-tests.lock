@@ -1,6 +1,6 @@
 {
     "feature":  "049-navegacao-por-pagina",
-    "lockedAt":  "2026-10-02 16:16",
+    "lockedAt":  "2026-10-03 11:51",
     "total":  5,
     "files":  [
                   {
@@ -14,8 +14,8 @@
                       "tests":  3
                   },
                   {
-                      "path":  "tv-web/src/features/vod/VodCatalogScreen.navegacao-por-pagina.contract.test.tsx",
-                      "sha256":  "249c2a50f4399da88c153fe4bcb638ca2bf006954ea58b88293c3baceb67d54c",
+                      "path":  "tv-web/src/features/vod/VodCategoryScreen.navegacao-por-pagina.contract.test.tsx",
+                      "sha256":  "d8888bf2f728bbebbe0a5c3281910e3653a02feea5bed4ec81843053c51093d4",
                       "tests":  1
                   }
               ]

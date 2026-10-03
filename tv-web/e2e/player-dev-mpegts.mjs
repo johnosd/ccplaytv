@@ -163,7 +163,7 @@ async function run() {
   const { server, active, stats } = await startServer()
   const m3uUrl = `http://127.0.0.1:${server.address().port}/lista.m3u`
   const streamHost = `127.0.0.1:${server.address().port}`
-  const page = await (await browser.newContext()).newPage()
+  const page = await (await browser.newContext({ locale: 'pt-BR' })).newPage()
   const consoleLines = []
   page.on('console', (message) => consoleLines.push(message.text()))
   page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error'))

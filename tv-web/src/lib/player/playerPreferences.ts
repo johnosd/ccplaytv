@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Preferências do player — do APARELHO, não da lista (feature 041, FR-011,
  * `data-model.md`). Mesmo padrão de `motionPreference.ts`: armazenamento local
  * pode estar bloqueado (acesso lança) ou cheio (gravação lança), e nenhuma
@@ -100,3 +100,4 @@ function validLanguage(value: unknown): string | null {
   if (typeof value !== 'string') return null
   return normalizeLanguage(value) === value ? value : null
 }
+

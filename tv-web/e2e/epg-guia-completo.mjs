@@ -197,7 +197,7 @@ async function run() {
   const base = `http://127.0.0.1:${server.address().port}`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   const consoleLines = []
   page.on('pageerror', (error) => console.error('  [pageerror]', error))

@@ -11,3 +11,6 @@
 // IndexedDB continua disponível: a camada de armazenamento (Dexie) é testada
 // sem navegador, como em `setupTests.ts`.
 import 'fake-indexeddb/auto'
+
+// Idioma do app (feature 054): o Node 21+ expõe navigator.language = 'en-US'; os testes assumem pt como padrão.
+Object.defineProperty(globalThis, 'navigator', { value: { language: 'pt-BR', languages: ['pt-BR'] }, configurable: true })

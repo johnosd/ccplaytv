@@ -15,7 +15,8 @@ import { Spinner } from '../../components/Spinner'
 import { Icon } from '../../components/Icon'
 import { describeError } from '../../lib/errors/errorCatalog'
 import { channelNumberOf, knownCategoryCount } from './channelNumber'
-import { LIVE_HINTS, liveGroupDisplay, trailEntryId, type TrailEntry } from './liveTrail'
+import { liveGroupDisplay, liveHints, trailEntryId, type TrailEntry } from './liveTrail'
+import type { Translator } from '../../lib/i18n/translate'
 import type { LiveShellProps } from './LiveScreen'
 import type { LiveChannels, LiveTrail } from './useLiveCatalog'
 import type { LiveSearch } from './useLiveSearch'
@@ -24,7 +25,7 @@ import { listInitials } from '../../lib/initials'
 import { LiveHeroArt } from './LiveHeroArt'
 
 /** Rótulos dos cartões de programação, na ordem (feature 048, D-004). */
-const SCHEDULE_LABELS = ['A seguir', 'Depois', 'Mais tarde']
+const SCHEDULE_LABEL_KEYS = ['live.next', 'live.after', 'live.later'] as const
 
 /**
  * Desenho da TV ao vivo. Extraído da `LiveScreen` na feature 040 sem mudar
@@ -41,6 +42,8 @@ export interface LiveShellModel {
   topbarItem: TopbarItem
   setTopbarItem: Dispatch<SetStateAction<TopbarItem>>
   onBack: () => void
+  /** Idioma do app (feature 054): vem de `useT()` na `LiveScreen` — estas funções não são componentes. */
+  t: Translator
 }
 
 /**
@@ -51,11 +54,11 @@ export interface LiveShellModel {
  * comportamento existentes).
  */
 export function renderLiveShell(model: LiveShellModel, children: ReactNode): ReactNode {
-  const { shell, zone, setZone, topbarItem, setTopbarItem, onBack } = model
+  const { shell, zone, setZone, topbarItem, setTopbarItem, onBack, t } = model
   if (!shell) return children
   return (
     <AppShell
-      hints={LIVE_HINTS}
+      hints={liveHints(t)}
       topBar={
         <TopBar
           sourceName={shell.sourceName}
@@ -99,6 +102,8 @@ export interface LiveColumnsModel {
   channelEdges: OverflowEdges
   /** Canal em reprodução, para marcar a linha no zapping (feature 048, FR-014). */
   playingId?: string
+  /** Idioma do app (feature 054). */
+  t: Translator
 }
 
 function scrollFrameClass(edges: OverflowEdges): string {
@@ -107,7 +112,7 @@ function scrollFrameClass(edges: OverflowEdges): string {
 
 export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean): ReactNode {
   const { trail, search, channels, zapOpen, contentActive, setCol, enterTrailEntry, onResync } = model
-  const { channelListRef, channelVirtualizer, trailScrollRef, trailEdges, channelEdges, playingId } = model
+  const { channelListRef, channelVirtualizer, trailScrollRef, trailEdges, channelEdges, playingId, t } = model
   const {
     categories,
     trail: entries,
@@ -155,20 +160,25 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
   // Rótulo da entrada atualmente focada/entrada — Favoritos, Todos ou o
   // nome da categoria real (feature 018).
   const entryLabel = isAllFocused || enteredAll
-    ? 'Todos'
+    ? t('live.all')
     : isFavoritesFocused || enteredFavorites
-      ? '★ Favoritos'
-      : liveGroupDisplay(focusedCategory?.name)
+      ? t('live.favoritesStar')
+      : liveGroupDisplay(focusedCategory?.name, t)
 
   // Rótulo do destaque (feature 048, §1.1): grupo declarado pela fonte, com a entrada quando não é uma categoria.
-  const activeGroup = liveGroupDisplay(activeChannel?.original_group ?? undefined)
-  const heroEyebrow = isAllFocused || enteredAll ? `Todos • ${activeGroup}` : isFavoritesFocused || enteredFavorites ? `★ Favoritos • ${activeGroup}` : activeGroup
+  const activeGroup = liveGroupDisplay(activeChannel?.original_group ?? undefined, t)
+  const heroEyebrow =
+    isAllFocused || enteredAll
+      ? `${t('live.all')} • ${activeGroup}`
+      : isFavoritesFocused || enteredFavorites
+        ? `${t('live.favoritesStar')} • ${activeGroup}`
+        : activeGroup
 
   const sideEntries: SideCategoryNavEntry[] = entries.map((entry) => {
     if (entry.key.kind === 'favorites') {
       return {
         id: trailEntryId(entry),
-        label: 'Favoritos',
+        label: t('live.favorites'),
         tile: '★',
         count: favoriteIds.size,
         pinned: true,
@@ -176,12 +186,12 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
       }
     }
     if (entry.key.kind === 'all') {
-      return { id: trailEntryId(entry), label: 'Todos', tile: '∞', pinned: true, pinnedBadge: false }
+      return { id: trailEntryId(entry), label: t('live.all'), tile: '∞', pinned: true, pinnedBadge: false }
     }
     return {
       id: trailEntryId(entry),
-      label: liveGroupDisplay(entry.category?.name),
-      tile: listInitials(liveGroupDisplay(entry.category?.name)),
+      label: liveGroupDisplay(entry.category?.name, t),
+      tile: listInitials(liveGroupDisplay(entry.category?.name, t)),
       count: entry.category ? knownCategoryCount(entry.category) : undefined,
     }
   })
@@ -200,8 +210,8 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
     <>
       <div className="live-column live-column-groups">
         <div className="live-panel-head">
-          <div className="live-column-title">Categorias</div>
-          <div className="live-panel-sub">Grupos</div>
+          <div className="live-column-title">{t('live.categories')}</div>
+          <div className="live-panel-sub">{t('live.groups')}</div>
         </div>
         {/* Moldura com degradê de continuação (feature 048, FR-021): overlay,
             nunca máscara no contêiner rolável (esmaeceria o anel de foco). */}
@@ -225,7 +235,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
         <div className="category-title-row">
           <div className="live-panel-titles">
             <div className="live-column-title">{entryLabel}</div>
-            <div className="live-panel-sub">Canais</div>
+            <div className="live-panel-sub">{t('live.channels')}</div>
           </div>
           {/* Ícone de busca (feature 018, FR-001): só quando há itens
               carregados (D-006) e nunca dentro do zapping (FR-018).
@@ -239,7 +249,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
               <button
                 type="button"
                 className={`search-icon-button${effectiveCol === 1 && topFocused && topIcon === 'search' ? ' tv-focus' : ''}`}
-                aria-label="Buscar"
+                aria-label={t('shell.search')}
               >
                 <Icon name="search" />
               </button>
@@ -247,7 +257,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
               <button
                 type="button"
                 className={`live-guide-button${effectiveCol === 1 && topFocused && topIcon === 'guide' ? ' tv-focus' : ''}`}
-                aria-label="Guia completo"
+                aria-label={t('live.fullGuide')}
               >
                 <Icon name="guide" />
               </button>
@@ -256,7 +266,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
         </div>
 
         {!showingContent && (
-          <div className="live-state-copy">Aponte para uma categoria e pressione OK para ver os canais.</div>
+          <div className="live-state-copy">{t('live.pickCategory')}</div>
         )}
 
         {searchActive && (
@@ -266,7 +276,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
               type="text"
               className="search-field field-box"
               // Achado real (feature 028, FR-015): sem aria-label nem <label>, o campo não tinha nome acessível.
-              aria-label="Pesquisar nesta categoria"
+              aria-label={t('live.searchCategory')}
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               onKeyDown={(event) => {
@@ -279,14 +289,14 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
                   setFocusedIdentity((prev) => ({ ...prev, channelId: items[0].id }))
                 }
               }}
-              placeholder="Buscar canais"
+              placeholder={t('live.searchPlaceholder')}
             />
             <div className="search-status">
-              {belowMinimum && <span>Digite pelo menos 3 letras</span>}
-              {!belowMinimum && <span>{items.length === 1 ? '1 resultado' : `${items.length} resultados`}</span>}
+              {belowMinimum && <span>{t('live.searchMin')}</span>}
+              {!belowMinimum && <span>{t.plural('live.results', items.length)}</span>}
               {searchCoveragePartial && (
                 <span className="search-coverage">
-                  Busca em {aggregated.coveredCategories} de {aggregated.totalCategories} categorias
+                  {t('live.searchCoverage', { covered: aggregated.coveredCategories, total: aggregated.totalCategories })}
                 </span>
               )}
             </div>
@@ -300,10 +310,10 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
           // (constitution). Um botão redundante mostraria dois elementos
           // com aparência de foco ao mesmo tempo.
           <div className="live-state">
-            <div className="live-state-title">Nenhum resultado para "{searchTerm}"</div>
+            <div className="live-state-title">{t('live.noResults', { term: searchTerm })}</div>
             {searchCoveragePartial && (
               <div className="live-state-copy">
-                Busca em {aggregated.coveredCategories} de {aggregated.totalCategories} categorias
+                {t('live.searchCoverage', { covered: aggregated.coveredCategories, total: aggregated.totalCategories })}
               </div>
             )}
           </div>
@@ -311,36 +321,36 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
 
         {enteredAll && !searchActive && searchCoveragePartial && (
           <div className="live-truncated-note">
-            Busca em {aggregated.coveredCategories} de {aggregated.totalCategories} categorias
+            {t('live.searchCoverage', { covered: aggregated.coveredCategories, total: aggregated.totalCategories })}
           </div>
         )}
 
         {showingContent && !searchActive && contentIsLoading && (
           <div className="live-state-wrapper">
             <Spinner size={32} />
-            <EmptyState title="Carregando canais…" action={{ label: 'Voltar', onSelect: () => setCol(0) }} focused />
+            <EmptyState title={t('live.loading')} action={{ label: t('common.back'), onSelect: () => setCol(0) }} focused />
           </div>
         )}
 
         {showingContent && !searchActive && !contentIsLoading && contentFailed && (
           <ErrorState
-            title="Não foi possível carregar esta categoria"
-            description={contentErrorCode ? describeError(contentErrorCode).title : undefined}
+            title={t('live.categoryError')}
+            description={contentErrorCode ? describeError(contentErrorCode, t).title : undefined}
             code={contentErrorCode}
-            actions={[{ label: 'Tentar de novo', onSelect: retryContent }]}
+            actions={[{ label: t('guide.retry'), onSelect: retryContent }]}
             focusedActionIndex={0}
           />
         )}
 
         {showingContent && !searchActive && !contentIsLoading && contentMissing && (
           <ErrorState
-            title="O conteúdo desta lista não está mais no aparelho"
-            description={model.offline ? 'Sem conexão: ressincronizar precisa de internet.' : undefined}
+            title={t('live.missingTitle')}
+            description={model.offline ? t('live.missingOffline') : undefined}
             actions={[
               {
-                label: 'Ressincronizar lista',
+                label: t('live.resync'),
                 onSelect: onResync,
-                softDisabledReason: model.offline ? 'indisponível sem conexão' : undefined,
+                softDisabledReason: model.offline ? t('live.unavailableOffline') : undefined,
               },
             ]}
             focusedActionIndex={0}
@@ -353,27 +363,23 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
 
         {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && enteredAll && items.length === 0 && (
           <EmptyState
-            title="Nenhuma categoria foi obtida ainda"
-            description='Entre numa categoria para trazê-la para "Todos".'
-            action={{ label: 'Voltar', onSelect: () => setCol(0) }}
+            title={t('live.noneFetchedTitle')}
+            description={t('live.noneFetchedDescription')}
+            action={{ label: t('common.back'), onSelect: () => setCol(0) }}
             focused
           />
         )}
 
         {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && entered?.kind === 'category' && items.length === 0 && (
-          <EmptyState title="Este grupo está vazio." action={{ label: 'Voltar', onSelect: () => setCol(0) }} focused />
+          <EmptyState title={t('live.emptyGroup')} action={{ label: t('common.back'), onSelect: () => setCol(0) }} focused />
         )}
 
         {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && contentStale && (
-          <div className="live-truncated-note">
-            Não foi possível atualizar agora — mostrando o que já estava salvo.
-          </div>
+          <div className="live-truncated-note">{t('live.stale')}</div>
         )}
 
         {countsDiverge && (
-          <div className="live-truncated-note">
-            O provedor declarou {declaredCount} canais nesta categoria, mas entregou {realCount}.
-          </div>
+          <div className="live-truncated-note">{t('live.countsDiverge', { declared: declaredCount ?? '', real: realCount ?? '' })}</div>
         )}
 
         {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && enteredFavorites && (
@@ -411,7 +417,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
                         progress={onAir?.progress}
                         favorite={isFavorite}
                         unavailable={!channel.playable}
-                        group={enteredAll ? liveGroupDisplay(channel.original_group ?? undefined) : undefined}
+                        group={enteredAll ? liveGroupDisplay(channel.original_group ?? undefined, t) : undefined}
                         groupClassName="live-item-group"
                       />
                     </button>
@@ -427,7 +433,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
           // importa porque o catálogo publicado pode ser parcial (FR-016).
           content.data.totalCount > items.length && (
             <div className="live-truncated-note">
-              Mostrando os primeiros {items.length} de {content.data.totalCount} canais deste grupo.
+              {t('live.truncated', { shown: items.length, total: content.data.totalCount })}
             </div>
           )
         )}
@@ -452,16 +458,16 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
                     {activeNowNext.now ? (
                       <>
                         <b>{activeNowNext.now.title}</b>
-                        <span> • ao vivo agora</span>
+                        <span>{t('live.onAirNow')}</span>
                       </>
                     ) : (
-                      <span>Ao vivo</span>
+                      <span>{t('live.onAir')}</span>
                     )}
                   </div>
                   {activeNowNext.now && (
                     <div className="live-epg-block">
                       <span className="live-epg-time">
-                        {formatEpgTimeRange(activeNowNext.now.start, activeNowNext.now.end)}
+                        {formatEpgTimeRange(activeNowNext.now.start, activeNowNext.now.end, t.language)}
                       </span>
                       <div className="live-epg-progress" aria-hidden="true">
                         <div
@@ -481,9 +487,9 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
                 <div className="live-schedule">
                   {activeUpcoming.map((slot, index) => (
                     <div key={`${slot.start}-${index}`} className="live-schedule-card">
-                      <span className="live-schedule-label">{SCHEDULE_LABELS[index]}</span>
+                      <span className="live-schedule-label">{t(SCHEDULE_LABEL_KEYS[index])}</span>
                       <span className="live-schedule-title">{slot.title}</span>
-                      <span className="live-schedule-time">{formatEpgClock(slot.start)}</span>
+                      <span className="live-schedule-time">{formatEpgClock(slot.start, t.language)}</span>
                     </div>
                   ))}
                 </div>
@@ -491,7 +497,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
             </>
           ) : (
             <div className="live-preview-empty">
-              {showingContent ? 'Selecione um canal' : 'Nenhum canal selecionado.'}
+              {showingContent ? t('live.pickChannel') : t('live.noChannelSelected')}
             </div>
           )}
         </div>

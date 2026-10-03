@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { EmptyState } from '../../components/EmptyState'
 import type { HistoryClearScope, HistoryScopeSummary } from '../../lib/catalog/historyRemoval'
-import { describeScope, isScopeEmpty, PRIVACY_ROW_LABEL, PRIVACY_SCOPES } from './privacyModel'
+import { useT } from '../../lib/i18n/I18nProvider'
+import { describeScope, isScopeEmpty, PRIVACY_ROW_LABEL_KEY, PRIVACY_SCOPES } from './privacyModel'
 
 export interface PrivacyPanelProps {
   /** Nome da lista ativa; `null` = sem lista ativa (FR-027). */
@@ -22,12 +23,13 @@ export interface PrivacyPanelProps {
  * mantém um botão focável (FR-027).
  */
 export function PrivacyPanel({ listName, summaries, focusedRow, onActivateRow, onBack }: PrivacyPanelProps): ReactNode {
+  const t = useT()
   if (listName === null) {
     return (
       <EmptyState
-        title="Privacidade"
-        description="O histórico é guardado por lista. Entre numa lista para limpar o histórico dela."
-        action={{ label: 'Voltar às abas', onSelect: onBack }}
+        title={t('settings.tab.privacy')}
+        description={t('settings.privacy.noList')}
+        action={{ label: t('common.backToTabs'), onSelect: onBack }}
         focused={focusedRow !== undefined}
       />
     )
@@ -35,13 +37,13 @@ export function PrivacyPanel({ listName, summaries, focusedRow, onActivateRow, o
 
   return (
     <div className="privacy-panel">
-      <h2 className="privacy-panel-heading">Histórico de {listName}</h2>
-      <p className="privacy-panel-note">Favoritos e marcações de assistido não são alterados.</p>
+      <h2 className="privacy-panel-heading">{t('settings.privacy.heading', { list: listName })}</h2>
+      <p className="privacy-panel-note">{t('settings.privacy.note')}</p>
       {PRIVACY_SCOPES.map((scope, row) => {
-        const label = PRIVACY_ROW_LABEL[scope]
+        const label = t(PRIVACY_ROW_LABEL_KEY[scope])
         const summary = summaries?.[scope]
         const empty = summary !== undefined && isScopeEmpty(summary)
-        const value = summary === undefined ? 'Carregando…' : empty ? 'histórico vazio' : describeScope(summary)
+        const value = summary === undefined ? t('common.loading') : empty ? t('settings.privacy.empty') : describeScope(summary, t)
         return (
           <button
             key={scope}

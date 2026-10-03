@@ -1,0 +1,35 @@
+import { defineArea } from './area'
+
+/** Componentes compartilhados (`src/components/`, feature 054, Fase 4). */
+export const components = defineArea(
+  {
+    'offline.verifying': 'Verificando rede…',
+    'offline.failed': 'Ainda sem conexão. O conteúdo que já está no aparelho continua disponível.',
+    'offline.offline': 'Sem conexão com a internet.',
+    'channelRow.unavailable': 'Indisponível',
+    'textField.show': 'Mostrar',
+    'textField.hide': 'Ocultar',
+    'textField.password': 'senha',
+    'spinner.loading': 'Carregando',
+  },
+  {
+    'offline.verifying': 'Checking network…',
+    'offline.failed': 'Still offline. Content already on the device remains available.',
+    'offline.offline': 'No internet connection.',
+    'channelRow.unavailable': 'Unavailable',
+    'textField.show': 'Show',
+    'textField.hide': 'Hide',
+    'textField.password': 'password',
+    'spinner.loading': 'Loading',
+  },
+  {
+    'offline.verifying': 'Comprobando la red…',
+    'offline.failed': 'Todavía sin conexión. El contenido que ya está en el dispositivo sigue disponible.',
+    'offline.offline': 'Sin conexión a internet.',
+    'channelRow.unavailable': 'No disponible',
+    'textField.show': 'Mostrar',
+    'textField.hide': 'Ocultar',
+    'textField.password': 'contraseña',
+    'spinner.loading': 'Cargando',
+  },
+)

@@ -1,3 +1,5 @@
+import { APP_LANGUAGE_LOCALE, type AppLanguage } from '../i18n/languages'
+import { createTranslator, type Translator } from '../i18n/translate'
 import type { AccountStatusKind } from './db'
 
 /**
@@ -66,8 +68,8 @@ export function parseExpDate(raw: unknown): number | null {
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /** DD/MM/AAAA no fuso local — é um instante, não uma data sem hora. */
-export function formatAccountDate(timestamp: number): string {
-  return new Date(timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+export function formatAccountDate(timestamp: number, language: AppLanguage = 'pt'): string {
+  return new Date(timestamp).toLocaleDateString(APP_LANGUAGE_LOCALE[language], { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function startOfLocalDay(timestamp: number): number {
@@ -89,26 +91,33 @@ function isExpiredAccount(account: SourceAccount, now: number): boolean {
 }
 
 /** FR-004/FR-005/FR-016 — regras em `logic/conta-da-fonte.md` §2 (a ordem importa). */
-export function describeAccount(account: SourceAccount | undefined, now: number): AccountDisplay {
+export function describeAccount(account: SourceAccount | undefined, now: number, t: Translator = createTranslator('pt')): AccountDisplay {
   if (!account || account.status === undefined) return { kind: 'unknown' }
 
   if (account.status === 'refused') {
-    return { kind: 'refused', text: 'Credencial inválida', chip: { tone: 'error', label: 'Credencial inválida' } }
+    return { kind: 'refused', text: t('src.account.refused'), chip: { tone: 'error', label: t('src.account.refused') } }
   }
 
   if (isExpiredAccount(account, now)) {
     const text =
-      typeof account.expiresAt === 'number' ? `Conta expirada em ${formatAccountDate(account.expiresAt)}` : 'Conta expirada'
-    return { kind: 'expired', text, chip: { tone: 'error', label: 'Conta expirada' } }
+      typeof account.expiresAt === 'number'
+        ? t('src.account.expiredOn', { date: formatAccountDate(account.expiresAt, t.language) })
+        : t('src.account.expired')
+    return { kind: 'expired', text, chip: { tone: 'error', label: t('src.account.expired') } }
   }
 
-  if (account.expiresAt === null) return { kind: 'no_expiry', text: 'Sem data de vencimento' }
+  if (account.expiresAt === null) return { kind: 'no_expiry', text: t('src.account.noExpiry') }
   if (account.expiresAt === undefined) return { kind: 'unknown' }
 
-  const text = `Conta válida até ${formatAccountDate(account.expiresAt)}`
+  const text = t('src.account.validUntil', { date: formatAccountDate(account.expiresAt, t.language) })
   const daysLeft = calendarDaysLeft(account.expiresAt, now)
   if (daysLeft <= ACCOUNT_WARNING_DAYS) {
-    const label = daysLeft <= 0 ? 'Vence hoje' : daysLeft === 1 ? 'Vence amanhã' : `Vence em ${daysLeft} dias`
+    const label =
+      daysLeft <= 0
+        ? t('src.account.expiresToday')
+        : daysLeft === 1
+          ? t('src.account.expiresTomorrow')
+          : t('src.account.expiresIn', { n: daysLeft })
     return { kind: 'expiring', text, chip: { tone: 'warning', label } }
   }
   return { kind: 'valid', text }

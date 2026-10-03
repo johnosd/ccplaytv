@@ -70,6 +70,24 @@ describe('buildTrailerCandidates', () => {
     expect(result.map((c) => c.videoId)).toEqual(['ptDistribui', 'enDistribui', 'ptAgregador'])
   })
 
+  it('idioma preferido vence entre oficiais; sem ele, cai no inglês e depois em qualquer outro', () => {
+    const refs = [
+      { videoId: 'frOficial01', kind: 'trailer' as const, language: 'fr', official: true },
+      { videoId: 'enOficial01', kind: 'trailer' as const, language: 'en', official: true },
+      { videoId: 'esOficial01', kind: 'trailer' as const, language: 'es', official: true },
+    ]
+    expect(buildTrailerCandidates(undefined, refs, 'es').map((c) => c.videoId)).toEqual([
+      'esOficial01',
+      'enOficial01',
+      'frOficial01',
+    ])
+    expect(buildTrailerCandidates(undefined, refs, 'de').map((c) => c.videoId)).toEqual([
+      'enOficial01',
+      'frOficial01',
+      'esOficial01',
+    ])
+  })
+
   it('empate mantém a ordem em que o TMDB entregou', () => {
     const result = buildTrailerCandidates(undefined, [
       { videoId: 'zzzzzzzzzzz', kind: 'trailer', language: 'en' },

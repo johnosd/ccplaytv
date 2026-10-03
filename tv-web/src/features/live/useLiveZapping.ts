@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { groupLabel, type CatalogItemOut } from '../catalog/catalogApi'
+import { useT } from '../../lib/i18n/I18nProvider'
 import type { PlayerLayerTopLayer } from '../../components/PlayerLayer'
 import { trailKeyOf, type EnteredKey } from './liveTrail'
 import type { LiveChannels, LiveTrail } from './useLiveCatalog'
@@ -49,6 +50,7 @@ export interface LiveZappingParams {
  * antes entre os efeitos da tela.
  */
 export function useLiveZapping({ zap, guide, trail, channels, search, setCol, showToast, initialChannel }: LiveZappingParams) {
+  const t = useT()
   const { playing, setPlaying, zapOpen, setZapOpen, lastGoodChannelRef, zapSequenceRef, zapKeyRef } = zap
   const { setGuide, guideWatchPendingRef } = guide
   const { categories, entered, setEntered, focusedIdentity, setFocusedIdentity } = trail
@@ -76,7 +78,7 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
     if (!activeChannel.playable) {
       // Canal existe no catálogo mas não tem fonte de reprodução: explica,
       // não tenta abrir o player (FR-012/FR-019).
-      showToast('Este canal não tem uma fonte de reprodução disponível.')
+      showToast(t('live.unavailableChannel'))
       return
     }
 
@@ -178,7 +180,7 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
     if (!fallback) return
     lastGoodChannelRef.current = null
     setPlaying(fallback)
-    showToast(`Não foi possível trocar de canal. Voltando para ${fallback.name}.`)
+    showToast(t('live.zapFailed', { name: fallback.name }))
   }
 
   /**

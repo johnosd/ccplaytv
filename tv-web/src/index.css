@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Tokens do Design System V14 Spectrum (ADR-011; Spec §5–§10, §29).
  *
  * Regra desta feature (021, D-001 do plan.md): todo nome V14 é declarado
@@ -150,6 +150,9 @@
   --focus-ring-offset: 3px;
   --focus-halo: 0 0 0 8px rgba(255, 122, 61, 0.22);
   --focus-glow: 0 0 40px rgba(255, 122, 61, 0.55);
+  /* Título sobre capa (cards de Filmes/Séries, feature 052): degradê escuro no rodapé do pôster + sombra do texto. */
+  --scrim-media: rgba(0, 0, 0, 0.85);
+  --text-shadow-media: 0 1px 3px rgba(0, 0, 0, 0.9);
   --focus-scale: 1.06;
 
   /* ---------- Camadas lógicas (§29) ---------- */

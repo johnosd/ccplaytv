@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import type { ReactNode, Ref } from 'react'
+import { useT } from '../lib/i18n/I18nProvider'
 import { Icon } from './Icon'
 import { revealInTopHalf } from '../lib/focus/revealInTopHalf'
 
@@ -65,9 +66,10 @@ export function TextField({
   inputRef,
   focused,
   revealable,
-  revealNoun = 'senha',
+  revealNoun,
   enterKeyHint,
 }: TextFieldProps): ReactNode {
+  const t = useT()
   const generatedId = useId()
   const fieldId = id ?? generatedId
   const errorId = `${fieldId}-error`
@@ -112,10 +114,10 @@ export function TextField({
               type="button"
               className="button-secondary text-field-reveal"
               aria-pressed={revealed}
-              aria-label={`${revealed ? 'Ocultar' : 'Mostrar'} ${revealNoun}`}
+              aria-label={`${revealed ? t('textField.hide') : t('textField.show')} ${revealNoun ?? t('textField.password')}`}
               onClick={() => setRevealed((current) => !current)}
             >
-              {revealed ? 'Ocultar' : 'Mostrar'}
+              {revealed ? t('textField.hide') : t('textField.show')}
             </button>
           )}
         </div>

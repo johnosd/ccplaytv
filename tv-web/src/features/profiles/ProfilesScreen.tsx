@@ -14,6 +14,8 @@ import { DeleteSourceModal } from '../sources/DeleteSourceModal'
 import { formatType, sourceAlertChips } from '../sources/sourceFormat'
 import { OnboardingBrand } from '../import/OnboardingBrand'
 import { listAvatarVariant, listInitials } from './listAvatar'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { Translator } from '../../lib/i18n/translate'
 
 export interface ProfilesScreenProps {
   /** `base`: RETURN abre o modal "Sair do CCPlayTV?". `switch`: RETURN chama `onBack` (volta ao Início da lista ativa, FR-031). */
@@ -46,8 +48,8 @@ const ADD_ID = '__add__'
  */
 export const ADD_LIST_FOCUS_ID = ADD_ID
 
-/** Ressincronizar, Editar, Excluir — a linha de ações de um cartão de lista. */
-const ACTIONS = ['Ressincronizar', 'Editar', 'Excluir'] as const
+/** Ressincronizar, Editar, Excluir — a linha de ações de um cartão de lista (rótulos: `settings.sources.*`). */
+const ACTION_KEYS = ['settings.sources.resync', 'settings.sources.edit', 'settings.sources.delete'] as const
 const RESYNC = 0
 const EDIT = 1
 
@@ -81,6 +83,7 @@ export function ProfilesScreen({
   onManageSources,
   onBack,
 }: ProfilesScreenProps): ReactNode {
+  const t = useT()
   const { data, isLoading, isError, refetch } = useSources()
   const deleteSource = useDeleteSource()
   const resyncSource = useResyncSource()
@@ -130,10 +133,10 @@ export function ProfilesScreen({
     if (index === RESYNC) {
       // Feature 042 (FR-004): ressincronizar precisa de internet — explica, não tenta.
       if (!online) {
-        showToast('Sem conexão. Ressincronizar precisa de internet.')
+        showToast(t('settings.sources.offlineResync'))
         return
       }
-      showToast('Ressincronizando lista...')
+      showToast(t('profiles.resyncing'))
       resyncSource.mutate(source.id, {
         onSuccess: (result) => onResyncStarted(result.import_job_id),
       })
@@ -158,7 +161,7 @@ export function ProfilesScreen({
         setFocusedId(nextId)
         onSourceDeleted?.(id)
       },
-      onError: () => showToast('Não foi possível excluir a lista.'),
+      onError: () => showToast(t('settings.sources.deleteFailed')),
     })
   }
 
@@ -175,8 +178,8 @@ export function ProfilesScreen({
         // O limite alcança a última ação (Excluir): senão ela ficaria
         // renderizada e inalcançável pelo controle.
         if (direction === 'up') setRow('cards') // o cartão de onde se desceu (`focusedId`) segue em foco
-        if (direction === 'left') setActionIdx((i) => clamp(i - 1, 0, ACTIONS.length - 1))
-        if (direction === 'right') setActionIdx((i) => clamp(i + 1, 0, ACTIONS.length - 1))
+        if (direction === 'left') setActionIdx((i) => clamp(i - 1, 0, ACTION_KEYS.length - 1))
+        if (direction === 'right') setActionIdx((i) => clamp(i + 1, 0, ACTION_KEYS.length - 1))
         return
       }
 
@@ -230,13 +233,13 @@ export function ProfilesScreen({
 
   // Textos da tabela "Textos" do plan.md da 037 (D-010). Carregando não tem
   // kicker: ainda não se sabe se é primeiro uso ou volta.
-  const kicker = state === 'empty' ? 'Configuração inicial' : state === 'ready' ? 'Bem-vindo de volta' : null
+  const kicker = state === 'empty' ? t('profiles.kicker.empty') : state === 'ready' ? t('profiles.kicker.ready') : null
   const subtitle =
     state === 'loading'
-      ? 'Carregando suas listas…'
+      ? t('profiles.subtitle.loading')
       : state === 'empty'
-        ? 'Adicione sua primeira lista para começar.'
-        : 'Escolha uma lista para continuar ou adicione uma nova.'
+        ? t('profiles.subtitle.empty')
+        : t('profiles.subtitle.ready')
 
   return (
     <div className="screen onboarding profiles-screen">
@@ -248,22 +251,22 @@ export function ProfilesScreen({
         </p>
       )}
       <h1 className="onboarding-title">
-        Selecione ou Adicione <br />
-        sua lista
+        {t('profiles.title.line1')} <br />
+        {t('profiles.title.line2')}
       </h1>
       {state !== 'error' && <p className="onboarding-subtitle">{subtitle}</p>}
 
       {state === 'error' ? (
         <ErrorState
           icon="info"
-          title="Não foi possível carregar suas listas"
-          description="Houve um problema ao ler as listas guardadas neste aparelho. Tente de novo."
+          title={t('profiles.error.title')}
+          description={t('profiles.error.description')}
           code="STO-01"
-          actions={[{ label: 'Tentar de novo', onSelect: () => void refetch() }]}
+          actions={[{ label: t('profiles.error.retry'), onSelect: () => void refetch() }]}
           focusedActionIndex={0}
         />
       ) : (
-        <div className="source-row" role="group" aria-label="Suas listas" aria-busy={state === 'loading'}>
+        <div className="source-row" role="group" aria-label={t('profiles.rowLabel')} aria-busy={state === 'loading'}>
           {state === 'loading' &&
             Array.from({ length: SKELETON_COUNT }, (_, i) => (
               <div className="profiles-skeleton-wrap" key={`skeleton-${i}`}>
@@ -276,7 +279,7 @@ export function ProfilesScreen({
             // `tv-focus` para a ação em foco, mas continua marcado.
             const isCurrent = effectiveId === source.id
             const actionsVisible = effectiveRow === 'actions' && isCurrent
-            const notices = sourceNotices(source)
+            const notices = sourceNotices(source, t)
             return (
               <div className="source-card-wrap" key={source.id}>
                 {/* Nome acessível = selo + nome + avisos; o avatar é
@@ -289,7 +292,7 @@ export function ProfilesScreen({
                   ref={isCurrent ? focusedCardRef : undefined}
                   onClick={() => onChooseSource(source)}
                 >
-                  <span className="source-card-kind">{formatType(source)}</span>
+                  <span className="source-card-kind">{formatType(source, t)}</span>
                   <span
                     className={`source-card-avatar list-avatar--${listAvatarVariant(source.id)}`}
                     aria-hidden="true"
@@ -300,10 +303,10 @@ export function ProfilesScreen({
                   <SourceCardNotices source={source} notices={notices} />
                 </button>
                 {actionsVisible && (
-                  <div className="source-actions" role="group" aria-label={`Ações de ${source.display_name}`}>
-                    {ACTIONS.map((label, index) => (
+                  <div className="source-actions" role="group" aria-label={t('profiles.actionsLabel', { name: source.display_name })}>
+                    {ACTION_KEYS.map((labelKey, index) => (
                       <Button
-                        key={label}
+                        key={labelKey}
                         variant="secondary"
                         // Com o modal de exclusão aberto, a ação de origem
                         // (Excluir) não perde o próprio estado de foco, mas
@@ -314,8 +317,8 @@ export function ProfilesScreen({
                         softDisabled={index === RESYNC && !online}
                         onSelect={() => runAction(index, source)}
                       >
-                        {label}
-                        {index === RESYNC && !online && <span className="sr-only">, indisponível sem conexão</span>}
+                        {t(labelKey)}
+                        {index === RESYNC && !online && <span className="sr-only">{t('settings.sources.offlineNote')}</span>}
                       </Button>
                     ))}
                   </div>
@@ -329,7 +332,7 @@ export function ProfilesScreen({
                 "Adicionar lista"; círculo e pílula são decorativos. */}
             <button
               type="button"
-              aria-label="Adicionar lista"
+              aria-label={t('profiles.add')}
               className={`add-card${effectiveId === ADD_ID && effectiveRow === 'cards' && !showExit ? ' tv-focus' : ''}`}
               ref={effectiveId === ADD_ID ? focusedCardRef : undefined}
               onClick={onAddSource}
@@ -338,10 +341,10 @@ export function ProfilesScreen({
                 <Icon name="add" />
               </span>
               <span className="add-card-title" aria-hidden="true">
-                Adicionar lista
+                {t('profiles.add')}
               </span>
               <span className="add-card-cta" aria-hidden="true">
-                ＋ Adicionar
+                {t('profiles.addCta')}
               </span>
             </button>
           </div>
@@ -349,7 +352,7 @@ export function ProfilesScreen({
       )}
 
       {state !== 'error' && (
-        <p className="profiles-foot-note">Cada lista mantém seu próprio histórico, favoritos e recomendações.</p>
+        <p className="profiles-foot-note">{t('profiles.footNote')}</p>
       )}
 
       {state !== 'error' && (
@@ -359,7 +362,7 @@ export function ProfilesScreen({
           onClick={() => onManageSources?.()}
         >
           <Icon name="settings" />
-          Configurações
+          {t('settings.title')}
         </button>
       )}
 
@@ -379,11 +382,11 @@ export function ProfilesScreen({
 }
 
 /** Avisos reais do cartão, numa linha compacta abaixo do nome (FR-006) — pastilha com texto, nunca só cor. */
-function sourceNotices(source: SourceOut): string[] {
+function sourceNotices(source: SourceOut, t: Translator): string[] {
   const notices: string[] = []
-  if (source.provider_import_mode === 'legacy_m3u') notices.push('Modo limitado')
-  if (source.last_truncated_by_storage) notices.push('A lista não coube inteira')
-  if (source.last_discarded_by_type > 0) notices.push('Entradas não reconhecidas ficaram de fora')
+  if (source.provider_import_mode === 'legacy_m3u') notices.push(t('profiles.notice.limited'))
+  if (source.last_truncated_by_storage) notices.push(t('profiles.notice.truncated'))
+  if (source.last_discarded_by_type > 0) notices.push(t('profiles.notice.discarded'))
   return notices
 }
 
@@ -395,10 +398,11 @@ function sourceNotices(source: SourceOut): string[] {
  * sempre presente, no nome acessível do cartão; nunca data, endereço nem credencial.
  */
 function SourceCardNotices({ source, notices }: { source: SourceOut; notices: string[] }) {
+  const t = useT()
   const syncing = useSourceSyncing(source.id)
   // Uma leitura do relógio por montagem do cartão (a tela de perfis remonta ao voltar).
   const [now] = useState(() => Date.now())
-  const alerts = sourceAlertChips(source, now, { syncing })
+  const alerts = sourceAlertChips(source, now, { syncing }, t)
   if (notices.length === 0 && alerts.length === 0) return null
   return (
     <span className="source-card-notices">

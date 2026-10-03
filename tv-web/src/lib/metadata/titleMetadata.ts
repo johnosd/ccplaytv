@@ -15,6 +15,8 @@ import { normalizeSeriesInfo, normalizeVodInfo } from './providerMetadata'
 import { lookupTmdb } from './tmdbLookup'
 import { TmdbError } from './tmdbConnector'
 import { markTmdbState, readTmdbCredential } from './tmdbKeyRepository'
+import { readAppLanguage } from '../i18n/appLanguage'
+import type { AppLanguage } from '../i18n/languages'
 import { buildTrailerCandidates } from '../trailer/trailerCandidates'
 import { PROVIDER_FIELDS_VERSION, storeProviderMetadata, storeTmdbResult, titleStableId } from './titleMetadataStore'
 import type { MetadataOptions, TitleMetadataView } from './types'
@@ -32,6 +34,11 @@ function tmdbLacks035(tmdb: TmdbResultRecord | undefined): boolean {
   return tmdb?.status === 'matched' && tmdb.fields.similar === undefined
 }
 
+/** `matched` buscado em outro idioma que não o do app (feature 054); ausente = português, como antes da 054. */
+function tmdbInOtherLanguage(tmdb: TmdbResultRecord | undefined, language: AppLanguage): boolean {
+  return tmdb?.status === 'matched' && (tmdb.language ?? 'pt') !== language
+}
+
 /**
  * Mescla, campo a campo, o que o provedor declarou com o que o TMDB devolveu
  * (feature 032, D-003, `logic/metadados-e-casamento.md` §4): o provedor
@@ -39,7 +46,11 @@ function tmdbLacks035(tmdb: TmdbResultRecord | undefined): boolean {
  * leitura — o registro do TMDB é guardado inteiro. Só é lido o que existe;
  * campo ausente nas duas fontes fica ausente.
  */
-export function mergeTitleMetadata(provider: TitleFields | undefined, tmdb: TmdbResultRecord | undefined): TitleMetadataView {
+export function mergeTitleMetadata(
+  provider: TitleFields | undefined,
+  tmdb: TmdbResultRecord | undefined,
+  preferredLanguage?: string,
+): TitleMetadataView {
   const fromTmdb: TitleFields = tmdb?.status === 'matched' ? tmdb.fields : {}
   const view: TitleMetadataView = {}
 
@@ -68,7 +79,7 @@ export function mergeTitleMetadata(provider: TitleFields | undefined, tmdb: Tmdb
   if (cast !== undefined) view.cast = { value: cast, origin: provider?.cast !== undefined ? 'provider' : 'tmdb' }
 
   // Único campo em que as duas fontes SOMAM (provedor primeiro), em vez de "provedor vence".
-  const trailers = buildTrailerCandidates(provider?.trailerVideos, fromTmdb.trailerVideos)
+  const trailers = buildTrailerCandidates(provider?.trailerVideos, fromTmdb.trailerVideos, preferredLanguage)
   if (trailers.length > 0) view.trailers = trailers
 
   // Feature 035: Semelhantes e elenco com identidade existem só no TMDB.
@@ -164,10 +175,13 @@ async function enrichFromTmdb(
   options: MetadataOptions,
 ): Promise<void> {
   try {
+    const language = options.language ?? readAppLanguage()
     const cached = await database.titleMetadata.get(titleStableId(record) ?? '')
     // D-002 (035): com chave, o TMDB é consultado mesmo com o provedor completo — Semelhantes e fotos só existem lá.
     const lacksNewFields = tmdbLacksVideos(cached?.tmdb) || tmdbLacks035(cached?.tmdb)
-    if (!lacksNewFields && cached?.tmdbFetchedAt !== undefined && now - cached.tmdbFetchedAt <= TMDB_CACHE_MS) return
+    // 054: o que foi buscado em outro idioma vale como vencido ao ABRIR o detalhe (`no_match`/`dead_id` não dependem do idioma).
+    const stale = tmdbInOtherLanguage(cached?.tmdb, language)
+    if (!lacksNewFields && !stale && cached?.tmdbFetchedAt !== undefined && now - cached.tmdbFetchedAt <= TMDB_CACHE_MS) return
 
     const credential = await readTmdbCredential({ database })
     if (!credential || credential.state === 'refused') return
@@ -179,6 +193,8 @@ async function enrichFromTmdb(
         providerTmdbId: cached?.providerTmdbId ?? (cached?.tmdb?.status === 'matched' ? cached.tmdb.tmdbId : undefined),
         credential: { key: credential.key, format: credential.format },
         fetchImpl: options.fetchImpl,
+        language,
+        preferredLanguage: language,
       })
       await storeTmdbResult(database, record, result, now)
       // Uma chamada que deu certo desfaz "sem conexão"/"limite de uso" no estado exibido.
@@ -212,7 +228,8 @@ async function ensure(record: CatalogRecord, stableId: string, options: Metadata
   if (fresh !== 'deferred' && !isAppHidden()) await enrichFromTmdb(record, database, now, options)
 
   const stored = await database.titleMetadata.get(stableId)
-  return mergeTitleMetadata(stored?.provider, stored?.tmdb)
+  // O idioma preferido só reordena os trailers já guardados — mudar a preferência não refaz consulta.
+  return mergeTitleMetadata(stored?.provider, stored?.tmdb, options.language ?? readAppLanguage())
 }
 
 /**
@@ -233,7 +250,8 @@ export async function ensureTitleMetadata(itemId: number, options: MetadataOptio
     const stableId = titleStableId(record)
     if (stableId === null) return {}
 
-    const key = `${database.name}|${stableId}`
+    // O idioma entra na chave: duas aberturas em idiomas diferentes não compartilham a mesma obtenção (054).
+    const key = `${database.name}|${stableId}|${options.language ?? readAppLanguage()}`
     const running = inFlight.get(key)
     if (running) return await running
 

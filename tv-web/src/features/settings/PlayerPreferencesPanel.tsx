@@ -1,6 +1,8 @@
+import { useMemo } from 'react'
 import type { ReactNode } from 'react'
+import { useT } from '../../lib/i18n/I18nProvider'
 import type { PlayerPreferences } from '../../lib/player/playerPreferences'
-import { PREFERENCE_ROWS, preferenceValueLabel } from './playerPreferencesModel'
+import { buildPreferenceRows, preferenceValueLabel } from './playerPreferencesModel'
 
 export interface PlayerPreferencesPanelProps {
   preferences: PlayerPreferences
@@ -15,13 +17,13 @@ export interface PlayerPreferencesPanelProps {
  * linha mostra o valor atual no nome acessível ("<rótulo>: <valor>").
  */
 export function PlayerPreferencesPanel({ preferences, focusedRow, onActivateRow }: PlayerPreferencesPanelProps): ReactNode {
+  const t = useT()
+  const rows = useMemo(() => buildPreferenceRows(t), [t])
   return (
     <div className="privacy-panel">
-      <h2 className="privacy-panel-heading">Player & reprodução</h2>
-      <p className="privacy-panel-note">
-        Valem para toda reprodução nova neste aparelho. No player, a escolha vale só até o fim da sequência.
-      </p>
-      {PREFERENCE_ROWS.map((row, index) => {
+      <h2 className="privacy-panel-heading">{t('settings.tab.player')}</h2>
+      <p className="privacy-panel-note">{t('settings.player.note')}</p>
+      {rows.map((row, index) => {
         const value = preferenceValueLabel(row, preferences)
         return (
           <button

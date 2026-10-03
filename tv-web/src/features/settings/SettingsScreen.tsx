@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { TopbarItem, TopDestination } from '../../navigation/appNav'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
+import { useT } from '../../lib/i18n/I18nProvider'
 import { Toast } from '../../components/Toast'
 import { AppShell } from '../shell/AppShell'
 import { TopBar } from '../shell/TopBar'
@@ -36,11 +37,6 @@ export interface SettingsScreenProps extends SettingsNavigation {
   onBack: () => void
 }
 
-const HINTS: HintItem[] = [
-  { keyLabel: 'OK', action: 'Selecionar' },
-  { keyLabel: 'RETURN', action: 'Voltar' },
-]
-
 type Zone = 'topbar' | 'tabs' | 'panel'
 
 /**
@@ -65,6 +61,12 @@ export function SettingsScreen({
   onSourceDeleted,
   onBack,
 }: SettingsScreenProps): ReactNode {
+  const t = useT()
+  const hints: HintItem[] = [
+    { keyLabel: 'OK', action: t('common.select') },
+    { keyLabel: 'RETURN', action: t('common.back') },
+  ]
+  const tabEntries = SETTINGS_TABS.map((tab) => ({ ...tab, label: t(tab.labelKey) }))
   const initialTab: SettingsTab =
     initialFocus?.zone === 'tabs' || initialFocus?.zone === 'panel' ? initialFocus.tab : 'sources'
   const initialZone: Zone = initialFocus?.zone === 'tabs' || initialFocus === undefined ? 'tabs' : 'panel'
@@ -149,7 +151,7 @@ export function SettingsScreen({
   const body = (
     <div className="settings-body">
       <SideCategoryNav
-        entries={SETTINGS_TABS}
+        entries={tabEntries}
         selectedId={activeTab}
         focusedId={zone === 'tabs' ? focusedTab : undefined}
         onSelect={(id) => enterPanel(id as SettingsTab)}
@@ -175,7 +177,7 @@ export function SettingsScreen({
     <div className="screen settings-screen">
       {shell ? (
         <AppShell
-          hints={HINTS}
+          hints={hints}
           topBar={
             <TopBar
               sourceName={shell.sourceName}
@@ -196,7 +198,7 @@ export function SettingsScreen({
         </AppShell>
       ) : (
         <>
-          <h1 className="screen-title">Configurações</h1>
+          <h1 className="screen-title">{t('settings.title')}</h1>
           {body}
         </>
       )}

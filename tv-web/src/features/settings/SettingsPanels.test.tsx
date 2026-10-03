@@ -23,12 +23,12 @@ describe('AccessibilityPanel', () => {
     expect(screen.getByText('Desligado')).toBeInTheDocument()
     expect(screen.getByText('Reduzir movimento').closest('button')).toHaveClass('tv-focus')
 
-    rerender(<AccessibilityPanel reducedMotion={true} focusedRow={2} onActivateRow={onActivateRow} />)
+    rerender(<AccessibilityPanel reducedMotion={true} focusedRow={3} onActivateRow={onActivateRow} />)
     expect(screen.getByText('Ligado')).toBeInTheDocument()
     expect(screen.getByText('Alto contraste').closest('button')).toHaveClass('tv-focus')
 
     fireEvent.click(screen.getByText('Alto contraste').closest('button')!)
-    expect(onActivateRow).toHaveBeenCalledWith(2)
+    expect(onActivateRow).toHaveBeenCalledWith(3)
   })
 
   it('as 3 demais opções são soft disabled (mocks, item 56 do backlog)', () => {

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Filmes e Séries — Design System V14 (feature 025, Onda 4).
  *
  * Arquivo próprio (D-015 do plan.md): nenhuma classe daqui é compartilhada
@@ -22,32 +22,8 @@
   min-height: 0;
 }
 
-/* ---------- Side nav em painel (§13.2, feature 050 D-009) ----------
-   Largura 340px: nomes reais de categoria de provedor não cabiam em 280px (a coluna de conteúdo ainda comporta a grade fixa de 1350px). O painel é
-   `--bg-surface` com cabeçalho; o contêiner rolável (`.vod-side-nav`, ref da
-   trilha, medido pela paginação 049) fica dentro da moldura de continuação. */
-
-.vod-side-panel {
-  width: 340px;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  padding: var(--space-3);
-  background: var(--bg-surface);
-  border: 1px solid var(--bg-elevated);
-  border-radius: var(--radius-lg);
-}
-
-.vod-side-head {
-  flex: none;
-  padding-bottom: var(--space-2);
-  margin-bottom: var(--space-2);
-  border-bottom: 1px solid var(--bg-elevated);
-  font-size: var(--fs-body);
-  font-weight: 700;
-  color: var(--text-primary);
-}
+/* ---------- Tela de categoria: moldura de continuação da grade (features 050/052) ----------
+   A sidebar e a trilha saíram na 052 (a categoria é uma tela própria, só com toolbar e grade). */
 
 /* Moldura com indicador de continuação (Spec §17, D-008): o degradê é overlay —
    nunca máscara no contêiner rolável, que esmaeceria o anel de foco. */
@@ -86,60 +62,8 @@
   opacity: 1;
 }
 
-/* Sidebar: o degradê funde com o painel; grade: com o fundo da tela. */
-.vod-side-panel .vod-scroll-frame {
-  --vod-frame-bg: var(--bg-surface);
-}
-
 .vod-content-column .vod-scroll-frame {
   --vod-frame-bg: var(--bg-canvas);
-}
-
-/* Anel de foco inteiro (D-007, receita da 036/048): folga interna para anel +
-   deslocamento + halo e margem negativa igual, que mantém o conteúdo no lugar. */
-.vod-side-nav {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: var(--space-2);
-  margin: calc(-1 * var(--space-2));
-  scroll-padding-block: calc(var(--space-5) + var(--space-2));
-}
-
-.side-category-nav-group-label {
-  font-size: var(--fs-caption);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-annotation);
-  padding: var(--space-2) var(--space-3) var(--space-1);
-  list-style: none;
-}
-
-.side-category-nav-group-label:first-child {
-  padding-top: 0;
-}
-
-/* Itens V14 (Lab `#categoriesv131`) — só dentro do painel de Filmes/Séries. */
-.vod-side-nav .side-category-nav-item {
-  min-height: 56px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--bg-hover);
-}
-
-.vod-side-nav .side-category-nav-item.is-selected {
-  background: var(--accent-tint);
-  border-color: var(--accent-tint-border);
-  color: var(--accent);
-}
-
-.vod-side-nav .side-category-nav-count {
-  color: var(--text-annotation);
-}
-
-/* Sem escala no foco (Spec §11.2, linhas/itens de lista): o anel cabe na folga. */
-.vod-side-nav .side-category-nav-item.tv-focus {
-  transform: none;
 }
 
 /* ---------- Coluna de conteúdo ---------- */
@@ -149,7 +73,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   overflow: hidden;
   /* A coluna recorta o que vaza; a folga lateral (igual à da grade) deixa o anel
      de foco da 1ª coluna de cards inteiro, sem deslocar o conteúdo. */
@@ -424,21 +348,401 @@
 
 .vod-grid-inner {
   position: relative;
-  /* 6 colunas de 205px com, no mínimo, 24px (--space-3) entre elas. */
-  min-width: calc(6 * 205px + 5 * var(--space-3));
 }
 
+/* 6 colunas coladas (vão --space-1) que dividem a largura toda; o pôster preenche a célula (cover). */
 .vod-grid-cell {
   position: absolute;
   top: 0;
-  width: 205px; /* = CARD_WIDTH em VodCatalogScreen.tsx */
-  /* --lane (0..5) vem do JSX; o espaço entre colunas absorve a largura que sobra (feature 050). */
-  left: calc(var(--lane, 0) * (205px + (100% - 6 * 205px) / 5));
+  width: calc((100% - 5 * var(--space-1)) / 6);
+  height: calc(402px - var(--space-1)); /* = ROW_HEIGHT - vão, em VodCategoryScreen.tsx */
+  left: calc(var(--lane, 0) * ((100% - 5 * var(--space-1)) / 6 + var(--space-1)));
 }
 
-/* Card portrait um pouco mais largo só nesta grade, para ocupar a largura que sobrou (a proporção do pôster é mantida). */
+.vod-grid-cell .content-card,
+.vod-grid-cell .content-card .poster-box {
+  height: 100%;
+}
+
+.vod-grid-cell .content-card .poster-box {
+  aspect-ratio: auto;
+}
+
+/* Foco na grade: com os cards colados, o anel para FORA + escala 1.06 passaria por cima dos vizinhos e seria cortado
+   na última linha. Aqui o anel fica por DENTRO do pôster, sem escala nem halo externo — nada vaza da célula. */
+.vod-grid-cell .poster-box.tv-focus {
+  transform: none;
+  outline: none;
+  box-shadow: none;
+}
+
+/* A capa é um <img> absoluto que pinta por cima do outline/box-shadow do próprio pôster; o anel é então um
+   pseudo-elemento por cima de tudo (capa, degradê do título e selos). */
+.vod-grid-cell .poster-box.tv-focus::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  box-sizing: border-box;
+  border: calc(var(--focus-ring-width) + 1px) solid var(--accent);
+  border-radius: inherit;
+  box-shadow: inset 0 0 24px var(--accent-tint-border);
+  pointer-events: none;
+}
+.vod-showcase-rows {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  overflow-y: auto;
+  padding: var(--space-2) var(--space-3);
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3));
+  scroll-padding-block: var(--space-3);
+}
+
+/* Pilha vertical virtualizada (feature 053): cada fileira é posicionada pelo virtualizador, com altura fixa por formato. */
+.vod-showcase-rows-inner {
+  position: relative;
+  width: 100%;
+  /* O pai é uma coluna flex: sem isto o contêiner encolhia à altura visível e a rolagem não chegava às fileiras de baixo. */
+  flex: none;
+}
+
+.vod-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.vod-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* "Ver tudo ›" do cabeçalho é só pista visual: o destino focável é o cartão final da fileira (D-009). */
+.vod-row-seeall {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--text-annotation);
+}
+
+.vod-row-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.vod-row .rail {
+  box-sizing: content-box;
+  padding: var(--space-2) var(--space-3);
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3));
+}
+
+.vod-row-skeleton {
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+/* "Ver tudo" — foco sem escala (Spec §11.2). */
+.vod-see-all-card.tv-focus {
+  transform: none;
+}
+
+.vod-row .vod-see-all-card {
+  width: var(--vod-card-w, 260px);
+  height: var(--vod-card-h, 383px); /* a altura do pôster do formato, alinhada ao topo dos cards da fileira */
+  margin-right: var(--space-3);
+  flex: none;
+}
+
+/* ---------- Lista lateral de categorias da vitrine (a sidebar de antes da 052, agora na vitrine) ----------
+   Painel de 340px com cabeçalho; o contêiner rolável fica dentro da moldura de continuação. A vitrine (hero + fileiras)
+   ocupa o resto. Itens V14 sem escala no foco (Spec §11.2). */
+
+.vod-showcase .vod-body {
+  gap: var(--space-4);
+}
+
+.vod-showcase-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.vod-side-panel {
+  width: 340px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: var(--radius-lg);
+}
+
+.vod-side-panel {
+  transition: width var(--duration-fast) var(--ease);
+}
+
+/* Lista recolhida (feature 053, D-005): faixa estreita com ícone/inicial; o rótulo e a contagem seguem no DOM
+   (leitores de tela e testes), só saem da vista. */
+.vod-side-panel.is-collapsed {
+  width: 96px;
+  padding: var(--space-2);
+}
+
+.vod-side-panel.is-collapsed .vod-side-title,
+.vod-side-panel.is-collapsed .side-category-nav-group-label,
+.vod-side-panel.is-collapsed .side-category-nav-label,
+.vod-side-panel.is-collapsed .side-category-nav-count,
+.vod-side-panel.is-collapsed .side-category-nav-pinned-badge {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.vod-side-panel.is-collapsed .vod-side-head {
+  justify-content: center;
+}
+
+.vod-side-panel.is-collapsed .side-category-nav-item {
+  justify-content: center;
+  padding: var(--space-2);
+}
+
+.side-category-nav-initial {
+  font-weight: 700;
+  font-size: var(--fs-body);
+}
+
+.vod-side-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex: none;
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--bg-elevated);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.vod-side-panel .vod-scroll-frame {
+  --vod-frame-bg: var(--bg-surface);
+}
+
+/* Folga do anel de foco (padding + margem negativa), como na grade. */
+.vod-side-nav {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-2);
+  margin: calc(-1 * var(--space-2));
+  scroll-padding-block: calc(var(--space-5) + var(--space-2));
+}
+
+.side-category-nav-group-label {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-annotation);
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  list-style: none;
+}
+
+.side-category-nav-group-label:first-child {
+  padding-top: 0;
+}
+
+.vod-side-nav .side-category-nav-item {
+  min-height: 56px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--bg-hover);
+}
+
+.vod-side-nav .side-category-nav-item.is-selected {
+  background: var(--accent-tint);
+  border-color: var(--accent-tint-border);
+  color: var(--accent);
+}
+
+.vod-side-nav .side-category-nav-count {
+  color: var(--text-annotation);
+}
+
+.vod-side-nav .side-category-nav-item.tv-focus {
+  transform: none;
+}
+
+/* ---------- Cards em estilo "pôster com título por cima" (vitrine e grade de categoria, feature 052) ----------
+   Pôster grande de cantos arredondados, o título sobre um degradê no rodapé e nada de texto abaixo. Escopado a
+   `.vod-screen`: o ContentCard do Início, da Busca e dos detalhes não muda. */
+
+.vod-screen .content-card {
+  position: relative;
+  gap: 0;
+}
+
+.vod-screen .content-card .poster-box {
+  border-radius: var(--radius-lg);
+}
+
+.vod-screen .content-card .poster-box::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 45%;
+  background: linear-gradient(to top, var(--scrim-media), transparent);
+  pointer-events: none;
+}
+
+.vod-screen .content-card-title {
+  position: absolute;
+  left: var(--space-1);
+  right: var(--space-1);
+  bottom: var(--space-1);
+  z-index: 1;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+  text-shadow: var(--text-shadow-media);
+  -webkit-line-clamp: 2;
+}
+
+.vod-screen .content-card-meta {
+  display: none;
+}
+
+/* Grade: o card ocupa a célula inteira (272px); vitrine: cards de 260px. */
 .vod-grid-cell .content-card--portrait {
-  width: 205px;
+  width: 100%;
+}
+
+.vod-row .content-card--portrait {
+  width: var(--vod-card-w, 260px);
+}
+
+/* Formato largo (feature 053): backdrop real de "Continue assistindo". */
+.vod-row .content-card--wide {
+  width: var(--vod-card-w, 400px);
+}
+
+/* Formato Top 10 (feature 053): número grande decorativo ao lado do pôster. */
+.vod-screen .content-card--ranked {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.vod-screen .content-card-rank {
+  flex: none;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-display);
+  line-height: 1;
+  color: var(--text-annotation);
+}
+
+/* Fileira sem trilho (slot reservado, categoria ainda sem itens): faixa estática com a mesma folga de foco do trilho. */
+.vod-row-strip {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  overflow: hidden;
+  box-sizing: content-box;
+  padding: var(--space-2) var(--space-3);
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3));
+}
+
+/* Slot reservado "Em breve" (feature 053, D-007): único cartão focável + cartões fantasma decorativos. */
+.vod-slot-card,
+.vod-ghost-card {
+  flex: none;
+  box-sizing: border-box;
+  width: var(--vod-card-w, 260px);
+  height: var(--vod-card-h, 383px);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+}
+
+.vod-slot-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  text-align: left;
+  font-family: var(--font-body);
+  color: var(--text-primary);
+}
+
+.vod-slot-card.tv-focus {
+  transform: none; /* cartões de texto: foco sem escala (Spec §11.2) */
+  background: var(--bg-hover);
+}
+
+.vod-slot-badge {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.vod-slot-message {
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+
+.vod-ghost-card {
+  display: flex;
+  align-items: flex-end;
+  padding: var(--space-3);
+  opacity: 0.5;
+}
+
+.vod-ghost-card--skeleton {
+  border-color: transparent;
+}
+
+/* Número do Top 10: só layout do formato, nunca um ranking (feature 053). */
+.vod-ghost-rank {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-display);
+  color: var(--text-annotation);
+}
+
+/* Título da seção na barra da tela de categoria (substitui o cabeçalho/topbar). */
+.vod-page-title {
+  font-family: var(--font-heading);
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-right: var(--space-1);
 }
 
 /* ---------- Detalhe de filme/série (US5/US6, `logic/detalhe-vod.md`) ----------
@@ -1004,8 +1308,7 @@
 
 
 
-
-
-
-
-
+/* Barra Pesquisar/Ordenar da vitrine (abre a tela de categoria "Todos" com a intenção). */
+.vod-showcase-toolbar {
+  justify-content: flex-end;
+}

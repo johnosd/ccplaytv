@@ -1,3 +1,7 @@
+import { useLanguage, useT } from '../../lib/i18n/I18nProvider'
+import { APP_LANGUAGE_LOCALE } from '../../lib/i18n/languages'
+import type { Translator } from '../../lib/i18n/translate'
+import { groupLabelDisplay } from '../vod/vodGroupDisplay'
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -9,7 +13,6 @@ import {
   invalidateUserState,
   useToggleWatched,
   useRemoveFromHistory,
-  groupLabel,
 } from '../catalog/catalogApi'
 import { isInHistory, type HistoryRemovalMode } from '../../lib/catalog/historyRemoval'
 import { HistoryRemovalModal } from '../history/HistoryRemovalModal'
@@ -73,11 +76,13 @@ type MovieAction =
 
 type DetailTab = 'details' | 'cast' | 'similar'
 
-const TABS: TabItem[] = [
-  { id: 'details', label: 'Detalhes' },
-  { id: 'cast', label: 'Elenco' },
-  { id: 'similar', label: 'Semelhantes' },
-]
+function buildTabs(t: Translator): TabItem[] {
+  return [
+    { id: 'details', label: t('detail.tab.details') },
+    { id: 'cast', label: t('detail.tab.cast') },
+    { id: 'similar', label: t('detail.tab.similar') },
+  ]
+}
 
 const CONFIGURE_KEY = 'configure'
 
@@ -109,24 +114,24 @@ function buildActions(
   ]
 }
 
-function actionLabel(action: MovieAction): string {
+function actionLabel(action: MovieAction, t: Translator): string {
   switch (action.id) {
     case 'watch':
-      return '▶ Assistir'
+      return t('detail.action.watch')
     case 'resume':
-      return `▶ Continuar de ${formatTime(action.progressSeconds * 1000)}`
+      return t('detail.action.resume', { time: formatTime(action.progressSeconds * 1000) })
     case 'restart':
-      return '↺ Reiniciar'
+      return t('detail.action.restart')
     case 'favorite':
-      return action.isFavorite ? '✓ Na Minha Lista' : '+ Minha Lista'
+      return action.isFavorite ? t('home.hero.inMyList') : t('home.hero.addMyList')
     case 'trailer':
-      return '▶ Trailer'
+      return t('trailer.button')
     case 'similar':
-      return '☰ Semelhantes'
+      return t('detail.action.similar')
     case 'toggle-watched':
-      return action.watched ? '✗ Desmarcar assistido' : '✓ Marcar como assistido'
+      return action.watched ? t('detail.action.unwatch') : t('detail.action.markWatched')
     case 'remove-history':
-      return 'Remover do histórico'
+      return t('detail.action.removeHistory')
   }
 }
 
@@ -139,8 +144,8 @@ function actionLabel(action: MovieAction): string {
  * fazia a exibição recuar um dia inteiro em qualquer fuso atrás de UTC
  * (ex.: America/Sao_Paulo, UTC-3).
  */
-function formatShortDate(epochMs: number): string {
-  return new Intl.DateTimeFormat('pt-BR', {
+function formatShortDate(epochMs: number, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -216,6 +221,9 @@ export function MovieDetailScreen({
     isInHistory(userStateQuery.data),
   )
   const toggleWatched = useToggleWatched()
+  const t = useT()
+  const language = useLanguage()
+  const tabs = buildTabs(t)
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
@@ -232,7 +240,7 @@ export function MovieDetailScreen({
         onSuccess: () => {
           // A ação some na releitura; `safeActionFocus` cai na anterior.
           setRemoval(null)
-          showToast('Removido do histórico')
+          showToast(t('vod.removedFromHistory'))
         },
         onError: () => setRemoval({ error: true }),
       },
@@ -384,9 +392,9 @@ export function MovieDetailScreen({
       }
       // row === 'tabs'
       if (dir === 'left' || dir === 'right') {
-        const idx = TABS.findIndex((t) => t.id === effectiveTabId)
-        const next = clamp(idx + (dir === 'left' ? -1 : 1), 0, TABS.length - 1)
-        setFocusedTabId(TABS[next].id)
+        const idx = tabs.findIndex((tab) => tab.id === effectiveTabId)
+        const next = clamp(idx + (dir === 'left' ? -1 : 1), 0, tabs.length - 1)
+        setFocusedTabId(tabs[next].id)
         setRow('tabs')
       }
       if (dir === 'up') setRow('actions')
@@ -419,7 +427,7 @@ export function MovieDetailScreen({
       const action = actions[safeActionFocus]
       if (!action) return
       if (action.id === 'trailer') {
-        const toast = trailerActionToast(trailerState)
+        const toast = trailerActionToast(trailerState, t)
         if (toast !== null) showToast(toast)
         // `playing` cobre o instante entre um OK repetido e a camada do player montar (FR-012).
         else if (!playing) setTrailerOpen(true)
@@ -455,10 +463,10 @@ export function MovieDetailScreen({
       <div className="screen">
         <div className="live-state">
           <div className="live-state-copy">
-            {query.isLoading ? 'Carregando…' : 'Este filme não está mais no catálogo.'}
+            {query.isLoading ? t('common.loading') : t('detail.movieMissing')}
           </div>
           <button type="button" className="live-state-action tv-focus" onClick={onBack}>
-            Voltar
+            {t('common.back')}
           </button>
         </div>
       </div>
@@ -467,8 +475,8 @@ export function MovieDetailScreen({
 
   const metaParts: string[] = []
   if (movie.year != null) metaParts.push(String(movie.year))
-  metaParts.push(groupLabel(movie.original_group ?? undefined))
-  if (watched) metaParts.push('✓ Assistido')
+  metaParts.push(groupLabelDisplay(movie.original_group, t))
+  if (watched) metaParts.push(t('detail.watchedMeta'))
 
   return (
     // Achado real (feature 028, FR-006): rolava com a barra nativa visível.
@@ -479,7 +487,7 @@ export function MovieDetailScreen({
           <PosterArt url={movie.icon_url ?? undefined} title={movie.name} />
         </div>
         <div className="vod-detail-info">
-          <div className="vod-detail-eyebrow">FILME</div>
+          <div className="vod-detail-eyebrow">{t('detail.eyebrow.movie')}</div>
           <div className="vod-detail-title">{movie.name}</div>
           <div className="vod-detail-meta">{metaParts.join(' · ')}</div>
           <SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />
@@ -492,7 +500,7 @@ export function MovieDetailScreen({
                   className={`vod-detail-action${row === 'actions' && i === safeActionFocus && !removal ? ' tv-focus' : ''}${softDisabled ? ' is-soft-disabled' : ''}`}
                   aria-disabled={softDisabled ? 'true' : undefined}
                 >
-                  {action.id === 'trailer' ? trailerActionLabel(trailerState) : actionLabel(action)}
+                  {action.id === 'trailer' ? trailerActionLabel(trailerState, t) : actionLabel(action, t)}
                 </div>
               )
             })}
@@ -500,35 +508,35 @@ export function MovieDetailScreen({
         </div>
       </div>
 
-      <Tabs items={TABS} activeId={activeTab} focusedId={row === 'tabs' ? effectiveTabId : undefined} onSelect={activateTab} />
+      <Tabs items={tabs} activeId={activeTab} focusedId={row === 'tabs' ? effectiveTabId : undefined} onSelect={activateTab} />
 
       <div className="vod-detail-panel" ref={enterSimilar.panelRef}>
         {activeTab === 'details' && (
           <dl className="vod-detail-facts">
             <div className="vod-detail-fact">
-              <dt>Tipo</dt>
-              <dd>Filme</dd>
+              <dt>{t('detail.fact.type')}</dt>
+              <dd>{t('detail.fact.movie')}</dd>
             </div>
             <div className="vod-detail-fact">
-              <dt>Categoria</dt>
-              <dd>{groupLabel(movie.original_group ?? undefined)}</dd>
+              <dt>{t('detail.fact.category')}</dt>
+              <dd>{groupLabelDisplay(movie.original_group, t)}</dd>
             </div>
             {movie.year != null && (
               <div className="vod-detail-fact">
-                <dt>Ano</dt>
+                <dt>{t('detail.fact.year')}</dt>
                 <dd>{movie.year}</dd>
               </div>
             )}
             {movie.added_at != null && (
               <div className="vod-detail-fact">
-                <dt>Adicionado em</dt>
-                <dd>{formatShortDate(movie.added_at)}</dd>
+                <dt>{t('detail.fact.added')}</dt>
+                <dd>{formatShortDate(movie.added_at, APP_LANGUAGE_LOCALE[language])}</dd>
               </div>
             )}
-            <MetadataFacts rows={metadataFactRows(metadata, false)} />
+            <MetadataFacts rows={metadataFactRows(metadata, false, t)} />
             <div className="vod-detail-fact">
-              <dt>Disponível</dt>
-              <dd>{movie.playable ? 'Sim' : 'Não'}</dd>
+              <dt>{t('detail.fact.available')}</dt>
+              <dd>{movie.playable ? t('detail.yes') : t('detail.no')}</dd>
             </div>
           </dl>
         )}

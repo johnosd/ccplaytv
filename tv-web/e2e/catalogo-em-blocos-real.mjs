@@ -278,8 +278,8 @@ async function run() {
     for (let rep = 1; rep <= REPETITIONS; rep += 1) {
       const viewport = { width: 1920, height: 1080 }
       const context = USER_DATA
-        ? await chromium.launchPersistentContext(USER_DATA, { headless: true, viewport })
-        : await browser.newContext({ viewport })
+        ? await chromium.launchPersistentContext(USER_DATA, { headless: true, locale: 'pt-BR', viewport })
+        : await browser.newContext({ locale: 'pt-BR', viewport })
       await context.addInitScript(() => localStorage.setItem('ccplaytv:perf', '1'))
       const page = await context.newPage()
       page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error'))

@@ -198,6 +198,12 @@ scaled elsewhere. **New screens consume tokens; they never hardcode a
 color, radius, spacing or font size**, and fonts ship locally
 (`tv-web/src/assets/fonts/`, feature 021) — never a CDN.
 
+**UI text goes through the i18n catalog** (`tv-web/src/lib/i18n/`, feature
+054; pt/en/es): a new string is a key in `messages/<area>.ts` (all three
+languages, `pt` is the base) read with `useT()` — pure helpers take `t` as a
+parameter and never read the store. Provider/IPTV text (channel, category,
+title names) is never translated.
+
 ## How work happens here: the SDD system
 
 This repo is driven by a bespoke Spec-Driven Development workflow (evolved

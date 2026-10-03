@@ -1,4 +1,5 @@
 import type { CastPerson, CatalogDb, TmdbTitleRef } from '../catalog/db'
+import type { AppLanguage } from '../i18n/languages'
 import type { TrailerCandidate } from '../trailer/trailerCandidates'
 
 /**
@@ -107,4 +108,6 @@ export interface MetadataOptions {
   database?: CatalogDb
   now?: () => number
   fetchImpl?: typeof fetch
+  /** Idioma do app (feature 054): `undefined` = o vigente (`readAppLanguage`). Os testes injetam. */
+  language?: AppLanguage
 }

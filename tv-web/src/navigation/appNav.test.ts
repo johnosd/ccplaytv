@@ -168,6 +168,48 @@ describe('appNavReducer — regras além dos contratos (feature 023)', () => {
     expect((state.screen as { restore?: unknown }).restore).toBe(snapshot)
   })
 
+  // Feature 052: vitrine → categoria → detalhe; cada RETURN devolve a tela anterior com o foco que ela guardou (por id),
+  // e trocar de destino de topo a partir da categoria não empilha nada.
+  it('vitrine → categoria → detalhe: RETURN restaura cada tela com o que ela guardou; switch-top da categoria não empilha', () => {
+    const showcaseFocus = { row: 'categories', id: 'cat:Ação' } as const
+    const categoryRestore = { focusedItemId: 'm1', searchTerm: '', searchActive: false, focusedIndexHint: 2 }
+    const homeFocus = { name: 'home', focus: { zone: 'topbar', item: 'movies' } } as const
+    let state = run(
+      initialAppNav(),
+      { type: 'splash-finished' },
+      { type: 'choose-source', source: A },
+      { type: 'open', screen: { name: 'movies' }, from: homeFocus },
+      {
+        type: 'open',
+        screen: { name: 'movies-category', target: { kind: 'category', name: 'Ação' } },
+        from: { name: 'movies', restore: showcaseFocus },
+      },
+      {
+        type: 'open',
+        screen: { name: 'movie-detail', movieId: 'm1' },
+        from: { name: 'movies-category', target: { kind: 'category', name: 'Ação' }, restore: categoryRestore },
+      },
+    )
+
+    state = run(state, { type: 'back' })
+    expect(state.screen).toEqual({ name: 'movies-category', target: { kind: 'category', name: 'Ação' }, restore: categoryRestore })
+    state = run(state, { type: 'back' })
+    expect(state.screen).toEqual({ name: 'movies', restore: showcaseFocus })
+    state = run(state, { type: 'back' })
+    expect(state.screen).toEqual(homeFocus)
+
+    // Da tela de categoria, a topbar troca de destino sem empilhar: RETURN no destino novo volta ao Início.
+    state = run(
+      state,
+      { type: 'open', screen: { name: 'movies-category', target: { kind: 'favorites' } }, from: homeFocus },
+      { type: 'switch-top', screen: { name: 'series' } },
+    )
+    expect(state.screen).toEqual({ name: 'series' })
+    expect(state.history).toEqual([homeFocus])
+    state = run(state, { type: 'back' })
+    expect(state.screen).toEqual(homeFocus)
+  })
+
   // Feature 024, T026: a topbar da Live troca de destino de topo (Filmes)
   // sem empilhar, e RETURN de lá volta direto ao Início — nunca pra Live.
   it('"Filmes" na topbar da Live abre Filmes via switch-top, e RETURN volta ao Início (não à Live)', () => {

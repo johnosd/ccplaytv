@@ -1,4 +1,4 @@
-﻿// Roteiro E2E da feature 049 (navegação por página nas listas) — gate da
+// Roteiro E2E da feature 049 (navegação por página nas listas) — gate da
 // constitution ("Testes E2E (Playwright) antes de validação em TV física").
 //
 // Num Chromium de verdade, a 1920×1080, mede o que o jsdom não vê: a lista rola
@@ -14,6 +14,7 @@ import { existsSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const APP_URL = 'http://localhost:5173'
 const LISTA = 'Fonte E2E Navegacao Pagina'
@@ -117,7 +118,7 @@ async function run() {
   const browser = await chromium.launch(
     existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true },
   )
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   await page.route('**/stream/**', () => {})
   const pageErrors = []
@@ -250,26 +251,23 @@ async function run() {
     assert((await focusedChannel(page)).length > 0, 'um único foco na lista depois da rajada')
     assert((await page.locator('.tv-focus').count()) >= 1, 'o foco continua visível')
 
-    console.log('=== Filmes: a trilha pagina; OK entra; a grade anda cartão a cartão; ← na 1ª coluna volta (US4) ===')
+    console.log('=== Filmes: lista lateral da vitrine → OK entra; a grade anda cartão a cartão; RETURN volta à vitrine (US4) ===')
+    // 052: a lista lateral é da vitrine (sem paginação por ←/→: esses movem entre a lista e as fileiras) e a grade da
+    // categoria é outra tela, sem a lista — o RETURN a devolve à vitrine.
     await openViaTopbar(page, 'movies')
-    await page.waitForSelector('.vod-side-nav .side-category-nav-item', { timeout: 8000 })
-    const mLabels = await trailLabels(page, '.vod-side-nav')
-    const mStart = mLabels.indexOf(await focusedTrail(page, '.vod-side-nav'))
-    await page.keyboard.press('ArrowRight')
-    const mAfter = mLabels.indexOf(await focusedTrail(page, '.vod-side-nav'))
-    assert(mAfter - mStart >= 2, `→ pagina a trilha de Filmes (${mAfter - mStart} entradas)`)
-    assert((await page.locator('.vod-grid .content-card').count()) === 0, '→ não abriu categoria nenhuma')
+    await focusFirstRealCategory(page)
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.vod-hero-title', { timeout: 8000 })
-    const first = (await page.locator('.vod-hero-title').textContent())?.trim()
+    await page.waitForSelector('.vod-grid .content-card-title', { timeout: 8000 })
+    const focusedTitle = () =>
+      page.evaluate(() => document.querySelector('.vod-grid-cell .tv-focus')?.closest('.vod-grid-cell')?.querySelector('.content-card-title')?.textContent?.trim() ?? null)
+    const first = await focusedTitle()
     await page.keyboard.press('ArrowRight')
     await page.waitForTimeout(150)
-    const second = (await page.locator('.vod-hero-title').textContent())?.trim()
-    assert(first !== second, `na grade, → anda cartão a cartão ("${first}" → "${second}")`)
-    await page.keyboard.press('ArrowLeft')
-    await page.keyboard.press('ArrowLeft') // 1ª coluna: volta à trilha
-    await page.waitForSelector('.vod-side-nav .side-category-nav-item.tv-focus', { timeout: 4000 })
-    assert(true, '← na 1ª coluna da grade voltou à trilha')
+    const second = await focusedTitle()
+    assert(first !== null && first !== second, `na grade, → anda cartão a cartão ("${first}" → "${second}")`)
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('.vod-showcase .side-category-nav-item.tv-focus', { timeout: 4000 })
+    assert(true, 'RETURN na grade voltou à lista lateral da vitrine')
     await shot(page, '04-filmes')
 
     assert(pageErrors.length === 0, `nenhum erro de página durante o roteiro${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)

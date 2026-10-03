@@ -1,5 +1,7 @@
 import type { PlayerCapabilities, PlayerProgress } from '../lib/player/PlayerService'
 import { formatTime } from '../lib/player/formatTime'
+import { useT } from '../lib/i18n/I18nProvider'
+import type { Translator } from '../lib/i18n/translate'
 import { Icon } from './Icon'
 import type { IconName } from './iconPaths'
 import { PosterArt } from './PosterArt'
@@ -24,28 +26,28 @@ function iconOf(control: ChromeControl, paused: boolean): IconName {
 }
 
 /** Texto visível curto do botão — o rótulo completo/explicativo vai só no `aria-label` (FR-030). */
-function shortText(control: ChromeControl, paused: boolean): string {
+function shortText(control: ChromeControl, paused: boolean, t: Translator): string {
   switch (control.id) {
     case 'episodePrevious':
-      return 'Anterior'
+      return t('player.chrome.previous')
     case 'jumpBack':
       return '10s'
     case 'playPause':
-      return paused ? 'Reproduzir' : 'Pausar'
+      return paused ? t('player.chrome.play') : t('player.chrome.pause')
     case 'jumpForward':
       return '10s'
     case 'episodeNext':
-      return 'Próximo'
+      return t('player.chrome.next')
     case 'tracks':
-      return 'Áudio'
+      return t('player.chrome.audio')
     case 'quality':
-      return 'Qualidade'
+      return t('player.chrome.quality')
     case 'aspect':
-      return 'Aspecto'
+      return t('player.chrome.aspect')
     case 'info':
-      return 'Info'
+      return t('player.chrome.info')
     case 'guide':
-      return 'Guia'
+      return t('player.chrome.guide')
   }
 }
 
@@ -84,6 +86,7 @@ export function PlayerChrome({
   progress,
   seekBarFocused,
 }: PlayerChromeProps) {
+  const t = useT()
   const isLive = media === 'live'
   // A timeline (total + barra) exige canSeek, não só reportsDuration — sem
   // capacidade de busca, ela não existe (US1/AC5), igual jumpBack/
@@ -100,7 +103,7 @@ export function PlayerChrome({
     <div className="player-chrome">
       {isLive ? (
         <div className="player-chrome-band">
-          <span className="player-chrome-live-badge">AO VIVO</span>
+          <span className="player-chrome-live-badge">{t('player.chrome.live')}</span>
           {identity.channelNumber != null && <span className="player-chrome-number">{identity.channelNumber}</span>}
           <PosterArt url={identity.logoUrl ?? undefined} title={identity.title} variant="logo" />
           <div className="player-chrome-band-text">
@@ -151,7 +154,7 @@ export function PlayerChrome({
               aria-disabled={control.availability !== 'real' ? 'true' : undefined}
             >
               <Icon name={iconOf(control, paused)} />
-              <span aria-hidden="true">{shortText(control, paused)}</span>
+              <span aria-hidden="true">{shortText(control, paused, t)}</span>
             </button>
           ))}
         </div>

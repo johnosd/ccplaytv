@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie'
 import { noteBlockWrite } from './blockMemo'
 import type { PlaybackHeaders } from './m3uHeaders'
+import type { AppLanguage } from '../i18n/languages'
 
 /**
  * Armazenamento local do aparelho — a fonte de verdade das telas depois da
@@ -303,7 +304,7 @@ export interface TitleFields {
    */
   trailerVideos?: TrailerVideoRef[]
   synopsis?: string
-  /** Só presente quando a sinopse NÃO está em português (código ISO 639-1) — FR-021. */
+  /** Só presente quando a sinopse NÃO está no idioma do app (código ISO 639-1) — FR-021, generalizado na 054. */
   synopsisLanguage?: string
   backdropUrl?: string
   genres?: string
@@ -314,7 +315,8 @@ export interface TitleFields {
 }
 
 export type TmdbResultRecord =
-  | { status: 'matched'; tmdbId: number; fields: TitleFields }
+  /** `language`: idioma do app com que foi buscado (feature 054); ausente = `pt` (gravado antes da 054). */
+  | { status: 'matched'; tmdbId: number; fields: TitleFields; language?: AppLanguage }
   | { status: 'no_match' }
   | { status: 'dead_id'; tmdbId: number }
 
@@ -354,6 +356,8 @@ export interface TmdbPersonRecord {
   /** Já filtrada e ordenada, no máximo `FILMOGRAPHY_STORED_MAX`. */
   credits: TmdbTitleRef[]
   fetchedAt: number
+  /** Idioma do app com que foi buscada (feature 054); ausente = 'pt'. */
+  language?: AppLanguage
 }
 
 export type IntegrationState = 'connected' | 'refused' | 'offline' | 'rate_limited'

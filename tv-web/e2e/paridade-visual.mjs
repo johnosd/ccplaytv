@@ -221,7 +221,7 @@ async function runMainWalkthrough(page, m3uUrl, outDir) {
 
 /** SC-004 — mesma fixture, contexto isolado próprio, só 3 das 8 telas. */
 async function runViewportWalkthrough(browser, m3uUrl, width, height, suffix, outDir) {
-  const context = await browser.newContext({ viewport: { width, height } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width, height } })
   const page = await context.newPage()
   try {
     await addSource(page, m3uUrl, `Fonte E2E Paridade Visual ${suffix}`)
@@ -254,7 +254,7 @@ async function run() {
   const outDir = path.join(OUT_ROOT, MODE)
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {

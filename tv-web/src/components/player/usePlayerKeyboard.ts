@@ -1,14 +1,15 @@
 import type { RefObject } from 'react'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
-import { getComingSoon } from '../../lib/comingSoon'
+import { comingSoonToast } from '../../lib/comingSoon'
+import { useT } from '../../lib/i18n/I18nProvider'
 import type { PlayerServiceSession } from '../../lib/player/PlayerService'
 import { hasSeekBar, type PlayerEpisodeStep } from '../chromeControls'
 import {
-  GUIDE_UNAVAILABLE_MESSAGE,
+  GUIDE_UNAVAILABLE_KEY,
   JUMP_MS,
-  LIMIT_MESSAGE,
-  RESUME_BLOCKED_MESSAGE,
-  RESUME_WAIT_MESSAGE,
+  LIMIT_MESSAGE_KEY,
+  RESUME_BLOCKED_KEY,
+  RESUME_WAIT_KEY,
 } from './playerMessages'
 import type { PanelState, PlayerLayerTopLayer, ResumeGate } from './playerLayerTypes'
 import type { ErrorActionId } from './playerErrorActions'
@@ -75,6 +76,7 @@ export function usePlayerKeyboard({
   resumeGateRef,
   recheckResume,
 }: PlayerKeyboardParams): void {
+  const t = useT()
   const {
     chromeLevelRef,
     chromeMediaRef,
@@ -99,7 +101,7 @@ export function usePlayerKeyboard({
   function togglePauseGuarded(session: PlayerServiceSession) {
     const gate = resumeGateRef.current
     if (gate !== null && session.state === 'paused') {
-      showToast(gate === 'blocked' ? RESUME_BLOCKED_MESSAGE : RESUME_WAIT_MESSAGE)
+      showToast(t(gate === 'blocked' ? RESUME_BLOCKED_KEY : RESUME_WAIT_KEY))
       return
     }
     session.togglePause()
@@ -135,7 +137,7 @@ export function usePlayerKeyboard({
             const moved = onChannelStep?.(dir === 'up' ? 'previous' : 'next')
             // Sucesso: a troca de `itemId` já reconstrói a sessão e volta a
             // 'band' sozinha (efeito da sessão) — nada a fazer aqui além do aviso.
-            if (moved === false) showToast(LIMIT_MESSAGE.channel[dir === 'up' ? 'previous' : 'next'])
+            if (moved === false) showToast(t(LIMIT_MESSAGE_KEY.channel[dir === 'up' ? 'previous' : 'next']))
             scheduleHide()
             return
           }
@@ -234,12 +236,12 @@ export function usePlayerKeyboard({
           if (control?.id === 'guide') {
             // Feature 031: real quando a tela sabe abrir o guia (`onGuide`); senão só explica.
             if (control.availability === 'real') onGuide?.()
-            else showToast(GUIDE_UNAVAILABLE_MESSAGE)
+            else showToast(t(GUIDE_UNAVAILABLE_KEY))
             scheduleHide()
             return
           }
           if (control?.availability === 'soon' && control.comingSoonId) {
-            showToast(`Em breve — ${getComingSoon(control.comingSoonId).message}`)
+            showToast(comingSoonToast(control.comingSoonId, t))
           }
           scheduleHide()
           return
@@ -267,9 +269,9 @@ export function usePlayerKeyboard({
         else if (control.id === 'episodePrevious' || control.id === 'episodeNext') {
           const direction = control.id === 'episodePrevious' ? 'previous' : 'next'
           if (control.availability === 'real') episodeStep?.onStep(direction)
-          else showToast(LIMIT_MESSAGE.episode[direction])
+          else showToast(t(LIMIT_MESSAGE_KEY.episode[direction]))
         } else if (control.availability === 'soon' && control.comingSoonId) {
-          showToast(`Em breve — ${getComingSoon(control.comingSoonId).message}`)
+          showToast(comingSoonToast(control.comingSoonId, t))
         }
         scheduleHide()
       },
@@ -294,7 +296,7 @@ export function usePlayerKeyboard({
             if (chromeLevelRef.current === 'hidden') setLevel('band')
             const moved = onChannelStep?.(key === 'ChannelUp' ? 'previous' : 'next')
             if (moved === false) {
-              showToast(LIMIT_MESSAGE.channel[key === 'ChannelUp' ? 'previous' : 'next'])
+              showToast(t(LIMIT_MESSAGE_KEY.channel[key === 'ChannelUp' ? 'previous' : 'next']))
             }
             scheduleHide()
             return

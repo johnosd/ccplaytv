@@ -99,7 +99,7 @@ async function run() {
   }
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   // Só o NOME do erro: a mensagem de uma falha de rede embute a URL com credencial.
   page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error'))

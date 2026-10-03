@@ -45,7 +45,10 @@ export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = IN
       void queryClient.invalidateQueries({ queryKey: ['categories', sourceId] })
       for (const categoryId of categoryIds) {
         void queryClient.invalidateQueries({ queryKey: ['category-content', sourceId, categoryId] })
+        // Feature 053: o carrossel da tela hero lê a prévia da categoria que acabou de chegar.
+        void queryClient.invalidateQueries({ queryKey: ['category-preview', sourceId, categoryId] })
       }
+      void queryClient.invalidateQueries({ queryKey: ['category-preview', sourceId, 'window'] })
       void queryClient.invalidateQueries({ queryKey: ['catalog-counts', sourceId] })
       void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId] })
       // Feature 039 (T022): "Todos" aos poucos. Reler uma consulta infinita relê

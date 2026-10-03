@@ -195,7 +195,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${server.address().port}/get.php?username=${PANEL_USER}&password=${PANEL_PASS}`
 
   const browser = await launchBrowser()
-  const page = await (await browser.newContext({ viewport: { width: 1920, height: 1080 } })).newPage()
+  const page = await (await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })).newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
     if (msg.type() === 'error' && !msg.text().includes('icon-size')) console.error('  [console.error]', msg.text())

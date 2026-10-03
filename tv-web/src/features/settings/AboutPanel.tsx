@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useT } from '../../lib/i18n/I18nProvider'
 
 export interface AboutPanelProps {
   focused: boolean
@@ -11,14 +12,15 @@ export interface AboutPanelProps {
  * enquanto o app não consumir a API de verdade).
  */
 export function AboutPanel({ focused }: AboutPanelProps): ReactNode {
+  const t = useT()
   return (
     <div className="about-panel">
       <div className={`about-panel-version no-scale${focused ? ' tv-focus' : ''}`}>
         <span className="about-panel-name">CCPlayTV</span>
-        <span className="about-panel-value">Versão {__APP_VERSION__}</span>
+        <span className="about-panel-value">{t('settings.about.version', { version: __APP_VERSION__ })}</span>
       </div>
       <div className="about-panel-licenses">
-        <p className="about-panel-licenses-title">Licenças das fontes tipográficas</p>
+        <p className="about-panel-licenses-title">{t('settings.about.fontLicenses')}</p>
         <p>Poppins — SIL Open Font License 1.1</p>
         <p>Inter — SIL Open Font License 1.1</p>
       </div>

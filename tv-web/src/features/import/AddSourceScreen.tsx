@@ -9,7 +9,9 @@ import { TextField } from '../../components/TextField'
 import { OnboardingBrand } from './OnboardingBrand'
 import { checkSourceConnection } from '../../lib/catalog/sourceConnectionCheck'
 import { isQuotaError, StorageFullError } from '../../lib/catalog/catalogRepository'
-import { bannerFor, RETRY_LABEL, type ConnectionBanner } from './connectionBanner'
+import { bannerFor, RETRY_LABEL_KEY, type ConnectionBanner } from './connectionBanner'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
 import { ConnectionErrorBanner } from './ConnectionErrorBanner'
 import { connectionInputFor } from './connectionInput'
 
@@ -27,16 +29,16 @@ export interface AddSourceScreenProps {
 type EntryMode = 'url' | 'provider'
 
 /** Os dois tipos do painel "Configuração manual" (D-008), na ordem do protótipo. */
-const ENTRY_TYPES: { id: EntryMode; title: string; description: string }[] = [
-  { id: 'provider', title: 'Xtream Codes', description: 'Servidor, usuário e senha com categorias e EPG.' },
-  { id: 'url', title: 'Lista M3U', description: 'URL única para playlist rápida e compatível.' },
+const ENTRY_TYPES: { id: EntryMode; title: string | MessageKey; description: MessageKey }[] = [
+  { id: 'provider', title: 'Xtream Codes', description: 'add.type.xtream.description' },
+  { id: 'url', title: 'add.type.m3u', description: 'add.type.m3u.description' },
 ]
 
 /** Passos de "Como funciona" — o caminho real, sem o celular (FR-014). Nenhum é marcado como concluído. */
-const HOW_IT_WORKS: { title: string; text: string }[] = [
-  { title: 'Escolha o tipo', text: 'Xtream Codes ou Lista M3U' },
-  { title: 'Digite os dados', text: 'Servidor e login, ou a URL da lista' },
-  { title: 'Sincronizar tudo', text: 'Canais, EPG, filmes e séries chegam na TV' },
+const HOW_IT_WORKS: { title: MessageKey; text: MessageKey }[] = [
+  { title: 'add.how.step1.title', text: 'add.how.step1.text' },
+  { title: 'add.how.step2.title', text: 'add.how.step2.text' },
+  { title: 'add.how.step3.title', text: 'add.how.step3.text' },
 ]
 
 /**
@@ -61,6 +63,7 @@ export function AddSourceScreen({
   onSourceUpdated,
   onBack,
 }: AddSourceScreenProps) {
+  const t = useT()
   const isEditing = existingSource != null
   const containerRef = useRef<HTMLElement>(null)
   const selectedTypeRef = useRef<HTMLButtonElement>(null)
@@ -122,7 +125,7 @@ export function AddSourceScreen({
 
   /** Falha ao gravar: disco cheio tem código próprio; o resto mantém a linha genérica de sempre. */
   function settleSaveError(error: unknown) {
-    settle(isQuotaError(error) || error instanceof StorageFullError ? bannerFor('STO-01') : null)
+    settle(isQuotaError(error) || error instanceof StorageFullError ? bannerFor('STO-01', t) : null)
   }
 
   // Sem <form>: salvar só acontece no clique/OK deste botão especificamente,
@@ -138,18 +141,18 @@ export function AddSourceScreen({
 
     if (!displayName.trim()) {
       setBanner(null)
-      setValidationError('Informe um nome para a lista.')
+      setValidationError(t('add.err.name'))
       return
     }
     if (!isEditing) {
       if (mode === 'url' && !m3uUrl.trim()) {
         setBanner(null)
-        setValidationError('Informe a URL da lista M3U.')
+        setValidationError(t('add.err.m3u'))
         return
       }
       if (mode === 'provider' && (!dns.trim() || !username.trim() || !password.trim())) {
         setBanner(null)
-        setValidationError('Informe endereço do servidor, usuário e senha.')
+        setValidationError(t('add.err.provider'))
         return
       }
     }
@@ -170,13 +173,13 @@ export function AddSourceScreen({
       if (input) {
         const result = await checkSourceConnection(input, { signal: controller.signal })
         if (result.status === 'cancelled') return settle(null)
-        if (result.status === 'failed') return settle(bannerFor(result.code))
+        if (result.status === 'failed') return settle(bannerFor(result.code, t))
       }
     } catch {
       // Defeito nosso não vira "falha de rede" (D-009): cai na linha genérica, sem a mensagem crua.
       settle(null)
       setValidationError(
-        isEditing ? 'Não foi possível salvar as alterações.' : 'Não foi possível adicionar a fonte.',
+        isEditing ? t('add.err.saveEdit') : t('add.err.saveNew'),
       )
       return
     }
@@ -224,53 +227,53 @@ export function AddSourceScreen({
 
   const submitLabel =
     phase === 'saving' && isEditing
-      ? 'Salvando…'
+      ? t('add.submit.saving')
       : phase !== 'idle'
-        ? 'Conectando…'
+        ? t('add.submit.connecting')
         : banner?.retryable
-          ? RETRY_LABEL
+          ? t(RETRY_LABEL_KEY)
           : isEditing
-            ? 'Salvar alterações'
-            : 'Conectar e sincronizar'
+            ? t('add.submit.save')
+            : t('add.submit.connect')
 
   const fields = (
     <div className="source-setup-fields">
       <div className="source-setup-field--wide">
-        <TextField label="Nome da lista" purpose="text" enterKeyHint="next" value={displayName} onChange={setDisplayName} />
+        <TextField label={t('add.field.name')} purpose="text" enterKeyHint="next" value={displayName} onChange={setDisplayName} />
       </div>
       {mode === 'url' ? (
         <div className="source-setup-field--wide">
           <TextField
-            label="URL M3U"
+            label={t('add.field.m3u')}
             purpose="url"
             enterKeyHint="done"
             value={m3uUrl}
             onChange={setM3uUrl}
-            hint={isEditing ? 'Deixe em branco para manter a URL atual' : undefined}
+            hint={isEditing ? t('add.hint.keepUrl') : undefined}
           />
         </div>
       ) : (
         <>
           <div className="source-setup-field--wide">
-            <TextField label="Servidor" purpose="url" enterKeyHint="next" value={dns} onChange={setDns} />
+            <TextField label={t('add.field.server')} purpose="url" enterKeyHint="next" value={dns} onChange={setDns} />
           </div>
           <TextField
-            label="Usuário"
+            label={t('add.field.user')}
             purpose="username"
             enterKeyHint="next"
             value={username}
             onChange={setUsername}
-            hint={isEditing ? 'Deixe em branco para manter o usuário atual' : undefined}
+            hint={isEditing ? t('add.hint.keepUser') : undefined}
           />
           <TextField
-            label="Senha"
+            label={t('add.field.password')}
             purpose="password"
             revealable
-            revealNoun="senha"
+            revealNoun={t('textField.password')}
             enterKeyHint="done"
             value={password}
             onChange={setPassword}
-            hint={isEditing ? 'Deixe em branco para manter a senha atual' : undefined}
+            hint={isEditing ? t('add.hint.keepPassword') : undefined}
           />
         </>
       )}
@@ -287,12 +290,12 @@ export function AddSourceScreen({
       {banner && <ConnectionErrorBanner banner={banner} />}
       {!banner && !validationError && createSource.isError && (
         <p className="form-error onboarding-error" role="alert">
-          Não foi possível adicionar a fonte: {createSource.error.message}
+          {t('add.err.saveNewWith', { message: createSource.error.message })}
         </p>
       )}
       {!banner && !validationError && updateSource.isError && (
         <p className="form-error onboarding-error" role="alert">
-          Não foi possível salvar as alterações: {updateSource.error.message}
+          {t('add.err.saveEditWith', { message: updateSource.error.message })}
         </p>
       )}
 
@@ -301,7 +304,7 @@ export function AddSourceScreen({
           ignora um segundo OK, sem submissão duplicada. */}
       <div className="source-setup-actions">
         <Button variant="secondary" onSelect={onBack}>
-          Voltar
+          {t('common.back')}
         </Button>
         <Button variant="accent" loading={phase !== 'idle'} onSelect={handleSubmit} buttonRef={submitRef}>
           {submitLabel}
@@ -311,6 +314,8 @@ export function AddSourceScreen({
   )
 
   const currentType = ENTRY_TYPES.find((type) => type.id === mode)!
+  /** Xtream Codes é nome próprio (literal); o outro título vem do catálogo. */
+  const typeTitle = (title: string): string => (title.startsWith('add.') ? t(title as MessageKey) : title)
 
   return (
     <section
@@ -319,21 +324,19 @@ export function AddSourceScreen({
       ref={containerRef}
     >
       <OnboardingBrand />
-      <p className="onboarding-kicker">{isEditing ? 'Suas listas' : 'Configuração inicial'}</p>
+      <p className="onboarding-kicker">{isEditing ? t('add.kicker.edit') : t('add.kicker.new')}</p>
       <h1 id="add-source-title" className="onboarding-title">
-        {isEditing ? 'Editar lista' : 'Conecte sua lista IPTV'}
+        {isEditing ? t('add.title.edit') : t('add.title.new')}
       </h1>
       <p className="onboarding-subtitle">
-        {isEditing
-          ? 'Altere o que precisar. Usuário e senha em branco continuam como estão.'
-          : 'Escolha Xtream Codes ou Lista M3U e preencha os dados da sua lista. Conectar pelo celular chega em breve.'}
+        {isEditing ? t('add.subtitle.edit') : t('add.subtitle.new')}
       </p>
 
       {isEditing ? (
         <div className="source-setup-layout source-setup-layout--edit">
           <div className="source-setup-main">
-            <p className="source-setup-eyebrow">{currentType.title}</p>
-            <h2 className="source-setup-main-title">Configuração manual</h2>
+            <p className="source-setup-eyebrow">{typeTitle(currentType.title)}</p>
+            <h2 className="source-setup-main-title">{t('add.manual')}</h2>
             {fields}
             {feedbackAndActions}
           </div>
@@ -342,7 +345,7 @@ export function AddSourceScreen({
         <div className="source-setup-layout">
           <aside className="source-setup-side" aria-labelledby="setup-how-title">
             <h2 id="setup-how-title" className="source-setup-side-title">
-              Como funciona
+              {t('add.how.title')}
             </h2>
             <ol className="source-setup-steps">
               {HOW_IT_WORKS.map((step, index) => (
@@ -351,39 +354,35 @@ export function AddSourceScreen({
                     {index + 1}
                   </span>
                   <span className="source-setup-step-copy">
-                    <b>{step.title}</b>
-                    <span>{step.text}</span>
+                    <b>{t(step.title)}</b>
+                    <span>{t(step.text)}</span>
                   </span>
                 </li>
               ))}
             </ol>
-            <p className="source-setup-note">Em breve: conectar pelo celular, sem digitar no controle remoto.</p>
+            <p className="source-setup-note">{t('add.how.note')}</p>
           </aside>
 
           <div className="source-setup-main">
-            <h2 className="source-setup-main-title">Adicionar serviço</h2>
-            <p className="source-setup-main-text">
-              Preencha na TV com o controle remoto — o teclado da TV abre em cada campo.
-            </p>
+            <h2 className="source-setup-main-title">{t('add.service')}</h2>
+            <p className="source-setup-main-text">{t('add.serviceText')}</p>
 
             <div className="source-setup-methods">
               <section className="source-setup-panel source-setup-pair" aria-labelledby="pair-phone-title">
-                <p className="source-setup-eyebrow">Em breve</p>
+                <p className="source-setup-eyebrow">{t('add.soon')}</p>
                 <h3 id="pair-phone-title" className="source-setup-panel-title">
-                  Conectar com celular
+                  {t('add.phone')}
                 </h3>
-                <p className="source-setup-panel-text">
-                  Parear a TV com o celular por QR code, para não digitar URLs longas no controle.
-                </p>
+                <p className="source-setup-panel-text">{t('add.phoneText')}</p>
                 <ComingSoon id="pair-phone" />
               </section>
 
               <section className="source-setup-panel source-setup-manual" aria-labelledby="manual-setup-title">
-                <p className="source-setup-eyebrow">Disponível agora</p>
+                <p className="source-setup-eyebrow">{t('add.available')}</p>
                 <h3 id="manual-setup-title" className="source-setup-panel-title">
-                  Configuração manual
+                  {t('add.manual')}
                 </h3>
-                <div className="source-type-row" role="group" aria-label="Tipo de lista">
+                <div className="source-type-row" role="group" aria-label={t('add.typeGroup')}>
                   {ENTRY_TYPES.map((type) => {
                     const selected = type.id === mode
                     return (
@@ -396,7 +395,7 @@ export function AddSourceScreen({
                         onClick={() => setMode(type.id)}
                       >
                         <span className="source-type-head">
-                          <b>{type.title}</b>
+                          <b>{typeTitle(type.title)}</b>
                           {/* Marca visível além da cor (FR-015); o estado lido é o `aria-pressed`. */}
                           {selected && (
                             <span className="source-type-check" aria-hidden="true">
@@ -404,7 +403,7 @@ export function AddSourceScreen({
                             </span>
                           )}
                         </span>
-                        <span className="source-type-text">{type.description}</span>
+                        <span className="source-type-text">{t(type.description)}</span>
                       </button>
                     )
                   })}

@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'limpeza-qa.m3u')
@@ -80,9 +81,7 @@ async function openViaTopbar(page, destination) {
 }
 
 async function waitForRealCategory(page) {
-  await page.locator('.side-category-nav-item.tv-focus:not(:has-text("Favoritos")):not(:has-text("Todos"))').waitFor({
-    timeout: 8000,
-  })
+  await focusFirstRealCategory(page)
 }
 
 /**
@@ -111,7 +110,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/limpeza-qa.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
@@ -126,13 +125,14 @@ async function run() {
     console.log('=== US1: Filmes — trilha e grade sem barra nativa (FR-001) ===')
     await openViaTopbar(page, 'movies')
     await waitForRealCategory(page)
-    await page.keyboard.press('Enter') // trilha -> entra em "Filmes" (30 itens, transborda)
-    await page.waitForSelector('.content-card-title', { timeout: 8000 })
-
+    // A lista lateral é da vitrine: mede-se antes de entrar na categoria (a grade é outra tela, sem a lista).
     const trilha = await scrollbarThickness(page, '.vod-side-nav')
     assert(trilha !== null, '.vod-side-nav existe')
     assert(trilha.scrollHeight > trilha.clientHeight, 'a trilha de categorias realmente transborda (baseline do teste)')
     assert(trilha.vertical === 0, `trilha de categorias sem barra de rolagem vertical (medida: ${trilha?.vertical}px)`)
+
+    await page.keyboard.press('Enter') // lista lateral -> entra em "Filmes" (30 itens, transborda)
+    await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
     const grade = await scrollbarThickness(page, '.vod-grid')
     assert(grade !== null, '.vod-grid existe')
@@ -167,8 +167,8 @@ async function run() {
       'o item focado da grade está dentro da área visível (rolagem por foco continua funcionando)',
     )
 
-    await page.keyboard.press('Escape') // grade -> trilha
-    await page.keyboard.press('Escape') // trilha -> Início
+    await page.keyboard.press('Escape') // grade -> vitrine
+    await page.keyboard.press('Escape') // vitrine -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
     console.log('=== US1: Início — sem barra nativa e sem faixa vazia grande (FR-001/FR-004, SC-002) ===')

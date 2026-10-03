@@ -35,6 +35,11 @@ export interface SideCategoryNavProps {
   onSelect: (id: string) => void
   /** Ref do botão da entrada focada (feature 024) — para `useScrollFocusedIntoView` trazê-la pra dentro da área visível numa trilha longa. */
   focusedRef?: Ref<HTMLButtonElement>
+  /**
+   * Faixa estreita (feature 053, D-005) — opt-in: rótulo e contagem somem só por CSS (o texto segue no DOM) e a entrada
+   * sem ícone/tile mostra a inicial. Sem a prop o componente é idêntico (Live/Configurações).
+   */
+  collapsed?: boolean
 }
 
 /**
@@ -44,12 +49,12 @@ export interface SideCategoryNavProps {
  * topo, na ordem em que vierem (FR-021) — partição explícita, nunca
  * `.sort()`, que não garante ordem relativa estável para chaves iguais.
  */
-export function SideCategoryNav({ entries, selectedId, focusedId, onSelect, focusedRef }: SideCategoryNavProps): ReactNode {
+export function SideCategoryNav({ entries, selectedId, focusedId, onSelect, focusedRef, collapsed }: SideCategoryNavProps): ReactNode {
   const ordered = [...entries.filter((entry) => entry.pinned), ...entries.filter((entry) => !entry.pinned)]
   let previousGroupLabel: string | undefined
 
   return (
-    <ul className="side-category-nav">
+    <ul className={`side-category-nav${collapsed ? ' side-category-nav--collapsed' : ''}`}>
       {ordered.map((entry) => {
         const isFocused = entry.id === focusedId
         const showGroupLabel = entry.groupLabel !== undefined && entry.groupLabel !== previousGroupLabel
@@ -74,6 +79,11 @@ export function SideCategoryNav({ entries, selectedId, focusedId, onSelect, focu
                   </span>
                 )}
                 {entry.icon && <Icon name={entry.icon} />}
+                {collapsed && !entry.icon && entry.tile === undefined && (
+                  <span className="side-category-nav-initial" aria-hidden="true">
+                    {entry.label.trim().charAt(0).toUpperCase()}
+                  </span>
+                )}
                 <span className="side-category-nav-label">{entry.label}</span>
                 {entry.pinned && entry.pinnedBadge !== false && (
                   <span className="side-category-nav-pinned-badge" aria-hidden="true">

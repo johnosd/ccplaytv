@@ -1,4 +1,4 @@
-# Implementation Plan: Limpar histórico e remover item do Histórico
+﻿# Implementation Plan: Limpar histórico e remover item do Histórico
 
 **Slug**: `036-limpar-historico` | **Date**: 2026-09-30 | **Spec**: `sdd/specs/036-limpar-historico/spec.md`
 
@@ -223,6 +223,7 @@ sem lista ativa, `findUnnamedControls`), e o E2E `e2e/limpar-historico.mjs`.
 | R-006 | A §9 da lógica diz que a ação da série vem "depois de `trailer`"; a 035 (executada depois deste plano) acrescentou "Semelhantes" depois de Trailer. | Baixo — posição relativa. | Resolvido: segue a regra de fundo (FR-005, contratos 025/033), **por último**, depois de Semelhantes. Nunca desloca o índice 0. |
 | R-005 | Depois deste plano, o item 63 do backlog (01/10/2026, `sdd-adhoc`) trocou a união `SettingsTab` + cadeias de `if` de `SettingsScreen.tsx` por um registro de abas (`features/settings/tabs/`). A T025 ("`SettingsScreen.tsx`: `SettingsTab` + `'privacy'`… navegação da aba") fica desatualizada no **onde**, não no **o quê**. | Baixo — mesma regra (§11), outro arquivo. | Resolvido: a aba vira um módulo `tabs/PrivacyTab.tsx` (`SettingsTabProps` + `SettingsTabHandle`), uma linha em `tabs/settingsTabs.ts` antes de "Sobre & créditos" e `'privacy'` na união de `tabs/settingsTab.ts`; `SettingsScreen.tsx` não muda. O `enabled` do `useHistorySummary` (T026) sai de graça: a aba só monta quando está ativa. |
 
+| R-052 | Feature 052: o contrato `VodCatalogScreen.limpar-historico.contract.test.tsx` virou `VodCategoryScreen.limpar-historico.contract.test.tsx` (mesmo cenário, entrando por `target: history` em vez de navegar pela trilha). | Registro — emenda de contrato travado | Resolvido: executada pela feature 052 com aprovação do usuário (2026-10-02); trava regravada. |
 ## Execution Notes
 
 <!--
@@ -286,3 +287,4 @@ sem lista ativa, `findUnnamedControls`), e o E2E `e2e/limpar-historico.mjs`.
 - Convergência (Fase 6): um foco só com a confirmação aberta (SC-004) e o rótulo "Limpar ambos" (FR-023).
 
 **Continua aberto**: R-001 (item escondido com retomada mantida só sai de "Continuar assistindo" pela Privacidade com "apagar progresso" ou por nova reprodução — aceito pela spec, candidato a backlog se aparecer no uso real) e R-002 (tecla vermelha na TV física — recomendada, no item 58 do backlog).
+

@@ -14,6 +14,7 @@ import { createServer } from 'node:http'
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const APP_URL = 'http://localhost:5173'
 const PANEL_USER = 'usuario'
@@ -160,7 +161,7 @@ async function openViaTopbar(page, destination) {
 }
 
 async function enterFirstRealCategory(page) {
-  await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
+  await focusFirstRealCategory(page)
   await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
@@ -255,7 +256,7 @@ async function run() {
   const m3uUrl = `${base}/get.php?username=${PANEL_USER}&password=${PANEL_PASS}`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   const consoleLines = []
   page.on('pageerror', (error) => console.error('  [pageerror]', error))

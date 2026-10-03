@@ -5,8 +5,8 @@ import { HintBar, type HintItem } from './HintBar'
 export interface AppShellProps {
   /** A `TopBar` já montada — quem usa o shell decide o foco dela. */
   topBar: ReactNode
-  /** Teclas úteis do contexto atual (FR-021). */
-  hints: HintItem[]
+  /** Teclas úteis do contexto atual (FR-021). Sem hints, não há rodapé (Filmes/Séries, feature 052). */
+  hints?: HintItem[]
   children: ReactNode
 }
 
@@ -23,7 +23,7 @@ export function AppShell({ topBar, hints, children }: AppShellProps): ReactNode 
       {topBar}
       <OfflineBanner />
       <main className="app-shell-content">{children}</main>
-      <HintBar hints={hints} />
+      {hints && <HintBar hints={hints} />}
     </div>
   )
 }

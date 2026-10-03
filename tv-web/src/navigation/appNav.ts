@@ -1,5 +1,6 @@
-import type { SourceOut } from '../features/import/importApi'
+﻿import type { SourceOut } from '../features/import/importApi'
 import type { CategoryScreenSnapshot } from '../features/catalog/categoryScreenSnapshot'
+import type { VodCategoryRestore, VodShowcaseFocus, VodTarget } from '../features/vod/vodTarget'
 import type { SearchSnapshot } from '../features/search/searchSnapshot'
 import type { SettingsFocus } from '../features/settings/SettingsScreen'
 import type { DetailSnapshot } from '../features/vod/detailSnapshot'
@@ -60,10 +61,14 @@ export type AppScreen =
       /** Remonta com a topbar ativa neste item — volta de Busca/Configurações (FR-034/FR-044). */
       topbarFocus?: TopbarItem
     }
-  | { name: 'movies'; restore?: CategoryScreenSnapshot; topbarFocus?: TopbarItem; openFavorites?: boolean }
+  /** Vitrine de Filmes (feature 052): estore = foco por id da vitrine (fileira + id) ao voltar da categoria/do detalhe. */
+  | { name: 'movies'; restore?: VodShowcaseFocus | CategoryScreenSnapshot; topbarFocus?: TopbarItem }
+  /** Tela de categoria de Filmes (feature 052, grade em tela cheia); estore = estado da grade ao voltar do detalhe. */
+  | { name: 'movies-category'; target: VodTarget; restore?: VodCategoryRestore; topbarFocus?: TopbarItem }
   /** `restore` (feature 035): aba e item focado ao voltar de Semelhantes/Elenco/Configurações — por identidade. */
   | { name: 'movie-detail'; movieId: string; restore?: DetailSnapshot }
-  | { name: 'series'; restore?: CategoryScreenSnapshot; topbarFocus?: TopbarItem; openFavorites?: boolean }
+  | { name: 'series'; restore?: VodShowcaseFocus | CategoryScreenSnapshot; topbarFocus?: TopbarItem }
+  | { name: 'series-category'; target: VodTarget; restore?: VodCategoryRestore; topbarFocus?: TopbarItem }
   | { name: 'series-detail'; seriesId: string; restore?: DetailSnapshot }
   /** Página de ator (feature 035, US4) — aberta pela aba Elenco de um detalhe; sem topbar. RETURN volta ao detalhe com aba Elenco e a pessoa focada. */
   | { name: 'person'; personId: number; personName: string; restore?: PersonSnapshot }
@@ -189,3 +194,5 @@ export function appNavReducer(state: AppNavState, action: AppNavAction): AppNavS
       return state
   }
 }
+
+

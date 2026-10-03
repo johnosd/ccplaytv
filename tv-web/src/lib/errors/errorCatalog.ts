@@ -8,6 +8,8 @@
  */
 
 import type { ProviderFailureKind } from '../catalog/xtreamConnector'
+import type { MessageKey } from '../i18n/messages/pt'
+import { createTranslator, type Translator } from '../i18n/translate'
 
 export type ErrorCode =
   | 'NET-01'
@@ -38,128 +40,48 @@ export interface ErrorDescription {
   retryable: boolean
 }
 
-const TABLE: Record<ErrorCode, ErrorDescription> = {
-  'NET-01': {
-    title: 'Sem internet',
-    description: 'O aparelho está sem conexão. O que já está no aparelho continua disponível.',
-    primaryAction: 'Tentar de novo',
-    retryable: true,
-  },
-  'NET-02': {
-    title: 'O servidor não respondeu',
-    description: 'Não foi possível falar com o servidor da lista agora.',
-    primaryAction: 'Tentar de novo',
-    retryable: true,
-  },
-  'SRC-001': {
-    title: 'Endereço inválido',
-    description: 'Confira o endereço do servidor e tente de novo.',
-    primaryAction: 'Corrigir',
-    retryable: false,
-  },
-  'SRC-401': {
-    title: 'Credencial inválida',
-    description: 'O servidor recusou o usuário ou a senha desta lista.',
-    primaryAction: 'Editar lista',
-    retryable: false,
-  },
-  'SRC-402': {
-    title: 'Conta expirada',
-    description: 'O servidor informou que a conta desta lista expirou.',
-    primaryAction: 'Editar lista',
-    retryable: false,
-  },
-  'SRC-409': {
-    title: 'Este item não tem fonte',
-    description: 'Este item não tem uma fonte de reprodução disponível.',
-    primaryAction: 'Voltar',
-    retryable: false,
-  },
-  'SRC-422': {
-    title: 'Resposta incompatível',
-    description: 'O servidor respondeu de um jeito que o app não entende.',
-    primaryAction: 'Editar lista',
-    retryable: false,
-  },
-  'API-401': {
-    title: 'Chave recusada',
-    description: 'O serviço recusou a chave informada.',
-    primaryAction: 'Editar chave',
-    retryable: false,
-  },
-  'API-429': {
-    title: 'Serviço temporariamente limitado',
-    description: 'O serviço pediu um intervalo. Tente mais tarde.',
-    primaryAction: 'Tentar mais tarde',
-    retryable: true,
-  },
-  'PLAY-01': {
-    title: 'Não foi possível carregar o stream',
-    description: 'A conexão com o stream falhou.',
-    primaryAction: 'Tentar de novo',
-    retryable: true,
-  },
-  'PLAY-02': {
-    title: 'Formato não suportado',
-    description: 'Este aparelho não consegue reproduzir o formato deste stream.',
-    primaryAction: 'Info técnica',
-    retryable: false,
-  },
-  'PLAY-03': {
-    title: 'A fonte deste item não responde',
-    description: 'O servidor não entregou este item. A conta ou o item podem ter expirado.',
-    primaryAction: 'Editar lista',
-    retryable: false,
-  },
-  'PLAY-04': {
-    title: 'Stream indisponível',
-    description: 'Não foi possível reproduzir isto.',
-    primaryAction: 'Tentar de novo',
-    retryable: true,
-  },
-  'EPG-02': {
-    title: 'Programação indisponível',
-    description: 'Não foi possível obter a programação desta lista.',
-    primaryAction: 'Sincronizar EPG',
-    retryable: true,
-  },
-  'STO-01': {
-    title: 'Sem espaço no aparelho',
-    description: 'O armazenamento do aparelho está cheio.',
-    primaryAction: 'Tentar de novo',
-    retryable: true,
-  },
-  'TRL-REDE': {
-    title: 'Sem internet',
-    description: 'O trailer precisa de conexão.',
-    primaryAction: 'Tentar de novo',
-    retryable: true,
-  },
-  'TRL-TEMPO': {
-    title: 'O trailer demorou demais',
-    description: 'O trailer não começou a tempo.',
-    primaryAction: 'Tentar de novo',
-    retryable: true,
-  },
-  'TRL-PONTE': {
-    title: 'Trailer indisponível',
-    description: 'Não foi possível carregar o trailer agora.',
-    primaryAction: 'Tentar de novo',
-    retryable: true,
-  },
+/**
+ * Só o que não é texto: se tentar de novo pode resolver. Título, descrição e ação vêm do
+ * catálogo de textos (`error.<CÓDIGO>.title|description|action`, feature 054) — a tabela
+ * em português é `lib/i18n/messages/errors.ts`.
+ */
+const RETRYABLE: Record<ErrorCode, boolean> = {
+  'NET-01': true,
+  'NET-02': true,
+  'SRC-001': false,
+  'SRC-401': false,
+  'SRC-402': false,
+  'SRC-409': false,
+  'SRC-422': false,
+  'API-401': false,
+  'API-429': true,
+  'PLAY-01': true,
+  'PLAY-02': false,
+  'PLAY-03': false,
+  'PLAY-04': true,
+  'EPG-02': true,
+  'STO-01': true,
+  'TRL-REDE': true,
+  'TRL-TEMPO': true,
+  'TRL-PONTE': true,
 }
-
 export function isErrorCode(value: string): value is ErrorCode {
-  return Object.prototype.hasOwnProperty.call(TABLE, value)
+  return Object.prototype.hasOwnProperty.call(RETRYABLE, value)
 }
 
-export function describeError(code: ErrorCode): ErrorDescription {
-  return TABLE[code]
+/** 	 omitido = português (testes e chamadores ainda não migrados). */
+export function describeError(code: ErrorCode, t: Translator = createTranslator('pt')): ErrorDescription {
+  return {
+    title: t(`error.${code}.title` as MessageKey),
+    description: t(`error.${code}.description` as MessageKey),
+    primaryAction: t(`error.${code}.action` as MessageKey),
+    retryable: RETRYABLE[code],
+  }
 }
 
 /** Todos os códigos registrados (o teste varre a tabela inteira). */
 export function listErrorCodes(): ErrorCode[] {
-  return Object.keys(TABLE) as ErrorCode[]
+  return Object.keys(RETRYABLE) as ErrorCode[]
 }
 
 /** `ProviderFailureKind` → código (`logic/erros-acionaveis.md` §4). */

@@ -146,7 +146,7 @@ async function launchBrowser() {
 
 /** Contexto novo por cenário: o IndexedDB não vaza de um para o outro. */
 async function freshPage(browser) {
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   await page.goto(APP_URL)
   return { context, page }

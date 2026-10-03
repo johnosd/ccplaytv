@@ -36,6 +36,10 @@ describe('getComingSoon', () => {
       'home-trailer',
       'pair-phone',
       'settings-parental',
+      'vod-because', // feature 053: slots reservados da tela hero de Filmes/Séries
+      'vod-rated',
+      'vod-top10-movies',
+      'vod-top10-series',
       'voice-search',
     ])
   })

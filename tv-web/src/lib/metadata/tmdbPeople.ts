@@ -2,6 +2,8 @@ import { db, type CatalogDb, type TmdbPersonRecord, type TmdbTitleRef } from '..
 import { TmdbError, tmdbGet, tmdbImageUrl } from './tmdbConnector'
 import { markTmdbState, readTmdbCredential } from './tmdbKeyRepository'
 import { yearOfDate } from './tmdbMatch'
+import { readAppLanguage } from '../i18n/appLanguage'
+import { APP_LANGUAGE_LOCALE } from '../i18n/languages'
 import { TMDB_CACHE_MS } from './titleMetadata'
 import type { MetadataOptions, PersonCreditsResult } from './types'
 
@@ -83,14 +85,17 @@ async function load(personId: number, database: CatalogDb, options: MetadataOpti
   if (credential.state === 'refused') return { status: 'error', reason: 'refused' }
   if (credential.pausedUntil !== undefined && credential.pausedUntil > now) return { status: 'error', reason: 'rate_limited' }
 
+  const language = options.language ?? readAppLanguage()
   const cached = await database.tmdbPeople.get(personId)
-  if (cached && now - cached.fetchedAt <= TMDB_CACHE_MS) return toResult(cached)
+  // 054: a filmografia guardada em outro idioma vale como vencida ao abrir o ator; se a rebusca falhar, o guardado continua valendo.
+  const sameLanguage = cached !== undefined && (cached.language ?? 'pt') === language
+  if (cached && sameLanguage && now - cached.fetchedAt <= TMDB_CACHE_MS) return toResult(cached)
 
   try {
     const body = record(
       await tmdbGet(
         `/person/${personId}`,
-        { language: 'pt-BR', append_to_response: 'combined_credits' },
+        { language: APP_LANGUAGE_LOCALE[language], append_to_response: 'combined_credits' },
         { key: credential.key, format: credential.format },
         options.fetchImpl,
       ),
@@ -100,6 +105,7 @@ async function load(personId: number, database: CatalogDb, options: MetadataOpti
       name: text(body.name) ?? '',
       credits: mapCredits(body.combined_credits),
       fetchedAt: now,
+      language,
     }
     const photo = text(body.profile_path)
     if (photo !== undefined) stored.photoUrl = tmdbImageUrl(photo, 'w185')
@@ -110,8 +116,10 @@ async function load(personId: number, database: CatalogDb, options: MetadataOpti
     if (error instanceof TmdbError) {
       // Erro de serviço atualiza o estado exibido; nada é guardado e a chave nunca sai daqui.
       if (error.kind !== 'not_found') await markTmdbState(error.kind, { database, now: () => now })
+      if (cached && !sameLanguage && now - cached.fetchedAt <= TMDB_CACHE_MS) return toResult(cached)
       return { status: 'error', reason: error.kind }
     }
+    if (cached && !sameLanguage && now - cached.fetchedAt <= TMDB_CACHE_MS) return toResult(cached)
     return { status: 'error', reason: 'offline' }
   }
 }
@@ -126,7 +134,7 @@ async function load(personId: number, database: CatalogDb, options: MetadataOpti
  */
 export async function loadPersonCredits(personId: number, options: MetadataOptions = {}): Promise<PersonCreditsResult> {
   const database = options.database ?? db
-  const key = `${database.name}|${personId}`
+  const key = `${database.name}|${personId}|${options.language ?? readAppLanguage()}`
   const running = inFlight.get(key)
   if (running) return running
   const promise = load(personId, database, options).finally(() => {

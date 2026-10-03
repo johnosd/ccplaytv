@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'home-busca-configuracoes.m3u')
@@ -154,7 +155,7 @@ async function run() {
   const limitedM3uUrl = `http://127.0.0.1:${limitedPanel.address().port}/get.php?username=usuario&password=senha`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
@@ -197,9 +198,7 @@ async function run() {
 
     console.log('--- Favorita o filme e deixa progresso parcial (retomável) ---')
     await openViaTopbar(page, 'movies')
-    await page.locator('.side-category-nav-item.tv-focus:not(:has-text("Favoritos")):not(:has-text("Todos"))').waitFor({
-      timeout: 8000,
-    })
+    await focusFirstRealCategory(page)
     await page.keyboard.press('Enter') // trilha -> entra na categoria real de filmes
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
@@ -288,15 +287,14 @@ async function run() {
     await page.keyboard.press('Enter') // abre Filmes já em "★ Favoritos"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
-      (await page.locator('.side-category-nav-item.is-selected').textContent())?.includes('Favoritos') ?? false,
+      (await page.locator('.vod-toolbar-title').textContent())?.includes('Favoritos') ?? false,
       '"Filmes (1)" abre Filmes já em "★ Favoritos"',
     )
     assert(
       (await page.locator('.content-card-title').first().textContent()) === 'Filme Hero',
       '"★ Favoritos" de Filmes mostra "Filme Hero"',
     )
-    await page.keyboard.press('Escape') // grade -> trilha
-    await page.keyboard.press('Escape') // trilha -> Início
+    await page.keyboard.press('Escape') // grade de ★ Favoritos -> Início (aberta pelo agregado, sem passar pela vitrine)
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
     console.log('=== US1 (Home): rail de canal abre a Live TV já tocando ===')

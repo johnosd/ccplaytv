@@ -1,4 +1,4 @@
-# Implementation Plan: Navegação por página nas listas
+﻿# Implementation Plan: Navegação por página nas listas
 
 **Slug**: `049-navegacao-por-pagina` | **Date**: 2026-10-02 | **Spec**: `sdd/specs/049-navegacao-por-pagina/spec.md`
 
@@ -284,6 +284,7 @@ Estado de partida confirmado: `tsc -b` limpo; suíte de `features/live`, `featur
 | R-012 | setTopFocused no meio do toque mudaria o modo do OK (curto/legado) entre keydown e keyup e ativaria o Guia duas vezes. | Baixo | Resolvido: o foco só sai do ícone quando o guia fecha (efeito em useLiveKeyboard). |
 | R-013 | Recuperação (2026-10-02): um `git reset` externo descartou as edições não commitadas em arquivos versionados; foram reaplicadas a partir do histórico da sessão. Ao reaplicar, o E2E `player-dev-mpegts` passou a falhar de forma determinística: `lastGoodChannelRef` (fallback de erro da troca de canal, D-008 da 027) nunca era limpo ao fechar o player, então um canal inválido iniciado depois voltava ao canal antigo em vez de mostrar o erro PLAY-04 — bug pré-existente que só aparecia por tempo. | Médio — erro de canal inválido mascarado | Resolvido: `useLiveZapping.onPlayerClosed` zera o fallback (1 linha, fora do escopo estrito da 049, aceito por bloquear o gate); o E2E também passou a esperar o foco no Canal 4 antes do OK. Sem teste unitário próprio — candidato a follow-up. |
 
+| R-052 | Feature 052: a trilha de categorias de Filmes/Séries deixou de existir; o contrato `VodCatalogScreen.navegacao-por-pagina.contract.test.tsx` virou `VodCategoryScreen.navegacao-por-pagina.contract.test.tsx` (grade cartão a cartão, ← na 1ª coluna não faz nada, ↑ vai à toolbar). A paginação da Live é inalterada. | Registro — emenda de contrato travado | Resolvido: executada pela feature 052 com aprovação do usuário (2026-10-02); trava regravada. |
 ## Execution Notes
 
 | Data | Fase/Story | Resumo | Pendência Principal |
@@ -319,3 +320,4 @@ Convergida em 2026-10-02 (após recuperação do código, ver R-013).
 - **Desvios do plano:** (1) `←`/`→` na linha do topo movem entre lupa e Guia (previsto), mas o foco só sai do ícone quando o guia fecha (R-012); (2) a paginação de canais aplica o foco no quadro seguinte com destino pendente, por causa da lista virtualizada (R-010); (3) RETURN em camadas no zapping (R-009); (4) `onPlayerClosed` zera o fallback de erro de canal (R-013, fora do escopo estrito, bug pré-existente exposto pela recuperação); (5) o Guia abre sempre no canal onde o ícone foi alcançado, o 1º da lista (R-011, aceito).
 - **Verificação:** 5/5 contratos verdes e travas íntegras (049 + 8 regravadas: 018, 024, 025, 030, 031, 036, 046, 048); `npm run test` com 347 arquivos verdes (1 arquivo vermelho é o contrato da 050, ainda `Planejada`); `tsc`, lint, build e build:tizen limpos; `node e2e/run.mjs` 29/29; instalado e validado na TV física pelo usuário (relato do usuário, sem lista de cenários).
 - **Pendente fora desta feature:** tecla GUIDE para abrir o guia no canal focado (follow-up de R-011); teste unitário próprio do fallback de erro (R-013).
+

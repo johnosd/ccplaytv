@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const APP_URL = 'http://localhost:5173'
@@ -102,7 +103,7 @@ async function run() {
   const server = await startPanelServer()
   const m3uUrl = `http://127.0.0.1:${server.address().port}/get.php?username=usuario&password=senha`
   const browser = await launchBrowser()
-  const page = await (await browser.newContext({ viewport: { width: 1920, height: 1080 } })).newPage()
+  const page = await (await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })).newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
 
   try {
@@ -123,7 +124,7 @@ async function run() {
     for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
     for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowRight') // Início -> TV -> Filmes -> Séries
     await page.keyboard.press('Enter')
-    await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
+    await focusFirstRealCategory(page)
     await page.keyboard.press('Enter') // entra em "Séries"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await page.keyboard.press('Enter') // detalhe

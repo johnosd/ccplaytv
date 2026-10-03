@@ -22,6 +22,7 @@ import { createServer } from 'node:http'
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const APP_URL = process.env.CCPLAY_APP_URL ?? 'http://localhost:5173'
 const STRESS = process.env.CCPLAY_E2E_ESTRESSE
@@ -175,9 +176,7 @@ async function openViaTopbar(page, destination) {
 
 /** Trilha de Filmes/Séries: ★ Favoritos, ↺ Histórico, Todos e as categorias reais. */
 async function waitForRealCategory(page) {
-  await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, {
-    timeout: 8000,
-  })
+  await focusFirstRealCategory(page)
 }
 
 const focusedTrailLabel = (page) => page.locator('.side-category-nav-item.tv-focus').textContent()
@@ -200,7 +199,7 @@ async function waitForGrid(page, predicate, description) {
 
 async function scenarioNewList(browser, panelUrl) {
   console.log('=== Cenário 1: lista nova só com blocos; navegar, buscar, favoritar e tocar ===')
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error', error?.message ?? ''))
   // O player de desenvolvimento (<video>) nunca recebe um fluxo de verdade. Só no
@@ -263,7 +262,7 @@ async function scenarioNewList(browser, panelUrl) {
   await page.waitForSelector('input.search-field', { timeout: 8000 })
   await page.keyboard.press('Escape') // resultado -> campo
   await page.keyboard.press('Escape') // campo -> "Pesquisar"
-  await page.keyboard.press('Escape') // "Pesquisar" -> trilha
+  await page.keyboard.press('Escape') // "Pesquisar" -> vitrine (lista lateral)
   await page.waitForSelector('.vod-side-nav .tv-focus', { timeout: 8000 })
   await page.keyboard.press('ArrowUp') // Filmes 1 -> Todos
   assert((await focusedTrailLabel(page))?.includes('Todos') ?? false, 'trilha em "Todos"')
@@ -531,7 +530,7 @@ async function scenarioStress(browser) {
   console.log(`=== Cenário 3: ${total} filmes numa seção (estresse, SC-004) ===`)
   const server = await startStressPanelServer()
   const panelUrl = `http://127.0.0.1:${server.address().port}/get.php?username=usuario&password=senha`
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   let crashed = false
   page.on('crash', () => {
@@ -672,7 +671,7 @@ async function run() {
     await scenarioNewList(browser, panelUrl)
 
     console.log('=== Cenário 2: lista no formato antigo vira blocos sozinha, sem perder nada ===')
-    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
     const page = await context.newPage()
     page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error', error?.message ?? ''))
     const before = await registerAndPrefetch(page, panelUrl)

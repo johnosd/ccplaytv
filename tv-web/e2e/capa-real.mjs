@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory, focusSideItem } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURES_DIR = path.join(__dirname, 'fixtures', 'capa-real')
@@ -178,7 +179,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${server.address().port}/lista.m3u`
 
   const browser = await launchBrowser()
-  const page = await (await browser.newContext()).newPage()
+  const page = await (await browser.newContext({ locale: 'pt-BR' })).newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
     if (msg.type() === 'error') console.error('  [console.error]', msg.text())
@@ -224,7 +225,7 @@ async function run() {
     // demais pousa em "★ Favoritos", vazia, por ArrowRight ainda valer o
     // índice padrão sem a lista de categorias carregada — achado ao rodar
     // este script, não previsto no plano).
-    await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
+    await focusFirstRealCategory(page)
     await page.keyboard.press('Enter') // entra na categoria "Filmes"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
@@ -252,7 +253,7 @@ async function run() {
     await page.keyboard.press('Escape')
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'series')
-    await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
+    await focusFirstRealCategory(page)
     await page.keyboard.press('Enter') // entra na categoria "Series"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
@@ -274,7 +275,7 @@ async function run() {
     // clampa o ArrowDown de volta pra "Filmes", já visitada — mesma classe
     // de corrida do R-004, agora contra a 2ª categoria, não a 1ª).
     await page.waitForSelector('.side-category-nav-item:has-text("Muitos")', { timeout: 8000 })
-    await page.keyboard.press('ArrowDown') // "Filmes" (1ª categoria de filme) -> "Muitos" (2ª)
+    await focusSideItem(page, 'Muitos')
     await page.keyboard.press('Enter') // entra na categoria "Muitos"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await page.waitForTimeout(500) // as imagens visíveis terminam de carregar

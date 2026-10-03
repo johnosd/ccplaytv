@@ -8,7 +8,7 @@ import {
   type CatalogItemOut,
 } from '../catalog/catalogApi'
 import { stableIdOf, useEpgPrograms, useTmdbStatus } from '../catalog/catalogApi'
-import { TMDB_DOCK_LABEL } from '../settings/integrationsModel'
+import { TMDB_DOCK_LABEL_KEY } from '../settings/integrationsModel'
 import { nowNextForChannel } from '../../lib/epg/nowNext'
 import { useNow } from '../../lib/useNow'
 import type { HomeFocus, TopDestination } from '../../navigation/appNav'
@@ -16,13 +16,17 @@ import { useRemoteNav } from '../../lib/useRemoteNav'
 import { useIdFocus } from '../../lib/focus/useIdFocus'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { useToast } from '../../lib/useToast'
+import { useT } from '../../lib/i18n/I18nProvider'
 import { Toast } from '../../components/Toast'
 import { useAnnounce } from '../../lib/announcer'
-import { getComingSoon } from '../../lib/comingSoon'
+import { comingSoonToast } from '../../lib/comingSoon'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
+import type { Translator } from '../../lib/i18n/translate'
 import { ContentCard } from '../../components/ContentCard'
 import { ChannelRow } from '../../components/ChannelRow'
 import { ComingSoon } from '../../components/ComingSoon'
 import { PosterArt } from '../../components/PosterArt'
+import { SeeAllCard } from '../../components/SeeAllCard'
 import { Rail } from '../../components/Rail'
 import { Skeleton } from '../../components/Skeleton'
 import { Icon } from '../../components/Icon'
@@ -85,17 +89,18 @@ function channelRailId(entry: ChannelRailItem): string {
 interface DockIconDef {
   id: string
   icon: IconName
-  label: string
+  /** Rótulo no catálogo; o ícone do TMDB não tem (nome próprio) e usa o estado do serviço. */
+  labelKey?: MessageKey
 }
 
 /** Único ícone do dock que já é real (feature 032); o id não é mais um mock registrado em `comingSoon.ts`. */
 const TMDB_DOCK_ID = 'dock-tmdb'
 
 const DOCK_ICONS: DockIconDef[] = [
-  { id: TMDB_DOCK_ID, icon: 'info', label: 'TMDB' },
-  { id: 'dock-ai', icon: 'device', label: 'Assistente de IA' },
-  { id: 'dock-weather', icon: 'live', label: 'Clima' },
-  { id: 'dock-speedtest', icon: 'quality', label: 'Teste de velocidade' },
+  { id: TMDB_DOCK_ID, icon: 'info' },
+  { id: 'dock-ai', icon: 'device', labelKey: 'settings.integrations.soon.dock-ai' },
+  { id: 'dock-weather', icon: 'live', labelKey: 'settings.integrations.soon.dock-weather' },
+  { id: 'dock-speedtest', icon: 'quality', labelKey: 'settings.integrations.soon.dock-speedtest' },
 ]
 
 const CARD_WIDTH = 205
@@ -105,19 +110,19 @@ const CHANNEL_HEIGHT = 100
 
 type HeroEntry = { id: string; label: string; softDisabled?: boolean }
 
-function heroEntries(hero: ReturnType<typeof useHomeHero>['data'], isFavorite: boolean): HeroEntry[] {
+function heroEntries(hero: ReturnType<typeof useHomeHero>['data'], isFavorite: boolean, t: Translator): HeroEntry[] {
   if (!hero || hero.kind === 'welcome') {
     return [
-      { id: 'shortcut-live', label: 'Abrir TV ao vivo' },
-      { id: 'shortcut-movies', label: 'Abrir Filmes' },
+      { id: 'shortcut-live', label: t('home.shortcut.live') },
+      { id: 'shortcut-movies', label: t('home.shortcut.movies') },
     ]
   }
-  const primaryLabel = hero.primary.type === 'open-detail' || !hero.primary.resume ? '▶ Assistir' : '▶ Continuar'
+  const primaryLabel = hero.primary.type === 'open-detail' || !hero.primary.resume ? t('home.hero.watch') : t('home.hero.continue')
   return [
     { id: 'primary', label: primaryLabel },
-    { id: 'details', label: 'Mais informações' },
-    { id: 'mylist', label: isFavorite ? '✓ Na Minha Lista' : '+ Minha Lista' },
-    { id: 'trailer', label: '▶ Trailer', softDisabled: true },
+    { id: 'details', label: t('home.hero.details') },
+    { id: 'mylist', label: isFavorite ? t('home.hero.inMyList') : t('home.hero.addMyList') },
+    { id: 'trailer', label: t('home.hero.trailer'), softDisabled: true },
   ]
 }
 
@@ -146,6 +151,7 @@ export function HomeContent({
   const continueQuery = useContinueWatchingContent(sourceId)
   const myListQuery = useMyListContent(sourceId)
   const channelsQuery = useFavoritesContent(sourceId, 'channel', true)
+  const t = useT()
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
   const announce = useAnnounce()
@@ -212,7 +218,7 @@ export function HomeContent({
       : initialFocus?.zone === 'shortcuts'
         ? `shortcut-${initialFocus.destination}`
         : null
-  const heroActions = heroEntries(heroQuery.data, heroIsFavorite)
+  const heroActions = heroEntries(heroQuery.data, heroIsFavorite, t)
   const heroFocus = useIdFocus(heroActions, heroInitialId)
 
   const continueInitialId =
@@ -275,7 +281,7 @@ export function HomeContent({
       return
     }
     if (action.id === 'trailer') {
-      announce(`Em breve — ${getComingSoon('home-trailer').message}`)
+      announce(comingSoonToast('home-trailer', t))
     }
   }
 
@@ -307,7 +313,7 @@ export function HomeContent({
       return
     }
     if (effectiveRow === 'ai') {
-      announce(`Em breve — ${getComingSoon('home-ai-curation').message}`)
+      announce(comingSoonToast('home-ai-curation', t))
       return
     }
     if (effectiveRow === 'dock') {
@@ -316,10 +322,10 @@ export function HomeContent({
       if (icon.id === TMDB_DOCK_ID) {
         // Real desde a feature 032: leva ao card do TMDB (sem o callback, só diz o estado).
         if (onOpenIntegrations) onOpenIntegrations({ zone: 'dock', service: icon.id })
-        else announce(TMDB_DOCK_LABEL[tmdbState])
+        else announce(t(TMDB_DOCK_LABEL_KEY[tmdbState]))
         return
       }
-      announce(`Em breve — ${getComingSoon(icon.id).message}`)
+      announce(comingSoonToast(icon.id, t))
     }
   }
 
@@ -354,18 +360,16 @@ export function HomeContent({
     <div className="home-content no-scrollbar">
       {/* Feature 038 (FR-031/FR-032): texto, não controle — sem tabIndex, fora da navegação. */}
       {statusLine && <p className="home-status-line">{statusLine}</p>}
-      <section className="home-hero" aria-label={hero.kind === 'welcome' ? 'Boas-vindas' : hero.item.name}>
+      <section className="home-hero" aria-label={hero.kind === 'welcome' ? t('home.welcome.aria') : hero.item.name}>
         <div className="home-hero-poster">
           {hero.kind !== 'welcome' && <PosterArt url={hero.item.icon_url ?? undefined} title={hero.item.name} />}
         </div>
         <div className="home-hero-info">
           <div className="home-hero-title">
-            {hero.kind === 'welcome' ? 'Bem-vindo(a) ao CCPlayTV' : hero.item.name}
+            {hero.kind === 'welcome' ? t('home.welcome.title') : hero.item.name}
           </div>
           {hero.kind === 'welcome' ? (
-            <p className="home-hero-description">
-              Favorite canais, filmes e séries para vê-los aqui, ou explore o catálogo pela barra de cima.
-            </p>
+            <p className="home-hero-description">{t('home.welcome.description')}</p>
           ) : (
             metaParts.length > 0 && <div className="home-hero-meta">{metaParts.join(' · ')}</div>
           )}
@@ -387,11 +391,11 @@ export function HomeContent({
       </section>
 
       {continueQuery.isLoading ? (
-        <HomeRowSkeleton title="Continuar assistindo" width={CARD_WIDTH} height={CARD_HEIGHT} />
+        <HomeRowSkeleton title={t('home.row.continue')} width={CARD_WIDTH} height={CARD_HEIGHT} />
       ) : (
         continueItems.length > 0 && (
-          <section className="home-row" aria-label="Continuar assistindo">
-            <h2 className="home-row-title">Continuar assistindo</h2>
+          <section className="home-row" aria-label={t('home.row.continue')}>
+            <h2 className="home-row-title">{t('home.row.continue')}</h2>
             <Rail
               items={continueItems}
               itemWidth={CARD_WIDTH}
@@ -411,11 +415,11 @@ export function HomeContent({
       )}
 
       {myListQuery.isLoading ? (
-        <HomeRowSkeleton title="Minha Lista" width={CARD_WIDTH} height={CARD_HEIGHT} />
+        <HomeRowSkeleton title={t('home.row.myList')} width={CARD_WIDTH} height={CARD_HEIGHT} />
       ) : (
         mylistRailItems.length > 0 && (
-          <section className="home-row" aria-label="Minha Lista">
-            <h2 className="home-row-title">Minha Lista</h2>
+          <section className="home-row" aria-label={t('home.row.myList')}>
+            <h2 className="home-row-title">{t('home.row.myList')}</h2>
             <Rail
               items={mylistRailItems}
               itemWidth={CARD_WIDTH}
@@ -433,8 +437,11 @@ export function HomeContent({
                     />
                   )
                 }
-                const label = entry.kind === 'movies' ? `Filmes (${entry.count})` : `Séries (${entry.count})`
-                return <HomeSeeAllCard label={label} focused={focused} />
+                const label =
+                  entry.kind === 'movies'
+                    ? t('home.seeAll.movies', { n: entry.count })
+                    : t('home.seeAll.series', { n: entry.count })
+                return <SeeAllCard label={label} focused={focused} />
               }}
             />
           </section>
@@ -442,11 +449,11 @@ export function HomeContent({
       )}
 
       {channelsQuery.isLoading ? (
-        <HomeRowSkeleton title="Canais favoritos" width={CHANNEL_WIDTH} height={CHANNEL_HEIGHT} />
+        <HomeRowSkeleton title={t('home.row.channels')} width={CHANNEL_WIDTH} height={CHANNEL_HEIGHT} />
       ) : (
         channelRailItems.length > 0 && (
-          <section className="home-row" aria-label="Canais favoritos">
-            <h2 className="home-row-title">Canais favoritos</h2>
+          <section className="home-row" aria-label={t('home.row.channels')}>
+            <h2 className="home-row-title">{t('home.row.channels')}</h2>
             <Rail
               items={channelRailItems}
               itemWidth={CHANNEL_WIDTH}
@@ -464,21 +471,21 @@ export function HomeContent({
                     />
                   )
                 }
-                return <HomeSeeAllCard label={`Ver todos (${entry.count})`} focused={focused} />
+                return <SeeAllCard label={t('home.seeAll.all', { n: entry.count })} focused={focused} />
               }}
             />
           </section>
         )
       )}
 
-      <section className="home-row" aria-label="Curadoria IA">
-        <h2 className="home-row-title">Curadoria IA</h2>
+      <section className="home-row" aria-label={t('home.row.ai')}>
+        <h2 className="home-row-title">{t('home.row.ai')}</h2>
         <div className="home-row-single">
           <ComingSoon id="home-ai-curation" focused={active && effectiveRow === 'ai'} />
         </div>
       </section>
 
-      <div className="home-dock" role="group" aria-label="Serviços">
+      <div className="home-dock" role="group" aria-label={t('home.dock.label')}>
         {DOCK_ICONS.map((iconDef, index) => {
           const focused = active && effectiveRow === 'dock' && index === dockFocus.index
           if (iconDef.id === TMDB_DOCK_ID) {
@@ -489,8 +496,8 @@ export function HomeContent({
                 key={iconDef.id}
                 type="button"
                 className={`home-dock-icon home-dock-icon--service${focused ? ' tv-focus' : ''}`}
-                aria-label={TMDB_DOCK_LABEL[tmdbState]}
-                title={TMDB_DOCK_LABEL[tmdbState]}
+                aria-label={t(TMDB_DOCK_LABEL_KEY[tmdbState])}
+                title={t(TMDB_DOCK_LABEL_KEY[tmdbState])}
                 data-state={tmdbState}
               >
                 <Icon name={iconDef.icon} />
@@ -502,7 +509,7 @@ export function HomeContent({
               key={iconDef.id}
               type="button"
               className={`home-dock-icon is-soft-disabled${focused ? ' tv-focus' : ''}`}
-              aria-label={iconDef.label}
+              aria-label={iconDef.labelKey ? t(iconDef.labelKey) : undefined}
               // Achado real (feature 028, FR-016): "Em breve" — o nome não
               // dizia indisponível, `aria-disabled` diz.
               aria-disabled="true"
@@ -531,10 +538,3 @@ function HomeRowSkeleton({ title, width, height }: { title: string; width: numbe
   )
 }
 
-function HomeSeeAllCard({ label, focused }: { label: string; focused: boolean }): ReactNode {
-  return (
-    <div className={`home-see-all${focused ? ' tv-focus' : ''}`}>
-      <span>{label}</span>
-    </div>
-  )
-}

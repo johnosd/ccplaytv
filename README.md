@@ -35,9 +35,12 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
 **TV ao vivo e EPG**
 - Canais organizados pelos grupos definidos na própria lista, com
   pesquisa e reprodução.
-- Navegação por página nas listas (trilha de categorias e canais da Live TV,
-  zapping e trilha de Filmes e Séries): "→" avança uma página, "←" volta,
-  OK entra na categoria ou toca o canal e RETURN volta à trilha (feature 049).
+- Navegação por página nas listas (trilha de categorias e canais da Live TV e
+  zapping): "→" avança uma página, "←" volta, OK entra na categoria ou toca o
+  canal e RETURN volta à trilha (feature 049). Em Filmes e Séries a lista lateral de
+  categorias é rolada com ↑/↓ e paginada com ←/→ (features 052/053); "→" no fim da
+  lista entra nos cards, e a lista recolhe enquanto o foco está neles. A tela
+  traz um carrossel por categoria com "Ver tudo" (feature 053).
 - Programa atual ("Agora") com barra de progresso na lista de canais, e
   "A seguir" com sinopse no preview, na faixa do player e nos canais
   favoritos da Home, a partir de EPG em XMLTV (do painel Xtream, do

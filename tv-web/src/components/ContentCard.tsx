@@ -12,6 +12,11 @@ export interface ContentCardProps {
   /** Progresso/assistido/AO VIVO — o consumidor decide o conteúdo, este componente só posiciona. */
   badge?: ReactNode
   onSelect?: () => void
+  /**
+   * Número grande ao lado do pôster (formato Top 10, feature 053) — opt-in e decorativo (`aria-hidden`): é só layout,
+   * nunca um ranking que o app calcule. Sem a prop o card é idêntico ao de antes.
+   */
+  rank?: number
 }
 
 /**
@@ -19,9 +24,14 @@ export interface ContentCardProps {
  * cima do `PosterArt` existente (feature 015) — nunca reimplementa
  * `<img>`/fallback (D-006 do plan.md, FR-018).
  */
-export function ContentCard({ variant, title, meta, iconUrl, focused, badge, onSelect }: ContentCardProps): ReactNode {
+export function ContentCard({ variant, title, meta, iconUrl, focused, badge, onSelect, rank }: ContentCardProps): ReactNode {
   return (
-    <div className={`content-card content-card--${variant}`} onClick={onSelect}>
+    <div className={`content-card content-card--${variant}${rank !== undefined ? ' content-card--ranked' : ''}`} onClick={onSelect}>
+      {rank !== undefined && (
+        <span className="content-card-rank" aria-hidden="true">
+          {rank}
+        </span>
+      )}
       <PosterArt url={iconUrl} title={title} focused={focused}>
         {badge}
       </PosterArt>

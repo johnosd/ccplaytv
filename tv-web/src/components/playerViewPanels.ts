@@ -1,5 +1,6 @@
+import { createTranslator, type Translator } from '../lib/i18n/translate'
 import {
-  ASPECT_LABEL,
+  ASPECT_LABEL_KEY,
   distinctQualities,
   qualityLabel,
   type AspectMode,
@@ -28,17 +29,22 @@ export interface ChoiceRow {
 }
 
 export interface ChoicePanelModel {
-  title: 'Aspecto' | 'Qualidade'
+  /** Já traduzido (player.chrome.aspect|quality). */
+  title: string
   rows: ChoiceRow[]
 }
 
 /** Uma linha por modo que o motor aplica; a marcada é a que o motor aceitou por último. */
-export function buildAspectPanel(modes: readonly AspectMode[], checked: AspectMode | null): ChoicePanelModel {
+export function buildAspectPanel(
+  modes: readonly AspectMode[],
+  checked: AspectMode | null,
+  t: Translator = createTranslator('pt'),
+): ChoicePanelModel {
   return {
-    title: 'Aspecto',
+    title: t('player.chrome.aspect'),
     rows: modes.map((mode) => ({
       key: `a:${mode}`,
-      label: ASPECT_LABEL[mode],
+      label: t(ASPECT_LABEL_KEY[mode]),
       checked: mode === checked,
       mode,
     })),
@@ -50,11 +56,15 @@ export function buildAspectPanel(modes: readonly AspectMode[], checked: AspectMo
  * `selectedId` `null` = Auto; um id que não está mais nas opções deixa nenhuma
  * linha marcada (quem relê decide cair para Auto — logic §2.5).
  */
-export function buildQualityPanel(options: readonly QualityOption[], selectedId: string | null): ChoicePanelModel {
+export function buildQualityPanel(
+  options: readonly QualityOption[],
+  selectedId: string | null,
+  t: Translator = createTranslator('pt'),
+): ChoicePanelModel {
   return {
-    title: 'Qualidade',
+    title: t('player.chrome.quality'),
     rows: [
-      { key: 'q:auto', label: 'Auto', checked: selectedId === null, qualityId: null },
+      { key: 'q:auto', label: t('player.quality.auto'), checked: selectedId === null, qualityId: null },
       ...distinctQualities(options).map<ChoiceRow>((option) => ({
         key: `q:${option.height}`,
         label: qualityLabel(option),

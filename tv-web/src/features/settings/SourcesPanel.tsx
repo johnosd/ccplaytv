@@ -13,18 +13,26 @@ import {
   formatType,
 } from '../sources/sourceFormat'
 import { LimitedModeNotice } from '../sources/LimitedModeNotice'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
 
 /** Sentinela do "Adicionar lista" (nunca um id real, `logic/foco-configuracoes.md` §3). */
 export const ADD_SOURCE_ID = '__add-source__'
 
 /** Editar, Ressincronizar, Excluir, EPG (feature 026, `logic/foco-configuracoes.md` §3). */
 export const SOURCES_ACTION_COUNT = 4
-const ACTION_LABELS = ['Editar', 'Ressincronizar', 'Excluir', 'EPG']
+const ACTION_LABEL_KEYS: MessageKey[] = [
+  'settings.sources.edit',
+  'settings.sources.resync',
+  'settings.sources.delete',
+  'settings.sources.epg',
+]
 
 /** Linha de estado do EPG (feature 030, FR-015) — componente próprio para poder assinar "sincronizando" por lista. */
 function SourceEpgStatus({ source }: { source: SourceOut }): ReactNode {
+  const t = useT()
   const syncing = useEpgSyncing(source.id)
-  return <span className="sources-panel-epg">{formatEpgStatus(source, syncing)}</span>
+  return <span className="sources-panel-epg">{formatEpgStatus(source, syncing, t)}</span>
 }
 
 /**
@@ -34,16 +42,18 @@ function SourceEpgStatus({ source }: { source: SourceOut }): ReactNode {
  * não respondeu. Componente próprio: cada linha lê as suas contagens.
  */
 function SourceCounts({ source }: { source: SourceOut }): ReactNode {
+  const t = useT()
   const counts = useCatalogCounts(source.id)
-  const text = counts.data ? formatCounts(counts.data, source.unavailable_sections) : undefined
+  const text = counts.data ? formatCounts(counts.data, source.unavailable_sections, t) : undefined
   if (!text) return null
   return <span className="sources-panel-counts">{text}</span>
 }
 
 /** Estado de sincronização da lista — componente próprio para assinar "Sincronizando" por lista (feature 034, FR-015). */
 function SourceSyncStatus({ source }: { source: SourceOut }): ReactNode {
+  const t = useT()
   const syncing = useSourceSyncing(source.id)
-  return <span className="sources-panel-status">{formatStatus(source, { syncing })}</span>
+  return <span className="sources-panel-status">{formatStatus(source, { syncing }, t)}</span>
 }
 
 /**
@@ -53,9 +63,10 @@ function SourceSyncStatus({ source }: { source: SourceOut }): ReactNode {
  */
 function SourceAccountStatus({ source }: { source: SourceOut }): ReactNode {
   // Uma leitura do relógio por montagem (a linha remonta ao abrir Configurações).
+  const t = useT()
   const [now] = useState(() => Date.now())
-  const text = formatAccount(source, now)
-  const chip = accountChipOf(source, now)
+  const text = formatAccount(source, now, t)
+  const chip = accountChipOf(source, now, t)
   if (text === undefined && !chip) return null
   return (
     <>
@@ -93,16 +104,17 @@ export function SourcesPanel({
   offline = false,
   onActivateRow,
 }: SourcesPanelProps): ReactNode {
+  const t = useT()
   return (
     <div className="sources-panel">
       {sources.map((source) => {
         const isFocusedRow = focusedRowId === source.id
         return (
-          <div key={source.id} role="group" aria-label={`Lista ${source.display_name}`} className="sources-panel-row">
+          <div key={source.id} role="group" aria-label={t('settings.sources.group', { name: source.display_name })} className="sources-panel-row">
             <div className="sources-panel-info">
               <span className="sources-panel-name">{source.display_name}</span>
-              <span className="sources-panel-type">{formatType(source)}</span>
-              {source.id === activeSourceId && <span className="sources-panel-badge">Lista ativa</span>}
+              <span className="sources-panel-type">{formatType(source, t)}</span>
+              {source.id === activeSourceId && <span className="sources-panel-badge">{t('settings.sources.active')}</span>}
               <SourceSyncStatus source={source} />
               <SourceAccountStatus source={source} />
               <SourceCounts source={source} />
@@ -117,17 +129,17 @@ export function SourcesPanel({
               )}
             </div>
             <div className="sources-panel-actions">
-              {ACTION_LABELS.map((label, index) => (
+              {ACTION_LABEL_KEYS.map((labelKey, index) => (
                 <Button
-                  key={label}
+                  key={labelKey}
                   variant="secondary"
                   loading={(index === 1 && resyncPending) || (index === 2 && deletePending)}
                   softDisabled={index === 1 && offline}
                   focused={isFocusedRow && focusedCol === index}
                   onSelect={() => onActivateRow(source.id, index)}
                 >
-                  {label}
-                  {index === 1 && offline && <span className="sr-only">, indisponível sem conexão</span>}
+                  {t(labelKey)}
+                  {index === 1 && offline && <span className="sr-only">{t('settings.sources.offlineNote')}</span>}
                 </Button>
               ))}
             </div>
@@ -141,7 +153,7 @@ export function SourcesPanel({
         onClick={() => onActivateRow(ADD_SOURCE_ID, 0)}
       >
         <Icon name="add" />
-        <span>Adicionar lista</span>
+        <span>{t('settings.sources.add')}</span>
       </button>
     </div>
   )

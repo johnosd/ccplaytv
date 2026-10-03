@@ -1,0 +1,22 @@
+{
+    "feature":  "054-idioma-do-app",
+    "lockedAt":  "2026-10-03 13:44",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/i18n/appLanguage.idioma-do-app.contract.test.ts",
+                      "sha256":  "ae7f0ddaba15546b5ee479bf553dc9fc25ab3b5e3f9c4a8f62994de96a672a7e",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/lib/metadata/titleMetadata.idioma-do-app.contract.test.ts",
+                      "sha256":  "ec90b3b978503b0e6c6a9b356126ecc6c0f3f57db5ee1409bdd55eb6ba16ffb1",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/settings/SettingsScreen.idioma-do-app.contract.test.tsx",
+                      "sha256":  "ae699487915ff4ead4032484502be61e242225af99b4cb80f34d550896d0e396",
+                      "tests":  1
+                  }
+              ]
+}

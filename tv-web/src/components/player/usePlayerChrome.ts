@@ -8,6 +8,7 @@ import {
   type PlayerEpisodeStep,
 } from '../chromeControls'
 import { HIDE_CONTROLS_MS } from './playerMessages'
+import { useT } from '../../lib/i18n/I18nProvider'
 import type { ChromeLevel, PanelState } from './playerLayerTypes'
 
 export interface PlayerChromeParams {
@@ -54,6 +55,7 @@ export function usePlayerChrome({
   episodeStep,
   onGuide,
 }: PlayerChromeParams): PlayerChrome {
+  const t = useT()
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /**
@@ -117,7 +119,7 @@ export function usePlayerChrome({
       guide: onGuide !== undefined,
       aspect: (session?.aspectModes.length ?? 0) > 0,
       quality: qualityCount >= 2 ? 'many' : qualityCount === 1 ? 'single' : 'none',
-    })
+    }, t)
   }
 
   /**

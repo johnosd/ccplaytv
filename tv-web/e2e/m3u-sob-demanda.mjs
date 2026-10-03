@@ -30,6 +30,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURES_DIR = path.join(__dirname, 'fixtures', 'm3u-sob-demanda')
@@ -242,7 +243,7 @@ async function run() {
   const avulsaUrl = `http://127.0.0.1:${avulsa.server.address().port}/lista.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
@@ -407,7 +408,7 @@ async function run() {
     // `VIRTUAL_TRAIL_COUNT = 3`: ★ Favoritos, ↺ Histórico, Todos) — entrar
     // cedo demais pousa em "Todos" antes de as categorias carregarem (mesma
     // corrida documentada em `busca-por-categoria.mjs`/`favoritos.mjs`).
-    await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
+    await focusFirstRealCategory(page)
     await page.keyboard.press('Enter') // entra na categoria "Filmes"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
@@ -421,7 +422,7 @@ async function run() {
     await page.keyboard.press('Escape')
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'series')
-    await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
+    await focusFirstRealCategory(page)
     await page.keyboard.press('Enter') // entra na categoria "Series"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(

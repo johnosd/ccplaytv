@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'favoritos.m3u')
@@ -140,7 +141,7 @@ async function run() {
   const browser = await chromium.launch(
     existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true },
   )
-  const context = await browser.newContext() // storage isolado — sem limpeza manual de IndexedDB
+  const context = await browser.newContext({ locale: 'pt-BR' }) // storage isolado — sem limpeza manual de IndexedDB
   const page = await context.newPage()
 
   try {
@@ -228,6 +229,7 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'movies')
     await waitForCategoryTrail(page)
+    await focusFirstRealCategory(page)
     await page.keyboard.press('Enter') // entra na 1ª categoria real de Filmes
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await holdEnter(page)
@@ -243,6 +245,7 @@ async function run() {
     // disso (reseta pra "Início" antes de contar), então funciona igual.
     await openViaTopbar(page, 'series')
     await waitForCategoryTrail(page)
+    await focusFirstRealCategory(page)
     await page.keyboard.press('Enter') // entra na 1ª categoria real de Séries
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
 

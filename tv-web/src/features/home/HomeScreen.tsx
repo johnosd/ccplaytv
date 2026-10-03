@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { SourceOut } from '../import/importApi'
 import { invalidateUserStates, type CatalogItemOut } from '../catalog/catalogApi'
 import { usePrefetchProgress } from '../catalog/prefetchApi'
+import { useT } from '../../lib/i18n/I18nProvider'
 import { homeStatusLine } from './homeStatusLine'
 import { HomeContent, type HomeContentFocus } from './HomeContent'
 import { AppShell } from '../shell/AppShell'
@@ -44,11 +45,6 @@ export interface HomeScreenProps {
   updating?: boolean
 }
 
-const HINTS: HintItem[] = [
-  { keyLabel: 'OK', action: 'Selecionar' },
-  { keyLabel: 'RETURN', action: 'Sair' },
-]
-
 interface PlayingState {
   itemId: string
   title: string
@@ -82,6 +78,11 @@ export function HomeScreen({
   onOpenSettings,
   updating = false,
 }: HomeScreenProps): ReactNode {
+  const t = useT()
+  const hints: HintItem[] = [
+    { keyLabel: 'OK', action: t('common.select') },
+    { keyLabel: 'RETURN', action: t('shell.exit.confirm') },
+  ]
   const queryClient = useQueryClient()
 
   // Feature 038 (US6): "Preparando catálogo — N de M" / "Atualizando…" /
@@ -92,13 +93,16 @@ export function HomeScreen({
     const timer = setInterval(() => setClock(Date.now()), 60 * 1000)
     return () => clearInterval(timer)
   }, [])
-  const statusLine = homeStatusLine({
-    sourceId: source.id,
-    updating,
-    progress: prefetchProgress,
-    lastSuccessfulSyncAt: source.last_successful_sync_at ? Date.parse(source.last_successful_sync_at) : null,
-    now: clock,
-  })
+  const statusLine = homeStatusLine(
+    {
+      sourceId: source.id,
+      updating,
+      progress: prefetchProgress,
+      lastSuccessfulSyncAt: source.last_successful_sync_at ? Date.parse(source.last_successful_sync_at) : null,
+      now: clock,
+    },
+    t,
+  )
   const [zone, setZone] = useState<'topbar' | 'content'>(initialFocus?.zone === 'topbar' ? 'topbar' : 'content')
   const [topbarItem, setTopbarItem] = useState<TopbarItem>(
     initialFocus?.zone === 'topbar' ? initialFocus.item : 'home',
@@ -139,7 +143,7 @@ export function HomeScreen({
   return (
     <div className="screen home-screen">
       <AppShell
-        hints={HINTS}
+        hints={hints}
         topBar={
           <TopBar
             sourceName={source.display_name}

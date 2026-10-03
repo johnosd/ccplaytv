@@ -7,15 +7,17 @@
  */
 
 import type { CatalogItemOut } from '../catalog/catalogApi'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
 
 /** `source` = ordem da fonte (padrão). */
 export type VodSortOption = 'source' | 'az' | 'year' | 'added'
 
-export const VOD_SORT_LABELS: Record<VodSortOption, string> = {
-  source: 'Ordem da fonte',
-  az: 'A–Z',
-  year: 'Ano',
-  added: 'Recém-adicionados',
+/** Chave do catálogo (`vod.sort.*`) do rótulo de cada ordenação (feature 054). */
+export const VOD_SORT_LABEL_KEYS: Record<VodSortOption, MessageKey> = {
+  source: 'vod.sort.source',
+  az: 'vod.sort.az',
+  year: 'vod.sort.year',
+  added: 'vod.sort.added',
 }
 
 /**

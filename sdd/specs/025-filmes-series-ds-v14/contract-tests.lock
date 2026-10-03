@@ -1,6 +1,6 @@
 {
     "feature":  "025-filmes-series-ds-v14",
-    "lockedAt":  "2026-10-02 19:25",
+    "lockedAt":  "2026-10-03 00:12",
     "total":  5,
     "files":  [
                   {
@@ -19,8 +19,8 @@
                       "tests":  1
                   },
                   {
-                      "path":  "tv-web/src/features/movies/MoviesScreen.filmes-series-ds-v14.contract.test.tsx",
-                      "sha256":  "dccc175188033f81322730cf69d4488eee5f54a15c83d893760884b6c2d40429",
+                      "path":  "tv-web/src/features/vod/VodCategoryScreen.filmes-series-ds-v14.contract.test.tsx",
+                      "sha256":  "89ae6ea7be374df2e9bca6ef28744c5d79e1759660b11a3d0b57d83a31671aa0",
                       "tests":  1
                   }
               ]

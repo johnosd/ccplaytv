@@ -1,4 +1,4 @@
-﻿// Roteiro E2E da feature 048 (paridade visual da TV ao vivo com o Design System V14)
+// Roteiro E2E da feature 048 (paridade visual da TV ao vivo com o Design System V14)
 // — gate da constitution ("Testes E2E (Playwright) antes de validação em TV física").
 //
 // Num Chromium de verdade, a 1920×1080 (o palco do app roda na escala 1:1), mede o
@@ -140,7 +140,7 @@ async function run() {
   const browser = await chromium.launch(
     existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true },
   )
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   await page.route('**/stream/**', () => {})
   const pageErrors = []

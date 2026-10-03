@@ -7,6 +7,8 @@
  */
 
 // Telas falam com `importApi`, nunca com `lib/` direto (D-001 da 005).
+import type { MessageKey } from '../../lib/i18n/messages/pt'
+import { createTranslator, type Translator } from '../../lib/i18n/translate'
 import { EPG_ERROR_CODE, epgErrorMessage, type EpgStatus } from './importApi'
 
 export type ImportRowState = 'waiting' | 'loading' | 'ready' | 'failed' | 'unavailable'
@@ -27,37 +29,39 @@ export interface ImportRow {
   text: string
 }
 
-const LABELS = { channel: 'Canais', movie: 'Filmes', series: 'Séries', guide: 'Guia' } as const
+/** Rótulos no catálogo (`import.state.*`, feature 054) — o texto vem de `t()`. */
+export const STATE_LABEL_KEYS = {
+  waiting: 'import.state.waiting',
+  loading: 'import.state.loading',
+  ready: 'import.state.ready',
+  failed: 'import.state.failed',
+  unavailable: 'import.state.unavailable',
+} as const satisfies Record<ImportRowState, MessageKey>
 
-export const STATE_LABELS: Record<ImportRowState, string> = {
-  waiting: 'Aguardando',
-  loading: 'Carregando',
-  ready: 'Pronto',
-  failed: 'Falhou',
-  unavailable: 'Não disponível nesta lista',
-}
+const ROW_LABEL_KEYS = {
+  channel: 'import.row.channel',
+  movie: 'import.row.movie',
+  series: 'import.row.series',
+} as const satisfies Record<'channel' | 'movie' | 'series', MessageKey>
 
-function plural(n: number, one: string, many: string): string {
-  return `${n.toLocaleString('pt-BR')} ${n === 1 ? one : many}`
-}
-
-function countOf(run: ImportSectionRun): string | undefined {
-  if (run.categories !== undefined) return plural(run.categories, 'categoria', 'categorias')
-  if (run.items !== undefined) return plural(run.items, 'item', 'itens')
+function countOf(run: ImportSectionRun, t: Translator): string | undefined {
+  if (run.categories !== undefined) return t.plural('import.categories', run.categories)
+  if (run.items !== undefined) return t.plural('import.items', run.items)
   return undefined
 }
 
-function textOf(state: ImportRowState, detail?: string): string {
-  return detail ? `${STATE_LABELS[state]} — ${detail}` : STATE_LABELS[state]
+function textOf(state: ImportRowState, t: Translator, detail?: string): string {
+  const label = t(STATE_LABEL_KEYS[state])
+  return detail ? t('import.stateWithDetail', { state: label, detail }) : label
 }
 
 /** Canais, Filmes e Séries. Sem `sections` (importação antiga), as três aguardam. */
-export function sectionRows(sections: ImportSections | undefined): ImportRow[] {
+export function sectionRows(sections: ImportSections | undefined, t: Translator = createTranslator('pt')): ImportRow[] {
   return (['channel', 'movie', 'series'] as const).map((key) => {
     const run: ImportSectionRun = sections?.[key] ?? { state: 'waiting' }
     // Contagem só onde ela diz algo: carregando (M3U) e pronto.
-    const detail = run.state === 'ready' || (run.state === 'loading' && run.items !== undefined) ? countOf(run) : undefined
-    return { key, label: LABELS[key], state: run.state, text: textOf(run.state, detail) }
+    const detail = run.state === 'ready' || (run.state === 'loading' && run.items !== undefined) ? countOf(run, t) : undefined
+    return { key, label: t(ROW_LABEL_KEYS[key]), state: run.state, text: textOf(run.state, t, detail) }
   })
 }
 
@@ -71,19 +75,22 @@ export interface GuideRowInput {
 }
 
 /** A linha "Guia" (`logic/progresso-importacao.md` §2). */
-export function guideRow({ importSucceeded, epg, syncing, runStartedAt }: GuideRowInput): ImportRow {
+export function guideRow(
+  { importSucceeded, epg, syncing, runStartedAt }: GuideRowInput,
+  t: Translator = createTranslator('pt'),
+): ImportRow {
   const row = (state: ImportRowState, detail?: string): ImportRow => ({
     key: 'guide',
-    label: LABELS.guide,
+    label: t('import.row.guide'),
     state,
-    text: textOf(state, detail),
+    text: textOf(state, t, detail),
   })
   if (!importSucceeded) return row('waiting')
   if (!epg || epg.state === 'not_configured' || epg.state === 'disabled') return row('unavailable')
   if (syncing) return row('loading')
   if (epg.state === 'linked' && (epg.lastSyncAt ?? 0) >= runStartedAt) return row('ready')
   if (epg.state === 'error' && epg.errorKind && (epg.lastErrorAt ?? 0) >= runStartedAt) {
-    return row('failed', `${epgErrorMessage(epg.errorKind)} (${EPG_ERROR_CODE})`)
+    return row('failed', `${epgErrorMessage(epg.errorKind, t)} (${EPG_ERROR_CODE})`)
   }
   // A sincronização desta importação ainda não começou (ou não terminou).
   return row('loading')

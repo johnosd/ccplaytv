@@ -1,3 +1,4 @@
+import { useT } from '../lib/i18n/I18nProvider'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react'
 import { ErrorState } from './ErrorState'
 import { Spinner } from './Spinner'
@@ -48,6 +49,7 @@ const MAX_USED_CANDIDATES = 2
 type ErrorAction = 'retry' | 'back'
 
 export function TrailerLayer({ title, candidates, onClose }: TrailerLayerProps): ReactElement {
+  const t = useT()
   const announce = useAnnounce()
   // Feature 038 (FR-004): trailer aberto também é reprodução — a pré-carga não começa categoria.
   useEffect(() => prefetchGate.acquirePlayback(), [])
@@ -246,13 +248,13 @@ export function TrailerLayer({ title, candidates, onClose }: TrailerLayerProps):
   }, [state.phase])
 
   useEffect(() => {
-    announce(`Trailer de ${title}`)
+    announce(t('trailerLayer.dialog', { title }))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir
   }, [])
 
   useEffect(() => {
-    if (state.phase === 'error' && state.error) announce(trailerErrorMessage(state.error))
-  }, [state.phase, state.error, announce])
+    if (state.phase === 'error' && state.error) announce(trailerErrorMessage(state.error, t))
+  }, [state.phase, state.error, announce, t])
 
   // Desmontar por fora (o dono some com a camada) também para o vídeo e limpa os prazos.
   // Layout effect de propósito: o cleanup do pai roda antes de o React soltar a ref do
@@ -279,7 +281,7 @@ export function TrailerLayer({ title, candidates, onClose }: TrailerLayerProps):
   const playerAlive = aliveKey === frameKey
 
   return (
-    <div className="trailer-layer" role="dialog" aria-modal="true" aria-label={`Trailer de ${title}`}>
+    <div className="trailer-layer" role="dialog" aria-modal="true" aria-label={t('trailerLayer.dialog', { title })}>
       {showFrame && (
         <iframe
           // Trocar de candidato ou tentar de novo REMONTA o iframe: nunca reaproveita a janela antiga.
@@ -287,7 +289,7 @@ export function TrailerLayer({ title, candidates, onClose }: TrailerLayerProps):
           ref={iframeRef}
           className="trailer-frame"
           src={trailerBridgeSrc(candidate.videoId)}
-          title="Trailer"
+          title={t('trailerLayer.iframeTitle')}
           allow="autoplay; encrypted-media"
           referrerPolicy="strict-origin-when-cross-origin"
           tabIndex={-1}
@@ -299,42 +301,42 @@ export function TrailerLayer({ title, candidates, onClose }: TrailerLayerProps):
         // Player vivo, esperando o YouTube (anúncios): o vídeo fica à vista e só a faixa de baixo aparece.
         <div className="trailer-bar">
           <p className="trailer-title">{title}</p>
-          <p className="trailer-hint">Anúncios do YouTube podem passar antes do trailer</p>
-          <div className="trailer-pill tv-focus">Cancelar</div>
+          <p className="trailer-hint">{t('trailerLayer.ads')}</p>
+          <div className="trailer-pill tv-focus">{t('common.cancel')}</div>
         </div>
       )}
 
       {phase === 'loading' && !playerAlive && (
         <div className="trailer-loading">
           <Spinner size={48} />
-          <p className="trailer-loading-text">Carregando trailer</p>
+          <p className="trailer-loading-text">{t('trailerLayer.loading')}</p>
           <p className="trailer-title">{title}</p>
-          <div className="trailer-pill tv-focus">Cancelar</div>
+          <div className="trailer-pill tv-focus">{t('common.cancel')}</div>
         </div>
       )}
 
       {(phase === 'playing' || phase === 'paused') && (
         <div className={`trailer-bar${phase === 'playing' && !barVisible ? ' trailer-bar-hidden' : ''}`}>
           <p className="trailer-title">{title}</p>
-          <p className="trailer-hint">OK pausa · ← → 10 s · Voltar fecha</p>
-          <div className="trailer-pill tv-focus">{phase === 'paused' ? '▶ Continuar' : '⏸ Pausar'}</div>
+          <p className="trailer-hint">{t('trailerLayer.keys')}</p>
+          <div className="trailer-pill tv-focus">{phase === 'paused' ? t('trailerLayer.continue') : t('trailerLayer.pause')}</div>
         </div>
       )}
 
       {phase === 'error' && state.error && (
         <div className="trailer-error">
           <ErrorState
-            title="Não foi possível tocar o trailer"
-            description={trailerErrorMessage(state.error)}
+            title={t('trailerLayer.errorTitle')}
+            description={trailerErrorMessage(state.error, t)}
             code={state.error.code}
             focusedActionIndex={errorFocus}
             actions={
               state.error.retryable
                 ? [
-                    { label: 'Tentar de novo', onSelect: () => retry() },
-                    { label: 'Voltar', onSelect: () => dispatch({ type: 'close' }) },
+                    { label: t('common.retry'), onSelect: () => retry() },
+                    { label: t('common.back'), onSelect: () => dispatch({ type: 'close' }) },
                   ]
-                : [{ label: 'Voltar', onSelect: () => dispatch({ type: 'close' }) }]
+                : [{ label: t('common.back'), onSelect: () => dispatch({ type: 'close' }) }]
             }
           />
         </div>

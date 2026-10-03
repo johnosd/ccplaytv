@@ -15,6 +15,9 @@ import { ContentCard } from '../../components/ContentCard'
 import { ChannelRow } from '../../components/ChannelRow'
 import { Rail } from '../../components/Rail'
 import { EmptyState } from '../../components/EmptyState'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
+import type { Translator } from '../../lib/i18n/translate'
 
 /** Moldura V14 — mesmo padrão de `LiveShellProps`/`VodShellProps`/`SettingsShellProps`. */
 export interface SearchShellProps {
@@ -45,16 +48,15 @@ const CARD_HEIGHT = 370
 const CHANNEL_WIDTH = 340
 const CHANNEL_HEIGHT = 100
 
-const HINTS: HintItem[] = [
-  { keyLabel: 'OK', action: 'Selecionar' },
-  { keyLabel: 'RETURN', action: 'Voltar' },
-]
-
-function resultLabel(kind: ResultKind, count: number): string {
-  if (kind === 'channel') return `Canais (${count})`
-  if (kind === 'movie') return `Filmes (${count})`
-  return `Séries (${count})`
+function searchHints(t: Translator): HintItem[] {
+  return [
+    { keyLabel: 'OK', action: t('common.select') },
+    { keyLabel: 'RETURN', action: t('common.back') },
+  ]
 }
+
+const RESULT_LABEL_KEY: Record<ResultKind, MessageKey> = { channel: 'search.channels', movie: 'search.movies', series: 'search.series' }
+const ROW_LABEL_KEY: Record<ResultKind, MessageKey> = { channel: 'search.rowChannels', movie: 'search.rowMovies', series: 'search.rowSeries' }
 
 /**
  * Busca global (feature 026, US3 — FR-035..FR-044), conforme `logic/
@@ -63,6 +65,7 @@ function resultLabel(kind: ResultKind, count: number): string {
  * (2), sem debounce, sempre com o aviso de cobertura visível.
  */
 export function SearchScreen({ sourceId, shell, restore, onOpenItem, onOpenChannel, onBack }: SearchScreenProps): ReactNode {
+  const t = useT()
   const [zone, setZone] = useState<'topbar' | 'content'>('content')
   const [topbarItem, setTopbarItem] = useState<TopbarItem>('search')
   const contentActive = !shell || zone === 'content'
@@ -215,7 +218,7 @@ export function SearchScreen({ sourceId, shell, restore, onOpenItem, onOpenChann
       : {},
   )
 
-  const coverageText = `Busca em ${result.coveredCategories} de ${result.totalCategories} categorias`
+  const coverageText = t('live.searchCoverage', { covered: result.coveredCategories, total: result.totalCategories })
 
   const body = (
     // Achado real (feature 028, FR-006): rolava com a barra nativa visível.
@@ -223,7 +226,7 @@ export function SearchScreen({ sourceId, shell, restore, onOpenItem, onOpenChann
       <div className="search-field-row" onKeyDown={handleFieldKeyDown}>
         <TextField
           id="search-field"
-          label="Buscar nesta lista"
+          label={t('search.field')}
           purpose="search"
           value={term}
           onChange={setTerm}
@@ -236,22 +239,22 @@ export function SearchScreen({ sourceId, shell, restore, onOpenItem, onOpenChann
       <p className="search-coverage">{coverageText}</p>
       {result.coveredCategories < result.totalCategories && (
         <p className="search-coverage-hint">
-          Abra outras categorias em TV ao vivo, Filmes ou Séries para incluí-las.
+          {t('search.hint')}
         </p>
       )}
 
       {noResults && (
         <EmptyState
-          title={`Nada encontrado para "${term}"`}
+          title={t('search.nothing', { term })}
           description={coverageText}
-          action={{ label: 'Editar busca', onSelect: () => inputRef.current?.focus() }}
+          action={{ label: t('search.edit'), onSelect: () => inputRef.current?.focus() }}
           focused={contentActive}
         />
       )}
 
       {presentKinds.includes('channel') && (
-        <section className="search-row" aria-label="Canais">
-          <h2 className="search-row-title">{resultLabel('channel', itemsByKind.channel.length)}</h2>
+        <section className="search-row" aria-label={t(ROW_LABEL_KEY.channel)}>
+          <h2 className="search-row-title">{t(RESULT_LABEL_KEY.channel, { n: itemsByKind.channel.length })}</h2>
           <Rail
             items={itemsByKind.channel}
             itemWidth={CHANNEL_WIDTH}
@@ -268,8 +271,8 @@ export function SearchScreen({ sourceId, shell, restore, onOpenItem, onOpenChann
         </section>
       )}
       {presentKinds.includes('movie') && (
-        <section className="search-row" aria-label="Filmes">
-          <h2 className="search-row-title">{resultLabel('movie', itemsByKind.movie.length)}</h2>
+        <section className="search-row" aria-label={t(ROW_LABEL_KEY.movie)}>
+          <h2 className="search-row-title">{t(RESULT_LABEL_KEY.movie, { n: itemsByKind.movie.length })}</h2>
           <Rail
             items={itemsByKind.movie}
             itemWidth={CARD_WIDTH}
@@ -287,8 +290,8 @@ export function SearchScreen({ sourceId, shell, restore, onOpenItem, onOpenChann
         </section>
       )}
       {presentKinds.includes('series') && (
-        <section className="search-row" aria-label="Séries">
-          <h2 className="search-row-title">{resultLabel('series', itemsByKind.series.length)}</h2>
+        <section className="search-row" aria-label={t(ROW_LABEL_KEY.series)}>
+          <h2 className="search-row-title">{t(RESULT_LABEL_KEY.series, { n: itemsByKind.series.length })}</h2>
           <Rail
             items={itemsByKind.series}
             itemWidth={CARD_WIDTH}
@@ -312,7 +315,7 @@ export function SearchScreen({ sourceId, shell, restore, onOpenItem, onOpenChann
     <div className="screen search-screen">
       {shell ? (
         <AppShell
-          hints={HINTS}
+          hints={searchHints(t)}
           topBar={
             <TopBar
               sourceName={shell.sourceName}
@@ -333,7 +336,7 @@ export function SearchScreen({ sourceId, shell, restore, onOpenItem, onOpenChann
         </AppShell>
       ) : (
         <>
-          <h1 className="screen-title">Buscar</h1>
+          <h1 className="screen-title">{t('search.title')}</h1>
           {body}
         </>
       )}

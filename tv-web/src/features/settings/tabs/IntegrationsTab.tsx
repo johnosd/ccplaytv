@@ -1,15 +1,17 @@
 import { useImperativeHandle, useState } from 'react'
 import type { ReactNode } from 'react'
 import { clamp } from '../../../lib/useRemoteNav'
-import { getComingSoon } from '../../../lib/comingSoon'
+import { comingSoonToast } from '../../../lib/comingSoon'
+import { useT } from '../../../lib/i18n/I18nProvider'
 import { useRemoveTmdbKey, useTestTmdbKey, useTmdbStatus } from '../../catalog/catalogApi'
 import { IntegrationsPanel } from '../IntegrationsPanel'
 import { RemoveTmdbKeyModal } from '../RemoveTmdbKeyModal'
-import { INTEGRATION_SOON_CARDS, INTEGRATIONS_ROW_COUNT, TMDB_STATE_LABEL, tmdbActions } from '../integrationsModel'
+import { INTEGRATION_SOON_CARDS, INTEGRATIONS_ROW_COUNT, TMDB_STATE_LABEL_KEY, tmdbActions } from '../integrationsModel'
 import type { SettingsTabProps } from './settingsTab'
 
 /** Integrações & BYOK (feature 032): linha 0 = card do TMDB (colunas = ações), demais = "Em breve". */
 export function IntegrationsTab({ focused, navigation, exitToTabs, goToTopbar, showToast, handleRef }: SettingsTabProps): ReactNode {
+  const t = useT()
   const [row, setRow] = useState(0)
   const [col, setCol] = useState(0)
   const [confirmRemove, setConfirmRemove] = useState(false)
@@ -24,7 +26,7 @@ export function IntegrationsTab({ focused, navigation, exitToTabs, goToTopbar, s
     setRow(targetRow)
     setCol(targetCol)
     if (targetRow > 0) {
-      showToast(`Em breve — ${getComingSoon(INTEGRATION_SOON_CARDS[targetRow - 1].id).message}`)
+      showToast(comingSoonToast(INTEGRATION_SOON_CARDS[targetRow - 1].id, t))
       return
     }
     const action = actionList[targetCol]
@@ -34,10 +36,10 @@ export function IntegrationsTab({ focused, navigation, exitToTabs, goToTopbar, s
     }
     if (action === 'test') {
       if (testTmdbKey.isPending) return
-      showToast('Testando a chave…')
+      showToast(t('settings.integrations.testing'))
       testTmdbKey.mutate(undefined, {
-        onSuccess: (status) => showToast(TMDB_STATE_LABEL[status.state]),
-        onError: () => showToast(TMDB_STATE_LABEL.offline),
+        onSuccess: (status) => showToast(t(TMDB_STATE_LABEL_KEY[status.state])),
+        onError: () => showToast(t(TMDB_STATE_LABEL_KEY.offline)),
       })
       return
     }
@@ -50,9 +52,9 @@ export function IntegrationsTab({ focused, navigation, exitToTabs, goToTopbar, s
       onSuccess: () => {
         // Sem chave só resta "Configurar": a coluna volta ao começo.
         setCol(0)
-        showToast('Chave do TMDB removida.')
+        showToast(t('settings.integrations.removed'))
       },
-      onError: () => showToast('Não foi possível remover a chave.'),
+      onError: () => showToast(t('settings.integrations.removeFailed')),
     })
   }
 

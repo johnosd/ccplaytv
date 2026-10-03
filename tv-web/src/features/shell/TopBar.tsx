@@ -1,3 +1,5 @@
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
 import { useEffect, type ReactNode } from 'react'
 import { Icon } from '../../components/Icon'
 import { runConnectionCheck, useConnectionCheckStatus } from '../../lib/network/connectionCheck'
@@ -53,17 +55,17 @@ const FOCUS_ORDER: TopbarItem[] = ['home', 'live', 'movies', 'series', 'profile'
 /** Feature 042 (D-007): "Tentar de novo" entra no FIM da ordem, só enquanto offline. */
 const FOCUS_ORDER_OFFLINE: TopbarItem[] = [...FOCUS_ORDER, 'connection']
 
-const NAV_ITEMS: { key: 'home' | TopDestination; label: string }[] = [
-  { key: 'home', label: 'Início' },
-  { key: 'live', label: 'TV ao vivo' },
-  { key: 'movies', label: 'Filmes' },
-  { key: 'series', label: 'Séries' },
+const NAV_ITEMS: { key: 'home' | TopDestination; labelKey: MessageKey }[] = [
+  { key: 'home', labelKey: 'shell.nav.home' },
+  { key: 'live', labelKey: 'shell.nav.live' },
+  { key: 'movies', labelKey: 'shell.nav.movies' },
+  { key: 'series', labelKey: 'shell.nav.series' },
 ]
 
 /** Busca e Configurações (feature 026, D-005) — reais quando o callback correspondente existe. */
-const ACTION_ITEMS: { key: 'search' | 'settings'; label: string; icon: 'search' | 'settings' }[] = [
-  { key: 'search', label: 'Buscar', icon: 'search' },
-  { key: 'settings', label: 'Configurações', icon: 'settings' },
+const ACTION_ITEMS: { key: 'search' | 'settings'; labelKey: MessageKey; icon: 'search' | 'settings' }[] = [
+  { key: 'search', labelKey: 'shell.search', icon: 'search' },
+  { key: 'settings', labelKey: 'settings.title', icon: 'settings' },
 ]
 
 function initialOf(name: string): string {
@@ -107,6 +109,7 @@ export function TopBar({
   onOpenSettings,
   onBack,
 }: TopBarProps): ReactNode {
+  const t = useT()
   const clock = useClock()
   const online = useOnlineStatus()
   const connectionCheck = useConnectionCheckStatus()
@@ -177,7 +180,7 @@ export function TopBar({
         <span className="topbar-logo-word">CCPlayTV</span>
       </div>
 
-      <nav className="topbar-nav" aria-label="Navegação principal">
+      <nav className="topbar-nav" aria-label={t('shell.nav.label')}>
         {NAV_ITEMS.map((item) => {
           const current = item.key === currentItem
           return (
@@ -188,7 +191,7 @@ export function TopBar({
               aria-current={current ? 'page' : undefined}
               onClick={() => activate(item.key)}
             >
-              {item.label}
+              {t(item.labelKey)}
             </button>
           )
         })}
@@ -198,7 +201,7 @@ export function TopBar({
         <button
           type="button"
           className={`topbar-profile${focusClass('profile')}`}
-          aria-label={`Lista ativa: ${sourceName}. Trocar de lista`}
+          aria-label={t('shell.profile', { name: sourceName })}
           onClick={() => activate('profile')}
         >
           <span className="topbar-profile-avatar" aria-hidden="true">
@@ -218,7 +221,7 @@ export function TopBar({
               type="button"
               className={`icon-button${hasCallback ? '' : ' is-soft-disabled'}${current ? ' topbar-item--current' : ''}${focusClass(item.key)}`}
               aria-current={current ? 'page' : undefined}
-              aria-label={item.label}
+              aria-label={t(item.labelKey)}
               onClick={() => activate(item.key)}
             >
               <Icon name={item.icon} />
@@ -230,11 +233,11 @@ export function TopBar({
           <button
             type="button"
             className={`topbar-item${focusClass('connection')}`}
-            aria-label="Tentar de novo: verificar a conexão"
+            aria-label={t('shell.connection.aria')}
             aria-disabled={connectionCheck === 'verifying' ? true : undefined}
             onClick={() => activate('connection')}
           >
-            {connectionCheck === 'verifying' ? 'Verificando…' : 'Tentar de novo'}
+            {connectionCheck === 'verifying' ? t('shell.connection.verifying') : t('shell.connection.retry')}
           </button>
         )}
 

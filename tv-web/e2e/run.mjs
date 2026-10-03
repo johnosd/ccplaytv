@@ -34,6 +34,7 @@ export const SUITE = [
   'e2e/home-busca-configuracoes.mjs',
   'e2e/limpeza-qa.mjs',
   'e2e/audio-legendas-info.mjs',
+  'e2e/idioma-do-app.mjs',
   'e2e/qualidade-aspecto.mjs',
   'e2e/fontes-estado.mjs',
   'e2e/epg-dados-agora.mjs',
@@ -51,7 +52,9 @@ export const SUITE = [
   'e2e/player-dev-mpegts.mjs',
   'e2e/live-paridade-v14.mjs',
   'e2e/navegacao-por-pagina.mjs',
-  'e2e/filmes-series-paridade-v14.mjs',
+  'e2e/vitrine-filmes-series.mjs',
+  'e2e/carrosseis-filmes-series.mjs',
+  'e2e/vod-pesquisa-ordenacao.mjs',
 ]
 
 function lerArgs(argv) {
@@ -142,3 +145,4 @@ main().catch((e) => {
   console.error(e.message)
   process.exit(2)
 })
+

@@ -1,5 +1,7 @@
 import { groupLabel, type CatalogCategory } from '../catalog/catalogApi'
 import type { HintItem } from '../shell/HintBar'
+import { createTranslator, type Translator } from '../../lib/i18n/translate'
+import { UNGROUPED_LABEL } from './groupChannels'
 import type { LiveEntryKey } from './liveSessionMemory'
 
 /**
@@ -29,18 +31,23 @@ export const LIVE_EDGE_SCROLL_PADDING_END = 48 + 2 * 16
  * fica como está). Só apresentação: a identidade (chaves da trilha, memória de foco) continua a do nome declarado
  * pela fonte, via `groupLabel`.
  */
-export function liveGroupDisplay(name: string | undefined): string {
+export function liveGroupDisplay(name: string | undefined, t: Translator = createTranslator('pt')): string {
   const label = groupLabel(name)
+  // "Sem categoria" é o rótulo que o app dá ao que a fonte não agrupou (identidade estável); só a EXIBIÇÃO é traduzida.
+  if (label === UNGROUPED_LABEL) return t('live.ungrouped')
   const stripped = label.replace(/^canais?\s*[|:\u2013\u2014-]\s*/i, '').trim()
   return stripped || label
 }
 
-export const LIVE_HINTS: HintItem[] = [
-  { keyLabel: 'OK', action: 'Entrar / Assistir' },
-  { keyLabel: '← →', action: 'Página' },
-  { keyLabel: 'Segurar OK', action: 'Favoritar' },
-  { keyLabel: 'RETURN', action: 'Voltar' },
-]
+/** Dicas da barra de teclas da Live no idioma do app (feature 054). */
+export function liveHints(t: Translator): HintItem[] {
+  return [
+    { keyLabel: 'OK', action: t('live.hint.enter') },
+    { keyLabel: '← →', action: t('live.hint.page') },
+    { keyLabel: t('live.hint.holdOk'), action: t('live.hint.favorite') },
+    { keyLabel: 'RETURN', action: t('common.back') },
+  ]
+}
 
 /**
  * A trilha de categorias (feature 013) é "★ Favoritos" seguida das

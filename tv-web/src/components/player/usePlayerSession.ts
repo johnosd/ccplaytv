@@ -15,6 +15,9 @@ import { readPlaybackSourceAccess, type PlaybackSourceAccess } from '../../lib/p
 import { nextReconnect, RECONNECT_DELAYS_MS, RECONNECT_STABLE_MS } from '../../lib/player/reconnectPolicy'
 import { verifyNetwork } from '../../lib/network/verifyNetwork'
 import { prefetchGate } from '../../lib/catalog/prefetch'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
+import type { Translator } from '../../lib/i18n/translate'
 import type { ChromeMedia } from '../chromeControls'
 import type { PanelState, Phase, ResumeGate } from './playerLayerTypes'
 import type { PlayerChrome } from './usePlayerChrome'
@@ -71,6 +74,22 @@ export interface PlayerSessionState {
  * ciclo de vida são hooks à parte, chamados pelo `PlayerLayer` logo depois,
  * na mesma ordem de antes (`logic/divisao.md` §1.2).
  */
+/**
+ * Mensagens que o motor/serviço devolve em português (`PlayerService`, `avplayAdapter`) → chave do catálogo,
+ * para a tela de erro sair no idioma do app. Mensagem desconhecida segue como veio (feature 054).
+ */
+const ENGINE_MESSAGE_KEYS: Record<string, MessageKey> = {
+  'Não foi possível iniciar a reprodução.': 'player.msg.startFailed',
+  'A transmissão foi interrompida.': 'player.msg.streamInterrupted',
+  'Player da TV indisponível.': 'player.msg.tvPlayerUnavailable',
+}
+
+function engineMessage(message: string | undefined, t: Translator): string | undefined {
+  if (message === undefined) return undefined
+  const key = ENGINE_MESSAGE_KEYS[message]
+  return key ? t(key) : message
+}
+
 export function usePlayerSession({
   itemId,
   createAdapter,
@@ -87,6 +106,8 @@ export function usePlayerSession({
   reapplyTrackChoice,
   reapplyViewChoice,
 }: PlayerSessionParams): PlayerSessionState {
+  // Idioma do app na hora do erro: o texto do diagnóstico é gravado no estado, não relido (R-013).
+  const t = useT()
   const [phase, setPhase] = useState<Phase>({ kind: 'resolving' })
   const [attempt, setAttempt] = useState(0)
   const [hardwarePlane, setHardwarePlane] = useState(false)
@@ -161,11 +182,14 @@ export function usePlayerSession({
     function applyFetchError(error: unknown) {
       if (cancelled) return
       const unavailable = error instanceof CatalogApiError && error.status === 409
-      const diagnosis = diagnoseFetchFailure({
-        status: error instanceof CatalogApiError ? error.status : null,
-        online: navigator.onLine,
-        at: Date.now(),
-      })
+      const diagnosis = diagnoseFetchFailure(
+        {
+          status: error instanceof CatalogApiError ? error.status : null,
+          online: navigator.onLine,
+          at: Date.now(),
+        },
+        t,
+      )
       setPhase({
         kind: 'error',
         message: unavailable ? unavailableMessage : genericErrorMessage,
@@ -368,14 +392,17 @@ export function usePlayerSession({
             // Reconexão automática (feature 042, D-003/D-004): só um stream que
             // já tocou (ou que já está numa sequência), com rede e permissão do
             // diagnóstico. Reabre pelo MESMO caminho do "Tentar de novo".
-            const diagnosis: PlaybackDiagnosis = diagnosePlayback({
-              error: session.error,
-              online: navigator.onLine,
-              mediaKind: playback.kind,
-              engine: session.engine,
-              at: Date.now(),
-              sourceAccess: sourceAccessRef.current,
-            })
+            const diagnosis: PlaybackDiagnosis = diagnosePlayback(
+              {
+                error: session.error,
+                online: navigator.onLine,
+                mediaKind: playback.kind,
+                engine: session.engine,
+                at: Date.now(),
+                sourceAccess: sourceAccessRef.current,
+              },
+              t,
+            )
             const decision = nextReconnect({
               attempt: attemptsRef.current,
               online: navigator.onLine,
@@ -398,7 +425,8 @@ export function usePlayerSession({
             // ele, o desconhecido usa a mensagem da tela ("este canal"/"este
             // filme") e as causas conhecidas usam o texto da tabela de erros.
             const message =
-              session.error?.message ?? (diagnosis.category === 'unknown' ? genericErrorMessage : diagnosis.message)
+              (session.error ? engineMessage(session.error.message, t) : undefined) ??
+              (diagnosis.category === 'unknown' ? genericErrorMessage : diagnosis.message)
             setPhase({ kind: 'error', message, retryable: true, diagnosis })
             onSessionError?.(message)
             return

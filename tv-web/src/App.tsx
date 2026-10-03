@@ -17,15 +17,15 @@ import {
   type SourceOut,
 } from './features/import/importApi'
 import { LiveScreen } from './features/live/LiveScreen'
-import { MoviesScreen } from './features/movies/MoviesScreen'
+import { VodShowcaseScreen } from './features/vod/VodShowcaseScreen'
 import { MovieDetailScreen } from './features/movies/MovieDetailScreen'
-import { SeriesScreen } from './features/series/SeriesScreen'
 import { SeriesDetailScreen } from './features/series/SeriesDetailScreen'
 import { SettingsScreen } from './features/settings/SettingsScreen'
 import { EpgSettingsScreen } from './features/settings/EpgSettingsScreen'
 import { TmdbKeyScreen } from './features/settings/TmdbKeyScreen'
 import { SearchScreen } from './features/search/SearchScreen'
-import { FAVORITES_SNAPSHOT } from './features/catalog/categoryScreenSnapshot'
+import { VodCategoryScreen } from './features/vod/VodCategoryScreen'
+import { isShowcaseFocus } from './features/vod/vodTarget'
 import { registerFavoriteColorKey, registerRemoveColorKey } from './lib/tizenColorKey'
 import { registerMediaKeys } from './lib/tizenMediaKeys'
 import { onEpgSyncFinished } from './lib/epg/epgRunner'
@@ -45,8 +45,8 @@ import { PersonScreen } from './features/person/PersonScreen'
  */
 function openFavoritesScreen(destination: TopDestination): AppScreen {
   if (destination === 'live') return { name: 'live', openFavorites: true }
-  if (destination === 'movies') return { name: 'movies', openFavorites: true }
-  return { name: 'series', openFavorites: true }
+  if (destination === 'movies') return { name: 'movies-category', target: { kind: 'favorites' } }
+  return { name: 'series-category', target: { kind: 'favorites' } }
 }
 
 function App() {
@@ -246,6 +246,16 @@ function App() {
   }
 
   const goBack = () => dispatch({ type: 'back' })
+
+  /** Topbar de Filmes/Séries (vitrine e categoria; sem rodapé): "Início" vai ao Início mais próximo da pilha (026, D-006). */
+  const vodShell = (src: SourceOut, current: Extract<AppScreen, { name: 'movies' | 'series' | 'movies-category' | 'series-category' }>) => ({
+    sourceName: src.display_name,
+    onGoHome: () => dispatch({ type: 'go-home' }),
+    onSwitchTop: (destination: TopDestination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
+    onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
+    onOpenSettings: () => dispatch({ type: 'open', screen: { name: 'settings' }, from: { ...current, topbarFocus: 'settings' } }),
+    onOpenSearch: () => dispatch({ type: 'open', screen: { name: 'search' }, from: { ...current, topbarFocus: 'search' } }),
+  })
   // Estável de propósito: `SplashScreen` reagenda o timer a cada mudança da
   // identidade do callback, e este componente re-renderiza com as consultas.
   const finishSplash = useCallback(() => dispatch({ type: 'splash-finished' }), [])
@@ -411,39 +421,63 @@ function App() {
       )
 
     case 'movies':
+    case 'series': {
       if (!source) return null
+      const isMovies = screen.name === 'movies'
       return (
-        <MoviesScreen
+        <VodShowcaseScreen
+          // Feature 053: Filmes e Séries são a mesma tela; sem `key` o React reaproveitava foco, janela de prévias e a
+          // lista recolhida de uma seção na outra ao trocar pela topbar.
+          key={isMovies ? 'movies' : 'series'}
+          section={isMovies ? 'movies' : 'series'}
           sourceId={source.id}
-          // "Filmes (N)" do Início (feature 026, FR-014): sem snapshot próprio
-          // ainda, abre direto em ★ Favoritos com uma restauração sintética
-          // (`logic/navegacao.md` §1) — sem precisar de uma prop nova aqui.
-          restore={screen.restore ?? (screen.openFavorites ? FAVORITES_SNAPSHOT : undefined)}
+          restore={isShowcaseFocus(screen.restore) ? screen.restore : undefined}
           initialTopbarItem={screen.topbarFocus}
-          onOpenMovie={(movieId, snapshot) =>
+          shell={vodShell(source, screen)}
+          onOpenItem={(itemId, focus) =>
             dispatch({
               type: 'open',
-              screen: { name: 'movie-detail', movieId },
-              from: { ...screen, restore: snapshot },
+              screen: isMovies ? { name: 'movie-detail', movieId: itemId } : { name: 'series-detail', seriesId: itemId },
+              from: { ...screen, restore: focus },
+            })
+          }
+          onOpenTarget={(target, focus) =>
+            dispatch({
+              type: 'open',
+              screen: isMovies ? { name: 'movies-category', target } : { name: 'series-category', target },
+              from: { ...screen, restore: focus },
             })
           }
           onBack={goBack}
           onResync={() => resyncFromCategoryScreen(source.id)}
-          shell={{
-            sourceName: source.display_name,
-            // "Início" leva ao Início mais próximo da pilha (feature 026,
-            // D-006), nunca `back` — mesmo motivo da Live.
-            onGoHome: () => dispatch({ type: 'go-home' }),
-            onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
-            onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
-            onOpenSettings: () =>
-              dispatch({ type: 'open', screen: { name: 'settings' }, from: { ...screen, topbarFocus: 'settings' } }),
-            onOpenSearch: () =>
-              dispatch({ type: 'open', screen: { name: 'search' }, from: { ...screen, topbarFocus: 'search' } }),
-          }}
         />
       )
+    }
 
+    case 'movies-category':
+    case 'series-category': {
+      if (!source) return null
+      const isMovies = screen.name === 'movies-category'
+      return (
+        <VodCategoryScreen
+          section={isMovies ? 'movies' : 'series'}
+          sourceId={source.id}
+          target={screen.target}
+          restore={screen.restore}
+          initialTopbarItem={screen.topbarFocus}
+          shell={vodShell(source, screen)}
+          onOpenItem={(itemId, restore) =>
+            dispatch({
+              type: 'open',
+              screen: isMovies ? { name: 'movie-detail', movieId: itemId } : { name: 'series-detail', seriesId: itemId },
+              from: { ...screen, restore },
+            })
+          }
+          onBack={goBack}
+          onResync={() => resyncFromCategoryScreen(source.id)}
+        />
+      )
+    }
     case 'movie-detail':
       return (
         <MovieDetailScreen
@@ -456,39 +490,6 @@ function App() {
           onOpenTitle={(target, from) => openDetail(target, { ...screen, restore: from })}
           onOpenPerson={(person, from) => openPerson(person, { ...screen, restore: from })}
           onOpenTmdbSettings={(from) => openTmdbSettings({ ...screen, restore: from })}
-        />
-      )
-
-    case 'series':
-      if (!source) return null
-      return (
-        <SeriesScreen
-          sourceId={source.id}
-          // "Séries (N)" do Início (feature 026, FR-014) — mesma restauração
-          // sintética de "Filmes (N)".
-          restore={screen.restore ?? (screen.openFavorites ? FAVORITES_SNAPSHOT : undefined)}
-          initialTopbarItem={screen.topbarFocus}
-          onOpenSeries={(seriesId, snapshot) =>
-            dispatch({
-              type: 'open',
-              screen: { name: 'series-detail', seriesId },
-              from: { ...screen, restore: snapshot },
-            })
-          }
-          onBack={goBack}
-          onResync={() => resyncFromCategoryScreen(source.id)}
-          shell={{
-            sourceName: source.display_name,
-            // "Início" leva ao Início mais próximo da pilha (feature 026,
-            // D-006), nunca `back` — mesmo motivo da Live.
-            onGoHome: () => dispatch({ type: 'go-home' }),
-            onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
-            onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
-            onOpenSettings: () =>
-              dispatch({ type: 'open', screen: { name: 'settings' }, from: { ...screen, topbarFocus: 'settings' } }),
-            onOpenSearch: () =>
-              dispatch({ type: 'open', screen: { name: 'search' }, from: { ...screen, topbarFocus: 'search' } }),
-          }}
         />
       )
 
@@ -615,3 +616,7 @@ function App() {
 }
 
 export default App
+
+
+
+

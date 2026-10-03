@@ -23,6 +23,8 @@ describe('Configurações — linhas de largura total não escalam no foco', () 
   it('Acessibilidade: a linha real e as "Em breve"', () => {
     const { rerender } = render(<AccessibilityPanel reducedMotion={false} focusedRow={0} onActivateRow={vi.fn()} />)
     expect(focusedHasNoScale()).toBe(true)
+    rerender(<AccessibilityPanel reducedMotion={false} focusedRow={1} onActivateRow={vi.fn()} />)
+    expect(focusedHasNoScale()).toBe(true)
     rerender(<AccessibilityPanel reducedMotion={false} focusedRow={2} onActivateRow={vi.fn()} />)
     expect(focusedHasNoScale()).toBe(true)
   })

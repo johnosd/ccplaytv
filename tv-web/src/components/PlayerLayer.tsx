@@ -3,6 +3,7 @@ import type { PlayerServiceSession, QualityOption } from '../lib/player/PlayerSe
 import { readPlayerPreferences } from '../lib/player/playerPreferences'
 import { useToast } from '../lib/useToast'
 import { Toast } from './Toast'
+import type { MessageKey } from '../lib/i18n/messages/pt'
 import { PlayerChrome } from './PlayerChrome'
 import { PlayerChoicePanel } from './PlayerChoicePanel'
 import { PlayerErrorInfoPanel } from './PlayerErrorInfoPanel'
@@ -11,20 +12,19 @@ import { PlayerTracksPanel } from './PlayerTracksPanel'
 import { SubtitleOverlay } from './SubtitleOverlay'
 import { buildTracksPanel } from './playerPanels'
 import type { PlayerEpisodeStep, PlayerIdentity } from './chromeControls'
+import { useT } from '../lib/i18n/I18nProvider'
 import {
-  DEFAULT_GENERIC_ERROR_MESSAGE,
-  DEFAULT_UNAVAILABLE_MESSAGE,
-  RECONNECTING_LABEL,
-  RESUME_BLOCKED_MESSAGE,
-  STATE_LABEL,
-  VERIFYING_NETWORK_LABEL,
+  DEFAULT_GENERIC_ERROR_KEY,
+  DEFAULT_UNAVAILABLE_KEY,
+  RESUME_BLOCKED_KEY,
+  STATE_LABEL_KEY,
 } from './player/playerMessages'
 import type { PanelState, PlayerLayerProps, PlayerLayerTopLayer } from './player/playerLayerTypes'
 import { usePlayerChrome } from './player/usePlayerChrome'
 import { usePanelRefresh, usePlayerPanels } from './player/usePlayerPanels'
 import { usePlayerSession, useRescheduleOnState, useScreenSaverWhilePlaying, useVideoPlane } from './player/usePlayerSession'
 import { usePlayerKeyboard } from './player/usePlayerKeyboard'
-import { buildErrorActions, ERROR_ACTION_LABEL, type ErrorActionId } from './player/playerErrorActions'
+import { buildErrorActions, ERROR_ACTION_LABEL_KEY, type ErrorActionId } from './player/playerErrorActions'
 
 export type { PlayerIdentity, PlayerEpisodeStep, PlayerLayerProps, PlayerLayerTopLayer }
 
@@ -52,8 +52,8 @@ export function PlayerLayer({
   onClose,
   createAdapter,
   startAtMs,
-  unavailableMessage = DEFAULT_UNAVAILABLE_MESSAGE,
-  genericErrorMessage = DEFAULT_GENERIC_ERROR_MESSAGE,
+  unavailableMessage: unavailableMessageProp,
+  genericErrorMessage: genericErrorMessageProp,
   onCompleted,
   topLayer,
   onIdleSelect,
@@ -69,6 +69,9 @@ export function PlayerLayer({
   onViewChoiceChange,
   onEditSource,
 }: PlayerLayerProps) {
+  const t = useT()
+  const unavailableMessage = unavailableMessageProp ?? t(DEFAULT_UNAVAILABLE_KEY)
+  const genericErrorMessage = genericErrorMessageProp ?? t(DEFAULT_GENERIC_ERROR_KEY)
   const [errorFocus, setErrorFocus] = useState(0)
   const [errorInfoOpen, setErrorInfoOpen] = useState(false)
   const sessionRef = useRef<PlayerServiceSession | null>(null)
@@ -171,13 +174,15 @@ export function PlayerLayer({
 
   const label =
     phase.kind === 'resolving'
-      ? 'Preparando…'
+      ? t('player.state.preparing')
       : phase.kind === 'reconnecting'
-        ? RECONNECTING_LABEL(phase.attempt, phase.max)
+        ? t('player.msg.reconnecting', { attempt: phase.attempt, max: phase.max })
         : phase.kind === 'session'
           ? resumeGate === 'verifying'
-            ? VERIFYING_NETWORK_LABEL
-            : STATE_LABEL[phase.state]
+            ? t('offline.verifying')
+            : STATE_LABEL_KEY[phase.state]
+              ? t(STATE_LABEL_KEY[phase.state] as MessageKey)
+              : ''
           : ''
   const session = sessionRef.current
   const paused = phase.kind === 'session' && phase.state === 'paused'
@@ -187,7 +192,7 @@ export function PlayerLayer({
   // O painel aberto substitui o chrome (feature 029); ao fechar, ele volta com o foco de origem.
   const chromeVisible =
     !topLayer && !isErrorScreen && session !== null && phase.kind === 'session' && chromeLevel !== 'hidden' && panel === null
-  const tracksModel = panel?.kind === 'tracks' ? buildTracksPanel(panels.panelTracksRef.current, panels.choiceRef.current) : null
+  const tracksModel = panel?.kind === 'tracks' ? buildTracksPanel(panels.panelTracksRef.current, panels.choiceRef.current, t) : null
 
   return (
     <div
@@ -195,8 +200,10 @@ export function PlayerLayer({
       role="dialog"
       aria-label={
         isErrorScreen
-          ? `Erro de reprodução${errorDiagnosis ? `, código ${errorDiagnosis.code}` : ''}`
-          : `Reproduzindo ${title}`
+          ? errorDiagnosis
+            ? t('player.errorDialogCode', { code: errorDiagnosis.code })
+            : t('player.errorDialog')
+          : t('player.playingDialog', { title })
       }
     >
       {/* O adaptador de desenvolvimento monta o <video> aqui. O AVPlay não usa
@@ -221,7 +228,7 @@ export function PlayerLayer({
                 className={`player-action${errorFocus === index && !errorInfoOpen ? ' tv-focus' : ''}`}
                 onClick={() => handleErrorAction(action)}
               >
-                {ERROR_ACTION_LABEL[action]}
+                {t(ERROR_ACTION_LABEL_KEY[action])}
               </button>
             ))}
           </div>
@@ -239,10 +246,10 @@ export function PlayerLayer({
               posição; OK (ou clique) repete a verificação. Foco por estado. */}
           {resumeGate === 'blocked' && (
             <div className="player-gate" role="status">
-              <div className="player-message-copy">{RESUME_BLOCKED_MESSAGE}</div>
+              <div className="player-message-copy">{t(RESUME_BLOCKED_KEY)}</div>
               <div className="player-actions">
                 <button type="button" className="player-action tv-focus" onClick={recheckResume}>
-                  Tentar de novo
+                  {t('common.retry')}
                 </button>
               </div>
             </div>

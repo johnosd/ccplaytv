@@ -98,7 +98,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/favoritos.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
@@ -163,14 +163,13 @@ async function run() {
     assert((await focusedText(page, '.topbar')).join('|') === 'Filmes', 'RIGHT×2 chega em "Filmes" (um único item em foco)')
     await page.keyboard.press('Enter')
     await page.waitForSelector('.side-category-nav-item', { timeout: 8000 })
-    // Feature 025 (Onda 4) estende a topbar/shell persistente da Live TV
-    // (024) a Filmes/Séries — Filmes deixou de abrir em tela cheia sem
-    // topbar (FR-020 original da 023): mudança de conteúdo esperada pela
-    // própria migração, não regressão (mesmo padrão de R-003 da 025).
+    // Feature 052 (D-008 da vitrine): Filmes/Séries não têm mais topbar nem rodapé — a tela é só vitrine (lista
+    // lateral + hero + fileiras) com a barra Pesquisar/Ordenar; RETURN volta ao Início.
     assert(
       (await page.locator('.topbar-item[aria-current="page"]').textContent()) === 'Filmes',
-      'Filmes agora abre sob a topbar persistente, com "Filmes" marcado como atual (feature 025)',
+      'Filmes abre sob a topbar persistente, com "Filmes" marcado como atual (feature 025; sem rodapé de dicas desde a 052)',
     )
+    assert((await page.locator('.vod-showcase-toolbar, .vod-showcase .vod-toolbar-search-button').count()) === 0, 'a tela de hero/fileiras de Filmes não tem Pesquisar/Ordenar (ficam nas grades)')
     await page.keyboard.press('Escape')
     await page.waitForSelector('.home-content', { timeout: 8000 })
     assert((await focusedText(page, '.topbar')).join('|') === 'Filmes', 'RETURN em Filmes volta ao Início com o foco em "Filmes" na topbar (FR-029)')
@@ -309,7 +308,7 @@ async function run() {
     console.log('=== Feature 037, SC-002: primeiro uso, lista Xtream só pelo teclado em ≤ 3 OK ===')
     // Contexto novo = IndexedDB vazio. Só os `Enter` de navegação contam; setas
     // e digitação nos campos são o "preenchimento", que o SC-002 não conta.
-    const fresh = await browser.newContext()
+    const fresh = await browser.newContext({ locale: 'pt-BR' })
     const freshPage = await fresh.newPage()
     let okPresses = 0
     const ok = async () => {

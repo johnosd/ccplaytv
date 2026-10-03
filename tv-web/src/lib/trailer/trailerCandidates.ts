@@ -1,4 +1,6 @@
 import type { TrailerVideoRef } from '../catalog/db'
+import { createTranslator, type Translator } from '../i18n/translate'
+import { languageDisplayName } from '../player/tracks'
 
 /**
  * Candidatos a trailer de um título (feature 033,
@@ -54,34 +56,40 @@ export function trailerRefsFromTmdbVideos(raw: unknown): TrailerVideoRef[] {
  * reenvios de canais agregadores, cheios de anúncio; o oficial da distribuidora é o
  * que mais se parece com "o trailer" do título.
  */
-function tmdbRank(ref: TrailerVideoRef): [number, number, number] {
-  return [ref.kind === 'trailer' ? 0 : 1, ref.official === true ? 0 : 1, ref.language === 'pt' ? 0 : 1]
+function tmdbRank(ref: TrailerVideoRef, preferred: string): [number, number, number] {
+  // Idioma preferido da pessoa > inglês (fallback mais provável de existir) > o resto.
+  const languageRank = ref.language === preferred ? 0 : ref.language === 'en' ? 1 : 2
+  return [ref.kind === 'trailer' ? 0 : 1, ref.official === true ? 0 : 1, languageRank]
 }
 
-function compareTmdb(a: TrailerVideoRef, b: TrailerVideoRef): number {
-  const ra = tmdbRank(a)
-  const rb = tmdbRank(b)
-  for (let i = 0; i < ra.length; i += 1) {
-    if (ra[i] !== rb[i]) return ra[i] - rb[i]
+function compareTmdb(preferred: string): (a: TrailerVideoRef, b: TrailerVideoRef) => number {
+  return (a, b) => {
+    const ra = tmdbRank(a, preferred)
+    const rb = tmdbRank(b, preferred)
+    for (let i = 0; i < ra.length; i += 1) {
+      if (ra[i] !== rb[i]) return ra[i] - rb[i]
+    }
+    return 0
   }
-  return 0
 }
 
 /**
  * Lista final, na ordem de preferência: o do provedor primeiro (se válido),
- * depois os do TMDB ordenados (trailer > teaser; português > outro idioma;
- * oficial > não oficial/desconhecido; empate mantém a ordem da fonte), sem
- * repetir `videoId`, no máximo `MAX_TRAILER_CANDIDATES`.
+ * depois os do TMDB ordenados (trailer > teaser; oficial > não oficial/desconhecido;
+ * idioma preferido > inglês > outro idioma; empate mantém a ordem da fonte), sem
+ * repetir `videoId`, no máximo `MAX_TRAILER_CANDIDATES`. Sem vídeo no idioma
+ * preferido, o fallback é automático: sempre sobra o melhor que existir.
  */
 export function buildTrailerCandidates(
   provider: readonly TrailerVideoRef[] | undefined,
   tmdb: readonly TrailerVideoRef[] | undefined,
+  preferredLanguage = 'pt',
 ): TrailerCandidate[] {
   const ordered: TrailerCandidate[] = [
     ...(provider ?? []).filter((ref) => isYoutubeVideoId(ref.videoId)).map((ref) => ({ ...ref, origin: 'provider' as const })),
     ...(tmdb ?? [])
       .filter((ref) => isYoutubeVideoId(ref.videoId))
-      .sort(compareTmdb)
+      .sort(compareTmdb(preferredLanguage))
       .map((ref) => ({ ...ref, origin: 'tmdb' as const })),
   ]
 
@@ -95,24 +103,15 @@ export function buildTrailerCandidates(
   return unique.slice(0, MAX_TRAILER_CANDIDATES)
 }
 
-function languageName(code: string): string {
-  try {
-    const name = new Intl.DisplayNames(['pt-BR'], { type: 'language' }).of(code)
-    if (name && name !== code) return name.charAt(0).toLocaleUpperCase('pt-BR') + name.slice(1)
-  } catch {
-    // código de idioma malformado: cai no fallback
-  }
-  return code.toLocaleUpperCase('pt-BR')
-}
-
 /**
  * Rótulo do botão disponível (FR-007): "▶ Trailer" para trailer em português
  * ou de idioma desconhecido; senão tipo e idioma ("▶ Trailer · Inglês",
  * "▶ Teaser", "▶ Teaser · Inglês"). Teaser nunca vira "Trailer".
  */
-export function trailerButtonLabel(candidate: TrailerCandidate): string {
-  const base = candidate.kind === 'teaser' ? '▶ Teaser' : '▶ Trailer'
+export function trailerButtonLabel(candidate: TrailerCandidate, t: Translator = createTranslator('pt')): string {
+  const base = candidate.kind === 'teaser' ? t('trailer.buttonTeaser') : t('trailer.button')
   const { language } = candidate
-  if (!language || language === 'pt') return base
-  return `${base} · ${languageName(language)}`
+  // Idioma só aparece quando NÃO é o do app (feature 054): é o aviso de que houve fallback.
+  if (!language || language === t.language) return base
+  return t('trailer.buttonIn', { base, language: languageDisplayName(language, t.language, { loose: true }) })
 }

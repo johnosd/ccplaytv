@@ -114,7 +114,7 @@ async function run() {
   const browser = await chromium.launch(
     existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true },
   )
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   await page.route('**/stream/**', () => {})
   const pageErrors = []

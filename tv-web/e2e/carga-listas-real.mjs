@@ -101,7 +101,7 @@ async function run() {
   const browser = await launchBrowser()
   try {
     for (let rep = 1; rep <= REPETITIONS; rep += 1) {
-      const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+      const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
       await context.addInitScript(() => localStorage.setItem('ccplaytv:perf', '1'))
       const page = await context.newPage()
       page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error'))

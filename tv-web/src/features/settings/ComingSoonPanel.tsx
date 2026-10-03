@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react'
 import { EmptyState } from '../../components/EmptyState'
-import { getComingSoon } from '../../lib/comingSoon'
+import { comingSoonToast } from '../../lib/comingSoon'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
 
 const TAB_INFO = {
-  parental: { label: 'Perfis & parental', id: 'settings-parental' },
-} as const
+  parental: { labelKey: 'settings.tab.parental', id: 'settings-parental' },
+} as const satisfies Record<string, { labelKey: MessageKey; id: string }>
 
 export interface ComingSoonPanelProps {
   tab: keyof typeof TAB_INFO
@@ -19,14 +21,14 @@ export interface ComingSoonPanelProps {
  * (chave mascarada, "CONECTADO", PIN…).
  */
 export function ComingSoonPanel({ tab, focused, onBack }: ComingSoonPanelProps): ReactNode {
+  const t = useT()
   const info = TAB_INFO[tab]
-  const { message } = getComingSoon(info.id)
 
   return (
     <EmptyState
-      title={info.label}
-      description={`Em breve — ${message}`}
-      action={{ label: 'Voltar às abas', onSelect: onBack }}
+      title={t(info.labelKey)}
+      description={comingSoonToast(info.id, t)}
+      action={{ label: t('common.backToTabs'), onSelect: onBack }}
       focused={focused}
     />
   )

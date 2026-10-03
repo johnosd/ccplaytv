@@ -7,6 +7,8 @@
  * (ADR-010), então a interface só recebe o estado (`EpgStatus`) e, no máximo,
  * o hostname do endereço manual (`epgManualHost`).
  */
+import type { MessageKey } from '../i18n/messages/pt'
+import { createTranslator, type Translator } from '../i18n/translate'
 import type { EpgErrorKind, SourceRecord } from '../catalog/db'
 import { parsePanelUrl } from '../catalog/m3uPanelUrl'
 import type { EpgStatus, EpgUrlOrigin } from './types'
@@ -133,17 +135,6 @@ export function isEpgStale(record: SourceRecord, now: number): boolean {
 }
 
 /** Mensagem §45 de uma falha: o que aconteceu e por quê, sem detalhe cru da rede (D-011). */
-export function epgErrorMessage(kind: EpgErrorKind): string {
-  switch (kind) {
-    case 'network':
-      return 'Não foi possível baixar a programação. Verifique a conexão ou o endereço.'
-    case 'refused':
-      return 'O servidor recusou o acesso à programação.'
-    case 'not_xmltv':
-      return 'O endereço não devolveu uma programação no formato XMLTV.'
-    case 'unreadable':
-      return 'O arquivo de programação veio incompleto ou ilegível.'
-    case 'storage_full':
-      return 'Sem espaço no aparelho para guardar a programação.'
-  }
+export function epgErrorMessage(kind: EpgErrorKind, t: Translator = createTranslator('pt')): string {
+  return t(`src.epgError.${kind}` as MessageKey)
 }

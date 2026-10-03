@@ -1,6 +1,7 @@
 import { useOnlineStatus } from '../lib/onlineStatus'
 import type { StreamInfo } from '../lib/player/tracks'
-import { buildInfoRows, NO_TECHNICAL_DATA_MESSAGE } from './playerPanels'
+import { buildInfoRows } from './playerPanels'
+import { useT } from '../lib/i18n/I18nProvider'
 
 export interface PlayerInfoPanelProps {
   /** Última leitura do motor; `null` quando ele não conseguiu informar. */
@@ -18,14 +19,15 @@ export interface PlayerInfoPanelProps {
  * `online`/`offline` mesmo entre duas leituras.
  */
 export function PlayerInfoPanel({ info, activeAudioLabel }: PlayerInfoPanelProps) {
+  const t = useT()
   const online = useOnlineStatus()
-  const { rows, noTechnicalData } = buildInfoRows(info, activeAudioLabel, online)
+  const { rows, noTechnicalData } = buildInfoRows(info, activeAudioLabel, online, t)
 
   return (
     <div className="modal-overlay">
-      <div className="modal-panel player-panel no-scrollbar" role="dialog" aria-modal="true" aria-label="Info do stream">
-        <h2 className="modal-title">Info do stream</h2>
-        {noTechnicalData && <p className="player-panel-note">{NO_TECHNICAL_DATA_MESSAGE}</p>}
+      <div className="modal-panel player-panel no-scrollbar" role="dialog" aria-modal="true" aria-label={t('player.info.title')}>
+        <h2 className="modal-title">{t('player.info.title')}</h2>
+        {noTechnicalData && <p className="player-panel-note">{t('player.info.noTechnical')}</p>}
         <dl className="player-info-list">
           {rows.map((row) => (
             <div key={row.key} className="player-info-row">
@@ -36,7 +38,7 @@ export function PlayerInfoPanel({ info, activeAudioLabel }: PlayerInfoPanelProps
         </dl>
         <div className="modal-actions">
           <button type="button" className="player-action tv-focus">
-            Fechar
+            {t('player.close')}
           </button>
         </div>
       </div>

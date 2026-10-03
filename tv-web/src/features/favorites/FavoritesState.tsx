@@ -6,12 +6,15 @@
  * podem coexistir: alguns favoritos carregados, outros não.
  */
 
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
+import { pt } from '../../lib/i18n/messages/pt'
 import type { FavoritableKind } from '../catalog/catalogApi'
 
-const LABEL_BY_KIND: Record<FavoritableKind, string> = {
-  channel: 'um canal',
-  movie: 'um filme',
-  series: 'uma série',
+const LABEL_KEY_BY_KIND: Record<FavoritableKind, MessageKey> = {
+  channel: 'fav.kind.channel',
+  movie: 'fav.kind.movie',
+  series: 'fav.kind.series',
 }
 
 /**
@@ -22,11 +25,12 @@ const LABEL_BY_KIND: Record<FavoritableKind, string> = {
  * amarela existe desde 24/09/2026 porque, testando na TV física com um
  * controle substituto, segurar OK não se comportou como no navegador.
  */
-export const FAVORITE_HINT_TEXT = 'Segure OK ou aperte a tecla amarela para favoritar'
+export const FAVORITE_HINT_TEXT = pt['fav.hint']
 
 /** Dica fixa, sempre visível enquanto a tela tem itens favoritáveis (FR-012). */
 export function FavoriteHint() {
-  return <div className="fav-hint">{FAVORITE_HINT_TEXT}</div>
+  const t = useT()
+  return <div className="fav-hint">{t('fav.hint')}</div>
 }
 
 export interface FavoritesEmptyStateProps {
@@ -44,18 +48,17 @@ export interface FavoritesEmptyStateProps {
 
 /** "Favoritos" sem nenhum item carregado — nunca um beco sem saída. */
 export function FavoritesEmptyState({ kind, focused, onBack }: FavoritesEmptyStateProps) {
+  const t = useT()
   return (
     <div className="live-state">
-      <div className="live-state-title">Nenhum favorito ainda</div>
-      <div className="live-state-copy">
-        Segure OK ou aperte a tecla amarela sobre {LABEL_BY_KIND[kind]} para favoritar.
-      </div>
+      <div className="live-state-title">{t('fav.emptyTitle')}</div>
+      <div className="live-state-copy">{t('fav.emptyCopy', { kind: t(LABEL_KEY_BY_KIND[kind]) })}</div>
       <button
         type="button"
         className={`live-state-action${focused ? ' tv-focus' : ''}`}
         onClick={onBack}
       >
-        Voltar
+        {t('common.back')}
       </button>
     </div>
   )
@@ -72,10 +75,7 @@ export interface FavoritesUnresolvedNoteProps {
  * (princípio "Progresso e Capacidades São Reais").
  */
 export function FavoritesUnresolvedNote({ unresolved }: FavoritesUnresolvedNoteProps) {
+  const t = useT()
   if (unresolved <= 0) return null
-  return (
-    <div className="live-truncated-note">
-      Há favoritos que ainda não apareceram aqui — eles voltam a aparecer quando você abrir a categoria onde estão.
-    </div>
-  )
+  return <div className="live-truncated-note">{t('fav.unresolved')}</div>
 }

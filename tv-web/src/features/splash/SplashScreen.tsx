@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Spinner } from '../../components/Spinner'
+import { useT } from '../../lib/i18n/I18nProvider'
 
 const SPLASH_DURATION_MS = 2600
 
@@ -15,6 +16,7 @@ export interface SplashScreenProps {
  * movimento (feature 021) já colapsa em estado final.
  */
 export function SplashScreen({ onFinished }: SplashScreenProps) {
+  const t = useT()
   useEffect(() => {
     const timer = setTimeout(onFinished, SPLASH_DURATION_MS)
     return () => clearTimeout(timer)
@@ -26,7 +28,7 @@ export function SplashScreen({ onFinished }: SplashScreenProps) {
         <div className="splash-mark-triangle" />
       </div>
       <div className="splash-wordmark">CCPlayTv</div>
-      <p className="splash-tagline">carregando suas listas…</p>
+      <p className="splash-tagline">{t('home.splash.loading')}</p>
       <div className="splash-loader">
         <Spinner size={32} />
       </div>

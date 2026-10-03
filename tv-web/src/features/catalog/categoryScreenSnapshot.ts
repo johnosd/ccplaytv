@@ -1,4 +1,4 @@
-/**
+﻿/**
  * O que uma tela de categoria (Filmes/Séries) precisa para voltar do
  * detalhe exatamente onde estava (feature 017, FR-019; fecha o bug de
  * backlog "Voltar do detalhe pra grade não restaura foco nem posição").
@@ -34,22 +34,6 @@ export type SnapshotEntered =
   | { kind: 'all' }
   | { kind: 'category'; id: number }
 
-/**
- * Restauração sintética que abre `★ Favoritos` direto, sem precisar de uma
- * prop nova em `VodCatalogScreen`/`LiveScreen` (feature 026, `logic/
- * navegacao.md` §1 — "Ver todos (N)"/"Filmes (N)"/"Séries (N)" do Início,
- * FR-014). `focusedItemId: null` cai no primeiro item resolvido, como
- * qualquer entrada nova na trilha.
- */
-export const FAVORITES_SNAPSHOT: CategoryScreenSnapshot = {
-  trailKey: { kind: 'favorites' },
-  entered: { kind: 'favorites' },
-  col: 1,
-  focusedItemId: null,
-  searchTerm: '',
-  searchActive: false,
-}
-
 export interface CategoryScreenSnapshot {
   trailKey: SnapshotTrailKey | null
   entered: SnapshotEntered | null
@@ -68,3 +52,4 @@ export interface CategoryScreenSnapshot {
    */
   focusedIndexHint?: number
 }
+

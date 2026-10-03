@@ -53,6 +53,7 @@ import {
 import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
 import { isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
+import { recentlyAdded } from '../vod/vodShowcase'
 import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
 import {
   clearHistory,
@@ -66,6 +67,7 @@ import { loadHomeHero, type HeroPrimary } from '../../lib/catalog/homeHero'
 import { loadGlobalSearchIndex, searchGlobal } from '../../lib/catalog/globalSearch'
 import { listProgramsForChannels } from '../../lib/epg/epgRepository'
 import type { EpgLookup } from '../../lib/epg/types'
+import { useLanguage } from '../../lib/i18n/I18nProvider'
 import { ensureTitleMetadata } from '../../lib/metadata/titleMetadata'
 import { getTmdbStatus, removeTmdbKey, saveTmdbKey, testTmdbKey } from '../../lib/metadata/tmdbKeyRepository'
 import type { KindCoverage, ResolvedTitle, SimilarTabView } from '../../lib/metadata/types'
@@ -446,10 +448,16 @@ export function prefetchCategoryContent(
   category: CatalogCategory,
   signal?: AbortSignal,
 ): Promise<void> {
-  return queryClient.prefetchQuery({
-    queryKey: categoryContentKey(sourceId, category.id),
-    queryFn: () => loadCategoryContent(sourceId, category, signal),
-  })
+  return queryClient
+    .prefetchQuery({
+      queryKey: categoryContentKey(sourceId, category.id),
+      queryFn: () => loadCategoryContent(sourceId, category, signal),
+    })
+    .then(() => {
+      // Feature 053: a prévia do carrossel dessa categoria (tela hero) lê o mesmo disco — relê agora que há conteúdo.
+      void queryClient.invalidateQueries({ queryKey: categoryPreviewKey(sourceId, category.id) })
+      void queryClient.invalidateQueries({ queryKey: ['category-preview', sourceId, 'window'] })
+    })
 }
 
 /**
@@ -664,10 +672,12 @@ export async function resolveCatalogItemId(itemId: string): Promise<string | nul
  */
 export function useTitleMetadata(itemId: string | null) {
   const queryClient = useQueryClient()
+  // O idioma do app entra na chave (feature 054): o que foi lido em outro idioma não é mostrado como se valesse no atual.
+  const language = useLanguage()
   return useQuery({
-    queryKey: ['title-metadata', itemId],
+    queryKey: ['title-metadata', itemId, language],
     queryFn: async () => {
-      const view = await ensureTitleMetadata(Number(itemId))
+      const view = await ensureTitleMetadata(Number(itemId), { language })
       // A consulta pode ter mudado o estado do TMDB (chave recusada, sem
       // conexão, limite de uso — FR-024): Integrações e o dock releem, sem
       // aviso no detalhe.
@@ -717,9 +727,10 @@ export function useSimilarTitles(itemId: string | null, enabled: boolean): Simil
  * "Tentar de novo" só refaz esta consulta.
  */
 export function usePersonCredits(personId: number | null) {
+  const language = useLanguage()
   return useQuery({
-    queryKey: ['person-credits', personId],
-    queryFn: () => loadPersonCredits(personId as number),
+    queryKey: ['person-credits', personId, language],
+    queryFn: () => loadPersonCredits(personId as number, { language }),
     enabled: personId !== null,
     retry: false,
   })
@@ -1396,6 +1407,129 @@ export function useAggregatedItems(
   }
 }
 
+/**
+ * "Adicionados recentemente" da vitrine (feature 052, FR-003): até 12 itens do tipo, do mais novo ao mais antigo, só
+ * do que o app já obteve (mesma leitura local de `useAggregatedItems`/"Todos"); nenhuma consulta ao provedor.
+ * STUB do sdd-plan — o executor implementa sobre `loadSearchIndex` + `recentlyAdded` (`features/vod/vodShowcase.ts`).
+ */
+export function useRecentlyAdded(
+  sourceId: string | null,
+  kind: FavoritableKind,
+): { data: CatalogItemOut[] | undefined; isLoading: boolean } {
+  // Mesma chave e leitura de `useAggregatedItems`/"Todos": o índice local de busca é compartilhado no cache; aqui só se
+  // seleciona os 12 mais novos (`select`), sem rede e sem ordenar o catálogo inteiro.
+  const query = useQuery({
+    queryKey: ['catalog-search-index', sourceId, kind],
+    queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
+    enabled: sourceId !== null && kind !== 'channel',
+    staleTime: 0,
+    refetchOnMount: 'always',
+    select: (index) => recentlyAdded(index.entries.map((entry) => toItemOut(entry.record, kind))),
+  })
+  return { data: query.data, isLoading: query.isLoading }
+}
+
+/** Prévia de uma categoria para o carrossel da tela hero (feature 053): `pending` = ainda não obtida no aparelho. */
+export interface CategoryPreview {
+  status: 'pending' | 'ready' | 'empty'
+  /** Até `PREVIEW_LIMIT` itens, na ordem da fonte. Vazio fora de `ready`. */
+  items: CatalogItemOut[]
+}
+
+/**
+ * Prévia, SÓ DO APARELHO, das categorias informadas (as que estão na janela da tela hero): lê o bloco da categoria
+ * (`getActiveCategoryBlock`, ou as linhas antigas) e devolve os primeiros itens; nunca chama `ensureCategory` nem rede.
+ * Chave `['category-preview', sourceId, categoryId]`, invalidada pela pré-carga (038) quando a categoria chega.
+ */
+export function useCategoryPreviews(
+  sourceId: string | null,
+  categories: readonly CatalogCategory[],
+): ReadonlyMap<number, CategoryPreview> {
+  // Um único `useQuery` para a janela inteira (a tela renderiza a cada tecla e a janela desliza: `useQueries` com um
+  // conjunto de observadores que muda a cada tecla chegou a estourar "Maximum update depth" numa descida longa). O cache
+  // por categoria fica dentro (`fetchQuery`, chave `['category-preview', sourceId, id]`), então deslizar a janela não
+  // relê o disco de quem já foi lido há pouco; a pré-carga invalida as duas camadas (`createPrefetchInvalidator`).
+  const queryClient = useQueryClient()
+  const idsKey = categories.map((category) => category.id).join(',')
+  const query = useQuery({
+    queryKey: categoryPreviewWindowKey(sourceId, idsKey),
+    queryFn: async (): Promise<Map<number, CategoryPreview>> => {
+      const loaded = await Promise.all(
+        categories.map(async (category) => {
+          const preview = await queryClient.fetchQuery({
+            queryKey: categoryPreviewKey(sourceId, category.id),
+            queryFn: () => loadCategoryPreview(sourceId as string, category),
+            staleTime: PREVIEW_STALE_MS,
+          })
+          return [category.id, preview] as const
+        }),
+      )
+      return new Map(loaded)
+    },
+    enabled: sourceId !== null && categories.length > 0,
+    placeholderData: keepPreviousData,
+  })
+  return query.data ?? EMPTY_PREVIEWS
+}
+
+const EMPTY_PREVIEWS: ReadonlyMap<number, CategoryPreview> = new Map()
+/** Dentro desta janela a prévia de uma categoria já lida não é relida ao deslizar. */
+const PREVIEW_STALE_MS = 10_000
+
+export function categoryPreviewWindowKey(sourceId: string | null, idsKey: string) {
+  return ['category-preview', sourceId, 'window', idsKey] as const
+}
+/**
+ * Imagem horizontal (backdrop) já guardada no cache de metadata, por id de item (feature 053, D-006): leitura SÓ local
+ * (`titleMetadata`), sem consulta nova — o `wide` da tela hero só usa o que a pessoa já abriu antes num detalhe.
+ */
+export function useCachedBackdrops(items: readonly CatalogItemOut[]): ReadonlyMap<string, string> {
+  const pairs: { itemId: string; stableId: string }[] = []
+  for (const item of items) {
+    const stableId = stableIdOf(item)
+    if (stableId) pairs.push({ itemId: item.id, stableId })
+  }
+  const key = pairs.map((pair) => pair.stableId).join('|')
+  const query = useQuery({
+    queryKey: ['cached-backdrops', key],
+    queryFn: async (): Promise<Map<string, string>> => {
+      const records = await db.titleMetadata.bulkGet(pairs.map((pair) => pair.stableId))
+      const found = new Map<string, string>()
+      records.forEach((record, index) => {
+        const url = record?.provider?.backdropUrl ?? (record?.tmdb?.status === 'matched' ? record.tmdb.fields.backdropUrl : undefined)
+        if (url) found.set(pairs[index].itemId, url)
+      })
+      return found
+    },
+    enabled: pairs.length > 0,
+  })
+  return query.data ?? EMPTY_BACKDROPS
+}
+
+const EMPTY_BACKDROPS: ReadonlyMap<string, string> = new Map()
+
+/** Itens por carrossel de categoria na tela hero (feature 053). */
+export const PREVIEW_LIMIT = 12
+
+export function categoryPreviewKey(sourceId: string | null, categoryId: number) {
+  return ['category-preview', sourceId, categoryId] as const
+}
+
+/**
+ * Lê só do aparelho (nunca `ensureCategory`/rede): bloco da categoria (feature 039) ou, no formato antigo, as primeiras
+ * linhas. Sem nada gravado = ainda não obtida (`pending`); a pré-carga 038 é quem a traz.
+ */
+async function loadCategoryPreview(sourceId: string, category: CatalogCategory): Promise<CategoryPreview> {
+  const block = await getActiveCategoryBlock(sourceId, category.id)
+  if (block) {
+    const items = block.items.slice(0, PREVIEW_LIMIT).map((item, index) => blockItemOut(block, item, index, category.kind))
+    return { status: items.length > 0 ? 'ready' : 'empty', items }
+  }
+  const records = await listChannels(sourceId, category.order, 0, PREVIEW_LIMIT, category.kind)
+  if (records.length === 0) return { status: 'pending', items: [] }
+  return { status: 'ready', items: records.map((record) => toItemOut(record, category.kind)) }
+}
+
 export interface FavoritesContent {
   items: CatalogItemOut[]
   /**
@@ -1560,3 +1694,5 @@ export function useHistorySummary(sourceId: string | null, enabled: boolean) {
     enabled: enabled && sourceId !== null,
   })
 }
+
+

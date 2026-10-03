@@ -2,6 +2,7 @@ import { useImperativeHandle, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useDeleteSource, useResyncSource, useSources, type SourceOut } from '../../import/importApi'
 import { useOnlineStatus } from '../../../lib/onlineStatus'
+import { useT } from '../../../lib/i18n/I18nProvider'
 import { clamp } from '../../../lib/useRemoteNav'
 import { DeleteSourceModal } from '../../sources/DeleteSourceModal'
 import { ADD_SOURCE_ID, SourcesPanel, SOURCES_ACTION_COUNT } from '../SourcesPanel'
@@ -24,6 +25,7 @@ export function SourcesTab({
   showToast,
   handleRef,
 }: SettingsTabProps): ReactNode {
+  const t = useT()
   const online = useOnlineStatus()
   const sourcesQuery = useSources()
   const sources = sourcesQuery.data?.sources ?? []
@@ -53,7 +55,7 @@ export function SourcesTab({
         setRowId(nextId)
         navigation.onSourceDeleted(id)
       },
-      onError: () => showToast('Não foi possível excluir a lista.'),
+      onError: () => showToast(t('settings.sources.deleteFailed')),
     })
   }
 
@@ -76,13 +78,13 @@ export function SourcesTab({
       if (resyncSource.isPending) return
       // Feature 042 (FR-004): ressincronizar precisa de internet — explica, não tenta.
       if (!online) {
-        showToast('Sem conexão. Ressincronizar precisa de internet.')
+        showToast(t('settings.sources.offlineResync'))
         return
       }
-      showToast('Ressincronizando lista…')
+      showToast(t('settings.sources.resyncing'))
       resyncSource.mutate(source.id, {
         onSuccess: (result) => navigation.onResyncStarted(result.import_job_id, from),
-        onError: () => showToast('Não foi possível ressincronizar a lista.'),
+        onError: () => showToast(t('settings.sources.resyncFailed')),
       })
       return
     }

@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { PlayerLayer } from '../../components/PlayerLayer'
 import { useToast } from '../../lib/useToast'
 import { useOnlineStatus } from '../../lib/onlineStatus'
+import { useT } from '../../lib/i18n/I18nProvider'
 import { Toast } from '../../components/Toast'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
@@ -96,6 +97,7 @@ export function LiveScreen({
   openFavorites,
   initialTopbarItem,
 }: LiveScreenProps) {
+  const t = useT()
   // Feature 042 (FR-004): ressincronizar precisa de internet. Offline a ação é soft
   // disabled na tela e o OK do teclado (que chama a mesma função) também não a dispara.
   const online = useOnlineStatus()
@@ -186,7 +188,7 @@ export function LiveScreen({
     liveGuide,
   })
 
-  const shellModel = { shell, zone, setZone, topbarItem, setTopbarItem, onBack }
+  const shellModel = { shell, zone, setZone, topbarItem, setTopbarItem, onBack, t }
   const { categoriesQuery, categories, topPhase, focusedCategory, isFavoritesFocused, isAllFocused, enteredFavorites, enteredAll } = trail
   const { playing, zapOpen } = zap
 
@@ -196,7 +198,7 @@ export function LiveScreen({
       <div className="screen live-screen">
         <div className="live-state-wrapper">
           <Spinner size={48} />
-          <EmptyState title="Carregando canais…" action={{ label: 'Voltar', onSelect: onBack }} focused />
+          <EmptyState title={t('live.loading')} action={{ label: t('common.back'), onSelect: onBack }} focused />
         </div>
         <Toast message={toastMessage} messageKey={toastKey} />
       </div>,
@@ -208,11 +210,11 @@ export function LiveScreen({
       shellModel,
       <div className="screen live-screen">
         <ErrorState
-          title="Não foi possível carregar os canais"
-          description="Verifique a conexão com o servidor e tente novamente."
+          title={t('live.topError.title')}
+          description={t('live.topError.description')}
           actions={[
-            { label: 'Tentar de novo', onSelect: () => void categoriesQuery.refetch() },
-            { label: 'Voltar', onSelect: onBack },
+            { label: t('guide.retry'), onSelect: () => void categoriesQuery.refetch() },
+            { label: t('common.back'), onSelect: onBack },
           ]}
           focusedActionIndex={topErrorActionIndex}
         />
@@ -226,9 +228,9 @@ export function LiveScreen({
       shellModel,
       <div className="screen live-screen">
         <EmptyState
-          title="Nenhum canal nesta lista"
-          description="A importação pode não ter encontrado canais nesta fonte, ou ainda estar em andamento."
-          action={{ label: 'Voltar', onSelect: onBack }}
+          title={t('live.topEmpty.title')}
+          description={t('live.topEmpty.description')}
+          action={{ label: t('common.back'), onSelect: onBack }}
           focused
         />
         <Toast message={toastMessage} messageKey={toastKey} />
@@ -252,6 +254,7 @@ export function LiveScreen({
     trailEdges,
     channelEdges,
     playingId: zap.playing?.id,
+    t,
   }
 
   // Contagem conhecida da entrada exibida no cabeçalho (FR-006) — a mesma
@@ -262,10 +265,10 @@ export function LiveScreen({
       ? knownCategoryCount(focusedCategory)
       : undefined
   const headerLabel = isAllFocused || enteredAll
-    ? 'Todos'
+    ? t('live.all')
     : isFavoritesFocused || enteredFavorites
-      ? '★ Favoritos'
-      : liveGroupDisplay(focusedCategory?.name)
+      ? t('live.favoritesStar')
+      : liveGroupDisplay(focusedCategory?.name, t)
 
   return (
     <>
@@ -283,12 +286,12 @@ export function LiveScreen({
           <div className="screen live-screen">
             <div className="live-header">
               <div className="live-header-titles">
-                <h1 className="screen-title">TV ao vivo</h1>
-                <p className="live-header-sub">Canais, programação e guia em um só lugar</p>
+                <h1 className="screen-title">{t('live.title')}</h1>
+                <p className="live-header-sub">{t('live.subtitle')}</p>
               </div>
               <div className="live-header-chips">
                 <Chip selected>{headerLabel}</Chip>
-                {headerCount !== undefined && <Chip selected={false}>{headerCount} canais</Chip>}
+                {headerCount !== undefined && <Chip selected={false}>{t('live.channelCount', { n: headerCount })}</Chip>}
               </div>
             </div>
             <div className="live-body">{renderLiveColumns(columnsModel, true)}</div>
@@ -323,8 +326,8 @@ export function LiveScreen({
                 )
               : liveGuide.guideTopLayer()
           }
-          unavailableMessage="Este canal não tem uma fonte de reprodução disponível."
-          genericErrorMessage="Não foi possível reproduzir este canal."
+          unavailableMessage={t('live.unavailableChannel')}
+          genericErrorMessage={t('live.playError')}
         />
       )}
 

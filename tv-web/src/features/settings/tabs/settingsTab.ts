@@ -1,5 +1,6 @@
 import type { ComponentType, Ref } from 'react'
 import type { SideCategoryNavEntry } from '../../../components/SideCategoryNav'
+import type { MessageKey } from '../../../lib/i18n/messages/pt'
 import type { SourceOut } from '../../import/importApi'
 
 /** Abas na ordem do DS (FR-022). `sources` é a inicial. */
@@ -73,7 +74,9 @@ export interface SettingsTabProps {
   handleRef: Ref<SettingsTabHandle>
 }
 
-export interface SettingsTabDefinition extends SideCategoryNavEntry {
+export interface SettingsTabDefinition extends Omit<SideCategoryNavEntry, 'label'> {
   id: SettingsTab
+  /** Rótulo da aba no catálogo (feature 054) — a tela o traduz ao montar a coluna de abas. */
+  labelKey: MessageKey
   Panel: ComponentType<SettingsTabProps>
 }

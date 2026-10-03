@@ -36,6 +36,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'ciclo-vida-player.m3u')
@@ -144,7 +145,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/ciclo-vida-player.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
 
@@ -172,6 +173,7 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'movies')
     await waitForCategoryTrail(page)
+    await focusFirstRealCategory(page)
     await page.keyboard.press('Enter') // entra em "Filmes" (categoria única)
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre o detalhe

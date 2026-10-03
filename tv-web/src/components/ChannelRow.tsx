@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useT } from '../lib/i18n/I18nProvider'
 import { PosterArt } from './PosterArt'
 
 export interface ChannelRowProps {
@@ -42,6 +43,7 @@ export function ChannelRow({
   group,
   groupClassName,
 }: ChannelRowProps): ReactNode {
+  const t = useT()
   return (
     <div className={`channel-row${unavailable ? ' is-soft-disabled' : ''}`}>
       {number !== undefined && <span className="channel-row-number">{number}</span>}
@@ -61,7 +63,7 @@ export function ChannelRow({
           ★
         </span>
       )}
-      {unavailable && <span className="channel-row-badge">Indisponível</span>}
+      {unavailable && <span className="channel-row-badge">{t('channelRow.unavailable')}</span>}
     </div>
   )
 }

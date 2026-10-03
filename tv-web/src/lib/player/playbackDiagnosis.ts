@@ -5,6 +5,7 @@
  * cru do motor nunca é exibido nem serializado (D-002, FR-014/FR-019).
  */
 
+import { createTranslator, type Translator } from '../i18n/translate'
 import { describeError, type ErrorCode } from '../errors/errorCatalog'
 import type { PlayableKind } from './capabilities'
 import type { PlayerError } from './PlayerService'
@@ -113,9 +114,12 @@ function verdictOf(input: PlaybackDiagnosisInput): Verdict {
  * não é reproduzível (corrida entre listar e reproduzir) — `SRC-409`, sem ação
  * de repetir; o resto cai no diagnóstico comum (`NET-01`/`PLAY-04`).
  */
-export function diagnoseFetchFailure(input: { status: number | null; online: boolean; at: number }): PlaybackDiagnosis {
+export function diagnoseFetchFailure(
+  input: { status: number | null; online: boolean; at: number },
+  t: Translator = createTranslator('pt'),
+): PlaybackDiagnosis {
   if (input.status === 409) {
-    const entry = describeError('SRC-409')
+    const entry = describeError('SRC-409', t)
     return {
       code: 'SRC-409',
       category: 'source',
@@ -126,12 +130,12 @@ export function diagnoseFetchFailure(input: { status: number | null; online: boo
       technical: { code: 'SRC-409', category: 'source', mediaKind: 'unknown', engine: 'none', at: input.at },
     }
   }
-  return diagnosePlayback({ error: null, online: input.online, mediaKind: 'unknown', engine: 'none', at: input.at })
+  return diagnosePlayback({ error: null, online: input.online, mediaKind: 'unknown', engine: 'none', at: input.at }, t)
 }
 
-export function diagnosePlayback(input: PlaybackDiagnosisInput): PlaybackDiagnosis {
+export function diagnosePlayback(input: PlaybackDiagnosisInput, t: Translator = createTranslator('pt')): PlaybackDiagnosis {
   const verdict = verdictOf(input)
-  const entry = describeError(verdict.code)
+  const entry = describeError(verdict.code, t)
   return {
     code: verdict.code,
     category: verdict.category,

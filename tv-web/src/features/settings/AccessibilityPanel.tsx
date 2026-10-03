@@ -1,9 +1,18 @@
 import type { ReactNode } from 'react'
+import { useLanguage, useT } from '../../lib/i18n/I18nProvider'
+import { APP_LANGUAGE_NATIVE_NAME } from '../../lib/i18n/languages'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
 
-/** "Reduzir movimento" (real) + 3 mocks (feature 026, FR-029/FR-031, `logic/foco-configuracoes.md` §5). */
-export const ACCESSIBILITY_ROW_COUNT = 4
+/**
+ * "Reduzir movimento" (real), "Idioma" (real, feature 054) + 3 mocks (feature 026,
+ * FR-029/FR-031, `logic/foco-configuracoes.md` §5). Linhas: 0 movimento, 1 idioma, 2..4 mocks.
+ */
+export const ACCESSIBILITY_ROW_COUNT = 5
 
-const MOCK_ROWS = ['Voice Guide / anúncios', 'Alto contraste', 'Aparência das legendas']
+/** Índice da linha "Idioma" (feature 054, D-009). */
+export const ACCESSIBILITY_LANGUAGE_ROW = 1
+
+const MOCK_ROWS: MessageKey[] = ['settings.a11y.voiceGuide', 'settings.a11y.highContrast', 'settings.a11y.subtitles']
 
 export interface AccessibilityPanelProps {
   reducedMotion: boolean
@@ -22,11 +31,15 @@ function systemPrefersReducedMotion(): boolean {
 }
 
 /**
- * Acessibilidade & sistema (feature 026, US2 — FR-029). "Reduzir movimento"
- * é a única ação real; o resto são mocks honestos (item 56 do backlog).
+ * Acessibilidade & sistema (feature 026, US2 — FR-029). "Reduzir movimento" e
+ * "Idioma" são as ações reais; o resto são mocks honestos (item 56 do backlog).
  */
 export function AccessibilityPanel({ reducedMotion, focusedRow, onActivateRow }: AccessibilityPanelProps): ReactNode {
+  const t = useT()
+  const language = useLanguage()
   const systemReduced = systemPrefersReducedMotion()
+  const languageLabel = t('settings.language.label')
+  const languageName = APP_LANGUAGE_NATIVE_NAME[language]
 
   return (
     <div className="accessibility-panel">
@@ -36,19 +49,27 @@ export function AccessibilityPanel({ reducedMotion, focusedRow, onActivateRow }:
           className={`accessibility-panel-toggle no-scale${focusedRow === 0 ? ' tv-focus' : ''}`}
           onClick={() => onActivateRow(0)}
         >
-          <span>Reduzir movimento</span>
-          <span className="accessibility-panel-value">{reducedMotion ? 'Ligado' : 'Desligado'}</span>
+          <span>{t('settings.reducedMotion.label')}</span>
+          <span className="accessibility-panel-value">{reducedMotion ? t('common.on') : t('common.off')}</span>
         </button>
-        {systemReduced && (
-          <p className="accessibility-panel-note">O sistema já está com movimento reduzido.</p>
-        )}
+        {systemReduced && <p className="accessibility-panel-note">{t('settings.a11y.systemReduced')}</p>}
       </div>
 
-      {MOCK_ROWS.map((label, index) => {
-        const row = index + 1
+      <button
+        type="button"
+        className={`accessibility-panel-toggle no-scale${focusedRow === ACCESSIBILITY_LANGUAGE_ROW ? ' tv-focus' : ''}`}
+        aria-label={`${languageLabel}: ${languageName}`}
+        onClick={() => onActivateRow(ACCESSIBILITY_LANGUAGE_ROW)}
+      >
+        <span>{languageLabel}</span>
+        <span className="accessibility-panel-value">{languageName}</span>
+      </button>
+
+      {MOCK_ROWS.map((labelKey, index) => {
+        const row = index + 2
         return (
           <button
-            key={label}
+            key={labelKey}
             type="button"
             className={`accessibility-panel-toggle no-scale is-soft-disabled${focusedRow === row ? ' tv-focus' : ''}`}
             // Achado real (feature 028, FR-016): mock sempre indisponível, mas
@@ -56,7 +77,7 @@ export function AccessibilityPanel({ reducedMotion, focusedRow, onActivateRow }:
             aria-disabled="true"
             onClick={() => onActivateRow(row)}
           >
-            {label}
+            {t(labelKey)}
           </button>
         )
       })}

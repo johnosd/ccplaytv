@@ -253,6 +253,7 @@ Configurações/detalhes (FR-016/SC-004) — E2E de capturas e `quickstart.md`.
 
 | R-012 | Pedido do usuário (2026-10-02, após ver a tela com categorias reais): o prefixo "Filmes \|" / "Séries \|" é redundante e os nomes ficavam truncados em 280px | Médio — categoria ilegível | Resolvido: `vodGroupDisplay` (`features/vod/vodGroupDisplay.ts`, irmão de `liveGroupDisplay`) tira o prefixo só na exibição (sidebar, chip, hero, meta do card; identidade segue `groupLabel`); sidebar de **340px** (substitui os 280px de D-009; limite é 346px, senão a grade fixa de 1350px ganha scroll horizontal). E2E mede 340px e a ausência do prefixo. |
 
+| R-052 | Feature 052: a hero deixou de ficar sobre a grade e a sidebar de 340px deixou de existir; o contrato `MoviesScreen.paridade-v14.contract.test.tsx` virou `VodScreens.paridade-v14.contract.test.tsx` (hero da vitrine + cromo da toolbar da categoria). O E2E `filmes-series-paridade-v14.mjs` foi substituído por `vitrine-filmes-series.mjs`. | Registro — emenda de contrato travado | Resolvido: executada pela feature 052 com aprovação do usuário (2026-10-02); trava regravada. |
 ## Execution Notes
 
 | Data | Fase/Story | Resumo | Pendência Principal |
@@ -278,6 +279,7 @@ Configurações/detalhes (FR-016/SC-004) — E2E de capturas e `quickstart.md`.
   numa, mexa nas duas e rode o E2E.
 - `innerText` (Playwright) devolve a caixa alta aplicada por CSS; aqui o rótulo já é literal em caixa alta.
 - `npm run test:e2e -- --only a,b --jobs 1` não passa pelo PowerShell/npm: use `node e2e/run.mjs --only a,b --jobs 1`.
+
 
 
 

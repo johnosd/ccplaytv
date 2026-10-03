@@ -13,6 +13,7 @@ import { createServer } from 'node:http'
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusSideItem } from './lib/vod.mjs'
 
 const APP_URL = 'http://localhost:5173'
 const PANEL_USER = 'usuario'
@@ -144,7 +145,7 @@ async function openViaTopbar(page, destination) {
 
 /** Lista nova, num contexto novo (IndexedDB vazio), aberta no Início. */
 async function freshListOpen(browser, panelUrl, name) {
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error', error?.message ?? ''))
   await page.goto(APP_URL)
@@ -245,7 +246,7 @@ async function run() {
       console.log(`=== Cenário ${scenario}: tela de importação por parte (guia ${xmltv === 'ok' ? 'sincroniza' : 'falha'}) ===`)
       panel.seriesEmpty = true
       panel.xmltv = xmltv
-      const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+      const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
       const page = await context.newPage()
       await page.goto(APP_URL)
       await page.waitForSelector('.add-card', { timeout: 10000 })
@@ -342,6 +343,7 @@ async function run() {
         console.log('  [debug trilho]', JSON.stringify(dom))
       }
       assert(counted === '5', `a contagem real aparece no trilho antes de entrar (${counted})`)
+      await focusSideItem(page, 'Filmes 1')
       await page.keyboard.press('Enter')
       await page.waitForSelector('.vod-grid .content-card, .vod-grid-cell', { timeout: 3000 })
       await page.waitForTimeout(500)
@@ -355,6 +357,7 @@ async function run() {
       const { context, page } = await freshListOpen(browser, panelUrl, 'Lista E2E 038 A2')
       await openViaTopbar(page, 'movies')
       await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
+      await focusSideItem(page, 'Filmes 1')
       await page.keyboard.press('ArrowDown')
       await page.keyboard.press('ArrowDown') // Filmes 1 -> Filmes 3
       const focusedLabel = () => page.locator('.side-category-nav-item.tv-focus .side-category-nav-label').textContent()
@@ -440,6 +443,7 @@ async function run() {
       assert(labels.includes('Filmes 11'), 'as demais continuam')
 
       const t0 = Date.now()
+      await focusSideItem(page, 'Filmes 1')
       await page.keyboard.press('Enter') // entra em "Filmes 1" (já carregada antes da atualização)
       await page.waitForSelector('.vod-grid-cell .content-card-title', { timeout: 3000 })
       const elapsed = Date.now() - t0
@@ -458,7 +462,7 @@ async function run() {
       assert((await focusedCardTitle(page)) === 'Filme Renomeado', `o item em foco ganha o nome novo sem o foco sair dele (${await focusedCardTitle(page)})`)
 
       console.log('=== Cenário 8: categoria vencida (> 24 h) abre na hora e renova atrás ===')
-      await page.keyboard.press('ArrowLeft') // volta à trilha ("Filmes 1")
+      await page.keyboard.press('Escape') // grade -> vitrine, lista lateral em "Filmes 1"
       // As renovações pedidas pela atualização acima ainda correm: espera a
       // fila esvaziar (4 s sem pedido novo), senão "Filmes 2" seria renovada
       // logo depois de envelhecida e a entrada já a encontraria fresca.

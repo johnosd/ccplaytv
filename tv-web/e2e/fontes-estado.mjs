@@ -201,7 +201,7 @@ async function run() {
   secrets = [PANEL_USER, PANEL_PASS, panelUrl, `127.0.0.1:${server.address().port}`]
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => consoleTexts.push(msg.text()))

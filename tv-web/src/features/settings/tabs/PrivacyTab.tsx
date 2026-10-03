@@ -1,12 +1,13 @@
 import { useImperativeHandle, useState } from 'react'
 import type { ReactNode } from 'react'
 import { clamp } from '../../../lib/useRemoteNav'
+import { useT } from '../../../lib/i18n/I18nProvider'
 import type { HistoryClearScope, HistoryRemovalMode } from '../../../lib/catalog/historyRemoval'
 import { useClearHistory, useHistorySummary } from '../../catalog/catalogApi'
 import { useSources } from '../../import/importApi'
 import { HistoryRemovalModal } from '../../history/HistoryRemovalModal'
 import { PrivacyPanel } from '../PrivacyPanel'
-import { isScopeEmpty, PRIVACY_SCOPE_LABEL, PRIVACY_SCOPES, scopeSummaries } from '../privacyModel'
+import { isScopeEmpty, PRIVACY_SCOPE_LABEL_KEY, PRIVACY_SCOPES, scopeSummaries } from '../privacyModel'
 import type { SettingsTabProps } from './settingsTab'
 
 /**
@@ -16,6 +17,7 @@ import type { SettingsTabProps } from './settingsTab'
  * Configurações não lê nada (T026).
  */
 export function PrivacyTab({ focused, activeSourceId, exitToTabs, goToTopbar, showToast, handleRef }: SettingsTabProps): ReactNode {
+  const t = useT()
   const sourcesQuery = useSources()
   const activeSource = sourcesQuery.data?.sources.find((source) => source.id === activeSourceId)
   const listName = activeSourceId === null ? null : (activeSource?.display_name ?? '')
@@ -38,7 +40,7 @@ export function PrivacyTab({ focused, activeSourceId, exitToTabs, goToTopbar, sh
     if (!summary) return // ainda lendo
     // Linha vazia: soft disabled — explica, nunca abre a confirmação (FR-026).
     if (isScopeEmpty(summary)) {
-      showToast(`O histórico de ${PRIVACY_SCOPE_LABEL[scope]} já está vazio.`)
+      showToast(t('settings.privacy.alreadyEmpty', { scope: t(PRIVACY_SCOPE_LABEL_KEY[scope]) }))
       return
     }
     setConfirm({ scope, error: false })
@@ -53,7 +55,7 @@ export function PrivacyTab({ focused, activeSourceId, exitToTabs, goToTopbar, sh
         // O foco fica na linha, agora vazia (FR-028).
         onSuccess: () => {
           setConfirm(null)
-          showToast(`Histórico de ${PRIVACY_SCOPE_LABEL[scope]} limpo.`)
+          showToast(t('settings.privacy.cleared', { scope: t(PRIVACY_SCOPE_LABEL_KEY[scope]) }))
         },
         onError: () => setConfirm((current) => (current ? { ...current, error: true } : current)),
       },

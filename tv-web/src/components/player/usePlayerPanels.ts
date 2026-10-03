@@ -3,6 +3,7 @@ import type { PlayerServiceSession, QualityOption, TrackChoice, ViewChoice } fro
 import { trackChoiceFromPreferences, viewChoiceFromPreferences, type PlayerPreferences } from '../../lib/player/playerPreferences'
 import { normalizeLanguage, pickTracksForChoice, trackLabels, type MediaTrack } from '../../lib/player/tracks'
 import { distinctQualities, pickAspectForChoice, pickQualityForChoice } from '../../lib/player/viewChoice'
+import { useT } from '../../lib/i18n/I18nProvider'
 import type { ChromeControl } from '../chromeControls'
 import { buildTracksPanel, initialTracksFocusKey, moveTracksFocus, reconcileTracksFocus } from '../playerPanels'
 import {
@@ -14,14 +15,14 @@ import {
   type ChoicePanelModel,
 } from '../playerViewPanels'
 import {
-  ASPECT_SWITCH_FAILED,
-  ASPECT_UNAVAILABLE_MESSAGE,
-  INFO_UNAVAILABLE_MESSAGE,
-  QUALITY_SINGLE_MESSAGE,
-  QUALITY_SWITCH_FAILED,
-  QUALITY_UNAVAILABLE_MESSAGE,
-  TRACK_SWITCH_FAILED,
-  TRACKS_UNAVAILABLE_MESSAGE,
+  ASPECT_SWITCH_FAILED_KEY,
+  ASPECT_UNAVAILABLE_KEY,
+  QUALITY_SINGLE_KEY,
+  QUALITY_SWITCH_FAILED_KEY,
+  QUALITY_UNAVAILABLE_KEY,
+  TRACK_SWITCH_FAILED_KEY,
+  TRACKS_UNAVAILABLE_KEY,
+  INFO_UNAVAILABLE_KEY,
 } from './playerMessages'
 import type { InfoSnapshot, PanelState } from './playerLayerTypes'
 import type { PlayerChrome } from './usePlayerChrome'
@@ -73,6 +74,7 @@ export function usePlayerPanels({
   initialViewChoice,
   onViewChoiceChange,
 }: PlayerPanelsParams): PlayerPanels {
+  const t = useT()
   const { clearHideTimer, focusedIndexRef, rerender, scheduleHide, seekBarFocusedRef, setFocused, setLevel } = chrome
 
   /**
@@ -137,9 +139,9 @@ export function usePlayerPanels({
 
   function choiceModelFor(session: PlayerServiceSession, kind: 'aspect' | 'quality'): ChoicePanelModel {
     if (kind === 'aspect') {
-      return buildAspectPanel(session.aspectModes, session.currentAspect ?? pickAspectForChoice(session.aspectModes, 'fit'))
+      return buildAspectPanel(session.aspectModes, session.currentAspect ?? pickAspectForChoice(session.aspectModes, 'fit'), t)
     }
-    return buildQualityPanel(qualityOptionsRef.current, session.selectedQualityId)
+    return buildQualityPanel(qualityOptionsRef.current, session.selectedQualityId, t)
   }
 
   /** Grava uma escolha da pessoa (nunca a reaplicação automática) e avisa quem guarda entre itens. */
@@ -151,7 +153,7 @@ export function usePlayerPanels({
   /** Lê do motor o que o painel de info mostra: dados técnicos + rótulo do áudio ativo. */
   function readInfoSnapshot(session: PlayerServiceSession): InfoSnapshot {
     const tracks = session.getTracks() ?? []
-    const labels = trackLabels(tracks)
+    const labels = trackLabels(tracks, t)
     const activeIndex = tracks.findIndex((t) => t.kind === 'audio' && t.active)
     return { info: session.getStreamInfo(), activeAudioLabel: activeIndex === -1 ? undefined : labels[activeIndex] }
   }
@@ -175,7 +177,7 @@ export function usePlayerPanels({
     } else {
       const tracks = session.getTracks()
       if (tracks) panelTracksRef.current = tracks
-      const model = buildTracksPanel(panelTracksRef.current, choiceRef.current)
+      const model = buildTracksPanel(panelTracksRef.current, choiceRef.current, t)
       panelRef.current = { ...panel, focusKey: reconcileTracksFocus(model, panel.focusKey) }
     }
     rerender()
@@ -191,12 +193,12 @@ export function usePlayerPanels({
   function openTracksPanel(session: PlayerServiceSession) {
     const tracks = session.getTracks()
     if (!tracks || tracks.length === 0) {
-      showToast(TRACKS_UNAVAILABLE_MESSAGE)
+      showToast(t(TRACKS_UNAVAILABLE_KEY))
       scheduleHide()
       return
     }
     panelTracksRef.current = tracks
-    const model = buildTracksPanel(tracks, choiceRef.current)
+    const model = buildTracksPanel(tracks, choiceRef.current, t)
     clearHideTimer()
     panelRef.current = { kind: 'tracks', focusKey: initialTracksFocusKey(model), originIndex: focusedIndexRef.current }
     rerender()
@@ -228,7 +230,7 @@ export function usePlayerPanels({
     if (control.id === 'aspect') {
       if (control.availability === 'real') openChoicePanel(session, 'aspect')
       else {
-        showToast(ASPECT_UNAVAILABLE_MESSAGE)
+        showToast(t(ASPECT_UNAVAILABLE_KEY))
         scheduleHide()
       }
       return true
@@ -239,7 +241,7 @@ export function usePlayerPanels({
       const count = qualityOptionsRef.current.length
       if (session.supportsQuality && count >= 2) openChoicePanel(session, 'quality')
       else {
-        showToast(session.supportsQuality && count === 1 ? QUALITY_SINGLE_MESSAGE : QUALITY_UNAVAILABLE_MESSAGE)
+        showToast(t(session.supportsQuality && count === 1 ? QUALITY_SINGLE_KEY : QUALITY_UNAVAILABLE_KEY))
         scheduleHide()
       }
       return true
@@ -249,7 +251,7 @@ export function usePlayerPanels({
       if (control.id === 'tracks') openTracksPanel(session)
       else openInfoPanel(session)
     } else {
-      showToast(control.id === 'tracks' ? TRACKS_UNAVAILABLE_MESSAGE : INFO_UNAVAILABLE_MESSAGE)
+      showToast(t(control.id === 'tracks' ? TRACKS_UNAVAILABLE_KEY : INFO_UNAVAILABLE_KEY))
       scheduleHide()
     }
     return true
@@ -267,7 +269,7 @@ export function usePlayerPanels({
       rerender()
       return
     }
-    const model = buildTracksPanel(panelTracksRef.current, choiceRef.current)
+    const model = buildTracksPanel(panelTracksRef.current, choiceRef.current, t)
     panelRef.current = { ...panel, focusKey: moveTracksFocus(model, panel.focusKey, direction) }
     rerender()
   }
@@ -286,21 +288,21 @@ export function usePlayerPanels({
       if (!choiceRow) return
       if (panel.kind === 'aspect' && choiceRow.mode !== undefined) {
         if (session.setAspectMode(choiceRow.mode)) commitView({ aspect: choiceRow.mode })
-        else showToast(ASPECT_SWITCH_FAILED)
+        else showToast(t(ASPECT_SWITCH_FAILED_KEY))
       } else if (panel.kind === 'quality' && choiceRow.qualityId !== undefined) {
         if (session.selectQuality(choiceRow.qualityId)) {
           commitView({
             quality: choiceRow.qualityId === null || choiceRow.height === undefined ? 'auto' : { height: choiceRow.height },
           })
         } else {
-          showToast(QUALITY_SWITCH_FAILED)
+          showToast(t(QUALITY_SWITCH_FAILED_KEY))
         }
       }
       // A marcação reflete o que o motor realmente fez, inclusive na falha.
       refreshPanel()
       return
     }
-    const model = buildTracksPanel(panelTracksRef.current, choiceRef.current)
+    const model = buildTracksPanel(panelTracksRef.current, choiceRef.current, t)
     const row = model.rows.find((r) => r.key === panel.focusKey)
     if (!row) return
     if (row.disabled) {
@@ -310,14 +312,14 @@ export function usePlayerPanels({
     const track = panelTracksRef.current.find((t) => t.id === row.trackId)
     if (row.group === 'audio' || row.group === 'ad') {
       if (row.trackId === undefined || !session.selectAudioTrack(row.trackId)) {
-        showToast(TRACK_SWITCH_FAILED.audio)
+        showToast(t(TRACK_SWITCH_FAILED_KEY.audio))
       } else if (row.group === 'audio') {
         // Áudio-descrição é um modo, não um idioma: não redefine a preferência.
         commitChoice({ audioLanguage: normalizeLanguage(track?.language) ?? null })
       }
     } else if (row.group === 'text') {
       if (!session.selectTextTrack(row.trackId ?? null)) {
-        showToast(TRACK_SWITCH_FAILED.text)
+        showToast(t(TRACK_SWITCH_FAILED_KEY.text))
       } else {
         commitChoice({ textLanguage: normalizeLanguage(track?.language) ?? null })
       }
