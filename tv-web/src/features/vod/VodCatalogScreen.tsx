@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+﻿import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   groupLabel,
@@ -37,7 +37,9 @@ import { FavoriteHint, FavoritesEmptyState, FavoritesUnresolvedNote } from '../f
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 import { ContentCard } from '../../components/ContentCard'
-import { PosterArt } from '../../components/PosterArt'
+import { VodHeroArt } from './VodHeroArt'
+import { vodGroupDisplay } from './vodGroupDisplay'
+import { useOverflowEdges, type OverflowEdges } from '../../lib/focus/useOverflowEdges'
 import { SideCategoryNav, type SideCategoryNavEntry } from '../../components/SideCategoryNav'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorState } from '../../components/ErrorState'
@@ -65,6 +67,11 @@ import {
   type VodEntryKey,
   type VodSection,
 } from './vodSessionMemory'
+
+/** Moldura rolável com degradê de continuação (feature 050, D-008) — só nas bordas com itens ocultos. */
+function scrollFrameClass(edges: OverflowEdges): string {
+  return `vod-scroll-frame${edges.above ? ' is-more-above' : ''}${edges.below ? ' is-more-below' : ''}`
+}
 
 /** Card portrait de geometria fixa (D-006 do plan.md — sem `ResizeObserver`, mesma escolha do `Rail`, feature 022 R-002). */
 const GRID_COLS = 6
@@ -445,6 +452,9 @@ export function VodCatalogScreen({
     lanes: GRID_COLS,
     overscan: GRID_OVERSCAN,
   })
+  // Indicador de continuação (feature 050, FR-010): só desenho, nenhuma regra de foco depende dele.
+  const trailEdges = useOverflowEdges(trailScrollRef, trail.length)
+  const gridEdges = useOverflowEdges(gridContainerRef, items.length)
 
   const itemsNavigable = col === 1 && !contentIsLoading && !contentUnavailable && items.length > 0
   useVirtualFocusSync({
@@ -870,7 +880,7 @@ export function VodCatalogScreen({
       ? '★ Favoritos'
       : isHistoryFocused || enteredHistory
         ? '↺ Histórico'
-        : groupLabel(focusedCategory?.name)
+        : vodGroupDisplay(focusedCategory?.name)
 
 
   const sideEntries: SideCategoryNavEntry[] = trail.map((entry) => {
@@ -901,7 +911,7 @@ export function VodCatalogScreen({
     }
     return {
       id: trailEntryId(entry),
-      label: groupLabel(entry.category?.name),
+      label: vodGroupDisplay(entry.category?.name),
       count: entry.category ? knownCategoryCount(entry.category) : undefined,
     }
   })
@@ -921,22 +931,27 @@ export function VodCatalogScreen({
       {withShell(
         <div className="screen vod-screen">
           <div className="vod-body">
-            <div ref={trailScrollRef} className="vod-side-nav no-scrollbar">
-              <SideCategoryNav
-                entries={sideEntries}
-                selectedId={selectedTrailId}
-                focusedId={focusedTrailId}
-                focusedRef={focusedCategoryRef}
-                onSelect={(id) => {
-                  const target = trail.find((entry) => trailEntryId(entry) === id)
-                  if (target) {
-                    if (target.key.kind === 'favorites') enterFavorites()
-                    else if (target.key.kind === 'history') enterHistory()
-                    else if (target.key.kind === 'all') enterAll()
-                    else if (target.category) enterCategory(target.category)
-                  }
-                }}
-              />
+            <div className="vod-side-panel">
+              <div className="vod-side-head">Categorias</div>
+              <div className={scrollFrameClass(trailEdges)}>
+                <div ref={trailScrollRef} className="vod-side-nav no-scrollbar">
+                  <SideCategoryNav
+                    entries={sideEntries}
+                    selectedId={selectedTrailId}
+                    focusedId={focusedTrailId}
+                    focusedRef={focusedCategoryRef}
+                    onSelect={(id) => {
+                      const target = trail.find((entry) => trailEntryId(entry) === id)
+                      if (target) {
+                        if (target.key.kind === 'favorites') enterFavorites()
+                        else if (target.key.kind === 'history') enterHistory()
+                        else if (target.key.kind === 'all') enterAll()
+                        else if (target.category) enterCategory(target.category)
+                      }
+                    }}
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="vod-content-column">
@@ -954,6 +969,9 @@ export function VodCatalogScreen({
                   >
                     <Icon name="search" />
                     <span>Pesquisar</span>
+                    <span className="vod-toolbar-search-hint" aria-hidden="true">
+                      OK
+                    </span>
                   </button>
                 )}
                 {searchActive && (
@@ -992,7 +1010,11 @@ export function VodCatalogScreen({
                     type="button"
                     className={`vod-toolbar-sort-button${toolbarFocus === 'sort' ? ' tv-focus' : ''}`}
                   >
-                    Ordenar · {VOD_SORT_LABELS[effectiveSortOption]} ▾
+                    <span className="vod-toolbar-sort-label">Ordenar</span>
+                    <span className="vod-toolbar-sort-sep" aria-hidden="true">
+                      {' · '}
+                    </span>
+                    <span className="vod-toolbar-sort-value">{VOD_SORT_LABELS[effectiveSortOption]} ▾</span>
                   </button>
                 )}
               </div>
@@ -1034,23 +1056,21 @@ export function VodCatalogScreen({
 
               {showingContent && heroItem && (
                 <div className="vod-hero-band" aria-hidden="true">
-                  <div className="vod-hero-poster">
-                    <PosterArt url={heroItem.icon_url ?? undefined} title={heroItem.name} />
-                  </div>
+                  <VodHeroArt url={heroItem.icon_url ?? undefined} />
                   <div className="vod-hero-info">
                     <div className="vod-hero-eyebrow">
                       {enteredFavorites
                         ? '★ SEUS FAVORITOS'
                         : enteredHistory
                           ? '↺ VISTOS RECENTEMENTE'
-                          : enteredAll
-                            ? 'TODOS'
-                            : groupLabel(heroItem.original_group ?? undefined).toUpperCase()}
+                          : section === 'movies'
+                            ? 'CCPLAY CINEMA'
+                            : 'CCPLAY SÉRIES'}
                     </div>
                     <div className="vod-hero-title">{heroItem.name}</div>
                     <div className="vod-hero-meta">
                       {heroItem.year !== undefined && heroItem.year !== null && <span>{heroItem.year}</span>}
-                      <span>{groupLabel(heroItem.original_group ?? undefined)}</span>
+                      <span>{vodGroupDisplay(heroItem.original_group)}</span>
                       {section === 'movies' && watchedIds.has(stableIdOf(heroItem) ?? '') && <span>Assistido</span>}
                       {section === 'movies' &&
                         !watchedIds.has(stableIdOf(heroItem) ?? '') &&
@@ -1176,52 +1196,54 @@ export function VodCatalogScreen({
               )}
 
               {showResultsGrid && (
-                <div ref={gridContainerRef} className="vod-grid no-scrollbar">
-                  <div
-                    className="vod-grid-inner"
-                    style={{
-                      height: itemVirtualizer.getTotalSize(),
-                      width: GRID_COLS * CARD_WIDTH + (GRID_COLS - 1) * CARD_GAP,
-                    }}
-                  >
-                    {itemVirtualizer.getVirtualItems().map((virtualRow) => {
-                      const item = items[virtualRow.index]
-                      if (!item) return null
-                      const isFavorite = favoriteIds.has(stableIdOf(item) ?? '')
-                      const isWatched = section === 'movies' && watchedIds.has(stableIdOf(item) ?? '')
-                      const summary = section === 'series' && item.series_id ? watchedSummary.get(item.series_id) : undefined
-                      const watchedLabel =
-                        summary && summary.known > 0 ? (summary.upToDate ? 'Em dia' : `${summary.watched}/${summary.known}`) : undefined
-                      return (
-                        <div
-                          key={item.id}
-                          className="vod-grid-cell"
-                          style={{
-                            left: (virtualRow.lane % GRID_COLS) * (CARD_WIDTH + CARD_GAP),
-                            transform: `translateY(${virtualRow.start}px)`,
-                          }}
-                        >
-                          <ContentCard
-                            variant="portrait"
-                            title={item.name}
-                            meta={enteredAll ? groupLabel(item.original_group ?? undefined) : (item.original_group ?? config.label)}
-                            iconUrl={item.icon_url ?? undefined}
-                            focused={col === 1 && toolbarFocus === null && itemIdx === virtualRow.index && removal === null}
-                            badge={
-                              <>
-                                {isFavorite && (
-                                  <span className="fav-star" aria-hidden="true">
-                                    ★
-                                  </span>
-                                )}
-                                {isWatched && <span className="watched-badge">Assistido</span>}
-                                {watchedLabel && <span className="watched-badge">{watchedLabel}</span>}
-                              </>
-                            }
-                          />
-                        </div>
-                      )
-                    })}
+                <div className={scrollFrameClass(gridEdges)}>
+                  <div ref={gridContainerRef} className="vod-grid no-scrollbar">
+                    <div
+                      className="vod-grid-inner"
+                      style={{
+                        height: itemVirtualizer.getTotalSize(),
+                        width: GRID_COLS * CARD_WIDTH + (GRID_COLS - 1) * CARD_GAP,
+                      }}
+                    >
+                      {itemVirtualizer.getVirtualItems().map((virtualRow) => {
+                        const item = items[virtualRow.index]
+                        if (!item) return null
+                        const isFavorite = favoriteIds.has(stableIdOf(item) ?? '')
+                        const isWatched = section === 'movies' && watchedIds.has(stableIdOf(item) ?? '')
+                        const summary = section === 'series' && item.series_id ? watchedSummary.get(item.series_id) : undefined
+                        const watchedLabel =
+                          summary && summary.known > 0 ? (summary.upToDate ? 'Em dia' : `${summary.watched}/${summary.known}`) : undefined
+                        return (
+                          <div
+                            key={item.id}
+                            className="vod-grid-cell"
+                            style={{
+                              left: (virtualRow.lane % GRID_COLS) * (CARD_WIDTH + CARD_GAP),
+                              transform: `translateY(${virtualRow.start}px)`,
+                            }}
+                          >
+                            <ContentCard
+                              variant="portrait"
+                              title={item.name}
+                              meta={enteredAll || item.original_group ? vodGroupDisplay(item.original_group) : config.label}
+                              iconUrl={item.icon_url ?? undefined}
+                              focused={col === 1 && toolbarFocus === null && itemIdx === virtualRow.index && removal === null}
+                              badge={
+                                <>
+                                  {isFavorite && (
+                                    <span className="fav-star" aria-hidden="true">
+                                      ★
+                                    </span>
+                                  )}
+                                  {isWatched && <span className="watched-badge">Assistido</span>}
+                                  {watchedLabel && <span className="watched-badge">{watchedLabel}</span>}
+                                </>
+                              }
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1250,3 +1272,6 @@ export function VodCatalogScreen({
     </>
   )
 }
+
+
+

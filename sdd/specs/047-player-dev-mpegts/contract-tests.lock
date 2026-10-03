@@ -1,0 +1,17 @@
+{
+    "feature":  "047-player-dev-mpegts",
+    "lockedAt":  "2026-10-02 10:29",
+    "total":  4,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/player/devDemux.player-dev-mpegts.contract.test.ts",
+                      "sha256":  "2d7e6ef69b961925fc8b49536adfb01ee8ccc6c2e3fc7bab2b9a2a80268b8c75",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/player/htmlVideoAdapter.player-dev-mpegts.contract.test.ts",
+                      "sha256":  "7d5b72075a425711ede92fd3b19a351881f09c3680951818ccefbcfbb006e933",
+                      "tests":  3
+                  }
+              ]
+}

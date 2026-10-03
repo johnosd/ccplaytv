@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Filmes e Séries — Design System V14 (feature 025, Onda 4).
  *
  * Arquivo próprio (D-015 do plan.md): nenhuma classe daqui é compartilhada
@@ -22,12 +22,88 @@
   min-height: 0;
 }
 
-/* ---------- Side nav (§13.2) ---------- */
+/* ---------- Side nav em painel (§13.2, feature 050 D-009) ----------
+   Largura 340px: nomes reais de categoria de provedor não cabiam em 280px (a coluna de conteúdo ainda comporta a grade fixa de 1350px). O painel é
+   `--bg-surface` com cabeçalho; o contêiner rolável (`.vod-side-nav`, ref da
+   trilha, medido pela paginação 049) fica dentro da moldura de continuação. */
 
-.vod-side-nav {
-  width: 320px;
+.vod-side-panel {
+  width: 340px;
   flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: var(--radius-lg);
+}
+
+.vod-side-head {
+  flex: none;
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--bg-elevated);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Moldura com indicador de continuação (Spec §17, D-008): o degradê é overlay —
+   nunca máscara no contêiner rolável, que esmaeceria o anel de foco. */
+.vod-scroll-frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.vod-scroll-frame::before,
+.vod-scroll-frame::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--space-5);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1;
+}
+
+.vod-scroll-frame::before {
+  top: 0;
+  background: linear-gradient(to bottom, var(--vod-frame-bg), transparent);
+}
+
+.vod-scroll-frame::after {
+  bottom: 0;
+  background: linear-gradient(to top, var(--vod-frame-bg), transparent);
+}
+
+.vod-scroll-frame.is-more-above::before,
+.vod-scroll-frame.is-more-below::after {
+  opacity: 1;
+}
+
+/* Sidebar: o degradê funde com o painel; grade: com o fundo da tela. */
+.vod-side-panel .vod-scroll-frame {
+  --vod-frame-bg: var(--bg-surface);
+}
+
+.vod-content-column .vod-scroll-frame {
+  --vod-frame-bg: var(--bg-canvas);
+}
+
+/* Anel de foco inteiro (D-007, receita da 036/048): folga interna para anel +
+   deslocamento + halo e margem negativa igual, que mantém o conteúdo no lugar. */
+.vod-side-nav {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
+  padding: var(--space-2);
+  margin: calc(-1 * var(--space-2));
+  scroll-padding-block: calc(var(--space-5) + var(--space-2));
 }
 
 .side-category-nav-group-label {
@@ -44,6 +120,28 @@
   padding-top: 0;
 }
 
+/* Itens V14 (Lab `#categoriesv131`) — só dentro do painel de Filmes/Séries. */
+.vod-side-nav .side-category-nav-item {
+  min-height: 56px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--bg-hover);
+}
+
+.vod-side-nav .side-category-nav-item.is-selected {
+  background: var(--accent-tint);
+  border-color: var(--accent-tint-border);
+  color: var(--accent);
+}
+
+.vod-side-nav .side-category-nav-count {
+  color: var(--text-annotation);
+}
+
+/* Sem escala no foco (Spec §11.2, linhas/itens de lista): o anel cabe na folga. */
+.vod-side-nav .side-category-nav-item.tv-focus {
+  transform: none;
+}
+
 /* ---------- Coluna de conteúdo ---------- */
 
 .vod-content-column {
@@ -53,6 +151,10 @@
   flex-direction: column;
   gap: var(--space-2);
   overflow: hidden;
+  /* A coluna recorta o que vaza; a folga lateral (igual à da grade) deixa o anel
+     de foco da 1ª coluna de cards inteiro, sem deslocar o conteúdo. */
+  padding: var(--space-2) var(--space-3) 0;
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)) 0;
 }
 
 .vod-toolbar {
@@ -67,27 +169,48 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  margin-right: auto;
 }
 
 .vod-toolbar-title .chip {
   cursor: default;
 }
 
-.vod-toolbar-search-button {
+/* Campo Pesquisar em repouso e botão Ordenar (protótipo: 72px, `--radius-md`). */
+.vod-toolbar-search-button,
+.vod-toolbar-sort-button {
+  flex: none;
+  min-height: 72px;
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-1) var(--space-3);
-  border: none;
-  border-radius: var(--radius-pill);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--bg-hover);
+  border-radius: var(--radius-md);
   background: var(--bg-surface);
   color: var(--text-secondary);
   font-size: var(--fs-body);
   cursor: pointer;
 }
 
-.vod-toolbar-search-button.tv-focus {
+.vod-toolbar-search-button {
+  min-width: 320px;
+}
+
+.vod-toolbar-search-button.tv-focus,
+.vod-toolbar-sort-button.tv-focus {
   background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.vod-toolbar-search-hint {
+  margin-left: auto;
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.vod-toolbar-search-button.tv-focus .vod-toolbar-search-hint {
   color: var(--accent-ink);
 }
 
@@ -101,18 +224,29 @@
 /* ---------- Ordenar (US4, FR-016..FR-024) ---------- */
 
 .vod-toolbar-sort-button {
-  flex: none;
-  padding: var(--space-1) var(--space-3);
-  border: none;
-  border-radius: var(--radius-pill);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  font-size: var(--fs-body);
-  cursor: pointer;
+  min-width: 210px;
+  justify-content: space-between;
+  font-weight: 700;
 }
 
-.vod-toolbar-sort-button.tv-focus {
-  background: var(--accent);
+.vod-toolbar-sort-label {
+  color: var(--text-primary);
+}
+
+/* O " · " fica no DOM (testes da 025 fixam `Ordenar · <opção> ▾`), mas some da tela. */
+.vod-toolbar-sort-sep {
+  display: none;
+}
+
+.vod-toolbar-sort-value {
+  margin-left: var(--space-2);
+  font-size: var(--fs-caption);
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.vod-toolbar-sort-button.tv-focus .vod-toolbar-sort-label,
+.vod-toolbar-sort-button.tv-focus .vod-toolbar-sort-value {
   color: var(--accent-ink);
 }
 
@@ -127,34 +261,77 @@
 }
 
 .vod-sort-modal-item {
-  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--bg-hover);
   border-radius: var(--radius-md);
+  background: var(--bg-elevated);
   color: var(--text-secondary);
   font-size: var(--fs-body);
 }
 
+/* ✓ da opção atual (Spec §31.1 Seleção). */
+.vod-sort-modal-item [aria-hidden='true'] {
+  margin-right: var(--space-1);
+  color: var(--accent);
+}
+
+/* Sem escala no foco (§11.2): o anel cabe no padding do painel do modal. */
 .vod-sort-modal-item.tv-focus {
+  transform: none;
   background: var(--accent);
+  border-color: var(--accent);
   color: var(--accent-ink);
 }
 
-/* ---------- Hero band (§13.2, FR-025/FR-026) — fixa, não focável ---------- */
+.vod-sort-modal-item.tv-focus [aria-hidden='true'] {
+  color: var(--accent-ink);
+}
+
+/* ---------- Hero band (§13.2/§32, features 025 e 050) — painel fixo, não focável ----------
+   Capa real do card focado como fundo (`VodHeroArt`), sob degradê da superfície;
+   sem `filter: blur` (Spec §30.3). Altura de referência 176px (plan D-011). */
 
 .vod-hero-band {
   flex: none;
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
+  min-height: 176px;
+  padding: var(--space-3) var(--space-4);
+  overflow: hidden;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: var(--radius-lg);
 }
 
-.vod-hero-poster {
-  width: 80px;
-  flex: none;
+.vod-hero-art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
 }
 
-.vod-hero-poster .poster-box {
-  aspect-ratio: 205 / 302;
+.vod-hero-art img {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 45%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+  opacity: 0.4;
+}
+
+.vod-hero-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--bg-surface) 40%, transparent 100%);
 }
 
 .vod-hero-info {
@@ -162,22 +339,25 @@
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
+  max-width: 70%;
 }
 
 .vod-hero-eyebrow {
   font-size: var(--fs-caption);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   color: var(--accent);
 }
 
 .vod-hero-title {
-  font-size: var(--fs-h2);
+  font-size: var(--fs-h1);
   font-weight: 700;
+  line-height: 1.15;
   color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .vod-hero-meta {
@@ -187,7 +367,6 @@
   font-size: var(--fs-body);
   color: var(--text-secondary);
 }
-
 /* ---------- Estados de borda ---------- */
 
 .vod-state-wrapper {
@@ -237,6 +416,10 @@
   min-height: 0;
   overflow: auto;
   position: relative;
+  /* Folga para anel + deslocamento + halo (~15px) e a escala 1.06 do card (~9px). */
+  padding: var(--space-3);
+  margin: calc(-1 * var(--space-3));
+  scroll-padding-block: calc(var(--space-5) + var(--space-3));
 }
 
 .vod-grid-inner {
@@ -808,3 +991,6 @@
 .similar-chip--found {
   color: var(--accent);
 }
+
+
+
