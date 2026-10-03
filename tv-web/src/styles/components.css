@@ -22,6 +22,8 @@
   max-width: calc(var(--stage-width) - 2 * var(--safe-x));
   max-height: calc(var(--stage-height) - 2 * var(--safe-y));
   overflow: auto;
+  /* Item focado (com escala/glow) rolado para dentro nunca encosta na borda do painel. */
+  scroll-padding-block: var(--space-4);
 }
 
 /* EmptyState / ErrorState (D-011) */

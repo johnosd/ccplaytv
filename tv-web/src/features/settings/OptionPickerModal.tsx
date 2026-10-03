@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { Modal } from '../../components/Modal'
 import { clamp } from '../../lib/useRemoteNav'
 
@@ -34,6 +34,11 @@ export function OptionPickerModal({
   onChoose,
   onBack,
 }: OptionPickerModalProps): ReactNode {
+  const focusedRef = useRef<HTMLButtonElement>(null)
+  // Lista longa (ex.: idiomas de áudio/legenda): o item focado sempre fica visível dentro do painel rolável.
+  useEffect(() => {
+    focusedRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [focusIndex])
   return (
     <Modal
       ariaLabel={label}
@@ -52,6 +57,7 @@ export function OptionPickerModal({
           return (
             <button
               key={option.key}
+              ref={index === focusIndex ? focusedRef : undefined}
               type="button"
               role="radio"
               aria-checked={checked}
