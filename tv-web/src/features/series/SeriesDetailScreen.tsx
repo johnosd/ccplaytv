@@ -45,6 +45,7 @@ import { PlayerLayer, type PlayerEpisodeStep } from '../../components/PlayerLaye
 import type { TrackChoice, ViewChoice } from '../../lib/player/PlayerService'
 import { NextEpisodeCountdown } from './NextEpisodeCountdown'
 import { ContentCard } from '../../components/ContentCard'
+import { RatingBadge } from '../../components/RatingBadge'
 import { Tabs, type TabItem } from '../../components/Tabs'
 import { useT } from '../../lib/i18n/I18nProvider'
 import type { Translator } from '../../lib/i18n/translate'
@@ -723,7 +724,11 @@ export function SeriesDetailScreen({
         <div className="vod-detail-info">
           <div className="vod-detail-eyebrow">{t('detail.eyebrow.series')}</div>
           <div className="vod-detail-title">{series.name}</div>
-          <div className="vod-detail-meta">{metaParts.join(' · ')}</div>
+          <div className="vod-detail-meta">
+            {metaParts.join(' · ')}
+            {series.provider_rating != null && series.provider_rating > 0 && ' · '}
+            <RatingBadge value={series.provider_rating} showSource />
+          </div>
           <SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />
           <div className="vod-detail-actions">
             {actions.map((action, i) => {

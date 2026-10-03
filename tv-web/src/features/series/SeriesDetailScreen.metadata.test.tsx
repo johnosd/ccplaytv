@@ -248,3 +248,30 @@ describe('SeriesDetailScreen — sinopse por episódio (FR-028)', () => {
     expect(document.querySelector('.vod-episode-synopsis')).toBeNull()
   })
 })
+
+describe('SeriesDetailScreen — nota e precedência da listagem (feature 055)', () => {
+  // FR-006, US1/AC2
+  it('com nota válida mostra "★ 8,0 Provedor"; sem nota não mostra nada', () => {
+    vi.mocked(catalogApi.useCatalogItem).mockReturnValue({ data: { ...SERIES, provider_rating: 8 }, isLoading: false } as ReturnType<typeof catalogApi.useCatalogItem>)
+    renderScreen()
+    expect(document.querySelector('.vod-detail-meta')).toHaveTextContent('★ 8,0')
+    expect(document.querySelector('.vod-detail-meta')).toHaveTextContent('Provedor')
+
+    cleanup()
+    vi.mocked(catalogApi.useCatalogItem).mockReturnValue({ data: { ...SERIES, provider_rating: null }, isLoading: false } as ReturnType<typeof catalogApi.useCatalogItem>)
+    renderScreen()
+    expect(document.querySelector('.vod-detail-meta')).not.toHaveTextContent(/★|Provedor/)
+  })
+
+  // FR-008, US2/AC3: o detalhe lê a metadata obtida (provedor/TMDB); gênero/fundo da listagem não o sobrescrevem
+  it('gênero e fundo da listagem não aparecem no detalhe quando a metadata obtida traz os seus', () => {
+    vi.mocked(catalogApi.useCatalogItem).mockReturnValue({
+      data: { ...SERIES, provider_genres: 'Gênero da listagem', provider_backdrop_url: 'http://exemplo.test/lista.jpg' },
+      isLoading: false,
+    } as ReturnType<typeof catalogApi.useCatalogItem>)
+    metadata({ genres: { value: 'Drama', origin: 'provider' }, backdropUrl: { value: 'http://exemplo.test/detalhe.jpg', origin: 'provider' } })
+    renderScreen()
+    expect(document.body).not.toHaveTextContent('Gênero da listagem')
+    expect(document.querySelector('.vod-detail-backdrop img')).toHaveAttribute('src', 'http://exemplo.test/detalhe.jpg')
+  })
+});

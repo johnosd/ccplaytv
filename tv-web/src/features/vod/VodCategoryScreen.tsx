@@ -31,6 +31,7 @@ import { FavoritesEmptyState, FavoritesUnresolvedNote } from '../favorites/Favor
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 import { ContentCard } from '../../components/ContentCard'
+import { RatingBadge } from '../../components/RatingBadge'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorState } from '../../components/ErrorState'
 import { describeError } from '../../lib/errors/errorCatalog'
@@ -908,6 +909,7 @@ export function VodCategoryScreen({
                                   ★
                                 </span>
                               )}
+                              <RatingBadge value={item.provider_rating} />
                               {isWatched && <span className="watched-badge">{t('vod.watched')}</span>}
                               {watchedLabel && <span className="watched-badge">{watchedLabel}</span>}
                             </>

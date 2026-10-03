@@ -11,6 +11,7 @@ export const components = defineArea(
     'textField.hide': 'Ocultar',
     'textField.password': 'senha',
     'spinner.loading': 'Carregando',
+    'rating.provider': 'Provedor',
   },
   {
     'offline.verifying': 'Checking network…',
@@ -21,6 +22,7 @@ export const components = defineArea(
     'textField.hide': 'Hide',
     'textField.password': 'password',
     'spinner.loading': 'Loading',
+    'rating.provider': 'Provider',
   },
   {
     'offline.verifying': 'Comprobando la red…',
@@ -31,5 +33,6 @@ export const components = defineArea(
     'textField.hide': 'Ocultar',
     'textField.password': 'contraseña',
     'spinner.loading': 'Cargando',
+    'rating.provider': 'Proveedor',
   },
 )

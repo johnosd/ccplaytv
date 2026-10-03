@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-03
 
-**Status**: Em Execução
+**Status**: Convergência Pendente
 
 **Input**: Opção nas Configurações para escolher o idioma preferido da pessoa, valendo para a interface, para a sinopse e demais metadados do TMDB (hoje fixos em pt-BR) e para a escolha do trailer, com fallback automático para inglês e depois qualquer idioma disponível. Generaliza a preferência `preferredLanguage` ("Idioma preferido (trailers)") que hoje só reordena trailers, na aba Player & reprodução, sem spec.
 

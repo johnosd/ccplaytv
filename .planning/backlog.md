@@ -302,7 +302,7 @@ medição), `Bugfix` (segue em `## Bugs`).
   - Depende de: `032` ✅, `053`
   - Remove mocks: `vod-top10-movies`, `vod-top10-series`
   - Fonte: `053` (spec, US4)
-- **68** — **Bem avaliados em Filmes e Séries**: ligar o slot reservado da 053 com nota real (da fonte ou do TMDB já obtida); a fileira só existe quando há nota real.
+- **68** — **Bem avaliados em Filmes e Séries**: ligar o slot reservado da 053 com nota real (da fonte ou do TMDB já obtida); a fileira só existe quando há nota real. *A feature 055 já guarda a nota que o provedor declara na listagem (`providerRating`, 0–10, só quando > 0) e a expõe como `provider_rating` — o 68 pode consumi-la, rotulada "Provedor"; a ordenação por nota segue por conta do 68/29.*
   - Ordem: —
   - Tipo: feature
   - Estado: Pronto
@@ -381,7 +381,8 @@ medição), `Bugfix` (segue em `## Bugs`).
 | 051-detalhe-filme-paridade-v14 | Paridade visual do detalhe do filme com o Design System V14 | Planejada | 0/31 tasks | 2026-10-02 |
 | 052-vitrine-filmes-series | Vitrine de Filmes e Séries e tela de categoria em grade cheia | Convergida | 54/54 tasks | 2026-10-03 |
 | 053-carrosseis-filmes-series | Carrosséis de categoria, lista lateral recolhível e slots TMDB na tela hero de Filmes e Séries | Convergida | 48/48 tasks | 2026-10-03 |
-| 054-idioma-do-app | Idioma do app | Em Execução | 57/59 tasks | 2026-10-03 |
+| 054-idioma-do-app | Idioma do app | Convergência Pendente | 57/59 tasks | 2026-10-03 |
+| 055-campos-da-listagem-xtream | Nota, gênero e fundo vindos da listagem Xtream | Convergida | 38/38 tasks | 2026-10-03 |
 
 ## Bugs
 

@@ -191,6 +191,15 @@ export interface CatalogRecord {
   year?: number
   /** Inclusão declarada pela fonte, epoch ms (feature 025) — só filme do provedor (`added`). */
   addedAt?: number
+  /**
+   * Nota que o provedor declara na listagem (feature 055, FR-001), escala 0–10 com uma casa. Só entra quando
+   * válida (> 0 e ≤ 10): ausente = "sem nota", nunca 0. Filme e série do provedor; valor sem índice, sem bump.
+   */
+  providerRating?: number
+  /** Gêneros da listagem (feature 055, FR-002) — só série do provedor; só para exibição, nunca categoria. */
+  providerGenres?: string
+  /** Primeira URL de fundo válida da listagem (feature 055, FR-002) — só série do provedor. */
+  providerBackdropUrl?: string
   /** Duração declarada pela fonte, em segundos (feature 025) — só episódio do provedor (`info.duration_secs`). */
   durationSeconds?: number
   /**

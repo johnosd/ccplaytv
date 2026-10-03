@@ -17,10 +17,13 @@
 
 import {
   classifyEntry,
+  firstBackdropUrl,
   normalizeAddedAt,
   normalizeDurationSeconds,
   normalizeEpgChannelId,
   normalizeIconUrl,
+  normalizeProviderGenres,
+  normalizeProviderRating,
   normalizeYear,
   type ClassifiedEntry,
 } from './classifier'
@@ -558,7 +561,7 @@ export function mapVodEntry(
   const category = categoryId ? categories.get(categoryId) : undefined
   const ext = typeof raw.container_extension === 'string' ? raw.container_extension : 'mp4'
 
-  return {
+  const mapped: MappedChannel = {
     kind: 'movie',
     name,
     originalName: name,
@@ -575,6 +578,11 @@ export function mapVodEntry(
     year: normalizeYear(raw.year) ?? normalizeYear(raw.releaseDate) ?? normalizeYear(raw.release_date),
     addedAt: normalizeAddedAt(raw.added),
   }
+  // Feature 055 (FR-001/FR-003): só `rating`, e a chave só existe quando a nota é válida (D-002 — 43 mil itens não
+  // ganham chaves vazias). `genre`/`backdrop_path` de filme não são lidos (D-003).
+  const providerRating = normalizeProviderRating(raw.rating)
+  if (providerRating !== undefined) mapped.providerRating = providerRating
+  return mapped
 }
 
 export async function acquireXtreamVod(
@@ -645,7 +653,7 @@ export function mapSeriesEntry(
   const categoryId = raw.category_id === undefined || raw.category_id === null ? undefined : String(raw.category_id)
   const category = categoryId ? categories.get(categoryId) : undefined
 
-  return {
+  const mapped: MappedChannel = {
     kind: 'series',
     name,
     originalName: name,
@@ -660,6 +668,15 @@ export function mapSeriesEntry(
     // ganha `addedAt` (`logic/metadados-vod.md` §2).
     year: normalizeYear(raw.year) ?? normalizeYear(raw.releaseDate) ?? normalizeYear(raw.release_date),
   }
+  // Feature 055 (FR-001/FR-002): nota, gênero (só exibição, nunca categoria) e 1ª URL de fundo; a chave só existe
+  // quando há valor (D-002).
+  const providerRating = normalizeProviderRating(raw.rating)
+  if (providerRating !== undefined) mapped.providerRating = providerRating
+  const providerGenres = normalizeProviderGenres(raw.genre)
+  if (providerGenres !== undefined) mapped.providerGenres = providerGenres
+  const providerBackdropUrl = firstBackdropUrl(raw.backdrop_path)
+  if (providerBackdropUrl !== undefined) mapped.providerBackdropUrl = providerBackdropUrl
+  return mapped
 }
 
 export async function acquireXtreamSeries(

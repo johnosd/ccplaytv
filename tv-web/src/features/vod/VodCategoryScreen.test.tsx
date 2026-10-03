@@ -716,3 +716,46 @@ describe('VodCategoryScreen — initialTopbarItem (feature 026, FR-034/FR-044)',
     expect(screen.getByRole('button', { name: 'Buscar' })).toHaveClass('tv-focus')
   })
 })
+
+describe('VodCategoryScreen — selo da nota do provedor (feature 055)', () => {
+  const withRating = (item: CatalogItemOut, rating: number | null): CatalogItemOut => ({ ...item, provider_rating: rating })
+
+  // FR-005, FR-003, US1/AC1+AC3
+  it('card com nota válida mostra "★ 7,4"; sem nota, 0 ou ausente não mostra selo nenhum', async () => {
+    mockContentByCategory({
+      1: [
+        withRating(movie('Filme A', 'a'), 7.4),
+        withRating(movie('Filme B', 'b'), 0),
+        withRating(movie('Filme C', 'c'), null),
+        movie('Filme D', 'd'),
+      ],
+    })
+    renderCategory()
+    await waitFor(() => expect(gridTitles()).toHaveLength(4))
+
+    const badges = [...document.querySelectorAll('.vod-grid .rating-badge')].map((el) => el.textContent)
+    expect(badges).toEqual(['★ 7,4'])
+    expect(document.querySelector('.vod-grid')).not.toHaveTextContent(/Provedor|sem nota/i)
+  })
+
+  // FR-009, US1/AC4: o selo não é focável e a ordem de foco é a de antes
+  it('o selo não entra na ordem de foco: a navegação continua passando card a card', async () => {
+    mockContentByCategory({ 1: [withRating(movie('Filme A', 'a'), 8), movie('Filme B', 'b')] })
+    renderCategory()
+    await waitFor(() => expect(gridTitles()).toHaveLength(2))
+
+    expect(document.querySelector('.rating-badge')?.closest('[tabindex], button, a')).toBeNull()
+    const first = focusedTitle()
+    press('ArrowRight')
+    expect(focusedTitle()).not.toBe(first)
+  })
+
+  // FR-004: uma casa decimal e vírgula no idioma padrão (pt)
+  it('nota 9.2 sai como "★ 9,2" dentro do card', async () => {
+    const item = withRating(movie('Filme A', 'a'), 9.2)
+    mockContentByCategory({ 1: [item] })
+    renderCategory()
+    await waitFor(() => expect(gridTitles()).toEqual(['Filme A']))
+    expect(document.querySelector('.vod-grid-cell .rating-badge')).toHaveTextContent('★ 9,2')
+  })
+});

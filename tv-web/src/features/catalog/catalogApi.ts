@@ -156,6 +156,12 @@ export interface CatalogItemOut {
   year?: number | null
   /** Inclusão declarada pela fonte, epoch ms (feature 025). `null` = não declarada. */
   added_at?: number | null
+  /** Nota que o provedor declara na listagem, 0–10 com uma casa (feature 055). `null` = sem nota (ausente, 0 ou inválida). */
+  provider_rating?: number | null
+  /** Gêneros da listagem, só série e só para exibição (feature 055). `null` = não declarado. */
+  provider_genres?: string | null
+  /** Primeira URL de fundo válida da listagem, só série (feature 055). `null` = não declarada. */
+  provider_backdrop_url?: string | null
   /**
    * Id de EPG que a fonte declara para o canal (feature 030, FR-006/FR-008):
    * `epg_channel_id` do Xtream, `tvg-id` do M3U. `null` = não declarado —
@@ -277,6 +283,9 @@ function itemOut(
     source_number: null,
     year: record.year ?? null,
     added_at: record.addedAt ?? null,
+    provider_rating: record.providerRating ?? null,
+    provider_genres: record.providerGenres ?? null,
+    provider_backdrop_url: record.providerBackdropUrl ?? null,
     epg_channel_id: record.epgChannelId ?? null,
   }
 }

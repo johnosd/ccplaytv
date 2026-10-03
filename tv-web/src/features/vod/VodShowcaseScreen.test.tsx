@@ -199,6 +199,90 @@ describe('VodShowcaseScreen — hero', () => {
   })
 })
 
+describe('VodShowcaseScreen — nota do provedor (feature 055)', () => {
+  // FR-006, FR-003, US1/AC2+AC3
+  it('hero mostra "★ 7,4 Provedor" para item com nota; sem nota, 0 ou null não aparece nada de nota', () => {
+    mockData({ favorites: [item('Com nota', 'movie', { provider_rating: 7.4 })], added: [item('Sem nota', 'movie', { provider_rating: 0 })] })
+    renderShowcase()
+    // Sem histórico, a primeira fileira é ★ Favoritos e o foco já começa nela.
+    expect(text('.vod-hero-title')).toBe('Com nota')
+    expect(text('.vod-hero-meta')).toContain('★ 7,4')
+    expect(text('.vod-hero-meta')).toContain('Provedor')
+    tap('ArrowDown', 2) // Top 10 (reservado) → Adicionados recentemente
+    expect(text('.vod-hero-title')).toBe('Sem nota')
+    expect(document.querySelector('.vod-hero-meta .rating-badge')).toBeNull()
+    expect(text('.vod-hero-meta')).not.toMatch(/★|Provedor|sem nota/i)
+  })
+
+  // FR-005
+  it('card da fileira mostra o selo "★ 8,0" só com nota válida, sem o rótulo de origem', () => {
+    mockData({ favorites: [item('Com nota', 'movie', { provider_rating: 8 }), item('Sem nota')] })
+    renderShowcase()
+    const badges = [...document.querySelectorAll('.vod-row .rating-badge')].map((el) => el.textContent)
+    expect(badges).toEqual(['★ 8,0'])
+  })
+})
+
+describe('VodShowcaseScreen — gênero e fundo da listagem das séries (feature 055)', () => {
+  // FR-007, US2/AC1+AC2
+  it('hero de série mostra o gênero como subtítulo e o fundo da listagem; sem eles, igual a antes', () => {
+    mockData({
+      added: [
+        item('Com tudo', 'series', {
+          series_id: 's1',
+          icon_url: 'http://exemplo.test/capa.jpg',
+          provider_genres: 'Comédia, Drama',
+          provider_backdrop_url: 'http://exemplo.test/fundo.jpg',
+        }),
+        item('Sem nada', 'series', { series_id: 's2', icon_url: 'http://exemplo.test/capa2.jpg' }),
+      ],
+    })
+    renderShowcase('series')
+    expect(text('.vod-hero-title')).toBe('Com tudo')
+    expect(text('.vod-hero-meta')).toContain('Comédia, Drama')
+    expect(document.querySelector('.vod-hero-art img')).toHaveAttribute('src', 'http://exemplo.test/fundo.jpg')
+
+    tap('ArrowRight') // próximo card da fileira
+    expect(text('.vod-hero-title')).toBe('Sem nada')
+    expect(text('.vod-hero-meta')).not.toContain('Comédia')
+    // Sem fundo da listagem, a capa continua sendo a arte do destaque (como antes).
+    expect(document.querySelector('.vod-hero-art img')).toHaveAttribute('src', 'http://exemplo.test/capa2.jpg')
+  })
+
+  // D-003/D-010: filme não usa gênero nem fundo da listagem (campos só existem em série; mesmo se vierem, são ignorados)
+  it('hero de filme continua com a capa e sem gênero da listagem', () => {
+    mockData({
+      added: [
+        item('Filme', 'movie', {
+          icon_url: 'http://exemplo.test/capa.jpg',
+          provider_genres: 'Gênero da listagem',
+          provider_backdrop_url: 'http://exemplo.test/fundo.jpg',
+        }),
+      ],
+    })
+    renderShowcase('movies')
+    expect(text('.vod-hero-meta')).not.toContain('Gênero da listagem')
+    expect(document.querySelector('.vod-hero-art img')).toHaveAttribute('src', 'http://exemplo.test/capa.jpg')
+  })
+
+  // FR-013, SC-002: focar nunca consulta nada — o hero só lê o que o item já carrega
+  it('mover o foco entre cards não dispara nenhuma requisição', () => {
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    mockData({
+      added: [
+        item('A', 'series', { series_id: 's1', provider_genres: 'Drama' }),
+        item('B', 'series', { series_id: 's2', provider_genres: 'Comédia' }),
+      ],
+    })
+    renderShowcase('series')
+    tap('ArrowRight')
+    tap('ArrowLeft')
+    expect(fetchSpy).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+})
+
 describe('VodShowcaseScreen — fileiras e estados', () => {
   it('uma fileira some quando o último item sai (o foco cai na anterior existente, nunca some)', () => {
     mockData({ history: [item('H1')], favorites: [item('F1')] })

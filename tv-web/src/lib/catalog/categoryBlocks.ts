@@ -76,6 +76,12 @@ export function itemsSignature(items: CatalogRecord[]): string {
           item.declaredChannelNumber ?? null,
         )
       }
+      // Feature 055 (D-005): campos da listagem só entram quando algum existe, DEPOIS dos da 044 e nesta ordem — um
+      // item sem eles gera o mesmo vetor de antes (lista antiga não regrava à toa) e, sem estarem aqui, uma lista
+      // já importada nunca gravaria a nota do painel (assinatura idêntica ⇒ `writeBlockWithin` não regrava).
+      if (item.providerRating !== undefined || item.providerGenres !== undefined || item.providerBackdropUrl !== undefined) {
+        fields.push(item.providerRating ?? null, item.providerGenres ?? null, item.providerBackdropUrl ?? null)
+      }
       return fields
     }),
   )

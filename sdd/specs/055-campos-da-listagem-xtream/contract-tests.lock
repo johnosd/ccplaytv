@@ -1,0 +1,17 @@
+{
+    "feature":  "055-campos-da-listagem-xtream",
+    "lockedAt":  "2026-10-03 18:22",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/catalog/vodMetadata.campos-da-listagem.contract.test.ts",
+                      "sha256":  "064de8b5760cc94282452594bc12ab5cd55b263bed5b540af1e26929b6d08597",
+                      "tests":  3
+                  },
+                  {
+                      "path":  "tv-web/src/components/RatingBadge.campos-da-listagem.contract.test.tsx",
+                      "sha256":  "248d1f3645e3d920f84c56a194b705b79ca015de80f523052112da0f7672ae97",
+                      "tests":  2
+                  }
+              ]
+}

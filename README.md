@@ -41,6 +41,11 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   categorias é rolada com ↑/↓ e paginada com ←/→ (features 052/053); "→" no fim da
   lista entra nos cards, e a lista recolhe enquanto o foco está neles. A tela
   traz um carrossel por categoria com "Ver tudo" (feature 053).
+- Nota que o provedor declara na listagem Xtream: selo `★ 7,4` nos cards de Filmes e Séries e
+  `★ 7,4 Provedor` no destaque e no detalhe (nunca como IMDb; nota 0 ou inválida não aparece).
+  Nas séries, o destaque também mostra o gênero e o fundo da listagem. Tudo vem do que a listagem
+  já baixa, sem consulta extra; listas já importadas ganham os campos quando a categoria é renovada
+  (feature 055).
 - Programa atual ("Agora") com barra de progresso na lista de canais, e
   "A seguir" com sinopse no preview, na faixa do player e nos canais
   favoritos da Home, a partir de EPG em XMLTV (do painel Xtream, do

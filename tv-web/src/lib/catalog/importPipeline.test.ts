@@ -990,6 +990,10 @@ describe('importPipeline — URL M3U reconhecida como painel Xtream (feature 014
     const movies = await listChannels(M3U_SOURCE.id, orderOf('Filmes'), 0, 10, 'movie', database)
     expect(movies[0].year).toBeUndefined()
     expect(movies[0].addedAt).toBeUndefined()
+    // Feature 055 (FR-011): M3U também não ganha nota/gênero/fundo — nem a chave vazia.
+    expect('providerRating' in movies[0]).toBe(false)
+    expect('providerGenres' in movies[0]).toBe(false)
+    expect('providerBackdropUrl' in movies[0]).toBe(false)
   })
 
   // T012 — SC-007: nenhum ramo de falha ou de Modo limitado vaza usuário, senha ou URL.

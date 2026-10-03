@@ -32,6 +32,7 @@ import { Toast } from '../../components/Toast'
 import { PlayerLayer } from '../../components/PlayerLayer'
 import { TrailerLayer } from '../../components/TrailerLayer'
 import { PosterArt } from '../../components/PosterArt'
+import { RatingBadge } from '../../components/RatingBadge'
 import { Tabs, type TabItem } from '../../components/Tabs'
 import { buildStableId } from '../../lib/catalog/userStateRepository'
 import { isResumable } from '../../lib/player/resumePolicy'
@@ -489,7 +490,11 @@ export function MovieDetailScreen({
         <div className="vod-detail-info">
           <div className="vod-detail-eyebrow">{t('detail.eyebrow.movie')}</div>
           <div className="vod-detail-title">{movie.name}</div>
-          <div className="vod-detail-meta">{metaParts.join(' · ')}</div>
+          <div className="vod-detail-meta">
+            {metaParts.join(' · ')}
+            {movie.provider_rating != null && movie.provider_rating > 0 && ' · '}
+            <RatingBadge value={movie.provider_rating} showSource />
+          </div>
           <SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />
           <div className="vod-detail-actions">
             {actions.map((action, i) => {

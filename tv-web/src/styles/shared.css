@@ -384,6 +384,30 @@
   padding: 2px 8px;
 }
 
+/* Selo da nota do provedor (feature 055) — só apresentação, nunca focável. No card fica no canto superior esquerdo
+   (.fav-star ocupa o superior direito; .watched-badge, o inferior esquerdo). Fora do card (destaque e detalhe) é texto
+   corrido, na cor secundária do contexto. Só tokens. */
+.rating-badge {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rating-badge-source {
+  margin-left: var(--space-1);
+  color: var(--text-tertiary);
+}
+
+.poster-box .rating-badge {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  font: 700 var(--fs-caption) var(--font-body);
+  color: var(--text-primary);
+  background: var(--scrim-media);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-1);
+}
+
 /* Dica fixa no rodapé da coluna de conteúdo, discreta (mesmo tom de
    .live-truncated-note), lembrando o gesto de segurar OK enquanto houver
    itens favoritáveis na tela (FR-012). */

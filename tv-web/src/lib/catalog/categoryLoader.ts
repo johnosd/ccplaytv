@@ -147,7 +147,7 @@ export function toItemRecord(
   generation: number,
   category: CatalogCategory,
 ): CatalogRecord {
-  return {
+  const record: CatalogRecord = {
     sourceId,
     generation,
     kind: channel.kind,
@@ -172,6 +172,14 @@ export function toItemRecord(
     year: channel.year,
     addedAt: channel.addedAt,
   }
+  // Feature 055 (D-002/D-003): campos da listagem só quando existem — 43 mil itens não ganham chaves vazias.
+  // Nota vale para filme e série; gênero e fundo, só para série.
+  if (channel.providerRating !== undefined) record.providerRating = channel.providerRating
+  if (channel.kind === 'series') {
+    if (channel.providerGenres !== undefined) record.providerGenres = channel.providerGenres
+    if (channel.providerBackdropUrl !== undefined) record.providerBackdropUrl = channel.providerBackdropUrl
+  }
+  return record
 }
 
 /** Falha de gravação por falta de espaço vira dado, nunca exceção (feature 038, FR-008). */

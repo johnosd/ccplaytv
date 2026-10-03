@@ -30,6 +30,7 @@ import { useT } from '../../lib/i18n/I18nProvider'
 import type { MessageKey } from '../../lib/i18n/messages/pt'
 import { Toast } from '../../components/Toast'
 import { ContentCard } from '../../components/ContentCard'
+import { RatingBadge } from '../../components/RatingBadge'
 import { Rail } from '../../components/Rail'
 import { SideCategoryNav, type SideCategoryNavEntry } from '../../components/SideCategoryNav'
 import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoView'
@@ -485,7 +486,15 @@ export function VodShowcaseScreen({
       if (spec.format === 'wide') {
         return <ContentCard variant="wide" title={entry.item.name} iconUrl={backdrops.get(entry.item.id)} focused={focused} />
       }
-      return <ContentCard variant="portrait" title={entry.item.name} iconUrl={entry.item.icon_url ?? undefined} focused={focused} />
+      return (
+        <ContentCard
+          variant="portrait"
+          title={entry.item.name}
+          iconUrl={entry.item.icon_url ?? undefined}
+          focused={focused}
+          badge={<RatingBadge value={entry.item.provider_rating} />}
+        />
+      )
     }
     if (entry.kind === 'see-all') return <SeeAllCard label={t('showcase.seeAll')} focused={focused} className="vod-see-all-card" />
     return renderSlotCard(spec, focused)
@@ -594,13 +603,16 @@ export function VodShowcaseScreen({
     const summary = heroItem?.series_id ? watchedSummary.get(heroItem.series_id) : undefined
     return (
       <div className="vod-hero-band" aria-hidden="true">
-        <VodHeroArt url={heroItem?.icon_url ?? undefined} />
+        {/* Feature 055 (D-010): série usa o fundo da listagem quando houver; filme segue com a capa. */}
+        <VodHeroArt url={(heroItem?.kind === 'series' ? heroItem.provider_backdrop_url : null) ?? heroItem?.icon_url ?? undefined} />
         <div className="vod-hero-info">
           <div className="vod-hero-eyebrow">{heroEyebrow}</div>
           <div className="vod-hero-title">{heroItem ? heroItem.name : heroCategory?.label}</div>
           <div className="vod-hero-meta">
             {heroCategory && heroCategory.count !== undefined && <span>{t('vod.titleCount', { n: heroCategory.count })}</span>}
             {heroItem && heroItem.year != null && <span>{heroItem.year}</span>}
+            {heroItem && <RatingBadge value={heroItem.provider_rating} showSource />}
+            {heroItem?.kind === 'series' && heroItem.provider_genres && <span>{heroItem.provider_genres}</span>}
             {heroItem && <span>{vodGroupDisplay(heroItem.original_group, t)}</span>}
             {heroItem && section === 'movies' && watchedIds.has(stableId) && <span>{t('vod.watched')}</span>}
             {heroItem && section === 'movies' && !watchedIds.has(stableId) && resumePositions.has(stableId) && (

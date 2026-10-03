@@ -217,3 +217,28 @@ function renderScreenWithRerender() {
   const { rerender } = render(tree())
   return { rerender: () => rerender(tree()) }
 }
+
+describe('MovieDetailScreen — nota do provedor (feature 055)', () => {
+  // FR-006, FR-014, US1/AC2
+  it('com nota válida mostra "★ 7,4 Provedor" junto ao resumo; nunca IMDb/TMDB', () => {
+    vi.mocked(catalogApi.useCatalogItem).mockReturnValue({ data: { ...MOVIE, provider_rating: 7.4 }, isLoading: false } as ReturnType<typeof catalogApi.useCatalogItem>)
+    renderScreen()
+    const meta = document.querySelector('.vod-detail-meta')
+    expect(meta).toHaveTextContent('2021')
+    expect(meta).toHaveTextContent('★ 7,4')
+    expect(meta).toHaveTextContent('Provedor')
+    expect(meta).not.toHaveTextContent(/imdb|tmdb/i)
+  })
+
+  // FR-003, FR-004, US1/AC3
+  it('sem nota, com 0 ou nulo não aparece nada de nota nem o separador sobrando', () => {
+    for (const rating of [null, 0, undefined]) {
+      cleanup()
+      vi.mocked(catalogApi.useCatalogItem).mockReturnValue({ data: { ...MOVIE, provider_rating: rating }, isLoading: false } as ReturnType<typeof catalogApi.useCatalogItem>)
+      renderScreen()
+      const meta = document.querySelector('.vod-detail-meta')
+      expect(meta).not.toHaveTextContent(/★|Provedor/)
+      expect(meta?.textContent?.trim().endsWith('·')).toBe(false)
+    }
+  })
+});

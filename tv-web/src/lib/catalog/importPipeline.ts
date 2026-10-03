@@ -499,6 +499,12 @@ export async function startImport(
         // guardá-los só ampliaria o segredo no aparelho (ADR-010). `radio` e o
         // `tvg-chno` declarado só fazem sentido em canal, como o `epgChannelId`.
         if (keepUrl && channel.playbackHeaders) record.playbackHeaders = channel.playbackHeaders
+        // Feature 055 (D-002/D-003): campos da listagem só quando existem; gênero e fundo só em série.
+        if (channel.providerRating !== undefined) record.providerRating = channel.providerRating
+        if (channel.kind === 'series') {
+          if (channel.providerGenres !== undefined) record.providerGenres = channel.providerGenres
+          if (channel.providerBackdropUrl !== undefined) record.providerBackdropUrl = channel.providerBackdropUrl
+        }
         if (channel.kind === 'channel') {
           if (channel.radio) record.radio = channel.radio
           if (channel.declaredChannelNumber !== undefined) record.declaredChannelNumber = channel.declaredChannelNumber
