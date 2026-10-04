@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-04
 
-**Status**: Especificada
+**Status**: Planejada
 
 **Input**: Pacote G1 do backlog — item 25b (repasse dos headers `User-Agent`/`Referer` declarados pela lista M3U ao player da TV; o parser da `044` já os guarda) e item 43 (TV Archive / Catch-up: tocar programa passado a partir do Guia, se o provedor oferecer; duas variantes de URL exigem sondagem; libera Play/Pause no que não é ao vivo, V14 §43.3). Por decisão do usuário, os dois entram completos nesta spec, sem `sdd-assess` separado para o 43.
 
@@ -17,7 +17,7 @@
 - Painel "Info do stream" (feature 029) mostra **os nomes** dos headers aplicados (ex.: "User-Agent, Referer"), nunca os valores.
 - Catch-up para fontes **Xtream**: o app passa a guardar, por canal, se o painel mantém arquivo e por quantos dias.
 - No **Guia completo** (feature 031): programa passado com arquivo disponível fica marcado; OK nele toca o programa do início.
-- Ação **"Assistir do início"** sobre o programa em exibição, no painel de prévia da Live TV e no chrome do player ao vivo.
+- Ação **"Do início"** sobre o programa em exibição, no chrome do player ao vivo; o painel de prévia da Live TV ganha só um selo não focável de que o canal tem arquivo *(emendado no `sdd-plan`: desde a 049 a prévia não tem elemento focável)*.
 - Reprodução de arquivo com controles reais: Play/Pause, ±10 s, barra de progresso com a duração do programa e ação **"Ao vivo"**; ao fim de um programa, segue para o seguinte do arquivo e, ao alcançar o agora, passa sozinho ao ao vivo do canal.
 - Sondagem das duas variantes de URL de arquivo do painel Xtream e reuso da variante que funcionou para a mesma fonte.
 
@@ -67,26 +67,26 @@ A pessoa perdeu um programa de hoje num canal de painel Xtream que guarda arquiv
 3. **Given** um programa de arquivo tocando, **When** a pessoa usa Play/Pause, ←/→ (±10 s) ou a barra, **Then** os controles agem dentro do programa; a barra vai do início ao fim do programa segundo o EPG.
 4. **Given** um programa de arquivo tocando, **When** a pessoa escolhe "Ao vivo", **Then** o canal passa ao ao vivo, com os controles do ao vivo.
 5. **Given** um programa de arquivo que termina, **When** existe o programa seguinte no EPG, **Then** a reprodução segue nele sem a pessoa agir; **When** o seguinte é o programa em exibição e a reprodução alcança o agora, **Then** passa ao ao vivo.
-6. **Given** um programa passado de canal sem arquivo, ou anterior aos dias do arquivo, **When** a pessoa aperta OK, **Then** o programa aparece sem a marca e um aviso diz que o canal não guarda esse programa; o foco fica onde estava.
+6. **Given** um programa passado de canal sem arquivo, ou anterior aos dias do arquivo, **When** a pessoa aperta OK, **Then** o programa aparece sem a marca e um aviso explica (canal sem arquivo: "Este programa já terminou."; fora dos dias: o programa já saiu do arquivo); o foco fica onde estava.
 7. **Given** um programa de arquivo tocando, **When** a pessoa aperta ↑/↓, **Then** troca para o ao vivo do canal vizinho (zapping de sempre).
 8. **Given** um programa de arquivo tocando, **When** a pessoa volta (RETURN), **Then** retorna ao Guia com o foco no programa que abriu.
 
 ---
 
-### User Story 3 - "Assistir do início" no programa em exibição (Priority: P3)
+### User Story 3 - "Do início" no programa em exibição (Priority: P3)
 
-A pessoa liga num canal com arquivo e o jogo começou há 20 minutos. No painel de prévia da Live TV ou no chrome do player ao vivo, escolhe "Assistir do início" e o programa atual recomeça do começo, com os mesmos controles da US2; pode voltar ao ao vivo a qualquer momento.
+A pessoa liga num canal com arquivo e o jogo começou há 20 minutos. No chrome do player ao vivo, escolhe "Do início" e o programa atual recomeça do começo, com os mesmos controles da US2; pode voltar ao ao vivo a qualquer momento.
 
 **Why this priority**: atalho de alto uso, mas reaproveita tudo da US2.
 
-**Independent Test**: num canal com arquivo e EPG do agora, acionar "Assistir do início" na prévia e no chrome e conferir o início no começo do programa atual, a barra limitada ao agora e o "Ao vivo".
+**Independent Test**: num canal com arquivo e EPG do agora, acionar "Do início" no chrome do player e conferir o início no começo do programa atual, a barra limitada ao agora e o "Ao vivo".
 
 **Acceptance Scenarios**:
 
-1. **Given** um canal com arquivo e programa atual conhecido, **When** a pessoa abre a prévia ou o chrome do player, **Then** existe a ação "Assistir do início".
+1. **Given** um canal com arquivo e programa atual conhecido, **When** a pessoa revela a linha de controles do player ao vivo, **Then** existe a ação "Do início"; **And** a prévia da Live TV mostra o selo de arquivo do canal, sem nada focável novo.
 2. **Given** essa ação acionada, **When** o player abre, **Then** toca o programa atual desde o início, identificado como arquivo.
 3. **Given** a reprodução do programa atual pelo arquivo, **When** a pessoa avança, **Then** não passa do agora; ao alcançá-lo, entra no ao vivo.
-4. **Given** um canal sem arquivo, **When** a pessoa abre a prévia ou o chrome, **Then** a ação não existe.
+4. **Given** um canal sem arquivo, **When** a pessoa revela a linha de controles, **Then** a ação não existe e a prévia não mostra o selo.
 5. **Given** um canal com arquivo mas sem programa atual no EPG, **When** a pessoa foca a ação, **Then** ela aparece desabilitada (soft disabled) explicando que não há programação para saber onde o programa começa.
 
 ---
@@ -122,15 +122,15 @@ A pessoa liga num canal com arquivo e o jogo começou há 20 minutos. No painel 
 - **FR-007**: Para fontes Xtream, o sistema DEVE guardar por canal se o painel mantém arquivo e por quantos dias, conforme o painel declara; um canal sem essa declaração é "sem arquivo".
 - **FR-008**: Um programa é "disponível no arquivo" somente se o canal tem arquivo, o programa já começou e o início do programa está dentro dos dias declarados.
 - **FR-009**: O Guia completo DEVE marcar visualmente os programas disponíveis no arquivo; focar um programa NUNCA DEVE iniciar reprodução nem consulta à rede.
-- **FR-010**: OK num programa disponível DEVE abrir o player em tela cheia no início do programa; OK num programa passado não disponível DEVE mostrar um aviso de que o canal não guarda esse programa, sem mover o foco.
+- **FR-010**: OK num programa disponível DEVE abrir o player em tela cheia no início do programa; OK num programa passado não disponível DEVE mostrar um aviso, sem mover o foco: canal **sem** arquivo mantém o aviso de hoje ("Este programa já terminou.", contrato travado da 031); canal **com** arquivo e programa fora dos dias diz que o programa já saiu do arquivo do canal. *(Refinado no `sdd-plan`, 2026-10-04, R-006.)*
 - **FR-011**: Durante a reprodução de arquivo, o chrome DEVE identificar que não é ao vivo e mostrar título e horário do programa.
 - **FR-012**: Durante a reprodução de arquivo, o sistema DEVE oferecer Play/Pause, ±10 s e barra de progresso com início e fim do programa (EPG), e a ação "Ao vivo".
 - **FR-013**: Ao fim de um programa de arquivo, o sistema DEVE seguir para o programa seguinte do mesmo canal se ele estiver no EPG e no arquivo; ao alcançar o agora, ou sem programa seguinte conhecido, DEVE passar ao ao vivo do canal.
 - **FR-014**: A busca dentro do programa em exibição NUNCA DEVE passar do agora.
-- **FR-015**: Para um canal com arquivo e programa atual conhecido, o painel de prévia da Live TV e o chrome do player ao vivo DEVEM oferecer "Assistir do início", que toca o programa atual desde o início pelo arquivo.
-- **FR-016**: Em canal sem arquivo, "Assistir do início" NÃO DEVE existir; em canal com arquivo sem programa atual no EPG, DEVE aparecer desabilitada (soft disabled) com a explicação.
+- **FR-015**: Para um canal com arquivo e programa atual conhecido, o chrome do player ao vivo DEVE oferecer "Do início", que toca o programa atual desde o início pelo arquivo. O painel de prévia da Live TV DEVE mostrar um selo não focável indicando que o canal tem arquivo (e de quantos dias). *(Emendado no `sdd-plan`, 2026-10-04.)*
+- **FR-016**: Em canal sem arquivo, "Do início" NÃO DEVE existir; em canal com arquivo sem programa atual no EPG, DEVE aparecer desabilitada (soft disabled) com a explicação.
 - **FR-017**: O sistema DEVE sondar as duas variantes de URL de arquivo do painel Xtream, reutilizar para a mesma fonte a que funcionou e sondar de novo quando ela falhar; se nenhuma responder, DEVE mostrar erro acionável ("Ao vivo", "Voltar") sem marcar o programa como indisponível de forma permanente.
-- **FR-018**: ↑/↓ durante a reprodução de arquivo DEVEM trocar para o ao vivo do canal vizinho; RETURN DEVE voltar à tela de origem restaurando o foco no item que abriu a reprodução.
+- **FR-018**: Durante a reprodução de arquivo, CH± (sempre) e ↑/↓ com o chrome oculto DEVEM trocar para o ao vivo do canal vizinho; com a linha de controles visível, ↑/↓ seguem o chrome de VOD (↑ foca a barra). RETURN DEVE voltar à origem: arquivo aberto pelo Guia volta ao Guia com o foco no programa; "Do início" aberto do player volta ao ao vivo do mesmo canal. *(Refinado no `sdd-plan`, 2026-10-04: ↑ já é o gesto de focar a barra no VOD.)*
 - **FR-019**: Reprodução de arquivo NÃO DEVE criar nem atualizar entradas de Histórico ou "Continuar assistindo".
 - **FR-020**: A URL de arquivo DEVE seguir as mesmas regras de segredo da URL de reprodução (ADR-010): nunca em log, erro, UI ou terceiro.
 - **FR-021**: Novos textos visíveis DEVEM entrar no catálogo de idiomas (pt, en, es).
@@ -157,9 +157,8 @@ A pessoa liga num canal com arquivo e o jogo começou há 20 minutos. No painel 
 
 - Espera-se que a TV (Tizen 9, AVPlay) aceite um `User-Agent` personalizado, como a documentação da Samsung sugere; o suporte a `Referer` é desconhecido. Nenhum dos dois foi provado neste aparelho: o `sdd-plan` precisa confirmar na TV física antes de desenhar o FR-004.
 - O "spike de header do AVPlay" citado no backlog (item 58) não deixou evidência escrita; não se assume resultado dele.
-- O painel Xtream declara arquivo por canal na listagem de canais ao vivo; o formato exato das duas variantes de URL vem de `docs/iptvnator/03-apis.md` #8 e é confirmado no plano.
+- O painel Xtream declara arquivo por canal na listagem de canais ao vivo (`tv_archive`, `tv_archive_duration`); o formato das duas variantes de URL vem de `docs/iptvnator/03-apis.md` #8. **Sondagem do `sdd-plan` (2026-10-04)**: a lista do `.env` declara arquivo de 7 dias em 75 de 2 360 canais (70 com EPG), mas o painel responde 404 nas duas variantes, para programas de 1,5 h a 5 dias atrás, com início no fuso do painel e em UTC — o ao vivo do mesmo canal toca. O aceite do catch-up usa painel falso; a lista real fica como "não testado" e exercita o erro acionável.
 - A janela de EPG guardada (12 h para trás, `030`) cobre o caso principal; programas mais antigos ficam fora do Guia.
-- Não se sabe se a lista Xtream de teste (`.env`) tem canais com arquivo; o `sdd-plan` sonda antes de desenhar o aceite.
 - Fontes M3U, mesmo que apontem para um painel Xtream reconhecido (feature 014), ganham catch-up só se seguirem o caminho de provedor; avulsas não.
 
 ## Clarifications
@@ -178,3 +177,10 @@ A pessoa liga num canal com arquivo e o jogo começou há 20 minutos. No painel 
 - Q: OK em programa passado sem arquivo? → A: sem marca de disponível; OK mostra aviso e o foco fica.
 - Q: Catch-up entra no Histórico? → A: não.
 - Q: A lista de teste tem arquivo? → A: não se sabe; o `sdd-plan` sonda a lista do `.env` e, se não houver, o aceite usa painel falso e a TV fica "não testado".
+
+### Sessão 2026-10-04 (sdd-plan)
+
+- Q: A lista real declara arquivo em 75 canais, mas o painel responde 404 nas duas variantes. Como seguir com o 43? → A: manter; aceite automático por painel falso que serve arquivo, a TV com a lista real fica "não testado" (e o 404 vira o caso de erro acionável).
+- Q: Onde fica "Assistir do início" fora do player, já que a prévia não tem nada focável desde a 049? → A: só no chrome do player ao vivo; a prévia ganha um selo não focável de arquivo. FR-015, FR-016 e US3 emendados.
+- Q (decidido no plano, sem pergunta): ↑/↓ no arquivo conflitam com o ↑ que foca a barra no VOD → CH± sempre troca de canal; ↑/↓ trocam só com o chrome oculto. FR-018 refinado.
+- Q (decidido no plano, sem pergunta): o contrato travado da 031 exige "Este programa já terminou." no OK de programa passado → mantido para canal sem arquivo; canal com arquivo fora dos dias ganha aviso próprio. FR-010 e US2-AC6 refinados.

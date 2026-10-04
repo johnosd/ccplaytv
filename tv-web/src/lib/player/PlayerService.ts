@@ -74,6 +74,40 @@ export interface PlayerError {
   message?: string
 }
 
+/**
+ * Feature 058 (`sdd/specs/058-headers-avplay-catchup/logic/headers.md`): os
+ * headers de requisição que o app sabe repassar ao motor. Estruturalmente
+ * idêntico a `PlaybackHeaders` (`lib/catalog/m3uHeaders.ts`) de propósito —
+ * esta camada não importa de `lib/catalog` (mesma regra de `PlayableKind`).
+ * Os VALORES são segredo em potencial (ADR-010): nunca saem do adaptador.
+ */
+export interface RequestHeaders {
+  userAgent?: string
+  referer?: string
+}
+
+/** Nome de um header de requisição — o único dado sobre headers que atravessa para a UI (FR-005). */
+export type RequestHeaderName = 'User-Agent' | 'Referer'
+
+/** O que o motor aceitou aplicar na última abertura, e o que recusou. Só nomes, nunca valores. */
+export interface RequestHeadersReport {
+  applied: RequestHeaderName[]
+  refused: RequestHeaderName[]
+}
+
+export const NO_REQUEST_HEADERS: RequestHeadersReport = { applied: [], refused: [] }
+
+/**
+ * Feature 058 (`logic/arquivo.md` §4): a linha do tempo de um programa de
+ * arquivo vem do EPG, nunca do motor (o stream do painel não tem duração
+ * confiável). `maxPositionMs` limita a busca no programa em exibição ao
+ * "agora" (FR-014); ausente = só o fim do programa limita.
+ */
+export interface PlayerTimeline {
+  durationMs: number
+  maxPositionMs?: () => number
+}
+
 export interface PlayerAdapter {
   /** Nome para diagnóstico. Nunca inclui dado sensível. */
   readonly name: string
@@ -101,8 +135,15 @@ export interface PlayerAdapter {
    * contrato §4.1). É o que evita o filme aparecer do início por um instante
    * antes de saltar pra posição de retomada.
    */
-  open(url: string, region: PlayerRegion, startAtMs?: number): void
+  open(url: string, region: PlayerRegion, startAtMs?: number, headers?: RequestHeaders): void
   close(): void
+
+  /**
+   * Feature 058 (FR-001/FR-004/FR-005): os headers que o motor aceitou e os
+   * que recusou na última `open`. Opcional: motor sem o método = nenhum
+   * header aplicado (tudo o que foi pedido conta como recusado).
+   */
+  requestHeadersReport?(): RequestHeadersReport
 
   /** Só chamado quando a sessão resolveu `canPause`. */
   pause?(): void
@@ -177,6 +218,8 @@ export interface PlayerSession {
   readonly supportsTracks: boolean
   /** O motor sabe informar dados técnicos do stream (feature 029). */
   readonly supportsStreamInfo: boolean
+  /** Feature 058: headers da lista que o motor aplicou/recusou nesta sessão — só nomes. */
+  readonly requestHeaders: RequestHeadersReport
 
   /** Faixas atuais, ou `null` (motor sem a API, sessão fechada, ou falha agora). */
   getTracks(): MediaTrack[] | null
@@ -218,6 +261,10 @@ export interface PlayerServiceOptions {
   createAdapter?: PlayerAdapterFactory
   /** Posição inicial em ms, aplicada só depois de o motor ficar pronto. */
   startAtMs?: number
+  /** Feature 058: headers declarados pela lista para este item (valores só chegam ao adaptador). */
+  headers?: RequestHeaders
+  /** Feature 058: linha do tempo do programa de arquivo (EPG); ausente = a do motor. */
+  timeline?: PlayerTimeline
 }
 
 /**
@@ -275,6 +322,11 @@ export class PlayerServiceSession implements PlayerSession {
   private readonly subtitleListeners = new Set<(cue: SubtitleCue | null) => void>()
   readonly supportsTracks: boolean
   readonly supportsStreamInfo: boolean
+  /**
+   * Feature 058. STUB do sdd-plan: sempre "nada aplicado" — a T0xx da Fase 2
+   * repassa `options.headers` ao `open` e lê `adapter.requestHeadersReport()`.
+   */
+  readonly requestHeaders: RequestHeadersReport = NO_REQUEST_HEADERS
   /** Feature 042: `PlayerAdapter.name` (nunca inclui dado sensível) — vai para a "Info técnica". */
   readonly engine: string
 

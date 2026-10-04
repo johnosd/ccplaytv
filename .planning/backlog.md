@@ -217,7 +217,7 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 055-campos-da-listagem-xtream | Nota, gênero e fundo vindos da listagem Xtream | Convergida | 38/38 tasks | 2026-10-03 |
 | 056-bem-avaliados | Fileira "Bem avaliados" em Filmes e Séries | Convergida | 44/44 tasks | 2026-10-04 |
 | 057-top10-dica-tmdb | Top 10 da semana e carrossel "Dica" (TMDB) em Filmes, Séries e Início | Implementada | 45/45 tasks | 2026-10-04 |
-| 058-headers-avplay-catchup | Headers da lista no AVPlay e catch-up de programas passados (Xtream) | Especificada | N/A | 2026-10-04 |
+| 058-headers-avplay-catchup | Headers da lista no AVPlay e catch-up de programas passados (Xtream) | Planejada | 0/53 tasks | 2026-10-04 |
 
 ## Bugs
 

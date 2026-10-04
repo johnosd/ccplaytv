@@ -19,14 +19,14 @@ import {
   RESUME_BLOCKED_KEY,
   STATE_LABEL_KEY,
 } from './player/playerMessages'
-import type { PanelState, PlayerLayerProps, PlayerLayerTopLayer } from './player/playerLayerTypes'
+import type { PanelState, PlayerArchive, PlayerLayerProps, PlayerLayerTopLayer } from './player/playerLayerTypes'
 import { usePlayerChrome } from './player/usePlayerChrome'
 import { usePanelRefresh, usePlayerPanels } from './player/usePlayerPanels'
 import { usePlayerSession, useRescheduleOnState, useScreenSaverWhilePlaying, useVideoPlane } from './player/usePlayerSession'
 import { usePlayerKeyboard } from './player/usePlayerKeyboard'
 import { buildErrorActions, ERROR_ACTION_LABEL_KEY, type ErrorActionId } from './player/playerErrorActions'
 
-export type { PlayerIdentity, PlayerEpisodeStep, PlayerLayerProps, PlayerLayerTopLayer }
+export type { PlayerArchive, PlayerIdentity, PlayerEpisodeStep, PlayerLayerProps, PlayerLayerTopLayer }
 
 /**
  * Camada de reprodução em tela cheia — compartilhada entre Live TV, Filmes e

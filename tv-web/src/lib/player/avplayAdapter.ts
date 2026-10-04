@@ -1,4 +1,12 @@
-import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerError, PlayerRegion } from './PlayerService'
+import {
+  NO_REQUEST_HEADERS,
+  type PlayerAdapter,
+  type PlayerAdapterCallbacks,
+  type PlayerError,
+  type PlayerRegion,
+  type RequestHeaders,
+  type RequestHeadersReport,
+} from './PlayerService'
 import type { EngineCapabilities } from './capabilities'
 import type { MediaTrack, StreamInfo } from './tracks'
 import type { AspectMode, QualityOption } from './viewChoice'
@@ -70,6 +78,11 @@ interface AvplayApi {
   setSelectTrack?: (trackType: 'AUDIO' | 'TEXT' | 'VIDEO', trackIndex: number) => void
   setSilentSubtitle?: (silent: boolean) => void
   getStreamingProperty?: (name: string) => string
+  /**
+   * Feature 058 (`logic/headers.md` §1): só no estado IDLE — depois de `open`,
+   * antes de `prepareAsync`. Lança quando o firmware não conhece a propriedade.
+   */
+  setStreamingProperty?: (name: string, value: string) => void
 }
 
 interface WebapisGlobal {
@@ -288,7 +301,9 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
     rendersOnHardwarePlane: true,
     capabilities: AVPLAY_CAPABILITIES,
 
-    open(url: string, region: PlayerRegion, startAtMs?: number): void {
+    // STUB do sdd-plan (feature 058): `_headers` ainda é ignorado — a Fase 2
+    // aplica os headers entre `open` e `prepareAsync` (`logic/headers.md` §1).
+    open(url: string, region: PlayerRegion, startAtMs?: number, _headers?: RequestHeaders): void {
       const avplay = getAvplay()
       if (!avplay) {
         callbacks.onError({ code: null, message: 'Player da TV indisponível.' })
@@ -351,6 +366,11 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
         },
         (error: unknown) => callbacks.onError(toPlayerError(error)),
       )
+    },
+
+    // STUB do sdd-plan (feature 058): sempre "nada aplicado" até a Fase 2.
+    requestHeadersReport(): RequestHeadersReport {
+      return NO_REQUEST_HEADERS
     },
 
     pause(): void {

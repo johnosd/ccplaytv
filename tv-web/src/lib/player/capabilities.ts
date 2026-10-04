@@ -5,9 +5,11 @@
  * propósito: esta camada não importa de `lib/catalog` — é a direção única
  * catalog → player que o backlog (item 49) propõe como fronteira do
  * repositório. Um `CatalogItemKind` real satisfaz este tipo por tipagem
- * estrutural, sem exigir conversão nos pontos de chamada.
+ * estrutural, sem exigir conversão nos pontos de chamada. Desde a feature
+ * 058 é um superconjunto: `'archive'` (programa de arquivo de um canal) não
+ * existe no catálogo, só na reprodução.
  */
-export type PlayableKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
+export type PlayableKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified' | 'archive'
 
 /**
  * O que é possível fazer com UMA sessão de reprodução.
@@ -67,6 +69,11 @@ export function mediaCapabilities(kind: PlayableKind): PlayerCapabilities {
   switch (kind) {
     case 'movie':
     case 'episode':
+    // Feature 058 (D-005): programa de arquivo de um canal tem começo e fim
+    // (EPG) — pausa, busca e posição como um filme; a duração vem da linha do
+    // tempo do EPG (`PlayerTimeline`), nunca do motor. Não é um `CatalogItemKind`:
+    // a camada de reprodução recebe este tipo só por `fetchArchivePlayback`.
+    case 'archive':
       return FULL
     case 'channel':
     case 'series':

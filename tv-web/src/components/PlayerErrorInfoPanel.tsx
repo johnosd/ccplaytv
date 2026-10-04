@@ -17,6 +17,7 @@ const MEDIA_LABEL_KEY: Record<PlaybackTechnicalInfo['mediaKind'], MessageKey> = 
   series: 'player.errorInfo.media.series',
   unclassified: 'player.errorInfo.media.unclassified',
   unknown: 'player.errorInfo.media.unknown',
+  archive: 'player.errorInfo.media.archive',
 }
 
 function formatTime(at: number): string {

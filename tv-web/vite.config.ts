@@ -23,6 +23,7 @@ const TESTES_TS_COM_DOM = [
   'src/lib/metadata/titleMetadata.oculto.test.ts',
   'src/lib/perf/entryTiming.test.ts',
   'src/lib/player/avplayAdapter.aspect.test.ts',
+  'src/lib/player/avplayAdapter.headers-avplay-catchup.contract.test.ts',
   'src/lib/player/avplayAdapter.quality.test.ts',
   'src/lib/player/avplayAdapter.test.ts',
   'src/lib/player/avplayAdapter.tracks.test.ts',

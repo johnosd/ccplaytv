@@ -142,6 +142,32 @@ export interface PlayerLayerProps {
    * "Editar lista" do erro de fonte NÃO aparece — nunca um botão sem efeito.
    */
   onEditSource?: (sourceId: string) => void
+
+  /**
+   * Feature 058 (US2/US3, `logic/arquivo.md`): presente = toca o programa de
+   * arquivo do canal `itemId` (`fetchArchivePlayback`), com controles de VOD,
+   * linha do tempo do EPG e a ação "Ao vivo"; ausente = comportamento de
+   * sempre. Trocar de programa (ou para `null`) recria a sessão.
+   * STUB do sdd-plan: ainda não é lida — a Fase 3 liga.
+   */
+  archive?: PlayerArchive | null
+  /** Feature 058 (FR-013): o programa de arquivo chegou ao fim — a TELA decide entre o seguinte e o ao vivo. */
+  onArchiveEnded?: () => void
+  /** Feature 058 (FR-012): "Ao vivo" no chrome do arquivo. */
+  onGoLive?: () => void
+  /**
+   * Feature 058 (FR-015/FR-016): "Do início" na linha do ao vivo. Ausente/`null`
+   * = canal sem arquivo, o controle não existe. `enabled: false` = canal com
+   * arquivo mas sem programa atual no EPG: soft disabled, OK só explica.
+   */
+  startOver?: { enabled: boolean; onSelect: () => void } | null
+}
+
+/** Programa de arquivo a tocar (feature 058): horários reais do EPG (epoch ms) e o título exibido no chrome. */
+export interface PlayerArchive {
+  start: number
+  end: number
+  title: string
 }
 
 export type Phase =

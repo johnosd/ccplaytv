@@ -37,6 +37,7 @@ import { isKeyRepeatBurst, subscribeKeyRepeatBurst } from '../../lib/focus/keyRe
 import { prefetchScheduler } from '../../lib/catalog/prefetch'
 import { ensureSeriesEpisodes, type SeriesFetchOutcome } from '../../lib/catalog/seriesLoader'
 import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
+import type { PlaybackHeaders } from '../../lib/catalog/m3uHeaders'
 import {
   buildStableId,
   getContinueWatching,
@@ -171,6 +172,13 @@ export interface CatalogItemOut {
    * canal sem EPG, nunca casado por nome.
    */
   epg_channel_id?: string | null
+  /**
+   * Dias de arquivo (catch-up) que o painel declara para o canal (feature 058,
+   * FR-007): `tv_archive` = 1 com `tv_archive_duration` > 0. `null` = sem
+   * arquivo (inclusive toda fonte M3U avulsa). STUB do sdd-plan: ainda não
+   * preenchido — a Fase 3 grava `archiveDays` no catálogo e o expõe aqui.
+   */
+  archive_days?: number | null
 }
 
 export interface CatalogItemPlayback {
@@ -191,6 +199,19 @@ export interface CatalogItemPlayback {
   series_id: string | null
   season_number: number | null
   episode_number: number | null
+  /**
+   * Headers que a lista M3U declarou para o item (feature 044; repassados ao
+   * motor pela feature 058, FR-001). **Segredo em potencial** (ADR-010): só
+   * atravessam até o adaptador — nunca estado de tela, log, erro ou chave de
+   * consulta. STUB do sdd-plan: `fetchPlayback` ainda não preenche (Fase 2).
+   */
+  headers?: PlaybackHeaders
+}
+
+/** O programa de arquivo pedido pela tela (feature 058): horários reais do EPG, epoch ms. */
+export interface ArchiveProgramRef {
+  start: number
+  end: number
 }
 
 /** O que `stableIdOf` precisa — CatalogItemOut e CatalogItemPlayback satisfazem por tipagem estrutural. */
@@ -857,6 +878,18 @@ export async function fetchPlayback(itemId: string): Promise<CatalogItemPlayback
     }
     throw error
   }
+}
+
+/**
+ * Feature 058 (FR-010/FR-017, `logic/arquivo.md` §2/§3): a URL de arquivo do
+ * programa `program` do canal `itemId`, montada na hora (nunca guardada) com a
+ * variante de URL que a fonte aceitou por último. `kind` volta `'archive'`.
+ * STUB do sdd-plan: a Fase 3 implementa.
+ */
+export async function fetchArchivePlayback(itemId: string, program: ArchiveProgramRef): Promise<Omit<CatalogItemPlayback, 'kind'> & { kind: 'archive' }> {
+  void itemId
+  void program
+  throw new Error('not implemented')
 }
 
 /**
