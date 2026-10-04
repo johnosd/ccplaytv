@@ -11,314 +11,146 @@ mantida a prioridade do usuário: player completo e valor direto ao usuário
 antes de lançamento). O que foi entregue está na tabela `## Features`; só os retirados ficam no fim da seção.
 
 ID é identificador estável, não ordem: `comingSoon.ts` (campo `backlogItem`)
-e `.planning/migracao-design-system-v14.md` apontam para ele. Nunca renumerar;
-item novo recebe o próximo número livre (**hoje: 67**); fatias usam letra
+e `.planning/migracao-design-system-v14.md` apontam para ele. Nunca renumerar; os pacotes `G1`–`G8` agrupam itens para uma única passada de `sdd-specify`;
+item novo recebe o próximo número livre (**hoje: 70**; o 67 é a `057`, em execução, e o 68 foi entregue pela `056`); fatias usam letra
 (`55a`, `62b`). Todo item assume o dado no aparelho (ADR-008): chamadas externas
 só a APIs de terceiro com a chave do próprio usuário (BYOK); `api/` é contorno
 congelado. Quem entrega um item apaga o mock correspondente de `comingSoon.ts`
-na mesma feature (hoje restam **15**). Dexie hoje é **v15**; a próxima livre é
-**v16** (reservar na spec). Itens de categoria vivem em blocos: ler/gravar só
+na mesma feature (hoje restam **14**; a `057` retira mais 2: `vod-top10-movies` e `vod-top10-series`). Dexie hoje é **v16** (a `057` acrescentou `discoveryCache`); a próxima livre é
+**v17** (reservar na spec). Itens de categoria vivem em blocos: ler/gravar só
 por `catalogRepository.ts`, nunca `db.channels`.
 
-Estados: `Pronto` (vai para `sdd-specify`), `Bloqueado` (dependência dura
+Estados: `Pronto` (vai para `sdd-specify`, pelo pacote), `Bloqueado` (dependência dura
 aberta), `A avaliar` (precisa de `sdd-assess`), `Verificação` (só hardware ou
 medição), `Bugfix` (segue em `## Bugs`).
 
 
-### Valor direto ao usuário
+### Pacotes para especificar
 
-- **27** — **"Gostei" em filmes e séries**: sinal explícito, distinto de favorito e de histórico, persistido por identidade lógica estável. Base do 30. Falta `sdd-plan` e `sdd-execute`.
+Cada pacote vira **uma** passada de `sdd-specify` (uma spec, várias user stories). Os
+IDs dos itens continuam estáveis (`comingSoon.ts` aponta para eles); `G2`–`G8` são só
+rótulos de pacote (o G1 — itens 25b e 43 — virou a `058-headers-avplay-catchup`) e podem ser reagrupados. Dentro de um pacote, as fatias "A avaliar"
+só entram na spec depois do `sdd-assess`/medição — o resto sai sem esperar por elas.
+
+**Dificuldade** (para escolher o modelo no `sdd-plan`; vale a mais alta do pacote que você vai
+especificar agora): **Baixa** — mudança local, padrão já existente, sem dado nem contrato novo
+(modelo mais barato basta). **Média** — toca vários arquivos ou um contrato travado, mas o
+desenho é conhecido (modelo padrão). **Alta** — integridade de dados, desempenho em escala,
+API de plataforma incerta ou arquitetura nova (vale o modelo mais caro **para planejar**; a
+execução das tasks já definidas pode voltar ao modelo padrão). Estimativa de 04/10/2026, a
+rever no `sdd-specify`.
+
+- **G2 — Integridade da carga e do catálogo**
+  - Ordem: 2
+  - Tipo: feature
+  - Dificuldade: **Alta** — 24, 66 e 51 mexem em integridade de dados e desempenho em listas de ~300 mil; 36 e 26 são simples
+  - Estado: Pronto (36, 26); 24, 66 e 51 A avaliar — só entram com medição
+  - Itens:
+    - **36** [Baixa] — Dedup/single-flight de importação por fonte: duas telas ou hooks não disparam o mesmo trabalho de importação. Já existe single-flight por categoria, série, EPG e metadados; falta só a importação inteira de uma fonte (`runningImports` hoje é por `runId`, não por fonte). Conferir se o FR-017 da 005 já basta.
+    - **26** [Média] — Seção "Não classificados": itens sem tipo confiável ficam visíveis e acessíveis, com regra de correção reaplicável sem perder preferências. Sem desenho no DS: grade + `EmptyState` do Component Lab.
+    - **24** [Alta] *(A avaliar)* — Reconciliação pós-resync ("pending restore"): reaplicar favoritos e progresso por chave estável num passo pós-import, com o snapshot novo bloqueado até terminar; item não reconciliável fica indisponível, nunca atribuído a outra obra por aproximação. **Crítica:** favoritos, progresso e histórico já usam chave lógica estável e sobrevivem ao resync; só se paga se uma lista real mostrar perda. Depende do 36.
+    - **66** [Alta] *(A avaliar)* — Busca global por blocos em fluxo (`039` FR-013 emendado): para listas enormes (~300 mil), varrer bloco a bloco e guardar só os resultados (teto por tipo). Medir antes com o cenário 3 de `e2e/catalogo-em-blocos.mjs`; sem medição que mostre dor, não construir.
+    - **51** [Alta] *(A avaliar)* — Descarte quando o espaço do aparelho acaba: descartar a categoria menos usada, parar e declarar (hoje) ou teto configurável. Medir categoria, XMLTV e a quota real da TV (300 mil filmes em blocos ≈ 13 MB no navegador do PC).
+  - Depende de: 008 ✅, 013 ✅, 019 ✅, 039 ✅
+  - Remove mocks: —
+  - Fonte: `docs/iptvnator/06-carga-listas-url-xtream.md` #9; RF-011; ADR-005 §2/§4; `039` R-011/R-013; feature 010
+- **G3 — Início, descoberta e dock**
+  - Ordem: 3
+  - Tipo: feature
+  - Dificuldade: **Média** — 69 e 32 são Baixa; 31 (function-calling restrito, BYOK) é Alta e pesa só se entrar
+  - Estado: Pronto (69, 32); 30 Bloqueado; 31 e 54 aguardam decisão de escopo
+  - Itens:
+    - **69** [Baixa] — "Porque você assistiu X" em Filmes e Séries: ligar o slot reservado da 053 com os semelhantes do último título assistido (feature 035), validados na lista. Remove `vod-because`.
+    - **32** [Baixa] — Trailer no herói do Início (o do detalhe foi entregue pela 033): botão "▶ Trailer" reusando a `TrailerLayer`, nunca tocando no foco. Candidato a `sdd-adhoc`. Remove `home-trailer`.
+    - **30** [Média] *(Bloqueado)* — Recomendações + Curadoria IA na Home: sementes reais de favoritos e histórico, candidatos TMDB cruzados com o catálogo local (reusar `resolveTmdbTitles`), justificativa compatível com o método; sem sinais, estado vazio orientativo. **Crítica:** Dica TMDB (`057`) e o 69 já cobrem boa parte; só vale se sobrar lacuna depois deles. Remove `home-ai-curation`.
+    - **31** [Alta] *(escopo a decidir)* — "Descobrir com IA" (BYOK OpenAI): chat que só consulta o catálogo real por function-calling restrito. Depende do 30. Remove `dock-ai`.
+    - **54** [Média] *(A avaliar)* — Dock: clima e teste de velocidade (o teste tem valor de diagnóstico para stream travando). Remove `dock-weather`, `dock-speedtest`.
+  - Depende de: 033 ✅, 035 ✅, 053 ✅, 057 (em execução), 032 ✅, 19 ✅
+  - Remove mocks: `vod-because`, `home-trailer` (e, se entrarem, `home-ai-curation`, `dock-ai`, `dock-weather`, `dock-speedtest`)
+  - Fonte: `053` US4; `033` R-010; RF-017; ADR-005 §6; ADR-001 §4; V14 §20/§21/§23
+- **G4 — Acessibilidade de sistema (item 56)**
   - Ordem: 4
   - Tipo: feature
-  - Estado: Especificada — `043-gostei-filmes-series`
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: RF-015; ADR-005 §4
-- **36** — **Dedup/single-flight de importação por fonte**: duas telas ou hooks não disparam o mesmo trabalho de importação. Já existe single-flight por categoria, série, EPG e metadados; falta só a importação inteira de uma fonte. Conferir antes se o FR-017 da 005 já basta (pode virar "Retirado").
-  - Ordem: 5
-  - Tipo: feature
+  - Dificuldade: **Alta** — três frentes com API do Tizen incerta (caption da TV), tokens de alto contraste e prévia real
   - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/06-carga-listas-url-xtream.md` #9
-- **24** — **Reconciliação pós-resync ("pending restore")**: reaplicar favoritos, "gostei" e progresso por chave estável num passo pós-import, com o snapshot novo **bloqueado até terminar**; item não reconciliável fica indisponível com o estado anterior, nunca atribuído a outra obra por aproximação. Protege contra perda de dados do usuário.
-  - Ordem: 6
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: 008 ✅, 013 ✅, 019 ✅; *36*; *27 (o "gostei" entra na reconciliação)*
-  - Remove mocks: —
-  - Fonte: ADR-005 §2/§4
-- **25b** — **Repasse dos headers (`User-Agent`/`Referer`) ao AVPlay**: muitas listas só tocam assim. O parser (25a, `044`) já guarda os headers; falta o adapter AVPlay. Resta também `tvg-chno` (exibir exige emendar a ADR-011).
-  - Ordem: 7
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: — (spike de header do AVPlay encerrado no 58)
-  - Remove mocks: —
-  - Fonte: RF-011; ADR-006 §4.3
-- **26** — **Seção "Não classificados"**: itens sem tipo confiável ficam visíveis e acessíveis, com regra de correção reaplicável sem perder preferências. Sem desenho no DS: grade + `EmptyState` do Component Lab.
-  - Ordem: 8
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: RF-011; ADR-005 §2
-- **22a** — **Adicionar lista por arquivo `.m3u`** (Filesystem/USB, `tizen.filesystem`), validando extensão **e** conteúdo, mesmo `m3uParser.ts`.
-  - Ordem: 9
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: privilégio de filesystem justificado (38)
-  - Remove mocks: —
-  - Fonte: RF-004; ADR-004 §4
-- **66** — **Busca global por blocos em fluxo** (`039` FR-013 emendado): para listas enormes (~300 mil), varrer bloco a bloco e guardar só os resultados (teto por tipo), sem mudar ordem nem relevância. Medir antes com o cenário 3 de `e2e/catalogo-em-blocos.mjs`.
-  - Ordem: 10
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: 039 ✅
-  - Remove mocks: —
-  - Fonte: `039` R-011/R-013
-
-
-### Diferenciais de produto
-
-- **30** — **Recomendações + Curadoria IA na Home**: sementes reais de "Gostei" e histórico, candidatos TMDB cruzados com o catálogo local (reusar `resolveTmdbTitles`), justificativa compatível com o método. Sem sinais, estado vazio orientativo, nunca justificativa inventada.
-  - Ordem: 11
-  - Tipo: feature
-  - Estado: Bloqueado
-  - Depende de: 27; 28 ✅; 45 ✅
-  - Remove mocks: `home-ai-curation`
-  - Fonte: RF-017; ADR-005 §6; V14 §23
-- **32** — **Trailer no herói do Início** (o do detalhe foi entregue pela 033): botão "▶ Trailer" reusando a `TrailerLayer`, nunca tocando no foco. Candidato a `sdd-adhoc`.
-  - Ordem: 12
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: 033 ✅
-  - Remove mocks: `home-trailer`
-  - Fonte: `033` R-010
-- **56** — **Acessibilidade de sistema**: aparência de legenda (tamanho, cor, fundo, contorno, sincronização) com **prévia real**, respeitando as preferências de caption da TV se o Tizen expuser; alto contraste como variação de tokens; Voice Guide com anúncios configuráveis sobre a região `aria-live`.
-  - Ordem: 13
-  - Tipo: feature
-  - Estado: Pronto
+  - Itens:
+    - **56** [Alta] — Aparência de legenda (tamanho, cor, fundo, contorno, sincronização) com prévia real, respeitando as preferências de caption da TV se o Tizen expuser; alto contraste como variação de tokens; Voice Guide com anúncios configuráveis sobre a região `aria-live`.
   - Depende de: 55a ✅; 55b ✅; 63 ✅
   - Remove mocks: `a11y-subtitles`, `a11y-high-contrast`, `a11y-voice-guide`
   - Fonte: V14 §31/§38/§39
-- **31** — **"Descobrir com IA" (BYOK OpenAI)**: chat que só consulta o catálogo **real** por function-calling restrito, nunca sugere título fora dele; chamada direta com a chave da pessoa, configurada em Integrações & BYOK.
-  - Ordem: 14
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: 032 ✅; *30*
-  - Remove mocks: `dock-ai`
-  - Fonte: ADR-001 §4; ADR-008 §4; V14 §23
-- **23** — **Várias fontes com refresh isolado**: atualizar várias listas sem duplicar registros nem apagar favoritos/histórico, falha isolada e resultado por fonte (`atualizada`/`falhou`/`ignorada`) em Configurações › Fontes IPTV. Navegação continua uma lista por vez (ADR-011).
-  - Ordem: 15
-  - Tipo: feature
-  - Estado: Bloqueado
-  - Depende de: 46 ✅ (`034`), 24
+- **G5 — Código saudável: refatoração, guardas e benchmark** (paralelo, sem urgência)
+  - Ordem: 5
+  - Tipo: refatoração/processo
+  - Dificuldade: **Média** — refatoração sem mudar comportamento, mas sobre ~1 490 linhas travadas por contratos
+  - Estado: Pronto (49a-2 → 49b → 35, nessa ordem)
+  - Itens:
+    - **49a-2** [Média] — Dividir `catalogRepository.ts` (~1 490 linhas) por responsabilidade (categorias, blocos/leitura, estado do usuário, gerações/limpeza, preparo da carga) sem mudar comportamento nem API pública, provado pela suíte, pelas travas e pelos E2E. A fatia 49a-1 foi entregue pela `040`.
+    - **49b** [Baixa] — Fronteiras de código e limite de tamanho por lint: `features/` não importa de outro `features/`; `lib/` não importa UI; `lib/catalog/` → `lib/player/` unidirecional; ~300 linhas por arquivo. Depende do 49a-2.
+    - **35** [Média] — Benchmark determinístico de importação: fixtures de 1 000/10 000/100 000 entradas, medindo fetch/parse/classify/store e o parse de XMLTV, com aparelho e commit registrados. Base: `e2e/catalogo-em-blocos.mjs` e `e2e/catalogo-em-blocos-real.mjs`; falta M3U/classificação e XMLTV. Fornece a medição que destrava 66 e 51 do G2.
+  - Depende de: —
   - Remove mocks: —
-  - Fonte: RF-007; ADR-004 §6
-
-
-### Qualidade e lançamento (depois da UI estável)
-
-- **40** — **Conta de publicação e abrangência**: Public Seller publica só nos EUA; Brasil depende de Partner Seller. Confirmar antes de prometer data; kit de revisão com fonte de demonstração e credenciais de teste separadas. Pode começar a qualquer momento.
-  - Ordem: 16
+  - Fonte: `docs/iptvnator/02-arquitetura.md` #7; ADR-006 §2; V14 §30
+- **G6 — Pessoa e seções do catálogo** (decisão de produto antes de tudo)
+  - Ordem: 6
+  - Tipo: avaliação
+  - Dificuldade: **Alta** — modelo de dados da pessoa e migração Dexie; decisão de produto antes do plano
+  - Estado: A avaliar
+  - Itens:
+    - **52** [Alta] — Perfis de pessoa e controle parental: perfis independentes da lista (perfil = lista pela ADR-011), PIN, bloqueio de categoria. Exige migração Dexie do estado da pessoa. Remove `settings-parental`.
+    - **53** [Média] — Seções Esportes e Infantil sem substituir as categorias da fonte (seleção manual de grupos ou regra reversível). Fora da topbar até lá. O bloqueio de categoria do 52 e a seleção de grupos do 53 compartilham o mesmo modelo "grupo da fonte → rótulo da pessoa".
+  - Depende de: `sdd-assess` (um só, para os dois)
+  - Remove mocks: `settings-parental`
+  - Fonte: V14 §13.1/§13.3/§48; ADR-011
+- **G7 — Lançamento na loja Samsung** (depois da UI estável)
+  - Ordem: 7
   - Tipo: lançamento
-  - Estado: Pronto
-  - Depende de: —
+  - Dificuldade: **Baixa** — majoritariamente não é código; o 38 pede cuidado com `config.xml` e certificado
+  - Estado: 40 Pronto; 38 e 39 Bloqueados pela UI estável
+  - Itens:
+    - **40** [Baixa] — Conta de publicação e abrangência: Public Seller publica só nos EUA; Brasil depende de Partner Seller. Confirmar antes de prometer data; kit de revisão com fonte de demonstração e credenciais de teste separadas. Pode começar a qualquer momento.
+    - **38** [Média] — Pacote e checklist Tizen: `config.xml` e assinaturas revisados, Tizen ID preservado, versão crescente, `required_version` coerente, permissões proporcionais e justificadas, custódia do certificado. Bloqueadores: falha de instalação, perda de favoritos, áudio em segundo plano, credencial em log.
+    - **39** [Baixa] — Materiais de loja e Application UI Description: logo, fundo, ícone e 4 capturas nos tamanhos da Samsung, de uma versão com dados fictícios ou autorizados, sem credencial à vista.
+  - Depende de: UI estável (para 38/39)
   - Remove mocks: —
-  - Fonte: guias `/09` §2/§3, `/11`
-- **35** — **Benchmark determinístico de importação**: fixtures de 1 000/10 000/100 000 entradas servidas localmente, medindo fetch/parse/classify/store e o parse de XMLTV, com aparelho e commit registrados. Base da 039: `e2e/catalogo-em-blocos.mjs` (cenário 3) e `e2e/catalogo-em-blocos-real.mjs`. Falta M3U/classificação e XMLTV.
-  - Ordem: 17
-  - Tipo: qualidade
-  - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: ADR-006 §2; V14 §30
-- **50** — **Suíte de aceite de UX e percurso de referência**: UX01–UX10 dos guias + checklist §46 do DS como conjunto executável, com fonte vazia, demonstrativa e volumosa, repetido com falha de rede; cada execução com responsável, aparelho, firmware e evidência.
-  - Ordem: 18
-  - Tipo: qualidade
-  - Estado: Bloqueado
-  - Depende de: itens de produto acima estáveis
-  - Remove mocks: —
-  - Fonte: V14 §34/§46; guias `/08`, `/13`
-- **38** — **Pacote e checklist de lançamento Tizen**: `config.xml` e assinaturas revisados, Tizen ID preservado, versão crescente, `required_version` coerente, permissões proporcionais e justificadas (teclas de cor/mídia, filesystem do 22a), custódia do certificado. Bloqueadores: falha de instalação, perda de favoritos, áudio em segundo plano, credencial em log.
-  - Ordem: 19
-  - Tipo: lançamento
-  - Estado: Bloqueado
-  - Depende de: 22a (o 58 foi concluído)
-  - Remove mocks: —
-  - Fonte: guias `/10` §1–3
-- **39** — **Materiais de loja e Application UI Description**: logo, fundo, ícone e 4 capturas nos tamanhos da Samsung, de uma versão executável com dados fictícios ou autorizados, sem credencial à vista.
-  - Ordem: 20
-  - Tipo: lançamento
-  - Estado: Bloqueado
-  - Depende de: UI estável (depois do 50)
-  - Remove mocks: —
-  - Fonte: guias `/02`, `/09` §1
-
-
-### Habilitadores e processo (paralelos, sem urgência)
-
-- **49a-2** — **Dividir `catalogRepository.ts` (~1 350 linhas)** por responsabilidade (categorias, blocos/leitura, estado do usuário, gerações/limpeza, preparo da carga) sem mudar comportamento nem API pública, provado pela suíte, pelas travas e pelos E2E. A fatia 49a-1 (player/live) foi entregue pela `040`.
-  - Ordem: 21
-  - Tipo: refatoração
-  - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/02-arquitetura.md` #7
-- **49b** — **Fronteiras de código e limite de tamanho por lint**: `features/` não importa de outro `features/`; `lib/` não importa UI; `lib/catalog/` → `lib/player/` unidirecional; ~300 linhas por arquivo.
-  - Ordem: 22
-  - Tipo: processo
-  - Estado: Pronto
-  - Depende de: 49a
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/02-arquitetura.md` #7
-- **48** — **Documentação canônica por subsistema** em `docs/architecture/`: importador, player, navegação, armazenamento local. ADR registra decisão; o documento registra o estado resultante.
-  - Ordem: 23
-  - Tipo: processo
-  - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/05-documentos.md`
-- **47** — **Skills de domínio + mapa de validação por área** (player AVPlay, importador, navegação D-pad), cada um com "gatilho + leia primeiro + comando de validação". (Não confundir com a feature `047-player-dev-mpegts`.)
-  - Ordem: 24
-  - Tipo: processo
-  - Estado: Pronto
-  - Depende de: *48*
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/04-skills.md`
-- **0** — **Destino de `api/delete_sources.py`**: continua versionado junto do pacote congelado ou sai.
-  - Ordem: 25
-  - Tipo: processo
-  - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: T052 da 003
-- **Bugfix** — **Feature `047-player-dev-mpegts`** (reprodução de canais MPEG-TS no navegador do dev, 0/35 tasks, "Em Execução"): só ajuda o desenvolvimento, não chega ao usuário. Adiar, ou fazer só o necessário para testar Live no PC.
+  - Fonte: guias `/02`, `/09`, `/10`, `/11`
+- **G8 — Canal celular ↔ TV** (bloqueado por uma avaliação)
+  - Ordem: 8
+  - Tipo: avaliação → feature
+  - Dificuldade: **Alta** — arquitetura de rede inexistente hoje (socket de escuta na TV); decide a ADR-008 de novo
+  - Estado: 64 A avaliar; 22b e 33 Bloqueados
+  - Itens:
+    - **64** [Alta] — Avaliação: um web app Tizen não abre socket de escuta; decidir entre service app Tizen, relay ou outro caminho que respeite a ADR-008. Resolve uma vez para 22b e 33. O `sdd-assess` já pode rodar.
+    - **22b** [Alta] — Conectar a lista pelo celular (QR). Remove `pair-phone`.
+    - **33** [Alta] — Voz pelo celular (BYOK OpenAI): pressionar-para-falar com `getUserMedia` + `MediaRecorder`, transcrição direta do celular, comando com ID e expiração confirmado pelo estado real da TV. Remove `voice-search`.
+  - Depende de: 64
+  - Remove mocks: `pair-phone`, `voice-search`
+  - Fonte: ADR-008 §4/§5; ADR-001 §4; RF-004; V14 §46
+- **Bugfix** — **Feature `047-player-dev-mpegts`** (reprodução de canais MPEG-TS no navegador do dev, 38/38 tasks, "Convergência Pendente"): código entregue; só ajuda o desenvolvimento. Falta apenas `sdd-converge` (baixa prioridade).
   - Ordem: —
   - Tipo: feature
-  - Estado: Adiada
+  - Estado: Verificação
   - Depende de: —
   - Remove mocks: —
   - Fonte: `sdd/assessments/mpegtsjs-no-htmlvideoadapter-tocar-canais-no/`
 
 
-### Bloqueados ou a avaliar (sem data)
-
-- **64** — **Avaliação: canal celular ↔ TV na LAN.** Um web app Tizen não abre socket de escuta: decidir entre service app Tizen, relay ou outro caminho que respeite a ADR-008. Resolve uma vez para 22b, 33 e 34. O item 58 foi concluído: o `sdd-assess` já pode rodar.
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: ADR-008 §5; itens 22/33/34
-- **22b** — **Conectar a lista pelo celular (QR).**
-  - Ordem: —
-  - Tipo: feature
-  - Estado: Bloqueado
-  - Depende de: 64
-  - Remove mocks: `pair-phone`
-  - Fonte: RF-004; V14 §46
-- **33** — **Voz pelo celular (BYOK OpenAI)**: pressionar-para-falar com `getUserMedia` + `MediaRecorder`, transcrição direta do celular, comando com ID e expiração confirmado pelo estado real da TV.
-  - Ordem: —
-  - Tipo: feature
-  - Estado: Bloqueado
-  - Depende de: 64
-  - Remove mocks: `voice-search`
-  - Fonte: ADR-001 §4; ADR-008 §4
-- **34** — **Controle remoto por app Android**: mesma LAN, WebSocket autenticado com pareamento explícito, TV como fonte do estado real, controle físico sempre operacional.
-  - Ordem: —
-  - Tipo: feature
-  - Estado: Bloqueado
-  - Depende de: 64
-  - Remove mocks: —
-  - Fonte: ADR-001 §5; ADR-008 §5
-- **29** — **Nota IMDb com procedência**: nota real com origem, "Sem avaliação" quando faltar, nunca nota genérica renomeada nem gerada por IA; ordenar antes de paginar, sem nota no fim.
-  - Ordem: —
-  - Tipo: feature
-  - Estado: Bloqueado
-  - Depende de: decisão de fonte/licença dos dados (`sdd-assess`/ADR)
-  - Remove mocks: —
-  - Fonte: RF-016; ADR-005 §5
-- **37** — **Matriz de TVs e evidências de compatibilidade**: modelo, firmware, `userAgent`, protocolo, contêiner, codecs, resolução, DRM e legendas em cada teste de mídia. Hoje só a QN50Q60DAGXZD (Tizen 9.0 / Chromium 120).
-  - Ordem: —
-  - Tipo: verificação
-  - Estado: Bloqueado
-  - Depende de: outro aparelho disponível
-  - Remove mocks: —
-  - Fonte: ADR-006 E1/V1
-- **43** — **TV Archive / Catch-up / Timeshift**: tocar programa passado a partir do Guia, se o provedor oferecer; duas variantes de URL exigem probe; liberaria Play/Pause em Live (§43.3).
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: 031 ✅; `sdd-assess`
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/03-apis.md` #8
-- **52** — **Perfis de pessoa e controle parental**: perfis independentes da lista (perfil = lista pela ADR-011), PIN, bloqueio de categoria. Exige migração Dexie do estado da pessoa e decisão de produto.
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: `sdd-assess`
-  - Remove mocks: `settings-parental`
-  - Fonte: V14 §13.3/§48
-- **53** — **Seções Esportes e Infantil** sem substituir as categorias da fonte (seleção manual de grupos ou regra reversível). Fora da topbar até lá.
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: `sdd-assess`
-  - Remove mocks: —
-  - Fonte: V14 §13.1; ADR-011
-- **54** — **Dock: clima e teste de velocidade**. O teste de velocidade tem valor de diagnóstico para stream travando.
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: `sdd-assess`; 19 ✅
-  - Remove mocks: `dock-weather`, `dock-speedtest`
-  - Fonte: V14 §20/§21
-- **41** — **Portais Stalker/Ministra (STB)**: protocolo, autenticação, CORS do portal; "full" × "simple" por comportamento observado.
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: `sdd-assess`
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/03-apis.md` #9
-- **51** — **Descarte quando o espaço do aparelho acaba**: descartar a categoria menos usada, parar e declarar (hoje) ou teto configurável. Medir categoria, XMLTV e a quota real da TV (300 mil filmes em blocos ≈ 13 MB no navegador do PC).
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: `sdd-assess` com medição
-  - Remove mocks: —
-  - Fonte: feature 010, Clarifications
-- **17** — **Detalhe em dois estados (browse ↔ watch)**: o DS V14 não adota (player é camada em tela cheia); só se o uso real pedir.
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: `sdd-assess`
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/08-tela-filmes.md` #5/#7
-- **67** — **Top 10 da semana (TMDB) em Filmes e Séries**: ligar o slot reservado da 053 — trending semanal do TMDB (BYOK), cruzado com a lista; só mostra o que existe nela, some se o cruzamento não achar nada.
-  - Ordem: —
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: `032` ✅, `053`
-  - Remove mocks: `vod-top10-movies`, `vod-top10-series`
-  - Fonte: `053` (spec, US4)
-- **68** — **Bem avaliados em Filmes e Séries**: ligar o slot reservado da 053 com nota real (da fonte ou do TMDB já obtida); a fileira só existe quando há nota real. *A feature 055 já guarda a nota que o provedor declara na listagem (`providerRating`, 0–10, só quando > 0) e a expõe como `provider_rating` — o 68 pode consumi-la, rotulada "Provedor"; a ordenação por nota segue por conta do 68/29.*
-  - Ordem: —
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: `053`
-  - Remove mocks: `vod-rated`
-  - Fonte: `053` (spec, US4)
-- **69** — **Porque você assistiu X em Filmes e Séries**: ligar o slot reservado da 053 com os semelhantes do último título assistido (feature 035), validados na lista.
-  - Ordem: —
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: `035` ✅, `053`
-  - Remove mocks: `vod-because`
-  - Fonte: `053` (spec, US4)
-
-
 ### Retirados
+
+Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valor proporcional ao custo de manter:
+
+- **27** — "Gostei": terceiro sinal de preferência ao lado de favorito e histórico, com UI em todo card, estado Dexie e reconciliação. Favoritos + histórico já alimentam recomendações. Spec `043` fica como histórico.
+- **22a** — Importar `.m3u` por USB: pouco uso em TV, e custaria um privilégio de filesystem a justificar na revisão da Samsung. URL e provedor cobrem o caso.
+- **50** — Suíte de aceite de UX com "responsável, aparelho, firmware" por execução: cerimônia. O gate já existe (E2E + passada na TV física por feature).
+- **48** — Documentação canônica por subsistema: duplica ADRs, specs e `CLAUDE.md`, e envelhece sozinha. Atualizar o ADR/spec onde a decisão mudou.
+- **47** — Skills de domínio: o `CLAUDE.md` e o `.planning/README.md` já são o mapa; mais skills é mais superfície para divergir.
+- **0** — Destino de `api/delete_sources.py`: não é item de produto; o arquivo fica junto do pacote congelado.
+- **34** — App Android de controle remoto: um segundo produto (pareamento, WebSocket, relay) para substituir o controle físico e o SmartThings. Contradiz o espírito client-first da ADR-008.
+- **29** — Nota IMDb com procedência: depende de licença de dados que não temos; a nota do provedor (`055`/`056`) e o TMDB já cobrem o caso.
+- **37** — Matriz de TVs: não é acionável sem outro aparelho. Reabrir quando houver.
+- **41** — Portais Stalker/Ministra: protocolo próprio, CORS e autenticação por MAC; custo de um terceiro conector para público de nicho.
+- **17** — Detalhe em dois estados: o DS V14 já rejeitou; item só existia como "se o uso pedir".
+- **23** — Várias fontes com refresh isolado: a navegação é uma lista por vez (ADR-011); atualizar listas inativas em segundo plano gasta rede, disco e CPU da TV sem benefício visível. A `034` já mostra estado por fonte.
+- `tvg-chno` (resto do 25b): exibir número do canal exigiria emendar a ADR-011, que fixa a posição na fonte.
 
 - **20** — Design das telas sem protótipo: resolvido pela migração DS V14 (021–028). "Não classificados" segue no 26.
 - **21** — Um dono de scroll por painel: absorvido pela 009, pela 028 e pela fonte ativa única.
@@ -374,15 +206,18 @@ medição), `Bugfix` (segue em `## Bugs`).
 | 044-parser-m3u-headers | Contrato de compatibilidade do parser M3U (headers, radio, tvg-chno) | Convergida | 26/27 tasks | 2026-10-02 |
 | 045-ime-formularios-tv | IME da TV nos formulários — teclado, Next/Done, senha e erros de conexão | Convergida | 39/42 tasks | 2026-10-02 |
 | 046-memoria-foco-key-repeat | Memória de foco por área e key repeat | Convergida | 27/27 tasks | 2026-10-02 |
-| 047-player-dev-mpegts | Reprodução de canais ao vivo MPEG-TS no navegador do dev | Convergência Pendente | 35/38 tasks | 2026-10-02 |
-| 048-live-paridade-v14 | Paridade visual da TV ao vivo com o Design System V14 | Em Execução | 43/47 tasks | 2026-10-02 |
+| 047-player-dev-mpegts | Reprodução de canais ao vivo MPEG-TS no navegador do dev | Convergência Pendente | 38/38 tasks | 2026-10-04 |
+| 048-live-paridade-v14 | Paridade visual da TV ao vivo com o Design System V14 | Em Execução | 43/47 tasks | 2026-10-04 |
 | 050-filmes-series-paridade-v14 | Paridade visual de Filmes e Séries com o Design System V14 | Implementada | 30/30 tasks | 2026-10-02 |
 | 049-navegacao-por-pagina | Navegação por página nas listas | Convergida | 42/42 tasks | 2026-10-02 |
 | 051-detalhe-filme-paridade-v14 | Paridade visual do detalhe do filme com o Design System V14 | Planejada | 0/31 tasks | 2026-10-02 |
 | 052-vitrine-filmes-series | Vitrine de Filmes e Séries e tela de categoria em grade cheia | Convergida | 54/54 tasks | 2026-10-03 |
 | 053-carrosseis-filmes-series | Carrosséis de categoria, lista lateral recolhível e slots TMDB na tela hero de Filmes e Séries | Convergida | 48/48 tasks | 2026-10-03 |
-| 054-idioma-do-app | Idioma do app | Convergência Pendente | 57/59 tasks | 2026-10-03 |
+| 054-idioma-do-app | Idioma do app | Convergência Pendente | 57/59 tasks | 2026-10-04 |
 | 055-campos-da-listagem-xtream | Nota, gênero e fundo vindos da listagem Xtream | Convergida | 38/38 tasks | 2026-10-03 |
+| 056-bem-avaliados | Fileira "Bem avaliados" em Filmes e Séries | Convergida | 44/44 tasks | 2026-10-04 |
+| 057-top10-dica-tmdb | Top 10 da semana e carrossel "Dica" (TMDB) em Filmes, Séries e Início | Implementada | 45/45 tasks | 2026-10-04 |
+| 058-headers-avplay-catchup | Headers da lista no AVPlay e catch-up de programas passados (Xtream) | Especificada | N/A | 2026-10-04 |
 
 ## Bugs
 

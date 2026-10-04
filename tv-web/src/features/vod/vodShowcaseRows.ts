@@ -11,7 +11,7 @@ import type { VodTarget } from './vodTarget'
 
 export type RowFormat = 'poster-xl' | 'poster' | 'poster-compact' | 'top10' | 'wide'
 
-export type ShowcaseRowKey = 'continue' | 'top10' | 'favorites' | 'added' | 'rated' | 'because' | `cat:${string}`
+export type ShowcaseRowKey = 'continue' | 'top10' | 'favorites' | 'added' | 'rated' | 'tip' | 'because' | `cat:${string}`
 
 /** `items`: histórico/favoritos/recentes; `slot`: reservada "Em breve" (sem dado); `category`: uma categoria da fonte. */
 export type ShowcaseRowKind = 'items' | 'slot' | 'category'
@@ -22,7 +22,7 @@ export interface ShowcaseRowSpec {
   /** Título exibido (categoria: `vodGroupDisplay` do nome declarado). */
   title: string
   format: RowFormat
-  /** Destino do "Ver tudo". `null` nos slots reservados. */
+  /** Destino do "Ver tudo". `null` nos slots reservados e nas fileiras do TMDB (Top 10 e Dica, feature 057). */
   seeAll: VodTarget | null
   /** Id registrado em `lib/comingSoon.ts`. `null` fora dos slots. */
   slotId: string | null
@@ -38,6 +38,12 @@ export interface BuildShowcaseRowsInput {
   hasContinue: boolean
   hasFavorites: boolean
   hasAdded: boolean
+  /** Feature 056: há ao menos `RATED_MIN` títulos com nota — só então "Bem avaliados" existe (ausente/`undefined` = não). */
+  hasRated?: boolean
+  /** Feature 057: há ao menos `TOP10_MIN` títulos do ranking semanal na lista — só então o Top 10 existe (ausente/`undefined` = não). */
+  hasTop10?: boolean
+  /** Feature 057: há ao menos `TIP_MIN` candidatos válidos da Dica na lista — só então ela existe (ausente/`undefined` = não). */
+  hasTip?: boolean
   /** Nomes declarados pela fonte, na ordem dela. */
   categoryNames: readonly string[]
 }
@@ -49,19 +55,27 @@ function slotRow(key: ShowcaseRowKey, title: string, format: RowFormat, slotId: 
 
 /**
  * Fileiras da tela hero na ordem fixa (`logic/carrosseis-e-foco.md` §1): continue → top10 → favorites → added → rated →
- * because → uma por categoria. As de itens só existem com dado real; os 3 slots e as categorias, sempre.
+ * tip → because → uma por categoria. As de itens ("Bem avaliados", feature 056; "Top 10 da semana" e "Dica", feature 057, que
+ * vêm do TMDB e não têm "Ver tudo") só existem com dado real; o único slot que resta ("Porque você assistiu") e as categorias,
+ * sempre.
  */
 export function buildShowcaseRows(input: BuildShowcaseRowsInput, t: Translator = createTranslator('pt')): ShowcaseRowSpec[] {
-  const { section, hasContinue, hasFavorites, hasAdded, categoryNames } = input
+  const { section, hasContinue, hasFavorites, hasAdded, hasRated = false, hasTop10 = false, hasTip = false, categoryNames } = input
   const rows: ShowcaseRowSpec[] = []
   if (hasContinue) {
     rows.push({ key: 'continue', kind: 'items', title: t('showcase.row.continue'), format: 'poster-xl', seeAll: { kind: 'history' }, slotId: null })
   }
-  rows.push(
-    section === 'movies'
-      ? slotRow('top10', t('showcase.row.top10Movies'), 'top10', 'vod-top10-movies')
-      : slotRow('top10', t('showcase.row.top10Series'), 'top10', 'vod-top10-series'),
-  )
+  if (hasTop10) {
+    // Feature 057: ranking semanal do TMDB cruzado com a lista; sem dado some (nem slot "Em breve", nem fileira vazia).
+    rows.push({
+      key: 'top10',
+      kind: 'items',
+      title: t(section === 'movies' ? 'showcase.row.top10Movies' : 'showcase.row.top10Series'),
+      format: 'top10',
+      seeAll: null,
+      slotId: null,
+    })
+  }
   if (hasFavorites) {
     rows.push({
       key: 'favorites',
@@ -76,7 +90,21 @@ export function buildShowcaseRows(input: BuildShowcaseRowsInput, t: Translator =
   if (hasAdded) {
     rows.push({ key: 'added', kind: 'items', title: t('showcase.row.added'), format: 'poster', seeAll: { kind: 'all', sort: 'added' }, slotId: null })
   }
-  rows.push(slotRow('rated', t('showcase.row.rated'), 'poster', 'vod-rated'))
+  if (hasRated) {
+    // Feature 056: fileira real; sem nota suficiente ela some (nem slot "Em breve", nem fileira vazia).
+    rows.push({ key: 'rated', kind: 'items', title: t('showcase.row.rated'), format: 'poster', seeAll: { kind: 'all', sort: 'rating' }, slotId: null })
+  }
+  if (hasTip) {
+    // Feature 057: sorteio do dia entre os candidatos do TMDB que existem na lista; sem dado some.
+    rows.push({
+      key: 'tip',
+      kind: 'items',
+      title: t(section === 'movies' ? 'showcase.row.tipMovies' : 'showcase.row.tipSeries'),
+      format: 'poster',
+      seeAll: null,
+      slotId: null,
+    })
+  }
   rows.push(slotRow('because', t('showcase.row.because'), 'poster', 'vod-because'))
   const seen = new Set<string>()
   for (const declared of categoryNames) {

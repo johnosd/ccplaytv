@@ -268,7 +268,9 @@ export function VodCategoryScreen({
   }, [enteredFavorites, enteredHistory, enteredAll, baseItems, kindSortFieldsData])
   // Opção salva pode não estar disponível nesta entrada (ex.: "Ano" numa categoria M3U) — a grade usa "Ordem da
   // fonte" sem apagar a escolha da seção (D-008).
-  const effectiveSortOption: VodSortOption = availableOptions.includes(sortOption) ? sortOption : 'source'
+  // "Nota" (feature 056) não é opção do modal: só vale como destino do "Ver tudo" de "Bem avaliados", em "Todos".
+  const effectiveSortOption: VodSortOption =
+    (sortOption === 'rating' && enteredAll) || availableOptions.includes(sortOption) ? sortOption : 'source'
 
   const items = useMemo(() => {
     const filtered = !searchActive ? baseItems : belowMinimum ? [] : searchWithinItems(baseItems, searchTerm, (item) => item.name)

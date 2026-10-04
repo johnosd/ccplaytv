@@ -140,6 +140,49 @@
   color: var(--text-primary);
 }
 
+/* Feature 057: título + procedência ("Fonte: TMDB") + escopo parcial das linhas Top 10 e Dica — só texto, nunca focável. */
+.home-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.home-row-source,
+.home-row-coverage {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+/* Top 10 no Início (feature 057): número grande decorativo à esquerda do pôster, o título embaixo do pôster (espelho do formato da hero em `vod.css`). */
+.home-content .content-card--ranked {
+  display: grid;
+  grid-template-columns: auto 205px;
+  grid-template-areas:
+    'rank poster'
+    '. title';
+  column-gap: var(--space-1);
+  align-items: end;
+  width: auto;
+}
+
+.home-content .content-card-rank {
+  grid-area: rank;
+  align-self: end;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--fs-display);
+  line-height: 1;
+  color: var(--text-annotation);
+}
+
+.home-content .content-card--ranked .poster-box {
+  grid-area: poster;
+}
+
+.home-content .content-card--ranked .content-card-title {
+  grid-area: title;
+}
+
 .home-row-skeleton {
   display: flex;
   gap: var(--space-3);

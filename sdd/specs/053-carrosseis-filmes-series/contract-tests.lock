@@ -1,11 +1,11 @@
 {
     "feature":  "053-carrosseis-filmes-series",
-    "lockedAt":  "2026-10-03 14:45",
+    "lockedAt":  "2026-10-04 08:37",
     "total":  5,
     "files":  [
                   {
                       "path":  "tv-web/src/features/vod/vodShowcaseRows.carrosseis-filmes-series.contract.test.ts",
-                      "sha256":  "6bb769b001e9f28a4ca1f22c76851f3990a45fe523d9c6e84475eecfca66d661",
+                      "sha256":  "ff73d1323854a56b6d7c88e927f096ce9f90ba74ed324051dd0439b9ac0837ea",
                       "tests":  1
                   },
                   {
@@ -15,7 +15,7 @@
                   },
                   {
                       "path":  "tv-web/src/features/vod/VodShowcaseScreen.carrosseis-filmes-series.contract.test.tsx",
-                      "sha256":  "b44ef662fe390def9b819a5d0e484333e74a8c3abed29de4a6b6f07caecf9b51",
+                      "sha256":  "90013a98b9c39c5ec21503afa6a073646febdcbb0a2fd77e2757560ad00eb717",
                       "tests":  3
                   }
               ]

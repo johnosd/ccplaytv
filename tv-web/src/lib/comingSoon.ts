@@ -37,10 +37,8 @@ export const COMING_SOON: Record<string, ComingSoonEntry> = {
   'a11y-voice-guide': { message: 'Narração de tela (Voice Guide).', backlogItem: 56 },
   'a11y-high-contrast': { message: 'Modo de alto contraste.', backlogItem: 56 },
   'a11y-subtitles': { message: 'Aparência das legendas.', backlogItem: 56 },
-  // Tela hero de Filmes e Séries (feature 053, D-007): fileiras reservadas, sem dado e sem consulta ao TMDB.
-  'vod-top10-movies': { message: 'Top 10 filmes da semana, com dados do TMDB.', backlogItem: 67 },
-  'vod-top10-series': { message: 'Top 10 séries da semana, com dados do TMDB.', backlogItem: 67 },
-  'vod-rated': { message: 'Títulos mais bem avaliados da sua lista.', backlogItem: 68 },
+  // Tela hero de Filmes e Séries (feature 053, D-007): fileira reservada, sem dado e sem consulta ao TMDB. O Top 10 deixou
+  // de ser mock na feature 057 (item 67).
   'vod-because': { message: 'Sugestões parecidas com o que você assistiu.', backlogItem: 69 },
   // Chrome do player (feature 027): Áudio e legendas e Info do stream
   // deixaram de ser mock na 029 (item 55a); o Guia completo, na 031 (42c);

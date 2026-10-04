@@ -30,6 +30,31 @@ export function recentlyAdded(items: readonly CatalogItemOut[], limit: number = 
   return top.map((entry) => entry.item)
 }
 
+/** Mínimo de títulos com nota válida para a fileira "Bem avaliados" existir (feature 056, FR-003). */
+export const RATED_MIN = 5
+
+/** Nota do provedor válida (0 < n ≤ 10, finita) ou `undefined` — a mesma régua do `RatingBadge` (feature 056, FR-002). */
+export function validProviderRating(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= 10 ? value : undefined
+}
+
+/**
+ * Ordem de "Bem avaliados" (feature 056, D-003): negativo quando `a` vem antes de `b` — nota maior primeiro; empate pelo
+ * adicionado mais recentemente; sem data fica depois de quem tem data. Compartilhada com `sortVodItems('rating')`.
+ */
+export function compareByRating(a: { rating: number; addedAt: number | undefined }, b: { rating: number; addedAt: number | undefined }): number {
+  if (a.rating !== b.rating) return b.rating - a.rating
+  if (a.addedAt === b.addedAt) return 0
+  if (a.addedAt === undefined) return 1
+  if (b.addedAt === undefined) return -1
+  return b.addedAt - a.addedAt
+}
+
+/** Data de adição utilizável (finita) ou `undefined`. */
+export function finiteAddedAt(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
 /**
  * Regra do formato `wide` da fileira "Continue assistindo" (feature 053, D-006): só quando TODOS os itens mostrados têm
  * uma imagem horizontal real já guardada no aparelho. Sem isso, o pôster alto — nunca uma imagem genérica nem recortada.

@@ -18,9 +18,6 @@ export const comingSoon = defineArea(
     'comingSoon.a11y-voice-guide': 'Narração de tela (Voice Guide).',
     'comingSoon.a11y-high-contrast': 'Modo de alto contraste.',
     'comingSoon.a11y-subtitles': 'Aparência das legendas.',
-    'comingSoon.vod-top10-movies': 'Top 10 filmes da semana, com dados do TMDB.',
-    'comingSoon.vod-top10-series': 'Top 10 séries da semana, com dados do TMDB.',
-    'comingSoon.vod-rated': 'Títulos mais bem avaliados da sua lista.',
     'comingSoon.vod-because': 'Sugestões parecidas com o que você assistiu.',
   },
   {
@@ -35,9 +32,6 @@ export const comingSoon = defineArea(
     'comingSoon.a11y-voice-guide': 'Screen narration (Voice Guide).',
     'comingSoon.a11y-high-contrast': 'High contrast mode.',
     'comingSoon.a11y-subtitles': 'Subtitle appearance.',
-    'comingSoon.vod-top10-movies': 'Top 10 movies of the week, with TMDB data.',
-    'comingSoon.vod-top10-series': 'Top 10 series of the week, with TMDB data.',
-    'comingSoon.vod-rated': 'Top-rated titles from your list.',
     'comingSoon.vod-because': 'Suggestions similar to what you watched.',
   },
   {
@@ -52,9 +46,6 @@ export const comingSoon = defineArea(
     'comingSoon.a11y-voice-guide': 'Narración de pantalla (Voice Guide).',
     'comingSoon.a11y-high-contrast': 'Modo de alto contraste.',
     'comingSoon.a11y-subtitles': 'Apariencia de los subtítulos.',
-    'comingSoon.vod-top10-movies': 'Top 10 de películas de la semana, con datos de TMDB.',
-    'comingSoon.vod-top10-series': 'Top 10 de series de la semana, con datos de TMDB.',
-    'comingSoon.vod-rated': 'Títulos mejor valorados de tu lista.',
     'comingSoon.vod-because': 'Sugerencias parecidas a lo que has visto.',
   },
 )

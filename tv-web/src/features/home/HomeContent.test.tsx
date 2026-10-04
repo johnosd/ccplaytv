@@ -397,11 +397,15 @@ describe('HomeContent — ícone TMDB do dock (feature 032, FR-016)', () => {
   it('com chave guardada o ícone mostra "conectado" — só a leitura local, sem rede', async () => {
     await seedSource()
     await db.integrations.put({ id: 'tmdb', key: '0123456789abcdef0123456789abcdef', format: 'v3', state: 'connected', lastTestedAt: 1 })
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    // Feature 057: com chave guardada o Início consulta o TMDB ao ABRIR (ranking e candidatos das linhas Top 10/Dica) — nunca por
+    // foco, e nunca para o ícone do dock, que lê só o estado local. A resposta aqui é vazia: nenhuma linha aparece.
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ results: [] }), { status: 200 }))
     try {
       renderHome({ onOpenIntegrations: vi.fn() })
       expect(await screen.findByRole('button', { name: 'TMDB — conectado' })).toHaveAttribute('data-state', 'connected')
-      expect(fetchSpy).not.toHaveBeenCalled()
+      const hosts = fetchSpy.mock.calls.map(([input]) => new URL(String(input)))
+      expect(hosts.every((url) => url.hostname === 'api.themoviedb.org' && /^\/3\/(trending|discover)\//.test(url.pathname))).toBe(true)
+      expect(hosts.some((url) => url.pathname === '/3/authentication')).toBe(false) // o dock não testa a chave
       // A chave nunca chega ao DOM.
       expect(document.body.innerHTML).not.toContain('0123456789abcdef0123456789abcdef')
     } finally {

@@ -46,6 +46,16 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   Nas séries, o destaque também mostra o gênero e o fundo da listagem. Tudo vem do que a listagem
   já baixa, sem consulta extra; listas já importadas ganham os campos quando a categoria é renovada
   (feature 055).
+- Fileira "Bem avaliados" em Filmes e Séries: filmes dos últimos 10 anos com nota do provedor de 6,0 a
+  9,9, uma versão por título, entre os já obtidos no aparelho e sem consulta extra. O conjunto muda a cada
+  dia (e fica o mesmo durante o dia). Só aparece com pelo menos 5 títulos elegíveis, avisa quando só parte
+  das categorias foi obtida e o "Ver tudo" abre a lista toda ordenada por nota (feature 056).
+- Fileiras do TMDB em Filmes, Séries e Início (com a chave TMDB da pessoa, Integrações & BYOK): "Top 10 da
+  semana" com a posição real do ranking semanal do TMDB (sem renumerar) e "Dica de filme"/"Dica de série",
+  um sorteio do dia entre títulos bem avaliados e populares dos últimos 15 anos. Só aparece o que existe na
+  lista, na versão principal (sem `[L]`/4K; esses só entram na falta dela), com "Fonte: TMDB" e o aviso de
+  categorias ainda não obtidas. Sem chave, sem rede ou sem nada em cache as fileiras somem; com rede cortada
+  vale o último resultado guardado. Focar nunca consulta o TMDB (feature 057).
 - Programa atual ("Agora") com barra de progresso na lista de canais, e
   "A seguir" com sinopse no preview, na faixa do player e nos canais
   favoritos da Home, a partir de EPG em XMLTV (do painel Xtream, do

@@ -56,6 +56,8 @@ export const SUITE = [
   'e2e/carrosseis-filmes-series.mjs',
   'e2e/vod-pesquisa-ordenacao.mjs',
   'e2e/campos-da-listagem.mjs',
+  'e2e/bem-avaliados.mjs',
+  'e2e/top10-dica.mjs',
 ]
 
 function lerArgs(argv) {

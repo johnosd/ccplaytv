@@ -1,11 +1,14 @@
 import { useState, type ReactNode } from 'react'
 import {
   useContinueWatchingContent,
+  useDailyTip,
   useFavoritesContent,
+  useWeeklyTop10,
   useHomeHero,
   useMyListContent,
   useUserState,
   type CatalogItemOut,
+  type DiscoveryPick,
 } from '../catalog/catalogApi'
 import { stableIdOf, useEpgPrograms, useTmdbStatus } from '../catalog/catalogApi'
 import { TMDB_DOCK_LABEL_KEY } from '../settings/integrationsModel'
@@ -67,8 +70,18 @@ export interface HomeContentProps {
   statusLine?: string | null
 }
 
-type RowKey = 'hero' | 'continue' | 'mylist' | 'channels' | 'ai' | 'dock'
-const ALL_ROWS: RowKey[] = ['hero', 'continue', 'mylist', 'channels', 'ai', 'dock']
+/** Linhas do TMDB (feature 057): Top 10 e Dica de filmes e de séries, sempre depois dos canais favoritos. */
+type DiscoveryRowKey = 'top10-movies' | 'top10-series' | 'tip-movies' | 'tip-series'
+type RowKey = 'hero' | 'continue' | 'mylist' | 'channels' | DiscoveryRowKey | 'ai' | 'dock'
+const DISCOVERY_ROWS: DiscoveryRowKey[] = ['top10-movies', 'top10-series', 'tip-movies', 'tip-series']
+const ALL_ROWS: RowKey[] = ['hero', 'continue', 'mylist', 'channels', ...DISCOVERY_ROWS, 'ai', 'dock']
+
+const DISCOVERY_TITLE: Record<DiscoveryRowKey, MessageKey> = {
+  'top10-movies': 'showcase.row.top10Movies',
+  'top10-series': 'showcase.row.top10Series',
+  'tip-movies': 'showcase.row.tipMovies',
+  'tip-series': 'showcase.row.tipSeries',
+}
 
 const SEE_ALL_ID = '__see-all__'
 const MOVIES_ID = '__movies__'
@@ -84,6 +97,30 @@ function myListRailId(entry: MyListRailItem): string {
 
 function channelRailId(entry: ChannelRailItem): string {
   return entry.kind === 'channel' ? entry.item.id : SEE_ALL_ID
+}
+
+function isDiscoveryRow(row: RowKey): row is DiscoveryRowKey {
+  return (DISCOVERY_ROWS as RowKey[]).includes(row)
+}
+
+/** Resultado de `useWeeklyTop10`/`useDailyTip` → itens, posições reais do ranking (só o Top 10 as tem) e cobertura. */
+function discoveryOf(query: {
+  data: CatalogItemOut[] | DiscoveryPick[] | undefined
+  coveredCategories: number
+  totalCategories: number
+}): { items: CatalogItemOut[]; ranks: ReadonlyMap<string, number>; covered: number; total: number } {
+  const data = query.data ?? []
+  const items: CatalogItemOut[] = []
+  const ranks = new Map<string, number>()
+  for (const entry of data) {
+    if ('item' in entry) {
+      items.push(entry.item)
+      ranks.set(entry.item.id, entry.rank)
+    } else {
+      items.push(entry)
+    }
+  }
+  return { items, ranks, covered: query.coveredCategories, total: query.totalCategories }
 }
 
 interface DockIconDef {
@@ -105,6 +142,8 @@ const DOCK_ICONS: DockIconDef[] = [
 
 const CARD_WIDTH = 205
 const CARD_HEIGHT = 370
+/** Card do Top 10: o pôster de `CARD_WIDTH` mais o número grande ao lado (`home.css`). */
+const RANKED_WIDTH = 305
 const CHANNEL_WIDTH = 340
 const CHANNEL_HEIGHT = 100
 
@@ -151,6 +190,11 @@ export function HomeContent({
   const continueQuery = useContinueWatchingContent(sourceId)
   const myListQuery = useMyListContent(sourceId)
   const channelsQuery = useFavoritesContent(sourceId, 'channel', true)
+  // Feature 057: Top 10 e Dica (TMDB cruzado com a lista). Sem chave/cache/cruzamento não há dado e a linha não existe.
+  const top10MoviesQuery = useWeeklyTop10(sourceId, 'movie')
+  const top10SeriesQuery = useWeeklyTop10(sourceId, 'series')
+  const tipMoviesQuery = useDailyTip(sourceId, 'movie')
+  const tipSeriesQuery = useDailyTip(sourceId, 'series')
   const t = useT()
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
@@ -183,11 +227,22 @@ export function HomeContent({
     ...(channelsContent.items.length > 0 ? [{ kind: 'see-all' as const, count: channelsContent.items.length }] : []),
   ]
 
+  const discovery: Record<DiscoveryRowKey, { items: CatalogItemOut[]; ranks: ReadonlyMap<string, number>; covered: number; total: number }> = {
+    'top10-movies': discoveryOf(top10MoviesQuery),
+    'top10-series': discoveryOf(top10SeriesQuery),
+    'tip-movies': discoveryOf(tipMoviesQuery),
+    'tip-series': discoveryOf(tipSeriesQuery),
+  }
+
   const rowExists: Record<RowKey, boolean> = {
     hero: true,
     continue: continueItems.length > 0,
     mylist: mylistRailItems.length > 0,
     channels: channelRailItems.length > 0,
+    'top10-movies': discovery['top10-movies'].items.length > 0,
+    'top10-series': discovery['top10-series'].items.length > 0,
+    'tip-movies': discovery['tip-movies'].items.length > 0,
+    'tip-series': discovery['tip-series'].items.length > 0,
     ai: true,
     dock: true,
   }
@@ -233,6 +288,15 @@ export function HomeContent({
     initialFocus?.zone === 'rail' && initialFocus.rail === 'channels' ? initialFocus.itemId : null
   const channelRailKeyed = channelRailItems.map((entry) => ({ id: channelRailId(entry), entry }))
   const channelsFocus = useIdFocus(channelRailKeyed, channelsInitialId)
+
+  const discoveryInitialId = (key: DiscoveryRowKey) =>
+    initialFocus?.zone === 'rail' && initialFocus.rail === key ? initialFocus.itemId : null
+  const discoveryFocus = {
+    'top10-movies': useIdFocus(discovery['top10-movies'].items, discoveryInitialId('top10-movies')),
+    'top10-series': useIdFocus(discovery['top10-series'].items, discoveryInitialId('top10-series')),
+    'tip-movies': useIdFocus(discovery['tip-movies'].items, discoveryInitialId('tip-movies')),
+    'tip-series': useIdFocus(discovery['tip-series'].items, discoveryInitialId('tip-series')),
+  }
 
   const dockInitialId = initialFocus?.zone === 'dock' ? initialFocus.service : null
   const dockFocus = useIdFocus(DOCK_ICONS, dockInitialId)
@@ -312,6 +376,11 @@ export function HomeContent({
       else onOpenFavorites('live', from)
       return
     }
+    if (isDiscoveryRow(effectiveRow)) {
+      const item = discovery[effectiveRow].items[discoveryFocus[effectiveRow].index]
+      if (item) onOpenItem(item, { zone: 'rail', rail: effectiveRow, itemId: item.id })
+      return
+    }
     if (effectiveRow === 'ai') {
       announce(comingSoonToast('home-ai-curation', t))
       return
@@ -342,6 +411,7 @@ export function HomeContent({
             else if (effectiveRow === 'continue') continueFocus.moveTo(continueFocus.index + delta)
             else if (effectiveRow === 'mylist') myListFocus.moveTo(myListFocus.index + delta)
             else if (effectiveRow === 'channels') channelsFocus.moveTo(channelsFocus.index + delta)
+            else if (isDiscoveryRow(effectiveRow)) discoveryFocus[effectiveRow].moveTo(discoveryFocus[effectiveRow].index + delta)
             else if (effectiveRow === 'dock') dockFocus.moveTo(dockFocus.index + delta)
           },
           onSelect: handleSelect,
@@ -477,6 +547,40 @@ export function HomeContent({
           </section>
         )
       )}
+
+      {DISCOVERY_ROWS.map((key) => {
+        const row = discovery[key]
+        if (row.items.length === 0) return null // sem dado a linha não existe: nem skeleton, nem "Em breve"
+        const ranked = key.startsWith('top10')
+        const focus = discoveryFocus[key]
+        return (
+          <section key={key} className="home-row" aria-label={t(DISCOVERY_TITLE[key])}>
+            <div className="home-row-head">
+              <h2 className="home-row-title">{t(DISCOVERY_TITLE[key])}</h2>
+              {/* Procedência dos dados (FR-012) e escopo parcial (D-012): texto, nunca focável. */}
+              <span className="home-row-source">{t('showcase.source.tmdb')}</span>
+              {row.total > 0 && row.covered < row.total && (
+                <span className="home-row-coverage">{t('showcase.ratedCoverage', { covered: row.covered, total: row.total })}</span>
+              )}
+            </div>
+            <Rail
+              items={row.items}
+              itemWidth={ranked ? RANKED_WIDTH : CARD_WIDTH}
+              itemHeight={CARD_HEIGHT}
+              focusedIndex={effectiveRow === key ? focus.index : -1}
+              renderItem={(item, index) => (
+                <ContentCard
+                  variant="portrait"
+                  title={item.name}
+                  iconUrl={item.icon_url ?? undefined}
+                  focused={active && effectiveRow === key && index === focus.index}
+                  rank={ranked ? row.ranks.get(item.id) : undefined}
+                />
+              )}
+            />
+          </section>
+        )
+      })}
 
       <section className="home-row" aria-label={t('home.row.ai')}>
         <h2 className="home-row-title">{t('home.row.ai')}</h2>

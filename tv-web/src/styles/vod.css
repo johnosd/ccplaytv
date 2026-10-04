@@ -441,6 +441,23 @@
   color: var(--text-primary);
 }
 
+/* Feature 056: escopo parcial de "Bem avaliados" — junto do título, discreto, nunca focável. */
+.vod-row-coverage {
+  margin-right: auto;
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+/* Feature 057: procedência do Top 10 e da Dica ("Fonte: TMDB") — discreta, nunca focável; o aviso de cobertura, se houver, vem depois. */
+.vod-row-source {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.vod-row-source:not(:has(+ .vod-row-coverage)) {
+  margin-right: auto;
+}
+
 .vod-row .rail {
   box-sizing: content-box;
   padding: var(--space-2) var(--space-3);
@@ -655,6 +672,25 @@
   gap: var(--space-1);
 }
 
+/* O pôster do formato Top 10 tem a altura do trilho e a proporção dos demais pôsteres: sem isto ele encolhe ao tamanho do
+   conteúdo dentro da linha (o número ocupa o resto da largura do card, `--vod-card-w`). */
+.vod-screen .content-card--ranked {
+  justify-content: flex-end; /* o número fica encostado no pôster, não no canto do card */
+}
+
+.vod-screen .content-card--ranked .poster-box {
+  flex: none;
+  width: auto;
+  height: var(--vod-card-h, 300px);
+  aspect-ratio: 205 / 302;
+}
+
+/* O título do pôster é absoluto no card: no formato Top 10 ele acompanha o pôster, não o número. */
+.vod-screen .content-card--ranked .content-card-title {
+  left: auto;
+  width: calc(var(--vod-card-h, 300px) * 205 / 302 - 2 * var(--space-1));
+}
+
 .vod-screen .content-card-rank {
   flex: none;
   font-family: var(--font-heading);
@@ -726,14 +762,6 @@
 
 .vod-ghost-card--skeleton {
   border-color: transparent;
-}
-
-/* Número do Top 10: só layout do formato, nunca um ranking (feature 053). */
-.vod-ghost-rank {
-  font-family: var(--font-heading);
-  font-weight: 700;
-  font-size: var(--fs-display);
-  color: var(--text-annotation);
 }
 
 /* Título da seção na barra da tela de categoria (substitui o cabeçalho/topbar). */

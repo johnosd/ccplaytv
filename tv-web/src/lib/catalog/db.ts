@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from 'dexie'
 import { noteBlockWrite } from './blockMemo'
 import type { PlaybackHeaders } from './m3uHeaders'
 import type { AppLanguage } from '../i18n/languages'
+import type { DiscoveryTitle } from '../metadata/tmdbDiscovery'
 
 /**
  * Armazenamento local do aparelho — a fonte de verdade das telas depois da
@@ -369,6 +370,22 @@ export interface TmdbPersonRecord {
   language?: AppLanguage
 }
 
+/**
+ * Descoberta pelo TMDB guardada no aparelho (feature 057, `logic/descoberta.md` §2): o ranking semanal (`trending`, período =
+ * semana ISO local) ou o conjunto de candidatos da Dica (`pool`, período = dia local), por tipo e idioma. Só dado público do
+ * TMDB: nenhuma credencial, nenhuma URL. Não depende de fonte nem de geração.
+ */
+export interface DiscoveryCacheRecord {
+  /** `${source}:${kind}:${language}` */
+  id: string
+  source: 'trending' | 'pool'
+  kind: 'movie' | 'series'
+  language: AppLanguage
+  periodKey: string
+  fetchedAt: number
+  titles: DiscoveryTitle[]
+}
+
 export type IntegrationState = 'connected' | 'refused' | 'offline' | 'rate_limited'
 
 /**
@@ -623,6 +640,7 @@ export class CatalogDb extends Dexie {
   tmdbPeople!: EntityTable<TmdbPersonRecord, 'personId'>
   categoryBlocks!: EntityTable<CategoryBlockRecord, 'categoryId'>
   sectionStaging!: EntityTable<SectionStagingRecord, 'id'>
+  discoveryCache!: EntityTable<DiscoveryCacheRecord, 'id'>
 
   constructor(name: string = DB_NAME) {
     // Feature 038 (R0-3): o Chrome grava em modo "relaxed" por padrão desde a
@@ -768,6 +786,11 @@ export class CatalogDb extends Dexie {
     // pelas telas. Sem `.upgrade()`: tabela nova.
     this.version(15).stores({
       sectionStaging: '++id, [sourceId+categoryId]',
+    })
+    // v16 (feature 057): ranking semanal e candidatos da Dica vindos do TMDB, por tipo e idioma. Sem `.upgrade()`:
+    // tabela nova, não há dado antigo. Limpa junto da chave TMDB (`removeTmdbKey`).
+    this.version(16).stores({
+      discoveryCache: 'id',
     })
     // Toda escrita em `categoryBlocks`, por qualquer caminho, esvazia o cache
     // de blocos lidos (`blockMemo.ts`) — sem depender de cada função lembrar.

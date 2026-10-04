@@ -13,8 +13,9 @@ export interface ContentCardProps {
   badge?: ReactNode
   onSelect?: () => void
   /**
-   * Número grande ao lado do pôster (formato Top 10, feature 053) — opt-in e decorativo (`aria-hidden`): é só layout,
-   * nunca um ranking que o app calcule. Sem a prop o card é idêntico ao de antes.
+   * Número grande ao lado do pôster (formato Top 10, features 053/057) — opt-in e decorativo (`aria-hidden`). O número é a
+   * posição REAL do título no ranking semanal do TMDB (feature 057); o app nunca calcula uma posição. Sem a prop o card é
+   * idêntico ao de antes.
    */
   rank?: number
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ErrorCode } from '../../lib/errors/errorCatalog'
 import {
   keepPreviousData,
@@ -54,6 +54,7 @@ import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
 import { isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
 import { recentlyAdded } from '../vod/vodShowcase'
+import { dayKey, selectFeaturedRated } from '../vod/ratedSelection'
 import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
 import {
   clearHistory,
@@ -75,6 +76,8 @@ import type { TmdbTitleRef } from '../../lib/catalog/db'
 import { FILMOGRAPHY_SHOWN_MAX, loadPersonCredits } from '../../lib/metadata/tmdbPeople'
 import { resolveTmdbTitles } from '../../lib/metadata/localTitleMatch'
 import { similarTabStatus } from '../../lib/metadata/similarTab'
+import { matchDiscoveryTitles, selectTip, selectTop10, type MatchedTitle } from '../../lib/metadata/discoveryRules'
+import { loadTipPool, loadWeeklyTrending, type DiscoveryKind } from '../../lib/metadata/tmdbDiscovery'
 
 const EPG_READ_BEFORE_MS = 24 * 60 * 60 * 1000
 const EPG_READ_AFTER_MS = 48 * 60 * 60 * 1000
@@ -777,6 +780,8 @@ export function useTmdbStatus() {
 function invalidateTmdb(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
   void queryClient.invalidateQueries({ queryKey: ['title-metadata'] })
+  // Feature 057: a chave nova (ou testada) muda o que as fileiras Top 10/Dica podem mostrar — sem isto o "sem chave" ficaria em memória.
+  void queryClient.invalidateQueries({ queryKey: ['tmdb-discovery'] })
 }
 
 /** Testa a chave contra o TMDB e só grava se aceita (FR-012). */
@@ -816,6 +821,8 @@ export function useRemoveTmdbKey() {
       // Filmografias também vieram do TMDB: só invalidar mostraria o dado velho por um instante (FR-021).
       queryClient.removeQueries({ queryKey: ['person-credits'] })
       queryClient.removeQueries({ queryKey: ['person-titles'] })
+      // Top 10 e Dica também vieram do TMDB (feature 057): descartar, para não mostrar a fileira velha por um instante.
+      queryClient.removeQueries({ queryKey: ['tmdb-discovery'] })
       void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
     },
   })
@@ -1436,6 +1443,160 @@ export function useRecentlyAdded(
     select: (index) => recentlyAdded(index.entries.map((entry) => toItemOut(entry.record, kind))),
   })
   return { data: query.data, isLoading: query.isLoading }
+}
+
+/**
+ * "Bem avaliados" da vitrine (feature 056, FR-002..FR-004): os títulos de maior nota do provedor entre os já obtidos no
+ * aparelho (mesmo índice local de `useRecentlyAdded`, sem rede) e a cobertura de categorias para o aviso de escopo parcial.
+ * `data` é `[]` quando há menos de `RATED_MIN` títulos com nota. Só os `SHOWCASE_LIMIT` vencedores viram `CatalogItemOut`
+ * (o catálogo inteiro não é mapeado) — `logic/bem-avaliados.md` §3.
+ */
+export function useTopRated(
+  sourceId: string | null,
+  kind: FavoritableKind,
+): { data: CatalogItemOut[] | undefined; coveredCategories: number; totalCategories: number; isLoading: boolean } {
+  // Mesma chave e mesma leitura de `useRecentlyAdded`: o índice é compartilhado e a pré-carga (038) o invalida quando uma
+  // categoria chega. O `select` é estável (muda só com o tipo) para não refazer a seleção a cada render.
+  const select = useCallback(
+    (index: Awaited<ReturnType<typeof loadSearchIndex>>) => {
+      // Refinamento de 2026-10-04 (FR-015..FR-018): recente, nota 6,0–9,9, uma versão por título e sorteio estável do dia.
+      const now = Date.now()
+      const { picked } = selectFeaturedRated(
+        index.entries,
+        {
+          id: (entry) => String(entry.record.id),
+          name: (entry) => entry.record.name,
+          rating: (entry) => entry.record.providerRating,
+          year: (entry) => entry.record.year,
+          addedAt: (entry) => entry.record.addedAt,
+        },
+        { now, seed: `${dayKey(now)}|${kind}|${sourceId}` },
+      )
+      return {
+        items: picked.map((entry) => toItemOut(entry.record, kind)),
+        coveredCategories: index.coveredCategories,
+        totalCategories: index.totalCategories,
+      }
+    },
+    [kind, sourceId],
+  )
+  const query = useQuery({
+    queryKey: ['catalog-search-index', sourceId, kind],
+    queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
+    enabled: sourceId !== null && kind !== 'channel',
+    staleTime: 0,
+    refetchOnMount: 'always',
+    select,
+  })
+  return {
+    data: query.data?.items,
+    coveredCategories: query.data?.coveredCategories ?? 0,
+    totalCategories: query.data?.totalCategories ?? 0,
+    isLoading: query.isLoading,
+  }
+}
+
+/** Um título do Top 10 da semana já cruzado com a lista: o item da lista e a posição REAL no ranking do TMDB (feature 057). */
+export interface DiscoveryPick {
+  item: CatalogItemOut
+  rank: number
+}
+
+type DiscoveryEntries = Awaited<ReturnType<typeof loadSearchIndex>>['entries']
+type DiscoveryContext = { now: number; seed: string; kind: DiscoveryKind }
+
+const DISCOVERY_READ = {
+  id: (entry: DiscoveryEntries[number]) => String(entry.record.id),
+  // Nome como a fonte declarou (com `[L]`, `4K`...), como o cruzamento da 035.
+  name: (entry: DiscoveryEntries[number]) => entry.record.originalName,
+  year: (entry: DiscoveryEntries[number]) => entry.record.year,
+  rating: (entry: DiscoveryEntries[number]) => entry.record.providerRating,
+  addedAt: (entry: DiscoveryEntries[number]) => entry.record.addedAt,
+}
+
+/**
+ * Base de `useWeeklyTop10`/`useDailyTip` (feature 057, `logic/descoberta.md` §6): os títulos do TMDB (cache + no máximo uma
+ * consulta por período, ao abrir a tela — nunca por foco) cruzados com o índice local de busca, que é o mesmo de
+ * `useTopRated`/`useRecentlyAdded` (mesma `queryKey`). Sem títulos do TMDB (sem chave, sem cache) o índice nem é lido.
+ */
+function useDiscoveryRow<R>(
+  source: 'trending' | 'pool',
+  sourceId: string | null,
+  kind: DiscoveryKind,
+  project: (matches: MatchedTitle<DiscoveryEntries[number]>[], context: DiscoveryContext) => R,
+): { data: R | undefined; coveredCategories: number; totalCategories: number; isLoading: boolean } {
+  const queryClient = useQueryClient()
+  // O idioma do app entra na chave (feature 054); o que o TMDB devolveu em outro idioma não vale como se fosse o atual.
+  const language = useLanguage()
+  // Fixado por montagem da tela: a virada do dia com a tela aberta não troca cards sob o foco.
+  const [now] = useState(() => Date.now())
+  const tmdb = useQuery({
+    queryKey: ['tmdb-discovery', source, kind, language],
+    queryFn: async () => {
+      const result = await (source === 'trending' ? loadWeeklyTrending : loadTipPool)(kind, { language })
+      // O carregador pode ter mudado o estado do TMDB (chave recusada, limite): Integrações e dock releem.
+      void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
+      return result
+    },
+    enabled: sourceId !== null,
+    // Resultado vigente vale 30 min (o carregador decide pelo período; isto só evita reler o Dexie a cada montagem). Sem chave,
+    // sem rede ou vencido, o próximo uso da tela tenta de novo (uma leitura local, no máximo uma consulta).
+    staleTime: (query) => (query.state.data?.status === 'ok' && !query.state.data.stale ? 30 * 60 * 1000 : 0),
+  })
+  const titles = tmdb.data?.titles
+  const select = useCallback(
+    (index: Awaited<ReturnType<typeof loadSearchIndex>>) => ({
+      value: project(matchDiscoveryTitles(titles ?? [], index.entries, DISCOVERY_READ), { now, seed: `${dayKey(now)}|${kind}|${sourceId}`, kind }),
+      coveredCategories: index.coveredCategories,
+      totalCategories: index.totalCategories,
+    }),
+    [titles, kind, sourceId, now, project],
+  )
+  const index = useQuery({
+    queryKey: ['catalog-search-index', sourceId, kind],
+    queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
+    enabled: sourceId !== null && titles !== undefined && titles.length > 0,
+    staleTime: 60_000,
+    refetchOnMount: false,
+    select,
+  })
+  const settledEmpty = tmdb.data !== undefined && tmdb.data.titles.length === 0
+  return {
+    data: index.data?.value ?? (settledEmpty ? (project([], { now, seed: '', kind }) as R) : undefined),
+    coveredCategories: index.data?.coveredCategories ?? 0,
+    totalCategories: index.data?.totalCategories ?? 0,
+    isLoading: tmdb.isLoading || index.isLoading,
+  }
+}
+
+function projectTop10(matches: MatchedTitle<DiscoveryEntries[number]>[], context: DiscoveryContext): DiscoveryPick[] {
+  return selectTop10(matches).map(({ local, rank }) => ({ item: toItemOut(local.record, context.kind), rank }))
+}
+
+function projectTip(matches: MatchedTitle<DiscoveryEntries[number]>[], context: DiscoveryContext): CatalogItemOut[] {
+  return selectTip(matches, { now: context.now, seed: context.seed }).map((local) => toItemOut(local.record, context.kind))
+}
+
+/**
+ * Top 10 da semana (feature 057, FR-001..FR-004, FR-013..FR-016 — `logic/descoberta.md` §6): o ranking semanal do TMDB cruzado
+ * com a lista. `data` é `[]` quando não há `TOP10_MIN` cruzados, sem chave ou sem cache.
+ */
+export function useWeeklyTop10(
+  sourceId: string | null,
+  kind: 'movie' | 'series',
+): { data: DiscoveryPick[] | undefined; coveredCategories: number; totalCategories: number; isLoading: boolean } {
+  return useDiscoveryRow('trending', sourceId, kind, projectTop10)
+}
+
+/**
+ * Dica do dia (feature 057, FR-005..FR-008 — `logic/descoberta.md` §6): candidatos do TMDB cruzados com a lista e sorteados com
+ * semente do dia. `data` é `[]` quando não há `TIP_MIN` candidatos válidos.
+ */
+export function useDailyTip(
+  sourceId: string | null,
+  kind: 'movie' | 'series',
+): { data: CatalogItemOut[] | undefined; coveredCategories: number; totalCategories: number; isLoading: boolean } {
+  return useDiscoveryRow('pool', sourceId, kind, projectTip)
 }
 
 /** Prévia de uma categoria para o carrossel da tela hero (feature 053): `pending` = ainda não obtida no aparelho. */

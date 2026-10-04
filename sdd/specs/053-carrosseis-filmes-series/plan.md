@@ -1,4 +1,4 @@
-﻿# Implementation Plan: Carrosséis de categoria, lista lateral recolhível e slots TMDB na tela hero de Filmes e Séries
+# Implementation Plan: Carrosséis de categoria, lista lateral recolhível e slots TMDB na tela hero de Filmes e Séries
 
 **Slug**: `053-carrosseis-filmes-series` | **Date**: 2026-10-03 | **Spec**: `sdd/specs/053-carrosseis-filmes-series/spec.md`
 
@@ -200,6 +200,7 @@ Fora dos contratos (o executor escreve em testes próprios): `useCategoryPreview
 | 2026-10-03 | Fase 4 | Lista lateral recolhível (collapsed, ← alterna, prefs, CSS); 5/5 contratos verdes | Fase 5 (formatos) |
 | 2026-10-03 | Fase 3 | VodShowcaseScreen reescrita (fileiras dinâmicas, foco puro, pilha virtualizada, prévias em janela, slots); contrato 052 substituído e trava regravada; 4/5 contratos verdes | Fase 4 (recolher) |
 | 2026-10-03 | Fases 1–2 | Módulos puros (uildShowcaseRows, foco), useCategoryPreviews, prefs, invalidador, comingSoon, backlog 67–69; 2/5 contratos verdes | Reescrever VodShowcaseScreen (Fase 3) |
+| 2026-10-04 | Emenda de contratos (feature 057) | Aprovada pelo usuário: o slot "Top 10" saiu da lista de fileiras fixas (agora só existe com dado do TMDB). Editadas só as linhas do Top 10 dos contratos travados de 052, 053 e 056 e regravadas as 3 travas; ver R-001/R-011 em `sdd/specs/057-top10-dica-tmdb/plan.md`. | Nenhuma |
 
 **PRÓXIMO**: nenhum — feature implementada; rodar `sdd-converge` para confirmar a convergência.
 

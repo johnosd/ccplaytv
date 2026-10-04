@@ -1,0 +1,17 @@
+{
+    "feature":  "056-bem-avaliados",
+    "lockedAt":  "2026-10-04 08:37",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/features/vod/vodShowcase.bem-avaliados.contract.test.ts",
+                      "sha256":  "08713a15440c492f392b0a6cd91bb0a82e50728ff57e458fd693d71fb6e11b2d",
+                      "tests":  3
+                  },
+                  {
+                      "path":  "tv-web/src/features/vod/VodShowcaseScreen.bem-avaliados.contract.test.tsx",
+                      "sha256":  "1e76b56e645e3e4ff9941076ce906624f4c9a8898545ffef1c8134ce34734ba1",
+                      "tests":  2
+                  }
+              ]
+}

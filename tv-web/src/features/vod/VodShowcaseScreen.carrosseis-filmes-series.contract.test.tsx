@@ -209,16 +209,14 @@ describe('VodShowcaseScreen — contrato da feature 053', () => {
     const first = renderShowcase()
 
     const seen: string[] = []
-    for (let i = 0; i < 8; i += 1) {
+    for (let i = 0; i < 6; i += 1) {
       seen.push(focusedRowLabel() ?? '(sem foco)')
-      if (i < 7) tap('ArrowDown')
+      if (i < 5) tap('ArrowDown')
     }
     expect(seen).toEqual([
       'Continue assistindo',
-      'Top 10 filmes da semana',
       '★ Favoritos',
       'Adicionados recentemente',
-      'Bem avaliados',
       'Porque você assistiu',
       'Ação',
       'Drama',
@@ -253,13 +251,13 @@ describe('VodShowcaseScreen — contrato da feature 053', () => {
   })
 
   // US4/AC1..AC4, FR-008, FR-009, FR-011, Constitution: "Foco Visível…" + "Trailers e Metadados Não Alteram…" (nada externo ao focar)
-  it('slots reservados são focáveis e "Em breve", não navegam, não consultam a rede e não prendem o foco; o Top 10 acompanha a seção', () => {
+  it('slots reservados são focáveis e "Em breve", não navegam, não consultam a rede e não prendem o foco', () => {
     mockData()
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     const calls = renderShowcase()
 
-    tap('ArrowDown') // Continue → Top 10 (slot)
-    expect(focusedRowLabel()).toBe('Top 10 filmes da semana')
+    tap('ArrowDown', 3) // Continue → Favoritos → Recentes → Porque você assistiu (slot; "Bem avaliados" é real desde a 056, o Top 10 desde a 057)
+    expect(focusedRowLabel()).toBe('Porque você assistiu')
     const slot = document.querySelector('.vod-showcase .tv-focus')?.closest('.vod-slot-card')
     expect(slot).not.toBeNull()
     expect(slot!.getAttribute('aria-disabled')).toBe('true')
@@ -270,20 +268,18 @@ describe('VodShowcaseScreen — contrato da feature 053', () => {
     tap('ArrowRight')
     expect(calls.onOpenItem).not.toHaveBeenCalled()
     expect(calls.onOpenTarget).not.toHaveBeenCalled()
-    expect(focusedRowLabel()).toBe('Top 10 filmes da semana')
+    expect(focusedRowLabel()).toBe('Porque você assistiu')
 
-    tap('ArrowDown', 3) // Favoritos → Recentes → Bem avaliados (outro slot)
-    expect(focusedRowLabel()).toBe('Bem avaliados')
     tap('ArrowDown')
-    tap('ArrowUp', 5) // Porque você assistiu → … → Continue
+    tap('ArrowUp', 4) // Ação → Porque você assistiu → … → Continue
     expect(focusedRowLabel()).toBe('Continue assistindo')
     expect(fetchSpy).not.toHaveBeenCalled()
     cleanup()
 
+    // O Top 10 (feature 057) não é mais slot: em Séries, sem dado, a fileira não existe.
     mockData()
     renderShowcase(undefined, 'series')
-    tap('ArrowDown')
-    expect(focusedRowLabel()).toBe('Top 10 séries da semana')
+    expect(document.querySelector('section.vod-row[aria-label="Top 10 séries da semana"]')).toBeNull()
   })
 
   // US2/AC1..AC5, FR-004, FR-005, FR-013 (EMENDADO a pedido do usuário em 2026-10-03, R-016: ← → paginam a lista; ela

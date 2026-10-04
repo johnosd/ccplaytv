@@ -236,10 +236,8 @@ describe('VodShowcaseScreen — contrato da feature 052', () => {
     // Só as fileiras de itens com dado entram (+ os slots reservados e as categorias, emenda 053).
     expect(rowLabels()).toEqual([
       'Continue assistindo',
-      'Top 10 filmes da semana',
       '★ Favoritos',
       'Adicionados recentemente',
-      'Bem avaliados',
       'Porque você assistiu',
       'Ação',
       'Drama',
@@ -267,7 +265,7 @@ describe('VodShowcaseScreen — contrato da feature 052', () => {
     tap('Enter')
     expect(first.onOpenTarget.mock.calls.at(-1)?.[0]).toEqual({ kind: 'history' } satisfies VodTarget)
 
-    tap('ArrowDown', 2) // Top 10 (reservado) → ★ Favoritos
+    tap('ArrowDown') // → ★ Favoritos (o Top 10 só existe com dado do TMDB, feature 057)
     tap('ArrowRight') // F1 → "Ver tudo"
     tap('Enter')
     expect(first.onOpenTarget.mock.calls.at(-1)?.[0]).toEqual({ kind: 'favorites' } satisfies VodTarget)

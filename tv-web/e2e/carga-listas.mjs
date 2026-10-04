@@ -370,7 +370,10 @@ async function run() {
       assert((await focusedLabel()) === 'Filmes 3', 'o foco continua em "Filmes 3" enquanto os números chegam')
       const scrollAfter = await page.evaluate(() => document.querySelector('.side-category-nav')?.scrollTop ?? 0)
       assert(scrollAfter === scrollBefore, 'a rolagem do trilho não muda')
-      const sectionOrder = log.filter((e) => e.categoryId === '*').map((e) => e.action)
+      // Feature 056: sem nota no painel não há fileira "Bem avaliados" e as categorias sobem na tela hero, entrando na janela de
+      // prévias já na abertura — a pré-carga pede essas categorias uma a uma, em vez de só a seção inteira. A ordem que importa
+      // (Filmes antes de Séries) vale para qualquer pedido de filmes/séries, de seção ou de categoria.
+      const sectionOrder = log.filter((e) => e.categoryId === '*' || e.action === 'get_vod_streams' || e.action === 'get_series').map((e) => e.action)
       // Canais já foram pedidos no Início (sem dica ainda); com a pessoa em Filmes, Filmes passa na frente de Séries.
       assert(
         sectionOrder.indexOf('get_vod_streams') !== -1 &&

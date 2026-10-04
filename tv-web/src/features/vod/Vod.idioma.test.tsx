@@ -35,7 +35,7 @@ describe('Filmes/Séries em outros idiomas (feature 054)', () => {
 
   it('fileiras da vitrine: títulos fixos traduzidos; categoria do provedor intacta', () => {
     const rows = buildShowcaseRows(
-      { section: 'movies', hasContinue: true, hasFavorites: true, hasAdded: true, categoryNames: ['Terror'] },
+      { section: 'movies', hasContinue: true, hasFavorites: true, hasAdded: true, hasRated: true, hasTop10: true, hasTip: true, categoryNames: ['Terror'] },
       es,
     )
     expect(rows.map((row) => row.title)).toEqual([
@@ -44,6 +44,7 @@ describe('Filmes/Séries em outros idiomas (feature 054)', () => {
       '★ Favoritos',
       'Añadidos recientemente',
       'Mejor valoradas',
+      'Recomendación de película',
       'Porque viste',
       'Terror',
     ])

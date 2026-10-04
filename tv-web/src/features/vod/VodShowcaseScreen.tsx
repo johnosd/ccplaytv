@@ -9,7 +9,10 @@ import {
   useCategoryPreviews,
   useFavoritesContent,
   useHistoryContent,
+  useDailyTip,
   useRecentlyAdded,
+  useTopRated,
+  useWeeklyTop10,
   useResumePositions,
   useSeriesWatchedSummary,
   useWatchedIds,
@@ -46,6 +49,7 @@ import { VodHeroArt } from './VodHeroArt'
 import { vodGroupDisplay } from './vodGroupDisplay'
 import type { VodShellProps } from './vodShell'
 import type { VodSection } from './vodSessionMemory'
+import { DISCOVERY_LIMIT } from '../../lib/metadata/discoveryRules'
 import { SHOWCASE_LIMIT, allHaveBackdrop } from './vodShowcase'
 import { ROW_FORMATS, type RowFormatMetrics } from './vodRowFormats'
 import { measuredRowPitch, pagedIndex, pageSizeFor, scrollByPage } from '../../lib/focus/paging'
@@ -84,7 +88,7 @@ const PRIORITIZE_DEBOUNCE_MS = 300
 /** Até quando dados que chegam ainda podem decidir o foco inicial (ver `startedInSide`). */
 const INITIAL_FOCUS_SETTLE_MS = 1200
 /** Cartões fantasma (decorativos) de um slot reservado, contando o cartão focável. */
-const SLOT_CARD_COUNT = { top10: 10, other: 6 }
+const SLOT_CARD_COUNT = 6
 
 /** Chaves do catálogo por seção (feature 054): `vod.<seção>.*` (compartilhadas com a tela de categoria) e o eyebrow. */
 const SECTION_COPY: Record<
@@ -141,6 +145,11 @@ function itemEntries(items: readonly CatalogItemOut[]): Entry[] {
   return [...shown, SEE_ALL_ENTRY]
 }
 
+/** Fileiras do TMDB (feature 057): só os cards, sem "Ver tudo" — não há uma grade "de todos" para elas. */
+function plainEntries(items: readonly CatalogItemOut[]): Entry[] {
+  return items.slice(0, DISCOVERY_LIMIT).map((item): Entry => ({ id: item.id, kind: 'item', item }))
+}
+
 /** Moldura rolável com degradê de continuação (features 050/052) — só nas bordas com itens ocultos. */
 function scrollFrameClass(edges: OverflowEdges): string {
   return `vod-scroll-frame${edges.above ? ' is-more-above' : ''}${edges.below ? ' is-more-below' : ''}`
@@ -148,8 +157,9 @@ function scrollFrameClass(edges: OverflowEdges): string {
 
 /**
  * Tela hero de Filmes/Séries (features 052/053): hero do card focado + lista lateral de categorias + fileiras
- * (Continue assistindo, Top 10*, ★ Favoritos, Adicionados recentemente, Bem avaliados*, Porque você assistiu* e um
- * carrossel por categoria; *reservadas "Em breve"). As fileiras são descritores (`buildShowcaseRows`), o foco é puro
+ * (Continue assistindo, Top 10 da semana (feature 057; TMDB, só com dado), ★ Favoritos, Adicionados recentemente, Bem avaliados
+ * (feature 056; só com nota real), Dica (feature 057; TMDB, só com dado), Porque você assistiu* e um carrossel por categoria;
+ * *reservada "Em breve"). As fileiras são descritores (`buildShowcaseRows`), o foco é puro
  * (`vodShowcaseFocus`) e a pilha vertical é virtualizada. Focar nunca consulta nem reproduz (ADR-011): só OK age.
  */
 export function VodShowcaseScreen({
@@ -179,6 +189,10 @@ export function VodShowcaseScreen({
   const historyQuery = useHistoryContent(sourceId, copy.kind, true)
   const favoritesQuery = useFavoritesContent(sourceId, copy.kind, true)
   const addedQuery = useRecentlyAdded(sourceId, copy.kind)
+  const ratedQuery = useTopRated(sourceId, copy.kind)
+  // Feature 057: Top 10 da semana e Dica (TMDB cruzado com a lista); sem chave/cache/cruzamento não há dado e a fileira não existe.
+  const top10Query = useWeeklyTop10(sourceId, copy.kind)
+  const tipQuery = useDailyTip(sourceId, copy.kind)
 
   // Metadados reais do hero (os mesmos da 050): nada é consultado ao focar, só lido do que já está carregado.
   const watchedIds = useWatchedIds(sourceId, section === 'movies' ? copy.kind : 'channel').data ?? new Set<string>()
@@ -190,6 +204,11 @@ export function VodShowcaseScreen({
   const history = historyQuery.data?.items ?? []
   const favorites = favoritesQuery.data?.items ?? []
   const added = addedQuery.data ?? []
+  const rated = ratedQuery.data ?? []
+  const top10 = top10Query.data ?? []
+  const tip = tipQuery.data ?? []
+  // Posição REAL no ranking do TMDB (sem renumerar): é o número que o card mostra.
+  const rankById = new Map(top10.map((pick) => [pick.item.id, pick.rank]))
 
   // `wide` (D-006): "Continue assistindo" vira card largo só se TODOS os itens mostrados já têm backdrop guardado.
   const backdrops = useCachedBackdrops(history.slice(0, SHOWCASE_LIMIT))
@@ -200,6 +219,9 @@ export function VodShowcaseScreen({
       hasContinue: history.length > 0,
       hasFavorites: favorites.length > 0,
       hasAdded: added.length > 0,
+      hasRated: rated.length > 0,
+      hasTop10: top10.length > 0,
+      hasTip: tip.length > 0,
       categoryNames: categories.map((category) => category.name ?? ''),
     },
     t,
@@ -234,6 +256,9 @@ export function VodShowcaseScreen({
     else if (spec.key === 'continue') entries = itemEntries(history)
     else if (spec.key === 'favorites') entries = itemEntries(favorites)
     else if (spec.key === 'added') entries = itemEntries(added)
+    else if (spec.key === 'rated') entries = itemEntries(rated)
+    else if (spec.key === 'top10') entries = plainEntries(top10.map((pick) => pick.item))
+    else if (spec.key === 'tip') entries = plainEntries(tip)
     else {
       const category = categoryOfRow(spec)
       const preview = category ? previews.get(category.id) : undefined
@@ -355,7 +380,7 @@ export function VodShowcaseScreen({
     setZone('topbar')
   }
 
-  const hasAnyItems = history.length > 0 || favorites.length > 0 || added.length > 0
+  const hasAnyItems = history.length > 0 || favorites.length > 0 || added.length > 0 || rated.length > 0
   const blocked = categoriesQuery.isLoading || categoriesQuery.isError || (categories.length === 0 && !hasAnyItems)
 
   function handleSelect() {
@@ -493,6 +518,7 @@ export function VodShowcaseScreen({
           iconUrl={entry.item.icon_url ?? undefined}
           focused={focused}
           badge={<RatingBadge value={entry.item.provider_rating} />}
+          rank={spec.key === 'top10' ? rankById.get(entry.item.id) : undefined}
         />
       )
     }
@@ -504,14 +530,11 @@ export function VodShowcaseScreen({
     const focusIndex = focusedHere ? Math.max(0, entries.findIndex((entry) => entry.id === focusedId)) : -1
     const cardFocused = (index: number) => active && !inSide && focusedHere && index === focusIndex
     if (spec.kind === 'slot') {
-      const total = spec.format === 'top10' ? SLOT_CARD_COUNT.top10 : SLOT_CARD_COUNT.other
       return (
         <div className="vod-row-strip" style={{ height: format.itemHeight }}>
           {renderSlotCard(spec, cardFocused(0))}
-          {Array.from({ length: total - 1 }, (_, index) => (
-            <div key={index} className="vod-ghost-card" aria-hidden="true">
-              {spec.format === 'top10' && <span className="vod-ghost-rank">{index + 2}</span>}
-            </div>
+          {Array.from({ length: SLOT_CARD_COUNT - 1 }, (_, index) => (
+            <div key={index} className="vod-ghost-card" aria-hidden="true" />
           ))}
         </div>
       )
@@ -559,6 +582,22 @@ export function VodShowcaseScreen({
       >
         <div className="vod-row-head">
           <h2 className="vod-row-title">{spec.title}</h2>
+          {(spec.key === 'top10' || spec.key === 'tip') && (
+            // Feature 057 (FR-012): procedência visível — os dados vêm do TMDB; a nota do selo segue sendo a do provedor.
+            <span className="vod-row-source">{t('showcase.source.tmdb')}</span>
+          )}
+          {(() => {
+            const coverage = spec.key === 'rated' ? ratedQuery : spec.key === 'top10' ? top10Query : spec.key === 'tip' ? tipQuery : null
+            return (
+              coverage !== null &&
+              coverage.totalCategories > 0 &&
+              coverage.coveredCategories < coverage.totalCategories && (
+                <span className="vod-row-coverage">
+                  {t('showcase.ratedCoverage', { covered: coverage.coveredCategories, total: coverage.totalCategories })}
+                </span>
+              )
+            )
+          })()}
           {spec.seeAll && (
             <span className="vod-row-seeall" aria-hidden="true">
               {t('showcase.seeAllArrow')}
@@ -592,7 +631,11 @@ export function VodShowcaseScreen({
         ? t('showcase.eyebrow.favorites')
         : heroRowKey === 'continue'
           ? t('showcase.eyebrow.recent')
-          : t(copy.eyebrow)
+          : heroRowKey === 'top10'
+            ? t('showcase.eyebrow.top10')
+            : heroRowKey === 'tip'
+              ? t('showcase.eyebrow.tip')
+              : t(copy.eyebrow)
 
   function renderHero(): ReactNode {
     // Sem nada a mostrar (ex.: foco num slot antes de qualquer item), a hero segue ocupando o lugar: se ela aparecesse e

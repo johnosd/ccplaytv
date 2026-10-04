@@ -128,6 +128,8 @@ export async function gotoRow(page, label, categories = []) {
     '★ Favoritos',
     'Adicionados recentemente',
     'Bem avaliados',
+    'Dica de filme',
+    'Dica de série',
     'Porque você assistiu',
     ...categories,
   ]

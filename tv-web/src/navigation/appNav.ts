@@ -30,7 +30,12 @@ export type HomeFocus =
   | { zone: 'topbar'; item: TopbarItem }
   | { zone: 'shortcuts'; destination: TopDestination }
   | { zone: 'hero'; action: 'primary' | 'details' | 'mylist' | 'trailer' }
-  | { zone: 'rail'; rail: 'continue' | 'mylist' | 'channels' | 'ai'; itemId: string }
+  | {
+      zone: 'rail'
+      // Feature 057: as 4 linhas do TMDB (só acréscimo à união — os contratos 023/024 não mudam).
+      rail: 'continue' | 'mylist' | 'channels' | 'top10-movies' | 'top10-series' | 'tip-movies' | 'tip-series' | 'ai'
+      itemId: string
+    }
   | { zone: 'dock'; service: string }
 
 export type AppScreen =

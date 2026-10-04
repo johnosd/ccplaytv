@@ -165,7 +165,7 @@ describe('VodShowcaseScreen — hero', () => {
     renderShowcase()
     expect(text('.vod-hero-eyebrow')).toBe('↺ VISTOS RECENTEMENTE')
     expect(text('.vod-hero-meta')).toContain('2020')
-    tap('ArrowDown', 2) // Top 10 (reservado) → ★ Favoritos; no slot o hero mantém o último item
+    tap('ArrowDown') // → ★ Favoritos (o Top 10 só existe com dado do TMDB, feature 057)
     expect(text('.vod-hero-eyebrow')).toBe('★ SEUS FAVORITOS')
     expect(text('.vod-hero-title')).toBe('Favorito')
     tap('ArrowDown')
@@ -208,7 +208,7 @@ describe('VodShowcaseScreen — nota do provedor (feature 055)', () => {
     expect(text('.vod-hero-title')).toBe('Com nota')
     expect(text('.vod-hero-meta')).toContain('★ 7,4')
     expect(text('.vod-hero-meta')).toContain('Provedor')
-    tap('ArrowDown', 2) // Top 10 (reservado) → Adicionados recentemente
+    tap('ArrowDown') // → Adicionados recentemente
     expect(text('.vod-hero-title')).toBe('Sem nota')
     expect(document.querySelector('.vod-hero-meta .rating-badge')).toBeNull()
     expect(text('.vod-hero-meta')).not.toMatch(/★|Provedor|sem nota/i)
@@ -287,7 +287,7 @@ describe('VodShowcaseScreen — fileiras e estados', () => {
   it('uma fileira some quando o último item sai (o foco cai na anterior existente, nunca some)', () => {
     mockData({ history: [item('H1')], favorites: [item('F1')] })
     const view = renderShowcase()
-    tap('ArrowDown', 2) // Top 10 (reservado) → ★ Favoritos
+    tap('ArrowDown') // → ★ Favoritos
     expect(document.querySelector('.vod-showcase .tv-focus')?.closest('section')?.getAttribute('aria-label')).toBe('★ Favoritos')
 
     mockData({ history: [item('H1')], favorites: [] }) // o favorito foi removido

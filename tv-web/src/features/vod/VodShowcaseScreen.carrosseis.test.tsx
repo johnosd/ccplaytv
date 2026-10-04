@@ -88,7 +88,7 @@ function category(id: number, name: string): CatalogCategory {
 let previews: Map<number, CategoryPreview>
 let backdrops: Map<string, string>
 
-function mockData(opts: { categories?: CatalogCategory[]; history?: CatalogItemOut[] } = {}) {
+function mockData(opts: { categories?: CatalogCategory[]; history?: CatalogItemOut[]; favorites?: CatalogItemOut[]; added?: CatalogItemOut[] } = {}) {
   vi.mocked(catalogApi.useCategoryList).mockReturnValue({
     data: opts.categories ?? [category(1, 'Ação'), category(2, 'Drama')],
     isLoading: false,
@@ -100,10 +100,10 @@ function mockData(opts: { categories?: CatalogCategory[]; history?: CatalogItemO
     isLoading: false,
   } as unknown as ReturnType<typeof catalogApi.useHistoryContent>)
   vi.mocked(catalogApi.useFavoritesContent).mockReturnValue({
-    data: { items: [], unresolved: 0 },
+    data: { items: opts.favorites ?? [], unresolved: 0 },
     isLoading: false,
   } as unknown as ReturnType<typeof catalogApi.useFavoritesContent>)
-  vi.mocked(catalogApi.useRecentlyAdded).mockReturnValue({ data: [], isLoading: false })
+  vi.mocked(catalogApi.useRecentlyAdded).mockReturnValue({ data: opts.added ?? [], isLoading: false })
   vi.mocked(catalogApi.useCategoryPreviews).mockImplementation(() => previews)
   vi.mocked(catalogApi.useCachedBackdrops).mockImplementation(() => backdrops)
 }
@@ -165,15 +165,17 @@ afterEach(async () => {
 describe('VodShowcaseScreen — carrosséis de categoria (feature 053)', () => {
   it('categoria pendente na janela pede prioridade à pré-carga uma vez, só depois da pausa; ao chegar, o carrossel se preenche', () => {
     previews = new Map([[1, { status: 'pending', items: [] }]])
-    mockData({ history: [movie('H1')] })
+    // Continue, Favoritos, Adicionados e "Porque você assistiu" vêm antes: as categorias ficam da 5ª fileira em diante (a 056 tirou o
+    // slot "Bem avaliados" e a 057 o do Top 10 quando não há dado).
+    mockData({ history: [movie('H1')], favorites: [movie('F1')], added: [movie('A1')] })
     const view = renderShowcase()
 
-    // Com o foco no alto, as categorias (4ª e 5ª fileiras) ainda estão fora da janela: nada é pedido.
+    // Com o foco no alto, as categorias ainda estão fora da janela: nada é pedido.
     act(() => {
       vi.advanceTimersByTime(1000)
     })
     expect(prefetchApi.prioritizeCategory).not.toHaveBeenCalled()
-    tap('ArrowDown', 2) // Top 10 → Bem avaliados: a categoria entra na janela
+    tap('ArrowDown', 2) // Favoritos → Adicionados: a categoria entra na janela
     expect(prefetchApi.prioritizeCategory).not.toHaveBeenCalled() // antes da pausa, nada
     act(() => {
       vi.advanceTimersByTime(300)
@@ -184,7 +186,7 @@ describe('VodShowcaseScreen — carrosséis de categoria (feature 053)', () => {
     // A pré-carga trouxe a categoria: a prévia vira `ready` e o carrossel mostra os itens (sem novo pedido).
     previews = new Map([[1, { status: 'ready', items: [movie('X1')] }]])
     view.rerenderShowcase()
-    tap('ArrowDown', 2) // Bem avaliados → Porque você assistiu → Ação
+    tap('ArrowDown', 2) // Adicionados → Porque você assistiu → Ação
     expect(focusedRowLabel()).toBe('Ação')
     expect(document.querySelector('.vod-showcase .tv-focus')?.closest('.content-card')?.textContent).toContain('X1')
     act(() => {
@@ -215,7 +217,7 @@ describe('VodShowcaseScreen — carrosséis de categoria (feature 053)', () => {
     expect(focusedRowLabel()).toBeNull()
     tap('ArrowRight') // fim da lista: entra nos cards
     expect(document.querySelectorAll('.vod-showcase .tv-focus')).toHaveLength(1)
-    expect(focusedRowLabel()).toBe('Top 10 filmes da semana')
+    expect(focusedRowLabel()).toBe('Porque você assistiu')
   })
 
   it('com o foco na lista lateral, dados que chegam depois (uma fileira nova) não roubam o foco', () => {
@@ -246,7 +248,7 @@ describe('VodShowcaseScreen — carrosséis de categoria (feature 053)', () => {
   it('duas categorias com o mesmo nome declarado viram uma só fileira', () => {
     mockData({ categories: [category(1, 'Ação'), category(2, 'Ação'), category(3, 'Drama')] })
     renderShowcase()
-    tap('ArrowRight', 2) // lista lateral (pagina até o fim) → 1ª fileira (Top 10)
+    tap('ArrowRight', 2) // lista lateral (pagina até o fim) → 1ª fileira ("Porque você assistiu")
     tap('ArrowDown', 8)
     expect(focusedRowLabel()).toBe('Drama')
     tap('ArrowUp')
@@ -274,7 +276,7 @@ describe('VodShowcaseScreen — carrosséis de categoria (feature 053)', () => {
     expect(focusedSide()).toBe('C19')
     tap('ArrowRight', 2) // de novo até o fim e, na última entrada, → entra nos cards
     expect(focusedSide()).toBeUndefined()
-    expect(focusedRowLabel()).toBe('Top 10 filmes da semana')
+    expect(focusedRowLabel()).toBe('Porque você assistiu')
     expect(panel().classList.contains('is-collapsed')).toBe(true)
   })
   it('Continue assistindo vira card largo só com backdrop real de TODOS os itens; senão pôster alto', () => {
@@ -291,12 +293,12 @@ describe('VodShowcaseScreen — carrosséis de categoria (feature 053)', () => {
     expect(document.querySelector('section[aria-label=\"Continue assistindo\"] .content-card--portrait')).toBeNull()
   })
 
-  it('a rede nunca é tocada (nem TMDB) ao percorrer a tela; em Séries o Top 10 é de séries', () => {
+  it('a rede nunca é tocada (nem TMDB) ao percorrer a tela, inclusive sem chave TMDB (Top 10 e Dica ausentes)', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     mockData({ history: [movie('H1')] })
     renderShowcase('series')
     tap('ArrowDown')
-    expect(focusedRowLabel()).toBe('Top 10 séries da semana')
+    expect(focusedRowLabel()).toBe('Porque você assistiu')
     tap('ArrowDown', 4)
     tap('Enter')
     expect(fetchSpy).not.toHaveBeenCalled()
