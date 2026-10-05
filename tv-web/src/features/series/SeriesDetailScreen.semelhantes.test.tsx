@@ -101,7 +101,9 @@ describe('SeriesDetailScreen — aba Semelhantes (feature 035)', () => {
     press('Enter')
     expect(onOpenTitle).toHaveBeenCalledWith({ kind: 'series', itemId: 'series-2' }, { tab: 'similar', focusKey: 'tmdb:series:1' })
 
-    press('ArrowRight')
+    // Feature 059 (D-007/D-008): o não encontrado fica na linha de baixo — chega-se por ↓.
+    expect(screen.getByRole('heading', { name: 'Não encontrados na sua lista' })).toBeInTheDocument()
+    press('ArrowDown')
     press('Enter')
     expect(within(screen.getByRole('dialog')).getByText('Ausente')).toBeInTheDocument()
     press('Escape')

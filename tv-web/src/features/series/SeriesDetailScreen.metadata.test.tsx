@@ -173,8 +173,9 @@ describe('SeriesDetailScreen — metadata (feature 032)', () => {
     press('ArrowRight')
     press('Enter')
 
-    expect(screen.getByText('Gênero').nextSibling?.textContent).toBe('Animação, Drama')
-    expect(screen.getByText('Duração por episódio').nextSibling?.textContent).toBe('~25 min')
+    // Feature 059 (D-006): o cartão também traz a origem — o valor é o 1º nó do <dd>.
+    expect(screen.getByText('Gênero').nextSibling?.firstChild?.textContent).toBe('Animação, Drama')
+    expect(screen.getByText('Duração por episódio').nextSibling?.firstChild?.textContent).toBe('~25 min')
     expect(screen.queryByText('País')).not.toBeInTheDocument()
     expect(screen.queryByText('Direção')).not.toBeInTheDocument()
     // "Elenco" também é o nome de uma aba: procura só dentro da lista de fatos.

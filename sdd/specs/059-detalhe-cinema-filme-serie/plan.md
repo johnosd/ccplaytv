@@ -185,15 +185,16 @@ Testes adicionais (escritos no execute, não travados): `detailPanelGrid.test.ts
 | Fundação (Fase 2) | Concluída — regras puras (contratos 2/2 verdes), `useCoverColor`, `movePanelFocus`, `DetailHero`/`DetailActions`/`DetailChips` e CSS do hero prontos, ainda não ligados às telas |
 | US1 (filme) | Concluída — `MovieDetailScreen` no hero Cinema; contrato do hero verde; 032/033 verdes; Semelhantes do filme ainda na linha única (Fase 5) |
 | US2 (série) | Concluída — `SeriesDetailScreen` no hero Cinema; contrato da série verde; 105/105 testes da série |
-| US3 (abas) | Próxima — contratos de Semelhantes (059 e 035 emendado) vermelhos, esperado |
-| Contratos | Travas 059 e 035 íntegras |
+| US3 (abas) | Concluída — Semelhantes em duas linhas com grade de foco, Detalhes em cartões com origem, Elenco maior |
+| Contratos | 059 5/5 e 035 5/5 verdes; 032 e 033 verdes; todas as travas íntegras |
+| Polish (Fase 6) | Próxima — E2E novo, ajuste de E2E antigos, gates, quickstart, TV física (gate) |
 
 ## Riscos e Decisões
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
 | R-001 | E2E comparam o `textContent` inteiro de `.vod-detail-action` (`filmes-series-ds-v14.mjs:367`, `catalogo-em-blocos.mjs:307/312`, `home-busca-configuracoes.mjs:225`, `historico-continuar-assistindo.mjs`, `limpar-historico.mjs`, `trailers.mjs`). Com "faltam X" dentro da primária, igualdade quebra | E2E vermelhos | Trocar igualdade por `startsWith`/`includes` só onde a primária pode ter progresso; ícones mantêm o `textContent` = rótulo (T040) |
-| R-002 | Contrato emendado da 035 fica vermelho entre o plan e a Fase 5 | Suíte vermelha no meio do execute | Esperado; a Fase 5 o deixa verde. Não "consertar" editando o teste (travado) |
+| R-002 | Contrato emendado da 035 fica vermelho entre o plan e a Fase 5 | Suíte vermelha no meio do execute | Resolvido: verde na Fase 5 (2026-10-05), sem editar o teste |
 | R-003 | Capas do provedor quase nunca mandam CORS: a cor vai cair no neutro na maioria dos títulos sem backdrop | Efeito visual menor que o do protótipo | Aceito pelo design (fallback neutro). Medir na TV quantas capas reais dão cor (quickstart) |
 | R-004 | `filter`/sombra grande com a cor da capa pode pesar na TV | Rolagem travando | Sem `blur`; brilho por `box-shadow` único; medir na TV (gate D-012) |
 | R-005 | Hero mais alto pode empurrar as abas para fora da 1ª tela, conforme o tamanho do título/sinopse | FR-011 violado | Altura fixa `--detail-hero-height`, título em até 2 linhas com elipse, sinopse em 3; E2E mede a posição da fileira de abas |
@@ -216,16 +217,17 @@ Testes adicionais (escritos no execute, não travados): `detailPanelGrid.test.ts
 | 2026-10-05 | Fase 2 (Fundação) | T003–T013: regras puras, hook da cor, grade do painel, componentes do hero e CSS. Contratos 2/2, testes de apoio 12/12, tsc limpo | Ligar às telas (Fase 3) |
 | 2026-10-05 | Fase 3 (US1 — filme) | T014–T017: hero ligado ao filme, rolagem ao topo, 5 testes de apoio; nenhum teste antigo quebrou | Revisão visual fica para T030 |
 | 2026-10-05 | Fase 4 (US2 — série) | T018–T021: hero na série com a barra do episódio, rolagem ao topo, 3 testes de apoio; nenhum teste antigo quebrou | Revisão visual fica para T030 |
+| 2026-10-05 | Fase 5 (US3 — abas) | T022–T029a: Semelhantes em duas linhas + grade de foco nas duas telas, origem em cada cartão de Detalhes, Elenco maior; contratos 059 5/5 e 035 5/5 verdes; área 358/358 | E2E e TV (Fase 6) |
 
-**PRÓXIMO**: Fase 5 (US3 — abas) — T022 `SimilarPanel` em duas linhas, T023/T024 grade de foco nas duas telas, T025 cartões de Detalhes com origem, T026 CSS de Elenco/linhas, T027 ajustar testes de Semelhantes/Elenco, T028–T029a testes novos.
+**PRÓXIMO**: Fase 6 (Polish) — T030 `e2e/detalhe-cinema.mjs` com capturas e medição de SC-007, T031 ajuste de E2E antigos, T032 revisão de segredos, T033–T034 gates (unit/build/E2E completo), T035 quickstart, T036 TV física (gate), T037 docs.
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- `tv-web/src/features/series/SeriesDetailScreen.tsx` — hero Cinema ligado; `actionIcon`; `rootRef`
-- `tv-web/src/features/movies/MovieDetailScreen.tsx` — próximo alvo: `panelRows`
-- `tv-web/src/features/vod/SimilarPanel.tsx`, `detailPanelGrid.ts` — Fase 5
+- `tv-web/src/features/vod/SimilarPanel.tsx`, `detailPanelGrid.ts` — duas linhas e grade de foco
+- `tv-web/src/features/vod/DetailMetadata.tsx` — `FactOrigin`
+- `tv-web/e2e/` — próximo alvo (roteiro novo + ajustes)
 
 ## Cuidados para Retomada
 

@@ -19,6 +19,7 @@ import { HistoryRemovalModal } from '../history/HistoryRemovalModal'
 import {
   CastPanel,
   CastPeoplePanel,
+  FactOrigin,
   MetadataFacts,
   SynopsisBlock,
   SynopsisModal,
@@ -29,6 +30,7 @@ import { DetailHero } from '../vod/DetailHero'
 import { DetailIconAction, DetailPrimaryAction, type DetailIconName } from '../vod/DetailActions'
 import { DetailChips } from '../vod/DetailChips'
 import { primaryProgress } from '../vod/detailProgress'
+import { detailPanelRows, movePanelFocus } from '../vod/detailPanelGrid'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
@@ -306,16 +308,15 @@ export function MovieDetailScreen({
   // Semelhantes: só resolve com a aba ativa; nenhuma requisição externa nasce aqui (FR-003/SC-005).
   const similar = useSimilarTitles(movieId, activeTab === 'similar')
   const castPeople = metadata?.castPeople ?? []
-  const panelKeys: string[] =
-    activeTab === 'cast'
-      ? castPeople.map((person) => personFocusKey(person.personId))
-      : activeTab !== 'similar'
-        ? []
-        : similar.status === 'ready'
-          ? similar.titles.map((title) => title.key)
-          : similar.status === 'no_key'
-            ? [CONFIGURE_KEY]
-            : []
+  // Feature 059 (D-008): o painel é uma grade de linhas (Semelhantes: "Na sua lista" / "Não
+  // encontrados"); `panelKeys` (todas as chaves) segue servindo à restauração e à entrada.
+  const panelRows = detailPanelRows(
+    activeTab,
+    castPeople.map((person) => personFocusKey(person.personId)),
+    similar,
+    CONFIGURE_KEY,
+  )
+  const panelKeys: string[] = panelRows.flat()
 
   // Ação "Semelhantes" do hero: ativa a aba, rola até o painel e foca o 1º cartão.
   const enterSimilar = useEnterSimilarPanel({
@@ -410,12 +411,10 @@ export function MovieDetailScreen({
         return
       }
       if (row === 'panel') {
-        const index = panelKeys.indexOf(panelFocusKey as string)
-        if (dir === 'left' || dir === 'right') {
-          const next = clamp(index + (dir === 'left' ? -1 : 1), 0, panelKeys.length - 1)
-          setPanelFocusKey(panelKeys[next])
-        }
-        if (dir === 'up') {
+        // Feature 059 (D-008): grade de linhas — ←/→ param na ponta, ↓/↑ trocam de linha, ↑ na 1ª volta à aba.
+        const move = movePanelFocus(panelRows, panelFocusKey as string, dir)
+        if (move.kind === 'focus') setPanelFocusKey(move.key)
+        if (move.kind === 'exit-up') {
           setFocusedTabId(activeTab)
           setRow('tabs')
         }
@@ -558,26 +557,39 @@ export function MovieDetailScreen({
               <dt>{t('detail.fact.type')}</dt>
               <dd>{t('detail.fact.movie')}</dd>
             </div>
-            <div className="vod-detail-fact">
+            {/* Feature 059 (D-006): o que vem do catálogo da lista leva "Dados: fonte"; o Tipo não leva selo. */}
+            <div className="vod-detail-fact vod-detail-fact--category">
               <dt>{t('detail.fact.category')}</dt>
-              <dd>{groupLabelDisplay(movie.original_group, t)}</dd>
+              <dd>
+                {groupLabelDisplay(movie.original_group, t)}
+                <FactOrigin origin="provider" />
+              </dd>
             </div>
             {movie.year != null && (
               <div className="vod-detail-fact">
                 <dt>{t('detail.fact.year')}</dt>
-                <dd>{movie.year}</dd>
+                <dd>
+                  {movie.year}
+                  <FactOrigin origin="provider" />
+                </dd>
               </div>
             )}
             {movie.added_at != null && (
               <div className="vod-detail-fact">
                 <dt>{t('detail.fact.added')}</dt>
-                <dd>{formatShortDate(movie.added_at, APP_LANGUAGE_LOCALE[language])}</dd>
+                <dd>
+                  {formatShortDate(movie.added_at, APP_LANGUAGE_LOCALE[language])}
+                  <FactOrigin origin="provider" />
+                </dd>
               </div>
             )}
             <MetadataFacts rows={metadataFactRows(metadata, false, t)} />
             <div className="vod-detail-fact">
               <dt>{t('detail.fact.available')}</dt>
-              <dd>{movie.playable ? t('detail.yes') : t('detail.no')}</dd>
+              <dd>
+                {movie.playable ? t('detail.yes') : t('detail.no')}
+                <FactOrigin origin="provider" />
+              </dd>
             </div>
           </dl>
         )}

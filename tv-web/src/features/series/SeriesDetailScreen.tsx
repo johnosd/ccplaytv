@@ -20,6 +20,7 @@ import { HistoryRemovalModal } from '../history/HistoryRemovalModal'
 import {
   CastPanel,
   CastPeoplePanel,
+  FactOrigin,
   MetadataFacts,
   SynopsisBlock,
   SynopsisModal,
@@ -29,6 +30,7 @@ import { DetailHero } from '../vod/DetailHero'
 import { DetailIconAction, DetailPrimaryAction, type DetailIconName } from '../vod/DetailActions'
 import { DetailChips } from '../vod/DetailChips'
 import { primaryProgress } from '../vod/detailProgress'
+import { detailPanelRows, movePanelFocus } from '../vod/detailPanelGrid'
 import { isSynopsisTruncated, metadataFactRows } from '../vod/detailMetadataFormat'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
@@ -313,16 +315,15 @@ export function SeriesDetailScreen({
   // Semelhantes: só resolve com a aba ativa; nenhuma requisição externa nasce aqui (FR-003/SC-005).
   const similar = useSimilarTitles(seriesId, activeTab === 'similar')
   const castPeople = metadata?.castPeople ?? []
-  const panelKeys: string[] =
-    activeTab === 'cast'
-      ? castPeople.map((person) => personFocusKey(person.personId))
-      : activeTab !== 'similar'
-        ? []
-        : similar.status === 'ready'
-          ? similar.titles.map((title) => title.key)
-          : similar.status === 'no_key'
-            ? [CONFIGURE_KEY]
-            : []
+  // Feature 059 (D-008): o painel é uma grade de linhas (Semelhantes: "Na sua lista" / "Não
+  // encontrados"); `panelKeys` (todas as chaves) segue servindo à restauração e à entrada.
+  const panelRows = detailPanelRows(
+    activeTab,
+    castPeople.map((person) => personFocusKey(person.personId)),
+    similar,
+    CONFIGURE_KEY,
+  )
+  const panelKeys: string[] = panelRows.flat()
 
   // Ação "Semelhantes" do hero: ativa a aba, rola até o painel e foca o 1º cartão.
   const enterSimilar = useEnterSimilarPanel({
@@ -551,12 +552,10 @@ export function SeriesDetailScreen({
         return
       }
       if (row === 'panel') {
-        const index = panelKeys.indexOf(panelFocusKey as string)
-        if (dir === 'left' || dir === 'right') {
-          const next = clamp(index + (dir === 'left' ? -1 : 1), 0, panelKeys.length - 1)
-          setPanelFocusKey(panelKeys[next])
-        }
-        if (dir === 'up') {
+        // Feature 059 (D-008): grade de linhas — ←/→ param na ponta, ↓/↑ trocam de linha, ↑ na 1ª volta à aba.
+        const move = movePanelFocus(panelRows, panelFocusKey as string, dir)
+        if (move.kind === 'focus') setPanelFocusKey(move.key)
+        if (move.kind === 'exit-up') {
           setFocusedTabId(activeTab)
           setRow('tabs')
         }
@@ -790,22 +789,35 @@ export function SeriesDetailScreen({
       <div className="vod-detail-panel" ref={enterSimilar.panelRef}>
         {activeTab === 'details' && (
           <dl className="vod-detail-facts">
+            {/* Feature 059 (D-006): o que vem do catálogo da lista leva "Dados: fonte"; o Progresso (estado do usuário) não. */}
             <div className="vod-detail-fact">
               <dt>{t('detail.fact.seasons')}</dt>
-              <dd>{seasons.length}</dd>
+              <dd>
+                {seasons.length}
+                <FactOrigin origin="provider" />
+              </dd>
             </div>
             <div className="vod-detail-fact">
               <dt>{t('detail.fact.episodes')}</dt>
-              <dd>{episodes.length}</dd>
+              <dd>
+                {episodes.length}
+                <FactOrigin origin="provider" />
+              </dd>
             </div>
-            <div className="vod-detail-fact">
+            <div className="vod-detail-fact vod-detail-fact--category">
               <dt>{t('detail.fact.category')}</dt>
-              <dd>{groupLabelDisplay(series.original_group, t)}</dd>
+              <dd>
+                {groupLabelDisplay(series.original_group, t)}
+                <FactOrigin origin="provider" />
+              </dd>
             </div>
             {series.year != null && (
               <div className="vod-detail-fact">
                 <dt>{t('detail.fact.year')}</dt>
-                <dd>{series.year}</dd>
+                <dd>
+                  {series.year}
+                  <FactOrigin origin="provider" />
+                </dd>
               </div>
             )}
             <MetadataFacts rows={metadataFactRows(metadata, true, t)} />

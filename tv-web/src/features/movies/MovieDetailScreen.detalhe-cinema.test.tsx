@@ -114,6 +114,22 @@ describe('MovieDetailScreen — hero Cinema (feature 059)', () => {
     expect(document.querySelector('.vod-detail-watched-badge')).toBeNull()
   })
 
+  it('cartões de Detalhes trazem a origem de cada fato; no hero o dado da fonte continua sem selo (D-006, FR-012)', () => {
+    metadata({
+      genres: { value: 'Ficção', origin: 'provider' },
+      director: { value: 'Denis Villeneuve', origin: 'tmdb' },
+    })
+    renderScreen()
+    const card = (label: string) => screen.getByText(label).closest('.vod-detail-fact') as HTMLElement
+    expect(card('Direção').textContent).toContain('Dados: TMDB')
+    expect(card('Gênero').textContent).toContain('Dados: fonte')
+    expect(card('Categoria').textContent).toContain('Dados: fonte')
+    expect(card('Ano').textContent).toContain('Dados: fonte')
+    expect(card('Tipo').textContent).not.toContain('Dados:')
+    // Hero: gênero da fonte não ganha selo (regra da 032).
+    expect(document.querySelector('.vod-detail-hero')?.textContent).not.toContain('Dados: fonte')
+  })
+
   it('↑ das abas volta à última ação focada (não à primária) e devolve a página ao topo (FR-017)', () => {
     renderScreen()
     press('ArrowRight') // Minha Lista

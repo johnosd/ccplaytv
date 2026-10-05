@@ -1638,3 +1638,103 @@
 .vod-detail-icon-action.is-soft-disabled .vod-detail-icon {
   color: var(--text-disabled);
 }
+
+/* ---------- Abas do detalhe (feature 059, US3) ---------- */
+
+/* Detalhes em cartões: a mesma `<dl>`, só que em grade; a origem de cada fato
+   fica no canto do cartão (D-006 — aqui as duas origens aparecem). */
+.vod-detail .vod-detail-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  max-width: none;
+  margin: 0;
+}
+
+.vod-detail .vod-detail-fact {
+  position: relative;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--bg-hover);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.vod-detail .vod-detail-fact dt {
+  padding-right: var(--space-7);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: var(--fw-caption);
+}
+
+.vod-detail .vod-detail-fact dd {
+  text-align: left;
+  font-size: var(--fs-body-lg);
+}
+
+.vod-detail-fact--category dd {
+  color: var(--accent-light);
+}
+
+.vod-detail .vod-detail-fact-origin {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  margin: 0;
+  font-size: var(--fs-caption);
+}
+
+.vod-detail-fact-origin--tmdb {
+  color: var(--info);
+}
+
+/* Elenco: foto redonda maior — só dentro do detalhe (a `PersonScreen` usa o mesmo `PersonPhoto`). */
+.vod-detail .cast-person {
+  width: calc(var(--detail-icon-size) * 2.5);
+  text-align: center;
+}
+
+.vod-detail .cast-person .person-photo {
+  width: calc(var(--detail-icon-size) * 2.2);
+  height: calc(var(--detail-icon-size) * 2.2);
+  box-shadow: var(--elevation-1);
+}
+
+.vod-detail .cast-person .person-photo-initials {
+  font-size: var(--fs-h2);
+}
+
+/* Semelhantes em duas linhas tituladas (D-007). */
+.similar-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+.similar-section-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-h2);
+  color: var(--text-primary);
+}
+
+.similar-empty {
+  margin: 0;
+  padding: var(--space-2) 0;
+  font-size: var(--fs-body);
+  color: var(--text-annotation);
+}
+
+/* Os que só o TMDB conhece ficam um tom abaixo até receberem o foco. */
+.similar-section--missing .similar-card {
+  opacity: 0.7;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.similar-section--missing .similar-card:has(.tv-focus) {
+  opacity: 1;
+}

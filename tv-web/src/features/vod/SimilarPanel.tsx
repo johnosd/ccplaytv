@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { ContentCard } from '../../components/ContentCard'
 import type { KindCoverage, ResolvedTitle, SimilarTabStatus } from '../../lib/metadata/types'
 import { OriginTag } from './DetailMetadata'
+import { splitSimilar } from './detailPanelGrid'
 import { useT } from '../../lib/i18n/I18nProvider'
 import type { MessageKey } from '../../lib/i18n/messages/pt'
 import type { Translator } from '../../lib/i18n/translate'
@@ -75,10 +76,27 @@ export function SimilarPanel({
     )
   }
 
+  // Feature 059 (D-007, `logic/semelhantes-duas-linhas.md` §1): o que já está na
+  // lista e o que só o TMDB conhece, em duas linhas tituladas. A 1ª nunca some
+  // (vazia, vira uma frase NÃO focável); a 2ª só existe com algum título.
+  const { found, missing } = splitSimilar(titles)
   return (
     <div className="similar-panel">
       {coverage !== undefined && <p className="similar-coverage">{coverageText(coverage, kind, t)}</p>}
-      <SimilarRow titles={titles} focusedKey={focusedKey} onSelectTitle={onSelectTitle} />
+      <section className="similar-section" aria-label={t('person.inList')}>
+        <h3 className="similar-section-title">{t('person.inList')}</h3>
+        {found.length > 0 ? (
+          <SimilarRow titles={found} focusedKey={focusedKey} onSelectTitle={onSelectTitle} />
+        ) : (
+          <p className="similar-empty">{t('detail.similar.noneInList')}</p>
+        )}
+      </section>
+      {missing.length > 0 && (
+        <section className="similar-section similar-section--missing" aria-label={t('detail.similar.missingRow')}>
+          <h3 className="similar-section-title">{t('detail.similar.missingRow')}</h3>
+          <SimilarRow titles={missing} focusedKey={focusedKey} onSelectTitle={onSelectTitle} />
+        </section>
+      )}
       <OriginTag origin="tmdb" />
     </div>
   )
@@ -118,13 +136,9 @@ function SimilarRow({
             meta={title.year !== undefined ? String(title.year) : undefined}
             iconUrl={title.posterUrl}
             focused={focusedKey === title.key}
-            badge={
-              title.localItemId === undefined ? (
-                <span className="similar-chip">{t(NOT_FOUND_KEY)}</span>
-              ) : (
-                <span className="similar-chip similar-chip--found">{t(FOUND_KEY)}</span>
-              )
-            }
+            // Feature 059 (D-007): sem selo visível — o título da linha já diz. O não
+            // encontrado guarda o texto como nome acessível (e o contrato da 035 o conta).
+            badge={title.localItemId === undefined ? <span className="sr-only">{t(NOT_FOUND_KEY)}</span> : undefined}
             onSelect={() => onSelectTitle(title)}
           />
         </div>

@@ -204,6 +204,20 @@ export function CastPeoplePanel({
   )
 }
 
+/**
+ * Origem de um fato nos CARTÕES da aba Detalhes (feature 059, D-006,
+ * `logic/hero-cinema.md` §7): aqui as duas origens aparecem — "Dados: TMDB" e
+ * "Dados: fonte". Fora dos cartões vale o `OriginTag` (regra da 032: só o TMDB).
+ */
+export function FactOrigin({ origin }: { origin: MetadataOrigin }): ReactNode {
+  const t = useT()
+  return (
+    <span className={`vod-detail-origin vod-detail-fact-origin vod-detail-fact-origin--${origin}`}>
+      {t(origin === 'tmdb' ? 'detail.origin.tmdb' : 'detail.origin.source')}
+    </span>
+  )
+}
+
 export function MetadataFacts({ rows }: { rows: FactRow[] }): ReactNode {
   return (
     <>
@@ -212,7 +226,7 @@ export function MetadataFacts({ rows }: { rows: FactRow[] }): ReactNode {
           <dt>{row.label}</dt>
           <dd>
             {row.value}
-            <OriginTag origin={row.origin} />
+            <FactOrigin origin={row.origin} />
           </dd>
         </div>
       ))}

@@ -166,18 +166,18 @@ description: "Tasks da feature 059 — detalhe de filme e de série no layout Ci
 
 ### Implementation
 
-- [ ] T022 [US3] `tv-web/src/features/vod/SimilarPanel.tsx`: estado `ready` em duas `section` com `h3` (`person.inList` / `detail.similar.missingRow`); 1ª vazia vira `p` não focável (`detail.similar.noneInList`); 2ª só se houver não encontrados; cartões sem selo visível, com `sr-only` `t(NOT_FOUND_KEY)` nos não encontrados; manter `.similar-row`, `.similar-card`, `data-similar-key`, o `scrollIntoView`, a cobertura e todos os estados (`logic/semelhantes-duas-linhas.md` §1, D-007) → contratos: `Semelhantes em duas linhas…`, 035. FR-014, FR-015, FR-020
-- [ ] T023 [US3] `tv-web/src/features/movies/MovieDetailScreen.tsx`: `panelRows` + `movePanelFocus` no ramo `row === 'panel'`; `panelKeys = panelRows.flat()` para restauração, `useEnterSimilarPanel` e o ↓ das abas (`logic/semelhantes-duas-linhas.md` §2, D-008) → contratos: `Semelhantes em duas linhas…`, 035. FR-016, FR-018, FR-019
-- [ ] T024 [US3] `tv-web/src/features/series/SeriesDetailScreen.tsx`: mesma grade no ramo `panel` (Elenco/Semelhantes), sem tocar em `season`/`episodes`. FR-016, FR-018, FR-019
-- [ ] T025 [US3] Aba Detalhes em cartões, filme e série: origem em cada cartão pela tabela de `logic/hero-cinema.md` §7 ("Dados: TMDB" / "Dados: fonte"; Tipo e Progresso sem selo), via `FactOrigin` ou parâmetro de `MetadataFacts` em `tv-web/src/features/vod/DetailMetadata.tsx`, **sem** mudar o `OriginTag` global; ajustar os fatos fixos em `MovieDetailScreen.tsx` e `SeriesDetailScreen.tsx`; CSS no bloco da 059 em `vod.css`: `.vod-detail-facts` em grade (4 colunas), categoria em tom de acento, origem no canto. FR-012, D-006
-- [ ] T026 [P] [US3] CSS (bloco da 059): Elenco com foto redonda maior só dentro do detalhe (`.vod-detail .cast-person .person-photo`), sem afetar o cabeçalho da `PersonScreen`; títulos das linhas de Semelhantes e opacidade dos não encontrados até o foco. FR-013, FR-014
-- [ ] T027 [US3] Atualizar testes NÃO travados de Semelhantes/Elenco: `tv-web/src/features/vod/SimilarPanel.test.tsx`, `SeriesDetailScreen.semelhantes.test.tsx`, `SeriesDetailScreen.elenco.test.tsx`, `MovieDetailScreen.elenco.test.tsx` (selo visível → `sr-only`; navegação → por linha)
+- [X] T022 [US3] `tv-web/src/features/vod/SimilarPanel.tsx`: estado `ready` em duas `section` com `h3` (`person.inList` / `detail.similar.missingRow`); 1ª vazia vira `p` não focável (`detail.similar.noneInList`); 2ª só se houver não encontrados; cartões sem selo visível, com `sr-only` `t(NOT_FOUND_KEY)` nos não encontrados; manter `.similar-row`, `.similar-card`, `data-similar-key`, o `scrollIntoView`, a cobertura e todos os estados (`logic/semelhantes-duas-linhas.md` §1, D-007) → contratos: `Semelhantes em duas linhas…`, 035. FR-014, FR-015, FR-020
+- [X] T023 [US3] `tv-web/src/features/movies/MovieDetailScreen.tsx`: `panelRows` + `movePanelFocus` no ramo `row === 'panel'`; `panelKeys = panelRows.flat()` para restauração, `useEnterSimilarPanel` e o ↓ das abas (`logic/semelhantes-duas-linhas.md` §2, D-008) → contratos: `Semelhantes em duas linhas…`, 035. FR-016, FR-018, FR-019
+- [X] T024 [US3] `tv-web/src/features/series/SeriesDetailScreen.tsx`: mesma grade no ramo `panel` (Elenco/Semelhantes), sem tocar em `season`/`episodes`. FR-016, FR-018, FR-019
+- [X] T025 [US3] Aba Detalhes em cartões, filme e série: origem em cada cartão pela tabela de `logic/hero-cinema.md` §7 ("Dados: TMDB" / "Dados: fonte"; Tipo e Progresso sem selo), via `FactOrigin` ou parâmetro de `MetadataFacts` em `tv-web/src/features/vod/DetailMetadata.tsx`, **sem** mudar o `OriginTag` global; ajustar os fatos fixos em `MovieDetailScreen.tsx` e `SeriesDetailScreen.tsx`; CSS no bloco da 059 em `vod.css`: `.vod-detail-facts` em grade (4 colunas), categoria em tom de acento, origem no canto. FR-012, D-006
+- [X] T026 [P] [US3] CSS (bloco da 059): Elenco com foto redonda maior só dentro do detalhe (`.vod-detail .cast-person .person-photo`), sem afetar o cabeçalho da `PersonScreen`; títulos das linhas de Semelhantes e opacidade dos não encontrados até o foco. FR-013, FR-014
+- [X] T027 [US3] Atualizar testes NÃO travados de Semelhantes/Elenco: `tv-web/src/features/vod/SimilarPanel.test.tsx`, `SeriesDetailScreen.semelhantes.test.tsx`, `SeriesDetailScreen.elenco.test.tsx`, `MovieDetailScreen.elenco.test.tsx` (selo visível → `sr-only`; navegação → por linha)
 
 ### Testes da Fase
 
-- [ ] T028 [P] [US3] Em `tv-web/src/features/series/SeriesDetailScreen.semelhantes.test.tsx` (ou arquivo novo `.detalhe-cinema.test.tsx` da série): duas linhas e ↓/↑ na série; restauração por `focusKey` de um cartão da 2ª linha
-- [ ] T029 [P] [US3] Em `SimilarPanel.test.tsx`: estados `loading`/`no_key`/`no_match`/`unavailable`/`empty` sem mudança de texto; "Configurar TMDB" continua o único focável em `no_key`
-- [ ] T029a [P] [US3] Em `tv-web/src/features/movies/MovieDetailScreen.detalhe-cinema.test.tsx` (e no equivalente da série): na aba Detalhes, fato do TMDB mostra "Dados: TMDB", fato do provedor e Categoria/Ano mostram "Dados: fonte", Progresso não tem selo; no hero, dado do provedor continua sem selo (regra da 032)
+- [X] T028 [P] [US3] Em `tv-web/src/features/series/SeriesDetailScreen.semelhantes.test.tsx` (ou arquivo novo `.detalhe-cinema.test.tsx` da série): duas linhas e ↓/↑ na série; restauração por `focusKey` de um cartão da 2ª linha
+- [X] T029 [P] [US3] Em `SimilarPanel.test.tsx`: estados `loading`/`no_key`/`no_match`/`unavailable`/`empty` sem mudança de texto; "Configurar TMDB" continua o único focável em `no_key`
+- [X] T029a [P] [US3] Em `tv-web/src/features/movies/MovieDetailScreen.detalhe-cinema.test.tsx` (e no equivalente da série): na aba Detalhes, fato do TMDB mostra "Dados: TMDB", fato do provedor e Categoria/Ano mostram "Dados: fonte", Progresso não tem selo; no hero, dado do provedor continua sem selo (regra da 032)
 
 **Critério de Conclusão**: o comando do contrato acima → 4/4 verdes (2 da 059 nesta tela + 2 da 035) e travas da 059 e da 035 íntegras; `npx vitest run src/features/movies src/features/series src/features/vod src/features/person` verde.
 
@@ -185,11 +185,11 @@ description: "Tasks da feature 059 — detalhe de filme e de série no layout Ci
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída (2026-10-05)
+- Feito: T022 `SimilarPanel` em duas `section` com `h3` ("Na sua lista" / "Não encontrados na sua lista"), 1ª vazia vira frase não focável, 2ª só com não encontrados, cartões sem selo visível (`sr-only` no não encontrado); `splitSimilar` e `detailPanelRows` em `detailPanelGrid.ts` (desenho e foco usam a mesma separação); T023/T024 `panelRows` + `movePanelFocus` nas duas telas (`panelKeys = panelRows.flat()` para restauração/entrada); T025 `FactOrigin` ("Dados: TMDB"/"Dados: fonte") nos cartões via `MetadataFacts` e nos fatos fixos — `OriginTag` global intocado — e CSS de grade; T026 CSS de Elenco maior só dentro do detalhe, títulos das linhas e opacidade dos não encontrados até o foco (`:has`); T027 3 testes antigos ajustados (`MovieDetailScreen.metadata.test.tsx`, `SeriesDetailScreen.metadata.test.tsx`: valor = 1º nó do `<dd>`; `SeriesDetailScreen.semelhantes.test.tsx`: → virou ↓); T028/T029/T029a testes novos.
+- Contrato: `npx vitest run src/features/movies/MovieDetailScreen.detalhe-cinema.contract.test.tsx src/features/movies/MovieDetailScreen.semelhantes.contract.test.tsx` → 4/4 verdes (2 da 059 + 2 da 035 emendado); travas 059/035/032/033 íntegras.
+- Testes executados: `npx vitest run src/features/movies src/features/series src/features/vod src/features/person src/lib/color` → 358/358 (60 arquivos), após uma iteração (3 testes antigos ajustados, citando a 059); `npx tsc -b` limpo; `oxlint` sem aviso novo.
+- Pendências: revisão visual das abas fica para o E2E com capturas (T030).
 
 ---
 
@@ -211,7 +211,7 @@ description: "Tasks da feature 059 — detalhe de filme e de série no layout Ci
 - [X] Fase 2 (Fundação) concluída
 - [X] Fase 3 (US1 — filme) concluída
 - [X] Fase 4 (US2 — série) concluída
-- [ ] Fase 5 (US3 — abas) concluída
+- [X] Fase 5 (US3 — abas) concluída
 - [ ] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro para 059, 035, 032 e 033
 - [ ] `npm run test`, `tsc -b`, `lint`, `build` verdes
 - [ ] `npm run test:e2e` completo verde (incluindo `detalhe-cinema.mjs`)

@@ -104,14 +104,17 @@ describe('MovieDetailScreen — metadata (feature 032)', () => {
       cast: { value: 'A, B, C', origin: 'provider' },
     })
     renderScreen()
-    expect(screen.getByText('Duração').nextSibling?.textContent).toBe('1 h 50 min')
-    expect(screen.getByText('Gênero').nextSibling?.textContent).toBe('Terror')
-    expect(screen.getByText('Direção').nextSibling?.textContent).toBe('Fulano')
-    expect(screen.getByText('País').nextSibling?.textContent).toBe('United States of America')
+    // Feature 059 (D-006): cada cartão também traz a origem ("Dados: fonte" aqui) — o valor é o 1º nó do <dd>.
+    const value = (label: Element) => label.nextSibling?.firstChild?.textContent
+    expect(value(screen.getByText('Duração'))).toBe('1 h 50 min')
+    expect(value(screen.getByText('Gênero'))).toBe('Terror')
+    expect(value(screen.getByText('Direção'))).toBe('Fulano')
+    expect(value(screen.getByText('País'))).toBe('United States of America')
     const facts = within(document.querySelector('dl') as HTMLElement)
-    expect(facts.getByText('Elenco').nextSibling?.textContent).toBe('A, B, C')
+    expect(value(facts.getByText('Elenco'))).toBe('A, B, C')
+    expect(within(screen.getByText('Duração').nextSibling as HTMLElement).getByText('Dados: fonte')).toBeInTheDocument()
     // A categoria continua a declarada pela fonte.
-    expect(screen.getByText('Categoria').nextSibling?.textContent).toBe('Ficção científica')
+    expect(value(screen.getByText('Categoria'))).toBe('Ficção científica')
   })
 
   function openCastTab() {
