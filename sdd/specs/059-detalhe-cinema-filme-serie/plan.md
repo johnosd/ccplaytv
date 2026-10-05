@@ -187,13 +187,13 @@ Testes adicionais (escritos no execute, não travados): `detailPanelGrid.test.ts
 | US2 (série) | Concluída — `SeriesDetailScreen` no hero Cinema; contrato da série verde; 105/105 testes da série |
 | US3 (abas) | Concluída — Semelhantes em duas linhas com grade de foco, Detalhes em cartões com origem, Elenco maior |
 | Contratos | 059 5/5 e 035 5/5 verdes; 032 e 033 verdes; todas as travas íntegras |
-| Polish (Fase 6) | Próxima — E2E novo, ajuste de E2E antigos, gates, quickstart, TV física (gate) |
+| Polish (Fase 6) | Quase concluída — E2E novo (`detalhe-cinema.mjs`, na SUITE), E2E antigos ajustados, segredos ok, unit 2767/2767, lint/build/build:tizen ok, E2E completo 39/39, quickstart via E2E. **Falta só a passada na TV física (T036, gate) e o fechamento de docs (T037)** |
 
 ## Riscos e Decisões
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | E2E comparam o `textContent` inteiro de `.vod-detail-action` (`filmes-series-ds-v14.mjs:367`, `catalogo-em-blocos.mjs:307/312`, `home-busca-configuracoes.mjs:225`, `historico-continuar-assistindo.mjs`, `limpar-historico.mjs`, `trailers.mjs`). Com "faltam X" dentro da primária, igualdade quebra | E2E vermelhos | Trocar igualdade por `startsWith`/`includes` só onde a primária pode ter progresso; ícones mantêm o `textContent` = rótulo (T040) |
+| R-001 | (Resolvido: só `semelhantes-elenco-ator` e `metadata-tmdb` precisaram de ajuste; os roteiros com `textContent` da primária seguiram verdes porque seus títulos não têm duração) E2E comparam o `textContent` inteiro de `.vod-detail-action` (`filmes-series-ds-v14.mjs:367`, `catalogo-em-blocos.mjs:307/312`, `home-busca-configuracoes.mjs:225`, `historico-continuar-assistindo.mjs`, `limpar-historico.mjs`, `trailers.mjs`). Com "faltam X" dentro da primária, igualdade quebra | E2E vermelhos | Trocar igualdade por `startsWith`/`includes` só onde a primária pode ter progresso; ícones mantêm o `textContent` = rótulo (T040) |
 | R-002 | Contrato emendado da 035 fica vermelho entre o plan e a Fase 5 | Suíte vermelha no meio do execute | Resolvido: verde na Fase 5 (2026-10-05), sem editar o teste |
 | R-003 | Capas do provedor quase nunca mandam CORS: a cor vai cair no neutro na maioria dos títulos sem backdrop | Efeito visual menor que o do protótipo | Aceito pelo design (fallback neutro). Medir na TV quantas capas reais dão cor (quickstart) |
 | R-004 | `filter`/sombra grande com a cor da capa pode pesar na TV | Rolagem travando | Sem `blur`; brilho por `box-shadow` único; medir na TV (gate D-012) |
@@ -202,6 +202,8 @@ Testes adicionais (escritos no execute, não travados): `detailPanelGrid.test.ts
 | R-007 | Muitos testes existentes procuram a categoria na linha de metadata ou o selo visível de Semelhantes | Testes vermelhos fora do contrato | Atualizar esses testes (não são travados) no mesmo commit da mudança, citando a 059 |
 | R-009 | Selo de assistido sobre a capa: o protótipo mostra "✓ Assistido"; aqui ficou só o glifo ✓ (`aria-hidden`), porque o texto já está na linha de metadata e duplicá-lo faria `getByText('✓ Assistido')` achar dois elementos e a leitura repetir | Desvio visual pequeno do protótipo | Decidido na Fase 2; rever na TV (T036) |
 | R-008 | TV física é gate (D-012) | Feature não fecha sem a passada | Rodar `tizen-tv` depois do E2E; se não der, decisão explícita do usuário com risco registrado aqui |
+| R-010 | Achado no E2E (T030): ler a cor pede a capa em modo CORS e, com CORS recusado, o PRÓPRIO navegador escreve a URL no console — conflito com FR-024 | Possível URL com credencial no console | Resolvido: decisão do usuário (2026-10-05) — só capa "sem risco" (`isSafeCoverUrl`: http(s), sem usuário/senha, sem query, fora do domínio dos painéis via `usePanelHosts`); FR-024 emendado na spec; o E2E prova que a capa do painel com token nunca é pedida |
+| R-011 | Mudanças feitas em paralelo, fora desta sessão, sobre a 059 (vistas em 2026-10-05 e mantidas): `SeriesDetailScreen` rola a página até o episódio focado (bug `foco-some-ao-descer-na-lista`, teste `SeriesDetailScreen.foco-episodios.test.tsx`), `scroll-padding-block` em `.vod-detail`, e `vod-detail--movie` sobe as abas do filme para a faixa livre sob a capa | Divergência entre o que esta sessão escreveu e o disco | Tratadas como estado atual; suíte da área e E2E verdes com elas |
 
 ## Execution Notes
 
@@ -218,19 +220,21 @@ Testes adicionais (escritos no execute, não travados): `detailPanelGrid.test.ts
 | 2026-10-05 | Fase 3 (US1 — filme) | T014–T017: hero ligado ao filme, rolagem ao topo, 5 testes de apoio; nenhum teste antigo quebrou | Revisão visual fica para T030 |
 | 2026-10-05 | Fase 4 (US2 — série) | T018–T021: hero na série com a barra do episódio, rolagem ao topo, 3 testes de apoio; nenhum teste antigo quebrou | Revisão visual fica para T030 |
 | 2026-10-05 | Fase 5 (US3 — abas) | T022–T029a: Semelhantes em duas linhas + grade de foco nas duas telas, origem em cada cartão de Detalhes, Elenco maior; contratos 059 5/5 e 035 5/5 verdes; área 358/358 | E2E e TV (Fase 6) |
+| 2026-10-05 | Fase 6 (Polish) | T030–T035: `e2e/detalhe-cinema.mjs` (36 verificações, SC-007 medido: 28–93 ms), achado R-010 (CORS × FR-024) resolvido com `isSafeCoverUrl`/`usePanelHosts` por decisão do usuário; `semelhantes-elenco-ator` e `metadata-tmdb` ajustados; unit 2767/2767; E2E completo 39/39; build:tizen ok | Passada na TV física (T036, gate) |
 
-**PRÓXIMO**: Fase 6 (Polish) — T030 `e2e/detalhe-cinema.mjs` com capturas e medição de SC-007, T031 ajuste de E2E antigos, T032 revisão de segredos, T033–T034 gates (unit/build/E2E completo), T035 quickstart, T036 TV física (gate), T037 docs.
+**PRÓXIMO**: T036 — passada na TV física com o skill `tizen-tv` (gate D-012; cenários 1, 3, 4, 6, 8, 11 e 12 do quickstart com lista real); depois T037 (status Implementada).
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- `tv-web/src/features/vod/SimilarPanel.tsx`, `detailPanelGrid.ts` — duas linhas e grade de foco
-- `tv-web/src/features/vod/DetailMetadata.tsx` — `FactOrigin`
-- `tv-web/e2e/` — próximo alvo (roteiro novo + ajustes)
+- `tv-web/e2e/detalhe-cinema.mjs` — roteiro da 059 (capturas em `test-results/detalhe-cinema/`)
+- `tv-web/src/lib/color/coverColor.ts` (`isSafeCoverUrl`), `tv-web/src/features/vod/usePanelHosts.ts` — regra da capa sem risco (R-010)
+- `sdd/specs/059-detalhe-cinema-filme-serie/quickstart.md` — roteiro da TV
 
 ## Cuidados para Retomada
 
 <!-- Armadilhas operacionais específicas desta feature, anexadas conforme descobertas. -->
 
-- (nenhum ainda)
+- No PowerShell 5.1, `git commit -m` com aspas duplas na mensagem quebra os argumentos: usar `git commit -F <arquivo>`.
+- No E2E, capa no mesmo host do painel (`127.0.0.1`) nunca tem a cor lida (R-010): capas "públicas" das fixtures usam `localhost`.

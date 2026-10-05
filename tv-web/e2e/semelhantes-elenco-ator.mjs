@@ -318,8 +318,10 @@ async function run() {
     assert(tmdbTotal() === afterOpen, `focar cartões e trocar de aba não fez requisição ao TMDB (${tmdbTotal() - afterOpen})`)
 
     console.log('=== Cenário 2: resumo do não encontrado, sem assistir ===')
-    await page.keyboard.press('ArrowDown') // o painel lembra o último cartão focado: Matrix Revolutions
-    assert((await focusedSimilar(page)) === 'Matrix Revolutions', 'foco no não encontrado')
+    // Feature 059: duas linhas — "Na sua lista" (Matrix Reloaded) e "Não encontrados" (Revolutions, Animatrix).
+    await page.keyboard.press('ArrowDown') // o painel lembra o último cartão focado: Matrix Reloaded
+    await page.keyboard.press('ArrowDown') // ↓ troca de linha: Matrix Revolutions
+    assert((await focusedSimilar(page)) === 'Matrix Revolutions', 'foco no não encontrado (linha de baixo)')
     await page.keyboard.press('Enter')
     const summary = page.locator('[role="dialog"]')
     await summary.waitFor({ timeout: 5000 })
@@ -333,7 +335,7 @@ async function run() {
     assert((await focusedSimilar(page)) === 'Matrix Revolutions', 'RETURN fecha só o modal e o foco continua no cartão')
 
     console.log('=== SC-003: 10 sequências detalhe → semelhante encontrado → detalhe → RETURN ===')
-    await page.keyboard.press('ArrowLeft') // Matrix Reloaded
+    await page.keyboard.press('ArrowUp') // Matrix Reloaded, na linha de cima (feature 059)
     let okSequences = 0
     for (let i = 0; i < 10; i += 1) {
       await page.keyboard.press('Enter')

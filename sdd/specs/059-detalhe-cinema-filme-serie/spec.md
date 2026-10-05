@@ -132,7 +132,7 @@ Abaixo do hero, a pessoa troca entre as abas; em Semelhantes, vê separado o que
 - **FR-021**: Focar qualquer elemento NUNCA DEVE iniciar reprodução nem consulta externa.
 - **FR-022**: Nenhum valor visual fixo: cores, raios, espaçamentos, tamanhos e tempos vêm dos tokens V14.
 - **FR-023**: Todo texto novo DEVE existir em pt, en e es no catálogo de idioma; nomes de títulos, categorias e pessoas não são traduzidos.
-- **FR-024**: URLs de imagem, credenciais e chaves NUNCA DEVEM aparecer em log, erro ou interface (inclusive numa falha ao ler a cor da capa).
+- **FR-024**: Credenciais, chaves e qualquer URL que possa carregar credencial NUNCA DEVEM aparecer em log, erro ou interface (inclusive numa falha ao ler a cor da capa). A cor só é lida de capa "sem risco" — http(s), sem usuário/senha, sem query string e fora do domínio de qualquer painel cadastrado; as demais ficam no fundo neutro, sem requisição. *(Emendado em 2026-10-05: o navegador escreve sozinho no console a URL de uma imagem cujo servidor recusa CORS; isso só pode acontecer com capa pública.)*
 - **FR-025**: Ao abrir o player a partir do detalhe, nada do detalhe (backdrop, fundo de cor, brilho) DEVE pintar sobre o vídeo.
 
 ### Key Entities *(include if feature involves data)*
@@ -178,3 +178,4 @@ Abaixo do hero, a pessoa troca entre as abas; em Semelhantes, vê separado o que
 - Q: TV física é gate? → A: Sim — a feature só fecha depois da passada na QN50Q60DAGXZD.
 - Q: Como fatiar? → A: P1 hero do filme → P2 hero da série → P3 abas renovadas.
 - Q: Cartões de Semelhantes mantêm selo individual? → A: Não — só o título de cada linha; o nome acessível dos não encontrados continua dizendo que não estão na lista.
+- Q: (achado no E2E do sdd-execute) Ler a cor pede a capa em modo CORS, e o navegador escreve a URL no console quando o servidor recusa — conflita com FR-024. Como resolver? → A: Só capas sem risco (http(s), sem usuário/senha, sem query, fora do domínio do painel); FR-024 emendado para "URL que possa carregar credencial".

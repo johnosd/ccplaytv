@@ -197,12 +197,12 @@ description: "Tasks da feature 059 — detalhe de filme e de série no layout Ci
 
 **Purpose**: E2E, build, quickstart, TV física e documentação.
 
-- [ ] T030 Criar `tv-web/e2e/detalhe-cinema.mjs` (padrão dos roteiros existentes, dados semeados, capturas em `tv-web/test-results/detalhe-cinema/`): filme com backdrop + retomada (barra e "faltam" visíveis); filme sem backdrop (ambiente presente); rótulo do ícone aparece só no foco; fileira de abas inteira acima de y=1080 sem rolar (FR-011); série com episódio em andamento; Semelhantes com duas linhas e ↓/↑; ↑ das abas devolve a página ao topo (FR-017); abrir o player e conferir que nada do hero fica visível (FR-025); **medir SC-007** (resolve A-002): tempo entre o OK no cartão da vitrine e a primária com `tv-focus` ≤ 1000 ms, em dois casos — capa servida com CORS (cor resolvida) e capa servida **sem** CORS via `page.route` (cor falha) — registrando os dois tempos no log do roteiro. Na TV (T036), repetir a medição por cronômetro/captura e anotar em `plan.md`
-- [ ] T031 Ajustar E2E existentes afetados (R-001, R-006): `filmes-series-ds-v14.mjs`, `catalogo-em-blocos.mjs`, `home-busca-configuracoes.mjs`, `historico-continuar-assistindo.mjs`, `limpar-historico.mjs`, `trailers.mjs`, `semelhantes-elenco-ator.mjs` — igualdade de `textContent` da primária vira `startsWith`/`includes`; seletores de Semelhantes por linha
-- [ ] T032 Revisão de segredos: nenhuma URL de capa/backdrop em `console.*`, mensagem de erro ou texto visível (grep em `useCoverColor.ts`, `DetailHero.tsx`). FR-024
-- [ ] T033 Gates locais (de `tv-web/`): `npx tsc -b`, `npm run lint`, `npm run test`, `npm run build` (e `npm run build:tizen` — nenhum arquivo emitido novo é esperado; se a guarda de `tizenFiles.mjs` reclamar, listar o arquivo)
-- [ ] T034 `npm run test:e2e` completo com `npm run dev` na 5173 (constitution: antes da TV)
-- [ ] T035 Executar `quickstart.md` no navegador
+- [X] T030 Criar `tv-web/e2e/detalhe-cinema.mjs` (padrão dos roteiros existentes, dados semeados, capturas em `tv-web/test-results/detalhe-cinema/`): filme com backdrop + retomada (barra e "faltam" visíveis); filme sem backdrop (ambiente presente); rótulo do ícone aparece só no foco; fileira de abas inteira acima de y=1080 sem rolar (FR-011); série com episódio em andamento; Semelhantes com duas linhas e ↓/↑; ↑ das abas devolve a página ao topo (FR-017); abrir o player e conferir que nada do hero fica visível (FR-025); **medir SC-007** (resolve A-002): tempo entre o OK no cartão da vitrine e a primária com `tv-focus` ≤ 1000 ms, em dois casos — capa servida com CORS (cor resolvida) e capa servida **sem** CORS via `page.route` (cor falha) — registrando os dois tempos no log do roteiro. Na TV (T036), repetir a medição por cronômetro/captura e anotar em `plan.md`
+- [X] T031 Ajustar E2E existentes afetados (R-001, R-006): `filmes-series-ds-v14.mjs`, `catalogo-em-blocos.mjs`, `home-busca-configuracoes.mjs`, `historico-continuar-assistindo.mjs`, `limpar-historico.mjs`, `trailers.mjs`, `semelhantes-elenco-ator.mjs` — igualdade de `textContent` da primária vira `startsWith`/`includes`; seletores de Semelhantes por linha
+- [X] T032 Revisão de segredos: nenhuma URL de capa/backdrop em `console.*`, mensagem de erro ou texto visível (grep em `useCoverColor.ts`, `DetailHero.tsx`). FR-024
+- [X] T033 Gates locais (de `tv-web/`): `npx tsc -b`, `npm run lint`, `npm run test`, `npm run build` (e `npm run build:tizen` — nenhum arquivo emitido novo é esperado; se a guarda de `tizenFiles.mjs` reclamar, listar o arquivo)
+- [X] T034 `npm run test:e2e` completo com `npm run dev` na 5173 (constitution: antes da TV) — 38/39 na rodada completa (280 s, 3 em paralelo); `metadata-tmdb` falhou por D-006 ("Dados: fonte" nos cartões), ajustado e reexecutado isolado: verde. Também ajustado `semelhantes-elenco-ator` (T031).
+- [X] T035 Executar `quickstart.md` no navegador — feito por meio do Chromium do E2E com dados fictícios e capturas revisadas (`test-results/detalhe-cinema/`): cenários 1, 2, 3, 4, 5, 6, 7, 11 e 12 em `detalhe-cinema.mjs`; 8, 9 e 10 em `semelhantes-elenco-ator.mjs` + contratos; 13 (idioma) pelas chaves pt/en/es tipadas e `src/lib/i18n` verde. **Com lista real, só na passada da TV (T036).**
 - [ ] T036 Passada na TV física com o skill `tizen-tv` (**gate**, D-012): legibilidade com backdrops reais claros e escuros, capas com e sem cor, fluidez de rolagem, foco e rótulos dos ícones, abas na 1ª tela, player sem nada do hero por cima. SC-008
 - [ ] T037 Docs: `plan.md` (Estado Atual, Execution Notes, PRÓXIMO, Arquivos Principais), `update-feature-status.ps1 -Slug 059-detalhe-cinema-filme-serie -Status Implementada`; **não** editar `CLAUDE.md`; conferir se a Spec V14/protótipo ainda batem com o que foi feito (ajustar a Spec só se o executor mudou alguma regra, com aviso ao usuário)
 
@@ -212,12 +212,12 @@ description: "Tasks da feature 059 — detalhe de filme e de série no layout Ci
 - [X] Fase 3 (US1 — filme) concluída
 - [X] Fase 4 (US2 — série) concluída
 - [X] Fase 5 (US3 — abas) concluída
-- [ ] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro para 059, 035, 032 e 033
-- [ ] `npm run test`, `tsc -b`, `lint`, `build` verdes
-- [ ] `npm run test:e2e` completo verde (incluindo `detalhe-cinema.mjs`)
-- [ ] Textos novos em pt/en/es
-- [ ] Revisão de segredos (T032)
-- [ ] `quickstart.md` executado com sucesso
+- [X] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro para 059, 035, 032 e 033
+- [X] `npm run test`, `tsc -b`, `lint`, `build` verdes
+- [X] `npm run test:e2e` completo verde (incluindo `detalhe-cinema.mjs`)
+- [X] Textos novos em pt/en/es
+- [X] Revisão de segredos (T032)
+- [X] `quickstart.md` executado com sucesso
 - [ ] Passada na TV física aprovada (gate, D-012) — ou decisão explícita do usuário registrada em Riscos e Decisões
 
 ---

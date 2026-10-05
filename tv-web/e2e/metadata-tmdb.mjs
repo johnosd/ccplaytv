@@ -270,7 +270,8 @@ async function run() {
     await page.waitForSelector('.vod-detail-synopsis', { timeout: 8000 })
     assert(hits.vodInfo['1'] === 1, 'abrir o detalhe fez exatamente um get_vod_info')
     assert((await page.locator('.vod-detail-synopsis').textContent())?.startsWith('Uma história longa') ?? false, 'o hero mostra a sinopse do provedor')
-    assert((await page.locator('.vod-detail-origin').count()) === 0, 'sem selo de origem: tudo veio do provedor')
+    // Feature 059 (D-006): os cartões de Detalhes mostram "Dados: fonte"; o que não pode haver é selo do TMDB.
+    assert((await page.locator('.vod-detail-origin', { hasText: 'Dados: TMDB' }).count()) === 0, 'sem selo do TMDB: tudo veio do provedor')
 
     await page.waitForSelector('.vod-detail-backdrop img', { timeout: 8000 })
     const backdropLoaded = await page.waitForFunction(
@@ -289,7 +290,8 @@ async function run() {
     for (const label of ['Gênero', 'Duração', 'Direção', 'País', 'Elenco']) {
       assert(facts.includes(label), `aba Detalhes mostra "${label}"`)
     }
-    const duration = await page.locator('.vod-detail-fact', { hasText: 'Duração' }).locator('dd').textContent()
+    // Feature 059 (D-006): o cartão também traz a origem — o valor é o 1º nó do <dd>.
+    const duration = await page.locator('.vod-detail-fact', { hasText: 'Duração' }).locator('dd').evaluate((dd) => dd.firstChild?.textContent ?? '')
     assert(duration === '1 h 50 min', `duração 6631 s aparece como "1 h 50 min" (veio "${duration}")`)
     await assertOneFocus(page, 'detalhe com metadata')
 

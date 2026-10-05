@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { dominantColorFromPixels } from '../../lib/color/coverColor'
+import { dominantColorFromPixels, isSafeCoverUrl } from '../../lib/color/coverColor'
 
 /**
  * Cor ambiente da capa para o hero do detalhe (feature 059, FR-002,
@@ -38,11 +38,16 @@ export function readCoverColor(image: CanvasImageSource): string | null {
   }
 }
 
-export function useCoverColor(url: string | undefined): string | null {
+/**
+ * `panelHosts`: hosts dos painéis cadastrados (`usePanelHosts`); `undefined` = ainda
+ * lendo — não arrisca. Capa fora de `isSafeCoverUrl` nem é requisitada (FR-024).
+ */
+export function useCoverColor(url: string | undefined, panelHosts: readonly string[] | undefined): string | null {
   const [resolved, setResolved] = useState<{ url: string; color: string | null } | null>(null)
+  const readable = url !== undefined && panelHosts !== undefined && isSafeCoverUrl(url, panelHosts)
 
   useEffect(() => {
-    if (!url || cache.has(url)) return
+    if (!url || !readable || cache.has(url)) return
     let cancelled = false
     const image = new Image()
     image.crossOrigin = 'anonymous'
@@ -59,9 +64,9 @@ export function useCoverColor(url: string | undefined): string | null {
       image.onload = null
       image.onerror = null
     }
-  }, [url])
+  }, [url, readable])
 
-  if (!url) return null
+  if (!url || !readable) return null
   if (cache.has(url)) return cache.get(url) ?? null
   return resolved?.url === url ? resolved.color : null
 }

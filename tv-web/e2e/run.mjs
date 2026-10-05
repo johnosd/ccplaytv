@@ -43,6 +43,7 @@ export const SUITE = [
   'e2e/trailers.mjs',
   'e2e/modal-temporada.mjs',
   'e2e/semelhantes-elenco-ator.mjs',
+  'e2e/detalhe-cinema.mjs',
   'e2e/carga-listas.mjs',
   'e2e/catalogo-em-blocos.mjs',
   'e2e/limpar-historico.mjs',

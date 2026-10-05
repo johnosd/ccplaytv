@@ -5,6 +5,27 @@
  * ou `null` quando a capa não tem cor útil (o hero cai no gradiente neutro).
  */
 
+/**
+ * Só vale tentar ler a cor de uma capa "sem risco" (feature 059, FR-024, decisão de
+ * 2026-10-05): a leitura pede a imagem em modo CORS, e quando o servidor recusa, o
+ * PRÓPRIO navegador escreve a URL no console — nenhum código consegue calar isso.
+ * Então só arriscamos URLs que não podem carregar credencial: http(s), sem usuário/
+ * senha, sem query string e fora do domínio de qualquer painel IPTV cadastrado
+ * (`panelHosts`, só nomes de host). As demais ficam no fundo neutro, sem requisição.
+ */
+export function isSafeCoverUrl(url: string, panelHosts: readonly string[]): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false
+  if (parsed.username !== '' || parsed.password !== '' || parsed.search !== '') return false
+  const host = parsed.hostname.toLowerCase()
+  return !panelHosts.some((panelHost) => panelHost.toLowerCase() === host)
+}
+
 /** Pixel útil: opaco o bastante, nem quase preto nem quase branco. */
 const MIN_ALPHA = 128
 const NEAR_BLACK = 24

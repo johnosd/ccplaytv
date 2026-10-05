@@ -8,6 +8,7 @@
 export function useCoverColor(url: string | undefined): string | null
 ```
 
+0. **Só capa "sem risco"** (emenda de 2026-10-05, FR-024): `isSafeCoverUrl(url, panelHosts)` — http(s), sem usuário/senha, sem query string, host fora de `usePanelHosts()` (hosts de `providerDns`/`m3uUrl` de todas as fontes; só o nome do host). Fora disso, ou com os hosts ainda carregando, `null` **sem requisição**. Motivo: com CORS recusado, o próprio navegador escreve a URL no console — e isso não pode ser calado por código.
 1. Sem `url` ⇒ `null`.
 2. Cache em memória do módulo: `Map<string, string | null>` (a mesma capa nunca é lida duas vezes por sessão; `null` também é cacheado — uma capa que não pode ser lida não é tentada de novo).
 3. Leitura: `const img = new Image(); img.crossOrigin = 'anonymous'; img.decoding = 'async'; img.src = url`. No `onload`: canvas **16×16**, `drawImage(img, 0, 0, 16, 16)`, `getImageData(0, 0, 16, 16).data` → `dominantColorFromPixels`. Tudo dentro de `try/catch`: imagem de outro domínio sem CORS lança `SecurityError` no `getImageData` ⇒ `null`. `onerror` ⇒ `null`.

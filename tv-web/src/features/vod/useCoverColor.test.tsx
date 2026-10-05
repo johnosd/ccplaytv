@@ -17,12 +17,19 @@ class FakeImage {
   }
 }
 
-function Probe({ url }: { url?: string }) {
-  const color = useCoverColor(url)
+const PANEL_HOSTS = ['painel.test']
+
+function Probe({ url, hosts = PANEL_HOSTS }: { url?: string; hosts?: readonly string[] }) {
+  const color = useCoverColor(url, hosts)
   return <span data-testid="color">{color ?? 'none'}</span>
 }
 
-const SECRET_URL = 'http://provedor.test/get.php?username=fulano&password=segredo/capa.jpg'
+function ProbeLoadingHosts({ url }: { url: string }) {
+  const color = useCoverColor(url, undefined)
+  return <span data-testid="color">{color ?? 'none'}</span>
+}
+
+const PUBLIC_URL = 'http://cdn.test/capas/duna.jpg'
 
 beforeEach(() => {
   clearCoverColorCache()
@@ -43,15 +50,34 @@ describe('useCoverColor', () => {
     expect(FakeImage.instances).toHaveLength(0)
   })
 
-  it('pede a imagem com CORS anônimo e, em erro, fica no neutro sem expor a URL em lugar nenhum', () => {
+  it('capa sem risco: pede a imagem com CORS anônimo e, em erro, fica no neutro sem nada no console', () => {
     const spies = (['log', 'info', 'warn', 'error', 'debug'] as const).map((method) => vi.spyOn(console, method).mockImplementation(() => {}))
-    render(<Probe url={SECRET_URL} />)
+    render(<Probe url={PUBLIC_URL} />)
     const image = FakeImage.instances[0]
     expect(image?.crossOrigin).toBe('anonymous')
+    expect(image?.src).toBe(PUBLIC_URL)
     act(() => image?.onerror?.())
     expect(screen.getByTestId('color').textContent).toBe('none')
-    expect(document.body.innerHTML).not.toContain('segredo')
     for (const spy of spies) expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('capa que pode carregar credencial nunca é requisitada (FR-024): query, usuário/senha, domínio do painel', () => {
+    for (const url of [
+      'http://cdn.test/capa.jpg?token=segredo',
+      'http://fulano:segredo@cdn.test/capa.jpg',
+      'http://painel.test:8080/images/capa.jpg',
+    ]) {
+      cleanup()
+      render(<Probe url={url} />)
+      expect(screen.getByTestId('color').textContent).toBe('none')
+    }
+    expect(FakeImage.instances).toHaveLength(0)
+    expect(document.body.innerHTML).not.toContain('segredo')
+  })
+
+  it('enquanto os hosts dos painéis não foram lidos, não arrisca nenhuma capa', () => {
+    render(<ProbeLoadingHosts url={PUBLIC_URL} />)
+    expect(FakeImage.instances).toHaveLength(0)
   })
 
   it('a mesma capa não é lida duas vezes na sessão (o null também fica no cache)', () => {

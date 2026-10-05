@@ -3,6 +3,7 @@ import { PosterArt } from '../../components/PosterArt'
 import type { MetadataOrigin } from '../../lib/metadata/types'
 import { DetailBackdrop } from './DetailMetadata'
 import { useCoverColor } from './useCoverColor'
+import { usePanelHosts } from './usePanelHosts'
 
 export interface DetailHeroProps {
   eyebrow: string
@@ -41,7 +42,7 @@ export function DetailHero({
   synopsis,
   actions,
 }: DetailHeroProps): ReactNode {
-  const coverColor = useCoverColor(posterUrl)
+  const coverColor = useCoverColor(posterUrl, usePanelHosts())
   const ambientStyle = coverColor ? ({ '--detail-ambient': coverColor } as CSSProperties) : undefined
 
   return (
