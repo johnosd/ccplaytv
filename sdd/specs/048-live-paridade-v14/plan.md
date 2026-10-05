@@ -306,7 +306,7 @@ cobertos pelo E2E de capturas do Polish e por `quickstart.md`.
 
 | 2026-10-02 | Fases 3–7 + Polish | Destaque, painéis 200/340, anel inteiro e indicador de continuação, cartões, tile/linha de canal/`is-playing`, cabeçalho. E2E novo `live-paridade-v14.mjs`; E2E 030 ajustado; achado R-008. Gate: lint/tsc/2431 testes/build/build:tizen/E2E 28/28; 6 travas íntegras. | T031 e T033 (conferência visual) |
 
-**PRÓXIMO**: T031 (capturas Filmes/Séries/Configurações) e T033 (revisão lado a lado com o protótipo/Lab e Tizen QA matrix §34) — só então `update-feature-status.ps1 -Status Implementada` e `/sdd-converge`. A-004 (`docs/guia-praticas-app-tv/`) não foi consultado.
+**PRÓXIMO**: nenhum — feature encerrada por decisão do usuário (ver `## Encerramento`).
 
 ## Arquivos Principais
 
@@ -323,3 +323,13 @@ cobertos pelo E2E de capturas do Polish e por `quickstart.md`.
 - O virtualizador mede a partir do início do conteúdo, sem o padding de 16px do contêiner: por isso `LIVE_EDGE_SCROLL_PADDING_END` = 48 + 2×16. Mexeu na folga do anel, mexa nas duas constantes e rode o E2E da 048.
 - `innerText` (Playwright) devolve a caixa alta aplicada por CSS (`text-transform`): compare com `/i`.
 - Os CSS de colunas precisam de `.live-column.live-column-*` (2 classes) para vencer `shared.css`, que carrega depois de `live.css`.
+
+## Encerramento
+
+**Encerrada em 2026-10-05 por decisão do usuário, sem converger.** A tela de TV ao vivo recebeu depois alterações e melhorias visuais próprias, então a comparação com o protótipo e o Design System V14 que esta spec pedia deixou de fazer sentido como critério de aceite. Nenhuma alteração de código foi feita no encerramento.
+
+**O que foi entregue e fica valendo.** Fases 1–8 implementadas e commitadas em `5a01861` (2026-10-02): destaque do canal focado, painéis com larguras V14, anel de foco inteiro, indicadores de continuação, cartões de programação (`lib/epg/upcoming.ts`), itens de categoria e canal no padrão V14, cabeçalho e dicas. Gate automatizado verde na época (`tsc`, `lint`, 2431 testes, `build`, `build:tizen`, E2E 28/28, travas íntegras; 5/5 contratos). Os contratos e o E2E `live-paridade-v14.mjs` seguem na suíte.
+
+**O que NÃO foi feito (e não será).** T031 (capturas antes/depois de Filmes, Séries e Configurações, SC-004; só existe o "depois"), T033 (revisão lado a lado com o protótipo e o Component Lab e Tizen QA matrix §34) e os dois itens correspondentes do Checklist de Release ficam abertos em `tasks.md`, que não foi alterado. FR-017 (Filmes, Séries e Configurações inalterados) continua protegido só por testes e pela suíte E2E, sem comparação visual. Nada disso foi verificado na TV física. Esta feature não passou pelo `sdd-converge`: o status `Encerrada` não equivale a `Convergida`, e ninguém deve ler este arquivo como se a paridade visual tivesse sido conferida.
+
+**Em aberto herdado.** R-006 (↓ avança para a ação à direita no destaque, contra a Spec §33; aceito por causa dos contratos 024/031).

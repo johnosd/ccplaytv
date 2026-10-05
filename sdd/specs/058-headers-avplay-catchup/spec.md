@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-04
 
-**Status**: Em Execução
+**Status**: Implementada
 
 **Input**: Pacote G1 do backlog — item 25b (repasse dos headers `User-Agent`/`Referer` declarados pela lista M3U ao player da TV; o parser da `044` já os guarda) e item 43 (TV Archive / Catch-up: tocar programa passado a partir do Guia, se o provedor oferecer; duas variantes de URL exigem sondagem; libera Play/Pause no que não é ao vivo, V14 §43.3). Por decisão do usuário, os dois entram completos nesta spec, sem `sdd-assess` separado para o 43.
 

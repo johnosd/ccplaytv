@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-02
 
-**Status**: Em Execução
+**Status**: Encerrada
 
 **Input**: Revisão da tela de TV ao vivo contra o protótipo `CCPlayTV_Tizen_Ultimate_Prototype_v13_2.html` (função `live()`) e a Spec V14 §25, feita em 2026-10-02 com capturas 1920×1080 lado a lado. A estrutura (Categorias → Canais → Preview) e as regras de foco já batem; a distância é visual: colunas soltas em vez de painéis, preview como pilha de textos com três botões de ~920px de largura, coluna de categorias larga demais, anel de foco do canal cortado pela lista, itens sem o acabamento V14 e programação sem a faixa de cartões.
 
