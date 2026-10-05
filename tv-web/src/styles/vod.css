@@ -1348,3 +1348,293 @@
 .vod-showcase-toolbar {
   justify-content: flex-end;
 }
+
+/* ===================================================================
+   Detalhe "Cinema" — filme e série (feature 059, layout aprovado em
+   2026-10-05; `logic/hero-cinema.md`). Só ACRESCENTA regras: as antigas
+   de `.vod-detail-*` acima continuam valendo onde não são sobrescritas.
+   As três medidas abaixo são de layout (tamanho da capa e altura do
+   hero), não de tema — cor, raio, espaço, fonte e tempo vêm dos tokens.
+   =================================================================== */
+.vod-detail {
+  --detail-cover-width: 400px;
+  --detail-cover-height: 600px;
+  --detail-hero-height: 860px;
+  --detail-icon-size: 72px;
+}
+
+/* Hero de ponta a ponta: sangra o padding do `.screen` (as camadas de fundo
+   ocupam o palco inteiro) e devolve o mesmo respiro ao conteúdo. */
+.vod-detail-hero--cinema {
+  box-sizing: border-box;
+  height: var(--detail-hero-height);
+  margin: calc(-1 * var(--safe-y)) calc(-1 * var(--safe-x)) 0;
+  padding: var(--safe-y) var(--safe-x) 0;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+/* Camadas de fundo, de baixo para cima: ambiente → backdrop → vinheta. Todas
+   filhas do hero (D-005) — nunca no `.screen` (o vídeo do player passaria por baixo). */
+.vod-detail-hero--cinema .vod-detail-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  /* Sem cor da capa, `--detail-ambient` não existe e vale o neutro. A opacidade
+     da camada dá a transparência (o piso chrome108 não tem `color-mix`). */
+  background:
+    radial-gradient(ellipse 55% 70% at 22% 45%, var(--detail-ambient, var(--bg-hover)), transparent 70%),
+    radial-gradient(ellipse 50% 60% at 85% 15%, var(--detail-ambient, var(--bg-elevated)), transparent 70%);
+  opacity: 0.45;
+}
+
+.vod-detail-hero--cinema .vod-detail-backdrop {
+  z-index: -2;
+  border-radius: 0;
+}
+
+.vod-detail-hero--cinema .vod-detail-backdrop img {
+  opacity: 1;
+}
+
+/* A vinheta do hero novo é a `.vod-detail-scrim`; a do backdrop antigo sai. */
+.vod-detail-hero--cinema .vod-detail-backdrop::after {
+  content: none;
+}
+
+.vod-detail-hero--cinema .vod-detail-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, var(--bg-canvas) 10%, transparent 82%),
+    linear-gradient(0deg, var(--bg-canvas) 0%, transparent 45%);
+}
+
+.vod-detail-hero--cinema .vod-detail-poster {
+  position: relative;
+  width: var(--detail-cover-width);
+  flex: none;
+}
+
+.vod-detail-hero--cinema .vod-detail-poster .poster-box {
+  aspect-ratio: auto;
+  height: var(--detail-cover-height);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    var(--elevation-3),
+    0 0 160px -30px var(--detail-ambient, transparent);
+}
+
+.vod-detail-watched-badge {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  display: grid;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-pill);
+  background: var(--success);
+  color: var(--bg-canvas);
+  font-size: var(--fs-h2);
+  font-weight: 700;
+}
+
+.vod-detail-hero--cinema .vod-detail-info {
+  flex: 1;
+  gap: var(--space-3);
+}
+
+.vod-detail-hero--cinema .vod-detail-title {
+  font-family: var(--font-heading);
+  font-size: var(--fs-display);
+  font-weight: var(--fw-display);
+  line-height: 1.05;
+  text-shadow: var(--text-shadow-media);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Linha de metadata: cada parte é um filho; o separador vem do CSS. */
+.vod-detail-hero--cinema .vod-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+.vod-detail-hero--cinema .vod-detail-meta > * + *::before {
+  content: '·';
+  margin-right: var(--space-2);
+  color: var(--text-annotation);
+}
+
+.vod-detail-meta-watched {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.vod-detail-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.vod-detail-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vod-detail-chip {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--bg-hover);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-caption);
+}
+
+.vod-detail-chip--category {
+  border-color: var(--accent-tint-border);
+  background: var(--accent-tint);
+  color: var(--accent-light);
+}
+
+.vod-detail-hero--cinema .vod-detail-synopsis {
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+/* Ações: a primária e os ícones na mesma fileira, alinhados pelo topo; o
+   respiro de baixo é o espaço do rótulo que aparece sob o ícone focado. */
+.vod-detail-hero--cinema .vod-detail-actions {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-bottom: var(--space-5);
+}
+
+.vod-detail-action--primary {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-3) var(--space-5);
+  background: var(--text-primary);
+  color: var(--bg-base);
+  font-size: var(--fs-body-lg);
+  white-space: nowrap;
+}
+
+.vod-detail-action--progress {
+  align-items: stretch;
+  gap: var(--space-1);
+  min-width: var(--detail-cover-width);
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.vod-detail-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.vod-detail-progress-bar {
+  flex: 1;
+  height: calc(var(--space-1) * 0.75);
+  border-radius: var(--radius-pill);
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.vod-detail-progress-fill {
+  display: block;
+  height: 100%;
+  background: currentColor;
+}
+
+.vod-detail-remaining {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-caption);
+  opacity: 0.75;
+}
+
+/* Botão de ícone: uma coluna (círculo + rótulo). O rótulo é texto direto do
+   elemento (contratos 032/033/059) e só aparece no foco; o anel de foco vai
+   no círculo, não na coluna inteira. */
+.vod-detail-icon-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  width: var(--detail-icon-size);
+  padding: 0;
+  background: none;
+  color: transparent;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-caption);
+  white-space: nowrap;
+}
+
+.vod-detail-icon {
+  display: grid;
+  place-items: center;
+  width: var(--detail-icon-size);
+  height: var(--detail-icon-size);
+  border: 1px solid var(--bg-hover);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  transition:
+    transform var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease);
+}
+
+.vod-detail-icon svg {
+  width: var(--space-4);
+  height: var(--space-4);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.vod-detail-icon-action.is-active .vod-detail-icon {
+  color: var(--success);
+}
+
+.vod-detail-icon-action.tv-focus {
+  outline: none;
+  box-shadow: none;
+  transform: none;
+  background: none;
+  color: var(--text-primary);
+  text-shadow: var(--text-shadow-media);
+}
+
+.vod-detail-icon-action.tv-focus .vod-detail-icon {
+  outline: var(--focus-ring-width) solid var(--accent);
+  outline-offset: var(--focus-ring-offset);
+  box-shadow: var(--focus-halo), var(--focus-glow);
+  transform: scale(var(--focus-scale));
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.vod-detail-icon-action.is-soft-disabled .vod-detail-icon {
+  color: var(--text-disabled);
+}

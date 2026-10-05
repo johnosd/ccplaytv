@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
@@ -20,12 +20,15 @@ import { HistoryRemovalModal } from '../history/HistoryRemovalModal'
 import {
   CastPanel,
   CastPeoplePanel,
-  DetailBackdrop,
   MetadataFacts,
   SynopsisBlock,
   SynopsisModal,
   personFocusKey,
 } from '../vod/DetailMetadata'
+import { DetailHero } from '../vod/DetailHero'
+import { DetailIconAction, DetailPrimaryAction, type DetailIconName } from '../vod/DetailActions'
+import { DetailChips } from '../vod/DetailChips'
+import { primaryProgress } from '../vod/detailProgress'
 import { isSynopsisTruncated, metadataFactRows } from '../vod/detailMetadataFormat'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
@@ -118,6 +121,20 @@ function buildActions(primary: SeriesPrimary | null, isFavorite: boolean, inHist
   actions.push({ id: 'similar' })
   if (inHistory) actions.push({ id: 'remove-history' })
   return actions
+}
+
+/** Ícone de cada ação secundária (feature 059, `logic/hero-cinema.md` §4). A primária não tem ícone. */
+function actionIcon(action: SeriesAction): DetailIconName {
+  switch (action.id) {
+    case 'favorite':
+      return action.isFavorite ? 'added' : 'add'
+    case 'trailer':
+      return 'trailer'
+    case 'similar':
+      return 'similar'
+    default:
+      return 'remove'
+  }
 }
 
 function actionLabel(action: SeriesAction, t: Translator): string {
@@ -325,6 +342,14 @@ export function SeriesDetailScreen({
         ? 'tabs'
         : rawRow
   const effectiveTabId = rawRow === 'panel' && row === 'tabs' ? activeTab : focusedTabId
+
+  // Feature 059, FR-017: foco no hero ou nas abas devolve a página ao topo. Temporada,
+  // episódios e painel não mexem aqui — a lista virtual e os cartões rolam sozinhos.
+  const rootRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (row !== 'more' && row !== 'actions' && row !== 'tabs') return
+    if (rootRef.current) rootRef.current.scrollTop = 0
+  }, [row])
 
   function snapshot(focusKey?: string): DetailSnapshot {
     return focusKey === undefined ? { tab: activeTab } : { tab: activeTab, focusKey }
@@ -706,46 +731,55 @@ export function SeriesDetailScreen({
     )
   }
 
-  const metaParts: string[] = []
-  if (series.year != null) metaParts.push(String(series.year))
-  metaParts.push(groupLabelDisplay(series.original_group, t))
-  if (watchedSummary && watchedSummary.known > 0) {
-    metaParts.push(watchedSummary.upToDate ? t('vod.upToDate') : `${watchedSummary.watched}/${watchedSummary.known}`)
-  }
+  // Hero "Cinema" (feature 059): a categoria sai da metadata e vira o 1º chip (D-006).
+  const hasRating = series.provider_rating != null && series.provider_rating > 0
 
   return (
     // Achado real (feature 028, FR-006): rolava com a barra nativa visível.
-    <div className="screen vod-detail no-scrollbar">
-      <div className="vod-detail-hero">
-        <DetailBackdrop url={metadata?.backdropUrl?.value} origin={metadata?.backdropUrl?.origin} />
-        <div className="vod-detail-poster">
-          <ContentCard variant="portrait" title={series.name} iconUrl={series.icon_url ?? undefined} />
-        </div>
-        <div className="vod-detail-info">
-          <div className="vod-detail-eyebrow">{t('detail.eyebrow.series')}</div>
-          <div className="vod-detail-title">{series.name}</div>
-          <div className="vod-detail-meta">
-            {metaParts.join(' · ')}
-            {series.provider_rating != null && series.provider_rating > 0 && ' · '}
-            <RatingBadge value={series.provider_rating} showSource />
-          </div>
-          <SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />
-          <div className="vod-detail-actions">
-            {actions.map((action, i) => {
-              const softDisabled = action.id === 'trailer' && trailerActionSoftDisabled(trailerState)
-              return (
-                <div
-                  key={action.id}
-                  className={`vod-detail-action${row === 'actions' && i === safeActionFocus && !removal ? ' tv-focus' : ''}${softDisabled ? ' is-soft-disabled' : ''}`}
-                  aria-disabled={softDisabled ? 'true' : undefined}
-                >
-                  {action.id === 'trailer' ? trailerActionLabel(trailerState, t) : actionLabel(action, t)}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
+    <div ref={rootRef} className="screen vod-detail no-scrollbar">
+      <DetailHero
+        eyebrow={t('detail.eyebrow.series')}
+        title={series.name}
+        posterUrl={series.icon_url ?? undefined}
+        backdropUrl={metadata?.backdropUrl?.value}
+        backdropOrigin={metadata?.backdropUrl?.origin}
+        meta={
+          <>
+            {series.year != null && <span>{series.year}</span>}
+            {seasons.length > 0 && (
+              <span>{seasons.length === 1 ? t('detail.meta.seasonsOne') : t('detail.meta.seasons', { n: seasons.length })}</span>
+            )}
+            {watchedSummary && watchedSummary.known > 0 && (
+              <span>{watchedSummary.upToDate ? t('vod.upToDate') : `${watchedSummary.watched}/${watchedSummary.known}`}</span>
+            )}
+            {hasRating && <RatingBadge value={series.provider_rating} showSource />}
+          </>
+        }
+        chips={<DetailChips category={groupLabelDisplay(series.original_group, t)} genres={metadata?.genres} />}
+        synopsis={<SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />}
+        actions={actions.map((action, i) => {
+          const focused = row === 'actions' && i === safeActionFocus && !removal
+          if (action.id === 'primary') {
+            // Barra DO EPISÓDIO da primária (D-004): posição dele ÷ duração dele, nunca a da metadata da série.
+            const progress =
+              action.primary.kind === 'resume'
+                ? primaryProgress(action.primary.resumeSeconds, action.primary.episode.duration_seconds)
+                : null
+            return <DetailPrimaryAction key={action.id} label={actionLabel(action, t)} focused={focused} progress={progress} />
+          }
+          const isTrailer = action.id === 'trailer'
+          return (
+            <DetailIconAction
+              key={action.id}
+              icon={actionIcon(action)}
+              label={isTrailer ? trailerActionLabel(trailerState, t) : actionLabel(action, t)}
+              focused={focused}
+              softDisabled={isTrailer && trailerActionSoftDisabled(trailerState)}
+              active={action.id === 'favorite' && action.isFavorite}
+            />
+          )
+        })}
+      />
 
       {outcome === 'stale-served' && (
         <div className="live-truncated-note">{t('live.stale')}</div>

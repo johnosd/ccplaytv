@@ -4,7 +4,9 @@
 
 **Created**: 2026-10-02
 
-**Status**: Planejada
+**Status**: Substituída pela 059
+
+> **Substituída pela [`059-detalhe-cinema-filme-serie`](../059-detalhe-cinema-filme-serie/spec.md) em 2026-10-05.** Nunca foi executada (0/31 tasks). O detalhe foi redesenhado (layout "Cinema", variação A, com capa ≥ 400×600, ações em ícone, barra de progresso real e Semelhantes em duas linhas) e passou a valer também para a série, o que contraria o escopo abaixo ("só visual", "série fora", "capa grande" = backdrop). Este documento fica como registro; não executar. As armadilhas do `handoff.md` foram levadas para a 059.
 
 **Input**: "ajuste o design system na tela de detalhes do filme, adicionando marcar como assistido; também deve ter uma capa grande do filme; crie a página de elenco com imagem e nome dos artistas; crie a página de semelhantes com filmes semelhantes (obtidos pelo TMDB), alguns marcados como (na sua lista)". Referências: Component Lab V14, protótipo V13.2, Spec V14.
 

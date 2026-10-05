@@ -203,7 +203,7 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 048-live-paridade-v14 | Paridade visual da TV ao vivo com o Design System V14 | Encerrada | 43/47 tasks | 2026-10-05 |
 | 050-filmes-series-paridade-v14 | Paridade visual de Filmes e Séries com o Design System V14 | Implementada | 30/30 tasks | 2026-10-02 |
 | 049-navegacao-por-pagina | Navegação por página nas listas | Convergida | 42/42 tasks | 2026-10-02 |
-| 051-detalhe-filme-paridade-v14 | Paridade visual do detalhe do filme com o Design System V14 | Planejada | 0/31 tasks | 2026-10-02 |
+| 051-detalhe-filme-paridade-v14 | Paridade visual do detalhe do filme com o Design System V14 | Substituída pela 059 | 0/31 tasks | 2026-10-05 |
 | 052-vitrine-filmes-series | Vitrine de Filmes e Séries e tela de categoria em grade cheia | Convergida | 54/54 tasks | 2026-10-03 |
 | 053-carrosseis-filmes-series | Carrosséis de categoria, lista lateral recolhível e slots TMDB na tela hero de Filmes e Séries | Convergida | 48/48 tasks | 2026-10-03 |
 | 054-idioma-do-app | Idioma do app | Convergida | 60/60 tasks | 2026-10-05 |
@@ -211,6 +211,7 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 056-bem-avaliados | Fileira "Bem avaliados" em Filmes e Séries | Convergida | 44/44 tasks | 2026-10-04 |
 | 057-top10-dica-tmdb | Top 10 da semana e carrossel "Dica" (TMDB) em Filmes, Séries e Início | Convergida | 55/58 tasks | 2026-10-05 |
 | 058-headers-avplay-catchup | Headers da lista no AVPlay e catch-up de programas passados (Xtream) | Convergida | 53/53 tasks | 2026-10-05 |
+| 059-detalhe-cinema-filme-serie | Detalhe de filme e de série no layout Cinema do Design System | Em Execução | 24/49 tasks | 2026-10-05 |
 
 ## Bugs
 

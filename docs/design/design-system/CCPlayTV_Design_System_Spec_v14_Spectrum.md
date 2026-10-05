@@ -1544,24 +1544,41 @@ Favoritos e Histórico não desaparecem quando vazios.
 - recentes e tendências;
 - teclado somente sob demanda.
 
-### Detalhe de filme
+### Detalhe de filme e de série (layout "Cinema", revisão 2026-10-05)
 
-- hero;
-- metadata;
-- Assistir;
-- Minha Lista;
-- Trailer;
-- sinopse;
-- dados técnicos;
-- semelhantes.
+Filme e série compartilham o mesmo hero. A referência visual é a função `details()` do protótipo v13_2; as alternativas avaliadas (e descartadas) estão em `propostas/detalhe-filme-variacoes.html`.
 
-### Detalhe de série
+**Hero**
 
-- hero;
-- continuar episódio;
-- seletor de temporada;
-- episódios 16:9;
-- progresso/concluído.
+- backdrop em tela cheia (TMDB), escurecido à esquerda e embaixo para o texto ficar legível; sem backdrop, o fundo usa a cor dominante da capa, nunca uma imagem inventada;
+- capa grande à esquerda, **mínimo 400 × 600 px** no palco 1920 × 1080, com brilho suave na cor da capa;
+- coluna de informação: rótulo `FILME`/`SÉRIE`, título, linha de metadata (ano · duração ou nº de temporadas · nota com a origem "Provedor" · `✓ Assistido` quando houver);
+- chips: a **categoria da lista** num chip próprio, em destaque, separado dos gêneros do TMDB; gêneros com a anotação de origem "Dados: TMDB" (a taxonomia externa nunca substitui a categoria da fonte);
+- sinopse em até 3 linhas, com "Ver mais" só quando ela for truncada;
+- nada de relevância %, qualidade/áudio (4K, 5.1), classificação indicativa ou selo editorial enquanto o app não tiver esse dado real.
+
+**Ações**
+
+- uma ação primária (fundo claro, texto escuro), sempre o primeiro foco ao abrir a tela;
+- com posição salva **e** duração conhecida, a primária vira `▶ Continuar de 42:10` (filme) ou `▶ Continuar T1:E3` (série), com barra de progresso e "faltam X" dentro do botão; sem os dois dados reais, não há barra nem percentual;
+- ações secundárias são icon buttons redondos (72 px no palco, §14), com o rótulo visível só no foco;
+- filme: Reiniciar (só com retomada) · Minha Lista · Trailer · Semelhantes · Marcar/Desmarcar assistido · Remover do histórico (só com o título no Histórico, sempre por último);
+- série: Minha Lista · Trailer · Semelhantes · Remover do histórico (só no Histórico);
+- "Semelhantes" abre a aba Semelhantes e já foca o primeiro título.
+
+**Abas abaixo do hero (§13.4)**
+
+- filme: `Detalhes` · `Elenco` · `Semelhantes`; série: `Episódios` · `Detalhes` · `Elenco` · `Semelhantes`;
+- a linha de abas fica visível no rodapé da primeira tela, sem rolar;
+- **Detalhes**: ficha em cartões (Direção, País, Duração/Temporadas, Gêneros, Categoria da lista, Ano, Adicionado em, Disponível), cada um com a origem (TMDB ou fonte);
+- **Elenco**: trilha de pessoas com foto redonda, nome e personagem; OK abre a página do ator;
+- **Semelhantes**: duas linhas — `✓ Na sua lista` (títulos que já estão no catálogo; OK abre o detalhe) e `Não encontrados na sua lista` (sugestões só do TMDB; OK mostra o resumo), com a cobertura da busca ("procurado em N de M categorias"). Com a primeira linha vazia, ela mostra uma frase não focável e a segunda continua;
+- **Episódios** (série): seletor de temporada, episódios 16:9, progresso por episódio e `✓ concluído`.
+
+**Navegação**
+
+- ↓ nas ações vai para a aba ativa; ↑ nas abas volta para a última ação focada; ↑ na primeira linha do painel volta para a aba ativa;
+- focar o hero ou as abas devolve a página ao topo.
 
 ### Configurações
 

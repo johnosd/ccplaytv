@@ -1,0 +1,27 @@
+{
+    "feature":  "059-detalhe-cinema-filme-serie",
+    "lockedAt":  "2026-10-05 09:48",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/features/vod/detailProgress.detalhe-cinema.contract.test.ts",
+                      "sha256":  "f4be4e81c1f45bcd98bbb490fd0958373c883909705ee5f695061b852350311f",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/color/coverColor.detalhe-cinema.contract.test.ts",
+                      "sha256":  "b48de70abb7f1ca630a261c668011d2386e370a7f90f035ed69b9182f9bc53d7",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/movies/MovieDetailScreen.detalhe-cinema.contract.test.tsx",
+                      "sha256":  "d4257862027706f6df616ad87b63c3f3088486591548dcee728d68ebcaaefdae",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/series/SeriesDetailScreen.detalhe-cinema.contract.test.tsx",
+                      "sha256":  "bedaed9dc74baf301bef75e2e718403fdca254daea00f3996db99a67aad32963",
+                      "tests":  1
+                  }
+              ]
+}
