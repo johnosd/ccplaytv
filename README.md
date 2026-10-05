@@ -62,9 +62,21 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   `url-tvg` da lista M3U ou de um endereço informado, com deslocamento de
   horário e sincronização por lista em Configurações; feature 030 — ainda
   sem passada na TV física).
-- Guia completo em tela cheia (grade canais × programas, Hoje/Amanhã, CH±,\n  seletor de lista), aberto pelo ícone ao lado da lupa na lista de canais da Live TV ou do player sem parar o\n  canal (feature 031 — ainda sem passada na TV física).\n- *A avaliar:* TV archive/catch-up/timeshift;
-  multi-canal (feature 031, especificada); TV archive/catch-up/timeshift;
-  seleção de canal por número.
+- Guia completo em tela cheia (grade canais × programas, Hoje/Amanhã, CH±,
+  seletor de lista), aberto pelo ícone ao lado da lupa na lista de canais da
+  Live TV ou do player sem parar o canal (feature 031 — ainda sem passada na
+  TV física).
+- **Headers da lista e catch-up (Xtream):** canais, filmes e episódios de uma
+  lista M3U que declara `User-Agent`/`Referer` são pedidos com esses headers
+  no AVPlay (só o `User-Agent` foi provado na TV; `Referer` não tem propriedade
+  provada e segue recusado, com erro acionável se o servidor exigir). Num painel
+  Xtream com arquivo, o Guia completo marca os programas disponíveis e o OK
+  toca o programa do início; no player ao vivo, "Do início" (linha de controles,
+  depois de "Guia") recomeça o programa atual; o arquivo tem ⏪/⏩, barra e "Ao
+  vivo", e não entra no Histórico (feature 058). Validado na TV física só com um
+  painel fictício; **com uma lista real o catch-up não foi testado**.
+- *A avaliar:* multi-canal (feature 031, especificada); seleção de canal por
+  número.
 
 **Descoberta e metadados**
 - Pesquisa nos três tipos de conteúdo (canais, filmes, séries).

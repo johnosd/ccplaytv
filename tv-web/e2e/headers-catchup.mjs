@@ -46,14 +46,12 @@ async function shot(page, name) {
 
 /**
  * Texto visível + todos os atributos — onde um segredo nunca pode aparecer (FR-006/FR-020).
- * O `<video>` do adaptador de DESENVOLVIMENTO fica de fora: ele guarda a URL do stream em `src`
- * desde a feature 003 (qualquer item, não só o arquivo), e na TV o AVPlay não põe nada no DOM.
- * Achado pré-existente reportado na 058 (fora do escopo dela).
+ * Inclui o `<video>` do adaptador de DESENVOLVIMENTO: ele remove o `src` no `loadstart`
+ * (bug url-do-stream-no-src-do-video-de-dev), e na TV o AVPlay não põe nada no DOM.
  */
 async function everythingRendered(page) {
   return page.evaluate(() => {
     const attrs = Array.from(document.querySelectorAll('*'))
-      .filter((el) => !el.matches('video.player-video'))
       .flatMap((el) => Array.from(el.attributes).map((a) => a.value))
     return `${document.body.innerText} ${attrs.join(' ')}`
   })

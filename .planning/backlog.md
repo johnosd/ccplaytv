@@ -12,7 +12,7 @@ antes de lançamento). O que foi entregue está na tabela `## Features`; só os 
 
 ID é identificador estável, não ordem: `comingSoon.ts` (campo `backlogItem`)
 e `.planning/migracao-design-system-v14.md` apontam para ele. Nunca renumerar; os pacotes `G1`–`G8` agrupam itens para uma única passada de `sdd-specify`;
-item novo recebe o próximo número livre (**hoje: 72**; o 67 é a `057`, em execução, o 68 foi entregue pela `056`, o 70 virou o bug `tela-principal-filmes-lenta-na-tv`, em `sdd/bugs/`, e o 71 é o `[Bug]` do `src` do `<video>` de dev); fatias usam letra
+item novo recebe o próximo número livre (**hoje: 72**; o 67 é a `057`, em execução, o 68 foi entregue pela `056`, o 70 virou o bug `tela-principal-filmes-lenta-na-tv`, em `sdd/bugs/`, e o 71 virou o bug `url-do-stream-no-src-do-video-de-dev`, em `sdd/bugs/`); fatias usam letra
 (`55a`, `62b`). Todo item assume o dado no aparelho (ADR-008): chamadas externas
 só a APIs de terceiro com a chave do próprio usuário (BYOK); `api/` é contorno
 congelado. Quem entrega um item apaga o mock correspondente de `comingSoon.ts`
@@ -125,13 +125,6 @@ rever no `sdd-specify`.
   - Depende de: 64
   - Remove mocks: `pair-phone`, `voice-search`
   - Fonte: ADR-008 §4/§5; ADR-001 §4; RF-004; V14 §46
-- **71** [Baixa] — **[Bug]** O adaptador `<video>` de desenvolvimento (`htmlVideoAdapter.ts`, desde a `003`) grava a URL do stream no atributo `src` do `<video>`: no `npm run dev`, a URL de qualquer canal ou filme (com credencial embutida, ou de arquivo da `058`) fica no DOM. Só no navegador do dev, nunca visível na tela; na TV o AVPlay não usa o DOM. Afeta toda reprodução, não só a `058`; corrigir pede `sdd-bugfix` com teste de regressão (a constituição proíbe segredo no DOM visível; avaliar `blob:`/MediaSource ou guardar a URL fora do atributo sem quebrar o fallback `mpegts.js` da `047`).
-  - Ordem: —
-  - Tipo: bug
-  - Estado: Bugfix
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: `058-headers-avplay-catchup` (`plan.md` R-011, achado no E2E T038, decisão do usuário em 05/10/2026: logar e seguir)
 
 
 ### Retirados
@@ -217,7 +210,7 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 055-campos-da-listagem-xtream | Nota, gênero e fundo vindos da listagem Xtream | Convergida | 38/38 tasks | 2026-10-03 |
 | 056-bem-avaliados | Fileira "Bem avaliados" em Filmes e Séries | Convergida | 44/44 tasks | 2026-10-04 |
 | 057-top10-dica-tmdb | Top 10 da semana e carrossel "Dica" (TMDB) em Filmes, Séries e Início | Convergida | 55/58 tasks | 2026-10-05 |
-| 058-headers-avplay-catchup | Headers da lista no AVPlay e catch-up de programas passados (Xtream) | Implementada | 53/53 tasks | 2026-10-05 |
+| 058-headers-avplay-catchup | Headers da lista no AVPlay e catch-up de programas passados (Xtream) | Convergida | 53/53 tasks | 2026-10-05 |
 
 ## Bugs
 
@@ -230,9 +223,10 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | mensagem-generica-erro-reproducao-sempre-diz | Mensagem genérica de erro de reprodução sempre diz "canal" | Test | verified | Concluído | 2026-09-29 |
 | modal-temporada-sem-indicador-mais-itens | Modal de temporada — foco some e não há indicador de "mais abaixo" | Test | verified | Concluído | 2026-09-29 |
 | flake-e2e-home-busca-configuracoes-passo-continuar-progresso | Detalhe do filme pode voltar do player sem "Continuar" (flake do E2E da 026) | Test | verified | Concluído | 2026-09-30 |
-| epg-manual-falha-ao-salvar-epg-02 | EPG manual falha com EPG-02 embora o navegador baixe o XML | Assess | valid (reproduzido) — mas a causa é do servidor do EPG; no app há só uma lacuna de diagnóstico (medium) | Rodar fase Fix | 2026-10-02 |
+| epg-manual-falha-ao-salvar-epg-02 | EPG manual falha com EPG-02 embora o navegador baixe o XML | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-05 |
 | tela-principal-filmes-lenta-na-tv | Tela principal de Filmes lenta na TV (1ª e 2ª visita) | Test | verified | Concluído | 2026-10-05 |
 | continue-assistindo-sobreposto-na-primeira-abertura | Continue assistindo sobreposto na 1ª abertura de Filmes e Séries | Test | verified | Concluído | 2026-10-05 |
+| url-do-stream-no-src-do-video-de-dev | URL do stream no `src` do `<video>` de dev | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-05 |
 
 ## Melhorias Ad-hoc
 

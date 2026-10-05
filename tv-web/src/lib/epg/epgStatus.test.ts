@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SourceRecord } from '../catalog/db'
+import { createTranslator } from '../i18n/translate'
 import {
   EPG_STALE_AFTER_MS,
   epgErrorMessage,
@@ -116,5 +117,11 @@ describe('epgErrorMessage (§45)', () => {
       expect(epgErrorMessage(kind).length).toBeGreaterThan(10)
       expect(epgErrorMessage(kind)).not.toMatch(/https?:\/\//)
     }
+  })
+
+  it('network orienta a conferir o endereço final (sem redirecionamento), nos 3 idiomas', () => {
+    expect(epgErrorMessage('network')).toMatch(/endereço é o final, sem redirecionamento/)
+    expect(epgErrorMessage('network', createTranslator('en'))).toMatch(/final one, without redirects/)
+    expect(epgErrorMessage('network', createTranslator('es'))).toMatch(/la final, sin redirecciones/)
   })
 })

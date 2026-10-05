@@ -178,6 +178,11 @@ export function createHtmlVideoAdapter(
       demuxDead = false
       errorReported = false
       closed = false
+      // A URL carrega credencial: o atributo `src` não pode ficar no DOM. A seleção
+      // de recurso já leu o valor quando `loadstart` dispara, e remover o atributo
+      // depois disso não aborta o carregamento (remover antes abortaria). O `blob:`
+      // do mpegts.js, se entrar em cena, não carrega segredo.
+      video.addEventListener('loadstart', () => video.removeAttribute('src'), { once: true })
       video.src = url
       if (startAtMs !== undefined && startAtMs > 0) {
         // Atribuir `currentTime` antes dos metadados carregarem é um "pending
