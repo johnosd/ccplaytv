@@ -21,25 +21,25 @@ export type ArchiveStep = { kind: 'archive'; program: ArchiveProgram } | { kind:
 /** Folga para considerar dois programas contíguos (XMLTV às vezes arredonda o segundo). */
 export const CONTIGUOUS_TOLERANCE_MS = 60_000
 
+const DAY_MS = 86_400_000
+
 /**
- * FR-008: só com arquivo declarado (`archiveDays` > 0), programa já começado e
- * início dentro dos dias do arquivo. STUB do sdd-plan: a Fase 3 implementa.
+ * FR-008: só com arquivo declarado (`archiveDays` > 0), programa já começado
+ * (o atual conta) e INÍCIO dentro dos dias do arquivo (`logic/arquivo.md` §1).
  */
 export function isArchiveAvailable(
   archiveDays: number | null | undefined,
   program: Pick<ArchiveProgram, 'start' | 'end'>,
   now: number,
 ): boolean {
-  void archiveDays
-  void program
-  void now
-  throw new Error('not implemented')
+  if (typeof archiveDays !== 'number' || !Number.isFinite(archiveDays) || archiveDays <= 0) return false
+  return program.start <= now && program.start >= now - archiveDays * DAY_MS
 }
 
 /**
  * FR-013: o programa seguinte do mesmo canal, contíguo e disponível no
  * arquivo; o atual termina "no agora" e vai ao ao vivo; lacuna ou fim da
- * programação vão ao ao vivo. STUB do sdd-plan: a Fase 3 implementa.
+ * programação vão ao ao vivo (`logic/arquivo.md` §5).
  */
 export function nextArchiveStep(
   programs: readonly ArchiveProgram[],
@@ -47,9 +47,10 @@ export function nextArchiveStep(
   archiveDays: number | null | undefined,
   now: number,
 ): ArchiveStep {
-  void programs
-  void current
-  void archiveDays
-  void now
-  throw new Error('not implemented')
+  if (current.end > now) return { kind: 'live' }
+  const next = [...programs]
+    .sort((a, b) => a.start - b.start)
+    .find((p) => p.start > current.start && Math.abs(p.start - current.end) <= CONTIGUOUS_TOLERANCE_MS)
+  if (!next || !isArchiveAvailable(archiveDays, next, now)) return { kind: 'live' }
+  return { kind: 'archive', program: next }
 }

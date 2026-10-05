@@ -233,6 +233,12 @@ Stubs criados pelo plan (ponto de partida do execute, não travados):
 
 | Área | Estado |
 | --- | --- |
+| Fase 1 (Setup) | Concluída — servidor de teste `e2e/lib/servidorHeadersArquivo.mjs` (lista com header, inclusive filme — A1; painel Xtream falso com arquivo; `/_registro`) |
+| Fase 2 (US1) | Código concluído (T002, T004–T013); contratos da fase verdes; **gate T003 na TV adiado para o fim** (R-009) |
+| Fase 3 (US2) | Código concluído (T015–T025, T026–T032); 3/3 contratos da fase verdes; **gate T014 na TV adiado** (R-009); Cenário B no navegador fica para o E2E (T038) |
+| Fase 4 (US3) | Concluída — "Do início" no chrome do Live (depois de "Guia") e selo "Arquivo · N dias" na prévia |
+| Polish | T038–T042 concluídas (E2E `headers-catchup.mjs` 3× verde, suíte E2E 37/37, `npm test` 2714/2714, `build:tizen` ok, ADR-010 anotada); **pendentes na TV**: T003, T014, T043 (R-009); R-011 aguarda decisão |
+| Contratos | 5/5 verdes; trava íntegra; travas de todas as features `PASS` |
 
 ## Riscos e Decisões
 
@@ -244,13 +250,16 @@ Stubs criados pelo plan (ponto de partida do execute, não travados):
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
 | R-001 | Não está provado que `setStreamingProperty('USER_AGENT')` chega ao servidor nesta TV, nem que exista propriedade para `Referer`. O "spike do item 58" citado no backlog não deixou evidência. | Alto (US1 inteira) | **T003 é gate da Fase 2** (servidor na LAN registrando headers). Se `USER_AGENT` não chegar: parar e voltar ao `sdd-plan` — FR-001 não pode ser cumprido só com código. `Referer` sem propriedade provada fica `undefined` em `PROPERTY_OF` (recusado → FR-004). |
-| R-002 | A lista real declara arquivo (75 canais, 7 dias) mas o painel responde 404 nas duas variantes (research R3). | Alto (valor do catch-up para o usuário) | Decisão do usuário (2026-10-04): manter, aceite por painel falso, lista real = "não testado" + exercita `PLAY-06`. Nunca registrar o catch-up como validado na TV com essa lista. |
+| R-002 | A lista real declara arquivo (75 canais, 7 dias) mas o painel responde 404 nas duas variantes (research R3). | Alto (valor do catch-up para o usuário) | Decisão do usuário (2026-10-04): manter, aceite por painel falso, lista real = "não testado" + exercita `PLAY-06`. Nunca registrar o catch-up como validado na TV com essa lista. Registrado (2026-10-04): catch-up com a lista real = **não testado**. |
 | R-003 | Busca (±10 s, barra) num TS de timeshift pode não funcionar no AVPlay se o servidor não aceitar `Range`. | Alto (FR-012; constitution "Capacidades São Reais") | T014 testa com o painel falso com e sem `Range`. Sem `Range` e sem busca: **parar a Fase 3 e voltar ao `sdd-plan`** (busca por reabertura no minuto muda os controles); não remendar. |
 | R-004 | Contratos travados que montam o player/guia sem as props novas: 027 (`player-chrome`), 029, 031 (`PlayerLayer`/`EpgGuide`/`LiveScreen`), 041 (contagem de passos na linha), 042 (`playbackDiagnosis`). | Médio | Tudo novo é opt-in por prop (`archive`, `startOver`, `onWatchArchive`, `headersNotSent`); "Guia" continua o 1º do Live; `goLive` só entra com arquivo. Rodar as travas de todas as features a cada fase. |
 | R-005 | `Intl.DateTimeFormat` com `timeZone` nomeado no Chromium 120 do Tizen — esperado, não provado. | Médio | Fallback para o deslocamento medido já é parte do D-006; T003 confere. |
 | R-006 | O contrato travado da 031 exige "Este programa já terminou." no OK de programa passado (fixture sem arquivo). | Baixo | D-013: mantido para canal sem arquivo; FR-010 e US2-AC6 refinados na spec. |
 | R-007 | No navegador do dev, o arquivo `.ts` toca pelo `mpegts.js` (047) — que não prova nada da TV; e o `<video>` nunca envia headers. | Baixo | E2E prova fluxo/UI/erros; TV prova motor (T003, T014 + passada final). |
 | R-008 | Voltar do app oculto num arquivo pausado: o programa pode ter saído do arquivo nesse intervalo. | Baixo | `verifyResume` usa `fetchArchivePlayback`; 409 → `onArchiveEnded` (logic §4). |
+| R-009 | Decisão do usuário (2026-10-04): os gates na TV T003 (headers) e T014 (busca sem `Range`) ficam para o fim, junto da passada T043, em vez de bloquear as Fases 2 e 3. | Alto se um gate falhar: US1 (FR-001) ou os controles de busca do arquivo (FR-012) teriam de ser refeitos depois de prontos | Risco aceito pelo usuário. Fases 3–5 seguem; T003 e T014 continuam obrigatórias antes de declarar a feature pronta — sem elas o status não passa de "Implementada (gates na TV pendentes)". Se T003 falhar: voltar ao `sdd-plan` (R-001); se T014 falhar: idem (R-003). |
+| R-010 | Achado no T031: `usePlayerSession` captura os callbacks da tela no efeito da sessão (deps só `itemId`/`attempt`/…); o `onArchiveEnded` do 1º render via a programação do canal ainda vazia e mandava o fim do programa ao ao vivo. | Médio (FR-013 quebrado em produção) | Resolvido: `onArchiveEndedRef` sempre com o callback mais recente (mesmo motivo dos refs da 027). |
+| R-011 | Achado no E2E (T038), **fora do escopo**: o adaptador `<video>` de desenvolvimento (`htmlVideoAdapter.ts`, desde a 003) põe a URL do stream no atributo `src` do `<video>` — no navegador do dev a URL de arquivo (e qualquer URL ao vivo/VOD com credencial) fica no DOM. Na TV o AVPlay não usa o DOM. | Baixo (só no navegador do dev; nunca visível na tela; afeta toda reprodução, não só a 058) | Reportado ao usuário em 2026-10-04 — corrigir agora ou logar `[Bug]` no backlog. O E2E da 058 deixa o `<video>` de desenvolvimento fora da varredura de segredos, com comentário. |
 
 ## Execution Notes
 
@@ -262,17 +271,28 @@ Stubs criados pelo plan (ponto de partida do execute, não travados):
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-10-04 | Fase 1 (Setup) | T001: servidor de teste com lista M3U com header (canal + filme, A1), painel Xtream falso com arquivo, `Range` e variantes configuráveis, `/_registro` | T003 precisa da TV ligada na LAN |
+| 2026-10-04 | Fase 2 (US1) | Headers da lista até o motor, PLAY-05, Info do stream; 2/2 contratos da fase; deploy da T003 parou no sdb (Host PC IP) e o usuário adiou os gates na TV para o fim (R-009) | T003 e T014 na TV antes de fechar a feature |
+| 2026-10-04 | Fase 3 (US2) | Arquivo de ponta a ponta: `archiveDays`, relógio do painel, URL REST/PHP, `fetchArchivePlayback`, timeline do EPG, sessão de arquivo com troca de variante e `PLAY-06`, chrome "Arquivo"/"Ao vivo", Guia com marca, `useLiveArchive`; 5/5 contratos; bug R-010 achado e corrigido | T014 na TV; E2E (T038) |
+| 2026-10-04 | Fase 4 (US3) | "Do início" (chrome/teclado/`useLiveArchive`) e selo da prévia; testes de tela do fluxo e do selo | E2E (T038); T003/T014 na TV |
+| 2026-10-04 | Polish | E2E Cenários A/B (`headers-catchup.mjs`, no `SUITE`); revisão de segredos; nota na ADR-010; `npm test` 2714/2714; `npm run test:e2e` 37/37 (uma rodada anterior disparada sem `--only` saiu com código 1 sem identificar o script — observar); `build:tizen` ok; achado R-011 (fora do escopo) | T003/T014/T043 na TV; decisão sobre R-011 |
 
-**PRÓXIMO**: —
+**PRÓXIMO**: decisão do usuário sobre R-011; depois a passada na TV — T003 (headers chegam ao servidor? `node e2e/lib/servidorHeadersArquivo.mjs --lan --porta=8058` + skill `tizen-tv`; antes, na TV: Host PC IP = 192.168.0.6 e reiniciar), T014 (busca com/sem `Range`) e T043; só então T044 e o status "Implementada".
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- (nenhum ainda)
+- `tv-web/src/components/player/usePlayerSession.ts` — caminho do arquivo (variante, `PLAY-06`, timeline, `onArchiveEndedRef`)
+- `tv-web/src/features/live/useLiveArchive.ts` — estado/comportamento do arquivo na Live (RETURN, fim, CH±, "Do início")
+- `tv-web/src/features/catalog/catalogApi.ts` — `fetchArchivePlayback`, `archive_days`, `headers`
+- `tv-web/e2e/headers-catchup.mjs` — E2E dos Cenários A e B (no `SUITE`)
+- `tv-web/e2e/lib/servidorHeadersArquivo.mjs` — servidor de teste (E2E e gates na TV)
 
 ## Cuidados para Retomada
 
 <!-- Armadilhas operacionais específicas desta feature, anexadas conforme descobertas. -->
 
-- (nenhum ainda)
+- `usePlayerSession` lê callbacks da tela dentro do efeito da sessão: um callback que depende de dado carregado DEPOIS (programação, lista) precisa de ref com o valor mais recente (R-010).
+- Testes de tela que apertam uma tecla logo depois de um estado novo aparecer: o `useRemoteNav` troca os handlers num efeito — espere um tique (`act` + `setTimeout 0`) antes da tecla, senão a tecla age no estado anterior (flake de 1 em 3 visto no T031).
+- `npm run test:e2e -- --only x` no PowerShell: o `npm` consome o `--only` (aviso "invalid config only") e roda a suíte INTEIRA. Use `node e2e/run.mjs --only x`.

@@ -7,6 +7,8 @@ import type { EnteredKey, TrailKey } from './liveTrail'
 import type { LiveChannels, LiveTrail } from './useLiveCatalog'
 import type { LiveSearch } from './useLiveSearch'
 import type { LiveZappingState } from './useLiveZapping'
+import type { GuideProgram } from './guide/guideGrid'
+import type { LiveArchiveState } from './useLiveArchive'
 
 /**
  * Guia completo aberto (feature 031): a lista e o canal de origem. Vive na
@@ -15,7 +17,8 @@ import type { LiveZappingState } from './useLiveZapping'
  * `LiveScreen`; o comportamento vem em `useLiveGuide` (feature 040).
  */
 export function useLiveGuideState() {
-  const [guide, setGuide] = useState<{ list: EnteredKey; originId: string | null } | null>(null)
+  // `programStart` (feature 058): de volta do arquivo, o Guia reabre com o foco no programa que tocava.
+  const [guide, setGuide] = useState<{ list: EnteredKey; originId: string | null; programStart?: number } | null>(null)
   const guideRef = useRef<EpgGuideHandle>(null)
   /** `true` entre "OK num programa" com o guia aberto no player e o canal escolhido começar a tocar. */
   const guideWatchPendingRef = useRef(false)
@@ -33,6 +36,8 @@ export interface LiveGuideParams {
   setCol: Dispatch<SetStateAction<0 | 1>>
   sourceId: string
   showToast: (message: string) => void
+  /** Feature 058: OK num programa do arquivo liga o arquivo da tela. */
+  archive: LiveArchiveState
 }
 
 /**
@@ -50,6 +55,7 @@ export function useLiveGuide({
   setCol,
   sourceId,
   showToast,
+  archive,
 }: LiveGuideParams) {
   const { guide: openGuide, setGuide, guideRef, guideWatchPendingRef } = guide
   const { playing, setPlaying, lastGoodChannelRef, zapSequenceRef, zapKeyRef } = zap
@@ -99,6 +105,20 @@ export function useLiveGuide({
     else guideWatchPendingRef.current = true // player: o guia só fecha em `onEnteredPlaying`
   }
 
+  /**
+   * Feature 058 (`logic/arquivo.md` §7): OK num programa encerrado que está no
+   * arquivo. Mesma vizinhança/foco de `watchFromGuide`, mas o Guia fecha na
+   * hora (a tela de erro do arquivo precisa ficar visível) e nenhuma falha volta
+   * ao canal anterior — o arquivo tem o próprio "Ao vivo".
+   */
+  function watchArchiveFromGuide(channel: CatalogItemOut, program: GuideProgram, list: CatalogItemOut[], listKey: EnteredKey) {
+    watchFromGuide(channel, list, listKey)
+    lastGoodChannelRef.current = null
+    guideWatchPendingRef.current = false
+    setGuide(null)
+    archive.setArchive({ channelId: channel.id, program, origin: 'guide', guideList: listKey })
+  }
+
   /** "Guia" do chrome do player (feature 031, FR-010): abre na lista de origem do canal, com o foco nele; a sessão segue tocando. */
   function openGuideFromPlayer() {
     if (!playing) return
@@ -127,6 +147,8 @@ export function useLiveGuide({
       onWatch={watchFromGuide}
       onClose={() => setGuide(null)}
       onNotify={showToast}
+      onWatchArchive={watchArchiveFromGuide}
+      initialProgramStart={openGuide.programStart ?? null}
     />
   ) : null
 

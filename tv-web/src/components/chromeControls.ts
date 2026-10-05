@@ -19,6 +19,10 @@ export type ChromeControlId =
   | 'aspect'
   | 'info'
   | 'guide'
+  /** Feature 058 (FR-012): no programa de arquivo, volta ao ao vivo do canal. */
+  | 'goLive'
+  /** Feature 058 (FR-015): no ao vivo de canal com arquivo, toca o programa atual desde o começo. */
+  | 'startOver'
 
 /**
  * `real`: age sobre a sessão. `soon`: mock "Em breve" (registro único
@@ -52,6 +56,14 @@ export interface ChromeFeatures {
    * real), `single` (1) ou `none` (0 ou motor sem a API). Ausente = `none`.
    */
   quality?: 'many' | 'single' | 'none'
+  /** Feature 058 (FR-012): VOD que é programa de arquivo — ganha "Ao vivo" logo depois de ⏩. */
+  archive?: boolean
+  /**
+   * Feature 058 (FR-015/FR-016): "Do início" no Live, logo depois de "Guia".
+   * `enabled` = real; `disabled` = canal com arquivo sem programa atual (soft
+   * disabled); `none`/ausente = canal sem arquivo, o controle não existe.
+   */
+  startOver?: 'enabled' | 'disabled' | 'none'
 }
 
 const NO_FEATURES: ChromeFeatures = { tracks: false, info: false }
@@ -168,10 +180,19 @@ export function chromeControls(
 ): ChromeControl[] {
   if (media === 'live') {
     const guide = t('player.chrome.guide')
-    return [
+    const live: ChromeControl[] = [
       features.guide
         ? { id: 'guide', availability: 'real', label: guide }
         : { id: 'guide', availability: 'soon', label: t('player.chrome.soon', { label: guide }) },
+    ]
+    // Feature 058: "Guia" continua o 1º (contratos 027/031/041 contam a partir dele).
+    if (features.startOver === 'enabled') {
+      live.push({ id: 'startOver', availability: 'real', label: t('player.chrome.startOver') })
+    } else if (features.startOver === 'disabled') {
+      live.push({ id: 'startOver', availability: 'unavailable', label: t('player.chrome.startOverUnavailable') })
+    }
+    return [
+      ...live,
       tracksControl(features, t),
       qualityControl(features, t),
       aspectControl(features, t),
@@ -196,6 +217,9 @@ export function chromeControls(
   }
   if (capabilities.canSeek) {
     controls.push({ id: 'jumpForward', availability: 'real', label: t('player.chrome.jumpForward') })
+  }
+  if (features.archive) {
+    controls.push({ id: 'goLive', availability: 'real', label: t('player.chrome.goLive') })
   }
   if (episode) {
     controls.push({

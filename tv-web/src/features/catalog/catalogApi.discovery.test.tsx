@@ -176,6 +176,33 @@ describe('useWeeklyTop10 (feature 057)', () => {
     expect(result.current.coveredCategories).toBe(2)
   })
 
+  it('o resultado não é calculado na renderização: a 1ª renderização vem sem dado e a fileira aparece depois; recalcular não a apaga', async () => {
+    await putKey()
+    await seedList('movie', ['Alfa', 'Beta', 'Gama'], 1)
+    await putCache('trending', 'movie', [tmdb(1, 'movie', 'Alfa'), tmdb(2, 'movie', 'Beta'), tmdb(3, 'movie', 'Gama'), tmdb(5, 'movie', 'Delta')])
+    const client = newClient()
+    const seen: Array<number | undefined> = []
+    const { result } = renderHook(
+      () => {
+        const row = useWeeklyTop10(SOURCE_ID, 'movie')
+        seen.push(row.data?.length)
+        return row
+      },
+      { wrapper: wrapperOf(client) },
+    )
+    expect(seen[0]).toBeUndefined() // nada é calculado antes do primeiro desenho
+    await waitFor(() => expect(result.current.data?.length).toBe(3))
+
+    // Categoria nova chega: o índice é refeito e o cruzamento recalculado; o resultado anterior fica até o novo chegar.
+    const pending = (await db.categories.where('sourceId').equals(SOURCE_ID).toArray()).find((c) => c.name === 'Pendente 0')!
+    await renewCategoryItems({ sourceId: SOURCE_ID, generation: 1, kind: 'movie', categoryId: pending.id!, groupOrder: 1 }, [recordOf('movie', 'Delta', 9)], 1)
+    const firstDefined = seen.findIndex((n) => n !== undefined)
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: ['catalog-search-index', SOURCE_ID] })
+    })
+    await waitFor(() => expect(result.current.data?.length).toBe(4))
+    expect(seen.slice(firstDefined).every((n) => n !== undefined)).toBe(true) // nunca voltou a `undefined`
+  })
   it('série usa o ranking e o índice de séries', async () => {
     await putKey()
     await seedList('series', ['Série A', 'Série B', 'Série C'])

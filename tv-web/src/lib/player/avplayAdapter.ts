@@ -4,6 +4,7 @@ import {
   type PlayerAdapterCallbacks,
   type PlayerError,
   type PlayerRegion,
+  type RequestHeaderName,
   type RequestHeaders,
   type RequestHeadersReport,
 } from './PlayerService'
@@ -254,6 +255,44 @@ function readQualities(avplay: AvplayApi): QualityOption[] | null {
   return options
 }
 
+/**
+ * Propriedade do AVPlay para cada header da lista (feature 058, `logic/headers.md`
+ * §1). `USER_AGENT` é documentada pela Samsung; `Referer` só ganha uma quando a
+ * T003 provar na TV que alguma chega ao servidor — sem prova, fica recusado.
+ */
+const PROPERTY_OF: Record<RequestHeaderName, string | undefined> = {
+  'User-Agent': 'USER_AGENT',
+  Referer: undefined,
+}
+
+/**
+ * Aplica os headers declarados — só no estado IDLE (depois de `open`, antes de
+ * `prepareAsync`). Devolve só NOMES: o valor é segredo em potencial (ADR-010) e o
+ * erro do motor nunca é repassado (pode citar o valor).
+ */
+function applyHeaders(avplay: AvplayApi, headers: RequestHeaders | undefined): RequestHeadersReport {
+  const report: { applied: RequestHeaderName[]; refused: RequestHeaderName[] } = { applied: [], refused: [] }
+  const declared: [RequestHeaderName, string | undefined][] = [
+    ['User-Agent', headers?.userAgent],
+    ['Referer', headers?.referer],
+  ]
+  for (const [name, value] of declared) {
+    if (value === undefined) continue
+    const property = PROPERTY_OF[name]
+    if (!property || typeof avplay.setStreamingProperty !== 'function') {
+      report.refused.push(name)
+      continue
+    }
+    try {
+      avplay.setStreamingProperty(property, value)
+      report.applied.push(name)
+    } catch {
+      report.refused.push(name)
+    }
+  }
+  return report
+}
+
 const ASPECT_MODES_AVPLAY: AspectMode[] = ['fit', 'fill', 'original', 'zoom']
 const ZOOM_FACTOR = 1.1
 
@@ -293,6 +332,8 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
   let displayRegion: PlayerRegion = { x: 0, y: 0, width: 1920, height: 1080 }
   /** Índice VIDEO forçado por `selectQuality`; `null` = adaptativo (Auto). */
   let forcedVideoIndex: number | null = null
+  /** Feature 058: o que a última `open` aplicou/recusou — só nomes. */
+  let lastHeadersReport: RequestHeadersReport = NO_REQUEST_HEADERS
 
   return {
     name: 'avplay',
@@ -301,11 +342,10 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
     rendersOnHardwarePlane: true,
     capabilities: AVPLAY_CAPABILITIES,
 
-    // STUB do sdd-plan (feature 058): `_headers` ainda é ignorado — a Fase 2
-    // aplica os headers entre `open` e `prepareAsync` (`logic/headers.md` §1).
-    open(url: string, region: PlayerRegion, startAtMs?: number, _headers?: RequestHeaders): void {
+    open(url: string, region: PlayerRegion, startAtMs?: number, headers?: RequestHeaders): void {
       const avplay = getAvplay()
       if (!avplay) {
+        lastHeadersReport = NO_REQUEST_HEADERS
         callbacks.onError({ code: null, message: 'Player da TV indisponível.' })
         return
       }
@@ -313,6 +353,9 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
       avplay.open(url)
       opened = true
       displayRegion = region
+      // Feature 058: headers da lista no estado IDLE. Uma abertura sem headers
+      // não toca em propriedade nenhuma — nada vaza de um item para o outro.
+      lastHeadersReport = applyHeaders(avplay, headers)
 
       avplay.setListener({
         onbufferingstart: () => callbacks.onStateChange('buffering'),
@@ -368,9 +411,8 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
       )
     },
 
-    // STUB do sdd-plan (feature 058): sempre "nada aplicado" até a Fase 2.
     requestHeadersReport(): RequestHeadersReport {
-      return NO_REQUEST_HEADERS
+      return lastHeadersReport
     },
 
     pause(): void {

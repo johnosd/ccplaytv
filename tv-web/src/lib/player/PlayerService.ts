@@ -323,10 +323,10 @@ export class PlayerServiceSession implements PlayerSession {
   readonly supportsTracks: boolean
   readonly supportsStreamInfo: boolean
   /**
-   * Feature 058. STUB do sdd-plan: sempre "nada aplicado" — a T0xx da Fase 2
-   * repassa `options.headers` ao `open` e lê `adapter.requestHeadersReport()`.
+   * Feature 058 (`logic/headers.md` §3): lido do adaptador logo depois do
+   * `open`. Motor sem `requestHeadersReport` = nada aplicado (tudo recusado).
    */
-  readonly requestHeaders: RequestHeadersReport = NO_REQUEST_HEADERS
+  readonly requestHeaders: RequestHeadersReport
   /** Feature 042: `PlayerAdapter.name` (nunca inclui dado sensível) — vai para a "Info técnica". */
   readonly engine: string
 
@@ -336,6 +336,9 @@ export class PlayerServiceSession implements PlayerSession {
   readonly supportsQuality: boolean
   private _currentAspect: AspectMode | null = null
   private _selectedQualityId: string | null = null
+
+  /** Feature 058: linha do tempo do EPG (arquivo) — sobrepõe a duração do motor e limita a busca ao "agora". */
+  private readonly timeline: PlayerTimeline | undefined
 
   // Porta single-flight de saltos (contrato §5; logic/reproducao-vod.md §3).
   private seekInFlight = false
@@ -347,7 +350,10 @@ export class PlayerServiceSession implements PlayerSession {
     kind: PlayableKind,
     createAdapter: PlayerAdapterFactory,
     startAtMs?: number,
+    headers?: RequestHeaders,
+    timeline?: PlayerTimeline,
   ) {
+    this.timeline = timeline
     this.adapter = createAdapter({
       onStateChange: (state) => this.applyState(state),
       onError: (error) => this.applyError(error),
@@ -366,6 +372,7 @@ export class PlayerServiceSession implements PlayerSession {
     // durante a vida da sessão (D-001).
     this._capabilities = resolveCapabilities(this.adapter.capabilities, kind)
     this.applyState('preparing')
+    let headersReport: RequestHeadersReport = { applied: [], refused: declaredHeaderNames(headers) }
     try {
       // A sessão decide SE repassa `startAtMs` (precisa de `canSeek` já
       // resolvido); o adaptador só decide COMO aplicá-lo, antes do play()
@@ -374,12 +381,17 @@ export class PlayerServiceSession implements PlayerSession {
         this._capabilities.canSeek && startAtMs !== undefined && startAtMs > 0
           ? startAtMs
           : undefined
-      this.adapter.open(url, region, effectiveStartAtMs)
+      // Feature 058: os valores dos headers só existem daqui até o adaptador.
+      this.adapter.open(url, region, effectiveStartAtMs, headers)
+      if (typeof this.adapter.requestHeadersReport === 'function') {
+        headersReport = this.adapter.requestHeadersReport()
+      }
     } catch {
       // A exceção original fica de fora de propósito: mensagens de erro de
       // rede/motor costumam embutir a URL, que carrega credencial.
       this.applyError({ code: null, message: 'Não foi possível iniciar a reprodução.' })
     }
+    this.requestHeaders = headersReport
   }
 
   get state(): PlayerState {
@@ -596,11 +608,21 @@ export class PlayerServiceSession implements PlayerSession {
    */
   private clampSeekTarget(positionMs: number): number {
     const lower = Math.max(0, positionMs)
-    const duration = this._progress?.durationMs
-    if (duration === undefined || duration <= 0) return lower
-    // Último instante VÁLIDO, não a duração exata: alcançar o fim por busca
-    // não pode ser um atalho para "concluído" (só o motor real conclui).
-    return Math.min(lower, duration - 1)
+    const upper = this.upperBound()
+    return upper === undefined ? lower : Math.min(lower, upper)
+  }
+
+  /**
+   * Último instante VÁLIDO para busca, não a duração exata: alcançar o fim por
+   * busca não pode ser um atalho para "concluído" (só o motor real conclui).
+   * Feature 058 (FR-014): no programa de arquivo em exibição, também o "agora".
+   * `undefined` = sem duração conhecida (só o limite inferior vale).
+   */
+  private upperBound(): number | undefined {
+    const duration = this._progress?.durationMs ?? this.timeline?.durationMs
+    if (duration === undefined || duration <= 0) return undefined
+    const live = this.timeline?.maxPositionMs?.()
+    return live === undefined ? duration - 1 : Math.max(0, Math.min(duration - 1, live))
   }
 
   /**
@@ -610,12 +632,9 @@ export class PlayerServiceSession implements PlayerSession {
   private clampJumpDelta(deltaMs: number): number {
     const position = this._progress?.positionMs ?? 0
     const minDelta = -position
-    const duration = this._progress?.durationMs
-    if (duration === undefined || duration <= 0) {
-      return Math.max(deltaMs, minDelta)
-    }
-    const maxDelta = duration - 1 - position
-    return Math.max(minDelta, Math.min(deltaMs, maxDelta))
+    const upper = this.upperBound()
+    if (upper === undefined) return Math.max(deltaMs, minDelta)
+    return Math.max(minDelta, Math.min(deltaMs, upper - position))
   }
 
   private applyState(next: PlayerState): void {
@@ -634,7 +653,8 @@ export class PlayerServiceSession implements PlayerSession {
 
   private applyProgress(progress: PlayerProgress): void {
     if (this._state === 'closed') return
-    this._progress = progress
+    // Feature 058 (FR-011): no arquivo a duração vem do EPG — a do stream do painel não é confiável.
+    this._progress = this.timeline ? { ...progress, durationMs: this.timeline.durationMs } : progress
     this.emit()
   }
 
@@ -670,6 +690,14 @@ export class PlayerServiceSession implements PlayerSession {
   }
 }
 
+/** Nomes dos headers declarados (valores descartados) — o que conta como recusado quando o motor não informa. */
+function declaredHeaderNames(headers: RequestHeaders | undefined): RequestHeaderName[] {
+  const names: RequestHeaderName[] = []
+  if (headers?.userAgent !== undefined) names.push('User-Agent')
+  if (headers?.referer !== undefined) names.push('Referer')
+  return names
+}
+
 /** `ASPECT_MODES ∩ getAspectModes()`, na ordem de `ASPECT_MODES`; `[]` sem o método ou se ele lançar. */
 function readAspectModes(adapter: PlayerAdapter): readonly AspectMode[] {
   if (typeof adapter.getAspectModes !== 'function') return []
@@ -694,7 +722,7 @@ export function createPlayerSession(
   options: PlayerServiceOptions = {},
 ): PlayerServiceSession {
   const factory = options.createAdapter ?? resolveAdapterFactory()
-  return new PlayerServiceSession(url, region, kind, factory, options.startAtMs)
+  return new PlayerServiceSession(url, region, kind, factory, options.startAtMs, options.headers, options.timeline)
 }
 
 /**

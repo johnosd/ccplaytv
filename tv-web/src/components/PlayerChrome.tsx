@@ -18,6 +18,8 @@ const CONTROL_ICON: Record<ChromeControlId, IconName> = {
   aspect: 'aspect',
   info: 'info',
   guide: 'guide',
+  goLive: 'live',
+  startOver: 'history',
 }
 
 function iconOf(control: ChromeControl, paused: boolean): IconName {
@@ -48,6 +50,10 @@ function shortText(control: ChromeControl, paused: boolean, t: Translator): stri
       return t('player.chrome.info')
     case 'guide':
       return t('player.chrome.guide')
+    case 'goLive':
+      return t('player.chrome.goLive')
+    case 'startOver':
+      return t('player.chrome.startOverShort')
   }
 }
 
@@ -67,6 +73,12 @@ export interface PlayerChromeProps {
   progress: PlayerProgress | null
   /** A própria barra de progresso está focada (VOD, ↑ a partir do 1º botão). */
   seekBarFocused?: boolean
+  /**
+   * Feature 058 (`logic/arquivo.md` §6): programa de arquivo em reprodução —
+   * a identidade do VOD vira selo "Arquivo" + canal + programa + horário.
+   * Nunca o selo "AO VIVO".
+   */
+  archive?: { title: string; timeRange: string }
 }
 
 /**
@@ -85,6 +97,7 @@ export function PlayerChrome({
   capabilities,
   progress,
   seekBarFocused,
+  archive,
 }: PlayerChromeProps) {
   const t = useT()
   const isLive = media === 'live'
@@ -119,6 +132,15 @@ export function PlayerChrome({
               </div>
             )}
           </div>
+        </div>
+      ) : archive ? (
+        <div className="player-chrome-identity">
+          <div className="player-chrome-archive-line">
+            <span className="player-chrome-archive-badge">{t('player.chrome.archive')}</span>
+            <span className="player-chrome-archive-channel">{identity.title}</span>
+          </div>
+          <div className="player-chrome-title">{archive.title}</div>
+          <div className="player-chrome-subtitle">{archive.timeRange}</div>
         </div>
       ) : (
         <div className="player-chrome-identity">

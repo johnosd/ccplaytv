@@ -111,6 +111,20 @@ são guardados, qualquer outro header e toda chave de licença/DRM é descartado
 na leitura; e o valor só é lido por quem for repassá-lo ao player (feature
 25b). A constituição não muda. Ver `sdd/specs/044-parser-m3u-headers/plan.md`.
 
+**Atualização (feature 058-headers-avplay-catchup, 2026-10-04):** (1) os headers
+da 044 passam a ser **lidos** — só por `fetchPlayback`, que os entrega à sessão
+de reprodução, que os entrega ao adaptador do motor (`setStreamingProperty` do
+AVPlay); para cima (sessão, tela, diagnóstico, "Info do stream") só sobem os
+**nomes** dos headers aplicados/recusados, nunca os valores. (2) A **URL de
+arquivo** (catch-up) de um canal Xtream (`/timeshift/…` ou
+`/streaming/timeshift.php?…`) é uma URL de reprodução como as outras: carrega a
+credencial, é montada na hora de tocar e **nunca guardada**, logada, exibida,
+posta em erro ou em chave de consulta. (3) O **relógio do painel**
+(`panelTimezone`, `panelUtcOffsetMinutes`) e a **variante de URL de arquivo** que
+já tocou (`archiveVariant`) ficam na fonte; não são segredo, mas também não vão a
+tela nem log. A constituição não muda. Ver
+`sdd/specs/058-headers-avplay-catchup/plan.md`.
+
 ## Alternativas Consideradas
 
 ### Manter a proibição e guardar só o conteúdo sem URL

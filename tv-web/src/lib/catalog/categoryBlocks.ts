@@ -82,6 +82,9 @@ export function itemsSignature(items: CatalogRecord[]): string {
       if (item.providerRating !== undefined || item.providerGenres !== undefined || item.providerBackdropUrl !== undefined) {
         fields.push(item.providerRating ?? null, item.providerGenres ?? null, item.providerBackdropUrl ?? null)
       }
+      // Feature 058 (`data-model.md` §1): mesma regra — só quando existe, DEPOIS dos da 055. Uma lista sem arquivo
+      // gera o vetor de antes; uma com arquivo regrava o bloco uma vez (senão nunca gravaria os dias).
+      if (item.archiveDays !== undefined) fields.push(item.archiveDays)
       return fields
     }),
   )

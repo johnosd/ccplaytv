@@ -451,6 +451,11 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
                   {channelNumberOf(activeChannel, categories) && (
                     <div className="live-hero-number">{channelNumberOf(activeChannel, categories)}</div>
                   )}
+                  {/* Feature 058 (FR-015, decisão do usuário): só o selo — a prévia não tem foco
+                      desde a 049; "Do início" mora no player. Nada focável aqui. */}
+                  {(activeChannel.archive_days ?? 0) > 0 && (
+                    <span className="live-hero-archive">{t('live.archiveBadge', { days: activeChannel.archive_days ?? 0 })}</span>
+                  )}
                   {/* EPG (feature 030, FR-025): só com dado real. Sem programa
                       atual, apenas "Ao vivo" — nunca título inventado. */}
                   <div className="live-hero-live">

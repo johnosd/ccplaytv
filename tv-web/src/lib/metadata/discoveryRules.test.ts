@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { matchDiscoveryTitles, selectTip, selectTop10, versionTier, type MatchedTitle } from './discoveryRules'
+import { matchDiscoveryTitles, matchDiscoveryTitlesAsync, selectTip, selectTop10, versionTier, type MatchedTitle } from './discoveryRules'
 import type { DiscoveryTitle } from './tmdbDiscovery'
 
 interface Local {
@@ -106,5 +106,51 @@ describe('selectTip — popularidade pesa no sorteio', () => {
     }
     expect(popular).toBeGreaterThan(obscure * 1.5)
     expect(obscure).toBeGreaterThan(0)
+  })
+})
+
+describe('matchDiscoveryTitlesAsync — cruzamento sem prender a thread (feature 057, T043)', () => {
+  const makeLocals = (n: number): Local[] => Array.from({ length: n }, (_, i) => ({ id: `l${i}`, name: `Título ${i}`, year: 2020 + (i % 5) }))
+  const titles = [tmdb(1, 'Título 3', 2023), tmdb(2, 'Título 10', 2020), tmdb(3, 'Título 77', 2022), tmdb(4, 'Inexistente', 2021)]
+
+  it('dá o mesmo resultado da versão síncrona', async () => {
+    const locals = makeLocals(500)
+    const sync = matchDiscoveryTitles(titles, locals, read)
+    const async = await matchDiscoveryTitlesAsync(titles, locals, read, { yieldFn: async () => {}, sliceSize: 50 })
+    expect(async.map((m) => [m.title.rank, m.local.id])).toEqual(sync.map((m) => [m.title.rank, m.local.id]))
+    expect(async.length).toBe(3)
+  })
+
+  it('cede a thread a cada fatia (nunca um bloco só) e não muta a entrada', async () => {
+    const locals = makeLocals(1000)
+    const before = locals.map((l) => l.id)
+    let yields = 0
+    await matchDiscoveryTitlesAsync(titles, locals, read, { yieldFn: async () => void (yields += 1), sliceSize: 100 })
+    expect(yields).toBe(10)
+    expect(locals.map((l) => l.id)).toEqual(before)
+  })
+
+  it('Top 10 e Dica do mesmo tipo (chamadas concorrentes com a mesma lista) montam o índice uma vez só', async () => {
+    const locals = makeLocals(300)
+    let nameReads = 0
+    const counting = { ...read, name: (l: Local) => ((nameReads += 1), l.name) }
+    const opts = { yieldFn: async () => {}, sliceSize: 50 }
+    const [a, b] = await Promise.all([
+      matchDiscoveryTitlesAsync(titles, locals, counting, opts),
+      matchDiscoveryTitlesAsync([tmdb(9, 'Título 5', 2020)], locals, counting, opts),
+    ])
+    expect(a.length).toBe(3)
+    expect(b.length).toBe(1)
+    const afterFirst = nameReads
+    await matchDiscoveryTitlesAsync(titles, locals, counting, opts) // 3ª chamada: índice já guardado, nenhum registro relido
+    expect(nameReads).toBe(afterFirst)
+    expect(afterFirst).toBeLessThanOrEqual(locals.length * 2) // `versionTier` lê o nome de novo, mas só uma vez por registro
+  })
+
+  it('sem títulos nada é lido', async () => {
+    const locals = makeLocals(10)
+    let reads = 0
+    expect(await matchDiscoveryTitlesAsync([], locals, { ...read, name: (l: Local) => ((reads += 1), l.name) })).toEqual([])
+    expect(reads).toBe(0)
   })
 })

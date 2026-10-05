@@ -31,6 +31,7 @@ import { epgManualHostOf, epgStatusOf } from '../epg/epgStatus'
 import { deleteEpgForSource } from '../epg/epgRepository'
 import type { EpgStatus } from '../epg/types'
 import type { SourceAccount } from './sourceAccount'
+import type { ArchiveVariant, PanelClock } from './archiveUrl'
 
 /** A fonte como as telas a veem — sem credencial, por construção. */
 export interface SourceView {
@@ -251,6 +252,8 @@ export interface SyncMark {
   account?: { status: 'active'; expiresAt: number | null; checkedAt: number }
   /** Feature 034: seções que não responderam. Regravado sempre, inclusive como `[]`. */
   unavailableSections?: CatalogSection[]
+  /** Feature 058: relógio do painel lido nesta verificação (`server_info`). Só regravado quando vem. */
+  clock?: PanelClock
 }
 
 /** O que o painel disse da conta (feature 034). `expiresAt` só é regravado quando vem no patch. */
@@ -258,6 +261,34 @@ export interface AccountMark {
   status: AccountStatusKind
   expiresAt?: number | null
   checkedAt: number
+  /** Feature 058: relógio do painel lido nesta verificação. Só regravado quando vem. */
+  clock?: PanelClock
+}
+
+/**
+ * Feature 058 (`data-model.md` §4): os dois campos do relógio são regravados
+ * juntos — um painel que deixou de declarar o fuso não pode ficar com o antigo
+ * ao lado de um deslocamento novo.
+ */
+function applyClock(patch: Partial<SourceRecord>, clock: PanelClock | undefined): void {
+  if (!clock) return
+  patch.panelTimezone = clock.timezone
+  patch.panelUtcOffsetMinutes = clock.utcOffsetMinutes
+}
+
+/**
+ * Feature 058 (R4 da research): a variante de URL de arquivo que **tocou** nesta
+ * fonte — nunca gravada por falha. Ausente/indefinida = nada a lembrar.
+ */
+export async function rememberArchiveVariant(
+  id: string,
+  variant: ArchiveVariant | undefined,
+  database: CatalogDb = db,
+): Promise<void> {
+  if (variant !== 'rest' && variant !== 'php') return
+  const source = await database.sources.get(id)
+  if (!source || source.archiveVariant === variant) return
+  await database.sources.update(id, { archiveVariant: variant })
 }
 
 /**
@@ -268,6 +299,7 @@ export interface AccountMark {
 export async function markAccount(id: string, mark: AccountMark, database: CatalogDb = db): Promise<void> {
   const patch: Partial<SourceRecord> = { accountStatus: mark.status, accountCheckedAt: mark.checkedAt }
   if (mark.expiresAt !== undefined) patch.accountExpiresAt = mark.expiresAt
+  applyClock(patch, mark.clock)
   await database.sources.update(id, patch)
 }
 
@@ -311,6 +343,7 @@ export async function markSynced(
   if (mark.allowedFormats !== undefined) patch.providerAllowedFormats = mark.allowedFormats
   if (mark.truncatedByStorage !== undefined) patch.lastTruncatedByStorage = mark.truncatedByStorage
   if (mark.discardedByType !== undefined) patch.lastDiscardedByType = mark.discardedByType
+  applyClock(patch, mark.clock)
 
   await database.sources.update(id, patch)
 }

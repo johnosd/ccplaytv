@@ -1,4 +1,11 @@
-import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerRegion } from './PlayerService'
+import {
+  NO_REQUEST_HEADERS,
+  type PlayerAdapter,
+  type PlayerAdapterCallbacks,
+  type PlayerRegion,
+  type RequestHeaders,
+  type RequestHeadersReport,
+} from './PlayerService'
 import type { EngineCapabilities } from './capabilities'
 import type { StreamInfo } from './tracks'
 import { ASPECT_MODES, type AspectMode } from './viewChoice'
@@ -52,6 +59,7 @@ export function createHtmlVideoAdapter(
   let demuxDead = false
   let errorReported = false
   let closed = false
+  let headersReport: RequestHeadersReport = NO_REQUEST_HEADERS
 
   function reportError(): void {
     // Depois de uma tentativa de demux o elemento pode disparar `error` de novo
@@ -109,9 +117,23 @@ export function createHtmlVideoAdapter(
     rendersOnHardwarePlane: false,
     capabilities: HTML_VIDEO_CAPABILITIES,
 
-    open(url: string, _region: PlayerRegion, startAtMs?: number): void {
+    requestHeadersReport(): RequestHeadersReport {
+      return headersReport
+    },
+
+    open(url: string, _region: PlayerRegion, startAtMs?: number, headers?: RequestHeaders): void {
       // A região é ignorada de propósito: no navegador o vídeo é um nó do DOM
       // posicionado por CSS, ao contrário do plano de hardware do AVPlay.
+      // Feature 058 (`logic/headers.md` §2): o navegador não deixa definir
+      // `User-Agent`/`Referer` de mídia — todo header declarado é recusado e
+      // o valor nunca é lido.
+      headersReport = {
+        applied: [],
+        refused: [
+          ...(headers?.userAgent !== undefined ? (['User-Agent'] as const) : []),
+          ...(headers?.referer !== undefined ? (['Referer'] as const) : []),
+        ],
+      }
       const video = document.createElement('video')
       video.autoplay = true
       video.playsInline = true

@@ -28,6 +28,7 @@ import {
   type ClassifiedEntry,
 } from './classifier'
 import { parseExpDate } from './sourceAccount'
+import type { PanelClock } from './archiveUrl'
 
 /** TS quando a conta permite mais de um formato — o que reproduziu na TV de referência. */
 const PREFERRED_FORMAT = 'ts'
@@ -225,6 +226,35 @@ export interface AccountStatus {
   expiresAt: number | null
   /** `undefined` = a conta não declarou formatos — nunca assumir um. */
   allowedFormats?: string[]
+  /**
+   * Relógio do painel (feature 058, `data-model.md` §5), de `server_info`.
+   * Ausente quando o painel não declara nada utilizável.
+   */
+  clock?: PanelClock
+}
+
+/** Faixa válida de deslocamento UTC (−14 h … +14 h). */
+const MAX_OFFSET_MINUTES = 840
+
+/**
+ * `server_info.timezone` (fuso IANA) e o deslocamento medido de `time_now`
+ * (relógio de parede do painel, `AAAA-MM-DD HH:mm:ss`) contra `timestamp_now`
+ * (Unix s), arredondado a 15 min. Nada aqui é segredo, mas também não vai a
+ * log nem tela.
+ */
+export function readPanelClock(serverInfo: unknown): PanelClock | undefined {
+  if (typeof serverInfo !== 'object' || serverInfo === null) return undefined
+  const info = serverInfo as Record<string, unknown>
+  const clock: PanelClock = {}
+  if (typeof info.timezone === 'string' && info.timezone.trim() !== '') clock.timezone = info.timezone.trim()
+  const wall = typeof info.time_now === 'string' ? /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(info.time_now.trim()) : null
+  const timestamp = typeof info.timestamp_now === 'number' ? info.timestamp_now : typeof info.timestamp_now === 'string' ? Number(info.timestamp_now) : NaN
+  if (wall && Number.isFinite(timestamp) && timestamp > 0) {
+    const asUtc = Date.UTC(Number(wall[1]), Number(wall[2]) - 1, Number(wall[3]), Number(wall[4]), Number(wall[5]), Number(wall[6] ?? 0))
+    const offset = Math.round((asUtc - timestamp * 1000) / 60_000 / 15) * 15
+    if (Math.abs(offset) <= MAX_OFFSET_MINUTES) clock.utcOffsetMinutes = offset === 0 ? 0 : offset
+  }
+  return clock.timezone !== undefined || clock.utcOffsetMinutes !== undefined ? clock : undefined
 }
 
 /**
@@ -265,12 +295,16 @@ export async function resolveAccountStatus(
 
     const info = userInfo as Record<string, unknown>
     const formats = info.allowed_output_formats
-    return {
+    const status: AccountStatus = {
       authorized: interpretAuth(info.auth),
       expired: isExpired(info.exp_date, now),
       expiresAt: parseExpDate(info.exp_date),
       allowedFormats: Array.isArray(formats) ? formats.map(String) : undefined,
     }
+    // Feature 058: só quando o painel declarou — sem chave vazia no objeto (testes da 034 comparam por igualdade).
+    const clock = readPanelClock((payload as Record<string, unknown>).server_info)
+    if (clock) status.clock = clock
+    return status
   }
 
   // Todas as tentativas falharam por conexão: o problema é alcançar o
@@ -393,7 +427,7 @@ export function mapLiveEntry(
     raw.category_id === undefined || raw.category_id === null ? undefined : String(raw.category_id)
   const category = categoryId ? categories.get(categoryId) : undefined
 
-  return {
+  const mapped: MappedChannel = {
     kind: 'channel',
     name,
     originalName: name,
@@ -412,6 +446,21 @@ export function mapLiveEntry(
     // compartilhar o mesmo id (variantes HD/SD).
     epgChannelId: normalizeEpgChannelId(raw.epg_channel_id),
   }
+  // Feature 058 (FR-007, `data-model.md` §1): só quando o painel declara.
+  const archiveDays = normalizeArchiveDays(raw.tv_archive, raw.tv_archive_duration)
+  if (archiveDays !== undefined) mapped.archiveDays = archiveDays
+  return mapped
+}
+
+/**
+ * `tv_archive` igual a 1 (número ou string) E `tv_archive_duration` inteiro
+ * positivo → os dias de arquivo; qualquer outra coisa → ausente (nunca inventa
+ * arquivo).
+ */
+export function normalizeArchiveDays(tvArchive: unknown, duration: unknown): number | undefined {
+  if (tvArchive !== 1 && tvArchive !== '1') return undefined
+  const days = typeof duration === 'number' ? duration : typeof duration === 'string' && duration.trim() !== '' ? Number(duration) : NaN
+  return Number.isInteger(days) && days > 0 ? days : undefined
 }
 
 export interface XtreamChannelsResult {

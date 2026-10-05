@@ -117,11 +117,11 @@ const index = useQuery({
   enabled: sourceId !== null && titles !== undefined && titles.length > 0,   // sem TMDB (sem chave/cache) o índice NÃO é lido por causa destas fileiras
   staleTime: 60_000,
   refetchOnMount: false,                                        // quem já tem o índice em cache não força releitura (as telas hero já o fazem com 'always')
-  select,                                                       // estável (`useCallback` por [titles, kind, sourceId, now])
+  // sem `select`: o cruzamento NÃO roda na renderização (T043, ver abaixo)
 })
 ```
 
-- `select` roda `matchDiscoveryTitles` sobre `index.entries` lendo `entry.record` (`originalName`, `year`, `providerRating`, `addedAt`, `id`), depois `selectTop10` / `selectTip`,
+- **O cruzamento roda fora da renderização (T043, achado C-09 da convergência)**: um `useEffect` (depois do primeiro desenho) chama `matchDiscoveryTitlesAsync(titles, index.entries, DISCOVERY_READ)` — o mesmo cruzamento, mas com o índice dos registros montado em fatias de `MATCH_SLICE` (2000) que cedem a thread (`yieldToMain`, `setTimeout(0)`) e guardado pela identidade de `index.entries` (Top 10 e Dica do mesmo tipo, e as próximas chamadas, reaproveitam; concorrentes compartilham a mesma promessa). Depois `selectTop10`/`selectTip` e só então `toItemOut` nos ≤ 10 escolhidos; o resultado vai para um `useState` com o escopo (`fonte|tipo`). **Enquanto recalcula** (categoria nova, índice refeito) fica o resultado anterior da MESMA lista — a fileira e o foco não piscam; ao trocar de lista/tipo o escopo muda e o dado antigo some. Medido na lista real (43 mil filmes): antes a maior tarefa longa do Início era ≈200 ms; depois, ≈65–77 ms. A versão síncrona `matchDiscoveryTitles` continua existindo (contrato e testes).
   e só então `toItemOut(record, kind)` nos ≤ 10 escolhidos. Devolve `{ items | picks, coveredCategories, totalCategories }`.
 - Retorno de `useWeeklyTop10`: `{ data: DiscoveryPick[] | undefined, coveredCategories, totalCategories, isLoading }`; `useDailyTip`: `data: CatalogItemOut[] | undefined`. `data` é `[]` quando a regra manda ausente.
   `isLoading` = qualquer das duas consultas carregando; **nenhum estado de carregamento vira fileira** (fileira só existe com dado).

@@ -1,5 +1,11 @@
 import type { ReactNode } from 'react'
-import type { PlayerAdapterFactory, PlayerState, TrackChoice, ViewChoice } from '../../lib/player/PlayerService'
+import type {
+  PlayerAdapterFactory,
+  PlayerState,
+  RequestHeadersReport,
+  TrackChoice,
+  ViewChoice,
+} from '../../lib/player/PlayerService'
 import type { MediaKey } from '../../lib/tizenMediaKeys'
 import type { StreamInfo } from '../../lib/player/tracks'
 import type { PlaybackDiagnosis } from '../../lib/player/playbackDiagnosis'
@@ -148,7 +154,6 @@ export interface PlayerLayerProps {
    * arquivo do canal `itemId` (`fetchArchivePlayback`), com controles de VOD,
    * linha do tempo do EPG e a ação "Ao vivo"; ausente = comportamento de
    * sempre. Trocar de programa (ou para `null`) recria a sessão.
-   * STUB do sdd-plan: ainda não é lida — a Fase 3 liga.
    */
   archive?: PlayerArchive | null
   /** Feature 058 (FR-013): o programa de arquivo chegou ao fim — a TELA decide entre o seguinte e o ao vivo. */
@@ -201,6 +206,8 @@ export type PanelState =
 export interface InfoSnapshot {
   info: StreamInfo | null
   activeAudioLabel: string | undefined
+  /** Feature 058 (FR-005): nomes dos headers da lista aplicados/recusados — nunca valores. */
+  headers?: RequestHeadersReport
 }
 
 /**

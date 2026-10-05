@@ -303,3 +303,11 @@
 {"timestamp": "2026-10-04T10:29:30.519505Z", "level": "INFO", "module": "SimulatorAPIClient", "message": "API Client initialized", "function": "_log", "line": 137, "base_url": "http://localhost:38888", "timeout": 5000}
 {"timestamp": "2026-10-04T10:29:30.521508Z", "level": "INFO", "module": "TizenSimulatorMCPServer", "message": "Tizen Simulator MCP Server initialized", "function": "_log", "line": 137}
 {"timestamp": "2026-10-04T10:29:30.521508Z", "level": "INFO", "module": "TizenSimulatorMCPServer", "message": "Starting Tizen Simulator MCP Server...", "function": "_log", "line": 137}
+{"timestamp": "2026-10-04T22:41:10.814770Z", "level": "INFO", "module": "Main", "message": "Starting Tizen Simulator MCP Server...", "function": "_log", "line": 137}
+{"timestamp": "2026-10-04T22:41:10.817766Z", "level": "INFO", "module": "SimulatorAPIClient", "message": "API Client initialized", "function": "_log", "line": 137, "base_url": "http://localhost:38888", "timeout": 5000}
+{"timestamp": "2026-10-04T22:41:10.819769Z", "level": "INFO", "module": "TizenSimulatorMCPServer", "message": "Tizen Simulator MCP Server initialized", "function": "_log", "line": 137}
+{"timestamp": "2026-10-04T22:41:10.819769Z", "level": "INFO", "module": "TizenSimulatorMCPServer", "message": "Starting Tizen Simulator MCP Server...", "function": "_log", "line": 137}
+{"timestamp": "2026-10-04T22:43:47.769462Z", "level": "INFO", "module": "Main", "message": "Starting Tizen Simulator MCP Server...", "function": "_log", "line": 137}
+{"timestamp": "2026-10-04T22:43:47.772463Z", "level": "INFO", "module": "SimulatorAPIClient", "message": "API Client initialized", "function": "_log", "line": 137, "base_url": "http://localhost:38888", "timeout": 5000}
+{"timestamp": "2026-10-04T22:43:47.773462Z", "level": "INFO", "module": "TizenSimulatorMCPServer", "message": "Tizen Simulator MCP Server initialized", "function": "_log", "line": 137}
+{"timestamp": "2026-10-04T22:43:47.773462Z", "level": "INFO", "module": "TizenSimulatorMCPServer", "message": "Starting Tizen Simulator MCP Server...", "function": "_log", "line": 137}

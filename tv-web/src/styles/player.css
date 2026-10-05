@@ -178,6 +178,28 @@
   color: var(--text-tertiary);
 }
 
+/* Feature 058 (`logic/arquivo.md` §6): programa de arquivo — selo "Arquivo" +
+   nome do canal acima do título do programa. Nunca o selo "AO VIVO". */
+.player-chrome-archive-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.player-chrome-archive-badge {
+  padding: 6px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-active);
+  color: var(--text-primary);
+  font: 700 calc(15px * var(--font-scale)) var(--font-body);
+  letter-spacing: 0.04em;
+}
+
+.player-chrome-archive-channel {
+  font: 600 calc(20px * var(--font-scale)) var(--font-body);
+  color: var(--text-secondary);
+}
+
 /* Faixa do canal (US2, FR-009/FR-034): nenhum <button> aqui de propósito —
    é o nível "band", sem controle focado (Complexity Tracking do plan.md). */
 .player-chrome-band {

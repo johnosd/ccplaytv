@@ -22,6 +22,10 @@ export interface PlayerChromeParams {
   qualityOptionsRef: RefObject<QualityOption[]>
   episodeStep: PlayerEpisodeStep | null | undefined
   onGuide: (() => void) | undefined
+  /** Feature 058: a sessão toca um programa de arquivo — o VOD ganha "Ao vivo". */
+  archive: boolean
+  /** Feature 058: "Do início" no Live (`null`/ausente = canal sem arquivo). */
+  startOver: { enabled: boolean } | null | undefined
 }
 
 export interface PlayerChrome {
@@ -54,6 +58,8 @@ export function usePlayerChrome({
   qualityOptionsRef,
   episodeStep,
   onGuide,
+  archive,
+  startOver,
 }: PlayerChromeParams): PlayerChrome {
   const t = useT()
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -119,6 +125,8 @@ export function usePlayerChrome({
       guide: onGuide !== undefined,
       aspect: (session?.aspectModes.length ?? 0) > 0,
       quality: qualityCount >= 2 ? 'many' : qualityCount === 1 ? 'single' : 'none',
+      archive,
+      startOver: startOver ? (startOver.enabled ? 'enabled' : 'disabled') : 'none',
     }, t)
   }
 

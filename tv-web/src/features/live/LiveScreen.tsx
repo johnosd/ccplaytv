@@ -26,6 +26,7 @@ import { useLiveSearch } from './useLiveSearch'
 import { useLiveZapping, useLiveZappingState } from './useLiveZapping'
 import { useLiveGuide, useLiveGuideState } from './useLiveGuide'
 import { useLiveKeyboard } from './useLiveKeyboard'
+import { useLiveArchive, useLiveArchiveState } from './useLiveArchive'
 import { renderLiveColumns, renderLiveShell, type LiveColumnsModel } from './liveColumns'
 
 /**
@@ -110,6 +111,8 @@ export function LiveScreen({
   const [col, setCol] = useState<0 | 1>(startsInFavorites ? 1 : 0)
   const zap = useLiveZappingState()
   const guide = useLiveGuideState()
+  // Feature 058: programa de arquivo em reprodução (nunca persistido).
+  const archiveState = useLiveArchiveState()
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
@@ -165,7 +168,7 @@ export function LiveScreen({
     enabled: channelsNavigable,
   })
 
-  const liveGuide = useLiveGuide({ guide, zap, trail, channels, search, setCol, sourceId, showToast })
+  const liveGuide = useLiveGuide({ guide, zap, trail, channels, search, setCol, sourceId, showToast, archive: archiveState })
   const { enterTrailEntry, handleTrailDirection, handleTrailSelect } = useLiveKeyboard({
     sourceId,
     contentActive,
@@ -187,6 +190,8 @@ export function LiveScreen({
     guide,
     liveGuide,
   })
+  // Feature 058 (`logic/arquivo.md` §7): depois do teclado, para não mudar a ordem dos efeitos existentes (040).
+  const liveArchive = useLiveArchive({ sourceId, archiveState, zap, zapping, guide })
 
   const shellModel = { shell, zone, setZone, topbarItem, setTopbarItem, onBack, t }
   const { categoriesQuery, categories, topPhase, focusedCategory, isFavoritesFocused, isAllFocused, enteredFavorites, enteredAll } = trail
@@ -310,13 +315,17 @@ export function LiveScreen({
             // acompanha a troca de canal (zapping/CH±) porque `playing` muda.
             now: channels.playingNow,
           }}
-          onChannelStep={zapping.stepChannel}
+          onChannelStep={liveArchive.onChannelStep}
           onEditSource={onEditSource}
-          onClose={zapping.onPlayerClosed}
+          onClose={liveArchive.onPlayerClose}
           onIdleSelect={zapping.openZapping}
           onGuide={liveGuide.openGuideFromPlayer}
           onEnteredPlaying={zapping.onEnteredPlaying}
-          onSessionError={zapping.onSessionError}
+          onSessionError={liveArchive.onSessionError}
+          archive={liveArchive.playerArchive}
+          onArchiveEnded={liveArchive.onArchiveEnded}
+          onGoLive={liveArchive.onGoLive}
+          startOver={liveArchive.startOver}
           topLayer={
             zapOpen
               ? zapping.zapTopLayer(

@@ -504,6 +504,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Feature 058 (FR-015): selo de arquivo do canal — informativo, nunca focável. */
+.live-hero-archive {
+  align-self: flex-start;
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-active);
+  color: var(--info);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-caption);
+}
+
 .live-hero-live {
   display: flex;
   align-items: center;

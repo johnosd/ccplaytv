@@ -279,3 +279,74 @@ description: "Tasks da feature 057 — Top 10 da semana e Dica (TMDB) em Filmes,
 - Os contratos travados só são editados na T011 (R-001), nas linhas do Top 10 e com as travas regravadas
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->
+## Phase 8: Convergence
+
+**Objetivo**: Fechar as lacunas da auditoria de convergência de 2026-10-04 (nenhuma bloqueia uma story P1; as duas MEDIUM precisam de decisão ou medição).
+
+### Implementation
+
+- [X] T036 [MEDIUM] (aprovado pelo usuário e aplicado em 2026-10-04) Emendar o texto de FR-015 em `sdd/specs/057-top10-dica-tmdb/spec.md` (precisa de aprovação do usuário): "sem rede ou com erro do TMDB" usam o último cache; **sem chave** as fileiras ficam ausentes e nada é pedido (já é o comportamento, contrato e US4/AC1; `removeTmdbKey` limpa o cache). Origem: FR-015 × US4/AC1 (C-01)
+- [X] T037 [MEDIUM] (feito no navegador em 2026-10-04: pesa, ver `plan.md` R-003; a TV física segue sem medição) Medir a abertura do Início e de Filmes antes × depois (com e sem chave TMDB, lista real, navegador; idealmente também na TV física pela skill `tizen-tv`) e registrar em `plan.md` R-003; se pesar, adiar o cruzamento do Início para depois do primeiro desenho. Origem: SC-008 / plan: R-003 (C-02)
+- [X] T038 [LOW] Alinhar o texto da spec: FR-016 → "uma carga por tipo e período" (a Dica usa 8 páginas) e US4/AC2 → "o último conjunto de candidatos guardado, sorteado com a semente do dia". Origem: FR-016, US4/AC2 (C-03, C-06)
+- [X] T039 [LOW] Acrescentar à spec o FR do aviso de cobertura parcial ("Com base em X de Y categorias", como o FR-014 da 056) e uma nota de que invalidação do cache, `staleTime` e CSS do Top 10 são correções internas. Origem: plan: D-012 / Constitution "Progresso e Capacidades São Reais" (C-05, C-07)
+- [X] T040 [LOW] Registrar em `plan.md` → Riscos e Decisões o deslocamento de card sob o foco na Dica quando chega categoria nova (aceito, como R-012 da 056) ou, se preferirem, qualificar FR-021 na spec. Origem: FR-021 (C-04)
+- [X] T041 [LOW] (feito com `git rm`) Remover o screenshot órfão `tv-web/test-results/carrosseis-filmes-series/02-slot-top10.png`. Origem: higiene (C-08)
+
+### Testes da Fase
+
+- [ ] T042 Reexecutar `sdd-converge 057-top10-dica-tmdb` depois das tasks acima até não sobrar achado
+
+**Critério de Conclusão**: C-01..C-08 resolvidos (spec e plano alinhados ao comportamento entregue; R-003 com medição no navegador registrada) e `sdd-converge` sem achados; `check-contract-tests.ps1 -Slug 057-top10-dica-tmdb` segue íntegro.
+
+**Registro da Fase**:
+
+- Status: Concluída (2026-10-05)
+- Feito: T036 (FR-015), T041 (screenshot), T037 (medição no navegador) e, aprovados pelo usuário em 2026-10-05, T038 (FR-016 "uma carga por tipo e período"; US4/AC2 "conjunto de candidatos sorteado com a semente do dia"), T039 (FR-022 do aviso de cobertura e nota das correções internas na spec) e T040 (R-016, risco aceito, com a ressalva no FR-021). Spec: `FR-015`, `FR-016`, `FR-021`, `FR-022`, a US4/AC2, as Assumptions e as Clarifications.
+- Contrato: `check-contract-tests.ps1 -Slug 057-top10-dica-tmdb` íntegro; nenhum código nem contrato foi tocado nesta fase.
+- Testes executados: nenhum novo (só documentação); a suíte da 057 segue como na Fase 9.
+- Pendências: T042 segue aberta até a convergência sem achados.
+## Phase 9: Convergence
+
+**Objetivo**: Tratar o achado da 2ª auditoria de convergência (2026-10-04). A Fase 8 segue aberta para T038–T040 (textos da spec e risco aceito, ainda sem aprovação do usuário).
+
+### Implementation
+
+- [X] T043 [HIGH] Tirar o cruzamento do caminho de renderização: hoje `useDiscoveryRow` (`tv-web/src/features/catalog/catalogApi.ts`) roda `matchDiscoveryTitles`/`selectTop10`/`selectTip` dentro do `select` do react-query, durante a renderização, e a lista real mede ≈330 ms de atraso na 1ª fileira de Filmes e uma tarefa longa de ≈200–270 ms no Início. Calcular **depois do primeiro desenho**, fora da renderização e em fatias que cedam a thread (ou agendado em idle), mostrar as fileiras quando o resultado chegar, e compartilhar o cálculo de Top 10 e Dica do mesmo tipo (um cruzamento por índice e título, não dois). Sem mudar contratos nem comportamento visível além do momento em que as fileiras aparecem. Origem: SC-008 / plan: R-003 (C-09)
+- [X] T044 [MEDIUM] Reexecutar a medição de abertura com o mesmo roteiro (lista real completa no aparelho, sem chave × com chave, cache frio e quente, 7 repetições) e registrar o antes/depois em `plan.md` R-003; meta: o Início sem tarefa longa adicional acima de ≈50 ms e a 1ª fileira de Filmes sem atraso perceptível em relação a "sem chave". Fazer também a passada na TV física pela skill `tizen-tv`. Origem: SC-008 (C-09)
+
+### Testes da Fase
+
+- [ ] T045 Testes dos hooks cobrindo a nova ordem (a fileira aparece depois do primeiro desenho, mesma seleção de antes, sem chave nada é calculado) e reexecução de `sdd-converge 057-top10-dica-tmdb` até não sobrar achado
+
+**Critério de Conclusão**: contratos 057 5/5 verdes e trava íntegra; a medição de T044 sem o atraso e sem a tarefa longa de C-09; `npm run test` e o E2E `top10-dica` verdes; `sdd-converge` sem achados (junto com a Fase 8).
+
+**Registro da Fase**:
+
+- Status: Concluída em parte (2026-10-04): T043 e T044 feitas; T045 aguarda a nova convergência.
+- Feito: `matchDiscoveryTitlesAsync` em `discoveryRules.ts` (índice dos registros em fatias de 2000 que cedem a thread, guardado pela identidade da lista e compartilhado por Top 10 e Dica; a versão síncrona e o contrato ficam como estavam); `useDiscoveryRow` agora calcula num `useEffect` depois do primeiro desenho, sem `select`, e mantém o resultado anterior da mesma lista enquanto recalcula. Re-medição (lista real, 9 repetições, p50): Início — maior tarefa longa 195–201 ms → 62–77 ms. Filmes — o custo restante ao abrir é de código preexistente (`select` de `useRecentlyAdded`/`useTopRated`, ≈370 ms no perfil, `plan.md` R-015); o roteiro "Início → Filmes" continua medindo 1ª fileira em ≈430–480 ms com chave, mas outro fluxo mediu 75–107 ms e os experimentos de isolamento deram diferença de ≈10 ms atribuível à 057: **medição de Filmes inconclusiva**, a TV física não foi medida.
+- Contrato: `npx vitest run` dos 3 arquivos 057 → 5/5 verdes na suíte completa; `check-contract-tests.ps1 -Slug 057-top10-dica-tmdb` íntegro.
+- Testes executados: novos — 4 em `discoveryRules.test.ts` (async igual ao síncrono, cede a thread por fatia, índice montado uma vez para chamadas concorrentes, sem títulos nada é lido) e 1 em `catalogApi.discovery.test.tsx` (1ª renderização sem dado, a fileira aparece depois, recalcular não a apaga); `npm run test` → 417 arq. / 2714 testes; `tsc -b` e `npm run lint` exit 0; `node e2e/run.mjs --only top10-dica,carrosseis-filmes-series,vitrine-filmes-series,bem-avaliados,home-busca-configuracoes --jobs 2` → 5/5.
+- Pendências: T045 (reexecutar a convergência); a diferença entre os dois fluxos de medição de Filmes não foi explicada; TV física sem medição; T038–T040 da Fase 8 seguem abertas (aguardam aprovação do texto da spec).
+
+## Phase 10: Convergence
+
+**Objetivo**: Tratar o que sobrou do desempenho (SC-008) depois da T043. As Fases 8 e 9 seguem abertas para T038–T040 (textos da spec, aguardam aprovação) e T042/T045.
+
+### Implementation
+
+- [ ] T046 [MEDIUM] Explicar a divergência da medição da 1ª fileira de Filmes (≈430–480 ms no roteiro "Início → Filmes" × 75–107 ms no fluxo de isolamento, mesmo estado) e fechar o SC-008: repetir a medição num único roteiro que alterne os dois fluxos, registrar o resultado em `plan.md` R-003 e fazer a passada na TV física pela skill `tizen-tv` (Início e Filmes, com e sem chave). Origem: SC-008 / plan: R-003 (C-10)
+- [X] T047 [LOW] Decidir (precisa do usuário) se o custo preexistente do 1º desenho de Filmes com o índice em cache (`select` de `useRecentlyAdded`/`useTopRated`, `plan.md` R-015) vira um item `[Bug]` em `.planning/backlog.md` → Ideias Futuras, a ser tratado fora desta feature. Origem: plan: R-015 (C-10)
+
+### Testes da Fase
+
+- [ ] T048 Reexecutar `sdd-converge 057-top10-dica-tmdb` até não sobrar achado
+
+**Critério de Conclusão**: C-10 fechado (medição reproduzível e a TV medida, ou o limite aceito e registrado pelo usuário); junto com a Fase 8 resolvida, `sdd-converge` sem achados e `check-contract-tests.ps1 -Slug 057-top10-dica-tmdb` íntegro.
+
+**Registro da Fase**:
+
+- Status: Parcial (2026-10-05): T047 feita; T046 (TV física) e T048 abertas.
+- Feito: T047 — decisão do usuário de registrar: item **70 `[Bug]`** em `.planning/backlog.md` (custo preexistente do 1º desenho de Filmes com o índice em cache, `plan.md` R-015), a tratar com `sdd-bugfix` fora da 057.
+- Contrato: sem contrato nesta fase; trava íntegra.
+- Testes executados: —
+- Pendências: T046 — medir Início e Filmes na TV física e explicar a divergência entre os dois roteiros de medição (C-10); T048 — reexecutar `sdd-converge`.

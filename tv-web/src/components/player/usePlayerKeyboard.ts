@@ -41,6 +41,15 @@ export interface PlayerKeyboardParams {
   resumeGateRef: RefObject<ResumeGate>
   /** "Tentar de novo" do aviso da retomada sem rede (OK com o gate `blocked`). */
   recheckResume: () => void
+  /**
+   * Feature 058 (`logic/arquivo.md` §6): a sessão toca um programa de arquivo —
+   * CH± (e ↑/↓ com o chrome oculto) trocam para o ao vivo do vizinho.
+   */
+  archive: boolean
+  /** Feature 058: OK em "Ao vivo" no arquivo. */
+  onGoLive: (() => void) | undefined
+  /** Feature 058: "Do início" na linha do Live (`null`/ausente = sem o controle). */
+  startOver: { enabled: boolean; onSelect: () => void } | null | undefined
 }
 
 /**
@@ -75,6 +84,9 @@ export function usePlayerKeyboard({
   episodeStep,
   resumeGateRef,
   recheckResume,
+  archive,
+  onGoLive,
+  startOver,
 }: PlayerKeyboardParams): void {
   const t = useT()
   const {
@@ -105,6 +117,12 @@ export function usePlayerKeyboard({
       return
     }
     session.togglePause()
+  }
+
+  /** Feature 058 (FR-018): no arquivo, trocar de canal leva ao ao vivo do vizinho (a tela zera o arquivo). */
+  function stepChannelFromArchive(direction: 'previous' | 'next') {
+    const moved = onChannelStep?.(direction)
+    if (moved === false) showToast(t(LIMIT_MESSAGE_KEY.channel[direction]))
   }
 
   useRemoteNav(
@@ -157,6 +175,11 @@ export function usePlayerKeyboard({
         const paused = session.state === 'paused'
 
         if (chromeLevelRef.current !== 'full') {
+          // Feature 058 (D-011): no arquivo, ↑/↓ com o chrome oculto trocam de canal (como no Live).
+          if (archive && (dir === 'up' || dir === 'down')) {
+            stepChannelFromArchive(dir === 'up' ? 'previous' : 'next')
+            return
+          }
           // Ocultos: esquerda/direita SALTAM e revelam; cima/baixo só revelam.
           if (dir === 'left') {
             session.jumpBy(-JUMP_MS)
@@ -240,6 +263,13 @@ export function usePlayerKeyboard({
             scheduleHide()
             return
           }
+          if (control?.id === 'startOver') {
+            // Feature 058 (FR-016): soft disabled explica; nunca toca nada sem programa atual.
+            if (control.availability === 'real') startOver?.onSelect()
+            else showToast(t('player.startOver.noProgram'))
+            scheduleHide()
+            return
+          }
           if (control?.availability === 'soon' && control.comingSoonId) {
             showToast(comingSoonToast(control.comingSoonId, t))
           }
@@ -266,6 +296,7 @@ export function usePlayerKeyboard({
         if (control.id === 'playPause') togglePauseGuarded(session)
         else if (control.id === 'jumpBack') session.jumpBy(-JUMP_MS)
         else if (control.id === 'jumpForward') session.jumpBy(JUMP_MS)
+        else if (control.id === 'goLive') onGoLive?.()
         else if (control.id === 'episodePrevious' || control.id === 'episodeNext') {
           const direction = control.id === 'episodePrevious' ? 'previous' : 'next'
           if (control.availability === 'real') episodeStep?.onStep(direction)
@@ -307,7 +338,11 @@ export function usePlayerKeyboard({
         }
 
         // VOD
-        if (key === 'ChannelUp' || key === 'ChannelDown') return // ignoradas (FR-027)
+        if (key === 'ChannelUp' || key === 'ChannelDown') {
+          // Feature 058 (FR-018): no arquivo, CH± vai ao ao vivo do vizinho; fora dele, ignoradas (FR-027 da 027).
+          if (archive) stepChannelFromArchive(key === 'ChannelUp' ? 'previous' : 'next')
+          return
+        }
 
         if (key === 'MediaPlayPause') {
           togglePauseGuarded(session) // já no-op sem canPause (mesma porta que o SELECT usa)

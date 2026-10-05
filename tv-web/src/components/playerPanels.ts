@@ -1,6 +1,7 @@
 import { APP_LANGUAGE_LOCALE, type AppLanguage } from '../lib/i18n/languages'
 import { createTranslator, type Translator } from '../lib/i18n/translate'
 import { pt } from '../lib/i18n/messages/pt'
+import type { RequestHeadersReport } from '../lib/player/PlayerService'
 import {
   SUBTITLE_DELAYS_MS,
   trackLabels,
@@ -188,6 +189,7 @@ export function buildInfoRows(
   activeAudioLabel: string | undefined,
   online: boolean,
   t: Translator = createTranslator('pt'),
+  headers?: RequestHeadersReport,
 ): InfoPanelModel {
   const rows: InfoRow[] = []
   const language = t.language
@@ -213,6 +215,12 @@ export function buildInfoRows(
   }
   if (activeAudioLabel) rows.push({ key: 'audio', label: t('player.info.audio'), value: activeAudioLabel })
   const noTechnicalData = rows.length === 0
+  // Feature 058 (FR-005): só os NOMES dos headers da lista — o valor nunca chega aqui.
+  if (headers && (headers.applied.length > 0 || headers.refused.length > 0)) {
+    const refused = headers.refused.length > 0 ? t('player.info.headersRefused', { names: headers.refused.join(', ') }) : ''
+    const value = [headers.applied.join(', '), refused].filter((part) => part !== '').join(' · ')
+    rows.push({ key: 'headers', label: t('player.info.headers'), value })
+  }
   rows.push({ key: 'connection', label: t('player.info.connection'), value: online ? t('player.info.online') : t('player.info.offline') })
   return { rows, noTechnicalData }
 }

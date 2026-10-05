@@ -52,9 +52,42 @@ export class ArchiveClockUnknownError extends Error {
   }
 }
 
-/** STUB do sdd-plan: a Fase 3 implementa (`logic/arquivo.md` §2). */
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** `AAAA-MM-DD:HH-MM` no relógio de parede do painel; segundos descartados (precisão de minuto do painel). */
+function wallClock(instant: number, clock: PanelClock): string {
+  if (clock.timezone) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: clock.timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(instant)
+      const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
+      return `${part('year')}-${part('month')}-${part('day')}:${part('hour')}-${part('minute')}`
+    } catch {
+      // RangeError: fuso desconhecido pelo motor — cai no deslocamento medido.
+    }
+  }
+  if (typeof clock.utcOffsetMinutes === 'number' && Number.isFinite(clock.utcOffsetMinutes)) {
+    const d = new Date(instant + clock.utcOffsetMinutes * 60_000)
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}:${pad(d.getUTCHours())}-${pad(d.getUTCMinutes())}`
+  }
+  throw new ArchiveClockUnknownError()
+}
+
+/** `logic/arquivo.md` §2. Lança `ArchiveClockUnknownError` sem relógio do painel. */
 export function buildArchiveUrl(variant: ArchiveVariant, input: ArchiveUrlInput): string {
-  void variant
-  void input
-  throw new Error('not implemented')
+  const start = wallClock(input.startMs, input.clock)
+  const duration = Math.max(1, Math.ceil((input.endMs - input.startMs) / 60_000))
+  const user = encodeURIComponent(input.username)
+  const pass = encodeURIComponent(input.password)
+  if (variant === 'php') {
+    return `${input.base}/streaming/timeshift.php?username=${user}&password=${pass}&stream=${input.streamId}&start=${start}&duration=${duration}`
+  }
+  return `${input.base}/timeshift/${user}/${pass}/${duration}/${start}/${input.streamId}.${input.extension}`
 }

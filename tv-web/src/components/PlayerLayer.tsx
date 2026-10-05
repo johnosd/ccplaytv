@@ -13,6 +13,7 @@ import { SubtitleOverlay } from './SubtitleOverlay'
 import { buildTracksPanel } from './playerPanels'
 import type { PlayerEpisodeStep, PlayerIdentity } from './chromeControls'
 import { useT } from '../lib/i18n/I18nProvider'
+import { formatEpgTimeRange } from '../lib/epg/formatEpgTime'
 import {
   DEFAULT_GENERIC_ERROR_KEY,
   DEFAULT_UNAVAILABLE_KEY,
@@ -68,6 +69,10 @@ export function PlayerLayer({
   initialViewChoice,
   onViewChoiceChange,
   onEditSource,
+  archive,
+  onArchiveEnded,
+  onGoLive,
+  startOver,
 }: PlayerLayerProps) {
   const t = useT()
   const unavailableMessage = unavailableMessageProp ?? t(DEFAULT_UNAVAILABLE_KEY)
@@ -82,7 +87,8 @@ export function PlayerLayer({
   const [preferences] = useState(() => readPlayerPreferences())
   const { toastMessage, toastKey, showToast } = useToast()
 
-  const chrome = usePlayerChrome({ sessionRef, panelRef, qualityOptionsRef, episodeStep, onGuide })
+  const isArchive = archive !== null && archive !== undefined
+  const chrome = usePlayerChrome({ sessionRef, panelRef, qualityOptionsRef, episodeStep, onGuide, archive: isArchive, startOver })
   const panels = usePlayerPanels({
     sessionRef,
     panelRef,
@@ -110,6 +116,8 @@ export function PlayerLayer({
     chrome,
     reapplyTrackChoice: panels.reapplyTrackChoice,
     reapplyViewChoice: panels.reapplyViewChoice,
+    archive,
+    onArchiveEnded,
   })
 
   const isErrorScreen = phase.kind === 'error'
@@ -120,6 +128,7 @@ export function PlayerLayer({
         retryable: phase.retryable,
         diagnosis: errorDiagnosis,
         canEditSource: onEditSource !== undefined,
+        canGoLive: isArchive && onGoLive !== undefined,
       })
     : []
 
@@ -133,6 +142,10 @@ export function PlayerLayer({
     } else if (action === 'edit') {
       const sourceId = sourceIdRef.current
       if (sourceId !== null) onEditSource?.(sourceId)
+    } else if (action === 'live') {
+      setErrorFocus(0)
+      setErrorInfoOpen(false)
+      onGoLive?.()
     } else {
       onClose()
     }
@@ -170,6 +183,9 @@ export function PlayerLayer({
     episodeStep,
     resumeGateRef,
     recheckResume,
+    archive: isArchive,
+    onGoLive,
+    startOver,
   })
 
   const label =
@@ -270,6 +286,11 @@ export function PlayerLayer({
               capabilities={session.capabilities}
               progress={session.progress}
               seekBarFocused={chromeMedia === 'vod' && chrome.seekBarFocusedRef.current}
+              archive={
+                archive && chromeMedia === 'vod'
+                  ? { title: archive.title, timeRange: formatEpgTimeRange(archive.start, archive.end, t.language) }
+                  : undefined
+              }
             />
           )}
           {/* Legenda embutida desenhada pelo app (feature 029, D-004): não
@@ -290,6 +311,7 @@ export function PlayerLayer({
             <PlayerInfoPanel
               info={panels.panelInfoRef.current.info}
               activeAudioLabel={panels.panelInfoRef.current.activeAudioLabel}
+              headers={panels.panelInfoRef.current.headers}
             />
           )}
         </>

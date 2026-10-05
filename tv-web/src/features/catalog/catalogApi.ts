@@ -36,7 +36,10 @@ import { markEntry } from '../../lib/perf/entryTiming'
 import { isKeyRepeatBurst, subscribeKeyRepeatBurst } from '../../lib/focus/keyRepeat'
 import { prefetchScheduler } from '../../lib/catalog/prefetch'
 import { ensureSeriesEpisodes, type SeriesFetchOutcome } from '../../lib/catalog/seriesLoader'
-import { PlaybackUnavailableError, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
+import { PlaybackUnavailableError, resolveArchivePlaybackUrl, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
+import { ArchiveClockUnknownError, type ArchiveVariant } from '../../lib/catalog/archiveUrl'
+import { checkSourceAccount } from '../../lib/catalog/accountCheck'
+import { isArchiveAvailable } from '../../lib/epg/catchup'
 import type { PlaybackHeaders } from '../../lib/catalog/m3uHeaders'
 import {
   buildStableId,
@@ -77,7 +80,7 @@ import type { TmdbTitleRef } from '../../lib/catalog/db'
 import { FILMOGRAPHY_SHOWN_MAX, loadPersonCredits } from '../../lib/metadata/tmdbPeople'
 import { resolveTmdbTitles } from '../../lib/metadata/localTitleMatch'
 import { similarTabStatus } from '../../lib/metadata/similarTab'
-import { matchDiscoveryTitles, selectTip, selectTop10, type MatchedTitle } from '../../lib/metadata/discoveryRules'
+import { matchDiscoveryTitlesAsync, selectTip, selectTop10, type MatchedTitle } from '../../lib/metadata/discoveryRules'
 import { loadTipPool, loadWeeklyTrending, type DiscoveryKind } from '../../lib/metadata/tmdbDiscovery'
 
 const EPG_READ_BEFORE_MS = 24 * 60 * 60 * 1000
@@ -175,8 +178,7 @@ export interface CatalogItemOut {
   /**
    * Dias de arquivo (catch-up) que o painel declara para o canal (feature 058,
    * FR-007): `tv_archive` = 1 com `tv_archive_duration` > 0. `null` = sem
-   * arquivo (inclusive toda fonte M3U avulsa). STUB do sdd-plan: ainda não
-   * preenchido — a Fase 3 grava `archiveDays` no catálogo e o expõe aqui.
+   * arquivo (inclusive toda fonte M3U avulsa).
    */
   archive_days?: number | null
 }
@@ -203,7 +205,7 @@ export interface CatalogItemPlayback {
    * Headers que a lista M3U declarou para o item (feature 044; repassados ao
    * motor pela feature 058, FR-001). **Segredo em potencial** (ADR-010): só
    * atravessam até o adaptador — nunca estado de tela, log, erro ou chave de
-   * consulta. STUB do sdd-plan: `fetchPlayback` ainda não preenche (Fase 2).
+   * consulta. Ausente quando a lista não declarou nenhum.
    */
   headers?: PlaybackHeaders
 }
@@ -311,12 +313,15 @@ function itemOut(
     provider_genres: record.providerGenres ?? null,
     provider_backdrop_url: record.providerBackdropUrl ?? null,
     epg_channel_id: record.epgChannelId ?? null,
+    archive_days: record.archiveDays ?? null,
   }
 }
 
 // Re-exportado: telas falam só com `catalogApi`, nunca com
 // `lib/catalog` direto — o mesmo motivo de D-001 para repositórios.
 export type { CatalogCategory, CategoryFetchOutcome }
+// Feature 058: a camada de reprodução lembra a variante de URL de arquivo que tocou.
+export { rememberArchiveVariant } from '../../lib/catalog/sourceRepository'
 
 /**
  * A estrutura de uma seção — as categorias, na ordem declarada. Rápido e
@@ -868,6 +873,9 @@ export async function fetchPlayback(itemId: string): Promise<CatalogItemPlayback
       series_id: record?.seriesId ?? null,
       season_number: record?.seasonNumber ?? null,
       episode_number: record?.episodeNumber ?? null,
+      // Feature 058 (FR-001): só quando a lista declarou — segredo em potencial,
+      // atravessa até o adaptador e morre lá.
+      ...(record?.playbackHeaders ? { headers: record.playbackHeaders } : {}),
     }
   } catch (error) {
     // Item existe no catálogo mas não dá para montar a URL dele. É a mesma
@@ -880,16 +888,63 @@ export async function fetchPlayback(itemId: string): Promise<CatalogItemPlayback
   }
 }
 
+/** O retorno de `fetchArchivePlayback`: o de `fetchPlayback` com `kind: 'archive'` e a variante usada. */
+export type ArchivePlayback = Omit<CatalogItemPlayback, 'kind'> & {
+  kind: 'archive'
+  /** Variante de URL desta tentativa — a sessão lembra a que tocou. Opcional (o contrato a omite). */
+  archive_variant?: ArchiveVariant
+}
+
 /**
  * Feature 058 (FR-010/FR-017, `logic/arquivo.md` §2/§3): a URL de arquivo do
  * programa `program` do canal `itemId`, montada na hora (nunca guardada) com a
- * variante de URL que a fonte aceitou por último. `kind` volta `'archive'`.
- * STUB do sdd-plan: a Fase 3 implementa.
+ * variante pedida, ou a que a fonte aceitou por último (`rest` sem nenhuma).
+ * Sem arquivo para o programa, sem item ou sem relógio do painel → 409 (a URL
+ * nunca vai para o erro).
  */
-export async function fetchArchivePlayback(itemId: string, program: ArchiveProgramRef): Promise<Omit<CatalogItemPlayback, 'kind'> & { kind: 'archive' }> {
-  void itemId
-  void program
-  throw new Error('not implemented')
+export async function fetchArchivePlayback(
+  itemId: string,
+  program: ArchiveProgramRef,
+  options?: { variant?: ArchiveVariant },
+): Promise<ArchivePlayback> {
+  const id = Number(itemId)
+  const record = await getChannel(id, db)
+  if (!record || record.kind !== 'channel' || !isArchiveAvailable(record.archiveDays, program, Date.now())) {
+    throw new CatalogApiError(409, 'Item sem fonte de reprodução disponível.')
+  }
+  const source = await db.sources.get(record.sourceId)
+  const variant = options?.variant ?? source?.archiveVariant ?? 'rest'
+  const resolve = () => resolveArchivePlaybackUrl(id, program, variant, db)
+  let url: string
+  try {
+    try {
+      url = await resolve()
+    } catch (error) {
+      if (!(error instanceof ArchiveClockUnknownError)) throw error
+      // Relógio ainda não lido (fonte sincronizada antes da 058): uma consulta
+      // leve à conta, com o limite de 5 s da 034, grava o relógio — e tenta de novo.
+      await checkSourceAccount(record.sourceId)
+      url = await resolve()
+    }
+  } catch (error) {
+    if (error instanceof PlaybackUnavailableError || error instanceof ArchiveClockUnknownError) {
+      throw new CatalogApiError(409, 'Item sem fonte de reprodução disponível.')
+    }
+    throw error
+  }
+  return {
+    item_id: itemId,
+    kind: 'archive',
+    url,
+    container_hint: null,
+    source_id: record.sourceId,
+    provider_stream_id: record.providerStreamId ?? null,
+    original_name: record.originalName,
+    series_id: null,
+    season_number: null,
+    episode_number: null,
+    archive_variant: variant,
+  }
 }
 
 /**
@@ -1577,31 +1632,47 @@ function useDiscoveryRow<R>(
     staleTime: (query) => (query.state.data?.status === 'ok' && !query.state.data.stale ? 30 * 60 * 1000 : 0),
   })
   const titles = tmdb.data?.titles
-  const select = useCallback(
-    (index: Awaited<ReturnType<typeof loadSearchIndex>>) => ({
-      value: project(matchDiscoveryTitles(titles ?? [], index.entries, DISCOVERY_READ), { now, seed: `${dayKey(now)}|${kind}|${sourceId}`, kind }),
-      coveredCategories: index.coveredCategories,
-      totalCategories: index.totalCategories,
-    }),
-    [titles, kind, sourceId, now, project],
-  )
   const index = useQuery({
     queryKey: ['catalog-search-index', sourceId, kind],
     queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
     enabled: sourceId !== null && titles !== undefined && titles.length > 0,
     staleTime: 60_000,
     refetchOnMount: false,
-    select,
   })
+
+  // O cruzamento NÃO roda na renderização (nem no `select` do react-query): com a lista real ele prendia a thread por ≈200 ms
+  // e atrasava o primeiro desenho. Roda depois do desenho, em fatias que cedam a thread (`matchDiscoveryTitlesAsync`), e o
+  // índice dos registros é montado uma vez para o Top 10 e a Dica do mesmo tipo. Enquanto recalcula (categoria nova, outro
+  // dia) fica o resultado anterior da MESMA lista, para a fileira e o foco não piscarem.
+  const scope = `${sourceId}|${kind}`
+  const [computed, setComputed] = useState<{ scope: string; value: R; coveredCategories: number; totalCategories: number } | undefined>()
+  const indexData = index.data
+  useEffect(() => {
+    if (sourceId === null || indexData === undefined || titles === undefined || titles.length === 0) return
+    let cancelled = false
+    void matchDiscoveryTitlesAsync(titles, indexData.entries, DISCOVERY_READ).then((matches) => {
+      if (cancelled) return
+      setComputed({
+        scope,
+        value: project(matches, { now, seed: `${dayKey(now)}|${kind}|${sourceId}`, kind }),
+        coveredCategories: indexData.coveredCategories,
+        totalCategories: indexData.totalCategories,
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [indexData, titles, scope, sourceId, kind, now, project])
+
   const settledEmpty = tmdb.data !== undefined && tmdb.data.titles.length === 0
+  const current = computed?.scope === scope ? computed : undefined
   return {
-    data: index.data?.value ?? (settledEmpty ? (project([], { now, seed: '', kind }) as R) : undefined),
-    coveredCategories: index.data?.coveredCategories ?? 0,
-    totalCategories: index.data?.totalCategories ?? 0,
+    data: settledEmpty ? (project([], { now, seed: '', kind }) as R) : current?.value,
+    coveredCategories: current?.coveredCategories ?? 0,
+    totalCategories: current?.totalCategories ?? 0,
     isLoading: tmdb.isLoading || index.isLoading,
   }
 }
-
 function projectTop10(matches: MatchedTitle<DiscoveryEntries[number]>[], context: DiscoveryContext): DiscoveryPick[] {
   return selectTop10(matches).map(({ local, rank }) => ({ item: toItemOut(local.record, context.kind), rank }))
 }

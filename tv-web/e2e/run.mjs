@@ -58,6 +58,7 @@ export const SUITE = [
   'e2e/campos-da-listagem.mjs',
   'e2e/bem-avaliados.mjs',
   'e2e/top10-dica.mjs',
+  'e2e/headers-catchup.mjs',
 ]
 
 function lerArgs(argv) {

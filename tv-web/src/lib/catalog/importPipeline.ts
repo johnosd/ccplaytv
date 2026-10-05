@@ -501,6 +501,8 @@ export async function startImport(
         if (keepUrl && channel.playbackHeaders) record.playbackHeaders = channel.playbackHeaders
         // Feature 055 (D-002/D-003): campos da listagem só quando existem; gênero e fundo só em série.
         if (channel.providerRating !== undefined) record.providerRating = channel.providerRating
+        // Feature 058 (FR-007): dias de arquivo do painel, só no canal (caminho eager de `acquireXtreamChannels`).
+        if (channel.kind === 'channel' && channel.archiveDays !== undefined) record.archiveDays = channel.archiveDays
         if (channel.kind === 'series') {
           if (channel.providerGenres !== undefined) record.providerGenres = channel.providerGenres
           if (channel.providerBackdropUrl !== undefined) record.providerBackdropUrl = channel.providerBackdropUrl
@@ -879,6 +881,8 @@ export async function startImport(
           ? { status: 'active', expiresAt: accountSeen.expiresAt, checkedAt: now() }
           : undefined,
       unavailableSections: run.unavailableSections ?? [],
+      // Feature 058: relógio do painel para o arquivo (catch-up), só quando a conta foi consultada.
+      clock: mode !== 'legacy_m3u' ? accountSeen?.clock : undefined,
     }, database)
 
     run.status = 'completed'

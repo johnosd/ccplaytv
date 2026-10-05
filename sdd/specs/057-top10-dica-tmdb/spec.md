@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-04
 
-**Status**: Implementada
+**Status**: Convergência Pendente
 
 **Input**: "implementar top 10 filmes, top 10 séries da semana com imdb. Implementar carrossel de dica de filme e série usando dados do TMDB também de forma aleatória usando média de votos, ano, popularidade. Incluir cada um na sua tela: filme na tela principal de filmes e série na tela principal de séries. Incluir os dois, filmes e séries, na tela de início." Preferência de versão informada na entrevista: trazer o título principal, sem `[L]` nem 4K, e só cair para legendado ou 4K quando não houver outra.
 
@@ -104,7 +104,7 @@ Se a chave TMDB não foi configurada, a rede falha, o TMDB responde com erro ou 
 **Acceptance Scenarios**:
 
 1. **Given** nenhuma chave TMDB, **When** a pessoa abre Filmes, Séries e Início, **Then** as fileiras novas não aparecem, nenhum erro é exibido e nenhuma chamada ao TMDB é feita.
-2. **Given** um uso bem-sucedido nesta semana e agora sem rede, **When** a pessoa abre a tela, **Then** o Top 10 vem do cache semanal e a Dica do cache do dia (ou, se o dia virou e não há rede, do último sorteio guardado).
+2. **Given** um uso bem-sucedido nesta semana e agora sem rede, **When** a pessoa abre a tela, **Then** o Top 10 vem do cache semanal e a Dica do cache do dia (ou, se o dia virou e não há rede, do último conjunto de candidatos guardado, sorteado com a semente do dia).
 3. **Given** erro do TMDB (chave inválida, limite, 5xx) e sem cache, **When** a tela abre, **Then** as fileiras ficam ausentes e a tela segue navegável.
 4. **Given** a fonte M3U avulsa sem categorias obtidas, **When** a tela abre, **Then** o cruzamento só usa o que já está obtido no aparelho, e a fileira aparece ou some conforme a regra de mínimo.
 5. **Given** a chegada de novas categorias, **When** o cruzamento muda, **Then** as fileiras se atualizam sozinhas sem perder o foco da pessoa.
@@ -142,13 +142,14 @@ Se a chave TMDB não foi configurada, a rede falha, o TMDB responde com erro ou 
 - **FR-012**: As fileiras DEVEM indicar a procedência "TMDB" (no título, subtítulo ou rótulo do destaque); o IMDb NUNCA DEVE ser apresentado como fonte, e nota alguma deve ser exibida com procedência errada.
 - **FR-013**: Focar um card DEVE apenas atualizar o destaque, sem iniciar reprodução nem consulta ao TMDB ou à rede; OK DEVE abrir o detalhe do título da lista.
 - **FR-014**: Voltar do detalhe DEVE restaurar a tela com foco e posição no mesmo card, reconciliados por **id do item**, e não por índice.
-- **FR-015**: Sem chave TMDB, sem rede ou com erro do TMDB, as quatro fileiras DEVEM usar o **último resultado em cache** do aparelho (Top 10 semanal, Dica diária), e sem cache DEVEM estar ausentes, sem erro visível, sem fileira vazia e sem "Em breve".
-- **FR-016**: A consulta ao TMDB DEVE ocorrer ao abrir a tela (não ao focar), no máximo uma por tipo e período de cache, sem travar a tela nem a navegação enquanto carrega (nenhuma fileira "carregando" sem elemento focável).
+- **FR-015** *(emendado em 2026-10-04, T036 do `sdd-converge`, aprovado pelo usuário)*: Sem rede ou com erro do TMDB (chave recusada, limite de uso, 5xx), as quatro fileiras DEVEM usar o **último resultado em cache** do aparelho (Top 10 semanal, Dica diária), e sem cache DEVEM estar ausentes, sem erro visível, sem fileira vazia e sem "Em breve". **Sem chave TMDB** as fileiras ficam ausentes e nada é pedido ao TMDB (remover a chave também esvazia o cache da descoberta).
+- **FR-016**: A consulta ao TMDB DEVE ocorrer ao abrir a tela (não ao focar), no máximo uma **carga** por tipo e período de cache (o ranking semanal é uma consulta; a Dica reúne algumas páginas de `discover`), sem travar a tela nem a navegação enquanto carrega (nenhuma fileira "carregando" sem elemento focável).
 - **FR-017**: A chave TMDB usada DEVE ser exclusivamente a BYOK da feature 032, só enviada ao próprio TMDB, e NUNCA DEVE aparecer em log, mensagem de erro ou UI.
 - **FR-018**: O sistema DEVE remover os mocks `vod-top10-movies` e `vod-top10-series` do ponto único de "Em breve" (e suas mensagens nos três idiomas), sem alterar `vod-because`, e registrar a entrega no backlog.
 - **FR-019**: Os textos novos (títulos das fileiras, rótulos de procedência) DEVEM passar pelo catálogo i18n em pt, en e es; títulos e nomes vindos do provedor não são traduzidos.
 - **FR-020**: A navegação por controle remoto DEVE seguir sem armadilha de foco: o foco entra nas fileiras novas, percorre os cards e sai para as fileiras vizinhas, nas três telas.
-- **FR-021**: As fileiras DEVEM se atualizar sozinhas quando novas categorias da lista forem obtidas (cobertura parcial aceita), sem mover o foco nem trocar cards sob ele.
+- **FR-021**: As fileiras DEVEM se atualizar sozinhas quando novas categorias da lista forem obtidas (cobertura parcial aceita), sem mover o foco nem trocar cards sob ele. *(Na Dica, se uma categoria nova fizer um candidato deslocar justamente o card focado, o foco fica na posição lembrada: risco aceito, `plan.md` R-016.)*
+- **FR-022** *(acrescentado em 2026-10-04, pela convergência, aprovado pelo usuário; já era a decisão D-012 do plano)*: Enquanto nem todas as categorias do tipo estiverem obtidas no aparelho, o cabeçalho do Top 10 e da Dica (na tela hero e no Início) DEVE indicar o escopo parcial ("Com base em X de Y categorias", no idioma do app) e o aviso DEVE sumir quando todas estiverem obtidas; é só informativo, nunca focável (Constitution: "Progresso e Capacidades São Reais").
 
 ### Key Entities *(include if feature involves data)*
 
@@ -174,6 +175,8 @@ Se a chave TMDB não foi configurada, a rede falha, o TMDB responde com erro ou 
 
 ## Assumptions
 
+- Correções internas feitas na execução e documentadas no plano não mudam requisito: invalidação do cache da descoberta ao salvar, testar ou remover a chave, `staleTime` só para resultado vigente (`plan.md` R-013) e o CSS do formato Top 10 (R-014); o cruzamento deixou de rodar na renderização (D-015).
+
 - O usuário escreveu "IMDb", mas a fonte é o **TMDB**: o IMDb não tem API gratuita e a chave BYOK (feature 032) já é do TMDB. O rótulo da UI é "TMDB" (confirmado na entrevista).
 - "Semana" é o trending semanal do TMDB (janela rolante), e o cache semanal vale por semana corrente; o plano define a borda exata.
 - O Top 10 de filmes aparece só em Filmes e Início, e o de séries só em Séries e Início; a Dica segue a mesma divisão por tipo.
@@ -196,3 +199,5 @@ Se a chave TMDB não foi configurada, a rede falha, o TMDB responde com erro ou 
 - Q: Critérios da Dica? → A: Nota ≥ 7,0 com votos mínimos, últimos 15 anos, ponderado por popularidade.
 - Q: Sem chave, sem rede ou com erro do TMDB? → A: Somem sem ruído; usam o último resultado em cache se houver (semanal no Top 10, diário na Dica).
 - Q: Ordem do fallback de versão? → A: Principal > 4K ou legendada, regra única nas 4 fileiras.
+- Q: O FR-015 dizia que "sem chave" usa o último cache, contra a US4/AC1 e o comportamento entregue; qual vale? → A: (convergência, 2026-10-04, aprovado pelo usuário) sem chave as fileiras ficam ausentes e nada é pedido; o cache só vale para falha de rede ou erro do TMDB.
+- Q: O FR-016 ("uma consulta") e a US4/AC2 ("último sorteio") descreviam o fluxo de um jeito que o código não segue; e o aviso de cobertura não tinha requisito. Como ficam? → A: (convergência, 2026-10-04, aprovado pelo usuário) FR-016 vira "uma carga por tipo e período" (a Dica usa várias páginas); a US4/AC2 fala do último conjunto de candidatos sorteado com a semente do dia; o aviso de cobertura ganha o FR-022; o deslocamento de card sob o foco na Dica é risco aceito (R-016).

@@ -91,19 +91,14 @@ function compareCopies<T>(a: LocalCopy<T>, b: LocalCopy<T>): number {
 /** Chave local por registro (título comparável + ano) — memoizada: o índice tem dezenas de milhares de registros. */
 const localKeyMemo = new WeakMap<object, string | null>()
 
+type ByKey<T> = Map<string, LocalCopy<T>[]>
+
 /**
- * Cruza títulos do TMDB (todos do mesmo tipo da lista) com os registros da lista: mesmo título comparável (`title` ou
- * `originalTitle`) e **mesmo ano** (`year` do registro, ou o escrito no nome); entre as cópias, a de menor `versionTier`, depois
- * maior nota, depois adicionada mais recentemente, depois a primeira da entrada. Um registro nunca serve a dois títulos do TMDB.
- * Devolve na ordem recebida (`rank` crescente no ranking).
+ * Indexa os registros da lista por título comparável + ano. É um gerador que "pausa" a cada `sliceSize` registros: a versão
+ * síncrona o consome de uma vez (sliceSize infinito) e a assíncrona cede a thread entre as fatias.
  */
-export function matchDiscoveryTitles<T>(
-  titles: readonly DiscoveryTitle[],
-  locals: Iterable<T>,
-  read: LocalTitleFields<T>,
-): MatchedTitle<T>[] {
-  if (titles.length === 0) return []
-  const byKey = new Map<string, LocalCopy<T>[]>()
+function* indexLocals<T>(locals: Iterable<T>, read: LocalTitleFields<T>, sliceSize: number): Generator<void, ByKey<T>, void> {
+  const byKey: ByKey<T> = new Map()
   let order = 0
   for (const item of locals) {
     order += 1
@@ -116,21 +111,27 @@ export function matchDiscoveryTitles<T>(
       key = year === undefined || comparable === '' ? null : `${comparable}|${year}`
       if (typeof item === 'object' && item !== null) localKeyMemo.set(item, key)
     }
-    if (key === null) continue
-    const copy: LocalCopy<T> = {
-      item,
-      key,
-      order,
-      tier: versionTier(read.name(item)),
-      rating: validRating(read.rating(item)),
-      addedAt: finiteNumber(read.addedAt(item)),
+    if (key !== null) {
+      const copy: LocalCopy<T> = {
+        item,
+        key,
+        order,
+        tier: versionTier(read.name(item)),
+        rating: validRating(read.rating(item)),
+        addedAt: finiteNumber(read.addedAt(item)),
+      }
+      const list = byKey.get(key)
+      if (list) list.push(copy)
+      else byKey.set(key, [copy])
     }
-    const list = byKey.get(key)
-    if (list) list.push(copy)
-    else byKey.set(key, [copy])
+    if (order % sliceSize === 0) yield
   }
   for (const list of byKey.values()) list.sort(compareCopies)
+  return byKey
+}
 
+/** Casa os títulos do TMDB com o índice já montado: um título da lista serve a um título do TMDB só. */
+function pickMatches<T>(titles: readonly DiscoveryTitle[], byKey: ByKey<T>): MatchedTitle<T>[] {
   // Um título da lista (mesma chave) serve a um título do TMDB só: o segundo que cair nele fica de fora, não pega outra cópia.
   const used = new Set<string>()
   const matches: MatchedTitle<T>[] = []
@@ -152,6 +153,64 @@ export function matchDiscoveryTitles<T>(
   return matches
 }
 
+/**
+ * Cruza títulos do TMDB (todos do mesmo tipo da lista) com os registros da lista: mesmo título comparável (`title` ou
+ * `originalTitle`) e **mesmo ano** (`year` do registro, ou o escrito no nome); entre as cópias, a de menor `versionTier`, depois
+ * maior nota, depois adicionada mais recentemente, depois a primeira da entrada. Um registro nunca serve a dois títulos do TMDB.
+ * Devolve na ordem recebida (`rank` crescente no ranking).
+ */
+export function matchDiscoveryTitles<T>(
+  titles: readonly DiscoveryTitle[],
+  locals: Iterable<T>,
+  read: LocalTitleFields<T>,
+): MatchedTitle<T>[] {
+  if (titles.length === 0) return []
+  const steps = indexLocals(locals, read, Number.POSITIVE_INFINITY)
+  let step = steps.next()
+  while (!step.done) step = steps.next()
+  return pickMatches(titles, step.value)
+}
+
+/** Cede a thread ao navegador (entre as fatias do cruzamento): o desenho e as teclas do controle remoto passam. */
+export const yieldToMain = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
+
+/** Registros por fatia do índice assíncrono: ≈ 8 ms de trabalho em 43 mil registros (medido no desktop). */
+export const MATCH_SLICE = 2000
+
+/** Índice por lista de registros (a identidade do array): Top 10 e Dica do mesmo tipo montam uma vez só, mesmo concorrentes. */
+const indexCache = new WeakMap<object, Promise<ByKey<never>>>()
+
+/**
+ * Mesma regra de `matchDiscoveryTitles`, mas **sem prender a thread**: o índice dos registros é montado em fatias de
+ * `MATCH_SLICE`, cedendo a thread entre elas (`yieldFn`), e fica guardado pela identidade de `locals` — o Top 10 e a Dica do
+ * mesmo tipo (e as próximas chamadas com a mesma lista) reaproveitam. `locals` e `read` precisam ser os mesmos entre as chamadas
+ * que compartilham a lista.
+ */
+export async function matchDiscoveryTitlesAsync<T>(
+  titles: readonly DiscoveryTitle[],
+  locals: readonly T[],
+  read: LocalTitleFields<T>,
+  options: { yieldFn?: () => Promise<void>; sliceSize?: number } = {},
+): Promise<MatchedTitle<T>[]> {
+  if (titles.length === 0) return []
+  const yieldFn = options.yieldFn ?? yieldToMain
+  const sliceSize = options.sliceSize ?? MATCH_SLICE
+  let promise = indexCache.get(locals) as Promise<ByKey<T>> | undefined
+  if (!promise) {
+    promise = (async () => {
+      const steps = indexLocals(locals, read, sliceSize)
+      let step = steps.next()
+      while (!step.done) {
+        await yieldFn()
+        step = steps.next()
+      }
+      return step.value
+    })()
+    indexCache.set(locals, promise as Promise<ByKey<never>>)
+    promise.catch(() => indexCache.delete(locals)) // falha não fica guardada
+  }
+  return pickMatches(titles, await promise)
+}
 /** Top 10: os cruzados na ordem do ranking, no máximo `DISCOVERY_LIMIT`, cada um com a posição real; menos de `TOP10_MIN` → `[]`. */
 export function selectTop10<T>(matches: readonly MatchedTitle<T>[]): Array<{ local: T; rank: number }> {
   if (matches.length < TOP10_MIN) return []

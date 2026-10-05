@@ -21,6 +21,8 @@ import { formatEpgClock, formatEpgTimeRange } from '../../../lib/epg/formatEpgTi
 import { ErrorState } from '../../../components/ErrorState'
 import { EmptyState } from '../../../components/EmptyState'
 import { PosterArt } from '../../../components/PosterArt'
+import { Icon } from '../../../components/Icon'
+import { isArchiveAvailable } from '../../../lib/epg/catchup'
 import { Spinner } from '../../../components/Spinner'
 import { channelNumberOf } from '../channelNumber'
 import {
@@ -82,6 +84,14 @@ export interface EpgGuideProps {
   /** Retorno discreto (toast do host): programa encerrado, canal indisponível. */
   onNotify?: (message: string) => void
   handleRef?: Ref<EpgGuideHandle>
+  /**
+   * Feature 058 (`logic/arquivo.md` §8): OK num programa encerrado que está no
+   * arquivo do canal toca o programa. Ausente (contrato travado da 031) = o
+   * Guia de sempre: todo encerrado só explica "Este programa já terminou.".
+   */
+  onWatchArchive?: (channel: CatalogItemOut, program: GuideProgram, list: CatalogItemOut[], listKey: GuideListKey) => void
+  /** Feature 058: início do programa a focar ao abrir (volta do arquivo); ausente/`null` = foco de sempre. */
+  initialProgramStart?: number | null
 }
 
 /** Espelha `--guide-row-height` em `guide.css` — o virtualizador precisa da mesma altura. */
@@ -128,11 +138,15 @@ export function EpgGuide({
   onClose,
   onNotify,
   handleRef,
+  onWatchArchive,
+  initialProgramStart,
 }: EpgGuideProps): ReactNode {
   const t = useT()
   const [list, setList] = useState<GuideListKey>(initialList)
   /** Canal de origem: só vale para o foco inicial da lista de abertura; trocar de lista o zera. */
   const originRef = useRef<string | null>(initialChannelId)
+  /** Feature 058: programa de origem (volta do arquivo) — mesma vida do `originRef`. */
+  const originProgramRef = useRef<number | null>(initialProgramStart ?? null)
   const [focus, setFocus] = useState<GuideFocus | null>(null)
   const [refTimeState, setRefTime] = useState<number | null>(null)
   const now = useNow()
@@ -231,6 +245,11 @@ export function EpgGuide({
     }
     const originIndex = originRef.current === null ? undefined : rowIndexById.get(originRef.current)
     const row = rows[originIndex ?? 0]
+    // Feature 058: de volta do arquivo, o foco cai no programa que tocava (por início, nunca índice).
+    const originProgram = originProgramRef.current
+    if (originIndex !== undefined && originProgram !== null && row.programs.some((program) => program.start === originProgram)) {
+      return { focus: { channelId: row.channelId, programStart: originProgram }, row }
+    }
     return { focus: initialFocus(row, now), row }
   }, [rows, rowIndexById, focus, refTimeState, now])
 
@@ -272,6 +291,7 @@ export function EpgGuide({
     const entry = entries[index]
     if (!entry) return
     originRef.current = null
+    originProgramRef.current = null
     setList(entry.key)
     setFocus(null)
     setRefTime(null)
@@ -355,7 +375,15 @@ export function EpgGuide({
       return
     }
     if (focusedProgram && focusedProgram.end <= now) {
-      onNotify?.(t('guide.programEnded'))
+      // Feature 058 (D-013): disponível no arquivo toca; canal com arquivo mas
+      // fora dos dias explica isso; canal sem arquivo mantém o texto da 031.
+      if (onWatchArchive && isArchiveAvailable(focusedChannel.archive_days, focusedProgram, now)) {
+        onWatchArchive(focusedChannel, focusedProgram, items, list)
+      } else if (onWatchArchive && (focusedChannel.archive_days ?? 0) > 0) {
+        onNotify?.(t('guide.archiveExpired'))
+      } else {
+        onNotify?.(t('guide.programEnded'))
+      }
       return
     }
     onWatch(focusedChannel, items, list)
@@ -395,6 +423,9 @@ export function EpgGuide({
             </div>
             <h2 className="epg-guide-detail-title">{focusedProgram.title}</h2>
             {focusedProgram.description && <p className="epg-guide-detail-description">{focusedProgram.description}</p>}
+            {onWatchArchive && focusedProgram.end <= now && isArchiveAvailable(focusedChannel.archive_days, focusedProgram, now) && (
+              <p className="epg-guide-detail-archive">{t('guide.archiveHint')}</p>
+            )}
           </>
         ) : (
           <h2 className="epg-guide-detail-title">{t('guide.noProgram')}</h2>
@@ -431,6 +462,8 @@ export function EpgGuide({
             blocksInView(row, displayView).map((block) => {
               const isNow = block.program.start <= now && now < block.program.end
               const isPast = block.program.end <= now
+              // Feature 058 (FR-009): encerrado mas no arquivo — continua `is-past` (fato de tempo), sem `aria-disabled`.
+              const inArchive = isPast && onWatchArchive !== undefined && isArchiveAvailable(channel.archive_days, block.program, now)
               const isFocused =
                 activeZone === 'grid' &&
                 !selectorOpen &&
@@ -440,11 +473,15 @@ export function EpgGuide({
                 <div
                   key={block.program.start}
                   role="button"
-                  aria-disabled={isPast ? 'true' : undefined}
-                  className={`epg-guide-block no-scale${isNow ? ' is-now' : ''}${isPast ? ' is-past' : ''}${isFocused ? ' tv-focus' : ''}`}
+                  aria-disabled={isPast && !inArchive ? 'true' : undefined}
+                  aria-label={inArchive ? `${block.program.title} · ${t('guide.archiveAvailable')}` : undefined}
+                  className={`epg-guide-block no-scale${isNow ? ' is-now' : ''}${isPast ? ' is-past' : ''}${inArchive ? ' is-archive' : ''}${
+                    isFocused ? ' tv-focus' : ''
+                  }`}
                   style={{ left: `${block.leftPct}%`, width: `${block.widthPct}%` }}
                 >
                   {isNow && <span className="epg-guide-block-tag">{t('guide.now')}</span>}
+                  {inArchive && <Icon name="history" className="epg-guide-block-archive" />}
                   <span>{block.program.title}</span>
                 </div>
               )

@@ -75,7 +75,8 @@ export async function checkSourceAccount(
 
     const checkedAt = now()
     const accountStatus = !status.authorized ? 'refused' : status.expired ? 'expired' : 'active'
-    await markAccount(sourceId, { status: accountStatus, expiresAt: status.expiresAt, checkedAt }, database)
+    // Feature 058: o relógio do painel vem na mesma resposta — gravado junto quando declarado.
+    await markAccount(sourceId, { status: accountStatus, expiresAt: status.expiresAt, checkedAt, clock: status.clock }, database)
     return { fresh: true, account: { status: accountStatus, expiresAt: status.expiresAt, checkedAt } }
   } catch (error) {
     if (error instanceof ProviderError && error.kind === 'invalid_credentials') {

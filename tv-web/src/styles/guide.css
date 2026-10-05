@@ -282,6 +282,26 @@
   opacity: 0.5;
 }
 
+/* Feature 058 (FR-009): encerrado mas no arquivo do canal — legível e com a
+   marca de "assistir de novo"; OK toca. */
+.epg-guide-block.is-past.is-archive {
+  opacity: 0.85;
+}
+
+.epg-guide-block-archive {
+  flex-shrink: 0;
+  width: var(--space-3);
+  height: var(--space-3);
+  color: var(--info);
+}
+
+.epg-guide-detail-archive {
+  margin: 0;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-caption);
+  color: var(--info);
+}
+
 /* Canal sem EPG: um bloco só, largura total (FR-007). */
 .epg-guide-block.is-empty {
   left: 0;

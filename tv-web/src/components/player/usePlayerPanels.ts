@@ -155,7 +155,11 @@ export function usePlayerPanels({
     const tracks = session.getTracks() ?? []
     const labels = trackLabels(tracks, t)
     const activeIndex = tracks.findIndex((t) => t.kind === 'audio' && t.active)
-    return { info: session.getStreamInfo(), activeAudioLabel: activeIndex === -1 ? undefined : labels[activeIndex] }
+    return {
+      info: session.getStreamInfo(),
+      activeAudioLabel: activeIndex === -1 ? undefined : labels[activeIndex],
+      headers: session.requestHeaders,
+    }
   }
 
   /** Relê o painel aberto (FR-012/FR-016): mantém o foco pela chave, nunca pelo índice. */

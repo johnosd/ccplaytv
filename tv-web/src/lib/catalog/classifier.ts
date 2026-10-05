@@ -71,6 +71,8 @@ export interface ClassifiedEntry {
   radio?: true
   /** `tvg-chno` válido da lista (feature 044) — não é o número exibido (ADR-011). Quem grava descarta fora de canal. */
   declaredChannelNumber?: number
+  /** Dias de arquivo (catch-up) que o painel Xtream declara (feature 058) — só canal; nunca em M3U avulsa. */
+  archiveDays?: number
 }
 
 /**

@@ -25,6 +25,8 @@ export type ErrorCode =
   | 'PLAY-02'
   | 'PLAY-03'
   | 'PLAY-04'
+  | 'PLAY-05'
+  | 'PLAY-06'
   | 'EPG-02'
   | 'STO-01'
   | 'TRL-REDE'
@@ -59,6 +61,10 @@ const RETRYABLE: Record<ErrorCode, boolean> = {
   'PLAY-02': false,
   'PLAY-03': false,
   'PLAY-04': true,
+  // Feature 058: header da lista que a TV não envia (tentar de novo não muda o motor)
+  // e arquivo do programa que não respondeu nas duas variantes de URL.
+  'PLAY-05': false,
+  'PLAY-06': false,
   'EPG-02': true,
   'STO-01': true,
   'TRL-REDE': true,

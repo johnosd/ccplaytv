@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie'
 import { noteBlockWrite } from './blockMemo'
 import type { PlaybackHeaders } from './m3uHeaders'
+import type { ArchiveVariant } from './archiveUrl'
 import type { AppLanguage } from '../i18n/languages'
 import type { DiscoveryTitle } from '../metadata/tmdbDiscovery'
 
@@ -84,6 +85,16 @@ export interface SourceRecord {
   accountCheckedAt?: number
   /** Seções que não responderam na última sincronização bem-sucedida (feature 034, FR-018). */
   lastUnavailableSections?: CatalogSection[]
+  /**
+   * Relógio do painel (feature 058, `data-model.md` §4), de `server_info` —
+   * para montar o início do programa de arquivo no fuso dele. Sem índice, sem
+   * bump; não é segredo, mas não vai a tela nem log.
+   */
+  panelTimezone?: string
+  /** Deslocamento medido do relógio do painel em relação a UTC, em minutos (múltiplo de 15). */
+  panelUtcOffsetMinutes?: number
+  /** Variante de URL de arquivo que já tocou nesta fonte (feature 058); ausente = tentar `rest` primeiro. */
+  archiveVariant?: ArchiveVariant
   createdAt: number
   updatedAt: number
 }
@@ -232,6 +243,12 @@ export interface CatalogRecord {
    * tela o lê. Só `kind: 'channel'`.
    */
   declaredChannelNumber?: number
+  /**
+   * Dias de arquivo (catch-up) que o painel Xtream declara para o canal
+   * (feature 058, FR-007): `tv_archive` = 1 e `tv_archive_duration` inteiro > 0.
+   * Só `kind: 'channel'` de provedor; ausente = sem arquivo. Valor sem índice, sem bump.
+   */
+  archiveDays?: number
 }
 
 /**

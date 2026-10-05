@@ -1,5 +1,6 @@
 import { useOnlineStatus } from '../lib/onlineStatus'
 import type { StreamInfo } from '../lib/player/tracks'
+import type { RequestHeadersReport } from '../lib/player/PlayerService'
 import { buildInfoRows } from './playerPanels'
 import { useT } from '../lib/i18n/I18nProvider'
 
@@ -8,6 +9,8 @@ export interface PlayerInfoPanelProps {
   info: StreamInfo | null
   /** Rótulo da faixa de áudio ativa, quando o motor informa (`trackLabels`). */
   activeAudioLabel: string | undefined
+  /** Feature 058 (FR-005): só os nomes dos headers da lista; ausente = sem a linha. */
+  headers?: RequestHeadersReport
 }
 
 /**
@@ -18,10 +21,10 @@ export interface PlayerInfoPanelProps {
  * `PlayerLayer`. A conexão vem de `useOnlineStatus`, então acompanha
  * `online`/`offline` mesmo entre duas leituras.
  */
-export function PlayerInfoPanel({ info, activeAudioLabel }: PlayerInfoPanelProps) {
+export function PlayerInfoPanel({ info, activeAudioLabel, headers }: PlayerInfoPanelProps) {
   const t = useT()
   const online = useOnlineStatus()
-  const { rows, noTechnicalData } = buildInfoRows(info, activeAudioLabel, online, t)
+  const { rows, noTechnicalData } = buildInfoRows(info, activeAudioLabel, online, t, headers)
 
   return (
     <div className="modal-overlay">

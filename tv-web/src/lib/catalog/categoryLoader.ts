@@ -175,6 +175,8 @@ export function toItemRecord(
   // Feature 055 (D-002/D-003): campos da listagem só quando existem — 43 mil itens não ganham chaves vazias.
   // Nota vale para filme e série; gênero e fundo, só para série.
   if (channel.providerRating !== undefined) record.providerRating = channel.providerRating
+  // Feature 058 (FR-007): dias de arquivo só no canal, e só quando o painel declara.
+  if (channel.kind === 'channel' && channel.archiveDays !== undefined) record.archiveDays = channel.archiveDays
   if (channel.kind === 'series') {
     if (channel.providerGenres !== undefined) record.providerGenres = channel.providerGenres
     if (channel.providerBackdropUrl !== undefined) record.providerBackdropUrl = channel.providerBackdropUrl
