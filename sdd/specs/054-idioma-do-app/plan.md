@@ -166,23 +166,24 @@ Stubs criados pelo plan (não travados): `tv-web/src/lib/i18n/appLanguage.ts` (c
 | Fase 9 (varredura, E2E de idioma) | Concluída; `e2e/idioma-do-app.mjs` na SUITE; `locale: 'pt-BR'` em todos os E2E |
 | Fases 10–11 (TMDB e trailers por idioma) | Concluídas; 5/5 contratos verdes; trava íntegra |
 | Fase 12 (formatos) | Concluída; hora do guia sempre 24 h, país no idioma do app |
-| Fase 13 (Polish) | Automatizado feito: `tsc` limpo, `lint` sem erros, `npm run test` 379 arquivos / 2534 testes verdes, E2E 33/33, `build:tizen` ok. **Aberto**: passada na TV física (R-001/R-003, SC-006) — decisão do usuário |
+| Fase 13 (Polish) | Concluída: `tsc` limpo, `lint` sem erros, `npm run test` 379 arquivos / 2534 testes verdes, E2E 33/33, `build:tizen` ok; passada na TV física feita (2026-10-05, relato do usuário) |
+| Fase 14 (Convergência) | Concluída: T053, nome acessível da `HintBar` traduzido (en/es); teste novo verde |
 
 ## Riscos e Decisões
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | `navigator.languages` pode não refletir o idioma da TV Samsung | US5 degrada para `pt` | Validar na TV (quickstart); se falhar, avaliar `tizen.systeminfo` (LOCALE) numa emenda; escolha manual sempre disponível |
-| R-002 | Superfície enorme (264 arquivos, 83 `.tsx` com texto) — risco de texto esquecido em pt | SC-001 | Migração por área em fases independentes; E2E em en que varre cada tela atrás de palavras-chave em pt; checklist por área em `tasks.md` |
-| R-003 | Textos mais longos em en/es estouram cards/botões/topbar | Foco/legibilidade, SC-006 | Revisar CSS por área; validar na TV física (gate desta feature) |
-| R-004 | Testes antigos que contam linhas de Acessibilidade (`ACCESSIBILITY_ROW_COUNT`) ou de Player (5ª linha) | Falha de suíte ao mover a linha | Atualizar `SettingsPanels.foco-sem-escala.test.tsx`, `SettingsPanels.test.tsx`, `SettingsScreen.test.tsx`, `PlayerTab.test.tsx`; contratos travados 026/041 não podem ser editados — conferir antes |
-| R-005 | `es-ES` vs `es-MX` no TMDB (cobertura varia por região) | Qualidade do texto em es | Mapa único `APP_LANGUAGE_LOCALE`; trocar é 1 linha; fallback `en-US` cobre lacuna |
-| R-006 | Funções puras que hoje devolvem texto (`sourceFormat`, `importSections`, `trailerAction`, erros) precisam receber `t` | Mudança de assinatura em vários chamadores/testes | Parâmetro `t` com padrão `translate('pt', …)` nos testes antigos para não reescrevê-los |
-| R-007 | Trailers já guardados só têm vídeos `pt,en,null` | US3 em títulos antigos | Resolvido pelo design: trocar idioma rebusca o título ao abrir (D-006) |
-| R-009 | `useT()` por `useSyncExternalStore` em vez de contexto (muda `logic` §2 e T005): funciona fora do provedor e dispensa envolver testes; custo = cada consumidor assina o store (listeners em `Set`) | Nenhum funcional; centenas de assinaturas triviais | `createTranslator` devolve 1 objeto por idioma (identidade estável); provedor só mantém `<html lang>` |
-| R-010 | O app detecta o idioma do sistema: jsdom/Node/Chromium do Playwright dizem `en-US`, e os testes existentes (unit e E2E) esperam português | Suíte inteira em inglês sem preferência gravada | Unit: `setupTests.ts`/`setupTests.node.ts` fixam `navigator` em pt-BR. E2E: `locale: 'pt-BR'` em todo `newContext()` (feito ao rodar o primeiro E2E) |
-| R-011 | `plural()` usa `n === 1 ? one : other` nos 3 idiomas (muda `logic` §3, que dizia `Intl.PluralRules`): o CLDR de pt trata 0 como "one" ("0 título") e o app sempre disse "0 títulos" | Nenhum se os 3 idiomas só têm singular/plural | Documentado em `translate.ts` |
-| R-012 | O catálogo foi dividido em áreas (`messages/<area>.ts`, cada uma com pt/en/es lado a lado) em vez de 3 arquivos monolíticos; `defineArea` força en/es a terem as chaves de pt | Nenhum | `areas.test.ts` garante chaves únicas entre áreas; tela nova = nova área ou chaves na área existente |
+| R-001 | `navigator.languages` pode não refletir o idioma da TV Samsung | US5 degrada para `pt` | Resolvido: validado na TV física em 2026-10-05 (o app abre no idioma da TV). Validar na TV (quickstart); se falhar, avaliar `tizen.systeminfo` (LOCALE) numa emenda; escolha manual sempre disponível |
+| R-002 | Superfície enorme (264 arquivos, 83 `.tsx` com texto) — risco de texto esquecido em pt | SC-001 | Resolvido: confirmado pela auditoria do `sdd-converge` de 2026-10-05. Migração por área em fases independentes; E2E em en que varre cada tela atrás de palavras-chave em pt; checklist por área em `tasks.md` |
+| R-003 | Textos mais longos em en/es estouram cards/botões/topbar | Foco/legibilidade, SC-006 | Resolvido: o usuário validou na TV física em 2026-10-05 (en/es sem corte). Revisar CSS por área; validar na TV física (gate desta feature) |
+| R-004 | Testes antigos que contam linhas de Acessibilidade (`ACCESSIBILITY_ROW_COUNT`) ou de Player (5ª linha) | Falha de suíte ao mover a linha | Resolvido: confirmado pela auditoria do `sdd-converge` de 2026-10-05. Atualizar `SettingsPanels.foco-sem-escala.test.tsx`, `SettingsPanels.test.tsx`, `SettingsScreen.test.tsx`, `PlayerTab.test.tsx`; contratos travados 026/041 não podem ser editados — conferir antes |
+| R-005 | `es-ES` vs `es-MX` no TMDB (cobertura varia por região) | Qualidade do texto em es | Resolvido: confirmado pela auditoria do `sdd-converge` de 2026-10-05. Mapa único `APP_LANGUAGE_LOCALE`; trocar é 1 linha; fallback `en-US` cobre lacuna |
+| R-006 | Funções puras que hoje devolvem texto (`sourceFormat`, `importSections`, `trailerAction`, erros) precisam receber `t` | Mudança de assinatura em vários chamadores/testes | Resolvido: confirmado pela auditoria do `sdd-converge` de 2026-10-05. Parâmetro `t` com padrão `translate('pt', …)` nos testes antigos para não reescrevê-los |
+| R-007 | Trailers já guardados só têm vídeos `pt,en,null` | US3 em títulos antigos | Resolvido: confirmado pela auditoria do `sdd-converge` de 2026-10-05. Resolvido pelo design: trocar idioma rebusca o título ao abrir (D-006) |
+| R-009 | `useT()` por `useSyncExternalStore` em vez de contexto (muda `logic` §2 e T005): funciona fora do provedor e dispensa envolver testes; custo = cada consumidor assina o store (listeners em `Set`) | Nenhum funcional; centenas de assinaturas triviais | Resolvido: confirmado pela auditoria do `sdd-converge` de 2026-10-05. `createTranslator` devolve 1 objeto por idioma (identidade estável); provedor só mantém `<html lang>` |
+| R-010 | O app detecta o idioma do sistema: jsdom/Node/Chromium do Playwright dizem `en-US`, e os testes existentes (unit e E2E) esperam português | Suíte inteira em inglês sem preferência gravada | Resolvido: confirmado pela auditoria do `sdd-converge` de 2026-10-05. Unit: `setupTests.ts`/`setupTests.node.ts` fixam `navigator` em pt-BR. E2E: `locale: 'pt-BR'` em todo `newContext()` (feito ao rodar o primeiro E2E) |
+| R-011 | `plural()` usa `n === 1 ? one : other` nos 3 idiomas (muda `logic` §3, que dizia `Intl.PluralRules`): o CLDR de pt trata 0 como "one" ("0 título") e o app sempre disse "0 títulos" | Nenhum se os 3 idiomas só têm singular/plural | Resolvido: confirmado pela auditoria do `sdd-converge` de 2026-10-05. Documentado em `translate.ts` |
+| R-012 | O catálogo foi dividido em áreas (`messages/<area>.ts`, cada uma com pt/en/es lado a lado) em vez de 3 arquivos monolíticos; `defineArea` força en/es a terem as chaves de pt | Nenhum | Resolvido: confirmado pela auditoria do `sdd-converge` de 2026-10-05. `areas.test.ts` garante chaves únicas entre áreas; tela nova = nova área ou chaves na área existente |
 | R-013 | Texto do diagnóstico/erro do player é gravado no estado no instante da falha (`diagnosePlayback(…, t)`) e não relido | Trocar o idioma com a tela de erro aberta mantém o texto antigo até a próxima reprodução | Aceito (caso raro; a troca é feita em Configurações, fora do player); reabrir/tentar de novo já sai no idioma novo |
 | R-008 | O ajuste de trailers existente (sem commit) mistura-se com esta feature no `git status` | Rastreabilidade | T001 o registra e o isola num commit próprio antes do restante |
 
@@ -202,8 +203,10 @@ Stubs criados pelo plan (não travados): `tv-web/src/lib/i18n/appLanguage.ts` (c
 | 2026-10-03 | Fases 10–11 (US2/US3) | TMDB no idioma do app com cadeia da sinopse, rebusca só ao abrir o detalhe/ator, falha preserva o guardado; trailers seguem o idioma global; 5/5 contratos verdes | `countryName` na Fase 12 |
 | 2026-10-03 | Fase 12 (US4 formatos) | Hora do guia e nome do país por idioma (guia sempre 24 h); formatos restantes já feitos nas Fases 6–8 | Nenhuma |
 | 2026-10-03 | Fase 13 (Polish) | `tsc`, `lint`, `npm run test` (2534), E2E completo (33/33), `build:tizen` verdes; uma linha em `CLAUDE.md` (texto de UI entra pelo catálogo); quickstart cumprido na parte automatizada/E2E | Passada na TV física (R-001, SC-006) e commit do baseline de trailers (R-008) dependem do usuário |
+| 2026-10-05 | Fase 13 (TV física) | App reinstalado na TV (`deploy-tv.ps1`); usuário relatou: abre no idioma da TV, troca manual ok, textos en/es sem corte, trailer em espanhol carregou. Fallback de idioma do trailer não observado na TV | Nenhuma; rodar `sdd-converge` |
+| 2026-10-05 | Fase 14 (Convergência) | T053: `HintBar` com `aria-label` do catálogo (`shell.hints.aria`); `tsc`, `lint` e 196 testes das áreas tocadas verdes; sem TV, por decisão do usuário | Nenhuma |
 
-**PRÓXIMO**: passada na TV física (`tizen-tv`: idioma da TV → idioma do app, textos longos en/es a 1920×1080, fluxo da US1 e um trailer em fallback) e decisão sobre o commit; depois `update-feature-status.ps1 -Status Implementada` e `sdd-converge`.
+**PRÓXIMO**: nenhum — feature convergida; decidir o commit do baseline de trailers (R-008).
 
 ## Arquivos Principais
 
@@ -215,3 +218,15 @@ Stubs criados pelo plan (não travados): `tv-web/src/lib/i18n/appLanguage.ts` (c
 
 - Registro da Fase em `tasks.md`: a Fase 1 tem o seu próprio bloco — conferir a qual fase o bloco pertence antes de editar (um replace por texto já gravou o da Fase 1 no da Fase 2 uma vez; corrigido).
 - Dev server de longa duração pode servir módulo obsoleto (HMR): se um E2E falhar com `ReferenceError` de algo que o código já importa, reiniciar `npm run dev` antes de investigar (visto na Fase 9: `useT is not defined` em `TextField`).
+
+## Resultado Final
+
+Convergida em 2026-10-05 (duas passadas do `sdd-converge`; a primeira achou C-001, tratado na T053).
+
+**O que foi construído.** O idioma do app (Português, English, Español) vive em `tv-web/src/lib/i18n/`: resolução e persistência (`appLanguage.ts`), `translate`/`plural`, `useT()` e o catálogo dividido em áreas (`messages/<area>.ts`, cada uma com pt/en/es lado a lado e `defineArea` exigindo as mesmas chaves). A linha "Idioma" fica em Configurações › Acessibilidade & sistema, a troca é imediata e preserva foco e reprodução, e o padrão vem de `navigator.languages` (Português se não suportado). O TMDB é consultado no idioma do app com cadeia de fallback (en, depois o original) e rebusca só ao abrir o detalhe ou o ator; os trailers seguem o idioma global e `preferredLanguage` legado é só lido para migração. Formatos de data, hora, duração e país acompanham o idioma. Texto do provedor nunca é traduzido.
+
+**Desvios em relação ao plano original** (registrados nas Execution Notes e em R-009..R-013): `useT()` por `useSyncExternalStore` em vez de contexto; `plural()` com singular/outro nos três idiomas; catálogo em áreas em vez de 3 arquivos monolíticos; hora do guia sempre em 24 h; texto de erro do player gravado no instante da falha (R-013, aceito).
+
+**Verificação.** 5/5 contratos verdes com a trava íntegra; `tsc` limpo; `lint` sem erros; suíte 379 arquivos / 2534 testes na Fase 13 e 196 testes das áreas tocadas na T053; E2E 33/33; `build:tizen` sem pendência. Passada na TV física em 2026-10-05, relatada pelo usuário (abre no idioma da TV, troca manual, textos longos sem corte, trailer em espanhol). Não observado na TV: o rótulo de trailer em fallback de outro idioma (só teste automatizado). A T053 (nome acessível da `HintBar`) foi concluída sem passada na TV, por decisão do usuário.
+
+**Em aberto.** R-008 (baseline de trailers misturado no `git status`) e R-013 (aceito) seguem como registrados.

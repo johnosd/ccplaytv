@@ -323,7 +323,7 @@ description: "Tasks da feature 054 — Idioma do app"
 
 - [X] T049 Rodar `quickstart.md` inteiro (navegador) e registrar o resultado. *(Cumprido na parte automatizada e no E2E `idioma-do-app` — passos 1–3, 8–9 do cenário; os passos 4–6 (consulta real ao TMDB com chave, sinopse e trailer em fallback) foram exercitados só com `fetch` falso nos testes de contrato/unidade, não contra o TMDB real.)*
 - [X] T050 `npm run test:e2e` (suíte completa) com `npm run dev` rodando — gate anterior à TV.
-- [ ] T051 `npm run build:tizen` (`findUnlistedFiles` sem pendência) e passada na TV física (`tizen-tv`): US5/R-001, SC-006, fluxo da US1 por controle remoto. *(Aberta: `npm run build:tizen` passou e sincronizou em `CCPlayTv/` sem pendência; falta a passada na TV física — decisão do usuário, R-001/R-003.)*
+- [X] T051 `npm run build:tizen` (`findUnlistedFiles` sem pendência) e passada na TV física (`tizen-tv`): US5/R-001, SC-006, fluxo da US1 por controle remoto. *(Concluída: `npm run build:tizen` sem pendência e passada na TV física em 2026-10-05, relatada pelo usuário (eu não vi a tela): (1) o app abre no idioma da TV; (2) troca manual em Idioma funciona; (3) textos longos en/es sem corte, tudo funcionando; (4) com o idioma em espanhol o trailer carregou em espanhol. O rótulo de trailer em fallback de outro idioma (cenário 6 do quickstart) não foi observado na TV — fica coberto só pelo teste automatizado.)*
 - [X] T052 Atualizar `.planning/backlog.md` via `update-feature-status.ps1`; se surgir regra permanente ("texto novo entra pelo catálogo `lib/i18n`"), uma linha curta em `CLAUDE.md`; nenhum parágrafo de status.
 
 ### Checklist de Release
@@ -334,7 +334,7 @@ description: "Tasks da feature 054 — Idioma do app"
 - [X] E2E `idioma-do-app` e suíte completa verdes
 - [X] Contratos de outras features (026, 032, 033, 035, 041) intactos
 - [X] Revisão de segredos (nenhuma mensagem traduzida interpola URL/credencial/chave)
-- [ ] `quickstart.md` executado; passada na TV física feita ou decisão explícita do usuário registrada em R-001/R-003
+- [X] `quickstart.md` executado; passada na TV física feita ou decisão explícita do usuário registrada em R-001/R-003
 
 ---
 
@@ -356,4 +356,16 @@ MVP = Fases 1–3 (linha de idioma + Configurações traduzida). Depois uma áre
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->
 
+---
 
+## Phase 14: Convergence
+
+- [X] T053 Traduzir o nome acessível da `HintBar`: criar a chave em `tv-web/src/lib/i18n/messages/shell.ts` (pt/en/es; pt é a base), ler com `useT()` em `features/shell/HintBar.tsx:21` no lugar de `aria-label="Teclas do controle remoto"`, e cobrir com um teste que renderiza em en e es. *(Origem: FR-004 / SC-001, achado C-001 do `sdd-converge` de 2026-10-05; `AppShell.test.tsx:35` segue valendo no padrão pt.)*
+
+**Registro da Fase**:
+
+- Status: concluída (2026-10-05)
+- Feito: T053. Chave `shell.hints.aria` em `messages/shell.ts` (pt/en/es); `HintBar` lê `useT()` no lugar do `aria-label` fixo. Teste novo `features/shell/HintBar.idioma.test.tsx` (pt, en e es).
+- Contrato: sem contrato nesta fase (trava íntegra; 5/5 verdes)
+- Testes executados: `npx tsc -b` limpo; `npm run lint` sem erros (só avisos antigos); `npx vitest run src/features/shell src/lib/i18n src/features/home src/features/settings` → 36 arquivos / 196 testes verdes. Sem passada na TV por decisão do usuário (mudança só de nome acessível).
+- Pendências: nenhuma

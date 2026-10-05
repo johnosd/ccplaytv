@@ -16,6 +16,7 @@ export const shell = defineArea(
     'shell.exit.title': 'Sair do CCPlayTV?',
     'shell.exit.description': 'Você pode voltar ao aplicativo depois e continuar de onde parou.',
     'shell.exit.confirm': 'Sair',
+    'shell.hints.aria': 'Teclas do controle remoto',
   },
   {
     'shell.nav.label': 'Main navigation',
@@ -31,6 +32,7 @@ export const shell = defineArea(
     'shell.exit.title': 'Exit CCPlayTV?',
     'shell.exit.description': 'You can come back to the app later and continue where you left off.',
     'shell.exit.confirm': 'Exit',
+    'shell.hints.aria': 'Remote control keys',
   },
   {
     'shell.nav.label': 'Navegación principal',
@@ -46,5 +48,6 @@ export const shell = defineArea(
     'shell.exit.title': '¿Salir de CCPlayTV?',
     'shell.exit.description': 'Puedes volver a la aplicación más tarde y continuar donde lo dejaste.',
     'shell.exit.confirm': 'Salir',
+    'shell.hints.aria': 'Teclas del mando a distancia',
   },
 )

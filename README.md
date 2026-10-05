@@ -117,6 +117,14 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   feita durante a reprodução vale só até o fim da sequência e nunca altera
   essas preferências (feature 041). A troca de resolução num stream com várias
   variantes ainda não foi provada na TV.
+- **Idioma do app:** Configurações › Acessibilidade & sistema › Idioma
+  (Português, English, Español) troca na hora todos os textos próprios do
+  app, sem reiniciar nem tirar o foco; sem escolha gravada o app usa o idioma
+  da TV, se suportado, senão Português. O idioma também define a língua da
+  sinopse e dos trailers vindos do TMDB (com fallback para inglês e depois o
+  original) e os formatos de data, hora e país. Nomes de canal, categoria e
+  título vindos da lista nunca são traduzidos; áudio e legenda do player
+  seguem com preferência própria (feature 054; validado na TV física).
 - **Estado e vencimento da conta das listas:** para uma lista Xtream, a linha
   em Configurações › Fontes IPTV mostra "Conta válida até DD/MM/AAAA" (com chip
   âmbar a partir de 7 dias do vencimento e chip de erro quando vence), o estado
