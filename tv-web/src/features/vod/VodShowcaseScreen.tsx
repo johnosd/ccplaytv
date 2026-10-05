@@ -207,7 +207,7 @@ export function VodShowcaseScreen({
   const rated = ratedQuery.data ?? []
   const top10 = top10Query.data ?? []
   const tip = tipQuery.data ?? []
-  // Posição REAL no ranking do TMDB (sem renumerar): é o número que o card mostra.
+  // Posição REAL no ranking do TMDB: aparece no destaque do card focado ("Nº 6"); os cards numeram a posição na fileira.
   const rankById = new Map(top10.map((pick) => [pick.item.id, pick.rank]))
 
   // `wide` (D-006): "Continue assistindo" vira card largo só se TODOS os itens mostrados já têm backdrop guardado.
@@ -506,7 +506,7 @@ export function VodShowcaseScreen({
     )
   }
 
-  function renderEntry(entry: Entry, focused: boolean, spec: ShowcaseRowSpec): ReactNode {
+  function renderEntry(entry: Entry, focused: boolean, spec: ShowcaseRowSpec, index: number): ReactNode {
     if (entry.kind === 'item') {
       if (spec.format === 'wide') {
         return <ContentCard variant="wide" title={entry.item.name} iconUrl={backdrops.get(entry.item.id)} focused={focused} />
@@ -518,7 +518,8 @@ export function VodShowcaseScreen({
           iconUrl={entry.item.icon_url ?? undefined}
           focused={focused}
           badge={<RatingBadge value={entry.item.provider_rating} />}
-          rank={spec.key === 'top10' ? rankById.get(entry.item.id) : undefined}
+          // Posição NA FILEIRA (1, 2, 3…, sem buracos); a posição real no ranking do TMDB aparece no destaque (rankById).
+          rank={spec.key === 'top10' ? index + 1 : undefined}
         />
       )
     }
@@ -557,7 +558,7 @@ export function VodShowcaseScreen({
         itemWidth={format.itemWidth}
         itemHeight={format.itemHeight}
         focusedIndex={focusIndex}
-        renderItem={(entry, index) => renderEntry(entry, cardFocused(index), spec)}
+        renderItem={(entry, index) => renderEntry(entry, cardFocused(index), spec, index)}
       />
     )
   }
@@ -632,7 +633,7 @@ export function VodShowcaseScreen({
         : heroRowKey === 'continue'
           ? t('showcase.eyebrow.recent')
           : heroRowKey === 'top10'
-            ? t('showcase.eyebrow.top10')
+            ? t('showcase.eyebrow.top10', { rank: String((heroItem ? rankById.get(heroItem.id) : undefined) ?? '–') })
             : heroRowKey === 'tip'
               ? t('showcase.eyebrow.tip')
               : t(copy.eyebrow)

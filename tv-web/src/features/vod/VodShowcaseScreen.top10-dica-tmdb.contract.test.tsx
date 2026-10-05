@@ -1,6 +1,6 @@
 /**
- * Teste de CONTRATO da feature 057 (Top 10 da semana e Dica, TMDB) — as fileiras na tela hero de Filmes e de Séries: cards com a
- * posição real do TMDB (sem renumerar), fonte TMDB, aviso de cobertura parcial, OK abre o título da lista, e a fileira ausente
+ * Teste de CONTRATO da feature 057 (Em alta esta semana e Dica, TMDB) — as fileiras na tela hero de Filmes e de Séries: cards
+ * numerados 1, 2, 3 na fileira (a posição real do TMDB aparece no destaque do card focado), fonte TMDB, aviso de cobertura parcial, OK abre o título da lista, e a fileira ausente
  * (sem slot "Em breve" e sem prender o foco) quando não há dado. Travado em
  * `sdd/specs/057-top10-dica-tmdb/contract-tests.lock`. O sdd-execute só pode fazê-lo passar, nunca editá-lo.
  *
@@ -230,18 +230,18 @@ describe('VodShowcaseScreen — contrato da feature 057', () => {
   })
 
   // US1/AC1, US1/AC2, US1/AC4..AC7, FR-001, FR-003, FR-012, FR-013, FR-014, FR-020, Constitution: "Progresso e Capacidades São Reais" / "Foco Visível e Sem Becos Sem Saída"
-  it('Top 10 da semana: cards com a posição real do TMDB, fonte TMDB, aviso de cobertura parcial, OK abre o título; em Séries é o de séries; sem dado a fileira não existe (nem "Em breve") e o foco não se perde', () => {
+  it('Em alta esta semana: cards numerados 1, 2, 3 na fileira (a posição real do TMDB vai no destaque), fonte TMDB, aviso de cobertura parcial, OK abre o título; em Séries é o de séries; sem dado a fileira não existe (nem "Em breve") e o foco não se perde', () => {
     mockData('movie', { top10: { data: [pick('movie', 'Filme 1', 1), pick('movie', 'Filme 3', 3), pick('movie', 'Filme 4', 4)], covered: 1, total: 2 } })
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     const calls = renderShowcase('movies')
 
-    goToRow('Top 10 filmes da semana')
-    expect(focusedRowLabel()).toBe('Top 10 filmes da semana')
-    const section = rowOf('Top 10 filmes da semana')
+    goToRow('Em alta esta semana')
+    expect(focusedRowLabel()).toBe('Em alta esta semana')
+    const section = rowOf('Em alta esta semana')
     expect(section).not.toBeNull()
     expect(section!.querySelector('.vod-slot-card')).toBeNull() // fileira real: sem "Em breve"
     const cards = [...section!.querySelectorAll('.content-card')]
-    expect(cards.map((card) => card.querySelector('.content-card-rank')?.textContent)).toEqual(['1', '3', '4']) // posição real, sem renumerar
+    expect(cards.map((card) => card.querySelector('.content-card-rank')?.textContent)).toEqual(['1', '2', '3']) // posição NA FILEIRA, sem buracos (emenda de 2026-10-05)
     expect(cards[0].textContent).toContain('Filme 1')
     expect(cards[2].textContent).toContain('Filme 4')
     expect(section!.querySelector('.vod-row-source')?.textContent).toContain('TMDB')
@@ -252,18 +252,19 @@ describe('VodShowcaseScreen — contrato da feature 057', () => {
     expect(calls.onOpenItem.mock.calls.at(-1)?.[0]).toBe('id-Filme 1')
     tap('ArrowRight')
     expect(document.querySelectorAll('.vod-showcase .tv-focus').length).toBe(1)
+    expect(document.querySelector('.vod-hero-eyebrow')?.textContent).toContain('Nº 3') // o card é o 2º da fileira, mas o 3º do ranking do TMDB
     tap('Enter')
     expect(calls.onOpenItem.mock.calls.at(-1)?.[0]).toBe('id-Filme 3')
     expect(fetchSpy).not.toHaveBeenCalled() // focar/abrir não consulta nada
 
-    // Séries: o Top 10 é o de séries.
+    // Séries: a fileira é a de séries (mesmo título, numeração 1, 2, 3).
     cleanup()
     mockData('series', { top10: { data: [pick('series', 'Série 2', 2), pick('series', 'Série 5', 5), pick('series', 'Série 7', 7)], covered: 1, total: 1 } })
     renderShowcase('series')
-    goToRow('Top 10 séries da semana')
-    expect(focusedRowLabel()).toBe('Top 10 séries da semana')
-    expect([...rowOf('Top 10 séries da semana')!.querySelectorAll('.content-card-rank')].map((rank) => rank.textContent)).toEqual(['2', '5', '7'])
-    expect(rowOf('Top 10 séries da semana')!.querySelector('.vod-row-coverage')).toBeNull() // cobertura completa: sem aviso
+    goToRow('Em alta esta semana')
+    expect(focusedRowLabel()).toBe('Em alta esta semana')
+    expect([...rowOf('Em alta esta semana')!.querySelectorAll('.content-card-rank')].map((rank) => rank.textContent)).toEqual(['1', '2', '3'])
+    expect(rowOf('Em alta esta semana')!.querySelector('.vod-row-coverage')).toBeNull() // cobertura completa: sem aviso
 
     // Sem dado (sem chave, sem cache ou poucos títulos na lista): a fileira não existe, nem como slot "Em breve".
     cleanup()
@@ -272,8 +273,8 @@ describe('VodShowcaseScreen — contrato da feature 057', () => {
     const seen = visitRows()
     expect(seen).toContain('★ Favoritos')
     expect(seen).toContain('Porque você assistiu')
-    expect(seen).not.toContain('Top 10 filmes da semana')
-    expect(rowOf('Top 10 filmes da semana')).toBeNull()
+    expect(seen).not.toContain('Em alta esta semana')
+    expect(rowOf('Em alta esta semana')).toBeNull()
     expect(document.body.textContent).not.toContain('Top 10 filmes da semana, com dados do TMDB.')
   })
 

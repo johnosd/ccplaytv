@@ -22,10 +22,10 @@ npm run build:tizen                                                             
 
 ## Cenário ponta a ponta (navegador, `npm run dev`)
 
-1. **Com chave e lista cobrindo parte do ranking** — abrir **Filmes**: a fileira "Top 10 filmes da semana" aparece logo após "Continue assistindo" (ou como primeira), no formato número grande + pôster. Cada número é a posição do TMDB (pode faltar o 2, o 5...; nada renumerado). No cabeçalho: "Fonte: TMDB" e, enquanto houver categorias não obtidas, "Com base em X de Y categorias".
+1. **Com chave e lista cobrindo parte do ranking** — abrir **Filmes**: a fileira "Em alta esta semana" aparece logo após "Continue assistindo" (ou como primeira), no formato número grande sobre o pôster. Os cards são numerados 1, 2, 3… sem buracos; ao focar um card, o destaque do topo mostra a posição real no TMDB ("Nº 6"). No cabeçalho: "Fonte: TMDB" e, enquanto houver categorias não obtidas, "Com base em X de Y categorias".
 2. Focar cards só atualiza o destaque (nenhuma requisição de rede ao focar: abrir as DevTools → Network, mover o foco); **OK** abre o título da lista; voltar restaura o foco no mesmo card.
 3. A fileira **"Dica de filme"** aparece depois de "Adicionados recentemente"/"Bem avaliados" e antes de "Porque você assistiu"; fechar e reabrir a tela no mesmo dia mostra os mesmos cards na mesma ordem. Para ver o "outro dia": mudar o relógio do sistema para o dia seguinte e reabrir (ou limpar a linha `pool:movie:pt` em IndexedDB → `discoveryCache`; o sorteio muda pela semente do dia).
-4. Repetir em **Séries** ("Top 10 séries da semana", "Dica de série").
+4. Repetir em **Séries** ("Em alta esta semana", "Dica de série").
 5. **Início**: as quatro linhas aparecem sob "Canais favoritos" e antes de "Curadoria IA"; cada uma some se faltar dado; OK abre o título; voltar ao Início restaura o foco na mesma linha e card.
 6. **Sem chave**: remover a chave em Integrações — as quatro fileiras somem das três telas, sem erro, sem "Em breve" do Top 10, e a navegação por controle remoto segue completa. Conferir em IndexedDB que `discoveryCache` ficou vazia.
 7. **Sem rede depois de um uso bem-sucedido** (DevTools → Offline): reabrir — as fileiras vêm do cache (Top 10 da semana, Dica do dia). Com a tabela vazia e offline, as fileiras ficam ausentes.

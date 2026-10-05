@@ -12,7 +12,7 @@ antes de lançamento). O que foi entregue está na tabela `## Features`; só os 
 
 ID é identificador estável, não ordem: `comingSoon.ts` (campo `backlogItem`)
 e `.planning/migracao-design-system-v14.md` apontam para ele. Nunca renumerar; os pacotes `G1`–`G8` agrupam itens para uma única passada de `sdd-specify`;
-item novo recebe o próximo número livre (**hoje: 71**; o 67 é a `057`, em execução, o 68 foi entregue pela `056` e o 70 é o `[Bug]` de Filmes); fatias usam letra
+item novo recebe o próximo número livre (**hoje: 71**; o 67 é a `057`, em execução, o 68 foi entregue pela `056` e o 70 virou o bug `tela-principal-filmes-lenta-na-tv`, em `sdd/bugs/`); fatias usam letra
 (`55a`, `62b`). Todo item assume o dado no aparelho (ADR-008): chamadas externas
 só a APIs de terceiro com a chave do próprio usuário (BYOK); `api/` é contorno
 congelado. Quem entrega um item apaga o mock correspondente de `comingSoon.ts`
@@ -132,13 +132,6 @@ rever no `sdd-specify`.
   - Depende de: —
   - Remove mocks: —
   - Fonte: `sdd/assessments/mpegtsjs-no-htmlvideoadapter-tocar-canais-no/`
-- **70** [Média] — **[Bug]** Primeiro desenho lento da tela de Filmes quando o índice de busca já está em cache: os `select` de `useRecentlyAdded` (mapeia os ≈43 mil registros para `CatalogItemOut`) e `useTopRated` (056) rodam durante a renderização. Perfil de CPU na lista real (dev): ≈370 ms nesses `select`; sem chave TMDB, a 2ª visita a Filmes mede a 1ª fileira em ≈245 ms contra 85–90 ms na 1ª visita, com tarefa longa de ≈203 ms. Caminho: mapear só os 12 escolhidos para `CatalogItemOut` (como `useTopRated` já faz) e tirar/fatiar o trabalho do caminho de renderização (a 057 fez isso para o Top 10/Dica: `matchDiscoveryTitlesAsync`). Medir de novo na TV. Tratar com `sdd-bugfix`, fora da 057.
-  - Ordem: —
-  - Tipo: bug
-  - Estado: Bugfix
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: `057-top10-dica-tmdb` (`plan.md` R-015, convergência de 04/10/2026)
 
 
 ### Retirados
@@ -223,7 +216,7 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 054-idioma-do-app | Idioma do app | Convergência Pendente | 57/59 tasks | 2026-10-04 |
 | 055-campos-da-listagem-xtream | Nota, gênero e fundo vindos da listagem Xtream | Convergida | 38/38 tasks | 2026-10-03 |
 | 056-bem-avaliados | Fileira "Bem avaliados" em Filmes e Séries | Convergida | 44/44 tasks | 2026-10-04 |
-| 057-top10-dica-tmdb | Top 10 da semana e carrossel "Dica" (TMDB) em Filmes, Séries e Início | Convergência Pendente | 54/58 tasks | 2026-10-05 |
+| 057-top10-dica-tmdb | Top 10 da semana e carrossel "Dica" (TMDB) em Filmes, Séries e Início | Convergida | 55/58 tasks | 2026-10-05 |
 | 058-headers-avplay-catchup | Headers da lista no AVPlay e catch-up de programas passados (Xtream) | Em Execução | 46/53 tasks | 2026-10-04 |
 
 ## Bugs
@@ -238,6 +231,8 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | modal-temporada-sem-indicador-mais-itens | Modal de temporada — foco some e não há indicador de "mais abaixo" | Test | verified | Concluído | 2026-09-29 |
 | flake-e2e-home-busca-configuracoes-passo-continuar-progresso | Detalhe do filme pode voltar do player sem "Continuar" (flake do E2E da 026) | Test | verified | Concluído | 2026-09-30 |
 | epg-manual-falha-ao-salvar-epg-02 | EPG manual falha com EPG-02 embora o navegador baixe o XML | Assess | valid (reproduzido) — mas a causa é do servidor do EPG; no app há só uma lacuna de diagnóstico (medium) | Rodar fase Fix | 2026-10-02 |
+| tela-principal-filmes-lenta-na-tv | Tela principal de Filmes lenta na TV (1ª e 2ª visita) | Test | verified | Concluído | 2026-10-05 |
+| continue-assistindo-sobreposto-na-primeira-abertura | Continue assistindo sobreposto na 1ª abertura de Filmes e Séries | Test | verified | Concluído | 2026-10-05 |
 
 ## Melhorias Ad-hoc
 

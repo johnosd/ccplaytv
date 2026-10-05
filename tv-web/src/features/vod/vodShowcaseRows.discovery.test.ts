@@ -31,8 +31,8 @@ describe('buildShowcaseRows — Top 10 e Dica (feature 057)', () => {
     const movies = buildShowcaseRows({ ...base, hasTop10: true, hasTip: true })
     const series = buildShowcaseRows({ ...base, section: 'series', hasTop10: true, hasTip: true })
     const find = (rows: typeof movies, key: string) => rows.find((row) => row.key === key)!
-    expect(find(movies, 'top10')).toMatchObject({ kind: 'items', format: 'top10', seeAll: null, slotId: null, title: 'Top 10 filmes da semana' })
-    expect(find(series, 'top10')).toMatchObject({ title: 'Top 10 séries da semana' })
+    expect(find(movies, 'top10')).toMatchObject({ kind: 'items', format: 'top10', seeAll: null, slotId: null, title: 'Em alta esta semana' })
+    expect(find(series, 'top10')).toMatchObject({ title: 'Em alta esta semana' })
     expect(find(movies, 'tip')).toMatchObject({ kind: 'items', format: 'poster', seeAll: null, slotId: null, title: 'Dica de filme' })
     expect(find(series, 'tip')).toMatchObject({ title: 'Dica de série' })
   })

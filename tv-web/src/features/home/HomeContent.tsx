@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   useContinueWatchingContent,
   useDailyTip,
@@ -77,8 +77,9 @@ const DISCOVERY_ROWS: DiscoveryRowKey[] = ['top10-movies', 'top10-series', 'tip-
 const ALL_ROWS: RowKey[] = ['hero', 'continue', 'mylist', 'channels', ...DISCOVERY_ROWS, 'ai', 'dock']
 
 const DISCOVERY_TITLE: Record<DiscoveryRowKey, MessageKey> = {
-  'top10-movies': 'showcase.row.top10Movies',
-  'top10-series': 'showcase.row.top10Series',
+  // No Início filmes e séries aparecem juntos: títulos distintos (na hero cada tela já é do seu tipo).
+  'top10-movies': 'home.row.trendingMovies',
+  'top10-series': 'home.row.trendingSeries',
   'tip-movies': 'showcase.row.tipMovies',
   'tip-series': 'showcase.row.tipSeries',
 }
@@ -103,24 +104,15 @@ function isDiscoveryRow(row: RowKey): row is DiscoveryRowKey {
   return (DISCOVERY_ROWS as RowKey[]).includes(row)
 }
 
-/** Resultado de `useWeeklyTop10`/`useDailyTip` → itens, posições reais do ranking (só o Top 10 as tem) e cobertura. */
+/** Resultado de `useWeeklyTop10`/`useDailyTip` → itens (na ordem do ranking) e cobertura. A posição real no TMDB não vira número de card (ver `index + 1` abaixo). */
 function discoveryOf(query: {
   data: CatalogItemOut[] | DiscoveryPick[] | undefined
   coveredCategories: number
   totalCategories: number
-}): { items: CatalogItemOut[]; ranks: ReadonlyMap<string, number>; covered: number; total: number } {
+}): { items: CatalogItemOut[]; covered: number; total: number } {
   const data = query.data ?? []
-  const items: CatalogItemOut[] = []
-  const ranks = new Map<string, number>()
-  for (const entry of data) {
-    if ('item' in entry) {
-      items.push(entry.item)
-      ranks.set(entry.item.id, entry.rank)
-    } else {
-      items.push(entry)
-    }
-  }
-  return { items, ranks, covered: query.coveredCategories, total: query.totalCategories }
+  const items: CatalogItemOut[] = data.map((entry) => ('item' in entry ? entry.item : entry))
+  return { items, covered: query.coveredCategories, total: query.totalCategories }
 }
 
 interface DockIconDef {
@@ -142,8 +134,10 @@ const DOCK_ICONS: DockIconDef[] = [
 
 const CARD_WIDTH = 205
 const CARD_HEIGHT = 370
-/** Card do Top 10: o pôster de `CARD_WIDTH` mais o número grande ao lado (`home.css`). */
-const RANKED_WIDTH = 305
+/** Card "Em alta" (feature 057): recuo de 52 px para o número sobre a capa + pôster de 226 px + 14 px entre cards (`home.css`). */
+const RANKED_WIDTH = 292
+/** Pôster de 226×333 mais o título de 2 linhas embaixo. */
+const RANKED_HEIGHT = 405
 const CHANNEL_WIDTH = 340
 const CHANNEL_HEIGHT = 100
 
@@ -227,7 +221,7 @@ export function HomeContent({
     ...(channelsContent.items.length > 0 ? [{ kind: 'see-all' as const, count: channelsContent.items.length }] : []),
   ]
 
-  const discovery: Record<DiscoveryRowKey, { items: CatalogItemOut[]; ranks: ReadonlyMap<string, number>; covered: number; total: number }> = {
+  const discovery: Record<DiscoveryRowKey, { items: CatalogItemOut[]; covered: number; total: number }> = {
     'top10-movies': discoveryOf(top10MoviesQuery),
     'top10-series': discoveryOf(top10SeriesQuery),
     'tip-movies': discoveryOf(tipMoviesQuery),
@@ -420,6 +414,18 @@ export function HomeContent({
       : {},
   )
 
+  // A linha focada precisa estar à vista: o Início é uma coluna que rola, e com as linhas do TMDB (Em alta, Dica) várias ficam
+  // abaixo da dobra — o foco chegava nelas sem que a tela acompanhasse. O hero volta ao topo; as demais centralizam o card.
+  const contentRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const host = contentRef.current
+    if (!active || !host) return
+    if (effectiveRow === 'hero') {
+      host.scrollTop = 0
+      return
+    }
+    host.querySelector<HTMLElement>('.tv-focus')?.scrollIntoView?.({ block: 'center' })
+  }, [active, effectiveRow])
   const metaParts: string[] = []
   if (hero.kind !== 'welcome') {
     if (hero.item.year != null) metaParts.push(String(hero.item.year))
@@ -427,7 +433,7 @@ export function HomeContent({
   }
 
   return (
-    <div className="home-content no-scrollbar">
+    <div ref={contentRef} className="home-content no-scrollbar">
       {/* Feature 038 (FR-031/FR-032): texto, não controle — sem tabIndex, fora da navegação. */}
       {statusLine && <p className="home-status-line">{statusLine}</p>}
       <section className="home-hero" aria-label={hero.kind === 'welcome' ? t('home.welcome.aria') : hero.item.name}>
@@ -566,7 +572,7 @@ export function HomeContent({
             <Rail
               items={row.items}
               itemWidth={ranked ? RANKED_WIDTH : CARD_WIDTH}
-              itemHeight={CARD_HEIGHT}
+              itemHeight={ranked ? RANKED_HEIGHT : CARD_HEIGHT}
               focusedIndex={effectiveRow === key ? focus.index : -1}
               renderItem={(item, index) => (
                 <ContentCard
@@ -574,7 +580,7 @@ export function HomeContent({
                   title={item.name}
                   iconUrl={item.icon_url ?? undefined}
                   focused={active && effectiveRow === key && index === focus.index}
-                  rank={ranked ? row.ranks.get(item.id) : undefined}
+                  rank={ranked ? index + 1 : undefined}
                 />
               )}
             />

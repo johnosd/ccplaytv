@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-04
 
-**Status**: Convergência Pendente
+**Status**: Convergida
 
 **Input**: "implementar top 10 filmes, top 10 séries da semana com imdb. Implementar carrossel de dica de filme e série usando dados do TMDB também de forma aleatória usando média de votos, ano, popularidade. Incluir cada um na sua tela: filme na tela principal de filmes e série na tela principal de séries. Incluir os dois, filmes e séries, na tela de início." Preferência de versão informada na entrevista: trazer o título principal, sem `[L]` nem 4K, e só cair para legendado ou 4K quando não houver outra.
 
@@ -12,7 +12,7 @@
 
 ### Incluído
 
-- Fileira real **"Top 10 da semana"**, com os mais assistidos da semana segundo o **trending semanal do TMDB**, cruzados com a lista ativa. Na tela hero de **Filmes** é a de filmes, na de **Séries** é a de séries, e no **Início** entram as duas. Ela substitui os slots "Em breve" `vod-top10-movies` e `vod-top10-series` (item 67 do backlog).
+- Fileira real **"Em alta esta semana"** (no Início, "Filmes/Séries em alta esta semana"; internamente o "Top 10"), com os títulos em alta na semana segundo o **trending semanal do TMDB**, cruzados com a lista ativa. Na tela hero de **Filmes** é a de filmes, na de **Séries** é a de séries, e no **Início** entram as duas. Ela substitui os slots "Em breve" `vod-top10-movies` e `vod-top10-series` (item 67 do backlog).
 - Fileira nova **"Dica"** (dica de filme / dica de série), um sorteio entre títulos bem avaliados do TMDB cruzados com a lista. A escolha usa **nota média, ano e popularidade**, e fica **estável no dia**. Aparece em Filmes (dica de filme), em Séries (dica de série) e no Início (as duas).
 - **Cruzamento com a lista**: só aparece o que existe na lista ativa, e cada card abre o título real da lista.
 - **Preferência de versão**: entre as versões de um mesmo título na lista, vale a **principal** (sem marcador `[L]`, sem 4K). Só se não houver principal entra a versão 4K ou legendada. Cada título aparece uma única vez.
@@ -37,7 +37,7 @@
 
 ### User Story 1 - Top 10 da semana em Filmes e em Séries (Priority: P1)
 
-Na tela hero de Filmes, a pessoa vê a fileira "Top 10 da semana" no formato número grande + pôster, com os filmes mais assistidos da semana que existem na lista dela. Na tela de Séries, a mesma fileira traz as séries. Cada card mostra a posição real que o título tem no ranking semanal do TMDB (as posições ausentes na lista não são renumeradas).
+Na tela hero de Filmes, a pessoa vê a fileira "Em alta esta semana" no formato número grande + pôster, com os filmes em alta na semana que existem na lista dela. Na tela de Séries, a mesma fileira traz as séries. *(Emendado em 2026-10-05, a pedido do usuário: os cards são numerados 1, 2, 3… na fileira, sem buracos; a posição real do título no ranking semanal do TMDB aparece no destaque do card focado, como "Nº 6".)*
 
 **Why this priority**: É o pedido central, ocupa um slot já reservado na 053 e entrega descoberta imediata sem depender das demais histórias.
 
@@ -45,7 +45,7 @@ Na tela hero de Filmes, a pessoa vê a fileira "Top 10 da semana" no formato nú
 
 **Acceptance Scenarios**:
 
-1. **Given** chave TMDB válida e ao menos 3 títulos do trending semanal de filmes presentes na lista, **When** a pessoa abre Filmes, **Then** a fileira "Top 10 da semana" aparece na posição do slot reservado (após "Continue assistindo"), com esses filmes em ordem de ranking, cada um com sua posição real no TMDB.
+1. **Given** chave TMDB válida e ao menos 3 títulos do trending semanal de filmes presentes na lista, **When** a pessoa abre Filmes, **Then** a fileira "Em alta esta semana" aparece na posição do slot reservado (após "Continue assistindo"), com esses filmes na ordem do ranking do TMDB, numerados 1, 2, 3… na fileira; ao focar um card, o destaque mostra a posição real dele no TMDB.
 2. **Given** o ranking cujos #2 e #5 não estão na lista, **When** a fileira é montada, **Then** os cards mostram as posições 1, 3, 4, 6... e não 1, 2, 3, 4.
 3. **Given** um filme do ranking com várias versões na lista (principal, `[L]`, 4K), **When** a fileira é montada, **Then** só uma entrada aparece, a principal; se só existir 4K ou legendada, essa é usada.
 4. **Given** a fileira visível, **When** a pessoa foca um card, **Then** o destaque (hero) atualiza como nas outras fileiras e nada é consultado na rede nem no TMDB só por focar.
@@ -77,7 +77,7 @@ Em Filmes aparece a fileira "Dica de filme" e em Séries a "Dica de série": 10 
 
 ### User Story 3 - Top 10 e Dica de filmes e de séries no Início (Priority: P2)
 
-No Início aparecem quatro fileiras: Top 10 filmes da semana, Top 10 séries da semana, Dica de filme e Dica de série. Cada uma some sozinha se não tiver conteúdo, e o Início continua funcionando com o foco em qualquer combinação delas.
+No Início aparecem quatro fileiras: Filmes em alta esta semana, Séries em alta esta semana, Dica de filme e Dica de série. Cada uma some sozinha se não tiver conteúdo, e o Início continua funcionando com o foco em qualquer combinação delas.
 
 **Why this priority**: Amplia o alcance das fileiras e é o pedido de "incluir nos dois", mas depende dos mesmos dados das histórias 1 e 2 e é uma tela a mais de integração.
 
@@ -128,9 +128,9 @@ Se a chave TMDB não foi configurada, a rede falha, o TMDB responde com erro ou 
 
 ### Functional Requirements
 
-- **FR-001**: O sistema DEVE exibir a fileira "Top 10 da semana" de filmes na tela hero de Filmes e a de séries na de Séries, no lugar do slot reservado pela 053 (após "Continue assistindo"), no formato número grande + pôster.
+- **FR-001**: O sistema DEVE exibir a fileira "Em alta esta semana" (título da tela hero; no Início, "Filmes em alta esta semana" e "Séries em alta esta semana") de filmes na tela hero de Filmes e a de séries na de Séries, no lugar do slot reservado pela 053 (após "Continue assistindo"), no formato número grande + pôster.
 - **FR-002**: Os dados do Top 10 DEVEM vir do **trending semanal do TMDB** (um por tipo), cruzados com a lista ativa, e a fileira DEVE conter somente títulos que existam na lista.
-- **FR-003**: Cada card do Top 10 DEVE mostrar a **posição real** do título no ranking semanal do TMDB (sem renumerar quando faltam posições) e a fileira DEVE ter no máximo 10 cards.
+- **FR-003** *(emendado em 2026-10-05, aprovado pelo usuário)*: Cada card da fileira DEVE mostrar a **posição dele na fileira** (1, 2, 3…, sem buracos), na ordem do ranking semanal do TMDB; a **posição real** do título no ranking do TMDB DEVE aparecer no destaque (hero) do card focado ("Nº 6") na tela de Filmes e de Séries; a fileira DEVE ter no máximo 10 cards.
 - **FR-004**: A fileira Top 10 DEVE existir somente com **3 ou mais** títulos cruzados; com menos DEVE estar ausente (nem vazia, nem "Em breve").
 - **FR-005**: O sistema DEVE exibir a fileira "Dica de filme" em Filmes e "Dica de série" em Séries, com até **10** títulos da lista escolhidos entre candidatos do TMDB.
 - **FR-006**: Os candidatos da Dica DEVEM ter **nota média TMDB ≥ 7,0**, **quantidade mínima de votos** (definida no plano, para descartar nota alta com poucos votos) e **ano de lançamento nos últimos 15 anos**; a **popularidade** do TMDB DEVE pesar no sorteio (mais popular, mais chance), sem funcionar como filtro.
@@ -163,8 +163,8 @@ Se a chave TMDB não foi configurada, a rede falha, o TMDB responde com erro ou 
 
 ### Measurable Outcomes
 
-- **SC-001**: Em uma lista que contém ao menos 3 títulos do ranking semanal, 100% das aberturas de Filmes, Séries e Início com chave TMDB válida mostram a fileira "Top 10 da semana" correspondente, e 100% dos cards têm o título da lista aberto pelo OK.
-- **SC-002**: Em 100% das fileiras Top 10, nenhuma posição é renumerada: o número de cada card é a posição real no ranking semanal do TMDB.
+- **SC-001**: Em uma lista que contém ao menos 3 títulos do ranking semanal, 100% das aberturas de Filmes, Séries e Início com chave TMDB válida mostram a fileira "Em alta esta semana" correspondente, e 100% dos cards têm o título da lista aberto pelo OK.
+- **SC-002** *(emendado em 2026-10-05)*: Em 100% das fileiras "Em alta esta semana" os números dos cards são 1, 2, 3… sem buracos, na ordem do ranking semanal do TMDB, e o destaque do card focado mostra a posição real dele no TMDB.
 - **SC-003**: Abrir a mesma tela várias vezes no mesmo dia mostra a mesma Dica em 100% das vezes; em dois dias consecutivos, ao menos metade dos cards muda quando há candidatos suficientes.
 - **SC-004**: 100% dos cards de Dica têm nota média ≥ 7,0 e ano dentro dos últimos 15 anos.
 - **SC-005**: Em 100% dos títulos com mais de uma versão na lista, a versão principal é a escolhida; 4K ou legendada só aparecem quando não há outra, e nenhum título repete na fileira.
@@ -195,9 +195,10 @@ Se a chave TMDB não foi configurada, a rede falha, o TMDB responde com erro ou 
 - Q: Top 10 e Dica mostram só o que existe na lista? → A: Sim, só o que está na lista; preferir a versão principal (sem `[L]`/4K), caindo para legendada ou 4K só quando não houver outra (usuário).
 - Q: O que entra no Início? → A: Top 10 e Dica de filmes e de séries (4 fileiras), cada uma sumindo sem dado.
 - Q: Como a Dica é "aleatória"? → A: Sorteio ponderado, estável no dia.
-- Q: Quantos títulos do Top 10 e como numerar? → A: Mínimo 3; número = posição real no TMDB, sem renumerar.
+- Q: Quantos títulos do Top 10 e como numerar? → A: Mínimo 3; número = posição real no TMDB, sem renumerar. **Substituído em 2026-10-05** (ver a Q seguinte).
 - Q: Critérios da Dica? → A: Nota ≥ 7,0 com votos mínimos, últimos 15 anos, ponderado por popularidade.
 - Q: Sem chave, sem rede ou com erro do TMDB? → A: Somem sem ruído; usam o último resultado em cache se houver (semanal no Top 10, diário na Dica).
 - Q: Ordem do fallback de versão? → A: Principal > 4K ou legendada, regra única nas 4 fileiras.
 - Q: O FR-015 dizia que "sem chave" usa o último cache, contra a US4/AC1 e o comportamento entregue; qual vale? → A: (convergência, 2026-10-04, aprovado pelo usuário) sem chave as fileiras ficam ausentes e nada é pedido; o cache só vale para falha de rede ou erro do TMDB.
 - Q: O FR-016 ("uma consulta") e a US4/AC2 ("último sorteio") descreviam o fluxo de um jeito que o código não segue; e o aviso de cobertura não tinha requisito. Como ficam? → A: (convergência, 2026-10-04, aprovado pelo usuário) FR-016 vira "uma carga por tipo e período" (a Dica usa várias páginas); a US4/AC2 fala do último conjunto de candidatos sorteado com a semente do dia; o aviso de cobertura ganha o FR-022; o deslocamento de card sob o foco na Dica é risco aceito (R-016).
+- Q: Os números pulados (1, 3, 4…) dão uma sensação estranha quando faltam posições na lista. O que fazer? → A: (2026-10-05, a pedido do usuário) a fileira passa a se chamar **Em alta esta semana**, os cards são numerados **1, 2, 3…** na fileira e a posição real no TMDB aparece no destaque do card focado ("Nº 6"). Substitui a decisão "número = posição real, sem renumerar" (FR-003, US1/AC1, SC-002).

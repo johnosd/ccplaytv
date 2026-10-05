@@ -116,17 +116,17 @@ afterEach(async () => {
 })
 
 describe('HomeContent — Top 10 e Dica (feature 057)', () => {
-  it('as 4 linhas aparecem entre os canais e a "Curadoria IA", com a posição real, a fonte TMDB e o aviso de cobertura parcial', async () => {
+  it('as 4 linhas aparecem entre os canais e a "Curadoria IA", numeradas 1, 2, 3 na fileira, a fonte TMDB e o aviso de cobertura parcial', async () => {
     mockRows({ ...ALL, covered: [1, 3] })
     renderHome()
     await settled()
 
     const labels = [...document.querySelectorAll('.home-content section.home-row')].map((section) => section.getAttribute('aria-label'))
-    expect(labels).toEqual(['Top 10 filmes da semana', 'Top 10 séries da semana', 'Dica de filme', 'Dica de série', 'Curadoria IA'])
+    expect(labels).toEqual(['Filmes em alta esta semana', 'Séries em alta esta semana', 'Dica de filme', 'Dica de série', 'Curadoria IA'])
 
-    const movies = rowEl('Top 10 filmes da semana')!
-    expect([...movies.querySelectorAll('.content-card-rank')].map((rank) => rank.textContent)).toEqual(['1', '3', '4'])
-    expect([...rowEl('Top 10 séries da semana')!.querySelectorAll('.content-card-rank')].map((rank) => rank.textContent)).toEqual(['2', '5', '6'])
+    const movies = rowEl('Filmes em alta esta semana')!
+    expect([...movies.querySelectorAll('.content-card-rank')].map((rank) => rank.textContent)).toEqual(['1', '2', '3'])
+    expect([...rowEl('Séries em alta esta semana')!.querySelectorAll('.content-card-rank')].map((rank) => rank.textContent)).toEqual(['1', '2', '3'])
     expect(rowEl('Dica de filme')!.querySelector('.content-card-rank')).toBeNull()
     expect(movies.querySelector('.home-row-source')?.textContent).toContain('TMDB')
     expect(movies.querySelector('.home-row-coverage')?.textContent).toContain('Com base em 1 de 3 categorias')
@@ -138,7 +138,7 @@ describe('HomeContent — Top 10 e Dica (feature 057)', () => {
     renderHome()
     await settled()
     expect([...document.querySelectorAll('.home-content section.home-row')].map((s) => s.getAttribute('aria-label'))).toEqual([
-      'Top 10 filmes da semana',
+      'Filmes em alta esta semana',
       'Dica de série',
       'Curadoria IA',
     ])
@@ -148,7 +148,7 @@ describe('HomeContent — Top 10 e Dica (feature 057)', () => {
     renderHome()
     await settled()
     expect([...document.querySelectorAll('.home-content section.home-row')].map((s) => s.getAttribute('aria-label'))).toEqual(['Curadoria IA'])
-    expect(document.body.textContent).not.toContain('Top 10')
+    expect(document.body.textContent).not.toMatch(/em alta/i)
     expect(document.body.textContent).not.toContain('Dica de')
     press('ArrowDown')
     expect(focusedRow()).toBe('Curadoria IA')
@@ -161,13 +161,13 @@ describe('HomeContent — Top 10 e Dica (feature 057)', () => {
     await settled()
 
     press('ArrowDown')
-    expect(focusedRow()).toBe('Top 10 filmes da semana')
+    expect(focusedRow()).toBe('Filmes em alta esta semana')
     press('ArrowRight')
     press('Enter')
     expect(props.onOpenItem).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'id-Filme 3' }), { zone: 'rail', rail: 'top10-movies', itemId: 'id-Filme 3' })
 
     press('ArrowDown')
-    expect(focusedRow()).toBe('Top 10 séries da semana')
+    expect(focusedRow()).toBe('Séries em alta esta semana')
     press('ArrowDown')
     expect(focusedRow()).toBe('Dica de filme')
     press('ArrowDown')
@@ -191,10 +191,38 @@ describe('HomeContent — Top 10 e Dica (feature 057)', () => {
 
     mockRows(ALL)
     renderHome({ initialFocus: { zone: 'rail', rail: 'top10-series', itemId: 'id-sumiu' } })
-    await waitFor(() => expect(focusedRow()).toBe('Top 10 séries da semana'))
+    await waitFor(() => expect(focusedRow()).toBe('Séries em alta esta semana'))
     expect(document.querySelector('.home-content .tv-focus')?.closest('.content-card')?.textContent).toContain('Série 2')
   })
 
+  it('a linha focada rola até ficar à vista (as linhas do TMDB ficam abaixo da dobra); o hero volta ao topo', async () => {
+    const scrolled: Array<{ label: string | null | undefined; options: unknown }> = []
+    const original = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = function (this: Element, options?: boolean | ScrollIntoViewOptions) {
+      scrolled.push({ label: this.closest('section.home-row')?.getAttribute('aria-label'), options })
+    }
+    try {
+      mockRows(ALL)
+      renderHome()
+      await settled()
+      scrolled.length = 0
+
+      press('ArrowDown') // hero → Filmes em alta esta semana
+      press('ArrowDown') // → Séries em alta esta semana
+      press('ArrowDown') // → Dica de filme
+      expect(scrolled.map((entry) => entry.label)).toEqual(['Filmes em alta esta semana', 'Séries em alta esta semana', 'Dica de filme'])
+      expect(scrolled.every((entry) => (entry.options as ScrollIntoViewOptions).block === 'center')).toBe(true)
+
+      const host = document.querySelector('.home-content') as HTMLElement
+      host.scrollTop = 900
+      press('ArrowUp')
+      press('ArrowUp')
+      press('ArrowUp') // → hero
+      expect(host.scrollTop).toBe(0)
+    } finally {
+      Element.prototype.scrollIntoView = original
+    }
+  })
   it('focar e percorrer as linhas não consulta a rede', async () => {
     mockRows(ALL)
     const fetchSpy = vi.spyOn(globalThis, 'fetch')

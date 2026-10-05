@@ -153,36 +153,40 @@
   color: var(--text-annotation);
 }
 
-/* Top 10 no Início (feature 057): número grande decorativo à esquerda do pôster, o título embaixo do pôster (espelho do formato da hero em `vod.css`). */
+/* "Em alta" no Início (feature 057): mesmo formato da hero (`vod.css`) — número grande sobre a capa, canto inferior esquerdo —
+   com o título embaixo do pôster. */
 .home-content .content-card--ranked {
-  display: grid;
-  grid-template-columns: auto 205px;
-  grid-template-areas:
-    'rank poster'
-    '. title';
-  column-gap: var(--space-1);
-  align-items: end;
-  width: auto;
-}
-
-.home-content .content-card-rank {
-  grid-area: rank;
-  align-self: end;
-  font-family: var(--font-heading);
-  font-weight: 700;
-  font-size: var(--fs-display);
-  line-height: 1;
-  color: var(--text-annotation);
+  --rank-bleed: 52px;
+  --rank-poster-w: 226px;
+  position: relative;
+  box-sizing: border-box;
+  width: calc(var(--rank-bleed) + var(--rank-poster-w));
+  padding-left: var(--rank-bleed);
 }
 
 .home-content .content-card--ranked .poster-box {
-  grid-area: poster;
+  width: var(--rank-poster-w);
 }
 
-.home-content .content-card--ranked .content-card-title {
-  grid-area: title;
+.home-content .content-card-rank {
+  position: absolute;
+  left: 0;
+  /* alinha o pé do número ao pé do pôster (altura do pôster = largura × 302/205) */
+  top: calc(var(--rank-poster-w) * 302 / 205 - 0.78em);
+  z-index: 2;
+  pointer-events: none;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: calc(var(--fs-display) * 2.4);
+  line-height: 0.8;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+  text-shadow: var(--text-shadow-media), 0 0 28px var(--scrim-media);
 }
 
+.home-content .content-card--ranked-wide .content-card-rank {
+  font-size: calc(var(--fs-display) * 1.6);
+}
 .home-row-skeleton {
   display: flex;
   gap: var(--space-3);

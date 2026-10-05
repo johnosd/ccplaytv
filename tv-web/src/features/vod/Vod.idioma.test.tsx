@@ -40,7 +40,7 @@ describe('Filmes/Séries em outros idiomas (feature 054)', () => {
     )
     expect(rows.map((row) => row.title)).toEqual([
       'Seguir viendo',
-      'Top 10 de películas de la semana',
+      'Tendencias de esta semana',
       '★ Favoritos',
       'Añadidos recientemente',
       'Mejor valoradas',

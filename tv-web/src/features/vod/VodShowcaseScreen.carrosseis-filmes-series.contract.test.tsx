@@ -279,7 +279,7 @@ describe('VodShowcaseScreen — contrato da feature 053', () => {
     // O Top 10 (feature 057) não é mais slot: em Séries, sem dado, a fileira não existe.
     mockData()
     renderShowcase(undefined, 'series')
-    expect(document.querySelector('section.vod-row[aria-label="Top 10 séries da semana"]')).toBeNull()
+    expect(document.querySelector('section.vod-row[aria-label="Em alta esta semana"]')).toBeNull()
   })
 
   // US2/AC1..AC5, FR-004, FR-005, FR-013 (EMENDADO a pedido do usuário em 2026-10-03, R-016: ← → paginam a lista; ela

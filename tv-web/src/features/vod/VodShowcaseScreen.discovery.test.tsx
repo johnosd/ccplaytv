@@ -149,7 +149,7 @@ describe('VodShowcaseScreen — Top 10 e Dica além do contrato (feature 057)', 
   it('o número do card é decorativo (aria-hidden), o selo de nota do provedor segue nos cards e a fileira não tem "Ver tudo"', () => {
     mockData({ top10: [pick('Um', 1, 8.1), pick('Dois', 2), pick('Quatro', 4)] })
     wrapper()
-    const section = document.querySelector('section.vod-row[aria-label="Top 10 filmes da semana"]')!
+    const section = document.querySelector('section.vod-row[aria-label="Em alta esta semana"]')!
     expect([...section.querySelectorAll('.content-card-rank')].every((rank) => rank.getAttribute('aria-hidden') === 'true')).toBe(true)
     expect(section.querySelector('.content-card')!.textContent).toContain('★ 8,1')
     expect(section.querySelector('.vod-see-all-card')).toBeNull()
@@ -168,13 +168,13 @@ describe('VodShowcaseScreen — Top 10 e Dica além do contrato (feature 057)', 
     const top10 = [pick('Um', 1), pick('Dois', 2), pick('Quatro', 4)]
     mockData({ top10 })
     wrapper({ row: 'top10', id: 'id-Dois' })
-    expect(focusedRowLabel()).toBe('Top 10 filmes da semana')
+    expect(focusedRowLabel()).toBe('Em alta esta semana')
     expect(focusedCardText()).toContain('Dois')
     cleanup()
 
     mockData({ top10 })
     wrapper({ row: 'top10', id: 'id-sumiu' })
-    expect(focusedRowLabel()).toBe('Top 10 filmes da semana')
+    expect(focusedRowLabel()).toBe('Em alta esta semana')
     expect(focusedCardText()).toContain('Um')
   })
 
@@ -191,7 +191,7 @@ describe('VodShowcaseScreen — Top 10 e Dica além do contrato (feature 057)', 
   it('a fileira some com o foco nela e o foco cai numa fileira vizinha, sem se perder', () => {
     mockData({ top10: [pick('Um', 1), pick('Dois', 2), pick('Três', 3)], added: [movie('A1')] })
     const view = wrapper()
-    expect(focusedRowLabel()).toBe('Top 10 filmes da semana')
+    expect(focusedRowLabel()).toBe('Em alta esta semana')
     mockData({ added: [movie('A1')] }) // o TMDB deixou de valer (ex.: a chave foi removida)
     view.rerender()
     expect(document.querySelectorAll('.vod-showcase .tv-focus').length).toBe(1)

@@ -101,6 +101,8 @@ function App() {
     return onSourceSyncFinished(() => {
       void queryClient.invalidateQueries({ queryKey: ['sources'] })
       void queryClient.invalidateQueries({ queryKey: ['catalog-counts'] })
+      // O índice de busca (vitrine, Todos, Top 10/Dica) é do catálogo da geração ativa: uma sincronização o troca.
+      void queryClient.invalidateQueries({ queryKey: ['catalog-search-index'] })
     })
   }, [queryClient])
 
@@ -131,6 +133,7 @@ function App() {
     // renovação pedida) — a trilha relê e a pré-carga relê o disco.
     void queryClient.invalidateQueries({ queryKey: ['categories'] })
     void queryClient.invalidateQueries({ queryKey: ['category-content'] })
+    void queryClient.invalidateQueries({ queryKey: ['catalog-search-index'] })
     wakePrefetch()
   }, [autoRefreshJobId, autoRefreshJob.data?.status, queryClient])
 

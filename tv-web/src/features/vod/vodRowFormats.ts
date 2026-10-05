@@ -26,6 +26,7 @@ export const ROW_FORMATS: Record<RowFormat, RowFormatMetrics> = {
   'poster-xl': metrics(300, 324, 440),
   poster: metrics(260, 284, 383),
   'poster-compact': metrics(200, 224, 300),
-  top10: metrics(340, 360, 300),
+  // "Em alta" (057): recuo de 56 px para o número + pôster de 231×340; itens mais próximos (12 px) e um pouco maiores que antes.
+  top10: metrics(287, 299, 340),
   wide: metrics(400, 424, 240),
 }

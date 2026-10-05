@@ -123,8 +123,7 @@ export async function gotoRow(page, label, categories = []) {
   // Ordem fixa sob o hero (feature 053); as fileiras de categoria vêm depois, na ordem da fonte (`categories`, se passadas).
   const ORDER = [
     'Continue assistindo',
-    'Top 10 filmes da semana',
-    'Top 10 séries da semana',
+    'Em alta esta semana',
     '★ Favoritos',
     'Adicionados recentemente',
     'Bem avaliados',

@@ -293,6 +293,22 @@ describe('VodShowcaseScreen — carrosséis de categoria (feature 053)', () => {
     expect(document.querySelector('section[aria-label=\"Continue assistindo\"] .content-card--portrait')).toBeNull()
   })
 
+  it('quando os fundos chegam depois da 1ª abertura, os cards de "Continue assistindo" viram largos SEM ficar sobrepostos', () => {
+    mockData({ history: [movie('H1'), movie('H2'), movie('H3')] })
+    backdrops = new Map()
+    const view = renderShowcase()
+    const row = () => document.querySelector('section[aria-label="Continue assistindo"]')!
+    const lefts = () => [...row().querySelectorAll<HTMLElement>('.rail-item')].map((item) => parseInt(item.style.transform.replace(/[^0-9-]/g, ''), 10))
+    const widths = () => [...row().querySelectorAll<HTMLElement>('.rail-item')].map((item) => parseInt(item.style.width, 10))
+    expect(row().querySelector('.content-card--wide')).toBeNull()
+    expect(lefts().slice(0, 3)).toEqual([0, 324, 648]) // pôster alto: 324 px por item
+
+    backdrops = new Map([['id-H1', 'https://img/h1.jpg'], ['id-H2', 'https://img/h2.jpg'], ['id-H3', 'https://img/h3.jpg']])
+    view.rerenderShowcase()
+    expect(row().querySelector('.content-card--wide')).not.toBeNull()
+    expect(widths().slice(0, 3)).toEqual([424, 424, 424])
+    expect(lefts().slice(0, 3)).toEqual([0, 424, 848]) // cada item começa onde o anterior termina
+  })
   it('a rede nunca é tocada (nem TMDB) ao percorrer a tela, inclusive sem chave TMDB (Top 10 e Dica ausentes)', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     mockData({ history: [movie('H1')] })

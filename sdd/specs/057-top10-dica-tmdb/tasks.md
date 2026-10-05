@@ -334,7 +334,7 @@ description: "Tasks da feature 057 — Top 10 da semana e Dica (TMDB) em Filmes,
 
 ### Implementation
 
-- [ ] T046 [MEDIUM] Explicar a divergência da medição da 1ª fileira de Filmes (≈430–480 ms no roteiro "Início → Filmes" × 75–107 ms no fluxo de isolamento, mesmo estado) e fechar o SC-008: repetir a medição num único roteiro que alterne os dois fluxos, registrar o resultado em `plan.md` R-003 e fazer a passada na TV física pela skill `tizen-tv` (Início e Filmes, com e sem chave). Origem: SC-008 / plan: R-003 (C-10)
+- [X] T046 [MEDIUM] (feito em 2026-10-05: ver Registro da Fase 10; a divergência entre os roteiros ficou sem explicação e perdeu o sentido depois do bug de Filmes) Explicar a divergência da medição da 1ª fileira de Filmes (≈430–480 ms no roteiro "Início → Filmes" × 75–107 ms no fluxo de isolamento, mesmo estado) e fechar o SC-008: repetir a medição num único roteiro que alterne os dois fluxos, registrar o resultado em `plan.md` R-003 e fazer a passada na TV física pela skill `tizen-tv` (Início e Filmes, com e sem chave). Origem: SC-008 / plan: R-003 (C-10)
 - [X] T047 [LOW] Decidir (precisa do usuário) se o custo preexistente do 1º desenho de Filmes com o índice em cache (`select` de `useRecentlyAdded`/`useTopRated`, `plan.md` R-015) vira um item `[Bug]` em `.planning/backlog.md` → Ideias Futuras, a ser tratado fora desta feature. Origem: plan: R-015 (C-10)
 
 ### Testes da Fase
@@ -345,8 +345,8 @@ description: "Tasks da feature 057 — Top 10 da semana e Dica (TMDB) em Filmes,
 
 **Registro da Fase**:
 
-- Status: Parcial (2026-10-05): T047 feita; T046 (TV física) e T048 abertas.
-- Feito: T047 — decisão do usuário de registrar: item **70 `[Bug]`** em `.planning/backlog.md` (custo preexistente do 1º desenho de Filmes com o índice em cache, `plan.md` R-015), a tratar com `sdd-bugfix` fora da 057.
-- Contrato: sem contrato nesta fase; trava íntegra.
-- Testes executados: —
-- Pendências: T046 — medir Início e Filmes na TV física e explicar a divergência entre os dois roteiros de medição (C-10); T048 — reexecutar `sdd-converge`.
+- Status: Concluída em parte (2026-10-05): T046 e T047 feitas; T048 aguarda a convergência.
+- Feito: T047 — o custo preexistente de Filmes virou o bug `tela-principal-filmes-lenta-na-tv` (`sdd/bugs/`), investigado e corrigido (índice com `staleTime` de 60 s e invalidação ao entrar em categoria nova e no fim de sincronização, resultados guardados por índice, "Adicionados recentemente" mapeia só as 12). T046 — o app foi reinstalado na TV e o usuário viu: 1ª visita a Filmes com a primeira fileira rápida e sem travar, 2ª visita fluida e navegação na vitrine boa (qualitativo, sem tempos; **sem chave TMDB não foi testado**). A divergência entre os dois roteiros de medição no navegador (430–480 ms × 75–107 ms) não foi explicada; perdeu relevância depois da correção.
+- Contrato: sem contrato nesta fase; trava íntegra; 052/053/056 também.
+- Testes executados: `npm run test` 418 arq. / 2722 testes; E2E da área 10/10; ver `sdd/bugs/tela-principal-filmes-lenta-na-tv/test.md`. Quem viu a TV: o usuário.
+- Pendências: T048 (reexecutar `sdd-converge`).

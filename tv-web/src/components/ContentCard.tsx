@@ -14,8 +14,8 @@ export interface ContentCardProps {
   onSelect?: () => void
   /**
    * Número grande ao lado do pôster (formato Top 10, features 053/057) — opt-in e decorativo (`aria-hidden`). O número é a
-   * posição REAL do título no ranking semanal do TMDB (feature 057); o app nunca calcula uma posição. Sem a prop o card é
-   * idêntico ao de antes.
+   * posição do card NA FILEIRA (1, 2, 3…, sem buracos — feature 057); a posição real no ranking do TMDB aparece no destaque
+   * do card focado. Sem a prop o card é idêntico ao de antes.
    */
   rank?: number
 }
@@ -27,7 +27,10 @@ export interface ContentCardProps {
  */
 export function ContentCard({ variant, title, meta, iconUrl, focused, badge, onSelect, rank }: ContentCardProps): ReactNode {
   return (
-    <div className={`content-card content-card--${variant}${rank !== undefined ? ' content-card--ranked' : ''}`} onClick={onSelect}>
+    <div
+      className={`content-card content-card--${variant}${rank !== undefined ? ' content-card--ranked' : ''}${rank !== undefined && rank >= 10 ? ' content-card--ranked-wide' : ''}`}
+      onClick={onSelect}
+    >
       {rank !== undefined && (
         <span className="content-card-rank" aria-hidden="true">
           {rank}

@@ -1,4 +1,4 @@
-﻿import type { CatalogItemOut } from '../catalog/catalogApi'
+import type { CatalogItemOut } from '../catalog/catalogApi'
 
 /** Itens por fileira da vitrine (spec 052, FR-003). */
 export const SHOWCASE_LIMIT = 12
@@ -9,12 +9,21 @@ export const SHOWCASE_LIMIT = 12
  * Só lê o que recebeu — nenhuma consulta. Regras em `logic/vitrine-e-foco.md` §2.
  */
 export function recentlyAdded(items: readonly CatalogItemOut[], limit: number = SHOWCASE_LIMIT): CatalogItemOut[] {
+  return recentlyAddedBy(items, (item) => item.added_at, limit)
+}
+
+/**
+ * Mesma regra de `recentlyAdded`, para qualquer tipo de entrada: `addedAt` lê a data de cada uma e só as `limit` escolhidas são
+ * devolvidas — quem chama mapeia para o item de tela **depois** (sem mapear o catálogo inteiro, ≈43 mil registros, só para
+ * ficar com 12). Item sem data (ausente, `null`, não finita) fica de fora; empate mantém a ordem de entrada.
+ */
+export function recentlyAddedBy<T>(items: Iterable<T>, addedAt: (item: T) => unknown, limit: number = SHOWCASE_LIMIT): T[] {
   if (!(limit > 0)) return []
   // Buffer ordenado (mais novo primeiro) de tamanho `limit`: O(n log limit), sem ordenar o catálogo inteiro.
   // Empate: quem veio primeiro fica na frente (a busca binária insere DEPOIS dos iguais).
-  const top: { item: CatalogItemOut; at: number }[] = []
+  const top: { item: T; at: number }[] = []
   for (const item of items) {
-    const at = item.added_at
+    const at = addedAt(item)
     if (typeof at !== 'number' || !Number.isFinite(at)) continue
     if (top.length === limit && at <= top[top.length - 1].at) continue
     let low = 0

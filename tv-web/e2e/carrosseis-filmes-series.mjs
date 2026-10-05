@@ -164,9 +164,9 @@ async function run() {
     console.log(`  · ${labels.join(' | ')}`)
     // "Bem avaliados" virou fileira real na 056: este painel não declara nota, então ela não existe (nem como "Em breve").
     const expectedStart = ['Porque você assistiu']
-    assert(expectedStart.every((label, i) => labels[i] === label), 'sem histórico/favoritos/recentes/notas/TMDB: Porque você assistiu → categorias (Top 10 e Dica só existem com dado do TMDB, 057)')
+    assert(expectedStart.every((label, i) => labels[i] === label), 'sem histórico/favoritos/recentes/notas/TMDB: Porque você assistiu → categorias ("Em alta" e Dica só existem com dado do TMDB, 057)')
     assert(!labels.includes('Bem avaliados'), 'sem nota no painel, "Bem avaliados" não aparece')
-    assert(!labels.some((label) => label.startsWith('Top 10') || label.startsWith('Dica')), 'sem chave TMDB, Top 10 e Dica não aparecem (nem como "Em breve")')
+    assert(!labels.some((label) => /em alta esta semana/i.test(label) || label.startsWith('Dica')), 'sem chave TMDB, Em alta e Dica não aparecem (nem como "Em breve")')
     assert(labels.includes('Curto') && labels.includes('Longo'), 'um carrossel por categoria da fonte (Curto, Longo)')
     assert(labels.indexOf('Curto') < labels.indexOf('Longo'), 'categorias na ordem da fonte')
 
@@ -271,13 +271,13 @@ async function run() {
       await page.waitForTimeout(400)
       assert((await panelNow()).shut, 'e só então a lista recolhe')
     }
-    console.log(step = '=== Séries: sem TMDB não há Top 10 de séries ===')
+    console.log(step = '=== Séries: sem TMDB não há "Em alta esta semana" ===')
     await openViaTopbar(page, 'series')
     await page.waitForSelector('.vod-showcase', { timeout: 8000 })
     await enterContent(page)
     await enterRows(page)
     const seriesLabels = await walkRows(page, 6)
-    assert(!seriesLabels.some((label) => label.startsWith('Top 10') || label.startsWith('Dica')), `Séries sem chave TMDB não mostra Top 10 nem Dica (${seriesLabels.join(' | ')})`)
+    assert(!seriesLabels.some((label) => /em alta esta semana/i.test(label) || label.startsWith('Dica')), `Séries sem chave TMDB não mostra Em alta nem Dica (${seriesLabels.join(' | ')})`)
     await shot(page, '05-hero-series')
 
     console.log(step = `=== Pilha virtualizada com ${EXTRA_CATEGORIES + 2} categorias ===`)

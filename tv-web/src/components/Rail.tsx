@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useVirtualFocusSync } from '../lib/focus/useVirtualFocusSync'
@@ -35,6 +35,13 @@ export function Rail<T>({ items, renderItem, focusedIndex, itemWidth, itemHeight
     estimateSize: () => itemWidth,
     overscan: 3,
   })
+
+  // estimateSize só vale na 1ª medição: se a largura do item muda depois (ex.: "Continue assistindo" abre com pôster alto e vira
+  // card largo quando os fundos chegam), as posições guardadas ficam com a largura antiga e os itens se sobrepõem até uma
+  // rolagem remedir. Remede quando itemWidth muda.
+  useEffect(() => {
+    virtualizer.measure()
+  }, [itemWidth, virtualizer])
 
   useVirtualFocusSync({
     focusedIndex,

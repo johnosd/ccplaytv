@@ -664,42 +664,50 @@
   width: var(--vod-card-w, 400px);
 }
 
-/* Formato Top 10 (feature 053): número grande decorativo ao lado do pôster. */
+/* Formato "Em alta" (features 053/057): o número grande fica SOBRE a capa, no canto inferior esquerdo — metade para fora do
+   pôster (recuo `--rank-bleed` à esquerda do card) e metade por cima dele. O pôster tem a altura do trilho e a proporção dos
+   demais pôsteres. Número de 2 dígitos (10) encolhe para não cobrir a capa. */
 .vod-screen .content-card--ranked {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  gap: var(--space-1);
+  --rank-bleed: 56px;
+  --rank-inside: 52px; /* quanto do número entra no pôster: o título começa depois dele */
+  box-sizing: border-box;
+  padding-left: var(--rank-bleed);
 }
 
-/* O pôster do formato Top 10 tem a altura do trilho e a proporção dos demais pôsteres: sem isto ele encolhe ao tamanho do
-   conteúdo dentro da linha (o número ocupa o resto da largura do card, `--vod-card-w`). */
-.vod-screen .content-card--ranked {
-  justify-content: flex-end; /* o número fica encostado no pôster, não no canto do card */
+.vod-screen .content-card--ranked-wide {
+  --rank-inside: 80px;
 }
 
 .vod-screen .content-card--ranked .poster-box {
-  flex: none;
   width: auto;
-  height: var(--vod-card-h, 300px);
+  height: var(--vod-card-h, 340px);
   aspect-ratio: 205 / 302;
 }
 
-/* O título do pôster é absoluto no card: no formato Top 10 ele acompanha o pôster, não o número. */
+/* O título do pôster é absoluto no card: no formato "Em alta" ele começa depois do número que entra na capa. */
 .vod-screen .content-card--ranked .content-card-title {
-  left: auto;
-  width: calc(var(--vod-card-h, 300px) * 205 / 302 - 2 * var(--space-1));
+  left: calc(var(--rank-bleed) + var(--rank-inside));
+  right: var(--space-1);
 }
 
 .vod-screen .content-card-rank {
-  flex: none;
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--space-1) * -1);
+  z-index: 2;
+  pointer-events: none;
   font-family: var(--font-heading);
-  font-weight: 700;
-  font-size: var(--fs-display);
-  line-height: 1;
-  color: var(--text-annotation);
+  font-weight: 800;
+  font-size: calc(var(--fs-display) * 2.6);
+  line-height: 0.8;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+  text-shadow: var(--text-shadow-media), 0 0 28px var(--scrim-media);
 }
 
+.vod-screen .content-card--ranked-wide .content-card-rank {
+  font-size: calc(var(--fs-display) * 1.7);
+}
 /* Fileira sem trilho (slot reservado, categoria ainda sem itens): faixa estática com a mesma folga de foco do trilho. */
 .vod-row-strip {
   display: flex;

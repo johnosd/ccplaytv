@@ -1,6 +1,6 @@
 {
     "feature":  "057-top10-dica-tmdb",
-    "lockedAt":  "2026-10-04 07:59",
+    "lockedAt":  "2026-10-05 06:34",
     "total":  5,
     "files":  [
                   {
@@ -15,7 +15,7 @@
                   },
                   {
                       "path":  "tv-web/src/features/vod/VodShowcaseScreen.top10-dica-tmdb.contract.test.tsx",
-                      "sha256":  "0b64e78baed2786f839badc920115da572df82d194d10bb6726b6f3c40b9ba56",
+                      "sha256":  "78989a1da38be7a3bc737b2bdedf9334d04a07b2e92266ed5e3d6869228b7a96",
                       "tests":  2
                   }
               ]

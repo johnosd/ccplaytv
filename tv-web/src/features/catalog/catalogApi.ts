@@ -57,7 +57,7 @@ import {
 import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
 import { isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
-import { recentlyAdded } from '../vod/vodShowcase'
+import { recentlyAddedBy } from '../vod/vodShowcase'
 import { dayKey, selectFeaturedRated } from '../vod/ratedSelection'
 import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
 import {
@@ -428,11 +428,16 @@ function categoryContentKey(sourceId: string | null, categoryId: number | undefi
  * tocada antes da entrada, e é deliberadamente separada e amortecida.
  */
 export function useCategoryContent(sourceId: string | null, category: CatalogCategory | undefined) {
+  const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: categoryContentKey(sourceId, category?.id),
     queryFn: async (): Promise<CategoryContent> => {
       if (!sourceId || !category) return { items: [], totalCount: 0, outcome: 'fresh' }
-      return loadCategoryContent(sourceId, category)
+      const content = await loadCategoryContent(sourceId, category)
+      // Entrar numa categoria que ainda não estava no aparelho traz conteúdo novo ao catálogo: o índice de busca (vitrine,
+      // Todos, Top 10/Dica), que não é mais relido a cada montagem, precisa saber (bug `tela-principal-filmes-lenta-na-tv`).
+      if (content.outcome === 'fetched') void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId] })
+      return content
     },
     enabled: sourceId !== null && category !== undefined,
   })
@@ -1521,16 +1526,45 @@ export function useRecentlyAdded(
   kind: FavoritableKind,
 ): { data: CatalogItemOut[] | undefined; isLoading: boolean } {
   // Mesma chave e leitura de `useAggregatedItems`/"Todos": o índice local de busca é compartilhado no cache; aqui só se
-  // seleciona os 12 mais novos (`select`), sem rede e sem ordenar o catálogo inteiro.
+  // seleciona os 12 mais novos (`select`), sem rede e sem ordenar o catálogo inteiro. Só as 12 escolhidas viram
+  // `CatalogItemOut` (mapear os ≈43 mil registros custava ≈140 ms reais por execução) e o resultado fica guardado pela
+  // identidade do índice: nova montagem, ou render com o índice em cache, não recalcula nada.
+  const select = useCallback(
+    (index: Awaited<ReturnType<typeof loadSearchIndex>>) =>
+      memoPerIndex(index, `added|${kind}`, () => recentlyAddedBy(index.entries, (entry) => entry.record.addedAt).map((entry) => toItemOut(entry.record, kind))),
+    [kind],
+  )
   const query = useQuery({
     queryKey: ['catalog-search-index', sourceId, kind],
     queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
     enabled: sourceId !== null && kind !== 'channel',
-    staleTime: 0,
-    refetchOnMount: 'always',
-    select: (index) => recentlyAdded(index.entries.map((entry) => toItemOut(entry.record, kind))),
+    // O índice não é relido a cada montagem da tela (releitura do tipo inteiro do IndexedDB): vale `SHOWCASE_INDEX_STALE_MS`, e a
+    // pré-carga (categoria nova) e o fim de uma sincronização o invalidam.
+    staleTime: SHOWCASE_INDEX_STALE_MS,
+    select,
   })
   return { data: query.data, isLoading: query.isLoading }
+}
+
+/** Quanto tempo o índice de busca do tipo vale em memória para a vitrine (`useRecentlyAdded`, `useTopRated`). */
+const SHOWCASE_INDEX_STALE_MS = 60_000
+
+/**
+ * Guarda o resultado de um `select` pela identidade do índice (e uma chave): o react-query recalcula o `select` a cada nova
+ * montagem e sempre que a função muda de referência, mas sobre um índice grande (≈43 mil registros) isso é trabalho demais
+ * para repetir. Índice novo (releitura, categoria nova) = chave nova de verdade: recalcula uma vez.
+ */
+const perIndexMemo = new WeakMap<object, Map<string, unknown>>()
+function memoPerIndex<T>(index: object, key: string, compute: () => T): T {
+  let byKey = perIndexMemo.get(index)
+  if (!byKey) {
+    byKey = new Map()
+    perIndexMemo.set(index, byKey)
+  }
+  if (byKey.has(key)) return byKey.get(key) as T
+  const value = compute()
+  byKey.set(key, value)
+  return value
 }
 
 /**
@@ -1549,22 +1583,26 @@ export function useTopRated(
     (index: Awaited<ReturnType<typeof loadSearchIndex>>) => {
       // Refinamento de 2026-10-04 (FR-015..FR-018): recente, nota 6,0–9,9, uma versão por título e sorteio estável do dia.
       const now = Date.now()
-      const { picked } = selectFeaturedRated(
-        index.entries,
-        {
-          id: (entry) => String(entry.record.id),
-          name: (entry) => entry.record.name,
-          rating: (entry) => entry.record.providerRating,
-          year: (entry) => entry.record.year,
-          addedAt: (entry) => entry.record.addedAt,
-        },
-        { now, seed: `${dayKey(now)}|${kind}|${sourceId}` },
-      )
-      return {
-        items: picked.map((entry) => toItemOut(entry.record, kind)),
-        coveredCategories: index.coveredCategories,
-        totalCategories: index.totalCategories,
-      }
+      // Guardado pela identidade do índice, por fonte, tipo e dia: o `select` não recalcula (nem normaliza milhares de títulos)
+      // a cada montagem da vitrine.
+      return memoPerIndex(index, `rated|${kind}|${sourceId}|${dayKey(now)}`, () => {
+        const { picked } = selectFeaturedRated(
+          index.entries,
+          {
+            id: (entry) => String(entry.record.id),
+            name: (entry) => entry.record.name,
+            rating: (entry) => entry.record.providerRating,
+            year: (entry) => entry.record.year,
+            addedAt: (entry) => entry.record.addedAt,
+          },
+          { now, seed: `${dayKey(now)}|${kind}|${sourceId}` },
+        )
+        return {
+          items: picked.map((entry) => toItemOut(entry.record, kind)),
+          coveredCategories: index.coveredCategories,
+          totalCategories: index.totalCategories,
+        }
+      })
     },
     [kind, sourceId],
   )
@@ -1572,8 +1610,7 @@ export function useTopRated(
     queryKey: ['catalog-search-index', sourceId, kind],
     queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
     enabled: sourceId !== null && kind !== 'channel',
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: SHOWCASE_INDEX_STALE_MS, // ver `useRecentlyAdded`
     select,
   })
   return {

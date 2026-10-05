@@ -1,4 +1,4 @@
-# Lógica — Top 10 da semana e Dica (feature 057)
+# Lógica — "Em alta esta semana" (Top 10) e Dica (feature 057)
 
 Regras que um executor poderia errar. Os testes de contrato travados (`discoveryRules.*.contract.test.ts`,
 `tmdbDiscovery.*.contract.test.ts`, `VodShowcaseScreen.top10-dica-tmdb.contract.test.tsx`) são a definição executável; este arquivo
@@ -77,7 +77,7 @@ Entrada: títulos do TMDB **de um tipo** e os registros da lista **do mesmo tipo
 
 ## 4. Top 10 (`selectTop10`)
 
-- Recebe os `MatchedTitle` na ordem do ranking; devolve `[{ local, rank: title.rank }]` com no máximo `DISCOVERY_LIMIT` (10) e **sem renumerar** (posições ausentes ficam ausentes: 1, 3, 5...).
+- Recebe os `MatchedTitle` na ordem do ranking; devolve `[{ local, rank: title.rank }]` com no máximo `DISCOVERY_LIMIT` (10) com o `rank` **real** do TMDB (1, 3, 5…). **Emenda de 2026-10-05 (D-016)**: a tela NÃO mostra esse número no card — numera 1, 2, 3… pela posição na fileira (índice + 1) e usa o `rank` real só no destaque do card focado ("Nº 6").
 - Menos de `TOP10_MIN` (3) ⇒ `[]` (fileira ausente).
 
 ## 5. Dica (`selectTip`)
@@ -166,8 +166,14 @@ const index = useQuery({
 
 - Não usar IMDb em lugar nenhum (nome, rótulo, `imdb_id`, nota). A nota nos cards continua a do provedor, com o rótulo da 055/056.
 - Não consultar o TMDB ao focar; não iniciar consulta fora de abrir a tela (Início ou hero).
-- Não mostrar título do TMDB que não está na lista; não completar o Top 10 descendo no ranking; não renumerar.
+- Não mostrar título do TMDB que não está na lista; não completar o Top 10 descendo no ranking; não mostrar no card a posição real do TMDB (os cards numeram a posição na fileira; a real vai no destaque da hero).
 - Não guardar o cruzamento, URL de imagem, nem nada da credencial no `discoveryCache`; não logar nada.
 - Não ler `db.channels` direto (039): o cruzamento usa o índice de busca (`loadSearchIndex`), que já passa pelo `catalogRepository`.
 - Não criar "Ver tudo", "Em breve" ou cartão "Configure o TMDB" para estas fileiras; não mexer na ordem relativa das demais.
 - Não editar os testes de contrato travados; as 5 emendas pontuais de 052/053/056 estão em R-001 do `plan.md` (únicas permitidas).
+
+## 10. Emendas de 2026-10-05 (pós-TV)
+
+- **Título e numeração (D-016)**: a fileira chama-se Em alta esta semana (hero) e Filmes/Séries em alta esta semana (Início, chaves home.row.trendingMovies/Series); os cards numeram a posição na fileira (índice + 1); o ank real do TMDB entra só no eyebrow do destaque (showcase.eyebrow.top10 com {rank}: EM ALTA ESTA SEMANA · Nº 6 · TMDB).
+- **Visual (D-017)**: número grande sobre a capa (canto inferior esquerdo; 2 dígitos usam content-card--ranked-wide, menor), pôsteres mais próximos e maiores; o título começa depois do número. CSS em od.css e home.css, medidas em odRowFormats.ts e HomeContent.tsx.
+- **Rolagem do Início (R-018)**: a cada mudança de linha o Início rola até ela (scrollIntoView({ block: 'center' }); hero volta ao topo).

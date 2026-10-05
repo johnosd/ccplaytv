@@ -174,7 +174,7 @@ const clean = (value) => (value ?? '').replace(/\s+/g, ' ').trim()
 const rowLabels = (page, root) => page.locator(`${root} section`).evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')))
 const ranksOf = (page, selector) => page.locator(`${selector} .content-card-rank`).allTextContents().then((all) => all.map(clean))
 const titlesOf = (page, selector) => page.locator(`${selector} .content-card-title`).allTextContents().then((all) => all.map(clean))
-const isDiscovery = (label) => typeof label === 'string' && (label.startsWith('Top 10') || label.startsWith('Dica'))
+const isDiscovery = (label) => typeof label === 'string' && (/em alta esta semana/i.test(label) || label.startsWith('Dica'))
 
 async function addSource(page, port) {
   await page.goto(APP_URL)
@@ -265,13 +265,13 @@ async function run() {
     await page.waitForSelector('section.home-row[aria-label="Dica de série"] .content-card', { timeout: 20000 })
     const homeLabels = await rowLabels(page, '.home-content')
     assert(
-      JSON.stringify(homeLabels.filter(isDiscovery)) === JSON.stringify(['Top 10 filmes da semana', 'Top 10 séries da semana', 'Dica de filme', 'Dica de série']),
-      `Início: Top 10 filmes, Top 10 séries, Dica de filme, Dica de série, nessa ordem (${homeLabels.join(' | ')})`,
+      JSON.stringify(homeLabels.filter(isDiscovery)) === JSON.stringify(['Filmes em alta esta semana', 'Séries em alta esta semana', 'Dica de filme', 'Dica de série']),
+      `Início: Filmes e Séries em alta, Dica de filme, Dica de série, nessa ordem (${homeLabels.join(' | ')})`,
     )
     assert(homeLabels.indexOf('Dica de série') < homeLabels.indexOf('Curadoria IA'), 'as linhas ficam antes da "Curadoria IA"')
-    const homeMovies = 'section.home-row[aria-label="Top 10 filmes da semana"]'
-    assert(JSON.stringify(await ranksOf(page, homeMovies)) === JSON.stringify(['1', '3', '4']), `Início: posições reais do TMDB, sem renumerar (${await ranksOf(page, homeMovies)})`)
-    assert(JSON.stringify(await ranksOf(page, 'section.home-row[aria-label="Top 10 séries da semana"]')) === JSON.stringify(['2', '3', '4']), 'Início: Top 10 de séries com 2, 3 e 4')
+    const homeMovies = 'section.home-row[aria-label="Filmes em alta esta semana"]'
+    assert(JSON.stringify(await ranksOf(page, homeMovies)) === JSON.stringify(['1', '2', '3']), `Início: numeração 1, 2, 3 na fileira, sem buracos (${await ranksOf(page, homeMovies)})`)
+    assert(JSON.stringify(await ranksOf(page, 'section.home-row[aria-label="Séries em alta esta semana"]')) === JSON.stringify(['1', '2', '3']), 'Início: séries em alta numeradas 1, 2 e 3')
     const homeTitles = await titlesOf(page, homeMovies)
     assert(JSON.stringify(homeTitles) === JSON.stringify(['Filme Um', 'Filme Dois', 'Filme Tres']), `só o que existe na lista, na versão principal (${homeTitles})`)
     assert(clean(await page.locator(`${homeMovies} .home-row-source`).textContent()) === 'Fonte: TMDB', 'Início: procedência "Fonte: TMDB"')
@@ -299,15 +299,18 @@ async function run() {
     console.log((step = '=== Filmes: Top 10 e Dica ==='))
     await openShowcase(page, 'movies')
     await enterRows(page)
-    await gotoRow(page, 'Top 10 filmes da semana', ['Lançamentos', 'Fora do ar'])
-    const topRow = 'section.vod-row[aria-label="Top 10 filmes da semana"]'
+    await gotoRow(page, 'Em alta esta semana', ['Lançamentos', 'Fora do ar'])
+    const topRow = 'section.vod-row[aria-label="Em alta esta semana"]'
     await page.waitForSelector(`${topRow} .content-card`, { timeout: 10000 })
     assert((await page.locator(`${topRow} .vod-slot-card`).count()) === 0, 'fileira real: sem "Em breve"')
     assert((await page.locator(`${topRow} .vod-see-all-card`).count()) === 0, 'sem "Ver tudo"')
-    assert(JSON.stringify(await ranksOf(page, topRow)) === JSON.stringify(['1', '3', '4']), `Filmes: posições 1, 3 e 4 (${await ranksOf(page, topRow)})`)
+    assert(JSON.stringify(await ranksOf(page, topRow)) === JSON.stringify(['1', '2', '3']), `Filmes: numeração 1, 2 e 3 na fileira (${await ranksOf(page, topRow)})`)
     assert(clean(await page.locator(`${topRow} .vod-row-source`).textContent()) === 'Fonte: TMDB', 'Filmes: "Fonte: TMDB"')
     assert(clean(await page.locator(`${topRow} .vod-row-coverage`).textContent()) === 'Com base em 1 de 2 categorias', 'Filmes: aviso de cobertura parcial')
-    assert(clean(await page.locator('.vod-hero-eyebrow').first().textContent()).includes('TMDB'), 'o destaque cita o TMDB')
+    assert(/Nº 1\b/.test(clean(await page.locator('.vod-hero-eyebrow').first().textContent())), 'o destaque do 1º card mostra a posição real: Nº 1')
+    await page.keyboard.press('ArrowRight')
+    assert(/Nº 3\b/.test(clean(await page.locator('.vod-hero-eyebrow').first().textContent())), 'o 2º card da fileira mostra no destaque a posição real no TMDB: Nº 3')
+    await page.keyboard.press('ArrowLeft')
     await shot(page, '03-filmes-top10')
     const callsBeforeMove = tmdbCalls.length
     await page.keyboard.press('ArrowRight')
@@ -318,7 +321,7 @@ async function run() {
     await page.keyboard.press('Escape')
     await page.waitForSelector('.vod-showcase', { timeout: 8000 })
     await page.waitForFunction(() => document.querySelector('.vod-showcase .tv-focus') !== null, null, { timeout: 8000 })
-    assert((await focusedRowLabel(page)) === 'Top 10 filmes da semana', `voltar restaura a fileira (${await focusedRowLabel(page)})`)
+    assert((await focusedRowLabel(page)) === 'Em alta esta semana', `voltar restaura a fileira (${await focusedRowLabel(page)})`)
     await gotoRow(page, 'Dica de filme', ['Lançamentos', 'Fora do ar'])
     const tipRow = 'section.vod-row[aria-label="Dica de filme"]'
     await page.waitForSelector(`${tipRow} .content-card`, { timeout: 10000 })
@@ -331,10 +334,10 @@ async function run() {
     await openViaTopbar(page, 'series')
     await page.waitForSelector('.vod-showcase .side-category-nav-item', { timeout: 10000 })
     await enterRows(page)
-    await gotoRow(page, 'Top 10 séries da semana', ['Novas'])
-    const showRow = 'section.vod-row[aria-label="Top 10 séries da semana"]'
+    await gotoRow(page, 'Em alta esta semana', ['Novas'])
+    const showRow = 'section.vod-row[aria-label="Em alta esta semana"]'
     await page.waitForSelector(`${showRow} .content-card`, { timeout: 10000 })
-    assert(JSON.stringify(await ranksOf(page, showRow)) === JSON.stringify(['2', '3', '4']), `Séries: posições 2, 3 e 4 (${await ranksOf(page, showRow)})`)
+    assert(JSON.stringify(await ranksOf(page, showRow)) === JSON.stringify(['1', '2', '3']), `Séries: numeração 1, 2 e 3 na fileira (${await ranksOf(page, showRow)})`)
     assert(!(await titlesOf(page, showRow)).some((title) => title.includes('Fora do Ranking')), 'Séries: só o que o ranking trouxe')
     await gotoRow(page, 'Dica de série', ['Novas'])
     assert((await page.locator('section.vod-row[aria-label="Dica de série"] .content-card').count()) >= 5, 'Séries: Dica de série com 5+ cards')
@@ -355,9 +358,9 @@ async function run() {
     tmdbOnline = false
     const callsBeforeOffline = tmdbCalls.length
     await reopenApp(page)
-    await page.waitForSelector('section.home-row[aria-label="Top 10 filmes da semana"] .content-card', { timeout: 20000 })
+    await page.waitForSelector('section.home-row[aria-label="Filmes em alta esta semana"] .content-card', { timeout: 20000 })
     assert(callsTo('/3/trending/movie/week') > 1 || tmdbCalls.length > callsBeforeOffline, 'tentou a rede (que falhou) antes de usar o cache')
-    assert(JSON.stringify(await ranksOf(page, homeMovies)) === JSON.stringify(['1', '3', '4']), 'Início offline: o último Top 10 guardado')
+    assert(JSON.stringify(await ranksOf(page, homeMovies)) === JSON.stringify(['1', '2', '3']), 'Início offline: a última fileira em alta guardada')
     assert((await page.locator('section.home-row[aria-label="Dica de série"] .content-card').count()) >= 5, 'Início offline: a Dica do último conjunto guardado')
     assert((await page.locator('.error-state, [role="alert"]').count()) === 0, 'nenhum erro na tela sem rede')
     await shot(page, '06-inicio-offline-com-cache')
