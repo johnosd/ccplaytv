@@ -344,8 +344,9 @@ export function SeriesDetailScreen({
         : rawRow
   const effectiveTabId = rawRow === 'panel' && row === 'tabs' ? activeTab : focusedTabId
 
-  // Feature 059, FR-017: foco no hero ou nas abas devolve a página ao topo. Temporada,
-  // episódios e painel não mexem aqui — a lista virtual e os cartões rolam sozinhos.
+  // Feature 059, FR-017: foco no hero ou nas abas devolve a página ao topo. Temporada e
+  // episódios descem a página até a linha focada (efeito mais abaixo; bug
+  // `foco-some-ao-descer-na-lista`).
   const rootRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (row !== 'more' && row !== 'actions' && row !== 'tabs') return
@@ -427,6 +428,15 @@ export function SeriesDetailScreen({
     scrollToIndex: episodeVirtualizer.scrollToIndex,
     enabled: episodesNavigable,
   })
+
+  // Com o hero Cinema (059) a lista de episódios fica abaixo da dobra e passa a ter o tamanho do
+  // próprio conteúdo: quem rola é a página (`.vod-detail`), não a lista, e o `scrollToIndex` acima
+  // não a alcança. O foco é estado + `tv-focus`, não foco de DOM, então nada rola sozinho:
+  // trazemos a linha focada à vista. Só rolagem — focar nunca inicia reprodução nem consulta.
+  useEffect(() => {
+    if (row !== 'season' && row !== 'episodes') return
+    rootRef.current?.querySelector<HTMLElement>('.tv-focus')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [row, episodeIdx, activeTab])
 
   /**
    * `undefined` (motor decide) e `0` não existem aqui como distinção —

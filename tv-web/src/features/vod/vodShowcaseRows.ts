@@ -44,6 +44,13 @@ export interface BuildShowcaseRowsInput {
   hasTop10?: boolean
   /** Feature 057: há ao menos `TIP_MIN` candidatos válidos da Dica na lista — só então ela existe (ausente/`undefined` = não). */
   hasTip?: boolean
+  /**
+   * Feature 060 (FR-014/FR-015): há semente e ao menos um semelhante na lista — só então "Porque você assistiu" existe
+   * (ausente/`undefined` = não; o slot "Em breve" deixa de existir). STUB do sdd-plan: ainda não lido por `buildShowcaseRows`.
+   */
+  hasBecause?: boolean
+  /** Feature 060: nome do título semente, para o título "Porque você assistiu <nome>". */
+  becauseTitle?: string
   /** Nomes declarados pela fonte, na ordem dela. */
   categoryNames: readonly string[]
 }

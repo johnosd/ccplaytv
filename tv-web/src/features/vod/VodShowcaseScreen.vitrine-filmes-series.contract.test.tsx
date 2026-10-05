@@ -233,15 +233,9 @@ describe('VodShowcaseScreen — contrato da feature 052', () => {
     expect(hero!.querySelectorAll('button, a, input, [tabindex]').length).toBe(0)
     expect(document.querySelectorAll('.vod-showcase .tv-focus').length).toBe(1)
     expect(focusedCardText()).toContain('H1')
-    // Só as fileiras de itens com dado entram (+ os slots reservados e as categorias, emenda 053).
-    expect(rowLabels()).toEqual([
-      'Continue assistindo',
-      '★ Favoritos',
-      'Adicionados recentemente',
-      'Porque você assistiu',
-      'Ação',
-      'Drama',
-    ])
+    // Só as fileiras de itens com dado entram (+ as categorias, emenda 053). Emenda 060 (2026-10-05, autorizada pelo
+    // usuário): "Porque você assistiu" deixou de ser slot reservado — sem semente, não existe.
+    expect(rowLabels()).toEqual(['Continue assistindo', '★ Favoritos', 'Adicionados recentemente', 'Ação', 'Drama'])
     cleanup()
 
     mockData({ history: [], favorites: [], added: [] })

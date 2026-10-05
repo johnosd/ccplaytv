@@ -87,11 +87,13 @@ describe('Bem avaliados — regra pura (feature 056)', () => {
   })
 
   // US3/AC1, FR-001, FR-003, FR-009, Constitution: "Foco Visível e Sem Becos Sem Saída" (sem slot fantasma)
-  it('buildShowcaseRows: com nota a fileira "rated" é de itens, entre "added" e "because", com Ver tudo ordenado por nota; sem nota some, sem slot "Em breve"', () => {
+  // EMENDADO em 2026-10-05 (feature 060, autorizado pelo usuário): "Porque você assistiu" deixou de ser slot reservado —
+  // sem semente não existe, então não aparece mais depois de "rated" nestes cenários.
+  it('buildShowcaseRows: com nota a fileira "rated" é de itens, logo depois de "added", com Ver tudo ordenado por nota; sem nota some, sem slot "Em breve"', () => {
     const base = { section: 'movies' as const, hasContinue: false, hasFavorites: false, hasAdded: true, categoryNames: ['Ação'] }
 
     const withRated = buildShowcaseRows({ ...base, hasRated: true })
-    expect(withRated.map((row) => row.key)).toEqual(['added', 'rated', 'because', 'cat:Ação'])
+    expect(withRated.map((row) => row.key)).toEqual(['added', 'rated', 'cat:Ação'])
     const rated = withRated.find((row) => row.key === 'rated')!
     expect(rated.kind).toBe('items')
     expect(rated.format).toBe('poster')
@@ -100,11 +102,11 @@ describe('Bem avaliados — regra pura (feature 056)', () => {
     expect(rated.title).toBe('Bem avaliados')
 
     for (const without of [buildShowcaseRows({ ...base, hasRated: false }), buildShowcaseRows(base)]) {
-      expect(without.map((row) => row.key)).toEqual(['added', 'because', 'cat:Ação'])
+      expect(without.map((row) => row.key)).toEqual(['added', 'cat:Ação'])
       expect(without.some((row) => row.slotId === 'vod-rated')).toBe(false)
     }
-    // Os outros slots reservados seguem como estavam.
-    expect(withRated.filter((row) => row.kind === 'slot').map((row) => row.key)).toEqual(['because'])
+    // Emenda 060: não sobra nenhum slot reservado.
+    expect(withRated.filter((row) => row.kind === 'slot').map((row) => row.key)).toEqual([])
   })
 
   // US2/AC1, US2/AC3, FR-007, FR-008

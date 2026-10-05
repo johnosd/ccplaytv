@@ -1500,19 +1500,49 @@ border-color: rgba(255,122,61,.40);
 - configuração IPTV secundária;
 - nenhum painel técnico competindo com perfis.
 
-### Home
+### Home (layout "Vitrine expandida", revisão 2026-10-05)
 
-Ordem recomendada:
+A referência visual é a função `home()` do protótipo v13_2; as alternativas avaliadas (e descartadas) estão em `propostas/home-v15-variacoes.html`.
 
-1. hero;
-2. Continue Assistindo;
-3. Minha Lista quando houver itens;
-4. Agora na TV;
-5. Curadoria IA;
-6. Top / trending;
-7. recomendações.
+**Billboard**
 
-Status BYOK aparece como dock compacto.
+- um título só, o "continuar" mais recente (sem ele, um favorito; sem nenhum, o hero de boas-vindas), com backdrop em tela cheia, rótulo (`SÉRIE · CONTINUAR ASSISTINDO`), título, metadata (ano · duração ou temporadas · nota com a origem "Provedor"), chip da categoria da lista separado dos gêneros do TMDB e sinopse em até 3 linhas;
+- ações: primária `▶ Continuar T1:E3` com barra e "faltam X" (só com posição **e** duração reais) · `Mais informações` · `Minha Lista` · `Trailer`;
+- ocupa a primeira tela **só enquanto o foco está nele**; a primeira fileira aparece no rodapé, para indicar que há conteúdo abaixo;
+- nunca troca sozinho e nunca toca vídeo ou trailer ao focar (ADR-011).
+
+**Com o foco nas fileiras**
+
+- o billboard recolhe e as fileiras ocupam a tela; a fileira focada fica no topo, logo abaixo da topbar, e as anteriores somem;
+- o backdrop do item focado vira fundo ambiente esmaecido. Ele só usa imagem que já está no aparelho; sem ela, o fundo não muda;
+- o card focado **expande**: pôster 250 × 375 vira 16:9 de 667 × 375 com backdrop, título, metadata, 2 linhas de sinopse e `OK Detalhes`; Continuar 480 × 270 cresce para 600 × 338. A camada expandida é montada no foco, sem nenhuma consulta externa.
+
+**Cards e selos**
+
+- pôster 250 × 375 com o nome sobre a arte; selos: `NOVO` (adicionado recentemente, pela data da fonte), `★ nota` do provedor, `✓` assistido e `♥` Minha Lista;
+- Continuar assistindo: 16:9 com barra de progresso real e legenda (`T1:E3 · faltam 26 min`);
+- Top 10: numeral gigante vazado ao lado do pôster; o número acende no foco;
+- canal ao vivo: 480 × 270 com logo, `AO VIVO`, programa atual do EPG e barra de horário, terminando num card "Todos os canais";
+- classificação indicativa e nota TMDB só aparecem quando o app tiver esse dado real; no protótipo elas estão marcadas com contorno tracejado ciano (`.hb-nd`) como **dado novo**.
+
+**Ordem das fileiras** (fileira sem dado não aparece — nem skeleton, nem "Em breve"):
+
+1. Continuar assistindo;
+2. Em alta esta semana — Filmes (TMDB, só o que está na lista);
+3. Adicionados recentemente;
+4. Porque você assistiu *X* (Semelhantes do TMDB do último filme concluído, só os que estão na lista);
+5. Ao vivo agora (canais favoritos + EPG);
+6. Minha Lista;
+7. Em alta esta semana — Séries;
+8. Curadoria por IA — soft-disabled, "Em breve", nunca conteúdo inventado.
+
+**Navegação**
+
+- ←/→ andam dentro da fileira e param na ponta; o card focado fica na primeira posição visível;
+- ↑/↓ trocam de fileira e voltam ao último card focado nela; ↑ na primeira fileira volta às ações do billboard; ↑ nas ações vai ao dock de serviços e, de lá, à topbar;
+- voltando de outra tela, a Home reabre já com a fileira e o card de origem focados (por identidade), sem animar a partir do billboard.
+
+Status BYOK aparece como dock compacto no canto do billboard.
 
 ### Filmes / Séries
 

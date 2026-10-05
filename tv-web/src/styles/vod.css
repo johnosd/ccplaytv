@@ -788,6 +788,8 @@
 .vod-detail {
   gap: var(--space-4);
   overflow: auto;
+  /* scrollIntoView do foco (episódios, bug foco-some-ao-descer-na-lista) respeita a zona segura. */
+  scroll-padding-block: var(--safe-y);
 }
 
 .vod-detail-hero {
@@ -1737,4 +1739,29 @@
 
 .similar-section--missing .similar-card:has(.tv-focus) {
   opacity: 1;
+}
+
+/* ---------- Detalhe do filme: abas e elenco mais acima (ajuste de 2026-10-05) ----------
+   O hero Cinema tem 860px e a capa (600px) deixa uma faixa livre de ~111px no fundo
+   dele; as abas e o painel ficavam abaixo dos 860px e o elenco só cabia rolando. Em vez
+   de mexer no hero (aprovado), a faixa de abas sobe para dentro dessa faixa livre, um
+   respiro abaixo da capa, e o painel perde um respiro. Medida de layout, não de tema. */
+.vod-detail--movie {
+  --detail-hero-free-band: 111px;
+}
+
+.vod-detail--movie .vod-detail-hero--cinema + .tabs {
+  margin-top: calc(-1 * (var(--detail-hero-free-band) + var(--space-4) - var(--space-2)));
+}
+
+.vod-detail--movie .tabs + .vod-detail-panel {
+  margin-top: calc(-1 * var(--space-2));
+}
+
+/* O hero é posicionado e por isso pinta por cima de irmãos não posicionados: sem isto, a
+   vinheta dele escurece as abas e o topo do elenco que entram na faixa livre. */
+.vod-detail--movie .tabs,
+.vod-detail--movie .vod-detail-panel {
+  position: relative;
+  z-index: 1;
 }

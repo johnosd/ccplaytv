@@ -72,7 +72,8 @@ export interface HomeContentProps {
 
 /** Linhas do TMDB (feature 057): Top 10 e Dica de filmes e de séries, sempre depois dos canais favoritos. */
 type DiscoveryRowKey = 'top10-movies' | 'top10-series' | 'tip-movies' | 'tip-series'
-type RowKey = 'hero' | 'continue' | 'mylist' | 'channels' | DiscoveryRowKey | 'ai' | 'dock'
+/** STUB do sdd-plan (feature 060): 'added-movies' | 'added-series' | 'because' ainda não existem como fileira. */
+type RowKey = 'hero' | 'continue' | 'mylist' | 'channels' | DiscoveryRowKey | 'added-movies' | 'added-series' | 'because' | 'ai' | 'dock'
 const DISCOVERY_ROWS: DiscoveryRowKey[] = ['top10-movies', 'top10-series', 'tip-movies', 'tip-series']
 const ALL_ROWS: RowKey[] = ['hero', 'continue', 'mylist', 'channels', ...DISCOVERY_ROWS, 'ai', 'dock']
 
@@ -237,6 +238,9 @@ export function HomeContent({
     'top10-series': discovery['top10-series'].items.length > 0,
     'tip-movies': discovery['tip-movies'].items.length > 0,
     'tip-series': discovery['tip-series'].items.length > 0,
+    'added-movies': false,
+    'added-series': false,
+    because: false,
     ai: true,
     dock: true,
   }

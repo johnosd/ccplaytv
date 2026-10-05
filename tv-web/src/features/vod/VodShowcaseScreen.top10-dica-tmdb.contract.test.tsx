@@ -102,7 +102,7 @@ interface Discovery<T> {
 }
 const EMPTY = { data: [], covered: 0, total: 1 }
 
-/** Sem histórico/recentes/notas e com 1 favorito (um card elegível para o foco entrar nas fileiras): ★ Favoritos, Top 10/Dica (se houver), Porque você assistiu (slot) e "Ação". */
+/** Sem histórico/recentes/notas e com 1 favorito (um card elegível para o foco entrar nas fileiras): ★ Favoritos, Top 10/Dica (se houver) e "Ação". (Emenda 060, 2026-10-05: sem semente não há "Porque você assistiu".) */
 function mockData(kind: Kind, over: { top10?: Discovery<DiscoveryPick>; tip?: Discovery<CatalogItemOut> } = {}) {
   const top10 = over.top10 ?? EMPTY
   const tip = over.tip ?? EMPTY
@@ -272,14 +272,16 @@ describe('VodShowcaseScreen — contrato da feature 057', () => {
     renderShowcase('movies')
     const seen = visitRows()
     expect(seen).toContain('★ Favoritos')
-    expect(seen).toContain('Porque você assistiu')
+    expect(seen).toContain('Ação') // emenda 060: era "Porque você assistiu" (slot), que sem semente não existe mais
     expect(seen).not.toContain('Em alta esta semana')
     expect(rowOf('Em alta esta semana')).toBeNull()
     expect(document.body.textContent).not.toContain('Top 10 filmes da semana, com dados do TMDB.')
   })
 
   // US2/AC1, US2/AC5..AC7, FR-005, FR-012, FR-013, FR-014, FR-020, Constitution: "Foco Visível e Sem Becos Sem Saída"
-  it('Dica: "Dica de filme"/"Dica de série" entre as fileiras de destaque e "Porque você assistiu", com fonte TMDB e OK abre o título; sem dado a fileira não existe', () => {
+  // EMENDADO em 2026-10-05 (feature 060, autorizado pelo usuário): "Porque você assistiu" deixou de ser slot — sem semente,
+  // a fileira depois da Dica é a primeira categoria.
+  it('Dica: "Dica de filme"/"Dica de série" entre as fileiras de destaque e as categorias, com fonte TMDB e OK abre o título; sem dado a fileira não existe', () => {
     mockData('movie', { tip: { data: [title('movie', 'Dica 1'), title('movie', 'Dica 2', 8.1)], covered: 2, total: 2 } })
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     const calls = renderShowcase('movies')
@@ -297,9 +299,9 @@ describe('VodShowcaseScreen — contrato da feature 057', () => {
     tap('Enter')
     expect(calls.onOpenItem.mock.calls.at(-1)?.[0]).toBe('id-Dica 1')
 
-    // Posição: depois de ★ Favoritos (aqui não há "Adicionados"/"Bem avaliados") e antes de "Porque você assistiu".
+    // Posição: depois de ★ Favoritos (aqui não há "Adicionados"/"Bem avaliados") e antes da primeira categoria.
     tap('ArrowDown')
-    expect(focusedRowLabel()).toBe('Porque você assistiu')
+    expect(focusedRowLabel()).toBe('Ação')
     tap('ArrowUp')
     tap('ArrowUp')
     expect(focusedRowLabel()).toBe('★ Favoritos')
@@ -318,7 +320,7 @@ describe('VodShowcaseScreen — contrato da feature 057', () => {
     mockData('movie')
     renderShowcase('movies')
     const seen = visitRows()
-    expect(seen).toContain('Porque você assistiu')
+    expect(seen).toContain('Ação') // emenda 060: era "Porque você assistiu" (slot), que sem semente não existe mais
     expect(seen).not.toContain('Dica de filme')
     expect(rowOf('Dica de filme')).toBeNull()
   })

@@ -1,6 +1,7 @@
 /**
  * Teste de CONTRATO da feature 053 (carrosséis na tela hero de Filmes e Séries) — carrosséis por categoria com "Ver tudo",
- * slots reservados "Em breve" e lista lateral recolhível. Travado em
+ * slots reservados "Em breve" e lista lateral recolhível. EMENDADO em 2026-10-05 (feature 060, autorizado pelo usuário):
+ * "Porque você assistiu" deixou de ser slot — sem semente a fileira não existe, e não sobra nenhum slot. Travado em
  * `sdd/specs/053-carrosseis-filmes-series/contract-tests.lock`. O sdd-execute só pode fazê-lo passar, nunca editá-lo.
  *
  * Seletores fixados por este contrato (fonte de verdade):
@@ -209,18 +210,12 @@ describe('VodShowcaseScreen — contrato da feature 053', () => {
     const first = renderShowcase()
 
     const seen: string[] = []
-    for (let i = 0; i < 6; i += 1) {
+    for (let i = 0; i < 5; i += 1) {
       seen.push(focusedRowLabel() ?? '(sem foco)')
-      if (i < 5) tap('ArrowDown')
+      if (i < 4) tap('ArrowDown')
     }
-    expect(seen).toEqual([
-      'Continue assistindo',
-      '★ Favoritos',
-      'Adicionados recentemente',
-      'Porque você assistiu',
-      'Ação',
-      'Drama',
-    ])
+    // Emenda 060: sem semente não há "Porque você assistiu" entre os Recentes e as categorias.
+    expect(seen).toEqual(['Continue assistindo', '★ Favoritos', 'Adicionados recentemente', 'Ação', 'Drama'])
     tap('ArrowDown') // última fileira: nada a fazer, o foco não some
     expect(focusedRowLabel()).toBe('Drama')
 
@@ -251,28 +246,24 @@ describe('VodShowcaseScreen — contrato da feature 053', () => {
   })
 
   // US4/AC1..AC4, FR-008, FR-009, FR-011, Constitution: "Foco Visível…" + "Trailers e Metadados Não Alteram…" (nada externo ao focar)
-  it('slots reservados são focáveis e "Em breve", não navegam, não consultam a rede e não prendem o foco', () => {
+  // EMENDADO em 2026-10-05 (feature 060): sem semente "Porque você assistiu" não existe — nem fileira, nem slot "Em breve".
+  it('sem semente "Porque você assistiu" não existe (nem slot "Em breve"); o foco passa dos Recentes às categorias sem consultar a rede', () => {
     mockData()
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     const calls = renderShowcase()
 
-    tap('ArrowDown', 3) // Continue → Favoritos → Recentes → Porque você assistiu (slot; "Bem avaliados" é real desde a 056, o Top 10 desde a 057)
-    expect(focusedRowLabel()).toBe('Porque você assistiu')
-    const slot = document.querySelector('.vod-showcase .tv-focus')?.closest('.vod-slot-card')
-    expect(slot).not.toBeNull()
-    expect(slot!.getAttribute('aria-disabled')).toBe('true')
-    expect(slot!.textContent).toContain('Em breve')
+    tap('ArrowDown', 2) // Continue → Favoritos → Recentes ("Bem avaliados" é real desde a 056, o Top 10 desde a 057)
+    expect(focusedRowLabel()).toBe('Adicionados recentemente')
+    tap('ArrowDown')
+    expect(focusedRowLabel()).toBe('Ação')
+    expect(document.querySelector('section.vod-row[aria-label^="Porque você assistiu"]')).toBeNull()
+    expect(document.querySelector('.vod-showcase .vod-slot-card')).toBeNull()
     expect(document.querySelectorAll('.vod-showcase .tv-focus').length).toBe(1)
 
-    tap('Enter') // soft-disabled: só anuncia "Em breve"
-    tap('ArrowRight')
+    tap('ArrowUp', 3) // Ação → Recentes → Favoritos → Continue
+    expect(focusedRowLabel()).toBe('Continue assistindo')
     expect(calls.onOpenItem).not.toHaveBeenCalled()
     expect(calls.onOpenTarget).not.toHaveBeenCalled()
-    expect(focusedRowLabel()).toBe('Porque você assistiu')
-
-    tap('ArrowDown')
-    tap('ArrowUp', 4) // Ação → Porque você assistiu → … → Continue
-    expect(focusedRowLabel()).toBe('Continue assistindo')
     expect(fetchSpy).not.toHaveBeenCalled()
     cleanup()
 

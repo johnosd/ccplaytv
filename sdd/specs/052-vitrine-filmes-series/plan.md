@@ -224,6 +224,7 @@ Fora do contrato (orçamento de 5 usado; o resto não é verificável em jsdom o
 
 | R-019 | E2E `live-tv-ds-v14` (Live) intermitente na rodada paralela completa: falhou em 2 de 4 rodadas, passou isolado 3/3 e em trio com outros 2 | Médio — ruído no gate, fora da 052 | Aberto: investigar com `sdd-bugfix` (suspeita: o gesto de segurar OK sob carga de CPU); até lá reexecutar isolado e registrar. |
 | R-020 | Emenda pela feature 053 (2026-10-03, autorizada em FR-016 da spec 053): o contrato `VodShowcaseScreen.vitrine-filmes-series.contract.test.tsx` fixava a ordem de 3 fileiras e o percurso de teclas da tela hero; a 053 acrescentou o slot Top 10 e os carrosséis de categoria, então o teste foi trocado por equivalente (mesmos 2 casos; a ordem das fileiras passa a ser lida pelo FOCO ao descer, a pilha é virtualizada; `useCategoryPreviews` mockado) e a trava da 052 foi regravada. | Baixo | Resolvido: trava 052 regravada (5/5), demais arquivos do contrato inalterados. |
+| R-021 | **Emenda pela feature 060** (2026-10-05, autorizada pelo usuário no `sdd-plan` da 060): "Porque você assistiu" deixou de ser slot "Em breve" — sem semente a fileira não existe (item 69 do backlog, `060` FR-014/FR-015). Mudou só o que citava o slot: `VodShowcaseScreen.vitrine-filmes-series.contract.test.tsx`: a lista de fileiras não tem mais "Porque você assistiu" (sem semente) | Contratos emendados ficam vermelhos até a fase da 060 que liga a fileira real | Retravado (5/5) com `check-contract-tests.ps1 -Write`; registro também na `060` (D-012 do `plan.md` dela) |
 
 ## Execution Notes
 

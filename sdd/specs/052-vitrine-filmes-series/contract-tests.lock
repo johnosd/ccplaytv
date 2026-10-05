@@ -1,6 +1,6 @@
 {
     "feature":  "052-vitrine-filmes-series",
-    "lockedAt":  "2026-10-04 08:37",
+    "lockedAt":  "2026-10-05 15:46",
     "total":  5,
     "files":  [
                   {
@@ -10,7 +10,7 @@
                   },
                   {
                       "path":  "tv-web/src/features/vod/VodShowcaseScreen.vitrine-filmes-series.contract.test.tsx",
-                      "sha256":  "73354dc19d2dbcda1aa7d8c00b6bedf892b33b3f84c477247164800835b2b9b7",
+                      "sha256":  "d222635715dd8fe8188a24e668bed0776760a1da2dab3b2f57f1f408264c8968",
                       "tests":  2
                   },
                   {

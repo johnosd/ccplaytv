@@ -8,7 +8,9 @@ import { buildShowcaseRows } from './vodShowcaseRows'
 
 describe('buildShowcaseRows — contrato da feature 053', () => {
   // FR-001, FR-002, FR-006, FR-007, FR-008, FR-009, FR-010
-  it('ordem fixa sob o hero; fileiras de itens só com dado; slots reservados e uma fileira por categoria da fonte, sempre', () => {
+  // EMENDADO em 2026-10-05 (feature 060, autorizado pelo usuário): "Porque você assistiu" deixou de ser slot "Em breve" —
+  // sem semente a fileira não existe (a regra com semente é coberta pelo contrato da 060).
+  it('ordem fixa sob o hero; fileiras de itens só com dado; uma fileira por categoria da fonte, sempre', () => {
     const all = buildShowcaseRows({
       section: 'movies',
       hasContinue: true,
@@ -16,45 +18,28 @@ describe('buildShowcaseRows — contrato da feature 053', () => {
       hasAdded: true,
       categoryNames: ['Ação', 'Filmes | Drama'],
     })
-    expect(all.map((row) => row.key)).toEqual([
-      'continue',
-      'favorites',
-      'added',
-      'because',
-      'cat:Ação',
-      'cat:Filmes | Drama',
-    ])
-    expect(all.map((row) => row.kind)).toEqual(['items', 'items', 'items', 'slot', 'category', 'category'])
+    expect(all.map((row) => row.key)).toEqual(['continue', 'favorites', 'added', 'cat:Ação', 'cat:Filmes | Drama'])
+    expect(all.map((row) => row.kind)).toEqual(['items', 'items', 'items', 'category', 'category'])
     // Formatos por papel: destaque grande, comum, categorias compactas.
-    expect(all.map((row) => row.format)).toEqual([
-      'poster-xl',
-      'poster',
-      'poster',
-      'poster',
-      'poster-compact',
-      'poster-compact',
-    ])
+    expect(all.map((row) => row.format)).toEqual(['poster-xl', 'poster', 'poster', 'poster-compact', 'poster-compact'])
     // Categoria: o nome declarado vira o destino do "Ver tudo"; só a exibição perde o prefixo redundante.
-    const drama = all[5]
+    const drama = all[4]
     expect(drama.title).toBe('Drama')
     expect(drama.seeAll).toEqual({ kind: 'category', name: 'Filmes | Drama' })
-    // "Ver tudo" das fileiras de itens e slots sem destino nem dado.
+    // "Ver tudo" das fileiras de itens.
     expect(all[0].seeAll).toEqual({ kind: 'history' })
     expect(all[1].seeAll).toEqual({ kind: 'favorites' })
     expect(all[2].seeAll).toEqual({ kind: 'all', sort: 'added' })
-    expect(all[3].seeAll).toBeNull()
-    expect(all[3].slotId).not.toBeNull()
-    expect(all[0].slotId).toBeNull()
+    expect(all.every((row) => row.slotId === null)).toBe(true)
 
-    // Sem histórico, o destaque grande passa para Favoritos; sem nenhum dado sobram slots + categorias.
+    // Sem histórico, o destaque grande passa para Favoritos; sem nenhum dado sobram só as categorias.
     const noHistory = buildShowcaseRows({ section: 'movies', hasContinue: false, hasFavorites: true, hasAdded: false, categoryNames: ['Ação'] })
     expect(noHistory.map((row) => [row.key, row.format])).toEqual([
       ['favorites', 'poster-xl'],
-      ['because', 'poster'],
       ['cat:Ação', 'poster-compact'],
     ])
     const bare = buildShowcaseRows({ section: 'series', hasContinue: false, hasFavorites: false, hasAdded: false, categoryNames: [] })
-    expect(bare.map((row) => row.key)).toEqual(['because'])
+    expect(bare.map((row) => row.key)).toEqual([])
     // O Top 10 (feature 057) deixou de ser slot: some sem dado; o título por seção é coberto pelos testes da 057.
   })
 })

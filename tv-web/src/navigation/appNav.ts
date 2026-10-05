@@ -33,7 +33,19 @@ export type HomeFocus =
   | {
       zone: 'rail'
       // Feature 057: as 4 linhas do TMDB (só acréscimo à união — os contratos 023/024 não mudam).
-      rail: 'continue' | 'mylist' | 'channels' | 'top10-movies' | 'top10-series' | 'tip-movies' | 'tip-series' | 'ai'
+      // Feature 060: "Filmes adicionados", "Séries adicionadas" e "Porque você assistiu"; "channels" é a "Ao vivo agora".
+      rail:
+        | 'continue'
+        | 'mylist'
+        | 'channels'
+        | 'top10-movies'
+        | 'top10-series'
+        | 'tip-movies'
+        | 'tip-series'
+        | 'added-movies'
+        | 'added-series'
+        | 'because'
+        | 'ai'
       itemId: string
     }
   | { zone: 'dock'; service: string }

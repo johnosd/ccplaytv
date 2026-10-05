@@ -96,7 +96,7 @@ function category(id: number, name: string, order: number): CatalogCategory {
 
 /**
  * Sem histórico/recentes e com 1 favorito (um card elegível, para o foco entrar nas fileiras):
- * ★ Favoritos, Bem avaliados (se houver), Porque você assistiu (slot) e "Ação".
+ * ★ Favoritos, Bem avaliados (se houver) e "Ação". (Emenda 060, 2026-10-05: sem semente não há "Porque você assistiu".)
  */
 function mockData(rated: { items: CatalogItemOut[]; covered: number; total: number }) {
   vi.mocked(catalogApi.useCategoryList).mockReturnValue({
@@ -258,7 +258,7 @@ describe('VodShowcaseScreen — contrato da feature 056', () => {
       visit()
     }
     expect(seen).toContain('★ Favoritos')
-    expect(seen).toContain('Porque você assistiu')
+    expect(seen).toContain('Ação') // emenda 060: era "Porque você assistiu" (slot), que sem semente não existe mais
     expect(seen).not.toContain('Bem avaliados')
     expect(document.querySelector('section.vod-row[aria-label="Bem avaliados"]')).toBeNull()
     expect(document.body.textContent).not.toContain('Títulos mais bem avaliados da sua lista')

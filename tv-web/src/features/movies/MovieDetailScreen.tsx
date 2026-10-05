@@ -509,7 +509,7 @@ export function MovieDetailScreen({
 
   return (
     // Achado real (feature 028, FR-006): rolava com a barra nativa visível.
-    <div ref={rootRef} className="screen vod-detail no-scrollbar">
+    <div ref={rootRef} className="screen vod-detail vod-detail--movie no-scrollbar">
       <DetailHero
         eyebrow={t('detail.eyebrow.movie')}
         title={movie.name}
