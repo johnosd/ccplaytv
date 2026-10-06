@@ -185,7 +185,7 @@ async function run() {
       const f = document.querySelector('.vod-episode-row.tv-focus')
       const b = f?.getBoundingClientRect()
       const det = document.querySelector('.vod-detail')
-      return { name: f?.querySelector('.content-card-title')?.textContent ?? null, top: b ? Math.round(b.top) : null, bottom: b ? Math.round(b.bottom) : null, vh: innerHeight, pageScroll: det ? Math.round(det.scrollTop) : null, focused: document.querySelectorAll('.vod-episode-row.tv-focus').length }
+      return { name: f?.querySelector('.vod-episode-title')?.textContent ?? null, top: b ? Math.round(b.top) : null, bottom: b ? Math.round(b.bottom) : null, vh: innerHeight, pageScroll: det ? Math.round(det.scrollTop) : null, focused: document.querySelectorAll('.vod-episode-row.tv-focus').length }
     })
   const visible = (s) => s.top !== null && s.top >= 0 && s.bottom <= s.vh
 
@@ -210,7 +210,7 @@ async function run() {
     let maxScroll = 0
     for (let i = 2; i <= 14; i += 1) {
       await page.keyboard.press('ArrowDown')
-      await page.waitForFunction((n) => document.querySelector('.vod-episode-row.tv-focus .content-card-title')?.textContent === `Episodio ${n}`, i, { timeout: 4000 })
+      await page.waitForFunction((n) => document.querySelector('.vod-episode-row.tv-focus .vod-episode-title')?.textContent === `Episodio ${n}`, i, { timeout: 4000 })
       await page.waitForTimeout(80)
       s = await snap()
       if (!visible(s)) {
@@ -225,7 +225,7 @@ async function run() {
     let upVisible = true
     for (let i = 13; i >= 1; i -= 1) {
       await page.keyboard.press('ArrowUp')
-      await page.waitForFunction((n) => document.querySelector('.vod-episode-row.tv-focus .content-card-title')?.textContent === `Episodio ${n}`, i, { timeout: 4000 })
+      await page.waitForFunction((n) => document.querySelector('.vod-episode-row.tv-focus .vod-episode-title')?.textContent === `Episodio ${n}`, i, { timeout: 4000 })
       await page.waitForTimeout(80)
       s = await snap()
       if (!visible(s)) {

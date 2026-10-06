@@ -173,7 +173,7 @@ async function run() {
     await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"][aria-label="Selecionar temporada"]', { state: 'detached', timeout: 4000 })
     assert(
-      await page.locator('.content-card-title', { hasText: 'Episódio da T10' }).isVisible(),
+      await page.locator('.vod-episode-title', { hasText: 'Episódio da T10' }).isVisible(),
       'OK escolhe a temporada destacada (T10)',
     )
 

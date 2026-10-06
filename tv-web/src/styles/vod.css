@@ -920,20 +920,6 @@
   white-space: pre-line;
 }
 
-/* Sinopse do episódio focado (FR-028): altura fixa de 3 linhas enquanto houver alguma. */
-.vod-episode-synopsis {
-  flex: none;
-  min-height: calc(3 * 1.4 * var(--fs-body));
-  margin: 0;
-  font-size: var(--fs-body);
-  line-height: 1.4;
-  color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
 .vod-detail-poster {
   width: 220px;
   flex: none;
@@ -1134,11 +1120,56 @@
   padding: var(--space-1) 0;
 }
 
-.vod-episode-progress {
+/* Capa à esquerda, informação do episódio (título, meta, sinopse, progresso) ao lado — não abaixo. */
+.vod-episode-thumb {
+  flex: none;
+  width: 292px;
+}
+
+.vod-episode-thumb .poster-box {
+  aspect-ratio: 292 / 164;
+}
+
+.vod-episode-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.vod-episode-title {
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vod-episode-meta {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+/* Sinopse do episódio (FR-028): 3 linhas no máximo, só quando o provedor a declara. */
+.vod-episode-synopsis {
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: 1.4;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.vod-episode-progress {
   color: var(--text-secondary);
   font-size: var(--fs-caption);
+}
+
+.vod-episode-progress:empty {
+  display: none;
 }
 
 .vod-episode-progress-bar {

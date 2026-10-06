@@ -49,7 +49,7 @@ import {
 import { PlayerLayer, type PlayerEpisodeStep } from '../../components/PlayerLayer'
 import type { TrackChoice, ViewChoice } from '../../lib/player/PlayerService'
 import { NextEpisodeCountdown } from './NextEpisodeCountdown'
-import { ContentCard } from '../../components/ContentCard'
+import { PosterArt } from '../../components/PosterArt'
 import { RatingBadge } from '../../components/RatingBadge'
 import { Tabs, type TabItem } from '../../components/Tabs'
 import { useT } from '../../lib/i18n/I18nProvider'
@@ -157,11 +157,11 @@ function actionLabel(action: SeriesAction, t: Translator): string {
 }
 
 /**
- * Altura de linha de `.vod-episode-row` — `ContentCard` landscape (292×164,
- * feature 022) + título/meta abaixo + o respiro do layout (feature 025,
+ * Altura de linha de `.vod-episode-row` — capa landscape (292×164, feature
+ * 022) com título/meta/sinopse AO LADO + o respiro do layout (feature 025,
  * FR-041).
  */
-const EPISODE_ROW_HEIGHT = 232
+const EPISODE_ROW_HEIGHT = 196
 const EPISODE_OVERSCAN = 6
 
 /**
@@ -214,7 +214,7 @@ type Mode =
  * Detalhe de série no layout V14 (feature 025, US6): hero com ação primária
  * "Continuar/Assistir TX:EY", Minha Lista, Trailer mock; abas Episódios/
  * Detalhes/Elenco/Semelhantes; seletor de temporada em modal; episódios em
- * `ContentCard` landscape com progresso real (`logic/detalhe-vod.md`). Sem
+ * capa landscape com título/sinopse ao lado e progresso real (`logic/detalhe-vod.md`). Sem
  * topbar (FR-004) — raiz `.screen`, coberta pela regra de transparência do
  * plano de hardware. Autoplay/contagem/máquina `Mode` **inalterados** desde
  * a feature 012.
@@ -871,17 +871,6 @@ export function SeriesDetailScreen({
               <span className="vod-season-count">{t('detail.episodeCount', { n: seasonEpisodes.length })}</span>
             </div>
 
-            {/* Sinopse do episódio focado (feature 032, FR-028): só dado já
-                guardado, nenhuma consulta ao focar. A faixa tem altura fixa
-                enquanto algum episódio da temporada tiver sinopse — a lista
-                não pula ao mover o foco entre um com e um sem. Nunca usa a
-                sinopse da série no lugar da do episódio. */}
-            {seasonEpisodes.some((episode) => episode.synopsis) && (
-              <p className="vod-episode-synopsis" aria-live="polite">
-                {row === 'episodes' ? (seasonEpisodes[episodeIdx]?.synopsis ?? '') : ''}
-              </p>
-            )}
-
             {/* Achado real (feature 028, FR-006): rolava com a barra nativa visível. */}
             <div ref={episodeListRef} className="vod-episode-list no-scrollbar">
               <div className="vod-episode-list-inner" style={{ height: episodeVirtualizer.getTotalSize() }}>
@@ -894,7 +883,9 @@ export function SeriesDetailScreen({
                     durationSeconds != null && badge.resumeSeconds != null
                       ? Math.min(100, (badge.resumeSeconds / durationSeconds) * 100)
                       : null
-                  const metaText = [episodeCode(episode), durationSeconds != null ? formatTime(durationSeconds * 1000) : null]
+                  const code = episodeCode(episode)
+                  // Sem temporada/episódio identificável `episodeCode` já É o nome — não repete ao lado do título.
+                  const metaText = [code === episode.name ? null : code, durationSeconds != null ? formatTime(durationSeconds * 1000) : null]
                     .filter(Boolean)
                     .join(' · ')
                   const focused = row === 'episodes' && episodeIdx === virtualRow.index
@@ -904,22 +895,31 @@ export function SeriesDetailScreen({
                       className={`vod-episode-row${focused ? ' tv-focus' : ''}`}
                       style={{ transform: `translateY(${virtualRow.start}px)` }}
                     >
-                      <ContentCard
-                        variant="landscape"
-                        title={episode.name}
-                        meta={metaText}
-                        iconUrl={episode.icon_url ?? series.icon_url ?? undefined}
-                        focused={focused}
-                        badge={badge.watched && <span className="watched-badge">{t('detail.completed')}</span>}
-                      />
-                      <div className="vod-episode-progress">
-                        {pct != null ? (
-                          <div className="vod-episode-progress-bar">
-                            <div className="vod-episode-progress-fill" style={{ width: `${pct}%` }} />
-                          </div>
-                        ) : badge.resumeSeconds != null ? (
-                          <span>{t('showcase.resumeFrom', { time: formatTime(badge.resumeSeconds * 1000) })}</span>
-                        ) : null}
+                      <div className="vod-episode-thumb">
+                        <PosterArt
+                          url={episode.icon_url ?? series.icon_url ?? undefined}
+                          title={episode.name}
+                          focused={focused}
+                        >
+                          {badge.watched && <span className="watched-badge">{t('detail.completed')}</span>}
+                        </PosterArt>
+                      </div>
+                      {/* Informação ao lado do cartão (não abaixo). Só dado já guardado — nenhuma consulta ao
+                          focar (feature 032, FR-028); sem sinopse do episódio não mostra texto, e nunca usa a
+                          sinopse da série no lugar. */}
+                      <div className="vod-episode-info">
+                        <div className="vod-episode-title">{episode.name}</div>
+                        {metaText && <div className="vod-episode-meta">{metaText}</div>}
+                        {episode.synopsis && <p className="vod-episode-synopsis">{episode.synopsis}</p>}
+                        <div className="vod-episode-progress">
+                          {pct != null ? (
+                            <div className="vod-episode-progress-bar">
+                              <div className="vod-episode-progress-fill" style={{ width: `${pct}%` }} />
+                            </div>
+                          ) : badge.resumeSeconds != null ? (
+                            <span>{t('showcase.resumeFrom', { time: formatTime(badge.resumeSeconds * 1000) })}</span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   )

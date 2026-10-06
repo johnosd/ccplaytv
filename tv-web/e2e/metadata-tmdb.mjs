@@ -441,12 +441,15 @@ async function run() {
     assert(hits.seriesInfo === 1, `episódios e metadata da série vieram de UMA requisição (${hits.seriesInfo})`)
 
     for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowDown') // tabs → temporada → episódios
-    const episodeBox = page.locator('.vod-episode-synopsis')
-    await episodeBox.waitFor({ timeout: 5000 })
-    assert((await episodeBox.textContent()) === 'Sinopse do piloto.', 'o episódio focado mostra a própria sinopse')
+    const rows = page.locator('.vod-episode-row')
+    await rows.first().waitFor({ timeout: 5000 })
+    assert(
+      (await rows.nth(0).locator('.vod-episode-info .vod-episode-synopsis').textContent()) === 'Sinopse do piloto.',
+      'o episódio mostra a própria sinopse ao lado da capa',
+    )
     const seriesRequestsBefore = hits.seriesInfo
     await page.keyboard.press('ArrowDown')
-    assert(((await episodeBox.textContent()) ?? '') === '', 'episódio sem sinopse não mostra texto (nem a da série)')
+    assert((await rows.nth(1).locator('.vod-episode-synopsis').count()) === 0, 'episódio sem sinopse não mostra texto (nem a da série)')
     assert(hits.seriesInfo === seriesRequestsBefore, 'mover o foco entre episódios não fez nenhuma requisição')
     // O episódio focado tem o anel na linha E no cartão (`.vod-episode-row` + `ContentCard`) — é o desenho do detalhe.
     assert((await page.locator('.vod-episode-row.tv-focus').count()) === 1, 'foco (episódios): exatamente uma linha de episódio focada')

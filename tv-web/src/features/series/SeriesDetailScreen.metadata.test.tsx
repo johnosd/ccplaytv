@@ -220,26 +220,38 @@ describe('SeriesDetailScreen — sinopse por episódio (FR-028)', () => {
     press('ArrowDown') // 1º episódio
   }
 
-  it('mostra a sinopse do episódio focado, some no que não tem, e NUNCA usa a da série no lugar', () => {
+  it('mostra a sinopse AO LADO de cada episódio que a tem, nada no que não tem, e NUNCA usa a da série no lugar', () => {
     metadata({ synopsis: { value: 'SINOPSE DA SÉRIE', origin: 'provider' } })
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     renderScreen()
 
-    const box = () => document.querySelector('.vod-episode-synopsis')
-    expect(box()?.textContent).toBe('') // fora da lista, nada é anunciado
+    const synopsisOf = (name: string) =>
+      screen.getByText(name, { selector: '.vod-episode-title' }).closest('.vod-episode-row')?.querySelector('.vod-episode-synopsis') ?? null
+
+    // Independe do foco: todas as linhas já mostram a própria sinopse, ao lado da capa.
+    expect(synopsisOf('Piloto')?.textContent).toBe('Sinopse do episódio um.')
+    expect(synopsisOf('Terceiro')?.textContent).toBe('Sinopse do episódio três.')
+    // Episódio 2 não declara sinopse — nenhum texto de preenchimento, nem o da série.
+    const row2 = document.querySelectorAll('.vod-episode-row')[1]
+    expect(row2.querySelector('.vod-episode-synopsis')).toBeNull()
+    expect(row2.textContent).not.toContain('SINOPSE DA SÉRIE')
 
     enterEpisodes()
-    expect(box()?.textContent).toBe('Sinopse do episódio um.')
     press('ArrowDown')
-    expect(box()?.textContent).toBe('') // episódio 2 não tem — nada de texto de preenchimento
-    expect(box()?.textContent).not.toContain('SINOPSE DA SÉRIE')
-    press('ArrowDown')
-    expect(box()?.textContent).toBe('Sinopse do episódio três.')
-
     expect(fetchSpy).not.toHaveBeenCalled() // mover o foco nunca dispara consulta
   })
 
-  it('temporada em que nenhum episódio tem sinopse não reserva faixa nenhuma', () => {
+  it('o título e a informação do episódio ficam ao lado da capa, não dentro dela', () => {
+    renderScreen()
+    const row = document.querySelector('.vod-episode-row') as HTMLElement
+    expect(row.querySelector('.vod-episode-thumb .poster-box')).not.toBeNull()
+    const info = row.querySelector('.vod-episode-info') as HTMLElement
+    expect(info.querySelector('.vod-episode-title')?.textContent).toBe('Piloto')
+    expect(info.querySelector('.vod-episode-meta')?.textContent).toContain('T1:E1')
+    expect(row.querySelector('.vod-episode-thumb .vod-episode-title')).toBeNull()
+  })
+
+  it('temporada em que nenhum episódio tem sinopse não mostra sinopse nenhuma', () => {
     vi.mocked(catalogApi.useSeriesEpisodes).mockReturnValue({
       data: { episodes: [episode('1', 'A', 1), episode('2', 'B', 2)], outcome: 'fetched' },
       isLoading: false,
