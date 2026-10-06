@@ -26,7 +26,7 @@ description: "Tasks da feature 045 — IME da TV nos formulários"
 **Purpose**: poder **medir na TV** o que o IME entrega (R-001/R-002), sem console.
 
 - [x] T001 [P] Criar `src/lib/imeProbe.ts` (anel de ~12 eventos: `keydown`/`keyup`/`focusin`/`focusout` com `key`, `keyCode`, `code`, `isComposing`, tag/`id` do alvo — **nunca** o valor do campo) e `src/components/ImeProbeOverlay.tsx` (molde de `src/components/PerfOverlay.tsx`), montados só com `import.meta.env.VITE_CCPLAY_IME_PROBE === '1'` (off por padrão). Teste: o anel não guarda o valor digitado e respeita o limite.
-- [ ] T002 **ADIADA por decisão do usuário (2026-10-02, risco R-012 aceito) — Passada na TV (usuário) — decidida para ANTES da Fase 4 (R-012)**: instalar com a sonda (skill `tizen-tv`), registrar em `research.md` R0-1 o que chega ao apertar Next, Done, Cancel e RETURN com o teclado **aberto/fechado** nos 3 formulários. As Fases 2–3 e 5–7 não dependem dela e podem andar antes; **a Fase 4 (T015/T030) só começa depois de T002**, salvo adiamento explícito do usuário (aí usa os valores padrão da tabela e fica "não verificada").
+- [x] T002 **ADIADA por decisão do usuário (2026-10-02, risco R-012 aceito) — Passada na TV (usuário) — decidida para ANTES da Fase 4 (R-012)**: instalar com a sonda (skill `tizen-tv`), registrar em `research.md` R0-1 o que chega ao apertar Next, Done, Cancel e RETURN com o teclado **aberto/fechado** nos 3 formulários. As Fases 2–3 e 5–7 não dependem dela e podem andar antes; **a Fase 4 (T015/T030) só começa depois de T002**, salvo adiamento explícito do usuário (aí usa os valores padrão da tabela e fica "não verificada"). — **Atualização 06/10/2026: passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-02"); qualquer "não executado/adiada" acima é o estado anterior, mantido como histórico
 
 **Checkpoint**: sonda disponível; medição registrada ou explicitamente adiada.
 
@@ -214,7 +214,7 @@ description: "Tasks da feature 045 — IME da TV nos formulários"
 
 - [x] T026 Atualizar `CLAUDE.md` (parágrafo da feature 045), `.planning/backlog.md` (item 18; rodar `update-feature-status.ps1`) e, se a passada na TV mudar a tabela, `lib/imeKeys.ts` + `research.md` R0-1/R-001/R-002.
 - [x] T027 Revisão de segredos antes do commit (constitution): `git diff` sem URL/usuário/senha de teste em log, fixture ou snapshot; varredura do E2E (SC-006).
-- [ ] T028 **Parte automatizada feita; passada na TV ADIADA por decisão do usuário (2026-10-02)** — Rodar `quickstart.md` inteiro; passada na TV (SC-007, T002 + cenários de TV) — **decisão do usuário se é gate** (padrão 013/027): "não testado" nunca vira "aprovado".
+- [x] T028 **Parte automatizada feita; passada na TV ADIADA por decisão do usuário (2026-10-02)** — Rodar `quickstart.md` inteiro; passada na TV (SC-007, T002 + cenários de TV) — **decisão do usuário se é gate** (padrão 013/027): "não testado" nunca vira "aprovado". — **Atualização 06/10/2026: passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-02"); qualquer "não executado/adiada" acima é o estado anterior, mantido como histórico
 - [x] T029 Texto de FR-014 da `spec.md` ajustado para "Done do IME" (R-011) — aprovado e feito no `sdd-plan` em 2026-10-02.
 
 ### Checklist de Release

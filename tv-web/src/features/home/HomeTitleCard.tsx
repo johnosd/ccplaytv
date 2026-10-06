@@ -1,6 +1,9 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { PosterArt } from '../../components/PosterArt'
 import { RatingBadge } from '../../components/RatingBadge'
+import { ContentRatingBadge } from '../../components/ContentRatingBadge'
+import { TmdbRatingBadge } from '../../components/TmdbRatingBadge'
+import type { TmdbRating } from '../../lib/metadata/contentRating'
 import { useT } from '../../lib/i18n/I18nProvider'
 import { useCachedTitleView, type CatalogItemOut } from '../catalog/catalogApi'
 import { formatDurationMinutes } from '../vod/detailMetadataFormat'
@@ -19,6 +22,8 @@ export interface HomeTitleCardProps {
   badges: CardBadges
   /** Imagem 16:9 já no aparelho (`useHomeImages`): vira o rosto do card de Continuar e o fundo do card expandido. */
   image?: string
+  /** Nota da descoberta já no aparelho; o cache de metadata tem precedência (061). */
+  tmdbRating?: TmdbRating
   /** Só Continuar: barra de progresso real (posição E duração conhecidas). */
   progress?: PrimaryProgress | null
   /** Só Continuar: legenda embaixo do card (`T1:E3 · faltam 26 min`). */
@@ -33,7 +38,7 @@ export interface HomeTitleCardProps {
  * Com o foco o card **expande** (FR-009); a camada expandida só existe enquanto ele está focado e lê apenas o que já está
  * no aparelho — focar nunca consulta nada (FR-022).
  */
-export function HomeTitleCard({ item, format, focused, rank, badges, image, progress, caption }: HomeTitleCardProps): ReactNode {
+export function HomeTitleCard({ item, format, focused, rank, badges, image, tmdbRating, progress, caption }: HomeTitleCardProps): ReactNode {
   const t = useT()
   // O card de Continuar é 16:9: usa a imagem larga quando há; senão a capa, cortada pelo `object-fit: cover`.
   const face = format === 'continue' ? (image ?? item.icon_url ?? undefined) : (item.icon_url ?? undefined)
@@ -77,7 +82,7 @@ export function HomeTitleCard({ item, format, focused, rank, badges, image, prog
           <i style={{ width: `${progress.percent}%` }} />
         </div>
       )}
-      {focused && <HomeCardExpanded item={item} image={image} />}
+      {focused && <HomeCardExpanded item={item} image={image} tmdbRating={tmdbRating} />}
     </div>
   )
 
@@ -106,7 +111,7 @@ export function HomeTitleCard({ item, format, focused, rank, badges, image, prog
  * 16:9, o pôster à esquerda e as informações sobre a cor da capa (regra "sem risco" da 059). Monta só no foco: é aqui, e não
  * em cada card, que a cor da capa e o cache de metadata são lidos.
  */
-function HomeCardExpanded({ item, image }: { item: CatalogItemOut; image?: string }): ReactNode {
+function HomeCardExpanded({ item, image, tmdbRating }: { item: CatalogItemOut; image?: string; tmdbRating?: TmdbRating }): ReactNode {
   const t = useT()
   const color = useCoverColor(item.icon_url ?? undefined, usePanelHosts())
   const view = useCachedTitleView(item)
@@ -140,6 +145,8 @@ function HomeCardExpanded({ item, image }: { item: CatalogItemOut; image?: strin
             <span key={part}>{part}</span>
           ))}
           <RatingBadge value={item.provider_rating} />
+          <ContentRatingBadge certifications={view?.certifications} />
+          <TmdbRatingBadge rating={view?.tmdbRating ?? tmdbRating} />
         </div>
         {synopsis && <p className="home-card-expanded-synopsis">{synopsis}</p>}
         <div className="home-card-expanded-hint">

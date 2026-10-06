@@ -37,6 +37,8 @@ import { Toast } from '../../components/Toast'
 import { PlayerLayer } from '../../components/PlayerLayer'
 import { TrailerLayer } from '../../components/TrailerLayer'
 import { RatingBadge } from '../../components/RatingBadge'
+import { ContentRatingBadge } from '../../components/ContentRatingBadge'
+import { TmdbRatingBadge } from '../../components/TmdbRatingBadge'
 import { Tabs, type TabItem } from '../../components/Tabs'
 import { buildStableId } from '../../lib/catalog/userStateRepository'
 import { isResumable } from '../../lib/player/resumePolicy'
@@ -522,6 +524,8 @@ export function MovieDetailScreen({
             {movie.year != null && <span>{movie.year}</span>}
             {durationSeconds != null && durationSeconds > 0 && <span>{formatDurationMinutes(durationSeconds)}</span>}
             {hasRating && <RatingBadge value={movie.provider_rating} showSource />}
+            <ContentRatingBadge certifications={metadata?.certifications} />
+            <TmdbRatingBadge rating={metadata?.tmdbRating} />
             {watched && <span className="vod-detail-meta-watched">{t('detail.watchedMeta')}</span>}
           </>
         }

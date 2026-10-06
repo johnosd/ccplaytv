@@ -12,11 +12,11 @@ antes de lançamento). O que foi entregue está na tabela `## Features`; só os 
 
 ID é identificador estável, não ordem: `comingSoon.ts` (campo `backlogItem`)
 e `.planning/migracao-design-system-v14.md` apontam para ele. Nunca renumerar; os pacotes `G1`–`G8` agrupam itens para uma única passada de `sdd-specify`;
-item novo recebe o próximo número livre (**hoje: 73**; o 67 é a `057`, em execução, o 68 foi entregue pela `056`, o 70 virou o bug `tela-principal-filmes-lenta-na-tv`, em `sdd/bugs/`, e o 71 virou o bug `url-do-stream-no-src-do-video-de-dev`, em `sdd/bugs/`); fatias usam letra
+item novo recebe o próximo número livre (**hoje: 73**; o 67 foi entregue pela `057`, o 68 pela `056`, o 70 virou o bug `tela-principal-filmes-lenta-na-tv`, em `sdd/bugs/`, e o 71 virou o bug `url-do-stream-no-src-do-video-de-dev`, em `sdd/bugs/`); fatias usam letra
 (`55a`, `62b`). Todo item assume o dado no aparelho (ADR-008): chamadas externas
 só a APIs de terceiro com a chave do próprio usuário (BYOK); `api/` é contorno
 congelado. Quem entrega um item apaga o mock correspondente de `comingSoon.ts`
-na mesma feature (hoje restam **14**; a `057` retira mais 2: `vod-top10-movies` e `vod-top10-series`). Dexie hoje é **v16** (a `057` acrescentou `discoveryCache`); a próxima livre é
+na mesma feature (hoje restam **10**, conferido em `comingSoon.ts` em 06/10/2026; a `057` retirou `vod-top10-movies` e `vod-top10-series`, a `060` retirou `vod-because` e `home-trailer`). Dexie hoje é **v16** (a `057` acrescentou `discoveryCache`); a próxima livre é
 **v17** (reservar na spec). Itens de categoria vivem em blocos: ler/gravar só
 por `catalogRepository.ts`, nunca `db.channels`.
 
@@ -28,8 +28,8 @@ medição), `Bugfix` (segue em `## Bugs`).
 ### Pacotes para especificar
 
 Cada pacote vira **uma** passada de `sdd-specify` (uma spec, várias user stories). Os
-IDs dos itens continuam estáveis (`comingSoon.ts` aponta para eles); `G2`–`G8` são só
-rótulos de pacote (o G1 — itens 25b e 43 — virou a `058-headers-avplay-catchup`) e podem ser reagrupados. Dentro de um pacote, as fatias "A avaliar"
+IDs dos itens continuam estáveis (`comingSoon.ts` aponta para eles); `G3`–`G8` são só
+rótulos de pacote (o G1 — itens 25b e 43 — virou a `058-headers-avplay-catchup`; o G2 foi retirado pelo `sdd-assess` em 06/10/2026) e podem ser reagrupados. Dentro de um pacote, as fatias "A avaliar"
 só entram na spec depois do `sdd-assess`/medição — o resto sai sem esperar por elas.
 
 **Dificuldade** (para escolher o modelo no `sdd-plan`; vale a mais alta do pacote que você vai
@@ -40,34 +40,20 @@ API de plataforma incerta ou arquitetura nova (vale o modelo mais caro **para pl
 execução das tasks já definidas pode voltar ao modelo padrão). Estimativa de 04/10/2026, a
 rever no `sdd-specify`.
 
-- **G2 — Integridade da carga e do catálogo**
-  - Ordem: 2
-  - Tipo: feature
-  - Dificuldade: **Alta** — 24, 66 e 51 mexem em integridade de dados e desempenho em listas de ~300 mil; 36 e 26 são simples
-  - Estado: Pronto (36, 26); 24, 66 e 51 A avaliar — só entram com medição
-  - Itens:
-    - **36** [Baixa] — Dedup/single-flight de importação por fonte: duas telas ou hooks não disparam o mesmo trabalho de importação. Já existe single-flight por categoria, série, EPG e metadados; falta só a importação inteira de uma fonte (`runningImports` hoje é por `runId`, não por fonte). Conferir se o FR-017 da 005 já basta.
-    - **26** [Média] — Seção "Não classificados": itens sem tipo confiável ficam visíveis e acessíveis, com regra de correção reaplicável sem perder preferências. Sem desenho no DS: grade + `EmptyState` do Component Lab.
-    - **24** [Alta] *(A avaliar)* — Reconciliação pós-resync ("pending restore"): reaplicar favoritos e progresso por chave estável num passo pós-import, com o snapshot novo bloqueado até terminar; item não reconciliável fica indisponível, nunca atribuído a outra obra por aproximação. **Crítica:** favoritos, progresso e histórico já usam chave lógica estável e sobrevivem ao resync; só se paga se uma lista real mostrar perda. Depende do 36.
-    - **66** [Alta] *(A avaliar)* — Busca global por blocos em fluxo (`039` FR-013 emendado): para listas enormes (~300 mil), varrer bloco a bloco e guardar só os resultados (teto por tipo). Medir antes com o cenário 3 de `e2e/catalogo-em-blocos.mjs`; sem medição que mostre dor, não construir.
-    - **51** [Alta] *(A avaliar)* — Descarte quando o espaço do aparelho acaba: descartar a categoria menos usada, parar e declarar (hoje) ou teto configurável. Medir categoria, XMLTV e a quota real da TV (300 mil filmes em blocos ≈ 13 MB no navegador do PC).
-  - Depende de: 008 ✅, 013 ✅, 019 ✅, 039 ✅
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/06-carga-listas-url-xtream.md` #9; RF-011; ADR-005 §2/§4; `039` R-011/R-013; feature 010
 - **G3 — Início, descoberta e dock**
   - Ordem: 3
   - Tipo: feature
   - Dificuldade: **Média** — 72 é Média (dado novo do TMDB); 31 (function-calling restrito, BYOK) é Alta e pesa só se entrar
-  - Estado: 69 e 32 absorvidos pela `060-home-vitrine-expandida` (especificada em 05/10/2026); 72 Pronto; 30 Bloqueado; 31 e 54 aguardam decisão de escopo
+  - Estado: 69 e 32 absorvidos pela `060-home-vitrine-expandida` (`Convergida` em 06/10/2026); 72 implementado pela `061-classificacao-nota-tmdb` (`Convergida` em 06/10/2026); 30 Bloqueado; 31 e 54 aguardam decisão de escopo
   - Itens:
     - ~~**69**~~ — "Porque você assistiu X" em Filmes e Séries → na `060` (também no Início). Remove `vod-because`.
     - ~~**32**~~ — Trailer no herói do Início → na `060`. Remove `home-trailer`.
-    - **72** [Média] — Classificação indicativa e nota TMDB no billboard e nos cards do Início (e onde mais couber): dado novo do TMDB, com cache e origem declarada; marcados como "dado novo" no protótipo da `060` (`.hb-nd`). A Spec V14 proíbe exibi-los enquanto o dado não for real.
+    - ~~**72**~~ — Classificação indicativa e nota TMDB → na `061` (billboard, card expandido do Início e hero do detalhe; país pelo idioma do app).
     - **30** [Média] *(Bloqueado)* — Recomendações + Curadoria IA na Home: sementes reais de favoritos e histórico, candidatos TMDB cruzados com o catálogo local (reusar `resolveTmdbTitles`), justificativa compatível com o método; sem sinais, estado vazio orientativo. **Crítica:** Dica TMDB (`057`) e o 69 já cobrem boa parte; só vale se sobrar lacuna depois deles. Remove `home-ai-curation`.
     - **31** [Alta] *(escopo a decidir)* — "Descobrir com IA" (BYOK OpenAI): chat que só consulta o catálogo real por function-calling restrito. Depende do 30. Remove `dock-ai`.
     - **54** [Média] *(A avaliar)* — Dock: clima e teste de velocidade (o teste tem valor de diagnóstico para stream travando). Remove `dock-weather`, `dock-speedtest`.
-  - Depende de: 033 ✅, 035 ✅, 053 ✅, 057 (em execução), 032 ✅, 19 ✅
-  - Remove mocks: `vod-because`, `home-trailer` (e, se entrarem, `home-ai-curation`, `dock-ai`, `dock-weather`, `dock-speedtest`)
+  - Depende de: 033 ✅, 035 ✅, 053 ✅, 057 ✅, 032 ✅, 19 ✅
+  - Remove mocks: `vod-because` e `home-trailer` já removidos pela `060` (se entrarem: `home-ai-curation`, `dock-ai`, `dock-weather`, `dock-speedtest`)
   - Fonte: `053` US4; `033` R-010; RF-017; ADR-005 §6; ADR-001 §4; V14 §20/§21/§23
 - **G4 — Acessibilidade de sistema (item 56)**
   - Ordem: 4
@@ -87,7 +73,7 @@ rever no `sdd-specify`.
   - Itens:
     - **49a-2** [Média] — Dividir `catalogRepository.ts` (~1 490 linhas) por responsabilidade (categorias, blocos/leitura, estado do usuário, gerações/limpeza, preparo da carga) sem mudar comportamento nem API pública, provado pela suíte, pelas travas e pelos E2E. A fatia 49a-1 foi entregue pela `040`.
     - **49b** [Baixa] — Fronteiras de código e limite de tamanho por lint: `features/` não importa de outro `features/`; `lib/` não importa UI; `lib/catalog/` → `lib/player/` unidirecional; ~300 linhas por arquivo. Depende do 49a-2.
-    - **35** [Média] — Benchmark determinístico de importação: fixtures de 1 000/10 000/100 000 entradas, medindo fetch/parse/classify/store e o parse de XMLTV, com aparelho e commit registrados. Base: `e2e/catalogo-em-blocos.mjs` e `e2e/catalogo-em-blocos-real.mjs`; falta M3U/classificação e XMLTV. Fornece a medição que destrava 66 e 51 do G2.
+    - **35** [Média] — Benchmark determinístico de importação: fixtures de 1 000/10 000/100 000 entradas, medindo fetch/parse/classify/store e o parse de XMLTV, com aparelho e commit registrados. Base: `e2e/catalogo-em-blocos.mjs` e `e2e/catalogo-em-blocos-real.mjs`; falta M3U/classificação e XMLTV. Fornece a medição (quota real da TV) que reabriria o 51, retirado com o G2 (ver `sdd/assessments/g2-integridade-carga-catalogo/decision.md`).
   - Depende de: —
   - Remove mocks: —
   - Fonte: `docs/iptvnator/02-arquitetura.md` #7; ADR-006 §2; V14 §30
@@ -146,6 +132,8 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 - **23** — Várias fontes com refresh isolado: a navegação é uma lista por vez (ADR-011); atualizar listas inativas em segundo plano gasta rede, disco e CPU da TV sem benefício visível. A `034` já mostra estado por fonte.
 - `tvg-chno` (resto do 25b): exibir número do canal exigiria emendar a ADR-011, que fixa a posição na fonte.
 
+- **G2 inteiro (36, 26, 24, 66, 51)** — `sdd-assess` de 06/10/2026, veredito `kill` (`sdd/assessments/g2-integridade-carga-catalogo/decision.md`): nenhum sintoma visto com a lista real. 36 e 24 já têm a proteção principal (FR-017 da 005; chave lógica estável) e só voltam como **bug** se houver reprodução; 26 só afeta M3U fora do padrão; 66 morreu por decisão de produto (o usuário não quer busca global, só a de Filmes e a de Séries); 51 reabre com o aviso de espaço numa lista real ou com a quota medida pelo 35.
+
 - **20** — Design das telas sem protótipo: resolvido pela migração DS V14 (021–028). "Não classificados" segue no 26.
 - **21** — Um dono de scroll por painel: absorvido pela 009, pela 028 e pela fonte ativa única.
 - **44** — Teclas de mídia entregues pela 027; a entrada numérica de canal (§44) foi retirada a pedido do usuário em 30/09/2026.
@@ -159,32 +147,32 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Convergida | 67/67 tasks | 2026-09-18 |
 | 004-conector-xtream-live | Conector Xtream JSON para canais ao vivo | Convergida | 55/55 tasks | 2026-09-18 |
 | 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Convergida | 59/59 tasks | 2026-09-22 |
-| 006-conector-xtream-vod-series | Conector Xtream JSON para VOD e Series | Convergida | 15/15 tasks | 2026-09-22 |
+| 006-conector-xtream-vod-series | Conector Xtream: fatia de VOD e séries pelo mesmo protocolo | Convergida | 18/18 tasks | 2026-10-06 |
 | 007-higiene-credenciais | Higiene de Credenciais e Políticas de Rede | Convergida | 7/7 tasks | 2026-09-22 |
 | 008-user-state-repo | UserStateRepository | Convergida | 14/14 tasks | 2026-09-22 |
 | 009-virtualizacao-foco | Virtualização de Grades e Foco Direcional | Convergida | 28/28 tasks | 2026-09-23 |
 | 010-catalogo-sob-demanda | Importação por Estrutura com Carga sob Demanda por Categoria | Convergida | 59/59 tasks | 2026-09-23 |
-| 011-assistir-filme-retomada | Assistir Filme, com Retomada | Convergida | 63/72 tasks | 2026-09-24 |
-| 012-series-episodios-temporadas | Séries — Episódios e Temporadas | Convergida | 52/55 tasks | 2026-09-24 |
+| 011-assistir-filme-retomada | Assistir Filme, com Retomada | Convergida | 70/72 tasks | 2026-10-06 |
+| 012-series-episodios-temporadas | Séries — Episódios e Temporadas | Convergida | 54/55 tasks | 2026-10-06 |
 | 013-favoritos | Favoritos em Canais, Filmes e Séries | Convergida | 47/47 tasks | 2026-09-24 |
-| 014-m3u-sob-demanda | Fonte M3U Estrutura-Primeiro (Detecção de Painel Xtream ou Arquivo Guardado) | Convergida | 58/62 tasks | 2026-09-24 |
+| 014-m3u-sob-demanda | Fonte M3U Estrutura-Primeiro (Detecção de Painel Xtream ou Arquivo Guardado) | Convergida | 59/62 tasks | 2026-10-06 |
 | 015-capa-real-filmes-series | Capa Real de Filmes e Séries | Convergida | 34/34 tasks | 2026-09-25 |
 | 016-zapping-live-tv | Zapping por Cima do Vídeo em Live TV | Convergida | 41/41 tasks | 2026-09-25 |
-| 017-busca-local-catalogo | Busca Local em Live TV, Filmes e Séries | Implementada | 40/42 tasks | 2026-09-25 |
+| 017-busca-local-catalogo | Busca Local em Live TV, Filmes e Séries | Implementada | 41/42 tasks | 2026-10-06 |
 | 018-busca-por-categoria | Busca por categoria com ícone de entrada e categoria virtual "Todos" | Convergida | 36/36 tasks | 2026-09-26 |
 | 019-historico-continuar-assistindo | Histórico e Continuar Assistindo | Convergida | 30/31 tasks | 2026-09-26 |
-| 020-ciclo-vida-player | Ciclo de Vida do Player na TV | Convergida | 15/16 tasks | 2026-09-26 |
+| 020-ciclo-vida-player | Ciclo de Vida do Player na TV | Convergida | 16/16 tasks | 2026-10-06 |
 | 021-fundacao-visual-ds-v14 | Fundação Visual do Design System V14 (Onda 0 da migração) | Convergida | 65/65 tasks | 2026-09-26 |
 | 022-biblioteca-componentes-ds-v14 | Biblioteca de Componentes do Design System V14 (Onda 1 da migração) | Convergida | 80/80 tasks | 2026-09-26 |
 | 023-shell-navegacao-entrada-ds-v14 | Shell, Navegação e Entrada do Design System V14 (Onda 2 da migração) | Convergida | 59/59 tasks | 2026-09-27 |
-| 024-live-tv-ds-v14 | Live TV no Design System V14 (Onda 3) | Convergida | 59/60 tasks | 2026-09-27 |
+| 024-live-tv-ds-v14 | Live TV no Design System V14 (Onda 3) | Convergida | 60/60 tasks | 2026-10-06 |
 | 025-filmes-series-ds-v14 | Filmes e Séries no Design System V14 (Onda 4) | Convergida | 79/80 tasks | 2026-09-27 |
 | 026-home-busca-configuracoes-ds-v14 | Home definitiva, Busca global e Configurações no Design System V14 (Onda 5) | Convergida | 50/50 tasks | 2026-09-28 |
 | 027-player-chrome-ds-v14 | Player chrome do Design System V14 com auto-hide e teclas de mídia (Onda 6) | Convergida | 55/55 tasks | 2026-09-28 |
 | 028-limpeza-qa-ds-v14 | Limpeza e QA do Design System V14 (Onda 7) | Implementada | 78/78 tasks | 2026-09-28 |
-| 029-audio-legendas-info-player | Player — Trilhas de Áudio, Legendas e Info do Stream | Convergida | 50/52 tasks | 2026-09-28 |
-| 030-epg-dados-agora | EPG — Dados de Programação e "Agora" na Live TV, no Player e na Home | Convergida | 55/56 tasks | 2026-09-29 |
-| 031-epg-guia-completo | EPG — Guia Completo em Tela Cheia | Convergida | 47/48 tasks | 2026-09-29 |
+| 029-audio-legendas-info-player | Player — Trilhas de Áudio, Legendas e Info do Stream | Convergida | 52/52 tasks | 2026-10-06 |
+| 030-epg-dados-agora | EPG — Dados de Programação e "Agora" na Live TV, no Player e na Home | Convergida | 56/56 tasks | 2026-10-06 |
+| 031-epg-guia-completo | EPG — Guia Completo em Tela Cheia | Convergida | 48/48 tasks | 2026-10-06 |
 | 032-metadata-tmdb-integracoes | Metadata de Filmes e Séries — Provedor Primeiro, TMDB (BYOK) Completa, e Tela Integrações | Convergida | 58/58 tasks | 2026-09-29 |
 | 033-trailers-filmes-series | Trailers de Filmes e Séries | Convergida | 55/55 tasks | 2026-09-29 |
 | 034-fontes-estado-expiracao | Fontes IPTV completas — estado, contagem e expiração da conta | Convergida | 45/45 tasks | 2026-10-01 |
@@ -195,10 +183,10 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 039-catalogo-em-blocos | Catálogo em blocos por categoria — leitura e gravação instantâneas | Convergida | 44/44 tasks | 2026-09-30 |
 | 040-dividir-player-live | Dividir PlayerLayer e LiveScreen por responsabilidade | Convergida | 35/35 tasks | 2026-10-01 |
 | 041-player-qualidade-aspecto | Qualidade, aspecto e preferências do player (sem velocidade) | Convergida | 53/53 tasks | 2026-10-01 |
-| 042-rede-lifecycle-erros | Rede, lifecycle e erros acionáveis | Convergida | 61/62 tasks | 2026-10-01 |
+| 042-rede-lifecycle-erros | Rede, lifecycle e erros acionáveis | Convergida | 62/62 tasks | 2026-10-06 |
 | 043-gostei-filmes-series | "Gostei" em filmes e séries | Especificada | N/A | 2026-10-01 |
 | 044-parser-m3u-headers | Contrato de compatibilidade do parser M3U (headers, radio, tvg-chno) | Convergida | 26/27 tasks | 2026-10-02 |
-| 045-ime-formularios-tv | IME da TV nos formulários — teclado, Next/Done, senha e erros de conexão | Convergida | 39/42 tasks | 2026-10-02 |
+| 045-ime-formularios-tv | IME da TV nos formulários — teclado, Next/Done, senha e erros de conexão | Convergida | 41/42 tasks | 2026-10-06 |
 | 046-memoria-foco-key-repeat | Memória de foco por área e key repeat | Convergida | 27/27 tasks | 2026-10-02 |
 | 047-player-dev-mpegts | Reprodução de canais ao vivo MPEG-TS no navegador do dev | Convergida | 38/38 tasks | 2026-10-05 |
 | 048-live-paridade-v14 | Paridade visual da TV ao vivo com o Design System V14 | Encerrada | 43/47 tasks | 2026-10-05 |
@@ -212,8 +200,9 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 056-bem-avaliados | Fileira "Bem avaliados" em Filmes e Séries | Convergida | 44/44 tasks | 2026-10-04 |
 | 057-top10-dica-tmdb | Top 10 da semana e carrossel "Dica" (TMDB) em Filmes, Séries e Início | Convergida | 55/58 tasks | 2026-10-05 |
 | 058-headers-avplay-catchup | Headers da lista no AVPlay e catch-up de programas passados (Xtream) | Convergida | 53/53 tasks | 2026-10-05 |
-| 059-detalhe-cinema-filme-serie | Detalhe de filme e de série no layout Cinema do Design System | Em Execução | 46/49 tasks | 2026-10-05 |
-| 060-home-vitrine-expandida | Home no layout "Vitrine expandida" do Design System | Em Execução | 48/53 tasks | 2026-10-05 |
+| 059-detalhe-cinema-filme-serie | Detalhe de filme e de série no layout Cinema do Design System | Convergida | 49/49 tasks | 2026-10-06 |
+| 060-home-vitrine-expandida | Home no layout "Vitrine expandida" do Design System | Convergida | 53/53 tasks | 2026-10-06 |
+| 061-classificacao-nota-tmdb | Classificação indicativa e nota TMDB no Início e no detalhe | Convergida | 46/46 tasks | 2026-10-06 |
 
 ## Bugs
 

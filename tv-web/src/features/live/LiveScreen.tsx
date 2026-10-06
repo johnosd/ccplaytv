@@ -149,6 +149,9 @@ export function LiveScreen({
   const channelListRef = useRef<HTMLDivElement>(null)
   const channelVirtualizer = useVirtualizer({
     count: channels.items.length,
+    // Rajadas de scroll e Live ↔ zapping não podem empilhar flushSync do virtualizador com
+    // as atualizações dos indicadores de borda. O React agrupa as notificações da lista.
+    useFlushSync: false,
     getScrollElement: () => channelListRef.current,
     estimateSize: () => LIVE_ITEM_ROW_HEIGHT,
     overscan: LIVE_ITEM_OVERSCAN,

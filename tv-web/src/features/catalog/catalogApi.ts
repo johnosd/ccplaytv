@@ -15,6 +15,7 @@ import {
   type CategoryKind,
   type CatalogItemKind as StoredKind,
   type CatalogRecord,
+  type TmdbRating,
   type UserStateRecord,
 } from '../../lib/catalog/db'
 import {
@@ -775,6 +776,11 @@ export function useTitleMetadata(itemId: string | null) {
       return view
     },
     enabled: itemId !== null,
+    // 061: só estes dados independentes do idioma continuam visíveis durante a releitura da 054 do MESMO título.
+    // Sinopse e demais textos não vêm da resposta no idioma anterior; trocar de título nunca reutiliza selos.
+    placeholderData: (previous, previousQuery) => previousQuery?.queryKey[1] === itemId && previous
+      ? { certifications: previous.certifications, tmdbRating: previous.tmdbRating }
+      : undefined,
   })
 }
 
@@ -1744,6 +1750,8 @@ type DiscoveryContext = { now: number; seed: string; kind: DiscoveryKind }
 export interface DiscoveryRowResult<R> {
   data: R | undefined
   images?: ReadonlyMap<string, string>
+  /** Nota que já veio com a descoberta (061), sem consulta ao focar. */
+  ratings?: ReadonlyMap<string, TmdbRating>
   coveredCategories: number
   totalCategories: number
   isLoading: boolean
@@ -1802,7 +1810,7 @@ function useDiscoveryRow<R>(
   // dia) fica o resultado anterior da MESMA lista, para a fileira e o foco não piscarem.
   const scope = `${sourceId}|${kind}`
   const [computed, setComputed] = useState<
-    { scope: string; value: R; images: ReadonlyMap<string, string>; coveredCategories: number; totalCategories: number } | undefined
+    { scope: string; value: R; images: ReadonlyMap<string, string>; ratings: ReadonlyMap<string, TmdbRating>; coveredCategories: number; totalCategories: number } | undefined
   >()
   const indexData = index.data
   useEffect(() => {
@@ -1812,13 +1820,16 @@ function useDiscoveryRow<R>(
       if (cancelled) return
       // Feature 060: o fundo 16:9 que já veio com cada título do TMDB, por id do item da lista (sem consulta nova).
       const images = new Map<string, string>()
+      const ratings = new Map<string, TmdbRating>()
       for (const match of matches) {
         if (match.title.backdropUrl !== undefined) images.set(DISCOVERY_READ.id(match.local), match.title.backdropUrl)
+        ratings.set(DISCOVERY_READ.id(match.local), { average: match.title.voteAverage, votes: match.title.voteCount })
       }
       setComputed({
         scope,
         value: project(matches, { now, seed: `${dayKey(now)}|${kind}|${sourceId}`, kind }),
         images,
+        ratings,
         coveredCategories: indexData.coveredCategories,
         totalCategories: indexData.totalCategories,
       })
@@ -1833,6 +1844,7 @@ function useDiscoveryRow<R>(
   return {
     data: settledEmpty ? (project([], { now, seed: '', kind }) as R) : current?.value,
     images: current?.images ?? EMPTY_BACKDROPS,
+    ratings: current?.ratings,
     coveredCategories: current?.coveredCategories ?? 0,
     totalCategories: current?.totalCategories ?? 0,
     isLoading: tmdb.isLoading || index.isLoading,

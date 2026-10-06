@@ -9,6 +9,22 @@ describe('tmdbImageUrl', () => {
   })
 })
 
+describe('mapTmdbDetail — classificação e nota (061)', () => {
+  it('guarda os dados de filme e série e mantém certifications vazio quando nada serve', () => {
+    expect(mapTmdbDetail('movie', {
+      release_dates: { results: [{ iso_3166_1: 'BR', release_dates: [{ type: 3, certification: '12' }] }] },
+      vote_average: 6.5, vote_count: 80,
+    })).toMatchObject({ certifications: { BR: '12' }, tmdbRating: { average: 6.5, votes: 80 } })
+    expect(mapTmdbDetail('tv', {
+      content_ratings: { results: [{ iso_3166_1: 'US', rating: 'TV-14' }] },
+      vote_average: 9.1, vote_count: 3,
+    })).toMatchObject({ certifications: { US: 'TV-14' }, tmdbRating: { average: 9.1, votes: 3 } })
+    const empty = mapTmdbDetail('movie', { vote_average: 7, vote_count: '50' })
+    expect(empty.certifications).toEqual({})
+    expect(empty).not.toHaveProperty('tmdbRating')
+  })
+})
+
 describe('mapTmdbDetail — série (aggregate_credits)', () => {
   const detail = {
     id: 1,

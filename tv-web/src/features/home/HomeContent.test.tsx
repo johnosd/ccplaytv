@@ -151,6 +151,7 @@ describe('HomeContent — hero de boas-vindas (US1/AC3, FR-008)', () => {
       expect(document.querySelectorAll('.home-row[aria-busy="true"]')).toHaveLength(0)
     })
     const live = screen.getByRole('button', { name: 'Abrir TV ao vivo' })
+    expect(document.querySelector('.home-hero .content-rating-badge, .home-hero .tmdb-rating-badge')).toBeNull()
     const movies = screen.getByRole('button', { name: 'Abrir Filmes' })
     expect(live).toHaveClass('tv-focus')
     expect(movies).not.toHaveClass('tv-focus')
@@ -226,6 +227,24 @@ describe('HomeContent — rail "Continuar assistindo" (US1/AC1, AC8)', () => {
 
 // Feature 060 (US1): billboard com progresso real e Trailer real, no lugar do "Em breve" (item 32).
 describe('HomeContent — billboard da 060', () => {
+  it('061: billboard com metadata mostra classificação e TMDB depois da nota do provedor', async () => {
+    await seedSource()
+    const id = await seedMovie('Filme com classificação', 'rated')
+    await db.channels.update(id, { providerRating: 7.4 })
+    const stableId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: 'rated' })
+    await updateProgress(stableId, SOURCE_ID, 300, db)
+    await db.titleMetadata.put({
+      stableId, sourceId: SOURCE_ID, kind: 'movie',
+      tmdb: { status: 'matched', tmdbId: 1, fields: { certifications: { BR: '12' }, tmdbRating: { average: 7.83, votes: 80 } } },
+      tmdbFetchedAt: Date.now(),
+    })
+    renderHome()
+    await waitFor(() => expect(document.querySelector('.home-hero-meta .content-rating-badge')).toHaveTextContent('12'))
+    const text = document.querySelector('.home-hero-meta')!.textContent!
+    expect(text.indexOf('12')).toBeGreaterThan(text.indexOf('7,4'))
+    expect(text.indexOf('TMDB 7,8')).toBeGreaterThan(text.indexOf('12'))
+  })
+
   it('"Continuar": o nome da primária é só o rótulo; o tempo restante é a descrição e só existe com a duração conhecida (metadata guardada)', async () => {
     await seedSource()
     await seedMovie('Duna', 'd1')

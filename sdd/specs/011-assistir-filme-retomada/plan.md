@@ -469,3 +469,9 @@ nenhum novo).
 detalhe) — achado durante a exploração, pré-existente, encaminhado ao
 backlog como `[Bug]`. T052 (Cenários A–E do `quickstart.md` no navegador)
 segue disponível, sem bloqueio, para quando fizer sentido rodar.
+
+## Passada física na TV — 2026-10-06
+
+Passada feita na TV QN50Q60DAGXZD, declarada pelo usuário em 06/10/2026 como **realizada com sucesso**. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas; não há medição para citar. Os riscos de hardware desta feature (marcados como "só se prova na TV") ficam encerrados por decisão do usuário.
+
+Cobre os cenários F–J do quickstart que antes estavam parciais ou não executados (H em borda, I, J) e a conferência de `sdb dlog` (T050); o risco residual R-022 fica encerrado. Os cenários A–E no navegador (T052) **continuam não executados**.

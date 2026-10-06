@@ -12,6 +12,9 @@ export const components = defineArea(
     'textField.password': 'senha',
     'spinner.loading': 'Carregando',
     'rating.provider': 'Provedor',
+    'rating.content.aria': 'Classificação indicativa: {value}',
+    'rating.content.years': '{n} anos',
+    'rating.content.free': 'livre',
   },
   {
     'offline.verifying': 'Checking network…',
@@ -23,6 +26,9 @@ export const components = defineArea(
     'textField.password': 'password',
     'spinner.loading': 'Loading',
     'rating.provider': 'Provider',
+    'rating.content.aria': 'Content rating: {value}',
+    'rating.content.years': '{n} years',
+    'rating.content.free': 'all ages',
   },
   {
     'offline.verifying': 'Comprobando la red…',
@@ -34,5 +40,8 @@ export const components = defineArea(
     'textField.password': 'contraseña',
     'spinner.loading': 'Cargando',
     'rating.provider': 'Proveedor',
+    'rating.content.aria': 'Calificación por edades: {value}',
+    'rating.content.years': '{n} años',
+    'rating.content.free': 'todos los públicos',
   },
 )

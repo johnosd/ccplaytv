@@ -56,16 +56,25 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   lista, na versão principal (sem `[L]`/4K; esses só entram na falta dela), com "Fonte: TMDB" e o aviso de
   categorias ainda não obtidas. Sem chave, sem rede ou sem nada em cache as fileiras somem; com rede cortada
   vale o último resultado guardado. Focar nunca consulta o TMDB (feature 057).
+- Início no layout "Vitrine expandida" (feature 060): billboard de um título (o que a pessoa está
+  assistindo, senão um favorito, senão as boas-vindas) em tela cheia, com "Continuar" mostrando barra e
+  "faltam X" só com posição e duração reais, e o Trailer real. Descendo, o billboard recolhe e a fileira
+  focada sobe para a topbar; o fundo acompanha o item focado só com imagem já guardada no aparelho. Cards
+  de pôster 250 × 375 com selos (`NOVO`, `★ nota` do provedor, `✓`, `♥`) que expandem para 16:9 no foco.
+  Fileiras novas: "Filmes adicionados", "Ao vivo agora" (canais favoritos com o programa do EPG) e
+  "Porque você assistiu <título>" (semelhantes do TMDB que estão na lista; também em Filmes e Séries). Fileira
+  sem dado não aparece. Verificada no navegador com uma lista real; a passada na TV física foi declarada
+  como realizada com sucesso, sem números medidos.
 - Programa atual ("Agora") com barra de progresso na lista de canais, e
   "A seguir" com sinopse no preview, na faixa do player e nos canais
   favoritos da Home, a partir de EPG em XMLTV (do painel Xtream, do
   `url-tvg` da lista M3U ou de um endereço informado, com deslocamento de
-  horário e sincronização por lista em Configurações; feature 030 — ainda
-  sem passada na TV física).
+  horário e sincronização por lista em Configurações; feature 030 — passada
+  na TV física declarada como realizada com sucesso, sem números medidos).
 - Guia completo em tela cheia (grade canais × programas, Hoje/Amanhã, CH±,
   seletor de lista), aberto pelo ícone ao lado da lupa na lista de canais da
-  Live TV ou do player sem parar o canal (feature 031 — ainda sem passada na
-  TV física).
+  Live TV ou do player sem parar o canal (feature 031 — passada na TV física
+  declarada como realizada com sucesso, sem números medidos).
 - **Headers da lista e catch-up (Xtream):** canais, filmes e episódios de uma
   lista M3U que declara `User-Agent`/`Referer` são pedidos com esses headers
   no AVPlay (só o `User-Agent` foi provado na TV; `Referer` não tem propriedade
@@ -80,11 +89,20 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
 
 **Descoberta e metadados**
 - Pesquisa nos três tipos de conteúdo (canais, filmes, séries).
-- Detalhe de filme e série com backdrop, sinopse (truncada, com "Ver mais"),
-  gênero, duração, direção, país e elenco em texto (aba Elenco), buscados
-  **só ao abrir o detalhe** — o que o provedor da lista já informa vem
-  primeiro, e a sinopse do episódio focado aparece quando o provedor a manda
-  (feature 032, verificada na TV física).
+- Detalhe de filme e série no layout "Cinema" (feature 059): backdrop em tela
+  cheia, capa grande, categoria da lista num chip próprio separado dos gêneros,
+  sinopse (truncada, com "Ver mais"), ações em ícones (a primária mostra barra e
+  "faltam X" só com posição e duração reais) e abas Detalhes (cartões com a
+  origem do dado), Elenco (foto redonda) e Semelhantes (duas linhas: "Na sua
+  lista" e "Não encontrados na sua lista"). Gênero, duração, direção, país e
+  elenco são buscados **só ao abrir o detalhe** — o que o provedor da lista já
+  informa vem primeiro, e a sinopse de cada episódio aparece quando o provedor
+  a manda (feature 032, verificada na TV física).
+- Classificação indicativa e nota TMDB no detalhe de filmes/séries, no billboard e no card expandido do Início
+  (feature 061): país pelo idioma (pt → BR, en → US, es → ES), sem país de reserva; cores oficiais no Brasil.
+  A nota diz `TMDB`, exige média positiva e pelo menos 50 votos, e aparece junto da nota do provedor.
+  Dados guardados na mesma consulta de detalhe; registros antigos são renovados uma vez ao abrir.
+  Cards expandidos usam só o cache local ou a nota da descoberta; pôsteres pequenos ficam sem esses selos.
 - Enriquecimento por TMDB (opcional, com chave própria do usuário, digitada
   em Configurações › Integrações & BYOK): completa só o que o provedor deixou
   vazio, com o selo "Dados: TMDB"; um título só é casado quando o casamento é

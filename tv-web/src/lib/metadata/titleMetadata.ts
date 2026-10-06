@@ -34,6 +34,11 @@ function tmdbLacks035(tmdb: TmdbResultRecord | undefined): boolean {
   return tmdb?.status === 'matched' && tmdb.fields.similar === undefined
 }
 
+/** `matched` anterior à 061 não tem `certifications` — repete-se uma vez ao abrir (FR-014). */
+function tmdbLacks061(tmdb: TmdbResultRecord | undefined): boolean {
+  return tmdb?.status === 'matched' && tmdb.fields.certifications === undefined
+}
+
 /** `matched` buscado em outro idioma que não o do app (feature 054); ausente = português, como antes da 054. */
 function tmdbInOtherLanguage(tmdb: TmdbResultRecord | undefined, language: AppLanguage): boolean {
   return tmdb?.status === 'matched' && (tmdb.language ?? 'pt') !== language
@@ -85,6 +90,8 @@ export function mergeTitleMetadata(
   // Feature 035: Semelhantes e elenco com identidade existem só no TMDB.
   if (tmdb) view.tmdbMatch = tmdb.status
   if (tmdb?.status === 'matched') {
+    if (tmdb.fields.certifications !== undefined) view.certifications = tmdb.fields.certifications
+    if (tmdb.fields.tmdbRating !== undefined) view.tmdbRating = tmdb.fields.tmdbRating
     if (tmdb.fields.similar !== undefined) view.similar = tmdb.fields.similar
     if (tmdb.fields.castPeople?.length) view.castPeople = tmdb.fields.castPeople
   }
@@ -178,7 +185,7 @@ async function enrichFromTmdb(
     const language = options.language ?? readAppLanguage()
     const cached = await database.titleMetadata.get(titleStableId(record) ?? '')
     // D-002 (035): com chave, o TMDB é consultado mesmo com o provedor completo — Semelhantes e fotos só existem lá.
-    const lacksNewFields = tmdbLacksVideos(cached?.tmdb) || tmdbLacks035(cached?.tmdb)
+    const lacksNewFields = tmdbLacksVideos(cached?.tmdb) || tmdbLacks035(cached?.tmdb) || tmdbLacks061(cached?.tmdb)
     // 054: o que foi buscado em outro idioma vale como vencido ao ABRIR o detalhe (`no_match`/`dead_id` não dependem do idioma).
     const stale = tmdbInOtherLanguage(cached?.tmdb, language)
     if (!lacksNewFields && !stale && cached?.tmdbFetchedAt !== undefined && now - cached.tmdbFetchedAt <= TMDB_CACHE_MS) return

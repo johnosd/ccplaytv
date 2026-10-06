@@ -1523,7 +1523,7 @@ A referência visual é a função `home()` do protótipo v13_2; as alternativas
 - Continuar assistindo: 16:9 com barra de progresso real e legenda (`T1:E3 · faltam 26 min`);
 - Top 10: numeral gigante vazado ao lado do pôster; o número acende no foco;
 - canal ao vivo: 480 × 270 com logo, `AO VIVO`, programa atual do EPG e barra de horário, terminando num card "Todos os canais";
-- classificação indicativa e nota TMDB só aparecem quando o app tiver esse dado real; no protótipo elas estão marcadas com contorno tracejado ciano (`.hb-nd`) como **dado novo**.
+- classificação indicativa e nota TMDB usam dados reais guardados do TMDB (feature 061), após a nota do provedor. País pelo idioma (pt → BR, en → US, es → ES), sem país de reserva; Brasil com cores oficiais e EUA/Espanha neutros. A nota diz `TMDB`, com uma casa decimal, e só aparece com média positiva e pelo menos 50 votos. No card expandido, só cache local ou nota já obtida pela descoberta; pôsteres pequenos não ganham esses selos. As marcações `.hb-nd` do protótipo representam o estado anterior à implementação.
 
 **Ordem das fileiras** (fileira sem dado não aparece — nem skeleton, nem "Em breve"):
 
@@ -1590,7 +1590,8 @@ Filme e série compartilham o mesmo hero. A referência visual é a função `de
 - coluna de informação: rótulo `FILME`/`SÉRIE`, título, linha de metadata (ano · duração ou nº de temporadas · nota com a origem "Provedor" · `✓ Assistido` quando houver);
 - chips: a **categoria da lista** num chip próprio, em destaque, separado dos gêneros do TMDB; gêneros com a anotação de origem "Dados: TMDB" (a taxonomia externa nunca substitui a categoria da fonte);
 - sinopse em até 3 linhas, com "Ver mais" só quando ela for truncada;
-- nada de relevância %, qualidade/áudio (4K, 5.1), classificação indicativa ou selo editorial enquanto o app não tiver esse dado real.
+- a metadata do hero mostra a nota do provedor, a classificação indicativa e a nota TMDB nesta ordem, cada uma só quando existe (feature 061). Classificação pelo país do idioma, sem reserva; Brasil com cores oficiais, EUA/Espanha neutros. Nota `TMDB` com uma casa decimal, média positiva e pelo menos 50 votos. Os dois dados vêm na mesma chamada de detalhe e ficam no cache existente; registros antigos são renovados uma vez ao abrir, nunca ao focar.
+- nada de relevância %, qualidade/áudio (4K, 5.1) ou selo editorial enquanto o app não tiver esse dado real.
 
 **Ações**
 

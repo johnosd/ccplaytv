@@ -60,6 +60,7 @@ export const SUITE = [
   'e2e/bem-avaliados.mjs',
   'e2e/top10-dica.mjs',
   'e2e/home-vitrine-expandida.mjs',
+  'e2e/classificacao-nota-tmdb.mjs',
   'e2e/headers-catchup.mjs',
   'e2e/serie-foco-episodios.mjs',
 ]

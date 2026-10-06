@@ -53,6 +53,20 @@
   --live: #ff2e87;
   --danger: #ff4f68;
 
+  /* Classificação indicativa brasileira (feature 061, logic §3). */
+  --rating-br-l: #1FA54B;
+  --rating-br-l-ink: #fff;
+  --rating-br-10: #1E88E5;
+  --rating-br-10-ink: #fff;
+  --rating-br-12: #F2C200;
+  --rating-br-12-ink: #111;
+  --rating-br-14: #EF7D00;
+  --rating-br-14-ink: #fff;
+  --rating-br-16: #E53935;
+  --rating-br-16-ink: #fff;
+  --rating-br-18: #111;
+  --rating-br-18-ink: #fff;
+
   /* ---------- Gradiente de marca (§5.4) ---------- */
   --brand-1: #ff2e87;
   --brand-2: #ff7a3d;

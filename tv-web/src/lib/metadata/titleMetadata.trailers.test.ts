@@ -112,7 +112,8 @@ describe('ensureTitleMetadata — quando o trailer obriga a pedir de novo (033)'
       providerFetchedAt: NOW,
       providerVersion: PROVIDER_FIELDS_VERSION,
       providerTmdbId: 603,
-      tmdb: { status: 'matched', tmdbId: 603, fields: { synopsis: 'Antiga.' } },
+      // 061: isola a atualização dos trailers; a classificação já está no formato novo.
+      tmdb: { status: 'matched', tmdbId: 603, fields: { synopsis: 'Antiga.', certifications: {} } },
       tmdbFetchedAt: NOW,
     })
 

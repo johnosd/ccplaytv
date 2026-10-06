@@ -199,9 +199,9 @@ description: "Tasks da feature 060 — Home no layout Vitrine expandida"
 - [X] T039 Suíte completa: `npx vitest run`, `npx tsc -b`, `npm run lint`, `npm run build`, `npm run build:tizen` (nenhum arquivo emitido novo fora de `tizen_web_project.yaml`)
 - [X] T040 Revisão de segredos: nenhuma URL de imagem/capa/fundo em `console.*`, erro ou tela; `tmdbImageUrl` sem chave (constitution, FR-026)
 - [X] T041 `npm run test:e2e` completo com `npm run dev` (gate antes da TV)
-- [ ] T042 Executar `quickstart.md` (cenários 1–13 no navegador)
-- [ ] T043 **Gate D-015**: passada na TV física com o skill `tizen-tv` (cenários da seção "TV física — gate" do quickstart); decidir FR-028 (`--home-expand-duration`) pela medição; registrar em Riscos e Decisões
-- [ ] T044 Docs: Spec V14, seção "Home" (ordem de FR-018 com Dica e as duas fileiras de adicionados; R-003 se o usuário mudar a cor), protótipo `home()` se a ordem divergir; backlog (`update-feature-status.ps1 -Status Implementada`); `plan.md` (Estado Atual)
+- [x] T042 Executar `quickstart.md` (cenários 1–13 no navegador) — **Atualização 06/10/2026: executado no navegador com a lista real** (`tv-web/e2e/home-vitrine-expandida-real.mjs`, fora do `test:e2e`): 0 falhas e 3 itens não verificáveis no navegador — cenário 2 (título sem backdrop e sem imagem na listagem, não dá para forçar com a lista real), cenário 6 (camada do trailer com candidato: o título testado não teve candidato e o botão ficou soft-disabled) e cenário 12 (plano de hardware do AVPlay, que nunca vale no navegador de dev; a prova é a passada na TV). Progresso, concluído e favoritos foram semeados no IndexedDB a partir do catálogo real, não produzidos pelo player. Ver `plan.md` → "Verificação no navegador com a lista real — 2026-10-06"
+- [x] T043 **Gate D-015**: passada na TV física com o skill `tizen-tv` (cenários da seção "TV física — gate" do quickstart); decidir FR-028 (`--home-expand-duration`) pela medição; registrar em Riscos e Decisões — **Atualização 06/10/2026: o usuário declarou a passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-06"); qualquer "não executado" acima é o estado anterior, mantido como histórico
+- [x] T044 Docs: Spec V14, seção "Home" (ordem de FR-018 com Dica e as duas fileiras de adicionados; R-003 se o usuário mudar a cor), protótipo `home()` se a ordem divergir; backlog (`update-feature-status.ps1 -Status Implementada`); `plan.md` (Estado Atual) — **Feito em 06/10/2026**: Spec V14, seção "Home", já traz a ordem de FR-018 (com Dica e as duas fileiras de adicionados); protótipo `home()` não alterado (a Spec o declara ilustrativo); R-003 sem mudança (o usuário não pediu); `CLAUDE.md` intocado
 
 **Registro da Fase** (parcial — faltam T042, T043 e o fechamento de T044):
 
@@ -219,9 +219,9 @@ description: "Tasks da feature 060 — Home no layout Vitrine expandida"
 - [X] Fase 5 (US3) concluída
 - [X] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro para 060, 026, 022, 035, 052, 053, 056, 057, 059
 - [X] `npm run test:e2e` verde (gate da constitution antes da TV)
-- [ ] Frontend validado no navegador (`quickstart.md` cenários 1–13)
+- [x] Frontend validado no navegador (`quickstart.md` cenários 1–13) — **Atualização 06/10/2026: executado no navegador com a lista real** (`tv-web/e2e/home-vitrine-expandida-real.mjs`, fora do `test:e2e`): 0 falhas e 3 itens não verificáveis no navegador — cenário 2 (título sem backdrop e sem imagem na listagem, não dá para forçar com a lista real), cenário 6 (camada do trailer com candidato: o título testado não teve candidato e o botão ficou soft-disabled) e cenário 12 (plano de hardware do AVPlay, que nunca vale no navegador de dev; a prova é a passada na TV). Progresso, concluído e favoritos foram semeados no IndexedDB a partir do catálogo real, não produzidos pelo player. Ver `plan.md` → "Verificação no navegador com a lista real — 2026-10-06"
 - [X] Revisão de segredos (T040)
-- [ ] Passada na TV física aprovada (T043, gate D-015) — ou decisão explícita do usuário com risco registrado
+- [x] Passada na TV física aprovada (T043, gate D-015) — ou decisão explícita do usuário com risco registrado — **Atualização 06/10/2026: o usuário declarou a passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-06"); qualquer "não executado" acima é o estado anterior, mantido como histórico
 
 ---
 

@@ -1512,6 +1512,11 @@
   font-weight: 700;
 }
 
+/* O separador do hero não entra dentro do selo colorido (feature 061). */
+.vod-detail-hero--cinema .vod-detail-meta > .content-rating-badge::before {
+  content: none;
+}
+
 .vod-detail-chips-row {
   display: flex;
   flex-wrap: wrap;

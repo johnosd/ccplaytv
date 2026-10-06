@@ -83,9 +83,13 @@ export function useLiveKeyboard({
   const { openGuideFromPreview, pageGuide } = liveGuide
 
   // Destino de uma paginação de canais já decidida mas ainda não aplicada ao estado (ver `pageList`).
-  const pendingChannelIdxRef = useRef<number | null>(null)
+  const pendingChannelRef = useRef<{ index: number; id: string | null } | null>(null)
   useEffect(() => {
-    pendingChannelIdxRef.current = null
+    // Um render intermediário pode chegar depois de outro toque já ter decidido o próximo destino.
+    const pending = pendingChannelRef.current
+    if (pending && (channelIdx === pending.index || items[pending.index]?.id !== pending.id)) {
+      pendingChannelRef.current = null
+    }
   }, [channelIdx, items])
 
   // Ao fechar o guia aberto pelo ícone, o foco volta ao canal de origem (FR-008), não ao ícone.
@@ -234,17 +238,21 @@ export function useLiveKeyboard({
     const container = channelListRef.current
     // Com a seta segurada chegam vários toques antes de o foco adiado (abaixo) virar estado: parte-se do
     // destino já decidido, não do índice ainda desatualizado.
-    const from = pendingChannelIdxRef.current ?? channelIdx
+    const from = pendingChannelRef.current?.index ?? channelIdx
     const next = pagedIndex(from, items.length, pageSizeFor(container?.clientHeight ?? 0, LIVE_ITEM_ROW_HEIGHT), direction)
     if (next === null || next === from) return
-    pendingChannelIdxRef.current = next
+    const pending = { index: next, id: items[next]?.id ?? null }
+    pendingChannelRef.current = pending
     scrollByPage(container, direction, Math.abs(next - from), LIVE_ITEM_ROW_HEIGHT)
     // A lista é virtualizada: o virtualizador só sabe da rolagem nova no evento de scroll. Mudar o foco no
     // mesmo instante o faria achar o item fora da janela e rolar de novo (item na borda, não na mesma linha).
     // Adiar para o quadro seguinte deixa o `scrollToIndex` do foco já enxergar o item visível.
-    const nextId = items[next]?.id ?? null
     const defer = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (callback: () => void) => setTimeout(callback, 0)
-    defer(() => setFocusedIdentity((prev) => ({ ...prev, channelId: nextId })))
+    defer(() => {
+      // Só o destino mais recente pode virar foco; quadros anteriores não podem apagar uma rajada.
+      if (pendingChannelRef.current !== pending) return
+      setFocusedIdentity((prev) => ({ ...prev, channelId: pending.id }))
+    })
   }
   function handleTrailSelect() {
     if (effectiveCol === 0) {

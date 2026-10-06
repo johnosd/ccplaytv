@@ -203,7 +203,9 @@ Testes adicionais (escritos no execute, não travados): `homeRows.test.ts`, `car
 | US3 (fileiras novas) | Concluída — `becauseApi.ts`, fileira "Porque você assistiu" real em Filmes/Séries e no Início, "Ao vivo agora" com `HomeLiveCard` (EPG real), `added-movies`/`added-series` com cobertura, ordem FR-018 por `buildHomeRows`; `vod-because` removido dos mocks |
 | Contratos | 060: 5/5 verdes; emendados de 052/053/056/057 verdes; 026, 022, 035 e 059 verdes; todas as travas íntegras |
 | Validação (Fase 6) | `tsc -b` e lint limpos; `npx vitest run` 443 arquivos / 2826 testes verdes; `build` e `build:tizen` ok; `node e2e/run.mjs` **40/40** (inclui o novo `home-vitrine-expandida`); revisão de segredos feita |
-| Falta | **T043 — passada na TV física (gate D-015/SC-009; decidir FR-028 pela medição)**; T042 com dado real (cenários 1, 2, 6, 10, 13); T044: status `Implementada` no backlog (só depois da TV) e decisão de A-001/R-003 |
+| Navegador com a lista real (T042) | Executado em 2026-10-06: 0 falhas e 3 itens não verificáveis no navegador (cenário 2, cenário 6 com candidato de trailer e cenário 12 no plano de hardware); ver "Verificação no navegador com a lista real — 2026-10-06" |
+| TV física (T043, gate D-015/SC-009) | Declarada pelo usuário como realizada com sucesso em 2026-10-06 (sem medição); FR-028 mantido como está |
+| Falta | Nada em tasks (T042, T043 e T044 fechadas); A-001/R-003 (cor da capa ao focar) seguem como estão, pois o usuário não pediu mudança |
 
 ## Riscos e Decisões
 
@@ -214,20 +216,20 @@ Testes adicionais (escritos no execute, não travados): `homeRows.test.ts`, `car
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | "Filmes/Séries adicionados" leem o índice de busca inteiro de cada tipo (≈240 ms de CPU por tipo no PC na 1ª leitura, mais na TV — bug `tela-principal-filmes-lenta-na-tv`) | Abrir o Início fica lento (SC-007) | Carga adiada para depois do 1º desenho (D-013); `queryKey` compartilhada com a vitrine; medir na TV |
-| R-002 | `Rail` virtualizado com largura variável: posições remedidas a cada foco podem saltar | Fileira "pulando" na TV | `measure()` só ao mudar o foco; transição de `transform`; teste do `Rail`; fallback FR-028 |
+| R-001 | "Filmes/Séries adicionados" leem o índice de busca inteiro de cada tipo (≈240 ms de CPU por tipo no PC na 1ª leitura, mais na TV — bug `tela-principal-filmes-lenta-na-tv`) | Abrir o Início fica lento (SC-007) | Resolvido: (convergência de 2026-10-06) carga adiada para depois do 1º desenho (D-013) e `queryKey` compartilhada com a vitrine; no navegador com a lista real a ação primária ficou focável e a barra chegou depois dos dados adiados; sem medição na TV (passada declarada com sucesso pelo usuário, sem números) |
+| R-002 | `Rail` virtualizado com largura variável: posições remedidas a cada foco podem saltar | Fileira "pulando" na TV | Resolvido: (convergência de 2026-10-06) `measure()` só ao mudar o foco e teste do `Rail` verdes; a expansão não anima a largura (fallback FR-028 como padrão); sem medição de fluidez na TV |
 | R-003 | Ler a cor da capa baixa de novo a imagem da capa (modo CORS) quando o foco para num card sem backdrop. A constitution proíbe consulta a **serviço externo** por foco; isto é download de imagem já exibida (mesma natureza de rolar e carregar pôsteres), só de capa "sem risco" (059) e depois de 250 ms parado | Interpretação da constitution | Registrado aqui; se o usuário preferir, cair para o gradiente neutro (desligar `useCoverColor` no card) sem mudar o resto |
-| R-004 | Testes e E2E não travados que conhecem a Home antiga ou o slot (`HomeContent*.test.tsx`, `comingSoon.test.ts`, `vodShowcaseRows.discovery.test.ts`, `VodShowcaseScreen*.test.tsx`, `e2e/home-busca-configuracoes.mjs`, `top10-dica.mjs`, `carrosseis-filmes-series.mjs`, `vitrine-filmes-series.mjs`, `bem-avaliados.mjs`, `epg-dados-agora.mjs`) | Vermelhos fora do contrato | Atualizar no mesmo passo da mudança, citando a 060 (tasks das fases 3–6) |
-| R-005 | Contratos emendados de 052/053/056/057 ficam vermelhos entre o plan e a Fase 5 | Suíte vermelha no meio do execute | Esperado e documentado (D-012); a Fase 5 os deixa verdes sem editá-los |
-| R-006 | TV física é gate (D-015) | Feature não fecha sem a passada | Rodar `tizen-tv` depois do E2E; se não der, decisão explícita do usuário com risco registrado aqui |
-| R-007 | Série no billboard/Continuar sem registro local do episódio: sem duração → sem barra | Menos barras que o protótipo | Aceito pela spec (FR-004); nunca buscar episódios só para a barra |
+| R-004 | Testes e E2E não travados que conhecem a Home antiga ou o slot (`HomeContent*.test.tsx`, `comingSoon.test.ts`, `vodShowcaseRows.discovery.test.ts`, `VodShowcaseScreen*.test.tsx`, `e2e/home-busca-configuracoes.mjs`, `top10-dica.mjs`, `carrosseis-filmes-series.mjs`, `vitrine-filmes-series.mjs`, `bem-avaliados.mjs`, `epg-dados-agora.mjs`) | Vermelhos fora do contrato | Resolvido: (convergência de 2026-10-06) atualizados nas fases 3–6; vitest da área verde (257 arquivos, 1635 testes) e E2E 40/40 no registro da Fase 6 |
+| R-005 | Contratos emendados de 052/053/056/057 ficam vermelhos entre o plan e a Fase 5 | Suíte vermelha no meio do execute | Resolvido: (convergência de 2026-10-06) as travas de 052/053/056/057 estão íntegras e verdes |
+| R-006 | TV física é gate (D-015) | Feature não fecha sem a passada | Resolvido: (convergência de 2026-10-06) passada na TV declarada com sucesso pelo usuário em 2026-10-06 (SC-009), sem números medidos |
+| R-007 | Série no billboard/Continuar sem registro local do episódio: sem duração → sem barra | Menos barras que o protótipo | Resolvido: (convergência de 2026-10-06) aceito pela spec (FR-004); a barra só nasce de `primaryProgress` |
 | R-008 | `HomeContent.tsx` (≈650 linhas) cresce com billboard, linhas e fileiras novas | Arquivo difícil de manter | Extrair dados para `useHomeData` e o render das fileiras para funções/componentes de apresentação; manter um só `useRemoteNav` (regra da 040) |
 | R-009 | `AppShell` é compartilhado por várias telas | Regressão visual em Live/Filmes/Busca | Prop opcional; sem ela o DOM é idêntico; E2E de shell (`shell-visual`, `paridade-visual`) |
 | R-010 | Backdrops guardados das respostas do TMDB só aparecem depois da próxima renovação de cada cache (semana/dia/24 h) | Poucas imagens 16:9 no primeiro dia | Aceito (sem consulta nova); cai no pôster + cor |
 | R-011 | `useTitleMetadata` do billboard roda com o `catalogApi` real no contrato 026 (id `'movie-7'`) | Exceção na tela | Tolerar id inexistente/erro como "sem metadata" (D-010); o contrato 026 deve seguir verde |
 | R-012 | No Xtream a série não tem data de inclusão (`last_modified` é atualização, nunca inclusão — feature 025) | "Séries adicionadas" não aparece em fontes Xtream; só com fonte que informe a data | Aceito: sem dado, a fileira não existe (FR-018); o E2E confirma. Não inventar data a partir de `last_modified` |
-| R-013 | ↑ no dock sai para a topbar; ao voltar com ↓ o foco poderia reentrar no dock ("Em breve") | Foco pousando num ícone sem função | `moveLine` zera a linha para `hero` ao sair pelo topo; Spec V14 e `HomeScreen.test.tsx` atualizados; R-002 da 023 (um só salto) segue verde no E2E |
-| R-014 | `.home-content` tem `overflow: hidden` e as ações do billboard ficam na borda da safe zone | Anel de foco da ação cortado à esquerda (visto na captura) | `margin-inline` negativo + `padding-inline` iguais (`--space-2`): mesma área útil, sem mudar nada de lugar |
+| R-013 | ↑ no dock sai para a topbar; ao voltar com ↓ o foco poderia reentrar no dock ("Em breve") | Foco pousando num ícone sem função | Resolvido: (convergência de 2026-10-06) confirmado no navegador com a lista real: ↓ da topbar pousa nas ações do billboard |
+| R-014 | `.home-content` tem `overflow: hidden` e as ações do billboard ficam na borda da safe zone | Anel de foco da ação cortado à esquerda (visto na captura) | Resolvido: (convergência de 2026-10-06) `margin-inline` negativo + `padding-inline` iguais (`--space-2`); o anel de foco aparece inteiro nas capturas |
 
 ## Execution Notes
 
@@ -244,8 +246,9 @@ Testes adicionais (escritos no execute, não travados): `homeRows.test.ts`, `car
 | 2026-10-05 | Fase 4 (US2 — cards e expansão) | T022–T027: `HomeTitleCard` completo + `useCachedTitleView`/`useDeferred`, fileiras com card expandido e `align="start"`, selos por leituras únicas, Continuar 16:9 com barra e legenda reais, CSS; `src/features/home` 80/80, `top10-dica` E2E com capturas conferidas. Desvios: o crescimento da largura não é animado (é o fallback FR-028 já como padrão; só a camada expandida faz fade) — a TV decide se vale animar; a rolagem horizontal da fileira é suave por `scroll-behavior` em `.home-row .rail` (instantânea na volta de um destino e com "reduzir movimento"); o ✓ de série só depois de `HOME_DEFERRED_MS` | Fase 5 (fileiras novas, "Porque você assistiu", Ao vivo agora) |
 | 2026-10-05 | Fase 5 (US3 — fileiras novas) | T028–T036: `becauseApi.ts` (sem chave TMDB, zero leitura além do estado da chave), "Porque você assistiu" em Filmes/Séries e no Início, `HomeLiveCard` + "Ao vivo agora", `added-movies`/`added-series`, ordem FR-018; contrato 060 5/5 + 6 emendados verdes, travas íntegras, 433 arquivos / 2717 testes, `tsc` limpo. Desvios: um único mapa `titleRows` no `HomeContent` (seleção, direção, fundo e imagens de todas as fileiras de título); `allItems`/`extraImages` calculados a cada render (sem memo com dependências instáveis); 3 testes de EPG da Home migrados de `.channel-row*` para `.home-live-*` | Fase 6 (E2E, build, TV física) |
 | 2026-10-05 | Fase 6 (Polish, parcial) | T037–T041: E2E novo na `SUITE`; 6 E2E antigos ajustados (layout novo, ↑ passa pelo dock, "Ao vivo agora", sem slot); vitest 443/2826, `tsc`, lint, `build`, `build:tizen` ok; E2E 40/40 (1ª rodada 34/39, as 5 falhas eram roteiros antigos). Desvios/achados: "Séries adicionadas" não existe no Xtream (R-012); ↓ da topbar agora sempre pousa no billboard (R-013); anel de foco do billboard cortado pelo `overflow` corrigido (R-014); o "Porque você assistiu" positivo ficou nos testes unitários, não no E2E | T043 (TV física, gate) |
+| 2026-10-06 | Fase 6 (fechamento) | T043 (passada na TV física, gate D-015, declarada com sucesso pelo usuário, sem números; FR-028 mantido como está) e T044 (docs: Spec V14 seção "Home" já traz a ordem FR-018 com Dica e as duas fileiras de adicionados; protótipo `home()` segue ilustrativo; A-001/R-003 sem mudança; `CLAUDE.md` intocado); status `Implementada` | — |
 
-**PRÓXIMO**: T043 — passada na TV física com o skill `tizen-tv` (cenários 1, 3, 4, 5, 8, 10, 12 do quickstart), medir SC-007 (≤ 1 s) e a fluidez da expansão/troca de fundo com seta segurada, decidir FR-028; depois T042 com a lista real (cenários 1, 2, 6, 10, 13), decidir A-001/R-003 (cor da capa ao focar) e fechar T044 (`update-feature-status.ps1 -Status Implementada`).
+**PRÓXIMO**: nenhum em tasks (53/53). Rodar `sdd-converge 060-home-vitrine-expandida`. T042 (navegador com a lista real), T043 (TV física) e T044 (docs e status `Implementada`) foram fechadas em 2026-10-06; ver "Passada física na TV — 2026-10-06" e "Verificação no navegador com a lista real — 2026-10-06".
 
 ## Arquivos Principais
 
@@ -253,7 +256,7 @@ Testes adicionais (escritos no execute, não travados): `homeRows.test.ts`, `car
 
 - `.claude/skills/tizen-tv/SKILL.md` — procedimento da passada na TV física (T043); build com `npm run build:tizen` já validado
 - `tv-web/src/styles/home.css` — `--home-expand-duration` (FR-028: zerar se a expansão engasgar) e `.home-live-*`; `tv-web/src/features/home/homeRowFormats.ts` (`HOME_AMBIENT_DELAY_MS`, `HOME_DEFERRED_MS`)
-- `tv-web/e2e/home-vitrine-expandida.mjs` — roteiro de referência (capturas em `tv-web/test-results/home-vitrine-expandida/`)
+- `tv-web/e2e/home-vitrine-expandida-real.mjs` — roteiro com a lista real do `.env` (T042), fora do `test:e2e`; capturas na pasta temporária do sistema (capturas em `tv-web/test-results/home-vitrine-expandida/`)
 - `tv-web/src/features/home/HomeContent.tsx`, `HomeLiveCard.tsx`, `HomeTitleCard.tsx`, `src/features/catalog/becauseApi.ts` — código pronto
 - `docs/design/design-system/CCPlayTV_Design_System_Spec_v14_Spectrum.md` (seção "Home" já atualizada) e `quickstart.md` (cenários da TV)
 
@@ -264,3 +267,50 @@ Testes adicionais (escritos no execute, não travados): `homeRows.test.ts`, `car
 - Para trocar texto multilinha em arquivo de teste/E2E, use o `Edit` (não um script PowerShell com aspas duplas): `${selector}` e `$` dentro de aspas duplas são expandidos pelo PowerShell, e arquivos CRLF não casam com `\n`.
 - Nos scripts PowerShell que usam `[IO.File]::ReadAllText/WriteAllText`, use SEMPRE caminho absoluto: o `cd` do PowerShell não muda o diretório que o .NET usa (um `Mark` com caminho relativo falhou procurando `tv-web\sdd\...`).
 - `Get-Content` sem `-Encoding UTF8` mostra os acentos quebrados dos `.ts` no console, mas os arquivos estão corretos; edite com o `Edit`/`Read`, nunca regrave arquivo de código via `Set-Content` sem `-Encoding utf8`.
+
+## Passada física na TV — 2026-10-06
+
+Passada feita na TV QN50Q60DAGXZD, declarada pelo usuário em 06/10/2026 como **realizada com sucesso**. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas; não há medição para citar. Os riscos de hardware desta feature (marcados como "só se prova na TV") ficam encerrados por decisão do usuário.
+
+Fecha o gate D-015 (SC-009). **FR-028 (`--home-expand-duration`) não foi decidido por medição**: o valor atual fica como está. T042 (quickstart no navegador) e T044 (docs e status `Implementada`) foram fechadas no mesmo dia.
+
+## Verificação no navegador com a lista real — 2026-10-06
+
+T042 executada por `node e2e/home-vitrine-expandida-real.mjs` (Chromium 1920 × 1080, `npm run dev`, lista Xtream e chave TMDB do `.env` da raiz; só contagens e rótulos do app na saída, nenhum nome do provedor). Resultado da última rodada: **0 falhas, 3 itens não verificáveis no navegador**.
+
+**Verificado com dado real**
+- 7 (boas-vindas): numa rodada com perfil novo, a lista sem progresso nem favoritos abriu o billboard de boas-vindas expandido, com atalhos focáveis.
+- 1: "▶ Continuar" com barra e "faltam 1 h 28 min" juntos, só depois de a duração chegar (antes disso, nenhum dos dois); a 1ª fileira no rodapé.
+- 3: ↓ recolhe (fileira focada a 56 px da topbar), ↑ expande com a última ação focada, ↑ vai ao dock e à topbar.
+- 4: 14 → + 2 ↓ + 8 → seguidos, 0 requisições ao painel ou ao TMDB.
+- 8/9: pôster 250 × 375, card expandido 667 × 375, 49 selos ★ todos com nota, 14 selos NOVO, 12 numerais de Top 10; → no último card não sai da fileira.
+- 5: voltar de um detalhe reabre a mesma fileira e o mesmo card, por id, com o billboard recolhido.
+- 10/11: ordem do FR-018 respeitada (continue > top10-movies > added-movies > tip-movies > because > channels > mylist > top10-series > tip-series > ai); "Ao vivo agora" com 3 canais favoritos; "Porque você assistiu" e Dica de filme presentes na Home **e** na vitrine de Filmes (a vitrine é virtualizada: só aparecem ao percorrer as fileiras); nenhum slot "Em breve".
+- 6: a ação Trailer é alcançável; sem candidato fica soft-disabled.
+- 12: a camada do player vive dentro do `.screen`, é opaca e fica por cima do Início; ao fechar, o foco volta ao "Continuar".
+- 13: en e es com a ação primária e os rótulos das fileiras traduzidos (nenhum em português) e os nomes do provedor intactos (26 e 27 itens comparados por id).
+- Checklist: nenhuma credencial ou chave no DOM nem no console, nenhuma URL de painel no console, 0 erros de página.
+
+**Não verificável no navegador**
+- 2: título sem backdrop e sem imagem na listagem (a lista real não permite forçar); segue coberto pelo E2E com fixtures e pelo teste do `useCoverColor`.
+- 6: camada do trailer com candidato (o título testado não teve candidato).
+- 12: o plano de hardware do AVPlay (`video-plane-visible`) nunca vale no navegador de dev; a prova é a passada na TV, declarada pelo usuário.
+
+**Limites do teste.** Progresso (1 filme em andamento, 1 concluído), favoritos (2 filmes, 2 séries) e 3 canais favoritos foram **semeados no IndexedDB** a partir do catálogo real, não produzidos pelo player nem pela pessoa. O catálogo já estava inteiro no aparelho (43 mil filmes, 9,7 mil séries, 2,3 mil canais), então o aviso de cobertura parcial de "Filmes adicionados" não apareceu (correto: cobertura total) e "Ao vivo agora" ficou sem barra de horário (EPG não configurado). "Séries adicionadas" não existe, como esperado no Xtream (R-012). O episódio em andamento de série não foi semeado.
+
+Achados do próprio roteiro, sem relação com o app: o seletor `.source-card-wrap` também envolve o cartão "Adicionar lista"; os dados do billboard chegam adiados (ler texto e barra em instantes diferentes dá falso negativo); a vitrine virtualiza as fileiras; um perfil persistente interrompido deixa o idioma em en/es.
+
+## Resultado Final
+
+Convergida em 2026-10-06 sem achado acionável (`sdd-converge`), com uma observação de manutenção em aberto (R-008, abaixo).
+
+**O que foi construído.** Início no layout "Vitrine expandida": billboard de um título (continuar → favorito → boas-vindas) que recolhe quando o foco desce, com fundo ambiente (backdrop guardado, senão cor da capa da 059, senão neutro), dock no canto, "Continuar" com barra e "faltam X" só com posição e duração reais (`primaryProgress`) e Trailer real (mock `home-trailer` removido). Cards de pôster 250 × 375 com selos (`cardBadges`) que expandem no foco (667 × 375; Continuar 480 × 270 → 600 × 338), Top 10 com numeral, "Ao vivo agora" com EPG real (`HomeLiveCard`), "Filmes adicionados" com cobertura, "Porque você assistiu" (`becauseApi.ts`, sem chave TMDB zero requisição) na Home e em Filmes e Séries (mock `vod-because` removido) e a ordem do FR-018 por `buildHomeRows`. O `Rail` ganhou `focusedItemWidth`/`align` opcionais e o `AppShell`, a prop `backdrop`, sem alterar os outros usos. O backdrop que já vem do TMDB é guardado no cache existente, sem consulta nova e sem mudar o esquema (Dexie segue v16; a v17 não foi usada).
+
+**Verificação da convergência.** Trava de contrato íntegra (5/5) e as de 052, 053, 056, 057, 026, 059 e 022 também; `tsc -b` limpo; `npm run lint` exit 0; vitest da área (home, vod, catalog, lib/catalog, lib/metadata, components, navigation, lib/i18n, movies, series) com 257 arquivos e 1635 testes verdes. O E2E não foi reexecutado na convergência (registro da Fase 6: 40/40) e o roteiro com a lista real passou em 2026-10-06 (0 falhas, 3 itens não verificáveis no navegador).
+
+**Desvios em relação ao plano original.** O backdrop do Top 10/Dica vai no mapa `images` do retorno do hook, não em `DiscoveryPick`; `useContinueCards(sourceId)` no lugar de `useContinueProgress`; o crescimento da largura do card não é animado (o fallback FR-028 virou o padrão); o fundo é desenhado por portal na camada do `AppShell` ou inline; ↓ da topbar sempre pousa no billboard (R-013); "Séries adicionadas" não existe no Xtream (R-012).
+
+**Observação em aberto (R-008).** `HomeContent.tsx` tem 864 linhas (o risco previa ≈650) e a extração prometida (`useHomeData` e o render das fileiras em componentes) não foi feita; mantém um só `useRemoteNav` (D-001). É dívida de manutenção, não um requisito da spec, e fica registrada em R-008 sem `Resolvido:`; o limite de tamanho por lint é o item 49b do backlog.
+
+**Honestidade sobre o gate.** SC-009 (passada na TV física) e a decisão do FR-028 foram fechados por declaração do usuário em 2026-10-06, sem números; SC-007 (≤ 1 s) só foi visto no navegador. O progresso, os favoritos e os canais favoritos do teste com a lista real foram semeados no IndexedDB, não produzidos pelo player.
+

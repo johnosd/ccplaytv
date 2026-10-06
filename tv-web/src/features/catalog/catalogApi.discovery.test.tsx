@@ -129,6 +129,10 @@ describe('useWeeklyTop10 (feature 057)', () => {
       [4, 'Gama'],
     ])
     expect(result.current.coveredCategories).toBe(1)
+    // 061: notas já na descoberta, mapeadas pelo id do item da lista.
+    for (const pick of result.current.data!) {
+      expect(result.current.ratings?.get(pick.item.id)).toEqual({ average: 8, votes: 1000 })
+    }
     expect(result.current.totalCategories).toBe(2)
     expect(fetchSpy).not.toHaveBeenCalled()
   })
@@ -229,6 +233,10 @@ describe('useDailyTip (feature 057)', () => {
     ])
     const first = renderHook(() => useDailyTip(SOURCE_ID, 'movie'), { wrapper: wrapperOf(newClient()) })
     await waitFor(() => expect(first.result.current.data?.length).toBe(6))
+    // 061: a Dica expõe o mesmo dado guardado, sem consulta de detalhe por card.
+    for (const item of first.result.current.data!) {
+      expect(first.result.current.ratings?.get(item.id)).toEqual({ average: 8, votes: 1000 })
+    }
     const second = renderHook(() => useDailyTip(SOURCE_ID, 'movie'), { wrapper: wrapperOf(newClient()) })
     await waitFor(() => expect(second.result.current.data?.length).toBe(6))
     expect(second.result.current.data!.map((item) => item.id)).toEqual(first.result.current.data!.map((item) => item.id))

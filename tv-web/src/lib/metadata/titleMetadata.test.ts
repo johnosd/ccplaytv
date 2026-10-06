@@ -8,6 +8,16 @@ const SOURCE_ID = 'fonte-1'
 const NOW = Date.UTC(2026, 8, 29, 12, 0, 0)
 const HOUR = 60 * 60 * 1000
 
+it('061: só matched copia classificação e nota; dados do provedor, no_match e dead_id não inventam selos', () => {
+  const fields = { certifications: { BR: '16' }, tmdbRating: { average: 8, votes: 100 } }
+  expect(mergeTitleMetadata(undefined, { status: 'matched', tmdbId: 1, fields })).toMatchObject(fields)
+  for (const result of [{ status: 'no_match' as const }, { status: 'dead_id' as const, tmdbId: 1 }]) {
+    const view = mergeTitleMetadata(fields, result)
+    expect(view).not.toHaveProperty('certifications')
+    expect(view).not.toHaveProperty('tmdbRating')
+  }
+})
+
 const PANEL: SourceRecord = {
   id: SOURCE_ID,
   type: 'provider_credentials',

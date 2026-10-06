@@ -70,6 +70,30 @@ describe('HomeTitleCard — selos (FR-008)', () => {
 })
 
 describe('HomeTitleCard — expansão (FR-009)', () => {
+  it('061: só o expandido mostra cache ou nota da descoberta; cache prevalece e nunca consulta', async () => {
+    const discovery = { average: 8.7, votes: 80 }
+    const small = renderCard({ tmdbRating: discovery })
+    expect(small.container.querySelector('.tmdb-rating-badge, .content-rating-badge')).toBeNull()
+    small.unmount()
+    const onlyDiscovery = renderCard({ focused: true, tmdbRating: discovery })
+    await waitFor(() => expect(onlyDiscovery.container.querySelector('.tmdb-rating-badge')).toHaveTextContent('TMDB 8,7'))
+    expect(onlyDiscovery.container.querySelector('.content-rating-badge')).toBeNull()
+    onlyDiscovery.unmount()
+    const empty = renderCard({ focused: true })
+    await waitFor(() => expect(empty.container.querySelector('.home-card-expanded')).not.toBeNull())
+    expect(empty.container.querySelector('.tmdb-rating-badge, .content-rating-badge')).toBeNull()
+    empty.unmount()
+    await db.titleMetadata.put({
+      stableId: buildStableId({ sourceId: 'src-card', kind: 'movie', providerStreamId: 'p77' }),
+      sourceId: 'src-card', kind: 'movie',
+      tmdb: { status: 'matched', tmdbId: 1, fields: { certifications: { BR: '14' }, tmdbRating: { average: 6.83, votes: 100 } } },
+    })
+    const cached = renderCard({ focused: true, tmdbRating: discovery })
+    await waitFor(() => expect(cached.container.querySelector('.tmdb-rating-badge')).toHaveTextContent('TMDB 6,8'))
+    expect(cached.container.querySelector('.content-rating-badge')).toHaveTextContent('14')
+    expect(cached.container.querySelector('.home-card-expanded-meta button, .home-card-expanded-meta [tabindex]')).toBeNull()
+  })
+
   it('sem foco o card não expande e não monta a camada expandida (nada é lido por card)', () => {
     const { container } = renderCard({ focused: false })
     expect(container.querySelector('.home-card')).not.toHaveClass('is-expanded')

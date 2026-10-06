@@ -37,6 +37,8 @@ import type { MessageKey } from '../../lib/i18n/messages/pt'
 import type { Translator } from '../../lib/i18n/translate'
 import { ComingSoon } from '../../components/ComingSoon'
 import { RatingBadge } from '../../components/RatingBadge'
+import { ContentRatingBadge } from '../../components/ContentRatingBadge'
+import { TmdbRatingBadge } from '../../components/TmdbRatingBadge'
 import { SeeAllCard } from '../../components/SeeAllCard'
 import { Rail } from '../../components/Rail'
 import { Icon } from '../../components/Icon'
@@ -56,6 +58,7 @@ import { HomeAmbient } from './HomeAmbient'
 import { HomeBillboard, type BillboardAction } from './HomeBillboard'
 import { HomeLiveCard } from './HomeLiveCard'
 import { HomeTitleCard } from './HomeTitleCard'
+import { mergeDiscoveryRatings } from './homeTmdbRatings'
 import { cardBadges, type CardBadges } from './cardBadges'
 import {
   HOME_AMBIENT_DELAY_MS,
@@ -569,6 +572,7 @@ export function HomeContent({
     for (const [id, url] of images ?? []) extraImages.set(id, url)
   }
   const images = useHomeImages(allItems, extraImages)
+  const tmdbRatings = mergeDiscoveryRatings(top10MoviesQuery.ratings, top10SeriesQuery.ratings, tipMoviesQuery.ratings, tipSeriesQuery.ratings)
   const ambientImage =
     ambientItem === null
       ? undefined
@@ -678,6 +682,7 @@ export function HomeContent({
               rank={format === 'rank' ? itemIndex + 1 : undefined}
               badges={badgesOf(item)}
               image={images.get(item.id)}
+              tmdbRating={tmdbRatings.get(item.id)}
               progress={format === 'continue' ? continueCardOf.get(item.id)?.progress : undefined}
               caption={format === 'continue' ? continueCaption(item) : undefined}
             />
@@ -838,6 +843,8 @@ export function HomeContent({
                 {heroItem.year != null && <span>{heroItem.year}</span>}
                 {heroDuration != null && heroDuration > 0 && <span>{formatDurationMinutes(heroDuration)}</span>}
                 <RatingBadge value={heroItem.provider_rating} showSource />
+                <ContentRatingBadge certifications={heroMetadata?.certifications} />
+                <TmdbRatingBadge rating={heroMetadata?.tmdbRating} />
               </div>
             )
           }

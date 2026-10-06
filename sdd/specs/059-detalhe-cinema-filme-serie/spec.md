@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-05
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: "quero deixar o design system da página de detalhe do filme mais rico e visualmente atraente … aumentar a capa do filme" → três variações avaliadas, escolhida a **A ("Cinema")** com os ícones da variação C e Semelhantes em duas linhas, aplicada a **filme e série** (sessão de 2026-10-05). **Substitui a `051-detalhe-filme-paridade-v14`**, que nunca foi executada (0/31 tasks) e cujo escopo (só filme, só visual, "capa grande" = backdrop) não corresponde mais à decisão.
 

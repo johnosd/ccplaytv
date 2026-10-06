@@ -3,6 +3,7 @@ import { APP_LANGUAGE_LOCALE, type AppLanguage } from '../i18n/languages'
 import { trailerRefsFromTmdbVideos } from '../trailer/trailerCandidates'
 import { tmdbImageUrl } from './tmdbConnector'
 import { yearOfDate } from './tmdbMatch'
+import { certificationsFromTmdb, tmdbRatingFromTmdb } from './contentRating'
 
 /**
  * Detalhe do TMDB → campos do app (feature 032, `data-model.md` §3). Só o que
@@ -184,6 +185,8 @@ export function mapTmdbDetail(kind: TmdbKind, rawDetail: unknown, language: AppL
       : positiveMinutes(Array.isArray(detail.episode_run_time) ? detail.episode_run_time[0] : undefined)
 
   const fields: TitleFields = {
+    certifications: certificationsFromTmdb(kind, detail),
+    tmdbRating: tmdbRatingFromTmdb(detail),
     synopsis: overviewOf(detail),
     backdropUrl: backdropPath ? tmdbImageUrl(backdropPath) : undefined,
     genres: joined(names(detail.genres)),

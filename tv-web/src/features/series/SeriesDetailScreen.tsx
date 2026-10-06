@@ -51,6 +51,8 @@ import type { TrackChoice, ViewChoice } from '../../lib/player/PlayerService'
 import { NextEpisodeCountdown } from './NextEpisodeCountdown'
 import { PosterArt } from '../../components/PosterArt'
 import { RatingBadge } from '../../components/RatingBadge'
+import { ContentRatingBadge } from '../../components/ContentRatingBadge'
+import { TmdbRatingBadge } from '../../components/TmdbRatingBadge'
 import { Tabs, type TabItem } from '../../components/Tabs'
 import { useT } from '../../lib/i18n/I18nProvider'
 import type { Translator } from '../../lib/i18n/translate'
@@ -762,6 +764,8 @@ export function SeriesDetailScreen({
               <span>{watchedSummary.upToDate ? t('vod.upToDate') : `${watchedSummary.watched}/${watchedSummary.known}`}</span>
             )}
             {hasRating && <RatingBadge value={series.provider_rating} showSource />}
+            <ContentRatingBadge certifications={metadata?.certifications} />
+            <TmdbRatingBadge rating={metadata?.tmdbRating} />
           </>
         }
         chips={<DetailChips category={groupLabelDisplay(series.original_group, t)} genres={metadata?.genres} />}

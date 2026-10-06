@@ -203,8 +203,8 @@ description: "Tasks da feature 059 — detalhe de filme e de série no layout Ci
 - [X] T033 Gates locais (de `tv-web/`): `npx tsc -b`, `npm run lint`, `npm run test`, `npm run build` (e `npm run build:tizen` — nenhum arquivo emitido novo é esperado; se a guarda de `tizenFiles.mjs` reclamar, listar o arquivo)
 - [X] T034 `npm run test:e2e` completo com `npm run dev` na 5173 (constitution: antes da TV) — 38/39 na rodada completa (280 s, 3 em paralelo); `metadata-tmdb` falhou por D-006 ("Dados: fonte" nos cartões), ajustado e reexecutado isolado: verde. Também ajustado `semelhantes-elenco-ator` (T031).
 - [X] T035 Executar `quickstart.md` no navegador — feito por meio do Chromium do E2E com dados fictícios e capturas revisadas (`test-results/detalhe-cinema/`): cenários 1, 2, 3, 4, 5, 6, 7, 11 e 12 em `detalhe-cinema.mjs`; 8, 9 e 10 em `semelhantes-elenco-ator.mjs` + contratos; 13 (idioma) pelas chaves pt/en/es tipadas e `src/lib/i18n` verde. **Com lista real, só na passada da TV (T036).**
-- [ ] T036 Passada na TV física com o skill `tizen-tv` (**gate**, D-012): legibilidade com backdrops reais claros e escuros, capas com e sem cor, fluidez de rolagem, foco e rótulos dos ícones, abas na 1ª tela, player sem nada do hero por cima. SC-008
-- [ ] T037 Docs: `plan.md` (Estado Atual, Execution Notes, PRÓXIMO, Arquivos Principais), `update-feature-status.ps1 -Slug 059-detalhe-cinema-filme-serie -Status Implementada`; **não** editar `CLAUDE.md`; conferir se a Spec V14/protótipo ainda batem com o que foi feito (ajustar a Spec só se o executor mudou alguma regra, com aviso ao usuário)
+- [x] T036 Passada na TV física com o skill `tizen-tv` (**gate**, D-012): legibilidade com backdrops reais claros e escuros, capas com e sem cor, fluidez de rolagem, foco e rótulos dos ícones, abas na 1ª tela, player sem nada do hero por cima. SC-008 — **Atualização 06/10/2026: o usuário declarou a passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-06"); qualquer "não executado" acima é o estado anterior, mantido como histórico
+- [x] T037 Docs: `plan.md` (Estado Atual, Execution Notes, PRÓXIMO, Arquivos Principais), `update-feature-status.ps1 -Slug 059-detalhe-cinema-filme-serie -Status Implementada`; **não** editar `CLAUDE.md`; conferir se a Spec V14/protótipo ainda batem com o que foi feito (ajustar a Spec só se o executor mudou alguma regra, com aviso ao usuário) — **Feito em 06/10/2026**: `plan.md` atualizado; Spec V14 ("Detalhe de filme e de série") conferida contra o implementado, sem divergência, então não foi editada; `CLAUDE.md` intocado
 
 ### Checklist de Release
 
@@ -218,7 +218,7 @@ description: "Tasks da feature 059 — detalhe de filme e de série no layout Ci
 - [X] Textos novos em pt/en/es
 - [X] Revisão de segredos (T032)
 - [X] `quickstart.md` executado com sucesso
-- [ ] Passada na TV física aprovada (gate, D-012) — ou decisão explícita do usuário registrada em Riscos e Decisões
+- [x] Passada na TV física aprovada (gate, D-012) — ou decisão explícita do usuário registrada em Riscos e Decisões — **Atualização 06/10/2026: o usuário declarou a passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-06"); qualquer "não executado" acima é o estado anterior, mantido como histórico
 
 ---
 

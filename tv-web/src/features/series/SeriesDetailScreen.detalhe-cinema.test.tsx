@@ -119,6 +119,21 @@ afterEach(() => {
 })
 
 describe('SeriesDetailScreen — hero Cinema (feature 059)', () => {
+  it('061: classificação e TMDB após a nota do provedor; sem dados mantém a linha antiga', () => {
+    vi.mocked(catalogApi.useCatalogItem).mockReturnValue({ data: { ...SERIES, provider_rating: 7.4 }, isLoading: false } as ReturnType<typeof catalogApi.useCatalogItem>)
+    vi.mocked(catalogApi.useTitleMetadata).mockReturnValue({ data: { certifications: { BR: '16' }, tmdbRating: { average: 8.83, votes: 500 } } } as ReturnType<typeof catalogApi.useTitleMetadata>)
+    renderScreen()
+    const badge = screen.getByLabelText('Classificação indicativa: 16 anos')
+    const text = badge.closest('.vod-detail-meta')!.textContent!
+    expect(text.indexOf('16')).toBeGreaterThan(text.indexOf('7,4'))
+    expect(text.indexOf('TMDB 8,8')).toBeGreaterThan(text.indexOf('16'))
+    cleanup()
+    vi.mocked(catalogApi.useTitleMetadata).mockReturnValue({ data: {} } as ReturnType<typeof catalogApi.useTitleMetadata>)
+    renderScreen()
+    expect(document.querySelector('.vod-detail-meta')?.textContent).toContain('7,4')
+    expect(document.querySelector('.content-rating-badge, .tmdb-rating-badge')).toBeNull()
+  })
+
   it('nada assistido: "Assistir T1:E1" focado e sem barra; metadata com ano e temporadas, categoria só no chip', () => {
     renderScreen()
     const primary = screen.getByText('▶ Assistir T1:E1')

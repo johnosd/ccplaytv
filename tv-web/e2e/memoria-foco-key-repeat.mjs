@@ -116,14 +116,21 @@ async function run() {
   )
   const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
+  const throttle = Number(process.env.CCPLAY_E2E_CPU_THROTTLE)
+  if (throttle > 1) {
+    const cdp = await context.newCDPSession(page)
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle })
+  }
   await page.route('**/stream/**', () => {})
   const pageErrors = []
-  page.on('pageerror', (error) => pageErrors.push(String(error)))
+  let scenario = 'entrada'
+  page.on('pageerror', (error) => pageErrors.push(`[${scenario}] ${error.stack ?? String(error)}`))
 
   try {
     await addSource(page, m3uUrl)
     await openLiveTv(page)
 
+    scenario = 'repeat na trilha'
     console.log('=== Cenário 1: segurar a seta entrega repeat e a trilha atravessa as categorias ===')
     await page.evaluate(() => {
       window.__repeatCount = 0
@@ -147,6 +154,7 @@ async function run() {
     await press(page, 'ArrowUp', 4)
     await press(page, 'ArrowDown', 2)
 
+    scenario = 'memória entre categorias'
     console.log('=== Cenário 2: idas e voltas entre categorias devolvem o mesmo canal (SC-003) ===')
     await page.keyboard.press('Enter') // entra em Grupo A
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
@@ -175,12 +183,30 @@ async function run() {
     await page.keyboard.press('Enter')
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
 
+    scenario = 'zapping e retorno'
     console.log('=== Cenário 3: fechar o player depois de zapping devolve o canal que tocava (SC-004) ===')
-    for (const zaps of [1, 3, 5]) {
+    // Diagnóstico opcional: amplia as transições Live ↔ player ↔ zapping sem afrouxar as asserções.
+    const stressRounds = Math.max(1, Number(process.env.CCPLAY_E2E_STRESS_ROUNDS) || 1)
+    for (const zaps of Array.from({ length: stressRounds }, () => [1, 3, 5]).flat()) {
       await page.keyboard.press('Escape')
       await gotoTrail(page, 'Todos')
       await page.keyboard.press('Enter')
       await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
+      if (stressRounds > 1) {
+        await page.keyboard.press('ArrowLeft') // prende no primeiro canal para cada ciclo extra
+        await page.waitForSelector('.live-channel-row.tv-focus .live-item-name:text-is("Canal A1")')
+      }
+      // Regressão T038: scroll síncrono do virtualizador + medição das bordas não pode acumular
+      // atualizações sem mudança até atingir Maximum update depth (pilha em useOverflowEdges).
+      if (zaps === 1 || process.env.CCPLAY_E2E_STRESS_SCROLL) {
+        await page.evaluate(() => {
+          const list = document.querySelector('.live-channel-list')
+          for (let i = 0; i < 100; i++) {
+            list.scrollTop = i % 2 ? 0 : list.scrollHeight
+            list.dispatchEvent(new Event('scroll'))
+          }
+        })
+      }
       assert(
         ((await page.locator('.live-column-channels .live-column-title').textContent()) ?? '') === 'Todos',
         `[${zaps} zapping] a lista exibida é "Todos"`,

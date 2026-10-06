@@ -1,4 +1,4 @@
-import type { CastPerson, CatalogDb, TmdbTitleRef } from '../catalog/db'
+import type { CastPerson, CatalogDb, Certifications, TmdbRating, TmdbTitleRef } from '../catalog/db'
 import type { AppLanguage } from '../i18n/languages'
 import type { TrailerCandidate } from '../trailer/trailerCandidates'
 
@@ -43,6 +43,10 @@ export interface TitleMetadataView {
   similar?: TmdbTitleRef[]
   /** Feature 035: elenco com foto/identidade do TMDB (só com `tmdbMatch === 'matched'`). */
   castPeople?: CastPerson[]
+  /** Feature 061: classificação indicativa por país (só do TMDB, só com `tmdbMatch === 'matched'`). Quem mostra escolhe o país pelo idioma. */
+  certifications?: Certifications
+  /** Feature 061: nota do TMDB (só com `tmdbMatch === 'matched'`); o mínimo de votos é aplicado por quem mostra (`tmdbRatingToShow`). */
+  tmdbRating?: TmdbRating
 }
 
 /** Cobertura do cruzamento de um tipo: categorias com conteúdo no aparelho × categorias declaradas (feature 035, FR-007). */

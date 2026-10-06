@@ -88,7 +88,7 @@ export async function lookupTmdb(input: TmdbLookupInput): Promise<TmdbResultReco
     language: locale,
     // Semelhantes e elenco com identidade vêm na MESMA chamada (035, D-001).
     append_to_response:
-      kind === 'movie' ? 'credits,videos,recommendations,similar' : 'aggregate_credits,videos,recommendations,similar',
+      kind === 'movie' ? 'credits,videos,recommendations,similar,release_dates' : 'aggregate_credits,videos,recommendations,similar,content_ratings',
     include_video_language: videoLanguages(input.preferredLanguage ?? input.language),
   }
 

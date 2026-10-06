@@ -317,7 +317,26 @@ export interface CastPerson {
   photoUrl?: string
 }
 
+/** País cuja classificação indicativa o app guarda (feature 061, FR-003): o do idioma pt, en e es. */
+export type CertificationCountry = 'BR' | 'US' | 'ES'
+
+/** Classificação indicativa por país (feature 061) — só valores válidos daquele país; país sem valor válido fica ausente. */
+export type Certifications = Partial<Record<CertificationCountry, string>>
+
+/** Nota do TMDB (feature 061): média 0–10 e número de votos, como o TMDB devolveu. */
+export interface TmdbRating {
+  average: number
+  votes: number
+}
+
 export interface TitleFields {
+  /**
+   * Feature 061 — só no lado TMDB. `{}` = a classificação foi pedida e nenhum país serve; AUSENTE num registro `matched`
+   * gravado antes da 061 — o sinal para pedir de novo uma vez (FR-014), como `similar` (035) e `trailerVideos` (033).
+   */
+  certifications?: Certifications
+  /** Feature 061 — só no lado TMDB. Ausente quando o TMDB não trouxe média/votos numéricos. */
+  tmdbRating?: TmdbRating
   /**
    * Feature 035 — só no lado TMDB. Recomendações + similares, sem repetir, sem
    * o próprio título, até 20. `[]` = pedidos e nada veio; AUSENTE num registro

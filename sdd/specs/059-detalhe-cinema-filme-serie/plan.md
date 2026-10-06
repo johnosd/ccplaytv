@@ -187,7 +187,7 @@ Testes adicionais (escritos no execute, não travados): `detailPanelGrid.test.ts
 | US2 (série) | Concluída — `SeriesDetailScreen` no hero Cinema; contrato da série verde; 105/105 testes da série |
 | US3 (abas) | Concluída — Semelhantes em duas linhas com grade de foco, Detalhes em cartões com origem, Elenco maior |
 | Contratos | 059 5/5 e 035 5/5 verdes; 032 e 033 verdes; todas as travas íntegras |
-| Polish (Fase 6) | Quase concluída — E2E novo (`detalhe-cinema.mjs`, na SUITE), E2E antigos ajustados, segredos ok, unit 2767/2767, lint/build/build:tizen ok, E2E completo 39/39, quickstart via E2E. **Falta só a passada na TV física (T036, gate) e o fechamento de docs (T037)** |
+| Polish (Fase 6) | Quase concluída — E2E novo (`detalhe-cinema.mjs`, na SUITE), E2E antigos ajustados, segredos ok, unit 2767/2767, lint/build/build:tizen ok, E2E completo 39/39, quickstart via E2E. **Passada na TV física (T036, gate D-012) declarada pelo usuário como realizada com sucesso em 2026-10-06; docs fechados (T037); status `Implementada`** |
 
 ## Riscos e Decisões
 
@@ -195,15 +195,15 @@ Testes adicionais (escritos no execute, não travados): `detailPanelGrid.test.ts
 | --- | --- | --- | --- |
 | R-001 | (Resolvido: só `semelhantes-elenco-ator` e `metadata-tmdb` precisaram de ajuste; os roteiros com `textContent` da primária seguiram verdes porque seus títulos não têm duração) E2E comparam o `textContent` inteiro de `.vod-detail-action` (`filmes-series-ds-v14.mjs:367`, `catalogo-em-blocos.mjs:307/312`, `home-busca-configuracoes.mjs:225`, `historico-continuar-assistindo.mjs`, `limpar-historico.mjs`, `trailers.mjs`). Com "faltam X" dentro da primária, igualdade quebra | E2E vermelhos | Trocar igualdade por `startsWith`/`includes` só onde a primária pode ter progresso; ícones mantêm o `textContent` = rótulo (T040) |
 | R-002 | Contrato emendado da 035 fica vermelho entre o plan e a Fase 5 | Suíte vermelha no meio do execute | Resolvido: verde na Fase 5 (2026-10-05), sem editar o teste |
-| R-003 | Capas do provedor quase nunca mandam CORS: a cor vai cair no neutro na maioria dos títulos sem backdrop | Efeito visual menor que o do protótipo | Aceito pelo design (fallback neutro). Medir na TV quantas capas reais dão cor (quickstart) |
-| R-004 | `filter`/sombra grande com a cor da capa pode pesar na TV | Rolagem travando | Sem `blur`; brilho por `box-shadow` único; medir na TV (gate D-012) |
-| R-005 | Hero mais alto pode empurrar as abas para fora da 1ª tela, conforme o tamanho do título/sinopse | FR-011 violado | Altura fixa `--detail-hero-height`, título em até 2 linhas com elipse, sinopse em 3; E2E mede a posição da fileira de abas |
+| R-003 | Capas do provedor quase nunca mandam CORS: a cor vai cair no neutro na maioria dos títulos sem backdrop | Efeito visual menor que o do protótipo | Resolvido: (convergência de 2026-10-06) fallback neutro e `isSafeCoverUrl` confirmados no código; a medição de quantas capas reais dão cor **não foi feita** (a passada na TV foi declarada com sucesso pelo usuário, sem números) |
+| R-004 | `filter`/sombra grande com a cor da capa pode pesar na TV | Rolagem travando | Resolvido: (convergência de 2026-10-06) sem `blur`/`filter` no bloco CSS da 059, brilho por `box-shadow` único; sem medição de fluidez na TV (passada declarada com sucesso pelo usuário) |
+| R-005 | Hero mais alto pode empurrar as abas para fora da 1ª tela, conforme o tamanho do título/sinopse | FR-011 violado | Resolvido: (convergência de 2026-10-06) altura fixa `--detail-hero-height`, título em 2 linhas e sinopse em 3; o E2E `detalhe-cinema` mede a posição das abas |
 | R-006 | `SeriesDetailScreen` troca `ContentCard` por `PosterArt` no hero | Teste/E2E que procuram `.content-card` no hero | Conferir `SeriesDetailScreen*.test.tsx` e E2E de série; ajustar seletores não travados |
 | R-007 | Muitos testes existentes procuram a categoria na linha de metadata ou o selo visível de Semelhantes | Testes vermelhos fora do contrato | Atualizar esses testes (não são travados) no mesmo commit da mudança, citando a 059 |
-| R-009 | Selo de assistido sobre a capa: o protótipo mostra "✓ Assistido"; aqui ficou só o glifo ✓ (`aria-hidden`), porque o texto já está na linha de metadata e duplicá-lo faria `getByText('✓ Assistido')` achar dois elementos e a leitura repetir | Desvio visual pequeno do protótipo | Decidido na Fase 2; rever na TV (T036) |
-| R-008 | TV física é gate (D-012) | Feature não fecha sem a passada | Rodar `tizen-tv` depois do E2E; se não der, decisão explícita do usuário com risco registrado aqui |
+| R-009 | Selo de assistido sobre a capa: o protótipo mostra "✓ Assistido"; aqui ficou só o glifo ✓ (`aria-hidden`), porque o texto já está na linha de metadata e duplicá-lo faria `getByText('✓ Assistido')` achar dois elementos e a leitura repetir | Desvio visual pequeno do protótipo | Decidido na Fase 2; Resolvido: a passada na TV (T036), declarada com sucesso em 2026-10-06, não gerou pedido de mudança |
+| R-008 | TV física é gate (D-012) | Feature não fecha sem a passada | Resolvido: (convergência de 2026-10-06) passada na TV declarada com sucesso pelo usuário em 2026-10-06 (SC-008), sem números medidos |
 | R-010 | Achado no E2E (T030): ler a cor pede a capa em modo CORS e, com CORS recusado, o PRÓPRIO navegador escreve a URL no console — conflito com FR-024 | Possível URL com credencial no console | Resolvido: decisão do usuário (2026-10-05) — só capa "sem risco" (`isSafeCoverUrl`: http(s), sem usuário/senha, sem query, fora do domínio dos painéis via `usePanelHosts`); FR-024 emendado na spec; o E2E prova que a capa do painel com token nunca é pedida |
-| R-011 | Mudanças feitas em paralelo, fora desta sessão, sobre a 059 (vistas em 2026-10-05 e mantidas): `SeriesDetailScreen` rola a página até o episódio focado (bug `foco-some-ao-descer-na-lista`, teste `SeriesDetailScreen.foco-episodios.test.tsx`), `scroll-padding-block` em `.vod-detail`, e `vod-detail--movie` sobe as abas do filme para a faixa livre sob a capa | Divergência entre o que esta sessão escreveu e o disco | Tratadas como estado atual; suíte da área e E2E verdes com elas |
+| R-011 | Mudanças feitas em paralelo, fora desta sessão, sobre a 059 (vistas em 2026-10-05 e mantidas): `SeriesDetailScreen` rola a página até o episódio focado (bug `foco-some-ao-descer-na-lista`, teste `SeriesDetailScreen.foco-episodios.test.tsx`), `scroll-padding-block` em `.vod-detail`, e `vod-detail--movie` sobe as abas do filme para a faixa livre sob a capa | Divergência entre o que esta sessão escreveu e o disco | Resolvido: (convergência de 2026-10-06) tratadas como estado atual; `tsc -b` limpo e suíte da área (68 arquivos, 385 testes) verde com elas |
 
 ## Execution Notes
 
@@ -221,8 +221,9 @@ Testes adicionais (escritos no execute, não travados): `detailPanelGrid.test.ts
 | 2026-10-05 | Fase 4 (US2 — série) | T018–T021: hero na série com a barra do episódio, rolagem ao topo, 3 testes de apoio; nenhum teste antigo quebrou | Revisão visual fica para T030 |
 | 2026-10-05 | Fase 5 (US3 — abas) | T022–T029a: Semelhantes em duas linhas + grade de foco nas duas telas, origem em cada cartão de Detalhes, Elenco maior; contratos 059 5/5 e 035 5/5 verdes; área 358/358 | E2E e TV (Fase 6) |
 | 2026-10-05 | Fase 6 (Polish) | T030–T035: `e2e/detalhe-cinema.mjs` (36 verificações, SC-007 medido: 28–93 ms), achado R-010 (CORS × FR-024) resolvido com `isSafeCoverUrl`/`usePanelHosts` por decisão do usuário; `semelhantes-elenco-ator` e `metadata-tmdb` ajustados; unit 2767/2767; E2E completo 39/39; build:tizen ok | Passada na TV física (T036, gate) |
+| 2026-10-06 | Fase 6 (fechamento) | T036 (passada na TV física, gate D-012, declarada com sucesso pelo usuário, sem números) e T037 (docs: Spec V14 "Detalhe de filme e de série" conferida contra o implementado, sem divergência; protótipo `details()` segue como referência visual; `CLAUDE.md` intocado); status `Implementada` | — |
 
-**PRÓXIMO**: T036 — passada na TV física com o skill `tizen-tv` (gate D-012; cenários 1, 3, 4, 6, 8, 11 e 12 do quickstart com lista real); depois T037 (status Implementada).
+**PRÓXIMO**: nenhum — feature `Implementada` em 2026-10-06 (gate D-012 fechado por relato do usuário, sem medição; ver "Passada física na TV — 2026-10-06"). Para convergir, rodar `sdd-converge 059-detalhe-cinema-filme-serie`.
 
 ## Arquivos Principais
 
@@ -238,3 +239,26 @@ Testes adicionais (escritos no execute, não travados): `detailPanelGrid.test.ts
 
 - No PowerShell 5.1, `git commit -m` com aspas duplas na mensagem quebra os argumentos: usar `git commit -F <arquivo>`.
 - No E2E, capa no mesmo host do painel (`127.0.0.1`) nunca tem a cor lida (R-010): capas "públicas" das fixtures usam `localhost`.
+
+## Passada física na TV — 2026-10-06
+
+Passada feita na TV QN50Q60DAGXZD, declarada pelo usuário em 06/10/2026 como **realizada com sucesso**. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas; não há medição para citar. Os riscos de hardware desta feature (marcados como "só se prova na TV") ficam encerrados por decisão do usuário.
+
+Fecha o gate D-012 (SC-008). R-003 (capas sem CORS) e R-004 (peso de `box-shadow`) ficam sem medição de capas com cor nem de fluidez. T037 (docs e status `Implementada`) foi fechada no mesmo dia.
+
+## Resultado Final
+
+Convergida em 2026-10-06 sem achado acionável (`sdd-converge`).
+
+**O que foi construído.** Detalhe de filme e de série no layout "Cinema": backdrop em tela cheia com vinheta e cor ambiente da capa (`useCoverColor`, só de capa "sem risco" — `isSafeCoverUrl`, R-010), capa grande (400 × 600 no palco), chips com a categoria da lista separada dos gêneros, sinopse, ação primária com barra e "faltam X" só com posição e duração reais (`primaryProgress`; na série, as do próprio episódio) e ações secundárias em ícones redondos com rótulo no foco. Abaixo do hero ficam as abas com Detalhes em cartões com origem, Elenco com foto redonda e Semelhantes em duas linhas, com foco por grade (`detailPanelGrid`, `movePanelFocus`). A 051 ficou "Substituída pela 059".
+
+**Verificação da convergência.** Trava de contrato íntegra (5/5); contratos 059 e o da 035 emendado verdes; `tsc -b` limpo; suíte da área (movies, series, vod, person, lib/color, lib/i18n) com 68 arquivos e 385 testes verdes; `oxlint` só com avisos da linha de base. O E2E não foi reexecutado na convergência (último registro: 39/39 com o `detalhe-cinema`).
+
+**Desvios em relação ao plano original.**
+- FR-024 foi emendado durante a execução (R-010): a cor só é lida de capa sem risco, porque o navegador escreve a URL no console quando o servidor recusa CORS.
+- O selo de assistido sobre a capa ficou só o glifo ✓ (R-009); o texto está na linha de metadata.
+- Mudanças feitas em paralelo e mantidas (R-011): rolagem da página até o episódio focado na série, `scroll-padding-block` em `.vod-detail` e as abas do filme subindo para a faixa livre sob a capa (`vod-detail--movie`).
+- Depois do plano, o ajuste ad-hoc de 2026-10-06 (backlog, `## Melhorias Ad-hoc`) pôs título, sinopse e dados do episódio ao lado da capa na lista de episódios da série; a spec segue satisfeita.
+
+**Honestidade sobre o gate.** SC-008 (passada na TV física) foi fechado por declaração do usuário em 2026-10-06, sem números nem capturas; R-003 (quantas capas reais dão cor) e R-004 (fluidez com o brilho) ficaram sem medição.
+

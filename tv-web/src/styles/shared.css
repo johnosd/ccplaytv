@@ -397,6 +397,34 @@
   color: var(--text-tertiary);
 }
 
+/* Classificação e nota TMDB (feature 061): apresentação, sem foco. */
+.content-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: calc(var(--space-1) / 4) var(--space-1);
+  border: 1px solid var(--bg-hover);
+  border-radius: calc(var(--radius-sm) / 2);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font: var(--fw-h1) var(--fs-caption) var(--font-body);
+  white-space: nowrap;
+}
+
+.content-rating-badge--br-l { background: var(--rating-br-l); color: var(--rating-br-l-ink); }
+.content-rating-badge--br-10 { background: var(--rating-br-10); color: var(--rating-br-10-ink); }
+.content-rating-badge--br-12 { background: var(--rating-br-12); color: var(--rating-br-12-ink); }
+.content-rating-badge--br-14 { background: var(--rating-br-14); color: var(--rating-br-14-ink); }
+.content-rating-badge--br-16 { background: var(--rating-br-16); color: var(--rating-br-16-ink); }
+.content-rating-badge--br-18 { background: var(--rating-br-18); color: var(--rating-br-18-ink); }
+
+.tmdb-rating-badge {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .poster-box .rating-badge {
   position: absolute;
   top: var(--space-1);

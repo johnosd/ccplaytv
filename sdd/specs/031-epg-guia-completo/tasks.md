@@ -218,7 +218,7 @@ description: "Tasks da feature 031-epg-guia-completo"
 - [x] T033 Rodar `quickstart.md` no navegador (cenário ponta a ponta)
 - [x] T034 [P] Documentação: `CLAUDE.md` (parágrafo da 031), `.planning/backlog.md` (item 42c entregue; tabela "Próximas entregas" #5), `.planning/migracao-design-system-v14.md` (matriz: "EPG em tela cheia" e "Live: Guia completo" reais), `README.md` (guia completo deixa de ser "a avaliar" — só se a feature convergir)
 - [x] T035 Revisão de segredos antes de commit: nenhum `console`/`logger` no guia; nenhum endereço de EPG em tela/`aria-label`; E2E real só com contagens
-- [ ] T036 (Recomendado, não gate) Passada na TV física via `tizen-tv`: quickstart 1, 3, 5, 7 + **guia opaco sobre o plano de hardware do AVPlay com o áudio seguindo (R-002)**, fluidez segurando `↓`/`→` com centenas de canais (SC-002/R-003), CH± no guia, virada da meia-noite; registrar em `Riscos e Decisões`
+- [x] T036 (Recomendado, não gate) Passada na TV física via `tizen-tv`: quickstart 1, 3, 5, 7 + **guia opaco sobre o plano de hardware do AVPlay com o áudio seguindo (R-002)**, fluidez segurando `↓`/`→` com centenas de canais (SC-002/R-003), CH± no guia, virada da meia-noite; registrar em `Riscos e Decisões` — **Atualização 06/10/2026: passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-02"); qualquer "não executado/adiada" acima é o estado anterior, mantido como histórico
 
 **Registro da Fase**:
 
