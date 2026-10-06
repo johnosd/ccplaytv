@@ -196,6 +196,14 @@ Testes adicionais (escritos no execute, não travados): `homeRows.test.ts`, `car
 
 | Área | Estado |
 | --- | --- |
+| Setup (Fase 1) | Concluída — chaves pt/en/es, `homeRowFormats.ts` e token `--home-expand-duration` |
+| Fundação (Fase 2) | Concluída — `pickBecauseSeed` (contrato 1/1 verde), `buildHomeRows`, `cardBadges`, `Rail` com largura do focado, `AppShell.backdrop`, backdrop do TMDB guardado, `useHomeImages`/`useContinueCards`/`useRecentlyAdded(enabled)`; nenhuma tela mudou ainda |
+| US1 (billboard e fundo) | Concluída — `HomeContent` com billboard que recolhe, fundo ambiente por portal, linhas `dock → hero → fileiras`, restauração por id sem animar, Trailer real, `home-trailer` removido; contratos da Home 3/3 e o da 026 verdes; `top10-dica` E2E verde |
+| US2 (cards e expansão) | Concluída — `HomeTitleCard` completo (selos, expansão no foco, Continuar 16:9 com progresso real), `Rail` com `focusedItemWidth`/`align="start"`, `HomeTitleCard.test.tsx` e testes de fileira |
+| US3 (fileiras novas) | Concluída — `becauseApi.ts`, fileira "Porque você assistiu" real em Filmes/Séries e no Início, "Ao vivo agora" com `HomeLiveCard` (EPG real), `added-movies`/`added-series` com cobertura, ordem FR-018 por `buildHomeRows`; `vod-because` removido dos mocks |
+| Contratos | 060: 5/5 verdes; emendados de 052/053/056/057 verdes; 026, 022, 035 e 059 verdes; todas as travas íntegras |
+| Validação (Fase 6) | `tsc -b` e lint limpos; `npx vitest run` 443 arquivos / 2826 testes verdes; `build` e `build:tizen` ok; `node e2e/run.mjs` **40/40** (inclui o novo `home-vitrine-expandida`); revisão de segredos feita |
+| Falta | **T043 — passada na TV física (gate D-015/SC-009; decidir FR-028 pela medição)**; T042 com dado real (cenários 1, 2, 6, 10, 13); T044: status `Implementada` no backlog (só depois da TV) e decisão de A-001/R-003 |
 
 ## Riscos e Decisões
 
@@ -217,6 +225,9 @@ Testes adicionais (escritos no execute, não travados): `homeRows.test.ts`, `car
 | R-009 | `AppShell` é compartilhado por várias telas | Regressão visual em Live/Filmes/Busca | Prop opcional; sem ela o DOM é idêntico; E2E de shell (`shell-visual`, `paridade-visual`) |
 | R-010 | Backdrops guardados das respostas do TMDB só aparecem depois da próxima renovação de cada cache (semana/dia/24 h) | Poucas imagens 16:9 no primeiro dia | Aceito (sem consulta nova); cai no pôster + cor |
 | R-011 | `useTitleMetadata` do billboard roda com o `catalogApi` real no contrato 026 (id `'movie-7'`) | Exceção na tela | Tolerar id inexistente/erro como "sem metadata" (D-010); o contrato 026 deve seguir verde |
+| R-012 | No Xtream a série não tem data de inclusão (`last_modified` é atualização, nunca inclusão — feature 025) | "Séries adicionadas" não aparece em fontes Xtream; só com fonte que informe a data | Aceito: sem dado, a fileira não existe (FR-018); o E2E confirma. Não inventar data a partir de `last_modified` |
+| R-013 | ↑ no dock sai para a topbar; ao voltar com ↓ o foco poderia reentrar no dock ("Em breve") | Foco pousando num ícone sem função | `moveLine` zera a linha para `hero` ao sair pelo topo; Spec V14 e `HomeScreen.test.tsx` atualizados; R-002 da 023 (um só salto) segue verde no E2E |
+| R-014 | `.home-content` tem `overflow: hidden` e as ações do billboard ficam na borda da safe zone | Anel de foco da ação cortado à esquerda (visto na captura) | `margin-inline` negativo + `padding-inline` iguais (`--space-2`): mesma área útil, sem mudar nada de lugar |
 
 ## Execution Notes
 
@@ -228,17 +239,28 @@ Testes adicionais (escritos no execute, não travados): `homeRows.test.ts`, `car
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-10-05 | Fases 1–2 (Setup e Fundação) | T001–T013: textos, medidas, regras puras (`pickBecauseSeed`, `buildHomeRows`, `cardBadges`), `Rail`/`AppShell` com props opcionais, backdrop do TMDB guardado, hooks locais; contrato da semente 1/1, 48 testes novos/ajustados, `tsc` limpo. Desvios: o backdrop do Top 10/Dica vai no mapa `images` do retorno do hook (não em `DiscoveryPick`, para não tocar `selectTop10`/`selectTip` sob contrato 057); `useContinueCards(sourceId)` no lugar de `useContinueProgress`; `.rail-item` sem transição de `transform` — a rolagem do `Rail` é que será suave (`scroll-behavior`, Fase 4), porque animar `transform` com `scrollLeft` instantâneo faz o trilho "pular" | Fase 3 (billboard, fundo, linhas de foco) |
+| 2026-10-05 | Fase 3 (US1 — billboard e fundo) | T014–T021: `HomeAmbient`, `HomeBillboard`, `HomeContent` reescrito, `HomeScreen` com portal do fundo, `home-trailer` removido, `home.css` novo, `HomeTitleCard` básico; contratos 3/3 (+026 1/1), `src/features/home` 66/66 estável, `top10-dica` E2E verde com capturas conferidas. Desvios: o fundo é desenhado por portal na camada do `AppShell` **ou inline** (o contrato 060 renderiza `HomeContent` sozinho e exige `.home-ambient img`; `ambientHost` `undefined` = inline, `null` = aguardando a camada); ↓ do dock volta às ações e ↑ do hero passa pelo dock (os testes antigos de topbar ganharam um ↑); o teste do dock "Em breve" passava por acidente e foi endurecido | Fase 4 (cards, selos, expansão) |
+| 2026-10-05 | Fase 4 (US2 — cards e expansão) | T022–T027: `HomeTitleCard` completo + `useCachedTitleView`/`useDeferred`, fileiras com card expandido e `align="start"`, selos por leituras únicas, Continuar 16:9 com barra e legenda reais, CSS; `src/features/home` 80/80, `top10-dica` E2E com capturas conferidas. Desvios: o crescimento da largura não é animado (é o fallback FR-028 já como padrão; só a camada expandida faz fade) — a TV decide se vale animar; a rolagem horizontal da fileira é suave por `scroll-behavior` em `.home-row .rail` (instantânea na volta de um destino e com "reduzir movimento"); o ✓ de série só depois de `HOME_DEFERRED_MS` | Fase 5 (fileiras novas, "Porque você assistiu", Ao vivo agora) |
+| 2026-10-05 | Fase 5 (US3 — fileiras novas) | T028–T036: `becauseApi.ts` (sem chave TMDB, zero leitura além do estado da chave), "Porque você assistiu" em Filmes/Séries e no Início, `HomeLiveCard` + "Ao vivo agora", `added-movies`/`added-series`, ordem FR-018; contrato 060 5/5 + 6 emendados verdes, travas íntegras, 433 arquivos / 2717 testes, `tsc` limpo. Desvios: um único mapa `titleRows` no `HomeContent` (seleção, direção, fundo e imagens de todas as fileiras de título); `allItems`/`extraImages` calculados a cada render (sem memo com dependências instáveis); 3 testes de EPG da Home migrados de `.channel-row*` para `.home-live-*` | Fase 6 (E2E, build, TV física) |
+| 2026-10-05 | Fase 6 (Polish, parcial) | T037–T041: E2E novo na `SUITE`; 6 E2E antigos ajustados (layout novo, ↑ passa pelo dock, "Ao vivo agora", sem slot); vitest 443/2826, `tsc`, lint, `build`, `build:tizen` ok; E2E 40/40 (1ª rodada 34/39, as 5 falhas eram roteiros antigos). Desvios/achados: "Séries adicionadas" não existe no Xtream (R-012); ↓ da topbar agora sempre pousa no billboard (R-013); anel de foco do billboard cortado pelo `overflow` corrigido (R-014); o "Porque você assistiu" positivo ficou nos testes unitários, não no E2E | T043 (TV física, gate) |
 
-**PRÓXIMO**: —
+**PRÓXIMO**: T043 — passada na TV física com o skill `tizen-tv` (cenários 1, 3, 4, 5, 8, 10, 12 do quickstart), medir SC-007 (≤ 1 s) e a fluidez da expansão/troca de fundo com seta segurada, decidir FR-028; depois T042 com a lista real (cenários 1, 2, 6, 10, 13), decidir A-001/R-003 (cor da capa ao focar) e fechar T044 (`update-feature-status.ps1 -Status Implementada`).
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- (nenhum ainda)
+- `.claude/skills/tizen-tv/SKILL.md` — procedimento da passada na TV física (T043); build com `npm run build:tizen` já validado
+- `tv-web/src/styles/home.css` — `--home-expand-duration` (FR-028: zerar se a expansão engasgar) e `.home-live-*`; `tv-web/src/features/home/homeRowFormats.ts` (`HOME_AMBIENT_DELAY_MS`, `HOME_DEFERRED_MS`)
+- `tv-web/e2e/home-vitrine-expandida.mjs` — roteiro de referência (capturas em `tv-web/test-results/home-vitrine-expandida/`)
+- `tv-web/src/features/home/HomeContent.tsx`, `HomeLiveCard.tsx`, `HomeTitleCard.tsx`, `src/features/catalog/becauseApi.ts` — código pronto
+- `docs/design/design-system/CCPlayTV_Design_System_Spec_v14_Spectrum.md` (seção "Home" já atualizada) e `quickstart.md` (cenários da TV)
 
 ## Cuidados para Retomada
 
 <!-- Armadilhas operacionais específicas desta feature, anexadas conforme descobertas. -->
 
-- (nenhum ainda)
+- Para trocar texto multilinha em arquivo de teste/E2E, use o `Edit` (não um script PowerShell com aspas duplas): `${selector}` e `$` dentro de aspas duplas são expandidos pelo PowerShell, e arquivos CRLF não casam com `\n`.
+- Nos scripts PowerShell que usam `[IO.File]::ReadAllText/WriteAllText`, use SEMPRE caminho absoluto: o `cd` do PowerShell não muda o diretório que o .NET usa (um `Mark` com caminho relativo falhou procurando `tv-web\sdd\...`).
+- `Get-Content` sem `-Encoding UTF8` mostra os acentos quebrados dos `.ts` no console, mas os arquivos estão corretos; edite com o `Edit`/`Read`, nunca regrave arquivo de código via `Set-Content` sem `-Encoding utf8`.

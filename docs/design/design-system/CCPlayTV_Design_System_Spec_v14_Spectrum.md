@@ -1529,17 +1529,22 @@ A referência visual é a função `home()` do protótipo v13_2; as alternativas
 
 1. Continuar assistindo;
 2. Em alta esta semana — Filmes (TMDB, só o que está na lista);
-3. Adicionados recentemente;
-4. Porque você assistiu *X* (Semelhantes do TMDB do último filme concluído, só os que estão na lista);
-5. Ao vivo agora (canais favoritos + EPG);
-6. Minha Lista;
-7. Em alta esta semana — Séries;
-8. Curadoria por IA — soft-disabled, "Em breve", nunca conteúdo inventado.
+3. Filmes adicionados (recém-adicionados pela fonte, só das categorias já obtidas — com aviso de cobertura parcial);
+4. Dica de filme;
+5. Porque você assistiu *X* (Semelhantes do TMDB do último título concluído, só os que estão na lista; também em Filmes e Séries);
+6. Ao vivo agora (canais favoritos + EPG, terminando em "Ver todos");
+7. Minha Lista;
+8. Em alta esta semana — Séries;
+9. Séries adicionadas;
+10. Dica de série;
+11. Curadoria por IA — soft-disabled, "Em breve", nunca conteúdo inventado.
+
+Esta é a ordem implementada (feature 060, FR-018); a lista curta do protótipo v13_2 é só ilustrativa.
 
 **Navegação**
 
 - ←/→ andam dentro da fileira e param na ponta; o card focado fica na primeira posição visível;
-- ↑/↓ trocam de fileira e voltam ao último card focado nela; ↑ na primeira fileira volta às ações do billboard; ↑ nas ações vai ao dock de serviços e, de lá, à topbar;
+- ↑/↓ trocam de fileira e voltam ao último card focado nela; ↑ na primeira fileira volta às ações do billboard; ↑ nas ações vai ao dock de serviços e, de lá, à topbar; ↓ da topbar volta sempre às ações do billboard, nunca a um ícone "Em breve" do dock;
 - voltando de outra tela, a Home reabre já com a fileira e o card de origem focados (por identidade), sem animar a partir do billboard.
 
 Status BYOK aparece como dock compacto no canto do billboard.

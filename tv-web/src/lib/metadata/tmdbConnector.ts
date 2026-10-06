@@ -13,7 +13,7 @@ import type { TmdbKeyFormat } from './types'
 const API_BASE = 'https://api.themoviedb.org/3'
 const IMAGE_BASE = 'https://image.tmdb.org/t/p'
 
-export type TmdbImageSize = 'w185' | 'w342' | 'w1280'
+export type TmdbImageSize = 'w185' | 'w342' | 'w780' | 'w1280'
 
 export type TmdbFailure = 'refused' | 'rate_limited' | 'offline' | 'not_found'
 

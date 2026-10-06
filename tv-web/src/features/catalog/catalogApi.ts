@@ -27,6 +27,7 @@ import {
   listEpisodes,
   readKindPage,
   resolveContinueWatching,
+  resolveContinueEntries,
   resolveFavorites,
   resolveStableIds,
   type CatalogCategory,
@@ -58,6 +59,8 @@ import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
 import { isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
 import { recentlyAddedBy } from '../vod/vodShowcase'
+import { primaryProgress, type PrimaryProgress } from '../vod/detailProgress'
+import { pickBecauseSeed, type BecauseSeedKind } from '../../lib/catalog/becauseSeed'
 import { dayKey, selectFeaturedRated } from '../vod/ratedSelection'
 import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
 import {
@@ -73,9 +76,9 @@ import { loadGlobalSearchIndex, searchGlobal } from '../../lib/catalog/globalSea
 import { listProgramsForChannels } from '../../lib/epg/epgRepository'
 import type { EpgLookup } from '../../lib/epg/types'
 import { useLanguage } from '../../lib/i18n/I18nProvider'
-import { ensureTitleMetadata } from '../../lib/metadata/titleMetadata'
+import { ensureTitleMetadata, mergeTitleMetadata } from '../../lib/metadata/titleMetadata'
 import { getTmdbStatus, removeTmdbKey, saveTmdbKey, testTmdbKey } from '../../lib/metadata/tmdbKeyRepository'
-import type { KindCoverage, ResolvedTitle, SimilarTabView } from '../../lib/metadata/types'
+import type { KindCoverage, ResolvedTitle, SimilarTabView, TitleMetadataView } from '../../lib/metadata/types'
 import type { TmdbTitleRef } from '../../lib/catalog/db'
 import { FILMOGRAPHY_SHOWN_MAX, loadPersonCredits } from '../../lib/metadata/tmdbPeople'
 import { resolveTmdbTitles } from '../../lib/metadata/localTitleMatch'
@@ -696,6 +699,50 @@ export function useCatalogItem(itemId: string | null) {
   })
 }
 
+/** Itens do catálogo por id local, na ordem pedida; os que não existem mais (saíram numa renovação) ficam de fora. */
+export async function loadCatalogItems(itemIds: readonly string[]): Promise<CatalogItemOut[]> {
+  const records = await Promise.all(itemIds.map((id) => getChannel(Number(id))))
+  const items: CatalogItemOut[] = []
+  for (const record of records) if (record) items.push(toItemOut(record, record.kind))
+  return items
+}
+
+/** Concluídos recentes considerados para a semente — o bastante para passar por cima de títulos que saíram da lista. */
+const BECAUSE_CANDIDATES = 50
+
+/**
+ * A semente de "Porque você assistiu" (feature 060, FR-014 — `logic/fileiras-e-dados.md` §2): o título concluído mais recente
+ * da fonte (filme, ou a série de um episódio concluído), já resolvido para o item do catálogo. Só leitura local — nunca rede.
+ * `null` sem concluído, ou quando nenhum deles existe mais na lista (nunca adivinha por aproximação de título).
+ */
+export async function loadBecauseSeed(sourceId: string, kind: BecauseSeedKind): Promise<CatalogItemOut | null> {
+  const states = await db.userStates.where('sourceId').equals(sourceId).toArray()
+  const recent = states
+    .filter((state) => state.completedAt != null)
+    .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
+    .slice(0, BECAUSE_CANDIDATES)
+  if (recent.length === 0) return null
+
+  // Só entram os que ainda resolvem para um item da lista; o episódio resolve para a série-pai.
+  const entries = await resolveContinueEntries(sourceId, recent, db)
+  const seriesIdOfEpisode = new Map<string, string>()
+  for (const entry of entries) {
+    if (entry.episode && entry.record.seriesId) seriesIdOfEpisode.set(entry.state.stableId, entry.record.seriesId)
+  }
+  const resolvable = new Set(entries.map((entry) => entry.state.stableId))
+  const seed = pickBecauseSeed(
+    recent.filter((state) => resolvable.has(state.stableId)),
+    { sourceId, kind, seriesIdOfEpisode: (stableId) => seriesIdOfEpisode.get(stableId) },
+  )
+  if (!seed) return null
+
+  const entry =
+    seed.kind === 'movie'
+      ? entries.find((candidate) => candidate.state.stableId === seed.stableId)
+      : entries.find((candidate) => candidate.episode && candidate.record.seriesId === seed.seriesId)
+  return entry ? toItemOut(entry.record, entry.record.kind) : null
+}
+
 /**
  * O id atual de um item no aparelho, ou `null` se ele não existe mais (saiu
  * numa renovação). Um id de linha antiga já convertida em bloco (feature 039)
@@ -1271,6 +1318,55 @@ export function useContinueWatchingContent(sourceId: string | null) {
 }
 
 /**
+ * Um card de "Continuar assistindo" do Início com o que a legenda e a barra precisam (feature 060, FR-010 —
+ * `logic/cards-e-expansao.md` §6). `progress` só existe com posição de retomada válida E duração conhecida
+ * (`primaryProgress`); sem um dos dois não há barra nem "faltam" (constitution: progresso real).
+ */
+export interface ContinueCard {
+  item: CatalogItemOut
+  /** Código do episódio em andamento (`T1:E3`); `null` para filme ou episódio sem temporada/número gravados. */
+  code: string | null
+  progress: PrimaryProgress | null
+}
+
+/**
+ * "Continuar assistindo" do Início com progresso. Mesma resolução de `useContinueWatchingContent` (mais recente primeiro,
+ * episódio vira a série-pai), mais o episódio e a duração: filme = duração da metadata JÁ guardada (`titleMetadata`);
+ * série = duração do episódio declarada pela fonte e gravada com ele. Só leitura local, nunca rede.
+ */
+export function useContinueCards(sourceId: string | null) {
+  return useQuery({
+    // Prefixo de `['continue-watching', sourceId]`: `HomeScreen.closePlayer` o invalida junto com a lista.
+    queryKey: ['continue-watching', sourceId, 'cards'],
+    queryFn: async (): Promise<ContinueCard[]> => {
+      if (!sourceId) return []
+      const states = await getContinueWatching(sourceId, db)
+      const entries = await resolveContinueEntries(sourceId, states, db)
+      const items = entries.map((entry) => toItemOut(entry.record, entry.record.kind))
+      const movieStableIds = items.map((item) => (item.kind === 'movie' ? stableIdOf(item) : null))
+      const metadata = await db.titleMetadata.bulkGet(movieStableIds.map((id) => id ?? ''))
+      return entries.map((entry, index): ContinueCard => {
+        const { episode, state } = entry
+        let duration: number | undefined
+        if (episode) {
+          duration = episode.durationSeconds
+        } else {
+          const record = metadata[index]
+          duration = record?.provider?.durationSeconds ?? (record?.tmdb?.status === 'matched' ? record.tmdb.fields.durationSeconds : undefined)
+        }
+        const hasCode = episode?.seasonNumber !== undefined && episode.episodeNumber !== undefined
+        return {
+          item: items[index],
+          code: hasCode ? `T${episode?.seasonNumber}:E${episode?.episodeNumber}` : null,
+          progress: primaryProgress(state.progressSeconds, duration),
+        }
+      })
+    },
+    enabled: sourceId !== null,
+  })
+}
+
+/**
  * Hero do Início pronto para a tela (feature 026, FR-002..FR-006) — o
  * `HomeHero` de `lib/catalog/homeHero.ts` com o registro já convertido em
  * `CatalogItemOut`.
@@ -1524,26 +1620,37 @@ export function useAggregatedItems(
 export function useRecentlyAdded(
   sourceId: string | null,
   kind: FavoritableKind,
-): { data: CatalogItemOut[] | undefined; isLoading: boolean } {
+  /** Feature 060 (D-013): `false` adia a leitura do índice (o Início só a pede depois do 1º desenho); o padrão é ler já. */
+  enabled = true,
+): { data: CatalogItemOut[] | undefined; coveredCategories?: number; totalCategories?: number; isLoading: boolean } {
   // Mesma chave e leitura de `useAggregatedItems`/"Todos": o índice local de busca é compartilhado no cache; aqui só se
   // seleciona os 12 mais novos (`select`), sem rede e sem ordenar o catálogo inteiro. Só as 12 escolhidas viram
   // `CatalogItemOut` (mapear os ≈43 mil registros custava ≈140 ms reais por execução) e o resultado fica guardado pela
   // identidade do índice: nova montagem, ou render com o índice em cache, não recalcula nada.
   const select = useCallback(
     (index: Awaited<ReturnType<typeof loadSearchIndex>>) =>
-      memoPerIndex(index, `added|${kind}`, () => recentlyAddedBy(index.entries, (entry) => entry.record.addedAt).map((entry) => toItemOut(entry.record, kind))),
+      memoPerIndex(index, `added|${kind}`, () => ({
+        items: recentlyAddedBy(index.entries, (entry) => entry.record.addedAt).map((entry) => toItemOut(entry.record, kind)),
+        coveredCategories: index.coveredCategories,
+        totalCategories: index.totalCategories,
+      })),
     [kind],
   )
   const query = useQuery({
     queryKey: ['catalog-search-index', sourceId, kind],
     queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
-    enabled: sourceId !== null && kind !== 'channel',
+    enabled: enabled && sourceId !== null && kind !== 'channel',
     // O índice não é relido a cada montagem da tela (releitura do tipo inteiro do IndexedDB): vale `SHOWCASE_INDEX_STALE_MS`, e a
     // pré-carga (categoria nova) e o fim de uma sincronização o invalidam.
     staleTime: SHOWCASE_INDEX_STALE_MS,
     select,
   })
-  return { data: query.data, isLoading: query.isLoading }
+  return {
+    data: query.data?.items,
+    coveredCategories: query.data?.coveredCategories,
+    totalCategories: query.data?.totalCategories,
+    isLoading: query.isLoading,
+  }
 }
 
 /** Quanto tempo o índice de busca do tipo vale em memória para a vitrine (`useRecentlyAdded`, `useTopRated`). */
@@ -1630,6 +1737,18 @@ export interface DiscoveryPick {
 type DiscoveryEntries = Awaited<ReturnType<typeof loadSearchIndex>>['entries']
 type DiscoveryContext = { now: number; seed: string; kind: DiscoveryKind }
 
+/**
+ * Retorno de `useWeeklyTop10`/`useDailyTip`. `images` (feature 060) = fundo 16:9 por id de item que já veio nas respostas do
+ * TMDB — opcional para quem consome (mocks de testes antigos não o devolvem) e sempre local, nunca uma consulta nova.
+ */
+export interface DiscoveryRowResult<R> {
+  data: R | undefined
+  images?: ReadonlyMap<string, string>
+  coveredCategories: number
+  totalCategories: number
+  isLoading: boolean
+}
+
 const DISCOVERY_READ = {
   id: (entry: DiscoveryEntries[number]) => String(entry.record.id),
   // Nome como a fonte declarou (com `[L]`, `4K`...), como o cruzamento da 035.
@@ -1649,7 +1768,7 @@ function useDiscoveryRow<R>(
   sourceId: string | null,
   kind: DiscoveryKind,
   project: (matches: MatchedTitle<DiscoveryEntries[number]>[], context: DiscoveryContext) => R,
-): { data: R | undefined; coveredCategories: number; totalCategories: number; isLoading: boolean } {
+): DiscoveryRowResult<R> {
   const queryClient = useQueryClient()
   // O idioma do app entra na chave (feature 054); o que o TMDB devolveu em outro idioma não vale como se fosse o atual.
   const language = useLanguage()
@@ -1682,16 +1801,24 @@ function useDiscoveryRow<R>(
   // índice dos registros é montado uma vez para o Top 10 e a Dica do mesmo tipo. Enquanto recalcula (categoria nova, outro
   // dia) fica o resultado anterior da MESMA lista, para a fileira e o foco não piscarem.
   const scope = `${sourceId}|${kind}`
-  const [computed, setComputed] = useState<{ scope: string; value: R; coveredCategories: number; totalCategories: number } | undefined>()
+  const [computed, setComputed] = useState<
+    { scope: string; value: R; images: ReadonlyMap<string, string>; coveredCategories: number; totalCategories: number } | undefined
+  >()
   const indexData = index.data
   useEffect(() => {
     if (sourceId === null || indexData === undefined || titles === undefined || titles.length === 0) return
     let cancelled = false
     void matchDiscoveryTitlesAsync(titles, indexData.entries, DISCOVERY_READ).then((matches) => {
       if (cancelled) return
+      // Feature 060: o fundo 16:9 que já veio com cada título do TMDB, por id do item da lista (sem consulta nova).
+      const images = new Map<string, string>()
+      for (const match of matches) {
+        if (match.title.backdropUrl !== undefined) images.set(DISCOVERY_READ.id(match.local), match.title.backdropUrl)
+      }
       setComputed({
         scope,
         value: project(matches, { now, seed: `${dayKey(now)}|${kind}|${sourceId}`, kind }),
+        images,
         coveredCategories: indexData.coveredCategories,
         totalCategories: indexData.totalCategories,
       })
@@ -1705,6 +1832,7 @@ function useDiscoveryRow<R>(
   const current = computed?.scope === scope ? computed : undefined
   return {
     data: settledEmpty ? (project([], { now, seed: '', kind }) as R) : current?.value,
+    images: current?.images ?? EMPTY_BACKDROPS,
     coveredCategories: current?.coveredCategories ?? 0,
     totalCategories: current?.totalCategories ?? 0,
     isLoading: tmdb.isLoading || index.isLoading,
@@ -1725,7 +1853,7 @@ function projectTip(matches: MatchedTitle<DiscoveryEntries[number]>[], context: 
 export function useWeeklyTop10(
   sourceId: string | null,
   kind: 'movie' | 'series',
-): { data: DiscoveryPick[] | undefined; coveredCategories: number; totalCategories: number; isLoading: boolean } {
+): DiscoveryRowResult<DiscoveryPick[]> {
   return useDiscoveryRow('trending', sourceId, kind, projectTop10)
 }
 
@@ -1736,7 +1864,7 @@ export function useWeeklyTop10(
 export function useDailyTip(
   sourceId: string | null,
   kind: 'movie' | 'series',
-): { data: CatalogItemOut[] | undefined; coveredCategories: number; totalCategories: number; isLoading: boolean } {
+): DiscoveryRowResult<CatalogItemOut[]> {
   return useDiscoveryRow('pool', sourceId, kind, projectTip)
 }
 
@@ -1818,6 +1946,47 @@ export function useCachedBackdrops(items: readonly CatalogItemOut[]): ReadonlyMa
 }
 
 const EMPTY_BACKDROPS: ReadonlyMap<string, string> = new Map()
+
+/**
+ * A metadata já guardada de um título (sinopse, duração, gêneros), lida SÓ do cache local (`titleMetadata`) — o card
+ * expandido do Início a usa ao receber o foco (feature 060, FR-009): nunca consulta o provedor nem o TMDB, e sem registro
+ * devolve a visão vazia (a linha simplesmente não aparece).
+ */
+export function useCachedTitleView(item: CatalogItemOut | null): TitleMetadataView | undefined {
+  const language = useLanguage()
+  const stableId = item ? stableIdOf(item) : null
+  const query = useQuery({
+    queryKey: ['cached-title-view', stableId, language],
+    queryFn: async (): Promise<TitleMetadataView> => {
+      const record = await db.titleMetadata.get(stableId as string)
+      return mergeTitleMetadata(record?.provider, record?.tmdb, language)
+    },
+    enabled: stableId !== null,
+    staleTime: 60_000,
+  })
+  return query.data
+}
+
+/**
+ * Imagem 16:9 de cada item do Início (feature 060, D-006 — `logic/fileiras-e-dados.md` §1), só do que já está no aparelho,
+ * pela primeira que existir: fundo da listagem (série, 055) → backdrop guardado no cache de metadata (053) → o que veio com a
+ * fileira (`extra`: respostas do TMDB do Top 10, da Dica e de Semelhantes). Item sem nenhuma não entra no mapa: o card cai no
+ * pôster + cor da capa. Nunca uma consulta.
+ */
+export function useHomeImages(
+  items: readonly CatalogItemOut[],
+  extra?: ReadonlyMap<string, string>,
+): ReadonlyMap<string, string> {
+  const cached = useCachedBackdrops(items)
+  return useMemo(() => {
+    const images = new Map<string, string>()
+    for (const item of items) {
+      const url = item.provider_backdrop_url ?? cached.get(item.id) ?? extra?.get(item.id)
+      if (url) images.set(item.id, url)
+    }
+    return images
+  }, [items, cached, extra])
+}
 
 /** Itens por carrossel de categoria na tela hero (feature 053). */
 export const PREVIEW_LIMIT = 12

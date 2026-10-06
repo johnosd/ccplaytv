@@ -2,7 +2,7 @@ import { db, type CatalogDb, type DiscoveryCacheRecord } from '../catalog/db'
 import { readAppLanguage } from '../i18n/appLanguage'
 import { APP_LANGUAGE_LOCALE } from '../i18n/languages'
 import { markTmdbState, readTmdbCredential, type UsableTmdbCredential } from './tmdbKeyRepository'
-import { TmdbError, tmdbGet } from './tmdbConnector'
+import { TmdbError, tmdbGet, tmdbImageUrl } from './tmdbConnector'
 import { yearOfDate } from './tmdbMatch'
 import type { MetadataOptions } from './types'
 
@@ -29,6 +29,8 @@ export interface DiscoveryTitle {
   popularity: number
   /** Posição real (1 = primeiro) na resposta do TMDB — no Top 10 é o número do card, sem renumerar. */
   rank: number
+  /** Feature 060: imagem 16:9 (`backdrop_path`) da resposta, montada SEM chave — ausente em caches gravados antes da 060. */
+  backdropUrl?: string
 }
 
 export type DiscoveryStatus = 'ok' | 'no_key' | 'unavailable'
@@ -110,6 +112,8 @@ function mapItem(raw: unknown, kind: DiscoveryKind, rank: number): DiscoveryTitl
   if (original !== undefined) mapped.originalTitle = original
   const year = yearOfDate(kind === 'movie' ? item.release_date : item.first_air_date)
   if (year !== undefined) mapped.year = year
+  const backdrop = text(item.backdrop_path)
+  if (backdrop !== undefined) mapped.backdropUrl = tmdbImageUrl(backdrop, 'w780')
   return mapped
 }
 

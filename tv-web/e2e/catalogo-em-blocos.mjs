@@ -706,10 +706,10 @@ async function run() {
     await page.waitForSelector('.source-card', { timeout: 10000 })
     await page.keyboard.press('Enter')
     await page.waitForSelector('.home-content', { timeout: 10000 })
-    const continueTitles = page.locator('section.home-row[aria-label="Continuar assistindo"] .content-card-title')
+    const continueTitles = page.locator('section.home-row[aria-label="Continuar assistindo"] .home-card-title')
     await continueTitles.first().waitFor({ timeout: 8000 })
     assert((await continueTitles.allTextContents()).includes('Filme 10102'), '"Continuar assistindo" ainda mostra o filme com progresso')
-    const favoriteTitles = page.locator('section.home-row[aria-label="Minha Lista"] .content-card-title')
+    const favoriteTitles = page.locator('section.home-row[aria-label="Minha Lista"] .home-card-title')
     await favoriteTitles.first().waitFor({ timeout: 8000 })
     assert((await favoriteTitles.allTextContents()).includes('Filme 10001'), '"Minha Lista" ainda mostra o filme favorito')
 

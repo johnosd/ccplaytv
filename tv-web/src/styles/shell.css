@@ -42,6 +42,20 @@
   color: var(--text-secondary);
 }
 
+/* Camada de fundo opcional (feature 060, D-004). `isolation` cria o contexto de empilhamento do shell, para o fundo ficar
+   ATRÁS da topbar e do conteúdo sem depender de ancestrais; `z-index` negativo só vale dentro dele. */
+.app-shell--backdrop {
+  isolation: isolate;
+}
+
+.app-shell-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .app-shell-content {
   position: relative;
   flex: 1;

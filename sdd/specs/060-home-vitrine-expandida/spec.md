@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-05
 
-**Status**: Planejada
+**Status**: Em Execução
 
 **Input**: "quero deixar o design system da página home mais rica e visualmente atraente … aumentar os cards" → três variações avaliadas (A Cinema, B Vitrine expandida, C Hub IPTV), escolhida a **B ("Vitrine expandida", referência Prime Video)**, já aplicada à função `home()` do protótipo e à seção "Home" da Spec V14 (sessão de 2026-10-05). "Agora, como fizemos para filmes e séries, vamos planejar o ajuste na tela home." Absorve os itens **69** ("Porque você assistiu X") e **32** (Trailer no herói do Início) do pacote G3 do backlog.
 

@@ -122,7 +122,7 @@ const focusedCardTitle = (page) =>
 async function continueTitles(page) {
   await page.waitForSelector('.home-content', { timeout: 8000 })
   await page.waitForTimeout(400) // a rail relê depois da invalidação
-  return page.locator(`${CONTINUE_ROW} .content-card-title`).allTextContents()
+  return page.locator(`${CONTINUE_ROW} .home-card-title`).allTextContents()
 }
 
 async function run() {

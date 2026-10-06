@@ -213,7 +213,7 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 057-top10-dica-tmdb | Top 10 da semana e carrossel "Dica" (TMDB) em Filmes, Séries e Início | Convergida | 55/58 tasks | 2026-10-05 |
 | 058-headers-avplay-catchup | Headers da lista no AVPlay e catch-up de programas passados (Xtream) | Convergida | 53/53 tasks | 2026-10-05 |
 | 059-detalhe-cinema-filme-serie | Detalhe de filme e de série no layout Cinema do Design System | Em Execução | 46/49 tasks | 2026-10-05 |
-| 060-home-vitrine-expandida | Home no layout "Vitrine expandida" do Design System | Planejada | 0/53 tasks | 2026-10-05 |
+| 060-home-vitrine-expandida | Home no layout "Vitrine expandida" do Design System | Em Execução | 48/53 tasks | 2026-10-05 |
 
 ## Bugs
 

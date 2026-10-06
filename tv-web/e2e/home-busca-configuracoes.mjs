@@ -263,17 +263,18 @@ async function run() {
     await page.keyboard.press('ArrowDown') // hero -> "Continuar assistindo"
     assert(
       (await page
-        .locator('section.home-row[aria-label="Continuar assistindo"] .content-card-title')
+        .locator('section.home-row[aria-label="Continuar assistindo"] .home-card-title')
         .first()
         .textContent()) === 'Filme Hero',
       '"Continuar assistindo" mostra "Filme Hero"',
     )
 
     console.log('=== US1 (Home): "Minha Lista" mostra o filme e o agregado "Filmes (N)" ===')
-    await page.keyboard.press('ArrowDown') // continuar -> "Minha Lista"
+    await page.keyboard.press('ArrowDown') // continuar -> "Ao vivo agora" (feature 060: vem antes de "Minha Lista")
+    await page.keyboard.press('ArrowDown') // -> "Minha Lista"
     assert(
       (await page
-        .locator('section.home-row[aria-label="Minha Lista"] .content-card-title')
+        .locator('section.home-row[aria-label="Minha Lista"] .home-card-title')
         .first()
         .textContent()) === 'Filme Hero',
       '"Minha Lista" mostra o card do próprio "Filme Hero"',
@@ -304,14 +305,12 @@ async function run() {
     for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('ArrowDown') // hero -> "Continuar assistindo"
-    await page.keyboard.press('ArrowDown') // -> "Minha Lista"
-    await page.keyboard.press('ArrowDown') // -> "Canais favoritos"
+    await page.keyboard.press('ArrowDown') // -> "Ao vivo agora" (feature 060: antes "Canais favoritos", depois de "Minha Lista")
     assert(
-      (await page
-        .locator('section.home-row[aria-label="Canais favoritos"] .tv-focus')
-        .locator('..')
-        .textContent())?.includes('Canal Favorito') ?? false,
-      '"Canais favoritos" mostra "Canal Favorito" em foco',
+      (await page.locator('section.home-row[aria-label="Ao vivo agora"] .home-live-card.tv-focus').textContent())?.includes(
+        'Canal Favorito',
+      ) ?? false,
+      '"Ao vivo agora" mostra "Canal Favorito" em foco',
     )
     await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })

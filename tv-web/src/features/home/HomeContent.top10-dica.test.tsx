@@ -116,18 +116,18 @@ afterEach(async () => {
 })
 
 describe('HomeContent — Top 10 e Dica (feature 057)', () => {
-  it('as 4 linhas aparecem entre os canais e a "Curadoria IA", numeradas 1, 2, 3 na fileira, a fonte TMDB e o aviso de cobertura parcial', async () => {
+  it('as 4 linhas aparecem na ordem da 060 (Top 10 e Dica de filmes, depois as de séries) antes da "Curadoria IA", numeradas 1, 2, 3 na fileira, a fonte TMDB e o aviso de cobertura parcial', async () => {
     mockRows({ ...ALL, covered: [1, 3] })
     renderHome()
     await settled()
 
     const labels = [...document.querySelectorAll('.home-content section.home-row')].map((section) => section.getAttribute('aria-label'))
-    expect(labels).toEqual(['Filmes em alta esta semana', 'Séries em alta esta semana', 'Dica de filme', 'Dica de série', 'Curadoria IA'])
+    expect(labels).toEqual(['Filmes em alta esta semana', 'Dica de filme', 'Séries em alta esta semana', 'Dica de série', 'Curadoria IA']) // feature 060, FR-018
 
     const movies = rowEl('Filmes em alta esta semana')!
-    expect([...movies.querySelectorAll('.content-card-rank')].map((rank) => rank.textContent)).toEqual(['1', '2', '3'])
-    expect([...rowEl('Séries em alta esta semana')!.querySelectorAll('.content-card-rank')].map((rank) => rank.textContent)).toEqual(['1', '2', '3'])
-    expect(rowEl('Dica de filme')!.querySelector('.content-card-rank')).toBeNull()
+    expect([...movies.querySelectorAll('.home-rank-numeral')].map((rank) => rank.textContent)).toEqual(['1', '2', '3'])
+    expect([...rowEl('Séries em alta esta semana')!.querySelectorAll('.home-rank-numeral')].map((rank) => rank.textContent)).toEqual(['1', '2', '3'])
+    expect(rowEl('Dica de filme')!.querySelector('.home-rank-numeral')).toBeNull()
     expect(movies.querySelector('.home-row-source')?.textContent).toContain('TMDB')
     expect(movies.querySelector('.home-row-coverage')?.textContent).toContain('Com base em 1 de 3 categorias')
     expect(rowEl('Dica de série')!.querySelector('.home-row-source')?.textContent).toContain('TMDB')
@@ -167,9 +167,9 @@ describe('HomeContent — Top 10 e Dica (feature 057)', () => {
     expect(props.onOpenItem).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'id-Filme 3' }), { zone: 'rail', rail: 'top10-movies', itemId: 'id-Filme 3' })
 
     press('ArrowDown')
-    expect(focusedRow()).toBe('Séries em alta esta semana')
-    press('ArrowDown')
     expect(focusedRow()).toBe('Dica de filme')
+    press('ArrowDown')
+    expect(focusedRow()).toBe('Séries em alta esta semana')
     press('ArrowDown')
     expect(focusedRow()).toBe('Dica de série')
     press('Enter')
@@ -186,42 +186,34 @@ describe('HomeContent — Top 10 e Dica (feature 057)', () => {
     mockRows(ALL)
     renderHome({ initialFocus: { zone: 'rail', rail: 'tip-series', itemId: 'id-Dica S2' } })
     await waitFor(() => expect(focusedRow()).toBe('Dica de série'))
-    expect(document.querySelector('.home-content .tv-focus')?.closest('.content-card')?.textContent).toContain('Dica S2')
+    expect(document.querySelector('.home-content .tv-focus')?.textContent).toContain('Dica S2')
     cleanup()
 
     mockRows(ALL)
     renderHome({ initialFocus: { zone: 'rail', rail: 'top10-series', itemId: 'id-sumiu' } })
     await waitFor(() => expect(focusedRow()).toBe('Séries em alta esta semana'))
-    expect(document.querySelector('.home-content .tv-focus')?.closest('.content-card')?.textContent).toContain('Série 2')
+    expect(document.querySelector('.home-content .tv-focus')?.textContent).toContain('Série 2')
   })
 
-  it('a linha focada rola até ficar à vista (as linhas do TMDB ficam abaixo da dobra); o hero volta ao topo', async () => {
-    const scrolled: Array<{ label: string | null | undefined; options: unknown }> = []
-    const original = Element.prototype.scrollIntoView
-    Element.prototype.scrollIntoView = function (this: Element, options?: boolean | ScrollIntoViewOptions) {
-      scrolled.push({ label: this.closest('section.home-row')?.getAttribute('aria-label'), options })
-    }
-    try {
-      mockRows(ALL)
-      renderHome()
-      await settled()
-      scrolled.length = 0
+  // Feature 060 (D-003): no lugar da rolagem por scrollIntoView, a fileira focada sobe ao topo e as anteriores saem da vista.
+  it('a linha focada fica no topo e as anteriores saem da vista; o billboard volta ao subir', async () => {
+    mockRows(ALL)
+    renderHome()
+    await settled()
+    const billboard = () => document.querySelector('.home-hero')?.getAttribute('data-state')
+    expect(billboard()).toBe('expanded')
 
-      press('ArrowDown') // hero → Filmes em alta esta semana
-      press('ArrowDown') // → Séries em alta esta semana
-      press('ArrowDown') // → Dica de filme
-      expect(scrolled.map((entry) => entry.label)).toEqual(['Filmes em alta esta semana', 'Séries em alta esta semana', 'Dica de filme'])
-      expect(scrolled.every((entry) => (entry.options as ScrollIntoViewOptions).block === 'center')).toBe(true)
+    press('ArrowDown') // hero → Filmes em alta esta semana
+    press('ArrowDown') // → Dica de filme
+    expect(billboard()).toBe('collapsed')
+    expect(rowEl('Filmes em alta esta semana')).toHaveClass('is-above')
+    expect(rowEl('Dica de filme')).not.toHaveClass('is-above')
+    expect(rowEl('Séries em alta esta semana')).not.toHaveClass('is-above')
 
-      const host = document.querySelector('.home-content') as HTMLElement
-      host.scrollTop = 900
-      press('ArrowUp')
-      press('ArrowUp')
-      press('ArrowUp') // → hero
-      expect(host.scrollTop).toBe(0)
-    } finally {
-      Element.prototype.scrollIntoView = original
-    }
+    press('ArrowUp')
+    press('ArrowUp') // → hero
+    expect(billboard()).toBe('expanded')
+    expect(document.querySelector('.home-row.is-above')).toBeNull()
   })
   it('focar e percorrer as linhas não consulta a rede', async () => {
     mockRows(ALL)

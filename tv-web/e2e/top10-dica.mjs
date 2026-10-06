@@ -172,8 +172,9 @@ const SEEDS = {
 const shot = (page, name) => page.screenshot({ path: path.join(SHOTS, `${name}.png`) })
 const clean = (value) => (value ?? '').replace(/\s+/g, ' ').trim()
 const rowLabels = (page, root) => page.locator(`${root} section`).evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')))
-const ranksOf = (page, selector) => page.locator(`${selector} .content-card-rank`).allTextContents().then((all) => all.map(clean))
-const titlesOf = (page, selector) => page.locator(`${selector} .content-card-title`).allTextContents().then((all) => all.map(clean))
+// Feature 060: o Início tem cards próprios (`.home-card`, numeral `.home-rank-numeral`); Filmes/Séries seguem com `.content-card`.
+const ranksOf = (page, selector) => page.locator(`${selector} .content-card-rank, ${selector} .home-rank-numeral`).allTextContents().then((all) => all.map(clean))
+const titlesOf = (page, selector) => page.locator(`${selector} .content-card-title, ${selector} .home-card-title`).allTextContents().then((all) => all.map(clean))
 const isDiscovery = (label) => typeof label === 'string' && (/em alta esta semana/i.test(label) || label.startsWith('Dica'))
 
 async function addSource(page, port) {
@@ -262,11 +263,11 @@ async function run() {
     console.log((step = '=== Com chave: o Início mostra as 4 linhas ==='))
     await page.evaluate(SEEDS.putKey, KEY)
     await goHome(page)
-    await page.waitForSelector('section.home-row[aria-label="Dica de série"] .content-card', { timeout: 20000 })
+    await page.waitForSelector('section.home-row[aria-label="Dica de série"] .home-card', { timeout: 20000 })
     const homeLabels = await rowLabels(page, '.home-content')
     assert(
-      JSON.stringify(homeLabels.filter(isDiscovery)) === JSON.stringify(['Filmes em alta esta semana', 'Séries em alta esta semana', 'Dica de filme', 'Dica de série']),
-      `Início: Filmes e Séries em alta, Dica de filme, Dica de série, nessa ordem (${homeLabels.join(' | ')})`,
+      JSON.stringify(homeLabels.filter(isDiscovery)) === JSON.stringify(['Filmes em alta esta semana', 'Dica de filme', 'Séries em alta esta semana', 'Dica de série']),
+      `Início (060, FR-018): Filmes em alta, Dica de filme, Séries em alta, Dica de série, nessa ordem (${homeLabels.join(' | ')})`,
     )
     assert(homeLabels.indexOf('Dica de série') < homeLabels.indexOf('Curadoria IA'), 'as linhas ficam antes da "Curadoria IA"')
     const homeMovies = 'section.home-row[aria-label="Filmes em alta esta semana"]'
@@ -288,13 +289,15 @@ async function run() {
     assert((await page.locator(`${homeMovies} .tv-focus`).count()) === 1, 'o foco chegou no Top 10 de filmes')
     await page.keyboard.press('ArrowRight')
     assert(tmdbCalls.length === callsBeforeFocus, 'focar não consulta o TMDB')
+    await page.waitForTimeout(500) // feature 060: o billboard recolhe e a fileira sobe em transição; a captura espera o fim dela
+    assert((await page.locator('.home-hero').getAttribute('data-state')) === 'collapsed', 'Início (060): com o foco na fileira o billboard está recolhido')
     await shot(page, '02-inicio-top10-focado')
     await page.keyboard.press('Enter')
     await page.waitForSelector('.vod-detail', { timeout: 10000 })
     await page.keyboard.press('Escape')
     await page.waitForSelector('.home-content', { timeout: 10000 })
     await page.waitForSelector(`${homeMovies} .tv-focus`, { timeout: 8000 })
-    assert(clean(await page.locator(`${homeMovies} .tv-focus`).locator('xpath=ancestor::*[contains(@class,"content-card")][1]').textContent()).includes('Filme Dois'), 'voltar restaura o foco no mesmo card (Filme Dois)')
+    assert(clean(await page.locator(`${homeMovies} .tv-focus`).locator('xpath=ancestor-or-self::*[contains(@class,"home-card")][1]').textContent()).includes('Filme Dois'), 'voltar restaura o foco no mesmo card (Filme Dois)')
 
     console.log((step = '=== Filmes: Top 10 e Dica ==='))
     await openShowcase(page, 'movies')
@@ -358,10 +361,10 @@ async function run() {
     tmdbOnline = false
     const callsBeforeOffline = tmdbCalls.length
     await reopenApp(page)
-    await page.waitForSelector('section.home-row[aria-label="Filmes em alta esta semana"] .content-card', { timeout: 20000 })
+    await page.waitForSelector('section.home-row[aria-label="Filmes em alta esta semana"] .home-card', { timeout: 20000 })
     assert(callsTo('/3/trending/movie/week') > 1 || tmdbCalls.length > callsBeforeOffline, 'tentou a rede (que falhou) antes de usar o cache')
     assert(JSON.stringify(await ranksOf(page, homeMovies)) === JSON.stringify(['1', '2', '3']), 'Início offline: a última fileira em alta guardada')
-    assert((await page.locator('section.home-row[aria-label="Dica de série"] .content-card').count()) >= 5, 'Início offline: a Dica do último conjunto guardado')
+    assert((await page.locator('section.home-row[aria-label="Dica de série"] .home-card').count()) >= 5, 'Início offline: a Dica do último conjunto guardado')
     assert((await page.locator('.error-state, [role="alert"]').count()) === 0, 'nenhum erro na tela sem rede')
     await shot(page, '06-inicio-offline-com-cache')
 

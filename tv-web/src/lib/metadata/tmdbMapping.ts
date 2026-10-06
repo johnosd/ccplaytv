@@ -115,6 +115,9 @@ function mapSimilar(kind: TmdbKind, detail: Record<string, unknown>): TmdbTitleR
       if (year !== undefined) ref.year = year
       const poster = nonEmptyString(item.poster_path)
       if (poster !== undefined) ref.posterUrl = tmdbImageUrl(poster, 'w342')
+      // Feature 060: o fundo 16:9 já vem na resposta; guardá-lo não custa requisição (largura que cobre o card de 667 px).
+      const backdrop = nonEmptyString(item.backdrop_path)
+      if (backdrop !== undefined) ref.backdropUrl = tmdbImageUrl(backdrop, 'w780')
       const overview = nonEmptyString(item.overview)
       if (overview !== undefined) ref.overview = overview
       refs.push(ref)

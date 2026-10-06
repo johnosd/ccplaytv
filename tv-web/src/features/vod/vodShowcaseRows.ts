@@ -46,7 +46,7 @@ export interface BuildShowcaseRowsInput {
   hasTip?: boolean
   /**
    * Feature 060 (FR-014/FR-015): há semente e ao menos um semelhante na lista — só então "Porque você assistiu" existe
-   * (ausente/`undefined` = não; o slot "Em breve" deixa de existir). STUB do sdd-plan: ainda não lido por `buildShowcaseRows`.
+   * (ausente/`undefined` = não; o slot "Em breve" deixou de existir).
    */
   hasBecause?: boolean
   /** Feature 060: nome do título semente, para o título "Porque você assistiu <nome>". */
@@ -55,19 +55,25 @@ export interface BuildShowcaseRowsInput {
   categoryNames: readonly string[]
 }
 
-function slotRow(key: ShowcaseRowKey, title: string, format: RowFormat, slotId: string): ShowcaseRowSpec {
-  // `title` já vem traduzido por quem monta as fileiras (feature 054).
-  return { key, kind: 'slot', title, format, seeAll: null, slotId }
-}
-
 /**
  * Fileiras da tela hero na ordem fixa (`logic/carrosseis-e-foco.md` §1): continue → top10 → favorites → added → rated →
- * tip → because → uma por categoria. As de itens ("Bem avaliados", feature 056; "Top 10 da semana" e "Dica", feature 057, que
- * vêm do TMDB e não têm "Ver tudo") só existem com dado real; o único slot que resta ("Porque você assistiu") e as categorias,
- * sempre.
+ * tip → because → uma por categoria. As de itens ("Bem avaliados", feature 056; "Top 10 da semana" e "Dica", feature 057;
+ * "Porque você assistiu", feature 060 — as três do TMDB, sem "Ver tudo") só existem com dado real; as categorias, sempre. Não
+ * resta nenhum slot reservado ("Em breve"): o tipo `slot` segue existindo só porque o foco e a renderização o sabem tratar.
  */
 export function buildShowcaseRows(input: BuildShowcaseRowsInput, t: Translator = createTranslator('pt')): ShowcaseRowSpec[] {
-  const { section, hasContinue, hasFavorites, hasAdded, hasRated = false, hasTop10 = false, hasTip = false, categoryNames } = input
+  const {
+    section,
+    hasContinue,
+    hasFavorites,
+    hasAdded,
+    hasRated = false,
+    hasTop10 = false,
+    hasTip = false,
+    hasBecause = false,
+    becauseTitle,
+    categoryNames,
+  } = input
   const rows: ShowcaseRowSpec[] = []
   if (hasContinue) {
     rows.push({ key: 'continue', kind: 'items', title: t('showcase.row.continue'), format: 'poster-xl', seeAll: { kind: 'history' }, slotId: null })
@@ -112,7 +118,17 @@ export function buildShowcaseRows(input: BuildShowcaseRowsInput, t: Translator =
       slotId: null,
     })
   }
-  rows.push(slotRow('because', t('showcase.row.because'), 'poster', 'vod-because'))
+  if (hasBecause) {
+    // Feature 060 (FR-014/FR-015): fileira real, no lugar do slot "Em breve"; sem semente ou sem semelhante na lista, some.
+    rows.push({
+      key: 'because',
+      kind: 'items',
+      title: becauseTitle ? t('showcase.row.becauseOf', { title: becauseTitle }) : t('showcase.row.because'),
+      format: 'poster',
+      seeAll: null,
+      slotId: null,
+    })
+  }
   const seen = new Set<string>()
   for (const declared of categoryNames) {
     const name = groupLabel(declared)

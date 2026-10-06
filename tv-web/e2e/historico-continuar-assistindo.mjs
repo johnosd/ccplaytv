@@ -227,7 +227,7 @@ async function run() {
     await page.waitForSelector('section.home-row[aria-label="Continuar assistindo"]', { timeout: 8000 })
     assert(
       (await page
-        .locator('section.home-row[aria-label="Continuar assistindo"] .content-card-title')
+        .locator('section.home-row[aria-label="Continuar assistindo"] .home-card-title')
         .first()
         .textContent()) === 'Arrival Fictício',
       '"Continuar assistindo" mostra Arrival com progresso parcial',
@@ -248,7 +248,8 @@ async function run() {
     // propagação da tecla que trata; se o conteúdo a processasse de novo (o React descarrega o
     // setState entre dois listeners do mesmo evento no Chromium), o foco pularia por cima do hero. Só
     // o navegador real prova isso — o jsdom não reproduz.
-    await page.keyboard.press('ArrowUp') // hero -> topbar
+    await page.keyboard.press('ArrowUp') // hero -> dock de serviços (feature 060)
+    await page.keyboard.press('ArrowUp') // dock -> topbar
     assert(
       (await page.locator('.topbar .tv-focus').allTextContents()).join('|') === 'Início' &&
         (await page.locator('.home-hero-action.tv-focus').count()) === 0,

@@ -33,10 +33,8 @@ describe('getComingSoon', () => {
       'dock-speedtest',
       'dock-weather',
       'home-ai-curation',
-      'home-trailer',
       'pair-phone',
       'settings-parental',
-      'vod-because', // feature 053: slot reservado da tela hero de Filmes/Séries (o Top 10 ficou real na 057)
       'voice-search',
     ])
   })
@@ -53,6 +51,8 @@ describe('getComingSoon', () => {
     expect(() => getComingSoon('settings-integrations')).toThrow() // deixou de ser mock na 032 (aba real)
     expect(() => getComingSoon('cast')).toThrow() // deixou de ser mock na 032 (aba Elenco com o elenco em texto)
     expect(() => getComingSoon('trailer')).toThrow() // deixou de ser mock na 033 (botão real)
+    expect(() => getComingSoon('home-trailer')).toThrow() // deixou de ser mock na 060 (Trailer real no billboard do Início, item 32)
+    expect(() => getComingSoon('vod-because')).toThrow() // deixou de ser mock na 060 ("Porque você assistiu" real, item 69)
     expect(() => getComingSoon('similar')).toThrow() // deixou de ser mock na 035 (aba Semelhantes real)
     expect(() => getComingSoon('player-quality')).toThrow() // deixou de ser mock na 041 (Qualidade real)
     expect(() => getComingSoon('player-aspect')).toThrow() // deixou de ser mock na 041 (Aspecto real)

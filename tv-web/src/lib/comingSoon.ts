@@ -20,9 +20,8 @@ export interface ComingSoonEntry {
 export const COMING_SOON: Record<string, ComingSoonEntry> = {
   // Onboarding de lista (feature 023, FR-035).
   'pair-phone': { message: 'Conectar a lista pelo celular, com QR code.', backlogItem: 22 },
-  // Detalhe de filme/série (feature 025, D-011, FR-043).
-  // O `trailer` do detalhe virou real na 033 (FR-021); o do herói do Início segue fora do escopo dela.
-  'home-trailer': { message: 'Trailer do filme ou da série.', backlogItem: 32 },
+  // Detalhe de filme/série (feature 025, D-011, FR-043): o `trailer` do detalhe virou real na 033 (FR-021) e o do
+  // billboard do Início, na 060 (item 32) — `home-trailer` saiu deste registro.
   // Home definitiva (feature 026, FR-016).
   'home-ai-curation': { message: 'Sugestões de conteúdo por IA, com base no que você assiste.', backlogItem: 30 },
   'dock-ai': { message: 'Assistente de IA para perguntas sobre o catálogo.', backlogItem: 31 },
@@ -37,9 +36,8 @@ export const COMING_SOON: Record<string, ComingSoonEntry> = {
   'a11y-voice-guide': { message: 'Narração de tela (Voice Guide).', backlogItem: 56 },
   'a11y-high-contrast': { message: 'Modo de alto contraste.', backlogItem: 56 },
   'a11y-subtitles': { message: 'Aparência das legendas.', backlogItem: 56 },
-  // Tela hero de Filmes e Séries (feature 053, D-007): fileira reservada, sem dado e sem consulta ao TMDB. O Top 10 deixou
-  // de ser mock na feature 057 (item 67).
-  'vod-because': { message: 'Sugestões parecidas com o que você assistiu.', backlogItem: 69 },
+  // Tela hero de Filmes e Séries (feature 053, D-007): o Top 10 deixou de ser mock na feature 057 (item 67) e "Porque você
+  // assistiu" (`vod-because`), na 060 (item 69) — hoje não resta nenhuma fileira reservada ali.
   // Chrome do player (feature 027): Áudio e legendas e Info do stream
   // deixaram de ser mock na 029 (item 55a); o Guia completo, na 031 (42c);
   // Qualidade e Aspecto, na 041 (55b). Velocidade saiu de vez (041, D-001).

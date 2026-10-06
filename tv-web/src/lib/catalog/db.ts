@@ -303,6 +303,8 @@ export interface TmdbTitleRef {
   year?: number
   posterUrl?: string
   overview?: string
+  /** Feature 060: imagem 16:9 (`backdrop_path`) que já vem na resposta, montada SEM chave — para o card expandido da Home. */
+  backdropUrl?: string
 }
 
 /** Uma pessoa do elenco com identidade TMDB (feature 035, `data-model.md` §1). */

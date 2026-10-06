@@ -7,6 +7,12 @@ export interface AppShellProps {
   topBar: ReactNode
   /** Teclas úteis do contexto atual (FR-021). Sem hints, não há rodapé (Filmes/Séries, feature 052). */
   hints?: HintItem[]
+  /**
+   * Feature 060 (D-004): camada de fundo da tela (ex.: o fundo ambiente do Início), atrás da topbar e do conteúdo. Fica
+   * DENTRO do shell — que é filho do `.screen` — para sumir junto com ele quando o player abre (plano de hardware, FR-027);
+   * nunca estilo no próprio `.screen`. Sem a prop o DOM é idêntico ao de antes.
+   */
+  backdrop?: ReactNode
   children: ReactNode
 }
 
@@ -17,9 +23,14 @@ export interface AppShellProps {
  * continua disponível offline (ADR-002). A ação "Tentar de novo" é um item da
  * topbar, alcançável pelo controle remoto (feature 042, D-007).
  */
-export function AppShell({ topBar, hints, children }: AppShellProps): ReactNode {
+export function AppShell({ topBar, hints, backdrop, children }: AppShellProps): ReactNode {
   return (
-    <div className="app-shell">
+    <div className={backdrop ? 'app-shell app-shell--backdrop' : 'app-shell'}>
+      {backdrop && (
+        <div className="app-shell-backdrop" aria-hidden="true">
+          {backdrop}
+        </div>
+      )}
       {topBar}
       <OfflineBanner />
       <main className="app-shell-content">{children}</main>

@@ -109,6 +109,8 @@ export function HomeScreen({
   )
   const [showExit, setShowExit] = useState(false)
   const [playing, setPlaying] = useState<PlayingState | null>(null)
+  // Feature 060 (D-004): o fundo ambiente vive na camada de fundo do shell, atrás da topbar; o conteúdo o desenha por portal.
+  const [ambientHost, setAmbientHost] = useState<HTMLElement | null>(null)
 
   const contentFocus: HomeContentFocus | undefined =
     initialFocus && initialFocus.zone !== 'topbar' ? initialFocus : undefined
@@ -137,6 +139,7 @@ export function HomeScreen({
     void invalidateUserStates(queryClient)
     void queryClient.invalidateQueries({ queryKey: ['user-state'] })
     void queryClient.invalidateQueries({ queryKey: ['home-hero', source.id] })
+    // Prefixo: cobre a lista e os cards com progresso do "Continuar assistindo" (feature 060, `useContinueCards`).
     void queryClient.invalidateQueries({ queryKey: ['continue-watching', source.id] })
   }
 
@@ -144,6 +147,7 @@ export function HomeScreen({
     <div className="screen home-screen">
       <AppShell
         hints={hints}
+        backdrop={<div ref={setAmbientHost} className="home-ambient-host" />}
         topBar={
           <TopBar
             sourceName={source.display_name}
@@ -163,6 +167,7 @@ export function HomeScreen({
           sourceId={source.id}
           active={contentActive}
           initialFocus={contentFocus}
+          ambientHost={ambientHost}
           // Entrar na topbar sempre em "Início" — o destino atual (FR-015).
           onExitUp={() => {
             setTopbarItem('home')

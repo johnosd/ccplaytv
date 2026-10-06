@@ -29,6 +29,9 @@ export const vodShowcase = defineArea(
     'home.row.trendingSeries': 'Séries em alta esta semana',
     'showcase.eyebrow.tip': 'DICA · TMDB',
     'showcase.row.because': 'Porque você assistiu',
+    // Feature 060: a fileira "Porque você assistiu" deixou de ser slot e leva o título semente.
+    'showcase.row.becauseOf': 'Porque você assistiu {title}',
+    'showcase.eyebrow.because': 'PORQUE VOCÊ ASSISTIU {title}',
   },
   {
     'showcase.eyebrow.movies': 'CCPLAY CINEMA',
@@ -57,6 +60,8 @@ export const vodShowcase = defineArea(
     'home.row.trendingSeries': 'Series trending this week',
     'showcase.eyebrow.tip': 'TIP · TMDB',
     'showcase.row.because': 'Because you watched',
+    'showcase.row.becauseOf': 'Because you watched {title}',
+    'showcase.eyebrow.because': 'BECAUSE YOU WATCHED {title}',
   },
   {
     'showcase.eyebrow.movies': 'CCPLAY CINE',
@@ -85,5 +90,7 @@ export const vodShowcase = defineArea(
     'home.row.trendingSeries': 'Series en tendencia esta semana',
     'showcase.eyebrow.tip': 'RECOMENDACIÓN · TMDB',
     'showcase.row.because': 'Porque viste',
+    'showcase.row.becauseOf': 'Porque viste {title}',
+    'showcase.eyebrow.because': 'PORQUE VISTE {title}',
   },
 )

@@ -156,7 +156,8 @@ async function run() {
     )
 
     console.log('=== US2: topbar e RETURN em camadas ===')
-    await page.keyboard.press('ArrowUp')
+    await page.keyboard.press('ArrowUp') // hero -> dock de serviços (feature 060)
+    await page.keyboard.press('ArrowUp') // dock -> topbar
     assert((await focusedText(page, '.topbar')).join('|') === 'Início', 'UP leva à topbar, em "Início"')
     await page.keyboard.press('ArrowRight')
     await page.keyboard.press('ArrowRight')
@@ -191,7 +192,8 @@ async function run() {
     )
 
     console.log('=== FR-035/FR-021 (feature 026): Buscar e Configurações agora são reais, não mais "Em breve" ===')
-    await page.keyboard.press('ArrowUp') // hero -> topbar (sempre pousa em "Início")
+    await page.keyboard.press('ArrowUp') // hero -> dock (feature 060)
+    await page.keyboard.press('ArrowUp') // dock -> topbar (sempre pousa em "Início")
     for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight') // Início → … → Buscar
     await page.keyboard.press('Enter')
     await page.waitForSelector('.search-screen', { timeout: 8000 })

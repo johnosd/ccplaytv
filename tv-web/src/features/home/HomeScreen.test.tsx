@@ -106,22 +106,28 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
     expect(focusedInTopbar()).toHaveLength(0)
   })
 
-  it('UP no hero leva à topbar em "Início"; DOWN devolve o foco ao MESMO conteúdo (FR-015)', () => {
+  // Feature 060 (FR-019): o dock fica acima das ações do billboard — ↑ nas ações vai ao dock e, dele, à topbar.
+  it('UP no hero leva ao dock e, dele, à topbar em "Início"; DOWN da topbar pousa nas ações do billboard, nunca num ícone "Em breve" do dock', () => {
     renderHome()
 
-    press('ArrowUp')
+    press('ArrowUp') // hero -> dock
+    expect(focusedInTopbar()).toHaveLength(0)
+    expect(screen.getByRole('button', { name: /^TMDB/ })).toHaveClass('tv-focus')
+    press('ArrowUp') // dock -> topbar
     expect(focusedInTopbar()).toHaveLength(1)
     expect(topbarItem('Início')).toHaveClass('tv-focus')
 
-    press('ArrowDown')
+    press('ArrowDown') // topbar -> conteúdo: o foco volta ao billboard (060), mesmo tendo saído pelo dock
     expect(focusedInTopbar()).toHaveLength(0)
     expect(heroAction(/Abrir TV ao vivo/)).toHaveClass('tv-focus')
+    expect(screen.getByRole('button', { name: /^TMDB/ })).not.toHaveClass('tv-focus')
   })
 
   it('OK em "Filmes" na topbar chama onNavigate com o foco de origem na topbar (FR-016)', () => {
     const props = renderHome()
 
-    press('ArrowUp') // conteúdo -> topbar, em "Início"
+    press('ArrowUp') // hero -> dock
+    press('ArrowUp') // dock -> topbar, em "Início"
     press('ArrowRight') // Início -> TV ao vivo
     press('ArrowRight') // -> Filmes
     expect(topbarItem('Filmes')).toHaveClass('tv-focus')
@@ -134,6 +140,7 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
     const props = renderHome()
 
     press('ArrowUp')
+    press('ArrowUp') // hero -> dock -> topbar
     for (let i = 0; i < 4; i += 1) press('ArrowRight') // Início -> ... -> indicador
     expect(profileIndicator()).toHaveClass('tv-focus')
     press('Enter')
@@ -146,6 +153,7 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
     const props = renderHome()
 
     press('ArrowUp')
+    press('ArrowUp') // hero -> dock -> topbar
     for (let i = 0; i < 5; i += 1) press('ArrowRight') // Início -> ... -> Buscar
     expect(screen.getByRole('button', { name: 'Buscar' })).toHaveClass('tv-focus')
     press('Enter')
@@ -182,6 +190,7 @@ describe('HomeScreen (Início) — RETURN e modal de saída', () => {
     renderHome()
 
     press('ArrowUp')
+    press('ArrowUp') // hero -> dock -> topbar
     press('Escape')
     expect(screen.getByRole('dialog', { name: 'Sair do CCPlayTV?' })).toBeInTheDocument()
 

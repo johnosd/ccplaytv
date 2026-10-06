@@ -71,6 +71,27 @@ describe('loadWeeklyTrending / loadTipPool — casos além do contrato (feature 
     ])
   })
 
+  // Feature 060 (FR-021): o fundo 16:9 da resposta fica guardado junto do título (sem consulta nova e sem chave na URL).
+  it('guarda o backdrop da resposta (w780, sem chave), que volta do cache; sem backdrop o campo não existe', async () => {
+    const fetchImpl = fakeFetch(() =>
+      json({
+        results: [
+          { id: 1, title: 'Com fundo', release_date: '2024-01-01', backdrop_path: '/fundo.jpg' },
+          { id: 2, title: 'Sem fundo', release_date: '2024-01-01' },
+        ],
+      }),
+    )
+    const options = await withKey(fetchImpl)
+    const first = await loadWeeklyTrending('movie', options)
+    expect(first.titles[0].backdropUrl).toBe('https://image.tmdb.org/t/p/w780/fundo.jpg')
+    expect(first.titles[1]).not.toHaveProperty('backdropUrl')
+    expect(JSON.stringify(first)).not.toContain(KEY)
+
+    const cached = await loadWeeklyTrending('movie', options) // mesma semana: vem do aparelho
+    expect(cached.titles[0].backdropUrl).toBe('https://image.tmdb.org/t/p/w780/fundo.jpg')
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
   it('pool: junta as páginas sem repetir, a 1ª falhando falha tudo, as demais falhando guardam as que vieram', async () => {
     let failFrom = 99
     const fetchImpl = fakeFetch((url) => {

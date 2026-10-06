@@ -1081,6 +1081,26 @@ export async function resolveContinueWatching(
   states: UserStateRecord[],
   database: CatalogDb = db,
 ): Promise<CatalogRecord[]> {
+  return (await resolveContinueEntries(sourceId, states, database)).map((entry) => entry.record)
+}
+
+/**
+ * Um item de "Continuar assistindo" resolvido: o registro (filme ou série-pai), o estado do usuário que o trouxe e, quando
+ * veio de um episódio, qual (código T:E e duração declarada pela fonte). Feature 060 (`logic/cards-e-expansao.md` §6): é o que
+ * a Home precisa para a legenda `T1:E3 · faltam 26 min`, sem nova consulta.
+ */
+export interface ContinueEntry {
+  record: CatalogRecord
+  state: UserStateRecord
+  episode?: { seasonNumber?: number; episodeNumber?: number; durationSeconds?: number }
+}
+
+/** Mesma resolução de `resolveContinueWatching` (que agora só tira o `record`), guardando estado e episódio de cada item. */
+export async function resolveContinueEntries(
+  sourceId: string,
+  states: UserStateRecord[],
+  database: CatalogDb = db,
+): Promise<ContinueEntry[]> {
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return []
 
@@ -1109,18 +1129,25 @@ export async function resolveContinueWatching(
   }
   const seriesById = await findSeriesManyIn(database, sourceId, generation, seriesIds)
 
-  const records: CatalogRecord[] = []
-  for (const parts of parsed) {
+  const entries: ContinueEntry[] = []
+  for (const [index, parts] of parsed.entries()) {
     const record = parts ? resolved.get(parts) : undefined
     if (!record) continue
+    const state = states[index]
     if (record.kind !== 'episode' || !record.seriesId) {
-      records.push(record)
+      entries.push({ record, state })
       continue
     }
     const series = seriesById.get(record.seriesId)
-    if (series) records.push(series)
+    if (series) {
+      entries.push({
+        record: series,
+        state,
+        episode: { seasonNumber: record.seasonNumber, episodeNumber: record.episodeNumber, durationSeconds: record.durationSeconds },
+      })
+    }
   }
-  return records
+  return entries
 }
 
 /**

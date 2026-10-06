@@ -20,6 +20,7 @@ import {
   type CatalogItemOut,
 } from '../catalog/catalogApi'
 import { prioritizeCategory, usePrefetchHint } from '../catalog/prefetchApi'
+import { useBecauseYouWatched } from '../catalog/becauseApi'
 import { knownCategoryCount } from '../catalog/categoryCount'
 import { formatTime } from '../../lib/player/formatTime'
 import { useRemoteNav } from '../../lib/useRemoteNav'
@@ -158,8 +159,8 @@ function scrollFrameClass(edges: OverflowEdges): string {
 /**
  * Tela hero de Filmes/Séries (features 052/053): hero do card focado + lista lateral de categorias + fileiras
  * (Continue assistindo, Top 10 da semana (feature 057; TMDB, só com dado), ★ Favoritos, Adicionados recentemente, Bem avaliados
- * (feature 056; só com nota real), Dica (feature 057; TMDB, só com dado), Porque você assistiu* e um carrossel por categoria;
- * *reservada "Em breve"). As fileiras são descritores (`buildShowcaseRows`), o foco é puro
+ * (feature 056; só com nota real), Dica (feature 057; TMDB, só com dado), Porque você assistiu (feature 060; TMDB, só com
+ * semente e semelhante na lista) e um carrossel por categoria). As fileiras são descritores (`buildShowcaseRows`), o foco é puro
  * (`vodShowcaseFocus`) e a pilha vertical é virtualizada. Focar nunca consulta nem reproduz (ADR-011): só OK age.
  */
 export function VodShowcaseScreen({
@@ -193,6 +194,9 @@ export function VodShowcaseScreen({
   // Feature 057: Top 10 da semana e Dica (TMDB cruzado com a lista); sem chave/cache/cruzamento não há dado e a fileira não existe.
   const top10Query = useWeeklyTop10(sourceId, copy.kind)
   const tipQuery = useDailyTip(sourceId, copy.kind)
+  // Feature 060 (FR-014/FR-015): "Porque você assistiu" real — o último concluído deste tipo e os semelhantes do TMDB que estão
+  // na lista. Sem chave TMDB, sem concluído ou sem semelhante na lista a fileira não existe (nem slot "Em breve").
+  const becauseRow = useBecauseYouWatched(sourceId, copy.kind)
 
   // Metadados reais do hero (os mesmos da 050): nada é consultado ao focar, só lido do que já está carregado.
   const watchedIds = useWatchedIds(sourceId, section === 'movies' ? copy.kind : 'channel').data ?? new Set<string>()
@@ -207,6 +211,7 @@ export function VodShowcaseScreen({
   const rated = ratedQuery.data ?? []
   const top10 = top10Query.data ?? []
   const tip = tipQuery.data ?? []
+  const because = becauseRow?.items ?? []
   // Posição REAL no ranking do TMDB: aparece no destaque do card focado ("Nº 6"); os cards numeram a posição na fileira.
   const rankById = new Map(top10.map((pick) => [pick.item.id, pick.rank]))
 
@@ -222,6 +227,8 @@ export function VodShowcaseScreen({
       hasRated: rated.length > 0,
       hasTop10: top10.length > 0,
       hasTip: tip.length > 0,
+      hasBecause: because.length > 0,
+      becauseTitle: becauseRow?.seed.name,
       categoryNames: categories.map((category) => category.name ?? ''),
     },
     t,
@@ -259,6 +266,7 @@ export function VodShowcaseScreen({
     else if (spec.key === 'rated') entries = itemEntries(rated)
     else if (spec.key === 'top10') entries = plainEntries(top10.map((pick) => pick.item))
     else if (spec.key === 'tip') entries = plainEntries(tip)
+    else if (spec.key === 'because') entries = plainEntries(because)
     else {
       const category = categoryOfRow(spec)
       const preview = category ? previews.get(category.id) : undefined
@@ -636,7 +644,9 @@ export function VodShowcaseScreen({
             ? t('showcase.eyebrow.top10', { rank: String((heroItem ? rankById.get(heroItem.id) : undefined) ?? '–') })
             : heroRowKey === 'tip'
               ? t('showcase.eyebrow.tip')
-              : t(copy.eyebrow)
+              : heroRowKey === 'because'
+                ? t('showcase.eyebrow.because', { title: becauseRow?.seed.name ?? '' })
+                : t(copy.eyebrow)
 
   function renderHero(): ReactNode {
     // Sem nada a mostrar (ex.: foco num slot antes de qualquer item), a hero segue ocupando o lugar: se ela aparecesse e

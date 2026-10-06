@@ -8,7 +8,6 @@ import { defineArea } from './area'
 export const comingSoon = defineArea(
   {
     'comingSoon.pair-phone': 'Conectar a lista pelo celular, com QR code.',
-    'comingSoon.home-trailer': 'Trailer do filme ou da série.',
     'comingSoon.home-ai-curation': 'Sugestões de conteúdo por IA, com base no que você assiste.',
     'comingSoon.dock-ai': 'Assistente de IA para perguntas sobre o catálogo.',
     'comingSoon.dock-weather': 'Previsão do tempo no dock de serviços.',
@@ -18,11 +17,9 @@ export const comingSoon = defineArea(
     'comingSoon.a11y-voice-guide': 'Narração de tela (Voice Guide).',
     'comingSoon.a11y-high-contrast': 'Modo de alto contraste.',
     'comingSoon.a11y-subtitles': 'Aparência das legendas.',
-    'comingSoon.vod-because': 'Sugestões parecidas com o que você assistiu.',
   },
   {
     'comingSoon.pair-phone': 'Connect the list from your phone, with a QR code.',
-    'comingSoon.home-trailer': 'Trailer of the movie or series.',
     'comingSoon.home-ai-curation': 'AI content suggestions based on what you watch.',
     'comingSoon.dock-ai': 'AI assistant for questions about the catalog.',
     'comingSoon.dock-weather': 'Weather forecast in the services dock.',
@@ -32,11 +29,9 @@ export const comingSoon = defineArea(
     'comingSoon.a11y-voice-guide': 'Screen narration (Voice Guide).',
     'comingSoon.a11y-high-contrast': 'High contrast mode.',
     'comingSoon.a11y-subtitles': 'Subtitle appearance.',
-    'comingSoon.vod-because': 'Suggestions similar to what you watched.',
   },
   {
     'comingSoon.pair-phone': 'Conectar la lista desde el móvil, con un código QR.',
-    'comingSoon.home-trailer': 'Tráiler de la película o la serie.',
     'comingSoon.home-ai-curation': 'Sugerencias de contenido con IA, según lo que ves.',
     'comingSoon.dock-ai': 'Asistente de IA para preguntas sobre el catálogo.',
     'comingSoon.dock-weather': 'Previsión del tiempo en el dock de servicios.',
@@ -46,6 +41,5 @@ export const comingSoon = defineArea(
     'comingSoon.a11y-voice-guide': 'Narración de pantalla (Voice Guide).',
     'comingSoon.a11y-high-contrast': 'Modo de alto contraste.',
     'comingSoon.a11y-subtitles': 'Apariencia de los subtítulos.',
-    'comingSoon.vod-because': 'Sugerencias parecidas a lo que has visto.',
   },
 )
