@@ -30,7 +30,6 @@ describe('getComingSoon', () => {
       'a11y-subtitles',
       'a11y-voice-guide',
       'dock-ai',
-      'dock-speedtest',
       'dock-weather',
       'home-ai-curation',
       'pair-phone',

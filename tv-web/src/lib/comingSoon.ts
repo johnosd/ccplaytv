@@ -26,7 +26,6 @@ export const COMING_SOON: Record<string, ComingSoonEntry> = {
   'home-ai-curation': { message: 'Sugestões de conteúdo por IA, com base no que você assiste.', backlogItem: 30 },
   'dock-ai': { message: 'Assistente de IA para perguntas sobre o catálogo.', backlogItem: 31 },
   'dock-weather': { message: 'Previsão do tempo no dock de serviços.', backlogItem: 54 },
-  'dock-speedtest': { message: 'Teste de velocidade da sua conexão.', backlogItem: 54 },
   // Busca global (feature 026, FR-043).
   'voice-search': { message: 'Busca por voz.', backlogItem: 33 },
   // Configurações (feature 026, FR-031). `settings-integrations` deixou de ser

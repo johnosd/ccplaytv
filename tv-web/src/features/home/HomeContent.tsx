@@ -29,7 +29,9 @@ import { useRemoteNav } from '../../lib/useRemoteNav'
 import { useIdFocus } from '../../lib/focus/useIdFocus'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { useToast } from '../../lib/useToast'
-import { useT } from '../../lib/i18n/I18nProvider'
+import { useLanguage, useT } from '../../lib/i18n/I18nProvider'
+import { APP_LANGUAGE_LOCALE } from '../../lib/i18n/languages'
+import { useLastSpeedTest } from '../../lib/network/useLastSpeedTest'
 import { Toast } from '../../components/Toast'
 import { useAnnounce } from '../../lib/announcer'
 import { comingSoonToast } from '../../lib/comingSoon'
@@ -90,7 +92,7 @@ export interface HomeContentProps {
   /** "Ver todos (N)"/"Filmes (N)"/"Séries (N)" (FR-014). */
   onOpenFavorites: (destination: TopDestination, from: HomeFocus) => void
   /**
-   * Ícone "TMDB" do dock (feature 032, FR-016): leva a Configurações › Integrações
+   * Ícones TMDB/conexão do dock: levam a Configurações › Integrações
    * & BYOK. Opcional só porque os contratos travados da 026 montam o Início sem
    * ele; ausente, o ícone volta a só anunciar o estado.
    */
@@ -164,14 +166,14 @@ interface DockIconDef {
   labelKey?: MessageKey
 }
 
-/** Único ícone do dock que já é real (feature 032); o id não é mais um mock registrado em `comingSoon.ts`. */
+/** Serviços locais reais no dock; IA/clima permanecem placeholders. */
 const TMDB_DOCK_ID = 'dock-tmdb'
 
 const DOCK_ICONS: DockIconDef[] = [
   { id: TMDB_DOCK_ID, icon: 'info' },
   { id: 'dock-ai', icon: 'device', labelKey: 'settings.integrations.soon.dock-ai' },
   { id: 'dock-weather', icon: 'live', labelKey: 'settings.integrations.soon.dock-weather' },
-  { id: 'dock-speedtest', icon: 'quality', labelKey: 'settings.integrations.soon.dock-speedtest' },
+  { id: 'dock-speedtest', icon: 'quality', labelKey: 'settings.speed.title' },
 ]
 
 type HeroEntry = BillboardAction
@@ -250,6 +252,13 @@ export function HomeContent({
   // Estado do TMDB no dock (feature 032): lê só o IndexedDB, nunca a rede — seguro ao focar.
   const tmdbStatusQuery = useTmdbStatus()
   const tmdbState = tmdbStatusQuery.data?.state ?? 'not_configured'
+  const lastSpeedTest = useLastSpeedTest()
+  const language = useLanguage()
+  const speedResult = lastSpeedTest.data
+  const speedLabel = lastSpeedTest.isError ? t('home.speedTest.unavailable') : speedResult ? t('home.speedTest.saved', {
+    speed: speedResult.downloadMbps === null ? t('settings.speed.unavailable') : `${new Intl.NumberFormat(APP_LANGUAGE_LOCALE[language], { maximumFractionDigits: 1 }).format(speedResult.downloadMbps)} Mbps`,
+    date: new Intl.DateTimeFormat(APP_LANGUAGE_LOCALE[language], { dateStyle: 'short', timeStyle: 'short' }).format(speedResult.measuredAt),
+  }) : t('home.speedTest.empty')
 
   const heroItem = hero.kind !== 'welcome' ? hero.item : null
   const heroStableId = heroItem ? stableIdOf(heroItem) : null
@@ -481,6 +490,11 @@ export function HomeContent({
     }
     if (effectiveLine === 'dock') {
       const icon = DOCK_ICONS[dockFocus.index]
+      if (icon.id === 'dock-speedtest') {
+        if (onOpenIntegrations) onOpenIntegrations({ zone: 'dock', service: icon.id })
+        else announce(speedLabel)
+        return
+      }
       if (!icon) return
       if (icon.id === TMDB_DOCK_ID) {
         // Real desde a feature 032: leva ao card do TMDB (sem o callback, só diz o estado).
@@ -604,6 +618,15 @@ export function HomeContent({
     <div className="home-dock" role="group" aria-label={t('home.dock.label')}>
       {DOCK_ICONS.map((iconDef, index) => {
         const focused = active && effectiveLine === 'dock' && index === dockFocus.index
+        if (iconDef.id === 'dock-speedtest') {
+          return (
+            <button key={iconDef.id} type="button" data-service="speedtest"
+              className={`home-dock-icon${focused ? ' tv-focus' : ''}`}
+              aria-label={speedLabel} title={speedLabel}>
+              <Icon name={iconDef.icon} />
+            </button>
+          )
+        }
         if (iconDef.id === TMDB_DOCK_ID) {
           // Real (feature 032, FR-016): o estado vai no nome acessível e num
           // marcador (`data-state`) — nunca só por cor.
@@ -634,6 +657,8 @@ export function HomeContent({
           </button>
         )
       })}
+      {active && effectiveLine === 'dock' && DOCK_ICONS[dockFocus.index].id === 'dock-speedtest' &&
+        <span className="home-dock-summary">{speedLabel}</span>}
     </div>
   )
 

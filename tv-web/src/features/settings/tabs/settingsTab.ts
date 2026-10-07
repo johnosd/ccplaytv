@@ -15,7 +15,7 @@ export type SettingsFocus =
   | { zone: 'tabs'; tab: SettingsTab }
   | { zone: 'sources'; sourceId: string; action: 'edit' | 'resync' | 'delete' | 'epg' }
   | { zone: 'sources-add' }
-  | { zone: 'panel'; tab: SettingsTab }
+  | { zone: 'panel'; tab: SettingsTab; service?: 'speedtest' }
 
 export type SettingsDirection = 'up' | 'down' | 'left' | 'right'
 

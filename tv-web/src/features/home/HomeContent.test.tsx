@@ -625,11 +625,11 @@ describe('HomeContent — ícone TMDB do dock (feature 032, FR-016)', () => {
     expect(await announced()).toContain('TMDB — não configurado')
   })
 
-  it('os outros três ícones continuam "Em breve" e soft disabled', async () => {
+  it('IA e clima continuam "Em breve" e soft disabled', async () => {
     await seedSource()
     renderHome()
     await screen.findByRole('group', { name: 'Serviços' })
-    for (const name of ['Assistente de IA', 'Clima', 'Teste de velocidade']) {
+    for (const name of ['Assistente de IA', 'Clima']) {
       expect(screen.getByRole('button', { name })).toHaveAttribute('aria-disabled', 'true')
     }
   })

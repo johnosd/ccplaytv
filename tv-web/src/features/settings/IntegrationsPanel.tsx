@@ -10,6 +10,7 @@ import {
   TMDB_STATE_CODE,
   TMDB_STATE_LABEL_KEY,
   tmdbActions,
+  SPEED_TEST_ROW,
 } from './integrationsModel'
 
 export interface IntegrationsPanelProps {
@@ -22,6 +23,8 @@ export interface IntegrationsPanelProps {
   /** "Testar" em andamento — a ação ignora novo OK e sinaliza `aria-busy`. */
   testing: boolean
   onActivate: (row: number, col: number) => void
+  lastSpeedTest?: number
+  speedTestReadFailed?: boolean
 }
 
 function formatWhen(epochMs: number, locale: string): string {
@@ -31,11 +34,11 @@ function formatWhen(epochMs: number, locale: string): string {
 /**
  * Integrações & BYOK (feature 032, US2, `logic/integracoes-e-dock.md` §1):
  * card real do TMDB (estado, chave só mascarada, capacidades, atribuição e as
- * ações) + cards "Em breve" para IA, Clima e Teste de velocidade. Foco por
+ * ações), diagnóstico de conexão real e cards "Em breve" para IA e Clima. Foco por
  * estado (ADR-009), como `AccessibilityPanel`: sempre há um elemento
  * focável, em qualquer estado.
  */
-export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onActivate }: IntegrationsPanelProps): ReactNode {
+export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onActivate, lastSpeedTest, speedTestReadFailed }: IntegrationsPanelProps): ReactNode {
   const t = useT()
   const language = useLanguage()
   const view: TmdbStatusView = status ?? { state: 'not_configured' }
@@ -100,6 +103,16 @@ export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onA
           <ComingSoon id={card.id} focused={focusedRow === index + 1} />
         </section>
       ))}
+      <section className="integration-card" data-service="speedtest" aria-label={t('settings.speed.title')}>
+        <h2 className="integration-card-title">{t('settings.speed.title')}</h2>
+        <p className="integration-card-description">{t('settings.speed.destination')}</p>
+        <p className="integration-card-description">{t('settings.speed.description')}</p>
+        <p className="integration-card-description">{lastSpeedTest !== undefined
+          ? `${t('settings.speed.last')} · ${formatWhen(lastSpeedTest, APP_LANGUAGE_LOCALE[language])}`
+          : t('settings.speed.empty')}</p>
+        {speedTestReadFailed && <p className="integration-card-description">{t('settings.speed.storage')}</p>}
+        <Button variant="accent" focused={focusedRow === SPEED_TEST_ROW} onSelect={() => onActivate(SPEED_TEST_ROW, 0)}>{t('settings.speed.open')}</Button>
+      </section>
     </div>
   )
 }

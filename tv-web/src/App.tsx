@@ -379,7 +379,7 @@ function App() {
           onOpenIntegrations={(from) =>
             dispatch({
               type: 'open',
-              screen: { name: 'settings', restore: { zone: 'panel', tab: 'integrations' } },
+              screen: { name: 'settings', restore: { zone: 'panel', tab: 'integrations', service: from.zone === 'dock' && from.service === 'dock-speedtest' ? 'speedtest' : undefined } },
               from: { name: 'home', focus: from },
             })
           }

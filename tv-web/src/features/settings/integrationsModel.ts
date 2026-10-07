@@ -20,11 +20,11 @@ export function tmdbActions(status: TmdbStatusView | undefined): TmdbAction[] {
 export const INTEGRATION_SOON_CARDS = [
   { id: 'dock-ai', titleKey: 'settings.integrations.soon.dock-ai' },
   { id: 'dock-weather', titleKey: 'settings.integrations.soon.dock-weather' },
-  { id: 'dock-speedtest', titleKey: 'settings.integrations.soon.dock-speedtest' },
 ] as const satisfies readonly { id: string; titleKey: MessageKey }[]
 
 /** Linha 0 = card do TMDB; as demais, os cards "Em breve". */
-export const INTEGRATIONS_ROW_COUNT = 1 + INTEGRATION_SOON_CARDS.length
+export const SPEED_TEST_ROW = 1 + INTEGRATION_SOON_CARDS.length
+export const INTEGRATIONS_ROW_COUNT = SPEED_TEST_ROW + 1
 
 /** Rótulo do estado no card (`logic/chave-tmdb.md` §7). */
 export const TMDB_STATE_LABEL_KEY: Record<TmdbState, MessageKey> = {

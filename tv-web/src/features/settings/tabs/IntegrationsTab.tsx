@@ -1,4 +1,5 @@
-import { useImperativeHandle, useState } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { clamp } from '../../../lib/useRemoteNav'
 import { comingSoonToast } from '../../../lib/comingSoon'
@@ -6,15 +7,29 @@ import { useT } from '../../../lib/i18n/I18nProvider'
 import { useRemoveTmdbKey, useTestTmdbKey, useTmdbStatus } from '../../catalog/catalogApi'
 import { IntegrationsPanel } from '../IntegrationsPanel'
 import { RemoveTmdbKeyModal } from '../RemoveTmdbKeyModal'
-import { INTEGRATION_SOON_CARDS, INTEGRATIONS_ROW_COUNT, TMDB_STATE_LABEL_KEY, tmdbActions } from '../integrationsModel'
+import { INTEGRATION_SOON_CARDS, INTEGRATIONS_ROW_COUNT, SPEED_TEST_ROW, TMDB_STATE_LABEL_KEY, tmdbActions } from '../integrationsModel'
+import { useSpeedTest } from '../useSpeedTest'
+import { SpeedTestDialog } from '../SpeedTestDialog'
+import { LAST_SPEED_TEST_QUERY_KEY, useLastSpeedTest } from '../../../lib/network/useLastSpeedTest'
 import type { SettingsTabProps } from './settingsTab'
 
-/** Integrações & BYOK (feature 032): linha 0 = card do TMDB (colunas = ações), demais = "Em breve". */
-export function IntegrationsTab({ focused, navigation, exitToTabs, goToTopbar, showToast, handleRef }: SettingsTabProps): ReactNode {
+/** Linha 0 = ações TMDB; IA/clima placeholders; diagnóstico de conexão na última linha. */
+export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs, goToTopbar, showToast, handleRef }: SettingsTabProps): ReactNode {
   const t = useT()
-  const [row, setRow] = useState(0)
+  const [row, setRow] = useState(initialFocus?.zone === 'panel' && initialFocus.service === 'speedtest' ? SPEED_TEST_ROW : 0)
   const [col, setCol] = useState(0)
   const [confirmRemove, setConfirmRemove] = useState(false)
+  const [speedDialog, setSpeedDialog] = useState(false)
+  const queryClient = useQueryClient()
+  const lastSpeedTest = useLastSpeedTest()
+  const onSaved = useCallback(() => { void queryClient.invalidateQueries({ queryKey: LAST_SPEED_TEST_QUERY_KEY }) }, [queryClient])
+  const speedTest = useSpeedTest({ onSaved })
+  async function closeSpeedDialog() { await speedTest.cancel(); setSpeedDialog(false) }
+  useEffect(() => {
+    if (focused && !speedDialog && !confirmRemove) {
+      document.querySelector('.integrations-panel .tv-focus')?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [focused, row, speedDialog, confirmRemove])
   const tmdbStatusQuery = useTmdbStatus()
   const testTmdbKey = useTestTmdbKey()
   const removeTmdbKey = useRemoveTmdbKey()
@@ -25,6 +40,7 @@ export function IntegrationsTab({ focused, navigation, exitToTabs, goToTopbar, s
   function activate(targetRow: number, targetCol: number) {
     setRow(targetRow)
     setCol(targetCol)
+    if (targetRow === SPEED_TEST_ROW) { setSpeedDialog(true); return }
     if (targetRow > 0) {
       showToast(comingSoonToast(INTEGRATION_SOON_CARDS[targetRow - 1].id, t))
       return
@@ -87,12 +103,15 @@ export function IntegrationsTab({ focused, navigation, exitToTabs, goToTopbar, s
     <>
       <IntegrationsPanel
         status={tmdbStatusQuery.data}
-        focusedRow={focused ? row : undefined}
+        focusedRow={focused && !speedDialog && !confirmRemove ? row : undefined}
         focusedCol={effectiveCol}
         testing={testTmdbKey.isPending}
         onActivate={activate}
+        lastSpeedTest={lastSpeedTest.data?.measuredAt}
+        speedTestReadFailed={speedTest.storageUnavailable || lastSpeedTest.isError}
       />
       {confirmRemove && <RemoveTmdbKeyModal onCancel={() => setConfirmRemove(false)} onConfirm={confirmRemoval} />}
+      {speedDialog && <SpeedTestDialog {...speedTest} onStart={() => { void speedTest.start() }} onClose={() => { void closeSpeedDialog() }} />}
     </>
   )
 }

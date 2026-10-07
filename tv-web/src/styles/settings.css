@@ -224,6 +224,46 @@
 }
 
 /* Integrações & BYOK (feature 032, `logic/integracoes-e-dock.md` §1). */
+.speed-test-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.speed-test-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+}
+
+.speed-test-metrics > div {
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.speed-test-metrics dt {
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.speed-test-metrics dd {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+}
+
+.speed-test-result {
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.speed-test-status {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
 .integrations-panel {
   display: flex;
   flex-direction: column;

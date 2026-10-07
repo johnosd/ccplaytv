@@ -4,6 +4,7 @@ import type { PlaybackHeaders } from './m3uHeaders'
 import type { ArchiveVariant } from './archiveUrl'
 import type { AppLanguage } from '../i18n/languages'
 import type { DiscoveryTitle } from '../metadata/tmdbDiscovery'
+import type { NetworkDiagnosticRecord } from '../network/speedTestRepository'
 
 /**
  * Armazenamento local do aparelho — a fonte de verdade das telas depois da
@@ -679,6 +680,7 @@ export class CatalogDb extends Dexie {
   categoryBlocks!: EntityTable<CategoryBlockRecord, 'categoryId'>
   sectionStaging!: EntityTable<SectionStagingRecord, 'id'>
   discoveryCache!: EntityTable<DiscoveryCacheRecord, 'id'>
+  networkDiagnostics!: EntityTable<NetworkDiagnosticRecord, 'id'>
 
   constructor(name: string = DB_NAME) {
     // Feature 038 (R0-3): o Chrome grava em modo "relaxed" por padrão desde a
@@ -830,6 +832,8 @@ export class CatalogDb extends Dexie {
     this.version(16).stores({
       discoveryCache: 'id',
     })
+    // Feature 062: último diagnóstico por aparelho, independente de lista/chave.
+    this.version(17).stores({ networkDiagnostics: 'id' })
     // Toda escrita em `categoryBlocks`, por qualquer caminho, esvazia o cache
     // de blocos lidos (`blockMemo.ts`) — sem depender de cada função lembrar.
     this.use({

@@ -16,8 +16,8 @@ item novo recebe o próximo número livre (**hoje: 73**; o 67 foi entregue pela 
 (`55a`, `62b`). Todo item assume o dado no aparelho (ADR-008): chamadas externas
 só a APIs de terceiro com a chave do próprio usuário (BYOK); `api/` é contorno
 congelado. Quem entrega um item apaga o mock correspondente de `comingSoon.ts`
-na mesma feature (hoje restam **10**, conferido em `comingSoon.ts` em 06/10/2026; a `057` retirou `vod-top10-movies` e `vod-top10-series`, a `060` retirou `vod-because` e `home-trailer`). Dexie hoje é **v16** (a `057` acrescentou `discoveryCache`); a próxima livre é
-**v17** (reservar na spec). Itens de categoria vivem em blocos: ler/gravar só
+na mesma feature (hoje restam **9**, conferido em `comingSoon.ts` em 06/10/2026; a `057` retirou `vod-top10-movies` e `vod-top10-series`, a `060` retirou `vod-because` e `home-trailer`, a `062` substituiu `dock-speedtest` por diagnóstico real, com gate físico pendente). Dexie hoje é **v17** (a `062` acrescentou `networkDiagnostics`); a próxima livre é
+**v18** (reservar na spec). Itens de categoria vivem em blocos: ler/gravar só
 por `catalogRepository.ts`, nunca `db.channels`.
 
 Estados: `Pronto` (vai para `sdd-specify`, pelo pacote), `Bloqueado` (dependência dura
@@ -28,8 +28,8 @@ medição), `Bugfix` (segue em `## Bugs`).
 ### Pacotes para especificar
 
 Cada pacote vira **uma** passada de `sdd-specify` (uma spec, várias user stories). Os
-IDs dos itens continuam estáveis (`comingSoon.ts` aponta para eles); `G3`–`G8` são só
-rótulos de pacote (o G1 — itens 25b e 43 — virou a `058-headers-avplay-catchup`; o G2 foi retirado pelo `sdd-assess` em 06/10/2026) e podem ser reagrupados. Dentro de um pacote, as fatias "A avaliar"
+IDs dos itens continuam estáveis (`comingSoon.ts` aponta para eles); `G5`–`G8` são só
+rótulos de pacote (o G1 — itens 25b e 43 — virou a `058-headers-avplay-catchup`; G3 foi reduzido ao item 54 e especificado na `062-teste-conexao-tv`; G2 e G4 foram retirados pelo `sdd-assess` em 06/10/2026) e podem ser reagrupados. Dentro de um pacote, as fatias "A avaliar"
 só entram na spec depois do `sdd-assess`/medição — o resto sai sem esperar por elas.
 
 **Dificuldade** (para escolher o modelo no `sdd-plan`; vale a mais alta do pacote que você vai
@@ -40,31 +40,6 @@ API de plataforma incerta ou arquitetura nova (vale o modelo mais caro **para pl
 execução das tasks já definidas pode voltar ao modelo padrão). Estimativa de 04/10/2026, a
 rever no `sdd-specify`.
 
-- **G3 — Início, descoberta e dock**
-  - Ordem: 3
-  - Tipo: feature
-  - Dificuldade: **Média** — 72 é Média (dado novo do TMDB); 31 (function-calling restrito, BYOK) é Alta e pesa só se entrar
-  - Estado: 69 e 32 absorvidos pela `060-home-vitrine-expandida` (`Convergida` em 06/10/2026); 72 implementado pela `061-classificacao-nota-tmdb` (`Convergida` em 06/10/2026); 30 Bloqueado; 31 e 54 aguardam decisão de escopo
-  - Itens:
-    - ~~**69**~~ — "Porque você assistiu X" em Filmes e Séries → na `060` (também no Início). Remove `vod-because`.
-    - ~~**32**~~ — Trailer no herói do Início → na `060`. Remove `home-trailer`.
-    - ~~**72**~~ — Classificação indicativa e nota TMDB → na `061` (billboard, card expandido do Início e hero do detalhe; país pelo idioma do app).
-    - **30** [Média] *(Bloqueado)* — Recomendações + Curadoria IA na Home: sementes reais de favoritos e histórico, candidatos TMDB cruzados com o catálogo local (reusar `resolveTmdbTitles`), justificativa compatível com o método; sem sinais, estado vazio orientativo. **Crítica:** Dica TMDB (`057`) e o 69 já cobrem boa parte; só vale se sobrar lacuna depois deles. Remove `home-ai-curation`.
-    - **31** [Alta] *(escopo a decidir)* — "Descobrir com IA" (BYOK OpenAI): chat que só consulta o catálogo real por function-calling restrito. Depende do 30. Remove `dock-ai`.
-    - **54** [Média] *(A avaliar)* — Dock: clima e teste de velocidade (o teste tem valor de diagnóstico para stream travando). Remove `dock-weather`, `dock-speedtest`.
-  - Depende de: 033 ✅, 035 ✅, 053 ✅, 057 ✅, 032 ✅, 19 ✅
-  - Remove mocks: `vod-because` e `home-trailer` já removidos pela `060` (se entrarem: `home-ai-curation`, `dock-ai`, `dock-weather`, `dock-speedtest`)
-  - Fonte: `053` US4; `033` R-010; RF-017; ADR-005 §6; ADR-001 §4; V14 §20/§21/§23
-- **G4 — Acessibilidade de sistema (item 56)**
-  - Ordem: 4
-  - Tipo: feature
-  - Dificuldade: **Alta** — três frentes com API do Tizen incerta (caption da TV), tokens de alto contraste e prévia real
-  - Estado: Pronto
-  - Itens:
-    - **56** [Alta] — Aparência de legenda (tamanho, cor, fundo, contorno, sincronização) com prévia real, respeitando as preferências de caption da TV se o Tizen expuser; alto contraste como variação de tokens; Voice Guide com anúncios configuráveis sobre a região `aria-live`.
-  - Depende de: 55a ✅; 55b ✅; 63 ✅
-  - Remove mocks: `a11y-subtitles`, `a11y-high-contrast`, `a11y-voice-guide`
-  - Fonte: V14 §31/§38/§39
 - **G5 — Código saudável: refatoração, guardas e benchmark** (paralelo, sem urgência)
   - Ordem: 5
   - Tipo: refatoração/processo
@@ -117,6 +92,10 @@ rever no `sdd-specify`.
 ### Retirados
 
 Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valor proporcional ao custo de manter:
+
+- **G4 (56)** — Acessibilidade de sistema: aparência de legendas, alto contraste e anúncios configuráveis. `sdd-assess` de 06/10/2026, veredito `kill` ([decisão](../sdd/assessments/g4-acessibilidade-sistema/decision.md)): o usuário não vê necessidade agora; nenhuma barreira atual foi relatada. Retomar com necessidade concreta ou exigência comprovada de publicação. Recursos atuais, requisitos V14 e os três placeholders honestos permanecem; não é entrega nem dispensa de acessibilidade.
+
+- **G3 — 30, 31 e clima (fatia do 54)** — `sdd-assess` de 06/10/2026, veredito `kill` no horizonte atual ([decisão](../sdd/assessments/g3-inicio-descoberta-dock/decision.md)): o usuário não relata lacuna concreta de descoberta após 057/060 e vê utilidade apenas no teste de velocidade. 30 ainda acrescentaria combinação de favoritos/múltiplas sementes; não foi considerado integralmente entregue. Não foi encontrada necessidade técnica para 31 depender de 30; o chat também carece de caso de uso atual. Retomar IA com pedido concreto não atendido; clima com necessidade explícita. `home-ai-curation`, `dock-ai` e `dock-weather` permanecem como placeholders nesta avaliação; 54 conserva o ID e segue somente como teste de conexão.
 
 - **27** — "Gostei": terceiro sinal de preferência ao lado de favorito e histórico, com UI em todo card, estado Dexie e reconciliação. Favoritos + histórico já alimentam recomendações. Spec `043` fica como histórico.
 - **22a** — Importar `.m3u` por USB: pouco uso em TV, e custaria um privilégio de filesystem a justificar na revisão da Samsung. URL e provedor cobrem o caso.
@@ -203,6 +182,7 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 059-detalhe-cinema-filme-serie | Detalhe de filme e de série no layout Cinema do Design System | Convergida | 49/49 tasks | 2026-10-06 |
 | 060-home-vitrine-expandida | Home no layout "Vitrine expandida" do Design System | Convergida | 53/53 tasks | 2026-10-06 |
 | 061-classificacao-nota-tmdb | Classificação indicativa e nota TMDB no Início e no detalhe | Convergida | 46/46 tasks | 2026-10-06 |
+| 062-teste-conexao-tv | Teste de conexão da TV em Configurações | Em Execução | 28/34 tasks | 2026-10-06 |
 
 ## Bugs
 

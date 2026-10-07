@@ -346,7 +346,7 @@ async function run() {
     const tmdbCard = page.getByRole('region', { name: 'TMDB' })
     assert(((await tmdbCard.textContent()) ?? '').includes('Não configurado'), 'card TMDB começa "Não configurado"')
     assert(((await tmdbCard.textContent()) ?? '').includes('não é endossado nem certificado pelo TMDB'), 'a atribuição ao TMDB está no card')
-    for (const title of ['Assistente de IA', 'Clima', 'Teste de velocidade']) {
+    for (const title of ['Assistente de IA', 'Clima']) {
       assert(
         (await page.getByRole('region', { name: title }).getByRole('button').getAttribute('aria-disabled')) === 'true',
         `card "${title}" aparece soft disabled ("Em breve")`,

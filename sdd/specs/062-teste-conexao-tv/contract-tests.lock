@@ -1,0 +1,22 @@
+{
+    "feature":  "062-teste-conexao-tv",
+    "lockedAt":  "2026-10-06 21:35",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/network/speedTest.teste-conexao-tv.contract.test.ts",
+                      "sha256":  "a0b1190145f873515342ea9cd861d29a00cb748c22d03735823c3509e8406852",
+                      "tests":  3
+                  },
+                  {
+                      "path":  "tv-web/src/lib/network/speedTestRepository.teste-conexao-tv.contract.test.ts",
+                      "sha256":  "3890e250ee4f769b3f97a94a0abf2fc9f3a8a48e59fba94c1da654d70e6c4675",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/settings/SpeedTestDialog.teste-conexao-tv.contract.test.tsx",
+                      "sha256":  "e0628332d5d1225bfc7018b040f3f87b83d33162bbcfbfe798ec7046ba4c246f",
+                      "tests":  1
+                  }
+              ]
+}
