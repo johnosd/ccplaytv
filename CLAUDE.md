@@ -103,7 +103,8 @@ npm run dev            # Vite dev server (API CORS expects :5173)
 npm run test           # vitest run — two projects: `dom` (jsdom, *.test.tsx) and `node` (*.test.ts); a .ts test needing DOM goes in TESTES_TS_COM_DOM (vite.config.ts)
 npm run test:e2e       # whole E2E suite, parallel runner (tv-web/e2e/run.mjs); --only a,b / --jobs N / --retry N
 npm run test:e2e:serial # old one-at-a-time chain, to tell a concurrency flake from a real failure
-npm run lint           # oxlint
+npm run lint           # oxlint + the architecture ratchet (scripts/architecture.mjs, see below)
+npm run bench:import   # import benchmark: fictional Xtream/M3U/XMLTV × 1k/10k/100k in the browser (needs `npm run dev`); not part of test:e2e; results versioned in tv-web/bench-results/
 npm run build          # tsc -b && vite build
 npm run build:tizen    # build + sync into CCPlayTv/
 ```
@@ -111,6 +112,17 @@ npm run build:tizen    # build + sync into CCPlayTv/
 Prefer the narrowest command that covers the change (a single
 `uv run pytest tests/test_classifier.py`, a single vitest file) before
 running a whole suite.
+
+`npm run lint` also runs `scripts/architecture.mjs`, a ratchet: a new
+feature→feature, lib→UI, components→features or `lib/catalog`→`lib/player`
+import fails, and so does a production file over 300 lines (or over its
+inherited ceiling). What already existed lives in
+`scripts/architecture-baseline.json`, which only shrinks (`node
+scripts/architecture.mjs --prune`); `--write-baseline` refuses to regenerate
+it, and a new exception means editing that JSON by hand with a justification
+in the commit. In PowerShell, `npm run x -- --flag` loses the `--` (the npm
+shim is a script): call `node scripts/bench/run-import-bench.mjs --flag`
+directly, or use Bash.
 
 Per the constitution's "Fluxo de Desenvolvimento" (`.planning/memory/constitution.md`),
 `npm run test:e2e` (with `npm run dev` already running) is a required gate after

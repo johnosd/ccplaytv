@@ -155,7 +155,7 @@ async function run() {
     assert(cats[0]?.includes('Favoritos') && cats[1]?.includes('Histórico') && cats[2]?.includes('Todos'), `★/↺/Todos primeiro (${cats.slice(0, 5).join(' | ')})`)
     assert(cats.some((text) => text.startsWith('Longo')) && !cats.some((text) => /^filmes\s*\|/i.test(text)), 'categorias sem o prefixo "Filmes |"')
     assert((await page.locator('.topbar').count()) === 1 && (await page.locator('.hint-bar').count()) === 0, 'topbar presente e sem rodapé de dicas (feature 052)')
-    assert((await page.locator('.vod-hero-band button, .vod-hero-band [tabindex]').count()) === 0, 'hero sem elemento focável')
+    assert((await page.locator('.vod-hero-band').count()) === 0, 'vitrine sem hero')
     await shot(page, '01-vitrine-so-categorias')
 
     console.log('=== Categoria "Longo": grade em tela cheia ===')
@@ -194,12 +194,11 @@ async function run() {
     assert(rows1.includes('Adicionados recentemente'), 'itens com data de inclusão formam "Adicionados recentemente"')
     await shot(page, '03-vitrine-com-fileiras')
 
-    console.log('=== Fileira ★ Favoritos: hero, "Ver tudo" e voltar ===')
+    console.log('=== Fileira ★ Favoritos: foco, "Ver tudo" e voltar ===')
     await gotoRow(page, '★ Favoritos')
     console.log('  · favoritos:', (await page.locator('section.vod-row[aria-label="★ Favoritos"] .content-card-title').allTextContents()).join(', '))
-    const heroTitle = ((await page.locator('.vod-hero-title').textContent()) ?? '').trim()
-    assert(heroTitle.includes('Longo'), `hero acompanha o card focado (${heroTitle})`)
-    assert(((await page.locator('.vod-hero-eyebrow').textContent()) ?? '').includes('FAVORITOS'), 'rótulo da hero: ★ SEUS FAVORITOS')
+    assert(((await focusedCardText(page)) ?? '').includes('Longo'), 'card favorito mantém o foco sem hero')
+    assert((await page.locator('.vod-hero-band').count()) === 0, 'favoritos sem faixa de hero')
     await shot(page, '04-vitrine-favoritos')
     await page.keyboard.press('ArrowRight') // Ver tudo
     assert(((await focusedCardText(page)) ?? '').includes('Ver tudo'), 'o cartão final da fileira é "Ver tudo"')

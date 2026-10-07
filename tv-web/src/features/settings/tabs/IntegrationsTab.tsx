@@ -27,9 +27,17 @@ export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs,
   async function closeSpeedDialog() { await speedTest.cancel(); setSpeedDialog(false) }
   useEffect(() => {
     if (focused && !speedDialog && !confirmRemove) {
-      document.querySelector('.integrations-panel .tv-focus')?.scrollIntoView({ block: 'nearest' })
+      const focusedEl = document.querySelector('.integrations-panel .tv-focus')
+      const panel = focusedEl?.closest('.settings-panel')
+      // Última linha (teste de conexão): `scrollIntoView({ block: 'nearest' })` encostava o botão na borda do
+      // painel e o anel de foco saía cortado. Rolar até o fim deixa o respiro do card à vista e é
+      // determinístico (um `scroll-padding` aqui reajustava 1 px a cada foco, por causa do `scale` do foco).
+      if (row === SPEED_TEST_ROW && panel) panel.scrollTop = panel.scrollHeight
+      else focusedEl?.scrollIntoView({ block: 'nearest' })
     }
-  }, [focused, row, speedDialog, confirmRemove])
+    // `lastSpeedTest.data`: o card do teste de conexão cresce quando o último resultado chega do
+    // IndexedDB (a leitura é assíncrona), então o foco precisa ser trazido à vista de novo.
+  }, [focused, row, speedDialog, confirmRemove, lastSpeedTest.data])
   const tmdbStatusQuery = useTmdbStatus()
   const testTmdbKey = useTestTmdbKey()
   const removeTmdbKey = useRemoveTmdbKey()
@@ -107,7 +115,7 @@ export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs,
         focusedCol={effectiveCol}
         testing={testTmdbKey.isPending}
         onActivate={activate}
-        lastSpeedTest={lastSpeedTest.data?.measuredAt}
+        lastSpeedTest={lastSpeedTest.data ?? undefined}
         speedTestReadFailed={speedTest.storageUnavailable || lastSpeedTest.isError}
       />
       {confirmRemove && <RemoveTmdbKeyModal onCancel={() => setConfirmRemove(false)} onConfirm={confirmRemoval} />}

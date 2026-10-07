@@ -4,8 +4,9 @@
  * EMENDADO pela feature 052: a hero deixou de ficar sobre a grade (agora é a hero da VITRINE) e a sidebar deixou de
  * existir; o cromo da toolbar (Ordenar com rótulo+valor, Pesquisar com "OK") vive na tela de categoria.
  *
- * Seletores fixados: `.vod-hero-band` (`.vod-hero-eyebrow`, `.vod-hero-title`, `.vod-hero-art` com `img` só com capa
- * real), `.vod-toolbar-sort-label`, `.vod-toolbar-sort-value`, `.vod-toolbar-search-hint`.
+ * EMENDADO ad-hoc (2026-10-07): hero removido por pedido do usuário; foco permanece nos cards.
+ * Seletores fixados: `.vod-hero-band` (ausente), `.content-card`, `.vod-toolbar-sort-label`,
+ * `.vod-toolbar-sort-value`, `.vod-toolbar-search-hint`.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render } from '@testing-library/react'
@@ -157,7 +158,7 @@ describe('Filmes e Séries — contrato da feature 050 (emendado pela 052)', () 
   })
 
   // US1/AC1+AC2+AC4, FR-001..FR-004, Constitution: Foco Visível e Sem Becos Sem Saída (a hero nunca é focável)
-  it('hero da vitrine: rótulo CCPLAY CINEMA, título do card focado, capa real só quando existe, sem nada focável', () => {
+  it('vitrine sem hero: foco nos cards com e sem capa', () => {
     // Sem histórico nem favoritos, a 1ª fileira com itens é "Adicionados recentemente" (rótulo da seção na hero).
     vi.mocked(catalogApi.useRecentlyAdded).mockReturnValue({ data: [movie('Filme A1', COVER), movie('Filme A2')], isLoading: false })
     render(
@@ -166,19 +167,12 @@ describe('Filmes e Séries — contrato da feature 050 (emendado pela 052)', () 
       ),
     )
     // Sem histórico nem favoritos, a 1ª fileira com itens é "Adicionados recentemente"; o foco inicial cai nela.
-    const hero = document.querySelector('.vod-hero-band')
-    expect(hero).not.toBeNull()
-    expect(text('.vod-hero-eyebrow')).toBe('CCPLAY CINEMA')
-    expect(text('.vod-hero-title')).toBe('Filme A1')
-    expect(hero!.querySelector('.vod-hero-art')).not.toBeNull()
-    expect(hero!.querySelector('.vod-hero-art img')?.getAttribute('src')).toBe(COVER)
-    expect(hero!.querySelectorAll('button, a, input, [tabindex]').length).toBe(0)
-
-    tap('ArrowRight') // 2º card, sem capa
-    expect(text('.vod-hero-title')).toBe('Filme A2')
-    expect(document.querySelector('.vod-hero-art')).not.toBeNull()
-    expect(document.querySelector('.vod-hero-art img')).toBeNull()
-    expect(document.querySelectorAll('.vod-hero-band .tv-focus').length).toBe(0)
+    // Emenda ad-hoc (2026-10-07): hero removido por pedido do usuário; foco nos cards.
+    expect(document.querySelector('.vod-hero-band')).toBeNull()
+    expect(text('.content-card:has(.tv-focus)')).toContain('Filme A1')
+    tap('ArrowRight')
+    expect(text('.content-card:has(.tv-focus)')).toContain('Filme A2')
+    expect(document.querySelectorAll('.vod-showcase .tv-focus')).toHaveLength(1)
   })
 
   // US2/AC1, US3/AC1+AC2, FR-005, FR-006, FR-011

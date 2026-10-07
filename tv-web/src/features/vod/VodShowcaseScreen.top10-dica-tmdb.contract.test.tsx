@@ -230,7 +230,7 @@ describe('VodShowcaseScreen — contrato da feature 057', () => {
   })
 
   // US1/AC1, US1/AC2, US1/AC4..AC7, FR-001, FR-003, FR-012, FR-013, FR-014, FR-020, Constitution: "Progresso e Capacidades São Reais" / "Foco Visível e Sem Becos Sem Saída"
-  it('Em alta esta semana: cards numerados 1, 2, 3 na fileira (a posição real do TMDB vai no destaque), fonte TMDB, aviso de cobertura parcial, OK abre o título; em Séries é o de séries; sem dado a fileira não existe (nem "Em breve") e o foco não se perde', () => {
+  it('Em alta esta semana: cards numerados 1, 2, 3 na fileira, fonte TMDB, aviso de cobertura parcial, OK abre o título; em Séries é o de séries; sem dado a fileira não existe (nem "Em breve") e o foco não se perde', () => {
     mockData('movie', { top10: { data: [pick('movie', 'Filme 1', 1), pick('movie', 'Filme 3', 3), pick('movie', 'Filme 4', 4)], covered: 1, total: 2 } })
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     const calls = renderShowcase('movies')
@@ -252,7 +252,7 @@ describe('VodShowcaseScreen — contrato da feature 057', () => {
     expect(calls.onOpenItem.mock.calls.at(-1)?.[0]).toBe('id-Filme 1')
     tap('ArrowRight')
     expect(document.querySelectorAll('.vod-showcase .tv-focus').length).toBe(1)
-    expect(document.querySelector('.vod-hero-eyebrow')?.textContent).toContain('Nº 3') // o card é o 2º da fileira, mas o 3º do ranking do TMDB
+    expect(document.querySelector('.content-card:has(.tv-focus)')?.textContent).toContain('Filme 3') // Emenda ad-hoc: sem hero; foco no 2º card.
     tap('Enter')
     expect(calls.onOpenItem.mock.calls.at(-1)?.[0]).toBe('id-Filme 3')
     expect(fetchSpy).not.toHaveBeenCalled() // focar/abrir não consulta nada

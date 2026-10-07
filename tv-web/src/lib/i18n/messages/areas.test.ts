@@ -16,11 +16,12 @@ import { pt } from './pt'
 import { settings } from './settings'
 import { shell } from './shell'
 import { sources } from './sources'
+import { speed } from './speed'
 import { vodCategory } from './vodCategory'
 import { vodShowcase } from './vodShowcase'
 
 /** Toda área nova entra aqui E em `pt.ts`/`en.ts`/`es.ts` — o teste de chaves únicas só vê o que está nesta lista. */
-const AREAS = { common, components, comingSoon, detail, errors, home, live, player, playerUi, profiles, settings, shell, sources, vodCategory, vodShowcase }
+const AREAS = { common, components, comingSoon, detail, errors, home, live, player, playerUi, profiles, settings, shell, sources, speed, vodCategory, vodShowcase }
 
 describe('áreas do catálogo (feature 054)', () => {
   it('nenhuma chave se repete entre áreas (o spread esconderia a sobrescrita) e nenhuma área ficou de fora do catálogo', () => {

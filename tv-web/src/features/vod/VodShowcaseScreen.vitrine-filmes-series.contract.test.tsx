@@ -8,7 +8,7 @@
  *   "Continue assistindo", "★ Favoritos", "Adicionados recentemente", "Categorias").
  * - `.content-card` (item), `.vod-category-card` (cartão de categoria, texto = nome + contagem) e
  *   `.vod-see-all-card` (cartão "Ver tudo"): os três tipos de cartão; o focado contém um elemento `.tv-focus`.
- * - `.vod-hero-band`: a hero (não focável), como na 050.
+ * - `.vod-hero-band`: ausente desde a remoção ad-hoc de 2026-10-07.
  * Teclas: ← → andam na fileira, ↑ ↓ trocam de fileira, Enter seleciona (como a Home).
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -226,11 +226,8 @@ describe('VodShowcaseScreen — contrato da feature 052', () => {
     renderShowcase()
 
     expect(categoryLabels().map((text) => ['Favoritos', 'Histórico', 'Todos', 'Ação', 'Drama'].findIndex((n) => text.includes(n)))).toEqual([0, 1, 2, 3, 4])
-    // A hero existe, acompanha o foco (1º card de "Continue assistindo") e não tem nada focável.
-    const hero = document.querySelector('.vod-hero-band')
-    expect(hero).not.toBeNull()
-    expect(hero!.textContent).toContain('H1')
-    expect(hero!.querySelectorAll('button, a, input, [tabindex]').length).toBe(0)
+    // Emenda ad-hoc (2026-10-07): hero removido por pedido do usuário.
+    expect(document.querySelector('.vod-hero-band')).toBeNull()
     expect(document.querySelectorAll('.vod-showcase .tv-focus').length).toBe(1)
     expect(focusedCardText()).toContain('H1')
     // Só as fileiras de itens com dado entram (+ as categorias, emenda 053). Emenda 060 (2026-10-05, autorizada pelo

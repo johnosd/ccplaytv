@@ -166,6 +166,15 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   motivo e as ações "Editar lista", "Verificar de novo" e "Voltar" (a consulta
   ao painel é uma por dia, com limite de 5 s, e uma falha de rede sozinha nunca
   impede a lista). M3U avulsa e "Modo limitado" não têm conta (feature 034).
+- **Teste de conexão:** em Configurações › Integrações & BYOK, "Iniciar teste"
+  mede download, upload, latência HTTP e jitter até a Cloudflare, em sequência,
+  com teto de 60 s / 150 MB (30 s / 75 MB por etapa). O diálogo e o card mostram
+  o último resultado guardado no aparelho, sem medir ao consultar; resultados
+  antigos identificam o upload como "Não medido neste teste". O envio contém
+  só bytes gerados pelo app. Cancelar/RETURN preservam o resultado anterior.
+  Mede a rota até a Cloudflare, sem diagnosticar travamentos ou garantir
+  reprodução IPTV (features 062/064). Fluxo validado no navegador; o upload
+  no app empacotado ainda não foi validado na TV física (recomendação, sem gate).
 - **Rede, retomada e erros com código:** se o stream cai depois de tocar, o
   app reconecta sozinho até 3 vezes (filme e episódio retomam da posição em
   que estavam; canal reabre) e só então mostra o erro; um canal que nunca tocou

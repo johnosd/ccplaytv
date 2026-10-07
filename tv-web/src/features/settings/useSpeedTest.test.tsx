@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createActivityGate } from '../../lib/catalog/prefetch/activityGate'
 import type { SpeedTestOptions, SpeedTestOutcome, SpeedTestResult } from '../../lib/network/speedTest'
 import { useSpeedTest } from './useSpeedTest'
+import type { SpeedTestRepositoryOptions } from '../../lib/network/speedTestRepository'
 
 const measured: SpeedTestResult = {
   version: 1, destination: 'cloudflare', measuredAt: 1_800_000_000_000, downloadMbps: 30, latencyMs: 20, jitterMs: 2,
@@ -16,6 +17,31 @@ function deferred<T>() {
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('useSpeedTest — lifecycle e compromisso', () => {
+  it('expõe código de leitura/escrita, conserva medição e limpa código após sucesso', async () => {
+    const read = vi.fn(async (options?: SpeedTestRepositoryOptions) => {
+      options?.onUnavailable?.('NET-R-TABLE')
+      throw new Error('storage_unavailable')
+    })
+    let unavailable = true
+    const save = vi.fn(async (_outcome: SpeedTestOutcome, options?: SpeedTestRepositoryOptions) => {
+      if (unavailable) { options?.onUnavailable?.('NET-W-QUOTA'); return 'unavailable' as const }
+      return 'written' as const
+    })
+    const run = vi.fn(async () => ({ state: 'completed', result: measured } as const))
+    const gate = createActivityGate()
+    const { result } = renderHook(() => useSpeedTest({ read, save, run, gate }))
+    await waitFor(() => expect(result.current.storageCode).toBe('NET-R-TABLE'))
+    await act(async () => { await result.current.start() })
+    expect(result.current.storageCode).toBe('NET-W-QUOTA')
+    expect(result.current.storageUnavailable).toBe(true)
+    expect(result.current.result).toEqual(measured)
+    unavailable = false
+    await act(async () => { await result.current.start() })
+    expect(result.current.lastResult).toEqual(measured)
+    expect(result.current.storageCode).toBeUndefined()
+    expect(result.current.storageUnavailable).toBe(false)
+  })
+
   it('fechar após iniciar compromisso aguarda escrita e atualiza último resultado sem reabrir', async () => {
     const writing = deferred<'written' | 'unavailable'>()
     const run = vi.fn(async () => ({ state: 'completed', result: measured } as const))

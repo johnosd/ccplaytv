@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { defaultRangeExtractor, useVirtualizer, type Range } from '@tanstack/react-virtual'
 import {
   groupLabel,
-  stableIdOf,
   useCategoryFocusPrefetch,
   useCategoryList,
   useCachedBackdrops,
@@ -13,16 +12,12 @@ import {
   useRecentlyAdded,
   useTopRated,
   useWeeklyTop10,
-  useResumePositions,
-  useSeriesWatchedSummary,
-  useWatchedIds,
   type CatalogCategory,
   type CatalogItemOut,
 } from '../catalog/catalogApi'
 import { prioritizeCategory, usePrefetchHint } from '../catalog/prefetchApi'
 import { useBecauseYouWatched } from '../catalog/becauseApi'
 import { knownCategoryCount } from '../catalog/categoryCount'
-import { formatTime } from '../../lib/player/formatTime'
 import { useRemoteNav } from '../../lib/useRemoteNav'
 import { useIdFocus } from '../../lib/focus/useIdFocus'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
@@ -46,7 +41,6 @@ import { Spinner } from '../../components/Spinner'
 import { AppShell } from '../shell/AppShell'
 import { TopBar } from '../shell/TopBar'
 import type { TopbarItem } from '../../navigation/appNav'
-import { VodHeroArt } from './VodHeroArt'
 import { vodGroupDisplay } from './vodGroupDisplay'
 import type { VodShellProps } from './vodShell'
 import type { VodSection } from './vodSessionMemory'
@@ -91,7 +85,7 @@ const INITIAL_FOCUS_SETTLE_MS = 1200
 /** Cartões fantasma (decorativos) de um slot reservado, contando o cartão focável. */
 const SLOT_CARD_COUNT = 6
 
-/** Chaves do catálogo por seção (feature 054): `vod.<seção>.*` (compartilhadas com a tela de categoria) e o eyebrow. */
+/** Chaves do catálogo por seção (feature 054), compartilhadas com a tela de categoria. */
 const SECTION_COPY: Record<
   VodSection,
   {
@@ -101,7 +95,6 @@ const SECTION_COPY: Record<
     loadError: MessageKey
     emptyTitle: MessageKey
     emptyDescription: MessageKey
-    eyebrow: MessageKey
   }
 > = {
   movies: {
@@ -111,7 +104,6 @@ const SECTION_COPY: Record<
     loadError: 'vod.movies.loadError',
     emptyTitle: 'vod.movies.emptyTitle',
     emptyDescription: 'vod.movies.emptyDescription',
-    eyebrow: 'showcase.eyebrow.movies',
   },
   series: {
     kind: 'series',
@@ -120,7 +112,6 @@ const SECTION_COPY: Record<
     loadError: 'vod.series.loadError',
     emptyTitle: 'vod.series.emptyTitle',
     emptyDescription: 'vod.series.emptyDescription',
-    eyebrow: 'showcase.eyebrow.series',
   },
 }
 
@@ -157,7 +148,7 @@ function scrollFrameClass(edges: OverflowEdges): string {
 }
 
 /**
- * Tela hero de Filmes/Séries (features 052/053): hero do card focado + lista lateral de categorias + fileiras
+ * Vitrine de Filmes/Séries (features 052/053): lista lateral de categorias + fileiras
  * (Continue assistindo, Top 10 da semana (feature 057; TMDB, só com dado), ★ Favoritos, Adicionados recentemente, Bem avaliados
  * (feature 056; só com nota real), Dica (feature 057; TMDB, só com dado), Porque você assistiu (feature 060; TMDB, só com
  * semente e semelhante na lista) e um carrossel por categoria). As fileiras são descritores (`buildShowcaseRows`), o foco é puro
@@ -198,13 +189,6 @@ export function VodShowcaseScreen({
   // na lista. Sem chave TMDB, sem concluído ou sem semelhante na lista a fileira não existe (nem slot "Em breve").
   const becauseRow = useBecauseYouWatched(sourceId, copy.kind)
 
-  // Metadados reais do hero (os mesmos da 050): nada é consultado ao focar, só lido do que já está carregado.
-  const watchedIds = useWatchedIds(sourceId, section === 'movies' ? copy.kind : 'channel').data ?? new Set<string>()
-  const watchedSummary =
-    useSeriesWatchedSummary(section === 'series' ? sourceId : null).data ??
-    new Map<string, { known: number; watched: number; upToDate: boolean }>()
-  const resumePositions = useResumePositions(section === 'movies' ? sourceId : null, 'movie').data ?? new Map<string, number>()
-
   const history = historyQuery.data?.items ?? []
   const favorites = favoritesQuery.data?.items ?? []
   const added = addedQuery.data ?? []
@@ -212,8 +196,6 @@ export function VodShowcaseScreen({
   const top10 = top10Query.data ?? []
   const tip = tipQuery.data ?? []
   const because = becauseRow?.items ?? []
-  // Posição REAL no ranking do TMDB: aparece no destaque do card focado ("Nº 6"); os cards numeram a posição na fileira.
-  const rankById = new Map(top10.map((pick) => [pick.item.id, pick.rank]))
 
   // `wide` (D-006): "Continue assistindo" vira card largo só se TODOS os itens mostrados já têm backdrop guardado.
   const backdrops = useCachedBackdrops(history.slice(0, SHOWCASE_LIMIT))
@@ -526,7 +508,7 @@ export function VodShowcaseScreen({
           iconUrl={entry.item.icon_url ?? undefined}
           focused={focused}
           badge={<RatingBadge value={entry.item.provider_rating} />}
-          // Posição NA FILEIRA (1, 2, 3…, sem buracos); a posição real no ranking do TMDB aparece no destaque (rankById).
+          // Posição na fileira (1, 2, 3…, sem buracos).
           rank={spec.key === 'top10' ? index + 1 : undefined}
         />
       )
@@ -615,69 +597,6 @@ export function VodShowcaseScreen({
         </div>
         {renderRowBody(spec, entriesOf(spec), effective?.rowKey === spec.key, format)}
       </section>
-    )
-  }
-
-  // Hero (D-010): item focado → capa/título/metadados reais; categoria da lista lateral → nome e contagem; "Ver tudo"
-  // e slot mantêm o último item (nunca um placeholder rotulado nem texto inventado).
-  const lastHeroItem = useRef<{ item: CatalogItemOut; row: string } | null>(null)
-  let heroItem: CatalogItemOut | null = null
-  let heroRowKey: string | null = null
-  if (!inSide && focusedEntry?.kind === 'item') {
-    heroItem = focusedEntry.item
-    heroRowKey = effective?.rowKey ?? null
-    lastHeroItem.current = { item: focusedEntry.item, row: heroRowKey ?? '' }
-  } else if (!inSide && focusedEntry && focusedRowSpec) {
-    const rowItems = entriesOf(focusedRowSpec).filter((entry): entry is ItemEntry => entry.kind === 'item')
-    heroItem = rowItems.length > 0 ? rowItems[rowItems.length - 1].item : (lastHeroItem.current?.item ?? null)
-    heroRowKey = rowItems.length > 0 ? focusedRowSpec.key : (lastHeroItem.current?.row ?? null)
-  }
-  const heroCategory = inSide ? focusedSide : null
-  const heroEyebrow =
-    heroCategory !== null && heroCategory !== undefined
-      ? t('showcase.eyebrow.category')
-      : heroRowKey === 'favorites'
-        ? t('showcase.eyebrow.favorites')
-        : heroRowKey === 'continue'
-          ? t('showcase.eyebrow.recent')
-          : heroRowKey === 'top10'
-            ? t('showcase.eyebrow.top10', { rank: String((heroItem ? rankById.get(heroItem.id) : undefined) ?? '–') })
-            : heroRowKey === 'tip'
-              ? t('showcase.eyebrow.tip')
-              : heroRowKey === 'because'
-                ? t('showcase.eyebrow.because', { title: becauseRow?.seed.name ?? '' })
-                : t(copy.eyebrow)
-
-  function renderHero(): ReactNode {
-    // Sem nada a mostrar (ex.: foco num slot antes de qualquer item), a hero segue ocupando o lugar: se ela aparecesse e
-    // sumisse, a área das fileiras mudaria de altura sob o foco e o card focado sairia da vista.
-    if (!heroCategory && heroItem === null) return <div className="vod-hero-band" aria-hidden="true" />
-
-    const stableId = heroItem ? (stableIdOf(heroItem) ?? '') : ''
-    const summary = heroItem?.series_id ? watchedSummary.get(heroItem.series_id) : undefined
-    return (
-      <div className="vod-hero-band" aria-hidden="true">
-        {/* Feature 055 (D-010): série usa o fundo da listagem quando houver; filme segue com a capa. */}
-        <VodHeroArt url={(heroItem?.kind === 'series' ? heroItem.provider_backdrop_url : null) ?? heroItem?.icon_url ?? undefined} />
-        <div className="vod-hero-info">
-          <div className="vod-hero-eyebrow">{heroEyebrow}</div>
-          <div className="vod-hero-title">{heroItem ? heroItem.name : heroCategory?.label}</div>
-          <div className="vod-hero-meta">
-            {heroCategory && heroCategory.count !== undefined && <span>{t('vod.titleCount', { n: heroCategory.count })}</span>}
-            {heroItem && heroItem.year != null && <span>{heroItem.year}</span>}
-            {heroItem && <RatingBadge value={heroItem.provider_rating} showSource />}
-            {heroItem?.kind === 'series' && heroItem.provider_genres && <span>{heroItem.provider_genres}</span>}
-            {heroItem && <span>{vodGroupDisplay(heroItem.original_group, t)}</span>}
-            {heroItem && section === 'movies' && watchedIds.has(stableId) && <span>{t('vod.watched')}</span>}
-            {heroItem && section === 'movies' && !watchedIds.has(stableId) && resumePositions.has(stableId) && (
-              <span>{t('showcase.resumeFrom', { time: formatTime((resumePositions.get(stableId) ?? 0) * 1000) })}</span>
-            )}
-            {heroItem && section === 'series' && summary && summary.known > 0 && (
-              <span>{summary.upToDate ? t('vod.upToDate') : `${summary.watched}/${summary.known}`}</span>
-            )}
-          </div>
-        </div>
-      </div>
     )
   }
 
@@ -774,7 +693,6 @@ export function VodShowcaseScreen({
           </div>
         </div>
         <div className="vod-showcase-main">
-          {renderHero()}
           <div ref={rowsScrollRef} className="vod-showcase-rows no-scrollbar">
             <div className="vod-showcase-rows-inner" style={{ height: virtualizer.getTotalSize() }}>
               {virtualizer.getVirtualItems().map((virtualRow) => renderRow(rows[virtualRow.index], virtualRow.start))}

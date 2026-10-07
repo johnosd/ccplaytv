@@ -180,7 +180,7 @@ describe('VodShowcaseScreen — Bem avaliados (feature 056)', () => {
     expect(coverage?.hasAttribute('tabindex')).toBe(false)
   })
 
-  it('Séries: usa o tipo série; o destaque mostra a nota com "Provedor" e a tela nunca cita IMDb/TMDB nem consulta a rede', () => {
+  it('Séries: usa o tipo série; o card mostra a nota real e a tela nunca cita IMDb/TMDB nem consulta a rede', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     mockData('series', { items: [title('Série A', 'series', 9.2), title('Série B', 'series', 8.1)], covered: 1, total: 1 })
     render(screenOf('series'))
@@ -188,9 +188,9 @@ describe('VodShowcaseScreen — Bem avaliados (feature 056)', () => {
     expect(vi.mocked(catalogApi.useTopRated)).toHaveBeenCalledWith(SOURCE_ID, 'series')
     tap('ArrowDown') // Favoritos → Bem avaliados
     expect(focusedRowLabel()).toBe('Bem avaliados')
-    const meta = document.querySelector('.vod-hero-meta')?.textContent ?? ''
+    const meta = document.querySelector('.content-card:has(.tv-focus) .rating-badge')?.textContent ?? ''
     expect(meta).toContain('★ 9,2')
-    expect(meta).toContain('Provedor')
+    expect(document.querySelector('.vod-hero-band')).toBeNull()
     // O slot "Top 10 … com dados do TMDB" é outro assunto: a nota só pode vir rotulada como do provedor (SC-006).
     const ratedRow = document.querySelector('section.vod-row[aria-label="Bem avaliados"]')?.textContent ?? ''
     expect(`${meta} ${ratedRow}`).not.toMatch(/IMDb|TMDB/)

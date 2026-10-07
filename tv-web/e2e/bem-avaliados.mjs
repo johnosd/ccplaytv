@@ -174,12 +174,13 @@ async function run() {
     assert(coverage === 'Com base em 1 de 2 categorias', `aviso de cobertura parcial: "${coverage}"`)
     assert((await page.locator('.rating-badge.tv-focus').count()) === 0, 'o selo não recebe foco')
 
-    console.log((step = '=== Destaque e foco não consultam a rede ==='))
+    console.log((step = '=== Foco nos cards não consulta a rede ==='))
     const callsBefore = panelCalls.length
     const externalBefore = externalRequests.length
-    for (let i = 0; i < 14 && !/^Filme R01/.test(clean(await text(page, '.vod-hero-title'))); i += 1) await page.keyboard.press('ArrowLeft')
-    const heroMeta = clean(await text(page, '.vod-hero-meta'))
-    assert(/★ 9,4/.test(heroMeta) && /Provedor/.test(heroMeta), `destaque com a origem: "${heroMeta}"`)
+    for (let i = 0; i < 14 && !/^Filme R01/.test(clean(await text(page, '.vod-showcase .content-card:has(.tv-focus) .content-card-title'))); i += 1) await page.keyboard.press('ArrowLeft')
+    const badge = clean(await text(page, '.vod-showcase .content-card:has(.tv-focus) .rating-badge'))
+    assert(/★ 9,4/.test(badge), 'card focado mantém a nota')
+    assert((await page.locator('.vod-hero-band').count()) === 0, 'vitrine sem hero')
     await page.keyboard.press('ArrowRight')
     await page.keyboard.press('ArrowRight')
     assert(panelCalls.length === callsBefore, `mover o foco não consulta o painel (${panelCalls.slice(callsBefore).join(',') || 'nenhuma'})`)

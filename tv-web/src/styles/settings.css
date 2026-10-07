@@ -232,9 +232,14 @@
 
 .speed-test-metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-3);
   margin: var(--space-2) 0;
+}
+
+/* O diálogo é estreito (~640px): as quatro métricas (feature 064) ficam em 2×2 para o rótulo "Latência HTTP" caber. */
+.speed-test-dialog .speed-test-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .speed-test-metrics > div {

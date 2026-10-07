@@ -8,7 +8,7 @@
  * `sdd/specs/026-home-busca-configuracoes-ds-v14/logic/hero-home.md`.
  */
 
-import { isResumable } from '../player/resumePolicy'
+import { isResumable } from './resumePolicy'
 import { findSeriesRecord, listEpisodes, resolveStableIds } from './catalogRepository'
 import { db, type CatalogDb, type CatalogRecord } from './db'
 import { getContinueWatching, getGlobalFavorites, parseStableId, type StableIdParts } from './userStateRepository'

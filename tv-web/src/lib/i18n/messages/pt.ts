@@ -11,6 +11,7 @@ import { profiles } from './profiles'
 import { settings } from './settings'
 import { shell } from './shell'
 import { sources } from './sources'
+import { speed } from './speed'
 import { vodCategory } from './vodCategory'
 import { vodShowcase } from './vodShowcase'
 
@@ -34,6 +35,7 @@ export const pt = {
   ...settings.pt,
   ...shell.pt,
   ...sources.pt,
+  ...speed.pt,
   ...vodCategory.pt,
   ...vodShowcase.pt,
 }

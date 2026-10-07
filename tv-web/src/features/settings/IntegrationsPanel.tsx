@@ -4,6 +4,8 @@ import { ComingSoon } from '../../components/ComingSoon'
 import { useLanguage, useT } from '../../lib/i18n/I18nProvider'
 import { APP_LANGUAGE_LOCALE } from '../../lib/i18n/languages'
 import type { TmdbStatusView } from '../../lib/metadata/types'
+import type { SpeedTestResult } from '../../lib/network/speedTest'
+import { SpeedTestMetrics } from './SpeedTestMetrics'
 import {
   INTEGRATION_SOON_CARDS,
   TMDB_ACTION_LABEL_KEY,
@@ -23,7 +25,8 @@ export interface IntegrationsPanelProps {
   /** "Testar" em andamento — a ação ignora novo OK e sinaliza `aria-busy`. */
   testing: boolean
   onActivate: (row: number, col: number) => void
-  lastSpeedTest?: number
+  /** Último resultado salvo (só leitura do IndexedDB); `undefined` = nenhum teste salvo. */
+  lastSpeedTest?: SpeedTestResult
   speedTestReadFailed?: boolean
 }
 
@@ -107,9 +110,12 @@ export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onA
         <h2 className="integration-card-title">{t('settings.speed.title')}</h2>
         <p className="integration-card-description">{t('settings.speed.destination')}</p>
         <p className="integration-card-description">{t('settings.speed.description')}</p>
-        <p className="integration-card-description">{lastSpeedTest !== undefined
-          ? `${t('settings.speed.last')} · ${formatWhen(lastSpeedTest, APP_LANGUAGE_LOCALE[language])}`
-          : t('settings.speed.empty')}</p>
+        {lastSpeedTest !== undefined
+          ? <>
+            <p className="integration-card-description">{`${t('settings.speed.last')} · ${formatWhen(lastSpeedTest.measuredAt, APP_LANGUAGE_LOCALE[language])}`}</p>
+            <SpeedTestMetrics result={lastSpeedTest} label={t('settings.speed.last')} />
+          </>
+          : <p className="integration-card-description">{t('settings.speed.empty')}</p>}
         {speedTestReadFailed && <p className="integration-card-description">{t('settings.speed.storage')}</p>}
         <Button variant="accent" focused={focusedRow === SPEED_TEST_ROW} onSelect={() => onActivate(SPEED_TEST_ROW, 0)}>{t('settings.speed.open')}</Button>
       </section>

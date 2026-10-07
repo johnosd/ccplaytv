@@ -1,4 +1,4 @@
-// Feature 062: motor real, transporte/relógio controlados; não prova a rede da TV.
+// Features 062 e 064 (upload): motor real, transporte/relógio controlados; não prova a rede da TV.
 import assert from 'node:assert/strict'
 import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
@@ -21,12 +21,25 @@ async function transport(mode) {
     window.fetch = async (input, options) => {
       const url = new URL(String(input), location.href)
       if (url.origin !== 'https://speed.cloudflare.com') return original(input, options)
-      const bytes = Number(url.searchParams.get('bytes'))
+      const upload = url.pathname === '/__up'
+      const bytes = upload ? options.body.byteLength : Number(url.searchParams.get('bytes'))
       state.calls.push({ bytes, method: options.method, credentials: options.credentials, cache: options.cache,
-        redirect: options.redirect, headers: options.headers })
+        redirect: options.redirect, headers: options.headers, path: url.pathname, search: url.search })
       if (mode === 'error') throw new Error('unsafe-untrusted-details')
       if (mode === '429') return new Response('', { status: 429 })
       if (mode === 'partial' && bytes > 1) throw new Error('unsafe-untrusted-details')
+      if (upload) {
+        // Envio: o destino só confirma. cancel-up não responde até o aborto; 	imeout e partial recusam.
+        if (mode === 'timeout') throw new Error('unsafe-untrusted-details')
+        if (mode === 'cancel-up') {
+          state.active++
+          return new Promise((_, reject) => options.signal.addEventListener('abort', () => {
+            state.active--; reject(new DOMException('Aborted', 'AbortError'))
+          }, { once: true }))
+        }
+        clock += mode === 'bytes' ? 1 : 1050
+        return new Response(null, { status: 200 })
+      }
       const duration = bytes === 1 ? 10 + state.calls.length : mode === 'bytes' ? 1 : 1050
       let remaining = bytes
       let stopped = false
@@ -82,20 +95,26 @@ try {
   await expect.poll(async () => (await last())?.status).toBe('complete')
   const saved = await last()
   assert.ok(saved.downloadMbps > 0 && saved.latencyMs > 0 && saved.jitterMs >= 0)
+  assert.ok(saved.uploadMbps > 0 && saved.uploadSamples >= 1 && saved.uploadSentBytes > 0, 'feature 064: o resultado salvo traz o upload')
   assert.equal((await stats()).active, 0)
-  for (const call of (await stats()).calls) {
-    assert.equal(call.method, 'GET'); assert.equal(call.credentials, 'omit'); assert.equal(call.cache, 'no-store')
+  await expect(page.getByRole('dialog').getByText('Upload', { exact: true })).toBeVisible()
+  const calls = (await stats()).calls
+  for (const call of calls) {
+    assert.equal(call.method, call.path === '/__up' ? 'POST' : 'GET'); assert.equal(call.credentials, 'omit'); assert.equal(call.cache, 'no-store')
     assert.equal(call.redirect, 'error'); assert.equal(call.headers, undefined)
+    if (call.path === '/__up') assert.equal(call.search, '', 'o envio não leva parâmetro nenhum')
   }
+  const firstUp = calls.findIndex((call) => call.path === '/__up')
+  assert.ok(firstUp > 0 && calls.slice(0, firstUp).every((call) => call.path === '/__down') && calls.slice(firstUp).every((call) => call.path === '/__up'), 'download inteiro antes do primeiro envio')
   await page.screenshot({ path: `${shots}/result-pt.png` })
   await closeDialog()
   const scroll = await page.locator('.settings-panel').evaluate((el) => el.scrollTop)
   assert.ok(scroll > 0)
 
-  for (const mode of ['error', '429', 'cancel']) {
+  for (const mode of ['error', '429', 'cancel', 'cancel-up']) {
     await transport(mode); await openCard(); await page.keyboard.press('Enter')
-    if (mode === 'cancel') {
-      await page.waitForFunction(() => window.__speedTransport.calls.some((call) => call.bytes > 1))
+    if (mode === 'cancel' || mode === 'cancel-up') {
+      await page.waitForFunction((upload) => window.__speedTransport.calls.some((call) => (upload ? call.path === '/__up' : call.bytes > 1)), mode === 'cancel-up')
       await page.keyboard.press('Enter')
       await expect(page.getByRole('dialog')).toHaveCount(0)
       assert.equal((await stats()).active, 0)
@@ -120,12 +139,31 @@ try {
     await expect(page.getByText('Resultado parcial', { exact: true })).toBeVisible()
     await expect.poll(async () => (await last())?.reason).toBe(mode === 'partial' ? 'measurement_error' : mode === 'bytes' ? 'byte_limit' : 'time_limit')
     const result = await last()
-    assert.ok(result.requestedBytes <= 100_000_000)
+    assert.ok(result.requestedBytes <= 75_000_000 && result.requestedBytes + result.uploadRequestedBytes <= 150_000_000)
     assert.equal((await stats()).active, 0)
-    if (mode === 'bytes') assert.equal(result.requestedBytes, 100_000_000)
+    if (mode === 'bytes') assert.equal(result.requestedBytes, 75_000_000)
+    if (mode !== 'bytes') assert.equal(result.uploadMbps, null)
     await closeDialog()
     if (mode === 'timeout') await page.clock.resume()
   }
+
+  const beforeStorageFailure = await last()
+  // Falha de guarda: diagnóstico seguro, resultado atual visível e anterior preservado.
+  await page.evaluate(async () => {
+    const { db } = await import('/src/lib/catalog/db.ts')
+    window.__speedOriginalPut = db.networkDiagnostics.put
+    db.networkDiagnostics.put = async () => { throw new DOMException('unsafe-untrusted-details', 'QuotaExceededError') }
+  })
+  await transport('success'); await openCard(); await page.keyboard.press('Enter')
+  await expect(page.getByRole('dialog').getByText(/NET-W-QUOTA/)).toBeVisible()
+  await expect(page.getByText('Resultado completo', { exact: true })).toBeVisible()
+  assert.ok(!(await page.textContent('body')).includes('unsafe-untrusted-details'))
+  assert.deepEqual(await last(), beforeStorageFailure)
+  await page.evaluate(async () => {
+    const { db } = await import('/src/lib/catalog/db.ts')
+    db.networkDiagnostics.put = window.__speedOriginalPut
+  })
+  await closeDialog()
 
   // Persistência após reload e entrada pelo dock, incluindo RETURN em duas camadas.
   await page.evaluate(async () => {
@@ -165,5 +203,5 @@ try {
     await page.screenshot({ path: `${shots}/ready-${language}.png` })
   }
   assert.deepEqual(errors, [])
-  console.log('062: sucesso/parcial/erro/429/limites/cancelamento, persistência, dock/scroll/RETURN e pt/en/es aprovados (transporte controlado).')
+  console.log('062/064: sucesso com upload/parcial/erro/429/limites/cancelamento (download e upload), persistência, dock/scroll/RETURN e pt/en/es aprovados (transporte controlado).')
 } finally { await browser.close() }

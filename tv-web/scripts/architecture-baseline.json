@@ -1,0 +1,288 @@
+{
+  "imports": {
+    "components/player/usePlayerSession.ts": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/catalog/becauseApi.ts": [
+      "features/vod/vodShowcase.ts"
+    ],
+    "features/catalog/catalogApi.ts": [
+      "features/live/groupChannels.ts",
+      "features/series/seriesWatchedSummary.ts",
+      "features/vod/detailProgress.ts",
+      "features/vod/ratedSelection.ts",
+      "features/vod/vodShowcase.ts"
+    ],
+    "features/catalog/categoryCount.ts": [
+      "features/live/channelNumber.ts"
+    ],
+    "features/favorites/FavoritesState.tsx": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/favorites/useFavoriteToggle.ts": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/home/HomeAmbient.tsx": [
+      "features/vod/useCoverColor.ts",
+      "features/vod/usePanelHosts.ts"
+    ],
+    "features/home/HomeBillboard.tsx": [
+      "features/vod/detailMetadataFormat.ts",
+      "features/vod/detailProgress.ts"
+    ],
+    "features/home/HomeContent.tsx": [
+      "features/catalog/becauseApi.ts",
+      "features/catalog/catalogApi.ts",
+      "features/favorites/useFavoriteToggle.ts",
+      "features/live/channelNumber.ts",
+      "features/settings/integrationsModel.ts",
+      "features/vod/DetailChips.tsx",
+      "features/vod/detailMetadataFormat.ts",
+      "features/vod/trailerAction.ts",
+      "features/vod/vodGroupDisplay.ts"
+    ],
+    "features/home/HomeLiveCard.tsx": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/home/HomeScreen.tsx": [
+      "features/catalog/catalogApi.ts",
+      "features/catalog/prefetchApi.ts",
+      "features/import/importApi.ts",
+      "features/shell/AppShell.tsx",
+      "features/shell/ExitModal.tsx",
+      "features/shell/HintBar.tsx",
+      "features/shell/TopBar.tsx"
+    ],
+    "features/home/HomeTitleCard.tsx": [
+      "features/catalog/catalogApi.ts",
+      "features/vod/detailMetadataFormat.ts",
+      "features/vod/detailProgress.ts",
+      "features/vod/useCoverColor.ts",
+      "features/vod/usePanelHosts.ts"
+    ],
+    "features/home/homeStatusLine.ts": [
+      "features/catalog/prefetchApi.ts"
+    ],
+    "features/import/importApi.ts": [
+      "features/live/liveSessionMemory.ts"
+    ],
+    "features/live/LiveScreen.tsx": [
+      "features/favorites/useFavoriteToggle.ts"
+    ],
+    "features/live/channelNumber.ts": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/live/groupChannels.ts": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/live/guide/EpgGuide.tsx": [
+      "features/catalog/catalogApi.ts",
+      "features/import/importApi.ts"
+    ],
+    "features/live/guide/guideRows.ts": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/live/liveColumns.tsx": [
+      "features/catalog/catalogApi.ts",
+      "features/favorites/FavoritesState.tsx",
+      "features/shell/AppShell.tsx",
+      "features/shell/TopBar.tsx"
+    ],
+    "features/live/liveTrail.ts": [
+      "features/catalog/catalogApi.ts",
+      "features/shell/HintBar.tsx"
+    ],
+    "features/live/useLiveArchive.ts": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/live/useLiveCatalog.ts": [
+      "features/catalog/catalogApi.ts",
+      "features/catalog/prefetchApi.ts",
+      "features/favorites/useFavoriteToggle.ts"
+    ],
+    "features/live/useLiveGuide.tsx": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/live/useLiveKeyboard.ts": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/live/useLiveZapping.ts": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/movies/MovieDetailScreen.tsx": [
+      "features/catalog/catalogApi.ts",
+      "features/favorites/useFavoriteToggle.ts",
+      "features/history/HistoryRemovalModal.tsx",
+      "features/vod/DetailActions.tsx",
+      "features/vod/DetailChips.tsx",
+      "features/vod/DetailHero.tsx",
+      "features/vod/DetailMetadata.tsx",
+      "features/vod/SimilarPanel.tsx",
+      "features/vod/TitleSummaryModal.tsx",
+      "features/vod/detailMetadataFormat.ts",
+      "features/vod/detailPanelGrid.ts",
+      "features/vod/detailProgress.ts",
+      "features/vod/detailSnapshot.ts",
+      "features/vod/trailerAction.ts",
+      "features/vod/useEnterSimilarPanel.ts",
+      "features/vod/vodGroupDisplay.ts"
+    ],
+    "features/person/PersonScreen.tsx": [
+      "features/catalog/catalogApi.ts",
+      "features/vod/DetailMetadata.tsx",
+      "features/vod/SimilarPanel.tsx",
+      "features/vod/TitleSummaryModal.tsx",
+      "features/vod/detailSnapshot.ts"
+    ],
+    "features/profiles/ProfilesScreen.tsx": [
+      "features/import/OnboardingBrand.tsx",
+      "features/import/importApi.ts",
+      "features/shell/ExitModal.tsx",
+      "features/sources/DeleteSourceModal.tsx",
+      "features/sources/sourceFormat.ts"
+    ],
+    "features/search/SearchScreen.tsx": [
+      "features/catalog/catalogApi.ts",
+      "features/shell/AppShell.tsx",
+      "features/shell/HintBar.tsx",
+      "features/shell/TopBar.tsx"
+    ],
+    "features/series/SeriesDetailScreen.tsx": [
+      "features/catalog/catalogApi.ts",
+      "features/favorites/useFavoriteToggle.ts",
+      "features/history/HistoryRemovalModal.tsx",
+      "features/vod/DetailActions.tsx",
+      "features/vod/DetailChips.tsx",
+      "features/vod/DetailHero.tsx",
+      "features/vod/DetailMetadata.tsx",
+      "features/vod/SimilarPanel.tsx",
+      "features/vod/TitleSummaryModal.tsx",
+      "features/vod/detailMetadataFormat.ts",
+      "features/vod/detailPanelGrid.ts",
+      "features/vod/detailProgress.ts",
+      "features/vod/detailSnapshot.ts",
+      "features/vod/trailerAction.ts",
+      "features/vod/useEnterSimilarPanel.ts",
+      "features/vod/vodGroupDisplay.ts"
+    ],
+    "features/series/episodeNavigation.ts": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/settings/EpgSettingsScreen.tsx": [
+      "features/import/importApi.ts",
+      "features/sources/sourceFormat.ts"
+    ],
+    "features/settings/SettingsScreen.tsx": [
+      "features/shell/AppShell.tsx",
+      "features/shell/HintBar.tsx",
+      "features/shell/TopBar.tsx"
+    ],
+    "features/settings/SourcesPanel.tsx": [
+      "features/catalog/catalogApi.ts",
+      "features/import/importApi.ts",
+      "features/sources/LimitedModeNotice.tsx",
+      "features/sources/sourceFormat.ts"
+    ],
+    "features/settings/TmdbKeyScreen.tsx": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/settings/tabs/IntegrationsTab.tsx": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/settings/tabs/PrivacyTab.tsx": [
+      "features/catalog/catalogApi.ts",
+      "features/history/HistoryRemovalModal.tsx",
+      "features/import/importApi.ts"
+    ],
+    "features/settings/tabs/SourcesTab.tsx": [
+      "features/import/importApi.ts",
+      "features/sources/DeleteSourceModal.tsx"
+    ],
+    "features/settings/tabs/settingsTab.ts": [
+      "features/import/importApi.ts"
+    ],
+    "features/sources/DeleteSourceModal.tsx": [
+      "features/import/importApi.ts"
+    ],
+    "features/sources/SourceAccessGate.tsx": [
+      "features/import/importApi.ts"
+    ],
+    "features/sources/SourceAccessRoute.tsx": [
+      "features/import/importApi.ts"
+    ],
+    "features/sources/sourceFormat.ts": [
+      "features/catalog/catalogApi.ts",
+      "features/import/importApi.ts"
+    ],
+    "features/vod/VodCategoryScreen.tsx": [
+      "features/catalog/catalogApi.ts",
+      "features/catalog/prefetchApi.ts",
+      "features/favorites/FavoritesState.tsx",
+      "features/favorites/neighbor.ts",
+      "features/favorites/useFavoriteToggle.ts",
+      "features/history/HistoryRemovalModal.tsx",
+      "features/shell/AppShell.tsx",
+      "features/shell/TopBar.tsx"
+    ],
+    "features/vod/VodShowcaseScreen.tsx": [
+      "features/catalog/becauseApi.ts",
+      "features/catalog/catalogApi.ts",
+      "features/catalog/categoryCount.ts",
+      "features/catalog/prefetchApi.ts",
+      "features/shell/AppShell.tsx",
+      "features/shell/TopBar.tsx"
+    ],
+    "features/vod/vodGroupDisplay.ts": [
+      "features/catalog/catalogApi.ts",
+      "features/live/groupChannels.ts"
+    ],
+    "features/vod/vodShowcase.ts": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/vod/vodShowcaseRows.ts": [
+      "features/catalog/catalogApi.ts"
+    ],
+    "features/vod/vodSort.ts": [
+      "features/catalog/catalogApi.ts"
+    ]
+  },
+  "maxLines": {
+    "App.tsx": 625,
+    "components/PlayerLayer.tsx": 325,
+    "components/TrailerLayer.tsx": 346,
+    "components/player/usePlayerKeyboard.ts": 406,
+    "components/player/usePlayerPanels.ts": 367,
+    "components/player/usePlayerSession.ts": 592,
+    "features/catalog/catalogApi.ts": 2190,
+    "features/home/HomeContent.tsx": 896,
+    "features/import/AddSourceScreen.tsx": 421,
+    "features/import/ImportProgressScreen.tsx": 313,
+    "features/import/importApi.ts": 578,
+    "features/live/LiveScreen.tsx": 349,
+    "features/live/guide/EpgGuide.tsx": 624,
+    "features/live/liveColumns.tsx": 511,
+    "features/live/useLiveCatalog.ts": 444,
+    "features/live/useLiveKeyboard.ts": 392,
+    "features/movies/MovieDetailScreen.tsx": 662,
+    "features/profiles/ProfilesScreen.tsx": 421,
+    "features/search/SearchScreen.tsx": 345,
+    "features/series/SeriesDetailScreen.tsx": 1021,
+    "features/vod/VodCategoryScreen.tsx": 950,
+    "features/vod/VodShowcaseScreen.tsx": 788,
+    "lib/catalog/categoryBlocks.ts": 375,
+    "lib/catalog/categoryLoader.ts": 378,
+    "lib/catalog/classifier.ts": 305,
+    "lib/catalog/db.ts": 860,
+    "lib/catalog/importPipeline.ts": 981,
+    "lib/catalog/prefetch/prefetchScheduler.ts": 377,
+    "lib/catalog/sourceRepository.ts": 409,
+    "lib/catalog/userStateRepository.ts": 362,
+    "lib/catalog/xtreamConnector.ts": 910,
+    "lib/i18n/messages/playerUi.ts": 365,
+    "lib/i18n/messages/settings.ts": 482,
+    "lib/i18n/messages/sources.ts": 674,
+    "lib/player/PlayerService.ts": 744,
+    "lib/player/avplayAdapter.ts": 593,
+    "lib/useRemoteNav.ts": 319
+  }
+}

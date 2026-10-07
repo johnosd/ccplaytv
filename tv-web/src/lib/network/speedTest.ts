@@ -18,6 +18,14 @@ export interface SpeedTestResult {
   receivedBytes: number
   latencySamples: number
   downloadSamples: number
+  /**
+   * Feature 064 (upload). Ausente em resultado gravado antes dela = "não medido". Resultado novo
+   * traz sempre os quatro campos: `uploadMbps: null` = foi tentado e não teve amostra válida.
+   */
+  uploadMbps?: number | null
+  uploadSamples?: number
+  uploadRequestedBytes?: number
+  uploadSentBytes?: number
 }
 
 export type SpeedTestOutcome =
@@ -26,10 +34,12 @@ export type SpeedTestOutcome =
   | { state: 'failed'; error: SpeedTestError }
 
 export interface SpeedTestProgress {
-  stage: 'warmup' | 'latency' | 'download' | 'stopping'
+  stage: 'warmup' | 'latency' | 'download' | 'upload' | 'stopping'
   elapsedMs: number
   requestedBytes: number
   receivedBytes: number
+  /** Feature 064: bytes de upload que o destino já confirmou. Só existe na etapa `'upload'`. */
+  sentBytes?: number
 }
 
 export interface SpeedTestOptions {
@@ -38,6 +48,8 @@ export interface SpeedTestOptions {
   monotonicNow?: () => number
   wallClockNow?: () => number
   onProgress?: (progress: SpeedTestProgress) => void
+  /** Feature 064: teto desta etapa. Ausente = `SPEED_TEST_MAX_*`, o que a 062 trava. */
+  limits?: { maxBytes: number; maxMs: number }
 }
 
 let running = false
@@ -56,6 +68,9 @@ export async function runSpeedTest(options: SpeedTestOptions): Promise<SpeedTest
   const now = options.monotonicNow ?? (() => performance.now())
   const wallClock = options.wallClockNow ?? Date.now
   const fetchImpl = options.fetchImpl ?? fetch
+  // Feature 064: o teste de conexão usa 30 s / 75 MB por etapa; sem `limits` valem os da 062 (travados por C1–C3).
+  const maxBytes = options.limits?.maxBytes ?? SPEED_TEST_MAX_BYTES
+  const maxMs = options.limits?.maxMs ?? SPEED_TEST_MAX_MS
   const startedAt = now()
   const controller = new AbortController()
   let stopped: 'cancelled' | 'time_limit' | null = null
@@ -75,10 +90,10 @@ export async function runSpeedTest(options: SpeedTestOptions): Promise<SpeedTest
   }
   const cancel = () => stop('cancelled')
   options.signal.addEventListener('abort', cancel, { once: true })
-  const deadline = setTimeout(() => stop('time_limit'), SPEED_TEST_MAX_MS)
+  const deadline = setTimeout(() => stop('time_limit'), maxMs)
   function checkStop() {
     if (options.signal.aborted) stop('cancelled')
-    if (stopped === null && now() - startedAt >= SPEED_TEST_MAX_MS) stop('time_limit')
+    if (stopped === null && now() - startedAt >= maxMs) stop('time_limit')
     if (stopped !== null) throw new MeasurementError('insufficient_samples')
   }
   function report() {
@@ -135,7 +150,7 @@ export async function runSpeedTest(options: SpeedTestOptions): Promise<SpeedTest
     let requestIndex = 0
     while (true) {
       checkStop()
-      const available = SPEED_TEST_MAX_BYTES - requestedBytes
+      const available = maxBytes - requestedBytes
       if (available === 0) { reason = 'byte_limit'; break }
       const bytes = Math.min(sizes[Math.min(requestIndex, sizes.length - 1)], available)
       const duration = await measure(bytes, 'download')
@@ -145,7 +160,7 @@ export async function runSpeedTest(options: SpeedTestOptions): Promise<SpeedTest
         downloadSamples += 1
       }
       requestIndex += 1
-      if (requestedBytes === SPEED_TEST_MAX_BYTES) { reason = 'byte_limit'; break }
+      if (requestedBytes === maxBytes) { reason = 'byte_limit'; break }
       if (downloadSamples >= 3 && downloadMs >= 3000) break
     }
   } catch (caught) {

@@ -1,9 +1,9 @@
-// Roteiro E2E da feature 053 (tela hero de Filmes e Séries com carrosséis por categoria, lista lateral paginada/recolhível e slots
+// Roteiro E2E da feature 053 (vitrine de Filmes e Séries com carrosséis por categoria, lista lateral paginada/recolhível e slots
 // reservados "Em breve").
 //
 // Mede, a 1920×1080 (e 2200×1000 com E2E_W/E2E_H): ordem das fileiras pelo foco, "Ver tudo" abrindo a grade e voltando ao
 // mesmo carrossel, slots sem rede externa, lista recolhida só nos cards (largura) e paginação com ← →, ↑ da 1ª fileira saindo da área de
-// conteúdo (topbar), pilha virtualizada com ~300 categorias e altura disponível sob o hero. Capturas em
+// conteúdo (topbar), pilha virtualizada com ~300 categorias e altura disponível sem hero. Capturas em
 // `test-results/carrosseis-filmes-series/`.
 //
 // Pré-requisito: `npm run dev` em http://localhost:5173 (confira que ninguém mais escuta a 5173). Dados fictícios,
@@ -147,16 +147,18 @@ async function run() {
     await page.keyboard.press('Enter')
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
-    console.log(step = '=== Tela hero de Filmes ===')
+    console.log(step = '=== Vitrine de Filmes sem hero ===')
     await openShowcase(page, 'movies')
     await page.waitForTimeout(800)
     await shot(page, '01-hero-filmes')
     const panelWidthOpen = (await rectOf(page, '.vod-side-panel')).width
-    const hero = await rectOf(page, '.vod-hero-band').catch(() => null)
+    assert((await page.locator('.vod-hero-band').count()) === 0, 'Filmes sem faixa de hero')
     const frame = await rectOf(page, '.vod-showcase-rows')
-    console.log(`  · hero ${hero ? Math.round(hero.height) : 0}px; área das fileiras ${Math.round(frame.height)}px de altura`)
+    console.log(`  · área das fileiras ${Math.round(frame.height)}px de altura`)
+    const main = await rectOf(page, '.vod-showcase-main')
+    assert(Math.abs(frame.top - main.top) < 20 && frame.height >= main.height, 'fileiras ocupam a altura do painel sem espaço reservado ao hero')
     const firstRow = await rectOf(page, '.vod-showcase section.vod-row')
-    assert(firstRow.bottom <= frame.bottom + 1 && firstRow.top >= frame.top - 1, 'a 1ª fileira aparece inteira sob o hero (altura disponível)')
+    assert(firstRow.bottom <= frame.bottom + 1 && firstRow.top >= frame.top - 1, 'a 1ª fileira aparece inteira no topo da vitrine')
 
     console.log(step = '=== Ordem das fileiras pelo foco ===')
     await enterRows(page) // lista lateral → cards (→ pagina a lista até o fim)
@@ -273,6 +275,7 @@ async function run() {
     await enterRows(page)
     const seriesLabels = await walkRows(page, 6)
     assert(!seriesLabels.some((label) => /em alta esta semana/i.test(label) || label.startsWith('Dica')), `Séries sem chave TMDB não mostra Em alta nem Dica (${seriesLabels.join(' | ')})`)
+    assert((await page.locator('.vod-hero-band').count()) === 0, 'Séries sem faixa de hero')
     await shot(page, '05-hero-series')
 
     console.log(step = `=== Pilha virtualizada com ${EXTRA_CATEGORIES + 2} categorias ===`)

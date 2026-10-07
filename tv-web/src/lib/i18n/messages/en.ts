@@ -11,6 +11,7 @@ import { profiles } from './profiles'
 import { settings } from './settings'
 import { shell } from './shell'
 import { sources } from './sources'
+import { speed } from './speed'
 import { vodCategory } from './vodCategory'
 import { vodShowcase } from './vodShowcase'
 import type { MessageKey } from './pt'
@@ -31,6 +32,7 @@ export const en: Record<MessageKey, string> & Record<string, string> = {
   ...settings.en,
   ...shell.en,
   ...sources.en,
+  ...speed.en,
   ...vodCategory.en,
   ...vodShowcase.en,
 }

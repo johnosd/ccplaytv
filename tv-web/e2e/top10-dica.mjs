@@ -310,9 +310,9 @@ async function run() {
     assert(JSON.stringify(await ranksOf(page, topRow)) === JSON.stringify(['1', '2', '3']), `Filmes: numeração 1, 2 e 3 na fileira (${await ranksOf(page, topRow)})`)
     assert(clean(await page.locator(`${topRow} .vod-row-source`).textContent()) === 'Fonte: TMDB', 'Filmes: "Fonte: TMDB"')
     assert(clean(await page.locator(`${topRow} .vod-row-coverage`).textContent()) === 'Com base em 1 de 2 categorias', 'Filmes: aviso de cobertura parcial')
-    assert(/Nº 1\b/.test(clean(await page.locator('.vod-hero-eyebrow').first().textContent())), 'o destaque do 1º card mostra a posição real: Nº 1')
+    assert((await page.locator('.vod-hero-band').count()) === 0, 'Top 10 de Filmes sem hero')
     await page.keyboard.press('ArrowRight')
-    assert(/Nº 3\b/.test(clean(await page.locator('.vod-hero-eyebrow').first().textContent())), 'o 2º card da fileira mostra no destaque a posição real no TMDB: Nº 3')
+    assert(clean(await page.locator(`${topRow} .content-card:has(.tv-focus) .content-card-rank`).textContent()) === '2', 'foco no 2º card numerado da fileira')
     await page.keyboard.press('ArrowLeft')
     await shot(page, '03-filmes-top10')
     const callsBeforeMove = tmdbCalls.length

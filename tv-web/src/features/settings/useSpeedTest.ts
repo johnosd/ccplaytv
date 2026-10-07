@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { prefetchGate } from '../../lib/catalog/prefetch'
 import type { ActivityGate } from '../../lib/catalog/prefetch/activityGate'
-import { runSpeedTest, type SpeedTestError, type SpeedTestProgress, type SpeedTestResult } from '../../lib/network/speedTest'
+import { runConnectionTest } from '../../lib/network/connectionTest'
+import type { SpeedTestError, SpeedTestOptions, SpeedTestOutcome, SpeedTestProgress, SpeedTestResult } from '../../lib/network/speedTest'
 import { readLastSpeedTestResult, saveLastSpeedTestResult } from '../../lib/network/speedTestRepository'
+import type { SpeedTestStorageCode } from '../../lib/network/storageFailure'
 
 interface Options {
-  run?: typeof runSpeedTest
+  run?: (options: SpeedTestOptions) => Promise<SpeedTestOutcome>
   read?: typeof readLastSpeedTestResult
   save?: typeof saveLastSpeedTestResult
   gate?: Pick<ActivityGate, 'blockReason' | 'subscribe'>
@@ -14,7 +16,7 @@ interface Options {
 
 /** Uma tentativa por superfície; o motor também protege concorrência global. */
 export function useSpeedTest(options: Options = {}) {
-  const run = options.run ?? runSpeedTest
+  const run = options.run ?? runConnectionTest
   const read = options.read ?? readLastSpeedTestResult
   const save = options.save ?? saveLastSpeedTestResult
   const gate = options.gate ?? prefetchGate
@@ -25,10 +27,14 @@ export function useSpeedTest(options: Options = {}) {
   const [progress, setProgress] = useState<SpeedTestProgress>()
   const [error, setError] = useState<SpeedTestError>()
   const [storageUnavailable, setStorageUnavailable] = useState(false)
+  const [storageCode, setStorageCode] = useState<SpeedTestStorageCode>()
   const mounted = useRef(false)
   const generation = useRef(0)
   const controller = useRef<AbortController | null>(null)
   const pending = useRef<Promise<void> | null>(null)
+  const onUnavailable = useCallback((code: SpeedTestStorageCode) => {
+    if (mounted.current) setStorageCode(code)
+  }, [])
 
   const cancel = useCallback(async () => {
     generation.current += 1
@@ -39,7 +45,7 @@ export function useSpeedTest(options: Options = {}) {
 
   useEffect(() => {
     mounted.current = true
-    void read().then((last) => {
+    void read({ onUnavailable }).then((last) => {
       if (mounted.current) setLastResult((current) => current ?? last)
     }).catch(() => { if (mounted.current) setStorageUnavailable(true) })
     const stop = () => { void cancel() }
@@ -60,7 +66,7 @@ export function useSpeedTest(options: Options = {}) {
       window.removeEventListener('pagehide', stop)
       window.removeEventListener('blur', stop)
     }
-  }, [cancel, gate, read])
+  }, [cancel, gate, onUnavailable, read])
 
   const start = useCallback(async () => {
     if (pending.current) return
@@ -83,11 +89,12 @@ export function useSpeedTest(options: Options = {}) {
         setResult(outcome.result)
         setPhase('result')
         // Compromisso serializado: repetir espera esta escrita terminar.
-        const saved = await save(outcome)
+        const saved = await save(outcome, { onUnavailable })
         // Fechar após o compromisso não desfaz a gravação; atualizar sua consulta local.
         if (saved === 'written' && mounted.current) { setLastResult(outcome.result); onSaved?.() }
         if (!current()) return
         setStorageUnavailable(saved === 'unavailable')
+        if (saved !== 'unavailable') setStorageCode(undefined)
       } catch {
         if (current()) { setError('destination_unavailable'); setPhase('error') }
       }
@@ -95,7 +102,7 @@ export function useSpeedTest(options: Options = {}) {
     pending.current = work
     await work
     if (pending.current === work) pending.current = null
-  }, [gate, onSaved, run, save])
+  }, [gate, onSaved, onUnavailable, run, save])
 
-  return { phase, lastResult, result, progress, error, storageUnavailable, start, cancel }
+  return { phase, lastResult, result, progress, error, storageUnavailable, storageCode, start, cancel }
 }

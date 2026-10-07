@@ -146,3 +146,7 @@ No Início, o ícone de velocidade leva ao card do teste em Configurações, man
 - Q: Como deve se comportar quando há vídeo em reprodução? → A: “deve ser feito em um local de configuracoes”. Aplicação: executar em Configurações, com dock como atalho; preservar encerramento normal do player ao sair da tela, sem concorrência entre medição e reprodução.
 - Q: Qual limite por execução, encerrando no primeiro limite e declarando amostra insuficiente? → A: Até 30 segundos ou 100 MB transferidos.
 - Q: O último resultado fica disponível depois de fechar/reabrir? → A: Guardar só o último resultado no aparelho, com data e destino.
+
+### Nota de 2026-10-07 (feature 064)
+
+- O **upload**, que esta feature deixou fora de escopo, entrou pela [064](../064-upload-teste-conexao/spec.md): o mesmo teste passa a medir também o envio, com teto de 60 s / 150 MB no total (30 s / 75 MB por etapa) e resultado "completo" só com as quatro métricas. O motor desta feature (`runSpeedTest`) e seus contratos continuam como estão; o upload é uma etapa de uma camada nova (`runConnectionTest`). O resultado guardado antes da 064 continua válido, com o upload "não medido".

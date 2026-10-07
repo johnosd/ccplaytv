@@ -2,7 +2,7 @@ import Dexie from 'dexie'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CatalogDb } from '../catalog/db'
 import type { SpeedTestResult } from './speedTest'
-import { readLastSpeedTestResult, saveLastSpeedTestResult } from './speedTestRepository'
+import { clearLastSpeedTestResult, readLastSpeedTestResult, saveLastSpeedTestResult } from './speedTestRepository'
 
 const result: SpeedTestResult = {
   version: 1, destination: 'cloudflare', measuredAt: 1_800_000_000_000,
@@ -18,6 +18,20 @@ function createDb() {
 afterEach(async () => { vi.restoreAllMocks(); await Promise.all(databases.splice(0).map((db) => db.delete())) })
 
 describe('speedTestRepository — dados e armazenamento', () => {
+  it('informa operação e categoria sem alterar o contrato de falha', async () => {
+    const database = createDb()
+    const onUnavailable = vi.fn()
+    vi.spyOn(database.networkDiagnostics, 'put').mockRejectedValue(new DOMException('private details', 'QuotaExceededError'))
+    expect(await saveLastSpeedTestResult({ state: 'completed', result }, { database, onUnavailable })).toBe('unavailable')
+    expect(onUnavailable).toHaveBeenLastCalledWith('NET-W-QUOTA')
+    vi.spyOn(database.networkDiagnostics, 'get').mockRejectedValue(new DOMException('private details', 'NotFoundError'))
+    await expect(readLastSpeedTestResult({ database, onUnavailable })).rejects.toThrow('storage_unavailable')
+    expect(onUnavailable).toHaveBeenLastCalledWith('NET-R-TABLE')
+    vi.spyOn(database.networkDiagnostics, 'delete').mockRejectedValue(new DOMException('private details', 'AbortError'))
+    await expect(clearLastSpeedTestResult({ database, onUnavailable })).rejects.toThrow('storage_unavailable')
+    expect(onUnavailable).toHaveBeenLastCalledWith('NET-D-ABORT')
+  })
+
   it('ignora registro corrompido e rejeita NaN/Infinity sem sobrescrever anterior', async () => {
     const database = createDb()
     await database.networkDiagnostics.put({ ...result, id: 'last', latencyMs: NaN })

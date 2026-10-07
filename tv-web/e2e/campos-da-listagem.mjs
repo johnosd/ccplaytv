@@ -3,8 +3,8 @@
 //
 // Painel Xtream FICTÍCIO criado por este script (nunca uma fonte real). Mede:
 //  - grade de filmes: selo "★ 7,4" só no card com nota válida; nota "0" e ausente não mostram nada;
-//  - destaque de filme: "★ 7,4 Provedor"; sem nota, nada de nota;
-//  - destaque de série: gênero como subtítulo e fundo da listagem, SEM nenhuma chamada a get_series_info/get_vod_info
+//  - vitrines de Filmes/Séries sem hero: nota nos cards, ausente quando não declarada;
+//  - navegação de séries SEM nenhuma chamada a get_series_info/get_vod_info
 //    nem a host externo ao mover o foco (FR-013, SC-002);
 //  - o selo não vira alvo de foco: o `.tv-focus` fica no card, nunca no selo.
 //
@@ -99,17 +99,17 @@ async function addSource(page, port) {
   await page.locator('.source-card-wrap', { hasText: LISTA }).waitFor({ timeout: 8000 })
 }
 
-const text = (page, selector) => page.locator(selector).first().textContent().catch(() => null)
+const text = (page, selector) => page.locator(selector).first().textContent({ timeout: 1000 }).catch(() => null)
 
-/** Anda pela fileira com ← → até o destaque mostrar `title` (o foco entra na fileira em algum card; a ordem não importa). */
+/** Anda pela fileira com ← → até o card focado mostrar `title` (a ordem não importa). */
 async function focusCardTitled(page, title) {
   for (const key of ['ArrowLeft', 'ArrowRight']) {
     for (let i = 0; i < 4; i += 1) {
-      if ((await text(page, '.vod-hero-title')) === title) return true
+      if ((await text(page, '.vod-showcase .content-card:has(.tv-focus) .content-card-title')) === title) return true
       await page.keyboard.press(key)
     }
   }
-  return (await text(page, '.vod-hero-title')) === title
+  return (await text(page, '.vod-showcase .content-card:has(.tv-focus) .content-card-title')) === title
 }
 
 async function run() {
@@ -133,15 +133,16 @@ async function run() {
     await page.keyboard.press('Enter')
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
-    console.log((step = '=== Destaque de filme ==='))
+    console.log((step = '=== Cards de filmes sem hero ==='))
     await openShowcase(page, 'movies')
     await enterRows(page)
     await gotoRow(page, 'Avaliados', ['Avaliados'])
     await page.waitForSelector('section.vod-row[aria-label="Avaliados"] .content-card', { timeout: 15000 })
     // O foco entra na fileira em algum card: anda até "Filme Nota" (o título do destaque acompanha o card em foco).
-    for (let i = 0; i < 4 && !/Filme Nota/.test((await text(page, '.vod-hero-title')) ?? ''); i += 1) await page.keyboard.press('ArrowLeft')
-    const heroMeta = (await text(page, '.vod-hero-meta')) ?? ''
-    assert(/★ 7,4/.test(heroMeta) && /Provedor/.test(heroMeta), `destaque do filme com nota: "${heroMeta.replace(/\s+/g, ' ').trim()}"`)
+    for (let i = 0; i < 4 && !/Filme Nota/.test((await text(page, '.vod-showcase .content-card:has(.tv-focus) .content-card-title')) ?? ''); i += 1) await page.keyboard.press('ArrowLeft')
+    const badge = (await text(page, '.vod-showcase .content-card:has(.tv-focus) .rating-badge')) ?? ''
+    assert(/★ 7,4/.test(badge), 'card do filme mantém nota real')
+    assert((await page.locator('.vod-hero-band').count()) === 0, 'Filmes sem hero')
 
     console.log((step = '=== Grade de filmes: selo só com nota válida ==='))
     await openVodCategory(page, 'Avaliados')
@@ -158,7 +159,7 @@ async function run() {
     await page.keyboard.press('Escape')
     await page.waitForSelector('.vod-showcase', { timeout: 8000 })
 
-    console.log((step = '=== Destaque de série: gênero, fundo e nenhuma consulta ao focar ==='))
+    console.log((step = '=== Cards de séries sem hero e sem consulta ao focar ==='))
     await openShowcase(page, 'series')
     await enterRows(page)
     await gotoRow(page, 'Drama', ['Drama'])
@@ -166,16 +167,11 @@ async function run() {
     assert(await focusCardTitled(page, 'Série Completa'), 'destaque na "Série Completa"')
     const callsBefore = panelCalls.length
     const externalBefore = externalRequests.length
-    const seriesMeta = (await text(page, '.vod-hero-meta')) ?? ''
-    assert(/Comédia, Drama/.test(seriesMeta), `gênero da listagem no destaque da série: "${seriesMeta.replace(/\s+/g, ' ').trim()}"`)
-    assert(/★ 8,0/.test(seriesMeta) && /Provedor/.test(seriesMeta), 'nota da série com a origem')
-    const heroSrc = (await page.locator('.vod-hero-art img').first().getAttribute('src').catch(() => null)) ?? ''
-    assert(heroSrc.endsWith('/fundo.png'), `o fundo do destaque é o da listagem (${heroSrc.split('/').pop()})`)
-    assert(await focusCardTitled(page, 'Série Vazia'), 'destaque na "Série Vazia"')
-    const emptyMeta = (await text(page, '.vod-hero-meta')) ?? ''
-    assert(!/★|Provedor|Comédia/.test(emptyMeta), 'série sem os campos: destaque sem nota, sem gênero')
-    const emptySrc = (await page.locator('.vod-hero-art img').first().getAttribute('src').catch(() => null)) ?? ''
-    assert(emptySrc.endsWith('/capa.png'), 'sem fundo da listagem, a capa segue como arte do destaque')
+    const seriesBadge = (await text(page, '.vod-showcase .content-card:has(.tv-focus) .rating-badge')) ?? ''
+    assert(/★ 8,0/.test(seriesBadge), 'card da série mantém nota real')
+    assert((await page.locator('.vod-hero-band').count()) === 0, 'Séries sem hero')
+    assert(await focusCardTitled(page, 'Série Vazia'), 'foco na Série Vazia')
+    assert((await page.locator('.vod-showcase .content-card:has(.tv-focus) .rating-badge').count()) === 0, 'série sem nota não tem selo')
     const newCalls = panelCalls.slice(callsBefore)
     assert(
       !newCalls.some((action) => ['get_series_info', 'get_vod_info'].includes(action)),

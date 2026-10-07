@@ -73,7 +73,9 @@ export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = IN
   }
 
   return {
-    categoryDone(sourceId: string, categoryId: number): void {
+    categoryDone(sourceId: string, categoryId: number, kind?: 'channel' | 'movie' | 'series'): void {
+      // Feature 065: assinatura preparada pelo sdd-plan; o execute aplica o escopo.
+      void kind
       const set = pending.get(sourceId) ?? new Set<number>()
       set.add(categoryId)
       pending.set(sourceId, set)

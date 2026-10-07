@@ -13,7 +13,7 @@ afterEach(() => { cleanup(); writeAppLanguage('pt') })
 
 describe('SpeedTestDialog — dados e idiomas', () => {
   it('parcial mostra ausência, jitter zero medido, data/destino e aviso de guarda', () => {
-    render(<SpeedTestDialog phase="result" result={partial} lastResult={null} storageUnavailable onStart={vi.fn()} onClose={vi.fn()} />)
+    render(<SpeedTestDialog phase="result" result={partial} lastResult={null} storageUnavailable storageCode="NET-W-QUOTA" onStart={vi.fn()} onClose={vi.fn()} />)
     expect(screen.getByText('Amostra insuficiente')).toBeInTheDocument()
     expect(screen.getByText('0 ms')).toBeInTheDocument()
     expect(screen.getByText('Resultado parcial')).toBeInTheDocument()
@@ -21,6 +21,7 @@ describe('SpeedTestDialog — dados e idiomas', () => {
     expect(screen.getByText('Destino: Cloudflare')).toBeInTheDocument()
     expect(document.querySelector('time')).toHaveAttribute('datetime', new Date(partial.measuredAt).toISOString())
     expect(screen.getByText(/Armazenamento indisponível/)).toBeInTheDocument()
+    expect(screen.getByText(/NET-W-QUOTA/)).toBeInTheDocument()
     expect(findUnnamedControls(document.body)).toEqual([])
     expect(document.body.textContent).not.toMatch(/4K|Ótima/)
   })
