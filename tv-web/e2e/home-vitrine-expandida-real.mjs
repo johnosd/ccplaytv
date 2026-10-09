@@ -48,7 +48,7 @@ const SECRETS = [env.CCPLAY_PROBE_PASS, TMDB_KEY, env.CCPLAY_PROBE_USER].filter(
 const LISTA = 'Lista Real E2E Home'
 
 // FR-018: ordem das fileiras (rótulos em pt; `data-row` é a chave estável).
-const ROW_ORDER = ['continue', 'top10-movies', 'added-movies', 'tip-movies', 'because', 'channels', 'mylist', 'top10-series', 'added-series', 'tip-series', 'ai']
+const ROW_ORDER = ['channels', 'continue', 'mylist', 'added-movies', 'added-series']
 
 let failures = 0
 let inconclusive = 0
@@ -331,7 +331,7 @@ async function run() {
       const semeado = await semear(page)
       note(`estado semeado: ${semeado.movie} filmes, ${semeado.series} séries, ${semeado.channel} canais`)
       assert(semeado.movie >= 4, 'filmes suficientes para semear progresso, concluído e favoritos')
-      if (semeado.channel < 3) unknown('canais favoritos: a lista não tinha canais já obtidos no aparelho (cenário "Ao vivo agora" limitado)')
+      if (semeado.channel < 3) unknown('canais favoritos: a lista não tinha canais já obtidos no aparelho (cenário "Canais favoritos" limitado)')
       if (TMDB_KEY) await guardarChave(page, TMDB_KEY)
       else unknown('sem CCPLAY_PROBE_TMDB_KEY: cenários de TMDB (Trailer, Top 10, Dica, Porque você assistiu) ficam limitados')
       dataRequests = 0
@@ -401,10 +401,10 @@ async function run() {
       await page.waitForSelector('.home-hero-action.tv-focus', { timeout: 6000 })
       assert((await heroState(page)) === 'expanded', '↑ expande o billboard de novo')
       assert(clean(await page.locator('.home-hero-action.tv-focus').textContent()) === clean(antes), 'com a última ação focada')
+      // Ad-hoc 2026-10-09: sem o dock, ↑ nas ações sai direto à topbar.
+      assert((await page.locator('.home-dock, .home-hero-dock').count()) === 0, 'o billboard não tem dock de serviços')
       await page.keyboard.press('ArrowUp')
-      assert((await page.locator('.home-dock .tv-focus').count()) === 1, '↑ vai ao dock')
-      await page.keyboard.press('ArrowUp')
-      assert((await page.locator('.home-dock .tv-focus').count()) === 0, '↑ no dock sai para a topbar')
+      assert((await page.locator('.topbar .tv-focus').count()) === 1, '↑ nas ações sai para a topbar')
     })
 
     await scenario('4. Fundo sem consulta: seta segurada não faz requisição (US1/AC4)', async () => {
@@ -421,7 +421,7 @@ async function run() {
 
     await scenario('8/9. Cards, selos, expansão e ponta da fileira (US2)', async () => {
       await irAoBillboard(page)
-      await irAFileira(page, 'top10-movies').catch(() => irAFileira(page))
+      await irAFileira(page, 'added-movies').catch(() => irAFileira(page))
       await page.waitForTimeout(800)
       const sizes = await page.evaluate(() => {
         const box = (el) => (el ? { w: el.offsetWidth, h: el.offsetHeight } : null)
@@ -481,12 +481,12 @@ async function run() {
       assert(!keys.includes('added-series') || (await page.locator('.home-row[data-row="added-series"] .home-card').count()) > 0, '"Séries adicionadas" só existe com dado (no Xtream a série não traz data de inclusão)')
       if (keys.includes('channels')) {
         const live = await page.locator('.home-row[data-row="channels"] .home-live-card').count()
-        const comBarra = await page.locator('.home-row[data-row="channels"] .home-live-bar').count()
-        note(`"Ao vivo agora": ${live} cards, ${comBarra} com barra de horário (sem EPG não há barra)`)
-        assert(live >= 1, '"Ao vivo agora" traz os canais favoritos')
-      } else unknown('"Ao vivo agora" ausente (sem canais favoritos semeados)')
-      if (keys.includes('because')) note('"Porque você assistiu" presente (último concluído com semelhantes na lista)')
-      else note('"Porque você assistiu" ausente (válido: some sem semelhantes na lista, sem chave TMDB ou sem concluído)')
+        note(`"Canais favoritos": ${live} ícones`)
+        assert(live >= 1, '"Canais favoritos" traz os canais favoritos')
+        assert((await page.locator('.home-row[data-row="channels"] .home-see-all').count()) === 1, '"Canais favoritos" termina no "Ver todos"')
+      } else unknown('"Canais favoritos" ausente (sem canais favoritos semeados)')
+      // Ad-hoc 2026-10-09: o Início só tem fileiras do aparelho — nada de Top 10, Dica, "Porque você assistiu" nem Curadoria IA.
+      assert(keys.every((k) => ROW_ORDER.includes(k)), `só fileiras do aparelho no Início (${keys.join(', ')})`)
       await shot(page, '10-fileiras')
       // Filmes: o "Porque você assistiu" real ou ausente, nunca um "Em breve".
       await openShowcase(page, 'movies')
@@ -503,33 +503,16 @@ async function run() {
       const rotulos = [...vistos]
       const porque = rotulos.some((r) => /porque você assistiu/i.test(r))
       note(`Filmes: ${rotulos.length} fileiras percorridas; "Porque você assistiu" ${porque ? 'presente' : 'ausente'}; Dica ${rotulos.some((r) => /^Dica/i.test(r)) ? 'presente' : 'ausente'}`)
-      if (keys.includes('because')) assert(porque, 'a Home tem "Porque você assistiu" e a vitrine de Filmes também (mesma semente)')
       assert((await page.locator('.vod-showcase .vod-slot-card').count()) === 0, 'Filmes sem nenhum slot "Em breve"')
       await shot(page, '11-filmes')
     })
 
-    await scenario('6. Trailer no billboard (US1/AC7)', async () => {
+    await scenario('6. Billboard só com a primária e "Minha Lista" (ad-hoc 2026-10-09)', async () => {
       await irAoBillboard(page)
-      for (let i = 0; i < 5; i += 1) {
-        if (/Trailer|Tráiler/.test(clean(await page.locator('.home-hero-action.tv-focus').textContent()))) break
-        await page.keyboard.press('ArrowRight')
-      }
-      const alvo = clean(await page.locator('.home-hero-action.tv-focus').textContent())
-      assert(/Trailer|Tráiler/.test(alvo), 'a ação Trailer é alcançável no billboard')
-      const softDisabled = await page.locator('.home-hero-action.tv-focus.is-soft-disabled').count()
-      await page.keyboard.press('Enter')
-      await page.waitForTimeout(6000)
-      const camada = await page.locator('.trailer-layer').count()
-      if (camada > 0) {
-        assert(true, 'com candidato de trailer, a camada de trailer abre')
-        await page.keyboard.press('Escape')
-        await page.locator('.trailer-layer').waitFor({ state: 'detached', timeout: 8000 })
-        assert((await page.locator('.home-hero-action.tv-focus').count()) === 1, 'ao fechar, o foco volta ao billboard')
-      } else {
-        const toast = clean(await page.locator('.toast').first().textContent().catch(() => ''))
-        assert(softDisabled === 1 || toast !== '', `sem candidato: botão soft-disabled (${softDisabled}) e/ou toast do estado ("${toast.slice(0, 60)}")`)
-        if (!TMDB_KEY) unknown('sem chave TMDB, o trailer não é consultado')
-      }
+      const acoes = await page.locator('.home-hero-action').evaluateAll((els) => els.map((el) => (el.textContent ?? '').trim()))
+      note(`ações do billboard: ${acoes.join(' | ')}`)
+      assert(acoes.length === 2, 'o billboard tem duas ações')
+      assert(!acoes.some((a) => /Mais informações|More info|Más información|Trailer|Tráiler/.test(a)), 'sem "Mais informações" e sem Trailer')
     })
 
     await scenario('12. Player a partir do Continuar (FR-027)', async () => {
@@ -587,7 +570,7 @@ async function run() {
           await page.waitForTimeout(500)
         }
         assert(rotulos.includes(esperado[language][0]), `[${language}] o rótulo "${esperado[language][0]}" da fileira está traduzido`)
-        assert(!rotulos.some((r) => /Continuar assistindo|Filmes adicionados|Ao vivo agora/.test(r)), `[${language}] nenhum rótulo de fileira ficou em português`)
+        assert(!rotulos.some((r) => /Continuar assistindo|Filmes adicionados|Canais favoritos/.test(r)), `[${language}] nenhum rótulo de fileira ficou em português`)
         await irAFileira(page)
         await page.waitForTimeout(600)
         const nomesOutro = await nomes()

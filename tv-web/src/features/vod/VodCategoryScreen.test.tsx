@@ -712,8 +712,9 @@ describe('VodCategoryScreen — initialTopbarItem (feature 026, FR-034/FR-044)',
   })
 
   it('com initialTopbarItem, remonta com a topbar já ativa nesse item (volta de Busca/Configurações)', () => {
-    renderCategory(ACAO, { withShell: true, initialTopbarItem: 'search' })
-    expect(screen.getByRole('button', { name: 'Buscar' })).toHaveClass('tv-focus')
+    // Ad-hoc 2026-10-09: a lupa está escondida; a volta de Configurações é o caso que sobra.
+    renderCategory(ACAO, { withShell: true, initialTopbarItem: 'settings' })
+    expect(screen.getByRole('button', { name: 'Configurações' })).toHaveClass('tv-focus')
   })
 })
 

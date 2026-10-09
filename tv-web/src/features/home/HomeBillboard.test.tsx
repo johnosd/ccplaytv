@@ -21,7 +21,6 @@ function renderBillboard(actions: BillboardAction[], over: Partial<HomeBillboard
       synopsis="Uma linguista decifra a língua de visitantes."
       actions={actions}
       focusedActionId="primary"
-      dock={<div role="group" aria-label="Serviços" />}
       {...over}
     />,
   )
@@ -69,7 +68,7 @@ describe('HomeBillboard — ações e estados', () => {
     expect(trailer).toHaveClass('is-soft-disabled', 'tv-focus')
   })
 
-  it('só a ação com o foco recebe tv-focus; sem foco nas ações (foco nas fileiras/dock) nenhuma recebe', () => {
+  it('só a ação com o foco recebe tv-focus; sem foco nas ações (foco nas fileiras) nenhuma recebe', () => {
     const actions: BillboardAction[] = [
       { id: 'primary', label: '▶ Continuar' },
       { id: 'details', label: 'Mais informações' },
@@ -78,7 +77,7 @@ describe('HomeBillboard — ações e estados', () => {
     expect([...container.querySelectorAll('.tv-focus')].map((el) => el.textContent)).toEqual(['Mais informações'])
 
     rerender(
-      <HomeBillboard state="collapsed" ariaLabel="Arrival" title="Arrival" actions={actions} dock={<div />} />,
+      <HomeBillboard state="collapsed" ariaLabel="Arrival" title="Arrival" actions={actions} />,
     )
     expect(container.querySelectorAll('.tv-focus')).toHaveLength(0)
     expect(container.querySelector('.home-hero')).toHaveAttribute('data-state', 'collapsed')
@@ -96,10 +95,5 @@ describe('HomeBillboard — ações e estados', () => {
     expect(screen.getByRole('button', { name: 'Abrir TV ao vivo' })).toHaveClass('tv-focus')
     expect(container.querySelector('.home-hero-synopsis')).toBeNull()
     expect(container.querySelector('.home-hero-eyebrow')).toBeNull()
-  })
-
-  it('o dock vai dentro do billboard, no canto', () => {
-    const { container } = renderBillboard([{ id: 'primary', label: '▶ Continuar' }])
-    expect(container.querySelector('.home-hero-dock')).toContainElement(screen.getByRole('group', { name: 'Serviços' }))
   })
 })

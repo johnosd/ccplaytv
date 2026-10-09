@@ -8,8 +8,8 @@
 //     mesmo item; "Minha Lista" mostra o card do filme favoritado e o
 //     agregado "Filmes (N)", que abre Filmes já em "★ Favoritos"; "Canais
 //     favoritos" abre a Live TV tocando o canal favoritado direto.
-//   US3 (Busca): a lupa da topbar abre a busca de verdade — com resultado
-//     (abre o filme e volta) e sem resultado (estado vazio).
+//   US3 (Busca): desde o ad-hoc de 2026-10-09 a lupa está escondida em todas as
+//     telas — o roteiro só confirma que ela não aparece na topbar.
 //   US2 (Configurações): Fontes IPTV mostra "Modo limitado" numa fonte cujo
 //     painel não confirma o protocolo; excluir exige confirmação;
 //     "Reduzir movimento" liga de verdade (classe no `<html>`).
@@ -264,7 +264,8 @@ async function run() {
     assert(true, 'RETURN fechou o player e voltou ao Início — "e volta"')
 
     console.log('=== US1 (Home): rail "Continuar assistindo" mostra o mesmo filme ===')
-    await page.keyboard.press('ArrowDown') // hero -> "Continuar assistindo"
+    await page.keyboard.press('ArrowDown') // hero -> "Canais favoritos" (ad-hoc 2026-10-09: a 1ª fileira)
+    await page.keyboard.press('ArrowDown') // -> "Continuar assistindo"
     assert(
       (await page
         .locator('section.home-row[aria-label="Continuar assistindo"] .home-card-title')
@@ -274,8 +275,7 @@ async function run() {
     )
 
     console.log('=== US1 (Home): "Minha Lista" mostra o filme e o agregado "Filmes (N)" ===')
-    await page.keyboard.press('ArrowDown') // continuar -> "Ao vivo agora" (feature 060: vem antes de "Minha Lista")
-    await page.keyboard.press('ArrowDown') // -> "Minha Lista"
+    await page.keyboard.press('ArrowDown') // continuar -> "Minha Lista"
     assert(
       (await page
         .locator('section.home-row[aria-label="Minha Lista"] .home-card-title')
@@ -308,13 +308,12 @@ async function run() {
     // linha, sempre acaba lá) e desce 1, que sempre pousa no hero (mesmo truque de `openViaTopbar`).
     for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
     await page.keyboard.press('ArrowDown')
-    await page.keyboard.press('ArrowDown') // hero -> "Continuar assistindo"
-    await page.keyboard.press('ArrowDown') // -> "Ao vivo agora" (feature 060: antes "Canais favoritos", depois de "Minha Lista")
+    await page.keyboard.press('ArrowDown') // hero -> "Canais favoritos" (ad-hoc 2026-10-09: a 1ª fileira, em ícones)
     assert(
-      (await page.locator('section.home-row[aria-label="Ao vivo agora"] .home-live-card.tv-focus').textContent())?.includes(
+      (await page.locator('section.home-row[aria-label="Canais favoritos"] .home-live-card.tv-focus').textContent())?.includes(
         'Canal Favorito',
       ) ?? false,
-      '"Ao vivo agora" mostra "Canal Favorito" em foco',
+      '"Canais favoritos" mostra "Canal Favorito" em foco',
     )
     await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
@@ -327,49 +326,9 @@ async function run() {
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
-    console.log('=== US3 (Busca): com resultado — abre o filme e volta ===')
-    await openViaTopbar(page, 'home') // garante posição conhecida antes de ir pra Buscar (índice 0 na topbar)
-    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight') // Início → … → Buscar
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.search-screen', { timeout: 8000 })
-    const searchField = page.locator('input#search-field')
-    await searchField.waitFor({ timeout: 8000 })
-    await page.keyboard.press('Enter') // OK no campo abre o teclado (foco DOM real)
-    await page.waitForFunction(() => document.activeElement === document.querySelector('#search-field'), null, {
-      timeout: 4000,
-    })
-    await searchField.fill('hero')
-    await page.waitForSelector('.search-row', { timeout: 8000 })
-    assert(await page.getByText('Filmes (1)').isVisible(), 'busca por "hero" acha "Filmes (1)"')
-    assert(await page.locator('.content-card-title', { hasText: 'Filme Hero' }).isVisible(), 'o resultado mostra "Filme Hero"')
-    await page.keyboard.press('ArrowDown') // com o teclado aberto, DOWN fecha e já move pro 1º resultado
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.vod-detail', { timeout: 8000 })
-    assert(true, 'SELECT no resultado abriu o detalhe do filme')
-    await page.keyboard.press('Escape') // volta pra Busca (teclado já estava fechado — sai da tela? não: RETURN aqui só volta um nível)
-    await page.waitForSelector('.search-screen', { timeout: 8000 })
-    assert((await searchField.inputValue()) === 'hero', 'voltar da busca restaura o termo "hero"')
-    await page.keyboard.press('Escape') // Busca -> Início (teclado fechado — RETURN sai direto)
-    await page.waitForSelector('.home-content', { timeout: 8000 })
-
-    console.log('=== US3 (Busca): sem resultado — estado vazio ===')
-    await openViaTopbar(page, 'home')
-    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight')
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.search-screen', { timeout: 8000 })
-    await page.keyboard.press('Enter') // abre o teclado
-    await page.waitForFunction(() => document.activeElement === document.querySelector('#search-field'), null, {
-      timeout: 4000,
-    })
-    await searchField.fill('zzz')
-    await page.waitForSelector('text=/Nada encontrado/', { timeout: 8000 })
-    assert(true, 'termo sem correspondência mostra o estado vazio "Nada encontrado"')
-    await page.keyboard.press('Escape') // 1º RETURN só fecha o teclado
-    await page.waitForFunction(() => document.activeElement !== document.querySelector('#search-field'), null, {
-      timeout: 4000,
-    })
-    await page.keyboard.press('Escape') // 2º RETURN sai da tela
-    await page.waitForSelector('.home-content', { timeout: 8000 })
+    console.log('=== Busca global: a lupa não aparece mais na topbar (ad-hoc 2026-10-09) ===')
+    // A tela de Busca continua no código, só sem entrada (`SEARCH_IN_TOPBAR` em TopBar.tsx); o roteiro dela saiu daqui.
+    assert((await page.locator('.topbar button[aria-label="Buscar"]').count()) === 0, 'a topbar não tem a lupa')
 
     console.log('=== US2 (Configurações): Fontes IPTV mostra "Modo limitado" numa fonte nova ===')
     await openViaTopbar(page, 'home')

@@ -63,9 +63,12 @@ files:
   - assets/TextField.js
   - assets/TitleSummaryModal.js
   - assets/accountCheck.js
+  - assets/catalogApi.js
+  - assets/ComingSoon.js
   - assets/errorCatalog.js
   - assets/freshness.js
   - assets/paging.js
+  - assets/trailerAction.js
   - assets/react-dom.js
   - assets/useEnterSimilarPanel.js
   - assets/useImeChain.js

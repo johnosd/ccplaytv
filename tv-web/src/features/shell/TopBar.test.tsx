@@ -91,7 +91,8 @@ describe('TopBar — nomes acessíveis (feature 028, FR-015/FR-017)', () => {
 })
 
 describe('TopBar — ordem, foco e navegação (US2, FR-013–FR-016)', () => {
-  it('os focáveis aparecem na ordem Início, TV ao vivo, Filmes, Séries, lista ativa, Buscar, Configurações — sem Esportes nem Infantil', () => {
+  // Ad-hoc 2026-10-09: a lupa (Buscar) está escondida em todas as telas (`SEARCH_IN_TOPBAR`).
+  it('os focáveis aparecem na ordem Início, TV ao vivo, Filmes, Séries, lista ativa, Configurações — sem Buscar, Esportes nem Infantil', () => {
     render(<Harness callbacks={makeCallbacks()} sourceName="Sala" />)
     const names = screen.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)
     expect(names).toEqual([
@@ -100,9 +101,9 @@ describe('TopBar — ordem, foco e navegação (US2, FR-013–FR-016)', () => {
       'Filmes',
       'Séries',
       'Lista ativa: Sala. Trocar de lista',
-      'Buscar',
       'Configurações',
     ])
+    expect(screen.queryByRole('button', { name: 'Buscar' })).not.toBeInTheDocument()
     expect(screen.queryByText('Esportes')).not.toBeInTheDocument()
     expect(screen.queryByText('Infantil')).not.toBeInTheDocument()
   })
@@ -117,7 +118,7 @@ describe('TopBar — ordem, foco e navegação (US2, FR-013–FR-016)', () => {
     expect(callbacks.onFocusItem).not.toHaveBeenCalled()
 
     const seen: (string | null)[] = []
-    for (let i = 0; i < 6; i += 1) {
+    for (let i = 0; i < 5; i += 1) {
       press('ArrowRight')
       seen.push(focusedName())
     }
@@ -126,16 +127,15 @@ describe('TopBar — ordem, foco e navegação (US2, FR-013–FR-016)', () => {
       'Filmes',
       'Séries',
       'Lista ativa: Sala. Trocar de lista',
-      'Buscar',
       'Configurações',
     ])
 
     press('ArrowRight')
     expect(focusedName()).toBe('Configurações')
-    expect(callbacks.onFocusItem).toHaveBeenCalledTimes(6)
+    expect(callbacks.onFocusItem).toHaveBeenCalledTimes(5)
 
     press('ArrowLeft')
-    expect(focusedName()).toBe('Buscar')
+    expect(focusedName()).toBe('Lista ativa: Sala. Trocar de lista')
   })
 
   it('só o item em foco recebe .tv-focus', () => {
@@ -316,11 +316,8 @@ describe('TopBar — evento único por escopo (D-004, R-002)', () => {
   })
 })
 
-describe('TopBar — Busca e Configurações são reais (feature 026, D-005, FR-021, FR-035)', () => {
-  it.each([
-    ['search', 'onOpenSearch'],
-    ['settings', 'onOpenSettings'],
-  ] as const)('com callback: OK em %s chama %s, e o botão não é soft disabled', (item, callbackName) => {
+describe('TopBar — Configurações é real (feature 026, D-005, FR-021); a lupa está escondida (ad-hoc 2026-10-09)', () => {
+  it.each([['settings', 'onOpenSettings']] as const)('com callback: OK em %s chama %s, e o botão não é soft disabled', (item, callbackName) => {
     const callback = vi.fn()
     const callbacks = makeCallbacks()
     render(
@@ -332,7 +329,7 @@ describe('TopBar — Busca e Configurações são reais (feature 026, D-005, FR-
         {...{ [callbackName]: callback }}
       />,
     )
-    const button = screen.getByRole('button', { name: item === 'search' ? 'Buscar' : 'Configurações' })
+    const button = screen.getByRole('button', { name: 'Configurações' })
     expect(button).not.toHaveClass('is-soft-disabled')
 
     press('Enter')
@@ -343,13 +340,10 @@ describe('TopBar — Busca e Configurações são reais (feature 026, D-005, FR-
 
   it('sem callback (só a topbar montada crua, como em teste): soft disabled, e OK não faz nada', () => {
     const callbacks = makeCallbacks()
-    render(<TopBar sourceName="Sala" active focusedItem="search" {...callbacks} />)
-    const search = screen.getByRole('button', { name: 'Buscar' })
+    render(<TopBar sourceName="Sala" active focusedItem="settings" {...callbacks} />)
     const settings = screen.getByRole('button', { name: 'Configurações' })
-    expect(search).toHaveClass('is-soft-disabled')
     expect(settings).toHaveClass('is-soft-disabled')
-    expect(search).toHaveClass('tv-focus')
-    expect(search).not.toBeDisabled()
+    expect(settings).toHaveClass('tv-focus')
     expect(settings).not.toBeDisabled()
 
     press('Enter')
@@ -357,21 +351,23 @@ describe('TopBar — Busca e Configurações são reais (feature 026, D-005, FR-
     expect(callbacks.onOpenProfiles).not.toHaveBeenCalled()
   })
 
-  it('currentItem "search"/"settings" marca aria-current, igual aos destinos de topo', () => {
+  it('currentItem "settings" marca aria-current, igual aos destinos de topo; com onOpenSearch a lupa continua escondida', () => {
     const callbacks = makeCallbacks()
     render(
       <TopBar
         sourceName="Sala"
         active
         focusedItem="home"
-        currentItem="search"
+        currentItem="settings"
         {...callbacks}
         onOpenSearch={vi.fn()}
+        onOpenSettings={vi.fn()}
       />,
     )
-    const search = screen.getByRole('button', { name: 'Buscar' })
-    expect(search).toHaveAttribute('aria-current', 'page')
-    expect(search).toHaveClass('topbar-item--current')
+    const settings = screen.getByRole('button', { name: 'Configurações' })
+    expect(settings).toHaveAttribute('aria-current', 'page')
+    expect(settings).toHaveClass('topbar-item--current')
+    expect(screen.queryByRole('button', { name: 'Buscar' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Início' })).not.toHaveAttribute('aria-current')
   })
 
@@ -408,7 +404,7 @@ describe('TopBar — Início ativo, acessibilidade e relógio (FR-014, FR-019, F
   it('todo focável tem nome acessível, e o indicador diz qual é a lista ativa', () => {
     render(<TopBar sourceName="Quarto do Fundo" active focusedItem="home" {...makeCallbacks()} />)
     const buttons = screen.getAllByRole('button')
-    expect(buttons).toHaveLength(7)
+    expect(buttons).toHaveLength(6)
     for (const button of buttons) expect(button).toHaveAccessibleName()
     expect(screen.getByRole('button', { name: /Lista ativa: Quarto do Fundo/ })).toBeInTheDocument()
   })

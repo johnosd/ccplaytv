@@ -166,6 +166,8 @@
   --focus-glow: 0 0 40px rgba(255, 122, 61, 0.55);
   /* Título sobre capa (cards de Filmes/Séries, feature 052): degradê escuro no rodapé do pôster + sombra do texto. */
   --scrim-media: rgba(0, 0, 0, 0.85);
+  /* Escurecimento uniforme do backdrop do billboard do Início, por baixo da vinheta (ad-hoc 2026-10-09). */
+  --scrim-hero: rgba(0, 0, 0, 0.45);
   --text-shadow-media: 0 1px 3px rgba(0, 0, 0, 0.9);
   --focus-scale: 1.06;
 

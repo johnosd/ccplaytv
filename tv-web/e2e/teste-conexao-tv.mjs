@@ -69,6 +69,24 @@ async function openCard() {
   await page.keyboard.press('Enter')
   await expect(page.getByRole('button', { name: 'Iniciar teste' })).toHaveClass(/tv-focus/)
 }
+/**
+ * Com a lista "Fixture 062" já cadastrada: abre a lista, vai à engrenagem da topbar e desce até a aba de Integrações e o card
+ * do teste de conexão — guiado pelo texto em foco, não por contagem de teclas (as abas mudam com as features).
+ */
+async function openSettingsCard(open = 'Abrir teste') {
+  const focusedText = () => page.evaluate(() => document.querySelector('.tv-focus')?.textContent ?? '')
+  await page.locator('.source-card-wrap', { hasText: 'Fixture 062' }).locator('.source-card').click()
+  await page.locator('.home-content').waitFor()
+  await page.keyboard.press('ArrowUp') // billboard -> topbar
+  for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight') // -> engrenagem (última; a lupa está escondida)
+  await page.keyboard.press('Enter')
+  await page.locator('.settings-screen').waitFor()
+  // A aba de Integrações fica acima de "Fontes IPTV" (a que abre focada): sobe até ela.
+  for (let i = 0; i < 10 && !/Integra/.test(await focusedText()); i++) await page.keyboard.press('ArrowUp')
+  await page.keyboard.press('ArrowRight') // aba -> painel
+  for (let i = 0; i < 10 && !(await focusedText()).includes(open); i++) await page.keyboard.press('ArrowDown')
+  await expect(page.getByRole('button', { name: open })).toHaveClass(/tv-focus/)
+}
 async function closeDialog() {
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
@@ -165,7 +183,8 @@ try {
   })
   await closeDialog()
 
-  // Persistência após reload e entrada pelo dock, incluindo RETURN em duas camadas.
+  // Persistência após reload. O Início não tem mais o dock de serviços (ad-hoc 2026-10-09): o teste só se abre por
+  // Configurações › Integrações, o mesmo caminho do começo deste roteiro.
   await page.evaluate(async () => {
     const { db } = await import('/src/lib/catalog/db.ts')
     await db.sources.put({ id: 'e2e-speed', type: 'm3u_url', displayName: 'Fixture 062', connectionState: 'synced',
@@ -175,27 +194,21 @@ try {
   await transport('error')
   await page.locator('.source-card-wrap', { hasText: 'Fixture 062' }).locator('.source-card').click()
   await page.locator('.home-content').waitFor()
-  await page.keyboard.press('ArrowUp')
-  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight')
-  await expect(page.locator('.home-dock [data-service="speedtest"]')).toHaveClass(/tv-focus/)
-  await expect(page.locator('.home-dock-summary')).toContainText('Cloudflare')
-  await page.screenshot({ path: `${shots}/dock-pt.png` })
+  assert.equal(await page.locator('.home-dock, .home-hero-dock').count(), 0, 'o Início não tem dock de serviços')
+  await page.reload()
+  await transport('error')
+  await openSettingsCard()
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('button', { name: 'Abrir teste' })).toHaveClass(/tv-focus/)
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-  await openCard(); await closeDialog(); await page.keyboard.press('Escape')
-  await expect(page.locator('.home-dock [data-service="speedtest"]')).toHaveClass(/tv-focus/)
+  // O diálogo abre pronto para medir de novo; o último resultado salvo continua no card depois de fechar.
+  await expect(page.getByRole('dialog').locator('.tv-focus')).toHaveText(/Iniciar teste|Repetir teste/)
+  await page.screenshot({ path: `${shots}/persistido-pt.png` })
+  await closeDialog()
   assert.equal((await stats()).calls.length, 0)
 
   for (const [language, open, start] of [['en', 'Open test', 'Start test'], ['es', 'Abrir prueba', 'Iniciar prueba']]) {
     await page.evaluate((language) => { localStorage.setItem('ccplaytv:app-language', language) }, language)
     await page.reload(); await transport('error')
-    await page.locator('.source-card-wrap', { hasText: 'Fixture 062' }).locator('.source-card').click()
-    await page.locator('.home-content').waitFor()
-    await page.keyboard.press('ArrowUp')
-    for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight')
-    await page.keyboard.press('Enter')
-    await expect(page.getByRole('button', { name: open })).toHaveClass(/tv-focus/)
+    await openSettingsCard(open)
     await page.keyboard.press('Enter')
     await expect(page.getByRole('button', { name: start })).toHaveClass(/tv-focus/)
     assert.equal(await page.getByRole('dialog').getByRole('button').evaluateAll((buttons) => buttons.filter((b) => !b.textContent.trim() && !b.getAttribute('aria-label')).length), 0)
@@ -203,5 +216,5 @@ try {
     await page.screenshot({ path: `${shots}/ready-${language}.png` })
   }
   assert.deepEqual(errors, [])
-  console.log('062/064: sucesso com upload/parcial/erro/429/limites/cancelamento (download e upload), persistência, dock/scroll/RETURN e pt/en/es aprovados (transporte controlado).')
+  console.log('062/064: sucesso com upload/parcial/erro/429/limites/cancelamento (download e upload), persistência, scroll/RETURN e pt/en/es aprovados (transporte controlado).')
 } finally { await browser.close() }

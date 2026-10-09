@@ -55,10 +55,18 @@ export const HOME_ROW_FORMATS: Record<HomeRowFormat, HomeFormatMetrics> = {
   poster: metrics([250, 375], [667, 375]),
   rank: metrics([250, 375], [667, 375], 0, true),
   continue: metrics([480, 270], [600, 338], CAPTION_BLOCK),
-  // Só o programa atual, dentro do card (FR-027 da 030: o "A seguir" não entra na Home): sem legenda embaixo.
-  live: metrics([480, 270], [480, 270]),
+  // Canais favoritos: ícone quadrado (logo ou iniciais) com o nome embaixo — não expande (ad-hoc 2026-10-09).
+  live: metrics([200, 200], [200, 200], CAPTION_BLOCK),
   ai: metrics([860, 170], [860, 170]),
 }
+
+/** Largura útil de uma fileira: o palco de 1920 menos a safe zone dos dois lados (`--safe-x` = 96). */
+const HOME_RAIL_WIDTH = 1920 - 96 * 2
+/**
+ * Quantos canais favoritos a fileira mostra: só os que cabem na tela sem rolar, guardando o último slot para o "Ver todos (N)"
+ * que leva à categoria Favoritos da TV ao vivo.
+ */
+export const HOME_CHANNELS_VISIBLE = Math.floor(HOME_RAIL_WIDTH / HOME_ROW_FORMATS.live.itemWidth) - 1
 
 /** Altura da faixa de fileiras que espia embaixo do billboard expandido (mostra o título e o topo dos cards da 1ª fileira). */
 export const HOME_PEEK_HEIGHT = 192

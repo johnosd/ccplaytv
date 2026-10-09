@@ -38,11 +38,11 @@ function renderTopBar() {
 }
 
 describe('casca em outros idiomas (feature 054)', () => {
-  it('topbar: destinos, busca e configurações em inglês; o nome da lista (do provedor) não muda', () => {
+  it('topbar: destinos e configurações em inglês (sem a lupa, ad-hoc 2026-10-09); o nome da lista (do provedor) não muda', () => {
     window.localStorage.setItem(APP_LANGUAGE_STORAGE_KEY, 'en')
     renderTopBar()
     for (const name of ['Home', 'Live TV', 'Movies', 'Series']) expect(screen.getByRole('button', { name })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Search' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Search' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Active list: Minha Lista IPTV. Switch list' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument()

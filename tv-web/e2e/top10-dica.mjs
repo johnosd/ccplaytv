@@ -1,4 +1,5 @@
-// Roteiro E2E da feature 057 (Top 10 da semana e Dica, TMDB, em Filmes, Séries e Início) — gate da constitution ("Testes E2E antes
+// Roteiro E2E da feature 057 (Top 10 da semana e Dica, TMDB, em Filmes e Séries; o Início deixou de tê-los no ad-hoc de
+// 2026-10-09) — gate da constitution ("Testes E2E antes
 // da validação em TV"). Capturas em `test-results/top10-dica-tmdb/`.
 //
 // Painel Xtream FICTÍCIO e TMDB SIMULADO (interceptação de `api.themoviedb.org`, nunca a rede real), ambos criados por este script.
@@ -260,44 +261,13 @@ async function run() {
     assert(!(await rowLabels(page, '.vod-showcase')).some(isDiscovery), 'Filmes sem chave: nenhuma fileira Top 10/Dica (nem "Em breve")')
     assert(tmdbCalls.length === 0, `sem chave nada é pedido ao TMDB (${tmdbCalls.length})`)
 
-    console.log((step = '=== Com chave: o Início mostra as 4 linhas ==='))
+    console.log((step = '=== Com chave: o Início continua sem Top 10/Dica (ad-hoc 2026-10-09) ==='))
+    // O Início só tem fileiras do aparelho desde o ad-hoc de 2026-10-09; Top 10 e Dica ficam nas vitrines de Filmes e Séries.
     await page.evaluate(SEEDS.putKey, KEY)
     await goHome(page)
-    await page.waitForSelector('section.home-row[aria-label="Dica de série"] .home-card', { timeout: 20000 })
-    const homeLabels = await rowLabels(page, '.home-content')
-    assert(
-      JSON.stringify(homeLabels.filter(isDiscovery)) === JSON.stringify(['Filmes em alta esta semana', 'Dica de filme', 'Séries em alta esta semana', 'Dica de série']),
-      `Início (060, FR-018): Filmes em alta, Dica de filme, Séries em alta, Dica de série, nessa ordem (${homeLabels.join(' | ')})`,
-    )
-    assert(homeLabels.indexOf('Dica de série') < homeLabels.indexOf('Curadoria IA'), 'as linhas ficam antes da "Curadoria IA"')
-    const homeMovies = 'section.home-row[aria-label="Filmes em alta esta semana"]'
-    assert(JSON.stringify(await ranksOf(page, homeMovies)) === JSON.stringify(['1', '2', '3']), `Início: numeração 1, 2, 3 na fileira, sem buracos (${await ranksOf(page, homeMovies)})`)
-    assert(JSON.stringify(await ranksOf(page, 'section.home-row[aria-label="Séries em alta esta semana"]')) === JSON.stringify(['1', '2', '3']), 'Início: séries em alta numeradas 1, 2 e 3')
-    const homeTitles = await titlesOf(page, homeMovies)
-    assert(JSON.stringify(homeTitles) === JSON.stringify(['Filme Um', 'Filme Dois', 'Filme Tres']), `só o que existe na lista, na versão principal (${homeTitles})`)
-    assert(clean(await page.locator(`${homeMovies} .home-row-source`).textContent()) === 'Fonte: TMDB', 'Início: procedência "Fonte: TMDB"')
-    assert(clean(await page.locator(`${homeMovies} .home-row-coverage`).textContent()) === 'Com base em 1 de 2 categorias', 'Início: aviso de cobertura parcial dos filmes')
-    assert((await page.locator('section.home-row[aria-label="Dica de série"] .home-row-coverage').count()) === 0, 'séries com a cobertura completa: sem aviso')
-    const tipHome = (await titlesOf(page, 'section.home-row[aria-label="Dica de filme"]')).sort()
-    assert(tipHome.length >= 5 && new Set(tipHome).size === tipHome.length && !tipHome.some((title) => title.includes('[L]')), `Dica de filme: 5+ títulos sem duplicata nem "[L]" (${tipHome.length})`)
-    assert(!tipHome.includes('Filme Fora do Ranking'), 'a Dica só traz o que o TMDB sugeriu (e a lista tem)')
+    await page.waitForTimeout(1500)
+    assert(!(await rowLabels(page, '.home-content')).some(isDiscovery), 'Início com chave: nenhuma linha Top 10/Dica')
     await shot(page, '01-inicio')
-
-    console.log((step = '=== Início: foco, OK abre o título e voltar restaura ==='))
-    const callsBeforeFocus = tmdbCalls.length
-    for (let i = 0; i < 6 && !(await page.locator(`${homeMovies} .tv-focus`).count()); i += 1) await page.keyboard.press('ArrowDown')
-    assert((await page.locator(`${homeMovies} .tv-focus`).count()) === 1, 'o foco chegou no Top 10 de filmes')
-    await page.keyboard.press('ArrowRight')
-    assert(tmdbCalls.length === callsBeforeFocus, 'focar não consulta o TMDB')
-    await page.waitForTimeout(500) // feature 060: o billboard recolhe e a fileira sobe em transição; a captura espera o fim dela
-    assert((await page.locator('.home-hero').getAttribute('data-state')) === 'collapsed', 'Início (060): com o foco na fileira o billboard está recolhido')
-    await shot(page, '02-inicio-top10-focado')
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.vod-detail', { timeout: 10000 })
-    await page.keyboard.press('Escape')
-    await page.waitForSelector('.home-content', { timeout: 10000 })
-    await page.waitForSelector(`${homeMovies} .tv-focus`, { timeout: 8000 })
-    assert(clean(await page.locator(`${homeMovies} .tv-focus`).locator('xpath=ancestor-or-self::*[contains(@class,"home-card")][1]').textContent()).includes('Filme Dois'), 'voltar restaura o foco no mesmo card (Filme Dois)')
 
     console.log((step = '=== Filmes: Top 10 e Dica ==='))
     await openShowcase(page, 'movies')
@@ -361,12 +331,14 @@ async function run() {
     tmdbOnline = false
     const callsBeforeOffline = tmdbCalls.length
     await reopenApp(page)
-    await page.waitForSelector('section.home-row[aria-label="Filmes em alta esta semana"] .home-card', { timeout: 20000 })
+    // Desde o ad-hoc de 2026-10-09 o Top 10 só existe nas vitrines: a verificação offline é pela de Filmes.
+    await openShowcase(page, 'movies')
+    const offlineTop = 'section.vod-row[aria-label="Em alta esta semana"]'
+    await page.waitForSelector(`${offlineTop} .content-card`, { timeout: 20000 })
     assert(callsTo('/3/trending/movie/week') > 1 || tmdbCalls.length > callsBeforeOffline, 'tentou a rede (que falhou) antes de usar o cache')
-    assert(JSON.stringify(await ranksOf(page, homeMovies)) === JSON.stringify(['1', '2', '3']), 'Início offline: a última fileira em alta guardada')
-    assert((await page.locator('section.home-row[aria-label="Dica de série"] .home-card').count()) >= 5, 'Início offline: a Dica do último conjunto guardado')
+    assert(JSON.stringify(await ranksOf(page, offlineTop)) === JSON.stringify(['1', '2', '3']), 'Filmes offline: a última fileira em alta guardada')
     assert((await page.locator('.error-state, [role="alert"]').count()) === 0, 'nenhum erro na tela sem rede')
-    await shot(page, '06-inicio-offline-com-cache')
+    await shot(page, '06-filmes-offline-com-cache')
 
     console.log((step = '=== Sem chave de novo: as fileiras somem ==='))
     tmdbOnline = true

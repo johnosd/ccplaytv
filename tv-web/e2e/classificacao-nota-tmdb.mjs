@@ -155,21 +155,10 @@ try {
   await page.screenshot({ path: `${SHOTS}/02-card-expandido.png` })
   console.log('✓ Billboard e card expandido com dados guardados, sem requisição por foco')
 
-  await page.keyboard.press('ArrowDown')
-  await page.locator('.home-row[data-row="top10-movies"] .home-card.tv-focus').waitFor()
-  for (let index = 0; index < 4; index++) await page.keyboard.press('ArrowRight')
-  await page.locator('.home-card-expanded .tmdb-rating-badge').waitFor()
-  assert.equal(await page.locator('.home-card-expanded .tmdb-rating-badge').textContent(), 'TMDB 8,4')
-  assert.equal(await page.locator('.home-card-expanded .content-rating-badge').count(), 0)
-  for (let index = 0; index < 4; index++) {
-    await page.keyboard.press('ArrowDown')
-    if (await page.locator('.home-row[data-row="tip-movies"] .home-card.tv-focus').count()) break
-  }
-  await page.locator('.home-row[data-row="tip-movies"] .home-card.tv-focus').waitFor()
-  assert.equal(await page.locator('.home-card-expanded .tmdb-rating-badge').textContent(), 'TMDB 8,4')
-  assert.equal(apiRequests, beforeFocus)
+  // Ad-hoc 2026-10-09: Top 10 e Dica saíram do Início (seguem nas vitrines de Filmes/Séries).
+  assert.equal(await page.locator('.home-row[data-row="top10-movies"], .home-row[data-row="tip-movies"]').count(), 0)
   assert.equal(await page.locator('.home-card:not(.is-expanded) .content-rating-badge, .home-card:not(.is-expanded) .tmdb-rating-badge').count(), 0)
-  console.log('✓ Top 10/Dica mostram a nota da descoberta sem classificação ou consultas por foco; pôsteres pequenos intactos')
+  console.log('✓ Início sem Top 10/Dica; pôsteres pequenos intactos')
 
   await openMovie('Filme 2')
   await page.locator('.vod-detail-meta .tmdb-rating-badge').waitFor()

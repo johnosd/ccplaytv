@@ -3,9 +3,10 @@
 //
 // Painel Xtream FICTÍCIO e TMDB SIMULADO (interceptação de pi.themoviedb.org/image.tmdb.org, nunca a rede real), ambos criados
 // por este script; a chave TMDB é uma sequência fictícia semeada direto no IndexedDB. Mede:
-//  - o billboard abre expandido, com o dock no canto; 1 ↓ chega à primeira fileira e o billboard recolhe (SC-005); ↑ expande;
-//  - fileiras "Filmes em alta", "Filmes adicionados" e a Curadoria IA no fim (FR-018), sem fileira vazia: "Séries adicionadas" não
-//    existe no Xtream, onde a série não traz data de inclusão; nada de "Em breve" de Porque você assistiu;
+//  - o billboard abre expandido, sem dock (ad-hoc 2026-10-09); 1 ↓ chega à primeira fileira e o billboard recolhe (SC-005); ↑
+//    expande e ↑ de novo sai direto à topbar;
+//  - só "Filmes adicionados" (FR-018; Top 10, Dica, "Porque você assistiu" e a Curadoria IA saíram do Início no ad-hoc de
+//    2026-10-09), sem fileira vazia: "Séries adicionadas" não existe no Xtream, onde a série não traz data de inclusão;
 //  - só o card focado expande (667 × 375 no pôster) e o fundo ambiente desenha a imagem do item focado;
 //  - andar com seta segurada NÃO consulta nada (nem o painel, nem a API do TMDB);
 //  - OK abre o detalhe e voltar reabre o Início no mesmo card, billboard recolhido (SC-005);
@@ -178,20 +179,21 @@ async function run() {
     await page.waitForSelector('.vod-showcase', { timeout: 8000 })
     await page.evaluate(putKey, KEY)
 
-    console.log((step = '=== Início: billboard expandido, dock e fileiras novas ==='))
+    console.log((step = '=== Início: billboard expandido, sem dock, e só as fileiras do aparelho ==='))
     await openViaTopbar(page, 'home')
-    await page.waitForSelector('section.home-row[aria-label="Filmes em alta esta semana"] .home-card', { timeout: 20000 })
+    await page.waitForSelector('section.home-row[aria-label="Filmes adicionados"] .home-card', { timeout: 20000 })
+    // A fileira pode piscar logo ao abrir (some ~1 s e volta enquanto a lista revalida): espera ela assentar.
+    await page.waitForTimeout(1500)
     await page.waitForSelector('section.home-row[aria-label="Filmes adicionados"] .home-card', { timeout: 20000 })
     assert((await heroState(page)) === 'expanded', 'o billboard abre expandido')
-    assert((await page.locator('.home-dock').count()) === 1, 'o dock de serviços está no canto do billboard')
+    assert((await page.locator('.home-dock, .home-hero-dock').count()) === 0, 'sem o dock de serviços no billboard')
     const labels = await homeRowLabels(page)
     assert(
       // No Xtream a série não tem data de inclusão (`last_modified` é atualização): sem dado, a fileira não existe (FR-018).
-      JSON.stringify(labels) === JSON.stringify(['Filmes em alta esta semana', 'Filmes adicionados', 'Curadoria IA']),
-      `só as fileiras com dado, na ordem do FR-018, e a Curadoria IA no fim (${labels.join(' | ')})`,
+      JSON.stringify(labels) === JSON.stringify(['Filmes adicionados']),
+      `só as fileiras com dado, sem Top 10/Dica/Curadoria IA (${labels.join(' | ')})`,
     )
     assert((await page.locator('.home-row[data-row="added-movies"] .home-card').count()) >= 5, 'Filmes adicionados traz os cards da lista')
-    assert((await page.locator('.home-row[data-row="top10-movies"] .home-rank-numeral').count()) >= 3, 'o Top 10 mostra o numeral ao lado do pôster')
     await page.keyboard.press('ArrowDown') // topbar -> conteúdo, sempre nas ações do billboard
     await page.waitForSelector('.home-hero-action.tv-focus', { timeout: 4000 })
     await page.waitForTimeout(500)
@@ -201,8 +203,8 @@ async function run() {
     const heroAction = page.locator('.home-hero-action.tv-focus')
     assert((await heroAction.count()) === 1, 'o foco começa numa ação do billboard')
     await page.keyboard.press('ArrowDown')
-    await page.waitForSelector('.home-row[data-row="top10-movies"] .home-card.tv-focus', { timeout: 4000 })
-    assert((await focusedRow(page)) === 'top10-movies', 'com 1 ↓ o foco está na primeira fileira')
+    await page.waitForSelector('.home-row[data-row="added-movies"] .home-card.tv-focus', { timeout: 4000 })
+    assert((await focusedRow(page)) === 'added-movies', 'com 1 ↓ o foco está na primeira fileira')
     assert((await heroState(page)) === 'collapsed', 'o billboard recolheu')
     await page.waitForTimeout(500)
 
@@ -213,8 +215,10 @@ async function run() {
       return { w: el?.offsetWidth ?? 0, h: el?.offsetHeight ?? 0 }
     })
     assert(size.w === 667 && size.h === 375, `o card expandido tem 667 × 375 (${size.w} × ${size.h})`)
-    await page.waitForSelector('.home-ambient img', { timeout: 4000 })
-    assert((await page.locator('.home-ambient img').count()) >= 1, 'o fundo ambiente desenha a imagem do item focado')
+    // Sem o Top 10/Dica (ad-hoc 2026-10-09) não chegam imagens 16:9 do TMDB para os cards deste painel fictício: o fundo do card
+    // focado é a imagem guardada, se houver, ou só a cor — nunca vazio (o contrato 060 cobre o caso com backdrop guardado).
+    await page.waitForTimeout(600)
+    assert((await page.locator('.home-ambient').count()) === 1, 'o fundo ambiente continua desenhado com o foco nas fileiras')
     await shot(page, '02-card-expandido')
 
     console.log((step = '=== Seta segurada não faz requisição nenhuma ==='))
@@ -238,14 +242,13 @@ async function run() {
     assert((await focusedCardName(page)) === focusedName && focusedName !== '', `voltar restaura o foco no mesmo card (${focusedName})`)
     assert((await heroState(page)) === 'collapsed', 'o billboard segue recolhido ao voltar')
 
-    console.log((step = '=== ↑ devolve ao billboard expandido; ↑ de novo vai ao dock e à topbar ==='))
+    console.log((step = '=== ↑ devolve ao billboard expandido; ↑ de novo sai direto à topbar ==='))
     await page.keyboard.press('ArrowUp')
     await page.waitForSelector('.home-hero-action.tv-focus', { timeout: 4000 })
     assert((await heroState(page)) === 'expanded', '↑ na primeira fileira volta ao billboard expandido')
     await page.keyboard.press('ArrowUp')
-    assert((await page.locator('.home-dock .tv-focus').count()) === 1, '↑ nas ações do billboard vai ao dock')
-    await page.keyboard.press('ArrowUp')
-    assert((await page.locator('.home-dock .tv-focus').count()) === 0, '↑ no dock sai para a topbar')
+    assert((await page.locator('.topbar .tv-focus').count()) === 1, '↑ nas ações do billboard sai para a topbar')
+    assert((await page.locator('.home-content .tv-focus').count()) === 0, 'e o conteúdo fica sem foco')
 
     console.log((step = '=== Ação primária focável rápido ao reabrir o Início (SC-007) ==='))
     await openShowcase(page, 'movies') // sai do Início (o painel não tem canais) e volta pela topbar

@@ -106,28 +106,23 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
     expect(focusedInTopbar()).toHaveLength(0)
   })
 
-  // Feature 060 (FR-019): o dock fica acima das ações do billboard — ↑ nas ações vai ao dock e, dele, à topbar.
-  it('UP no hero leva ao dock e, dele, à topbar em "Início"; DOWN da topbar pousa nas ações do billboard, nunca num ícone "Em breve" do dock', () => {
+  // Ad-hoc 2026-10-09: sem o dock, ↑ nas ações do billboard sai direto à topbar.
+  it('UP no hero leva à topbar em "Início"; DOWN da topbar pousa nas ações do billboard', () => {
     renderHome()
 
-    press('ArrowUp') // hero -> dock
-    expect(focusedInTopbar()).toHaveLength(0)
-    expect(screen.getByRole('button', { name: /^TMDB/ })).toHaveClass('tv-focus')
-    press('ArrowUp') // dock -> topbar
+    press('ArrowUp') // hero -> topbar
     expect(focusedInTopbar()).toHaveLength(1)
     expect(topbarItem('Início')).toHaveClass('tv-focus')
 
-    press('ArrowDown') // topbar -> conteúdo: o foco volta ao billboard (060), mesmo tendo saído pelo dock
+    press('ArrowDown') // topbar -> conteúdo: o foco volta ao billboard (060)
     expect(focusedInTopbar()).toHaveLength(0)
     expect(heroAction(/Abrir TV ao vivo/)).toHaveClass('tv-focus')
-    expect(screen.getByRole('button', { name: /^TMDB/ })).not.toHaveClass('tv-focus')
   })
 
   it('OK em "Filmes" na topbar chama onNavigate com o foco de origem na topbar (FR-016)', () => {
     const props = renderHome()
 
-    press('ArrowUp') // hero -> dock
-    press('ArrowUp') // dock -> topbar, em "Início"
+    press('ArrowUp') // hero -> topbar, em "Início"
     press('ArrowRight') // Início -> TV ao vivo
     press('ArrowRight') // -> Filmes
     expect(topbarItem('Filmes')).toHaveClass('tv-focus')
@@ -139,8 +134,7 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
   it('OK no indicador da lista abre os perfis com foco de origem no indicador (FR-017)', () => {
     const props = renderHome()
 
-    press('ArrowUp')
-    press('ArrowUp') // hero -> dock -> topbar
+    press('ArrowUp') // hero -> topbar
     for (let i = 0; i < 4; i += 1) press('ArrowRight') // Início -> ... -> indicador
     expect(profileIndicator()).toHaveClass('tv-focus')
     press('Enter')
@@ -149,20 +143,17 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
     expect(props.onNavigate).not.toHaveBeenCalled()
   })
 
-  it('OK na lupa e na engrenagem chama onOpenSearch/onOpenSettings com o foco de origem na topbar (FR-021, FR-035)', () => {
+  // Ad-hoc 2026-10-09: a lupa está escondida; depois do indicador da lista vem direto a engrenagem.
+  it('sem lupa na topbar; OK na engrenagem chama onOpenSettings com o foco de origem na topbar (FR-021)', () => {
     const props = renderHome()
 
-    press('ArrowUp')
-    press('ArrowUp') // hero -> dock -> topbar
-    for (let i = 0; i < 5; i += 1) press('ArrowRight') // Início -> ... -> Buscar
-    expect(screen.getByRole('button', { name: 'Buscar' })).toHaveClass('tv-focus')
-    press('Enter')
-    expect(props.onOpenSearch).toHaveBeenCalledWith({ zone: 'topbar', item: 'search' })
-
-    press('ArrowRight') // -> Configurações
+    press('ArrowUp') // hero -> topbar
+    for (let i = 0; i < 5; i += 1) press('ArrowRight') // Início -> ... -> Configurações
+    expect(screen.queryByRole('button', { name: 'Buscar' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Configurações' })).toHaveClass('tv-focus')
     press('Enter')
     expect(props.onOpenSettings).toHaveBeenCalledWith({ zone: 'topbar', item: 'settings' })
+    expect(props.onOpenSearch).not.toHaveBeenCalled()
   })
 
   it('initialFocus na topbar restaura o item e deixa o conteúdo sem foco (FR-029)', () => {

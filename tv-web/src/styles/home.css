@@ -84,13 +84,15 @@
   }
 }
 
-/* Vinheta: escurece à esquerda e embaixo, onde está o texto e as fileiras. */
+/* Vinheta: escurece a imagem inteira (ad-hoc 2026-10-09 — backdrop claro deixava o texto ilegível) e reforça à esquerda e
+   embaixo, onde estão o texto e as fileiras. */
 .home-ambient-scrim {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, var(--scrim-media) 0%, transparent 65%),
-    linear-gradient(0deg, var(--bg-canvas) 0%, transparent 55%);
+    linear-gradient(90deg, var(--scrim-media) 0%, var(--scrim-media) 25%, transparent 75%),
+    linear-gradient(0deg, var(--bg-canvas) 0%, transparent 55%),
+    linear-gradient(var(--scrim-hero), var(--scrim-hero));
 }
 
 /* Foco nas fileiras: fundo esmaecido, para a imagem não competir com os cards (FR-007). */
@@ -121,12 +123,6 @@
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-}
-
-.home-hero-dock {
-  position: absolute;
-  top: 0;
-  right: 0;
 }
 
 .home-hero-info {
@@ -199,7 +195,8 @@
 .home-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  /* Folga para o botão focado (scale + contorno + brilho) não encostar no vizinho (ad-hoc 2026-10-09). */
+  gap: var(--space-4);
   margin-top: var(--space-1);
 }
 
@@ -231,20 +228,31 @@
   color: var(--accent-ink);
 }
 
+/* Com barra de progresso: rótulo + tempo restante numa linha e a barra logo abaixo, os dois centrados no botão — mesma
+   altura dos outros botões, nada encostado na borda (ad-hoc 2026-10-09). */
+.home-hero-action--progress {
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+.home-hero-action-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
 /* "T1:E3 · faltam 26 min" — complemento do rótulo (descrição acessível; o nome continua só "Continuar"). */
 .home-hero-action-hint {
-  margin-left: var(--space-1);
   font-weight: 600;
   font-size: var(--fs-body);
   opacity: 0.7;
 }
 
-/* Barra de progresso real (só com posição e duração conhecidas): linha fina no pé do botão. */
+/* Barra de progresso real (só com posição e duração conhecidas). */
 .home-hero-progress {
-  position: absolute;
-  left: var(--space-4);
-  right: var(--space-4);
-  bottom: var(--space-1);
+  display: block;
   height: calc(var(--space-1) / 2);
   border-radius: var(--radius-pill);
   background: var(--bg-hover);
@@ -709,191 +717,52 @@
   background: var(--bg-hover);
 }
 
-/* ---------- Card de "Ao vivo agora" (FR-012): logo, número, nome, AO VIVO e — só com EPG — programa + barra real ---------- */
+/* ---------- Canais favoritos (1ª fileira, ad-hoc 2026-10-09): ícone quadrado com o logo — ou as iniciais — e o nome embaixo.
+   O nome fica fora da caixa (na faixa de legenda do formato), então o anel de foco contorna só o ícone. ---------- */
 
 .home-live-card {
-  box-sizing: border-box;
+  position: relative;
   width: var(--home-card-w);
   height: var(--home-card-h);
-  padding: var(--space-3);
   border-radius: var(--radius-md);
   background: var(--bg-surface);
   box-shadow: var(--elevation-1);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: var(--space-2);
-  overflow: hidden;
-}
-
-.home-live-top {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
 }
 
 .home-live-logo {
-  flex: none;
-  width: var(--space-6);
-  height: var(--space-6);
-  border-radius: var(--radius-sm);
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
   overflow: hidden;
-  background: var(--bg-elevated);
 }
 
 .home-live-logo .poster-box {
   width: 100%;
   height: 100%;
-  aspect-ratio: auto;
   border-radius: inherit;
 }
 
 .home-live-name {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-1);
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: var(--fs-body-lg);
-  line-height: 1.1;
-  color: var(--text-primary);
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  right: 0;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.home-live-number {
-  flex: none;
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: var(--fs-body);
-  color: var(--text-secondary);
-}
-
-.home-live-badge {
-  flex: none;
-  padding: calc(var(--space-1) / 2) var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--live);
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  font-weight: 800;
-  font-size: var(--fs-caption);
-  letter-spacing: 0.04em;
-}
-
-.home-live-bottom {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.home-live-program {
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: var(--fs-body-lg);
-  color: var(--text-primary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.home-live-time {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: var(--fs-caption);
-  color: var(--text-secondary);
-}
-
-.home-live-bar {
-  flex: 1;
-  height: calc(var(--space-1) / 2);
-  border-radius: var(--radius-pill);
-  background: var(--bg-hover);
-  overflow: hidden;
-}
-
-.home-live-bar > i {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-}
-
-/* ---------- Dock de serviços (canto do billboard) — soft disabled, nunca dado inventado ---------- */
-
-.home-dock {
-  position: relative;
-  display: flex;
-  gap: var(--space-2);
-  flex: none;
-}
-
-.home-dock-summary {
-  position: absolute;
-  right: 0;
-  top: calc(100% + var(--space-2));
-  width: max-content;
-  max-width: calc(var(--space-5) * 12);
-  background: var(--bg-surface);
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: var(--fs-caption);
-}
-
-.home-dock-icon {
-  --icon-size: var(--fs-h2);
-  appearance: none;
-  border: none;
-  width: calc(var(--space-5) + var(--space-1) + var(--space-1) / 2);
-  height: calc(var(--space-5) + var(--space-1) + var(--space-1) / 2);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.home-dock-icon.tv-focus {
-  background: var(--bg-hover);
+.home-live-card.tv-focus .home-live-name {
   color: var(--text-primary);
 }
 
-/* Ícone de serviço real (feature 032): um ponto de estado no canto. O estado
-   também está no `aria-label`/`title` — a cor nunca é o único sinal. */
-.home-dock-icon--service {
-  position: relative;
-}
-
-.home-dock-icon--service::after {
-  content: '';
-  position: absolute;
-  top: var(--space-1);
-  right: var(--space-1);
-  width: var(--space-1);
-  height: var(--space-1);
-  border-radius: var(--radius-pill);
-  background: var(--text-disabled);
-}
-
-.home-dock-icon--service[data-state='connected']::after {
-  background: var(--success);
-}
-
-.home-dock-icon--service[data-state='refused']::after {
-  background: var(--danger);
-}
-
-.home-dock-icon--service[data-state='offline']::after,
-.home-dock-icon--service[data-state='rate_limited']::after {
-  background: var(--warning);
+/* "Ver todos (N)" da fileira de canais: da altura do ícone, não do slot inteiro (que inclui a faixa do nome). */
+.home-row[data-row='channels'] .home-see-all {
+  height: var(--home-card-h);
 }

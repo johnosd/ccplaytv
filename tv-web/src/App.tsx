@@ -374,13 +374,6 @@ function App() {
           onOpenFavorites={(destination, from) =>
             dispatch({ type: 'open', screen: openFavoritesScreen(destination), from: { name: 'home', focus: from } })
           }
-          onOpenIntegrations={(from) =>
-            dispatch({
-              type: 'open',
-              screen: { name: 'settings', restore: { zone: 'panel', tab: 'integrations', service: from.zone === 'dock' && from.service === 'dock-speedtest' ? 'speedtest' : undefined } },
-              from: { name: 'home', focus: from },
-            })
-          }
           onOpenSearch={(from) => dispatch({ type: 'open', screen: { name: 'search' }, from: { name: 'home', focus: from } })}
           onOpenSettings={(from) =>
             dispatch({ type: 'open', screen: { name: 'settings' }, from: { name: 'home', focus: from } })

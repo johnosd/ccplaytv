@@ -1,14 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  useCategoryList,
   useContinueCards,
-  useDailyTip,
   useFavoriteIds,
   useFavoritesContent,
   useHomeImages,
   useRecentlyAdded,
-  useWeeklyTop10,
   useHomeHero,
   useMyListContent,
   useSeriesWatchedSummary,
@@ -16,54 +13,33 @@ import {
   useUserState,
   useWatchedIds,
   type CatalogItemOut,
-  type DiscoveryPick,
 } from '../catalog/catalogApi'
-import { stableIdOf, useEpgPrograms, useTmdbStatus } from '../catalog/catalogApi'
-import { useBecauseYouWatched } from '../catalog/becauseApi'
-import { channelNumberOf } from '../live/channelNumber'
-import { TMDB_DOCK_LABEL_KEY } from '../settings/integrationsModel'
-import { nowNextForChannel } from '../../lib/epg/nowNext'
+import { stableIdOf } from '../catalog/catalogApi'
 import { useNow } from '../../lib/useNow'
 import type { HomeFocus, TopDestination } from '../../navigation/appNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
 import { useIdFocus } from '../../lib/focus/useIdFocus'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { useToast } from '../../lib/useToast'
-import { useLanguage, useT } from '../../lib/i18n/I18nProvider'
-import { APP_LANGUAGE_LOCALE } from '../../lib/i18n/languages'
-import { useLastSpeedTest } from '../../lib/network/useLastSpeedTest'
+import { useT } from '../../lib/i18n/I18nProvider'
 import { Toast } from '../../components/Toast'
-import { useAnnounce } from '../../lib/announcer'
-import { comingSoonToast } from '../../lib/comingSoon'
-import type { MessageKey } from '../../lib/i18n/messages/pt'
 import type { Translator } from '../../lib/i18n/translate'
-import { ComingSoon } from '../../components/ComingSoon'
 import { RatingBadge } from '../../components/RatingBadge'
 import { ContentRatingBadge } from '../../components/ContentRatingBadge'
 import { TmdbRatingBadge } from '../../components/TmdbRatingBadge'
 import { SeeAllCard } from '../../components/SeeAllCard'
 import { Rail } from '../../components/Rail'
-import { Icon } from '../../components/Icon'
-import { TrailerLayer } from '../../components/TrailerLayer'
-import type { IconName } from '../../components/iconPaths'
 import { DetailChips } from '../vod/DetailChips'
 import { formatDurationMinutes } from '../vod/detailMetadataFormat'
 import { groupLabelDisplay } from '../vod/vodGroupDisplay'
-import {
-  trailerActionLabel,
-  trailerActionSoftDisabled,
-  trailerActionState,
-  trailerActionToast,
-  type TrailerActionState,
-} from '../vod/trailerAction'
 import { HomeAmbient } from './HomeAmbient'
 import { HomeBillboard, type BillboardAction } from './HomeBillboard'
 import { HomeLiveCard } from './HomeLiveCard'
 import { HomeTitleCard } from './HomeTitleCard'
-import { mergeDiscoveryRatings } from './homeTmdbRatings'
 import { cardBadges, type CardBadges } from './cardBadges'
 import {
   HOME_AMBIENT_DELAY_MS,
+  HOME_CHANNELS_VISIBLE,
   HOME_DEFERRED_MS,
   HOME_PEEK_HEIGHT,
   HOME_ROW_FORMATS,
@@ -85,18 +61,12 @@ export interface HomeContentProps {
   onBack: () => void
   /** Hero de boas-vindas (FR-008): abre TV ao vivo/Filmes. */
   onNavigate: (destination: TopDestination, from: HomeFocus) => void
-  /** "Mais informações"/card de filme ou série (FR-007/FR-012). */
+  /** Card de filme ou série (FR-012) e a primária de um favorito ainda não começado. */
   onOpenItem: (item: CatalogItemOut, from: HomeFocus) => void
   /** Card de "Canais favoritos" (FR-013). */
   onOpenChannel: (channel: CatalogItemOut, from: HomeFocus) => void
   /** "Ver todos (N)"/"Filmes (N)"/"Séries (N)" (FR-014). */
   onOpenFavorites: (destination: TopDestination, from: HomeFocus) => void
-  /**
-   * Ícones TMDB/conexão do dock: levam a Configurações › Integrações
-   * & BYOK. Opcional só porque os contratos travados da 026 montam o Início sem
-   * ele; ausente, o ícone volta a só anunciar o estado.
-   */
-  onOpenIntegrations?: (from: HomeFocus) => void
   /** Ação primária do hero quando resolve em reprodução (FR-005). */
   onPlay: (params: { itemId: string; title: string; startAtMs: number | undefined }) => void
   /** Foco a restaurar ao voltar de um destino (FR-017/FR-029). */
@@ -114,19 +84,12 @@ export interface HomeContentProps {
   ambientHost?: HTMLElement | null
 }
 
-/** Linhas navegáveis, de cima para baixo (D-017): o dock do billboard, as ações do billboard e as fileiras. */
-type LineKey = 'dock' | 'hero' | HomeRowKey
-type DiscoveryRowKey = 'top10-movies' | 'top10-series' | 'tip-movies' | 'tip-series'
-const DISCOVERY_ROWS: DiscoveryRowKey[] = ['top10-movies', 'top10-series', 'tip-movies', 'tip-series']
-const ALL_LINES: LineKey[] = ['dock', 'hero', ...HOME_ROW_ORDER]
+/** Linhas navegáveis, de cima para baixo (D-017): as ações do billboard e as fileiras. */
+type LineKey = 'hero' | HomeRowKey
+const ALL_LINES: LineKey[] = ['hero', ...HOME_ROW_ORDER]
 
-const DISCOVERY_TITLE: Record<DiscoveryRowKey, MessageKey> = {
-  // No Início filmes e séries aparecem juntos: títulos distintos (na hero cada tela já é do seu tipo).
-  'top10-movies': 'home.row.trendingMovies',
-  'top10-series': 'home.row.trendingSeries',
-  'tip-movies': 'showcase.row.tipMovies',
-  'tip-series': 'showcase.row.tipSeries',
-}
+/** Sem imagens além das da listagem e da metadata (as que vinham do Top 10/Dica saíram com essas fileiras). */
+const EMPTY_IMAGES: ReadonlyMap<string, string> = new Map()
 
 const SEE_ALL_ID = '__see-all__'
 const MOVIES_ID = '__movies__'
@@ -144,46 +107,10 @@ function channelRailId(entry: ChannelRailItem): string {
   return entry.kind === 'channel' ? entry.item.id : SEE_ALL_ID
 }
 
-function isDiscoveryRow(line: LineKey): line is DiscoveryRowKey {
-  return (DISCOVERY_ROWS as LineKey[]).includes(line)
-}
-
-/** Resultado de `useWeeklyTop10`/`useDailyTip` → itens (na ordem do ranking) e cobertura. A posição real no TMDB não vira número de card (ver `index + 1` abaixo). */
-function discoveryOf(query: {
-  data: CatalogItemOut[] | DiscoveryPick[] | undefined
-  coveredCategories: number
-  totalCategories: number
-}): { items: CatalogItemOut[]; covered: number; total: number } {
-  const data = query.data ?? []
-  const items: CatalogItemOut[] = data.map((entry) => ('item' in entry ? entry.item : entry))
-  return { items, covered: query.coveredCategories, total: query.totalCategories }
-}
-
-interface DockIconDef {
-  id: string
-  icon: IconName
-  /** Rótulo no catálogo; o ícone do TMDB não tem (nome próprio) e usa o estado do serviço. */
-  labelKey?: MessageKey
-}
-
-/** Serviços locais reais no dock; IA/clima permanecem placeholders. */
-const TMDB_DOCK_ID = 'dock-tmdb'
-
-const DOCK_ICONS: DockIconDef[] = [
-  { id: TMDB_DOCK_ID, icon: 'info' },
-  { id: 'dock-ai', icon: 'device', labelKey: 'settings.integrations.soon.dock-ai' },
-  { id: 'dock-weather', icon: 'live', labelKey: 'settings.integrations.soon.dock-weather' },
-  { id: 'dock-speedtest', icon: 'quality', labelKey: 'settings.speed.title' },
-]
-
 type HeroEntry = BillboardAction
 
-function heroEntries(
-  hero: ReturnType<typeof useHomeHero>['data'],
-  isFavorite: boolean,
-  trailer: TrailerActionState,
-  t: Translator,
-): HeroEntry[] {
+/** Ações do billboard: a primária e "Minha Lista" ("Mais informações" e Trailer saíram no ad-hoc de 2026-10-09). */
+function heroEntries(hero: ReturnType<typeof useHomeHero>['data'], isFavorite: boolean, t: Translator): HeroEntry[] {
   if (!hero || hero.kind === 'welcome') {
     return [
       { id: 'shortcut-live', label: t('home.shortcut.live') },
@@ -193,10 +120,7 @@ function heroEntries(
   const primaryLabel = hero.primary.type === 'open-detail' || !hero.primary.resume ? t('home.hero.watch') : t('home.hero.continue')
   return [
     { id: 'primary', label: primaryLabel },
-    { id: 'details', label: t('home.hero.details') },
     { id: 'mylist', label: isFavorite ? t('home.hero.inMyList') : t('home.hero.addMyList') },
-    // Trailer real (feature 060, item 32): os estados e textos são os do detalhe (033), nada é consultado ao focar.
-    { id: 'trailer', label: trailerActionLabel(trailer, t), softDisabled: trailerActionSoftDisabled(trailer) },
   ]
 }
 
@@ -218,7 +142,8 @@ function rowStyle(format: HomeRowFormat): CSSProperties {
  * Conteúdo do Início "Vitrine expandida" (feature 060, `logic/billboard-e-navegacao.md`): um billboard de um título que
  * recolhe quando o foco desce, fileiras que ocupam a tela com a focada no topo e um fundo ambiente que acompanha o item
  * focado. Continua sendo o único dono da navegação (um só `useRemoteNav`, D-001): os componentes de baixo são só
- * apresentação. A moldura do Início (026) segue a mesma: hero + rails reais + mocks honestos.
+ * apresentação. Desde o ad-hoc de 2026-10-09 só há fileiras do próprio aparelho (canais favoritos, continuar, Minha Lista e
+ * adicionados), sem Top 10/Dica/"Porque você assistiu"/Curadoria IA e sem o dock de serviços.
  */
 export function HomeContent({
   sourceId,
@@ -229,7 +154,6 @@ export function HomeContent({
   onOpenItem,
   onOpenChannel,
   onOpenFavorites,
-  onOpenIntegrations,
   onPlay,
   initialFocus,
   statusLine,
@@ -240,26 +164,9 @@ export function HomeContent({
   const continueQuery = useContinueCards(sourceId)
   const myListQuery = useMyListContent(sourceId)
   const channelsQuery = useFavoritesContent(sourceId, 'channel', true)
-  // Feature 057: Top 10 e Dica (TMDB cruzado com a lista). Sem chave/cache/cruzamento não há dado e a linha não existe.
-  const top10MoviesQuery = useWeeklyTop10(sourceId, 'movie')
-  const top10SeriesQuery = useWeeklyTop10(sourceId, 'series')
-  const tipMoviesQuery = useDailyTip(sourceId, 'movie')
-  const tipSeriesQuery = useDailyTip(sourceId, 'series')
   const t = useT()
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
-  const announce = useAnnounce()
-  // Estado do TMDB no dock (feature 032): lê só o IndexedDB, nunca a rede — seguro ao focar.
-  const tmdbStatusQuery = useTmdbStatus()
-  const tmdbState = tmdbStatusQuery.data?.state ?? 'not_configured'
-  const lastSpeedTest = useLastSpeedTest()
-  const language = useLanguage()
-  const speedResult = lastSpeedTest.data
-  const speedLabel = lastSpeedTest.isError ? t('home.speedTest.unavailable') : speedResult ? t('home.speedTest.saved', {
-    speed: speedResult.downloadMbps === null ? t('settings.speed.unavailable') : `${new Intl.NumberFormat(APP_LANGUAGE_LOCALE[language], { maximumFractionDigits: 1 }).format(speedResult.downloadMbps)} Mbps`,
-    date: new Intl.DateTimeFormat(APP_LANGUAGE_LOCALE[language], { dateStyle: 'short', timeStyle: 'short' }).format(speedResult.measuredAt),
-  }) : t('home.speedTest.empty')
-
   const heroItem = hero.kind !== 'welcome' ? hero.item : null
   const heroStableId = heroItem ? stableIdOf(heroItem) : null
   const heroUserState = useUserState(heroStableId)
@@ -269,12 +176,6 @@ export function HomeContent({
   // registro = billboard sem backdrop/sinopse, nunca um erro na tela (R-011).
   const metadataQuery = useTitleMetadata(heroItem?.id ?? null)
   const heroMetadata = metadataQuery.data
-  const trailerState = trailerActionState({
-    metadata: heroMetadata,
-    checking: heroItem !== null && (metadataQuery.isFetching || heroMetadata === undefined),
-    tmdbState: tmdbStatusQuery.data?.state,
-  })
-  const [trailerOpen, setTrailerOpen] = useState(false)
 
   const continueCards = useMemo(() => continueQuery.data ?? [], [continueQuery.data])
   const continueItems = useMemo(() => continueCards.map((card) => card.item), [continueCards])
@@ -288,21 +189,12 @@ export function HomeContent({
   const favoriteSeriesIds = useFavoriteIds(sourceId, 'series').data
   const seriesSummary = useSeriesWatchedSummary(deferred ? sourceId : null).data
 
-  // Fileiras novas (feature 060). "Adicionados" lê o índice de busca inteiro de cada tipo: só depois do 1º desenho (D-013, R-001).
-  // "Porque você assistiu" só lê o IndexedDB sem chave TMDB (D-011) e a metadata da semente ao ABRIR a tela, nunca ao focar.
+  // "Adicionados" lê o índice de busca inteiro de cada tipo: só depois do 1º desenho (feature 060, D-013, R-001).
   const addedMoviesQuery = useRecentlyAdded(sourceId, 'movie', deferred)
   const addedSeriesQuery = useRecentlyAdded(sourceId, 'series', deferred)
-  const becauseRow = useBecauseYouWatched(sourceId, 'any')
-  const channelCategories = useCategoryList(sourceId, 'channel').data
   const myListContent = myListQuery.data ?? { items: [], movieCount: 0, seriesCount: 0 }
   const channelsContent = channelsQuery.data ?? { items: [], unresolved: 0 }
-  // EPG (feature 030, FR-027): programa atual de cada canal favorito, lido só
-  // do aparelho; `useNow` faz o título virar sem sair da Home.
   const epgNow = useNow()
-  const epgLookup = useEpgPrograms(
-    sourceId,
-    channelsContent.items.map((item) => item.epg_channel_id),
-  ).data
 
   const mylistRailItems: MyListRailItem[] = [
     ...myListContent.items.map((item): MyListRailItem => ({ kind: 'item', item })),
@@ -310,37 +202,27 @@ export function HomeContent({
     ...(myListContent.seriesCount > 0 ? [{ kind: 'series' as const, count: myListContent.seriesCount }] : []),
   ]
   const channelRailItems: ChannelRailItem[] = [
-    ...channelsContent.items.map((item): ChannelRailItem => ({ kind: 'channel', item })),
+    // Só os ícones que cabem na tela; o resto fica a um "Ver todos (N)" da categoria Favoritos da TV ao vivo.
+    ...channelsContent.items.slice(0, HOME_CHANNELS_VISIBLE).map((item): ChannelRailItem => ({ kind: 'channel', item })),
     ...(channelsContent.items.length > 0 ? [{ kind: 'see-all' as const, count: channelsContent.items.length }] : []),
   ]
 
-  const discovery: Record<DiscoveryRowKey, { items: CatalogItemOut[]; covered: number; total: number }> = {
-    'top10-movies': discoveryOf(top10MoviesQuery),
-    'top10-series': discoveryOf(top10SeriesQuery),
-    'tip-movies': discoveryOf(tipMoviesQuery),
-    'tip-series': discoveryOf(tipSeriesQuery),
-  }
   const addedMovies = addedMoviesQuery.data ?? []
   const addedSeries = addedSeriesQuery.data ?? []
-  const becauseItems = becauseRow?.items ?? []
 
-  // Fileira sem dado — ou ainda carregando — não existe (FR-018): sem skeleton, sem "Em breve". A Curadoria por IA sempre.
+  // Fileira sem dado — ou ainda carregando — não existe (FR-018): sem skeleton, sem "Em breve".
   const rowKeys = buildHomeRows({
-    continue: continueItems.length > 0,
-    'top10-movies': discovery['top10-movies'].items.length > 0,
-    'added-movies': addedMovies.length > 0,
-    'tip-movies': discovery['tip-movies'].items.length > 0,
-    because: becauseItems.length > 0,
     channels: channelRailItems.length > 0,
+    continue: continueItems.length > 0,
     mylist: mylistRailItems.length > 0,
-    'top10-series': discovery['top10-series'].items.length > 0,
+    'added-movies': addedMovies.length > 0,
     'added-series': addedSeries.length > 0,
-    'tip-series': discovery['tip-series'].items.length > 0,
   })
-  const lines: LineKey[] = ['dock', 'hero', ...rowKeys]
+  const lines: LineKey[] = ['hero', ...rowKeys]
 
-  const initialLine: LineKey =
-    initialFocus?.zone === 'rail' ? initialFocus.rail : initialFocus?.zone === 'dock' ? 'dock' : 'hero'
+  // Um foco antigo numa fileira que não existe mais (Top 10, Dica…) cai no billboard, nunca em nada.
+  const restoredRail = initialFocus?.zone === 'rail' ? ALL_LINES.find((key) => key === initialFocus.rail) : undefined
+  const initialLine: LineKey = restoredRail ?? 'hero'
   const [line, setLine] = useState<LineKey>(initialLine)
   const effectiveLine: LineKey = lines.includes(line)
     ? line
@@ -351,7 +233,7 @@ export function HomeContent({
         }
         return 'hero'
       })()
-  const mode: 'billboard' | 'rows' = effectiveLine === 'hero' || effectiveLine === 'dock' ? 'billboard' : 'rows'
+  const mode: 'billboard' | 'rows' = effectiveLine === 'hero' ? 'billboard' : 'rows'
 
   const heroInitialId =
     initialFocus?.zone === 'hero'
@@ -359,7 +241,7 @@ export function HomeContent({
       : initialFocus?.zone === 'shortcuts'
         ? `shortcut-${initialFocus.destination}`
         : null
-  const heroActions = heroEntries(heroQuery.data, heroIsFavorite, trailerState, t)
+  const heroActions = heroEntries(heroQuery.data, heroIsFavorite, t)
   const heroFocus = useIdFocus(heroActions, heroInitialId)
 
   const continueInitialId =
@@ -377,37 +259,22 @@ export function HomeContent({
 
   const railInitialId = (key: HomeRowKey) =>
     initialFocus?.zone === 'rail' && initialFocus.rail === key ? initialFocus.itemId : null
-  const discoveryFocus = {
-    'top10-movies': useIdFocus(discovery['top10-movies'].items, railInitialId('top10-movies')),
-    'top10-series': useIdFocus(discovery['top10-series'].items, railInitialId('top10-series')),
-    'tip-movies': useIdFocus(discovery['tip-movies'].items, railInitialId('tip-movies')),
-    'tip-series': useIdFocus(discovery['tip-series'].items, railInitialId('tip-series')),
-  }
   const addedMoviesFocus = useIdFocus(addedMovies, railInitialId('added-movies'))
   const addedSeriesFocus = useIdFocus(addedSeries, railInitialId('added-series'))
-  const becauseFocus = useIdFocus(becauseItems, railInitialId('because'))
 
-  // As fileiras de TÍTULOS (todas menos "Minha Lista", "Ao vivo agora" e a Curadoria IA) se comportam igual: ←/→ andam pelos
-  // cards e OK abre o título. Um só mapa evita repetir seleção, direção e fundo por fileira.
+  // As fileiras de TÍTULOS (todas menos "Minha Lista" e os canais) se comportam igual: ←/→ andam pelos cards e OK abre o
+  // título. Um só mapa evita repetir seleção, direção e fundo por fileira.
   const titleRows: Partial<Record<HomeRowKey, { items: CatalogItemOut[]; focus: { index: number; moveTo: (index: number) => void } }>> = {
     continue: { items: continueItems, focus: continueFocus },
-    'top10-movies': { items: discovery['top10-movies'].items, focus: discoveryFocus['top10-movies'] },
     'added-movies': { items: addedMovies, focus: addedMoviesFocus },
-    'tip-movies': { items: discovery['tip-movies'].items, focus: discoveryFocus['tip-movies'] },
-    because: { items: becauseItems, focus: becauseFocus },
-    'top10-series': { items: discovery['top10-series'].items, focus: discoveryFocus['top10-series'] },
     'added-series': { items: addedSeries, focus: addedSeriesFocus },
-    'tip-series': { items: discovery['tip-series'].items, focus: discoveryFocus['tip-series'] },
   }
-
-  const dockInitialId = initialFocus?.zone === 'dock' ? initialFocus.service : null
-  const dockFocus = useIdFocus(DOCK_ICONS, dockInitialId)
 
   function moveLine(direction: 'up' | 'down') {
     const idx = lines.indexOf(effectiveLine)
     if (direction === 'up') {
       if (idx <= 0) {
-        // Voltar da topbar (↓) sempre pousa no billboard, nunca num ícone "Em breve" do dock.
+        // Voltar da topbar (↓) sempre pousa no billboard.
         setLine('hero')
         onExitUp?.()
         return
@@ -431,7 +298,7 @@ export function HomeContent({
       return
     }
     if (hero.kind === 'welcome') return
-    const from: HomeFocus = { zone: 'hero', action: action.id as 'primary' | 'details' | 'mylist' | 'trailer' }
+    const from: HomeFocus = { zone: 'hero', action: action.id as 'primary' | 'mylist' }
     if (action.id === 'primary') {
       if (hero.primary.type === 'open-detail') {
         onOpenItem(hero.item, from)
@@ -440,20 +307,7 @@ export function HomeContent({
       onPlay({ itemId: hero.primary.itemId, title: hero.primary.title, startAtMs: hero.primary.startAtMs })
       return
     }
-    if (action.id === 'details') {
-      onOpenItem(hero.item, from)
-      return
-    }
-    if (action.id === 'mylist') {
-      void favoriteToggle.toggle(hero.item)
-      return
-    }
-    if (action.id === 'trailer') {
-      const toast = trailerActionToast(trailerState, t)
-      if (toast !== null) showToast(toast)
-      // `trailerOpen` cobre o instante entre um OK repetido e a camada do trailer montar (como no detalhe, FR-012).
-      else if (!trailerOpen) setTrailerOpen(true)
-    }
+    if (action.id === 'mylist') void favoriteToggle.toggle(hero.item)
   }
 
   function handleSelect() {
@@ -484,26 +338,6 @@ export function HomeContent({
       else onOpenFavorites('live', from)
       return
     }
-    if (effectiveLine === 'ai') {
-      announce(comingSoonToast('home-ai-curation', t))
-      return
-    }
-    if (effectiveLine === 'dock') {
-      const icon = DOCK_ICONS[dockFocus.index]
-      if (icon.id === 'dock-speedtest') {
-        if (onOpenIntegrations) onOpenIntegrations({ zone: 'dock', service: icon.id })
-        else announce(speedLabel)
-        return
-      }
-      if (!icon) return
-      if (icon.id === TMDB_DOCK_ID) {
-        // Real desde a feature 032: leva ao card do TMDB (sem o callback, só diz o estado).
-        if (onOpenIntegrations) onOpenIntegrations({ zone: 'dock', service: icon.id })
-        else announce(t(TMDB_DOCK_LABEL_KEY[tmdbState]))
-        return
-      }
-      announce(comingSoonToast(icon.id, t))
-    }
   }
 
   useRemoteNav(
@@ -516,7 +350,6 @@ export function HomeContent({
             }
             const delta = direction === 'left' ? -1 : 1
             if (effectiveLine === 'hero') heroFocus.moveTo(heroFocus.index + delta)
-            else if (effectiveLine === 'dock') dockFocus.moveTo(dockFocus.index + delta)
             else if (effectiveLine === 'mylist') myListFocus.moveTo(myListFocus.index + delta)
             else if (effectiveLine === 'channels') channelsFocus.moveTo(channelsFocus.index + delta)
             else titleRows[effectiveLine as HomeRowKey]?.focus.moveTo((titleRows[effectiveLine as HomeRowKey]?.focus.index ?? 0) + delta)
@@ -565,7 +398,7 @@ export function HomeContent({
     }
     const titleRow = titleRows[effectiveLine as HomeRowKey]
     if (titleRow) return titleRow.items[titleRow.focus.index] ?? null
-    return null // canal, "Ver todos" e Curadoria IA não trocam o fundo
+    return null // canal e "Ver todos" não trocam o fundo
   })()
   const [settledItem, setSettledItem] = useState<CatalogItemOut | null>(null)
   useEffect(() => {
@@ -581,12 +414,7 @@ export function HomeContent({
   if (heroItem) allItems.push(heroItem)
   for (const row of Object.values(titleRows)) allItems.push(...row.items)
   for (const entry of mylistRailItems) if (entry.kind === 'item') allItems.push(entry.item)
-  const extraImages = new Map<string, string>()
-  for (const images of [top10MoviesQuery.images, top10SeriesQuery.images, tipMoviesQuery.images, tipSeriesQuery.images, becauseRow?.images]) {
-    for (const [id, url] of images ?? []) extraImages.set(id, url)
-  }
-  const images = useHomeImages(allItems, extraImages)
-  const tmdbRatings = mergeDiscoveryRatings(top10MoviesQuery.ratings, top10SeriesQuery.ratings, tipMoviesQuery.ratings, tipSeriesQuery.ratings)
+  const images = useHomeImages(allItems, EMPTY_IMAGES)
   const ambientImage =
     ambientItem === null
       ? undefined
@@ -614,54 +442,6 @@ export function HomeContent({
               : 'home.eyebrow.favoriteMovie',
         )
 
-  const dockNode = (
-    <div className="home-dock" role="group" aria-label={t('home.dock.label')}>
-      {DOCK_ICONS.map((iconDef, index) => {
-        const focused = active && effectiveLine === 'dock' && index === dockFocus.index
-        if (iconDef.id === 'dock-speedtest') {
-          return (
-            <button key={iconDef.id} type="button" data-service="speedtest"
-              className={`home-dock-icon${focused ? ' tv-focus' : ''}`}
-              aria-label={speedLabel} title={speedLabel}>
-              <Icon name={iconDef.icon} />
-            </button>
-          )
-        }
-        if (iconDef.id === TMDB_DOCK_ID) {
-          // Real (feature 032, FR-016): o estado vai no nome acessível e num
-          // marcador (`data-state`) — nunca só por cor.
-          return (
-            <button
-              key={iconDef.id}
-              type="button"
-              className={`home-dock-icon home-dock-icon--service${focused ? ' tv-focus' : ''}`}
-              aria-label={t(TMDB_DOCK_LABEL_KEY[tmdbState])}
-              title={t(TMDB_DOCK_LABEL_KEY[tmdbState])}
-              data-state={tmdbState}
-            >
-              <Icon name={iconDef.icon} />
-            </button>
-          )
-        }
-        return (
-          <button
-            key={iconDef.id}
-            type="button"
-            className={`home-dock-icon is-soft-disabled${focused ? ' tv-focus' : ''}`}
-            aria-label={iconDef.labelKey ? t(iconDef.labelKey) : undefined}
-            // Achado real (feature 028, FR-016): "Em breve" — o nome não
-            // dizia indisponível, `aria-disabled` diz.
-            aria-disabled="true"
-          >
-            <Icon name={iconDef.icon} />
-          </button>
-        )
-      })}
-      {active && effectiveLine === 'dock' && DOCK_ICONS[dockFocus.index].id === 'dock-speedtest' &&
-        <span className="home-dock-summary">{speedLabel}</span>}
-    </div>
-  )
-
   // --- Fileiras ---
   const focusedRowIndex = rowKeys.indexOf(effectiveLine as HomeRowKey)
 
@@ -685,7 +465,7 @@ export function HomeContent({
     return caption === '' ? undefined : caption
   }
 
-  function titleRail(key: HomeRowKey, items: CatalogItemOut[], index: number, format: Extract<HomeRowFormat, 'poster' | 'rank' | 'continue'>) {
+  function titleRail(key: HomeRowKey, items: CatalogItemOut[], index: number, format: Extract<HomeRowFormat, 'poster' | 'continue'>) {
     const m = HOME_ROW_FORMATS[format]
     const here = effectiveLine === key
     return (
@@ -703,11 +483,8 @@ export function HomeContent({
               item={item}
               format={format}
               focused={active && here && itemIndex === index}
-              // Posição NA FILEIRA (1, 2, 3…, sem buracos — feature 057); a posição real no TMDB é do TMDB, não do card.
-              rank={format === 'rank' ? itemIndex + 1 : undefined}
               badges={badgesOf(item)}
               image={images.get(item.id)}
-              tmdbRating={tmdbRatings.get(item.id)}
               progress={format === 'continue' ? continueCardOf.get(item.id)?.progress : undefined}
               caption={format === 'continue' ? continueCaption(item) : undefined}
             />
@@ -778,12 +555,7 @@ export function HomeContent({
             if (entry.kind === 'channel') {
               return (
                 <div className="home-rail-slot">
-                  <HomeLiveCard
-                    item={entry.item}
-                    number={(channelCategories && channelNumberOf(entry.item, channelCategories)) ?? undefined}
-                    now={nowNextForChannel(epgLookup, entry.item.epg_channel_id, epgNow).now}
-                    focused={focused}
-                  />
+                  <HomeLiveCard item={entry.item} focused={focused} />
                 </div>
               )
             }
@@ -795,21 +567,6 @@ export function HomeContent({
           }}
         />
       )
-    } else if (isDiscoveryRow(key)) {
-      const row = discovery[key]
-      const ranked = key.startsWith('top10')
-      title = t(DISCOVERY_TITLE[key])
-      format = ranked ? 'rank' : 'poster'
-      body = titleRail(key, row.items, discoveryFocus[key].index, ranked ? 'rank' : 'poster')
-      extras = (
-        <>
-          {/* Procedência dos dados (FR-012) e escopo parcial (D-012): texto, nunca focável. */}
-          <span className="home-row-source">{t('showcase.source.tmdb')}</span>
-          {row.total > 0 && row.covered < row.total && (
-            <span className="home-row-coverage">{t('showcase.ratedCoverage', { covered: row.covered, total: row.total })}</span>
-          )}
-        </>
-      )
     } else if (key === 'added-movies' || key === 'added-series') {
       const query = key === 'added-movies' ? addedMoviesQuery : addedSeriesQuery
       title = t(key === 'added-movies' ? 'home.row.addedMovies' : 'home.row.addedSeries')
@@ -820,17 +577,6 @@ export function HomeContent({
       if (covered !== undefined && total !== undefined && total > 0 && covered < total) {
         extras = <span className="home-row-coverage">{t('showcase.ratedCoverage', { covered, total })}</span>
       }
-    } else if (key === 'because') {
-      title = t('showcase.row.becauseOf', { title: becauseRow?.seed.name ?? '' })
-      body = titleRail(key, becauseItems, becauseFocus.index, 'poster')
-      extras = <span className="home-row-source">{t('showcase.source.tmdb')}</span>
-    } else if (key === 'ai') {
-      title = t('home.row.ai')
-      body = (
-        <div className="home-row-single">
-          <ComingSoon id="home-ai-curation" focused={active && effectiveLine === 'ai'} />
-        </div>
-      )
     }
 
     const above = mode === 'rows' && focusedRowIndex !== -1 && rowKeys.indexOf(key) < focusedRowIndex
@@ -877,7 +623,6 @@ export function HomeContent({
           synopsis={heroMetadata?.synopsis?.value}
           actions={billboardActions}
           focusedActionId={active && effectiveLine === 'hero' ? heroActions[heroFocus.index]?.id : undefined}
-          dock={dockNode}
         />
         <div className="home-rows">
           <div ref={trackRef} className="home-rows-track">
@@ -887,10 +632,6 @@ export function HomeContent({
       </div>
 
       <Toast message={toastMessage} messageKey={toastKey} />
-      {/* Fechar o trailer não invalida nada: ver trailer não muda estado do usuário (constitution, feature 033 FR-016). */}
-      {trailerOpen && trailerState.status === 'available' && heroItem && (
-        <TrailerLayer title={heroItem.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)} />
-      )}
     </div>
   )
 }

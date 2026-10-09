@@ -38,9 +38,9 @@ export interface TopBarProps {
   /** OK no indicador da lista ativa — abre a tela de perfis para trocar de lista. */
   onOpenProfiles: () => void
   /**
-   * OK na lupa (feature 026, D-005, FR-035). Ausente = soft disabled e OK
-   * sem efeito — só acontece em testes que montam a topbar crua; o `App`
-   * sempre passa os dois.
+   * OK na lupa (feature 026, D-005, FR-035). A lupa está escondida desde o
+   * ad-hoc de 2026-10-09 (`SEARCH_IN_TOPBAR`): o callback segue aceito para a
+   * Busca voltar só religando a constante.
    */
   onOpenSearch?: () => void
   /** OK na engrenagem (feature 026, D-005, FR-021). Mesma regra de `onOpenSearch`. */
@@ -49,8 +49,16 @@ export interface TopBarProps {
   onBack: () => void
 }
 
+/**
+ * Busca global na topbar: escondida em todas as telas a pedido do usuário (ad-hoc 2026-10-09). A tela de Busca e a rota
+ * continuam no código, só sem entrada — `true` aqui devolve a lupa e o lugar dela na ordem de foco.
+ */
+const SEARCH_IN_TOPBAR = false
+
 /** Ordem de foco, igual à ordem visual (logo e relógio não são focáveis). */
-const FOCUS_ORDER: TopbarItem[] = ['home', 'live', 'movies', 'series', 'profile', 'search', 'settings']
+const FOCUS_ORDER: TopbarItem[] = (['home', 'live', 'movies', 'series', 'profile', 'search', 'settings'] as TopbarItem[]).filter(
+  (item) => SEARCH_IN_TOPBAR || item !== 'search',
+)
 
 /** Feature 042 (D-007): "Tentar de novo" entra no FIM da ordem, só enquanto offline. */
 const FOCUS_ORDER_OFFLINE: TopbarItem[] = [...FOCUS_ORDER, 'connection']
@@ -64,7 +72,7 @@ const NAV_ITEMS: { key: 'home' | TopDestination; labelKey: MessageKey }[] = [
 
 /** Busca e Configurações (feature 026, D-005) — reais quando o callback correspondente existe. */
 const ACTION_ITEMS: { key: 'search' | 'settings'; labelKey: MessageKey; icon: 'search' | 'settings' }[] = [
-  { key: 'search', labelKey: 'shell.search', icon: 'search' },
+  ...(SEARCH_IN_TOPBAR ? [{ key: 'search' as const, labelKey: 'shell.search' as const, icon: 'search' as const }] : []),
   { key: 'settings', labelKey: 'settings.title', icon: 'settings' },
 ]
 
@@ -116,10 +124,11 @@ export function TopBar({
   const focusOrder = online ? FOCUS_ORDER : FOCUS_ORDER_OFFLINE
 
   // O foco nunca fica num item que sumiu: com a rede de volta, "Tentar de novo"
-  // deixa de existir e o foco cai em "Início" (constituição: sem becos).
+  // deixa de existir, e a lupa está escondida (ad-hoc 2026-10-09) — um foco
+  // restaurado nela cai em "Início" (constituição: sem becos).
   useEffect(() => {
-    if (active && online && focusedItem === 'connection') onFocusItem('home')
-  }, [active, online, focusedItem, onFocusItem])
+    if (active && !focusOrder.includes(focusedItem)) onFocusItem('home')
+  }, [active, focusOrder, focusedItem, onFocusItem])
 
   function activate(item: TopbarItem) {
     // Já está neste destino — inclui "Início" quando `currentItem` é o

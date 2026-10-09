@@ -33,8 +33,6 @@ export interface HomeScreenProps {
   onOpenChannel: (channel: CatalogItemOut, from: HomeFocus) => void
   /** "Ver todos (N)"/"Filmes (N)"/"Séries (N)" — o destino em ★ Favoritos (FR-014). */
   onOpenFavorites: (destination: TopDestination, from: HomeFocus) => void
-  /** Ícone TMDB do dock (feature 032, FR-016) — Configurações › Integrações & BYOK. */
-  onOpenIntegrations?: (from: HomeFocus) => void
   /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
   onEditSource?: (sourceId: string) => void
   /** Lupa da topbar (FR-035). */
@@ -72,7 +70,6 @@ export function HomeScreen({
   onOpenItem,
   onOpenChannel,
   onOpenFavorites,
-  onOpenIntegrations,
   onEditSource,
   onOpenSearch,
   onOpenSettings,
@@ -178,7 +175,6 @@ export function HomeScreen({
           onOpenItem={onOpenItem}
           onOpenChannel={onOpenChannel}
           onOpenFavorites={onOpenFavorites}
-          onOpenIntegrations={onOpenIntegrations}
           onPlay={startPlaying}
           statusLine={statusLine}
         />
