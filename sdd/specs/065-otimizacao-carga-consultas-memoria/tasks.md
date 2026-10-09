@@ -300,3 +300,20 @@ Entrega incremental: cada fase roda testes adicionais/área e seus contratos e r
 Seguir decisões D-001..D-013 e riscos R-001..R-008. Se um módulo/caminho proposto conflitar com código alterado desde este plan, registrar ajuste de caminho na mesma task/documentação, sem inventar importação nem reverter trabalho alheio. Não instalar dependência, iniciar backend ou implantar na TV para concluir este planejamento.
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->
+
+## Phase 8: Convergence
+
+**Objetivo**: Fechar as lacunas apontadas pelo `sdd-converge` de 2026-10-09 (achados C1–C8). Sem CRITICAL/HIGH; contratos 5/5 e trava íntegra.
+
+- [x] T060 [MEDIUM] Emendar a spec explicitamente, com a evidência de `tv-web/bench-results/screen-perf-065/reduced/report.md`, em vez de dispensa silenciosa: (a) protocolo de aceite reduzido aprovado pelo usuário (3 amostras, 4 configurações, baseline/candidata em sequência) no lugar de ≥7 amostras e matriz mínima — C4; (b) para cada meta não atingida, decisão do usuário entre nova meta, meta mantida como pendência fora desta feature (backlog) ou otimização adicional: SC-002 Filmes com índice frio (−25,3%/−11,2%), SC-005 com TMDB (≈0), SC-012 (−14,6%), SC-007 tempo (−29,6%) — C1, C2, C3, C5; (c) teto de 1 h para a pausa do TMDB (`MAX_PAUSE_MS`, proteção contra relógio adiantado) — C6; (d) escopo da janela de grade (Filmes/Séries; Live fora) — C8. (Origem: Measurement Protocol, SC-002, SC-005, SC-007, SC-012, SC-013, FR-010, FR-016, FR-025)
+- [x] T061 [LOW] `useShowcaseSelections` (`tv-web/src/features/catalog/catalogApi.ts`) não pode depender do sucesso de `useTmdbStatus`: falha na leitura local do status deve contar como "sem chave" para as fileiras locais aparecerem; teste cobrindo o status em erro. — C7 (Origem: FR-003)
+
+**Critério de Conclusão**: spec emendada com as decisões do usuário registradas (e `R-0XX` em `plan.md`), T061 com teste verde, contratos 5/5 e trava íntegra; nova rodada do `sdd-converge` sem achados.
+
+**Registro da Fase**:
+
+- Status: Concluída em 2026-10-09.
+- Feito: T060 — spec emendada ("Emenda de aceite (2026-10-09)" em Success Criteria + Clarifications 2026-10-09) com decisão do usuário: protocolo reduzido oficializado; SC-002 índice frio, SC-005 com integração, SC-007 tempo e SC-012 retirados como pendência do backlog; teto de 1 h da pausa (FR-010, também em `logic/consultas.md`); janela restrita a Filmes/Séries ≥ 1.000 itens (FR-016). T061 — `useShowcaseSelections` trata falha do estado TMDB como "sem chave".
+- Contrato: trava íntegra 5/5 (sem alteração de contratos).
+- Testes executados: `catalogApi.showcase-status.test.tsx` 1/1 (falha sem a correção, passa com ela).
+- Pendências: nenhuma desta fase; resíduos de desempenho no backlog.

@@ -1690,12 +1690,12 @@ async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & 
 function useShowcaseSelections(sourceId: string | null, kind: FavoritableKind, enabled: boolean) {
   // Fixado por montagem: a virada do dia com a tela aberta não troca os cards sob o foco.
   const [now] = useState(() => Date.now())
-  const tmdbState = useTmdbStatus().data?.state
-  const withEntries = tmdbState !== undefined && tmdbState !== 'not_configured'
+  const tmdbStatus = useTmdbStatus() // status ilegível conta como "sem chave": as fileiras locais nunca esperam por ele
+  const withEntries = tmdbStatus.data !== undefined && tmdbStatus.data.state !== 'not_configured'
   return useQuery({
     queryKey: ['catalog-search-index', sourceId, kind, 'showcase', dayKey(now), withEntries],
     queryFn: ({ signal }) => loadShowcaseSelections(sourceId as string, kind as FavoritableKind & StoredKind, now, signal, withEntries),
-    enabled: enabled && sourceId !== null && kind !== 'channel' && tmdbState !== undefined,
+    enabled: enabled && sourceId !== null && kind !== 'channel' && (tmdbStatus.data !== undefined || tmdbStatus.isError),
     // Não relê o tipo a cada montagem da tela: a pré-carga (categoria nova) e o fim de uma sincronização a invalidam.
     staleTime: SHOWCASE_STALE_MS,
     gcTime: 30_000,

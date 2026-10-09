@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-07
 
-**Status**: Implementada
+**Status**: Convergida
 
 **Input**: Review solicitado para acelerar Home, Filmes, Séries e vitrines, otimizar consultas externas, memória e desempenho geral, com medições. O usuário pediu especificação via sdd-specify e confirmou todos os achados, incluindo splash e bundle, preservação de conteúdo/seleção/ordem/navegação e aceite comparativo no benchmark, com TV como validação recomendada.
 
@@ -215,6 +215,15 @@ Equivalência confronta ids, quantidades, ordem, seleção, contadores e progres
 - **SC-012**: Bytes de JavaScript carregados antes da primeira tela utilizável diminuem pelo menos 25%, somando todos os arquivos efetivamente carregados até esse marco, sem compressão no pacote local. Primeiro acesso às telas com catálogo local funciona sem rede externa; pacote passa pelas verificações existentes.
 - **SC-013**: Relatório publica baseline/candidata, amostras, fórmula de ganho, requisições/leituras, equivalência e resultado de cada critério. Checks aplicáveis de lint, tipos, testes, build e navegação passam; E2E exigido pela constitution precede eventual validação física. TV consta validada ou recomendada/pendente, sem comprovação física quando não executada.
 
+### Emenda de aceite (2026-10-09)
+
+Decidida pelo usuário depois da convergência (achados C1–C8; evidência em `tv-web/bench-results/screen-perf-065/reduced/report.md`). Prevalece sobre o Measurement Protocol e os SCs acima onde divergir; o texto original fica como registro.
+
+- **Protocolo**: o aceite desta feature usa a comparação reduzida pareada — baseline `e0ec6ef` e candidata final medidas em sequência, mesma máquina e harness, 3 amostras por configuração (2 nos ciclos de lista), configurações `screens-local-100-no-images`, `screens-tmdb-20-images`, `category-30000`, `cycles-local` e abertura contra a run-002 (7 amostras). A matriz mínima e as 7 amostras deixam de ser exigência desta feature; voltam como item do backlog (nova medição numa máquina ociosa). O resultado é diagnóstico pareado, não prova estatística.
+- **Metas não atingidas, retiradas desta feature e mantidas como pendência no backlog** (`.planning/backlog.md`, resíduos da 065), sem afirmar que foram cumpridas: SC-002 para "Filmes com índice frio" (−25,3% sem integração, −11,2% com integração; meta −30%) — demais partes de SC-002 atingidas; SC-005 com integração simulada (≈0; meta −20%) — sem integração atingida (−53,6%); SC-007 no tempo do primeiro recorte (−29,6%; meta −30%) — memória, leitura limitada e equivalência atingidas; SC-012 (−14,6%; meta −25%), com o Início no pacote inicial porque carregá-lo sob demanda atrasava a primeira entrada na lista (SC-011).
+- **FR-010 — teto da pausa**: uma pausa por limite de uso vale no máximo 1 hora (`MAX_PAUSE_MS`); Retry-After maior ou pausa gravada além desse horizonte (relógio adiantado) não silencia o serviço indefinidamente. Dentro do teto, o prazo informado prevalece como antes.
+- **FR-016 — escopo da janela de grade**: a leitura por janela vale para a grade de categorias de Filmes/Séries com pelo menos 1.000 itens (abaixo disso a categoria é lida inteira, mais barata que a projeção). A lista de canais da TV ao vivo continua lendo a categoria inteira e fica fora desta feature.
+
 ## Assumptions
 
 - Client-first, persistência local, Direct Play e navegação própria permanecem vinculados à constitution e ADRs aceitos. O usuário não autorizou reduzir produto para atingir metas.
@@ -233,5 +242,9 @@ Equivalência confronta ids, quantidades, ordem, seleção, contadores e progres
 - Q: Qual escopo especificar para as otimizações do review? → A: “Todos os achados, incluindo splash e bundle”. Incluídas US1–US5.
 - Q: Podemos mudar cards, ordem das fileiras ou quantidade de conteúdo? → A: “Preservar conteúdo, seleção, ordem e navegação atuais (Recomendado)”. Aplicado a FR-001–FR-003 e equivalência.
 - Q: Como definir o aceite de desempenho? → A: “Metas comparativas no benchmark; TV como validação recomendada”. Aplicado ao protocolo, FR-026 e SC-013; TV não é gate de encerramento.
+
+### Sessão 2026-10-09 (convergência)
+
+- Q: Como tratar as metas não atingidas e o protocolo reduzido apontados pelo sdd-converge? → A: "Concordo" com a recomendação: metas não atingidas viram pendência no backlog fora desta feature; protocolo reduzido, teto de 1 h da pausa e escopo Filmes/Séries da janela ficam oficializados. Aplicado na "Emenda de aceite (2026-10-09)".
 
 Não há clarificações pendentes. Domínio/dados, integrações, estados de UX e constraints foram esclarecidos pelo repositório e contratos vigentes; decisões técnicas ficam para sdd-plan.

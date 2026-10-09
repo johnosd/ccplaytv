@@ -25,7 +25,7 @@ fetchPool conserva TIP_PAGES=8, PAGE_BATCH=4, parâmetros, ordem/deduplicação 
 5. Publicar cache só após todas as páginas e última validação do contexto. Erro usa fallback anterior (stale=true) ou unavailable sem cache.
 6. Sucesso não remove pausedUntil futura. Mutação de estado em transação compara revisão da credencial.
 
-Retry-After: inteiro não negativo em segundos ou data HTTP válida futura; zero/data já vencida não gera pausa infinita. Fallback mantém RATE_LIMIT_PAUSE_MS atual de 10 minutos, acima do mínimo de 60 s. Não converter erro de limite em credencial recusada. Respeitar pausa entre consumidores de descoberta, detalhes e demais chamadas TMDB abrangidas, sem novos retries automáticos.
+Retry-After: inteiro não negativo em segundos ou data HTTP válida futura; zero/data já vencida não gera pausa infinita. Fallback mantém RATE_LIMIT_PAUSE_MS atual de 10 minutos, acima do mínimo de 60 s. Emenda 2026-10-09: nenhuma pausa passa de MAX_PAUSE_MS (1 h) — Retry-After maior é limitado e pausa gravada além do horizonte (relógio adiantado) é ignorada; durante a pausa, "Testar" informa limite de uso sem chamar o serviço. Não converter erro de limite em credencial recusada. Respeitar pausa entre consumidores de descoberta, detalhes e demais chamadas TMDB abrangidas, sem novos retries automáticos.
 
 ## Interfaces e cobertura
 
