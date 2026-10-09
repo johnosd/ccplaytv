@@ -29,7 +29,7 @@ import {
   type CatalogCategory,
 } from './catalogRepository'
 import { readEntryChunks } from './storedEntries'
-import { isCategoryFresh } from './freshness'
+import { isCategoryFreshOnEntry } from './freshness'
 import { markEntry } from '../perf/entryTiming'
 import { readCredential } from './sourceRepository'
 import { providerErrorCode, type ErrorCode } from '../errors/errorCatalog'
@@ -362,7 +362,7 @@ export async function ensureCategory(
   // reler produziria o mesmo resultado (D-007/FR-011 da 014). Só uma
   // atualização (renovação pendente) o torna velho.
   const stale =
-    hasItems && (renewPending || (category.fetchMode === 'on_demand' && !isCategoryFresh(itemsFetchedAt, now)))
+    hasItems && (renewPending || (category.fetchMode === 'on_demand' && !isCategoryFreshOnEntry(itemsFetchedAt, now)))
 
   if (hasItems && !stale) return { outcome: 'fresh' }
 

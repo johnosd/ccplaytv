@@ -108,6 +108,8 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
   let hint: PrefetchHint | undefined
   const attempts = new Map<number, number>()
   const prioritized: number[] = []
+  /** Quando cada entrada pediu prioridade: a renovação vale até `itemsFetchedAt` passar desse instante (prazo de entrada < prazo da pré-carga). */
+  const prioritizedAt = new Map<number, number>()
   let progress: PrefetchProgress = IDLE_PROGRESS
   const listeners = new Set<() => void>()
   /** Quem está esperando agora (uma espera por vez — só existe um laço vivo). */
@@ -212,10 +214,11 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
       const category = categories.find((candidate) => candidate.id === id)
       const stillNeeded =
         category !== undefined &&
-        workNeeded(category, at) !== undefined &&
+        (workNeeded(category, at) !== undefined || (category.itemsFetchedAt ?? -1) < (prioritizedAt.get(id) ?? -1)) &&
         (attempts.get(id) ?? 0) < MAX_ATTEMPTS_PER_SESSION
       if (stillNeeded) return id
       prioritized.shift()
+      prioritizedAt.delete(id)
     }
     return undefined
   }
@@ -304,11 +307,17 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
       }
       const index = prioritized.indexOf(next)
       if (outcome === 'done') {
-        if (index >= 0) prioritized.splice(index, 1)
+        if (index >= 0) {
+          prioritized.splice(index, 1)
+          prioritizedAt.delete(next)
+        }
         deps.onCategoryDone?.(sourceId, next)
       } else {
         attempts.set(next, (attempts.get(next) ?? 0) + 1)
-        if (index >= 0) prioritized.splice(index, 1)
+        if (index >= 0) {
+          prioritized.splice(index, 1)
+          prioritizedAt.delete(next)
+        }
       }
 
       if (deps.housekeeping && gate.blockReason(now(), idleAfterKeyMs) === undefined) {
@@ -328,6 +337,7 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
       attempts.clear()
       bulkTried.clear()
       prioritized.length = 0
+      prioritizedAt.clear()
       wakeUp()
       setProgress({ state: 'paused', ready: 0, total: 0 })
       void loop(epoch, sourceId)
@@ -339,6 +349,7 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
       bulkController?.abort()
       currentSource = null
       prioritized.length = 0
+      prioritizedAt.clear()
       wakeUp()
       setProgress({ state: 'stopped', ready: 0, total: 0 })
     },
@@ -348,6 +359,7 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
     },
     prioritize(categoryId) {
       if (!prioritized.includes(categoryId)) prioritized.push(categoryId)
+      prioritizedAt.set(categoryId, now())
       wakeUpIfDone()
     },
     wake() {

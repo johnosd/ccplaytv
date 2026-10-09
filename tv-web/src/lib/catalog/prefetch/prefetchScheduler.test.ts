@@ -87,6 +87,22 @@ describe('prefetchScheduler (feature 038)', () => {
     expect(runCategory.mock.calls.at(3)?.[1]).toBe(3)
   })
 
+  it('`prioritize` renova uma categoria vencida só para a entrada (1 h), que a pré-carga em massa (24 h) ainda não considera', async () => {
+    const categories = channels(2)
+    const { scheduler, runCategory } = setup(categories)
+    scheduler.start('f')
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(runCategory).toHaveBeenCalledTimes(2)
+
+    categories[1].itemsFetchedAt = Date.now() - 60 * 60 * 1000
+    scheduler.prioritize(2)
+    await vi.advanceTimersByTimeAsync(50)
+    expect(runCategory.mock.calls.at(2)?.[1]).toBe(2)
+    await vi.advanceTimersByTimeAsync(5000)
+    // Renovada (itemsFetchedAt passou do pedido): não repete.
+    expect(runCategory).toHaveBeenCalledTimes(3)
+  })
+
   it('trocar de lista zera as falhas e passa a buscar só a nova', async () => {
     const { scheduler, runCategory, outcomes } = setup(channels(1))
     outcomes.set(1, 'failed')

@@ -74,7 +74,7 @@ describe('ensureCategory — renovação (feature 038)', () => {
   })
 
   it('fresca não toca rede nem chama `serveStale`', async () => {
-    const category = await seedMovies(NOW - HOUR)
+    const category = await seedMovies(NOW - 5 * 60 * 1000)
     const fetchSpy = streams([])
     vi.stubGlobal('fetch', fetchSpy)
     const serveStale = vi.fn()
@@ -82,6 +82,17 @@ describe('ensureCategory — renovação (feature 038)', () => {
     expect(result.outcome).toBe('fresh')
     expect(fetchSpy).not.toHaveBeenCalled()
     expect(serveStale).not.toHaveBeenCalled()
+  })
+
+  it('ao entrar, vencida há mais de 15 min (mas < 24 h) serve do disco e pede renovação à frente da fila', async () => {
+    const category = await seedMovies(NOW - HOUR)
+    const fetchSpy = streams([])
+    vi.stubGlobal('fetch', fetchSpy)
+    const serveStale = vi.fn()
+    const result = await ensureCategory(SOURCE_ID, category, { database, now: () => NOW, serveStale })
+    expect(result.outcome).toBe('stale-served')
+    expect(serveStale).toHaveBeenCalledWith(category.id)
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('falta de espaço sai como `reason: storage_full`, nunca exceção', async () => {

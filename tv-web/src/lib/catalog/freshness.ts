@@ -63,3 +63,18 @@ export function isCategoryFresh(itemsFetchedAt: number | undefined, now: number)
   if (itemsFetchedAt === undefined) return false
   return now - itemsFetchedAt <= STALE_AFTER_MS
 }
+
+/**
+ * Prazo de uma categoria `on_demand` quando a pessoa ENTRA nela. Bem menor que
+ * `STALE_AFTER_MS`: o painel publica filmes novos o dia todo (ex.: "Lançamentos") e
+ * esperar 24 h para vê-los deixa o app atrás de qualquer outro player da mesma lista.
+ * Vencida aqui, a categoria abre na hora com o que tem e a renovação (uma só
+ * categoria, barata) corre em segundo plano à frente da fila da pré-carga. A pré-carga
+ * em massa continua no prazo de 24 h — não baixa a seção inteira a cada 15 min.
+ */
+export const CATEGORY_ENTRY_STALE_AFTER_MS = 15 * 60 * 1000
+
+export function isCategoryFreshOnEntry(itemsFetchedAt: number | undefined, now: number): boolean {
+  if (itemsFetchedAt === undefined) return false
+  return now - itemsFetchedAt <= CATEGORY_ENTRY_STALE_AFTER_MS
+}
