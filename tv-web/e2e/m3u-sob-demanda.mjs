@@ -323,6 +323,7 @@ async function run() {
     for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
     for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowRight')
     await page.keyboard.press('Enter')
+    await page.waitForSelector('.settings-screen', { timeout: 8000 })
     // "Fontes IPTV" já é a aba inicial de Configurações (`SettingsScreen`,
     // `initialTab = 'sources'`) — o painel já está montado sem precisar
     // entrar nele.

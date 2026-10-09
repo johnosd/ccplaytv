@@ -59,6 +59,53 @@ describe('tmdbGet', () => {
     expect((error as TmdbError).kind).toBe('offline')
     expect(String((error as TmdbError).message)).not.toContain(V3)
   })
+
+  it('encerra corpo que nunca termina e converte JSON inválido em offline sanitizado', async () => {
+    let signal: AbortSignal | null | undefined
+    const pendingBody = vi.fn(() => new Promise<unknown>(() => {}))
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      signal = init?.signal
+      return { status: 200, ok: true, headers: new Headers(), json: pendingBody } as unknown as Response
+    })
+
+    const timeout = await tmdbGet('/movie/1', {}, { key: V3, format: 'v3' }, fetchImpl as unknown as typeof fetch, { timeoutMs: 10 })
+      .catch((error: unknown) => error)
+    expect(timeout).toBeInstanceOf(TmdbError)
+    expect((timeout as TmdbError).kind).toBe('offline')
+    expect(signal?.aborted).toBe(true)
+
+    const invalid = await tmdbGet(
+      '/movie/2',
+      {},
+      { key: V3, format: 'v3' },
+      (async () => new Response('{invalid', { status: 200 })) as unknown as typeof fetch,
+    ).catch((error: unknown) => error)
+    expect(invalid).toBeInstanceOf(TmdbError)
+    expect((invalid as TmdbError).kind).toBe('offline')
+    expect(String((invalid as TmdbError).message)).not.toContain(V3)
+  })
+
+  it('preserva Retry-After numérico/data futuro e ignora valor inválido ou passado', async () => {
+    const now = Date.UTC(2026, 9, 8, 12)
+    const run = async (retryAfter: string) => {
+      const error = await tmdbGet(
+        '/movie/3',
+        {},
+        { key: V3, format: 'v3' },
+        (async () => new Response('{}', { status: 429, headers: { 'Retry-After': retryAfter } })) as unknown as typeof fetch,
+        { now: () => now },
+      ).catch((value: unknown) => value)
+      return error as TmdbError
+    }
+
+    expect((await run('12.5')).retryAfterMs).toBe(12_500)
+    const future = new Date(now + 42_000).toUTCString()
+    expect((await run(future)).retryAfterMs).toBeGreaterThanOrEqual(41_000)
+    expect((await run(future)).retryAfterMs).toBeLessThanOrEqual(42_000)
+    expect((await run('0')).retryAfterMs).toBe(0)
+    expect((await run('ontem')).retryAfterMs).toBeUndefined()
+    expect((await run(new Date(now - 42_000).toUTCString())).retryAfterMs).toBeUndefined()
+  })
 })
 
 describe('tmdbAuthenticate e imagem', () => {

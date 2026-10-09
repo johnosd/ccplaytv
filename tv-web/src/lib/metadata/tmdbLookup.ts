@@ -24,6 +24,8 @@ export interface TmdbLookupInput {
   language?: AppLanguage
   /** Idioma preferido dos vídeos (`en`, `es`…): entra no `include_video_language`. Sem valor, o `language`. */
   preferredLanguage?: string
+  signal?: AbortSignal
+  now?: () => number
 }
 
 /** Idiomas de vídeo pedidos ao TMDB: pt e en de sempre, mais o preferido da pessoa, mais os sem idioma. */
@@ -63,7 +65,7 @@ async function toMatched(
     if (original !== 'en') chain.push({ locale: original, iso: original })
     for (const step of chain) {
       try {
-        const fallback = await tmdbGet(`/${kind}/${tmdbId}`, { language: step.locale }, input.credential, input.fetchImpl)
+        const fallback = await tmdbGet(`/${kind}/${tmdbId}`, { language: step.locale }, input.credential, input.fetchImpl, { signal: input.signal, now: input.now })
         const overview = overviewOf(fallback)
         if (overview !== undefined) {
           fields.synopsis = overview
@@ -95,7 +97,7 @@ export async function lookupTmdb(input: TmdbLookupInput): Promise<TmdbResultReco
   let deadId: number | undefined
   if (providerTmdbId !== undefined) {
     try {
-      const detail = await tmdbGet(`/${kind}/${providerTmdbId}`, detailParams, credential, fetchImpl)
+      const detail = await tmdbGet(`/${kind}/${providerTmdbId}`, detailParams, credential, fetchImpl, { signal: input.signal, now: input.now })
       const detailYear = yearOfDetail(detail)
       // Ano que contradiz o do título: o id do provedor não é a mesma obra — vale a busca.
       if (year === undefined || detailYear === undefined || Math.abs(detailYear - year) <= 1) {
@@ -122,6 +124,7 @@ export async function lookupTmdb(input: TmdbLookupInput): Promise<TmdbResultReco
       { query, language: locale, [yearParam]: String(year) },
       credential,
       fetchImpl,
+      { signal: input.signal, now: input.now },
     )) as { results?: TmdbSearchResult[] } | null
   } catch (error) {
     // A busca do TMDB responde 200 com lista vazia; um 404 aqui é "nada encontrado", não falha de serviço.
@@ -132,7 +135,7 @@ export async function lookupTmdb(input: TmdbLookupInput): Promise<TmdbResultReco
   if (candidateId === undefined) return unmatched()
 
   try {
-    const detail = await tmdbGet(`/${kind}/${candidateId}`, detailParams, credential, fetchImpl)
+    const detail = await tmdbGet(`/${kind}/${candidateId}`, detailParams, credential, fetchImpl, { signal: input.signal, now: input.now })
     return await toMatched(kind, candidateId, detail, input)
   } catch (error) {
     if (error instanceof TmdbError && error.kind === 'not_found') return unmatched()

@@ -20,6 +20,7 @@ import type { AppLanguage } from '../i18n/languages'
 import { buildTrailerCandidates } from '../trailer/trailerCandidates'
 import { PROVIDER_FIELDS_VERSION, storeProviderMetadata, storeTmdbResult, titleStableId } from './titleMetadataStore'
 import type { MetadataOptions, TitleMetadataView } from './types'
+import { sharedAttempt } from './sharedAttempt'
 
 /** Validade do que veio do TMDB — 6 meses (termos do TMDB, FR-023), inclusive "sem correspondência" e "id morto". */
 export const TMDB_CACHE_MS = 182 * 24 * 60 * 60 * 1000
@@ -103,8 +104,7 @@ export function mergeTitleMetadata(
  * Obtenção em andamento por título — chamadas concorrentes compartilham UMA
  * só (FR-025). A chave inclui o nome do banco: os testes usam um banco por caso.
  */
-const inFlight = new Map<string, Promise<TitleMetadataView>>()
-
+const latestLanguageByTitle = new Map<string, string>()
 /**
  * Busca o que o provedor declarou para o título — `get_vod_info` (filme) ou
  * `get_series_info` (série) —, se o cache do provedor estiver vencido (24 h).
@@ -180,7 +180,7 @@ async function enrichFromTmdb(
   database: CatalogDb,
   now: number,
   options: MetadataOptions,
-): Promise<void> {
+): Promise<TmdbResultRecord | undefined> {
   try {
     const language = options.language ?? readAppLanguage()
     const cached = await database.titleMetadata.get(titleStableId(record) ?? '')
@@ -202,13 +202,26 @@ async function enrichFromTmdb(
         fetchImpl: options.fetchImpl,
         language,
         preferredLanguage: language,
+        signal: options.signal,
+        now: options.now,
       })
+      const contextKey = `${database.name}|${titleStableId(record) ?? record.id}`
+      const currentCredential = await readTmdbCredential({ database })
+      const source = await database.sources.get(record.sourceId)
+      if (
+        latestLanguageByTitle.get(contextKey) !== language ||
+        !currentCredential ||
+        currentCredential.key !== credential.key ||
+        currentCredential.revision !== credential.revision ||
+        !source ||
+        source.activeGeneration !== record.generation
+      ) return result
       await storeTmdbResult(database, record, result, now)
       // Uma chamada que deu certo desfaz "sem conexão"/"limite de uso" no estado exibido.
-      if (credential.state !== 'connected') await markTmdbState('connected', { database, now: () => now })
+      if (credential.state !== 'connected') await markTmdbState('connected', { database, now: () => now, expectedCredentialRevision: credential.revision })
     } catch (error) {
       if (error instanceof TmdbError && error.kind !== 'not_found') {
-        await markTmdbState(error.kind, { database, now: () => now })
+        await markTmdbState(error.kind, { database, now: () => now, expectedCredentialRevision: credential.revision }, error.retryAfterMs)
       }
     }
   } catch {
@@ -232,7 +245,13 @@ async function ensure(record: CatalogRecord, stableId: string, options: Metadata
   // uma chamada à toa. A tela relê quando o provedor gravar.
   // Feature 042 (D-009, FR-005): com o app oculto nenhuma busca BYOK/TMDB começa
   // — nada é gravado (nem "sem correspondência"); o próximo abrir do detalhe pede.
-  if (fresh !== 'deferred' && !isAppHidden()) await enrichFromTmdb(record, database, now, options)
+  let transientTmdb: TmdbResultRecord | undefined
+  if (fresh !== 'deferred' && !isAppHidden()) transientTmdb = await enrichFromTmdb(record, database, now, options)
+
+  if (transientTmdb !== undefined) {
+    const storedProvider = await database.titleMetadata.get(stableId)
+    return mergeTitleMetadata(storedProvider?.provider, transientTmdb, options.language ?? readAppLanguage())
+  }
 
   const stored = await database.titleMetadata.get(stableId)
   // O idioma preferido só reordena os trailers já guardados — mudar a preferência não refaz consulta.
@@ -258,15 +277,11 @@ export async function ensureTitleMetadata(itemId: number, options: MetadataOptio
     if (stableId === null) return {}
 
     // O idioma entra na chave: duas aberturas em idiomas diferentes não compartilham a mesma obtenção (054).
-    const key = `${database.name}|${stableId}|${options.language ?? readAppLanguage()}`
-    const running = inFlight.get(key)
-    if (running) return await running
-
-    const promise = ensure(record, stableId, options).finally(() => {
-      inFlight.delete(key)
-    })
-    inFlight.set(key, promise)
-    return await promise
+    const language = options.language ?? readAppLanguage()
+    const contextKey = `${database.name}|${stableId}`
+    latestLanguageByTitle.set(contextKey, language)
+    const key = `${contextKey}|${language}`
+    return await sharedAttempt(database, key, signal => ensure(record, stableId, { ...options, signal }), options.signal)
   } catch {
     return {}
   }

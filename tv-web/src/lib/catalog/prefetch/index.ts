@@ -41,7 +41,7 @@ async function runCategory(sourceId: string, categoryId: number): Promise<Prefet
   return 'failed'
 }
 
-let onCategoryDone: ((sourceId: string, categoryId: number) => void) | undefined
+let onCategoryDone: ((sourceId: string, categoryId: number, kind?: 'channel' | 'movie' | 'series') => void) | undefined
 
 export const prefetchScheduler = createPrefetchScheduler({
   loadCategories: async (sourceId) =>
@@ -56,7 +56,7 @@ export const prefetchScheduler = createPrefetchScheduler({
   runCategory,
   gate: prefetchGate,
   scope: PREFETCH_SCOPE,
-  onCategoryDone: (sourceId, categoryId) => onCategoryDone?.(sourceId, categoryId),
+  onCategoryDone: (sourceId, categoryId, kind) => onCategoryDone?.(sourceId, categoryId, kind),
   // Com o mesmo portão, uma parte por chamada: primeiro a conversão do formato
   // antigo para blocos (feature 039, FR-008/FR-012 — uma categoria por vez,
   // avisando a tela porque os ids mudam, R-003), depois a limpeza das gerações
@@ -83,7 +83,7 @@ export const prefetchScheduler = createPrefetchScheduler({
 })
 
 /** A raiz do app registra quem invalida as consultas quando uma categoria chega (D-014). */
-export function setPrefetchCategoryDone(listener: ((sourceId: string, categoryId: number) => void) | undefined): void {
+export function setPrefetchCategoryDone(listener: ((sourceId: string, categoryId: number, kind?: 'channel' | 'movie' | 'series') => void) | undefined): void {
   onCategoryDone = listener
 }
 

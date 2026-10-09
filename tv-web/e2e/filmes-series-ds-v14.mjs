@@ -207,7 +207,9 @@ async function run() {
     await page.keyboard.press('Enter') // abre a fonte
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await page.route('**/movie/**', () => {})
-    await page.route('**/series/**', () => {})
+    await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('=== Composição de foco: topbar ↔ side nav ===')
     await openViaTopbar(page, 'movies')

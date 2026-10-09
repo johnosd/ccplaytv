@@ -2,6 +2,7 @@
 
 import { db, type CatalogDb, type CatalogRecord, type CategoryKind, type StoredCatalogRecord } from '../db'
 import { writeBlockWithin } from '../categoryBlocks'
+import { prepareCategoryReadModel } from './categoryWindow'
 import { KEY_MAX, KEY_MIN, StorageFullError, isQuotaError } from './shared'
 
 /** Identifica a categoria alvo de uma substituição integral de itens. */
@@ -50,13 +51,15 @@ export async function renewCategoryItems(
   database: CatalogDb = db,
 ): Promise<{ written: boolean }> {
   try {
-    return await database.transaction(
+    const result = await database.transaction(
       'rw',
-      database.channels,
-      database.categories,
-      database.categoryBlocks,
+      [database.channels, database.categories, database.categoryBlocks, database.catalogReadManifests, database.catalogReadChunks] as any,
       async () => ({ written: await writeBlockWithin(target, items, now, database) }),
     )
+    // Também tenta reparar uma projeção perdida por quota numa renovação
+    // idêntica; a preparação é idempotente quando já está pronta.
+    await prepareCategoryReadModel(target.sourceId, target.categoryId, database).catch(() => undefined)
+    return result
   } catch (error) {
     if (isQuotaError(error)) throw new StorageFullError()
     throw error
@@ -99,10 +102,7 @@ export async function storeStoredCategory(
   try {
     await database.transaction(
       'rw',
-      database.channels,
-      database.categories,
-      database.storedEntries,
-      database.categoryBlocks,
+      [database.channels, database.categories, database.storedEntries, database.categoryBlocks, database.catalogReadManifests, database.catalogReadChunks] as any,
       async () => {
         // Episódios: substituição integral (D-011 da 038) — retomada e
         // "assistido" são por `stableId`, não pelo id local do episódio.
@@ -151,6 +151,7 @@ export async function storeStoredCategory(
           .delete()
       },
     )
+    await prepareCategoryReadModel(target.sourceId, target.categoryId, database).catch(() => undefined)
   } catch (error) {
     if (isQuotaError(error)) throw new StorageFullError()
     throw error

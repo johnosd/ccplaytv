@@ -86,6 +86,27 @@ export default defineConfig({
         entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].js',
         assetFileNames: 'assets/[name].[ext]',
+        // Rotas lazy usam nomes locais estÃ¡veis para que o inventÃ¡rio Tizen
+        // continue auditÃ¡vel sem hash por build ou download externo.
+        manualChunks(id) {
+          const normalized = id.replaceAll('\\', '/')
+          const routeChunks = [
+            ['route-live', '/src/features/live/LiveScreen.'],
+            ['route-vod-showcase', '/src/features/vod/VodShowcaseScreen.'],
+            ['route-vod-category', '/src/features/vod/VodCategoryScreen.'],
+            ['route-movie-detail', '/src/features/movies/MovieDetailScreen.'],
+            ['route-series-detail', '/src/features/series/SeriesDetailScreen.'],
+            ['route-person', '/src/features/person/PersonScreen.'],
+            ['route-settings', '/src/features/settings/SettingsScreen.'],
+            ['route-epg-settings', '/src/features/settings/EpgSettingsScreen.'],
+            ['route-tmdb-key', '/src/features/settings/TmdbKeyScreen.'],
+            ['route-search', '/src/features/search/SearchScreen.'],
+          ] as const
+          for (const [name, suffix] of routeChunks) {
+            if (normalized.includes(suffix)) return name
+          }
+          return undefined
+        },
       },
     },
   },

@@ -29,6 +29,34 @@ export interface SearchIndex {
   totalCategories: number
 }
 
+/** Mantém somente os campos usados por busca, ordenação e cards; URLs e
+ * headers de reprodução não ficam duplicados no índice derivado. */
+function compactSearchRecord(record: CatalogRecord): CatalogRecord {
+  return {
+    id: record.id,
+    sourceId: record.sourceId,
+    generation: record.generation,
+    kind: record.kind,
+    categoryId: record.categoryId,
+    categoryPosition: record.categoryPosition,
+    groupOrder: record.groupOrder,
+    name: record.name,
+    originalName: record.originalName,
+    group: record.group,
+    providerStreamId: record.providerStreamId,
+    seriesId: record.seriesId,
+    iconUrl: record.iconUrl,
+    year: record.year,
+    addedAt: record.addedAt,
+    providerRating: record.providerRating,
+    providerGenres: record.providerGenres,
+    providerBackdropUrl: record.providerBackdropUrl,
+    epgChannelId: record.epgChannelId,
+    archiveDays: record.archiveDays,
+    hasPlayback: record.hasPlayback ?? (Boolean(record.directUrl) || Boolean(record.providerStreamId)),
+  }
+}
+
 /** Minúsculas, sem acentos/diacríticos, espaços das pontas removidos e internos colapsados (FR-007). */
 export function normalizeForSearch(text: string): string {
   return text
@@ -93,7 +121,7 @@ export async function loadSearchIndex(
     listCategories(sourceId, kind, database),
   ])
   const coveredCategories = categories.filter(isCovered).length
-  return buildSearchIndex(records, { coveredCategories, totalCategories: categories.length })
+  return buildSearchIndex(records.map(compactSearchRecord), { coveredCategories, totalCategories: categories.length })
 }
 
 /**

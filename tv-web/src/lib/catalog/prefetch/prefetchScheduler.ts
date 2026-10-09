@@ -38,7 +38,7 @@ export interface PrefetchSchedulerDeps {
   /** Pausa entre uma categoria e a próxima, para ceder a thread. Padrão `GAP_BETWEEN_CATEGORIES_MS`. */
   gapMs?: number
   /** Uma categoria terminou com itens novos no disco (a raiz invalida as consultas dela). */
-  onCategoryDone?: (sourceId: string, categoryId: number) => void
+  onCategoryDone?: (sourceId: string, categoryId: number, kind?: CategoryKind) => void
   /**
    * Limpeza em partes de gerações antigas (feature 038, D-008) — uma parte por
    * chamada, só com o portão aberto. Devolve `true` se ainda sobrou trabalho.
@@ -253,7 +253,7 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
           .runSection(sourceId, bulk.kind, bulk.ids, {
             signal: controller.signal,
             onCategory: (categoryId) => {
-              if (epoch === myEpoch) deps.onCategoryDone?.(sourceId, categoryId)
+              if (epoch === myEpoch) deps.onCategoryDone?.(sourceId, categoryId, bulk.kind)
             },
           })
           .catch((): PrefetchRunOutcome => 'failed')
@@ -305,7 +305,7 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
       const index = prioritized.indexOf(next)
       if (outcome === 'done') {
         if (index >= 0) prioritized.splice(index, 1)
-        deps.onCategoryDone?.(sourceId, next)
+        deps.onCategoryDone?.(sourceId, next, categories.find((category) => category.id === next)?.kind)
       } else {
         attempts.set(next, (attempts.get(next) ?? 0) + 1)
         if (index >= 0) prioritized.splice(index, 1)

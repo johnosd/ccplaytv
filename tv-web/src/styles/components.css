@@ -28,6 +28,13 @@
 
 /* EmptyState / ErrorState (D-011) */
 
+.screen.route-boundary {
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  background: var(--bg-canvas);
+}
+
 .empty-state,
 .error-state {
   display: flex;

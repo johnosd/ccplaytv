@@ -165,7 +165,9 @@ async function run() {
   try {
     await addSource(page, m3uUrl)
     await page.route('**/stream/**', () => {})
-    await page.route('**/vod/**', () => {})
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('=== Cenário A: proteção de tela liga/desliga com o estado de reprodução (US1) ===')
     await page.waitForSelector('.source-card', { timeout: 8000 })

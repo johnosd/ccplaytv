@@ -46,6 +46,7 @@ describe('versionTier', () => {
   ])('%s → %i', (name, tier) => {
     expect(versionTier(name)).toBe(tier)
   })
+
 })
 
 describe('matchDiscoveryTitles — casos além do contrato (feature 057)', () => {
@@ -152,5 +153,23 @@ describe('matchDiscoveryTitlesAsync — cruzamento sem prender a thread (feature
     let reads = 0
     expect(await matchDiscoveryTitlesAsync([], locals, { ...read, name: (l: Local) => ((reads += 1), l.name) })).toEqual([])
     expect(reads).toBe(0)
+  })
+
+  it('abandona o consumidor obsoleto sem cancelar o indice compartilhado', async () => {
+    const locals = makeLocals(300)
+    const controller = new AbortController()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const stale = matchDiscoveryTitlesAsync(titles, locals, read, {
+      signal: controller.signal,
+      yieldFn: () => gate,
+      sliceSize: 50,
+    })
+    controller.abort()
+    release()
+    await expect(stale).rejects.toMatchObject({ name: 'AbortError' })
+    await expect(matchDiscoveryTitlesAsync(titles, locals, read, { yieldFn: async () => {}, sliceSize: 50 })).resolves.toHaveLength(3)
   })
 })

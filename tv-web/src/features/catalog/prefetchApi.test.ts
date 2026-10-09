@@ -38,6 +38,30 @@ describe('createPrefetchInvalidator × prévia do carrossel (feature 053)', () =
   })
 })
 
+describe('createPrefetchInvalidator × escopo por tipo (feature 065)', () => {
+  it('atualiza filmes sem reler a consulta de séries', async () => {
+    vi.useFakeTimers()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const movieFetch = vi.fn(async () => ({ entries: ['movie'] }))
+    const seriesFetch = vi.fn(async () => ({ entries: ['series'] }))
+    client.setQueryData(['catalog-search-index', 'fonte', 'movie'], { entries: [] })
+    client.setQueryData(['catalog-search-index', 'fonte', 'series'], { entries: [] })
+    const movie = new QueryObserver(client, { queryKey: ['catalog-search-index', 'fonte', 'movie'], queryFn: movieFetch, staleTime: Infinity })
+    const series = new QueryObserver(client, { queryKey: ['catalog-search-index', 'fonte', 'series'], queryFn: seriesFetch, staleTime: Infinity })
+    const unsubMovie = movie.subscribe(() => {})
+    const unsubSeries = series.subscribe(() => {})
+    const invalidator = createPrefetchInvalidator(client, 10)
+    invalidator.categoryDone('fonte', 7, 'movie')
+    await vi.advanceTimersByTimeAsync(10)
+    expect(movieFetch).toHaveBeenCalledTimes(1)
+    expect(seriesFetch).not.toHaveBeenCalled()
+    invalidator.dispose()
+    unsubMovie()
+    unsubSeries()
+    client.clear()
+  })
+})
+
 describe('createPrefetchInvalidator × "Todos" aos poucos', () => {
   it('com muitas páginas lidas: marca como velha sem reler; com poucas: relê', async () => {
     vi.useFakeTimers()

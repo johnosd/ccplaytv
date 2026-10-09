@@ -724,8 +724,12 @@ async function run() {
       (await page.locator('.content-card-title').first().textContent()) === 'Filme 10001',
       '"★ Favoritos" de Filmes mostra o favorito',
     )
-    await page.keyboard.press('Enter') // trilha -> grade (049: OK entra)
-    await page.waitForTimeout(150)
+    await page.locator('.vod-screen').waitFor({ state: 'attached', timeout: 20000 })
+    const focusedCard = page.locator('.vod-screen .content-card .tv-focus')
+    if (await focusedCard.count() === 0) {
+      await page.keyboard.press('Enter')
+    }
+    await focusedCard.waitFor({ state: 'attached', timeout: 20000 })
     await page.keyboard.press('Enter') // abre o detalhe
     await page.waitForSelector('.vod-detail-hero', { timeout: 8000 })
     assert(

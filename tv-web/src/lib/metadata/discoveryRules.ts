@@ -190,9 +190,17 @@ export async function matchDiscoveryTitlesAsync<T>(
   titles: readonly DiscoveryTitle[],
   locals: readonly T[],
   read: LocalTitleFields<T>,
-  options: { yieldFn?: () => Promise<void>; sliceSize?: number } = {},
+  options: { yieldFn?: () => Promise<void>; sliceSize?: number; signal?: AbortSignal } = {},
 ): Promise<MatchedTitle<T>[]> {
   if (titles.length === 0) return []
+  const throwIfAborted = () => {
+    if (options.signal?.aborted) {
+      const error = new Error('discovery:cancelled')
+      error.name = 'AbortError'
+      throw error
+    }
+  }
+  throwIfAborted()
   const yieldFn = options.yieldFn ?? yieldToMain
   const sliceSize = options.sliceSize ?? MATCH_SLICE
   let promise = indexCache.get(locals) as Promise<ByKey<T>> | undefined
@@ -209,7 +217,9 @@ export async function matchDiscoveryTitlesAsync<T>(
     indexCache.set(locals, promise as Promise<ByKey<never>>)
     promise.catch(() => indexCache.delete(locals)) // falha não fica guardada
   }
-  return pickMatches(titles, await promise)
+  const byKey = await promise
+  throwIfAborted()
+  return pickMatches(titles, byKey)
 }
 /** Top 10: os cruzados na ordem do ranking, no máximo `DISCOVERY_LIMIT`, cada um com a posição real; menos de `TOP10_MIN` → `[]`. */
 export function selectTop10<T>(matches: readonly MatchedTitle<T>[]): Array<{ local: T; rank: number }> {

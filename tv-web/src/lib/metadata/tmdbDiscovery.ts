@@ -5,6 +5,7 @@ import { markTmdbState, readTmdbCredential, type UsableTmdbCredential } from './
 import { TmdbError, tmdbGet, tmdbImageUrl } from './tmdbConnector'
 import { yearOfDate } from './tmdbMatch'
 import type { MetadataOptions } from './types'
+import { sharedAttempt } from './sharedAttempt'
 
 /**
  * Descoberta pelo TMDB (feature 057 — `sdd/specs/057-top10-dica-tmdb/logic/descoberta.md` §1–§2): o ranking semanal (Top 10) e o
@@ -131,7 +132,7 @@ function mapResults(body: unknown, kind: DiscoveryKind, firstRank: number, limit
 const endpoint = (kind: DiscoveryKind) => (kind === 'movie' ? 'movie' : 'tv')
 
 async function fetchTrending(kind: DiscoveryKind, language: string, credential: UsableTmdbCredential, options: MetadataOptions): Promise<DiscoveryTitle[]> {
-  const body = await tmdbGet(`/trending/${endpoint(kind)}/week`, { language }, credential, options.fetchImpl)
+  const body = await tmdbGet(`/trending/${endpoint(kind)}/week`, { language }, credential, options.fetchImpl, { signal: options.signal, now: options.now })
   return mapResults(body, kind, 1, TRENDING_LIMIT)
 }
 
@@ -147,12 +148,16 @@ async function fetchPool(kind: DiscoveryKind, language: string, now: number, cre
     page: String(page),
   })
   const path = `/discover/${endpoint(kind)}`
-  // A 1ª página é obrigatória (falhou ⇒ falha geral); as demais são best-effort, em lotes.
-  const pages: unknown[] = [await tmdbGet(path, params(1), credential, options.fetchImpl)]
+  // A 1ª página é obrigatória; uma falha em qualquer lote invalida a publicação inteira.
+  const pages: unknown[] = [await tmdbGet(path, params(1), credential, options.fetchImpl, { signal: options.signal, now: options.now })]
   for (let start = 2; start <= TIP_PAGES; start += PAGE_BATCH) {
     const batch = Array.from({ length: Math.min(PAGE_BATCH, TIP_PAGES - start + 1) }, (_, index) => start + index)
-    const settled = await Promise.allSettled(batch.map((page) => tmdbGet(path, params(page), credential, options.fetchImpl)))
-    for (const outcome of settled) if (outcome.status === 'fulfilled') pages.push(outcome.value)
+    const settled = await Promise.allSettled(batch.map((page) => tmdbGet(path, params(page), credential, options.fetchImpl, { signal: options.signal, now: options.now })))
+    const failed = settled.find((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected')
+    if (failed) throw failed.reason
+    for (const outcome of settled) {
+      if (outcome.status === 'fulfilled') pages.push(outcome.value)
+    }
   }
   const seen = new Set<number>()
   const titles: DiscoveryTitle[] = []
@@ -190,32 +195,28 @@ async function load(source: Source, kind: DiscoveryKind, database: CatalogDb, op
     const locale = APP_LANGUAGE_LOCALE[language]
     const titles = source === 'trending' ? await fetchTrending(kind, locale, credential, options) : await fetchPool(kind, locale, now, credential, options)
     if (titles.length === 0) return fallback()
+    const current = await readTmdbCredential({ database })
+    if (!current || current.revision !== credential.revision || current.key !== credential.key) return fallback()
     const stored: DiscoveryCacheRecord = { id, source, kind, language, periodKey, fetchedAt: now, titles }
     await database.discoveryCache.put(stored)
-    if (credential.state !== 'connected') await markTmdbState('connected', { database, now: () => now })
+    if (credential.state !== 'connected') await markTmdbState('connected', { database, now: () => now, expectedCredentialRevision: credential.revision })
     return { status: 'ok', titles, stale: false }
   } catch (error) {
     // Erro de serviço atualiza o estado exibido; a chave e a mensagem de rede nunca saem daqui.
-    if (error instanceof TmdbError && error.kind !== 'not_found') await markTmdbState(error.kind, { database, now: () => now })
+    if (error instanceof TmdbError && error.kind !== 'not_found') await markTmdbState(error.kind, { database, now: () => now, expectedCredentialRevision: credential.revision }, error.retryAfterMs)
     return fallback()
   }
 }
 
 /** Uma obtenção por (banco, fonte, tipo, idioma) de cada vez — chamadas concorrentes compartilham a mesma (FR-016). */
-const inFlight = new Map<string, Promise<DiscoveryResult>>()
-
 function loadOnce(source: Source, kind: DiscoveryKind, options: MetadataOptions): Promise<DiscoveryResult> {
   const database = options.database ?? db
   const key = `${database.name}|${source}|${kind}|${options.language ?? readAppLanguage()}`
-  const running = inFlight.get(key)
-  if (running) return running
-  const promise = load(source, kind, database, options)
-    .catch((): DiscoveryResult => ({ status: 'unavailable', titles: [], stale: false }))
-    .finally(() => {
-      inFlight.delete(key)
+  return sharedAttempt(database, key, signal => load(source, kind, database, { ...options, signal }))
+    .catch((error): DiscoveryResult => {
+      if (error instanceof Error && error.name === 'AbortError') throw error
+      return { status: 'unavailable', titles: [], stale: false }
     })
-  inFlight.set(key, promise)
-  return promise
 }
 
 /** `GET /trending/{movie|tv}/week` — as `TRENDING_LIMIT` primeiras posições; cache por semana, por tipo e por idioma. */

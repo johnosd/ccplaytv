@@ -65,7 +65,7 @@ describe('speedTestRepository — dados e armazenamento', () => {
       await previous.table('userStates').put(state)
     } finally { previous.close() }
     await database.open()
-    expect(database.verno).toBe(17)
+    expect(database.verno).toBeGreaterThanOrEqual(17)
     expect(await database.sources.get(source.id)).toEqual(source)
     expect(await database.userStates.get(state.stableId)).toEqual(state)
     expect(await database.networkDiagnostics.count()).toBe(0)

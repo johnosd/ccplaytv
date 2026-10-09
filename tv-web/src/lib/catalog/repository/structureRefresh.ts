@@ -3,6 +3,7 @@
 import { db, type CatalogDb, type CatalogFetchMode, type CategoryKind, type CategoryRecord } from '../db'
 import { categoryMatchKey, diffCategories } from '../structureDiff'
 import { blockRecords } from '../categoryBlocks'
+import { invalidateCategoryReadModel } from './readProjection'
 
 /** Uma categoria lida numa atualização (feature 038, `logic/atualizacao-sem-esfriar.md` §4). */
 export interface RefreshedCategory {
@@ -41,7 +42,14 @@ export async function applyStructureRefresh(
   now: number,
   database: CatalogDb = db,
 ): Promise<StructureRefreshResult> {
-  return database.transaction('rw', database.categories, database.channels, database.categoryBlocks, async () => {
+  return database.transaction(
+    'rw',
+    database.categories,
+    database.channels,
+    database.categoryBlocks,
+    database.catalogReadManifests,
+    database.catalogReadChunks,
+    async () => {
     const existing = (await database.categories.where('sourceId').equals(sourceId).toArray()).filter(
       (record) => record.generation === generation && kinds.includes(record.kind),
     )
@@ -107,6 +115,7 @@ export async function applyStructureRefresh(
       const block = await database.categoryBlocks.get(id)
       const items = [...rows, ...(block ? blockRecords(block) : [])]
       if (block) await database.categoryBlocks.delete(id)
+      await invalidateCategoryReadModel(id, database)
       if (record.kind === 'series') {
         for (const seriesId of new Set(items.map((item) => item.seriesId).filter((value): value is string => !!value))) {
           await database.channels
@@ -125,5 +134,6 @@ export async function applyStructureRefresh(
     }
 
     return { kept: diff.keep.length, added: diff.add.length, removed: diff.remove.length }
-  })
+    },
+  )
 }

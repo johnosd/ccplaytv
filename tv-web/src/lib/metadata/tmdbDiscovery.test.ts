@@ -92,7 +92,7 @@ describe('loadWeeklyTrending / loadTipPool — casos além do contrato (feature 
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 
-  it('pool: junta as páginas sem repetir, a 1ª falhando falha tudo, as demais falhando guardam as que vieram', async () => {
+  it('pool: junta as páginas sem repetir e qualquer lote incompleto mantém o cache anterior', async () => {
     let failFrom = 99
     const fetchImpl = fakeFetch((url) => {
       const n = Number(url.searchParams.get('page'))
@@ -115,7 +115,7 @@ describe('loadWeeklyTrending / loadTipPool — casos além do contrato (feature 
     await database.discoveryCache.clear()
     failFrom = 4
     const partial = await loadTipPool('movie', options)
-    expect(partial.titles.length).toBe(3 * 20 - 5)
+    expect(partial).toEqual({ status: 'unavailable', titles: [], stale: false })
 
     await database.discoveryCache.clear()
     failFrom = 1
@@ -162,6 +162,27 @@ describe('loadWeeklyTrending / loadTipPool — casos além do contrato (feature 
     status = 200
     expect((await loadWeeklyTrending('movie', options)).status).toBe('ok')
     expect((await database.integrations.get('tmdb'))?.state).toBe('connected')
+  })
+
+  it('Retry-After em data mantém a pausa exata e não publica descoberta sem cache', async () => {
+    const retryAt = NOW + 3 * 60 * 1000
+    let pages = 0
+    const fetchImpl = fakeFetch((url) => {
+      if (Number(url.searchParams.get('page')) === 2) {
+        return new Response('{}', { status: 429, headers: { 'Retry-After': new Date(retryAt).toUTCString() } })
+      }
+      pages += 1
+      return json(page(1))
+    })
+    const options = await withKey(fetchImpl)
+
+    expect(await loadTipPool('movie', options)).toEqual({ status: 'unavailable', titles: [], stale: false })
+    expect(pages).toBeGreaterThan(0)
+    expect(await database.discoveryCache.count()).toBe(0)
+    const pausedUntil = (await database.integrations.get('tmdb'))?.pausedUntil
+    // HTTP-date tem precisão de segundos, por isso a comparação admite a perda do milissegundo.
+    expect(pausedUntil).toBeGreaterThanOrEqual(retryAt - 1000)
+    expect(pausedUntil).toBeLessThanOrEqual(retryAt)
   })
 
   it('cada idioma tem a sua entrada de cache; chamadas simultâneas compartilham a mesma obtenção', async () => {

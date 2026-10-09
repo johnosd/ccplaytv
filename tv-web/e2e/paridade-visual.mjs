@@ -73,9 +73,15 @@ async function addSource(page, m3uUrl, displayName) {
  *  outros scripts em `e2e/`). Aqui é só evidência visual, não precisamos do
  *  vídeo de fato tocando — só que o chrome do player apareça. */
 async function stubPlaybackNetwork(page) {
-  await page.route('**/vod/**', () => {})
-  await page.route('**/series/**', () => {})
-  await page.route('**/live/**', () => {})
+  await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+  await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+  await page.route('**/live/**', (route) => {
+    if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+  })
 }
 
 async function settle(page) {

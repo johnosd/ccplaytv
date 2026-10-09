@@ -221,9 +221,15 @@ async function scenarioVideo(m3uUrl) {
   watch(page)
   try {
     await addSource(page, m3uUrl)
-    await page.route('**/live/**', () => {})
-    await page.route('**/vod/**', () => {})
-    await page.route('**/series/**', () => {})
+    await page.route('**/live/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('Enter')

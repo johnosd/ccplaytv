@@ -407,7 +407,10 @@ async function run() {
     {
       log.length = 0
       const { context, page } = await freshListOpen(browser, panelUrl, 'Lista E2E 038 C')
-      await page.route('**/live/**', (route) => route.abort())
+      await page.route('**/live/**', (route) => {
+        if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+        return route.abort()
+      })
       await openViaTopbar(page, 'live')
       await page.waitForSelector('.live-column-groups', { timeout: 10000 })
       await page.keyboard.press('Enter') // entra na categoria em foco

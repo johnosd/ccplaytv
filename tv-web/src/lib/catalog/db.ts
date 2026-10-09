@@ -5,6 +5,12 @@ import type { ArchiveVariant } from './archiveUrl'
 import type { AppLanguage } from '../i18n/languages'
 import type { DiscoveryTitle } from '../metadata/tmdbDiscovery'
 import type { NetworkDiagnosticRecord } from '../network/speedTestRepository'
+import type { CatalogReadChunk, CatalogReadManifest } from './readProjectionTypes'
+import type { SeriesWatchMemberRecord, SeriesWatchSummaryRecord } from './seriesWatchTypes'
+import { registerLateCatalogSchemas } from './dbSchema'
+
+export type { CatalogReadChunk, CatalogReadItem, CatalogReadManifest } from './readProjectionTypes'
+export type { SeriesWatchMemberRecord, SeriesWatchSummaryRecord } from './seriesWatchTypes'
 
 /**
  * Armazenamento local do aparelho — a fonte de verdade das telas depois da
@@ -104,8 +110,6 @@ export interface SourceRecord {
 export type AccountStatusKind = 'active' | 'expired' | 'refused'
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
-
-
 export interface UserStateRecord {
   stableId: string
   sourceId: string
@@ -169,6 +173,7 @@ export interface CatalogRecord {
   episodeNumber?: number
   streamExtension?: string
   directUrl?: string
+  hasPlayback?: boolean
   /**
    * Instante da última obtenção dos episódios desta série (feature 012,
    * D-005). Só existe em registro `kind: 'series'` de categoria
@@ -329,7 +334,6 @@ export interface TmdbRating {
   average: number
   votes: number
 }
-
 export interface TitleFields {
   /**
    * Feature 061 — só no lado TMDB. `{}` = a classificação foi pedida e nenhum país serve; AUSENTE num registro `matched`
@@ -362,7 +366,6 @@ export interface TitleFields {
   country?: string
   cast?: string
 }
-
 export type TmdbResultRecord =
   /** `language`: idioma do app com que foi buscado (feature 054); ausente = `pt` (gravado antes da 054). */
   | { status: 'matched'; tmdbId: number; fields: TitleFields; language?: AppLanguage }
@@ -424,7 +427,6 @@ export interface DiscoveryCacheRecord {
   fetchedAt: number
   titles: DiscoveryTitle[]
 }
-
 export type IntegrationState = 'connected' | 'refused' | 'offline' | 'rate_limited'
 
 /**
@@ -440,9 +442,8 @@ export interface IntegrationRecord {
   state: IntegrationState
   lastTestedAt: number
   /** Depois de `429`: nenhuma chamada até este instante. */
-  pausedUntil?: number
+  pausedUntil?: number; revision?: string
 }
-
 export type CategoryKind = 'channel' | 'movie' | 'series'
 
 /** Como os itens de uma categoria chegam (data-model.md §2.1). */
@@ -569,7 +570,6 @@ export interface StoredEntriesRecord {
   chunk: number
   records: StoredCatalogRecord[]
 }
-
 export type ImportStatus = 'running' | 'completed' | 'failed' | 'cancelled'
 export type ImportStep = 'fetching' | 'parsing' | 'storing' | 'done'
 
@@ -596,7 +596,6 @@ export type CatalogSection = 'movie' | 'series'
 
 /** Estado de uma parte da lista numa importação (feature 038, FR-015/FR-017). */
 export type SectionRunState = 'waiting' | 'loading' | 'ready' | 'failed' | 'unavailable'
-
 export interface SectionRun {
   state: SectionRunState
   /** Categorias lidas (Xtream). */
@@ -604,7 +603,6 @@ export interface SectionRun {
   /** Itens lidos (M3U) — série conta série, nunca episódio. */
   items?: number
 }
-
 export interface ImportRunRecord {
   id: string
   sourceId: string
@@ -665,7 +663,6 @@ export interface ImportRunRecord {
 }
 
 const DB_NAME = 'ccplaytv'
-
 export class CatalogDb extends Dexie {
   sources!: EntityTable<SourceRecord, 'id'>
   channels!: EntityTable<CatalogRecord, 'id'>
@@ -678,10 +675,13 @@ export class CatalogDb extends Dexie {
   integrations!: EntityTable<IntegrationRecord, 'id'>
   tmdbPeople!: EntityTable<TmdbPersonRecord, 'personId'>
   categoryBlocks!: EntityTable<CategoryBlockRecord, 'categoryId'>
+  catalogReadManifests!: EntityTable<CatalogReadManifest, 'categoryId'>
+  catalogReadChunks!: EntityTable<CatalogReadChunk, 'id'>
+  seriesWatchMembers!: EntityTable<SeriesWatchMemberRecord, 'id'>
+  seriesWatchSummaries!: EntityTable<SeriesWatchSummaryRecord, 'id'>
   sectionStaging!: EntityTable<SectionStagingRecord, 'id'>
   discoveryCache!: EntityTable<DiscoveryCacheRecord, 'id'>
   networkDiagnostics!: EntityTable<NetworkDiagnosticRecord, 'id'>
-
   constructor(name: string = DB_NAME) {
     // Feature 038 (R0-3): o Chrome grava em modo "relaxed" por padrão desde a
     // versão 121; a TV de referência é Chromium 120 e ainda gravaria em modo
@@ -833,7 +833,7 @@ export class CatalogDb extends Dexie {
       discoveryCache: 'id',
     })
     // Feature 062: último diagnóstico por aparelho, independente de lista/chave.
-    this.version(17).stores({ networkDiagnostics: 'id' })
+    registerLateCatalogSchemas(this)
     // Toda escrita em `categoryBlocks`, por qualquer caminho, esvazia o cache
     // de blocos lidos (`blockMemo.ts`) — sem depender de cada função lembrar.
     this.use({
@@ -856,5 +856,4 @@ export class CatalogDb extends Dexie {
     })
   }
 }
-
 export const db = new CatalogDb()

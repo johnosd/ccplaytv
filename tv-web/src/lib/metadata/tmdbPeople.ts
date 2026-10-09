@@ -98,6 +98,7 @@ async function load(personId: number, database: CatalogDb, options: MetadataOpti
         { language: APP_LANGUAGE_LOCALE[language], append_to_response: 'combined_credits' },
         { key: credential.key, format: credential.format },
         options.fetchImpl,
+        { signal: options.signal, now: options.now },
       ),
     )
     const stored: TmdbPersonRecord = {
@@ -110,12 +111,12 @@ async function load(personId: number, database: CatalogDb, options: MetadataOpti
     const photo = text(body.profile_path)
     if (photo !== undefined) stored.photoUrl = tmdbImageUrl(photo, 'w185')
     await database.tmdbPeople.put(stored)
-    if (credential.state !== 'connected') await markTmdbState('connected', { database, now: () => now })
+    if (credential.state !== 'connected') await markTmdbState('connected', { database, now: () => now, expectedCredentialRevision: credential.revision })
     return toResult(stored)
   } catch (error) {
     if (error instanceof TmdbError) {
       // Erro de serviço atualiza o estado exibido; nada é guardado e a chave nunca sai daqui.
-      if (error.kind !== 'not_found') await markTmdbState(error.kind, { database, now: () => now })
+      if (error.kind !== 'not_found') await markTmdbState(error.kind, { database, now: () => now, expectedCredentialRevision: credential.revision }, error.retryAfterMs)
       if (cached && !sameLanguage && now - cached.fetchedAt <= TMDB_CACHE_MS) return toResult(cached)
       return { status: 'error', reason: error.kind }
     }

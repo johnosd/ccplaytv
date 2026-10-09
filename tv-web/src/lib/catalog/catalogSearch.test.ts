@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CatalogDb, type CatalogRecord } from './db'
-import { markCategoryFetched, storeCategories, type NewCategory } from './catalogRepository'
+import { markCategoryFetched, storeBatch, storeCategories, type NewCategory } from './catalogRepository'
 import { buildSearchIndex, loadSearchIndex, searchIndex, searchWithinItems } from './catalogSearch'
 
 describe('searchWithinItems — nome normalizado reaproveitado entre teclas (feature 039, T018)', () => {
@@ -100,6 +100,29 @@ function newCategory(overrides: Partial<NewCategory> = {}): NewCategory {
 }
 
 describe('catalogSearch — cobertura (FR-014, T028)', () => {
+  it('índice persistido mantém somente campos compactos de listagem', async () => {
+    await seedSource()
+    const [categoryId] = await storeCategories([newCategory({ fetchMode: 'eager' })], database)
+    await storeBatch([{
+      sourceId: SOURCE_ID,
+      generation: 1,
+      kind: 'movie',
+      categoryId,
+      groupOrder: 0,
+      categoryPosition: 0,
+      name: 'Filme',
+      originalName: 'Filme',
+      providerStreamId: 'stream-1',
+      directUrl: 'https://secret.invalid/play',
+    }], database)
+
+    const index = await loadSearchIndex(SOURCE_ID, 'movie', database)
+
+    expect(index.entries[0].record.providerStreamId).toBe('stream-1')
+    expect(index.entries[0].record.directUrl).toBeUndefined()
+    expect(index.entries[0].record.hasPlayback).toBe(true)
+  })
+
   it('nenhuma categoria aberta (on_demand sem itemsFetchedAt) → 0 de Y', async () => {
     await seedSource()
     await storeCategories([newCategory({ order: 0, name: 'Ação' }), newCategory({ order: 1, name: 'Comédia' })], database)

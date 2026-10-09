@@ -150,8 +150,12 @@ async function run() {
     // `page.route()` antes do primeiro `goto` prende a navegação
     // indefinidamente neste ambiente (achado da feature 017, sem relação
     // com o app).
-    await page.route('**/live/**', () => {})
-    await page.route('**/vod/**', () => {})
+    await page.route('**/live/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('=== Live TV: entra em "Canais | Esportes" (cobre essa categoria) ===')
     await page.waitForSelector('.source-card', { timeout: 8000 })

@@ -156,8 +156,12 @@ async function run() {
     await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
     await page.getByRole('button', { name: 'Voltar' }).click()
     await page.locator('.source-card-wrap', { hasText: SOURCE_NAME }).waitFor({ timeout: 8000 })
-    await page.route('**/vod/**', () => {})
-    await page.route('**/series/**', () => {})
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
     await page.keyboard.press('Enter')
     await page.waitForSelector('.home-content', { timeout: 8000 })
     assert(

@@ -3,6 +3,8 @@
 import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord, type CategoryBlockRecord } from '../db'
 import { blockRecords, blocksOfKind } from '../categoryBlocks'
 import { FavoritesScanComplete, KEY_MAX, KEY_MIN, activeGenerationOf, query } from './shared'
+import { readCategoryWindow } from './categoryWindow'
+import { readProjectionManifest } from './readProjection'
 
 /**
  * Todos os registros de um tipo na geração ativa, sem paginação — só para a
@@ -37,6 +39,86 @@ export interface KindPage {
   chunks: KindPageChunk[]
   /** Cursor da próxima página; `undefined` = acabou. */
   next: number | undefined
+}
+
+/** Cursor estável de "Todos": posição dentro da categoria e revisão da sua projeção. */
+export interface KindCursor {
+  sourceId: string
+  generation: number
+  kind: Exclude<CatalogItemKind, 'episode'>
+  categoryId: number
+  offset: number
+  revision?: string
+}
+
+export interface KindCursorPage {
+  items: CatalogRecord[]
+  next?: KindCursor
+  totalCategories: number
+}
+
+/**
+ * Lê uma janela por categoria, sem acumular o tipo inteiro. O cursor carrega
+ * a revisão para que uma renovação reinicie a categoria afetada em vez de
+ * reaproveitar um offset antigo.
+ */
+export async function readKindCursorPage(
+  sourceId: string,
+  kind: Exclude<CatalogItemKind, 'episode'>,
+  cursor: KindCursor | undefined,
+  limit: number,
+  database: CatalogDb = db,
+): Promise<KindCursorPage> {
+  const generation = await activeGenerationOf(sourceId, database)
+  if (generation === undefined || limit <= 0) return { items: [], totalCategories: 0 }
+  const categories = await database.categories
+    .where('[sourceId+generation+kind+order]')
+    .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
+    .toArray()
+  const cursorIndex = cursor && cursor.sourceId === sourceId && cursor.generation === generation && cursor.kind === kind
+    ? categories.findIndex((category) => category.id === cursor.categoryId)
+    : -1
+  const items: CatalogRecord[] = []
+  let index = cursorIndex >= 0 ? cursorIndex : 0
+  let offset = cursorIndex >= 0 ? Math.max(0, cursor?.offset ?? 0) : 0
+  let next: KindCursor | undefined
+  while (index < categories.length && items.length < limit) {
+    const category = categories[index]
+    const manifest = await readProjectionManifest(sourceId, category.id as number, database)
+    if (manifest) {
+      const categoryOffset = cursorIndex === index && cursor?.revision !== undefined && cursor.revision !== manifest.revision ? 0 : offset
+      const resumingCategory = cursorIndex === index && offset > 0
+      const categoryLimit = !resumingCategory && items.length > 0 ? manifest.count - categoryOffset : limit - items.length
+      const page = await readCategoryWindow(sourceId, category.id as number, categoryOffset, categoryLimit, database)
+      items.push(...page.items)
+      if (page.nextOffset !== undefined) {
+        next = { sourceId, generation, kind, categoryId: category.id as number, offset: page.nextOffset, revision: manifest.revision }
+        break
+      }
+    } else {
+      const block = await database.categoryBlocks.get(category.id as number)
+      const records = block && block.sourceId === sourceId && block.generation === generation
+        ? blockRecords(block)
+        : await query(database, sourceId, generation, category.order, kind).toArray()
+      if (cursorIndex === index && cursor?.revision !== undefined) offset = 0
+      const resumingCategory = cursorIndex === index && offset > 0
+      const categoryLimit = !resumingCategory && items.length > 0 ? records.length - offset : limit - items.length
+      const before = items.length
+      items.push(...records.slice(offset, offset + categoryLimit))
+      if (offset + items.length - before < records.length) {
+        next = { sourceId, generation, kind, categoryId: category.id as number, offset: offset + items.length - before }
+        break
+      }
+    }
+    index += 1
+    offset = 0
+    if (index < categories.length && items.length >= limit) {
+      const following = categories[index]
+      const followingManifest = await readProjectionManifest(sourceId, following.id as number, database)
+      next = { sourceId, generation, kind, categoryId: following.id as number, offset: 0, revision: followingManifest?.revision }
+    }
+  }
+  return { items, next, totalCategories: categories.length }
 }
 
 /**

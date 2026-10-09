@@ -1,41 +1,34 @@
-# Handoff — feature 065
-
 **Contexto**
 
-Planejamento concluído em ccplayTv, branch `feature/designWave2`: React/TypeScript/Vite, Dexie e Tizen, client-first. Backlog: **Planejada, 0/61 checkboxes** (48 tasks e 13 itens de release), em sete fases. Próximo comando: `/sdd-execute 065-otimizacao-carga-consultas-memoria`. Antes de editar, reler alterações preexistentes de 062/063/064, especialmente catalogRepository, catalogApi, db, App, scripts de benchmark/arquitetura e locks; não revertê-las.
+Feature 065 revalidada no ccplayTv, branch `feature/designWave2`, base `e0ec6ef`. Stack: React/TypeScript/Vite, Dexie e Tizen, client-first. Status: **Planejada**, 48 tasks em sete fases; backlog **0/61** incluindo release. Workspace inicialmente limpo; esta passada atualizou plan/tasks/quickstart/handoff. Reler esses documentos antes de executar. Próximo comando: `/sdd-execute 065-otimizacao-carga-consultas-memoria`.
 
 **O que a feature entrega**
 
-- US1/P1: prazo, compartilhamento, recuperação e cache completo nas consultas externas.
-- US2/P1: vitrines com menos CPU e atualizações restritas ao tipo afetado.
-- US3/P2: leituras em janelas e retenção limitada, mantendo todo o conteúdo acessível.
-- US4/P2: resumos de séries reutilizáveis e atualização apenas das séries afetadas.
-- US5/P3: splash por prontidão e menos JavaScript inicial, mantendo splash → perfis.
+- US1/P1: consultas externas com prazo, compartilhamento, recuperação e cache completo.
+- US2/P1: vitrines com menos CPU e atualização apenas do contexto afetado.
+- US3/P2: janelas de leitura e limites de retenção, mantendo acesso integral.
+- US4/P2: resumos de séries reutilizáveis e incrementais.
+- US5/P3: splash por prontidão e código local por rota, mantendo splash → perfis.
 
-Conteúdo, seleção, ordem e navegação permanecem. Ganhos são metas comparativas a medir; TV é recomendada. Esta sessão preparou documentação, contratos e stubs.
+Preservar conteúdo, seleção, ordem e navegação. Aceite por benchmark comparativo; TV recomendada.
 
 **Leitura obrigatória, em ordem**
 
-Em `sdd/specs/065-otimizacao-carga-consultas-memoria/`:
-
-1. `spec.md`: escopo/26 FR/13 SC; `plan.md`: invariantes, riscos e gates; `tasks.md`: sequência/checkpoints.
-2. `research.md`: alternativas; `logic/consultas.md`: deadline/leases/pausa; `logic/catalogo.md`: seleção/janelas/delta; `logic/abertura-benchmark.md`: prontidão e medição.
-3. `data-model.md`: projeções/resumos/limites; `contracts/client.md`: interfaces; `quickstart.md`: comandos e roteiro.
-4. `.planning/memory/constitution.md`, na raiz: regras vinculantes. Constitution Check pré/pós: PASS.
+Em `sdd/specs/065-otimizacao-carga-consultas-memoria/`: `spec.md` (escopo/aceite), `plan.md` (invariantes/gates), `tasks.md` (fases), `research.md` (alternativas), `logic/consultas.md` (deadline/leases), `logic/catalogo.md` (seleção/janelas), `logic/abertura-benchmark.md` (prontidão/medição), `data-model.md` (projeções/limites), `contracts/client.md` (interfaces), `quickstart.md` (verificação). Depois, `.planning/memory/constitution.md`, na raiz. Constitution Check pré/pós: PASS.
 
 **Testes de contrato**
 
-Caminhos abaixo relativos a tv-web/, todos travados:
+Arquivos travados, relativos a tv-web/:
 
-- `src/lib/metadata/externalQueries.otimizacao-carga-consultas-memoria.contract.test.ts`: 2 casos, fase 2.
-- `src/features/catalog/prefetchApi.otimizacao-carga-consultas-memoria.contract.test.ts`: 1, fase 3.
-- `src/features/vod/ratedSelectionAsync.otimizacao-carga-consultas-memoria.contract.test.ts`: 1, fase 3.
-- `src/lib/catalog/repository/categoryWindow.otimizacao-carga-consultas-memoria.contract.test.ts`: 1, fase 4.
+- `src/lib/metadata/externalQueries.otimizacao-carga-consultas-memoria.contract.test.ts`: dois casos, fase 2.
+- `src/features/catalog/prefetchApi.otimizacao-carga-consultas-memoria.contract.test.ts`: um, fase 3.
+- `src/features/vod/ratedSelectionAsync.otimizacao-carga-consultas-memoria.contract.test.ts`: um, fase 3.
+- `src/lib/catalog/repository/categoryWindow.otimizacao-carga-consultas-memoria.contract.test.ts`: um, fase 4.
 
-De tv-web/:
+Comando confirmado, de tv-web/:
 
 ~~~powershell
-npm run test -- src/lib/metadata/externalQueries.otimizacao-carga-consultas-memoria.contract.test.ts src/features/catalog/prefetchApi.otimizacao-carga-consultas-memoria.contract.test.ts src/features/vod/ratedSelectionAsync.otimizacao-carga-consultas-memoria.contract.test.ts src/lib/catalog/repository/categoryWindow.otimizacao-carga-consultas-memoria.contract.test.ts
+npm run test -- otimizacao-carga-consultas-memoria.contract.test.ts
 ~~~
 
 Integridade, da raiz:
@@ -44,21 +37,21 @@ Integridade, da raiz:
 & ./.planning/scripts/powershell/check-contract-tests.ps1 -Slug '065-otimizacao-carga-consultas-memoria' -Json
 ~~~
 
-Cinco vermelhos confirmados: timeout pendente, parcial tratado como válido, séries relidas por evento movie e dois `not implemented`. Sem falhas de importação/tipo. 73 testes existentes, tipos e lint passaram; lint tem avisos preexistentes. Locks 017/018/038/039/050/052/053/056/057/060/061/063 íntegros na conclusão; não regravá-los.
+Cinco vermelhos esperados: timeout pendente, parcial promovido a válido, séries relidas por evento movie e dois `not implemented`. 73 testes existentes, tipos e lint passaram; avisos preexistentes no lint. Locks 017/018/038/039/050/052/053/056/057/060/061/063 íntegros; não editá-los.
 
 **Stubs criados**
 
-Sob tv-web/src/: `features/vod/ratedSelectionAsync.ts` e `lib/catalog/repository/categoryWindow.ts` têm assinaturas compiláveis e lançam `not implemented` (T015/T023). `features/catalog/prefetchApi.ts` aceita `kind?`, ainda ignorado até T018. Nenhuma otimização foi ligada às telas.
+Sob tv-web/src/: `features/vod/ratedSelectionAsync.ts` (T015) e `lib/catalog/repository/categoryWindow.ts` (T023) lançam `not implemented`. `features/catalog/prefetchApi.ts` aceita `kind?`, ignorado até T018. Permanecem preparatórios; esta revalidação alterou documentação.
 
 **Armadilhas já mapeadas**
 
-Baseline nova vem antes das otimizações; três runs do review são exploratórios. CLI futura do quickstart será criada em T002/T003. Manter categoryBlocks canônicos: projeções são reconstruíveis, com migração/quota/Worker medidos. Fallback de pausa vigente é **10 minutos**. Não coletar todo AsyncIterable antes da seleção nem aplicar maxPages sem índice lógico/RETURN. T033 move o helper puro de séries para lib com reexport, evitando lib→features. Chunks locais exigem YAML, chrome108 e caminhos relativos; foco nunca dispara API.
+Baseline antes de otimizar; runners futuros do quickstart são T002/T003. Manter categoryBlocks canônicos e medir conversão/quota/Worker. Pausa fallback: **10 minutos**. Não materializar todo AsyncIterable nem usar maxPages sem índice lógico/RETURN. T010 usa useTitleMetadata dentro de catalogApi.ts. T033 move helper puro para lib com reexport. Chunks exigem YAML/chrome108/caminhos relativos; foco nunca dispara API.
 
 **Pendências do Analyze**
 
-A-001/LOW: T010 cita useTitleMetadata.ts inexistente; o hook está em catalogApi.ts. Usar o caminho atual ou declarar explicitamente a extração ao executar T010. Nenhum achado bloqueador; seguir para sdd-execute.
+Nenhuma. A referência incorreta da T010 foi corrigida antes do Analyze; seguir para sdd-execute.
 
 **Gate de pronto**
 
-Contratos 5/5 verdes e locks íntegros; em tv-web/: `npm run lint`, `npx tsc -b --pretty false`, `npm run test`, `npm run build`, `npm run build:tizen` e `npm run test:e2e` com dev server ativo. Cumprir quickstart e SC-001..013 com ≥7 amostras pareadas. Polish atualiza spec/plan/tasks/backlog, README e evidências. TV recomendada/pendente não bloqueia aceite; sem medição física, não afirmar RAM/desempenho na TV.
+Contratos verdes e travas íntegras; em tv-web/: `npm run lint`, `npx tsc -b --pretty false`, `npm run test`, `npm run build`, `npm run build:tizen` e `npm run test:e2e` com dev server ativo. Cumprir quickstart e SC-001..013 com ≥7 amostras pareadas. Polish atualiza spec/plan/tasks/backlog, README e evidências. TV recomendada/pendente; navegador não comprova RAM/desempenho físico.
 

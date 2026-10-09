@@ -165,8 +165,12 @@ async function run() {
     // com o evento sintético `ended` deste script (mesmo padrão de
     // `busca-por-categoria.mjs`/`zapping-live-tv.mjs`). Registradas só
     // depois da primeira navegação (achado da feature 017).
-    await page.route('**/vod/**', () => {})
-    await page.route('**/series/**', () => {})
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('=== Cenário A: filme concluído fica marcado como assistido automaticamente ===')
     await page.waitForSelector('.source-card', { timeout: 8000 })

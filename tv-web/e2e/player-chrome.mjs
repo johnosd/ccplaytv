@@ -164,9 +164,15 @@ async function run() {
     // interceptar, o <video> dispara seu próprio evento `error` em corrida
     // com os eventos sintéticos deste script (mesmo padrão dos demais
     // scripts em `e2e/`).
-    await page.route('**/live/**', () => {})
-    await page.route('**/vod/**', () => {})
-    await page.route('**/series/**', () => {})
+    await page.route('**/live/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('=== Cenário 1: chrome do filme — controles, mock "Em breve", auto-hide, salto com o chrome escondido ===')
     await page.waitForSelector('.source-card', { timeout: 8000 })

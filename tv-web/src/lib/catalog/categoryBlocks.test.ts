@@ -11,6 +11,7 @@ import {
   resolveContinueWatching,
   storeCategories,
 } from './catalogRepository'
+import { readKindCursorPage } from './kindCursor'
 import { buildStableId } from './userStateRepository'
 import { loadHistory } from './history'
 import { BLOCK_ID_SPACE, blockItemId, categoryIdOfBlockItem, convertLegacyCategories, identityKey } from './categoryBlocks'
@@ -249,6 +250,43 @@ describe('readKindPage — "Todos" aos poucos (feature 039, T022)', () => {
     expect(await readKindPage(SOURCE_ID, 'episode', 0, 10, database)).toEqual({ chunks: [], next: undefined })
     await database.sources.update(SOURCE_ID, { activeGeneration: undefined })
     expect(await readKindPage(SOURCE_ID, 'channel', 0, 10, database)).toEqual({ chunks: [], next: undefined })
+  })
+})
+
+describe('readKindCursorPage — janela por categoria e revisão (feature 065, T026)', () => {
+  it('continua dentro da categoria e depois avança na ordem da fonte', async () => {
+    const [first, second] = await storeCategories([
+      { sourceId: SOURCE_ID, generation: 1, kind: 'channel', fetchMode: 'on_demand', name: 'Primeira', order: 0 },
+      { sourceId: SOURCE_ID, generation: 1, kind: 'channel', fetchMode: 'on_demand', name: 'Segunda', order: 1 },
+    ], database)
+    await renewCategoryItems({ sourceId: SOURCE_ID, generation: 1, kind: 'channel', categoryId: first, groupOrder: 0 }, [
+      channel('a', { groupOrder: 0 }), channel('b', { groupOrder: 0 }), channel('c', { groupOrder: 0 }),
+    ], 1, database)
+    await renewCategoryItems({ sourceId: SOURCE_ID, generation: 1, kind: 'channel', categoryId: second, groupOrder: 1 }, [channel('d', { groupOrder: 1 })], 1, database)
+
+    const names: string[] = []
+    let cursor: Parameters<typeof readKindCursorPage>[2]
+    do {
+      const page = await readKindCursorPage(SOURCE_ID, 'channel', cursor, 2, database)
+      names.push(...page.items.map((item) => item.name))
+      cursor = page.next
+    } while (cursor)
+
+    expect(names).toEqual(['a', 'b', 'c', 'd'])
+  })
+
+  it('descarta o offset quando a revisão da categoria muda', async () => {
+    const [categoryId] = await storeCategories([
+      { sourceId: SOURCE_ID, generation: 1, kind: 'channel', fetchMode: 'on_demand', name: 'Revisada', order: 0 },
+    ], database)
+    const target = { sourceId: SOURCE_ID, generation: 1, kind: 'channel' as const, categoryId, groupOrder: 0 }
+    await renewCategoryItems(target, [channel('a', { groupOrder: 0 }), channel('b', { groupOrder: 0 })], 1, database)
+    const first = await readKindCursorPage(SOURCE_ID, 'channel', undefined, 1, database)
+    await renewCategoryItems(target, [channel('novo', { groupOrder: 0 }), channel('fim', { groupOrder: 0 })], 2, database)
+
+    const restarted = await readKindCursorPage(SOURCE_ID, 'channel', first.next, 1, database)
+
+    expect(restarted.items.map((item) => item.name)).toEqual(['novo'])
   })
 })
 

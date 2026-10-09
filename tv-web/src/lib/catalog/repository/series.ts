@@ -3,6 +3,8 @@
 import { db, type CatalogDb, type CatalogRecord } from '../db'
 import { blockRecord, blocksOfKind, categoryIdOfBlockItem } from '../categoryBlocks'
 import { FavoritesScanComplete, StorageFullError, activeGenerationOf, isQuotaError, query } from './shared'
+import { buildStableId } from '../userStateRepository'
+import { storeSeriesWatchMembers } from './seriesWatchRepository'
 
 /** Identifica a série alvo de uma substituição integral de episódios (feature 012). */
 export interface SeriesEpisodesTarget {
@@ -185,4 +187,21 @@ export async function storeSeriesEpisodes(
     if (isQuotaError(error)) throw new StorageFullError()
     throw error
   }
+  const stableIds: string[] = []
+  for (const episode of episodes) {
+    try {
+      stableIds.push(buildStableId({
+        sourceId: target.sourceId,
+        kind: 'episode',
+        providerStreamId: episode.providerStreamId,
+        seriesId: target.seriesId,
+        seasonNumber: episode.seasonNumber,
+        episodeNumber: episode.episodeNumber,
+        originalName: episode.originalName,
+      }))
+    } catch {
+      // Episódio sem identidade estável continua no catálogo, mas não entra no selo.
+    }
+  }
+  await storeSeriesWatchMembers({ sourceId: target.sourceId, generation: target.generation, seriesId: target.seriesId }, stableIds, database)
 }

@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-07
 
-**Status**: Planejada
+**Status**: Em Execução
 
 **Input**: Review solicitado para acelerar Home, Filmes, Séries e vitrines, otimizar consultas externas, memória e desempenho geral, com medições. O usuário pediu especificação via sdd-specify e confirmou todos os achados, incluindo splash e bundle, preservação de conteúdo/seleção/ordem/navegação e aceite comparativo no benchmark, com TV como validação recomendada.
 

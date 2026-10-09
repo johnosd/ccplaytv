@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ErrorCode } from '../../lib/errors/errorCatalog'
 import {
   keepPreviousData,
@@ -22,17 +22,17 @@ import {
   getActiveCategoryBlock,
   getChannel,
   kindSortFields,
-  listAllEpisodes,
   listCategories,
   listChannels,
   listEpisodes,
-  readKindPage,
   resolveContinueWatching,
   resolveContinueEntries,
   resolveFavorites,
   resolveStableIds,
   type CatalogCategory,
 } from '../../lib/catalog/catalogRepository'
+import { readKindCursorPage, type KindCursor } from '../../lib/catalog/kindCursor'
+import { readCategoryWindow } from '../../lib/catalog/categoryWindow'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
 import { markEntry } from '../../lib/perf/entryTiming'
 import { isKeyRepeatBurst, subscribeKeyRepeatBurst } from '../../lib/focus/keyRepeat'
@@ -57,13 +57,14 @@ import {
   type StableIdParts,
 } from '../../lib/catalog/userStateRepository'
 import { UNGROUPED_LABEL } from '../live/groupChannels'
-import { summarizeSeriesWatched, type SeriesWatchedSummary } from '../series/seriesWatchedSummary'
+import { type SeriesWatchedSummary } from '../../lib/catalog/seriesWatchedSummary'
+import { loadSeriesWatchedSummaries } from './seriesSummaryApi'
 import { isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
 import { recentlyAddedBy } from '../vod/vodShowcase'
 import { primaryProgress, type PrimaryProgress } from '../vod/detailProgress'
 import { pickBecauseSeed, type BecauseSeedKind } from '../../lib/catalog/becauseSeed'
 import { dayKey, selectFeaturedRated } from '../vod/ratedSelection'
-import { loadHistory, type HistoryKind } from '../../lib/catalog/history'
+import { loadHistory, type HistoryKind } from './historyApi'
 import {
   clearHistory,
   removeMovieFromHistory,
@@ -86,11 +87,9 @@ import { resolveTmdbTitles } from '../../lib/metadata/localTitleMatch'
 import { similarTabStatus } from '../../lib/metadata/similarTab'
 import { matchDiscoveryTitlesAsync, selectTip, selectTop10, type MatchedTitle } from '../../lib/metadata/discoveryRules'
 import { loadTipPool, loadWeeklyTrending, type DiscoveryKind } from '../../lib/metadata/tmdbDiscovery'
-
 const EPG_READ_BEFORE_MS = 24 * 60 * 60 * 1000
 const EPG_READ_AFTER_MS = 48 * 60 * 60 * 1000
 const EPG_HOUR_MS = 60 * 60 * 1000
-
 /**
  * Programação (feature 030) dos canais informados, lida **só do aparelho**
  * (FR-029): nunca rede, portanto seguro de chamar ao focar/rolar. Recebe os
@@ -127,7 +126,6 @@ export function useEpgPrograms(sourceId: string | null, epgChannelIds: readonly 
     },
   })
 }
-
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
 
 export interface CatalogItemOut {
@@ -301,7 +299,7 @@ function itemOut(
     playable:
       kind === 'series'
         ? false
-        : Boolean(record.directUrl) || Boolean(record.providerStreamId),
+        : record.hasPlayback ?? (Boolean(record.directUrl) || Boolean(record.providerStreamId)),
     source_id: sourceId,
     provider_stream_id: record.providerStreamId ?? null,
     original_name: record.originalName,
@@ -767,8 +765,8 @@ export function useTitleMetadata(itemId: string | null) {
   const language = useLanguage()
   return useQuery({
     queryKey: ['title-metadata', itemId, language],
-    queryFn: async () => {
-      const view = await ensureTitleMetadata(Number(itemId), { language })
+    queryFn: async ({ signal }) => {
+      const view = await ensureTitleMetadata(Number(itemId), { language, signal })
       // A consulta pode ter mudado o estado do TMDB (chave recusada, sem
       // conexão, limite de uso — FR-024): Integrações e o dock releem, sem
       // aviso no detalhe.
@@ -1130,43 +1128,7 @@ export function useSeriesEpisodes(seriesItemId: string | null) {
 export function useSeriesWatchedSummary(sourceId: string | null) {
   return useQuery({
     queryKey: ['series-watched-summary', sourceId],
-    queryFn: async (): Promise<Map<string, SeriesWatchedSummary>> => {
-      if (!sourceId) return new Map()
-      const episodes = await listAllEpisodes(sourceId, db)
-
-      const stableIdBySeriesId = new Map<string, string[]>()
-      for (const episode of episodes) {
-        if (!episode.seriesId) continue
-        let stableId: string
-        try {
-          stableId = buildStableId({
-            sourceId,
-            kind: 'episode',
-            providerStreamId: episode.providerStreamId,
-            seriesId: episode.seriesId,
-            seasonNumber: episode.seasonNumber,
-            episodeNumber: episode.episodeNumber,
-            originalName: episode.originalName,
-          })
-        } catch {
-          continue // D-010: episódio sem identidade estável não entra na agregação
-        }
-        const list = stableIdBySeriesId.get(episode.seriesId)
-        if (list) list.push(stableId)
-        else stableIdBySeriesId.set(episode.seriesId, [stableId])
-      }
-
-      const allStableIds = [...stableIdBySeriesId.values()].flat()
-      const allStates = await getUserStates(allStableIds, db)
-      const stateByStableId = new Map(allStableIds.map((id, i) => [id, allStates[i]]))
-
-      const summaryBySeriesId = new Map<string, SeriesWatchedSummary>()
-      for (const [seriesId, stableIds] of stableIdBySeriesId) {
-        const episodeStates = stableIds.map((id) => ({ completedAt: stateByStableId.get(id)?.completedAt }))
-        summaryBySeriesId.set(seriesId, summarizeSeriesWatched(episodeStates))
-      }
-      return summaryBySeriesId
-    },
+    queryFn: () => (sourceId ? loadSeriesWatchedSummaries(sourceId, db) : Promise.resolve(new Map<string, SeriesWatchedSummary>())),
     enabled: sourceId !== null,
   })
 }
@@ -1197,6 +1159,9 @@ export function invalidateUserStates(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ['user-states'] })
   // Feature 025: idem `invalidateUserState`, para o fechamento de episódio.
   void queryClient.invalidateQueries({ queryKey: ['history-content'] })
+  // O resumo agregado depende dos mesmos estados; sem esta invalidação a
+  // vitrine pode conservar a contagem anterior até o staleTime da query.
+  void queryClient.invalidateQueries({ queryKey: ['series-watched-summary'] })
 }
 
 /**
@@ -1273,7 +1238,7 @@ export function useHistoryContent(sourceId: string | null, kind: HistoryKind, en
       return { items: records.map((record) => toItemOut(record, record.kind)), unresolved }
     },
     enabled: sourceId !== null && enabled,
-    gcTime: Infinity,
+    gcTime: 30_000,
   })
 }
 
@@ -1450,7 +1415,6 @@ export function useMyListContent(sourceId: string | null) {
     enabled: sourceId !== null,
   })
 }
-
 /**
  * Índice da busca global (feature 026, `logic/busca-global.md` §2) — os três
  * tipos de uma vez. `staleTime: 0` + `refetchOnMount: 'always'`: mesmo
@@ -1464,6 +1428,7 @@ export function useGlobalSearchIndex(sourceId: string | null) {
     enabled: sourceId !== null,
     staleTime: 0,
     refetchOnMount: 'always',
+    gcTime: 30_000,
   })
 }
 
@@ -1558,6 +1523,7 @@ export function useAggregatedItems(
     enabled: enabled && !progressive && sourceId !== null,
     staleTime: 0,
     refetchOnMount: 'always',
+    gcTime: 30_000,
   })
 
   // Feature 039 (T022): "Todos" na ordem da fonte lê aos poucos — só as
@@ -1566,22 +1532,18 @@ export function useAggregatedItems(
   // do tipo inteiro e continuam no índice acima.
   const pagesQuery = useInfiniteQuery({
     queryKey: ['catalog-all-pages', sourceId, kind],
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam }: { pageParam: KindCursor | undefined }) => {
       const [page, categories] = await Promise.all([
-        readKindPage(sourceId as string, kind, pageParam, ALL_PAGE_MIN_ITEMS),
-        pageParam === 0 ? listCategories(sourceId as string, kind) : Promise.resolve(undefined),
+        readKindCursorPage(sourceId as string, kind, pageParam, ALL_PAGE_MIN_ITEMS),
+        pageParam === undefined ? listCategories(sourceId as string, kind) : Promise.resolve(undefined),
       ])
-      const items = page.chunks.flatMap((chunk) =>
-        'block' in chunk
-          ? chunk.block.items.map((item, index) => blockItemOut(chunk.block, item, index, kind))
-          : chunk.rows.map((record) => toItemOut(record, kind)),
-      )
+      const items = page.items.map((record) => toItemOut(record, kind))
       const coverage = categories
         ? { coveredCategories: categories.filter(isCovered).length, totalCategories: categories.length }
         : undefined
       return { items, next: page.next, coverage }
     },
-    initialPageParam: 0,
+    initialPageParam: undefined as KindCursor | undefined,
     getNextPageParam: (last) => last.next,
     enabled: enabled && progressive && sourceId !== null,
     staleTime: 0,
@@ -1649,6 +1611,7 @@ export function useRecentlyAdded(
     // O índice não é relido a cada montagem da tela (releitura do tipo inteiro do IndexedDB): vale `SHOWCASE_INDEX_STALE_MS`, e a
     // pré-carga (categoria nova) e o fim de uma sincronização o invalidam.
     staleTime: SHOWCASE_INDEX_STALE_MS,
+    gcTime: 30_000,
     select,
   })
   return {
@@ -1677,6 +1640,7 @@ function memoPerIndex<T>(index: object, key: string, compute: () => T): T {
   if (byKey.has(key)) return byKey.get(key) as T
   const value = compute()
   byKey.set(key, value)
+  while (byKey.size > 2) byKey.delete(byKey.keys().next().value as string)
   return value
 }
 
@@ -1724,6 +1688,7 @@ export function useTopRated(
     queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
     enabled: sourceId !== null && kind !== 'channel',
     staleTime: SHOWCASE_INDEX_STALE_MS, // ver `useRecentlyAdded`
+    gcTime: 30_000,
     select,
   })
   return {
@@ -1784,8 +1749,8 @@ function useDiscoveryRow<R>(
   const [now] = useState(() => Date.now())
   const tmdb = useQuery({
     queryKey: ['tmdb-discovery', source, kind, language],
-    queryFn: async () => {
-      const result = await (source === 'trending' ? loadWeeklyTrending : loadTipPool)(kind, { language })
+    queryFn: async ({ signal }) => {
+      const result = await (source === 'trending' ? loadWeeklyTrending : loadTipPool)(kind, { language, signal })
       // O carregador pode ter mudado o estado do TMDB (chave recusada, limite): Integrações e dock releem.
       void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
       return result
@@ -1802,6 +1767,7 @@ function useDiscoveryRow<R>(
     enabled: sourceId !== null && titles !== undefined && titles.length > 0,
     staleTime: 60_000,
     refetchOnMount: false,
+    gcTime: 30_000,
   })
 
   // O cruzamento NÃO roda na renderização (nem no `select` do react-query): com a lista real ele prendia a thread por ≈200 ms
@@ -1815,9 +1781,8 @@ function useDiscoveryRow<R>(
   const indexData = index.data
   useEffect(() => {
     if (sourceId === null || indexData === undefined || titles === undefined || titles.length === 0) return
-    let cancelled = false
-    void matchDiscoveryTitlesAsync(titles, indexData.entries, DISCOVERY_READ).then((matches) => {
-      if (cancelled) return
+    const controller = new AbortController()
+    void matchDiscoveryTitlesAsync(titles, indexData.entries, DISCOVERY_READ, { signal: controller.signal }).then((matches) => {
       // Feature 060: o fundo 16:9 que já veio com cada título do TMDB, por id do item da lista (sem consulta nova).
       const images = new Map<string, string>()
       const ratings = new Map<string, TmdbRating>()
@@ -1833,10 +1798,10 @@ function useDiscoveryRow<R>(
         coveredCategories: indexData.coveredCategories,
         totalCategories: indexData.totalCategories,
       })
+    }).catch((error: unknown) => {
+      if (!(error instanceof Error && error.name === 'AbortError')) throw error
     })
-    return () => {
-      cancelled = true
-    }
+    return () => controller.abort()
   }, [indexData, titles, scope, sourceId, kind, now, project])
 
   const settledEmpty = tmdb.data !== undefined && tmdb.data.titles.length === 0
@@ -1911,6 +1876,7 @@ export function useCategoryPreviews(
             queryKey: categoryPreviewKey(sourceId, category.id),
             queryFn: () => loadCategoryPreview(sourceId as string, category),
             staleTime: PREVIEW_STALE_MS,
+            gcTime: 30_000,
           })
           return [category.id, preview] as const
         }),
@@ -1922,7 +1888,6 @@ export function useCategoryPreviews(
   })
   return query.data ?? EMPTY_PREVIEWS
 }
-
 const EMPTY_PREVIEWS: ReadonlyMap<number, CategoryPreview> = new Map()
 /** Dentro desta janela a prévia de uma categoria já lida não é relida ao deslizar. */
 const PREVIEW_STALE_MS = 10_000
@@ -1953,10 +1918,10 @@ export function useCachedBackdrops(items: readonly CatalogItemOut[]): ReadonlyMa
       return found
     },
     enabled: pairs.length > 0,
+    gcTime: 30_000,
   })
   return query.data ?? EMPTY_BACKDROPS
 }
-
 const EMPTY_BACKDROPS: ReadonlyMap<string, string> = new Map()
 
 /**
@@ -2012,6 +1977,8 @@ export function categoryPreviewKey(sourceId: string | null, categoryId: number) 
  * linhas. Sem nada gravado = ainda não obtida (`pending`); a pré-carga 038 é quem a traz.
  */
 async function loadCategoryPreview(sourceId: string, category: CatalogCategory): Promise<CategoryPreview> {
+  const projected = await readCategoryWindow(sourceId, category.id, 0, PREVIEW_LIMIT)
+  if (projected.items.length > 0) return { status: 'ready', items: projected.items.map((record) => toItemOut(record, category.kind)) }
   const block = await getActiveCategoryBlock(sourceId, category.id)
   if (block) {
     const items = block.items.slice(0, PREVIEW_LIMIT).map((item, index) => blockItemOut(block, item, index, category.kind))
@@ -2053,6 +2020,7 @@ export function useFavoritesContent(sourceId: string | null, kind: FavoritableKi
       return { items: records.map((record) => toItemOut(record, kind)), unresolved }
     },
     enabled: enabled && sourceId !== null,
+    gcTime: 30_000,
   })
 }
 
@@ -2186,5 +2154,3 @@ export function useHistorySummary(sourceId: string | null, enabled: boolean) {
     enabled: enabled && sourceId !== null,
   })
 }
-
-

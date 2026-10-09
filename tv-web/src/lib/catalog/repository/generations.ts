@@ -14,6 +14,13 @@ import {
   query,
 } from './shared'
 import { clearStagedItems } from './staging'
+import {
+  invalidateGenerationReadModels,
+  invalidateReadModelsOutsideGeneration,
+  invalidateSourceReadModels,
+} from './readProjection'
+import { prepareCategoryReadModel } from './categoryWindow'
+import { deleteSeriesWatchForGeneration, deleteSeriesWatchForSource } from './seriesWatchRepository'
 
 /**
  * Grava um lote na geração em construção.
@@ -68,17 +75,14 @@ export async function publishGeneration(
 ): Promise<void> {
   await database.transaction(
     'rw',
-    database.sources,
-    database.channels,
-    database.categories,
-    database.storedEntries,
-    database.categoryBlocks,
+    [database.sources, database.channels, database.categories, database.storedEntries, database.categoryBlocks, database.catalogReadManifests, database.catalogReadChunks] as any,
     async () => {
       await database.sources.update(sourceId, { activeGeneration: generation, updatedAt: Date.now() })
       // Blocos de outras gerações (feature 039, §8): pelas chaves do índice,
       // nunca lendo os blocos (um filtro `.and()` leria todos, inclusive os novos).
       const staleBlocks = await blockKeysOutsideGeneration(database, sourceId, generation)
       if (staleBlocks.length > 0) await database.categoryBlocks.bulkDelete(staleBlocks)
+      await invalidateReadModelsOutsideGeneration(sourceId, generation, database)
       // Estrutura da geração anterior sai junto (feature 010) — nunca
       // `userStates`, que não tem noção de geração (D-002 do plan.md). É
       // pequena (centenas de linhas).
@@ -92,6 +96,10 @@ export async function publishGeneration(
       // (`collectStaleGenerations`).
     },
   )
+  // A geração era escrita enquanto ainda estava invisível; agora que o
+  // ponteiro mudou, prepare suas categorias antes de sinalizar disponibilidade.
+  const categories = await database.categories.where('sourceId').equals(sourceId).filter((category) => category.generation === generation).toArray()
+  for (const category of categories) await prepareCategoryReadModel(sourceId, category.id as number, database).catch(() => undefined)
 }
 
 /**
@@ -121,6 +129,14 @@ export async function collectStaleGenerations(
   }
   const runs = await database.importRuns.where('[sourceId+status]').equals([sourceId, 'running']).toArray()
   for (const run of runs) protectedGenerations.add(run.generation)
+
+  // Projeções de gerações que já não podem ser lidas não devem sobreviver ao
+  // descarte incremental do canônico. Elas são pequenas, mas podem apontar
+  // para categorias removidas; limpar aqui também cobre esse caso.
+  const readManifests = await database.catalogReadManifests.where('sourceId').equals(sourceId).toArray()
+  const staleReadGenerations = new Set(
+    readManifests.map((manifest) => manifest.generation).filter((generation) => !protectedGenerations.has(generation)),
+  )
 
   const sorted = [...protectedGenerations].sort((a, b) => a - b)
   const ranges: Array<[number, number]> = []
@@ -159,6 +175,11 @@ export async function collectStaleGenerations(
     if (blockKeys.length > 0) await database.categoryBlocks.bulkDelete(blockKeys)
     deleted += blockKeys.length
   }
+  if (staleReadGenerations.size > 0) {
+    for (const generation of staleReadGenerations) {
+      if (!protectedGenerations.has(generation)) await invalidateGenerationReadModels(sourceId, generation, database)
+    }
+  }
   // Blocos de uma varredura que já não é apontada: o `storedFrom` limpo pela
   // renovação libera a geração de varredura inteira para a próxima parte.
   return deleted >= batchSize
@@ -184,6 +205,8 @@ export async function discardGeneration(
     .and((entry) => entry.generation === generation)
     .delete()
   await blocksOfGeneration(database, sourceId, generation).delete()
+  await invalidateGenerationReadModels(sourceId, generation, database)
+  await deleteSeriesWatchForGeneration(sourceId, generation, database)
 }
 
 /** Remove todo o catálogo de uma fonte, de todas as gerações. */
@@ -195,5 +218,7 @@ export async function deleteAllForSource(
   await allCategoryGenerations(database, sourceId).delete()
   await allStoredEntriesGenerations(database, sourceId).delete()
   await blocksOfSource(database, sourceId).delete()
+  await invalidateSourceReadModels(sourceId, database)
+  await deleteSeriesWatchForSource(sourceId, database)
   await clearStagedItems(sourceId, undefined, database)
 }

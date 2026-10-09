@@ -24,7 +24,7 @@ import { Stage } from './components/Stage.tsx'
 import { AnnouncerRegion } from './components/AnnouncerRegion.tsx'
 import { PerfOverlay } from './components/PerfOverlay.tsx'
 import { ImeProbeOverlay } from './components/ImeProbeOverlay.tsx'
-import { applyMotionPreference } from './lib/motionPreference.ts'
+import { prepareLocalStartup } from './lib/startupReadiness.ts'
 import { I18nProvider } from './lib/i18n/I18nProvider.tsx'
 
 const queryClient = new QueryClient()
@@ -32,7 +32,7 @@ const queryClient = new QueryClient()
 // Antes do primeiro render (US4, D-005): a preferência interna de reduzir
 // movimento, se já ligada numa sessão anterior, precisa valer desde o
 // primeiro quadro — nunca um flash de animação antes de aplicar a classe.
-applyMotionPreference()
+prepareLocalStartup()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

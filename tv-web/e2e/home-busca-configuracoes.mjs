@@ -171,8 +171,12 @@ async function run() {
     // interceptar, o <video> dispara seu próprio evento `error` em corrida
     // com os eventos sintéticos deste script (mesmo padrão documentado em
     // `busca-por-categoria.mjs`/`zapping-live-tv.mjs`).
-    await page.route('**/live/**', () => {})
-    await page.route('**/vod/**', () => {})
+    await page.route('**/live/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('--- Favorita o canal ---')
     await openViaTopbar(page, 'live')

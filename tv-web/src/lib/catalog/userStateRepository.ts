@@ -11,7 +11,7 @@
  */
 
 import { db, type CatalogDb, type CatalogItemKind, type UserStateRecord } from './db'
-
+import { invalidateSeriesWatchForStableId } from './seriesWatchRepository'
 /**
  * O que identifica um item entre importações. Os campos opcionais refletem
  * o que cada tipo de fonte de fato entrega — não há valor inventado para
@@ -236,8 +236,8 @@ async function upsert(
     }
     await database.userStates.put({ ...patch(base), updatedAt: now })
   })
+  await invalidateSeriesWatchForStableId(stableId, database)
 }
-
 export async function toggleFavorite(
   stableId: string,
   sourceId: string,

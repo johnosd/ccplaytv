@@ -9,7 +9,7 @@
 
 import { db, type CatalogDb, type CatalogRecord } from './db'
 import { resolveFavorites, resolveStableIds } from './catalogRepository'
-import { listPlayed, parseStableId, type StableIdParts } from './userStateRepository'
+import { listFavorites, listPlayed, parseStableId, type StableIdParts } from './userStateRepository'
 
 export type HistoryKind = 'movie' | 'series'
 
@@ -26,6 +26,12 @@ export interface HistoryResult {
    * série é um episódio que não está mais no catálogo).
    */
   unresolved: number
+}
+
+export interface HistoryPage extends HistoryResult {
+  offset: number
+  nextOffset?: number
+  total: number
 }
 
 async function loadMovieHistory(sourceId: string, database: CatalogDb): Promise<HistoryResult> {
@@ -48,8 +54,7 @@ async function loadMovieHistory(sourceId: string, database: CatalogDb): Promise<
  * `resolveStableIds` diz qual episódio não resolveu, e a ordem é a dos
  * estados (mesma escolha de `resolveContinueWatching`).
  */
-async function loadSeriesHistory(sourceId: string, database: CatalogDb): Promise<HistoryResult> {
-  const states = await listPlayed(sourceId, 'episode', database)
+async function resolveSeriesHistory(states: Awaited<ReturnType<typeof listPlayed>>, sourceId: string, database: CatalogDb): Promise<HistoryResult> {
   const parsed = states.map((state) => parseStableId(state.stableId))
   const episodes = await resolveStableIds(
     sourceId,
@@ -88,6 +93,60 @@ async function loadSeriesHistory(sourceId: string, database: CatalogDb): Promise
   }
 
   return { records, unresolved }
+}
+
+async function loadSeriesHistory(sourceId: string, database: CatalogDb): Promise<HistoryResult> {
+  return resolveSeriesHistory(await listPlayed(sourceId, 'episode', database), sourceId, database)
+}
+
+/** Lê somente uma faixa de estados antes de resolver os objetos do catálogo. */
+export async function loadHistoryPage(
+  sourceId: string,
+  kind: HistoryKind,
+  offset = 0,
+  limit = 240,
+  database: CatalogDb = db,
+): Promise<HistoryPage> {
+  const states = await listPlayed(sourceId, kind === 'movie' ? 'movie' : 'episode', database)
+  const safeOffset = Math.max(0, Math.floor(offset))
+  const safeLimit = Math.max(1, Math.floor(limit))
+  const pageStates = states.slice(safeOffset, safeOffset + safeLimit)
+  const result = kind === 'movie'
+    ? await (async () => {
+        const parts = pageStates.map((state) => parseStableId(state.stableId)).filter((parts): parts is StableIdParts => parts !== null)
+        const resolved = await resolveFavorites(sourceId, 'movie', parts, database)
+        return { records: resolved.records, unresolved: resolved.unresolved + pageStates.length - parts.length }
+      })()
+    : await resolveSeriesHistory(pageStates, sourceId, database)
+  return {
+    ...result,
+    offset: safeOffset,
+    total: states.length,
+    nextOffset: safeOffset + pageStates.length < states.length ? safeOffset + pageStates.length : undefined,
+  }
+}
+
+/** Faixa equivalente de favoritos, mantendo a resolução fora da query da tela. */
+export async function loadFavoritesPage(
+  sourceId: string,
+  kind: HistoryKind,
+  offset = 0,
+  limit = 240,
+  database: CatalogDb = db,
+): Promise<HistoryPage> {
+  const favorites = await listFavorites(sourceId, kind, database)
+  const safeOffset = Math.max(0, Math.floor(offset))
+  const safeLimit = Math.max(1, Math.floor(limit))
+  const page = favorites.slice(safeOffset, safeOffset + safeLimit)
+  const parts = page.map((favorite) => parseStableId(favorite.stableId)).filter((parts): parts is StableIdParts => parts !== null)
+  const resolved = await resolveFavorites(sourceId, kind, parts, database)
+  return {
+    records: resolved.records,
+    unresolved: resolved.unresolved + page.length - parts.length,
+    offset: safeOffset,
+    total: favorites.length,
+    nextOffset: safeOffset + page.length < favorites.length ? safeOffset + page.length : undefined,
+  }
 }
 
 /**

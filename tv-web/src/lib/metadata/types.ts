@@ -114,4 +114,7 @@ export interface MetadataOptions {
   fetchImpl?: typeof fetch
   /** Idioma do app (feature 054): `undefined` = o vigente (`readAppLanguage`). Os testes injetam. */
   language?: AppLanguage
+  signal?: AbortSignal
+  /** Impede um resultado antigo de alterar o estado de uma credencial substituída. */
+  expectedCredentialRevision?: string
 }

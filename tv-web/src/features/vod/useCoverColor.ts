@@ -13,9 +13,16 @@ import { dominantColorFromPixels, isSafeCoverUrl } from '../../lib/color/coverCo
 
 /** Lado da miniatura lida — 256 pixels bastam para a média e custam nada. */
 const SAMPLE_SIZE = 16
+const COVER_COLOR_CACHE_MAX = 256
 
 /** Cache da sessão: a mesma capa nunca é lida duas vezes (`null` também fica, para não tentar de novo). */
 const cache = new Map<string, string | null>()
+
+function remember(url: string, color: string | null): void {
+  cache.delete(url)
+  cache.set(url, color)
+  while (cache.size > COVER_COLOR_CACHE_MAX) cache.delete(cache.keys().next().value as string)
+}
 
 /** Só para testes: zera o cache entre casos. */
 export function clearCoverColorCache(): void {
@@ -53,7 +60,7 @@ export function useCoverColor(url: string | undefined, panelHosts: readonly stri
     image.crossOrigin = 'anonymous'
     image.decoding = 'async'
     const finish = (color: string | null) => {
-      cache.set(url, color)
+      remember(url, color)
       if (!cancelled) setResolved({ url, color })
     }
     image.onload = () => finish(readCoverColor(image))
@@ -67,6 +74,10 @@ export function useCoverColor(url: string | undefined, panelHosts: readonly stri
   }, [url, readable])
 
   if (!url || !readable) return null
-  if (cache.has(url)) return cache.get(url) ?? null
+  if (cache.has(url)) {
+    const color = cache.get(url) ?? null
+    remember(url, color)
+    return color
+  }
   return resolved?.url === url ? resolved.color : null
 }

@@ -186,7 +186,7 @@ describe('App — navegação e foco de volta (feature 017, T025; 023; 052)', ()
 
   it('abrir um filme na vitrine guarda o foco na tela de origem; voltar do detalhe o devolve em restore', async () => {
     await openMovies()
-    expect(screen.getByTestId('showcase-restore').textContent).toBe('sem-restore')
+    expect(await screen.findByTestId('showcase-restore')).toHaveTextContent('sem-restore')
 
     fireEvent.click(screen.getByRole('button', { name: 'abrir-filme' }))
     expect(await screen.findByTestId('detail-movie-id')).toHaveTextContent('filme-1')
@@ -199,9 +199,9 @@ describe('App — navegação e foco de volta (feature 017, T025; 023; 052)', ()
   it('vitrine → categoria → detalhe: cada RETURN restaura a tela anterior com o foco que ela guardou', async () => {
     await openMovies()
 
-    fireEvent.click(screen.getByRole('button', { name: 'abrir-categoria' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'abrir-categoria' }))
     expect(await screen.findByTestId('category-target')).toHaveTextContent(JSON.stringify({ kind: 'category', name: 'Ação' }))
-    expect(screen.getByTestId('category-restore').textContent).toBe('sem-restore')
+    expect(await screen.findByTestId('category-restore')).toHaveTextContent('sem-restore')
 
     fireEvent.click(screen.getByRole('button', { name: 'abrir-filme-da-categoria' }))
     expect(await screen.findByTestId('detail-movie-id')).toHaveTextContent('filme-1')

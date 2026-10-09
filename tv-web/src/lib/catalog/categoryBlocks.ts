@@ -22,7 +22,8 @@ import {
   type CategoryKind,
 } from './db'
 import { noteMovedIds } from './blockMemo'
-
+import { invalidateCategoryReadModel } from './readProjection'
+import { prepareCategoryReadModel } from './categoryWindow'
 /** Espaço de ids por categoria: `id = -(categoryId * BLOCK_ID_SPACE + slot)`. */
 export const BLOCK_ID_SPACE = 2 ** 32
 
@@ -257,9 +258,9 @@ export async function writeBlockWithin(
     itemsSignature: signature,
     seriesEpisodesFetchedAt: undefined,
   })
+  await invalidateCategoryReadModel(target.categoryId, database)
   return true
 }
-
 /** Faixa de chave de todos os blocos de uma fonte (qualquer geração e tipo). */
 export function blocksOfSource(database: CatalogDb, sourceId: string) {
   return database.categoryBlocks
@@ -351,8 +352,7 @@ export async function convertLegacyCategories(
     if (!(await legacyRowsOf(database, target).first())) continue
     // Sobrou pelo menos uma depois do limite desta parte.
     if (converted >= maxCategories) return true
-
-    const done = await database.transaction('rw', database.channels, database.categories, database.categoryBlocks, async () => {
+    const done = await database.transaction('rw', database.channels, database.categories, database.categoryBlocks, database.catalogReadManifests, database.catalogReadChunks, async () => {
       const current = await database.categories.get(categoryId)
       if (!current || (await database.categoryBlocks.where(':id').equals(categoryId).count()) > 0) return false
       const rows = await legacyRowsOf(database, target).toArray()
@@ -368,7 +368,7 @@ export async function convertLegacyCategories(
       await database.categories.update(categoryId, { itemsFetchedAt: current.itemsFetchedAt })
       return true
     })
-    if (done) options.onConverted?.(categoryId)
+    if (done) { options.onConverted?.(categoryId); await prepareCategoryReadModel(sourceId, categoryId, database).catch(() => undefined) }
     converted += 1
   }
   return false
