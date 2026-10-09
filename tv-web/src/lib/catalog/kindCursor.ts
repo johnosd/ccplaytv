@@ -61,13 +61,15 @@ export async function readKindCursorPage(
             .where('[sourceId+generation+kind+groupOrder]')
             .between([sourceId, generation, kind, category.order], [sourceId, generation, kind, category.order], true, true)
             .toArray()
-      if (cursorIndex === index && cursor?.revision !== undefined) offset = 0
+      // Sem projeção (categoria pequena, 065): a assinatura dos itens faz o papel de revisão — renovou, recomeça a categoria.
+      const blockRevision = category.itemsSignature !== undefined ? `items:${category.itemsSignature}` : undefined
+      if (cursorIndex === index && cursor?.revision !== undefined && cursor.revision !== blockRevision) offset = 0
       const resumingCategory = cursorIndex === index && offset > 0
       const categoryLimit = !resumingCategory && items.length > 0 ? records.length - offset : limit - items.length
       const before = items.length
       items.push(...records.slice(offset, offset + categoryLimit))
       if (offset + items.length - before < records.length) {
-        next = { sourceId, generation, kind, categoryId: category.id as number, offset: offset + items.length - before }
+        next = { sourceId, generation, kind, categoryId: category.id as number, offset: offset + items.length - before, revision: blockRevision }
         break
       }
     }
@@ -76,7 +78,7 @@ export async function readKindCursorPage(
     if (index < categories.length && items.length >= limit) {
       const following = categories[index]
       const followingManifest = await database.catalogReadManifests.get(following.id as number)
-      next = { sourceId, generation, kind, categoryId: following.id as number, offset: 0, revision: followingManifest?.revision }
+      next = { sourceId, generation, kind, categoryId: following.id as number, offset: 0, revision: followingManifest?.revision ?? (following.itemsSignature !== undefined ? `items:${following.itemsSignature}` : undefined) }
     }
   }
   return { items, next, totalCategories: categories.length }

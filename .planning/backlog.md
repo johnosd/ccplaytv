@@ -176,7 +176,7 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 062-teste-conexao-tv | Teste de conexão da TV em Configurações | Em Execução | 28/34 tasks | 2026-10-06 |
 | 063-codigo-saudavel-benchmark | Código saudável — divisão do repositório do catálogo, fronteiras e tamanho por lint, benchmark de importação | Implementada | 48/49 tasks | 2026-10-07 |
 | 064-upload-teste-conexao | Upload no teste de conexão da TV | Convergida | 35/36 tasks | 2026-10-07 |
-| 065-otimizacao-carga-consultas-memoria | Otimização de carga, consultas externas, memória e abertura do app | Em Execução | 47/61 tasks | 2026-10-08 |
+| 065-otimizacao-carga-consultas-memoria | Otimização de carga, consultas externas, memória e abertura do app | Em Execução | 56/70 tasks | 2026-10-09 |
 
 ## Bugs
 

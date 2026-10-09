@@ -1,4 +1,4 @@
-/** Categorias da fonte: leitura, gravaÃ§Ã£o e carimbos. Parte da divisÃ£o de `catalogRepository.ts` (feature 063); a fachada reexporta. */
+/** Categorias da fonte: leitura, gravação e carimbos. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogFetchMode, type CatalogItemKind, type CategoryKind, type CategoryRecord } from '../db'
 import { KEY_MAX, KEY_MIN, activeGenerationOf } from './shared'

@@ -1,4 +1,4 @@
-/** GravaÃ§Ã£o e renovaÃ§Ã£o dos itens de uma categoria. Parte da divisÃ£o de `catalogRepository.ts` (feature 063); a fachada reexporta. */
+/** Gravação e renovação dos itens de uma categoria. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogRecord, type CategoryKind, type StoredCatalogRecord } from '../db'
 import { writeBlockWithin } from '../categoryBlocks'

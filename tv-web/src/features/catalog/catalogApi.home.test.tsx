@@ -7,11 +7,17 @@ import { db, type CatalogRecord } from '../../lib/catalog/db'
 import { buildStableId, updateProgress } from '../../lib/catalog/userStateRepository'
 import { PROVIDER_FIELDS_VERSION } from '../../lib/metadata/titleMetadataStore'
 import * as catalogSearch from '../../lib/catalog/catalogSearch'
+import * as derivedRows from '../../lib/catalog/catalogDerivedRows'
 
 /**
  * Hooks locais da Home "Vitrine expandida" (feature 060): imagem 16:9 por prioridade, progresso real do "Continuar" e a
  * leitura adiada/ com cobertura de "Filmes adicionados". Tudo contra `fake-indexeddb`, sem rede.
  */
+
+vi.mock('../../lib/catalog/catalogDerivedRows', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/catalog/catalogDerivedRows')>()
+  return { ...actual, iterateKindRecordBatches: vi.fn(actual.iterateKindRecordBatches) }
+})
 
 vi.mock('../../lib/catalog/catalogSearch', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/catalog/catalogSearch')>()
@@ -50,8 +56,10 @@ async function add(record: CatalogRecord): Promise<number> {
 
 afterEach(async () => {
   vi.mocked(catalogSearch.loadSearchIndex).mockClear()
+  vi.mocked(derivedRows.iterateKindRecordBatches).mockClear()
   await db.sources.delete(SOURCE_ID)
   await db.channels.where('sourceId').equals(SOURCE_ID).delete()
+  await db.categories.where('sourceId').equals(SOURCE_ID).delete()
   await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
   await db.titleMetadata.where('sourceId').equals(SOURCE_ID).delete()
 })
@@ -155,6 +163,8 @@ describe('useContinueCards (feature 060, FR-004/FR-010)', () => {
 describe('useRecentlyAdded (feature 060, D-013)', () => {
   it('com `enabled: false` não lê o índice; ao habilitar, devolve os mais novos e a cobertura do mesmo índice', async () => {
     await seedSource()
+    // A passada da vitrine (feature 065) percorre o tipo por categoria, como "Todos".
+    await db.categories.put({ sourceId: SOURCE_ID, generation: 1, kind: 'movie', fetchMode: 'eager', name: 'Cat', order: 0, providerCategoryId: '1' })
     await add(row({ name: 'Velho', originalName: 'Velho', providerStreamId: 'v', addedAt: 100 }))
     await add(row({ name: 'Novo', originalName: 'Novo', providerStreamId: 'n', addedAt: 900 }))
 
@@ -165,6 +175,7 @@ describe('useRecentlyAdded (feature 060, D-013)', () => {
     })
     expect(result.current.data).toBeUndefined()
     expect(vi.mocked(catalogSearch.loadSearchIndex)).not.toHaveBeenCalled()
+    expect(vi.mocked(derivedRows.iterateKindRecordBatches)).not.toHaveBeenCalled()
 
     enabled = true
     rerender()

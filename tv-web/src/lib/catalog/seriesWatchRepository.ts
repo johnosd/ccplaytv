@@ -1,9 +1,9 @@
-﻿/**
- * PersistÃªncia incremental do selo de sÃ©ries assistidas (feature 065 / US4).
+/**
+ * Persistência incremental do selo de séries assistidas (feature 065 / US4).
  *
- * Este mÃ³dulo nÃ£o descobre episÃ³dios nem consulta rede. Quem conhece os
- * episÃ³dios monta os stable ids e substitui os membros da sÃ©rie; estados
- * alterados invalidam somente os resumos localizados pelo Ã­ndice multiEntry.
+ * Este módulo não descobre episódios nem consulta rede. Quem conhece os
+ * episódios monta os stable ids e substitui os membros da série; estados
+ * alterados invalidam somente os resumos localizados pelo índice multiEntry.
  */
 import { db, type CatalogDb, type SeriesWatchMemberRecord, type SeriesWatchSummaryRecord } from './db'
 import type { SeriesWatchedSummary } from './seriesWatchedSummary'
@@ -26,7 +26,7 @@ function keyOf(target: SeriesWatchTarget): [string, number, string] {
   return [target.sourceId, target.generation, target.seriesId]
 }
 
-/** LÃª os membros sem copiar payload de episÃ³dio. */
+/** Lê os membros sem copiar payload de episódio. */
 export async function getSeriesWatchMembers(
   target: SeriesWatchTarget,
   database: CatalogDb = db,
@@ -34,7 +34,7 @@ export async function getSeriesWatchMembers(
   return database.seriesWatchMembers.get(keyOf(target))
 }
 
-/** Lista os membros de uma geraÃ§Ã£o, preservando a ordem da fonte. */
+/** Lista os membros de uma geração, preservando a ordem da fonte. */
 export async function listSeriesWatchMembers(
   sourceId: string,
   generation: number,
@@ -47,8 +47,8 @@ export async function listSeriesWatchMembers(
 }
 
 /**
- * Substitui os membros e invalida o resumo na mesma transaÃ§Ã£o. A cÃ³pia do
- * vetor mantÃ©m a multiplicidade de stable ids sem reter objetos de episÃ³dio.
+ * Substitui os membros e invalida o resumo na mesma transação. A cópia do
+ * vetor mantém a multiplicidade de stable ids sem reter objetos de episódio.
  */
 export async function storeSeriesWatchMembers(
   target: SeriesWatchTarget,
@@ -70,10 +70,10 @@ export async function storeSeriesWatchMembers(
   })
 }
 
-/** Compatibilidade explÃ­cita para chamadores que usam a semÃ¢ntica "replace". */
+/** Compatibilidade explícita para chamadores que usam a semântica "replace". */
 export const replaceSeriesWatchMembers = storeSeriesWatchMembers
 
-/** LÃª um resumo cru, sem tratÃ¡-lo como vÃ¡lido. */
+/** Lê um resumo cru, sem tratá-lo como válido. */
 export async function getSeriesWatchSummary(
   target: SeriesWatchTarget,
   database: CatalogDb = db,
@@ -82,9 +82,9 @@ export async function getSeriesWatchSummary(
 }
 
 /**
- * LÃª somente um resumo que ainda aponta para a revisÃ£o corrente de membros e
+ * Lê somente um resumo que ainda aponta para a revisão corrente de membros e
  * para o algoritmo vigente. `stateRevision` permite invalidar estados sem
- * revarrer todas as sÃ©ries.
+ * revarrer todas as séries.
  */
 export async function readValidSeriesWatchSummary(
   target: SeriesWatchTarget,
@@ -101,7 +101,7 @@ export async function readValidSeriesWatchSummary(
   return summary.summary
 }
 
-/** Grava um resumo somente quando a revisÃ£o de membros ainda Ã© a informada. */
+/** Grava um resumo somente quando a revisão de membros ainda é a informada. */
 export async function storeSeriesWatchSummary(
   target: SeriesWatchTarget,
   summary: SeriesWatchedSummary,
@@ -124,7 +124,7 @@ export async function storeSeriesWatchSummary(
   })
 }
 
-/** Remove o resumo desta sÃ©rie; os membros continuam vÃ¡lidos para o prÃ³ximo cÃ¡lculo. */
+/** Remove o resumo desta série; os membros continuam válidos para o próximo cálculo. */
 export async function invalidateSeriesWatchSummary(
   target: SeriesWatchTarget,
   database: CatalogDb = db,
@@ -133,8 +133,8 @@ export async function invalidateSeriesWatchSummary(
 }
 
 /**
- * Localiza sÃ©ries que contÃªm um stable id e invalida sÃ³ seus resumos. O Ã­ndice
- * multiEntry evita varredura global de episÃ³dios e preserva fontes/geraÃ§Ãµes.
+ * Localiza séries que contêm um stable id e invalida só seus resumos. O índice
+ * multiEntry evita varredura global de episódios e preserva fontes/gerações.
  */
 export async function invalidateSeriesWatchByStableId(
   stableId: string,
@@ -147,7 +147,7 @@ export async function invalidateSeriesWatchByStableId(
   return targets
 }
 
-/** Alias descritivo usado pelos writers de estado do usuÃ¡rio. */
+/** Alias descritivo usado pelos writers de estado do usuário. */
 export const invalidateSeriesWatchForStableId = invalidateSeriesWatchByStableId
 
 export async function deleteSeriesWatchForGeneration(sourceId: string, generation: number, database: CatalogDb = db): Promise<void> {

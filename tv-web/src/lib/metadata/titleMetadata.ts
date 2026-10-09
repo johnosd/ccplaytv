@@ -14,7 +14,7 @@ import { fetchSeriesDetail, fetchVodInfo } from '../catalog/xtreamConnector'
 import { normalizeSeriesInfo, normalizeVodInfo } from './providerMetadata'
 import { lookupTmdb } from './tmdbLookup'
 import { TmdbError } from './tmdbConnector'
-import { markTmdbState, readTmdbCredential } from './tmdbKeyRepository'
+import { markTmdbState, readTmdbCredential, validPause } from './tmdbKeyRepository'
 import { readAppLanguage } from '../i18n/appLanguage'
 import type { AppLanguage } from '../i18n/languages'
 import { buildTrailerCandidates } from '../trailer/trailerCandidates'
@@ -180,6 +180,7 @@ async function enrichFromTmdb(
   database: CatalogDb,
   now: number,
   options: MetadataOptions,
+  unsavedProviderTmdbId?: number, // `tmdb_id` do provedor que não coube no disco nesta abertura
 ): Promise<TmdbResultRecord | undefined> {
   try {
     const language = options.language ?? readAppLanguage()
@@ -192,12 +193,12 @@ async function enrichFromTmdb(
 
     const credential = await readTmdbCredential({ database })
     if (!credential || credential.state === 'refused') return
-    if (credential.pausedUntil !== undefined && credential.pausedUntil > now) return
+    if (validPause(credential.pausedUntil, now) !== undefined) return
 
     try {
       const result = await lookupTmdb({
         record,
-        providerTmdbId: cached?.providerTmdbId ?? (cached?.tmdb?.status === 'matched' ? cached.tmdb.tmdbId : undefined),
+        providerTmdbId: unsavedProviderTmdbId ?? cached?.providerTmdbId ?? (cached?.tmdb?.status === 'matched' ? cached.tmdb.tmdbId : undefined),
         credential: { key: credential.key, format: credential.format },
         fetchImpl: options.fetchImpl,
         language,
@@ -216,9 +217,10 @@ async function enrichFromTmdb(
         !source ||
         source.activeGeneration !== record.generation
       ) return result
-      await storeTmdbResult(database, record, result, now)
+      // Sem espaço para guardar: a tela ainda mostra o que acabou de chegar do TMDB.
+      try { await storeTmdbResult(database, record, result, now) } catch { return result }
       // Uma chamada que deu certo desfaz "sem conexão"/"limite de uso" no estado exibido.
-      if (credential.state !== 'connected') await markTmdbState('connected', { database, now: () => now, expectedCredentialRevision: credential.revision })
+      if (credential.state !== 'connected') await markTmdbState('connected', { database, now: () => now, expectedCredentialRevision: credential.revision }).catch(() => undefined)
     } catch (error) {
       if (error instanceof TmdbError && error.kind !== 'not_found') {
         await markTmdbState(error.kind, { database, now: () => now, expectedCredentialRevision: credential.revision }, error.retryAfterMs)
@@ -236,8 +238,16 @@ async function ensure(record: CatalogRecord, stableId: string, options: Metadata
   const cached = await database.titleMetadata.get(stableId)
 
   const fresh = await refreshFromProvider(record, cached, database, now, options.fetchImpl)
+  // Sem espaço para guardar (065, T057): o que o provedor acabou de mandar ainda aparece nesta abertura.
+  let unsavedProvider: TitleFields | undefined
+  let unsavedTmdbId: number | undefined
   if (fresh && fresh !== 'deferred') {
-    await storeProviderMetadata(database, record, fresh.fields, fresh.tmdbId, now)
+    try {
+      await storeProviderMetadata(database, record, fresh.fields, fresh.tmdbId, now)
+    } catch {
+      unsavedProvider = fresh.fields
+      unsavedTmdbId = fresh.tmdbId
+    }
   }
 
   // Provedor ainda por vir (o `seriesLoader` vai gravá-lo): o TMDB só completa
@@ -246,16 +256,16 @@ async function ensure(record: CatalogRecord, stableId: string, options: Metadata
   // Feature 042 (D-009, FR-005): com o app oculto nenhuma busca BYOK/TMDB começa
   // — nada é gravado (nem "sem correspondência"); o próximo abrir do detalhe pede.
   let transientTmdb: TmdbResultRecord | undefined
-  if (fresh !== 'deferred' && !isAppHidden()) transientTmdb = await enrichFromTmdb(record, database, now, options)
+  if (fresh !== 'deferred' && !isAppHidden()) transientTmdb = await enrichFromTmdb(record, database, now, options, unsavedTmdbId)
 
   if (transientTmdb !== undefined) {
     const storedProvider = await database.titleMetadata.get(stableId)
-    return mergeTitleMetadata(storedProvider?.provider, transientTmdb, options.language ?? readAppLanguage())
+    return mergeTitleMetadata(unsavedProvider ?? storedProvider?.provider, transientTmdb, options.language ?? readAppLanguage())
   }
 
   const stored = await database.titleMetadata.get(stableId)
   // O idioma preferido só reordena os trailers já guardados — mudar a preferência não refaz consulta.
-  return mergeTitleMetadata(stored?.provider, stored?.tmdb, options.language ?? readAppLanguage())
+  return mergeTitleMetadata(unsavedProvider ?? stored?.provider, stored?.tmdb, options.language ?? readAppLanguage())
 }
 
 /**

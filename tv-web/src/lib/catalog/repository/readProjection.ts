@@ -1,2 +1,2 @@
-﻿export * from '../readProjection'
+export * from '../readProjection'
 

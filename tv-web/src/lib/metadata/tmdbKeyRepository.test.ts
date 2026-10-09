@@ -96,13 +96,13 @@ describe('testTmdbKey / markTmdbState (feature 032, FR-024)', () => {
     expect(ok).toMatchObject({ state: 'connected', lastTestedAt: NOW + 2 })
   })
 
-  it('429 liga a pausa de 10 min; rede vira "offline" sem pausa', async () => {
+  it('429 liga a pausa de 10 min; "Testar" dentro dela não chama o TMDB e mostra o limite de uso', async () => {
     await testTmdbKey(options(vi.fn(async () => response(429))))
     expect(await readTmdbCredential({ database })).toMatchObject({ state: 'rate_limited', pausedUntil: NOW + RATE_LIMIT_PAUSE_MS })
 
     await testTmdbKey(options(vi.fn(async () => { throw new TypeError('x') })))
     const credential = await readTmdbCredential({ database })
-    expect(credential?.state).toBe('offline')
+    expect(credential?.state).toBe('rate_limited')
     expect(credential?.pausedUntil).toBe(NOW + RATE_LIMIT_PAUSE_MS)
   })
 

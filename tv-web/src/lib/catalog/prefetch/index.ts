@@ -8,6 +8,7 @@
 import { clearStagedItemsOfOtherSources, collectStaleGenerations, listCategories } from '../catalogRepository'
 import { ensureCategory } from '../categoryLoader'
 import { convertLegacyCategories } from '../categoryBlocks'
+import { prepareMissingReadModels } from '../categoryWindow'
 import { isAbortError } from '../xtreamConnector'
 import { createActivityGate } from './activityGate'
 import { createPrefetchScheduler, IDLE_AFTER_KEY_MS, type PrefetchRunOutcome } from './prefetchScheduler'
@@ -67,6 +68,8 @@ export const prefetchScheduler = createPrefetchScheduler({
       onConverted: (categoryId) => onCategoryDone?.(sourceId, categoryId),
     })
     if (moreToConvert) return true
+    // Feature 065: janela de leitura das categorias grandes de catálogos anteriores às projeções.
+    if (await prepareMissingReadModels(sourceId)) return true
     // Preparo que sobrou de outra lista (carga interrompida e troca de lista):
     // só as chaves são lidas; sem sobra, não custa nada.
     if (await clearStagedItemsOfOtherSources(sourceId)) return true

@@ -1,4 +1,4 @@
-﻿import { db, type CatalogDb, type CatalogRecord } from './db'
+import { db, type CatalogDb, type CatalogRecord } from './db'
 import type { CategoryBlockRecord } from './db'
 import type { CatalogReadItem } from './db'
 import { readItemToRecord, nextReadRevision, projectReadItem, READ_PROJECTION_CHUNK_SIZE, readProjectionManifest } from './readProjection'
@@ -7,6 +7,12 @@ import {
   setReadProjectionMemoChunk,
   type ReadProjectionMemoContext,
 } from './readProjectionMemo'
+
+/**
+ * Categorias a partir deste tamanho são lidas por janela na grade (feature 065, SC-007). Abaixo dele a leitura do bloco
+ * inteiro custa menos que a projeção em disco, então nem a projeção é preparada em segundo plano.
+ */
+export const READ_WINDOW_MIN_ITEMS = 1000
 
 export interface CategoryWindow {
   items: CatalogRecord[]
@@ -40,6 +46,12 @@ export async function prepareCategoryReadModel(sourceId: string, categoryId: num
         .equals([sourceId, category.generation])
         .filter((record) => record.kind === category.kind && (record.categoryId === categoryId || (record.categoryId === undefined && record.groupOrder === category.order)))
         .sortBy('categoryPosition')
+  // Só categoria grande ganha projeção: nas pequenas a grade lê o bloco inteiro, e a cópia compacta só ocuparia disco (na
+  // TV, junto com o catálogo, chegou a dobrar o espaço usado). Uma projeção antiga de categoria que encolheu sai daqui.
+  if (records.length < READ_WINDOW_MIN_ITEMS) {
+    await dropReadModel(categoryId, database)
+    return
+  }
   const revision = nextReadRevision()
   const items = records.map((record, index) =>
     projectReadItem(record, {
@@ -142,5 +154,43 @@ export async function readCategoryWindow(sourceId: string, categoryId: number, o
   return { items, total: manifest.count, nextOffset }
 }
 
+/**
+ * Catálogos gravados antes das projeções não têm janela pronta: prepara a que falta de UMA categoria grande de filmes/séries
+ * por chamada (a maior primeiro), em segundo plano, para a grade nunca ler o bloco inteiro na entrada. Só consulta chaves
+ * até escolher a categoria.
+ *
+ * @returns `true` se ainda sobrou categoria a preparar.
+ */
+export async function prepareMissingReadModels(sourceId: string, database: CatalogDb = db): Promise<boolean> {
+  const generation = (await database.sources.get(sourceId))?.activeGeneration
+  if (generation === undefined) return false
+  // Projeções de categorias pequenas gravadas por versões anteriores: liberam o espaço (uma leva por chamada).
+  const small = (await database.catalogReadManifests.toArray()).filter((manifest) => manifest.count < READ_WINDOW_MIN_ITEMS)
+  if (small.length > 0) {
+    for (const manifest of small) await dropReadModel(manifest.categoryId, database)
+    return true
+  }
+  const large = (await database.categories.where('sourceId').equals(sourceId).toArray())
+    .filter((category) => category.generation === generation && category.kind !== 'channel' && (category.itemsCount ?? 0) >= READ_WINDOW_MIN_ITEMS)
+    .sort((a, b) => (b.itemsCount ?? 0) - (a.itemsCount ?? 0))
+  if (large.length === 0) return false
+  const manifests = await database.catalogReadManifests.bulkGet(large.map((category) => category.id as number))
+  const missing: number[] = []
+  for (let index = 0; index < large.length; index += 1) {
+    const categoryId = large[index].id as number
+    if (manifests[index]?.generation === generation) continue
+    if ((await database.categoryBlocks.where(':id').equals(categoryId).count()) > 0) missing.push(categoryId)
+  }
+  if (missing.length === 0) return false
+  await prepareCategoryReadModel(sourceId, missing[0], database).catch(() => undefined)
+  return missing.length > 1
+}
 
-
+/** Apaga a projeção de uma categoria (manifesto e pedaços); o canônico não é tocado. */
+async function dropReadModel(categoryId: number, database: CatalogDb): Promise<void> {
+  await database.transaction('rw', database.catalogReadManifests, database.catalogReadChunks, async () => {
+    const ids = await database.catalogReadChunks.where('[categoryId+revision]').between([categoryId, ''], [categoryId, '\uffff'], true, true).primaryKeys()
+    if (ids.length > 0) await database.catalogReadChunks.bulkDelete(ids)
+    await database.catalogReadManifests.delete(categoryId)
+  })
+}

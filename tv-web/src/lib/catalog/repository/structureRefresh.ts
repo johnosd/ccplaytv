@@ -1,4 +1,4 @@
-/** AtualizaÃ§Ã£o de estrutura na geraÃ§Ã£o ativa (feature 038). Parte da divisÃ£o de `catalogRepository.ts` (feature 063); a fachada reexporta. */
+/** Atualização de estrutura na geração ativa (feature 038). Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogFetchMode, type CategoryKind, type CategoryRecord } from '../db'
 import { categoryMatchKey, diffCategories } from '../structureDiff'

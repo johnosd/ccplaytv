@@ -18,14 +18,21 @@ export function recentlyAdded(items: readonly CatalogItemOut[], limit: number = 
  * ficar com 12). Item sem data (ausente, `null`, não finita) fica de fora; empate mantém a ordem de entrada.
  */
 export function recentlyAddedBy<T>(items: Iterable<T>, addedAt: (item: T) => unknown, limit: number = SHOWCASE_LIMIT): T[] {
-  if (!(limit > 0)) return []
+  const accumulator = createRecentlyAddedAccumulator(addedAt, limit)
+  for (const item of items) accumulator.add(item)
+  return accumulator.finish()
+}
+
+/** Versão incremental de `recentlyAddedBy` (feature 065): recebe um item por vez, sem materializar o tipo inteiro. */
+export function createRecentlyAddedAccumulator<T>(addedAt: (item: T) => unknown, limit: number = SHOWCASE_LIMIT) {
   // Buffer ordenado (mais novo primeiro) de tamanho `limit`: O(n log limit), sem ordenar o catálogo inteiro.
   // Empate: quem veio primeiro fica na frente (a busca binária insere DEPOIS dos iguais).
   const top: { item: T; at: number }[] = []
-  for (const item of items) {
+  const add = (item: T): void => {
+    if (!(limit > 0)) return
     const at = addedAt(item)
-    if (typeof at !== 'number' || !Number.isFinite(at)) continue
-    if (top.length === limit && at <= top[top.length - 1].at) continue
+    if (typeof at !== 'number' || !Number.isFinite(at)) return
+    if (top.length === limit && at <= top[top.length - 1].at) return
     let low = 0
     let high = top.length
     while (low < high) {
@@ -36,7 +43,7 @@ export function recentlyAddedBy<T>(items: Iterable<T>, addedAt: (item: T) => unk
     top.splice(low, 0, { item, at })
     if (top.length > limit) top.pop()
   }
-  return top.map((entry) => entry.item)
+  return { add, finish: (): T[] => top.map((entry) => entry.item) }
 }
 
 /** Mínimo de títulos com nota válida para a fileira "Bem avaliados" existir (feature 056, FR-003). */

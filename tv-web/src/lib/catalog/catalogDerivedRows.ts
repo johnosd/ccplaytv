@@ -1,6 +1,5 @@
-import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord } from './db'
+import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord, type CategoryBlockRecord } from './db'
 import { blockRecords } from './categoryBlocks'
-import { readKindPage } from './catalogRepository'
 
 /** Campos suficientes para vitrines e cruzamentos; URLs/credenciais ficam no canônico. */
 export interface CatalogDerivedRow {
@@ -31,29 +30,72 @@ function throwIfAborted(signal: AbortSignal | undefined): void {
   }
 }
 
-/** Itera o tipo ativo por categoria/bloco, sem materializar `listAllOfKind`. */
+const KEY_MIN = -1
+const KEY_MAX = Number.MAX_SAFE_INTEGER
+
+/**
+ * Pedaços do tipo ativo na ordem de `readKindPage`/`listAllOfKind` (feature 065, D-005): geração e categorias lidas uma vez,
+ * blocos buscados em lotes de `batch`, linhas do formato antigo pela mesma consulta de índice — nunca o tipo inteiro de uma vez.
+ */
+async function* iterateKindChunks(
+  sourceId: string,
+  kind: CatalogItemKind,
+  batch: number,
+  database: CatalogDb,
+): AsyncGenerator<{ block: CategoryBlockRecord } | { rows: CatalogRecord[] }> {
+  const generation = (await database.sources.get(sourceId))?.activeGeneration
+  if (generation === undefined || kind === 'episode') return
+  const categories = await database.categories
+    .where('[sourceId+generation+kind+order]')
+    .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
+    .toArray()
+  for (let start = 0; start < categories.length; start += batch) {
+    const group = categories.slice(start, start + batch)
+    const blocks = await database.categoryBlocks.bulkGet(group.map((category) => category.id as number))
+    for (let index = 0; index < group.length; index += 1) {
+      const block = blocks[index]
+      if (block && block.sourceId === sourceId && block.generation === generation) {
+        if (block.items.length > 0) yield { block }
+        continue
+      }
+      const order = group[index].order
+      const rows = await database.channels
+        .where('[sourceId+generation+kind+groupOrder]')
+        .between([sourceId, generation, kind, order], [sourceId, generation, kind, order], true, true)
+        .toArray()
+      if (rows.length > 0) yield { rows }
+    }
+  }
+}
+
+/** Registros do tipo ativo bloco a bloco (um lote por categoria), sem materializar `listAllOfKind`. */
+export async function* iterateKindRecordBatches(
+  sourceId: string,
+  kind: CatalogItemKind,
+  options: KindIteratorOptions = {},
+): AsyncGenerator<CatalogRecord[]> {
+  const signal = options.signal
+  throwIfAborted(signal)
+  // `pageSize` (itens) vira um lote de blocos: categorias têm em média algumas centenas de itens.
+  const batch = Math.max(1, Math.ceil(Math.max(1, Math.floor(options.pageSize ?? 240)) / 240))
+  for await (const chunk of iterateKindChunks(sourceId, kind, batch, options.database ?? db)) {
+    throwIfAborted(signal)
+    yield 'block' in chunk ? blockRecords(chunk.block) : chunk.rows
+  }
+  throwIfAborted(signal)
+}
+
+/** Itera o tipo ativo registro a registro (mesma ordem de `iterateKindRecordBatches`). */
 export async function* iterateKindRecords(
   sourceId: string,
   kind: CatalogItemKind,
   options: KindIteratorOptions = {},
 ): AsyncGenerator<CatalogRecord> {
-  const database = options.database ?? db
-  const signal = options.signal
-  const pageSize = Math.max(1, Math.floor(options.pageSize ?? 240))
-  let cursor = 0
-  while (true) {
-    throwIfAborted(signal)
-    const page = await readKindPage(sourceId, kind, cursor, pageSize, database)
-    for (const chunk of page.chunks) {
-      throwIfAborted(signal)
-      const records = 'block' in chunk ? blockRecords(chunk.block) : chunk.rows
-      for (const record of records) {
-        throwIfAborted(signal)
-        yield record
-      }
+  for await (const records of iterateKindRecordBatches(sourceId, kind, options)) {
+    for (const record of records) {
+      throwIfAborted(options.signal)
+      yield record
     }
-    if (page.next === undefined) return
-    cursor = page.next
   }
 }
 

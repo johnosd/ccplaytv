@@ -1,6 +1,11 @@
+import { useEffect } from 'react'
 import { lazyRoute } from './lazyRoute'
 export { lazyNamed } from './lazyRoute'
 import type { LiveScreenProps } from '../features/live/LiveScreen'
+import type { HomeScreenProps } from '../features/home/HomeScreen'
+import type { AddSourceScreenProps } from '../features/import/AddSourceScreen'
+import type { ImportProgressScreenProps } from '../features/import/ImportProgressScreen'
+import type { SourceAccessRouteProps } from '../features/sources/SourceAccessRoute'
 import type { VodShowcaseScreenProps } from '../features/vod/VodShowcaseScreen'
 import type { MovieDetailScreenProps } from '../features/movies/MovieDetailScreen'
 import type { SeriesDetailScreenProps } from '../features/series/SeriesDetailScreen'
@@ -11,6 +16,12 @@ import type { TmdbKeyScreenProps } from '../features/settings/TmdbKeyScreen'
 import type { SearchScreenProps } from '../features/search/SearchScreen'
 import type { VodCategoryScreenProps } from '../features/vod/VodCategoryScreen'
 
+// Feature 065 (SC-012): só Splash e Perfis ficam no caminho da abertura; Início, cadastro/importação e acesso à lista
+// (e, por eles, o player e o virtualizador) chegam quando a pessoa vai até lá.
+export const HomeScreen = lazyRoute<HomeScreenProps>(() => import('../features/home/HomeScreen'), 'HomeScreen')
+export const AddSourceScreen = lazyRoute<AddSourceScreenProps>(() => import('../features/import/AddSourceScreen'), 'AddSourceScreen')
+export const ImportProgressScreen = lazyRoute<ImportProgressScreenProps>(() => import('../features/import/ImportProgressScreen'), 'ImportProgressScreen')
+export const SourceAccessRoute = lazyRoute<SourceAccessRouteProps>(() => import('../features/sources/SourceAccessRoute'), 'SourceAccessRoute')
 export const LiveScreen = lazyRoute<LiveScreenProps>(() => import('../features/live/LiveScreen'), 'LiveScreen')
 export const VodShowcaseScreen = lazyRoute<VodShowcaseScreenProps>(() => import('../features/vod/VodShowcaseScreen'), 'VodShowcaseScreen')
 export const MovieDetailScreen = lazyRoute<MovieDetailScreenProps>(() => import('../features/movies/MovieDetailScreen'), 'MovieDetailScreen')
@@ -22,44 +33,40 @@ export const TmdbKeyScreen = lazyRoute<TmdbKeyScreenProps>(() => import('../feat
 export const SearchScreen = lazyRoute<SearchScreenProps>(() => import('../features/search/SearchScreen'), 'SearchScreen')
 export const VodCategoryScreen = lazyRoute<VodCategoryScreenProps>(() => import('../features/vod/VodCategoryScreen'), 'VodCategoryScreen')
 
-const warmableModules = [
-  () => import('../features/live/LiveScreen'),
-  () => import('../features/vod/VodShowcaseScreen'),
-  () => import('../features/vod/VodCategoryScreen'),
-  () => import('../features/movies/MovieDetailScreen'),
-  () => import('../features/series/SeriesDetailScreen'),
-  () => import('../features/person/PersonScreen'),
-  () => import('../features/settings/SettingsScreen'),
-  () => import('../features/settings/EpgSettingsScreen'),
-  () => import('../features/settings/TmdbKeyScreen'),
-  () => import('../features/search/SearchScreen'),
-]
-
-let warmed = false
-
 /**
- * Aquece somente módulos locais, depois que a primeira tela já está disponível.
- * Não toca em QueryClient, IndexedDB ou endpoints externos.
+ * Aquece, quando o navegador estiver ocioso, só o código das próximas telas prováveis — nunca todas de uma vez, para não
+ * deslocar trabalho para a abertura ou para o primeiro comando. Não toca em QueryClient, IndexedDB nem rede externa.
  */
-export function warmRouteModules(): () => void {
-  if (warmed || typeof window === 'undefined') return () => undefined
+export function warmRoutes(routes: readonly { preload: () => Promise<void> }[]): () => void {
+  if (typeof window === 'undefined' || routes.length === 0) return () => undefined
   let cancelled = false
   const run = () => {
-    if (cancelled || warmed) return
-    warmed = true
-    for (const load of warmableModules) void load().catch(() => undefined)
+    if (!cancelled) for (const route of routes) void route.preload()
   }
   const requestIdle = window.requestIdleCallback
   if (typeof requestIdle === 'function') {
-    const id = requestIdle(run, { timeout: 1500 })
+    const id = requestIdle(run, { timeout: 2000 })
     return () => {
       cancelled = true
       window.cancelIdleCallback(id)
     }
   }
-  const id = window.setTimeout(run, 250)
+  const id = window.setTimeout(run, 500)
   return () => {
     cancelled = true
     window.clearTimeout(id)
   }
+}
+
+/**
+ * Com a tela atual já pintada, aquece o próximo destino provável — a primeira visita não paga o download do chunk, e a
+ * abertura (splash/perfis) continua sem código de rota.
+ */
+export function useRouteWarmup(screenName: string): void {
+  useEffect(() => {
+    if (screenName === 'home') return warmRoutes([VodShowcaseScreen])
+    if (screenName === 'movies') return warmRoutes([VodCategoryScreen, MovieDetailScreen])
+    if (screenName === 'series') return warmRoutes([VodCategoryScreen, SeriesDetailScreen])
+    return undefined
+  }, [screenName])
 }

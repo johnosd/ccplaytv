@@ -1,4 +1,4 @@
-/** Leituras por categoria: janela de canais, bloco ativo, contagem e item por id. Parte da divisÃ£o de `catalogRepository.ts` (feature 063); a fachada reexporta. */
+/** Leituras por categoria: janela de canais, bloco ativo, contagem e item por id. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import Dexie from 'dexie'
 import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord, type CategoryBlockRecord, type CategoryRecord } from '../db'

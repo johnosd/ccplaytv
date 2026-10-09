@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ErrorCode } from '../../lib/errors/errorCatalog'
 import {
   keepPreviousData,
@@ -32,7 +32,8 @@ import {
   type CatalogCategory,
 } from '../../lib/catalog/catalogRepository'
 import { readKindCursorPage, type KindCursor } from '../../lib/catalog/kindCursor'
-import { readCategoryWindow } from '../../lib/catalog/categoryWindow'
+import { READ_WINDOW_MIN_ITEMS, readCategoryWindow } from '../../lib/catalog/categoryWindow'
+import { READ_PROJECTION_CHUNK_SIZE, readProjectionManifest } from '../../lib/catalog/readProjection'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
 import { markEntry } from '../../lib/perf/entryTiming'
 import { isKeyRepeatBurst, subscribeKeyRepeatBurst } from '../../lib/focus/keyRepeat'
@@ -60,10 +61,10 @@ import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { type SeriesWatchedSummary } from '../../lib/catalog/seriesWatchedSummary'
 import { loadSeriesWatchedSummaries } from './seriesSummaryApi'
 import { isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
-import { recentlyAddedBy } from '../vod/vodShowcase'
+import { createRecentlyAddedAccumulator } from '../vod/vodShowcase'
 import { primaryProgress, type PrimaryProgress } from '../vod/detailProgress'
 import { pickBecauseSeed, type BecauseSeedKind } from '../../lib/catalog/becauseSeed'
-import { dayKey, selectFeaturedRated } from '../vod/ratedSelection'
+import { createRatedSelectionAccumulator, dayKey } from '../vod/ratedSelection'
 import { loadHistory, type HistoryKind } from './historyApi'
 import {
   clearHistory,
@@ -85,7 +86,8 @@ import type { TmdbTitleRef } from '../../lib/catalog/db'
 import { FILMOGRAPHY_SHOWN_MAX, loadPersonCredits } from '../../lib/metadata/tmdbPeople'
 import { resolveTmdbTitles } from '../../lib/metadata/localTitleMatch'
 import { similarTabStatus } from '../../lib/metadata/similarTab'
-import { matchDiscoveryTitlesAsync, selectTip, selectTop10, type MatchedTitle } from '../../lib/metadata/discoveryRules'
+import { matchDiscoveryTitlesAsync, selectTip, selectTop10, yieldToMain, type MatchedTitle } from '../../lib/metadata/discoveryRules'
+import { iterateKindRecordBatches } from '../../lib/catalog/catalogDerivedRows'
 import { loadTipPool, loadWeeklyTrending, type DiscoveryKind } from '../../lib/metadata/tmdbDiscovery'
 const EPG_READ_BEFORE_MS = 24 * 60 * 60 * 1000
 const EPG_READ_AFTER_MS = 48 * 60 * 60 * 1000
@@ -363,16 +365,8 @@ export interface CategoryContent {
  */
 const NO_LIMIT = 0xffffffff
 
-/**
- * Garante e lê os itens de uma categoria — o corpo de `useCategoryContent`,
- * extraído para ser reusado por `prefetchCategoryContent` sem duplicar a
- * lógica.
- */
-async function loadCategoryContent(
-  sourceId: string,
-  category: CatalogCategory,
-  signal?: AbortSignal,
-): Promise<CategoryContent> {
+/** Garante a categoria (rede só se precisar; vencida abre com o que tem e vai para a frente da pré-carga). */
+async function ensureCategoryForEntry(sourceId: string, category: CatalogCategory, signal?: AbortSignal) {
   // Só passa `{ signal }` quando há um sinal de verdade (prefetch) — a
   // entrada real (`useCategoryContent`, sem `signal`) nunca é abortável e
   // mantém a mesma chamada de sempre (bug
@@ -392,8 +386,21 @@ async function loadCategoryContent(
   const ensured = signal
     ? await ensureCategory(sourceId, category, { signal, serveStale })
     : await ensureCategory(sourceId, category, { serveStale })
-  const result = renewalQueued ? { ...ensured, outcome: 'fresh' as const } : ensured
   if (!signal) markEntry(category.id, category.kind, 'ensured')
+  return renewalQueued ? { ...ensured, outcome: 'fresh' as const } : ensured
+}
+
+/**
+ * Garante e lê os itens de uma categoria — o corpo de `useCategoryContent`,
+ * extraído para ser reusado por `prefetchCategoryContent` sem duplicar a
+ * lógica.
+ */
+async function loadCategoryContent(
+  sourceId: string,
+  category: CatalogCategory,
+  signal?: AbortSignal,
+): Promise<CategoryContent> {
+  const result = await ensureCategoryForEntry(sourceId, category, signal)
   // As três seções buscam a categoria inteira, sem teto de leitura (feature
   // 009, D-002 completo) — painel de canais e grades de pôsteres agora
   // virtualizam o que renderizam, então não precisam mais de um corte
@@ -456,6 +463,51 @@ export function useCategoryContent(sourceId: string | null, category: CatalogCat
   return query
 }
 
+type CategoryWindowPage = CategoryContent & { windowed: boolean }
+/** Uma janela da projeção a partir de `offset` (a primeira também garante a categoria). Sem projeção atual: `windowed: false`. */
+async function loadCategoryWindowPage(queryClient: QueryClient, sourceId: string, category: CatalogCategory, offset: number, wantedEnd: number, signal?: AbortSignal): Promise<CategoryWindowPage> {
+  const ensured = offset === 0 ? await ensureCategoryForEntry(sourceId, category, signal) : undefined
+  if (ensured?.outcome === 'fetched') void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId] })
+  const base = { outcome: ensured?.outcome ?? ('fresh' as const), errorCode: ensured?.errorCode }
+  const manifest = await readProjectionManifest(sourceId, category.id)
+  if (!manifest || manifest.count !== category.count) return { ...base, items: [], totalCount: 0, windowed: false }
+  const window = await readCategoryWindow(sourceId, category.id, offset, Math.max(READ_PROJECTION_CHUNK_SIZE, wantedEnd - offset))
+  return { ...base, items: window.items.map((record) => toItemOut(record, category.kind)), totalCount: window.total, windowed: true }
+}
+
+function nextWindowOffset(last: CategoryWindowPage, all: CategoryWindowPage[]): number | undefined {
+  const loaded = all.reduce((sum, page) => sum + page.items.length, 0)
+  return last.windowed && last.items.length > 0 && loaded < last.totalCount ? loaded : undefined
+}
+
+/**
+ * Grade de categoria por janela (feature 065, SC-007). Categoria grande na ordem da fonte e sem busca (`windowable`), com
+ * projeção da contagem atual: `data.items` é o começo já lido, `data.totalCount` a categoria inteira, e `loadMore(index)` lê
+ * até cobrir `index` — nunca a categoria inteira só para o primeiro recorte. `windowed: false` = a tela usa `useCategoryContent`.
+ */
+export function useCategoryWindow(sourceId: string | null, category: CatalogCategory | undefined, windowable: boolean) {
+  const queryClient = useQueryClient()
+  const big = windowable && (category?.count ?? 0) >= READ_WINDOW_MIN_ITEMS
+  const wantedEnd = useRef(0)
+  const pages = useInfiniteQuery({
+    queryKey: [...categoryContentKey(sourceId, category?.id), 'window'],
+    initialPageParam: 0,
+    queryFn: ({ pageParam: offset }) => loadCategoryWindowPage(queryClient, sourceId as string, category as CatalogCategory, offset, wantedEnd.current),
+    getNextPageParam: nextWindowOffset,
+    enabled: big && sourceId !== null && category !== undefined,
+  })
+  const first = pages.data?.pages[0]
+  const windowed = big && first?.windowed !== false
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = pages
+  const items = useMemo(() => pages.data?.pages.flatMap((page) => page.items) ?? [], [pages.data])
+  const loadMore = useCallback((index?: number) => {
+    wantedEnd.current = Math.max(wantedEnd.current, (index ?? items.length) + READ_PROJECTION_CHUNK_SIZE)
+    if (hasNextPage && !isFetchingNextPage && (index === undefined || index >= items.length)) void fetchNextPage()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, items.length])
+  const data: CategoryContent | undefined = first && { items, totalCount: first.totalCount, outcome: first.outcome, errorCode: first.errorCode }
+  return { data, isLoading: pages.isLoading, isError: pages.isError, refetch: pages.refetch, windowed, hasMore: windowed && hasNextPage, loadMore }
+}
+
 /**
  * Campos de ordenação que o tipo inteiro declara (feature 039, T033) — para o
  * modal "Ordenar" de "Todos" aos poucos não esconder "Ano"/"Recém-adicionados"
@@ -493,11 +545,10 @@ export function prefetchCategoryContent(
   category: CatalogCategory,
   signal?: AbortSignal,
 ): Promise<void> {
-  return queryClient
-    .prefetchQuery({
-      queryKey: categoryContentKey(sourceId, category.id),
-      queryFn: () => loadCategoryContent(sourceId, category, signal),
-    })
+  const windowKey = [...categoryContentKey(sourceId, category.id), 'window'] // 065: categoria grande pré-busca só a 1ª janela
+  const full = () => queryClient.prefetchQuery({ queryKey: categoryContentKey(sourceId, category.id), queryFn: () => loadCategoryContent(sourceId, category, signal) })
+  return (!(category.count >= READ_WINDOW_MIN_ITEMS) ? full() : queryClient.prefetchInfiniteQuery({ queryKey: windowKey, initialPageParam: 0, getNextPageParam: nextWindowOffset,
+    queryFn: () => loadCategoryWindowPage(queryClient, sourceId, category, 0, 0, signal) }).then(() => (queryClient.getQueryData<{ pages: CategoryWindowPage[] }>(windowKey)?.pages[0]?.windowed ? undefined : full())))
     .then(() => {
       // Feature 053: a prévia do carrossel dessa categoria (tela hero) lê o mesmo disco — relê agora que há conteúdo.
       void queryClient.invalidateQueries({ queryKey: categoryPreviewKey(sourceId, category.id) })
@@ -1580,119 +1631,102 @@ export function useAggregatedItems(
   }
 }
 
+/** Quanto tempo as seleções da vitrine valem em memória (`useRecentlyAdded`, `useTopRated`). */
+const SHOWCASE_STALE_MS = 60_000
+/** Registros entre duas cessões da thread na passada das vitrines. */
+const SHOWCASE_SLICE = 2000
+
+interface ShowcaseSelections {
+  recent: CatalogItemOut[]
+  rated: CatalogItemOut[]
+  coveredCategories: number
+  totalCategories: number
+}
+
+/**
+ * Feature 065 (D-005, FR-006): uma passada pelo tipo, bloco a bloco, cedendo a thread em fatias — retém só os 12 mais novos e
+ * os candidatos de "Bem avaliados", nunca o tipo inteiro (antes: `loadSearchIndex` + seleção síncrona no `select`). Mesmas
+ * regras e desempates: a ordem da passada é a de `listAllOfKind` (categoria na ordem da fonte, itens na ordem do bloco).
+ */
+async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & StoredKind, now: number, signal: AbortSignal): Promise<ShowcaseSelections> {
+  const categories = await listCategories(sourceId, kind)
+  const recent = createRecentlyAddedAccumulator((record: CatalogRecord) => record.addedAt)
+  const rated = createRatedSelectionAccumulator<CatalogRecord>(
+    { id: (record) => String(record.id), name: (record) => record.name, rating: (record) => record.providerRating, year: (record) => record.year, addedAt: (record) => record.addedAt },
+    { now, seed: `${dayKey(now)}|${kind}|${sourceId}` },
+  )
+  let sinceYield = 0
+  for await (const records of iterateKindRecordBatches(sourceId, kind, { signal, pageSize: SHOWCASE_SLICE })) {
+    for (const record of records) {
+      recent.add(record)
+      rated.add(record)
+    }
+    sinceYield += records.length
+    if (sinceYield >= SHOWCASE_SLICE) {
+      sinceYield = 0
+      await yieldToMain()
+    }
+  }
+  const steps = rated.finishSteps(SHOWCASE_SLICE)
+  let step = steps.next()
+  while (!step.done) {
+    if (signal.aborted) throw new DOMException('Seleção cancelada.', 'AbortError')
+    await yieldToMain()
+    step = steps.next()
+  }
+  return {
+    recent: recent.finish().map((record) => toItemOut(record, kind)),
+    rated: step.value.picked.map((record) => toItemOut(record, kind)),
+    coveredCategories: categories.filter(isCovered).length,
+    totalCategories: categories.length,
+  }
+}
+
+/** Vitrine do tipo: a chave fica sob `catalog-search-index`, então a pré-carga e a sincronização a invalidam junto com o índice. */
+function useShowcaseSelections(sourceId: string | null, kind: FavoritableKind, enabled: boolean) {
+  // Fixado por montagem: a virada do dia com a tela aberta não troca os cards sob o foco.
+  const [now] = useState(() => Date.now())
+  return useQuery({
+    queryKey: ['catalog-search-index', sourceId, kind, 'showcase', dayKey(now)],
+    queryFn: ({ signal }) => loadShowcaseSelections(sourceId as string, kind as FavoritableKind & StoredKind, now, signal),
+    enabled: enabled && sourceId !== null && kind !== 'channel',
+    // Não relê o tipo a cada montagem da tela: a pré-carga (categoria nova) e o fim de uma sincronização a invalidam.
+    staleTime: SHOWCASE_STALE_MS,
+    gcTime: 30_000,
+  })
+}
+
 /**
  * "Adicionados recentemente" da vitrine (feature 052, FR-003): até 12 itens do tipo, do mais novo ao mais antigo, só
- * do que o app já obteve (mesma leitura local de `useAggregatedItems`/"Todos"); nenhuma consulta ao provedor.
- * STUB do sdd-plan — o executor implementa sobre `loadSearchIndex` + `recentlyAdded` (`features/vod/vodShowcase.ts`).
+ * do que o app já obteve; nenhuma consulta ao provedor.
  */
 export function useRecentlyAdded(
   sourceId: string | null,
   kind: FavoritableKind,
-  /** Feature 060 (D-013): `false` adia a leitura do índice (o Início só a pede depois do 1º desenho); o padrão é ler já. */
+  /** Feature 060 (D-013): `false` adia a leitura (o Início só a pede depois do 1º desenho); o padrão é ler já. */
   enabled = true,
 ): { data: CatalogItemOut[] | undefined; coveredCategories?: number; totalCategories?: number; isLoading: boolean } {
-  // Mesma chave e leitura de `useAggregatedItems`/"Todos": o índice local de busca é compartilhado no cache; aqui só se
-  // seleciona os 12 mais novos (`select`), sem rede e sem ordenar o catálogo inteiro. Só as 12 escolhidas viram
-  // `CatalogItemOut` (mapear os ≈43 mil registros custava ≈140 ms reais por execução) e o resultado fica guardado pela
-  // identidade do índice: nova montagem, ou render com o índice em cache, não recalcula nada.
-  const select = useCallback(
-    (index: Awaited<ReturnType<typeof loadSearchIndex>>) =>
-      memoPerIndex(index, `added|${kind}`, () => ({
-        items: recentlyAddedBy(index.entries, (entry) => entry.record.addedAt).map((entry) => toItemOut(entry.record, kind)),
-        coveredCategories: index.coveredCategories,
-        totalCategories: index.totalCategories,
-      })),
-    [kind],
-  )
-  const query = useQuery({
-    queryKey: ['catalog-search-index', sourceId, kind],
-    queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
-    enabled: enabled && sourceId !== null && kind !== 'channel',
-    // O índice não é relido a cada montagem da tela (releitura do tipo inteiro do IndexedDB): vale `SHOWCASE_INDEX_STALE_MS`, e a
-    // pré-carga (categoria nova) e o fim de uma sincronização o invalidam.
-    staleTime: SHOWCASE_INDEX_STALE_MS,
-    gcTime: 30_000,
-    select,
-  })
+  const query = useShowcaseSelections(sourceId, kind, enabled)
   return {
-    data: query.data?.items,
+    data: query.data?.recent,
     coveredCategories: query.data?.coveredCategories,
     totalCategories: query.data?.totalCategories,
     isLoading: query.isLoading,
   }
 }
 
-/** Quanto tempo o índice de busca do tipo vale em memória para a vitrine (`useRecentlyAdded`, `useTopRated`). */
-const SHOWCASE_INDEX_STALE_MS = 60_000
-
-/**
- * Guarda o resultado de um `select` pela identidade do índice (e uma chave): o react-query recalcula o `select` a cada nova
- * montagem e sempre que a função muda de referência, mas sobre um índice grande (≈43 mil registros) isso é trabalho demais
- * para repetir. Índice novo (releitura, categoria nova) = chave nova de verdade: recalcula uma vez.
- */
-const perIndexMemo = new WeakMap<object, Map<string, unknown>>()
-function memoPerIndex<T>(index: object, key: string, compute: () => T): T {
-  let byKey = perIndexMemo.get(index)
-  if (!byKey) {
-    byKey = new Map()
-    perIndexMemo.set(index, byKey)
-  }
-  if (byKey.has(key)) return byKey.get(key) as T
-  const value = compute()
-  byKey.set(key, value)
-  while (byKey.size > 2) byKey.delete(byKey.keys().next().value as string)
-  return value
-}
-
 /**
  * "Bem avaliados" da vitrine (feature 056, FR-002..FR-004): os títulos de maior nota do provedor entre os já obtidos no
- * aparelho (mesmo índice local de `useRecentlyAdded`, sem rede) e a cobertura de categorias para o aviso de escopo parcial.
- * `data` é `[]` quando há menos de `RATED_MIN` títulos com nota. Só os `SHOWCASE_LIMIT` vencedores viram `CatalogItemOut`
- * (o catálogo inteiro não é mapeado) — `logic/bem-avaliados.md` §3.
+ * aparelho (mesma passada de `useRecentlyAdded`, sem rede) e a cobertura de categorias para o aviso de escopo parcial.
+ * `data` é `[]` quando há menos de `RATED_MIN` títulos com nota — `logic/bem-avaliados.md` §3.
  */
 export function useTopRated(
   sourceId: string | null,
   kind: FavoritableKind,
 ): { data: CatalogItemOut[] | undefined; coveredCategories: number; totalCategories: number; isLoading: boolean } {
-  // Mesma chave e mesma leitura de `useRecentlyAdded`: o índice é compartilhado e a pré-carga (038) o invalida quando uma
-  // categoria chega. O `select` é estável (muda só com o tipo) para não refazer a seleção a cada render.
-  const select = useCallback(
-    (index: Awaited<ReturnType<typeof loadSearchIndex>>) => {
-      // Refinamento de 2026-10-04 (FR-015..FR-018): recente, nota 6,0–9,9, uma versão por título e sorteio estável do dia.
-      const now = Date.now()
-      // Guardado pela identidade do índice, por fonte, tipo e dia: o `select` não recalcula (nem normaliza milhares de títulos)
-      // a cada montagem da vitrine.
-      return memoPerIndex(index, `rated|${kind}|${sourceId}|${dayKey(now)}`, () => {
-        const { picked } = selectFeaturedRated(
-          index.entries,
-          {
-            id: (entry) => String(entry.record.id),
-            name: (entry) => entry.record.name,
-            rating: (entry) => entry.record.providerRating,
-            year: (entry) => entry.record.year,
-            addedAt: (entry) => entry.record.addedAt,
-          },
-          { now, seed: `${dayKey(now)}|${kind}|${sourceId}` },
-        )
-        return {
-          items: picked.map((entry) => toItemOut(entry.record, kind)),
-          coveredCategories: index.coveredCategories,
-          totalCategories: index.totalCategories,
-        }
-      })
-    },
-    [kind, sourceId],
-  )
-  const query = useQuery({
-    queryKey: ['catalog-search-index', sourceId, kind],
-    queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
-    enabled: sourceId !== null && kind !== 'channel',
-    staleTime: SHOWCASE_INDEX_STALE_MS, // ver `useRecentlyAdded`
-    gcTime: 30_000,
-    select,
-  })
+  const query = useShowcaseSelections(sourceId, kind, true)
   return {
-    data: query.data?.items,
+    data: query.data?.rated,
     coveredCategories: query.data?.coveredCategories ?? 0,
     totalCategories: query.data?.totalCategories ?? 0,
     isLoading: query.isLoading,

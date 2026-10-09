@@ -81,8 +81,9 @@ describe('065 revisões e pausas da chave TMDB', () => {
     await markTmdbState('rate_limited', options(), 120_000)
     const before = await readTmdbCredential({ database })
     const fetchImpl = vi.fn(async () => response())
-    expect(await testTmdbKey(options(fetchImpl))).toMatchObject({ state: 'offline' })
-    expect(await saveTmdbKey(KEY, options(fetchImpl))).toMatchObject({ ok: true, status: { state: 'offline' } })
+    // Durante a pausa o estado diz o motivo real ("Limite de uso"), não "sem conexão" (065, T057).
+    expect(await testTmdbKey(options(fetchImpl))).toMatchObject({ state: 'rate_limited' })
+    expect(await saveTmdbKey(KEY, options(fetchImpl))).toMatchObject({ ok: true, status: { state: 'rate_limited' } })
     expect(fetchImpl).not.toHaveBeenCalled()
     expect(await readTmdbCredential({ database })).toMatchObject({ revision: before?.revision, pausedUntil: before?.pausedUntil })
   })

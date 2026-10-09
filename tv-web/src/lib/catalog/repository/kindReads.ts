@@ -1,4 +1,4 @@
-/** Leituras por tipo: todos de um tipo, "Todos" aos poucos e campos de ordenaÃ§Ã£o. Parte da divisÃ£o de `catalogRepository.ts` (feature 063); a fachada reexporta. */
+/** Leituras por tipo: todos de um tipo, "Todos" aos poucos e campos de ordenação. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord, type CategoryBlockRecord } from '../db'
 import { blockRecords, blocksOfKind } from '../categoryBlocks'
@@ -100,13 +100,15 @@ export async function readKindCursorPage(
       const records = block && block.sourceId === sourceId && block.generation === generation
         ? blockRecords(block)
         : await query(database, sourceId, generation, category.order, kind).toArray()
-      if (cursorIndex === index && cursor?.revision !== undefined) offset = 0
+      // Sem projeção (categoria pequena, 065): a assinatura dos itens faz o papel de revisão — renovou, recomeça a categoria.
+      const blockRevision = category.itemsSignature !== undefined ? `items:${category.itemsSignature}` : undefined
+      if (cursorIndex === index && cursor?.revision !== undefined && cursor.revision !== blockRevision) offset = 0
       const resumingCategory = cursorIndex === index && offset > 0
       const categoryLimit = !resumingCategory && items.length > 0 ? records.length - offset : limit - items.length
       const before = items.length
       items.push(...records.slice(offset, offset + categoryLimit))
       if (offset + items.length - before < records.length) {
-        next = { sourceId, generation, kind, categoryId: category.id as number, offset: offset + items.length - before }
+        next = { sourceId, generation, kind, categoryId: category.id as number, offset: offset + items.length - before, revision: blockRevision }
         break
       }
     }
@@ -115,7 +117,7 @@ export async function readKindCursorPage(
     if (index < categories.length && items.length >= limit) {
       const following = categories[index]
       const followingManifest = await readProjectionManifest(sourceId, following.id as number, database)
-      next = { sourceId, generation, kind, categoryId: following.id as number, offset: 0, revision: followingManifest?.revision }
+      next = { sourceId, generation, kind, categoryId: following.id as number, offset: 0, revision: followingManifest?.revision ?? (following.itemsSignature !== undefined ? `items:${following.itemsSignature}` : undefined) }
     }
   }
   return { items, next, totalCategories: categories.length }

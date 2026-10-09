@@ -115,7 +115,8 @@ export async function measure(page, name, action, selector, titlePrefix) {
 export async function startup(page, url, withList) {
   const started = performance.now()
   await page.goto(url)
-  await page.waitForSelector(withList ? '.source-card.tv-focus' : '.add-card.tv-focus', { timeout: 30000 })
+  // Descartado: o handle vivo no CDP reteria a árvore da tela (065, T054).
+  await (await page.waitForSelector(withList ? '.source-card.tv-focus' : '.add-card.tv-focus', { timeout: 30000 }))?.dispose()
   return page.evaluate(({ elapsed }) => ({
     elapsedProxyMs: elapsed,
     usefulMs: performance.now(),

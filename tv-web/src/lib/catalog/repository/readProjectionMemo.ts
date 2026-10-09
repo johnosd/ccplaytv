@@ -1,2 +1,2 @@
-﻿export * from '../readProjectionMemo'
+export * from '../readProjectionMemo'
 

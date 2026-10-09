@@ -200,14 +200,16 @@ Verificar também locks 017/018/038/039/050/052/053/056/057/060/061/063 quando s
 
 | Área | Estado |
 | --- | --- |
-| Fase 1 | Concluída; T001–T005 verificadas; baseline/run-002 validada com 70 amostras e fingerprint íntegro |
-| US1 | Concluída; T006–T014 verificadas. Deadline, Retry-After, lotes atômicos, revisão/leases, cancelamento, fault probe e testes de corrida verdes |
-| US2 | T015–T018, T020–T021 concluídas; seleção/leitor/pré-carga passam contratos e regressão focada; T019/T022 pendentes |
-| US3 | T023–T032 concluídas |
-| US4 | T033–T037 concluídas; schema, helper, invalidation, repository, facade e benchmark de resumos passam 194/194 |
-| Contratos 065 | Trava íntegra; contrato externo 2/2 verde; três contratos locais futuros vermelhos esperados |
-| Benchmark | Baseline full concluída: 10 configurações × 7 amostras, 0 erros; candidata T047 publicada com 70 amostras, comparação gerada e FAIL em critérios/gates — sem aceite de desempenho |
-| Modo | Contínuo, autorizado pelo usuário em 2026-10-07; checkpoints sem pausa entre fases |
+| Fase 1 | Concluída; baseline/run-002 (70 amostras) |
+| US1 | Concluída; T006–T014 |
+| US2 | T015–T021 concluídas; vitrines ligadas à passada cooperativa (T050) e seleção sem cache de títulos (T049); T022 aguarda matriz pareada |
+| US3 | T023–T032 concluídas; grade por janela e virtualização por linhas (T055) concluídas |
+| US4 | T033–T037 concluídas; semântica "0/N" restaurada (T052) |
+| US5 | T038–T044 concluídas; aquecimento da próxima rota (T051) |
+| Contratos 065 | 5/5 verdes; trava íntegra |
+| Benchmark | T047 (FAIL) revisada: diagnósticos `postfix-*` com 3 amostras mostram ganhos grandes em Filmes/seleção/eventos/heap, Home +6,8%, Filmes índice frio −18% (meta −30%). Ciclos (SC-006) contaminados pelo harness (T054) |
+| T054 | Harness corrigido; baseline run-003 em captura (worktree `e0ec6ef`, app com hash idêntico à run-002); depois gates completos e candidata final |
+| Modo | Contínuo, autorizado pelo usuário em 2026-10-07 |
 
 ## Riscos e Decisões
 
@@ -228,6 +230,15 @@ Verificar também locks 017/018/038/039/050/052/053/056/057/060/061/063 quando s
 | R-008 | Invalidar resumo/projeção só em alguns caminhos deixa dados antigos | Alto | Mapear escritores, Worker/conversão e geração; testes de renovação, quota e resposta obsoleta |
 | R-009 | Instrumentação de controle pode contaminar abertura, retenção ou expor dados | Médio | Entrada virtual separada; guard recusa adapter no JS normal. Abertura/bytes vêm exclusivamente da entrada normal. Contadores agregados testados em Chromium com valores privados sintéticos; nenhum payload/URL é exportado |
 | R-010 | Fixtures densas podem misturar custo de histórico e crescimento entre listas | Médio | Carga mantém 1.000 favoritos/5.000 históricos; ciclos têm três catálogos completos, 100 favoritos/500 históricos por lista. Matriz e hashes congelados antes da baseline; população igual na candidata |
+| R-012 | `ElementHandle`s de `waitForSelector` no harness nunca são descartados e o CDP os retém, segurando árvores DOM desmontadas; contamina SC-006 (e, em menor grau, heap) na baseline e na candidata | Alto | Decidido pelo usuário em 2026-10-09: corrigir o harness (descartar handles) e recapturar baseline em worktree `e0ec6ef` + candidata final (T054), depois da T055 para não medir com desenvolvimento concorrente |
+| R-013 | "Filmes com índice frio" é limitado pela primeira renderização da vitrine (~159 ms em CPU 4×), não pela leitura; meta de −30% pode exigir mudança de renderização ou revisão da meta (D-013) | Médio | Aberto: medir na matriz final; se persistir, levar ao usuário com evidência |
+| R-015 | Grade de categoria por janela (T055) mexe em busca/ordenação/foco/RETURN de `VodCategoryScreen` | Alto | Decidido pelo usuário em 2026-10-09: implementar; busca/ordenação no índice compacto completo, janela só na ordem da fonte sem termo, foco/RETURN por id com posição lógica |
+| R-016 | Grade de categoria virtualizava células (lanes): 30 mil medições por render dominavam a entrada | Médio | Resolvido: virtualização por linhas de 6 com faixa extra 3↑/2↓, DOM idêntico ao anterior |
+| R-017 | Baseline precisa ser o mesmo app da run-002: checkout com `autocrlf` muda bytes e hash | Médio | Resolvido: worktree sem conversão + fim de linha/BOM por arquivo conforme hashes da run-002; `app` idêntico verificado antes da captura |
+| R-018 | `manualChunks` por rota levava código compartilhado para os chunks de rota; `index.js` importava todas as rotas | Alto | Resolvido (T056): nome por entrada da rota e Início/cadastro/acesso lazy; abertura ≈641 KB vs 1.008 KB |
+| R-019 | TV física: detalhe sem dados TMDB, teste da chave "sem conexão" e episódios de série falhando, sem reprodução no PC | Alto | Resolvido (T057): falta de espaço na TV; projeção só em categorias grandes + limpeza, gravações derivadas não derrubam fluxo principal, pausa honesta e limitada. Confirmado pelo usuário na TV em 2026-10-09 |
+| R-020 | Dados derivados (projeção, índices de série) competem por cota com o canônico; na TV a cota é pequena | Alto | Mitigado (T057): derivados só onde há leitura que os usa; falha derivada não propaga; medir uso de disco na matriz final |
+| R-014 | Revisão de FAIL não deve "consertar" teste para passar: ajustes da T046 alteraram comportamento visível (0/N) | Médio | Resolvido: semântica da baseline restaurada (T052); E2E corrigido para verificar a intenção, não a corrida |
 | R-011 | Relógio de atividade avançando alterava addedAt e desempates dos itens sintéticos de eventos | Alto | Resolvido: dados usam CLOCK + (category.order + 1) × 1.000; atividade continua monotônica. Teste garante dados/seleção iguais apesar do relógio real. run-001 foi interrompida e rejeitada, com originais preservados; recapturar matriz inteira em run-002 |
 
 ## Execution Notes
@@ -253,18 +264,18 @@ Verificar também locks 017/018/038/039/050/052/053/056/057/060/061/063 quando s
 | 2026-10-08 | Fase 3, T015 | Seleção incremental com deduplicação global/top-K estável, fast path ASCII equivalente e variante Iterable/AsyncIterable cooperativa com yield/cancelamento. Contrato async + ratedSelection → 18/18; oxlint dos dois arquivos PASS | Implementar T016 sem materializar `listAllOfKind` nas vitrines |
 | 2026-10-08 | Fase 3, T016 | `catalogDerivedRows` expõe iteradores por categoria/bloco e projeção compacta sem URLs; abort é checado entre páginas e itens. Teste focado 2/2 e type-check PASS | Extrair `showcaseApi.ts` em T017, mantendo reexports e contexto por geração/idioma |
 
-**PRÓXIMO**: revisar as falhas de comparação/E2E e repetir a matriz somente após correções; TV física continua pendente.
+**PRÓXIMO**: terminar baseline run-003 (reiniciada após a T057); rodar gates (lint/tipos/testes/build/build:tizen/E2E/segredos/quickstart) sem concorrer com benchmark; matriz candidata final com `--checks`; comparar contra run-003 (T022/T047); T048.
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- `tv-web/scripts/bench/run-screen-perf.mjs`, `screenRuntime.mjs`, `screenScenarios.mjs` e `screenInstrumentation.mjs` — executor isolado.
-- `tv-web/scripts/bench/screenFixtures.mjs` e testes; `compare-screen-perf.mjs` e testes — matriz/comparação.
-- `tv-web/src/bench/screenControl.ts` — controle exclusivo da entrada virtual.
-- `tv-web/bench-results/screen-perf-065/diagnostic/` — diagnósticos, sem validade de baseline/aceite.
-- `tv-web/src/lib/metadata/requestDeadline.ts` e `tmdbConnector.ts` — prazo compartilhado entre transporte e corpo, sem expor credenciais.
-- `tv-web/src/lib/metadata/sharedAttempt.ts`, `tmdbDiscovery.ts`, `titleMetadata.ts` e `types.ts` — leases por banco/chave e sinal de consumidor.
+- `tv-web/src/features/catalog/catalogApi.ts` — `loadShowcaseSelections`/`useShowcaseSelections` (vitrines sem índice do tipo).
+- `tv-web/src/lib/catalog/catalogDerivedRows.ts` — passada bloco a bloco em lotes (`iterateKindRecordBatches`).
+- `tv-web/src/features/vod/ratedSelection.ts`, `vodShowcase.ts` — acumuladores incrementais.
+- `tv-web/src/navigation/lazyRoute.ts`, `routeModules.ts` — `preload`/`useRouteWarmup`.
+- `tv-web/src/features/catalog/seriesSummaryApi.ts` — resumo "0/N" como na baseline.
+- `tv-web/bench-results/screen-perf-065/diagnostic/postfix-*` — diagnósticos pós-revisão (3 amostras, não aceite).
 
 ## Cuidados para Retomada
 
@@ -278,6 +289,8 @@ Verificar também locks 017/018/038/039/050/052/053/056/057/060/061/063 quando s
 - Na projeção, preservar `playable` de M3U por um booleano de capacidade de listagem: `itemOut` atualmente usa `directUrl` ou `providerStreamId`. Omitir a URL sem manter essa informação mudaria os cards. Detalhe/player continuam recuperando o canônico.
 - O resumo vigente ignora episódio sem `seriesId`/identidade estável e preserva multiplicidade de stableIds; o backfill precisa conservar essas regras, não deduplicar o vetor.
 - Testes complementares antigos de `tmdbKeyRepository.test.ts` esperam limpar pausa em sucesso/falha de rede. FR-010 altera deliberadamente esse comportamento; atualizar somente os testes não travados, preservando os contratos. A remoção continua apagando a linha da integração e mascarando status, sem tombstone com chave.
+- Snapshots de heap no harness: a retenção por "DevTools console" vem de `ElementHandle`s não descartados, não do app. Sonda de diagnóstico (fora do harness, para não alterar o fingerprint) fica no scratchpad da sessão.
+- A fachada `catalogRepository` não pode ganhar exportações (contrato 063) e nada fora dela importa `repository/` (teste 063): helpers novos de leitura em `lib/catalog` falam com o `db` diretamente.
 - Baseline/run-001 foi rejeitada por não determinismo dos dados de eventos (rejected.md). Não usar suas medianas ou amostras no comparador, nem combinar partes com run-002. O relógio de atividade pode avançar; campos editoriais da fixture precisam ser constantes.
 
 | 2026-10-08 | Fase 3, T017–T018, T020–T021 | Fachada showcaseApi adicionada com reexports compatíveis; cruzamento de descoberta aceita sinal para abandonar cálculo obsoleto sem cancelar o índice compartilhado. Invalidação de pré-carga agora propaga tipo e evita reler séries/listas independentes; testes focados 37/37, pré-carga 3/3, type-check PASS | Reconciliar consumidores/foco e capturar medições de três conclusões em T019; fechar contratos e benchmark candidato em T022 |
@@ -311,3 +324,7 @@ Verificar também locks 017/018/038/039/050/052/053/056/057/060/061/063 quando s
 | 2026-10-08 | Polish, T047 | `candidate/t047-final` concluiu 70 amostras (10×7). Comparação contra `baseline/run-002` gerou `comparison.md/json` com 136 verificações e resultado FAIL: regressões em fixtures grandes/TMDB, heap/seleção em alguns cenários e gates sem marcação de aceite. | Não declarar aceite; revisar regressões e recapturar |
 | 2026-10-08 | Pós-T047 | O cache de resumos passou a invalidar `series-watched-summary` ao gravar estado; o pré-carregamento concorrente de todas as rotas foi removido para preservar lazy loading e evitar falhas de módulos no dev server. Type-check, lint focado, arquitetura e build normal PASS. | Repetir E2E/benchmark somente após revisar os regressos; T048 e TV física pendentes |
 | 2026-10-08 | T046 investigação E2E | Os cinco fluxos falhos foram reproduzidos e corrigidos. Interceptadores `**/vod/**`, `**/series/**` e `**/live/**` bloqueavam módulos Vite locais; `usePersonCredits` passava um sinal incompatível; resumos de séries publicavam `0/N` antes de haver progresso; M3U tinha asserção antes da montagem lazy; e `catalogo-em-blocos` enviava Enter extra quando o card já estava focado. A execução focada serial passou 5/5 em 75 s e a suíte completa posterior passou 44/44 em 344 s. | Recapturar a matriz pareada após revisar o FAIL de T047; TV física e T048 continuam pendentes |
+| 2026-10-08 | Revisão do FAIL da T047 (T019, T049–T053) | Seleção sem cache FIFO de títulos; vitrines por passada cooperativa bloco a bloco; aquecimento da próxima rota; semântica 0/N restaurada e E2E de histórico corrigido; codificação UTF-8 restaurada. Diagnóstico local-100 sem imagens: Filmes após Home −72%, seleção −69%, eventos sem tarefa longa, heap −54%, Home +6,8%, equivalência igual. Ciclos: heap absoluto 76 → 25 MB, mas crescimento por ciclo é artefato do harness (R-012) | Decisão do usuário sobre T054/T055 antes da matriz final |
+| 2026-10-09 | T055 / T054 | Grade por janela (`useCategoryWindow`, backfill de projeções, pré-busca da 1ª janela) e virtualização por linhas; equivalência total na categoria 30k, sem leitura integral, heap temporário −90%, primeiro recorte ~213 ms (1 amostra). Harness descarta handles; vazamento dos ciclos some. Suíte 504/3.047, lint/catraca PASS. Baseline run-003 iniciada em worktree | Gates e candidata final após a baseline |
+| 2026-10-09 | TV física / T056 / T057 | Instalado na TV a pedido; usuário confirmou abertura rápida, vitrine, categoria grande e selo 0/N; relatou detalhe sem TMDB e episódios falhando (T057, investigação após os testes). Achado do bundle: rotas importadas estaticamente pelo `index.js`; corrigido (T056) | Baseline run-003, gates, candidata final, depois T057 |
+| 2026-10-09 | T057 | Defeito da TV causado por falta de espaço (projeção maior que o canônico) e gravações derivadas sem proteção. Corrigido e reinstalado; usuário confirmou detalhe, séries e TMDB na TV. Baseline run-003 reiniciada | Baseline, gates completos, candidata final, T048 |

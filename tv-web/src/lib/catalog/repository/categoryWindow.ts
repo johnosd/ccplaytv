@@ -1,1 +1,1 @@
-﻿export * from '../categoryWindow'
+export * from '../categoryWindow'

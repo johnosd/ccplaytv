@@ -49,10 +49,21 @@ function stateOf(error: unknown): IntegrationState {
   return reason === 'invalid_format' ? 'offline' : reason
 }
 
+/**
+ * Teto de uma pausa por limite de uso. Um Retry-After maior, ou uma pausa gravada com o relógio adiantado, deixaria o TMDB
+ * calado por horas sem nada na tela explicar — passa a valer no máximo isto.
+ */
+export const MAX_PAUSE_MS = 60 * 60 * 1000
+
+/** Pausa ainda válida, ignorando a que estiver além do teto (relógio que voltou ou valor absurdo gravado). */
+export function validPause(pausedUntil: number | undefined, now: number): number | undefined {
+  return pausedUntil !== undefined && pausedUntil > now && pausedUntil <= now + MAX_PAUSE_MS ? pausedUntil : undefined
+}
+
 function activePause(record: IntegrationRecord, now: number, retryAfterMs?: number): number | undefined {
   const retryAfter = retryAfterMs !== undefined && Number.isFinite(retryAfterMs) && retryAfterMs > 0
-    ? now + retryAfterMs : undefined
-  const existing = record.pausedUntil !== undefined && record.pausedUntil > now ? record.pausedUntil : undefined
+    ? now + Math.min(retryAfterMs, MAX_PAUSE_MS) : undefined
+  const existing = validPause(record.pausedUntil, now)
   if (retryAfter === undefined) return existing
   return existing === undefined ? retryAfter : Math.max(existing, retryAfter)
 }
@@ -143,9 +154,10 @@ export async function testTmdbKey(options: MetadataOptions = {}): Promise<TmdbSt
   const now = options.now?.() ?? Date.now()
   if (removalEpoch(database) !== epoch) return getTmdbStatus(options)
   if (activePause(record, now) !== undefined) {
+    // Durante a pausa nada é pedido ao TMDB; o estado diz por quê ("Limite de uso"), não "sem conexão".
     const paused = await mutateRevision(database, record.revision, epoch, current => ({
       ...current,
-      state: 'offline',
+      state: 'rate_limited',
       lastTestedAt: now,
       pausedUntil: activePause(current, now),
     }))

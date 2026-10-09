@@ -1,6 +1,6 @@
-﻿import type { CatalogDb, CatalogReadItem } from './db'
+import type { CatalogDb, CatalogReadItem } from './db'
 
-/** Limite de retenÃ§Ã£o da janela derivada no contexto ativo. */
+/** Limite de retenção da janela derivada no contexto ativo. */
 export const READ_PROJECTION_MEMO_MAX_CHUNKS = 8
 export const READ_PROJECTION_MEMO_CHUNK_SIZE = 240
 
@@ -17,7 +17,7 @@ interface MemoState {
 }
 
 // O WeakMap separa bancos abertos e evita que um banco descartado fique vivo
-// por causa de uma referÃªncia global ao seu conteÃºdo de projeÃ§Ã£o.
+// por causa de uma referência global ao seu conteúdo de projeção.
 const states = new WeakMap<object, MemoState>()
 
 function sameContext(left: ReadProjectionMemoContext | undefined, right: ReadProjectionMemoContext): boolean {
@@ -36,8 +36,8 @@ function stateFor(database: CatalogDb, context: ReadProjectionMemoContext): Memo
     state = { chunks: new Map() }
     states.set(database, state)
   }
-  // Uma troca de fonte, geraÃ§Ã£o, categoria ou revisÃ£o abandona imediatamente
-  // as pÃ¡ginas anteriores. Assim, o cache nunca vira um segundo catÃ¡logo.
+  // Uma troca de fonte, geração, categoria ou revisão abandona imediatamente
+  // as páginas anteriores. Assim, o cache nunca vira um segundo catálogo.
   if (!sameContext(state.context, context)) {
     state.context = { ...context }
     state.chunks.clear()
@@ -55,13 +55,13 @@ export function getReadProjectionMemoChunk(
   if (!state || !sameContext(state.context, context)) return undefined
   const items = state.chunks.get(chunk)
   if (!items) return undefined
-  // Map insertion order funciona como LRU sem outra estrutura de retenÃ§Ã£o.
+  // Map insertion order funciona como LRU sem outra estrutura de retenção.
   state.chunks.delete(chunk)
   state.chunks.set(chunk, items)
   return items
 }
 
-/** Guarda um chunk, mantendo no mÃ¡ximo oito pÃ¡ginas de 240 itens. */
+/** Guarda um chunk, mantendo no máximo oito páginas de 240 itens. */
 export function setReadProjectionMemoChunk(
   database: CatalogDb,
   context: ReadProjectionMemoContext,
@@ -79,7 +79,7 @@ export function setReadProjectionMemoChunk(
   }
 }
 
-/** Invalida o banco; contexto opcional evita limpar uma revisÃ£o substituta. */
+/** Invalida o banco; contexto opcional evita limpar uma revisão substituta. */
 export function invalidateReadProjectionMemo(
   database: CatalogDb,
   context?: ReadProjectionMemoContext,
@@ -90,7 +90,7 @@ export function invalidateReadProjectionMemo(
   states.delete(database)
 }
 
-/** DiagnÃ³stico leve para conferir o limite sem expor os itens. */
+/** Diagnóstico leve para conferir o limite sem expor os itens. */
 export function readProjectionMemoChunkCount(database: CatalogDb): number {
   return states.get(database)?.chunks.size ?? 0
 }

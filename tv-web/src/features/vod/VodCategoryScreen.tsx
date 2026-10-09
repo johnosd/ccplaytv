@@ -6,6 +6,7 @@ import {
   stableIdOf,
   useAggregatedItems,
   useCategoryContent,
+  useCategoryWindow,
   useCategoryList,
   useFavoriteIds,
   useFavoritesContent,
@@ -61,20 +62,14 @@ function scrollFrameClass(edges: OverflowEdges): string {
 const GRID_COLS = 6
 /** Altura de uma linha da grade (célula + vão). A largura da célula é CSS: as 6 colunas dividem a largura toda, coladas. */
 const ROW_HEIGHT = 402
-/**
- * Espaço vertical que cada linha precisa além da altura do pôster
- * (205×302): título + metadado + o espaçamento entre linhas que a posição
- * absoluta não herda de `gap` (mesmo valor já validado pela feature 009).
- */
-
 /** Altura da linha: o texto de baixo do card cresce com --font-scale, o pôster não (lida do CSS, 1 em testes). */
 function rowHeight(): number {
   return ROW_HEIGHT
 }
-const GRID_OVERSCAN = GRID_COLS
+/** Linhas além das visíveis — as mesmas que a grade por células (lanes + 6 itens) desenhava; virtualiza linhas de 6 (065). */
+const OVERSCAN_ABOVE = 3, OVERSCAN_BELOW = 2
 /** "Todos" aos poucos (feature 039, T022): a próxima página é pedida a 10 fileiras do fim. */
 const ALL_LOAD_AHEAD = GRID_COLS * 10
-
 
 /**
  * O que difere entre Filmes e Séries — só rótulos (`logic/foco-vod.md` §1 da 025). Nenhuma decisão de dados aqui:
@@ -206,7 +201,11 @@ export function VodCategoryScreen({
     if (enteredHistory) markHistoryKnown(sourceId, section)
   }, [enteredHistory, sourceId, section])
 
-  const content = useCategoryContent(sourceId, enteredCategory)
+  // Feature 065 (SC-007): categoria grande na ordem da fonte e sem busca lê por janela; busca/ordenar, a categoria inteira.
+  const categoryWindow = useCategoryWindow(sourceId, enteredCategory, !searchActive && sortOption === 'source')
+  const { windowed, loadMore: loadWindow } = categoryWindow
+  const fullContent = useCategoryContent(sourceId, windowed ? undefined : enteredCategory)
+  const content = windowed ? categoryWindow : fullContent
   const favoriteIdsQuery = useFavoriteIds(sourceId, config.kind)
   const favoriteIds = favoriteIdsQuery.data ?? new Set<string>()
   const watchedIdsQuery = useWatchedIds(sourceId, section === 'movies' ? config.kind : 'channel')
@@ -305,12 +304,12 @@ export function VodCategoryScreen({
 
   // Feature 039 (T022): "Todos" aos poucos pede a próxima página quando o foco chega perto do fim do que já foi lido
   // — e também enquanto o item a restaurar ainda não apareceu, para "Voltar restaura foco" valer mesmo lá embaixo.
-  const { hasMore: allHasMore, loadMore: loadMoreAll } = aggregated
+  const { hasMore: allHasMore, loadMore: loadMoreAll }: { hasMore?: boolean; loadMore?: (index?: number) => void } = windowed ? categoryWindow : aggregated
   const focusedNotLoaded = focusedItemId !== null && !items.some((item) => item.id === focusedItemId)
   // Só persegue um item que ainda existe: confere primeiro, lendo só o bloco do item; id trocado vira o id novo.
   const [focusCheck, setFocusCheck] = useState<{ id: string; exists: boolean } | null>(null)
   useEffect(() => {
-    if (!enteredAll || !focusedNotLoaded || focusedItemId === null) return
+    if (!(enteredAll || windowed) || !focusedNotLoaded || focusedItemId === null) return
     if (focusCheck?.id === focusedItemId) return
     let cancelled = false
     void resolveCatalogItemId(focusedItemId).then(
@@ -326,21 +325,22 @@ export function VodCategoryScreen({
     return () => {
       cancelled = true
     }
-  }, [enteredAll, focusedNotLoaded, focusedItemId, focusCheck])
+  }, [enteredAll, windowed, focusedNotLoaded, focusedItemId, focusCheck])
   const chasingFocus = focusedNotLoaded && focusCheck?.id === focusedItemId && focusCheck.exists
   useEffect(() => {
-    if (!enteredAll || !allHasMore || !loadMoreAll) return
-    if (chasingFocus || itemIdx >= items.length - ALL_LOAD_AHEAD) loadMoreAll()
-  }, [enteredAll, allHasMore, loadMoreAll, chasingFocus, itemIdx, items.length])
+    if (!(enteredAll || windowed) || !allHasMore || !loadMoreAll) return
+    if (chasingFocus || itemIdx >= items.length - ALL_LOAD_AHEAD) loadMoreAll(chasingFocus && applyRestoreHint ? restoreHint?.index : undefined)
+  }, [enteredAll, windowed, allHasMore, loadMoreAll, chasingFocus, applyRestoreHint, restoreHint, itemIdx, items.length])
 
   const gridContainerRef = useRef<HTMLDivElement | null>(null)
   const itemVirtualizer = useVirtualizer({
-    count: items.length,
+    count: Math.ceil((windowed ? (content.data?.totalCount ?? 0) : items.length) / GRID_COLS),
     getScrollElement: () => gridContainerRef.current,
     estimateSize: rowHeight,
-    lanes: GRID_COLS,
-    overscan: GRID_OVERSCAN,
+    rangeExtractor: ({ startIndex, endIndex, count }) => { const first = Math.max(0, startIndex - OVERSCAN_ABOVE); return Array.from({ length: Math.max(0, Math.min(count - 1, endIndex + OVERSCAN_BELOW) - first + 1) }, (_, i) => first + i) },
   })
+  const lastVisibleIndex = ((itemVirtualizer.getVirtualItems().at(-1)?.index ?? 0) + 1) * GRID_COLS - 1 // por janela, rolar até linhas não lidas as lê
+  useEffect(() => { if (windowed && lastVisibleIndex >= items.length - GRID_COLS) loadWindow(lastVisibleIndex) }, [windowed, loadWindow, lastVisibleIndex, items.length])
   // Indicador de continuação (feature 050, FR-010): só desenho, nenhuma regra de foco depende dele.
   const gridEdges = useOverflowEdges(gridContainerRef, items.length)
 
@@ -649,7 +649,7 @@ export function VodCategoryScreen({
   }
 
   const contentStale = enteredByName && content.data?.outcome === 'stale-served'
-  const truncated = enteredByName && (content.data?.totalCount ?? 0) > items.length
+  const truncated = enteredByName && !windowed && (content.data?.totalCount ?? 0) > items.length
   const declaredCount = enteredCategory?.declaredCount
   const realCount = content.data?.totalCount
   const countsDiverge =
@@ -880,7 +880,7 @@ export function VodCategoryScreen({
               }}>
               <div ref={gridContainerRef} className="vod-grid no-scrollbar">
                 <div className="vod-grid-inner" style={{ height: itemVirtualizer.getTotalSize() }}>
-                  {itemVirtualizer.getVirtualItems().map((virtualRow) => {
+                  {itemVirtualizer.getVirtualItems().flatMap((virtualRow) => Array.from({ length: GRID_COLS }, (_, lane) => ({ index: virtualRow.index * GRID_COLS + lane, lane, start: virtualRow.start }))).map((virtualRow) => {
                     const item = items[virtualRow.index]
                     if (!item) return null
                     const isFavorite = favoriteIds.has(stableIdOf(item) ?? '')

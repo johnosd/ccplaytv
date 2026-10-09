@@ -1,16 +1,16 @@
-﻿// Runner da suÃ­te E2E: roda os scripts em paralelo (concorrÃªncia limitada),
-// cronometra cada um e imprime um resumo ordenado por duraÃ§Ã£o.
+// Runner da suíte E2E: roda os scripts em paralelo (concorrência limitada),
+// cronometra cada um e imprime um resumo ordenado por duração.
 //
-// Uso (com `npm run dev` jÃ¡ rodando em :5173):
-//   npm run test:e2e                       # suÃ­te completa, 3 em paralelo
-//   npm run test:e2e -- --jobs 5           # outra concorrÃªncia
-//   npm run test:e2e -- --only favoritos,limpar-historico   # sÃ³ alguns scripts
+// Uso (com `npm run dev` já rodando em :5173):
+//   npm run test:e2e                       # suíte completa, 3 em paralelo
+//   npm run test:e2e -- --jobs 5           # outra concorrência
+//   npm run test:e2e -- --only favoritos,limpar-historico   # só alguns scripts
 //   npm run test:e2e -- --retry 1          # reexecuta uma vez o que falhar
-//   npm run test:e2e:serial                # um por vez (diagnÃ³stico de flake)
+//   npm run test:e2e:serial                # um por vez (diagnóstico de flake)
 //
-// Cada script jÃ¡ Ã© isolado (Chromium prÃ³prio => IndexedDB prÃ³prio; o servidor
-// falso escuta na porta 0), por isso rodar em paralelo Ã© seguro. A saÃ­da de
-// cada script fica em buffer e sÃ³ Ã© impressa quando ele termina, para nÃ£o
+// Cada script já é isolado (Chromium próprio => IndexedDB próprio; o servidor
+// falso escuta na porta 0), por isso rodar em paralelo é seguro. A saída de
+// cada script fica em buffer e só é impressa quando ele termina, para não
 // intercalar linhas de scripts diferentes.
 
 import { spawn } from 'node:child_process'
@@ -20,7 +20,7 @@ import { dirname, join } from 'node:path'
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 // Ordem = a do antigo `test:e2e` serial (sem a duplicata de fontes-estado).
-// Scripts `*-real.mjs` ficam de fora de propÃ³sito: precisam do .env e da rede.
+// Scripts `*-real.mjs` ficam de fora de propósito: precisam do .env e da rede.
 export const SUITE = [
   'e2e.mjs',
   'e2e/favoritos.mjs',
@@ -126,8 +126,8 @@ async function main() {
       resultados.push(r)
       const marca = r.ok ? 'âœ“' : 'âœ—'
       const extra = r.tentativas > 1 ? ` (${r.tentativas} tentativas)` : ''
-      console.log(`${marca} ${nomeCurto(arquivo)} â€” ${(r.ms / 1000).toFixed(1)}s${extra}`)
-      // SÃ³ imprime a saÃ­da completa de quem falhou; os que passam jÃ¡ tÃªm o resumo.
+      console.log(`${marca} ${nomeCurto(arquivo)} — ${(r.ms / 1000).toFixed(1)}s${extra}`)
+      // Só imprime a saída completa de quem falhou; os que passam já têm o resumo.
       if (!r.ok) console.log(r.saida.trimEnd().split('\n').map((l) => `    ${l}`).join('\n'))
     }
   }
@@ -147,7 +147,7 @@ async function main() {
   )
   if (falhas.length > 0) {
     console.log(`Falharam: ${falhas.map((r) => nomeCurto(r.arquivo)).join(', ')}`)
-    console.log('Se for suspeita de flake, reexecute sÃ³ eles: npm run test:e2e -- --only <nomes> --jobs 1')
+    console.log('Se for suspeita de flake, reexecute só eles: npm run test:e2e -- --only <nomes> --jobs 1')
     process.exit(1)
   }
 }

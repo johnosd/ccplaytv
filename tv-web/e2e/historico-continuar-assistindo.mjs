@@ -304,9 +304,11 @@ async function run() {
     // (nunca Séries) — pela topbar chega em qualquer uma das três, sempre.
     await openViaTopbar(page, 'series')
     await enterCategory(page, 'Series') // entra em "Series" (categoria única)
+    // A M3U já traz os episódios: o selo pode mostrar "0/2" (episódios conhecidos, nenhum concluído), como sempre mostrou
+    // depois de o resumo carregar — o que nunca pode aparecer antes de assistir é "Em dia" (feature 065, T046).
     assert(
-      !(await page.locator('.watched-badge').isVisible().catch(() => false)),
-      'série nunca aberta não mostra nenhum selo agregado',
+      !(await page.locator('.watched-badge').allTextContents()).includes('Em dia'),
+      'série sem episódio assistido não mostra "Em dia"',
     )
 
     await page.keyboard.press('Enter') // abre o detalhe da série

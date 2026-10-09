@@ -172,7 +172,20 @@ export function matchDiscoveryTitles<T>(
 }
 
 /** Cede a thread ao navegador (entre as fatias do cruzamento): o desenho e as teclas do controle remoto passam. */
-export const yieldToMain = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
+export const yieldToMain = (): Promise<void> =>
+  new Promise((resolve) => {
+    // `setTimeout` encadeado é limitado a 4 ms pelo navegador; a mensagem cede a thread sem esse atraso (feature 065).
+    if (typeof MessageChannel === 'undefined') {
+      setTimeout(resolve, 0)
+      return
+    }
+    const channel = new MessageChannel()
+    channel.port1.onmessage = () => {
+      channel.port1.close()
+      resolve()
+    }
+    channel.port2.postMessage(null)
+  })
 
 /** Registros por fatia do índice assíncrono: ≈ 8 ms de trabalho em 43 mil registros (medido no desktop). */
 export const MATCH_SLICE = 2000

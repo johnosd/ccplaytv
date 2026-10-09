@@ -1,4 +1,4 @@
-/** ResoluÃ§Ã£o de "Continuar assistindo" em registros do catÃ¡logo. Parte da divisÃ£o de `catalogRepository.ts` (feature 063); a fachada reexporta. */
+/** Resolução de "Continuar assistindo" em registros do catálogo. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord, type UserStateRecord } from '../db'
 import { parseStableId, type StableIdParts } from '../userStateRepository'

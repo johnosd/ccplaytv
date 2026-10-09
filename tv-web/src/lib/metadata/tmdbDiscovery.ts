@@ -1,7 +1,7 @@
 import { db, type CatalogDb, type DiscoveryCacheRecord } from '../catalog/db'
 import { readAppLanguage } from '../i18n/appLanguage'
 import { APP_LANGUAGE_LOCALE } from '../i18n/languages'
-import { markTmdbState, readTmdbCredential, type UsableTmdbCredential } from './tmdbKeyRepository'
+import { markTmdbState, readTmdbCredential, validPause, type UsableTmdbCredential } from './tmdbKeyRepository'
 import { TmdbError, tmdbGet, tmdbImageUrl } from './tmdbConnector'
 import { yearOfDate } from './tmdbMatch'
 import type { MetadataOptions } from './types'
@@ -189,7 +189,7 @@ async function load(source: Source, kind: DiscoveryKind, database: CatalogDb, op
     cached ? { status: 'ok', titles: cached.titles, stale: true } : { status: 'unavailable', titles: [], stale: false }
   // Só chave recusada e pausa ativa bloqueiam; `offline`/`rate_limited` vencido deixam tentar de novo.
   if (credential.state === 'refused') return fallback()
-  if (credential.pausedUntil !== undefined && credential.pausedUntil > now) return fallback()
+  if (validPause(credential.pausedUntil, now) !== undefined) return fallback()
 
   try {
     const locale = APP_LANGUAGE_LOCALE[language]

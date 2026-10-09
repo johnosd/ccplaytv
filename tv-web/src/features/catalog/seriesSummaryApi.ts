@@ -59,23 +59,18 @@ export async function loadSeriesWatchedSummaries(sourceId: string, database: Cat
     const target = { sourceId, generation: source.activeGeneration, seriesId: member.seriesId }
     const valid = await readValidSeriesWatchSummary(target, revision, database)
     if (valid) {
-      // Uma série conhecida, mas ainda sem nenhum episódio concluído, não
-      // exibe selo. O resumo só entra na projeção quando existe progresso
-      // observável; a cobertura continua disponível depois do primeiro
-      // episódio concluído.
-      if (valid.watched > 0) result.set(member.seriesId, valid)
+      result.set(member.seriesId, valid)
       continue
     }
     const states = await getUserStates(member.stableIds, database)
     const summary = summarizeSeriesWatched(states.map((state) => ({ completedAt: state?.completedAt })))
-    if (summary.watched > 0) {
-      try {
-        await storeSeriesWatchSummary(target, summary, { membersRevision: member.revision, stateRevision: revision }, database)
-      } catch (error) {
-        if (!isQuotaError(error)) throw error
-      }
-      result.set(member.seriesId, summary)
+    // Mesma semântica da baseline: série com episódios conhecidos e nenhum concluído também tem resumo (0/N).
+    try {
+      await storeSeriesWatchSummary(target, summary, { membersRevision: member.revision, stateRevision: revision }, database)
+    } catch (error) {
+      if (!isQuotaError(error)) throw error
     }
+    result.set(member.seriesId, summary)
   }
   return result
 }

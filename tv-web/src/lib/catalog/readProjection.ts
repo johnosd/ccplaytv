@@ -1,4 +1,4 @@
-﻿import { db, type BlockItem, type CatalogDb, type CatalogReadItem, type CatalogReadManifest, type CatalogRecord } from './db'
+import { db, type BlockItem, type CatalogDb, type CatalogReadItem, type CatalogReadManifest, type CatalogRecord } from './db'
 import { invalidateReadProjectionMemo } from './readProjectionMemo'
 
 export const READ_PROJECTION_FORMAT = 1
@@ -75,8 +75,8 @@ export async function readProjectionManifest(
 }
 
 /**
- * Remove a projeÃ§Ã£o de uma categoria. O chamador deve incluir as duas tabelas
- * numa transaÃ§Ã£o quando a invalidaÃ§Ã£o acompanha uma escrita canÃ´nica.
+ * Remove a projeção de uma categoria. O chamador deve incluir as duas tabelas
+ * numa transação quando a invalidação acompanha uma escrita canônica.
  */
 export async function invalidateCategoryReadModel(
   categoryId: number,
@@ -91,7 +91,7 @@ export async function invalidateCategoryReadModel(
   await database.catalogReadManifests.delete(categoryId)
 }
 
-/** Remove todas as projeÃ§Ãµes de uma geraÃ§Ã£o, inclusive categorias jÃ¡ removidas. */
+/** Remove todas as projeções de uma geração, inclusive categorias já removidas. */
 export async function invalidateGenerationReadModels(
   sourceId: string,
   generation: number,
@@ -110,7 +110,7 @@ export async function invalidateGenerationReadModels(
   if (manifestKeys.length > 0) await database.catalogReadManifests.bulkDelete(manifestKeys)
 }
 
-/** Remove todas as projeÃ§Ãµes de uma fonte, usada na remoÃ§Ã£o definitiva. */
+/** Remove todas as projeções de uma fonte, usada na remoção definitiva. */
 export async function invalidateSourceReadModels(
   sourceId: string,
   database: CatalogDb = db,
@@ -125,7 +125,7 @@ export async function invalidateSourceReadModels(
   if (manifestKeys.length > 0) await database.catalogReadManifests.bulkDelete(manifestKeys)
 }
 
-/** Remove projeÃ§Ãµes de todas as geraÃ§Ãµes exceto a recÃ©m-publicada. */
+/** Remove projeções de todas as gerações exceto a recém-publicada. */
 export async function invalidateReadModelsOutsideGeneration(
   sourceId: string,
   generation: number,

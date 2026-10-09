@@ -1,6 +1,6 @@
 import { db, type CatalogDb, type TmdbPersonRecord, type TmdbTitleRef } from '../catalog/db'
 import { TmdbError, tmdbGet, tmdbImageUrl } from './tmdbConnector'
-import { markTmdbState, readTmdbCredential } from './tmdbKeyRepository'
+import { markTmdbState, readTmdbCredential, validPause } from './tmdbKeyRepository'
 import { yearOfDate } from './tmdbMatch'
 import { readAppLanguage } from '../i18n/appLanguage'
 import { APP_LANGUAGE_LOCALE } from '../i18n/languages'
@@ -83,7 +83,7 @@ async function load(personId: number, database: CatalogDb, options: MetadataOpti
   if (!credential) return { status: 'error', reason: 'no_key' }
   // Só chave recusada e pausa ativa bloqueiam; `offline`/`rate_limited` vencido deixam tentar de novo.
   if (credential.state === 'refused') return { status: 'error', reason: 'refused' }
-  if (credential.pausedUntil !== undefined && credential.pausedUntil > now) return { status: 'error', reason: 'rate_limited' }
+  if (validPause(credential.pausedUntil, now) !== undefined) return { status: 'error', reason: 'rate_limited' }
 
   const language = options.language ?? readAppLanguage()
   const cached = await database.tmdbPeople.get(personId)

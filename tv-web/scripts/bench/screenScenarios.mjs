@@ -5,9 +5,11 @@ import { CLOCK, SOURCE_IDS } from './screenFixtures.mjs'
 const HOME = '.home-content .home-card'
 const VOD = '.vod-showcase .content-card'
 const GRID = '.vod-grid .content-card'
+// O handle devolvido por `waitForSelector` fica vivo no CDP e segura a árvore da tela depois de desmontada (065, T054).
+const waitFor = async (page, selector, options) => (await page.waitForSelector(selector, options))?.dispose()
 const nav = (page, index) => page.locator('.topbar-nav button').nth(index).click()
 
-async function goHome(page) { await nav(page, 0); await page.waitForSelector(HOME); await settle(page, 0) }
+async function goHome(page) { await nav(page, 0); await waitFor(page, HOME); await settle(page, 0) }
 async function goKind(page, index, prefix) {
   await nav(page, index)
   await page.waitForFunction(prefix => [...document.querySelectorAll('.vod-showcase .content-card-title')].some(e => e.textContent.startsWith(prefix)), prefix)
@@ -15,10 +17,10 @@ async function goKind(page, index, prefix) {
 }
 async function category(page, kind = 'movie') {
   await page.locator('.side-category-nav-item').filter({ hasText: `Categoria ${kind} 0` }).first().click()
-  await page.waitForSelector(GRID)
+  await waitFor(page, GRID)
   await settle(page, 0)
 }
-async function returnToShowcase(page) { await page.keyboard.press('Escape'); await page.waitForSelector(VOD); await settle(page, 0) }
+async function returnToShowcase(page) { await page.keyboard.press('Escape'); await waitFor(page, VOD); await settle(page, 0) }
 
 export async function runScenario(browser, runtime, config, rows, cpu, run) {
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
@@ -53,7 +55,7 @@ export async function runScenario(browser, runtime, config, rows, cpu, run) {
       sample.startup.push({ lists: true, cache: 'warm', ...await startup(page, appUrl, true) })
       sample.firstInteraction = await measure(page, 'normal-first-command', () => page.keyboard.press('ArrowRight'), '.add-card.tv-focus')
       await page.keyboard.press('ArrowLeft')
-      await page.waitForSelector('.source-card.tv-focus')
+      await waitFor(page, '.source-card.tv-focus')
       sample.normalNavigation = [
         await measure(page, 'normal-first-home', () => page.locator('.source-card').filter({ hasText: 'Sintético A' }).click(), HOME),
         await measure(page, 'normal-first-movies', () => nav(page, 2), VOD, 'Filme'),
@@ -67,7 +69,7 @@ export async function runScenario(browser, runtime, config, rows, cpu, run) {
       sample.preparation = await prepare()
     }
     await page.goto(controlUrl)
-    await page.waitForSelector('.source-card.tv-focus')
+    await waitFor(page, '.source-card.tv-focus')
     await page.waitForFunction(() => Boolean(window.__screenControl))
     sample.storageBefore = await page.evaluate(async () => {
       const estimate = await navigator.storage.estimate()
@@ -125,7 +127,7 @@ export async function runScenario(browser, runtime, config, rows, cpu, run) {
       sample.lastItem = await snapshot(page)
       // Busca e ordenação reais; não limitar equivalência à primeira página.
       await page.keyboard.press('ArrowUp')
-      await page.waitForSelector('.vod-toolbar-search-button.tv-focus')
+      await waitFor(page, '.vod-toolbar-search-button.tv-focus')
       await page.keyboard.press('Enter')
       await page.locator('input.search-field').fill('Filme 29999')
       await page.waitForFunction(() => {
@@ -135,20 +137,20 @@ export async function runScenario(browser, runtime, config, rows, cpu, run) {
       await settle(page)
       sample.searchLastItem = await snapshot(page)
       await page.keyboard.press('ArrowDown')
-      await page.waitForSelector('.vod-grid .tv-focus')
+      await waitFor(page, '.vod-grid .tv-focus')
       sample.detailBefore = await snapshot(page)
       await page.keyboard.press('Enter')
-      await page.waitForSelector('.vod-detail--movie')
+      await waitFor(page, '.vod-detail--movie')
       await settle(page)
       await page.keyboard.press('Escape')
-      await page.waitForSelector(GRID)
+      await waitFor(page, GRID)
       await settle(page)
       sample.detailReturned = await snapshot(page)
       await page.keyboard.press('Escape')
       await page.keyboard.press('Escape')
       await settle(page)
       await page.keyboard.press('ArrowRight')
-      await page.waitForSelector('.vod-toolbar-sort-button.tv-focus')
+      await waitFor(page, '.vod-toolbar-sort-button.tv-focus')
       await page.keyboard.press('Enter')
       await page.keyboard.press('ArrowDown')
       await page.keyboard.press('Enter')
@@ -156,7 +158,7 @@ export async function runScenario(browser, runtime, config, rows, cpu, run) {
       sample.sorted = await snapshot(page)
       await page.keyboard.press('Escape')
       if (await page.locator('.vod-grid').count()) await page.keyboard.press('Escape')
-      await page.waitForSelector(VOD)
+      await waitFor(page, VOD)
       await category(page)
       sample.returned = await snapshot(page)
       sample.categoryMemory = await heap(page, cdp)
@@ -173,13 +175,13 @@ export async function runScenario(browser, runtime, config, rows, cpu, run) {
     } else if (config.kind === 'cycles') {
       async function visit() {
         await goHome(page); await goKind(page, 2, 'Filme'); await goKind(page, 3, 'Série')
-        await category(page, 'series'); await nav(page, 0); await page.waitForSelector(HOME); await settle(page, 0)
+        await category(page, 'series'); await nav(page, 0); await waitFor(page, HOME); await settle(page, 0)
       }
       async function pick(list) {
         await page.locator('.topbar-profile').click()
-        await page.waitForSelector('.source-card')
+        await waitFor(page, '.source-card')
         await page.locator('.source-card').filter({ hasText: `Sintético ${String.fromCharCode(65 + list)}` }).click()
-        await page.waitForSelector(HOME); await settle(page, 0)
+        await waitFor(page, HOME); await settle(page, 0)
       }
       for (let list = 0; list < 3; list++) { console.log(`  aquecimento lista ${list + 1}/3`); await pick(list); await visit() }
       await pick(0)

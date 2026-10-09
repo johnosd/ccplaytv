@@ -1,4 +1,4 @@
-/** Ãrea de preparo da carga por seÃ§Ã£o (feature 039). Parte da divisÃ£o de `catalogRepository.ts` (feature 063); a fachada reexporta. */
+/** Área de preparo da carga por seção (feature 039). Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogRecord } from '../db'
 import { KEY_MAX, KEY_MIN, StorageFullError, isQuotaError } from './shared'

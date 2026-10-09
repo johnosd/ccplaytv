@@ -1,4 +1,4 @@
-/** ResoluÃ§Ã£o de identidades estÃ¡veis (favoritos e afins) em registros da geraÃ§Ã£o ativa. Parte da divisÃ£o de `catalogRepository.ts` (feature 063); a fachada reexporta. */
+/** Resolução de identidades estáveis (favoritos e afins) em registros da geração ativa. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord } from '../db'
 import { type StableIdParts } from '../userStateRepository'

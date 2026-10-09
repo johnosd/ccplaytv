@@ -1,4 +1,4 @@
-/** Ajudantes e erros compartilhados entre os mÃ³dulos do repositÃ³rio (interno: a fachada nÃ£o o reexporta por inteiro). Parte da divisÃ£o de `catalogRepository.ts` (feature 063); a fachada reexporta. */
+/** Ajudantes e erros compartilhados entre os módulos do repositório (interno: a fachada não o reexporta por inteiro). Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogItemKind } from '../db'
 

@@ -1,2 +1,2 @@
-﻿export * from '../seriesWatchRepository'
+export * from '../seriesWatchRepository'
 

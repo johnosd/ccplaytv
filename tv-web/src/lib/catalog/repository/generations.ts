@@ -1,4 +1,4 @@
-/** Ciclo de vida das geraÃ§Ãµes: gravar lote, alocar, publicar, coletar e descartar. Parte da divisÃ£o de `catalogRepository.ts` (feature 063); a fachada reexporta. */
+/** Ciclo de vida das gerações: gravar lote, alocar, publicar, coletar e descartar. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogRecord } from '../db'
 import { KIND_MAX, KIND_MIN, blockKeysOutsideGeneration, blocksOfGeneration, blocksOfSource } from '../categoryBlocks'

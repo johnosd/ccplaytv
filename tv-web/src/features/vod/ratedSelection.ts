@@ -60,7 +60,6 @@ export function fnv1a32(text: string): number {
 }
 
 const QUALITY_WORDS = /\b(?:4k|uhd|fhd|hd|sd|hdr|dual|dublado|dub|legendado|leg|1080p|720p|2160p)\b/g
-const TITLE_CACHE_LIMIT = 16_384
 
 /**
  * Chave de "mesmo título": sem acento, minúsculas, sem `[...]` (ex.: `[L]`), sem `(...)` que seja só qualidade/idioma/ano e
@@ -161,22 +160,14 @@ export function createRatedSelectionAccumulator<T>(read: RatedFields<T>, options
 
   // 1) Elegíveis, já com uma versão por título (a de maior qualidade; a primeira da entrada vence o empate total).
   const best = new Map<string, Candidate<T>>()
-  // Cache efêmero e limitado à execução: reduz normalização repetida de variantes idênticas
-  // sem criar estado global que sobreviva entre fontes/dias.
-  const titleCache = new Map<string, string>()
   let nextOrdinal = 0
   const add = (item: T): void => {
     const rating = validProviderRating(read.rating(item))
     if (rating === undefined || rating < RATED_MIN_RATING || rating >= RATED_MAX_RATING) return
     const year = usableYear(read.year(item), currentYear)
     if (year === undefined) return
-    const name = read.name(item)
-    let normalizedName = titleCache.get(name)
-    if (normalizedName === undefined) {
-      normalizedName = titleKey(name)
-      if (titleCache.size >= TITLE_CACHE_LIMIT) titleCache.delete(titleCache.keys().next().value as string)
-      titleCache.set(name, normalizedName)
-    }
+    // Sem cache de nomes: com dezenas de milhares de títulos distintos, a manutenção do Map custava mais que o titleKey.
+    const normalizedName = titleKey(read.name(item))
     const candidate: Candidate<T> = {
       item,
       id: read.id(item),

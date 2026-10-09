@@ -1,4 +1,4 @@
-/** SÃ©ries e episÃ³dios: registro da sÃ©rie, episÃ³dios e carimbo de obtenÃ§Ã£o. Parte da divisÃ£o de `catalogRepository.ts` (feature 063); a fachada reexporta. */
+/** Séries e episódios: registro da série, episódios e carimbo de obtenção. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogRecord } from '../db'
 import { blockRecord, blocksOfKind, categoryIdOfBlockItem } from '../categoryBlocks'
@@ -203,5 +203,8 @@ export async function storeSeriesEpisodes(
       // Episódio sem identidade estável continua no catálogo, mas não entra no selo.
     }
   }
-  await storeSeriesWatchMembers({ sourceId: target.sourceId, generation: target.generation, seriesId: target.seriesId }, stableIds, database)
+  // Índice derivado do selo "Em dia" (065): os episódios já foram gravados; falhar aqui (ex.: sem espaço) não pode fazer a
+  // série parecer não carregada. Sem membros atuais, o resumo é recalculado na próxima leitura.
+  const watchTarget = { sourceId: target.sourceId, generation: target.generation, seriesId: target.seriesId }
+  await storeSeriesWatchMembers(watchTarget, stableIds, database).catch(() => database.seriesWatchSummaries.delete([watchTarget.sourceId, watchTarget.generation, watchTarget.seriesId]).catch(() => undefined))
 }

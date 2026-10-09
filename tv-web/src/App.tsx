@@ -1,11 +1,7 @@
-﻿import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { SplashScreen } from './features/splash/SplashScreen'
 import { ADD_LIST_FOCUS_ID, ProfilesScreen } from './features/profiles/ProfilesScreen'
-import { SourceAccessRoute } from './features/sources/SourceAccessRoute'
-import { HomeScreen } from './features/home/HomeScreen'
-import { AddSourceScreen } from './features/import/AddSourceScreen'
-import { ImportProgressScreen } from './features/import/ImportProgressScreen'
 import { decideSourceAccess } from './lib/catalog/sourceAccount'
 import {
   TERMINAL_STATUSES,
@@ -25,16 +21,16 @@ import { usePrefetchForSource, wakePrefetch } from './features/catalog/prefetchA
 import { appNavReducer, initialAppNav, type AppScreen, type TopDestination } from './navigation/appNav'
 import { readLastSourceId, writeLastSourceId } from './navigation/lastSource'
 import type { OpenPersonTarget, OpenTitleTarget } from './features/vod/detailSnapshot'
-import { LiveScreen, VodShowcaseScreen, MovieDetailScreen, SeriesDetailScreen, SettingsScreen, EpgSettingsScreen, TmdbKeyScreen, SearchScreen, VodCategoryScreen, PersonScreen } from './navigation/routeModules'
+import { HomeScreen, AddSourceScreen, ImportProgressScreen, SourceAccessRoute, LiveScreen, VodShowcaseScreen, MovieDetailScreen, SeriesDetailScreen, SettingsScreen, EpgSettingsScreen, TmdbKeyScreen, SearchScreen, VodCategoryScreen, PersonScreen, useRouteWarmup } from './navigation/routeModules'
 import { RouteBoundary } from './components/RouteBoundary'
 import { useStartupReadiness } from './lib/useStartupReadiness'
 
 /**
- * "Ver todos (N)"/"Filmes (N)"/"SÃ©ries (N)" do InÃ­cio (feature 026, FR-014)
- * abrem `â˜… Favoritos` do destino escolhido. FunÃ§Ã£o Ã  parte (em vez de um
+ * "Ver todos (N)"/"Filmes (N)"/"Séries (N)" do Início (feature 026, FR-014)
+ * abrem `★ Favoritos` do destino escolhido. Função à parte (em vez de um
  * objeto literal `{ name: destination, openFavorites: true }` inline): o
- * `tsc` nÃ£o distribui bem um objeto com campo de discriminante nÃ£o-literal
- * contra a uniÃ£o `AppScreen` quando o objeto tem mais de um campo.
+ * `tsc` não distribui bem um objeto com campo de discriminante não-literal
+ * contra a união `AppScreen` quando o objeto tem mais de um campo.
  */
 function openFavoritesScreen(destination: TopDestination): AppScreen {
   if (destination === 'live') return { name: 'live', openFavorites: true }
@@ -43,15 +39,15 @@ function openFavoritesScreen(destination: TopDestination): AppScreen {
 }
 
 function App() {
-  // A navegaÃ§Ã£o Ã© um redutor puro (feature 023, D-003): aqui sÃ³ se despacham
-  // aÃ§Ãµes e se renderiza a tela atual. Toda regra de "para onde RETURN leva" e
+  // A navegação é um redutor puro (feature 023, D-003): aqui só se despacham
+  // ações e se renderiza a tela atual. Toda regra de "para onde RETURN leva" e
   // de "o que zera a pilha" mora em `navigation/appNav.ts`.
   const [nav, dispatch] = useReducer(appNavReducer, undefined, initialAppNav)
   const { screen, activeSource, history } = nav
 
-  // Tecla amarela como atalho de favoritar (feature 013) e teclas de mÃ­dia
-  // do controle (feature 027, FR-023) â€” registram uma vez, na raiz do app,
-  // nunca por tela: `tizen.tvinputdevice.registerKey` Ã© global Ã  sessÃ£o do
+  // Tecla amarela como atalho de favoritar (feature 013) e teclas de mídia
+  // do controle (feature 027, FR-023) — registram uma vez, na raiz do app,
+  // nunca por tela: `tizen.tvinputdevice.registerKey` é global à sessão do
   // widget, registrar de novo em cada tela seria redundante. No-op fora da
   // TV (`tizenColorKey.ts`/`tizenMediaKeys.ts`).
   useEffect(() => {
@@ -60,25 +56,28 @@ function App() {
     registerMediaKeys()
   }, [])
 
-  // MigraÃ§Ã£o Ãºnica e atualizaÃ§Ã£o por idade (feature 004, D-004): a TV sÃ³
-  // avisa "abri esta fonte" â€” quem decide migrar/atualizar/nada Ã© o
-  // backend. Fica no componente raiz, nÃ£o em telas, porque a atualizaÃ§Ã£o
-  // pode terminar depois que o usuÃ¡rio jÃ¡ navegou para outra tela, e o
-  // acompanhamento nÃ£o pode se perder na troca.
+  // Feature 065 (FR-022, SC-011): aquece só o código do próximo destino provável da tela atual.
+  useRouteWarmup(screen.name)
+
+  // Migração única e atualização por idade (feature 004, D-004): a TV só
+  // avisa "abri esta fonte" — quem decide migrar/atualizar/nada é o
+  // backend. Fica no componente raiz, não em telas, porque a atualização
+  // pode terminar depois que o usuário já navegou para outra tela, e o
+  // acompanhamento não pode se perder na troca.
   const openSource = useOpenSource()
   const resyncSource = useResyncSource()
   const [autoRefreshJobId, setAutoRefreshJobId] = useState<string | null>(null)
   const autoRefreshJob = useImportJob(autoRefreshJobId)
   const queryClient = useQueryClient()
   // Evita reconciliar duas vezes pro mesmo job (o efeito roda de novo a
-  // cada poll, nÃ£o sÃ³ na virada pra terminal) â€” sem precisar de outro
+  // cada poll, não só na virada pra terminal) — sem precisar de outro
   // setState dentro do efeito pra "desarmar" o acompanhamento.
   const reconciledJobRef = useRef<string | null>(null)
 
-  // Feature 030 (D-009): uma sincronizaÃ§Ã£o de EPG terminou, com sucesso ou
-  // nÃ£o â€” a programaÃ§Ã£o e/ou o estado da fonte mudaram. Fica na raiz pelo
-  // mesmo motivo da atualizaÃ§Ã£o por idade acima: pode terminar depois de a
-  // pessoa jÃ¡ ter navegado para outra tela.
+  // Feature 030 (D-009): uma sincronização de EPG terminou, com sucesso ou
+  // não — a programação e/ou o estado da fonte mudaram. Fica na raiz pelo
+  // mesmo motivo da atualização por idade acima: pode terminar depois de a
+  // pessoa já ter navegado para outra tela.
   useEffect(
     () =>
       onEpgSyncFinished(() => {
@@ -88,21 +87,21 @@ function App() {
     [queryClient],
   )
 
-  // Feature 034: o fim de uma sincronizaÃ§Ã£o muda a conta, o estado e as contagens da
-  // lista â€” ConfiguraÃ§Ãµes e o cartÃ£o relÃªem em vez de ficarem em Sincronizando.
+  // Feature 034: o fim de uma sincronização muda a conta, o estado e as contagens da
+  // lista — Configurações e o cartão relêem em vez de ficarem em Sincronizando.
   useEffect(() => {
     return onSourceSyncFinished(() => {
       void queryClient.invalidateQueries({ queryKey: ['sources'] })
       void queryClient.invalidateQueries({ queryKey: ['catalog-counts'] })
-      // O Ã­ndice de busca (vitrine, Todos, Top 10/Dica) Ã© do catÃ¡logo da geraÃ§Ã£o ativa: uma sincronizaÃ§Ã£o o troca.
+      // O índice de busca (vitrine, Todos, Top 10/Dica) é do catálogo da geração ativa: uma sincronização o troca.
       void queryClient.invalidateQueries({ queryKey: ['catalog-search-index'] })
     })
   }, [queryClient])
 
-  // Observador ativo da lista de fontes na raiz: mantÃ©m `['sources']` vivo
-  // durante a sessÃ£o e dÃ¡ ao InÃ­cio a versÃ£o mais nova da fonte ativa (o
-  // `activeSource` do redutor Ã© sÃ³ o retrato do momento da escolha â€” uma
-  // sincronizaÃ§Ã£o depois dele pode ter mudado o selo de Modo limitado).
+  // Observador ativo da lista de fontes na raiz: mantém `['sources']` vivo
+  // durante a sessão e dá ao Início a versão mais nova da fonte ativa (o
+  // `activeSource` do redutor é só o retrato do momento da escolha — uma
+  // sincronização depois dele pode ter mudado o selo de Modo limitado).
   const sourcesQuery = useSources()
   const startupReady = useStartupReadiness(sourcesQuery.isSuccess || sourcesQuery.isError)
   const currentSource: SourceOut | null = activeSource
@@ -114,30 +113,30 @@ function App() {
     if (!autoRefreshJobId || !status || !TERMINAL_STATUSES.includes(status)) return
     if (reconciledJobRef.current === autoRefreshJobId) return
     reconciledJobRef.current = autoRefreshJobId
-    // O catÃ¡logo pode ter sido substituÃ­do (D-002) â€” invalida em vez de
+    // O catálogo pode ter sido substituído (D-002) — invalida em vez de
     // assumir; quem estiver com a tela de canais montada revalida sozinho,
-    // reconciliando o foco por identidade (LiveScreen). Fonte de falha nÃ£o
-    // muda nada visÃ­vel aqui: connection_state/last_successful_sync_at jÃ¡
-    // nÃ£o avanÃ§am no backend quando o job falha (FR-023).
+    // reconciliando o foco por identidade (LiveScreen). Fonte de falha não
+    // muda nada visível aqui: connection_state/last_successful_sync_at já
+    // não avançam no backend quando o job falha (FR-023).
     void queryClient.invalidateQueries({ queryKey: ['catalog-items'] })
     void queryClient.invalidateQueries({ queryKey: ['catalog-counts'] })
     void queryClient.invalidateQueries({ queryKey: ['catalog-item'] })
     void queryClient.invalidateQueries({ queryKey: ['sources'] })
     // Feature 038: a estrutura pode ter mudado (categorias novas/removidas,
-    // renovaÃ§Ã£o pedida) â€” a trilha relÃª e a prÃ©-carga relÃª o disco.
+    // renovação pedida) — a trilha relê e a pré-carga relê o disco.
     void queryClient.invalidateQueries({ queryKey: ['categories'] })
     void queryClient.invalidateQueries({ queryKey: ['category-content'] })
     void queryClient.invalidateQueries({ queryKey: ['catalog-search-index'] })
     wakePrefetch()
   }, [autoRefreshJobId, autoRefreshJob.data?.status, queryClient])
 
-  // Feature 038 (D-010): a prÃ©-carga acompanha a lista ativa.
+  // Feature 038 (D-010): a pré-carga acompanha a lista ativa.
   usePrefetchForSource(activeSource?.id ?? null)
 
   /**
    * Feature 042: "Editar lista" do erro de fonte do player (credencial recusada,
-   * conta expirada). Empilha a ediÃ§Ã£o da lista pelo id â€” a camada do player
-   * desmonta junto da tela, entÃ£o nÃ£o sobra Ã¡udio nem plano de vÃ­deo.
+   * conta expirada). Empilha a edição da lista pelo id — a camada do player
+   * desmonta junto da tela, então não sobra áudio nem plano de vídeo.
    */
   function editSourceFromPlayer(sourceId: string, from: AppScreen) {
     const target = sourcesQuery.data?.sources.find((candidate) => candidate.id === sourceId) ?? currentSource
@@ -147,16 +146,16 @@ function App() {
 
   /**
    * Escolher uma lista (feature 023, FR-005/FR-006/FR-007): vira a fonte
-   * ativa e abre o InÃ­cio dela com a pilha zerada, grava a "Ãºltima usada" e
-   * dispara a mesma verificaÃ§Ã£o de atualizaÃ§Ã£o por idade que abrir uma fonte
+   * ativa e abre o Início dela com a pilha zerada, grava a "última usada" e
+   * dispara a mesma verificação de atualização por idade que abrir uma fonte
    * sempre disparou (feature 004).
    */
   function chooseSource(source: SourceOut) {
-    // Feature 034 (US2, `logic/conta-da-fonte.md` Â§5): uma lista Xtream com
-    // conta vencida/recusada â€” ou ainda por verificar â€” passa pela tela de
-    // acesso em vez de abrir o InÃ­cio. M3U avulsa e Modo limitado nunca passam
-    // (FR-022). Nada abaixo (Ãºltima lista usada, prÃ©-carga, atualizaÃ§Ã£o por
-    // idade) acontece enquanto o acesso nÃ£o abrir (D-004, D-007).
+    // Feature 034 (US2, `logic/conta-da-fonte.md` §5): uma lista Xtream com
+    // conta vencida/recusada — ou ainda por verificar — passa pela tela de
+    // acesso em vez de abrir o Início. M3U avulsa e Modo limitado nunca passam
+    // (FR-022). Nada abaixo (última lista usada, pré-carga, atualização por
+    // idade) acontece enquanto o acesso não abrir (D-004, D-007).
     if (decideSourceAccess(source, Date.now()).action !== 'open') {
       dispatch({
         type: 'open',
@@ -168,16 +167,16 @@ function App() {
     enterSource(source)
   }
 
-  /** O que escolher uma lista sempre fez (feature 023) â€” agora sÃ³ depois de o acesso abrir. */
+  /** O que escolher uma lista sempre fez (feature 023) — agora só depois de o acesso abrir. */
   function enterSource(source: SourceOut) {
     dispatch({ type: 'choose-source', source })
     writeLastSourceId(source.id)
     // Mesma lista de antes (ex.: "Abrir lista" depois de ressincronizar): a
-    // prÃ©-carga jÃ¡ roda, mas a estrutura pode ter mudado â€” relÃª o disco.
+    // pré-carga já roda, mas a estrutura pode ter mudado — relê o disco.
     wakePrefetch()
-    // Fogo e esquece: a leitura do catÃ¡logo sempre serve o que estÃ¡
-    // publicado agora (cache-first, ADR-002); a navegaÃ§Ã£o nunca espera essa
-    // decisÃ£o.
+    // Fogo e esquece: a leitura do catálogo sempre serve o que está
+    // publicado agora (cache-first, ADR-002); a navegação nunca espera essa
+    // decisão.
     openSource.mutate(source.id, {
       onSuccess: (result) => {
         if (result.triggered && result.import_job_id) {
@@ -189,8 +188,8 @@ function App() {
 
   /**
    * Detalhe â†’ outro detalhe (Semelhantes, feature 035, `logic/navegacao-detalhe.md`
-   * Â§1): empilha a tela de origem jÃ¡ com o snapshot de onde o foco estava, para
-   * o RETURN restaurar aba e cartÃ£o por identidade.
+   * §1): empilha a tela de origem já com o snapshot de onde o foco estava, para
+   * o RETURN restaurar aba e cartão por identidade.
    */
   function openDetail(target: OpenTitleTarget, from: AppScreen) {
     dispatch({
@@ -203,21 +202,21 @@ function App() {
     })
   }
 
-  /** Elenco â†’ pÃ¡gina de ator (feature 035, US4); RETURN volta ao detalhe com a aba Elenco e a pessoa focada. */
+  /** Elenco → página de ator (feature 035, US4); RETURN volta ao detalhe com a aba Elenco e a pessoa focada. */
   function openPerson(person: OpenPersonTarget, from: AppScreen) {
     dispatch({ type: 'open', screen: { name: 'person', personId: person.personId, personName: person.name }, from })
   }
 
-  /** "Configurar TMDB" da aba Semelhantes â†’ ConfiguraÃ§Ãµes â€º IntegraÃ§Ãµes & BYOK; RETURN volta ao detalhe. */
+  /** "Configurar TMDB" da aba Semelhantes → Configurações › Integrações & BYOK; RETURN volta ao detalhe. */
   function openTmdbSettings(from: AppScreen) {
     dispatch({ type: 'open', screen: { name: 'settings', restore: { zone: 'panel', tab: 'integrations' } }, from })
   }
 
   /**
-   * "Abrir lista" no fim de uma importaÃ§Ã£o (FR-038). Sempre relÃª a lista de
-   * fontes antes: `useCreateSource` nÃ£o invalida `['sources']`, entÃ£o o
-   * cache pode ainda nem ter a lista nova, ou tÃª-la com o estado de antes da
-   * importaÃ§Ã£o (sem o selo de Modo limitado que ela acabou de ganhar).
+   * "Abrir lista" no fim de uma importação (FR-038). Sempre relê a lista de
+   * fontes antes: `useCreateSource` não invalida `['sources']`, então o
+   * cache pode ainda nem ter a lista nova, ou tê-la com o estado de antes da
+   * importação (sem o selo de Modo limitado que ela acabou de ganhar).
    */
   async function openImportedSource(sourceId: string) {
     await queryClient.refetchQueries({ queryKey: ['sources'] })
@@ -231,9 +230,9 @@ function App() {
 
   /**
    * Ressincroniza a fonte a partir de uma tela de categoria (feature 014,
-   * D-008): o conteÃºdo guardado de uma categoria `stored` sumiu do
-   * aparelho, e "Tentar de novo" nÃ£o resolve isso â€” sÃ³ uma importaÃ§Ã£o
-   * nova. Navega pra tela de progresso; "Abrir lista" volta ao InÃ­cio da
+   * D-008): o conteúdo guardado de uma categoria `stored` sumiu do
+   * aparelho, e "Tentar de novo" não resolve isso — só uma importação
+   * nova. Navega pra tela de progresso; "Abrir lista" volta ao Início da
    * fonte ativa (FR-033).
    */
   function resyncFromCategoryScreen(sourceId: string) {
@@ -244,7 +243,7 @@ function App() {
 
   const goBack = () => dispatch({ type: 'back' })
 
-  /** Topbar de Filmes/SÃ©ries (vitrine e categoria; sem rodapÃ©): "InÃ­cio" vai ao InÃ­cio mais prÃ³ximo da pilha (026, D-006). */
+  /** Topbar de Filmes/Séries (vitrine e categoria; sem rodapé): "Início" vai ao Início mais próximo da pilha (026, D-006). */
   const vodShell = (src: SourceOut, current: Extract<AppScreen, { name: 'movies' | 'series' | 'movies-category' | 'series-category' }>) => ({
     sourceName: src.display_name,
     onGoHome: () => dispatch({ type: 'go-home' }),
@@ -253,12 +252,12 @@ function App() {
     onOpenSettings: () => dispatch({ type: 'open', screen: { name: 'settings' }, from: { ...current, topbarFocus: 'settings' } }),
     onOpenSearch: () => dispatch({ type: 'open', screen: { name: 'search' }, from: { ...current, topbarFocus: 'search' } }),
   })
-  // EstÃ¡vel de propÃ³sito: `SplashScreen` reagenda o timer a cada mudanÃ§a da
+  // Estável de propósito: `SplashScreen` reagenda o timer a cada mudança da
   // identidade do callback, e este componente re-renderiza com as consultas.
   const finishSplash = useCallback(() => dispatch({ type: 'splash-finished' }), [])
 
-  // Toda tela abaixo do InÃ­cio existe sÃ³ com uma fonte ativa â€” o Ãºnico caminho
-  // atÃ© elas Ã© escolher uma lista. Sem fonte nÃ£o hÃ¡ o que mostrar.
+  // Toda tela abaixo do Início existe só com uma fonte ativa — o único caminho
+  // até elas é escolher uma lista. Sem fonte não há o que mostrar.
   const source = currentSource
 
   const route = (() => {
@@ -272,7 +271,7 @@ function App() {
           mode={screen.mode}
           initialFocusSourceId={screen.focusSourceId ?? readLastSourceId()}
           onChooseSource={chooseSource}
-          // Voltar do cadastro cai em "Adicionar lista", nÃ£o na Ãºltima lista
+          // Voltar do cadastro cai em "Adicionar lista", não na última lista
           // usada (feature 037, FR-019/D-007): a pilha guarda este `from`.
           onAddSource={() =>
             dispatch({
@@ -284,7 +283,7 @@ function App() {
           onEditSource={(sourceToEdit) => dispatch({ type: 'open', screen: { name: 'edit-source', source: sourceToEdit } })}
           onResyncStarted={(jobId) => dispatch({ type: 'open', screen: { name: 'progress', jobId } })}
           onSourceDeleted={(sourceId) => dispatch({ type: 'source-removed', sourceId })}
-          // "Gerenciar listas" (feature 026, FR-032): ConfiguraÃ§Ãµes â€º Fontes
+          // "Gerenciar listas" (feature 026, FR-032): Configurações › Fontes
           // IPTV sem lista ativa, sem topbar (`standalone`).
           onManageSources={() => dispatch({ type: 'open', screen: { name: 'settings', standalone: true } })}
           onBack={goBack}
@@ -294,7 +293,7 @@ function App() {
     case 'source-access':
       return (
         <SourceAccessRoute
-          // A versÃ£o mais nova da lista: voltar de "Editar lista" jÃ¡ traz a conta atualizada.
+          // A versão mais nova da lista: voltar de "Editar lista" já traz a conta atualizada.
           source={sourcesQuery.data?.sources.find((candidate) => candidate.id === screen.source.id) ?? screen.source}
           onOpen={enterSource}
           onEdit={(sourceToEdit) => dispatch({ type: 'open', screen: { name: 'edit-source', source: sourceToEdit } })}
@@ -342,8 +341,8 @@ function App() {
         <HomeScreen
           source={source}
           initialFocus={screen.focus}
-          // Feature 038 (US6): a atualizaÃ§Ã£o automÃ¡tica por idade roda calada â€”
-          // o InÃ­cio diz "Atualizando catÃ¡logoâ€¦" enquanto ela nÃ£o termina.
+          // Feature 038 (US6): a atualização automática por idade roda calada —
+          // o Início diz "Atualizando catálogo…" enquanto ela não termina.
           updating={
             autoRefreshJob.data?.source_id === source.id && !TERMINAL_STATUSES.includes(autoRefreshJob.data.status)
           }
@@ -396,20 +395,20 @@ function App() {
           initialTopbarItem={screen.topbarFocus}
           onBack={goBack}
           onResync={() => resyncFromCategoryScreen(source.id)}
-          // Reempilha a Live SEM `initialChannel` (nunca com ele) â€” senÃ£o voltar da
-          // ediÃ§Ã£o tocaria o canal de novo (mesma regra da Busca/ConfiguraÃ§Ãµes).
+          // Reempilha a Live SEM `initialChannel` (nunca com ele) — senão voltar da
+          // edição tocaria o canal de novo (mesma regra da Busca/Configurações).
           onEditSource={(sourceId) => editSourceFromPlayer(sourceId, { name: 'live' })}
           shell={{
             sourceName: source.display_name,
-            // "InÃ­cio" na topbar leva ao InÃ­cio mais prÃ³ximo da pilha, nunca
-            // `back` (feature 026, D-006 â€” a Live agora tambÃ©m pode ser
-            // aberta a partir da Busca; `back` voltaria pra lÃ¡, nÃ£o pro InÃ­cio).
+            // "Início" na topbar leva ao Início mais próximo da pilha, nunca
+            // `back` (feature 026, D-006 — a Live agora também pode ser
+            // aberta a partir da Busca; `back` voltaria pra lá, não pro Início).
             onGoHome: () => dispatch({ type: 'go-home' }),
             onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
             onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
-            // Empilha a Live SEM `initialChannel` (nunca com ele) â€” senÃ£o
-            // voltar da Busca/ConfiguraÃ§Ãµes tocaria o canal de novo
-            // (feature 026, `logic/navegacao.md` Â§3).
+            // Empilha a Live SEM `initialChannel` (nunca com ele) — senão
+            // voltar da Busca/Configurações tocaria o canal de novo
+            // (feature 026, `logic/navegacao.md` §3).
             onOpenSettings: () =>
               dispatch({ type: 'open', screen: { name: 'settings' }, from: { name: 'live', topbarFocus: 'settings' } }),
             onOpenSearch: () =>
@@ -424,8 +423,8 @@ function App() {
       const isMovies = screen.name === 'movies'
       return (
         <VodShowcaseScreen
-          // Feature 053: Filmes e SÃ©ries sÃ£o a mesma tela; sem `key` o React reaproveitava foco, janela de prÃ©vias e a
-          // lista recolhida de uma seÃ§Ã£o na outra ao trocar pela topbar.
+          // Feature 053: Filmes e Séries são a mesma tela; sem `key` o React reaproveitava foco, janela de prévias e a
+          // lista recolhida de uma seção na outra ao trocar pela topbar.
           key={isMovies ? 'movies' : 'series'}
           section={isMovies ? 'movies' : 'series'}
           sourceId={source.id}
@@ -479,7 +478,7 @@ function App() {
     case 'movie-detail':
       return (
         <MovieDetailScreen
-          // Um detalhe novo (Semelhantes â†’ outro tÃ­tulo) nunca reaproveita o estado do anterior.
+          // Um detalhe novo (Semelhantes → outro título) nunca reaproveita o estado do anterior.
           key={`movie-${screen.movieId}-${history.length}`}
           movieId={screen.movieId}
           restore={screen.restore}

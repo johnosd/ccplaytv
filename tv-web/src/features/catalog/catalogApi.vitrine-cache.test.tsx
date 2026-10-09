@@ -6,7 +6,7 @@ import { useCategoryContent, useRecentlyAdded, useTopRated } from './catalogApi'
 import { db, type CatalogRecord } from '../../lib/catalog/db'
 import { listCategories, renewCategoryItems, storeCategories } from '../../lib/catalog/catalogRepository'
 import * as categoryLoader from '../../lib/catalog/categoryLoader'
-import * as catalogSearch from '../../lib/catalog/catalogSearch'
+import * as derivedRows from '../../lib/catalog/catalogDerivedRows'
 
 /**
  * Bug `tela-principal-filmes-lenta-na-tv`: a vitrine de Filmes relia o índice inteiro do IndexedDB e refazia os `select`
@@ -14,9 +14,10 @@ import * as catalogSearch from '../../lib/catalog/catalogSearch'
  * Aqui: com o índice em cache a 2ª montagem não relê nada, devolve as mesmas listas, e uma categoria nova (invalidação) atualiza.
  */
 
-vi.mock('../../lib/catalog/catalogSearch', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/catalog/catalogSearch')>()
-  return { ...actual, loadSearchIndex: vi.fn(actual.loadSearchIndex) }
+// Feature 065: a vitrine não monta mais o índice do tipo; conta-se a passada bloco a bloco que a substituiu.
+vi.mock('../../lib/catalog/catalogDerivedRows', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/catalog/catalogDerivedRows')>()
+  return { ...actual, iterateKindRecordBatches: vi.fn(actual.iterateKindRecordBatches) }
 })
 
 vi.mock('../../lib/catalog/categoryLoader', async (importOriginal) => {
@@ -59,7 +60,7 @@ async function seed(count: number) {
   return ids
 }
 
-const loadIndex = vi.mocked(catalogSearch.loadSearchIndex)
+const loadIndex = vi.mocked(derivedRows.iterateKindRecordBatches)
 
 beforeEach(() => {
   loadIndex.mockClear()
@@ -86,7 +87,7 @@ describe('vitrine de Filmes — índice em cache (bug tela-principal-filmes-lent
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50))
     })
-    expect(loadIndex).toHaveBeenCalledTimes(1) // o índice foi lido uma vez só
+    expect(loadIndex).toHaveBeenCalledTimes(1) // o tipo foi percorrido uma vez só
   })
 
   it('"Bem avaliados": a 2ª montagem reaproveita a seleção (mesma referência) sem reler o índice', async () => {
