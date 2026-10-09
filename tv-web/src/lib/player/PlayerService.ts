@@ -272,15 +272,15 @@ export interface PlayerServiceOptions {
  * terminal por causa de um callback atrasado do motor — o cuidado que o guia
  * Samsung 06 pede ao trocar de mídia rapidamente.
  *
- * `paused`/`completed` entraram na feature 011. `completed` é terminal exceto
- * por `closed`, como `error` — mesma proteção contra callback atrasado.
+ * `completed` (011) é terminal exceto por `closed`; vem também de `buffering`/`paused` (bug serie-sem-proximo-episodio-
+ * controles-somem: o `<video>` emite `pause` antes de `ended` e o AVPlay pode avisar o fim em `buffering`).
  */
 const ALLOWED_NEXT: Record<PlayerState, PlayerState[]> = {
   idle: ['preparing', 'closed'],
   preparing: ['buffering', 'playing', 'error', 'closed'],
-  buffering: ['playing', 'paused', 'error', 'closed'],
+  buffering: ['playing', 'paused', 'completed', 'error', 'closed'],
   playing: ['buffering', 'paused', 'completed', 'error', 'closed'],
-  paused: ['playing', 'buffering', 'error', 'closed'],
+  paused: ['playing', 'buffering', 'completed', 'error', 'closed'],
   completed: ['closed'],
   error: ['closed'],
   closed: [],

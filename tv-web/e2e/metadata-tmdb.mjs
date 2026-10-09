@@ -379,14 +379,10 @@ async function run() {
       assert((await page.getByRole('button', { name, exact: true }).count()) === 1, `com chave, o card oferece "${name}"`)
     }
 
-    console.log('=== US2: o dock da Home reflete o estado real ===')
+    console.log('=== US2: o estado fica no card de Integrações; o Início não tem mais dock (ad-hoc 2026-10-09) ===')
     await page.keyboard.press('Escape') // Configurações → Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
-    assert((await page.getByRole('button', { name: 'TMDB — conectado' }).count()) === 1, 'dock mostra "TMDB — conectado"')
-    assert(
-      (await page.getByRole('button', { name: 'TMDB — conectado' }).getAttribute('aria-disabled')) === null,
-      'o ícone TMDB do dock deixou de ser soft disabled',
-    )
+    assert((await page.locator('.home-dock, .home-hero-dock').count()) === 0, 'o Início não tem dock de serviços')
 
     console.log('=== US3: o TMDB preenche só a lacuna, com o selo "Dados: TMDB" ===')
     const tmdbBefore = hits.tmdb.length
@@ -471,7 +467,7 @@ async function run() {
     await page.waitForSelector('.integration-card-state:has-text("Não configurado")', { timeout: 8000 })
     await page.keyboard.press('Escape')
     await page.waitForSelector('.home-content', { timeout: 8000 })
-    assert((await page.getByRole('button', { name: 'TMDB — não configurado' }).count()) === 1, 'o dock volta a "TMDB — não configurado"')
+    assert((await page.locator('.home-dock, .home-hero-dock').count()) === 0, 'sem chave, o Início continua sem dock')
 
     await openViaTopbar(page, 'movies')
     await enterFirstRealCategory(page)

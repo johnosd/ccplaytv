@@ -86,7 +86,10 @@ async function paraInicio(page) {
   await page.waitForSelector('.home-content', { timeout: 10000 })
 }
 
-/** Da Home, vai ao destino da topbar (índice: home 0, live 1, movies 2, series 3, [um item "Em breve" 4], search 5, settings 6). */
+/**
+ * Da Home, vai ao destino da topbar (índice: home 0, live 1, movies 2, series 3, lista ativa 4, settings 5; a lupa está
+ * escondida desde o ad-hoc de 2026-10-09 — `6` também cai na engrenagem, a última).
+ */
 async function viaTopbar(page, indice) {
   for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
   for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
@@ -149,11 +152,6 @@ async function percorrer(page, lang) {
   await viaTopbar(page, 3)
   await page.waitForSelector('.side-category-nav-item', { timeout: 8000 })
   await scan(page, 'Séries', lang)
-
-  await paraInicio(page)
-  await viaTopbar(page, 5)
-  await page.waitForSelector('.search-screen', { timeout: 8000 })
-  await scan(page, 'Busca', lang)
 
   await paraInicio(page)
   await viaTopbar(page, 6)

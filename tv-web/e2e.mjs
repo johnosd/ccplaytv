@@ -191,18 +191,10 @@ async function run() {
       'RETURN em Filmes aberto pelo atalho do hero devolve o foco à ação "Abrir Filmes"',
     )
 
-    console.log('=== FR-035/FR-021 (feature 026): Buscar e Configurações agora são reais, não mais "Em breve" ===')
-    await page.keyboard.press('ArrowUp') // hero -> dock (feature 060)
-    await page.keyboard.press('ArrowUp') // dock -> topbar (sempre pousa em "Início")
-    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight') // Início → … → Buscar
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.search-screen', { timeout: 8000 })
-    assert(true, 'OK em "Buscar" abre a tela de busca de verdade (deixou de ser "Em breve" na feature 026)')
-    await page.keyboard.press('Escape') // campo nunca ganhou foco DOM (teclado não abriu) — RETURN sai direto
-    await page.waitForSelector('.home-content', { timeout: 8000 })
-
-    await page.keyboard.press('ArrowUp')
-    for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowRight') // Início → … → Configurações
+    console.log('=== FR-021 (feature 026): Configurações é real; a lupa da busca global está escondida (ad-hoc 2026-10-09) ===')
+    await page.keyboard.press('ArrowUp') // hero -> topbar (sempre pousa em "Início"; sem dock desde o ad-hoc de 2026-10-09)
+    assert((await page.locator('.topbar button[aria-label="Buscar"]').count()) === 0, 'a topbar não tem a lupa')
+    for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowRight') // Início → … → Configurações (a última)
     await page.keyboard.press('Enter')
     await page.waitForSelector('.settings-screen', { timeout: 8000 })
     assert(true, 'OK em "Configurações" abre a tela de configurações de verdade (deixou de ser "Em breve" na feature 026)')
@@ -218,8 +210,7 @@ async function run() {
     assert((await page.locator('.topbar .tv-focus').getAttribute('aria-label')) === 'Configurações', 'cancelar a saída devolve o foco onde estava (o botão é só ícone: o nome está no aria-label)')
 
     console.log('=== US2/AC6-AC7: trocar de lista pelo indicador ===')
-    await page.keyboard.press('ArrowLeft') // Configurações → Buscar
-    await page.keyboard.press('ArrowLeft') // Buscar → indicador da lista
+    await page.keyboard.press('ArrowLeft') // Configurações → indicador da lista (sem a lupa entre eles)
     await page.keyboard.press('Enter')
     await page.waitForSelector('.source-card', { timeout: 8000 })
     assert((await focusedText(page, '.source-card-wrap')).join('|').includes('Lista E2E Um'), 'os perfis abrem com o foco na lista ativa')

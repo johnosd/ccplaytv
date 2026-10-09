@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { db } from '../catalog/db'
 import { buildStableId, getUserState, updateProgress } from '../catalog/userStateRepository'
-import { createProgressRecorder, type ProgressRecorderIdentity } from './progressRecorder'
+import { createProgressRecorder, settleWithin, type ProgressRecorderIdentity } from './progressRecorder'
 import { RESUME_MIN_SECONDS, PROGRESS_WRITE_INTERVAL_SECONDS } from './resumePolicy'
 
 const IDENTITY: ProgressRecorderIdentity = { stableId: 'src1|movie|id:100', sourceId: 'src1' }
@@ -236,6 +236,47 @@ describe('progressRecorder', () => {
       expect(state?.completedAt).toBeUndefined()
       expect(state?.progressSeconds).toBeUndefined()
     })
+  })
+})
+
+// Bug serie-sem-proximo-episodio-controles-somem: passado o limiar final, cada tique enfileirava outra transação de conclusão no
+// IndexedDB (lento na TV), e a navegação para o próximo episódio esperava a escrita sem prazo.
+describe('progressRecorder — conclusão sem fila nem espera presa', () => {
+  beforeEach(async () => {
+    await db.userStates.clear()
+  })
+
+  it('depois do limiar final, os tiques seguintes não gravam "concluído" de novo', async () => {
+    const recorder = createProgressRecorder(IDENTITY, true, db, { recordCompletion: true })
+    const put = vi.spyOn(db.userStates, 'put')
+    for (let s = 590; s <= 600; s += 1) recorder.onProgress(s * 1000, 600_000)
+    await flush()
+    await flush()
+    expect(put).toHaveBeenCalledTimes(1)
+    expect((await getUserState(IDENTITY.stableId))?.completedAt).toBeTypeOf('number')
+    put.mockRestore()
+  })
+
+  it('settleWithin: segue em frente se a escrita falha ou demora; sem aviso quando dá certo', async () => {
+    vi.useFakeTimers()
+    try {
+      const reasons: string[] = []
+      const ok = settleWithin(Promise.resolve(), 1500, (why) => reasons.push(why))
+      const failed = settleWithin(Promise.reject(new Error('IDB')), 1500, (why) => reasons.push(why))
+      let slowDone = false
+      const slow = settleWithin(new Promise(() => {}), 1500, (why) => reasons.push(why)).then(() => {
+        slowDone = true
+      })
+      await ok
+      await failed
+      expect(slowDone).toBe(false)
+      await vi.advanceTimersByTimeAsync(1500)
+      await slow
+      expect(slowDone).toBe(true)
+      expect(reasons).toEqual(['falhou', 'prazo'])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

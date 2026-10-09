@@ -99,6 +99,7 @@ update-bug-status.ps1.
 | lista-xtream-nao-atualiza-novos-filmes | Lista Xtream não traz filmes/séries/canais novos ao abrir o app | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-09 |
 | categoria-aberta-nao-mostra-itens-novos | Categoria aberta não mostra itens novos na TV mesmo após atualizar a lista | Test | verified | Concluído | 2026-10-09 |
 | abrir-app-nao-atualiza-todas-categorias | Abrir o app não atualiza todas as categorias (tela principal sem os recém-adicionados) | Test | verified | Concluído | 2026-10-09 |
+| serie-sem-proximo-episodio-controles-somem | Série — fim do episódio não chama o próximo; controles somem no 2º episódio | Test | verified | Concluído | 2026-10-09 |
 
 ## Melhorias Ad-hoc
 

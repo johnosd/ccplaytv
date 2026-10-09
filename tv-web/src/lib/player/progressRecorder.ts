@@ -102,6 +102,8 @@ export function createProgressRecorder(
     if (!identity) return Promise.resolve()
 
     if (isPastEnd(positionMs, durationMs, options.completionRatio)) {
+      // Uma vez só: cada tique depois do limiar enfileirava outra transação de conclusão no IndexedDB (lento na TV).
+      if (clearedThisSession) return Promise.resolve()
       clearedThisSession = true
       return clear()
     }
@@ -134,4 +136,32 @@ export function createProgressRecorder(
       await apply(lastKnownMs, lastKnownDurationMs)
     },
   }
+}
+
+/** Quanto a navegação depois da conclusão espera pela gravação de "concluído" antes de seguir mesmo assim. */
+export const COMPLETION_WRITE_TIMEOUT_MS = 1500
+
+/**
+ * Resolve quando `promise` termina — com sucesso OU falha — ou quando `ms` passa, o que vier primeiro (bug
+ * `serie-sem-proximo-episodio-controles-somem`: na TV, esperar a escrita da conclusão sem prazo deixava a tela preta, sem a
+ * contagem do próximo). `onGiveUp` só informa o motivo ('falhou'/'prazo'), nunca dado da mídia.
+ */
+export function settleWithin(promise: Promise<unknown>, ms: number, onGiveUp?: (why: 'falhou' | 'prazo') => void): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      onGiveUp?.('prazo')
+      resolve()
+    }, ms)
+    promise.then(
+      () => {
+        clearTimeout(timer)
+        resolve()
+      },
+      () => {
+        clearTimeout(timer)
+        onGiveUp?.('falhou')
+        resolve()
+      },
+    )
+  })
 }

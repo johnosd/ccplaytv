@@ -431,14 +431,13 @@ export function SeriesDetailScreen({
     enabled: episodesNavigable,
   })
 
-  // Com o hero Cinema (059) a lista de episódios fica abaixo da dobra e passa a ter o tamanho do
-  // próprio conteúdo: quem rola é a página (`.vod-detail`), não a lista, e o `scrollToIndex` acima
-  // não a alcança. O foco é estado + `tv-focus`, não foco de DOM, então nada rola sozinho:
-  // trazemos a linha focada à vista. Só rolagem — focar nunca inicia reprodução nem consulta.
+  // Hero Cinema (059): quem rola é a página (`.vod-detail`), não a lista — o `scrollToIndex` acima não a alcança e o foco é
+  // estado, então trazemos a linha focada à vista. Só rolagem, e só navegando: com o player aberto rolar a página tirava o
+  // chrome da tela (bug serie-sem-proximo-episodio-controles-somem); ao voltar à lista, o episódio focado vem à vista.
   useEffect(() => {
-    if (row !== 'season' && row !== 'episodes') return
+    if (mode.kind !== 'browsing' || (row !== 'season' && row !== 'episodes')) return
     rootRef.current?.querySelector<HTMLElement>('.tv-focus')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
-  }, [row, episodeIdx, activeTab])
+  }, [row, episodeIdx, activeTab, mode.kind])
 
   /**
    * `undefined` (motor decide) e `0` não existem aqui como distinção —

@@ -3,6 +3,9 @@
 // tinha de continuar dentro da tela (1920×1080); antes da correção ela saía na 1ª seta ↓ e `.vod-detail` ficava com
 // `scrollTop` 0. Painel Xtream FICTÍCIO com uma temporada de 14 episódios (o roteiro 025 só tem 2, por isso nunca viu isto).
 //
+// Também trava o bug `serie-sem-proximo-episodio-controles-somem`: o chrome do player fica na tela ao trocar de episódio pelo
+// "Próximo episódio" e ao abrir um episódio com a página rolada, e o fim real do vídeo (`pause` + `ended`) chama a contagem.
+//
 // Pré-requisito: `npm run dev` rodando (http://localhost:5173).
 
 import { createServer } from 'node:http'
@@ -239,6 +242,59 @@ async function run() {
     await page.waitForFunction(() => document.querySelector('.vod-detail')?.scrollTop === 0, null, { timeout: 4000 })
     assert(((await snap()).pageScroll ?? -1) === 0, 'de volta às ações, a página volta ao topo e o hero reaparece inteiro')
     assert((await page.locator('.tv-focus').count()) >= 1, 'sempre há um elemento com foco na tela')
+
+    // Bug `serie-sem-proximo-episodio-controles-somem`: (2) a camada do player rolava junto com a página do detalhe e o chrome
+    // saía da tela; (1) o fim real do `<video>` (`pause` antes de `ended`) era descartado e não vinha a contagem do próximo.
+    const overlayGeo = () =>
+      page.evaluate(() => {
+        const ov = document.querySelector('.player-overlay')?.getBoundingClientRect()
+        const btn = document.querySelector('.player-chrome-button')?.getBoundingClientRect()
+        return { overlayTop: ov ? Math.round(ov.top) : null, chromeTop: btn ? Math.round(btn.top) : null, chromeBottom: btn ? Math.round(btn.bottom) : null, vh: innerHeight }
+      })
+    const chromeOnScreen = (g) => g.overlayTop === 0 && g.chromeTop !== null && g.chromeTop >= 0 && g.chromeBottom <= g.vh
+    const focusedControl = () => page.evaluate(() => document.querySelector('.player-chrome-button.tv-focus')?.getAttribute('aria-label') ?? '')
+
+    console.log('=== "Próximo episódio" no player troca de episódio sem tirar o chrome da tela ===')
+    await page.keyboard.press('Enter') // ação primária: episódio 1
+    await page.waitForSelector('.player-video', { timeout: 8000 })
+    await fireVideoEvent(page, 'playing')
+    await setPartialProgress(page, 100, 600)
+    // O chrome abre já revelado, com o foco em "Pausar" (↑ levaria o foco à barra de tempo).
+    for (let i = 0; i < 8 && !/Próximo episódio/.test(await focusedControl()); i += 1) await page.keyboard.press('ArrowRight')
+    assert(/Próximo episódio/.test(await focusedControl()), 'o foco chegou em "Próximo episódio" no chrome')
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('[role="dialog"][aria-label="Reproduzindo Episodio 2"]', { timeout: 8000 })
+    await fireVideoEvent(page, 'playing')
+    await setPartialProgress(page, 50, 600)
+    await page.keyboard.press('ArrowUp')
+    await page.waitForTimeout(300)
+    let g = await overlayGeo()
+    assert(chromeOnScreen(g), `episódio 2: camada no topo e chrome dentro da tela (camada ${g.overlayTop}, chrome ${g.chromeTop}–${g.chromeBottom} de ${g.vh})`)
+
+    console.log('=== Episódio aberto pela lista com a página rolada: chrome na tela ===')
+    await page.keyboard.press('Escape') // fecha o player; foco no episódio 2 da lista
+    await page.waitForSelector('.player-overlay', { state: 'detached', timeout: 8000 })
+    for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowDown') // desce na lista: a página rola
+    await page.waitForTimeout(300)
+    const scrolledBefore = (await snap()).pageScroll ?? 0
+    assert(scrolledBefore > 0, `a página do detalhe está rolada antes de abrir o episódio (${scrolledBefore}px)`)
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('.player-video', { timeout: 8000 })
+    await fireVideoEvent(page, 'playing')
+    await setPartialProgress(page, 50, 600)
+    await page.keyboard.press('ArrowUp')
+    await page.waitForTimeout(300)
+    g = await overlayGeo()
+    assert(chromeOnScreen(g), `episódio da lista: camada no topo e chrome dentro da tela (camada ${g.overlayTop}, chrome ${g.chromeTop}–${g.chromeBottom})`)
+
+    console.log('=== Fim real do vídeo (pause antes de ended) chama a contagem do próximo ===')
+    await setPartialProgress(page, 599, 600)
+    await fireVideoEvent(page, 'pause')
+    await fireVideoEvent(page, 'ended')
+    await page.waitForSelector('[role="dialog"][aria-label="Próximo episódio"]', { timeout: 8000 })
+    assert(true, 'a contagem "Próximo episódio" apareceu')
+    g = await overlayGeo()
+    assert(g.overlayTop === 0, `a contagem também fica presa à tela (topo ${g.overlayTop})`)
   } catch (error) {
     console.error('  ✗ ERRO NO ROTEIRO:', error)
     failures += 1

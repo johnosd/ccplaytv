@@ -16,7 +16,7 @@ import {
   type PlayerServiceSession,
   type PlayerState,
 } from '../../lib/player/PlayerService'
-import { createProgressRecorder, type ProgressRecorder, type ProgressRecorderIdentity } from '../../lib/player/progressRecorder'
+import { COMPLETION_WRITE_TIMEOUT_MS, createProgressRecorder, settleWithin, type ProgressRecorder, type ProgressRecorderIdentity } from '../../lib/player/progressRecorder'
 import { MOVIE_WATCHED_RATIO } from '../../lib/player/resumePolicy'
 import { disableScreenSaver, enableScreenSaver } from '../../lib/player/screenSaver'
 import { diagnoseFetchFailure, diagnosePlayback, type PlaybackDiagnosis } from '../../lib/player/playbackDiagnosis'
@@ -414,13 +414,11 @@ export function usePlayerSession({
           // tela quer decidir o que vem depois (autoplay) em vez de só sair.
           if (session.state === 'completed' && previousState !== 'completed') {
             previousState = session.state
-            // Aguarda a escrita (markCompleted/clearProgress) terminar ANTES
-            // de fechar — achado real na feature 019, T023: fechar direto
-            // disparava a invalidação de `useUserState` numa corrida com a
-            // transação de conclusão ainda em voo (2 operações Dexie
-            // sequenciais), e o refetch mais simples podia vencer, deixando
-            // a tela presa no estado antigo até remontar.
-            void recorder.onExit('completed').then(() => {
+            // Aguarda a escrita (markCompleted/clearProgress) ANTES de fechar — fechar direto
+            // corria com a invalidação de `useUserState` (feature 019, T023) e a tela ficava no
+            // estado antigo. Com prazo e sem depender de sucesso: na TV a escrita pode falhar ou
+            // demorar, e esperar sem prazo deixava a tela preta (bug serie-sem-proximo-episodio-controles-somem).
+            void settleWithin(recorder.onExit('completed'), COMPLETION_WRITE_TIMEOUT_MS).then(() => {
               if (cancelled) return
               // Feature 058 (FR-013): no arquivo, quem decide o seguinte é a tela.
               ;(currentArchive ? (onArchiveEndedRef.current ?? onClose) : (onCompleted ?? onClose))()

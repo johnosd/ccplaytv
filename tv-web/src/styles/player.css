@@ -11,7 +11,10 @@
 /* ---------- Camada (`.player-overlay`) e plano de hardware ---------- */
 
 .player-overlay {
-  position: absolute;
+  /* `fixed`, não `absolute`: no detalhe de filme/série a camada fica DENTRO de `.screen.vod-detail`, que é quem rola — com
+     `absolute` ela rolava junto e o chrome saía da tela (bug serie-sem-proximo-episodio-controles-somem). O palco (`Stage`) tem
+     `transform`, então o bloco de contenção é o próprio palco 1920×1080, fora de qualquer área que rola. */
+  position: fixed;
   inset: 0;
   /* Preto opaco, não translúcido: um fundo com blur/transparência parcial
      custa caro no engine da TV (ADR-007 §8). Vale enquanto não há vídeo na
