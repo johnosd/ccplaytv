@@ -40,7 +40,7 @@ export const settings = defineArea(
     'settings.tab.sources': 'Fontes IPTV',
     'settings.tab.player': 'Player & reprodução',
     'settings.tab.accessibility': 'Acessibilidade & sistema',
-    'settings.tab.parental': 'Perfis & parental',
+    'settings.tab.parental': 'Categorias & parental',
     'settings.tab.privacy': 'Privacidade',
     'settings.tab.about': 'Sobre & créditos',
 
@@ -199,7 +199,7 @@ export const settings = defineArea(
     'settings.tab.sources': 'IPTV sources',
     'settings.tab.player': 'Playback',
     'settings.tab.accessibility': 'Accessibility',
-    'settings.tab.parental': 'Profiles & parental',
+    'settings.tab.parental': 'Categories & parental',
     'settings.tab.privacy': 'Privacy',
     'settings.tab.about': 'About & credits',
 
@@ -358,7 +358,7 @@ export const settings = defineArea(
     'settings.tab.sources': 'Fuentes IPTV',
     'settings.tab.player': 'Reproducción',
     'settings.tab.accessibility': 'Accesibilidad',
-    'settings.tab.parental': 'Perfiles y control',
+    'settings.tab.parental': 'Categorías y control',
     'settings.tab.privacy': 'Privacidad',
     'settings.tab.about': 'Créditos',
 

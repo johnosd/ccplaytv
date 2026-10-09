@@ -17,4 +17,10 @@ export function registerLateCatalogSchemas(db: Dexie): void {
     seriesWatchMembers: '[sourceId+generation+seriesId], [sourceId+generation], *stableIds',
     seriesWatchSummaries: '[sourceId+generation+seriesId], [sourceId+generation]',
   })
+  // Feature 066: esconder/bloquear categorias e o PIN parental. Tabelas novas, sem `.upgrade()`.
+  // Acesso tipado em `parentalTables.ts` (a classe `CatalogDb` está no teto de linhas, R-009).
+  db.version(20).stores({
+    categoryPreferences: '[sourceId+kind+matchKey], sourceId',
+    parentalPin: 'id',
+  })
 }

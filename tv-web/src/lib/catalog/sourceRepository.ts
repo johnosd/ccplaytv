@@ -32,6 +32,7 @@ import { deleteEpgForSource } from '../epg/epgRepository'
 import type { EpgStatus } from '../epg/types'
 import type { SourceAccount } from './sourceAccount'
 import type { ArchiveVariant, PanelClock } from './archiveUrl'
+import { categoryPreferences } from './parentalTables'
 
 /** A fonte como as telas a veem — sem credencial, por construção. */
 export interface SourceView {
@@ -225,16 +226,15 @@ export async function updateSource(
 export async function deleteSource(id: string, database: CatalogDb = db): Promise<void> {
   await deleteAllForSource(id, database)
   await database.importRuns.where('[sourceId+status]').between([id, ''], [id, '￿']).delete()
-  // Favoritos e retomada da fonte removida (feature 013, D-007/FR-017) —
-  // uma fonte readicionada ganha `sourceId` novo (UUID), então nada aqui
-  // fica órfão-mas-recuperável; manter o registro só ocuparia espaço.
+  // Favoritos e retomada da fonte removida (feature 013, D-007/FR-017) — uma fonte readicionada ganha
+  // `sourceId` novo (UUID), então nada aqui fica órfão-mas-recuperável; manter o registro só ocuparia espaço.
   await deleteUserStatesForSource(id, database)
-  // Feature 030 (FR-012): a programação e a configuração de EPG (que vive no
-  // próprio registro da fonte) saem junto.
+  // Feature 030 (FR-012): a programação e a configuração de EPG (que vive no próprio registro da fonte) saem junto.
   await deleteEpgForSource(id, database)
-  // Feature 032 (FR-026): a metadata descritiva da fonte (provedor e TMDB)
-  // sai junto. A chave TMDB é da pessoa, não da fonte — fica.
+  // Feature 032 (FR-026): a metadata descritiva da fonte (provedor e TMDB) sai junto; a chave TMDB é da pessoa e fica.
   await database.titleMetadata.where('sourceId').equals(id).delete()
+  // Feature 066 (FR-005): preferências de categoria da lista também; o PIN é do aparelho e fica.
+  await categoryPreferences(database).where('sourceId').equals(id).delete()
   await database.sources.delete(id)
 }
 

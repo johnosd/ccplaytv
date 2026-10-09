@@ -5,6 +5,7 @@ import { detail } from './detail'
 import { errors } from './errors'
 import { home } from './home'
 import { live } from './live'
+import { parental } from './parental'
 import { player } from './player'
 import { playerUi } from './playerUi'
 import { profiles } from './profiles'
@@ -25,6 +26,7 @@ export const en: Record<MessageKey, string> & Record<string, string> = {
   ...errors.en,
   ...home.en,
   ...live.en,
+  ...parental.en,
   ...comingSoon.en,
   ...player.en,
   ...playerUi.en,

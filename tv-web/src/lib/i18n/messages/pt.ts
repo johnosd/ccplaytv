@@ -5,6 +5,7 @@ import { detail } from './detail'
 import { errors } from './errors'
 import { home } from './home'
 import { live } from './live'
+import { parental } from './parental'
 import { player } from './player'
 import { playerUi } from './playerUi'
 import { profiles } from './profiles'
@@ -28,6 +29,7 @@ export const pt = {
   ...errors.pt,
   ...home.pt,
   ...live.pt,
+  ...parental.pt,
   ...comingSoon.pt,
   ...player.pt,
   ...playerUi.pt,

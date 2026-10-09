@@ -5,9 +5,6 @@ sistema sdd-*. Mantido automaticamente por update-feature-status.ps1 e
 update-bug-status.ps1.
 
 ## Ideias Futuras
-- Incluir uma gestão de categorias nas configurações que permita o usuario, colocar senha em categorias ou esconder
-- incluir controle parental para canais adultos
-
 
 ## Features
 
@@ -78,6 +75,7 @@ update-bug-status.ps1.
 | 063-codigo-saudavel-benchmark | Código saudável — divisão do repositório do catálogo, fronteiras e tamanho por lint, benchmark de importação | Convergida | 48/49 tasks | 2026-10-09 |
 | 064-upload-teste-conexao | Upload no teste de conexão da TV | Convergida | 35/36 tasks | 2026-10-09 |
 | 065-otimizacao-carga-consultas-memoria | Otimização de carga, consultas externas, memória e abertura do app | Convergida | 74/74 tasks | 2026-10-09 |
+| 066-categorias-controle-parental | Gestão de categorias e controle parental | Em Execução | 10/48 tasks | 2026-10-09 |
 
 ## Bugs
 

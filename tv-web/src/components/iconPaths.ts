@@ -133,6 +133,11 @@ export const ICON_PATHS = {
     { tag: 'polygon', points: '5 4 15 12 5 20 5 4' },
     { tag: 'line', x1: 19, y1: 5, x2: 19, y2: 19 },
   ],
+  // Feature 066: categoria bloqueada com PIN (cadeado fechado).
+  lock: [
+    { tag: 'rect', x: 5, y: 11, width: 14, height: 10, rx: 2 },
+    { tag: 'path', d: 'M8 11V7a4 4 0 0 1 8 0v4' },
+  ],
 } as const satisfies Record<string, readonly IconShape[]>
 
 export type IconName = keyof typeof ICON_PATHS
