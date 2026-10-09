@@ -387,6 +387,9 @@ async function run() {
     {
       log.length = 0
       const { context, page } = await freshListOpen(browser, panelUrl, 'Lista E2E 038 B')
+      // A pré-carga só começa 2 s depois da última tecla (a digitação do cadastro conta): o cenário é sobre a GRAVAÇÃO
+      // ceder às teclas, então espera o pedido da seção sair antes de começar a apertar (065: o Início abre mais rápido).
+      for (let waited = 0; waited < 8000 && !log.some((e) => e.categoryId === '*'); waited += 100) await page.waitForTimeout(100)
       // Tecla a cada 150 ms por 5 s (nunca repousa os 300 ms da pré-busca por foco).
       const start = Date.now()
       while (Date.now() - start < 5000) {

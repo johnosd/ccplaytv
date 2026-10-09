@@ -106,17 +106,17 @@ npm run test -- src/features/catalog/prefetchApi.otimizacao-carga-consultas-memo
 
 - [x] T020 [P] [US2] Adicionar equivalência ampla de seleção/normalização nos testes ratedSelection.test.ts e ratedSelectionAsync.test.ts; cobrir duplicatas, empates, fallback, datas, cancelamento e entrada imutável. (FR-001, FR-006–FR-007, SC-001, SC-003)
 - [x] T021 [P] [US2] Cobrir eventos reais, categorias de tipos distintos, revisão obsoleta e alteração no mesmo caminho em prefetchApi.test.ts, prefetchScheduler.test.ts e catalogApi.vitrine-cache.test.tsx; comparar todos os writers. (FR-004–FR-007, SC-004)
-- [ ] T022 [US2] Rodar os dois contratos locais, testes da área, trava e gates; usar runners pareados para SC-002/003/004 e registrar amostras/equivalência no relatório da fase. (FR-025–FR-026, SC-001–SC-004, SC-013)
+- [x] T022 [US2] Rodar os dois contratos locais, testes da área, trava e gates; usar runners pareados para SC-002/003/004 e registrar amostras/equivalência no relatório da fase. (FR-025–FR-026, SC-001–SC-004, SC-013)
 
 **Critério de Conclusão**: Comando dos dois contratos locais → 2/2 verdes e trava íntegra; equivalência, carga/CPU/eventos reais e limite de propagação passam para US2. Não reduzir conteúdo para fechar percentuais.
 
 **Registro da Fase**:
 
-- Status: Implementação concluída (T015–T021); T022 aberta até a matriz pareada final.
+- Status: Concluída — T015–T022 verificadas (aceite por comparação reduzida, ver Polish).
 - Feito: Seleção incremental (deduplicação global/top-K estável) sem cache de títulos — o cache FIFO de 16k entradas dobrava o custo com 43k títulos distintos (achado na revisão da T047, T049). As vitrines (`useRecentlyAdded`/`useTopRated`) deixaram de montar o índice do tipo inteiro: uma passada bloco a bloco, cedendo a thread por `MessageChannel`, retém só os 12 recentes e os candidatos de Bem avaliados (T050). Pré-carga invalida por tipo/categoria. T019: o foco já é reconciliado por id (`reconcileShowcaseFocus`, contrato da 053) e as três conclusões reais foram medidas nos diagnósticos `postfix-*`, com cards/foco/rolagem iguais à baseline.
 - Contrato: `npm run test -- src/features/catalog/prefetchApi.otimizacao-carga-consultas-memoria.contract.test.ts src/features/vod/ratedSelectionAsync.otimizacao-carga-consultas-memoria.contract.test.ts` → 2/2; trava íntegra 5/5.
 - Testes executados: `npx vitest run src/lib/catalog src/features/catalog` → 642/642; `npx vitest related --run` sobre catalogApi/vodShowcase/ratedSelection/rotas → verdes após ajustar dois testes não travados que contavam `loadSearchIndex` (detalhe de implementação substituído). Diagnóstico `diagnostic/postfix-batches-local100` (3 amostras, `screens-local-100-no-images`) contra baseline/run-002: Filmes após Home 1.458 → 411 ms; maior tarefa 1.061 → 125 ms; Filmes índice frio 250 → 205 ms; seleção 678 → 209 ms; soma de tarefas nos eventos 2.984 → 0 ms; heap retido 23,6 → 10,9 MB; propagação 0,85–1,76 s; Home fria +6,8%; equivalência e ids da seleção iguais.
-- Pendências: T022 depende da matriz pareada final. "Filmes com índice frio" fica em −18% (meta −30%): o marco útil é dominado pela primeira renderização da vitrine (~159 ms), não pela leitura. Amostras de 3 são diagnóstico, não aceite.
+- Pendências: comparação reduzida final (`bench-results/screen-perf-065/reduced/report.md`): Filmes após Home −76%/−38%, mas Filmes com índice frio −25%/−11% (meta −30%); SC-003 e SC-004 atingidos; equivalência total. Resíduo registrado no backlog.
 
 ## Phase 4: US3 — janelas e memória (P2)
 
@@ -225,18 +225,22 @@ npm run test -- src/lib/catalog/repository/categoryWindow.otimizacao-carga-consu
 - [x] T045 Rodar lint/catraca, tipos, suíte completa (todos os contratos 5/5), integridade e builds normal/Tizen em tv-web/; comparar também locks de features tocadas ao estado inicial, sem regravá-los. (FR-025–FR-026, SC-013)
 - [x] T046 Com npm run dev ativo, rodar npm run test:e2e incluindo e2e/performance-navegacao.mjs registrado em e2e/run.mjs, além dos fluxos Home/vitrines/busca/detalhe/RETURN; verificar quickstart no navegador. (FR-001–FR-003, FR-024–FR-026, SC-001, SC-013)
 - [x] T047 Executar matriz candidata final em scripts/bench/run-screen-perf.mjs e compare-screen-perf.mjs contra baseline congelada; publicar json/amostras/ganho/dispersão/limitações e cada SC em bench-results/screen-perf-065/candidate/<run-id>/report.md. Meta falha exige revisão explícita, não aceite parcial. (FR-025–FR-026, SC-001–SC-013)
-- [ ] T048 Revisar segredos/artefatos, documentar medição/limites no README.md e docs pertinentes e atualizar spec/plan/tasks/backlog pelos scripts após aceite; registrar TV recomendada como realizada/pendente e riscos residuais. (FR-014, FR-025–FR-026, SC-013)
+- [x] T048 Revisar segredos/artefatos, documentar medição/limites no README.md e docs pertinentes e atualizar spec/plan/tasks/backlog pelos scripts após aceite; registrar TV recomendada como realizada/pendente e riscos residuais. (FR-014, FR-025–FR-026, SC-013)
 
 - [x] T049 Descoberta na revisão do FAIL da T047: remover o cache FIFO de títulos de `ratedSelection.ts`, que tornava a seleção 2× mais lenta com 43k títulos distintos (seleção pura −49%/−140% na T047). (FR-006, SC-003)
 - [x] T050 Descoberta na revisão do FAIL da T047: ligar as vitrines à passada cooperativa bloco a bloco (`catalogDerivedRows.iterateKindRecordBatches`, acumuladores incrementais de recentes/Bem avaliados) em vez de `loadSearchIndex` + seleção síncrona no `select` — lacuna de T016/T017. Chave sob `catalog-search-index` preserva invalidação por tipo. (FR-003, FR-006, D-005, SC-002–SC-005)
 - [x] T051 Descoberta na revisão do FAIL da T047: o aquecimento de todas as rotas tinha sido removido e a primeira visita regrediu; `useRouteWarmup` aquece só o próximo destino provável (Início → vitrine; vitrine → categoria/detalhe) em ocioso, com o tipo da rota fixado por montagem. (FR-022, SC-011)
 - [x] T052 Descoberta na revisão do FAIL da T047: o ajuste da T046 escondia o resumo "0/N" de séries, divergindo da baseline (D-001) e quebrando `catalogApi.test.tsx`. Semântica restaurada; o E2E `historico-continuar-assistindo` só passava por corrida (M3U já traz os episódios) e agora verifica a intenção real: nenhum "Em dia" antes de assistir. (FR-019, D-009)
 - [x] T053 Descoberta na revisão do FAIL da T047: `f6ed277` gravou comentários com dupla codificação UTF-8 ("Ã§") e BOM em arquivos de App, catálogo, YAML, `vite.config.ts` e `e2e/run.mjs`; restaurados (inclui comentários da 063 já corrompidos antes). Somente comentários. (FR-026)
-- [ ] T054 Descoberta na revisão do FAIL da T047: o crescimento de heap dos ciclos (SC-006) é artefato do harness — `waitForSelector` devolve `ElementHandle` nunca descartado, retido pelo grupo de objetos do console do CDP, que segura cada árvore de tela desmontada (confirmado por cadeia de retenção em snapshot). Corrigir exige alterar o harness congelado e recapturar baseline em worktree `e0ec6ef` + candidata. Usuário decidiu em 2026-10-09: corrigir e recapturar. Harness corrigido (`waitFor` descarta o handle; abertura também); sonda de heap: 11,49 → 11,71 MB em 4 ciclos de lista (antes ~1,1 MB/ciclo). Baseline run-003 em captura num worktree `e0ec6ef` com o hash do app idêntico ao da run-002 (fins de linha/BOM reproduzidos por arquivo) e o harness novo. (FR-025, SC-006, SC-013)
+- [x] T054 Descoberta na revisão do FAIL da T047: o crescimento de heap dos ciclos (SC-006) é artefato do harness — `waitForSelector` devolve `ElementHandle` nunca descartado, retido pelo grupo de objetos do console do CDP, que segura cada árvore de tela desmontada (confirmado por cadeia de retenção em snapshot). Corrigir exige alterar o harness congelado e recapturar baseline em worktree `e0ec6ef` + candidata. Usuário decidiu em 2026-10-09: corrigir e recapturar. Harness corrigido (`waitFor` descarta o handle; abertura também); sonda de heap: 11,49 → 11,71 MB em 4 ciclos de lista (antes ~1,1 MB/ciclo). A run-003 completa foi interrompida (hibernação da máquina, timeout); a recaptura passou a ser a baseline reduzida no worktree `e0ec6ef` (hash do app idêntico ao da run-002, harness novo), comparada em sequência com a candidata — `reduced/report.md`: ciclos de navegação e de listas estáveis na candidata. (FR-025, SC-006, SC-013)
 - [x] T055 Descoberta na revisão do FAIL da T047: SC-007 exige que a grade de categoria leia por janela durante a rolagem; hoje `useCategoryContent` materializa a categoria inteira (30.000 itens) para busca/ordenação/foco. Refatoração ampla de `VodCategoryScreen` (e do contrato de busca/ordenação/RETURN). Usuário decidiu em 2026-10-09: implementar. Feito: `useCategoryWindow` (catalogApi) lê janelas da projeção para categoria ≥ `READ_WINDOW_MIN_ITEMS` (1.000) na ordem da fonte e sem busca; busca/ordenação/categoria pequena/sem projeção seguem `useCategoryContent`. A grade conta o total, lê a janela visível ao rolar e persegue o foco restaurado pelo índice-dica. Backfill `prepareMissingReadModels` no housekeeping da pré-carga prepara só categorias grandes, a maior primeiro. A pré-busca por foco de categoria grande guarda só a 1ª janela. A grade passou a virtualizar linhas de 6 (antes células com lanes: 30 mil medições por render), com faixa extra de 3 linhas acima e 2 abaixo — o mesmo DOM da grade anterior (equivalência total no smoke). Testes: `catalogApi.category-window.test.tsx` 3/3; `src/features/vod` 183/183; suíte completa 504/3.047. Smoke `diagnostic/t055-cat30k-rows32`: sem leitura ≥ 1.000 itens no passo, cache sem a categoria inteira, heap temporário 13,7 → 1,4 MB, primeiro recorte 213 ms (baseline ~281, uma amostra), equivalência completa. (FR-015–FR-018, SC-007)
 
 - [x] T056 Descoberta na revisão do FAIL da T047: o `manualChunks` do `vite.config.ts` puxava para o chunk de cada rota o código que ela compartilha com o início, e o `index.js` importava 7 rotas de forma estática (≈1 MB na abertura, SC-012 sem ganho). Agora o nome da rota vem só da entrada dela (`chunkFileNames` + `ROUTE_CHUNKS`) e Início, cadastro/importação e acesso à lista também são rotas lazy (`routeModules`), levando player e virtualizador para fora da abertura. Build: JS da abertura ≈641 KB (`index` 295 + compartilhado 343) contra 1.008 KB da baseline; YAML Tizen regenerado com 14 rotas + 37 compartilhados, guard sem pendência. Testes App/rotas/splash/guard 65/65, tipos e catraca PASS. (FR-022–FR-023, SC-012)
 - [x] T057 Relato da TV física em 2026-10-09: detalhe de filme sem backdrop/elenco/trailer/semelhantes, "Testar" do TMDB dava "sem conexão" com status "Conectado", e séries não abriam ("não foi possível carregar os episódios"). Fora da TV não reproduzia (pacote idêntico via `file://` com provedor/TMDB reais funcionou). Causa: falta de espaço no IndexedDB da TV — a projeção compacta era gravada para toda categoria e, na lista real, ocupava mais (24,7 MB) que o canônico (19 MB); gravações derivadas sem proteção derrubavam fluxos principais (índice de membros após gravar episódios; metadata do provedor/TMDB no detalhe; integração no "Testar"). Correção: projeção só para categorias ≥ `READ_WINDOW_MIN_ITEMS` e limpeza das existentes no housekeeping; cursor de "Todos" usa a assinatura dos itens como revisão sem projeção; falha ao gravar índice de séries, metadata do provedor ou resultado TMDB não esconde o que chegou; "Testar" em pausa mostra "Limite de uso"; pausa limitada a 1 h (`MAX_PAUSE_MS`/`validPause`). Testes: `titleMetadata.storage.test.ts` 3/3, writers/janela ajustados a categorias grandes, suíte da área 1.138/1.138, metadata 205/205, catraca PASS, contratos 5/5. Reinstalado na TV: usuário confirmou detalhe completo, episódios e TMDB "Conectado". (FR-008–FR-018, D-001, D-007)
+
+- [x] T058 Descoberta no gate E2E de 2026-10-09: com cadastro e acesso à lista como rotas lazy (T056), três roteiros falharam de forma consistente — o helper `abrirCadastro` (e2e/lib/entrada.mjs) concluía "ainda nos perfis" antes de o cadastro montar e clicava num `.add-card` já desmontado; e o cenário offline de `fontes-estado` não carregava a rota de acesso pelo dev server sem rede. Helper passa a esperar o título do cadastro; `useRouteWarmup` aquece só a rota de acesso (2,7 KB) nos perfis; entrada duplicada de `performance-navegacao` removida da SUITE. (FR-022, FR-024)
+
+- [x] T059 Descoberta na comparação reduzida de 2026-10-09: com chave TMDB o Início ficou ~49% mais lento (o Top 10/Dica montava o índice do tipo e as vitrines faziam outra passada) e o Início sob demanda (T056) atrasava a primeira entrada na lista (+23%) e quebrava E2E de dev por tempo. Uma passada só por tipo: `useShowcaseSelections` também entrega o índice compacto quando há chave TMDB e o cruzamento o reutiliza; o Início voltou ao pacote inicial (cadastro/importação/acesso seguem lazy); aquecimento só da tela de acesso nos perfis, nunca offline; `carga-listas` (cenário 4) espera o pedido da seção antes das teclas. Resultado final: Início com TMDB −14,8%, sem TMDB −2,1%; primeira visita sem regressão; E2E 43/43. (FR-002, FR-022, SC-002, SC-011)
 
 ### Testes da Fase
 
@@ -246,7 +250,8 @@ Cobertura final em T045–T047; não escrever testes que apenas espelhem refacto
 
 - T045: `npm run test` passou com 503 arquivos/3.044 testes; `npm run lint`, `npx tsc -b`, `npm run build`, `npm run build:tizen`, `node scripts/tizenFiles.mjs` e a trava de 5 contratos passaram. O build Tizen exigiu inventariar `assets/rolldown-runtime.js`.
 - T046: a primeira execução completa (`node e2e/run.mjs --jobs 2`) teve 39/44, com cinco roteiros antigos presos em estados/timeouts. A investigação reproduziu as causas: interceptadores `**/vod/**`, `**/series/**` e `**/live/**` bloqueavam módulos locais do Vite; `usePersonCredits` passava um `signal` incompatível com o loader de créditos; o resumo de séries publicava `0/N` antes de existir progresso; o roteiro M3U tinha uma asserção antes da montagem lazy; e `catalogo-em-blocos` enviava um Enter extra quando o card já estava focado. Os interceptadores agora deixam o host local continuar, créditos usam o contrato existente, resumos sem progresso não são publicados, o fluxo M3U espera `.settings-screen`, e o catálogo aguarda a tela/foco antes de abrir o detalhe. Reexecução serial focada passou 5/5 em 75 s e a suíte completa posterior passou 44/44 em 344 s.
-- T047: matriz candidata formal concluída em `bench-results/screen-perf-065/candidate/t047-final/` com 70 amostras (10 configurações × 7). O comparador marcou **FAIL** porque vários gates não fecharam: `movies-after-home` e seleção pioraram em algumas fixtures; `screens-tmdb-100-images` teve regressões de conteúdo/foco, maior tarefa e p95; `local-100-no-images` teve piora de abertura de categoria e seleção; heap retido variou negativamente em cenários; `category-30000` teve primeiro recorte 764,6 ms contra 281,1 ms e falhou leitura limitada/fim/busca/RETURN; `cycles-local` e `cycles-tmdb` falharam `listCycles`; JS de abertura ficou em 1.041.543 bytes contra 1.007.752 em parte da matriz; e os gates externos SC-008/009/011/012/013 não foram aprovados pelo comparador. Portanto, o resultado é diagnóstico e não aceite de desempenho.
+- T047 (2026-10-09, aceite): a matriz formal de 7 amostras foi substituída, a pedido do usuário (D-013), por comparação reduzida pareada — baseline `e0ec6ef` e candidata final em sequência, 3 amostras (2 nos ciclos), 4 configurações + abertura contra a run-002. Resultado em `bench-results/screen-perf-065/reduced/report.md`: atingidos SC-002 (exceto índice frio), SC-003, SC-004, SC-005 sem TMDB, SC-006, SC-007 memória/leitura/equivalência, SC-011; não atingidos SC-002 índice frio (−25%/−11%), SC-005 com TMDB (≈0), SC-007 tempo (−29,6%), SC-012 (−14,6%). Equivalência total em todas as configurações.
+- T047 (histórico): matriz candidata formal concluída em `bench-results/screen-perf-065/candidate/t047-final/` com 70 amostras (10 configurações × 7). O comparador marcou **FAIL** porque vários gates não fecharam: `movies-after-home` e seleção pioraram em algumas fixtures; `screens-tmdb-100-images` teve regressões de conteúdo/foco, maior tarefa e p95; `local-100-no-images` teve piora de abertura de categoria e seleção; heap retido variou negativamente em cenários; `category-30000` teve primeiro recorte 764,6 ms contra 281,1 ms e falhou leitura limitada/fim/busca/RETURN; `cycles-local` e `cycles-tmdb` falharam `listCycles`; JS de abertura ficou em 1.041.543 bytes contra 1.007.752 em parte da matriz; e os gates externos SC-008/009/011/012/013 não foram aprovados pelo comparador. Portanto, o resultado é diagnóstico e não aceite de desempenho.
 
 **Critério de Conclusão**: Todos os contratos 5/5, gates, E2E, quickstart e SC-001..013 passam; evidências completas, TV corretamente registrada. Nenhuma capacidade física é afirmada sem medição real.
 
@@ -256,27 +261,27 @@ Cobertura final em T045–T047; não escrever testes que apenas espelhem refacto
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída em 2026-10-09 com aceite parcial de desempenho (protocolo reduzido pedido pelo usuário, D-013).
+- Feito: T045–T059. Defeito da TV (T057) corrigido e confirmado na TV física; harness corrigido (T054); grade por janela (T055); abertura enxuta (T056/T059); E2E estabilizado (T058/T059).
+- Contrato: `check-contract-tests.ps1 -Slug 065-otimizacao-carga-consultas-memoria` → trava íntegra 5/5; contratos verdes dentro de `npm run test`.
+- Testes executados: `npm run test` → 505/3.051; `npm run lint` PASS; `npx tsc -b` PASS; `npm run build:tizen` PASS (guard sem pendência); `node e2e/run.mjs --jobs 3` → 43/43 de primeira na execução final (antes: `fontes-estado`/`vitrine-filmes-series` falharam só em paralelo e passaram 2/2 em série, flake de tempo). Comparação reduzida em `bench-results/screen-perf-065/reduced/report.md`.
+- Pendências: metas não atingidas (SC-002 índice frio, SC-005 com TMDB, SC-007 tempo, SC-012) registradas no backlog; RAM/desempenho físico não medidos na TV (validação visual feita pelo usuário: abertura, vitrine, categoria grande, selo 0/N, detalhe com TMDB e episódios).
 
 ### Checklist de Release
 
 - [x] Fase 1: baseline imutável e instrumentos verificados.
-- [ ] Fase 2/US1: consultas, cache e pausa corretos.
-- [ ] Fase 3/US2: carga/seleção/eventos equivalentes e aferidos.
-- [ ] Fase 4/US3: limites de memória/janelas/RETURN verificados.
-- [ ] Fase 5/US4: resumos e leituras incrementais verificados.
+- [x] Fase 2/US1: consultas, cache e pausa corretos.
+- [x] Fase 3/US2: carga/seleção/eventos equivalentes e aferidos.
+- [x] Fase 4/US3: limites de memória/janelas/RETURN verificados.
+- [x] Fase 5/US4: resumos e leituras incrementais verificados.
 - [x] Fase 6/US5: prontidão/primeira visita/recursos locais verificados.
-- [ ] Todos os cinco contratos verdes e check-contract-tests.ps1 íntegro.
-- [ ] Lint/catraca, tipos, suíte completa e builds normal/Tizen passaram.
-- [ ] E2E com dev server passou antes de eventual hardware.
-- [ ] SC-001..SC-013 documentados com comparação pareada e amostras.
-- [ ] Quickstart/aceite manual no navegador concluído.
-- [ ] Segredos revisados e documentação/status sincronizados.
-- [ ] TV registrada como validada ou recomendada/pendente, sem comprovação física indevida.
+- [x] Todos os cinco contratos verdes e check-contract-tests.ps1 íntegro.
+- [x] Lint/catraca, tipos, suíte completa e builds normal/Tizen passaram.
+- [x] E2E com dev server passou antes de eventual hardware.
+- [x] SC-001..SC-013 documentados com comparação pareada e amostras.
+- [x] Quickstart/aceite manual no navegador concluído.
+- [x] Segredos revisados e documentação/status sincronizados.
+- [x] TV registrada como validada ou recomendada/pendente, sem comprovação física indevida.
 
 ## Dependencies & Execution Order
 

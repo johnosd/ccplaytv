@@ -48,7 +48,6 @@ const appVersion = widgetVersionMatch[1]
 
 // https://vite.dev/config/
 const ROUTE_CHUNKS = [
-  ['route-home', '/src/features/home/HomeScreen.'],
   ['route-add-source', '/src/features/import/AddSourceScreen.'],
   ['route-import-progress', '/src/features/import/ImportProgressScreen.'],
   ['route-source-access', '/src/features/sources/SourceAccessRoute.'],

@@ -1,1 +1,0 @@
-import{En as e,On as t,cn as n}from"./accountCheck.js";var r=t(e(),1);function i(e,t){let[i,a]=(0,r.useState)(t),[o,s]=(0,r.useState)(0),c=i===null?-1:e.findIndex(e=>e.id===i);c===-1&&(c=n(o,0,Math.max(0,e.length-1)));function l(t){let r=n(t,0,Math.max(0,e.length-1));s(r);let i=e[r];i&&a(i.id)}return c!==o&&s(c),{index:c,moveTo:l}}export{i as t};

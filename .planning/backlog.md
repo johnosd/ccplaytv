@@ -8,6 +8,7 @@ update-bug-status.ps1.
 - Incluir uma gestão de categorias nas configurações que permita o usuario, colocar senha em categorias ou esconder
 - incluir controle parental para canais adultos
 - bug analisar atualizacao da lista, parece que a lista tem novos filmes, series e nao está aparecendo na lista
+- Desempenho (resíduos da 065, 2026-10-09, `tv-web/bench-results/screen-perf-065/reduced/report.md`): Filmes com índice frio (−25%/−11% vs meta −30%, dominado pela 1ª renderização da vitrine); heap com TMDB sem ganho (o Top 10/Dica retém o índice compacto do tipo); JS da abertura −14,6% (meta −25%; Início sob demanda atrasava a entrada na lista); 1º recorte da categoria 30k −29,6%. Medir de novo com o protocolo completo (7 amostras) quando a máquina estiver ociosa
 
 **Só o que falta**, na ordem de execução sugerida (revisada em 02/10/2026,
 mantida a prioridade do usuário: player completo e valor direto ao usuário
@@ -176,7 +177,7 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 062-teste-conexao-tv | Teste de conexão da TV em Configurações | Em Execução | 28/34 tasks | 2026-10-06 |
 | 063-codigo-saudavel-benchmark | Código saudável — divisão do repositório do catálogo, fronteiras e tamanho por lint, benchmark de importação | Implementada | 48/49 tasks | 2026-10-07 |
 | 064-upload-teste-conexao | Upload no teste de conexão da TV | Convergida | 35/36 tasks | 2026-10-07 |
-| 065-otimizacao-carga-consultas-memoria | Otimização de carga, consultas externas, memória e abertura do app | Em Execução | 56/70 tasks | 2026-10-09 |
+| 065-otimizacao-carga-consultas-memoria | Otimização de carga, consultas externas, memória e abertura do app | Implementada | 72/72 tasks | 2026-10-09 |
 
 ## Bugs
 

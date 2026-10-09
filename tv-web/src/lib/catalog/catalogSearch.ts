@@ -31,7 +31,7 @@ export interface SearchIndex {
 
 /** Mantém somente os campos usados por busca, ordenação e cards; URLs e
  * headers de reprodução não ficam duplicados no índice derivado. */
-function compactSearchRecord(record: CatalogRecord): CatalogRecord {
+export function compactSearchRecord(record: CatalogRecord): CatalogRecord {
   return {
     id: record.id,
     sourceId: record.sourceId,

@@ -60,7 +60,7 @@ import {
 import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { type SeriesWatchedSummary } from '../../lib/catalog/seriesWatchedSummary'
 import { loadSeriesWatchedSummaries } from './seriesSummaryApi'
-import { isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
+import { buildSearchIndex, compactSearchRecord, isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
 import { createRecentlyAddedAccumulator } from '../vod/vodShowcase'
 import { primaryProgress, type PrimaryProgress } from '../vod/detailProgress'
 import { pickBecauseSeed, type BecauseSeedKind } from '../../lib/catalog/becauseSeed'
@@ -1641,6 +1641,7 @@ interface ShowcaseSelections {
   rated: CatalogItemOut[]
   coveredCategories: number
   totalCategories: number
+  entries?: DiscoveryEntries // com chave TMDB: índice compacto para o Top 10/Dica cruzarem na MESMA passada
 }
 
 /**
@@ -1648,18 +1649,20 @@ interface ShowcaseSelections {
  * os candidatos de "Bem avaliados", nunca o tipo inteiro (antes: `loadSearchIndex` + seleção síncrona no `select`). Mesmas
  * regras e desempates: a ordem da passada é a de `listAllOfKind` (categoria na ordem da fonte, itens na ordem do bloco).
  */
-async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & StoredKind, now: number, signal: AbortSignal): Promise<ShowcaseSelections> {
+async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & StoredKind, now: number, signal: AbortSignal, withEntries: boolean): Promise<ShowcaseSelections> {
   const categories = await listCategories(sourceId, kind)
   const recent = createRecentlyAddedAccumulator((record: CatalogRecord) => record.addedAt)
   const rated = createRatedSelectionAccumulator<CatalogRecord>(
     { id: (record) => String(record.id), name: (record) => record.name, rating: (record) => record.providerRating, year: (record) => record.year, addedAt: (record) => record.addedAt },
     { now, seed: `${dayKey(now)}|${kind}|${sourceId}` },
   )
+  const compact: CatalogRecord[] | undefined = withEntries ? [] : undefined
   let sinceYield = 0
   for await (const records of iterateKindRecordBatches(sourceId, kind, { signal, pageSize: SHOWCASE_SLICE })) {
     for (const record of records) {
       recent.add(record)
       rated.add(record)
+      compact?.push(compactSearchRecord(record))
     }
     sinceYield += records.length
     if (sinceYield >= SHOWCASE_SLICE) {
@@ -1679,6 +1682,7 @@ async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & 
     rated: step.value.picked.map((record) => toItemOut(record, kind)),
     coveredCategories: categories.filter(isCovered).length,
     totalCategories: categories.length,
+    entries: compact && buildSearchIndex(compact, { coveredCategories: 0, totalCategories: 0 }).entries,
   }
 }
 
@@ -1686,10 +1690,12 @@ async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & 
 function useShowcaseSelections(sourceId: string | null, kind: FavoritableKind, enabled: boolean) {
   // Fixado por montagem: a virada do dia com a tela aberta não troca os cards sob o foco.
   const [now] = useState(() => Date.now())
+  const tmdbState = useTmdbStatus().data?.state
+  const withEntries = tmdbState !== undefined && tmdbState !== 'not_configured'
   return useQuery({
-    queryKey: ['catalog-search-index', sourceId, kind, 'showcase', dayKey(now)],
-    queryFn: ({ signal }) => loadShowcaseSelections(sourceId as string, kind as FavoritableKind & StoredKind, now, signal),
-    enabled: enabled && sourceId !== null && kind !== 'channel',
+    queryKey: ['catalog-search-index', sourceId, kind, 'showcase', dayKey(now), withEntries],
+    queryFn: ({ signal }) => loadShowcaseSelections(sourceId as string, kind as FavoritableKind & StoredKind, now, signal, withEntries),
+    enabled: enabled && sourceId !== null && kind !== 'channel' && tmdbState !== undefined,
     // Não relê o tipo a cada montagem da tela: a pré-carga (categoria nova) e o fim de uma sincronização a invalidam.
     staleTime: SHOWCASE_STALE_MS,
     gcTime: 30_000,
@@ -1795,14 +1801,7 @@ function useDiscoveryRow<R>(
     staleTime: (query) => (query.state.data?.status === 'ok' && !query.state.data.stale ? 30 * 60 * 1000 : 0),
   })
   const titles = tmdb.data?.titles
-  const index = useQuery({
-    queryKey: ['catalog-search-index', sourceId, kind],
-    queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
-    enabled: sourceId !== null && titles !== undefined && titles.length > 0,
-    staleTime: 60_000,
-    refetchOnMount: false,
-    gcTime: 30_000,
-  })
+  const index = useShowcaseSelections(sourceId, kind, titles !== undefined && titles.length > 0) // 065: mesma passada das vitrines
 
   // O cruzamento NÃO roda na renderização (nem no `select` do react-query): com a lista real ele prendia a thread por ≈200 ms
   // e atrasava o primeiro desenho. Roda depois do desenho, em fatias que cedam a thread (`matchDiscoveryTitlesAsync`), e o
@@ -1812,7 +1811,8 @@ function useDiscoveryRow<R>(
   const [computed, setComputed] = useState<
     { scope: string; value: R; images: ReadonlyMap<string, string>; ratings: ReadonlyMap<string, TmdbRating>; coveredCategories: number; totalCategories: number } | undefined
   >()
-  const indexData = index.data
+  const showcase = index.data
+  const indexData = useMemo(() => (showcase?.entries ? { ...showcase, entries: showcase.entries } : undefined), [showcase])
   useEffect(() => {
     if (sourceId === null || indexData === undefined || titles === undefined || titles.length === 0) return
     const controller = new AbortController()

@@ -229,6 +229,10 @@ npm run dev
 
 A instalação das dependências do frontend deve já ter sido realizada (`npm install`). O aplicativo estará acessível no endereço exibido pelo Vite.
 
+### Medição de desempenho das telas
+
+A feature 065 mede vitrines, categorias, memória e abertura em `tv-web/scripts/bench/run-screen-perf.mjs`, com fixtures sintéticas e CPU limitada a 4×; o comparador é `compare-screen-perf.mjs` e os resultados ficam em `tv-web/bench-results/screen-perf-065/`. O aceite final usou um protocolo reduzido (3 amostras, 4 configurações, baseline e candidata em sequência — `reduced/report.md`), não a matriz de 7 amostras prevista na spec. O navegador é um proxy: não comprova RAM, pintura ou desempenho na TV.
+
 ### Integração com a TV
 
 Para empacotamento e testes no emulador ou TV física, o aplicativo é compilado e encapsulado no Tizen Studio através de comandos de build específicos e ferramentas como `sdb` e o CLI do Tizen. Consulte a documentação específica de build para mais detalhes.

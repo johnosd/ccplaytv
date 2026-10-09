@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { lazyRoute } from './lazyRoute'
 export { lazyNamed } from './lazyRoute'
 import type { LiveScreenProps } from '../features/live/LiveScreen'
-import type { HomeScreenProps } from '../features/home/HomeScreen'
 import type { AddSourceScreenProps } from '../features/import/AddSourceScreen'
 import type { ImportProgressScreenProps } from '../features/import/ImportProgressScreen'
 import type { SourceAccessRouteProps } from '../features/sources/SourceAccessRoute'
@@ -16,9 +15,8 @@ import type { TmdbKeyScreenProps } from '../features/settings/TmdbKeyScreen'
 import type { SearchScreenProps } from '../features/search/SearchScreen'
 import type { VodCategoryScreenProps } from '../features/vod/VodCategoryScreen'
 
-// Feature 065 (SC-012): só Splash e Perfis ficam no caminho da abertura; Início, cadastro/importação e acesso à lista
-// (e, por eles, o player e o virtualizador) chegam quando a pessoa vai até lá.
-export const HomeScreen = lazyRoute<HomeScreenProps>(() => import('../features/home/HomeScreen'), 'HomeScreen')
+// Feature 065 (SC-012): cadastro/importação e acesso à lista chegam quando a pessoa vai até lá. O Início fica no pacote
+// inicial: carregá-lo sob demanda atrasava a primeira entrada na lista mais do que economizava na abertura.
 export const AddSourceScreen = lazyRoute<AddSourceScreenProps>(() => import('../features/import/AddSourceScreen'), 'AddSourceScreen')
 export const ImportProgressScreen = lazyRoute<ImportProgressScreenProps>(() => import('../features/import/ImportProgressScreen'), 'ImportProgressScreen')
 export const SourceAccessRoute = lazyRoute<SourceAccessRouteProps>(() => import('../features/sources/SourceAccessRoute'), 'SourceAccessRoute')
@@ -40,8 +38,10 @@ export const VodCategoryScreen = lazyRoute<VodCategoryScreenProps>(() => import(
 export function warmRoutes(routes: readonly { preload: () => Promise<void> }[]): () => void {
   if (typeof window === 'undefined' || routes.length === 0) return () => undefined
   let cancelled = false
+  // Sem rede não aquece: no navegador de desenvolvimento um import que falha fica guardado como falho e derrubaria a
+  // navegação real depois (no pacote da TV os arquivos são locais e isto não acontece).
   const run = () => {
-    if (!cancelled) for (const route of routes) void route.preload()
+    if (!cancelled && navigator.onLine !== false) for (const route of routes) void route.preload()
   }
   const requestIdle = window.requestIdleCallback
   if (typeof requestIdle === 'function') {
@@ -64,6 +64,8 @@ export function warmRoutes(routes: readonly { preload: () => Promise<void> }[]):
  */
 export function useRouteWarmup(screenName: string): void {
   useEffect(() => {
+    // Perfis: só a tela de acesso à lista (leve), para escolher uma lista funcionar mesmo sem rede logo depois.
+    if (screenName === 'profiles') return warmRoutes([SourceAccessRoute])
     if (screenName === 'home') return warmRoutes([VodShowcaseScreen])
     if (screenName === 'movies') return warmRoutes([VodCategoryScreen, MovieDetailScreen])
     if (screenName === 'series') return warmRoutes([VodCategoryScreen, SeriesDetailScreen])

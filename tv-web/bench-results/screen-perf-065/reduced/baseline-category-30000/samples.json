@@ -1,0 +1,7670 @@
+[
+  {
+    "configuration": "category-30000",
+    "run": 1,
+    "kind": "category",
+    "steps": [
+      {
+        "name": "home-cold",
+        "elapsedMs": 1805.8999999761581,
+        "browserStartMs": 3579,
+        "usefulMs": 1362.3999999761581,
+        "automationBeforeActionMs": 49.5,
+        "maxLongTaskMs": 309,
+        "longTaskTotalMs": 600,
+        "longTaskSamples": [
+          {
+            "offsetMs": 117.69999998807907,
+            "ms": 153
+          },
+          {
+            "offsetMs": 904.2999999523163,
+            "ms": 309
+          },
+          {
+            "offsetMs": 1266,
+            "ms": 76
+          },
+          {
+            "offsetMs": 1342.199999988079,
+            "ms": 62
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 14,
+            "records": 14,
+            "items": 0
+          },
+          {
+            "store": "sources",
+            "operation": "getAll",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 1,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30000
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 1807.9966999999997,
+        "cacheAtEnd": {
+          "queries": 30,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 0
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": "-7231348314",
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7214570695",
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7197793076",
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7181015457",
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7164237838",
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7147460219",
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7130682600",
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7113904981",
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7097127362",
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-8318902494",
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865716023515",
+              "title": "Série 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865732801134",
+              "title": "Série 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865749578753",
+              "title": "Série 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865766356372",
+              "title": "Série 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865783133991",
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865799911610",
+              "title": "Série 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865816689229",
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865565024944",
+              "title": "Série 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865581802563",
+              "title": "Série 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-866300133873",
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": "Bem-vindo(a) ao CCPlayTV",
+          "focus": "Abrir TV ao vivo",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "movies-after-home",
+        "elapsedMs": 1314.1000000238419,
+        "browserStartMs": 5394.899999976158,
+        "usefulMs": 871.5999999642372,
+        "automationBeforeActionMs": 40.80000001192093,
+        "maxLongTaskMs": 423,
+        "longTaskTotalMs": 791,
+        "longTaskSamples": [
+          {
+            "offsetMs": 33.30000001192093,
+            "ms": 423
+          },
+          {
+            "offsetMs": 493.5,
+            "ms": 81
+          },
+          {
+            "offsetMs": 578.8000000119209,
+            "ms": 66
+          },
+          {
+            "offsetMs": 650.6999999880791,
+            "ms": 221
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 7,
+            "records": 7,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "get",
+            "kind": "movie",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30000
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 1316.6571000000004,
+        "cacheAtEnd": {
+          "queries": 37,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 0
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 77 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 467 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1247 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2222 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2612 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2807 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3197 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3782 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3977 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4367 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 10 (2016)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": null,
+          "focus": "pôsterFilme 0 (2026)★ 6,0",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "series-after-home",
+        "elapsedMs": 631.3999999761581,
+        "browserStartMs": 6722.199999988079,
+        "usefulMs": 266.4000000357628,
+        "automationBeforeActionMs": 27.099999964237213,
+        "maxLongTaskMs": 51,
+        "longTaskTotalMs": 51,
+        "longTaskSamples": [
+          {
+            "offsetMs": 21,
+            "ms": 51
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 8,
+            "records": 8,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "get",
+            "kind": "series",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 633.2464999999993,
+        "cacheAtEnd": {
+          "queries": 43,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 0
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": null,
+              "title": "Série 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 24 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 22 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 21 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 20 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 16 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 15 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 10 (2016)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 10 (2016)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": null,
+          "focus": "pôsterSérie 0 (2026)★ 6,0",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "home-return",
+        "elapsedMs": 544.5999999642372,
+        "browserStartMs": 7829.5,
+        "usefulMs": 136.20000004768372,
+        "automationBeforeActionMs": 38.799999952316284,
+        "maxLongTaskMs": 110,
+        "longTaskTotalMs": 110,
+        "longTaskSamples": [
+          {
+            "offsetMs": 34.299999952316284,
+            "ms": 110
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 6,
+            "records": 6,
+            "items": 0
+          },
+          {
+            "store": "sources",
+            "operation": "getAll",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 1,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 546.4722000000002,
+        "cacheAtEnd": {
+          "queries": 43,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 0
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": "-7231348314",
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7214570695",
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7197793076",
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7181015457",
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7164237838",
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7147460219",
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7130682600",
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7113904981",
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7097127362",
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-8318902494",
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865716023515",
+              "title": "Série 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865732801134",
+              "title": "Série 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865749578753",
+              "title": "Série 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865766356372",
+              "title": "Série 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865783133991",
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865799911610",
+              "title": "Série 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865816689229",
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865565024944",
+              "title": "Série 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865581802563",
+              "title": "Série 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-866300133873",
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": "Bem-vindo(a) ao CCPlayTV",
+          "focus": "Filmes",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "movies-index-cold",
+        "elapsedMs": 1350,
+        "browserStartMs": 8388.799999952316,
+        "usefulMs": 67.89999997615814,
+        "automationBeforeActionMs": 26.400000035762787,
+        "maxLongTaskMs": 367,
+        "longTaskTotalMs": 738,
+        "longTaskSamples": [
+          {
+            "offsetMs": 21.200000047683716,
+            "ms": 59
+          },
+          {
+            "offsetMs": 149,
+            "ms": 312
+          },
+          {
+            "offsetMs": 478.4000000357628,
+            "ms": 367
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 10,
+            "records": 10,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 5,
+            "records": 5,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30000
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 1352.902399999999,
+        "cacheAtEnd": {
+          "queries": 44,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 30000
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 77 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 467 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1247 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2222 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2612 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2807 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3197 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3782 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3977 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4367 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 10 (2016)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": null,
+          "focus": "pôsterFilme 0 (2026)★ 6,0",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "category-first",
+        "elapsedMs": 1201,
+        "browserStartMs": 10356.5,
+        "usefulMs": 273.80000001192093,
+        "automationBeforeActionMs": 45.39999997615814,
+        "maxLongTaskMs": 484,
+        "longTaskTotalMs": 713,
+        "longTaskSamples": [
+          {
+            "offsetMs": 37,
+            "ms": 229
+          },
+          {
+            "offsetMs": 333,
+            "ms": 484
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 5,
+            "records": 5,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 1202.3912000000018,
+        "cacheAtEnd": {
+          "queries": 46,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 30000
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 10 (2016)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 11 (2015)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 12 (2014)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 13 (2013)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 14 (2012)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 15 (2026)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 16 (2025)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 17 (2024)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 18 (2023)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 19 (2022)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 20 (2021)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 21 (2020)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 22 (2019)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 23 (2018)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 24 (2017)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 25 (2016)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 26 (2015)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 27 (2014)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 28 (2013)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 29 (2012)",
+              "meta": "Filmes",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": null,
+          "focus": "pôsterFilme 0 (2026)★ 6,0",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      }
+    ],
+    "api": [],
+    "errors": [],
+    "startup": [],
+    "preparation": {
+      "seedRpcMs": 3482.7373000000002,
+      "categories": 2,
+      "items": 30030,
+      "episodes": 0,
+      "states": 0,
+      "cpu": 1
+    },
+    "storageBefore": {
+      "usageBytes": 1351680,
+      "quotaBytes": 6443802624
+    },
+    "before": {
+      "retainedBytes": 4169736,
+      "cache": {
+        "queries": 2,
+        "indexEntries": 0,
+        "pageItems": 0,
+        "categoryItems": 0
+      }
+    },
+    "afterScreens": {
+      "retainedBytes": 24455608,
+      "cache": {
+        "queries": 43,
+        "indexEntries": 30030,
+        "pageItems": 0,
+        "categoryItems": 0
+      }
+    },
+    "selection": {
+      "ms": 433.2000000476837,
+      "ids": [
+        -8116585328,
+        -7225456119,
+        -4922739156,
+        -6498390396,
+        -7780267071,
+        -5626501261,
+        -5278033950,
+        -5757653088,
+        -4784951144,
+        -4719234888,
+        -4660604593,
+        -6708407692
+      ],
+      "eligibleCount": 30000
+    },
+    "temporaryHeapBytes": 13660456,
+    "lastItem": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29970 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29971 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29972 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29973 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29974 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29975 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29976 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29977 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29978 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29979 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29980 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29981 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29982 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29983 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29984 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29985 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29986 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29987 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29988 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29989 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29990 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29991 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29992 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29993 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29994 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29995 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29996 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29997 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 2009196,
+          "left": 0
+        }
+      ]
+    },
+    "searchLastItem": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 0,
+          "left": 0
+        }
+      ]
+    },
+    "detailBefore": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "pôsterFilme 29999 (2012)★ 6,8",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 0,
+          "left": 0
+        }
+      ]
+    },
+    "detailReturned": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "pôsterFilme 29999 (2012)★ 6,8",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 0,
+          "left": 0
+        }
+      ]
+    },
+    "sorted": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29979 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 2998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29980 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29981 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29982 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29983 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29984 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29985 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29986 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29987 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29988 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29989 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 2999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29990 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29991 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29992 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29993 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29994 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29995 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29996 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29997 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 30 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 300 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3000 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3001 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3002 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3003 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3004 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3005 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3006 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3007 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3008 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3009 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 301 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3010 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3011 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3012 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3013 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3014 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3015 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3016 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3017 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3018 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3019 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 302 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "Ordenar · A–Z ▾",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 1488606,
+          "left": 0
+        }
+      ]
+    },
+    "returned": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29973 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29974 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29975 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29976 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29977 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29978 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29979 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 2998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29980 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29981 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29982 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29983 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29984 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29985 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29986 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29987 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29988 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29989 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 2999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29990 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29991 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29992 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29993 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29994 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29995 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29996 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29997 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 30 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 300 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3000 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3001 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3002 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3003 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3004 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3005 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3006 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3007 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3008 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3009 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 301 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3010 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3011 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3012 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3013 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3014 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "pôsterFilme 29999 (2012)★ 6,8",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 1488204,
+          "left": 0
+        }
+      ]
+    },
+    "categoryMemory": {
+      "retainedBytes": 49097896,
+      "cache": {
+        "queries": 50,
+        "indexEntries": 30030,
+        "pageItems": 0,
+        "categoryItems": 30000
+      }
+    },
+    "storageAfter": {
+      "usageBytes": 1351680
+    },
+    "workers": {
+      "created": 0,
+      "heapBytes": 0
+    }
+  },
+  {
+    "configuration": "category-30000",
+    "run": 2,
+    "kind": "category",
+    "steps": [
+      {
+        "name": "home-cold",
+        "elapsedMs": 1818.5,
+        "browserStartMs": 3575.699999988079,
+        "usefulMs": 1378.6000000238419,
+        "automationBeforeActionMs": 44.19999998807907,
+        "maxLongTaskMs": 316,
+        "longTaskTotalMs": 612,
+        "longTaskSamples": [
+          {
+            "offsetMs": 117.69999998807907,
+            "ms": 154
+          },
+          {
+            "offsetMs": 900,
+            "ms": 316
+          },
+          {
+            "offsetMs": 1272.699999988079,
+            "ms": 71
+          },
+          {
+            "offsetMs": 1344.300000011921,
+            "ms": 71
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 14,
+            "records": 14,
+            "items": 0
+          },
+          {
+            "store": "sources",
+            "operation": "getAll",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 1,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30000
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 1822.3580000000002,
+        "cacheAtEnd": {
+          "queries": 30,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 0
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": "-7231348314",
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7214570695",
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7197793076",
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7181015457",
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7164237838",
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7147460219",
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7130682600",
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7113904981",
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7097127362",
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-8318902494",
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865716023515",
+              "title": "Série 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865732801134",
+              "title": "Série 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865749578753",
+              "title": "Série 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865766356372",
+              "title": "Série 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865783133991",
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865799911610",
+              "title": "Série 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865816689229",
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865565024944",
+              "title": "Série 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865581802563",
+              "title": "Série 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-866300133873",
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": "Bem-vindo(a) ao CCPlayTV",
+          "focus": "Abrir TV ao vivo",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "movies-after-home",
+        "elapsedMs": 1309.5,
+        "browserStartMs": 5410.300000011921,
+        "usefulMs": 822,
+        "automationBeforeActionMs": 38.09999996423721,
+        "maxLongTaskMs": 404,
+        "longTaskTotalMs": 797,
+        "longTaskSamples": [
+          {
+            "offsetMs": 33.89999997615814,
+            "ms": 404
+          },
+          {
+            "offsetMs": 461,
+            "ms": 79
+          },
+          {
+            "offsetMs": 540.8999999761581,
+            "ms": 76
+          },
+          {
+            "offsetMs": 626.6999999880791,
+            "ms": 187
+          },
+          {
+            "offsetMs": 880.7999999523163,
+            "ms": 51
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 7,
+            "records": 7,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "get",
+            "kind": "movie",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30000
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 1311.9182999999975,
+        "cacheAtEnd": {
+          "queries": 37,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 0
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 77 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 467 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1247 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2222 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2612 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2807 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3197 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3782 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3977 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4367 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 10 (2016)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": null,
+          "focus": "pôsterFilme 0 (2026)★ 6,0",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "series-after-home",
+        "elapsedMs": 628,
+        "browserStartMs": 6733.099999964237,
+        "usefulMs": 248.30000001192093,
+        "automationBeforeActionMs": 28.100000023841858,
+        "maxLongTaskMs": 0,
+        "longTaskTotalMs": 0,
+        "longTaskSamples": [],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 8,
+            "records": 8,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "get",
+            "kind": "series",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 629.0983999999953,
+        "cacheAtEnd": {
+          "queries": 43,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 0
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": null,
+              "title": "Série 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 24 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 22 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 21 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 20 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 16 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 15 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 10 (2016)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 10 (2016)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": null,
+          "focus": "pôsterSérie 0 (2026)★ 6,0",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "home-return",
+        "elapsedMs": 543.6999999880791,
+        "browserStartMs": 7835.399999976158,
+        "usefulMs": 131.10000002384186,
+        "automationBeforeActionMs": 45.69999998807907,
+        "maxLongTaskMs": 102,
+        "longTaskTotalMs": 102,
+        "longTaskSamples": [
+          {
+            "offsetMs": 39.60000002384186,
+            "ms": 102
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 6,
+            "records": 6,
+            "items": 0
+          },
+          {
+            "store": "sources",
+            "operation": "getAll",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 1,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 546.0754000000015,
+        "cacheAtEnd": {
+          "queries": 43,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 0
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": "-7231348314",
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7214570695",
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7197793076",
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7181015457",
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7164237838",
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7147460219",
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7130682600",
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7113904981",
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7097127362",
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-8318902494",
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865716023515",
+              "title": "Série 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865732801134",
+              "title": "Série 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865749578753",
+              "title": "Série 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865766356372",
+              "title": "Série 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865783133991",
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865799911610",
+              "title": "Série 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865816689229",
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865565024944",
+              "title": "Série 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865581802563",
+              "title": "Série 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-866300133873",
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": "Bem-vindo(a) ao CCPlayTV",
+          "focus": "Filmes",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "movies-index-cold",
+        "elapsedMs": 1408.5999999642372,
+        "browserStartMs": 8393.5,
+        "usefulMs": 71.5,
+        "automationBeforeActionMs": 33.89999997615814,
+        "maxLongTaskMs": 420,
+        "longTaskTotalMs": 788,
+        "longTaskSamples": [
+          {
+            "offsetMs": 29.399999976158142,
+            "ms": 62
+          },
+          {
+            "offsetMs": 155.69999998807907,
+            "ms": 306
+          },
+          {
+            "offsetMs": 479.30000001192093,
+            "ms": 420
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 10,
+            "records": 10,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 5,
+            "records": 5,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30000
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 1410.8994999999995,
+        "cacheAtEnd": {
+          "queries": 44,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 30000
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 77 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 467 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1247 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2222 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2612 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2807 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3197 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3782 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3977 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4367 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 10 (2016)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": null,
+          "focus": "pôsterFilme 0 (2026)★ 6,0",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "category-first",
+        "elapsedMs": 1242.300000011921,
+        "browserStartMs": 10527.399999976158,
+        "usefulMs": 286.39999997615814,
+        "automationBeforeActionMs": 37.90000003576279,
+        "maxLongTaskMs": 506,
+        "longTaskTotalMs": 750,
+        "longTaskSamples": [
+          {
+            "offsetMs": 29.69999998807907,
+            "ms": 244
+          },
+          {
+            "offsetMs": 336.9000000357628,
+            "ms": 506
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 5,
+            "records": 5,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 1243.8228000000017,
+        "cacheAtEnd": {
+          "queries": 46,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 30000
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 10 (2016)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 11 (2015)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 12 (2014)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 13 (2013)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 14 (2012)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 15 (2026)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 16 (2025)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 17 (2024)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 18 (2023)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 19 (2022)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 20 (2021)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 21 (2020)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 22 (2019)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 23 (2018)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 24 (2017)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 25 (2016)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 26 (2015)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 27 (2014)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 28 (2013)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 29 (2012)",
+              "meta": "Filmes",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": null,
+          "focus": "pôsterFilme 0 (2026)★ 6,0",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      }
+    ],
+    "api": [],
+    "errors": [],
+    "startup": [],
+    "preparation": {
+      "seedRpcMs": 3538.262700000003,
+      "categories": 2,
+      "items": 30030,
+      "episodes": 0,
+      "states": 0,
+      "cpu": 1
+    },
+    "storageBefore": {
+      "usageBytes": 1351680,
+      "quotaBytes": 6443802624
+    },
+    "before": {
+      "retainedBytes": 4170436,
+      "cache": {
+        "queries": 2,
+        "indexEntries": 0,
+        "pageItems": 0,
+        "categoryItems": 0
+      }
+    },
+    "afterScreens": {
+      "retainedBytes": 24452816,
+      "cache": {
+        "queries": 43,
+        "indexEntries": 30030,
+        "pageItems": 0,
+        "categoryItems": 0
+      }
+    },
+    "selection": {
+      "ms": 430.39999997615814,
+      "ids": [
+        -8116585328,
+        -7225456119,
+        -4922739156,
+        -6498390396,
+        -7780267071,
+        -5626501261,
+        -5278033950,
+        -5757653088,
+        -4784951144,
+        -4719234888,
+        -4660604593,
+        -6708407692
+      ],
+      "eligibleCount": 30000
+    },
+    "temporaryHeapBytes": 13826908,
+    "lastItem": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29970 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29971 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29972 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29973 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29974 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29975 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29976 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29977 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29978 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29979 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29980 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29981 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29982 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29983 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29984 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29985 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29986 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29987 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29988 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29989 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29990 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29991 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29992 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29993 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29994 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29995 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29996 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29997 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 2009196,
+          "left": 0
+        }
+      ]
+    },
+    "searchLastItem": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 0,
+          "left": 0
+        }
+      ]
+    },
+    "detailBefore": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "pôsterFilme 29999 (2012)★ 6,8",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 0,
+          "left": 0
+        }
+      ]
+    },
+    "detailReturned": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "pôsterFilme 29999 (2012)★ 6,8",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 0,
+          "left": 0
+        }
+      ]
+    },
+    "sorted": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29979 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 2998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29980 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29981 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29982 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29983 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29984 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29985 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29986 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29987 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29988 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29989 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 2999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29990 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29991 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29992 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29993 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29994 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29995 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29996 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29997 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 30 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 300 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3000 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3001 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3002 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3003 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3004 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3005 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3006 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3007 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3008 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3009 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 301 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3010 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3011 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3012 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3013 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3014 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3015 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3016 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3017 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3018 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3019 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 302 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "Ordenar · A–Z ▾",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 1488606,
+          "left": 0
+        }
+      ]
+    },
+    "returned": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29973 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29974 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29975 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29976 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29977 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29978 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29979 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 2998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29980 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29981 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29982 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29983 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29984 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29985 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29986 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29987 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29988 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29989 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 2999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29990 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29991 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29992 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29993 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29994 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29995 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29996 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29997 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 30 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 300 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3000 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3001 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3002 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3003 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3004 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3005 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3006 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3007 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3008 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3009 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 301 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3010 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3011 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3012 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3013 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3014 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "pôsterFilme 29999 (2012)★ 6,8",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 1488204,
+          "left": 0
+        }
+      ]
+    },
+    "categoryMemory": {
+      "retainedBytes": 49099276,
+      "cache": {
+        "queries": 50,
+        "indexEntries": 30030,
+        "pageItems": 0,
+        "categoryItems": 30000
+      }
+    },
+    "storageAfter": {
+      "usageBytes": 1351680
+    },
+    "workers": {
+      "created": 0,
+      "heapBytes": 0
+    }
+  },
+  {
+    "configuration": "category-30000",
+    "run": 3,
+    "kind": "category",
+    "steps": [
+      {
+        "name": "home-cold",
+        "elapsedMs": 1792.3999999761581,
+        "browserStartMs": 3578.600000023842,
+        "usefulMs": 1348.3999999761581,
+        "automationBeforeActionMs": 48.89999997615814,
+        "maxLongTaskMs": 297,
+        "longTaskTotalMs": 591,
+        "longTaskSamples": [
+          {
+            "offsetMs": 122.39999997615814,
+            "ms": 150
+          },
+          {
+            "offsetMs": 892.1999999880791,
+            "ms": 297
+          },
+          {
+            "offsetMs": 1245.3999999761581,
+            "ms": 72
+          },
+          {
+            "offsetMs": 1318,
+            "ms": 72
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 14,
+            "records": 14,
+            "items": 0
+          },
+          {
+            "store": "sources",
+            "operation": "getAll",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 1,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30000
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 1795.4969000000056,
+        "cacheAtEnd": {
+          "queries": 30,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 0
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": "-7231348314",
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7214570695",
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7197793076",
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7181015457",
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7164237838",
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7147460219",
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7130682600",
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7113904981",
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7097127362",
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-8318902494",
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865716023515",
+              "title": "Série 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865732801134",
+              "title": "Série 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865749578753",
+              "title": "Série 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865766356372",
+              "title": "Série 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865783133991",
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865799911610",
+              "title": "Série 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865816689229",
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865565024944",
+              "title": "Série 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865581802563",
+              "title": "Série 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-866300133873",
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": "Bem-vindo(a) ao CCPlayTV",
+          "focus": "Abrir TV ao vivo",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "movies-after-home",
+        "elapsedMs": 1284.5999999642372,
+        "browserStartMs": 5383.300000011921,
+        "usefulMs": 847,
+        "automationBeforeActionMs": 38.19999998807907,
+        "maxLongTaskMs": 445,
+        "longTaskTotalMs": 774,
+        "longTaskSamples": [
+          {
+            "offsetMs": 30.19999998807907,
+            "ms": 445
+          },
+          {
+            "offsetMs": 498.19999998807907,
+            "ms": 73
+          },
+          {
+            "offsetMs": 575.3999999761581,
+            "ms": 63
+          },
+          {
+            "offsetMs": 646,
+            "ms": 193
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 7,
+            "records": 7,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "get",
+            "kind": "movie",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30000
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 1286.7897000000012,
+        "cacheAtEnd": {
+          "queries": 37,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 0
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 77 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 467 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1247 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2222 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2612 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2807 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3197 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3782 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3977 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4367 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 10 (2016)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": null,
+          "focus": "pôsterFilme 0 (2026)★ 6,0",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "series-after-home",
+        "elapsedMs": 630.8000000119209,
+        "browserStartMs": 6681.199999988079,
+        "usefulMs": 241.69999998807907,
+        "automationBeforeActionMs": 38.90000003576279,
+        "maxLongTaskMs": 0,
+        "longTaskTotalMs": 0,
+        "longTaskSamples": [],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 8,
+            "records": 8,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "get",
+            "kind": "series",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 632.5345000000016,
+        "cacheAtEnd": {
+          "queries": 43,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 0
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": null,
+              "title": "Série 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 24 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 22 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 21 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 20 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 16 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 15 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 10 (2016)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Série 10 (2016)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": null,
+          "focus": "pôsterSérie 0 (2026)★ 6,0",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "home-return",
+        "elapsedMs": 540.5999999642372,
+        "browserStartMs": 7789.600000023842,
+        "usefulMs": 138.79999995231628,
+        "automationBeforeActionMs": 31.5,
+        "maxLongTaskMs": 112,
+        "longTaskTotalMs": 112,
+        "longTaskSamples": [
+          {
+            "offsetMs": 23.399999976158142,
+            "ms": 112
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 6,
+            "records": 6,
+            "items": 0
+          },
+          {
+            "store": "sources",
+            "operation": "getAll",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 1,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 543.6176999999952,
+        "cacheAtEnd": {
+          "queries": 43,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 0
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": "-7231348314",
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7214570695",
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7197793076",
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7181015457",
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7164237838",
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7147460219",
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7130682600",
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7113904981",
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-7097127362",
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-8318902494",
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865716023515",
+              "title": "Série 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865732801134",
+              "title": "Série 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865749578753",
+              "title": "Série 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865766356372",
+              "title": "Série 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865783133991",
+              "title": "Série 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865799911610",
+              "title": "Série 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865816689229",
+              "title": "Série 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865565024944",
+              "title": "Série 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-865581802563",
+              "title": "Série 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": "-866300133873",
+              "title": "Série 9 (2017)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": "Bem-vindo(a) ao CCPlayTV",
+          "focus": "Filmes",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "movies-index-cold",
+        "elapsedMs": 1374,
+        "browserStartMs": 8342.699999988079,
+        "usefulMs": 65.5,
+        "automationBeforeActionMs": 24.80000001192093,
+        "maxLongTaskMs": 390,
+        "longTaskTotalMs": 755,
+        "longTaskSamples": [
+          {
+            "offsetMs": 20.5,
+            "ms": 56
+          },
+          {
+            "offsetMs": 144.10000002384186,
+            "ms": 309
+          },
+          {
+            "offsetMs": 471,
+            "ms": 390
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 10,
+            "records": 10,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 5,
+            "records": 5,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 1,
+            "records": 1,
+            "items": 30000
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 1376.6565000000046,
+        "cacheAtEnd": {
+          "queries": 44,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 30000
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 77 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 467 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1247 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2222 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2612 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2807 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3197 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3782 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3977 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4367 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 10 (2016)",
+              "meta": "",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": null,
+          "focus": "pôsterFilme 0 (2026)★ 6,0",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      },
+      {
+        "name": "category-first",
+        "elapsedMs": 1215.6000000238419,
+        "browserStartMs": 10350.899999976158,
+        "usefulMs": 276.0999999642372,
+        "automationBeforeActionMs": 39.200000047683716,
+        "maxLongTaskMs": 497,
+        "longTaskTotalMs": 730,
+        "longTaskSamples": [
+          {
+            "offsetMs": 30.100000023841858,
+            "ms": 233
+          },
+          {
+            "offsetMs": 326.30000001192093,
+            "ms": 497
+          }
+        ],
+        "reads": [
+          {
+            "store": "sources",
+            "operation": "get",
+            "kind": "other",
+            "source": "other",
+            "calls": 5,
+            "records": 5,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "movie",
+            "source": "a",
+            "calls": 4,
+            "records": 4,
+            "items": 0
+          },
+          {
+            "store": "categories",
+            "operation": "getAll",
+            "kind": "series",
+            "source": "a",
+            "calls": 3,
+            "records": 3,
+            "items": 0
+          },
+          {
+            "store": "categoryBlocks",
+            "operation": "getAllKeys",
+            "kind": "other",
+            "source": "other",
+            "calls": 1,
+            "records": 2,
+            "items": 0
+          }
+        ],
+        "directionSamplesMs": [],
+        "actionRpcMs": 1217.3589999999967,
+        "cacheAtEnd": {
+          "queries": 46,
+          "indexEntries": 30030,
+          "pageItems": 0,
+          "categoryItems": 30000
+        },
+        "equivalent": {
+          "cards": [
+            {
+              "id": null,
+              "title": "Filme 0 (2026)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 1 (2025)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 2 (2024)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 3 (2023)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 4 (2022)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 5 (2021)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 6 (2020)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 7 (2019)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 8 (2018)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 9 (2017)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 10 (2016)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 11 (2015)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 12 (2014)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 13 (2013)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 14 (2012)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 15 (2026)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 16 (2025)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 17 (2024)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 18 (2023)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 19 (2022)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 20 (2021)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 21 (2020)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 22 (2019)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 23 (2018)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 24 (2017)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 25 (2016)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 26 (2015)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 27 (2014)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 28 (2013)",
+              "meta": "Filmes",
+              "rank": ""
+            },
+            {
+              "id": null,
+              "title": "Filme 29 (2012)",
+              "meta": "Filmes",
+              "rank": ""
+            }
+          ],
+          "source": "Sintético A",
+          "hero": null,
+          "focus": "pôsterFilme 0 (2026)★ 6,0",
+          "scroll": [
+            {
+              "top": 0,
+              "left": 0
+            },
+            {
+              "top": 0,
+              "left": 0
+            }
+          ]
+        },
+        "requests": []
+      }
+    ],
+    "api": [],
+    "errors": [],
+    "startup": [],
+    "preparation": {
+      "seedRpcMs": 3563.3566999999966,
+      "categories": 2,
+      "items": 30030,
+      "episodes": 0,
+      "states": 0,
+      "cpu": 1
+    },
+    "storageBefore": {
+      "usageBytes": 1351680,
+      "quotaBytes": 6443802624
+    },
+    "before": {
+      "retainedBytes": 4169704,
+      "cache": {
+        "queries": 2,
+        "indexEntries": 0,
+        "pageItems": 0,
+        "categoryItems": 0
+      }
+    },
+    "afterScreens": {
+      "retainedBytes": 24452416,
+      "cache": {
+        "queries": 43,
+        "indexEntries": 30030,
+        "pageItems": 0,
+        "categoryItems": 0
+      }
+    },
+    "selection": {
+      "ms": 411.89999997615814,
+      "ids": [
+        -8116585328,
+        -7225456119,
+        -4922739156,
+        -6498390396,
+        -7780267071,
+        -5626501261,
+        -5278033950,
+        -5757653088,
+        -4784951144,
+        -4719234888,
+        -4660604593,
+        -6708407692
+      ],
+      "eligibleCount": 30000
+    },
+    "temporaryHeapBytes": 13691384,
+    "lastItem": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29970 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29971 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29972 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29973 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29974 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29975 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29976 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29977 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29978 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29979 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29980 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29981 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29982 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29983 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29984 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29985 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29986 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29987 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29988 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29989 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29990 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29991 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29992 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29993 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29994 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29995 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29996 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29997 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 2009196,
+          "left": 0
+        }
+      ]
+    },
+    "searchLastItem": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 0,
+          "left": 0
+        }
+      ]
+    },
+    "detailBefore": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "pôsterFilme 29999 (2012)★ 6,8",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 0,
+          "left": 0
+        }
+      ]
+    },
+    "detailReturned": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "pôsterFilme 29999 (2012)★ 6,8",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 0,
+          "left": 0
+        }
+      ]
+    },
+    "sorted": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29979 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 2998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29980 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29981 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29982 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29983 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29984 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29985 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29986 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29987 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29988 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29989 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 2999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29990 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29991 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29992 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29993 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29994 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29995 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29996 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29997 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 30 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 300 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3000 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3001 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3002 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3003 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3004 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3005 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3006 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3007 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3008 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3009 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 301 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3010 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3011 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3012 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3013 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3014 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3015 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3016 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3017 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3018 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3019 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 302 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "Ordenar · A–Z ▾",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 1488606,
+          "left": 0
+        }
+      ]
+    },
+    "returned": {
+      "cards": [
+        {
+          "id": null,
+          "title": "Filme 29973 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29974 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29975 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29976 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29977 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29978 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29979 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 2998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29980 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29981 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29982 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29983 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29984 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29985 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29986 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29987 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29988 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29989 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 2999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29990 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29991 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29992 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29993 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29994 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29995 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29996 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29997 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29998 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 29999 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 30 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 300 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3000 (2026)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3001 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3002 (2024)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3003 (2023)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3004 (2022)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3005 (2021)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3006 (2020)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3007 (2019)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3008 (2018)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3009 (2017)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 301 (2025)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3010 (2016)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3011 (2015)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3012 (2014)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3013 (2013)",
+          "meta": "Filmes",
+          "rank": ""
+        },
+        {
+          "id": null,
+          "title": "Filme 3014 (2012)",
+          "meta": "Filmes",
+          "rank": ""
+        }
+      ],
+      "source": "Sintético A",
+      "hero": null,
+      "focus": "pôsterFilme 29999 (2012)★ 6,8",
+      "scroll": [
+        {
+          "top": 0,
+          "left": 0
+        },
+        {
+          "top": 1488204,
+          "left": 0
+        }
+      ]
+    },
+    "categoryMemory": {
+      "retainedBytes": 49098068,
+      "cache": {
+        "queries": 50,
+        "indexEntries": 30030,
+        "pageItems": 0,
+        "categoryItems": 30000
+      }
+    },
+    "storageAfter": {
+      "usageBytes": 1351680
+    },
+    "workers": {
+      "created": 0,
+      "heapBytes": 0
+    }
+  }
+]

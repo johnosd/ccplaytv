@@ -55,7 +55,6 @@ export const SUITE = [
   'e2e/navegacao-por-pagina.mjs',
   'e2e/performance-navegacao.mjs',
   'e2e/vitrine-filmes-series.mjs',
-  'e2e/performance-navegacao.mjs',
   'e2e/carrosseis-filmes-series.mjs',
   'e2e/vod-pesquisa-ordenacao.mjs',
   'e2e/campos-da-listagem.mjs',
