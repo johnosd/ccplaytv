@@ -103,6 +103,11 @@ function App() {
       void queryClient.invalidateQueries({ queryKey: ['catalog-counts'] })
       // O índice de busca (vitrine, Todos, Top 10/Dica) é do catálogo da geração ativa: uma sincronização o troca.
       void queryClient.invalidateQueries({ queryKey: ['catalog-search-index'] })
+      // Feature 038: a atualização pediu renovação das categorias (`renewRequestedAt`). Sem acordar a pré-carga, ela só
+      // reavalia o disco no recheck de 10 min e os lançamentos/"Adicionados recentemente" seguem velhos até lá.
+      void queryClient.invalidateQueries({ queryKey: ['categories'] })
+      void queryClient.invalidateQueries({ queryKey: ['category-content'] })
+      wakePrefetch()
     })
   }, [queryClient])
 
