@@ -1,18 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { decideOnOpen, isCategoryFresh, STALE_AFTER_MS } from './freshness'
+import { decideOnOpen, isCategoryFresh, REFRESH_ON_OPEN_MIN_MS, STALE_AFTER_MS } from './freshness'
 import type { SourceRecord } from './db'
 import { CatalogDb } from './db'
 import { startImport } from './importPipeline'
 
 describe('freshness / decideOnOpen', () => {
-  it('não dispara nada se dentro do prazo', () => {
+  it('não dispara nada se sincronizou há menos do intervalo mínimo', () => {
     const now = 1000000000
     const source: SourceRecord = {
       id: 'src-1',
       type: 'm3u_url',
       displayName: 'Test',
       connectionState: 'synced',
-      lastSuccessfulSyncAt: now - (STALE_AFTER_MS - 1000), // less than 24h ago
+      lastSuccessfulSyncAt: now - (REFRESH_ON_OPEN_MIN_MS - 1000), // menos de 10 min
       epgIdsCapturedAt: 1, // já capturou o id de EPG (feature 030)
       createdAt: now - STALE_AFTER_MS,
       updatedAt: now,
@@ -20,7 +20,27 @@ describe('freshness / decideOnOpen', () => {
     expect(decideOnOpen(source, now)).toBe('none')
   })
 
-  it('dispara update_by_age se fora do prazo', () => {
+  // Bug `lista-xtream-nao-atualiza-novos-filmes`: abrir o app dentro das antigas
+  // 24 h nunca trazia filmes, séries e canais novos (ou removidos) do provedor.
+  it('dispara update_by_age ao abrir uma lista sincronizada há mais de 10 min, mesmo dentro de 24 h', () => {
+    const now = 1000000000
+    const base: SourceRecord = {
+      id: 'src-1',
+      type: 'provider_credentials',
+      displayName: 'Test',
+      connectionState: 'synced',
+      providerMigratedAt: 1,
+      epgIdsCapturedAt: 1,
+      createdAt: now - STALE_AFTER_MS * 2,
+      updatedAt: now,
+    }
+    expect(decideOnOpen({ ...base, lastSuccessfulSyncAt: now - (REFRESH_ON_OPEN_MIN_MS + 1000) }, now)).toBe('update_by_age')
+    expect(decideOnOpen({ ...base, lastSuccessfulSyncAt: now - 60 * 60 * 1000 }, now)).toBe('update_by_age')
+    expect(decideOnOpen({ ...base, lastSuccessfulSyncAt: now - (STALE_AFTER_MS - 1000) }, now)).toBe('update_by_age')
+    expect(decideOnOpen({ ...base, lastSuccessfulSyncAt: now - 5 * 60 * 1000 }, now)).toBe('none')
+  })
+
+  it('dispara update_by_age se sincronizou há mais de 24 h', () => {
     const now = 1000000000
     const source: SourceRecord = {
       id: 'src-1',

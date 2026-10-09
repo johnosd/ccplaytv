@@ -17,6 +17,7 @@ import { registerFavoriteColorKey, registerRemoveColorKey } from './lib/tizenCol
 import { registerMediaKeys } from './lib/tizenMediaKeys'
 import { onEpgSyncFinished } from './lib/epg/epgRunner'
 import { onSourceSyncFinished } from './features/import/sourceSyncing'
+import { useRefreshOnForeground } from './features/import/useRefreshOnForeground'
 import { usePrefetchForSource, wakePrefetch } from './features/catalog/prefetchApi'
 import { HomeScreen } from './features/home/HomeScreen'
 import { appNavReducer, initialAppNav, type AppScreen, type TopDestination } from './navigation/appNav'
@@ -175,17 +176,19 @@ function App() {
     // Mesma lista de antes (ex.: "Abrir lista" depois de ressincronizar): a
     // pré-carga já roda, mas a estrutura pode ter mudado — relê o disco.
     wakePrefetch()
-    // Fogo e esquece: a leitura do catálogo sempre serve o que está
-    // publicado agora (cache-first, ADR-002); a navegação nunca espera essa
-    // decisão.
-    openSource.mutate(source.id, {
+    checkSourceForUpdates(source.id)
+  }
+
+  // Fogo e esquece (cache-first, ADR-002): a navegação nunca espera. Também ao voltar
+  // ao primeiro plano (bug `lista-xtream-nao-atualiza-novos-filmes`).
+  function checkSourceForUpdates(sourceId: string) {
+    openSource.mutate(sourceId, {
       onSuccess: (result) => {
-        if (result.triggered && result.import_job_id) {
-          setAutoRefreshJobId(result.import_job_id)
-        }
+        if (result.triggered && result.import_job_id) setAutoRefreshJobId(result.import_job_id)
       },
     })
   }
+  useRefreshOnForeground(currentSource, checkSourceForUpdates)
 
   /**
    * Detalhe â†’ outro detalhe (Semelhantes, feature 035, `logic/navegacao-detalhe.md`

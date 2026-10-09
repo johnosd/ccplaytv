@@ -7,107 +7,7 @@ update-bug-status.ps1.
 ## Ideias Futuras
 - Incluir uma gestão de categorias nas configurações que permita o usuario, colocar senha em categorias ou esconder
 - incluir controle parental para canais adultos
-- bug analisar atualizacao da lista, parece que a lista tem novos filmes, series e nao está aparecendo na lista
-- Desempenho (resíduos da 065, 2026-10-09, `tv-web/bench-results/screen-perf-065/reduced/report.md`): Filmes com índice frio (−25%/−11% vs meta −30%, dominado pela 1ª renderização da vitrine); heap com TMDB sem ganho (o Top 10/Dica retém o índice compacto do tipo); JS da abertura −14,6% (meta −25%; Início sob demanda atrasava a entrada na lista); 1º recorte da categoria 30k −29,6%. Medir de novo com o protocolo completo (7 amostras) quando a máquina estiver ociosa
 
-**Só o que falta**, na ordem de execução sugerida (revisada em 02/10/2026,
-mantida a prioridade do usuário: player completo e valor direto ao usuário
-antes de lançamento). O que foi entregue está na tabela `## Features`; só os retirados ficam no fim da seção.
-
-ID é identificador estável, não ordem: `comingSoon.ts` (campo `backlogItem`)
-e `.planning/migracao-design-system-v14.md` apontam para ele. Nunca renumerar; os pacotes `G1`–`G8` agrupam itens para uma única passada de `sdd-specify`;
-item novo recebe o próximo número livre (**hoje: 73**; o 67 foi entregue pela `057`, o 68 pela `056`, o 70 virou o bug `tela-principal-filmes-lenta-na-tv`, em `sdd/bugs/`, e o 71 virou o bug `url-do-stream-no-src-do-video-de-dev`, em `sdd/bugs/`); fatias usam letra
-(`55a`, `62b`). Todo item assume o dado no aparelho (ADR-008): chamadas externas
-só a APIs de terceiro com a chave do próprio usuário (BYOK); `api/` é contorno
-congelado. Quem entrega um item apaga o mock correspondente de `comingSoon.ts`
-na mesma feature (hoje restam **9**, conferido em `comingSoon.ts` em 06/10/2026; a `057` retirou `vod-top10-movies` e `vod-top10-series`, a `060` retirou `vod-because` e `home-trailer`, a `062` substituiu `dock-speedtest` por diagnóstico real, com gate físico pendente). Dexie hoje é **v17** (a `062` acrescentou `networkDiagnostics`); a próxima livre é
-**v18** (reservar na spec). Itens de categoria vivem em blocos: ler/gravar só
-por `catalogRepository.ts`, nunca `db.channels`.
-
-Estados: `Pronto` (vai para `sdd-specify`, pelo pacote), `Bloqueado` (dependência dura
-aberta), `A avaliar` (precisa de `sdd-assess`), `Verificação` (só hardware ou
-medição), `Bugfix` (segue em `## Bugs`).
-
-
-### Pacotes para especificar
-
-Cada pacote vira **uma** passada de `sdd-specify` (uma spec, várias user stories). Os
-IDs dos itens continuam estáveis (`comingSoon.ts` aponta para eles); `G6`–`G8` são só
-rótulos de pacote (o G1 — itens 25b e 43 — virou a `058-headers-avplay-catchup`; o G5 — itens 49a-2, 49b e 35 — virou a `063-codigo-saudavel-benchmark`; G3 foi reduzido ao item 54 e especificado na `062-teste-conexao-tv`; G2 e G4 foram retirados pelo `sdd-assess` em 06/10/2026) e podem ser reagrupados. Dentro de um pacote, as fatias "A avaliar"
-só entram na spec depois do `sdd-assess`/medição — o resto sai sem esperar por elas.
-
-**Dificuldade** (para escolher o modelo no `sdd-plan`; vale a mais alta do pacote que você vai
-especificar agora): **Baixa** — mudança local, padrão já existente, sem dado nem contrato novo
-(modelo mais barato basta). **Média** — toca vários arquivos ou um contrato travado, mas o
-desenho é conhecido (modelo padrão). **Alta** — integridade de dados, desempenho em escala,
-API de plataforma incerta ou arquitetura nova (vale o modelo mais caro **para planejar**; a
-execução das tasks já definidas pode voltar ao modelo padrão). Estimativa de 04/10/2026, a
-rever no `sdd-specify`.
-
-- **G6 — Pessoa e seções do catálogo** (decisão de produto antes de tudo)
-  - Ordem: 6
-  - Tipo: avaliação
-  - Dificuldade: **Alta** — modelo de dados da pessoa e migração Dexie; decisão de produto antes do plano
-  - Estado: A avaliar
-  - Itens:
-    - **52** [Alta] — Perfis de pessoa e controle parental: perfis independentes da lista (perfil = lista pela ADR-011), PIN, bloqueio de categoria. Exige migração Dexie do estado da pessoa. Remove `settings-parental`.
-    - **53** [Média] — Seções Esportes e Infantil sem substituir as categorias da fonte (seleção manual de grupos ou regra reversível). Fora da topbar até lá. O bloqueio de categoria do 52 e a seleção de grupos do 53 compartilham o mesmo modelo "grupo da fonte → rótulo da pessoa".
-  - Depende de: `sdd-assess` (um só, para os dois)
-  - Remove mocks: `settings-parental`
-  - Fonte: V14 §13.1/§13.3/§48; ADR-011
-- **G7 — Lançamento na loja Samsung** (depois da UI estável)
-  - Ordem: 7
-  - Tipo: lançamento
-  - Dificuldade: **Baixa** — majoritariamente não é código; o 38 pede cuidado com `config.xml` e certificado
-  - Estado: 40 Pronto; 38 e 39 Bloqueados pela UI estável
-  - Itens:
-    - **40** [Baixa] — Conta de publicação e abrangência: Public Seller publica só nos EUA; Brasil depende de Partner Seller. Confirmar antes de prometer data; kit de revisão com fonte de demonstração e credenciais de teste separadas. Pode começar a qualquer momento.
-    - **38** [Média] — Pacote e checklist Tizen: `config.xml` e assinaturas revisados, Tizen ID preservado, versão crescente, `required_version` coerente, permissões proporcionais e justificadas, custódia do certificado. Bloqueadores: falha de instalação, perda de favoritos, áudio em segundo plano, credencial em log.
-    - **39** [Baixa] — Materiais de loja e Application UI Description: logo, fundo, ícone e 4 capturas nos tamanhos da Samsung, de uma versão com dados fictícios ou autorizados, sem credencial à vista.
-  - Depende de: UI estável (para 38/39)
-  - Remove mocks: —
-  - Fonte: guias `/02`, `/09`, `/10`, `/11`
-- **G8 — Canal celular ↔ TV** (bloqueado por uma avaliação)
-  - Ordem: 8
-  - Tipo: avaliação → feature
-  - Dificuldade: **Alta** — arquitetura de rede inexistente hoje (socket de escuta na TV); decide a ADR-008 de novo
-  - Estado: 64 A avaliar; 22b e 33 Bloqueados
-  - Itens:
-    - **64** [Alta] — Avaliação: um web app Tizen não abre socket de escuta; decidir entre service app Tizen, relay ou outro caminho que respeite a ADR-008. Resolve uma vez para 22b e 33. O `sdd-assess` já pode rodar.
-    - **22b** [Alta] — Conectar a lista pelo celular (QR). Remove `pair-phone`.
-    - **33** [Alta] — Voz pelo celular (BYOK OpenAI): pressionar-para-falar com `getUserMedia` + `MediaRecorder`, transcrição direta do celular, comando com ID e expiração confirmado pelo estado real da TV. Remove `voice-search`.
-  - Depende de: 64
-  - Remove mocks: `pair-phone`, `voice-search`
-  - Fonte: ADR-008 §4/§5; ADR-001 §4; RF-004; V14 §46
-
-
-### Retirados
-
-Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valor proporcional ao custo de manter:
-
-- **G4 (56)** — Acessibilidade de sistema: aparência de legendas, alto contraste e anúncios configuráveis. `sdd-assess` de 06/10/2026, veredito `kill` ([decisão](../sdd/assessments/g4-acessibilidade-sistema/decision.md)): o usuário não vê necessidade agora; nenhuma barreira atual foi relatada. Retomar com necessidade concreta ou exigência comprovada de publicação. Recursos atuais, requisitos V14 e os três placeholders honestos permanecem; não é entrega nem dispensa de acessibilidade.
-
-- **G3 — 30, 31 e clima (fatia do 54)** — `sdd-assess` de 06/10/2026, veredito `kill` no horizonte atual ([decisão](../sdd/assessments/g3-inicio-descoberta-dock/decision.md)): o usuário não relata lacuna concreta de descoberta após 057/060 e vê utilidade apenas no teste de velocidade. 30 ainda acrescentaria combinação de favoritos/múltiplas sementes; não foi considerado integralmente entregue. Não foi encontrada necessidade técnica para 31 depender de 30; o chat também carece de caso de uso atual. Retomar IA com pedido concreto não atendido; clima com necessidade explícita. `home-ai-curation`, `dock-ai` e `dock-weather` permanecem como placeholders nesta avaliação; 54 conserva o ID e segue somente como teste de conexão.
-
-- **27** — "Gostei": terceiro sinal de preferência ao lado de favorito e histórico, com UI em todo card, estado Dexie e reconciliação. Favoritos + histórico já alimentam recomendações. Spec `043` fica como histórico.
-- **22a** — Importar `.m3u` por USB: pouco uso em TV, e custaria um privilégio de filesystem a justificar na revisão da Samsung. URL e provedor cobrem o caso.
-- **50** — Suíte de aceite de UX com "responsável, aparelho, firmware" por execução: cerimônia. O gate já existe (E2E + passada na TV física por feature).
-- **48** — Documentação canônica por subsistema: duplica ADRs, specs e `CLAUDE.md`, e envelhece sozinha. Atualizar o ADR/spec onde a decisão mudou.
-- **47** — Skills de domínio: o `CLAUDE.md` e o `.planning/README.md` já são o mapa; mais skills é mais superfície para divergir.
-- **0** — Destino de `api/delete_sources.py`: não é item de produto; o arquivo fica junto do pacote congelado.
-- **34** — App Android de controle remoto: um segundo produto (pareamento, WebSocket, relay) para substituir o controle físico e o SmartThings. Contradiz o espírito client-first da ADR-008.
-- **29** — Nota IMDb com procedência: depende de licença de dados que não temos; a nota do provedor (`055`/`056`) e o TMDB já cobrem o caso.
-- **37** — Matriz de TVs: não é acionável sem outro aparelho. Reabrir quando houver.
-- **41** — Portais Stalker/Ministra: protocolo próprio, CORS e autenticação por MAC; custo de um terceiro conector para público de nicho.
-- **17** — Detalhe em dois estados: o DS V14 já rejeitou; item só existia como "se o uso pedir".
-- **23** — Várias fontes com refresh isolado: a navegação é uma lista por vez (ADR-011); atualizar listas inativas em segundo plano gasta rede, disco e CPU da TV sem benefício visível. A `034` já mostra estado por fonte.
-- `tvg-chno` (resto do 25b): exibir número do canal exigiria emendar a ADR-011, que fixa a posição na fonte.
-
-- **G2 inteiro (36, 26, 24, 66, 51)** — `sdd-assess` de 06/10/2026, veredito `kill` (`sdd/assessments/g2-integridade-carga-catalogo/decision.md`): nenhum sintoma visto com a lista real. 36 e 24 já têm a proteção principal (FR-017 da 005; chave lógica estável) e só voltam como **bug** se houver reprodução; 26 só afeta M3U fora do padrão; 66 morreu por decisão de produto (o usuário não quer busca global, só a de Filmes e a de Séries); 51 reabre com o aviso de espaço numa lista real ou com a quota medida pelo 35.
-
-- **20** — Design das telas sem protótipo: resolvido pela migração DS V14 (021–028). "Não classificados" segue no 26.
-- **21** — Um dono de scroll por painel: absorvido pela 009, pela 028 e pela fonte ativa única.
-- **44** — Teclas de mídia entregues pela 027; a entrada numérica de canal (§44) foi retirada a pedido do usuário em 30/09/2026.
 
 ## Features
 
@@ -177,7 +77,7 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | 062-teste-conexao-tv | Teste de conexão da TV em Configurações | Em Execução | 28/34 tasks | 2026-10-06 |
 | 063-codigo-saudavel-benchmark | Código saudável — divisão do repositório do catálogo, fronteiras e tamanho por lint, benchmark de importação | Implementada | 48/49 tasks | 2026-10-07 |
 | 064-upload-teste-conexao | Upload no teste de conexão da TV | Convergida | 35/36 tasks | 2026-10-07 |
-| 065-otimizacao-carga-consultas-memoria | Otimização de carga, consultas externas, memória e abertura do app | Implementada | 72/72 tasks | 2026-10-09 |
+| 065-otimizacao-carga-consultas-memoria | Otimização de carga, consultas externas, memória e abertura do app | Convergida | 74/74 tasks | 2026-10-09 |
 
 ## Bugs
 
@@ -196,6 +96,7 @@ Revisão crítica de arquiteto em 04/10/2026 — cortado o que não entrega valo
 | url-do-stream-no-src-do-video-de-dev | URL do stream no `src` do `<video>` de dev | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-05 |
 | foco-some-ao-descer-na-lista | Foco some ao descer na lista de episódios do detalhe da série | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-05 |
 | teste-conexo-armazenamento-indisponvel-tv | Teste de conexão não guarda resultado na TV | Test | verified | Concluído | 2026-10-07 |
+| lista-xtream-nao-atualiza-novos-filmes | Lista Xtream não traz filmes/séries/canais novos ao abrir o app | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-09 |
 
 ## Melhorias Ad-hoc
 
