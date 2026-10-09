@@ -205,3 +205,27 @@ description: "Tasks da feature 050 — paridade visual de Filmes e Séries com o
 
 
 
+
+## Phase 6: Convergence
+
+**Objetivo**: Fechar as lacunas da auditoria de convergência de 2026-10-09. Nenhuma bloqueia uma story P1 do comportamento atual; a hero (US1) foi retirada a pedido do usuário depois da entrega e falta documentar isso aqui.
+
+### Implementation
+
+- [x] T023 [HIGH] (feito em 2026-10-09: R-013) Registrar em `plan.md` → Riscos e Decisões um `R-013` para a emenda do contrato `VodScreens.paridade-v14.contract.test.tsx` e a trava regravada em 2026-10-07 (`lockedAt` 2026-10-07 18:02): a `vod-hero-band` e o `VodHeroArt` saíram da vitrine a pedido do usuário (ajuste ad-hoc de 2026-10-07 em `.planning/backlog.md` → Melhorias Ad-hoc), e o contrato passou a exigir "vitrine sem hero". Origem: plan: contrato (C-01)
+- [x] T024 [MEDIUM] (feito em 2026-10-09: nota na US1 e após FR-004) Emendar `spec.md` com nota inline `**Atualização (2026-10-07)**` em FR-001–FR-004 e na US1: a hero band foi retirada de Filmes e Séries a pedido do usuário; o texto original fica como histórico. Origem: FR-001–FR-004, US1 (C-02)
+- [ ] T025 [LOW] Revisão visual lado a lado com o protótipo (SC-001) e capturas antes/depois de Live, Configurações e detalhes (SC-004, T002 adiada) — revisão humana, depende do usuário; registrar o resultado ou a dispensa no `plan.md`. Origem: SC-001, SC-004 (C-03)
+
+### Testes da Fase
+
+- [ ] T026 Reexecutar `sdd-converge 050-filmes-series-paridade-v14` depois das tasks acima.
+
+**Critério de Conclusão**: R-013 registrado, spec emendada, SC-001/SC-004 revisados ou dispensados pelo usuário; `check-contract-tests.ps1 -Slug 050-filmes-series-paridade-v14` íntegro.
+
+**Registro da Fase**:
+
+- Status: Em andamento (2026-10-09): T023 e T024 feitas; T025 depende do usuário (revisão humana); T026 depois dela.
+- Feito: R-013 em `plan.md` documentando a retirada da hero e a regravação da trava de 2026-10-07; notas `Atualização (2026-10-07)` na US1 e após o FR-004 da spec.
+- Contrato: `check-contract-tests.ps1 -Slug 050-filmes-series-paridade-v14` → PASS (2 testes); `npx vitest run src/features/vod/VodScreens.paridade-v14.contract.test.tsx src/features/vod/VodCategoryScreen.paridade-v14.test.tsx` → 3/3.
+- Testes executados: só documentação nesta fase; E2E completo 43/43 em 2026-10-09 (inclui `vitrine-filmes-series` e `vod-pesquisa-ordenacao`).
+- Pendências: T025 (SC-001/SC-004, olho humano) e T026.

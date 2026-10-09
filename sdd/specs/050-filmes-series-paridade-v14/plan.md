@@ -254,13 +254,14 @@ Configurações/detalhes (FR-016/SC-004) — E2E de capturas e `quickstart.md`.
 | R-012 | Pedido do usuário (2026-10-02, após ver a tela com categorias reais): o prefixo "Filmes \|" / "Séries \|" é redundante e os nomes ficavam truncados em 280px | Médio — categoria ilegível | Resolvido: `vodGroupDisplay` (`features/vod/vodGroupDisplay.ts`, irmão de `liveGroupDisplay`) tira o prefixo só na exibição (sidebar, chip, hero, meta do card; identidade segue `groupLabel`); sidebar de **340px** (substitui os 280px de D-009; limite é 346px, senão a grade fixa de 1350px ganha scroll horizontal). E2E mede 340px e a ausência do prefixo. |
 
 | R-052 | Feature 052: a hero deixou de ficar sobre a grade e a sidebar de 340px deixou de existir; o contrato `MoviesScreen.paridade-v14.contract.test.tsx` virou `VodScreens.paridade-v14.contract.test.tsx` (hero da vitrine + cromo da toolbar da categoria). O E2E `filmes-series-paridade-v14.mjs` foi substituído por `vitrine-filmes-series.mjs`. | Registro — emenda de contrato travado | Resolvido: executada pela feature 052 com aprovação do usuário (2026-10-02); trava regravada. |
+| R-013 | Ajuste ad-hoc de 2026-10-07, a pedido do usuário: a `vod-hero-band` e o `VodHeroArt` saíram das vitrines de Filmes e Séries (as fileiras ocupam o painel desde o topo). O contrato `VodScreens.paridade-v14.contract.test.tsx` passou a exigir "vitrine sem hero: foco nos cards com e sem capa" e a trava foi regravada (`lockedAt` 2026-10-07 18:02). FR-001–FR-004 e a US1 deixam de valer. | Registro — emenda de contrato travado sem R-00X no momento (achado C-01 da convergência de 2026-10-09) | Resolvido: decisão do usuário registrada em `.planning/backlog.md` → Melhorias Ad-hoc (2026-10-07); trava íntegra e contrato 2/2 verde em 2026-10-09; spec emendada (T024). |
 ## Execution Notes
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
 | 2026-10-02 | Fases 1–5 | Hero em painel com capa ao fundo (`VodHeroArt`), sidebar em painel de 340px, toolbar (Pesquisar com "OK", Ordenar label/valor), molduras de continuação (`useOverflowEdges`), modal de Ordenar V14; E2E novo `filmes-series-paridade-v14.mjs` (achou e corrigiu o anel cortado pela coluna). Gate: tsc/lint/build/build:tizen, 2449/2450 testes, E2E 30/30, 6 travas íntegras. | Teste instável `LiveScreen.paginacao.test.tsx`; capturas antes/depois e TV física |
 
-**PRÓXIMO**: `/sdd-converge 050-filmes-series-paridade-v14`; revisão lado a lado (olho humano) de Filmes/Séries com o protótipo — em especial a capa de retrato como fundo da hero (R-004), a altura de 176px (R-002) e o contraste do foco sobre capas claras (guia T07).
+**PRÓXIMO**: T025 — revisão visual lado a lado com o protótipo (SC-001) e capturas antes/depois de Live, Configurações e detalhes (SC-004), ou dispensa registrada pelo usuário; depois T026 (`sdd-converge`). Hero retirada em 2026-10-07 (R-013).
 
 ## Arquivos Principais
 

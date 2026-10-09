@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-07
 
-**Status**: Implementada
+**Status**: Convergida
 
 **Input**: Pacote G5 de `.planning/backlog.md` (`## Ideias Futuras`), itens 49a-2 → 49b → 35, nessa ordem: dividir `catalogRepository.ts` por responsabilidade sem mudar comportamento nem API pública; fronteiras de código e limite de tamanho por lint; benchmark determinístico de importação (1 000/10 000/100 000 entradas, fetch/parse/classify/store e XMLTV, com aparelho e commit registrados).
 

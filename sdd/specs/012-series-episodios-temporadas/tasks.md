@@ -225,7 +225,7 @@ description: "Tasks da feature 012 — Séries: episódios e temporadas"
 - [x] `quickstart.md` G–I executado na TV física (ou risco residual registrado) — não executado, sem TV disponível nesta sessão (R-005, não é gate obrigatório) — **Atualização 06/10/2026: passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-02"); qualquer "não executado/adiada" acima é o estado anterior, mantido como histórico
 - [X] Revisão de segredos feita
 - [X] Nenhum backend necessário (ADR-008)
-- [ ] `npm run build:tizen` sincronizado em `CCPlayTv/` sem novo chunk fora de `tizen_web_project.yaml` — não executado nesta sessão (nenhum Worker novo nem mudança de build a justificar; fica pra antes de instalar na TV)
+- [x] `npm run build:tizen` sincronizado em `CCPlayTv/` sem novo chunk fora de `tizen_web_project.yaml` — não executado nesta sessão (nenhum Worker novo nem mudança de build a justificar; fica pra antes de instalar na TV) — **2026-10-09: executado**, sincronizado em `CCPlayTv/` e o guard de arquivos não listados (`findUnlistedFiles`) não acusou nada.
 
 ---
 

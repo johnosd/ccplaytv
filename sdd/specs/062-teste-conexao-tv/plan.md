@@ -176,11 +176,11 @@ Complementares no execute: falhas sanitizadas/429, corpo incorreto/sem stream, a
 
 | Área | Estado |
 | --- | --- |
-| Fases 1–4 | Concluídas: T001–T019; modo contínuo |
-| Verificações | US2: 44/44 testes; contratos 062 + Configurações 026 6/6; lint da área exit 0 |
-| Contratos | 062/026/028/032/060 íntegros |
-| Fase 5 | T020/T021/T025 concluídos; revisão adicional 8/8, tipos/lint/build exit 0; E2E completo 41/42, falha externa reproduzível no guia Amanhã |
-| Aceite físico | Não iniciado: E2E pendente e decisão sobre falha do guia Amanhã aguardada |
+| Fases 1–4 | Concluídas: T001–T019 |
+| Fase 5 | T020/T021/T022/T025 concluídos; T023 (TV) e T024 (sincronização final) abertos |
+| Verificações | 2026-10-09: unit 507/3059, tsc 0, lint ok, build ok, E2E 43/43; medição real no navegador completa (3 métricas + upload) |
+| Contratos | 062 PASS 5/5, trava íntegra; 026/028/032/060 íntegros |
+| Aceite físico | Pendente — usuário sem acesso à TV (2026-10-09); gate não satisfeito |
 
 ## Riscos e Decisões
 
@@ -197,7 +197,7 @@ Complementares no execute: falhas sanitizadas/429, corpo incorreto/sem stream, a
 | R-004 | Hold de mídia e cargas compartilhadas do catálogo | Concorrência altera diagnóstico | Guard real, não reusar playback como hold fictício; não reiniciar scheduler; T008/T013/T023 |
 | R-005 | Gravação atrasada/fechamento/repetição | Último resultado incorreto | Resolvido: compromisso serializado, id ativo; conclusão da escrita após fechamento atualiza consulta local; T008/T013 e C4 |
 | R-006 | Termos/estabilidade do destino na distribuição comercial | Uso futuro requer reavaliação | Pesquisa registra ausência de SLA/autorização comercial presumida |
-| R-007 | E2E existente epg-guia-completo falha ao focar primeiro programa da aba Amanhã | Gate E2E não satisfeito; fora do escopo de 062 | Reproduzido no runner e isolado, código de EPG não alterado; usuário consultado conforme sdd-execute passo 6; raiz ainda não diagnosticada |
+| R-007 | E2E existente epg-guia-completo falha ao focar primeiro programa da aba Amanhã | Gate E2E não satisfeito; fora do escopo de 062 | Resolvido: em 2026-10-09 o `epg-guia-completo` passou na suíte completa (43/43) sem mudança feita pela 062; provavelmente dependia da data/horário da programação de teste. Se voltar, tratar como bug próprio (`sdd-bugfix`). |
 
 ## Execution Notes
 
@@ -221,16 +221,17 @@ Complementares no execute: falhas sanitizadas/429, corpo incorreto/sem stream, a
 
 | 2026-10-06 | Fase 5 / fechamento da rodada | E2E completo 41/42 em 320s, somente epg-guia-completo falhou; 062 aprovado no runner. Área após revisão 38/38, lock íntegro. Capturas de roteiros anteriores regeneradas pelo runner restauradas; evidência 062 preservada. | Aguardar decisão já solicitada sobre EPG; T022/T023/T024 abertos |
 
-**PRÓXIMO**: aguardar decisão do usuário sobre falha fora do escopo em epg-guia-completo (foco Amanhã); não ampliar correção ou instalar na TV antes dessa decisão/gate E2E.
+| 2026-10-09 | Fase 5 / T022 | R-007 não reproduz: E2E 43/43 em 231 s. Gates unit/tsc/lint/build verdes; trava 5/5. Medição real no navegador (sem interceptação): completa em 10,6 s, 3 métricas + upload, 75 MB = solicitados, zero requisição por foco/abertura/fechamento. | T023 TV física (usuário sem TV agora) e T024 |
+
+**PRÓXIMO**: T023 — passada `tizen-tv` na TV física quando o usuário tiver acesso (CORS `file://`, limite, cancelamento, ciclo de vida, guard de reprodução, memória, reinício; criar `validation-tv.md`); depois T024 e `sdd-converge`. Até lá a feature fica `Em Execução`, sem declarar o gate físico satisfeito.
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- `tv-web/e2e/teste-conexao-tv.mjs` e `e2e/run.mjs` — fluxo automatizado sem rede real.
-- `tv-web/src/lib/network/speedTest.ts` e `speedTestRepository.ts` — motor/singleton v17.
-- `tv-web/src/features/settings/useSpeedTest.ts` — cancelamento e compromisso serializado.
-- `sdd/specs/062-teste-conexao-tv/quickstart.md` — roteiro restante, TV obrigatória.
+- `sdd/specs/062-teste-conexao-tv/quickstart.md` → "TV física" — roteiro do T023.
+- `sdd/specs/062-teste-conexao-tv/validation-tv.md` — a criar no T023.
+- `tv-web/e2e/teste-conexao-tv.mjs` — gate automatizado (transporte controlado).
 
 ## Cuidados para Retomada
 

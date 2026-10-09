@@ -171,7 +171,7 @@ Stubs/tipos criados pelo plan (não travados): `tv-web/src/lib/catalog/m3uHeader
 | 2026-10-02 | Fase 6 (Polish) | T013–T016: ADR-010 emendada; SC-004 medido e otimizado (R-009); regressão completa verde; `CLAUDE.md`/backlog. Um BOM acrescentado por `Set-Content` em `classifier.ts` e `tasks.md` foi detectado e removido. | `sdd-converge` |
 | 2026-10-02 | Fase 7 (Convergence) | T017: `toStoredRecord` só acrescenta os três campos quando existem (F-001 do converge); teste visto vermelho antes. Regressão da área, lint e 4 E2E de catálogo verdes. | T018 (manual); `sdd-converge` |
 
-**PRÓXIMO**: `/sdd-converge 044-parser-m3u-headers` (T018 é manual e não bloqueia).
+**PRÓXIMO**: nenhum — convergida. T018 (manual, não bloqueia) pendente: a lista real do usuário não usa headers por pipe/`#EXTVLCOPT`; precisa de outra lista.
 
 ## Arquivos Principais
 

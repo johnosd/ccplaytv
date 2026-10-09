@@ -23,15 +23,15 @@ update-bug-status.ps1.
 | 008-user-state-repo | UserStateRepository | Convergida | 14/14 tasks | 2026-09-22 |
 | 009-virtualizacao-foco | Virtualização de Grades e Foco Direcional | Convergida | 28/28 tasks | 2026-09-23 |
 | 010-catalogo-sob-demanda | Importação por Estrutura com Carga sob Demanda por Categoria | Convergida | 59/59 tasks | 2026-09-23 |
-| 011-assistir-filme-retomada | Assistir Filme, com Retomada | Convergida | 70/72 tasks | 2026-10-06 |
-| 012-series-episodios-temporadas | Séries — Episódios e Temporadas | Convergida | 54/55 tasks | 2026-10-06 |
+| 011-assistir-filme-retomada | Assistir Filme, com Retomada | Convergida | 71/72 tasks | 2026-10-09 |
+| 012-series-episodios-temporadas | Séries — Episódios e Temporadas | Convergida | 55/55 tasks | 2026-10-09 |
 | 013-favoritos | Favoritos em Canais, Filmes e Séries | Convergida | 47/47 tasks | 2026-09-24 |
 | 014-m3u-sob-demanda | Fonte M3U Estrutura-Primeiro (Detecção de Painel Xtream ou Arquivo Guardado) | Convergida | 59/62 tasks | 2026-10-06 |
 | 015-capa-real-filmes-series | Capa Real de Filmes e Séries | Convergida | 34/34 tasks | 2026-09-25 |
 | 016-zapping-live-tv | Zapping por Cima do Vídeo em Live TV | Convergida | 41/41 tasks | 2026-09-25 |
 | 017-busca-local-catalogo | Busca Local em Live TV, Filmes e Séries | Implementada | 41/42 tasks | 2026-10-06 |
 | 018-busca-por-categoria | Busca por categoria com ícone de entrada e categoria virtual "Todos" | Convergida | 36/36 tasks | 2026-09-26 |
-| 019-historico-continuar-assistindo | Histórico e Continuar Assistindo | Convergida | 30/31 tasks | 2026-09-26 |
+| 019-historico-continuar-assistindo | Histórico e Continuar Assistindo | Convergida | 31/31 tasks | 2026-10-09 |
 | 020-ciclo-vida-player | Ciclo de Vida do Player na TV | Convergida | 16/16 tasks | 2026-10-06 |
 | 021-fundacao-visual-ds-v14 | Fundação Visual do Design System V14 (Onda 0 da migração) | Convergida | 65/65 tasks | 2026-09-26 |
 | 022-biblioteca-componentes-ds-v14 | Biblioteca de Componentes do Design System V14 (Onda 1 da migração) | Convergida | 80/80 tasks | 2026-09-26 |
@@ -56,12 +56,12 @@ update-bug-status.ps1.
 | 041-player-qualidade-aspecto | Qualidade, aspecto e preferências do player (sem velocidade) | Convergida | 53/53 tasks | 2026-10-01 |
 | 042-rede-lifecycle-erros | Rede, lifecycle e erros acionáveis | Convergida | 62/62 tasks | 2026-10-06 |
 | 043-gostei-filmes-series | "Gostei" em filmes e séries | Especificada | N/A | 2026-10-01 |
-| 044-parser-m3u-headers | Contrato de compatibilidade do parser M3U (headers, radio, tvg-chno) | Convergida | 26/27 tasks | 2026-10-02 |
+| 044-parser-m3u-headers | Contrato de compatibilidade do parser M3U (headers, radio, tvg-chno) | Convergida | 26/27 tasks | 2026-10-09 |
 | 045-ime-formularios-tv | IME da TV nos formulários — teclado, Next/Done, senha e erros de conexão | Convergida | 41/42 tasks | 2026-10-06 |
 | 046-memoria-foco-key-repeat | Memória de foco por área e key repeat | Convergida | 27/27 tasks | 2026-10-02 |
 | 047-player-dev-mpegts | Reprodução de canais ao vivo MPEG-TS no navegador do dev | Convergida | 38/38 tasks | 2026-10-05 |
 | 048-live-paridade-v14 | Paridade visual da TV ao vivo com o Design System V14 | Encerrada | 43/47 tasks | 2026-10-05 |
-| 050-filmes-series-paridade-v14 | Paridade visual de Filmes e Séries com o Design System V14 | Implementada | 30/30 tasks | 2026-10-02 |
+| 050-filmes-series-paridade-v14 | Paridade visual de Filmes e Séries com o Design System V14 | Convergência Pendente | 32/34 tasks | 2026-10-09 |
 | 049-navegacao-por-pagina | Navegação por página nas listas | Convergida | 42/42 tasks | 2026-10-02 |
 | 051-detalhe-filme-paridade-v14 | Paridade visual do detalhe do filme com o Design System V14 | Substituída pela 059 | 0/31 tasks | 2026-10-05 |
 | 052-vitrine-filmes-series | Vitrine de Filmes e Séries e tela de categoria em grade cheia | Convergida | 54/54 tasks | 2026-10-03 |
@@ -69,14 +69,14 @@ update-bug-status.ps1.
 | 054-idioma-do-app | Idioma do app | Convergida | 60/60 tasks | 2026-10-05 |
 | 055-campos-da-listagem-xtream | Nota, gênero e fundo vindos da listagem Xtream | Convergida | 38/38 tasks | 2026-10-03 |
 | 056-bem-avaliados | Fileira "Bem avaliados" em Filmes e Séries | Convergida | 44/44 tasks | 2026-10-04 |
-| 057-top10-dica-tmdb | Top 10 da semana e carrossel "Dica" (TMDB) em Filmes, Séries e Início | Convergida | 55/58 tasks | 2026-10-05 |
+| 057-top10-dica-tmdb | Top 10 da semana e carrossel "Dica" (TMDB) em Filmes, Séries e Início | Convergida | 58/58 tasks | 2026-10-09 |
 | 058-headers-avplay-catchup | Headers da lista no AVPlay e catch-up de programas passados (Xtream) | Convergida | 53/53 tasks | 2026-10-05 |
 | 059-detalhe-cinema-filme-serie | Detalhe de filme e de série no layout Cinema do Design System | Convergida | 49/49 tasks | 2026-10-06 |
 | 060-home-vitrine-expandida | Home no layout "Vitrine expandida" do Design System | Convergida | 53/53 tasks | 2026-10-06 |
 | 061-classificacao-nota-tmdb | Classificação indicativa e nota TMDB no Início e no detalhe | Convergida | 46/46 tasks | 2026-10-06 |
-| 062-teste-conexao-tv | Teste de conexão da TV em Configurações | Em Execução | 28/34 tasks | 2026-10-06 |
-| 063-codigo-saudavel-benchmark | Código saudável — divisão do repositório do catálogo, fronteiras e tamanho por lint, benchmark de importação | Implementada | 48/49 tasks | 2026-10-07 |
-| 064-upload-teste-conexao | Upload no teste de conexão da TV | Convergida | 35/36 tasks | 2026-10-07 |
+| 062-teste-conexao-tv | Teste de conexão da TV em Configurações | Em Execução | 30/34 tasks | 2026-10-09 |
+| 063-codigo-saudavel-benchmark | Código saudável — divisão do repositório do catálogo, fronteiras e tamanho por lint, benchmark de importação | Convergida | 48/49 tasks | 2026-10-09 |
+| 064-upload-teste-conexao | Upload no teste de conexão da TV | Convergida | 35/36 tasks | 2026-10-09 |
 | 065-otimizacao-carga-consultas-memoria | Otimização de carga, consultas externas, memória e abertura do app | Convergida | 74/74 tasks | 2026-10-09 |
 
 ## Bugs

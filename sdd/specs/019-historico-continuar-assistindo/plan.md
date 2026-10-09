@@ -301,7 +301,7 @@ função — e `isPastEnd` com o terceiro parâmetro já na assinatura).
 | 2026-09-26 | Fase 4 (Continuar assistindo — US4) | `resolveContinueWatching`/`useContinueWatchingContent` novos — episódio sempre resolve pra série-pai (R-004), nunca aparece isolado. `ListHomeScreen.tsx`: seção nova acima dos tiles, `onOpenContinueWatching` nova prop obrigatória (propagada em `App.tsx` e no teste existente). Sem contrato (US4 é P2). 291/291 na área tocada; suíte completa 726/729 (flakiness pré-existente). | Nenhuma |
 | 2026-09-26 | Fase 5 (Polish) | E2E `historico-continuar-assistindo.mjs` (11 asserções, cenários A/B/C) achou e corrigiu 2 bugs reais de produção (R-005: corrida de invalidação `onExit`/`markCompleted` em `PlayerLayer.tsx`/`progressRecorder.ts`; R-006: `useToggleWatched` sem invalidar `continue-watching`). Teste unitário complementar de `resolveContinueWatching` em `catalogRepository.test.ts`. Gates completos: `tsc -b` 0 erros, `vitest run` 727/732 (5 flakiness pré-existente confirmada 64/64 isolada), `lint`/`build` limpos, `test:e2e` 11/11. `CLAUDE.md` atualizado. | `quickstart.md` em TV física não executado (não é gate obrigatório) |
 
-**PRÓXIMO**: Todas as tasks concluídas — feature pronta para `sdd-converge`.
+**PRÓXIMO**: nenhum — convergida; quickstart coberto no navegador pelo E2E em 2026-10-09. Recomendado (não gate): passada na TV física.
 
 ## Arquivos Principais
 

@@ -232,7 +232,7 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sr
 | 2026-10-05 | Convergência (Fase 10) | Bug `tela-principal-filmes-lenta-na-tv` corrigido (índice com `staleTime` de 60 s e invalidação ao entrar em categoria/fim de sincronização, resultados por índice, "Adicionados recentemente" mapeia só 12) e app reinstalado na TV: o usuário viu 1ª fileira de Filmes rápida sem travar, 2ª visita fluida e navegação boa (qualitativo; sem chave TMDB não testado). Fecha o C-10 (SC-008) com ressalva. | T048 (reexecutar a convergência) |
 | 2026-10-05 | Ajustes pós-TV (Em alta) | Renomeada para "Em alta esta semana" (Início: "Filmes/Séries em alta esta semana"), cards numerados 1, 2, 3… e posição real do TMDB no destaque da hero (D-016, R-017: contrato da 057 e uma linha da 053 emendados, travas regravadas); número grande sobre a capa, cards mais próximos e maiores (D-017); o Início passou a rolar até a linha focada (R-018). 418 arq. / 2723 testes, E2E da área 8/8, travas íntegras. | Reinstalar na TV para conferir; T048 |
 
-**PRÓXIMO**: `sdd-converge 057-top10-dica-tmdb` (T048); o C-10 foi fechado pela verificação na TV.
+**PRÓXIMO**: nenhum — convergida (2026-10-05, reconferida em 2026-10-09). Fora de gate: passada na TV física sem chave TMDB (R-003/T046).
 
 ## Arquivos Principais
 

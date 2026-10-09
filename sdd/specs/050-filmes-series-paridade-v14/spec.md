@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-02
 
-**Status**: Implementada
+**Status**: Convergência Pendente
 
 **Input**: Pedido de ajustar as telas de Filmes e Séries para ficarem iguais ao protótipo `CCPlayTV_Tizen_Ultimate_Prototype_v13_2.html` (funções `catalog()`, `catalogSearchModal()`, `sortModal()`), usando como consulta o Component Lab V14 e a Spec V14. A feature 025 já migrou essas telas para a estrutura V14 (sidebar, toolbar, hero compacta, grade); a distância que resta é de acabamento e composição, como a 048 fez para a Live.
 
@@ -33,6 +33,8 @@
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Hero band e grade no visual do protótipo (Priority: P1)
+
+> **Atualização (2026-10-07):** a hero band foi retirada das vitrines de Filmes e Séries a pedido do usuário (ajuste ad-hoc, `plan.md` R-013). Esta story e os FR-001–FR-004 ficam como histórico; o que segue valendo da US1 é a grade/cards no visual V14.
 
 Ao abrir Filmes ou Séries, a pessoa vê a hero band com a capa do card focado ampliada ao fundo, rótulo (`CCPLAY CINEMA`/`CCPLAY SÉRIES`, `★ SEUS FAVORITOS` ou `↺ VISTOS RECENTEMENTE` conforme a entrada), título grande e metadados reais, acima da grade de cards portrait no acabamento V14.
 
@@ -102,6 +104,7 @@ O modal de Ordenar e o campo Pesquisar (inline) ficam no visual do protótipo/Co
 - **FR-002**: Sem capa ou com falha de carga, a hero DEVE usar só o degradê de superfície; nenhuma outra imagem pode ser usada.
 - **FR-003**: O rótulo da hero DEVE variar: `CCPLAY CINEMA` (Filmes), `CCPLAY SÉRIES` (Séries), `★ SEUS FAVORITOS` e `↺ VISTOS RECENTEMENTE` nas entradas pessoais.
 - **FR-004**: A hero NÃO DEVE conter elementos focáveis nem disparar reprodução ou consulta ao ser atualizada pelo foco.
+  **Atualização (2026-10-07):** FR-001–FR-004 não se aplicam mais — a hero foi retirada a pedido do usuário (`plan.md` R-013).
 - **FR-005**: A sidebar DEVE estar em painel com cabeçalho, blocos "Sua biblioteca" e "Catálogo", item selecionado com tom e texto de destaque distintos do foco e contagem só quando conhecida.
 - **FR-006**: A toolbar DEVE ter o campo Pesquisar e o botão Ordenar (rótulo + opção atual) nas medidas do protótipo, com os mesmos comportamentos de hoje.
 - **FR-009**: O anel de foco (contorno, deslocamento e halo) de itens da sidebar, toolbar e grade DEVE aparecer inteiro em qualquer posição de rolagem.

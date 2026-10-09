@@ -294,7 +294,7 @@ description: "Tasks da feature 057 — Top 10 da semana e Dica (TMDB) em Filmes,
 
 ### Testes da Fase
 
-- [ ] T042 Reexecutar `sdd-converge 057-top10-dica-tmdb` depois das tasks acima até não sobrar achado
+- [x] T042 Reexecutar `sdd-converge 057-top10-dica-tmdb` depois das tasks acima até não sobrar achado — feito: convergência sem achados em 2026-10-05 (`plan.md` → `## Resultado Final`); reconferido em 2026-10-09: trava íntegra 5/5, contratos + `catalogApi.discovery.test.tsx` + `discoveryRules.test.ts` 36/36, E2E `top10-dica-tmdb` dentro dos 43/43.
 
 **Critério de Conclusão**: C-01..C-08 resolvidos (spec e plano alinhados ao comportamento entregue; R-003 com medição no navegador registrada) e `sdd-converge` sem achados; `check-contract-tests.ps1 -Slug 057-top10-dica-tmdb` segue íntegro.
 
@@ -316,7 +316,7 @@ description: "Tasks da feature 057 — Top 10 da semana e Dica (TMDB) em Filmes,
 
 ### Testes da Fase
 
-- [ ] T045 Testes dos hooks cobrindo a nova ordem (a fileira aparece depois do primeiro desenho, mesma seleção de antes, sem chave nada é calculado) e reexecução de `sdd-converge 057-top10-dica-tmdb` até não sobrar achado
+- [x] T045 Testes dos hooks cobrindo a nova ordem (a fileira aparece depois do primeiro desenho, mesma seleção de antes, sem chave nada é calculado) e reexecução de `sdd-converge 057-top10-dica-tmdb` até não sobrar achado — feito: convergência sem achados em 2026-10-05 (`plan.md` → `## Resultado Final`); reconferido em 2026-10-09: trava íntegra 5/5, contratos + `catalogApi.discovery.test.tsx` + `discoveryRules.test.ts` 36/36, E2E `top10-dica-tmdb` dentro dos 43/43.
 
 **Critério de Conclusão**: contratos 057 5/5 verdes e trava íntegra; a medição de T044 sem o atraso e sem a tarefa longa de C-09; `npm run test` e o E2E `top10-dica` verdes; `sdd-converge` sem achados (junto com a Fase 8).
 
@@ -339,7 +339,7 @@ description: "Tasks da feature 057 — Top 10 da semana e Dica (TMDB) em Filmes,
 
 ### Testes da Fase
 
-- [ ] T048 Reexecutar `sdd-converge 057-top10-dica-tmdb` até não sobrar achado
+- [x] T048 Reexecutar `sdd-converge 057-top10-dica-tmdb` até não sobrar achado — feito: convergência sem achados em 2026-10-05 (`plan.md` → `## Resultado Final`); reconferido em 2026-10-09: trava íntegra 5/5, contratos + `catalogApi.discovery.test.tsx` + `discoveryRules.test.ts` 36/36, E2E `top10-dica-tmdb` dentro dos 43/43.
 
 **Critério de Conclusão**: C-10 fechado (medição reproduzível e a TV medida, ou o limite aceito e registrado pelo usuário); junto com a Fase 8 resolvida, `sdd-converge` sem achados e `check-contract-tests.ps1 -Slug 057-top10-dica-tmdb` íntegro.
 

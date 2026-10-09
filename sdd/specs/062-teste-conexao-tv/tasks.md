@@ -133,7 +133,7 @@ Sem novo teste: baseline e integridade existentes; contratos 062 ainda vermelhos
 
 - [x] T020 Revisar alterações de `tv-web/src/lib/network/`, `features/settings/` e `features/home/` por segredos, analytics, arrays grandes/requests residuais; conferir build chrome108, arquivos emitidos em `tizen_web_project.yaml` e placeholders restantes (FR-007/019/020/021/022; SC-003/004/006).
 - [x] T021 Rodar lint, `npx tsc -b --pretty false`, suíte Vitest completa e build em `tv-web/`; conferir lock 062 e travas 026/028/032/060. Registrar comandos/resultados em `plan.md`; corrigir regressões sem editar contratos.
-- [ ] T022 Executar `npm run test:e2e` contra `npm run dev`, depois roteiro navegador de `quickstart.md`; registrar evidência em `plan.md` antes de solicitar validação Tizen (SC-001–006).
+- [x] T022 Executar `npm run test:e2e` contra `npm run dev`, depois roteiro navegador de `quickstart.md`; registrar evidência em `plan.md` antes de solicitar validação Tizen (SC-001–006). — 2026-10-09: E2E completo 43/43 (inclui `teste-conexao-tv` e o `epg-guia-completo` que antes falhava); roteiro do navegador coberto pelo E2E (transporte controlado, passos 1–7) + uma medição real sem interceptação (ver Registro da Fase).
 - [ ] T023 Usar `tizen-tv` para app empacotado na TV física após gates automáticos/E2E; executar sucesso real com três métricas, limite, cancelamento/liberação, ciclo de vida, memória, persistência e guard de reprodução. Criar `sdd/specs/062-teste-conexao-tv/validation-tv.md` sem segredos (FR-023; SC-007). Gate pendente impede entrega.
 - [ ] T024 Sincronizar `spec.md`, `plan.md`, `tasks.md`, backlog pelo `update-feature-status.ps1` e referências de `docs/status-features.md` quando cabível, usando evidência real; atualizar prose do backlog para Dexie v17/próxima v18 somente após migração implementada. Preparar `sdd-converge`, sem declarar gate físico satisfeito se não foi.
 
@@ -150,18 +150,18 @@ Sem novo teste: baseline e integridade existentes; contratos 062 ainda vermelhos
 - [x] Fase 3 — US1 independente concluída.
 - [x] Fase 4 — US2 concluída.
 - [x] Todos os contratos verdes e `check-contract-tests.ps1` íntegro; travas antigas preservadas.
-- [ ] Lint/type-check/unit/build/E2E concluídos; frontend e rota CORS validados.
+- [x] Lint/type-check/unit/build/E2E concluídos; frontend e rota CORS validados. (CORS validado a partir de `http://localhost`; `file://` da TV segue no T023.)
 - [ ] `quickstart.md` executado; gate físico com sucesso/limite/cancelamento registrado.
 - [x] Sem credenciais, telemetria adicional ou números inventados; idiomas/foco/saída conferidos.
 - [ ] Status/documentação sincronizados por scripts; pronto para convergência.
 
 **Registro da Fase**:
 
-- Status: Em execução; pausa obrigatória por falha E2E fora do escopo (sdd-execute passo 6), decisão solicitada.
-- Feito: T020/T021/T025 e revisão de segredos, somente GETs/destino público, bytes reservados/stream descartado, sem analytics. chrome108 preservado; 16 arquivos do dist listados no YAML (zero ausentes). Roteiro E2E novo registrado; expectativa antiga de placeholder speedtest no E2E metadata-tmdb atualizada sem tocar contratos.
-- Contrato: cinco contratos verdes na suíte completa; locks 026/028/032/060/062 íntegros, sem regravação.
-- Testes executados: `npm run test` → 459 arquivos/2866 testes verdes; `npm run lint`, `npx tsc -b --pretty false` e `npm run build` → exit 0, warnings preexistentes de lint/chunk e jsdom sem mídia real. `node e2e/teste-conexao-tv.mjs` → aprovado; uma correção de seletor para a string real Resultado completo/parcial. Capturas pt/en/es/dock/resultado revisadas em 1920×1080: foco/controles legíveis, sem cortes ou qualidade inventada. Revisão posterior corrigiu resumo após fechar durante compromisso de gravação e rejeitou data inválida; `npx vitest run src/features/settings/useSpeedTest.test.tsx src/lib/network/speedTestRepository.test.ts src/lib/network/speedTestRepository.teste-conexao-tv.contract.test.ts` → 8/8, lint/tipos/build exit 0. `npm run test:e2e` completo → 41/42 scripts em 320s (exit 1), somente epg-guia-completo falhou; `node e2e/epg-guia-completo.mjs` repetiu a falha na aba Amanhã (exit 1), sem alteração no código de EPG.
-- Pendências: T022/T023/T024; aguardando decisão sobre falha externa do guia Amanhã; sucesso/limite/cancelamento e demais cenários físicos ainda não executados.
+- Status: Em execução — gates automatizados e navegador concluídos (T022); **T023 (TV física) pendente**: o usuário não tem acesso à TV agora (2026-10-09). T024 fecha depois do T023.
+- Feito: T020/T021/T025 e revisão de segredos, somente GETs/destino público, bytes reservados/stream descartado, sem analytics. chrome108 preservado; 16 arquivos do dist listados no YAML (zero ausentes). Roteiro E2E novo registrado; expectativa antiga de placeholder speedtest no E2E metadata-tmdb atualizada sem tocar contratos. 2026-10-09: T022 — a falha externa do `epg-guia-completo` (R-007) não se reproduz mais; E2E completo verde; medição real no navegador.
+- Contrato: `check-contract-tests.ps1 -Slug 062-teste-conexao-tv` → PASS, trava íntegra (5 testes); `npx vitest run src/lib/network src/features/settings/SpeedTestDialog.teste-conexao-tv.contract.test.tsx` → 13 arquivos / 60 testes verdes.
+- Testes executados: rodada de 2026-10-06 — `npm run test` 459/2866, lint/tipos/build exit 0, `node e2e/teste-conexao-tv.mjs` aprovado, E2E completo 41/42 (só `epg-guia-completo`). Rodada de 2026-10-09 (com a 065 e o bug `lista-xtream-nao-atualiza-novos-filmes` já no código) — `npm run test` 507 arquivos / 3059 testes; `npx tsc -b` 0; `npm run lint` ok; `npm run build` ok (`check-no-demux-in-build: ok`); `npm run test:e2e` **43/43 em 231 s** (exit 0). Medição real no navegador (Playwright, origem `http://localhost`, sem transporte interceptado): 0 requisições ao focar/montar e ao abrir o diálogo; SELECT → completa em 10,6 s; download 283 Mbps, latência 136 ms, jitter 178 ms, upload 62 Mbps; 75 MB recebidos = solicitados, 26 MB enviados; 18 requisições (15 GET `/__down`, 3 POST `/__up`); 0 depois de fechar; foco volta ao card; sem rótulo de qualidade inventado; 0 `pageerror`.
+- Pendências: T023 (TV física — CORS `file://`, limite, cancelamento com liberação de rede, ciclo de vida, guard de reprodução, memória, reinício) e T024 (fecha depois do T023). Gate físico **não** satisfeito.
 
 ## Dependencies & Execution Order
 

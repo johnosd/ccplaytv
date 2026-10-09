@@ -233,6 +233,8 @@ A instalação das dependências do frontend deve já ter sido realizada (`npm i
 
 A feature 065 mede vitrines, categorias, memória e abertura em `tv-web/scripts/bench/run-screen-perf.mjs`, com fixtures sintéticas e CPU limitada a 4×; o comparador é `compare-screen-perf.mjs` e os resultados ficam em `tv-web/bench-results/screen-perf-065/`. O aceite final usou um protocolo reduzido (3 amostras, 4 configurações, baseline e candidata em sequência — `reduced/report.md`), não a matriz de 7 amostras prevista na spec. O navegador é um proxy: não comprova RAM, pintura ou desempenho na TV.
 
+A importação tem uma bancada própria (feature 063): `npm run bench:import`, com `npm run dev` no ar, importa fontes fictícias Xtream/M3U/XMLTV de 1k, 10k e 100k entradas no navegador e grava o resultado em `tv-web/bench-results/`. O `npm run lint` também roda uma catraca de arquitetura (`tv-web/scripts/architecture.mjs`): falha num import feature→feature, lib→UI, components→features ou `lib/catalog`→`lib/player`, e num arquivo de produção acima de 300 linhas (ou do teto herdado em `architecture-baseline.json`, que só diminui).
+
 ### Integração com a TV
 
 Para empacotamento e testes no emulador ou TV física, o aplicativo é compilado e encapsulado no Tizen Studio através de comandos de build específicos e ferramentas como `sdb` e o CLI do Tizen. Consulte a documentação específica de build para mais detalhes.

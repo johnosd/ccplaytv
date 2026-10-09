@@ -218,7 +218,7 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sr
 | 2026-10-07 | Fase 5 — Polish | `tsc`, lint, `npm run test` 2 938 verdes, build, E2E (2 falhas de `detalhe-cinema` em 3 rodadas completas, passou 42/42 na terceira; R-008), rodada real contra o destino (Download 332 Mbps, Upload 62 Mbps, 15 GETs e 3 POSTs, sem falha de CORS), revisão de segredos, nota na 062, travas íntegras. | R-008 (flake do `detalhe-cinema`) e a TV física. |
 | 2026-10-07 | Fase 6 — Convergence | T057/T058: normalização preserva as métricas restantes diante de upload inconsistente; data obtida ao concluir o upload. Cinco regressões vermelhas antes e verdes depois; rede 44/44, tsc/lint/build verdes, suíte completa 2 943/2 943 e E2E completo 42/42 na segunda rodada, travas 064/062/063 íntegras. | R-009/R-010: primeiras rodadas com timeout do benchmark e falha do selo de série; causas não comprovadas. R-008 e TV física continuam. |
 
-**PRÓXIMO**: repetir `sdd-converge 064-upload-teste-conexao` para confirmar CF-001/CF-002 e sincronizar o resultado final. Nenhum commit feito. Instabilidades de testes registradas em R-008/R-009/R-010; TV física continua recomendação (R-001), sem gate.
+**PRÓXIMO**: nenhum — convergida. Recomendado (não gate) e pendente: TV física para provar o `POST` a partir de `file://` e o corpo de 20 MB (R-001). Em 2026-10-09 o upload real funcionou no navegador (62 Mbps, 26 MB enviados, ver 062).
 
 ## Arquivos Principais
 
