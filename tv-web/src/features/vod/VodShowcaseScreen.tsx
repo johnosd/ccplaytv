@@ -4,6 +4,7 @@ import {
   groupLabel,
   useCategoryFocusPrefetch,
   useCategoryList,
+  backdropsPending,
   useCachedBackdrops,
   useCategoryPreviews,
   useFavoritesContent,
@@ -80,8 +81,13 @@ const WINDOW_BEFORE = 1
 const WINDOW_AFTER = 3
 /** Espera antes de pedir prioridade à pré-carga: passar o foco rápido por categorias não dispara nada. */
 const PRIORITIZE_DEBOUNCE_MS = 300
-/** Até quando dados que chegam ainda podem decidir o foco inicial (ver `startedInSide`). */
+/** Até quando dados que chegam ainda podem decidir o foco inicial (ver `startedInSide`), contado de quando as fileiras aparecem. */
 const INITIAL_FOCUS_SETTLE_MS = 1200
+/**
+ * Teto da espera pelas fileiras ao abrir a vitrine (`rowsReady`): passado ele, desenha o que já tem — um TMDB lento ou com erro
+ * nunca prende a tela no "Carregando".
+ */
+const ROWS_SETTLE_CAP_MS = 3000
 /** Cartões fantasma (decorativos) de um slot reservado, contando o cartão focável. */
 const SLOT_CARD_COUNT = 6
 
@@ -200,6 +206,28 @@ export function VodShowcaseScreen({
   // `wide` (D-006): "Continue assistindo" vira card largo só se TODOS os itens mostrados já têm backdrop guardado.
   const backdrops = useCachedBackdrops(history.slice(0, SHOWCASE_LIMIT))
   const continueWide = allHaveBackdrop(history, backdrops)
+
+  // Fileiras assentadas antes do 1º desenho (ad-hoc 2026-10-09): cada fileira depende de uma leitura diferente, e desenhar
+  // conforme elas chegavam fazia o "Continue assistindo" aparecer segundos depois e empurrar "Em alta" para baixo.
+  //  - Com as leituras locais já em mãos no 1º render (reabrir a tela, cache), desenha na hora — como sempre foi.
+  //  - Sem elas, mostra "Carregando" e espera também as fileiras do TMDB (Top 10, Dica, "Porque você assistiu") e o formato do
+  //    "Continue" (imagens guardadas), para desenhar tudo de uma vez já no lugar — com teto, para nada prender a tela.
+  // Depois de desenhada, a vitrine não volta a esperar.
+  const localSettled =
+    !categoriesQuery.isLoading &&
+    historyQuery.data !== undefined &&
+    favoritesQuery.data !== undefined &&
+    addedQuery.data !== undefined
+  const discoverySettled =
+    top10Query.data !== undefined && tipQuery.data !== undefined && becauseRow !== undefined && !backdropsPending(backdrops)
+  const [rowsReady, setRowsReady] = useState(localSettled)
+  const [capPassed, setCapPassed] = useState(false)
+  useEffect(() => {
+    if (rowsReady) return
+    const timer = setTimeout(() => setCapPassed(true), ROWS_SETTLE_CAP_MS)
+    return () => clearTimeout(timer)
+  }, [rowsReady])
+  if (!rowsReady && ((localSettled && discoverySettled) || (capPassed && !categoriesQuery.isLoading))) setRowsReady(true)
   const rows = buildShowcaseRows(
     {
       section,
@@ -276,11 +304,12 @@ export function VodShowcaseScreen({
   const startedInSide = useRef(false)
   startedInSide.current = effective === null
   useEffect(() => {
+    if (!rowsReady) return
     const timer = setTimeout(() => {
       if (startedInSide.current) setSideFocused(true)
     }, INITIAL_FOCUS_SETTLE_MS)
     return () => clearTimeout(timer)
-  }, [])
+  }, [rowsReady])
   const focusRowIndex = effective ? (rowIndexByKey.get(effective.rowKey) ?? 0) : 0
   useEffect(() => {
     setWindowAnchor(focusRowIndex)
@@ -371,12 +400,13 @@ export function VodShowcaseScreen({
   }
 
   const hasAnyItems = history.length > 0 || favorites.length > 0 || added.length > 0 || rated.length > 0
-  const blocked = categoriesQuery.isLoading || categoriesQuery.isError || (categories.length === 0 && !hasAnyItems)
+  const loading = categoriesQuery.isLoading || (!rowsReady && !categoriesQuery.isError)
+  const blocked = loading || categoriesQuery.isError || (categories.length === 0 && !hasAnyItems)
 
   function handleSelect() {
     if (blocked) {
       if (categoriesQuery.isError) void categoriesQuery.refetch()
-      else if (online && !categoriesQuery.isLoading) onResync()
+      else if (online && !loading) onResync()
       else onBack()
       return
     }
@@ -409,6 +439,11 @@ export function VodShowcaseScreen({
     active
       ? {
           onDirection: (direction) => {
+            // Carregando: só "Voltar" está na tela — ↑ leva à topbar, o resto não mexe em foco que ainda não aparece.
+            if (loading) {
+              if (direction === 'up') goToTopbar()
+              return
+            }
             if (inSide) {
               // Mexer na lista fixa o foco nela: uma fileira que passa a existir depois (dados que chegam) não o rouba.
               setSideFocused(true)
@@ -626,7 +661,7 @@ export function VodShowcaseScreen({
     )
   }
 
-  if (categoriesQuery.isLoading) {
+  if (loading) {
     return withShell(
       <div className="screen vod-screen">
         <div className="vod-state-wrapper">

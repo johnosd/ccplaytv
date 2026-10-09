@@ -3,7 +3,7 @@
  * (`VodShowcaseScreen.vitrine-filmes-series.contract.test.tsx`): vitrine sem hero, estados (carregando, erro, sem filmes) e item que sai do histórico enquanto em foco.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VodShowcaseScreen } from './VodShowcaseScreen'
@@ -152,6 +152,37 @@ afterEach(async () => {
   vi.clearAllMocks()
   await db.sources.delete(SOURCE_ID)
   await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+})
+
+// Ad-hoc 2026-10-09: abrir a vitrine sem as leituras locais em mãos não desenha fileira por fileira conforme chegam — o
+// "Continue assistindo" chegava segundos depois e empurrava as de baixo. Fica em "Carregando" e desenha tudo de uma vez.
+describe('VodShowcaseScreen — fileiras assentadas ao abrir', () => {
+  it('sem o histórico ainda: "Carregando" com "Voltar" focável; quando chega, as fileiras aparecem juntas e o Continue já é a 1ª', async () => {
+    mockData({ added: [item('A'), item('B')] })
+    vi.mocked(catalogApi.useHistoryContent).mockReturnValue({ data: undefined, isLoading: true } as unknown as ReturnType<typeof catalogApi.useHistoryContent>)
+    const { rerenderShowcase, onBack } = renderShowcase('movies')
+
+    expect(screen.getByText('Carregando filmes…')).toBeInTheDocument()
+    expect(document.querySelectorAll('section.vod-row')).toHaveLength(0)
+    tap('ArrowDown') // nada se move por trás do carregamento
+    tap('Enter')
+    expect(onBack).toHaveBeenCalledTimes(1)
+
+    mockData({ history: [item('H')], added: [item('A'), item('B')] })
+    rerenderShowcase()
+    await waitFor(() => expect(document.querySelectorAll('section.vod-row').length).toBeGreaterThan(0), { timeout: 5000 })
+    const labels = [...document.querySelectorAll('section.vod-row')].map((row) => row.getAttribute('aria-label'))
+    expect(labels[0]).toBe('Continue assistindo')
+    expect(labels).toContain('Adicionados recentemente')
+    expect(text('.content-card:has(.tv-focus)')).toContain('H')
+  })
+
+  it('com as leituras locais já em mãos (reabrir a tela), desenha na hora, sem passar pelo "Carregando"', () => {
+    mockData({ history: [item('H')], added: [item('A')] })
+    renderShowcase('movies')
+    expect(screen.queryByText('Carregando filmes…')).not.toBeInTheDocument()
+    expect(document.querySelector('section.vod-row')?.getAttribute('aria-label')).toBe('Continue assistindo')
+  })
 })
 
 describe('VodShowcaseScreen — vitrine sem hero', () => {

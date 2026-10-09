@@ -89,6 +89,7 @@ import { similarTabStatus } from '../../lib/metadata/similarTab'
 import { matchDiscoveryTitlesAsync, selectTip, selectTop10, yieldToMain, type MatchedTitle } from '../../lib/metadata/discoveryRules'
 import { iterateKindRecordBatches } from '../../lib/catalog/catalogDerivedRows'
 import { loadTipPool, loadWeeklyTrending, type DiscoveryKind } from '../../lib/metadata/tmdbDiscovery'
+import { useStoredBackdrops, type BackdropPair } from './cachedBackdrops'
 const EPG_READ_BEFORE_MS = 24 * 60 * 60 * 1000
 const EPG_READ_AFTER_MS = 48 * 60 * 60 * 1000
 const EPG_HOUR_MS = 60 * 60 * 1000
@@ -1289,7 +1290,9 @@ export function useHistoryContent(sourceId: string | null, kind: HistoryKind, en
       return { items: records.map((record) => toItemOut(record, record.kind)), unresolved }
     },
     enabled: sourceId !== null && enabled,
-    gcTime: 30_000,
+    // Reabrir Filmes/Séries minutos depois mostra o histórico já guardado na hora (e revalida por trás) em vez de recalcular
+    // do zero com a vitrine esperando — com a lista real isso leva segundos na TV.
+    gcTime: 5 * 60_000,
   })
 }
 
@@ -1771,6 +1774,10 @@ const DISCOVERY_READ = {
   addedAt: (entry: DiscoveryEntries[number]) => entry.record.addedAt,
 }
 
+type DiscoveryComputed<R> = { scope: string; value: R; images: ReadonlyMap<string, string>; ratings: ReadonlyMap<string, TmdbRating>; coveredCategories: number; totalCategories: number }
+/** Último Top 10/Dica calculado (lista, tipo, idioma), no cache do react-query — coletado como qualquer consulta. */
+const discoveryResultKey = (cacheKey: string) => ['discovery-result', cacheKey] as const
+
 /**
  * Base de `useWeeklyTop10`/`useDailyTip` (feature 057, `logic/descoberta.md` §6): os títulos do TMDB (cache + no máximo uma
  * consulta por período, ao abrir a tela — nunca por foco) cruzados com o índice local de busca, que é o mesmo de
@@ -1808,9 +1815,11 @@ function useDiscoveryRow<R>(
   // índice dos registros é montado uma vez para o Top 10 e a Dica do mesmo tipo. Enquanto recalcula (categoria nova, outro
   // dia) fica o resultado anterior da MESMA lista, para a fileira e o foco não piscarem.
   const scope = `${sourceId}|${kind}`
-  const [computed, setComputed] = useState<
-    { scope: string; value: R; images: ReadonlyMap<string, string>; ratings: ReadonlyMap<string, TmdbRating>; coveredCategories: number; totalCategories: number } | undefined
-  >()
+  // Reabrir a tela começa do último resultado desta lista (ad-hoc 2026-10-09); o cruzamento roda de novo e o substitui.
+  const cacheKey = `${source}|${scope}|${language}`
+  const [computed, setComputed] = useState<DiscoveryComputed<R> | undefined>(() =>
+    queryClient.getQueryData<DiscoveryComputed<R>>(discoveryResultKey(cacheKey)),
+  )
   const showcase = index.data
   const indexData = useMemo(() => (showcase?.entries ? { ...showcase, entries: showcase.entries } : undefined), [showcase])
   useEffect(() => {
@@ -1824,22 +1833,25 @@ function useDiscoveryRow<R>(
         if (match.title.backdropUrl !== undefined) images.set(DISCOVERY_READ.id(match.local), match.title.backdropUrl)
         ratings.set(DISCOVERY_READ.id(match.local), { average: match.title.voteAverage, votes: match.title.voteCount })
       }
-      setComputed({
+      const next: DiscoveryComputed<R> = {
         scope,
         value: project(matches, { now, seed: `${dayKey(now)}|${kind}|${sourceId}`, kind }),
         images,
         ratings,
         coveredCategories: indexData.coveredCategories,
         totalCategories: indexData.totalCategories,
-      })
+      }
+      queryClient.setQueryData(discoveryResultKey(cacheKey), next)
+      setComputed(next)
     }).catch((error: unknown) => {
       if (!(error instanceof Error && error.name === 'AbortError')) throw error
     })
     return () => controller.abort()
-  }, [indexData, titles, scope, sourceId, kind, now, project])
+  }, [indexData, titles, scope, sourceId, kind, now, project, cacheKey, queryClient])
 
   const settledEmpty = tmdb.data !== undefined && tmdb.data.titles.length === 0
-  const current = computed?.scope === scope ? computed : undefined
+  // Só vale enquanto há títulos do TMDB (chave removida ou cache limpo = a fileira some, nunca um resultado antigo).
+  const current = computed?.scope === scope && titles !== undefined && titles.length > 0 ? computed : undefined
   return {
     data: settledEmpty ? (project([], { now, seed: '', kind }) as R) : current?.value,
     images: current?.images ?? EMPTY_BACKDROPS,
@@ -1929,34 +1941,17 @@ const PREVIEW_STALE_MS = 10_000
 export function categoryPreviewWindowKey(sourceId: string | null, idsKey: string) {
   return ['category-preview', sourceId, 'window', idsKey] as const
 }
-/**
- * Imagem horizontal (backdrop) já guardada no cache de metadata, por id de item (feature 053, D-006): leitura SÓ local
- * (`titleMetadata`), sem consulta nova — o `wide` da tela hero só usa o que a pessoa já abriu antes num detalhe.
- */
+/** Backdrop já guardado por id de item (feature 053, D-006) — só local; ver `useStoredBackdrops`. */
 export function useCachedBackdrops(items: readonly CatalogItemOut[]): ReadonlyMap<string, string> {
-  const pairs: { itemId: string; stableId: string }[] = []
+  const pairs: BackdropPair[] = []
   for (const item of items) {
     const stableId = stableIdOf(item)
     if (stableId) pairs.push({ itemId: item.id, stableId })
   }
-  const key = pairs.map((pair) => pair.stableId).join('|')
-  const query = useQuery({
-    queryKey: ['cached-backdrops', key],
-    queryFn: async (): Promise<Map<string, string>> => {
-      const records = await db.titleMetadata.bulkGet(pairs.map((pair) => pair.stableId))
-      const found = new Map<string, string>()
-      records.forEach((record, index) => {
-        const url = record?.provider?.backdropUrl ?? (record?.tmdb?.status === 'matched' ? record.tmdb.fields.backdropUrl : undefined)
-        if (url) found.set(pairs[index].itemId, url)
-      })
-      return found
-    },
-    enabled: pairs.length > 0,
-    gcTime: 30_000,
-  })
-  return query.data ?? EMPTY_BACKDROPS
+  return useStoredBackdrops(pairs)
 }
 const EMPTY_BACKDROPS: ReadonlyMap<string, string> = new Map()
+export { backdropsPending } from './cachedBackdrops'
 
 /**
  * A metadata já guardada de um título (sinopse, duração, gêneros), lida SÓ do cache local (`titleMetadata`) — o card
