@@ -97,6 +97,8 @@ update-bug-status.ps1.
 | foco-some-ao-descer-na-lista | Foco some ao descer na lista de episódios do detalhe da série | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-05 |
 | teste-conexo-armazenamento-indisponvel-tv | Teste de conexão não guarda resultado na TV | Test | verified | Concluído | 2026-10-07 |
 | lista-xtream-nao-atualiza-novos-filmes | Lista Xtream não traz filmes/séries/canais novos ao abrir o app | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-09 |
+| categoria-aberta-nao-mostra-itens-novos | Categoria aberta não mostra itens novos na TV mesmo após atualizar a lista | Test | verified | Concluído | 2026-10-09 |
+| abrir-app-nao-atualiza-todas-categorias | Abrir o app não atualiza todas as categorias (tela principal sem os recém-adicionados) | Test | verified | Concluído | 2026-10-09 |
 
 ## Melhorias Ad-hoc
 

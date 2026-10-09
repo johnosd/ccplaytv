@@ -15,6 +15,7 @@ import type { CategoryKind } from '../db'
 import {
   MAX_ATTEMPTS_PER_SESSION,
   pickNextCategory,
+  renewalRequested,
   SECTION_ORDER,
   workNeeded,
   type PrefetchCategoryState,
@@ -49,13 +50,13 @@ export interface PrefetchSchedulerDeps {
   /**
    * Feature 038 (`research.md` R0-3): obtém várias categorias de uma seção com
    * UM pedido da seção inteira. Opcional: sem ele, tudo vai por categoria.
-   * Nunca lança; avisa cada categoria gravada por `onCategory`.
+   * Nunca lança; avisa cada categoria gravada por `onCategory`. `urgent`: não cede à tecla (ver `ActivityGate`).
    */
   runSection?: (
     sourceId: string,
     kind: CategoryKind,
     categoryIds: number[],
-    options: { signal: AbortSignal; onCategory: (categoryId: number) => void },
+    options: { signal: AbortSignal; onCategory: (categoryId: number) => void; urgent: boolean },
   ) => Promise<PrefetchRunOutcome>
 }
 
@@ -153,9 +154,9 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
   }
 
   /** Espera o portão abrir. `false` = esta época acabou no meio da espera. */
-  async function waitUntilOpen(myEpoch: number, last: { ready: number; total: number }): Promise<boolean> {
+  async function waitUntilOpen(myEpoch: number, last: { ready: number; total: number }, urgent = false): Promise<boolean> {
     while (epoch === myEpoch) {
-      const reason = gate.blockReason(now(), idleAfterKeyMs)
+      const reason = gate.blockReason(now(), idleAfterKeyMs, urgent)
       if (reason === undefined) return true
       setProgress({ state: 'paused', ...last })
       if (reason === 'key') {
@@ -223,26 +224,23 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
   async function loop(myEpoch: number, sourceId: string): Promise<void> {
     let last = { ready: 0, total: 0 }
     while (epoch === myEpoch) {
-      if (!(await waitUntilOpen(myEpoch, last))) return
-
-      let categories: PrefetchCategoryState[]
-      try {
-        categories = await deps.loadCategories(sourceId)
-      } catch {
-        categories = []
-      }
+      const categories = await deps.loadCategories(sourceId).catch((): PrefetchCategoryState[] => [])
       if (epoch !== myEpoch) return
 
       const covered = categories.filter((category) => category.fetchMode !== 'eager')
       last = { ready: covered.filter((category) => category.itemsFetchedAt !== undefined).length, total: covered.length }
+      // Renovação pedida por uma atualização não cede à tecla (`urgent`); quem esperou o portão relê o disco.
+      const urgent = categories.some(renewalRequested)
+      if (gate.blockReason(now(), idleAfterKeyMs, urgent) !== undefined) {
+        if (!(await waitUntilOpen(myEpoch, last, urgent))) return
+        continue
+      }
       const at = now()
       const prioritizedNext = nextPrioritized(categories, at)
 
-      // Feature 038 (R0-3): com várias categorias a obter numa seção, um pedido
-      // da seção inteira em vez de um por categoria (o painel limita a
-      // frequência). Uma tentativa por seção até a estrutura mudar; o que
-      // sobrar segue por categoria. Uma entrada que pediu prioridade passa na
-      // frente.
+      // Feature 038 (R0-3): com várias categorias a obter numa seção, um pedido da seção inteira em vez de um por
+      // categoria (o painel limita a frequência). Uma tentativa por seção até a estrutura mudar; o que sobrar segue
+      // por categoria. Uma entrada que pediu prioridade passa na frente.
       const bulk = prioritizedNext === undefined ? pickSectionForBulk(categories, at) : undefined
       if (bulk && deps.runSection) {
         bulkTried.add(bulk.kind)
@@ -252,6 +250,7 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
         const outcome = await deps
           .runSection(sourceId, bulk.kind, bulk.ids, {
             signal: controller.signal,
+            urgent,
             onCategory: (categoryId) => {
               if (epoch === myEpoch) deps.onCategoryDone?.(sourceId, categoryId, bulk.kind)
             },

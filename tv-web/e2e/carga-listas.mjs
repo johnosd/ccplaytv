@@ -495,7 +495,9 @@ async function run() {
       await page.waitForTimeout(5000)
       const renewal = log.slice(before).find((e) => e.action === 'get_vod_streams' && e.categoryId === '101')
       assert(renewal !== undefined, 'a renovação da vencida acontece em segundo plano')
-      assert(renewal === undefined || renewal.at >= openedAt, 'a entrada não esperou a renovação')
+      // Bug `categoria-aberta-nao-mostra-itens-novos`: a renovação agora nasce da própria entrada (busca direta, sem
+      // esperar a fila), em paralelo com o desenho — "não esperou" é a grade abrir na hora (acima), não a ordem dos dois.
+      assert(renewal === undefined || renewal.at >= t1, 'a renovação nasce da entrada, sem atrasar a grade')
       await context.close()
     }
 

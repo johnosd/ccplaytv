@@ -68,6 +68,19 @@ export function workNeeded(category: PrefetchCategoryState, now: number): Prefet
   return undefined
 }
 
+/**
+ * Uma atualização da lista pediu a renovação desta categoria e ela ainda não
+ * aconteceu (bug `abrir-app-nao-atualiza-todas-categorias`): é o que torna a
+ * rodada urgente — o catálogo já está no aparelho, a pessoa espera vê-lo atual.
+ */
+export function renewalRequested(category: PrefetchCategoryState): boolean {
+  return (
+    category.itemsFetchedAt !== undefined &&
+    category.renewRequestedAt !== undefined &&
+    category.renewRequestedAt > category.itemsFetchedAt
+  )
+}
+
 interface Candidate {
   category: PrefetchCategoryState
   work: PrefetchWork

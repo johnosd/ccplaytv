@@ -37,7 +37,7 @@ import { READ_PROJECTION_CHUNK_SIZE, readProjectionManifest } from '../../lib/ca
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
 import { markEntry } from '../../lib/perf/entryTiming'
 import { isKeyRepeatBurst, subscribeKeyRepeatBurst } from '../../lib/focus/keyRepeat'
-import { prefetchScheduler } from '../../lib/catalog/prefetch'
+import { prefetchScheduler, renewCategoryNow } from '../../lib/catalog/prefetch'
 import { ensureSeriesEpisodes, type SeriesFetchOutcome } from '../../lib/catalog/seriesLoader'
 import { PlaybackUnavailableError, resolveArchivePlaybackUrl, resolvePlaybackUrl } from '../../lib/catalog/playbackUrl'
 import { ArchiveClockUnknownError, type ArchiveVariant } from '../../lib/catalog/archiveUrl'
@@ -371,17 +371,17 @@ async function ensureCategoryForEntry(sourceId: string, category: CatalogCategor
   // entrada real (`useCategoryContent`, sem `signal`) nunca é abortável e
   // mantém a mesma chamada de sempre (bug
   // `prefetch-concorrente-categoria-sem-cancelamento-requisicao`).
-  // Feature 038 (D-007/FR-026): com itens no aparelho, uma categoria vencida
-  // (ou com renovação pendente depois de uma atualização) abre na hora com o
-  // que tem; a renovação vai para a frente da fila da pré-carga.
-  // Servir do disco de propósito não é falha: a nota "Não foi possível
-  // atualizar agora" das telas só vale para `stale-served` de verdade (a
-  // busca falhou), então aqui o resultado sai como `fresh`.
+  // Feature 038 (D-007/FR-026): vencida ou com renovação pendente abre na hora com o que tem, e a renovação vai para a
+  // frente da fila; na entrada real ela também roda já, por fora da fila (bug `categoria-aberta-nao-mostra-itens-novos`:
+  // na TV a fila pode ficar presa numa seção inteira). A pré-busca por foco (`signal`) nunca dispara essa busca.
+  // Servir do disco de propósito não é falha: a nota "Não foi possível atualizar agora" das telas só vale para
+  // `stale-served` de verdade (a busca falhou), então aqui o resultado sai como `fresh`.
   if (!signal) markEntry(category.id, category.kind, 'start')
   let renewalQueued = false
   const serveStale = (categoryId: number) => {
     renewalQueued = true
     prefetchScheduler.prioritize(categoryId)
+    if (!signal) void renewCategoryNow(sourceId, category)
   }
   const ensured = signal
     ? await ensureCategory(sourceId, category, { signal, serveStale })
