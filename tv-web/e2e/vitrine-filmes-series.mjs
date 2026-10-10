@@ -151,7 +151,7 @@ async function run() {
     console.log(`  · fileiras: ${rows0.join(' | ')}`)
     assert((await page.locator('.vod-showcase .vod-side-panel').count()) === 1, 'a lista lateral de categorias sempre existe')
     assert(!rows0.includes('Continue assistindo') && !rows0.includes('★ Favoritos'), 'sem histórico nem favoritos, essas fileiras não aparecem')
-    const cats = await page.locator('.vod-showcase .side-category-nav-item').allTextContents()
+    const cats = await page.locator('.vod-showcase .side-category-nav-label').allTextContents()
     assert(cats[0]?.includes('Favoritos') && cats[1]?.includes('Histórico') && cats[2]?.includes('Todos'), `★/↺/Todos primeiro (${cats.slice(0, 5).join(' | ')})`)
     assert(cats.some((text) => text.startsWith('Longo')) && !cats.some((text) => /^filmes\s*\|/i.test(text)), 'categorias sem o prefixo "Filmes |"')
     assert((await page.locator('.topbar').count()) === 1 && (await page.locator('.hint-bar').count()) === 0, 'topbar presente e sem rodapé de dicas (feature 052)')

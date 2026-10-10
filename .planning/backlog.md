@@ -80,7 +80,7 @@ update-bug-status.ps1.
 | 065-otimizacao-carga-consultas-memoria | Otimização de carga, consultas externas, memória e abertura do app | Convergida | 74/74 tasks | 2026-10-09 |
 | 066-categorias-controle-parental | Gestão de categorias e controle parental | Convergida | 57/57 tasks | 2026-10-10 |
 | 067-configuracoes-lista-global | Separar configurações da lista das configurações globais do app | Convergência Pendente | 52/53 tasks | 2026-10-10 |
-| 068-legibilidade-tv | Legibilidade para TV — letra maior no app e TV ao vivo em coluna única | Em Execução | 39/44 tasks | 2026-10-10 |
+| 068-legibilidade-tv | Legibilidade para TV — letra maior no app e TV ao vivo em coluna única | Em Execução | 40/44 tasks | 2026-10-10 |
 
 ## Bugs
 
