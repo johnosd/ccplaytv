@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { computeStageLayout } from '../lib/stage'
+import { isEditableTarget } from '../lib/useRemoteNav'
 
 export interface StageProps {
   children: ReactNode
@@ -20,7 +21,19 @@ export function Stage({ children }: StageProps) {
     const node = ref.current
     if (!node) return
 
+    // Última viewport aplicada. Com um campo de texto em edição, uma janela que só perdeu altura é o teclado da TV
+    // (IME) subindo: reescalar encolheria a tela inteira enquanto a pessoa digita. O palco fica como está e o teclado
+    // cobre a parte de baixo — os campos de busca ficam no topo (ad-hoc 2026-10-09).
+    let applied: { width: number; height: number } | null = null
+
     function applyLayout() {
+      const keyboardOpening =
+        applied !== null &&
+        isEditableTarget(document.activeElement) &&
+        window.innerWidth === applied.width &&
+        window.innerHeight < applied.height
+      if (keyboardOpening) return
+      applied = { width: window.innerWidth, height: window.innerHeight }
       const { transform, scale, offsetX } = computeStageLayout(window.innerWidth, window.innerHeight)
       // Janela mais larga que 16:9 (ex.: navegador no desktop): em vez de faixas pretas nas laterais, o palco
       // se estica na horizontal até a borda (largura lógica = viewport / escala) e fica colado à esquerda. Em

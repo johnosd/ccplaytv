@@ -168,8 +168,6 @@ interface RenderOptions {
   onOpenItem?: (itemId: string, restore: VodCategoryRestore) => void
   onBack?: () => void
   onResync?: () => void
-  initialTopbarItem?: 'search' | 'settings'
-  withShell?: boolean
 }
 
 function renderCategory(target: VodTarget = ACAO, options: RenderOptions = {}) {
@@ -188,12 +186,6 @@ function renderCategory(target: VodTarget = ACAO, options: RenderOptions = {}) {
         restore={options.restore}
         onBack={onBack}
         onResync={options.onResync ?? vi.fn()}
-        initialTopbarItem={options.initialTopbarItem}
-        shell={
-          options.withShell
-            ? { sourceName: 'Sala', onGoHome: vi.fn(), onSwitchTop: vi.fn(), onOpenProfiles: vi.fn() }
-            : undefined
-        }
       />
     </Wrapper>,
   )
@@ -407,13 +399,15 @@ describe('VodCategoryScreen — estados, "Todos" e memória', () => {
     expect(document.querySelector('.vod-toolbar-search-button')).toHaveClass('tv-focus')
   })
 
-  it('com a moldura, ↑ da toolbar leva à topbar e ↓ devolve à grade', () => {
+  it('sem topbar (ad-hoc 2026-10-09): ↑ na toolbar fica nela e ↓ devolve à grade', () => {
     mockContentByCategory({ 1: [movie('Filme A', 'a')] })
-    renderCategory(ACAO, { withShell: true })
+    renderCategory()
+    expect(document.querySelector('.topbar')).toBeNull()
     press('ArrowUp') // grade -> Pesquisar
-    press('ArrowUp') // Pesquisar -> topbar
-    expect(document.querySelectorAll('.topbar .tv-focus').length).toBe(1)
-    expect(document.querySelectorAll('.vod-toolbar-search-button.tv-focus')).toHaveLength(0)
+    press('ArrowUp') // não há para onde subir
+    expect(document.querySelector('.vod-toolbar-search-button')).toHaveClass('tv-focus')
+    press('ArrowDown')
+    expect(focusedTitle()).toBe('Filme A')
   })
 })
 
@@ -702,19 +696,6 @@ describe('VodCategoryScreen — Ordenar (feature 025, US4, T050)', () => {
     expect(onBack).not.toHaveBeenCalled()
     press('Escape') // sem busca: volta à vitrine
     expect(onBack).toHaveBeenCalledTimes(1)
-  })
-})
-
-describe('VodCategoryScreen — initialTopbarItem (feature 026, FR-034/FR-044)', () => {
-  it('sem initialTopbarItem, começa com o foco no conteúdo (comportamento de sempre)', () => {
-    renderCategory(ACAO, { withShell: true })
-    expect(document.querySelectorAll('.topbar .tv-focus')).toHaveLength(0)
-  })
-
-  it('com initialTopbarItem, remonta com a topbar já ativa nesse item (volta de Busca/Configurações)', () => {
-    // Ad-hoc 2026-10-09: a lupa está escondida; a volta de Configurações é o caso que sobra.
-    renderCategory(ACAO, { withShell: true, initialTopbarItem: 'settings' })
-    expect(screen.getByRole('button', { name: 'Configurações' })).toHaveClass('tv-focus')
   })
 })
 

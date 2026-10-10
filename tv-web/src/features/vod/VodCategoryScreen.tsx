@@ -42,10 +42,7 @@ import { Modal } from '../../components/Modal'
 import { Chip } from '../../components/Chip'
 import { Icon } from '../../components/Icon'
 import { AppShell } from '../shell/AppShell'
-import { TopBar } from '../shell/TopBar'
-import type { TopbarItem } from '../../navigation/appNav'
 import { useOverflowEdges, type OverflowEdges } from '../../lib/focus/useOverflowEdges'
-import type { VodShellProps } from './vodShell'
 import { availableSortOptions, sortVodItems, VOD_SORT_LABEL_KEYS, type VodSortOption } from './vodSort'
 import { useT } from '../../lib/i18n/I18nProvider'
 import type { MessageKey } from '../../lib/i18n/messages/pt'
@@ -124,9 +121,6 @@ export interface VodCategoryScreenProps {
   onBack: () => void
   /** Feature 014, D-008: ressincroniza a fonte quando o arquivo guardado de uma categoria sumiu do aparelho. */
   onResync: () => void
-  shell?: VodShellProps
-  /** Remonta com a topbar ativa neste item — volta de Busca/Configurações (feature 026, FR-034/FR-044). */
-  initialTopbarItem?: TopbarItem
 }
 
 /** Chave estável da entrada, para `vodSessionMemory` — nunca índice. */
@@ -147,8 +141,6 @@ export function VodCategoryScreen({
   restore,
   onBack,
   onResync: onResyncRequested,
-  shell,
-  initialTopbarItem,
 }: VodCategoryScreenProps): ReactNode {
   const t = useT()
   // Feature 042 (FR-004): ressincronizar precisa de internet — offline é soft disabled na
@@ -158,11 +150,6 @@ export function VodCategoryScreen({
   const config = SECTION_CONFIG[section]
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
-
-  // Composição de foco topbar ↔ conteúdo (feature 023/024) — só existe de fato com `shell`.
-  const [zone, setZone] = useState<'topbar' | 'content'>(initialTopbarItem ? 'topbar' : 'content')
-  const [topbarItem, setTopbarItem] = useState<TopbarItem>(initialTopbarItem ?? section)
-  const contentActive = !shell || zone === 'content'
 
   const enteredFavorites = target.kind === 'favorites'
   const enteredHistory = target.kind === 'history'
@@ -460,149 +447,115 @@ export function VodCategoryScreen({
     setToolbarFocus('sort')
   }
 
-  function goToTopbar() {
-    setTopbarItem(section)
-    setZone('topbar')
-  }
-
   // Estados que ocupam a tela inteira (sem grade): o OK nelas faz a ação do botão focado.
   const blockedByCategories =
     enteredByName && (categoriesQuery.isError || (!categoriesQuery.isLoading && categories.length === 0))
 
-  useRemoteNav(
-    contentActive
-      ? {
-          onDirection: (dir) => {
-            const hasTop = items.length > 0
-            if (hasTop && toolbarFocus !== null) {
-              if (dir === 'down') {
-                setToolbarFocus(null)
-                setFocusedItemId(items[0].id)
-                return
-              }
-              if (dir === 'up') {
-                if (shell) goToTopbar()
-                return
-              }
-              // ←/→ dentro da toolbar (D-007 do plan.md da 025) — nunca alcançados com o campo de busca com foco DOM
-              // real (a guarda de alvo editável intercepta antes).
-              if (dir === 'right' && toolbarFocus === 'search' && canSort) {
-                setToolbarFocus('sort')
-                return
-              }
-              if (dir === 'left' && toolbarFocus === 'sort' && canSearch) {
-                setToolbarFocus('search')
-                return
-              }
-              return
-            }
-            if (hasTop && toolbarFocus === null && dir === 'up' && itemIdx < GRID_COLS) {
-              const toolbar = canSearch ? 'search' : canSort ? 'sort' : null
-              if (toolbar) setToolbarFocus(toolbar)
-              else if (shell) goToTopbar()
-              return
-            }
-            if (!hasTop) {
-              if (dir === 'up' && shell) goToTopbar()
-              return
-            }
-            // Sem trilha à esquerda: ← na 1ª coluna não faz nada (RETURN volta à vitrine).
-            if (dir === 'left' && itemIdx % GRID_COLS === 0) return
-            if (toolbarFocus === null) {
-              const next = gridNextIndex(dir, itemIdx, items.length, GRID_COLS)
-              setFocusedItemId(items[next]?.id ?? null)
-            }
-          },
-          onSelect: () => {
-            // Estados de tela cheia (carregando, vazios, lista sem categorias): o botão focado é "Voltar".
-            if (blockedByCategories || contentIsLoading) {
-              onBack()
-              return
-            }
-            if (enteredFavorites && !contentFailed && items.length === 0) {
-              onBack()
-              return
-            }
-            if (enteredHistory && !contentFailed && items.length === 0) {
-              onBack()
-              return
-            }
-            if (enteredAll && items.length === 0) {
-              onBack()
-              return
-            }
-            if (contentMissing) {
-              onResync()
-              return
-            }
-            if (contentFailed) {
-              retryContent()
-              return
-            }
-            // Categoria real vazia (ou que não existe mais), sem falha (T021 da 025).
-            if (enteredByName && items.length === 0 && !searchActive) {
-              onBack()
-              return
-            }
-            if (toolbarFocus === 'search') {
-              setSearchActive(true)
-              setSearchTerm('')
-              return
-            }
-            if (toolbarFocus === 'sort') {
-              openSortModal()
-              return
-            }
-            const item = items[itemIdx]
-            if (!item) return
-            // Estado de volta (feature 017/018/025/052): guardado ANTES de abrir o detalhe. `focusedIndexHint` é só
-            // dica de vizinho para quando o card de origem não existir mais ao voltar — nunca identidade.
-            onOpenItem(item.id, { focusedItemId: item.id, searchTerm, searchActive, focusedIndexHint: itemIdx })
-          },
-          onLongSelect: canToggleFavorite ? toggleFocusedFavorite : undefined,
-          onFavoriteKey: canToggleFavorite ? toggleFocusedFavorite : undefined,
-          onRemoveKey: canRemoveFromHistory ? openHistoryRemoval : undefined,
-          onBack: () => {
-            if (searchActive && toolbarFocus === null) {
-              setToolbarFocus('search')
-              return
-            }
-            if (searchActive && toolbarFocus === 'search') {
-              setSearchActive(false)
-              setSearchTerm('')
-              return
-            }
-            onBack()
-          },
+  useRemoteNav({
+    onDirection: (dir) => {
+      const hasTop = items.length > 0
+      if (hasTop && toolbarFocus !== null) {
+        if (dir === 'down') {
+          setToolbarFocus(null)
+          setFocusedItemId(items[0].id)
+          return
         }
-      : {},
-  )
+        // Sem topbar nesta tela (ad-hoc 2026-10-09): ↑ na toolbar fica nela — RETURN volta à vitrine, que tem a topbar.
+        if (dir === 'up') return
+        // ←/→ dentro da toolbar (D-007 do plan.md da 025) — nunca alcançados com o campo de busca com foco DOM
+        // real (a guarda de alvo editável intercepta antes).
+        if (dir === 'right' && toolbarFocus === 'search' && canSort) {
+          setToolbarFocus('sort')
+          return
+        }
+        if (dir === 'left' && toolbarFocus === 'sort' && canSearch) {
+          setToolbarFocus('search')
+          return
+        }
+        return
+      }
+      if (hasTop && toolbarFocus === null && dir === 'up' && itemIdx < GRID_COLS) {
+        const toolbar = canSearch ? 'search' : canSort ? 'sort' : null
+        if (toolbar) setToolbarFocus(toolbar)
+        return
+      }
+      if (!hasTop) return
+      // Sem trilha à esquerda: ← na 1ª coluna não faz nada (RETURN volta à vitrine).
+      if (dir === 'left' && itemIdx % GRID_COLS === 0) return
+      if (toolbarFocus === null) {
+        const next = gridNextIndex(dir, itemIdx, items.length, GRID_COLS)
+        setFocusedItemId(items[next]?.id ?? null)
+      }
+    },
+    onSelect: () => {
+      // Estados de tela cheia (carregando, vazios, lista sem categorias): o botão focado é "Voltar".
+      if (blockedByCategories || contentIsLoading) {
+        onBack()
+        return
+      }
+      if (enteredFavorites && !contentFailed && items.length === 0) {
+        onBack()
+        return
+      }
+      if (enteredHistory && !contentFailed && items.length === 0) {
+        onBack()
+        return
+      }
+      if (enteredAll && items.length === 0) {
+        onBack()
+        return
+      }
+      if (contentMissing) {
+        onResync()
+        return
+      }
+      if (contentFailed) {
+        retryContent()
+        return
+      }
+      // Categoria real vazia (ou que não existe mais), sem falha (T021 da 025).
+      if (enteredByName && items.length === 0 && !searchActive) {
+        onBack()
+        return
+      }
+      if (toolbarFocus === 'search') {
+        setSearchActive(true)
+        setSearchTerm('')
+        return
+      }
+      if (toolbarFocus === 'sort') {
+        openSortModal()
+        return
+      }
+      const item = items[itemIdx]
+      if (!item) return
+      // Estado de volta (feature 017/018/025/052): guardado ANTES de abrir o detalhe. `focusedIndexHint` é só
+      // dica de vizinho para quando o card de origem não existir mais ao voltar — nunca identidade.
+      onOpenItem(item.id, { focusedItemId: item.id, searchTerm, searchActive, focusedIndexHint: itemIdx })
+    },
+    onLongSelect: canToggleFavorite ? toggleFocusedFavorite : undefined,
+    onFavoriteKey: canToggleFavorite ? toggleFocusedFavorite : undefined,
+    onRemoveKey: canRemoveFromHistory ? openHistoryRemoval : undefined,
+    onBack: () => {
+      if (searchActive && toolbarFocus === null) {
+        setToolbarFocus('search')
+        return
+      }
+      if (searchActive && toolbarFocus === 'search') {
+        setSearchActive(false)
+        setSearchTerm('')
+        return
+      }
+      onBack()
+    },
+  })
 
-  /** Moldura V14 (feature 025, FR-001..FR-004) — mesmo padrão da Live (024, D-002 dela). */
+  /**
+   * Moldura V14 sem a topbar (ad-hoc 2026-10-09): a grade sobe e ganha a altura dela. O shell fica pelo banner de
+   * conexão e pela safe zone; Início/Live/Séries/Busca/Configurações continuam na vitrine, a um RETURN daqui.
+   */
   function withShell(children: ReactNode): ReactNode {
-    if (!shell) return children
-    return (
-      <AppShell
-        topBar={
-          <TopBar
-            sourceName={shell.sourceName}
-            active={zone === 'topbar'}
-            focusedItem={topbarItem}
-            currentItem={section}
-            onFocusItem={setTopbarItem}
-            onExitDown={() => setZone('content')}
-            onNavigate={(destination) => shell.onSwitchTop(destination)}
-            onGoHome={shell.onGoHome}
-            onOpenProfiles={shell.onOpenProfiles}
-            onOpenSearch={shell.onOpenSearch}
-            onOpenSettings={shell.onOpenSettings}
-            onBack={onBack}
-          />
-        }
-      >
-        {children}
-      </AppShell>
-    )
+    return <AppShell topBar={null}>{children}</AppShell>
   }
 
   if (enteredByName && categoriesQuery.isLoading) {
@@ -689,7 +642,7 @@ export function VodCategoryScreen({
             {canSearch && !searchActive && (
               <button
                 type="button"
-                className={`vod-toolbar-search-button${toolbarFocus === 'search' && contentActive ? ' tv-focus' : ''}`}
+                className={`vod-toolbar-search-button${toolbarFocus === 'search' ? ' tv-focus' : ''}`}
               >
                 <Icon name="search" />
                 <span>{t('vod.search')}</span>
@@ -732,7 +685,7 @@ export function VodCategoryScreen({
             {canSort && (
               <button
                 type="button"
-                className={`vod-toolbar-sort-button${toolbarFocus === 'sort' && contentActive ? ' tv-focus' : ''}`}
+                className={`vod-toolbar-sort-button${toolbarFocus === 'sort' ? ' tv-focus' : ''}`}
               >
                 <span className="vod-toolbar-sort-label">{t('vod.sort')}</span>
                 <span className="vod-toolbar-sort-sep" aria-hidden="true">
@@ -903,7 +856,7 @@ export function VodCategoryScreen({
                           title={item.name}
                           meta={enteredAll || item.original_group ? vodGroupDisplay(item.original_group, t) : t(config.label)}
                           iconUrl={item.icon_url ?? undefined}
-                          focused={toolbarFocus === null && itemIdx === virtualRow.index && removal === null && contentActive}
+                          focused={toolbarFocus === null && itemIdx === virtualRow.index && removal === null}
                           badge={
                             <>
                               {isFavorite && (

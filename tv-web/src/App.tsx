@@ -458,8 +458,6 @@ function App() {
           sourceId={source.id}
           target={screen.target}
           restore={screen.restore}
-          initialTopbarItem={screen.topbarFocus}
-          shell={vodShell(source, screen)}
           onOpenItem={(itemId, restore) =>
             dispatch({
               type: 'open',
