@@ -69,7 +69,8 @@ export function sameTrailKey(a: TrailKey, b: TrailKey): boolean {
 
 export interface TrailEntry {
   key: TrailKey
-  category?: CatalogCategory
+  /** `locked` vem de `listVisibleCategories` (feature 066): bloqueada e sem desbloqueio na sessão. */
+  category?: CatalogCategory & { locked?: boolean }
 }
 
 /** Chave de string estável de uma entrada da trilha — só para o `id` do `SideCategoryNav` (feature 024, componente burro, D-009 da 022). */

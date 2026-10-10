@@ -5,6 +5,7 @@ import { blockRecord, blocksOfKind, categoryIdOfBlockItem } from '../categoryBlo
 import { FavoritesScanComplete, StorageFullError, activeGenerationOf, isQuotaError, query } from './shared'
 import { buildStableId } from '../userStateRepository'
 import { storeSeriesWatchMembers } from './seriesWatchRepository'
+import { getCategoryAccess } from '../categoryAccess'
 
 /** Identifica a série alvo de uma substituição integral de episódios (feature 012). */
 export interface SeriesEpisodesTarget {
@@ -35,15 +36,18 @@ async function findSeriesIn(
   generation: number,
   seriesId: string,
 ): Promise<CatalogRecord | undefined> {
+  // Feature 066: série só em categoria escondida/bloqueada não resolve (detalhe, Início, continuar assistindo).
+  const access = await getCategoryAccess(sourceId, database)
   const row = await database.channels
     .where('[sourceId+generation+seriesId]')
     .equals([sourceId, generation, seriesId])
-    .and((candidate) => candidate.kind === 'series')
+    .and((candidate) => candidate.kind === 'series' && !access.isExcludedRecord(candidate))
     .first()
   if (row) return row
   let found: CatalogRecord | undefined
   try {
     await blocksOfKind(database, sourceId, generation, 'series').each((block) => {
+      if (access.excluded.has(block.categoryId)) return
       const index = block.items.findIndex((item) => item.seriesId === seriesId)
       if (index >= 0) {
         found = blockRecord(block, block.items[index], index)
@@ -69,17 +73,19 @@ export async function findSeriesManyIn(
   seriesIds: ReadonlySet<string>,
 ): Promise<Map<string, CatalogRecord>> {
   const found = new Map<string, CatalogRecord>()
+  const access = await getCategoryAccess(sourceId, database)
   for (const seriesId of seriesIds) {
     const row = await database.channels
       .where('[sourceId+generation+seriesId]')
       .equals([sourceId, generation, seriesId])
-      .and((candidate) => candidate.kind === 'series')
+      .and((candidate) => candidate.kind === 'series' && !access.isExcludedRecord(candidate))
       .first()
     if (row) found.set(seriesId, row)
   }
   if (found.size === seriesIds.size) return found
   try {
     await blocksOfKind(database, sourceId, generation, 'series').each((block) => {
+      if (access.excluded.has(block.categoryId)) return
       block.items.forEach((item, index) => {
         if (item.seriesId && seriesIds.has(item.seriesId) && !found.has(item.seriesId)) {
           found.set(item.seriesId, blockRecord(block, item, index))

@@ -65,6 +65,7 @@ export const SUITE = [
   'e2e/teste-conexao-tv.mjs',
   'e2e/headers-catchup.mjs',
   'e2e/serie-foco-episodios.mjs',
+  'e2e/categorias-controle-parental.mjs',
 ]
 
 function lerArgs(argv) {

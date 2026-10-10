@@ -278,7 +278,7 @@
   position: absolute;
   top: 0;
   width: calc((100% - 5 * var(--space-1)) / 6);
-  height: calc(402px - var(--space-1)); /* = ROW_HEIGHT - vão, em VodCategoryScreen.tsx */
+  height: calc(var(--vod-row-height, 402px) - var(--space-1)); /* = altura da linha (`rowPx` em VodCategoryScreen.tsx) - vão */
   left: calc(var(--lane, 0) * ((100% - 5 * var(--space-1)) / 6 + var(--space-1)));
 }
 

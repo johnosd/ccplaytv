@@ -560,3 +560,96 @@
   font-size: var(--fs-body);
   cursor: pointer;
 }
+
+/* ---------- PinPrompt (feature 066, `logic/pin.md` §3): casas cheia/vazia, teclado 3×4 ---------- */
+
+.pin-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 480px;
+}
+
+.pin-prompt-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.pin-prompt-slots {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.pin-prompt-slot {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--text-secondary);
+}
+
+.pin-prompt-slot.is-filled {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+}
+
+.pin-prompt-message {
+  min-height: calc(var(--fs-body) * 1.4);
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--fs-body);
+  text-align: center;
+}
+
+.pin-prompt-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 120px);
+  gap: var(--space-2);
+}
+
+.pin-prompt-key {
+  appearance: none;
+  border: none;
+  height: 80px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  cursor: pointer;
+}
+
+.pin-prompt-key.is-action {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pin-prompt-key.tv-focus {
+  background: var(--bg-hover);
+}
+
+/* Cadeado da categoria bloqueada na trilha (feature 066, FR-013). */
+.side-category-nav-lock {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--text-secondary);
+}
+
+/* "Esqueci o PIN" (feature 066, US4). */
+.recover-pin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 640px;
+}
+
+.recover-pin-choices {
+  flex-direction: column;
+  align-items: stretch;
+}

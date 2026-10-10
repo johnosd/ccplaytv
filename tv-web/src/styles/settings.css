@@ -470,3 +470,180 @@
   font-size: var(--fs-body);
   color: var(--text-primary);
 }
+
+/* Categorias & parental (feature 066, US1): seções e, por categoria, Visível/Escondida. */
+.parental-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.parental-panel-heading {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-heading);
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.parental-panel-note {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+}
+
+.parental-sections {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.parental-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.parental-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.parental-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.parental-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: var(--fs-body);
+}
+
+.parental-row.is-hidden .parental-row-name {
+  color: var(--text-tertiary);
+}
+
+.parental-toggle {
+  appearance: none;
+  border: 2px solid var(--text-annotation);
+  min-width: 180px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+  cursor: pointer;
+}
+
+.parental-toggle.is-on {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.parental-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.parental-control-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 360px;
+  justify-content: space-between;
+  font-size: var(--fs-body);
+}
+
+.parental-control-state {
+  font-weight: 700;
+}
+
+.parental-row-tag {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  color: var(--text-primary);
+  font-size: var(--fs-caption);
+}
+
+.parental-gate-button {
+  align-self: flex-start;
+}
+
+/* Sugestão de categorias adultas ao ligar o controle parental (feature 066, US3). */
+.parental-suggest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 640px;
+}
+
+.parental-suggest-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 480px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+}
+
+.parental-suggest-row {
+  appearance: none;
+  border: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.parental-suggest-row.tv-focus {
+  background: var(--bg-hover);
+}
+
+.parental-suggest-check {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--text-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.parental-suggest-section {
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+}

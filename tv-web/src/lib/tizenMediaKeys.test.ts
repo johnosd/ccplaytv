@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { MEDIA_KEY_CODES, mediaKeyOf, registerMediaKeys } from './tizenMediaKeys'
+import { MEDIA_KEY_CODES, mediaKeyOf, registerDigitKeys, registerMediaKeys } from './tizenMediaKeys'
 
 type FakeTizen = { tvinputdevice?: { getSupportedKeys?: () => Array<{ name: string; code: number }>; registerKey?: (name: string) => void } }
 
@@ -99,5 +99,29 @@ describe('mediaKeyOf (feature 027, §5)', () => {
 
   it('tecla sem correspondência nem por nome nem por keyCode devolve null', () => {
     expect(mediaKeyOf(new KeyboardEvent('keydown', { key: 'ArrowLeft', keyCode: 37 }))).toBeNull()
+  })
+})
+
+describe('registerDigitKeys (feature 066, R-003)', () => {
+  it('registra só os dígitos que a plataforma declara, junto das teclas de mídia, sem mudar o que registerMediaKeys devolve', () => {
+    const registered: string[] = []
+    setTizen({
+      tvinputdevice: {
+        getSupportedKeys: () => [{ name: 'MediaStop', code: 413 }, { name: '1', code: 49 }, { name: '9', code: 57 }],
+        registerKey: (name) => registered.push(name),
+      },
+    })
+    expect(registerMediaKeys()).toEqual(['MediaStop'])
+    expect(registered).toEqual(['MediaStop', '1', '9'])
+  })
+
+  it('um dígito que falha não impede os outros', () => {
+    const registered: string[] = []
+    const result = registerDigitKeys((name) => {
+      if (name === '2') throw new Error('sem privilégio')
+      registered.push(name)
+    }, new Set(['1', '2', '3']))
+    expect(result).toEqual(['1', '3'])
+    expect(registered).toEqual(['1', '3'])
   })
 })

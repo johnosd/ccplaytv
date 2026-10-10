@@ -7,6 +7,7 @@ import {
   epgManualHostOf,
   epgStatusOf,
   firstEpgUrl,
+  isEpgDueAfterImport,
   isEpgStale,
   isValidEpgUrl,
   resolveEpgUrl,
@@ -108,6 +109,36 @@ describe('isEpgStale (FR-009)', () => {
     expect(isEpgStale(PROVIDER, now)).toBe(true)
     expect(isEpgStale({ ...PROVIDER, epgLastSyncAt: now - EPG_STALE_AFTER_MS + 1000 }, now)).toBe(false)
     expect(isEpgStale({ ...PROVIDER, epgLastSyncAt: now - EPG_STALE_AFTER_MS - 1000 }, now)).toBe(true)
+  })
+})
+
+describe('isEpgDueAfterImport (D-008, bug epg-nao-atualiza-depois-primeira-carga)', () => {
+  const now = 1_000_000_000_000
+  const startedAt = now - 60_000
+  const stale = { ...PROVIDER, epgLastSyncAt: now - EPG_STALE_AFTER_MS - 1000 }
+
+  it('EPG vencido e sem tentativa desde o início da importação é devido', () => {
+    expect(isEpgDueAfterImport(stale, stale, startedAt, now)).toBe(true)
+    expect(isEpgDueAfterImport(PROVIDER, PROVIDER, startedAt, now)).toBe(true)
+  })
+
+  it('EPG em dia, ou já tentado (sucesso ou falha) depois que a importação começou, não baixa de novo', () => {
+    const fresh = { ...PROVIDER, epgLastSyncAt: now - 1000 }
+    expect(isEpgDueAfterImport(fresh, fresh, startedAt, now)).toBe(false)
+    const failedDuring = { ...stale, epgLastErrorKind: 'network' as const, epgLastErrorAt: startedAt + 1000 }
+    expect(isEpgDueAfterImport(stale, failedDuring, startedAt, now)).toBe(false)
+  })
+
+  it('endereço trocado pela importação (url-tvg novo) é devido mesmo com EPG em dia', () => {
+    const before = { ...M3U, epgDeclaredUrl: 'http://epg.test/a.xml', epgLastSyncAt: now - 1000 }
+    const after = { ...before, epgDeclaredUrl: 'http://epg.test/b.xml' }
+    expect(isEpgDueAfterImport(before, after, startedAt, now)).toBe(true)
+    expect(isEpgDueAfterImport(undefined, after, startedAt, now)).toBe(true)
+  })
+
+  it('sem endereço ou com EPG desativado nunca é devido', () => {
+    expect(isEpgDueAfterImport(M3U, M3U, startedAt, now)).toBe(false)
+    expect(isEpgDueAfterImport(PROVIDER, { ...PROVIDER, epgDisabled: true }, startedAt, now)).toBe(false)
   })
 })
 

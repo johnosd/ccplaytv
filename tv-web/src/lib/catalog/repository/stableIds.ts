@@ -4,6 +4,7 @@ import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord } from '..
 import { type StableIdParts } from '../userStateRepository'
 import { blockRecord, blocksOfKind } from '../categoryBlocks'
 import { FavoritesScanComplete, KEY_MAX, KEY_MIN, activeGenerationOf } from './shared'
+import { getCategoryAccess } from '../categoryAccess'
 
 /**
  * Resolve favoritos (feature 013, `stableId` do usuário) em registros do
@@ -65,6 +66,9 @@ export async function resolveStableIdsIn(
   favorites: StableIdParts[],
 ): Promise<Map<StableIdParts, CatalogRecord>> {
   const resolved = new Map<StableIdParts, CatalogRecord>()
+  // Feature 066: item só em categoria escondida/bloqueada não resolve; ocorrência numa categoria livre, sim.
+  const access = await getCategoryAccess(sourceId, database)
+  const allowed = (record: CatalogRecord) => !access.isExcludedRecord(record)
 
   // Feature 039 (§5): primeiro os blocos do tipo, UM POR VEZ (memória,
   // FR-013), parando assim que todos os favoritos forem achados; depois as
@@ -90,6 +94,7 @@ export async function resolveStableIdsIn(
     }
     try {
       await blocksOfKind(database, sourceId, generation, kind).each((block) => {
+        if (access.excluded.has(block.categoryId)) return
         block.items.forEach((item, index) => {
           const record = () => blockRecord(block, item, index)
           if (item.providerStreamId) take(byId.get(item.providerStreamId), record)
@@ -123,6 +128,7 @@ export async function resolveStableIdsIn(
     let record = await database.channels
       .where('[sourceId+generation+kind+providerStreamId]')
       .equals([sourceId, generation, kind, value])
+      .filter(allowed)
       .first()
 
     // Série sem `providerStreamId` próprio guarda o `seriesId` como
@@ -132,7 +138,7 @@ export async function resolveStableIdsIn(
       record = await database.channels
         .where('[sourceId+generation+seriesId]')
         .equals([sourceId, generation, value])
-        .and((candidate) => candidate.kind === 'series')
+        .and((candidate) => candidate.kind === 'series' && allowed(candidate))
         .first()
     }
 
@@ -155,6 +161,7 @@ export async function resolveStableIdsIn(
         .where('[sourceId+generation+kind+groupOrder]')
         .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
         .each((record) => {
+          if (!allowed(record)) return
           const key = record.originalName.trim().toLowerCase()
           const target = targetsByName.get(key)
           // Nome repetido em duas categorias: a ordem do índice já é por

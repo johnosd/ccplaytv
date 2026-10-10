@@ -5,6 +5,7 @@ import { parseStableId, type StableIdParts } from '../userStateRepository'
 import { activeGenerationOf } from './shared'
 import { findSeriesManyIn } from './series'
 import { resolveStableIdsIn } from './stableIds'
+import { getAdultScope } from '../categoryAccess'
 
 /**
  * Resolve os `UserStateRecord`s de "Continuar assistindo" (feature 019,
@@ -76,17 +77,19 @@ export async function resolveContinueEntries(
   }
   const seriesById = await findSeriesManyIn(database, sourceId, generation, seriesIds)
 
+  // Feature 066 (FR-035, D-014): adulto nunca aparece no Continuar assistindo (a série vale pelo episódio).
+  const adult = await getAdultScope(sourceId, database)
   const entries: ContinueEntry[] = []
   for (const [index, parts] of parsed.entries()) {
     const record = parts ? resolved.get(parts) : undefined
     if (!record) continue
     const state = states[index]
     if (record.kind !== 'episode' || !record.seriesId) {
-      entries.push({ record, state })
+      if (!adult.isAdult(record)) entries.push({ record, state })
       continue
     }
     const series = seriesById.get(record.seriesId)
-    if (series) {
+    if (series && !adult.isAdult(series)) {
       entries.push({
         record: series,
         state,

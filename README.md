@@ -188,6 +188,16 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   painel faz a pré-carga esperar um minuto em vez de insistir (feature 042).
   Os nomes reais de erro do AVPlay e uma queda de rede de verdade ainda não
   foram vistos na TV.
+- **Categorias e controle parental:** em Configurações › Categorias & parental,
+  cada categoria da lista (Canais, Filmes, Séries) pode ser escondida — some de
+  trilhas, "Todos", busca, fileiras, Favoritos/Histórico/Continuar assistindo,
+  guia e zapping, sem apagar favorito nem progresso — ou bloqueada com um PIN
+  de 4 dígitos (teclas do controle ou teclado na tela). Bloqueada aparece com
+  cadeado no fim da trilha e pede o PIN; o desbloqueio vale até o app ir para
+  segundo plano ou trocar de lista. Ao ligar, categorias de nome adulto vêm
+  sugeridas; com o PIN, adicionar/editar/remover lista também o pedem. "Esqueci
+  o PIN" confere usuário e senha (ou endereço M3U) de uma lista, só no aparelho.
+  O número dos canais não muda ao esconder (feature 066).
 
 ## Arquitetura
 

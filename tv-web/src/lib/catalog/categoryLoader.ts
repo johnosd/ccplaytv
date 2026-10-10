@@ -30,6 +30,7 @@ import {
 } from './catalogRepository'
 import { readEntryChunks } from './storedEntries'
 import { isCategoryFresh } from './freshness'
+import { copyListingFields } from './adultFlag'
 import { markEntry } from '../perf/entryTiming'
 import { readCredential } from './sourceRepository'
 import { providerErrorCode, type ErrorCode } from '../errors/errorCatalog'
@@ -172,9 +173,8 @@ export function toItemRecord(
     year: channel.year,
     addedAt: channel.addedAt,
   }
-  // Feature 055 (D-002/D-003): campos da listagem só quando existem — 43 mil itens não ganham chaves vazias.
-  // Nota vale para filme e série; gênero e fundo, só para série.
-  if (channel.providerRating !== undefined) record.providerRating = channel.providerRating
+  // Feature 055 (D-002/D-003): campos da listagem só quando existem (nota em filme e série; gênero e fundo só em série).
+  copyListingFields(channel, record) // nota (055) e marcação de adulto do painel (066, FR-035)
   // Feature 058 (FR-007): dias de arquivo só no canal, e só quando o painel declara.
   if (channel.kind === 'channel' && channel.archiveDays !== undefined) record.archiveDays = channel.archiveDays
   if (channel.kind === 'series') {

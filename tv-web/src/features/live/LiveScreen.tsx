@@ -10,6 +10,7 @@ import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import type { TopbarItem } from '../../navigation/appNav'
 import { ErrorState } from '../../components/ErrorState'
 import { EmptyState } from '../../components/EmptyState'
+import { SectionEmptyState } from '../../components/SectionEmptyState'
 import { Spinner } from '../../components/Spinner'
 import { Chip } from '../../components/Chip'
 import { channelNumberOf, knownCategoryCount } from './channelNumber'
@@ -45,12 +46,11 @@ export interface LiveShellProps {
   /** OK no indicador da lista ativa. */
   onOpenProfiles: () => void
   /**
-   * OK na lupa/engrenagem da topbar (feature 026, D-001 — opcional: o
-   * contrato travado da 024 monta este objeto com 4 campos, e o `tsc -b`
-   * compila esse arquivo). Ausente = soft disabled.
+   * OK na lupa/engrenagem da topbar (feature 026, D-001 — opcional: o contrato travado da 024 monta este objeto com 4
+   * campos). Ausente = soft disabled. `'parental'` abre direto em Categorias & parental (feature 066, FR-009).
    */
   onOpenSearch?: () => void
-  onOpenSettings?: () => void
+  onOpenSettings?: (tab?: 'parental') => void
 }
 
 export interface LiveScreenProps {
@@ -116,11 +116,9 @@ export function LiveScreen({
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
-  // Composição de foco topbar ↔ conteúdo (feature 024, D-003 do plan.md —
-  // `logic/foco-live-shell.md` §2), mesmo mecanismo da feature 023. Só
-  // existe de fato com `shell`; sem ele, `zone` nunca sai de 'content'.
-  // `initialTopbarItem` (feature 026, FR-034/FR-044) começa com a topbar já
-  // ativa nesse item, em vez do conteúdo.
+  // Composição de foco topbar ↔ conteúdo (feature 024, D-003; `logic/foco-live-shell.md` §2), mesmo mecanismo da 023.
+  // Só existe de fato com `shell`; sem ele, `zone` nunca sai de 'content'. `initialTopbarItem` (feature 026,
+  // FR-034/FR-044) começa com a topbar já ativa nesse item, em vez do conteúdo.
   const [zone, setZone] = useState<'topbar' | 'content'>(initialTopbarItem ? 'topbar' : 'content')
   const [topbarItem, setTopbarItem] = useState<TopbarItem>(initialTopbarItem ?? 'live')
   const contentActive = !shell || zone === 'content'
@@ -184,6 +182,7 @@ export function LiveScreen({
     topErrorActionIndex,
     setTopErrorActionIndex,
     onBack,
+    onManage: shell?.onOpenSettings && (() => shell.onOpenSettings?.('parental')),
     onResync,
     trail,
     search,
@@ -235,11 +234,12 @@ export function LiveScreen({
     return renderLiveShell(
       shellModel,
       <div className="screen live-screen">
-        <EmptyState
+        <SectionEmptyState
+          allHidden={trail.allHidden}
           title={t('live.topEmpty.title')}
           description={t('live.topEmpty.description')}
-          action={{ label: t('common.back'), onSelect: onBack }}
-          focused
+          onBack={onBack}
+          onManage={shell?.onOpenSettings && (() => shell.onOpenSettings?.('parental'))}
         />
         <Toast message={toastMessage} messageKey={toastKey} />
       </div>,
@@ -247,6 +247,7 @@ export function LiveScreen({
   }
 
   const columnsModel: LiveColumnsModel = {
+    sourceId,
     trail,
     search,
     channels,
@@ -265,8 +266,7 @@ export function LiveScreen({
     t,
   }
 
-  // Contagem conhecida da entrada exibida no cabeçalho (FR-006) — a mesma
-  // regra do trilho (FR-008): nunca inventada, ausente quando desconhecida.
+  // Contagem conhecida da entrada exibida no cabeçalho (FR-006) — a mesma regra do trilho (FR-008): nunca inventada.
   const headerCount = isFavoritesFocused || enteredFavorites
     ? channels.favoriteIds.size
     : focusedCategory

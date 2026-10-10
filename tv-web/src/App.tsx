@@ -19,6 +19,7 @@ import { onEpgSyncFinished } from './lib/epg/epgRunner'
 import { onSourceSyncFinished } from './features/import/sourceSyncing'
 import { useRefreshOnForeground } from './features/import/useRefreshOnForeground'
 import { usePrefetchForSource, wakePrefetch } from './features/catalog/prefetchApi'
+import { useCategoryAccessLifecycle } from './features/catalog/categoryAccessApi'
 import { HomeScreen } from './features/home/HomeScreen'
 import { appNavReducer, initialAppNav, type AppScreen, type TopDestination } from './navigation/appNav'
 import { readLastSourceId, writeLastSourceId } from './navigation/lastSource'
@@ -132,8 +133,9 @@ function App() {
     wakePrefetch()
   }, [autoRefreshJobId, autoRefreshJob.data?.status, queryClient])
 
-  // Feature 038 (D-010): a pré-carga acompanha a lista ativa.
+  // Feature 038 (D-010): a pré-carga acompanha a lista ativa; feature 066: o acesso às categorias também.
   usePrefetchForSource(activeSource?.id ?? null)
+  useCategoryAccessLifecycle(activeSource?.id ?? null)
 
   /**
    * Feature 042: "Editar lista" do erro de fonte do player (credencial recusada,
@@ -253,7 +255,8 @@ function App() {
     onGoHome: () => dispatch({ type: 'go-home' }),
     onSwitchTop: (destination: TopDestination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
     onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
-    onOpenSettings: () => dispatch({ type: 'open', screen: { name: 'settings' }, from: { ...current, topbarFocus: 'settings' } }),
+    // Feature 066 (FR-009): `'parental'` abre direto na gestão, e voltar devolve o foco ao conteúdo, não à topbar.
+    onOpenSettings: (tab?: 'parental') => dispatch({ type: 'open', screen: { name: 'settings', restore: tab && { zone: 'panel', tab } }, from: tab ? current : { ...current, topbarFocus: 'settings' } }),
     onOpenSearch: () => dispatch({ type: 'open', screen: { name: 'search' }, from: { ...current, topbarFocus: 'search' } }),
   })
   // Estável de propósito: `SplashScreen` reagenda o timer a cada mudança da
@@ -406,8 +409,8 @@ function App() {
             // Empilha a Live SEM `initialChannel` (nunca com ele) — senão
             // voltar da Busca/Configurações tocaria o canal de novo
             // (feature 026, `logic/navegacao.md` §3).
-            onOpenSettings: () =>
-              dispatch({ type: 'open', screen: { name: 'settings' }, from: { name: 'live', topbarFocus: 'settings' } }),
+            onOpenSettings: (tab) =>
+              dispatch({ type: 'open', screen: { name: 'settings', restore: tab && { zone: 'panel', tab } }, from: { name: 'live', topbarFocus: tab ? undefined : 'settings' } }),
             onOpenSearch: () =>
               dispatch({ type: 'open', screen: { name: 'search' }, from: { name: 'live', topbarFocus: 'search' } }),
           }}

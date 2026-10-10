@@ -28,6 +28,7 @@ import {
   type ClassifiedEntry,
 } from './classifier'
 import { parseExpDate } from './sourceAccount'
+import { withAdultFlag } from './adultFlag'
 import type { PanelClock } from './archiveUrl'
 
 /** TS quando a conta permite mais de um formato — o que reproduziu na TV de referência. */
@@ -110,8 +111,7 @@ export function normalizeServerAddress(raw: string): string {
   }
   path = path.replace(/\/+$/, '')
 
-  // Esquema preservado como informado — nunca forçamos HTTPS nem
-  // desativamos validação de TLS (ADR-004 §8).
+  // Esquema preservado como informado — nunca forçamos HTTPS nem desativamos validação de TLS (ADR-004 §8).
   return `${parsed.protocol}//${parsed.host}${path}`
 }
 
@@ -198,8 +198,7 @@ async function fetchJsonDirect(url: string, signal?: AbortSignal, fetchImpl?: ty
     throw new ProviderError('rate_limited', 'O provedor pediu um intervalo entre as consultas.')
   }
   if (!response.ok) {
-    // Status inesperado: o endpoint pode não existir nesta forma. Quem
-    // chama decide se tenta a próxima ação ou cai no fallback.
+    // Status inesperado: o endpoint pode não existir nesta forma. Quem chama decide se tenta a próxima ação ou o fallback.
     throw new ProviderIncompatibleError(`Provedor respondeu com status ${response.status}.`)
   }
   return response.json()
@@ -269,7 +268,8 @@ export async function resolveAccountStatus(
   username: string,
   password: string,
   now: number = Date.now(),
-  /** Feature 034: cancelamento da consulta leve (o limite de 5 s também usa um ace, D-005). */
+  /** Feature 034: cancelamento da consulta leve (o limite de 5 s também usa um 
+ace, D-005). */
   options: { signal?: AbortSignal } = {},
 ): Promise<AccountStatus> {
   let lastFailure: ProviderError | undefined
@@ -449,7 +449,7 @@ export function mapLiveEntry(
   // Feature 058 (FR-007, `data-model.md` §1): só quando o painel declara.
   const archiveDays = normalizeArchiveDays(raw.tv_archive, raw.tv_archive_duration)
   if (archiveDays !== undefined) mapped.archiveDays = archiveDays
-  return mapped
+  return withAdultFlag(raw, mapped)
 }
 
 /**
@@ -631,7 +631,7 @@ export function mapVodEntry(
   // ganham chaves vazias). `genre`/`backdrop_path` de filme não são lidos (D-003).
   const providerRating = normalizeProviderRating(raw.rating)
   if (providerRating !== undefined) mapped.providerRating = providerRating
-  return mapped
+  return withAdultFlag(raw, mapped)
 }
 
 export async function acquireXtreamVod(
@@ -725,7 +725,7 @@ export function mapSeriesEntry(
   if (providerGenres !== undefined) mapped.providerGenres = providerGenres
   const providerBackdropUrl = firstBackdropUrl(raw.backdrop_path)
   if (providerBackdropUrl !== undefined) mapped.providerBackdropUrl = providerBackdropUrl
-  return mapped
+  return withAdultFlag(raw, mapped)
 }
 
 export async function acquireXtreamSeries(

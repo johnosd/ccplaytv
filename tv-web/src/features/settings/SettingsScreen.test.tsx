@@ -129,36 +129,33 @@ describe('SettingsScreen — nomes acessíveis (feature 028, FR-015/FR-017)', ()
     expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
   })
 
-  it('todo controle tem nome acessível: aba mock "Em breve"', () => {
+  it('todo controle tem nome acessível: aba Categorias & parental', () => {
     mockSources([SALA])
     mockDelete()
     mockResync()
     renderSettings()
-    for (let i = 0; i < 3; i += 1) press('ArrowDown') // tabs: sources (1) -> player -> accessibility -> parental (4), o mock que resta
-    press('ArrowRight') // entra no painel mock
+    for (let i = 0; i < 3; i += 1) press('ArrowDown') // tabs: sources (1) -> player -> accessibility -> parental (4)
+    press('ArrowRight') // entra no painel
     expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
   })
 })
 
-// Feature 028, FR-007: SELECT em "Voltar às abas" (aba mock "Em breve") devolve o foco à trilha de abas.
-describe('SettingsScreen — aba mock "Em breve" (feature 028, FR-007)', () => {
-  it('"Voltar às abas" (SELECT) sai do painel mock e volta pra trilha de abas', () => {
+// Feature 066 (FR-001): a aba "Categorias & parental" é real — o mock "Em breve" que a 028 testava aqui saiu.
+describe('SettingsScreen — Categorias & parental (feature 066, FR-001)', () => {
+  it('entra no painel pelo controle parental e ← devolve o foco à trilha de abas', async () => {
     mockSources([SALA])
     mockDelete()
     mockResync()
     renderSettings()
 
-    // "Integrações & BYOK" era o mock usado aqui; virou real na feature 032 —
-    // "Player & reprodução" virou real na feature 041 — "Perfis & parental" é o mock que continua.
     for (let i = 0; i < 3; i += 1) press('ArrowDown') // tabs: sources (1) -> player -> accessibility -> parental (4)
-    press('ArrowRight') // entra no painel "Perfis & parental" (mock)
-    expect(screen.getByText(/Em breve/)).toBeInTheDocument()
-    const back = screen.getByRole('button', { name: 'Voltar às abas' })
-    expect(back).toHaveClass('tv-focus')
+    press('ArrowRight')
+    expect(screen.queryByText(/Em breve/)).toBeNull()
+    expect(await screen.findByRole('button', { name: 'Controle parental: Desligado' })).toHaveClass('tv-focus')
 
-    press('Enter')
-    expect(screen.getByRole('button', { name: 'Voltar às abas' })).not.toHaveClass('tv-focus')
-    expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toContain('Perfis & parental')
+    press('ArrowLeft')
+    expect(screen.getByRole('button', { name: 'Controle parental: Desligado' })).not.toHaveClass('tv-focus')
+    expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toContain('Categorias & parental')
   })
 })
 

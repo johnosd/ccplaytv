@@ -4,6 +4,7 @@ import type { PlayerLayerTopLayer } from '../../components/PlayerLayer'
 import type { MediaKey } from '../../lib/tizenMediaKeys'
 import { EpgGuide, type EpgGuideHandle } from './guide/EpgGuide'
 import type { EnteredKey, TrailKey } from './liveTrail'
+import { withoutLockedCategories } from './channelNumber'
 import type { LiveChannels, LiveTrail } from './useLiveCatalog'
 import type { LiveSearch } from './useLiveSearch'
 import type { LiveZappingState } from './useLiveZapping'
@@ -141,7 +142,7 @@ export function useLiveGuide({
     <EpgGuide
       handleRef={guideRef}
       sourceId={sourceId}
-      categories={categories}
+      categories={withoutLockedCategories(categories)} // 066 (FR-013/FR-014): bloqueada só pela trilha, com o PIN
       initialList={openGuide.list}
       initialChannelId={openGuide.originId}
       onWatch={watchFromGuide}

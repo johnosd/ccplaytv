@@ -13,6 +13,7 @@ import { isAbortError } from '../xtreamConnector'
 import { createActivityGate } from './activityGate'
 import { createPrefetchScheduler, IDLE_AFTER_KEY_MS, type PrefetchRunOutcome } from './prefetchScheduler'
 import { runSectionLoad } from '../sectionRunner'
+import { listVisibleCategories } from '../categoryAccess'
 
 export const prefetchGate = createActivityGate()
 
@@ -45,8 +46,9 @@ async function runCategory(sourceId: string, categoryId: number): Promise<Prefet
 let onCategoryDone: ((sourceId: string, categoryId: number, kind?: 'channel' | 'movie' | 'series') => void) | undefined
 
 export const prefetchScheduler = createPrefetchScheduler({
+  // Feature 066: escondidas não gastam rede nem disco; bloqueadas continuam (o desbloqueio abre na hora).
   loadCategories: async (sourceId) =>
-    (await listCategories(sourceId)).map((category) => ({
+    (await listVisibleCategories(sourceId)).map((category) => ({
       id: category.id,
       kind: category.kind,
       order: category.order,

@@ -436,6 +436,14 @@ background. Code that needs a category's or a kind's items must go through
 `catalogRepository.ts`, never `db.channels` directly (only episodes are still
 rows). See feature 039 above.
 
+**Standing rule (feature 066, categories & parental control)**: the person can
+hide categories and lock them behind a PIN. Every reader that shows catalog
+items or categories must leave out hidden and locked categories: the `lib/catalog`
+readers filter with `getCategoryAccess` (`lib/catalog/categoryAccess.ts`),
+*after* any memo (caches keep raw data), and category trails use
+`listVisibleCategories`. A new aggregated reader that skips this leaks hidden or
+locked content. Raw `listCategories` is only for import, prefetch and counts.
+
 ## Language
 
 Project documentation (ADRs, planning docs, backlog, specs) is written in

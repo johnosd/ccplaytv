@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { channelNumberOf, knownCategoryCount } from './channelNumber'
+import { channelNumberOf, knownCategoryCount, withoutLockedCategories } from './channelNumber'
 import type { CatalogCategory } from '../catalog/catalogApi'
 
 function cat(overrides: Partial<CatalogCategory> = {}): CatalogCategory {
@@ -66,5 +66,33 @@ describe('channelNumberOf — cenários adicionais (contrato central em channelN
       cat({ id: 2, order: 1, fetchMode: 'on_demand', count: 4, itemsFetchedAt: 1000 }),
     ]
     expect(channelNumberOf({ category_id: 2, category_position: 0 }, categories)).toBeNull()
+  })
+})
+
+describe('channelNumberOf — categoria escondida antes (feature 066, D-012/R-008)', () => {
+  it('o número de um canal não muda ao esconder uma categoria anterior', () => {
+    const news = cat({ id: 1, order: 0, fetchMode: 'eager', count: 10 })
+    const sports = cat({ id: 2, order: 1, fetchMode: 'eager', count: 4 })
+    const channel = { category_id: 2, category_position: 0, source_number: null }
+    const before = channelNumberOf(channel, [news, sports])
+
+    // Trilha filtrada: "Notícias" escondida sai da lista e entra em `hiddenBefore` da seguinte.
+    expect(channelNumberOf(channel, [{ ...sports, hiddenBefore: [news] }])).toBe(before)
+    expect(before).toBe('011')
+  })
+})
+
+describe('withoutLockedCategories (feature 066, guia sem bloqueadas, D-012)', () => {
+  it('tira as bloqueadas e mantém o número dos canais seguintes', () => {
+    const news = cat({ id: 1, order: 0, fetchMode: 'eager', count: 10 })
+    const adult = { ...cat({ id: 2, order: 1, fetchMode: 'eager', count: 5 }), locked: true }
+    const sports = cat({ id: 3, order: 2, fetchMode: 'eager', count: 4 })
+    const channel = { category_id: 3, category_position: 0, source_number: null }
+    const all = [news, adult, sports]
+
+    const shown = withoutLockedCategories(all)
+    expect(shown.map((category) => category.id)).toEqual([1, 3])
+    expect(channelNumberOf(channel, shown)).toBe(channelNumberOf(channel, all))
+    expect(channelNumberOf(channel, shown)).toBe('016')
   })
 })

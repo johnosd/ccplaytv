@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   groupLabel,
@@ -34,6 +34,8 @@ import { Toast } from '../../components/Toast'
 import { ContentCard } from '../../components/ContentCard'
 import { RatingBadge } from '../../components/RatingBadge'
 import { EmptyState } from '../../components/EmptyState'
+import { LockedCategoryState } from '../../components/LockedCategoryState'
+import { unlockWithPin } from '../../lib/catalog/categoryAccess'
 import { ErrorState } from '../../components/ErrorState'
 import { describeError } from '../../lib/errors/errorCatalog'
 import { useOnlineStatus } from '../../lib/onlineStatus'
@@ -57,12 +59,10 @@ function scrollFrameClass(edges: OverflowEdges): string {
 
 /** Card portrait de geometria fixa (D-006 do plan.md — sem `ResizeObserver`, mesma escolha do `Rail`, feature 022 R-002). */
 const GRID_COLS = 6
-/** Altura de uma linha da grade (célula + vão). A largura da célula é CSS: as 6 colunas dividem a largura toda, coladas. */
+/** Altura mínima de uma linha da grade (célula + vão). A largura da célula é CSS: as 6 colunas dividem a largura toda. */
 const ROW_HEIGHT = 402
-/** Altura da linha: o texto de baixo do card cresce com --font-scale, o pôster não (lida do CSS, 1 em testes). */
-function rowHeight(): number {
-  return ROW_HEIGHT
-}
+/** Teto da linha (acima, o pôster 2:3 cortaria demais nas laterais) e vão da coluna (`gap` de `.vod-content-column`). */
+const ROW_HEIGHT_MAX = 470, COLUMN_GAP = 8
 /** Linhas além das visíveis — as mesmas que a grade por células (lanes + 6 itens) desenhava; virtualiza linhas de 6 (065). */
 const OVERSCAN_ABOVE = 3, OVERSCAN_BELOW = 2
 /** "Todos" aos poucos (feature 039, T022): a próxima página é pedida a 10 fileiras do fim. */
@@ -160,7 +160,12 @@ export function VodCategoryScreen({
   // Estrutura: rápida, nunca toca rede (FR-004). Só a categoria real precisa dela (nome → registro).
   const categoriesQuery = useCategoryList(sourceId, config.kind)
   const categories = categoriesQuery.data ?? []
-  const enteredCategory = enteredByName ? categories.find((c) => groupLabel(c.name) === target.name) : undefined
+  const namedCategory = enteredByName ? categories.find((c) => groupLabel(c.name) === target.name) : undefined
+  // Feature 066 (FR-013/FR-014): categoria bloqueada não é lida nem pedida à rede — as consultas a recebem como ausente.
+  const enteredLocked = namedCategory?.locked === true
+  const enteredCategory = enteredLocked ? undefined : namedCategory
+  // O OK que trouxe a pessoa até aqui já pediu a categoria: o PIN abre junto (`logic/pin.md` §4).
+  const [pinOpen, setPinOpen] = useState(true)
   // A seção da categoria aberta segue à frente da fila de pré-carga (feature 038).
   usePrefetchHint(config.kind, enteredCategory?.id)
 
@@ -320,28 +325,48 @@ export function VodCategoryScreen({
   }, [enteredAll, windowed, allHasMore, loadMoreAll, chasingFocus, applyRestoreHint, restoreHint, itemIdx, items.length])
 
   const gridContainerRef = useRef<HTMLDivElement | null>(null)
+  const gridFrameRef = useRef<HTMLDivElement | null>(null)
+  // Ad-hoc 2026-10-09: sem a topbar, as 2 linhas crescem até ocupar a coluna, descontados os avisos abaixo da grade (entre
+  // ROW_HEIGHT e ROW_HEIGHT_MAX). Medido a cada desenho, sem ResizeObserver; `setRowPx` só roda se a altura mudar.
+  const [rowPx, setRowPx] = useState(ROW_HEIGHT)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- medição de layout a cada desenho, convergente (máx. 1 ajuste)
+  useLayoutEffect(() => {
+    const frame = gridFrameRef.current
+    const column = frame?.parentElement
+    const scale = frame && frame.offsetWidth > 0 ? frame.getBoundingClientRect().width / frame.offsetWidth : 0 // palco escalado
+    if (!frame || !column || !(scale > 0)) return // sem layout real (testes): fica no mínimo
+    let below = 0
+    for (let el = frame.nextElementSibling; el; el = el.nextElementSibling) below += el.getBoundingClientRect().height / scale + COLUMN_GAP
+    const free = (column.getBoundingClientRect().bottom - frame.getBoundingClientRect().top) / scale - below
+    const next = Math.min(ROW_HEIGHT_MAX, Math.max(ROW_HEIGHT, Math.floor(free / 2)))
+    if (next !== rowPx) setRowPx(next)
+  })
+  const estimateRow = useCallback(() => rowPx, [rowPx]) // estável por altura: nunca uma função nova a cada desenho
   const itemVirtualizer = useVirtualizer({
     count: Math.ceil((windowed ? (content.data?.totalCount ?? 0) : items.length) / GRID_COLS),
     getScrollElement: () => gridContainerRef.current,
-    estimateSize: rowHeight,
+    estimateSize: estimateRow,
     rangeExtractor: ({ startIndex, endIndex, count }) => { const first = Math.max(0, startIndex - OVERSCAN_ABOVE); return Array.from({ length: Math.max(0, Math.min(count - 1, endIndex + OVERSCAN_BELOW) - first + 1) }, (_, i) => first + i) },
   })
+  // `estimateSize` novo não invalida as medidas já feitas: refaz só quando a altura muda de fato (nunca na montagem).
+  const measuredRowPx = useRef(rowPx)
+  useEffect(() => { if (measuredRowPx.current !== rowPx) { measuredRowPx.current = rowPx; itemVirtualizer.measure() } })
   const lastVisibleIndex = ((itemVirtualizer.getVirtualItems().at(-1)?.index ?? 0) + 1) * GRID_COLS - 1 // por janela, rolar até linhas não lidas as lê
   useEffect(() => { if (windowed && lastVisibleIndex >= items.length - GRID_COLS) loadWindow(lastVisibleIndex) }, [windowed, loadWindow, lastVisibleIndex, items.length])
   // Indicador de continuação (feature 050, FR-010): só desenho, nenhuma regra de foco depende dele.
   const gridEdges = useOverflowEdges(gridContainerRef, items.length)
 
   const itemsNavigable = !contentIsLoading && !contentUnavailable && items.length > 0
-  // A grade mostra sempre 2 linhas INTEIRAS: o foco rola de linha em linha (scrollTop múltiplo de ROW_HEIGHT), nunca
+  // A grade mostra sempre 2 linhas INTEIRAS: o foco rola de linha em linha (scrollTop múltiplo da altura da linha), nunca
   // deixando uma linha cortada em cima ou embaixo — o `scrollToIndex` do virtualizador alinharia à borda do contêiner,
   // que tem folga de anel.
   const scrollToRow = (index: number) => {
     const el = gridContainerRef.current
     if (!el) return
     const row = Math.floor(index / GRID_COLS)
-    const top = Math.round(el.scrollTop / ROW_HEIGHT)
+    const top = Math.round(el.scrollTop / rowPx)
     const next = row < top ? row : row > top + 1 ? row - 1 : top
-    if (next !== top) el.scrollTop = next * ROW_HEIGHT
+    if (next !== top) el.scrollTop = next * rowPx
   }
   useVirtualFocusSync({
     focusedIndex: itemIdx,
@@ -453,6 +478,7 @@ export function VodCategoryScreen({
 
   useRemoteNav({
     onDirection: (dir) => {
+      if (enteredLocked) return // só "Desbloquear": nada a mover
       const hasTop = items.length > 0
       if (hasTop && toolbarFocus !== null) {
         if (dir === 'down') {
@@ -488,6 +514,10 @@ export function VodCategoryScreen({
       }
     },
     onSelect: () => {
+      if (enteredLocked) {
+        setPinOpen(true)
+        return
+      }
       // Estados de tela cheia (carregando, vazios, lista sem categorias): o botão focado é "Voltar".
       if (blockedByCategories || contentIsLoading) {
         onBack()
@@ -581,6 +611,22 @@ export function VodCategoryScreen({
             { label: t('common.back'), onSelect: onBack },
           ]}
           focusedActionIndex={0}
+        />
+        <Toast message={toastMessage} messageKey={toastKey} />
+      </div>,
+    )
+  }
+
+  if (enteredLocked && namedCategory) {
+    return withShell(
+      <div className="screen vod-screen">
+        <LockedCategoryState
+          name={vodGroupDisplay(namedCategory.name, t)}
+          focused
+          pinOpen={pinOpen}
+          onOpenPin={() => setPinOpen(true)}
+          onClosePin={() => setPinOpen(false)}
+          onUnlock={(pin) => unlockWithPin(sourceId, pin)}
         />
         <Toast message={toastMessage} messageKey={toastKey} />
       </div>,
@@ -826,9 +872,10 @@ export function VodCategoryScreen({
           )}
 
           {showResultsGrid && (
-            <div className={scrollFrameClass(gridEdges)} style={{
+            <div ref={gridFrameRef} className={scrollFrameClass(gridEdges)} style={{
                 // Só 2 linhas: a folga do .vod-grid (anel de foco) não deixa a 3ª linha aparecer embaixo; em cima e nos lados continua livre.
-                maxHeight: 2 * rowHeight(),
+                maxHeight: 2 * rowPx,
+                ['--vod-row-height' as string]: `${rowPx}px`,
                 clipPath: 'inset(calc(var(--space-1) / 2) -40px calc(var(--space-1) / 2) -40px)',
               }}>
               <div ref={gridContainerRef} className="vod-grid no-scrollbar">

@@ -29,6 +29,7 @@ export type ErrorCode =
   | 'PLAY-06'
   | 'EPG-02'
   | 'STO-01'
+  | 'PAR-01'
   | 'TRL-REDE'
   | 'TRL-TEMPO'
   | 'TRL-PONTE'
@@ -67,6 +68,9 @@ const RETRYABLE: Record<ErrorCode, boolean> = {
   'PLAY-06': false,
   'EPG-02': true,
   'STO-01': true,
+  // Feature 066 (R-017): gravar o PIN/as decisões do controle parental falhou por outro motivo que não espaço (ex.: a
+  // transação abortada na TV). Falta de espaço usa o STO-01.
+  'PAR-01': true,
   'TRL-REDE': true,
   'TRL-TEMPO': true,
   'TRL-PONTE': true,

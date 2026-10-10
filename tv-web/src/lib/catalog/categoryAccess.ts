@@ -8,12 +8,13 @@
  * guardam o dado bruto e o filtro vem depois deles (D-003).
  */
 
-import { db, type CatalogDb, type CatalogRecord, type CategoryKind, type CategoryRecord } from './db'
-import { listCategories, type CatalogCategory } from './repository/categories'
-import { activeGenerationOf } from './repository/shared'
+import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord, type CategoryKind, type CategoryRecord } from './db'
+// Pela fachada (feature 063, D-001): `repository/` também importa daqui, e só a fachada conhece aqueles módulos.
+import { activeGeneration, listCategories, type CatalogCategory } from './catalogRepository'
 import { categoryMatchKey } from './structureDiff'
 import { categoryPreferences, parentalPin, type CategoryPreferenceRecord } from './parentalTables'
 import { verifyPin } from '../parental/pin'
+import { normalizeForSearch } from './catalogSearch'
 
 /** A categoria como as telas a veem: só as não escondidas, com o cadeado efetivo agora. */
 export interface VisibleCategory extends CatalogCategory {
@@ -50,8 +51,16 @@ export interface CategoryAccess {
 let unlockedSourceId: string | null = null
 const listeners = new Set<() => void>()
 
-/** Avisa quem desenha (reset das consultas, D-005). Usado também por `lib/parental/pin.ts`. */
+/**
+ * Regra salva (PIN existe? quais preferências?) por banco e por lista — só memória. Toda escrita de acesso passa por
+ * `notifyCategoryAccessChanged`, que a esquece inteira. Não é dado de catálogo filtrado (D-003): só a regra, para os
+ * leitores não lerem o IndexedDB a cada chamada (a vitrine de Filmes chama um por fileira).
+ */
+let savedRules = new WeakMap<CatalogDb, Map<string, Promise<Omit<Rule, 'unlocked'>>>>()
+
+/** Avisa quem desenha (reset das consultas, D-005) e esquece a regra em memória. Usado também por `lib/parental/pin.ts`. */
 export function notifyCategoryAccessChanged(): void {
+  savedRules = new WeakMap()
   for (const listener of listeners) listener()
 }
 
@@ -68,9 +77,16 @@ export function preferenceKey(ref: CategoryRef): [string, CategoryKind, string] 
   return [ref.sourceId, ref.kind, categoryMatchKey(ref.providerCategoryId, ref.name)]
 }
 
-/** Nome declarado pela lista parece adulto (FR-023). Regra completa na Fase 5 (T029). */
-export function isAdultCategoryName(_name: string | undefined): boolean {
-  return false
+/**
+ * Termos fixos de "nome adulto" (FR-023, `logic/acesso-categorias.md` §4), sobre o nome normalizado (minúsculas, sem
+ * acento): palavra inteira — "adulteração" não é adulto — ou "+18"/"18+"/"[18]" fora de um número maior ("2018" não).
+ * Só o nome que a lista declara; nada externo, nada de IA. Falso positivo aceito: "Adult Swim" (R-006).
+ */
+const ADULT_NAME = /(^|[^a-z0-9])(xxx|adults?|adult[oa]s?|porn\w*|erotic[oa]?s?)([^a-z0-9]|$)|(^|[^0-9])(\+18|18\+)([^0-9]|$)|\[\s*18\s*\]/
+
+/** Nome declarado pela lista parece adulto (FR-023). */
+export function isAdultCategoryName(name: string | undefined): boolean {
+  return name !== undefined && ADULT_NAME.test(normalizeForSearch(name))
 }
 
 interface Rule {
@@ -93,16 +109,26 @@ function savedLock(rule: Rule, category: Pick<CategoryRecord, 'kind' | 'provider
   return pref?.declinedSuggestion !== true && isAdultCategoryName(category.name)
 }
 
-async function loadRule(sourceId: string, database: CatalogDb): Promise<Rule> {
+async function readSavedRule(sourceId: string, database: CatalogDb): Promise<Omit<Rule, 'unlocked'>> {
   const [pin, prefs] = await Promise.all([
     parentalPin(database).get('pin'),
     categoryPreferences(database).where('sourceId').equals(sourceId).toArray(),
   ])
-  return {
-    pinActive: pin !== undefined,
-    unlocked: unlockedSourceId === sourceId,
-    prefs: new Map(prefs.map((pref) => [prefMapKey(pref.kind, pref.matchKey), pref])),
+  return { pinActive: pin !== undefined, prefs: new Map(prefs.map((pref) => [prefMapKey(pref.kind, pref.matchKey), pref])) }
+}
+
+async function loadRule(sourceId: string, database: CatalogDb): Promise<Rule> {
+  let bySource = savedRules.get(database)
+  if (!bySource) savedRules.set(database, (bySource = new Map()))
+  let saved = bySource.get(sourceId)
+  if (!saved) {
+    const cache = bySource
+    saved = readSavedRule(sourceId, database)
+    cache.set(sourceId, saved)
+    saved.catch(() => cache.delete(sourceId))
   }
+  // A sessão é lida na hora, nunca da memória da regra (D-004).
+  return { ...(await saved), unlocked: unlockedSourceId === sourceId }
 }
 
 /** Grava a preferência de uma categoria (FR-004) e avisa os ouvintes. Campo ausente no `patch` fica como estava. */
@@ -126,9 +152,11 @@ function stripUndefined(patch: CategoryPreferencePatch): CategoryPreferencePatch
 
 /** Retrato do acesso para as leituras de `lib/catalog` filtrarem (FR-007, FR-014). */
 export async function getCategoryAccess(sourceId: string, database: CatalogDb = db): Promise<CategoryAccess> {
-  const generation = await activeGenerationOf(sourceId, database)
+  // Sem preferência nem PIN (o caso comum), nada a filtrar — e nada a ler do IndexedDB.
   const rule = await loadRule(sourceId, database)
-  if (generation === undefined || (rule.prefs.size === 0 && !rule.pinActive)) return NOTHING_EXCLUDED
+  if (rule.prefs.size === 0 && !rule.pinActive) return NOTHING_EXCLUDED
+  const generation = await activeGeneration(sourceId, database)
+  if (generation === undefined) return NOTHING_EXCLUDED
   const categories = (await database.categories.where('sourceId').equals(sourceId).toArray()).filter(
     (category) => category.generation === generation,
   )
@@ -152,16 +180,50 @@ export async function getCategoryAccess(sourceId: string, database: CatalogDb = 
 
 const NOTHING_EXCLUDED: CategoryAccess = { excluded: new Set(), isExcludedRecord: () => false }
 
+/** O que é adulto numa lista, para nunca aparecer no ↺ Histórico nem no Continuar assistindo (FR-035, D-014). */
+export interface AdultScope {
+  isAdult: (record: Pick<CatalogRecord, 'kind' | 'categoryId' | 'groupOrder' | 'adult'>) => boolean
+}
+
+/**
+ * Adulto = a lista marca o item (`adult`, do `is_adult` do painel), a categoria tem nome adulto (FR-023), ou a pessoa
+ * bloqueou a categoria (bloqueio salvo — vale com o PIN digitado, independe da sessão). Padrão, sem configuração:
+ * não depende do controle parental estar ligado. Episódio vale pela série (quem chama passa o registro da série).
+ */
+export async function getAdultScope(sourceId: string, database: CatalogDb = db): Promise<AdultScope> {
+  const [rule, generation] = await Promise.all([loadRule(sourceId, database), activeGeneration(sourceId, database)])
+  const adultIds = new Set<number>()
+  const byOrder = new Map<string, number>()
+  if (generation !== undefined) {
+    const categories = (await database.categories.where('sourceId').equals(sourceId).toArray()).filter((category) => category.generation === generation)
+    for (const category of categories) {
+      byOrder.set(`${category.kind}|${category.order}`, category.id as number)
+      if (isAdultCategoryName(category.name) || preferenceOf(rule, category)?.locked === true) adultIds.add(category.id as number)
+    }
+  }
+  return {
+    isAdult: (record) => {
+      if (record.adult === true) return true
+      const categoryId = record.categoryId ?? byOrder.get(`${record.kind}|${record.groupOrder}`)
+      return categoryId !== undefined && adultIds.has(categoryId)
+    },
+  }
+}
+
 /** Categorias não escondidas da geração ativa, na ordem da lista, com `locked` efetivo (FR-002, FR-007, FR-013). */
 export async function listVisibleCategories(
   sourceId: string,
-  kind?: CategoryKind,
+  kind?: CatalogItemKind,
   database: CatalogDb = db,
 ): Promise<VisibleCategory[]> {
   const [categories, rule] = await Promise.all([listCategories(sourceId, kind, database), loadRule(sourceId, database)])
   const hidden = categories.filter((category) => preferenceOf(rule, category)?.hidden === true)
-  return categories
-    .filter((category) => !hidden.includes(category))
+  const shown = categories.filter((category) => !hidden.includes(category))
+  // Pedido do usuário (2026-10-09, emenda ao FR-033 — D-013): as bloqueadas pelo controle parental vão para o fim da
+  // trilha, na ordem relativa da lista; ficam lá mesmo com a sessão desbloqueada (a trilha não pula de lugar). O número do
+  // canal não muda — `channelNumberOf` compara `order`, não a posição aqui.
+  const blocked = shown.filter((category) => savedLock(rule, category))
+  return [...shown.filter((category) => !blocked.includes(category)), ...blocked]
     .map((category) => ({
       ...category,
       locked: !rule.unlocked && savedLock(rule, category),

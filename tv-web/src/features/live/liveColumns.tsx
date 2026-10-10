@@ -11,6 +11,8 @@ import { SideCategoryNav, type SideCategoryNavEntry } from '../../components/Sid
 import { ChannelRow } from '../../components/ChannelRow'
 import { ErrorState } from '../../components/ErrorState'
 import { EmptyState } from '../../components/EmptyState'
+import { LockedCategoryState } from '../../components/LockedCategoryState'
+import { unlockWithPin } from '../../lib/catalog/categoryAccess'
 import { Spinner } from '../../components/Spinner'
 import { Icon } from '../../components/Icon'
 import { describeError } from '../../lib/errors/errorCatalog'
@@ -84,6 +86,7 @@ export function renderLiveShell(model: LiveShellModel, children: ReactNode): Rea
 }
 
 export interface LiveColumnsModel {
+  sourceId: string
   trail: LiveTrail
   search: LiveSearch
   channels: LiveChannels
@@ -111,7 +114,7 @@ function scrollFrameClass(edges: OverflowEdges): string {
 }
 
 export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean): ReactNode {
-  const { trail, search, channels, zapOpen, contentActive, setCol, enterTrailEntry, onResync } = model
+  const { sourceId, trail, search, channels, zapOpen, contentActive, setCol, enterTrailEntry, onResync } = model
   const { channelListRef, channelVirtualizer, trailScrollRef, trailEdges, channelEdges, playingId, t } = model
   const {
     categories,
@@ -157,8 +160,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
     unresolvedFavorites,
   } = channels
 
-  // Rótulo da entrada atualmente focada/entrada — Favoritos, Todos ou o
-  // nome da categoria real (feature 018).
+  // Rótulo da entrada atualmente focada/entrada — Favoritos, Todos ou o nome da categoria real (feature 018).
   const entryLabel = isAllFocused || enteredAll
     ? t('live.all')
     : isFavoritesFocused || enteredFavorites
@@ -193,6 +195,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
       label: liveGroupDisplay(entry.category?.name, t),
       tile: listInitials(liveGroupDisplay(entry.category?.name, t)),
       count: entry.category ? knownCategoryCount(entry.category) : undefined,
+      locked: entry.category?.locked,
     }
   })
   const selectedTrailId = entered
@@ -200,10 +203,8 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
       ? `cat-${entered.id}`
       : entered.kind
     : ''
-  // Sem foco visual na trilha enquanto a topbar estiver ativa (feature
-  // 024, D-003) — o estado interno (`categoryIdx`) continua o mesmo, só
-  // a marcação `.tv-focus` some, exatamente como a topbar da 023 faz com
-  // o conteúdo do Início.
+  // Sem foco visual na trilha enquanto a topbar estiver ativa (feature 024, D-003) — o estado interno (`categoryIdx`)
+  // continua o mesmo, só a marcação `.tv-focus` some, exatamente como a topbar da 023 faz com o conteúdo do Início.
   const focusedTrailId = contentActive && effectiveCol === 0 && focusedTrailEntry ? trailEntryId(focusedTrailEntry) : undefined
 
   return (
@@ -280,8 +281,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               onKeyDown={(event) => {
-                // Tecla "Done" do teclado do sistema da TV — mesmo efeito
-                // de ↓ a partir do campo (`logic/busca-por-categoria.md` §3).
+                // Tecla "Done" do teclado da TV — mesmo efeito de ↓ a partir do campo (`logic/busca-por-categoria.md` §3).
                 if (event.keyCode !== 65376) return
                 event.preventDefault()
                 if (items.length > 0) {
@@ -304,11 +304,8 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
         )}
 
         {searchNoResults && (
-          // Sem botão "ação" aqui de propósito: o campo continua com foco
-          // DOM real neste estado (só se sai dele quando há resultado pra
-          // focar), então RETURN já garante saída — nenhum beco sem saída
-          // (constitution). Um botão redundante mostraria dois elementos
-          // com aparência de foco ao mesmo tempo.
+          // Sem botão "ação" aqui de propósito: o campo continua com foco DOM real neste estado (só se sai dele quando há
+          // resultado pra focar), então RETURN já garante saída (constitution). Um botão redundante teria dois focos.
           <div className="live-state">
             <div className="live-state-title">{t('live.noResults', { term: searchTerm })}</div>
             {searchCoveragePartial && (
@@ -371,7 +368,11 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
         )}
 
         {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && entered?.kind === 'category' && items.length === 0 && (
-          <EmptyState title={t('live.emptyGroup')} action={{ label: t('common.back'), onSelect: () => setCol(0) }} focused />
+          trail.enteredCategory?.locked ? ( // feature 066 (FR-013): PIN abre ao entrar; RETURN volta à trilha
+            <LockedCategoryState name={liveGroupDisplay(trail.enteredCategory.name, t)} focused={false} pinOpen={contentActive && effectiveCol === 1} onOpenPin={() => setCol(1)} onClosePin={() => setCol(0)} onUnlock={(pin) => unlockWithPin(sourceId, pin)} />
+          ) : (
+            <EmptyState title={t('live.emptyGroup')} action={{ label: t('common.back'), onSelect: () => setCol(0) }} focused />
+          )
         )}
 
         {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && contentStale && (
@@ -429,8 +430,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
         )}
 
         {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && entered?.kind === 'category' && content.data && (
-          // Fala do limite de exibição, não do tamanho da fonte — a distinção
-          // importa porque o catálogo publicado pode ser parcial (FR-016).
+          // Fala do limite de exibição, não do tamanho da fonte — o catálogo publicado pode ser parcial (FR-016).
           content.data.totalCount > items.length && (
             <div className="live-truncated-note">
               {t('live.truncated', { shown: items.length, total: content.data.totalCount })}

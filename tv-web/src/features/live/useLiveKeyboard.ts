@@ -25,6 +25,8 @@ export interface LiveKeyboardParams {
   topErrorActionIndex: number
   setTopErrorActionIndex: Dispatch<SetStateAction<number>>
   onBack: () => void
+  /** OK no vazio "todas as categorias escondidas" — abre a gestão (feature 066, FR-009). */
+  onManage?: () => void
   onResync: () => void
   trail: LiveTrail
   search: LiveSearch
@@ -36,10 +38,8 @@ export interface LiveKeyboardParams {
 }
 
 /**
- * Navegação da TV ao vivo: entrar numa entrada da trilha, setas, OK, RETURN
- * e gestos de favoritar — UM registro de `useRemoteNav`
- * (`logic/divisao.md` §1.3). Extraído da `LiveScreen` na feature 040 sem
- * mudar nada. Devolve o que o desenho e o zapping também usam.
+ * Navegação da TV ao vivo: entrar numa entrada da trilha, setas, OK, RETURN e gestos de favoritar — UM registro de
+ * `useRemoteNav` (`logic/divisao.md` §1.3). Extraído da `LiveScreen` na 040; devolve o que o desenho e o zapping usam.
  */
 export function useLiveKeyboard({
   sourceId,
@@ -53,6 +53,7 @@ export function useLiveKeyboard({
   topErrorActionIndex,
   setTopErrorActionIndex,
   onBack,
+  onManage,
   onResync,
   trail,
   search,
@@ -260,12 +261,9 @@ export function useLiveKeyboard({
       return
     }
 
-    // Estados só com "Voltar" (feature 024, T021/R-005): carregando o
-    // conteúdo, ou conteúdo vazio sem outra ação (Favoritos/Todos/categoria
-    // vazios) — nos três, o único elemento acionável é "Voltar", que devolve
-    // o foco à trilha. Sem isto, os botões apareciam com aparência de foco
-    // sem SELECT fazer nada (constitution, "Foco Visível e Sem Becos Sem
-    // Saída").
+    // Estados só com "Voltar" (feature 024, T021/R-005): carregando o conteúdo, ou conteúdo vazio sem outra ação
+    // (Favoritos/Todos/categoria vazios) — nos três, o único elemento acionável é "Voltar", que devolve o foco à trilha.
+    // Sem isto, os botões apareciam com aparência de foco sem SELECT fazer nada (constitution, "Foco Visível").
     if (showingContent && !searchActive && contentIsLoading) {
       setCol(0)
       return
@@ -333,7 +331,8 @@ export function useLiveKeyboard({
               return
             }
             if (topPhase === 'loading' || topPhase === 'empty') {
-              onBack()
+              if (topPhase === 'empty' && trail.allHidden && onManage) onManage()
+              else onBack()
               return
             }
             if (topPhase === 'error') {

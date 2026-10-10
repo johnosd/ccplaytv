@@ -1,0 +1,22 @@
+{
+    "feature":  "067-configuracoes-lista-global",
+    "lockedAt":  "2026-10-10 00:05",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/parental/listPin.configuracoes-lista-global.contract.test.ts",
+                      "sha256":  "f376ca02336922c579cfd7976f1c7bad341f795ddb8a142d9ce3320fb5f72f3e",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/settings/list/ListSettingsScreen.configuracoes-lista-global.contract.test.tsx",
+                      "sha256":  "ef111232979fb82ddcb08c77e024312eaffd3c6257e480c4dafc29bafac26de3",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/settings/SettingsScreen.configuracoes-lista-global.contract.test.tsx",
+                      "sha256":  "eadd0eba0b469bf04abe238fdd81c325c276a82e7eca67fdce9d7e27ac85ea2c",
+                      "tests":  1
+                  }
+              ]
+}

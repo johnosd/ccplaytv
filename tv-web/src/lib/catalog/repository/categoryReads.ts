@@ -5,6 +5,8 @@ import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord, type Cate
 import { blockRecord, blockRecords, blocksOfGeneration, blocksOfKind, categoryIdOfBlockItem } from '../categoryBlocks'
 import { blockItemIndex, movedIdOf, readBlock } from '../blockMemo'
 import { activeGenerationOf, query } from './shared'
+import { getCategoryAccess } from '../categoryAccess'
+import { findSeriesRecord } from './series'
 
 /** Categorias da geração ativa com um dado `order` (e `kind`, se informado). */
 async function categoriesAtOrder(
@@ -66,7 +68,9 @@ export async function listChannels(
   // Feature 038 (D-006): a renovação preserva ids, então a ordem por id deixa
   // de ser a da fonte — a ordem é `categoryPosition` (ausente = depois, por
   // id, como gravado antes da 024). Ordena antes de fatiar.
-  const records = await readCategory(database, sourceId, generation, groupOrder, kind)
+  // Feature 066 (FR-014/FR-020): categoria escondida/bloqueada lê vazio, mesmo pedida por um cache velho.
+  const access = await getCategoryAccess(sourceId, database)
+  const records = (await readCategory(database, sourceId, generation, groupOrder, kind)).filter((record) => !access.isExcludedRecord(record))
   records.sort((a, b) => {
     const pa = a.categoryPosition ?? Number.MAX_SAFE_INTEGER
     const pb = b.categoryPosition ?? Number.MAX_SAFE_INTEGER
@@ -87,11 +91,12 @@ export async function getActiveCategoryBlock(
   categoryId: number,
   database: CatalogDb = db,
 ): Promise<CategoryBlockRecord | undefined> {
-  const [generation, block] = await Promise.all([
+  const [generation, block, access] = await Promise.all([
     activeGenerationOf(sourceId, database),
     readBlock(database, categoryId, Dexie.currentTransaction != null),
+    getCategoryAccess(sourceId, database),
   ])
-  if (!block || block.sourceId !== sourceId || block.generation !== generation) return undefined
+  if (!block || block.sourceId !== sourceId || block.generation !== generation || access.excluded.has(categoryId)) return undefined
   return block
 }
 
@@ -138,13 +143,21 @@ export async function getChannel(
   const categoryId = categoryIdOfBlockItem(id)
   if (categoryId === undefined) {
     const row = await database.channels.get(id)
-    if (row) return row
+    // Feature 066 (FR-020): um id guardado (continuar assistindo, zapping, retomar depois do segundo plano) não abre
+    // item de categoria excluída. Episódio não tem categoria: vale a da série — série que não resolve, episódio também.
+    if (row) {
+      const access = await getCategoryAccess(row.sourceId, database)
+      if (access.isExcludedRecord(row)) return undefined
+      if (row.kind === 'episode' && row.seriesId && access.excluded.size > 0 && !(await findSeriesRecord(row.sourceId, row.seriesId, database))) return undefined
+      return row
+    }
     const moved = movedIdOf(database, id)
     return moved === undefined ? undefined : getChannel(moved, database)
   }
   const block = await readBlock(database, categoryId, Dexie.currentTransaction != null)
   if (!block) return undefined
   if ((await activeGenerationOf(block.sourceId, database)) !== block.generation) return undefined
+  if ((await getCategoryAccess(block.sourceId, database)).excluded.has(categoryId)) return undefined
   const index = blockItemIndex(block, id)
   if (index < 0) return undefined
   const record = blockRecord(block, block.items[index], index)

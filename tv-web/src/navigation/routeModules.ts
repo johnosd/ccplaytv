@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
-import { lazyRoute } from './lazyRoute'
+import { createElement, useEffect, type ComponentType } from 'react'
+import { aliasRouteReset, lazyRoute, type PreloadableRoute } from './lazyRoute'
+import { ParentalGate } from '../components/ParentalGate'
 export { lazyNamed } from './lazyRoute'
 import type { LiveScreenProps } from '../features/live/LiveScreen'
 import type { AddSourceScreenProps } from '../features/import/AddSourceScreen'
@@ -17,7 +18,20 @@ import type { VodCategoryScreenProps } from '../features/vod/VodCategoryScreen'
 
 // Feature 065 (SC-012): cadastro/importação e acesso à lista chegam quando a pessoa vai até lá. O Início fica no pacote
 // inicial: carregá-lo sob demanda atrasava a primeira entrada na lista mais do que economizava na abertura.
-export const AddSourceScreen = lazyRoute<AddSourceScreenProps>(() => import('../features/import/AddSourceScreen'), 'AddSourceScreen')
+/**
+ * Com o controle parental ligado, a rota só abre depois do PIN (feature 066, FR-017; D-008) — sem linha nas telas, que
+ * estão no teto da catraca. Cancelar o PIN é o `onBack` da rota.
+ */
+function withParentalGate<P extends { onBack: () => void }>(Route: PreloadableRoute<P>): PreloadableRoute<P> {
+  function GatedRoute(props: P) {
+    return createElement(ParentalGate, { onCancel: props.onBack, children: createElement(Route as ComponentType<P>, props) })
+  }
+  aliasRouteReset(GatedRoute, Route)
+  return Object.assign(GatedRoute, { preload: Route.preload })
+}
+
+// Adicionar e editar lista (a mesma tela) pedem o PIN quando há controle parental.
+export const AddSourceScreen = withParentalGate(lazyRoute<AddSourceScreenProps>(() => import('../features/import/AddSourceScreen'), 'AddSourceScreen'))
 export const ImportProgressScreen = lazyRoute<ImportProgressScreenProps>(() => import('../features/import/ImportProgressScreen'), 'ImportProgressScreen')
 export const SourceAccessRoute = lazyRoute<SourceAccessRouteProps>(() => import('../features/sources/SourceAccessRoute'), 'SourceAccessRoute')
 export const LiveScreen = lazyRoute<LiveScreenProps>(() => import('../features/live/LiveScreen'), 'LiveScreen')

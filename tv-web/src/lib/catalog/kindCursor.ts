@@ -1,6 +1,7 @@
 import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord } from './db'
 import { blockRecords } from './categoryBlocks'
 import { readCategoryWindow } from './categoryWindow'
+import { getCategoryAccess } from './categoryAccess'
 
 const KEY_MIN = -1
 const KEY_MAX = Number.MAX_SAFE_INTEGER
@@ -29,10 +30,14 @@ export async function readKindCursorPage(
 ): Promise<KindCursorPage> {
   const generation = (await database.sources.get(sourceId))?.activeGeneration
   if (generation === undefined || limit <= 0) return { items: [], totalCategories: 0 }
-  const categories = await database.categories
-    .where('[sourceId+generation+kind+order]')
-    .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
-    .toArray()
+  // Feature 066: "Todos" sem as categorias escondidas/bloqueadas.
+  const access = await getCategoryAccess(sourceId, database)
+  const categories = (
+    await database.categories
+      .where('[sourceId+generation+kind+order]')
+      .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
+      .toArray()
+  ).filter((category) => !access.excluded.has(category.id as number))
   const cursorIndex = cursor && cursor.sourceId === sourceId && cursor.generation === generation && cursor.kind === kind
     ? categories.findIndex((category) => category.id === cursor.categoryId)
     : -1

@@ -30,8 +30,8 @@ export const COMING_SOON: Record<string, ComingSoonEntry> = {
   'voice-search': { message: 'Busca por voz.', backlogItem: 33 },
   // Configurações (feature 026, FR-031). `settings-integrations` deixou de ser
   // mock na feature 032 (item 28: aba real Integrações & BYOK); `dock-tmdb`
-  // também (ícone TMDB do dock com estado real).
-  'settings-parental': { message: 'Perfis de pessoa e controle parental.', backlogItem: 52 },
+  // também (ícone TMDB do dock com estado real); `settings-parental`, na 066
+  // (aba real Categorias & parental).
   'a11y-voice-guide': { message: 'Narração de tela (Voice Guide).', backlogItem: 56 },
   'a11y-high-contrast': { message: 'Modo de alto contraste.', backlogItem: 56 },
   'a11y-subtitles': { message: 'Aparência das legendas.', backlogItem: 56 },

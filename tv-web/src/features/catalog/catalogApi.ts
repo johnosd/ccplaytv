@@ -32,6 +32,7 @@ import {
   type CatalogCategory,
 } from '../../lib/catalog/catalogRepository'
 import { readKindCursorPage, type KindCursor } from '../../lib/catalog/kindCursor'
+import { listVisibleCategories } from '../../lib/catalog/categoryAccess'
 import { READ_WINDOW_MIN_ITEMS, readCategoryWindow } from '../../lib/catalog/categoryWindow'
 import { READ_PROJECTION_CHUNK_SIZE, readProjectionManifest } from '../../lib/catalog/readProjection'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
@@ -336,7 +337,7 @@ export { rememberArchiveVariant } from '../../lib/catalog/sourceRepository'
 export function useCategoryList(sourceId: string | null, kind: StoredKind) {
   return useQuery({
     queryKey: ['categories', sourceId, kind],
-    queryFn: () => (sourceId ? listCategories(sourceId, kind) : Promise.resolve([])),
+    queryFn: () => (sourceId ? listVisibleCategories(sourceId, kind) : Promise.resolve([])),
     enabled: sourceId !== null,
   })
 }
@@ -1589,7 +1590,7 @@ export function useAggregatedItems(
     queryFn: async ({ pageParam }: { pageParam: KindCursor | undefined }) => {
       const [page, categories] = await Promise.all([
         readKindCursorPage(sourceId as string, kind, pageParam, ALL_PAGE_MIN_ITEMS),
-        pageParam === undefined ? listCategories(sourceId as string, kind) : Promise.resolve(undefined),
+        pageParam === undefined ? listVisibleCategories(sourceId as string, kind) : Promise.resolve(undefined),
       ])
       const items = page.items.map((record) => toItemOut(record, kind))
       const coverage = categories
@@ -1653,7 +1654,7 @@ interface ShowcaseSelections {
  * regras e desempates: a ordem da passada é a de `listAllOfKind` (categoria na ordem da fonte, itens na ordem do bloco).
  */
 async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & StoredKind, now: number, signal: AbortSignal, withEntries: boolean): Promise<ShowcaseSelections> {
-  const categories = await listCategories(sourceId, kind)
+  const categories = await listVisibleCategories(sourceId, kind)
   const recent = createRecentlyAddedAccumulator((record: CatalogRecord) => record.addedAt)
   const rated = createRatedSelectionAccumulator<CatalogRecord>(
     { id: (record) => String(record.id), name: (record) => record.name, rating: (record) => record.providerRating, year: (record) => record.year, addedAt: (record) => record.addedAt },

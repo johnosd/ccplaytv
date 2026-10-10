@@ -71,6 +71,7 @@ import {
   type MappedChannel,
 } from './xtreamConnector'
 import { createSeriesGrouper } from './m3uSeriesGrouping'
+import { copyListingFields } from './adultFlag'
 import { firstEpgUrl } from '../epg/epgStatus'
 import { parsePanelUrl, type PanelCredential } from './m3uPanelUrl'
 
@@ -135,8 +136,7 @@ function categorize(error: unknown): ImportErrorKind | undefined {
   if (error instanceof ProviderError) return error.kind
   if (error instanceof HlsManifestDetectedError) return 'hls_manifest'
   if (error instanceof EmptyPlaylistError) return 'empty_playlist'
-  // Painel que não fala o protocolo e lista ilegível são a mesma coisa para
-  // quem está olhando: o que veio não dá para usar como catálogo.
+  // Painel que não fala o protocolo e lista ilegível são a mesma coisa para quem olha: não dá para usar como catálogo.
   if (error instanceof InvalidPlaylistError) return 'invalid_playlist'
   // Feature 042: antes da genérica — a subclasse é a que "nem chega a ser um endereço".
   if (error instanceof InvalidServerAddressError) return 'invalid_address'
@@ -500,7 +500,7 @@ export async function startImport(
         // `tvg-chno` declarado só fazem sentido em canal, como o `epgChannelId`.
         if (keepUrl && channel.playbackHeaders) record.playbackHeaders = channel.playbackHeaders
         // Feature 055 (D-002/D-003): campos da listagem só quando existem; gênero e fundo só em série.
-        if (channel.providerRating !== undefined) record.providerRating = channel.providerRating
+        copyListingFields(channel, record) // nota (055) e marcação de adulto do painel (066, FR-035)
         // Feature 058 (FR-007): dias de arquivo do painel, só no canal (caminho eager de `acquireXtreamChannels`).
         if (channel.kind === 'channel' && channel.archiveDays !== undefined) record.archiveDays = channel.archiveDays
         if (channel.kind === 'series') {

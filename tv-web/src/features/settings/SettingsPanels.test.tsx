@@ -2,7 +2,6 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AccessibilityPanel } from './AccessibilityPanel'
 import { AboutPanel } from './AboutPanel'
-import { ComingSoonPanel } from './ComingSoonPanel'
 import { findUnnamedControls } from '../../testing/accessibleNames'
 
 /**
@@ -57,27 +56,6 @@ describe('AboutPanel', () => {
   // Feature 028, FR-015/FR-017.
   it('todo controle tem nome acessível', () => {
     const { container } = render(<AboutPanel focused />)
-    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
-  })
-})
-
-describe('ComingSoonPanel', () => {
-  it('mostra o cabeçalho real da aba, "Em breve" com a mensagem do registro único, e "Voltar às abas" focável', () => {
-    const onBack = vi.fn()
-    render(<ComingSoonPanel tab="parental" focused onBack={onBack} />)
-
-    expect(screen.getByText('Perfis & parental')).toBeInTheDocument()
-    expect(screen.getByText(/Em breve —/)).toBeInTheDocument()
-    const back = screen.getByRole('button', { name: 'Voltar às abas' })
-    expect(back).toHaveClass('tv-focus')
-
-    fireEvent.click(back)
-    expect(onBack).toHaveBeenCalledTimes(1)
-  })
-
-  // Feature 028, FR-015/FR-017.
-  it('todo controle tem nome acessível', () => {
-    const { container } = render(<ComingSoonPanel tab="parental" focused onBack={vi.fn()} />)
     expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 })

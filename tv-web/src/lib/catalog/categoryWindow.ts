@@ -1,6 +1,7 @@
 import { db, type CatalogDb, type CatalogRecord } from './db'
 import type { CategoryBlockRecord } from './db'
 import type { CatalogReadItem } from './db'
+import { getCategoryAccess } from './categoryAccess'
 import { readItemToRecord, nextReadRevision, projectReadItem, READ_PROJECTION_CHUNK_SIZE, readProjectionManifest } from './readProjection'
 import {
   getReadProjectionMemoChunk,
@@ -116,6 +117,8 @@ export async function prepareCategoryReadModel(sourceId: string, categoryId: num
 }
 
 export async function readCategoryWindow(sourceId: string, categoryId: number, offset: number, limit: number, database: CatalogDb = db): Promise<CategoryWindow> {
+  // Feature 066 (FR-014/FR-020): a janela de uma categoria escondida/bloqueada é vazia, mesmo pedida por cache velho.
+  if ((await getCategoryAccess(sourceId, database)).excluded.has(categoryId)) return { items: [], total: 0 }
   const manifest = await readProjectionManifest(sourceId, categoryId, database)
   if (!manifest || limit <= 0 || offset >= manifest.count) return { items: [], total: manifest?.count ?? 0 }
   const safeOffset = Math.max(0, offset)

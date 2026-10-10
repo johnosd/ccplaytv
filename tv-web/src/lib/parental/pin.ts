@@ -40,8 +40,37 @@ async function pinRecord(pin: string): Promise<ParentalPinRecord> {
   return { id: 'pin', salt, hash: await hashPin(pin, salt), algorithm: 'sha256', createdAt: Date.now() }
 }
 
+/**
+ * Espelho síncrono de "existe PIN" (feature 066, R-013) — só um booleano, nunca o PIN nem o hash. Serve a quem precisa
+ * decidir na hora, sem esperar o IndexedDB (remover lista: o contrato da 026 exige a remoção imediata sem PIN). Só o
+ * banco do app o escreve; `hasPin` o realinha. Mexer nele só burla o PIN para quem já tem acesso ao armazenamento,
+ * fora da ameaça do controle parental (R-007).
+ */
+const PIN_HINT_KEY = 'ccplay.parental.pinActive'
+
+function writePinHint(active: boolean, database: CatalogDb): void {
+  if (database !== db) return
+  try {
+    if (active) localStorage.setItem(PIN_HINT_KEY, '1')
+    else localStorage.removeItem(PIN_HINT_KEY)
+  } catch {
+    // Sem armazenamento local: quem lê o espelho cai no `false` e a tela continua usando `hasPin`/`verifyPin`.
+  }
+}
+
+/** Leitura síncrona do espelho; `false` sem armazenamento. A verdade continua sendo `hasPin`. */
+export function pinActiveHint(): boolean {
+  try {
+    return localStorage.getItem(PIN_HINT_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 export async function hasPin(database: CatalogDb = db): Promise<boolean> {
-  return (await parentalPin(database).get('pin')) !== undefined
+  const active = (await parentalPin(database).get('pin')) !== undefined
+  writePinHint(active, database)
+  return active
 }
 
 export async function verifyPin(pin: string, database: CatalogDb = db): Promise<boolean> {
@@ -78,6 +107,7 @@ export async function enableParentalControl(
       })
     }
   })
+  writePinHint(true, database)
   notifyCategoryAccessChanged()
 }
 
@@ -96,6 +126,7 @@ export async function disableParentalControl(database: CatalogDb = db): Promise<
       delete pref.locked
     })
   })
+  writePinHint(false, database)
   relockSession()
   notifyCategoryAccessChanged()
 }

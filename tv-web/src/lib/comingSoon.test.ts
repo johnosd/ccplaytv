@@ -33,7 +33,6 @@ describe('getComingSoon', () => {
       'dock-weather',
       'home-ai-curation',
       'pair-phone',
-      'settings-parental',
       'voice-search',
     ])
   })

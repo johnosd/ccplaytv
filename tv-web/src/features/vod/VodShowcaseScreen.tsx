@@ -37,6 +37,8 @@ import { useScrollFocusedIntoView } from '../../lib/focus/useScrollFocusedIntoVi
 import { useOverflowEdges, type OverflowEdges } from '../../lib/focus/useOverflowEdges'
 import { SeeAllCard } from '../../components/SeeAllCard'
 import { EmptyState } from '../../components/EmptyState'
+import { SectionEmptyState } from '../../components/SectionEmptyState'
+import { useSectionAllHidden } from '../../lib/catalog/useSectionAllHidden'
 import { ErrorState } from '../../components/ErrorState'
 import { Spinner } from '../../components/Spinner'
 import { AppShell } from '../shell/AppShell'
@@ -131,6 +133,8 @@ type SideEntry = {
   id: string
   label: string
   count?: number
+  /** Bloqueada pelo controle parental, sem desbloqueio na sessão (feature 066, FR-013). */
+  locked?: boolean
   target: VodTarget
 }
 
@@ -183,7 +187,9 @@ export function VodShowcaseScreen({
   const active = !shell || zone === 'content'
 
   const categoriesQuery = useCategoryList(sourceId, copy.kind)
-  const categories: CatalogCategory[] = categoriesQuery.data ?? []
+  // Feature 066 (FR-009): trilha vazia porque a pessoa escondeu todas as categorias da seção.
+  const allHidden = useSectionAllHidden(sourceId, copy.kind, categoriesQuery.isSuccess && categoriesQuery.data.length === 0)
+  const categories: Array<CatalogCategory & { locked?: boolean }> = categoriesQuery.data ?? []
   const historyQuery = useHistoryContent(sourceId, copy.kind, true)
   const favoritesQuery = useFavoritesContent(sourceId, copy.kind, true)
   const addedQuery = useRecentlyAdded(sourceId, copy.kind)
@@ -332,6 +338,7 @@ export function VodShowcaseScreen({
         id: `cat:${groupLabel(category.name)}`,
         label: vodGroupDisplay(category.name, t),
         count: knownCategoryCount(category),
+        locked: category.locked,
         target: { kind: 'category', name: groupLabel(category.name) },
       }),
     ),
@@ -360,7 +367,7 @@ export function VodShowcaseScreen({
     if (entry.id === 'pinned:all') {
       return { id: entry.id, label: t('live.all'), pinned: true, pinnedBadge: false, groupLabel: t('showcase.side.catalog') }
     }
-    return { id: entry.id, label: entry.label, count: entry.count }
+    return { id: entry.id, label: entry.label, count: entry.count, locked: entry.locked }
   })
 
   // Pré-carga por foco (features 010/038, E-5 da 052): a categoria em foco — na lista lateral ou na fileira — é buscada
@@ -372,6 +379,8 @@ export function VodShowcaseScreen({
   } else {
     focusedCategory = categoryOfRow(focusedRowSpec)
   }
+  // Feature 066 (FR-013): focar uma categoria bloqueada não carrega nem pede nada dela.
+  if (categories.find((category) => category.id === focusedCategory?.id)?.locked) focusedCategory = undefined
   useCategoryFocusPrefetch(sourceId, focusedCategory)
   usePrefetchHint(copy.kind, focusedCategory?.id)
 
@@ -405,7 +414,8 @@ export function VodShowcaseScreen({
 
   function handleSelect() {
     if (blocked) {
-      if (categoriesQuery.isError) void categoriesQuery.refetch()
+      if (allHidden && categories.length === 0 && shell?.onOpenSettings) shell.onOpenSettings('parental')
+      else if (categoriesQuery.isError) void categoriesQuery.refetch()
       else if (online && !loading) onResync()
       else onBack()
       return
@@ -693,11 +703,12 @@ export function VodShowcaseScreen({
   if (categories.length === 0 && !hasAnyItems) {
     return withShell(
       <div className="screen vod-screen">
-        <EmptyState
+        <SectionEmptyState
+          allHidden={allHidden}
           title={t(copy.emptyTitle)}
           description={t(copy.emptyDescription)}
-          action={{ label: t('common.back'), onSelect: onBack }}
-          focused
+          onBack={onBack}
+          onManage={shell?.onOpenSettings && (() => shell.onOpenSettings?.('parental'))}
         />
         <Toast message={toastMessage} messageKey={toastKey} />
       </div>,

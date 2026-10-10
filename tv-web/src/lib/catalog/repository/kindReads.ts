@@ -5,6 +5,19 @@ import { blockRecords, blocksOfKind } from '../categoryBlocks'
 import { FavoritesScanComplete, KEY_MAX, KEY_MIN, activeGenerationOf, query } from './shared'
 import { readCategoryWindow } from './categoryWindow'
 import { readProjectionManifest } from './readProjection'
+import { getCategoryAccess } from '../categoryAccess'
+
+/** Categorias do tipo na geração ativa, na ordem de `order`, sem as escondidas/bloqueadas (feature 066). */
+async function visibleCategoriesOfKind(database: CatalogDb, sourceId: string, generation: number, kind: CatalogItemKind) {
+  const [categories, access] = await Promise.all([
+    database.categories
+      .where('[sourceId+generation+kind+order]')
+      .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
+      .toArray(),
+    getCategoryAccess(sourceId, database),
+  ])
+  return categories.filter((category) => !access.excluded.has(category.id as number))
+}
 
 /**
  * Todos os registros de um tipo na geração ativa, sem paginação — só para a
@@ -23,8 +36,10 @@ export async function listAllOfKind(
   // das categorias ainda no formato antigo. Uma categoria é ou uma ou outra,
   // então juntar não duplica. Ordem: `groupOrder` (a da leitura por índice de
   // antes), e dentro da categoria a da fonte — `sort` é estável.
-  const blocks = await blocksOfKind(database, sourceId, generation, kind).toArray()
-  const rows = await query(database, sourceId, generation, undefined, kind).toArray()
+  // Feature 066 (D-003): escondidas e bloqueadas ficam de fora — filtro na leitura, nada memorizado.
+  const access = await getCategoryAccess(sourceId, database)
+  const blocks = (await blocksOfKind(database, sourceId, generation, kind).toArray()).filter((block) => !access.excluded.has(block.categoryId))
+  const rows = (await query(database, sourceId, generation, undefined, kind).toArray()).filter((row) => !access.isExcludedRecord(row))
   if (blocks.length === 0) return rows
   blocks.sort((a, b) => a.groupOrder - b.groupOrder)
   const records = blocks.flatMap(blockRecords)
@@ -71,10 +86,7 @@ export async function readKindCursorPage(
 ): Promise<KindCursorPage> {
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined || limit <= 0) return { items: [], totalCategories: 0 }
-  const categories = await database.categories
-    .where('[sourceId+generation+kind+order]')
-    .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
-    .toArray()
+  const categories = await visibleCategoriesOfKind(database, sourceId, generation, kind)
   const cursorIndex = cursor && cursor.sourceId === sourceId && cursor.generation === generation && cursor.kind === kind
     ? categories.findIndex((category) => category.id === cursor.categoryId)
     : -1
@@ -139,10 +151,7 @@ export async function readKindPage(
 ): Promise<KindPage> {
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined || kind === 'episode') return { chunks: [], next: undefined }
-  const categories = await database.categories
-    .where('[sourceId+generation+kind+order]')
-    .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
-    .toArray()
+  const categories = await visibleCategoriesOfKind(database, sourceId, generation, kind)
   const chunks: KindPageChunk[] = []
   let count = 0
   let index = cursor
@@ -180,12 +189,15 @@ export async function kindSortFields(
     if (item.year != null) found.year = true
     if (item.addedAt != null) found.addedAt = true
   }
+  const access = await getCategoryAccess(sourceId, database)
   try {
     await blocksOfKind(database, sourceId, generation, kind).each((block) => {
+      if (access.excluded.has(block.categoryId)) return
       for (const item of block.items) take(item)
       if (found.year && found.addedAt) throw new FavoritesScanComplete()
     })
     await query(database, sourceId, generation, undefined, kind).each((record) => {
+      if (access.isExcludedRecord(record)) return
       take(record)
       if (found.year && found.addedAt) throw new FavoritesScanComplete()
     })

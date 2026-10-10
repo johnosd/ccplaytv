@@ -74,6 +74,7 @@ export function registerMediaKeys(): MediaKey[] {
         // impedir o registro das demais.
       }
     }
+    registerDigitKeys(inputDevice.registerKey, supportedNames)
     return registered
   } catch {
     // Registro pode falhar por motivo de plataforma (privilégio ausente,
@@ -81,6 +82,26 @@ export function registerMediaKeys(): MediaKey[] {
     // continuam sendo o caminho completo (FR-023).
     return []
   }
+}
+
+/** Teclas numéricas do controle — o PIN parental (feature 066, R-003). Nomes do `tvinputdevice`. */
+export const DIGIT_KEYS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'] as const
+
+/**
+ * Registra as teclas numéricas declaradas pela plataforma (mesmo critério estrito das de mídia). Chamada de dentro de
+ * `registerMediaKeys`, que o app já chama uma vez ao abrir — sem linha nova em `App.tsx` (teto). Devolve as registradas.
+ */
+export function registerDigitKeys(registerKey: (keyName: string) => void, supportedNames: ReadonlySet<string>): string[] {
+  const registered: string[] = []
+  for (const key of DIGIT_KEYS.filter((digit) => supportedNames.has(digit))) {
+    try {
+      registerKey(key)
+      registered.push(key)
+    } catch {
+      // Sem a tecla, o teclado na tela do `PinPrompt` continua sendo o caminho completo (FR-018).
+    }
+  }
+  return registered
 }
 
 /** A tecla de mídia deste evento (por `key` ou `keyCode`), ou `null`. */

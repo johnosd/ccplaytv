@@ -59,6 +59,7 @@ export function SettingsScreen({
   onOpenEpg,
   onOpenTmdbKey,
   onSourceDeleted,
+  onConfigureSource,
   onBack,
 }: SettingsScreenProps): ReactNode {
   const t = useT()
@@ -89,6 +90,7 @@ export function SettingsScreen({
     onOpenEpg,
     onOpenTmdbKey,
     onSourceDeleted,
+    onConfigureSource,
   }
 
   /** Outra aba monta do zero; a mesma aba não remonta — volta ao começo pelo `onEnter`. */

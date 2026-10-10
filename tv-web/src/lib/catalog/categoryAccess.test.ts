@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CatalogDb } from './db'
 import { storeCategories } from './catalogRepository'
-import { listManagedCategories, listVisibleCategories, preferenceKey, setCategoryPreference } from './categoryAccess'
+import { listManagedCategories, listVisibleCategories, preferenceKey, relockSession, setCategoryPreference, unlockWithPin } from './categoryAccess'
+import { enableParentalControl } from '../parental/pin'
 import { categoryPreferences } from './parentalTables'
 import { deleteSource } from './sourceRepository'
 
@@ -70,5 +71,21 @@ describe('categoryAccess — identidade e limpeza (feature 066)', () => {
 
     expect(await categoryPreferences(database).where('sourceId').equals('s').count()).toBe(0)
     expect(await categoryPreferences(database).where('sourceId').equals('t').count()).toBe(1)
+  })
+})
+
+describe('categoryAccess — bloqueadas no fim da trilha (D-013, emenda ao FR-033)', () => {
+  it('bloqueada vai para o fim, na ordem relativa da lista, e fica lá com a sessão desbloqueada; sem PIN, ordem da lista', async () => {
+    await seed('s', 1, [{ name: 'Adultos 1' }, { name: 'Notícias' }, { name: 'Adultos 2' }, { name: 'Esportes' }])
+    for (const name of ['Adultos 1', 'Adultos 2']) await setCategoryPreference({ sourceId: 's', kind: 'channel', name }, { locked: true }, database)
+    const names = async () => (await listVisibleCategories('s', 'channel', database)).map((category) => category.name)
+
+    expect(await names()).toEqual(['Adultos 1', 'Notícias', 'Adultos 2', 'Esportes'])
+
+    await enableParentalControl('1234', [], database)
+    expect(await names()).toEqual(['Notícias', 'Esportes', 'Adultos 1', 'Adultos 2'])
+    expect(await unlockWithPin('s', '1234', database)).toBe(true)
+    expect(await names()).toEqual(['Notícias', 'Esportes', 'Adultos 1', 'Adultos 2'])
+    relockSession()
   })
 })

@@ -1,5 +1,6 @@
 import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord, type CategoryBlockRecord } from './db'
 import { blockRecords } from './categoryBlocks'
+import { getCategoryAccess } from './categoryAccess'
 
 /** Campos suficientes para vitrines e cruzamentos; URLs/credenciais ficam no canônico. */
 export interface CatalogDerivedRow {
@@ -45,10 +46,14 @@ async function* iterateKindChunks(
 ): AsyncGenerator<{ block: CategoryBlockRecord } | { rows: CatalogRecord[] }> {
   const generation = (await database.sources.get(sourceId))?.activeGeneration
   if (generation === undefined || kind === 'episode') return
-  const categories = await database.categories
-    .where('[sourceId+generation+kind+order]')
-    .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
-    .toArray()
+  const access = await getCategoryAccess(sourceId, database)
+  // Feature 066: categorias escondidas/bloqueadas nem são lidas (fileiras, Início, vitrines).
+  const categories = (
+    await database.categories
+      .where('[sourceId+generation+kind+order]')
+      .between([sourceId, generation, kind, KEY_MIN], [sourceId, generation, kind, KEY_MAX], true, true)
+      .toArray()
+  ).filter((category) => !access.excluded.has(category.id as number))
   for (let start = 0; start < categories.length; start += batch) {
     const group = categories.slice(start, start + batch)
     const blocks = await database.categoryBlocks.bulkGet(group.map((category) => category.id as number))

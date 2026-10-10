@@ -49,6 +49,11 @@ export interface SettingsNavigation {
   onOpenTmdbKey?: (from: SettingsFocus) => void
   /** Depois de a exclusão confirmada terminar — o App despacha `source-removed` (FR-028). */
   onSourceDeleted: (sourceId: string) => void
+  /**
+   * "Configurar" da linha de Fontes IPTV (feature 067, FR-013) — abre Configurações da lista. Opcional porque os
+   * contratos travados das features 032/054 montam esta tela sem ele (STUB do sdd-plan; o sdd-execute liga a linha).
+   */
+  onConfigureSource?: (source: SourceOut, from: SettingsFocus) => void
 }
 
 /**
@@ -72,6 +77,24 @@ export interface SettingsTabProps {
   goToTopbar: () => void
   showToast: (message: string) => void
   handleRef: Ref<SettingsTabHandle>
+}
+
+/** Abas de Configurações da lista (feature 067, FR-003), na ordem; `account` é a inicial. */
+export type ListSettingsTab = 'account' | 'epg' | 'parental' | 'history'
+
+/** Onde estava o foco ao sair de Configurações da lista para Editar/progresso/EPG — restaurado na volta (FR-009). */
+export interface ListSettingsFocus {
+  tab: ListSettingsTab
+  action?: 'edit' | 'resync' | 'delete' | 'open-epg'
+}
+
+/** Saídas de Configurações da lista (feature 067) — sempre com a lista DA TELA, nunca a ativa. */
+export interface ListSettingsNavigation {
+  onEditSource: (source: SourceOut, from: ListSettingsFocus) => void
+  onResyncStarted: (jobId: string, from: ListSettingsFocus) => void
+  onOpenEpg: (source: SourceOut, from: ListSettingsFocus) => void
+  /** Exclusão terminou. `nextFocusId`: lista vizinha na origem, ou `null` para "Adicionar lista" (FR-010). */
+  onSourceDeleted: (sourceId: string, nextFocusId: string | null) => void
 }
 
 export interface SettingsTabDefinition extends Omit<SideCategoryNavEntry, 'label'> {

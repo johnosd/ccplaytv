@@ -9,6 +9,7 @@
 
 import { db, type CatalogDb, type CatalogRecord } from './db'
 import { resolveFavorites, resolveStableIds } from './catalogRepository'
+import { getAdultScope } from './categoryAccess'
 import { listFavorites, listPlayed, parseStableId, type StableIdParts } from './userStateRepository'
 
 export type HistoryKind = 'movie' | 'series'
@@ -119,7 +120,7 @@ export async function loadHistoryPage(
       })()
     : await resolveSeriesHistory(pageStates, sourceId, database)
   return {
-    ...result,
+    ...(await withoutAdult(sourceId, result, database)),
     offset: safeOffset,
     total: states.length,
     nextOffset: safeOffset + pageStates.length < states.length ? safeOffset + pageStates.length : undefined,
@@ -159,5 +160,14 @@ export async function loadHistory(
   kind: HistoryKind,
   database: CatalogDb = db,
 ): Promise<HistoryResult> {
-  return kind === 'movie' ? loadMovieHistory(sourceId, database) : loadSeriesHistory(sourceId, database)
+  return withoutAdult(sourceId, kind === 'movie' ? await loadMovieHistory(sourceId, database) : await loadSeriesHistory(sourceId, database), database)
+}
+
+/**
+ * Feature 066 (FR-035, D-014): conteúdo adulto nunca aparece no ↺ Histórico — padrão, com ou sem controle parental,
+ * mesmo com o PIN digitado. A reprodução continua gravada; o item só não é mostrado, e não conta como não resolvido.
+ */
+async function withoutAdult<T extends HistoryResult>(sourceId: string, result: T, database: CatalogDb): Promise<T> {
+  const scope = await getAdultScope(sourceId, database)
+  return { ...result, records: result.records.filter((record) => !scope.isAdult(record)) }
 }

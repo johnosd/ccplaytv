@@ -43,6 +43,12 @@ export function lazyRoute<P>(loader: RouteLoader, exportName: string): Preloadab
   return Object.assign(RetryableRoute, { preload: () => load().then(() => undefined, () => undefined) })
 }
 
+/** Uma rota que envolve outra (ex.: `withParentalGate`, feature 066) reaproveita o retry da original. */
+export function aliasRouteReset(alias: object, original: object): void {
+  const reset = resets.get(original)
+  if (reset) resets.set(alias, reset)
+}
+
 /** O retry por SELECT troca a lazy rejeitada antes de o boundary remontá-la. */
 export function resetRouteModule(route: ReactNode): void {
   if (isValidElement(route) && typeof route.type === 'function') resets.get(route.type)?.()

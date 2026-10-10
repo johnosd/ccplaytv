@@ -7,7 +7,8 @@
  */
 
 import { db, type CatalogDb, type CatalogRecord } from './db'
-import { listAllOfKind, listCategories } from './catalogRepository'
+import { listAllOfKind } from './catalogRepository'
+import { listVisibleCategories } from './categoryAccess'
 
 /** Tipos pesquisáveis — cada seção pesquisa só o seu (FR-002). Episódio fica de fora. */
 export type SearchableKind = 'channel' | 'movie' | 'series'
@@ -118,7 +119,7 @@ export async function loadSearchIndex(
 ): Promise<SearchIndex> {
   const [records, categories] = await Promise.all([
     listAllOfKind(sourceId, kind, database),
-    listCategories(sourceId, kind, database),
+    listVisibleCategories(sourceId, kind, database),
   ])
   const coveredCategories = categories.filter(isCovered).length
   return buildSearchIndex(records.map(compactSearchRecord), { coveredCategories, totalCategories: categories.length })

@@ -134,6 +134,26 @@ export function isEpgStale(record: SourceRecord, now: number): boolean {
   return now - record.epgLastSyncAt > EPG_STALE_AFTER_MS
 }
 
+/**
+ * Uma importação concluída pede EPG? (D-008, bug `epg-nao-atualiza-depois-primeira-carga`)
+ * Sim se ela trocou o endereço (`url-tvg` novo); senão, só com o EPG vencido e sem
+ * tentativa desde que ela começou — a abertura da lista já pede o EPG vencido em
+ * paralelo, e baixar o XMLTV de novo logo depois seria em dobro.
+ */
+export function isEpgDueAfterImport(
+  before: SourceRecord | undefined,
+  after: SourceRecord,
+  importStartedAt: number,
+  now: number,
+): boolean {
+  if (after.epgDisabled) return false
+  const target = resolveEpgUrl(after)
+  if (!target) return false
+  if ((before ? resolveEpgUrl(before)?.url : undefined) !== target.url) return true
+  const triedSinceImport = Math.max(after.epgLastSyncAt ?? 0, after.epgLastErrorAt ?? 0) >= importStartedAt
+  return !triedSinceImport && isEpgStale(after, now)
+}
+
 /** Mensagem §45 de uma falha: o que aconteceu e por quê, sem detalhe cru da rede (D-011). */
 export function epgErrorMessage(kind: EpgErrorKind, t: Translator = createTranslator('pt')): string {
   return t(`src.epgError.${kind}` as MessageKey)

@@ -31,13 +31,12 @@ import {
 } from './liveTrail'
 import { recalledLiveFocus, rememberLiveFocus } from './liveSessionMemory'
 import type { LiveSearch } from './useLiveSearch'
+import { useSectionAllHidden } from '../../lib/catalog/useSectionAllHidden'
 
 /**
- * Trilha e lista de canais da TV ao vivo (dados). Extraído da `LiveScreen`
- * na feature 040 sem mudar nada. São dois hooks porque, entre os efeitos da
- * trilha e os da lista, a tela sempre registrou o efeito de foco do campo de
- * busca (`useLiveSearch`) — a ordem dos efeitos é preservada
- * (`sdd/specs/040-dividir-player-live/logic/divisao.md` §1.2).
+ * Trilha e lista de canais da TV ao vivo (dados). Extraído da `LiveScreen` na feature 040 sem mudar nada. São dois hooks
+ * porque, entre os efeitos da trilha e os da lista, a tela sempre registrou o efeito de foco do campo de busca
+ * (`useLiveSearch`) — a ordem dos efeitos é preservada (`sdd/specs/040-dividir-player-live/logic/divisao.md` §1.2).
  */
 
 export interface LiveTrailParams {
@@ -50,12 +49,12 @@ export function useLiveTrail({ sourceId, startsInFavorites, initialChannelId }: 
   // Estrutura: rápida, sempre segura de ler — nunca toca rede (FR-004).
   const categoriesQuery = useCategoryList(sourceId, 'channel')
   const categories = categoriesQuery.data ?? []
+  // Feature 066 (FR-009): trilha vazia porque a pessoa escondeu todas as categorias de canais.
+  const allHidden = useSectionAllHidden(sourceId, 'channel', categoriesQuery.isSuccess && categories.length === 0)
 
   /**
-   * Estado de topo da tela inteira — carregando/erro/vazio a estrutura, ou
-   * "normal" (trilha + conteúdo). Cada um tem um foco próprio, mais simples
-   * que a navegação normal (feature 024, T021/R-005: nenhum tinha SELECT
-   * ligado antes desta feature, apesar da aparência de foco).
+   * Estado de topo da tela inteira — carregando/erro/vazio a estrutura, ou "normal" (trilha + conteúdo). Cada um tem um
+   * foco próprio, mais simples que a navegação normal (feature 024, T021/R-005: nenhum tinha SELECT ligado antes dela).
    */
   const topPhase: 'loading' | 'error' | 'empty' | 'normal' = categoriesQuery.isLoading
     ? 'loading'
@@ -120,6 +119,7 @@ export function useLiveTrail({ sourceId, startsInFavorites, initialChannelId }: 
     categoriesQuery,
     categories,
     topPhase,
+    allHidden,
     trail,
     focusedIdentity,
     setFocusedIdentity,
@@ -188,7 +188,7 @@ export function useLiveChannels({
   // `source_missing` ~300ms depois de entrar, sem o usuário fazer nada).
   useCategoryFocusPrefetch(
     sourceId,
-    focusedCategory,
+    focusedCategory?.locked ? undefined : focusedCategory, // feature 066 (FR-013): bloqueada não carrega por foco
     entered?.kind === 'category' ? entered.id : undefined,
   )
   // Feature 038 (FR-005/FR-011): só reordena a fila da pré-carga — nenhuma consulta nasce do foco.
@@ -220,7 +220,7 @@ export function useLiveChannels({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mesmas dependências de antes da feature 040 (setters estáveis ficam de fora)
   }, [categoryLookupChannelId, categoriesQuery.isLoading, initialChannelRecordQuery.data, initialChannelRecordQuery.isLoading, categories])
 
-  const content = useCategoryContent(sourceId, enteredCategory)
+  const content = useCategoryContent(sourceId, enteredCategory?.locked ? undefined : enteredCategory)
   // A estrela precisa do conjunto de favoritos mesmo numa categoria comum
   // (marcar quem já é favorito), não só dentro de "Favoritos" — por isso é
   // uma consulta separada, sempre ativa, nunca condicionada a `entered`.

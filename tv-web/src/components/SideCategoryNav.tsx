@@ -1,6 +1,7 @@
 import { Fragment, type Ref, type ReactNode } from 'react'
 import { Icon } from './Icon'
 import type { IconName } from './iconPaths'
+import { useT } from '../lib/i18n/I18nProvider'
 
 export interface SideCategoryNavEntry {
   id: string
@@ -25,6 +26,8 @@ export interface SideCategoryNavEntry {
    * FORA de `.side-category-nav-label`, cujo texto é fixado por testes.
    */
   tile?: string
+  /** Categoria bloqueada pelo controle parental (feature 066, FR-013): cadeado e nome acessível "…, bloqueada". */
+  locked?: boolean
 }
 
 export interface SideCategoryNavProps {
@@ -50,6 +53,7 @@ export interface SideCategoryNavProps {
  * `.sort()`, que não garante ordem relativa estável para chaves iguais.
  */
 export function SideCategoryNav({ entries, selectedId, focusedId, onSelect, focusedRef, collapsed }: SideCategoryNavProps): ReactNode {
+  const t = useT()
   const ordered = [...entries.filter((entry) => entry.pinned), ...entries.filter((entry) => !entry.pinned)]
   let previousGroupLabel: string | undefined
 
@@ -71,6 +75,7 @@ export function SideCategoryNav({ entries, selectedId, focusedId, onSelect, focu
                 ref={isFocused ? focusedRef : undefined}
                 type="button"
                 className={`side-category-nav-item${entry.id === selectedId ? ' is-selected' : ''}${isFocused ? ' tv-focus' : ''}`}
+                aria-label={entry.locked ? t('parental.locked.a11y', { name: entry.label }) : undefined}
                 onClick={() => onSelect(entry.id)}
               >
                 {entry.tile !== undefined && (
@@ -90,6 +95,7 @@ export function SideCategoryNav({ entries, selectedId, focusedId, onSelect, focu
                     ★
                   </span>
                 )}
+                {entry.locked && <Icon name="lock" className="side-category-nav-lock" />}
                 {entry.count !== undefined && <span className="side-category-nav-count">{entry.count}</span>}
               </button>
             </li>

@@ -2,7 +2,8 @@ import { AccessibilityTab } from './AccessibilityTab'
 import { IntegrationsTab } from './IntegrationsTab'
 import { PrivacyTab } from './PrivacyTab'
 import { PlayerTab } from './PlayerTab'
-import { AboutTab, ParentalSoonTab } from './SimpleTabs'
+import { AboutTab } from './SimpleTabs'
+import { ParentalTab } from './ParentalTab'
 import { SourcesTab } from './SourcesTab'
 import type { SettingsTabDefinition } from './settingsTab'
 
@@ -18,7 +19,7 @@ export const SETTINGS_TABS: SettingsTabDefinition[] = [
   { id: 'sources', labelKey: 'settings.tab.sources', icon: 'live', Panel: SourcesTab },
   { id: 'player', labelKey: 'settings.tab.player', icon: 'play', Panel: PlayerTab },
   { id: 'accessibility', labelKey: 'settings.tab.accessibility', icon: 'settings', Panel: AccessibilityTab },
-  { id: 'parental', labelKey: 'settings.tab.parental', icon: 'favorite', Panel: ParentalSoonTab },
+  { id: 'parental', labelKey: 'settings.tab.parental', icon: 'lock', Panel: ParentalTab },
   // Feature 036 (D-008): antes de "Sobre & créditos", o rodapé informativo.
   { id: 'privacy', labelKey: 'settings.tab.privacy', icon: 'history', Panel: PrivacyTab },
   { id: 'about', labelKey: 'settings.tab.about', icon: 'info', Panel: AboutTab },
