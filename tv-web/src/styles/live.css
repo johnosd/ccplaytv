@@ -286,7 +286,7 @@
 
 .live-channel-row .channel-row-number {
   min-width: var(--space-3);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-annotation);
   font-variant-numeric: tabular-nums;
 }
@@ -296,11 +296,15 @@
   min-width: 0;
 }
 
+/* Ad-hoc 2026-10-10: nome e programa um degrau acima, para ler de longe. A altura da linha NÃO muda (72px + espaço =
+   84px de `LIVE_ITEM_ROW_HEIGHT`, travada pelo contrato de navegação por página): 24px + 20px cabem na linha. */
 .live-channel-row .channel-row-name {
+  font-size: var(--fs-body-lg);
   font-weight: 600;
 }
 
 .live-channel-row .channel-row-now {
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -344,10 +348,11 @@
   color: var(--accent);
 }
 
-/* Itens da trilha (Spec §11.2/§31.1, Lab `#categoriesv131`) — escopados à Live. */
+/* Itens da trilha (Spec §11.2/§31.1, Lab `#categoriesv131`) — escopados à Live. Ad-hoc 2026-10-10: letra e altura
+   maiores para ler de longe (era `--fs-caption`/48px). A trilha não é virtualizada — nenhuma conta depende da altura. */
 .live-column-groups .side-category-nav-item {
   gap: var(--space-1);
-  min-height: 48px;
+  min-height: 56px;
   padding: var(--space-1);
   background: var(--bg-elevated);
   color: var(--text-secondary);
@@ -367,7 +372,7 @@
 }
 
 .live-column-groups .side-category-nav-item .side-category-nav-label {
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
 }
 
 /* Favoritos: tile em `--warning` sobre fundo fixo próprio. */
