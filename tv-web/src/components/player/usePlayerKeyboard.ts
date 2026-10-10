@@ -1,4 +1,4 @@
-import type { RefObject } from 'react'
+import { useRef, type RefObject } from 'react'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { comingSoonToast } from '../../lib/comingSoon'
 import { useT } from '../../lib/i18n/I18nProvider'
@@ -13,6 +13,7 @@ import {
 } from './playerMessages'
 import type { PanelState, PlayerLayerTopLayer, ResumeGate } from './playerLayerTypes'
 import type { ErrorActionId } from './playerErrorActions'
+import { createHoldSeek } from './holdSeek'
 import type { PlayerChrome } from './usePlayerChrome'
 import type { PlayerPanels } from './usePlayerPanels'
 
@@ -104,6 +105,7 @@ export function usePlayerKeyboard({
     setSeekBar,
   } = chrome
   const { activatePanelControl, closePanel, handlePanelDirection, handlePanelSelect } = panels
+  const holdSeekRef = useRef(createHoldSeek())
 
   /**
    * Feature 042 (D-006): TODA entrada que RETOMA (SELECT no play/pause,
@@ -196,11 +198,9 @@ export function usePlayerKeyboard({
         }
 
         if (seekBarFocusedRef.current) {
-          // Com a barra focada, esquerda/direita buscam direto, sem mover o
-          // foco — segurar acumula na porta single-flight do motor, não
-          // aqui (R-019: acumular NESTE nível é que travava o app).
-          if (dir === 'left') session.jumpBy(-JUMP_MS)
-          else if (dir === 'right') session.jumpBy(JUMP_MS)
+          // Esquerda/direita buscam direto, sem mover o foco; segurar acelera (`holdSeek`) e acumula na porta single-flight
+          // do motor, não aqui (R-019: acumular NESTE nível é que travava o app).
+          if (dir === 'left' || dir === 'right') session.jumpBy(holdSeekRef.current.next(dir, Date.now()))
           else if (dir === 'down') {
             setSeekBar(false)
             setFocused(playPauseIndexOf(session.capabilities))
