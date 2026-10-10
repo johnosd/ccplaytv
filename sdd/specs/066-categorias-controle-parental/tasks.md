@@ -293,13 +293,26 @@ Fase 4 traz o controle parental real; Fase 5 a ajuda com adultas; Fase 6 a recup
 
 - [x] T044 Ler `is_adult` do painel Xtream (canais, filmes, séries) e guardar `adult: true` no registro (`lib/catalog/xtreamConnector.ts`, `categoryLoader.ts`, `importPipeline.ts` — tetos: mesma contagem de linhas; campo por augmentation do `CatalogRecord`). Origem: FR-035.
 - [x] T045 `getAdultScope(sourceId)` em `lib/catalog/categoryAccess.ts` (nome adulto ∪ bloqueio salvo ∪ `adult: true`) e o filtro em `lib/catalog/history.ts` (filmes e séries, lista e páginas) e `repository/continueWatching.ts`, sem contar como não resolvido; episódio pela série. Origem: FR-035, D-014.
-- [ ] T046 Testes: histórico e Continuar sem adulto nos 4 cenários (controle desligado, ligado e bloqueado, sessão desbloqueada, rebloqueado) e com `is_adult` sem nome adulto; reprodução continua gravada; mapeamento do `is_adult` no conector. Origem: FR-035.
+- [x] T046 Testes: histórico e Continuar sem adulto nos 4 cenários (controle desligado, ligado e bloqueado, sessão desbloqueada, rebloqueado) e com `is_adult` sem nome adulto; reprodução continua gravada; mapeamento do `is_adult` no conector. Origem: FR-035.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato: sem contrato nesta fase
-- Testes executados:
-- Pendências:
+- Status: Concluída (2026-10-10).
+- Feito: T044 — `lib/catalog/adultFlag.ts` (augmentation do `CatalogRecord`/`MappedChannel` com `adult?`, `withAdultFlag` e `copyListingFields`); o conector Xtream lê `is_adult` em canais, filmes e séries (`return withAdultFlag(raw, mapped)`), e `categoryLoader.ts`/`importPipeline.ts` copiam a marcação — tetos mantidos (910/910, 378/378, 981/981) juntando comentários. A lista real do usuário não manda `is_adult`; as 5 categorias adultas dela são pegas pelo nome. T045 — `getAdultScope` em `categoryAccess.ts` (nome adulto ∪ bloqueio salvo pela pessoa ∪ `adult: true`); filtro em `history.ts` (`loadHistory`, `loadHistoryPage`), `repository/continueWatching.ts` e no destaque "continuar" do Início (`homeHero.ts`), sem contar como não resolvido. T046 — `lib/catalog/historico.adulto.test.ts`.
+- Contrato: sem contrato nesta fase; os 5 da 066 seguem verdes, `check-contract-tests.ps1` → PASS.
+- Testes executados: `npx vitest run src/lib/catalog/historico.adulto.test.ts` → 4/4 (controle desligado, sessão desbloqueada, rebloqueado, categoria comum bloqueada, nome adulto liberado na gestão, `is_adult` em filme/canal/série, reprodução continua gravada); `npx vitest run src/lib/catalog src/features/catalog src/features/history src/features/home` → 773/773; `npx vitest run src/lib src/features src/components src/navigation src/App` → 2991 verdes, 5 vermelhos (contratos da 067, outra sessão); `node e2e/categorias-controle-parental.mjs` → Tudo certo; `npx tsc -b` limpo fora da 067; `npm run lint` → `architecture: ok`.
+- Pendências: "Porque você assistiu" ainda usa o histórico gravado como semente (o filme adulto não aparece, mas pode orientar a sugestão) — fora do FR-035, registrar se o usuário quiser. `xtreamConnector.ts` foi commitado com CRLF: no commit, adicioná-lo com `git -c core.autocrlf=false add` para não reescrever o arquivo inteiro. Não verificado na TV.
 
+## Phase 10: Convergence
+
+**Purpose**: Lacuna achada pelo `sdd-converge` em 2026-10-10 depois da emenda FR-035.
+
+- [x] T047 [LOW] O resumo da aba Privacidade ("Limpar ↺ Histórico", `lib/catalog/historyRemoval.ts`) conta só o que o histórico mostra — sem as reproduções adultas (`getAdultScope`); "Limpar" continua apagando tudo, inclusive o adulto gravado. Teste com histórico de 2 visíveis + 1 adulto → resumo 2. Origem: FR-035, D-014 (decisão do usuário).
+
+**Registro da Fase**:
+
+- Status: Concluída (2026-10-10).
+- Feito: T047 — **sem mudança de código**: `summarizeHistory` (`lib/catalog/historyRemoval.ts`) já monta o resumo a partir de `loadHistory`, que desde a Fase 9 tira o adulto; o achado C3-01 da convergência foi um falso positivo de leitura. Ficou o teste de regressão (`historico.adulto.test.ts` → resumo com 2 títulos visíveis + 2 adultos gravados = `titles: 2`, `unavailable: 0`).
+- Contrato: sem contrato nesta fase; os 5 da 066 seguem verdes, trava íntegra.
+- Testes executados: `npx vitest run src/lib/catalog/historico.adulto.test.ts` → 5/5.
+- Pendências: se o histórico tiver **só** reproduções adultas, a Privacidade mostra a linha como vazia (soft disabled, "nada para limpar") e não oferece limpar o que ficou gravado — coerente com "não mostrar", mas o registro adulto só sai do aparelho junto com uma limpeza que tenha algo visível, ou ao remover a lista.

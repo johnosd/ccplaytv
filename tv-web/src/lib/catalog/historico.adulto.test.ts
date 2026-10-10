@@ -4,6 +4,7 @@ import { renewCategoryItems, resolveContinueWatching, storeCategories } from './
 import { relockSession, setCategoryPreference, unlockWithPin } from './categoryAccess'
 import { enableParentalControl } from '../parental/pin'
 import { loadHistory, loadHistoryPage } from './history'
+import { summarizeHistory } from './historyRemoval'
 import { buildStableId, getContinueWatching, updateProgress } from './userStateRepository'
 import { mapLiveEntry, mapSeriesEntry, mapVodEntry } from './xtreamConnector'
 import './adultFlag'
@@ -84,8 +85,17 @@ describe('066 — FR-035: adulto fora do histórico', () => {
   })
 })
 
+describe('066 — FR-035: resumo da aba Privacidade (T047)', () => {
+  it('conta só o que o histórico mostra: as reproduções adultas não entram em títulos nem em indisponíveis', async () => {
+    await seed()
+    const summary = await summarizeHistory(S, database)
+    expect(summary.movies.titles).toBe(2)
+    expect(summary.movies.unavailable).toBe(0)
+  })
+})
+
 describe('066 — FR-035: `is_adult` do painel', () => {
-  const categories = new Map([['10', { name: 'Filmes', order: 0 }]])
+  const categories = new Map([['10', { id: '10', name: 'Filmes', order: 0 }]])
   const buildUrl = () => 'u'
 
   it('filme, canal e série com `is_adult` 1/"1"/true ganham `adult: true`; 0/ausente não ganham a chave', () => {

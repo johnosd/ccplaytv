@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-09
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: duas ideias do backlog escritas pelo usuário — "Incluir uma gestão de categorias nas configurações que permita o usuario, colocar senha em categorias ou esconder" e "incluir controle parental para canais adultos" — mais a parte de controle parental do antigo item 52 (pacote G6). Hoje a aba "Perfis & parental" de Configurações é um mock "Em breve" (`settings-parental`).
 

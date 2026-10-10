@@ -77,7 +77,7 @@ update-bug-status.ps1.
 | 063-codigo-saudavel-benchmark | Código saudável — divisão do repositório do catálogo, fronteiras e tamanho por lint, benchmark de importação | Convergida | 48/49 tasks | 2026-10-09 |
 | 064-upload-teste-conexao | Upload no teste de conexão da TV | Convergida | 35/36 tasks | 2026-10-09 |
 | 065-otimizacao-carga-consultas-memoria | Otimização de carga, consultas externas, memória e abertura do app | Convergida | 74/74 tasks | 2026-10-09 |
-| 066-categorias-controle-parental | Gestão de categorias e controle parental | Em Execução | 53/56 tasks | 2026-10-10 |
+| 066-categorias-controle-parental | Gestão de categorias e controle parental | Convergida | 57/57 tasks | 2026-10-10 |
 | 067-configuracoes-lista-global | Separar configurações da lista das configurações globais do app | Planejada | 0/50 tasks | 2026-10-10 |
 
 ## Bugs

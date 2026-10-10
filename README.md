@@ -197,7 +197,10 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   segundo plano ou trocar de lista. Ao ligar, categorias de nome adulto vêm
   sugeridas; com o PIN, adicionar/editar/remover lista também o pedem. "Esqueci
   o PIN" confere usuário e senha (ou endereço M3U) de uma lista, só no aparelho.
-  O número dos canais não muda ao esconder (feature 066).
+  O número dos canais não muda ao esconder. Conteúdo adulto (categoria de nome
+  adulto, item que a lista marca como adulto ou categoria bloqueada) nunca
+  aparece no ↺ Histórico nem no Continuar assistindo, mesmo com o PIN digitado;
+  a retomada do filme continua funcionando (feature 066).
 
 ## Arquitetura
 
