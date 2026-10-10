@@ -3,6 +3,7 @@ import { APP_LANGUAGE_LOCALE, type AppLanguage } from '../i18n/languages'
 import { TmdbError, tmdbGet, type TmdbCredential } from './tmdbConnector'
 import { mapTmdbDetail, originalLanguageOf, overviewOf, type TmdbKind } from './tmdbMapping'
 import { normalizeTitle, pickCandidate, yearHintFromTitle, yearOfDate, type TmdbSearchResult } from './tmdbMatch'
+import { trailerRefsFromTmdbVideos } from '../trailer/trailerCandidates'
 
 /**
  * Casa um filme/série do catálogo com o TMDB e devolve o resultado a guardar
@@ -28,9 +29,12 @@ export interface TmdbLookupInput {
   now?: () => number
 }
 
-/** Idiomas de vídeo pedidos ao TMDB: pt e en de sempre, mais o preferido da pessoa, mais os sem idioma. */
-function videoLanguages(preferred: string | undefined): string {
-  return [...new Set(['pt', 'en', ...(preferred ? [preferred] : []), 'null'])].join(',')
+/**
+ * Idiomas de vídeo pedidos ao TMDB: o do app COM região (`pt-BR` — só `pt` o TMDB lê como pt-PT, e os brasileiros não
+ * vinham), pt e en de sempre, o preferido da pessoa e os sem idioma. A ordem final é de `buildTrailerCandidates`.
+ */
+function videoLanguages(language: AppLanguage, preferred: string | undefined): string[] {
+  return [...new Set([APP_LANGUAGE_LOCALE[language], 'pt', 'en', ...(preferred ? [preferred] : []), 'null'])]
 }
 
 function kindOf(record: CatalogRecord): TmdbKind {
@@ -77,6 +81,17 @@ async function toMatched(
       }
     }
   }
+  // Nenhum trailer nos idiomas pedidos: tenta o idioma original (filme coreano com trailer só em `ko`). Uma chamada a
+  // mais só nesse caso; `/videos` sem idioma devolveria só en-US, por isso o original vai explícito.
+  const requested = videoLanguages(language, input.preferredLanguage ?? input.language)
+  if (fields.trailerVideos?.length === 0 && original !== undefined && !requested.includes(original)) {
+    try {
+      const videos = await tmdbGet(`/${kind}/${tmdbId}/videos`, { include_video_language: original }, input.credential, input.fetchImpl, { signal: input.signal, now: input.now })
+      fields.trailerVideos = trailerRefsFromTmdbVideos(videos)
+    } catch (error) {
+      if (!(error instanceof TmdbError && error.kind === 'not_found')) throw error
+    }
+  }
   return { status: 'matched', tmdbId, fields, language }
 }
 
@@ -91,7 +106,7 @@ export async function lookupTmdb(input: TmdbLookupInput): Promise<TmdbResultReco
     // Semelhantes e elenco com identidade vêm na MESMA chamada (035, D-001).
     append_to_response:
       kind === 'movie' ? 'credits,videos,recommendations,similar,release_dates' : 'aggregate_credits,videos,recommendations,similar,content_ratings',
-    include_video_language: videoLanguages(input.preferredLanguage ?? input.language),
+    include_video_language: videoLanguages(input.language ?? 'pt', input.preferredLanguage ?? input.language).join(','),
   }
 
   let deadId: number | undefined

@@ -164,3 +164,59 @@ describe('ensureTitleMetadata — quando o trailer obriga a pedir de novo (033)'
     expect(panelCalls()).toHaveLength(1)
   })
 })
+
+describe('ensureTitleMetadata — trailers pt-BR e idioma original (ad-hoc 2026-10-10)', () => {
+  const MATCHED_V1 = {
+    provider: COMPLETE_PROVIDER,
+    providerFetchedAt: NOW,
+    providerVersion: PROVIDER_FIELDS_VERSION,
+    providerTmdbId: 603,
+    tmdb: {
+      status: 'matched' as const,
+      tmdbId: 603,
+      // Pedido só com `pt` (= pt-PT no TMDB), sem a versão da busca de vídeos.
+      fields: { synopsis: 'Antiga.', certifications: {}, similar: [], trailerVideos: [{ videoId: 'trailerPt01', kind: 'trailer' as const, language: 'pt' }] },
+    },
+    tmdbFetchedAt: NOW,
+  }
+
+  it('matched com vídeos pedidos sem pt-BR é repedido UMA vez, já pedindo pt-BR', async () => {
+    await seed(MATCHED_V1)
+
+    await open()
+    expect(tmdbMovieCalls()).toHaveLength(1)
+    expect(tmdbMovieCalls()[0].searchParams.get('include_video_language')?.split(',')).toEqual(['pt-BR', 'pt', 'en', 'null'])
+
+    await open()
+    expect(tmdbMovieCalls()).toHaveLength(1)
+  })
+
+  it('sem trailer nos idiomas pedidos, busca uma vez no idioma original', async () => {
+    await seed({ ...MATCHED_V1, provider: { ...COMPLETE_PROVIDER, trailerVideos: undefined } })
+    const base = fetchImpl.getMockImplementation() as (input: RequestInfo | URL) => Promise<Response>
+    fetchImpl.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = new URL(input instanceof Request ? input.url : String(input))
+      if (url.pathname === '/3/movie/603') {
+        return json({ id: 603, title: 'Parasita', original_language: 'ko', release_date: '1999-03-31', overview: 'Sinopse.', credits: { cast: [], crew: [] }, videos: { results: [] } })
+      }
+      if (url.pathname === '/3/movie/603/videos') {
+        return json({ results: [{ site: 'YouTube', type: 'Trailer', key: 'trailerKo01', iso_639_1: 'ko', iso_3166_1: 'KR', official: true }] })
+      }
+      return base(input)
+    })
+
+    const view = await open()
+
+    const videosCall = urls().find((url) => url.pathname === '/3/movie/603/videos')
+    expect(videosCall?.searchParams.get('include_video_language')).toBe('ko')
+    expect(view.trailers?.map((c) => [c.videoId, c.language, c.region])).toEqual([['trailerKo01', 'ko', 'KR']])
+  })
+
+  it('com trailer nos idiomas pedidos, não há chamada extra de vídeos', async () => {
+    await seed(MATCHED_V1)
+
+    await open()
+
+    expect(urls().some((url) => url.pathname.endsWith('/videos'))).toBe(false)
+  })
+})

@@ -17,7 +17,7 @@ import { TmdbError } from './tmdbConnector'
 import { markTmdbState, readTmdbCredential, validPause } from './tmdbKeyRepository'
 import { readAppLanguage } from '../i18n/appLanguage'
 import type { AppLanguage } from '../i18n/languages'
-import { buildTrailerCandidates } from '../trailer/trailerCandidates'
+import { buildTrailerCandidates, TRAILER_VIDEOS_VERSION } from '../trailer/trailerCandidates'
 import { PROVIDER_FIELDS_VERSION, storeProviderMetadata, storeTmdbResult, titleStableId } from './titleMetadataStore'
 import type { MetadataOptions, TitleMetadataView } from './types'
 import { sharedAttempt } from './sharedAttempt'
@@ -25,9 +25,9 @@ import { sharedAttempt } from './sharedAttempt'
 /** Validade do que veio do TMDB — 6 meses (termos do TMDB, FR-023), inclusive "sem correspondência" e "id morto". */
 export const TMDB_CACHE_MS = 182 * 24 * 60 * 60 * 1000
 
-/** `matched` gravado antes da 033 não tem a chave `trailerVideos` (D-005) — repete-se uma vez. */
+/** `matched` sem `trailerVideos` (antes da 033, D-005) ou da busca de vídeos antiga (sem pt-BR) — repete-se uma vez. */
 function tmdbLacksVideos(tmdb: TmdbResultRecord | undefined): boolean {
-  return tmdb?.status === 'matched' && tmdb.fields.trailerVideos === undefined
+  return tmdb?.status === 'matched' && (tmdb.fields.trailerVideos === undefined || tmdb.fields.trailerVideosVersion !== TRAILER_VIDEOS_VERSION)
 }
 
 /** `matched` gravado antes da 035 não tem a chave `similar` (D-003) — repete-se uma vez. */

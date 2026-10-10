@@ -1,6 +1,6 @@
 import type { CastPerson, TitleFields, TmdbTitleRef } from '../catalog/db'
 import { APP_LANGUAGE_LOCALE, type AppLanguage } from '../i18n/languages'
-import { trailerRefsFromTmdbVideos } from '../trailer/trailerCandidates'
+import { TRAILER_VIDEOS_VERSION, trailerRefsFromTmdbVideos } from '../trailer/trailerCandidates'
 import { tmdbImageUrl } from './tmdbConnector'
 import { yearOfDate } from './tmdbMatch'
 import { certificationsFromTmdb, tmdbRatingFromTmdb } from './contentRating'
@@ -202,6 +202,7 @@ export function mapTmdbDetail(kind: TmdbKind, rawDetail: unknown, language: AppL
     })(),
     // Só quando a resposta trouxe `videos` (pode ser `[]`): a ausência da chave é o que marca um registro anterior à 033.
     trailerVideos: 'videos' in detail ? trailerRefsFromTmdbVideos(detail.videos) : undefined,
+    trailerVideosVersion: 'videos' in detail ? TRAILER_VIDEOS_VERSION : undefined,
   }
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as TitleFields
 }

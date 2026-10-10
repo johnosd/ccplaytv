@@ -88,6 +88,22 @@ describe('buildTrailerCandidates', () => {
     ])
   })
 
+  it('app em pt: pt-BR > inglês > pt de outra região; oficial continua antes do idioma (R-012)', () => {
+    const result = buildTrailerCandidates(undefined, [
+      { videoId: 'ptPortugal1', kind: 'trailer', language: 'pt', region: 'PT', official: true },
+      { videoId: 'enOficial01', kind: 'trailer', language: 'en', region: 'US', official: true },
+      { videoId: 'ptBrasil001', kind: 'trailer', language: 'pt', region: 'BR', official: true },
+      { videoId: 'ptBrAgregad', kind: 'trailer', language: 'pt', region: 'BR', official: false },
+    ])
+    expect(result.map((c) => c.videoId)).toEqual(['ptBrasil001', 'enOficial01', 'ptPortugal1', 'ptBrAgregad'])
+  })
+
+  it('sem pt-BR, o pt-PT ainda fica na lista (atrás do inglês) — a região nunca tira trailer', () => {
+    expect(buildTrailerCandidates(undefined, [{ videoId: 'ptPortugal1', kind: 'trailer', language: 'pt', region: 'PT' }]).map((c) => c.videoId)).toEqual([
+      'ptPortugal1',
+    ])
+  })
+
   it('empate mantém a ordem em que o TMDB entregou', () => {
     const result = buildTrailerCandidates(undefined, [
       { videoId: 'zzzzzzzzzzz', kind: 'trailer', language: 'en' },
@@ -113,5 +129,18 @@ describe('trailerButtonLabel', () => {
     expect(trailerButtonLabel({ videoId: 'aaaaaaaaaaa', kind: 'trailer', origin: 'tmdb' })).toBe('▶ Trailer')
     expect(trailerButtonLabel({ videoId: 'aaaaaaaaaaa', kind: 'trailer', language: 'pt', origin: 'tmdb' })).toBe('▶ Trailer')
     expect(trailerButtonLabel({ videoId: 'aaaaaaaaaaa', kind: 'trailer', language: 'zz', origin: 'tmdb' })).toMatch(/^▶ Trailer · /)
+  })
+
+  it('português de outra região leva o país; pt-BR não leva sufixo', () => {
+    expect(trailerButtonLabel({ videoId: 'aaaaaaaaaaa', kind: 'trailer', language: 'pt', region: 'BR', origin: 'tmdb' })).toBe('▶ Trailer')
+    expect(trailerButtonLabel({ videoId: 'aaaaaaaaaaa', kind: 'trailer', language: 'pt', region: 'PT', origin: 'tmdb' })).toBe(
+      '▶ Trailer · Português (Portugal)',
+    )
+  })
+
+  it('trailerRefsFromTmdbVideos guarda a região (iso_3166_1)', () => {
+    expect(trailerRefsFromTmdbVideos({ results: [{ site: 'YouTube', type: 'Trailer', key: 'aaaaaaaaaaa', iso_639_1: 'pt', iso_3166_1: 'BR' }] })).toEqual([
+      { videoId: 'aaaaaaaaaaa', kind: 'trailer', language: 'pt', region: 'BR' },
+    ])
   })
 })

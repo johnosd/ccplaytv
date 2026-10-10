@@ -290,8 +290,9 @@ export interface TrailerVideoRef {
   /** Id de vídeo do YouTube (11 caracteres `[A-Za-z0-9_-]`). */
   videoId: string
   kind: 'trailer' | 'teaser'
-  /** ISO 639-1 quando a fonte declara; ausente = desconhecido (caso do provedor). */
+  /** ISO 639-1 / ISO 3166-1 (`region`: separa pt-BR de pt-PT) quando a fonte declara; ausente = desconhecido. */
   language?: string
+  region?: string
   /** Ausente = desconhecido, nunca "falso". */
   official?: boolean
 }
@@ -351,11 +352,11 @@ export interface TitleFields {
   /** Feature 035 — só no lado TMDB. Elenco com identidade (filme: `credits`; série: `aggregate_credits`). */
   castPeople?: CastPerson[]
   /**
-   * Feature 033. Provedor: no máximo um (`youtube_trailer`). TMDB: `[]` quando
-   * os vídeos foram pedidos e nenhum serve; AUSENTE num registro `matched`
-   * gravado antes da 033 (sem `videos`) — é o sinal para pedir de novo uma vez.
+   * Feature 033. Provedor: no máximo um. TMDB: `[]` = pedidos, nenhum serve; AUSENTE (antes da 033) ou `trailerVideosVersion`
+   * ≠ `TRAILER_VIDEOS_VERSION` (pedido sem `pt-BR`; `pt` o TMDB lê como pt-PT) — o sinal para pedir de novo uma vez.
    */
   trailerVideos?: TrailerVideoRef[]
+  trailerVideosVersion?: number
   synopsis?: string
   /** Só presente quando a sinopse NÃO está no idioma do app (código ISO 639-1) — FR-021, generalizado na 054. */
   synopsisLanguage?: string
