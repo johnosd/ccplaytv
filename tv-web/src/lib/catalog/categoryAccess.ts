@@ -12,9 +12,9 @@ import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord, type Cate
 // Pela fachada (feature 063, D-001): `repository/` também importa daqui, e só a fachada conhece aqueles módulos.
 import { activeGeneration, listCategories, type CatalogCategory } from './catalogRepository'
 import { categoryMatchKey } from './structureDiff'
-import { categoryPreferences, parentalPin, type CategoryPreferenceRecord } from './parentalTables'
-import { verifyPin } from '../parental/pin'
-import { normalizeForSearch } from './catalogSearch'
+import { categoryPreferences, parentalPins, type CategoryPreferenceRecord } from './parentalTables'
+import { verifyPin } from '../parental/listPin'
+import { isAdultCategoryName, isSavedLock } from './adultCategory'
 
 /** A categoria como as telas a veem: só as não escondidas, com o cadeado efetivo agora. */
 export interface VisibleCategory extends CatalogCategory {
@@ -58,7 +58,7 @@ const listeners = new Set<() => void>()
  */
 let savedRules = new WeakMap<CatalogDb, Map<string, Promise<Omit<Rule, 'unlocked'>>>>()
 
-/** Avisa quem desenha (reset das consultas, D-005) e esquece a regra em memória. Usado também por `lib/parental/pin.ts`. */
+/** Avisa quem desenha (reset das consultas, D-005) e esquece a regra em memória. Usado também por `lib/parental/listPin.ts`. */
 export function notifyCategoryAccessChanged(): void {
   savedRules = new WeakMap()
   for (const listener of listeners) listener()
@@ -77,17 +77,8 @@ export function preferenceKey(ref: CategoryRef): [string, CategoryKind, string] 
   return [ref.sourceId, ref.kind, categoryMatchKey(ref.providerCategoryId, ref.name)]
 }
 
-/**
- * Termos fixos de "nome adulto" (FR-023, `logic/acesso-categorias.md` §4), sobre o nome normalizado (minúsculas, sem
- * acento): palavra inteira — "adulteração" não é adulto — ou "+18"/"18+"/"[18]" fora de um número maior ("2018" não).
- * Só o nome que a lista declara; nada externo, nada de IA. Falso positivo aceito: "Adult Swim" (R-006).
- */
-const ADULT_NAME = /(^|[^a-z0-9])(xxx|adults?|adult[oa]s?|porn\w*|erotic[oa]?s?)([^a-z0-9]|$)|(^|[^0-9])(\+18|18\+)([^0-9]|$)|\[\s*18\s*\]/
-
-/** Nome declarado pela lista parece adulto (FR-023). */
-export function isAdultCategoryName(name: string | undefined): boolean {
-  return name !== undefined && ADULT_NAME.test(normalizeForSearch(name))
-}
+// A regra do nome adulto e o bloqueio salvo moram no módulo puro (feature 067, R-003): a migração do PIN também os usa.
+export { isAdultCategoryName }
 
 interface Rule {
   pinActive: boolean
@@ -103,15 +94,13 @@ function preferenceOf(rule: Rule, category: Pick<CategoryRecord, 'kind' | 'provi
 
 /** Bloqueio salvo (`logic/acesso-categorias.md` §1), sem olhar a sessão. */
 function savedLock(rule: Rule, category: Pick<CategoryRecord, 'kind' | 'providerCategoryId' | 'name'>): boolean {
-  if (!rule.pinActive) return false
-  const pref = preferenceOf(rule, category)
-  if (pref?.locked !== undefined) return pref.locked
-  return pref?.declinedSuggestion !== true && isAdultCategoryName(category.name)
+  return isSavedLock(rule.pinActive, preferenceOf(rule, category), category.name)
 }
 
 async function readSavedRule(sourceId: string, database: CatalogDb): Promise<Omit<Rule, 'unlocked'>> {
   const [pin, prefs] = await Promise.all([
-    parentalPin(database).get('pin'),
+    // PIN por lista (feature 067): o controle está ligado só na lista que tem o seu PIN.
+    parentalPins(database).get(sourceId),
     categoryPreferences(database).where('sourceId').equals(sourceId).toArray(),
   ])
   return { pinActive: pin !== undefined, prefs: new Map(prefs.map((pref) => [prefMapKey(pref.kind, pref.matchKey), pref])) }
@@ -249,9 +238,9 @@ export async function listManagedCategories(
   })
 }
 
-/** Confere o PIN e, se certo, libera as bloqueadas desta lista até `relockSession` (FR-015). */
+/** Confere o PIN **desta** lista e, se certo, libera as bloqueadas dela até `relockSession` (FR-015; 067 FR-022). */
 export async function unlockWithPin(sourceId: string, pin: string, database: CatalogDb = db): Promise<boolean> {
-  if (!(await verifyPin(pin, database))) return false
+  if (!(await verifyPin(sourceId, pin, database))) return false
   unlockedSourceId = sourceId
   notifyCategoryAccessChanged()
   return true

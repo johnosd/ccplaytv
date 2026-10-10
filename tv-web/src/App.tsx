@@ -24,8 +24,10 @@ import { HomeScreen } from './features/home/HomeScreen'
 import { appNavReducer, initialAppNav, type AppScreen, type TopDestination } from './navigation/appNav'
 import { readLastSourceId, writeLastSourceId } from './navigation/lastSource'
 import type { OpenPersonTarget, OpenTitleTarget } from './features/vod/detailSnapshot'
-import { AddSourceScreen, ImportProgressScreen, SourceAccessRoute, LiveScreen, VodShowcaseScreen, MovieDetailScreen, SeriesDetailScreen, SettingsScreen, EpgSettingsScreen, TmdbKeyScreen, SearchScreen, VodCategoryScreen, PersonScreen, useRouteWarmup } from './navigation/routeModules'
+import { AddSourceScreen, ImportProgressScreen, SourceAccessRoute, LiveScreen, VodShowcaseScreen, MovieDetailScreen, SeriesDetailScreen, SearchScreen, VodCategoryScreen, PersonScreen, useRouteWarmup } from './navigation/routeModules'
 import { RouteBoundary } from './components/RouteBoundary'
+import { ProgressSaveNotice } from './components/ProgressSaveNotice'
+import { openListSettings, renderSettingsRoute } from './navigation/settingsRoutes'
 import { useStartupReadiness } from './lib/useStartupReadiness'
 
 /**
@@ -255,8 +257,8 @@ function App() {
     onGoHome: () => dispatch({ type: 'go-home' }),
     onSwitchTop: (destination: TopDestination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
     onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
-    // Feature 066 (FR-009): `'parental'` abre direto na gestão, e voltar devolve o foco ao conteúdo, não à topbar.
-    onOpenSettings: (tab?: 'parental') => dispatch({ type: 'open', screen: { name: 'settings', restore: tab && { zone: 'panel', tab } }, from: tab ? current : { ...current, topbarFocus: 'settings' } }),
+    // Feature 066 (FR-009): `'parental'` abre a gestão — desde a 067, na tela da lista ativa (D-010); voltar devolve o foco ao conteúdo.
+    onOpenSettings: (tab?: 'parental') => (tab ? openListSettings(dispatch, src.id, current, { tab }) : dispatch({ type: 'open', screen: { name: 'settings' }, from: { ...current, topbarFocus: 'settings' } })),
     onOpenSearch: () => dispatch({ type: 'open', screen: { name: 'search' }, from: { ...current, topbarFocus: 'search' } }),
   })
   // Estável de propósito: `SplashScreen` reagenda o timer a cada mudança da
@@ -290,6 +292,7 @@ function App() {
           onEditSource={(sourceToEdit) => dispatch({ type: 'open', screen: { name: 'edit-source', source: sourceToEdit } })}
           onResyncStarted={(jobId) => dispatch({ type: 'open', screen: { name: 'progress', jobId } })}
           onSourceDeleted={(sourceId) => dispatch({ type: 'source-removed', sourceId })}
+          onConfigureSource={(target) => openListSettings(dispatch, target.id, { ...screen, focusSourceId: target.id })}
           // "Gerenciar listas" (feature 026, FR-032): Configurações › Fontes
           // IPTV sem lista ativa, sem topbar (`standalone`).
           onManageSources={() => dispatch({ type: 'open', screen: { name: 'settings', standalone: true } })}
@@ -325,12 +328,6 @@ function App() {
           onBack={goBack}
         />
       )
-
-    case 'epg-settings':
-      return <EpgSettingsScreen sourceId={screen.source.id} onBack={goBack} />
-
-    case 'tmdb-key':
-      return <TmdbKeyScreen onSaved={goBack} onBack={goBack} />
 
     case 'progress':
       return (
@@ -410,7 +407,7 @@ function App() {
             // voltar da Busca/Configurações tocaria o canal de novo
             // (feature 026, `logic/navegacao.md` §3).
             onOpenSettings: (tab) =>
-              dispatch({ type: 'open', screen: { name: 'settings', restore: tab && { zone: 'panel', tab } }, from: { name: 'live', topbarFocus: tab ? undefined : 'settings' } }),
+              tab ? openListSettings(dispatch, source.id, { name: 'live' }, { tab }) : dispatch({ type: 'open', screen: { name: 'settings' }, from: { name: 'live', topbarFocus: 'settings' } }),
             onOpenSearch: () =>
               dispatch({ type: 'open', screen: { name: 'search' }, from: { name: 'live', topbarFocus: 'search' } }),
           }}
@@ -515,62 +512,6 @@ function App() {
         />
       )
 
-    case 'settings':
-      return (
-        <SettingsScreen
-          activeSourceId={source?.id ?? null}
-          initialFocus={screen.restore}
-          onAddSource={(from) =>
-            dispatch({
-              type: 'open',
-              screen: { name: 'add-source' },
-              from: { name: 'settings', restore: from, standalone: screen.standalone },
-            })
-          }
-          onEditSource={(sourceToEdit, from) =>
-            dispatch({
-              type: 'open',
-              screen: { name: 'edit-source', source: sourceToEdit },
-              from: { name: 'settings', restore: from, standalone: screen.standalone },
-            })
-          }
-          onResyncStarted={(jobId, from) =>
-            dispatch({
-              type: 'open',
-              screen: { name: 'progress', jobId },
-              from: { name: 'settings', restore: from, standalone: screen.standalone },
-            })
-          }
-          onOpenEpg={(sourceToOpen, from) =>
-            dispatch({
-              type: 'open',
-              screen: { name: 'epg-settings', source: sourceToOpen },
-              from: { name: 'settings', restore: from, standalone: screen.standalone },
-            })
-          }
-          onOpenTmdbKey={(from) =>
-            dispatch({
-              type: 'open',
-              screen: { name: 'tmdb-key' },
-              from: { name: 'settings', restore: from, standalone: screen.standalone },
-            })
-          }
-          onSourceDeleted={(sourceId) => dispatch({ type: 'source-removed', sourceId })}
-          onBack={goBack}
-          shell={
-            !screen.standalone && source
-              ? {
-                  sourceName: source.display_name,
-                  onGoHome: () => dispatch({ type: 'go-home' }),
-                  onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
-                  onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
-                  onOpenSearch: () => dispatch({ type: 'switch-top', screen: { name: 'search' } }),
-                }
-              : undefined
-          }
-        />
-      )
-
     case 'search':
       if (!source) return null
       return (
@@ -606,10 +547,16 @@ function App() {
       )
 
       default:
-        return null
+        // Configurações (globais, da lista, EPG, TMDB) — `navigation/settingsRoutes.tsx` (feature 067, R-002).
+        return renderSettingsRoute(screen, { dispatch, goBack, activeSource: source }) ?? null
     }
   })()
-  return <RouteBoundary key={`${screen.name}:${history.length}:${route?.key ?? ''}`} onBack={goBack}>{route}</RouteBoundary>
+  return (
+    <>
+      <RouteBoundary key={`${screen.name}:${history.length}:${route?.key ?? ''}`} onBack={goBack}>{route}</RouteBoundary>
+      <ProgressSaveNotice />
+    </>
+  )
 }
 
 export default App

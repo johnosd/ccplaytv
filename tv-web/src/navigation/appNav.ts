@@ -3,6 +3,7 @@ import type { CategoryScreenSnapshot } from '../features/catalog/categoryScreenS
 import type { VodCategoryRestore, VodShowcaseFocus, VodTarget } from '../features/vod/vodTarget'
 import type { SearchSnapshot } from '../features/search/searchSnapshot'
 import type { SettingsFocus } from '../features/settings/SettingsScreen'
+import type { ListSettingsFocus } from '../features/settings/tabs/settingsTab'
 import type { DetailSnapshot } from '../features/vod/detailSnapshot'
 import type { PersonSnapshot } from '../features/person/personSnapshot'
 
@@ -78,9 +79,11 @@ export type AppScreen =
       /** Remonta com a topbar ativa neste item — volta de Busca/Configurações (FR-034/FR-044). */
       topbarFocus?: TopbarItem
     }
-  /** Vitrine de Filmes (feature 052): estore = foco por id da vitrine (fileira + id) ao voltar da categoria/do detalhe. */
+  /** Vitrine de Filmes (feature 052): 
+estore = foco por id da vitrine (fileira + id) ao voltar da categoria/do detalhe. */
   | { name: 'movies'; restore?: VodShowcaseFocus | CategoryScreenSnapshot; topbarFocus?: TopbarItem }
-  /** Tela de categoria de Filmes (feature 052, grade em tela cheia); estore = estado da grade ao voltar do detalhe. */
+  /** Tela de categoria de Filmes (feature 052, grade em tela cheia); 
+estore = estado da grade ao voltar do detalhe. */
   | { name: 'movies-category'; target: VodTarget; restore?: VodCategoryRestore; topbarFocus?: TopbarItem }
   /** `restore` (feature 035): aba e item focado ao voltar de Semelhantes/Elenco/Configurações — por identidade. */
   | { name: 'movie-detail'; movieId: string; restore?: DetailSnapshot }
@@ -93,6 +96,11 @@ export type AppScreen =
   | { name: 'search'; restore?: SearchSnapshot }
   /** Configurações (feature 026, US2). `standalone`: sem lista ativa, sem topbar (FR-033, "Gerenciar listas"). */
   | { name: 'settings'; restore?: SettingsFocus; standalone?: boolean }
+  /**
+   * Configurações da lista (feature 067, US1): de UMA lista, ativa ou não, sem topbar. Guarda só o id — a tela lê a
+   * versão atual da lista. `restore`: aba e ação ao voltar de Editar/progresso/EPG (FR-009).
+   */
+  | { name: 'list-settings'; sourceId: string; restore?: ListSettingsFocus }
 
 export interface AppNavState {
   screen: AppScreen
@@ -134,6 +142,12 @@ export type AppNavAction =
    * tela atual por `{ name: 'home' }` com a pilha zerada.
    */
   | { type: 'go-home' }
+  /**
+   * Uma lista foi excluída pela tela dela (feature 067, D-009, `logic/navegacao-lista.md` §4). Se era a ativa, segue
+   * `source-removed`; senão desempilha e aplica o foco da vizinha na origem — quem despacha já resolve o foco de cada
+   * origem possível (o redutor não conhece a sentinela da tela de perfis).
+   */
+  | { type: 'list-settings-deleted'; sourceId: string; profilesFocusId: string; settingsRestore: SettingsFocus }
 
 export function initialAppNav(): AppNavState {
   return { screen: { name: 'splash' }, history: [], activeSource: null }
@@ -205,6 +219,19 @@ export function appNavReducer(state: AppNavState, action: AppNavAction): AppNavS
         screen: state.history[homeIndex],
         history: state.history.slice(0, homeIndex),
       }
+    }
+
+    case 'list-settings-deleted': {
+      if (state.activeSource?.id === action.sourceId) return profilesAsBase()
+      if (state.history.length === 0) return state
+      const origin = state.history[state.history.length - 1]
+      const screen: AppScreen =
+        origin.name === 'profiles'
+          ? { ...origin, focusSourceId: action.profilesFocusId }
+          : origin.name === 'settings'
+            ? { ...origin, restore: action.settingsRestore }
+            : origin
+      return { ...state, screen, history: state.history.slice(0, -1) }
     }
 
     default:

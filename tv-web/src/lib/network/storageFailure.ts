@@ -8,6 +8,11 @@ const reasons = new Map([
 type Reason = typeof reasons extends Map<string, infer Value> ? Value : never
 export type SpeedTestStorageCode = `NET-${'R' | 'W' | 'D'}-${Reason | 'UNKNOWN'}`
 
+/** Falha ao gravar o progresso de reprodução: mesmo critério seguro, prefixo próprio (`PRG-W-QUOTA`…). */
+export function progressFailureCode(error: unknown): string {
+  return storageFailureCode('W', error).replace('NET-', 'PRG-')
+}
+
 /** Só nomes reconhecidos viram códigos do app; nunca mensagem, stack ou dados da exceção. */
 export function storageFailureCode(operation: 'R' | 'W' | 'D', error: unknown): SpeedTestStorageCode {
   let reason: Reason | 'UNKNOWN' = 'UNKNOWN'

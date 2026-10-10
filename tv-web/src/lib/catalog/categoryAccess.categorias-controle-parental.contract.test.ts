@@ -4,12 +4,16 @@ import { listAllOfKind, renewCategoryItems, resolveFavorites, storeCategories } 
 import { iterateKindRecordBatches } from './catalogDerivedRows'
 import { buildStableId, parseStableId, type StableIdParts } from './userStateRepository'
 import { listVisibleCategories, relockSession, setCategoryPreference, unlockWithPin } from './categoryAccess'
-import { enableParentalControl } from '../parental/pin'
+import { enableParentalControl } from '../parental/listPin'
 
 /**
  * Feature 066 — contrato da camada de dados: esconder (US1), bloquear com
  * desbloqueio por sessão (US2) e a regra de nome adulto (US3), sempre pela
  * interface pública das leituras que as telas usam.
+ *
+ * Emendado pela feature 067 (PIN por lista, decisão do usuário em 2026-10-09 —
+ * `sdd/specs/067-configuracoes-lista-global/plan.md` R-001): ligar o controle
+ * é por lista, e o PIN de uma lista não desbloqueia a outra. Mesmos 3 testes.
  */
 
 const SOURCE = 'fonte-066'
@@ -71,8 +75,10 @@ describe('066 — acesso às categorias (contrato)', () => {
   it('US2/AC2+AC4, FR-013/FR-014/FR-015: bloqueada fica na trilha com cadeado e sem itens fora dela; PIN certo libera só esta lista até rebloquear', async () => {
     await seedSource(SOURCE, [{ name: 'Ação', pid: '1', items: ['a1'] }, { name: 'Noite', pid: '9', items: ['n1'] }])
     await seedSource(OTHER, [{ name: 'Noite', pid: '9', items: ['o1'] }])
-    await enableParentalControl('1357', [
+    await enableParentalControl(SOURCE, '1357', [
       { category: { sourceId: SOURCE, kind: 'movie', providerCategoryId: '9', name: 'Noite' }, locked: true },
+    ], database)
+    await enableParentalControl(OTHER, '2468', [
       { category: { sourceId: OTHER, kind: 'movie', providerCategoryId: '9', name: 'Noite' }, locked: true },
     ], database)
 
@@ -81,6 +87,8 @@ describe('066 — acesso às categorias (contrato)', () => {
     expect(streamIds(await listAllOfKind(SOURCE, 'movie', database))).toEqual(['a1'])
 
     expect(await unlockWithPin(SOURCE, '0000', database)).toBe(false)
+    // Emenda 067: o PIN de outra lista não desbloqueia esta.
+    expect(await unlockWithPin(SOURCE, '2468', database)).toBe(false)
     expect(streamIds(await listAllOfKind(SOURCE, 'movie', database))).toEqual(['a1'])
 
     expect(await unlockWithPin(SOURCE, '1357', database)).toBe(true)
@@ -106,7 +114,7 @@ describe('066 — acesso às categorias (contrato)', () => {
     expect((await listVisibleCategories(SOURCE, 'movie', database)).some((category) => category.locked)).toBe(false)
 
     // Ligado sem decisão para "XXX Adultos" — o caso da categoria nova que chega numa atualização.
-    await enableParentalControl('2468', [], database)
+    await enableParentalControl(SOURCE, '2468', [], database)
     const state = Object.fromEntries((await listVisibleCategories(SOURCE, 'movie', database)).map((category) => [category.name, category.locked]))
     expect(state).toEqual({ 'Ação': false, 'XXX Adultos': true, 'Filmes 18+': false })
     expect(streamIds(await listAllOfKind(SOURCE, 'movie', database))).toEqual(['a1', 'd1'])

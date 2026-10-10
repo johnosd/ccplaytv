@@ -1,16 +1,16 @@
-/** Feature 036 (T027): aba Privacidade — contagens, linha vazia, limpeza em lote, sem lista ativa. */
+/** Feature 036 (T027): limpar o Histórico — contagens, linha vazia, limpeza em lote. Desde a 067, aba Histórico de Configurações da lista. */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { SettingsScreen, type SettingsScreenProps } from './SettingsScreen'
-import * as importApi from '../import/importApi'
-import { db } from '../../lib/catalog/db'
-import { getContinueWatching, listPlayed, updateProgress } from '../../lib/catalog/userStateRepository'
-import { findUnnamedControls } from '../../testing/accessibleNames'
+import { ListSettingsScreen, type ListSettingsScreenProps } from './ListSettingsScreen'
+import * as importApi from '../../import/importApi'
+import { db } from '../../../lib/catalog/db'
+import { getContinueWatching, listPlayed, updateProgress } from '../../../lib/catalog/userStateRepository'
+import { findUnnamedControls } from '../../../testing/accessibleNames'
 
-vi.mock('../import/importApi', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../import/importApi')>()
+vi.mock('../../import/importApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../import/importApi')>()
   return { ...actual, useSources: vi.fn() }
 })
 
@@ -29,12 +29,13 @@ function press(key: string) {
   })
 }
 
-function renderSettings(overrides: Partial<SettingsScreenProps> = {}) {
-  const props: SettingsScreenProps = {
+function renderSettings(overrides: Partial<ListSettingsScreenProps> = {}) {
+  const props: ListSettingsScreenProps = {
+    sourceId: SOURCE_ID,
     activeSourceId: SOURCE_ID,
-    onAddSource: vi.fn(),
     onEditSource: vi.fn(),
     onResyncStarted: vi.fn(),
+    onOpenEpg: vi.fn(),
     onSourceDeleted: vi.fn(),
     onBack: vi.fn(),
     ...overrides,
@@ -43,13 +44,14 @@ function renderSettings(overrides: Partial<SettingsScreenProps> = {}) {
   function Wrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   }
-  render(<SettingsScreen {...props} />, { wrapper: Wrapper })
+  render(<ListSettingsScreen {...props} />, { wrapper: Wrapper })
+  return props
 }
 
-/** Abre em "Fontes IPTV" (2ª aba): ↓ até "Privacidade" (6ª) e → entra. */
+/** Abre em "Conta & lista" (1ª aba): ↓ até "Histórico" (4ª) e → entra. */
 function enterPrivacy() {
-  for (let i = 0; i < 4; i += 1) press('ArrowDown')
-  expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toContain('Privacidade')
+  for (let i = 0; i < 3; i += 1) press('ArrowDown')
+  expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toContain('Histórico')
   press('ArrowRight')
 }
 
@@ -88,7 +90,7 @@ afterEach(async () => {
   await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
 })
 
-describe('SettingsScreen › Privacidade (feature 036)', () => {
+describe('ListSettingsScreen › Histórico (feature 036, aba desde a 067)', () => {
   it('contagens com indisponíveis; linha vazia soft disabled avisa sem abrir confirmação; todo controle tem nome', async () => {
     renderSettings()
     enterPrivacy()
@@ -132,14 +134,11 @@ describe('SettingsScreen › Privacidade (feature 036)', () => {
     expect(row('Filmes e Séries')).toHaveClass('tv-focus')
   })
 
-  it('sem lista ativa: explica e "Voltar às abas" é focável e devolve o foco às abas (FR-027)', () => {
-    renderSettings({ activeSourceId: null })
-    enterPrivacy()
-
-    expect(screen.getByText(/O histórico é guardado por lista/)).toBeInTheDocument()
-    const back = screen.getByRole('button', { name: 'Voltar às abas' })
-    expect(back).toHaveClass('tv-focus')
+  it('067 (FR-011, R-009): lista que não existe mais mostra "Lista não encontrada" com "Voltar" focado, que volta', () => {
+    const props = renderSettings({ sourceId: 'apagada' })
+    expect(screen.getByText('Lista não encontrada')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('tv-focus')
     press('Enter')
-    expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toContain('Privacidade')
+    expect(props.onBack).toHaveBeenCalledTimes(1)
   })
 })

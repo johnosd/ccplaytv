@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CatalogDb, type CatalogRecord } from './db'
 import { renewCategoryItems, resolveContinueWatching, storeCategories } from './catalogRepository'
 import { relockSession, setCategoryPreference, unlockWithPin } from './categoryAccess'
-import { enableParentalControl } from '../parental/pin'
+import { enableParentalControl } from '../parental/listPin'
 import { loadHistory, loadHistoryPage } from './history'
 import { summarizeHistory } from './historyRemoval'
 import { buildStableId, getContinueWatching, updateProgress } from './userStateRepository'
@@ -68,7 +68,7 @@ describe('066 — FR-035: adulto fora do histórico', () => {
 
   it('com o PIN digitado (sessão desbloqueada) continua fora; categoria comum que a pessoa bloqueou também sai', async () => {
     await seed()
-    await enableParentalControl('1234', [{ category: { sourceId: S, kind: 'movie', providerCategoryId: '3', name: 'Drama' }, locked: true }], database)
+    await enableParentalControl(S, '1234', [{ category: { sourceId: S, kind: 'movie', providerCategoryId: '3', name: 'Drama' }, locked: true }], database)
     expect(await historyNames()).toEqual(['acao'])
     expect(await unlockWithPin(S, '1234', database)).toBe(true)
     expect(await historyNames()).toEqual(['acao'])
@@ -79,7 +79,7 @@ describe('066 — FR-035: adulto fora do histórico', () => {
 
   it('liberar uma categoria de nome adulto na gestão não a traz de volta ao histórico (o nome continua adulto)', async () => {
     await seed()
-    await enableParentalControl('1234', [], database)
+    await enableParentalControl(S, '1234', [], database)
     await setCategoryPreference({ sourceId: S, kind: 'movie', providerCategoryId: '2', name: 'XXX Adultos' }, { locked: false }, database)
     expect(await historyNames()).toEqual(['acao', 'drama'])
   })

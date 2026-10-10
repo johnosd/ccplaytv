@@ -34,6 +34,8 @@ export interface ProfilesScreenProps {
    * monta `ProfilesScreenProps` sem este campo.
    */
   onManageSources?: () => void
+  /** "Configurar" (feature 067, FR-012) — abre Configurações da lista. Opcional: o contrato travado da 037 não o passa. */
+  onConfigureSource?: (source: SourceOut) => void
   /** Só chamado em `mode: 'switch'`. */
   onBack: () => void
 }
@@ -48,10 +50,11 @@ const ADD_ID = '__add__'
  */
 export const ADD_LIST_FOCUS_ID = ADD_ID
 
-/** Ressincronizar, Editar, Excluir — a linha de ações de um cartão de lista (rótulos: `settings.sources.*`). */
-const ACTION_KEYS = ['settings.sources.resync', 'settings.sources.edit', 'settings.sources.delete'] as const
+/** Ressincronizar, Editar, Excluir, Configurar (feature 067, por último) — a linha de ações de um cartão de lista. */
+const ACTION_KEYS = ['settings.sources.resync', 'settings.sources.edit', 'settings.sources.delete', 'listSettings.configure'] as const
 const RESYNC = 0
 const EDIT = 1
+const CONFIGURE = 3
 
 /** Cartões de esqueleto enquanto as listas carregam (só geometria, sem dado). */
 const SKELETON_COUNT = 3
@@ -69,7 +72,7 @@ type ScreenState = 'error' | 'loading' | 'empty' | 'ready'
  * Foco é estado (ADR-009), por **id** de lista — nunca por índice — para
  * sobreviver a exclusão e a refetch (`logic/foco-shell.md`, § Tela de
  * perfis). Três linhas: `cards` (listas + "Adicionar lista"), `actions`
- * (Ressincronizar/Editar/Excluir do cartão em foco) e `manage`
+ * (Ressincronizar/Editar/Excluir/Configurar do cartão em foco) e `manage`
  * ("Configurações", abaixo de "Adicionar lista").
  */
 export function ProfilesScreen({
@@ -81,6 +84,7 @@ export function ProfilesScreen({
   onResyncStarted,
   onSourceDeleted,
   onManageSources,
+  onConfigureSource,
   onBack,
 }: ProfilesScreenProps): ReactNode {
   const t = useT()
@@ -122,8 +126,7 @@ export function ProfilesScreen({
         : 'cards'
   const focusedSource = sources.find((source) => source.id === effectiveId)
 
-  // Rolagem horizontal acompanha o foco (FR-012). `scrollIntoView` não existe
-  // em jsdom — a chamada é opcional de propósito.
+  // Rolagem horizontal acompanha o foco (FR-012). Sem `scrollIntoView` no jsdom: chamada opcional de propósito.
   const focusedCardRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     focusedCardRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
@@ -142,6 +145,8 @@ export function ProfilesScreen({
       })
     } else if (index === EDIT) {
       onEditSource(source)
+    } else if (index === CONFIGURE) {
+      onConfigureSource?.(source)
     } else {
       if (deleteSource.isPending) return
       setConfirmDelete(source)
@@ -175,8 +180,7 @@ export function ProfilesScreen({
       }
 
       if (effectiveRow === 'actions') {
-        // O limite alcança a última ação (Excluir): senão ela ficaria
-        // renderizada e inalcançável pelo controle.
+        // O limite alcança a última ação: senão ela ficaria renderizada e inalcançável pelo controle.
         if (direction === 'up') setRow('cards') // o cartão de onde se desceu (`focusedId`) segue em foco
         if (direction === 'left') setActionIdx((i) => clamp(i - 1, 0, ACTION_KEYS.length - 1))
         if (direction === 'right') setActionIdx((i) => clamp(i + 1, 0, ACTION_KEYS.length - 1))
@@ -308,11 +312,7 @@ export function ProfilesScreen({
                       <Button
                         key={labelKey}
                         variant="secondary"
-                        // Com o modal de exclusão aberto, a ação de origem
-                        // (Excluir) não perde o próprio estado de foco, mas
-                        // não deve continuar desenhando o anel — o `Modal` já
-                        // é quem tem o teclado (achado na evidência visual da
-                        // 023, T045: dois anéis de foco ao mesmo tempo).
+                        // Com o modal de exclusão aberto, só o `Modal` desenha foco (023, T045: dois anéis ao mesmo tempo).
                         focused={actionIdx === index && !confirmDelete}
                         softDisabled={index === RESYNC && !online}
                         onSelect={() => runAction(index, source)}

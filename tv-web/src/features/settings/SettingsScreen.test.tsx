@@ -13,7 +13,7 @@ import { findUnnamedControls } from '../../testing/accessibleNames'
  * cenário principal (Fontes IPTV sem credencial, Excluir com confirmação)
  * é o contrato travado
  * (`SettingsScreen.home-busca-configuracoes-ds-v14.contract.test.tsx`);
- * aqui: Editar/Ressincronizar, restauração por `sourceId`, sem listas,
+ * aqui: "Configurar" da linha (067), restauração por `sourceId`, sem listas,
  * RETURN, topbar (presente/ausente).
  */
 vi.mock('../import/importApi', async (importOriginal) => {
@@ -128,101 +128,57 @@ describe('SettingsScreen — nomes acessíveis (feature 028, FR-015/FR-017)', ()
     renderSettings()
     expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
   })
-
-  it('todo controle tem nome acessível: aba Categorias & parental', () => {
-    mockSources([SALA])
-    mockDelete()
-    mockResync()
-    renderSettings()
-    for (let i = 0; i < 3; i += 1) press('ArrowDown') // tabs: sources (1) -> player -> accessibility -> parental (4)
-    press('ArrowRight') // entra no painel
-    expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
-  })
 })
 
-// Feature 066 (FR-001): a aba "Categorias & parental" é real — o mock "Em breve" que a 028 testava aqui saiu.
-describe('SettingsScreen — Categorias & parental (feature 066, FR-001)', () => {
-  it('entra no painel pelo controle parental e ← devolve o foco à trilha de abas', async () => {
-    mockSources([SALA])
-    mockDelete()
-    mockResync()
-    renderSettings()
+// Feature 067: Categorias & controle parental saiu das Configurações globais — testada em `list/ListSettingsScreen.test.tsx`.
 
-    for (let i = 0; i < 3; i += 1) press('ArrowDown') // tabs: sources (1) -> player -> accessibility -> parental (4)
-    press('ArrowRight')
-    expect(screen.queryByText(/Em breve/)).toBeNull()
-    expect(await screen.findByRole('button', { name: 'Controle parental: Desligado' })).toHaveClass('tv-focus')
-
-    press('ArrowLeft')
-    expect(screen.getByRole('button', { name: 'Controle parental: Desligado' })).not.toHaveClass('tv-focus')
-    expect(document.querySelector('.side-category-nav-item.tv-focus')?.textContent).toContain('Categorias & parental')
-  })
-})
-
-describe('SettingsScreen — Editar/Ressincronizar (US2, FR-026/FR-027)', () => {
-  it('OK em "Editar" chama onEditSource com a lista e o SettingsFocus de origem', () => {
+// Feature 067 (FR-013): a linha só tem "Configurar". Editar/Ressincronizar/Excluir/EPG moram em Configurações da lista
+// (`list/ListSettingsScreen.test.tsx`).
+describe('SettingsScreen — linha de Fontes IPTV (feature 067)', () => {
+  it('OK em "Configurar" entrega a lista da linha e o SettingsFocus de origem, e nenhuma outra ação sai da tela', () => {
     mockSources([SALA, QUARTO])
     mockDelete()
     mockResync()
-    const props = renderSettings()
+    const props = renderSettings({ onConfigureSource: vi.fn(), onOpenEpg: vi.fn() })
 
-    press('ArrowRight') // tabs -> panel (Sala, coluna 0 = Editar)
+    press('ArrowRight') // tabs -> panel (Sala)
+    press('ArrowDown') // Quarto
+    press('ArrowRight') // sem outras ações: não sai da linha
     press('Enter')
 
-    expect(props.onEditSource).toHaveBeenCalledWith(SALA, { zone: 'sources', sourceId: 'sala', action: 'edit' })
-  })
-
-  it('OK em "Ressincronizar" chama onResyncStarted com o job id; enquanto pendente, um segundo OK não inicia outra', () => {
-    mockSources([SALA])
-    mockDelete()
-    const mutate = vi.fn((_id: string, options: { onSuccess: (result: { import_job_id: string }) => void }) =>
-      options.onSuccess({ import_job_id: 'job-1' }),
-    )
-    mockResync(mutate)
-    const props = renderSettings()
-
-    press('ArrowRight') // panel, coluna 0
-    press('ArrowRight') // coluna 1 = Ressincronizar
-    press('Enter')
-
-    expect(props.onResyncStarted).toHaveBeenCalledWith('job-1', { zone: 'sources', sourceId: 'sala', action: 'resync' })
-    expect(mutate).toHaveBeenCalledTimes(1)
-
-    // Pendente: um segundo OK não chama mutate de novo.
-    cleanup()
-    mockResync(mutate, true)
-    renderSettings()
-    press('ArrowRight')
-    press('ArrowRight')
-    press('Enter')
-    expect(mutate).toHaveBeenCalledTimes(1)
-  })
-
-  // Feature 030 (US2, FR-016): o botão "EPG" deixou de ser o toast "Em breve".
-  it('OK em "EPG" abre a tela de EPG da lista, com o SettingsFocus de origem, e não avisa "Em breve"', () => {
-    mockSources([SALA])
-    mockDelete()
-    mockResync()
-    const props = renderSettings({ onOpenEpg: vi.fn() })
-
-    press('ArrowRight') // tabs -> panel, coluna 0
-    press('ArrowRight')
-    press('ArrowRight')
-    press('ArrowRight') // coluna 3 = EPG
-    press('Enter')
-
-    expect(props.onOpenEpg).toHaveBeenCalledWith(SALA, { zone: 'sources', sourceId: 'sala', action: 'epg' })
-    expect(screen.queryByText(/Em breve/)).not.toBeInTheDocument()
+    expect(props.onConfigureSource).toHaveBeenCalledWith(QUARTO, { zone: 'sources', sourceId: 'quarto', action: 'configure' })
+    for (const handler of [props.onEditSource, props.onResyncStarted, props.onOpenEpg, props.onSourceDeleted]) expect(handler).not.toHaveBeenCalled()
   })
 
   it('restaura o foco por sourceId (não pela posição)', () => {
     mockSources([SALA, QUARTO])
     mockDelete()
     mockResync()
-    renderSettings({ initialFocus: { zone: 'sources', sourceId: 'quarto', action: 'resync' } })
+    renderSettings({ initialFocus: { zone: 'sources', sourceId: 'quarto', action: 'configure' } })
 
     const quarto = screen.getByRole('group', { name: 'Lista Quarto' })
-    expect(within(quarto).getByRole('button', { name: 'Ressincronizar' })).toHaveClass('tv-focus')
+    expect(within(quarto).getByRole('button', { name: 'Configurar' })).toHaveClass('tv-focus')
+    expect(within(screen.getByRole('group', { name: 'Lista Sala' })).getByRole('button', { name: 'Configurar' })).not.toHaveClass('tv-focus')
+  })
+
+  it('sem onConfigureSource (contratos antigos), OK em "Configurar" não quebra', () => {
+    mockSources([SALA])
+    mockDelete()
+    mockResync()
+    renderSettings()
+    press('ArrowRight')
+    expect(() => press('Enter')).not.toThrow()
+  })
+
+  it('aviso de escopo: "valem para todas as listas", com e sem topbar', () => {
+    mockSources([SALA])
+    mockDelete()
+    mockResync()
+    renderSettings()
+    expect(screen.getByText('Estas configurações valem para todas as listas.')).toBeInTheDocument()
+    cleanup()
+    renderSettings({ shell: makeShell() })
+    expect(screen.getByText('Estas configurações valem para todas as listas.')).toBeInTheDocument()
   })
 })
 
@@ -232,14 +188,13 @@ describe('SettingsScreen — registro de abas (item 63)', () => {
     mockSources([SALA, QUARTO])
     mockDelete()
     mockResync()
-    renderSettings({ initialFocus: { zone: 'sources', sourceId: 'quarto', action: 'resync' } })
+    renderSettings({ initialFocus: { zone: 'sources', sourceId: 'quarto', action: 'configure' } })
 
     const quartoAntes = screen.getByRole('group', { name: 'Lista Quarto' })
-    press('ArrowLeft') // coluna 1 -> 0
     press('ArrowLeft') // borda: volta às abas
     press('ArrowRight') // reentra em Fontes IPTV: sem remontar, foco no começo
     expect(screen.getByRole('group', { name: 'Lista Quarto' })).toBe(quartoAntes)
-    expect(within(screen.getByRole('group', { name: 'Lista Sala' })).getByRole('button', { name: 'Editar' })).toHaveClass(
+    expect(within(screen.getByRole('group', { name: 'Lista Sala' })).getByRole('button', { name: 'Configurar' })).toHaveClass(
       'tv-focus',
     )
 
@@ -250,7 +205,7 @@ describe('SettingsScreen — registro de abas (item 63)', () => {
     press('ArrowLeft') // volta às abas
     press('ArrowUp') // Fontes IPTV
     press('ArrowRight')
-    expect(within(screen.getByRole('group', { name: 'Lista Sala' })).getByRole('button', { name: 'Editar' })).toHaveClass(
+    expect(within(screen.getByRole('group', { name: 'Lista Sala' })).getByRole('button', { name: 'Configurar' })).toHaveClass(
       'tv-focus',
     )
   })

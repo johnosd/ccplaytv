@@ -134,7 +134,8 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   — canal ao vivo não tem histórico nem "já assistido" (decisão de
   escopo, feature 019). Um título sai do "↺ Histórico" pela tecla vermelha
   na grade ou pela ação "Remover do histórico" no detalhe, e Configurações ›
-  Privacidade limpa o histórico de Filmes, Séries ou ambos da lista ativa —
+  Fontes IPTV › Configurar › Histórico limpa o histórico de Filmes, Séries ou
+  ambos daquela lista (ativa ou não) —
   sempre com confirmação e a escolha de manter ou apagar a retomada, sem
   tocar em favoritos nem em "assistido" (feature 036). *A avaliar:*
   agregação de favoritos/histórico entre todas as fontes.
@@ -188,19 +189,28 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   painel faz a pré-carga esperar um minuto em vez de insistir (feature 042).
   Os nomes reais de erro do AVPlay e uma queda de rede de verdade ainda não
   foram vistos na TV.
-- **Categorias e controle parental:** em Configurações › Categorias & parental,
-  cada categoria da lista (Canais, Filmes, Séries) pode ser escondida — some de
+- **Categorias e controle parental:** em Configurações › Fontes IPTV › Configurar ›
+  Categorias & controle parental, cada categoria da lista (Canais, Filmes, Séries) pode ser escondida — some de
   trilhas, "Todos", busca, fileiras, Favoritos/Histórico/Continuar assistindo,
   guia e zapping, sem apagar favorito nem progresso — ou bloqueada com um PIN
   de 4 dígitos (teclas do controle ou teclado na tela). Bloqueada aparece com
   cadeado no fim da trilha e pede o PIN; o desbloqueio vale até o app ir para
-  segundo plano ou trocar de lista. Ao ligar, categorias de nome adulto vêm
-  sugeridas; com o PIN, adicionar/editar/remover lista também o pedem. "Esqueci
-  o PIN" confere usuário e senha (ou endereço M3U) de uma lista, só no aparelho.
+  segundo plano ou trocar de lista. O PIN é **por lista** (feature 067): cada
+  lista tem o seu ou nenhum, e o de uma não vale em outra. Ao ligar, categorias
+  de nome adulto da lista vêm sugeridas; com o PIN dela, editar e remover essa
+  lista também o pedem (adicionar lista nunca pede). "Esqueci o PIN" confere
+  usuário e senha (ou endereço M3U) da própria lista, só no aparelho.
   O número dos canais não muda ao esconder. Conteúdo adulto (categoria de nome
   adulto, item que a lista marca como adulto ou categoria bloqueada) nunca
   aparece no ↺ Histórico nem no Continuar assistindo, mesmo com o PIN digitado;
   a retomada do filme continua funcionando (feature 066).
+- **Configurações da lista × globais:** a tela "Configurações da lista" (aberta por
+  "Configurar" no cartão da tela de perfis ou na linha de Configurações › Fontes
+  IPTV) reúne, para qualquer lista — ativa ou não, sem trocar a ativa —, Conta &
+  lista (Editar, Ressincronizar, Excluir), EPG, Categorias & controle parental e
+  Histórico. Configurações fica só com o que vale para o app todo (Integrações,
+  Fontes IPTV, Player, Acessibilidade, Sobre). O PIN antigo, único por aparelho,
+  passa às listas que tinham categoria bloqueada ao atualizar (feature 067).
 
 ## Arquitetura
 

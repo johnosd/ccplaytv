@@ -3,8 +3,8 @@ import type { SideCategoryNavEntry } from '../../../components/SideCategoryNav'
 import type { MessageKey } from '../../../lib/i18n/messages/pt'
 import type { SourceOut } from '../../import/importApi'
 
-/** Abas na ordem do DS (FR-022). `sources` é a inicial. */
-export type SettingsTab = 'integrations' | 'sources' | 'player' | 'accessibility' | 'parental' | 'privacy' | 'about'
+/** Abas na ordem do DS (FR-022). `sources` é a inicial. Só as globais desde a feature 067 (FR-015). */
+export type SettingsTab = 'integrations' | 'sources' | 'player' | 'accessibility' | 'about'
 
 /**
  * Onde estava o foco quando a pessoa saiu de Configurações (para Editar,
@@ -13,7 +13,7 @@ export type SettingsTab = 'integrations' | 'sources' | 'player' | 'accessibility
  */
 export type SettingsFocus =
   | { zone: 'tabs'; tab: SettingsTab }
-  | { zone: 'sources'; sourceId: string; action: 'edit' | 'resync' | 'delete' | 'epg' }
+  | { zone: 'sources'; sourceId: string; action: 'configure' }
   | { zone: 'sources-add' }
   | { zone: 'panel'; tab: SettingsTab; service?: 'speedtest' }
 
@@ -95,6 +95,29 @@ export interface ListSettingsNavigation {
   onOpenEpg: (source: SourceOut, from: ListSettingsFocus) => void
   /** Exclusão terminou. `nextFocusId`: lista vizinha na origem, ou `null` para "Adicionar lista" (FR-010). */
   onSourceDeleted: (sourceId: string, nextFocusId: string | null) => void
+}
+
+/**
+ * O que Configurações da lista entrega à aba ativa (feature 067, D-005/D-006). `source` é SEMPRE a lista da tela —
+ * nunca a ativa; `activeSourceId` só serve para a marca "Lista ativa". Sem topbar: ↑ na primeira linha não sai.
+ */
+export interface ListSettingsTabProps {
+  focused: boolean
+  /** Só na aba em que a tela abriu, até a primeira troca de aba (volta de Editar/progresso/EPG). */
+  initialFocus?: ListSettingsFocus
+  source: SourceOut
+  activeSourceId: string | null
+  navigation: ListSettingsNavigation
+  /** ← na borda esquerda: devolve o foco à coluna de abas. */
+  exitToTabs: () => void
+  showToast: (message: string) => void
+  handleRef: Ref<SettingsTabHandle>
+}
+
+export interface ListSettingsTabDefinition extends Omit<SideCategoryNavEntry, 'label'> {
+  id: ListSettingsTab
+  labelKey: MessageKey
+  Panel: ComponentType<ListSettingsTabProps>
 }
 
 export interface SettingsTabDefinition extends Omit<SideCategoryNavEntry, 'label'> {

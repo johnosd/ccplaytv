@@ -10,6 +10,7 @@ export const player = defineArea(
     'player.quality.auto': 'Auto',
     'player.quality.max': 'Máxima',
     'player.quality.min': 'Econômica',
+    'player.progressSaveFailed': 'Não foi possível salvar onde você parou ({code}).',
   },
   {
     'player.aspect.fit': 'Fit',
@@ -19,6 +20,7 @@ export const player = defineArea(
     'player.quality.auto': 'Auto',
     'player.quality.max': 'Highest',
     'player.quality.min': 'Data saver',
+    'player.progressSaveFailed': 'Could not save where you stopped ({code}).',
   },
   {
     'player.aspect.fit': 'Ajustar',
@@ -28,5 +30,6 @@ export const player = defineArea(
     'player.quality.auto': 'Auto',
     'player.quality.max': 'Máxima',
     'player.quality.min': 'Económica',
+    'player.progressSaveFailed': 'No se pudo guardar dónde te quedaste ({code}).',
   },
 )

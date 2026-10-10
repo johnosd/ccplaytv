@@ -520,6 +520,19 @@ describe('ProfilesScreen — ações da lista (US3)', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it('067 (FR-012): "Configurar" é a última ação e chama onConfigureSource com a lista do cartão; não passa daí', () => {
+    mockLoaded(LISTA_1, LISTA_2)
+    const { props } = renderProfiles({ onConfigureSource: vi.fn() })
+
+    press('ArrowRight', 'ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight')
+    const actions = within(screen.getByRole('group', { name: /Lista 2/ })).getAllByRole('button').map((button) => button.textContent?.trim())
+    expect(actions).toEqual(['Ressincronizar', 'Editar', 'Excluir', 'Configurar'])
+    expect(card('Configurar')).toHaveClass('tv-focus')
+    press('Enter')
+    expect(props.onConfigureSource).toHaveBeenCalledWith(LISTA_2)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('Editar chama onEditSource com a lista', () => {
     mockLoaded(LISTA_1, LISTA_2)
     const { props } = renderProfiles()

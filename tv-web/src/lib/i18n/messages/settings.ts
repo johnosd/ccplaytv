@@ -40,8 +40,6 @@ export const settings = defineArea(
     'settings.tab.sources': 'Fontes IPTV',
     'settings.tab.player': 'Player & reprodução',
     'settings.tab.accessibility': 'Acessibilidade & sistema',
-    'settings.tab.parental': 'Categorias & parental',
-    'settings.tab.privacy': 'Privacidade',
     'settings.tab.about': 'Sobre & créditos',
 
     'settings.language.label': 'Idioma',
@@ -111,7 +109,6 @@ export const settings = defineArea(
     'settings.sources.edit': 'Editar',
     'settings.sources.resync': 'Ressincronizar',
     'settings.sources.delete': 'Excluir',
-    'settings.sources.epg': 'EPG',
     'settings.sources.offlineNote': ', indisponível sem conexão',
     'settings.sources.add': 'Adicionar lista',
     'settings.sources.deleteFailed': 'Não foi possível excluir a lista.',
@@ -119,7 +116,6 @@ export const settings = defineArea(
     'settings.sources.resyncing': 'Ressincronizando lista…',
     'settings.sources.resyncFailed': 'Não foi possível ressincronizar a lista.',
 
-    'settings.privacy.noList': 'O histórico é guardado por lista. Entre numa lista para limpar o histórico dela.',
     'settings.privacy.heading': 'Histórico de {list}',
     'settings.privacy.note': 'Favoritos e marcações de assistido não são alterados.',
     'settings.privacy.scope.movies': 'Filmes',
@@ -199,8 +195,6 @@ export const settings = defineArea(
     'settings.tab.sources': 'IPTV sources',
     'settings.tab.player': 'Playback',
     'settings.tab.accessibility': 'Accessibility',
-    'settings.tab.parental': 'Categories & parental',
-    'settings.tab.privacy': 'Privacy',
     'settings.tab.about': 'About & credits',
 
     'settings.language.label': 'Language',
@@ -270,7 +264,6 @@ export const settings = defineArea(
     'settings.sources.edit': 'Edit',
     'settings.sources.resync': 'Resync',
     'settings.sources.delete': 'Delete',
-    'settings.sources.epg': 'EPG',
     'settings.sources.offlineNote': ', unavailable offline',
     'settings.sources.add': 'Add list',
     'settings.sources.deleteFailed': 'Could not delete the list.',
@@ -278,7 +271,6 @@ export const settings = defineArea(
     'settings.sources.resyncing': 'Resyncing list…',
     'settings.sources.resyncFailed': 'Could not resync the list.',
 
-    'settings.privacy.noList': 'History is kept per list. Enter a list to clear its history.',
     'settings.privacy.heading': 'History of {list}',
     'settings.privacy.note': 'Favorites and watched marks are not changed.',
     'settings.privacy.scope.movies': 'Movies',
@@ -358,8 +350,6 @@ export const settings = defineArea(
     'settings.tab.sources': 'Fuentes IPTV',
     'settings.tab.player': 'Reproducción',
     'settings.tab.accessibility': 'Accesibilidad',
-    'settings.tab.parental': 'Categorías y control',
-    'settings.tab.privacy': 'Privacidad',
     'settings.tab.about': 'Créditos',
 
     'settings.language.label': 'Idioma',
@@ -429,7 +419,6 @@ export const settings = defineArea(
     'settings.sources.edit': 'Editar',
     'settings.sources.resync': 'Resincronizar',
     'settings.sources.delete': 'Eliminar',
-    'settings.sources.epg': 'EPG',
     'settings.sources.offlineNote': ', no disponible sin conexión',
     'settings.sources.add': 'Añadir lista',
     'settings.sources.deleteFailed': 'No se pudo eliminar la lista.',
@@ -437,7 +426,6 @@ export const settings = defineArea(
     'settings.sources.resyncing': 'Resincronizando lista…',
     'settings.sources.resyncFailed': 'No se pudo resincronizar la lista.',
 
-    'settings.privacy.noList': 'El historial se guarda por lista. Entra en una lista para borrar su historial.',
     'settings.privacy.heading': 'Historial de {list}',
     'settings.privacy.note': 'Los favoritos y las marcas de visto no se modifican.',
     'settings.privacy.scope.movies': 'Películas',

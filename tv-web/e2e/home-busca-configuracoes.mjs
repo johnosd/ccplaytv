@@ -11,7 +11,7 @@
 //   US3 (Busca): desde o ad-hoc de 2026-10-09 a lupa está escondida em todas as
 //     telas — o roteiro só confirma que ela não aparece na topbar.
 //   US2 (Configurações): Fontes IPTV mostra "Modo limitado" numa fonte cujo
-//     painel não confirma o protocolo; excluir exige confirmação;
+//     painel não confirma o protocolo; excluir (pela tela da lista, 067) exige confirmação;
 //     "Reduzir movimento" liga de verdade (classe no `<html>`).
 //
 // Pré-requisito: `npm run dev` já rodando em outro terminal
@@ -364,10 +364,17 @@ async function run() {
     await limitedRow.locator('.limited-mode-notice-title', { hasText: 'Modo limitado' }).waitFor({ timeout: 8000 })
     assert(true, 'a fonte recém-adicionada, sem protocolo confirmado, mostra "Modo limitado" em Fontes IPTV')
 
-    console.log('=== US2 (Configurações): excluir exige confirmação ===')
-    await page.keyboard.press('ArrowRight') // tabs -> panel (entra em Fontes IPTV, padrão: 1ª linha, col "Editar")
+    console.log('=== US2 (Configurações): excluir exige confirmação (pela tela da lista, feature 067) ===')
+    await page.keyboard.press('ArrowRight') // tabs -> panel (entra em Fontes IPTV, 1ª linha, "Configurar")
     await page.waitForSelector('.sources-panel-row .tv-focus', { timeout: 4000 })
     await page.keyboard.press('ArrowDown') // "Fonte E2E Home" -> "Fonte E2E Home Limitada" (2ª linha)
+    await page.keyboard.press('Enter') // Configurar → Configurações da lista
+    await page.getByRole('heading', { name: /Configurações da lista/ }).waitFor({ timeout: 5000 })
+    assert(
+      ((await page.locator('.list-settings-name').textContent()) ?? '').includes('Fonte E2E Home Limitada'),
+      'a tela da lista mostra o nome da lista escolhida (não a ativa)',
+    )
+    await page.keyboard.press('ArrowRight') // abas → painel (Conta & lista: "Editar")
     await page.keyboard.press('ArrowRight') // Editar -> Ressincronizar
     await page.keyboard.press('ArrowRight') // Ressincronizar -> Excluir
     await page.keyboard.press('Enter')
@@ -379,25 +386,26 @@ async function run() {
     )
     await page.keyboard.press('Enter') // Cancelar
     await deleteDialog.waitFor({ state: 'detached', timeout: 5000 })
-    assert((await page.locator('.sources-panel-row').count()) === 2, 'OK em "Cancelar" não apaga nada')
-    await page.keyboard.press('Enter') // reabre (mesma linha/coluna)
+    assert((await page.locator('.list-settings-screen').count()) === 1, 'OK em "Cancelar" não apaga nada e fica na tela da lista')
+    await page.keyboard.press('Enter') // reabre (mesma ação)
     await deleteDialog.waitFor({ timeout: 5000 })
     await page.keyboard.press('ArrowRight') // Excluir
     await page.keyboard.press('Enter')
     await deleteDialog.waitFor({ state: 'detached', timeout: 5000 })
+    // Excluir uma lista que não é a ativa volta à origem (Configurações › Fontes IPTV) com o foco na vizinha.
     await page.waitForFunction(() => document.querySelectorAll('.sources-panel-row').length === 1, null, { timeout: 8000 })
-    assert(true, 'confirmar "Excluir" apaga só a fonte escolhida')
+    assert(true, 'confirmar "Excluir" apaga só a fonte escolhida e volta a Configurações › Fontes IPTV')
     assert(
       (await page.locator('.sources-panel-row', { hasText: 'Fonte E2E Home' }).count()) === 1,
       'a fonte principal continua cadastrada',
     )
+    assert(
+      (await page.locator('.sources-panel-row', { hasText: 'Fonte E2E Home' }).locator('.tv-focus').count()) === 1,
+      'o foco ficou em "Configurar" da lista vizinha',
+    )
 
     console.log('=== US2 (Configurações): "Reduzir movimento" liga de verdade ===')
-    // Depois de excluir, o foco fica na linha vizinha ("Fonte E2E Home") mas na MESMA coluna de onde
-    // se excluiu ("Excluir", col 2, `confirmSourceDeletion` só troca a linha) — 2 ArrowLeft pra col 0,
-    // um 3º pra sair do painel.
-    await page.keyboard.press('ArrowLeft') // Excluir -> Ressincronizar
-    await page.keyboard.press('ArrowLeft') // Ressincronizar -> Editar (col 0)
+    // Depois de excluir, o foco volta ao "Configurar" da linha vizinha; um ArrowLeft sai do painel.
     await page.keyboard.press('ArrowLeft') // panel -> tabs
     await page.keyboard.press('ArrowDown') // Fontes IPTV -> Player & reprodução
     await page.keyboard.press('ArrowDown') // -> Acessibilidade & sistema

@@ -320,10 +320,16 @@ async function main() {
       await page.getByRole('button', { name: 'Configurações', exact: true }).click()
       await page.waitForSelector('.settings-screen .sources-panel', { timeout: 8000 })
 
-      await page.getByRole('button', { name: 'EPG', exact: true }).click()
+      // Feature 067: o EPG da lista mora em Configurações da lista › EPG.
+      await page.getByRole('button', { name: 'Configurar', exact: true }).click()
+      await page.locator('.side-category-nav-item', { hasText: 'EPG' }).click()
+      await page.getByRole('button', { name: 'Configurar EPG' }).click()
       await page.waitForSelector('.epg-settings', { timeout: 8000 })
       await naMetadeSuperior(page, page.getByLabel(/Endereço XMLTV/), 'EPG manual › Endereço XMLTV')
-      await page.keyboard.press('Escape')
+      await page.keyboard.press('Escape') // tela de EPG -> tela da lista
+      await page.waitForSelector('.list-settings-screen', { timeout: 8000 })
+      await page.keyboard.press('Escape') // tela da lista -> Configurações
+      await page.waitForSelector('.settings-screen:not(.list-settings-screen)', { timeout: 8000 })
 
       await page.getByRole('button', { name: 'Integrações & BYOK' }).click()
       await page.getByRole('region', { name: 'TMDB' }).getByRole('button', { name: 'Configurar' }).click()

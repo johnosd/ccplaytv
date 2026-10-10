@@ -4,37 +4,30 @@ import { clamp } from '../../../lib/useRemoteNav'
 import { useT } from '../../../lib/i18n/I18nProvider'
 import type { HistoryClearScope, HistoryRemovalMode } from '../../../lib/catalog/historyRemoval'
 import { useClearHistory, useHistorySummary } from '../../catalog/catalogApi'
-import { useSources } from '../../import/importApi'
 import { HistoryRemovalModal } from '../../history/HistoryRemovalModal'
 import { PrivacyPanel } from '../PrivacyPanel'
 import { isScopeEmpty, PRIVACY_SCOPE_LABEL_KEY, PRIVACY_SCOPES, scopeSummaries } from '../privacyModel'
-import type { SettingsTabProps } from './settingsTab'
+import type { ListSettingsTabProps } from './settingsTab'
 
 /**
- * Privacidade (feature 036, US2 — `logic/remocao-historico.md` §11): limpar o
- * "↺ Histórico" da lista ativa. O resumo só é lido com a aba montada — e a
- * aba só monta quando está ativa (registro de abas, R-005), então abrir
- * Configurações não lê nada (T026).
+ * Histórico (feature 036, US2 — `logic/remocao-historico.md` §11): limpar o "↺ Histórico" de uma lista. Desde a
+ * feature 067 é a aba Histórico de Configurações da lista e age sobre a lista DA TELA, ativa ou não (D-005). O resumo só
+ * é lido com a aba montada — e a aba só monta quando está ativa, então abrir a tela não lê nada (T026 da 036).
  */
-export function PrivacyTab({ focused, activeSourceId, exitToTabs, goToTopbar, showToast, handleRef }: SettingsTabProps): ReactNode {
+export function PrivacyTab({ focused, source, exitToTabs, showToast, handleRef }: ListSettingsTabProps): ReactNode {
   const t = useT()
-  const sourcesQuery = useSources()
-  const activeSource = sourcesQuery.data?.sources.find((source) => source.id === activeSourceId)
-  const listName = activeSourceId === null ? null : (activeSource?.display_name ?? '')
-  const summaryQuery = useHistorySummary(activeSourceId, true)
+  const sourceId = source.id
+  const listName = source.display_name
+  const summaryQuery = useHistorySummary(sourceId, true)
   const summaries = summaryQuery.data ? scopeSummaries(summaryQuery.data) : undefined
   const clearHistory = useClearHistory()
 
   const [row, setRow] = useState(0)
   const [confirm, setConfirm] = useState<{ scope: HistoryClearScope; error: boolean } | null>(null)
-  const rowCount = listName === null ? 1 : PRIVACY_SCOPES.length
+  const rowCount = PRIVACY_SCOPES.length
 
   function activateRow(target: number) {
     setRow(target)
-    if (listName === null) {
-      exitToTabs()
-      return
-    }
     const scope = PRIVACY_SCOPES[target]
     const summary = summaries?.[scope]
     if (!summary) return // ainda lendo
@@ -47,10 +40,10 @@ export function PrivacyTab({ focused, activeSourceId, exitToTabs, goToTopbar, sh
   }
 
   function confirmClear(mode: HistoryRemovalMode) {
-    if (!confirm || activeSourceId === null || clearHistory.isPending) return
+    if (!confirm || clearHistory.isPending) return
     const { scope } = confirm
     clearHistory.mutate(
-      { sourceId: activeSourceId, scope, mode },
+      { sourceId, scope, mode },
       {
         // O foco fica na linha, agora vazia (FR-028).
         onSuccess: () => {
@@ -69,10 +62,6 @@ export function PrivacyTab({ focused, activeSourceId, exitToTabs, goToTopbar, sh
         exitToTabs()
         return
       }
-      if (direction === 'up' && row === 0) {
-        goToTopbar()
-        return
-      }
       if (direction === 'up' || direction === 'down') {
         setRow((r) => clamp(r + (direction === 'down' ? 1 : -1), 0, rowCount - 1))
       }
@@ -87,7 +76,6 @@ export function PrivacyTab({ focused, activeSourceId, exitToTabs, goToTopbar, sh
         summaries={summaries}
         focusedRow={focused && !confirm ? row : undefined}
         onActivateRow={activateRow}
-        onBack={exitToTabs}
       />
       {confirm && summaries && (
         <HistoryRemovalModal

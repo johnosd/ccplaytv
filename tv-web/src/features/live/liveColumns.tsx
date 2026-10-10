@@ -12,7 +12,6 @@ import { ChannelRow } from '../../components/ChannelRow'
 import { ErrorState } from '../../components/ErrorState'
 import { EmptyState } from '../../components/EmptyState'
 import { LockedCategoryState } from '../../components/LockedCategoryState'
-import { unlockWithPin } from '../../lib/catalog/categoryAccess'
 import { Spinner } from '../../components/Spinner'
 import { Icon } from '../../components/Icon'
 import { describeError } from '../../lib/errors/errorCatalog'
@@ -369,7 +368,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
 
         {showingContent && !searchActive && !contentIsLoading && !contentUnavailable && entered?.kind === 'category' && items.length === 0 && (
           trail.enteredCategory?.locked ? ( // feature 066 (FR-013): PIN abre ao entrar; RETURN volta à trilha
-            <LockedCategoryState name={liveGroupDisplay(trail.enteredCategory.name, t)} focused={false} pinOpen={contentActive && effectiveCol === 1} onOpenPin={() => setCol(1)} onClosePin={() => setCol(0)} onUnlock={(pin) => unlockWithPin(sourceId, pin)} />
+            <LockedCategoryState name={liveGroupDisplay(trail.enteredCategory.name, t)} focused={false} pinOpen={contentActive && effectiveCol === 1} onOpenPin={() => setCol(1)} onClosePin={() => setCol(0)} sourceId={sourceId} />
           ) : (
             <EmptyState title={t('live.emptyGroup')} action={{ label: t('common.back'), onSelect: () => setCol(0) }} focused />
           )

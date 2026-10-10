@@ -41,6 +41,7 @@ files:
   - assets/route-add-source.js
   - assets/route-epg-settings.js
   - assets/route-import-progress.js
+  - assets/route-list-settings.js
   - assets/route-live.js
   - assets/route-movie-detail.js
   - assets/route-person.js
@@ -60,6 +61,7 @@ files:
   - assets/HistoryRemovalModal.js
   - assets/Icon.js
   - assets/SideCategoryNav.js
+  - assets/SourcesPanel.js
   - assets/TextField.js
   - assets/TitleSummaryModal.js
   - assets/accountCheck.js
@@ -67,6 +69,7 @@ files:
   - assets/ComingSoon.js
   - assets/errorCatalog.js
   - assets/freshness.js
+  - assets/onlineStatus.js
   - assets/paging.js
   - assets/trailerAction.js
   - assets/react-dom.js

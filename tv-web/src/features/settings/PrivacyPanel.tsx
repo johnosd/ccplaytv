@@ -1,40 +1,24 @@
 import type { ReactNode } from 'react'
-import { EmptyState } from '../../components/EmptyState'
 import type { HistoryClearScope, HistoryScopeSummary } from '../../lib/catalog/historyRemoval'
 import { useT } from '../../lib/i18n/I18nProvider'
 import { describeScope, isScopeEmpty, PRIVACY_ROW_LABEL_KEY, PRIVACY_SCOPES } from './privacyModel'
 
 export interface PrivacyPanelProps {
-  /** Nome da lista ativa; `null` = sem lista ativa (FR-027). */
-  listName: string | null
+  /** Nome da lista da tela (Configurações da lista, feature 067). */
+  listName: string
   /** Resumo por linha, na ordem de `PRIVACY_SCOPES`; `undefined` enquanto lê. */
   summaries: Record<HistoryClearScope, HistoryScopeSummary> | undefined
   /** `undefined` = nenhuma linha focada agora (zona `tabs`). */
   focusedRow?: number
   onActivateRow: (row: number) => void
-  /** "Voltar às abas" do estado sem lista ativa. */
-  onBack: () => void
 }
 
 /**
- * Privacidade (feature 036, US2 — `logic/remocao-historico.md` §11): limpar
- * o "↺ Histórico" da lista ativa. Linha vazia fica soft disabled, mas
- * continua focável e diz por quê no nome (FR-026). Sem lista ativa, explica e
- * mantém um botão focável (FR-027).
+ * Histórico (feature 036, US2 — `logic/remocao-historico.md` §11): limpar o "↺ Histórico" da lista da tela. Linha vazia
+ * fica soft disabled, mas continua focável e diz por quê no nome (FR-026). Desde a feature 067 sempre há uma lista.
  */
-export function PrivacyPanel({ listName, summaries, focusedRow, onActivateRow, onBack }: PrivacyPanelProps): ReactNode {
+export function PrivacyPanel({ listName, summaries, focusedRow, onActivateRow }: PrivacyPanelProps): ReactNode {
   const t = useT()
-  if (listName === null) {
-    return (
-      <EmptyState
-        title={t('settings.tab.privacy')}
-        description={t('settings.privacy.noList')}
-        action={{ label: t('common.backToTabs'), onSelect: onBack }}
-        focused={focusedRow !== undefined}
-      />
-    )
-  }
-
   return (
     <div className="privacy-panel">
       <h2 className="privacy-panel-heading">{t('settings.privacy.heading', { list: listName })}</h2>

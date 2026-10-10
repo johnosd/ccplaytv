@@ -58,6 +58,7 @@ const ROUTE_CHUNKS = [
   ['route-series-detail', '/src/features/series/SeriesDetailScreen.'],
   ['route-person', '/src/features/person/PersonScreen.'],
   ['route-settings', '/src/features/settings/SettingsScreen.'],
+  ['route-list-settings', '/src/features/settings/list/ListSettingsScreen.'],
   ['route-epg-settings', '/src/features/settings/EpgSettingsScreen.'],
   ['route-tmdb-key', '/src/features/settings/TmdbKeyScreen.'],
   ['route-search', '/src/features/search/SearchScreen.'],

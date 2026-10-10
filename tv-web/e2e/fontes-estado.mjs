@@ -145,10 +145,16 @@ async function openSettings(page) {
 
 const settingsRow = (page) => page.locator('.sources-panel-row', { hasText: LIST_NAME })
 
+/** Feature 067: Ressincronizar mora na aba Conta de Configurações da lista — "Configurar" na linha leva até lá. */
+async function clickResync(page) {
+  await settingsRow(page).getByRole('button', { name: 'Configurar' }).click()
+  await page.getByRole('button', { name: 'Ressincronizar' }).click()
+}
+
 /** Ressincroniza pela linha de Configurações, espera o desfecho e volta aos perfis. */
 async function resync(page) {
   await openSettings(page)
-  await settingsRow(page).getByRole('button', { name: 'Ressincronizar' }).click()
+  await clickResync(page)
   await page.waitForSelector('text=/Concluída|Tentar novamente/', { timeout: 30000 })
   await page.getByRole('button', { name: 'Voltar' }).first().click()
   await page.waitForSelector('.source-card', { timeout: 8000 })
@@ -340,7 +346,7 @@ async function run() {
     await toProfiles(page)
     panel.categoryDelayMs = 3000
     await openSettings(page)
-    await settingsRow(page).getByRole('button', { name: 'Ressincronizar' }).click()
+    await clickResync(page)
     await page.waitForTimeout(600) // a tela de progresso abriu e a importação segue rodando (o painel demora 3 s)
     await page.keyboard.press('Escape') // RETURN na tela de progresso, com a importação ainda rodando
     await page.waitForSelector('.source-card', { timeout: 8000 })

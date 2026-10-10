@@ -186,17 +186,22 @@
     "features/settings/TmdbKeyScreen.tsx": [
       "features/catalog/catalogApi.ts"
     ],
+    "features/settings/list/AccountTab.tsx": [
+      "features/import/importApi.ts",
+      "features/sources/DeleteSourceModal.tsx"
+    ],
+    "features/settings/list/ListSettingsScreen.tsx": [
+      "features/import/importApi.ts"
+    ],
     "features/settings/tabs/IntegrationsTab.tsx": [
       "features/catalog/catalogApi.ts"
     ],
     "features/settings/tabs/PrivacyTab.tsx": [
       "features/catalog/catalogApi.ts",
-      "features/history/HistoryRemovalModal.tsx",
-      "features/import/importApi.ts"
+      "features/history/HistoryRemovalModal.tsx"
     ],
     "features/settings/tabs/SourcesTab.tsx": [
-      "features/import/importApi.ts",
-      "features/sources/DeleteSourceModal.tsx"
+      "features/import/importApi.ts"
     ],
     "features/settings/tabs/settingsTab.ts": [
       "features/import/importApi.ts"
@@ -279,7 +284,7 @@
     "lib/catalog/userStateRepository.ts": 362,
     "lib/catalog/xtreamConnector.ts": 910,
     "lib/i18n/messages/playerUi.ts": 365,
-    "lib/i18n/messages/settings.ts": 482,
+    "lib/i18n/messages/settings.ts": 470,
     "lib/i18n/messages/sources.ts": 674,
     "lib/player/PlayerService.ts": 744,
     "lib/player/avplayAdapter.ts": 593,

@@ -3,10 +3,12 @@ import type { ReactNode } from 'react'
 import { Modal } from './Modal'
 import { PinCreateFlow } from './PinCreateFlow'
 import { TextField } from './TextField'
-import { changePin, recoverPinWithSource } from '../lib/parental/pin'
+import { changePin, recoverPinWithSource } from '../lib/parental/listPin'
 import { useT } from '../lib/i18n/I18nProvider'
 
 export interface RecoverPinFlowProps {
+  /** A lista dona do PIN (feature 067, FR-023): só os dados dela são conferidos, só o PIN dela é trocado. */
+  sourceId: string
   /** PIN novo gravado — quem chama volta ao pedido de PIN. */
   onDone: () => void
   /** RETURN na escolha: desiste da recuperação. */
@@ -16,12 +18,12 @@ export interface RecoverPinFlowProps {
 type Step = 'choose' | 'xtream' | 'm3u' | 'create'
 
 /**
- * "Esqueci o PIN" (feature 066, US4 — FR-027..FR-030; `logic/pin.md` §5): usuário e senha de uma lista Xtream ou o
- * endereço de uma lista M3U já cadastrada, conferidos só no aparelho (`recoverPinWithSource`, nenhuma rede). Errado →
+ * "Esqueci o PIN" (feature 066, US4 — FR-027..FR-030; `logic/pin.md` §5): usuário e senha da lista (Xtream) ou o
+ * endereço dela (M3U) — só a lista dona do PIN desde a feature 067 —, conferidos só no aparelho (`recoverPinWithSource`, nenhuma rede). Errado →
  * mensagem genérica, sem dizer o campo nem repetir o digitado, e os campos limpos. Certo → PIN novo 2× (`changePin`);
  * bloqueios e escondidas ficam. Fica em `components/` porque o abrem telas de várias features (catraca).
  */
-export function RecoverPinFlow({ onDone, onCancel }: RecoverPinFlowProps): ReactNode {
+export function RecoverPinFlow({ sourceId, onDone, onCancel }: RecoverPinFlowProps): ReactNode {
   const t = useT()
   const [step, setStep] = useState<Step>('choose')
   const [row, setRow] = useState(0)
@@ -49,7 +51,7 @@ export function RecoverPinFlow({ onDone, onCancel }: RecoverPinFlowProps): React
   async function check() {
     if (checking) return
     setChecking(true)
-    const accepted = await recoverPinWithSource(step === 'xtream' ? { username, password } : { url })
+    const accepted = await recoverPinWithSource(sourceId, step === 'xtream' ? { username, password } : { url })
     setChecking(false)
     clearFields()
     if (accepted) setStep('create')
@@ -63,7 +65,7 @@ export function RecoverPinFlow({ onDone, onCancel }: RecoverPinFlowProps): React
     return (
       <PinCreateFlow
         onDone={async (pin) => {
-          await changePin(pin)
+          await changePin(sourceId, pin)
           onDone()
         }}
         onCancel={onCancel}

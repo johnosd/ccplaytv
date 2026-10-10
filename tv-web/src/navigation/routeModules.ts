@@ -11,6 +11,7 @@ import type { MovieDetailScreenProps } from '../features/movies/MovieDetailScree
 import type { SeriesDetailScreenProps } from '../features/series/SeriesDetailScreen'
 import type { PersonScreenProps } from '../features/person/PersonScreen'
 import type { SettingsScreenProps } from '../features/settings/SettingsScreen'
+import type { ListSettingsScreenProps } from '../features/settings/list/ListSettingsScreen'
 import type { EpgSettingsScreenProps } from '../features/settings/EpgSettingsScreen'
 import type { TmdbKeyScreenProps } from '../features/settings/TmdbKeyScreen'
 import type { SearchScreenProps } from '../features/search/SearchScreen'
@@ -19,18 +20,23 @@ import type { VodCategoryScreenProps } from '../features/vod/VodCategoryScreen'
 // Feature 065 (SC-012): cadastro/importação e acesso à lista chegam quando a pessoa vai até lá. O Início fica no pacote
 // inicial: carregá-lo sob demanda atrasava a primeira entrada na lista mais do que economizava na abertura.
 /**
- * Com o controle parental ligado, a rota só abre depois do PIN (feature 066, FR-017; D-008) — sem linha nas telas, que
- * estão no teto da catraca. Cancelar o PIN é o `onBack` da rota.
+ * Com o controle parental ligado na lista editada, a rota só abre depois do PIN dela (feature 066, FR-017; D-008; 067,
+ * FR-020) — sem linha nas telas, que estão no teto da catraca. Sem `existingSource` (adicionar lista) abre direto
+ * (067, FR-021). Cancelar o PIN é o `onBack` da rota.
  */
-function withParentalGate<P extends { onBack: () => void }>(Route: PreloadableRoute<P>): PreloadableRoute<P> {
+function withParentalGate<P extends { onBack: () => void; existingSource?: { id: string } }>(Route: PreloadableRoute<P>): PreloadableRoute<P> {
   function GatedRoute(props: P) {
-    return createElement(ParentalGate, { onCancel: props.onBack, children: createElement(Route as ComponentType<P>, props) })
+    return createElement(ParentalGate, {
+      sourceId: props.existingSource?.id,
+      onCancel: props.onBack,
+      children: createElement(Route as ComponentType<P>, props),
+    })
   }
   aliasRouteReset(GatedRoute, Route)
   return Object.assign(GatedRoute, { preload: Route.preload })
 }
 
-// Adicionar e editar lista (a mesma tela) pedem o PIN quando há controle parental.
+// Editar lista pede o PIN da lista quando ela tem controle parental; adicionar lista não pede (feature 067).
 export const AddSourceScreen = withParentalGate(lazyRoute<AddSourceScreenProps>(() => import('../features/import/AddSourceScreen'), 'AddSourceScreen'))
 export const ImportProgressScreen = lazyRoute<ImportProgressScreenProps>(() => import('../features/import/ImportProgressScreen'), 'ImportProgressScreen')
 export const SourceAccessRoute = lazyRoute<SourceAccessRouteProps>(() => import('../features/sources/SourceAccessRoute'), 'SourceAccessRoute')
@@ -40,6 +46,7 @@ export const MovieDetailScreen = lazyRoute<MovieDetailScreenProps>(() => import(
 export const SeriesDetailScreen = lazyRoute<SeriesDetailScreenProps>(() => import('../features/series/SeriesDetailScreen'), 'SeriesDetailScreen')
 export const PersonScreen = lazyRoute<PersonScreenProps>(() => import('../features/person/PersonScreen'), 'PersonScreen')
 export const SettingsScreen = lazyRoute<SettingsScreenProps>(() => import('../features/settings/SettingsScreen'), 'SettingsScreen')
+export const ListSettingsScreen = lazyRoute<ListSettingsScreenProps>(() => import('../features/settings/list/ListSettingsScreen'), 'ListSettingsScreen')
 export const EpgSettingsScreen = lazyRoute<EpgSettingsScreenProps>(() => import('../features/settings/EpgSettingsScreen'), 'EpgSettingsScreen')
 export const TmdbKeyScreen = lazyRoute<TmdbKeyScreenProps>(() => import('../features/settings/TmdbKeyScreen'), 'TmdbKeyScreen')
 export const SearchScreen = lazyRoute<SearchScreenProps>(() => import('../features/search/SearchScreen'), 'SearchScreen')

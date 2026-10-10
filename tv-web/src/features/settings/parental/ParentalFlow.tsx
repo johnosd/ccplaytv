@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { PinCreateFlow } from '../../../components/PinCreateFlow'
 import { ParentalPinPrompt } from '../../../components/ParentalPinPrompt'
-import { changePin, disableParentalControl, verifyPin } from '../../../lib/parental/pin'
+import { changePin, disableParentalControl, verifyPin } from '../../../lib/parental/listPin'
 import { useT } from '../../../lib/i18n/I18nProvider'
 import { SuggestionStep, type SuggestionDecision } from './SuggestionStep'
 
@@ -11,7 +11,7 @@ export type ParentalFlowKind = 'unlock-tab' | 'enable' | 'change' | 'disable'
 
 export interface ParentalFlowProps {
   kind: ParentalFlowKind
-  /** Lista ativa — a sugestão adulta de ligar o controle olha as categorias dela (FR-022). */
+  /** A lista da gestão — o PIN é dela (feature 067) e a sugestão adulta olha só as categorias dela (FR-022). */
   sourceId: string
   /** PIN certo ao entrar na aba: libera até sair dela. */
   onTabUnlocked: () => void
@@ -36,7 +36,7 @@ export function ParentalFlow({ kind, sourceId, onTabUnlocked, onEnable, onFinish
     return (
       <PinCreateFlow
         onDone={async (pin) => {
-          await changePin(pin)
+          await changePin(sourceId, pin)
           onFinished('change')
         }}
         onCancel={onCancel}
@@ -45,13 +45,14 @@ export function ParentalFlow({ kind, sourceId, onTabUnlocked, onEnable, onFinish
   }
   return (
     <ParentalPinPrompt
+      sourceId={sourceId}
       title={t(kind === 'unlock-tab' ? 'parental.pin.enter' : 'parental.pin.current')}
       onSubmit={async (pin) => {
-        if (!(await verifyPin(pin))) return false
+        if (!(await verifyPin(sourceId, pin))) return false
         if (kind === 'unlock-tab') onTabUnlocked()
         else if (kind === 'change') setCurrentChecked(true)
         else {
-          await disableParentalControl()
+          await disableParentalControl(sourceId)
           onFinished('disable')
         }
         return true

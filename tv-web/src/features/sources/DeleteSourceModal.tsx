@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 import { ParentalPinPrompt } from '../../components/ParentalPinPrompt'
-import { pinActiveHint, verifyPin } from '../../lib/parental/pin'
+import { pinActiveHint, verifyPin } from '../../lib/parental/listPin'
 import { useT } from '../../lib/i18n/I18nProvider'
 import type { SourceOut } from '../import/importApi'
 
@@ -23,18 +23,19 @@ export interface DeleteSourceModalProps {
 export function DeleteSourceModal({ source, onCancel, onConfirm }: DeleteSourceModalProps): ReactNode {
   const t = useT()
   const [confirmIdx, setConfirmIdx] = useState<0 | 1>(0)
-  // Feature 066 (FR-017): com o controle parental ligado, "Remover" pede o PIN antes de remover de fato.
+  // Feature 066 (FR-017): com o controle parental ligado NESTA lista (067), "Remover" pede o PIN dela antes de remover.
   const [askPin, setAskPin] = useState(false)
   const title = t('delete.title', { name: source.display_name })
   // Decide na hora pelo espelho síncrono (R-013): sem PIN, remover continua imediato, como sempre foi.
-  const confirm = () => (pinActiveHint() ? setAskPin(true) : onConfirm())
+  const confirm = () => (pinActiveHint(source.id) ? setAskPin(true) : onConfirm())
 
   if (askPin) {
     return (
       <ParentalPinPrompt
+        sourceId={source.id}
         title={t('parental.pin.enter')}
         onSubmit={async (pin) => {
-          const accepted = await verifyPin(pin)
+          const accepted = await verifyPin(source.id, pin)
           if (accepted) onConfirm()
           return accepted
         }}

@@ -35,7 +35,6 @@ import { ContentCard } from '../../components/ContentCard'
 import { RatingBadge } from '../../components/RatingBadge'
 import { EmptyState } from '../../components/EmptyState'
 import { LockedCategoryState } from '../../components/LockedCategoryState'
-import { unlockWithPin } from '../../lib/catalog/categoryAccess'
 import { ErrorState } from '../../components/ErrorState'
 import { describeError } from '../../lib/errors/errorCatalog'
 import { useOnlineStatus } from '../../lib/onlineStatus'
@@ -626,7 +625,7 @@ export function VodCategoryScreen({
           pinOpen={pinOpen}
           onOpenPin={() => setPinOpen(true)}
           onClosePin={() => setPinOpen(false)}
-          onUnlock={(pin) => unlockWithPin(sourceId, pin)}
+          sourceId={sourceId}
         />
         <Toast message={toastMessage} messageKey={toastKey} />
       </div>,

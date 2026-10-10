@@ -9,7 +9,7 @@ export interface SectionEmptyStateProps {
   title: string
   description?: string
   onBack: () => void
-  /** Abre Configurações › Categorias & parental. Sem ele, o vazio é o de sempre. */
+  /** Abre a tela da lista ativa em Categorias & controle parental (feature 067). Sem ele, o vazio é o de sempre. */
   onManage?: () => void
 }
 

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { relockSession, subscribeCategoryAccess } from '../../lib/catalog/categoryAccess'
-import { hasPin } from '../../lib/parental/pin'
+import { syncPinHints } from '../../lib/parental/listPin'
 
 /**
  * Consultas que mostram itens ou categorias do catálogo (feature 066, D-005) — prefixo de chave, sem `sourceId`. Lista
@@ -46,9 +46,9 @@ export function useCategoryAccessLifecycle(activeSourceId: string | null): void 
 
   useEffect(() => subscribeCategoryAccess(() => resetCatalogQueries(queryClient)), [queryClient])
 
-  // Realinha o espelho síncrono de "existe PIN" com o IndexedDB ao abrir o app (R-013).
+  // Realinha o espelho síncrono de "lista tem PIN" com o IndexedDB ao abrir o app (R-013 da 066, R-006 da 067).
   useEffect(() => {
-    void hasPin()
+    void syncPinHints()
   }, [])
 
   // FR-015: trocar de lista (inclusive voltar para a mesma depois de outra) fecha a sessão desbloqueada.

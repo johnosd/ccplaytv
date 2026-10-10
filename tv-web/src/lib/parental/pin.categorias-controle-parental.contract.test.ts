@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CatalogDb } from '../catalog/db'
-import { changePin, enableParentalControl, hasPin, recoverPinWithSource, verifyPin } from './pin'
+import { changePin, enableParentalControl, hasPin, recoverPinWithSource, verifyPin } from './listPin'
 
 /**
  * Feature 066 — contrato do PIN: segredo nunca guardado em texto (FR-012),
  * PIN errado só nega (FR-016) e recuperação pelos dados de uma lista,
  * conferida só no aparelho (FR-027..FR-030).
+ *
+ * Emendado pela feature 067 (PIN por lista, decisão do usuário em 2026-10-09 —
+ * `sdd/specs/067-configuracoes-lista-global/plan.md` R-001): toda chamada diz
+ * de qual lista é o PIN, e a recuperação confere os dados da própria lista.
  */
 
 let database: CatalogDb
@@ -33,22 +37,22 @@ describe('066 — PIN parental (contrato)', () => {
     ])
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
 
-    expect(await hasPin(database)).toBe(false)
-    await enableParentalControl('8642', [], database)
-    expect(await hasPin(database)).toBe(true)
+    expect(await hasPin('x', database)).toBe(false)
+    await enableParentalControl('x', '8642', [], database)
+    expect(await hasPin('x', database)).toBe(true)
     expect(await everythingStored()).not.toContain('8642')
-    expect(await verifyPin('8642', database)).toBe(true)
-    expect(await verifyPin('1111', database)).toBe(false)
+    expect(await verifyPin('x', '8642', database)).toBe(true)
+    expect(await verifyPin('x', '1111', database)).toBe(false)
 
-    expect(await recoverPinWithSource({ username: 'joao', password: 'errada' }, database)).toBe(false)
-    expect(await recoverPinWithSource({ username: 'outro', password: 's3nh4-forte' }, database)).toBe(false)
-    expect(await recoverPinWithSource({ url: 'http://lista.test/outra.m3u' }, database)).toBe(false)
-    expect(await recoverPinWithSource({ username: 'joao', password: 's3nh4-forte' }, database)).toBe(true)
-    expect(await recoverPinWithSource({ url: 'http://lista.test/minha.m3u' }, database)).toBe(true)
+    expect(await recoverPinWithSource('x', { username: 'joao', password: 'errada' }, database)).toBe(false)
+    expect(await recoverPinWithSource('x', { username: 'outro', password: 's3nh4-forte' }, database)).toBe(false)
+    expect(await recoverPinWithSource('m', { url: 'http://lista.test/outra.m3u' }, database)).toBe(false)
+    expect(await recoverPinWithSource('x', { username: 'joao', password: 's3nh4-forte' }, database)).toBe(true)
+    expect(await recoverPinWithSource('m', { url: 'http://lista.test/minha.m3u' }, database)).toBe(true)
 
-    await changePin('9753', database)
-    expect(await verifyPin('9753', database)).toBe(true)
-    expect(await verifyPin('8642', database)).toBe(false)
+    await changePin('x', '9753', database)
+    expect(await verifyPin('x', '9753', database)).toBe(true)
+    expect(await verifyPin('x', '8642', database)).toBe(false)
     expect(await everythingStored()).not.toContain('9753')
     expect(fetchSpy).not.toHaveBeenCalled()
   })

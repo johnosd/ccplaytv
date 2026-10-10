@@ -214,6 +214,11 @@ Fora dos contratos (testes do executor e E2E): tela de perfis com "Configurar" (
 
 | Área | Estado |
 | --- | --- |
+| Fase 1 (emendas dos contratos) | Concluída — emendas aplicadas, travas 026/066 regravadas 5/5 |
+| Fase 2 (PIN por lista) | Concluída — `listPin.ts`, Dexie v21 + migração, todos os chamadores por lista; contratos 067 #1/#2 e emendas da 066 verdes (6/6) |
+| Fase 3 (US1) | Concluída — tela da lista, rota, "Configurar" nos perfis, "Gerenciar" para a tela da lista; contratos 067 #3/#4 verdes; conferência manual no navegador pendente (vai com o E2E da T036) |
+| Fase 4 (US2) | Concluída — linha de Fontes IPTV só com "Configurar", aviso "valem para todas as listas", código/chaves sem uso removidos; contrato #5 e emenda da 026 verdes |
+| Fase 5 (US3 + Polish) | Concluída — 7 roteiros E2E ajustados, roteiro novo, revisão de segredos, gates (unitários 3164, E2E 45/45, build/Tizen), docs; única pendência: passada na TV física (recomendada) |
 
 ## Riscos e Decisões
 
@@ -224,15 +229,16 @@ Fora dos contratos (testes do executor e E2E): tela de perfis com "Configurar" (
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | PIN por lista e a linha só com "Configurar" contradizem contratos travados: 026 (`SettingsScreen.home-busca…`, 1 teste) e 066 (`pin.…` 1 teste; `categoryAccess.…` 2 de 3 testes) | Alto — a suíte não fica verde sem mudar travas de outras features | Decisão do usuário em 2026-10-09 (`sdd-plan`): emendar na **Fase 1** desta feature, depois de a 066 convergir, aplicando verbatim os arquivos de `contract-amendments/` e regravando as travas da 026 e da 066 com todos os arquivos de cada uma (D-011). |
-| R-002 | Tetos da catraca: `App.tsx` 618/625, `ProfilesScreen.tsx` 421/421, `sourceRepository.ts` 409/409, `db.ts` 859/860 | Alto — `npm run lint` reprova linha a mais | `App.tsx`: extrair os cases de Configurações (`settings`, `list-settings`, `epg-settings`, `tmdb-key`) para um módulo em `src/navigation/`; `ProfilesScreen.tsx`: compensar as linhas novas extraindo/condensando código do próprio arquivo; `sourceRepository.ts`: trocar o comentário da 066 pela linha nova; v21 em `dbSchema.ts`, tipos em `parentalTables.ts`. Subir teto só como último recurso, editando o JSON à mão com justificativa. |
-| R-003 | Ciclo de import `db.ts → dbSchema.ts → pinMigration.ts → categoryAccess.ts → db.ts`, e `normalizeForSearch` em `catalogSearch.ts` (que importa `db.ts`) | Médio — erro de avaliação de módulo só em runtime | Módulo puro `lib/catalog/adultCategory.ts` com `isAdultCategoryName`, `normalizeForSearch` e a regra de bloqueio salvo (`logic/pin-por-lista.md` §4). |
-| R-004 | SC-004 da 066 (≤ 16 teclas do Início até esconder uma categoria, medido pelo E2E `categorias-controle-parental.mjs`) pode estourar com o salto a mais (Fontes IPTV → Configurar → aba) | Médio — critério de aceite de outra feature | Medir no E2E ajustado. Se passar de 16, **parar e perguntar ao usuário** (emendar o SC-004 da 066 com o novo mínimo medido, ou um atalho) — não subir o limite sozinho. |
+| R-001 | PIN por lista e a linha só com "Configurar" contradizem contratos travados: 026 (`SettingsScreen.home-busca…`, 1 teste) e 066 (`pin.…` 1 teste; `categoryAccess.…` 2 de 3 testes) | Alto — a suíte não fica verde sem mudar travas de outras features | Resolvido (Fase 1, 2026-10-10): emendas aplicadas byte a byte e travas regravadas 5/5. Decisão do usuário em 2026-10-09 (`sdd-plan`): emendar na **Fase 1** desta feature, depois de a 066 convergir, aplicando verbatim os arquivos de `contract-amendments/` e regravando as travas da 026 e da 066 com todos os arquivos de cada uma (D-011). |
+| R-002 | Tetos da catraca: `App.tsx` 618/625, `ProfilesScreen.tsx` 421/421, `sourceRepository.ts` 409/409, `db.ts` 859/860 | Alto — `npm run lint` reprova linha a mais | Resolvido para `App.tsx` (559, cases em `navigation/settingsRoutes.tsx`), `ProfilesScreen.tsx` (421/421) e `sourceRepository.ts` (409/409). Plano original: `App.tsx`: extrair os cases de Configurações (`settings`, `list-settings`, `epg-settings`, `tmdb-key`) para um módulo em `src/navigation/`; `ProfilesScreen.tsx`: compensar as linhas novas extraindo/condensando código do próprio arquivo; `sourceRepository.ts`: trocar o comentário da 066 pela linha nova; v21 em `dbSchema.ts`, tipos em `parentalTables.ts`. Subir teto só como último recurso, editando o JSON à mão com justificativa. |
+| R-003 | Ciclo de import `db.ts → dbSchema.ts → pinMigration.ts → categoryAccess.ts → db.ts`, e `normalizeForSearch` em `catalogSearch.ts` (que importa `db.ts`) | Médio — erro de avaliação de módulo só em runtime | Resolvido (Fase 2): módulo puro `lib/catalog/adultCategory.ts` com `isAdultCategoryName`, `normalizeForSearch` e a regra de bloqueio salvo (`logic/pin-por-lista.md` §4). |
+| R-004 | SC-004 da 066 (≤ 16 teclas do Início até esconder uma categoria, medido pelo E2E `categorias-controle-parental.mjs`) pode estourar com o salto a mais (Fontes IPTV → Configurar → aba) | Médio — critério de aceite de outra feature | Resolvido (Fase 5): medido em 14 teclas (≤ 16), não estourou. Plano original: medir no E2E ajustado. Se passar de 16, **parar e perguntar ao usuário** (emendar o SC-004 da 066 com o novo mínimo medido, ou um atalho) — não subir o limite sozinho. |
 | R-005 | Contratos travados 032/054 montam `SettingsScreenProps` com `onEditSource`/`onResyncStarted`/`onSourceDeleted` e navegam pelas abas por índice | Médio — `tsc`/contrato quebram se as props saírem ou a ordem mudar | D-007/D-008: as 4 primeiras abas ficam onde estão; as props legadas continuam no tipo. |
-| R-006 | Espelho síncrono de "existe PIN" (R-013 da 066) era global | Médio — Excluir sem PIN precisa continuar imediato (contratos 023/026); Excluir de lista com PIN precisa pedir o PIN dela | Espelho por lista `ccplay.parental.pinSources` (`logic/pin-por-lista.md` §3). |
-| R-007 | Roteiros E2E que passam pela linha antiga de Fontes IPTV, pela aba Privacidade ou pela aba Categorias & parental: `epg-dados-agora.mjs`, `home-busca-configuracoes.mjs`, `limpar-historico.mjs`, `categorias-controle-parental.mjs`, `fontes-estado.mjs`, `carga-listas.mjs`, `ime-formularios.mjs`, `metadata-tmdb.mjs`, `semelhantes-elenco-ator.mjs`, `trailers.mjs`, `paridade-limpeza.mjs` (e os `-real` de EPG, que precisam de `.env`) | Médio — gate do E2E completo | Ajustar cada um ao caminho novo (Configurar → aba) na Fase 5; o que só lê informação da linha (`fontes-estado`) deve continuar passando. `paridade-limpeza` compara capturas: a 08 (Fontes IPTV) muda de propósito. |
-| R-008 | SC-001 (≤ 3 teclas do cartão à tela da lista) não bate com FR-012 ("Configurar" é a 4ª ação: ↓ →→→ OK = 5 teclas) | Baixo — critério de aceite inconsistente | Achado do Analyze; recomendado corrigir o SC-001 para 5 teclas antes do execute (ou perguntar ao usuário). Até lá o executor mede e registra. |
+| R-006 | Espelho síncrono de "existe PIN" (R-013 da 066) era global | Médio — Excluir sem PIN precisa continuar imediato (contratos 023/026); Excluir de lista com PIN precisa pedir o PIN dela | Resolvido (Fase 2): espelho por lista `ccplay.parental.pinSources` (`logic/pin-por-lista.md` §3). |
+| R-007 | Roteiros E2E que passam pela linha antiga de Fontes IPTV, pela aba Privacidade ou pela aba Categorias & parental: `epg-dados-agora.mjs`, `home-busca-configuracoes.mjs`, `limpar-historico.mjs`, `categorias-controle-parental.mjs`, `fontes-estado.mjs`, `carga-listas.mjs`, `ime-formularios.mjs`, `metadata-tmdb.mjs`, `semelhantes-elenco-ator.mjs`, `trailers.mjs`, `paridade-limpeza.mjs` (e os `-real` de EPG, que precisam de `.env`) | Médio — gate do E2E completo | Resolvido (Fase 5): 7 roteiros ajustados, 45/45 verdes; `paridade-limpeza` deliberadamente intocado (evidência histórica da 028, fora da suíte). Plano original: ajustar cada um ao caminho novo (Configurar → aba) na Fase 5; o que só lê informação da linha (`fontes-estado`) deve continuar passando. `paridade-limpeza` compara capturas: a 08 (Fontes IPTV) muda de propósito. |
+| R-008 | SC-001 (≤ 3 teclas do cartão à tela da lista) não bate com FR-012 ("Configurar" é a 4ª ação: ↓ →→→ OK = 5 teclas) | Baixo — critério de aceite inconsistente | Resolvido (Fase 5): SC-001 emendado para 5 teclas por decisão do usuário (2026-10-10) e medido pelo E2E (5). Achado do Analyze; recomendado corrigir o SC-001 para 5 teclas antes do execute (ou perguntar ao usuário). Até lá o executor mede e registra. |
 | R-009 | Tela da lista aberta para uma lista apagada por outro caminho (ex.: pilha antiga) | Baixo | Estado vazio com "Voltar" focado (FR-011), nunca tela em branco. |
+| R-010 | Convergência (C-001): Ressincronizar → progresso → Voltar vai à tela de perfis, não à tela da lista (FR-009/SC-006 prometiam o contrário). `App.tsx` liga o `onBack` do progresso a `import-back` (037 FR-039); `returnTo` de `appNav.ts` é só tipo | Baixo — comportamento igual ao fluxo antigo de Configurações; a spec é que prometia demais | Resolvido: decisão do usuário (2026-10-10), opção A — texto de FR-009, SC-006 e do edge case emendado por nota na `spec.md`, sem mudar código nem os contratos da 034/037. O `from` empilhado por `onResyncStarted` em `navigation/settingsRoutes.tsx` fica sem uso, como já ficava no fluxo antigo. |
 
 ## Execution Notes
 
@@ -244,17 +250,31 @@ Fora dos contratos (testes do executor e E2E): tela de perfis com "Configurar" (
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-10-10 | Fase 1 / Setup | 066 convergida conferida; 3 contratos emendados aplicados e travas 026/066 regravadas (5/5 cada); notas de emenda nos plans da 026 (R-010) e 066 (R-020). | Fase 2 |
+| 2026-10-10 | Fase 2 / Foundational | PIN por lista (`listPin.ts`), Dexie v21 com migração no `.upgrade()`, módulo puro `adultCategory.ts`, chamadores com `sourceId`; 6/6 contratos de dados; testes da 066 migrados para a API nova com casos "outra lista". | Fase 3 (US1) | Concluída — tela da lista, rota, "Configurar" nos perfis, "Gerenciar" para a tela da lista; contratos 067 #3/#4 verdes; conferência manual no navegador pendente (vai com o E2E da T036) |
+| 2026-10-10 | Fase 3 / US1 | Configurações da lista (4 abas, rota, "Configurar" nos perfis, "Gerenciar"), textos em área nova, CSS com tokens, 3 exceções de catraca justificadas; Categorias/Privacidade saíram das globais (antecipado da T028); contratos #3/#4 verdes. | Fase 4 (US2) | Concluída — linha de Fontes IPTV só com "Configurar", aviso "valem para todas as listas", código/chaves sem uso removidos; contrato #5 e emenda da 026 verdes |
+| 2026-10-10 | Fase 4 / US2 | Fontes IPTV só com "Configurar" + aviso de escopo global; `SourcesTab` sem mutações; chaves/ramos mortos removidos; catraca mais enxuta (146); 3012 testes verdes, 8 contratos (5 da 067 + 3 emendados) verdes. | Fase 5 |
+| 2026-10-10 | Fase 5 / Polish | 7 roteiros E2E ajustados + roteiro novo (45/45), SC-004=14 teclas, SC-001 emendado (5), migração provada em Chromium, revisão de segredos, 3164 testes, build/Tizen (2 chunks novos listados), docs (README, CLAUDE.md, emendas 066/026). | Passada na TV física (recomendada); depois `sdd-converge` |
+| 2026-10-10 | Fase 6 / Convergência | C-001 resolvido por emenda de texto (progresso fora do FR-009/SC-006, R-010); chave de texto sem uso removida; E2E cobre Editar→RETURN e excluir a lista ativa; 3164 testes e 4 roteiros verdes. | Passada na TV física (recomendada); depois `sdd-converge` |
 
-**PRÓXIMO**: —
+**PRÓXIMO**: rodar `sdd-converge` de novo (fecha a feature); a passada na TV física é recomendada, não é gate.
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- (nenhum ainda)
+- `tv-web/e2e/*.mjs` — roteiros de R-007 a ajustar e o novo `configuracoes-lista-global.mjs`; `tv-web/e2e/run.mjs` (lista `SUITE`)
+- `tv-web/src/features/settings/list/*`, `SourcesPanel.tsx`, `tabs/SourcesTab.tsx` (o que os roteiros exercitam)
+- `README.md`/`CLAUDE.md` e os `spec.md`/`plan.md` da 066 e 026 (notas de emenda — T039)
 
 ## Cuidados para Retomada
 
 <!-- Armadilhas operacionais específicas desta feature, anexadas conforme descobertas. -->
 
-- (nenhum ainda)
+- `RecoverPinFlow` tem um `<p role="alert">` sempre presente (vazio sem erro): em teste, conferir o texto, nunca só a existência do alerta.
+- Para testar upgrade de versão Dexie, monte o schema antigo a partir das tabelas de um `CatalogDb` aberto (`table.schema.primKey.src` + `indexes[].src`), como em `lib/parental/pinMigration.upgrade.test.ts` — não copie strings de schema à mão.
+- `lib/i18n/messages/settings.ts` está no teto (482): texto novo de Configurações vai em `lib/i18n/messages/listSettings.ts` (registrada em `pt.ts`/`en.ts`/`es.ts` e em `areas.test.ts`).
+- Chunk de rota novo precisa entrar em `ROUTE_CHUNKS` (`vite.config.ts`) **e** em `CCPlayTv/tizen_web_project.yaml`, senão o `build:tizen` recusa.
+- `navigation/settingsRoutes.tsx` concentra o `dispatch` de Configurações (globais, lista, EPG, TMDB); o `App.tsx` só delega no `default` do `switch`.
+- Chunks compartilhados novos (`SourcesPanel.js`, `onlineStatus.js`) e o de rota (`route-list-settings.js`) já estão em `CCPlayTv/tizen_web_project.yaml`; qualquer reorganização de imports entre as telas de Configurações pode criar outro e o `build:tizen` avisa.
+- Em lista M3U, o **nome do grupo** decide o tipo do item (`Canais | …` = canal, `Filmes`, `Series`): fixture de E2E com grupo sem esse prefixo não gera categoria de canais.

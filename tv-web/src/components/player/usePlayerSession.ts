@@ -16,7 +16,7 @@ import {
   type PlayerServiceSession,
   type PlayerState,
 } from '../../lib/player/PlayerService'
-import { COMPLETION_WRITE_TIMEOUT_MS, createProgressRecorder, settleWithin, type ProgressRecorder, type ProgressRecorderIdentity } from '../../lib/player/progressRecorder'
+import { COMPLETION_WRITE_TIMEOUT_MS, createProgressRecorder, notifyProgressSettled, settleExit, settleWithin, type ProgressRecorder, type ProgressRecorderIdentity } from '../../lib/player/progressRecorder'
 import { MOVIE_WATCHED_RATIO } from '../../lib/player/resumePolicy'
 import { disableScreenSaver, enableScreenSaver } from '../../lib/player/screenSaver'
 import { diagnoseFetchFailure, diagnosePlayback, type PlaybackDiagnosis } from '../../lib/player/playbackDiagnosis'
@@ -212,7 +212,7 @@ export function usePlayerSession({
       // que ainda não tinha cruzado o intervalo periódico (`logic/
       // reproducao-vod.md` §2, `aoSair`). Vem antes de fechar a sessão —
       // depois disso `session.progress` já não importa mais.
-      recorderRef.current?.onExit('close')
+      if (recorderRef.current) settleExit(recorderRef.current, 'close')
       sessionRef.current?.close()
       sessionRef.current = null
       recorderRef.current = null
@@ -419,6 +419,7 @@ export function usePlayerSession({
             // estado antigo. Com prazo e sem depender de sucesso: na TV a escrita pode falhar ou
             // demorar, e esperar sem prazo deixava a tela preta (bug serie-sem-proximo-episodio-controles-somem).
             void settleWithin(recorder.onExit('completed'), COMPLETION_WRITE_TIMEOUT_MS).then(() => {
+              notifyProgressSettled(recorder.takeFailureCode())
               if (cancelled) return
               // Feature 058 (FR-013): no arquivo, quem decide o seguinte é a tela.
               ;(currentArchive ? (onArchiveEndedRef.current ?? onClose) : (onCompleted ?? onClose))()

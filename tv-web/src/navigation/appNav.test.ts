@@ -66,7 +66,7 @@ describe('appNavReducer — regras além dos contratos (feature 023)', () => {
 
   // Feature 030 (US2, FR-022): RETURN na tela de EPG volta às Configurações com o foco no botão "EPG".
   it('abrir o EPG de uma lista e voltar restaura Configurações com o foco no botão "EPG" daquela lista', () => {
-    const settings = { name: 'settings' as const, restore: { zone: 'sources' as const, sourceId: 'a', action: 'epg' as const } }
+    const settings = { name: 'settings' as const, restore: { zone: 'sources' as const, sourceId: 'a', action: 'configure' as const } }
     const state = run(
       initialAppNav(),
       { type: 'splash-finished' },
@@ -392,5 +392,53 @@ describe('appNavReducer — extensões da feature 026 (Home definitiva, Busca gl
     expect(after.screen).toMatchObject({ name: 'profiles', mode: 'base' })
     expect(after.history).toEqual([])
     expect(after.activeSource).toBeNull()
+  })
+})
+
+describe('appNavReducer — Configurações da lista (feature 067)', () => {
+  const settingsRestore = { zone: 'sources' as const, sourceId: 'b', action: 'configure' as const }
+
+  it('abrir pela tela de perfis e voltar devolve o foco ao cartão da lista', () => {
+    const state = run(
+      initialAppNav(),
+      { type: 'splash-finished' },
+      { type: 'open', screen: { name: 'list-settings', sourceId: 'b' }, from: { name: 'profiles', mode: 'base', focusSourceId: 'b' } },
+    )
+    expect(state.screen).toEqual({ name: 'list-settings', sourceId: 'b' })
+    expect(run(state, { type: 'back' }).screen).toEqual({ name: 'profiles', mode: 'base', focusSourceId: 'b' })
+  })
+
+  it('excluir uma lista não ativa desempilha e põe o foco da origem na vizinha (perfis e Fontes IPTV)', () => {
+    const fromProfiles = run(
+      initialAppNav(),
+      { type: 'choose-source', source: A },
+      { type: 'open-profiles' },
+      { type: 'open', screen: { name: 'list-settings', sourceId: 'c' }, from: { name: 'profiles', mode: 'switch', focusSourceId: 'c' } },
+      { type: 'list-settings-deleted', sourceId: 'c', profilesFocusId: 'b', settingsRestore },
+    )
+    expect(fromProfiles.screen).toEqual({ name: 'profiles', mode: 'switch', focusSourceId: 'b' })
+    expect(fromProfiles.activeSource).toEqual(A)
+
+    const fromSettings = run(
+      initialAppNav(),
+      { type: 'choose-source', source: A },
+      { type: 'open', screen: { name: 'settings' } },
+      { type: 'open', screen: { name: 'list-settings', sourceId: 'c' }, from: { name: 'settings', restore: { zone: 'sources', sourceId: 'c', action: 'configure' } } },
+      { type: 'list-settings-deleted', sourceId: 'c', profilesFocusId: 'b', settingsRestore },
+    )
+    expect(fromSettings.screen).toEqual({ name: 'settings', restore: settingsRestore })
+    expect(fromSettings.history).toEqual([{ name: 'home' }])
+  })
+
+  it('excluir a lista ativa pela tela dela segue o fluxo de lista removida: perfis como base, sem lista ativa', () => {
+    const state = run(
+      initialAppNav(),
+      { type: 'choose-source', source: B },
+      { type: 'open', screen: { name: 'list-settings', sourceId: 'b' } },
+      { type: 'list-settings-deleted', sourceId: 'b', profilesFocusId: 'a', settingsRestore },
+    )
+    expect(state.screen).toEqual({ name: 'profiles', mode: 'base' })
+    expect(state.history).toEqual([])
+    expect(state.activeSource).toBeNull()
   })
 })

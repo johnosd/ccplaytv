@@ -5,6 +5,10 @@
  * sdd-execute só pode fazê-lo passar, nunca editá-lo.
  *
  * Regras: `logic/foco-configuracoes.md` da feature 026.
+ *
+ * Emendado pela feature 067 (decisão do usuário em 2026-10-09 —
+ * `sdd/specs/067-configuracoes-lista-global/plan.md` R-001): a linha de cada
+ * lista só tem "Configurar", que abre Configurações da lista.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
@@ -19,8 +23,6 @@ vi.mock('../import/importApi', async (importOriginal) => {
   return {
     ...actual,
     useSources: vi.fn(),
-    useDeleteSource: vi.fn(),
-    useResyncSource: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   }
 })
 
@@ -56,16 +58,12 @@ function press(key: string) {
   fireEvent.keyDown(document.body, { key, bubbles: true })
 }
 
-function renderSettings(deleteMutate: ReturnType<typeof vi.fn>) {
+function renderSettings(onConfigureSource: (source: SourceOut) => void) {
   vi.mocked(importApi.useSources).mockReturnValue({
     data: { sources: [SALA, QUARTO] },
     isLoading: false,
     isError: false,
   } as unknown as ReturnType<typeof importApi.useSources>)
-  vi.mocked(importApi.useDeleteSource).mockReturnValue({
-    mutate: deleteMutate,
-    isPending: false,
-  } as unknown as ReturnType<typeof importApi.useDeleteSource>)
 
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   function Wrapper({ children }: { children: ReactNode }) {
@@ -78,6 +76,7 @@ function renderSettings(deleteMutate: ReturnType<typeof vi.fn>) {
       onEditSource={vi.fn()}
       onResyncStarted={vi.fn()}
       onSourceDeleted={vi.fn()}
+      onConfigureSource={onConfigureSource}
       onBack={vi.fn()}
     />,
     { wrapper: Wrapper },
@@ -90,10 +89,12 @@ afterEach(() => {
 })
 
 describe('SettingsScreen — contrato da feature 026', () => {
-  // US2/AC1, US2/AC2, US2/AC5, FR-022..FR-025, FR-028, SC-004, Constitution: "Segredos Fora dos Clientes e dos Logs"
-  it('abre em Fontes IPTV listando todas as listas sem credencial, com lista ativa e Modo limitado; Excluir exige confirmação com Cancelar focado', () => {
-    const deleteMutate = vi.fn()
-    renderSettings(deleteMutate)
+  // US2/AC1, US2/AC2, FR-022..FR-025, SC-004, Constitution: "Segredos Fora dos Clientes e dos Logs"
+  // Emenda 067 (FR-013): a linha só tem "Configurar"; Editar/Ressincronizar/Excluir (e a confirmação de Excluir) vivem
+  // em Configurações da lista — a confirmação continua coberta pelo contrato travado da 023 (tela de perfis).
+  it('abre em Fontes IPTV listando todas as listas sem credencial, com lista ativa e Modo limitado; "Configurar" de cada linha entrega a lista certa', () => {
+    const onConfigureSource = vi.fn()
+    renderSettings(onConfigureSource)
 
     expect(screen.getByRole('button', { name: /Fontes IPTV/ })).toHaveClass('tv-focus')
 
@@ -105,27 +106,15 @@ describe('SettingsScreen — contrato da feature 026', () => {
     expect(within(quarto).getByText('Xtream')).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('painel.secreto')
 
-    // Aba → painel (Sala · Editar) → lista de baixo (Quarto · Editar) → Ressincronizar → Excluir.
+    // Aba → painel (Sala · Configurar) → lista de baixo (Quarto · Configurar); → não sai da única ação.
     press('ArrowRight')
-    expect(within(sala).getByRole('button', { name: 'Editar' })).toHaveClass('tv-focus')
+    expect(within(sala).getByRole('button', { name: 'Configurar' })).toHaveClass('tv-focus')
     press('ArrowDown')
     press('ArrowRight')
-    press('ArrowRight')
-    expect(within(quarto).getByRole('button', { name: 'Excluir' })).toHaveClass('tv-focus')
+    expect(within(quarto).getByRole('button', { name: 'Configurar' })).toHaveClass('tv-focus')
 
-    // OK duplo: o primeiro abre o modal, o segundo cai em Cancelar — nada apagado.
     press('Enter')
-    const dialog = screen.getByRole('dialog', { name: 'Excluir a lista Quarto?' })
-    expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toHaveClass('tv-focus')
-    press('Enter')
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(deleteMutate).not.toHaveBeenCalled()
-
-    // Confirmação explícita apaga a lista certa.
-    press('Enter')
-    press('ArrowRight')
-    press('Enter')
-    expect(deleteMutate).toHaveBeenCalledTimes(1)
-    expect(deleteMutate.mock.calls[0][0]).toBe('quarto')
+    expect(onConfigureSource).toHaveBeenCalledTimes(1)
+    expect(onConfigureSource.mock.calls[0][0]).toMatchObject({ id: 'quarto' })
   })
 })

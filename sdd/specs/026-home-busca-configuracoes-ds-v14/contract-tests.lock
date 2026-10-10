@@ -1,6 +1,6 @@
 {
     "feature":  "026-home-busca-configuracoes-ds-v14",
-    "lockedAt":  "2026-10-09 17:41",
+    "lockedAt":  "2026-10-10 09:30",
     "total":  5,
     "files":  [
                   {
@@ -20,7 +20,7 @@
                   },
                   {
                       "path":  "tv-web/src/features/settings/SettingsScreen.home-busca-configuracoes-ds-v14.contract.test.tsx",
-                      "sha256":  "b697d945a555fdf2c1cd6632c3300a79f441128fd04c4dbe37fc4a6e5f1233ea",
+                      "sha256":  "72c3144239289b11d61f0fca0389cf242ba7994f87ae51d6d3c40d47968a2627",
                       "tests":  1
                   }
               ]

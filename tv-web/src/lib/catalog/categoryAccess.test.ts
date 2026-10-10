@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CatalogDb } from './db'
 import { storeCategories } from './catalogRepository'
 import { listManagedCategories, listVisibleCategories, preferenceKey, relockSession, setCategoryPreference, unlockWithPin } from './categoryAccess'
-import { enableParentalControl } from '../parental/pin'
+import { enableParentalControl } from '../parental/listPin'
 import { categoryPreferences } from './parentalTables'
 import { deleteSource } from './sourceRepository'
 
@@ -82,7 +82,7 @@ describe('categoryAccess — bloqueadas no fim da trilha (D-013, emenda ao FR-03
 
     expect(await names()).toEqual(['Adultos 1', 'Notícias', 'Adultos 2', 'Esportes'])
 
-    await enableParentalControl('1234', [], database)
+    await enableParentalControl('s', '1234', [], database)
     expect(await names()).toEqual(['Notícias', 'Esportes', 'Adultos 1', 'Adultos 2'])
     expect(await unlockWithPin('s', '1234', database)).toBe(true)
     expect(await names()).toEqual(['Notícias', 'Esportes', 'Adultos 1', 'Adultos 2'])

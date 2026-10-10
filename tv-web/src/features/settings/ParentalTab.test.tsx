@@ -5,12 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '../../lib/catalog/db'
 import { storeCategories } from '../../lib/catalog/catalogRepository'
 import { listManagedCategories, listVisibleCategories, notifyCategoryAccessChanged } from '../../lib/catalog/categoryAccess'
-import { enableParentalControl, hasPin, verifyPin } from '../../lib/parental/pin'
+import { enableParentalControl, hasPin, verifyPin } from '../../lib/parental/listPin'
 import { findUnnamedControls } from '../../testing/accessibleNames'
 import { ParentalTab } from './tabs/ParentalTab'
-import type { SettingsTabHandle, SettingsTabProps } from './tabs/settingsTab'
+import type { ListSettingsTabProps, SettingsTabHandle } from './tabs/settingsTab'
+import type { SourceOut } from '../import/importApi'
 
 const SOURCE = 'fonte-aba-066'
+const OTHER = 'outra-aba-067'
+const sourceOut = (id: string, name: string) => ({ id, display_name: name }) as SourceOut
 
 async function seed() {
   await db.sources.put({ id: SOURCE, type: 'm3u_url', displayName: 'Sala', connectionState: 'synced', activeGeneration: 1, createdAt: 0, updatedAt: 0 })
@@ -24,14 +27,14 @@ async function seed() {
   )
 }
 
-function renderTab(overrides: Partial<SettingsTabProps> = {}) {
+function renderTab(overrides: Partial<ListSettingsTabProps> = {}) {
   const handle = createRef<SettingsTabHandle>()
-  const props: SettingsTabProps = {
+  const props: ListSettingsTabProps = {
     focused: true,
+    source: sourceOut(SOURCE, 'Sala'),
     activeSourceId: SOURCE,
-    navigation: { onAddSource: vi.fn(), onEditSource: vi.fn(), onResyncStarted: vi.fn(), onSourceDeleted: vi.fn() },
+    navigation: { onEditSource: vi.fn(), onResyncStarted: vi.fn(), onOpenEpg: vi.fn(), onSourceDeleted: vi.fn() },
     exitToTabs: vi.fn(),
-    goToTopbar: vi.fn(),
     showToast: vi.fn(),
     handleRef: handle,
     ...overrides,
@@ -57,7 +60,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   cleanup()
-  await Promise.all([db.categories.clear(), db.sources.clear(), db.table('categoryPreferences').clear(), db.table('parentalPin').clear()])
+  await Promise.all([db.categories.clear(), db.sources.clear(), db.table('categoryPreferences').clear(), db.table('parentalPins').clear()])
   notifyCategoryAccessChanged() // a regra guardada em memória não vê limpeza direta das tabelas
 })
 
@@ -90,7 +93,7 @@ describe('ParentalTab — gestão de categorias (feature 066, US1)', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Esportes: Visível' })).toHaveClass('tv-focus'))
   })
 
-  it('↑ na primeira categoria volta às seções, ↑ de novo ao controle e à topbar; ← sai para a coluna de abas', async () => {
+  it('↑ na primeira categoria volta às seções, ↑ de novo ao controle (sem topbar na tela da lista, fica nele); ← sai para a coluna de abas', async () => {
     const { props, press } = renderTab()
     await screen.findByText('Notícias')
     press((h) => h.onDirection('down'))
@@ -100,7 +103,7 @@ describe('ParentalTab — gestão de categorias (feature 066, US1)', () => {
     press((h) => h.onDirection('up'))
     expect(focusedText()).toBe('Controle parental: Desligado')
     press((h) => h.onDirection('up'))
-    expect(props.goToTopbar).toHaveBeenCalledTimes(1)
+    expect(focusedText()).toBe('Controle parental: Desligado')
     press((h) => h.onDirection('left'))
     expect(props.exitToTabs).toHaveBeenCalledTimes(1)
   })
@@ -116,12 +119,17 @@ describe('ParentalTab — gestão de categorias (feature 066, US1)', () => {
     expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
   })
 
-  it('sem lista ativa: explica e "Voltar às abas" fica focado', () => {
-    const { props, press } = renderTab({ activeSourceId: null })
-    expect(screen.getByText('Escolha uma lista para gerenciar as categorias dela.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Voltar às abas' })).toHaveClass('tv-focus')
+  it('067 (D-005): numa lista que não é a ativa, a gestão mostra e altera as categorias DESSA lista, sem tocar a ativa', async () => {
+    await db.sources.put({ id: OTHER, type: 'm3u_url', displayName: 'Quarto', connectionState: 'synced', activeGeneration: 1, createdAt: 0, updatedAt: 0 })
+    await storeCategories([{ sourceId: OTHER, generation: 1, kind: 'channel', fetchMode: 'eager', name: 'Desenhos', order: 0 }], db)
+    const { press } = renderTab({ source: sourceOut(OTHER, 'Quarto') })
+    await screen.findByText('Desenhos')
+    expect(screen.queryByText('Notícias')).toBeNull()
+    press((h) => h.onDirection('down'))
+    press((h) => h.onDirection('down'))
     press((h) => h.onSelect())
-    expect(props.exitToTabs).toHaveBeenCalledTimes(1)
+    await waitFor(async () => expect((await listVisibleCategories(OTHER, 'channel')).map((category) => category.name)).toEqual([]))
+    expect((await listVisibleCategories(SOURCE, 'channel')).map((category) => category.name)).toEqual(['Notícias', 'Esportes'])
   })
 })
 
@@ -142,7 +150,7 @@ describe('ParentalTab — bloquear com PIN (feature 066, US2)', () => {
     expect(await screen.findByRole('dialog', { name: 'Crie um PIN de 4 dígitos' })).toBeInTheDocument()
     fireEvent.keyDown(document.body, { key: 'Escape', bubbles: true })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(await hasPin()).toBe(false)
+    expect(await hasPin(SOURCE)).toBe(false)
 
     press((h) => h.onSelect())
     await screen.findByRole('button', { name: 'Confirmar' })
@@ -158,12 +166,12 @@ describe('ParentalTab — bloquear com PIN (feature 066, US2)', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Notícias: Bloqueada' })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Controle parental: Ligado' })).toHaveAttribute('aria-pressed', 'true')
-    expect(await verifyPin('1357')).toBe(true)
+    expect(await verifyPin(SOURCE, '1357')).toBe(true)
     expect((await listManagedCategories(SOURCE, 'channel')).find((category) => category.name === 'Notícias')?.locked).toBe(true)
   })
 
   it('com PIN, a aba pede o PIN ao entrar; errado avisa, certo libera; desligar pede o PIN e mantém escondidas', async () => {
-    await enableParentalControl('2580', [])
+    await enableParentalControl(SOURCE, '2580', [])
     const { props, press } = renderTab()
     expect(await screen.findByText('Digite o PIN para gerenciar as categorias e o controle parental.')).toBeInTheDocument()
     expect(screen.queryByText('Notícias')).toBeNull()
@@ -184,6 +192,6 @@ describe('ParentalTab — bloquear com PIN (feature 066, US2)', () => {
     await screen.findByRole('dialog', { name: 'Digite o PIN atual' })
     await typePin('2580')
     await waitFor(() => expect(props.showToast).toHaveBeenCalledWith('Controle parental desligado. As categorias escondidas continuam escondidas.'))
-    expect(await hasPin()).toBe(false)
+    expect(await hasPin(SOURCE)).toBe(false)
   })
 })

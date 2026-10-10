@@ -176,6 +176,14 @@ async function openSettingsFromHome(page) {
   await page.waitForSelector('.settings-screen .sources-panel', { timeout: 8000 })
 }
 
+/** Feature 067: o EPG da lista mora em Configurações da lista › EPG — "Configurar" na linha leva até lá. */
+async function openEpgSettings(page) {
+  await page.locator('.sources-panel-row', { hasText: SOURCE_NAME }).getByRole('button', { name: 'Configurar' }).click()
+  await page.getByRole('heading', { name: /Configurações da lista/ }).waitFor({ timeout: 8000 })
+  await page.locator('.side-category-nav-item', { hasText: 'EPG' }).click()
+  await page.getByRole('button', { name: 'Configurar EPG' }).click()
+}
+
 async function openLive(page) {
   await page.waitForSelector('.home-content', { timeout: 8000 })
   await openFromTopbar(page, 'TV ao vivo')
@@ -346,7 +354,7 @@ async function run() {
     console.log('=== US2: tela "EPG da lista" ===')
     await openFromTopbar(page, 'Configurações')
     await page.waitForSelector('.settings-screen .sources-panel', { timeout: 8000 })
-    await page.getByRole('button', { name: 'EPG', exact: true }).click()
+    await openEpgSettings(page)
     await page.waitForSelector('.epg-settings', { timeout: 8000 })
     assert(
       (await page.locator('.epg-settings-state').textContent())?.startsWith('EPG vinculado'),
@@ -408,17 +416,17 @@ async function run() {
       'mudar o deslocamento não baixou nada',
     )
 
-    // Volta: o foco cai no botão "EPG" da mesma lista (FR-022).
+    // Volta: o foco cai no botão "Configurar EPG" da aba EPG da mesma lista (FR-022, feature 067 FR-009).
     await page.keyboard.press('Escape')
-    await page.waitForSelector('.settings-screen .sources-panel', { timeout: 8000 })
+    await page.waitForSelector('.list-settings-screen', { timeout: 8000 })
     assert(
-      ((await page.getByRole('button', { name: 'EPG', exact: true }).getAttribute('class')) ?? '').includes('tv-focus'),
-      'RETURN da tela de EPG devolve o foco ao botão "EPG" da lista',
+      ((await page.getByRole('button', { name: 'Configurar EPG' }).getAttribute('class')) ?? '').includes('tv-focus'),
+      'RETURN da tela de EPG devolve o foco ao botão "Configurar EPG" da lista',
     )
     await assertOneFocus(page, 'Configurações, de volta da tela de EPG')
 
     // Desativar (FR-021): confirma, apaga, e ativar volta a sincronizar.
-    await page.getByRole('button', { name: 'EPG', exact: true }).click()
+    await page.getByRole('button', { name: 'Configurar EPG' }).click()
     await page.waitForSelector('.epg-settings', { timeout: 8000 })
     await page.getByRole('button', { name: 'Desativar EPG' }).click()
     await page.waitForSelector('[role="dialog"]', { timeout: 4000 })

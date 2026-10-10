@@ -4,6 +4,7 @@ import { components } from './components'
 import { detail } from './detail'
 import { errors } from './errors'
 import { home } from './home'
+import { listSettings } from './listSettings'
 import { live } from './live'
 import { parental } from './parental'
 import { player } from './player'
@@ -26,6 +27,7 @@ export const en: Record<MessageKey, string> & Record<string, string> = {
   ...errors.en,
   ...home.en,
   ...live.en,
+  ...listSettings.en,
   ...parental.en,
   ...comingSoon.en,
   ...player.en,

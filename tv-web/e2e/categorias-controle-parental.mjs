@@ -1,11 +1,12 @@
 // Roteiro E2E da feature 066 (gestão de categorias e controle parental).
 //
 // Lista Xtream fictícia servida por este script: Filmes "Ação" (2), "Terror" (1) e "XXX Adultos" (1). Percorre, só
-// pelo teclado: esconder "Terror" em Configurações › Categorias & parental (contando as teclas desde o Início, SC-004)
+// pelo teclado: esconder "Terror" em Configurações › Configurar › Categorias & controle parental (contando as teclas
+// desde o Início, SC-004)
 // e não achá-la na vitrine nem em "Todos"; ligar o controle parental (sugestão adulta pré-marcada → PIN 2×); cadeado e
 // "XXX Adultos" no fim da trilha (D-013); entrar pede o PIN (errado avisa, certo abre); segundo plano rebloqueia;
-// "Esqueci o PIN" com usuário/senha da lista cria um PIN novo sem nenhuma requisição ao painel; "Adicionar lista" pede o
-// PIN. Capturas em `test-results/categorias-controle-parental/`.
+// "Esqueci o PIN" com usuário/senha da lista cria um PIN novo sem nenhuma requisição ao painel; "Adicionar lista" não
+// pede PIN e "Editar" a lista protegida pede o dela (feature 067: o PIN é por lista). Capturas em `test-results/categorias-controle-parental/`.
 //
 // Pré-requisito: `npm run dev` em http://localhost:5173.
 import { createServer } from 'node:http'
@@ -109,13 +110,16 @@ async function openSettings(page) {
   await page.waitForSelector('.settings-screen', { timeout: 8000 })
 }
 
-/** Na coluna de abas (começa em Fontes IPTV), desce até "Categorias & parental" e entra no painel. */
+/**
+ * Feature 067: a gestão mora em Configurações da lista. Na coluna de abas de Configurações (começa em Fontes IPTV):
+ * → entra na linha da lista, OK em "Configurar" abre a tela da lista, ↓↓ vai a "Categorias & controle parental" e →
+ * entra no painel. Cada tecla conta para o SC-004.
+ */
 async function enterParentalTab(page) {
-  for (let i = 0; i < 8; i += 1) {
-    const text = (await page.locator('.side-category-nav-item.tv-focus').first().textContent().catch(() => '')) ?? ''
-    if (text.includes('Categorias & parental')) break
-    await press(page, 'ArrowDown')
-  }
+  await press(page, 'ArrowRight')
+  await press(page, 'Enter')
+  await page.getByRole('heading', { name: /Configurações da lista/ }).waitFor({ timeout: 8000 })
+  await press(page, 'ArrowDown', 2)
   await press(page, 'ArrowRight')
 }
 
@@ -213,7 +217,7 @@ async function run() {
     await press(page, 'Enter')
     await page.getByRole('button', { name: 'Terror: Escondida' }).waitFor({ timeout: 8000 })
     console.log(`  · teclas do Início até esconder: ${keyCount}`)
-    // SC-004 emendado em 2026-10-09 (decisão do usuário): o caminho é por Configurações, medido em 16 teclas.
+    // SC-004 emendado em 2026-10-09 (decisão do usuário): o caminho é por Configurações, medido em 16 teclas (14 desde a 067, pela tela da lista).
     assert(keyCount <= 16, `SC-004: esconder uma categoria a partir do Início em ≤ 16 teclas (${keyCount})`)
     await shot(page, '01-gestao-terror-escondida')
 
@@ -314,7 +318,7 @@ async function run() {
     await page.getByLabel('Usuário', { exact: true }).fill('usuario-e2e')
     await page.getByLabel('Senha', { exact: true }).fill('errada')
     await page.getByRole('button', { name: 'Conferir' }).click()
-    await page.getByText('Os dados não conferem com nenhuma lista cadastrada.').waitFor({ timeout: 8000 })
+    await page.getByText('Os dados não conferem com os desta lista.').waitFor({ timeout: 8000 })
     assert(!(await page.content()).includes('errada'), 'erro genérico, sem repetir o digitado')
     await page.getByLabel('Usuário', { exact: true }).fill('usuario-e2e')
     await page.getByLabel('Senha', { exact: true }).fill('senha-e2e')
@@ -356,15 +360,23 @@ async function run() {
     await page.locator('.vod-grid .content-card-title', { hasText: 'Medo Total' }).waitFor({ timeout: 10000 })
     assert(true, 'o favorito de Terror volta ao mostrar a categoria (nada foi apagado)')
 
-    console.log('=== FR-017: adicionar lista pede o PIN ===')
+    console.log('=== 067 FR-021/FR-020: adicionar lista não pede PIN; editar a lista protegida pede o PIN dela ===')
     await page.goto(APP_URL)
     await page.waitForSelector('.add-card', { timeout: 10000 })
     await page.locator('.add-card').click()
-    await dialog(page, 'Digite o PIN')
-    assert((await page.locator('#add-source-title').count()) === 0, 'o cadastro só abre depois do PIN')
+    await page.waitForSelector('#add-source-title', { timeout: 8000 })
+    assert((await page.getByRole('dialog', { name: 'Digite o PIN', exact: true }).count()) === 0, 'adicionar lista abre direto, sem pedir PIN (PIN agora é por lista)')
     await page.keyboard.press('Escape')
     await page.waitForSelector('.add-card', { timeout: 8000 })
-    assert(true, 'RETURN no PIN volta sem abrir o cadastro')
+    await page.keyboard.press('ArrowLeft') // cartão da lista protegida
+    await page.keyboard.press('ArrowDown') // ações: Ressincronizar
+    await page.keyboard.press('ArrowRight') // Editar
+    await page.keyboard.press('Enter')
+    await dialog(page, 'Digite o PIN')
+    assert((await page.locator('#add-source-title').count()) === 0, 'editar a lista só abre depois do PIN dela')
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('.add-card', { timeout: 8000 })
+    assert(true, 'RETURN no PIN volta aos perfis sem abrir a edição')
 
     const leaked = consoleLines.filter((line) => /1357|2468|senha-e2e/.test(line))
     assert(leaked.length === 0, 'PIN e senha nunca aparecem no console')

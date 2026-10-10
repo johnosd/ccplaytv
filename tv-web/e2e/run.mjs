@@ -66,6 +66,7 @@ export const SUITE = [
   'e2e/headers-catchup.mjs',
   'e2e/serie-foco-episodios.mjs',
   'e2e/categorias-controle-parental.mjs',
+  'e2e/configuracoes-lista-global.mjs',
 ]
 
 function lerArgs(argv) {

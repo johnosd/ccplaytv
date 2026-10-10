@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-09
 
-**Status**: Planejada
+**Status**: Convergência Pendente
 
 **Input**: "separar o que é configuração de lista e configuração global"
 
@@ -199,7 +199,7 @@ nada, e que 1111 não é aceito quando B tiver o próprio PIN (2222).
 - **Excluir uma lista com PIN**: pede o PIN daquela lista; o PIN dela é
   apagado junto com a lista.
 - **Foco de volta de Editar/Ressincronizar/EPG**: volta à mesma aba e ação
-  da tela da lista.
+  da tela da lista. *(emenda de 2026-10-10, decisão do usuário no `sdd-converge`: o progresso da ressincronização fica de fora — o "Voltar" dele leva à tela de perfis, regra da 037 FR-039, igual ao fluxo antigo de Configurações; Editar e EPG voltam à tela da lista como descrito.)*
 
 ## Requirements *(mandatory)*
 
@@ -232,6 +232,7 @@ nada, e que 1111 não é aceito quando B tiver o próprio PIN (2222).
   da lista.
 - **FR-009**: Ao voltar de Editar, Ressincronizar (progresso) ou da tela de
   EPG, a tela da lista DEVE reabrir na mesma aba, com o foco na mesma ação.
+  *(emenda de 2026-10-10, decisão do usuário no `sdd-converge`: o progresso da ressincronização fica de fora — o "Voltar" dele leva à tela de perfis, regra da 037 FR-039, igual ao fluxo antigo de Configurações; Editar e EPG voltam à tela da lista como descrito.)*
 - **FR-010**: Excluir a lista pela tela DEVE, ao terminar, voltar à origem com
   o foco na lista vizinha ou em "Adicionar lista" se não sobrou nenhuma; se
   era a lista ativa, DEVE seguir o fluxo atual de lista removida.
@@ -310,9 +311,12 @@ feature 066)
 
 ### Measurable Outcomes
 
-- **SC-001**: A partir de qualquer cartão da tela de perfis, a pessoa chega à
-  tela daquela lista em no máximo 3 teclas (↓ para as ações, → até
-  Configurar, OK) quando o foco já está no cartão.
+- **SC-001** *(emendado em 2026-10-10, decisão do usuário)*: A partir de qualquer
+  cartão da tela de perfis, a pessoa chega à tela daquela lista em no máximo
+  5 teclas (↓ para as ações, → → → até "Configurar", a 4ª ação, e OK) quando o
+  foco já está no cartão. Medido pelo E2E `configuracoes-lista-global.mjs`.
+  *(Redação original: "no máximo 3 teclas" — não cabia com "Configurar" como
+  4ª ação, ordem escolhida na entrevista.)*
 - **SC-002**: 100% dos ajustes de lista (conta, EPG, categorias/PIN,
   histórico) podem ser feitos para uma lista não ativa sem trocar a lista
   ativa.
@@ -325,7 +329,7 @@ feature 066)
   continuam bloqueadas e exigem PIN.
 - **SC-006**: Voltar de qualquer subtela (Editar, progresso, EPG) devolve o
   foco à mesma aba e ação em 100% dos casos testados; voltar da tela da lista
-  devolve o foco ao mesmo cartão/linha.
+  devolve o foco ao mesmo cartão/linha. *(emenda de 2026-10-10, decisão do usuário no `sdd-converge`: o progresso da ressincronização fica de fora — o "Voltar" dele leva à tela de perfis, regra da 037 FR-039, igual ao fluxo antigo de Configurações; Editar e EPG voltam à tela da lista como descrito.)*
 
 ## Assumptions
 
@@ -361,4 +365,6 @@ feature 066)
 - Q: Adicionar lista pede PIN? → A: Não.
 - Q: PIN único já gravado? → A: Vira o PIN de cada lista com categoria bloqueada; as demais ficam sem PIN.
 - Q: Encaixe com a 066 em execução? → A: Feature nova depois da 066, emendando-a por nota.
+- Q: SC-001 (≤ 3 teclas) contra "Configurar" como 4ª ação (5 teclas)? → A (execução, 2026-10-10): emendar o SC-001 para 5 teclas, mantendo a ordem das ações.
+- Q: Voltar do progresso da ressincronização reabre a tela da lista (FR-009/SC-006)? → A (convergência, 2026-10-10): não — o progresso fica de fora e seu "Voltar" leva aos perfis (037 FR-039); texto emendado por nota, código inalterado.
 - Q: Excluir pela tela da lista? → A: Volta à origem, foco na vizinha (ou "Adicionar lista"); lista ativa segue o fluxo de lista removida.

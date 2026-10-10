@@ -647,3 +647,45 @@
   color: var(--text-secondary);
   font-size: var(--fs-caption);
 }
+
+/*
+ * Aviso de escopo (feature 067, FR-002/FR-014): "valem só para esta lista" na
+ * tela da lista e "valem para todas as listas" nas globais — logo abaixo do
+ * título, colado nele (o título já reserva o respiro de baixo).
+ */
+.settings-scope-note {
+  margin: calc(-1 * var(--space-3)) 0 var(--space-4);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+/* Sem título acima (Configurações com topbar): não há o respiro do título para puxar de volta. */
+.settings-scope-note--lone {
+  margin-top: 0;
+}
+
+/* Configurações da lista (feature 067): nome da lista ao lado do título. */
+.list-settings-name {
+  color: var(--text-secondary);
+}
+
+/* Abas Conta & lista e EPG: mesmo cartão das linhas de Fontes IPTV. */
+.list-settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.list-settings-hint {
+  flex-basis: 100%;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+}
+
+/* O rótulo mais longo ("Categorias & controle parental") não cabe na coluna das Configurações globais. */
+.list-settings-screen .settings-body .side-category-nav {
+  width: calc(var(--space-7) * 4);
+}

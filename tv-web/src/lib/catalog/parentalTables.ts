@@ -20,9 +20,21 @@ export interface CategoryPreferenceRecord {
   updatedAt: number
 }
 
-/** O PIN parental, só como hash com sal (`logic/pin.md` §1). Existir = controle ligado. */
+/** O PIN único da 066 (`id: 'pin'`). Só a migração da feature 067 ainda o lê; depois dela a tabela fica vazia. */
 export interface ParentalPinRecord {
   id: 'pin'
+  salt: string
+  hash: string
+  algorithm: 'sha256'
+  createdAt: number
+}
+
+/**
+ * O PIN parental de UMA lista (feature 067), só como hash com sal (`066/logic/pin.md` §1 — mesmo esquema). Existir =
+ * controle ligado nesta lista (`067/logic/pin-por-lista.md` §1).
+ */
+export interface ParentalListPinRecord {
+  sourceId: string
   salt: string
   hash: string
   algorithm: 'sha256'
@@ -35,4 +47,8 @@ export function categoryPreferences(database: CatalogDb): Table<CategoryPreferen
 
 export function parentalPin(database: CatalogDb): Table<ParentalPinRecord, 'pin'> {
   return database.table('parentalPin')
+}
+
+export function parentalPins(database: CatalogDb): Table<ParentalListPinRecord, string> {
+  return database.table('parentalPins')
 }

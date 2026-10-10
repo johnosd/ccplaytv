@@ -4,6 +4,7 @@ import { components } from './components'
 import { detail } from './detail'
 import { errors } from './errors'
 import { home } from './home'
+import { listSettings } from './listSettings'
 import { live } from './live'
 import { parental } from './parental'
 import { player } from './player'
@@ -29,6 +30,7 @@ export const pt = {
   ...errors.pt,
   ...home.pt,
   ...live.pt,
+  ...listSettings.pt,
   ...parental.pt,
   ...comingSoon.pt,
   ...player.pt,

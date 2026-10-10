@@ -2,11 +2,11 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { notifyCategoryAccessChanged } from '../../lib/catalog/categoryAccess'
 import { db } from '../../lib/catalog/db'
-import { enableParentalControl } from '../../lib/parental/pin'
+import { enableParentalControl } from '../../lib/parental/listPin'
 import type { SourceOut } from '../import/importApi'
 import { DeleteSourceModal } from './DeleteSourceModal'
 
-/** Feature 066 (T027, FR-017): com o controle parental ligado, remover lista pede o PIN. */
+/** Feature 066 (T027, FR-017): com o controle parental ligado, remover lista pede o PIN — o DELA (067, FR-020). */
 
 const press = (key: string) => fireEvent.keyDown(document.body, { key, bubbles: true })
 const typePin = async (pin: string) => {
@@ -17,7 +17,7 @@ const typePin = async (pin: string) => {
 
 afterEach(async () => {
   cleanup()
-  await db.table('parentalPin').clear()
+  await db.table('parentalPins').clear()
   notifyCategoryAccessChanged() // a regra guardada em memória não vê limpeza direta das tabelas
   localStorage.clear()
 })
@@ -33,14 +33,22 @@ describe('DeleteSourceModal com controle parental', () => {
     expect(onConfirm).toHaveBeenCalledTimes(1)
     unmount()
 
-    await enableParentalControl('4321', [])
+    // PIN em OUTRA lista: remover esta continua imediato (067, FR-020).
+    await enableParentalControl('outra', '1111', [])
+    const second = render(<DeleteSourceModal source={source} onCancel={vi.fn()} onConfirm={onConfirm} />)
+    press('ArrowRight')
+    press('Enter')
+    expect(onConfirm).toHaveBeenCalledTimes(2)
+    second.unmount()
+
+    await enableParentalControl('s1', '4321', [])
     onConfirm.mockClear()
     render(<DeleteSourceModal source={source} onCancel={vi.fn()} onConfirm={onConfirm} />)
     press('ArrowRight')
     press('Enter')
     await screen.findByRole('dialog', { name: 'Digite o PIN' })
     expect(onConfirm).not.toHaveBeenCalled()
-    await typePin('0000')
+    await typePin('1111') // o PIN da outra lista não serve
     expect(await screen.findByText('PIN incorreto')).toBeInTheDocument()
     expect(onConfirm).not.toHaveBeenCalled()
     await typePin('4321')

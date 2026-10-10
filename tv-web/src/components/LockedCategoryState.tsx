@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Icon } from './Icon'
 import { ParentalPinPrompt } from './ParentalPinPrompt'
+import { unlockWithPin } from '../lib/catalog/categoryAccess'
 import { useT } from '../lib/i18n/I18nProvider'
 
 export interface LockedCategoryStateProps {
@@ -12,8 +13,8 @@ export interface LockedCategoryStateProps {
   pinOpen: boolean
   onOpenPin: () => void
   onClosePin: () => void
-  /** Confere o PIN e desbloqueia a lista ativa (`unlockWithPin`). `true` = certo; o reset das consultas mostra o conteúdo. */
-  onUnlock: (pin: string) => Promise<boolean>
+  /** A lista ativa: o PIN dela desbloqueia a sessão (`unlockWithPin`, feature 067) e o "Esqueci o PIN" confere os dados dela. */
+  sourceId: string
 }
 
 /**
@@ -21,7 +22,7 @@ export interface LockedCategoryStateProps {
  * PIN certo. Um botão focável "Desbloquear" (constitution: foco), e o pedido de PIN (com "Esqueci o PIN") por cima quando aberto. RETURN no PIN
  * fecha só o PIN; o RETURN da tela continua com a tela.
  */
-export function LockedCategoryState({ name, focused, pinOpen, onOpenPin, onClosePin, onUnlock }: LockedCategoryStateProps): ReactNode {
+export function LockedCategoryState({ name, focused, pinOpen, onOpenPin, onClosePin, sourceId }: LockedCategoryStateProps): ReactNode {
   const t = useT()
   return (
     <div className="locked-category-state">
@@ -32,7 +33,7 @@ export function LockedCategoryState({ name, focused, pinOpen, onOpenPin, onClose
       <button type="button" className={`button-secondary${focused && !pinOpen ? ' tv-focus' : ''}`} onClick={onOpenPin}>
         {t('parental.locked.unlock')}
       </button>
-      {pinOpen && <ParentalPinPrompt title={t('parental.pin.enter')} onSubmit={onUnlock} onCancel={onClosePin} />}
+      {pinOpen && <ParentalPinPrompt sourceId={sourceId} title={t('parental.pin.enter')} onSubmit={(pin) => unlockWithPin(sourceId, pin)} onCancel={onClosePin} />}
     </div>
   )
 }

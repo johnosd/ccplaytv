@@ -178,12 +178,15 @@ async function readyCount(page) {
   })
 }
 
-/** Configurações › Fontes IPTV › "Ressincronizar" da (única) lista, até voltar ao Início. */
+/** Configurações › Fontes IPTV › "Configurar" › Conta & lista › "Ressincronizar" da (única) lista, até voltar ao Início. */
 async function resyncViaSettings(page) {
   await page.getByRole('button', { name: 'Configurações', exact: true }).click()
   await page.waitForSelector('.settings-screen .sources-panel', { timeout: 8000 })
-  await page.keyboard.press('ArrowRight') // abas -> painel (coluna "Editar")
+  await page.keyboard.press('ArrowRight') // abas -> painel (linha da lista, "Configurar")
   await page.waitForSelector('.sources-panel-row .tv-focus', { timeout: 4000 })
+  await page.keyboard.press('Enter') // Configurar → Configurações da lista (feature 067)
+  await page.getByRole('heading', { name: /Configurações da lista/ }).waitFor({ timeout: 5000 })
+  await page.keyboard.press('ArrowRight') // abas → painel (Conta & lista: "Editar")
   await page.keyboard.press('ArrowRight') // Editar -> Ressincronizar
   await page.keyboard.press('Enter')
   await page.waitForSelector('text=/Concluída/', { timeout: 20000 })

@@ -47,7 +47,7 @@ export interface LiveShellProps {
   onOpenProfiles: () => void
   /**
    * OK na lupa/engrenagem da topbar (feature 026, D-001 — opcional: o contrato travado da 024 monta este objeto com 4
-   * campos). Ausente = soft disabled. `'parental'` abre direto em Categorias & parental (feature 066, FR-009).
+   * campos). Ausente = soft disabled. `'parental'` abre a tela da lista ativa em Categorias & controle parental (feature 066, FR-009; 067).
    */
   onOpenSearch?: () => void
   onOpenSettings?: (tab?: 'parental') => void
@@ -60,8 +60,8 @@ export interface LiveScreenProps {
   onResync: () => void
   /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
   onEditSource?: (sourceId: string) => void
-  /** Feature 024. */
-  shell?: LiveShellProps
+  shell?: LiveShellProps // Feature 024; desde a 068 o App não o passa (Live sem topbar), mas os contratos da 024 sim.
+  onManageCategories?: () => void // 068: "Gerenciar categorias" sem topbar (D-010 da 067). STUB do sdd-plan.
   /**
    * Entra tocando este canal, uma única vez (feature 026, `logic/
    * navegacao.md` §3) — do Início (card de "Canais favoritos") ou da Busca

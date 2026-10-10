@@ -9,6 +9,7 @@
 import { db, type CatalogDb, type CatalogRecord } from './db'
 import { listAllOfKind } from './catalogRepository'
 import { listVisibleCategories } from './categoryAccess'
+import { normalizeForSearch } from './adultCategory'
 
 /** Tipos pesquisáveis — cada seção pesquisa só o seu (FR-002). Episódio fica de fora. */
 export type SearchableKind = 'channel' | 'movie' | 'series'
@@ -58,15 +59,8 @@ export function compactSearchRecord(record: CatalogRecord): CatalogRecord {
   }
 }
 
-/** Minúsculas, sem acentos/diacríticos, espaços das pontas removidos e internos colapsados (FR-007). */
-export function normalizeForSearch(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, ' ')
-}
+// Minúsculas, sem acentos, espaços colapsados (FR-007). Mora no módulo puro desde a feature 067 (sem ciclo com `db.ts`).
+export { normalizeForSearch }
 
 /**
  * Entrada do índice com o nome normalizado calculado **só quando lido**

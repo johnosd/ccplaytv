@@ -437,7 +437,8 @@ background. Code that needs a category's or a kind's items must go through
 rows). See feature 039 above.
 
 **Standing rule (feature 066, categories & parental control)**: the person can
-hide categories and lock them behind a PIN. Every reader that shows catalog
+hide categories and lock them behind a PIN (one PIN per list since feature 067;
+every PIN call takes the `sourceId` — `lib/parental/listPin.ts`). Every reader that shows catalog
 items or categories must leave out hidden and locked categories: the `lib/catalog`
 readers filter with `getCategoryAccess` (`lib/catalog/categoryAccess.ts`),
 *after* any memo (caches keep raw data), and category trails use

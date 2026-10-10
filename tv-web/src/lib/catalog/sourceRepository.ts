@@ -32,7 +32,7 @@ import { deleteEpgForSource } from '../epg/epgRepository'
 import type { EpgStatus } from '../epg/types'
 import type { SourceAccount } from './sourceAccount'
 import type { ArchiveVariant, PanelClock } from './archiveUrl'
-import { categoryPreferences } from './parentalTables'
+import { categoryPreferences, parentalPins } from './parentalTables'
 
 /** A fonte como as telas a veem — sem credencial, por construção. */
 export interface SourceView {
@@ -233,8 +233,8 @@ export async function deleteSource(id: string, database: CatalogDb = db): Promis
   await deleteEpgForSource(id, database)
   // Feature 032 (FR-026): a metadata descritiva da fonte (provedor e TMDB) sai junto; a chave TMDB é da pessoa e fica.
   await database.titleMetadata.where('sourceId').equals(id).delete()
-  // Feature 066 (FR-005): preferências de categoria da lista também; o PIN é do aparelho e fica.
-  await categoryPreferences(database).where('sourceId').equals(id).delete()
+  // Preferências de categoria (066, FR-005) e o PIN da lista (067, FR-025 — o PIN é por lista desde então).
+  await Promise.all([categoryPreferences(database).where('sourceId').equals(id).delete(), parentalPins(database).delete(id)])
   await database.sources.delete(id)
 }
 

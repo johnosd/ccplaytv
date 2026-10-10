@@ -1,4 +1,5 @@
 import type Dexie from 'dexie'
+import { migrateLegacyPin } from '../parental/pinMigration'
 
 /**
  * Registra as versões mais recentes do catálogo sem concentrar os índices
@@ -23,4 +24,9 @@ export function registerLateCatalogSchemas(db: Dexie): void {
     categoryPreferences: '[sourceId+kind+matchKey], sourceId',
     parentalPin: 'id',
   })
+  // Feature 067: PIN parental por lista. `parentalPin` continua declarada (vazia depois da migração) — o `.upgrade()`
+  // passa o PIN único para cada lista com categoria bloqueada antes de qualquer leitura (`logic/pin-por-lista.md` §4).
+  db.version(21)
+    .stores({ parentalPins: 'sourceId' })
+    .upgrade((transaction) => migrateLegacyPin(transaction))
 }

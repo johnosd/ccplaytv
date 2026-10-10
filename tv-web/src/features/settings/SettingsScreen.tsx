@@ -151,28 +151,32 @@ export function SettingsScreen({
   const ActivePanel = (SETTINGS_TABS.find((tab) => tab.id === activeTab) ?? SETTINGS_TABS[0]).Panel
 
   const body = (
-    <div className="settings-body">
-      <SideCategoryNav
-        entries={tabEntries}
-        selectedId={activeTab}
-        focusedId={zone === 'tabs' ? focusedTab : undefined}
-        onSelect={(id) => enterPanel(id as SettingsTab)}
-      />
-      {/* Achado real (feature 028, FR-006): rolava com a barra nativa visível. */}
-      <div className="settings-panel no-scrollbar">
-        <ActivePanel
-          key={activeTab}
-          focused={zone === 'panel'}
-          initialFocus={initialFocusPending ? initialFocus : undefined}
-          activeSourceId={activeSourceId}
-          navigation={navigation}
-          exitToTabs={exitToTabs}
-          goToTopbar={goToTopbar}
-          showToast={showToast}
-          handleRef={tabHandle}
+    <>
+      {/* Feature 067 (FR-014): o que há aqui vale para o app todo; o que é de uma lista está em "Configurar". */}
+      <p className={`settings-scope-note${shell ? ' settings-scope-note--lone' : ''}`}>{t('listSettings.globalScope')}</p>
+      <div className="settings-body">
+        <SideCategoryNav
+          entries={tabEntries}
+          selectedId={activeTab}
+          focusedId={zone === 'tabs' ? focusedTab : undefined}
+          onSelect={(id) => enterPanel(id as SettingsTab)}
         />
+        {/* Achado real (feature 028, FR-006): rolava com a barra nativa visível. */}
+        <div className="settings-panel no-scrollbar">
+          <ActivePanel
+            key={activeTab}
+            focused={zone === 'panel'}
+            initialFocus={initialFocusPending ? initialFocus : undefined}
+            activeSourceId={activeSourceId}
+            navigation={navigation}
+            exitToTabs={exitToTabs}
+            goToTopbar={goToTopbar}
+            showToast={showToast}
+            handleRef={tabHandle}
+          />
+        </div>
       </div>
-    </div>
+    </>
   )
 
   return (
