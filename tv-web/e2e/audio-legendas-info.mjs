@@ -378,7 +378,7 @@ async function run() {
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     await page.keyboard.press('Enter') // entra em "Canais Chrome"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     // Histórico limpo: as asserções abaixo só valem se a chamada ao motor for

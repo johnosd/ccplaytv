@@ -230,7 +230,7 @@ async function run() {
     // "Filmes", de onde se saiu — `openViaTopbar` não depende disso (reseta
     // pra "Início" antes de contar), então funciona igual.
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     await page.keyboard.press('Enter') // entra na categoria de canais
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await page.keyboard.press('Enter') // toca o canal

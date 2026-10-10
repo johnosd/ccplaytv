@@ -117,7 +117,7 @@
 
 .epg-guide-detail-description {
   margin: 0;
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -255,7 +255,7 @@
   background: var(--bg-surface);
   color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body); /* nome do programa (068); o selo fica em --fs-caption — cabe em 84px */
   font-weight: var(--fw-caption);
   text-align: left;
   display: flex;

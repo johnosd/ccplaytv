@@ -136,7 +136,7 @@ async function addSource(page, name, m3uUrl, { first }) {
 async function openLive(page) {
   await page.waitForSelector('.home-content', { timeout: 8000 })
   await page.getByRole('button', { name: 'TV ao vivo', exact: true }).click()
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
 }
 
 async function eventually(page, predicate, arg, timeout = 12000) {

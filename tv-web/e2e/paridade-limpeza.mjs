@@ -224,7 +224,7 @@ async function runWalkthrough(page, m3uUrl, outDir) {
 
   // ---------- Live TV ----------
   await openViaTopbar(page, 'live')
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
   await waitForRealCategory(page)
   await page.keyboard.press('ArrowRight') // trilha -> entra na 1ª categoria real (canais numerosos)
   await page.waitForSelector('.live-item-name, .live-channel-row', { timeout: 8000 })
@@ -292,14 +292,8 @@ async function runWalkthrough(page, m3uUrl, outDir) {
   await page.waitForSelector('.vod-detail', { timeout: 8000 })
   await capture(page, outDir, '17-detalhe-serie')
 
-  // actions -> tabs -> season -> episodes (3× ArrowDown, `logic/detalhe-vod.md`
-  // §6 da 025 — mesma sequência de `filmes-series-ds-v14.mjs`), depois 1×
-  // ArrowUp de volta pra "season" antes de abrir o modal.
-  await page.keyboard.press('ArrowDown')
-  await page.keyboard.press('ArrowDown')
-  await page.keyboard.press('ArrowDown')
-  await page.waitForSelector('.vod-episode-row', { timeout: 8000 })
-  await page.keyboard.press('ArrowUp') // episódios -> temporada
+  // Seletor de temporada na fileira de ações do hero.
+  for (let i = 0; i < 6 && await page.locator('.vod-season-button.tv-focus').count() === 0; i += 1) await page.keyboard.press('ArrowRight')
   await page.waitForTimeout(100)
   await page.keyboard.press('Enter') // abre o modal de temporada
   await page.waitForSelector('[role="dialog"][aria-label="Selecionar temporada"]', { timeout: 4000 })

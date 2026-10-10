@@ -202,7 +202,7 @@ async function run() {
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await page.keyboard.press('Enter')
     await page.waitForSelector('.vod-detail', { timeout: 8000 })
-    for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowDown') // ações → abas → temporada → episódios
+    for (let i = 0; i < 2; i += 1) await page.keyboard.press('ArrowDown') // ações → abas → episódios
     await page.waitForSelector('.vod-episode-row.tv-focus', { timeout: 8000 })
     await page.waitForTimeout(300)
 
@@ -238,7 +238,7 @@ async function run() {
     }
     assert(upVisible, 'subindo do episódio 13 ao 1, a linha focada ficou dentro da tela em todos os passos')
 
-    for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowUp') // episódios → temporada → abas → ações
+    for (let i = 0; i < 2; i += 1) await page.keyboard.press('ArrowUp') // episódios → abas → ações
     await page.waitForFunction(() => document.querySelector('.vod-detail')?.scrollTop === 0, null, { timeout: 4000 })
     assert(((await snap()).pageScroll ?? -1) === 0, 'de volta às ações, a página volta ao topo e o hero reaparece inteiro')
     assert((await page.locator('.tv-focus').count()) >= 1, 'sempre há um elemento com foco na tela')

@@ -119,11 +119,11 @@
   --font-body: 'Inter', Arial, Helvetica, sans-serif;
 
   --fs-display: 64px;
-  --fs-h1: 40px;
-  --fs-h2: 28px;
-  --fs-body-lg: 24px;
-  --fs-body: 20px;
-  --fs-caption: 16px;
+  --fs-h1: 48px;
+  --fs-h2: 32px;
+  --fs-body-lg: 28px;
+  --fs-body: 24px;
+  --fs-caption: 20px;
   --fw-display: 800;
   --fw-h1: 700;
   --fw-h2: 600;
@@ -194,7 +194,7 @@
      ATRÁS da camada web, e qualquer pixel opaco aqui o esconde — canal toca
      sem imagem. Só vale para motor de hardware; com o `<video>` do desktop a
      classe nunca é aplicada. */
-  font: 500 calc(18px * var(--font-scale))/1.5 var(--font-body);
+  font: 500 var(--fs-body)/1.5 var(--font-body);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

@@ -130,8 +130,13 @@ async function run() {
     await page.keyboard.press('Enter') // detalhe
     await page.waitForSelector('.vod-detail', { timeout: 8000 })
     await page.waitForSelector('.vod-episode-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowDown') // ações -> abas
-    await page.keyboard.press('ArrowDown') // abas -> temporada
+    const selector = page.locator('.vod-detail-actions .vod-season-button')
+    assert(await selector.isVisible(), 'seletor visível junto às ações no primeiro acesso')
+    const bounds = await selector.boundingBox()
+    assert(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 1920 && bounds.y + bounds.height <= 1080, 'seletor cabe na primeira tela')
+    await page.screenshot({ path: path.join(__dirname, '..', 'test-results', 'temporadas-acoes.png') })
+    for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowRight')
+    await page.waitForSelector('.vod-season-button.tv-focus')
     await page.waitForTimeout(100)
     await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"][aria-label="Selecionar temporada"]', { timeout: 4000 })

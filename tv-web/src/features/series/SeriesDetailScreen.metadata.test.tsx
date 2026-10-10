@@ -216,7 +216,6 @@ describe('SeriesDetailScreen — metadata (feature 032)', () => {
 describe('SeriesDetailScreen — sinopse por episódio (FR-028)', () => {
   function enterEpisodes() {
     press('ArrowDown') // tabs
-    press('ArrowDown') // temporada
     press('ArrowDown') // 1º episódio
   }
 
@@ -226,7 +225,7 @@ describe('SeriesDetailScreen — sinopse por episódio (FR-028)', () => {
     renderScreen()
 
     const synopsisOf = (name: string) =>
-      screen.getByText(name, { selector: '.vod-episode-title' }).closest('.vod-episode-row')?.querySelector('.vod-episode-synopsis') ?? null
+      screen.getByText(name, { selector: '.vod-episode-title .marquee-inner' }).closest('.vod-episode-row')?.querySelector('.vod-episode-synopsis') ?? null
 
     // Independe do foco: todas as linhas já mostram a própria sinopse, ao lado da capa.
     expect(synopsisOf('Piloto')?.textContent).toBe('Sinopse do episódio um.')

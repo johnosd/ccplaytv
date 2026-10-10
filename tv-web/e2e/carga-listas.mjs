@@ -418,7 +418,7 @@ async function run() {
         return route.abort()
       })
       await openViaTopbar(page, 'live')
-      await page.waitForSelector('.live-column-groups', { timeout: 10000 })
+      await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 10000 })
       await page.keyboard.press('Enter') // entra na categoria em foco
       await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
       await page.keyboard.press('Enter') // abre o canal: camada de reprodução montada
@@ -521,7 +521,7 @@ async function run() {
       await resyncViaSettings(page)
 
       await openViaTopbar(page, 'live')
-      await page.waitForSelector('.live-column-groups', { timeout: 10000 })
+      await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 10000 })
       const t0 = Date.now()
       await page.keyboard.press('Enter')
       await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 3000 })

@@ -15,7 +15,7 @@ import type { PersonSnapshot } from './personSnapshot'
 
 /** Cartão retrato + folga entre cartões / altura com título e meta (mesma medida do Início). */
 const CARD_WIDTH = 229
-const CARD_HEIGHT = 370
+const CARD_HEIGHT = 410 // capa 302 + título em 2 linhas de 28px + meta de 24px (feature 068; era 370)
 
 export interface PersonScreenProps {
   personId: number

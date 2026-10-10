@@ -111,7 +111,7 @@ async function run() {
     await page.keyboard.press('Escape') // RETURN em Configurações → Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await page.getByRole('button', { name: 'TV ao vivo', exact: true }).click()
-    await page.waitForSelector('.live-column-groups', { timeout: 10000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 10000 })
 
     // A lista é virtualizada (feature 009): só ~13 linhas ficam montadas, e o
     // XMLTV de um provedor real costuma ter programação para poucos canais

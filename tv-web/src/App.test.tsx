@@ -3,6 +3,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import type { VodCategoryRestore, VodShowcaseFocus, VodTarget } from './features/vod/vodTarget'
+import type { LiveScreenProps } from './features/live/LiveScreen'
+import type { ListSettingsFocus } from './features/settings/tabs/settingsTab'
 
 /**
  * T025 (feature 017), atualizado na feature 023 para o caminho de entrada
@@ -86,6 +88,9 @@ vi.mock('./features/home/HomeContent', () => ({
     onOpenFavorites: (destination: string, from: unknown) => void
   }) => (
     <div>
+      <button type="button" onClick={() => onNavigate('live', { zone: 'hero', action: 'primary' })}>
+        ir-para-live
+      </button>
       <button type="button" onClick={() => onNavigate('movies', { zone: 'hero', action: 'primary' })}>
         ir-para-filmes
       </button>
@@ -98,6 +103,28 @@ vi.mock('./features/home/HomeContent', () => ({
 
 const fakeFocus: VodShowcaseFocus = { row: 'categories', id: 'cat:Ação' }
 const fakeRestore: VodCategoryRestore = { focusedItemId: 'filme-1', searchTerm: '', searchActive: false, focusedIndexHint: 0 }
+
+// Feature 068: testa a ligação do App; o teclado e o vazio real têm contrato na Live.
+vi.mock('./features/live/LiveScreen', () => ({
+  LiveScreen: ({ shell, sourceId, onManageCategories, onBack }: LiveScreenProps) => (
+    <div data-testid="live-route" data-source-id={sourceId} data-has-shell={String(Boolean(shell))}>
+      <button type="button" onClick={onManageCategories}>Gerenciar categorias</button>
+      <button type="button" onClick={onBack}>voltar-live</button>
+    </div>
+  ),
+}))
+
+vi.mock('./features/settings/list/ListSettingsScreen', () => ({
+  ListSettingsScreen: ({ sourceId, initialFocus, onBack }: {
+    sourceId: string
+    initialFocus?: ListSettingsFocus
+    onBack: () => void
+  }) => (
+    <div data-testid="list-settings-route" data-source-id={sourceId} data-tab={initialFocus?.tab}>
+      <button type="button" onClick={onBack}>voltar-lista</button>
+    </div>
+  ),
+}))
 
 /** Vitrine de Filmes/Séries (feature 052): só o roteamento do `App` está sob teste. */
 vi.mock('./features/vod/VodShowcaseScreen', () => ({
@@ -177,6 +204,25 @@ function renderApp() {
 
 describe('App — navegação e foco de volta (feature 017, T025; 023; 052)', () => {
   afterEach(cleanup)
+
+  it('Live sem topbar abre Gerenciar categorias na lista ativa e RETURN restaura Live e Início (068)', async () => {
+    renderApp()
+    fireEvent.click(await screen.findByRole('button', { name: 'escolher-fonte' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'ir-para-live' }))
+    expect(await screen.findByTestId('live-route')).toHaveAttribute('data-has-shell', 'false')
+    expect(document.querySelector('.topbar')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gerenciar categorias' }))
+    const settings = await screen.findByTestId('list-settings-route')
+    expect(settings).toHaveAttribute('data-source-id', 'src-1')
+    expect(settings).toHaveAttribute('data-tab', 'parental')
+
+    fireEvent.click(screen.getByRole('button', { name: 'voltar-lista' }))
+    expect(await screen.findByTestId('live-route')).toHaveAttribute('data-source-id', 'src-1')
+    expect(document.querySelector('.topbar')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'voltar-live' }))
+    expect(await screen.findByRole('button', { name: 'ir-para-live' })).toBeInTheDocument()
+  })
 
   async function openMovies() {
     renderApp()

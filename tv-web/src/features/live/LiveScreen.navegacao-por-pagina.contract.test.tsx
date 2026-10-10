@@ -7,8 +7,12 @@
  * - `.live-guide-button`: ícone focável do Guia completo, ao lado de
  *   `.search-icon-button`, com `aria-label="Guia completo"`.
  * - o destaque (`.live-preview-panel`) não tem botões nem elementos focáveis.
- * Página de canais = `floor(clientHeight / 84)` (a altura de linha da lista
- * virtualizada); com o `clientHeight` de 640 deste arquivo, 7 canais.
+ * Página de canais = `floor(clientHeight / 108)` (a altura de linha da lista
+ * virtualizada); com o `clientHeight` de 640 deste arquivo, 5 canais.
+ *
+ * Emendado pela feature 068 (legibilidade para TV, decisão do usuário em 2026-10-10 —
+ * `sdd/specs/068-legibilidade-tv/plan.md` R-001): a linha de canal cresceu de 84 para
+ * 108 px para caber a letra maior; a regra de paginação não muda.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
@@ -60,7 +64,7 @@ vi.mock('../catalog/catalogApi', async (importOriginal) => {
 })
 
 const SOURCE_ID = 'source-049'
-const PAGE = 7 // floor(640 / 84)
+const PAGE = 5 // floor(640 / 108) — emenda 068 (antes 7 = floor(640 / 84))
 const nameOf = (n: number) => `Canal ${String(n).padStart(2, '0')}`
 
 function category(id: number, name: string, order: number): CatalogCategory {
@@ -174,6 +178,8 @@ describe('LiveScreen — contrato da feature 049', () => {
     await waitFor(() => expect(focusedChannelName()).toBe(nameOf(1 + PAGE)))
     tap('ArrowRight')
     await waitFor(() => expect(focusedChannelName()).toBe(nameOf(1 + 2 * PAGE)))
+    tap('ArrowRight') // emenda 068: com 5 por página, ainda há uma página inteira antes do fim
+    await waitFor(() => expect(focusedChannelName()).toBe(nameOf(1 + 3 * PAGE)))
     tap('ArrowRight') // última página: vai ao último canal e para
     await waitFor(() => expect(focusedChannelName()).toBe(nameOf(20)))
     tap('ArrowRight')

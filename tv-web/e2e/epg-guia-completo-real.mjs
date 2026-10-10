@@ -132,7 +132,7 @@ async function run() {
 
     console.log('=== Abrir o guia do preview e percorrer categorias reais até achar programação (R-001/R-003) ===')
     await page.getByRole('button', { name: 'TV ao vivo', exact: true }).click()
-    await page.waitForSelector('.live-column-groups', { timeout: 10000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 10000 })
     const samples = []
     let withProgramme = 0
     let rowsSeen = 0

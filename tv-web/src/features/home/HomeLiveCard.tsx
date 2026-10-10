@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { MarqueeText } from '../../components/MarqueeText'
 import { PosterArt } from '../../components/PosterArt'
 import type { CatalogItemOut } from '../catalog/catalogApi'
 
@@ -18,7 +19,9 @@ export function HomeLiveCard({ item, focused }: HomeLiveCardProps): ReactNode {
       <span className="home-live-logo">
         <PosterArt url={item.icon_url ?? undefined} title={item.name} variant="logo" />
       </span>
-      <span className="home-live-name">{item.name}</span>
+      <span className="home-live-name">
+        <MarqueeText text={item.name} active={focused} />
+      </span>
     </div>
   )
 }

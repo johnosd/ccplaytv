@@ -186,7 +186,8 @@ async function run() {
       (await page.getByText(/Fontes IPTV › Configurar › Categorias & controle parental/).count()) === 1,
       'o vazio aponta o caminho novo (Fontes IPTV › Configurar › Categorias & controle parental)',
     )
-    await page.getByRole('button', { name: 'Gerenciar categorias' }).click()
+    assert((await page.getByRole('button', { name: 'Gerenciar categorias' }).getAttribute('class'))?.includes('tv-focus'), 'Gerenciar categorias começa focado')
+    await page.keyboard.press('Enter')
     await page.getByRole('heading', { name: /Configurações da lista/ }).waitFor({ timeout: 8000 })
     assert(((await page.locator('.list-settings-name').textContent()) ?? '').includes('Sala'), 'abre a tela da lista ativa ("Sala")')
     assert(

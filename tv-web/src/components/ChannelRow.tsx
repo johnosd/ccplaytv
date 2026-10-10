@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useT } from '../lib/i18n/I18nProvider'
+import { MarqueeText } from './MarqueeText'
 import { PosterArt } from './PosterArt'
 
 export interface ChannelRowProps {
@@ -12,6 +13,8 @@ export interface ChannelRowProps {
   /** 0–1, barra só desenhada se vier. */
   progress?: number
   focused?: boolean
+  /** Linha focada (feature 068, FR-005): o nome que não cabe rola até o fim. Separado de `focused`, que acende o logo. */
+  nameActive?: boolean
   /** Classe extra no nome (feature 024, D-008) — a Live TV fixa `.live-item-name` por contrato da feature 018. */
   nameClassName?: string
   /** Estrela de favorito (feature 024, mesmo padrão visual das grades de Filmes/Séries). */
@@ -37,6 +40,7 @@ export function ChannelRow({
   nowPlaying,
   progress,
   focused,
+  nameActive,
   nameClassName,
   favorite,
   unavailable,
@@ -49,7 +53,9 @@ export function ChannelRow({
       {number !== undefined && <span className="channel-row-number">{number}</span>}
       <PosterArt url={logoUrl} title={name} focused={focused} variant="logo" />
       <div className="channel-row-info">
-        <span className={nameClassName ? `channel-row-name ${nameClassName}` : 'channel-row-name'}>{name}</span>
+        <span className={nameClassName ? `channel-row-name ${nameClassName}` : 'channel-row-name'}>
+          <MarqueeText text={name} active={nameActive ?? focused} />
+        </span>
         <span className="channel-row-now">{nowPlaying ?? ''}</span>
         {group !== undefined && <span className={groupClassName ? `channel-row-group ${groupClassName}` : 'channel-row-group'}>{group}</span>}
       </div>

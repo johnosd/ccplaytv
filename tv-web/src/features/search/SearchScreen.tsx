@@ -44,7 +44,7 @@ type Row = 'field' | ResultKind
 const RESULT_ORDER: ResultKind[] = ['channel', 'movie', 'series']
 
 const CARD_WIDTH = 205
-const CARD_HEIGHT = 370
+const CARD_HEIGHT = 410 // capa 302 + título em 2 linhas de 28px + meta de 24px (feature 068; era 370)
 const CHANNEL_WIDTH = 340
 const CHANNEL_HEIGHT = 100
 

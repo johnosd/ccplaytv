@@ -185,7 +185,7 @@ async function run() {
     for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
     await page.keyboard.press('ArrowRight') // Início → TV ao vivo
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
 
     console.log('=== US2: o canal .ts toca no dev (fallback de demux) ===')
     await page.keyboard.press('Enter') // entra na categoria

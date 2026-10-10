@@ -163,6 +163,8 @@ formally planned features. The ones most easily violated by accident:
 
 ## Design system
 
+Product text uses `--fs-*` tokens: **20 px minimum, 24 px default** (scale 64/48/32/28/24/20, `--font-scale: 1`); include new screens in `tv-web/e2e/legibilidade-tv.mjs` to audit minimum size and text clipping in pt/en/es.
+
 **The app has migrated to the CCPlayTV Design System V14 "Spectrum"** — see
 `.planning/migracao-design-system-v14.md` for the wave-by-wave history
 (Onda 0–7, one SDD feature each, 021 through 028). Every screen runs under

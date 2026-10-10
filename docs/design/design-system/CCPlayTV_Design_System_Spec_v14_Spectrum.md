@@ -309,6 +309,8 @@ Não usar em:
 
 ## 6. Tipografia V14
 
+**Atualização (feature 068, 2026-10-10):** para leitura de longe, a escala de produto passa a **64 / 48 / 32 / 28 / 24 / 20 px** (display / h1 / h2 / body-lg / body / caption), alinhada à ADR-007 §7. O mínimo é **20 px**, o texto padrão e os metadados auxiliares usam **24 px**; caption é reservado a contagens, horários e selos curtos. Esta emenda prevalece sobre os tamanhos anteriores desta seção e de §2.1. Usar os tokens `--fs-*` de `index.css` e `styles/font-scale.css`, com `--font-scale: 1`; caixas acompanham o texto, ícones e capas mantêm seu tamanho. A auditoria `tv-web/e2e/legibilidade-tv.mjs` confere tamanho mínimo e recorte vertical em pt/en/es.
+
 ### Família de títulos
 
 ```css
@@ -1599,7 +1601,7 @@ Filme e série compartilham o mesmo hero. A referência visual é a função `de
 - com posição salva **e** duração conhecida, a primária vira `▶ Continuar de 42:10` (filme) ou `▶ Continuar T1:E3` (série), com barra de progresso e "faltam X" dentro do botão; sem os dois dados reais, não há barra nem percentual;
 - ações secundárias são icon buttons redondos (72 px no palco, §14), com o rótulo visível só no foco;
 - filme: Reiniciar (só com retomada) · Minha Lista · Trailer · Semelhantes · Marcar/Desmarcar assistido · Remover do histórico (só com o título no Histórico, sempre por último);
-- série: Minha Lista · Trailer · Semelhantes · Remover do histórico (só no Histórico);
+- série: Minha Lista · Trailer · Semelhantes · Remover do histórico (só no Histórico); ao lado, seletor de temporada com rótulo sempre visível (ajuste de 2026-10-10);
 - "Semelhantes" abre a aba Semelhantes e já foca o primeiro título.
 
 **Abas abaixo do hero (§13.4)**
@@ -1609,7 +1611,7 @@ Filme e série compartilham o mesmo hero. A referência visual é a função `de
 - **Detalhes**: ficha em cartões (Direção, País, Duração/Temporadas, Gêneros, Categoria da lista, Ano, Adicionado em, Disponível), cada um com a origem (TMDB ou fonte);
 - **Elenco**: trilha de pessoas com foto redonda, nome e personagem; OK abre a página do ator;
 - **Semelhantes**: duas linhas — `✓ Na sua lista` (títulos que já estão no catálogo; OK abre o detalhe) e `Não encontrados na sua lista` (sugestões só do TMDB; OK mostra o resumo), com a cobertura da busca ("procurado em N de M categorias"). Com a primeira linha vazia, ela mostra uma frase não focável e a segunda continua;
-- **Episódios** (série): seletor de temporada, episódios 16:9, progresso por episódio e `✓ concluído`.
+- **Episódios** (série): contagem e episódios da temporada selecionada no hero, episódios 16:9, progresso por episódio e `✓ concluído`.
 
 **Navegação**
 

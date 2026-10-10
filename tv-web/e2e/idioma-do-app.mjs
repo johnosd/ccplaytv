@@ -129,7 +129,7 @@ async function percorrer(page, lang) {
   await scan(page, 'Início', lang)
 
   await viaTopbar(page, 1)
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
   await scan(page, 'TV ao vivo', lang)
   await page.keyboard.press('Enter') // entra na categoria
   await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })

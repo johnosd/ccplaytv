@@ -12,16 +12,9 @@ import { ErrorState } from '../../components/ErrorState'
 import { EmptyState } from '../../components/EmptyState'
 import { SectionEmptyState } from '../../components/SectionEmptyState'
 import { Spinner } from '../../components/Spinner'
-import { Chip } from '../../components/Chip'
-import { channelNumberOf, knownCategoryCount } from './channelNumber'
+import { channelNumberOf } from './channelNumber'
 import { useOverflowEdges } from '../../lib/focus/useOverflowEdges'
-import {
-  LIVE_EDGE_SCROLL_PADDING_END,
-  LIVE_EDGE_SCROLL_PADDING_START,
-  LIVE_ITEM_OVERSCAN,
-  LIVE_ITEM_ROW_HEIGHT,
-  liveGroupDisplay,
-} from './liveTrail'
+import { LIVE_EDGE_SCROLL_PADDING_END, LIVE_EDGE_SCROLL_PADDING_START, LIVE_ITEM_OVERSCAN, LIVE_ITEM_ROW_HEIGHT } from './liveTrail'
 import { useLiveChannels, useLiveTrail } from './useLiveCatalog'
 import { useLiveSearch } from './useLiveSearch'
 import { useLiveZapping, useLiveZappingState } from './useLiveZapping'
@@ -61,7 +54,7 @@ export interface LiveScreenProps {
   /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
   onEditSource?: (sourceId: string) => void
   shell?: LiveShellProps // Feature 024; desde a 068 o App não o passa (Live sem topbar), mas os contratos da 024 sim.
-  onManageCategories?: () => void // 068: "Gerenciar categorias" sem topbar (D-010 da 067). STUB do sdd-plan.
+  onManageCategories?: () => void // 068: "Gerenciar categorias" sem topbar (D-010 da 067); com `shell`, vale o dele.
   /**
    * Entra tocando este canal, uma única vez (feature 026, `logic/
    * navegacao.md` §3) — do Início (card de "Canais favoritos") ou da Busca
@@ -94,6 +87,7 @@ export function LiveScreen({
   onResync: onResyncRequested,
   onEditSource,
   shell,
+  onManageCategories,
   initialChannel,
   openFavorites,
   initialTopbarItem,
@@ -170,6 +164,7 @@ export function LiveScreen({
   })
 
   const liveGuide = useLiveGuide({ guide, zap, trail, channels, search, setCol, sourceId, showToast, archive: archiveState })
+  const onManage = shell?.onOpenSettings ? () => shell.onOpenSettings?.('parental') : onManageCategories
   const { enterTrailEntry, handleTrailDirection, handleTrailSelect } = useLiveKeyboard({
     sourceId,
     contentActive,
@@ -182,7 +177,7 @@ export function LiveScreen({
     topErrorActionIndex,
     setTopErrorActionIndex,
     onBack,
-    onManage: shell?.onOpenSettings && (() => shell.onOpenSettings?.('parental')),
+    onManage,
     onResync,
     trail,
     search,
@@ -196,7 +191,7 @@ export function LiveScreen({
   const liveArchive = useLiveArchive({ sourceId, archiveState, zap, zapping, guide })
 
   const shellModel = { shell, zone, setZone, topbarItem, setTopbarItem, onBack, t }
-  const { categoriesQuery, categories, topPhase, focusedCategory, isFavoritesFocused, isAllFocused, enteredFavorites, enteredAll } = trail
+  const { categoriesQuery, categories, topPhase } = trail
   const { playing, zapOpen } = zap
 
   if (topPhase === 'loading') {
@@ -239,7 +234,7 @@ export function LiveScreen({
           title={t('live.topEmpty.title')}
           description={t('live.topEmpty.description')}
           onBack={onBack}
-          onManage={shell?.onOpenSettings && (() => shell.onOpenSettings?.('parental'))}
+          onManage={onManage}
         />
         <Toast message={toastMessage} messageKey={toastKey} />
       </div>,
@@ -266,18 +261,6 @@ export function LiveScreen({
     t,
   }
 
-  // Contagem conhecida da entrada exibida no cabeçalho (FR-006) — a mesma regra do trilho (FR-008): nunca inventada.
-  const headerCount = isFavoritesFocused || enteredFavorites
-    ? channels.favoriteIds.size
-    : focusedCategory
-      ? knownCategoryCount(focusedCategory)
-      : undefined
-  const headerLabel = isAllFocused || enteredAll
-    ? t('live.all')
-    : isFavoritesFocused || enteredFavorites
-      ? t('live.favoritesStar')
-      : liveGroupDisplay(focusedCategory?.name, t)
-
   return (
     <>
       {/* Guia completo parado (feature 031, FR-001): tela cheia, sem topbar, no lugar do conteúdo. */}
@@ -292,17 +275,10 @@ export function LiveScreen({
         renderLiveShell(
           shellModel,
           <div className="screen live-screen">
-            <div className="live-header">
-              <div className="live-header-titles">
-                <h1 className="screen-title">{t('live.title')}</h1>
-                <p className="live-header-sub">{t('live.subtitle')}</p>
-              </div>
-              <div className="live-header-chips">
-                <Chip selected>{headerLabel}</Chip>
-                {headerCount !== undefined && <Chip selected={false}>{t('live.channelCount', { n: headerCount })}</Chip>}
-              </div>
+            {/* Feature 068 (US2): sem bloco de título; uma lista por vez — a outra coluna fica no DOM, oculta por CSS. */}
+            <div className="live-body" data-live-view={channels.effectiveCol === 1 ? 'channels' : 'categories'}>
+              {renderLiveColumns(columnsModel, true)}
             </div>
-            <div className="live-body">{renderLiveColumns(columnsModel, true)}</div>
           </div>,
         )}
 

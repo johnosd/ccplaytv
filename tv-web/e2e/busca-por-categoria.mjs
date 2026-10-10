@@ -163,7 +163,7 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
 
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     await waitForTrailFocus(page, 'Esportes')
     await page.keyboard.press('Enter') // entra em "Canais | Esportes" (padrão: 1ª categoria real)
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
@@ -210,7 +210,7 @@ async function run() {
     // Fechar o player reancora a trilha na categoria do canal (016 D-006) —
     // sai até a trilha e sobe até "Todos" (logo após "★ Favoritos", ou
     // seja, 1 ArrowUp a partir de "Esportes" já chega em "Todos").
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     // RETURN em camadas (049): fechar o player devolve o foco aos resultados da busca; RETURN até chegar à trilha.
     for (let i = 0; i < 4 && (await page.locator('.live-column-groups .side-category-nav-item.tv-focus').count()) === 0; i += 1) {
       await page.keyboard.press('Escape')

@@ -180,7 +180,7 @@ async function run() {
 
     console.log('--- Favorita o canal ---')
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     // Espera a categoria REAL (não só "★ Favoritos"/"Todos") estar em foco antes do ArrowRight que
     // entra — enquanto as categorias carregam, o padrão cai em "Todos" (mesma corrida documentada em
     // `favoritos.mjs`/`busca-por-categoria.mjs`).
@@ -243,10 +243,16 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
     console.log('=== US1 (Home): o hero retoma o filme direto, sem passar pelo detalhe ===')
-    assert(
-      (await page.locator('.home-hero-title').textContent()) === 'Filme Hero',
-      'o hero do Início mostra "Filme Hero" (progresso parcial tem prioridade sobre boas-vindas/favoritos)',
-    )
+    // Espera (não lê na hora): o Início monta antes de as leituras de progresso/favoritos chegarem — mesma corrida do
+    // "Continuar" acima. Visto falhar 2 de 3 vezes com leitura imediata (feature 068, 2026-10-10).
+    const heroShown = await page
+      .locator('.home-hero-title', { hasText: 'Filme Hero' })
+      .waitFor({ timeout: 4000 })
+      .then(
+        () => true,
+        () => false,
+      )
+    assert(heroShown, 'o hero do Início mostra "Filme Hero" (progresso parcial tem prioridade sobre boas-vindas/favoritos)')
     // Entramos em Filmes pela topbar (`openViaTopbar`), então voltar restaura o foco lá (FR-017/FR-029)
     // — DOWN entra no conteúdo, sempre no hero (montagem nova, sem favorito/rail restaurável aqui).
     await page.keyboard.press('ArrowDown')

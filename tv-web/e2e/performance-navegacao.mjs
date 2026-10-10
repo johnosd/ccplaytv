@@ -37,7 +37,7 @@ async function main() {
   const port = server.address().port
   const browser = await launchBrowser()
   try {
-    const context = await browser.newContext()
+    const context = await browser.newContext({ locale: 'pt-BR' })
     const page = await context.newPage()
     await page.goto(APP_URL)
     await page.waitForSelector('.add-card', { timeout: 10000 })

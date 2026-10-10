@@ -1,0 +1,17 @@
+{
+    "feature":  "068-legibilidade-tv",
+    "lockedAt":  "2026-10-10 16:59",
+    "total":  4,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/styles/escala.legibilidade-tv.contract.test.ts",
+                      "sha256":  "a743f0b76893e282217b02e323bd34f73945fc24e77ab13ec7fbd015150c54d5",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/live/LiveScreen.legibilidade-tv.contract.test.tsx",
+                      "sha256":  "19e2652f8199baa1e668fdbe014a9b69132e08120dc001011effb79d8f34e194",
+                      "tests":  2
+                  }
+              ]
+}

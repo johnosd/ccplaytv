@@ -389,28 +389,14 @@ function App() {
           sourceId={source.id}
           initialChannel={screen.initialChannel}
           openFavorites={screen.openFavorites}
-          initialTopbarItem={screen.topbarFocus}
           onBack={goBack}
           onResync={() => resyncFromCategoryScreen(source.id)}
           // Reempilha a Live SEM `initialChannel` (nunca com ele) — senão voltar da
           // edição tocaria o canal de novo (mesma regra da Busca/Configurações).
           onEditSource={(sourceId) => editSourceFromPlayer(sourceId, { name: 'live' })}
-          shell={{
-            sourceName: source.display_name,
-            // "Início" na topbar leva ao Início mais próximo da pilha, nunca
-            // `back` (feature 026, D-006 — a Live agora também pode ser
-            // aberta a partir da Busca; `back` voltaria pra lá, não pro Início).
-            onGoHome: () => dispatch({ type: 'go-home' }),
-            onSwitchTop: (destination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
-            onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
-            // Empilha a Live SEM `initialChannel` (nunca com ele) — senão
-            // voltar da Busca/Configurações tocaria o canal de novo
-            // (feature 026, `logic/navegacao.md` §3).
-            onOpenSettings: (tab) =>
-              tab ? openListSettings(dispatch, source.id, { name: 'live' }, { tab }) : dispatch({ type: 'open', screen: { name: 'settings' }, from: { name: 'live', topbarFocus: 'settings' } }),
-            onOpenSearch: () =>
-              dispatch({ type: 'open', screen: { name: 'search' }, from: { name: 'live', topbarFocus: 'search' } }),
-          }}
+          // Feature 068 (US2, D-008): sem topbar — RETURN volta ao Início. "Gerenciar categorias" do vazio "todas
+          // escondidas" abre a tela da lista ativa em Categorias (D-010 da 067), como o `shell` fazia.
+          onManageCategories={() => openListSettings(dispatch, source.id, { name: 'live' }, { tab: 'parental' })}
         />
       )
 

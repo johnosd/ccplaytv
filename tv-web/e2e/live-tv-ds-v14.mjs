@@ -119,7 +119,7 @@ async function addSource(page, m3uUrl, displayName) {
 async function openLiveFromTopbar(page) {
   await page.waitForSelector('.topbar-item', { timeout: 8000 })
   await page.getByRole('button', { name: 'TV ao vivo', exact: true }).click()
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
 }
 
 async function run() {
@@ -136,42 +136,19 @@ async function run() {
     await openLiveFromTopbar(page)
     await assertOneFocus(page, 'entrada na Live, foco na trilha')
 
-    console.log('=== Topbar ↔ Live: subir/descer o foco, RETURN em camadas ===')
-    await page.keyboard.press('ArrowUp') // 1ª categoria real -> "Todos"
-    await page.keyboard.press('ArrowUp') // "Todos" -> "★ Favoritos"
-    await page.keyboard.press('ArrowUp') // "★ Favoritos" -> topbar
-    await page.waitForSelector('.topbar-item.tv-focus', { timeout: 4000 })
-    assert(
-      (await page.locator('.topbar-item.tv-focus').textContent()) === 'TV ao vivo',
-      'subir a partir do topo da trilha leva o foco à topbar, no destino atual',
-    )
-    await assertOneFocus(page, 'foco na topbar')
-
-    await page.keyboard.press('ArrowDown') // topbar -> conteúdo, mesmo item de onde saiu
+    // Feature 068 (US2): a Live não tem mais topbar nem título — a saída é RETURN, que volta ao Início.
+    console.log('=== Sem topbar na Live: ↑ no topo fica na trilha, RETURN volta ao Início (feature 068) ===')
+    assert((await page.locator('.topbar').count()) === 0, 'a Live não desenha a topbar')
+    assert((await page.getByRole('heading', { name: 'TV ao vivo' }).count()) === 0, 'nem o título "TV ao vivo"')
+    for (let i = 0; i < 4; i += 1) await page.keyboard.press('ArrowUp') // até o topo da trilha, e uma a mais
     assert(
       (await page.locator('.side-category-nav-item.tv-focus .side-category-nav-label').textContent()) === 'Favoritos',
-      'descer da topbar devolve o foco ao mesmo item da trilha, sem o mover',
+      '↑ no topo da trilha não sai dela (não há topbar para onde subir)',
     )
-
-    await page.keyboard.press('ArrowUp') // trilha -> topbar de novo
-    await page.keyboard.press('Escape') // RETURN na topbar -> Início
+    await assertOneFocus(page, 'topo da trilha')
+    await page.keyboard.press('Escape') // RETURN na trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
-    assert(true, 'RETURN na topbar (dentro da Live) volta ao Início')
-
-    await openLiveFromTopbar(page)
-    await page.keyboard.press('ArrowUp')
-    await page.keyboard.press('ArrowUp')
-    await page.keyboard.press('ArrowUp') // trilha -> topbar
-    await page.keyboard.press('ArrowRight') // "TV ao vivo" -> "Filmes"
-    assert((await page.locator('.topbar-item.tv-focus').textContent()) === 'Filmes', 'seta pra direita move o foco pra "Filmes" na topbar')
-    await page.keyboard.press('Enter') // switch-top: troca sem empilhar a Live
-    await page.waitForSelector('.vod-screen, .live-state', { timeout: 8000 })
-    assert(true, '"Filmes" na topbar da Live troca de tela (switch-top)')
-    // Filmes também ganhou topbar persistente (feature 025, Onda 4) — RETURN
-    // na trilha (col 0) continua indo direto ao Início (D-003 da 025).
-    await page.keyboard.press('Escape')
-    await page.waitForSelector('.home-content', { timeout: 8000 })
-    assert(true, 'RETURN a partir de Filmes volta ao Início — nunca à Live (D-004)')
+    assert(true, 'RETURN na trilha volta ao Início')
 
     console.log('=== Destaque informativo: Segurar OK favorita, ícone de Guia ao lado da lupa, RETURN (feature 049) ===')
     await openLiveFromTopbar(page)

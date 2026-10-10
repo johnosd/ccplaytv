@@ -201,15 +201,15 @@ describe('LiveScreen — paginação (feature 049)', () => {
       return frames.length
     })
     try {
-      tap('ArrowRight') // destino 8, ainda sem render
-      tap('ArrowRight') // destino 15
+      tap('ArrowRight') // destino 6 (página de 5 = floor(640/108), feature 068), ainda sem render
+      tap('ArrowRight') // destino 11
       act(() => frames.shift()?.(0)) // chega o quadro do primeiro toque
-      tap('ArrowLeft') // deve partir do destino 15: volta ao 8
+      tap('ArrowLeft') // deve partir do destino 11: volta ao 6
       act(() => {
         for (const callback of frames.splice(0)) callback(0)
       })
       raf.mockRestore()
-      await waitFor(() => expect(channelName()).toBe('Canal 08'))
+      await waitFor(() => expect(channelName()).toBe('Canal 06'))
       expect(vi.mocked(catalogApi.fetchPlayback)).not.toHaveBeenCalled()
     } finally {
       raf.mockRestore()

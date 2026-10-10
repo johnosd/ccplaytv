@@ -48,15 +48,14 @@ export interface LiveShellModel {
 }
 
 /**
- * Envolve `children` na moldura V14 (feature 024, D-002) quando `shell`
- * existe — topbar persistente, com "TV ao vivo" como destino atual (D-004).
- * Sem `shell`, devolve `children` sozinho: é assim que a tela funciona
- * quando ninguém a monta com moldura (contrato travado da 018, testes de
- * comportamento existentes).
+ * Envolve `children` na moldura V14 (feature 024, D-002) — com `shell`, topbar persistente com "TV ao vivo" como destino
+ * atual (D-004). Sem `shell` (o App desde a feature 068, D-008; os contratos da 018), a mesma moldura SEM topbar: a lista
+ * ganha a altura toda e o rodapé de dicas continua (precedente da grade de Filmes/Séries, `VodCategoryScreen`).
  */
 export function renderLiveShell(model: LiveShellModel, children: ReactNode): ReactNode {
   const { shell, zone, setZone, topbarItem, setTopbarItem, onBack, t } = model
-  if (!shell) return children
+  if (!shell) return <AppShell hints={liveHints(t)} topBar={null}>{children}</AppShell>
+
   return (
     <AppShell
       hints={liveHints(t)}
@@ -166,6 +165,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
       ? t('live.favoritesStar')
       : liveGroupDisplay(focusedCategory?.name, t)
 
+  const channelCount = showingContent && !searchActive && !contentIsLoading && !contentUnavailable ? (realCount ?? items.length) : undefined
   // Rótulo do destaque (feature 048, §1.1): grupo declarado pela fonte, com a entrada quando não é uma categoria.
   const activeGroup = liveGroupDisplay(activeChannel?.original_group ?? undefined, t)
   const heroEyebrow =
@@ -232,10 +232,11 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
       </div>
 
       <div className="live-column live-column-channels">
-        <div className="category-title-row">
+        <div className="category-title-row live-panel-head">
           <div className="live-panel-titles">
             <div className="live-column-title">{entryLabel}</div>
-            <div className="live-panel-sub">{t('live.channels')}</div>
+            {/* Contagem no cabeçalho da lista (feature 068, FR-010): a que o bloco de título mostrava, nunca inventada. */}
+            <div className="live-panel-sub">{channelCount !== undefined ? t('live.channelCount', { n: channelCount }) : t('live.channels')}</div>
           </div>
           {/* Ícone de busca (feature 018, FR-001): só quando há itens
               carregados (D-006) e nunca dentro do zapping (FR-018).
@@ -399,13 +400,12 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
                   if (!channel) return null
                   const isFavorite = favoriteIds.has(stableIdOf(channel) ?? '')
                   const { now: onAir } = nowNextForChannel(epgLookup, channel.epg_channel_id, epgNow)
+                  const rowFocused = effectiveCol === 1 && !topFocused && channelIdx === virtualRow.index
                   return (
                     <button
                       key={channel.id}
                       type="button"
-                      className={`live-channel-row no-scale${
-                        effectiveCol === 1 && !topFocused && channelIdx === virtualRow.index ? ' tv-focus' : ''
-                      }${playingId !== undefined && channel.id === playingId ? ' is-playing' : ''}`}
+                      className={`live-channel-row no-scale${rowFocused ? ' tv-focus' : ''}${playingId !== undefined && channel.id === playingId ? ' is-playing' : ''}`}
                       style={{ transform: `translateY(${virtualRow.start}px)` }}
                     >
                       <ChannelRow
@@ -413,6 +413,7 @@ export function renderLiveColumns(model: LiveColumnsModel, withPreview: boolean)
                         logoUrl={channel.icon_url ?? undefined}
                         name={channel.name}
                         nameClassName="live-item-name"
+                        nameActive={rowFocused}
                         nowPlaying={onAir?.title}
                         progress={onAir?.progress}
                         favorite={isFavorite}

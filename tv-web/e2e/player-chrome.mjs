@@ -248,7 +248,7 @@ async function run() {
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra em "Canais Chrome" (única categoria real)
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await page.keyboard.press('Enter') // toca "Canal Um"
@@ -307,8 +307,7 @@ async function run() {
     await enterCategory(page, 'Series')
     await page.keyboard.press('Enter') // abre o detalhe da série
     await page.waitForSelector('.vod-detail', { timeout: 8000 })
-    // actions -> tabs -> season -> episodes (3 setas, logic/detalhe-vod.md §6), focando o 1º episódio.
-    await page.keyboard.press('ArrowDown')
+    // actions -> tabs -> episodes (2 setas), focando o primeiro episódio.
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('ArrowDown')
     await page.waitForSelector('.vod-episode-row', { timeout: 8000 })
@@ -394,7 +393,7 @@ async function run() {
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     await page.keyboard.press('ArrowRight')
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await page.keyboard.press('Enter') // toca "Canal Um" de novo

@@ -367,7 +367,7 @@ describe('LiveScreen', () => {
       expect(esportes?.querySelector('.side-category-nav-count')).toBeNull()
     })
 
-    it('categoria já lida mostra a contagem real na trilha e no chip "N canais" do cabeçalho', () => {
+    it('categoria já lida mostra a contagem real na trilha e "N canais" no cabeçalho da lista de canais', () => {
       mockCategories([category(1, 'Esportes', 0, { fetchMode: 'eager', count: 3 })])
       mockContentByCategory({ 1: [channel('A', 'Esportes'), channel('B', 'Esportes'), channel('C', 'Esportes')] })
       renderLive()
@@ -376,7 +376,9 @@ describe('LiveScreen', () => {
         (e) => e.querySelector('.side-category-nav-label')?.textContent === 'Esportes',
       )
       expect(esportes?.querySelector('.side-category-nav-count')?.textContent).toBe('3')
-      expect(screen.getByText('3 canais')).toBeInTheDocument()
+      // Feature 068: sem bloco de título, a contagem vive no cabeçalho da lista de canais (visível ao entrar).
+      press('Enter')
+      expect(document.querySelector('.live-column-channels .live-panel-head')?.textContent).toContain('3 canais')
     })
 
     it('sem contagem conhecida, o chip "N canais" não aparece (nunca inventado)', () => {
@@ -646,8 +648,10 @@ describe('LiveScreen', () => {
     press('Enter')
 
     // O catálogo publicado pode ser parcial durante uma importação; a tela
-    // não pode sugerir completude.
-    expect(screen.queryByText(/2 canais/)).not.toBeInTheDocument()
+    // não pode sugerir completude. Desde a feature 068 (R-011) o cabeçalho da
+    // lista mostra "N canais" da categoria lida — o total dela, lido do
+    // aparelho, o mesmo que a trilha mostra depois da leitura —, nunca um
+    // total do catálogo.
     expect(screen.queryByText(/fim do catálogo/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/total/i)).not.toBeInTheDocument()
   })

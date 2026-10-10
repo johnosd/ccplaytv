@@ -50,6 +50,7 @@ import { PlayerLayer, type PlayerEpisodeStep } from '../../components/PlayerLaye
 import type { TrackChoice, ViewChoice } from '../../lib/player/PlayerService'
 import { NextEpisodeCountdown } from './NextEpisodeCountdown'
 import { PosterArt } from '../../components/PosterArt'
+import { MarqueeText } from '../../components/MarqueeText'
 import { RatingBadge } from '../../components/RatingBadge'
 import { ContentRatingBadge } from '../../components/ContentRatingBadge'
 import { TmdbRatingBadge } from '../../components/TmdbRatingBadge'
@@ -92,7 +93,7 @@ export interface SeriesDetailScreenProps {
 }
 
 type DetailTab = 'episodes' | 'details' | 'cast' | 'similar'
-type Row = 'more' | 'actions' | 'tabs' | 'season' | 'episodes' | 'panel'
+type Row = 'more' | 'actions' | 'tabs' | 'episodes' | 'panel'
 
 const CONFIGURE_KEY = 'configure'
 
@@ -111,11 +112,12 @@ type SeriesAction =
   | { id: 'trailer' }
   | { id: 'similar' }
   | { id: 'remove-history' }
+  | { id: 'season' }
 
 /**
  * Ações do hero, na ordem de foco (feature 025, FR-038): `[Continuar|Assistir
- * TX:EY] [Minha Lista] [Trailer] [Semelhantes]`, e "Remover do histórico"
- * (feature 036, §9) por último, só com algum episódio no "↺ Histórico".
+ * TX:EY] [Minha Lista] [Trailer] [Semelhantes]`, "Remover do histórico"
+ * (feature 036, §9) após os ícones, só no "↺ Histórico"; o seletor de temporada encerra a fileira.
  */
 function buildActions(primary: SeriesPrimary | null, isFavorite: boolean, inHistory: boolean): SeriesAction[] {
   const actions: SeriesAction[] = []
@@ -124,6 +126,7 @@ function buildActions(primary: SeriesPrimary | null, isFavorite: boolean, inHist
   actions.push({ id: 'trailer' })
   actions.push({ id: 'similar' })
   if (inHistory) actions.push({ id: 'remove-history' })
+  actions.push({ id: 'season' })
   return actions
 }
 
@@ -153,6 +156,8 @@ function actionLabel(action: SeriesAction, t: Translator): string {
       return t('trailer.button')
     case 'similar':
       return t('detail.action.similar')
+    case 'season':
+      return t('detail.pickSeason')
     case 'remove-history':
       return t('detail.action.removeHistory')
   }
@@ -163,7 +168,7 @@ function actionLabel(action: SeriesAction, t: Translator): string {
  * 022) com título/meta/sinopse AO LADO + o respiro do layout (feature 025,
  * FR-041).
  */
-const EPISODE_ROW_HEIGHT = 196
+const EPISODE_ROW_HEIGHT = 220 // feature 068: título 28 + meta 24 + sinopse em 2 linhas de 24 + progresso (era 196)
 const EPISODE_OVERSCAN = 6
 
 /**
@@ -435,7 +440,7 @@ export function SeriesDetailScreen({
   // estado, então trazemos a linha focada à vista. Só rolagem, e só navegando: com o player aberto rolar a página tirava o
   // chrome da tela (bug serie-sem-proximo-episodio-controles-somem); ao voltar à lista, o episódio focado vem à vista.
   useEffect(() => {
-    if (mode.kind !== 'browsing' || (row !== 'season' && row !== 'episodes')) return
+    if (mode.kind !== 'browsing' || row !== 'episodes') return
     rootRef.current?.querySelector<HTMLElement>('.tv-focus')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
   }, [row, episodeIdx, activeTab, mode.kind])
 
@@ -530,20 +535,20 @@ export function SeriesDetailScreen({
   function activateTab(id: string) {
     if (id === 'episodes' || id === 'details' || id === 'cast' || id === 'similar') setActiveTab(id)
   }
-
   function openSeasonModal() {
+    setActiveTab('episodes')
+    setFocusedTabId('episodes')
     setSeasonModalFocusIdx(safeSeasonIdx)
     setSeasonModalOpen(true)
   }
-
   /** OK no modal de temporada — troca `seasonIdx`, fecha e deixa o foco no botão (FR-040). */
   function chooseSeason(index: number) {
     setSeasonIdx(index)
     setFocusedEpisodeId(seasons[index]?.episodes[0]?.id ?? null)
     setSeasonModalOpen(false)
-    setRow('season')
+    setRow('actions')
+    setActionFocus(actions.findIndex((action) => action.id === 'season'))
   }
-
   useRemoteNav({
     onDirection: (dir) => {
       if (!series || mode.kind !== 'browsing') return
@@ -580,7 +585,10 @@ export function SeriesDetailScreen({
           setRow('tabs')
         }
         if (dir === 'up') setRow('actions')
-        if (dir === 'down' && activeTab === 'episodes') setRow('season')
+        if (dir === 'down' && activeTab === 'episodes' && seasonEpisodes.length > 0) {
+          setRow('episodes')
+          if (!seasonEpisodes.some((ep) => ep.id === focusedEpisodeId)) setFocusedEpisodeId(seasonEpisodes[0].id)
+        }
         // ↓ só entra no painel se a aba focada é a ativa e o painel tem focáveis; senão o foco fica na aba.
         if (dir === 'down' && effectiveTabId === activeTab && panelKeys.length > 0) {
           setPanelFocusKey((current) => (current !== undefined && panelKeys.includes(current) ? current : panelKeys[0]))
@@ -588,20 +596,10 @@ export function SeriesDetailScreen({
         }
         return
       }
-      if (row === 'season') {
-        if (dir === 'up') setRow('tabs')
-        if (dir === 'down' && seasonEpisodes.length > 0) {
-          setRow('episodes')
-          if (!seasonEpisodes.some((ep) => ep.id === focusedEpisodeId)) {
-            setFocusedEpisodeId(seasonEpisodes[0]?.id ?? null)
-          }
-        }
-        return
-      }
       // row === 'episodes'
       if (dir === 'up') {
         if (episodeIdx === 0) {
-          setRow('season')
+          setRow('tabs')
           return
         }
         setFocusedEpisodeId(seasonEpisodes[episodeIdx - 1]?.id ?? null)
@@ -639,6 +637,10 @@ export function SeriesDetailScreen({
       if (row === 'actions') {
         const action = actions[safeActionFocus]
         if (!action) return
+        if (action.id === 'season') {
+          openSeasonModal()
+          return
+        }
         if (action.id === 'trailer') {
           const toast = trailerActionToast(trailerState, t)
           if (toast !== null) showToast(toast)
@@ -670,10 +672,6 @@ export function SeriesDetailScreen({
       }
       if (row === 'panel') {
         if (panelFocusKey !== undefined) selectPanelKey(panelFocusKey)
-        return
-      }
-      if (row === 'season') {
-        openSeasonModal()
         return
       }
       const episode = seasonEpisodes[episodeIdx]
@@ -771,6 +769,9 @@ export function SeriesDetailScreen({
         synopsis={<SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />}
         actions={actions.map((action, i) => {
           const focused = row === 'actions' && i === safeActionFocus && !removal
+          if (action.id === 'season') {
+            return <div key={action.id} role="button" aria-label={t('detail.pickSeason')} className={`vod-season-button${focused ? ' tv-focus' : ''}`}>{currentSeason?.label ?? t('detail.season')} ▾</div>
+          }
           if (action.id === 'primary') {
             // Barra DO EPISÓDIO da primária (D-004): posição dele ÷ duração dele, nunca a da metadata da série.
             const progress =
@@ -870,7 +871,6 @@ export function SeriesDetailScreen({
         {activeTab === 'episodes' && (
           <>
             <div className="vod-season-row">
-              <div className={`vod-season-button${row === 'season' ? ' tv-focus' : ''}`}>{currentSeason?.label ?? t('detail.season')} ▾</div>
               <span className="vod-season-count">{t('detail.episodeCount', { n: seasonEpisodes.length })}</span>
             </div>
 
@@ -911,7 +911,7 @@ export function SeriesDetailScreen({
                           focar (feature 032, FR-028); sem sinopse do episódio não mostra texto, e nunca usa a
                           sinopse da série no lugar. */}
                       <div className="vod-episode-info">
-                        <div className="vod-episode-title">{episode.name}</div>
+                        <div className="vod-episode-title"><MarqueeText text={episode.name} active={focused} /></div>
                         {metaText && <div className="vod-episode-meta">{metaText}</div>}
                         {episode.synopsis && <p className="vod-episode-synopsis">{episode.synopsis}</p>}
                         <div className="vod-episode-progress">

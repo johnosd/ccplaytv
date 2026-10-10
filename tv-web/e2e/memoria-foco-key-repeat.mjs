@@ -72,7 +72,7 @@ async function openLiveTv(page) {
   await page.keyboard.press('Enter')
   await page.waitForSelector('.home-content', { timeout: 8000 })
   await openViaTopbar(page, 'live')
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
 }
 
 async function fireVideoEvent(page, type) {

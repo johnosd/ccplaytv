@@ -3,8 +3,6 @@ import { defineArea } from './area'
 /** TV ao vivo, guia (EPG) e zapping (feature 054, Fase 5). Nomes de canal/categoria vêm do provedor e nunca passam por aqui. */
 export const live = defineArea(
   {
-    'live.title': 'TV ao vivo',
-    'live.subtitle': 'Canais, programação e guia em um só lugar',
     'live.all': 'Todos',
     'live.favorites': 'Favoritos',
     'live.favoritesStar': '★ Favoritos',
@@ -81,8 +79,6 @@ export const live = defineArea(
     'guide.emptyList.description': 'Escolha outra lista.',
   },
   {
-    'live.title': 'Live TV',
-    'live.subtitle': 'Channels, schedule and guide in one place',
     'live.all': 'All',
     'live.favorites': 'Favorites',
     'live.favoritesStar': '★ Favorites',
@@ -159,8 +155,6 @@ export const live = defineArea(
     'guide.emptyList.description': 'Choose another list.',
   },
   {
-    'live.title': 'TV en vivo',
-    'live.subtitle': 'Canales, programación y guía en un solo lugar',
     'live.all': 'Todos',
     'live.favorites': 'Favoritos',
     'live.favoritesStar': '★ Favoritos',

@@ -131,7 +131,7 @@ async function openViaTopbar(page, destination) {
 
 async function openLiveCategory(page) {
   await openViaTopbar(page, 'live')
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
   await page.keyboard.press('ArrowRight') // trilha -> entra na 1ª categoria real
   await page.waitForSelector('.live-channel-list .live-channel-row', { timeout: 8000 })
   await page.waitForSelector('.live-preview-panel', { timeout: 8000 })

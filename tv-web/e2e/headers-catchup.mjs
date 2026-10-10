@@ -76,7 +76,7 @@ async function pressMediaKey(page, key) {
 async function openLive(page) {
   await page.waitForSelector('.home-content', { timeout: 10000 })
   await page.getByRole('button', { name: 'TV ao vivo', exact: true }).click()
-  await page.waitForSelector('.live-column-groups', { timeout: 10000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 10000 })
 }
 
 const focusedChannel = (page) => page.evaluate(() => document.querySelector('.live-channel-row.tv-focus .live-item-name')?.textContent ?? null)

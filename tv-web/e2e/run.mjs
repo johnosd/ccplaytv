@@ -67,6 +67,7 @@ export const SUITE = [
   'e2e/serie-foco-episodios.mjs',
   'e2e/categorias-controle-parental.mjs',
   'e2e/configuracoes-lista-global.mjs',
+  'e2e/legibilidade-tv.mjs',
 ]
 
 function lerArgs(argv) {

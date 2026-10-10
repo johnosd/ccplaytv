@@ -122,7 +122,7 @@ async function openLiveTv(page) {
   await page.waitForSelector('.home-content', { timeout: 8000 })
   await openViaTopbar(page, 'live')
 
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
 }
 
 async function run() {
@@ -197,7 +197,7 @@ async function run() {
     await page.keyboard.press('Enter')
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     // Padrão cai na 1ª categoria real (índice 2) — duas setas pra cima
     // chegam em "★ Favoritos", passando por "Todos" (ver comentário acima).
     await page.keyboard.press('ArrowUp') // categoria real -> "Todos"

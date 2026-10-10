@@ -161,8 +161,7 @@ describe('SeriesDetailScreen — hero Cinema (feature 059)', () => {
     expect(document.querySelector('.vod-detail-hero .content-card')).toBeNull()
     expect(document.querySelector('.vod-detail-poster .poster-box')).not.toBeNull()
 
-    press('ArrowDown') // aba Episódios
-    press('ArrowDown') // botão da temporada
+    for (let i = 0; i < 6; i += 1) press('ArrowRight')
     press('Enter')
     expect(screen.getByRole('dialog', { name: 'Selecionar temporada' })).toBeInTheDocument()
   })

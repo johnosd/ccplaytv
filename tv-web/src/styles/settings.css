@@ -17,7 +17,8 @@
 
 .settings-body .side-category-nav {
   flex: none;
-  width: calc(var(--space-7) * 3);
+  /* 4 × 96px desde a feature 068: com a letra de 24px, "Acessibilidade & sistema" não cabia em 288px. */
+  width: calc(var(--space-7) * 4);
 }
 
 .settings-panel {
@@ -172,7 +173,7 @@
 .accessibility-panel-note {
   margin: 0;
   padding: 0 var(--space-3);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-tertiary);
 }
 
@@ -192,7 +193,7 @@
 
 .privacy-panel-note {
   margin: 0 0 var(--space-2);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-tertiary);
 }
 
@@ -344,7 +345,7 @@
 
 .integration-card-fact dt {
   min-width: calc(var(--space-7) * 2);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-annotation);
 }
 
@@ -487,7 +488,7 @@
 
 .parental-panel-note {
   margin: 0 0 var(--space-2);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-tertiary);
 }
 
@@ -550,7 +551,7 @@
   color: var(--text-secondary);
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   cursor: pointer;
 }
 
@@ -681,11 +682,11 @@
 
 .list-settings-hint {
   flex-basis: 100%;
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-tertiary);
 }
 
 /* O rótulo mais longo ("Categorias & controle parental") não cabe na coluna das Configurações globais. */
 .list-settings-screen .settings-body .side-category-nav {
-  width: calc(var(--space-7) * 4);
+  width: calc(var(--space-7) * 5);
 }

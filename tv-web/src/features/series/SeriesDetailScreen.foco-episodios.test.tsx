@@ -95,10 +95,7 @@ describe('SeriesDetailScreen — foco da lista de episódios fica à vista', () 
     press('ArrowDown') // ações → abas
     expect(seen).toEqual([])
 
-    press('ArrowDown') // abas → temporada
-    expect(seen.at(-1)).toMatch(/vod-season-button.*tv-focus/)
-
-    press('ArrowDown') // temporada → 1º episódio
+    press('ArrowDown') // abas → 1º episódio
     expect(seen.at(-1)).toMatch(/vod-episode-row.*tv-focus\|.*Episodio 1/)
 
     press('ArrowDown')

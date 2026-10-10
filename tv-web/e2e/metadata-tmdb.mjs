@@ -436,7 +436,7 @@ async function run() {
     assert(((await page.locator('.vod-detail-synopsis').textContent()) ?? '') === 'SINOPSE DA SÉRIE', 'o hero da série mostra a sinopse do get_series_info')
     assert(hits.seriesInfo === 1, `episódios e metadata da série vieram de UMA requisição (${hits.seriesInfo})`)
 
-    for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowDown') // tabs → temporada → episódios
+    for (let i = 0; i < 2; i += 1) await page.keyboard.press('ArrowDown') // ações → abas → episódios
     const rows = page.locator('.vod-episode-row')
     await rows.first().waitFor({ timeout: 5000 })
     assert(

@@ -20,6 +20,7 @@ import { prioritizeCategory, usePrefetchHint } from '../catalog/prefetchApi'
 import { useBecauseYouWatched } from '../catalog/becauseApi'
 import { knownCategoryCount } from '../catalog/categoryCount'
 import { useRemoteNav } from '../../lib/useRemoteNav'
+import { listInitials } from '../../lib/initials'
 import { useIdFocus } from '../../lib/focus/useIdFocus'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 import { useToast } from '../../lib/useToast'
@@ -365,9 +366,9 @@ export function VodShowcaseScreen({
       return { id: entry.id, label: t('showcase.side.history'), icon: 'history', pinned: true, pinnedBadge: false, groupLabel: t('showcase.side.library') }
     }
     if (entry.id === 'pinned:all') {
-      return { id: entry.id, label: t('live.all'), pinned: true, pinnedBadge: false, groupLabel: t('showcase.side.catalog') }
+      return { id: entry.id, label: t('live.all'), tile: '∞', pinned: true, pinnedBadge: false, groupLabel: t('showcase.side.catalog') }
     }
-    return { id: entry.id, label: entry.label, count: entry.count, locked: entry.locked }
+    return { id: entry.id, label: entry.label, tile: listInitials(entry.label), count: entry.count, locked: entry.locked }
   })
 
   // Pré-carga por foco (features 010/038, E-5 da 052): a categoria em foco — na lista lateral ou na fileira — é buscada

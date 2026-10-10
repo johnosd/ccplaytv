@@ -248,7 +248,7 @@
   flex-direction: column;
   gap: calc(var(--space-1) / 2);
   font-family: var(--font-body);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-secondary);
 }
 
@@ -286,7 +286,7 @@
 .source-setup-main-text {
   margin: calc(-1 * var(--space-1)) 0 0;
   font-family: var(--font-body);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-secondary);
 }
 
@@ -329,7 +329,7 @@
 .source-setup-panel-text {
   margin: 0;
   font-family: var(--font-body);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-secondary);
 }
 
@@ -363,7 +363,7 @@
   background: var(--bg-surface);
   color: var(--text-secondary);
   font-family: var(--font-body);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   text-align: left;
   cursor: pointer;
 }
@@ -429,7 +429,7 @@
 
 .source-setup .text-field-label {
   font-weight: 700;
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-annotation);

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Live TV — Design System V14 (feature 024, Onda 3, T022 do plan.md).
  *
  * Consolida aqui todo o CSS específico da tela (antes espalhado no antigo
@@ -9,45 +9,6 @@
 
 .live-screen {
   gap: var(--space-4);
-}
-
-/* ---------- Cabeçalho (FR-006) ---------- */
-
-.live-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.live-header-titles {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-/* O título mantém `--fs-h1` (Spec V14 §6, D-015) — não aumentar. */
-.live-header .screen-title {
-  margin-bottom: 0;
-}
-
-.live-header-sub {
-  margin: 0;
-  font-size: var(--fs-body);
-  color: var(--text-secondary);
-}
-
-.live-header-chips {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-/* Chip informativo (nome da entrada aberta, contagem) — nunca alterna
-   seleção aqui, só exibe (FR-006). */
-.live-header-chips .chip {
-  cursor: default;
 }
 
 /* ---------- 3 colunas (§25) ---------- */
@@ -91,6 +52,19 @@
 .live-column.live-column-channels {
   width: var(--live-col-channels);
   flex: none;
+}
+
+/* Coluna única (feature 068, US2, D-007): sem topbar nem título, uma lista por vez — categorias OU canais — com ~1/3 da
+   largura útil (6 × 96 = 576px de 1728px); o destaque fica com o resto. A outra coluna continua no DOM (contratos de várias
+   features a consultam), só oculta. O zapping (`.player-zap-columns`) não tem `data-live-view` e segue com as duas. */
+.live-body[data-live-view] .live-column.live-column-groups,
+.live-body[data-live-view] .live-column.live-column-channels {
+  width: calc(var(--space-7) * 6);
+}
+
+.live-body[data-live-view='categories'] .live-column-channels,
+.live-body[data-live-view='channels'] .live-column-groups {
+  display: none;
 }
 
 /* Coluna estreita: painel e itens com folga menor para sobrar espaço ao rótulo. */
@@ -250,7 +224,7 @@
   top: 0;
   left: 0;
   width: 100%;
-  height: 72px;
+  height: 96px;
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -296,8 +270,8 @@
   min-width: 0;
 }
 
-/* Ad-hoc 2026-10-10: nome e programa um degrau acima, para ler de longe. A altura da linha NÃO muda (72px + espaço =
-   84px de `LIVE_ITEM_ROW_HEIGHT`, travada pelo contrato de navegação por página): 24px + 20px cabem na linha. */
+/* Nome em `--fs-body-lg` (28px), programa em `--fs-body` (24px), grupo em `--fs-caption` (20px) — feature 068. A linha tem 96px;
+   com o espaço entre linhas dá os 108px de `LIVE_ITEM_ROW_HEIGHT` (contrato de navegação por página emendado na 068). */
 .live-channel-row .channel-row-name {
   font-size: var(--fs-body-lg);
   font-weight: 600;
@@ -410,7 +384,7 @@
 
 .live-epg-description {
   margin: 0;
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   display: -webkit-box;
   -webkit-box-orient: vertical;

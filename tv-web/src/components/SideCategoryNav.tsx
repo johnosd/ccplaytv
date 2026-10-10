@@ -1,5 +1,6 @@
 import { Fragment, type Ref, type ReactNode } from 'react'
 import { Icon } from './Icon'
+import { MarqueeText } from './MarqueeText'
 import type { IconName } from './iconPaths'
 import { useT } from '../lib/i18n/I18nProvider'
 
@@ -89,7 +90,9 @@ export function SideCategoryNav({ entries, selectedId, focusedId, onSelect, focu
                     {entry.label.trim().charAt(0).toUpperCase()}
                   </span>
                 )}
-                <span className="side-category-nav-label">{entry.label}</span>
+                <span className="side-category-nav-label">
+                  <MarqueeText text={entry.label} active={isFocused} />
+                </span>
                 {entry.pinned && entry.pinnedBadge !== false && (
                   <span className="side-category-nav-pinned-badge" aria-hidden="true">
                     ★

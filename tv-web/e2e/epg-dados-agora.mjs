@@ -187,7 +187,7 @@ async function openEpgSettings(page) {
 async function openLive(page) {
   await page.waitForSelector('.home-content', { timeout: 8000 })
   await openFromTopbar(page, 'TV ao vivo')
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
 }
 
 /** Espera até `predicate` (avaliado no navegador) ser verdadeiro, ou devolve `false` no prazo. */

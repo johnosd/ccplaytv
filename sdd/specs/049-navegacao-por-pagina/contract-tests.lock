@@ -1,6 +1,6 @@
 {
     "feature":  "049-navegacao-por-pagina",
-    "lockedAt":  "2026-10-03 11:51",
+    "lockedAt":  "2026-10-10 17:10",
     "total":  5,
     "files":  [
                   {
@@ -10,7 +10,7 @@
                   },
                   {
                       "path":  "tv-web/src/features/live/LiveScreen.navegacao-por-pagina.contract.test.tsx",
-                      "sha256":  "84ce1b93f3ce674a9a1164e90de4dcc575d45f7ff71167473b2988f87eeb38ec",
+                      "sha256":  "4e3e2989c806d7cec1bb81e1aab851421ce3549dcbf5796af42d8ff0acfa8dc1",
                       "tests":  3
                   },
                   {

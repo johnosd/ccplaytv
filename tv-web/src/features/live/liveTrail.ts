@@ -14,8 +14,9 @@ import type { LiveEntryKey } from './liveSessionMemory'
  * Altura de linha do painel de canais (feature 009) — soma da altura fixa
  * de `.live-channel-row` (`live.css`, feature 024) com o espaçamento entre
  * itens que a posição absoluta não herda mais do `gap` do flex column.
+ * Feature 068: 96px de linha + 12px de espaço (era 72 + 12), para a letra maior caber.
  */
-export const LIVE_ITEM_ROW_HEIGHT = 84
+export const LIVE_ITEM_ROW_HEIGHT = 108
 export const LIVE_ITEM_OVERSCAN = 6
 
 /**

@@ -14,7 +14,8 @@ describe('SideCategoryNav — recolhida (feature 053)', () => {
     const onSelect = vi.fn()
     const { container } = render(<SideCategoryNav entries={ENTRIES} selectedId="" onSelect={onSelect} collapsed />)
     expect(container.querySelector('.side-category-nav--collapsed')).not.toBeNull()
-    expect(screen.getByText('Ação', { selector: '.side-category-nav-label' })).toBeInTheDocument()
+    // O nome fica dentro do MarqueeText (feature 068).
+    expect(screen.getByText('Ação', { selector: '.side-category-nav-label .marquee-inner' })).toBeInTheDocument()
     expect(container.querySelector('.side-category-nav-initial')?.textContent).toBe('A')
     fireEvent.click(container.querySelectorAll('.side-category-nav-item')[1])
     expect(onSelect).toHaveBeenCalledWith('a')

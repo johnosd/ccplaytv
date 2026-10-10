@@ -98,7 +98,7 @@ async function openLiveTv(page) {
   await page.waitForSelector('.home-content', { timeout: 8000 })
   await openViaTopbar(page, 'live')
 
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
 }
 
 /** Dispara um evento do <video> ATUAL (o adaptador de dev não decodifica conteúdo fictício — ver cabeçalho). */

@@ -370,8 +370,7 @@ async function run() {
       'com retomada salva, a ação primária vira "Continuar T1:E1"',
     )
 
-    // actions -> tabs -> season -> episodes (3 setas, `logic/detalhe-vod.md` §6).
-    await page.keyboard.press('ArrowDown')
+    // actions -> tabs -> episodes (2 setas), focando o primeiro episódio.
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('ArrowDown')
     await page.waitForSelector('.vod-episode-row', { timeout: 8000 })

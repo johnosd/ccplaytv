@@ -246,6 +246,9 @@ async function run() {
       await page.waitForTimeout(400)
       const back = await panelNow()
       assert(!back.shut && Math.abs(back.width - panelWidthOpen) < 2, '← para a lista expande de volta à largura original')
+      assert(await page.locator('.vod-side-panel').evaluate((el) => parseFloat(getComputedStyle(el).width) === 576), 'categorias expandidas têm a largura da lista da Live (576 px na base)')
+      const categoryTiles = await page.locator('.vod-side-nav .side-category-nav-tile').allTextContents()
+      assert(categoryTiles.includes('∞') && categoryTiles.includes('CU'), 'Todos e categorias usam os tiles da Live')
       await shot(page, '04b-lista-expandida')
 
       // ← → paginam: a página cabe várias entradas e nada recolhe enquanto o foco está na lista.
@@ -277,6 +280,11 @@ async function run() {
     assert(!seriesLabels.some((label) => /em alta esta semana/i.test(label) || label.startsWith('Dica')), `Séries sem chave TMDB não mostra Em alta nem Dica (${seriesLabels.join(' | ')})`)
     assert((await page.locator('.vod-hero-band').count()) === 0, 'Séries sem faixa de hero')
     await shot(page, '05-hero-series')
+    await ensureSideFocus(page)
+    await page.waitForTimeout(200)
+    assert(await page.locator('.vod-side-panel').evaluate((el) => parseFloat(getComputedStyle(el).width) === 576), 'Séries usa a mesma lateral expandida de Filmes')
+    assert((await page.locator('.vod-side-nav .side-category-nav-tile').allTextContents()).includes('DR'), 'Séries mostra as iniciais da categoria')
+    await shot(page, '05b-categorias-series')
 
     console.log(step = `=== Pilha virtualizada com ${EXTRA_CATEGORIES + 2} categorias ===`)
     await openViaTopbar(page, 'movies')

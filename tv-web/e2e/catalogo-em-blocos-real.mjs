@@ -436,7 +436,7 @@ async function run() {
       await page.keyboard.press('Escape') // trilha -> Início
       await page.waitForSelector('.home-content', { timeout: 10000 })
       await openViaTopbar(page, 'live')
-      await page.waitForSelector('.live-column-groups', { timeout: 20000 })
+      await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 20000 })
       await page.waitForTimeout(300)
       for (const [i, category] of liveCategories.slice(0, 3).entries()) {
         const index = await trailIndexOf(page, category.name)

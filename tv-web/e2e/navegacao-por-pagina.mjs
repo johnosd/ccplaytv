@@ -254,6 +254,10 @@ async function run() {
     console.log('=== Filmes: lista lateral da vitrine → OK entra; a grade anda cartão a cartão; RETURN volta à vitrine (US4) ===')
     // 052: a lista lateral é da vitrine (sem paginação por ←/→: esses movem entre a lista e as fileiras) e a grade da
     // categoria é outra tela, sem a lista — o RETURN a devolve à vitrine.
+    // Feature 068: a Live não tem topbar — RETURN (canais → trilha → Início) antes de subir à topbar do Início.
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'movies')
     await focusFirstRealCategory(page)
     await page.keyboard.press('Enter')
