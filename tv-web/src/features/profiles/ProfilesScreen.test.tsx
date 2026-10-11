@@ -670,3 +670,16 @@ describe('ProfilesScreen — exclusão confirmada (FR-010, FR-011)', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
+
+it('069: atalho do portal exige SELECT e RETURN restaura Adicionar lista', () => {
+  mockLoaded()
+  const onOpenPortal = vi.fn()
+  renderProfiles({ onOpenPortal })
+  press('ArrowDown', 'ArrowRight')
+  expect(card('Adicionar pelo site')).toHaveClass('tv-focus')
+  expect(onOpenPortal).not.toHaveBeenCalled()
+  press('Enter')
+  expect(onOpenPortal).toHaveBeenCalledTimes(1)
+  press('Escape')
+  expect(card('Adicionar lista')).toHaveClass('tv-focus')
+})

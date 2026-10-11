@@ -1,3 +1,4 @@
+import { getSeriesDiagnostics } from '../diagnostics/seriesDiagnostics'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CatalogDb, type SourceRecord } from './db'
 import { listEpisodes, storeCategories } from './catalogRepository'
@@ -147,6 +148,66 @@ async function seedStoredSeriesWithEpisodes(): Promise<number> {
 }
 
 describe('seriesLoader — ensureSeriesEpisodes (feature 012)', () => {
+  it('quota na primeira gravação informa storage_full e não deixa episódios parciais', async () => {
+    const id = await seedOnDemandSeries()
+    vi.stubGlobal('fetch', panelSeriesInfoFetch())
+    vi.spyOn(database.channels, 'bulkAdd').mockRejectedValueOnce(Object.assign(new Error('secret-url'), { name: 'QuotaExceededError' }))
+    expect(await ensureSeriesEpisodes(id, { database, now: () => 1000 })).toEqual({ outcome: 'failed', reason: 'storage_full' })
+    expect(await listEpisodes(SOURCE_ID, '200', database)).toEqual([])
+    expect((await database.channels.get(id))?.episodesFetchedAt).toBeUndefined()
+    expect(getSeriesDiagnostics()).not.toContain('secret-url')
+  })
+
+  it('quota na renovação preserva os episódios e o carimbo anterior', async () => {
+    const id = await seedOnDemandSeries()
+    vi.stubGlobal('fetch', panelSeriesInfoFetch())
+    await ensureSeriesEpisodes(id, { database, now: () => 1000 })
+    const before = await listEpisodes(SOURCE_ID, '200', database)
+    vi.spyOn(database.channels, 'bulkAdd').mockRejectedValueOnce(Object.assign(new Error('quota'), { name: 'QuotaExceededError' }))
+    expect(await ensureSeriesEpisodes(id, { database, now: () => 1000 + 25 * 60 * 60 * 1000 })).toEqual({ outcome: 'stale-served', reason: 'storage_full' })
+    expect(await listEpisodes(SOURCE_ID, '200', database)).toEqual(before)
+    expect((await database.channels.get(id))?.episodesFetchedAt).toBe(1000)
+  })
+
+  it('diagnostica credencial ausente sem tentar rede', async () => {
+    const id = await seedOnDemandSeries()
+    await database.sources.update(SOURCE_ID, { providerPassword: undefined })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    expect((await ensureSeriesEpisodes(id, { database })).outcome).toBe('failed')
+    expect(getSeriesDiagnostics()).toContain('CREDENTIAL_READ failed')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('distingue recusa do provedor da etapa de armazenamento sem expor segredo', async () => {
+    const id = await seedOnDemandSeries()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({}, 401)))
+    expect((await ensureSeriesEpisodes(id, { database })).outcome).toBe('failed')
+    const log = getSeriesDiagnostics()
+    expect(log).toContain('EPISODES_FETCH failed | ProviderError PROVIDER-invalid_credentials')
+    expect(log).not.toMatch(/exemplo|usuario-teste|senha-teste/)
+  })
+
+  it('distingue falha de gravação depois de obter os episódios', async () => {
+    const id = await seedOnDemandSeries()
+    vi.stubGlobal('fetch', panelSeriesInfoFetch())
+    vi.spyOn(database.channels, 'bulkAdd').mockRejectedValueOnce(new Error('secret-write-url'))
+    expect((await ensureSeriesEpisodes(id, { database })).outcome).toBe('failed')
+    const log = getSeriesDiagnostics()
+    expect(log).toContain('EPISODES_FETCH ready')
+    expect(log).toContain('EPISODES_STORE failed | Error UNCLASSIFIED')
+    expect(log).not.toContain('secret-write-url')
+    expect(await listEpisodes(SOURCE_ID, '200', database)).toEqual([])
+  })
+
+  it('diagnostica falha de rede tratada pelo conector', async () => {
+    const id = await seedOnDemandSeries()
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('https://secret:password@example.test')))
+    expect((await ensureSeriesEpisodes(id, { database })).outcome).toBe('failed')
+    expect(getSeriesDiagnostics()).toContain('EPISODES_FETCH failed | ProviderError PROVIDER-network_failure')
+    expect(getSeriesDiagnostics()).not.toMatch(/secret|password|example/)
+  })
+
   it('série de categoria eager sai sempre fresh, sem nenhuma chamada de rede', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)

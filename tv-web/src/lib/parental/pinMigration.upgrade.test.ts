@@ -6,7 +6,7 @@ import { hasPin, verifyPin } from './listPin'
 import { sha256Hex } from './sha256'
 
 /**
- * Feature 067 (T011, FR-024, D-002): o upgrade real da Dexie v20 → v21 migra o PIN único antes de qualquer leitura.
+ * Feature 067 (T011, FR-024, D-002): o upgrade real da Dexie v20 → v21 → v22 migra o PIN único antes de qualquer leitura.
  * O contrato chama `migrateLegacyPin` direto; aqui vale a fiação no `.upgrade()`.
  */
 
@@ -16,13 +16,14 @@ afterEach(async () => {
   await Dexie.delete(dbName)
 })
 
-/** Schema exato da v20: o da v21 sem a tabela nova, lido do próprio `CatalogDb` (não uma cópia que envelhece). */
+/** Schema v20: exclui parentalPins (067) e as tabelas aditivas v22 (069). */
 async function v20Stores(): Promise<Record<string, string>> {
   const probe = new CatalogDb(`probe-v20-${Math.random().toString(36).slice(2)}`)
   await probe.open()
   const stores = Object.fromEntries(
     probe.tables
-      .filter((table) => table.name !== 'parentalPins')
+      .filter((table) => !['parentalPins', 'portalDevice', 'licenseCache', 'portalOperations',
+        'pendingPortalDeletes', 'sourceRevisions', 'pendingImportOutbox'].includes(table.name))
       .map((table) => [table.name, [table.schema.primKey.src, ...table.schema.indexes.map((index) => index.src)].join(', ')]),
   )
   probe.close()
@@ -50,7 +51,7 @@ describe('CatalogDb — v21 (feature 067)', () => {
 
     const upgraded = new CatalogDb(dbName)
     await upgraded.open()
-    expect(upgraded.verno).toBe(21)
+    expect(upgraded.verno).toBe(22)
     expect(await upgraded.table('parentalPin').count()).toBe(0)
     expect(await hasPin('sala', upgraded)).toBe(true)
     expect(await verifyPin('sala', '2468', upgraded)).toBe(true)
@@ -60,7 +61,7 @@ describe('CatalogDb — v21 (feature 067)', () => {
     upgraded.close()
   })
 
-  it('banco novo (sem PIN antigo) abre na v21 sem nada a migrar', async () => {
+  it('banco novo (sem PIN antigo) abre na v22 sem nada a migrar', async () => {
     dbName = `test-db-v21-new-${Math.random().toString(36).slice(2)}`
     const fresh = new CatalogDb(dbName)
     await fresh.open()

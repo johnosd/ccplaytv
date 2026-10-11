@@ -1,0 +1,64 @@
+
+ RUN  v5.0.0 C:/Users/johns/Documents/Projetos/ccplayTv/tv-web
+
+ ✓  dom  src/lib/player/avplayAdapter.test.ts (16 tests) 13ms
+ ✓  dom  src/components/PlayerLayer.avplay-loading.test.tsx (1 test) 88ms
+Not implemented: Window's focus() method
+Not implemented: Window's focus() method
+Not implemented: Window's focus() method
+Not implemented: Window's focus() method
+Not implemented: Window's focus() method
+ ✓  dom  src/components/TrailerLayer.test.tsx (25 tests) 668ms
+
+ Test Files  3 passed (3)
+      Tests  42 passed (42)
+   Start at  10:55:58
+   Duration  18.20s (environment 54%, transform 20%, setup 11%, tests 9%, import 6%)
+
+
+Suite ampliada:
+
+ Test Files  61 passed (61)
+      Tests  445 passed (445)
+   Start at  10:54:44
+   Duration  82.32s (environment 52%, setup 14%, transform 12%, import 11%, tests 11%)
+
+
+E2E:
+âœ“ zapping-live-tv — 47.8s
+âœ“ ciclo-vida-player — 48.7s
+âœ“ rede-lifecycle-erros — 66.9s
+âœ“ trailers — 70.5s
+
+Mais lentos:
+    70.5s  trailers
+    66.9s  rede-lifecycle-erros
+    48.7s  ciclo-vida-player
+    47.8s  zapping-live-tv
+
+4/4 scripts passaram em 118s (soma serial 234s, 2 em paralelo)
+
+Arquitetura:
+architecture: aviso — teto pode baixar  App.tsx (551 < 625)
+architecture: aviso — teto pode baixar  components/TrailerLayer.tsx (332 < 346)
+architecture: aviso — teto pode baixar  components/player/usePlayerSession.ts (591 < 592)
+architecture: aviso — teto pode baixar  features/catalog/catalogApi.ts (2187 < 2190)
+architecture: aviso — teto pode baixar  features/home/HomeContent.tsx (637 < 896)
+architecture: aviso — teto pode baixar  features/import/importApi.ts (571 < 578)
+architecture: aviso — teto pode baixar  features/live/LiveScreen.tsx (325 < 349)
+architecture: aviso — teto pode baixar  features/live/useLiveKeyboard.ts (391 < 392)
+architecture: aviso — teto pode baixar  features/series/SeriesDetailScreen.tsx (1005 < 1021)
+architecture: aviso — teto pode baixar  features/vod/VodCategoryScreen.tsx (949 < 950)
+architecture: aviso — teto pode baixar  features/vod/VodShowcaseScreen.tsx (753 < 788)
+architecture: aviso — teto pode baixar  lib/catalog/prefetch/prefetchScheduler.ts (376 < 377)
+architecture: aviso — teto pode baixar  lib/catalog/userStateRepository.ts (356 < 362)
+architecture: aviso — exceção obsoleta (import)  features/catalog/catalogApi.ts -> features/series/seriesWatchedSummary.ts
+architecture: aviso — exceção obsoleta (import)  features/home/HomeContent.tsx -> features/catalog/becauseApi.ts
+architecture: aviso — exceção obsoleta (import)  features/home/HomeContent.tsx -> features/live/channelNumber.ts
+architecture: aviso — exceção obsoleta (import)  features/home/HomeContent.tsx -> features/settings/integrationsModel.ts
+architecture: aviso — exceção obsoleta (import)  features/home/HomeContent.tsx -> features/vod/trailerAction.ts
+architecture: aviso — exceção obsoleta (import)  features/vod/VodCategoryScreen.tsx -> features/shell/TopBar.tsx
+architecture: ok — 402 arquivos de produção, 146 imports herdados, 37 arquivos com teto, 19 aviso(s) (use --prune).
+
+Build: tsc -b e vite build exit 0
+check-no-demux-in-build: ok — nenhum marcador da biblioteca de demux no build.

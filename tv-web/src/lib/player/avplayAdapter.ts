@@ -4,6 +4,7 @@ import {
   type PlayerAdapterCallbacks,
   type PlayerError,
   type PlayerRegion,
+  type PlayerState,
   type RequestHeaderName,
   type RequestHeaders,
   type RequestHeadersReport,
@@ -13,27 +14,9 @@ import type { MediaTrack, StreamInfo } from './tracks'
 import type { AspectMode, QualityOption } from './viewChoice'
 
 /**
- * Adaptador do player nativo da Samsung (`webapis.avplay`) — o motor de
- * produção (ADR-001 §2).
- *
- * Duas características do AVPlay moldam este arquivo:
- *
- * - **Preparação assíncrona.** `prepareAsync` chama o callback de sucesso
- *   quando a mídia está pronta, ainda antes de o vídeo aparecer; só então
- *   `play()` faz sentido.
- * - **Plano de vídeo de hardware.** O AVPlay não desenha no DOM: ele pinta
- *   num plano ATRÁS da camada web, e a área correspondente da página precisa
- *   deixá-lo passar. Por isso a região vai por coordenadas em
- *   `setDisplayRect`, em espaço 1920x1080.
- *
- * Fora da TV, `window.webapis` não existe e `hasAvplay()` é falso — o
- * `PlayerService` então escolhe o adaptador `<video>`. Mesmo padrão de acesso
- * a global Tizen usado em `src/lib/tizenExit.ts`.
- *
- * **Superfície de VOD (pausa/busca/posição/duração) não foi verificada em
- * hardware ainda** — só `open`/`play`/`stop`/`close` o foram, na feature 003.
- * É o gate de TV física da feature 011
- * (`sdd/specs/011-assistir-filme-retomada/quickstart.md`, Cenários F–I).
+ * AVPlay (ADR-001 §2): prepareAsync prepara; play reproduz. O plano atrás do
+ * DOM exige transparência e setDisplayRect em 1920×1080. Sem webapis, usa HTML.
+ * Gate físico VOD: spec 011, quickstart.md, cenários F–I.
  */
 
 interface AvplayListener {
@@ -98,13 +81,7 @@ export function hasAvplay(): boolean {
   return getAvplay() !== undefined
 }
 
-/**
- * O que este motor SABE FAZER, sem considerar a mídia — é a crença do motor,
- * não a decisão final (a sessão resolve contra `mediaCapabilities(kind)`,
- * D-001/D-002). AVPlay declara tudo porque a API oferece as quatro
- * capacidades; o canal ao vivo continua sem elas porque a MÍDIA nega, não
- * porque o motor não soubesse.
- */
+/** Capacidades do motor; a sessão restringe pela mídia (D-001/D-002). Live não permite busca/pausa. */
 const AVPLAY_CAPABILITIES: EngineCapabilities = {
   canPause: true,
   canSeek: true,
@@ -113,13 +90,8 @@ const AVPLAY_CAPABILITIES: EngineCapabilities = {
 }
 
 /**
- * Traduz uma falha do motor para uma mensagem de usuário.
- *
- * O objeto de erro do AVPlay é deliberadamente NÃO repassado: ele pode
- * carregar a URL do stream, que em fontes Xtream embute usuário e senha
- * (constitution, "Segredos Fora dos Clientes e dos Logs"). Só um código
- * curto, quando existir, atravessa. Sem `message`: o motor não sabe o tipo
- * da mídia, então o texto fica com quem apresenta o erro (`PlayerError`).
+ * Só o código atravessa: erro cru pode conter URL/credenciais (constitution).
+ * Sem mensagem: o adaptador não conhece a mídia; quem apresenta traduz o erro.
  */
 function toPlayerError(raw: unknown): PlayerError {
   let code: string | null = null
@@ -132,12 +104,7 @@ function toPlayerError(raw: unknown): PlayerError {
   return { code }
 }
 
-/**
- * `getDuration()` chamada a cada tick de progresso, não só uma vez: alguns
- * contêineres só revelam a duração real depois do início, e a duração pode
- * mudar (spec, Edge Cases). `0` do motor vira `undefined` — duração
- * desconhecida, não duração zero.
- */
+/** Duração relida a cada tick: pode surgir tarde/mudar. Zero ou falha = desconhecida. */
 function safeDuration(avplay: AvplayApi): number | undefined {
   try {
     const duration = avplay.getDuration()
@@ -329,6 +296,22 @@ function applyAspect(avplay: AvplayApi, region: PlayerRegion, mode: AspectMode):
 
 export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAdapter {
   let opened = false
+  let state: PlayerState = 'idle'
+  let lastPlayTime: number | undefined
+
+  function reportState(next: PlayerState) {
+    if (!opened || state === 'error' || state === 'completed' || state === 'closed') return
+    if (next === 'buffering') lastPlayTime = undefined
+    if (state === next) return
+    state = next
+    callbacks.onStateChange(next)
+  }
+
+  function reportError(error: unknown) {
+    if (!opened || state === 'error' || state === 'completed' || state === 'closed') return
+    state = 'error'
+    callbacks.onError(toPlayerError(error))
+  }
   let displayRegion: PlayerRegion = { x: 0, y: 0, width: 1920, height: 1080 }
   /** Índice VIDEO forçado por `selectQuality`; `null` = adaptativo (Auto). */
   let forcedVideoIndex: number | null = null
@@ -352,15 +335,25 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
 
       avplay.open(url)
       opened = true
+      state = 'preparing'
+      lastPlayTime = undefined
       displayRegion = region
       // Feature 058: headers da lista no estado IDLE. Uma abertura sem headers
       // não toca em propriedade nenhuma — nada vaza de um item para o outro.
       lastHeadersReport = applyHeaders(avplay, headers)
 
       avplay.setListener({
-        onbufferingstart: () => callbacks.onStateChange('buffering'),
-        onbufferingcomplete: () => callbacks.onStateChange('playing'),
+        onbufferingstart: () => reportState('buffering'),
+        onbufferingcomplete: () => reportState('playing'),
         oncurrentplaytime: (currentTimeMs: number) => {
+          if (!opened || state === 'error' || state === 'completed' || state === 'closed') return
+          if (!Number.isFinite(currentTimeMs) || currentTimeMs < 0) return
+          // Alguns streams não avisam bufferingcomplete. Dois tempos crescentes
+          // confirmam reprodução real; tempo parado e pausa não liberam o aviso.
+          if (state === 'buffering' && lastPlayTime !== undefined && currentTimeMs > lastPlayTime) {
+            reportState('playing')
+          }
+          lastPlayTime = currentTimeMs
           callbacks.onProgress?.({
             positionMs: currentTimeMs,
             durationMs: safeDuration(avplay),
@@ -369,8 +362,12 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
         // Fim de mídia é um FATO, não um veredito — quem decide se é
         // conclusão normal (filme) ou falha de fornecimento (canal ao vivo)
         // é a sessão, pela capacidade resolvida da mídia (D-008).
-        onstreamcompleted: () => callbacks.onCompleted?.(),
-        onerror: (error: unknown) => callbacks.onError(toPlayerError(error)),
+        onstreamcompleted: () => {
+          if (!opened || state === 'error' || state === 'completed' || state === 'closed') return
+          state = 'completed'
+          callbacks.onCompleted?.()
+        },
+        onerror: reportError,
         // Só o texto e a duração atravessam; `type`/`attributes` (estilo do
         // stream) são ignorados de propósito — o estilo é o do DS (D-004).
         onsubtitlechange: (duration: string, text: string) => {
@@ -390,9 +387,10 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
 
       avplay.prepareAsync(
         () => {
-          // Preparado ≠ reproduzindo: o estado só vira `playing` quando o
-          // motor reportar buffering completo.
-          callbacks.onStateChange('buffering')
+          if (!opened || state === 'error' || state === 'completed' || state === 'closed') return
+          // Não sobrescreve um bufferingcomplete anterior ao sucesso do prepare.
+          // Preparado espera buffering completo ou tempo real crescente.
+          if (state === 'preparing') reportState('buffering')
           if (startAtMs !== undefined && startAtMs > 0) {
             // Busca ANTES do play(): evita o filme aparecer do início por um
             // instante antes de saltar pra retomada (logic/reproducao-vod.md
@@ -407,7 +405,7 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
             avplay.play()
           }
         },
-        (error: unknown) => callbacks.onError(toPlayerError(error)),
+        reportError,
       )
     },
 
@@ -420,9 +418,9 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
       if (!avplay) return
       try {
         avplay.pause()
-        callbacks.onStateChange('paused')
+        reportState('paused')
       } catch (error) {
-        callbacks.onError(toPlayerError(error))
+        reportError(error)
       }
     },
 
@@ -432,9 +430,9 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
       try {
         // Não há resume() na API: play() também retoma de PAUSED.
         avplay.play()
-        callbacks.onStateChange('playing')
+        reportState('playing')
       } catch (error) {
-        callbacks.onError(toPlayerError(error))
+        reportError(error)
       }
     },
 
@@ -575,6 +573,8 @@ export function createAvplayAdapter(callbacks: PlayerAdapterCallbacks): PlayerAd
       const avplay = getAvplay()
       if (!avplay || !opened) return
       opened = false
+      state = 'closed'
+      lastPlayTime = undefined
       // `stop` antes de `close`: fechar sem parar deixa áudio tocando em
       // alguns firmwares. Cada um em seu try para uma falha não impedir a
       // outra — sair sem áudio residual é o que importa aqui.

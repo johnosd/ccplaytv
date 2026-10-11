@@ -1,3 +1,5 @@
+import { allowListEntry } from './lib/licensing/licenseRuntime'
+import { usePortalIntegration } from './features/portal/usePortalIntegration'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { SplashScreen } from './features/splash/SplashScreen'
@@ -49,6 +51,11 @@ function App() {
   // de "o que zera a pilha" mora em `navigation/appNav.ts`.
   const [nav, dispatch] = useReducer(appNavReducer, undefined, initialAppNav)
   const { screen, activeSource, history } = nav
+
+  const portalConfirmation = usePortalIntegration({ activeSourceId: activeSource?.id,
+    leaveSource: sourceId => dispatch({ type: 'import-back', sourceId: sourceId ?? activeSource?.id }),
+    openPortal: () => dispatch({ type: 'open', screen: { name: 'settings', standalone: true, restore: { zone: 'panel', tab: 'portal' } }, from: { name: 'profiles', mode: 'base' } }),
+    sourceDeleted: sourceId => dispatch({ type: 'source-removed', sourceId }), catalogChanged: wakePrefetch })
 
   // Tecla amarela como atalho de favoritar (feature 013) e teclas de mídia
   // do controle (feature 027, FR-023) — registram uma vez, na raiz do app,
@@ -157,6 +164,7 @@ function App() {
    * sempre disparou (feature 004).
    */
   function chooseSource(source: SourceOut) {
+    if (!allowListEntry(source.id)) return
     // Feature 034 (US2, `logic/conta-da-fonte.md` §5): uma lista Xtream com
     // conta vencida/recusada — ou ainda por verificar — passa pela tela de
     // acesso em vez de abrir o Início. M3U avulsa e Modo limitado nunca passam
@@ -175,6 +183,7 @@ function App() {
 
   /** O que escolher uma lista sempre fez (feature 023) — agora só depois de o acesso abrir. */
   function enterSource(source: SourceOut) {
+    if (!allowListEntry(source.id)) return
     dispatch({ type: 'choose-source', source })
     writeLastSourceId(source.id)
     // Mesma lista de antes (ex.: "Abrir lista" depois de ressincronizar): a
@@ -249,7 +258,10 @@ function App() {
     })
   }
 
-  const goBack = () => dispatch({ type: 'back' })
+  const goBack = () => {
+    if (screen.name === 'profiles' && activeSource && !allowListEntry(activeSource.id)) return
+    dispatch({ type: 'back' })
+  }
 
   /** Topbar de Filmes/Séries (vitrine e categoria; sem rodapé): "Início" vai ao Início mais próximo da pilha (026, D-006). */
   const vodShell = (src: SourceOut, current: Extract<AppScreen, { name: 'movies' | 'series' | 'movies-category' | 'series-category' }>) => ({
@@ -296,6 +308,7 @@ function App() {
           // "Gerenciar listas" (feature 026, FR-032): Configurações › Fontes
           // IPTV sem lista ativa, sem topbar (`standalone`).
           onManageSources={() => dispatch({ type: 'open', screen: { name: 'settings', standalone: true } })}
+          onOpenPortal={() => dispatch({ type: 'open', screen: { name: 'settings', standalone: true, restore: { zone: 'panel', tab: 'portal' } }, from: { ...screen, focusSourceId: ADD_LIST_FOCUS_ID } })}
           onBack={goBack}
         />
       )
@@ -541,6 +554,7 @@ function App() {
     <>
       <RouteBoundary key={`${screen.name}:${history.length}:${route?.key ?? ''}`} onBack={goBack}>{route}</RouteBoundary>
       <ProgressSaveNotice />
+      {portalConfirmation}
     </>
   )
 }

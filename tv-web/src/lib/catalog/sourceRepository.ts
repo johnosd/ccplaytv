@@ -24,15 +24,15 @@ import {
   type SourceType,
 } from './db'
 import { parsePanelUrl } from './m3uPanelUrl'
-import { deleteAllForSource } from './catalogRepository'
 import { normalizeServerAddress } from './xtreamConnector'
-import { deleteUserStatesForSource } from './userStateRepository'
 import { epgManualHostOf, epgStatusOf } from '../epg/epgStatus'
-import { deleteEpgForSource } from '../epg/epgRepository'
 import type { EpgStatus } from '../epg/types'
 import type { SourceAccount } from './sourceAccount'
 import type { ArchiveVariant, PanelClock } from './archiveUrl'
-import { categoryPreferences, parentalPins } from './parentalTables'
+import { portalTables } from '../portal/portalTables'
+import { sourceExtras, type CreateSourceInput, type UpdateSourceInput } from './sourceInput'
+export type { CreateSourceInput, UpdateSourceInput } from './sourceInput'
+export { deleteSource, sourceDeletionTables } from './sourceDeletion'
 
 /** A fonte como as telas a veem — sem credencial, por construção. */
 export interface SourceView {
@@ -119,15 +119,6 @@ export async function getSource(
   return record ? toView(record) : undefined
 }
 
-export interface CreateSourceInput {
-  type: SourceType
-  displayName: string
-  m3uUrl?: string
-  providerDns?: string
-  providerUsername?: string
-  providerPassword?: string
-}
-
 export class InvalidSourceError extends Error {
   constructor(message: string) {
     super(message)
@@ -147,10 +138,11 @@ function newId(): string {
 export async function createSource(
   input: CreateSourceInput,
   database: CatalogDb = db,
+  options: { sourceId?: string } = {},
 ): Promise<string> {
   const now = Date.now()
   const record: SourceRecord = {
-    id: newId(),
+    id: options.sourceId ?? newId(),
     type: input.type,
     displayName: input.displayName.trim(),
     connectionState: 'never_synced',
@@ -173,16 +165,15 @@ export async function createSource(
     record.m3uUrl = input.m3uUrl.trim()
   }
 
-  await database.sources.add(record)
+  Object.assign(record, sourceExtras(input))
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(record.id)) throw new InvalidSourceError('Identificador inválido.')
+  const tables = portalTables(database)
+  await database.transaction('rw', database.sources, tables.revisions, async () => {
+    if (await tables.revisions.get(record.id)) throw new InvalidSourceError('Identificador já utilizado.')
+    await database.sources.add(record)
+    await tables.revisions.put({ sourceId: record.id, revision: 1 })
+  })
   return record.id
-}
-
-export interface UpdateSourceInput {
-  displayName?: string
-  m3uUrl?: string
-  providerDns?: string
-  providerUsername?: string
-  providerPassword?: string
 }
 
 /**
@@ -196,46 +187,41 @@ export async function updateSource(
   input: UpdateSourceInput,
   database: CatalogDb = db,
 ): Promise<SourceView | undefined> {
-  const record = await database.sources.get(id)
-  if (!record) return undefined
+  const tables = portalTables(database)
+  return database.transaction('rw', database.sources, tables.revisions, database.epgPrograms, async () => {
+    const record = await database.sources.get(id)
+    if (!record) return undefined
 
-  const changes: Partial<SourceRecord> = { updatedAt: Date.now() }
-  if (input.displayName?.trim()) changes.displayName = input.displayName.trim()
-  if (input.m3uUrl?.trim()) changes.m3uUrl = input.m3uUrl.trim()
-  if (input.providerDns?.trim()) changes.providerDns = normalizeServerAddress(input.providerDns)
-  if (input.providerUsername?.trim()) changes.providerUsername = input.providerUsername
-  if (input.providerPassword) changes.providerPassword = input.providerPassword
+    const changes: Partial<SourceRecord> = { updatedAt: Date.now() }
+    if (input.displayName?.trim()) changes.displayName = input.displayName.trim()
+    if (input.m3uUrl?.trim()) changes.m3uUrl = input.m3uUrl.trim()
+    if (input.providerDns?.trim()) changes.providerDns = normalizeServerAddress(input.providerDns)
+    if (input.providerUsername?.trim()) changes.providerUsername = input.providerUsername
+    if (input.providerPassword) changes.providerPassword = input.providerPassword
 
-  const credentialChanged =
-    changes.providerDns !== undefined ||
-    changes.providerUsername !== undefined ||
-    changes.providerPassword !== undefined
-  if (credentialChanged) {
-    // Credencial nova é conta possivelmente diferente: o que o conector
-    // apurou sobre a anterior (migração, formatos permitidos) deixa de
-    // valer (FR-020).
-    changes.providerMigratedAt = undefined
-    changes.providerAllowedFormats = undefined
-  }
+    const credentialChanged =
+      changes.providerDns !== undefined ||
+      changes.providerUsername !== undefined ||
+      changes.providerPassword !== undefined
+    if (credentialChanged) {
+      // Credencial nova é conta possivelmente diferente: o que o conector
+      // apurou sobre a anterior (migração, formatos permitidos) deixa de
+      // valer (FR-020).
+      changes.providerMigratedAt = undefined
+      changes.providerAllowedFormats = undefined
+    }
 
-  await database.sources.update(id, changes)
-  return getSource(id, database)
-}
-
-/** Remove a fonte e tudo que dependia dela — catálogo de todas as gerações e execuções. */
-export async function deleteSource(id: string, database: CatalogDb = db): Promise<void> {
-  await deleteAllForSource(id, database)
-  await database.importRuns.where('[sourceId+status]').between([id, ''], [id, '￿']).delete()
-  // Favoritos e retomada da fonte removida (feature 013, D-007/FR-017) — uma fonte readicionada ganha
-  // `sourceId` novo (UUID), então nada aqui fica órfão-mas-recuperável; manter o registro só ocuparia espaço.
-  await deleteUserStatesForSource(id, database)
-  // Feature 030 (FR-012): a programação e a configuração de EPG (que vive no próprio registro da fonte) saem junto.
-  await deleteEpgForSource(id, database)
-  // Feature 032 (FR-026): a metadata descritiva da fonte (provedor e TMDB) sai junto; a chave TMDB é da pessoa e fica.
-  await database.titleMetadata.where('sourceId').equals(id).delete()
-  // Preferências de categoria (066, FR-005) e o PIN da lista (067, FR-025 — o PIN é por lista desde então).
-  await Promise.all([categoryPreferences(database).where('sourceId').equals(id).delete(), parentalPins(database).delete(id)])
-  await database.sources.delete(id)
+    Object.assign(changes, sourceExtras(input))
+    if (input.epgDisabled === true) {
+      await database.epgPrograms.where('sourceId').equals(id).delete()
+      changes.epgActiveGeneration = undefined
+    }
+    const previous = await tables.revisions.get(id)
+    if (previous?.tombstone) throw new InvalidSourceError('Lista removida.')
+    await database.sources.update(id, changes)
+    await tables.revisions.put({ ...previous, sourceId: id, revision: (previous?.revision ?? 0) + 1 })
+    return getSource(id, database)
+  })
 }
 
 export interface SyncMark {

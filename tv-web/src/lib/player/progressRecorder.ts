@@ -19,7 +19,7 @@ export interface ProgressRecorderIdentity {
 }
 
 /** Por que a reprodução está saindo — decide o tratamento de FR-017/FR-020. */
-export type ExitReason = 'pause' | 'close' | 'completed'
+export type ExitReason = 'pause' | 'close' | 'completed' | 'license'
 
 export interface ProgressRecorderOptions {
   /**
@@ -162,6 +162,12 @@ export function createProgressRecorder(
       }
       if (!hasAdvanced) return // FR-017: falha antes de qualquer avanço não grava nada
       if (lastKnownMs === null) return
+      if (reason === 'license') {
+        // Vencimento interrompe a sessão: checkpoint final, sem inferir conclusão.
+        if (reportsPosition && !clearedThisSession && lastKnownMs >= RESUME_MIN_SECONDS * 1000) await write(lastKnownMs)
+        done = true
+        return
+      }
       await apply(lastKnownMs, lastKnownDurationMs)
     },
     takeFailureCode() {

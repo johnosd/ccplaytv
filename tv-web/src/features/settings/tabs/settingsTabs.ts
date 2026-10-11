@@ -1,3 +1,4 @@
+import { PortalLicenseTab } from './PortalLicenseTab'
 import { AccessibilityTab } from './AccessibilityTab'
 import { IntegrationsTab } from './IntegrationsTab'
 import { PlayerTab } from './PlayerTab'
@@ -19,4 +20,5 @@ export const SETTINGS_TABS: SettingsTabDefinition[] = [
   { id: 'player', labelKey: 'settings.tab.player', icon: 'play', Panel: PlayerTab },
   { id: 'accessibility', labelKey: 'settings.tab.accessibility', icon: 'settings', Panel: AccessibilityTab },
   { id: 'about', labelKey: 'settings.tab.about', icon: 'info', Panel: AboutTab },
+  { id: 'portal', labelKey: 'portal.title', icon: 'device', Panel: PortalLicenseTab },
 ]

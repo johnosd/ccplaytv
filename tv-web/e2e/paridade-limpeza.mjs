@@ -292,8 +292,8 @@ async function runWalkthrough(page, m3uUrl, outDir) {
   await page.waitForSelector('.vod-detail', { timeout: 8000 })
   await capture(page, outDir, '17-detalhe-serie')
 
-  // Seletor de temporada na fileira de ações do hero.
-  for (let i = 0; i < 6 && await page.locator('.vod-season-button.tv-focus').count() === 0; i += 1) await page.keyboard.press('ArrowRight')
+  // Seletor de temporada na primeira aba.
+  await page.keyboard.press('ArrowDown')
   await page.waitForTimeout(100)
   await page.keyboard.press('Enter') // abre o modal de temporada
   await page.waitForSelector('[role="dialog"][aria-label="Selecionar temporada"]', { timeout: 4000 })

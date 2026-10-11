@@ -4,7 +4,7 @@ import type { MessageKey } from '../../../lib/i18n/messages/pt'
 import type { SourceOut } from '../../import/importApi'
 
 /** Abas na ordem do DS (FR-022). `sources` é a inicial. Só as globais desde a feature 067 (FR-015). */
-export type SettingsTab = 'integrations' | 'sources' | 'player' | 'accessibility' | 'about'
+export type SettingsTab = 'integrations' | 'sources' | 'player' | 'accessibility' | 'about' | 'portal'
 
 /**
  * Onde estava o foco quando a pessoa saiu de Configurações (para Editar,

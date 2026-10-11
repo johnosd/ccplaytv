@@ -1,5 +1,6 @@
 import { Component, Fragment, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { recordSeriesDiagnostic } from '../lib/diagnostics/seriesDiagnostics'
 import { ErrorState } from './ErrorState'
 import { Spinner } from './Spinner'
 import { useT } from '../lib/i18n/I18nProvider'
@@ -36,6 +37,10 @@ class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBo
     state: RouteErrorBoundaryState,
   ): Partial<RouteErrorBoundaryState> | null {
     return props.resetKey === state.resetKey ? null : { failed: false, resetKey: props.resetKey }
+  }
+
+  componentDidCatch(error: unknown): void {
+    recordSeriesDiagnostic('ROUTE_RENDER_FAILED', 'failed', error)
   }
 
   render(): ReactNode {

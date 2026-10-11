@@ -27,3 +27,8 @@ A falha inicial do roteiro MPEG-TS no navegador continua aberta (R-012), sem alt
 Instalação física em 2026-10-10: `deploy-tv.ps1 -TvIp 192.168.0.2 -SkipBuild` aprovado; mesmo certificado Samsung, atualização sem desinstalar, CLI confirmou instalação e lançamento (pid 9415), seguido de applist. Evidência: `fase4-vod-deploy-tv.txt`. Observador técnico: agente, pela saída do CLI; usuário ainda não confirmou a leitura/UX na tela. Suíte completa desta rodada: 44/46 em 1075 s; vitrine corrigida e revalidada depois, falha inicial MPEG-TS segue aberta.
 
 Aprovação física específica recebida em 2026-10-10: observador **usuário**, na TV, de longe; resposta **"Categorias e recolhimento aprovados"**. Leitura das categorias de Filmes/Séries e comportamento de recolher nas fileiras/expandir ao retornar à lateral aprovados. Aprovação restrita a T035; os demais cenários do SC-005 e o gate E2E geral não são inferidos desta confirmação.
+
+
+### Aprovação global na TV — 2026-10-10
+
+Observador: usuário, na TV física após a instalação registrada em `fase4-vod-deploy-tv.txt`. Confirmação: "ja validei todas telas pode fechar". Todas as telas aprovadas; SC-005 concluído. A falha inicial do roteiro desktop `player-dev-mpegts` permanece registrada em R-012 e no backlog, sem inferir aprovação do E2E a partir do aceite físico.

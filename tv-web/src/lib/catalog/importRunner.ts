@@ -15,7 +15,7 @@ import { startImport, type ImportHandle, type ImportOptions } from './importPipe
 import type { ImportRunRecord } from './db'
 import type { WorkerResponse } from './importWorker'
 
-export interface RunnerOptions extends Pick<ImportOptions, 'onProgress' | 'batchSize'> {
+export interface RunnerOptions extends Pick<ImportOptions, 'onProgress' | 'batchSize' | 'remote'> {
   /** Força a thread principal — usado em teste e no plano B. */
   mainThread?: boolean
 }
@@ -100,6 +100,7 @@ export async function runImport(
       )
     }
 
-    worker.postMessage({ type: 'start', sourceId, batchSize: options.batchSize })
+    worker.postMessage({ type: 'start', sourceId, batchSize: options.batchSize,
+      ...(options.remote ? { remote: options.remote } : {}) })
   })
 }

@@ -113,7 +113,9 @@ function startServer() {
 }
 
 async function launchWithH264() {
-  const attempts = [{ headless: true }, { headless: true, channel: 'chrome' }]
+  // Prioriza Chrome: neste Windows, o headless shell ficou em kStarting na primeira abertura fria.
+  // O Chromium continua como alternativa; uma falha de reprodução permanece FAIL.
+  const attempts = [{ headless: true, channel: 'chrome' }, { headless: true }]
   for (const options of attempts) {
     let browser
     try {
@@ -128,7 +130,10 @@ async function launchWithH264() {
       H264_AAC,
     )
     await probe.close()
-    if (supported) return browser
+    if (supported) {
+      console.log(`Navegador de mídia: ${options.channel ?? 'chromium'} ${browser.version()}`)
+      return browser
+    }
     await browser.close()
   }
   return null
@@ -147,7 +152,14 @@ async function waitFor(predicate, timeoutMs, stepMs = 100) {
 const isReallyPlaying = (page) =>
   page.evaluate(() => {
     const v = document.querySelector('video.player-video')
-    return Boolean(v) && v.readyState >= 3 && v.currentTime > 0.5 && !v.paused
+    if (!v || v.readyState < 3 || v.currentTime <= 0.5 || v.paused || v.seeking) return false
+    const samples = window.__e2e047PlaybackSamples ??= new WeakMap()
+    const firstTime = samples.get(v)
+    if (firstTime === undefined) {
+      samples.set(v, v.currentTime)
+      return false
+    }
+    return v.currentTime > firstTime + 0.25
   })
 
 async function run() {

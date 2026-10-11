@@ -1331,3 +1331,7 @@ delivers `repeat` on the arrows (R-001 — without it behaviour is exactly the
 previous debounce) and SC-006 on a large real list. See
 `sdd/specs/046-memoria-foco-key-repeat/plan.md` → `## Estado Atual`.
 
+
+## 069 — Portal da TV e licença anual (em execução)
+
+Implementados localmente o acesso por QR/device key, configurações Xtream/M3U por URL cifradas, exclusão sincronizada, recuperação pelo site e o núcleo comercial (R$35, 12 meses, uma TV). Checkout/lookup/webhook/reconcile, assinatura ES256, cache offline e bloqueio na entrada da lista têm testes locais. Vencimento durante a sessão permite continuar navegando/reproduzindo até sair da lista ou fechar o app; a próxima entrada exige licença vigente. Revogação confirmada mantém encerramento controlado. Os 13 E2E do portal passaram; isso não homologa Mercado Pago, nuvem ou hardware. Gates de restauração, medições, infraestrutura real e fluxo comercial na TV permanecem abertos. Venda desligada. Estado corrente em `sdd/specs/069-portal-tv-licenca-anual/plan.md`.

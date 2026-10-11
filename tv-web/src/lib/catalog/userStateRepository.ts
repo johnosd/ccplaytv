@@ -12,6 +12,10 @@
 
 import { db, type CatalogDb, type CatalogItemKind, type UserStateRecord } from './db'
 import { invalidateSeriesWatchForStableId } from './seriesWatchRepository'
+import { isInHistory } from './historyPolicy'
+
+export { isInHistory } from './historyPolicy'
+
 /**
  * O que identifica um item entre importações. Os campos opcionais refletem
  * o que cada tipo de fonte de fato entrega — não há valor inventado para
@@ -141,20 +145,6 @@ export async function listWatched(
 }
 
 /**
- * Regra única de "está no ↺ Histórico" (feature 036, `logic/remocao-
- * historico.md` §1): reproduzido e não escondido depois da última
- * reprodução. Remover do Histórico grava `historyHiddenAt` em vez de apagar
- * `lastWatched` — que "Continuar assistindo" também lê —, e uma reprodução
- * nova (`lastWatched` maior) traz o item de volta sozinha. Mora aqui, e não
- * em `historyRemoval.ts` (que a reexporta), para `listPlayed` usá-la sem
- * import circular.
- */
-export function isInHistory(state: Pick<UserStateRecord, 'lastWatched' | 'historyHiddenAt'> | null | undefined): boolean {
-  if (state?.lastWatched == null) return false
-  return state.historyHiddenAt == null || state.lastWatched > state.historyHiddenAt
-}
-
-/**
  * Estados reproduzidos (com `lastWatched`) de uma fonte e tipo, do mais
  * recente para o mais antigo — feature 025, "↺ Histórico"
  * (`logic/historico.md` §2). Pelo índice `lastWatched`, que já existe
@@ -223,6 +213,7 @@ async function upsert(
   sourceId: string,
   patch: (current: UserStateRecord) => UserStateRecord,
   database: CatalogDb = db,
+  invalidateSeriesWatch = true,
 ): Promise<void> {
   await database.transaction('rw', database.userStates, async () => {
     const now = Date.now()
@@ -236,7 +227,7 @@ async function upsert(
     }
     await database.userStates.put({ ...patch(base), updatedAt: now })
   })
-  await invalidateSeriesWatchForStableId(stableId, database)
+  if (invalidateSeriesWatch) await invalidateSeriesWatchForStableId(stableId, database)
 }
 export async function toggleFavorite(
   stableId: string,
@@ -255,6 +246,9 @@ export async function toggleFavorite(
       favoritedAt: isFavorite ? (current.favoritedAt ?? Date.now()) : undefined,
     }),
     database,
+    // Favorito não altera o selo de assistido. Uma falha nesse cache
+    // auxiliar não pode rejeitar um favorito que já foi persistido.
+    false,
   )
 }
 

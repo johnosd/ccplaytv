@@ -52,6 +52,8 @@ não dá a um atacante nada que ele já não tenha. O risco real está nas
 Decisão pedida pelo usuário em 2026-09-24, durante o planejamento da
 feature 014.
 
+**Atualização (ADR-013, 2026-10-11):** gestão remota de configurações Xtream e M3U por URL permite retenção cifrada e backup operacional protegido dos valores fornecidos no portal, sem arquivo M3U remoto ou exportação de segredos locais existentes. Exclusão ativa e retenção de backups são distintas; constitution ainda requer compatibilização T001. Ver [ADR-013](ADR-013-portal-controle-serverless-google-cloud.md).
+
 ## Decisão
 
 A exceção da ADR-008, item 2, passa a cobrir, além da credencial de
@@ -202,3 +204,5 @@ Revisitar esta ADR se:
 A constitution (princípio "Segredos Fora dos Clientes e dos Logs",
 exceção ADR-008) precisa de emenda correspondente: hoje ela ainda diz que
 a URL completa de fonte é proibida no cliente, sem exceção.
+
+**Atualização (feature 069, resolução de pendências 2026-10-11):** constitution 1.8.0 formaliza as exceções restritas do portal/licenciamento/convite efêmero e exibição protegida de código. Por nova decisão do usuário, recuperação manual da licença fica substituída por autoatendimento no próprio site, com código privado que pode guardar/fotografar e desafio da mesma TV; revogar acessos/código antigos e preservar teste/validade. Não transfere licença nem recupera catálogo apagado. Restauração operacional de backup permanece manual. Detalhes em spec/plan/logic da 069; nenhuma implementação/provisão declarada.

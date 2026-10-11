@@ -15,6 +15,23 @@ afterEach(() => {
 })
 
 describe('RouteBoundary', () => {
+  it('exibe erro acionável sem painel de diagnóstico nem mensagem bruta', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    function Broken(): ReactNode {
+      const error = new TypeError('Cannot read properties of undefined: https://user:password@example.test/private')
+      error.stack = 'TypeError: private\n at file:///app/route-series-detail.js:222:19'
+      throw error
+    }
+    const { onBack } = renderBoundary(<Broken />)
+    const alert = await screen.findByRole('alert')
+    expect(alert).not.toHaveTextContent('password')
+    expect(screen.queryByTestId('series-diagnostics')).not.toBeInTheDocument()
+    expect(screen.queryByText('Fotografe o erro e este diagnóstico.')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeVisible()
+    fireEvent.keyDown(document, { key: 'Backspace' })
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
   it('mantém o carregamento focável e entrega RETURN enquanto a promise está pendente', () => {
     const onBack = vi.fn()
     const Pending = lazyRoute(() => new Promise(() => undefined), 'Pending')

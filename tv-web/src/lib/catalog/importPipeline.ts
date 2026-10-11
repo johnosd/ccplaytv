@@ -30,11 +30,9 @@ import {
   type ImportStep,
   type LimitedReason,
   type ProviderImportMode,
-  type SourceRecord,
   type StoredCatalogRecord,
 } from './db'
 import {
-  allocateGeneration,
   applyStructureRefresh,
   discardGeneration,
   publishGeneration,
@@ -73,6 +71,8 @@ import {
 import { createSeriesGrouper } from './m3uSeriesGrouping'
 import { copyListingFields } from './adultFlag'
 import { firstEpgUrl } from '../epg/epgStatus'
+import { reserveImportRun, withImportPublication, ImportCancelledError, type RemoteImportRequest } from './importReservation'
+export { ImportAlreadyRunningError, ImportCancelledError } from './importReservation'
 import { parsePanelUrl, type PanelCredential } from './m3uPanelUrl'
 
 /**
@@ -96,21 +96,8 @@ const DEFAULT_BATCH_SIZE = 5_000
 const HEARTBEAT_INTERVAL_MS = 5_000
 export const ABANDONED_AFTER_MS = 60_000
 
-export class ImportAlreadyRunningError extends Error {
-  constructor() {
-    super('Já existe uma importação em andamento para esta fonte.')
-    this.name = 'ImportAlreadyRunningError'
-  }
-}
-
-export class ImportCancelledError extends Error {
-  constructor() {
-    super('Importação cancelada.')
-    this.name = 'ImportCancelledError'
-  }
-}
-
 export interface ImportOptions {
+  remote?: RemoteImportRequest
   onProgress?: (snapshot: ImportRunRecord) => void
   batchSize?: number
   database?: CatalogDb
@@ -142,13 +129,6 @@ function categorize(error: unknown): ImportErrorKind | undefined {
   if (error instanceof InvalidServerAddressError) return 'invalid_address'
   if (error instanceof ProviderIncompatibleError) return 'invalid_playlist'
   return undefined
-}
-
-async function activeRunFor(
-  sourceId: string,
-  database: CatalogDb,
-): Promise<ImportRunRecord | undefined> {
-  return database.importRuns.where('[sourceId+status]').equals([sourceId, 'running']).first()
 }
 
 function isAbandoned(run: ImportRunRecord, now: number): boolean {
@@ -252,38 +232,9 @@ export async function startImport(
   const now = options.now ?? (() => Date.now())
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE
 
-  const source: SourceRecord | undefined = await database.sources.get(sourceId)
-  if (!source) throw new Error('Fonte não encontrada.')
-  // FR-017: a checagem vem antes de alocar geração, para a segunda
-  // tentativa não consumir número nem deixar lixo para trás.
-  const active = await activeRunFor(sourceId, database)
-  if (active) {
-    // Uma execução que parou de dar sinal de vida não é uma importação em
-    // andamento — é o rastro de um app fechado no meio. Recusar por causa
-    // dela trancaria a fonte para sempre.
-    if (!isAbandoned(active, now())) throw new ImportAlreadyRunningError()
-    await closeAbandoned(active, database, now())
-  }
-
-  const generation = await allocateGeneration(sourceId, database)
-  const run: ImportRunRecord = {
-    id: `run-${now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-    sourceId,
-    generation,
-    status: 'running',
-    step: 'fetching',
-    entriesRead: 0,
-    channelsStored: 0,
-    discardedByType: 0,
-    invalidCount: 0,
-    truncatedByStorage: false,
-    startedAt: now(),
-  }
-  run.heartbeatAt = run.startedAt
-  // A primeira etapa começa junto com a execução — não há o que esperar
-  // antes de começar a obter.
-  run.stepStartedAt = { fetching: run.startedAt }
-  await database.importRuns.add(run)
+  const { source, generation, run, configRevision } = await reserveImportRun(
+    sourceId, database, now, ABANDONED_AFTER_MS, closeAbandoned, options.remote,
+  )
 
   // O batimento é independente do progresso de propósito: a obtenção de uma
   // lista grande passa minutos sem nenhum lote a relatar, e nesse intervalo
@@ -830,65 +781,67 @@ export async function startImport(
     await persist()
     if (cancelled) throw new ImportCancelledError()
 
-    if (route === 'xtream' && refreshBuffer && previousGeneration !== undefined) {
-      // Feature 038 (§4.2): Xtream → Xtream, no lugar. Seção que o painel não
-      // serviu fica fora do diff — nunca se apaga Filmes porque
-      // `get_vod_categories` falhou desta vez.
-      const unavailable = run.unavailableSections ?? []
-      const kinds: CategoryKind[] = ['channel', ...(['movie', 'series'] as const).filter((kind) => !unavailable.includes(kind))]
-      await applyStructureRefresh(sourceId, previousGeneration, kinds, refreshBuffer, now(), database)
-      await discardGeneration(sourceId, generation, database)
-      run.generation = previousGeneration
-    } else if (route === 'stored' && previousFetchMode === 'stored' && previousGeneration !== undefined) {
-      // Feature 038 (§4.3): conteúdo guardado → conteúdo guardado, no lugar.
-      // A varredura gravou categorias e blocos numa geração própria; as
-      // categorias ativas passam a apontar para os blocos novos
-      // (`storedFrom`) e continuam servindo os itens de antes até a renovação.
-      const scanCategories = (await database.categories.where('sourceId').equals(sourceId).toArray())
-        .filter((category) => category.generation === generation)
-        .sort((a, b) => a.order - b.order)
-      await applyStructureRefresh(
-        sourceId,
-        previousGeneration,
-        ['channel', 'movie', 'series'],
-        scanCategories.map((category) => ({
-          kind: category.kind,
-          fetchMode: 'stored' as const,
-          name: category.name,
-          position: category.order,
-          declaredCount: category.declaredCount,
-          storedFrom: { generation, categoryId: category.id as number },
-        })),
-        now(),
-        database,
-      )
-      await database.categories.bulkDelete(scanCategories.map((category) => category.id as number))
-      run.generation = previousGeneration
-    } else {
-      await publishGeneration(sourceId, generation, database)
-    }
-    await markSynced(sourceId, {
-      at: now(),
-      mode,
-      limitedReason,
-      allowedFormats,
-      truncatedByStorage: run.truncatedByStorage,
-      discardedByType: run.discardedByType,
-      epgDeclaredUrl,
-      // Feature 034: Modo limitado (`legacy_m3u`) não declara conta (FR-022).
-      account:
-        accountSeen && mode !== 'legacy_m3u'
-          ? { status: 'active', expiresAt: accountSeen.expiresAt, checkedAt: now() }
-          : undefined,
-      unavailableSections: run.unavailableSections ?? [],
-      // Feature 058: relógio do painel para o arquivo (catch-up), só quando a conta foi consultada.
-      clock: mode !== 'legacy_m3u' ? accountSeen?.clock : undefined,
-    }, database)
+    await withImportPublication(sourceId, database, configRevision, async () => {
+      if (route === 'xtream' && refreshBuffer && previousGeneration !== undefined) {
+        // Feature 038 (§4.2): Xtream → Xtream, no lugar. Seção que o painel não
+        // serviu fica fora do diff — nunca se apaga Filmes porque
+        // `get_vod_categories` falhou desta vez.
+        const unavailable = run.unavailableSections ?? []
+        const kinds: CategoryKind[] = ['channel', ...(['movie', 'series'] as const).filter((kind) => !unavailable.includes(kind))]
+        await applyStructureRefresh(sourceId, previousGeneration, kinds, refreshBuffer, now(), database)
+        await discardGeneration(sourceId, generation, database)
+        run.generation = previousGeneration
+      } else if (route === 'stored' && previousFetchMode === 'stored' && previousGeneration !== undefined) {
+        // Feature 038 (§4.3): conteúdo guardado → conteúdo guardado, no lugar.
+        // A varredura gravou categorias e blocos numa geração própria; as
+        // categorias ativas passam a apontar para os blocos novos
+        // (`storedFrom`) e continuam servindo os itens de antes até a renovação.
+        const scanCategories = (await database.categories.where('sourceId').equals(sourceId).toArray())
+          .filter((category) => category.generation === generation)
+          .sort((a, b) => a.order - b.order)
+        await applyStructureRefresh(
+          sourceId,
+          previousGeneration,
+          ['channel', 'movie', 'series'],
+          scanCategories.map((category) => ({
+            kind: category.kind,
+            fetchMode: 'stored' as const,
+            name: category.name,
+            position: category.order,
+            declaredCount: category.declaredCount,
+            storedFrom: { generation, categoryId: category.id as number },
+          })),
+          now(),
+          database,
+        )
+        await database.categories.bulkDelete(scanCategories.map((category) => category.id as number))
+        run.generation = previousGeneration
+      } else {
+        await publishGeneration(sourceId, generation, database)
+      }
+      await markSynced(sourceId, {
+        at: now(),
+        mode,
+        limitedReason,
+        allowedFormats,
+        truncatedByStorage: run.truncatedByStorage,
+        discardedByType: run.discardedByType,
+        epgDeclaredUrl,
+        // Feature 034: Modo limitado (`legacy_m3u`) não declara conta (FR-022).
+        account:
+          accountSeen && mode !== 'legacy_m3u'
+            ? { status: 'active', expiresAt: accountSeen.expiresAt, checkedAt: now() }
+            : undefined,
+        unavailableSections: run.unavailableSections ?? [],
+        // Feature 058: relógio do painel para o arquivo (catch-up), só quando a conta foi consultada.
+        clock: mode !== 'legacy_m3u' ? accountSeen?.clock : undefined,
+      }, database)
 
-    run.status = 'completed'
-    enterStep('done')
-    run.finishedAt = now()
-    await persist()
+      run.status = 'completed'
+      enterStep('done')
+      run.finishedAt = now()
+      await persist()
+    })
   }
 
   async function fail(error: unknown): Promise<void> {

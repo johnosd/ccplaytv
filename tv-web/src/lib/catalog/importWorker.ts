@@ -18,9 +18,11 @@
 
 import { startImport, type ImportHandle } from './importPipeline'
 import type { ImportRunRecord } from './db'
+import type { RemoteImportRequest } from './importReservation'
 
 export interface StartMessage {
   type: 'start'
+  remote?: RemoteImportRequest
   sourceId: string
   batchSize?: number
 }
@@ -53,6 +55,7 @@ scope.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   try {
     handle = await startImport(message.sourceId, {
       batchSize: message.batchSize,
+      ...(message.remote ? { remote: message.remote } : {}),
       onProgress: (run) => scope.postMessage({ type: 'progress', run } satisfies WorkerResponse),
     })
     scope.postMessage({ type: 'started', runId: handle.runId } satisfies WorkerResponse)

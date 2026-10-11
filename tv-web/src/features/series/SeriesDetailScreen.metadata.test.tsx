@@ -171,6 +171,8 @@ describe('SeriesDetailScreen — metadata (feature 032)', () => {
     renderScreen()
     press('ArrowDown')
     press('ArrowRight')
+    press('ArrowRight')
+    press('ArrowRight')
     press('Enter')
 
     // Feature 059 (D-006): o cartão também traz a origem — o valor é o 1º nó do <dd>.
@@ -188,7 +190,7 @@ describe('SeriesDetailScreen — metadata (feature 032)', () => {
     metadata({ cast: { value: 'Voz A, Voz B', origin: 'provider' } })
     renderScreen()
     press('ArrowDown') // ações → abas (Episódios)
-    press('ArrowRight') // Detalhes
+    press('ArrowRight') // Similares
     press('ArrowRight') // Elenco
     press('Enter')
 

@@ -18,8 +18,9 @@
  *    `resolvePlaybackUrl`, como filme e canal.
  */
 
+import { recordSeriesDiagnostic } from '../diagnostics/seriesDiagnostics'
 import { db, type CatalogDb, type CatalogRecord } from './db'
-import { activeGeneration, getCategory, getChannel, storeSeriesEpisodes } from './catalogRepository'
+import { activeGeneration, getCategory, getChannel, StorageFullError, storeSeriesEpisodes } from './catalogRepository'
 import { isCategoryFresh } from './freshness'
 import { readCredential } from './sourceRepository'
 import { fetchSeriesDetail, type XtreamEpisode } from './xtreamConnector'
@@ -30,6 +31,7 @@ export type SeriesFetchOutcome = 'fresh' | 'fetched' | 'stale-served' | 'failed'
 
 export interface EnsureSeriesEpisodesResult {
   outcome: SeriesFetchOutcome
+  reason?: 'storage_full'
 }
 
 export interface EnsureSeriesEpisodesOptions {
@@ -71,13 +73,24 @@ async function fetchAndStore(
   database: CatalogDb,
   now: number,
 ): Promise<EnsureSeriesEpisodesResult> {
+  recordSeriesDiagnostic('CREDENTIAL_READ', 'loading')
   const credential = await readCredential(series.sourceId, database)
-  if (!credential) return { outcome: wasNeverFetched ? 'failed' : 'stale-served' }
+  if (!credential) {
+    recordSeriesDiagnostic('CREDENTIAL_READ', 'failed')
+    return { outcome: wasNeverFetched ? 'failed' : 'stale-served' }
+  }
+  recordSeriesDiagnostic('CREDENTIAL_READ')
 
   const generation = await activeGeneration(series.sourceId, database)
-  if (generation === undefined) return { outcome: wasNeverFetched ? 'failed' : 'stale-served' }
+  if (generation === undefined) {
+    recordSeriesDiagnostic('GENERATION_READ', 'failed')
+    return { outcome: wasNeverFetched ? 'failed' : 'stale-served' }
+  }
+  recordSeriesDiagnostic('GENERATION_READ')
 
+  let stage: 'EPISODES_FETCH' | 'EPISODES_STORE' = 'EPISODES_FETCH'
   try {
+    recordSeriesDiagnostic(stage, 'loading')
     // Feature 032 (D-009): a mesma resposta traz os episódios e o `info` da
     // série — uma requisição só serve às duas coisas.
     const { episodes, info } = await fetchSeriesDetail(
@@ -86,6 +99,9 @@ async function fetchAndStore(
       credential.password,
       series.seriesId as string,
     )
+    recordSeriesDiagnostic(stage)
+    stage = 'EPISODES_STORE'
+    recordSeriesDiagnostic(stage, 'loading')
     await storeSeriesEpisodes(
       {
         sourceId: series.sourceId,
@@ -97,6 +113,7 @@ async function fetchAndStore(
       now,
       database,
     )
+    recordSeriesDiagnostic(stage)
     // A metadata da série é acessória: gravá-la nunca pode fazer a obtenção
     // dos episódios (o que a tela precisa) virar falha.
     try {
@@ -105,12 +122,13 @@ async function fetchAndStore(
       // ignorado de propósito: a próxima abertura do detalhe tenta de novo.
     }
     return { outcome: 'fetched' }
-  } catch {
+  } catch (error) {
+    recordSeriesDiagnostic(stage, 'failed', error)
     // Erro sai como desfecho, nunca como mensagem de rede (regra 5): o que
     // aconteceu já não importa aqui, só que não deu certo. Falha nunca
     // apaga episódios já gravados (regra 4) — o disco, se tiver algo,
     // continua servindo.
-    return { outcome: wasNeverFetched ? 'failed' : 'stale-served' }
+    return { outcome: wasNeverFetched ? 'failed' : 'stale-served', ...(error instanceof StorageFullError ? { reason: 'storage_full' as const } : {}) }
   }
 }
 
@@ -129,7 +147,10 @@ export async function ensureSeriesEpisodes(
   const now = options.now?.() ?? Date.now()
 
   const series = await getChannel(seriesRecordId, database)
-  if (!series || !series.seriesId) return { outcome: 'failed' }
+  if (!series || !series.seriesId) {
+    recordSeriesDiagnostic('SERIES_MISSING', 'failed')
+    return { outcome: 'failed' }
+  }
 
   const category = series.categoryId !== undefined ? await getCategory(series.categoryId, database) : undefined
   // `eager` (legado) e `stored` (feature 014) nunca tocam rede aqui: os

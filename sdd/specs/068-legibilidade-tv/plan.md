@@ -176,9 +176,9 @@ Fora dos contratos: nomes longos no foco (CSS/animação) e "nada vaza" vão par
 | Fase 1 — emenda 049 + linha de base | Concluída: contrato da 049 emendado e travado (5/5); auditoria de base 22 telas → 163 textos < 20 px, 0 vazando |
 | Fase 2 — US1 escala | Concluída: tokens novos, literais trocados, alturas ajustadas, `MarqueeText`; auditoria 66 telas pt/en/es → 0 achados; 14 E2E fora da Live verdes |
 | Fase 3 — US2 Live | Concluída: Live sem topbar/título, lista única e gestão da lista ativa; 224 testes da Live, 5 do App e 8 E2E verdes |
-| Fase 4 — Polish | Parcial: documentação, capturas/quickstart, lint e builds aprovados; auditoria renovada 69 telas sem achados. T035 concluída e pacote instalado na TV em 2026-10-10. T032 e aprovação visual global SC-005 continuam abertos |
+| Fase 4 — Polish | Encerrada por solicitação do usuário em 2026-10-10. Todas as telas aprovadas na TV física (T034/SC-005), incluindo categorias/recolhimento VOD. Ressalva: T032/E2E permanece sem aprovação; R-012 transferido ao backlog para tratamento separado |
 | Ajuste de categorias VOD (T035) | Somente lateral: 576 px expandida, iniciais/∞ e linhas como a Live; recolhimento automático de 96 px preservado. Concluído: 185 testes em 43 arquivos, lint e build:tizen verdes; travas 052/053 íntegras. Auditoria renovada 69 telas sem achados; carrosséis verdes e vitrine revalidada após ler só o rótulo, sem incluir o tile decorativo. Capturas expandida/recolhida inspecionadas. Gate geral T032 segue aberto |
-| Gates completos | Vitest completo anterior ao ajuste 3187/3187 (533 arquivos); após T035, VOD 185/185 (43 arquivos), lint e build:tizen verdes, travas 068/052/053 íntegras (049 já conferida). Nova suíte completa: 44/46 em 1075 s; vitrine corrigida e revalidada depois, falha inicial MPEG-TS permanece. Instalação/lançamento confirmados pelo CLI; leitura de longe aguarda usuário |
+| Gates completos | Vitest completo anterior ao ajuste 3187/3187 (533 arquivos); após T035, VOD 185/185 (43 arquivos), lint e build:tizen verdes, travas 068/052/053 íntegras (049 já conferida). Nova suíte completa: 44/46 em 1075 s; vitrine corrigida e revalidada depois, falha inicial MPEG-TS permanece. Instalação/lançamento confirmados pelo CLI; todas as telas aprovadas pelo usuário na TV em 2026-10-10 |
 | Contratos | 068 escala 2/2 verdes na Fase 2, Live 2/2 verdes nesta retomada; 049 emendado 3/3 verde; travas 068 e 049 íntegras |
 
 ## Riscos e Decisões
@@ -222,7 +222,9 @@ Fora dos contratos: nomes longos no foco (CSS/animação) e "nada vaza" vão par
 | 2026-10-10 | Fase 4 — T035 + TV | Ajuste só da lateral concluído: VOD 185/185, auditoria 69 telas sem achados, lint/build:tizen verdes, carrosséis verdes e vitrine revalidada após corrigir seletor do rótulo. Suíte completa 44/46 em 1075 s: falha MPEG-TS mantida aberta; falha da vitrine resolvida na revalidação. Instalado e lançado na QN50Q60DAGXZD (192.168.0.2), mesmo certificado, sem desinstalação; CLI e applist confirmados em `evidencias/fase4-vod-deploy-tv.txt` | Retorno visual do usuário; T032/R-012 e SC-005 globais pendentes |
 | 2026-10-10 | T035 — aprovação na TV | Usuário confirmou: "Categorias e recolhimento aprovados", em resposta à pergunta sobre leitura de longe e recolher/expandir a lateral de Filmes/Séries na TV física. Ajuste visual aprovado; nenhum código alterado nesta confirmação | T032/R-012 e aprovação global das demais telas do SC-005 permanecem pendentes |
 
-**PRÓXIMO**: T032 — falha inicial MPEG-TS ainda aberta (R-012). Categorias e recolhimento de Filmes/Séries aprovados pelo usuário na TV; SC-005 global exige aprovação das demais telas, sem inferi-la desta confirmação.
+| 2026-10-10 | Encerramento solicitado — SC-005 | Usuário confirmou: "ja validei todas telas pode fechar". Todas as telas validadas pelo usuário na TV física; T034/SC-005 concluídos. Encerrada com ressalva E2E, sem alterações de código nem nova execução de testes | T032/R-012 transferidos ao backlog; falha não considerada aprovada |
+
+**PRÓXIMO**: feature encerrada a pedido do usuário, com aprovação física de todas as telas. Tratar separadamente a falha inicial MPEG-TS (R-012), registrada em Ideias Futuras; T032/checklist E2E continuam desmarcados.
 
 ## Arquivos Principais
 

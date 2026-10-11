@@ -1137,6 +1137,7 @@ function toEpisodeOut(record: CatalogRecord): EpisodeOut {
 export interface SeriesEpisodesContent {
   episodes: EpisodeOut[]
   outcome: SeriesFetchOutcome
+  reason?: 'storage_full'
 }
 
 /**
@@ -1164,7 +1165,7 @@ export function useSeriesEpisodes(seriesItemId: string | null) {
         void queryClient.invalidateQueries({ queryKey: ['title-metadata', seriesItemId] })
       }
       const records = await listEpisodes(series.sourceId, series.seriesId, db)
-      return { episodes: records.map(toEpisodeOut), outcome: result.outcome }
+      return { episodes: records.map(toEpisodeOut), outcome: result.outcome, ...(result.reason ? { reason: result.reason } : {}) }
     },
     enabled: seriesItemId !== null,
   })

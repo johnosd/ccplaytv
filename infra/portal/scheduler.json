@@ -1,0 +1,18 @@
+{
+  "name": "projects/REPLACE_PROJECT_ID/locations/us-central1/jobs/portal-tick",
+  "schedule": "0 * * * *",
+  "timeZone": "Etc/UTC",
+  "attemptDeadline": "60s",
+  "httpTarget": {
+    "uri": "https://REPLACE_JOBS_SERVICE_HOST/internal/portal/jobs/tick",
+    "httpMethod": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "e30=",
+    "oidcToken": {
+      "serviceAccountEmail": "REPLACE_SCHEDULER_SERVICE_ACCOUNT",
+      "audience": "https://REPLACE_JOBS_SERVICE_HOST"
+    }
+  }
+}

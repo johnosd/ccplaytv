@@ -15,7 +15,7 @@ import { formatType, sourceAlertChips } from '../sources/sourceFormat'
 import { OnboardingBrand } from '../import/OnboardingBrand'
 import { listAvatarVariant, listInitials } from './listAvatar'
 import { useT } from '../../lib/i18n/I18nProvider'
-import type { Translator } from '../../lib/i18n/translate'
+import { sourceNotices } from './ProfilesSourceNotices'
 
 export interface ProfilesScreenProps {
   /** `base`: RETURN abre o modal "Sair do CCPlayTV?". `switch`: RETURN chama `onBack` (volta ao Início da lista ativa, FR-031). */
@@ -28,12 +28,9 @@ export interface ProfilesScreenProps {
   onResyncStarted: (jobId: string) => void
   /** Depois de a exclusão confirmada terminar (FR-010/FR-011) — o App despacha `source-removed`. */
   onSourceDeleted?: (sourceId: string) => void
-  /**
-   * "Gerenciar listas" (feature 026, FR-032) — abre Configurações › Fontes
-   * IPTV sem lista ativa. Opcional (D-001): o contrato travado da 023
-   * monta `ProfilesScreenProps` sem este campo.
-   */
+  /** Abre as configurações globais sem exigir lista ativa. */
   onManageSources?: () => void
+  onOpenPortal?: () => void
   /** "Configurar" (feature 067, FR-012) — abre Configurações da lista. Opcional: o contrato travado da 037 não o passa. */
   onConfigureSource?: (source: SourceOut) => void
   /** Só chamado em `mode: 'switch'`. */
@@ -84,6 +81,7 @@ export function ProfilesScreen({
   onResyncStarted,
   onSourceDeleted,
   onManageSources,
+  onOpenPortal,
   onConfigureSource,
   onBack,
 }: ProfilesScreenProps): ReactNode {
@@ -107,6 +105,7 @@ export function ProfilesScreen({
   // partir do cartão "Adicionar lista" — nunca a partir de uma lista real
   // (esse BAIXO já abre as ações dela, contrato travado da 023).
   const [row, setRow] = useState<'cards' | 'actions' | 'manage'>('cards')
+  const [manageIndex, setManageIndex] = useState(0)
   const [actionIdx, setActionIdx] = useState(0)
   const [confirmDelete, setConfirmDelete] = useState<SourceOut | null>(null)
   const [showExit, setShowExit] = useState(false)
@@ -175,6 +174,8 @@ export function ProfilesScreen({
       if (state === 'error') return
 
       if (effectiveRow === 'manage') {
+        if (direction === 'left') setManageIndex(0)
+        if (direction === 'right' && onOpenPortal) setManageIndex(1)
         if (direction === 'up') setRow('cards') // "Adicionar lista" continua em foco (`focusedId` intocado)
         return
       }
@@ -205,7 +206,7 @@ export function ProfilesScreen({
       // "Gerenciar listas" (feature 026, FR-032) — só a partir do cartão
       // "Adicionar lista", nunca de uma lista real (essa já abre as ações
       // dela, contrato travado da 023).
-      if (direction === 'down' && effectiveId === ADD_ID) setRow('manage')
+      if (direction === 'down' && effectiveId === ADD_ID) { setManageIndex(0); setRow('manage') }
     },
     onSelect: () => {
       if (state === 'error') {
@@ -213,7 +214,8 @@ export function ProfilesScreen({
         return
       }
       if (effectiveRow === 'manage') {
-        onManageSources?.()
+        if (manageIndex === 1 && onOpenPortal) onOpenPortal()
+        else onManageSources?.()
         return
       }
       if (effectiveRow === 'actions') {
@@ -358,13 +360,17 @@ export function ProfilesScreen({
       {state !== 'error' && (
         <button
           type="button"
-          className={`profiles-settings-corner${effectiveRow === 'manage' && !showExit ? ' tv-focus' : ''}`}
+          className={`profiles-settings-corner${effectiveRow === 'manage' && manageIndex === 0 && !showExit ? ' tv-focus' : ''}`}
           onClick={() => onManageSources?.()}
         >
           <Icon name="settings" />
           {t('settings.title')}
         </button>
       )}
+
+      {state !== 'error' && onOpenPortal && <button type="button"
+        className={`profiles-settings-corner profiles-portal-corner${effectiveRow === 'manage' && manageIndex === 1 && !showExit ? ' tv-focus' : ''}`}
+        onClick={onOpenPortal}><Icon name="device" />{t('portal.addViaSite')}</button>}
 
       <Toast message={toastMessage} messageKey={toastKey} />
 
@@ -381,14 +387,6 @@ export function ProfilesScreen({
   )
 }
 
-/** Avisos reais do cartão, numa linha compacta abaixo do nome (FR-006) — pastilha com texto, nunca só cor. */
-function sourceNotices(source: SourceOut, t: Translator): string[] {
-  const notices: string[] = []
-  if (source.provider_import_mode === 'legacy_m3u') notices.push(t('profiles.notice.limited'))
-  if (source.last_truncated_by_storage) notices.push(t('profiles.notice.truncated'))
-  if (source.last_discarded_by_type > 0) notices.push(t('profiles.notice.discarded'))
-  return notices
-}
 
 /**
  * Avisos do cartão (feature 034, FR-006/FR-015): os avisos reais de sempre mais
@@ -397,7 +395,7 @@ function sourceNotices(source: SourceOut, t: Translator): string[] {
  * execução existe. Componente próprio para assinar o estado por lista. Texto
  * sempre presente, no nome acessível do cartão; nunca data, endereço nem credencial.
  */
-function SourceCardNotices({ source, notices }: { source: SourceOut; notices: string[] }) {
+export function SourceCardNotices({ source, notices }: { source: SourceOut; notices: string[] }) {
   const t = useT()
   const syncing = useSourceSyncing(source.id)
   // Uma leitura do relógio por montagem do cartão (a tela de perfis remonta ao voltar).

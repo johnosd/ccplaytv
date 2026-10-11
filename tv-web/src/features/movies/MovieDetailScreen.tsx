@@ -637,7 +637,7 @@ export function MovieDetailScreen({
       )}
       {/* Fechar o trailer não invalida nada: ver trailer não muda estado do usuário (FR-016). */}
       {trailerOpen && trailerState.status === 'available' && (
-        <TrailerLayer title={movie.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)} />
+        <TrailerLayer title={movie.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)} myList={{ added: isFavorite, pending: favoriteToggle.isPending, onToggle: () => { void favoriteToggle.toggle(movie) } }} />
       )}
       {playing && (
         <PlayerLayer

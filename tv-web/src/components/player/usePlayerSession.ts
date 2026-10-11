@@ -1,3 +1,4 @@
+import { commercialBuild, licenseMonitor } from '../../lib/licensing/licenseRuntime'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import {
   CatalogApiError,
@@ -212,7 +213,7 @@ export function usePlayerSession({
       // que ainda não tinha cruzado o intervalo periódico (`logic/
       // reproducao-vod.md` §2, `aoSair`). Vem antes de fechar a sessão —
       // depois disso `session.progress` já não importa mais.
-      if (recorderRef.current) settleExit(recorderRef.current, 'close')
+      if (recorderRef.current) settleExit(recorderRef.current, commercialBuild && !licenseMonitor.check().allowed ? 'license' : 'close')
       sessionRef.current?.close()
       sessionRef.current = null
       recorderRef.current = null

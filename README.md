@@ -6,6 +6,8 @@ Reprodutor e organizador de listas M3U, M3U8 para Smart TVs Samsung com Tizen, c
 
 Projeto em desenvolvimento ativo. Conforme a arquitetura atualizada (ADR-008), o app roda 100% no cliente (TV) usando React, TypeScript e IndexedDB, abolindo a necessidade de um backend dedicado sempre ligado.
 
+O portal vinculado à TV e a licença anual estão em implementação na [feature 069](sdd/specs/069-portal-tv-licenca-anual/plan.md). A API FastAPI/Firestore controla configurações, recuperação e licenças; importação, catálogo e reprodução continuam na TV. No build comercial, a licença é verificada ao entrar na lista; se vencer durante o uso, a sessão continua até sair da lista ou fechar o app. Configuração e renovação continuam acessíveis. A validação local usa serviços simulados/emulador. Venda e implantação comercial permanecem bloqueadas pelos gates de infraestrutura, pagamento, restauração e TV física.
+
 ## Escopo funcional
 
 O objetivo é carregar múltiplas listas M3U, reproduzir canais, filmes e séries compatíveis, permitir favoritos e organizar capas e detalhes do catálogo. As evoluções previstas incluem recomendações, pesquisa por voz com transcrição, integração com OpenAI e controle por aplicativo Android.

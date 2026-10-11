@@ -8,11 +8,15 @@
    <tizen:application id="8tZqMtwANL.CCPlayTv" package="8tZqMtwANL" required_version="2.3"></tizen:application>
    <tizen:privilege name="http://tizen.org/privilege/application.launch"></tizen:privilege>
    <tizen:privilege name="http://tizen.org/privilege/internet"></tizen:privilege>
-   <!-- Tecla amarela como atalho de favoritar (feature 013) — sem este
+   <!-- Feature 069: correlação da TV pelo ProductInfo; DUID nunca autentica sozinho. -->
+   <tizen:privilege name="http://developer.samsung.com/privilege/productinfo"></tizen:privilege>
+   <!-- IndexedDB do catálogo: evita o limite de quota padrão do app. -->
+   <tizen:privilege name="http://tizen.org/privilege/unlimitedstorage"></tizen:privilege>
+   <!-- Teclas de mídia/canal e atalhos coloridos — sem este
         privilégio, tizen.tvinputdevice.registerKey() não entrega o evento
-        da tecla ao app. Só esta tecla é registrada (tizenColorKey.ts),
-        nunca as quatro cores indiscriminadamente (backlog item 44). -->
-   <tizen:privilege name="http://tizen.org/privilege/tvinputdevice"></tizen:privilege>
+        da tecla ao app. O nome da permissão usa tv.inputdevice;
+        a API JavaScript continua sendo tizen.tvinputdevice. -->
+   <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"></tizen:privilege>
    <tizen:metadata key="http://samsung.com/tv/metadata/prelaunch.support" value="true"></tizen:metadata>
    <tizen:metadata key="http://tizen.org/metadata/app_ui_type/base_screen_resolution" value="extensive"></tizen:metadata>
    <tizen:profile name="tv-samsung"></tizen:profile>

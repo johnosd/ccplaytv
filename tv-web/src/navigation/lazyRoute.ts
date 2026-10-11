@@ -1,3 +1,4 @@
+import { recordSeriesDiagnostic } from '../lib/diagnostics/seriesDiagnostics'
 import { createElement, isValidElement, lazy, useState } from 'react'
 import type { ComponentType, LazyExoticComponent, ReactNode } from 'react'
 
@@ -18,7 +19,8 @@ export function lazyNamed<P>(loader: RouteLoader, exportName: string): LazyExoti
   return lazy(async () => {
     try {
       return { default: routeExport<P>(await loader(), exportName) }
-    } catch {
+    } catch (error) {
+      recordSeriesDiagnostic('ROUTE_MODULE_FAILED', 'failed', error)
       throw new Error('Local screen module unavailable')
     }
   })

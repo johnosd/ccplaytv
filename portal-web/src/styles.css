@@ -1,0 +1,29 @@
+@font-face { font-family: Inter; src: url('./assets/fonts/inter-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: Inter; src: url('./assets/fonts/inter-latin-600-normal.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+@font-face { font-family: Poppins; src: url('./assets/fonts/poppins-latin-700-normal.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+:root { color-scheme: dark; --bg-base: #0b0d12; --bg-surface: #15181f; --bg-elevated: #1d212b; --bg-hover: #2a2f3c;
+  --text-primary: #f5f6f8; --text-secondary: #a7adbb; --accent: #ff7a3d; --accent-light: #ffa36b; --text-on-accent: #2a1206;
+  --space-xs: 8px; --space-sm: 16px; --space-md: 24px; --space-panel: 32px; --space-section: 48px;
+  --radius-input: 12px; --radius-panel: 16px; --radius-pill: 999px; --font-body: Inter, Arial, sans-serif; --font-title: Poppins, Arial, sans-serif;
+  --fs-body: 24px; --fs-h1: 48px; --fs-h2: 32px; --motion: 140ms; --page-width: 48rem; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg-base); color: var(--text-primary); font-family: var(--font-body); font-size: var(--fs-body); line-height: 1.5; }
+main { max-width: var(--page-width); margin: 0 auto; padding: var(--space-panel); }
+h1 { font-family: var(--font-title); font-size: var(--fs-h1); overflow-wrap: anywhere; }
+h2 { font-size: var(--fs-h2); } h3 { font-size: var(--fs-body); } h1, h2, h3 { line-height: 1.3; }
+p { color: var(--text-secondary); } strong, time { overflow-wrap: anywhere; }
+.wordmark { color: var(--accent); font-weight: 600; }
+.panel { background: var(--bg-surface); border: 1px solid var(--bg-hover); border-radius: var(--radius-panel); padding: var(--space-md); margin-block: var(--space-panel); overflow-wrap: anywhere; }
+form, fieldset { display: grid; gap: var(--space-md); } fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+label { display: grid; gap: var(--space-xs); } .checkbox { display: flex; align-items: center; gap: var(--space-sm); }
+input, select { min-width: 0; width: 100%; background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--bg-hover); border-radius: var(--radius-input); font: inherit; padding: var(--space-sm); }
+input[type=checkbox] { width: auto; accent-color: var(--accent); }
+button { font: inherit; color: var(--text-primary); background: var(--bg-elevated); border: 1px solid var(--bg-hover); border-radius: var(--radius-pill); padding: var(--space-sm) var(--space-md); cursor: pointer; min-height: 64px; }
+button:hover { background: var(--bg-hover); } button.primary { background: var(--accent); color: var(--text-on-accent); } button.primary:hover { background: var(--accent-light); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 4px solid var(--accent); outline-offset: 3px; }
+button { transition: background var(--motion) ease-out; } button:disabled, [aria-disabled=true] { opacity: .6; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-block: var(--space-sm); }
+dialog { color: var(--text-primary); max-width: min(var(--page-width), calc(100vw - var(--space-panel))); max-height: calc(100vh - var(--space-panel)); overflow: auto; }
+dialog::backdrop { background: var(--bg-base); opacity: .85; }
+@media (max-width: 600px) { main { padding: var(--space-sm); } .panel { padding: var(--space-sm); } .actions > button { flex: 1 1 100%; } }
+@media (prefers-reduced-motion: reduce) { button { transition: none; } }

@@ -1,0 +1,171 @@
+
+ RUN  v5.0.0 C:/Users/johns/Documents/Projetos/ccplayTv/tv-web
+
+ ❯  dom  src/lib/player/avplayAdapter.test.ts (14 tests | 1 failed) 18ms
+   ❯ avplayAdapter (14)
+     ✓ hasAvplay é falso sem window.webapis 2ms
+     ✓ hasAvplay é verdadeiro com o motor instalado 0ms
+     ✓ declara capacidades completas — é a crença do motor, não a decisão final 2ms
+     ❯ recuperação do buffering por tempo real (1)
+       × só confirma playing com tempo crescente, inclusive após novo buffering 6ms
+     ✓ pause/resume (2)
+       ✓ pause() delega ao motor e reporta o estado paused 1ms
+       ✓ resume() chama play() — o AVPlay não tem método de resume separado 1ms
+     ✓ progresso (2)
+       ✓ oncurrentplaytime vira onProgress, com a duração real do motor 0ms
+       ✓ sem duração conhecida (0), onProgress vem sem durationMs — nada é estimado 0ms
+     ✓ onstreamcompleted (1)
+       ✓ vira onCompleted — e NÃO mais onError (a tradução é responsabilidade da sessão, D-008) 1ms
+     ✓ onerror (1)
+       ✓ repassa só o código — sem mensagem, que é de quem sabe o tipo da mídia 1ms
+     ✓ seekTo / jumpBy (4)
+       ✓ seekTo delega ao motor e chama onSettled ao voltar 1ms
+       ✓ jumpBy positivo usa jumpForward 0ms
+       ✓ jumpBy negativo usa jumpBackward com o valor absoluto 0ms
+       ✓ erro de seekTo não repassa o objeto cru do motor (contrato §6) 1ms
+ ❯  dom  src/components/PlayerLayer.avplay-loading.test.tsx (1 test | 1 failed) 69ms
+   × Live: tempo crescente do AVPlay remove Carregando sem bufferingcomplete e RETURN fecha 68ms
+Not implemented: Window's focus() method
+Not implemented: Window's focus() method
+Not implemented: Window's focus() method
+Not implemented: Window's focus() method
+Not implemented: Window's focus() method
+ ❯  dom  src/components/TrailerLayer.test.tsx (25 tests | 2 failed) 617ms
+   ✓ TrailerLayer — erro, prazo e fechamento (feature 033) (11)
+     ✓ erro do player mostra a frase, o código discreto e as ações certas (153: "Tentar de novo" e "Voltar") 184ms
+     ✓ "Tentar de novo" remonta o iframe (nunca reaproveita a janela antiga) 28ms
+     ✓ trocar de candidato remonta o iframe com o reserva (o iframe novo é outra janela) 32ms
+     ✓ vídeo bloqueado sem reserva: "Voltar" é a única ação e OK fecha 30ms
+     ✓ passados 15 s carregando vira TRL-TEMPO 20ms
+     ✓ tocando, o prazo não vale 17ms
+     ✓ sem rede abre direto em TRL-REDE 3ms
+     ✓ app oculto fecha a camada 16ms
+     ✓ fim e RETURN chegando juntos chamam onClose uma única vez 13ms
+     ✓ carregando, "Cancelar" fecha por OK e RETURN manda parar 16ms
+     ✓ desmontar por fora também manda parar, sem chamar onClose 9ms
+   ✓ TrailerLayer — reserva automática (feature 033, US2) (3)
+     ✓ 150 no 1º candidato remonta com o 2º e, tocando, nenhum erro aparece 24ms
+     ✓ 150 também no 2º vira erro só com "Voltar" 22ms
+     ✓ só os dois primeiros candidatos são usados, mesmo com mais na lista 16ms
+   ❯ TrailerLayer — controle e acessibilidade (feature 033, US3) (6)
+     × sem Minha Lista, setas horizontais mantêm Pausar e nunca enviam seek 29ms
+     ✓ MediaPlayPause manda toggle; Stop e CH± não mandam nada 12ms
+     ✓ pausada, a pill vira "Continuar" e a faixa fica sempre visível 14ms
+     ✓ tocando, a faixa some depois de 4 s sem tecla e volta com uma tecla tratada 11ms
+     ✓ erro: ←/→ movem o foco entre as ações, sempre um só 28ms
+     ✓ todo controle tem nome acessível em carregando, tocando, pausado e erro 25ms
+   ✓ TrailerLayer — anúncios do YouTube (R-013) (4)
+     ✓ com o player vivo ("ready") passar de 15 s carregando NÃO vira erro; o vídeo fica à vista e "Cancelar" segue focado 12ms
+     ✓ mas o prazo maior existe: sem tocar até TRAILER_READY_TOLERANCE_MS vira TRL-TEMPO 14ms
+     ✓ "Cancelar" fecha mesmo com o player vivo esperando anúncio 9ms
+     ✓ a troca para o reserva volta ao "Carregando" até o novo iframe dizer "ready" 19ms
+   ❯ TrailerLayer - Minha Lista (1)
+     × setas selecionam sem gravar; OK delega sem pausar e RETURN fecha 12ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL   dom  src/components/PlayerLayer.avplay-loading.test.tsx > Live: tempo crescente do AVPlay remove Carregando sem bufferingcomplete e RETURN fecha
+Error: expect(element).not.toBeInTheDocument()
+
+expected document not to contain element, found <div
+  class="player-status-label"
+>
+  Carregando…
+</div> instead
+ ❯ src/components/PlayerLayer.avplay-loading.test.tsx:30:49
+     28|   await waitFor(() => expect(screen.getByText('Carregando…')).toBeInTh…
+     29|   act(() => { listener.oncurrentplaytime?.(0); listener.oncurrentplayt…
+     30|   expect(screen.queryByText('Carregando…')).not.toBeInTheDocument()
+       |                                                 ^
+     31|   expect(onEnteredPlaying).toHaveBeenCalledTimes(1)
+     32|   act(() => listener.onbufferingstart?.())
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL   dom  src/components/TrailerLayer.test.tsx > TrailerLayer — controle e acessibilidade (feature 033, US3) > sem Minha Lista, setas horizontais mantêm Pausar e nunca enviam seek
+AssertionError: expected "Mock" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st Mock call:
+
+    Array [
+      Object {
+        "seconds": 10,
+        "source": "ccplay-app",
+        "type": "seek-by",
+        "v": 1,
+      },
+      "https://johnosd.github.io",
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/components/TrailerLayer.test.tsx:220:22
+    218|     press('ArrowLeft')
+    219|     expect(screen.getByRole('button', { name: '⏸ Pausar' })).toHaveCla…
+    220|     expect(post).not.toHaveBeenCalled()
+       |                      ^
+    221|   })
+    222|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL   dom  src/components/TrailerLayer.test.tsx > TrailerLayer - Minha Lista > setas selecionam sem gravar; OK delega sem pausar e RETURN fecha
+AssertionError: expected "Mock" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st Mock call:
+
+    Array [
+      Object {
+        "seconds": 10,
+        "source": "ccplay-app",
+        "type": "seek-by",
+        "v": 1,
+      },
+      "https://johnosd.github.io",
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/components/TrailerLayer.test.tsx:356:22
+    354|     press('ArrowRight') // sem loop na borda
+    355|     expect(document.querySelectorAll('.tv-focus')).toHaveLength(1)
+    356|     expect(post).not.toHaveBeenCalled()
+       |                      ^
+    357|     expect(screen.getByRole('button', { name: '+ Minha Lista' })).toHa…
+    358|     expect(onToggle).not.toHaveBeenCalled()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL   dom  src/lib/player/avplayAdapter.test.ts > avplayAdapter > recuperação do buffering por tempo real > só confirma playing com tempo crescente, inclusive após novo buffering
+AssertionError: expected last "vi.fn()" call to have been called with [ 'playing' ]
+
+- Expected:
+[
+  "playing",
+]
+
++ Received:
+undefined
+
+ ❯ src/lib/player/avplayAdapter.test.ts:132:39
+    130|       expect(callbacks.onStateChange).not.toHaveBeenCalled()
+    131|       fake.listeners.oncurrentplaytime?.(1000)
+    132|       expect(callbacks.onStateChange).toHaveBeenLastCalledWith('playin…
+       |                                       ^
+    133|       fake.listeners.onbufferingstart?.()
+    134|       callbacks.onStateChange.mockClear()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  3 failed (3)
+      Tests  4 failed | 36 passed (40)
+   Start at  10:52:37
+   Duration  18.52s (environment 53%, transform 22%, setup 13%, tests 7%, import 5%)
+

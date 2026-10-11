@@ -29,4 +29,13 @@ export function registerLateCatalogSchemas(db: Dexie): void {
   db.version(21)
     .stores({ parentalPins: 'sourceId' })
     .upgrade((transaction) => migrateLegacyPin(transaction))
+  // Feature 069: controle remoto/licença separados do catálogo e dos PINs existentes.
+  db.version(22).stores({
+    portalDevice: 'id',
+    sourceRevisions: 'sourceId',
+    portalOperations: 'operationId, sourceId',
+    pendingImportOutbox: 'sourceId, operationId, state',
+    pendingPortalDeletes: 'deletionId, sourceId, createdAt',
+    licenseCache: 'id',
+  })
 }

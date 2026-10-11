@@ -18,7 +18,6 @@
  * busca, progresso e o estado `completed`. Ver
  * `sdd/specs/011-assistir-filme-retomada/contracts/player-capabilities.md`.
  */
-
 import {
   resolveCapabilities,
   type EngineCapabilities,
@@ -28,7 +27,6 @@ import {
 } from './capabilities'
 import type { MediaTrack, StreamInfo, SubtitleCue } from './tracks'
 import { ASPECT_MODES, type AspectMode, type QualityOption } from './viewChoice'
-
 export type PlayerState =
   | 'idle'
   | 'preparing'
@@ -38,7 +36,6 @@ export type PlayerState =
   | 'completed'
   | 'error'
   | 'closed'
-
 /**
  * Região de exibição em coordenadas do palco 1920x1080 (ADR-007 §2) — não em
  * pixels de tela, que variam com a escala aplicada ao palco.
@@ -49,14 +46,12 @@ export interface PlayerRegion {
   width: number
   height: number
 }
-
 export const FULLSCREEN_REGION: PlayerRegion = {
   x: 0,
   y: 0,
   width: 1920,
   height: 1080,
 }
-
 /**
  * Falha de reprodução já sanitizada. `code` é o que o motor reportou, quando
  * reporta algo; `message` é texto para o usuário, e fica **ausente** quando

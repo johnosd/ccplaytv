@@ -212,32 +212,12 @@ describe('TrailerLayer — controle e acessibilidade (feature 033, US3)', () => 
     return { ...mounted, target, post: vi.spyOn(target, 'postMessage') }
   }
 
-  const seekBy = (seconds: number) => ({ source: 'ccplay-app', v: 1, type: 'seek-by', seconds })
-
-  it('duas setas seguidas sem "seeked" mandam UM seek-by; depois do "seeked" manda o próximo', () => {
-    const { target, post } = playing()
-
-    press('ArrowRight')
-    press('ArrowRight')
-    expect(post.mock.calls.filter(([m]) => (m as { type: string }).type === 'seek-by')).toHaveLength(1)
-    expect(post).toHaveBeenCalledWith(seekBy(10), TRAILER_BRIDGE_ORIGIN)
-
-    fromBridge(target, bridge('seeked'))
-    press('ArrowLeft')
-    expect(post).toHaveBeenCalledWith(seekBy(-10), TRAILER_BRIDGE_ORIGIN)
-  })
-
-  it('sem "seeked" da ponte, o seek pendente é liberado em 1 s', () => {
-    vi.useFakeTimers()
+  it('sem Minha Lista, setas horizontais mantêm Pausar e nunca enviam seek', () => {
     const { post } = playing()
-
     press('ArrowRight')
-    act(() => {
-      vi.advanceTimersByTime(1001)
-    })
-    press('ArrowRight')
-
-    expect(post.mock.calls.filter(([m]) => (m as { type: string }).type === 'seek-by')).toHaveLength(2)
+    press('ArrowLeft')
+    expect(screen.getByRole('button', { name: '⏸ Pausar' })).toHaveClass('tv-focus')
+    expect(post).not.toHaveBeenCalled()
   })
 
   it('MediaPlayPause manda toggle; Stop e CH± não mandam nada', () => {
@@ -357,5 +337,41 @@ describe('TrailerLayer — anúncios do YouTube (R-013)', () => {
     expect(screen.getByText('Carregando trailer')).toBeInTheDocument()
     fromBridge(frame().window, bridge('ready'))
     expect(screen.queryByText('Carregando trailer')).not.toBeInTheDocument()
+  })
+})
+
+describe('TrailerLayer - Minha Lista', () => {
+  it('setas selecionam sem gravar; OK delega sem pausar e RETURN fecha', () => {
+    vi.useFakeTimers()
+    const onToggle = vi.fn()
+    const onClose = vi.fn()
+    const view = render(<TrailerLayer title="Duna" candidates={CANDIDATES} onClose={onClose}
+      myList={{ added: false, pending: false, onToggle }} />)
+    const target = view.container.querySelector('iframe')!.contentWindow!
+    fromBridge(target, bridge('playing'))
+    const post = vi.spyOn(target, 'postMessage')
+    press('ArrowRight')
+    press('ArrowRight') // sem loop na borda
+    expect(document.querySelectorAll('.tv-focus')).toHaveLength(1)
+    expect(post).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: '+ Minha Lista' })).toHaveClass('tv-focus')
+    expect(onToggle).not.toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(5000))
+    expect(document.querySelector('.trailer-bar-hidden')).toBeNull()
+    press('Enter')
+    expect(onToggle).toHaveBeenCalledTimes(1)
+    expect(post).not.toHaveBeenCalled()
+    view.rerender(<TrailerLayer title="Duna" candidates={CANDIDATES} onClose={onClose}
+      myList={{ added: true, pending: true, onToggle }} />)
+    expect(screen.getByRole('button', { name: '✓ Na Minha Lista' })).toHaveAttribute('aria-pressed', 'true')
+    press('Enter')
+    expect(onToggle).toHaveBeenCalledTimes(1)
+    press('ArrowLeft')
+    press('ArrowLeft') // sem loop na borda
+    expect(screen.getByRole('button', { name: '⏸ Pausar' })).toHaveClass('tv-focus')
+    press('Enter')
+    expect(post).toHaveBeenCalledWith({ source: 'ccplay-app', v: 1, type: 'toggle' }, TRAILER_BRIDGE_ORIGIN)
+    press('Escape')
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

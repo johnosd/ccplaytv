@@ -1,3 +1,4 @@
+import { portal } from './portal'
 import { comingSoon } from './comingSoon'
 import { common } from './common'
 import { components } from './components'
@@ -36,6 +37,7 @@ export const pt = {
   ...player.pt,
   ...playerUi.pt,
   ...profiles.pt,
+  ...portal.pt,
   ...settings.pt,
   ...shell.pt,
   ...sources.pt,

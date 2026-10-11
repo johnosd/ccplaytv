@@ -357,3 +357,8 @@
   background: var(--bg-hover);
   color: var(--text-primary);
 }
+
+.profiles-portal-corner {
+  right: auto;
+  left: var(--safe-x);
+}

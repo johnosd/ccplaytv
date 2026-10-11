@@ -140,7 +140,7 @@ description: "Lista de tasks da feature 068 — legibilidade para TV"
 - [X] T031 `npx tsc -b`, `npm run lint`, `npm run test`, `npm run build`, `npm run build:tizen`
 - [ ] T032 `npm run test:e2e` completo (com `npm run dev` rodando)
 - [X] T033 Executar `quickstart.md` (navegador, itens 1–6)
-- [ ] T034 **Gate SC-005**: instalar na TV física (`deploy-tv.ps1`) e o usuário aprova de longe as telas do SC-002; registrar quem viu e o resultado no `plan.md`
+- [X] T034 **Gate SC-005**: instalar na TV física (`deploy-tv.ps1`) e o usuário aprova de longe as telas do SC-002; registrar quem viu e o resultado no `plan.md`
 - [X] T035 Ajuste solicitado durante a Fase 4: somente a lista lateral de categorias de Filmes/Séries segue o visual da Live (largura expandida, linhas e iniciais); preservar recolhimento, pôsteres/fileiras, grade e navegação. Validar VOD, E2E e atualizar pacote antes da instalação.
 
 ### Checklist de Release
@@ -153,11 +153,11 @@ description: "Lista de tasks da feature 068 — legibilidade para TV"
 - [X] `npm run build:tizen` sem arquivo emitido fora de `CCPlayTv/tizen_web_project.yaml`
 - [ ] `npm run test:e2e` verde
 - [X] `quickstart.md` executado
-- [ ] Passada na TV física aprovada pelo usuário (gate)
+- [X] Passada na TV física aprovada pelo usuário (gate)
 
 **Registro da Fase**:
 
-- Status: em execução (2026-10-10)
+- Status: encerrada por solicitação do usuário (2026-10-10), com pendência E2E registrada separadamente
 - Feito: T028/T029 documentam a escala 64/48/32/28/24/20 e o mínimo 20 px; T030 salva 23 capturas em `evidencias/depois/` (as telas da base e a aba Histórico da lista).
 - Contrato: `npm run test` → 3187/3187 verdes, 533 arquivos (inclui todos os contratos); travas 068 (4) e 049 (5) íntegras.
 - Testes executados: `npm run lint`, `npm run build` e `npm run build:tizen` → aprovados (TypeScript, guard de demux e sincronização do manifesto); `node e2e/legibilidade-tv.mjs --capturas ../sdd/specs/068-legibilidade-tv/evidencias/depois` → 69 telas pt/en/es, 0 achados (`evidencias/fase4-auditoria.txt`); `node e2e/legibilidade-tv.mjs --quickstart` → 69 telas e ciclo da Live/marquee/movimento reduzido verdes nos três idiomas (`evidencias/fase4-quickstart.txt`). Conferência visual/funcional detalhada em `evidencias/quickstart-navegador.md`.
@@ -165,6 +165,8 @@ description: "Lista de tasks da feature 068 — legibilidade para TV"
 - Ajuste T035 solicitado e esclarecido pelo usuário: apenas o visual da lateral de categorias de Filmes/Séries segue a Live; manter pôsteres/fileiras, grade e recolhimento automático. Proposta de lista de títulos descartada, sem editar contratos. `npx vitest run src/features/vod src/components/SideCategoryNav.collapsed.test.tsx` → 185/185 em 43 arquivos; lint e build:tizen verdes; travas 052/053 íntegras. Auditoria renovada: 69 telas pt/en/es, 0 achados (`evidencias/fase4-vod-auditoria.txt`). E2E de carrosséis verde com verificações da largura/iniciais e capturas expandida/recolhida, inspecionadas pelo agente. Vitrine teve uma asserção lendo o botão inteiro (incluía o tile decorativo); seletor corrigido para o rótulo, sem afrouxar a verificação de prefixo, e roteiro revalidado com sucesso (`evidencias/fase4-vod-vitrine-revalidacao.txt`). Nova suíte completa em `evidencias/fase4-vod-e2e-completo.txt` ainda em andamento; falha inicial do player repetida.
 - Resultado final desta rodada: `npm run test:e2e -- --jobs 3 --retry 0` → 44/46 em 1075 s; falhas em player-dev-mpegts (R-012) e no seletor de rótulo da vitrine, este corrigido e revalidado com sucesso. T032 permanece aberto; não aceitar a falha do player como baseline.
 - TV: `deploy-tv.ps1 -TvIp 192.168.0.2 -SkipBuild` → instalação, lançamento e applist confirmados em 2026-10-10, mesmo certificado Samsung e sem desinstalar (`evidencias/fase4-vod-deploy-tv.txt`). T034/SC-005 ainda exigem aprovação visual do usuário; retorno específico sobre categorias e recolhimento solicitado. Aprovação específica recebida em 2026-10-10: usuário, na TV e de longe, "Categorias e recolhimento aprovados". Isso aprova T035, sem presumir aprovação global das demais telas do SC-005.
+
+- Fechamento: usuário confirmou "ja validei todas telas pode fechar" em 2026-10-10. Todas as telas aprovadas na TV física pelo usuário; T034/SC-005 e checklist da TV concluídos. Feature encerrada por solicitação, mantendo T032 e o checklist E2E desmarcados: suíte completa 44/46, vitrine corrigida/revalidada separadamente, falha inicial de player-dev-mpegts ainda sem correção (R-012). Pendência transferida para Ideias Futuras no backlog; encerramento não equivale a suíte verde.
 
 ---
 

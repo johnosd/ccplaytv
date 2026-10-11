@@ -1,3 +1,5 @@
+import { updateSourceConfiguration } from '../catalog/sourceRevision'
+import { portalTables } from '../portal/portalTables'
 /**
  * Programação guardada no aparelho, por fonte (feature 030,
  * `data-model.md` §2/§3).
@@ -181,18 +183,18 @@ export async function setEpgManualUrl(
 ): Promise<void> {
   const trimmed = url?.trim()
   if (trimmed && !isValidEpgUrl(trimmed)) throw new InvalidEpgUrlError()
-  await database.sources.update(sourceId, {
+  await updateSourceConfiguration(sourceId, {
     epgManualUrl: trimmed || undefined,
     epgLastErrorKind: undefined,
     epgLastErrorAt: undefined,
-  })
+  }, database)
 }
 
 /** Deslocamento manual, inteiro, entre −12 e +12 (FR-016). Não baixa nada (FR-020). */
 export async function setEpgOffsetHours(sourceId: string, hours: number, database: CatalogDb = db): Promise<void> {
   const rounded = Number.isFinite(hours) ? Math.round(hours) : 0
   const clamped = Math.max(-EPG_MAX_OFFSET_HOURS, Math.min(EPG_MAX_OFFSET_HOURS, rounded))
-  await database.sources.update(sourceId, { epgOffsetHours: clamped === 0 ? undefined : clamped })
+  await updateSourceConfiguration(sourceId, { epgOffsetHours: clamped === 0 ? undefined : clamped }, database)
 }
 
 /**
@@ -200,15 +202,17 @@ export async function setEpgOffsetHours(sourceId: string, hours: number, databas
  * marca de sincronização — reativar começa "nunca sincronizado".
  */
 export async function setEpgEnabled(sourceId: string, enabled: boolean, database: CatalogDb = db): Promise<void> {
-  if (enabled) {
-    await database.sources.update(sourceId, { epgDisabled: undefined })
-    return
-  }
-  await database.sources.update(sourceId, {
-    epgDisabled: true,
-    epgLastSyncAt: undefined,
-    epgLastErrorKind: undefined,
-    epgLastErrorAt: undefined,
+  await database.transaction('rw', database.sources, database.epgPrograms, portalTables(database).revisions, async () => {
+    if (enabled) {
+      await updateSourceConfiguration(sourceId, { epgDisabled: undefined }, database)
+      return
+    }
+    const updated = await updateSourceConfiguration(sourceId, {
+      epgDisabled: true,
+      epgLastSyncAt: undefined,
+      epgLastErrorKind: undefined,
+      epgLastErrorAt: undefined,
+    }, database)
+    if (updated) await deleteEpgForSource(sourceId, database)
   })
-  await deleteEpgForSource(sourceId, database)
 }

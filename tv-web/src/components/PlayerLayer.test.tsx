@@ -1191,6 +1191,21 @@ describe('PlayerLayer', () => {
       expect(onChannelStep).toHaveBeenCalledWith('next')
     })
 
+    it.each([
+      [427, 'previous'],
+      [428, 'next'],
+    ] as const)('CH± com keyCode %s e nome ausente troca canal em reprodução', async (keyCode, direction) => {
+      vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(PLAYBACK)
+      const onChannelStep = vi.fn(() => true)
+      render(<PlayerLayer itemId="item-1" title="Canal" onChannelStep={onChannelStep} onClose={vi.fn()} createAdapter={createAdapter} />)
+      await waitFor(() => expect(driver.callbacks).not.toBeNull())
+      act(() => driver.callbacks?.onStateChange('playing'))
+
+      act(() => document.dispatchEvent(new KeyboardEvent('keydown', { keyCode, bubbles: true })))
+
+      expect(onChannelStep).toHaveBeenCalledExactlyOnceWith(direction)
+    })
+
     it('T027: com topLayer aberto, só MediaStop age (fecha o player inteiro)', async () => {
       vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(MOVIE_PLAYBACK)
       const onClose = vi.fn()

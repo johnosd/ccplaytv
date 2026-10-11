@@ -76,7 +76,6 @@ import {
   trailerActionState,
   trailerActionToast,
 } from '../vod/trailerAction'
-
 export interface SeriesDetailScreenProps {
   seriesId: string
   onBack: () => void
@@ -91,33 +90,27 @@ export interface SeriesDetailScreenProps {
   /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
   onEditSource?: (sourceId: string) => void
 }
-
 type DetailTab = 'episodes' | 'details' | 'cast' | 'similar'
 type Row = 'more' | 'actions' | 'tabs' | 'episodes' | 'panel'
-
 const CONFIGURE_KEY = 'configure'
-
-function buildTabs(t: Translator): TabItem[] {
+function buildTabs(t: Translator, seasonLabel: string): TabItem[] {
   return [
-    { id: 'episodes', label: t('detail.tab.episodes') },
-    { id: 'details', label: t('detail.tab.details') },
+    { id: 'episodes', label: `${seasonLabel} ▾` },
+    { id: 'similar', label: t('detail.tab.seriesSimilar') },
     { id: 'cast', label: t('detail.tab.cast') },
-    { id: 'similar', label: t('detail.tab.similar') },
+    { id: 'details', label: t('detail.tab.details') },
   ]
 }
-
 type SeriesAction =
   | { id: 'primary'; primary: SeriesPrimary }
   | { id: 'favorite'; isFavorite: boolean }
   | { id: 'trailer' }
   | { id: 'similar' }
   | { id: 'remove-history' }
-  | { id: 'season' }
-
 /**
  * Ações do hero, na ordem de foco (feature 025, FR-038): `[Continuar|Assistir
  * TX:EY] [Minha Lista] [Trailer] [Semelhantes]`, "Remover do histórico"
- * (feature 036, §9) após os ícones, só no "↺ Histórico"; o seletor de temporada encerra a fileira.
+ * (feature 036, §9) após os ícones, só no "↺ Histórico".
  */
 function buildActions(primary: SeriesPrimary | null, isFavorite: boolean, inHistory: boolean): SeriesAction[] {
   const actions: SeriesAction[] = []
@@ -126,10 +119,8 @@ function buildActions(primary: SeriesPrimary | null, isFavorite: boolean, inHist
   actions.push({ id: 'trailer' })
   actions.push({ id: 'similar' })
   if (inHistory) actions.push({ id: 'remove-history' })
-  actions.push({ id: 'season' })
   return actions
 }
-
 /** Ícone de cada ação secundária (feature 059, `logic/hero-cinema.md` §4). A primária não tem ícone. */
 function actionIcon(action: SeriesAction): DetailIconName {
   switch (action.id) {
@@ -143,7 +134,6 @@ function actionIcon(action: SeriesAction): DetailIconName {
       return 'remove'
   }
 }
-
 function actionLabel(action: SeriesAction, t: Translator): string {
   switch (action.id) {
     case 'primary': {
@@ -156,8 +146,6 @@ function actionLabel(action: SeriesAction, t: Translator): string {
       return t('trailer.button')
     case 'similar':
       return t('detail.action.similar')
-    case 'season':
-      return t('detail.pickSeason')
     case 'remove-history':
       return t('detail.action.removeHistory')
   }
@@ -264,7 +252,6 @@ export function SeriesDetailScreen({
   const primary = seriesPrimaryAction(seasons, stateFor)
   const episodeStates = userStatesQuery.data ?? []
   const actions = buildActions(primary, isFavorite, episodeStates.some((state) => isInHistory(state)))
-  const tabs = buildTabs(t)
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
@@ -386,6 +373,7 @@ export function SeriesDetailScreen({
   const [seasonIdx, setSeasonIdx] = useState(0)
   const safeSeasonIdx = clamp(seasonIdx, 0, Math.max(0, seasons.length - 1))
   const currentSeason = seasons[safeSeasonIdx]
+  const tabs = buildTabs(t, currentSeason?.label ?? t('detail.season'))
   const seasonEpisodes = currentSeason?.episodes ?? []
   const [seasonModalOpen, setSeasonModalOpen] = useState(false)
   const [seasonModalFocusIdx, setSeasonModalFocusIdx] = useState(0)
@@ -533,9 +521,11 @@ export function SeriesDetailScreen({
   }
 
   function activateTab(id: string) {
-    if (id === 'episodes' || id === 'details' || id === 'cast' || id === 'similar') setActiveTab(id)
+    if (id === 'episodes') openSeasonModal()
+    else if (id === 'details' || id === 'cast' || id === 'similar') setActiveTab(id)
   }
   function openSeasonModal() {
+    setRow('tabs')
     setActiveTab('episodes')
     setFocusedTabId('episodes')
     setSeasonModalFocusIdx(safeSeasonIdx)
@@ -546,8 +536,8 @@ export function SeriesDetailScreen({
     setSeasonIdx(index)
     setFocusedEpisodeId(seasons[index]?.episodes[0]?.id ?? null)
     setSeasonModalOpen(false)
-    setRow('actions')
-    setActionFocus(actions.findIndex((action) => action.id === 'season'))
+    setRow('tabs')
+    setFocusedTabId('episodes')
   }
   useRemoteNav({
     onDirection: (dir) => {
@@ -637,10 +627,6 @@ export function SeriesDetailScreen({
       if (row === 'actions') {
         const action = actions[safeActionFocus]
         if (!action) return
-        if (action.id === 'season') {
-          openSeasonModal()
-          return
-        }
         if (action.id === 'trailer') {
           const toast = trailerActionToast(trailerState, t)
           if (toast !== null) showToast(toast)
@@ -712,7 +698,8 @@ export function SeriesDetailScreen({
     return (
       <div className="screen">
         <div className="live-state">
-          <div className="live-state-title">{t('detail.episodesFailed')}</div>
+          <div className="live-state-title">{t(episodesQuery.data?.reason === 'storage_full' ? 'error.STO-01.title' : 'detail.episodesFailed')}</div>
+          {episodesQuery.data?.reason === 'storage_full' && <div className="live-state-copy">{t('error.STO-01.description')} (STO-01)</div>}
           <button
             type="button"
             className="live-state-action tv-focus"
@@ -769,9 +756,6 @@ export function SeriesDetailScreen({
         synopsis={<SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />}
         actions={actions.map((action, i) => {
           const focused = row === 'actions' && i === safeActionFocus && !removal
-          if (action.id === 'season') {
-            return <div key={action.id} role="button" aria-label={t('detail.pickSeason')} className={`vod-season-button${focused ? ' tv-focus' : ''}`}>{currentSeason?.label ?? t('detail.season')} ▾</div>
-          }
           if (action.id === 'primary') {
             // Barra DO EPISÓDIO da primária (D-004): posição dele ÷ duração dele, nunca a da metadata da série.
             const progress =
@@ -979,7 +963,8 @@ export function SeriesDetailScreen({
 
       {/* Fechar o trailer não invalida nada: ver trailer não muda estado do usuário (FR-016). */}
       {trailerOpen && trailerState.status === 'available' && (
-        <TrailerLayer title={series.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)} />
+        <TrailerLayer title={series.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)}
+          myList={{ added: isFavorite, pending: favoriteToggle.isPending, onToggle: () => { void favoriteToggle.toggle(series) } }} />
       )}
 
       {mode.kind === 'playing' && (

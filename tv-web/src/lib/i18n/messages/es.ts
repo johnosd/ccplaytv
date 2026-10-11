@@ -1,3 +1,4 @@
+import { portal } from './portal'
 import { comingSoon } from './comingSoon'
 import { common } from './common'
 import { components } from './components'
@@ -33,6 +34,7 @@ export const es: Record<MessageKey, string> & Record<string, string> = {
   ...player.es,
   ...playerUi.es,
   ...profiles.es,
+  ...portal.es,
   ...settings.es,
   ...shell.es,
   ...sources.es,

@@ -20,6 +20,7 @@ import './styles/settings.css'
 import './styles/search.css'
 import './styles/guide.css'
 import App from './App.tsx'
+import { startPlatformProbe } from './lib/portal/platformProbe'
 import { Stage } from './components/Stage.tsx'
 import { AnnouncerRegion } from './components/AnnouncerRegion.tsx'
 import { PerfOverlay } from './components/PerfOverlay.tsx'
@@ -33,6 +34,11 @@ const queryClient = new QueryClient()
 // movimento, se já ligada numa sessão anterior, precisa valer desde o
 // primeiro quadro — nunca um flash de animação antes de aplicar a classe.
 prepareLocalStartup()
+
+// Sonda opt-in de desenvolvimento da 069, eliminada do build normal.
+if (import.meta.env.VITE_CCPLAY_PLATFORM_PROBE === '1') {
+  void startPlatformProbe().catch(() => {})
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

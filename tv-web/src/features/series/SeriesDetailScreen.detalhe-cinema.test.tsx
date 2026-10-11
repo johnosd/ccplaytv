@@ -161,7 +161,7 @@ describe('SeriesDetailScreen — hero Cinema (feature 059)', () => {
     expect(document.querySelector('.vod-detail-hero .content-card')).toBeNull()
     expect(document.querySelector('.vod-detail-poster .poster-box')).not.toBeNull()
 
-    for (let i = 0; i < 6; i += 1) press('ArrowRight')
+    press('ArrowDown')
     press('Enter')
     expect(screen.getByRole('dialog', { name: 'Selecionar temporada' })).toBeInTheDocument()
   })
@@ -171,7 +171,7 @@ describe('SeriesDetailScreen — hero Cinema (feature 059)', () => {
     const onOpenTitle = vi.fn()
     renderScreen({ onOpenTitle })
     press('ArrowDown') // aba Episódios
-    for (let i = 0; i < 3; i++) press('ArrowRight') // → Semelhantes
+    press('ArrowRight') // → Similares
     press('Enter')
 
     press('ArrowDown') // Better Call Saul
@@ -187,12 +187,14 @@ describe('SeriesDetailScreen — hero Cinema (feature 059)', () => {
 
     press('ArrowUp')
     press('ArrowUp')
-    expect(screen.getByRole('tab', { name: 'Semelhantes' }).className).toContain('tv-focus')
+    expect(screen.getByRole('tab', { name: 'Similares' }).className).toContain('tv-focus')
   })
 
   it('cartões de Detalhes da série: fatos do catálogo com "Dados: fonte", gênero do TMDB com "Dados: TMDB" (D-006)', () => {
     renderScreen()
     press('ArrowDown') // aba Episódios
+    press('ArrowRight')
+    press('ArrowRight')
     press('ArrowRight') // Detalhes
     press('Enter')
     const card = (label: string) => screen.getByText(label).closest('.vod-detail-fact') as HTMLElement
@@ -204,7 +206,7 @@ describe('SeriesDetailScreen — hero Cinema (feature 059)', () => {
   it('voltar com um cartão da 2ª linha restaura a aba e o mesmo cartão, por identidade (FR-019)', () => {
     vi.mocked(catalogApi.useSimilarTitles).mockReturnValue({ status: 'ready', titles: [FOUND, MISSING], coverage: { covered: 2, total: 2 } })
     renderScreen({ restore: { tab: 'similar', focusKey: MISSING.key } })
-    expect(screen.getByRole('tab', { name: 'Semelhantes' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Similares' })).toHaveAttribute('aria-selected', 'true')
     press('Enter')
     expect(within(screen.getByRole('dialog')).getByText('Ausente')).toBeInTheDocument()
   })

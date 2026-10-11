@@ -68,6 +68,9 @@ export const SUITE = [
   'e2e/categorias-controle-parental.mjs',
   'e2e/configuracoes-lista-global.mjs',
   'e2e/legibilidade-tv.mjs',
+  'e2e/portal-plataforma.mjs',
+  'e2e/portal-configuracao.mjs',
+  'e2e/licenca-anual.mjs',
 ]
 
 function lerArgs(argv) {

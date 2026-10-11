@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-10
 
-**Status**: Em Execução
+**Status**: Encerrada
 
 **Input**: "Subir a escala de letra do V14 para a TV: mínimo de 20 px, texto padrão de 24 px e nomes entre 28 e 32 px, perto do que Amazon e Apple pedem. Isso também alarga as colunas para os nomes não ficarem tão cortados" + "remover o header da tela de canais para ter mais espaço" (com fotos de referência de outro app de IPTV e do YouTube na TV).
 

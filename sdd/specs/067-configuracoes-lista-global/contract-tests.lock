@@ -1,6 +1,6 @@
 {
     "feature":  "067-configuracoes-lista-global",
-    "lockedAt":  "2026-10-10 00:05",
+    "lockedAt":  "2026-10-11 13:26",
     "total":  5,
     "files":  [
                   {
@@ -15,7 +15,7 @@
                   },
                   {
                       "path":  "tv-web/src/features/settings/SettingsScreen.configuracoes-lista-global.contract.test.tsx",
-                      "sha256":  "eadd0eba0b469bf04abe238fdd81c325c276a82e7eca67fdce9d7e27ac85ea2c",
+                      "sha256":  "f598748854acf42e2ff837ce688d8083e96cc8a2762035541e24ef3ceab93520",
                       "tests":  1
                   }
               ]

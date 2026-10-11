@@ -86,6 +86,10 @@ describe('registerMediaKeys (feature 027, FR-023, D-006)', () => {
 })
 
 describe('mediaKeyOf (feature 027, §5)', () => {
+  it.each(['ChannelUp', 'ChannelDown'] as const)('reconhece %s pelo código físico sem event.key', (key) => {
+    expect(mediaKeyOf(new KeyboardEvent('keydown', { keyCode: MEDIA_KEY_CODES[key] }))).toBe(key)
+  })
+
   it('reconhece por event.key', () => {
     expect(mediaKeyOf(new KeyboardEvent('keydown', { key: 'MediaPlayPause' }))).toBe('MediaPlayPause')
     expect(mediaKeyOf(new KeyboardEvent('keydown', { key: 'ChannelUp' }))).toBe('ChannelUp')

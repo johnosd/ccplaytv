@@ -36,6 +36,7 @@ files:
   - icon.png
   - assets/index.js
   - assets/index.css
+  - assets/SettingsScreen.css
   # Chunks de rotas locais (feature 065). O nome de cada rota vem da entrada
   # dela (vite.config.ts, ROUTE_CHUNKS); o guard recusa artefato não inventariado.
   - assets/route-add-source.js

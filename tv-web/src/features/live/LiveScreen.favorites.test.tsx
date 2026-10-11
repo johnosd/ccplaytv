@@ -311,6 +311,29 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   }, 10000)
 
+  it('segurar OK salva favorito mesmo com cache de séries indisponível', async () => {
+    await seedSource()
+    mockCategories([category(1, 'G1', 0)])
+    mockContentByCategory({ 1: [channel('Canal', '1')] })
+    const cacheRead = vi.spyOn(db.seriesWatchMembers, 'where').mockImplementation(() => {
+      throw new Error('Cache de séries indisponível')
+    })
+    try {
+      renderLive()
+      enterAndDescend()
+      await holdEnter()
+      await waitFor(() => expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument())
+      await waitFor(() => expect(document.querySelector('.fav-star')).toBeInTheDocument())
+      expect((await db.userStates.get(`${SOURCE_ID}|channel|id:1`))?.isFavorite).toBe(true)
+      expect(cacheRead).not.toHaveBeenCalled()
+      expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      keyup('Enter')
+    } finally {
+      cacheRead.mockRestore()
+    }
+  }, 10000)
+
   it('(b2) tecla amarela favorita no toque único, sem esperar soltar — mesmo resultado do segurar OK', async () => {
     await seedSource()
     mockCategories([category(1, 'G1', 0)])
