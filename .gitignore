@@ -32,3 +32,6 @@ logs/*-dev*.log
 .cache/
 portal-web/test-results/
 portal-web/playwright-report/
+
+# Local Cloud Run staging credentials
+infra/portal/staging.env.yaml

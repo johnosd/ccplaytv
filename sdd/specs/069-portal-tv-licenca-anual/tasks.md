@@ -271,3 +271,14 @@ Primeiro US1 com cobrança desligada, testar independentemente de compra. US2 us
 Por decisão explícita do usuário, T031/T033/T035/T037/T044 e checklist de contratos foram reabertos e revalidados para a nova fronteira (26/26 direcionados, E2E licença1/1, tsc/lint/build e locks PASS). Vencimento permite continuar até sair da lista ou fechar o app; próxima entrada é bloqueada. Histórico de testes acima comprova a regra anterior, não esta revisão. Sem alterações em contratos congelados.
 
 Checkpoint desta revisão:3301/3301 unit (563 arquivos),26/26 direcionados, E2E licença1/1 e relacionados3/3, tsc/lint/build e locks032/034/037/047/054/067/069 PASS. Ver `evidencias/vencimento-entrada.md`. A005 e gate E2E global continuam pendentes; nenhuma alteração ou instalação na TV.
+
+
+## Pausa de execução — 2026-10-11
+
+- **Status:** pausada por solicitação explícita do usuário.
+- **Infra staging:** projeto `ccplaytv-511322`; Firestore Native e Artifact Registry em `us-central1`; contas `portal-runtime` e `portal-scheduler`; Cloud Run `ccplaytv-portal`.
+- **Deploy:** revisão saudável, URL `https://ccplaytv-portal-dvpldo267q-uc.a.run.app`; `/` e `/health` retornam 200; `/portal/v1/configurations` sem autenticação retorna 401.
+- **Build:** Cloud Build concluído com imagem `us-central1-docker.pkg.dev/ccplaytv-511322/portal/ccplaytv-portal:staging`.
+- **Próxima retomada:** enrollment autenticado com dados sintéticos, criação/leitura de configuração Xtream de teste, validação Firestore e Scheduler.
+- **Limites:** produção não publicada; checkout desativado; `roles/editor` ainda não removido; TV atual preservada; T036/T039/T041/T043/T045/T046/T052 e gates reais continuam pendentes.
+- Evidências detalhadas em `evidencias/validacao.md` e procedimento em `docs/portal/deploy-staging.md`.

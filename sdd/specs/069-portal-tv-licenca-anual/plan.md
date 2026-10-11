@@ -236,7 +236,7 @@ Checkpoint 2026-10-11: T054 concluída após autorização; isInHistory em módu
 
 | 2026-10-11 | Emenda aprovada de vencimento | Guarda na entrada da lista, inclusive RETURN/verificação do provedor; sessão admitida continua até sair/fechar app. Constitution1.9.0 e documentos alinhados. 3301/3301 unit,26/26 direcionados, E2E licença1/1 e relacionados3/3, type/lint/build e locks PASS. Nenhum teste congelado alterado. | T039/T041/T052 e gates reais continuam abertos;50/63; TV preservada. |
 
-PRÓXIMO: concluir T039/T041/T052 e obter ambiente de homologação; nova regra de entrada validada localmente, contratos preservados. T039/T041/T052 e gates reais permanecem abertos; conexão E2E adiada pelo usuário, venda desligada.
+PRÓXIMO: retomar enrollment autenticado e configuração Xtream no staging; depois concluir T039/T041/T052 e demais gates reais. Execução pausada por solicitação do usuário. T039/T041/T052 e gates reais permanecem abertos; conexão E2E adiada pelo usuário, venda desligada.
 
 ## Arquivos Principais
 

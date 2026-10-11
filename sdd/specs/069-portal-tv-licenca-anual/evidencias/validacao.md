@@ -81,3 +81,19 @@ A regra anterior de interrupção por vencimento foi substituída pelo bloqueio 
 - Firestore Native criado/verificado em `us-central1`, edição STANDARD, free tier ativo.
 - Artifact Registry `portal` criado/verificado em `us-central1`.
 - `roles/editor` da conta Compute padrão ainda permanece; remoção fica para depois do primeiro deploy validado.
+
+- Após bootstrap, foi validado o Dockerfile multi-stage e criado `infra/portal/cloudbuild.yaml` para build remoto no Cloud Build. Deploy do Cloud Run ainda não iniciado: Docker local indisponível e o ambiente staging exige as chaves criptográficas privadas previstas em `PortalSettings`; nenhum segredo foi lido ou exposto.
+
+- Cloud Build concluído com sucesso pelo usuário em 2026-10-11: build `078b97d6-2f4e-4100-ba42-b940ac15c292`, duração1m34s, imagem `us-central1-docker.pkg.dev/ccplaytv-511322/portal/ccplaytv-portal:staging`.
+
+- Cloud Run staging implantado pelo usuário: revisão `ccplaytv-portal-00001-njz`, 100% do tráfego, URL `https://ccplaytv-portal-245842812344.us-central1.run.app`. Health check ainda não confirmado pelo executor; o teste externo não alcançou a URL.
+
+- Health Cloud Run confirmado pelo usuário: `Ready=True`, `ConfigurationsReady=True`, `RoutesReady=True`, revisão `ccplaytv-portal-00001-njz`, Uvicorn em `0.0.0.0:8080`, startup TCP probe aprovada. URL canônica: `https://ccplaytv-portal-dvpldo267q-uc.a.run.app`.
+
+- Health staging confirmado pelo usuário: `GET https://ccplaytv-portal-dvpldo267q-uc.a.run.app/health` retornou HTTP 200 e `{"status":"ok"}`. Headers observados: CSP restritiva, HSTS, `x-content-type-options: nosniff` e `referrer-policy: no-referrer`.
+
+- Smoke test staging confirmado pelo usuário: `GET https://ccplaytv-portal-dvpldo267q-uc.a.run.app/` retornou HTTP 200, HTML `CCPlayTV` com `Content-Type` correto e CSP/HSTS/nosniff/referrer-policy presentes.
+
+- Diagnóstico do smoke test: `/portal/v1/configurations` retornou 503 porque `CCPLAY_PORTAL_SERVICE_RECOVERY_EPOCH` não estava no env de staging; `/health` não inicializa autenticação e por isso não detectou. Epoch de staging foi gerado localmente e adicionado ao arquivo ignorado; nova revisão ainda precisa ser publicada.
+
+- Smoke staging aprovado pelo usuário após nova revisão: raiz HTTP 200, `/health` HTTP 200 `{"status":"ok"}`, `/portal/v1/configurations` sem autenticação HTTP 401. Correção de `CCPLAY_PORTAL_SERVICE_RECOVERY_EPOCH` confirmada.
