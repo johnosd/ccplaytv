@@ -154,11 +154,11 @@ Detalhes vinculantes: data-model.md, contracts/portal-api.md, logic/operacoes-e-
 
 | Área | Estado |
 | --- | --- |
-| Execução | Em Execução, modo contínuo; fases 1–2, US1 e US2 concluídas localmente; US3 integrada com T036 real pendente; 50/63 itens concluídos. |
+| Execução | Em Execução, modo contínuo; fases 1–2, US1 e US2 concluídas localmente; US3 integrada com T036 real pendente; T055 corrigida; infraestrutura staging e ACK sintético concluídos; backup diário provisionado; portal E2E 13/13; 51/64 itens concluídos. |
 | Entregas | Configurações permanentes cifradas, exclusão sincronizada e recuperação pelo site; núcleo comercial, assinatura ES256, cache offline, guarda de entrada da lista e área de licença revalidadas pela nova decisão. Oferta R$35/12 meses/uma TV; venda desligada. |
-| Revisão local | T038/T040/T042 concluídas; T037/T044 revalidadas: UX, fronteiras HTTP/segredos, manifesto e documentação. API90/90 anterior + marcador HTTP1/1; portal13/13 E2E. Nova fronteira de vencimento:26/26 testes direcionados e E2E licença1/1 PASS78.2s; sem interrupção da sessão atual. Type/lint/build TV PASS. |
+| Revisão local | T038/T040/T042 concluídas; T037/T044 revalidadas: UX, fronteiras HTTP/segredos, manifesto e documentação. API90/90 anterior + marcador HTTP1/1; portal13/13 E2E PASS com servidor explícito. Nova fronteira de vencimento:26/26 testes direcionados e E2E licença1/1 PASS78.2s; sem interrupção da sessão atual. Type/lint/build TV PASS. |
 | Gates automatizados | Suíte TV48/49 E2E em1129s; teste-conexao-tv mantido pendente por decisão do usuário. A005 encerramento Vitest não resolvido. Revisão atual:3301/3301 unit PASS (563 arquivos,≈271.06s, threads4/JSON); direcionados26/26 PASS com aviso A005. E2E licença1/1 e relacionados3/3 PASS. Caso mínimo com reporters padrão/JSON e CI=1 ainda reproduz A005; rodada anterior coincidiu com edição e foi descartada como gate. |
-| Plataforma/operação | TV atual preservada no pacote pessoal anterior à v22; nenhuma instalação nova. Projeto Google Cloud ainda será criado. Conta Mercado Pago teste, IAM/OIDC, restore/replay, medições/custos e fluxo comercial físico pendentes. Scripts backup/restore somente preparados. |
+| Plataforma/operação | TV atual preservada; projeto Google Cloud ccplaytv-511322 ativo; Cloud Run público/jobs, IAM/OIDC e Firestore staging validados. Snapshot READY, restore/replay, medições/custos e fluxo comercial físico permanecem pendentes. |
 | Contratos | C1–C5 PASS e trava069 íntegra. Emenda mínima067 autorizada; trava067 íntegra. Nenhuma autorização para outros contratos. |
 
 ## Riscos e Decisões
@@ -232,11 +232,12 @@ Checkpoint 2026-10-11: T054 concluída após autorização; isInHistory em módu
 
 
 
+| 2026-10-12 | T041/desvio T055 | Suíte completa repetida após preload imediato da rota SourceAccessRoute: 563/563 arquivos e 3301/3301 testes PASS; lint/build e C1–C5 PASS. | A005 encerramento permanece sem bloqueio reproduzido; T039 snapshot, T043/T045/T052 e gates TV/comerciais continuam. |
 | 2026-10-11 | US3/Polish local | T026–T035 integradas; T037/T038/T040/T042/T044 concluídas. Player expira só quando há reprodução; monitor parado nega acesso. Portal13/13 E2E; TV48/49, conexão adiada pelo usuário. | T039/T041/T052 locais e provas reais T036/T043/T045/T046; venda desligada. |
 
 | 2026-10-11 | Emenda aprovada de vencimento | Guarda na entrada da lista, inclusive RETURN/verificação do provedor; sessão admitida continua até sair/fechar app. Constitution1.9.0 e documentos alinhados. 3301/3301 unit,26/26 direcionados, E2E licença1/1 e relacionados3/3, type/lint/build e locks PASS. Nenhum teste congelado alterado. | T039/T041/T052 e gates reais continuam abertos;50/63; TV preservada. |
 
-PRÓXIMO: retomar enrollment autenticado e configuração Xtream no staging; depois concluir T039/T041/T052 e demais gates reais. Execução pausada por solicitação do usuário. T039/T041/T052 e gates reais permanecem abertos; conexão E2E adiada pelo usuário, venda desligada.
+PRÓXIMO: aguardar o primeiro snapshot READY para executar inspect/restore isolado; em paralelo concluir T041/T043/T045/T052. T036/T046/T047 permanecem dependentes dos gates comerciais e da TV física; venda desligada.
 
 ## Arquivos Principais
 
@@ -266,3 +267,10 @@ Checkpoint T032: E2E comercial browser/fake 1/1 PASS74.1s, UI web compra/retry/p
 T039 parcial: `restore_journal.py` valida objeto canônico/digest/destino antes de qualquer replay; dez testes PASS0.14s e Ruff PASS. SHA256 não autentica autor; origem/IAM/imutabilidade, replay idempotente/floors/expurgo e conciliação continuam gates abertos.
 
 Atualização vigente de vencimento: os checkpoints anteriores com guarda por playback/encerramento automático são históricos e foram substituídos pela decisão D-016. Nada muda na checagem diária ou no funcionamento client-first.
+### Atualização de continuidade — 2026-10-12
+
+Foi criado `infra/portal/measure-staging.ps1` para medir 100 alterações sintéticas com ACK da TV e p50/p95. A execução não iniciou amostras porque o limitador de enrollment por IP (20/h) já estava consumido pelos smokes; T043 segue pendente. O schedule diário de backup (7 dias) está ativo, mas ainda não há snapshot READY para T039. Suíte local do portal: 42 passed, 59 skipped.
+
+T052 avançou apenas na evidência independente: tick OIDC real HTTP 200 e suíte local do portal 42 passed/59 skipped. T045 permanece preparado em `budget.json`, sem criação administrativa do budget porque a conta atual não tem acesso à Billing Budgets API.
+
+Revalidação local após manter T036 pendente: pagamentos/licenciamento/worker/restore 11 passed/10 skipped; licensing e contratos 17/17 PASS; lock íntegro. Próximo bloqueio continua sendo T036 sandbox, além de T039/T041/T043/T045/T046/T052 reais.

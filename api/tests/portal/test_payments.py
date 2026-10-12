@@ -94,6 +94,18 @@ async def test_merchant_price_currency_reference_and_mode_must_match_authenticat
         await cleanup(control, device.device_id)
 
 
+async def test_explicit_staging_opt_in_accepts_provider_test_live_mode(control):
+    payments, provider, principal, device, _, now = await prepared(control)
+    try:
+        payments.allow_test_live_mode = True
+        order = await payments.checkout(principal, new_token(), now)
+        provider.observations["123"] = replace(observed(order, now), live_mode=True)
+        assert await payments.reconcile_payment("123", now)
+        assert (await control[0].client.document("orders/" + order.order_id).get()).to_dict()["status"] == "approved"
+    finally:
+        await cleanup(control, device.device_id, ("123",))
+
+
 async def test_http_webhook_signature_persists_minimal_event_without_grant_and_tv_is_bearer_only(control, tmp_path):
     payments, provider, principal, device, bearer, now = await prepared(control)
     secret = "fixture-webhook-secret"

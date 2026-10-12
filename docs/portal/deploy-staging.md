@@ -72,3 +72,17 @@ Deploy staging concluído em 2026-10-11:
 - URL canônica após descoberta do Cloud Run: `https://ccplaytv-portal-dvpldo267q-uc.a.run.app`
 - Tráfego: 100%
 - Health check: `Ready=True`, `RoutesReady=True`, startup TCP probe aprovada, Uvicorn ouvindo em `0.0.0.0:8080` e `GET /health` retornando HTTP 200 `{"status":"ok"}`. Smoke funcional: raiz 200 e `/portal/v1/configurations` sem autenticação 401.
+## Mercado Pago sandbox
+
+As credenciais de teste ficam somente no arquivo local ignorado `infra/portal/staging.env.yaml` e nunca devem ser coladas em commits, prompts, logs ou argumentos de CLI. No painel de desenvolvedor do Mercado Pago, use uma aplicação de teste e acrescente ao arquivo:
+
+```yaml
+CCPLAY_PORTAL_MERCADOPAGO_MERCHANT_ID: "<collector_id_da_conta_de_teste>"
+CCPLAY_PORTAL_MERCADOPAGO_ACCESS_TOKEN: "<TEST-access-token>"
+CCPLAY_PORTAL_MERCADOPAGO_WEBHOOK_SECRET: "<segredo_de_assinatura_do_webhook>"
+CCPLAY_PORTAL_MERCADOPAGO_LIVE_MODE: "false"
+```
+
+O `merchant_id` deve ser o `collector_id` retornado pela API de pagamentos da mesma conta de teste. No Checkout Pro, o Access Token de teste normalmente começa por `APP_USR`; confirme no painel que ele está na seção **Credenciais de teste**, e não em Credenciais de produção. O webhook deve apontar para `https://ccplaytv-portal-dvpldo267q-uc.a.run.app/portal/v1/payments/mercadopago/webhook`.
+
+Após preencher o arquivo local, redeploye o público com o fluxo de staging e o jobs com `powershell.exe -NoProfile -ExecutionPolicy Bypass -File infra/portal/deploy-jobs-env.ps1`. Esse script cria um arquivo temporário com `SERVICE_ROLE=jobs`, não imprime os valores e o remove ao terminar. A configuração deve permanecer com `CCPLAY_PORTAL_CHECKOUT_ENABLED: "false"` até T045; assim podemos validar credenciais e webhook sem liberar venda. Não executar `gcloud ... --update-env-vars` com tokens na linha de comando.

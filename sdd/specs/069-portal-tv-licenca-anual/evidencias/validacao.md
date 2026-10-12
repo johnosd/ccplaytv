@@ -97,3 +97,53 @@ A regra anterior de interrupção por vencimento foi substituída pelo bloqueio 
 - Diagnóstico do smoke test: `/portal/v1/configurations` retornou 503 porque `CCPLAY_PORTAL_SERVICE_RECOVERY_EPOCH` não estava no env de staging; `/health` não inicializa autenticação e por isso não detectou. Epoch de staging foi gerado localmente e adicionado ao arquivo ignorado; nova revisão ainda precisa ser publicada.
 
 - Smoke staging aprovado pelo usuário após nova revisão: raiz HTTP 200, `/health` HTTP 200 `{"status":"ok"}`, `/portal/v1/configurations` sem autenticação HTTP 401. Correção de `CCPLAY_PORTAL_SERVICE_RECOVERY_EPOCH` confirmada.
+
+- Enrollment sintético ainda não executado pelo executor: a conexão HTTPS externa não está disponível nesta sessão. Script seguro preparado em `infra/portal/smoke-enrollment.ps1`; ele usa identidade/nonce aleatórios e nunca imprime bearer, device key ou código de recuperação.
+
+- Primeira tentativa do enrollment sintético retornou `invalid_input`; diagnóstico: `nonce` exige exatamente 43 caracteres Base64URL. Script corrigido para gerar 32 bytes aleatórios (43 caracteres codificados).
+
+- Compatibilidade corrigida no `smoke-enrollment.ps1`: PowerShell/.NET local não possui `RandomNumberGenerator.Fill`; substituído por `Create().GetBytes()` com descarte seguro do RNG.
+
+- Próximo teste preparado em `infra/portal/smoke-configuration.ps1`: enrollment sintético → sessão manual → `source.create` com URL M3U `example.invalid`; secrets permanecem apenas em memória e não são impressos.
+
+- Primeira tentativa de `smoke-configuration.ps1` chegou à sessão autenticada, mas `source.create` retornou `invalid_input`. Diagnóstico: `Idempotency-Key` deve seguir `op-<13 dígitos de epoch ms>-<token Base64URL de 43 caracteres>`. Script corrigido para esse formato.
+
+- Configuração Xtream sintética aprovada pelo usuário: enrollment/session HTTP200, `source.create` retornou `pending`, operação `op-...` e `sourceId` sintético; nenhum segredo impresso. A confirmação da TV ainda não ocorreu, portanto a configuração pode não aparecer na coleção aplicada. Script ampliado para ler a operação e distinguir esse estado.
+
+
+### Configuração sintética com confirmação da TV — 2026-10-12
+
+O smoke de configuração foi ampliado para validar o ciclo completo: criação source.create, entrega pela rota TV, ACK applied com revisão seguinte e leitura da configuração após confirmação. A tentativa automática pelo executor falhou antes da inscrição por indisponibilidade de conexão ao Cloud Run; nenhuma operação real ou dado da TV foi alterado.
+
+
+### Smoke completo de configuração e ACK — 2026-10-12
+
+Execução local aprovada de infra/portal/smoke-configuration.ps1: enrollment ok; sessão HTTP 200; operação sintética criada como pending; operação listada no portal; entregue pela rota da TV; ACK applied na revisão 1; configuração listada após o ACK; secretsPrinted=false. OperationId e sourceId foram sintéticos e descartáveis.
+
+
+### Regressão após provisionamento — 2026-10-12
+
+- api: uv run pytest tests/portal -q: 42 passed, 59 skipped em 2.20s.
+
+
+### E2E portal com servidor explícito — 2026-10-12
+
+A primeira tentativa sem servidor falhou integralmente com ERR_CONNECTION_REFUSED em 13 testes. Repetição conforme estratégia (Vite iniciado em 127.0.0.1:5174 antes do runner) passou 13/13 em 6,2s. Não houve falha de comportamento nem alteração de contrato.
+
+
+### Correção T055 e revalidação completa — 2026-10-12
+
+O preload imediato da rota SourceAccessRoute eliminou a falha intermitente sob carga. Resultado final: 563 arquivos e 3301 testes Vitest PASS; portal E2E 13/13; lint/build TV PASS; contratos C1–C5 íntegros.
+
+### Verificação local de continuidade — 2026-10-12
+
+- `uv run pytest tests/portal -q` em `api/`: **42 passed, 59 skipped** (skips dependem de serviços externos/Firestore).
+- Parser PowerShell de `infra/portal/measure-staging.ps1`: **PASS**.
+- O agendamento diário de backup foi consultado e permanece ativo com retenção de 604800s (7 dias); ainda sem snapshot READY.
+
+### Retomada local do execute — 2026-10-12
+
+- `uv run pytest tests/portal/test_payments.py tests/portal/test_licensing.py tests/portal/test_worker.py tests/portal/test_restore_journal.py -q`: **11 passed, 10 skipped**; skips dependem de Firestore/serviços externos.
+- `node.exe node_modules/vitest/vitest.mjs run src/lib/licensing src/lib/portal/portal-tv-licenca-anual.contract.test.ts --pool=threads --maxWorkers=2`: **17/17 PASS**, 7 arquivos.
+- `check-contract-tests.ps1 -Slug 069-portal-tv-licenca-anual -Json`: **PASS**, cinco testes e trava íntegra.
+- T036 permanece parcial: fake/local aprovado, pagamento sandbox real não executado por falta de credenciais.

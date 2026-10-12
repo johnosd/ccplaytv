@@ -44,6 +44,27 @@ def test_production_rejects_emulator_and_unreleased_checkout():
                        public_origin="https://portal.example.test")
 
 
+def test_staging_allows_sandbox_checkout_only_with_credentials():
+    common = {
+        "environment": "staging", "project_id": "real-project",
+        "public_origin": "https://portal.example.test", "checkout_enabled": True,
+        "aes_key": "a" * 32, "signing_key": "b" * 32,
+        "identity_hmac_key": "c" * 32, "recovery_hmac_key": "d" * 32,
+        "mercadopago_merchant_id": "123", "mercadopago_access_token": "token",
+        "mercadopago_webhook_secret": "secret", "mercadopago_live_mode": False,
+    }
+    assert PortalSettings(**common).checkout_enabled is True
+    with pytest.raises(ValidationError, match="checkout_credentials_required"):
+        PortalSettings(**{key: value for key, value in common.items()
+                          if key != "mercadopago_access_token"})
+    with pytest.raises(ValidationError, match="checkout_not_released"):
+        PortalSettings(**{**common, "mercadopago_live_mode": True})
+    assert PortalSettings(**{**common, "mercadopago_allow_test_live_mode": True}).mercadopago_allow_test_live_mode
+    with pytest.raises(ValidationError, match="test_live_mode_only_staging"):
+        PortalSettings(**{**common, "environment": "production", "checkout_enabled": False,
+                          "mercadopago_allow_test_live_mode": True})
+
+
 @pytest.mark.parametrize("role", ["public", "jobs"])
 async def test_health_reserved_routes_and_headers(role, tmp_path):
     (tmp_path / "index.html").write_text("portal fixture", encoding="utf-8")

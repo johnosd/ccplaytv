@@ -41,7 +41,8 @@ async def payment_service(request: Request):
                                        live_mode=settings.mercadopago_live_mode)
         request.app.state.portal_payments = PaymentService(licensing.auth, licensing, provider,
             merchant_id=settings.mercadopago_merchant_id, live_mode=settings.mercadopago_live_mode,
-            checkout_enabled=settings.checkout_enabled)
+            checkout_enabled=settings.checkout_enabled,
+            allow_test_live_mode=settings.mercadopago_allow_test_live_mode)
     return request.app.state.portal_payments
 
 

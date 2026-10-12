@@ -25,6 +25,7 @@ TV existente `tv-web/src/{App.tsx,lib/catalog,lib/player,features/settings,featu
 ### Testes da Fase
 
 - [x] T054 Extrair a política pura isInHistory para historyPolicy.ts preservando reexportação, comportamento e alteração anterior de favoritos; desvio R-015 autorizado pelo usuário em 2026-10-11. Revalidar lint, TypeScript e histórico.
+- [x] T055 Corrigir desvio ad-hoc descoberto no gate T041: aquecer imediatamente a rota leve SourceAccessRoute em perfis para evitar Suspense pendente sob carga, sem alterar contratos ou telas pesadas.
 - [x] T053 Investigar e corrigir falha reproduzida no primeiro play do E2E player-dev-mpegts, descoberta durante T003; desvio autorizado pelo usuário em 2026-10-11. Preservar contratos e orçamento de 15 segundos; repetir regressão estreita e suíte.
 
 - [x] T048 Criar `api/tests/portal/test_bootstrap.py` para isolamento de entrypoint/settings/logs e ausência de runtime SQL; registrar prova T003 no roteiro `quickstart.md`. (FR-008, FR-014; SC-009)
@@ -282,3 +283,76 @@ Checkpoint desta revisão:3301/3301 unit (563 arquivos),26/26 direcionados, E2E 
 - **Próxima retomada:** enrollment autenticado com dados sintéticos, criação/leitura de configuração Xtream de teste, validação Firestore e Scheduler.
 - **Limites:** produção não publicada; checkout desativado; `roles/editor` ainda não removido; TV atual preservada; T036/T039/T041/T043/T045/T046/T052 e gates reais continuam pendentes.
 - Evidências detalhadas em `evidencias/validacao.md` e procedimento em `docs/portal/deploy-staging.md`.
+
+
+### Retomada de configuração sintética — 2026-10-12
+
+- infra/portal/smoke-configuration.ps1 foi ampliado para simular o ACK da TV: pull autenticado em /portal/v1/device/operations, ACK applied com revision=expectedRevision+1 e importState=completed, seguido de leitura autenticada da configuração.
+- O script preserva o isolamento sintético (sourceId e identidade aleatórios), não imprime credenciais e falha se a operação não for entregue à TV ou se a configuração não aparecer após o ACK.
+- Execução automática nesta sessão ficou bloqueada por falha de conectividade do executor ao Cloud Run (Unable to connect to the remote server); executar no PowerShell local com o mesmo comando usado nos smokes anteriores.
+
+
+### Evidência de ACK sintético — 2026-10-12
+
+- Smoke completo aprovado: operação entregue à TV sintética e confirmada como applied na revisão 1; configuração apareceu após o ACK; nenhum segredo foi impresso.
+- Próxima etapa: validar o job agendado e a persistência/consulta no Firestore.
+
+
+### Jobs/Scheduler/Firestore — 2026-10-12
+
+- Serviço jobs e Scheduler staging provisionados e saudáveis; Scheduler habilitado com OIDC e invoker restrito ao service account dedicado.
+- Firestore verificado: documentos sintéticos persistidos nas coleções devices, operations, configurations e configurationVersions.
+- Execução do tick ainda sem log de request observado; não conceder TokenCreator apenas para teste manual.
+
+
+### Backup diário provisionado — 2026-10-12
+
+- T039 avançou: schedule diário de backup Firestore criado com retenção de sete dias.
+- Snapshot READY ainda não disponível; manter restore e RPO/RTO pendentes até a primeira execução e ensaio em base isolada.
+
+
+### Homologação avançada sem esperar backup — 2026-10-12
+
+- Smoke de superfície e isolamento aprovado: público 200/200, endpoint jobs sem autenticação 403, IAM invoker restrito ao portal-scheduler.
+- T052 avançou na validação de serviço e IAM; restore/RPO/RTO permanecem aguardando o primeiro snapshot READY.
+
+
+### E2E portal revalidado — 2026-10-12
+
+- Portal E2E: 13/13 PASS (6,2s) com Vite iniciado explicitamente na porta 5174, conforme a estratégia do plano.
+- ERR_CONNECTION_REFUSED inicial foi classificado como erro de preparação do runner, não bug da feature. A005 do Vitest permanece pendente separadamente.
+
+
+### Desvio ad-hoc T055 — 2026-10-12
+
+- Causa: o fallback sem requestIdleCallback adiava o preload de SourceAccessRoute em 500 ms; na suíte paralela o teste de credencial recusada expirava ainda em "Abrindo esta tela…".
+- Correção: preload imediato apenas da rota leve de acesso em profiles; telas pesadas continuam lazy.
+- Validação: teste isolado 5/5; suíte completa 563/563 arquivos e 3301/3301 testes; lint, build e trava de contratos PASS.
+
+
+### T043/T052 em homologação — 2026-10-12
+
+- TV atualizada por deploy-tv.ps1, instalação/launch confirmados sem desinstalação; visual pendente.
+- 100 amostras health e 100 negativas de jobs aprovadas; p95 312.54ms e399.83ms respectivamente. Não substitui alteração/ativação T043.
+- Journal/bucket/env provisionados; tick real500 e índice jobs ainda CREATING; repetir após READY.
+
+
+### T052 tick real aprovado — 2026-10-12
+
+- Índice jobs READY; Scheduler OIDC executou /internal/portal/jobs/tick com HTTP 200 em duas execuções observadas (10,17s cold e 1,35s warm).
+- Firestore jobs contém 1 documento de manutenção; bucket journal regional permanece ativo com lifecycle 30 dias e papel mínimo no bucket.
+- T052 avançou na prova real de IAM/OIDC/Firestore/worker; restore e cargas de alterações/ativações ainda pendentes.
+
+### Continuidade de execução — 2026-10-12
+
+- **T043:** criado `infra/portal/measure-staging.ps1` para 100 updates sintéticos com ACK da TV, cálculo p50/p95 e saída sem segredos. O endpoint de mutação limita a 30/min por sessão; o script respeita 2,2 s entre amostras. A execução foi bloqueada antes da primeira amostra pelo limite de enrollment por IP (20/h), já consumido pelos smokes. T043 continua pendente e nenhum aceite de carga foi inferido.
+- **T039:** o schedule diário de backup com retenção de sete dias existe, porém `gcloud firestore backups list` ainda não mostra snapshot READY. Restore/RPO/RTO continuam pendentes.
+- **T052/T045:** suíte local do portal passou 42 testes (59 skips externos); a prova real do tick OIDC permanece HTTP 200. O orçamento está documentado em R$35 com alertas sem corte, mas a API de budgets não está autorizada na conta de faturamento, portanto T045 continua sem configuração real.
+- **T036:** por decisão do usuário, mantida pendente a transação Mercado Pago sandbox/real. Revalidação local fake/licensing/worker/restore: 11 passed, 10 skipped; TV licensing e C1–C5: 17/17 PASS; trava íntegra. Nenhuma venda foi habilitada.
+- **Configuração sandbox:** credenciais presentes apenas no `staging.env.yaml` ignorado; público `00005-drv` e jobs `00003-zzr` Ready; webhook sem assinatura 401; `CHECKOUT_ENABLED=false`. T036 segue pendente até completar compra de teste.
+
+### Tentativa de compra sandbox — 2026-10-12
+
+- O smoke criou uma preferência Checkout Pro de `R$35,00/12 meses` com `checkout_enabled=true` e `secretsPrinted=false`.
+- O checkout abriu com a sessão da conta vendedora. Após preencher o CVV de teste e clicar em **Pagar**, o Mercado Pago recusou o fluxo com: “Uma das partes com as quais você está tentando efetuar o pagamento é de teste”.
+- Diagnóstico: o Checkout Pro exige contas de teste distintas para vendedor e comprador. T036 permanece pendente; a próxima tentativa deve encerrar a sessão do vendedor e entrar com a conta compradora de teste antes de usar o cartão de teste.

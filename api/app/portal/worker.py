@@ -162,7 +162,8 @@ def create_worker(settings: PortalSettings) -> PortalWorker:
         provider = MercadoPagoProvider(settings.mercadopago_access_token, settings.public_origin,
                                        live_mode=settings.mercadopago_live_mode)
         payments = PaymentService(auth, licensing, provider, merchant_id=settings.mercadopago_merchant_id,
-                                  live_mode=settings.mercadopago_live_mode)
+                                  live_mode=settings.mercadopago_live_mode,
+                                  allow_test_live_mode=settings.mercadopago_allow_test_live_mode)
     return PortalWorker(repository, DeletionService(repository, journal),
                         AccessRotation(auth, crypto, codes, journal), RetentionService(repository), licensing, payments)
 

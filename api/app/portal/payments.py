@@ -22,13 +22,15 @@ def order_view(order: OrderDocument) -> dict:
 
 class PaymentService:
     def __init__(self, auth: AuthService, licensing: LicensingService, provider: PaymentProvider,
-                 *, merchant_id: str, live_mode: bool, checkout_enabled: bool = False):
+                 *, merchant_id: str, live_mode: bool, checkout_enabled: bool = False,
+                 allow_test_live_mode: bool = False):
         self.auth = auth
         self.repository = auth.repository
         self.licensing = licensing
         self.provider = provider
         self.merchant_id = merchant_id
         self.live_mode = live_mode
+        self.allow_test_live_mode = allow_test_live_mode
         self.checkout_enabled = checkout_enabled
         self.commercial = LicensingRepository(auth)
 
@@ -105,8 +107,11 @@ class PaymentService:
         event_snapshot = await self.repository.client.document(event_path).get(timeout=5, retry=None)
         observed_event = PaymentEventDocument.model_validate(event_snapshot.to_dict()) if event_snapshot.exists else None
         payment = await self.provider.payment(payment_id)
+        mode_matches = payment.live_mode == self.live_mode or (
+            self.allow_test_live_mode and not self.live_mode and payment.live_mode
+        )
         if (payment.payment_id != payment_id or payment.merchant_id != self.merchant_id
-                or payment.price_minor != 3500 or payment.currency != "BRL" or payment.live_mode != self.live_mode
+                or payment.price_minor != 3500 or payment.currency != "BRL" or not mode_matches
                 or payment.updated_at.tzinfo is None or payment.updated_at > now + timedelta(seconds=60)
                 or payment.confirmed_at and (payment.confirmed_at.tzinfo is None or payment.confirmed_at > now + timedelta(seconds=60))):
             raise PaymentProviderError()

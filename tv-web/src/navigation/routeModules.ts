@@ -86,7 +86,14 @@ export function warmRoutes(routes: readonly { preload: () => Promise<void> }[]):
 export function useRouteWarmup(screenName: string): void {
   useEffect(() => {
     // Perfis: só a tela de acesso à lista (leve), para escolher uma lista funcionar mesmo sem rede logo depois.
-    if (screenName === 'profiles') return warmRoutes([SourceAccessRoute])
+    if (screenName === 'profiles') {
+      // A escolha pode acontecer imediatamente após a tela pintar. No fallback
+      // sem requestIdleCallback, adiar 500 ms deixa o Suspense visível sob
+      // carga da suíte e na abertura rápida da lista; esta rota é pequena e
+      // segura para aquecer já neste efeito.
+      void SourceAccessRoute.preload()
+      return undefined
+    }
     if (screenName === 'home') return warmRoutes([VodShowcaseScreen])
     if (screenName === 'movies') return warmRoutes([VodCategoryScreen, MovieDetailScreen])
     if (screenName === 'series') return warmRoutes([VodCategoryScreen, SeriesDetailScreen])

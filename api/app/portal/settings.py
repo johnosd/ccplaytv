@@ -40,6 +40,7 @@ class PortalSettings(BaseSettings):
     recovery_hmac_previous_keys: SecretStr | None = None
     mercadopago_merchant_id: str | None = Field(default=None, pattern=r"^[0-9]{1,40}$")
     mercadopago_live_mode: bool = False
+    mercadopago_allow_test_live_mode: bool = False
     mercadopago_access_token: SecretStr | None = None
     mercadopago_webhook_secret: SecretStr | None = None
 
@@ -53,8 +54,16 @@ class PortalSettings(BaseSettings):
         ):
             raise ValueError("invalid_public_origin")
         if self.checkout_enabled:
-            # O gate comercial será implementado em T045, nunca um bypass de configuração.
-            raise ValueError("checkout_not_released")
+            # Checkout só pode ser aberto no staging com o sandbox; produção permanece fechada.
+            if self.environment != "staging" or self.mercadopago_live_mode:
+                raise ValueError("checkout_not_released")
+            if (not self.mercadopago_merchant_id or self.mercadopago_access_token is None
+                    or self.mercadopago_webhook_secret is None):
+                raise ValueError("checkout_credentials_required")
+        if self.mercadopago_allow_test_live_mode and (
+            self.environment != "staging" or self.mercadopago_live_mode
+        ):
+            raise ValueError("test_live_mode_only_staging")
         if local:
             if not self.project_id.startswith("demo-") or not self.firestore_emulator_host:
                 raise ValueError("local_emulator_required")

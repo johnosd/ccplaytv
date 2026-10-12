@@ -1,1 +1,1 @@
-import{Jn as e,Xn as t}from"./accountCheck.js";var n=t(e(),1);function r(e){let t=(0,n.useRef)(null);return(0,n.useEffect)(()=>{t.current?.scrollIntoView({block:`nearest`,inline:`nearest`})},[e]),t}export{r as t};
+import{Qn as e,er as t}from"./accountCheck.js";var n=t(e(),1);function r(e){let t=(0,n.useRef)(null);return(0,n.useEffect)(()=>{t.current?.scrollIntoView({block:`nearest`,inline:`nearest`})},[e]),t}export{r as t};
