@@ -64,7 +64,7 @@ Backup diário 7 dias; detectar último sucesso >24 h e falha simulada. Restore 
 
 ## 7. Medição e aceite físico
 
->=100 alterações e >=100 ativações, amostras frias/quentes/rede registradas, p50/p95 e tamanho da amostra. Metas recebimento 30 s/licença 60 s só tela rápida, importação separada. Carga 10–50 TVs e margem simulada 100; medir polling/documentos/índices/retries/logs/builds/imagens/egress/backup/journal/restore/câmbio/impostos. Referência R$35/mês, alertar previsão/excedente sem desligar serviço; não prometer custo zero.
+>=100 alterações e >=100 ativações, amostras frias/quentes/rede registradas, p50/p95 e tamanho da amostra. Metas recebimento 30 s/licença 60 s só tela rápida, importação separada. Carga 10–50 TVs e margem simulada 100; medir polling/documentos/índices/retries/logs/builds/imagens/egress/backup/journal/restore/câmbio/impostos. Referência R$10/mês, alertar previsão/excedente sem desligar serviço; não prometer custo zero.
 
 Após E2E, validar TV física com tizen-tv preservando dados/assinatura: QR legível→pagamento de teste→ativação, expiração/reativação/offline/foco/controle real. Reinstalação/recovery somente laboratório autorizado. Separar aprovado/reprovado/não testado, fake/sandbox/infra real/browser/hardware. Venda bloqueada enquanto T001/T003/T039/T043/T045/T046/T052 não aprovados. Documentação atualizada em T044/T047 por evidência, não por previsão.
 

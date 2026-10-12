@@ -6,7 +6,7 @@
 
 Portal React sem conta pessoal para configurar Xtream/M3U por URL e comprar licença anual de **R$35 por TV**. FastAPI serve API e portal na mesma origem HTTPS do Cloud Run; Firestore guarda controle, configurações cifradas e pagamentos. Importação, catálogo e Direct Play continuam na TV. Licença assinada vigente permite entrada offline; a sessão aberta continua até sair/fechar, mesmo após vencer; consulta diária recebe alterações. Entrega rápida apenas enquanto QR/configuração/compra estiver aberta.
 
-Replanejamento completo das três stories e dos 33 FR/12 SC, sem implementação ou provisionamento. Preservados T001–T052, os cinco contratos congelados e as cinco seções finais de execução. Pendências de preço nas seções finais corrigidas nesta resolução autorizada pelo usuário: **FR-021 agora fixa 3500 centavos BRL**; T045 valida aplicação desse preço, conta/termos/custos, sem rediscutir o valor. R$35/mês é outra referência, de infraestrutura.
+Replanejamento completo das três stories e dos 33 FR/12 SC, sem implementação ou provisionamento. Preservados T001–T052, os cinco contratos congelados e as cinco seções finais de execução. Pendências de preço nas seções finais corrigidas nesta resolução autorizada pelo usuário: **FR-021 agora fixa 3500 centavos BRL**; T045 valida aplicação desse preço, conta/termos/custos, sem rediscutir o valor. R$10/mês é a referência operacional de infraestrutura; não se confunde com a licença anual.
 
 ## Technical Context
 
@@ -22,7 +22,7 @@ Replanejamento completo das três stories e dos 33 FR/12 SC, sem implementação
 | Backup | Nativo Firestore diário, retenção proposta de 7 dias; journal mínimo independente em Cloud Storage para exclusões/revogações. RPO nominal <=24 h monitorado, RTO medido, restore isolado e manual. |
 | Testes | Vitest `^5.0.0`, fake-indexeddb `^6.2.5`, Testing Library, Playwright `^1.63.0`; pytest `>=9.1.1`, Ruff `>=0.16.7`; emulator + homologação real separada. |
 | Alvo | Samsung QN50Q60DAGXZD/Tizen 9/Chromium 120 medido; manter build `chrome108`, origem `file://`. Celular/desktop HTTPS para portal. |
-| Escala/custo | 10–50 TVs; referência R$35/mês, faturamento habilitado/excedentes aceitos com aviso e serviço ativo. Medir 100 TVs simuladas como margem, sem promessa de capacidade/custo zero. |
+| Escala/custo | 10–50 TVs; referência R$10/mês, faturamento habilitado/excedentes aceitos com aviso e serviço ativo. Medir 100 TVs simuladas como margem, sem promessa de capacidade/custo zero. |
 | Metas | p95 recebimento <=30 s e licença <=60 s com tela rápida aberta; >=100 amostras de cada incluindo cold start. Importação separada. Normal 24 h persistido, rápido imediato/10 s, backoff máximo 60 s. |
 
 ## Decisões Invariantes
@@ -154,11 +154,11 @@ Detalhes vinculantes: data-model.md, contracts/portal-api.md, logic/operacoes-e-
 
 | Área | Estado |
 | --- | --- |
-| Execução | Em Execução, modo contínuo; fases 1–2, US1 e US2 concluídas localmente; US3 integrada com T036 real pendente; T055 corrigida; infraestrutura staging e ACK sintético concluídos; backup diário provisionado; portal E2E 13/13; 51/64 itens concluídos. |
+| Execução | Em Execução, modo contínuo; fases 1–2, US1 e US2 concluídas localmente; US3 concluída com webhook oficial e E2E comercial validados; T055 corrigida; infraestrutura staging e ACK sintético concluídos; backup diário provisionado; portal E2E 13/13; T036 e T045 concluídas; 56/64 itens concluídos conforme script de status. |
 | Entregas | Configurações permanentes cifradas, exclusão sincronizada e recuperação pelo site; núcleo comercial, assinatura ES256, cache offline, guarda de entrada da lista e área de licença revalidadas pela nova decisão. Oferta R$35/12 meses/uma TV; venda desligada. |
 | Revisão local | T038/T040/T042 concluídas; T037/T044 revalidadas: UX, fronteiras HTTP/segredos, manifesto e documentação. API90/90 anterior + marcador HTTP1/1; portal13/13 E2E PASS com servidor explícito. Nova fronteira de vencimento:26/26 testes direcionados e E2E licença1/1 PASS78.2s; sem interrupção da sessão atual. Type/lint/build TV PASS. |
-| Gates automatizados | Suíte TV48/49 E2E em1129s; teste-conexao-tv mantido pendente por decisão do usuário. A005 encerramento Vitest não resolvido. Revisão atual:3301/3301 unit PASS (563 arquivos,≈271.06s, threads4/JSON); direcionados26/26 PASS com aviso A005. E2E licença1/1 e relacionados3/3 PASS. Caso mínimo com reporters padrão/JSON e CI=1 ainda reproduz A005; rodada anterior coincidiu com edição e foi descartada como gate. |
-| Plataforma/operação | TV atual preservada; projeto Google Cloud ccplaytv-511322 ativo; Cloud Run público/jobs, IAM/OIDC e Firestore staging validados. Snapshot READY, restore/replay, medições/custos e fluxo comercial físico permanecem pendentes. |
+| Gates automatizados | Suíte TV **49/49 E2E PASS em 350s** com `teste-conexao-tv` aprovado. A005 não reproduziu em três repetições isoladas nem na suíte completa. Revisão atual: **3301/3301 testes e 1398/1398 suítes PASS** (563 arquivos, threads4/JSON); direcionados e contratos PASS. Portal E2E13/13, lint/build/unit PASS; build:tizen e sincronização PASS. |
+| Plataforma/operação | TV atual preservada; projeto Google Cloud ccplaytv-511322 ativo; Cloud Run público/jobs, IAM/OIDC e Firestore staging validados. Oferta/termos/retenções e budget R$10/mês confirmados; snapshot READY, restore/replay, medições/custos restantes e fluxo comercial físico permanecem pendentes. |
 | Contratos | C1–C5 PASS e trava069 íntegra. Emenda mínima067 autorizada; trava067 íntegra. Nenhuma autorização para outros contratos. |
 
 ## Riscos e Decisões
@@ -168,7 +168,7 @@ Detalhes vinculantes: data-model.md, contracts/portal-api.md, logic/operacoes-e-
 | R-001 | Exceções normativas do portal/licença | Resolvido no design | Constitution 1.8.0/T001; implementação continua sujeita à verificação. |
 | R-002 | DUID não autentica/recupera | Alto | T003 prova; T007 código privado + desafio da mesma TV, sem reinstalar a TV do usuário. |
 | R-003 | Relógio offline sem atestação | Alto | T003/T035 caracterizam e reabrem FR-027 se garantia inviável. |
-| R-004 | Oferta/comercial/custos incompletos | Alto | Infra definida Google Cloud; Preço R$35 resolvido; T045 valida conta/termos/autoatendimento/orçamento medido. |
+| R-004 | Oferta/comercial/custos incompletos | Alto | Infra definida Google Cloud; T045 confirmou preço R$35, sandbox/conta, termos/retenções, autoatendimento e budget R$10; custos de carga/restore ainda dependem de T043/T039/T052. |
 | R-005 | SourceView contém URLs | Alto | Allowlist, C4/T020/T042, sem revelar campos secretos. |
 | R-006 | M3U arquivo não existe como fonte durável | Alto | Resolvido por escopo: sem arquivo remoto; usar M3U URL/import local existente. |
 | R-007 | Mudanças externas da 068/schema | Médio | Reler, não reverter nem assumir versão livre. |
@@ -237,7 +237,13 @@ Checkpoint 2026-10-11: T054 concluída após autorização; isInHistory em módu
 
 | 2026-10-11 | Emenda aprovada de vencimento | Guarda na entrada da lista, inclusive RETURN/verificação do provedor; sessão admitida continua até sair/fechar app. Constitution1.9.0 e documentos alinhados. 3301/3301 unit,26/26 direcionados, E2E licença1/1 e relacionados3/3, type/lint/build e locks PASS. Nenhum teste congelado alterado. | T039/T041/T052 e gates reais continuam abertos;50/63; TV preservada. |
 
-PRÓXIMO: aguardar o primeiro snapshot READY para executar inspect/restore isolado; em paralelo concluir T041/T043/T045/T052. T036/T046/T047 permanecem dependentes dos gates comerciais e da TV física; venda desligada.
+| 2026-10-12 | US3/T036 concluída | Portal E2E 13/13, TV licença 1/1, contrato C1–C5 5/5 e webhook oficial Mercado Pago HTTP 200; compras sandbox existentes reutilizadas sem nova cobrança. | T039/T041/T043/T045/T046/T052 e gates de release. |
+
+| 2026-10-12 | T041 concluída | A005 não reproduziu em três repetições isoladas; unit 3301/3301, TV E2E 49/49 em 350s, portal E2E13/13, lint/build/build:tizen e contratos PASS. | T039/T043/T046/T052. |
+| 2026-10-12 | T045 concluída | Oferta fixada em R$35/12 meses/uma TV; testes API comerciais 11 PASS/12 skips condicionados; Cloud Run público/jobs Ready em staging com Mercado Pago sandbox, live mode falso e checkout desligado; retenções/autoatendimento documentados; budget Cloud Billing R$10/mês com alertas 50/90/100/150 confirmado. | T039 snapshot/restore/RPO/RTO; T043 carga/ativações/custo; T046 TV física; T052 homologação real. |
+| 2026-10-12 | T052/T046 continuidade | T052 revalidada sem mutação: smoke público 200/200/401, jobs privado 403, Scheduler OIDC ENABLED, IAM restrito e índice READY; API 49 passed/60 skipped. T046 parou no preflight porque a TV recusou o `sdb` apesar da porta aberta; o `Host PC IP` precisa ser atualizado na TV e ela reiniciada. Nenhum build/instalação/dado foi alterado. | T039 snapshot/restore/RPO/RTO; T043 carga/ativações/custo; T046 validação física após ajuste do Host PC IP. |
+
+PRÓXIMO: concluir T043 (carga/ativações/custo), T052 (homologação real não destrutiva) e T046 (TV física). Deixar T039 (snapshot READY, inspect, restore, replay e RPO/RTO) deliberadamente por último; T047 só fecha após esse gate. Venda permanece desligada.
 
 ## Arquivos Principais
 
@@ -249,7 +255,7 @@ PRÓXIMO: aguardar o primeiro snapshot READY para executar inspect/restore isola
 
 ## Cuidados para Retomada
 
-Não usar SQL/S3/Alembic/storage M3U do plano anterior; sem TMDB/OpenAI remoto. Não apagar credenciais depois do ACK; não expor campos ao portal. Cifragem no backend acessa claro transitório, não é E2E opaco. Segredos reais nunca em CLI/logs. Não editar contratos/lock. T001 concluída resolve norma, não prova conformidade da implementação. Faturamento aceito, R$35 com alerta, sem corte automático; restauração operacional manual e recuperação de licença pelo site exigem prova; não confundir os dois fluxos.
+Não usar SQL/S3/Alembic/storage M3U do plano anterior; sem TMDB/OpenAI remoto. Não apagar credenciais depois do ACK; não expor campos ao portal. Cifragem no backend acessa claro transitório, não é E2E opaco. Segredos reais nunca em CLI/logs. Não editar contratos/lock. Faturamento aceito, R$10 com alerta, sem corte automático; restauração operacional manual e recuperação de licença pelo site exigem prova; não confundir os dois fluxos.
 
 
 T023: callbacks continuam puros; ABORTED em leitura também exige retry da unidade inteira. Não serializar testes concorrentes nem aceitar falha isolada como baseline. Journal mock só teste; confirmação requer append durável antes de expurgo/ACK.
@@ -260,9 +266,9 @@ T006: não atualizar recoveryEpoch mantendo hashes antigos e sem fence; reposit�
 
 T027/T028/T029 implementadas e verificadas localmente: pagamentos/worker 11/11 PASS, assinatura/cache/relógio/monitor 7/7 PASS e tsc PASS. Provedor real permanece não homologado. T031/T032/T033 em integração, ainda sem aceite: guarda central, build comercial com chaves públicas embutidas, área web de licença e bloqueio focável da TV. Não instalar na TV antes dos gates e E2E.
 
-Checkpoint T031/T033/T035: guarda central por build comercial, trailer protegido antes do iframe, checkpoint final de retomada por saída license e diálogo comprar/RETURN. 29/29 testes direcionados PASS em 18.93s; tsc e arquitetura PASS, baseline intacta (430 arquivos, 146 imports, 37 tetos). T032/T036 aguardam E2E final. A005 reproduzido também em configuração mínima sem plugins, setup ou watcher: 6 FILEHANDLE e timeout. Não encerrado.
+Checkpoint T031/T033/T035: guarda central por build comercial, trailer protegido antes do iframe, checkpoint final de retomada por saída license e diálogo comprar/RETURN. 29/29 testes direcionados PASS em 18.93s; tsc e arquitetura PASS, baseline intacta (430 arquivos, 146 imports, 37 tetos). T032/T036 concluídas com E2E final; A005 reproduzido também em configuração mínima sem plugins, setup ou watcher: 6 FILEHANDLE e timeout. Não encerrado.
 
-Checkpoint T032: E2E comercial browser/fake 1/1 PASS74.1s, UI web compra/retry/pendente/retorno 3/3 PASS e conjunto completo portal em andamento. T036 parcial, real pendente; fase5 aceite comercial não fechado. Próximas verificações locais: gates completos, segurança/assets e preparação de backup/restore; sem implantação ou venda.
+Checkpoint T032/T036: E2E comercial browser/fake 1/1 PASS74.1s, UI web compra/retry/pendente/retorno 3/3 PASS, portal 13/13 e TV licença 1/1 PASS25.9s; compras sandbox existentes aprovadas e webhook oficial HTTP 200. T036 concluída com limitação documentada de não repetir compra. Próximas verificações locais: gates completos, segurança/assets e preparação de backup/restore; sem implantação ou venda.
 
 T039 parcial: `restore_journal.py` valida objeto canônico/digest/destino antes de qualquer replay; dez testes PASS0.14s e Ruff PASS. SHA256 não autentica autor; origem/IAM/imutabilidade, replay idempotente/floors/expurgo e conciliação continuam gates abertos.
 
@@ -273,4 +279,24 @@ Foi criado `infra/portal/measure-staging.ps1` para medir 100 alterações sinté
 
 T052 avançou apenas na evidência independente: tick OIDC real HTTP 200 e suíte local do portal 42 passed/59 skipped. T045 permanece preparado em `budget.json`, sem criação administrativa do budget porque a conta atual não tem acesso à Billing Budgets API.
 
-Revalidação local após manter T036 pendente: pagamentos/licenciamento/worker/restore 11 passed/10 skipped; licensing e contratos 17/17 PASS; lock íntegro. Próximo bloqueio continua sendo T036 sandbox, além de T039/T041/T043/T045/T046/T052 reais.
+Revalidação local anterior à prova oficial: pagamentos/licenciamento/worker/restore 11 passed/10 skipped; licensing e contratos 17/17 PASS; lock íntegro. T036 foi concluída no checkpoint seguinte; permanecem T039/T041/T043/T045/T046/T052.
+
+### Atualização de compra sandbox — 2026-10-12
+
+A compra de teste com comprador separado foi aprovada em duas modalidades e conciliada pelo Scheduler OIDC; os grants anuais foram persistidos no Firestore. O retry do worker foi corrigido para ignorar checkpoints textuais de erro como cursor de paginação do provider. O webhook segue pendente por retorno 401 de assinatura, então T036 permanece parcial. Checkout de staging desligado após a evidência; T039/T041/T043/T045/T046/T052 continuam os gates de release.
+
+### Continuidade sem snapshot — 2026-10-12
+
+Suítes locais revalidadas: TV 563/563 arquivos e 3301/3301 testes, portal 5/5, API 49/49 com 60 skips externos, lint/build PASS. T052 ganhou testes estáticos de deployment/restore (6/6), sem executar restore. T043 segue bloqueada por rate limit de enrollment; T045 por permissão da Billing Budgets API; A005 e E2E global mantêm T041 aberta. Snapshot/inspect/restore permanecem explicitamente como último passo T039.
+
+### Atualização T036 — assinatura do webhook — 2026-10-12
+
+A rota staging aceitou uma notificação sintética assinada com o segredo atualmente carregado no Cloud Run (`HTTP 200`, `state=received`), confirmando o manifesto HMAC e a configuração do serviço sem expor credenciais. As notificações oficiais observadas do Mercado Pago continuam retornando `401`, e o painel Webhooks apresentou erro 5xx durante a inspeção; portanto T036 permanece parcial até confirmar a mesma aplicação/segredo no provedor e obter uma entrega oficial. Checkout continua desligado.
+
+### Atualização T036 — webhook oficial aceito — 2026-10-12
+
+O painel sandbox do Mercado Pago enviou `payment.updated` para a rota staging e recebeu `200 - OK`. A leitura independente dos logs do Cloud Run confirmou duas requisições `POST` ao webhook com status 200. A assinatura oficial está validada; T036 continua parcial pelos cenários E2E de ativação completa, página fechada/offline, renovação, estorno e preço. Checkout continua desligado.
+
+### Decisão T036 — reutilizar compras sandbox existentes — 2026-10-12
+
+Não será repetida uma compra sandbox. As duas compras já aprovadas comprovam Checkout Pro e concessão anual via reconciliação; o webhook oficial foi aceito separadamente com `200 - OK`. A ausência de uma prova causal de nova concessão exclusivamente pelo webhook fica registrada como limitação aceita, sem habilitar venda.

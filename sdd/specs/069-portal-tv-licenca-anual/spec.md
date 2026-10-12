@@ -175,7 +175,7 @@ Como usuário, quero pagar R$35 por uma licença anual da minha TV, por Pix/cart
 
 ## Assumptions
 
-- R$35 é o preço final da licença anual, por TV e por compra/renovação. Não inclui conteúdo IPTV, assinatura de provedor ou créditos de APIs. A referência de R$35/mês de infraestrutura é outro valor e pertence ao planejamento operacional.
+- R$35 é o preço final da licença anual, por TV e por compra/renovação. Não inclui conteúdo IPTV, assinatura de provedor ou créditos de APIs. A referência operacional de infraestrutura é R$10/mês e pertence ao planejamento operacional.
 - Teste começa no primeiro uso elegível com internet e dura sete dias corridos, inclusive com TV desligada. O plano prova identidade/tempo no alvo antes de prometer garantia comercial.
 - Ano significa 12 meses de calendário; datas e vencimentos devem ser inequívocos. Reabertura, troca de navegador, regeneração de key ou recuperação pelo site não concedem novo teste nem apagam licença paga.
 - QR autoriza sessão temporária sem confirmação adicional na TV nesta versão; exceção restrita do convite efêmero está formalizada na constitution 1.8.0. Key permanente nunca integra URL.
@@ -225,7 +225,11 @@ Usuário confirmou: checagem automática a cada 24 horas em uso normal e checage
 
 ## Referências de planejamento
 
-Decisões de infraestrutura estão em [ADR-013](../../adr/ADR-013-portal-controle-serverless-google-cloud.md), [infraestrutura.md](infraestrutura.md) e [plan.md](plan.md). O registro anterior de 2026-10-11 sobre FastAPI/Cloud Run/Firestore, EUA, piloto de 10–50 TVs, orçamento de referência de R$35/mês, segredos privados sem KMS/Secret Manager e backup diário permanece nesses artefatos; não é requisito de implementação desta spec. Plano e tasks foram alinhados às decisões de produto acima nesta resolução de pendências.
+Decisões de infraestrutura estão em [ADR-013](../../adr/ADR-013-portal-controle-serverless-google-cloud.md), [infraestrutura.md](infraestrutura.md) e [plan.md](plan.md). O registro anterior de 2026-10-11 sobre FastAPI/Cloud Run/Firestore, EUA, piloto de 10–50 TVs, orçamento operacional de R$10/mês, segredos privados sem KMS/Secret Manager e backup diário permanece nesses artefatos; não é requisito de implementação desta spec. Plano e tasks foram alinhados às decisões de produto acima nesta resolução de pendências.
+
+### Atualização operacional — 2026-10-12
+
+O usuário confirmou a manutenção do budget de **R$10/mês** para o piloto, com alertas em 50%, 90%, 100% e 150%. Esse valor é somente referência de infraestrutura e permanece separado do preço comercial de R$35 por licença anual.
 
 ### Sessão 2026-10-11 — resolução de pendências
 

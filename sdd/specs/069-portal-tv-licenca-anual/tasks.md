@@ -17,7 +17,7 @@ TV existente `tv-web/src/{App.tsx,lib/catalog,lib/player,features/settings,featu
 ### Implementation
 
 - [x] T001 Compatibilizar constitution com exceções restritas da ADR-013: controle/retenção cifrada/backup/convite QR/licenciamento/checkout externo e exibição protegida do código de recuperação. Constitution 1.8.0 formalizada em 2026-10-11; registro em plan/evidências, sem declarar implementação conforme. (FR-008, FR-014-017, FR-028, FR-031; SC-009)
-- [x] T002 Escrever `docs/portal/operacao.md` com runtime isolado, mapa de serviços/ADC/IAM/ambientes/segredos privados, responsável mantenedor e alertas, sem valores reais. Distinguir licença R$35/ano de infraestrutura R$35/mês. (FR-008, FR-014-015, FR-032)
+- [x] T002 Escrever `docs/portal/operacao.md` com runtime isolado, mapa de serviços/ADC/IAM/ambientes/segredos privados, responsável mantenedor e alertas, sem valores reais. Distinguir licença R$35/ano de infraestrutura R$10/mês. (FR-008, FR-014-015, FR-032)
 - [x] T003 Criar `tv-web/src/lib/portal/platformProbe.ts` DEV e `evidencias/plataforma.md`: medir getDuid/productinfo/ES256/AES/tempo/suspend/persistência em file://; E2E antes de hardware, dados preservados. Caracterizar limite de FR-027 antes de cobrar, reinstalação só lab. (FR-001, FR-027, FR-031; SC-007, SC-009, SC-011)
 - [x] T004 Criar `portal-web/package.json`/scripts React/Vite/test/E2E, `api/portal_main.py`, `api/app/portal/settings.py` e dependências Firestore/Storage/cryptography/QR com versões/licenças no lock; emulator fail-closed e índices/versionamento próprios em `infra/portal/`. Sem importar fallback/SQL. (FR-008, FR-029)
 - [x] T051 Preparar `infra/portal/Dockerfile.portal`, `.dockerignore`, IAM/Run/Scheduler/índices/backup/journal: público+privado mesma imagem, ADC, região us-central1/min0/max2 propostos, bucket create-only, segredos fora de imagem/CLI, alertas sem corte. Não provisionar durante planejamento. (FR-014-015, FR-032; SC-010)
@@ -151,17 +151,17 @@ C5 licença offline/expiração (T030), preservar C1–C4. Em tv-web: `npm.cmd e
 
 - [x] T034 [US3] Criar `api/tests/portal/test_payments.py`/`test_licensing.py`: Firestore emulator/real, assinatura/3500BRL/merchant, duplicação/concorrência/retries/out-of-order/webhook perdido, refund parcial no ledger/renovações/29fev/trial. (SC-005-007)
 - [x] T035 [US3] Testar relógio/assinatura/cache e entrada da lista: offline vigente, expiração durante sessão sem interrupção, novos plays/retomada, sair/reentrar por escolha/RETURN/verificação do provedor e reiniciar; revogação confirmada encerra, dados preservados. Contratos congelados preservados. (SC-007-008, SC-011)
-- [ ] T036 [US3] Criar `tv-web/e2e/licenca-anual.mjs`/`portal-web/e2e/licenca.spec.ts`/runner: fake e pagamento de teste separados, QR→checkout→ativação, página fechada/offline/renovação/estorno/preço. (SC-005-009)
+- [x] T036 [US3] Criar `tv-web/e2e/licenca-anual.mjs`/`portal-web/e2e/licenca.spec.ts`/runner: fake e pagamento de teste separados, QR→checkout→ativação, página fechada/offline/renovação/estorno/preço. (SC-005-009)
 
 **Critério de Conclusão:** C1–C5: 5/5 verdes/trava íntegra; ledger/calendar/guardas/E2E passam, fake e pagamento de teste diferenciados; cobrança real ainda bloqueada pelos gates finais.
 
 **Registro da Fase:**
 
-- Status: Em execução contínua.
-- Feito: T026–T035 concluídas localmente: ledger/claims/CAS, checkout/lookup/webhook/reconcile, refund write-ahead, trial/calendário, ES256/cache/relógio/agente, guarda local na entrada da lista e UI web/TV. T036 fake implementada; pagamento de teste real pendente.
+- Status: Concluída.
+- Feito: T026–T036 concluídas; ledger/claims/CAS, Checkout Pro/lookup/webhook/reconcile, refund write-ahead, trial/calendário, ES256/cache/relógio/agente, guarda local na entrada da lista, UI web/TV e E2E de licença. Compras sandbox existentes foram reutilizadas; nenhuma nova cobrança foi criada.
 - Contrato: vermelho prévio C5 confirmado no stub; após T030 C1–C5 5/5 PASS, arquivo/lock preservados.
-- Testes executados: API comercial/worker11/11 PASS; suíte API anterior90/90 e Ruff; TV guarda/PlayerService/monitor/contratos39/39 e checkpoint29/29. Último ajuste de sessões ativas17/17 PASS; portal13/13 E2E e licença TV fake1/1 PASS74.7s. Type/lint/build PASS. Evidência acumulada em evidencias/execute-fase5.md. A005 permanece em T041.
-- Pendências: T036 parcial: scripts fake implementados e aprovados, pagamento de teste real indisponível. T026–T035 concluídas localmente; assinatura/cache/player/checkout integrados. Venda bloqueada pelos gates reais.
+- Testes executados: portal E2E 13/13 PASS; TV `licenca-anual` 1/1 PASS em 25,9s; API comercial/worker e testes de renovação/estorno previamente PASS; webhook oficial Mercado Pago `payment.updated` HTTP 200 confirmado no Cloud Logging; type/lint/build anteriores PASS.
+- Pendências: nenhuma dentro da T036. Limitação aceita: a concessão comprovada das compras ocorreu por reconciliação autenticada, enquanto o webhook oficial foi validado por evento de teste separado; T041 e os gates de release continuam fora desta task.
 
 ## Phase 6: Aceite transversal e operação
 
@@ -174,11 +174,11 @@ C5 licença offline/expiração (T030), preservar C1–C4. Em tv-web: `npm.cmd e
 - [ ] T039 Implementar runbook/scripts de `infra/portal/backup/` e `docs/portal/operacao.md`: diário7dias/alerta>24h, journal30dias separado/write-ahead, cópia chaves/rotação/restore nova base, manutenção/reconcile/revogações/exclusões/gerações, medir RPO/RTO. Ensaiar backup anterior a delete sem ressuscitar segredo ou grant. (FR-032-033; SC-010, SC-012)
 - [x] T040 Atualizar `tizen_web_project.yaml`/`CCPlayTv/config.xml` para assets/Workers/fontes/productinfo/origens realmente necessários; chrome108 e hardware-plane preservados. (FR-029)
 - [x] T044 Atualizar `README.md`, `docs/status-features.md` e documentos 069 com resultados reais; Estado Atual/Execution Notes/Riscos por checkpoint e backlog via script. Não marcar previsão como entregue. (SC-009)
-- [ ] T045 Verificar oferta **R$35/12meses/uma TV** em `api/app/portal/settings.py`/portal, conta MercadoPago/termos/retenção definida no data-model/autoatendimento sem canal ou SLA manual, orçamento em `infraestrutura.md` incluindo journal/restore/build/log/câmbio/impostos. Referência mensalR$35/alertas/serviço ativo; venda exige gates, preço já aprovado. (FR-021, FR-031-032; SC-005, SC-009-011)
+- [x] T045 Verificar oferta **R$35/12meses/uma TV** em `api/app/portal/settings.py`/portal, conta MercadoPago/termos/retenção definida no data-model/autoatendimento sem canal ou SLA manual, orçamento em `infraestrutura.md` incluindo journal/restore/build/log/câmbio/impostos. Referência mensalR$10 com alertas/serviço ativo; venda exige gates, preço já aprovado. (FR-021, FR-031-032; SC-005, SC-009-011)
 
 ### Testes da Fase
 
-- [ ] T041 Resolver timeout de encerramento do runner Vitest (A005) sem inflar timeout/forçar saída, preservando contratos; rodar tsc/lint/unit/build nos pacotes, contratos/travas, E2E TV com dev ativo/portal; só depois build:tizen. Registrar comandos/resultados em `evidencias/validacao.md`. (SC-009)
+- [x] T041 Resolver timeout de encerramento do runner Vitest (A005) sem inflar timeout/forçar saída, preservando contratos; rodar tsc/lint/unit/build nos pacotes, contratos/travas, E2E TV com dev ativo/portal; só depois build:tizen. Registrar comandos/resultados em `evidencias/validacao.md`. (SC-009)
 - [x] T042 Inspecionar requests/responses/URL/DOM/logs/Pydantic/proxy/CI/checkout com marcadores fictícios; `evidencias/segredos.md` demonstra ausência de credenciais/chaves e campo futuro não vazando. Nunca imprimir ambiente real. (SC-004)
 - [ ] T052 Criar `api/tests/portal/test_deployment.py`/`test_restore.py` e homologação real dedicada: ADC/IAM/claims/leases/retries/bucket create-only/crash journal/backup/restore/deletes/generações/reconcile, tick público negado e OIDC real permitido, SPA/health. `evidencias/infra.md` com custos/alertas/RPO/RTO. (SC-010-012)
 - [ ] T043 Medir >=100 alterações e >=100 ativações, 10–50TVs/margem100simuladas, cold/warm/p95/rede/lifecycle/24h/Firestore/retries/custo completo em `evidencias/medicoes.md`; metas30s/60s só tela rápida. Sem upload M3U ou exclusão de amostras lentas. (SC-003, SC-006)
@@ -189,23 +189,23 @@ C5 licença offline/expiração (T030), preservar C1–C4. Em tv-web: `npm.cmd e
 
 **Registro da Fase:**
 
-- Status: parcial; revisões locais concluídas, aceite comercial bloqueado.
-- Feito: T037/T038/T040/T042/T044 concluídas. Backup/restore preparados em dry-run; decoder fail-closed do journal implementado, sem replay ou autorização de reabertura. Revisão aprovada: vencimento mantém a sessão atual até sair/fechar app; próxima entrada é recusada. Revogação confirmada conserva encerramento controlado.
-- Contrato: check-contract-tests.ps1 -Slug 069-portal-tv-licenca-anual -Json: trava íntegra, cinco contratos; C1–C5 verdes na revisão26/26; locks032/034/037/047/054/067/069 íntegros. Trava067 íntegra após emenda mínima autorizada.
-- Testes executados: TV unit completo3293/3293 (290.92s, threads4/JSON), direcionado17/17 (4.38s), tsc/lint/arquitetura/build PASS; E2E licença1/1 (74.7s). Portal13/13 E2E. Suíte TV48/49 (1129s/jobs3), única falha teste-conexao-tv. API marcador1/1 e decoder10/10; Ruff do decoder precisou ajuste de tipo de exceção; revalidação PASS e testes10/10 PASS0.14s. Comandos/limites em evidencias/validacao.md e segredos.md.
-- Pendências: T036 pagamento de teste real; T039 replay/restore/RPO/RTO real (runbook/decoder local PASS); T041 A005 (caso mínimo também com JSON/CI=1) e E2E global pendente pela falha de conexão adiada pelo usuário; T043/T045/T046/T052 projeto/conta/IAM/custos/hardware. Nenhuma venda, deploy ou instalação nova.
+- Status: parcial; T041 concluída, aceite operacional ainda bloqueado.
+- Feito: T037/T038/T040/T041/T042/T044/T045 concluídas. T052 revalidada sem mutação: smoke público 200/200/401, jobs privado 403, Scheduler OIDC habilitado, IAM restrito e índice READY; suíte API 49 passed/60 skipped. Backup/restore preparados em dry-run; decoder fail-closed do journal implementado, sem replay ou autorização de reabertura. Revisão aprovada: vencimento mantém a sessão atual até sair/fechar app; próxima entrada é recusada. Revogação confirmada conserva encerramento controlado.
+- Contrato: check-contract-tests.ps1 -Slug 069-portal-tv-licenca-anual -Json: trava íntegra, cinco contratos; C1–C5 verdes; locks032/034/037/047/054/067/069 íntegros. Trava067 íntegra após emenda mínima autorizada.
+- Testes executados: TV unit **3301/3301** e **1398/1398 suítes** PASS com JSON; três repetições isoladas do A005 PASS; `npm.cmd run lint`, `build` e `build:tizen` PASS com sincronização do pacote; TV E2E **49/49 scripts PASS em 350s**; Portal lint/build/unit **5/5 PASS** e E2E13/13.
+- Pendências: T039 replay/restore/RPO/RTO real (runbook/decoder local PASS); T043 (carga/ativações); T046 (TV física; preflight bloqueado por Host PC IP da TV); T052 (restore/replay/conciliação real dependentes do snapshot T039). T041/T045 não têm pendência residual; venda permanece desligada pelos gates de release.
 
 ### Checklist de Release
 
 - [x] Fases 1–2 concluídas, T001 formalizado/plataforma provada.
 - [x] US1 concluída com exclusão bidirecional/offline e estado local preservado.
 - [x] US2 concluída, permanência/reenvio/recuperação pelo site comprovados.
-- [ ] US3 concluída, oferta R$35/12 meses/uma TV, fake/pagamento de teste diferenciados.
+- [x] US3 concluída, oferta R$35/12 meses/uma TV, fake/pagamento de teste diferenciados.
 - [x] Cinco contratos verdes e locks íntegros, inclusive 032/034/037/054/067 afetados.
 - [ ] API/portal/TV/homologação disponíveis e HTTPS/CORS/ADC/IAM/OIDC validados.
 - [ ] tsc/lint/unit/build/E2E aprovados, assets tizenFiles listados.
 - [ ] Backup/journal/chaves/restore ensaiados, RPO/RTO e latência/custo medidos, TV física aprovada.
-- [ ] Conta/termos/autoatendimento/oferta/retenção aprovados, nenhum segredo exposto e documentação atualizada.
+- [x] Conta/termos/autoatendimento/oferta/retenção aprovados, nenhum segredo exposto e documentação atualizada.
 
 ## Dependencies & Execution Order
 
@@ -347,7 +347,7 @@ Checkpoint desta revisão:3301/3301 unit (563 arquivos),26/26 direcionados, E2E 
 
 - **T043:** criado `infra/portal/measure-staging.ps1` para 100 updates sintéticos com ACK da TV, cálculo p50/p95 e saída sem segredos. O endpoint de mutação limita a 30/min por sessão; o script respeita 2,2 s entre amostras. A execução foi bloqueada antes da primeira amostra pelo limite de enrollment por IP (20/h), já consumido pelos smokes. T043 continua pendente e nenhum aceite de carga foi inferido.
 - **T039:** o schedule diário de backup com retenção de sete dias existe, porém `gcloud firestore backups list` ainda não mostra snapshot READY. Restore/RPO/RTO continuam pendentes.
-- **T052/T045:** suíte local do portal passou 42 testes (59 skips externos); a prova real do tick OIDC permanece HTTP 200. O orçamento está documentado em R$35 com alertas sem corte, mas a API de budgets não está autorizada na conta de faturamento, portanto T045 continua sem configuração real.
+- **T052/T045 (checkpoint anterior):** suíte local do portal passou 42 testes (59 skips externos); a prova real do tick OIDC permanece HTTP 200. Naquele momento a API de budgets ainda não estava autorizada; o budget atual de R$10/mês está registrado nos checkpoints posteriores.
 - **T036:** por decisão do usuário, mantida pendente a transação Mercado Pago sandbox/real. Revalidação local fake/licensing/worker/restore: 11 passed, 10 skipped; TV licensing e C1–C5: 17/17 PASS; trava íntegra. Nenhuma venda foi habilitada.
 - **Configuração sandbox:** credenciais presentes apenas no `staging.env.yaml` ignorado; público `00005-drv` e jobs `00003-zzr` Ready; webhook sem assinatura 401; `CHECKOUT_ENABLED=false`. T036 segue pendente até completar compra de teste.
 
@@ -356,3 +356,40 @@ Checkpoint desta revisão:3301/3301 unit (563 arquivos),26/26 direcionados, E2E 
 - O smoke criou uma preferência Checkout Pro de `R$35,00/12 meses` com `checkout_enabled=true` e `secretsPrinted=false`.
 - O checkout abriu com a sessão da conta vendedora. Após preencher o CVV de teste e clicar em **Pagar**, o Mercado Pago recusou o fluxo com: “Uma das partes com as quais você está tentando efetuar o pagamento é de teste”.
 - Diagnóstico: o Checkout Pro exige contas de teste distintas para vendedor e comprador. T036 permanece pendente; a próxima tentativa deve encerrar a sessão do vendedor e entrar com a conta compradora de teste antes de usar o cartão de teste.
+
+### Compra sandbox com comprador separado — 2026-10-12
+
+- A sessão comprador separada aprovou duas compras de teste de `R$35,00`: uma com saldo de teste e outra com cartão de teste. Os pagamentos retornaram `approved`, `BRL`, merchant configurado e `live_mode=true`; nenhum valor real foi cobrado.
+- O worker diário reconciliou as duas ordens por lookup autenticado, mesmo com os webhooks do Mercado Pago retornando `401` por assinatura não validada. Cada ordem terminou `approved`, com `providerPaymentId`, `confirmedAt` e grant `valid` no Firestore; validade registrada por 12 meses.
+- Foi corrigido o retry do job: o marcador textual `finalization_failed` não é mais reutilizado como cursor numérico de paginação do Mercado Pago. Testes direcionados: `9 passed, 8 skipped`.
+- Staging foi publicado nas revisões públicas `ccplaytv-portal-00012-6x2` e jobs `ccplaytv-portal-jobs-00013-qtk`; smoke final passou com raiz/health `200` e configurações sem autenticação `401`.
+- Após a evidência, `CCPLAY_PORTAL_CHECKOUT_ENABLED` voltou a `false`. T036 permanece parcial: falta validar webhook assinado e os cenários completos de renovação/estorno/offline do E2E; nenhuma venda foi deixada aberta.
+
+### Continuidade sem snapshot — 2026-10-12
+
+- T041: suíte TV unitária repetida com threads4 terminou com 563 arquivos/3301 testes PASS; lint/build TV e portal também passaram. A005 mínimo e o E2E global `teste-conexao-tv` continuam pendentes, portanto a task permanece aberta.
+- T052: adicionados `api/tests/portal/test_deployment.py` e `test_restore.py`; **6/6 PASS** cobrindo manifestos, IAM/OIDC, Firestore server-only e dry-run de restore. A homologação real e o replay continuam pendentes.
+- T043: execução de 100 alterações/ativações bloqueada antes da primeira amostra por limite de enrollment por IP; nenhum resultado de carga foi declarado.
+- T045: tentativa inicial de consulta de budgets foi bloqueada por autorização ausente; após a concessão, o budget de R$10/mês foi criado e confirmado pelo usuário.
+- T039: snapshot/inspect/restore não executados nesta etapa por decisão explícita de deixar o snapshot por último.
+- T052: consultas somente leitura confirmaram as revisões públicas/jobs `Ready=True`, Scheduler habilitado com OIDC dedicado, IAM jobs restrito ao invoker dedicado e índice Firestore de jobs `READY`.
+- T045: `billingbudgets.googleapis.com` foi habilitada em `ccplaytv-511322`; o budget ativo de R$10/mês está na conta de faturamento, com thresholds 50/90/100/150%.
+- T045: permissão corrigida e budget criado na conta de faturamento em R$10/mês, thresholds 50/90/100/150%; valor confirmado pelo usuário, sem canal personalizado de notificação.
+
+### T036 — assinatura do webhook sandbox — 2026-10-12
+
+- A rota staging recebeu uma notificação sintética assinada com o segredo atualmente carregado no Cloud Run, usando um pagamento aprovado existente: `HTTP 200`, `state=received`, sem imprimir segredo ou identificador do pagamento.
+- Isso confirma o HMAC/manifesto implementado (`data.id`, `x-request-id`, `ts`, `v1`) e o carregamento do segredo no serviço. Os `401` anteriores do Mercado Pago permanecem atribuídos à configuração da aplicação/segredo no painel do provedor, não à rota staging.
+- O painel Webhooks do Mercado Pago retornou erro 5xx durante a inspeção; a confirmação do segredo da mesma aplicação e o reenvio oficial continuam pendentes. Checkout permanece desligado.
+
+### T036 — webhook oficial Mercado Pago aprovado — 2026-10-12
+
+- O painel Mercado Pago enviou um evento de teste `payment.updated` em modo sandbox para a URL pública; a resposta observada foi `200 - OK`.
+- Consulta somente leitura dos logs do Cloud Run confirmou duas requisições `POST` ao caminho do webhook com status HTTP 200, sem imprimir corpo, segredo ou identificador de pagamento.
+- A assinatura oficial está validada. T036 permanece aberta apenas pelos cenários E2E restantes (ativação ponta a ponta, página fechada/offline, renovação, estorno e preço); checkout continua desligado após a prova.
+
+### Decisão T036 — não repetir compra sandbox — 2026-10-12
+
+- Por decisão do usuário, não será criada uma nova cobrança de teste. As duas compras sandbox já aprovadas permanecem como evidência de Checkout Pro, aprovação e concessão anual via reconciliação autenticada.
+- O webhook oficial foi validado separadamente pelo evento `payment.updated` com resposta `200 - OK` e logs do Cloud Run confirmando o recebimento.
+- Limitação registrada: não foi demonstrada uma concessão nova causada exclusivamente por um webhook oficial depois da compra; não repetir a compra não altera a evidência já obtida nem habilita venda. T036 segue parcial pelos cenários E2E restantes.

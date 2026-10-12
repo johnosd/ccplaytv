@@ -48,7 +48,7 @@ Fontes verificadas em 2026-10-11: [precondições](https://docs.cloud.google.com
 
 ## R5 — Custo e operação
 
-**Decisão:** 10–50 TVs, R$35/mês referência com alertas 50/80/100% e previsão, manter serviço ativo. Jobs privados OIDC/Scheduler horário, mesma imagem, leases/outbox. Backup diário 7 dias, RPO nominal <=24 h monitorado/RTO medido; chaves separadas. Sem mínimo de instâncias/PITR/load balancer/NAT/domínio por padrão.
+**Decisão atualizada:** 10–50 TVs, R$10/mês de referência com alertas 50/90/100/150% e previsão, manter serviço ativo. Jobs privados OIDC/Scheduler horário, mesma imagem, leases/outbox. Backup diário 7 dias, RPO nominal <=24 h monitorado/RTO medido; chaves separadas. Sem mínimo de instâncias/PITR/load balancer/NAT/domínio por padrão.
 
 **Justificativa:** rotina 24 h reduz tráfego, polling 10 s limitado à tela; runtime gratuito não cobre necessariamente backup, imagens/builds/logs/journal/restore/câmbio/impostos. Medições frias não podem ser omitidas para atender p95.
 

@@ -79,7 +79,7 @@ T039/T052 entregam e ensaiam runbook executável; preparação não é aceite.
 ## Consumo e alertas
 
 Licença custa **R$35 por 12 meses/uma TV**. Infraestrutura tem referência
-independente de **R$35 por mês**, piloto de 10–50 TVs. Alertas em 50/80/100%
+independente de **R$10 por mês**, piloto de 10–50 TVs. Alertas em 50/90/100/150%
 e previsão avisam mantenedor, que decide sobre orçamento. Manter serviço ativo;
 alertas e max instances não garantem teto exato. Contar runtime, Firestore,
 journal/backup/restore, imagens/builds, logs/tráfego, câmbio e impostos.

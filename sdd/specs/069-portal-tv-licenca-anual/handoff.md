@@ -24,7 +24,7 @@ Nenhum novo: existentes `tv-web/src/lib/portal/remoteConfiguration.ts` (applyRem
 
 **Armadilhas já mapeadas**
 
-T010/T023 foram antecipadas à fundação; journal write-ahead bloqueia revoke/recovery/delete reais. Só create/update expiram em sete dias; delete até ACK e tombstone sem segredo persistem. Cloud Storage guarda journal mínimo, nunca M3U/credenciais. Restore exige nova base e replay externo antes de tráfego ([documentação Firestore](https://cloud.google.com/firestore/docs/backups)). Sem KMS/Secret Manager; chaves privadas em ambiente/cópia separada. SourceView contém URLs: usar allowlist. Registro de abas real em settings/tabs/settingsTabs.ts e settingsTab.ts. Build chrome108/file://, schema livre a reler, E2E antes da TV e nunca desinstalar aparelho do usuário. R$35 anual é preço; R$35/mês é referência com aviso, sem corte automático.
+T010/T023 foram antecipadas à fundação; journal write-ahead bloqueia revoke/recovery/delete reais. Só create/update expiram em sete dias; delete até ACK e tombstone sem segredo persistem. Cloud Storage guarda journal mínimo, nunca M3U/credenciais. Restore exige nova base e replay externo antes de tráfego ([documentação Firestore](https://cloud.google.com/firestore/docs/backups)). Sem KMS/Secret Manager; chaves privadas em ambiente/cópia separada. SourceView contém URLs: usar allowlist. Registro de abas real em settings/tabs/settingsTabs.ts e settingsTab.ts. Build chrome108/file://, schema livre a reler, E2E antes da TV e nunca desinstalar aparelho do usuário. R$35 anual é preço; R$10/mês é referência com aviso, sem corte automático.
 
 **Pendências do Analyze**
 

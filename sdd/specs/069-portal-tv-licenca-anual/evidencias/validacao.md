@@ -147,3 +147,49 @@ O preload imediato da rota SourceAccessRoute eliminou a falha intermitente sob c
 - `node.exe node_modules/vitest/vitest.mjs run src/lib/licensing src/lib/portal/portal-tv-licenca-anual.contract.test.ts --pool=threads --maxWorkers=2`: **17/17 PASS**, 7 arquivos.
 - `check-contract-tests.ps1 -Slug 069-portal-tv-licenca-anual -Json`: **PASS**, cinco testes e trava íntegra.
 - T036 permanece parcial: fake/local aprovado, pagamento sandbox real não executado por falta de credenciais.
+
+### Continuidade sem snapshot — 2026-10-12
+
+- Suíte TV unitária repetida com `npm.cmd run test -- --pool=threads --maxWorkers=4`: **563 arquivos e 3301 testes PASS**, exit 0 em 294,54s. `npm.cmd run lint` e `npm.cmd run build` também passaram; o build confirmou ausência do demuxer.
+- Portal web: `npm.cmd run lint`, `npm.cmd run build` e `npm.cmd run test` passaram (5/5). A API completa passou **49 testes, 60 skips**; os skips dependem de Firestore/serviços externos.
+- T052 local: criados `api/tests/portal/test_deployment.py` e `test_restore.py`; manifestos público/jobs, IAM, Scheduler OIDC, Firestore server-only e runbook de restore isolado/dry-run passaram (6/6). Isso não substitui homologação real, replay ou restore.
+- T041 continua aberta: o caso mínimo A005 ainda reproduz timeout de encerramento apesar da suíte completa verde; a falha global `teste-conexao-tv` permanece registrada conforme decisão do usuário.
+- T043 continua aberta: medição de 100 alterações/ativações foi bloqueada pelo limite de enrollment por IP; não foi inferido aceite de carga.
+- T045 (checkpoint anterior): a conta ainda não tinha autorização para a Billing Budgets API; o estado atual do budget está registrado abaixo.
+- T039 não foi executada nesta continuidade: snapshot/inspect/restore e RPO/RTO ficam deliberadamente para o último gate.
+- Consultas somente leitura confirmaram Cloud Run público/jobs `Ready=True`, Scheduler `portal-tick` habilitado com OIDC dedicado, IAM do jobs restrito ao `portal-scheduler` e índice Firestore `kind,nextDueAt,__name__` `READY`.
+- `billingbudgets.googleapis.com` foi habilitada no projeto correto; a listagem ainda recusa a conta de faturamento por falta de permissão, então T045 não foi aceita.
+- A permissão foi corrigida e há um budget ativo de R$10/mês na conta de faturamento, com thresholds 50/90/100/150%, valor confirmado pelo usuário. Não há canal personalizado em `notificationsRule`.
+
+- T036: uma notificação sintética com HMAC usando o segredo carregado no Cloud Run foi aceita pelo webhook staging (`HTTP 200`, `state=received`). A assinatura oficial do Mercado Pago continua pendente por `401` nas entregas observadas e erro 5xx no painel Webhooks; checkout permanece desligado.
+
+- T036: Mercado Pago sandbox enviou evento oficial `payment.updated` e recebeu `200 - OK`; Cloud Logging confirmou duas requisições `POST` do webhook com status 200. Assinatura oficial validada; E2E de renovação/estorno/offline e fluxo completo TV ainda pendentes.
+
+- Decisão T036: não repetir compra sandbox; reutilizar as duas compras aprovadas e a concessão anual já conciliada. Webhook oficial validado separadamente com `payment.updated`/HTTP 200; ausência de nova concessão causal apenas por webhook registrada como limitação.
+
+### Fechamento T041 — 2026-10-12
+
+- A005: três execuções isoladas do contrato C1–C5 terminaram `exit 0`, sem timeout de encerramento; não foi aumentado timeout nem usado `force-exit`.
+- Unit TV: `npm.cmd run test -- --pool=threads --maxWorkers=4 --reporter=json --outputFile=../.cache/069-t041-unit-results.json` → **3301/3301 testes, 1398/1398 suítes PASS**.
+- E2E TV: `node.exe e2e/run.mjs --jobs 3` com Vite ativo → **49/49 scripts PASS em 350s**, incluindo `teste-conexao-tv`.
+- Portal: lint/build/unit **5/5 PASS**; E2E **13/13 PASS**. TV lint/build/build:tizen, guard de demux e sincronização do pacote PASS. Trava069 C1–C5 **5/5 PASS**.
+
+### T045 — oferta, termos, retenção e budget — 2026-10-12
+
+- Oferta verificada no domínio comercial/API: `priceMinor=3500`, `currency=BRL`, `termMonths=12`, `deviceCount=1`; o provider Mercado Pago monta Checkout Pro anual a R$35,00 e aceita Pix/cartão.
+- Os testes direcionados `test_bootstrap.py`, `test_commercial_repository.py`, `test_mercadopago.py`, `test_payments.py` e `test_retention.py` passaram: **11 passed, 12 skipped** (skips dependem de serviços externos).
+- Cloud Run público e jobs estão `Ready=True` no projeto `ccplaytv-511322`, em staging, com `CCPLAY_PORTAL_MERCADOPAGO_LIVE_MODE=false`, `CCPLAY_PORTAL_CHECKOUT_ENABLED=false` e conta sandbox configurada. Nenhum segredo foi impresso.
+- Retenção e recuperação pelo próprio site estão documentadas: configurações enquanto cadastradas, recibos/metadados terminais por 30 dias, metadados de recuperação por 30 dias, desafio/envelope por 5 minutos e retomada por 24 horas; não há canal ou SLA manual.
+- Budget Cloud Billing confirmado em **R$10/mês**, créditos incluídos, alertas em 50%, 90%, 100% e 150%. Alertas não são teto de cobrança; o serviço permanece ativo para decisão posterior do mantenedor.
+
+### T052 — revalidação OIDC e isolamento — 2026-10-12
+
+A revalidação somente leitura confirmou público e jobs prontos, API pública protegida, jobs privados, Scheduler OIDC habilitado, IAM restrito ao `portal-scheduler` e índice Firestore READY. Os testes de deployment/restore permanecem 6/6 PASS; restore real, replay e reconciliação dependem do snapshot READY de T039.
+
+### T046 — deploy físico — 2026-10-12
+
+O Host PC IP foi corrigido na TV e o deploy foi repetido com sucesso: build Tizen, assinatura, instalação e lançamento no aparelho `192.168.0.2`. A atualização não desinstalou o app nem limpou o IndexedDB. T046 continua aberta somente para a confirmação visual do roteiro comercial na TV; não se infere aceite a partir do lançamento técnico.
+
+### Confirmação física de dados — 2026-10-12
+
+O usuário confirmou que o CCPlay abriu após o deploy e que listas/favoritos continuaram presentes. O resultado comprova preservação do estado local na atualização; não encerra os cenários comerciais específicos de T046.

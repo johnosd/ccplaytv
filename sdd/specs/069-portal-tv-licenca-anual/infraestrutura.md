@@ -35,7 +35,7 @@ Licença vigente é validada localmente ao entrar na lista. Vencimento durante s
 
 ## Franquias e orçamento
 
-Piloto 10–50 TVs, referência R$35/mês. Faturamento habilitado foi autorizado. Manter serviço ativo e alertar responsável se previsão/consumo ultrapassarem referência; não cortar licença, compra ou configuração automaticamente por orçamento. Limites de instâncias/entrada/logs são proteção operacional, não teto de fatura. Alertas propostos em 50%/80%/100% e previsão de excedente, canal do responsável a configurar sem enviar mensagens nesta revisão.
+Piloto 10–50 TVs, referência **R$10/mês**. Faturamento habilitado foi autorizado. Manter serviço ativo e alertar responsável se previsão/consumo ultrapassarem referência; não cortar licença, compra ou configuração automaticamente por orçamento. Limites de instâncias/entrada/logs são proteção operacional, não teto de fatura. O budget atual usa alertas em 50%/90%/100%/150% e créditos incluídos; o serviço permanece ativo.
 
 - Cloud Run por requisição: 2 milhões requests/mês, 180 mil vCPU-segundos e 360 mil GiB-segundos, referência de preços us-central1; cotas compartilhadas conforme faturamento. [Preços](https://cloud.google.com/run/pricing).
 - Firestore: banco elegível com 1 GiB, 50 mil leituras/20 mil escritas/20 mil exclusões por dia e 10 GiB saída/mês. Leituras por índices/consultas e retries também contam. Backup/restore/TTL/PITR não têm franquia gratuita. [Preços](https://cloud.google.com/firestore/pricing).
@@ -59,7 +59,7 @@ T052 prova concorrência/retries, cifragem/rotação/backup/restore, exclusão e
 
 ## Complemento do replanejamento — journal e preço
 
-Preço comercial confirmado: **R$35 anuais por TV**, distinto da referência de **R$35/mês de infraestrutura**. T045 verifica conta/termos/oferta/retenção e orçamento, não escolhe novo preço.
+Preço comercial confirmado: **R$35 anuais por TV**, distinto da referência de **R$10/mês de infraestrutura**. T045 verifica conta/termos/oferta/retenção e orçamento, sem confundir os dois valores.
 
 Para SC-010/SC-012, adicionar bucket Cloud Storage privado regional us-central1, sem conteúdo M3U/credenciais; somente eventos mínimos de exclusão/revogação, independentes da base Firestore restaurada. ADC/IAM create/read/list mínimos, sem overwrite/delete para runtime, append condicional por eventId/digest, lifecycle 30 dias. Não ativar retenção bloqueada irreversível no piloto. Write-ahead antes do ACK remoto; Firestore fence→journal→finalização, sem I/O no callback transacional. Falha conserva pendência/outbox, sem confirmação falsa. Jobs retomam crash. Fluxo vinculante em logic §3/data-model.
 

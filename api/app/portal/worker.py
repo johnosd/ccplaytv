@@ -96,7 +96,8 @@ class PortalWorker:
                                 done = await self.payments.reconcile_payment(job.dedupe_key, lease_now)
                                 cursor = None
                             else:
-                                cursor, done = await self.payments.reconcile_order(job.dedupe_key, lease_now, job.checkpoint)
+                                after = job.checkpoint if job.checkpoint is None or job.checkpoint.isdigit() else None
+                                cursor, done = await self.payments.reconcile_order(job.dedupe_key, lease_now, after)
                             if job.device_id is None and done:
                                 await self.payments.finish_payment_job(job.dedupe_key, owner, datetime.now(UTC))
                             else:

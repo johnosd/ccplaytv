@@ -43,10 +43,57 @@ O agendamento diário do Firestore está criado no projeto `ccplaytv-511322`, co
 ### Validações independentes — 2026-10-12
 
 - T052: `uv run pytest tests/portal -q` passou com 42 testes e 59 skips condicionados a serviços externos; o tick real do Scheduler/OIDC já havia retornado HTTP 200 após o índice Firestore ficar READY.
-- T045: `infra/portal/budget.json` mantém referência de R$35/mês, alertas em 50/80/100%, previsão e serviço sem corte automático. A consulta administrativa de budgets não foi autorizada pela conta de faturamento/API `billingbudgets.googleapis.com`; nenhum alerta foi declarado configurado.
+- T045 (checkpoint anterior): a consulta administrativa de budgets ainda não estava autorizada. O estado atual está registrado abaixo com budget ativo de R$10/mês.
 
 ### Mercado Pago sandbox configurado — 2026-10-12
 
 As quatro variáveis de sandbox foram detectadas no arquivo privado local sem imprimir valores. O serviço público foi redeployado na revisão `ccplaytv-portal-00005-drv` e o serviço jobs na revisão `ccplaytv-portal-jobs-00003-zzr`, ambos Ready. O webhook sem assinatura retornou HTTP 401 (segredo carregado e assinatura ausente), e o jobs confirmou as variáveis do Mercado Pago com `SERVICE_ROLE=jobs`. `CHECKOUT_ENABLED` permanece `false`; nenhuma venda foi liberada e T036 continua aguardando compra de teste completa.
 
 Na tentativa posterior, o staging foi atualizado para permitir temporariamente o Checkout Pro sandbox. A preferência de `R$35,00` foi criada e o checkout carregou, mas o pagamento foi rejeitado porque a sessão usava a conta vendedora; a próxima execução deve usar a conta compradora de teste separada. Nenhum pagamento real foi feito e T036 não foi marcado como concluído.
+
+### Homologação de compra sandbox — 2026-10-12
+
+- Duas compras foram aprovadas com comprador de teste separado (saldo e cartão), ambas `R$35,00`, `BRL`, merchant esperado e `live_mode=true` do provedor de teste.
+- O worker privado, disparado por Scheduler OIDC, conciliou as ordens por consulta autenticada. Firestore confirmou `approved`, payment IDs, grants `valid` e vencimento anual para os dois devices sintéticos.
+- Webhooks recebidos do Mercado Pago retornaram `401` por assinatura não validada; a rota permaneceu fail-closed. O fluxo de fallback diário foi o responsável pela concessão.
+- Correção aplicada no worker: checkpoints textuais de falha são descartados antes de chamar a paginação numérica do provider. Testes direcionados `9 passed, 8 skipped`.
+- Revisões finais saudáveis: Cloud Run público `ccplaytv-portal-00012-6x2`, jobs `ccplaytv-portal-jobs-00013-qtk`; smoke `root=200`, `health=200`, endpoint protegido `401`.
+- `CCPLAY_PORTAL_CHECKOUT_ENABLED=false` foi restaurado após a prova; nenhuma venda de teste permanece aberta.
+
+### Validação local de deployment sem snapshot — 2026-10-12
+
+- `api/tests/portal/test_deployment.py` e `test_restore.py`: **6/6 PASS**. As verificações cobrem separação público/jobs, IAM, OIDC do Scheduler, ausência de chaves em manifestos, regras Firestore fechadas e restore isolado em dry-run.
+- A prova não executa `gcloud firestore databases restore`; o primeiro snapshot READY, replay e RPO/RTO continuam reservados ao último gate T039.
+
+- Consulta somente leitura em 2026-10-12 confirmou público `ccplaytv-portal-00012-6x2` e jobs `ccplaytv-portal-jobs-00013-qtk` como `Ready=True`; Scheduler `portal-tick` `ENABLED` usa OIDC com `portal-scheduler`; IAM do jobs contém somente `roles/run.invoker` para essa conta; índice Firestore `kind,nextDueAt,__name__` está `READY`.
+- `billingbudgets.googleapis.com` foi habilitada no projeto `ccplaytv-511322`. A criação/listagem do budget continua bloqueada porque a conta ativa não tem acesso à conta de faturamento `019D1E-9F4271-E5FBF5`; nenhum budget foi criado.
+
+### Budget de faturamento criado — 2026-10-12
+
+- Budget criado na conta `019D1E-9F4271-E5FBF5`: **R$10/mês**, período mensal, créditos incluídos, thresholds de 50%, 90%, 100% e 150%.
+- `notificationsRule` está vazio, portanto não há canal personalizado; aplicam-se os destinatários padrão de alertas da conta conforme a configuração do Cloud Billing.
+- O usuário confirmou o valor atual como referência do piloto: **R$10/mês**, thresholds 50%/90%/100%/150%. T045 permanece aberta apenas para os demais itens comerciais e operacionais.
+
+### Webhook Mercado Pago — validação sintética — 2026-10-12
+
+- A rota pública de staging aceitou uma notificação sintética assinada com o segredo configurado no Cloud Run: `HTTP 200`, estado `received`, sem impressão de segredo ou identificador de pagamento.
+- A prova confirma a implementação fail-closed do HMAC e o carregamento da variável no serviço. A entrega oficial ainda não foi aceita: as chamadas observadas do Mercado Pago retornaram `401`, e o painel de Webhooks estava em erro 5xx durante a conferência da aplicação.
+
+### Webhook oficial recebido — 2026-10-12
+
+- Mercado Pago Webhooks em modo de teste enviou `payment.updated` e recebeu `200 - OK`.
+- Cloud Logging confirmou duas requisições `POST` ao caminho público do webhook com status HTTP 200. A consulta foi somente leitura e filtrou apenas método/status, sem expor payload ou credenciais.
+- A rota e o segredo oficial estão coerentes no staging; checkout permanece desligado fora da janela de teste.
+
+### T045 — confirmação operacional — 2026-10-12
+
+A configuração implantada mantém staging isolado e checkout fechado: público/jobs `Ready`, Mercado Pago sandbox (`live_mode=false`), `CHECKOUT_ENABLED=false`, sem venda liberada. A oferta é R$35 por 12 meses e uma TV; Pix/cartão são tratados pelo Checkout Pro. O custo de infraestrutura de referência do piloto permanece R$10/mês com budget e alertas 50/90/100/150. O orçamento inclui runtime, Firestore, journal/backup/restore, imagens/builds, logs/tráfego, câmbio e impostos; os valores reais de carga e restauração continuam em T043/T039/T052.
+
+### T052 — homologação real não destrutiva — 2026-10-12
+
+- Smoke público: raiz `200`, `/health` `200`, configurações sem autenticação `401`.
+- Serviço jobs sem autenticação: `403`; Scheduler `portal-tick` está `ENABLED`, usa `POST` com OIDC e aponta para `/internal/portal/jobs/tick`.
+- IAM de invocação do jobs contém somente `serviceAccount:portal-scheduler@ccplaytv-511322.iam.gserviceaccount.com`; nenhum `allUsers` foi observado.
+- Índice composto Firestore para `jobs(kind,nextDueAt)` está `READY`.
+- Suíte `uv run pytest tests/portal -q`: **49 passed, 60 skipped**. Os skips são condicionados a serviços externos; nenhum restore foi executado.
+- O gate de restore/replay/RPO/RTO continua reservado a T039, conforme decisão de manter o snapshot por último.
