@@ -24,6 +24,8 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
   const [now, setNow] = useState(Date.now)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<'portal.failure' | 'portal.recoveryNeeded'>()
+  // Código não secreto (lista fechada de PortalRequestError ou o nome do erro JS) para diagnosticar na TV, sem console.
+  const [failureCode, setFailureCode] = useState<string>()
   const [changed, setChanged] = useState(false)
   const [recovering, setRecovering] = useState(false)
   const [recoveryDeviceId, setRecoveryDeviceId] = useState<string>()
@@ -72,7 +74,7 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
   async function run(action: 'invite' | 'revoke' | 'rotate' | 'recovery') {
     if (!connection || working.current) return
     const generation = privacyGeneration.current
-    working.current = true; setBusy(true); setFailure(undefined)
+    working.current = true; setBusy(true); setFailure(undefined); setFailureCode(undefined)
     try {
       if (action === 'invite' || action === 'recovery') {
         const result = action === 'recovery' ? await connection.recovery() : await connection.invite()
@@ -85,6 +87,7 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
       }
     } catch (error) {
       setFailure(error instanceof PortalRequestError && error.code === 'conflict' ? 'portal.recoveryNeeded' : 'portal.failure')
+      setFailureCode(error instanceof PortalRequestError ? error.code : error instanceof Error ? error.name : 'unexpected_error')
     } finally { working.current = false; setBusy(false) }
   }
   function activate(index: number) {
@@ -101,10 +104,12 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
     {commercialBuild && <><p role="status">{t('portal.licenseStatus', { status: t(license.decision.reason === 'expired' ? 'portal.license_expired' : license.state ? ('portal.license_' + license.state) as 'portal.license_active' : 'portal.license_missing') })}</p>
       {license.expiresAt && <p>{t('portal.licenseExpiry', { date: new Date(license.expiresAt).toLocaleDateString() })}</p>}<p>{t('portal.licenseOffer')}</p></>}
     {!connection && <p role="status">{t('portal.unconfigured')}</p>}
+    {!connection && import.meta.env.DEV && <p role="status">{t('portal.devHint')}</p>}
     {(device || recoveryDeviceId) && <p>{t('portal.deviceId', { id: device?.deviceId ?? recoveryDeviceId! })}</p>}
     {recovering && <p role="status">{t('portal.recoveryWaiting')}</p>}
     {connection && <p>{t('portal.site')}: {new URL(connection.origin).origin}</p>}
     {failure && <p role="alert">{t(failure)}</p>}
+    {failure && failureCode && <p>{t('portal.failureCode', { code: failureCode })}</p>}
     {changed && <p role="status">{t('portal.changed')}</p>}
     <div className={`portal-content${valid ? ' has-qr' : ''}`}>
     {valid && <div className="portal-qr"><img src={invite.qrDataUrl} alt={t('portal.qrAlt')} />

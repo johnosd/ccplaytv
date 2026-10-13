@@ -1,14 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AddSourceScreen } from './AddSourceScreen'
 import type { SourceOut } from './importApi'
 import { db } from '../../lib/catalog/db'
 import * as importPipeline from '../../lib/catalog/importPipeline'
 import * as sourceRepository from '../../lib/catalog/sourceRepository'
-import { AnnouncerContext } from '../../lib/announcer'
-import { getComingSoon } from '../../lib/comingSoon'
 import { findUnnamedControls } from '../../testing/accessibleNames'
 
 vi.spyOn(globalThis, 'fetch')
@@ -86,23 +84,10 @@ describe('AddSourceScreen', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Feature 023, US4 (T034/T037), redesenhada na feature 037 (T027): cadastro no
-// formato do `sourceSetup()` — mesmo formulário real, campos da feature 022,
-// painel "Conectar com celular" como mock "Em breve".
+// Feature 023, US4 (T034/T037), redesenhada na feature 037 (T027) e na 070: cadastro
+// com o mesmo formulário real, campos da feature 022 e — desde a 070 — a coluna real
+// "Pelo celular" passada pelo App em `phonePanel` (o mock "Em breve" saiu).
 // ---------------------------------------------------------------------------
-
-/** Região de anúncio (feature 021) para ler o que `ComingSoon` anuncia — mesmo padrão de `ComingSoon.test.tsx`. */
-function RegionHost({ children }: { children: ReactNode }) {
-  const [region, setRegion] = useState<HTMLElement | null>(null)
-  return (
-    <AnnouncerContext.Provider value={region}>
-      {children}
-      <div ref={setRegion} className="announcer-region">
-        <span className="sr-only" />
-      </div>
-    </AnnouncerContext.Provider>
-  )
-}
 
 function makeProviderSource(overrides: Partial<SourceOut> = {}): SourceOut {
   return {
@@ -137,18 +122,13 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
     await db.importRuns.clear()
   })
 
-  it('estrutura do `sourceSetup()`: título, "Como funciona" sem passo concluído, "Adicionar serviço", id do título preservado (D-002)', () => {
+  it('estrutura da 070: título preservado, sem "Como funciona" nem mock, cadastro manual com tipo e Voltar (D-002, D-007)', () => {
     render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
 
     expect(document.getElementById('add-source-title')).toHaveTextContent('Conecte sua lista IPTV')
     expect(screen.getByText('Configuração inicial')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Como funciona' })).toBeInTheDocument()
-    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      '1Escolha o tipoXtream Codes ou Lista M3U',
-      '2Digite os dadosServidor e login, ou a URL da lista',
-      '3Sincronizar tudoCanais, EPG, filmes e séries chegam na TV',
-    ])
-    expect(screen.getByRole('heading', { name: 'Adicionar serviço' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Como funciona' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Conectar com celular')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Configuração manual' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Tipo de lista' })).toBeInTheDocument()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
@@ -231,34 +211,23 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
     expect(screen.getByText('Deixe em branco para manter a URL atual')).toBeVisible()
   })
 
-  it('"Conectar com celular" é um mock: anuncia "Em breve", não navega e não sai do formulário (FR-035, FR-013)', () => {
-    vi.useFakeTimers()
-    const onBack = vi.fn()
-    const onSourceCreated = vi.fn()
-    render(
-      <RegionHost>
-        <AddSourceScreen onSourceCreated={onSourceCreated} onBack={onBack} />
-      </RegionHost>,
-      { wrapper: createWrapper() },
-    )
+  it('070: com a coluna do celular, ela fica antes do cadastro e o formulário não repete o Voltar (A002)', () => {
+    const phone = <section aria-label="Pelo celular"><button type="button">Recarregar</button><button type="button">Voltar</button></section>
+    render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} phonePanel={phone} />, { wrapper: createWrapper() })
 
-    expect(screen.getByRole('heading', { name: 'Conectar com celular' })).toBeInTheDocument()
-    const message = getComingSoon('pair-phone').message
-    fireEvent.click(screen.getByRole('button', { name: message }))
-    vi.advanceTimersByTime(20)
-
-    expect(document.querySelector('.announcer-region .sr-only')?.textContent).toBe(`Em breve — ${message}`)
-    expect(document.getElementById('add-source-title')).toBeInTheDocument()
-    expect(onBack).not.toHaveBeenCalled()
-    expect(onSourceCreated).not.toHaveBeenCalled()
+    const region = screen.getByRole('region', { name: 'Pelo celular' })
+    expect(region.compareDocumentPosition(screen.getByRole('heading', { name: 'Configuração manual' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'Voltar' })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Conectar e sincronizar' })).toBeInTheDocument()
   })
 
-  it('abre com o foco em "Xtream Codes" e ↑ alcança o mock do celular, anterior no DOM (D-009, FR-042)', () => {
-    render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
+  it('070: abre com o foco em "Xtream Codes" e ↑ alcança a coluna do celular, anterior no DOM (D-009, FR-007)', () => {
+    const phone = <section aria-label="Pelo celular"><button type="button">Recarregar</button></section>
+    render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} phonePanel={phone} />, { wrapper: createWrapper() })
 
     expect(screen.getByRole('button', { name: /Xtream Codes/ })).toHaveFocus()
     fireEvent.keyDown(document, { key: 'ArrowUp' })
-    expect(screen.getByRole('button', { name: getComingSoon('pair-phone').message })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Recarregar' })).toHaveFocus()
   })
 
   it('as setas percorrem tipos → campos → Voltar → "Conectar e sincronizar", na ordem visual', () => {

@@ -15,9 +15,11 @@ export type PlatformProbeReport = {
   monotonicNow: number
   previousWallNow: number | null
   observedWallRollback: boolean
+  /** 070/T003: `webapis.network.getMac()` existe e devolve 12 dígitos hex úteis. O MAC em si nunca entra no relatório. */
+  mac?: ProbeResult
 }
 type ProbeStorage = Pick<Storage, 'getItem' | 'setItem'>
-type Options = { crypto: Crypto; storage: ProbeStorage; getDuid?: () => string; protocol: string; wallNow?: number; monotonicNow?: number }
+type Options = { crypto: Crypto; storage: ProbeStorage; getDuid?: () => string; getMac?: () => string; protocol: string; wallNow?: number; monotonicNow?: number }
 const STORAGE_KEY = 'ccplaytv:portal-platform-probe:v1'
 export async function runPlatformProbe(options: Options): Promise<PlatformProbeReport> {
   const report: PlatformProbeReport = {
@@ -43,6 +45,7 @@ export async function runPlatformProbe(options: Options): Promise<PlatformProbeR
       report.duidStability = previous.duidDigest ? (duidDigest === previous.duidDigest ? 'passed' : 'failed') : 'first_run'
     }
   } catch { report.duid = 'failed' }
+  report.mac = probeMac(options.getMac)
   const message = new TextEncoder().encode('ccplaytv-public-platform-probe-v1')
   const badMessage = new TextEncoder().encode('ccplaytv-tampered-platform-probe-v1')
   try {
@@ -70,6 +73,15 @@ export async function runPlatformProbe(options: Options): Promise<PlatformProbeR
   } catch { report.persistence = 'failed' }
   return report
 }
+/** Útil = 12 hex, não zerado/broadcast e unicast; o valor não sai daqui. */
+function probeMac(getMac?: () => string): ProbeResult {
+  if (!getMac) return 'unavailable'
+  try {
+    const hex = String(getMac() ?? '').trim().replace(/[:.-]/g, '').toUpperCase()
+    if (!/^[0-9A-F]{12}$/.test(hex) || /^(0{12}|F{12})$/.test(hex) || (parseInt(hex.slice(0, 2), 16) & 1) === 1) return 'failed'
+    return 'passed'
+  } catch { return 'failed' }
+}
 export function platformProbeDestination(destination: string): URL | null {
   try {
     const url = new URL(destination)
@@ -79,10 +91,11 @@ export function platformProbeDestination(destination: string): URL | null {
   } catch { return null }
 }
 export async function startPlatformProbe() {
-  const host = window as unknown as { webapis?: { productinfo?: { getDuid?: () => string } }; __ccplayPlatformProbe?: PlatformProbeReport }
+  const host = window as unknown as { webapis?: { productinfo?: { getDuid?: () => string }; network?: { getMac?: () => string } }; __ccplayPlatformProbe?: PlatformProbeReport }
   const product = host.webapis?.productinfo
   const report = await runPlatformProbe({ crypto: window.crypto, storage: window.localStorage,
-    getDuid: product?.getDuid ? () => product.getDuid!() : undefined, protocol: location.protocol })
+    getDuid: product?.getDuid ? () => product.getDuid!() : undefined,
+    getMac: host.webapis?.network?.getMac ? () => host.webapis!.network!.getMac!() : undefined, protocol: location.protocol })
   host.__ccplayPlatformProbe = report
   // Apenas um endpoint local de diagnóstico explícito; ausência nunca toca rede.
   const destination = import.meta.env.VITE_CCPLAY_PLATFORM_PROBE_REPORT

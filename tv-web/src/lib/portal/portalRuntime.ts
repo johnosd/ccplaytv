@@ -11,8 +11,17 @@ export function getPortalConnection(): PortalConnection | undefined {
     const client = createPortalClient({ origin, allowLocalHttp: import.meta.env.DEV })
     connection = new PortalConnection(db, client, origin, () => {
       const api = (globalThis as typeof globalThis & { webapis?: { productinfo?: { getDuid?: () => string } } }).webapis
-      if (!api?.productinfo?.getDuid) throw new Error('platform_identity_unavailable')
-      return api.productinfo.getDuid()
+      if (api?.productinfo?.getDuid) return api.productinfo.getDuid()
+      // Somente `npm run dev:portal`: `import.meta.env.DEV` é falso no build, então este ramo é removido do
+      // pacote e a identidade alternativa nunca existe em produção/TV.
+      const devDuid = import.meta.env.DEV ? (import.meta.env.VITE_PORTAL_DEV_DUID as string | undefined) : undefined
+      if (devDuid) return devDuid
+      throw new Error('platform_identity_unavailable')
+    }, () => {
+      // 070/D-002: MAC opcional (Samsung Product API); ausente/negado → o servidor gera o ID.
+      const network = (globalThis as typeof globalThis & { webapis?: { network?: { getMac?: () => string } } }).webapis?.network
+      if (!network?.getMac) throw new Error('mac_unavailable')
+      return network.getMac()
     })
   }
   return connection
@@ -31,4 +40,15 @@ export function acquirePortalQuick() {
     quickReferences--
     for (const listener of listeners) listener()
   }
+}
+
+/** 070/D-011: "Recarregar" da tela Adicionar dispara um ciclo do agente montado no App, se houver um. */
+type SyncNow = () => Promise<{ ok: boolean; code?: string }>
+let syncNowHandler: SyncNow | undefined
+export function registerPortalSyncNow(handler: SyncNow) {
+  syncNowHandler = handler
+  return () => { if (syncNowHandler === handler) syncNowHandler = undefined }
+}
+export function portalSyncNow(): Promise<{ ok: boolean; code?: string }> {
+  return syncNowHandler ? syncNowHandler() : Promise.resolve({ ok: false, code: 'unavailable' })
 }

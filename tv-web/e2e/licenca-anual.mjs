@@ -5,6 +5,7 @@ import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { chromium, expect } from '@playwright/test'
+import { abrirPortalLicenca } from './lib/portal.mjs'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
 import { openViaTopbar, focusFirstRealCategory } from './lib/vod.mjs'
 const origin = 'https://license.fixture.test', address = 'http://127.0.0.1:5176'
@@ -56,7 +57,7 @@ try {
   await page.goto(address)
   const cache = () => page.evaluate(async () => { const { db } = await import('/src/lib/catalog/db.ts'); return db.table('licenseCache').get('entitlement') })
   await expect.poll(async () => (await cache())?.generation, { timeout: 15000 }).toBeGreaterThan(0)
-  await page.getByRole('button', { name: 'Adicionar pelo site', exact: true }).click()
+  await abrirPortalLicenca(page)
   await expect(page.getByText('Licença: Período de teste', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Gerar QR para o portal', exact: true }).click()
   await expect(page.getByRole('img', { name: 'QR de acesso temporário ao portal desta TV' })).toBeVisible()

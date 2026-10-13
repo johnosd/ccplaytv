@@ -30,7 +30,6 @@ export interface ProfilesScreenProps {
   onSourceDeleted?: (sourceId: string) => void
   /** Abre as configurações globais sem exigir lista ativa. */
   onManageSources?: () => void
-  onOpenPortal?: () => void
   /** "Configurar" (feature 067, FR-012) — abre Configurações da lista. Opcional: o contrato travado da 037 não o passa. */
   onConfigureSource?: (source: SourceOut) => void
   /** Só chamado em `mode: 'switch'`. */
@@ -81,7 +80,6 @@ export function ProfilesScreen({
   onResyncStarted,
   onSourceDeleted,
   onManageSources,
-  onOpenPortal,
   onConfigureSource,
   onBack,
 }: ProfilesScreenProps): ReactNode {
@@ -105,7 +103,6 @@ export function ProfilesScreen({
   // partir do cartão "Adicionar lista" — nunca a partir de uma lista real
   // (esse BAIXO já abre as ações dela, contrato travado da 023).
   const [row, setRow] = useState<'cards' | 'actions' | 'manage'>('cards')
-  const [manageIndex, setManageIndex] = useState(0)
   const [actionIdx, setActionIdx] = useState(0)
   const [confirmDelete, setConfirmDelete] = useState<SourceOut | null>(null)
   const [showExit, setShowExit] = useState(false)
@@ -174,8 +171,6 @@ export function ProfilesScreen({
       if (state === 'error') return
 
       if (effectiveRow === 'manage') {
-        if (direction === 'left') setManageIndex(0)
-        if (direction === 'right' && onOpenPortal) setManageIndex(1)
         if (direction === 'up') setRow('cards') // "Adicionar lista" continua em foco (`focusedId` intocado)
         return
       }
@@ -183,6 +178,8 @@ export function ProfilesScreen({
       if (effectiveRow === 'actions') {
         // O limite alcança a última ação: senão ela ficaria renderizada e inalcançável pelo controle.
         if (direction === 'up') setRow('cards') // o cartão de onde se desceu (`focusedId`) segue em foco
+        // 069: BAIXO na linha de ações chega a "Configurações" (CIMA/RETURN voltam ao cartão).
+        if (direction === 'down') setRow('manage')
         if (direction === 'left') setActionIdx((i) => clamp(i - 1, 0, ACTION_KEYS.length - 1))
         if (direction === 'right') setActionIdx((i) => clamp(i + 1, 0, ACTION_KEYS.length - 1))
         return
@@ -206,7 +203,7 @@ export function ProfilesScreen({
       // "Gerenciar listas" (feature 026, FR-032) — só a partir do cartão
       // "Adicionar lista", nunca de uma lista real (essa já abre as ações
       // dela, contrato travado da 023).
-      if (direction === 'down' && effectiveId === ADD_ID) { setManageIndex(0); setRow('manage') }
+      if (direction === 'down' && effectiveId === ADD_ID) setRow('manage')
     },
     onSelect: () => {
       if (state === 'error') {
@@ -214,8 +211,7 @@ export function ProfilesScreen({
         return
       }
       if (effectiveRow === 'manage') {
-        if (manageIndex === 1 && onOpenPortal) onOpenPortal()
-        else onManageSources?.()
+        onManageSources?.()
         return
       }
       if (effectiveRow === 'actions') {
@@ -360,17 +356,13 @@ export function ProfilesScreen({
       {state !== 'error' && (
         <button
           type="button"
-          className={`profiles-settings-corner${effectiveRow === 'manage' && manageIndex === 0 && !showExit ? ' tv-focus' : ''}`}
+          className={`profiles-settings-corner${effectiveRow === 'manage' && !showExit ? ' tv-focus' : ''}`}
           onClick={() => onManageSources?.()}
         >
           <Icon name="settings" />
           {t('settings.title')}
         </button>
       )}
-
-      {state !== 'error' && onOpenPortal && <button type="button"
-        className={`profiles-settings-corner profiles-portal-corner${effectiveRow === 'manage' && manageIndex === 1 && !showExit ? ' tv-focus' : ''}`}
-        onClick={onOpenPortal}><Icon name="device" />{t('portal.addViaSite')}</button>}
 
       <Toast message={toastMessage} messageKey={toastKey} />
 

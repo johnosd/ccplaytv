@@ -19,6 +19,19 @@ it('falha de API/armazenamento não expõe erro nem o identificador', async () =
   expect(JSON.stringify(report)).not.toContain('private')
 })
 
+it('070/T003: classifica o MAC (útil, inválido, ausente, lançando) sem nunca colocar o valor no relatório', async () => {
+  const base = { crypto: webcrypto as unknown as Crypto, protocol: 'file:', storage: { getItem: () => null, setItem: () => {} } }
+  const useful = await runPlatformProbe({ ...base, getMac: () => 'a0:8c:fd:19:0a:8c' })
+  expect(useful.mac).toBe('passed')
+  expect(JSON.stringify(useful)).not.toMatch(/a0:8c|A08C|8cfd/i)
+  for (const getMac of [() => '00:00:00:00:00:00', () => 'FF:FF:FF:FF:FF:FF', () => '01:00:5E:00:00:FB', () => 'not-a-mac', () => { throw Error('fake-private-mac') }]) {
+    const report = await runPlatformProbe({ ...base, getMac })
+    expect(report.mac).toBe('failed')
+    expect(JSON.stringify(report)).not.toContain('private')
+  }
+  expect((await runPlatformProbe(base)).mac).toBe('unavailable')
+})
+
 it('restringe o relatório ao coletor local e recusa destinos ambíguos sem lançar erro', () => {
   for (const destination of ['http://192.168.0.6:8769/platform-probe', 'http://localhost:8769/platform-probe', 'http://127.0.0.1:8769/platform-probe']) {
     expect(platformProbeDestination(destination)).toBeInstanceOf(URL)

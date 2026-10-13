@@ -1,0 +1,27 @@
+{
+  "feature": "070-entrada-listas-gerenciador",
+  "lockedAt": "2026-10-13 13:39",
+  "total": 5,
+  "files": [
+    {
+      "path": "tv-web/src/features/portal/PortalPairingPanel.entrada-listas-gerenciador.contract.test.tsx",
+      "sha256": "b295e523d974b8f5e65f22db27df81596f7ae12b0e7db796655abe4871445bde",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/features/import/AddSourceScreen.entrada-listas-gerenciador.contract.test.tsx",
+      "sha256": "6da51a281c659dc3ea746925f8a029dcd7f3d193a8c219f5a5076b70e1125076",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/navigation/appNav.entrada-listas-gerenciador.contract.test.ts",
+      "sha256": "a516c1ae5ac6eeec7fe3686a4cd2d238443fa91642e9b18da12c0d6253df7a98",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/lib/portal/pairingIdentity.entrada-listas-gerenciador.contract.test.ts",
+      "sha256": "f7eda301d597a6da7ef31386eafecca9f81379b5cf838d6d6885a4f61ac42add",
+      "tests": 2
+    }
+  ]
+}

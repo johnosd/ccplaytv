@@ -1,9 +1,10 @@
 /** Vínculo local da TV. DUID só transita no bootstrap; nunca autentica sozinho. */
 import type { CatalogDb } from '../catalog/db'
+import { DEVICE_KEY_PATTERN, DISPLAY_ID_PATTERN } from './displayId'
 import { portalTables, type PortalDeviceRecord } from './portalTables'
 
 export type CredentialIssuance = Pick<PortalDeviceRecord,
-  'deviceId' | 'bearer' | 'deviceKey' | 'authEpoch' | 'recoveryEpoch' |
+  'deviceId' | 'displayId' | 'bearer' | 'deviceKey' | 'authEpoch' | 'recoveryEpoch' |
   'recoveryCode' | 'recoveryCodeVersion'>
 
 const opaqueId = /^[A-Za-z0-9_-]{1,128}$/
@@ -59,7 +60,10 @@ function validateIssuance(value: CredentialIssuance) {
     .some(key => typeof value[key as keyof CredentialIssuance] !== 'string')) throw new DeviceIdentityError()
   if (!opaqueId.test(value.deviceId) || value.bearer.split('.').length !== 2 ||
       value.bearer.split('.')[0] !== value.deviceId || !validToken(value.bearer.split('.')[1] ?? '') ||
-      !validToken(value.deviceKey) || !validToken(value.recoveryEpoch) ||
+      // 070: chave de 10 dígitos; token legado (serviço anterior à 070) ainda é aceito e dispara o upgrade D-004.
+      !(DEVICE_KEY_PATTERN.test(value.deviceKey) || validToken(value.deviceKey)) ||
+      (value.displayId !== undefined && (typeof value.displayId !== 'string' || !DISPLAY_ID_PATTERN.test(value.displayId))) ||
+      !validToken(value.recoveryEpoch) ||
       !Number.isSafeInteger(value.authEpoch) || value.authEpoch < 0 ||
       !Number.isSafeInteger(value.recoveryCodeVersion) || value.recoveryCodeVersion < 1 ||
       !privateCode.test(value.recoveryCode)) throw new DeviceIdentityError()
@@ -80,7 +84,9 @@ export async function persistCredentialIssuance(
         (previous.bearer !== value.bearer || previous.deviceKey !== value.deviceKey ||
          previous.recoveryCode !== value.recoveryCode)) throw new DeviceIdentityError()
     // Allowlist explícita: resposta remota não adiciona propriedades à persistência.
-    await tables.device.put({ id: 'device', deviceId: value.deviceId, bearer: value.bearer,
+    await tables.device.put({ id: 'device', deviceId: value.deviceId,
+      ...(value.displayId ? { displayId: value.displayId } : previous?.displayId ? { displayId: previous.displayId } : {}),
+      bearer: value.bearer,
       deviceKey: value.deviceKey, authEpoch: value.authEpoch, recoveryEpoch: value.recoveryEpoch,
       recoveryCode: value.recoveryCode, recoveryCodeVersion: value.recoveryCodeVersion,
       nextSyncAt: previous?.nextSyncAt ?? now, lastSuccessfulSync: previous?.lastSuccessfulSync,

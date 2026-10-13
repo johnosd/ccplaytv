@@ -18,8 +18,8 @@ export interface ComingSoonEntry {
  * mock é apagar a entrada. A `message` é lida como "Em breve — {message}".
  */
 export const COMING_SOON: Record<string, ComingSoonEntry> = {
-  // Onboarding de lista (feature 023, FR-035).
-  'pair-phone': { message: 'Conectar a lista pelo celular, com QR code.', backlogItem: 22 },
+  // Onboarding de lista (feature 023, FR-035): `pair-phone` deixou de ser mock na 070 (coluna real
+  // "Pelo celular" com ID, chave, endereço e QR na tela de cadastro).
   // Detalhe de filme/série (feature 025, D-011, FR-043): o `trailer` do detalhe virou real na 033 (FR-021) e o do
   // billboard do Início, na 060 (item 32) — `home-trailer` saiu deste registro.
   // Home definitiva (feature 026, FR-016).

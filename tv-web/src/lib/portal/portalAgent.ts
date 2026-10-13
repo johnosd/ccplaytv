@@ -1,10 +1,14 @@
 /** Um ciclo sem overlap; serviços e importações locais permanecem colaboradores externos. */
+import { liveQuery } from 'dexie'
 import type { CatalogDb } from '../catalog/db'
 import { portalTables } from './portalTables'
 import { PortalRequestError } from './portalClient'
 
 const DAY = 86_400_000
 const RETRIES = [60_000, 300_000, 900_000]
+
+/** Resultado de um ciclo pedido explicitamente (070/D-011, Recarregar): código não secreto em falha. */
+export type CycleOutcome = { ok: true } | { ok: false; code: string }
 
 export interface PortalAgentPorts {
   /** Só retorna após ACKs ou lança; pendência fica durável na outbox. */
@@ -27,6 +31,10 @@ export class PortalAgent {
   private generation = 0
   private references = 0
   private quickReferences = 0
+  // Exclusão local pendente na outbox pede envio imediato (flushDeletions + snapshot; sem pull/licença/polling).
+  private deletionRequested = false
+  private lastCompletedAt = Number.NEGATIVE_INFINITY
+  private outbox?: { unsubscribe(): void }
 
   private readonly database: CatalogDb
   private readonly ports: PortalAgentPorts
@@ -45,7 +53,9 @@ export class PortalAgent {
     if (quick) this.quickReferences++
     this.active = true
     this.setQuick(this.quickReferences > 0)
+    this.watchOutbox()
     this.reconcile()
+    this.pumpDeletionFlush()
     return () => {
       this.references--
       if (quick) this.quickReferences--
@@ -55,8 +65,32 @@ export class PortalAgent {
         this.generation++
         this.clearTimer()
         this.running?.abort()
+        this.outbox?.unsubscribe()
+        this.outbox = undefined
       }
     }
+  }
+
+  /** Observa a outbox durável: nova pendência (ou pendência herdada de offline/reinício) dispara o envio. */
+  private watchOutbox() {
+    if (this.outbox) return
+    const deletes = portalTables(this.database).deletes
+    this.outbox = liveQuery(() => deletes.filter(row => row.serverAckAt === undefined).count()).subscribe({
+      next: pending => { if (pending > 0) this.requestDeletionFlush() },
+      error: () => this.ports.onError?.('local_storage_error'),
+    })
+  }
+
+  private requestDeletionFlush() {
+    this.deletionRequested = true
+    this.pumpDeletionFlush()
+  }
+
+  /** Executa no máximo um envio por vez, depois de qualquer ciclo em andamento e só com app visível/online. */
+  private pumpDeletionFlush() {
+    if (!this.deletionRequested || !this.active || !this.visible || !this.online || this.running) return
+    this.deletionRequested = false
+    this.guardedRun(true)
   }
 
   lifecycle(visible: boolean, online: boolean) {
@@ -69,6 +103,7 @@ export class PortalAgent {
     else {
       if (resumed && this.quick) this.quickDueAt = this.now()
       this.reconcile()
+      this.pumpDeletionFlush()
     }
   }
 
@@ -109,7 +144,11 @@ export class PortalAgent {
   }
 
   private reconcileRun() {
-    void this.run().catch(() => {
+    this.guardedRun(false)
+  }
+
+  private guardedRun(deletionsOnly: boolean) {
+    void this.run(deletionsOnly).catch(() => {
       this.active = false
       this.generation++
       this.clearTimer()
@@ -117,18 +156,38 @@ export class PortalAgent {
     })
   }
 
-  private async run() {
-    if (!this.active || !this.visible || !this.online || this.running) return
+  /**
+   * 070/D-011 "Recarregar": um ciclo completo agora, sem sobrepor o que estiver rodando e sem bater no
+   * limite de pull do servidor (1 a cada 10 s por TV). Não liga polling: o agendamento normal continua.
+   */
+  async syncNow(): Promise<CycleOutcome> {
+    if (!this.active || !this.visible || !this.online) return { ok: false, code: 'offline' }
+    for (let tries = 0; this.running && tries < 150; tries++) await new Promise(resolve => setTimeout(resolve, 200))
+    const wait = this.lastCompletedAt + 10_200 - this.now()
+    if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait))
+    return this.run(false, true)
+  }
+
+  /** `deletionsOnly`: envio imediato da outbox + snapshot; não é ciclo (não adia o prazo de 24 h nem faz pull). */
+  private async run(deletionsOnly = false, forced = false): Promise<CycleOutcome> {
+    if (!this.active || !this.visible || !this.online || this.running) return { ok: false, code: 'busy' }
     const tables = portalTables(this.database)
     const before = await tables.device.get('device')
-    if (!before || this.running || !this.active || !this.visible || !this.online) return
+    if (!before || this.running || !this.active || !this.visible || !this.online) return { ok: false, code: 'busy' }
     const now = this.now()
     const quick = this.quick
     const dueAt = quick ? this.quickDueAt : before.syncRetry?.dueAt ?? before.nextSyncAt
-    if (now < dueAt) { this.reconcile(); return }
+    if (!deletionsOnly && !forced && now < dueAt) { this.reconcile(); return { ok: false, code: 'not_due' } }
     const controller = new AbortController()
     this.running = controller
     try {
+      if (deletionsOnly) {
+        await this.ports.flushDeletions(controller.signal)
+        controller.signal.throwIfAborted()
+        // Sem snapshot novo o portal continuaria listando a lista excluída ("Somente na TV") até o próximo ciclo.
+        await this.ports.publishSnapshot(controller.signal)
+        return { ok: true }
+      }
       await this.ports.refreshLicense?.(controller.signal)
       controller.signal.throwIfAborted()
       await this.ports.flushDeletions(controller.signal)
@@ -147,11 +206,14 @@ export class PortalAgent {
       })
       this.quickFailures = 0
       this.quickDueAt = completedAt + 10_000
+      this.lastCompletedAt = completedAt
+      return { ok: true }
     } catch (error) {
+      const code = error instanceof PortalRequestError ? error.code : 'sync_error'
       if (!controller.signal.aborted) {
         const failedAt = this.now()
         const retryAfter = error instanceof PortalRequestError ? error.retryAfterMs : 0
-        this.ports.onError?.(error instanceof PortalRequestError ? error.code : 'sync_error')
+        this.ports.onError?.(code)
         if (quick) {
           this.quickFailures++
           const base = Math.min(60_000, 10_000 * 2 ** Math.min(this.quickFailures - 1, 3))
@@ -171,9 +233,11 @@ export class PortalAgent {
           })
         }
       }
+      return { ok: false, code: controller.signal.aborted ? 'aborted' : code }
     } finally {
       this.running = undefined
       this.reconcile()
+      this.pumpDeletionFlush()
     }
   }
 }

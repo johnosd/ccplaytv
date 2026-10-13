@@ -1,11 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useCreateSource, useUpdateSource, type SourceOut } from './importApi'
 import { useTvKeyNav } from '../../lib/useTvKeyNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
 import { useImeChain } from '../../lib/useImeChain'
 import { Button } from '../../components/Button'
-import { ComingSoon } from '../../components/ComingSoon'
-import { TextField } from '../../components/TextField'
 import { OnboardingBrand } from './OnboardingBrand'
 import { checkSourceConnection } from '../../lib/catalog/sourceConnectionCheck'
 import { isQuotaError, StorageFullError } from '../../lib/catalog/catalogRepository'
@@ -14,6 +12,7 @@ import { useT } from '../../lib/i18n/I18nProvider'
 import type { MessageKey } from '../../lib/i18n/messages/pt'
 import { ConnectionErrorBanner } from './ConnectionErrorBanner'
 import { connectionInputFor } from './connectionInput'
+import { SourceFormFields, type SourceFormValues } from './SourceFormFields'
 
 /** `idle` → `checking` (confirma a conexão, cancelável) → `saving` (grava a lista). */
 type SubmitPhase = 'idle' | 'checking' | 'saving'
@@ -24,6 +23,11 @@ export interface AddSourceScreenProps {
   onSourceCreated: (result: { sourceId: string; jobId: string }) => void
   onSourceUpdated?: () => void
   onBack: () => void
+  /**
+   * Coluna "Pelo celular" (feature 070, D-008): montada pelo App (features/portal), nunca importada aqui.
+   * Presente = substitui o antigo mock "Em breve" e traz o próprio Voltar; ausente = só o cadastro manual.
+   */
+  phonePanel?: ReactNode
 }
 
 type EntryMode = 'url' | 'provider'
@@ -32,13 +36,6 @@ type EntryMode = 'url' | 'provider'
 const ENTRY_TYPES: { id: EntryMode; title: string | MessageKey; description: MessageKey }[] = [
   { id: 'provider', title: 'Xtream Codes', description: 'add.type.xtream.description' },
   { id: 'url', title: 'add.type.m3u', description: 'add.type.m3u.description' },
-]
-
-/** Passos de "Como funciona" — o caminho real, sem o celular (FR-014). Nenhum é marcado como concluído. */
-const HOW_IT_WORKS: { title: MessageKey; text: MessageKey }[] = [
-  { title: 'add.how.step1.title', text: 'add.how.step1.text' },
-  { title: 'add.how.step2.title', text: 'add.how.step2.text' },
-  { title: 'add.how.step3.title', text: 'add.how.step3.text' },
 ]
 
 /**
@@ -62,6 +59,7 @@ export function AddSourceScreen({
   onSourceCreated,
   onSourceUpdated,
   onBack,
+  phonePanel,
 }: AddSourceScreenProps) {
   const t = useT()
   const isEditing = existingSource != null
@@ -236,48 +234,12 @@ export function AddSourceScreen({
             ? t('add.submit.save')
             : t('add.submit.connect')
 
+  const setters: Record<keyof SourceFormValues, (value: string) => void> = {
+    displayName: setDisplayName, m3uUrl: setM3uUrl, dns: setDns, username: setUsername, password: setPassword,
+  }
   const fields = (
-    <div className="source-setup-fields">
-      <div className="source-setup-field--wide">
-        <TextField label={t('add.field.name')} purpose="text" enterKeyHint="next" value={displayName} onChange={setDisplayName} />
-      </div>
-      {mode === 'url' ? (
-        <div className="source-setup-field--wide">
-          <TextField
-            label={t('add.field.m3u')}
-            purpose="url"
-            enterKeyHint="done"
-            value={m3uUrl}
-            onChange={setM3uUrl}
-            hint={isEditing ? t('add.hint.keepUrl') : undefined}
-          />
-        </div>
-      ) : (
-        <>
-          <div className="source-setup-field--wide">
-            <TextField label={t('add.field.server')} purpose="url" enterKeyHint="next" value={dns} onChange={setDns} />
-          </div>
-          <TextField
-            label={t('add.field.user')}
-            purpose="username"
-            enterKeyHint="next"
-            value={username}
-            onChange={setUsername}
-            hint={isEditing ? t('add.hint.keepUser') : undefined}
-          />
-          <TextField
-            label={t('add.field.password')}
-            purpose="password"
-            revealable
-            revealNoun={t('textField.password')}
-            enterKeyHint="done"
-            value={password}
-            onChange={setPassword}
-            hint={isEditing ? t('add.hint.keepPassword') : undefined}
-          />
-        </>
-      )}
-    </div>
+    <SourceFormFields mode={mode} isEditing={isEditing} values={{ displayName, m3uUrl, dns, username, password }}
+      onChange={(field, value) => setters[field](value)} />
   )
 
   const feedbackAndActions = (
@@ -303,9 +265,12 @@ export function AddSourceScreen({
           focável (constitution, "Foco Visível e Sem Becos Sem Saída") e só
           ignora um segundo OK, sem submissão duplicada. */}
       <div className="source-setup-actions">
-        <Button variant="secondary" onSelect={onBack}>
-          {t('common.back')}
-        </Button>
+        {/* Com o painel do celular, o Voltar é o dele (um só Voltar na tela, A002). */}
+        {!phonePanel && (
+          <Button variant="secondary" onSelect={onBack}>
+            {t('common.back')}
+          </Button>
+        )}
         <Button variant="accent" loading={phase !== 'idle'} onSelect={handleSubmit} buttonRef={submitRef}>
           {submitLabel}
         </Button>
@@ -342,74 +307,42 @@ export function AddSourceScreen({
           </div>
         </div>
       ) : (
-        <div className="source-setup-layout">
-          <aside className="source-setup-side" aria-labelledby="setup-how-title">
-            <h2 id="setup-how-title" className="source-setup-side-title">
-              {t('add.how.title')}
-            </h2>
-            <ol className="source-setup-steps">
-              {HOW_IT_WORKS.map((step, index) => (
-                <li key={step.title} className="source-setup-step">
-                  <span className="source-setup-step-number" aria-hidden="true">
-                    {index + 1}
-                  </span>
-                  <span className="source-setup-step-copy">
-                    <b>{t(step.title)}</b>
-                    <span>{t(step.text)}</span>
-                  </span>
-                </li>
-              ))}
-            </ol>
-            <p className="source-setup-note">{t('add.how.note')}</p>
-          </aside>
+        <div className={`source-setup-layout${phonePanel ? ' source-setup-layout--pairing' : ' source-setup-layout--edit'}`}>
+          {/* Coluna "Pelo celular" real (070); sem ela, só o cadastro manual — nunca um mock com dado inventado. */}
+          {phonePanel && <aside className="source-setup-side source-setup-phone">{phonePanel}</aside>}
 
           <div className="source-setup-main">
-            <h2 className="source-setup-main-title">{t('add.service')}</h2>
-            <p className="source-setup-main-text">{t('add.serviceText')}</p>
-
-            <div className="source-setup-methods">
-              <section className="source-setup-panel source-setup-pair" aria-labelledby="pair-phone-title">
-                <p className="source-setup-eyebrow">{t('add.soon')}</p>
-                <h3 id="pair-phone-title" className="source-setup-panel-title">
-                  {t('add.phone')}
-                </h3>
-                <p className="source-setup-panel-text">{t('add.phoneText')}</p>
-                <ComingSoon id="pair-phone" />
-              </section>
-
-              <section className="source-setup-panel source-setup-manual" aria-labelledby="manual-setup-title">
-                <p className="source-setup-eyebrow">{t('add.available')}</p>
-                <h3 id="manual-setup-title" className="source-setup-panel-title">
-                  {t('add.manual')}
-                </h3>
-                <div className="source-type-row" role="group" aria-label={t('add.typeGroup')}>
-                  {ENTRY_TYPES.map((type) => {
-                    const selected = type.id === mode
-                    return (
-                      <button
-                        key={type.id}
-                        ref={selected ? selectedTypeRef : undefined}
-                        type="button"
-                        className={`source-type${selected ? ' is-selected' : ''}`}
-                        aria-pressed={selected}
-                        onClick={() => setMode(type.id)}
-                      >
-                        <span className="source-type-head">
-                          <b>{typeTitle(type.title)}</b>
-                          {/* Marca visível além da cor (FR-015); o estado lido é o `aria-pressed`. */}
-                          {selected && (
-                            <span className="source-type-check" aria-hidden="true">
-                              ✓
-                            </span>
-                          )}
-                        </span>
-                        <span className="source-type-text">{t(type.description)}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </section>
-            </div>
+            <section className="source-setup-manual" aria-labelledby="manual-setup-title">
+              <h2 id="manual-setup-title" className="source-setup-main-title">
+                {t('add.manual')}
+              </h2>
+              <div className="source-type-row" role="group" aria-label={t('add.typeGroup')}>
+                {ENTRY_TYPES.map((type) => {
+                  const selected = type.id === mode
+                  return (
+                    <button
+                      key={type.id}
+                      ref={selected ? selectedTypeRef : undefined}
+                      type="button"
+                      className={`source-type${selected ? ' is-selected' : ''}`}
+                      aria-pressed={selected}
+                      onClick={() => setMode(type.id)}
+                    >
+                      <span className="source-type-head">
+                        <b>{typeTitle(type.title)}</b>
+                        {/* Marca visível além da cor (FR-015); o estado lido é o `aria-pressed`. */}
+                        {selected && (
+                          <span className="source-type-check" aria-hidden="true">
+                            ✓
+                          </span>
+                        )}
+                      </span>
+                      <span className="source-type-text">{t(type.description)}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
 
             {fields}
             {feedbackAndActions}

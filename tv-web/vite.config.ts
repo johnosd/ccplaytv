@@ -141,6 +141,13 @@ export default defineConfig({
       // estivesse na mesma rede. Não amplie esta lista.
       allow: ['.', '../api/tests/fixtures'],
     },
+    // Só desenvolvimento do portal (`npm run dev:portal`): a API do portal não envia CORS (a TV usa a política
+    // de acesso do config.xml) e recusa `Origin` nas rotas da TV. O proxy same-origin remove o `Origin` do
+    // navegador para o alvo LOCAL informado; sem a variável, nada muda.
+    proxy: process.env.VITE_PORTAL_DEV_PROXY
+      ? { '/portal/v1': { target: process.env.VITE_PORTAL_DEV_PROXY, changeOrigin: false,
+          configure: (proxy) => { proxy.on('proxyReq', (request) => { request.removeHeader('origin') }) } } }
+      : undefined,
   },
   test: {
     // Dois projetos porque subir o jsdom custa ~5 s por arquivo (medido em

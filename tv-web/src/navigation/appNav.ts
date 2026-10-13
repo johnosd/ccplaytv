@@ -129,6 +129,8 @@ export type AppNavAction =
   /** Indicador da lista ativa na topbar (FR-017). */
   | { type: 'open-profiles'; from?: AppScreen }
   | { type: 'back' }
+  /** RETURN no Início (feature 070, US4): sai da lista para a tela de listas como base, foco na lista que estava aberta. */
+  | { type: 'leave-list' }
   /** Uma lista foi excluída. Se era a ativa, a tela de perfis vira a base (edge case da spec). */
   | { type: 'source-removed'; sourceId: string }
   /** "Voltar" da tela de progresso sem abrir a lista (FR-039): perfis como base, foco na lista importada. */
@@ -210,6 +212,10 @@ export function appNavReducer(state: AppNavState, action: AppNavAction): AppNavS
 
     case 'import-back':
       return profilesAsBase(action.sourceId ?? null)
+
+    case 'leave-list':
+      // Stub do sdd-plan (feature 070): implementar em T0NN (ver tasks.md).
+      throw new Error('not implemented')
 
     case 'go-home': {
       const homeIndex = state.history.findIndex((entry) => entry.name === 'home')

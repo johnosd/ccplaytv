@@ -1,5 +1,7 @@
 import { allowListEntry } from './lib/licensing/licenseRuntime'
 import { usePortalIntegration } from './features/portal/usePortalIntegration'
+import { PortalPairingPanel } from './features/portal/PortalPairingPanel'
+import { getPortalConnection } from './lib/portal/portalRuntime'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { SplashScreen } from './features/splash/SplashScreen'
@@ -39,6 +41,11 @@ import { useStartupReadiness } from './lib/useStartupReadiness'
  * `tsc` não distribui bem um objeto com campo de discriminante não-literal
  * contra a união `AppScreen` quando o objeto tem mais de um campo.
  */
+/** Configuração inválida do portal vira o estado honesto do painel, nunca uma tela quebrada (070, D-008). */
+function safePortalConnection() {
+  try { return getPortalConnection() } catch { return undefined }
+}
+
 function openFavoritesScreen(destination: TopDestination): AppScreen {
   if (destination === 'live') return { name: 'live', openFavorites: true }
   if (destination === 'movies') return { name: 'movies-category', target: { kind: 'favorites' } }
@@ -308,7 +315,6 @@ function App() {
           // "Gerenciar listas" (feature 026, FR-032): Configurações › Fontes
           // IPTV sem lista ativa, sem topbar (`standalone`).
           onManageSources={() => dispatch({ type: 'open', screen: { name: 'settings', standalone: true } })}
-          onOpenPortal={() => dispatch({ type: 'open', screen: { name: 'settings', standalone: true, restore: { zone: 'panel', tab: 'portal' } }, from: { ...screen, focusSourceId: ADD_LIST_FOCUS_ID } })}
           onBack={goBack}
         />
       )
@@ -329,6 +335,8 @@ function App() {
         <AddSourceScreen
           onSourceCreated={({ jobId }) => dispatch({ type: 'open', screen: { name: 'progress', jobId } })}
           onBack={goBack}
+          // Feature 070 (D-008): coluna "Pelo celular" montada aqui — features/import não importa features/portal.
+          phonePanel={<PortalPairingPanel connection={safePortalConnection()} onBack={goBack} />}
         />
       )
 

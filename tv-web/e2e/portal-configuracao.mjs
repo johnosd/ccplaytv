@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { chromium, expect } from '@playwright/test'
+import { abrirPortalLicenca } from './lib/portal.mjs'
 import { mkdir } from 'node:fs/promises'
 const origin = 'https://portal.fixture.test'
 const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5175', '--strictPort'], {
@@ -63,10 +64,7 @@ try {
   const page = await context.newPage()
   await page.goto('http://127.0.0.1:5175/')
   await page.locator('.add-card.tv-focus').waitFor({ timeout: 10000 })
-  await page.keyboard.press('ArrowDown')
-  await page.keyboard.press('ArrowRight')
-  await expect(page.getByRole('button', { name: 'Adicionar pelo site' })).toHaveClass(/tv-focus/)
-  await page.keyboard.press('Enter')
+  await abrirPortalLicenca(page)
   await page.getByRole('heading', { name: 'Portal & licença', exact: true }).waitFor()
   await page.getByRole('button', { name: 'Gerar QR para o portal' }).click()
   await expect(page.getByRole('img', { name: /QR de acesso/ })).toBeVisible()
@@ -124,7 +122,8 @@ try {
   await expect.poll(() => recoveryAckLost, { timeout: 15000 }).toBe(true)
   // Recarregar reproduz a perda do processo entre o commit das credenciais e o ACK.
   await page.reload()
-  await page.getByRole('button', { name: 'Adicionar pelo site', exact: true }).click()
+  await page.locator('.add-card').waitFor({ timeout: 15000 })
+  await abrirPortalLicenca(page)
   await expect.poll(() => page.evaluate(async () => {
     const { db } = await import('/src/lib/catalog/db.ts')
     return !(await db.table('portalDevice').get('bootstrap'))

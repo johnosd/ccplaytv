@@ -671,15 +671,29 @@ describe('ProfilesScreen — exclusão confirmada (FR-010, FR-011)', () => {
   })
 })
 
-it('069: atalho do portal exige SELECT e RETURN restaura Adicionar lista', () => {
-  mockLoaded()
-  const onOpenPortal = vi.fn()
-  renderProfiles({ onOpenPortal })
-  press('ArrowDown', 'ArrowRight')
-  expect(card('Adicionar pelo site')).toHaveClass('tv-focus')
-  expect(onOpenPortal).not.toHaveBeenCalled()
+it('069/070: com listas cadastradas, "Configurações" é alcançável a partir da linha de ações da lista (BAIXO)', () => {
+  mockLoaded(LISTA_1, LISTA_2)
+  const onManageSources = vi.fn()
+  renderProfiles({ onManageSources })
+  // Cartão da lista → BAIXO abre as ações (contrato 023) → BAIXO de novo chega ao botão do canto.
+  press('ArrowDown')
+  expect(card('Ressincronizar')).toHaveClass('tv-focus')
+  press('ArrowDown')
+  expect(card('Configurações')).toHaveClass('tv-focus')
+  expect(onManageSources).not.toHaveBeenCalled()
+  press('ArrowRight')
+  expect(card('Configurações')).toHaveClass('tv-focus')
   press('Enter')
-  expect(onOpenPortal).toHaveBeenCalledTimes(1)
-  press('Escape')
+  expect(onManageSources).toHaveBeenCalledTimes(1)
+})
+
+it('070 (D-009): a entrada pelo celular é "Adicionar lista" — não existe mais o canto "Adicionar pelo site"', () => {
+  mockLoaded(LISTA_1)
+  const onAddSource = vi.fn()
+  renderProfiles({ onAddSource })
+  expect(screen.queryByRole('button', { name: /pelo site/i })).not.toBeInTheDocument()
+  press('ArrowRight')
   expect(card('Adicionar lista')).toHaveClass('tv-focus')
+  press('Enter')
+  expect(onAddSource).toHaveBeenCalledTimes(1)
 })

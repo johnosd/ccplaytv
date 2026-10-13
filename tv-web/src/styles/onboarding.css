@@ -188,6 +188,17 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* Feature 070: coluna "Pelo celular" (ID, chave, endereço, QR) ao lado do cadastro manual. */
+.source-setup-layout--pairing {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+}
+
+.source-setup-manual {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .source-setup-side,
 .source-setup-main {
   box-sizing: border-box;

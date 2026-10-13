@@ -62,10 +62,85 @@ it('QR aceita somente imagem PNG local e prazo curto; nenhum URI remoto é rende
   const request = vi.fn(async () => response)
   const connection = new PortalConnection(db, { request: request as never }, 'https://portal.test', () => 'fixture-duid')
   expect((await connection.invite()).deviceId).toBe('device-a')
-  for (const invalid of [{ ...valid, qrDataUrl: 'https://third-party.test/qr' }, { ...valid, expiresAt: new Date(Date.now() - 1).toISOString() }, { ...valid, token: 'invalid' }]) {
+  for (const invalid of [{ ...valid, qrDataUrl: 'https://third-party.test/qr' }, { ...valid, expiresAt: 'não-é-uma-data' }, { ...valid, token: 'invalid' }]) {
     response = invalid
     await expect(connection.invite()).rejects.toThrow('service_unavailable')
   }
+})
+
+it('prazo do convite é ancorado no relógio da TV: servidor adiantado, atrasado ou absurdo não invalida um convite válido', async () => {
+  // Achado na TV/staging: o servidor emite exatamente 300 s e a TV rejeitava `expiresAt > agora + 300 s`;
+  // qualquer relógio local atrasado ≥ 1 s em relação ao servidor tornava o QR impossível.
+  const db = database()
+  await persistCredentialIssuance(db, credentials, 'enrollment-a', 1)
+  await acknowledgeCredentialIssuance(db, 'enrollment-a', 1)
+  const base = { token: 'a'.repeat(43), qrDataUrl: 'data:image/png;base64,aGVsbG8=' }
+  let response: Record<string, string> = {}
+  const connection = new PortalConnection(db, { request: (async () => response) as never }, 'https://portal.test', () => 'fixture-duid')
+  for (const serverClockOffsetMs of [1_000, 5 * 60_000, 3_600_000, -3_600_000, -86_400_000]) {
+    response = { ...base, expiresAt: new Date(Date.now() + 300_000 + serverClockOffsetMs).toISOString() }
+    const { invite } = await connection.invite()
+    const remaining = Date.parse(invite.expiresAt) - Date.now()
+    expect(remaining, `offset ${serverClockOffsetMs}`).toBeGreaterThan(290_000)
+    expect(remaining, `offset ${serverClockOffsetMs}`).toBeLessThanOrEqual(300_000)
+  }
+})
+
+it('desafio de recuperação com relógio do servidor adiantado persiste com prazo local de até 5 min', async () => {
+  const db = database()
+  const challenge = { claimId: 'claim-fixture', deviceId: 'device-a', token: 'a'.repeat(42) + 'A', claimSecret: 'b'.repeat(42) + 'A',
+    expiresAt: new Date(Date.now() + 301_000).toISOString(), qrDataUrl: 'data:image/png;base64,aGVsbG8=' }
+  const connection = new PortalConnection(db, { request: (async () => challenge) as never }, 'https://portal.test', () => 'fixture-duid')
+  const { invite } = await connection.recovery()
+  const remaining = Date.parse(invite.expiresAt) - Date.now()
+  expect(remaining).toBeGreaterThan(290_000)
+  expect(remaining).toBeLessThanOrEqual(300_000)
+  const saved = (await portalTables(db).bootstrap.get('bootstrap'))?.pendingRecovery
+  expect(saved?.expiresAt).toBe(Date.parse(invite.expiresAt))
+})
+
+it('070: cadastro envia o MAC normalizado; getMac ausente, inútil ou lançando não impede o cadastro nem envia mac', async () => {
+  for (const [getMac, expected] of [
+    [() => 'a0-8c-fd-19-0a-8c', 'A0:8C:FD:19:0A:8C'], [() => '00:00:00:00:00:00', undefined],
+    [() => { throw Error('fake-private') }, undefined], [undefined, undefined],
+  ] as [(() => string) | undefined, string | undefined][]) {
+    const db = database()
+    const bodies: Record<string, unknown>[] = []
+    const request = vi.fn(async (path: string, options: { body?: Record<string, unknown> }) => {
+      if (path.endsWith('/enroll')) { bodies.push(options.body!); return { ...credentials, displayId: '02:00:00:00:00:01', deviceKey: '1732049818', operationId: 'enrollment-a' } }
+      return undefined
+    })
+    const connection = new PortalConnection(db, { request: request as never }, 'https://portal.test', () => 'fixture-duid', getMac)
+    const device = await connection.ready()
+    expect(bodies[0].mac).toBe(expected)
+    expect(device.displayId).toBe('02:00:00:00:00:01')
+    expect(JSON.stringify(bodies[0])).not.toContain('fake-private')
+  }
+})
+
+it('070/D-004: registro anterior à 070 ganha ID e chave numérica por UMA rotação revoke; registro novo não rotaciona', async () => {
+  const db = database()
+  await persistCredentialIssuance(db, credentials, 'enrollment-a', 1)
+  await acknowledgeCredentialIssuance(db, 'enrollment-a', 1)
+  const paths: string[] = []
+  const request = vi.fn(async (path: string, options: { body?: Record<string, unknown> }) => {
+    paths.push(path)
+    if (path.endsWith('/revoke')) { expect(options.body?.mac).toBe('A0:8C:FD:19:0A:8C'); return { state: 'ready' } }
+    if (path.endsWith('/result')) {
+      const pending = (await portalTables(db).bootstrap.get('bootstrap'))!.pendingRotation!
+      return { operationId: pending.operationId, state: 'ready', credentials: { ...credentials, displayId: 'A0:8C:FD:19:0A:8C',
+        deviceKey: '1732049818', authEpoch: 2, recoveryCodeVersion: 2, bearer: 'device-a.' + 'd'.repeat(42) + 'A' } }
+    }
+    return undefined
+  })
+  const connection = new PortalConnection(db, { request: request as never }, 'https://portal.test', () => 'fixture-duid', () => 'a0:8c:fd:19:0a:8c')
+  const upgraded = await connection.ensurePairing()
+  expect(upgraded.displayId).toBe('A0:8C:FD:19:0A:8C')
+  expect(upgraded.deviceKey).toBe('1732049818')
+  expect(paths.filter(path => path.endsWith('/revoke'))).toHaveLength(1)
+  paths.length = 0
+  expect((await connection.ensurePairing()).deviceKey).toBe('1732049818')
+  expect(paths.filter(path => path.endsWith('/revoke'))).toHaveLength(0)
 })
 
 it('recuperação persiste prova antes do QR e retoma ACK perdido sem recadastrar/apagar fontes', async () => {

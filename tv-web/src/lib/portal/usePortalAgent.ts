@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import type { CatalogDb } from '../catalog/db'
 import { sharedPortalAgent, type PortalAgentPorts } from './portalAgent'
+import { registerPortalSyncNow } from './portalRuntime'
 
 /** Montar no App com portas estáveis; quick só para QR/configuração/compra aberta. */
 export function usePortalAgent(database: CatalogDb, ports: PortalAgentPorts, quick = false, enabled = true) {
@@ -10,6 +11,7 @@ export function usePortalAgent(database: CatalogDb, ports: PortalAgentPorts, qui
     const lifecycle = () => agent.lifecycle(document.visibilityState !== 'hidden', navigator.onLine)
     lifecycle()
     const detach = agent.attach(quick)
+    const unregister = registerPortalSyncNow(() => agent.syncNow())
     document.addEventListener('visibilitychange', lifecycle)
     window.addEventListener('online', lifecycle)
     window.addEventListener('offline', lifecycle)
@@ -22,6 +24,7 @@ export function usePortalAgent(database: CatalogDb, ports: PortalAgentPorts, qui
       window.removeEventListener('offline', lifecycle)
       window.removeEventListener('pageshow', lifecycle)
       window.removeEventListener('pagehide', hide)
+      unregister()
       detach()
     }
   }, [database, ports, quick, enabled])

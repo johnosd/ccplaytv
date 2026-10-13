@@ -5,6 +5,8 @@ import type { CatalogDb } from '../catalog/db'
 export interface PortalDeviceRecord {
   id: 'device'
   deviceId: string
+  /** ID exibido `XX:XX:XX:XX:XX:XX` (feature 070, D-002); ausente em registros anteriores à 070 (upgrade D-004). */
+  displayId?: string
   bearer: string
   deviceKey: string
   authEpoch: number

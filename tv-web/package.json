@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:portal": "node scripts/dev-portal.mjs",
     "build": "tsc -b && vite build && node scripts/check-no-demux-in-build.mjs",
     "build:tizen": "tsc -b && vite build && node scripts/check-no-demux-in-build.mjs && node scripts/sync-tizen.mjs",
     "lint": "oxlint && node scripts/architecture.mjs",

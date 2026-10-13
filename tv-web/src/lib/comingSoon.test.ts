@@ -32,7 +32,6 @@ describe('getComingSoon', () => {
       'dock-ai',
       'dock-weather',
       'home-ai-curation',
-      'pair-phone',
       'voice-search',
     ])
   })
@@ -43,7 +42,8 @@ describe('getComingSoon', () => {
       expect(entry.message.trim(), `mensagem de ${id}`).not.toBe('')
       expect(String(entry.backlogItem).trim(), `backlogItem de ${id}`).not.toBe('')
     }
-    expect(getComingSoon('pair-phone').backlogItem).toBe(22)
+    expect(getComingSoon('home-ai-curation').backlogItem).toBe(30)
+    expect(() => getComingSoon('pair-phone')).toThrow() // deixou de ser mock na 070 (coluna real do celular)
     expect(() => getComingSoon('epg-guide')).toThrow() // deixou de ser mock na 031
     expect(() => getComingSoon('dock-tmdb')).toThrow() // deixou de ser mock na 032 (ícone real do dock)
     expect(() => getComingSoon('settings-integrations')).toThrow() // deixou de ser mock na 032 (aba real)
