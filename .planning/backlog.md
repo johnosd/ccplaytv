@@ -6,6 +6,10 @@ update-bug-status.ps1.
 
 ## Ideias Futuras
 
+- [Ideia] Ação "desvincular do portal" na TV (origem: TV física da 070, 2026-10-13): hoje não há como limpar só o pareamento local — apagar o registro no serviço deixa a TV presa em "não autorizado" e a única saída é desinstalar (perde listas, favoritos, histórico, progresso e chave TMDB). A ação limparia só as tabelas do portal no IndexedDB e pareada de novo, preservando o catálogo; serviria para resetar a TV de referência (ID `2A:…`, anterior ao privilégio de rede) e para suporte real. Envolve a ADR-015 (o ID antigo só some com operação documentada no serviço). Pede `sdd-specify`.
+
+- [Infra] Portal no domínio próprio `ccplaytv.com` (pedido do usuário, 2026-10-13): mapear o domínio para o Cloud Run `ccplaytv-portal` (domain mapping ou Firebase Hosting com rewrite — há `infra/portal/firebase.json`), DNS no registrador pelo usuário e certificado gerenciado; trocar `CCPLAY_PORTAL_PUBLIC_ORIGIN` no serviço (links do QR e conferência de origem) e `VITE_PORTAL_ORIGIN`/`VITE_PORTAL_SITE_URL` no `build:tizen:commercial`, e reinstalar na TV (sem desinstalar). Avaliar se o QR/convite e os cookies (`Secure`, `SameSite=Strict`, `Path=/portal/v1`) continuam válidos na troca e se o endereço `run.app` antigo deve redirecionar. Decidido em 2026-10-13: primeiro validar a TV no endereço atual do staging.
+
 - [Implementação — prioridade alta] **Decidido na ADR-015 (2026-10-13):** ID imutável depois da primeira atribuição; origem = MAC real congelado no 1º pareamento (privilégio de rede após a T003) ou, sem MAC/colisão, ID derivado do DUID com chave do serviço; sem sorteio; registros existentes mantidos. Falta implementar na 070, antes da T042 (TV física): derivação + invariante de imutabilidade na API e testes, T003 e privilégio em `config.xml`, texto do FAQ. Histórico da pendência: revisar a regra do ID do dispositivo (endereço MAC): ele deve ser **único por TV e nunca mudar**, porque a licença anual (069) e a gestão de listas pelo portal (070) ficam presas a esse ID. Hoje a ADR-014 usa o MAC da TV quando disponível e, sem MAC ou se o MAC já pertence a outra TV, o serviço gera outro ID aleatório no mesmo formato — o usuário discorda dessa troca. Desde 2026-10-13 o portal chama o campo de "Endereço MAC" (login, card do dispositivo, Ativar e FAQ). Investigar o que pode fazer o ID mudar (reinstalação, MAC indisponível no Tizen, colisão, recuperação) e o efeito na licença e na recuperação. Retomar com `sdd-adr` (emenda à ADR-014) antes de qualquer código; ao decidir, atualizar a pergunta "O que é o endereço MAC" em `portal-web/src/lib/i18n/faq.ts`, que hoje descreve o fallback. Origem: revisão de UX do portal, 2026-10-13. Alem disso se o device id e device key forem unicos por tv, podemos gerar o qr apenas uma vez sem necessidade de criar sempre
 
 - [Bug] `teste-conexao-tv`: suíte E2E da 069 esperava `NET-W-QUOTA`, mas recebeu resultado completo sem aviso (linha 176, espera 5 s). Origem: 069-portal-tv-licenca-anual, 2026-10-11. Usuário decidiu registrar para depois e manter gate E2E pendente; causa não investigada e nenhum teste/timeout alterado. Retomar com `sdd-bugfix`.
@@ -88,7 +92,7 @@ update-bug-status.ps1.
 | 067-configuracoes-lista-global | Separar configurações da lista das configurações globais do app | Convergência Pendente | 52/53 tasks | 2026-10-10 |
 | 068-legibilidade-tv | Legibilidade para TV — letra maior no app e TV ao vivo em coluna única | Encerrada | 42/44 tasks | 2026-10-10 |
 | 069-portal-tv-licenca-anual | Portal web da TV por QR code e licença anual | Em Execução | 59/67 tasks | 2026-10-13 |
-| 070-entrada-listas-gerenciador | Entrada de listas estilo gerenciador | Em Execução | 55/61 tasks | 2026-10-13 |
+| 070-entrada-listas-gerenciador | Entrada de listas estilo gerenciador | Em Execução | 61/61 tasks | 2026-10-13 |
 
 ## Bugs
 

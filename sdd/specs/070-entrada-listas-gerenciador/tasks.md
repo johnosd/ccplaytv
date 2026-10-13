@@ -23,7 +23,7 @@ description: "Tasks da feature 070 — entrada de listas estilo gerenciador"
 
 - [X] T001 Emendar `.planning/memory/constitution.md` 1.9.0 → 1.10.0 (MINOR) nas três cláusulas de "Segredos" conforme D-001: chave do dispositivo sempre visível **só** na tela Adicionar da TV; painel autenticado da mesma TV recebe valores salvos; TV mostra credencial local na edição/digitação com olho. Manter proibições de log/URL/QR/cards/erros/exportação. Registrar Sync Impact Report no topo. (FR-024)
 - [X] T002 Registrar `sdd/adr/ADR-014-*.md` via `sdd-adr` (ID formato MAC, chave numérica permanente, valores salvos ao painel, riscos aceitos R-004/R-005 e mitigações); anotar `**Atualização (ADR-014):**` na ADR-013. (FR-024)
-- [ ] T003 Estender `tv-web/src/lib/portal/platformProbe.ts` para medir `webapis.network.getMac()` (existência, valor normalizado, erro) e rodar na TV física sem desinstalar; registrar em `evidencias/plataforma.md` se o privilégio `network.public` é necessário. Só então decidir T017. (FR-025, R-003)
+- [X] T003 Estender `tv-web/src/lib/portal/platformProbe.ts` para medir `webapis.network.getMac()` (existência, valor normalizado, erro) e rodar na TV física sem desinstalar; registrar em `evidencias/plataforma.md` se o privilégio `network.public` é necessário. Só então decidir T017. (FR-025, R-003)
 
 **Critério de Conclusão**: constitution 1.10.0 e ADR-014 aprovados pelo usuário; resultado do MAC na TV registrado (disponível, exige privilégio ou indisponível).
 
@@ -97,7 +97,7 @@ description: "Tasks da feature 070 — entrada de listas estilo gerenciador"
 - [X] T014 [US1] **Emenda autorizada (2026-10-13, R-002)** do teste 2 de `tv-web/src/features/import/AddSourceScreen.entrada-listas.contract.test.tsx`: sem `phonePanel`, a coluna do celular mostra estado honesto e focável, sem ID/chave/QR/endereço inventados; regravar só a trava 037 (`check-contract-tests.ps1 -Slug 037-entrada-listas-prototipo -Write`) e anotar R-00X no `plan.md` da 037.
 - [X] T015 [US1] Em `tv-web/src/App.tsx`, passar `<PortalPairingPanel connection={getPortalConnection()} … />` ao `AddSourceScreen` (cadastro), e reagir a Recarregar (lista nova → foco por id nos perfis).
 - [X] T016 [US1] Remover o canto "Adicionar pelo site" de `tv-web/src/features/profiles/ProfilesScreen.tsx` e o wiring `onOpenPortal` dos perfis em `App.tsx`; ajustar `ProfilesScreen.test.tsx` (testes 069). Configurações → "Portal & licença" permanece. (FR-001, D-009)
-- [ ] T017 [US1] Somente se T003 provar necessidade: privilégio `network.public` em `CCPlayTv/config.xml` (e arquivos listados em `tizen_web_project.yaml`, se mudarem). (FR-025)
+- [X] T017 [US1] Somente se T003 provar necessidade: privilégio `network.public` em `CCPlayTv/config.xml` (e arquivos listados em `tizen_web_project.yaml`, se mudarem). (FR-025)
 
 - [X] T044 [US1] (ad-hoc, descoberta na T019) `portal-web/src/features/api.ts`: a sessão manual passa a enviar `displayId` — a T006 mudou o corpo exigido pela API e o login manual do site daria 422 até a Fase 5. Rótulos/olho do login ficam para a T027.
 - [X] T045 [US1] (ad-hoc, descoberta na T016) E2E que clicavam no canto removido "Adicionar pelo site" (`portal-configuracao`, `licenca-anual`, `portal-dev-server`, `portal-integrado-local`, `portal-pacote-file`) passam a abrir Configurações → "Portal & licença" pelo controle via `tv-web/e2e/lib/portal.mjs`; o mock `pair-phone` saiu do registro de "Em breve" (`lib/comingSoon.ts`, traduções e teste), e o subtítulo do cadastro deixou de dizer "chega em breve".
@@ -223,10 +223,10 @@ description: "Tasks da feature 070 — entrada de listas estilo gerenciador"
 
 - [X] T037 Revisão de segredos com marcadores fictícios (DOM, URL, QR, logs da API, cabeçalhos de cache, erros) — `evidencias/segredos.md`. (SC-006, Constitution: Fluxo)
 - [X] T038 Atualizar `docs/portal/operacao.md` (entrada por ID + chave, rotação, rota `values`), `infra/portal/README.md` e `README.md` se citarem o fluxo antigo.
-- [ ] T039 Gates: TV `tsc`/lint/`npm run test`/build/`build:tizen`; API pytest + Ruff; portal lint/test/build/E2E; travas 070/037/045/023/024/069 íntegras.
+- [X] T039 Gates: TV `tsc`/lint/`npm run test`/build/`build:tizen`; API pytest + Ruff; portal lint/test/build/E2E; travas 070/037/045/023/024/069 íntegras.
 - [X] T040 `npm run test:e2e` completo com `npm run dev`, mais `portal-dev-server.mjs`, `portal-pacote-file.mjs` e `entrada-listas-gerenciador.mjs`.
 - [X] T041 Publicar API e portal-web no staging (**ação externa: pedir confirmação do usuário**) e repetir o E2E do pacote contra o staging.
-- [ ] T042 TV física (quickstart): instalar comercial sem desinstalar, conferir upgrade D-004, MAC ou ID gerado, passos 1–7; `evidencias/tv.md`.
+- [X] T042 TV física (quickstart): instalar comercial sem desinstalar, conferir upgrade D-004, MAC ou ID gerado, passos 1–7; `evidencias/tv.md`.
 - [X] T043 Backlog/status via scripts; `plan.md` Estado Atual/Execution Notes.
 
 ### Registro do Polish (checkpoint contínuo)
@@ -248,7 +248,7 @@ description: "Tasks da feature 070 — entrada de listas estilo gerenciador"
 
 ### Checklist de Release
 
-- [ ] Fase 1 (constitution 1.10.0, ADR-014, sonda MAC) concluída — normas OK; sonda na TV pendente
+- [X] Fase 1 (constitution 1.10.0, ADR-014, sonda MAC) concluída — sonda na TV em 2026-10-13: MAC indisponível sem privilégio, `passed` com `network.public`
 - [X] Fase 2 (ID + chave) concluída
 - [X] Fase 3 (US1) concluída
 - [X] Fase 4 (US2) concluída
@@ -258,7 +258,7 @@ description: "Tasks da feature 070 — entrada de listas estilo gerenciador"
 - [X] E2E no dev server e no pacote `file://` aprovados antes da TV
 - [X] Revisão de segredos aprovada
 - [X] Staging publicado com confirmação do usuário
-- [ ] TV física: quickstart observado pelo usuário
+- [X] TV física: quickstart observado pelo usuário (2026-10-13, `evidencias/tv.md`; item do MAC reprovado → T017)
 
 ---
 

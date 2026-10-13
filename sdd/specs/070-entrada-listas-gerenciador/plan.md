@@ -167,7 +167,7 @@ Travas de outras features afetadas: **037** (`AddSourceScreen.entrada-listas.con
 | Área | Estado |
 | --- | --- |
 | Normas | Constitution 1.10.0 e ADR-014 aplicadas (exceção de pareamento a/b/c). |
-| Plataforma | Sonda mede o MAC; execução na TV física pendente (T003). |
+| Plataforma | T003/T017 concluídas na TV física (2026-10-13): sem o privilégio o app não obtinha o MAC (ID `2A:…` local); com `network.public` no `config.xml` a sonda dá `mac: passed`. Esta TV mantém o ID atual (imutável). |
 | Identidade | Fase 2 concluída: ID formato MAC + chave de 10 dígitos no servidor e na TV; upgrade D-004; sessão manual por ID. Emenda ADR-015 (T047–T050): sem MAC útil o ID é derivado da identidade (sem sorteio) e é imutável no repositório. API 124/124, TV lib/portal 59/59. |
 | Tela Adicionar (US1) | Fase 3 concluída: coluna real "Pelo celular" (ID/chave/URL/QR, Recarregar, nova chave), cadastro em duas colunas, canto do portal removido dos perfis, emenda 037 aplicada. E2E da US1 PASS. |
 | Formulário (US2) | Fase 4 concluída: olho único "Ocultar dados"/"Mostrar dados", dados visíveis por padrão, edição com valores salvos, campos grandes. C2 verde; legibilidade pt/en/es inclui a edição. |
@@ -175,7 +175,7 @@ Travas de outras features afetadas: **037** (`AddSourceScreen.entrada-listas.con
 | Saída US4 | Fase 6 concluída: `leave-list` zera a pilha, RETURN do Início vai aos perfis base e o E2E local cobre a cadeia com foco por id. |
 | Polish | T037/T038/T040/T041 concluídas; revisão de segredos, documentação, E2E dev 49/49, `portal-dev-server` e pacote `file://` contra staging PASS. Staging está na revisão `ccplaytv-portal-00014-tr5`; Vitest completo ficou 3327/3330, com as 3 falhas passando isoladamente. |
 | Staging | Publicado com autorização em 2026-10-13; Cloud Build `93e3daf1-2742-44ee-a1c8-c46f8884ad7c`, Cloud Run `ccplaytv-portal-00014-tr5`, smoke `/health` 200, `/` 200 e rota protegida 401. |
-| Próximas fases | Republicar o staging com a API da ADR-015 (repetir T041, com confirmação) **antes** de qualquer instalação na TV; depois `build:tizen:commercial` + T003/T017 (sonda/privilégio) e T042 (TV física). T039 fecha com o `build:tizen` desse passo (Vitest completo 3330/3330 em 2026-10-13). |
+| Próximas fases | Todas as tasks marcadas. Falta o gate final: `npm run test:e2e` completo com `npm run dev` comum (o 5173 estava ocupado pelo `dev:portal`), depois `sdd-converge`. TV física: quickstart aprovado pelo usuário (`evidencias/tv.md`). |
 
 ## Riscos e Decisões
 
@@ -207,8 +207,9 @@ Travas de outras features afetadas: **037** (`AddSourceScreen.entrada-listas.con
 | 2026-10-13 | Fase 6 (US4) | `leave-list` no redutor, Home sem `ExitModal`, wiring de RETURN no App, teste App/Home e E2E local com retorno Início → perfis e foco por id; 17/17 focados e `entrada-listas-gerenciador.mjs` PASS. | T003/T017 (TV), T037–T040 (polish), T041 (staging com confirmação) e T042 (TV física). |
 | 2026-10-13 | Polish (T037–T041) | Revisão de segredos em `evidencias/segredos.md`; docs portal/infra/README atualizados; TV tsc/lint/build/build:tizen PASS; E2E dev 49/49, `portal-dev-server`, `entrada-listas-gerenciador` e pacote `file://` contra staging PASS; Cloud Build `93e3daf1-2742-44ee-a1c8-c46f8884ad7c`, revisão Cloud Run `00014-tr5`, smoke 200/200/401 e zero marcadores nos 100 logs consultados; contrato 070 5/5. | T039 permanece aberto pelas 3 falhas sob carga que passam isoladamente; T003/T017/T042 e T043 continuam pendentes. |
 | 2026-10-13 | Emenda ADR-015 (Fase 2, T047–T050) | ID derivado da identidade no lugar do sorteio; `immutable_display_id` e claims imutáveis no repositório; FAQ do portal e notas em `logic/pareamento.md`/`data-model.md`. API 124/124 + Ruff; portal 6/6, build, E2E 14/14; TV lib/portal 59/59, `tsc -b`; travas 070/037/045/023/024/069 íntegras. | Staging com a API anterior — republicar antes da TV. |
+| 2026-10-13 | TV física (T003/T017/T042/T039) | Staging republicado com a ADR-015 (`ccplaytv-portal-00016-srm`); pacote comercial instalado sem desinstalar; quickstart aprovado pelo usuário (QR, ID/chave, seletor, portal, Recarregar, RETURN); MAC ausente sem privilégio → `network.public` no `config.xml`, sonda `mac: passed`; coletor aceita `mac` e POST sem `Origin`. | Gate e2e completo com `npm run dev`. |
 
-**PRÓXIMO**: republicar o staging com a API da ADR-015 (T041 de novo, **pedir confirmação**); em seguida `build:tizen:commercial` + instalação sem desinstalar (`tizen-tv`), T003 (sonda do MAC) → T017 (privilégio) e T042 (quickstart na TV física); fechar T039 com o `build:tizen`.
+**PRÓXIMO**: parar o `dev:portal`, subir `npm run dev` e rodar `npm run test:e2e` completo (revisão de UI de 2026-10-13 mexeu na tela Adicionar); se verde, `update-feature-status.ps1 -Status Implementada` e `sdd-converge`. Ideias separadas: domínio `ccplaytv.com` e ação "desvincular" para resetar o pareamento sem apagar listas.
 
 ## Arquivos Principais
 
