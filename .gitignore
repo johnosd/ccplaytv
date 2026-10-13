@@ -31,6 +31,7 @@ logs/*-dev*.log
 # Caches e evidências efêmeras da infraestrutura/portal
 .cache/
 portal-web/test-results/
+tv-web/test-results/pytest-*/
 portal-web/playwright-report/
 
 # Local Cloud Run staging credentials
