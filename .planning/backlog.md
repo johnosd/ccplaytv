@@ -85,7 +85,8 @@ update-bug-status.ps1.
 | 066-categorias-controle-parental | Gestão de categorias e controle parental | Convergida | 57/57 tasks | 2026-10-10 |
 | 067-configuracoes-lista-global | Separar configurações da lista das configurações globais do app | Convergência Pendente | 52/53 tasks | 2026-10-10 |
 | 068-legibilidade-tv | Legibilidade para TV — letra maior no app e TV ao vivo em coluna única | Encerrada | 42/44 tasks | 2026-10-10 |
-| 069-portal-tv-licenca-anual | Portal web da TV por QR code e licença anual | Em Execução | 56/64 tasks | 2026-10-12 |
+| 069-portal-tv-licenca-anual | Portal web da TV por QR code e licença anual | Em Execução | 59/67 tasks | 2026-10-13 |
+| 070-entrada-listas-gerenciador | Entrada de listas estilo gerenciador | Em Execução | 21/56 tasks | 2026-10-13 |
 
 ## Bugs
 
@@ -116,6 +117,7 @@ update-bug-status.ps1.
 | live-tv-carregando-durante-reproducao | Live TV carregando durante reprodução | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-11 |
 | trailer-setas-horizontais-avancam-video-vez | Trailer: setas horizontais navegam botões | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-11 |
 | ch-mais-menos-nao-trocam-canal | CH+/CH− não trocam canal no player | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-11 |
+| botoes-gerar-qr-code-portal-nao | Botões de QR do portal inativos no `npm run dev` | Assess | invalid (low) | Nenhum — descartado (invalid) | 2026-10-13 |
 
 ## Melhorias Ad-hoc
 

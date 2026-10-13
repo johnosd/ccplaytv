@@ -393,3 +393,21 @@ Checkpoint desta revisão:3301/3301 unit (563 arquivos),26/26 direcionados, E2E 
 - Por decisão do usuário, não será criada uma nova cobrança de teste. As duas compras sandbox já aprovadas permanecem como evidência de Checkout Pro, aprovação e concessão anual via reconciliação autenticada.
 - O webhook oficial foi validado separadamente pelo evento `payment.updated` com resposta `200 - OK` e logs do Cloud Run confirmando o recebimento.
 - Limitação registrada: não foi demonstrada uma concessão nova causada exclusivamente por um webhook oficial depois da compra; não repetir a compra não altera a evidência já obtida nem habilita venda. T036 segue parcial pelos cenários E2E restantes.
+
+### Desvio ad-hoc T056 — pilha local integrada — 2026-10-13
+
+- [x] T056 Corrigir `401` espúrio em leituras concorrentes da sessão do portal, descoberto na pilha local integrada durante T046: `authenticate_session` agora tolera 30 s de ordem de relógio entre requisições concorrentes e nunca retrocede `last_seen_at` (`api/app/portal/auth.py`); regressão em `api/tests/portal/test_auth.py`. API 111/111 PASS, Ruff PASS. Evidência e comando em `evidencias/pilha-local.md`. (FR-005, FR-014; SC-001)
+
+### Desvio ad-hoc T057 — exclusão local envia a outbox na hora — 2026-10-13
+
+- [x] T057 Enviar imediatamente a exclusão feita na TV, fora da tela rápida, a pedido do usuário: `PortalAgent` observa a outbox `pendingPortalDeletes` e roda só `flushDeletions` + `publishSnapshot` (sem pull, licença nem polling de 10 s), depois de ciclo em andamento, visível/online, backoff do ciclo em falha, prazo de 24 h intacto (`tv-web/src/lib/portal/portalAgent.ts`, 5 testes novos em `portalAgent.test.ts`). Pilha local: 5/5 execuções do cenário completo, portal reflete em ~4 s sem abrir a tela rápida. TV unit relacionados 91/91, tsc e lint/arquitetura PASS. (FR-009-011, FR-033; SC-012)
+
+### Desvio ad-hoc T058 — portal inoperante na TV/dev server — 2026-10-13
+
+- [x] T058 Corrigir, a pedido do usuário ("nenhum botão funciona na TV nem no dev server"), três defeitos reproduzidos com o pacote empacotado sob `file://` e com o dev server: (1) "Adicionar pelo site" inalcançável com listas cadastradas — BAIXO na linha de ações chega a "Configurações"/"Adicionar pelo site" (`ProfilesScreen.tsx`, contratos 023/037 íntegros); (2) convite/desafio recusado pelo relógio da TV (`expiresAt > agora+300 s`) — prazo ancorado no relógio local (`portalConnection.ts`); (3) falha sem diagnóstico — painel mostra "Código do erro". Dev: `npm run dev:portal` (pilha local em `e2e/lib/portalStack.mjs`, proxy same-origin, DUID só-DEV); `npm run dev` simples continua sem portal e agora mostra a dica. Testes Playwright: `e2e/portal-pacote-file.mjs` (pacote + staging, relógio −5 s) e `e2e/portal-dev-server.mjs` (dev server real), ambos PASS; unit 267/267 relacionados, tsc/lint OK. Pacote comercial reinstalado na TV. (FR-002-004, FR-028-029)
+
+### T043 — alterações medidas (parcial) — 2026-10-13
+
+- Por decisão do usuário, o piso de amostras caiu de ≥100 para 20 (R-018). Staging, TV simulada, 20/20 `source.update` com ACK: p50 6,6 s, p95 9,4 s, máx 10,0 s, 100% ≤30 s (SC-003). Detalhes e limites em `evidencias/medicoes.md`.
+- Bloqueio anterior era o script (polling a 100 ms contra limite de 1 pull/10 s por dispositivo), não o enrollment; `measure-staging.ps1` corrigido.
+- T043 **continua aberta**: ativações de licença (SC-006), carga 10–50 TVs/margem 100 e custo completo não medidos.

@@ -1,4 +1,20 @@
 <!--
+Relatório de Impacto de Sincronização (2026-10-13)
+- Mudança de versão: 1.9.0 -> 1.10.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs").
+- Origem: decisões explícitas do usuário no sdd-specify/sdd-plan da feature 070
+  (entrada de listas estilo gerenciador), após aviso de risco; ADR-014.
+- Exceções delimitadas: (a) chave do dispositivo numérica permanente exibida o
+  tempo todo SOMENTE na tela de adicionar lista da TV; (b) painel autenticado da
+  própria TV recebe os valores salvos das listas dela; (c) a TV mostra credencial
+  local na digitação e na edição da própria lista, com controle para ocultar.
+- Continuam proibidos: logs, URL de navegação, QR, cards comuns, mensagens de
+  erro, analytics, checkout, exportação/backup público e terceiros.
+- Riscos aceitos pelo usuário (foto da tela, sessão sequestrada) com mitigações
+  obrigatórias listadas no próprio princípio.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
 Relatório de Impacto de Sincronização (2026-10-11)
 - Mudança de versão: 1.8.0 -> 1.9.0 (MINOR, expansão delimitada da exceção comercial).
 - Decisão explícita do usuário: licença vigente exigida ao entrar na lista;
@@ -72,6 +88,10 @@ Histórico:
   apagar o estado local dela (feature 034)
 - 1.8.0 (2026-10-11): exceções restritas do portal/licença/recuperação pelo
   site e retenção cifrada (feature 069/ADR-013), sem mover catálogo à nuvem.
+- 1.9.0 (2026-10-11): licença exigida só na entrada da lista (feature 069).
+- 1.10.0 (2026-10-13): chave do dispositivo sempre visível na tela de adicionar,
+  valores salvos ao painel da própria TV e credencial local visível com olho
+  (feature 070/ADR-014).
 -->
 
 # Constitution do CCPlay TV
@@ -162,6 +182,24 @@ digitação/guarda/fotografia escolhida pelo usuário, nunca em cards comuns,
 URL de navegação, logs, erros, analytics, checkout ou exportação pública.
 Código da licença é credencial de recuperação, não identificador público;
 reuso/revogação/tentativas DEVEM ser controlados. Não alegar DRM inviolável.
+
+**Exceção de pareamento estilo gerenciador (2026-10-13, feature 070/ADR-014)**,
+decisão explícita do usuário com risco aceito:
+(a) a TV PODE exibir o tempo todo, **somente na tela de adicionar lista**, o ID
+do dispositivo (formato de endereço MAC, não secreto) e a chave do dispositivo
+numérica permanente de 10 dígitos, para digitação no painel. A chave DEVE ser
+aleatória (CSPRNG), guardada no serviço só como HMAC, regenerável por ação
+explícita (invalidando a anterior e as sessões), protegida por limite de
+tentativas por ID/origem/global com recusa uniforme, e NÃO PODE ir para QR,
+URL, cards, logs, erros, analytics ou exportação. O QR continua sendo convite
+efêmero de uso único.
+(b) o painel autenticado **da própria TV** PODE receber os valores salvos das
+listas dela (URL, usuário, senha) para edição; a resposta NÃO DEVE ser
+armazenada em cache, logada nem enviada a outra TV/sessão; demais regras da
+exceção remota continuam valendo.
+(c) a TV PODE exibir a credencial que a própria pessoa digita e, na edição, a
+credencial local já guardada daquela lista, com controle explícito para
+ocultar — ainda proibido em cards, avisos, histórico, erros e telas comuns.
 
 ### Categorias da Fonte São Preservadas
 
@@ -415,4 +453,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.9.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-11
+**Versão**: 1.10.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-13

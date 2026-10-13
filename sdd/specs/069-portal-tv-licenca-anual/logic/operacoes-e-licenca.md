@@ -58,6 +58,8 @@ sincronização (inclusive primeira após restart):
   buscar/aplicar comandos restantes; publicar snapshot allowlist
 ```
 
+**Atualização 2026-10-13 (T057, decisão do usuário):** a pendência na outbox não espera o ciclo de 24 h. O agente observa `pendingPortalDeletes` (visível/online, após qualquer ciclo em andamento, sem sobrepor) e envia imediatamente **somente** `flushDeletions` seguido de `publishSnapshot`; não faz pull de comandos, não consulta licença e não liga o polling de 10 s. O snapshot é necessário para o portal parar de listar a fonte como "Somente na TV". Falha reaproveita o backoff do ciclo (1/5/15 min), a outbox permanece e o prazo normal de 24 h não é adiado.
+
 Endpoint de exclusão aceita sourceId conhecido ou ainda não observado no snapshot, desde que bearer vinculado à mesma TV; isso cobre create aplicado com ACK perdido. Não depender de configuração ainda existir para aceitar tombstone. Delete é idempotente, domina todas versões antigas do mesmo sourceId; criação voluntária posterior usa novo sourceId.
 
 ### Exclusão pelo portal

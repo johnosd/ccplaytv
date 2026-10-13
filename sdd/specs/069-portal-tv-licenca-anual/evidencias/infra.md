@@ -97,3 +97,12 @@ A configuração implantada mantém staging isolado e checkout fechado: público
 - Índice composto Firestore para `jobs(kind,nextDueAt)` está `READY`.
 - Suíte `uv run pytest tests/portal -q`: **49 passed, 60 skipped**. Os skips são condicionados a serviços externos; nenhum restore foi executado.
 - O gate de restore/replay/RPO/RTO continua reservado a T039, conforme decisão de manter o snapshot por último.
+
+### Deploy do fix T056 no staging — 2026-10-13
+
+- Build: `gcloud builds submit` com `infra/portal/cloudbuild.yaml`, build `cf5ff1e5-2010-4017-bd34-744ea091298b`, SUCCESS em 1m30s, imagem `.../portal/ccplaytv-portal:staging`. O contexto não inclui `staging.env.yaml` (ignorado pelo git) e a imagem só copia `api/app/portal/`, `portal_main.py` e o `dist` do portal-web.
+- Deploy: `gcloud run deploy ccplaytv-portal` (fluxo de `docs/portal/deploy-staging.md`, mesmas chaves e `--env-vars-file`), revisão **`ccplaytv-portal-00013-ph4`** com 100% do tráfego; anterior `ccplaytv-portal-00012-6x2` (alvo de rollback: `gcloud run services update-traffic ccplaytv-portal --to-revisions ccplaytv-portal-00012-6x2=100 --region=us-central1`).
+- Mantidos: checkout desligado (`CHECKOUT_ENABLED=false`), Mercado Pago em sandbox (`LIVE_MODE=false`), chaves inalteradas (a chave pública embutida no pacote comercial da TV continua a mesma: `kid=v1`, `x` igual).
+- Serviço jobs **não** foi alterado (`ccplaytv-portal-jobs-00013-qtk`): o fix está no caminho de sessão de navegador, que ele não serve.
+- Smoke: raiz `200`, `/health` `200`, `/portal/v1/configurations` sem sessão `401`, tick interno no serviço público `404`.
+- Verificação do fix: sessão sintética (enroll + sessão manual) e 20 rodadas × 3 leituras simultâneas (`configurations`, `operations`, `snapshot`): **60/60 `200`, 0 `401`**. Limite: não há linha de base no staging antes do fix (a reprodução anterior foi na pilha local, ~2 de 3 rodadas com 401); esta é evidência de ausência do sintoma, não prova formal.
