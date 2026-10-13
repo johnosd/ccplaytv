@@ -5,6 +5,8 @@ Nenhum recurso provisionado. services.json é a configuração desejada, não um
 Build a partir da raiz: docker build -f infra/portal/Dockerfile.portal -t ccplaytv-portal:local .
 O Dockerfile.portal.dockerignore ao lado é aplicado a esse Dockerfile e copia somente runtime do portal; fallback/SQL não são copiados como código. Dependências congeladas no uv.lock ainda incluem o pacote existente; separar distribuição só se medição justificar.
 
+Pilha local integrada (PC, sem nuvem): `node e2e/portal-integrado-local.mjs` em `tv-web/` sobe emulador do gcloud (exige Java 21; usa `JAVA_HOME` só no processo filho), `dev/local_portal.py` (API real com journal em memória), portal-web e TV `--mode commercial`, e roda criação/edição/remoção nos dois sentidos. Fora do `SUITE` do runner; evidências em `sdd/specs/069-portal-tv-licenca-anual/evidencias/pilha-local.md`. Não prova IAM, Scheduler, Cloud Storage, DUID real nem hardware.
+
 Emulator: firebase emulators:start --project demo-ccplaytv-portal --only firestore --config infra/portal/firebase.json (CLI/Java21 a instalar se ausentes). Para API local, definir FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 e CCPLAY_PORTAL_ENVIRONMENT=development; uv run python portal_main.py em api. Sem emulator/ID demo, recusa bootstrap local.
 
 Na futura implantação, criar duas service accounts runtime e uma Scheduler. Runtime recebe datastore.user apenas no projeto dedicado e papel customizado de journal somente no bucket. Scheduler recebe run.invoker somente no jobs. Admin de deploy/backup/restore não pertence ao runtime. IAM do serviço privado é a autorização OIDC da plataforma; a API pública não monta executor.

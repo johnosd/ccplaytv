@@ -110,7 +110,8 @@ export const api = {
     return request<Operation>('/configurations/' + sourceId + '/resend', { method: 'POST', csrf: session.csrfToken, operationId, body: { expectedRevision } })
   },
   exchange: (token: string) => request<Session>('/sessions/exchange', { method: 'POST', body: { token } }),
-  manual: (deviceId: string, deviceKey: string) => request<Session>('/sessions/manual', { method: 'POST', body: { deviceId, deviceKey } }),
+  // 070/D-005: entrada manual pelo ID exibido (formato MAC) + chave numérica de 10 dígitos.
+  manual: (displayId: string, deviceKey: string) => request<Session>('/sessions/manual', { method: 'POST', body: { displayId, deviceKey } }),
   async dashboard(): Promise<Dashboard> {
     const [configurations, operations, snapshot] = await Promise.all([
       pages<SavedConfiguration>('/configurations', 'configurations'), pages<Operation>('/operations', 'operations'),

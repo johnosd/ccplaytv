@@ -16,7 +16,16 @@ function New-OperationId {
 function Invoke-Json {
   param([string]$Uri, [string]$Method, [hashtable]$Headers, [object]$Body, [Microsoft.PowerShell.Commands.WebRequestSession]$WebSession)
   $json = if ($null -ne $Body) { $Body | ConvertTo-Json -Depth 6 -Compress } else { $null }
-  Invoke-RestMethod -Uri $Uri -Method $Method -ContentType 'application/json' -Headers $Headers -Body $json -WebSession $WebSession
+  try {
+    Invoke-RestMethod -Uri $Uri -Method $Method -ContentType 'application/json' -Headers $Headers -Body $json -WebSession $WebSession
+  } catch {
+    # Diagnóstico sem segredo: rota (sem query), status e Retry-After; nunca corpo/cabeçalhos de autenticação.
+    $response = $_.Exception.Response
+    $status = if ($null -ne $response) { [int]$response.StatusCode } else { 0 }
+    $retryAfter = if ($null -ne $response -and $response.Headers) { $response.Headers['Retry-After'] } else { $null }
+    $path = ([Uri]$Uri).AbsolutePath -replace '/operations/[^/]+/ack$', '/operations/{id}/ack'
+    throw ("measurement_http_failed route=$Method $path status=$status retryAfter=$retryAfter")
+  }
 }
 
 if ($Samples -lt 1 -or $Samples -gt 500) { throw 'samples_must_be_between_1_and_500' }
@@ -39,17 +48,25 @@ Invoke-Json "$base/portal/v1/device/operations/$($create.operationId)/ack" 'Post
 
 $latencies = [System.Collections.Generic.List[double]]::new()
 $revision = 1
+# A TV real consulta no máximo 1 vez a cada 10 s (limite do servidor por dispositivo, tela rápida).
+# O simulador respeita esse intervalo; a fase do envio é sorteada para amostrar toda a janela de polling.
+$pullIntervalMs = 10200
+$lastPull = [System.Diagnostics.Stopwatch]::StartNew()
+$rng = New-Object System.Random
 for ($i = 1; $i -le $Samples; $i++) {
+  Start-Sleep -Milliseconds $rng.Next(0, $pullIntervalMs)
   $operationId = New-OperationId
   $headers = @{Origin=$origin;'X-CSRF-Token'=$csrf;'Idempotency-Key'=$operationId}
   $body = @{action='source.update';sourceId=$sourceId;expectedRevision=$revision;input=@{displayName=('Staging measurement ' + $i);m3uUrl=('https://example.invalid/measurement-' + $i + '.m3u')}}
   $watch = [System.Diagnostics.Stopwatch]::StartNew()
   $submitted = Invoke-Json "$base/portal/v1/operations" 'Post' $headers $body $session
   $deviceOperation = $null
-  for ($attempt = 0; $attempt -lt 20 -and $null -eq $deviceOperation; $attempt++) {
+  for ($attempt = 0; $attempt -lt 3 -and $null -eq $deviceOperation; $attempt++) {
+    $wait = $pullIntervalMs - $lastPull.ElapsedMilliseconds
+    if ($wait -gt 0) { Start-Sleep -Milliseconds $wait }
+    $lastPull.Restart()
     $pending = Invoke-Json "$base/portal/v1/device/operations" 'Get' $tvHeaders $null $null
     $deviceOperation = @($pending.operations | Where-Object { $_.operationId -eq $submitted.operationId }) | Select-Object -First 1
-    if ($null -eq $deviceOperation) { Start-Sleep -Milliseconds 100 }
   }
   if ($null -eq $deviceOperation) { throw ('measurement_pull_failed_' + $i) }
   $ack = Invoke-Json "$base/portal/v1/device/operations/$($submitted.operationId)/ack" 'Post' $tvHeaders @{state='applied';revision=($revision + 1);importState='completed'} $null
@@ -57,8 +74,6 @@ for ($i = 1; $i -le $Samples; $i++) {
   if ($ack.state -ne 'applied' -or [int]$ack.receipt.revision -ne ($revision + 1)) { throw ('measurement_ack_failed_' + $i) }
   $latencies.Add($watch.Elapsed.TotalMilliseconds)
   $revision++
-  # O endpoint de mutação aplica 30 requisições/minuto por sessão.
-  if ($i -lt $Samples) { Start-Sleep -Milliseconds 2200 }
 }
 
 $ordered = @($latencies | ForEach-Object { [double]$_ } | Sort-Object)
@@ -68,6 +83,9 @@ $p95Index = [math]::Max(0, [int]([math]::Ceiling($ordered.Count * 0.95) - 1))
   samples = $latencies.Count
   successful = $latencies.Count
   sourceType = 'synthetic_m3u_url'
+  pullIntervalMs = $pullIntervalMs
+  within30sPct = [math]::Round(100.0 * @($ordered | Where-Object { $_ -le 30000 }).Count / $ordered.Count, 1)
+  over30sCount = @($ordered | Where-Object { $_ -gt 30000 }).Count
   p50Ms = [math]::Round($ordered[$p50Index], 2)
   p95Ms = [math]::Round($ordered[$p95Index], 2)
   minMs = [math]::Round($ordered[0], 2)
