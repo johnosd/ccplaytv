@@ -9,7 +9,6 @@ import { homeStatusLine } from './homeStatusLine'
 import { HomeContent, type HomeContentFocus } from './HomeContent'
 import { AppShell } from '../shell/AppShell'
 import { TopBar } from '../shell/TopBar'
-import { ExitModal } from '../shell/ExitModal'
 import { PlayerLayer } from '../../components/PlayerLayer'
 import type { HintItem } from '../shell/HintBar'
 import type { HomeFocus, TopbarItem, TopDestination } from '../../navigation/appNav'
@@ -35,6 +34,8 @@ export interface HomeScreenProps {
   onOpenFavorites: (destination: TopDestination, from: HomeFocus) => void
   /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
   onEditSource?: (sourceId: string) => void
+  /** RETURN sai da lista e volta aos perfis, onde a confirmação de saída existe. */
+  onLeaveList: () => void
   /** Lupa da topbar (FR-035). */
   onOpenSearch: (from: HomeFocus) => void
   /** Engrenagem da topbar (FR-021). */
@@ -73,12 +74,13 @@ export function HomeScreen({
   onEditSource,
   onOpenSearch,
   onOpenSettings,
+  onLeaveList,
   updating = false,
 }: HomeScreenProps): ReactNode {
   const t = useT()
   const hints: HintItem[] = [
     { keyLabel: 'OK', action: t('common.select') },
-    { keyLabel: 'RETURN', action: t('shell.exit.confirm') },
+    { keyLabel: 'RETURN', action: t('common.back') },
   ]
   const queryClient = useQueryClient()
 
@@ -104,7 +106,6 @@ export function HomeScreen({
   const [topbarItem, setTopbarItem] = useState<TopbarItem>(
     initialFocus?.zone === 'topbar' ? initialFocus.item : 'home',
   )
-  const [showExit, setShowExit] = useState(false)
   const [playing, setPlaying] = useState<PlayingState | null>(null)
   // Feature 060 (D-004): o fundo ambiente vive na camada de fundo do shell, atrás da topbar; o conteúdo o desenha por portal.
   const [ambientHost, setAmbientHost] = useState<HTMLElement | null>(null)
@@ -112,10 +113,10 @@ export function HomeScreen({
   const contentFocus: HomeContentFocus | undefined =
     initialFocus && initialFocus.zone !== 'topbar' ? initialFocus : undefined
 
-  // Com o player ou o modal de saída abertos, nenhum dos dois escopos reage
+  // Com o player aberto, nenhum dos dois escopos reage
   // ao teclado nem desenha foco — mesmo padrão de `logic/foco-shell.md`.
-  const topbarActive = zone === 'topbar' && !showExit && !playing
-  const contentActive = zone === 'content' && !showExit && !playing
+  const topbarActive = zone === 'topbar' && !playing
+  const contentActive = zone === 'content' && !playing
 
   function startPlaying(params: PlayingState) {
     // Guarda de sessão única (mesmo padrão de `MovieDetailScreen`/
@@ -156,7 +157,7 @@ export function HomeScreen({
             onOpenProfiles={() => onOpenProfiles({ zone: 'topbar', item: 'profile' })}
             onOpenSearch={() => onOpenSearch({ zone: 'topbar', item: 'search' })}
             onOpenSettings={() => onOpenSettings({ zone: 'topbar', item: 'settings' })}
-            onBack={() => setShowExit(true)}
+            onBack={onLeaveList}
           />
         }
       >
@@ -170,7 +171,7 @@ export function HomeScreen({
             setTopbarItem('home')
             setZone('topbar')
           }}
-          onBack={() => setShowExit(true)}
+          onBack={onLeaveList}
           onNavigate={onNavigate}
           onOpenItem={onOpenItem}
           onOpenChannel={onOpenChannel}
@@ -189,7 +190,6 @@ export function HomeScreen({
           onClose={closePlayer}
         />
       )}
-      {showExit && <ExitModal onCancel={() => setShowExit(false)} />}
     </div>
   )
 }

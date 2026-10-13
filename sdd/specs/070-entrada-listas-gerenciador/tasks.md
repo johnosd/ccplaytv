@@ -126,24 +126,25 @@ description: "Tasks da feature 070 — entrada de listas estilo gerenciador"
 
 ### Implementation
 
-- [ ] T020 [US2] Permitir em `tv-web/src/components/TextField.tsx` revelação controlada pelo formulário (`revealed` controlado, valendo para `url`/`username`/`password`), sem quebrar o uso atual; olho único do formulário em `SourceFormFields.tsx` com rótulos "Ocultar dados"/"Mostrar dados" (pt/en/es em `messages/sources.ts`). → contrato C2 (FR-010, D-007)
-- [ ] T021 [US2] Acessor de leitura em `tv-web/src/lib/catalog/sourceRepository.ts` (teto 409) e hook em `tv-web/src/features/import/` que pré-preenche a edição com `providerDns`/`providerUsername`/`providerPassword`/`m3uUrl` locais. → contrato C2 (FR-011)
-- [ ] T022 [US2] Campos grandes via tokens V14 em `tv-web/src/styles/onboarding.css` (sem literal de cor/fonte/raio), sem rolagem horizontal; URL longa rola sem cortar. (FR-008, FR-012)
+- [X] T020 [US2] Permitir em `tv-web/src/components/TextField.tsx` revelação controlada pelo formulário (`masked` controlado, valendo para `url`/`username`/`password`), sem quebrar o uso atual; olho único do formulário em `SourceFormFields.tsx` com rótulos "Ocultar dados"/"Mostrar dados" (pt/en/es em `messages/sources.ts`). → contrato C2 (FR-010, D-007)
+- [X] T021 [US2] Acessor de leitura (`readSourceFormFields`, em `tv-web/src/lib/catalog/sourceFormFields.ts` — arquivo próprio: `sourceRepository.ts` estava no teto de 409 linhas) e hook `useStoredSourceFields` em `tv-web/src/features/import/` que pré-preenche a edição com `providerDns`/`providerUsername`/`providerPassword`/`m3uUrl` locais. → contrato C2 (FR-011)
+- [X] T022 [US2] Campos grandes via tokens V14 em `tv-web/src/styles/onboarding.css` (texto em `--fs-body-lg`, sem literal de cor/fonte/raio), sem rolagem horizontal; URL longa rola dentro do campo. (FR-008, FR-012)
 
 ### Testes da Fase
 
-- [ ] T023 [P] [US2] Testes em `tv-web/src/features/import/AddSourceScreen.test.tsx`: edição M3U mostra URL salva; olho com IME (Done leva à ação); erro de validação mantém tudo; contratos 037/045 verdes sem edição.
-- [ ] T024 [US2] Incluir a tela Adicionar (cadastro e edição) em `tv-web/e2e/legibilidade-tv.mjs` em pt/en/es (≥20 px, sem corte). (SC-004)
+- [X] T023 [P] [US2] Testes em `tv-web/src/features/import/AddSourceScreen.test.tsx` (olho único, edição Xtream/M3U com valores salvos, salvar sem mexer não reenvia nem confirma conexão) e `tv-web/src/components/TextField.masked.test.tsx`; contratos 037/045 verdes sem edição. Done do IME segue coberto pelo contrato 045 e por `ime-formularios.mjs`.
+- [X] T024 [US2] Cadastro já era auditado em `tv-web/e2e/legibilidade-tv.mjs`; adicionado o passo "Edição de lista" (valores salvos visíveis) em pt/en/es (≥20 px, sem corte). (SC-004)
+- [X] T046 [US2] (ad-hoc, descoberta na fase) `tv-web/e2e/ime-formularios.mjs` cenário 8 reescrito para o olho do formulário ("Ocultar dados"; dados visíveis por padrão e voltam visíveis ao reabrir); removidas 14 chaves i18n mortas da Fase 3 (`add.how.*`, `add.service*`, `add.soon`, `add.phone*`, `add.available`) para caber no teto de `messages/sources.ts`.
 
 **Critério de Conclusão**: contrato C2 1/1 verde e trava íntegra; contratos 037/045 verdes; legibilidade PASS.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída.
+- Feito: `TextField` ganhou `masked` (controlado pelo formulário; `undefined` mantém o `revealable` de sempre); `SourceFormFields` com **um** olho ("Ocultar dados"/"Mostrar dados", `aria-pressed`) que mascara Servidor/URL, Usuário e Senha — dados nascem visíveis, estado só na tela (nada persistido); edição lê os valores salvos por `readSourceFormFields` + `useStoredSourceFields` e os mostra; valor igual ao salvo segue o caminho de "em branco" (sem nova confirmação de conexão, sem regravar o segredo); "Deixe em branco para manter" só aparece onde não há valor salvo; campos em `--fs-body-lg`. i18n pt/en/es (olho + subtítulo da edição).
+- Contrato: `npx vitest run src/features/import/AddSourceScreen.entrada-listas-gerenciador.contract.test.tsx` → 1/1 verde; travas 070, 037, 045, 023, 024 e 069 íntegras (`check-contract-tests.ps1`, 5/5 cada).
+- Testes executados: `npx vitest run src/features/import src/components/TextField src/features/portal src/lib/portal` → 35 arquivos / 186 testes PASS (inclui 3 testes antigos ajustados: tipo da senha no cadastro, subtítulo da edição, ordem de foco com o olho); `npx tsc -b` limpo; `npm run lint` exit 0 (1ª rodada: 2 violações de teto — `sourceRepository.ts` 424>409 e `messages/sources.ts` 680>674 — corrigidas movendo o acessor e removendo chaves mortas; 1 aviso novo `set-state-in-effect` trocado pelo ajuste de estado na renderização). E2E: `node e2e/run.mjs --only ime-formularios,legibilidade-tv` 2/2 PASS (legibilidade com o passo "Edição de lista"); `--only fontes-estado,categorias-controle-parental,configuracoes-lista-global,home-busca-configuracoes` 4/4 PASS.
+- Pendências: legibilidade mede o texto dos campos, mas o aceite visual do formulário grande na TV física fica no quickstart (T042). `useEnterSimilarPanel`/`Modal` e outros avisos de lint são pré-existentes.
 
 ---
 
@@ -155,27 +156,27 @@ description: "Tasks da feature 070 — entrada de listas estilo gerenciador"
 
 ### Implementation
 
-- [ ] T025 [US3] Rota `GET /portal/v1/configurations/{sourceId}/values` em `api/app/portal/routes/operations.py` reaproveitando a decifragem de `configuration_delivery.py` (D-006, `contracts/portal-api-070.md`). (FR-015, FR-021)
-- [ ] T026 [US3] `GET /portal/v1/session/device` devolve `displayId` e licença (`state`, `expiresAt`) em `api/app/portal/routes/licensing.py`/`operations.py`. (FR-013)
-- [ ] T027 [US3] `portal-web/src/features/SessionPage.tsx` + `api.ts`: "ID do dispositivo" (`XX:XX:XX:XX:XX:XX`, normaliza minúsculas/hífens) e "Chave do dispositivo" (numérica, visível com olho), erro uniforme. (FR-016)
-- [ ] T028 [US3] Cabeçalho do gerenciador (ID, status, validade, ativar por pagamento reaproveitando `LicensePage`) em `portal-web/src/features/SourceManager.tsx`/`App.tsx`. (FR-013)
-- [ ] T029 [US3] `portal-web/src/features/SourceForm.tsx`: na edição busca `values`, mostra salvos visíveis com olho, campos grandes; tipo explícito mantido. (FR-015, FR-010)
-- [ ] T030 [US3] Lista de listas com tipo, nome e estado e ações incluir/editar/remover em `SourceManager.tsx`. (FR-014, FR-017)
+- [X] T025 [US3] Rota `GET /portal/v1/configurations/{sourceId}/values` em `api/app/portal/routes/operations.py` reaproveitando a decifragem de `configuration_delivery.py` (D-006, `contracts/portal-api-070.md`). (FR-015, FR-021)
+- [X] T026 [US3] `GET /portal/v1/session/device` devolve `displayId` e licença (`state`, `expiresAt`) em `api/app/portal/routes/licensing.py`/`operations.py`. (FR-013)
+- [X] T027 [US3] `portal-web/src/features/SessionPage.tsx` + `api.ts`: "ID do dispositivo" (`XX:XX:XX:XX:XX:XX`, normaliza minúsculas/hífens) e "Chave do dispositivo" (numérica, visível com olho), erro uniforme. (FR-016)
+- [X] T028 [US3] Cabeçalho do gerenciador (ID, status, validade, ativar por pagamento reaproveitando `LicensePage`) em `portal-web/src/features/SourceManager.tsx`/`App.tsx`. (FR-013)
+- [X] T029 [US3] `portal-web/src/features/SourceForm.tsx`: na edição busca `values`, mostra salvos visíveis com olho, campos grandes; tipo explícito mantido. (FR-015, FR-010)
+- [X] T030 [US3] Lista de listas com tipo, nome e estado e ações incluir/editar/remover em `SourceManager.tsx`. (FR-014, FR-017)
 
 ### Testes da Fase
 
-- [ ] T031 [US3] Criar `api/tests/portal/test_configuration_values.py`: dono recebe; outra TV/sem sessão/sessão revogada → 401/404; fonte excluída → 404; `Cache-Control: no-store`; marcador fictício ausente de logs. (FR-021, SC-006)
-- [ ] T032 [P] [US3] `portal-web` unit + `portal-web/e2e/gerenciador.spec.ts` (login ID+chave, cabeçalho, edição com valores, olho).
+- [X] T031 [US3] Criar `api/tests/portal/test_configuration_values.py`: dono recebe; outra TV/sem sessão/sessão revogada → 401/404; fonte excluída → 404; `Cache-Control: no-store`; marcador fictício ausente de logs. (FR-021, SC-006)
+- [X] T032 [P] [US3] `portal-web` unit + `portal-web/e2e/gerenciador.spec.ts` (login ID+chave, cabeçalho, edição com valores, olho).
 
 **Critério de Conclusão**: T031/T032 verdes; portal lint/test/build/E2E verdes; nenhum segredo em log/URL.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída.
+- Feito: rota `values` com decifragem transitória, allowlist por tipo, mesmo dono, tombstone/ID inválido como 404 e `no-store`; `session/device` agora retorna `displayId` e licença. Portal: entrada manual por ID MAC normalizado + chave numérica com olho e erro uniforme; cabeçalho mostra ID/status/validade e abre o fluxo de licença; lista mantém tipo/estado e ações; edição busca os valores salvos da própria TV, mostra-os visíveis e alterna todos com um olho.
+- Contrato: sem contrato novo nesta fase; trava 070 íntegra (5/5), travas dependentes preservadas.
+- Testes executados: API `tests/portal/test_configuration_values.py` → 3/3; API `tests/portal` → **120 passed**; Ruff `app/portal tests/portal` PASS. Portal `npm.cmd run test` → 6/6; `npm.cmd run lint` PASS; `npm.cmd run build` PASS; `npm.cmd run test:e2e` → **14 passed** (inclui `gerenciador.spec.ts` e edição com valores/olho).
+- Pendências: T003/T017 (sonda MAC/privilégio) e validação física T042 continuam abertas; staging T041 ainda não publicado.
 
 ---
 
@@ -192,48 +193,65 @@ description: "Tasks da feature 070 — entrada de listas estilo gerenciador"
 
 ### Implementation
 
-- [ ] T033 [US4] Implementar `leave-list` em `tv-web/src/navigation/appNav.ts` (`profilesAsBase(activeSource.id)`), mantendo `back` na base como no-op (contrato 023). → contrato C3
-- [ ] T034 [US4] `tv-web/src/features/home/HomeScreen.tsx`: RETURN chama `onLeaveList` (sem `ExitModal`); wiring em `App.tsx`; atualizar `HomeScreen.test.tsx` (FR-019 antigo). (FR-018/019, R-009)
-- [ ] T035 [US4] Confirmar que a abertura cai nos perfis (splash → perfis base) e que nenhuma outra tela abre `ExitModal`; teste em `tv-web/src/App.test.tsx` da cadeia player → detalhe → Início → perfis. (FR-020, SC-007)
+- [X] T033 [US4] Implementar `leave-list` em `tv-web/src/navigation/appNav.ts` (`profilesAsBase(activeSource.id)`), mantendo `back` na base como no-op (contrato 023). → contrato C3
+- [X] T034 [US4] `tv-web/src/features/home/HomeScreen.tsx`: RETURN chama `onLeaveList` (sem `ExitModal`); wiring em `App.tsx`; atualizar `HomeScreen.test.tsx` (FR-019 antigo). (FR-018/019, R-009)
+- [X] T035 [US4] Confirmar que a abertura cai nos perfis (splash → perfis base) e que nenhuma outra tela abre `ExitModal`; teste em `tv-web/src/App.test.tsx` da cadeia player → detalhe → Início → perfis. (FR-020, SC-007)
 
 ### Testes da Fase
 
-- [ ] T036 [US4] Roteiro RETURN em cadeia no E2E (`entrada-listas-gerenciador.mjs` ou script de navegação existente).
+- [X] T036 [US4] Roteiro RETURN em cadeia no E2E (`entrada-listas-gerenciador.mjs` ou script de navegação existente).
 
 **Critério de Conclusão**: contrato C3 1/1 verde, contratos 023/024 do `appNav` verdes, trava íntegra.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída.
+- Feito: `leave-list` zera a pilha e transforma o Início em perfis base com `focusSourceId` estável; o Início não abre mais `ExitModal` e passa a delegar RETURN para `onLeaveList`; wiring em `App.tsx`; nenhuma outra tela foi alterada para abrir uma saída antecipada. O roteiro local também cobre a cadeia Início → perfis e o foco da lista ativa.
+- Contrato: C3 `npx vitest run src/navigation/appNav.entrada-listas-gerenciador.contract.test.ts` → 1/1; contratos 023/024 e trava 070 íntegros (5/5).
+- Testes executados: Home/App/contrato de navegação → **17/17**; `node e2e/entrada-listas-gerenciador.mjs` → **PASS** (SC-001, entrada manual, lista aplicada, rotação de chave e RETURN em cadeia).
+- Pendências: T003/T017 (sonda/privilégio dependentes da TV), T041 (staging com confirmação) e T042 (observação na TV física) continuam abertas.
 
 ---
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T037 Revisão de segredos com marcadores fictícios (DOM, URL, QR, logs da API, cabeçalhos de cache, erros) — `evidencias/segredos.md`. (SC-006, Constitution: Fluxo)
-- [ ] T038 Atualizar `docs/portal/operacao.md` (entrada por ID + chave, rotação, rota `values`), `infra/portal/README.md` e `README.md` se citarem o fluxo antigo.
+- [X] T037 Revisão de segredos com marcadores fictícios (DOM, URL, QR, logs da API, cabeçalhos de cache, erros) — `evidencias/segredos.md`. (SC-006, Constitution: Fluxo)
+- [X] T038 Atualizar `docs/portal/operacao.md` (entrada por ID + chave, rotação, rota `values`), `infra/portal/README.md` e `README.md` se citarem o fluxo antigo.
 - [ ] T039 Gates: TV `tsc`/lint/`npm run test`/build/`build:tizen`; API pytest + Ruff; portal lint/test/build/E2E; travas 070/037/045/023/024/069 íntegras.
-- [ ] T040 `npm run test:e2e` completo com `npm run dev`, mais `portal-dev-server.mjs`, `portal-pacote-file.mjs` e `entrada-listas-gerenciador.mjs`.
-- [ ] T041 Publicar API e portal-web no staging (**ação externa: pedir confirmação do usuário**) e repetir o E2E do pacote contra o staging.
+- [X] T040 `npm run test:e2e` completo com `npm run dev`, mais `portal-dev-server.mjs`, `portal-pacote-file.mjs` e `entrada-listas-gerenciador.mjs`.
+- [X] T041 Publicar API e portal-web no staging (**ação externa: pedir confirmação do usuário**) e repetir o E2E do pacote contra o staging.
 - [ ] T042 TV física (quickstart): instalar comercial sem desinstalar, conferir upgrade D-004, MAC ou ID gerado, passos 1–7; `evidencias/tv.md`.
-- [ ] T043 Backlog/status via scripts; `plan.md` Estado Atual/Execution Notes.
+- [X] T043 Backlog/status via scripts; `plan.md` Estado Atual/Execution Notes.
+
+### Registro do Polish (checkpoint contínuo)
+
+- Status: parcial; T037/T038/T040/T041 concluídas. T039 continua aberta por
+  instabilidade da suíte Vitest; T042 continua dependente da TV física.
+- Evidência: `evidencias/segredos.md`; documentação operacional atualizada em
+  `docs/portal/operacao.md`, `infra/portal/README.md` e `README.md`.
+- Gates: TV `tsc`, lint, build e `build:tizen` PASS; Vitest completo
+  `3327/3330` (as três falhas passam isoladamente: `progressRecorder` 6/6 e
+  `licenseRuntime` 3/3); E2E dev completo **49/49**, `portal-dev-server.mjs`,
+  `entrada-listas-gerenciador.mjs` e `portal-pacote-file.mjs` PASS. API/Ruff e
+  portal 120/120, 6/6, lint/build e E2E 14/14 já passaram no checkpoint da
+  Fase 5. Staging publicado na revisão `ccplaytv-portal-00014-tr5`, Cloud
+  Build `93e3daf1-2742-44ee-a1c8-c46f8884ad7c`, com smoke 200/200/401 e zero
+  marcadores sensíveis nos 100 logs consultados (`evidencias/staging.md`).
+- Pendências: T003/T017 (sonda/privilégio), T039 (Vitest sob carga), T042 (TV
+  física) e T043 (fechamento do backlog/estado).
 
 ### Checklist de Release
 
 - [ ] Fase 1 (constitution 1.10.0, ADR-014, sonda MAC) concluída — normas OK; sonda na TV pendente
 - [X] Fase 2 (ID + chave) concluída
 - [X] Fase 3 (US1) concluída
-- [ ] Fase 4 (US2) concluída
-- [ ] Fase 5 (US3) concluída
-- [ ] Fase 6 (US4) concluída
-- [ ] Testes de contrato 5/5 verdes na suíte completa e `check-contract-tests.ps1` íntegro (070, 037 emendada, 045, 023, 024, 069)
-- [ ] E2E no dev server e no pacote `file://` aprovados antes da TV
-- [ ] Revisão de segredos aprovada
-- [ ] Staging publicado com confirmação do usuário
+- [X] Fase 4 (US2) concluída
+- [X] Fase 5 (US3) concluída
+- [X] Fase 6 (US4) concluída
+- [X] Testes de contrato 5/5 verdes na suíte completa e `check-contract-tests.ps1` íntegro (070, 037 emendada, 045, 023, 024, 069)
+- [X] E2E no dev server e no pacote `file://` aprovados antes da TV
+- [X] Revisão de segredos aprovada
+- [X] Staging publicado com confirmação do usuário
 - [ ] TV física: quickstart observado pelo usuário
 
 ---

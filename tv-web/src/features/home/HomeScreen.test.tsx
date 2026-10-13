@@ -64,6 +64,7 @@ function renderHome(overrides: Partial<HomeScreenProps> = {}) {
     onOpenFavorites: vi.fn(),
     onOpenSearch: vi.fn(),
     onOpenSettings: vi.fn(),
+    onLeaveList: vi.fn(),
     ...overrides,
   }
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -164,30 +165,23 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
   })
 })
 
-describe('HomeScreen (Início) — RETURN e modal de saída', () => {
-  it('RETURN abre "Sair do CCPlayTV?" com Cancelar em foco; RETURN fecha e o foco fica onde estava (FR-019)', () => {
-    renderHome()
-
-    press('Escape')
-    const dialog = screen.getByRole('dialog', { name: 'Sair do CCPlayTV?' })
-    expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toHaveClass('tv-focus')
+describe('HomeScreen (Início) — RETURN sai da lista', () => {
+  it('RETURN chama onLeaveList e não abre confirmação de saída no Início (FR-018/FR-019)', () => {
+    const props = renderHome()
 
     press('Escape')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(heroAction(/Abrir TV ao vivo/)).toHaveClass('tv-focus')
+    expect(props.onLeaveList).toHaveBeenCalledTimes(1)
   })
 
-  it('RETURN na topbar também abre o modal de saída, e o foco volta à topbar ao fechar', () => {
-    renderHome()
+  it('RETURN na topbar também chama onLeaveList', () => {
+    const props = renderHome()
 
     press('ArrowUp')
     press('ArrowUp') // hero -> dock -> topbar
     press('Escape')
-    expect(screen.getByRole('dialog', { name: 'Sair do CCPlayTV?' })).toBeInTheDocument()
-
-    press('Enter') // Cancelar
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(topbarItem('Início')).toHaveClass('tv-focus')
+    expect(props.onLeaveList).toHaveBeenCalledTimes(1)
   })
 })
 

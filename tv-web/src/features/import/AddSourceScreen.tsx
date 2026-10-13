@@ -13,6 +13,7 @@ import type { MessageKey } from '../../lib/i18n/messages/pt'
 import { ConnectionErrorBanner } from './ConnectionErrorBanner'
 import { connectionInputFor } from './connectionInput'
 import { SourceFormFields, type SourceFormValues } from './SourceFormFields'
+import { useStoredSourceFields } from './useStoredSourceFields'
 
 /** `idle` → `checking` (confirma a conexão, cancelável) → `saving` (grava a lista). */
 type SubmitPhase = 'idle' | 'checking' | 'saving'
@@ -33,9 +34,9 @@ export interface AddSourceScreenProps {
 type EntryMode = 'url' | 'provider'
 
 /** Os dois tipos do painel "Configuração manual" (D-008), na ordem do protótipo. */
-const ENTRY_TYPES: { id: EntryMode; title: string | MessageKey; description: MessageKey }[] = [
-  { id: 'provider', title: 'Xtream Codes', description: 'add.type.xtream.description' },
-  { id: 'url', title: 'add.type.m3u', description: 'add.type.m3u.description' },
+const ENTRY_TYPES: { id: EntryMode; title: string | MessageKey }[] = [
+  { id: 'provider', title: 'Xtream Codes' },
+  { id: 'url', title: 'add.type.m3u' },
 ]
 
 /**
@@ -101,12 +102,25 @@ export function AddSourceScreen({
   )
   const [displayName, setDisplayName] = useState(existingSource?.display_name ?? '')
   const [m3uUrl, setM3uUrl] = useState('')
-  // Em edição, endereço vem preenchido (não é segredo sozinho); usuário e
-  // senha começam em branco e ficam com o valor atual se não forem
-  // reescritos (write-only — o backend nunca devolve os dois).
+  // Em edição (feature 070, FR-011), os valores salvos no próprio aparelho entram nos campos, visíveis
+  // (olho do formulário). Até a leitura local chegar — ou se ela falhar — o campo fica em branco e
+  // em branco continua significando "manter o valor atual".
   const [dns, setDns] = useState(existingSource?.provider_dns ?? '')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const stored = useStoredSourceFields(existingSource?.id)
+  const [appliedStored, setAppliedStored] = useState(stored)
+  if (stored !== appliedStored) {
+    // Ajuste de estado na renderização (padrão do React para estado derivado de uma leitura que
+    // chega depois): só preenche o que a pessoa ainda não digitou.
+    setAppliedStored(stored)
+    if (stored) {
+      setM3uUrl((current) => current || stored.m3uUrl)
+      setDns((current) => current || stored.dns)
+      setUsername((current) => current || stored.username)
+      setPassword((current) => current || stored.password)
+    }
+  }
   const [validationError, setValidationError] = useState<string | null>(null)
 
   const createSource = useCreateSource()
@@ -163,9 +177,16 @@ export function AddSourceScreen({
     const controller = new AbortController()
     abortRef.current = controller
 
+    // Valor igual ao salvo = "não mudou": segue o caminho de sempre do campo em branco (sem nova
+    // confirmação de conexão e sem regravar o segredo).
+    const keep = (value: string, saved: string | undefined) => (isEditing && saved !== undefined && value === saved ? '' : value)
+    const sendM3u = keep(m3uUrl, stored?.m3uUrl)
+    const sendUser = keep(username, stored?.username)
+    const sendPassword = keep(password, stored?.password)
+
     try {
       const input = await connectionInputFor(
-        { mode, m3uUrl, dns, username, password },
+        { mode, m3uUrl: sendM3u, dns, username: sendUser, password: sendPassword },
         existingSource ? { id: existingSource.id, providerDns: existingSource.provider_dns } : undefined,
       )
       if (input) {
@@ -192,9 +213,9 @@ export function AddSourceScreen({
           sourceId: existingSource.id,
           input: {
             display_name: displayName,
-            ...(mode === 'url' ? { m3u_url: m3uUrl || undefined } : {}),
+            ...(mode === 'url' ? { m3u_url: sendM3u || undefined } : {}),
             ...(mode === 'provider'
-              ? { provider: { dns: dns || undefined, username: username || undefined, password: password || undefined } }
+              ? { provider: { dns: dns || undefined, username: sendUser || undefined, password: sendPassword || undefined } }
               : {}),
           },
         },
@@ -316,6 +337,8 @@ export function AddSourceScreen({
               <h2 id="manual-setup-title" className="source-setup-main-title">
                 {t('add.manual')}
               </h2>
+              {/* Seletor de duas posições, igual ao do portal: botões reais (foco do controle), o
+                  selecionado com destaque E a marca ✓ — nunca só a cor (FR-015). */}
               <div className="source-type-row" role="group" aria-label={t('add.typeGroup')}>
                 {ENTRY_TYPES.map((type) => {
                   const selected = type.id === mode
@@ -328,16 +351,12 @@ export function AddSourceScreen({
                       aria-pressed={selected}
                       onClick={() => setMode(type.id)}
                     >
-                      <span className="source-type-head">
-                        <b>{typeTitle(type.title)}</b>
-                        {/* Marca visível além da cor (FR-015); o estado lido é o `aria-pressed`. */}
-                        {selected && (
-                          <span className="source-type-check" aria-hidden="true">
-                            ✓
-                          </span>
-                        )}
-                      </span>
-                      <span className="source-type-text">{t(type.description)}</span>
+                      {selected && (
+                        <span className="source-type-check" aria-hidden="true">
+                          ✓
+                        </span>
+                      )}
+                      {typeTitle(type.title)}
                     </button>
                   )
                 })}

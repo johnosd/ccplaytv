@@ -1,6 +1,7 @@
 """Entrega privada à TV; revalida epochs/fences após decifragem fora do CAS."""
 
 import json
+import re
 from datetime import datetime, timedelta
 
 from google.cloud.firestore_v1.base_query import FieldFilter
@@ -8,7 +9,7 @@ from google.cloud.firestore_v1.field_path import FieldPath
 
 from app.portal.auth import AuthError, Principal
 from app.portal.configurations import PENDING, ConfigurationService, operation_view
-from app.portal.models import ConfigurationVersionDocument, OperationDocument
+from app.portal.models import ConfigurationDocument, ConfigurationVersionDocument, OperationDocument
 from app.portal.repositories.control import TransactionPlan, document_path
 
 
@@ -103,6 +104,34 @@ class ConfigurationDelivery:
             return TransactionPlan(output, puts)
 
         return await self.repository.transact(tuple(paths), mark_received)
+
+    async def values(self, principal: Principal, source_id: str) -> dict | None:
+        """Valores salvos da lista para o painel autenticado da MESMA TV (070/D-006, ADR-014).
+
+        Decifra transitoriamente a versão corrente; devolve só a allowlist do tipo. `None` para fonte
+        inexistente, excluída (tombstone) ou com ID malformado — nunca distingue o motivo.
+        """
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", source_id):
+            return None
+        device_path = document_path("devices", principal.device_id)
+        config_path = document_path("configurations", source_id, device_id=principal.device_id)
+        fence_path = document_path("tombstones", source_id, device_id=principal.device_id)
+
+        def read(rows):
+            self.auth._same_principal(rows[device_path], principal)
+            if rows[fence_path] is not None or rows[config_path] is None:
+                return TransactionPlan(None)
+            return TransactionPlan(ConfigurationDocument.model_validate(rows[config_path]))
+
+        saved = await self.repository.transact((device_path, config_path, fence_path), read)
+        if saved is None:
+            return None
+        value = json.loads(self.configurations.crypto.decrypt(
+            saved.envelope, self.configurations.context(principal.device_id, source_id, saved.config_version)))
+        keys = (("providerDns", "providerUsername", "providerPassword") if saved.type == "provider_credentials"
+                else ("m3uUrl",)) + ("epgManualUrl", "epgOffsetHours", "epgDisabled")
+        return {"type": saved.type, "displayName": saved.display_name,
+                **{key: value[key] for key in keys if value.get(key) not in (None, "")}}
 
     async def public_rows(self, principal: Principal, collection: str, limit: int = 99,
                           after: str | None = None) -> list:

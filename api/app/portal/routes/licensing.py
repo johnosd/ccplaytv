@@ -10,6 +10,7 @@ from app.portal.licensing import AUDIENCE, ISSUER, LicensingService
 from app.portal.payment_signature import verify_payment_signature
 from app.portal.payments import PaymentService, order_view
 from app.portal.providers.mercadopago import MercadoPagoProvider
+from app.portal.repositories.control import TransactionPlan, document_path
 from app.portal.routes.auth import Input, access_service, payload
 from app.portal.routes.operations import browser_principal, tv_principal
 
@@ -69,12 +70,16 @@ async def refresh(request: Request):
 
 @router.get("/session/device")
 async def device(request: Request):
+    """Cabeçalho do painel (070/FR-013): ID exibido (formato MAC, não é segredo) e licença da TV da sessão."""
     principal = await browser_principal(request)
     service = await licensing_service(request)
+    device_path = document_path("devices", principal.device_id)
+    display_id = await service.auth.repository.transact((device_path,), lambda rows: TransactionPlan(
+        service.auth._same_principal(rows[device_path], principal).display_id))
     token = await service.entitlement(principal, datetime.now(UTC))
     claims = service.crypto.verify(token, issuer=ISSUER, audience=AUDIENCE, device_id=principal.device_id)
-    return {"deviceId": principal.device_id, "license": {key: claims[key] for key in
-        ("state", "startsAt", "expiresAt", "generation", "serverTime")}}
+    return {"deviceId": principal.device_id, "authEpoch": principal.auth_epoch, "displayId": display_id,
+            "license": {key: claims[key] for key in ("state", "startsAt", "expiresAt", "generation", "serverTime")}}
 
 
 @router.get("/offer")

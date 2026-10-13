@@ -55,10 +55,14 @@ para decifrar backups de sete dias e validar direitos ainda vigentes; remover
 chave antiga apenas após janela aplicável e ensaio. Perder chaves pode impedir
 recuperação. Cifragem protege cópia do banco, não runtime comprometido.
 
-Configurações fornecidas no portal ficam cifradas enquanto cadastradas. Browser
-nunca lê segredo salvo. Exclusão elimina versões/cancela entregas, com tombstone
-e journal para não ressuscitar depois de restore. Somente Xtream/M3U URL;
-nenhum bucket de M3U, catálogo, histórico ou credenciais exclusivas da TV.
+Configurações fornecidas no portal ficam cifradas enquanto cadastradas. Por
+decisão 1.10.0/ADR-014, somente uma sessão `manage` autenticada pela mesma TV
+pode ler transitoriamente os valores allowlisted da própria fonte pela rota
+`GET /portal/v1/configurations/{sourceId}/values`; a resposta é `no-store` e
+nunca vai para logs, URL, QR, cards ou exportações. Exclusão elimina
+versões/cancela entregas, com tombstone e journal para não ressuscitar depois
+de restore. Somente Xtream/M3U URL; nenhum bucket de M3U, catálogo, histórico
+ou credenciais exclusivas da TV.
 
 ## Recuperação da licença e restauração do serviço
 
@@ -117,6 +121,21 @@ Preservar versões HMAC antigas e consultar todos os claims correspondentes ante
 Convite nasce fora do callback transacional, vale cinco minutos e é consumido uma única vez por CAS. Cookie de sessão HttpOnly/SameSite=Strict/Path=/portal/v1, Secure em staging/produção; somente HTTP loopback de desenvolvimento/teste permite cookie sem Secure. Mutações exigem Origin exato e CSRF; Origin null somente no transporte TV autenticado com bearer. Sessão expira após 30min inativa ou 8h totais, mesmo que TTL não tenha apagado o documento.
 
 Limites compartilhados: cinco falhas por par device/IP em 15min e cooldown de 15min; adicionais de 25/device, 25/IP e 100 globais por 15min. Formulários: 30/min/sessão. IP entra somente em HMAC e contadores expiram operacionalmente após um dia; a expiração lógica é aplicada em toda tentativa. Limiar adicional global deverá ser medido/calibrado em T043. Não confiar em X-Forwarded-For fornecido arbitrariamente pelo cliente; validar configuração do proxy real em T038/T052. Cadastro inicial/rotação/revoke/recuperação estão implementados no núcleo/API local; telas e validações reais posteriores permanecem pendentes.
+
+### Entrada manual e operação do gerenciador (feature 070)
+
+Na TV, **Adicionar lista** abre o pareamento e mostra o `displayId` em formato
+`XX:XX:XX:XX:XX:XX`, a chave numérica de dez dígitos, endereço e QR efêmero.
+O QR não carrega credencial nem URL de provedor. No painel, a entrada manual
+aceita `displayId` (maiúsculas, minúsculas ou hífens são normalizados) e chave;
+falhas retornam a mesma resposta de credencial inválida. A tela autenticada
+mostra ID, estado/validade da licença e as listas com tipo, nome e estado.
+
+Ao editar uma lista, `values` busca os campos salvos da própria TV uma vez; o
+formulário os exibe somente nessa sessão e o olho alterna a visibilidade. A
+rotação **Gerar nova chave** invalida a chave anterior e as sessões associadas.
+Recarregar é explícito e dispara uma sincronização imediata, respeitando o
+mutex e os limites de pull; não existe polling contínuo do painel.
 
 Atenção no restore: trocar SERVICE_RECOVERY_EPOCH invalida acessos antigos. Não atualizar recoveryEpoch dos devices em lote mantendo hashes de acesso antigos: o repositório recusa essa transição. A reemissão precisa reservar fence e trocar bearer/key com epoch maior antes de remover o bloqueio. Sessões/convites antigos continuam com epoch global anterior. T039/T052 devem ensaiar esse caminho; preparação local não autoriza reabrir tráfego.
 

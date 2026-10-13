@@ -33,6 +33,13 @@ export interface TextFieldProps {
   revealNoun?: string
   /** Dica do rótulo da tecla de ação do teclado da TV (`enterkeyhint`): "next" avança, "done" conclui. */
   enterKeyHint?: 'next' | 'done'
+  /**
+   * Feature 070 (FR-010, D-007): máscara **controlada pelo formulário** — um único olho para vários
+   * campos. `true` esconde o texto (`type="password"`) em qualquer `purpose`; `false` o mostra mesmo
+   * em `purpose="password"`; `undefined` (padrão) mantém o comportamento de sempre (e o `revealable`
+   * próprio do campo). Não combina com `revealable`.
+   */
+  masked?: boolean
 }
 
 interface PurposeAttrs {
@@ -68,6 +75,7 @@ export function TextField({
   revealable,
   revealNoun,
   enterKeyHint,
+  masked,
 }: TextFieldProps): ReactNode {
   const t = useT()
   const generatedId = useId()
@@ -78,6 +86,9 @@ export function TextField({
   const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined
   const [revealed, setRevealed] = useState(false)
   const canReveal = Boolean(revealable) && purpose === 'password'
+  // O mesmo <input> troca de tipo (sem remontar): foco e cursor não se perdem ao revelar/mascarar.
+  let inputType = canReveal && revealed ? 'text' : (attrs.type ?? 'text')
+  if (masked !== undefined) inputType = masked ? 'password' : purpose === 'password' ? 'text' : (attrs.type ?? 'text')
 
   const input = (
     <input
@@ -89,8 +100,7 @@ export function TextField({
       // Feature 045 (US3): o campo focado sobe para a metade de cima, longe do teclado da TV.
       onFocus={(event) => revealInTopHalf(event.currentTarget.closest<HTMLElement>('.text-field') ?? event.currentTarget)}
       inputMode={attrs.inputMode}
-      // O mesmo <input> troca de tipo (sem remontar): foco e cursor não se perdem ao revelar.
-      type={canReveal && revealed ? 'text' : (attrs.type ?? 'text')}
+      type={inputType}
       autoComplete={attrs.autoComplete}
       enterKeyHint={enterKeyHint}
       aria-invalid={error ? 'true' : undefined}

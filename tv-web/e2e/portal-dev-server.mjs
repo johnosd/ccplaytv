@@ -72,7 +72,7 @@ try {
   await expect(portal.getByRole('heading', { name: 'Suas listas' })).toBeVisible({ timeout: 20000 })
   await portal.getByRole('button', { name: 'Adicionar lista', exact: true }).click()
   await portal.getByLabel('Nome da lista').fill('Lista do dev server')
-  await portal.getByLabel('Tipo de lista').selectOption('m3u_url')
+  await portal.getByRole('group', { name: 'Tipo de lista' }).getByRole('radio', { name: 'M3U por URL' }).check()
   await portal.getByLabel('URL da lista M3U', { exact: true }).fill('https://iptv.fixture.test/list.m3u?key=segredo-fixture')
   await portal.getByRole('button', { name: 'Enviar para a TV', exact: true }).click()
   await expect.poll(() => tv.evaluate(async () => { const { db } = await import('/src/lib/catalog/db.ts'); return (await db.sources.toArray()).map(s => s.displayName ?? s.name) }),

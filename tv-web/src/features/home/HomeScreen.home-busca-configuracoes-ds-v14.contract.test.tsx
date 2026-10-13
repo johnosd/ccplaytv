@@ -86,6 +86,7 @@ function renderHome() {
       onOpenFavorites={vi.fn()}
       onOpenSearch={vi.fn()}
       onOpenSettings={vi.fn()}
+      onLeaveList={vi.fn()}
     />,
     { wrapper: Wrapper },
   )

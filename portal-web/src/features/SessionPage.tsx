@@ -1,12 +1,23 @@
 import { useEffect, useState, type SubmitEvent } from 'react'
 import { useT } from '../lib/i18n'
 import { api, PortalApiError, type Session } from './api'
+import { EyeIcon } from './EyeIcon'
 
 export type StartupSession = Promise<{ session: Session } | { error: PortalApiError }>
-export function SessionPage({ startup, onSession, onRecover }: { startup?: StartupSession; onSession: (session: Session) => void; onRecover?: () => void }) {
+export function normalizeDisplayId(value: string) {
+  const compact = value.trim().replace(/[:.-]/g, '').toUpperCase()
+  return /^[0-9A-F]{12}$/.test(compact) ? compact.match(/../g)!.join(':') : value.trim()
+}
+export function formatDisplayIdInput(value: string) {
+  const compact = value.replace(/[^0-9A-F]/gi, '').slice(0, 12).toUpperCase()
+  return compact.match(/../g)?.join('-') ?? compact
+}
+export function SessionPage({ startup, onSession }: { startup?: StartupSession; onSession: (session: Session) => void }) {
   const t = useT()
   const [busy, setBusy] = useState(!!startup)
   const [error, setError] = useState<PortalApiError>()
+  const [displayId, setDisplayId] = useState('')
+  const [showDeviceKey, setShowDeviceKey] = useState(false)
   useEffect(() => {
     let live = true
     startup?.then(result => {
@@ -22,9 +33,11 @@ export function SessionPage({ startup, onSession, onRecover }: { startup?: Start
     if (busy) return
     const form = event.currentTarget
     const values = new FormData(form)
-    const id = String(values.get('deviceId') ?? '').trim()
+    const id = normalizeDisplayId(String(values.get('displayId') ?? ''))
     const key = String(values.get('deviceKey') ?? '').trim()
     form.reset()
+    setDisplayId('')
+    setShowDeviceKey(false)
     setBusy(true)
     setError(undefined)
     try { onSession(await api.manual(id, key)) }
@@ -34,11 +47,16 @@ export function SessionPage({ startup, onSession, onRecover }: { startup?: Start
   return <section className="panel" aria-labelledby="access-title">
     <h2 id="access-title">{t('accessTitle')}</h2><p>{t('accessHint')}</p>
     <form onSubmit={submit} aria-busy={busy}>
-      <label>{t('deviceId')}<input name="deviceId" required maxLength={128} autoComplete="off" disabled={busy} /></label>
-      <label>{t('deviceKey')}<input name="deviceKey" type="password" required maxLength={1024} autoComplete="off" disabled={busy} /></label>
+      <div className="field"><label>{t('deviceId')}<input name="displayId" value={displayId} onChange={event => setDisplayId(formatDisplayIdInput(event.target.value))} required maxLength={17} autoComplete="off" disabled={busy} inputMode="text" placeholder="A0-8C-FD-19-0A-8C" aria-describedby="device-id-hint" /></label>
+        <p id="device-id-hint" className="field-hint">{t('deviceIdHint')}</p></div>
+      <label htmlFor="device-key">{t('deviceKey')}<span className="secret-field">
+        <input id="device-key" name="deviceKey" type={showDeviceKey ? 'text' : 'password'} required maxLength={64} autoComplete="off" disabled={busy} inputMode="numeric" />
+        <button type="button" className="secret-toggle" aria-label={t(showDeviceKey ? 'hideDeviceKey' : 'showDeviceKey')} aria-pressed={showDeviceKey} onClick={() => setShowDeviceKey(value => !value)} disabled={busy}>
+          <EyeIcon open={showDeviceKey} />
+        </button>
+      </span></label>
       {error && <p role="alert">{t(error.code)}</p>}
       <button className="primary" type="submit" aria-disabled={busy}>{t(busy ? 'connecting' : 'connect')}</button>
     </form>
-    {onRecover && <button onClick={onRecover}>{t('recoveryTitle')}</button>}
   </section>
 }

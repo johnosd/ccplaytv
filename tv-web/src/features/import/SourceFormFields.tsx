@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { TextField } from '../../components/TextField'
 import { useT } from '../../lib/i18n/I18nProvider'
 
@@ -19,10 +19,17 @@ export interface SourceFormFieldsProps {
 
 /**
  * Campos do cadastro/edição de lista (extraídos do `AddSourceScreen` na feature 070, teto de linhas).
- * Rótulos preservados — contratos 037 e 045 dependem deles: Nome da lista, URL M3U, Servidor, Usuário, Senha.
+ * Rótulos do formulário: Playlist Name, URL M3U, Host, User Name, Password.
+ *
+ * Feature 070 (FR-010, D-007): os dados nascem **visíveis** e um único olho do formulário
+ * ("Ocultar dados"/"Mostrar dados") mascara Servidor/URL, Usuário e Senha de uma vez. O estado é daqui:
+ * sair da tela volta a mostrar, nunca é persistido. Na edição, o texto "Deixe em branco para manter"
+ * só aparece onde o campo está de fato em branco (não há valor salvo para mostrar).
  */
 export function SourceFormFields({ mode, isEditing, values, onChange }: SourceFormFieldsProps): ReactNode {
   const t = useT()
+  const [masked, setMasked] = useState(false)
+  const keepHint = (value: string, text: string) => (isEditing && value === '' ? text : undefined)
   return (
     <div className="source-setup-fields">
       <div className="source-setup-field--wide">
@@ -33,37 +40,50 @@ export function SourceFormFields({ mode, isEditing, values, onChange }: SourceFo
           <TextField
             label={t('add.field.m3u')}
             purpose="url"
+            masked={masked}
             enterKeyHint="done"
             value={values.m3uUrl}
             onChange={(value) => onChange('m3uUrl', value)}
-            hint={isEditing ? t('add.hint.keepUrl') : undefined}
+            hint={keepHint(values.m3uUrl, t('add.hint.keepUrl'))}
           />
         </div>
       ) : (
         <>
           <div className="source-setup-field--wide">
-            <TextField label={t('add.field.server')} purpose="url" enterKeyHint="next" value={values.dns} onChange={(value) => onChange('dns', value)} />
+            <TextField label={t('add.field.server')} purpose="url" masked={masked} enterKeyHint="next" value={values.dns} onChange={(value) => onChange('dns', value)} />
           </div>
           <TextField
             label={t('add.field.user')}
             purpose="username"
+            masked={masked}
             enterKeyHint="next"
             value={values.username}
             onChange={(value) => onChange('username', value)}
-            hint={isEditing ? t('add.hint.keepUser') : undefined}
+            hint={keepHint(values.username, t('add.hint.keepUser'))}
           />
           <TextField
             label={t('add.field.password')}
             purpose="password"
-            revealable
-            revealNoun={t('textField.password')}
+            masked={masked}
             enterKeyHint="done"
             value={values.password}
             onChange={(value) => onChange('password', value)}
-            hint={isEditing ? t('add.hint.keepPassword') : undefined}
+            hint={keepHint(values.password, t('add.hint.keepPassword'))}
           />
         </>
       )}
+      {/* Logo depois dos campos no DOM (ordem de foco). Nome e texto mudam com o estado, nunca só cor;
+          nada aqui lê os valores digitados (constitution: segredo fora de rótulo/anúncio/log). */}
+      <div className="source-setup-field--wide source-setup-eye">
+        <button
+          type="button"
+          className="button-secondary"
+          aria-pressed={masked}
+          onClick={() => setMasked((current) => !current)}
+        >
+          {masked ? t('add.eye.show') : t('add.eye.hide')}
+        </button>
+      </div>
     </div>
   )
 }

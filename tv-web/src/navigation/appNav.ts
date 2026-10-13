@@ -214,8 +214,9 @@ export function appNavReducer(state: AppNavState, action: AppNavAction): AppNavS
       return profilesAsBase(action.sourceId ?? null)
 
     case 'leave-list':
-      // Stub do sdd-plan (feature 070): implementar em T0NN (ver tasks.md).
-      throw new Error('not implemented')
+      // RETURN no Início sai da lista sem pedir confirmação: os perfis viram
+      // a nova base e devolvem o foco à mesma lista pelo identificador.
+      return profilesAsBase(state.activeSource?.id ?? null)
 
     case 'go-home': {
       const homeIndex = state.history.findIndex((entry) => entry.name === 'home')

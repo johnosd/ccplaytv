@@ -201,17 +201,17 @@ async function run() {
     await page.keyboard.press('Escape')
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
-    console.log('=== FR-030: RETURN no Início abre o modal de saída ===')
-    // Voltar de Configurações restaura o foco na topbar, na engrenagem (FR-017/FR-029) — entramos por lá.
+    console.log('=== US4: RETURN no Início termina nos perfis antes da saída ===')
+    // A partir do Início, RETURN encerra a lista sem modal; o modal de saída
+    // continua pertencendo exclusivamente à tela de perfis base.
     await page.keyboard.press('Escape')
-    await page.waitForSelector(EXIT_DIALOG, { timeout: 5000 })
-    await page.keyboard.press('Enter') // "Cancelar"
-    await page.waitForSelector(EXIT_DIALOG, { state: 'detached', timeout: 5000 })
-    assert((await page.locator('.topbar .tv-focus').getAttribute('aria-label')) === 'Configurações', 'cancelar a saída devolve o foco onde estava (o botão é só ícone: o nome está no aria-label)')
+    await page.waitForSelector('.source-card', { timeout: 5000 })
+    assert((await focusedText(page, '.source-card-wrap')).join('|').includes('Lista E2E Um'), 'RETURN no Início volta aos perfis com foco na lista ativa')
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('.home-content', { timeout: 5000 })
 
     console.log('=== US2/AC6-AC7: trocar de lista pelo indicador ===')
-    await page.keyboard.press('ArrowLeft') // Configurações → indicador da lista (sem a lupa entre eles)
-    await page.keyboard.press('Enter')
+    await page.locator('.topbar button[aria-label^="Lista ativa"]').click()
     await page.waitForSelector('.source-card', { timeout: 8000 })
     assert((await focusedText(page, '.source-card-wrap')).join('|').includes('Lista E2E Um'), 'os perfis abrem com o foco na lista ativa')
     await page.keyboard.press('Escape')
@@ -260,8 +260,11 @@ async function run() {
       'escolher outra lista abre o Início dela (pilha zerada)',
     )
     await page.keyboard.press('Escape')
+    await page.waitForSelector('.source-card', { timeout: 5000 })
+    assert(true, 'depois da troca, RETURN a partir do Início volta aos perfis sem a pilha da lista anterior')
+    await page.keyboard.press('Escape')
     await page.waitForSelector(EXIT_DIALOG, { timeout: 5000 })
-    assert(true, 'depois da troca, RETURN a partir do Início abre o modal de saída (nada da lista anterior na pilha)')
+    assert(true, 'o modal de saída continua restrito à base de perfis')
     await page.keyboard.press('Escape')
 
     console.log('=== FR-004/FR-005/SC-001: a última lista usada sobrevive ao recarregar ===')

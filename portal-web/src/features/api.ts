@@ -7,6 +7,11 @@ export class PortalApiError extends Error {
 export interface Session { deviceId: string; csrfToken: string; expiresAt: string }
 export interface Source { id: string; type: 'provider_credentials' | 'm3u_url'; displayName: string;
   connectionState?: string; updatedAt?: number }
+export interface ConfigurationValues {
+  type: Source['type']; displayName: string; m3uUrl?: string; providerDns?: string;
+  providerUsername?: string; providerPassword?: string; epgManualUrl?: string;
+  epgOffsetHours?: number; epgDisabled?: boolean
+}
 export interface SavedConfiguration { sourceId: string; type: Source['type']; displayName: string;
   configVersion: string; appliedRevision: number | null; expectedRevision: number; operationId: string | null }
 export interface Operation { operationId: string; sourceId: string; action: string; state: string;
@@ -92,7 +97,7 @@ async function pages<T>(path: string, field: string): Promise<T[]> {
   }
   throw new PortalApiError('network')
 }
-export interface LicenseDevice { deviceId: string; license: { state: 'trial' | 'active' | 'revoked'; startsAt: number; expiresAt: number; generation: number; serverTime: number } }
+export interface LicenseDevice { deviceId: string; displayId?: string; license: { state: 'trial' | 'active' | 'revoked'; startsAt: number; expiresAt: number; generation: number; serverTime: number } }
 export interface LicenseOrder { orderId: string; deviceId: string; status: 'created' | 'pending' | 'approved' | 'refused' | 'cancelled' | 'refunded' | 'charged_back'; checkoutUrl: string | null }
 export const api = {
   licenseDevice: () => request<LicenseDevice>('/session/device'),
@@ -118,6 +123,10 @@ export const api = {
       request<{ snapshot: Snapshot | null; stale: boolean }>('/snapshot'),
     ])
     return { configurations, operations, ...snapshot }
+  },
+  values: (sourceId: string) => {
+    if (!opaque.test(sourceId)) throw new PortalApiError('invalid')
+    return request<ConfigurationValues>('/configurations/' + sourceId + '/values')
   },
   submit: (session: Session, body: { action: string; sourceId: string; expectedRevision: number; input?: ConfigurationInput }, operationId: string) =>
     request<Operation>('/operations', { method: 'POST', csrf: session.csrfToken, operationId, body }),

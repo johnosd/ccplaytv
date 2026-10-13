@@ -60,20 +60,49 @@ export function LicensePage({ session }: { session: Session }) {
   }
   const terminal = order && !['created', 'pending'].includes(order.status)
   const checkout = !terminal && safeCheckoutUrl(order?.checkoutUrl)
-  return <section aria-label={t('license')}>
-    <h2>{t('license')}</h2><p>{t('destination')}: {session.deviceId}</p><p>{t('licenseOffer')}</p>
-    {device && <p role="status">{t(device.license.expiresAt <= Math.max(Date.now(), device.license.serverTime) ? 'licenseExpired' : ('license_' + device.license.state) as 'license_active')}
-      {' · '}{t('licenseExpiry')}: {new Date(device.license.expiresAt).toLocaleDateString(t('lang'))}</p>}
-    {!enabled && <p>{t('licenseDisabled')}</p>}
-    {error && <p role="alert">{t(error.code)}</p>}
-    {order && <p role="status">{t(('order_' + order.status) as 'order_pending')}</p>}
-    <p>{t('licenseActivation')}</p>
-    {checkout && <a href={checkout} rel="noreferrer">{t('licenseCheckout')}</a>}
-    {(!order || terminal) && <><label><input type="checkbox" checked={confirmed} onChange={event => {
-      setConfirmed(event.target.checked)
-      if (terminal && event.target.checked) { attempt.current = undefined; try { sessionStorage.removeItem(storageKey + '-attempt') } catch { /* Sem storage. */ } }
-    }} />{t('licenseConfirm')}</label>
-      <button disabled={!enabled || !confirmed || busy} onClick={() => void buy()}>{t('licenseBuy')}</button></>}
-    <button disabled={busy} onClick={() => void refresh()}>{t('refresh')}</button>
+  const expired = device && device.license.expiresAt <= Math.max(Date.now(), device.license.serverTime)
+  const tone = !device ? '' : expired || device.license.state === 'revoked' ? 'is-danger' : device.license.state === 'active' ? 'is-success' : 'is-warning'
+  // refresh() só aceita a oferta de R$ 35,00 (3500 centavos, BRL); o valor exibido é o mesmo.
+  const price = new Intl.NumberFormat(t('lang'), { style: 'currency', currency: 'BRL' }).format(3500 / 100)
+  return <section className="license-page" aria-labelledby="license-title">
+    <header className="license-hero">
+      <p className="eyebrow">{t('title')} / {t('activate')}</p>
+      <h2 id="license-title">{t('activateTitle')}</h2>
+      <p>{t('licenseOffer')}</p>
+    </header>
+    <div className="license-layout">
+      <div className="panel license-details">
+        <h3>{t('yourDetails')}</h3>
+        <div className="field"><span className="field-label">{t('deviceIdOnTv')}</span>
+          <output className="readonly-value mono">{device?.displayId ?? session.deviceId}</output></div>
+        <div className="field"><span className="field-label">{t('currentLicense')}</span>
+          {device ? <p role="status" className="license-current"><span className={'status-badge ' + tone}>{t(expired ? 'licenseExpired' : ('license_' + device.license.state) as 'license_active')}</span>
+            <span>{t('licenseExpiry')}: <time dateTime={new Date(device.license.expiresAt).toISOString()}>{new Date(device.license.expiresAt).toLocaleDateString(t('lang'))}</time></span></p>
+            : <p className="readonly-value">—</p>}</div>
+        {!enabled && <p className="notice is-warning">{t('licenseDisabled')}</p>}
+        {error && <p role="alert">{t(error.code)}</p>}
+        {order && <p role="status" className={'notice' + (order.status === 'approved' ? ' is-success' : '')}>{t(('order_' + order.status) as 'order_pending')}</p>}
+        {(!order || terminal) && <label className="checkbox license-confirm"><input type="checkbox" checked={confirmed} onChange={event => {
+          setConfirmed(event.target.checked)
+          if (terminal && event.target.checked) { attempt.current = undefined; try { sessionStorage.removeItem(storageKey + '-attempt') } catch { /* Sem storage. */ } }
+        }} />{t('licenseConfirm')}</label>}
+        <div className="license-cta">
+          {checkout && <a className="button primary large" href={checkout} rel="noreferrer">{t('licenseCheckout')}</a>}
+          {(!order || terminal) && <button className="primary large" disabled={!enabled || !confirmed || busy} onClick={() => void buy()}>{t('licenseBuy')} · {price}</button>}
+          <button className="ghost small" disabled={busy} onClick={() => void refresh()}>{t('refresh')}</button>
+        </div>
+      </div>
+      <aside className="panel license-summary" aria-labelledby="summary-title">
+        <p className="eyebrow" id="summary-title">{t('summary')}</p>
+        <div className="summary-row"><span>{t('licenseProduct')}<small>{t('licenseTerm')}</small></span><strong className="summary-price">{price}</strong></div>
+        <p className="eyebrow">{t('beforePay')}</p>
+        <ul className="info-list">
+          <li>{t('licenseTiedToTv')}</li>
+          <li>{t('licenseOneTime')}</li>
+          <li>{t('licenseMercadoPago')}</li>
+          <li>{t('licenseActivation')}</li>
+        </ul>
+      </aside>
+    </div>
   </section>
 }

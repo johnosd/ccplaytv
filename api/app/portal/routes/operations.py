@@ -97,12 +97,6 @@ async def deletions(request: Request):
     return DeletionService(access.repository, access.journal)
 
 
-@router.get("/session/device")
-async def session_device(request: Request):
-    principal = await browser_principal(request)
-    return {"deviceId": principal.device_id, "authEpoch": principal.auth_epoch}
-
-
 @router.get("/configurations")
 async def saved_configurations(request: Request):
     principal = await browser_principal(request)
@@ -110,6 +104,16 @@ async def saved_configurations(request: Request):
         principal, "configurations", after=request.query_params.get("after"),
     )
     return {"configurations": rows, "nextAfter": rows[-1]["sourceId"] if len(rows) == 99 else None}
+
+
+@router.get("/configurations/{source_id}/values")
+async def configuration_values(source_id: str, request: Request):
+    """Valores salvos da lista, só para a sessão `manage` da própria TV (070/D-006). Nunca em log."""
+    principal = await browser_principal(request)
+    values = await ConfigurationDelivery(await configurations(request)).values(principal, source_id)
+    if values is None:
+        return JSONResponse({"code": "not_found", "retryable": False}, status_code=404)
+    return values
 
 
 @router.get("/operations")

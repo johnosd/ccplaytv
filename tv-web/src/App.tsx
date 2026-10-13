@@ -399,6 +399,7 @@ function App() {
           onOpenSettings={(from) =>
             dispatch({ type: 'open', screen: { name: 'settings' }, from: { name: 'home', focus: from } })
           }
+          onLeaveList={() => dispatch({ type: 'leave-list' })}
           onEditSource={(sourceId) => editSourceFromPlayer(sourceId, { name: 'home' })}
         />
       )

@@ -356,6 +356,19 @@ async function walk(page, lang) {
     await page.waitForSelector('.list-settings-screen .side-category-nav-item', { timeout: 8000 })
     await auditTabs(page, lang, '.list-settings-screen', 'Tela da lista')
   })
+
+  // Feature 070 (SC-004): a edição mostra os valores salvos em campos grandes (servidor/URL, usuário, senha).
+  await step(lang, 'Edição de lista', async () => {
+    await toHome(page)
+    await viaTopbar(page, 6)
+    await page.waitForSelector('.settings-screen .sources-panel-row', { timeout: 8000 })
+    await page.locator('.sources-panel-row').first().getByRole('button', { name: /^(Configurar|Configure)$/ }).click()
+    await page.waitForSelector('.list-settings-screen .side-category-nav-item', { timeout: 8000 })
+    await page.getByRole('button', { name: /^(Editar|Edit)$/ }).click()
+    await page.waitForSelector('#add-source-title', { timeout: 8000 })
+    await page.waitForFunction(() => Array.from(document.querySelectorAll('.source-setup input.text-field-input')).some((el) => el.value !== ''))
+    await audit(page, lang, 'Edição de lista')
+  })
 }
 
 async function run() {

@@ -30,3 +30,12 @@ it('logout204 funciona e paginação segue apenas cursor opaco', async () => {
   fetcher.mockResolvedValue(new Response(JSON.stringify({ configurations: [], nextAfter: 'https://private.invalid' })))
   await expect(api.dashboard()).rejects.toBeInstanceOf(PortalApiError)
 })
+it('lê valores salvos somente por sourceId opaco e mantém a URL sem dados da lista', async () => {
+  const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ type: 'm3u_url', displayName: 'Lista',
+    m3uUrl: 'https://provider.invalid/list?secret=fixture' })))
+  vi.stubGlobal('fetch', fetcher)
+  await expect(api.values('source-safe')).resolves.toMatchObject({ type: 'm3u_url', displayName: 'Lista' })
+  expect(fetcher.mock.calls[0][0]).toBe('/portal/v1/configurations/source-safe/values')
+  expect(fetcher.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin', cache: 'no-store', referrerPolicy: 'no-referrer' })
+  expect(() => api.values('../private')).toThrow(new PortalApiError('invalid'))
+})

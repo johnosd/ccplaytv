@@ -157,7 +157,8 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
     expect(dns).toHaveAttribute('type', 'url')
     expect(screen.getByLabelText('Usuário')).toHaveAttribute('autocomplete', 'username')
     const password = screen.getByLabelText('Senha')
-    expect(password).toHaveAttribute('type', 'password')
+    // 070 (FR-010): os dados nascem visíveis; o olho do formulário os mascara de uma vez.
+    expect(password).toHaveAttribute('type', 'text')
     expect(password).toHaveAttribute('autocomplete', 'current-password')
 
     chooseM3u()
@@ -165,6 +166,27 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
     expect(url).toHaveAttribute('inputmode', 'url')
     expect(url).toHaveAttribute('type', 'url')
   })
+
+  it('070: um único olho do formulário mascara e reexibe servidor/URL, usuário e senha; o teclado de cada campo não muda (FR-010)', () => {
+    render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
+
+    expect(screen.getAllByRole('button', { name: /^(Ocultar|Mostrar)/ })).toHaveLength(1)
+    const typeOf = (label: string) => (screen.getByLabelText(label) as HTMLInputElement).type
+    expect(['Nome da lista', 'Servidor', 'Usuário', 'Senha'].map(typeOf)).toEqual(['text', 'url', 'text', 'text'])
+
+    const eye = screen.getByRole('button', { name: 'Ocultar dados' })
+    expect(eye).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(eye)
+    expect(['Nome da lista', 'Servidor', 'Usuário', 'Senha'].map(typeOf)).toEqual(['text', 'password', 'password', 'password'])
+    expect(screen.getByRole('button', { name: 'Mostrar dados' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Servidor')).toHaveAttribute('inputmode', 'url')
+
+    chooseM3u()
+    expect(typeOf('URL M3U')).toBe('password')
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar dados' }))
+    expect(typeOf('URL M3U')).toBe('url')
+  })
+
 
   it('rótulo é permanente, nunca placeholder: nenhum campo usa placeholder, nos dois tipos (DS §37)', () => {
     render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
@@ -233,7 +255,7 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
   it('as setas percorrem tipos → campos → Voltar → "Conectar e sincronizar", na ordem visual', () => {
     render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
 
-    const expected = ['Lista M3U', 'Nome da lista', 'Servidor', 'Usuário', 'Senha', 'Mostrar', 'Voltar', 'Conectar e sincronizar']
+    const expected = ['Lista M3U', 'Nome da lista', 'Servidor', 'Usuário', 'Senha', 'Ocultar dados', 'Voltar', 'Conectar e sincronizar']
     const seen: string[] = []
     for (let i = 0; i < expected.length; i += 1) {
       fireEvent.keyDown(document, { key: 'ArrowDown' })
@@ -347,7 +369,7 @@ describe('AddSourceScreen — edição no visual novo (feature 037, US4)', () =>
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Editar lista')
     expect(screen.getByText('Suas listas')).toBeInTheDocument()
-    expect(screen.getByText('Altere o que precisar. Usuário e senha em branco continuam como estão.')).toBeInTheDocument()
+    expect(screen.getByText('Altere o que precisar. Os dados salvos aparecem abaixo; campo em branco continua como está.')).toBeInTheDocument()
     expect(screen.getByText('Xtream Codes')).toBeInTheDocument()
 
     // Feature 045: o ria-pressed do Mostrar senha é outro; o que não existe em edição é o seletor de tipo.
@@ -407,5 +429,44 @@ describe('AddSourceScreen — edição no visual novo (feature 037, US4)', () =>
     expect(document.querySelector('.source-type[aria-pressed]')).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Conectar com celular' })).not.toBeInTheDocument()
     expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
+
+  it('070: Xtream mostra os valores salvos, sem "deixe em branco"; salvar sem mexer não reenvia o segredo nem confirma a conexão (FR-011)', async () => {
+    await db.sources.put({ id: 'src-prov', type: 'provider_credentials', displayName: 'Meu Provedor', providerDns: 'http://prov.test',
+      providerUsername: 'maria', providerPassword: 'segredo-9', connectionState: 'synced', createdAt: 1, updatedAt: 1 } as never)
+    const update = vi.spyOn(sourceRepository, 'updateSource').mockResolvedValue(undefined)
+    const onSourceUpdated = vi.fn()
+    render(<AddSourceScreen existingSource={makeProviderSource()} onSourceCreated={vi.fn()} onSourceUpdated={onSourceUpdated} onBack={vi.fn()} />, {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(screen.getByLabelText('Senha')).toHaveValue('segredo-9'))
+    expect(screen.getByLabelText('Usuário')).toHaveValue('maria')
+    expect(screen.getByLabelText('Servidor')).toHaveValue('http://prov.test')
+    expect(screen.queryByText(/Deixe em branco/)).not.toBeInTheDocument()
+    // Nenhum valor salvo vaza para texto ou nome acessível (contrato 045).
+    expect(document.body.textContent).not.toContain('segredo-9')
+    expect(Array.from(document.querySelectorAll('[aria-label]')).map((el) => el.getAttribute('aria-label')).join(' ')).not.toContain('segredo-9')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }))
+    await waitFor(() => expect(onSourceUpdated).toHaveBeenCalledTimes(1))
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+    expect(update).toHaveBeenCalledWith('src-prov', {
+      displayName: 'Meu Provedor', m3uUrl: undefined, providerDns: 'http://prov.test',
+      providerUsername: undefined, providerPassword: undefined,
+    })
+  })
+
+  it('070: M3U mostra a URL salva e o olho a mascara junto dos outros dados (FR-010, FR-011)', async () => {
+    await db.sources.put({ id: 'src-prov', type: 'm3u_url', displayName: 'Minha M3U', m3uUrl: 'http://lista.exemplo/a.m3u',
+      connectionState: 'synced', createdAt: 1, updatedAt: 1 } as never)
+    const m3u = makeProviderSource({ type: 'm3u_url', provider_dns: null, display_name: 'Minha M3U' })
+    render(<AddSourceScreen existingSource={m3u} onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
+
+    await waitFor(() => expect(screen.getByLabelText('URL M3U')).toHaveValue('http://lista.exemplo/a.m3u'))
+    expect(screen.queryByText('Deixe em branco para manter a URL atual')).not.toBeInTheDocument()
+    expect((screen.getByLabelText('URL M3U') as HTMLInputElement).type).toBe('url')
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar dados' }))
+    expect((screen.getByLabelText('URL M3U') as HTMLInputElement).type).toBe('password')
   })
 })

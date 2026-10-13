@@ -14,9 +14,8 @@ import type { ListSettingsFocus } from './features/settings/tabs/settingsTab'
  * quando a pessoa volta (D-006, fecha o bug de backlog "Voltar do detalhe
  * pra grade não restaura foco nem posição"). As telas pesadas (IndexedDB,
  * virtualização, foco) continuam mockadas e já têm cobertura própria; aqui
- * só o roteamento do `App` está sob teste. O `HomeScreen` (Início) não é
- * mockado: é uma casca fina sobre `AppShell`/`TopBar`/`HomeContent` (feature
- * 026) sem IndexedDB própria — mockar `HomeContent` já basta.
+ * só o roteamento do `App` está sob teste. O comportamento de teclas do
+ * `HomeScreen` fica nos testes próprios; aqui a tela é uma casca controlável.
  */
 
 vi.mock('./lib/tizenColorKey', async (importOriginal) => ({
@@ -77,6 +76,19 @@ vi.mock('./features/import/AddSourceScreen', () => ({
       voltar-cadastro
     </button>
   ),
+}))
+
+vi.mock('./features/home/HomeScreen', () => ({
+  HomeScreen: ({ onNavigate, onOpenFavorites, onLeaveList }: {
+    onNavigate: (destination: string, from: unknown) => void
+    onOpenFavorites: (destination: string, from: unknown) => void
+    onLeaveList: () => void
+  }) => <div>
+    <button type="button" onClick={() => onLeaveList()}>sair-da-lista</button>
+    <button type="button" onClick={() => onNavigate('live', { zone: 'hero', action: 'primary' })}>ir-para-live</button>
+    <button type="button" onClick={() => onNavigate('movies', { zone: 'hero', action: 'primary' })}>ir-para-filmes</button>
+    <button type="button" onClick={() => onOpenFavorites('movies', { zone: 'rail', rail: 'mylist', itemId: 'x' })}>filmes-n</button>
+  </div>,
 }))
 
 vi.mock('./features/home/HomeContent', () => ({
@@ -282,6 +294,13 @@ describe('App — navegação e foco de volta (feature 017, T025; 023; 052)', ()
     fireEvent.click(await screen.findByRole('button', { name: 'voltar-cadastro' }))
 
     expect(await screen.findByTestId('profiles-initial-focus')).toHaveTextContent('__add__')
+  })
+
+  it('RETURN no Início encerra a lista e volta aos perfis com foco por id (070/US4)', async () => {
+    renderApp()
+    fireEvent.click(await screen.findByRole('button', { name: 'escolher-fonte' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'sair-da-lista' }))
+    expect(await screen.findByTestId('profiles-initial-focus')).toHaveTextContent('src-1')
   })
 })
 

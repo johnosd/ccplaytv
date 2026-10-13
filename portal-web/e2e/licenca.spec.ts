@@ -11,7 +11,7 @@ async function fixture(page: Page, loseFirst = false, enabled = true) {
     if (path.endsWith('/configurations')) return json({ configurations: [], nextAfter: null })
     if (path.endsWith('/operations')) return json({ operations: [], nextAfter: null })
     if (path.endsWith('/snapshot')) return json({ snapshot: null, stale: true })
-    if (path.endsWith('/session/device')) return json({ deviceId: session.deviceId, license: { state: status === 'approved' ? 'active' : 'trial', startsAt: Date.now(), expiresAt: Date.now() + 86400000, generation: 1, serverTime: Date.now() } })
+    if (path.endsWith('/session/device')) return json({ deviceId: session.deviceId, displayId: 'A0:8C:FD:19:0A:8C', license: { state: status === 'approved' ? 'active' : 'trial', startsAt: Date.now(), expiresAt: Date.now() + 86400000, generation: 1, serverTime: Date.now() } })
     if (path.endsWith('/offer')) return json({ priceMinor: 3500, currency: 'BRL', termMonths: 12, deviceCount: 1, renewal: 'manual', checkoutEnabled: enabled })
     if (path.endsWith('/orders')) {
       requests.push({ id: request.headers()['idempotency-key'], body: request.postDataJSON() })
@@ -23,7 +23,7 @@ async function fixture(page: Page, loseFirst = false, enabled = true) {
   })
   await page.goto('/#invite=' + 'a'.repeat(42) + 'A')
   await expect(page.getByRole('heading', { name: 'Suas listas' })).toBeVisible()
-  await page.getByRole('button', { name: 'Licença anual', exact: true }).click()
+  await page.getByRole('button', { name: 'Ativar', exact: true }).click()
   await expect(page.getByText('R$ 35 por 12 meses', { exact: false })).toBeVisible()
   return { requests, approve: () => { status = 'approved' } }
 }
@@ -31,7 +31,7 @@ test('confirma TV, retry mantém pedido e pendente não permite recompra; retorn
   const state = await fixture(page, true)
   const buy = page.getByRole('button', { name: 'Comprar ou renovar licença' })
   await expect(buy).toBeDisabled()
-  await page.getByLabel('Conferi o ID da TV').check()
+  await page.getByLabel('Conferi o endereço MAC da TV').check()
   await buy.click()
   await expect(page.getByRole('alert')).toBeVisible()
   await buy.click()
@@ -55,17 +55,17 @@ test('confirma TV, retry mantém pedido e pendente não permite recompra; retorn
 })
 test('compra pendente sobrevive reload e nova sessão da mesma TV sem segundo POST', async ({ page }) => {
   const state = await fixture(page)
-  await page.getByLabel('Conferi o ID da TV').check()
+  await page.getByLabel('Conferi o endereço MAC da TV').check()
   await page.getByRole('button', { name: 'Comprar ou renovar licença' }).click()
   await expect(page.getByText('Pagamento pendente', { exact: true })).toBeVisible()
   await page.goto('/#invite=' + 'a'.repeat(42) + 'A')
-  await page.getByRole('button', { name: 'Licença anual', exact: true }).click()
+  await page.getByRole('button', { name: 'Ativar', exact: true }).click()
   await expect(page.getByText('Pagamento pendente', { exact: true })).toBeVisible()
   expect(state.requests).toHaveLength(1)
 })
 test('venda desabilitada mantém oferta e bloqueia checkout', async ({ page }) => {
   const state = await fixture(page, false, false)
-  await page.getByLabel('Conferi o ID da TV').check()
+  await page.getByLabel('Conferi o endereço MAC da TV').check()
   await expect(page.getByRole('button', { name: 'Comprar ou renovar licença' })).toBeDisabled()
   expect(state.requests).toHaveLength(0)
 })

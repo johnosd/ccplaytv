@@ -350,64 +350,51 @@
   text-align: left;
 }
 
-/* Cartões de tipo: são o próprio seletor (D-008). O selecionado tem borda de
-   destaque E a marca ✓ — nunca só a cor (FR-015). */
+/* Tipo de lista: seletor de duas posições, igual ao do portal (D-008 revisto). Botões reais para o
+   foco do controle; o selecionado tem fundo/borda de destaque E a marca ✓ — nunca só a cor (FR-015). */
 .source-type-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
+  gap: var(--space-1);
+  box-sizing: border-box;
   width: 100%;
   margin-top: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--bg-hover);
+  border-radius: var(--radius-lg);
+  background: var(--bg-base);
 }
 
 .source-type {
   appearance: none;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: var(--space-1);
   box-sizing: border-box;
   min-width: 0;
-  padding: var(--space-2);
-  border: 3px solid var(--bg-hover);
+  min-height: var(--space-6);
+  padding: 0 var(--space-3);
+  border: 3px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--bg-surface);
+  background: transparent;
   color: var(--text-secondary);
   font-family: var(--font-body);
+  font-weight: 700;
   font-size: var(--fs-body);
-  text-align: left;
   cursor: pointer;
 }
 
 .source-type.is-selected {
-  border-color: var(--accent);
+  border-color: var(--accent-tint-border);
   background: var(--accent-tint);
-}
-
-.source-type-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-1);
-  width: 100%;
-}
-
-.source-type-head b {
-  font-size: var(--fs-body);
   color: var(--text-primary);
 }
 
 .source-type-check {
-  display: grid;
-  place-items: center;
-  width: var(--space-3);
-  height: var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: var(--accent-ink);
+  color: var(--accent);
   font-weight: 800;
 }
-
 /* Campos em 2 colunas; Nome e Servidor/URL em largura total. O rótulo
    permanente fica dentro da caixa, como no protótipo (DS §37 — nunca
    placeholder); o anel de foco vai na caixa inteira. */
@@ -446,15 +433,27 @@
   color: var(--text-annotation);
 }
 
+/* Campos grandes (feature 070, FR-008): o texto digitado/mostrado no corpo maior da escala, para
+   ser lido do sofá; a URL longa rola dentro do campo (sem cortar a linha nem criar rolagem lateral). */
 .source-setup .text-field-input,
 .source-setup .text-field-input:focus {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   height: auto;
   padding: 0;
   border: 0;
   outline: none;
   box-shadow: none;
   background: transparent;
-  font-size: var(--fs-body);
+  font-size: var(--fs-body-lg);
+  text-overflow: clip;
+}
+
+/* O olho único do formulário (feature 070, D-007) fecha o bloco de campos, alinhado à direita. */
+.source-setup-eye {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .source-setup .text-field-hint {

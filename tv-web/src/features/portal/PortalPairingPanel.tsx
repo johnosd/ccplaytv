@@ -104,16 +104,23 @@ export function PortalPairingPanel({ connection, onBack, onReloaded }: PortalPai
 
   return <section className="portal-pairing" aria-labelledby="pairing-title">
     <h3 id="pairing-title" className="source-setup-panel-title">{t('portal.pairing.title')}</h3>
-    <p className="portal-pairing-text">{t('portal.pairing.useIdKey')}</p>
-    <dl className="portal-pairing-credentials">
-      <div><dt>{t('portal.pairing.deviceId')}</dt><dd><span className="portal-pairing-value">{device?.displayId ?? '—'}</span></dd></div>
-      <div><dt>{t('portal.pairing.deviceKey')}</dt><dd><span className="portal-pairing-value">{device?.displayId ? device.deviceKey : '—'}</span></dd></div>
-    </dl>
-    <p className="portal-pairing-text">{t('portal.pairing.site')} <b className="portal-pairing-url">{siteOf(connection)}</b></p>
-    <div className="portal-pairing-qr">
-      {invite ? <><p className="portal-pairing-text">{t('portal.pairing.qr')}</p>
-        <img src={invite.qrDataUrl} alt={t('portal.qrAlt')} /></>
-        : status.kind === 'busy' ? <p className="portal-pairing-text" role="status">{t('portal.pairing.loading')}</p> : null}
+    {/* QR em destaque, à esquerda; site, ID e chave como alternativa ao lado (o QR nunca contém a chave). */}
+    <div className="portal-pairing-hero">
+      <div className="portal-pairing-qr">
+        <div className="portal-pairing-qr-frame">
+          {invite ? <img src={invite.qrDataUrl} alt={t('portal.qrAlt')} />
+            : <p className="portal-pairing-text" role={status.kind === 'busy' ? 'status' : undefined}>{status.kind === 'busy' ? t('portal.pairing.loading') : '—'}</p>}
+        </div>
+        <p className="portal-pairing-qr-caption">{t('portal.pairing.qr')}</p>
+      </div>
+      <div className="portal-pairing-info">
+        <p className="portal-pairing-text">{t('portal.pairing.useIdKey')}</p>
+        <p className="portal-pairing-text">{t('portal.pairing.site')} <b className="portal-pairing-url">{siteOf(connection)}</b></p>
+        <dl className="portal-pairing-credentials">
+          <div><dt>{t('portal.pairing.deviceId')}</dt><dd><span className="portal-pairing-value">{device?.displayId ?? '—'}</span></dd></div>
+          <div><dt>{t('portal.pairing.deviceKey')}</dt><dd><span className="portal-pairing-value">{device?.displayId ? device.deviceKey : '—'}</span></dd></div>
+        </dl>
+      </div>
     </div>
     <p className="portal-pairing-text portal-pairing-hint">{t('portal.pairing.afterAdd')}</p>
     {status.kind === 'reloaded' && <p className="portal-pairing-text" role="status">{t('portal.pairing.reloaded')}</p>}

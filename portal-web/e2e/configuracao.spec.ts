@@ -8,6 +8,7 @@ async function fixture(page: Page, options: { stale?: boolean; loseFirst?: boole
   const requests: { body: Record<string, any>; id: string | undefined }[] = []
   let exchanges = 0
   const session = { deviceId: 'tv-fixture', csrfToken: 'csrf-fixture', expiresAt: new Date(Date.now() + 3600000).toISOString() }
+  const displayId = 'A0:8C:FD:19:0A:8C'
   await page.route('**/portal/v1/**', async route => {
     const request = route.request()
     const path = new URL(request.url()).pathname
@@ -20,7 +21,11 @@ async function fixture(page: Page, options: { stale?: boolean; loseFirst?: boole
     }
     if (path.endsWith('/sessions/manual')) return json(session)
     if (path.endsWith('/session')) return route.fulfill({ status: 204 })
+    if (path.endsWith('/session/device')) return json({ deviceId: session.deviceId, displayId,
+      license: { state: 'trial', startsAt: Date.now(), expiresAt: Date.now() + 86400000, generation: 1, serverTime: Date.now() } })
     if (path.endsWith('/snapshot')) return json({ snapshot: { capturedAt: new Date().toISOString(), sources: options.snapshotAbsent ? [] : [source], revisions: options.snapshotAbsent ? [] : [{ sourceId: source.id, revision: 1 }], imports: [] }, stale: !!options.stale })
+    if (path.endsWith('/configurations/source-existing/values')) return json({ type: source.type, displayName: source.displayName,
+      providerDns: 'https://provider.invalid', providerUsername: 'fake-user', providerPassword: 'fake-private-password' })
     if (path.endsWith('/configurations')) return json({ configurations, nextAfter: null })
     if (path.endsWith('/operations') && request.method() === 'GET') return json({ operations, nextAfter: null })
     if (path.endsWith('/resend')) {
@@ -51,8 +56,8 @@ async function fixture(page: Page, options: { stale?: boolean; loseFirst?: boole
 }
 async function login(page: Page) {
   await page.goto('/')
-  await page.getByLabel('ID da TV', { exact: true }).fill('tv-fixture')
-  await page.getByLabel('Chave da TV', { exact: true }).fill('fake-device-key')
+  await page.getByLabel('Endereço MAC da TV', { exact: true }).fill('a0-8c-fd-19-0a-8c')
+  await page.getByLabel('Chave do dispositivo', { exact: true }).fill('0123456789')
   await page.getByRole('button', { name: 'Conectar', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Suas listas' })).toBeVisible()
 }
@@ -87,16 +92,20 @@ test('manual/Xtream mantém segredo fora dos cards e aplicação separada de rec
   expect(await page.locator('body').innerText()).not.toContain('fake-device-key')
 })
 
-test('editar preserva campos secretos vazios e Escape restaura foco após confirmação de remover', async ({ page }) => {
+test('editar mostra valores salvos, olho os oculta e Escape restaura foco após confirmação de remover', async ({ page }) => {
   const state = await fixture(page)
   await login(page)
   await page.getByRole('button', { name: 'Editar', exact: true }).click()
-  await expect(page.getByLabel('Senha Xtream')).toHaveValue('')
+  await expect(page.getByLabel('Senha Xtream')).toHaveValue('fake-private-password')
+  await expect(page.getByLabel('Senha Xtream')).toHaveAttribute('type', 'text')
+  await page.getByRole('button', { name: 'Ocultar dados', exact: true }).click()
+  await expect(page.getByLabel('Senha Xtream')).toHaveAttribute('type', 'password')
+  await page.getByRole('button', { name: 'Mostrar dados', exact: true }).click()
   await page.getByLabel('Nome da lista').fill('Nome alterado')
   await page.getByRole('button', { name: 'Enviar para a TV', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Editar', exact: true })).not.toBeVisible()
-  expect(state.requests[0].body.input).not.toHaveProperty('providerPassword')
-  expect(state.requests[0].body.input).not.toHaveProperty('providerDns')
+  expect(state.requests[0].body.input.providerPassword).toBe('fake-private-password')
+  expect(state.requests[0].body.input.providerDns).toBe('https://provider.invalid')
   expect(state.requests[0].body.expectedRevision).toBe(1)
   const remove = page.getByRole('button', { name: 'Remover lista', exact: true })
   await remove.click()
@@ -116,7 +125,7 @@ test('M3U somente URL e falha de resposta reutiliza o mesmo pedido', async ({ pa
   await login(page)
   await page.getByRole('button', { name: 'Adicionar lista', exact: true }).click()
   await page.getByLabel('Nome da lista').fill('URL nova')
-  await page.getByLabel('Tipo de lista').selectOption('m3u_url')
+  await page.getByRole('group', { name: 'Tipo de lista' }).getByRole('radio', { name: 'M3U por URL' }).check()
   await page.getByLabel('URL da lista M3U', { exact: true }).fill('https://provider.invalid/list?key=fake-secret')
   await page.getByRole('button', { name: 'Enviar para a TV', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('mesmo pedido')
@@ -138,7 +147,7 @@ test('reenvio explícito usa revisão recente sem revelar salvo e repete ID apó
   expect(state.requests).toHaveLength(2)
   expect(state.requests[0]).toEqual(state.requests[1])
   expect(state.requests[0].body).toEqual({ expectedRevision: 1 })
-  expect(await page.locator('input[type=password]')).toHaveCount(0)
+  await expect(page.locator('input[type=password]')).toHaveCount(0)
 })
 test('snapshot desatualizado bloqueia reenvio', async ({ page }) => {
   await fixture(page, { stale: true })

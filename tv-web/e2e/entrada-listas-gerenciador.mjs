@@ -35,8 +35,8 @@ try {
   const portal = await portalContext.newPage()
   const login = async (id, key) => {
     await portal.goto(stack.portalOrigin)
-    await portal.getByLabel('ID da TV', { exact: true }).fill(id)
-    await portal.getByLabel('Chave da TV', { exact: true }).fill(key)
+    await portal.getByLabel('Endereço MAC da TV', { exact: true }).fill(id)
+    await portal.getByLabel('Chave do dispositivo', { exact: true }).fill(key)
     await portal.getByRole('button', { name: 'Conectar', exact: true }).click()
   }
   await login(displayId.toLowerCase().replaceAll(':', '-'), deviceKey)
@@ -45,7 +45,7 @@ try {
 
   await portal.getByRole('button', { name: 'Adicionar lista', exact: true }).click()
   await portal.getByLabel('Nome da lista').fill('Lista pelo gerenciador')
-  await portal.getByLabel('Tipo de lista').selectOption('m3u_url')
+  await portal.getByRole('group', { name: 'Tipo de lista' }).getByRole('radio', { name: 'M3U por URL' }).check()
   await portal.getByLabel('URL da lista M3U', { exact: true }).fill('https://iptv.fixture.test/list.m3u?key=segredo-fixture')
   await portal.getByRole('button', { name: 'Enviar para a TV', exact: true }).click()
   await tv.getByRole('button', { name: 'Recarregar' }).click()
@@ -63,13 +63,26 @@ try {
   const freshContext = await browser.newContext({ locale: 'pt-BR' })
   const fresh = await freshContext.newPage()
   await fresh.goto(stack.portalOrigin)
-  await fresh.getByLabel('ID da TV', { exact: true }).fill(displayId)
-  await fresh.getByLabel('Chave da TV', { exact: true }).fill(deviceKey)
+  await fresh.getByLabel('Endereço MAC da TV', { exact: true }).fill(displayId)
+  await fresh.getByLabel('Chave do dispositivo', { exact: true }).fill(deviceKey)
   await fresh.getByRole('button', { name: 'Conectar', exact: true }).click()
   await expect(fresh.getByRole('alert')).toBeVisible({ timeout: 10000 })
   await expect(fresh.getByRole('heading', { name: 'Suas listas' })).toHaveCount(0)
   log('nova chave gerada: ID mantido, chave antiga recusada')
-  console.log('PASS: 070/US1 — Adicionar (ID/chave/URL/QR), entrada manual, lista aplicada, nova chave')
+
+  // SC-007 / US4: RETURN sai da tela Adicionar para os perfis, abre a mesma
+  // lista e um segundo RETURN volta aos perfis antes de qualquer saída do app.
+  await tv.keyboard.press('Escape')
+  const managedCard = tv.locator('.source-card', { hasText: 'Lista pelo gerenciador' })
+  await managedCard.waitFor({ state: 'visible', timeout: 15000 })
+  // O SELECT do controle remoto dispara o mesmo click do cartão; usar o
+  // click semântico aqui evita depender do foco visual após a troca de chave.
+  await managedCard.click()
+  await tv.locator('.home-screen').waitFor({ state: 'visible', timeout: 15000 })
+  await tv.keyboard.press('Escape')
+  await managedCard.waitFor({ state: 'visible', timeout: 15000 })
+  log('RETURN em cadeia: Início → perfis com foco na lista ativa')
+  console.log('PASS: 070/US1+US4 — Adicionar (ID/chave/URL/QR), entrada manual, lista aplicada, nova chave e RETURN')
 } catch (error) {
   failed = error
   console.error('FALHA:', String(error?.message ?? error).split('\n').slice(0, 8).join('\n'))
