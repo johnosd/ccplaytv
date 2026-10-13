@@ -17,6 +17,8 @@ Essas decisões contrariam três cláusulas de "Segredos Fora dos Clientes e dos
 ## Decisão
 
 1. **ID do dispositivo** no formato `XX:XX:XX:XX:XX:XX`: MAC da TV quando disponível e útil; sem MAC, ou se o ID já pertence a outra TV, o serviço gera um ID aleatório *localmente administrado* e unicast. Único por claim transacional. Não é segredo e não autentica sozinho; a identidade interna não muda.
+
+   **Atualização (ADR-015):** o ID passa a ser imutável depois da primeira atribuição (nem rotação, recuperação, reinstalação ou troca Wi‑Fi/cabo o alteram) e o sorteio é substituído por um ID derivado do DUID com chave do serviço — determinístico para a mesma TV. O MAC real, congelado no primeiro pareamento, continua sendo a origem preferida, agora com o privilégio de rede declarado após a T003. Ver ADR-015 para o raciocínio completo.
 2. **Chave do dispositivo** numérica, permanente, de **10 dígitos** (CSPRNG), exibida o tempo todo **somente** na tela Adicionar da TV; o serviço guarda só HMAC; "Gerar nova chave" usa a rotação `revoke` existente (invalida chave e sessões).
 3. **Entrada manual** no painel por ID + chave, com limites por par ID/origem, por ID, por origem e global, e recusa uniforme.
 4. **Valores salvos ao painel**: rota de leitura só para a sessão `manage` da própria TV, decifra transitoriamente a versão corrente, sem cache e sem log.
@@ -40,6 +42,8 @@ Mantém a regra da 069. Rejeitado: o usuário quer editar vendo a senha.
 ### ID sempre gerado (sem MAC)
 
 Sem permissão nova e sem dado de hardware. Mantido só como fallback; o usuário prefere o MAC.
+
+**Atualização (ADR-015):** o fallback deixa de ser aleatório e passa a ser derivado do DUID, para a mesma TV ter sempre o mesmo ID. Ver ADR-015.
 
 ## Consequências
 
