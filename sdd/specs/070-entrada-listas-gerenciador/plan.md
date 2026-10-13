@@ -168,14 +168,14 @@ Travas de outras features afetadas: **037** (`AddSourceScreen.entrada-listas.con
 | --- | --- |
 | Normas | Constitution 1.10.0 e ADR-014 aplicadas (exceção de pareamento a/b/c). |
 | Plataforma | Sonda mede o MAC; execução na TV física pendente (T003). |
-| Identidade | Fase 2 concluída: ID formato MAC + chave de 10 dígitos no servidor e na TV; upgrade D-004; sessão manual por ID. API 117/117, TV lib/portal 57/57. |
+| Identidade | Fase 2 concluída: ID formato MAC + chave de 10 dígitos no servidor e na TV; upgrade D-004; sessão manual por ID. Emenda ADR-015 (T047–T050): sem MAC útil o ID é derivado da identidade (sem sorteio) e é imutável no repositório. API 124/124, TV lib/portal 59/59. |
 | Tela Adicionar (US1) | Fase 3 concluída: coluna real "Pelo celular" (ID/chave/URL/QR, Recarregar, nova chave), cadastro em duas colunas, canto do portal removido dos perfis, emenda 037 aplicada. E2E da US1 PASS. |
 | Formulário (US2) | Fase 4 concluída: olho único "Ocultar dados"/"Mostrar dados", dados visíveis por padrão, edição com valores salvos, campos grandes. C2 verde; legibilidade pt/en/es inclui a edição. |
 | Painel gerenciador (US3) | Fase 5 concluída: API `values` com allowlist/no-store/dono, `session/device` com displayId/licença; portal com login ID+chave, olho, cabeçalho, pagamento, edição com valores e ações de listas. API 120/120; portal E2E 14/14. |
 | Saída US4 | Fase 6 concluída: `leave-list` zera a pilha, RETURN do Início vai aos perfis base e o E2E local cobre a cadeia com foco por id. |
 | Polish | T037/T038/T040/T041 concluídas; revisão de segredos, documentação, E2E dev 49/49, `portal-dev-server` e pacote `file://` contra staging PASS. Staging está na revisão `ccplaytv-portal-00014-tr5`; Vitest completo ficou 3327/3330, com as 3 falhas passando isoladamente. |
 | Staging | Publicado com autorização em 2026-10-13; Cloud Build `93e3daf1-2742-44ee-a1c8-c46f8884ad7c`, Cloud Run `ccplaytv-portal-00014-tr5`, smoke `/health` 200, `/` 200 e rota protegida 401. |
-| Próximas fases | T039 (suíte Vitest sob carga), T003/T017 (sonda/privilégio) e T042 (TV física) permanecem pendentes; T043 fecha backlog/estado. |
+| Próximas fases | Republicar o staging com a API da ADR-015 (repetir T041, com confirmação) **antes** de qualquer instalação na TV; depois `build:tizen:commercial` + T003/T017 (sonda/privilégio) e T042 (TV física). T039 fecha com o `build:tizen` desse passo (Vitest completo 3330/3330 em 2026-10-13). |
 
 ## Riscos e Decisões
 
@@ -192,6 +192,7 @@ Travas de outras features afetadas: **037** (`AddSourceScreen.entrada-listas.con
 | R-009 | `HomeScreen.test.tsx` (não travado) espera "Sair" no Início | Baixo | Atualizar para `leave-list` (T034); contrato 023 do redutor continua verde. |
 | R-011 | `licenseRuntime.test.ts` falha sob carga na suíte completa (timeout de 5 s no `import()` dinâmico) e passa isolado | Baixo (teste instável, não tocado pela 070) | Aberto: acompanhar no gate final (T039); se repetir, investigar via `sdd-bugfix` em vez de afrouxar timeout. |
 | R-010 | TV nova falando com serviço anterior à 070 (staging atual) receberia chave longa | Mitigado | Staging atualizado em T041 para a revisão `ccplaytv-portal-00014-tr5`; a TV ainda aceita chave de 10 dígitos ou token legado e o legado dispara o upgrade D-004. |
+| R-012 | ADR-015 (2026-10-13): ID do dispositivo imutável; sem MAC útil, derivado da identidade em vez de sorteado | Alto (licença e portal presos ao ID) | Feito na API (T047–T050) com invariante no repositório e testes; **staging precisa ser republicado antes da TV** (senão a TV real se cadastra pela regra antiga e o ID sorteado fica para sempre); privilégio de rede só após a T003. |
 
 ## Execution Notes
 
@@ -205,11 +206,13 @@ Travas de outras features afetadas: **037** (`AddSourceScreen.entrada-listas.con
 | 2026-10-13 | Ajuste visual pós-validação | Login do portal mascara Device ID hexadecimal sem separadores (`A0-8C-FD-19-0A-8C`), normaliza para a API; portal e TV usam `Playlist Name`, `Type`, `Host`, `User Name`, `Password`; gerenciador mostra cards de listas com avatar e card `+ Add list`, layout centralizado, escala tipográfica reduzida e métricas de dispositivo/licença em destaque. Builds portal/TV PASS. | Validação autenticada ficou pendente no navegador atual por identidade de desenvolvimento antiga; não foi feita rotação automática de chave. |
 | 2026-10-13 | Fase 6 (US4) | `leave-list` no redutor, Home sem `ExitModal`, wiring de RETURN no App, teste App/Home e E2E local com retorno Início → perfis e foco por id; 17/17 focados e `entrada-listas-gerenciador.mjs` PASS. | T003/T017 (TV), T037–T040 (polish), T041 (staging com confirmação) e T042 (TV física). |
 | 2026-10-13 | Polish (T037–T041) | Revisão de segredos em `evidencias/segredos.md`; docs portal/infra/README atualizados; TV tsc/lint/build/build:tizen PASS; E2E dev 49/49, `portal-dev-server`, `entrada-listas-gerenciador` e pacote `file://` contra staging PASS; Cloud Build `93e3daf1-2742-44ee-a1c8-c46f8884ad7c`, revisão Cloud Run `00014-tr5`, smoke 200/200/401 e zero marcadores nos 100 logs consultados; contrato 070 5/5. | T039 permanece aberto pelas 3 falhas sob carga que passam isoladamente; T003/T017/T042 e T043 continuam pendentes. |
+| 2026-10-13 | Emenda ADR-015 (Fase 2, T047–T050) | ID derivado da identidade no lugar do sorteio; `immutable_display_id` e claims imutáveis no repositório; FAQ do portal e notas em `logic/pareamento.md`/`data-model.md`. API 124/124 + Ruff; portal 6/6, build, E2E 14/14; TV lib/portal 59/59, `tsc -b`; travas 070/037/045/023/024/069 íntegras. | Staging com a API anterior — republicar antes da TV. |
 
-**PRÓXIMO**: T039 (fechar a suíte Vitest sob carga), depois T042 (TV física) e T043 (backlog/status final). T003/T017 continuam condicionadas à sonda/privilégio na TV.
+**PRÓXIMO**: republicar o staging com a API da ADR-015 (T041 de novo, **pedir confirmação**); em seguida `build:tizen:commercial` + instalação sem desinstalar (`tizen-tv`), T003 (sonda do MAC) → T017 (privilégio) e T042 (quickstart na TV física); fechar T039 com o `build:tizen`.
 
 ## Arquivos Principais
 
+- ADR-015: api/app/portal/{display_id.py,enrollment.py,access_rotation.py,auth_tokens.py,models.py,repositories/control.py} · api/tests/portal/{test_pairing.py,test_auth.py} · portal-web/src/lib/i18n/faq.ts · sdd/adr/ADR-015-*.md
 - api/app/portal/{configuration_delivery.py,routes/operations.py,routes/licensing.py} · api/tests/portal/test_configuration_values.py
 - portal-web/src/features/{SessionPage.tsx,SourceManager.tsx,SourceForm.tsx,api.ts} · portal-web/src/lib/i18n/index.ts
 - portal-web/e2e/{gerenciador.spec.ts,configuracao.spec.ts,licenca.spec.ts}
@@ -217,6 +220,7 @@ Travas de outras features afetadas: **037** (`AddSourceScreen.entrada-listas.con
 
 ## Cuidados para Retomada
 
+- **ADR-015 e dados de teste**: o repositório recusa apagar `display_id`. Para simular um registro antigo em teste, grave o documento direto pelo cliente do Firestore (como em `test_pairing.py`, `legacy_device`) — não por `transact`. Registros de staging com `generated` só saem por operação documentada antes da abertura comercial.
 - Arquivos da TV usam LF ou CRLF misturados: substituições por PowerShell com `\n` podem não casar — prefira o Edit.
 - pytest do portal: emulador com Java 21 (`JAVA_HOME`) e `--basetemp` num diretório acessível; os E2E de pilha local exigem as portas 8085/3001/5174/5176 livres (matar o emulador avulso antes).
 - **Ordem de publicação**: publicar a API da 070 no staging (T041) ANTES de instalar na TV um pacote com a 070. Com o serviço antigo, `ensurePairing()` recebe de novo a chave longa sem `displayId` e faria uma rotação `revoke` a cada abertura da tela Adicionar.

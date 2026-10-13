@@ -16,6 +16,7 @@ from app.portal.commercial_models import OrderClaimDocument, OrderDocument, Paym
 from app.portal.models import (
     ConfigurationVersionDocument,
     DeviceDocument,
+    DisplayIdClaimDocument,
     IdempotencyClaimDocument,
     IdentityClaimDocument,
     JobDocument,
@@ -87,7 +88,7 @@ class ControlRepository:
             if set(plan.puts).intersection(plan.deletes):
                 raise RepositoryConflict("ambiguous_write")
             for path in plan.deletes:
-                if ("/tombstones/" in path or path.startswith("identityClaims/")
+                if ("/tombstones/" in path or path.startswith(("identityClaims/", "displayIdClaims/"))
                         or path.startswith("devices/") and path.count("/") == 1):
                     raise RepositoryConflict("durable_claim_delete_forbidden")
             for path, document in plan.puts.items():
@@ -100,6 +101,9 @@ class ControlRepository:
                 if (rows[path] is not None and isinstance(document, IdentityClaimDocument)
                         and rows[path]["deviceId"] != document.device_id):
                     raise RepositoryConflict("immutable_identity_claim")
+                if (rows[path] is not None and isinstance(document, DisplayIdClaimDocument)
+                        and rows[path]["deviceId"] != document.device_id):
+                    raise RepositoryConflict("immutable_display_id_claim")
                 if (rows[path] is not None and isinstance(document, IdempotencyClaimDocument)
                         and IdempotencyClaimDocument.model_validate(rows[path]) != document):
                     raise RepositoryConflict("immutable_idempotency_claim")
@@ -153,6 +157,10 @@ class ControlRepository:
         if (old.identity_hmac != current.identity_hmac or old.device_id != current.device_id
                 or old.created_at != current.created_at):
             raise RepositoryConflict("immutable_identity")
+        # ADR-015: o ID exibido é atribuído uma vez e nunca é trocado nem apagado.
+        if old.display_id is not None and (current.display_id != old.display_id
+                                           or current.display_id_source != old.display_id_source):
+            raise RepositoryConflict("immutable_display_id")
         if old.trial_started_at is not None and (
             old.trial_started_at != current.trial_started_at
             or old.trial_expires_at != current.trial_expires_at

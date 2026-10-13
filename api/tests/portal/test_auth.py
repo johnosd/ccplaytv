@@ -11,7 +11,7 @@ from PIL import Image
 from app.portal.application import create_app
 from app.portal.auth import AuthError, AuthService, SessionIssuance
 from app.portal.auth_tokens import AuthTokens, new_token
-from app.portal.display_id import display_claim_path, generate_display_id, new_device_key
+from app.portal.display_id import derived_display_id, display_claim_path, new_device_key
 from app.portal.models import DeviceDocument, DisplayIdClaimDocument, SessionDocument
 from app.portal.repositories.control import TransactionPlan
 from app.portal.routes.auth import COOKIE
@@ -29,13 +29,14 @@ async def seeded(control):
     device_id = "test-" + uuid.uuid4().hex
     bearer = device_id + "." + new_token()
     device_key = new_device_key()
-    display_id = generate_display_id()
+    identity_hmac = tokens.digest("identity", uuid.uuid4().hex)
+    display_id = derived_display_id(tokens, identity_hmac)
     device = DeviceDocument(device_id=device_id,
-                            identity_hmac=tokens.digest("identity", uuid.uuid4().hex),
+                            identity_hmac=identity_hmac,
                             tv_bearer_hash=tokens.digest("tv_bearer", bearer),
                             device_key_hash=tokens.digest("device_key", device_key),
                             auth_epoch=1, recovery_epoch=epoch, created_at=now,
-                            display_id=display_id, display_id_source="generated")
+                            display_id=display_id, display_id_source="derived")
     claim_path = display_claim_path(tokens, display_id)
     paths.extend(["devices/" + device_id, "identityClaims/" + device.identity_hmac, claim_path])
     paths.extend("rateLimits/" + rule.key_hash

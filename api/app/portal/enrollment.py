@@ -60,7 +60,7 @@ class EnrollmentService:
         identity_hash = self.auth.tokens.digest("identity", identity)
         try:
             display_id, display_source, display_path = await pick_display_id(
-                self.repository, self.auth.tokens, mac)
+                self.repository, self.auth.tokens, identity_hash, mac)
         except RuntimeError:
             raise AuthError("try_again", 409) from None
         credentials = {"deviceId": device_id, "displayId": display_id, "bearer": bearer, "deviceKey": key,

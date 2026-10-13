@@ -28,6 +28,8 @@ grava claim + device.display_id na MESMA transação (nunca ID sem claim)
 
 Mesmo MAC já reivindicado por outra TV (reinstalação usa recuperação pelo site, não novo cadastro): gera ID aleatório; nunca transfere o claim.
 
+**Atualização (ADR-015):** o passo aleatório foi substituído por um ID **derivado** — `hmac("display_id_derived", identity_hmac + ":" + n)`, primeiros 6 bytes, mesma máscara local/unicast, `n = 0..4` só em colisão, `source = "derived"`; a mesma TV recebe sempre o mesmo ID, inclusive num recadastro após perda de dados. Uma vez gravado, `display_id`/`display_id_source` não mudam nem somem (`immutable_display_id` no repositório) e `displayIdClaims` não trocam de dono nem são apagados. Registros antigos `generated` são preservados. Ver ADR-015.
+
 ## 3. Chave (servidor)
 
 ```text

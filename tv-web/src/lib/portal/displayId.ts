@@ -1,6 +1,8 @@
 /**
  * ID do dispositivo exibido na TV e no painel (feature 070, D-002): formato `XX:XX:XX:XX:XX:XX`.
  * Não é segredo nem autentica sozinho; a identidade interna (`deviceId`) não muda.
+ * ADR-015: o serviço o atribui uma vez (MAC útil do 1º pareamento ou, sem ele, derivado da identidade
+ * da TV) e nunca o troca — a TV só repassa o MAC e exibe o que recebeu.
  */
 export const DISPLAY_ID_PATTERN = /^[0-9A-F]{2}(?::[0-9A-F]{2}){5}$/
 
@@ -9,7 +11,7 @@ export const DEVICE_KEY_PATTERN = /^\d{10}$/
 
 /**
  * Normaliza um MAC lido da plataforma (`aa-bb-…`, `aabb…`, minúsculas, espaços nas pontas) para o formato exibido.
- * Inválido, ausente, todo zero, broadcast ou multicast → `undefined` (o servidor gera um ID no mesmo formato).
+ * Inválido, ausente, todo zero, broadcast ou multicast → `undefined` (o servidor deriva um ID no mesmo formato).
  */
 export function displayIdFromMac(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined

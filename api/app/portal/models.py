@@ -11,7 +11,8 @@ OpaqueId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 Digest = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 Revision = Annotated[int, Field(ge=0)]
 DisplayId = Annotated[str, StringConstraints(pattern=r"^[0-9A-F]{2}(?::[0-9A-F]{2}){5}$")]
-DisplaySource = Literal["mac", "generated"]
+# "generated" só existe em registros anteriores à ADR-015 (preservados); atribuições novas são "mac" ou "derived".
+DisplaySource = Literal["mac", "generated", "derived"]
 
 
 class PortalDocument(BaseModel):

@@ -11,7 +11,7 @@ from app.portal.repositories.control import document_path
 
 DISPLAY_ID_PATTERN = re.compile(r"^[0-9A-F]{2}(?::[0-9A-F]{2}){5}$")
 DEVICE_KEY_PATTERN = re.compile(r"^\d{10}$")
-GENERATED_CANDIDATES = 5
+GENERATED_CANDIDATES = 5  # derivados por TV: o 1º livre vence; os demais só cobrem colisão improvável
 
 
 def normalize_mac(raw: object) -> str | None:
@@ -26,32 +26,39 @@ def normalize_mac(raw: object) -> str | None:
     return ":".join(hexa[i:i + 2] for i in range(0, 12, 2))
 
 
-def generate_display_id() -> str:
-    """Aleatório localmente administrado (bit 0x02) e unicast: nunca colide com MAC de fabricante."""
-    octets = bytearray(secrets.token_bytes(6))
+def derived_display_id(tokens: AuthTokens, identity_hmac: str, attempt: int = 0) -> str:
+    """ADR-015: ID determinístico da TV a partir do HMAC de identidade (nunca o DUID bruto).
+
+    Localmente administrado (bit 0x02) e unicast: nunca colide com MAC de fabricante. `attempt` só
+    sobe quando o candidato anterior já pertence a outra TV, então continua reproduzível.
+    """
+    digest = tokens.digest("display_id_derived", f"{identity_hmac}:{attempt}")
+    octets = bytearray(bytes.fromhex(digest[:12]))
     octets[0] = (octets[0] | 0x02) & 0xFE
     return ":".join(f"{octet:02X}" for octet in octets)
 
 
-def display_candidates(mac: object) -> list[tuple[str, str]]:
-    """Ordem de preferência: MAC útil, depois IDs gerados. Preparado fora do callback transacional."""
+def display_candidates(tokens: AuthTokens, mac: object, identity_hmac: str) -> list[tuple[str, str]]:
+    """Ordem de preferência: MAC útil, depois IDs derivados da identidade. Sem sorteio (ADR-015)."""
     normalized = normalize_mac(mac)
-    generated = [(generate_display_id(), "generated") for _ in range(GENERATED_CANDIDATES)]
-    return ([(normalized, "mac")] if normalized else []) + generated
+    derived = [(derived_display_id(tokens, identity_hmac, attempt), "derived")
+               for attempt in range(GENERATED_CANDIDATES)]
+    return ([(normalized, "mac")] if normalized else []) + derived
 
 
 def display_claim_path(tokens: AuthTokens, display_id: str) -> str:
     return document_path("displayIdClaims", tokens.digest("display_id", display_id))
 
 
-async def pick_display_id(repository, tokens: AuthTokens, mac: object = None,
+async def pick_display_id(repository, tokens: AuthTokens, identity_hmac: str, mac: object = None,
                           owner: str | None = None) -> tuple[str, str, str]:
     """Pré-leitura dos claims para escolher o 1º candidato livre (ou já do `owner`).
 
     O envelope de credenciais é cifrado antes da transação, então a escolha acontece aqui; a transação
     DEVE reler o claim devolvido e recusar (`try_again`) se outro dispositivo o tomou nesse intervalo.
+    Só é chamado quando o aparelho ainda não tem ID: depois disso o ID é imutável (ADR-015).
     """
-    candidates = display_candidates(mac)
+    candidates = display_candidates(tokens, mac, identity_hmac)
     paths = [display_claim_path(tokens, value) for value, _ in candidates]
     taken: dict[str, str] = {}
     async for snapshot in repository.client.get_all([repository.client.document(path) for path in paths]):

@@ -1,4 +1,4 @@
-"""Feature 070: ID do dispositivo no formato MAC + chave numérica (logic/pareamento.md, ADR-014)."""
+"""Feature 070: ID do dispositivo no formato MAC + chave numérica (logic/pareamento.md, ADR-014, ADR-015)."""
 
 import re
 import secrets
@@ -12,12 +12,17 @@ from app.portal.access_rotation import AccessRotation
 from app.portal.auth import AuthError, AuthService
 from app.portal.auth_tokens import AuthTokens, new_token
 from app.portal.crypto import PortalCrypto
-from app.portal.display_id import display_claim_path, normalize_display_id, normalize_mac
+from app.portal.display_id import (
+    derived_display_id,
+    display_claim_path,
+    normalize_display_id,
+    normalize_mac,
+)
 from app.portal.enrollment import EnrollmentService
-from app.portal.models import DeviceDocument
+from app.portal.models import DeviceDocument, DisplayIdClaimDocument
 from app.portal.recovery_codes import RecoveryCodes
 from app.portal.recovery_journal import MemoryJournal
-from app.portal.repositories.control import TransactionPlan
+from app.portal.repositories.control import RepositoryConflict, TransactionPlan
 
 ORIGIN = "http://127.0.0.1:5174"
 MAC_ID = re.compile(r"^[0-9A-F]{2}(?::[0-9A-F]{2}){5}$")
@@ -36,8 +41,8 @@ def services(control):
     return EnrollmentService(auth, crypto, codes), AccessRotation(auth, crypto, codes, MemoryJournal(environment="test"))
 
 
-async def enroll(control, enrollment, mac=None):
-    identity = "fixture-" + uuid.uuid4().hex
+async def enroll(control, enrollment, mac=None, identity=None):
+    identity = identity or "fixture-" + uuid.uuid4().hex
     issued = await enrollment.enroll(identity, new_token(), "pairing-ip", datetime.now(UTC), mac)
     credentials = issued.credentials
     tokens = enrollment.auth.tokens
@@ -56,6 +61,13 @@ def random_mac() -> str:
     octets = bytearray(secrets.token_bytes(6))
     octets[0] &= 0xFC  # universal e unicast: parece MAC de fabricante
     return "-".join(f"{octet:02x}" for octet in octets)
+
+
+def legacy_device(snapshot, **update) -> dict:
+    """Documento como um registro antigo o teria (sem ID, ou com ID sorteado antes da ADR-015)."""
+    device = DeviceDocument.model_validate(snapshot.to_dict())
+    fields = {"display_id": None, "display_id_source": None} if not update else update
+    return device.model_copy(update=fields).model_dump(by_alias=True)
 
 
 def is_generated(display_id: str) -> bool:
@@ -148,12 +160,8 @@ async def test_dispositivo_anterior_a_070_ganha_id_na_rotacao(control):
     enrollment, rotation = services(control)
     old = await enroll(control, enrollment, None)
     path = "devices/" + old["deviceId"]
-
-    def legacy(rows):
-        device = DeviceDocument.model_validate(rows[path])
-        return TransactionPlan(None, {path: device.model_copy(update={"display_id": None, "display_id_source": None})})
-
-    await rotation.repository.transact((path,), legacy)
+    # Registro como já existiria no banco antes da 070: o serviço nunca apaga um ID (ADR-015).
+    await rotation.repository.client.document(path).set(legacy_device(await rotation.repository.client.document(path).get()))
     now = datetime.now(UTC)
     operation_id, claim = new_token(), new_token()
     control[1].extend([path + "/accessIntents/" + operation_id, "recoveryResults/" + operation_id,
@@ -166,3 +174,79 @@ async def test_dispositivo_anterior_a_070_ganha_id_na_rotacao(control):
     control[1].extend(["recoveryCodes/" + row["recoveryCodeHmac"], display_claim_path(rotation.auth.tokens, delivered["displayId"])])
     assert delivered["displayId"] == normalize_mac(mac) == row["displayId"]
     assert row["displayIdSource"] == "mac"
+
+async def test_sem_mac_util_o_id_e_derivado_da_identidade_e_reproduzivel(control):
+    """ADR-015: sem MAC (ou MAC de outra TV) o ID vem da identidade — nunca de sorteio."""
+    enrollment, _ = services(control)
+    tokens = enrollment.auth.tokens
+    identity = "fixture-" + uuid.uuid4().hex
+    hmac_identity = tokens.digest("identity", identity)
+    assert derived_display_id(tokens, hmac_identity) == derived_display_id(tokens, hmac_identity)
+    assert derived_display_id(tokens, hmac_identity) != derived_display_id(tokens, tokens.digest("identity", "outra"))
+    assert derived_display_id(tokens, hmac_identity, 0) != derived_display_id(tokens, hmac_identity, 1)
+    credentials = await enroll(control, enrollment, None, identity)
+    assert credentials["displayId"] == derived_display_id(tokens, hmac_identity)
+    row = (await enrollment.repository.client.document("devices/" + credentials["deviceId"]).get()).to_dict()
+    assert row["displayIdSource"] == "derived" and is_generated(credentials["displayId"])
+    mac = random_mac()
+    await enroll(control, enrollment, mac)
+    colliding_identity = "fixture-" + uuid.uuid4().hex
+    colliding = await enroll(control, enrollment, mac, colliding_identity)
+    assert colliding["displayId"] == derived_display_id(tokens, tokens.digest("identity", colliding_identity))
+
+
+async def test_mesma_tv_recadastrada_apos_perda_do_registro_recebe_o_mesmo_id(control):
+    enrollment, _ = services(control)
+    tokens, client = enrollment.auth.tokens, enrollment.repository.client
+    identity = "fixture-" + uuid.uuid4().hex
+    first = await enroll(control, enrollment, None, identity)
+    # Perda de dados do serviço (fora das regras do repositório): some o registro, a posse da identidade e a do ID.
+    for path in ("devices/" + first["deviceId"], "identityClaims/" + tokens.digest("identity", identity),
+                 display_claim_path(tokens, first["displayId"])):
+        await client.document(path).delete()
+    again = await enroll(control, enrollment, None, identity)
+    assert again["deviceId"] != first["deviceId"] and again["displayId"] == first["displayId"]
+
+
+async def test_id_atribuido_nunca_e_trocado_apagado_ou_tomado(control):
+    enrollment, _ = services(control)
+    repository, tokens = enrollment.repository, enrollment.auth.tokens
+    credentials = await enroll(control, enrollment, random_mac())
+    path, claim_path = "devices/" + credentials["deviceId"], display_claim_path(tokens, credentials["displayId"])
+
+    def change(update):
+        def plan(rows):
+            device = DeviceDocument.model_validate(rows[path])
+            return TransactionPlan(None, {path: device.model_copy(update=update)})
+        return plan
+
+    for update in ({"display_id": "02:AA:BB:CC:DD:EE"}, {"display_id": None, "display_id_source": None},
+                   {"display_id_source": "derived"}):
+        with pytest.raises(RepositoryConflict, match="immutable_display_id"):
+            await repository.transact((path,), change(update))
+    with pytest.raises(RepositoryConflict, match="durable_claim_delete_forbidden"):
+        await repository.transact((claim_path,), lambda _: TransactionPlan(None, deletes=(claim_path,)))
+    with pytest.raises(RepositoryConflict, match="immutable_display_id_claim"):
+        await repository.transact((claim_path,), lambda _: TransactionPlan(None, {
+            claim_path: DisplayIdClaimDocument(device_id="outra-tv", created_at=datetime.now(UTC))}))
+    row = (await repository.client.document(path).get()).to_dict()
+    assert row["displayId"] == credentials["displayId"] and row["displayIdSource"] == "mac"
+
+
+async def test_registro_antigo_com_id_sorteado_e_preservado_na_rotacao(control):
+    enrollment, rotation = services(control)
+    old = await enroll(control, enrollment, None)
+    path = "devices/" + old["deviceId"]
+    legacy_id = "06:11:22:33:44:55"
+    await rotation.repository.client.document(path).set(legacy_device(
+        await rotation.repository.client.document(path).get(), display_id=legacy_id, display_id_source="generated"))
+    now = datetime.now(UTC)
+    operation_id, claim = new_token(), new_token()
+    control[1].extend([path + "/accessIntents/" + operation_id, "recoveryResults/" + operation_id,
+                       "jobs/" + AccessRotation.job_id(old["deviceId"], operation_id)])
+    principal = await rotation.auth.authenticate_tv(old["bearer"])
+    assert (await rotation.begin(principal, operation_id, claim, "revoke", now, random_mac())).state == "ready"
+    delivered = (await rotation.poll(old["deviceId"], operation_id, claim, now + timedelta(seconds=1))).credentials
+    row = (await rotation.repository.client.document(path).get()).to_dict()
+    control[1].append("recoveryCodes/" + row["recoveryCodeHmac"])
+    assert delivered["displayId"] == legacy_id == row["displayId"] and row["displayIdSource"] == "generated"

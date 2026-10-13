@@ -13,8 +13,10 @@ from app.portal.settings import PortalSettings
 
 Purpose = Literal[
     "identity", "tv_bearer", "device_key", "invite", "session", "csrf", "rate_limit", "enrollment", "issuance_claim", "recovery_request", "recovery_session", "display_id",
+    "display_id_derived",
 ]
-PURPOSES = {"identity", "tv_bearer", "device_key", "invite", "session", "csrf", "rate_limit", "enrollment", "issuance_claim", "recovery_request", "recovery_session", "display_id"}
+PURPOSES = {"identity", "tv_bearer", "device_key", "invite", "session", "csrf", "rate_limit", "enrollment", "issuance_claim", "recovery_request", "recovery_session", "display_id",
+            "display_id_derived"}
 
 
 class TokenError(ValueError):

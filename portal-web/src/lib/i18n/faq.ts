@@ -38,7 +38,8 @@ const pt: FaqContent = {
       'Opcionalmente, você pode informar uma URL XMLTV de EPG e um ajuste de horário em horas.'] },
     { id: 'mac', category: 'lists', question: 'O que é o endereço MAC e onde encontro?', answer: [
       'É o identificador da sua TV no portal, no formato XX:XX:XX:XX:XX:XX. Ele aparece na tela Adicionar lista da TV, como ID do dispositivo, junto com a chave do dispositivo.',
-      'Normalmente é o próprio endereço MAC de rede da TV. Se ele não puder ser lido, a TV recebe um código no mesmo formato, que funciona do mesmo jeito.',
+      'Normalmente é o próprio endereço MAC de rede da TV, registrado no primeiro pareamento. Se ele não puder ser lido, a TV recebe um código fixo no mesmo formato, que funciona do mesmo jeito.',
+      'Ele nunca muda: nem ao reinstalar o app, gerar uma nova chave ou trocar Wi‑Fi por cabo. Por isso, depois de uma troca de conexão, ele pode ser diferente do MAC mostrado nas configurações de rede da TV — use sempre o que aparece na tela Adicionar lista.',
       'O endereço MAC sozinho não dá acesso à TV: o portal também pede a chave do dispositivo.'] },
     { id: 'add-list', category: 'lists', question: 'Como adiciono uma lista pelo portal?', action: 'lists', answer: [
       'Na TV, abra a tela de adicionar lista: ela mostra um QR, o endereço MAC (ID do dispositivo) e a chave do dispositivo.',
@@ -100,7 +101,8 @@ const en: FaqContent = {
       'You can optionally add an XMLTV EPG URL and a time offset in hours.'] },
     { id: 'mac', category: 'lists', question: 'What is the MAC address and where do I find it?', answer: [
       'It identifies your TV in the portal, in the format XX:XX:XX:XX:XX:XX. It is shown on the TV’s Add list screen as Device ID, next to the device key.',
-      'It is usually the TV’s own network MAC address. If that cannot be read, the TV gets a code in the same format that works the same way.',
+      'It is usually the TV’s own network MAC address, recorded at the first pairing. If that cannot be read, the TV gets a fixed code in the same format that works the same way.',
+      'It never changes: not when you reinstall the app, generate a new key or switch between Wi‑Fi and cable. So after a connection change it may differ from the MAC shown in the TV’s network settings — always use the one on the Add list screen.',
       'The MAC address alone does not give access to the TV: the portal also asks for the device key.'] },
     { id: 'add-list', category: 'lists', question: 'How do I add a list from the portal?', action: 'lists', answer: [
       'On the TV, open the add-list screen: it shows a QR code, the MAC address (device ID) and the device key.',
@@ -162,7 +164,8 @@ const es: FaqContent = {
       'Opcionalmente puedes indicar una URL XMLTV de EPG y un ajuste horario en horas.'] },
     { id: 'mac', category: 'lists', question: '¿Qué es la dirección MAC y dónde la encuentro?', answer: [
       'Identifica tu televisor en el portal, con el formato XX:XX:XX:XX:XX:XX. Aparece en la pantalla Añadir lista del televisor como ID del dispositivo, junto a la clave del dispositivo.',
-      'Normalmente es la propia dirección MAC de red del televisor. Si no se puede leer, el televisor recibe un código con el mismo formato que funciona igual.',
+      'Normalmente es la propia dirección MAC de red del televisor, registrada en el primer emparejamiento. Si no se puede leer, el televisor recibe un código fijo con el mismo formato que funciona igual.',
+      'Nunca cambia: ni al reinstalar la app, generar una clave nueva o pasar de Wi‑Fi a cable. Por eso, tras un cambio de conexión, puede ser distinta de la MAC que aparece en los ajustes de red del televisor; usa siempre la de la pantalla Añadir lista.',
       'La dirección MAC por sí sola no da acceso al televisor: el portal también pide la clave del dispositivo.'] },
     { id: 'add-list', category: 'lists', question: '¿Cómo añado una lista desde el portal?', action: 'lists', answer: [
       'En el televisor, abre la pantalla de añadir lista: muestra un QR, la dirección MAC (ID del dispositivo) y la clave del dispositivo.',

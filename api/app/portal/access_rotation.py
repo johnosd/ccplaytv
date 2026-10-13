@@ -108,7 +108,7 @@ class AccessRotation:
         if device.display_id is None:  # 070/D-004: dispositivo anterior à 070 ganha ID nesta rotação
             try:
                 value, source, display_path = await pick_display_id(
-                    self.repository, self.auth.tokens, mac, owner=device.device_id)
+                    self.repository, self.auth.tokens, device.identity_hmac, mac, owner=device.device_id)
             except RuntimeError:
                 raise AuthError("try_again", 409) from None
             display = (value, source)

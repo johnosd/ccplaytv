@@ -10,6 +10,8 @@
 | `display_id_source` | `"mac" \| "generated"` | Novo. Diagnóstico; nunca exibido como dado do aparelho. |
 | `device_key_hash` | Digest | Mantido; passa a ser HMAC de uma chave `^\d{10}$` (D-003). |
 
+**Atualização (ADR-015):** `display_id_source` ganha `"derived"` (ID derivado da identidade, usado em todas as atribuições novas sem MAC útil); `"generated"` só existe em registros antigos, preservados. `display_id` é imutável depois de gravado — o repositório recusa troca ou remoção.
+
 ### `displayIdClaims/{hmac(display_id)}` (novo)
 
 | Campo | Tipo | Regra |

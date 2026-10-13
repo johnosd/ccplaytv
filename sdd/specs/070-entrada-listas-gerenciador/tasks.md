@@ -55,6 +55,11 @@ description: "Tasks da feature 070 — entrada de listas estilo gerenciador"
 - [X] T007 Implementar `displayIdFromMac` em `tv-web/src/lib/portal/displayId.ts` e a validação/persistência de `displayId` + chave numérica em `tv-web/src/lib/portal/deviceIdentity.ts` (allowlist). → contratos C4, C5
 - [X] T008 Enviar `mac` (via `displayIdFromMac(webapis.network.getMac())` em `try/catch`) no cadastro em `tv-web/src/lib/portal/portalConnection.ts`/`portalRuntime.ts`, e implementar o upgrade D-004 (uma rotação `revoke` quando o registro local é antigo). (FR-003, R-006)
 
+- [X] T047 (ADR-015, 2026-10-13) `api/app/portal/display_id.py`: trocar o sorteio por ID **derivado** do `identity_hmac` do aparelho (`HMAC` com propósito `display_id_derived` em `auth_tokens.py`, bit local/unicast, contador só em colisão; `source = "derived"` em `models.py`); `enrollment.py` e o upgrade D-004 de `access_rotation.py` passam o `identity_hmac`. (FR-003)
+- [X] T048 (ADR-015) Imutabilidade no repositório (`api/app/portal/repositories/control.py`): `display_id`/`display_id_source` já definidos não mudam nem somem (`immutable_display_id`); `displayIdClaims` não trocam de dono nem são apagados.
+- [X] T049 (ADR-015) Testes em `api/tests/portal/test_pairing.py`: derivado é determinístico para a mesma identidade e muda entre identidades; MAC colidido/inválido → derivado (nunca aleatório); recadastro após perda do registro (mesma identidade) recupera o mesmo ID; rotação/upgrade preserva; tentativa de trocar o ID é recusada; registro antigo `generated` é preservado.
+- [X] T050 (ADR-015) Textos: FAQ do portal (`portal-web/src/lib/i18n/faq.ts`, pergunta do endereço MAC) e comentários de `tv-web/src/lib/portal/displayId.ts`; `logic/pareamento.md` §2 e `data-model.md` com nota `Atualização (ADR-015)`.
+
 ### Testes da Fase
 
 - [X] T009 Criar `api/tests/portal/test_pairing.py`: MAC válido vira ID; MAC duplicado/zerado/multicast → ID gerado local/unicast; chave 10 dígitos e só HMAC salvo; sessão manual por displayId; chave errada/ID inexistente/formato inválido → mesmo 401; limite → 429; `revoke` troca a chave, mantém o ID e derruba sessões; upgrade de device antigo. (FR-003/004/005/016/022, SC-008)
@@ -69,6 +74,7 @@ description: "Tasks da feature 070 — entrada de listas estilo gerenciador"
 - Contrato: `npx vitest run src/lib/portal/pairingIdentity.entrada-listas-gerenciador.contract.test.ts` → 2/2 verdes; trava íntegra.
 - Testes executados: API `pytest tests/portal` (emulador, `--basetemp` acessível) → **117 passed** (61,7 s), inclui `test_pairing.py` 6/6 (1ª rodada: 1 falha do próprio teste — fiz 4 tentativas para um limite de 5; corrigido); Ruff PASS. TV `npx vitest run src/lib/portal` → 57/57; `npx tsc -b` limpo; `npm run lint` OK (arquitetura sem violação).
 - Pendências: o staging continua emitindo a chave longa até a T041; a TV aceita esse formato legado (R-010). Testes antigos da API (`test_auth.py`, `test_secrets.py`) migrados para ID exibido + chave numérica.
+- Emenda ADR-015 (2026-10-13, T047–T050): ID sem MAC útil passa a ser **derivado** do `identity_hmac` (propósito `display_id_derived`, `source = "derived"`), sem sorteio; repositório recusa trocar/apagar `display_id` (`immutable_display_id`) e trocar dono ou apagar `displayIdClaims`; registros `generated` antigos preservados. Testes: `pytest tests/portal` (emulador) → **124 passed** (4 novos em `test_pairing.py`; o teste do upgrade D-004 passou a gravar o registro antigo direto no banco, porque o serviço não pode mais apagar um ID); prova de que o teste da imutabilidade pega a regra: com a verificação desligada ele falha e volta a passar com ela; Ruff PASS. Portal 6/6, build, E2E 14/14; TV `src/lib/portal` 59/59, `tsc -b` limpo; travas 070/037/045/023/024/069 íntegras. **Pendência crítica**: staging ainda roda a API anterior — republicar (T041) antes de instalar na TV, senão a TV real se cadastra pela regra antiga.
 
 ---
 
