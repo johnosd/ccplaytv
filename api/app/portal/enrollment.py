@@ -7,8 +7,10 @@ from datetime import datetime, timedelta
 from app.portal.auth import AuthError, AuthService, Principal
 from app.portal.auth_tokens import new_token, valid_token
 from app.portal.crypto import CipherContext, PortalCrypto, canonical_json
+from app.portal.display_id import new_device_key, pick_display_id
 from app.portal.models import (
     DeviceDocument,
+    DisplayIdClaimDocument,
     IdentityClaimDocument,
     IssuanceDocument,
     RecoveryCodeDocument,
@@ -35,7 +37,8 @@ class EnrollmentService:
     def _context(device_id: str, operation_id: str):
         return CipherContext(device_id, "credential-issuance", operation_id)
 
-    async def enroll(self, identity: str, nonce: str, ip: str, now: datetime) -> EnrollmentIssuance:
+    async def enroll(self, identity: str, nonce: str, ip: str, now: datetime,
+                     mac: str | None = None) -> EnrollmentIssuance:
         if (not isinstance(identity, str) or not 1 <= len(identity) <= 512
                 or not identity.strip() or any(ord(char) < 32 or ord(char) > 126 for char in identity)
                 or not valid_token(nonce) or not 1 <= len(ip) <= 128):
@@ -52,11 +55,16 @@ class EnrollmentService:
         nonce_hash = self.auth.tokens.digest("enrollment", nonce)
         operation_id = "enroll-" + nonce_hash
         result_path = document_path("recoveryResults", operation_id)
-        device_id, secret, key, code = new_token(), new_token(), new_token(), new_recovery_code()
+        device_id, secret, key, code = new_token(), new_token(), new_device_key(), new_recovery_code()
         bearer = device_id + "." + secret
         identity_hash = self.auth.tokens.digest("identity", identity)
-        credentials = {"deviceId": device_id, "bearer": bearer, "deviceKey": key, "authEpoch": 1,
-                       "recoveryEpoch": self.auth.recovery_epoch, "recoveryCode": code,
+        try:
+            display_id, display_source, display_path = await pick_display_id(
+                self.repository, self.auth.tokens, mac)
+        except RuntimeError:
+            raise AuthError("try_again", 409) from None
+        credentials = {"deviceId": device_id, "displayId": display_id, "bearer": bearer, "deviceKey": key,
+                       "authEpoch": 1, "recoveryEpoch": self.auth.recovery_epoch, "recoveryCode": code,
                        "recoveryCodeVersion": 1}
         device_path = document_path("devices", device_id)
         code_path = document_path("recoveryCodes", self.codes.digest(code))
@@ -65,7 +73,8 @@ class EnrollmentService:
                                 device_key_hash=self.auth.tokens.digest("device_key", key),
                                 auth_epoch=1, recovery_epoch=self.auth.recovery_epoch, created_at=now,
                                 recovery_code_hmac=self.codes.digest(code),
-                                recovery_hash_key_version=self.codes.active_version)
+                                recovery_hash_key_version=self.codes.active_version,
+                                display_id=display_id, display_id_source=display_source)
         envelope = self.crypto.encrypt(canonical_json(credentials), self._context(device_id, operation_id))
         result = IssuanceDocument(operation_id=operation_id, device_id=device_id, purpose="enroll",
                                   identity_hmac=identity_hash, claim_secret_hash=nonce_hash,
@@ -88,16 +97,19 @@ class EnrollmentService:
                 raise AuthError("recovery_required", 409)
             if rows[device_path] is not None or rows[code_path] is not None:
                 raise AuthError("try_again", 409)
+            if rows[display_path] is not None:
+                raise AuthError("try_again", 409)  # outro dispositivo tomou o ID entre a pré-leitura e aqui
             claim_path = document_path("identityClaims", identity_hash)
             return TransactionPlan(result, {
                 claim_path: IdentityClaimDocument(device_id=device_id, created_at=now),
+                display_path: DisplayIdClaimDocument(device_id=device_id, created_at=now),
                 device_path: device, result_path: result,
                 code_path: RecoveryCodeDocument(device_id=device_id, version=1,
                                                 hash_key_version=self.codes.active_version,
                                                 created_at=now),
             })
 
-        saved = await self.repository.transact((*claims, *results, device_path, code_path), decide)
+        saved = await self.repository.transact((*claims, *results, device_path, code_path, display_path), decide)
         plaintext = self.crypto.decrypt(saved.envelope, self._context(saved.device_id, saved.operation_id))
         credentials = json.loads(plaintext)
         await self.auth.authenticate_tv(credentials["bearer"])

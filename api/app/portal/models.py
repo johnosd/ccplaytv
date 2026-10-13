@@ -10,6 +10,8 @@ from app.portal.crypto import CipherEnvelope
 OpaqueId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 Digest = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 Revision = Annotated[int, Field(ge=0)]
+DisplayId = Annotated[str, StringConstraints(pattern=r"^[0-9A-F]{2}(?::[0-9A-F]{2}){5}$")]
+DisplaySource = Literal["mac", "generated"]
 
 
 class PortalDocument(BaseModel):
@@ -35,9 +37,14 @@ class DeviceDocument(PortalDocument):
     trial_started_at: AwareDatetime | None = None
     trial_expires_at: AwareDatetime | None = None
     access_fence: OpaqueId | None = None
+    # 070/D-002: ausentes em dispositivos anteriores à 070 até o upgrade por rotação (D-004).
+    display_id: DisplayId | None = None
+    display_id_source: DisplaySource | None = None
 
     @model_validator(mode="after")
     def trial_interval(self):
+        if (self.display_id is None) != (self.display_id_source is None):
+            raise ValueError("display_id_source_required")
         if (self.recovery_code_hmac is None) != (self.recovery_hash_key_version is None):
             raise ValueError("recovery_verifier_version_required")
         if (self.trial_started_at is None) != (self.trial_expires_at is None):
@@ -50,6 +57,12 @@ class DeviceDocument(PortalDocument):
 
 
 class IdentityClaimDocument(PortalDocument):
+    device_id: OpaqueId
+    created_at: AwareDatetime
+
+
+class DisplayIdClaimDocument(PortalDocument):
+    """Dono exclusivo de um ID exibido (070); criado na mesma transação que grava o ID no dispositivo."""
     device_id: OpaqueId
     created_at: AwareDatetime
 
@@ -248,6 +261,9 @@ class AccessIntentDocument(PortalDocument):
     resume_until: AwareDatetime
     journal_object_id: str
     journal_digest: Digest
+    # 070/D-004: ID atribuído nesta rotação (upgrade de dispositivo antigo); o finalize grava no dispositivo.
+    display_id: DisplayId | None = None
+    display_id_source: DisplaySource | None = None
 
     @model_validator(mode="after")
     def issuance_constraints(self):

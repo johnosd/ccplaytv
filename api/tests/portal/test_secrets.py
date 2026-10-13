@@ -21,7 +21,7 @@ async def test_invalid_future_fields_and_credentials_never_reach_errors_or_logs(
             cases = (
                 ("/portal/v1/device/entitlement/refresh", {"previousJws": marker, "futurePrivateField": marker},
                  {"origin": "null", "authorization": "Bearer " + bearer}),
-                ("/portal/v1/sessions/manual", {"deviceId": device.device_id, "deviceKey": marker, "futurePrivateField": marker},
+                ("/portal/v1/sessions/manual", {"displayId": device.display_id, "deviceKey": marker, "futurePrivateField": marker},
                  {"origin": ORIGIN}),
             )
             for path, body, headers in cases:

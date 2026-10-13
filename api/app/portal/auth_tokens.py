@@ -12,9 +12,9 @@ from app.portal.crypto import CryptoError, b64decode, b64encode, canonical_json
 from app.portal.settings import PortalSettings
 
 Purpose = Literal[
-    "identity", "tv_bearer", "device_key", "invite", "session", "csrf", "rate_limit", "enrollment", "issuance_claim", "recovery_request", "recovery_session",
+    "identity", "tv_bearer", "device_key", "invite", "session", "csrf", "rate_limit", "enrollment", "issuance_claim", "recovery_request", "recovery_session", "display_id",
 ]
-PURPOSES = {"identity", "tv_bearer", "device_key", "invite", "session", "csrf", "rate_limit", "enrollment", "issuance_claim", "recovery_request", "recovery_session"}
+PURPOSES = {"identity", "tv_bearer", "device_key", "invite", "session", "csrf", "rate_limit", "enrollment", "issuance_claim", "recovery_request", "recovery_session", "display_id"}
 
 
 class TokenError(ValueError):

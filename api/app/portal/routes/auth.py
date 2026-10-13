@@ -34,13 +34,16 @@ class ExchangeInput(Input):
 
 
 class ManualInput(Input):
-    deviceId: str = Field(min_length=1, max_length=128)
-    deviceKey: SecretStr = Field(max_length=1024, repr=False)
+    # 070/D-005: ID exibido no formato MAC (aceita minúsculas/hífens) + chave numérica de 10 dígitos.
+    displayId: str = Field(min_length=1, max_length=64)
+    deviceKey: SecretStr = Field(max_length=64, repr=False)
 
 
 class EnrollmentInput(Input):
     platformIdentity: SecretStr = Field(min_length=1, max_length=512, repr=False)
     nonce: SecretStr = Field(min_length=43, max_length=43, repr=False)
+    # 070/D-002: MAC lido na TV (opcional); o servidor revalida e cai no ID gerado se for inútil.
+    mac: str | None = Field(default=None, max_length=64)
 
 
 class AckInput(Input):
@@ -51,6 +54,8 @@ class RotationInput(Input):
     operationId: str = Field(min_length=43, max_length=43)
     claimSecret: SecretStr = Field(min_length=43, max_length=43, repr=False)
     confirmed: Literal[True]
+    # 070/D-004: MAC opcional para o upgrade de dispositivo anterior à 070.
+    mac: str | None = Field(default=None, max_length=64)
 
 
 class ResultInput(Input):
@@ -150,7 +155,7 @@ async def manual(request: Request):
     service.browser_origin(request.headers.get("origin"), mutation=True)
     body = await payload(request, ManualInput)
     ip = request.client.host if request.client else "unknown"
-    issuance = await service.manual_session(body.deviceId, body.deviceKey.get_secret_value(), ip,
+    issuance = await service.manual_session(body.displayId, body.deviceKey.get_secret_value(), ip,
                                             request.headers.get("origin"), datetime.now(UTC))
     return issuance_response(issuance, request)
 
@@ -189,7 +194,7 @@ async def enroll(request: Request):
     issued = await service.enroll(body.platformIdentity.get_secret_value(),
                                    body.nonce.get_secret_value(),
                                    request.client.host if request.client else "unknown",
-                                   datetime.now(UTC))
+                                   datetime.now(UTC), body.mac)
     return {"operationId": issued.operation_id, **issued.credentials}
 
 
@@ -239,7 +244,7 @@ async def rotate_access(request: Request, purpose: Literal["revoke", "rotate"]):
     principal = await service.auth.authenticate_tv(header[7:])
     body = await payload(request, RotationInput)
     result = await service.begin(principal, body.operationId, body.claimSecret.get_secret_value(),
-                                 purpose, datetime.now(UTC))
+                                 purpose, datetime.now(UTC), body.mac)
     return JSONResponse({"operationId": result.operation_id, "state": result.state}, status_code=202)
 
 

@@ -9,9 +9,11 @@ from typing import Literal
 from app.portal.auth import AuthError, AuthService, Principal
 from app.portal.auth_tokens import new_token, valid_token
 from app.portal.crypto import CipherContext, PortalCrypto, canonical_json
+from app.portal.display_id import new_device_key, pick_display_id
 from app.portal.models import (
     AccessIntentDocument,
     DeviceDocument,
+    DisplayIdClaimDocument,
     IssuanceDocument,
     JobDocument,
     RecoveryCodeDocument,
@@ -49,15 +51,21 @@ class AccessRotation:
                             hash_key_version=intent.hash_key_version, occurred_at=intent.issued_at)
 
     def _prepare(self, device: DeviceDocument, operation_id: str, claim_secret: str,
-                 purpose: str, now: datetime, previous: AccessIntentDocument | None = None):
+                 purpose: str, now: datetime, previous: AccessIntentDocument | None = None,
+                 display: tuple[str, str] | None = None):
         target_epoch = max(device.auth_epoch, previous.target_auth_epoch if previous else 0) + 1
         target_version = max(device.recovery_code_version, previous.target_code_version if previous else 0) + 1
         issuance_round = previous.issuance_round + 1 if previous else 1
         bearer = device.device_id + "." + new_token()
-        key, code = new_token(), new_recovery_code()
+        key, code = new_device_key(), new_recovery_code()
+        # 070/D-004: ID atribuído nesta rotação (upgrade), herdado de uma rodada anterior, ou o já gravado.
+        upgrade = display or ((previous.display_id, previous.display_id_source)
+                              if previous and previous.display_id else None)
+        display_id = upgrade[0] if upgrade else device.display_id
         credentials = {"deviceId": device.device_id, "bearer": bearer, "deviceKey": key,
                        "authEpoch": target_epoch, "recoveryEpoch": device.recovery_epoch,
-                       "recoveryCode": code, "recoveryCodeVersion": target_version}
+                       "recoveryCode": code, "recoveryCodeVersion": target_version,
+                       **({"displayId": display_id} if display_id else {})}
         envelope = self.crypto.encrypt(canonical_json(credentials), CipherContext(
             device.device_id, "credential-issuance", operation_id,
         ))
@@ -81,11 +89,13 @@ class AccessRotation:
             issuance_round=issuance_round, started_at=previous.started_at if previous else now, issued_at=now,
             expires_at=now + timedelta(minutes=5), resume_until=previous.resume_until if previous else now + timedelta(hours=24),
             journal_object_id=event.object_id, journal_digest=event.digest,
+            display_id=upgrade[0] if upgrade else None, display_id_source=upgrade[1] if upgrade else None,
         )
         return intent
 
     async def begin(self, principal: Principal, operation_id: str, claim_secret: str,
-                    purpose: Literal["revoke", "rotate"], now: datetime) -> AccessResult:
+                    purpose: Literal["revoke", "rotate"], now: datetime,
+                    mac: str | None = None) -> AccessResult:
         if not valid_token(claim_secret) or not valid_token(operation_id) or purpose not in {"revoke", "rotate"}:
             raise AuthError("invalid_input", 422)
         device_path = document_path("devices", principal.device_id)
@@ -94,7 +104,15 @@ class AccessRotation:
         )
         if device.recovery_code_hmac is None:
             raise AuthError("service_unavailable", 503)
-        intent = self._prepare(device, operation_id, claim_secret, purpose, now)
+        display, display_path = None, None
+        if device.display_id is None:  # 070/D-004: dispositivo anterior à 070 ganha ID nesta rotação
+            try:
+                value, source, display_path = await pick_display_id(
+                    self.repository, self.auth.tokens, mac, owner=device.device_id)
+            except RuntimeError:
+                raise AuthError("try_again", 409) from None
+            display = (value, source)
+        intent = self._prepare(device, operation_id, claim_secret, purpose, now, display=display)
         intent_path = document_path("accessIntents", operation_id, device_id=device.device_id)
         result_path = document_path("recoveryResults", operation_id)
         job_path = document_path("jobs", self.job_id(device.device_id, operation_id))
@@ -111,15 +129,22 @@ class AccessRotation:
             if (old_code.device_id != current.device_id or old_code.status != "active"
                     or old_code.version != current.recovery_code_version):
                 raise AuthError()
-            return TransactionPlan(None, {
+            puts = {
                 device_path: current.model_copy(update={"access_fence": operation_id}),
                 intent_path: intent,
                 job_path: JobDocument(kind="access_finalize", dedupe_key=operation_id,
                                       device_id=device.device_id, next_due_at=now),
-            })
+            }
+            if display_path is not None:
+                owner = rows[display_path]
+                if owner is not None and DisplayIdClaimDocument.model_validate(owner).device_id != current.device_id:
+                    raise AuthError("try_again", 409)
+                if owner is None:
+                    puts[display_path] = DisplayIdClaimDocument(device_id=current.device_id, created_at=now)
+            return TransactionPlan(None, puts)
 
-        await self.repository.transact((device_path, intent_path, result_path, job_path,
-                                        old_code_path, new_code_path), reserve)
+        reads = (device_path, intent_path, result_path, job_path, old_code_path, new_code_path)
+        await self.repository.transact(reads + ((display_path,) if display_path else ()), reserve)
         return await self.resume(intent, now)
 
     async def resume(self, intent: AccessIntentDocument, now: datetime) -> AccessResult:
@@ -168,6 +193,8 @@ class AccessRotation:
                 "tv_bearer_hash": saved.tv_bearer_hash, "device_key_hash": saved.device_key_hash,
                 "recovery_code_hmac": saved.new_code_hmac,
                 "recovery_hash_key_version": saved.hash_key_version, "access_fence": None,
+                **({"display_id": saved.display_id, "display_id_source": saved.display_id_source}
+                   if saved.display_id and current.display_id is None else {}),
             })
             result = IssuanceDocument(
                 operation_id=saved.operation_id, device_id=saved.device_id, purpose=saved.purpose,

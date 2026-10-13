@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 from app.portal.auth_tokens import AuthTokens, new_token, valid_token
+from app.portal.display_id import display_claim_path, normalize_display_id, valid_device_key
 from app.portal.models import DeviceDocument, InviteDocument, SessionDocument
 from app.portal.rate_limit import RateConstraint, SharedRateLimiter
 from app.portal.repositories.control import ControlRepository, TransactionPlan, document_path
@@ -13,6 +14,9 @@ from app.portal.repositories.control import ControlRepository, TransactionPlan, 
 AUTH_CODES = {"unauthorized", "invalid_origin", "try_again", "invalid_input",
               "invalid_credentials", "rate_limited", "invalid_csrf", "payload_too_large",
               "service_unavailable", "recovery_required"}
+# Requisições concorrentes da mesma sessão capturam `now` antes da transação e podem terminar fora de
+# ordem (retries transacionais com jitter); relógio mais atrás que isso continua sendo recusado.
+SESSION_CONCURRENCY_SKEW = timedelta(seconds=30)
 
 
 class AuthError(ValueError):
@@ -182,48 +186,58 @@ class AuthService:
 
         return await self.repository.transact((*paths, device_path, session_path), decide)
 
-    def _manual_limits(self, device_id: str, ip: str):
-        # IP só participa de HMAC; nunca persistir endereço ou device key nos contadores.
+    def _manual_limits(self, display_scope: str, ip: str):
+        # IP e ID só participam de HMAC; nunca persistir endereço, ID ou device key nos contadores.
         return tuple(RateConstraint(self.tokens.digest("rate_limit", scope), limit, 900, 900)
                      for scope, limit in (
-                         ("manual-pair/" + device_id + "/" + ip, 5),
-                         ("manual-device/" + device_id, 25),
+                         ("manual-pair/" + display_scope + "/" + ip, 5),
+                         ("manual-device/" + display_scope, 25),
                          ("manual-ip/" + ip, 25), ("manual-global", 100),
                      ))
 
-    async def manual_session(self, device_id: str, device_key: str, ip: str,
+    async def manual_session(self, display_id: str, device_key: str, ip: str,
                              origin: str | None, now: datetime) -> SessionIssuance:
+        """070/D-005: ID exibido (formato MAC) + chave de 10 dígitos; toda recusa é a mesma 401."""
         self.browser_origin(origin, mutation=True)
-        if (not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", device_id)
-                or not 1 <= len(ip) <= 128):
+        if not isinstance(ip, str) or not 1 <= len(ip) <= 128:
             raise AuthError("invalid_credentials")
-        rules = self._manual_limits(device_id, ip)
+        normalized = normalize_display_id(display_id)
+        rules = self._manual_limits(self.tokens.digest("display_id", normalized) if normalized else "invalid", ip)
         decision = await self.limits.evaluate(rules, now, consume=False)
         if not decision.allowed:
             raise AuthError("rate_limited", 429, decision.retry_after)
-        path = document_path("devices", device_id)
-        row = (await self.repository.client.document(path).get()).to_dict()
-        valid = False
-        if row is not None and valid_token(device_key):
-            device = DeviceDocument.model_validate(row)
-            valid = (device.recovery_epoch == self.recovery_epoch and device.access_fence is None
-                     and self.tokens.matches("device_key", device_key, device.device_key_hash))
-        if not valid:
+        device, claim_path = None, None
+        if normalized and valid_device_key(device_key):
+            claim_path = display_claim_path(self.tokens, normalized)
+            claim = (await self.repository.client.document(claim_path).get()).to_dict()
+            if claim is not None:
+                row = (await self.repository.client.document(
+                    document_path("devices", claim["deviceId"])).get()).to_dict()
+                if row is not None:
+                    candidate = DeviceDocument.model_validate(row)
+                    if (candidate.display_id == normalized and candidate.recovery_epoch == self.recovery_epoch
+                            and candidate.access_fence is None
+                            and self.tokens.matches("device_key", device_key, candidate.device_key_hash)):
+                        device = candidate
+        if device is None:
             decision = await self.limits.evaluate(rules, now, consume=True)
             if not decision.allowed:
                 raise AuthError("rate_limited", 429, decision.retry_after)
             raise AuthError("invalid_credentials")
+        path = document_path("devices", device.device_id)
         session_path, session, issuance = self._session(device, now)
 
         def decide(rows):
             current = self._same_principal(rows[path], issuance.principal)
-            if not self.tokens.matches("device_key", device_key, current.device_key_hash):
+            owner = rows[claim_path]
+            if (owner is None or owner.get("deviceId") != current.device_id or current.display_id != normalized
+                    or not self.tokens.matches("device_key", device_key, current.device_key_hash)):
                 raise AuthError("invalid_credentials")
             if rows[session_path] is not None:
                 raise AuthError("try_again", 409)
             return TransactionPlan(issuance, {session_path: session})
 
-        return await self.repository.transact((path, session_path), decide)
+        return await self.repository.transact((path, claim_path, session_path), decide)
 
     async def authenticate_session(self, token: str, origin: str | None, now: datetime,
                                    *, csrf: str | None = None, mutation=False) -> Principal:
@@ -240,15 +254,17 @@ class AuthService:
             if (saved.purpose != "manage" or saved.device_id != device.device_id
                     or saved.auth_epoch != device.auth_epoch
                     or saved.recovery_epoch != self.recovery_epoch
-                    or now < saved.last_seen_at or now < saved.created_at
+                    or now + SESSION_CONCURRENCY_SKEW < saved.last_seen_at or now < saved.created_at
                     or now - saved.last_seen_at >= timedelta(minutes=30)
                     or now - saved.created_at >= timedelta(hours=8)):
                 raise AuthError()
             if mutation and (not valid_token(csrf)
                              or not self.tokens.matches("csrf", csrf, saved.csrf_hash)):
                 raise AuthError("invalid_csrf", 403)
+            # Requisições concorrentes capturam `now` antes da transação e podem terminar fora de ordem:
+            # last_seen_at nunca retrocede (o prazo ocioso é contado do uso mais recente).
             return TransactionPlan(self._principal(device), {
-                path: saved.model_copy(update={"last_seen_at": now}),
+                path: saved.model_copy(update={"last_seen_at": max(saved.last_seen_at, now)}),
             })
 
         principal = await self.repository.transact((*paths, device_path), decide)

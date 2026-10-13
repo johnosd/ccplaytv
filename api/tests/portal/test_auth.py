@@ -11,7 +11,8 @@ from PIL import Image
 from app.portal.application import create_app
 from app.portal.auth import AuthError, AuthService, SessionIssuance
 from app.portal.auth_tokens import AuthTokens, new_token
-from app.portal.models import DeviceDocument, SessionDocument
+from app.portal.display_id import display_claim_path, generate_display_id, new_device_key
+from app.portal.models import DeviceDocument, DisplayIdClaimDocument, SessionDocument
 from app.portal.repositories.control import TransactionPlan
 from app.portal.routes.auth import COOKIE
 from app.portal.settings import PortalSettings
@@ -27,16 +28,21 @@ async def seeded(control):
     now = datetime.now(UTC)
     device_id = "test-" + uuid.uuid4().hex
     bearer = device_id + "." + new_token()
-    device_key = new_token()
+    device_key = new_device_key()
+    display_id = generate_display_id()
     device = DeviceDocument(device_id=device_id,
                             identity_hmac=tokens.digest("identity", uuid.uuid4().hex),
                             tv_bearer_hash=tokens.digest("tv_bearer", bearer),
                             device_key_hash=tokens.digest("device_key", device_key),
-                            auth_epoch=1, recovery_epoch=epoch, created_at=now)
-    paths.extend(["devices/" + device_id, "identityClaims/" + device.identity_hmac])
+                            auth_epoch=1, recovery_epoch=epoch, created_at=now,
+                            display_id=display_id, display_id_source="generated")
+    claim_path = display_claim_path(tokens, display_id)
+    paths.extend(["devices/" + device_id, "identityClaims/" + device.identity_hmac, claim_path])
     paths.extend("rateLimits/" + rule.key_hash
-                 for rule in service._manual_limits(device_id, "fixture-ip"))
+                 for rule in service._manual_limits(tokens.digest("display_id", display_id), "fixture-ip"))
     await repository.enroll(device)
+    await repository.transact((claim_path,), lambda _: TransactionPlan(None, {
+        claim_path: DisplayIdClaimDocument(device_id=device_id, created_at=now)}))
     return service, device, bearer, device_key, now
 
 
@@ -73,7 +79,7 @@ async def test_invite_single_use_concurrent_exchange_expiry_and_no_plaintext(con
 
 async def test_session_origin_csrf_idle_absolute_expiry_and_global_restore_epoch(control):
     service, device, bearer, key, now = await seeded(control)
-    issued = await service.manual_session(device.device_id, key, "fixture-ip", ORIGIN, now)
+    issued = await service.manual_session(device.display_id, key, "fixture-ip", ORIGIN, now)
     remember(control, service, "sessions", "session", issued.token)
     for origin, csrf in [("null", issued.csrf), (None, issued.csrf), (ORIGIN, new_token())]:
         with pytest.raises(AuthError):
@@ -99,7 +105,7 @@ async def test_session_origin_csrf_idle_absolute_expiry_and_global_restore_epoch
 
 async def test_epoch_revokes_sessions_invites_bearer_and_fence_blocks(control):
     service, device, bearer, key, now = await seeded(control)
-    issued = await service.manual_session(device.device_id, key, "fixture-ip", ORIGIN, now)
+    issued = await service.manual_session(device.display_id, key, "fixture-ip", ORIGIN, now)
     remember(control, service, "sessions", "session", issued.token)
     principal = await service.authenticate_tv(bearer)
     invite = await service.create_invite(principal, "manage", now)
@@ -120,7 +126,7 @@ async def test_epoch_revokes_sessions_invites_bearer_and_fence_blocks(control):
         path: updated.model_copy(update={"access_fence": "pending-rotation"}),
     }))
     with pytest.raises(AuthError):
-        await service.manual_session(device.device_id, key, "fixture-ip", ORIGIN, now)
+        await service.manual_session(device.display_id, key, "fixture-ip", ORIGIN, now)
 
 
 async def test_manual_limit_shared_between_instances_cooldown_and_no_secret_counter(control):
@@ -130,16 +136,16 @@ async def test_manual_limit_shared_between_instances_cooldown_and_no_secret_coun
     for index in range(5):
         instance = service if index % 2 else second
         with pytest.raises(AuthError) as error:
-            await instance.manual_session(device.device_id, new_token(), "fixture-ip", ORIGIN, now)
+            await instance.manual_session(device.display_id, "0000000001", "fixture-ip", ORIGIN, now)
         assert error.value.code == "invalid_credentials"
     with pytest.raises(AuthError) as error:
-        await second.manual_session(device.device_id, key, "fixture-ip", ORIGIN, now)
+        await second.manual_session(device.display_id, key, "fixture-ip", ORIGIN, now)
     assert error.value.status == 429
     assert error.value.retry_after == 900
-    issued = await second.manual_session(device.device_id, key, "fixture-ip", ORIGIN,
+    issued = await second.manual_session(device.display_id, key, "fixture-ip", ORIGIN,
                                           now + timedelta(minutes=15))
     remember(control, service, "sessions", "session", issued.token)
-    for rule in service._manual_limits(device.device_id, "fixture-ip"):
+    for rule in service._manual_limits(service.tokens.digest("display_id", device.display_id), "fixture-ip"):
         row = (await service.repository.client.document("rateLimits/" + rule.key_hash).get()).to_dict()
         assert "fixture-ip" not in str(row)
         assert key not in str(row)
@@ -192,9 +198,35 @@ async def test_http_cookie_sanitization_null_origin_csrf_logout_and_jobs_isolati
         assert (await client.post("/portal/v1/sessions/manual")).status_code == 404
 
 
+async def test_concurrent_reads_with_out_of_order_clock_keep_valid_session(control):
+    # Achado na pilha local integrada (T056): o portal dispara GETs concorrentes após login/mutação; uma
+    # requisição com `now` ligeiramente anterior ao last_seen_at já gravado por outra não pode virar 401.
+    service, device, _, key, now = await seeded(control)
+    issued = await service.manual_session(device.display_id, key, "fixture-ip", ORIGIN, now)
+    remember(control, service, "sessions", "session", issued.token)
+    latest = now + timedelta(seconds=1)
+    assert await service.authenticate_session(issued.token, ORIGIN, latest)
+    # Chegou depois, mas capturou o relógio antes: dentro da tolerância de concorrência.
+    assert await service.authenticate_session(issued.token, ORIGIN, latest - timedelta(milliseconds=800))
+    # last_seen_at nunca retrocede: o prazo ocioso continua contado a partir de `latest`.
+    assert await service.authenticate_session(issued.token, ORIGIN, latest + timedelta(minutes=30) - timedelta(seconds=1))
+    with pytest.raises(AuthError):
+        await service.authenticate_session(issued.token, ORIGIN, latest + timedelta(minutes=60))
+
+
+async def test_session_rejects_clock_rolled_back_beyond_concurrency_tolerance(control):
+    service, device, _, key, now = await seeded(control)
+    issued = await service.manual_session(device.display_id, key, "fixture-ip", ORIGIN, now)
+    remember(control, service, "sessions", "session", issued.token)
+    assert await service.authenticate_session(issued.token, ORIGIN, now + timedelta(minutes=10))
+    with pytest.raises(AuthError):
+        # Relógio muito atrás do último uso (ex.: restore/rollback): continua recusado.
+        await service.authenticate_session(issued.token, ORIGIN, now + timedelta(minutes=5))
+
+
 async def test_form_limit_is_shared_and_logical_window_survives_ttl_delay(control):
     service, device, _, key, now = await seeded(control)
-    issued = await service.manual_session(device.device_id, key, "fixture-ip", ORIGIN, now)
+    issued = await service.manual_session(device.display_id, key, "fixture-ip", ORIGIN, now)
     remember(control, service, "sessions", "session", issued.token)
     rate_path = "rateLimits/" + service.tokens.digest("rate_limit", "forms/" + issued.token)
     control[1].append(rate_path)

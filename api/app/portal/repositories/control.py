@@ -28,7 +28,7 @@ class RepositoryConflict(ValueError):
 
 
 def document_path(collection: str, document_id: str, *, device_id: str | None = None) -> str:
-    root = {"devices", "identityClaims", "invites", "sessions", "jobs", "recoveryCodes",
+    root = {"devices", "identityClaims", "displayIdClaims", "invites", "sessions", "jobs", "recoveryCodes",
             "recoveryClaims", "recoveryResults", "rateLimits", "settings",
             "orders", "orderClaims", "paymentClaims", "paymentEvents", "grants"}
     nested = {"configurations", "configurationVersions", "operations", "tombstones",
