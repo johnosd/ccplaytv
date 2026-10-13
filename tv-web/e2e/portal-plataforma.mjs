@@ -5,7 +5,7 @@ import { chromium } from '@playwright/test'
 const browser = await chromium.launch({ headless: true })
 try {
   const page = await browser.newPage()
-  await page.goto('http://127.0.0.1:5173/')
+  await page.goto('http://localhost:5173/')
   const reports = await page.evaluate(async () => {
     const { runPlatformProbe } = await import('/src/lib/portal/platformProbe.ts')
     const options = {

@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-13
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: "Na tela de perfil, ao clicar em adicionar, deve mostrar o QR code, device id, device key e a URL do painel para o usuário adicionar a lista, ou a opção manual. Reescrever a tela de cadastro/edição de listas: tela grande com Nome da lista, URL, usuário e senha; campos grandes, que não escondam o que o usuário escreve, ou com opção de ativar (olho). No painel também mostrar a device key, a lista de listas e poder incluir ou editar. A saída do app deve ter como última tela sempre a tela de listas." Referências do usuário: fotos do gerenciador de um app concorrente (tela "Adicionar Playlist" na TV com ID no formato MAC, chave numérica, QR e URL; painel web com ID, status, validade, tabela de playlists e formulário de edição com senha visível).
 

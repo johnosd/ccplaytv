@@ -181,18 +181,18 @@ Travas de outras features afetadas: **037** (`AddSourceScreen.entrada-listas.con
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | Três cláusulas de Segredos violadas por decisão do usuário (2026-10-13) | Crítico (normativo) | Fase 1 bloqueante: constitution 1.10.0 + ADR-014 com risco aceito e mitigações (D-001). |
-| R-002 | Contrato travado 037 (teste 2) exige mock "Em breve" | Bloqueia US1 | Emenda mínima **autorizada pelo usuário em 2026-10-13**: o teste passa a exigir estado honesto sem portal; regravar só a trava 037 (T014). |
-| R-003 | MAC indisponível no Tizen 9, exige privilégio ou varia por modelo | Médio | Sonda na TV física (T003) antes de mudar `config.xml`; fallback D-002 sempre presente. |
-| R-004 | Chave numérica permanente exposta em foto/tela (risco aceito) | Alto | 10 dígitos, limites por ID/IP/global, recusa uniforme, "Gerar nova chave" (revoke), sessão curta. |
-| R-005 | Credenciais salvas trafegam ao navegador (risco aceito) | Alto | Só sessão `manage` da mesma TV, no-store, sem log, allowlist de campos; teste de dono (T031). |
-| R-006 | Upgrade da TV do usuário (registro antigo) | Médio | D-004: uma rotação `revoke`; listas/licença preservadas; validar na TV física (T042). |
-| R-007 | `AddSourceScreen`/`ProfilesScreen` no teto de 421 linhas | Médio | Extrair `SourceFormFields.tsx`; remover canto do portal nos perfis libera linhas. |
-| R-008 | Ratchet proíbe `features/import` → `features/portal` | Médio | Slot `phonePanel` montado pelo `App` (D-008). |
-| R-009 | `HomeScreen.test.tsx` (não travado) espera "Sair" no Início | Baixo | Atualizar para `leave-list` (T034); contrato 023 do redutor continua verde. |
-| R-011 | `licenseRuntime.test.ts` falha sob carga na suíte completa (timeout de 5 s no `import()` dinâmico) e passa isolado | Baixo (teste instável, não tocado pela 070) | Aberto: acompanhar no gate final (T039); se repetir, investigar via `sdd-bugfix` em vez de afrouxar timeout. |
-| R-010 | TV nova falando com serviço anterior à 070 (staging atual) receberia chave longa | Mitigado | Staging atualizado em T041 para a revisão `ccplaytv-portal-00014-tr5`; a TV ainda aceita chave de 10 dígitos ou token legado e o legado dispara o upgrade D-004. |
-| R-012 | ADR-015 (2026-10-13): ID do dispositivo imutável; sem MAC útil, derivado da identidade em vez de sorteado | Alto (licença e portal presos ao ID) | Feito na API (T047–T050) com invariante no repositório e testes; **staging precisa ser republicado antes da TV** (senão a TV real se cadastra pela regra antiga e o ID sorteado fica para sempre); privilégio de rede só após a T003. |
+| R-001 | Três cláusulas de Segredos violadas por decisão do usuário (2026-10-13) | Crítico (normativo) | Fase 1 bloqueante: constitution 1.10.0 + ADR-014 com risco aceito e mitigações (D-001). Resolvido: constitution 1.10.0 e ADR-014 aplicadas antes de qualquer tela (Fase 1); exceção a/b/c limitada à tela Adicionar, ao painel da mesma TV e à edição local. |
+| R-002 | Contrato travado 037 (teste 2) exige mock "Em breve" | Bloqueia US1 | Emenda mínima **autorizada pelo usuário em 2026-10-13**: o teste passa a exigir estado honesto sem portal; regravar só a trava 037 (T014). Resolvido: teste 2 da 037 emendado só como autorizado e trava 037 regravada; contratos 037/045/023/024/069 íntegros na convergência. |
+| R-003 | MAC indisponível no Tizen 9, exige privilégio ou varia por modelo | Médio | Sonda na TV física (T003) antes de mudar `config.xml`; fallback D-002 sempre presente. Resolvido: sonda na TV física com `network.public` deu `mac: passed`; fallback derivado (ADR-015) permanece; `config.xml` só mudou após a sonda. |
+| R-004 | Chave numérica permanente exposta em foto/tela (risco aceito) | Alto | 10 dígitos, limites por ID/IP/global, recusa uniforme, "Gerar nova chave" (revoke), sessão curta. Resolvido: chave de 10 dígitos CSPRNG, limites por ID/IP/global, recusa uniforme 401, `revoke` derruba sessões (T009, 124/124 na API); risco residual aceito pelo usuário. |
+| R-005 | Credenciais salvas trafegam ao navegador (risco aceito) | Alto | Só sessão `manage` da mesma TV, no-store, sem log, allowlist de campos; teste de dono (T031). Resolvido: rota `values` só para sessão `manage` da mesma TV, allowlist, `no-store` (application.py), sem log; T031 e `evidencias/segredos.md`. |
+| R-006 | Upgrade da TV do usuário (registro antigo) | Médio | D-004: uma rotação `revoke`; listas/licença preservadas; validar na TV física (T042). Resolvido: upgrade D-004 com uma rotação `revoke` coberto por testes (T009/T010) e observado na TV física (T042). |
+| R-007 | `AddSourceScreen`/`ProfilesScreen` no teto de 421 linhas | Médio | Extrair `SourceFormFields.tsx`; remover canto do portal nos perfis libera linhas. Resolvido: `SourceFormFields.tsx` extraído; lint de arquitetura sem violação na convergência (exit 0). |
+| R-008 | Ratchet proíbe `features/import` → `features/portal` | Médio | Slot `phonePanel` montado pelo `App` (D-008). Resolvido: slot `phonePanel` montado pelo `App`; nenhum import feature→feature novo (ratchet ok). |
+| R-009 | `HomeScreen.test.tsx` (não travado) espera "Sair" no Início | Baixo | Atualizar para `leave-list` (T034); contrato 023 do redutor continua verde. Resolvido: `HomeScreen` delega RETURN a `onLeaveList`; testes de Home/App e contrato C3 verdes. |
+| R-011 | `licenseRuntime.test.ts` falha sob carga na suíte completa (timeout de 5 s no `import()` dinâmico) e passa isolado | Baixo (teste instável, não tocado pela 070) | Aberto: acompanhar no gate final (T039); se repetir, investigar via `sdd-bugfix` em vez de afrouxar timeout. Resolvido: não reproduziu — suíte completa na convergência 3330/3330 (569 arquivos, exit 0). |
+| R-010 | TV nova falando com serviço anterior à 070 (staging atual) receberia chave longa | Mitigado | Staging atualizado em T041 para a revisão `ccplaytv-portal-00014-tr5`; a TV ainda aceita chave de 10 dígitos ou token legado e o legado dispara o upgrade D-004. Resolvido: staging republicado (`ccplaytv-portal-00016-srm`) antes da instalação na TV. |
+| R-012 | ADR-015 (2026-10-13): ID do dispositivo imutável; sem MAC útil, derivado da identidade em vez de sorteado | Alto (licença e portal presos ao ID) | Feito na API (T047–T050) com invariante no repositório e testes; **staging precisa ser republicado antes da TV** (senão a TV real se cadastra pela regra antiga e o ID sorteado fica para sempre); privilégio de rede só após a T003. Resolvido: ADR-015 implementada (T047–T050), staging republicado antes da TV e privilégio de rede só após a T003/T017. Ressalva: a TV de referência manteve o ID `2A:…` (imutável); o MAC real só aparece em TVs pareadas a partir do pacote com o privilégio. |
 
 ## Execution Notes
 
@@ -226,3 +226,28 @@ Travas de outras features afetadas: **037** (`AddSourceScreen.entrada-listas.con
 - pytest do portal: emulador com Java 21 (`JAVA_HOME`) e `--basetemp` num diretório acessível; os E2E de pilha local exigem as portas 8085/3001/5174/5176 livres (matar o emulador avulso antes).
 - **Ordem de publicação**: publicar a API da 070 no staging (T041) ANTES de instalar na TV um pacote com a 070. Com o serviço antigo, `ensurePairing()` recebe de novo a chave longa sem `displayId` e faria uma rotação `revoke` a cada abertura da tela Adicionar.
 - Abrir o painel de licença nos E2E agora é por `e2e/lib/portal.mjs` (Configurações → Portal & licença); o canto "Adicionar pelo site" não existe mais.
+
+## Resultado Final
+
+**Convergida em 2026-10-13.** Todas as 61 tasks marcadas; 5/5 testes de contrato verdes e travas 070/037/045/023/024/069 íntegras.
+
+**O que foi construído**
+
+- **TV**: tela "Adicionar lista" em duas colunas (Pelo celular: QR, ID no formato MAC, chave de 10 dígitos permanente, endereço do painel, Recarregar e "Gerar nova chave"; Digitar na TV: formulário). Formulário com campos grandes, dados visíveis por padrão, um olho único ("Ocultar dados"/"Mostrar dados") e edição com os valores salvos. RETURN em cadeia até a tela de listas (`leave-list`), única que pede para sair.
+- **API/portal**: ID exibido + chave numérica, sessão manual por ID + chave com limites e recusa uniforme, rota `values` (sessão `manage` da mesma TV, allowlist, `no-store`), `session/device` com ID e licença; portal com login, cabeçalho de dispositivo/licença, lista de listas e edição com valores salvos e olho.
+- **Normas**: constitution 1.10.0, ADR-014 e ADR-015.
+
+**Desvios em relação ao plano original**
+
+- **ID derivado, não sorteado (ADR-015, T047–T050)**: D-002 previa um ID aleatório localmente administrado no servidor; passou a ser derivado da identidade do aparelho e imutável no repositório, porque a licença e o portal ficam presos a ele.
+- **Privilégio `network.public` (T017)** adicionado a `CCPlayTv/config.xml` depois que a sonda da T003 provou a necessidade.
+- **Revisão de UX/UI do portal e da tela Adicionar** guiada pelo usuário (abas Suas listas/Ativar/Revendedores "Em breve"/FAQ, cards de listas, seletor Xtream/M3U, QR emoldurado), registrada no backlog como ad-hoc; "Revendedores" é só estrutura desabilitada, sem dado inventado.
+- **Rótulos**: o catálogo `en` usa "Playlist Name/Host/User Name/Password"; `pt` e `es` mantêm "Nome da lista/Servidor/Usuário/Senha" (contratos 037/045 em pt).
+- T044–T046 foram tasks ad-hoc descobertas durante as fases; o `## Registro do Polish` de `tasks.md` ficou com o texto "parcial" do checkpoint (as caixas e o Checklist de Release estão fechados).
+
+**Verificação da convergência**: `tsc -b` limpo; `npm run lint` exit 0 (só avisos de teto/exceção obsoleta); Vitest completo 3330/3330; `npm run test:e2e` 49/49 com `npm run dev` (o `portal-plataforma` falhava só por apontar para `127.0.0.1` enquanto o Vite escuta em `::1`; passou a usar `localhost`); `portal-dev-server`, `entrada-listas-gerenciador` e pacote `file://` contra staging PASS no Polish.
+
+**Em aberto (sem task nova)**
+
+- **SC-002/SC-003/SC-008 não foram medidos como números**: o teste com 5 pessoas, o cronômetro de 5 minutos e as 1.000 tentativas de chave não foram executados; o aceite foi o roteiro do quickstart observado pelo usuário na TV física e os testes de limite da API (`test_pairing.py`).
+- **MAC real ainda não observado na tela**: a sonda provou `getMac()` com o privilégio (`mac: passed`), mas a TV de referência mantém o ID `2A:…` (imutável). Fechar isso pede apagar o registro dela no staging e parear de novo, ou a ação "desvincular" (ideia do backlog, ainda sem spec).
