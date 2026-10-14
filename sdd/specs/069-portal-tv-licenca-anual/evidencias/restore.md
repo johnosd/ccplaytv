@@ -65,3 +65,10 @@ Autorizado pelo usuário em 2026-10-14 (criar `portal-restore-070`, ler o banco 
 - **RTO**: restore real levou 532,5 s (15 dispositivos) e 1008,8 s (64 dispositivos). Não é linear nem estável; registrar a faixa observada, não uma promessa.
 - **RPO**: snapshots diários com 22,9 h e 7,3 h de idade nas duas inspeções; o objetivo nominal ≤ 24 h se mantém.
 - **Segue aberto em T039**: replay `--apply` contra eventos que **não** estejam no snapshot (exige gerar uma exclusão/revogação depois do snapshot e restaurar de novo), recuperação da cópia protegida das chaves e restore de pagamentos/grants com revalidação do provedor.
+
+
+## Preparo do ensaio do `--apply` (T066) — 2026-10-14
+
+- `infra/portal/rehearse-replay.ps1 -Phase Setup` rodou no staging: 1 dispositivo de fixture e 1 fonte (marcadores fictícios) criados e confirmados pelo ACK da TV simulada. Estado local fora do repositório.
+- Razão: todos os 5 eventos do journal real são posteriores aos snapshots já existentes e seus dispositivos não existiam neles; um `--apply` com efeito exige fonte presente no snapshot e exclusão depois dele. O próximo snapshot diário cobrirá o fixture.
+- CLI do replay endurecido: alvo explícito, recusa `(default)`.

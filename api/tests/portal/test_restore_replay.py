@@ -157,3 +157,11 @@ async def test_dispositivo_ausente_e_reportado_e_nada_e_criado(control):
     assert report.counts["device_absent"] == 3 and report.complete
     assert await read(repository, "devices/" + ghost) is None
     assert await read(repository, "devices/" + ghost + "/tombstones/s") is None
+
+def test_cli_recusa_a_base_ativa_antes_de_tocar_a_rede(capsys):
+    from app.portal.restore_replay import main
+
+    for database in ("(default)", ""):
+        code = main(["--project-id", "projeto", "--database", database, "--journal-bucket", "bucket"])
+        assert code == 3
+    assert "isolated_restore_database_required" in capsys.readouterr().out

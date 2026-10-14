@@ -16,7 +16,6 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from app.portal.commercial_models import GrantDocument
-from app.portal.firestore import create_firestore_client
 from app.portal.models import (
     DeletionIntentDocument,
     DeviceDocument,
@@ -28,7 +27,6 @@ from app.portal.operations import DeletionService
 from app.portal.recovery_journal import JournalError, JournalEvent
 from app.portal.repositories.control import ControlRepository, TransactionPlan, document_path
 from app.portal.restore_journal import CloudStorageJournalReader, load_events
-from app.portal.settings import PortalSettings
 
 
 @dataclass
@@ -204,13 +202,26 @@ class RestoreReplay:
 
         return await self.repository.transact((device_path, grant_path), apply)
 
-async def _run(settings: PortalSettings, apply: bool) -> int:
-    events = load_events(CloudStorageJournalReader(settings).objects())
-    if not apply:
-        print(json.dumps({"events": dict(Counter(event.kind for event in events)), "executes": False}))
-        return 0
-    client = create_firestore_client(settings)
+class RestoreTargetError(ValueError):
+    pass
+
+
+def _client(project_id: str, database: str):
+    # Alvo explícito: o replay nunca roda contra a base ativa.
+    if database in {"", "(default)"}:
+        raise RestoreTargetError("isolated_restore_database_required")
+    from google.cloud.firestore_v1 import AsyncClient
+
+    return AsyncClient(project=project_id, database=database)
+
+
+async def _run(project_id: str, database: str, bucket: str, apply: bool) -> int:
+    client = _client(project_id, database)
     try:
+        events = load_events(CloudStorageJournalReader(project_id, bucket).objects())
+        if not apply:
+            print(json.dumps({"events": dict(Counter(event.kind for event in events)), "executes": False}))
+            return 0
         report = await RestoreReplay(ControlRepository(client)).apply(events, datetime.now(UTC))
     finally:
         client.close()
@@ -218,13 +229,19 @@ async def _run(settings: PortalSettings, apply: bool) -> int:
     return 0 if report.complete else 2
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Replay do journal numa base restaurada e isolada (dry-run por padrão)")
+    parser.add_argument("--project-id", required=True)
+    parser.add_argument("--database", required=True, help="banco restaurado (nunca (default))")
+    parser.add_argument("--journal-bucket", required=True)
     parser.add_argument("--apply", action="store_true")
-    options = parser.parse_args()
+    options = parser.parse_args(argv)
     try:
-        return asyncio.run(_run(PortalSettings(), options.apply))
+        return asyncio.run(_run(options.project_id, options.database, options.journal_bucket, options.apply))
+    except RestoreTargetError:
+        print(json.dumps({"code": "isolated_restore_database_required", "retryable": False}))
+        return 3
     except Exception:  # noqa: BLE001 - o CLI não imprime credenciais de SDK/settings
         print(json.dumps({"code": "restore_replay_unavailable", "retryable": True}))
         return 1

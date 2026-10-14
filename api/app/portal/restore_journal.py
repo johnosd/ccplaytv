@@ -40,10 +40,16 @@ def load_events(objects: Iterable[tuple[str, bytes]]) -> list[JournalEvent]:
 class CloudStorageJournalReader:
     """Somente leitura (list/get): o runtime da aplicação nunca ganha overwrite/delete no journal."""
 
-    def __init__(self, settings: PortalSettings):
+    def __init__(self, project_id: str, bucket: str):
+        if not project_id or project_id.startswith("demo-") or not bucket:
+            raise JournalError("cloud_journal_configuration_required")
+        self._bucket = storage.Client(project=project_id).bucket(bucket)
+
+    @classmethod
+    def from_settings(cls, settings: PortalSettings) -> "CloudStorageJournalReader":
         if settings.environment not in {"staging", "production"} or not settings.journal_bucket:
             raise JournalError("cloud_journal_configuration_required")
-        self._bucket = storage.Client(project=settings.project_id).bucket(settings.journal_bucket)
+        return cls(settings.project_id, settings.journal_bucket)
 
     def objects(self) -> Iterator[tuple[str, bytes]]:
         try:

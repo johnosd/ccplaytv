@@ -486,3 +486,10 @@ Checkpoint desta revisão:3301/3301 unit (563 arquivos),26/26 direcionados, E2E 
 - Contrato: sem arquivo de contrato tocado; travas 069/070/026 íntegras.
 - Testes executados: leituras e dry-run descritos acima (sem escrita no banco restaurado); suíte da API do checkpoint anterior (138 passed).
 - Pendências: **T039** — `--apply` contra eventos fora do snapshot, recuperação da cópia protegida das chaves, restore de pagamentos/grants com revalidação do provedor; **T063 (b)**; **T043**; **T046**; **T047**.
+
+
+### Desvio ad-hoc T066 — ensaio real do `--apply` (agendado pelo snapshot diário, 2026-10-14)
+
+- [ ] T066 Ensaio real do replay com evento posterior ao snapshot: (1) **feito em 2026-10-14**: `infra/portal/rehearse-replay.ps1 -Phase Setup` criou 1 dispositivo e 1 fonte de fixture no staging (estado em arquivo local fora do repositório); (2) depois que o snapshot diário seguinte (≈03:40Z de 2026-10-15) aparecer em `gcloud firestore backups list`, rodar `-Phase Mutate` (exclui a fonte pelo portal → `source_deleted`; revoga o acesso → `access_revoked`); (3) restaurar **esse** snapshot em `portal-restore-*`; (4) `python -m app.portal.restore_replay --project-id ccplaytv-511322 --database portal-restore-… --journal-bucket ccplaytv-511322-portal-journal` (dry-run) e depois `--apply`; (5) conferir no banco restaurado que a fonte do fixture não existe, o tombstone e o comando de exclusão existem e o código antigo ficou `consumed`; (6) repetir `--apply` e ver `already_applied`; (7) apagar o banco e registrar em `evidencias/restore.md`. (FR-032-033; SC-010, SC-012)
+
+**Registro T066** (2026-10-14): Status: aberta — passo (1) concluído; (2)–(7) dependem do snapshot de amanhã e de autorização. CLI do replay passou a exigir `--project-id`, `--database` (recusa `(default)` com código 3) e `--journal-bucket`: o alvo é sempre explícito e a base ativa nunca é tocada; teste novo cobre a recusa. API `tests/portal` 139 passed, Ruff PASS. A tentativa de usar o snapshot de 2026-10-13 (anterior à 070) como "backup anterior a delete" não serve: os 5 eventos do journal são posteriores a ele e seus dispositivos não existiam lá.
