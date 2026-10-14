@@ -1,0 +1,4 @@
+/* Botão Atualizar e linha de resultado (feature 071). Só tokens V14. */
+.portal-refresh-status {
+  margin: 0; font-size: var(--fs-body); color: var(--text-secondary); overflow-wrap: anywhere;
+}

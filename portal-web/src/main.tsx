@@ -6,6 +6,8 @@ import './styles.css'
 // Remover fragmento antes de qualquer requisição; exchange único em StrictMode.
 const entry = takeEntry(window.location, window.history)
 const failure = (error: unknown) => ({ error: error instanceof PortalApiError ? error : new PortalApiError('network') })
-const startup = entry?.kind === 'invite' ? api.exchange(entry.token).then(session => ({ session }), failure) : undefined
+// Convite efêmero (069) ou QR fixo da TV (071: ID + chave no fragmento → entrada manual, mesmos limites e recusa uniforme).
+const startup = entry?.kind === 'invite' ? api.exchange(entry.token).then(session => ({ session }), failure)
+  : entry?.kind === 'device' ? api.manual(entry.displayId, entry.deviceKey).then(session => ({ session }), failure) : undefined
 const recoveryStartup = entry?.kind === 'recovery' ? api.recoveryExchange(entry.token).then(session => ({ session }), failure) : undefined
 createRoot(document.getElementById('root')!).render(<StrictMode><App startup={startup} recoveryStartup={recoveryStartup} /></StrictMode>)

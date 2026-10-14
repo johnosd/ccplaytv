@@ -42,7 +42,7 @@ Abordagem: evoluir as superfícies existentes (sem tela nova de cadastro), reapr
 - **D-009 — Entrada única**: o canto "Adicionar pelo site" sai dos perfis; "Adicionar lista" é o caminho. Configurações → "Portal & licença" permanece para licença, revogar e código de recuperação.
 - **D-010 — Saída**: ação nova `leave-list` no `appNav` (Início → perfis como base, foco por id na lista que estava aberta, `activeSource` nulo). `back` na base continua no-op (contrato 023). `ExitModal` só nos perfis base.
 - **D-011 — Recarregar**: dispara um ciclo imediato do agente (`syncNow`), com o mesmo mutex e respeitando `Retry-After`/limite de pull; mostra resultado ou código de erro. Não liga polling contínuo fora da tela.
-- **D-012 — QR**: convite efêmero/uso único da 069, gerado ao abrir a tela e renovado só enquanto ela está aberta; nunca contém chave, ID ou credencial.
+- **D-012 — QR**: convite efêmero/uso único da 069, gerado ao abrir a tela e renovado só enquanto ela está aberta; nunca contém chave, ID ou credencial. **Atualização (071):** QR fixo, local, `#id=&key=`; nada é renovado nem consultado enquanto a tela está aberta (071 D-007).
 
 ## Constitution Check
 

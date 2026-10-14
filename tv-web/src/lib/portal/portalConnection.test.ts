@@ -190,3 +190,20 @@ it('resposta de recuperação para outra TV e resultado abortado não persistem 
   expect(await portalTables(db).device.get('device')).toBeUndefined()
   expect((await portalTables(db).bootstrap.get('bootstrap'))?.pendingRecovery).toBeTruthy()
 })
+
+it('071/D-006: o 1º cadastro envia o início do teste local e o teste encurta para o início devolvido', async () => {
+  const db = database()
+  const start = Date.now() - 2 * 86_400_000
+  await portalTables(db).localTrial.put({ id: 'trial', startedAt: start, highWatermark: start })
+  const anchored = start - 86_400_000
+  const request = vi.fn(async (path: string, options?: { body?: Record<string, unknown> }) => {
+    if (path.endsWith('/enroll')) {
+      expect(options?.body?.trialStartedAt).toBe(start)
+      return { ...credentials, operationId: 'enrollment-a', trialStartedAt: anchored }
+    }
+    return undefined
+  })
+  const connection = new PortalConnection(db, { request: request as never }, 'https://portal.test', () => 'fixture-duid')
+  await connection.ready()
+  expect(await portalTables(db).localTrial.get('trial')).toMatchObject({ startedAt: anchored })
+})

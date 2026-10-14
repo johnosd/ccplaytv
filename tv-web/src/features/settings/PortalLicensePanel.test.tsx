@@ -10,8 +10,8 @@ const databases: CatalogDb[] = []
 afterEach(async () => { cleanup(); for (const db of databases.splice(0)) { db.close(); await Dexie.delete(db.name) } })
 async function setup() {
   const db = new CatalogDb('test-069-panel-' + crypto.randomUUID()); databases.push(db)
-  const credentials = { deviceId: 'device-a', bearer: 'device-a.' + 'a'.repeat(42) + 'A',
-    deviceKey: 'b'.repeat(42) + 'A', authEpoch: 1, recoveryEpoch: 'c'.repeat(42) + 'A',
+  const credentials = { deviceId: 'device-a', displayId: 'A0:8C:FD:19:0A:8C', bearer: 'device-a.' + 'a'.repeat(42) + 'A',
+    deviceKey: '1732049818', authEpoch: 1, recoveryEpoch: 'c'.repeat(42) + 'A',
     recoveryCode: '0000-0000-0000-0000-0000-0000-0000', recoveryCodeVersion: 1 }
   await persistCredentialIssuance(db, credentials, 'enrollment-a', Date.now())
   await acknowledgeCredentialIssuance(db, 'enrollment-a', 1)
@@ -42,19 +42,20 @@ it('foco não consulta; chave exige confirmação explícita e RETURN oculta sem
   fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
   expect(rotate).not.toHaveBeenCalled()
 })
-it('QR desaparece no pagehide e resposta atrasada não o reexibe', async () => {
-  const { invite } = await setup()
+it('QR fixo é local (sem convite), some no pagehide e resposta atrasada não o reexibe', async () => {
+  const { connection, invite } = await setup()
+  const ensure = vi.spyOn(connection, 'ensurePairing')
   fireEvent.click(screen.getByRole('button', { name: 'Gerar QR para o portal' }))
-  await screen.findByRole('img', { name: 'QR de acesso temporário ao portal desta TV' })
+  await screen.findByRole('img', { name: 'QR de acesso ao portal desta TV' })
+  expect(invite).not.toHaveBeenCalled()
   fireEvent(window, new Event('pagehide'))
   expect(screen.queryByRole('img')).not.toBeInTheDocument()
-  let finish!: (result: Awaited<ReturnType<PortalConnection['invite']>>) => void
-  invite.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  let finish!: (result: Awaited<ReturnType<PortalConnection['ensurePairing']>>) => void
+  ensure.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
   fireEvent.click(screen.getByRole('button', { name: 'Gerar QR para o portal' }))
-  await waitFor(() => expect(invite).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(ensure).toHaveBeenCalledTimes(2))
   fireEvent(window, new Event('pagehide'))
-  await act(async () => finish({ deviceId: 'device-a', invite: { token: 'a'.repeat(43),
-    expiresAt: new Date(Date.now() + 299000).toISOString(), qrDataUrl: 'data:image/png;base64,aGVsbG8=' } }))
+  await act(async () => finish((await connection.database.table('portalDevice').get('device'))!))
   expect(screen.queryByRole('img')).not.toBeInTheDocument()
 })
 

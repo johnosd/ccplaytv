@@ -42,7 +42,7 @@ A pessoa está na tela de listas da TV, ativa "Adicionar lista" e vê, sem nenhu
 
 **Acceptance Scenarios**:
 
-1. **Given** a tela de listas, **When** a pessoa ativa "Adicionar lista", **Then** a tela mostra ID no formato `XX:XX:XX:XX:XX:XX`, chave de 10 dígitos, endereço do painel, QR e os botões Voltar e Recarregar, com um deles em foco.
+1. **Given** a tela de listas, **When** a pessoa ativa "Adicionar lista", **Then** a tela mostra ID no formato `XX:XX:XX:XX:XX:XX`, chave de 10 dígitos, endereço do painel, QR e os botões Voltar e Recarregar, com um deles em foco. **Atualização (071):** o botão "Recarregar" é mantido (contrato C1); o QR é o fixo, local.
 2. **Given** a tela Adicionar aberta, **When** a pessoa lê o QR, **Then** o painel abre já autenticado nesta TV, sem pedir ID/chave.
 3. **Given** o painel aberto sem QR, **When** a pessoa digita o ID e a chave exibidos, **Then** entra no gerenciador desta TV; com chave errada, recebe recusa sem revelar se o ID existe.
 4. **Given** uma lista criada no painel, **When** a pessoa ativa Recarregar na TV, **Then** a lista aparece sem esperar o ciclo automático.
@@ -156,7 +156,7 @@ De qualquer tela, RETURN volta camada por camada até a tela de listas; só nela
 - **FR-023**: A chave e o ID nunca DEVEM aparecer em URL de navegação, QR (que carrega só convite efêmero e de uso único), logs ou mensagens de erro.
 - **FR-024**: A exibição permanente da chave e a devolução de credenciais ao painel DEVEM ser formalizadas por emenda da constituição e da decisão arquitetural antes de qualquer implementação.
 - **FR-025**: A leitura do MAC DEVE ser validada na TV física e a indisponibilidade tratada com o fallback de FR-003, sem alterar `config.xml` ou o build para "forçar" o resultado.
-- **FR-026**: O QR e o convite DEVEM continuar efêmeros e de uso único, sem conter a chave nem credenciais de lista.
+- **FR-026**: O QR e o convite DEVEM continuar efêmeros e de uso único, sem conter a chave nem credenciais de lista. **Atualização (071):** o QR passa a ser fixo e carrega ID e chave só no fragmento; sem convite efêmero na TV (ADR-016, constitution 1.11.0 (e)).
 
 ### Key Entities *(include if feature involves data)*
 

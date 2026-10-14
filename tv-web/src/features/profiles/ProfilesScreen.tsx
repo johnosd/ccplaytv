@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useDeleteSource, useResyncSource, useSources, useSourceSyncing, type SourceOut } from '../import/importApi'
 import { clamp, useRemoteNav, type RemoteDirection } from '../../lib/useRemoteNav'
@@ -16,6 +16,9 @@ import { OnboardingBrand } from '../import/OnboardingBrand'
 import { listAvatarVariant, listInitials } from './listAvatar'
 import { useT } from '../../lib/i18n/I18nProvider'
 import { sourceNotices } from './ProfilesSourceNotices'
+import { ProfilesRefreshCorner } from './ProfilesRefreshCorner'
+import { getPortalConnection } from '../../lib/portal/portalRuntime'
+import { useRefreshAction } from '../../lib/portal/useRefreshAction'
 
 export interface ProfilesScreenProps {
   /** `base`: RETURN abre o modal "Sair do CCPlayTV?". `switch`: RETURN chama `onBack` (volta ao Início da lista ativa, FR-031). */
@@ -106,6 +109,14 @@ export function ProfilesScreen({
   const [actionIdx, setActionIdx] = useState(0)
   const [confirmDelete, setConfirmDelete] = useState<SourceOut | null>(null)
   const [showExit, setShowExit] = useState(false)
+  // 071 (FR-003/FR-006): "Atualizar" busca no site as listas novas e envia a fila da TV; só existe com portal
+  // configurado. Nada roda ao abrir a tela ou ao focar: a consulta é só o SELECT no botão.
+  const portalAvailable = useMemo(() => {
+    try { return !!getPortalConnection() } catch { return false }
+  }, [])
+  const refresh = useRefreshAction('lists')
+  const [manageTarget, setManageTarget] = useState<'refresh' | 'settings'>('settings')
+  const idsBeforeRefresh = useRef<Set<string> | null>(null)
 
   const initialId =
     initialFocusSourceId === ADD_LIST_FOCUS_ID
@@ -149,6 +160,23 @@ export function ProfilesScreen({
     }
   }
 
+  /** Atualizar: as listas que chegam depois do aperto recebem o foco, reconciliado por id (nunca por índice). */
+  async function updateLists() {
+    idsBeforeRefresh.current = new Set(sources.map((source) => source.id))
+    const result = await refresh.run()
+    if (!result.ok || !result.changed) idsBeforeRefresh.current = null
+  }
+
+  useEffect(() => {
+    const before = idsBeforeRefresh.current
+    if (!before) return
+    const fresh = data?.sources.find((source) => !before.has(source.id))
+    if (!fresh) return
+    idsBeforeRefresh.current = null
+    setRow('cards')
+    setFocusedId(fresh.id)
+  }, [data])
+
   function confirmDeletion() {
     if (!confirmDelete) return
     const { id } = confirmDelete
@@ -172,6 +200,8 @@ export function ProfilesScreen({
 
       if (effectiveRow === 'manage') {
         if (direction === 'up') setRow('cards') // "Adicionar lista" continua em foco (`focusedId` intocado)
+        if (direction === 'left' && portalAvailable) setManageTarget('refresh')
+        if (direction === 'right') setManageTarget('settings')
         return
       }
 
@@ -211,7 +241,8 @@ export function ProfilesScreen({
         return
       }
       if (effectiveRow === 'manage') {
-        onManageSources?.()
+        if (manageTarget === 'refresh' && portalAvailable) void updateLists()
+        else onManageSources?.()
         return
       }
       if (effectiveRow === 'actions') {
@@ -353,10 +384,18 @@ export function ProfilesScreen({
         <p className="profiles-foot-note">{t('profiles.footNote')}</p>
       )}
 
+      {state !== 'error' && portalAvailable && (
+        <ProfilesRefreshCorner
+          action={refresh}
+          focused={effectiveRow === 'manage' && manageTarget === 'refresh' && !showExit}
+          onRun={() => void updateLists()}
+        />
+      )}
+
       {state !== 'error' && (
         <button
           type="button"
-          className={`profiles-settings-corner${effectiveRow === 'manage' && !showExit ? ' tv-focus' : ''}`}
+          className={`profiles-settings-corner${effectiveRow === 'manage' && (manageTarget === 'settings' || !portalAvailable) && !showExit ? ' tv-focus' : ''}`}
           onClick={() => onManageSources?.()}
         >
           <Icon name="settings" />

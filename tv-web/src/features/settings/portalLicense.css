@@ -4,6 +4,11 @@
 .portal-actions { display: grid; gap: var(--space-3); justify-items: start; padding: var(--space-2); }
 .portal-qr { display: grid; gap: var(--space-2); justify-items: start; }
 .portal-qr img { width: calc(var(--space-7) * 4); height: calc(var(--space-7) * 4); image-rendering: pixelated; }
+/* QR fixo (071): módulos escuros sobre moldura clara (zona de silêncio). */
+.portal-qr .fixed-qr {
+  box-sizing: border-box; width: calc(var(--space-7) * 4); height: calc(var(--space-7) * 4);
+  padding: var(--space-2); border-radius: var(--radius-lg); background: var(--text-primary); color: var(--bg-base);
+}
 .portal-private-value { font-size: var(--fs-h2); color: var(--text-primary); overflow-wrap: anywhere; padding-block: var(--space-4); user-select: none; }
 
 .portal-content { display: grid; gap: var(--space-5); align-items: start; }

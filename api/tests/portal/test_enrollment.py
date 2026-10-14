@@ -55,7 +55,9 @@ async def test_concurrent_enrollment_replays_same_private_nonce_without_new_iden
     assert identity not in str(device)
     assert credentials["bearer"] not in str(device)
     assert credentials["recoveryCode"] not in str(device)
-    assert device["trialStartedAt"] is None  # início elegível fica em T028, não recuperação.
+    # 071/D-006: o teste nasce no cadastro (sem âncora da TV vale `created_at`), imutável e devolvido à TV.
+    assert device["trialStartedAt"] == device["createdAt"]
+    assert credentials["trialStartedAt"] == int(device["createdAt"].timestamp() * 1000)
     with pytest.raises(AuthError) as error:
         await enrollment.enroll(identity, new_token(), "fixture-ip", now)
     assert error.value.code == "recovery_required"
@@ -63,6 +65,34 @@ async def test_concurrent_enrollment_replays_same_private_nonce_without_new_iden
         await enrollment.enroll("other-identity", nonce, "fixture-ip", now)
     with pytest.raises(AuthError):
         await enrollment.enroll(identity, nonce, "fixture-ip", now + timedelta(minutes=5))
+
+
+async def test_enrollment_anchors_trial_at_earliest_start_and_never_extends(control):
+    enrollment = service(control)
+    now = datetime.now(UTC).replace(microsecond=0)
+    earlier = now - timedelta(days=3)
+    identity = "fixture-" + uuid.uuid4().hex
+    issued = await enrollment.enroll(identity, new_token(), "fixture-ip", now, None, int(earlier.timestamp() * 1000))
+    remember(control, enrollment, identity, issued)
+    assert issued.credentials["trialStartedAt"] == int(earlier.timestamp() * 1000)
+    device = (await enrollment.repository.client.document("devices/" + issued.credentials["deviceId"]).get()).to_dict()
+    assert device["trialStartedAt"] == earlier and device["trialExpiresAt"] == earlier + timedelta(days=7)
+    # Um início posterior ao cadastro nunca estende o teste: vale `created_at`.
+    later_identity = "fixture-" + uuid.uuid4().hex
+    later = await enrollment.enroll(later_identity, new_token(), "fixture-ip", now, None,
+                                    int((now + timedelta(seconds=30)).timestamp() * 1000))
+    remember(control, enrollment, later_identity, later)
+    assert later.credentials["trialStartedAt"] == int(now.timestamp() * 1000)
+
+
+async def test_enrollment_refuses_trial_start_outside_accepted_range(control):
+    enrollment = service(control)
+    now = datetime.now(UTC)
+    for value in (now - timedelta(days=31), now + timedelta(minutes=5)):
+        with pytest.raises(AuthError) as error:
+            await enrollment.enroll("fixture-" + uuid.uuid4().hex, new_token(), "fixture-ip", now, None,
+                                    int(value.timestamp() * 1000))
+        assert error.value.code == "invalid_input"
 
 
 async def test_ack_erases_envelope_and_nonce_cannot_read_after_ack(control):

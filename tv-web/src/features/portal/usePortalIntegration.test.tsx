@@ -6,7 +6,7 @@ import type { PortalSyncOptions } from '../../lib/portal/portalSync'
 import { usePortalIntegration } from './usePortalIntegration'
 const fixture = vi.hoisted(() => ({ options: undefined as PortalSyncOptions | undefined }))
 vi.mock('../../lib/portal/portalRuntime', () => ({ getPortalConnection: () => ({ origin: 'https://fixture.test' }),
-  portalQuickMode: () => false, subscribePortalQuick: () => () => {} }))
+  registerPortalRefresh: () => () => {}, refreshPortal: async () => ({ ok: false }) }))
 vi.mock('../../lib/portal/portalSync', () => ({ createPortalSync: (options: PortalSyncOptions) => {
   fixture.options = options
   return { flushDeletions: async () => {}, pull: async () => {}, publishSnapshot: async () => {} }
@@ -16,7 +16,7 @@ function setup() {
   const leaveSource = vi.fn()
   const sourceDeleted = vi.fn()
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  function Host() { return usePortalIntegration({ activeSourceId: 'source-a', leaveSource, sourceDeleted, catalogChanged: vi.fn(), openPortal: vi.fn() }) }
+  function Host() { return usePortalIntegration({ activeSourceId: 'source-a', leaveSource, sourceDeleted, catalogChanged: vi.fn(), resumeEntry: vi.fn() }) }
   render(<QueryClientProvider client={queryClient}><Host /></QueryClientProvider>)
   return { leaveSource, sourceDeleted }
 }

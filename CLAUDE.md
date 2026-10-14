@@ -339,7 +339,7 @@ and never reads or modifies.
 
 ## Architecture (from `sdd/adr/`)
 
-ADR-001 to ADR-015 are accepted decisions — read the relevant one in full
+ADR-001 to ADR-016 are accepted decisions — read the relevant one in full
 before proposing anything that conflicts, and amend with an inline
 `**Atualização (ADR-0XX):**` note rather than rewriting history.
 
@@ -360,6 +360,7 @@ before proposing anything that conflicts, and amend with an inline
 | ADR-013 | Serverless portal control on Google Cloud (Cloud Run + Firestore, feature 069): device identity/sessions, encrypted portal configurations, licensing/payments and recovery; import, catalog and Direct Play stay on the TV |
 | ADR-014 | Pairing like playlist managers (feature 070): device ID in MAC format, permanent 10-digit device key always shown on the TV Add screen, saved list values readable by the TV's own portal session; constitution 1.10.0 |
 | ADR-015 | Device ID is immutable once assigned (amends ADR-014): real TV MAC frozen at first pairing (needs the network privilege, after T003), else an ID derived from the DUID with a service key — never random, never reassigned |
+| ADR-016 | On-demand queries and fixed QR (feature 071): no automatic service calls — only the person's action (Atualizar button, list add/edit/delete) talks to the service; the QR is fixed, generated on the TV with ID + key in the URL fragment; the TV uploads its lists' credentials (encrypted, never logged); 7-day trial counted in the app with a first-contact anchor; constitution 1.11.0 |
 
 Plus `REQUISITOS-FUNCIONAIS.md` (RF-001 to RF-019) and
 `ESPECIFICACAO-TRAILERS.md` (RF-019 detail).

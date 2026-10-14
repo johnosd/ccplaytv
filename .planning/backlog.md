@@ -11,7 +11,6 @@ update-bug-status.ps1.
 
 - [Infra] Portal no domínio próprio `ccplaytv.com` (pedido do usuário, 2026-10-13): mapear o domínio para o Cloud Run `ccplaytv-portal` (domain mapping ou Firebase Hosting com rewrite — há `infra/portal/firebase.json`), DNS no registrador pelo usuário e certificado gerenciado; trocar `CCPLAY_PORTAL_PUBLIC_ORIGIN` no serviço (links do QR e conferência de origem) e `VITE_PORTAL_ORIGIN`/`VITE_PORTAL_SITE_URL` no `build:tizen:commercial`, e reinstalar na TV (sem desinstalar). Avaliar se o QR/convite e os cookies (`Secure`, `SameSite=Strict`, `Path=/portal/v1`) continuam válidos na troca e se o endereço `run.app` antigo deve redirecionar. Decidido em 2026-10-13: primeiro validar a TV no endereço atual do staging.
 
-- [Ideia] QR do pareamento gerado uma só vez (origem: revisão da ADR-015 na 070, 2026-10-13): como ID e chave do dispositivo são únicos por TV e o ID é imutável (ADR-015, implementada na 070 — T047–T050), o QR da tela Adicionar poderia ser fixo em vez de um convite efêmero renovado a cada abertura (D-012 da 070). Atenção: o QR atual carrega só convite de uso único e nunca a chave (FR-026); um QR permanente exigiria rever essa regra e a constitution 1.10.0 antes de qualquer código. Pede `sdd-specify` ou `sdd-adr`.
 
 - [Bug] `teste-conexao-tv`: suíte E2E da 069 esperava `NET-W-QUOTA`, mas recebeu resultado completo sem aviso (linha 176, espera 5 s). Origem: 069-portal-tv-licenca-anual, 2026-10-11. Usuário decidiu registrar para depois e manter gate E2E pendente; causa não investigada e nenhum teste/timeout alterado. Retomar com `sdd-bugfix`.
 
@@ -94,7 +93,7 @@ update-bug-status.ps1.
 | 068-legibilidade-tv | Legibilidade para TV — letra maior no app e TV ao vivo em coluna única | Encerrada | 42/44 tasks | 2026-10-10 |
 | 069-portal-tv-licenca-anual | Portal web da TV por QR code e licença anual | Encerrada com riscos aceitos | 66/76 tasks | 2026-10-14 |
 | 070-entrada-listas-gerenciador | Entrada de listas estilo gerenciador | Convergida | 61/61 tasks | 2026-10-13 |
-| 071-consulta-sob-demanda-qr-fixo | Consulta sob demanda e QR fixo | Planejada | 0/44 tasks | 2026-10-14 |
+| 071-consulta-sob-demanda-qr-fixo | Consulta sob demanda e QR fixo | Em Execução | 26/44 tasks | 2026-10-14 |
 
 ## Bugs
 

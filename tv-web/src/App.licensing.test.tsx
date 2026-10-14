@@ -11,13 +11,13 @@ const source = { id: 'licensed-source', type: 'm3u_url', display_name: 'Minha li
   last_successful_sync_at: null, provider_import_mode: null, limited_reason: null, provider_dns: null,
   last_truncated_by_storage: false, last_discarded_by_type: 0 }
 vi.mock('./lib/licensing/licenseRuntime', () => ({ commercialBuild: true, licenseAuthority: vi.fn(),
-  licenseMonitor: { start: () => () => {}, check: () => fixture.decision,
+  licenseMonitor: { start: () => () => {}, check: () => fixture.decision, getSnapshot: () => ({ decision: fixture.decision }),
     subscribe: (listener: () => void) => { fixture.listeners.add(listener); return () => { fixture.listeners.delete(listener) } } },
   allowListEntry: (sourceId?: string) => { if (fixture.allowed) return true; for (const listener of fixture.denied) listener(sourceId); return false },
   onListEntryDenied: (listener: (sourceId?: string) => void) => { fixture.denied.add(listener); return () => { fixture.denied.delete(listener) } },
 }))
 vi.mock('./lib/portal/portalRuntime', () => ({ getPortalConnection: () => { throw new Error('fixture_unconfigured') },
-  portalQuickMode: () => false, subscribePortalQuick: () => () => {} }))
+  registerPortalRefresh: () => () => {}, refreshPortal: async () => ({ ok: false }) }))
 vi.mock('./lib/catalog/sourceAccount', () => ({ decideSourceAccess: () => ({ action: fixture.sourceAccess ? 'check' : 'open' }) }))
 vi.mock('./features/import/importApi', () => ({ TERMINAL_STATUSES: [],
   useSources: () => ({ isSuccess: true, data: { sources: [source] } }), useImportJob: () => ({ data: undefined }),

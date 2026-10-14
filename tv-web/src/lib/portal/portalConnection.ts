@@ -3,11 +3,16 @@ import type { CatalogDb } from '../catalog/db'
 import { createPortalClient, PortalRequestError } from './portalClient'
 import { acknowledgeCredentialIssuance, enrollmentNonce, persistCredentialIssuance,
   prepareCredentialRotation, prepareRecoveryChallenge, persistRecoveryChallenge, readPlatformIdentity, type CredentialIssuance, type RecoveryChallenge } from './deviceIdentity'
+import { anchorLocalTrial } from '../licensing/localTrialRepository'
 import { DEVICE_KEY_PATTERN, displayIdFromMac } from './displayId'
 import { portalTables, type PortalDeviceRecord } from './portalTables'
 
 export type ControlClient = ReturnType<typeof createPortalClient>
 export interface PortalInvite { token: string; expiresAt: string; qrDataUrl: string }
+/** 071/D-006: o serviço devolve o início do teste gravado (ms) junto das credenciais. */
+type IssuedCredentials = CredentialIssuance & { trialStartedAt?: number }
+/** O serviço aceita no máximo 30 dias para trás; um teste local mais velho já venceu, então o recorte é inofensivo. */
+const TRIAL_ANCHOR_WINDOW_MS = 29 * 86_400_000
 
 /**
  * Convites e desafios duram 5 min no servidor. O prazo exibido/persistido é ancorado no relógio DESTE aparelho
@@ -34,6 +39,20 @@ export class PortalConnection {
     this.origin = origin
     this.getDuid = getDuid
     this.getMac = getMac
+  }
+
+  /** 071/D-006: início do teste local para o 1º cadastro; ausente (sem teste local) = o serviço usa o instante do cadastro. */
+  private async localTrialStart(now: number): Promise<{ trialStartedAt?: number }> {
+    try {
+      const row = await portalTables(this.database).localTrial.get('trial')
+      if (!row || !Number.isFinite(row.startedAt) || row.startedAt <= 0) return {}
+      return { trialStartedAt: Math.min(now, Math.max(row.startedAt, now - TRIAL_ANCHOR_WINDOW_MS)) }
+    } catch { return {} }
+  }
+
+  /** Reconcilia o teste local com o início do serviço (só encurta). Nunca impede o cadastro nem a recuperação. */
+  private async reconcileTrial(issued: { trialStartedAt?: number } | undefined) {
+    try { await anchorLocalTrial(this.database, issued?.trialStartedAt) } catch { /* teste local segue valendo sozinho */ }
   }
 
   /** 070/D-002: MAC útil normalizado ou nada — falha da plataforma nunca impede o cadastro. */
@@ -67,19 +86,21 @@ export class PortalConnection {
         if (!(error instanceof PortalRequestError) || error.code !== 'unauthorized') throw error
         // Resposta perdida após rotação: somente a prova privada pode obter o resultado.
       }
-      const result = await this.client.request<{ operationId: string; state: string; credentials?: CredentialIssuance }>(
+      const result = await this.client.request<{ operationId: string; state: string; credentials?: IssuedCredentials }>(
         '/portal/v1/devices/recovery/result', { bearer: pending.claimSecret,
           body: { deviceId: pending.deviceId, operationId: pending.operationId } })
       if (result.operationId !== pending.operationId || result.state !== 'ready' || !result.credentials) throw new PortalRequestError('service_unavailable')
       await persistCredentialIssuance(this.database, result.credentials, result.operationId, Date.now())
+      await this.reconcileTrial(result.credentials)
       device = await tables.device.get('device')
     }
     if (!device) {
       const nonce = await enrollmentNonce(this.database, crypto, Date.now())
       const platformIdentity = readPlatformIdentity(this.getDuid)
-      const issued = await this.client.request<CredentialIssuance & { operationId: string }>('/portal/v1/devices/enroll',
-        { body: { platformIdentity, nonce, ...this.platformMac() } })
+      const issued = await this.client.request<IssuedCredentials & { operationId: string }>('/portal/v1/devices/enroll',
+        { body: { platformIdentity, nonce, ...this.platformMac(), ...await this.localTrialStart(Date.now()) } })
       await persistCredentialIssuance(this.database, issued, issued.operationId, Date.now())
+      await this.reconcileTrial(issued)
       device = await tables.device.get('device')
     }
     if (!device) throw new PortalRequestError('service_unavailable')
@@ -123,7 +144,7 @@ export class PortalConnection {
     if (bootstrap?.pendingAck?.purpose === 'recovery') { signal.throwIfAborted(); await this.ready(); return 'ready' }
     const pending = bootstrap?.pendingRecovery
     if (!pending) return 'expired'
-    let result: { operationId: string; state: string; credentials?: CredentialIssuance }
+    let result: { operationId: string; state: string; credentials?: IssuedCredentials }
     try {
       result = await this.client.request('/portal/v1/devices/recovery/result', { bearer: pending.claimSecret,
         body: { claimId: pending.claimId }, signal })
@@ -138,6 +159,7 @@ export class PortalConnection {
     }
     signal.throwIfAborted()
     await persistCredentialIssuance(this.database, result.credentials, result.operationId, Date.now())
+    await this.reconcileTrial(result.credentials)
     await this.ready()
     return 'ready'
   }

@@ -17,6 +17,8 @@
   box-shadow: 0 0 0 var(--focus-ring-width) var(--accent-tint-border), var(--elevation-2);
 }
 .portal-pairing-qr-frame img { width: 100%; height: 100%; image-rendering: pixelated; }
+/* QR fixo (071): SVG vetorial; módulos escuros sobre a moldura clara. */
+.portal-pairing-qr-frame .fixed-qr { width: 100%; height: 100%; color: var(--bg-base); }
 .portal-pairing-qr-frame .portal-pairing-text { color: var(--bg-base); text-align: center; }
 .portal-pairing-qr-caption {
   margin: 0; max-width: calc(var(--space-7) * 3 + var(--space-4)); text-align: center;

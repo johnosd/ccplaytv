@@ -6,11 +6,18 @@ import { Button } from '../../components/Button'
 import { useT } from '../../lib/i18n/I18nProvider'
 import { PortalRequestError } from '../../lib/portal/portalClient'
 import type { PortalConnection, PortalInvite } from '../../lib/portal/portalConnection'
-import { acquirePortalQuick, getPortalConnection } from '../../lib/portal/portalRuntime'
+import { buildFixedQrUrl } from '../../lib/portal/fixedQr'
+import { getPortalConnection } from '../../lib/portal/portalRuntime'
 import { portalTables, type PortalDeviceRecord } from '../../lib/portal/portalTables'
+import { portalSite } from '../../lib/portal/usePairingCredentials'
+import { useRefreshAction } from '../../lib/portal/useRefreshAction'
+import { FixedQr } from '../../components/FixedQr'
+import { RefreshStatusLine } from '../../components/RefreshButton'
 import { PortalPrivateDialog, type PortalDialogKind } from './PortalPrivateDialog'
 import './portalLicense.css'
-export const PORTAL_ACTION_COUNT = 6
+/** 0–5 são as ações de sempre; 6 é o Atualizar da licença (071), por último para não mudar os índices existentes. */
+export const PORTAL_ACTION_COUNT = 7
+const REFRESH_ACTION = 6
 export interface PortalPanelHandle { activate: (index: number) => void }
 export function PortalLicensePanel({ focusedAction, handleRef, connection: provided, onActionFocus }: {
   focusedAction?: number; handleRef: Ref<PortalPanelHandle>; connection?: PortalConnection; onActionFocus?: (index: number) => void
@@ -20,7 +27,11 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
   let connection: PortalConnection | undefined
   try { connection = provided ?? getPortalConnection() } catch { /* Configuração inválida vira estado acionável. */ }
   const [device, setDevice] = useState<PortalDeviceRecord>()
+  // Convite da recuperação pelo site (069): PNG do serviço com validade curta. O acesso ao painel usa o QR fixo.
   const [invite, setInvite] = useState<PortalInvite>()
+  // QR fixo (071): montado na TV com ID e chave no fragmento; aparece só por ação explícita aqui (constitution 1.11.0).
+  const [qrUrl, setQrUrl] = useState<string>()
+  const refresh = useRefreshAction('license')
   const [now, setNow] = useState(Date.now)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<'portal.failure' | 'portal.recoveryNeeded'>()
@@ -40,7 +51,6 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; privacyGeneration.current++ } }, [])
   const expiresAt = invite ? Date.parse(invite.expiresAt) : 0
   const valid = !!invite && now < expiresAt && document.visibilityState !== 'hidden'
-  useEffect(acquirePortalQuick, [])
   useEffect(() => {
     if (!connection) return
     const sub = liveQuery(async () => {
@@ -62,11 +72,11 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
     return () => sub.unsubscribe()
   }, [connection, recoveryReady])
   useEffect(() => {
-    const update = () => { setNow(Date.now()); if (document.visibilityState === 'hidden') { privacyGeneration.current++; setInvite(undefined) } }
+    const update = () => { setNow(Date.now()); if (document.visibilityState === 'hidden') { privacyGeneration.current++; setInvite(undefined); setQrUrl(undefined) } }
     const timer = setInterval(update, 1000)
     document.addEventListener('visibilitychange', update)
     window.addEventListener('pageshow', update)
-    const hide = () => { privacyGeneration.current++; setInvite(undefined) }
+    const hide = () => { privacyGeneration.current++; setInvite(undefined); setQrUrl(undefined) }
     window.addEventListener('pagehide', hide)
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', update);
       window.removeEventListener('pageshow', update); window.removeEventListener('pagehide', hide) }
@@ -76,12 +86,17 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
     const generation = privacyGeneration.current
     working.current = true; setBusy(true); setFailure(undefined); setFailureCode(undefined)
     try {
-      if (action === 'invite' || action === 'recovery') {
-        const result = action === 'recovery' ? await connection.recovery() : await connection.invite()
-        if (action === 'recovery') { setRecovering(true); setRecoveryDeviceId(result.deviceId) }
-        if (mounted.current && generation === privacyGeneration.current && document.visibilityState !== 'hidden') { setInvite(result.invite); setNow(Date.now()) }
+      if (action === 'invite') {
+        // 071/D-007: QR local (sem convite, sem requisição além do cadastro único); a pessoa pediu para ver.
+        const paired = await connection.ensurePairing()
+        const url = buildFixedQrUrl({ site: portalSite(connection), displayId: paired.displayId ?? '', deviceKey: paired.deviceKey })
+        if (mounted.current && generation === privacyGeneration.current && document.visibilityState !== 'hidden') { setInvite(undefined); setQrUrl(url) }
+      } else if (action === 'recovery') {
+        const result = await connection.recovery()
+        setRecovering(true); setRecoveryDeviceId(result.deviceId)
+        if (mounted.current && generation === privacyGeneration.current && document.visibilityState !== 'hidden') { setQrUrl(undefined); setInvite(result.invite); setNow(Date.now()) }
       } else {
-        setInvite(undefined)
+        setInvite(undefined); setQrUrl(undefined)
         await connection.rotate(action)
         setChanged(true)
       }
@@ -91,6 +106,7 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
     } finally { working.current = false; setBusy(false) }
   }
   function activate(index: number) {
+    if (index === REFRESH_ACTION) { void refresh.run(); return }
     if (busy || !connection) return
     if (index === 5) { void run('recovery'); return }
     if (index === 0) { void run('invite'); return }
@@ -98,7 +114,7 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
     setDialog(index === 1 ? 'key' : index === 2 ? 'revoke' : index === 3 ? 'code' : 'rotate')
   }
   useImperativeHandle(handleRef, () => ({ activate }))
-  const labels = ['portal.open', 'portal.showKey', 'portal.revoke', 'portal.showCode', 'portal.rotateCode', 'portal.recover'] as const
+  const labels = ['portal.open', 'portal.showKey', 'portal.revoke', 'portal.showCode', 'portal.rotateCode', 'portal.recover', 'portal.refresh.label'] as const
   return <section className="portal-license-panel" aria-label={t('portal.title')}>
     <h2>{t('portal.title')}</h2><p>{t('portal.description')}</p>
     {commercialBuild && <><p role="status">{t('portal.licenseStatus', { status: t(license.decision.reason === 'expired' ? 'portal.license_expired' : license.state ? ('portal.license_' + license.state) as 'portal.license_active' : 'portal.license_missing') })}</p>
@@ -111,13 +127,17 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
     {failure && <p role="alert">{t(failure)}</p>}
     {failure && failureCode && <p>{t('portal.failureCode', { code: failureCode })}</p>}
     {changed && <p role="status">{t('portal.changed')}</p>}
-    <div className={`portal-content${valid ? ' has-qr' : ''}`}>
+    <RefreshStatusLine action={refresh} scope="license" />
+    <div className={`portal-content${valid || qrUrl ? ' has-qr' : ''}`}>
     {valid && <div className="portal-qr"><img src={invite.qrDataUrl} alt={t('portal.qrAlt')} />
       <p role="status">{t('portal.expiry', { seconds: Math.max(0, Math.ceil((expiresAt - now) / 1000)) })}</p></div>}
+    {qrUrl && <div className="portal-qr"><FixedQr value={qrUrl} label={t('portal.qrAlt')} /></div>}
     {invite && !valid && <p role="status">{t('portal.expired')}</p>}
     <div className="portal-actions">{labels.map((label, index) => <Button key={label} variant={index === 0 ? 'accent' : 'secondary'}
-      focused={focusedAction === index && !dialog} loading={busy} softDisabled={!connection}
-      onSelect={() => { onActionFocus?.(index); activate(index) }}>{t(index === 0 && invite ? 'portal.renewQr' : label)}</Button>)}</div>
+      focused={focusedAction === index && !dialog}
+      loading={index === REFRESH_ACTION ? refresh.status === 'loading' : busy}
+      softDisabled={index === REFRESH_ACTION ? refresh.paused : !connection}
+      onSelect={() => { onActionFocus?.(index); activate(index) }}>{t(label)}</Button>)}</div>
     </div>
     {dialog && <PortalPrivateDialog kind={dialog} device={device} onCancel={() => setDialog(undefined)}
       onConfirm={() => { const action = dialog; setDialog(undefined); if (action === 'revoke' || action === 'rotate') void run(action) }} />}

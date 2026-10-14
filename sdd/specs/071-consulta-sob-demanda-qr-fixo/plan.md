@@ -174,7 +174,12 @@ Travas de outras features afetadas: **070 C1** (`PortalPairingPanel.entrada-list
 
 | Área | Estado |
 | --- | --- |
-| Planejamento | Spec, plan, tasks, research, data-model, contracts, logic, quickstart e 5 contratos travados (vermelhos). Nada implementado. |
+| Planejamento | Spec, plan, tasks, research, data-model, contracts, logic, quickstart e 5 contratos travados (vermelhos). |
+| Fase 1 (gate normativo) | Concluída e aprovada: constitution 1.11.0, ADR-016, notas 069/070/ADR-013/014/CLAUDE.md. |
+| Fase 2 (agente, teste local, âncora) | Concluída (T004–T010): C1–C3 verdes; agente sem timers, `refresh(scope)`, teste local no monitor, âncora no enroll (API + TV). |
+| Fase 3 (Atualizar e bloqueio) | Concluída (T011–T017 + T018/T019 antecipadas): botões Atualizar nas 4 telas, bloqueio com QR/endereço/ID/chave que libera e retoma a entrada, Adicionar sem convite; C4 verde. |
+| Fase 4 (QR fixo) | Concluída (T018–T022): `portal-web` entra por `#id=&key=` com `replaceState` antes da rede; C4 verde; portal-web lint/test/build/E2E verdes. |
+| Fase 5 | Não iniciada (envio TV → site, C5 vermelho). E2E `portal-configuracao` e `licenca-anual` vermelhos até a T030. |
 
 ## Riscos e Decisões
 
@@ -191,6 +196,7 @@ Travas de outras features afetadas: **070 C1** (`PortalPairingPanel.entrada-list
 | R-009 | Schema Dexie "livre" (versões tardias) | Médio | Reler `dbSchema`/`registerLateCatalogSchemas` antes de migrar (T004/T021). |
 | R-010 | Cadastro preguiçoso: sem internet na 1ª vez, a tela não tem ID/chave/QR | Médio | Estado focável explícito + Atualizar; TV física no quickstart. |
 | R-011 | Muitos testes não travados assumem timers/`quick` | Baixo | Reescrever junto das tasks; contratos C2/C3 definem o novo comportamento. |
+| R-013 | Instalação em uso cujo JWS em cache não verifica (chave/geração inválida) cria o teste local com `startedAt = now` | Baixo | Estende o teste só de quem já tem cache corrompido; JWS válido continua herdando `startsAt`. Aceito; reavaliar se aparecer na TV física. |
 | R-012 | Venda desligada e riscos da 069 (R-022..R-026) continuam abertos | Alto | Esta feature **não** reabre a venda; registrar na 069 notas de atualização. |
 
 ## Execution Notes
@@ -198,11 +204,20 @@ Travas de outras features afetadas: **070 C1** (`PortalPairingPanel.entrada-list
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
 | 2026-10-14 | Planejamento | Spec, plan, tasks, contratos C1–C5 vermelhos e travados. | Fase 1 (gate normativo) antes de qualquer código. |
+| 2026-10-14 | Fase 4 (T020–T022) | `takeEntry` do `portal-web` aceita `#id=&key=` → `POST /sessions/manual`, fragmento removido antes da rede; teste unitário, caso no `gerenciador.spec.ts` e teste de troca de chave na TV. C1–C4 verdes; portal-web 15/15 no E2E. | Fase 5: envio TV → site (API `POST /device/sources`, `planSourceUploads`, fila). |
+| 2026-10-14 | Fase 3 (T011–T017, +T018/T019) | `RefreshButton`/`useRefreshAction`, Adicionar com QR local, "Atualizar" na lista e em Portal & licença, bloqueio com QR+ID+chave que retoma a entrada; QR por `qrcode-generator@1.4.4`; legibilidade pt/en/es sem achados (84 telas). C1–C4 verdes. | Fase 4 restante: `portal-web` consome `#id=&key=` (T020), nova chave (T021), testes (T022); E2E antigos na T030. |
+| 2026-10-14 | Fase 2 (T004–T010) | Agente sem timers e `refresh(scope)`; teste local (`localTrial`, Dexie v23) decidido no monitor com `revoked` vencendo; cadastro preguiçoso; âncora `trialStartedAt` no enroll/rotação e reconciliação na TV; testes obsoletos reescritos. C1–C3 verdes; API 141 testes; lint/tsc limpos. | Fase 3 (botões Atualizar e bloqueio) — pedir aprovação para continuar. |
+| 2026-10-14 | Fase 1 (T001–T003) | Constitution 1.11.0 ((d) credenciais ao serviço, (e) chave no fragmento do QR, (f) chave no bloqueio), ADR-016, notas `Atualização (ADR-016)`/`(071)` em ADR-013/014, CLAUDE.md, 069 e 070; ideia do QR fixo saiu do backlog; A001 resolvida (Adicionar mantém "Recarregar"). Travas 071/070/069 íntegras. | Aprovação do usuário da emenda e da ADR-016 antes da Fase 2. |
 
-**PRÓXIMO**: executar a Fase 1 (constitution 1.11.0 + ADR-016 + notas 069/070) e só então a Fase 2 (agente sob demanda e teste local).
+**PRÓXIMO**: Fase 5 (T023–T027): API `POST /portal/v1/device/sources` (lote ≤ 10, `submit_from_device`, tombstone → `gone`, digest idempotente, corpo fora de log), `planSourceUploads` + `sourceUploads` (Dexie v24), `flushUploads` no `portalSync` e envio no ato ao criar/editar, valores/edição no `portal-web`.
 
 ## Arquivos Principais
 
+- .planning/memory/constitution.md (1.11.0) · sdd/adr/ADR-016-consulta-sob-demanda-qr-fixo.md
+- tv-web/src/lib/licensing/{localTrial,localTrialRepository,licenseMonitor}.ts · tv-web/src/lib/portal/{portalAgent,portalRuntime,usePortalAgent,portalConnection,portalTables}.ts · tv-web/src/lib/catalog/dbSchema.ts (v23)
+- api/app/portal/{enrollment,access_rotation}.py · api/app/portal/routes/auth.py
+- portal-web/src/{main.tsx,features/api.ts} · portal-web/e2e/gerenciador.spec.ts
+- tv-web/src/components/{RefreshButton,FixedQr}.tsx · tv-web/src/lib/portal/{useRefreshAction,usePairingCredentials,fixedQr}.ts · tv-web/src/features/portal/{LicenseGate,PortalPairingPanel}.tsx · tv-web/src/features/profiles/{ProfilesScreen,ProfilesRefreshCorner}.tsx · tv-web/src/features/settings/PortalLicensePanel.tsx · tv-web/e2e/legibilidade-tv.mjs
 - sdd/specs/071-consulta-sob-demanda-qr-fixo/{spec,plan,tasks,handoff}.md · logic/atualizar.md · contracts/portal-api-071.md
 - tv-web/src/lib/portal/{portalAgent,portalRuntime,portalConnection,portalSync}.ts · tv-web/src/lib/licensing/{licenseMonitor,licenseRuntime}.ts
 - tv-web/src/features/portal/{PortalPairingPanel,LicenseGate,usePortalIntegration}.tsx
@@ -216,5 +231,9 @@ Travas de outras features afetadas: **070 C1** (`PortalPairingPanel.entrada-list
 - O QR **nunca** carrega a chave em path/query; só em fragmento (`#id=&key=`).
 - A emulação do relógio nos testes usa `vi.useFakeTimers({ toFake: ['setTimeout','clearTimeout','Date'] })` + `setImmediate` real para o IndexedDB (ver `portalAgent.test.ts`).
 - Arquivos da TV misturam LF e CRLF: prefira o Edit a substituições com `\n` no PowerShell.
+- **Fake timers + Dexie**: com `setTimeout` falso o `liveQuery` só emite quando o relógio de teste avança (`vi.advanceTimersByTimeAsync(0)` entre `settle()`); o agente em si não usa timer.
+- **`[IO.File]` e caminhos relativos**: o diretório do .NET não acompanha o `Set-Location` do PowerShell — use caminho absoluto nas edições por script.
+- **Atualizar da lista**: aperta → `refreshPortal('lists')`; só "volta com foco na nova" quando a impressão digital muda (listas/revisões locais). O fingerprint lê o `db` do app, não o `connection.database` (nos testes de painel, escreva no `db` global).
+- **Imports entre features**: `RefreshButton`/`FixedQr` ficam em `components/` e `useRefreshAction`/`usePairingCredentials` em `lib/portal/` para `features/profiles` e `features/settings` usarem sem violar o ratchet.
 - Emulador Firestore: `JAVA_HOME` do Android Studio, `gcloud ... cloud_firestore_emulator.cmd start --host=127.0.0.1 --port=8085`; matar os processos ao final.
 - **Antes de instalar na TV**: publicar API (rota nova + âncora) no staging, senão a TV nova chama uma rota inexistente.

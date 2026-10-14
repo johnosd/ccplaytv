@@ -77,6 +77,15 @@ export interface LicenseCacheRecord {
   nextDueAt: number
 }
 
+/** 071/D-005: teste de 7 dias contado no aparelho; startedAt só diminui (âncora), highWatermark só sobe. */
+export interface LocalTrialRecord {
+  id: 'trial'
+  startedAt: number
+  highWatermark: number
+  /** Quando o serviço confirmou o início (diagnóstico; não entra na decisão). */
+  anchoredAt?: number
+}
+
 export function portalTables(database: CatalogDb) {
   return {
     device: database.table('portalDevice') as Table<PortalDeviceRecord, 'device'>,
@@ -87,5 +96,6 @@ export function portalTables(database: CatalogDb) {
     imports: database.table('pendingImportOutbox') as Table<PendingImportRecord, string>,
     deletes: database.table('pendingPortalDeletes') as Table<PendingPortalDeleteRecord, string>,
     license: database.table('licenseCache') as Table<LicenseCacheRecord, 'entitlement'>,
+    localTrial: database.table('localTrial') as Table<LocalTrialRecord, 'trial'>,
   }
 }

@@ -5,7 +5,8 @@ import { CatalogDb } from '../../lib/catalog/db'
 import { PortalRequestError } from '../../lib/portal/portalClient'
 import { PortalConnection } from '../../lib/portal/portalConnection'
 import { acknowledgeCredentialIssuance, persistCredentialIssuance } from '../../lib/portal/deviceIdentity'
-import { registerPortalSyncNow } from '../../lib/portal/portalRuntime'
+import { registerPortalRefresh } from '../../lib/portal/portalRuntime'
+import { db as appDb } from '../../lib/catalog/db'
 import { PortalPairingPanel } from './PortalPairingPanel'
 
 const databases: CatalogDb[] = []
@@ -37,8 +38,9 @@ it('sem portal configurado: estado honesto, só Voltar focável, sem ID/chave/QR
   expect(screen.queryByRole('button', { name: 'Recarregar' })).not.toBeInTheDocument()
 })
 
-it('falha ao gerar o convite mostra a mensagem e o código, mantendo ID/chave locais e as ações', async () => {
-  const connection = await connectionWith(path => { if (path.endsWith('/invites')) throw new PortalRequestError('rate_limited'); return {} })
+it('falha no cadastro/upgrade mostra a mensagem e o código, mantendo ID/chave locais e as ações', async () => {
+  const connection = await connectionWith(() => ({}))
+  vi.spyOn(connection, 'ensurePairing').mockRejectedValue(new PortalRequestError('rate_limited'))
   render(<PortalPairingPanel connection={connection} onBack={vi.fn()} />)
   expect(await screen.findByText('Código do erro: rate_limited')).toBeInTheDocument()
   expect(screen.getByText('A0:8C:FD:19:0A:8C')).toBeInTheDocument()
@@ -46,22 +48,42 @@ it('falha ao gerar o convite mostra a mensagem e o código, mantendo ID/chave lo
   expect(screen.getByRole('button', { name: 'Recarregar' })).toBeInTheDocument()
 })
 
-it('Recarregar usa o ciclo do agente: sucesso avisa e chama onReloaded; falha mostra o código', async () => {
-  const connection = await connectionWith(path => (path.endsWith('/invites') ? invite() : {}))
+it('Recarregar usa o Atualizar do agente: lista nova avisa e chama onReloaded; sem novidades fica na tela', async () => {
+  const connection = await connectionWith(() => ({}))
   const onReloaded = vi.fn()
-  let next: { ok: boolean; code?: string } = { ok: true }
-  unregisters.push(registerPortalSyncNow(async () => next))
+  let change = true
+  unregisters.push(registerPortalRefresh(async scope => {
+    expect(scope).toBe('lists')
+    // O fingerprint do Atualizar lê o banco do app (o mesmo que o agente de produção altera).
+    if (change) await appDb.sources.put({ id: 'nova', type: 'm3u_url', displayName: 'Nova', m3uUrl: 'https://fixture.test/l', createdAt: 1, updatedAt: 1, connectionState: 'synced' })
+    return { ok: true }
+  }))
   render(<PortalPairingPanel connection={connection} onBack={vi.fn()} onReloaded={onReloaded} />)
   await screen.findByRole('img', { name: /QR/ })
   fireEvent.click(screen.getByRole('button', { name: 'Recarregar' }))
   expect(await screen.findByText('Listas atualizadas.')).toBeInTheDocument()
   expect(onReloaded).toHaveBeenCalledTimes(1)
-  next = { ok: false, code: 'offline' }
+  await appDb.sources.delete('nova')
+  change = false
+  cleanup()
+  render(<PortalPairingPanel connection={connection} onBack={vi.fn()} onReloaded={onReloaded} />)
+  await screen.findByRole('img', { name: /QR/ })
   fireEvent.click(screen.getByRole('button', { name: 'Recarregar' }))
-  expect(await screen.findByText('Código do erro: offline')).toBeInTheDocument()
+  expect(await screen.findByText('Sem novidades.')).toBeInTheDocument()
   expect(onReloaded).toHaveBeenCalledTimes(1)
 })
 
+it('Recarregar sem internet mostra o aviso e mantém os botões; nada é perdido', async () => {
+  const connection = await connectionWith(() => ({}))
+  const onReloaded = vi.fn()
+  unregisters.push(registerPortalRefresh(async () => ({ ok: false, code: 'offline' })))
+  render(<PortalPairingPanel connection={connection} onBack={vi.fn()} onReloaded={onReloaded} />)
+  await screen.findByRole('img', { name: /QR/ })
+  fireEvent.click(screen.getByRole('button', { name: 'Recarregar' }))
+  expect(await screen.findByText('Sem internet. Verifique a rede e tente de novo.')).toBeInTheDocument()
+  expect(onReloaded).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument()
+})
 it('"Gerar nova chave" exige confirmação: Cancelar não rotaciona; confirmar chama a rotação revoke', async () => {
   const connection = await connectionWith(path => (path.endsWith('/invites') ? invite() : {}))
   const rotate = vi.spyOn(connection, 'rotate').mockResolvedValue((await connection.ready()))

@@ -1,13 +1,19 @@
-/** Um ciclo sem overlap; serviços e importações locais permanecem colaboradores externos. */
+/**
+ * Agente do portal sob demanda (feature 071, D-002/D-003): nenhum timer, nenhum ciclo, nenhuma consulta ao abrir.
+ * Só duas portas de entrada falam com o serviço: `refresh(scope)` (botão Atualizar) e o envio imediato de uma
+ * exclusão acabada de criar pela pessoa. Serviços e importações locais permanecem colaboradores externos.
+ */
 import { liveQuery } from 'dexie'
 import type { CatalogDb } from '../catalog/db'
 import { portalTables } from './portalTables'
 import { PortalRequestError } from './portalClient'
 
-const DAY = 86_400_000
-const RETRIES = [60_000, 300_000, 900_000]
+/** Pausa entre dois Atualizar do mesmo escopo; vale também depois de uma falha (limite do serviço). */
+const REFRESH_PAUSE_MS = 10_000
 
-/** Resultado de um ciclo pedido explicitamente (070/D-011, Recarregar): código não secreto em falha. */
+export type RefreshScope = 'lists' | 'license'
+
+/** Resultado de um Atualizar: código não secreto em falha. */
 export type CycleOutcome = { ok: true } | { ok: false; code: string }
 
 export interface PortalAgentPorts {
@@ -22,50 +28,39 @@ export interface PortalAgentPorts {
 }
 
 export class PortalAgent {
-  private timer?: ReturnType<typeof setTimeout>
   private active = false
-  private quick = false
   private visible = true
   private online = true
   private running?: AbortController
-  private quickDueAt = 0
-  private quickFailures = 0
-  private generation = 0
   private references = 0
-  private quickReferences = 0
-  // Exclusão local pendente na outbox pede envio imediato (flushDeletions + snapshot; sem pull/licença/polling).
+  private attachedAt = 0
+  // Exclusão local criada agora pela pessoa pede envio imediato (flushDeletions + snapshot; sem pull/licença).
   private deletionRequested = false
-  private lastCompletedAt = Number.NEGATIVE_INFINITY
+  private lastRefreshAt: Partial<Record<RefreshScope, number>> = {}
+  private queue: Promise<unknown> = Promise.resolve()
   private outbox?: { unsubscribe(): void }
 
   private readonly database: CatalogDb
   private readonly ports: PortalAgentPorts
   private readonly now: () => number
-  private readonly random: () => number
 
-  constructor(database: CatalogDb, ports: PortalAgentPorts, now = Date.now, random = Math.random) {
+  /** `_random` é aceito por compatibilidade de assinatura: sem retry automático não há jitter a sortear. */
+  constructor(database: CatalogDb, ports: PortalAgentPorts, now = Date.now, _random: () => number = Math.random) {
     this.database = database
     this.ports = ports
     this.now = now
-    this.random = random
   }
 
-  attach(quick: boolean) {
+  /** `_quick` é aceito e ignorado (D-002): não existe mais consulta periódica rápida. */
+  attach(_quick?: boolean) {
     this.references++
-    if (quick) this.quickReferences++
+    if (!this.active) this.attachedAt = this.now()
     this.active = true
-    this.setQuick(this.quickReferences > 0)
     this.watchOutbox()
-    this.reconcile()
-    this.pumpDeletionFlush()
     return () => {
       this.references--
-      if (quick) this.quickReferences--
-      this.setQuick(this.quickReferences > 0)
       if (this.references === 0) {
         this.active = false
-        this.generation++
-        this.clearTimer()
         this.running?.abort()
         this.outbox?.unsubscribe()
         this.outbox = undefined
@@ -73,192 +68,116 @@ export class PortalAgent {
     }
   }
 
-  /** Observa a outbox durável: nova pendência (ou pendência herdada de offline/reinício) dispara o envio. */
+  /**
+   * Observa a outbox durável só para reagir a uma exclusão NOVA (ação da pessoa no ato): linha criada depois de o
+   * agente anexar. Pendência herdada de offline/reinício fica para o próximo Atualizar e nunca dispara rede na
+   * abertura (D-011).
+   */
   private watchOutbox() {
     if (this.outbox) return
     const deletes = portalTables(this.database).deletes
-    this.outbox = liveQuery(() => deletes.filter(row => row.serverAckAt === undefined).count()).subscribe({
-      next: pending => { if (pending > 0) this.requestDeletionFlush() },
+    const since = this.attachedAt
+    let previous = 0
+    this.outbox = liveQuery(() => deletes.filter(row => row.serverAckAt === undefined && row.createdAt >= since).count()).subscribe({
+      next: pending => {
+        const grew = pending > previous
+        previous = pending
+        if (grew) this.requestDeletionFlush()
+      },
       error: () => this.ports.onError?.('local_storage_error'),
     })
   }
 
   private requestDeletionFlush() {
+    // Offline/oculto: a pendência segue na outbox e sobe no próximo Atualizar (FR-009).
+    if (!this.active || !this.visible || !this.online) return
     this.deletionRequested = true
     this.pumpDeletionFlush()
   }
 
-  /** Executa no máximo um envio por vez, depois de qualquer ciclo em andamento e só com app visível/online. */
+  /** No máximo um envio por vez, depois de qualquer Atualizar em andamento. */
   private pumpDeletionFlush() {
     if (!this.deletionRequested || !this.active || !this.visible || !this.online || this.running) return
     this.deletionRequested = false
-    this.guardedRun(true)
+    void this.enqueue(() => this.execute(['deletions', 'snapshot'])).catch(() => this.ports.onError?.('local_storage_error'))
   }
+
+  /** Suspender/ficar offline aborta o que estiver em andamento; nada é reagendado ao voltar. */
+  get attached() { return this.active }
 
   lifecycle(visible: boolean, online: boolean) {
-    const resumed = (!this.visible && visible) || (!this.online && online)
     this.visible = visible
     this.online = online
-    this.generation++
-    this.clearTimer()
     if (!visible || !online) this.running?.abort()
-    else {
-      if (resumed && this.quick) this.quickDueAt = this.now()
-      this.reconcile()
-      this.pumpDeletionFlush()
-    }
-  }
-
-  private setQuick(value: boolean) {
-    if (value === this.quick) return
-    this.quick = value
-    this.generation++
-    this.clearTimer()
-    if (value) { this.quickDueAt = this.now(); this.quickFailures = 0 }
-    // Sair da tela rápida não cancela commit local; impede a próxima consulta rápida.
-  }
-
-  private clearTimer() {
-    if (this.timer !== undefined) clearTimeout(this.timer)
-    this.timer = undefined
-  }
-
-  private reconcile() {
-    void this.schedule().catch(() => {
-      this.ports.onError?.('local_storage_error')
-      // Não fazer loop automático quando nem o deadline pode ser persistido/lido.
-    })
-  }
-
-  private async schedule() {
-    this.clearTimer()
-    const generation = ++this.generation
-    if (!this.active || !this.visible || !this.online || this.running) return
-    const device = await portalTables(this.database).device.get('device')
-    if (!device || generation !== this.generation || this.running) return
-    const dueAt = this.quick ? this.quickDueAt : device.syncRetry?.dueAt ?? device.nextSyncAt
-    this.timer = setTimeout(() => {
-      this.timer = undefined
-      if (generation !== this.generation) return
-      // Prazo absoluto também funciona quando standby não emite visibilitychange.
-      this.reconcileRun()
-    }, Math.min(2_147_483_647, Math.max(0, dueAt - this.now())))
-  }
-
-  private reconcileRun() {
-    this.guardedRun(false)
-  }
-
-  private guardedRun(deletionsOnly: boolean) {
-    void this.run(deletionsOnly).catch(() => {
-      this.active = false
-      this.generation++
-      this.clearTimer()
-      this.ports.onError?.('local_storage_error')
-    })
   }
 
   /**
-   * 070/D-011 "Recarregar": um ciclo completo agora, sem sobrepor o que estiver rodando e sem bater no
-   * limite de pull do servidor (1 a cada 10 s por TV). Não liga polling: o agendamento normal continua.
+   * 071/D-003: Atualizar. 'lists' = exclusões → envios → pull → snapshot; 'license' = só a licença. Repetir dentro da
+   * pausa de 10 s do mesmo escopo devolve { ok: false, code: 'wait' } sem requisição e sem dormir.
    */
-  async syncNow(): Promise<CycleOutcome> {
-    if (!this.active || !this.visible || !this.online) return { ok: false, code: 'offline' }
-    for (let tries = 0; this.running && tries < 150; tries++) await new Promise(resolve => setTimeout(resolve, 200))
-    const wait = this.lastCompletedAt + 10_200 - this.now()
-    if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait))
-    return this.run(false, true)
+  refresh(scope: RefreshScope): Promise<CycleOutcome> {
+    return this.enqueue(async () => {
+      if (!this.active || !this.visible || !this.online) return { ok: false as const, code: 'offline' }
+      const last = this.lastRefreshAt[scope]
+      if (last !== undefined && this.now() < last + REFRESH_PAUSE_MS) return { ok: false as const, code: 'wait' }
+      this.lastRefreshAt[scope] = this.now()
+      return this.execute(scope === 'lists' ? ['deletions', 'uploads', 'pull', 'snapshot'] : ['license'])
+    })
   }
 
-  /**
-   * 071/D-003: Atualizar. 'lists' = exclusões → envios → pull → snapshot; 'license' = só a licença. Pausa de 10 s por
-   * escopo recusa com { ok: false, code: 'wait' } sem requisição. STUB do sdd-plan — implementar na T006.
-   */
-  async refresh(_scope: 'lists' | 'license'): Promise<CycleOutcome> {
-    throw new Error('not implemented')
+  /** Execução serial: um Atualizar espera o anterior terminar e só então avalia a pausa. */
+  private enqueue<T>(job: () => Promise<T>): Promise<T> {
+    const result = this.queue.then(job, job)
+    this.queue = result.catch(() => undefined)
+    return result
   }
 
-  /** `deletionsOnly`: envio imediato da outbox + snapshot; não é ciclo (não adia o prazo de 24 h nem faz pull). */
-  private async run(deletionsOnly = false, forced = false): Promise<CycleOutcome> {
-    if (!this.active || !this.visible || !this.online || this.running) return { ok: false, code: 'busy' }
-    const tables = portalTables(this.database)
-    const before = await tables.device.get('device')
-    if (!before || this.running || !this.active || !this.visible || !this.online) return { ok: false, code: 'busy' }
-    const now = this.now()
-    const quick = this.quick
-    const dueAt = quick ? this.quickDueAt : before.syncRetry?.dueAt ?? before.nextSyncAt
-    if (!deletionsOnly && !forced && now < dueAt) { this.reconcile(); return { ok: false, code: 'not_due' } }
+  private async execute(steps: ('deletions' | 'uploads' | 'pull' | 'snapshot' | 'license')[]): Promise<CycleOutcome> {
     const controller = new AbortController()
     this.running = controller
+    const { signal } = controller
     try {
-      if (deletionsOnly) {
-        await this.ports.flushDeletions(controller.signal)
-        controller.signal.throwIfAborted()
-        // Sem snapshot novo o portal continuaria listando a lista excluída ("Somente na TV") até o próximo ciclo.
-        await this.ports.publishSnapshot(controller.signal)
-        return { ok: true }
+      for (const step of steps) {
+        signal.throwIfAborted()
+        if (step === 'deletions') await this.ports.flushDeletions(signal)
+        else if (step === 'uploads') await this.ports.flushUploads?.(signal)
+        else if (step === 'pull') await this.ports.pull(signal)
+        else if (step === 'snapshot') await this.ports.publishSnapshot(signal)
+        else await this.ports.refreshLicense?.(signal)
       }
-      await this.ports.refreshLicense?.(controller.signal)
-      controller.signal.throwIfAborted()
-      await this.ports.flushDeletions(controller.signal)
-      controller.signal.throwIfAborted()
-      await this.ports.pull(controller.signal)
-      controller.signal.throwIfAborted()
-      await this.ports.publishSnapshot(controller.signal)
-      controller.signal.throwIfAborted()
-      const completedAt = this.now()
-      await this.database.transaction('rw', tables.device, async () => {
-        const current = await tables.device.get('device')
-        if (current?.deviceId !== before.deviceId || current.authEpoch !== before.authEpoch ||
-            current.recoveryEpoch !== before.recoveryEpoch) return
-        await tables.device.put({ ...current, lastSuccessfulSync: completedAt,
-          nextSyncAt: completedAt + DAY, syncRetry: undefined })
-      })
-      this.quickFailures = 0
-      this.quickDueAt = completedAt + 10_000
-      this.lastCompletedAt = completedAt
+      signal.throwIfAborted()
+      if (steps.includes('pull')) await this.recordSuccess()
       return { ok: true }
     } catch (error) {
+      if (signal.aborted) return { ok: false, code: 'aborted' }
       const code = error instanceof PortalRequestError ? error.code : 'sync_error'
-      if (!controller.signal.aborted) {
-        const failedAt = this.now()
-        const retryAfter = error instanceof PortalRequestError ? error.retryAfterMs : 0
-        this.ports.onError?.(code)
-        if (quick) {
-          this.quickFailures++
-          const base = Math.min(60_000, 10_000 * 2 ** Math.min(this.quickFailures - 1, 3))
-          this.quickDueAt = failedAt + Math.max(retryAfter, Math.min(60_000, base * (1 + this.random() * 0.1)))
-        } else {
-          await this.database.transaction('rw', tables.device, async () => {
-            const current = await tables.device.get('device')
-            if (current?.deviceId !== before.deviceId || current.authEpoch !== before.authEpoch ||
-                current.recoveryEpoch !== before.recoveryEpoch) return
-            const attempt = current.syncRetry?.attempt ?? 0
-            if (attempt >= RETRIES.length) {
-              await tables.device.put({ ...current, nextSyncAt: failedAt + Math.max(DAY, retryAfter), syncRetry: undefined })
-            } else {
-              await tables.device.put({ ...current, syncRetry: { attempt: attempt + 1,
-                dueAt: failedAt + Math.max(retryAfter, RETRIES[attempt] * (1 + this.random() * 0.1)) } })
-            }
-          })
-        }
-      }
-      return { ok: false, code: controller.signal.aborted ? 'aborted' : code }
+      this.ports.onError?.(code)
+      return { ok: false, code }
     } finally {
       this.running = undefined
-      this.reconcile()
       this.pumpDeletionFlush()
     }
+  }
+
+  /** Diagnóstico apenas: o instante do último Atualizar de listas concluído. Nada agenda a partir dele. */
+  private async recordSuccess() {
+    const table = portalTables(this.database).device
+    const completedAt = this.now()
+    await this.database.transaction('rw', table, async () => {
+      const current = await table.get('device')
+      if (current) await table.put({ ...current, lastSuccessfulSync: completedAt })
+    })
   }
 }
 
-// Mesmo banco/portas compartilham mutex; dois mounts não criam dois agentes.
+// Mesmo banco/portas compartilham o agente; dois mounts não criam dois agentes.
 const agents = new WeakMap<CatalogDb, { ports: PortalAgentPorts; agent: PortalAgent }>()
 export function sharedPortalAgent(database: CatalogDb, ports: PortalAgentPorts) {
   const existing = agents.get(database)
   if (existing) {
-    if (existing.ports !== ports) throw new Error('portal_agent_ports_changed')
-    return existing.agent
+    if (existing.ports === ports) return existing.agent
+    // Portas novas só substituem um agente que ninguém usa; com o agente em uso seria uma troca silenciosa.
+    if (existing.agent.attached) throw new Error('portal_agent_ports_changed')
   }
   const agent = new PortalAgent(database, ports)
   agents.set(database, { ports, agent })

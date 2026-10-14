@@ -2,7 +2,7 @@
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from app.portal.auth import AuthError, AuthService, Principal
 from app.portal.auth_tokens import new_token, valid_token
@@ -26,6 +26,27 @@ class EnrollmentIssuance:
     credentials: dict
 
 
+TRIAL_DAYS = 7
+# 071/D-006: faixa aceita para o início do teste informado pela TV (ms desde epoch).
+TRIAL_ANCHOR_PAST = timedelta(days=30)
+TRIAL_ANCHOR_FUTURE = timedelta(seconds=60)
+
+
+def anchored_trial_start(created_at: datetime, trial_started_ms: int | None, now: datetime) -> datetime:
+    """`min(created_at, início informado)`: a âncora nunca estende o teste. Fora da faixa = 422."""
+    if trial_started_ms is None:
+        return created_at
+    if isinstance(trial_started_ms, bool) or not isinstance(trial_started_ms, int) or trial_started_ms <= 0:
+        raise AuthError("invalid_input", 422)
+    try:
+        started = datetime.fromtimestamp(trial_started_ms / 1000, UTC)
+    except (OverflowError, OSError, ValueError):
+        raise AuthError("invalid_input", 422) from None
+    if started < now - TRIAL_ANCHOR_PAST or started > now + TRIAL_ANCHOR_FUTURE:
+        raise AuthError("invalid_input", 422)
+    return min(created_at, started)
+
+
 class EnrollmentService:
     def __init__(self, auth: AuthService, crypto: PortalCrypto, codes: RecoveryCodes):
         self.auth = auth
@@ -38,11 +59,12 @@ class EnrollmentService:
         return CipherContext(device_id, "credential-issuance", operation_id)
 
     async def enroll(self, identity: str, nonce: str, ip: str, now: datetime,
-                     mac: str | None = None) -> EnrollmentIssuance:
+                     mac: str | None = None, trial_started_at: int | None = None) -> EnrollmentIssuance:
         if (not isinstance(identity, str) or not 1 <= len(identity) <= 512
                 or not identity.strip() or any(ord(char) < 32 or ord(char) > 126 for char in identity)
                 or not valid_token(nonce) or not 1 <= len(ip) <= 128):
             raise AuthError("invalid_input", 422)
+        trial_start = anchored_trial_start(now, trial_started_at, now)
         rules = tuple(RateConstraint(self.auth.tokens.digest("rate_limit", scope), limit, 3600)
                       for scope, limit in (("enroll-ip/" + ip, 20), ("enroll-global", 100)))
         rate = await self.auth.limits.evaluate(rules, now, consume=True)
@@ -65,7 +87,7 @@ class EnrollmentService:
             raise AuthError("try_again", 409) from None
         credentials = {"deviceId": device_id, "displayId": display_id, "bearer": bearer, "deviceKey": key,
                        "authEpoch": 1, "recoveryEpoch": self.auth.recovery_epoch, "recoveryCode": code,
-                       "recoveryCodeVersion": 1}
+                       "recoveryCodeVersion": 1, "trialStartedAt": int(trial_start.timestamp() * 1000)}
         device_path = document_path("devices", device_id)
         code_path = document_path("recoveryCodes", self.codes.digest(code))
         device = DeviceDocument(device_id=device_id, identity_hmac=identity_hash,
@@ -74,7 +96,9 @@ class EnrollmentService:
                                 auth_epoch=1, recovery_epoch=self.auth.recovery_epoch, created_at=now,
                                 recovery_code_hmac=self.codes.digest(code),
                                 recovery_hash_key_version=self.codes.active_version,
-                                display_id=display_id, display_id_source=display_source)
+                                display_id=display_id, display_id_source=display_source,
+                                trial_started_at=trial_start,
+                                trial_expires_at=trial_start + timedelta(days=TRIAL_DAYS))
         envelope = self.crypto.encrypt(canonical_json(credentials), self._context(device_id, operation_id))
         result = IssuanceDocument(operation_id=operation_id, device_id=device_id, purpose="enroll",
                                   identity_hmac=identity_hash, claim_secret_hash=nonce_hash,

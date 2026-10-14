@@ -1,38 +1,28 @@
 import { LicenseGate } from './LicenseGate'
 import { commercialBuild, licenseAuthority, licenseMonitor } from '../../lib/licensing/licenseRuntime'
 import { createLicenseSync } from '../../lib/licensing/licenseSync'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { liveQuery } from 'dexie'
 import { useQueryClient } from '@tanstack/react-query'
 import { db } from '../../lib/catalog/db'
-import { getPortalConnection, portalQuickMode, subscribePortalQuick } from '../../lib/portal/portalRuntime'
-import { portalTables } from '../../lib/portal/portalTables'
+import { getPortalConnection } from '../../lib/portal/portalRuntime'
 import { localImportSource } from '../../lib/portal/remoteImportOutbox'
 import { createPortalSync } from '../../lib/portal/portalSync'
 import { usePortalAgent } from '../../lib/portal/usePortalAgent'
 import { PortalSyncConfirmation } from './PortalSyncConfirmation'
 
-export function usePortalIntegration({ activeSourceId, leaveSource, sourceDeleted, catalogChanged, openPortal }: {
-  activeSourceId?: string; leaveSource(sourceId?: string): void; sourceDeleted(id: string): void; catalogChanged(): void; openPortal(): void
+export function usePortalIntegration({ activeSourceId, leaveSource, sourceDeleted, catalogChanged, resumeEntry }: {
+  activeSourceId?: string; leaveSource(sourceId?: string): void; sourceDeleted(id: string): void; catalogChanged(): void
+  /** Retoma a entrada negada quando o Atualizar da tela de bloqueio libera a licença (071/FR-007). */
+  resumeEntry(sourceId: string): void
 }) {
   useEffect(() => commercialBuild ? licenseMonitor.start() : undefined, [])
   const queryClient = useQueryClient()
   const latest = useRef({ activeSourceId, leaveSource, sourceDeleted, catalogChanged })
   useEffect(() => { latest.current = { activeSourceId, leaveSource, sourceDeleted, catalogChanged } }, [activeSourceId, leaveSource, sourceDeleted, catalogChanged])
   const [connection] = useState(() => { try { return getPortalConnection() } catch { return undefined } })
-  useEffect(() => { if (commercialBuild && connection) void connection.ready().catch(() => { /* Portal exibe tentativa explícita; cache vigente continua local. */ }) }, [connection])
-  const quick = useSyncExternalStore(subscribePortalQuick, portalQuickMode, () => false)
-  // Observar apenas identidade/epoch: escrita de deadline não remonta o agente.
-  const [identity, setIdentity] = useState<string>()
-  useEffect(() => {
-    if (!connection) return
-    const subscription = liveQuery(async () => {
-      const device = await portalTables(db).device.get('device')
-      return device ? device.deviceId + ':' + device.authEpoch + ':' + device.recoveryEpoch : undefined
-    }).subscribe({ next: setIdentity, error: () => setIdentity(undefined) })
-    return () => subscription.unsubscribe()
-  }, [connection])
+  // 071/D-004: o cadastro do dispositivo NÃO roda no mount. Acontece quando uma tela precisa de ID/chave
+  // (Adicionar lista, bloqueio, Portal & licença), no Atualizar ou no primeiro envio de lista.
   const [decide, setDecide] = useState<{ complete(value: boolean): void }>()
   const pending = useRef<((value: boolean) => void) | undefined>(undefined)
   useEffect(() => () => { pending.current?.(false) }, [])
@@ -65,6 +55,6 @@ export function usePortalIntegration({ activeSourceId, leaveSource, sourceDelete
   }) : { flushDeletions: async () => {}, pull: async () => {}, publishSnapshot: async () => {} })
   const [agentPorts] = useState(() => ({ ...ports, refreshLicense: connection && commercialBuild
     ? createLicenseSync(db, connection, licenseAuthority) : undefined }))
-  usePortalAgent(db, agentPorts, quick, !!connection && !!identity)
-  return <><LicenseGate activeSourceId={activeSourceId} onStop={leaveSource} onPortal={openPortal} />{decide && <PortalSyncConfirmation onDecide={decide.complete} />}</>
+  usePortalAgent(db, agentPorts, !!connection)
+  return <><LicenseGate activeSourceId={activeSourceId} onStop={leaveSource} onResume={resumeEntry} connection={connection} />{decide && <PortalSyncConfirmation onDecide={decide.complete} />}</>
 }

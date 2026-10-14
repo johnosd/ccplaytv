@@ -15,6 +15,7 @@
 // Pré-requisito: `npm run dev` já rodando (http://localhost:5173). Dados: só fictícios
 // (`fixtures/legibilidade-tv.m3u`, nomes longos e acentuados), servidos por um HTTP server local deste script.
 import { createServer } from 'node:http'
+import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -371,6 +372,81 @@ async function walk(page, lang) {
   })
 }
 
+// Feature 071 (SC-009): bloqueio da licença, tela de listas com "Atualizar" e Adicionar lista com o QR fixo só existem
+// com portal configurado e build comercial. Sobe um Vite à parte (porta 5177) com portal fictício, o teste local já
+// vencido (marca de 8 dias atrás) e mede essas telas nos mesmos idiomas.
+const PORTAL_PORT = 5177
+const PORTAL_APP = `http://127.0.0.1:${PORTAL_PORT}`
+const PORTAL_ORIGIN = 'https://legibilidade.fixture.test'
+
+async function startCommercialVite() {
+  const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--mode', 'commercial', '--host', '127.0.0.1', '--port', String(PORTAL_PORT), '--strictPort'], {
+    env: { ...process.env, VITE_PORTAL_ORIGIN: PORTAL_ORIGIN, VITE_LICENSE_PUBLIC_KEYS: '{}' }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+  })
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('vite comercial não subiu')), 40000)
+    vite.stdout.on('data', (value) => { if (String(value).includes(PORTAL_APP)) { clearTimeout(timeout); resolve() } })
+    vite.once('exit', () => { clearTimeout(timeout); reject(new Error('vite comercial encerrou')) })
+  })
+  return vite
+}
+
+async function auditPortalScreens(browser, m3uUrl) {
+  const vite = await startCommercialVite()
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
+  await context.addInitScript(() => { window.webapis = { productinfo: { getDuid: () => 'fake-legibilidade-duid' } } })
+  const credentials = { deviceId: 'legibilidade-tv', displayId: 'A0:8C:FD:19:0A:8C', bearer: 'legibilidade-tv.' + 'a'.repeat(42) + 'A',
+    deviceKey: '1732049818', authEpoch: 1, recoveryEpoch: 'c'.repeat(42) + 'A', recoveryCode: '0000-0000-0000-0000-0000-0000-0000', recoveryCodeVersion: 1 }
+  await context.route(PORTAL_ORIGIN + '/**', async (route) => {
+    const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization,content-type', 'Access-Control-Allow-Methods': 'GET,POST,PUT,OPTIONS' }
+    const request = route.request()
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers })
+    if (new URL(request.url()).pathname.endsWith('/devices/enroll')) return route.fulfill({ json: { ...credentials, operationId: 'enroll-fixture' }, headers })
+    if (new URL(request.url()).pathname.endsWith('/recovery/ack')) return route.fulfill({ status: 204, headers })
+    return route.fulfill({ status: 404, headers })
+  })
+  const page = await context.newPage()
+  try {
+    await page.goto(PORTAL_APP)
+    await page.waitForSelector('.add-card', { timeout: 20000 })
+    await cadastrarListaM3u(page, { nome: 'Fonte E2E Legibilidade Com Nome Comprido', url: m3uUrl })
+    await page.waitForSelector('text=/Concluída/', { timeout: 20000 })
+    // Teste local já vencido: recua o início em 8 dias e recarrega (o monitor adota o registro existente).
+    await page.evaluate(async () => {
+      const { db } = await import('/src/lib/catalog/db.ts')
+      const row = await db.table('localTrial').get('trial')
+      await db.table('localTrial').put({ ...row, startedAt: Date.now() - 8 * 86400000 })
+    })
+    for (const lang of LANGS) {
+      console.log(`=== portal ${lang} ===`)
+      await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [LANGUAGE_KEY, lang])
+      await step(lang, 'Perfis com Atualizar', async () => {
+        await page.goto(PORTAL_APP)
+        await page.waitForSelector('.source-card', { timeout: 15000 })
+        await page.locator('.profiles-portal-corner').waitFor({ timeout: 8000 })
+        await audit(page, lang, 'Perfis com Atualizar')
+      })
+      await step(lang, 'Adicionar lista com QR fixo', async () => {
+        await page.goto(PORTAL_APP)
+        await page.waitForSelector('.add-card', { timeout: 15000 })
+        await page.locator('.add-card').click()
+        await page.waitForSelector('.portal-pairing .fixed-qr', { timeout: 15000 })
+        await audit(page, lang, 'Adicionar lista com QR fixo')
+      })
+      await step(lang, 'Bloqueio da licença', async () => {
+        await page.goto(PORTAL_APP)
+        await page.waitForSelector('.source-card', { timeout: 15000 })
+        await page.locator('.source-card').first().click()
+        await page.waitForSelector('[role="dialog"] .fixed-qr', { timeout: 15000 })
+        await audit(page, lang, 'Bloqueio da licença', '[role="dialog"]')
+      })
+    }
+  } finally {
+    await context.close()
+    vite.kill()
+  }
+}
+
 async function run() {
   const server = await startFixtureServer()
   const m3uUrl = `http://127.0.0.1:${server.address().port}/legibilidade-tv.m3u`
@@ -385,6 +461,7 @@ async function run() {
     await cadastrarListaM3u(page, { nome: 'Fonte E2E Legibilidade Com Nome Comprido', url: m3uUrl })
     await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
     for (const lang of LANGS) await walk(page, lang)
+    await auditPortalScreens(browser, m3uUrl)
   } catch (error) {
     findings.push(`erro não tratado: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`)
   } finally {

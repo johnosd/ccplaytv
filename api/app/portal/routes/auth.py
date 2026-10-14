@@ -44,6 +44,8 @@ class EnrollmentInput(Input):
     nonce: SecretStr = Field(min_length=43, max_length=43, repr=False)
     # 070/D-002: MAC lido na TV (opcional); o servidor revalida e cai no ID gerado se for inútil.
     mac: str | None = Field(default=None, max_length=64)
+    # 071/D-006: início do teste contado na TV (ms); o serviço grava `min(created_at, valor)` e devolve o gravado.
+    trialStartedAt: int | None = Field(default=None, ge=1, le=9_999_999_999_999)
 
 
 class AckInput(Input):
@@ -194,7 +196,7 @@ async def enroll(request: Request):
     issued = await service.enroll(body.platformIdentity.get_secret_value(),
                                    body.nonce.get_secret_value(),
                                    request.client.host if request.client else "unknown",
-                                   datetime.now(UTC), body.mac)
+                                   datetime.now(UTC), body.mac, body.trialStartedAt)
     return {"operationId": issued.operation_id, **issued.credentials}
 
 

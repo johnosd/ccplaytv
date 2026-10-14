@@ -41,3 +41,20 @@ it('monitor compartilhado usa só relógio/cache, checkpoint no pagehide e venci
   await vi.advanceTimersByTimeAsync(60000)
   expect(vi.mocked(checkpointLicenseClock).mock.calls.length).toBe(stoppedCalls)
 })
+
+it('071: teste local libera sem licença; licença assinada revogada vence o teste', async () => {
+  const database = new CatalogDb('test-071-monitor-' + crypto.randomUUID()); databases.push(database)
+  const tables = portalTables(database)
+  await tables.device.put({ id: 'device', deviceId: 'fixture', bearer: 'private', deviceKey: 'private', authEpoch: 1, recoveryEpoch: 'fixture', recoveryCode: 'private', recoveryCodeVersion: 1, nextSyncAt: 0 })
+  await tables.localTrial.put({ id: 'trial', startedAt: Date.now(), highWatermark: Date.now() })
+  const monitor = createLicenseMonitor(database, deviceId => ({ deviceId, issuer: 'fixture', audience: 'fixture', keys: {}, minimumGeneration: 0 }))
+  const stop = monitor.start()
+  await waitFor(() => expect(monitor.getSnapshot().decision).toEqual({ allowed: true, reason: 'valid' }))
+  expect(monitor.getSnapshot().state).toBe('trial')
+  const record = { id: 'entitlement' as const, deviceId: 'fixture', jws: 'revoked-jws', generation: 2, timeHighWatermark: 1000, signedServerTime: 1000, lastSuccessfulSync: 1000, nextDueAt: 0 }
+  const entitlement = { deviceId: 'fixture', startsAt: 1000, expiresAt: Date.now() + 86_400_000, state: 'revoked' as const, generation: 2, serverTime: 1000, kid: 'fixture' }
+  vi.mocked(loadLicense).mockResolvedValue({ record, entitlement, clock: new TrustedClock(record) })
+  await tables.license.put(record)
+  await waitFor(() => expect(monitor.getSnapshot().decision).toEqual({ allowed: false, reason: 'revoked' }))
+  stop()
+})

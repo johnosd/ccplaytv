@@ -65,6 +65,8 @@ class AccessRotation:
         credentials = {"deviceId": device.device_id, "bearer": bearer, "deviceKey": key,
                        "authEpoch": target_epoch, "recoveryEpoch": device.recovery_epoch,
                        "recoveryCode": code, "recoveryCodeVersion": target_version,
+                       # 071/D-006: reinstalação/recuperação recebe o início já gravado (nunca um posterior).
+                       "trialStartedAt": int((device.trial_started_at or device.created_at).timestamp() * 1000),
                        **({"displayId": display_id} if display_id else {})}
         envelope = self.crypto.encrypt(canonical_json(credentials), CipherContext(
             device.device_id, "credential-issuance", operation_id,

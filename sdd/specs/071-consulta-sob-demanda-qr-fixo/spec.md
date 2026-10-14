@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-14
 
-**Status**: Planejada
+**Status**: Em Execução
 
 **Input**: "Hoje o usuário usa o app por 7 dias e depois ele fica bloqueado. Esse bloqueio não precisaria ficar batendo numa API minha todo dia; poderia ser do próprio aplicativo, e depois da compra ele seria desbloqueado. Quero botões tipo refresh/atualizar em vez de requisições automáticas." Fluxos do usuário: (1) adicionar lista pelo site e apertar Atualizar na TV, (2) adicionar lista na TV e ela ir ao site, (3) teste acabou → comprar no site → apertar Atualizar na tela de bloqueio e liberar. Decisões da entrevista de 2026-10-14: nada automático (100% manual), QR fixo, a TV envia nome/host/usuário/senha ao site, chave visível também na tela de bloqueio, teste contado no app.
 
@@ -139,7 +139,7 @@ O QR da tela Adicionar lista e da tela de bloqueio é sempre o mesmo e abre o pa
 
 - **FR-001**: O app NÃO DEVE fazer requisição ao serviço sem ação da pessoa. São ações válidas: apertar Atualizar, adicionar/editar/excluir uma lista, abrir a primeira vez uma tela que precisa de ID/chave, abrir o QR no site.
 - **FR-002**: DEVEM ser removidos: ciclo periódico, consulta a cada 10 s, renovação do convite do QR, consulta ao negar a entrada e consulta ao abrir o app.
-- **FR-003**: O botão "Atualizar" DEVE existir, focável e com estados de carregando, sucesso, "sem novidades", sem internet e erro com código, na tela de listas, em Adicionar lista, na tela de bloqueio e em Portal & licença.
+- **FR-003**: O botão "Atualizar" DEVE existir, focável e com estados de carregando, sucesso, "sem novidades", sem internet e erro com código, na tela de listas, em Adicionar lista, na tela de bloqueio e em Portal & licença. **Esclarecimento (execute, A001):** em Adicionar lista o botão mantém o rótulo "Recarregar" (contrato 070 C1, plan D-013); nas demais telas é "Atualizar".
 - **FR-004**: Após apertado, o botão DEVE ficar desabilitado por 10 s, com mensagem de espera, respeitando o limite do serviço.
 - **FR-005**: Atualizar na tela de bloqueio e em Portal & licença DEVE consultar só a licença; na tela de listas e em Adicionar lista DEVE buscar alterações do site e enviar a fila local.
 - **FR-006**: Após Atualizar em Adicionar lista com listas novas, o app DEVE voltar à tela de listas com foco na nova, reconciliada por id.

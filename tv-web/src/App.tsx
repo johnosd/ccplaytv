@@ -61,7 +61,11 @@ function App() {
 
   const portalConfirmation = usePortalIntegration({ activeSourceId: activeSource?.id,
     leaveSource: sourceId => dispatch({ type: 'import-back', sourceId: sourceId ?? activeSource?.id }),
-    openPortal: () => dispatch({ type: 'open', screen: { name: 'settings', standalone: true, restore: { zone: 'panel', tab: 'portal' } }, from: { name: 'profiles', mode: 'base' } }),
+    // 071/FR-007: licença liberada pelo Atualizar do bloqueio — entra de novo na lista que foi negada.
+    resumeEntry: sourceId => {
+      const target = sourcesQuery.data?.sources.find(candidate => candidate.id === sourceId)
+      if (target) chooseSource(target)
+    },
     sourceDeleted: sourceId => dispatch({ type: 'source-removed', sourceId }), catalogChanged: wakePrefetch })
 
   // Tecla amarela como atalho de favoritar (feature 013) e teclas de mídia

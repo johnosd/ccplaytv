@@ -1,5 +1,6 @@
 import { db } from '../catalog/db'
 import { createPortalClient } from './portalClient'
+import type { RefreshScope } from './portalAgent'
 import { PortalConnection } from './portalConnection'
 
 let connection: PortalConnection | undefined
@@ -26,29 +27,16 @@ export function getPortalConnection(): PortalConnection | undefined {
   }
   return connection
 }
-const listeners = new Set<() => void>()
-let quickReferences = 0
-export function portalQuickMode() { return quickReferences > 0 }
-export function subscribePortalQuick(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } }
-export function acquirePortalQuick() {
-  quickReferences++
-  for (const listener of listeners) listener()
-  let released = false
-  return () => {
-    if (released) return
-    released = true
-    quickReferences--
-    for (const listener of listeners) listener()
-  }
+/**
+ * 071/D-003: o botão Atualizar das telas chama o agente montado no App. Não há mais modo "rápido" nem consulta
+ * periódica: só esta chamada (e o envio imediato de uma exclusão) fala com o serviço.
+ */
+type RefreshHandler = (scope: RefreshScope) => Promise<{ ok: boolean; code?: string }>
+let refreshHandler: RefreshHandler | undefined
+export function registerPortalRefresh(handler: RefreshHandler) {
+  refreshHandler = handler
+  return () => { if (refreshHandler === handler) refreshHandler = undefined }
 }
-
-/** 070/D-011: "Recarregar" da tela Adicionar dispara um ciclo do agente montado no App, se houver um. */
-type SyncNow = () => Promise<{ ok: boolean; code?: string }>
-let syncNowHandler: SyncNow | undefined
-export function registerPortalSyncNow(handler: SyncNow) {
-  syncNowHandler = handler
-  return () => { if (syncNowHandler === handler) syncNowHandler = undefined }
-}
-export function portalSyncNow(): Promise<{ ok: boolean; code?: string }> {
-  return syncNowHandler ? syncNowHandler() : Promise.resolve({ ok: false, code: 'unavailable' })
+export function refreshPortal(scope: RefreshScope): Promise<{ ok: boolean; code?: string }> {
+  return refreshHandler ? refreshHandler(scope) : Promise.resolve({ ok: false, code: 'unavailable' })
 }

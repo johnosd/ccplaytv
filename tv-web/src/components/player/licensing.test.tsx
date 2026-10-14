@@ -19,7 +19,7 @@ vi.mock('../../lib/catalog/userStateRepository', async original => ({ ...await o
 afterEach(() => { cleanup(); fixture.allowed = true; fixture.snapshot = { decision: { allowed: true, reason: 'active' } }; fixture.listeners.clear(); fixture.denied.clear(); vi.clearAllMocks() })
 it('vencimento mantém PlayerLayer; saída voluntária salva a posição antes de close', async () => {
   let callbacks: PlayerAdapterCallbacks | undefined
-  const close = vi.fn(), onPortal = vi.fn()
+  const close = vi.fn()
   const factory: PlayerAdapterFactory = value => { callbacks = value; return { name: 'fixture', rendersOnHardwarePlane: false,
     capabilities: { canPause: true, canSeek: true, reportsDuration: true, reportsPosition: true }, open: vi.fn(), close } }
   vi.mocked(catalogApi.fetchPlayback).mockResolvedValue({ item_id: 'fixture-item', kind: 'movie', url: 'https://media.invalid/fixture.mp4', container_hint: 'mp4',
@@ -27,7 +27,7 @@ it('vencimento mantém PlayerLayer; saída voluntária salva a posição antes d
   function Host() {
     const [playing, setPlaying] = useState(true)
     return <>{playing && <PlayerLayer itemId="fixture-item" title="Fixture" createAdapter={factory} onClose={() => setPlaying(false)} />}
-      <button onClick={() => setPlaying(false)}>sair da lista fixture</button><LicenseGate activeSourceId="fixture-source" onStop={() => setPlaying(false)} onPortal={onPortal} /></>
+      <button onClick={() => setPlaying(false)}>sair da lista fixture</button><LicenseGate activeSourceId="fixture-source" onStop={() => setPlaying(false)} /></>
   }
   render(<Host />)
   await waitFor(() => expect(callbacks).toBeDefined())
@@ -41,7 +41,6 @@ it('vencimento mantém PlayerLayer; saída voluntária salva a posição antes d
   expect(vi.mocked(userState.updateProgress).mock.invocationCallOrder.at(-1)).toBeLessThan(close.mock.invocationCallOrder[0])
   expect(userState.clearProgress).not.toHaveBeenCalled()
   expect(screen.queryByRole('dialog', { name: 'Licença necessária para abrir a lista' })).not.toBeInTheDocument()
-  expect(onPortal).not.toHaveBeenCalled()
 })
 it('trailer continua disponível na lista já aberta após vencimento', async () => {
   fixture.allowed = false; fixture.snapshot = { decision: { allowed: false, reason: 'expired' } }
@@ -53,7 +52,7 @@ it('trailer continua disponível na lista já aberta após vencimento', async ()
 
 it('vencimento sem reprodução mantém o usuário nas configurações', () => {
   const stop = vi.fn()
-  render(<LicenseGate onStop={stop} onPortal={vi.fn()} />)
+  render(<LicenseGate onStop={stop} />)
   act(() => { fixture.allowed = false; fixture.snapshot = { decision: { allowed: false, reason: 'expired' } }; for (const listener of fixture.listeners) listener() })
   expect(stop).not.toHaveBeenCalled()
   expect(screen.queryByRole('dialog', { name: 'Licença necessária para abrir a lista' })).not.toBeInTheDocument()
@@ -61,17 +60,18 @@ it('vencimento sem reprodução mantém o usuário nas configurações', () => {
 
 it('entrada recusada oferece renovação com foco e RETURN sem apagar dados', () => {
   const stop = vi.fn()
-  render(<LicenseGate onStop={stop} onPortal={vi.fn()} />)
+  render(<LicenseGate onStop={stop} />)
   act(() => { for (const listener of fixture.denied) listener() })
   expect(stop).toHaveBeenCalledOnce()
   expect(screen.getByRole('dialog', { name: 'Licença necessária para abrir a lista' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Comprar ou renovar licença' })).toHaveClass('tv-focus')
+  expect(screen.getByRole('button', { name: 'Atualizar' })).toHaveClass('tv-focus')
+  expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument()
   act(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
   expect(screen.queryByRole('dialog', { name: 'Licença necessária para abrir a lista' })).not.toBeInTheDocument()
 })
 it('revogação confirmada mantém o encerramento da lista ativa', () => {
   const stop = vi.fn()
-  render(<LicenseGate activeSourceId="source" onStop={stop} onPortal={vi.fn()} />)
+  render(<LicenseGate activeSourceId="source" onStop={stop} />)
   act(() => { fixture.allowed = false; fixture.snapshot = { decision: { allowed: false, reason: 'revoked' } }; for (const listener of fixture.listeners) listener() })
   expect(stop).toHaveBeenCalledOnce()
   expect(screen.getByRole('dialog')).toBeInTheDocument()

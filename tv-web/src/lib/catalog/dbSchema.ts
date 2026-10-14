@@ -38,4 +38,9 @@ export function registerLateCatalogSchemas(db: Dexie): void {
     pendingPortalDeletes: 'deletionId, sourceId, createdAt',
     licenseCache: 'id',
   })
+  // Feature 071: teste de 7 dias contado no aparelho (registro único 	rial). Tabela nova, sem .upgrade():
+  // a herança do início de uma licença de teste já verificada acontece em nsureLocalTrial.
+  db.version(23).stores({
+    localTrial: 'id',
+  })
 }

@@ -112,8 +112,8 @@ Como usuário, quero pagar R$35 por uma licença anual da minha TV, por Pix/cart
 ### Functional Requirements
 
 - **FR-001**: O sistema DEVE identificar a TV por device ID e autorizar acesso remoto com credencial verificável; ID isolado NÃO DEVE autorizar.
-- **FR-002**: A TV DEVE oferecer QR temporário e alternativa endereço web + device ID/device key, sem conta pessoal obrigatória.
-- **FR-003**: QR e sessões DEVEM ter validade finita e informar expiração; device key permanente NÃO DEVE integrar a URL do QR. O plano DEVE definir limites testáveis de validade e uso do convite.
+- **FR-002**: A TV DEVE oferecer QR temporário e alternativa endereço web + device ID/device key, sem conta pessoal obrigatória. **Atualização (071, 2026-10-14):** o QR passa a ser fixo, gerado na TV, sem requisição (ADR-016).
+- **FR-003**: QR e sessões DEVEM ter validade finita e informar expiração; device key permanente NÃO DEVE integrar a URL do QR. O plano DEVE definir limites testáveis de validade e uso do convite. **Atualização (071):** o QR fixo carrega ID e chave **no fragmento** e não expira (muda só com "Gerar nova chave"); o convite efêmero fica só na recuperação pelo site. Constitution 1.11.0 (e).
 - **FR-004**: O usuário DEVE poder sair da sessão e, pela TV, revogar sessões/regenerar device key, invalidando acessos anteriores sem perder licença, configurações guardadas, catálogo ou preferências.
 - **FR-005**: O portal DEVE identificar o destino e impedir acesso, alteração, reenvio ou compra para outra TV sem autorização; tentativas inválidas DEVEM ser limitadas.
 - **FR-006**: O portal DEVE adicionar/editar/remover Xtream e M3U por URL, preservando campos complementares locais aplicáveis. NÃO DEVE aceitar upload, guardar arquivo M3U ou baixar catálogo no servidor.

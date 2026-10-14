@@ -29,12 +29,29 @@ export function newOperationId(now = Date.now()) {
 }
 export interface RecoverySession extends Session { claimId: string }
 export function newRecoveryId() { return newOperationId().slice(17) }
+export type PortalEntry = { kind: 'invite' | 'recovery'; token: string } | { kind: 'device'; displayId: string; deviceKey: string }
+/** ID no formato MAC (aceita `:`/`-`/`.`/minúsculas) → `XX:XX:XX:XX:XX:XX`; forma inválida = undefined. */
+function normalizeFragmentId(value: string) {
+  const compact = value.trim().replace(/[:.-]/g, '').toUpperCase()
+  return /^[0-9A-F]{12}$/.test(compact) ? compact.match(/../g)!.join(':') : undefined
+}
+/**
+ * Consome o fragmento da URL (convite, recuperação ou QR fixo `#id=&key=`, feature 071/D-008) e o remove do endereço
+ * e do histórico ANTES de qualquer requisição ou renderização. O QR fixo carrega ID e chave: nunca vão a path/query.
+ * Fragmento ambíguo ou malformado vira "sem entrada" (o formulário manual aparece), sem ecoar o valor.
+ */
 export function takeEntry(location: { hash: string; pathname: string; search: string },
-  history: { replaceState: (data: unknown, unused: string, url: string) => void }): { kind: 'invite' | 'recovery'; token: string } | undefined {
+  history: { replaceState: (data: unknown, unused: string, url: string) => void }): PortalEntry | undefined {
   const hash = location.hash
   if (hash) history.replaceState(null, '', location.pathname + location.search)
   const params = new URLSearchParams(hash.replace(/^#/, ''))
-  if (params.has('invite') && params.has('recovery')) return undefined
+  const device = params.has('id') || params.has('key')
+  if ((params.has('invite') && params.has('recovery')) || (device && (params.has('invite') || params.has('recovery')))) return undefined
+  if (device) {
+    const displayId = normalizeFragmentId(params.get('id') ?? '')
+    const deviceKey = params.get('key') ?? ''
+    return displayId && /^\d{10}$/.test(deviceKey) ? { kind: 'device', displayId, deviceKey } : undefined
+  }
   const kind = params.has('recovery') ? 'recovery' : 'invite'
   const token = params.get(kind)
   return token && /^[A-Za-z0-9_-]{43}$/.test(token) ? { kind, token } : undefined

@@ -1,17 +1,17 @@
 import { useEffect } from 'react'
 import type { CatalogDb } from '../catalog/db'
 import { sharedPortalAgent, type PortalAgentPorts } from './portalAgent'
-import { registerPortalSyncNow } from './portalRuntime'
+import { registerPortalRefresh } from './portalRuntime'
 
-/** Montar no App com portas estáveis; quick só para QR/configuração/compra aberta. */
-export function usePortalAgent(database: CatalogDb, ports: PortalAgentPorts, quick = false, enabled = true) {
+/** Montar no App com portas estáveis. Sem timers: só registra o Atualizar e acompanha visibilidade/rede. */
+export function usePortalAgent(database: CatalogDb, ports: PortalAgentPorts, enabled = true) {
   useEffect(() => {
     if (!enabled) return
     const agent = sharedPortalAgent(database, ports)
     const lifecycle = () => agent.lifecycle(document.visibilityState !== 'hidden', navigator.onLine)
     lifecycle()
-    const detach = agent.attach(quick)
-    const unregister = registerPortalSyncNow(() => agent.syncNow())
+    const detach = agent.attach()
+    const unregister = registerPortalRefresh(scope => agent.refresh(scope))
     document.addEventListener('visibilitychange', lifecycle)
     window.addEventListener('online', lifecycle)
     window.addEventListener('offline', lifecycle)
@@ -27,5 +27,5 @@ export function usePortalAgent(database: CatalogDb, ports: PortalAgentPorts, qui
       unregister()
       detach()
     }
-  }, [database, ports, quick, enabled])
+  }, [database, ports, enabled])
 }

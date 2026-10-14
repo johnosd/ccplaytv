@@ -1,4 +1,23 @@
 <!--
+Relatório de Impacto de Sincronização (2026-10-14)
+- Mudança de versão: 1.10.0 -> 1.11.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs").
+- Origem: decisões explícitas do usuário no sdd-specify/sdd-plan da feature 071
+  (consulta sob demanda e QR fixo), após aviso de risco; ADR-016.
+- Exceções delimitadas: (d) a TV PODE enviar ao serviço, por ação da pessoa, as
+  credenciais IPTV das listas dela (host, usuário, senha, URL M3U), que ficam
+  cifradas, nunca em log, e só voltam à sessão autenticada da mesma TV; (e) a
+  chave do dispositivo PODE estar no FRAGMENTO do QR fixo gerado na TV, nunca em
+  path, query, log, requisição ou resposta; (f) a chave também fica visível na
+  tela de bloqueio da licença.
+- Esclarecimento: nenhuma consulta ao serviço é automática; só ação da pessoa.
+- Continuam proibidos: logs, URL enviada ao servidor, cards comuns, mensagens de
+  erro, analytics, checkout, exportação/backup público e terceiros.
+- Riscos aceitos pelo usuário (foto/captura do QR, credenciais no serviço, teste
+  local reiniciável antes do 1º contato) com mitigações na ADR-016.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
 Relatório de Impacto de Sincronização (2026-10-13)
 - Mudança de versão: 1.9.0 -> 1.10.0 (MINOR, expansão delimitada de "Segredos
   Fora dos Clientes e dos Logs").
@@ -92,6 +111,9 @@ Histórico:
 - 1.10.0 (2026-10-13): chave do dispositivo sempre visível na tela de adicionar,
   valores salvos ao painel da própria TV e credencial local visível com olho
   (feature 070/ADR-014).
+- 1.11.0 (2026-10-14): credenciais IPTV da TV ao serviço (cifradas), chave no
+  fragmento do QR fixo e chave visível na tela de bloqueio; nenhuma consulta
+  automática ao serviço (feature 071/ADR-016).
 -->
 
 # Constitution do CCPlay TV
@@ -201,6 +223,26 @@ exceção remota continuam valendo.
 credencial local já guardada daquela lista, com controle explícito para
 ocultar — ainda proibido em cards, avisos, histórico, erros e telas comuns.
 
+**Exceção de consulta sob demanda e QR fixo (2026-10-14, feature 071/ADR-016)**,
+decisão explícita do usuário com risco aceito, emenda os itens (a) e (b) acima e
+o parágrafo do convite QR:
+(d) a TV PODE enviar ao serviço, **somente por ação da pessoa** (adicionar,
+editar ou excluir uma lista; botão Atualizar), nome, tipo, host, usuário, senha
+e URL M3U das listas dela. O serviço DEVE cifrá-las em repouso, NÃO PODE logá-las
+nem devolvê-las a outra TV, sessão ou cache, e as devolve só à sessão autenticada
+da mesma TV (item (b)). Não amplia o que sai do aparelho: arquivo M3U, catálogo,
+BYOK e chaves do desenvolvedor continuam proibidos.
+(e) a chave do dispositivo PODE compor o QR fixo gerado **localmente na TV**
+(`<site>/#id=<ID>&key=<chave>`), exclusivamente no **fragmento**. NÃO PODE estar
+em path, query, log, requisição, resposta, `Referer` ou analytics; o site DEVE
+consumi-la no navegador e removê-la do endereço/histórico antes de renderizar.
+"Gerar nova chave" DEVE invalidar o QR e as sessões abertas.
+(f) a chave também PODE ficar visível na **tela de bloqueio** da licença, onde a
+pessoa precisa dela para comprar. Fora de Adicionar lista e do bloqueio, continua
+só por ação explícita em Portal & licença; nunca em cards, perfis, avisos,
+histórico, erros ou diagnóstico.
+Limite de tentativa por ID/origem/global e recusa uniforme (item (a)) continuam.
+
 ### Categorias da Fonte São Preservadas
 
 Grupos/categorias declarados pela fonte original NÃO DEVEM ser substituídos
@@ -233,6 +275,10 @@ resposta do backend, WebSocket ou OpenAI.
 local, sem consulta por tecla ou início de playback. Sincronização diária
 online e consulta rápida apenas em QR/configuração/compra NÃO entram no
 caminho síncrono dos comandos. Falha de rede NÃO bloqueia licença vigente.
+**Atualização (2026-10-14, feature 071)**: o app NÃO DEVE consultar o serviço sem
+ação da pessoa — nem ciclo diário, nem consulta rápida, nem ao abrir o app ou ao
+negar a entrada. Só as ações listadas na exceção (d)–(f) de "Segredos" e o botão
+**Atualizar** falam com o serviço.
 
 ### Trailers e Metadados Não Alteram o Estado Principal da Obra
 
@@ -453,4 +499,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.10.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-13
+**Versão**: 1.11.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-14
