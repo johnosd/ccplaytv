@@ -35,3 +35,8 @@ O snapshot de `2026-10-13T03:31Z` foi tirado **antes** do staging receber a API 
 - Replay do journal e reconcile/manutenção pós-restore: só existe o decodificador fail-closed (`restore_journal.py`); não há executor de replay.
 - Cenário "backup anterior a um delete" sem ressuscitar segredo ou grant.
 - Recuperação da cópia protegida das chaves e restore dos pagamentos/grants com revalidação.
+
+
+## Atualização 2026-10-14 — executor de replay implementado (T064/T065)
+
+O gap "não há executor de replay do journal" deixou de existir: `api/app/portal/restore_replay.py` aplica `source_deleted`, `access_revoked` e `license_revoked` sobre a base restaurada, idempotente e sem segredo. Cobertura com emulador: `api/tests/portal/test_restore_replay.py` (6/6; suíte `tests/portal` 138 passed). **Ainda não foi executado contra um banco restaurado com o journal real** — depende do snapshot pós-070. O cenário "backup anterior a delete" está demonstrado em teste (configuração restaurada some, tombstone e comando de exclusão ficam, nada é reentregue).

@@ -136,6 +136,10 @@ class DeletionService:
             return DeletionResult(intent.deletion_id, intent.source_id, "pending_cleanup")
         return await self._finalize(device_id, intent, now)
 
+    async def purge_source(self, device_id: str, intent: DeletionIntentDocument) -> bool:
+        """Expurgo idempotente de versões/comandos de fonte já tombstonada (replay de restore)."""
+        return await self._purge_versions_and_cancel(device_id, intent)
+
     async def _purge_versions_and_cancel(
         self, device_id: str, intent: DeletionIntentDocument,
     ) -> bool:

@@ -2,8 +2,14 @@
 
 import hmac
 import json
+from collections.abc import Iterable, Iterator
+
+from google.api_core.exceptions import GoogleAPIError
+from google.api_core.retry import Retry
+from google.cloud import storage
 
 from app.portal.recovery_journal import JournalError, JournalEvent
+from app.portal.settings import PortalSettings
 
 
 def decode_journal_object(object_id: str, content: bytes) -> JournalEvent:
@@ -25,3 +31,24 @@ def decode_journal_object(object_id: str, content: bytes) -> JournalEvent:
         return event
     except (ValueError, TypeError, RecursionError):
         raise JournalError("invalid_restore_journal") from None
+
+def load_events(objects: Iterable[tuple[str, bytes]]) -> list[JournalEvent]:
+    """Fail-closed: um objeto inválido bloqueia o replay inteiro (journal incompleto não reabre tráfego)."""
+    return [decode_journal_object(name, content) for name, content in objects]
+
+
+class CloudStorageJournalReader:
+    """Somente leitura (list/get): o runtime da aplicação nunca ganha overwrite/delete no journal."""
+
+    def __init__(self, settings: PortalSettings):
+        if settings.environment not in {"staging", "production"} or not settings.journal_bucket:
+            raise JournalError("cloud_journal_configuration_required")
+        self._bucket = storage.Client(project=settings.project_id).bucket(settings.journal_bucket)
+
+    def objects(self) -> Iterator[tuple[str, bytes]]:
+        try:
+            for blob in self._bucket.list_blobs(prefix="events/", timeout=10):
+                yield blob.name, blob.download_as_bytes(
+                    start=0, end=8192, timeout=10, retry=Retry(initial=0.2, maximum=1, deadline=10))
+        except GoogleAPIError:
+            raise JournalError("journal_unavailable") from None

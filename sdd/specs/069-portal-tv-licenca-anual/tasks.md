@@ -463,3 +463,17 @@ Checkpoint desta revisão:3301/3301 unit (563 arquivos),26/26 direcionados, E2E 
 - Contrato: sem arquivo de contrato tocado; travas 069/070/026 íntegras.
 - Testes executados: `pytest tests/portal/test_restore.py tests/portal/test_display_id_durability.py` → 10 passed (checkpoint anterior ao restore).
 - Pendências: **T060/T039** — repetir o ensaio com snapshot pós-070; executor de replay do journal e cenário "backup anterior a delete" (não implementados); cópia protegida das chaves. **T063 (b)** — inventário/limpeza `generated` do staging (permissão negada e decisão sobre a TV `2A:…`).
+
+
+### Desvio ad-hoc T064–T065 — executor de replay do journal (decisão do usuário, 2026-10-14)
+
+- [X] T064 Implementar o executor de replay do journal sobre base restaurada e isolada (T039/logic §7): `api/app/portal/restore_replay.py` (`RestoreReplay`: `source_deleted` → tombstone + intent `pending_journal` + `resume_delete` + purge de versões/comandos e remoção da configuração restaurada; `access_revoked` → floor de `authEpoch`/`recoveryCodeVersion`, hashes de bearer/chave trocados por valores que ninguém possui, verificador do código corrente reconstituído (ou bloqueio se ausente), código anterior `consumed`; `license_revoked` → `entitlementGeneration` ≥ evento e grant `refunded`; idempotente; relatório sem segredo), `restore_journal.py` (`load_events` fail-closed e `CloudStorageJournalReader` só list/get), `DeletionService.purge_source` e CLI `python -m app.portal.restore_replay [--apply]` (dry-run por padrão). (FR-032-033; SC-010, SC-012; I-1, I-2)
+- [X] T065 Testes `api/tests/portal/test_restore_replay.py` (emulador): backup anterior a delete não ressuscita fonte nem reentrega segredo e o comando de exclusão fica pendente para a TV; revogação de acesso eleva floor, invalida credenciais antigas e troca o verificador; evento antigo nunca regride estado mais novo; sem verificador recuperável bloqueia e não reativa o código antigo; licença revogada eleva geração e revoga o grant sem duplicar; dispositivo ausente é reportado e nada é criado. 6/6.
+
+**Registro T064–T065** (2026-10-14):
+
+- Status: Concluídas.
+- Feito: executor e leitor de journal (fail-closed), CLI e 6 testes de comportamento com emulador.
+- Contrato: sem arquivo de contrato tocado; travas 069/070/026 íntegras.
+- Testes executados: `PORTAL_TEST_FIRESTORE=1 pytest tests/portal` com emulador (Java do Android Studio) → **138 passed** em 55 s; Ruff `app/portal tests/portal` PASS.
+- Limites declarados (não tratados como pronto): (1) o evento `source_deleted` não registra a origem, então o replay grava a intenção como `portal` (a TV recebe o comando e o aplica de forma idempotente); (2) dispositivo com `accessFence` ativo no snapshot sai como `fence_pending` — exige decisão operacional; (3) a causa exata de `license_revoked` (estorno/chargeback) é reconciliada com o provedor, o replay só revoga o grant; (4) **o replay real contra um banco restaurado + journal real ainda não foi executado** — só o dry-run e o CLI estão prontos.

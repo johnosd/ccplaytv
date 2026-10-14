@@ -91,7 +91,7 @@ update-bug-status.ps1.
 | 066-categorias-controle-parental | Gestão de categorias e controle parental | Convergida | 57/57 tasks | 2026-10-10 |
 | 067-configuracoes-lista-global | Separar configurações da lista das configurações globais do app | Convergência Pendente | 52/53 tasks | 2026-10-10 |
 | 068-legibilidade-tv | Legibilidade para TV — letra maior no app e TV ao vivo em coluna única | Encerrada | 42/44 tasks | 2026-10-10 |
-| 069-portal-tv-licenca-anual | Portal web da TV por QR code e licença anual | Em Execução | 62/72 tasks | 2026-10-13 |
+| 069-portal-tv-licenca-anual | Portal web da TV por QR code e licença anual | Em Execução | 64/74 tasks | 2026-10-13 |
 | 070-entrada-listas-gerenciador | Entrada de listas estilo gerenciador | Convergida | 61/61 tasks | 2026-10-13 |
 
 ## Bugs
