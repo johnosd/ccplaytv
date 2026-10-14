@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-14
 
-**Status**: Especificada
+**Status**: Planejada
 
 **Input**: "Hoje o usuário usa o app por 7 dias e depois ele fica bloqueado. Esse bloqueio não precisaria ficar batendo numa API minha todo dia; poderia ser do próprio aplicativo, e depois da compra ele seria desbloqueado. Quero botões tipo refresh/atualizar em vez de requisições automáticas." Fluxos do usuário: (1) adicionar lista pelo site e apertar Atualizar na TV, (2) adicionar lista na TV e ela ir ao site, (3) teste acabou → comprar no site → apertar Atualizar na tela de bloqueio e liberar. Decisões da entrevista de 2026-10-14: nada automático (100% manual), QR fixo, a TV envia nome/host/usuário/senha ao site, chave visível também na tela de bloqueio, teste contado no app.
 

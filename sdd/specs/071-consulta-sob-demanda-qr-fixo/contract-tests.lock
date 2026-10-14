@@ -1,0 +1,27 @@
+{
+  "feature": "071-consulta-sob-demanda-qr-fixo",
+  "lockedAt": "2026-10-14 09:45",
+  "total": 5,
+  "files": [
+    {
+      "path": "tv-web/src/lib/licensing/localTrial.consulta-sob-demanda-qr-fixo.contract.test.ts",
+      "sha256": "6cfd6ff514af49f3c56e97a34b5d832e1d0249eb212929c43a7a581c636cb46e",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/lib/portal/fixedQr.consulta-sob-demanda-qr-fixo.contract.test.ts",
+      "sha256": "095b073ecc1efbcaeb165c50c3071643b166c2576d6580d2e89fcd55fb31d821",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/lib/portal/sourceUploadPlan.consulta-sob-demanda-qr-fixo.contract.test.ts",
+      "sha256": "fc5c8d4f400787531c7f641dbe065a9df6f4e6d61ee08b94291d95e8f2126dd4",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/lib/portal/portalAgent.consulta-sob-demanda-qr-fixo.contract.test.ts",
+      "sha256": "4781dcda548385ff83acd4cd907db4fbb6ca75da29f68663a6b895ac5ad49558",
+      "tests": 2
+    }
+  ]
+}

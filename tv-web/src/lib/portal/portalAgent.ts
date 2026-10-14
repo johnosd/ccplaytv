@@ -13,6 +13,8 @@ export type CycleOutcome = { ok: true } | { ok: false; code: string }
 export interface PortalAgentPorts {
   /** Só retorna após ACKs ou lança; pendência fica durável na outbox. */
   flushDeletions(signal: AbortSignal): Promise<void>
+  /** 071/FR-008: envia a fila de listas da TV ao site (ausente = nada a enviar). */
+  flushUploads?(signal: AbortSignal): Promise<void>
   pull(signal: AbortSignal): Promise<void>
   publishSnapshot(signal: AbortSignal): Promise<void>
   refreshLicense?(signal: AbortSignal): Promise<void>
@@ -166,6 +168,14 @@ export class PortalAgent {
     const wait = this.lastCompletedAt + 10_200 - this.now()
     if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait))
     return this.run(false, true)
+  }
+
+  /**
+   * 071/D-003: Atualizar. 'lists' = exclusões → envios → pull → snapshot; 'license' = só a licença. Pausa de 10 s por
+   * escopo recusa com { ok: false, code: 'wait' } sem requisição. STUB do sdd-plan — implementar na T006.
+   */
+  async refresh(_scope: 'lists' | 'license'): Promise<CycleOutcome> {
+    throw new Error('not implemented')
   }
 
   /** `deletionsOnly`: envio imediato da outbox + snapshot; não é ciclo (não adia o prazo de 24 h nem faz pull). */

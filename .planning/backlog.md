@@ -94,7 +94,7 @@ update-bug-status.ps1.
 | 068-legibilidade-tv | Legibilidade para TV — letra maior no app e TV ao vivo em coluna única | Encerrada | 42/44 tasks | 2026-10-10 |
 | 069-portal-tv-licenca-anual | Portal web da TV por QR code e licença anual | Encerrada com riscos aceitos | 66/76 tasks | 2026-10-14 |
 | 070-entrada-listas-gerenciador | Entrada de listas estilo gerenciador | Convergida | 61/61 tasks | 2026-10-13 |
-| 071-consulta-sob-demanda-qr-fixo | Consulta sob demanda e QR fixo | Especificada | N/A | 2026-10-14 |
+| 071-consulta-sob-demanda-qr-fixo | Consulta sob demanda e QR fixo | Planejada | 0/44 tasks | 2026-10-14 |
 
 ## Bugs
 
