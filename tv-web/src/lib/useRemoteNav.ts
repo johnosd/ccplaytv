@@ -92,7 +92,7 @@ const REMOVE_KEY_DEBOUNCE_MS = 400
  * Alvo com edição de texto real (feature 017: campo de busca) — a única
  * exceção ao padrão "todo teclado é do controle remoto" deste hook.
  */
-function isEditableTarget(target: EventTarget | null): boolean {
+export function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
 }

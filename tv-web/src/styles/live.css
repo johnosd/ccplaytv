@@ -11,30 +11,6 @@
   gap: var(--space-4);
 }
 
-/* ---------- Cabeçalho (FR-006) ---------- */
-
-.live-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.live-header .screen-title {
-  margin-bottom: 0;
-}
-
-.live-header-chips {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-/* Chip informativo (nome da entrada aberta, contagem) — nunca alterna
-   seleção aqui, só exibe (FR-006). */
-.live-header-chips .chip {
-  cursor: default;
-}
-
 /* ---------- 3 colunas (§25) ---------- */
 
 .live-body {
@@ -53,8 +29,150 @@
    026, tem regra própria em `search.css`; esta tela usa a cor genérica de
    `shared.css`). Só o que é exclusivo da Live vive neste arquivo. */
 
-.live-column-channels {
-  width: 400px;
+/* Painéis (feature 048, D-011/D-014; Spec §5.1/§7/§8): 280 / 400 / resto (eram 200 / 340; ampliadas após o uso
+   com categorias reais). As medidas são locais à Live e sobrepõem o `340px` e o `overflow: auto` de `shared.css`
+   por especificidade (`.live-column.…`). */
+.live-column.live-column-groups,
+.live-column.live-column-channels {
+  --live-col-groups: 280px;
+  --live-col-channels: 400px;
+  min-height: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.live-column.live-column-groups {
+  width: var(--live-col-groups);
+  flex: none;
+}
+
+.live-column.live-column-channels {
+  width: var(--live-col-channels);
+  flex: none;
+}
+
+/* Coluna única (feature 068, US2, D-007): sem topbar nem título, uma lista por vez — categorias OU canais — com ~1/3 da
+   largura útil (6 × 96 = 576px de 1728px); o destaque fica com o resto. A outra coluna continua no DOM (contratos de várias
+   features a consultam), só oculta. O zapping (`.player-zap-columns`) não tem `data-live-view` e segue com as duas. */
+.live-body[data-live-view] .live-column.live-column-groups,
+.live-body[data-live-view] .live-column.live-column-channels {
+  width: calc(var(--space-7) * 6);
+}
+
+.live-body[data-live-view='categories'] .live-column-channels,
+.live-body[data-live-view='channels'] .live-column-groups {
+  display: none;
+}
+
+/* Coluna estreita: painel e itens com folga menor para sobrar espaço ao rótulo. */
+.live-column.live-column-groups {
+  padding: var(--space-2);
+}
+
+/* Cabeçalho de duas linhas com divisória (Lab `#navigation`). */
+.live-panel-head,
+.category-title-row {
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--bg-elevated);
+}
+
+.live-panel-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.live-panel-head .live-column-title,
+.live-panel-titles .live-column-title {
+  margin-bottom: 0;
+  font-size: var(--fs-body);
+}
+
+.live-panel-sub {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+/* Linha do topo da lista de canais: lupa + Guia completo (feature 049). O Guia reaproveita a
+   aparência da lupa (`shared.css`), sem a classe dela — cada ícone tem o seu `.tv-focus`. */
+.live-top-icons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.live-guide-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.live-guide-button.tv-focus {
+  background: var(--surface-active);
+  color: var(--text-primary);
+}
+
+/* Moldura rolável com indicador de continuação (feature 048, FR-021, D-018).
+   O degradê é overlay (`::before`/`::after`) — nunca máscara no contêiner
+   rolável, que esmaeceria o anel de foco. O item focado fica fora da faixa
+   por `scroll-padding` (trilha) e `scrollPaddingStart/End` (lista). */
+.live-scroll-frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.live-scroll-frame::before,
+.live-scroll-frame::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--space-5);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1;
+}
+
+.live-scroll-frame::before {
+  top: 0;
+  background: linear-gradient(to bottom, var(--bg-surface), transparent);
+}
+
+.live-scroll-frame::after {
+  bottom: 0;
+  background: linear-gradient(to top, var(--bg-surface), transparent);
+}
+
+.live-scroll-frame.is-more-above::before,
+.live-scroll-frame.is-more-below::after {
+  opacity: 1;
+}
+
+/* Anel de foco inteiro (D-010, receita da feature 036): folga interna para
+   anel + deslocamento + halo (~15px) e margem negativa igual, que mantém o
+   conteúdo no lugar. */
+.live-scroll-area,
+.live-channel-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-2);
+  margin: calc(-1 * var(--space-2));
+  /* Faixa do degradê (48px) + a folga do anel, que a moldura desconta com a margem negativa. */
+  scroll-padding-block: calc(var(--space-5) + var(--space-2));
 }
 
 /* Rótulo de categoria em cada resultado de "Todos" (FR-011) — só existe em
@@ -89,9 +207,6 @@
    (D-004 da feature 010). */
 
 .live-channel-list {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
   position: relative;
 }
 
@@ -103,13 +218,13 @@
 /* Linha de canal (feature 024, D-007/D-008): envolve `<ChannelRow>` —
    `.tv-focus` e o clique/posição absoluta ficam aqui, o conteúdo visual
    vem do componente. Altura fixa: soma com o espaçamento entre linhas dá
-   `LIVE_ITEM_ROW_HEIGHT` (`LiveScreen.tsx`). */
+   `LIVE_ITEM_ROW_HEIGHT` (`liveTrail.ts`). */
 .live-channel-row {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  height: 72px;
+  height: 96px;
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -123,8 +238,9 @@
 }
 
 .live-channel-row .channel-row {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
+  gap: var(--space-1);
 }
 
 .live-channel-row.tv-focus {
@@ -132,34 +248,119 @@
   color: var(--text-primary);
 }
 
-/* Slot de "Agora" (EPG). Reservado sem rótulo: exibir "Agora:" vazio
-   pareceria defeito, e inventar dado é proibido. Fonte de dados no item 42. */
-.live-channel-now {
-  min-height: 28px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+/* Linha de canal V14 (feature 048, Spec §25/§11.2/§31.1) — escopada à Live:
+   `ChannelRow` e `.poster-box` servem outras telas. */
+.live-channel-row {
+  background: var(--bg-elevated);
 }
 
-/* "Agora" / "A seguir" do preview (feature 030, FR-025). Só existe com dado
-   real; a sinopse é limitada a 2 linhas. Só tokens. */
+.live-channel-row.tv-focus {
+  background: var(--bg-hover);
+}
+
+.live-channel-row .channel-row-number {
+  min-width: var(--space-3);
+  font-size: var(--fs-body);
+  color: var(--text-annotation);
+  font-variant-numeric: tabular-nums;
+}
+
+.live-channel-row .channel-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Nome em `--fs-body-lg` (28px), programa em `--fs-body` (24px), grupo em `--fs-caption` (20px) — feature 068. A linha tem 96px;
+   com o espaço entre linhas dá os 108px de `LIVE_ITEM_ROW_HEIGHT` (contrato de navegação por página emendado na 068). */
+.live-channel-row .channel-row-name {
+  font-size: var(--fs-body-lg);
+  font-weight: 600;
+}
+
+.live-channel-row .channel-row-now {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* "Agora: " só como prefixo visual — o texto do slot continua só o título (contrato 030). */
+.live-channel-row .channel-row-now:not(:empty)::before {
+  content: 'Agora: ';
+}
+
+/* Em "Todos" o rótulo do grupo é a 3ª linha da coluna de texto — nunca disputa a largura com o nome. */
+.live-channel-row .live-item-group {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-channel-row .channel-row-progress {
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  bottom: 3px;
+  background: var(--bg-hover);
+}
+
+.live-channel-row .fav-star {
+  color: var(--warning);
+}
+
+/* Canal em reprodução, no zapping (FR-014): distinto de foco (anel) e de seleção (tint). */
+.live-channel-row.is-playing {
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--accent-tint-border);
+}
+
+.live-channel-row.is-playing .channel-row-name {
+  color: var(--accent);
+}
+
+/* Itens da trilha (Spec §11.2/§31.1, Lab `#categoriesv131`) — escopados à Live. Ad-hoc 2026-10-10: letra e altura
+   maiores para ler de longe (era `--fs-caption`/48px). A trilha não é virtualizada — nenhuma conta depende da altura. */
+.live-column-groups .side-category-nav-item {
+  gap: var(--space-1);
+  min-height: 56px;
+  padding: var(--space-1);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+}
+
+.live-column-groups .side-category-nav-item.is-selected {
+  background: var(--accent-tint);
+  border-color: var(--accent-tint-border);
+  color: var(--accent);
+}
+
+/* Foco sem escala (D-010): o anel V14 cabe na folga do contêiner. */
+.live-column-groups .side-category-nav-item.tv-focus {
+  transform: none;
+}
+
+.live-column-groups .side-category-nav-item .side-category-nav-label {
+  font-size: var(--fs-body);
+}
+
+/* Favoritos: tile em `--warning` sobre fundo fixo próprio. */
+.live-column-groups .side-category-nav li:first-child .side-category-nav-tile {
+  color: var(--warning);
+}
+
+/* "Agora" do destaque (feature 030, FR-025; reposicionado na 048). Só existe
+   com dado real; a sinopse é limitada a 2 linhas. Só tokens. */
 .live-epg-block {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  max-width: 420px;
-}
-
-.live-epg-label {
-  font-size: var(--fs-caption);
-  font-weight: 700;
-  color: var(--accent);
-}
-
-.live-epg-title {
-  font-size: var(--fs-body);
-  font-weight: 700;
-  color: var(--text-primary);
+  max-width: 520px;
 }
 
 .live-epg-time {
@@ -170,7 +371,7 @@
 .live-epg-progress {
   height: 4px;
   border-radius: var(--radius-pill);
-  background: var(--bg-surface);
+  background: var(--bg-elevated);
   overflow: hidden;
 }
 
@@ -183,7 +384,7 @@
 
 .live-epg-description {
   margin: 0;
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -191,42 +392,127 @@
   overflow: hidden;
 }
 
-/* ---------- Painel de preview, sem vídeo (feature 024, §25) ---------- */
+/* ---------- Painel de preview = destaque + programação (feature 048) ---------- */
 
 .live-preview-panel {
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: var(--space-3);
+}
+
+/* Sem canal: o aviso ocupa o painel inteiro. */
+.live-preview-panel > .live-preview-empty {
+  grid-row: 1 / -1;
+}
+
+.live-hero {
+  position: relative;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  overflow: hidden;
 }
 
-/* Nada encolhe: com a coluna limitada em altura, itens flex encolhiam e o
-   EPG ("A seguir") ficava por baixo dos botões. */
-.live-preview-panel > * {
-  flex-shrink: 0;
+/* Logo real à direita, esmaecido por opacidade + degradê — sem blur (D-006, Spec §30). */
+.live-hero-art {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
-.live-preview-panel .poster-box {
-  width: 160px;
-  aspect-ratio: 1;
-  align-self: flex-start;
+.live-hero-art img {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  bottom: var(--space-4);
+  width: 45%;
+  height: calc(100% - 2 * var(--space-4));
+  object-fit: contain;
+  object-position: right center;
+  opacity: 0.35;
 }
 
-.live-channel-name {
-  font-size: var(--fs-h2);
-  font-weight: 700;
+.live-hero-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--bg-surface) 0%, transparent 70%);
+}
+
+.live-hero-copy {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.live-hero-eyebrow,
+.live-schedule-label {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.live-hero-name {
+  font-family: var(--font-heading);
+  font-size: var(--fs-display);
+  font-weight: 800;
+  line-height: 1.1;
   color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
-.live-channel-number {
+.live-hero-number {
   font-size: var(--fs-caption);
   color: var(--text-annotation);
+  font-variant-numeric: tabular-nums;
 }
 
-.live-channel-meta {
+/* Feature 058 (FR-015): selo de arquivo do canal — informativo, nunca focável. */
+.live-hero-archive {
+  align-self: flex-start;
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-active);
+  color: var(--info);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-caption);
+}
+
+.live-hero-live {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   font-size: var(--fs-body);
   color: var(--text-secondary);
+}
+
+.live-hero-live b {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.live-hero-dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--live);
 }
 
 .live-preview-empty {
@@ -238,28 +524,37 @@
   max-width: 420px;
 }
 
-.live-preview-actions {
+/* Programação: até 3 cartões reais, os presentes ocupam as primeiras colunas (FR-009). */
+.live-schedule {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.live-schedule-card {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  margin-top: var(--space-2);
-}
-
-.live-preview-action {
+  min-width: 0;
   padding: var(--space-2) var(--space-3);
-  border: none;
-  border-radius: var(--radius-pill);
+  border: 1px solid var(--bg-elevated);
+  border-radius: var(--radius-md);
   background: var(--bg-surface);
-  color: var(--text-secondary);
-  font-size: var(--fs-body);
-  font-weight: 700;
-  text-align: left;
-  cursor: pointer;
 }
 
-.live-preview-action.tv-focus {
-  background: var(--accent);
-  color: var(--accent-ink);
+.live-schedule-title {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-schedule-time {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- Zapping (feature 016) — 2 colunas, sem preview, sem topbar ---------- */
@@ -272,3 +567,5 @@
   flex-direction: row;
   gap: var(--space-4);
 }
+
+

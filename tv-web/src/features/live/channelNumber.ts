@@ -40,7 +40,10 @@ const format = (n: number): string => String(n).padStart(3, '0')
  * Só exibição, nunca identidade. `null` = não derivável de forma estável —
  * a tela não mostra número nenhum, nunca um inventado.
  */
-export function channelNumberOf(item: ChannelNumberInput, categories: CatalogCategory[]): string | null {
+export function channelNumberOf(
+  item: ChannelNumberInput,
+  categories: Array<CatalogCategory & { hiddenBefore?: CatalogCategory[] }>,
+): string | null {
   // R1 do research.md: refutado (T001) — `source_number` nunca é
   // populado hoje, mas a função continua honrando-o se algum dia existir.
   if (item.source_number != null) return format(item.source_number)
@@ -49,8 +52,9 @@ export function channelNumberOf(item: ChannelNumberInput, categories: CatalogCat
   const own = categories.find((c) => c.id === item.category_id)
   if (!own) return null
 
+  // Feature 066 (D-012, ADR-011 §6): as escondidas antes desta também contam — esconder não renumera os canais seguintes.
   let offset = 0
-  for (const category of categories) {
+  for (const category of [...categories, ...(own.hiddenBefore ?? [])]) {
     if (category.order >= own.order) continue
     const known = knownCategoryCount(category)
     if (known === undefined) return null
@@ -58,4 +62,21 @@ export function channelNumberOf(item: ChannelNumberInput, categories: CatalogCat
   }
 
   return format(offset + item.category_position + 1)
+}
+
+type NumberedCategory = CatalogCategory & { locked?: boolean; hiddenBefore?: CatalogCategory[] }
+
+/**
+ * A lista sem as categorias bloqueadas (feature 066: o guia não as oferece — entram só pela trilha, com o PIN), mas com
+ * cada uma delas somada ao `hiddenBefore` das seguintes: o número dos canais não muda (D-012, ADR-011 §6).
+ */
+export function withoutLockedCategories<T extends NumberedCategory>(categories: T[]): T[] {
+  const locked = categories.filter((category) => category.locked)
+  if (locked.length === 0) return categories
+  return categories
+    .filter((category) => !category.locked)
+    .map((category) => ({
+      ...category,
+      hiddenBefore: [...(category.hiddenBefore ?? []), ...locked.filter((other) => other.order < category.order)],
+    }))
 }

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "region": "us-central1",
+  "databaseLocation": "us-central1",
+  "public": {
+    "name": "ccplaytv-portal",
+    "role": "public",
+    "allowUnauthenticated": true
+  },
+  "jobs": {
+    "name": "ccplaytv-portal-jobs",
+    "role": "jobs",
+    "allowUnauthenticated": false
+  },
+  "runtime": {
+    "cpu": "1",
+    "memory": "512Mi",
+    "minInstances": 0,
+    "maxInstances": 2,
+    "concurrency": 20,
+    "timeoutSeconds": 60,
+    "cpuThrottling": true
+  },
+  "scheduler": {
+    "schedule": "0 * * * *",
+    "timezone": "Etc/UTC",
+    "method": "POST",
+    "path": "/internal/portal/jobs/tick",
+    "auth": "OIDC",
+    "audience": "JOBS_SERVICE_URL",
+    "identity": "dedicated-scheduler-service-account"
+  },
+  "iam": {
+    "runtime": [
+      "roles/datastore.user",
+      "bucket-scoped-custom-journal-writer"
+    ],
+    "scheduler": [
+      "roles/run.invoker on jobs only"
+    ],
+    "forbiddenRuntime": [
+      "roles/owner",
+      "roles/editor",
+      "roles/storage.admin",
+      "service-account-json-keys"
+    ]
+  },
+  "journal": {
+    "private": true,
+    "uniformBucketLevelAccess": true,
+    "publicAccessPrevention": "enforced",
+    "retentionLock": false,
+    "conditionalCreation": "ifGenerationMatch=0"
+  }
+}

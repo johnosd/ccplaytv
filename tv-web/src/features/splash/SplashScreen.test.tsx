@@ -11,26 +11,27 @@ afterEach(() => {
 })
 
 describe('SplashScreen (feature 023, US5)', () => {
-  it('chama onFinished só depois de 2,6 s — o tempo de sempre (FR-041)', () => {
+  it('espera prontidão local e um quadro da marca, sem timer fixo', () => {
     const onFinished = vi.fn()
-    render(<SplashScreen onFinished={onFinished} />)
+    const { rerender } = render(<SplashScreen onFinished={onFinished} ready={false} />)
 
-    vi.advanceTimersByTime(2599)
+    vi.advanceTimersByTime(5000)
     expect(onFinished).not.toHaveBeenCalled()
-    vi.advanceTimersByTime(1)
+    rerender(<SplashScreen onFinished={onFinished} ready />)
+    vi.advanceTimersToNextFrame()
     expect(onFinished).toHaveBeenCalledTimes(1)
   })
 
-  it('desmontar antes do fim cancela o temporizador', () => {
+  it('desmontar antes da prontidão cancela o quadro pendente', () => {
     const onFinished = vi.fn()
-    const { unmount } = render(<SplashScreen onFinished={onFinished} />)
+    const { unmount } = render(<SplashScreen onFinished={onFinished} ready />)
     unmount()
     vi.advanceTimersByTime(5000)
     expect(onFinished).not.toHaveBeenCalled()
   })
 
   it('mostra a marca e um indicador de carregamento (role=status) sem nenhum número', () => {
-    render(<SplashScreen onFinished={vi.fn()} />)
+    render(<SplashScreen onFinished={vi.fn()} ready={false} />)
     expect(screen.getByText('CCPlayTv')).toBeInTheDocument()
 
     const status = screen.getByRole('status')
@@ -41,7 +42,7 @@ describe('SplashScreen (feature 023, US5)', () => {
 
   // Feature 028, FR-015/FR-017.
   it('todo controle focável/interativo tem nome acessível', () => {
-    const { container } = render(<SplashScreen onFinished={vi.fn()} />)
+    const { container } = render(<SplashScreen onFinished={vi.fn()} ready={false} />)
     expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 })

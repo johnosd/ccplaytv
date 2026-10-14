@@ -20,8 +20,14 @@ export interface ActivityGate {
   acquirePlayback(): () => void
   setHidden(hidden: boolean): void
   setOnline(online: boolean): void
-  /** Motivo de bloqueio agora, ou `undefined` se a pré-carga pode começar. */
-  blockReason(now: number, idleAfterKeyMs: number): ActivityBlockReason | undefined
+  /**
+   * Motivo de bloqueio agora, ou `undefined` se a pré-carga pode começar.
+   * `urgent` (renovação que uma atualização da lista pediu — bug
+   * `abrir-app-nao-atualiza-todas-categorias`) não cede à tecla: com a pessoa
+   * navegando, o portão ficava fechado e o catálogo não se atualizava na
+   * sessão. Player, app oculto e rede valem sempre (FR-004).
+   */
+  blockReason(now: number, idleAfterKeyMs: number, urgent?: boolean): ActivityBlockReason | undefined
   /** Instante (epoch ms) em que o bloqueio por tecla acaba — `undefined` se nenhuma tecla foi vista. */
   keyIdleAt(idleAfterKeyMs: number): number | undefined
   /** Avisa quando player/visibilidade/rede mudam (tecla não avisa — o agendador consulta). */
@@ -63,11 +69,11 @@ export function createActivityGate(): ActivityGate {
       online = value
       notify()
     },
-    blockReason(now, idleAfterKeyMs) {
+    blockReason(now, idleAfterKeyMs, urgent = false) {
       if (playbackHolds > 0) return 'playback'
       if (hidden) return 'hidden'
       if (!online) return 'offline'
-      if (lastKeyAt !== undefined && now - lastKeyAt < idleAfterKeyMs) return 'key'
+      if (!urgent && lastKeyAt !== undefined && now - lastKeyAt < idleAfterKeyMs) return 'key'
       return undefined
     },
     keyIdleAt(idleAfterKeyMs) {

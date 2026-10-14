@@ -4,6 +4,12 @@
  * só pode fazê-lo passar, nunca editá-lo.
  *
  * Regras: `logic/aba-semelhantes.md` e `logic/navegacao-detalhe.md`.
+ *
+ * EMENDA (2026-10-05, autorizada pelo usuário na feature 059): Semelhantes
+ * passou a duas linhas ("Na sua lista" / "Não encontrados na sua lista"), então
+ * o não encontrado fica na linha de baixo — chega-se a ele por ↓, não mais por →.
+ * Nada mais mudou; o selo "Não encontrado na sua lista" segue no DOM (nome
+ * acessível). Registro: plan.md da 035 (Riscos e Decisões) e da 059 (D-009).
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen, within } from '@testing-library/react'
@@ -122,7 +128,7 @@ describe('MovieDetailScreen — contrato da feature 035', () => {
     press('Enter')
     expect(onOpenTitle).toHaveBeenCalledWith({ kind: 'movie', itemId: 'movie-2' }, { tab: 'similar', focusKey: 'tmdb:movie:604' })
 
-    press('ArrowRight') // Matrix Revolutions (não encontrado)
+    press('ArrowDown') // Matrix Revolutions (não encontrado) — linha de baixo desde a 059
     press('Enter')
     const summary = screen.getByRole('dialog')
     expect(within(summary).getByText('Matrix Revolutions')).toBeInTheDocument()

@@ -1,6 +1,16 @@
 import Dexie, { type EntityTable } from 'dexie'
 import { noteBlockWrite } from './blockMemo'
 import type { PlaybackHeaders } from './m3uHeaders'
+import type { ArchiveVariant } from './archiveUrl'
+import type { AppLanguage } from '../i18n/languages'
+import type { DiscoveryTitle } from '../metadata/tmdbDiscovery'
+import type { NetworkDiagnosticRecord } from '../network/speedTestRepository'
+import type { CatalogReadChunk, CatalogReadManifest } from './readProjectionTypes'
+import type { SeriesWatchMemberRecord, SeriesWatchSummaryRecord } from './seriesWatchTypes'
+import { registerLateCatalogSchemas } from './dbSchema'
+
+export type { CatalogReadChunk, CatalogReadItem, CatalogReadManifest } from './readProjectionTypes'
+export type { SeriesWatchMemberRecord, SeriesWatchSummaryRecord } from './seriesWatchTypes'
 
 /**
  * Armazenamento local do aparelho — a fonte de verdade das telas depois da
@@ -82,6 +92,16 @@ export interface SourceRecord {
   accountCheckedAt?: number
   /** Seções que não responderam na última sincronização bem-sucedida (feature 034, FR-018). */
   lastUnavailableSections?: CatalogSection[]
+  /**
+   * Relógio do painel (feature 058, `data-model.md` §4), de `server_info` —
+   * para montar o início do programa de arquivo no fuso dele. Sem índice, sem
+   * bump; não é segredo, mas não vai a tela nem log.
+   */
+  panelTimezone?: string
+  /** Deslocamento medido do relógio do painel em relação a UTC, em minutos (múltiplo de 15). */
+  panelUtcOffsetMinutes?: number
+  /** Variante de URL de arquivo que já tocou nesta fonte (feature 058); ausente = tentar `rest` primeiro. */
+  archiveVariant?: ArchiveVariant
   createdAt: number
   updatedAt: number
 }
@@ -90,8 +110,6 @@ export interface SourceRecord {
 export type AccountStatusKind = 'active' | 'expired' | 'refused'
 
 export type CatalogItemKind = 'channel' | 'movie' | 'series' | 'episode' | 'unclassified'
-
-
 export interface UserStateRecord {
   stableId: string
   sourceId: string
@@ -155,6 +173,7 @@ export interface CatalogRecord {
   episodeNumber?: number
   streamExtension?: string
   directUrl?: string
+  hasPlayback?: boolean
   /**
    * Instante da última obtenção dos episódios desta série (feature 012,
    * D-005). Só existe em registro `kind: 'series'` de categoria
@@ -190,6 +209,15 @@ export interface CatalogRecord {
   year?: number
   /** Inclusão declarada pela fonte, epoch ms (feature 025) — só filme do provedor (`added`). */
   addedAt?: number
+  /**
+   * Nota que o provedor declara na listagem (feature 055, FR-001), escala 0–10 com uma casa. Só entra quando
+   * válida (> 0 e ≤ 10): ausente = "sem nota", nunca 0. Filme e série do provedor; valor sem índice, sem bump.
+   */
+  providerRating?: number
+  /** Gêneros da listagem (feature 055, FR-002) — só série do provedor; só para exibição, nunca categoria. */
+  providerGenres?: string
+  /** Primeira URL de fundo válida da listagem (feature 055, FR-002) — só série do provedor. */
+  providerBackdropUrl?: string
   /** Duração declarada pela fonte, em segundos (feature 025) — só episódio do provedor (`info.duration_secs`). */
   durationSeconds?: number
   /**
@@ -221,6 +249,12 @@ export interface CatalogRecord {
    * tela o lê. Só `kind: 'channel'`.
    */
   declaredChannelNumber?: number
+  /**
+   * Dias de arquivo (catch-up) que o painel Xtream declara para o canal
+   * (feature 058, FR-007): `tv_archive` = 1 e `tv_archive_duration` inteiro > 0.
+   * Só `kind: 'channel'` de provedor; ausente = sem arquivo. Valor sem índice, sem bump.
+   */
+  archiveDays?: number
 }
 
 /**
@@ -256,8 +290,9 @@ export interface TrailerVideoRef {
   /** Id de vídeo do YouTube (11 caracteres `[A-Za-z0-9_-]`). */
   videoId: string
   kind: 'trailer' | 'teaser'
-  /** ISO 639-1 quando a fonte declara; ausente = desconhecido (caso do provedor). */
+  /** ISO 639-1 / ISO 3166-1 (`region`: separa pt-BR de pt-PT) quando a fonte declara; ausente = desconhecido. */
   language?: string
+  region?: string
   /** Ausente = desconhecido, nunca "falso". */
   official?: boolean
 }
@@ -275,6 +310,8 @@ export interface TmdbTitleRef {
   year?: number
   posterUrl?: string
   overview?: string
+  /** Feature 060: imagem 16:9 (`backdrop_path`) que já vem na resposta, montada SEM chave — para o card expandido da Home. */
+  backdropUrl?: string
 }
 
 /** Uma pessoa do elenco com identidade TMDB (feature 035, `data-model.md` §1). */
@@ -287,7 +324,25 @@ export interface CastPerson {
   photoUrl?: string
 }
 
+/** País cuja classificação indicativa o app guarda (feature 061, FR-003): o do idioma pt, en e es. */
+export type CertificationCountry = 'BR' | 'US' | 'ES'
+
+/** Classificação indicativa por país (feature 061) — só valores válidos daquele país; país sem valor válido fica ausente. */
+export type Certifications = Partial<Record<CertificationCountry, string>>
+
+/** Nota do TMDB (feature 061): média 0–10 e número de votos, como o TMDB devolveu. */
+export interface TmdbRating {
+  average: number
+  votes: number
+}
 export interface TitleFields {
+  /**
+   * Feature 061 — só no lado TMDB. `{}` = a classificação foi pedida e nenhum país serve; AUSENTE num registro `matched`
+   * gravado antes da 061 — o sinal para pedir de novo uma vez (FR-014), como `similar` (035) e `trailerVideos` (033).
+   */
+  certifications?: Certifications
+  /** Feature 061 — só no lado TMDB. Ausente quando o TMDB não trouxe média/votos numéricos. */
+  tmdbRating?: TmdbRating
   /**
    * Feature 035 — só no lado TMDB. Recomendações + similares, sem repetir, sem
    * o próprio título, até 20. `[]` = pedidos e nada veio; AUSENTE num registro
@@ -297,13 +352,13 @@ export interface TitleFields {
   /** Feature 035 — só no lado TMDB. Elenco com identidade (filme: `credits`; série: `aggregate_credits`). */
   castPeople?: CastPerson[]
   /**
-   * Feature 033. Provedor: no máximo um (`youtube_trailer`). TMDB: `[]` quando
-   * os vídeos foram pedidos e nenhum serve; AUSENTE num registro `matched`
-   * gravado antes da 033 (sem `videos`) — é o sinal para pedir de novo uma vez.
+   * Feature 033. Provedor: no máximo um. TMDB: `[]` = pedidos, nenhum serve; AUSENTE (antes da 033) ou `trailerVideosVersion`
+   * ≠ `TRAILER_VIDEOS_VERSION` (pedido sem `pt-BR`; `pt` o TMDB lê como pt-PT) — o sinal para pedir de novo uma vez.
    */
   trailerVideos?: TrailerVideoRef[]
+  trailerVideosVersion?: number
   synopsis?: string
-  /** Só presente quando a sinopse NÃO está em português (código ISO 639-1) — FR-021. */
+  /** Só presente quando a sinopse NÃO está no idioma do app (código ISO 639-1) — FR-021, generalizado na 054. */
   synopsisLanguage?: string
   backdropUrl?: string
   genres?: string
@@ -312,9 +367,9 @@ export interface TitleFields {
   country?: string
   cast?: string
 }
-
 export type TmdbResultRecord =
-  | { status: 'matched'; tmdbId: number; fields: TitleFields }
+  /** `language`: idioma do app com que foi buscado (feature 054); ausente = `pt` (gravado antes da 054). */
+  | { status: 'matched'; tmdbId: number; fields: TitleFields; language?: AppLanguage }
   | { status: 'no_match' }
   | { status: 'dead_id'; tmdbId: number }
 
@@ -354,8 +409,25 @@ export interface TmdbPersonRecord {
   /** Já filtrada e ordenada, no máximo `FILMOGRAPHY_STORED_MAX`. */
   credits: TmdbTitleRef[]
   fetchedAt: number
+  /** Idioma do app com que foi buscada (feature 054); ausente = 'pt'. */
+  language?: AppLanguage
 }
 
+/**
+ * Descoberta pelo TMDB guardada no aparelho (feature 057, `logic/descoberta.md` §2): o ranking semanal (`trending`, período =
+ * semana ISO local) ou o conjunto de candidatos da Dica (`pool`, período = dia local), por tipo e idioma. Só dado público do
+ * TMDB: nenhuma credencial, nenhuma URL. Não depende de fonte nem de geração.
+ */
+export interface DiscoveryCacheRecord {
+  /** `${source}:${kind}:${language}` */
+  id: string
+  source: 'trending' | 'pool'
+  kind: 'movie' | 'series'
+  language: AppLanguage
+  periodKey: string
+  fetchedAt: number
+  titles: DiscoveryTitle[]
+}
 export type IntegrationState = 'connected' | 'refused' | 'offline' | 'rate_limited'
 
 /**
@@ -371,9 +443,8 @@ export interface IntegrationRecord {
   state: IntegrationState
   lastTestedAt: number
   /** Depois de `429`: nenhuma chamada até este instante. */
-  pausedUntil?: number
+  pausedUntil?: number; revision?: string
 }
-
 export type CategoryKind = 'channel' | 'movie' | 'series'
 
 /** Como os itens de uma categoria chegam (data-model.md §2.1). */
@@ -500,7 +571,6 @@ export interface StoredEntriesRecord {
   chunk: number
   records: StoredCatalogRecord[]
 }
-
 export type ImportStatus = 'running' | 'completed' | 'failed' | 'cancelled'
 export type ImportStep = 'fetching' | 'parsing' | 'storing' | 'done'
 
@@ -527,7 +597,6 @@ export type CatalogSection = 'movie' | 'series'
 
 /** Estado de uma parte da lista numa importação (feature 038, FR-015/FR-017). */
 export type SectionRunState = 'waiting' | 'loading' | 'ready' | 'failed' | 'unavailable'
-
 export interface SectionRun {
   state: SectionRunState
   /** Categorias lidas (Xtream). */
@@ -535,7 +604,6 @@ export interface SectionRun {
   /** Itens lidos (M3U) — série conta série, nunca episódio. */
   items?: number
 }
-
 export interface ImportRunRecord {
   id: string
   sourceId: string
@@ -596,7 +664,6 @@ export interface ImportRunRecord {
 }
 
 const DB_NAME = 'ccplaytv'
-
 export class CatalogDb extends Dexie {
   sources!: EntityTable<SourceRecord, 'id'>
   channels!: EntityTable<CatalogRecord, 'id'>
@@ -609,8 +676,13 @@ export class CatalogDb extends Dexie {
   integrations!: EntityTable<IntegrationRecord, 'id'>
   tmdbPeople!: EntityTable<TmdbPersonRecord, 'personId'>
   categoryBlocks!: EntityTable<CategoryBlockRecord, 'categoryId'>
+  catalogReadManifests!: EntityTable<CatalogReadManifest, 'categoryId'>
+  catalogReadChunks!: EntityTable<CatalogReadChunk, 'id'>
+  seriesWatchMembers!: EntityTable<SeriesWatchMemberRecord, 'id'>
+  seriesWatchSummaries!: EntityTable<SeriesWatchSummaryRecord, 'id'>
   sectionStaging!: EntityTable<SectionStagingRecord, 'id'>
-
+  discoveryCache!: EntityTable<DiscoveryCacheRecord, 'id'>
+  networkDiagnostics!: EntityTable<NetworkDiagnosticRecord, 'id'>
   constructor(name: string = DB_NAME) {
     // Feature 038 (R0-3): o Chrome grava em modo "relaxed" por padrão desde a
     // versão 121; a TV de referência é Chromium 120 e ainda gravaria em modo
@@ -756,6 +828,13 @@ export class CatalogDb extends Dexie {
     this.version(15).stores({
       sectionStaging: '++id, [sourceId+categoryId]',
     })
+    // v16 (feature 057): ranking semanal e candidatos da Dica vindos do TMDB, por tipo e idioma. Sem `.upgrade()`:
+    // tabela nova, não há dado antigo. Limpa junto da chave TMDB (`removeTmdbKey`).
+    this.version(16).stores({
+      discoveryCache: 'id',
+    })
+    // Feature 062: último diagnóstico por aparelho, independente de lista/chave.
+    registerLateCatalogSchemas(this)
     // Toda escrita em `categoryBlocks`, por qualquer caminho, esvazia o cache
     // de blocos lidos (`blockMemo.ts`) — sem depender de cada função lembrar.
     this.use({
@@ -778,5 +857,4 @@ export class CatalogDb extends Dexie {
     })
   }
 }
-
 export const db = new CatalogDb()

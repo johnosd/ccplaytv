@@ -1,10 +1,12 @@
+import { createTranslator, type Translator } from '../../lib/i18n/translate'
 import type { TitleMetadataView, TmdbState } from '../../lib/metadata/types'
 import { trailerButtonLabel, type TrailerCandidate } from '../../lib/trailer/trailerCandidates'
 
 /**
  * Estado do botão "Trailer" no detalhe de filme e de série (feature 033,
  * `logic/botao-trailer.md`). Puro: quem chama traz o que as consultas já
- * disseram — nada aqui lê rede nem banco.
+ * disseram — nada aqui lê rede nem banco. Os textos vêm do catálogo (feature
+ * 054); `t` omitido = português.
  */
 export type TrailerActionState =
   | { status: 'checking' }
@@ -24,14 +26,14 @@ export function trailerActionState(input: {
   return { status: 'unavailable', tmdbConfigured: input.tmdbState !== undefined && input.tmdbState !== 'not_configured' }
 }
 
-export function trailerActionLabel(state: TrailerActionState): string {
+export function trailerActionLabel(state: TrailerActionState, t: Translator = createTranslator('pt')): string {
   switch (state.status) {
     case 'checking':
-      return 'Trailer…'
+      return t('trailer.checking')
     case 'available':
-      return trailerButtonLabel(state.candidates[0])
+      return trailerButtonLabel(state.candidates[0], t)
     case 'unavailable':
-      return 'Trailer — indisponível'
+      return t('trailer.unavailable')
   }
 }
 
@@ -41,14 +43,12 @@ export function trailerActionSoftDisabled(state: TrailerActionState): boolean {
 }
 
 /** Texto do toast do OK no botão; `null` quando o OK abre a camada. */
-export function trailerActionToast(state: TrailerActionState): string | null {
+export function trailerActionToast(state: TrailerActionState, t: Translator = createTranslator('pt')): string | null {
   switch (state.status) {
     case 'checking':
-      return 'Consultando trailer'
+      return t('trailer.toastChecking')
     case 'unavailable':
-      return state.tmdbConfigured
-        ? 'Trailer indisponível para este título'
-        : 'Trailer indisponível para este título — configure o TMDB em Integrações para encontrar mais trailers.'
+      return state.tmdbConfigured ? t('trailer.toastUnavailable') : t('trailer.toastUnavailableNoTmdb')
     case 'available':
       return null
   }

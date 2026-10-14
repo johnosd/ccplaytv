@@ -1,3 +1,5 @@
+import type { MessageKey } from '../i18n/messages/pt'
+
 /**
  * Aspecto e qualidade do vídeo (feature 041,
  * `sdd/specs/041-player-qualidade-aspecto/logic/aspecto-qualidade.md`).
@@ -12,11 +14,12 @@ export type AspectMode = 'fit' | 'fill' | 'original' | 'zoom'
 
 export const ASPECT_MODES: readonly AspectMode[] = ['fit', 'fill', 'original', 'zoom']
 
-export const ASPECT_LABEL: Record<AspectMode, string> = {
-  fit: 'Ajustar',
-  fill: 'Preencher',
-  original: 'Original',
-  zoom: 'Zoom',
+/** Chave do catálogo (`player.aspect.*`) do rótulo de cada modo — o texto vem de `t()` (feature 054). */
+export const ASPECT_LABEL_KEY: Record<AspectMode, MessageKey> = {
+  fit: 'player.aspect.fit',
+  fill: 'player.aspect.fill',
+  original: 'player.aspect.original',
+  zoom: 'player.aspect.zoom',
 }
 
 /**
@@ -35,10 +38,11 @@ export type QualityPreference = 'auto' | 'max' | 'min'
 
 export const QUALITY_PREFERENCES: readonly QualityPreference[] = ['auto', 'max', 'min']
 
-export const QUALITY_PREFERENCE_LABEL: Record<QualityPreference, string> = {
-  auto: 'Auto',
-  max: 'Máxima',
-  min: 'Econômica',
+/** Chave do catálogo (`player.quality.*`) do rótulo de cada preferência (feature 054). */
+export const QUALITY_PREFERENCE_LABEL_KEY: Record<QualityPreference, MessageKey> = {
+  auto: 'player.quality.auto',
+  max: 'player.quality.max',
+  min: 'player.quality.min',
 }
 
 /**

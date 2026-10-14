@@ -99,7 +99,7 @@ async function run() {
   }
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   // Só o NOME do erro: a mensagem de uma falha de rede embute a URL com credencial.
   page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error'))
@@ -132,7 +132,7 @@ async function run() {
 
     console.log('=== Abrir o guia do preview e percorrer categorias reais até achar programação (R-001/R-003) ===')
     await page.getByRole('button', { name: 'TV ao vivo', exact: true }).click()
-    await page.waitForSelector('.live-column-groups', { timeout: 10000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 10000 })
     const samples = []
     let withProgramme = 0
     let rowsSeen = 0

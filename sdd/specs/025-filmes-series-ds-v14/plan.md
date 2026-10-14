@@ -1,4 +1,4 @@
-# Implementation Plan: Filmes e Séries no Design System V14 (Onda 4)
+﻿# Implementation Plan: Filmes e Séries no Design System V14 (Onda 4)
 
 **Slug**: `025-filmes-series-ds-v14` | **Date**: 2026-09-27 | **Spec**: `sdd/specs/025-filmes-series-ds-v14/spec.md`
 
@@ -322,6 +322,7 @@ passou 19/19 e 67/67 isolado.
 | R-008 | Achado por acaso ao editar o parágrafo de comentário perto da linha removida (não corrigido, fora de escopo): `Icon.tsx` grava `width`/`height` como `var(--icon-size)` em atributos SVG, que não aceitam `var()` — gera erro de console a cada `<Icon>` renderizado, pré-existente desde a feature 021. | Nenhum — cosmético/de console; o navegador cai pro tamanho intrínseco do SVG, nenhuma asserção falhou por causa disso. | Registrado em `.planning/backlog.md` (`## Ideias Futuras`, prefixo `[Bug]`) para `sdd-bugfix` tratar depois, fora desta feature. |
 | R-007 | O comentário de `markCompleted` afirma que ele atualiza `lastWatched`, e o código não faz isso. | Um executor pode "corrigir" o código pelo comentário e quebrar FR-011. | **Resolvido**: comentário corrigido (T040, Fase 4) — agora explica por que `lastWatched` não é tocado, com referência a FR-011/`logic/historico.md` §1. Código intocado. |
 
+| R-052 | Feature 052 (vitrine + tela de categoria) substituiu o modelo sidebar+grade: o contrato `MoviesScreen.filmes-series-ds-v14.contract.test.tsx` (ordem da side nav + memória por entrada) foi trocado por `VodCategoryScreen.filmes-series-ds-v14.contract.test.tsx` (memória de foco por entrada na tela de categoria); a ordem ★/↺/Todos passou para o contrato da vitrine (052). | Registro — emenda de contrato travado | Resolvido: executada pela feature 052 com aprovação do usuário (2026-10-02); trava regravada. |
 ## Execution Notes
 
 <!--
@@ -437,3 +438,4 @@ também segue pendente.
 ## Passada física na TV — 2026-10-02
 
 Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.
+

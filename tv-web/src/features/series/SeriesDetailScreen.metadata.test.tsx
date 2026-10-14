@@ -171,10 +171,13 @@ describe('SeriesDetailScreen — metadata (feature 032)', () => {
     renderScreen()
     press('ArrowDown')
     press('ArrowRight')
+    press('ArrowRight')
+    press('ArrowRight')
     press('Enter')
 
-    expect(screen.getByText('Gênero').nextSibling?.textContent).toBe('Animação, Drama')
-    expect(screen.getByText('Duração por episódio').nextSibling?.textContent).toBe('~25 min')
+    // Feature 059 (D-006): o cartão também traz a origem — o valor é o 1º nó do <dd>.
+    expect(screen.getByText('Gênero').nextSibling?.firstChild?.textContent).toBe('Animação, Drama')
+    expect(screen.getByText('Duração por episódio').nextSibling?.firstChild?.textContent).toBe('~25 min')
     expect(screen.queryByText('País')).not.toBeInTheDocument()
     expect(screen.queryByText('Direção')).not.toBeInTheDocument()
     // "Elenco" também é o nome de uma aba: procura só dentro da lista de fatos.
@@ -187,7 +190,7 @@ describe('SeriesDetailScreen — metadata (feature 032)', () => {
     metadata({ cast: { value: 'Voz A, Voz B', origin: 'provider' } })
     renderScreen()
     press('ArrowDown') // ações → abas (Episódios)
-    press('ArrowRight') // Detalhes
+    press('ArrowRight') // Similares
     press('ArrowRight') // Elenco
     press('Enter')
 
@@ -215,30 +218,41 @@ describe('SeriesDetailScreen — metadata (feature 032)', () => {
 describe('SeriesDetailScreen — sinopse por episódio (FR-028)', () => {
   function enterEpisodes() {
     press('ArrowDown') // tabs
-    press('ArrowDown') // temporada
     press('ArrowDown') // 1º episódio
   }
 
-  it('mostra a sinopse do episódio focado, some no que não tem, e NUNCA usa a da série no lugar', () => {
+  it('mostra a sinopse AO LADO de cada episódio que a tem, nada no que não tem, e NUNCA usa a da série no lugar', () => {
     metadata({ synopsis: { value: 'SINOPSE DA SÉRIE', origin: 'provider' } })
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     renderScreen()
 
-    const box = () => document.querySelector('.vod-episode-synopsis')
-    expect(box()?.textContent).toBe('') // fora da lista, nada é anunciado
+    const synopsisOf = (name: string) =>
+      screen.getByText(name, { selector: '.vod-episode-title .marquee-inner' }).closest('.vod-episode-row')?.querySelector('.vod-episode-synopsis') ?? null
+
+    // Independe do foco: todas as linhas já mostram a própria sinopse, ao lado da capa.
+    expect(synopsisOf('Piloto')?.textContent).toBe('Sinopse do episódio um.')
+    expect(synopsisOf('Terceiro')?.textContent).toBe('Sinopse do episódio três.')
+    // Episódio 2 não declara sinopse — nenhum texto de preenchimento, nem o da série.
+    const row2 = document.querySelectorAll('.vod-episode-row')[1]
+    expect(row2.querySelector('.vod-episode-synopsis')).toBeNull()
+    expect(row2.textContent).not.toContain('SINOPSE DA SÉRIE')
 
     enterEpisodes()
-    expect(box()?.textContent).toBe('Sinopse do episódio um.')
     press('ArrowDown')
-    expect(box()?.textContent).toBe('') // episódio 2 não tem — nada de texto de preenchimento
-    expect(box()?.textContent).not.toContain('SINOPSE DA SÉRIE')
-    press('ArrowDown')
-    expect(box()?.textContent).toBe('Sinopse do episódio três.')
-
     expect(fetchSpy).not.toHaveBeenCalled() // mover o foco nunca dispara consulta
   })
 
-  it('temporada em que nenhum episódio tem sinopse não reserva faixa nenhuma', () => {
+  it('o título e a informação do episódio ficam ao lado da capa, não dentro dela', () => {
+    renderScreen()
+    const row = document.querySelector('.vod-episode-row') as HTMLElement
+    expect(row.querySelector('.vod-episode-thumb .poster-box')).not.toBeNull()
+    const info = row.querySelector('.vod-episode-info') as HTMLElement
+    expect(info.querySelector('.vod-episode-title')?.textContent).toBe('Piloto')
+    expect(info.querySelector('.vod-episode-meta')?.textContent).toContain('T1:E1')
+    expect(row.querySelector('.vod-episode-thumb .vod-episode-title')).toBeNull()
+  })
+
+  it('temporada em que nenhum episódio tem sinopse não mostra sinopse nenhuma', () => {
     vi.mocked(catalogApi.useSeriesEpisodes).mockReturnValue({
       data: { episodes: [episode('1', 'A', 1), episode('2', 'B', 2)], outcome: 'fetched' },
       isLoading: false,
@@ -248,3 +262,30 @@ describe('SeriesDetailScreen — sinopse por episódio (FR-028)', () => {
     expect(document.querySelector('.vod-episode-synopsis')).toBeNull()
   })
 })
+
+describe('SeriesDetailScreen — nota e precedência da listagem (feature 055)', () => {
+  // FR-006, US1/AC2
+  it('com nota válida mostra "★ 8,0 Provedor"; sem nota não mostra nada', () => {
+    vi.mocked(catalogApi.useCatalogItem).mockReturnValue({ data: { ...SERIES, provider_rating: 8 }, isLoading: false } as ReturnType<typeof catalogApi.useCatalogItem>)
+    renderScreen()
+    expect(document.querySelector('.vod-detail-meta')).toHaveTextContent('★ 8,0')
+    expect(document.querySelector('.vod-detail-meta')).toHaveTextContent('Provedor')
+
+    cleanup()
+    vi.mocked(catalogApi.useCatalogItem).mockReturnValue({ data: { ...SERIES, provider_rating: null }, isLoading: false } as ReturnType<typeof catalogApi.useCatalogItem>)
+    renderScreen()
+    expect(document.querySelector('.vod-detail-meta')).not.toHaveTextContent(/★|Provedor/)
+  })
+
+  // FR-008, US2/AC3: o detalhe lê a metadata obtida (provedor/TMDB); gênero/fundo da listagem não o sobrescrevem
+  it('gênero e fundo da listagem não aparecem no detalhe quando a metadata obtida traz os seus', () => {
+    vi.mocked(catalogApi.useCatalogItem).mockReturnValue({
+      data: { ...SERIES, provider_genres: 'Gênero da listagem', provider_backdrop_url: 'http://exemplo.test/lista.jpg' },
+      isLoading: false,
+    } as ReturnType<typeof catalogApi.useCatalogItem>)
+    metadata({ genres: { value: 'Drama', origin: 'provider' }, backdropUrl: { value: 'http://exemplo.test/detalhe.jpg', origin: 'provider' } })
+    renderScreen()
+    expect(document.body).not.toHaveTextContent('Gênero da listagem')
+    expect(document.querySelector('.vod-detail-backdrop img')).toHaveAttribute('src', 'http://exemplo.test/detalhe.jpg')
+  })
+});

@@ -36,6 +36,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'ciclo-vida-player.m3u')
@@ -144,7 +145,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/ciclo-vida-player.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
 
@@ -164,7 +165,9 @@ async function run() {
   try {
     await addSource(page, m3uUrl)
     await page.route('**/stream/**', () => {})
-    await page.route('**/vod/**', () => {})
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('=== Cenário A: proteção de tela liga/desliga com o estado de reprodução (US1) ===')
     await page.waitForSelector('.source-card', { timeout: 8000 })
@@ -172,7 +175,8 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'movies')
     await waitForCategoryTrail(page)
-    await page.keyboard.press('ArrowRight') // entra em "Filmes" (categoria única)
+    await focusFirstRealCategory(page)
+    await page.keyboard.press('Enter') // entra em "Filmes" (categoria única)
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await page.keyboard.press('Enter') // abre o detalhe
     await page.waitForSelector('.vod-detail', { timeout: 8000 })
@@ -226,8 +230,8 @@ async function run() {
     // "Filmes", de onde se saiu — `openViaTopbar` não depende disso (reseta
     // pra "Início" antes de contar), então funciona igual.
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra na categoria de canais
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
+    await page.keyboard.press('Enter') // entra na categoria de canais
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await page.keyboard.press('Enter') // toca o canal
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })

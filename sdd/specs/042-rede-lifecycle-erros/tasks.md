@@ -233,7 +233,7 @@ description: "Tasks da feature 042 — rede, lifecycle e erros acionáveis"
 - [X] T043 `tv-web/e2e/rede-lifecycle-erros.mjs` (modelo: `e2e/audio-legendas-info.mjs`, `webapis.avplay` falso): queda → reconectando ×3 → erro com código; oculto/voltar com `verifyNetwork` falhando → pausado e bloqueado; banner offline alcançável pelo teclado; Info técnica sem segredos. Entrar em `npm run test:e2e`.
 - [X] T044 Rodar `quickstart.md`; varredura final de `aria-*`/DOM/log por `usuario|senha|http` nas telas migradas.
 - [X] T045 Atualizar `CLAUDE.md` (parágrafo da 042), `.planning/backlog.md` (itens 61/19) e `sdd/specs/042-rede-lifecycle-erros/plan.md` (Estado Atual, Resultado).
-- [ ] T046 Passada na TV **recomendada** (R-001/R-008): nomes reais de erro do AVPlay, reconexão numa queda de rede de verdade, chrome/aviso sobre o plano de hardware.
+- [x] T046 Passada na TV **recomendada** (R-001/R-008): nomes reais de erro do AVPlay, reconexão numa queda de rede de verdade, chrome/aviso sobre o plano de hardware. — **Atualização 06/10/2026: passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-02"); qualquer "não executado/adiada" acima é o estado anterior, mantido como histórico
 
 ### Checklist de Release
 

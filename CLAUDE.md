@@ -103,7 +103,8 @@ npm run dev            # Vite dev server (API CORS expects :5173)
 npm run test           # vitest run — two projects: `dom` (jsdom, *.test.tsx) and `node` (*.test.ts); a .ts test needing DOM goes in TESTES_TS_COM_DOM (vite.config.ts)
 npm run test:e2e       # whole E2E suite, parallel runner (tv-web/e2e/run.mjs); --only a,b / --jobs N / --retry N
 npm run test:e2e:serial # old one-at-a-time chain, to tell a concurrency flake from a real failure
-npm run lint           # oxlint
+npm run lint           # oxlint + the architecture ratchet (scripts/architecture.mjs, see below)
+npm run bench:import   # import benchmark: fictional Xtream/M3U/XMLTV × 1k/10k/100k in the browser (needs `npm run dev`); not part of test:e2e; results versioned in tv-web/bench-results/
 npm run build          # tsc -b && vite build
 npm run build:tizen    # build + sync into CCPlayTv/
 ```
@@ -112,6 +113,17 @@ Prefer the narrowest command that covers the change (a single
 `uv run pytest tests/test_classifier.py`, a single vitest file) before
 running a whole suite.
 
+`npm run lint` also runs `scripts/architecture.mjs`, a ratchet: a new
+feature→feature, lib→UI, components→features or `lib/catalog`→`lib/player`
+import fails, and so does a production file over 300 lines (or over its
+inherited ceiling). What already existed lives in
+`scripts/architecture-baseline.json`, which only shrinks (`node
+scripts/architecture.mjs --prune`); `--write-baseline` refuses to regenerate
+it, and a new exception means editing that JSON by hand with a justification
+in the commit. In PowerShell, `npm run x -- --flag` loses the `--` (the npm
+shim is a script): call `node scripts/bench/run-import-bench.mjs --flag`
+directly, or use Bash.
+
 Per the constitution's "Fluxo de Desenvolvimento" (`.planning/memory/constitution.md`),
 `npm run test:e2e` (with `npm run dev` already running) is a required gate after
 finishing a feature — in addition to unit tests — and must run **before**
@@ -119,7 +131,7 @@ requesting a `tizen-tv`/`tizen-emulator` validation pass.
 
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.7.0) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.10.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 
@@ -150,6 +162,8 @@ formally planned features. The ones most easily violated by accident:
   taxonomy (e.g. TMDB genres).
 
 ## Design system
+
+Product text uses `--fs-*` tokens: **20 px minimum, 24 px default** (scale 64/48/32/28/24/20, `--font-scale: 1`); include new screens in `tv-web/e2e/legibilidade-tv.mjs` to audit minimum size and text clipping in pt/en/es.
 
 **The app has migrated to the CCPlayTV Design System V14 "Spectrum"** — see
 `.planning/migracao-design-system-v14.md` for the wave-by-wave history
@@ -197,6 +211,12 @@ not just an aspiration — it wraps the app root, identity at 1920×1080,
 scaled elsewhere. **New screens consume tokens; they never hardcode a
 color, radius, spacing or font size**, and fonts ship locally
 (`tv-web/src/assets/fonts/`, feature 021) — never a CDN.
+
+**UI text goes through the i18n catalog** (`tv-web/src/lib/i18n/`, feature
+054; pt/en/es): a new string is a key in `messages/<area>.ts` (all three
+languages, `pt` is the base) read with `useT()` — pure helpers take `t` as a
+parameter and never read the store. Provider/IPTV text (channel, category,
+title names) is never translated.
 
 ## How work happens here: the SDD system
 
@@ -319,7 +339,7 @@ and never reads or modifies.
 
 ## Architecture (from `sdd/adr/`)
 
-ADR-001 to ADR-012 are accepted decisions — read the relevant one in full
+ADR-001 to ADR-016 are accepted decisions — read the relevant one in full
 before proposing anything that conflicts, and amend with an inline
 `**Atualização (ADR-0XX):**` note rather than rewriting history.
 
@@ -337,6 +357,10 @@ before proposing anything that conflicts, and amend with an inline
 | ADR-010 | Full source URL, per-item playback URLs and the downloaded M3U file may be stored on the device (extends ADR-008's credential exception); still never logged, displayed, sent to third parties or exported |
 | ADR-011 | Adopts Design System V14 Spectrum (updates ADR-007's reference): precedence constitution > ADRs > V14 Spec > Component Lab > prototype; no media preview on focus; topbar shell; **profile = IPTV list**; single active source; "Em breve" soft-disabled mocks, never fake content; channel number = source order position |
 | ADR-012 | "Bridge page": a static HTTPS page on free static hosting (no server logic, no data, no secrets) is allowed solely to give an http(s) origin to a third-party embed that fails from the app's `file://` origin — the YouTube IFrame player returns error 153 without a `Referer` (proven on the TV, 2026-09-29). Updates ADR-008; each bridge page is listed in ADR-012 |
+| ADR-013 | Serverless portal control on Google Cloud (Cloud Run + Firestore, feature 069): device identity/sessions, encrypted portal configurations, licensing/payments and recovery; import, catalog and Direct Play stay on the TV |
+| ADR-014 | Pairing like playlist managers (feature 070): device ID in MAC format, permanent 10-digit device key always shown on the TV Add screen, saved list values readable by the TV's own portal session; constitution 1.10.0 |
+| ADR-015 | Device ID is immutable once assigned (amends ADR-014): real TV MAC frozen at first pairing (needs the network privilege, after T003), else an ID derived from the DUID with a service key — never random, never reassigned |
+| ADR-016 | On-demand queries and fixed QR (feature 071): no automatic service calls — only the person's action (Atualizar button, list add/edit/delete) talks to the service; the QR is fixed, generated on the TV with ID + key in the URL fragment; the TV uploads its lists' credentials (encrypted, never logged); 7-day trial counted in the app with a first-contact anchor; constitution 1.11.0 |
 
 Plus `REQUISITOS-FUNCIONAIS.md` (RF-001 to RF-019) and
 `ESPECIFICACAO-TRAILERS.md` (RF-019 detail).
@@ -417,6 +441,15 @@ and written at once; old rows are read as a fallback and converted in the
 background. Code that needs a category's or a kind's items must go through
 `catalogRepository.ts`, never `db.channels` directly (only episodes are still
 rows). See feature 039 above.
+
+**Standing rule (feature 066, categories & parental control)**: the person can
+hide categories and lock them behind a PIN (one PIN per list since feature 067;
+every PIN call takes the `sourceId` — `lib/parental/listPin.ts`). Every reader that shows catalog
+items or categories must leave out hidden and locked categories: the `lib/catalog`
+readers filter with `getCategoryAccess` (`lib/catalog/categoryAccess.ts`),
+*after* any memo (caches keep raw data), and category trails use
+`listVisibleCategories`. A new aggregated reader that skips this leaks hidden or
+locked content. Raw `listCategories` is only for import, prefetch and counts.
 
 ## Language
 

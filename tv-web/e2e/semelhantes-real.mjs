@@ -114,7 +114,7 @@ async function run() {
   console.log(`=== ${sample.length} filmes de origem com tmdb_id declarado ===`)
 
   const browser = await launchBrowser()
-  const page = await (await browser.newContext()).newPage()
+  const page = await (await browser.newContext({ locale: 'pt-BR' })).newPage()
   page.on('pageerror', () => {})
   try {
     await page.goto(APP_URL)

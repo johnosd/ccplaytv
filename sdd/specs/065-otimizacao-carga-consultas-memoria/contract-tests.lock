@@ -1,0 +1,27 @@
+{
+    "feature":  "065-otimizacao-carga-consultas-memoria",
+    "lockedAt":  "2026-10-07 19:05",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/metadata/externalQueries.otimizacao-carga-consultas-memoria.contract.test.ts",
+                      "sha256":  "6b65cf9c061d188b7cd79bbb64fbd7b1d890ada4d087b64a32e6407d335407d2",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/catalog/prefetchApi.otimizacao-carga-consultas-memoria.contract.test.ts",
+                      "sha256":  "c58431fa81b39c3f82c895c8d66ec099d7ebce5acc03eee46b4f491297d41cf7",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/vod/ratedSelectionAsync.otimizacao-carga-consultas-memoria.contract.test.ts",
+                      "sha256":  "9bdbe3a135f79d53c512ed50cbef5570894bcffbf8f3b6c453fc7b9bbfe793aa",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/repository/categoryWindow.otimizacao-carga-consultas-memoria.contract.test.ts",
+                      "sha256":  "3231b409e5ad170e7d534d4b7ea17d3fbd38ca4033d57c4b1f18f70ce312cb4e",
+                      "tests":  1
+                  }
+              ]
+}

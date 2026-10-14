@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { SourceRecord } from '../catalog/db'
+import { createTranslator } from '../i18n/translate'
 import {
   EPG_STALE_AFTER_MS,
   epgErrorMessage,
   epgManualHostOf,
   epgStatusOf,
   firstEpgUrl,
+  isEpgDueAfterImport,
   isEpgStale,
   isValidEpgUrl,
   resolveEpgUrl,
@@ -110,11 +112,47 @@ describe('isEpgStale (FR-009)', () => {
   })
 })
 
+describe('isEpgDueAfterImport (D-008, bug epg-nao-atualiza-depois-primeira-carga)', () => {
+  const now = 1_000_000_000_000
+  const startedAt = now - 60_000
+  const stale = { ...PROVIDER, epgLastSyncAt: now - EPG_STALE_AFTER_MS - 1000 }
+
+  it('EPG vencido e sem tentativa desde o início da importação é devido', () => {
+    expect(isEpgDueAfterImport(stale, stale, startedAt, now)).toBe(true)
+    expect(isEpgDueAfterImport(PROVIDER, PROVIDER, startedAt, now)).toBe(true)
+  })
+
+  it('EPG em dia, ou já tentado (sucesso ou falha) depois que a importação começou, não baixa de novo', () => {
+    const fresh = { ...PROVIDER, epgLastSyncAt: now - 1000 }
+    expect(isEpgDueAfterImport(fresh, fresh, startedAt, now)).toBe(false)
+    const failedDuring = { ...stale, epgLastErrorKind: 'network' as const, epgLastErrorAt: startedAt + 1000 }
+    expect(isEpgDueAfterImport(stale, failedDuring, startedAt, now)).toBe(false)
+  })
+
+  it('endereço trocado pela importação (url-tvg novo) é devido mesmo com EPG em dia', () => {
+    const before = { ...M3U, epgDeclaredUrl: 'http://epg.test/a.xml', epgLastSyncAt: now - 1000 }
+    const after = { ...before, epgDeclaredUrl: 'http://epg.test/b.xml' }
+    expect(isEpgDueAfterImport(before, after, startedAt, now)).toBe(true)
+    expect(isEpgDueAfterImport(undefined, after, startedAt, now)).toBe(true)
+  })
+
+  it('sem endereço ou com EPG desativado nunca é devido', () => {
+    expect(isEpgDueAfterImport(M3U, M3U, startedAt, now)).toBe(false)
+    expect(isEpgDueAfterImport(PROVIDER, { ...PROVIDER, epgDisabled: true }, startedAt, now)).toBe(false)
+  })
+})
+
 describe('epgErrorMessage (§45)', () => {
   it('tem texto para cada categoria e nunca menciona endereço', () => {
     for (const kind of ['network', 'refused', 'not_xmltv', 'unreadable', 'storage_full'] as const) {
       expect(epgErrorMessage(kind).length).toBeGreaterThan(10)
       expect(epgErrorMessage(kind)).not.toMatch(/https?:\/\//)
     }
+  })
+
+  it('network orienta a conferir o endereço final (sem redirecionamento), nos 3 idiomas', () => {
+    expect(epgErrorMessage('network')).toMatch(/endereço é o final, sem redirecionamento/)
+    expect(epgErrorMessage('network', createTranslator('en'))).toMatch(/final one, without redirects/)
+    expect(epgErrorMessage('network', createTranslator('es'))).toMatch(/la final, sin redirecciones/)
   })
 })

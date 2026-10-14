@@ -146,7 +146,7 @@ describe('SeriesDetailScreen — Remover do histórico (feature 036)', () => {
     renderScreen()
 
     await waitFor(() => expect(actionLabels().at(-1)).toBe('Remover do histórico'))
-    for (let i = 0; i < 10; i += 1) press('ArrowRight')
+    for (let i = 0; i < 10 && !screen.getByRole('button', { name: 'Remover do histórico' }).classList.contains('tv-focus'); i += 1) press('ArrowRight')
     press('Enter')
     await screen.findByRole('dialog', { name: 'Remover "Breaking Bad" do histórico?' })
     expect(document.querySelectorAll('.tv-focus')).toHaveLength(1) // SC-004

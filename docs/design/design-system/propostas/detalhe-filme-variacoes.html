@@ -1,0 +1,580 @@
+<!doctype html>
+<!--
+  REGISTRO HISTÓRICO — não é referência vigente.
+  Decisão (2026-10-05): variação A ("Cinema"), com os icon buttons da C e Semelhantes em duas linhas,
+  aplicada a filme E série. A referência vigente é a função details() de
+  ../CCPlayTV_Tizen_Ultimate_Prototype_v13_2.html e a seção "Detalhe de filme e de série" da Spec V14.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Detalhe do Filme — Variações</title>
+<style>
+@font-face{font-family:Inter;font-weight:400;src:url(../../../../tv-web/src/assets/fonts/inter-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:Inter;font-weight:500;src:url(../../../../tv-web/src/assets/fonts/inter-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:Inter;font-weight:600;src:url(../../../../tv-web/src/assets/fonts/inter-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:Inter;font-weight:700;src:url(../../../../tv-web/src/assets/fonts/inter-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:Inter;font-weight:800;src:url(../../../../tv-web/src/assets/fonts/inter-latin-800-normal.woff2) format('woff2')}
+@font-face{font-family:Poppins;font-weight:600;src:url(../../../../tv-web/src/assets/fonts/poppins-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:Poppins;font-weight:700;src:url(../../../../tv-web/src/assets/fonts/poppins-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:Poppins;font-weight:800;src:url(../../../../tv-web/src/assets/fonts/poppins-latin-800-normal.woff2) format('woff2')}
+
+/* Tokens V14 — cópia de tv-web/src/index.css */
+:root{
+  --bg-canvas:#05060a;--bg-base:#0b0d12;--bg-surface:#15181f;--bg-elevated:#1d212b;--bg-hover:#2a2f3c;
+  --text-primary:#f5f6f8;--text-secondary:#a7adbb;--text-disabled:#5c6372;--text-annotation:#7c8494;
+  --accent:#ff7a3d;--accent-light:#ffa36b;--accent-ink:#2a1206;--accent-tint:rgba(255,122,61,.16);--accent-tint-border:rgba(255,122,61,.4);
+  --success:#3ddc84;--warning:#ffc93d;--info:#2db8c4;
+  --font-heading:'Poppins',Arial,Helvetica,sans-serif;--font-body:'Inter',Arial,Helvetica,sans-serif;
+  --fs-display:64px;--fs-h1:40px;--fs-h2:28px;--fs-body-lg:24px;--fs-body:20px;--fs-caption:16px;
+  --space-1:8px;--space-2:16px;--space-3:24px;--space-4:32px;--space-5:48px;--space-6:64px;--space-7:96px;
+  --radius-sm:8px;--radius-md:12px;--radius-lg:16px;--radius-pill:999px;
+  --elevation-3:0 24px 70px rgba(0,0,0,.62);
+  --ease:cubic-bezier(.2,.8,.2,1);--duration-fast:140ms;--duration-standard:200ms;
+  --focus-halo:0 0 0 8px rgba(255,122,61,.22);--focus-glow:0 0 40px rgba(255,122,61,.55);--focus-scale:1.06;
+  --safe-x:96px;
+  /* Cor ambiente: no app viria da cor dominante da capa (canvas), com fallback neutro */
+  --amb:255,122,61;--amb2:122,31,61;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#000;color:var(--text-primary);font-family:var(--font-body);overflow:hidden}
+
+/* ---------- Barra de controle do mockup (fora do palco) ---------- */
+.toolbar{position:fixed;top:0;left:0;right:0;z-index:20;background:#0e1016;border-bottom:1px solid #232835;font:500 13px var(--font-body)}
+.tb-row{display:flex;align-items:center;gap:8px;padding:8px 16px;white-space:nowrap;overflow-x:auto}
+.tb-row+.tb-row{padding-top:0;color:var(--text-secondary)}
+.tb-label{color:var(--text-annotation);margin:0 4px 0 12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px}
+.toolbar button{border:1px solid #2c3242;background:#171b24;color:#dfe3ea;border-radius:999px;padding:6px 14px;font:600 13px var(--font-body);cursor:pointer}
+.toolbar button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.toolbar kbd{font:600 11px var(--font-body);padding:1px 6px;border-radius:4px;background:#232835;color:#cfd5df}
+.viewport{position:fixed;left:0;right:0;bottom:0}
+.stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;overflow:hidden;background:var(--bg-canvas);transform-origin:center center}
+
+/* ---------- Camadas ---------- */
+.bg{position:absolute;inset:0;z-index:0;overflow:hidden}
+.bg svg{width:100%;height:100%;display:block}
+.amb{background:
+  radial-gradient(ellipse 55% 70% at 22% 48%,rgba(var(--amb),.40),transparent 70%),
+  radial-gradient(ellipse 55% 65% at 88% 12%,rgba(var(--amb2),.55),transparent 72%),
+  linear-gradient(180deg,var(--bg-base),var(--bg-canvas))}
+.scrim{position:absolute;inset:0;z-index:1;background:var(--bg-canvas);opacity:0;pointer-events:none;transition:opacity var(--duration-standard) var(--ease)}
+.page{position:absolute;inset:0;z-index:2;overflow:hidden;scroll-behavior:smooth}
+
+/* ---------- Foco (receita ADR-007 / V14 §11) ---------- */
+.f{transition:transform var(--duration-fast) var(--ease),box-shadow var(--duration-fast) var(--ease),background-color var(--duration-fast),color var(--duration-fast)}
+.f.focused{outline:4px solid var(--accent);outline-offset:3px;box-shadow:var(--focus-halo),var(--focus-glow);transform:scale(var(--focus-scale));position:relative;z-index:3}
+
+/* ---------- Peças compartilhadas ---------- */
+.eyebrow{font:700 var(--fs-caption)/1 var(--font-body);letter-spacing:.16em;color:var(--accent)}
+.title{font-family:var(--font-heading);font-weight:800;line-height:.98;letter-spacing:-.02em;text-shadow:0 4px 30px rgba(0,0,0,.45)}
+.meta{display:flex;align-items:center;flex-wrap:wrap;gap:14px;font-size:var(--fs-body-lg);font-weight:500;color:#d8dce4}
+.meta .dot{width:5px;height:5px;border-radius:50%;background:var(--text-annotation)}
+.rating{display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:var(--radius-sm);background:rgba(255,201,61,.14);color:var(--warning);font-weight:700}
+.rating small{font-size:13px;color:var(--text-secondary);font-weight:600}
+.watched-pill{color:var(--success);font-weight:700}
+.origin{font-size:13px;font-weight:600;color:var(--text-annotation);letter-spacing:.03em}
+.chips{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.chip{padding:8px 16px;border-radius:var(--radius-pill);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);font-size:var(--fs-caption);font-weight:600;color:#e3e6ec}
+.chip.src{background:var(--accent-tint);border-color:var(--accent-tint-border);color:var(--accent-light)}
+.chip.src small{font-size:11px;letter-spacing:.12em;margin-right:8px;opacity:.8}
+.synopsis-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.synopsis{font-size:var(--fs-body-lg);line-height:1.45;color:#c9ced8;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.more{padding:8px 20px;border-radius:var(--radius-pill);background:rgba(255,255,255,.08);color:var(--text-secondary);font-size:var(--fs-caption);font-weight:700}
+.more.focused{background:var(--accent);color:var(--accent-ink)}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+.btn{height:64px;padding:0 24px;border-radius:var(--radius-pill);background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);font-size:var(--fs-body);font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:10px;white-space:nowrap;color:var(--text-primary)}
+.btn.icon-only{width:64px;padding:0;font-size:28px;line-height:1}
+.btn.primary{height:80px;padding:0 40px;background:var(--text-primary);color:var(--bg-base);border-color:transparent;font-size:var(--fs-body-lg)}
+.btn.focused{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn.primary.has-prog{flex-direction:column;align-items:stretch;gap:9px;padding:0 32px;min-width:400px}
+.prow{display:flex;justify-content:space-between;align-items:baseline;gap:28px}
+.prow small{font-size:14px;font-weight:600;opacity:.72}
+.pbar{height:6px;border-radius:3px;background:rgba(5,6,10,.18);overflow:hidden}
+.pbar i{display:block;height:100%;border-radius:3px;background:currentColor}
+.poster{position:absolute;overflow:hidden;background:var(--bg-surface)}
+.poster svg{width:100%;height:100%;display:block}
+.poster-badge{position:absolute;left:16px;top:16px;padding:6px 14px;border-radius:var(--radius-pill);background:rgba(61,220,132,.94);color:#04210f;font-weight:800;font-size:15px}
+
+/* Abas */
+.tabs{display:flex;gap:12px;padding:0 var(--safe-x)}
+.tab{padding:12px 30px;border-radius:var(--radius-pill);font:600 var(--fs-body-lg) var(--font-heading);color:var(--text-secondary)}
+.tab.is-active{color:var(--text-primary);background:rgba(255,255,255,.10);box-shadow:inset 0 -3px 0 var(--accent)}
+.tab.focused{background:var(--accent);color:var(--accent-ink);box-shadow:var(--focus-halo),var(--focus-glow)}
+
+/* Seções e trilhas */
+.sec{padding-top:28px}
+.sec-h{display:flex;align-items:baseline;gap:18px;padding:0 var(--safe-x);font:700 var(--fs-h2) var(--font-heading)}
+.rail{position:relative;display:flex;gap:28px;padding:28px var(--safe-x) 32px;overflow:hidden;scroll-behavior:smooth}
+.cast{flex:none;width:192px;text-align:center;border-radius:var(--radius-lg);padding:14px 8px 16px}
+.cast .ph{width:160px;height:160px;border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;font:700 46px var(--font-heading);color:#fff;box-shadow:inset 0 0 0 2px rgba(255,255,255,.14),0 12px 30px rgba(0,0,0,.4)}
+.cast b{display:block;font-size:var(--fs-body);font-weight:700}
+.cast span{display:block;margin-top:4px;font-size:var(--fs-caption);color:var(--text-secondary)}
+.cast.focused{background:var(--bg-elevated)}
+.sim{flex:none;width:228px;position:relative}
+.sim .art{position:relative;width:228px;height:342px;border-radius:var(--radius-md);overflow:hidden;box-shadow:0 14px 34px rgba(0,0,0,.45)}
+.sim .art svg{width:100%;height:100%;display:block}
+.sim .badge{position:absolute;left:10px;top:10px;padding:5px 11px;border-radius:var(--radius-pill);font-size:13px;font-weight:800}
+.badge.in{background:rgba(61,220,132,.94);color:#04210f}
+.badge.ext{background:rgba(11,13,18,.84);color:var(--text-secondary);border:1px solid rgba(255,255,255,.16)}
+.sim .nm{margin-top:12px;font-size:var(--fs-caption);font-weight:600;color:#dfe3ea;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sim.focused{outline:none;box-shadow:none}
+.sim.focused .art{outline:4px solid var(--accent);outline-offset:3px;box-shadow:var(--focus-halo),var(--focus-glow)}
+.sim.focused .nm{color:var(--text-primary)}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:24px var(--safe-x) 0}
+.fact{padding:20px 22px;border-radius:var(--radius-lg);background:rgba(21,24,31,.86);border:1px solid rgba(255,255,255,.06)}
+.fact small{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-annotation)}
+.fact small em{font-style:normal;letter-spacing:.02em;text-transform:none;color:var(--info)}
+.fact b{display:block;margin-top:10px;font-size:var(--fs-body-lg);font-weight:600}
+.fact.src b{color:var(--accent-light)}
+
+/* Menu "⋯ Mais" e toast */
+.menu-scrim{position:absolute;inset:0;z-index:30;background:rgba(5,6,10,.62);display:flex;align-items:center;justify-content:center}
+.menu{width:620px;padding:32px;border-radius:24px;background:var(--bg-elevated);box-shadow:var(--elevation-3);display:flex;flex-direction:column;gap:14px}
+.menu h3{font:700 var(--fs-h2) var(--font-heading);margin-bottom:6px}
+.menu .item{padding:20px 26px;border-radius:var(--radius-lg);background:rgba(255,255,255,.06);font-size:var(--fs-body-lg);font-weight:600}
+.menu .item.focused{background:var(--accent);color:var(--accent-ink)}
+.menu p{font-size:var(--fs-caption);color:var(--text-annotation)}
+.toast{position:absolute;left:50%;bottom:64px;transform:translateX(-50%) translateY(20px);z-index:40;padding:18px 30px;border-radius:var(--radius-pill);background:var(--bg-elevated);box-shadow:var(--elevation-3);font-size:var(--fs-body);font-weight:600;opacity:0;transition:opacity 200ms,transform 200ms;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%)}
+
+/* ================= A · Cinema ================= */
+.va-vig{position:absolute;inset:0;background:
+  linear-gradient(90deg,var(--bg-canvas) 0%,rgba(5,6,10,.9) 30%,rgba(5,6,10,.45) 58%,rgba(5,6,10,.08) 82%),
+  linear-gradient(0deg,var(--bg-canvas) 2%,transparent 42%)}
+.va-hero{position:relative;height:900px}
+.va-poster{left:96px;top:150px;width:400px;height:600px;border-radius:var(--radius-lg);box-shadow:0 30px 80px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.08),0 0 140px rgba(var(--amb),.38)}
+.va-info{position:absolute;left:560px;top:150px;width:1264px;height:600px;display:flex;flex-direction:column;justify-content:center;gap:22px}
+.va-info .title{font-size:88px}
+.va-info .synopsis{max-width:1000px}
+.icon-actions{display:flex;align-items:center;gap:16px;margin-bottom:-24px;padding-bottom:40px}
+.icon-actions>*{flex:none}
+.icon-actions .ibtn{width:72px;height:72px}
+.va-below{padding-bottom:96px}
+.va-panel{min-height:420px}
+.sim-block{padding-top:20px}
+.sim-h{display:flex;align-items:center;gap:16px;padding:0 var(--safe-x)}
+.sim-h b{font:700 var(--fs-body-lg) var(--font-heading)}
+.sim-tag{padding:5px 12px;border-radius:var(--radius-pill);font-size:13px;font-weight:800}
+.sim-tag.in{background:rgba(61,220,132,.94);color:#04210f}
+.sim-tag.ext{background:rgba(11,13,18,.84);color:var(--text-secondary);border:1px solid rgba(255,255,255,.16)}
+.sim-block .rail{padding-top:20px;padding-bottom:20px}
+.sim-block [data-g="sim-ext"] .art{opacity:.82}
+.sim-block [data-g="sim-ext"].focused .art{opacity:1}
+
+/* ================= B · Pôster herói ================= */
+.vb-blur svg{filter:blur(36px) saturate(1.2);transform:scale(1.18);opacity:.62}
+.vb-vig{position:absolute;inset:0;background:
+  radial-gradient(ellipse 50% 70% at 76% 46%,rgba(var(--amb),.30),transparent 70%),
+  linear-gradient(90deg,var(--bg-canvas) 0%,rgba(5,6,10,.86) 34%,rgba(5,6,10,.35) 68%,rgba(5,6,10,.5) 100%),
+  linear-gradient(0deg,var(--bg-canvas) 0%,transparent 30%)}
+.vb-hero{position:relative;height:960px}
+.vb-poster{right:128px;top:100px;width:520px;height:780px;border-radius:20px;box-shadow:0 50px 120px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.1),0 0 180px rgba(var(--amb),.5)}
+.vb-info{position:absolute;left:96px;top:100px;width:1060px;height:780px;display:flex;flex-direction:column;justify-content:center;gap:24px}
+.vb-info .title{font-size:104px}
+.vb-info .synopsis{-webkit-line-clamp:4}
+.vb-resume{display:flex;align-items:center;gap:20px;max-width:820px;padding:16px 22px;border-radius:var(--radius-lg);background:rgba(21,24,31,.7);border:1px solid rgba(255,255,255,.07)}
+.vb-resume b{font-size:var(--fs-body);white-space:nowrap}
+.vb-resume .pbar{flex:1;height:8px;background:rgba(255,255,255,.14)}
+.vb-resume .pbar i{background:var(--accent)}
+.vb-resume span{font-size:var(--fs-caption);color:var(--text-secondary);white-space:nowrap}
+.vb-end{height:96px}
+
+/* ================= C · Painel Prime ================= */
+.vc-art{position:absolute;inset:0 0 auto 0;height:900px;-webkit-mask-image:linear-gradient(180deg,#000 50%,transparent 100%);mask-image:linear-gradient(180deg,#000 50%,transparent 100%)}
+.vc-vig{position:absolute;inset:0;background:
+  linear-gradient(90deg,var(--bg-canvas) 0%,rgba(5,6,10,.82) 36%,rgba(5,6,10,.25) 62%,rgba(5,6,10,.55) 100%),
+  linear-gradient(0deg,var(--bg-canvas) 14%,transparent 50%)}
+.vc-hero{position:relative;height:890px}
+.vc-poster{left:96px;top:176px;width:380px;height:570px;border-radius:var(--radius-lg);box-shadow:0 30px 80px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.08),0 0 120px rgba(var(--amb),.35)}
+.vc-info{position:absolute;left:524px;top:176px;width:880px;height:570px;display:flex;flex-direction:column;justify-content:flex-end;gap:20px}
+.vc-info .title{font-size:76px}
+.vc-info .meta{font-size:var(--fs-body)}
+.vc-info .synopsis{font-size:var(--fs-body);-webkit-line-clamp:3}
+.vc-panel{position:absolute;left:1452px;top:176px;width:372px;height:570px;border-radius:20px;background:rgba(11,13,18,.92);border:1px solid rgba(255,255,255,.08);padding:28px 30px;display:flex;flex-direction:column;gap:14px}
+.vc-panel h4{display:flex;justify-content:space-between;align-items:baseline;font:700 var(--fs-body-lg) var(--font-heading);margin-bottom:4px}
+.vc-row{display:flex;flex-direction:column;gap:4px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.07)}
+.vc-row:last-child{border-bottom:0}
+.vc-row small{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-annotation)}
+.vc-row b{font-size:var(--fs-body);font-weight:600}
+.vc-row.src b{color:var(--accent-light)}
+.vc-actions{display:flex;align-items:center;gap:14px;padding-bottom:40px}
+.vc-actions>*{flex:none}
+.vc-actions .btn.primary{height:72px;font-size:var(--fs-body)}
+.vc-actions .btn.primary.has-prog{min-width:400px;padding:0 28px}
+.ibtn{position:relative;width:64px;height:64px;flex:none;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;color:var(--text-primary)}
+.ibtn svg{width:30px;height:30px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ibtn.on{color:var(--success)}
+.ibtn .lbl{position:absolute;top:calc(100% + 14px);left:50%;transform:translateX(-50%);white-space:nowrap;padding:6px 14px;border-radius:var(--radius-pill);background:var(--bg-elevated);color:var(--text-primary);font-size:var(--fs-caption);font-weight:700;opacity:0;transition:opacity var(--duration-fast)}
+.ibtn.focused{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.ibtn.focused .lbl{opacity:1}
+.vc-below{padding-bottom:96px}
+.vc-panel-area{min-height:440px}
+</style>
+</head>
+<body>
+<div class="toolbar" id="toolbar">
+  <div class="tb-row">
+    <span class="tb-label" style="color:var(--success)">Escolhida: A (2026-10-05) · vigente = protótipo v13_2</span>
+    <span class="tb-label">Variação</span>
+    <button data-v="A">A · Cinema</button>
+    <button data-v="B">B · Pôster herói</button>
+    <button data-v="C">C · Painel Prime</button>
+    <span class="tb-label">Estado</span>
+    <button data-t="backdrop">Backdrop TMDB</button>
+    <button data-t="resume">Retomada salva</button>
+    <button data-t="pal">Capa 1/3</button>
+    <span class="tb-label">Teclas</span>
+    <span><kbd>←↑→↓</kbd> navegar · <kbd>Enter</kbd> OK · <kbd>Esc</kbd> voltar · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> variação · <kbd>B</kbd> backdrop · <kbd>P</kbd> retomada · <kbd>C</kbd> capa</span>
+  </div>
+  <div class="tb-row" id="desc"></div>
+</div>
+<div class="viewport" id="viewport"><div class="stage" id="stage"></div></div>
+
+<script>
+// ---------- Dados de exemplo (todos os campos existem no app: fonte, TMDB ou estado do usuário) ----------
+const M = {
+  title: 'Horizonte Zero', year: 2024, duration: 7680, country: 'Estados Unidos', director: 'Clara Valente',
+  genres: ['Ficção científica', 'Suspense', 'Ação'], category: 'Lançamentos 2024', rating: 7.8, added: '23/09/2024',
+  progress: 2530,
+  synopsis: 'Quando o sinal de satélite desaparece sobre metade do planeta, uma engenheira de órbita e um ex-operador de rádio atravessam fronteiras fechadas para alcançar a última estação capaz de restabelecer a transmissão — e descobrem que alguém quer o silêncio permanente. Uma corrida contra o tempo entre desertos, cidades apagadas e uma conspiração que começou décadas antes.',
+};
+const CAST = [['Marina Duarte','Lia Moreau'],['Tomás Reyes','Caio Brandt'],['Helena Sato','Dra. Ivy Kade'],['Rafael Okoye','Cmte. Ilunga'],['Beatriz Lemos','Nadia'],['Jonas Wirth','Operador Hale'],['Sofia Amaral','Vera'],['Daniel Kovač','Mikhail'],['Lucas Ferraz','Teo']];
+const SIM = [['Órbita Fria',1],['Sinal Perdido',0],['A Última Torre',1],['Maré Vermelha',0],['Código Aurora',1],['Norte Absoluto',0],['Frequência 9',1],['Deserto de Vidro',0],['Estação Delta',1],['Céu de Chumbo',0]];
+const PAL = [
+  {a:'#ff7a3d', b:'#7a1f3d', c:'#140a1c', sun:'#ffd9a8', amb:'255,122,61', amb2:'122,31,61'},
+  {a:'#2db8c4', b:'#163a5c', c:'#060d18', sun:'#d6fbff', amb:'45,184,196', amb2:'30,70,150'},
+  {a:'#ffc93d', b:'#7a3b12', c:'#160c06', sun:'#fff3c4', amb:'255,180,60', amb2:'140,60,20'},
+  {a:'#ff2e87', b:'#3a1260', c:'#0b0614', sun:'#ffc0dd', amb:'255,46,135', amb2:'70,20,110'},
+  {a:'#3ddc84', b:'#0f4a3a', c:'#04110c', sun:'#e0ffe9', amb:'61,220,132', amb2:'15,74,58'},
+];
+const DESC = {
+  A: 'A · Cinema (Apple TV / Netflix) — backdrop em tela cheia; capa 400×600 (hoje 220); progresso real dentro do botão principal; ações secundárias em ícones redondos (vindos da C) com rótulo só no foco; Detalhes/Elenco/Semelhantes em abas abaixo da dobra (a aba já aparece no rodapé).',
+  B: 'B · Pôster herói (Apple TV) — capa 520×780 com brilho na cor dela; fundo = backdrop desfocado ou cor ambiente; título enorme; cartão "Você parou em"; página rolável: Elenco → Semelhantes → Ficha técnica (a 1ª seção espia no rodapé).',
+  C: 'C · Painel Prime (Prime Video) — backdrop no topo; capa 380×570; ficha técnica sempre visível no painel lateral; ações em ícones redondos com rótulo só no foco; abas só para Elenco/Semelhantes.',
+};
+
+// ---------- Estado ----------
+const S = { v:'A', backdrop:true, resume:true, pal:0, tabA:'details', tabC:'cast', fav:false, watched:false, menu:false, focus:null };
+const mem = {};
+let seq = 0;
+
+// ---------- Utilitários ----------
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clock = s => { const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60, p=n=>String(n).padStart(2,'0'); return h ? `${h}:${p(m)}:${p(x)}` : `${m}:${p(x)}`; };
+const human = s => { const h=Math.floor(s/3600), m=Math.round(s%3600/60); return h ? `${h}h ${String(m).padStart(2,'0')}min` : `${m}min`; };
+function rng(seed){ let s = (seed*7919+13)%233280; return () => (s = (s*9301+49297)%233280)/233280; }
+function hash(str){ let h=0; for (const ch of str) h=(h*31+ch.charCodeAt(0))>>>0; return h; }
+
+function ridge(r, w, h, base, amp, n){
+  let d = `M0 ${h} L0 ${base}`;
+  for (let i=1;i<=n;i++){ const x=w*i/n, y=base - amp*r() + amp*.35; d += ` L${x.toFixed(0)} ${y.toFixed(0)}`; }
+  return d + ` L${w} ${h} Z`;
+}
+function art(p, kind, title, seed){
+  const poster = kind === 'poster';
+  const w = poster ? 600 : 1920, h = poster ? 900 : 1080, id = 'g' + (++seq), r = rng(seed);
+  const sx = poster ? w*.64 : w*.84, sy = poster ? h*.32 : h*.26, sr = poster ? 110 : 150;
+  let stars = '';
+  for (let i=0;i<(poster?40:90);i++) stars += `<circle cx="${(r()*w).toFixed(0)}" cy="${(r()*h*.45).toFixed(0)}" r="${(r()*1.8+.4).toFixed(1)}" fill="#fff" opacity="${(r()*.6+.15).toFixed(2)}"/>`;
+  const far = ridge(r, w, h, h*.62, h*.16, 9), mid = ridge(r, w, h, h*.72, h*.12, 7), near = ridge(r, w, h, h*.84, h*.08, 5);
+  const fx = poster ? w*.42 : w*.62, fy = poster ? h*.8 : h*.79, fs = poster ? 1 : 1.6;
+  const figure = `<g transform="translate(${fx} ${fy}) scale(${fs})" fill="#020306"><circle cx="0" cy="-58" r="9"/><path d="M-9 -48 L9 -48 L12 -14 L6 -14 L5 18 L-5 18 L-6 -14 L-12 -14Z"/><path d="M12 -44 L40 -70" stroke="#020306" stroke-width="3"/></g>`;
+  let text = '';
+  if (poster) {
+    const words = title.toUpperCase().split(' '), lines = [];
+    for (const wd of words) { const last = lines[lines.length-1]; if (last && (last+' '+wd).length <= 10) lines[lines.length-1] = last+' '+wd; else lines.push(wd); }
+    const fsz = lines.some(l => l.length > 8) ? 64 : 82;
+    text = `<text x="${w/2}" y="62" text-anchor="middle" font-family="Inter,Arial" font-weight="700" font-size="20" letter-spacing="6" fill="#fff" opacity=".75">UM SINAL · UM ÚLTIMO TRAJETO</text>` +
+      lines.map((l,i) => `<text x="${w/2}" y="${h - 70 - (lines.length-1-i)*fsz*1.02}" text-anchor="middle" font-family="Poppins,Arial" font-weight="800" font-size="${fsz}" letter-spacing="3" fill="#fff">${esc(l)}</text>`).join('');
+  }
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.c}"/><stop offset=".55" stop-color="${p.b}"/><stop offset=".78" stop-color="${p.a}"/></linearGradient>
+    <radialGradient id="${id}g"><stop offset="0" stop-color="${p.sun}" stop-opacity=".9"/><stop offset="1" stop-color="${p.a}" stop-opacity="0"/></radialGradient>
+    <linearGradient id="${id}f" x1="0" y1="0" x2="0" y2="1"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".75"/></linearGradient></defs>
+    <rect width="${w}" height="${h}" fill="url(#${id}s)"/>${stars}
+    <circle cx="${sx}" cy="${sy}" r="${sr*2.4}" fill="url(#${id}g)"/><circle cx="${sx}" cy="${sy}" r="${sr}" fill="${p.sun}" opacity=".92"/>
+    <path d="${far}" fill="${p.b}" opacity=".85"/><path d="${mid}" fill="${p.c}" opacity=".92"/>${figure}<path d="${near}" fill="#020306"/>
+    ${poster ? `<rect width="${w}" height="${h}" fill="url(#${id}f)"/>` : ''}${text}</svg>`;
+}
+function avatarBg(name){ const hh = hash(name)%360; return `linear-gradient(135deg,hsl(${hh} 60% 45%),hsl(${(hh+50)%360} 55% 22%))`; }
+function initials(name){ return name.split(' ').map(x => x[0]).slice(0,2).join(''); }
+
+const ICON = {
+  restart:'<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v5h5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>', check:'<path d="M5 12.5l4.5 4.5L19 7"/>',
+  trailer:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/>',
+  similar:'<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>',
+  eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+};
+const svgIcon = k => `<svg viewBox="0 0 24 24">${ICON[k]}</svg>`;
+
+// ---------- Blocos compartilhados ----------
+const pal = () => PAL[S.pal];
+function metaRow(withCountry){
+  const parts = [`<span>${M.year}</span>`, `<span>${human(M.duration)}</span>`];
+  if (withCountry) parts.push(`<span>${M.country}</span>`);
+  parts.push(`<span class="rating">★ ${M.rating.toFixed(1)} <small>Provedor</small></span>`);
+  if (S.watched) parts.push(`<span class="watched-pill">✓ Assistido</span>`);
+  return `<div class="meta">${parts.join('<i class="dot"></i>')}</div>`;
+}
+function chipsRow(){
+  return `<div class="chips"><span class="chip src"><small>CATEGORIA</small>${esc(M.category)}</span>${M.genres.map(g => `<span class="chip">${g}</span>`).join('')}<span class="origin">Gêneros · Dados: TMDB</span></div>`;
+}
+function synopsis(){
+  return `<div class="synopsis-wrap"><p class="synopsis">${esc(M.synopsis)}</p><span class="more f" data-id="more" data-g="more" data-act="more">Ver mais</span></div>`;
+}
+function primary(withBar){
+  if (!S.resume) return `<span class="btn primary f" data-id="act-watch" data-g="actions" data-act="play">▶ Assistir</span>`;
+  const label = `▶ Continuar de ${clock(M.progress)}`;
+  if (!withBar) return `<span class="btn primary f" data-id="act-resume" data-g="actions" data-act="play">${label}</span>`;
+  const pct = (M.progress / M.duration * 100).toFixed(1);
+  return `<span class="btn primary has-prog f" data-id="act-resume" data-g="actions" data-act="play"><span class="prow"><span>${label}</span><small>faltam ${human(M.duration - M.progress)}</small></span><span class="pbar"><i style="width:${pct}%"></i></span></span>`;
+}
+function pill(id, label, act){ return `<span class="btn f" data-id="act-${id}" data-g="actions" data-act="${act}">${label}</span>`; }
+function favLabel(){ return S.fav ? '✓ Na Minha Lista' : '+ Minha Lista'; }
+function castRail(){
+  return `<div class="rail" data-rail>${CAST.map(([n, role], i) => `<div class="cast f" data-id="cast-${i}" data-g="cast" data-act="person"><div class="ph" style="background:${avatarBg(n)}">${initials(n)}</div><b>${n}</b><span>${role}</span></div>`).join('')}</div>`;
+}
+function simRail(){
+  return `<div class="rail" data-rail>${SIM.map(([n, inList], i) => `<div class="sim f" data-id="sim-${i}" data-g="sim" data-act="${inList ? 'sim-in' : 'sim-ext'}"><div class="art">${art(PAL[(i+1)%PAL.length], 'poster', n, 50+i)}<span class="badge ${inList ? 'in' : 'ext'}">${inList ? '✓ Na sua lista' : 'TMDB'}</span></div><div class="nm">${n}</div></div>`).join('')}</div>`;
+}
+// Semelhantes em duas trilhas: o que já está no catálogo local e o que só o TMDB conhece.
+function simCard(n, i, inList){
+  return `<div class="sim f" data-id="sim-${inList ? 'in' : 'ext'}-${i}" data-g="sim-${inList ? 'in' : 'ext'}" data-act="${inList ? 'sim-in' : 'sim-ext'}"><div class="art">${art(PAL[(i+1)%PAL.length], 'poster', n, 50+i)}</div><div class="nm">${n}</div></div>`;
+}
+function simSplit(){
+  const found = SIM.map((s, i) => [...s, i]).filter(s => s[1]), missing = SIM.map((s, i) => [...s, i]).filter(s => !s[1]);
+  return `<div class="sim-block"><div class="sim-h"><span class="sim-tag in">✓ Na sua lista</span><b>Disponíveis para assistir agora</b><span class="origin">${found.length} títulos · OK abre o detalhe</span></div>
+      <div class="rail" data-rail>${found.map(([n, , i]) => simCard(n, i, true)).join('')}</div></div>
+    <div class="sim-block" data-snap="sim-ext"><div class="sim-h"><span class="sim-tag ext">TMDB</span><b>Não encontrados na sua lista</b><span class="origin">${missing.length} sugestões · OK mostra o resumo · procurado em 12 de 14 categorias de filmes</span></div>
+      <div class="rail" data-rail>${missing.map(([n, , i]) => simCard(n, i, false)).join('')}</div></div>`;
+}
+function factsGrid(cols){
+  const F = [['Direção', M.director, 'TMDB'], ['País', M.country, 'TMDB'], ['Duração', human(M.duration), 'TMDB'], ['Gêneros', M.genres.join(', '), 'TMDB'],
+    ['Categoria', M.category, 'fonte', true], ['Ano', M.year, 'fonte'], ['Adicionado em', M.added, 'fonte'], ['Disponível', 'Sim', '']];
+  return `<div class="facts" style="grid-template-columns:repeat(${cols},1fr)">${F.map(([k, v, o, src]) => `<div class="fact${src ? ' src' : ''}"><small>${k}${o ? `<em>${o}</em>` : ''}</small><b>${esc(v)}</b></div>`).join('')}</div>`;
+}
+function posterBlock(cls){
+  return `<div class="poster ${cls}">${art(pal(), 'poster', M.title, 7 + S.pal)}${S.watched ? '<span class="poster-badge">✓ Assistido</span>' : ''}</div>`;
+}
+function tabsRow(list, active){
+  return `<div class="tabs" role="tablist">${list.map(([id, label]) => `<span class="tab f${id === active ? ' is-active' : ''}" role="tab" data-id="tab-${id}" data-g="tabs" data-act="tab" data-tab="${id}">${label}</span>`).join('')}</div>`;
+}
+
+// ---------- Variação A ----------
+function renderA(){
+  const bg = S.backdrop ? `<div class="bg">${art(pal(), 'backdrop', '', 3 + S.pal)}<div class="va-vig"></div></div>` : `<div class="bg amb"><div class="va-vig" style="opacity:.55"></div></div>`;
+  const tab = S.tabA;
+  const panel = tab === 'details' ? factsGrid(4) : tab === 'cast' ? castRail() : simSplit();
+  return `${bg}<div class="scrim" id="scrim"></div><div class="page" id="page">
+    <section class="va-hero" data-snap="hero">${posterBlock('va-poster')}
+      <div class="va-info"><div class="eyebrow">FILME</div><div class="title">${M.title}</div>${metaRow(true)}${chipsRow()}${synopsis()}<div class="icon-actions">${iconActions()}</div></div>
+    </section>
+    <section class="va-below" data-snap="tabs">${tabsRow([['details','Detalhes'],['cast','Elenco'],['similar','Semelhantes']], tab)}<div class="va-panel">${panel}</div></section>
+  </div>`;
+}
+
+// ---------- Variação B ----------
+function renderB(){
+  const bg = S.backdrop ? `<div class="bg"><div class="vb-blur" style="position:absolute;inset:0">${art(pal(), 'backdrop', '', 3 + S.pal)}</div><div class="vb-vig"></div></div>` : `<div class="bg amb"><div class="vb-vig" style="opacity:.5"></div></div>`;
+  const acts = [primary(false)];
+  if (S.resume) acts.push(pill('restart', '↺ Reiniciar', 'play'));
+  acts.push(pill('fav', favLabel(), 'fav'), pill('trailer', '▶ Trailer', 'trailer'),
+    `<span class="btn icon-only f" data-id="act-more" data-g="actions" data-act="menu" aria-label="Mais opções">⋯</span>`);
+  const pct = (M.progress / M.duration * 100).toFixed(1);
+  const resume = S.resume ? `<div class="vb-resume"><b>Você parou em ${clock(M.progress)}</b><span class="pbar"><i style="width:${pct}%"></i></span><span>faltam ${human(M.duration - M.progress)}</span></div>` : '';
+  return `${bg}<div class="scrim" id="scrim"></div><div class="page" id="page">
+    <section class="vb-hero" data-snap="hero">${posterBlock('vb-poster')}
+      <div class="vb-info"><div class="eyebrow">FILME</div><div class="title">${M.title}</div>${metaRow(true)}${chipsRow()}${synopsis()}${resume}<div class="actions">${acts.join('')}</div></div>
+    </section>
+    <section class="sec" data-snap="cast"><div class="sec-h">Elenco <span class="origin">Dados: TMDB</span></div>${castRail()}</section>
+    <section class="sec" data-snap="sim"><div class="sec-h">Semelhantes <span class="origin">✓ Na sua lista = já está no seu catálogo · demais: sugestão TMDB</span></div>${simRail()}</section>
+    <section class="sec" data-snap="facts"><div class="sec-h">Ficha técnica</div>${factsGrid(4)}</section>
+    <div class="vb-end"></div>
+  </div>`;
+}
+
+// ---------- Variação C ----------
+function ibtn(id, icon, label, act, on){
+  return `<span class="ibtn f${on ? ' on' : ''}" data-id="act-${id}" data-g="actions" data-act="${act}" role="button" aria-label="${label}">${svgIcon(icon)}<span class="lbl">${label}</span></span>`;
+}
+function iconActions(){
+  const acts = [primary(true)];
+  if (S.resume) acts.push(ibtn('restart', 'restart', 'Reiniciar', 'play'));
+  acts.push(ibtn('fav', S.fav ? 'check' : 'plus', S.fav ? 'Na Minha Lista' : 'Minha Lista', 'fav', S.fav), ibtn('trailer', 'trailer', 'Trailer', 'trailer'),
+    ibtn('similar', 'similar', 'Semelhantes', 'similar'), ibtn('watched', S.watched ? 'check' : 'eye', S.watched ? 'Desmarcar assistido' : 'Marcar como assistido', 'watched', S.watched));
+  if (S.resume) acts.push(ibtn('remove', 'trash', 'Remover do histórico', 'remove'));
+  return acts.join('');
+}
+function renderC(){
+  const bg = S.backdrop ? `<div class="bg"><div class="vc-art">${art(pal(), 'backdrop', '', 3 + S.pal)}</div><div class="vc-vig"></div></div>` : `<div class="bg amb"><div class="vc-vig" style="opacity:.5"></div></div>`;
+  const rows = [['Direção', M.director], ['País', M.country], ['Duração', human(M.duration)], ['Gêneros', M.genres.join(', ')], ['Categoria da lista', M.category, true], ['Adicionado em', M.added]];
+  const tab = S.tabC;
+  return `${bg}<div class="scrim" id="scrim"></div><div class="page" id="page">
+    <section class="vc-hero" data-snap="hero">${posterBlock('vc-poster')}
+      <div class="vc-info"><div class="eyebrow">FILME</div><div class="title">${M.title}</div>${metaRow(false)}${chipsRow()}${synopsis()}<div class="vc-actions">${iconActions()}</div></div>
+      <aside class="vc-panel"><h4>Ficha <span class="origin">TMDB + lista</span></h4>${rows.map(([k, v, src]) => `<div class="vc-row${src ? ' src' : ''}"><small>${k}</small><b>${esc(v)}</b></div>`).join('')}</aside>
+    </section>
+    <section class="vc-below" data-snap="tabs">${tabsRow([['cast','Elenco'],['similar','Semelhantes']], tab)}<div class="vc-panel-area">${tab === 'cast' ? castRail() : simRail()}</div></section>
+  </div>`;
+}
+
+function renderMenu(){
+  if (!S.menu) return '';
+  const items = [`<span class="item f" data-id="m-watched" data-g="menu" data-act="watched">${S.watched ? '✗ Desmarcar assistido' : '✓ Marcar como assistido'}</span>`];
+  if (S.resume) items.push(`<span class="item f" data-id="m-remove" data-g="menu" data-act="remove">Remover do histórico</span>`);
+  return `<div class="menu-scrim"><div class="menu"><h3>${M.title}</h3>${items.join('')}<p>Voltar fecha este menu.</p></div></div>`;
+}
+
+// ---------- Render + foco ----------
+const stage = document.getElementById('stage');
+function render(keepScroll){
+  const old = document.getElementById('page');
+  const saved = keepScroll && old ? { top: old.scrollTop, rails: [...old.querySelectorAll('[data-rail]')].map(r => r.scrollLeft) } : null;
+  const p = pal();
+  document.documentElement.style.setProperty('--amb', p.amb);
+  document.documentElement.style.setProperty('--amb2', p.amb2);
+  stage.innerHTML = ({A: renderA, B: renderB, C: renderC})[S.v]() + renderMenu() + '<div class="toast" id="toast"></div>';
+  const page = document.getElementById('page');
+  if (saved) {
+    page.style.scrollBehavior = 'auto';
+    page.scrollTop = saved.top;
+    page.querySelectorAll('[data-rail]').forEach((r, i) => { r.style.scrollBehavior = 'auto'; r.scrollLeft = saved.rails[i] || 0; r.style.scrollBehavior = ''; });
+    page.style.scrollBehavior = '';
+  }
+  page.addEventListener('scroll', () => { document.getElementById('scrim').style.opacity = Math.min(1, page.scrollTop / 700) * .72; });
+  stage.querySelectorAll('.f').forEach(el => el.addEventListener('click', () => { focus(el); select(); }));
+  let el = S.focus && stage.querySelector(`[data-id="${S.focus}"]`);
+  if (S.menu) el = stage.querySelector('[data-g="menu"]');
+  if (!el) el = stage.querySelector('[data-g="actions"]');
+  focus(el, !keepScroll);
+  syncToolbar();
+}
+function focus(el, instant){
+  if (!el) return;
+  stage.querySelectorAll('.focused').forEach(x => x.classList.remove('focused'));
+  el.classList.add('focused');
+  S.focus = el.dataset.id;
+  mem[el.dataset.g] = el.dataset.id;
+  ensureVisible(el, instant);
+}
+function ensureVisible(el, instant){
+  const page = document.getElementById('page');
+  if (!page || el.dataset.g === 'menu') return;
+  if (instant) page.style.scrollBehavior = 'auto';
+  const snaps = [...page.querySelectorAll('[data-snap]')].filter(s => s.querySelector('.f'));
+  const snap = el.closest('[data-snap]');
+  const max = page.scrollHeight - page.clientHeight;
+  let top = snap.dataset.snap === 'hero' ? 0 : snap.offsetTop - 48;
+  if (snap === snaps[snaps.length - 1] && snap.dataset.snap !== 'hero') top = max; // última seção focável: mostra o que vem depois (Ficha)
+  page.scrollTop = Math.max(0, Math.min(max, top));
+  if (instant) setTimeout(() => page.style.scrollBehavior = '', 0);
+  const rail = el.closest('[data-rail]');
+  if (rail) {
+    const pad = 96, l = el.offsetLeft, r = l + el.offsetWidth;
+    if (l - rail.scrollLeft < pad) rail.scrollLeft = l - pad;
+    else if (r - rail.scrollLeft > rail.clientWidth - pad) rail.scrollLeft = r - rail.clientWidth + pad;
+  }
+}
+function center(r){ return { x: r.left + r.width/2, y: r.top + r.height/2 }; }
+function move(dir){
+  const cur = stage.querySelector('.focused'); if (!cur) return;
+  let pool = [...stage.querySelectorAll('.f')].filter(x => x !== cur);
+  if (S.menu) pool = pool.filter(x => x.dataset.g === 'menu');
+  const a = cur.getBoundingClientRect(), ca = center(a);
+  let best = null, bestScore = Infinity;
+  for (const el of pool) {
+    const b = el.getBoundingClientRect(), cb = center(b), dx = cb.x - ca.x, dy = cb.y - ca.y;
+    let primaryD, ortho;
+    if (dir === 'right' || dir === 'left') {
+      if (dir === 'right' ? dx <= 8 : dx >= -8) continue;
+      if (Math.abs(dy) > Math.max(a.height, b.height) / 2) continue; // mesma linha
+      primaryD = Math.abs(dx); ortho = Math.abs(dy);
+    } else {
+      if (dir === 'down' ? dy <= 8 : dy >= -8) continue;
+      primaryD = Math.abs(dy); ortho = Math.abs(dx) * .4;
+    }
+    const score = primaryD + ortho;
+    if (score < bestScore) { bestScore = score; best = el; }
+  }
+  if (!best) return;
+  if (best.dataset.g !== cur.dataset.g) {
+    // Entrar num grupo restaura o item onde o foco estava (por identidade), ou a aba ativa.
+    const g = best.dataset.g, remembered = mem[g] && stage.querySelector(`[data-id="${mem[g]}"]`);
+    const active = stage.querySelector(`[data-g="${g}"].is-active`);
+    best = remembered || active || best;
+  }
+  focus(best);
+}
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function select(){
+  const el = stage.querySelector('.focused'); if (!el) return;
+  const act = el.dataset.act;
+  if (act === 'tab') { if (S.v === 'A') S.tabA = el.dataset.tab; else S.tabC = el.dataset.tab; render(true); return; }
+  if (act === 'fav') { S.fav = !S.fav; render(true); toast(S.fav ? 'Adicionado à Minha Lista' : 'Removido da Minha Lista'); return; }
+  if (act === 'watched') { S.watched = !S.watched; S.menu = false; S.focus = mem.actions; render(true); toast(S.watched ? 'Marcado como assistido' : 'Desmarcado'); return; }
+  if (act === 'remove') { S.menu = false; S.focus = mem.actions; render(true); toast('Abriria a confirmação "Remover do histórico"'); return; }
+  if (act === 'menu') { S.menu = true; render(true); return; }
+  if (act === 'similar') {
+    if (S.v === 'A') S.tabA = 'similar'; if (S.v === 'C') S.tabC = 'similar';
+    S.focus = S.v === 'A' ? 'sim-in-0' : 'sim-0'; mem[S.v === 'A' ? 'sim-in' : 'sim'] = S.focus; render(true); return;
+  }
+  const msg = { play: 'Abriria o PlayerLayer', trailer: 'Abriria o TrailerLayer', more: 'Abriria a sinopse completa (modal)', person: 'Abriria a página do ator', 'sim-in': 'Abriria o detalhe deste título (está na sua lista)', 'sim-ext': 'Abriria o resumo do TMDB (não está na sua lista)' }[act];
+  if (msg) toast(msg);
+}
+function back(){
+  if (S.menu) { S.menu = false; S.focus = 'act-more'; render(true); return; }
+  const cur = stage.querySelector('.focused');
+  if (cur && cur.dataset.g !== 'actions') { focus(stage.querySelector(`[data-id="${mem.actions}"]`) || stage.querySelector('[data-g="actions"]')); return; }
+  toast('Voltaria para a vitrine');
+}
+
+// ---------- Toolbar ----------
+function syncToolbar(){
+  document.querySelectorAll('[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === S.v));
+  document.querySelector('[data-t="backdrop"]').classList.toggle('on', S.backdrop);
+  document.querySelector('[data-t="backdrop"]').textContent = S.backdrop ? 'Backdrop TMDB: sim' : 'Backdrop TMDB: não (cor ambiente)';
+  document.querySelector('[data-t="resume"]').classList.toggle('on', S.resume);
+  document.querySelector('[data-t="resume"]').textContent = S.resume ? 'Retomada salva: sim' : 'Retomada salva: não';
+  document.querySelector('[data-t="pal"]').textContent = `Capa ${S.pal + 1}/${PAL.length}`;
+  document.getElementById('desc').textContent = DESC[S.v];
+}
+function setVariant(v){ S.v = v; S.focus = null; S.menu = false; render(false); }
+function toggle(t){ if (t === 'pal') S.pal = (S.pal + 1) % PAL.length; else S[t] = !S[t]; render(true); }
+document.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => { b.blur(); setVariant(b.dataset.v); }));
+document.querySelectorAll('[data-t]').forEach(b => b.addEventListener('click', () => { b.blur(); toggle(b.dataset.t); }));
+
+addEventListener('keydown', e => {
+  const k = e.key;
+  if (k.startsWith('Arrow')) { e.preventDefault(); move(k.slice(5).toLowerCase()); }
+  else if (k === 'Enter') { e.preventDefault(); select(); }
+  else if (k === 'Escape' || k === 'Backspace') { e.preventDefault(); back(); }
+  else if (k === '1' || k === '2' || k === '3') setVariant('ABC'[+k - 1]);
+  else if (k === 'b' || k === 'B') toggle('backdrop');
+  else if (k === 'p' || k === 'P') toggle('resume');
+  else if (k === 'c' || k === 'C') toggle('pal');
+});
+
+function fit(){
+  const tb = document.getElementById('toolbar').offsetHeight, vp = document.getElementById('viewport');
+  vp.style.top = tb + 'px';
+  const s = Math.min(innerWidth / 1920, (innerHeight - tb) / 1080);
+  stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+addEventListener('resize', fit);
+const params = new URLSearchParams(location.search);
+if (params.get('v')) S.v = params.get('v');
+if (params.get('backdrop') === '0') S.backdrop = false;
+if (params.get('resume') === '0') S.resume = false;
+if (params.get('pal')) S.pal = +params.get('pal');
+render(false); fit();
+if (params.get('down')) { for (let i = 0; i < +params.get('down'); i++) move('down'); }
+</script>
+</body>
+</html>

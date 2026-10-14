@@ -14,6 +14,7 @@ import { createServer } from 'node:http'
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const APP_URL = 'http://localhost:5173'
 const PANEL_USER = 'usuario'
@@ -160,8 +161,8 @@ async function openViaTopbar(page, destination) {
 }
 
 async function enterFirstRealCategory(page) {
-  await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await focusFirstRealCategory(page)
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
@@ -255,7 +256,7 @@ async function run() {
   const m3uUrl = `${base}/get.php?username=${PANEL_USER}&password=${PANEL_PASS}`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   const consoleLines = []
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
@@ -317,8 +318,10 @@ async function run() {
     assert(tmdbTotal() === afterOpen, `focar cartões e trocar de aba não fez requisição ao TMDB (${tmdbTotal() - afterOpen})`)
 
     console.log('=== Cenário 2: resumo do não encontrado, sem assistir ===')
-    await page.keyboard.press('ArrowDown') // o painel lembra o último cartão focado: Matrix Revolutions
-    assert((await focusedSimilar(page)) === 'Matrix Revolutions', 'foco no não encontrado')
+    // Feature 059: duas linhas — "Na sua lista" (Matrix Reloaded) e "Não encontrados" (Revolutions, Animatrix).
+    await page.keyboard.press('ArrowDown') // o painel lembra o último cartão focado: Matrix Reloaded
+    await page.keyboard.press('ArrowDown') // ↓ troca de linha: Matrix Revolutions
+    assert((await focusedSimilar(page)) === 'Matrix Revolutions', 'foco no não encontrado (linha de baixo)')
     await page.keyboard.press('Enter')
     const summary = page.locator('[role="dialog"]')
     await summary.waitFor({ timeout: 5000 })
@@ -332,7 +335,7 @@ async function run() {
     assert((await focusedSimilar(page)) === 'Matrix Revolutions', 'RETURN fecha só o modal e o foco continua no cartão')
 
     console.log('=== SC-003: 10 sequências detalhe → semelhante encontrado → detalhe → RETURN ===')
-    await page.keyboard.press('ArrowLeft') // Matrix Reloaded
+    await page.keyboard.press('ArrowUp') // Matrix Reloaded, na linha de cima (feature 059)
     let okSequences = 0
     for (let i = 0; i < 10; i += 1) {
       await page.keyboard.press('Enter')

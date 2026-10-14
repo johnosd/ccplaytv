@@ -1,4 +1,6 @@
 import { describeError, type ErrorCode } from '../../lib/errors/errorCatalog'
+import { pt } from '../../lib/i18n/messages/pt'
+import { createTranslator, type Translator } from '../../lib/i18n/translate'
 
 /**
  * Conteúdo da faixa de erro do formulário de lista (feature 045, D-006).
@@ -13,10 +15,12 @@ export interface ConnectionBanner {
   retryable: boolean
 }
 
-export function bannerFor(code: ErrorCode): ConnectionBanner {
-  const { title, description, retryable } = describeError(code)
+export function bannerFor(code: ErrorCode, t: Translator = createTranslator('pt')): ConnectionBanner {
+  const { title, description, retryable } = describeError(code, t)
   return { code, title, description, retryable }
 }
 
-/** Rótulo do botão de ação depois de uma falha: só os códigos recuperáveis o trocam. */
-export const RETRY_LABEL = 'Tentar de novo'
+/** Rótulo do botão de ação depois de uma falha: só os códigos recuperáveis o trocam (common.retry). */
+export const RETRY_LABEL_KEY = 'common.retry' as const
+/** O mesmo rótulo em português (testes); a tela usa `t(RETRY_LABEL_KEY)`. */
+export const RETRY_LABEL = pt[RETRY_LABEL_KEY]

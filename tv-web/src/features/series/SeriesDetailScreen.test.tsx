@@ -104,9 +104,8 @@ function press(key: string) {
   })
 }
 
-/** actions → tabs → season → episodes, focando o 1º episódio da temporada exibida (3 setas). */
+/** actions → tabs → episodes, focando o 1º episódio da temporada exibida (2 setas). */
 function enterEpisodesRow() {
-  press('ArrowDown')
   press('ArrowDown')
   press('ArrowDown')
 }
@@ -206,6 +205,25 @@ describe('SeriesDetailScreen', () => {
 
     expect(screen.getByText('Carregando episódios…')).toBeInTheDocument()
     press('Enter')
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('quota exibe STO-01 com retry por SELECT e retorno disponíveis', () => {
+    const refetch = vi.fn()
+    const onBack = vi.fn()
+    vi.mocked(catalogApi.useSeriesEpisodes).mockReturnValue({
+      data: { episodes: [], outcome: 'failed', reason: 'storage_full' },
+      isLoading: false,
+      refetch,
+    } as unknown as ReturnType<typeof catalogApi.useSeriesEpisodes>)
+    renderScreen(onBack)
+    expect(screen.getByText('Limite de armazenamento do app')).toBeInTheDocument()
+    expect(screen.getByText(/STO-01/)).toHaveTextContent('Isso pode acontecer mesmo com espaço livre na TV.')
+    expect(screen.queryByText('Não foi possível carregar os episódios desta série')).not.toBeInTheDocument()
+    expect(screen.getByText('Tentar de novo').className).toContain('tv-focus')
+    press('Enter')
+    expect(refetch).toHaveBeenCalledTimes(1)
+    press('Backspace')
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 
@@ -347,7 +365,7 @@ describe('SeriesDetailScreen', () => {
     renderScreen()
     press('ArrowDown')
 
-    const tab = screen.getByRole('tab', { name: 'Episódios' })
+    const tab = screen.getByRole('tab', { name: /Temporada 1/ })
     expect(tab.className).toContain('tv-focus')
     expect(tab).toHaveAttribute('aria-selected', 'true')
   })
@@ -355,6 +373,8 @@ describe('SeriesDetailScreen', () => {
   it('←/→ nas abas move o foco sem trocar a aba ativa; OK troca de verdade (Detalhes)', () => {
     renderScreen()
     press('ArrowDown') // tabs, foco em Episódios
+    press('ArrowRight') // Similares
+    press('ArrowRight') // Elenco
     press('ArrowRight') // foco em Detalhes, sem trocar
 
     let details = screen.getByRole('tab', { name: 'Detalhes' })
@@ -384,7 +404,7 @@ describe('SeriesDetailScreen', () => {
     press('Enter')
 
     expect(screen.getByRole('tab', { name: 'Elenco' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: 'Episódios' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tab', { name: /Temporada 1/ })).toHaveAttribute('aria-selected', 'false')
     expect(await screen.findByText('O elenco deste título não foi informado.')).toBeInTheDocument()
     expect(screen.queryByText(/Em breve/)).not.toBeInTheDocument()
   })
@@ -399,12 +419,14 @@ describe('SeriesDetailScreen', () => {
 
   // --- seletor de temporada em modal (US6, FR-040) ---
 
-  it('BAIXO nas abas (Episódios ativa) entra na linha de temporada', () => {
+  it('seletor de temporada é a primeira aba, seguido de Similares, Elenco e Detalhes', () => {
     renderScreen()
-    press('ArrowDown') // tabs
-    press('ArrowDown') // season
+    press('ArrowDown') // seletor na primeira aba
 
-    const seasonButton = screen.getByText(/Temporada 1/).closest('.vod-season-button')
+    const seasonButton = screen.getByText(/Temporada 1/).closest('[role=tab]')
+    expect(seasonButton?.closest('[role=tablist]')).not.toBeNull()
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Temporada 1 ▾', 'Similares', 'Elenco', 'Detalhes'])
+    expect(document.querySelector('.vod-detail-actions .vod-season-button')).toBeNull()
     expect(seasonButton?.className).toContain('tv-focus')
     expect(screen.getByText('2 episódios')).toBeInTheDocument()
   })
@@ -423,8 +445,7 @@ describe('SeriesDetailScreen', () => {
 
   it('todo controle tem nome acessível: modal de temporada aberto', () => {
     renderScreen()
-    press('ArrowDown')
-    press('ArrowDown')
+    press('ArrowDown') // seletor na primeira aba
     press('Enter')
     expect(screen.getByRole('dialog', { name: 'Selecionar temporada' })).toBeInTheDocument()
     expect(findUnnamedControls(document.body).map((f) => f.description)).toEqual([])
@@ -432,8 +453,7 @@ describe('SeriesDetailScreen', () => {
 
   it('OK na linha de temporada abre o modal, mesmo havendo várias — a atual vem com ✓ e foco', () => {
     renderScreen()
-    press('ArrowDown')
-    press('ArrowDown')
+    press('ArrowDown') // seletor na primeira aba
     press('Enter')
 
     expect(screen.getByRole('dialog', { name: 'Selecionar temporada' })).toBeInTheDocument()
@@ -444,8 +464,7 @@ describe('SeriesDetailScreen', () => {
 
   it('escolher outra temporada no modal troca a lista e devolve o foco ao botão', () => {
     renderScreen()
-    press('ArrowDown')
-    press('ArrowDown')
+    press('ArrowDown') // seletor na primeira aba
     press('Enter') // abre modal
 
     press('ArrowDown') // foco em Temporada 2
@@ -454,7 +473,7 @@ describe('SeriesDetailScreen', () => {
     expect(screen.queryByRole('dialog', { name: 'Selecionar temporada' })).not.toBeInTheDocument()
     expect(screen.getByText('Seven Thirty-Seven')).toBeInTheDocument()
     expect(screen.queryByText('Piloto')).not.toBeInTheDocument()
-    expect(screen.getByText(/Temporada 2/).closest('.vod-season-button')?.className).toContain('tv-focus')
+    expect(screen.getByText(/Temporada 2/).closest('[role=tab]')?.className).toContain('tv-focus')
     // useSeriesEpisodes não foi chamado de novo — trocar de temporada é leitura local.
     expect(catalogApi.useSeriesEpisodes).toHaveBeenCalledWith('series-1')
   })
@@ -467,8 +486,7 @@ describe('SeriesDetailScreen', () => {
   // "transborda" em todo teste.
   describe('modal de temporada com mais itens do que cabem', () => {
     function openSeasonModal() {
-      press('ArrowDown')
-      press('ArrowDown')
+      press('ArrowDown') // seletor na primeira aba
       press('Enter')
       return document.querySelector('.vod-season-modal-list') as HTMLUListElement
     }
@@ -525,31 +543,31 @@ describe('SeriesDetailScreen', () => {
 
   it('RETURN no modal fecha sem trocar a temporada', () => {
     renderScreen()
-    press('ArrowDown')
-    press('ArrowDown')
+    press('ArrowDown') // seletor na primeira aba
     press('Enter')
 
     press('Escape')
 
     expect(screen.queryByRole('dialog', { name: 'Selecionar temporada' })).not.toBeInTheDocument()
     expect(screen.getByText('Piloto')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Temporada 1/ })).toHaveClass('tv-focus')
   })
 
   // --- lista de episódios (D-013, FR-041) ---
 
-  it('BAIXO na linha de temporada entra na lista de episódios, no 1º episódio', () => {
+  it('BAIXO na aba Episódios entra na lista, no 1º episódio', () => {
     renderScreen()
     enterEpisodesRow()
 
     expect(screen.getByText('Piloto').closest('.vod-episode-row')?.className).toContain('tv-focus')
   })
 
-  it('CIMA no primeiro episódio volta à linha de temporada', () => {
+  it('CIMA no primeiro episódio volta à aba Episódios', () => {
     renderScreen()
     enterEpisodesRow()
     press('ArrowUp')
 
-    expect(screen.getByText(/Temporada 1/).closest('.vod-season-button')?.className).toContain('tv-focus')
+    expect(screen.getByRole('tab', { name: /Temporada 1/ })).toHaveClass('tv-focus')
   })
 
   it('CIMA/BAIXO dentro da lista move entre episódios da mesma temporada', () => {
@@ -742,7 +760,7 @@ describe('SeriesDetailScreen', () => {
       act(() => vi.advanceTimersByTime(10_000))
 
       expect(screen.getByRole('dialog', { name: 'Reproduzindo Seven Thirty-Seven' })).toBeInTheDocument()
-      expect(screen.getByText(/Temporada 2/).closest('.vod-season-button')).toBeInTheDocument()
+      expect(screen.getByText(/Temporada 2/).closest('[role=tab]')).toBeInTheDocument()
     })
 
     it('cancelar a contagem volta à lista com foco no episódio que acabou de concluir, sem tocar o próximo', () => {
@@ -768,7 +786,9 @@ describe('SeriesDetailScreen', () => {
       act(() => {
         screen.getByRole('button', { name: 'Fechar (teste)' }).click()
       })
-      press('ArrowUp') // volta pra season
+      press('ArrowUp') // abas
+      press('ArrowUp') // ações
+      press('ArrowDown') // seletor na primeira aba
       press('Enter') // abre modal
       press('ArrowDown') // Temporada 2
       press('Enter') // escolhe — foco fica no botão de temporada

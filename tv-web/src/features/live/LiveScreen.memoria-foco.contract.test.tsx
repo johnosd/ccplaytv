@@ -129,20 +129,20 @@ describe('LiveScreen — memória de foco por entrada (feature 046)', () => {
     mockCatalog({ 1: g1, 2: g2 }, [category(1, 'G1', 0), category(2, 'G2', 1)], [...g1, ...g2])
     renderLive()
 
-    press('ArrowRight') // entra em G1 (primeira categoria real)
+    press('Enter') // entra em G1 (primeira categoria real)
     press('ArrowDown')
     press('ArrowDown')
     press('ArrowDown') // A4
     expect(focusedChannelText()).toContain('A4')
 
-    press('ArrowLeft')
+    press('Escape')
     press('ArrowDown') // trilha → G2
-    press('ArrowRight') // entra em G2, primeira visita: primeiro item
+    press('Enter') // entra em G2, primeira visita: primeiro item
     expect(focusedChannelText()).toContain('B1')
 
-    press('ArrowLeft')
+    press('Escape')
     press('ArrowUp') // trilha → G1
-    press('ArrowRight') // reentra em G1
+    press('Enter') // reentra em G1
 
     expect(focusedChannelText()).toContain('A4')
   })
@@ -157,7 +157,7 @@ describe('LiveScreen — memória de foco por entrada (feature 046)', () => {
     renderLive()
 
     press('ArrowUp') // trilha: G1 → "Todos"
-    press('ArrowRight') // entra em "Todos"
+    press('Enter') // entra em "Todos"
     press('ArrowDown') // A2
     press('Enter') // toca A2
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
@@ -168,7 +168,8 @@ describe('LiveScreen — memória de foco por entrada (feature 046)', () => {
 
     press('Enter') // abre o zapping: a lista passa a mostrar G1 (categoria de A2)
     await waitFor(() => expect(document.querySelector('.player-zap-columns')).toBeInTheDocument())
-    press('Escape') // fecha só a lista; o canal continua tocando
+    press('Escape') // lista de canais -> trilha (049: RETURN em camadas dentro do zapping)
+    press('Escape') // trilha -> fecha só a lista; o canal continua tocando
     expect(document.querySelector('.player-zap-columns')).not.toBeInTheDocument()
 
     press('ArrowDown') // próximo da vizinhança capturada em "Todos": B1 (outra categoria)
@@ -177,6 +178,9 @@ describe('LiveScreen — memória de foco por entrada (feature 046)', () => {
     for (let i = 0; i < 3 && screen.queryByRole('dialog'); i += 1) press('Escape')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
+    // 049: a lista de zapping foi fechada pela trilha, então o foco volta à trilha, na entrada de origem;
+    // OK reentra em "Todos" e a memória (046) devolve o canal que tocava por último.
+    press('Enter')
     expect(document.querySelector('.live-column-channels .live-column-title')?.textContent).toBe('Todos')
     expect(focusedChannelText()).toContain('B1')
   })

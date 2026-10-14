@@ -5,7 +5,7 @@
 // dica "● Remover do histórico" aparecendo porque a tecla foi registrada; (B)
 // "Remover do histórico" no detalhe, com "apagar progresso", tira o título de
 // Continuar e volta à grade vazia com foco no "Voltar"; (C) Configurações ›
-// Privacidade: linha vazia soft disabled, e limpar "Filmes e Séries" com
+// Histórico (ex-Privacidade): linha vazia soft disabled, e limpar "Filmes e Séries" com
 // "apagar progresso" esvazia Continuar.
 //
 // A tecla vermelha não existe no navegador: o app só a registra (e só mostra
@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusSideItem } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'historico-continuar-assistindo.m3u')
@@ -68,8 +69,8 @@ async function openViaTopbar(page, destination) {
 }
 
 async function enterCategory(page, name) {
-  await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await focusSideItem(page, name)
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
@@ -82,7 +83,7 @@ async function enterHistoryFromTrail(page) {
   await page.keyboard.press('ArrowUp') // "Todos"
   await page.keyboard.press('ArrowUp') // "↺ Histórico"
   await page.locator('.side-category-nav-item.tv-focus', { hasText: 'Histórico' }).waitFor({ timeout: 4000 })
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
 }
 
 async function pressRed(page) {
@@ -121,7 +122,7 @@ const focusedCardTitle = (page) =>
 async function continueTitles(page) {
   await page.waitForSelector('.home-content', { timeout: 8000 })
   await page.waitForTimeout(400) // a rail relê depois da invalidação
-  return page.locator(`${CONTINUE_ROW} .content-card-title`).allTextContents()
+  return page.locator(`${CONTINUE_ROW} .home-card-title`).allTextContents()
 }
 
 async function run() {
@@ -130,7 +131,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/historico-continuar-assistindo.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   // `tizen.tvinputdevice` falso: só a vermelha e a amarela "suportadas".
   await context.addInitScript(() => {
     window.__registeredKeys = []
@@ -155,8 +156,12 @@ async function run() {
     await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
     await page.getByRole('button', { name: 'Voltar' }).click()
     await page.locator('.source-card-wrap', { hasText: SOURCE_NAME }).waitFor({ timeout: 8000 })
-    await page.route('**/vod/**', () => {})
-    await page.route('**/series/**', () => {})
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
     await page.keyboard.press('Enter')
     await page.waitForSelector('.home-content', { timeout: 8000 })
     assert(
@@ -239,7 +244,7 @@ async function run() {
     assert(afterMovies.includes('Arrival Fictício'), '"Remover do histórico" manteve Arrival em Continuar assistindo')
     assert(!afterMovies.includes('Duna Fictício'), '"Remover e apagar progresso" tirou Duna de Continuar assistindo')
 
-    console.log('=== Cenário C: Configurações › Privacidade ===')
+    console.log('=== Cenário C: Configurações › Configurar › Histórico (feature 067) ===')
     await openViaTopbar(page, 'series')
     await enterCategory(page, 'Series')
     await page.keyboard.press('Enter')
@@ -253,8 +258,15 @@ async function run() {
 
     await openViaTopbar(page, 'settings')
     await page.waitForSelector('.settings-screen', { timeout: 8000 })
-    for (let i = 0; i < 4; i += 1) await page.keyboard.press('ArrowDown') // Fontes IPTV -> Privacidade
-    assert((await page.locator('.side-category-nav-item.tv-focus').textContent())?.includes('Privacidade'), 'aba "Privacidade" antes de "Sobre & créditos"')
+    assert(
+      !((await page.locator('.side-category-nav').textContent()) ?? '').includes('Privacidade'),
+      'Configurações globais não têm mais a aba "Privacidade"',
+    )
+    await page.keyboard.press('ArrowRight') // Fontes IPTV: 1ª linha, "Configurar"
+    await page.keyboard.press('Enter') // → Configurações da lista (aba Conta & lista)
+    await page.getByRole('heading', { name: /Configurações da lista/ }).waitFor({ timeout: 5000 })
+    for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowDown') // Conta → EPG → Categorias → Histórico
+    assert((await page.locator('.side-category-nav-item.tv-focus').textContent())?.includes('Histórico'), 'aba "Histórico" é a última da tela da lista')
     await page.keyboard.press('ArrowRight')
     const moviesRow = page.getByRole('button', { name: /^Limpar histórico de Filmes —/ })
     await page.waitForFunction(() => !document.body.textContent?.includes('Carregando…'), null, { timeout: 5000 })
@@ -278,6 +290,8 @@ async function run() {
     await page.getByText('Histórico de Filmes e Séries limpo.').waitFor({ timeout: 5000 })
     assert(true, 'limpeza em lote confirmada')
 
+    await page.keyboard.press('Escape') // tela da lista -> Configurações
+    await page.waitForSelector('.settings-screen:not(.list-settings-screen)', { timeout: 8000 })
     await page.keyboard.press('Escape') // Configurações -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await page.waitForTimeout(400)

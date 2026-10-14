@@ -1,3 +1,6 @@
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
+
 /**
  * Explicação do Modo limitado (feature 014, US2, FR-021) — compartilhada
  * entre o hub e Configurações › Fontes IPTV (feature 026, D-007; movida de
@@ -13,12 +16,10 @@
  * a senha (FR-022/FR-024) — o componente nem recebe esses dados como prop.
  */
 
-const REASON_TEXT: Record<string, string> = {
-  protocol_unavailable: 'O painel deste provedor não respondeu ao protocolo completo de catálogo.',
-  panel_unreachable: 'Não foi possível falar com o painel deste provedor pela rede na última sincronização.',
+const REASON_KEY: Record<string, MessageKey> = {
+  protocol_unavailable: 'limited.reason.protocol_unavailable',
+  panel_unreachable: 'limited.reason.panel_unreachable',
 }
-
-const GENERIC_REASON_TEXT = 'Este provedor não respondeu ao protocolo completo de catálogo.'
 
 export interface LimitedModeNoticeProps {
   /** Categoria fixa (FR-020) — nunca texto de erro cru. */
@@ -28,31 +29,23 @@ export interface LimitedModeNoticeProps {
 }
 
 export function LimitedModeNotice({ reason, discardedCount }: LimitedModeNoticeProps) {
-  const reasonText = REASON_TEXT[reason] ?? GENERIC_REASON_TEXT
+  const t = useT()
+  const reasonText = t(REASON_KEY[reason] ?? 'limited.reason.generic')
 
   return (
-    <div className="limited-mode-notice" role="note" aria-label="Fonte em Modo limitado">
-      <p className="limited-mode-notice-title">Modo limitado</p>
+    <div className="limited-mode-notice" role="note" aria-label={t('limited.aria')}>
+      <p className="limited-mode-notice-title">{t('limited.title')}</p>
       <p>{reasonText}</p>
-      <p>Todos os canais, filmes e séries identificados nesta lista continuam disponíveis.</p>
-      <p className="limited-mode-notice-subhead">O que fica de fora, em relação ao protocolo completo:</p>
+      <p>{t('limited.stillAvailable')}</p>
+      <p className="limited-mode-notice-subhead">{t('limited.leftOut')}</p>
       <ul className="limited-mode-notice-list">
-        <li>ordem e identificação das categorias como o painel declara</li>
-        <li>quantidade de itens de cada categoria, conhecida antes de abri-la</li>
-        <li>temporadas e episódios de série como o painel organiza</li>
-        <li>situação da assinatura (validade, formatos permitidos)</li>
+        <li>{t('limited.item1')}</li>
+        <li>{t('limited.item2')}</li>
+        <li>{t('limited.item3')}</li>
+        <li>{t('limited.item4')}</li>
       </ul>
-      {discardedCount > 0 && (
-        <p>
-          {discardedCount === 1
-            ? '1 entrada não foi reconhecida e ficou de fora.'
-            : `${discardedCount} entradas não foram reconhecidas e ficaram de fora.`}
-        </p>
-      )}
-      <p>
-        Ressincronizar mais tarde pode resolver, se o painel passar a responder ao protocolo
-        completo — falar com o provedor sobre isso também pode ajudar.
-      </p>
+      {discardedCount > 0 && <p>{t.plural('limited.discarded', discardedCount)}</p>}
+      <p>{t('limited.resync')}</p>
     </div>
   )
 }

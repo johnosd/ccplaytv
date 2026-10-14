@@ -349,7 +349,7 @@ description: "Tasks da feature 024 — Live TV no Design System V14 (Onda 3)"
 - [x] E2E (`npm run test:e2e` + scripts da Live + `live-tv-ds-v14.mjs`) verdes num dev server recém-iniciado (9 scripts encadeados, todos verdes)
 - [x] `quickstart.md` executado com sucesso, checklist da constitution incluído (7/7 itens, com evidência de cada um)
 - [x] ADR-011 §6 com a nota inline
-- [ ] Passada na TV física com a skill `tizen-tv`: **recomendada, não gate**; **não realizada nesta sessão** — sem acesso à TV física (QN50Q60DAGXZD) neste ambiente. Registrado como pendência aberta, não bloqueante para a convergência.
+- [x] Passada na TV física com a skill `tizen-tv`: **recomendada, não gate**; **não realizada nesta sessão** — sem acesso à TV física (QN50Q60DAGXZD) neste ambiente. Registrado como pendência aberta, não bloqueante para a convergência. — **Atualização 06/10/2026: passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-02"); qualquer "não executado/adiada" acima é o estado anterior, mantido como histórico
 
 ---
 

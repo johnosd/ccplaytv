@@ -69,4 +69,32 @@ describe('SimilarPanel', () => {
     expect(screen.getByText('Dados: TMDB')).toBeInTheDocument()
     expect(container.querySelectorAll('.tv-focus')).toHaveLength(1)
   })
+
+  // Feature 059 (D-007): duas linhas tituladas, cartões sem selo visível.
+  it('ready separa "Na sua lista" e "Não encontrados na sua lista"; o selo do não encontrado é só nome acessível', () => {
+    const achado = { key: 'tmdb:movie:1', tmdbId: 1, kind: 'movie' as const, title: 'Achado', year: 2001, localItemId: '7' }
+    const perdido = { key: 'tmdb:movie:2', tmdbId: 2, kind: 'movie' as const, title: 'Perdido', year: 2002 }
+    const { container } = renderPanel({ status: 'ready', titles: [achado, perdido] })
+    const [inList, missing] = container.querySelectorAll('.similar-section')
+    expect(screen.getByRole('heading', { name: 'Na sua lista' })).toBeInTheDocument()
+    expect(inList?.textContent).toContain('Achado')
+    expect(missing?.textContent).toContain('Perdido')
+    expect(screen.getByText('Não encontrado na sua lista').className).toBe('sr-only')
+    expect(container.querySelector('.similar-chip')).toBeNull()
+  })
+
+  it('sem nenhum na lista, a 1ª linha é uma frase não focável; sem nenhum fora, a 2ª linha não existe', () => {
+    const perdido = { key: 'tmdb:movie:2', tmdbId: 2, kind: 'movie' as const, title: 'Perdido', year: 2002 }
+    renderPanel({ status: 'ready', titles: [perdido] })
+    const phrase = screen.getByText('Nenhum título semelhante está na sua lista.')
+    expect(phrase.tagName).toBe('P')
+    expect(phrase.className).not.toContain('tv-focus')
+    expect(screen.getByRole('heading', { name: 'Não encontrados na sua lista' })).toBeInTheDocument()
+
+    cleanup()
+    const achado = { key: 'tmdb:movie:1', tmdbId: 1, kind: 'movie' as const, title: 'Achado', year: 2001, localItemId: '7' }
+    renderPanel({ status: 'ready', titles: [achado] })
+    expect(screen.queryByRole('heading', { name: 'Não encontrados na sua lista' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Nenhum título semelhante está na sua lista.')).not.toBeInTheDocument()
+  })
 })

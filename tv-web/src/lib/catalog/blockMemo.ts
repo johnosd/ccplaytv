@@ -23,6 +23,7 @@ import type { CategoryBlockRecord } from './db'
 
 /** Quantos blocos ficam em memória (a categoria aberta e o detalhe dela, em geral o mesmo). */
 const CACHE_MAX = 2
+const CACHE_MAX_ITEMS = 2_000
 
 interface Memo {
   epoch: number
@@ -119,9 +120,10 @@ export async function readBlock(
   const block = await database.categoryBlocks.get(categoryId)
   // `memoOf` de novo: aplica um aviso de outro contexto que chegou durante a leitura.
   memoOf(database)
-  if (block && !inTransaction && pendingBefore === 0 && memo.pendingWrites === 0 && memo.epoch === epoch) {
+  if (block && block.items.length <= CACHE_MAX_ITEMS && !inTransaction && pendingBefore === 0 && memo.pendingWrites === 0 && memo.epoch === epoch) {
     memo.blocks.set(categoryId, block)
-    while (memo.blocks.size > CACHE_MAX) {
+    const itemCount = () => [...memo.blocks.values()].reduce((total, value) => total + value.items.length, 0)
+    while (memo.blocks.size > CACHE_MAX || itemCount() > CACHE_MAX_ITEMS) {
       const oldest = memo.blocks.keys().next().value as number
       memo.blocks.delete(oldest)
     }

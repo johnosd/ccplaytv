@@ -1,8 +1,7 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
-  groupLabel,
   invalidateUserStates,
   stableIdOf,
   useCatalogItem,
@@ -21,12 +20,17 @@ import { HistoryRemovalModal } from '../history/HistoryRemovalModal'
 import {
   CastPanel,
   CastPeoplePanel,
-  DetailBackdrop,
+  FactOrigin,
   MetadataFacts,
   SynopsisBlock,
   SynopsisModal,
   personFocusKey,
 } from '../vod/DetailMetadata'
+import { DetailHero } from '../vod/DetailHero'
+import { DetailIconAction, DetailPrimaryAction, type DetailIconName } from '../vod/DetailActions'
+import { DetailChips } from '../vod/DetailChips'
+import { primaryProgress } from '../vod/detailProgress'
+import { detailPanelRows, movePanelFocus } from '../vod/detailPanelGrid'
 import { isSynopsisTruncated, metadataFactRows } from '../vod/detailMetadataFormat'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
@@ -45,8 +49,15 @@ import {
 import { PlayerLayer, type PlayerEpisodeStep } from '../../components/PlayerLayer'
 import type { TrackChoice, ViewChoice } from '../../lib/player/PlayerService'
 import { NextEpisodeCountdown } from './NextEpisodeCountdown'
-import { ContentCard } from '../../components/ContentCard'
+import { PosterArt } from '../../components/PosterArt'
+import { MarqueeText } from '../../components/MarqueeText'
+import { RatingBadge } from '../../components/RatingBadge'
+import { ContentRatingBadge } from '../../components/ContentRatingBadge'
+import { TmdbRatingBadge } from '../../components/TmdbRatingBadge'
 import { Tabs, type TabItem } from '../../components/Tabs'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { Translator } from '../../lib/i18n/translate'
+import { groupLabelDisplay } from '../vod/vodGroupDisplay'
 import { Modal } from '../../components/Modal'
 import { isResumable } from '../../lib/player/resumePolicy'
 import { formatTime } from '../../lib/player/formatTime'
@@ -65,7 +76,6 @@ import {
   trailerActionState,
   trailerActionToast,
 } from '../vod/trailerAction'
-
 export interface SeriesDetailScreenProps {
   seriesId: string
   onBack: () => void
@@ -80,30 +90,27 @@ export interface SeriesDetailScreenProps {
   /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
   onEditSource?: (sourceId: string) => void
 }
-
 type DetailTab = 'episodes' | 'details' | 'cast' | 'similar'
-type Row = 'more' | 'actions' | 'tabs' | 'season' | 'episodes' | 'panel'
-
+type Row = 'more' | 'actions' | 'tabs' | 'episodes' | 'panel'
 const CONFIGURE_KEY = 'configure'
-
-const TABS: TabItem[] = [
-  { id: 'episodes', label: 'Episódios' },
-  { id: 'details', label: 'Detalhes' },
-  { id: 'cast', label: 'Elenco' },
-  { id: 'similar', label: 'Semelhantes' },
-]
-
+function buildTabs(t: Translator, seasonLabel: string): TabItem[] {
+  return [
+    { id: 'episodes', label: `${seasonLabel} ▾` },
+    { id: 'similar', label: t('detail.tab.seriesSimilar') },
+    { id: 'cast', label: t('detail.tab.cast') },
+    { id: 'details', label: t('detail.tab.details') },
+  ]
+}
 type SeriesAction =
   | { id: 'primary'; primary: SeriesPrimary }
   | { id: 'favorite'; isFavorite: boolean }
   | { id: 'trailer' }
   | { id: 'similar' }
   | { id: 'remove-history' }
-
 /**
  * Ações do hero, na ordem de foco (feature 025, FR-038): `[Continuar|Assistir
- * TX:EY] [Minha Lista] [Trailer] [Semelhantes]`, e "Remover do histórico"
- * (feature 036, §9) por último, só com algum episódio no "↺ Histórico".
+ * TX:EY] [Minha Lista] [Trailer] [Semelhantes]`, "Remover do histórico"
+ * (feature 036, §9) após os ícones, só no "↺ Histórico".
  */
 function buildActions(primary: SeriesPrimary | null, isFavorite: boolean, inHistory: boolean): SeriesAction[] {
   const actions: SeriesAction[] = []
@@ -114,30 +121,42 @@ function buildActions(primary: SeriesPrimary | null, isFavorite: boolean, inHist
   if (inHistory) actions.push({ id: 'remove-history' })
   return actions
 }
-
-function actionLabel(action: SeriesAction): string {
+/** Ícone de cada ação secundária (feature 059, `logic/hero-cinema.md` §4). A primária não tem ícone. */
+function actionIcon(action: SeriesAction): DetailIconName {
+  switch (action.id) {
+    case 'favorite':
+      return action.isFavorite ? 'added' : 'add'
+    case 'trailer':
+      return 'trailer'
+    case 'similar':
+      return 'similar'
+    default:
+      return 'remove'
+  }
+}
+function actionLabel(action: SeriesAction, t: Translator): string {
   switch (action.id) {
     case 'primary': {
       const code = episodeCode(action.primary.episode)
-      return action.primary.kind === 'resume' ? `▶ Continuar ${code}` : `▶ Assistir ${code}`
+      return action.primary.kind === 'resume' ? t('detail.action.continueEpisode', { code }) : t('detail.action.watchEpisode', { code })
     }
     case 'favorite':
-      return action.isFavorite ? '✓ Na Minha Lista' : '+ Minha Lista'
+      return action.isFavorite ? t('home.hero.inMyList') : t('home.hero.addMyList')
     case 'trailer':
-      return '▶ Trailer'
+      return t('trailer.button')
     case 'similar':
-      return '☰ Semelhantes'
+      return t('detail.action.similar')
     case 'remove-history':
-      return 'Remover do histórico'
+      return t('detail.action.removeHistory')
   }
 }
 
 /**
- * Altura de linha de `.vod-episode-row` — `ContentCard` landscape (292×164,
- * feature 022) + título/meta abaixo + o respiro do layout (feature 025,
+ * Altura de linha de `.vod-episode-row` — capa landscape (292×164, feature
+ * 022) com título/meta/sinopse AO LADO + o respiro do layout (feature 025,
  * FR-041).
  */
-const EPISODE_ROW_HEIGHT = 232
+const EPISODE_ROW_HEIGHT = 220 // feature 068: título 28 + meta 24 + sinopse em 2 linhas de 24 + progresso (era 196)
 const EPISODE_OVERSCAN = 6
 
 /**
@@ -190,7 +209,7 @@ type Mode =
  * Detalhe de série no layout V14 (feature 025, US6): hero com ação primária
  * "Continuar/Assistir TX:EY", Minha Lista, Trailer mock; abas Episódios/
  * Detalhes/Elenco/Semelhantes; seletor de temporada em modal; episódios em
- * `ContentCard` landscape com progresso real (`logic/detalhe-vod.md`). Sem
+ * capa landscape com título/sinopse ao lado e progresso real (`logic/detalhe-vod.md`). Sem
  * topbar (FR-004) — raiz `.screen`, coberta pela regra de transparência do
  * plano de hardware. Autoplay/contagem/máquina `Mode` **inalterados** desde
  * a feature 012.
@@ -204,6 +223,7 @@ export function SeriesDetailScreen({
   onOpenTmdbSettings,
   onEditSource,
 }: SeriesDetailScreenProps) {
+  const t = useT()
   const queryClient = useQueryClient()
   const query = useCatalogItem(seriesId)
   const series = query.data ?? undefined
@@ -211,7 +231,7 @@ export function SeriesDetailScreen({
   const episodesQuery = useSeriesEpisodes(seriesId)
   const episodes = episodesQuery.data?.episodes ?? []
   const outcome = episodesQuery.data?.outcome
-  const seasons = groupBySeason(episodes)
+  const seasons = groupBySeason(episodes, t)
 
   const stableIds = episodes.map(episodeStableId)
   const userStatesQuery = useUserStates(stableIds)
@@ -247,7 +267,7 @@ export function SeriesDetailScreen({
       {
         onSuccess: () => {
           setRemoval(null)
-          showToast('Removido do histórico')
+          showToast(t('vod.removedFromHistory'))
         },
         onError: () => setRemoval({ error: true }),
       },
@@ -289,16 +309,15 @@ export function SeriesDetailScreen({
   // Semelhantes: só resolve com a aba ativa; nenhuma requisição externa nasce aqui (FR-003/SC-005).
   const similar = useSimilarTitles(seriesId, activeTab === 'similar')
   const castPeople = metadata?.castPeople ?? []
-  const panelKeys: string[] =
-    activeTab === 'cast'
-      ? castPeople.map((person) => personFocusKey(person.personId))
-      : activeTab !== 'similar'
-        ? []
-        : similar.status === 'ready'
-          ? similar.titles.map((title) => title.key)
-          : similar.status === 'no_key'
-            ? [CONFIGURE_KEY]
-            : []
+  // Feature 059 (D-008): o painel é uma grade de linhas (Semelhantes: "Na sua lista" / "Não
+  // encontrados"); `panelKeys` (todas as chaves) segue servindo à restauração e à entrada.
+  const panelRows = detailPanelRows(
+    activeTab,
+    castPeople.map((person) => personFocusKey(person.personId)),
+    similar,
+    CONFIGURE_KEY,
+  )
+  const panelKeys: string[] = panelRows.flat()
 
   // Ação "Semelhantes" do hero: ativa a aba, rola até o painel e foca o 1º cartão.
   const enterSimilar = useEnterSimilarPanel({
@@ -318,6 +337,15 @@ export function SeriesDetailScreen({
         ? 'tabs'
         : rawRow
   const effectiveTabId = rawRow === 'panel' && row === 'tabs' ? activeTab : focusedTabId
+
+  // Feature 059, FR-017: foco no hero ou nas abas devolve a página ao topo. Temporada e
+  // episódios descem a página até a linha focada (efeito mais abaixo; bug
+  // `foco-some-ao-descer-na-lista`).
+  const rootRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (row !== 'more' && row !== 'actions' && row !== 'tabs') return
+    if (rootRef.current) rootRef.current.scrollTop = 0
+  }, [row])
 
   function snapshot(focusKey?: string): DetailSnapshot {
     return focusKey === undefined ? { tab: activeTab } : { tab: activeTab, focusKey }
@@ -345,6 +373,7 @@ export function SeriesDetailScreen({
   const [seasonIdx, setSeasonIdx] = useState(0)
   const safeSeasonIdx = clamp(seasonIdx, 0, Math.max(0, seasons.length - 1))
   const currentSeason = seasons[safeSeasonIdx]
+  const tabs = buildTabs(t, currentSeason?.label ?? t('detail.season'))
   const seasonEpisodes = currentSeason?.episodes ?? []
   const [seasonModalOpen, setSeasonModalOpen] = useState(false)
   const [seasonModalFocusIdx, setSeasonModalFocusIdx] = useState(0)
@@ -394,6 +423,14 @@ export function SeriesDetailScreen({
     scrollToIndex: episodeVirtualizer.scrollToIndex,
     enabled: episodesNavigable,
   })
+
+  // Hero Cinema (059): quem rola é a página (`.vod-detail`), não a lista — o `scrollToIndex` acima não a alcança e o foco é
+  // estado, então trazemos a linha focada à vista. Só rolagem, e só navegando: com o player aberto rolar a página tirava o
+  // chrome da tela (bug serie-sem-proximo-episodio-controles-somem); ao voltar à lista, o episódio focado vem à vista.
+  useEffect(() => {
+    if (mode.kind !== 'browsing' || row !== 'episodes') return
+    rootRef.current?.querySelector<HTMLElement>('.tv-focus')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [row, episodeIdx, activeTab, mode.kind])
 
   /**
    * `undefined` (motor decide) e `0` não existem aqui como distinção —
@@ -484,22 +521,24 @@ export function SeriesDetailScreen({
   }
 
   function activateTab(id: string) {
-    if (id === 'episodes' || id === 'details' || id === 'cast' || id === 'similar') setActiveTab(id)
+    if (id === 'episodes') openSeasonModal()
+    else if (id === 'details' || id === 'cast' || id === 'similar') setActiveTab(id)
   }
-
   function openSeasonModal() {
+    setRow('tabs')
+    setActiveTab('episodes')
+    setFocusedTabId('episodes')
     setSeasonModalFocusIdx(safeSeasonIdx)
     setSeasonModalOpen(true)
   }
-
   /** OK no modal de temporada — troca `seasonIdx`, fecha e deixa o foco no botão (FR-040). */
   function chooseSeason(index: number) {
     setSeasonIdx(index)
     setFocusedEpisodeId(seasons[index]?.episodes[0]?.id ?? null)
     setSeasonModalOpen(false)
-    setRow('season')
+    setRow('tabs')
+    setFocusedTabId('episodes')
   }
-
   useRemoteNav({
     onDirection: (dir) => {
       if (!series || mode.kind !== 'browsing') return
@@ -519,12 +558,10 @@ export function SeriesDetailScreen({
         return
       }
       if (row === 'panel') {
-        const index = panelKeys.indexOf(panelFocusKey as string)
-        if (dir === 'left' || dir === 'right') {
-          const next = clamp(index + (dir === 'left' ? -1 : 1), 0, panelKeys.length - 1)
-          setPanelFocusKey(panelKeys[next])
-        }
-        if (dir === 'up') {
+        // Feature 059 (D-008): grade de linhas — ←/→ param na ponta, ↓/↑ trocam de linha, ↑ na 1ª volta à aba.
+        const move = movePanelFocus(panelRows, panelFocusKey as string, dir)
+        if (move.kind === 'focus') setPanelFocusKey(move.key)
+        if (move.kind === 'exit-up') {
           setFocusedTabId(activeTab)
           setRow('tabs')
         }
@@ -532,13 +569,16 @@ export function SeriesDetailScreen({
       }
       if (row === 'tabs') {
         if (dir === 'left' || dir === 'right') {
-          const idx = TABS.findIndex((t) => t.id === effectiveTabId)
-          const next = clamp(idx + (dir === 'left' ? -1 : 1), 0, TABS.length - 1)
-          setFocusedTabId(TABS[next].id)
+          const idx = tabs.findIndex((tab) => tab.id === effectiveTabId)
+          const next = clamp(idx + (dir === 'left' ? -1 : 1), 0, tabs.length - 1)
+          setFocusedTabId(tabs[next].id)
           setRow('tabs')
         }
         if (dir === 'up') setRow('actions')
-        if (dir === 'down' && activeTab === 'episodes') setRow('season')
+        if (dir === 'down' && activeTab === 'episodes' && seasonEpisodes.length > 0) {
+          setRow('episodes')
+          if (!seasonEpisodes.some((ep) => ep.id === focusedEpisodeId)) setFocusedEpisodeId(seasonEpisodes[0].id)
+        }
         // ↓ só entra no painel se a aba focada é a ativa e o painel tem focáveis; senão o foco fica na aba.
         if (dir === 'down' && effectiveTabId === activeTab && panelKeys.length > 0) {
           setPanelFocusKey((current) => (current !== undefined && panelKeys.includes(current) ? current : panelKeys[0]))
@@ -546,20 +586,10 @@ export function SeriesDetailScreen({
         }
         return
       }
-      if (row === 'season') {
-        if (dir === 'up') setRow('tabs')
-        if (dir === 'down' && seasonEpisodes.length > 0) {
-          setRow('episodes')
-          if (!seasonEpisodes.some((ep) => ep.id === focusedEpisodeId)) {
-            setFocusedEpisodeId(seasonEpisodes[0]?.id ?? null)
-          }
-        }
-        return
-      }
       // row === 'episodes'
       if (dir === 'up') {
         if (episodeIdx === 0) {
-          setRow('season')
+          setRow('tabs')
           return
         }
         setFocusedEpisodeId(seasonEpisodes[episodeIdx - 1]?.id ?? null)
@@ -598,7 +628,7 @@ export function SeriesDetailScreen({
         const action = actions[safeActionFocus]
         if (!action) return
         if (action.id === 'trailer') {
-          const toast = trailerActionToast(trailerState)
+          const toast = trailerActionToast(trailerState, t)
           if (toast !== null) showToast(toast)
           // Com o player aberto o teclado é dele; a guarda cobre o instante entre um OK repetido e o render (FR-012).
           else if (mode.kind === 'browsing') setTrailerOpen(true)
@@ -630,10 +660,6 @@ export function SeriesDetailScreen({
         if (panelFocusKey !== undefined) selectPanelKey(panelFocusKey)
         return
       }
-      if (row === 'season') {
-        openSeasonModal()
-        return
-      }
       const episode = seasonEpisodes[episodeIdx]
       if (episode) openEpisode(episode)
     },
@@ -645,10 +671,10 @@ export function SeriesDetailScreen({
       <div className="screen">
         <div className="live-state">
           <div className="live-state-copy">
-            {query.isLoading ? 'Carregando…' : 'Esta série não está mais no catálogo.'}
+            {query.isLoading ? t('common.loading') : t('detail.seriesMissing')}
           </div>
           <button type="button" className="live-state-action tv-focus" onClick={onBack}>
-            Voltar
+            {t('common.back')}
           </button>
         </div>
       </div>
@@ -659,9 +685,9 @@ export function SeriesDetailScreen({
     return (
       <div className="screen">
         <div className="live-state">
-          <div className="live-state-copy">Carregando episódios…</div>
+          <div className="live-state-copy">{t('detail.episodesLoading')}</div>
           <button type="button" className="live-state-action tv-focus" onClick={onBack}>
-            Voltar
+            {t('common.back')}
           </button>
         </div>
       </div>
@@ -672,13 +698,14 @@ export function SeriesDetailScreen({
     return (
       <div className="screen">
         <div className="live-state">
-          <div className="live-state-title">Não foi possível carregar os episódios desta série</div>
+          <div className="live-state-title">{t(episodesQuery.data?.reason === 'storage_full' ? 'error.STO-01.title' : 'detail.episodesFailed')}</div>
+          {episodesQuery.data?.reason === 'storage_full' && <div className="live-state-copy">{t('error.STO-01.description')} (STO-01)</div>}
           <button
             type="button"
             className="live-state-action tv-focus"
             onClick={() => void episodesQuery.refetch()}
           >
-            Tentar de novo
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -689,90 +716,113 @@ export function SeriesDetailScreen({
     return (
       <div className="screen">
         <div className="live-state">
-          <div className="live-state-title">Episódios ainda não disponíveis</div>
-          <div className="live-state-copy">
-            Esta série não tem episódios para mostrar agora. Os canais e os filmes desta fonte
-            continuam funcionando normalmente.
-          </div>
+          <div className="live-state-title">{t('detail.episodesNoneTitle')}</div>
+          <div className="live-state-copy">{t('detail.episodesNoneDescription')}</div>
           <button type="button" className="live-state-action tv-focus" onClick={onBack}>
-            Voltar
+            {t('common.back')}
           </button>
         </div>
       </div>
     )
   }
 
-  const metaParts: string[] = []
-  if (series.year != null) metaParts.push(String(series.year))
-  metaParts.push(groupLabel(series.original_group ?? undefined))
-  if (watchedSummary && watchedSummary.known > 0) {
-    metaParts.push(watchedSummary.upToDate ? 'Em dia' : `${watchedSummary.watched}/${watchedSummary.known}`)
-  }
+  // Hero "Cinema" (feature 059): a categoria sai da metadata e vira o 1º chip (D-006).
+  const hasRating = series.provider_rating != null && series.provider_rating > 0
 
   return (
     // Achado real (feature 028, FR-006): rolava com a barra nativa visível.
-    <div className="screen vod-detail no-scrollbar">
-      <div className="vod-detail-hero">
-        <DetailBackdrop url={metadata?.backdropUrl?.value} origin={metadata?.backdropUrl?.origin} />
-        <div className="vod-detail-poster">
-          <ContentCard variant="portrait" title={series.name} iconUrl={series.icon_url ?? undefined} />
-        </div>
-        <div className="vod-detail-info">
-          <div className="vod-detail-eyebrow">SÉRIE</div>
-          <div className="vod-detail-title">{series.name}</div>
-          <div className="vod-detail-meta">{metaParts.join(' · ')}</div>
-          <SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />
-          <div className="vod-detail-actions">
-            {actions.map((action, i) => {
-              const softDisabled = action.id === 'trailer' && trailerActionSoftDisabled(trailerState)
-              return (
-                <div
-                  key={action.id}
-                  className={`vod-detail-action${row === 'actions' && i === safeActionFocus && !removal ? ' tv-focus' : ''}${softDisabled ? ' is-soft-disabled' : ''}`}
-                  aria-disabled={softDisabled ? 'true' : undefined}
-                >
-                  {action.id === 'trailer' ? trailerActionLabel(trailerState) : actionLabel(action)}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
+    <div ref={rootRef} className="screen vod-detail no-scrollbar">
+      <DetailHero
+        eyebrow={t('detail.eyebrow.series')}
+        title={series.name}
+        posterUrl={series.icon_url ?? undefined}
+        backdropUrl={metadata?.backdropUrl?.value}
+        backdropOrigin={metadata?.backdropUrl?.origin}
+        meta={
+          <>
+            {series.year != null && <span>{series.year}</span>}
+            {seasons.length > 0 && (
+              <span>{seasons.length === 1 ? t('detail.meta.seasonsOne') : t('detail.meta.seasons', { n: seasons.length })}</span>
+            )}
+            {watchedSummary && watchedSummary.known > 0 && (
+              <span>{watchedSummary.upToDate ? t('vod.upToDate') : `${watchedSummary.watched}/${watchedSummary.known}`}</span>
+            )}
+            {hasRating && <RatingBadge value={series.provider_rating} showSource />}
+            <ContentRatingBadge certifications={metadata?.certifications} />
+            <TmdbRatingBadge rating={metadata?.tmdbRating} />
+          </>
+        }
+        chips={<DetailChips category={groupLabelDisplay(series.original_group, t)} genres={metadata?.genres} />}
+        synopsis={<SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />}
+        actions={actions.map((action, i) => {
+          const focused = row === 'actions' && i === safeActionFocus && !removal
+          if (action.id === 'primary') {
+            // Barra DO EPISÓDIO da primária (D-004): posição dele ÷ duração dele, nunca a da metadata da série.
+            const progress =
+              action.primary.kind === 'resume'
+                ? primaryProgress(action.primary.resumeSeconds, action.primary.episode.duration_seconds)
+                : null
+            return <DetailPrimaryAction key={action.id} label={actionLabel(action, t)} focused={focused} progress={progress} />
+          }
+          const isTrailer = action.id === 'trailer'
+          return (
+            <DetailIconAction
+              key={action.id}
+              icon={actionIcon(action)}
+              label={isTrailer ? trailerActionLabel(trailerState, t) : actionLabel(action, t)}
+              focused={focused}
+              softDisabled={isTrailer && trailerActionSoftDisabled(trailerState)}
+              active={action.id === 'favorite' && action.isFavorite}
+            />
+          )
+        })}
+      />
 
       {outcome === 'stale-served' && (
-        <div className="live-truncated-note">
-          Não foi possível atualizar agora — mostrando o que já estava salvo.
-        </div>
+        <div className="live-truncated-note">{t('live.stale')}</div>
       )}
 
-      <Tabs items={TABS} activeId={activeTab} focusedId={row === 'tabs' ? effectiveTabId : undefined} onSelect={activateTab} />
+      <Tabs items={tabs} activeId={activeTab} focusedId={row === 'tabs' ? effectiveTabId : undefined} onSelect={activateTab} />
 
       <div className="vod-detail-panel" ref={enterSimilar.panelRef}>
         {activeTab === 'details' && (
           <dl className="vod-detail-facts">
+            {/* Feature 059 (D-006): o que vem do catálogo da lista leva "Dados: fonte"; o Progresso (estado do usuário) não. */}
             <div className="vod-detail-fact">
-              <dt>Temporadas conhecidas</dt>
-              <dd>{seasons.length}</dd>
+              <dt>{t('detail.fact.seasons')}</dt>
+              <dd>
+                {seasons.length}
+                <FactOrigin origin="provider" />
+              </dd>
             </div>
             <div className="vod-detail-fact">
-              <dt>Episódios conhecidos</dt>
-              <dd>{episodes.length}</dd>
+              <dt>{t('detail.fact.episodes')}</dt>
+              <dd>
+                {episodes.length}
+                <FactOrigin origin="provider" />
+              </dd>
             </div>
-            <div className="vod-detail-fact">
-              <dt>Categoria</dt>
-              <dd>{groupLabel(series.original_group ?? undefined)}</dd>
+            <div className="vod-detail-fact vod-detail-fact--category">
+              <dt>{t('detail.fact.category')}</dt>
+              <dd>
+                {groupLabelDisplay(series.original_group, t)}
+                <FactOrigin origin="provider" />
+              </dd>
             </div>
             {series.year != null && (
               <div className="vod-detail-fact">
-                <dt>Ano</dt>
-                <dd>{series.year}</dd>
+                <dt>{t('detail.fact.year')}</dt>
+                <dd>
+                  {series.year}
+                  <FactOrigin origin="provider" />
+                </dd>
               </div>
             )}
-            <MetadataFacts rows={metadataFactRows(metadata, true)} />
+            <MetadataFacts rows={metadataFactRows(metadata, true, t)} />
             {watchedSummary && watchedSummary.known > 0 && (
               <div className="vod-detail-fact">
-                <dt>Progresso</dt>
-                <dd>{watchedSummary.upToDate ? 'Em dia' : `${watchedSummary.watched} de ${watchedSummary.known} assistidos`}</dd>
+                <dt>{t('detail.fact.progress')}</dt>
+                <dd>{watchedSummary.upToDate ? t('vod.upToDate') : t('detail.progressOf', { watched: watchedSummary.watched, known: watchedSummary.known })}</dd>
               </div>
             )}
           </dl>
@@ -805,20 +855,8 @@ export function SeriesDetailScreen({
         {activeTab === 'episodes' && (
           <>
             <div className="vod-season-row">
-              <div className={`vod-season-button${row === 'season' ? ' tv-focus' : ''}`}>{currentSeason?.label ?? 'Temporada'} ▾</div>
-              <span className="vod-season-count">{seasonEpisodes.length} episódios</span>
+              <span className="vod-season-count">{t('detail.episodeCount', { n: seasonEpisodes.length })}</span>
             </div>
-
-            {/* Sinopse do episódio focado (feature 032, FR-028): só dado já
-                guardado, nenhuma consulta ao focar. A faixa tem altura fixa
-                enquanto algum episódio da temporada tiver sinopse — a lista
-                não pula ao mover o foco entre um com e um sem. Nunca usa a
-                sinopse da série no lugar da do episódio. */}
-            {seasonEpisodes.some((episode) => episode.synopsis) && (
-              <p className="vod-episode-synopsis" aria-live="polite">
-                {row === 'episodes' ? (seasonEpisodes[episodeIdx]?.synopsis ?? '') : ''}
-              </p>
-            )}
 
             {/* Achado real (feature 028, FR-006): rolava com a barra nativa visível. */}
             <div ref={episodeListRef} className="vod-episode-list no-scrollbar">
@@ -832,7 +870,9 @@ export function SeriesDetailScreen({
                     durationSeconds != null && badge.resumeSeconds != null
                       ? Math.min(100, (badge.resumeSeconds / durationSeconds) * 100)
                       : null
-                  const metaText = [episodeCode(episode), durationSeconds != null ? formatTime(durationSeconds * 1000) : null]
+                  const code = episodeCode(episode)
+                  // Sem temporada/episódio identificável `episodeCode` já É o nome — não repete ao lado do título.
+                  const metaText = [code === episode.name ? null : code, durationSeconds != null ? formatTime(durationSeconds * 1000) : null]
                     .filter(Boolean)
                     .join(' · ')
                   const focused = row === 'episodes' && episodeIdx === virtualRow.index
@@ -842,22 +882,31 @@ export function SeriesDetailScreen({
                       className={`vod-episode-row${focused ? ' tv-focus' : ''}`}
                       style={{ transform: `translateY(${virtualRow.start}px)` }}
                     >
-                      <ContentCard
-                        variant="landscape"
-                        title={episode.name}
-                        meta={metaText}
-                        iconUrl={episode.icon_url ?? series.icon_url ?? undefined}
-                        focused={focused}
-                        badge={badge.watched && <span className="watched-badge">✓ Concluído</span>}
-                      />
-                      <div className="vod-episode-progress">
-                        {pct != null ? (
-                          <div className="vod-episode-progress-bar">
-                            <div className="vod-episode-progress-fill" style={{ width: `${pct}%` }} />
-                          </div>
-                        ) : badge.resumeSeconds != null ? (
-                          <span>Continuar de {formatTime(badge.resumeSeconds * 1000)}</span>
-                        ) : null}
+                      <div className="vod-episode-thumb">
+                        <PosterArt
+                          url={episode.icon_url ?? series.icon_url ?? undefined}
+                          title={episode.name}
+                          focused={focused}
+                        >
+                          {badge.watched && <span className="watched-badge">{t('detail.completed')}</span>}
+                        </PosterArt>
+                      </div>
+                      {/* Informação ao lado do cartão (não abaixo). Só dado já guardado — nenhuma consulta ao
+                          focar (feature 032, FR-028); sem sinopse do episódio não mostra texto, e nunca usa a
+                          sinopse da série no lugar. */}
+                      <div className="vod-episode-info">
+                        <div className="vod-episode-title"><MarqueeText text={episode.name} active={focused} /></div>
+                        {metaText && <div className="vod-episode-meta">{metaText}</div>}
+                        {episode.synopsis && <p className="vod-episode-synopsis">{episode.synopsis}</p>}
+                        <div className="vod-episode-progress">
+                          {pct != null ? (
+                            <div className="vod-episode-progress-bar">
+                              <div className="vod-episode-progress-fill" style={{ width: `${pct}%` }} />
+                            </div>
+                          ) : badge.resumeSeconds != null ? (
+                            <span>{t('showcase.resumeFrom', { time: formatTime(badge.resumeSeconds * 1000) })}</span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   )
@@ -870,7 +919,7 @@ export function SeriesDetailScreen({
 
       {seasonModalOpen && (
         <Modal
-          ariaLabel="Selecionar temporada"
+          ariaLabel={t('detail.pickSeason')}
           onBack={() => setSeasonModalOpen(false)}
           onDirection={(dir) => {
             if (dir === 'up' || dir === 'down') {
@@ -914,7 +963,8 @@ export function SeriesDetailScreen({
 
       {/* Fechar o trailer não invalida nada: ver trailer não muda estado do usuário (FR-016). */}
       {trailerOpen && trailerState.status === 'available' && (
-        <TrailerLayer title={series.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)} />
+        <TrailerLayer title={series.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)}
+          myList={{ added: isFavorite, pending: favoriteToggle.isPending, onToggle: () => { void favoriteToggle.toggle(series) } }} />
       )}
 
       {mode.kind === 'playing' && (

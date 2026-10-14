@@ -1,6 +1,6 @@
 {
     "feature":  "036-limpar-historico",
-    "lockedAt":  "2026-09-30 07:14",
+    "lockedAt":  "2026-10-03 00:12",
     "total":  5,
     "files":  [
                   {
@@ -9,8 +9,8 @@
                       "tests":  4
                   },
                   {
-                      "path":  "tv-web/src/features/vod/VodCatalogScreen.limpar-historico.contract.test.tsx",
-                      "sha256":  "049974a793c2ec80c26ecaf8463b46a6f216dd189dab39a3a2feac959a42c5f9",
+                      "path":  "tv-web/src/features/vod/VodCategoryScreen.limpar-historico.contract.test.tsx",
+                      "sha256":  "2fde69782bdb8b3dc70fb1dbc6b25de18eae6c2a37fef77bc197ebb77923da13",
                       "tests":  1
                   }
               ]

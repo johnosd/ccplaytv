@@ -2,8 +2,10 @@
  * Linha de estado do Início (feature 038, US6, FR-031/FR-032,
  * `logic/agendador-pre-carga.md` §7). Função pura — o instante vem injetado.
  * Só números reais; nunca percentual, credencial, URL nem erro cru.
+ * Os textos vêm do catálogo (feature 054): `t` omitido = português.
  */
 
+import { createTranslator, type Translator } from '../../lib/i18n/translate'
 import type { PrefetchProgress } from '../catalog/prefetchApi'
 
 export interface HomeStatusInput {
@@ -21,29 +23,31 @@ const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
 /** "agora", "há 5 min", "há 3 h", "há 1 dia" — relógio atrás (idade negativa) vira "agora". */
-export function formatAge(ageMs: number): string {
-  if (ageMs < MINUTE) return 'agora'
-  if (ageMs < HOUR) return `há ${Math.floor(ageMs / MINUTE)} min`
-  if (ageMs < DAY) return `há ${Math.floor(ageMs / HOUR)} h`
-  const days = Math.floor(ageMs / DAY)
-  return `há ${days} ${days === 1 ? 'dia' : 'dias'}`
+export function formatAge(ageMs: number, t: Translator = createTranslator('pt')): string {
+  if (ageMs < MINUTE) return t('home.age.now')
+  if (ageMs < HOUR) return t('home.age.minutes', { n: Math.floor(ageMs / MINUTE) })
+  if (ageMs < DAY) return t('home.age.hours', { n: Math.floor(ageMs / HOUR) })
+  return t.plural('home.age.days', Math.floor(ageMs / DAY))
 }
 
-export function homeStatusLine({ sourceId, updating, progress, lastSuccessfulSyncAt, now }: HomeStatusInput): string | null {
-  if (updating) return 'Atualizando catálogo…'
+export function homeStatusLine(
+  { sourceId, updating, progress, lastSuccessfulSyncAt, now }: HomeStatusInput,
+  t: Translator = createTranslator('pt'),
+): string | null {
+  if (updating) return t('home.status.updating')
   // Feature 042 (FR-017): o painel pediu um intervalo — uma linha só, nunca um aviso por categoria.
   if (progress.sourceId === sourceId && progress.pausedReason === 'rate_limited') {
-    return 'Pré-carga em pausa — o painel pediu um intervalo'
+    return t('home.status.paused')
   }
   const preparing =
     progress.sourceId === sourceId &&
     (progress.state === 'running' || progress.state === 'paused') &&
     progress.total > 0 &&
     progress.ready < progress.total
-  if (preparing) return `Preparando catálogo — ${progress.ready} de ${progress.total} categorias`
+  if (preparing) return t('home.status.preparing', { ready: progress.ready, total: progress.total })
   if (lastSuccessfulSyncAt !== null) {
-    const age = formatAge(now - lastSuccessfulSyncAt)
-    return age === 'agora' ? 'Catálogo atualizado agora' : `Catálogo atualizado ${age}`
+    const ageMs = now - lastSuccessfulSyncAt
+    return ageMs < MINUTE ? t('home.status.updatedNow') : t('home.status.updated', { age: formatAge(ageMs, t) })
   }
   return null
 }

@@ -91,14 +91,15 @@ describe('SettingsScreen › Integrações & BYOK (feature 032)', () => {
     expect(props.onOpenTmdbKey).toHaveBeenCalledWith({ zone: 'panel', tab: 'integrations' })
   })
 
-  it('IA, Clima e Teste de velocidade aparecem soft disabled; OK anuncia "Em breve" e não faz mais nada', async () => {
+  it('IA e Clima aparecem soft disabled; teste de conexão é real; OK anuncia "Em breve" nos placeholders', async () => {
     const props = renderSettings()
     enterIntegrations()
 
-    for (const title of ['Assistente de IA', 'Clima', 'Teste de velocidade']) {
+    for (const title of ['Assistente de IA', 'Clima']) {
       const card = screen.getByRole('region', { name: title })
       expect(within(card).getByRole('button')).toHaveAttribute('aria-disabled', 'true')
     }
+    expect(within(screen.getByRole('region', { name: 'Teste de conexão' })).getByRole('button')).not.toHaveAttribute('aria-disabled', 'true')
     press('ArrowDown') // 1º card "Em breve"
     expect(within(screen.getByRole('region', { name: 'Assistente de IA' })).getByRole('button')).toHaveClass('tv-focus')
     press('Enter')

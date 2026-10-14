@@ -1,122 +1,226 @@
 /*
- * Início definitivo (feature 026): hero de largura total + rails reais
- * ("Continuar assistindo", "Minha Lista", "Canais favoritos") + mocks
- * honestos (Curadoria IA, dock de serviços). Substitui o conteúdo
- * provisório do hub (`ListHomeScreen`, feature 023) — `.tile*`/
- * `.continue-watching*`/`.home-section*` saíram com ele. Só tokens de
- * `index.css`. A moldura (topbar, safe zone, HintBar) é de `shell.css`.
+ * Início "Vitrine expandida" (feature 060, sobre o Início definitivo da 026): billboard de um título que recolhe quando o
+ * foco desce, fileiras que ocupam a tela com a focada no topo, fundo ambiente com a imagem do item focado, pôsteres com
+ * selos e card que expande no foco (spec V14, seção "Home"; `logic/billboard-e-navegacao.md`). Só tokens de `index.css`:
+ * as medidas de card vêm por variáveis inline de `features/home/homeRowFormats.ts` (fonte única — nenhum px de card aqui).
+ * A moldura (topbar, safe zone, HintBar) é de `shell.css`.
  */
 
 .home-content {
+  /* Duração das transições de recolher/rolar e do fade da camada expandida. Na TV, se a expansão engasgar, vale `0ms`
+     (FR-028): o card troca de tamanho na hora e o resto não muda. */
+  --home-expand-duration: var(--duration-standard);
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
-  overflow-y: auto;
+  overflow: hidden;
+  /* Folga para o anel de foco das ações do billboard (que ficam na borda da safe zone) não ser cortado pelo `overflow`:
+     a caixa cresce para os dois lados e o padding devolve o mesmo espaço útil, então nada muda de lugar. */
+  margin-inline: calc(var(--space-2) * -1);
+  padding-inline: var(--space-2);
 }
 
-/* Feature 038 (US6): linha discreta de estado do catálogo — texto, não
-   controle; nunca focável. A margem negativa devolve o `gap` da coluna para
-   o hero não descer um espaço inteiro por causa de uma linha de legenda. */
+/* A 1ª sincronização (inclusive a volta de um destino com o foco restaurado) acontece sem animar: a Home já aparece no lugar
+   (FR-020). `data-instant` é ligado e desligado por `HomeContent`. */
+.home-content[data-instant],
+.home-content[data-instant] *,
+.home-content[data-instant] *::before,
+.home-content[data-instant] *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Feature 038 (US6): linha discreta de estado do catálogo — texto, não controle; nunca focável. */
 .home-status-line {
   flex-shrink: 0;
-  margin: 0 0 calc(var(--space-5) * -1 + var(--space-1));
+  margin: 0 0 var(--space-1);
   font-family: var(--font-body);
   font-size: var(--fs-caption);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
-/* Hero: banner de largura total, texto/ações sobrepostos na base — a capa
-   (`PosterArt`) preenche a área toda, atrás de um degradê que garante
-   contraste do texto sem esconder a imagem (ADR-007 — sem preview em
-   foco, sem dado inventado: só capa real, título e metadados já conhecidos).
-   `flex: 1 0 420px` (feature 028, D-005/FR-004): único item flexível de
-   `.home-content` — cresce pra ocupar a altura livre do palco quando há
-   pouco conteúdo (poucos rails), sem inventar rail/card novo; nunca encolhe
-   abaixo do mínimo de 420px quando há muito conteúdo (`.home-content`
-   rola, `overflow-y: auto`, em vez de espremer o hero ou os rails, que
-   continuam `flex: none`). */
-.home-hero {
+/* Palco: o billboard e as fileiras dividem a mesma área; quem aparece é decidido por `data-state` do billboard e pelo
+   deslocamento vertical das fileiras (`HomeContent`). */
+.home-stage {
   position: relative;
-  flex: 1 0 420px;
-  min-height: 420px;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  display: flex;
-  align-items: flex-end;
+  flex: 1;
+  min-height: 0;
 }
 
-.home-hero-poster {
+/* ---------- Fundo ambiente (camada do shell, atrás da topbar) ---------- */
+
+.home-ambient-host {
   position: absolute;
   inset: 0;
 }
 
-.home-hero-poster .poster-box {
+.home-ambient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Sem imagem nem cor da capa: gradiente neutro do tema, nunca área vazia nem imagem inventada. */
+  background: linear-gradient(135deg, var(--bg-elevated), var(--bg-canvas));
+}
+
+.home-ambient.has-cover-color {
+  background: linear-gradient(135deg, var(--home-ambient), var(--bg-canvas) 70%);
+}
+
+.home-ambient-img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  border-radius: 0;
+  object-fit: cover;
+  animation: home-ambient-in var(--duration-slow) var(--ease);
 }
 
-.home-hero::after {
-  content: '';
+@keyframes home-ambient-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Vinheta: escurece a imagem inteira (ad-hoc 2026-10-09 — backdrop claro deixava o texto ilegível) e reforça à esquerda e
+   embaixo, onde estão o texto e as fileiras. */
+.home-ambient-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, var(--bg-base) 10%, transparent 65%);
+  background:
+    linear-gradient(90deg, var(--scrim-media) 0%, var(--scrim-media) 25%, transparent 75%),
+    linear-gradient(0deg, var(--bg-canvas) 0%, transparent 55%),
+    linear-gradient(var(--scrim-hero), var(--scrim-hero));
+}
+
+/* Foco nas fileiras: fundo esmaecido, para a imagem não competir com os cards (FR-007). */
+.home-ambient.is-dim .home-ambient-img {
+  opacity: 0.34;
+}
+
+.home-ambient.is-dim .home-ambient-scrim {
+  background: var(--scrim-media);
+}
+
+/* ---------- Billboard ---------- */
+
+.home-hero {
+  position: absolute;
+  inset: 0 0 var(--home-peek-height) 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition:
+    opacity var(--home-expand-duration) var(--ease),
+    visibility var(--home-expand-duration);
+}
+
+/* Recolhido (foco nas fileiras): fora da tela, do foco e da leitura de tela — as ações continuam no DOM, só invisíveis. */
+.home-hero[data-state='collapsed'] {
+  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 
 .home-hero-info {
-  position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   max-width: 60%;
-  padding: var(--space-5);
+  padding-bottom: var(--space-3);
+}
+
+.home-hero-eyebrow {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: var(--fs-body);
+  letter-spacing: 0.14em;
+  color: var(--accent-light);
 }
 
 .home-hero-title {
   font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: var(--fs-h1);
+  font-weight: var(--fw-display);
+  font-size: calc(var(--fs-display) * 1.5);
+  line-height: 1;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
-}
-
-.home-hero-description {
-  margin: 0;
-  font-family: var(--font-body);
-  font-weight: 500;
-  font-size: var(--fs-body);
-  color: var(--text-secondary);
+  text-shadow: var(--text-shadow-media);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .home-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
   font-family: var(--font-body);
-  font-weight: 500;
+  font-weight: 600;
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+}
+
+.home-hero-meta .rating-badge {
+  color: var(--warning);
+}
+
+.home-hero-meta .content-rating-badge {
   font-size: var(--fs-body);
+}
+
+.home-hero-meta .tmdb-rating-badge {
+  color: var(--text-primary);
+}
+
+.home-hero-synopsis,
+.home-hero-description {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: var(--fw-body);
+  font-size: var(--fs-body-lg);
+  line-height: 1.45;
   color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .home-hero-actions {
   display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
   flex-wrap: wrap;
+  /* Folga para o botão focado (scale + contorno + brilho) não encostar no vizinho (ad-hoc 2026-10-09). */
+  gap: var(--space-4);
+  margin-top: var(--space-1);
 }
 
 .home-hero-action {
+  position: relative;
   appearance: none;
   border: none;
-  padding: var(--space-2) var(--space-4);
+  display: inline-flex;
+  align-items: center;
+  height: calc(var(--space-6) + var(--space-1));
+  padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
-  background: var(--bg-surface);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   font-family: var(--font-body);
   font-weight: 700;
-  font-size: var(--fs-body);
+  font-size: var(--fs-body-lg);
+  white-space: nowrap;
   cursor: pointer;
+}
+
+.home-hero-action--primary {
+  background: var(--text-primary);
+  color: var(--bg-canvas);
 }
 
 .home-hero-action.tv-focus {
@@ -124,12 +228,79 @@
   color: var(--accent-ink);
 }
 
-/* Rails ("Continuar assistindo"/"Minha Lista"/"Canais favoritos"/"Curadoria IA"). */
+/* Com barra de progresso: rótulo + tempo restante numa linha e a barra logo abaixo, os dois centrados no botão — mesma
+   altura dos outros botões, nada encostado na borda (ad-hoc 2026-10-09). */
+.home-hero-action--progress {
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+.home-hero-action-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+/* "T1:E3 · faltam 26 min" — complemento do rótulo (descrição acessível; o nome continua só "Continuar"). */
+.home-hero-action-hint {
+  font-weight: 600;
+  font-size: var(--fs-body);
+  opacity: 0.7;
+}
+
+/* Barra de progresso real (só com posição e duração conhecidas). */
+.home-hero-progress {
+  display: block;
+  height: calc(var(--space-1) / 2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.home-hero-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.home-hero-action.tv-focus .home-hero-progress-fill {
+  background: var(--accent-ink);
+}
+
+/* ---------- Fileiras ---------- */
+
+.home-rows {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* O deslocamento vertical é escrito por `HomeContent` (billboard: espia embaixo; fileiras: a focada no topo). */
+.home-rows-track {
+  position: relative;
+  transition: transform var(--home-expand-duration) var(--ease);
+  will-change: transform;
+}
+
 .home-row {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  flex: none;
+  padding-bottom: var(--space-2);
+  transition: opacity var(--home-expand-duration) var(--ease);
+}
+
+/* Fileiras acima da focada saem da vista (uma fileira em foco por vez, como na Netflix). */
+.home-row.is-above {
+  opacity: 0;
+}
+
+.home-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-height: calc(var(--space-5) + var(--space-1));
 }
 
 .home-row-title {
@@ -140,13 +311,390 @@
   color: var(--text-primary);
 }
 
+/* Feature 057: procedência ("Fonte: TMDB") e escopo parcial das linhas do TMDB — só texto, nunca focável. */
+.home-row-source,
+.home-row-coverage {
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+/* A barra de posição do `Rail` não faz parte desta Home (o foco já mostra onde se está). */
+.home-row .rail-position {
+  display: none;
+}
+
+/* Cada ←/→ leva o card focado ao início da janela: com rolagem suave a fileira desliza (como no protótipo) em vez de saltar.
+   Na TV, se engasgar, `auto` aqui devolve o salto direto (junto de `--home-expand-duration: 0ms`, FR-028). A volta de um
+   destino (`data-instant`) e o "reduzir movimento" nunca animam. */
+.home-row .rail {
+  scroll-behavior: smooth;
+}
+
+.home-content[data-instant] .rail {
+  scroll-behavior: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-row .rail {
+    scroll-behavior: auto;
+  }
+}
+
+/* Slot do `Rail`: folga vertical para o anel de foco (o trilho corta o que sai dele) e um respiro à esquerda. */
+.home-rail-slot {
+  box-sizing: border-box;
+  height: 100%;
+  padding: var(--home-focus-pad) 0 var(--home-focus-pad) var(--space-2);
+}
+
+.home-rail-slot > .home-see-all {
+  width: var(--home-card-w);
+}
+
+.home-row-single {
+  display: flex;
+  padding-top: var(--space-1);
+}
+
 .home-row-skeleton {
   display: flex;
   gap: var(--space-3);
 }
 
-.home-row-single {
+/* ---------- Cards de título ---------- */
+
+.home-card {
+  position: relative;
+  width: var(--home-card-w);
+  height: var(--home-card-h);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: var(--elevation-1);
+}
+
+.home-card .poster-box {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: inherit;
+}
+
+/* Degradê no pé do card: o nome fica legível sobre qualquer arte. */
+.home-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(0deg, var(--scrim-media) 0%, transparent 45%);
+  pointer-events: none;
+}
+
+.home-card-title {
+  position: absolute;
+  z-index: 1;
+  left: var(--space-2);
+  right: var(--space-2);
+  bottom: var(--space-2);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-body-lg);
+  line-height: 1.05;
+  color: var(--text-primary);
+  text-shadow: var(--text-shadow-media);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* "Em alta": numeral gigante vazado atrás do pôster, à esquerda. */
+.home-rank-slot {
   display: flex;
+  align-items: flex-end;
+  height: var(--home-card-h);
+}
+
+.home-rank-numeral {
+  position: relative;
+  z-index: 0;
+  flex: none;
+  width: var(--home-numeral-w);
+  margin-right: calc(var(--home-numeral-overlap) * -1);
+  text-align: right;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: calc(var(--fs-display) * 4.5);
+  line-height: 0.74;
+  letter-spacing: -0.08em;
+  color: var(--bg-canvas);
+  -webkit-text-stroke: var(--space-1) var(--text-disabled);
+}
+
+.home-rank-slot .home-card {
+  z-index: 1;
+}
+
+/* ---------- Selos (FR-008): "Novo", nota do provedor, assistido e Minha Lista ---------- */
+
+.home-badge {
+  position: absolute;
+  z-index: 1;
+  top: var(--space-1);
+  padding: calc(var(--space-1) / 2) var(--space-1);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: var(--fs-caption);
+  letter-spacing: 0.04em;
+}
+
+.home-badge--new {
+  left: var(--space-1);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.home-badge--rating {
+  right: var(--space-1);
+  background: var(--scrim-media);
+  color: var(--warning);
+}
+
+.home-badge--rating .rating-badge {
+  color: inherit;
+  font: inherit;
+}
+
+.home-card-marks {
+  position: absolute;
+  z-index: 1;
+  right: var(--space-1);
+  bottom: var(--space-2);
+  display: flex;
+  gap: var(--space-1);
+}
+
+.home-mark {
+  display: grid;
+  place-items: center;
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--scrim-media);
+  font-weight: 800;
+  font-size: var(--fs-caption);
+}
+
+.home-mark--watched {
+  color: var(--success);
+}
+
+.home-mark--favorite {
+  color: var(--brand-1);
+}
+
+/* Com selos embaixo, o nome deixa a coluna deles livre. */
+.home-card:has(.home-card-marks) .home-card-title {
+  right: var(--space-5);
+}
+
+/* ---------- Card expandido no foco (FR-009) ---------- */
+
+/* O card focado cresce (largura e altura vêm de `homeRowFormats.ts`) — o `Rail` abre o espaço para ele. Sem animar a largura:
+   é também o fallback de FR-028 (a TV não engasga); o que anima é só o fade da camada abaixo. A escala do foco é desligada:
+   o próprio crescimento já é o destaque. */
+.home-card.is-expanded {
+  width: var(--home-card-expanded-w);
+  height: var(--home-card-expanded-h);
+  transform: none;
+}
+
+.home-card-expanded {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--bg-base);
+  animation: home-expand-in var(--home-expand-duration) var(--ease);
+}
+
+@keyframes home-expand-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.home-card-expanded-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.home-card-expanded-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, var(--bg-canvas) 0%, var(--scrim-media) 40%, transparent 100%);
+}
+
+/* Sem imagem 16:9 no aparelho: o pôster à esquerda e as informações sobre a cor da capa (ou o gradiente neutro). */
+.home-card-expanded--poster {
+  background: linear-gradient(135deg, var(--bg-elevated), var(--bg-canvas));
+}
+
+.home-card-expanded--poster.has-cover-color {
+  background: linear-gradient(135deg, var(--home-card-ambient), var(--bg-canvas) 80%);
+}
+
+.home-card-expanded--poster .home-card-expanded-scrim {
+  display: none;
+}
+
+.home-card-expanded-cover {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  aspect-ratio: 2 / 3;
+}
+
+.home-card-expanded-cover .poster-box {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+
+.home-card-expanded-info {
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.home-card-expanded--poster .home-card-expanded-info {
+  top: var(--space-3);
+  justify-content: flex-end;
+  left: calc(var(--home-card-expanded-h) * 2 / 3 + var(--space-3));
+}
+
+.home-card-expanded-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-h1);
+  line-height: 1.05;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home-card-expanded-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.home-card-expanded-meta > span + span::before {
+  content: '·';
+  margin: 0 var(--space-1);
+  color: var(--text-annotation);
+}
+
+.home-card-expanded-meta .rating-badge {
+  margin-left: var(--space-1);
+  color: var(--warning);
+}
+
+.home-card-expanded-meta > .content-rating-badge {
+  margin-left: var(--space-1);
+}
+
+.home-card-expanded-meta > .content-rating-badge::before {
+  content: none;
+}
+
+.home-card-expanded-meta .tmdb-rating-badge {
+  color: var(--text-primary);
+  font-size: var(--fs-caption);
+}
+
+.home-card-expanded-synopsis {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.4;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home-card-expanded-hint {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+  color: var(--text-annotation);
+}
+
+.home-card-expanded-key {
+  padding: 0 var(--space-1);
+  margin-right: var(--space-1);
+  border: 1px solid var(--text-annotation);
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Continuar assistindo (16:9, FR-010) ---------- */
+
+.home-continue-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.home-card--continue .home-card-title {
+  right: var(--space-5);
+  bottom: var(--space-3);
+}
+
+/* Barra de progresso real: só existe com posição E duração conhecidas; fica por cima da camada expandida. */
+.home-card-progress {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--space-1) * 3 / 4);
+  background: var(--bg-hover);
+}
+
+.home-card-progress > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.home-card-caption {
+  max-width: var(--home-card-w);
+  margin-top: var(--space-2);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* "Ver todos (N)"/"Filmes (N)"/"Séries (N)" — mesmo slot do card da rail (FR-014). */
@@ -169,59 +717,52 @@
   background: var(--bg-hover);
 }
 
-/* Dock de serviços (FR-016) — soft disabled, nunca dado inventado. */
-.home-dock {
-  display: flex;
-  gap: var(--space-3);
-  flex: none;
-}
+/* ---------- Canais favoritos (1ª fileira, ad-hoc 2026-10-09): ícone quadrado com o logo — ou as iniciais — e o nome embaixo.
+   O nome fica fora da caixa (na faixa de legenda do formato), então o anel de foco contorna só o ícone. ---------- */
 
-.home-dock-icon {
-  --icon-size: var(--fs-h2);
-  appearance: none;
-  border: none;
-  width: 52px;
-  height: 52px;
+.home-live-card {
+  position: relative;
+  width: var(--home-card-w);
+  height: var(--home-card-h);
   border-radius: var(--radius-md);
   background: var(--bg-surface);
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
+  box-shadow: var(--elevation-1);
 }
 
-.home-dock-icon.tv-focus {
-  background: var(--bg-hover);
+.home-live-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.home-live-logo .poster-box {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.home-live-name {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  right: 0;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-live-card.tv-focus .home-live-name {
   color: var(--text-primary);
 }
 
-/* Ícone de serviço real (feature 032): um ponto de estado no canto. O estado
-   também está no `aria-label`/`title` — a cor nunca é o único sinal. */
-.home-dock-icon--service {
-  position: relative;
-}
-
-.home-dock-icon--service::after {
-  content: '';
-  position: absolute;
-  top: var(--space-1);
-  right: var(--space-1);
-  width: var(--space-1);
-  height: var(--space-1);
-  border-radius: var(--radius-pill);
-  background: var(--text-disabled);
-}
-
-.home-dock-icon--service[data-state='connected']::after {
-  background: var(--success);
-}
-
-.home-dock-icon--service[data-state='refused']::after {
-  background: var(--danger);
-}
-
-.home-dock-icon--service[data-state='offline']::after,
-.home-dock-icon--service[data-state='rate_limited']::after {
-  background: var(--warning);
+/* "Ver todos (N)" da fileira de canais: da altura do ícone, não do slot inteiro (que inclui a faixa do nome). */
+.home-row[data-row='channels'] .home-see-all {
+  height: var(--home-card-h);
 }

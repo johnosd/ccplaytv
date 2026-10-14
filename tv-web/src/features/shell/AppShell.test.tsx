@@ -84,6 +84,37 @@ describe('AppShell', () => {
   })
 })
 
+// Feature 060 (D-004): fundo opcional da tela, dentro do shell (sai junto com ele quando o player abre).
+describe('AppShell — backdrop opcional (feature 060)', () => {
+  it('sem a prop o DOM é o de sempre: nenhuma camada de fundo e a classe raiz continua só app-shell', () => {
+    setNavigatorOnLine(true)
+    const { container } = render(
+      <AppShell topBar={<div>topbar</div>}>
+        <p>conteúdo</p>
+      </AppShell>,
+    )
+    expect(container.firstElementChild?.className).toBe('app-shell')
+    expect(container.querySelector('.app-shell-backdrop')).toBeNull()
+  })
+
+  it('com a prop o fundo é a 1ª camada do shell, decorativa, antes da topbar e do conteúdo', () => {
+    setNavigatorOnLine(true)
+    const { container } = render(
+      <AppShell topBar={<div>topbar</div>} backdrop={<div>fundo-de-teste</div>}>
+        <p>conteúdo</p>
+      </AppShell>,
+    )
+    const shell = container.firstElementChild as HTMLElement
+    expect(shell).toHaveClass('app-shell', 'app-shell--backdrop')
+    const layer = shell.firstElementChild as HTMLElement
+    expect(layer).toHaveClass('app-shell-backdrop')
+    expect(layer).toHaveAttribute('aria-hidden', 'true')
+    expect(layer).toHaveTextContent('fundo-de-teste')
+    expect(screen.getByText('topbar')).toBeInTheDocument()
+    expect(screen.getByRole('main')).toContainElement(screen.getByText('conteúdo'))
+  })
+})
+
 describe('HintBar', () => {
   it('mostra cada tecla com a ação daquele contexto, legível e sem itens focáveis', () => {
     render(<HintBar hints={HINTS} />)

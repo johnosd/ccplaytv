@@ -113,7 +113,9 @@ function startServer() {
 }
 
 async function launchWithH264() {
-  const attempts = [{ headless: true }, { headless: true, channel: 'chrome' }]
+  // Prioriza Chrome: neste Windows, o headless shell ficou em kStarting na primeira abertura fria.
+  // O Chromium continua como alternativa; uma falha de reprodução permanece FAIL.
+  const attempts = [{ headless: true, channel: 'chrome' }, { headless: true }]
   for (const options of attempts) {
     let browser
     try {
@@ -128,7 +130,10 @@ async function launchWithH264() {
       H264_AAC,
     )
     await probe.close()
-    if (supported) return browser
+    if (supported) {
+      console.log(`Navegador de mídia: ${options.channel ?? 'chromium'} ${browser.version()}`)
+      return browser
+    }
     await browser.close()
   }
   return null
@@ -147,7 +152,14 @@ async function waitFor(predicate, timeoutMs, stepMs = 100) {
 const isReallyPlaying = (page) =>
   page.evaluate(() => {
     const v = document.querySelector('video.player-video')
-    return Boolean(v) && v.readyState >= 3 && v.currentTime > 0.5 && !v.paused
+    if (!v || v.readyState < 3 || v.currentTime <= 0.5 || v.paused || v.seeking) return false
+    const samples = window.__e2e047PlaybackSamples ??= new WeakMap()
+    const firstTime = samples.get(v)
+    if (firstTime === undefined) {
+      samples.set(v, v.currentTime)
+      return false
+    }
+    return v.currentTime > firstTime + 0.25
   })
 
 async function run() {
@@ -163,7 +175,7 @@ async function run() {
   const { server, active, stats } = await startServer()
   const m3uUrl = `http://127.0.0.1:${server.address().port}/lista.m3u`
   const streamHost = `127.0.0.1:${server.address().port}`
-  const page = await (await browser.newContext()).newPage()
+  const page = await (await browser.newContext({ locale: 'pt-BR' })).newPage()
   const consoleLines = []
   page.on('console', (message) => consoleLines.push(message.text()))
   page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error'))
@@ -185,10 +197,10 @@ async function run() {
     for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
     await page.keyboard.press('ArrowRight') // Início → TV ao vivo
     await page.keyboard.press('Enter')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
 
     console.log('=== US2: o canal .ts toca no dev (fallback de demux) ===')
-    await page.keyboard.press('ArrowRight') // entra na categoria
+    await page.keyboard.press('Enter') // entra na categoria
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await page.evaluate(() => {
       window.__e2e047 = 'sem-reload'
@@ -229,6 +241,8 @@ async function run() {
     console.log('=== T026 (US2/AC4): canal que o navegador não decodifica cai no mesmo PLAY-04 ===')
     // Depois do RETURN o foco volta ao Canal 1; o Canal 4 é três linhas abaixo.
     for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowDown')
+    // Espera o foco chegar ao Canal 4 antes do OK: as 3 setas + OK sem pausa corriam com o render e tocavam outro canal.
+    await page.waitForFunction(() => document.querySelector('.live-channel-row.tv-focus')?.textContent?.includes('Canal 4'), null, { timeout: 4000 })
     await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"]', { timeout: 8000 })
     const errorShown = await page

@@ -1,5 +1,15 @@
+import { commercialBuild, licenseMonitor } from '../../lib/licensing/licenseRuntime'
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import { CatalogApiError, fetchPlayback, stableIdOf, type CatalogItemPlayback } from '../../features/catalog/catalogApi'
+import {
+  CatalogApiError,
+  fetchArchivePlayback,
+  fetchPlayback,
+  rememberArchiveVariant,
+  stableIdOf,
+  type ArchivePlayback,
+  type CatalogItemPlayback,
+} from '../../features/catalog/catalogApi'
+import type { ArchiveVariant } from '../../lib/catalog/archiveUrl'
 import {
   createPlayerSession,
   FULLSCREEN_REGION,
@@ -7,7 +17,7 @@ import {
   type PlayerServiceSession,
   type PlayerState,
 } from '../../lib/player/PlayerService'
-import { createProgressRecorder, type ProgressRecorder, type ProgressRecorderIdentity } from '../../lib/player/progressRecorder'
+import { COMPLETION_WRITE_TIMEOUT_MS, createProgressRecorder, notifyProgressSettled, settleExit, settleWithin, type ProgressRecorder, type ProgressRecorderIdentity } from '../../lib/player/progressRecorder'
 import { MOVIE_WATCHED_RATIO } from '../../lib/player/resumePolicy'
 import { disableScreenSaver, enableScreenSaver } from '../../lib/player/screenSaver'
 import { diagnoseFetchFailure, diagnosePlayback, type PlaybackDiagnosis } from '../../lib/player/playbackDiagnosis'
@@ -15,8 +25,11 @@ import { readPlaybackSourceAccess, type PlaybackSourceAccess } from '../../lib/p
 import { nextReconnect, RECONNECT_DELAYS_MS, RECONNECT_STABLE_MS } from '../../lib/player/reconnectPolicy'
 import { verifyNetwork } from '../../lib/network/verifyNetwork'
 import { prefetchGate } from '../../lib/catalog/prefetch'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
+import type { Translator } from '../../lib/i18n/translate'
 import type { ChromeMedia } from '../chromeControls'
-import type { PanelState, Phase, ResumeGate } from './playerLayerTypes'
+import type { PanelState, Phase, PlayerArchive, ResumeGate } from './playerLayerTypes'
 import type { PlayerChrome } from './usePlayerChrome'
 
 /**
@@ -47,6 +60,10 @@ export interface PlayerSessionParams {
   reapplyTrackChoice: (session: PlayerServiceSession) => void
   /** Feature 041: aspecto e qualidade da sequência, logo depois das faixas. */
   reapplyViewChoice: (session: PlayerServiceSession) => void
+  /** Feature 058 (`logic/arquivo.md` §4): programa de arquivo a tocar; ausente = o item ao vivo/VOD de sempre. */
+  archive: PlayerArchive | null | undefined
+  /** Feature 058: fim do programa de arquivo (a tela decide o que vem depois). */
+  onArchiveEnded: (() => void) | undefined
 }
 
 export interface PlayerSessionState {
@@ -71,6 +88,22 @@ export interface PlayerSessionState {
  * ciclo de vida são hooks à parte, chamados pelo `PlayerLayer` logo depois,
  * na mesma ordem de antes (`logic/divisao.md` §1.2).
  */
+/**
+ * Mensagens que o motor/serviço devolve em português (`PlayerService`, `avplayAdapter`) → chave do catálogo,
+ * para a tela de erro sair no idioma do app. Mensagem desconhecida segue como veio (feature 054).
+ */
+const ENGINE_MESSAGE_KEYS: Record<string, MessageKey> = {
+  'Não foi possível iniciar a reprodução.': 'player.msg.startFailed',
+  'A transmissão foi interrompida.': 'player.msg.streamInterrupted',
+  'Player da TV indisponível.': 'player.msg.tvPlayerUnavailable',
+}
+
+function engineMessage(message: string | undefined, t: Translator): string | undefined {
+  if (message === undefined) return undefined
+  const key = ENGINE_MESSAGE_KEYS[message]
+  return key ? t(key) : message
+}
+
 export function usePlayerSession({
   itemId,
   createAdapter,
@@ -86,7 +119,11 @@ export function usePlayerSession({
   chrome,
   reapplyTrackChoice,
   reapplyViewChoice,
+  archive,
+  onArchiveEnded,
 }: PlayerSessionParams): PlayerSessionState {
+  // Idioma do app na hora do erro: o texto do diagnóstico é gravado no estado, não relido (R-013).
+  const t = useT()
   const [phase, setPhase] = useState<Phase>({ kind: 'resolving' })
   const [attempt, setAttempt] = useState(0)
   const [hardwarePlane, setHardwarePlane] = useState(false)
@@ -104,6 +141,18 @@ export function usePlayerSession({
   const sourceAccessRef = useRef<PlaybackSourceAccess>(null)
   /** Lista do item que toca — para a ação "Editar lista" do erro de fonte (id da lista, não segredo). */
   const sourceIdRef = useRef<string | null>(null)
+  // Feature 058 (R4 da research): a sondagem de variante de URL de arquivo É a
+  // abertura do player — a 1ª variante que falha antes de tocar troca pela
+  // outra UMA vez; trocar de programa/canal zera.
+  const archiveRef = useRef(archive)
+  archiveRef.current = archive
+  // Sempre o callback mais recente: a sessão vive além do render que a criou, e
+  // a tela calcula o "seguinte" com a programação que carregou DEPOIS (achado no T031).
+  const onArchiveEndedRef = useRef(onArchiveEnded)
+  onArchiveEndedRef.current = onArchiveEnded
+  const lastArchiveKeyRef = useRef<string | null>(null)
+  const variantStepRef = useRef(0)
+  const variantOverrideRef = useRef<ArchiveVariant | undefined>(undefined)
   const resumeGateRef = useRef<ResumeGate>(null)
   const [resumeGate, setResumeGateState] = useState<ResumeGate>(null)
   const recheckResumeRef = useRef<() => void>(() => {})
@@ -124,10 +173,25 @@ export function usePlayerSession({
 
     // Outro item (zapping, CH±, próximo episódio): a posição e a contagem do
     // anterior nunca vazam (`logic/rede-e-lifecycle.md` §3.6).
-    if (lastItemRef.current !== itemId) {
+    // Feature 058: o arquivo desta execução (lido do ref — as dependências do
+    // efeito são só o início/fim, para um objeto novo igual não recriar a sessão).
+    const currentArchive = archiveRef.current ?? null
+    const archiveKey = currentArchive ? `${currentArchive.start}-${currentArchive.end}` : null
+    if (lastItemRef.current !== itemId || lastArchiveKeyRef.current !== archiveKey) {
       lastItemRef.current = itemId
+      lastArchiveKeyRef.current = archiveKey
       resumeAtRef.current = undefined
       attemptsRef.current = 0
+      variantStepRef.current = 0
+      variantOverrideRef.current = undefined
+    }
+
+    /** Uma busca por tentativa: o programa de arquivo (1ª chamada sempre com 2 argumentos) ou o item. */
+    function fetchCurrent(): Promise<CatalogItemPlayback | ArchivePlayback> {
+      if (!currentArchive) return fetchPlayback(itemId)
+      const program = { start: currentArchive.start, end: currentArchive.end }
+      const variant = variantOverrideRef.current
+      return variant ? fetchArchivePlayback(itemId, program, { variant }) : fetchArchivePlayback(itemId, program)
     }
 
     function clearReconnectTimers() {
@@ -149,7 +213,7 @@ export function usePlayerSession({
       // que ainda não tinha cruzado o intervalo periódico (`logic/
       // reproducao-vod.md` §2, `aoSair`). Vem antes de fechar a sessão —
       // depois disso `session.progress` já não importa mais.
-      recorderRef.current?.onExit('close')
+      if (recorderRef.current) settleExit(recorderRef.current, commercialBuild && !licenseMonitor.check().allowed ? 'license' : 'close')
       sessionRef.current?.close()
       sessionRef.current = null
       recorderRef.current = null
@@ -161,11 +225,14 @@ export function usePlayerSession({
     function applyFetchError(error: unknown) {
       if (cancelled) return
       const unavailable = error instanceof CatalogApiError && error.status === 409
-      const diagnosis = diagnoseFetchFailure({
-        status: error instanceof CatalogApiError ? error.status : null,
-        online: navigator.onLine,
-        at: Date.now(),
-      })
+      const diagnosis = diagnoseFetchFailure(
+        {
+          status: error instanceof CatalogApiError ? error.status : null,
+          online: navigator.onLine,
+          at: Date.now(),
+        },
+        t,
+      )
       setPhase({
         kind: 'error',
         message: unavailable ? unavailableMessage : genericErrorMessage,
@@ -223,11 +290,17 @@ export function usePlayerSession({
         return
       }
       try {
-        await fetchPlayback(itemId)
+        await fetchCurrent()
       } catch (error) {
         verifyingResume = false
         if (cancelled) return
         setResumeGate(null)
+        // Feature 058 (R-008): o programa saiu do arquivo enquanto o app estava
+        // oculto — segue como fim do programa, não como erro.
+        if (currentArchive && error instanceof CatalogApiError && error.status === 409) {
+          ;(onArchiveEndedRef.current ?? onClose)()
+          return
+        }
         applyFetchError(error)
         return
       }
@@ -249,8 +322,9 @@ export function usePlayerSession({
         // Uma busca por tentativa, sempre pelo id do item: a URL anterior
         // nunca é reaproveitada, para não contornar expiração ou revogação
         // (ADR-002 §5; contrato, regra 3).
-        const playback = await fetchPlayback(itemId)
+        const playback = await fetchCurrent()
         if (cancelled) return
+        const archiveVariant = 'archive_variant' in playback ? playback.archive_variant : undefined
         sourceAccessRef.current = null
         sourceIdRef.current = playback.source_id
         void readPlaybackSourceAccess(playback.source_id).then((access) => {
@@ -265,7 +339,18 @@ export function usePlayerSession({
           createAdapter,
           // Reconexão do VOD retoma da última posição conhecida (FR-009); sem
           // ela vale a posição de retomada que a tela pediu.
-          startAtMs: resumeAtRef.current ?? startAtMs,
+          // Feature 058: o arquivo começa do início do programa (FR-010), nunca na retomada de outro item.
+          startAtMs: resumeAtRef.current ?? (currentArchive ? undefined : startAtMs),
+          // Feature 058 (FR-001): `playback` é local desta tentativa — os
+          // valores só atravessam até o adaptador, nunca estado de tela.
+          headers: playback.headers,
+          // Feature 058 (FR-011/FR-014): duração do EPG; no programa em exibição, a busca para no "agora".
+          timeline: currentArchive
+            ? {
+                durationMs: currentArchive.end - currentArchive.start,
+                maxPositionMs: () => Math.max(0, Math.min(currentArchive.end, Date.now()) - currentArchive.start),
+              }
+            : undefined,
         })
         sessionRef.current = session
         setHardwarePlane(session.rendersOnHardwarePlane)
@@ -287,8 +372,9 @@ export function usePlayerSession({
         // também pra filme — com um limiar próprio, mais baixo
         // (`MOVIE_WATCHED_RATIO`, 90%) que o de episódio (95%, default de
         // `isPastEnd`, D-002/D-003 do plano da 019).
+        // Feature 058 (FR-019): arquivo nunca grava retomada nem histórico — identidade nula.
         const recorder = createProgressRecorder(
-          computeIdentity(playback),
+          playback.kind === 'archive' ? null : computeIdentity(playback),
           session.capabilities.reportsPosition,
           undefined,
           {
@@ -329,15 +415,15 @@ export function usePlayerSession({
           // tela quer decidir o que vem depois (autoplay) em vez de só sair.
           if (session.state === 'completed' && previousState !== 'completed') {
             previousState = session.state
-            // Aguarda a escrita (markCompleted/clearProgress) terminar ANTES
-            // de fechar — achado real na feature 019, T023: fechar direto
-            // disparava a invalidação de `useUserState` numa corrida com a
-            // transação de conclusão ainda em voo (2 operações Dexie
-            // sequenciais), e o refetch mais simples podia vencer, deixando
-            // a tela presa no estado antigo até remontar.
-            void recorder.onExit('completed').then(() => {
+            // Aguarda a escrita (markCompleted/clearProgress) ANTES de fechar — fechar direto
+            // corria com a invalidação de `useUserState` (feature 019, T023) e a tela ficava no
+            // estado antigo. Com prazo e sem depender de sucesso: na TV a escrita pode falhar ou
+            // demorar, e esperar sem prazo deixava a tela preta (bug serie-sem-proximo-episodio-controles-somem).
+            void settleWithin(recorder.onExit('completed'), COMPLETION_WRITE_TIMEOUT_MS).then(() => {
+              notifyProgressSettled(recorder.takeFailureCode())
               if (cancelled) return
-              ;(onCompleted ?? onClose)()
+              // Feature 058 (FR-013): no arquivo, quem decide o seguinte é a tela.
+              ;(currentArchive ? (onArchiveEndedRef.current ?? onClose) : (onCompleted ?? onClose))()
             })
             return
           }
@@ -345,6 +431,8 @@ export function usePlayerSession({
 
           if (session.state === 'playing' && !enteredPlayingFired) {
             enteredPlayingFired = true
+            // Feature 058: a variante que TOCOU vira a primeira da fonte (nunca gravada por falha).
+            if (currentArchive) void rememberArchiveVariant(playback.source_id, archiveVariant).catch(() => {})
             reapplyTrackChoice(session)
             reapplyViewChoice(session)
             onEnteredPlaying?.()
@@ -365,17 +453,32 @@ export function usePlayerSession({
           }
 
           if (session.state === 'error') {
+            // Feature 058 (R4): arquivo que falhou antes de tocar tenta a OUTRA
+            // variante de URL uma vez, antes de qualquer reconexão.
+            if (currentArchive && !playedThisSession && attemptsRef.current === 0 && variantStepRef.current === 0) {
+              variantStepRef.current = 1
+              variantOverrideRef.current = (archiveVariant ?? 'rest') === 'rest' ? 'php' : 'rest'
+              setAttempt((n) => n + 1)
+              return
+            }
             // Reconexão automática (feature 042, D-003/D-004): só um stream que
             // já tocou (ou que já está numa sequência), com rede e permissão do
             // diagnóstico. Reabre pelo MESMO caminho do "Tentar de novo".
-            const diagnosis: PlaybackDiagnosis = diagnosePlayback({
-              error: session.error,
-              online: navigator.onLine,
-              mediaKind: playback.kind,
-              engine: session.engine,
-              at: Date.now(),
-              sourceAccess: sourceAccessRef.current,
-            })
+            const diagnosis: PlaybackDiagnosis = diagnosePlayback(
+              {
+                error: session.error,
+                online: navigator.onLine,
+                mediaKind: playback.kind,
+                engine: session.engine,
+                at: Date.now(),
+                sourceAccess: sourceAccessRef.current,
+                // Feature 058 (FR-004): só o fato "algum header não foi enviado".
+                headersNotSent: session.requestHeaders.refused.length > 0,
+                // Feature 058 (FR-017): as duas variantes falharam sem tocar.
+                archiveFailed: currentArchive !== null && !playedThisSession && variantStepRef.current === 1,
+              },
+              t,
+            )
             const decision = nextReconnect({
               attempt: attemptsRef.current,
               online: navigator.onLine,
@@ -398,7 +501,8 @@ export function usePlayerSession({
             // ele, o desconhecido usa a mensagem da tela ("este canal"/"este
             // filme") e as causas conhecidas usam o texto da tabela de erros.
             const message =
-              session.error?.message ?? (diagnosis.category === 'unknown' ? genericErrorMessage : diagnosis.message)
+              (session.error ? engineMessage(session.error.message, t) : undefined) ??
+              (diagnosis.category === 'unknown' ? genericErrorMessage : diagnosis.message)
             setPhase({ kind: 'error', message, retryable: true, diagnosis })
             onSessionError?.(message)
             return
@@ -423,7 +527,7 @@ export function usePlayerSession({
       teardown()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- unavailableMessage/genericErrorMessage/startAtMs/onClose/onCompleted são props de configuração, estáveis na prática (não recriam a sessão por si)
-  }, [itemId, attempt, createAdapter])
+  }, [itemId, attempt, createAdapter, archive?.start, archive?.end])
 
   return {
     phase,

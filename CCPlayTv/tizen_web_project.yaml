@@ -36,6 +36,52 @@ files:
   - icon.png
   - assets/index.js
   - assets/index.css
+  - assets/SettingsScreen.css
+  # Chunks de rotas locais (feature 065). O nome de cada rota vem da entrada
+  # dela (vite.config.ts, ROUTE_CHUNKS); o guard recusa artefato não inventariado.
+  - assets/route-add-source.js
+  - assets/route-epg-settings.js
+  - assets/route-import-progress.js
+  - assets/route-list-settings.js
+  - assets/route-live.js
+  - assets/route-movie-detail.js
+  - assets/route-person.js
+  - assets/route-search.js
+  - assets/route-series-detail.js
+  - assets/route-settings.js
+  - assets/route-source-access.js
+  - assets/route-tmdb-key.js
+  - assets/route-vod-category.js
+  - assets/route-vod-showcase.js
+  # Chunks compartilhados entre as rotas (nomes do empacotador; o guard do
+  # sync-tizen lista qualquer novo).
+  - assets/ChannelRow.js
+  - assets/ContentCard.js
+  - assets/EmptyState.js
+  - assets/FavoritesState.js
+  - assets/HistoryRemovalModal.js
+  - assets/Icon.js
+  - assets/SideCategoryNav.js
+  - assets/SourcesPanel.js
+  - assets/TextField.js
+  - assets/TitleSummaryModal.js
+  - assets/accountCheck.js
+  - assets/catalogApi.js
+  - assets/ComingSoon.js
+  - assets/errorCatalog.js
+  - assets/freshness.js
+  - assets/onlineStatus.js
+  - assets/paging.js
+  - assets/trailerAction.js
+  - assets/react-dom.js
+  - assets/useEnterSimilarPanel.js
+  - assets/useImeChain.js
+  - assets/useOverflowEdges.js
+  - assets/useScrollFocusedIntoView.js
+  - assets/useTvKeyNav.js
+  - assets/LockedCategoryState.js
+  - assets/Modal.js
+  - assets/verifyNetwork.js
   # Worker de importação (feature 005), alcançado a partir de
   # `importRunner.ts` — que `importApi.ts` chama. Enquanto nada no grafo do
   # app criasse esse Worker, o empacotador não emitia o arquivo e esta linha

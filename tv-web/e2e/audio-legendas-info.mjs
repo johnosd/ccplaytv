@@ -30,6 +30,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusSideItem } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'player-chrome.m3u')
@@ -208,8 +209,8 @@ async function openViaTopbar(page, destination) {
 
 /** Entra na categoria `name` de Filmes/Séries (grade real do trilho já em foco). */
 async function enterCategory(page, name) {
-  await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await focusSideItem(page, name)
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
@@ -250,7 +251,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/player-chrome.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   await context.addInitScript(installFakeAvplay)
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
@@ -377,8 +378,8 @@ async function run() {
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra em "Canais Chrome"
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
+    await page.keyboard.press('Enter') // entra em "Canais Chrome"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     // Histórico limpo: as asserções abaixo só valem se a chamada ao motor for
     // DESTE cenário, não sobra do filme (o `select:AUDIO:2` do canal um é o mesmo).

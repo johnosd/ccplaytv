@@ -1,12 +1,15 @@
 import type { SourceOut } from '../import/importApi'
 import { describeAccount } from '../../lib/catalog/sourceAccount'
 import type { CatalogSection } from '../../lib/catalog/db'
+import { APP_LANGUAGE_LOCALE } from '../../lib/i18n/languages'
+import { createTranslator, type Translator } from '../../lib/i18n/translate'
 import type { CatalogCounts } from '../catalog/catalogApi'
 
 /**
  * Formatação de exibição de uma lista (fonte), compartilhada entre a tela de
  * perfis e Configurações › Fontes IPTV (feature 026, D-007) — extraído de
- * `ProfilesScreen.tsx` sem mudar comportamento.
+ * `ProfilesScreen.tsx` sem mudar comportamento. Os textos e formatos seguem o
+ * idioma do app (feature 054): `t` omitido = português.
  */
 
 /**
@@ -15,16 +18,22 @@ import type { CatalogCounts } from '../catalog/catalogApi'
  * no disco. Credencial recusada e assinatura vencida dizem o motivo (FR-016) em
  * vez do "Erro" genérico; só fonte Xtream tem conta (FR-022).
  */
-export function formatStatus(source: SourceOut, { syncing = false }: { syncing?: boolean } = {}): string {
-  if (syncing) return 'Sincronizando'
-  const account = source.provider_import_mode === 'xtream_api' ? describeAccount(source.account, Date.now()) : undefined
-  if (account?.kind === 'refused') return 'Credencial inválida'
-  if (source.connection_state === 'error' && account?.kind === 'expired') return 'Conta expirada'
-  if (source.connection_state === 'error') return 'Erro na última sincronização'
+export function formatStatus(
+  source: SourceOut,
+  { syncing = false }: { syncing?: boolean } = {},
+  t: Translator = createTranslator('pt'),
+): string {
+  if (syncing) return t('src.status.syncing')
+  const account = source.provider_import_mode === 'xtream_api' ? describeAccount(source.account, Date.now(), t) : undefined
+  if (account?.kind === 'refused') return t('src.status.refused')
+  if (source.connection_state === 'error' && account?.kind === 'expired') return t('src.status.expired')
+  if (source.connection_state === 'error') return t('src.status.error')
   if (source.connection_state === 'never_synced' || !source.last_successful_sync_at) {
-    return 'Nunca sincronizada'
+    return t('src.status.never')
   }
-  return `Sincronizada em ${new Date(source.last_successful_sync_at).toLocaleString('pt-BR')}`
+  return t('src.status.syncedAt', {
+    when: new Date(source.last_successful_sync_at).toLocaleString(APP_LANGUAGE_LOCALE[t.language]),
+  })
 }
 
 /**
@@ -32,33 +41,35 @@ export function formatStatus(source: SourceOut, { syncing = false }: { syncing?:
  * só com dado real: nunca o endereço, nunca a credencial. `syncing` vem do
  * executor — "Sincronizando EPG" não existe no disco.
  */
-export function formatEpgStatus(source: SourceOut, syncing: boolean): string {
-  if (syncing) return 'Sincronizando EPG'
+export function formatEpgStatus(source: SourceOut, syncing: boolean, t: Translator = createTranslator('pt')): string {
+  if (syncing) return t('src.epg.syncing')
   const epg = source.epg
   switch (epg?.state) {
     case 'disabled':
-      return 'EPG desativado'
+      return t('src.epg.disabled')
     case 'error':
-      return 'Erro no EPG · EPG-02'
+      return t('src.epg.error')
     case 'linked':
       return epg.lastSyncAt
-        ? `EPG vinculado · atualizado em ${new Date(epg.lastSyncAt).toLocaleString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}`
-        : 'EPG vinculado'
+        ? t('src.epg.linkedAt', {
+            when: new Date(epg.lastSyncAt).toLocaleString(APP_LANGUAGE_LOCALE[t.language], {
+              day: '2-digit',
+              month: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+          })
+        : t('src.epg.linked')
     case 'never_synced':
-      return 'EPG ainda não sincronizado'
+      return t('src.epg.never')
     default:
-      return 'EPG não configurado'
+      return t('src.epg.notConfigured')
   }
 }
 
 /** Tipo da lista para o cartão (FR-002). Nunca o endereço nem a credencial (FR-048/FR-024). */
-export function formatType(source: SourceOut): string {
-  return source.type === 'provider_credentials' ? 'Xtream' : 'M3U'
+export function formatType(source: SourceOut, t: Translator = createTranslator('pt')): string {
+  return source.type === 'provider_credentials' ? t('src.type.xtream') : t('src.type.m3u')
 }
 
 /**
@@ -66,9 +77,9 @@ export function formatType(source: SourceOut): string {
  * só para fonte que fala o protocolo Xtream; M3U avulsa e Modo limitado não
  * declaram conta (FR-022). `undefined` = nada a mostrar.
  */
-export function formatAccount(source: SourceOut, now: number): string | undefined {
+export function formatAccount(source: SourceOut, now: number, t: Translator = createTranslator('pt')): string | undefined {
   if (source.provider_import_mode !== 'xtream_api') return undefined
-  return describeAccount(source.account, now).text
+  return describeAccount(source.account, now, t).text
 }
 
 /** Aviso curto da lista: texto legível sempre — a cor nunca é o único sinal (FR-007). */
@@ -78,9 +89,9 @@ export interface AlertChip {
 }
 
 /** O chip da conta (vence em breve, expirada, credencial inválida), ou `undefined`. Só Xtream. */
-export function accountChipOf(source: SourceOut, now: number): AlertChip | undefined {
+export function accountChipOf(source: SourceOut, now: number, t: Translator = createTranslator('pt')): AlertChip | undefined {
   if (source.provider_import_mode !== 'xtream_api') return undefined
-  return describeAccount(source.account, now).chip
+  return describeAccount(source.account, now, t).chip
 }
 
 /**
@@ -90,28 +101,30 @@ export function accountChipOf(source: SourceOut, now: number): AlertChip | undef
  * já explique a falha: credencial inválida ou conta expirada, FR-016) e
  * "Erro no EPG".
  */
-export function sourceAlertChips(source: SourceOut, now: number, { syncing = false } = {}): AlertChip[] {
+export function sourceAlertChips(
+  source: SourceOut,
+  now: number,
+  { syncing = false } = {},
+  t: Translator = createTranslator('pt'),
+): AlertChip[] {
   const chips: AlertChip[] = []
-  if (syncing) chips.push({ tone: 'neutral', label: 'Sincronizando' })
-  const account = accountChipOf(source, now)
+  if (syncing) chips.push({ tone: 'neutral', label: t('src.status.syncing') })
+  const account = accountChipOf(source, now, t)
   if (account) chips.push(account)
-  const accountExplainsFailure = account?.label === 'Credencial inválida' || account?.label === 'Conta expirada'
+  const accountKind = source.provider_import_mode === 'xtream_api' ? describeAccount(source.account, now, t).kind : undefined
+  const accountExplainsFailure = accountKind === 'refused' || accountKind === 'expired'
   if (source.connection_state === 'error' && !accountExplainsFailure) {
-    chips.push({ tone: 'error', label: 'Erro na última sincronização' })
+    chips.push({ tone: 'error', label: t('src.status.error') })
   }
-  if (source.epg?.state === 'error') chips.push({ tone: 'error', label: 'Erro no EPG' })
+  if (source.epg?.state === 'error') chips.push({ tone: 'error', label: t('src.epg.errorChip') })
   return chips
 }
 
 const COUNT_KINDS = [
-  { key: 'channels', section: null, items: ['canal', 'canais'], categories: ['categoria de canais', 'categorias de canais'], short: 'de canais' },
-  { key: 'movies', section: 'movie', items: ['filme', 'filmes'], categories: ['categoria de filmes', 'categorias de filmes'], short: 'de filmes' },
-  { key: 'series', section: 'series', items: ['série', 'séries'], categories: ['categoria de séries', 'categorias de séries'], short: 'de séries' },
+  { key: 'channels', section: null, items: 'src.count.channels', categories: 'src.count.channelCats', short: 'src.count.channelShort' },
+  { key: 'movies', section: 'movie', items: 'src.count.movies', categories: 'src.count.movieCats', short: 'src.count.movieShort' },
+  { key: 'series', section: 'series', items: 'src.count.series', categories: 'src.count.seriesCats', short: 'src.count.seriesShort' },
 ] as const
-
-const NOT_OBTAINED: Record<CatalogSection, string> = { movie: 'filmes não obtidos', series: 'séries não obtidas' }
-
-const formatInteger = (n: number): string => n.toLocaleString('pt-BR')
 
 /**
  * Contagem conhecida da lista, na linha de Configurações (feature 034, FR-017/
@@ -122,20 +135,24 @@ const formatInteger = (n: number): string => n.toLocaleString('pt-BR')
  * seguintes à primeira encurtam: "41 categorias de canais · 20 de filmes ·
  * 30 de séries". `undefined` = nada a mostrar.
  */
-export function formatCounts(counts: CatalogCounts, unavailable: readonly CatalogSection[] = []): string | undefined {
-  type Part = { text: string; counted: 'items' | 'categories' | null; short?: string; n?: number }
+export function formatCounts(
+  counts: CatalogCounts,
+  unavailable: readonly CatalogSection[] = [],
+  t: Translator = createTranslator('pt'),
+): string | undefined {
+  type Part = { text: string; counted: 'items' | 'categories' | null; short?: string }
   const parts: Part[] = []
   for (const kind of COUNT_KINDS) {
     const count = counts[kind.key]
     if (kind.section !== null && unavailable.includes(kind.section)) {
-      parts.push({ text: NOT_OBTAINED[kind.section], counted: null })
+      parts.push({ text: t(kind.section === 'movie' ? 'src.count.notObtainedMovie' : 'src.count.notObtainedSeries'), counted: null })
     } else if (count.items !== undefined) {
-      parts.push({ text: `${formatInteger(count.items)} ${kind.items[count.items === 1 ? 0 : 1]}`, counted: 'items' })
+      parts.push({ text: t.plural(kind.items, count.items), counted: 'items' })
     } else if (count.categories > 0) {
       parts.push({
-        text: `${formatInteger(count.categories)} ${kind.categories[count.categories === 1 ? 0 : 1]}`,
+        text: t.plural(kind.categories, count.categories),
         counted: 'categories',
-        short: `${formatInteger(count.categories)} ${kind.short}`,
+        short: t(kind.short, { n: count.categories }),
       })
     }
   }

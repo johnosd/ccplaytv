@@ -7,13 +7,15 @@ import type { ResolvedTitle } from '../../lib/metadata/types'
 import { usePersonCredits, usePersonTitles } from '../catalog/catalogApi'
 import { OriginTag, PersonPhoto } from '../vod/DetailMetadata'
 import type { OpenTitleTarget } from '../vod/detailSnapshot'
-import { NOT_FOUND_LABEL } from '../vod/SimilarPanel'
+import { NOT_FOUND_KEY } from '../vod/SimilarPanel'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { Translator } from '../../lib/i18n/translate'
 import { TitleSummaryModal } from '../vod/TitleSummaryModal'
 import type { PersonSnapshot } from './personSnapshot'
 
 /** Cartão retrato + folga entre cartões / altura com título e meta (mesma medida do Início). */
 const CARD_WIDTH = 229
-const CARD_HEIGHT = 370
+const CARD_HEIGHT = 410 // capa 302 + título em 2 linhas de 28px + meta de 24px (feature 068; era 370)
 
 export interface PersonScreenProps {
   personId: number
@@ -29,9 +31,17 @@ export interface PersonScreenProps {
 
 type ActionId = 'retry' | 'back'
 
-function coverageText(coverage: { movie?: { covered: number; total: number }; series?: { covered: number; total: number } }): string | null {
+function coverageText(
+  coverage: { movie?: { covered: number; total: number }; series?: { covered: number; total: number } },
+  t: Translator,
+): string | null {
   if (!coverage.movie || !coverage.series) return null
-  return `Procurado em ${coverage.movie.covered} de ${coverage.movie.total} categorias de filmes e ${coverage.series.covered} de ${coverage.series.total} de séries`
+  return t('person.coverage', {
+    movieCovered: coverage.movie.covered,
+    movieTotal: coverage.movie.total,
+    seriesCovered: coverage.series.covered,
+    seriesTotal: coverage.series.total,
+  })
 }
 
 /**
@@ -42,6 +52,7 @@ function coverageText(coverage: { movie?: { covered: number; total: number }; se
  * chave (`tmdb:<kind>:<id>`), nunca um índice.
  */
 export function PersonScreen({ personId, personName, sourceId, restore, onOpenTitle, onBack }: PersonScreenProps): ReactNode {
+  const t = useT()
   const creditsQuery = usePersonCredits(personId)
   const result = creditsQuery.data
   const credits = result?.status === 'ok' ? result.person.credits : undefined
@@ -113,7 +124,7 @@ export function PersonScreen({ personId, personName, sourceId, restore, onOpenTi
 
   const photoUrl = result?.status === 'ok' ? result.person.photoUrl : undefined
   const name = result?.status === 'ok' && result.person.name !== '' ? result.person.name : personName
-  const coverage = view ? coverageText(view.coverage) : null
+  const coverage = view ? coverageText(view.coverage, t) : null
 
   return (
     <div className="screen person-screen no-scrollbar">
@@ -125,22 +136,22 @@ export function PersonScreen({ personId, personName, sourceId, restore, onOpenTi
         </div>
       </div>
 
-      {loading && <p className="person-state">Carregando a filmografia…</p>}
-      {!loading && errorReason === 'no_key' && <p className="person-state">A chave do TMDB foi removida.</p>}
+      {loading && <p className="person-state">{t('person.loading')}</p>}
+      {!loading && errorReason === 'no_key' && <p className="person-state">{t('person.keyRemoved')}</p>}
       {!loading && errorReason !== undefined && errorReason !== 'no_key' && (
-        <p className="person-state">Não foi possível carregar a filmografia agora.</p>
+        <p className="person-state">{t('person.loadError')}</p>
       )}
-      {!loading && isEmpty && <p className="person-state">O TMDB não tem filmes nem séries com esta pessoa.</p>}
+      {!loading && isEmpty && <p className="person-state">{t('person.empty')}</p>}
       {!loading && !isEmpty && credits !== undefined && rails.length === 0 && (
-        <p className="person-state">O TMDB não tem filmes nem séries com esta pessoa.</p>
+        <p className="person-state">{t('person.empty')}</p>
       )}
 
       {hasRails && coverage && <p className="person-coverage">{coverage}</p>}
 
       {hasRails &&
         [
-          { label: 'Na sua lista', titles: found },
-          { label: 'Fora da sua lista', titles: missing },
+          { label: t('person.inList'), titles: found },
+          { label: t('person.outOfList'), titles: missing },
         ]
           .filter((group) => group.titles.length > 0)
           .map((group) => (
@@ -160,7 +171,7 @@ export function PersonScreen({ personId, personName, sourceId, restore, onOpenTi
                     meta={title.year !== undefined ? String(title.year) : undefined}
                     iconUrl={title.posterUrl}
                     focused={focusKey === title.key}
-                    badge={title.localItemId === undefined ? <span className="similar-chip">{NOT_FOUND_LABEL}</span> : undefined}
+                    badge={title.localItemId === undefined ? <span className="similar-chip">{t(NOT_FOUND_KEY)}</span> : undefined}
                     onSelect={() => open(title)}
                   />
                 )}
@@ -172,11 +183,11 @@ export function PersonScreen({ personId, personName, sourceId, restore, onOpenTi
         <div className="person-actions">
           {actions.includes('retry') && (
             <button type="button" className={`button-secondary${actions[safeActionIdx] === 'retry' ? ' tv-focus' : ''}`} onClick={() => runAction('retry')}>
-              Tentar de novo
+              {t('common.retry')}
             </button>
           )}
           <button type="button" className={`button-secondary${actions[safeActionIdx] === 'back' ? ' tv-focus' : ''}`} onClick={onBack}>
-            Voltar
+            {t('common.back')}
           </button>
         </div>
       )}

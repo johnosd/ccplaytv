@@ -1,0 +1,22 @@
+FROM node:24-bookworm-slim AS web
+WORKDIR /build/portal-web
+COPY portal-web/package*.json ./
+RUN npm ci --ignore-scripts
+COPY portal-web/ ./
+RUN npm run build
+
+FROM ghcr.io/astral-sh/uv:0.11.29 AS uv
+FROM python:3.13-slim-bookworm
+COPY --from=uv /uv /usr/local/bin/uv
+WORKDIR /app/api
+COPY api/pyproject.toml api/uv.lock ./
+RUN uv sync --locked --no-dev --no-install-project
+COPY api/app/portal/ ./app/portal/
+RUN touch app/__init__.py
+COPY api/portal_main.py ./
+COPY --from=web /build/portal-web/dist/ /app/portal-web/dist/
+RUN useradd --system --uid 10001 portal && chown -R portal:portal /app
+USER 10001
+ENV PATH="/app/api/.venv/bin:$PATH" PYTHONUNBUFFERED=1
+EXPOSE 8080
+CMD ["python", "portal_main.py"]

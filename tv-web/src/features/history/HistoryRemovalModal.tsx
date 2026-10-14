@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 import type { HistoryClearScope, HistoryRemovalMode } from '../../lib/catalog/historyRemoval'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
 
 /** Um título (grade/detalhe) ou um lote (aba Privacidade). */
 export type HistoryRemovalSubject = { kind: 'item'; name: string } | { kind: 'batch'; scope: HistoryClearScope }
@@ -17,10 +19,10 @@ export interface HistoryRemovalModalProps {
   onConfirm: (mode: HistoryRemovalMode) => void
 }
 
-const SCOPE_LABEL: Record<HistoryClearScope, string> = {
-  movies: 'Filmes',
-  series: 'Séries',
-  both: 'Filmes e Séries',
+const SCOPE_LABEL_KEY: Record<HistoryClearScope, MessageKey> = {
+  movies: 'settings.privacy.scope.movies',
+  series: 'settings.privacy.scope.series',
+  both: 'settings.privacy.scope.both',
 }
 
 interface Action {
@@ -42,6 +44,7 @@ export function HistoryRemovalModal({
   onCancel,
   onConfirm,
 }: HistoryRemovalModalProps): ReactNode {
+  const t = useT()
   const [focusedIdx, setFocusedIdx] = useState(0)
   const [lastMode, setLastMode] = useState<HistoryRemovalMode>('history-only')
   // Entrar no estado de erro volta o foco ao "Cancelar" (§6).
@@ -54,14 +57,14 @@ export function HistoryRemovalModal({
   const isItem = subject.kind === 'item'
   const actions: Action[] = error
     ? [
-        { label: 'Cancelar', mode: null },
-        { label: 'Tentar de novo', mode: lastMode },
+        { label: t('common.cancel'), mode: null },
+        { label: t('common.retry'), mode: lastMode },
       ]
     : [
-        { label: 'Cancelar', mode: null },
-        { label: isItem ? 'Remover do histórico' : 'Limpar histórico', mode: 'history-only' },
+        { label: t('common.cancel'), mode: null },
+        { label: t(isItem ? 'hist.removeItem' : 'hist.clear'), mode: 'history-only' },
         ...(hasProgress
-          ? [{ label: isItem ? 'Remover e apagar progresso' : 'Limpar e apagar progresso', mode: 'history-and-progress' as const }]
+          ? [{ label: t(isItem ? 'hist.removeItemAndProgress' : 'hist.clearAndProgress'), mode: 'history-and-progress' as const }]
           : []),
       ]
   const current = Math.min(focusedIdx, actions.length - 1)
@@ -76,8 +79,8 @@ export function HistoryRemovalModal({
   }
 
   const question = isItem
-    ? `Remover "${subject.name}" do histórico?`
-    : `Limpar o histórico de ${SCOPE_LABEL[subject.scope]}?`
+    ? t('hist.removeQuestion', { name: subject.name })
+    : t('hist.clearQuestion', { scope: t(SCOPE_LABEL_KEY[subject.scope]) })
 
   return (
     <Modal
@@ -89,10 +92,10 @@ export function HistoryRemovalModal({
       }}
       onSelect={() => activate(actions[current])}
     >
-      <p className="modal-title">{error ? 'Não foi possível remover do histórico' : question}</p>
+      <p className="modal-title">{error ? t('hist.errorTitle') : question}</p>
       <p className="modal-description">
-        Favoritos e marcações de assistido não são alterados.
-        {!error && hasProgress && ' Manter a retomada deixa o título em Continuar assistindo.'}
+        {t('hist.note')}
+        {!error && hasProgress && t('hist.keepResume')}
       </p>
       <div className="modal-actions">
         {actions.map((action, index) => (

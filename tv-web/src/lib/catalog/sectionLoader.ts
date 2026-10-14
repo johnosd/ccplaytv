@@ -182,7 +182,7 @@ export async function loadSection(
       await options.waitUntilAllowed?.()
       const rest = groups.get(category.id) ?? []
       const items = staged.has(category.id) ? [...(await stagedItemsOf(sourceId, category.id, database)), ...rest] : rest
-      await renewCategoryItems(
+      const result = await renewCategoryItems(
         { sourceId, generation, kind, categoryId: category.id, groupOrder: category.order },
         items,
         now(),
@@ -191,7 +191,9 @@ export async function loadSection(
       groups.delete(category.id) // libera a memória desta categoria já gravada
       if (staged.has(category.id)) await clearStagedItems(sourceId, category.id, database)
       written.push(category.id)
-      options.onCategory?.(category.id)
+      // Igual ao que já estava no aparelho (renovação sem novidade): nada a reler na tela. Avisar assim mesmo relia as
+      // vitrines e o índice do tipo inteiro a cada categoria (bug `abrir-app-nao-atualiza-todas-categorias`).
+      if (result.written) options.onCategory?.(category.id)
     }
   } catch (error) {
     // Interrompida no meio: as categorias já gravadas ficam; o preparo das

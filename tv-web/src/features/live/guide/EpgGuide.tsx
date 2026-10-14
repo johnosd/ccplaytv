@@ -11,6 +11,9 @@ import {
   type CatalogItemOut,
 } from '../../catalog/catalogApi'
 import { useSources } from '../../import/importApi'
+import { useT } from '../../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../../lib/i18n/messages/pt'
+import { UNGROUPED_LABEL } from '../groupChannels'
 import { useNow } from '../../../lib/useNow'
 import { useVirtualFocusSync } from '../../../lib/focus/useVirtualFocusSync'
 import { useScrollFocusedIntoView } from '../../../lib/focus/useScrollFocusedIntoView'
@@ -18,6 +21,8 @@ import { formatEpgClock, formatEpgTimeRange } from '../../../lib/epg/formatEpgTi
 import { ErrorState } from '../../../components/ErrorState'
 import { EmptyState } from '../../../components/EmptyState'
 import { PosterArt } from '../../../components/PosterArt'
+import { Icon } from '../../../components/Icon'
+import { isArchiveAvailable } from '../../../lib/epg/catchup'
 import { Spinner } from '../../../components/Spinner'
 import { channelNumberOf } from '../channelNumber'
 import {
@@ -79,6 +84,14 @@ export interface EpgGuideProps {
   /** Retorno discreto (toast do host): programa encerrado, canal indisponível. */
   onNotify?: (message: string) => void
   handleRef?: Ref<EpgGuideHandle>
+  /**
+   * Feature 058 (`logic/arquivo.md` §8): OK num programa encerrado que está no
+   * arquivo do canal toca o programa. Ausente (contrato travado da 031) = o
+   * Guia de sempre: todo encerrado só explica "Este programa já terminou.".
+   */
+  onWatchArchive?: (channel: CatalogItemOut, program: GuideProgram, list: CatalogItemOut[], listKey: GuideListKey) => void
+  /** Feature 058: início do programa a focar ao abrir (volta do arquivo); ausente/`null` = foco de sempre. */
+  initialProgramStart?: number | null
 }
 
 /** Espelha `--guide-row-height` em `guide.css` — o virtualizador precisa da mesma altura. */
@@ -103,20 +116,19 @@ function sameList(a: GuideListKey, b: GuideListKey): boolean {
   return a.kind === b.kind
 }
 
-const EXPLAIN_TEXT: Record<'not_configured' | 'disabled' | 'never_synced' | 'error', string> = {
-  not_configured: 'Esta lista não tem EPG configurado.',
-  disabled: 'O EPG desta lista está desativado.',
-  never_synced: 'O EPG desta lista ainda não foi sincronizado.',
-  error: 'Não foi possível carregar a programação.',
+const EXPLAIN_TEXT_KEY: Record<'not_configured' | 'disabled' | 'never_synced' | 'error', MessageKey> = {
+  not_configured: 'guide.explain.not_configured',
+  disabled: 'guide.explain.disabled',
+  never_synced: 'guide.explain.never_synced',
+  error: 'guide.explain.error',
 }
 
 /**
  * Onde se configura o EPG (decisão do usuário, item 62a do backlog): só ao
  * editar a lista, em Configurações — o guia do canal não tem atalho para lá
  * (antes, "Configurar EPG" saía da Live e fechava o player, R-010 da 031).
+ * O texto é `guide.settingsHint` no catálogo (feature 054).
  */
-const EPG_SETTINGS_HINT = 'O EPG é configurado em Configurações › Fontes IPTV, na linha da lista.'
-
 export function EpgGuide({
   sourceId,
   categories,
@@ -126,10 +138,15 @@ export function EpgGuide({
   onClose,
   onNotify,
   handleRef,
+  onWatchArchive,
+  initialProgramStart,
 }: EpgGuideProps): ReactNode {
+  const t = useT()
   const [list, setList] = useState<GuideListKey>(initialList)
   /** Canal de origem: só vale para o foco inicial da lista de abertura; trocar de lista o zera. */
   const originRef = useRef<string | null>(initialChannelId)
+  /** Feature 058: programa de origem (volta do arquivo) — mesma vida do `originRef`. */
+  const originProgramRef = useRef<number | null>(initialProgramStart ?? null)
   const [focus, setFocus] = useState<GuideFocus | null>(null)
   const [refTimeState, setRefTime] = useState<number | null>(null)
   const now = useNow()
@@ -164,7 +181,7 @@ export function EpgGuide({
   const rowIndexById = useMemo(() => new Map(rows.map((row, index) => [row.channelId, index])), [rows])
 
   // ---- Estado do corpo (todo estado tem foco possível — constitution). ----
-  const explainReason: keyof typeof EXPLAIN_TEXT | null =
+  const explainReason: keyof typeof EXPLAIN_TEXT_KEY | null =
     epgState === 'not_configured' || epgState === 'disabled' || epgState === 'never_synced'
       ? epgState
       : epgState === 'error' && lookup !== undefined && lookup.byKey.size === 0
@@ -192,9 +209,9 @@ export function EpgGuide({
 
   const stateAction: StateAction | null =
     bodyState === 'error'
-      ? { label: 'Tentar de novo', run: retry }
+      ? { label: t('guide.retry'), run: retry }
       : bodyState === 'empty'
-        ? { label: 'Trocar lista', run: openSelector }
+        ? { label: t('guide.changeList'), run: openSelector }
         : null
   const barItems: ('selector' | 'today' | 'tomorrow' | 'action')[] =
     bodyState === 'grid' ? ['selector', 'today', 'tomorrow'] : stateAction ? ['selector', 'action'] : ['selector']
@@ -203,13 +220,16 @@ export function EpgGuide({
 
   const entries: SelectorEntry[] = useMemo(
     () => [
-      { key: { kind: 'favorites' }, label: '★ Favoritos' },
-      { key: { kind: 'all' }, label: 'Todos' },
-      ...categories.map((candidate): SelectorEntry => ({ key: { kind: 'category', id: candidate.id }, label: groupLabel(candidate.name) })),
+      { key: { kind: 'favorites' }, label: t('live.favoritesStar') },
+      { key: { kind: 'all' }, label: t('live.all') },
+      ...categories.map((candidate): SelectorEntry => {
+        const label = groupLabel(candidate.name)
+        return { key: { kind: 'category', id: candidate.id }, label: label === UNGROUPED_LABEL ? t('live.ungrouped') : label }
+      }),
     ],
-    [categories],
+    [categories, t],
   )
-  const listLabel = entries.find((entry) => sameList(entry.key, list))?.label ?? 'Lista'
+  const listLabel = entries.find((entry) => sameList(entry.key, list))?.label ?? t('guide.list')
 
   // ---- Foco por identidade (canal + início), reconciliado a cada render (D-003). ----
   const resolved = useMemo((): { focus: GuideFocus; row: GuideRow } | null => {
@@ -225,6 +245,11 @@ export function EpgGuide({
     }
     const originIndex = originRef.current === null ? undefined : rowIndexById.get(originRef.current)
     const row = rows[originIndex ?? 0]
+    // Feature 058: de volta do arquivo, o foco cai no programa que tocava (por início, nunca índice).
+    const originProgram = originProgramRef.current
+    if (originIndex !== undefined && originProgram !== null && row.programs.some((program) => program.start === originProgram)) {
+      return { focus: { channelId: row.channelId, programStart: originProgram }, row }
+    }
     return { focus: initialFocus(row, now), row }
   }, [rows, rowIndexById, focus, refTimeState, now])
 
@@ -266,6 +291,7 @@ export function EpgGuide({
     const entry = entries[index]
     if (!entry) return
     originRef.current = null
+    originProgramRef.current = null
     setList(entry.key)
     setFocus(null)
     setRefTime(null)
@@ -345,11 +371,19 @@ export function EpgGuide({
     }
     if (!resolved || !focusedChannel) return
     if (!focusedChannel.playable) {
-      onNotify?.('Este canal não tem uma fonte de reprodução disponível.')
+      onNotify?.(t('live.unavailableChannel'))
       return
     }
     if (focusedProgram && focusedProgram.end <= now) {
-      onNotify?.('Este programa já terminou.')
+      // Feature 058 (D-013): disponível no arquivo toca; canal com arquivo mas
+      // fora dos dias explica isso; canal sem arquivo mantém o texto da 031.
+      if (onWatchArchive && isArchiveAvailable(focusedChannel.archive_days, focusedProgram, now)) {
+        onWatchArchive(focusedChannel, focusedProgram, items, list)
+      } else if (onWatchArchive && (focusedChannel.archive_days ?? 0) > 0) {
+        onNotify?.(t('guide.archiveExpired'))
+      } else {
+        onNotify?.(t('guide.programEnded'))
+      }
       return
     }
     onWatch(focusedChannel, items, list)
@@ -384,14 +418,17 @@ export function EpgGuide({
         {focusedProgram ? (
           <>
             <div className="epg-guide-detail-head">
-              {isNow && <span className="epg-guide-detail-now">Agora</span>}
-              <span>{formatEpgTimeRange(focusedProgram.start, focusedProgram.end)}</span>
+              {isNow && <span className="epg-guide-detail-now">{t('guide.now')}</span>}
+              <span>{formatEpgTimeRange(focusedProgram.start, focusedProgram.end, t.language)}</span>
             </div>
             <h2 className="epg-guide-detail-title">{focusedProgram.title}</h2>
             {focusedProgram.description && <p className="epg-guide-detail-description">{focusedProgram.description}</p>}
+            {onWatchArchive && focusedProgram.end <= now && isArchiveAvailable(focusedChannel.archive_days, focusedProgram, now) && (
+              <p className="epg-guide-detail-archive">{t('guide.archiveHint')}</p>
+            )}
           </>
         ) : (
-          <h2 className="epg-guide-detail-title">Sem programação</h2>
+          <h2 className="epg-guide-detail-title">{t('guide.noProgram')}</h2>
         )}
         <span className="epg-guide-detail-channel">{focusedChannel.name}</span>
       </div>
@@ -409,7 +446,7 @@ export function EpgGuide({
           {number && <span className="epg-guide-channel-number">{number}</span>}
           <PosterArt url={channel.icon_url ?? undefined} title={channel.name} variant="logo" />
           <span className="epg-guide-channel-name">{channel.name}</span>
-          {!channel.playable && <span className="epg-guide-channel-badge">Indisponível</span>}
+          {!channel.playable && <span className="epg-guide-channel-badge">{t('channelRow.unavailable')}</span>}
         </div>
         <div className="epg-guide-timeline">
           {row.programs.length === 0 ? (
@@ -419,12 +456,14 @@ export function EpgGuide({
               }`}
               role="button"
             >
-              Sem programação
+              {t('guide.noProgram')}
             </div>
           ) : (
             blocksInView(row, displayView).map((block) => {
               const isNow = block.program.start <= now && now < block.program.end
               const isPast = block.program.end <= now
+              // Feature 058 (FR-009): encerrado mas no arquivo — continua `is-past` (fato de tempo), sem `aria-disabled`.
+              const inArchive = isPast && onWatchArchive !== undefined && isArchiveAvailable(channel.archive_days, block.program, now)
               const isFocused =
                 activeZone === 'grid' &&
                 !selectorOpen &&
@@ -434,11 +473,15 @@ export function EpgGuide({
                 <div
                   key={block.program.start}
                   role="button"
-                  aria-disabled={isPast ? 'true' : undefined}
-                  className={`epg-guide-block no-scale${isNow ? ' is-now' : ''}${isPast ? ' is-past' : ''}${isFocused ? ' tv-focus' : ''}`}
+                  aria-disabled={isPast && !inArchive ? 'true' : undefined}
+                  aria-label={inArchive ? `${block.program.title} · ${t('guide.archiveAvailable')}` : undefined}
+                  className={`epg-guide-block no-scale${isNow ? ' is-now' : ''}${isPast ? ' is-past' : ''}${inArchive ? ' is-archive' : ''}${
+                    isFocused ? ' tv-focus' : ''
+                  }`}
                   style={{ left: `${block.leftPct}%`, width: `${block.widthPct}%` }}
                 >
-                  {isNow && <span className="epg-guide-block-tag">Agora</span>}
+                  {isNow && <span className="epg-guide-block-tag">{t('guide.now')}</span>}
+                  {inArchive && <Icon name="history" className="epg-guide-block-archive" />}
                   <span>{block.program.title}</span>
                 </div>
               )
@@ -459,7 +502,7 @@ export function EpgGuide({
           <div className="epg-guide-ticks">
             {ticks.map((tick) => (
               <span key={tick} className="epg-guide-tick" style={{ left: `${((tick - displayView.viewStart) / displayView.spanMs) * 100}%` }}>
-                {formatEpgClock(tick)}
+                {formatEpgClock(tick, t.language)}
               </span>
             ))}
           </div>
@@ -484,15 +527,15 @@ export function EpgGuide({
         return (
           <div className="epg-guide-state">
             <Spinner size={48} />
-            <p className="epg-guide-state-text">Carregando canais…</p>
+            <p className="epg-guide-state-text">{t('live.loading')}</p>
           </div>
         )
       case 'error':
         return (
           <div className="epg-guide-state">
             <ErrorState
-              title="Não foi possível carregar os canais desta lista."
-              actions={[{ label: 'Tentar de novo', onSelect: retry }]}
+              title={t('guide.loadError')}
+              actions={[{ label: t('guide.retry'), onSelect: retry }]}
               focusedActionIndex={actionFocused ? 0 : undefined}
             />
           </div>
@@ -501,9 +544,9 @@ export function EpgGuide({
         return (
           <div className="epg-guide-state">
             <EmptyState
-              title={list.kind === 'favorites' ? 'Nenhum canal favorito ainda' : 'Nenhum canal nesta lista'}
-              description={list.kind === 'favorites' ? 'Segure OK num canal da Live TV para favoritar.' : 'Escolha outra lista.'}
-              action={{ label: 'Trocar lista', onSelect: openSelector }}
+              title={list.kind === 'favorites' ? t('guide.emptyFavorites.title') : t('guide.emptyList.title')}
+              description={list.kind === 'favorites' ? t('guide.emptyFavorites.description') : t('guide.emptyList.description')}
+              action={{ label: t('guide.changeList'), onSelect: openSelector }}
               focused={actionFocused}
             />
           </div>
@@ -511,10 +554,10 @@ export function EpgGuide({
       case 'explain':
         return (
           <div className="epg-guide-state">
-            <h2 className="epg-guide-state-title">Sem programação</h2>
-            <p className="epg-guide-state-text">{EXPLAIN_TEXT[explainReason ?? 'error']}</p>
+            <h2 className="epg-guide-state-title">{t('guide.noProgram')}</h2>
+            <p className="epg-guide-state-text">{t(EXPLAIN_TEXT_KEY[explainReason ?? 'error'])}</p>
             {/* Sem ação aqui: o foco fica no seletor de lista da barra (sempre focável). */}
-            <p className="epg-guide-state-text">{EPG_SETTINGS_HINT}</p>
+            <p className="epg-guide-state-text">{t('guide.settingsHint')}</p>
           </div>
         )
       default:
@@ -523,14 +566,14 @@ export function EpgGuide({
   }
 
   return (
-    <div className="epg-guide" role="region" aria-label="Guia de programação">
+    <div className="epg-guide" role="region" aria-label={t('guide.title')}>
       <div className="epg-guide-bar">
-        <h1 className="epg-guide-title">Guia de programação</h1>
+        <h1 className="epg-guide-title">{t('guide.title')}</h1>
         <button type="button" className={`epg-guide-selector no-scale${barSelectorFocused ? ' tv-focus' : ''}`} onClick={openSelector}>
           {listLabel}
         </button>
         {bodyState === 'grid' && (
-          <div className="epg-guide-tabs" role="tablist" aria-label="Dia">
+          <div className="epg-guide-tabs" role="tablist" aria-label={t('guide.day')}>
             {(['today', 'tomorrow'] as const).map((day) => (
               <button
                 key={day}
@@ -540,14 +583,14 @@ export function EpgGuide({
                 className={`epg-guide-tab no-scale${activeDay === day ? ' is-active' : ''}${dayTabFocused(day) ? ' tv-focus' : ''}`}
                 onClick={() => jumpTo(day)}
               >
-                {day === 'today' ? 'Hoje' : 'Amanhã'}
+                {day === 'today' ? t('guide.today') : t('guide.tomorrow')}
               </button>
             ))}
           </div>
         )}
         {list.kind === 'all' && bodyState === 'grid' && (
           <span className="epg-guide-coverage">
-            Guia de {aggregated.coveredCategories} de {aggregated.totalCategories} categorias
+            {t('guide.coverage', { covered: aggregated.coveredCategories, total: aggregated.totalCategories })}
           </span>
         )}
       </div>
@@ -556,7 +599,7 @@ export function EpgGuide({
       {renderBody()}
 
       {selectorOpen && (
-        <div className="epg-guide-selector-panel" role="listbox" aria-label="Escolher lista">
+        <div className="epg-guide-selector-panel" role="listbox" aria-label={t('guide.pickList')}>
           {entries.map((entry, index) => {
             const isFocused = index === selectorIndex
             const isCurrent = sameList(entry.key, list)

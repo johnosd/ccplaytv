@@ -96,21 +96,35 @@ describe('testTmdbKey / markTmdbState (feature 032, FR-024)', () => {
     expect(ok).toMatchObject({ state: 'connected', lastTestedAt: NOW + 2 })
   })
 
-  it('429 liga a pausa de 10 min; rede vira "offline" sem pausa', async () => {
+  it('429 liga a pausa de 10 min; "Testar" dentro dela não chama o TMDB e mostra o limite de uso', async () => {
     await testTmdbKey(options(vi.fn(async () => response(429))))
     expect(await readTmdbCredential({ database })).toMatchObject({ state: 'rate_limited', pausedUntil: NOW + RATE_LIMIT_PAUSE_MS })
 
     await testTmdbKey(options(vi.fn(async () => { throw new TypeError('x') })))
     const credential = await readTmdbCredential({ database })
-    expect(credential?.state).toBe('offline')
-    expect(credential?.pausedUntil).toBeUndefined()
+    expect(credential?.state).toBe('rate_limited')
+    expect(credential?.pausedUntil).toBe(NOW + RATE_LIMIT_PAUSE_MS)
+  })
+
+  it('Retry-After numérico/data sobrescreve apenas quando estende a pausa ativa', async () => {
+    const numeric = vi.fn(async () => new Response('{}', { status: 429, headers: { 'Retry-After': '120' } }))
+    await testTmdbKey(options(numeric))
+    expect((await readTmdbCredential({ database }))?.pausedUntil).toBe(NOW + 120_000)
+
+    const retryAt = NOW + 5 * 60 * 1000
+    await database.integrations.update('tmdb', { state: 'offline', pausedUntil: undefined })
+    const date = vi.fn(async () => new Response('{}', { status: 429, headers: { 'Retry-After': new Date(retryAt).toUTCString() } }))
+    await testTmdbKey(options(date))
+    const pausedUntil = (await readTmdbCredential({ database }))?.pausedUntil
+    expect(pausedUntil).toBeGreaterThanOrEqual(retryAt - 1000)
+    expect(pausedUntil).toBeLessThanOrEqual(retryAt)
   })
 
   it('markTmdbState grava o estado do enriquecimento (e a pausa no 429); sem chave, não faz nada', async () => {
     await markTmdbState('rate_limited', { database, now: () => NOW })
     expect(await readTmdbCredential({ database })).toMatchObject({ state: 'rate_limited', pausedUntil: NOW + RATE_LIMIT_PAUSE_MS })
     await markTmdbState('connected', { database, now: () => NOW })
-    expect((await readTmdbCredential({ database }))?.pausedUntil).toBeUndefined()
+    expect((await readTmdbCredential({ database }))?.pausedUntil).toBe(NOW + RATE_LIMIT_PAUSE_MS)
 
     await database.integrations.clear()
     await markTmdbState('refused', { database })

@@ -84,34 +84,38 @@ describe('AddSourceScreen — contrato da feature 037', () => {
     expect(sources[0].displayName).toBe('Casa')
   })
 
-  // FR-013, FR-014, FR-023, SC-005 — mocks "Em breve", nunca dado inventado (ADR-011)
-  it('"Conectar com celular" é mock honesto: "Em breve", sem "Recomendado", sem código/QR/endereço inventados, e só anuncia ao ativar', () => {
-    vi.useFakeTimers()
+  // FR-013, FR-014, FR-023, SC-005 — nunca dado inventado (ADR-011).
+  // Emenda autorizada pelo usuário em 2026-10-13 (feature 070, R-002): o mock "Em breve" do celular virou a
+  // coluna real (ID/chave/endereço/QR), montada pelo App e passada em `phonePanel`. O que este contrato
+  // continua protegendo: sem essa coluna a tela não exibe mock nem inventa código/QR/endereço.
+  it('sem a coluna do celular não há mock nem dado inventado; com ela, a coluna aparece e o cadastro segue igual', () => {
     const onBack = vi.fn()
     const onSourceCreated = vi.fn()
-    const { container } = render(
+    const { container, rerender } = render(
       <RegionHost>
         <AddSourceScreen onSourceCreated={onSourceCreated} onBack={onBack} />
       </RegionHost>,
       { wrapper: createWrapper() },
     )
 
-    expect(screen.getByRole('heading', { name: 'Conectar com celular' })).toBeInTheDocument()
-    expect(screen.getAllByText(/Em breve/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Em breve/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Recomendado/i)).not.toBeInTheDocument()
-
+    expect(screen.queryByRole('img', { name: /QR/ })).not.toBeInTheDocument()
     const text = document.body.textContent ?? ''
     expect(text).not.toMatch(/\b\d{3}\s?\d{3}\b/)
     expect(text).not.toMatch(/ccplay\.tv/i)
+    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
 
-    const pair = screen.getByRole('button', { name: /celular/i })
-    expect(pair).toHaveAttribute('aria-disabled', 'true')
-    fireEvent.click(pair)
-    vi.advanceTimersByTime(20)
-    expect(document.querySelector('.announcer-region .sr-only')?.textContent).toMatch(/^Em breve/)
+    rerender(
+      <RegionHost>
+        <AddSourceScreen onSourceCreated={onSourceCreated} onBack={onBack} phonePanel={<section aria-label="Pelo celular" />} />
+      </RegionHost>,
+    )
+    expect(screen.getByRole('region', { name: 'Pelo celular' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Xtream Codes/ })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /Lista M3U/ }))
+    expect(screen.getByLabelText('URL M3U')).toBeInTheDocument()
     expect(onBack).not.toHaveBeenCalled()
     expect(onSourceCreated).not.toHaveBeenCalled()
-
-    expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
   })
 })

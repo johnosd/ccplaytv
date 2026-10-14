@@ -23,6 +23,7 @@ const TESTES_TS_COM_DOM = [
   'src/lib/metadata/titleMetadata.oculto.test.ts',
   'src/lib/perf/entryTiming.test.ts',
   'src/lib/player/avplayAdapter.aspect.test.ts',
+  'src/lib/player/avplayAdapter.headers-avplay-catchup.contract.test.ts',
   'src/lib/player/avplayAdapter.quality.test.ts',
   'src/lib/player/avplayAdapter.test.ts',
   'src/lib/player/avplayAdapter.tracks.test.ts',
@@ -46,6 +47,23 @@ if (!widgetVersionMatch) {
 const appVersion = widgetVersionMatch[1]
 
 // https://vite.dev/config/
+const ROUTE_CHUNKS = [
+  ['route-add-source', '/src/features/import/AddSourceScreen.'],
+  ['route-import-progress', '/src/features/import/ImportProgressScreen.'],
+  ['route-source-access', '/src/features/sources/SourceAccessRoute.'],
+  ['route-live', '/src/features/live/LiveScreen.'],
+  ['route-vod-showcase', '/src/features/vod/VodShowcaseScreen.'],
+  ['route-vod-category', '/src/features/vod/VodCategoryScreen.'],
+  ['route-movie-detail', '/src/features/movies/MovieDetailScreen.'],
+  ['route-series-detail', '/src/features/series/SeriesDetailScreen.'],
+  ['route-person', '/src/features/person/PersonScreen.'],
+  ['route-settings', '/src/features/settings/SettingsScreen.'],
+  ['route-list-settings', '/src/features/settings/list/ListSettingsScreen.'],
+  ['route-epg-settings', '/src/features/settings/EpgSettingsScreen.'],
+  ['route-tmdb-key', '/src/features/settings/TmdbKeyScreen.'],
+  ['route-search', '/src/features/search/SearchScreen.'],
+] as const
+
 export default defineConfig({
   plugins: [react()],
   define: {
@@ -83,7 +101,16 @@ export default defineConfig({
     rollupOptions: {
       output: {
         entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].js',
+        // Rotas lazy usam nomes locais estáveis para que o inventário Tizen
+        // continue auditável sem hash por build ou download externo. O nome vem
+        // só da entrada da rota (065): `manualChunks` puxava para o chunk da rota
+        // o código que ela compartilha com o início, e o `index.js` passava a
+        // importar todas as rotas de forma estática.
+        chunkFileNames: (chunk) => {
+          const facade = chunk.facadeModuleId?.replaceAll('\\', '/') ?? ''
+          const route = ROUTE_CHUNKS.find(([, suffix]) => facade.includes(suffix))
+          return route ? `assets/${route[0]}.js` : 'assets/[name].js'
+        },
         assetFileNames: 'assets/[name].[ext]',
       },
     },
@@ -114,8 +141,21 @@ export default defineConfig({
       // estivesse na mesma rede. Não amplie esta lista.
       allow: ['.', '../api/tests/fixtures'],
     },
+    // Só desenvolvimento do portal (`npm run dev:portal`): a API do portal não envia CORS (a TV usa a política
+    // de acesso do config.xml) e recusa `Origin` nas rotas da TV. O proxy same-origin remove o `Origin` do
+    // navegador para o alvo LOCAL informado; sem a variável, nada muda.
+    proxy: process.env.VITE_PORTAL_DEV_PROXY
+      ? { '/portal/v1': { target: process.env.VITE_PORTAL_DEV_PROXY, changeOrigin: false,
+          configure: (proxy) => { proxy.on('proxyReq', (request) => { request.removeHeader('origin') }) } } }
+      : undefined,
   },
   test: {
+    // `threads` em vez de `forks` (padrão do Vitest 5): medido em 2026-10-14 nesta máquina (8 núcleos/16
+    // threads), mesma suíte e mesmos resultados — completa 200,6 s → 125,1 s (−38%); `dom` 132 → 98 s e
+    // `node` 73 → 30 s. O custo dominante era subir um processo por arquivo (transformação e import
+    // repetidos); threads compartilham o cache de módulos do processo. O isolamento por arquivo continua
+    // (`isolate` padrão). `--maxWorkers` maior e `experimental.fsModuleCache` não deram ganho (±2%).
+    pool: 'threads',
     // Dois projetos porque subir o jsdom custa ~5 s por arquivo (medido em
     // 2026-10: carregar o módulo ~2,6 s + setup; ambiente node ~1,2 s). Telas e
     // componentes (.tsx) precisam de DOM; lógica pura (.ts) não.

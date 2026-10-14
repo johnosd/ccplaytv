@@ -3,22 +3,24 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { PlayerLayer } from '../../components/PlayerLayer'
 import { useToast } from '../../lib/useToast'
 import { useOnlineStatus } from '../../lib/onlineStatus'
+import { useT } from '../../lib/i18n/I18nProvider'
 import { Toast } from '../../components/Toast'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
-import { groupLabel } from '../catalog/catalogApi'
 import type { TopbarItem } from '../../navigation/appNav'
 import { ErrorState } from '../../components/ErrorState'
 import { EmptyState } from '../../components/EmptyState'
+import { SectionEmptyState } from '../../components/SectionEmptyState'
 import { Spinner } from '../../components/Spinner'
-import { Chip } from '../../components/Chip'
-import { channelNumberOf, knownCategoryCount } from './channelNumber'
-import { LIVE_ITEM_OVERSCAN, LIVE_ITEM_ROW_HEIGHT } from './liveTrail'
+import { channelNumberOf } from './channelNumber'
+import { useOverflowEdges } from '../../lib/focus/useOverflowEdges'
+import { LIVE_EDGE_SCROLL_PADDING_END, LIVE_EDGE_SCROLL_PADDING_START, LIVE_ITEM_OVERSCAN, LIVE_ITEM_ROW_HEIGHT } from './liveTrail'
 import { useLiveChannels, useLiveTrail } from './useLiveCatalog'
 import { useLiveSearch } from './useLiveSearch'
 import { useLiveZapping, useLiveZappingState } from './useLiveZapping'
 import { useLiveGuide, useLiveGuideState } from './useLiveGuide'
 import { useLiveKeyboard } from './useLiveKeyboard'
+import { useLiveArchive, useLiveArchiveState } from './useLiveArchive'
 import { renderLiveColumns, renderLiveShell, type LiveColumnsModel } from './liveColumns'
 
 /**
@@ -37,12 +39,11 @@ export interface LiveShellProps {
   /** OK no indicador da lista ativa. */
   onOpenProfiles: () => void
   /**
-   * OK na lupa/engrenagem da topbar (feature 026, D-001 — opcional: o
-   * contrato travado da 024 monta este objeto com 4 campos, e o `tsc -b`
-   * compila esse arquivo). Ausente = soft disabled.
+   * OK na lupa/engrenagem da topbar (feature 026, D-001 — opcional: o contrato travado da 024 monta este objeto com 4
+   * campos). Ausente = soft disabled. `'parental'` abre a tela da lista ativa em Categorias & controle parental (feature 066, FR-009; 067).
    */
   onOpenSearch?: () => void
-  onOpenSettings?: () => void
+  onOpenSettings?: (tab?: 'parental') => void
 }
 
 export interface LiveScreenProps {
@@ -52,8 +53,8 @@ export interface LiveScreenProps {
   onResync: () => void
   /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
   onEditSource?: (sourceId: string) => void
-  /** Feature 024. */
-  shell?: LiveShellProps
+  shell?: LiveShellProps // Feature 024; desde a 068 o App não o passa (Live sem topbar), mas os contratos da 024 sim.
+  onManageCategories?: () => void // 068: "Gerenciar categorias" sem topbar (D-010 da 067); com `shell`, vale o dele.
   /**
    * Entra tocando este canal, uma única vez (feature 026, `logic/
    * navegacao.md` §3) — do Início (card de "Canais favoritos") ou da Busca
@@ -86,10 +87,12 @@ export function LiveScreen({
   onResync: onResyncRequested,
   onEditSource,
   shell,
+  onManageCategories,
   initialChannel,
   openFavorites,
   initialTopbarItem,
 }: LiveScreenProps) {
+  const t = useT()
   // Feature 042 (FR-004): ressincronizar precisa de internet. Offline a ação é soft
   // disabled na tela e o OK do teclado (que chama a mesma função) também não a dispara.
   const online = useOnlineStatus()
@@ -99,18 +102,17 @@ export function LiveScreen({
   // 'favorites'`; `entry: 'category'` precisa de um efeito (a categoria só
   // se sabe depois de ler o registro do canal), tratado em `useLiveChannels`.
   const startsInFavorites = openFavorites || initialChannel?.entry === 'favorites'
-  const [col, setCol] = useState<0 | 1 | 2>(startsInFavorites ? 1 : 0)
-  const [previewAction, setPreviewAction] = useState(0)
+  const [col, setCol] = useState<0 | 1>(startsInFavorites ? 1 : 0)
   const zap = useLiveZappingState()
   const guide = useLiveGuideState()
+  // Feature 058: programa de arquivo em reprodução (nunca persistido).
+  const archiveState = useLiveArchiveState()
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
-  // Composição de foco topbar ↔ conteúdo (feature 024, D-003 do plan.md —
-  // `logic/foco-live-shell.md` §2), mesmo mecanismo da feature 023. Só
-  // existe de fato com `shell`; sem ele, `zone` nunca sai de 'content'.
-  // `initialTopbarItem` (feature 026, FR-034/FR-044) começa com a topbar já
-  // ativa nesse item, em vez do conteúdo.
+  // Composição de foco topbar ↔ conteúdo (feature 024, D-003; `logic/foco-live-shell.md` §2), mesmo mecanismo da 023.
+  // Só existe de fato com `shell`; sem ele, `zone` nunca sai de 'content'. `initialTopbarItem` (feature 026,
+  // FR-034/FR-044) começa com a topbar já ativa nesse item, em vez do conteúdo.
   const [zone, setZone] = useState<'topbar' | 'content'>(initialTopbarItem ? 'topbar' : 'content')
   const [topbarItem, setTopbarItem] = useState<TopbarItem>(initialTopbarItem ?? 'live')
   const contentActive = !shell || zone === 'content'
@@ -139,10 +141,19 @@ export function LiveScreen({
   const channelListRef = useRef<HTMLDivElement>(null)
   const channelVirtualizer = useVirtualizer({
     count: channels.items.length,
+    // Rajadas de scroll e Live ↔ zapping não podem empilhar flushSync do virtualizador com
+    // as atualizações dos indicadores de borda. O React agrupa as notificações da lista.
+    useFlushSync: false,
     getScrollElement: () => channelListRef.current,
     estimateSize: () => LIVE_ITEM_ROW_HEIGHT,
     overscan: LIVE_ITEM_OVERSCAN,
+    // O item focado nunca fica sob o degradê de continuação (feature 048, FR-021).
+    scrollPaddingStart: LIVE_EDGE_SCROLL_PADDING_START,
+    scrollPaddingEnd: LIVE_EDGE_SCROLL_PADDING_END,
   })
+  const trailScrollRef = useRef<HTMLDivElement>(null)
+  const channelEdges = useOverflowEdges(channelListRef, channels.items.length)
+  const trailEdges = useOverflowEdges(trailScrollRef, trail.trail.length)
 
   const channelsNavigable =
     channels.effectiveCol === 1 && !channels.contentIsLoading && !channels.contentUnavailable && channels.items.length > 0
@@ -152,7 +163,8 @@ export function LiveScreen({
     enabled: channelsNavigable,
   })
 
-  const liveGuide = useLiveGuide({ guide, zap, trail, channels, search, setCol, sourceId, showToast })
+  const liveGuide = useLiveGuide({ guide, zap, trail, channels, search, setCol, sourceId, showToast, archive: archiveState })
+  const onManage = shell?.onOpenSettings ? () => shell.onOpenSettings?.('parental') : onManageCategories
   const { enterTrailEntry, handleTrailDirection, handleTrailSelect } = useLiveKeyboard({
     sourceId,
     contentActive,
@@ -160,11 +172,12 @@ export function LiveScreen({
     setZone,
     setTopbarItem,
     setCol,
-    previewAction,
-    setPreviewAction,
+    channelListRef,
+    trailScrollRef,
     topErrorActionIndex,
     setTopErrorActionIndex,
     onBack,
+    onManage,
     onResync,
     trail,
     search,
@@ -174,9 +187,11 @@ export function LiveScreen({
     guide,
     liveGuide,
   })
+  // Feature 058 (`logic/arquivo.md` §7): depois do teclado, para não mudar a ordem dos efeitos existentes (040).
+  const liveArchive = useLiveArchive({ sourceId, archiveState, zap, zapping, guide })
 
-  const shellModel = { shell, zone, setZone, topbarItem, setTopbarItem, onBack }
-  const { categoriesQuery, categories, topPhase, focusedCategory, isFavoritesFocused, isAllFocused, enteredFavorites, enteredAll } = trail
+  const shellModel = { shell, zone, setZone, topbarItem, setTopbarItem, onBack, t }
+  const { categoriesQuery, categories, topPhase } = trail
   const { playing, zapOpen } = zap
 
   if (topPhase === 'loading') {
@@ -185,7 +200,7 @@ export function LiveScreen({
       <div className="screen live-screen">
         <div className="live-state-wrapper">
           <Spinner size={48} />
-          <EmptyState title="Carregando canais…" action={{ label: 'Voltar', onSelect: onBack }} focused />
+          <EmptyState title={t('live.loading')} action={{ label: t('common.back'), onSelect: onBack }} focused />
         </div>
         <Toast message={toastMessage} messageKey={toastKey} />
       </div>,
@@ -197,11 +212,11 @@ export function LiveScreen({
       shellModel,
       <div className="screen live-screen">
         <ErrorState
-          title="Não foi possível carregar os canais"
-          description="Verifique a conexão com o servidor e tente novamente."
+          title={t('live.topError.title')}
+          description={t('live.topError.description')}
           actions={[
-            { label: 'Tentar de novo', onSelect: () => void categoriesQuery.refetch() },
-            { label: 'Voltar', onSelect: onBack },
+            { label: t('guide.retry'), onSelect: () => void categoriesQuery.refetch() },
+            { label: t('common.back'), onSelect: onBack },
           ]}
           focusedActionIndex={topErrorActionIndex}
         />
@@ -214,11 +229,12 @@ export function LiveScreen({
     return renderLiveShell(
       shellModel,
       <div className="screen live-screen">
-        <EmptyState
-          title="Nenhum canal nesta lista"
-          description="A importação pode não ter encontrado canais nesta fonte, ou ainda estar em andamento."
-          action={{ label: 'Voltar', onSelect: onBack }}
-          focused
+        <SectionEmptyState
+          allHidden={trail.allHidden}
+          title={t('live.topEmpty.title')}
+          description={t('live.topEmpty.description')}
+          onBack={onBack}
+          onManage={onManage}
         />
         <Toast message={toastMessage} messageKey={toastKey} />
       </div>,
@@ -226,32 +242,24 @@ export function LiveScreen({
   }
 
   const columnsModel: LiveColumnsModel = {
+    sourceId,
     trail,
     search,
     channels,
     zapOpen,
     contentActive,
-    previewAction,
     setCol,
     enterTrailEntry,
     onResync,
     offline: !online,
     channelListRef,
     channelVirtualizer,
+    trailScrollRef,
+    trailEdges,
+    channelEdges,
+    playingId: zap.playing?.id,
+    t,
   }
-
-  // Contagem conhecida da entrada exibida no cabeçalho (FR-006) — a mesma
-  // regra do trilho (FR-008): nunca inventada, ausente quando desconhecida.
-  const headerCount = isFavoritesFocused || enteredFavorites
-    ? channels.favoriteIds.size
-    : focusedCategory
-      ? knownCategoryCount(focusedCategory)
-      : undefined
-  const headerLabel = isAllFocused || enteredAll
-    ? 'Todos'
-    : isFavoritesFocused || enteredFavorites
-      ? '★ Favoritos'
-      : groupLabel(focusedCategory?.name)
 
   return (
     <>
@@ -267,14 +275,10 @@ export function LiveScreen({
         renderLiveShell(
           shellModel,
           <div className="screen live-screen">
-            <div className="live-header">
-              <h1 className="screen-title">TV ao vivo</h1>
-              <div className="live-header-chips">
-                <Chip selected={false}>{headerLabel}</Chip>
-                {headerCount !== undefined && <Chip selected={false}>{headerCount} canais</Chip>}
-              </div>
+            {/* Feature 068 (US2): sem bloco de título; uma lista por vez — a outra coluna fica no DOM, oculta por CSS. */}
+            <div className="live-body" data-live-view={channels.effectiveCol === 1 ? 'channels' : 'categories'}>
+              {renderLiveColumns(columnsModel, true)}
             </div>
-            <div className="live-body">{renderLiveColumns(columnsModel, true)}</div>
           </div>,
         )}
 
@@ -290,13 +294,17 @@ export function LiveScreen({
             // acompanha a troca de canal (zapping/CH±) porque `playing` muda.
             now: channels.playingNow,
           }}
-          onChannelStep={zapping.stepChannel}
+          onChannelStep={liveArchive.onChannelStep}
           onEditSource={onEditSource}
-          onClose={zapping.onPlayerClosed}
+          onClose={liveArchive.onPlayerClose}
           onIdleSelect={zapping.openZapping}
           onGuide={liveGuide.openGuideFromPlayer}
           onEnteredPlaying={zapping.onEnteredPlaying}
-          onSessionError={zapping.onSessionError}
+          onSessionError={liveArchive.onSessionError}
+          archive={liveArchive.playerArchive}
+          onArchiveEnded={liveArchive.onArchiveEnded}
+          onGoLive={liveArchive.onGoLive}
+          startOver={liveArchive.startOver}
           topLayer={
             zapOpen
               ? zapping.zapTopLayer(
@@ -306,8 +314,8 @@ export function LiveScreen({
                 )
               : liveGuide.guideTopLayer()
           }
-          unavailableMessage="Este canal não tem uma fonte de reprodução disponível."
-          genericErrorMessage="Não foi possível reproduzir este canal."
+          unavailableMessage={t('live.unavailableChannel')}
+          genericErrorMessage={t('live.playError')}
         />
       )}
 

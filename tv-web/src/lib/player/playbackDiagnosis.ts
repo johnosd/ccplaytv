@@ -5,6 +5,7 @@
  * cru do motor nunca é exibido nem serializado (D-002, FR-014/FR-019).
  */
 
+import { createTranslator, type Translator } from '../i18n/translate'
 import { describeError, type ErrorCode } from '../errors/errorCatalog'
 import type { PlayableKind } from './capabilities'
 import type { PlayerError } from './PlayerService'
@@ -25,6 +26,16 @@ export interface PlaybackDiagnosisInput {
   at: number
   /** Estado da conta confirmado pelo painel (feature 034); `null`/ausente = desconhecido. */
   sourceAccess?: 'expired' | 'refused' | null
+  /**
+   * Feature 058 (FR-004): a lista declarou um header que o motor não enviou.
+   * Só o fato — nunca nome nem valor. Ausente = falso (contrato da 042).
+   */
+  headersNotSent?: boolean
+  /**
+   * Feature 058 (FR-017): um programa de arquivo falhou antes de tocar nas duas
+   * variantes de URL do painel. Ausente = falso.
+   */
+  archiveFailed?: boolean
 }
 
 /** O que o painel "Info técnica" mostra — e nada além disto (FR-014). */
@@ -93,13 +104,24 @@ function verdictOf(input: PlaybackDiagnosisInput): Verdict {
   if (!input.online) {
     return { code: 'NET-01', category: 'network', actions: ['retry'], autoReconnect: false }
   }
+  // Feature 058: arquivo que não respondeu em nenhuma variante — sem "Tentar de
+  // novo" (a camada oferece "Ao vivo" e "Voltar"), nunca reconexão automática.
+  if (input.archiveFailed) {
+    return { code: 'PLAY-06', category: 'source', actions: [], autoReconnect: false }
+  }
   const name = input.error?.code ?? null
+  if (name !== null && FORMAT_NAMES.has(name)) {
+    return { code: 'PLAY-02', category: 'format', actions: ['info'], autoReconnect: false }
+  }
+  // Feature 058 (D-004): depois de formato (um header não causa codec errado),
+  // antes de rede/fonte/desconhecido — o servidor que exige o header costuma
+  // responder 403/conexão recusada, que o motor relata como falha genérica.
+  if (input.headersNotSent) {
+    return { code: 'PLAY-05', category: 'source', actions: ['info'], autoReconnect: false }
+  }
   if (name !== null) {
     if (NETWORK_NAMES.has(name) || name === LIVE_COMPLETED_CODE) {
       return { code: 'PLAY-01', category: 'network', actions: ['retry', 'info'], autoReconnect: true }
-    }
-    if (FORMAT_NAMES.has(name)) {
-      return { code: 'PLAY-02', category: 'format', actions: ['info'], autoReconnect: false }
     }
     if (SOURCE_NAMES.has(name)) {
       return { code: 'PLAY-03', category: 'source', actions: ['edit-credentials', 'info'], autoReconnect: false }
@@ -113,9 +135,12 @@ function verdictOf(input: PlaybackDiagnosisInput): Verdict {
  * não é reproduzível (corrida entre listar e reproduzir) — `SRC-409`, sem ação
  * de repetir; o resto cai no diagnóstico comum (`NET-01`/`PLAY-04`).
  */
-export function diagnoseFetchFailure(input: { status: number | null; online: boolean; at: number }): PlaybackDiagnosis {
+export function diagnoseFetchFailure(
+  input: { status: number | null; online: boolean; at: number },
+  t: Translator = createTranslator('pt'),
+): PlaybackDiagnosis {
   if (input.status === 409) {
-    const entry = describeError('SRC-409')
+    const entry = describeError('SRC-409', t)
     return {
       code: 'SRC-409',
       category: 'source',
@@ -126,12 +151,12 @@ export function diagnoseFetchFailure(input: { status: number | null; online: boo
       technical: { code: 'SRC-409', category: 'source', mediaKind: 'unknown', engine: 'none', at: input.at },
     }
   }
-  return diagnosePlayback({ error: null, online: input.online, mediaKind: 'unknown', engine: 'none', at: input.at })
+  return diagnosePlayback({ error: null, online: input.online, mediaKind: 'unknown', engine: 'none', at: input.at }, t)
 }
 
-export function diagnosePlayback(input: PlaybackDiagnosisInput): PlaybackDiagnosis {
+export function diagnosePlayback(input: PlaybackDiagnosisInput, t: Translator = createTranslator('pt')): PlaybackDiagnosis {
   const verdict = verdictOf(input)
-  const entry = describeError(verdict.code)
+  const entry = describeError(verdict.code, t)
   return {
     code: verdict.code,
     category: verdict.category,

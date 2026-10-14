@@ -1,0 +1,13 @@
+
+/* Temporary local diagnosis for the series-detail incident. */
+.diagnostic-report {
+  width: min(100%, 1400px);
+  padding: var(--space-3);
+  margin-top: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  text-align: left;
+}
+.diagnostic-report p { margin: 0 0 var(--space-2); font-size: var(--fs-body); }
+.diagnostic-report pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-caption); line-height: 1.5; }

@@ -1,3 +1,4 @@
+import { createTranslator, type Translator } from '../i18n/translate'
 /**
  * Máquina de estados de UMA abertura de trailer (feature 033,
  * `sdd/specs/033-trailers-filmes-series/logic/sessao-de-trailer.md`). Pura:
@@ -109,20 +110,20 @@ export function reduceTrailerSession(state: TrailerSessionState, event: TrailerS
 }
 
 /** Frase simples para a tela de erro (FR-019) — nunca texto bruto do player/rede (FR-020). */
-export function trailerErrorMessage(error: TrailerError): string {
+export function trailerErrorMessage(error: TrailerError, t: Translator = createTranslator('pt')): string {
   switch (error.code) {
     case 'YT-100':
-      return 'Este trailer foi removido ou está privado.'
+      return t('trailerLayer.err.removed')
     case 'YT-101':
     case 'YT-150':
-      return 'O dono deste trailer não permite que ele seja exibido em outros apps.'
+      return t('trailerLayer.err.embedDenied')
     case 'YT-2':
-      return 'Este trailer não pôde ser aberto.'
+      return t('trailerLayer.err.unopened')
     case 'TRL-TEMPO':
-      return 'O trailer demorou demais para começar.'
+      return t('trailerLayer.err.timeout')
     case 'TRL-REDE':
-      return 'Sem conexão com a internet.'
+      return t('trailerLayer.err.offline')
     default:
-      return 'O player de trailer não conseguiu iniciar.'
+      return t('trailerLayer.err.failed')
   }
 }

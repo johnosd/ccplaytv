@@ -1,5 +1,6 @@
 import { db, type CatalogDb, type CatalogRecord, type TmdbTitleRef } from '../catalog/db'
-import { activeGeneration, listAllOfKind, listCategories } from '../catalog/catalogRepository'
+import { activeGeneration, listAllOfKind } from '../catalog/catalogRepository'
+import { listVisibleCategories } from '../catalog/categoryAccess'
 import { isCovered } from '../catalog/catalogSearch'
 import { titleStableId } from './titleMetadataStore'
 import { comparableTitle, yearHintFromTitle } from './tmdbMatch'
@@ -113,7 +114,7 @@ export async function resolveTmdbTitles(
   const coverage: TitleResolution['coverage'] = {}
   const generation = await activeGeneration(sourceId, database)
   for (const kind of kinds) {
-    const categories = generation === undefined ? [] : await listCategories(sourceId, kind, database)
+    const categories = generation === undefined ? [] : await listVisibleCategories(sourceId, kind, database)
     const value: KindCoverage = { covered: categories.filter(isCovered).length, total: categories.length }
     coverage[kind] = value
   }

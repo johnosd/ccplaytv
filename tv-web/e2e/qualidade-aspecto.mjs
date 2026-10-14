@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusSideItem } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'player-chrome.m3u')
@@ -156,8 +157,8 @@ async function openViaTopbar(page, destination) {
 }
 
 async function enterCategory(page, name) {
-  await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await focusSideItem(page, name)
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
@@ -215,14 +216,20 @@ async function backToHome(page) {
 async function scenarioVideo(m3uUrl) {
   console.log('=== A) <video> de desenvolvimento: aspecto real, qualidade indisponível, aba de Configurações ===')
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   watch(page)
   try {
     await addSource(page, m3uUrl)
-    await page.route('**/live/**', () => {})
-    await page.route('**/vod/**', () => {})
-    await page.route('**/series/**', () => {})
+    await page.route('**/live/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await page.keyboard.press('Enter')
@@ -293,7 +300,7 @@ async function scenarioVideo(m3uUrl) {
 async function scenarioAvplay(m3uUrl) {
   console.log('=== B) AVPlay falso: qualidade, aspecto, preferências e Info do stream ===')
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   await context.addInitScript(installFakeAvplay)
   await context.addInitScript(
     ([key]) => localStorage.setItem(key, JSON.stringify({ aspect: 'fill', quality: 'max' })),
@@ -358,7 +365,7 @@ async function scenarioAvplay(m3uUrl) {
     await backToHome(page)
     await openViaTopbar(page, 'live')
     await page.locator('.side-category-nav-item.tv-focus').first().waitFor({ timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra na categoria
+    await page.keyboard.press('Enter') // entra na categoria
     await page.waitForSelector('.channel-row', { timeout: 8000 })
     await page.keyboard.press('Enter') // toca o canal
     await page.waitForSelector('.player-chrome', { state: 'attached', timeout: 8000 })

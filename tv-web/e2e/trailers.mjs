@@ -7,8 +7,8 @@
 // protocolo (play/pause/stop/seekTo) e deixa o teste provocar estados. Assim o
 // E2E cobre app + ponte + protocolo sem rede e sem publicar nada.
 //
-// Cobre: grade sem consulta (SC-004), abrir/tocar/pausar/retomar, clamp do
-// `seek-by` (A-01, FR-013), fim fecha, RETURN fecha e devolve o foco, "Cancelar"
+// Cobre: grade sem consulta (SC-004), abrir/tocar/pausar/retomar, foco horizontal
+// sem seek, fim fecha, RETURN fecha e devolve o foco, "Cancelar"
 // no carregando, erro sem reserva ("Voltar" só), sem trailer + dica do TMDB, sem
 // rede (TRL-REDE) e "Tentar de novo", série ("Trailer…" sem piscar
 // "indisponível"), reserva automática via TMDB (150 → 2º candidato) e higiene
@@ -22,6 +22,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const APP_URL = 'http://localhost:5173'
@@ -192,8 +193,8 @@ async function openViaTopbar(page, destination) {
 }
 
 async function enterFirstRealCategory(page) {
-  await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await focusFirstRealCategory(page)
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
@@ -312,7 +313,7 @@ async function run() {
   const m3uUrl = `${base}/get.php?username=${PANEL_USER}&password=${PANEL_PASS}`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   await installRoutes(context)
   const page = await context.newPage()
   await page.addInitScript(() => {
@@ -351,6 +352,19 @@ async function run() {
     assert(true, 'a ponte avisou "playing": pill "⏸ Pausar"')
     await assertLayerOneFocus(page, 'tocando')
 
+    await page.keyboard.press('ArrowRight')
+    const listButton = page.locator('.trailer-layer').getByRole('button', { name: '+ Minha Lista', exact: true })
+    assert((await listButton.getAttribute('class')).includes('tv-focus'), '? seleciona Minha Lista')
+    const beforeList = JSON.stringify((await ytState(frame)).log)
+    await page.keyboard.press('Enter')
+    await page.locator('.trailer-layer').getByRole('button', { name: '✓ Na Minha Lista', exact: true }).waitFor()
+    assert(JSON.stringify((await ytState(frame)).log) === beforeList, 'adicionar ? lista n?o pausa o trailer')
+    await page.screenshot({ path: 'test-results/trailer-minha-lista.png' })
+    await page.keyboard.press('Enter')
+    await listButton.waitFor()
+    assert(true, 'OK remove da Minha Lista sem fechar o trailer')
+    await page.keyboard.press('ArrowLeft')
+
     await page.keyboard.press('Enter')
     await page.waitForFunction(() => document.querySelector('.trailer-layer .trailer-pill')?.textContent === '▶ Continuar', null, { timeout: 5000 })
     assert((await ytState(frame)).log.includes('pause'), 'OK mandou "toggle" e a ponte pausou o player')
@@ -359,17 +373,15 @@ async function run() {
     await page.waitForFunction(() => document.querySelector('.trailer-layer .trailer-pill')?.textContent === '⏸ Pausar', null, { timeout: 5000 })
     assert((await ytState(frame)).log.filter((entry) => entry === 'play').length >= 2, 'OK de novo retomou o player')
 
-    // A-01 / FR-013: o salto nunca passa do fim nem do início (o clamp mora na ponte).
-    await frame.evaluate(() => { window.__yt.t = 95 })
+    // Setas selecionam os botões existentes sem saltar o vídeo.
+    const seeksBefore = (await ytState(frame)).seeks.length
     await page.keyboard.press('ArrowRight')
-    await page.waitForFunction(() => false, null, { timeout: 300 }).catch(() => {})
-    let seeks = (await ytState(frame)).seeks
-    assert(seeks.at(-1) === 100, `→ perto do fim fica limitado à duração (seekTo ${seeks.at(-1)}, esperado 100)`)
-    await frame.evaluate(() => { window.__yt.t = 4 })
+    await page.keyboard.press('ArrowRight')
+    assert((await listButton.getAttribute('class')).includes('tv-focus'), '→ seleciona Minha Lista e para na borda')
     await page.keyboard.press('ArrowLeft')
-    await page.waitForFunction(() => false, null, { timeout: 300 }).catch(() => {})
-    seeks = (await ytState(frame)).seeks
-    assert(seeks.at(-1) === 0, `← perto do início fica limitado a zero (seekTo ${seeks.at(-1)}, esperado 0)`)
+    await page.keyboard.press('ArrowLeft')
+    assert((await page.locator('.trailer-layer').getByRole('button', { name: '⏸ Pausar', exact: true }).getAttribute('class')).includes('tv-focus'), '← seleciona Pausar e para na borda')
+    assert((await ytState(frame)).seeks.length === seeksBefore, 'setas horizontais não enviam seek ao YouTube')
 
     await frame.evaluate(() => window.__yt.emit(0)) // fim do vídeo
     await layerGone(page)

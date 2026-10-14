@@ -7,6 +7,8 @@
  */
 
 import { useToggleFavorite, type CatalogItemOut } from '../catalog/catalogApi'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { Translator } from '../../lib/i18n/translate'
 import { computeNeighbor } from './neighbor'
 
 export interface FavoriteToggleOptions {
@@ -27,22 +29,23 @@ export interface FavoriteToggleOptions {
 }
 
 /** Mensagem honesta, sem detalhe técnico (FR-013). */
-function explainFavoriteError(error: unknown): string {
+function explainFavoriteError(error: unknown, t: Translator): string {
   if (error instanceof Error && error.message.includes('identidade estável')) {
     // Edge case da spec: item sem id do painel e sem nome aproveitável —
     // não é uma falha passageira de gravação, é permanente para este item.
-    return 'Este item não pode ser favoritado.'
+    return t('fav.cannot')
   }
-  return 'Não foi possível salvar o favorito.'
+  return t('fav.saveFailed')
 }
 
 export function useFavoriteToggle(showToast: (message: string) => void) {
+  const t = useT()
   const toggleMutation = useToggleFavorite()
 
   async function toggle(item: CatalogItemOut, options: FavoriteToggleOptions = {}): Promise<void> {
     try {
       const isFavoriteNow = await toggleMutation.mutateAsync(item)
-      showToast(isFavoriteNow ? 'Adicionado aos favoritos' : 'Removido dos favoritos')
+      showToast(isFavoriteNow ? t('fav.added') : t('fav.removed'))
 
       if (!isFavoriteNow && options.visibleItems && options.onFocusNeighbor) {
         options.onFocusNeighbor(computeNeighbor(options.visibleItems, item.id))
@@ -51,7 +54,7 @@ export function useFavoriteToggle(showToast: (message: string) => void) {
       // A estrela nunca muda numa falha: não houve `onSuccess`, então
       // nenhum cache foi invalidado — a tela continua lendo o estado
       // anterior (FR-013).
-      showToast(explainFavoriteError(error))
+      showToast(explainFavoriteError(error, t))
     }
   }
 

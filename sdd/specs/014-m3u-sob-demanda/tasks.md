@@ -199,7 +199,7 @@ description: "Tasks da feature 014-m3u-sob-demanda"
 - [X] T046 Revisão de segredos (constitution, Fluxo de Desenvolvimento): conferir no diff que nenhuma mensagem, log ou texto de tela interpola `m3uUrl`, credencial derivada ou registro de `storedEntries`.
 - [X] T047 Gates: `npm run test`, `npm run lint`, `npm run build`, e `npm run test:e2e` com `npm run dev` rodando.
 - [X] T048 Rodar `quickstart.md` inteiro no navegador (cenários 1–6 e itens da constitution).
-- [ ] T049 (Recomendado, não obrigatório) TV física pelo procedimento `tizen-tv`: cenários 1, 3 e 4 do `quickstart.md` com a lista real; registrar SC-001/SC-003 em `plan.md`.
+- [x] T049 (Recomendado, não obrigatório) TV física pelo procedimento `tizen-tv`: cenários 1, 3 e 4 do `quickstart.md` com a lista real; registrar SC-001/SC-003 em `plan.md`. — **Atualização 06/10/2026: o usuário declarou a passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-06"); qualquer "não executado" acima é o estado anterior, mantido como histórico
 
 ### Checklist de Release
 

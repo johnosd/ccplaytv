@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { groupLabel, type CatalogItemOut } from '../catalog/catalogApi'
+import { useT } from '../../lib/i18n/I18nProvider'
 import type { PlayerLayerTopLayer } from '../../components/PlayerLayer'
 import { trailKeyOf, type EnteredKey } from './liveTrail'
 import type { LiveChannels, LiveTrail } from './useLiveCatalog'
@@ -37,7 +38,7 @@ export interface LiveZappingParams {
   trail: LiveTrail
   channels: LiveChannels
   search: LiveSearch
-  setCol: Dispatch<SetStateAction<0 | 1 | 2>>
+  setCol: Dispatch<SetStateAction<0 | 1>>
   showToast: (message: string) => void
   initialChannel: { channelId: string; entry: 'favorites' | 'category' } | undefined
 }
@@ -49,6 +50,7 @@ export interface LiveZappingParams {
  * antes entre os efeitos da tela.
  */
 export function useLiveZapping({ zap, guide, trail, channels, search, setCol, showToast, initialChannel }: LiveZappingParams) {
+  const t = useT()
   const { playing, setPlaying, zapOpen, setZapOpen, lastGoodChannelRef, zapSequenceRef, zapKeyRef } = zap
   const { setGuide, guideWatchPendingRef } = guide
   const { categories, entered, setEntered, focusedIdentity, setFocusedIdentity } = trail
@@ -76,7 +78,7 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
     if (!activeChannel.playable) {
       // Canal existe no catálogo mas não tem fonte de reprodução: explica,
       // não tenta abrir o player (FR-012/FR-019).
-      showToast('Este canal não tem uma fonte de reprodução disponível.')
+      showToast(t('live.unavailableChannel'))
       return
     }
 
@@ -149,6 +151,9 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
   function onPlayerClosed() {
     const last = playing
     const origin = zapKeyRef.current
+    // Sessão encerrada: o fallback de erro da troca anterior (D-008 da 027) não vale para uma reprodução nova —
+    // sem isto, um canal inválido iniciado depois voltava ao canal antigo em vez de mostrar o erro.
+    lastGoodChannelRef.current = null
     setPlaying(null)
     if (!last || !origin) return
     // O canal que tocava já está na lista exibida: nada a restaurar — o foco fica onde a pessoa o
@@ -175,13 +180,13 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
     if (!fallback) return
     lastGoodChannelRef.current = null
     setPlaying(fallback)
-    showToast(`Não foi possível trocar de canal. Voltando para ${fallback.name}.`)
+    showToast(t('live.zapFailed', { name: fallback.name }))
   }
 
   /**
    * A lista de zapping por cima do vídeo (feature 016): `content` é a trilha +
    * lista desenhadas sem preview; a navegação é a mesma da tela parada
-   * (`onDirection`/`onSelect` do teclado da Live). RETURN fecha só a lista.
+   * (`onDirection`/`onSelect` do teclado da Live). RETURN: canais → trilha → fecha a lista.
    * Segurar OK/tecla amarela favoritam o canal focado (edge case da 016).
    */
   function zapTopLayer(content: ReactNode, onDirection: PlayerLayerTopLayer['onDirection'], onSelect: () => void): PlayerLayerTopLayer {
@@ -189,7 +194,12 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
       content,
       onDirection,
       onSelect,
-      onBack: () => setZapOpen(false),
+      // RETURN em camadas (feature 049, FR-006): da lista de canais volta à trilha (→/← paginam, não trocam de
+      // coluna); da trilha fecha só a lista de zapping.
+      onBack: () => {
+        if (channels.effectiveCol === 1) setCol(0)
+        else setZapOpen(false)
+      },
       onLongSelect: channels.canToggleFavoriteInZap ? channels.toggleFocusedFavorite : undefined,
       onFavoriteKey: channels.canToggleFavoriteInZap ? channels.toggleFocusedFavorite : undefined,
     }

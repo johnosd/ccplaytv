@@ -1,0 +1,10 @@
+{
+  "title": "Portal journal writer",
+  "description": "Append condicional e replay; sem overwrite/delete.",
+  "stage": "GA",
+  "includedPermissions": [
+    "storage.objects.create",
+    "storage.objects.get",
+    "storage.objects.list"
+  ]
+}

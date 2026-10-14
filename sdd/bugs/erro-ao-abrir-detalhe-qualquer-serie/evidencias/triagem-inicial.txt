@@ -1,0 +1,10 @@
+2026-10-10
+npx vitest run src/features/series: 115/115 testes, 11 arquivos, 21.93s.
+npm run test:e2e -- --only serie-foco-episodios --jobs 1 --retry 0: 1/1 roteiro em 51s.
+Reprodução do pacote CCPlayTv por HTTP local: roteiro de 14 episódios aprovado (navegação, troca e contagem); difere da origem file:// da TV.
+
+Playwright com lista real do .env, origem localhost:5173: duas séries distintas abriram por SELECT (8 e 24 episódios renderizados), zero pageerrors. Cliques de mouse não acionam os ContentCards da vitrine/grade; não equivalem ao SELECT.
+Pacote HTTP em 127.0.0.1:5176: importação falhou com NET-02 por Access-Control-Allow-Origin incompatível. Origem file:// também não concluiu importação. Não são reproduções do erro de detalhe da TV.
+Sondagens autenticadas: HTTP 200; cabeçalho CORS varia entre origens localhost/loopback e não corresponde à origem null. Query única e no-cache não resolveram a sondagem null. Nenhum valor de host/credencial preservado.
+TV 192.168.0.2 conectada por sdb. Web Inspector indisponível na porta 7011; tentativa de debug encerrada.
+Revisão automática rejeitou o diagnóstico Chromium --disable-web-security por ausência de autorização específica; aguardando decisão do usuário. Nenhuma proteção alterada no app/TV.

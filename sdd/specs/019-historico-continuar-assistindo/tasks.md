@@ -188,7 +188,7 @@ Testes da Fase e pelo E2E do Polish.
 - [x] Fase 4 (Continuar assistindo) concluída
 - [x] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro
 - [x] `npm run test` / `lint` / `build` limpos; `test:e2e` — script novo desta feature limpo (cadeia completa pode seguir com as limitações pré-existentes já documentadas nas features 017/018)
-- [ ] `quickstart.md` executado pelo menos em emulador/navegador (TV física recomendada, não gate obrigatório)
+- [x] `quickstart.md` executado pelo menos em emulador/navegador (TV física recomendada, não gate obrigatório) — **2026-10-09: no navegador, por automação**: `e2e/historico-continuar-assistindo.mjs` cobre os cenários A–D do quickstart e passou na suíte completa (43/43). TV física segue recomendada, pendente.
 
 **Registro da Fase**:
 

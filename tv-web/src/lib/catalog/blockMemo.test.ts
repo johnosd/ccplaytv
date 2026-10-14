@@ -11,6 +11,7 @@ import {
   storeSeriesEpisodes,
 } from './catalogRepository'
 import { blockKeysOutsideGeneration, convertLegacyCategories } from './categoryBlocks'
+import { noteBlockWrite, readBlock } from './blockMemo'
 import { buildStableId, parseStableId, type StableIdParts } from './userStateRepository'
 
 /**
@@ -80,6 +81,27 @@ describe('getChannel depois da conversão para blocos', () => {
 })
 
 describe('cache curto de blocos', () => {
+  it('não retém um bloco maior que o limite agregado de itens', async () => {
+    const get = vi.fn(async () => ({ items: Array.from({ length: 2_001 }, (_, id) => ({ id })) }))
+    const databaseLike = { categoryBlocks: { get } } as never
+
+    await readBlock(databaseLike, 1, false)
+    await readBlock(databaseLike, 1, false)
+
+    expect(get).toHaveBeenCalledTimes(2)
+  })
+
+  it('descarta o bloco memorizado quando uma escrita externa sinaliza a tabela', async () => {
+    const get = vi.fn(async () => ({ items: [{ id: 1 }] }))
+    const databaseLike = { categoryBlocks: { get } } as never
+
+    await readBlock(databaseLike, 1, false)
+    noteBlockWrite(databaseLike, null)
+    await readBlock(databaseLike, 1, false)
+
+    expect(get).toHaveBeenCalledTimes(2)
+  })
+
   it('pedir o mesmo item várias vezes lê o bloco uma vez; uma escrita no bloco é vista na hora', async () => {
     const categoryId = await movieCategory()
     const target = { sourceId: SOURCE_ID, generation: 1, kind: 'movie' as const, categoryId, groupOrder: 0 }

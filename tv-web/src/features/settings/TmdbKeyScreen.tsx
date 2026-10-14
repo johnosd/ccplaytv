@@ -6,6 +6,8 @@ import { useRemoteNav } from '../../lib/useRemoteNav'
 import { useImeChain } from '../../lib/useImeChain'
 import { Button } from '../../components/Button'
 import { TextField } from '../../components/TextField'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
 import type { SaveTmdbKeyFailure } from '../../lib/metadata/types'
 
 export interface TmdbKeyScreenProps {
@@ -14,12 +16,12 @@ export interface TmdbKeyScreenProps {
   onBack: () => void
 }
 
-/** Motivo → mensagem para quem digitou. Nunca ecoa o que foi digitado (FR-013). */
-const FAILURE_MESSAGE: Record<SaveTmdbKeyFailure, string> = {
-  invalid_format: 'Formato inválido. Use a chave da API (32 caracteres) ou o token de leitura (começa com "eyJ").',
-  refused: 'O TMDB recusou esta chave. Confira se copiou inteira, sem espaços.',
-  offline: 'Não foi possível falar com o TMDB agora. Verifique a conexão e tente de novo.',
-  rate_limited: 'O TMDB pediu para aguardar. Tente de novo em alguns minutos.',
+/** Motivo → chave da mensagem para quem digitou. Nunca ecoa o que foi digitado (FR-013). */
+const FAILURE_MESSAGE_KEY: Record<SaveTmdbKeyFailure, MessageKey> = {
+  invalid_format: 'settings.tmdbKey.failure.invalid_format',
+  refused: 'settings.tmdbKey.failure.refused',
+  offline: 'settings.tmdbKey.failure.offline',
+  rate_limited: 'settings.tmdbKey.failure.rate_limited',
 }
 
 /** Código da tabela de erros de cada motivo (feature 042); `invalid_format` é validação local, sem código. */
@@ -40,6 +42,7 @@ const FAILURE_CODE: Partial<Record<SaveTmdbKeyFailure, string>> = {
  * (feature 045): volta mascarado ao sair da tela.
  */
 export function TmdbKeyScreen({ onSaved, onBack }: TmdbKeyScreenProps): ReactNode {
+  const t = useT()
   const containerRef = useRef<HTMLElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const saveRef = useRef<HTMLButtonElement>(null)
@@ -70,11 +73,12 @@ export function TmdbKeyScreen({ onSaved, onBack }: TmdbKeyScreenProps): ReactNod
         }
         // Feature 042: o código vem da tabela de erros (nunca o que foi digitado nem a resposta crua).
         const code = FAILURE_CODE[result.reason]
-        setError(code ? `${FAILURE_MESSAGE[result.reason]} (${code})` : FAILURE_MESSAGE[result.reason])
+        const message = t(FAILURE_MESSAGE_KEY[result.reason])
+        setError(code ? `${message} (${code})` : message)
         inputRef.current?.focus()
       },
       onError: () => {
-        setError(FAILURE_MESSAGE.offline)
+        setError(t(FAILURE_MESSAGE_KEY.offline))
         inputRef.current?.focus()
       },
     })
@@ -83,18 +87,16 @@ export function TmdbKeyScreen({ onSaved, onBack }: TmdbKeyScreenProps): ReactNod
   return (
     <section className="screen epg-settings tmdb-key no-scrollbar form-scroll-room" ref={containerRef} aria-labelledby="tmdb-key-title">
       <h1 id="tmdb-key-title" className="screen-title">
-        Chave do TMDB
+        {t('settings.tmdbKey.title')}
       </h1>
-      <p className="epg-settings-note">
-        Crie a sua chave em themoviedb.org, em Configurações › API. A chave fica só neste aparelho e só é enviada ao TMDB.
-      </p>
+      <p className="epg-settings-note">{t('settings.tmdbKey.note')}</p>
 
       <div className="epg-settings-field">
         <TextField
-          label="Chave da API (v3) ou token de leitura (v4)"
+          label={t('settings.tmdbKey.field')}
           purpose="password"
           revealable
-          revealNoun="chave"
+          revealNoun={t('settings.tmdbKey.revealNoun')}
           enterKeyHint="done"
           value={draft}
           onChange={(value) => {
@@ -102,16 +104,16 @@ export function TmdbKeyScreen({ onSaved, onBack }: TmdbKeyScreenProps): ReactNod
             if (error) setError(undefined)
           }}
           error={error}
-          hint="Prefira a chave da API, que é mais curta de digitar."
+          hint={t('settings.tmdbKey.hint')}
           inputRef={inputRef}
         />
       </div>
 
       <Button variant="accent" loading={save.isPending} onSelect={submit} buttonRef={saveRef}>
-        Salvar e testar
+        {t('settings.tmdbKey.save')}
       </Button>
       <Button variant="ghost" onSelect={onBack}>
-        Cancelar
+        {t('common.cancel')}
       </Button>
     </section>
   )

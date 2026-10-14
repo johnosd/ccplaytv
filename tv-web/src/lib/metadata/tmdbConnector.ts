@@ -1,4 +1,5 @@
 import type { TmdbKeyFormat } from './types'
+import { isRequestAbortError, requestDeadline, type RequestDeadlineOptions } from './requestDeadline'
 
 /**
  * Único ponto de rede do TMDB (feature 032, `logic/chave-tmdb.md` §6).
@@ -13,18 +14,20 @@ import type { TmdbKeyFormat } from './types'
 const API_BASE = 'https://api.themoviedb.org/3'
 const IMAGE_BASE = 'https://image.tmdb.org/t/p'
 
-export type TmdbImageSize = 'w185' | 'w342' | 'w1280'
+export type TmdbImageSize = 'w185' | 'w342' | 'w780' | 'w1280'
 
 export type TmdbFailure = 'refused' | 'rate_limited' | 'offline' | 'not_found'
 
 export class TmdbError extends Error {
   readonly kind: TmdbFailure
+  readonly retryAfterMs?: number
 
-  constructor(kind: TmdbFailure) {
+  constructor(kind: TmdbFailure, retryAfterMs?: number) {
     // Mensagem fixa por categoria: nunca a do `fetch` (carrega a URL com a chave).
     super(`tmdb:${kind}`)
     this.name = 'TmdbError'
     this.kind = kind
+    this.retryAfterMs = retryAfterMs
   }
 }
 
@@ -58,6 +61,7 @@ export async function tmdbGet(
   params: Record<string, string>,
   credential: TmdbCredential,
   fetchImpl: typeof fetch = fetch,
+  requestOptions: RequestDeadlineOptions = {},
 ): Promise<unknown> {
   const url = new URL(`${API_BASE}${path}`)
   for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value)
@@ -65,25 +69,33 @@ export async function tmdbGet(
   if (credential.format === 'v3') url.searchParams.set('api_key', credential.key)
   else init.headers = { Authorization: `Bearer ${credential.key}` }
 
-  let response: Response
   try {
-    response = await fetchImpl(url.toString(), init)
-  } catch {
-    throw new TmdbError('offline')
-  }
-  if (response.status === 401) throw new TmdbError('refused')
-  if (response.status === 404) throw new TmdbError('not_found')
-  if (response.status === 429) throw new TmdbError('rate_limited')
-  if (!response.ok) throw new TmdbError('offline')
-  try {
-    return await response.json()
-  } catch {
+    return await requestDeadline(async signal => {
+      const response = await fetchImpl(url.toString(), { ...init, signal })
+      if (response.status === 401) throw new TmdbError('refused')
+      if (response.status === 404) throw new TmdbError('not_found')
+      if (response.status === 429) throw new TmdbError('rate_limited', retryAfterMs(response.headers, requestOptions.now?.() ?? Date.now()))
+      if (!response.ok) throw new TmdbError('offline')
+      return await response.json()
+    }, requestOptions)
+  } catch (error) {
+    if (isRequestAbortError(error)) throw error
+    if (error instanceof TmdbError) throw error
     throw new TmdbError('offline')
   }
 }
 
+function retryAfterMs(headers: Headers | undefined, now: number): number | undefined {
+  const value = headers?.get('Retry-After')?.trim()
+  if (!value) return undefined
+  const seconds = Number(value)
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000
+  const date = Date.parse(value)
+  return Number.isFinite(date) && date > now ? date - now : undefined
+}
+
 /** `GET /authentication` — valida a chave sem consumir cota relevante. */
-export async function tmdbAuthenticate(credential: TmdbCredential, fetchImpl: typeof fetch = fetch): Promise<void> {
-  const body = (await tmdbGet('/authentication', {}, credential, fetchImpl)) as { success?: unknown } | null
+export async function tmdbAuthenticate(credential: TmdbCredential, fetchImpl: typeof fetch = fetch, requestOptions: RequestDeadlineOptions = {}): Promise<void> {
+  const body = (await tmdbGet('/authentication', {}, credential, fetchImpl, requestOptions)) as { success?: unknown } | null
   if (body?.success !== true) throw new TmdbError('refused')
 }

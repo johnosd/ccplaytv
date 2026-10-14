@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-07T21:30:57.331Z",
+  "cpuThrottle": 4,
+  "fixture": {
+    "movies": 43000,
+    "series": 10000,
+    "categories": 134,
+    "ratedEligibleFraction": 1
+  },
+  "measure": "Automation command to DOM content plus two animation frames; not physical-TV timings",
+  "results": [
+    {
+      "tmdb": false,
+      "repetitions": 3,
+      "timings": [
+        {
+          "name": "home-cold",
+          "medianFirstContentMs": 239.80000001192093,
+          "medianLongestTaskMs": 225,
+          "medianLongTaskTotalMs": 386
+        },
+        {
+          "name": "movies-after-home",
+          "medianFirstContentMs": 665.5,
+          "medianLongestTaskMs": 422,
+          "medianLongTaskTotalMs": 543
+        },
+        {
+          "name": "series-after-home",
+          "medianFirstContentMs": 312.5,
+          "medianLongestTaskMs": 141,
+          "medianLongTaskTotalMs": 141
+        },
+        {
+          "name": "home-return",
+          "medianFirstContentMs": 138.19999998807907,
+          "medianLongestTaskMs": 84,
+          "medianLongTaskTotalMs": 84
+        },
+        {
+          "name": "movies-index-cold",
+          "medianFirstContentMs": 953.8000000119209,
+          "medianLongestTaskMs": 493,
+          "medianLongTaskTotalMs": 902
+        },
+        {
+          "name": "index-invalidate-3-batches",
+          "medianFirstContentMs": null,
+          "medianLongestTaskMs": 489,
+          "medianLongTaskTotalMs": 1784
+        },
+        {
+          "name": "movie-category-cold",
+          "medianFirstContentMs": 191.2000000178814,
+          "medianLongestTaskMs": 136,
+          "medianLongTaskTotalMs": 136
+        }
+      ],
+      "medianRetainedHeapMiB": 18.632991790771484,
+      "apiRequestsPerRun": [
+        0,
+        0,
+        0
+      ],
+      "errors": []
+    },
+    {
+      "tmdb": true,
+      "repetitions": 3,
+      "timings": [
+        {
+          "name": "home-cold",
+          "medianFirstContentMs": 230.2999999821186,
+          "medianLongestTaskMs": 229,
+          "medianLongTaskTotalMs": 575
+        },
+        {
+          "name": "movies-after-home",
+          "medianFirstContentMs": 717.2999999821186,
+          "medianLongestTaskMs": 446,
+          "medianLongTaskTotalMs": 647
+        },
+        {
+          "name": "series-after-home",
+          "medianFirstContentMs": 330.39999997615814,
+          "medianLongestTaskMs": 146,
+          "medianLongTaskTotalMs": 201
+        },
+        {
+          "name": "home-return",
+          "medianFirstContentMs": 221.7000000178814,
+          "medianLongestTaskMs": 149,
+          "medianLongTaskTotalMs": 149
+        },
+        {
+          "name": "movies-index-cold",
+          "medianFirstContentMs": 1042.0999999940395,
+          "medianLongestTaskMs": 526,
+          "medianLongTaskTotalMs": 1184
+        },
+        {
+          "name": "index-invalidate-3-batches",
+          "medianFirstContentMs": null,
+          "medianLongestTaskMs": 557,
+          "medianLongTaskTotalMs": 2196
+        },
+        {
+          "name": "movie-category-cold",
+          "medianFirstContentMs": 318.09999999403954,
+          "medianLongestTaskMs": 152,
+          "medianLongTaskTotalMs": 152
+        }
+      ],
+      "medianRetainedHeapMiB": 26.752277374267578,
+      "apiRequestsPerRun": [
+        18,
+        18,
+        18
+      ],
+      "errors": []
+    }
+  ]
+}

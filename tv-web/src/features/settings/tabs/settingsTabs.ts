@@ -1,24 +1,24 @@
+import { PortalLicenseTab } from './PortalLicenseTab'
 import { AccessibilityTab } from './AccessibilityTab'
 import { IntegrationsTab } from './IntegrationsTab'
-import { PrivacyTab } from './PrivacyTab'
 import { PlayerTab } from './PlayerTab'
-import { AboutTab, ParentalSoonTab } from './SimpleTabs'
+import { AboutTab } from './SimpleTabs'
 import { SourcesTab } from './SourcesTab'
 import type { SettingsTabDefinition } from './settingsTab'
 
 /**
- * Registro das abas de Configurações, na ordem do DS (FR-022). Aba nova =
+ * Registro das abas de Configurações, na ordem do DS (FR-022). Só o que vale para o app todo desde a feature 067
+ * (FR-015): Categorias & parental e Privacidade viraram abas de Configurações da lista (`list/listSettingsTabs.ts`). Aba nova =
  * um módulo em `tabs/` (componente `SettingsTabProps` que expõe o
- * `SettingsTabHandle`) + uma linha aqui + o id em `SettingsTab` — a
- * `SettingsScreen` não muda (item 63 do backlog).
+ * `SettingsTabHandle`) + uma linha aqui + o id em `SettingsTab` + a chave
+ * `settings.tab.<id>` nos três catálogos — a `SettingsScreen` não muda
+ * (item 63 do backlog).
  */
 export const SETTINGS_TABS: SettingsTabDefinition[] = [
-  { id: 'integrations', label: 'Integrações & BYOK', icon: 'device', Panel: IntegrationsTab },
-  { id: 'sources', label: 'Fontes IPTV', icon: 'live', Panel: SourcesTab },
-  { id: 'player', label: 'Player & reprodução', icon: 'play', Panel: PlayerTab },
-  { id: 'accessibility', label: 'Acessibilidade & sistema', icon: 'settings', Panel: AccessibilityTab },
-  { id: 'parental', label: 'Perfis & parental', icon: 'favorite', Panel: ParentalSoonTab },
-  // Feature 036 (D-008): antes de "Sobre & créditos", o rodapé informativo.
-  { id: 'privacy', label: 'Privacidade', icon: 'history', Panel: PrivacyTab },
-  { id: 'about', label: 'Sobre & créditos', icon: 'info', Panel: AboutTab },
+  { id: 'integrations', labelKey: 'settings.tab.integrations', icon: 'device', Panel: IntegrationsTab },
+  { id: 'sources', labelKey: 'settings.tab.sources', icon: 'live', Panel: SourcesTab },
+  { id: 'player', labelKey: 'settings.tab.player', icon: 'play', Panel: PlayerTab },
+  { id: 'accessibility', labelKey: 'settings.tab.accessibility', icon: 'settings', Panel: AccessibilityTab },
+  { id: 'about', labelKey: 'settings.tab.about', icon: 'info', Panel: AboutTab },
+  { id: 'portal', labelKey: 'portal.title', icon: 'device', Panel: PortalLicenseTab },
 ]

@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import { useLanguage, useT } from '../../lib/i18n/I18nProvider'
+import { APP_LANGUAGE_LOCALE } from '../../lib/i18n/languages'
+import type { Translator } from '../../lib/i18n/translate'
+import { groupLabelDisplay } from '../vod/vodGroupDisplay'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   useCatalogItem,
@@ -9,26 +13,32 @@ import {
   invalidateUserState,
   useToggleWatched,
   useRemoveFromHistory,
-  groupLabel,
 } from '../catalog/catalogApi'
 import { isInHistory, type HistoryRemovalMode } from '../../lib/catalog/historyRemoval'
 import { HistoryRemovalModal } from '../history/HistoryRemovalModal'
 import {
   CastPanel,
   CastPeoplePanel,
-  DetailBackdrop,
+  FactOrigin,
   MetadataFacts,
   SynopsisBlock,
   SynopsisModal,
   personFocusKey,
 } from '../vod/DetailMetadata'
-import { isSynopsisTruncated, metadataFactRows } from '../vod/detailMetadataFormat'
+import { formatDurationMinutes, isSynopsisTruncated, metadataFactRows } from '../vod/detailMetadataFormat'
+import { DetailHero } from '../vod/DetailHero'
+import { DetailIconAction, DetailPrimaryAction, type DetailIconName } from '../vod/DetailActions'
+import { DetailChips } from '../vod/DetailChips'
+import { primaryProgress } from '../vod/detailProgress'
+import { detailPanelRows, movePanelFocus } from '../vod/detailPanelGrid'
 import { useRemoteNav, clamp } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { Toast } from '../../components/Toast'
 import { PlayerLayer } from '../../components/PlayerLayer'
 import { TrailerLayer } from '../../components/TrailerLayer'
-import { PosterArt } from '../../components/PosterArt'
+import { RatingBadge } from '../../components/RatingBadge'
+import { ContentRatingBadge } from '../../components/ContentRatingBadge'
+import { TmdbRatingBadge } from '../../components/TmdbRatingBadge'
 import { Tabs, type TabItem } from '../../components/Tabs'
 import { buildStableId } from '../../lib/catalog/userStateRepository'
 import { isResumable } from '../../lib/player/resumePolicy'
@@ -73,11 +83,13 @@ type MovieAction =
 
 type DetailTab = 'details' | 'cast' | 'similar'
 
-const TABS: TabItem[] = [
-  { id: 'details', label: 'Detalhes' },
-  { id: 'cast', label: 'Elenco' },
-  { id: 'similar', label: 'Semelhantes' },
-]
+function buildTabs(t: Translator): TabItem[] {
+  return [
+    { id: 'details', label: t('detail.tab.details') },
+    { id: 'cast', label: t('detail.tab.cast') },
+    { id: 'similar', label: t('detail.tab.similar') },
+  ]
+}
 
 const CONFIGURE_KEY = 'configure'
 
@@ -109,24 +121,44 @@ function buildActions(
   ]
 }
 
-function actionLabel(action: MovieAction): string {
+/** Ícone de cada ação secundária (feature 059, `logic/hero-cinema.md` §4). A primária não tem ícone. */
+function actionIcon(action: MovieAction): DetailIconName {
+  switch (action.id) {
+    case 'restart':
+      return 'restart'
+    case 'favorite':
+      return action.isFavorite ? 'added' : 'add'
+    case 'trailer':
+      return 'trailer'
+    case 'similar':
+      return 'similar'
+    case 'toggle-watched':
+      return action.watched ? 'unwatch' : 'watched'
+    case 'remove-history':
+      return 'remove'
+    default:
+      return 'restart'
+  }
+}
+
+function actionLabel(action: MovieAction, t: Translator): string {
   switch (action.id) {
     case 'watch':
-      return '▶ Assistir'
+      return t('detail.action.watch')
     case 'resume':
-      return `▶ Continuar de ${formatTime(action.progressSeconds * 1000)}`
+      return t('detail.action.resume', { time: formatTime(action.progressSeconds * 1000) })
     case 'restart':
-      return '↺ Reiniciar'
+      return t('detail.action.restart')
     case 'favorite':
-      return action.isFavorite ? '✓ Na Minha Lista' : '+ Minha Lista'
+      return action.isFavorite ? t('home.hero.inMyList') : t('home.hero.addMyList')
     case 'trailer':
-      return '▶ Trailer'
+      return t('trailer.button')
     case 'similar':
-      return '☰ Semelhantes'
+      return t('detail.action.similar')
     case 'toggle-watched':
-      return action.watched ? '✗ Desmarcar assistido' : '✓ Marcar como assistido'
+      return action.watched ? t('detail.action.unwatch') : t('detail.action.markWatched')
     case 'remove-history':
-      return 'Remover do histórico'
+      return t('detail.action.removeHistory')
   }
 }
 
@@ -139,8 +171,8 @@ function actionLabel(action: MovieAction): string {
  * fazia a exibição recuar um dia inteiro em qualquer fuso atrás de UTC
  * (ex.: America/Sao_Paulo, UTC-3).
  */
-function formatShortDate(epochMs: number): string {
-  return new Intl.DateTimeFormat('pt-BR', {
+function formatShortDate(epochMs: number, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -216,6 +248,9 @@ export function MovieDetailScreen({
     isInHistory(userStateQuery.data),
   )
   const toggleWatched = useToggleWatched()
+  const t = useT()
+  const language = useLanguage()
+  const tabs = buildTabs(t)
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
 
@@ -232,7 +267,7 @@ export function MovieDetailScreen({
         onSuccess: () => {
           // A ação some na releitura; `safeActionFocus` cai na anterior.
           setRemoval(null)
-          showToast('Removido do histórico')
+          showToast(t('vod.removedFromHistory'))
         },
         onError: () => setRemoval({ error: true }),
       },
@@ -275,16 +310,15 @@ export function MovieDetailScreen({
   // Semelhantes: só resolve com a aba ativa; nenhuma requisição externa nasce aqui (FR-003/SC-005).
   const similar = useSimilarTitles(movieId, activeTab === 'similar')
   const castPeople = metadata?.castPeople ?? []
-  const panelKeys: string[] =
-    activeTab === 'cast'
-      ? castPeople.map((person) => personFocusKey(person.personId))
-      : activeTab !== 'similar'
-        ? []
-        : similar.status === 'ready'
-          ? similar.titles.map((title) => title.key)
-          : similar.status === 'no_key'
-            ? [CONFIGURE_KEY]
-            : []
+  // Feature 059 (D-008): o painel é uma grade de linhas (Semelhantes: "Na sua lista" / "Não
+  // encontrados"); `panelKeys` (todas as chaves) segue servindo à restauração e à entrada.
+  const panelRows = detailPanelRows(
+    activeTab,
+    castPeople.map((person) => personFocusKey(person.personId)),
+    similar,
+    CONFIGURE_KEY,
+  )
+  const panelKeys: string[] = panelRows.flat()
 
   // Ação "Semelhantes" do hero: ativa a aba, rola até o painel e foca o 1º cartão.
   const enterSimilar = useEnterSimilarPanel({
@@ -306,6 +340,14 @@ export function MovieDetailScreen({
         ? 'tabs'
         : rawRow
   const effectiveTabId = rawRow === 'panel' && row === 'tabs' ? activeTab : focusedTabId
+
+  // Feature 059, FR-017: foco no hero ou nas abas devolve a página ao topo (as
+  // abas cabem na primeira tela). No painel, os cartões se trazem à vista sozinhos.
+  const rootRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (row !== 'more' && row !== 'actions' && row !== 'tabs') return
+    if (rootRef.current) rootRef.current.scrollTop = 0
+  }, [row])
 
   function snapshot(focusKey?: string): DetailSnapshot {
     return focusKey === undefined ? { tab: activeTab } : { tab: activeTab, focusKey }
@@ -371,12 +413,10 @@ export function MovieDetailScreen({
         return
       }
       if (row === 'panel') {
-        const index = panelKeys.indexOf(panelFocusKey as string)
-        if (dir === 'left' || dir === 'right') {
-          const next = clamp(index + (dir === 'left' ? -1 : 1), 0, panelKeys.length - 1)
-          setPanelFocusKey(panelKeys[next])
-        }
-        if (dir === 'up') {
+        // Feature 059 (D-008): grade de linhas — ←/→ param na ponta, ↓/↑ trocam de linha, ↑ na 1ª volta à aba.
+        const move = movePanelFocus(panelRows, panelFocusKey as string, dir)
+        if (move.kind === 'focus') setPanelFocusKey(move.key)
+        if (move.kind === 'exit-up') {
           setFocusedTabId(activeTab)
           setRow('tabs')
         }
@@ -384,9 +424,9 @@ export function MovieDetailScreen({
       }
       // row === 'tabs'
       if (dir === 'left' || dir === 'right') {
-        const idx = TABS.findIndex((t) => t.id === effectiveTabId)
-        const next = clamp(idx + (dir === 'left' ? -1 : 1), 0, TABS.length - 1)
-        setFocusedTabId(TABS[next].id)
+        const idx = tabs.findIndex((tab) => tab.id === effectiveTabId)
+        const next = clamp(idx + (dir === 'left' ? -1 : 1), 0, tabs.length - 1)
+        setFocusedTabId(tabs[next].id)
         setRow('tabs')
       }
       if (dir === 'up') setRow('actions')
@@ -419,7 +459,7 @@ export function MovieDetailScreen({
       const action = actions[safeActionFocus]
       if (!action) return
       if (action.id === 'trailer') {
-        const toast = trailerActionToast(trailerState)
+        const toast = trailerActionToast(trailerState, t)
         if (toast !== null) showToast(toast)
         // `playing` cobre o instante entre um OK repetido e a camada do player montar (FR-012).
         else if (!playing) setTrailerOpen(true)
@@ -455,80 +495,105 @@ export function MovieDetailScreen({
       <div className="screen">
         <div className="live-state">
           <div className="live-state-copy">
-            {query.isLoading ? 'Carregando…' : 'Este filme não está mais no catálogo.'}
+            {query.isLoading ? t('common.loading') : t('detail.movieMissing')}
           </div>
           <button type="button" className="live-state-action tv-focus" onClick={onBack}>
-            Voltar
+            {t('common.back')}
           </button>
         </div>
       </div>
     )
   }
 
-  const metaParts: string[] = []
-  if (movie.year != null) metaParts.push(String(movie.year))
-  metaParts.push(groupLabel(movie.original_group ?? undefined))
-  if (watched) metaParts.push('✓ Assistido')
+  // Hero "Cinema" (feature 059): a categoria sai da metadata e vira o 1º chip (D-006).
+  const durationSeconds = metadata?.durationSeconds?.value
+  const hasRating = movie.provider_rating != null && movie.provider_rating > 0
 
   return (
     // Achado real (feature 028, FR-006): rolava com a barra nativa visível.
-    <div className="screen vod-detail no-scrollbar">
-      <div className="vod-detail-hero">
-        <DetailBackdrop url={metadata?.backdropUrl?.value} origin={metadata?.backdropUrl?.origin} />
-        <div className="vod-detail-poster">
-          <PosterArt url={movie.icon_url ?? undefined} title={movie.name} />
-        </div>
-        <div className="vod-detail-info">
-          <div className="vod-detail-eyebrow">FILME</div>
-          <div className="vod-detail-title">{movie.name}</div>
-          <div className="vod-detail-meta">{metaParts.join(' · ')}</div>
-          <SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />
-          <div className="vod-detail-actions">
-            {actions.map((action, i) => {
-              const softDisabled = action.id === 'trailer' && trailerActionSoftDisabled(trailerState)
-              return (
-                <div
-                  key={action.id}
-                  className={`vod-detail-action${row === 'actions' && i === safeActionFocus && !removal ? ' tv-focus' : ''}${softDisabled ? ' is-soft-disabled' : ''}`}
-                  aria-disabled={softDisabled ? 'true' : undefined}
-                >
-                  {action.id === 'trailer' ? trailerActionLabel(trailerState) : actionLabel(action)}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
+    <div ref={rootRef} className="screen vod-detail vod-detail--movie no-scrollbar">
+      <DetailHero
+        eyebrow={t('detail.eyebrow.movie')}
+        title={movie.name}
+        posterUrl={movie.icon_url ?? undefined}
+        backdropUrl={metadata?.backdropUrl?.value}
+        backdropOrigin={metadata?.backdropUrl?.origin}
+        watched={watched}
+        meta={
+          <>
+            {movie.year != null && <span>{movie.year}</span>}
+            {durationSeconds != null && durationSeconds > 0 && <span>{formatDurationMinutes(durationSeconds)}</span>}
+            {hasRating && <RatingBadge value={movie.provider_rating} showSource />}
+            <ContentRatingBadge certifications={metadata?.certifications} />
+            <TmdbRatingBadge rating={metadata?.tmdbRating} />
+            {watched && <span className="vod-detail-meta-watched">{t('detail.watchedMeta')}</span>}
+          </>
+        }
+        chips={<DetailChips category={groupLabelDisplay(movie.original_group, t)} genres={metadata?.genres} />}
+        synopsis={<SynopsisBlock synopsis={synopsis} moreFocused={row === 'more'} onMore={() => setSynopsisOpen(true)} />}
+        actions={actions.map((action, i) => {
+          const focused = row === 'actions' && i === safeActionFocus && !removal
+          if (action.id === 'watch' || action.id === 'resume') {
+            // Barra só com posição E duração reais (D-004); "Assistir" nunca tem.
+            const progress = action.id === 'resume' ? primaryProgress(action.progressSeconds, durationSeconds) : null
+            return <DetailPrimaryAction key={action.id} label={actionLabel(action, t)} focused={focused} progress={progress} />
+          }
+          const isTrailer = action.id === 'trailer'
+          return (
+            <DetailIconAction
+              key={action.id}
+              icon={actionIcon(action)}
+              label={isTrailer ? trailerActionLabel(trailerState, t) : actionLabel(action, t)}
+              focused={focused}
+              softDisabled={isTrailer && trailerActionSoftDisabled(trailerState)}
+              active={(action.id === 'favorite' && action.isFavorite) || (action.id === 'toggle-watched' && action.watched)}
+            />
+          )
+        })}
+      />
 
-      <Tabs items={TABS} activeId={activeTab} focusedId={row === 'tabs' ? effectiveTabId : undefined} onSelect={activateTab} />
+      <Tabs items={tabs} activeId={activeTab} focusedId={row === 'tabs' ? effectiveTabId : undefined} onSelect={activateTab} />
 
       <div className="vod-detail-panel" ref={enterSimilar.panelRef}>
         {activeTab === 'details' && (
           <dl className="vod-detail-facts">
             <div className="vod-detail-fact">
-              <dt>Tipo</dt>
-              <dd>Filme</dd>
+              <dt>{t('detail.fact.type')}</dt>
+              <dd>{t('detail.fact.movie')}</dd>
             </div>
-            <div className="vod-detail-fact">
-              <dt>Categoria</dt>
-              <dd>{groupLabel(movie.original_group ?? undefined)}</dd>
+            {/* Feature 059 (D-006): o que vem do catálogo da lista leva "Dados: fonte"; o Tipo não leva selo. */}
+            <div className="vod-detail-fact vod-detail-fact--category">
+              <dt>{t('detail.fact.category')}</dt>
+              <dd>
+                {groupLabelDisplay(movie.original_group, t)}
+                <FactOrigin origin="provider" />
+              </dd>
             </div>
             {movie.year != null && (
               <div className="vod-detail-fact">
-                <dt>Ano</dt>
-                <dd>{movie.year}</dd>
+                <dt>{t('detail.fact.year')}</dt>
+                <dd>
+                  {movie.year}
+                  <FactOrigin origin="provider" />
+                </dd>
               </div>
             )}
             {movie.added_at != null && (
               <div className="vod-detail-fact">
-                <dt>Adicionado em</dt>
-                <dd>{formatShortDate(movie.added_at)}</dd>
+                <dt>{t('detail.fact.added')}</dt>
+                <dd>
+                  {formatShortDate(movie.added_at, APP_LANGUAGE_LOCALE[language])}
+                  <FactOrigin origin="provider" />
+                </dd>
               </div>
             )}
-            <MetadataFacts rows={metadataFactRows(metadata, false)} />
+            <MetadataFacts rows={metadataFactRows(metadata, false, t)} />
             <div className="vod-detail-fact">
-              <dt>Disponível</dt>
-              <dd>{movie.playable ? 'Sim' : 'Não'}</dd>
+              <dt>{t('detail.fact.available')}</dt>
+              <dd>
+                {movie.playable ? t('detail.yes') : t('detail.no')}
+                <FactOrigin origin="provider" />
+              </dd>
             </div>
           </dl>
         )}
@@ -572,7 +637,7 @@ export function MovieDetailScreen({
       )}
       {/* Fechar o trailer não invalida nada: ver trailer não muda estado do usuário (FR-016). */}
       {trailerOpen && trailerState.status === 'available' && (
-        <TrailerLayer title={movie.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)} />
+        <TrailerLayer title={movie.name} candidates={trailerState.candidates} onClose={() => setTrailerOpen(false)} myList={{ added: isFavorite, pending: favoriteToggle.isPending, onToggle: () => { void favoriteToggle.toggle(movie) } }} />
       )}
       {playing && (
         <PlayerLayer

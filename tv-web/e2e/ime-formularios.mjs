@@ -13,7 +13,7 @@
 //  6. OK repetido durante a espera → 1 requisição; RETURN cancela e fica; RETURN de novo sai;
 //  7. varredura de segredo: nenhum usuário, senha ou endereço do painel no HTML (SC-006).
 //  8. cobertura do campo (7 campos dos 3 formulários na metade superior, 1920×1080),
-//     "Mostrar senha" e Done do IME encadeando os campos sem enviar (SC-004/SC-005).
+//     olho do formulário ("Ocultar dados", feature 070) e Done do IME encadeando os campos sem enviar (SC-004/SC-005).
 // O IME real da Samsung é simulado por `keyCode` (65376 = Done, valor de `lib/imeKeys.ts`,
 // ainda NÃO medido na TV): o que este script prova é a lógica do app, não o aparelho.
 //
@@ -146,7 +146,7 @@ async function launchBrowser() {
 
 /** Contexto novo por cenário: o IndexedDB não vaza de um para o outro. */
 async function freshPage(browser) {
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   await page.goto(APP_URL)
   return { context, page }
@@ -320,10 +320,16 @@ async function main() {
       await page.getByRole('button', { name: 'Configurações', exact: true }).click()
       await page.waitForSelector('.settings-screen .sources-panel', { timeout: 8000 })
 
-      await page.getByRole('button', { name: 'EPG', exact: true }).click()
+      // Feature 067: o EPG da lista mora em Configurações da lista › EPG.
+      await page.getByRole('button', { name: 'Configurar', exact: true }).click()
+      await page.locator('.side-category-nav-item', { hasText: 'EPG' }).click()
+      await page.getByRole('button', { name: 'Configurar EPG' }).click()
       await page.waitForSelector('.epg-settings', { timeout: 8000 })
       await naMetadeSuperior(page, page.getByLabel(/Endereço XMLTV/), 'EPG manual › Endereço XMLTV')
-      await page.keyboard.press('Escape')
+      await page.keyboard.press('Escape') // tela de EPG -> tela da lista
+      await page.waitForSelector('.list-settings-screen', { timeout: 8000 })
+      await page.keyboard.press('Escape') // tela da lista -> Configurações
+      await page.waitForSelector('.settings-screen:not(.list-settings-screen)', { timeout: 8000 })
 
       await page.getByRole('button', { name: 'Integrações & BYOK' }).click()
       await page.getByRole('region', { name: 'TMDB' }).getByRole('button', { name: 'Configurar' }).click()
@@ -332,23 +338,24 @@ async function main() {
       await context.close()
     }
 
-    console.log('8. "Mostrar senha": revela, alterna o nome, e volta mascarada ao sair e voltar')
+    console.log('8. Olho do formulário (feature 070): dados visíveis por padrão; "Ocultar dados" mascara os três; volta visível ao sair e voltar')
     {
       const { context, page } = await freshPage(browser)
       await page.locator('.add-card').click()
       await page.locator('#add-source-title').waitFor({ timeout: 8000 })
-      const senha = page.getByLabel('Senha', { exact: true })
-      await senha.fill(PASS)
-      assert((await senha.getAttribute('type')) === 'password', 'a senha nasce mascarada')
-      await page.getByRole('button', { name: 'Mostrar senha' }).click()
-      assert((await senha.getAttribute('type')) === 'text', 'Mostrar revela o texto')
-      assert((await page.getByRole('button', { name: 'Ocultar senha' }).getAttribute('aria-pressed')) === 'true', 'o controle vira "Ocultar senha" com aria-pressed')
+      const campos = ['Servidor', 'Usuário', 'Senha']
+      const tipos = () => Promise.all(campos.map((rotulo) => page.getByLabel(rotulo, { exact: true }).getAttribute('type')))
+      await page.getByLabel('Senha', { exact: true }).fill(PASS)
+      assert((await page.getByLabel('Senha', { exact: true }).getAttribute('type')) === 'text', 'a senha nasce visível (texto)')
+      await page.getByRole('button', { name: 'Ocultar dados' }).click()
+      assert((await tipos()).every((tipo) => tipo === 'password'), 'Ocultar dados mascara servidor, usuário e senha de uma vez')
+      assert((await page.getByRole('button', { name: 'Mostrar dados' }).getAttribute('aria-pressed')) === 'true', 'o controle vira "Mostrar dados" com aria-pressed')
       const labels = await page.evaluate(() => Array.from(document.querySelectorAll('[aria-label]')).map((el) => el.getAttribute('aria-label')).join(' '))
-      assert(!labels.includes(PASS), 'revelada, a senha não aparece em nenhum nome acessível')
+      assert(!labels.includes(PASS), 'a senha não aparece em nenhum nome acessível')
       await page.keyboard.press('Escape') // sai do cadastro (RETURN fora de qualquer espera)
       await page.locator('.add-card').click()
       await page.locator('#add-source-title').waitFor({ timeout: 8000 })
-      assert((await page.getByLabel('Senha', { exact: true }).getAttribute('type')) === 'password', 'ao voltar ao cadastro, a senha está mascarada de novo')
+      assert((await page.getByLabel('Senha', { exact: true }).getAttribute('type')) === 'text', 'ao voltar ao cadastro, os dados voltam visíveis (nada persistido)')
       await context.close()
     }
 

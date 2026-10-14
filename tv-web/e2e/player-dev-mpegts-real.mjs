@@ -78,7 +78,7 @@ async function run() {
   }
 
   const browser = await chromium.launch({ headless: true })
-  const page = await (await browser.newContext({ viewport: { width: 1920, height: 1080 } })).newPage()
+  const page = await (await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })).newPage()
   // Só o NOME do erro: a mensagem de uma falha de rede embute a URL com credencial.
   page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error'))
 
@@ -102,7 +102,7 @@ async function run() {
     await page.getByRole('button', { name: 'Abrir lista' }).click()
     await page.waitForSelector('.topbar', { timeout: 15000 })
     await page.getByRole('button', { name: 'TV ao vivo', exact: true }).click()
-    await page.waitForSelector('.live-column-groups', { timeout: 15000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 15000 })
 
     console.log('=== Abrir uma categoria com canais ===')
     let entered = false

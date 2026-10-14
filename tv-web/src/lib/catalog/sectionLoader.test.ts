@@ -85,6 +85,21 @@ describe('loadSection (feature 038, R0-3)', () => {
     expect(categories.find((c) => c.id === c3)?.itemsFetchedAt).toBeUndefined() // não foi pedida
   })
 
+  it('renovação: só avisa a categoria que mudou (bug abrir-app-nao-atualiza-todas-categorias)', async () => {
+    const [c1, c2] = await seedLive()
+    await loadSection(SOURCE_ID, 'channel', [c1, c2], { database, fetchImpl: async () => streamed(SECTION), now: () => 500 })
+
+    const onCategory = vi.fn()
+    const withNew = [...SECTION, { stream_id: 13, name: 'Canal novo', category_id: '1' }]
+    const result = await loadSection(SOURCE_ID, 'channel', [c1, c2], { database, fetchImpl: async () => streamed(withNew), onCategory, now: () => 900 })
+
+    expect(result).toEqual({ outcome: 'done', written: [c1, c2] })
+    expect(onCategory.mock.calls.map(([id]) => id)).toEqual([c1]) // c2 voltou idêntica: nada a reler
+    expect((await listChannels(SOURCE_ID, 0, 0, 10, 'channel', database)).map((r) => r.name)).toEqual(['Canal A', 'Canal B', 'Canal novo'])
+    const categories = await listCategories(SOURCE_ID, 'channel', database)
+    expect(categories.find((c) => c.id === c2)?.itemsFetchedAt).toBe(900) // carimbada mesmo sem mudar
+  })
+
   it('categoria pedida que a seção não traz fica gravada vazia (dado real: a fonte não tem itens nela)', async () => {
     const [c1, , c3] = await seedLive()
     const result = await loadSection(SOURCE_ID, 'channel', [c3], {

@@ -64,7 +64,7 @@ console.log(`Painel declara: ${expected.expiresAt === null ? 'sem data de vencim
 
 const browser = await launchBrowser()
 try {
-  const page = await (await browser.newContext()).newPage()
+  const page = await (await browser.newContext({ locale: 'pt-BR' })).newPage()
   await page.goto(APP_URL)
   await page.waitForSelector('.add-card', { timeout: 15000 })
   await page.keyboard.press('Enter')

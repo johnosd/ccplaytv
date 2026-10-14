@@ -5,6 +5,8 @@ import { Spinner } from '../../components/Spinner'
 import { checkSourceAccount, type AccountCheckResult } from '../../lib/catalog/accountCheck'
 import { accessFromAccount, formatAccountDate, type AccessDecision } from '../../lib/catalog/sourceAccount'
 import { useRemoteNav } from '../../lib/useRemoteNav'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
 import type { SourceOut } from '../import/importApi'
 
 /**
@@ -34,8 +36,11 @@ export interface SourceAccessGateProps {
 type Phase = 'checking' | 'blocked' | 'rechecking'
 type Blocked = { reason: 'expired' | 'refused'; expiresAt?: number | null }
 
-const BLOCKED_ACTIONS = ['Editar lista', 'Verificar de novo', 'Voltar'] as const
-const CHECKING_ACTIONS = ['Voltar'] as const
+/** Ações por id estável (o rótulo vem de 	()): o foco e o OK nunca dependem do texto traduzido. */
+type GateAction = 'edit' | 'recheck' | 'back'
+const BLOCKED_ACTIONS: readonly GateAction[] = ['edit', 'recheck', 'back']
+const CHECKING_ACTIONS: readonly GateAction[] = ['back']
+const ACTION_LABEL_KEY: Record<GateAction, MessageKey> = { edit: 'access.edit', recheck: 'access.recheck', back: 'common.back' }
 
 export function SourceAccessGate({
   source,
@@ -45,6 +50,7 @@ export function SourceAccessGate({
   onBack,
   checkAccount = checkSourceAccount,
 }: SourceAccessGateProps): ReactNode {
+  const t = useT()
   const [phase, setPhase] = useState<Phase>(decision.action === 'check' ? 'checking' : 'blocked')
   const [blocked, setBlocked] = useState<Blocked | null>(
     decision.action === 'blocked' ? { reason: decision.reason, expiresAt: decision.expiresAt } : null,
@@ -101,10 +107,10 @@ export function SourceAccessGate({
   const actions = phase === 'checking' ? CHECKING_ACTIONS : BLOCKED_ACTIONS
   const current = Math.min(focus, actions.length - 1)
 
-  function activate(label: string): void {
-    if (label === 'Voltar') onBack()
-    else if (label === 'Editar lista') onEdit(source)
-    else if (label === 'Verificar de novo' && !inFlight.current) {
+  function activate(action: GateAction): void {
+    if (action === 'back') onBack()
+    else if (action === 'edit') onEdit(source)
+    else if (action === 'recheck' && !inFlight.current) {
       setPhase('rechecking')
       void runCheck('blocked')
     }
@@ -121,12 +127,12 @@ export function SourceAccessGate({
 
   const message =
     phase === 'checking'
-      ? 'Verificando a conta da lista…'
+      ? t('access.checking')
       : blocked?.reason === 'refused'
-        ? 'O provedor recusou o usuário ou a senha desta lista.'
+        ? t('access.refused')
         : typeof blocked?.expiresAt === 'number'
-          ? `A assinatura desta lista venceu em ${formatAccountDate(blocked.expiresAt)}.`
-          : 'A assinatura desta lista venceu.'
+          ? t('access.expiredOn', { date: formatAccountDate(blocked.expiresAt, t.language) })
+          : t('access.expired')
 
   return (
     <section className="screen source-access" aria-labelledby="source-access-title">
@@ -142,22 +148,22 @@ export function SourceAccessGate({
       )}
       {phase !== 'checking' && unconfirmed && (
         <p className="source-access-note">
-          Não foi possível confirmar agora — o aparelho está sem conexão com o provedor.{' '}
+          {t('access.unconfirmed')}{' '}
           <span data-testid="source-access-note-code" className="error-state-code">
             NET-02
           </span>
         </p>
       )}
       {phase !== 'blocked' && <Spinner size={32} />}
-      <div className="source-access-actions" role="group" aria-label="Ações da lista">
-        {actions.map((label, index) => (
+      <div className="source-access-actions" role="group" aria-label={t('access.group')}>
+        {actions.map((action, index) => (
           <Button
-            key={label}
-            variant={label === 'Editar lista' ? 'primary' : 'secondary'}
+            key={action}
+            variant={action === 'edit' ? 'primary' : 'secondary'}
             focused={index === current}
-            onSelect={() => activate(label)}
+            onSelect={() => activate(action)}
           >
-            {label}
+            {t(ACTION_LABEL_KEY[action])}
           </Button>
         ))}
       </div>

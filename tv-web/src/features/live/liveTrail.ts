@@ -1,5 +1,7 @@
 import { groupLabel, type CatalogCategory } from '../catalog/catalogApi'
 import type { HintItem } from '../shell/HintBar'
+import { createTranslator, type Translator } from '../../lib/i18n/translate'
+import { UNGROUPED_LABEL } from './groupChannels'
 import type { LiveEntryKey } from './liveSessionMemory'
 
 /**
@@ -12,18 +14,41 @@ import type { LiveEntryKey } from './liveSessionMemory'
  * Altura de linha do painel de canais (feature 009) — soma da altura fixa
  * de `.live-channel-row` (`live.css`, feature 024) com o espaçamento entre
  * itens que a posição absoluta não herda mais do `gap` do flex column.
+ * Feature 068: 96px de linha + 12px de espaço (era 72 + 12), para a letra maior caber.
  */
-export const LIVE_ITEM_ROW_HEIGHT = 84
+export const LIVE_ITEM_ROW_HEIGHT = 108
 export const LIVE_ITEM_OVERSCAN = 6
 
-/** Ações do painel de preview, na ordem vertical (feature 024, D-005). */
-export const PREVIEW_ACTION_COUNT = 3
+/**
+ * Folga rolável nas bordas da lista de canais (feature 048, FR-021): o item focado fica fora do degradê de continuação
+ * (`--space-5`, 48px). O virtualizador mede a partir do início do conteúdo, sem o padding de 16px (`--space-2`) que dá folga ao
+ * anel de foco; por isso o fim soma 2 × 16px (o padding e a margem da moldura) e o início não.
+ */
+export const LIVE_EDGE_SCROLL_PADDING_START = 48
+export const LIVE_EDGE_SCROLL_PADDING_END = 48 + 2 * 16
 
-export const LIVE_HINTS: HintItem[] = [
-  { keyLabel: 'OK', action: 'Assistir' },
-  { keyLabel: 'Segurar OK', action: 'Favoritar' },
-  { keyLabel: 'RETURN', action: 'Voltar' },
-]
+/**
+ * Rótulo de exibição de um grupo na Live: tira o prefixo redundante "Canais |" (separador obrigatório — "Canais A"
+ * fica como está). Só apresentação: a identidade (chaves da trilha, memória de foco) continua a do nome declarado
+ * pela fonte, via `groupLabel`.
+ */
+export function liveGroupDisplay(name: string | undefined, t: Translator = createTranslator('pt')): string {
+  const label = groupLabel(name)
+  // "Sem categoria" é o rótulo que o app dá ao que a fonte não agrupou (identidade estável); só a EXIBIÇÃO é traduzida.
+  if (label === UNGROUPED_LABEL) return t('live.ungrouped')
+  const stripped = label.replace(/^canais?\s*[|:\u2013\u2014-]\s*/i, '').trim()
+  return stripped || label
+}
+
+/** Dicas da barra de teclas da Live no idioma do app (feature 054). */
+export function liveHints(t: Translator): HintItem[] {
+  return [
+    { keyLabel: 'OK', action: t('live.hint.enter') },
+    { keyLabel: '← →', action: t('live.hint.page') },
+    { keyLabel: t('live.hint.holdOk'), action: t('live.hint.favorite') },
+    { keyLabel: 'RETURN', action: t('common.back') },
+  ]
+}
 
 /**
  * A trilha de categorias (feature 013) é "★ Favoritos" seguida das
@@ -45,7 +70,8 @@ export function sameTrailKey(a: TrailKey, b: TrailKey): boolean {
 
 export interface TrailEntry {
   key: TrailKey
-  category?: CatalogCategory
+  /** `locked` vem de `listVisibleCategories` (feature 066): bloqueada e sem desbloqueio na sessão. */
+  category?: CatalogCategory & { locked?: boolean }
 }
 
 /** Chave de string estável de uma entrada da trilha — só para o `id` do `SideCategoryNav` (feature 024, componente burro, D-009 da 022). */

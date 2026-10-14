@@ -23,6 +23,8 @@ describe('Configurações — linhas de largura total não escalam no foco', () 
   it('Acessibilidade: a linha real e as "Em breve"', () => {
     const { rerender } = render(<AccessibilityPanel reducedMotion={false} focusedRow={0} onActivateRow={vi.fn()} />)
     expect(focusedHasNoScale()).toBe(true)
+    rerender(<AccessibilityPanel reducedMotion={false} focusedRow={1} onActivateRow={vi.fn()} />)
+    expect(focusedHasNoScale()).toBe(true)
     rerender(<AccessibilityPanel reducedMotion={false} focusedRow={2} onActivateRow={vi.fn()} />)
     expect(focusedHasNoScale()).toBe(true)
   })
@@ -33,9 +35,6 @@ describe('Configurações — linhas de largura total não escalam no foco', () 
         sources={[]}
         activeSourceId={null}
         focusedRowId={ADD_SOURCE_ID}
-        focusedCol={0}
-        resyncPending={false}
-        deletePending={false}
         onActivateRow={vi.fn()}
       />,
     )
@@ -54,7 +53,6 @@ describe('Configurações — linhas de largura total não escalam no foco', () 
         summaries={{ movies: empty, series: empty, both: empty }}
         focusedRow={1}
         onActivateRow={vi.fn()}
-        onBack={vi.fn()}
       />,
     )
     expect(focusedHasNoScale()).toBe(true)

@@ -1,0 +1,335 @@
+{
+  "schema": 1,
+  "date": "2026-10-07T13:56:53.444Z",
+  "device": {
+    "slug": "desktop-win32-intel-core-i7-10700f-cpu-2-90ghz",
+    "platform": "win32",
+    "cpu": "Intel(R) Core(TM) i7-10700F CPU @ 2.90GHz",
+    "cores": 16,
+    "memoryGb": 32,
+    "browser": "chromium 153.0.8010.12",
+    "runtime": "playwright"
+  },
+  "commit": "ac649dd",
+  "dirty": true,
+  "appVersion": "0.0.0",
+  "seed": 1,
+  "cpuThrottle": 1,
+  "results": [
+    {
+      "format": "xtream",
+      "size": 1000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 12.5,
+        "parseMs": 0.4,
+        "classifyMs": 1.5,
+        "storeMs": 37.1,
+        "totalMs": 51.5
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 66.9
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 6442450944
+        },
+        "after": {
+          "usage": 118784,
+          "quota": 6442569728
+        }
+      },
+      "counts": {
+        "categories": 6,
+        "items": 1000
+      },
+      "expected": {
+        "categories": 6,
+        "items": 1000
+      },
+      "countsMatch": true
+    },
+    {
+      "format": "xtream",
+      "size": 10000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 21.5,
+        "parseMs": 2.3,
+        "classifyMs": 7.2,
+        "storeMs": 104.4,
+        "totalMs": 135.4
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 146.2
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 5368709120
+        },
+        "after": {
+          "usage": 471040,
+          "quota": 5369180160
+        }
+      },
+      "counts": {
+        "categories": 20,
+        "items": 10000
+      },
+      "expected": {
+        "categories": 20,
+        "items": 10000
+      },
+      "countsMatch": true
+    },
+    {
+      "format": "xtream",
+      "size": 100000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 172.5,
+        "parseMs": 29.4,
+        "classifyMs": 45.8,
+        "storeMs": 889.9,
+        "totalMs": 1137.6
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 1344.3
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 6442450944
+        },
+        "after": {
+          "usage": 3944448,
+          "quota": 6446395392
+        }
+      },
+      "counts": {
+        "categories": 200,
+        "items": 100000
+      },
+      "expected": {
+        "categories": 200,
+        "items": 100000
+      },
+      "countsMatch": true
+    },
+    {
+      "format": "m3u",
+      "size": 1000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 3.6,
+        "parseMs": 3.8,
+        "classifyMs": 1.7,
+        "storeMs": 33.1,
+        "totalMs": 42.2
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 76.2
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 7516192768
+        },
+        "after": {
+          "usage": 372736,
+          "quota": 7516565504
+        }
+      },
+      "counts": {
+        "categories": 6,
+        "items": 1000
+      },
+      "expected": {
+        "categories": 6,
+        "items": 1000
+      },
+      "countsMatch": true
+    },
+    {
+      "format": "m3u",
+      "size": 10000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 18.8,
+        "parseMs": 26.1,
+        "classifyMs": 6.8,
+        "storeMs": 102.8,
+        "totalMs": 154.5
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 338.5
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 6442450944
+        },
+        "after": {
+          "usage": 3014656,
+          "quota": 6445465600
+        }
+      },
+      "counts": {
+        "categories": 20,
+        "items": 10000
+      },
+      "expected": {
+        "categories": 20,
+        "items": 10000
+      },
+      "countsMatch": true
+    },
+    {
+      "format": "m3u",
+      "size": 100000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 166.5,
+        "parseMs": 218.6,
+        "classifyMs": 50.1,
+        "storeMs": 792.9,
+        "totalMs": 1228.1
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 3190
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 6442450944
+        },
+        "after": {
+          "usage": 29806592,
+          "quota": 6472257536
+        }
+      },
+      "counts": {
+        "categories": 200,
+        "items": 100000
+      },
+      "expected": {
+        "categories": 200,
+        "items": 100000
+      },
+      "countsMatch": true
+    },
+    {
+      "format": "xmltv",
+      "size": 1000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 7.1,
+        "parseMs": 4.3,
+        "classifyMs": null,
+        "storeMs": 68.3,
+        "totalMs": 79.7
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 80
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 6442450944
+        },
+        "after": {
+          "usage": 679936,
+          "quota": 6443130880
+        }
+      },
+      "counts": {
+        "categories": 5,
+        "items": 1000
+      },
+      "expected": {
+        "categories": 5,
+        "items": 1000
+      },
+      "countsMatch": true
+    },
+    {
+      "format": "xmltv",
+      "size": 10000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 27.8,
+        "parseMs": 37.5,
+        "classifyMs": null,
+        "storeMs": 558.3,
+        "totalMs": 623.6
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 601.6
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 6442450944
+        },
+        "after": {
+          "usage": 6295552,
+          "quota": 6448746496
+        }
+      },
+      "counts": {
+        "categories": 50,
+        "items": 10000
+      },
+      "expected": {
+        "categories": 50,
+        "items": 10000
+      },
+      "countsMatch": true
+    },
+    {
+      "format": "xmltv",
+      "size": 100000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 301.7,
+        "parseMs": 247.9,
+        "classifyMs": null,
+        "storeMs": 5857.9,
+        "totalMs": 6407.5
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 6127.2
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 7516192768
+        },
+        "after": {
+          "usage": 62533632,
+          "quota": 7578726400
+        }
+      },
+      "counts": {
+        "categories": 500,
+        "items": 100000
+      },
+      "expected": {
+        "categories": 500,
+        "items": 100000
+      },
+      "countsMatch": true
+    }
+  ]
+}

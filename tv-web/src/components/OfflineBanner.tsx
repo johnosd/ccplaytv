@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useConnectionCheckStatus } from '../lib/network/connectionCheck'
 import { useOnlineStatus } from '../lib/onlineStatus'
+import { useT } from '../lib/i18n/I18nProvider'
 
 /**
  * Aviso de conectividade real (feature 022, D-012 do plan.md) — some sozinho
@@ -9,16 +10,13 @@ import { useOnlineStatus } from '../lib/onlineStatus'
  * o controle remoto não o alcançava.
  */
 export function OfflineBanner(): ReactNode {
+  const t = useT()
   const online = useOnlineStatus()
   const check = useConnectionCheckStatus()
   if (online) return null
 
   const message =
-    check === 'verifying'
-      ? 'Verificando rede…'
-      : check === 'failed'
-        ? 'Ainda sem conexão. O conteúdo que já está no aparelho continua disponível.'
-        : 'Sem conexão com a internet.'
+    check === 'verifying' ? t('offline.verifying') : check === 'failed' ? t('offline.failed') : t('offline.offline')
 
   return (
     <div className="offline-banner" role="status">

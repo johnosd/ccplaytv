@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Camada de reprodução (`PlayerLayer`) + chrome V14 (feature 027,
  * `logic/chrome-player.md`). Importado em `main.tsx` no mesmo lugar em que
  * `features/screens.css` estava antes de ser eliminado (feature 028,
@@ -11,7 +11,10 @@
 /* ---------- Camada (`.player-overlay`) e plano de hardware ---------- */
 
 .player-overlay {
-  position: absolute;
+  /* `fixed`, não `absolute`: no detalhe de filme/série a camada fica DENTRO de `.screen.vod-detail`, que é quem rola — com
+     `absolute` ela rolava junto e o chrome saía da tela (bug serie-sem-proximo-episodio-controles-somem). O palco (`Stage`) tem
+     `transform`, então o bloco de contenção é o próprio palco 1920×1080, fora de qualquer área que rola. */
+  position: fixed;
   inset: 0;
   /* Preto opaco, não translúcido: um fundo com blur/transparência parcial
      custa caro no engine da TV (ADR-007 §8). Vale enquanto não há vídeo na
@@ -77,12 +80,12 @@
 }
 
 .player-status-channel {
-  font: 700 34px var(--font-body);
+  font: 700 var(--fs-h1) var(--font-body);
   color: var(--text-primary);
 }
 
 .player-status-label {
-  font: 500 20px var(--font-body);
+  font: 500 var(--fs-body) var(--font-body);
   color: var(--text-tertiary);
 }
 
@@ -113,7 +116,7 @@
 }
 
 .player-message-title {
-  font: 700 34px var(--font-body);
+  font: 700 var(--fs-h2) var(--font-body);
   color: var(--text-primary);
 }
 
@@ -125,7 +128,7 @@
 }
 
 .player-message-copy {
-  font: 500 20px var(--font-body);
+  font: 500 var(--fs-body) var(--font-body);
   color: var(--text-tertiary);
 }
 
@@ -141,7 +144,7 @@
   background: var(--surface-field-active);
   color: var(--text-secondary);
   font-weight: 700;
-  font-size: 19px;
+  font-size: var(--fs-body);
 }
 
 .player-action.tv-focus {
@@ -169,13 +172,35 @@
 }
 
 .player-chrome-title {
-  font: 700 34px var(--font-body);
+  font: 700 var(--fs-h1) var(--font-body);
   color: var(--text-primary);
 }
 
 .player-chrome-subtitle {
-  font: 500 20px var(--font-body);
+  font: 500 var(--fs-body) var(--font-body);
   color: var(--text-tertiary);
+}
+
+/* Feature 058 (`logic/arquivo.md` §6): programa de arquivo — selo "Arquivo" +
+   nome do canal acima do título do programa. Nunca o selo "AO VIVO". */
+.player-chrome-archive-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.player-chrome-archive-badge {
+  padding: 6px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-active);
+  color: var(--text-primary);
+  font: 700 var(--fs-caption) var(--font-body);
+  letter-spacing: 0.04em;
+}
+
+.player-chrome-archive-channel {
+  font: 600 var(--fs-body) var(--font-body);
+  color: var(--text-secondary);
 }
 
 /* Faixa do canal (US2, FR-009/FR-034): nenhum <button> aqui de propósito —
@@ -194,13 +219,13 @@
   border-radius: var(--radius-pill);
   background: var(--accent);
   color: var(--accent-ink);
-  font: 700 15px var(--font-body);
+  font: 700 var(--fs-caption) var(--font-body);
   letter-spacing: 0.04em;
 }
 
 .player-chrome-number {
   min-width: 56px;
-  font: 700 28px var(--font-body);
+  font: 700 var(--fs-h2) var(--font-body);
   color: var(--text-secondary);
 }
 
@@ -212,7 +237,7 @@
 }
 
 .player-chrome-name {
-  font: 700 28px var(--font-body);
+  font: 700 var(--fs-h2) var(--font-body);
   color: var(--text-primary);
 }
 
@@ -232,7 +257,7 @@
 }
 
 .player-chrome-now-title {
-  font: 500 20px var(--font-body);
+  font: 500 var(--fs-body) var(--font-body);
   color: var(--text-secondary);
 }
 
@@ -262,7 +287,7 @@
   justify-content: center;
   gap: 12px;
   padding: 0 64px;
-  font: 600 20px var(--font-body);
+  font: 600 var(--fs-body) var(--font-body);
   color: var(--text-secondary);
 }
 
@@ -304,7 +329,7 @@
   border-radius: var(--radius-pill);
   background: var(--surface-field-active);
   color: var(--text-secondary);
-  font: 700 15px var(--font-body);
+  font: 700 var(--fs-body) var(--font-body);
   white-space: nowrap;
   --icon-size: 22px;
 }
@@ -428,3 +453,4 @@
   font-weight: 700;
   color: var(--text-primary);
 }
+

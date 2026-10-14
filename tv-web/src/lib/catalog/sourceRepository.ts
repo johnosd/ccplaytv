@@ -24,13 +24,16 @@ import {
   type SourceType,
 } from './db'
 import { parsePanelUrl } from './m3uPanelUrl'
-import { deleteAllForSource } from './catalogRepository'
 import { normalizeServerAddress } from './xtreamConnector'
-import { deleteUserStatesForSource } from './userStateRepository'
 import { epgManualHostOf, epgStatusOf } from '../epg/epgStatus'
-import { deleteEpgForSource } from '../epg/epgRepository'
 import type { EpgStatus } from '../epg/types'
 import type { SourceAccount } from './sourceAccount'
+import type { ArchiveVariant, PanelClock } from './archiveUrl'
+import { portalTables } from '../portal/portalTables'
+import { notifyLocalSourceChanged } from '../portal/sourceChangeSignal'
+import { sourceExtras, type CreateSourceInput, type UpdateSourceInput } from './sourceInput'
+export type { CreateSourceInput, UpdateSourceInput } from './sourceInput'
+export { deleteSource, sourceDeletionTables } from './sourceDeletion'
 
 /** A fonte como as telas a veem — sem credencial, por construção. */
 export interface SourceView {
@@ -117,15 +120,6 @@ export async function getSource(
   return record ? toView(record) : undefined
 }
 
-export interface CreateSourceInput {
-  type: SourceType
-  displayName: string
-  m3uUrl?: string
-  providerDns?: string
-  providerUsername?: string
-  providerPassword?: string
-}
-
 export class InvalidSourceError extends Error {
   constructor(message: string) {
     super(message)
@@ -145,10 +139,11 @@ function newId(): string {
 export async function createSource(
   input: CreateSourceInput,
   database: CatalogDb = db,
+  options: { sourceId?: string } = {},
 ): Promise<string> {
   const now = Date.now()
   const record: SourceRecord = {
-    id: newId(),
+    id: options.sourceId ?? newId(),
     type: input.type,
     displayName: input.displayName.trim(),
     connectionState: 'never_synced',
@@ -171,16 +166,17 @@ export async function createSource(
     record.m3uUrl = input.m3uUrl.trim()
   }
 
-  await database.sources.add(record)
+  Object.assign(record, sourceExtras(input))
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(record.id)) throw new InvalidSourceError('Identificador inválido.')
+  const tables = portalTables(database)
+  await database.transaction('rw', database.sources, tables.revisions, async () => {
+    if (await tables.revisions.get(record.id)) throw new InvalidSourceError('Identificador já utilizado.')
+    await database.sources.add(record)
+    await tables.revisions.put({ sourceId: record.id, revision: 1 })
+  })
+  // 071/FR-008: lista nova sobe ao site no ato (uma tentativa; o agente decide e a fila é durável).
+  notifyLocalSourceChanged()
   return record.id
-}
-
-export interface UpdateSourceInput {
-  displayName?: string
-  m3uUrl?: string
-  providerDns?: string
-  providerUsername?: string
-  providerPassword?: string
 }
 
 /**
@@ -194,47 +190,43 @@ export async function updateSource(
   input: UpdateSourceInput,
   database: CatalogDb = db,
 ): Promise<SourceView | undefined> {
-  const record = await database.sources.get(id)
-  if (!record) return undefined
+  const tables = portalTables(database)
+  const updated = await database.transaction('rw', database.sources, tables.revisions, database.epgPrograms, async () => {
+    const record = await database.sources.get(id)
+    if (!record) return undefined
 
-  const changes: Partial<SourceRecord> = { updatedAt: Date.now() }
-  if (input.displayName?.trim()) changes.displayName = input.displayName.trim()
-  if (input.m3uUrl?.trim()) changes.m3uUrl = input.m3uUrl.trim()
-  if (input.providerDns?.trim()) changes.providerDns = normalizeServerAddress(input.providerDns)
-  if (input.providerUsername?.trim()) changes.providerUsername = input.providerUsername
-  if (input.providerPassword) changes.providerPassword = input.providerPassword
+    const changes: Partial<SourceRecord> = { updatedAt: Date.now() }
+    if (input.displayName?.trim()) changes.displayName = input.displayName.trim()
+    if (input.m3uUrl?.trim()) changes.m3uUrl = input.m3uUrl.trim()
+    if (input.providerDns?.trim()) changes.providerDns = normalizeServerAddress(input.providerDns)
+    if (input.providerUsername?.trim()) changes.providerUsername = input.providerUsername
+    if (input.providerPassword) changes.providerPassword = input.providerPassword
 
-  const credentialChanged =
-    changes.providerDns !== undefined ||
-    changes.providerUsername !== undefined ||
-    changes.providerPassword !== undefined
-  if (credentialChanged) {
-    // Credencial nova é conta possivelmente diferente: o que o conector
-    // apurou sobre a anterior (migração, formatos permitidos) deixa de
-    // valer (FR-020).
-    changes.providerMigratedAt = undefined
-    changes.providerAllowedFormats = undefined
-  }
+    const credentialChanged =
+      changes.providerDns !== undefined ||
+      changes.providerUsername !== undefined ||
+      changes.providerPassword !== undefined
+    if (credentialChanged) {
+      // Credencial nova é conta possivelmente diferente: o que o conector
+      // apurou sobre a anterior (migração, formatos permitidos) deixa de
+      // valer (FR-020).
+      changes.providerMigratedAt = undefined
+      changes.providerAllowedFormats = undefined
+    }
 
-  await database.sources.update(id, changes)
-  return getSource(id, database)
-}
-
-/** Remove a fonte e tudo que dependia dela — catálogo de todas as gerações e execuções. */
-export async function deleteSource(id: string, database: CatalogDb = db): Promise<void> {
-  await deleteAllForSource(id, database)
-  await database.importRuns.where('[sourceId+status]').between([id, ''], [id, '￿']).delete()
-  // Favoritos e retomada da fonte removida (feature 013, D-007/FR-017) —
-  // uma fonte readicionada ganha `sourceId` novo (UUID), então nada aqui
-  // fica órfão-mas-recuperável; manter o registro só ocuparia espaço.
-  await deleteUserStatesForSource(id, database)
-  // Feature 030 (FR-012): a programação e a configuração de EPG (que vive no
-  // próprio registro da fonte) saem junto.
-  await deleteEpgForSource(id, database)
-  // Feature 032 (FR-026): a metadata descritiva da fonte (provedor e TMDB)
-  // sai junto. A chave TMDB é da pessoa, não da fonte — fica.
-  await database.titleMetadata.where('sourceId').equals(id).delete()
-  await database.sources.delete(id)
+    Object.assign(changes, sourceExtras(input))
+    if (input.epgDisabled === true) {
+      await database.epgPrograms.where('sourceId').equals(id).delete()
+      changes.epgActiveGeneration = undefined
+    }
+    const previous = await tables.revisions.get(id)
+    if (previous?.tombstone) throw new InvalidSourceError('Lista removida.')
+    await database.sources.update(id, changes)
+    await tables.revisions.put({ ...previous, sourceId: id, revision: (previous?.revision ?? 0) + 1 })
+    return getSource(id, database)
+  })
+  if (updated) notifyLocalSourceChanged()
+  return updated
 }
 
 export interface SyncMark {
@@ -251,6 +243,8 @@ export interface SyncMark {
   account?: { status: 'active'; expiresAt: number | null; checkedAt: number }
   /** Feature 034: seções que não responderam. Regravado sempre, inclusive como `[]`. */
   unavailableSections?: CatalogSection[]
+  /** Feature 058: relógio do painel lido nesta verificação (`server_info`). Só regravado quando vem. */
+  clock?: PanelClock
 }
 
 /** O que o painel disse da conta (feature 034). `expiresAt` só é regravado quando vem no patch. */
@@ -258,6 +252,34 @@ export interface AccountMark {
   status: AccountStatusKind
   expiresAt?: number | null
   checkedAt: number
+  /** Feature 058: relógio do painel lido nesta verificação. Só regravado quando vem. */
+  clock?: PanelClock
+}
+
+/**
+ * Feature 058 (`data-model.md` §4): os dois campos do relógio são regravados
+ * juntos — um painel que deixou de declarar o fuso não pode ficar com o antigo
+ * ao lado de um deslocamento novo.
+ */
+function applyClock(patch: Partial<SourceRecord>, clock: PanelClock | undefined): void {
+  if (!clock) return
+  patch.panelTimezone = clock.timezone
+  patch.panelUtcOffsetMinutes = clock.utcOffsetMinutes
+}
+
+/**
+ * Feature 058 (R4 da research): a variante de URL de arquivo que **tocou** nesta
+ * fonte — nunca gravada por falha. Ausente/indefinida = nada a lembrar.
+ */
+export async function rememberArchiveVariant(
+  id: string,
+  variant: ArchiveVariant | undefined,
+  database: CatalogDb = db,
+): Promise<void> {
+  if (variant !== 'rest' && variant !== 'php') return
+  const source = await database.sources.get(id)
+  if (!source || source.archiveVariant === variant) return
+  await database.sources.update(id, { archiveVariant: variant })
 }
 
 /**
@@ -268,6 +290,7 @@ export interface AccountMark {
 export async function markAccount(id: string, mark: AccountMark, database: CatalogDb = db): Promise<void> {
   const patch: Partial<SourceRecord> = { accountStatus: mark.status, accountCheckedAt: mark.checkedAt }
   if (mark.expiresAt !== undefined) patch.accountExpiresAt = mark.expiresAt
+  applyClock(patch, mark.clock)
   await database.sources.update(id, patch)
 }
 
@@ -311,6 +334,7 @@ export async function markSynced(
   if (mark.allowedFormats !== undefined) patch.providerAllowedFormats = mark.allowedFormats
   if (mark.truncatedByStorage !== undefined) patch.lastTruncatedByStorage = mark.truncatedByStorage
   if (mark.discardedByType !== undefined) patch.lastDiscardedByType = mark.discardedByType
+  applyClock(patch, mark.clock)
 
   await database.sources.update(id, patch)
 }

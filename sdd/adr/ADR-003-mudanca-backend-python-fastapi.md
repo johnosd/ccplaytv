@@ -20,6 +20,8 @@ A integração com OpenAI, isoladamente, não favorece obrigatoriamente Python: 
 
 O desenvolvedor informou ter seguido a configuração inicial do backend, utilizando `uv` no lugar de `pip`.
 
+**Atualização (ADR-013, 2026-10-11):** o serviço de controle/licença usa FastAPI com Firestore, não PostgreSQL/Alembic; o fallback congelado mantém a stack SQL existente. Ver [ADR-013](ADR-013-portal-controle-serverless-google-cloud.md).
+
 ## Decisão
 
 ### 1. Stack e componentes
@@ -125,3 +127,5 @@ A mudança para Python/FastAPI e a adoção de uv derivam das decisões da conve
 [^fastapi-background]: FastAPI — Background Tasks. `https://fastapi.tiangolo.com/tutorial/background-tasks/`
 [^fastapi-clients]: FastAPI — Generating SDKs. `https://fastapi.tiangolo.com/advanced/generate-clients/`
 [^fastapi-websockets]: FastAPI — WebSockets. `https://fastapi.tiangolo.com/advanced/websockets/`
+
+**Atualização (feature 069, resolução de pendências 2026-10-11):** constitution 1.8.0 formaliza as exceções restritas do portal/licenciamento/convite efêmero e exibição protegida de código. Por nova decisão do usuário, recuperação manual da licença fica substituída por autoatendimento no próprio site, com código privado que pode guardar/fotografar e desafio da mesma TV; revogar acessos/código antigos e preservar teste/validade. Não transfere licença nem recupera catálogo apagado. Restauração operacional de backup permanece manual. Detalhes em spec/plan/logic da 069; nenhuma implementação/provisão declarada.

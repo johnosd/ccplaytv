@@ -27,6 +27,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusSideItem } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'historico-continuar-assistindo.m3u')
@@ -80,8 +81,8 @@ async function addSource(page, m3uUrl) {
  * em "Todos" — um ArrowRight nesse instante entra numa grade vazia (corrida do roteiro antigo, T047).
  */
 async function enterCategory(page, name) {
-  await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await focusSideItem(page, name)
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
@@ -149,7 +150,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/historico-continuar-assistindo.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
@@ -164,8 +165,12 @@ async function run() {
     // com o evento sintético `ended` deste script (mesmo padrão de
     // `busca-por-categoria.mjs`/`zapping-live-tv.mjs`). Registradas só
     // depois da primeira navegação (achado da feature 017).
-    await page.route('**/vod/**', () => {})
-    await page.route('**/series/**', () => {})
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('=== Cenário A: filme concluído fica marcado como assistido automaticamente ===')
     await page.waitForSelector('.source-card', { timeout: 8000 })
@@ -226,7 +231,7 @@ async function run() {
     await page.waitForSelector('section.home-row[aria-label="Continuar assistindo"]', { timeout: 8000 })
     assert(
       (await page
-        .locator('section.home-row[aria-label="Continuar assistindo"] .content-card-title')
+        .locator('section.home-row[aria-label="Continuar assistindo"] .home-card-title')
         .first()
         .textContent()) === 'Arrival Fictício',
       '"Continuar assistindo" mostra Arrival com progresso parcial',
@@ -247,7 +252,8 @@ async function run() {
     // propagação da tecla que trata; se o conteúdo a processasse de novo (o React descarrega o
     // setState entre dois listeners do mesmo evento no Chromium), o foco pularia por cima do hero. Só
     // o navegador real prova isso — o jsdom não reproduz.
-    await page.keyboard.press('ArrowUp') // hero -> topbar
+    await page.keyboard.press('ArrowUp') // hero -> dock de serviços (feature 060)
+    await page.keyboard.press('ArrowUp') // dock -> topbar
     assert(
       (await page.locator('.topbar .tv-focus').allTextContents()).join('|') === 'Início' &&
         (await page.locator('.home-hero-action.tv-focus').count()) === 0,
@@ -298,9 +304,11 @@ async function run() {
     // (nunca Séries) — pela topbar chega em qualquer uma das três, sempre.
     await openViaTopbar(page, 'series')
     await enterCategory(page, 'Series') // entra em "Series" (categoria única)
+    // A M3U já traz os episódios: o selo pode mostrar "0/2" (episódios conhecidos, nenhum concluído), como sempre mostrou
+    // depois de o resumo carregar — o que nunca pode aparecer antes de assistir é "Em dia" (feature 065, T046).
     assert(
-      !(await page.locator('.watched-badge').isVisible().catch(() => false)),
-      'série nunca aberta não mostra nenhum selo agregado',
+      !(await page.locator('.watched-badge').allTextContents()).includes('Em dia'),
+      'série sem episódio assistido não mostra "Em dia"',
     )
 
     await page.keyboard.press('Enter') // abre o detalhe da série

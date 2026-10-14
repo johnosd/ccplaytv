@@ -150,7 +150,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/player-chrome.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
@@ -164,9 +164,15 @@ async function run() {
     // interceptar, o <video> dispara seu próprio evento `error` em corrida
     // com os eventos sintéticos deste script (mesmo padrão dos demais
     // scripts em `e2e/`).
-    await page.route('**/live/**', () => {})
-    await page.route('**/vod/**', () => {})
-    await page.route('**/series/**', () => {})
+    await page.route('**/live/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('=== Cenário 1: chrome do filme — controles, mock "Em breve", auto-hide, salto com o chrome escondido ===')
     await page.waitForSelector('.source-card', { timeout: 8000 })
@@ -242,7 +248,7 @@ async function run() {
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra em "Canais Chrome" (única categoria real)
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await page.keyboard.press('Enter') // toca "Canal Um"
@@ -301,8 +307,7 @@ async function run() {
     await enterCategory(page, 'Series')
     await page.keyboard.press('Enter') // abre o detalhe da série
     await page.waitForSelector('.vod-detail', { timeout: 8000 })
-    // actions -> tabs -> season -> episodes (3 setas, logic/detalhe-vod.md §6), focando o 1º episódio.
-    await page.keyboard.press('ArrowDown')
+    // actions -> tabs -> episodes (2 setas), focando o primeiro episódio.
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('ArrowDown')
     await page.waitForSelector('.vod-episode-row', { timeout: 8000 })
@@ -388,7 +393,7 @@ async function run() {
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     await page.keyboard.press('ArrowRight')
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await page.keyboard.press('Enter') // toca "Canal Um" de novo

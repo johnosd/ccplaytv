@@ -12,7 +12,7 @@ import {
 import { reconcileRun, type ImportHandle } from '../../lib/catalog/importPipeline'
 import { runImport } from '../../lib/catalog/importRunner'
 import { decideOnOpen } from '../../lib/catalog/freshness'
-import { EPG_ERROR_CODE, epgErrorMessage, isEpgStale, isValidEpgUrl } from '../../lib/epg/epgStatus'
+import { EPG_ERROR_CODE, epgErrorMessage, isEpgDueAfterImport, isEpgStale, isValidEpgUrl } from '../../lib/epg/epgStatus'
 import { isEpgSyncing, requestEpgSync, subscribeEpgSyncing } from '../../lib/epg/epgRunner'
 import { setEpgEnabled, setEpgManualUrl, setEpgOffsetHours } from '../../lib/epg/epgRepository'
 import type { EpgStatus } from '../../lib/epg/types'
@@ -270,6 +270,7 @@ async function startLocalImport(sourceId: string): Promise<ImportHandle> {
   // Feature 034 (FR-015): "Sincronizando" entra no início e sai no fim, de qualquer
   // desfecho — inclusive quando o próprio `runImport` falha ao começar.
   beginSourceSync(sourceId)
+  const before = await db.sources.get(sourceId).catch(() => undefined)
   let handle: ImportHandle
   try {
     handle = await runImport(sourceId)
@@ -279,12 +280,13 @@ async function startLocalImport(sourceId: string): Promise<ImportHandle> {
   }
   void handle.completion.then(() => endSourceSync(sourceId), () => endSourceSync(sourceId))
   runningImports.set(handle.runId, handle)
-  // Feature 030 (D-008/FR-009): importação concluída = o endereço de EPG
-  // pode ter mudado (`url-tvg`), então sincroniza — em segundo plano, sem
-  // bloquear a tela de progresso. Falha/cancelamento não dispara nada.
+  // Feature 030 (D-008/FR-009): importação concluída pode ter trocado o endereço de EPG
+  // (`url-tvg`) — sincroniza em segundo plano quando `isEpgDueAfterImport` manda. Falha
+  // e cancelamento não disparam nada aqui; o EPG vencido já foi pedido na abertura.
   void handle.completion.then(
-    (run) => {
-      if (run.status === 'completed') void requestEpgSync(sourceId)
+    async (run) => {
+      const after = run.status === 'completed' ? await db.sources.get(sourceId).catch(() => undefined) : undefined
+      if (after && isEpgDueAfterImport(before, after, run.startedAt, Date.now())) void requestEpgSync(sourceId)
     },
     () => {
       // Já tratado abaixo (erro não categorizado).
@@ -486,23 +488,14 @@ export function useOpenSource() {
       // que rejeita sem motivo aparente (R-002). São 36 linhas: não há o que
       // adiar.
       const action = decideOnOpen(source, Date.now())
-
-      if (action !== 'none') {
-        const handle = await startLocalImport(sourceId)
-        return {
-          triggered: true,
-          import_job_id: handle.runId,
-        } satisfies OpenSourceResponse
-      }
-
-      // Feature 030 (FR-009): sem importação a fazer, o EPG vencido (> 12 h)
-      // atualiza em segundo plano. Nunca bloqueia a abertura da lista.
+      // Feature 030 (FR-009) + bug `epg-nao-atualiza-depois-primeira-carga`: o EPG vencido
+      // (> 12 h) atualiza em segundo plano em **toda** abertura, sem esperar a importação —
+      // antes só sem importação a fazer, o que com o prazo de 10 min quase nunca acontecia.
       if (isEpgStale(source, Date.now())) void requestEpgSync(sourceId)
 
-      return {
-        triggered: false,
-        import_job_id: null,
-      } satisfies OpenSourceResponse
+      if (action === 'none') return { triggered: false, import_job_id: null } satisfies OpenSourceResponse
+      const handle = await startLocalImport(sourceId)
+      return { triggered: true, import_job_id: handle.runId } satisfies OpenSourceResponse
     },
   })
 }

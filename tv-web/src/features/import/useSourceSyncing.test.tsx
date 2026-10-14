@@ -103,9 +103,6 @@ describe('linha de Configurações assina "Sincronizando" por lista', () => {
     render(<SourcesPanel
         sources={[makeSource('a'), makeSource('b')]}
         activeSourceId={null}
-        focusedCol={0}
-        resyncPending={false}
-        deletePending={false}
         onActivateRow={vi.fn()}
       />, { wrapper: withQuery })
     const row = (id: string) => screen.getByRole('group', { name: `Lista Lista ${id}` })

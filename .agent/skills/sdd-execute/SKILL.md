@@ -26,8 +26,8 @@ natural. O "parâmetro" de modo é só como o usuário pede:
   revisão a cada fatia de trabalho.
 - **Contínuo**: se o usuário pedir explicitamente algo como "implementa tudo
   sem parar", "roda até o fim", "não precisa perguntar a cada fase" ou
-  "modo contínuo", não pause entre fases — só reporte o checkpoint no chat e
-  siga direto pra próxima.
+  "modo contínuo", a cada fase concluida atualize o checkpoint e siga direto pra próxima., assim o usuario pode acompanhar em que fase esta no `tasks.md` 
+
 
 Se não estiver claro qual o usuário quer, assuma o padrão (pausado) e avise
 que vai pausar a cada fase, mencionando que dá pra pedir modo contínuo.

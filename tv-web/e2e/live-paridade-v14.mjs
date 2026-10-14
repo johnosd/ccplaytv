@@ -81,7 +81,7 @@ async function openLiveTv(page) {
   await page.keyboard.press('Enter')
   await page.waitForSelector('.home-content', { timeout: 8000 })
   await openViaTopbar(page, 'live')
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
 }
 
 async function press(page, key, times = 1) {
@@ -140,7 +140,7 @@ async function run() {
   const browser = await chromium.launch(
     existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true },
   )
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   await page.route('**/stream/**', () => {})
   const pageErrors = []
@@ -152,10 +152,11 @@ async function run() {
     await page.waitForSelector('.live-column-groups .side-category-nav-item', { timeout: 8000 })
 
     console.log('=== Painéis: larguras e cabeçalho (FR-007) ===')
+    // Feature 068 (US2): uma lista por vez, com ~1/3 da largura útil (576px); a de canais fica oculta na vista de categorias.
     const groups = await rectOf(page, '.live-column-groups')
     const channels = await rectOf(page, '.live-column-channels')
-    assert(Math.abs(groups.width - 280) <= 1, `coluna de categorias com 280px (${groups.width.toFixed(1)})`)
-    assert(Math.abs(channels.width - 400) <= 1, `coluna de canais com 400px (${channels.width.toFixed(1)})`)
+    assert(Math.abs(groups.width - 576) <= 1, `coluna de categorias com 576px (${groups.width.toFixed(1)})`)
+    assert(channels.width === 0, `coluna de canais oculta na vista de categorias (${channels.width.toFixed(1)})`)
     assert(
       ((await page.locator('.live-column-groups .live-panel-sub').textContent()) ?? '').trim() === 'Grupos',
       'cabeçalho da trilha com o subtítulo "Grupos"',
@@ -307,3 +308,5 @@ async function run() {
 }
 
 run()
+
+

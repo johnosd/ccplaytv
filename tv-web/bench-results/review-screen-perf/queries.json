@@ -1,0 +1,106 @@
+{
+  "cpuThrottle": 4,
+  "items": 43000,
+  "algorithm": [
+    {
+      "eligibleFraction": 1,
+      "ratedMs": 391.09999999403954,
+      "addedMs": 5,
+      "eligible": 43000,
+      "ratedCards": 12,
+      "addedCards": 12
+    },
+    {
+      "eligibleFraction": 1,
+      "ratedMs": 331.69999998807907,
+      "addedMs": 6.9000000059604645,
+      "eligible": 43000,
+      "ratedCards": 12,
+      "addedCards": 12
+    },
+    {
+      "eligibleFraction": 1,
+      "ratedMs": 318.59999999403954,
+      "addedMs": 3.9000000059604645,
+      "eligible": 43000,
+      "ratedCards": 12,
+      "addedCards": 12
+    },
+    {
+      "eligibleFraction": 1,
+      "ratedMs": 341.7000000178814,
+      "addedMs": 2.9000000059604645,
+      "eligible": 43000,
+      "ratedCards": 12,
+      "addedCards": 12
+    },
+    {
+      "eligibleFraction": 1,
+      "ratedMs": 304.09999999403954,
+      "addedMs": 3,
+      "eligible": 43000,
+      "ratedCards": 12,
+      "addedCards": 12
+    },
+    {
+      "eligibleFraction": 0.2,
+      "ratedMs": 79.30000001192093,
+      "addedMs": 1.5,
+      "eligible": 8600,
+      "ratedCards": 12,
+      "addedCards": 12
+    },
+    {
+      "eligibleFraction": 0.2,
+      "ratedMs": 74.90000000596046,
+      "addedMs": 1.9000000059604645,
+      "eligible": 8600,
+      "ratedCards": 12,
+      "addedCards": 12
+    },
+    {
+      "eligibleFraction": 0.2,
+      "ratedMs": 74.7999999821186,
+      "addedMs": 1.300000011920929,
+      "eligible": 8600,
+      "ratedCards": 12,
+      "addedCards": 12
+    },
+    {
+      "eligibleFraction": 0.2,
+      "ratedMs": 78.19999998807907,
+      "addedMs": 1,
+      "eligible": 8600,
+      "ratedCards": 12,
+      "addedCards": 12
+    },
+    {
+      "eligibleFraction": 0.2,
+      "ratedMs": 74.7999999821186,
+      "addedMs": 1.199999988079071,
+      "eligible": 8600,
+      "ratedCards": 12,
+      "addedCards": 12
+    }
+  ],
+  "partial429": {
+    "requestedPages": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "state": "connected",
+    "poolStatus": "ok",
+    "cachedRows": 1
+  },
+  "hangingRequest": {
+    "observedMs": 3000,
+    "finished": false,
+    "gotSignal": false
+  }
+}

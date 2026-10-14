@@ -1,17 +1,19 @@
-import type { RefObject } from 'react'
+import { useRef, type RefObject } from 'react'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
-import { getComingSoon } from '../../lib/comingSoon'
+import { comingSoonToast } from '../../lib/comingSoon'
+import { useT } from '../../lib/i18n/I18nProvider'
 import type { PlayerServiceSession } from '../../lib/player/PlayerService'
 import { hasSeekBar, type PlayerEpisodeStep } from '../chromeControls'
 import {
-  GUIDE_UNAVAILABLE_MESSAGE,
+  GUIDE_UNAVAILABLE_KEY,
   JUMP_MS,
-  LIMIT_MESSAGE,
-  RESUME_BLOCKED_MESSAGE,
-  RESUME_WAIT_MESSAGE,
+  LIMIT_MESSAGE_KEY,
+  RESUME_BLOCKED_KEY,
+  RESUME_WAIT_KEY,
 } from './playerMessages'
 import type { PanelState, PlayerLayerTopLayer, ResumeGate } from './playerLayerTypes'
 import type { ErrorActionId } from './playerErrorActions'
+import { createHoldSeek } from './holdSeek'
 import type { PlayerChrome } from './usePlayerChrome'
 import type { PlayerPanels } from './usePlayerPanels'
 
@@ -40,6 +42,15 @@ export interface PlayerKeyboardParams {
   resumeGateRef: RefObject<ResumeGate>
   /** "Tentar de novo" do aviso da retomada sem rede (OK com o gate `blocked`). */
   recheckResume: () => void
+  /**
+   * Feature 058 (`logic/arquivo.md` §6): a sessão toca um programa de arquivo —
+   * CH± (e ↑/↓ com o chrome oculto) trocam para o ao vivo do vizinho.
+   */
+  archive: boolean
+  /** Feature 058: OK em "Ao vivo" no arquivo. */
+  onGoLive: (() => void) | undefined
+  /** Feature 058: "Do início" na linha do Live (`null`/ausente = sem o controle). */
+  startOver: { enabled: boolean; onSelect: () => void } | null | undefined
 }
 
 /**
@@ -74,7 +85,11 @@ export function usePlayerKeyboard({
   episodeStep,
   resumeGateRef,
   recheckResume,
+  archive,
+  onGoLive,
+  startOver,
 }: PlayerKeyboardParams): void {
+  const t = useT()
   const {
     chromeLevelRef,
     chromeMediaRef,
@@ -90,6 +105,7 @@ export function usePlayerKeyboard({
     setSeekBar,
   } = chrome
   const { activatePanelControl, closePanel, handlePanelDirection, handlePanelSelect } = panels
+  const holdSeekRef = useRef(createHoldSeek())
 
   /**
    * Feature 042 (D-006): TODA entrada que RETOMA (SELECT no play/pause,
@@ -99,10 +115,16 @@ export function usePlayerKeyboard({
   function togglePauseGuarded(session: PlayerServiceSession) {
     const gate = resumeGateRef.current
     if (gate !== null && session.state === 'paused') {
-      showToast(gate === 'blocked' ? RESUME_BLOCKED_MESSAGE : RESUME_WAIT_MESSAGE)
+      showToast(t(gate === 'blocked' ? RESUME_BLOCKED_KEY : RESUME_WAIT_KEY))
       return
     }
     session.togglePause()
+  }
+
+  /** Feature 058 (FR-018): no arquivo, trocar de canal leva ao ao vivo do vizinho (a tela zera o arquivo). */
+  function stepChannelFromArchive(direction: 'previous' | 'next') {
+    const moved = onChannelStep?.(direction)
+    if (moved === false) showToast(t(LIMIT_MESSAGE_KEY.channel[direction]))
   }
 
   useRemoteNav(
@@ -135,7 +157,7 @@ export function usePlayerKeyboard({
             const moved = onChannelStep?.(dir === 'up' ? 'previous' : 'next')
             // Sucesso: a troca de `itemId` já reconstrói a sessão e volta a
             // 'band' sozinha (efeito da sessão) — nada a fazer aqui além do aviso.
-            if (moved === false) showToast(LIMIT_MESSAGE.channel[dir === 'up' ? 'previous' : 'next'])
+            if (moved === false) showToast(t(LIMIT_MESSAGE_KEY.channel[dir === 'up' ? 'previous' : 'next']))
             scheduleHide()
             return
           }
@@ -155,6 +177,11 @@ export function usePlayerKeyboard({
         const paused = session.state === 'paused'
 
         if (chromeLevelRef.current !== 'full') {
+          // Feature 058 (D-011): no arquivo, ↑/↓ com o chrome oculto trocam de canal (como no Live).
+          if (archive && (dir === 'up' || dir === 'down')) {
+            stepChannelFromArchive(dir === 'up' ? 'previous' : 'next')
+            return
+          }
           // Ocultos: esquerda/direita SALTAM e revelam; cima/baixo só revelam.
           if (dir === 'left') {
             session.jumpBy(-JUMP_MS)
@@ -171,11 +198,9 @@ export function usePlayerKeyboard({
         }
 
         if (seekBarFocusedRef.current) {
-          // Com a barra focada, esquerda/direita buscam direto, sem mover o
-          // foco — segurar acumula na porta single-flight do motor, não
-          // aqui (R-019: acumular NESTE nível é que travava o app).
-          if (dir === 'left') session.jumpBy(-JUMP_MS)
-          else if (dir === 'right') session.jumpBy(JUMP_MS)
+          // Esquerda/direita buscam direto, sem mover o foco; segurar acelera (`holdSeek`) e acumula na porta single-flight
+          // do motor, não aqui (R-019: acumular NESTE nível é que travava o app).
+          if (dir === 'left' || dir === 'right') session.jumpBy(holdSeekRef.current.next(dir, Date.now()))
           else if (dir === 'down') {
             setSeekBar(false)
             setFocused(playPauseIndexOf(session.capabilities))
@@ -234,12 +259,19 @@ export function usePlayerKeyboard({
           if (control?.id === 'guide') {
             // Feature 031: real quando a tela sabe abrir o guia (`onGuide`); senão só explica.
             if (control.availability === 'real') onGuide?.()
-            else showToast(GUIDE_UNAVAILABLE_MESSAGE)
+            else showToast(t(GUIDE_UNAVAILABLE_KEY))
+            scheduleHide()
+            return
+          }
+          if (control?.id === 'startOver') {
+            // Feature 058 (FR-016): soft disabled explica; nunca toca nada sem programa atual.
+            if (control.availability === 'real') startOver?.onSelect()
+            else showToast(t('player.startOver.noProgram'))
             scheduleHide()
             return
           }
           if (control?.availability === 'soon' && control.comingSoonId) {
-            showToast(`Em breve — ${getComingSoon(control.comingSoonId).message}`)
+            showToast(comingSoonToast(control.comingSoonId, t))
           }
           scheduleHide()
           return
@@ -264,12 +296,13 @@ export function usePlayerKeyboard({
         if (control.id === 'playPause') togglePauseGuarded(session)
         else if (control.id === 'jumpBack') session.jumpBy(-JUMP_MS)
         else if (control.id === 'jumpForward') session.jumpBy(JUMP_MS)
+        else if (control.id === 'goLive') onGoLive?.()
         else if (control.id === 'episodePrevious' || control.id === 'episodeNext') {
           const direction = control.id === 'episodePrevious' ? 'previous' : 'next'
           if (control.availability === 'real') episodeStep?.onStep(direction)
-          else showToast(LIMIT_MESSAGE.episode[direction])
+          else showToast(t(LIMIT_MESSAGE_KEY.episode[direction]))
         } else if (control.availability === 'soon' && control.comingSoonId) {
-          showToast(`Em breve — ${getComingSoon(control.comingSoonId).message}`)
+          showToast(comingSoonToast(control.comingSoonId, t))
         }
         scheduleHide()
       },
@@ -294,7 +327,7 @@ export function usePlayerKeyboard({
             if (chromeLevelRef.current === 'hidden') setLevel('band')
             const moved = onChannelStep?.(key === 'ChannelUp' ? 'previous' : 'next')
             if (moved === false) {
-              showToast(LIMIT_MESSAGE.channel[key === 'ChannelUp' ? 'previous' : 'next'])
+              showToast(t(LIMIT_MESSAGE_KEY.channel[key === 'ChannelUp' ? 'previous' : 'next']))
             }
             scheduleHide()
             return
@@ -305,7 +338,11 @@ export function usePlayerKeyboard({
         }
 
         // VOD
-        if (key === 'ChannelUp' || key === 'ChannelDown') return // ignoradas (FR-027)
+        if (key === 'ChannelUp' || key === 'ChannelDown') {
+          // Feature 058 (FR-018): no arquivo, CH± vai ao ao vivo do vizinho; fora dele, ignoradas (FR-027 da 027).
+          if (archive) stepChannelFromArchive(key === 'ChannelUp' ? 'previous' : 'next')
+          return
+        }
 
         if (key === 'MediaPlayPause') {
           togglePauseGuarded(session) // já no-op sem canPause (mesma porta que o SELECT usa)

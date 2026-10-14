@@ -98,7 +98,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/favoritos.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
@@ -156,21 +156,21 @@ async function run() {
     )
 
     console.log('=== US2: topbar e RETURN em camadas ===')
-    await page.keyboard.press('ArrowUp')
+    await page.keyboard.press('ArrowUp') // hero -> dock de serviços (feature 060)
+    await page.keyboard.press('ArrowUp') // dock -> topbar
     assert((await focusedText(page, '.topbar')).join('|') === 'Início', 'UP leva à topbar, em "Início"')
     await page.keyboard.press('ArrowRight')
     await page.keyboard.press('ArrowRight')
     assert((await focusedText(page, '.topbar')).join('|') === 'Filmes', 'RIGHT×2 chega em "Filmes" (um único item em foco)')
     await page.keyboard.press('Enter')
     await page.waitForSelector('.side-category-nav-item', { timeout: 8000 })
-    // Feature 025 (Onda 4) estende a topbar/shell persistente da Live TV
-    // (024) a Filmes/Séries — Filmes deixou de abrir em tela cheia sem
-    // topbar (FR-020 original da 023): mudança de conteúdo esperada pela
-    // própria migração, não regressão (mesmo padrão de R-003 da 025).
+    // Feature 052 (D-008 da vitrine): Filmes/Séries não têm mais topbar nem rodapé — a tela é só vitrine (lista
+    // lateral + hero + fileiras) com a barra Pesquisar/Ordenar; RETURN volta ao Início.
     assert(
       (await page.locator('.topbar-item[aria-current="page"]').textContent()) === 'Filmes',
-      'Filmes agora abre sob a topbar persistente, com "Filmes" marcado como atual (feature 025)',
+      'Filmes abre sob a topbar persistente, com "Filmes" marcado como atual (feature 025; sem rodapé de dicas desde a 052)',
     )
+    assert((await page.locator('.vod-showcase-toolbar, .vod-showcase .vod-toolbar-search-button').count()) === 0, 'a tela de hero/fileiras de Filmes não tem Pesquisar/Ordenar (ficam nas grades)')
     await page.keyboard.press('Escape')
     await page.waitForSelector('.home-content', { timeout: 8000 })
     assert((await focusedText(page, '.topbar')).join('|') === 'Filmes', 'RETURN em Filmes volta ao Início com o foco em "Filmes" na topbar (FR-029)')
@@ -191,35 +191,27 @@ async function run() {
       'RETURN em Filmes aberto pelo atalho do hero devolve o foco à ação "Abrir Filmes"',
     )
 
-    console.log('=== FR-035/FR-021 (feature 026): Buscar e Configurações agora são reais, não mais "Em breve" ===')
-    await page.keyboard.press('ArrowUp') // hero -> topbar (sempre pousa em "Início")
-    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight') // Início → … → Buscar
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.search-screen', { timeout: 8000 })
-    assert(true, 'OK em "Buscar" abre a tela de busca de verdade (deixou de ser "Em breve" na feature 026)')
-    await page.keyboard.press('Escape') // campo nunca ganhou foco DOM (teclado não abriu) — RETURN sai direto
-    await page.waitForSelector('.home-content', { timeout: 8000 })
-
-    await page.keyboard.press('ArrowUp')
-    for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowRight') // Início → … → Configurações
+    console.log('=== FR-021 (feature 026): Configurações é real; a lupa da busca global está escondida (ad-hoc 2026-10-09) ===')
+    await page.keyboard.press('ArrowUp') // hero -> topbar (sempre pousa em "Início"; sem dock desde o ad-hoc de 2026-10-09)
+    assert((await page.locator('.topbar button[aria-label="Buscar"]').count()) === 0, 'a topbar não tem a lupa')
+    for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowRight') // Início → … → Configurações (a última)
     await page.keyboard.press('Enter')
     await page.waitForSelector('.settings-screen', { timeout: 8000 })
     assert(true, 'OK em "Configurações" abre a tela de configurações de verdade (deixou de ser "Em breve" na feature 026)')
     await page.keyboard.press('Escape')
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
-    console.log('=== FR-030: RETURN no Início abre o modal de saída ===')
-    // Voltar de Configurações restaura o foco na topbar, na engrenagem (FR-017/FR-029) — entramos por lá.
+    console.log('=== US4: RETURN no Início termina nos perfis antes da saída ===')
+    // A partir do Início, RETURN encerra a lista sem modal; o modal de saída
+    // continua pertencendo exclusivamente à tela de perfis base.
     await page.keyboard.press('Escape')
-    await page.waitForSelector(EXIT_DIALOG, { timeout: 5000 })
-    await page.keyboard.press('Enter') // "Cancelar"
-    await page.waitForSelector(EXIT_DIALOG, { state: 'detached', timeout: 5000 })
-    assert((await page.locator('.topbar .tv-focus').getAttribute('aria-label')) === 'Configurações', 'cancelar a saída devolve o foco onde estava (o botão é só ícone: o nome está no aria-label)')
+    await page.waitForSelector('.source-card', { timeout: 5000 })
+    assert((await focusedText(page, '.source-card-wrap')).join('|').includes('Lista E2E Um'), 'RETURN no Início volta aos perfis com foco na lista ativa')
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('.home-content', { timeout: 5000 })
 
     console.log('=== US2/AC6-AC7: trocar de lista pelo indicador ===')
-    await page.keyboard.press('ArrowLeft') // Configurações → Buscar
-    await page.keyboard.press('ArrowLeft') // Buscar → indicador da lista
-    await page.keyboard.press('Enter')
+    await page.locator('.topbar button[aria-label^="Lista ativa"]').click()
     await page.waitForSelector('.source-card', { timeout: 8000 })
     assert((await focusedText(page, '.source-card-wrap')).join('|').includes('Lista E2E Um'), 'os perfis abrem com o foco na lista ativa')
     await page.keyboard.press('Escape')
@@ -268,8 +260,11 @@ async function run() {
       'escolher outra lista abre o Início dela (pilha zerada)',
     )
     await page.keyboard.press('Escape')
+    await page.waitForSelector('.source-card', { timeout: 5000 })
+    assert(true, 'depois da troca, RETURN a partir do Início volta aos perfis sem a pilha da lista anterior')
+    await page.keyboard.press('Escape')
     await page.waitForSelector(EXIT_DIALOG, { timeout: 5000 })
-    assert(true, 'depois da troca, RETURN a partir do Início abre o modal de saída (nada da lista anterior na pilha)')
+    assert(true, 'o modal de saída continua restrito à base de perfis')
     await page.keyboard.press('Escape')
 
     console.log('=== FR-004/FR-005/SC-001: a última lista usada sobrevive ao recarregar ===')
@@ -309,7 +304,7 @@ async function run() {
     console.log('=== Feature 037, SC-002: primeiro uso, lista Xtream só pelo teclado em ≤ 3 OK ===')
     // Contexto novo = IndexedDB vazio. Só os `Enter` de navegação contam; setas
     // e digitação nos campos são o "preenchimento", que o SC-002 não conta.
-    const fresh = await browser.newContext()
+    const fresh = await browser.newContext({ locale: 'pt-BR' })
     const freshPage = await fresh.newPage()
     let okPresses = 0
     const ok = async () => {

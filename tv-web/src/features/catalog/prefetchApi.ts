@@ -36,33 +36,54 @@ export const ALL_PAGES_REFETCH_MAX = 2
  * contagens e os índices de busca. Registrado uma vez, na raiz.
  */
 export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = INVALIDATE_BATCH_MS) {
-  const pending = new Map<string, Set<number>>()
+  const pending = new Map<string, {
+    all: Set<number>
+    byKind: Map<'channel' | 'movie' | 'series', Set<number>>
+  }>()
   let timer: ReturnType<typeof setTimeout> | undefined
 
   function flush(): void {
     timer = undefined
-    for (const [sourceId, categoryIds] of pending) {
+    for (const [sourceId, pendingSource] of pending) {
+      const categoryIds = new Set(pendingSource.all)
+      for (const ids of pendingSource.byKind.values()) for (const id of ids) categoryIds.add(id)
       void queryClient.invalidateQueries({ queryKey: ['categories', sourceId] })
       for (const categoryId of categoryIds) {
         void queryClient.invalidateQueries({ queryKey: ['category-content', sourceId, categoryId] })
+        // Feature 053: o carrossel da tela hero lê a prévia da categoria que acabou de chegar.
+        void queryClient.invalidateQueries({ queryKey: ['category-preview', sourceId, categoryId] })
       }
+      void queryClient.invalidateQueries({ queryKey: ['category-preview', sourceId, 'window'] })
       void queryClient.invalidateQueries({ queryKey: ['catalog-counts', sourceId] })
-      void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId] })
+      if (pendingSource.byKind.size === 0) {
+        void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId] })
+      } else {
+        for (const kind of pendingSource.byKind.keys()) {
+          void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId, kind] })
+          void queryClient.invalidateQueries({ queryKey: ['catalog-all-pages', sourceId, kind], refetchType: 'none' })
+        }
+        if (pendingSource.all.size > 0) void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId] })
+      }
       // Feature 039 (T022): "Todos" aos poucos. Reler uma consulta infinita relê
       // TODAS as páginas já lidas, uma por vez — com 30 páginas, a cada lote
       // (até 1 por segundo), a navegação travaria. Então: só marca como velha
       // (relida na próxima entrada, `refetchOnMount: 'always'`) e relê agora
       // apenas quem leu pouco — o caso de "Todos" ainda vazio esperando a
       // pré-carga. Categoria nova depois do que foi lido entra pelo `loadMore`.
-      void queryClient.invalidateQueries({ queryKey: ['catalog-all-pages', sourceId], refetchType: 'none' })
-      void queryClient.refetchQueries({
-        queryKey: ['catalog-all-pages', sourceId],
-        type: 'active',
-        predicate: (query) => {
-          const pages = (query.state.data as { pages?: unknown[] } | undefined)?.pages
-          return (pages?.length ?? 0) <= ALL_PAGES_REFETCH_MAX
-        },
-      })
+      const allPageKeys = pendingSource.byKind.size === 0 || pendingSource.all.size > 0
+        ? [['catalog-all-pages', sourceId] as const]
+        : [...pendingSource.byKind.keys()].map((kind) => ['catalog-all-pages', sourceId, kind] as const)
+      for (const queryKey of allPageKeys) {
+        void queryClient.invalidateQueries({ queryKey, refetchType: 'none' })
+        void queryClient.refetchQueries({
+          queryKey,
+          type: 'active',
+          predicate: (query) => {
+            const pages = (query.state.data as { pages?: unknown[] } | undefined)?.pages
+            return (pages?.length ?? 0) <= ALL_PAGES_REFETCH_MAX
+          },
+        })
+      }
       void queryClient.invalidateQueries({ queryKey: ['kind-sort-fields', sourceId] })
       void queryClient.invalidateQueries({ queryKey: ['global-search-index', sourceId] })
     }
@@ -70,10 +91,16 @@ export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = IN
   }
 
   return {
-    categoryDone(sourceId: string, categoryId: number): void {
-      const set = pending.get(sourceId) ?? new Set<number>()
-      set.add(categoryId)
-      pending.set(sourceId, set)
+    categoryDone(sourceId: string, categoryId: number, kind?: 'channel' | 'movie' | 'series'): void {
+      const source = pending.get(sourceId) ?? { all: new Set<number>(), byKind: new Map() }
+      if (kind) {
+        const ids = source.byKind.get(kind) ?? new Set<number>()
+        ids.add(categoryId)
+        source.byKind.set(kind, ids)
+      } else {
+        source.all.add(categoryId)
+      }
+      pending.set(sourceId, source)
       if (timer === undefined) timer = setTimeout(flush, batchMs)
     },
     dispose(): void {

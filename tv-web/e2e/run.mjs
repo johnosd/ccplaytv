@@ -2,7 +2,7 @@
 // cronometra cada um e imprime um resumo ordenado por duração.
 //
 // Uso (com `npm run dev` já rodando em :5173):
-//   npm run test:e2e                       # suíte completa, 3 em paralelo
+//   npm run test:e2e                       # suíte completa, 3–6 em paralelo conforme a máquina (jobsPadrao)
 //   npm run test:e2e -- --jobs 5           # outra concorrência
 //   npm run test:e2e -- --only favoritos,limpar-historico   # só alguns scripts
 //   npm run test:e2e -- --retry 1          # reexecuta uma vez o que falhar
@@ -14,6 +14,7 @@
 // intercalar linhas de scripts diferentes.
 
 import { spawn } from 'node:child_process'
+import { availableParallelism } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -34,6 +35,7 @@ export const SUITE = [
   'e2e/home-busca-configuracoes.mjs',
   'e2e/limpeza-qa.mjs',
   'e2e/audio-legendas-info.mjs',
+  'e2e/idioma-do-app.mjs',
   'e2e/qualidade-aspecto.mjs',
   'e2e/fontes-estado.mjs',
   'e2e/epg-dados-agora.mjs',
@@ -42,6 +44,7 @@ export const SUITE = [
   'e2e/trailers.mjs',
   'e2e/modal-temporada.mjs',
   'e2e/semelhantes-elenco-ator.mjs',
+  'e2e/detalhe-cinema.mjs',
   'e2e/carga-listas.mjs',
   'e2e/catalogo-em-blocos.mjs',
   'e2e/limpar-historico.mjs',
@@ -49,10 +52,57 @@ export const SUITE = [
   'e2e/ime-formularios.mjs',
   'e2e/memoria-foco-key-repeat.mjs',
   'e2e/player-dev-mpegts.mjs',
+  'e2e/live-paridade-v14.mjs',
+  'e2e/navegacao-por-pagina.mjs',
+  'e2e/performance-navegacao.mjs',
+  'e2e/vitrine-filmes-series.mjs',
+  'e2e/carrosseis-filmes-series.mjs',
+  'e2e/vod-pesquisa-ordenacao.mjs',
+  'e2e/campos-da-listagem.mjs',
+  'e2e/bem-avaliados.mjs',
+  'e2e/top10-dica.mjs',
+  'e2e/home-vitrine-expandida.mjs',
+  'e2e/classificacao-nota-tmdb.mjs',
+  'e2e/teste-conexao-tv.mjs',
+  'e2e/headers-catchup.mjs',
+  'e2e/serie-foco-episodios.mjs',
+  'e2e/categorias-controle-parental.mjs',
+  'e2e/configuracoes-lista-global.mjs',
+  'e2e/legibilidade-tv.mjs',
+  'e2e/portal-plataforma.mjs',
+  'e2e/portal-configuracao.mjs',
+  'e2e/licenca-anual.mjs',
 ]
 
+// Os mais longos (medidos em 2026-10-14: 107 s, 104 s, 94 s, 57 s, 35 s) entram primeiro na fila: com eles no
+// fim, o último a começar define o tempo total. Só reordena a execução; `SUITE` e o resumo não mudam.
+const LENTOS_PRIMEIRO = [
+  'e2e/carga-listas.mjs',
+  'e2e/player-dev-mpegts.mjs',
+  'e2e/legibilidade-tv.mjs',
+  'e2e/portal-configuracao.mjs',
+  'e2e/ime-formularios.mjs',
+]
+
+/**
+ * Paralelismo padrão proporcional à máquina (cada script sobe um Chromium e um servidor falso próprios):
+ * 3 em 6–8 threads, até 6 com 16. Medido: 3 jobs = 330 s; 6 jobs = 203 s, 49/49 sem flake (16 threads).
+ * `--jobs N` continua mandando.
+ */
+function jobsPadrao() {
+  return Math.min(6, Math.max(3, Math.floor(availableParallelism() / 2.5)))
+}
+
+function ordemDeExecucao(lista) {
+  const rank = (f) => {
+    const i = LENTOS_PRIMEIRO.indexOf(f)
+    return i === -1 ? LENTOS_PRIMEIRO.length : i
+  }
+  return lista.map((f, idx) => ({ f, idx })).sort((a, b) => rank(a.f) - rank(b.f) || a.idx - b.idx).map((x) => x.f)
+}
+
 function lerArgs(argv) {
-  const opts = { jobs: 3, only: null, retry: 0 }
+  const opts = { jobs: jobsPadrao(), only: null, retry: 0 }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--jobs') opts.jobs = Number(argv[++i])
@@ -100,14 +150,14 @@ async function main() {
 
   const inicioTotal = Date.now()
   const resultados = []
-  const fila = [...lista]
+  const fila = ordemDeExecucao(lista)
 
   async function trabalhador() {
     while (fila.length > 0) {
       const arquivo = fila.shift()
       const r = await rodarComRetry(arquivo, opts.retry)
       resultados.push(r)
-      const marca = r.ok ? '✓' : '✗'
+      const marca = r.ok ? 'âœ“' : 'âœ—'
       const extra = r.tentativas > 1 ? ` (${r.tentativas} tentativas)` : ''
       console.log(`${marca} ${nomeCurto(arquivo)} — ${(r.ms / 1000).toFixed(1)}s${extra}`)
       // Só imprime a saída completa de quem falhou; os que passam já têm o resumo.
@@ -139,3 +189,4 @@ main().catch((e) => {
   console.error(e.message)
   process.exit(2)
 })
+

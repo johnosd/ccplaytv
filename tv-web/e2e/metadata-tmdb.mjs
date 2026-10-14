@@ -22,6 +22,7 @@ import { createServer } from 'node:http'
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const APP_URL = 'http://localhost:5173'
 const PANEL_USER = 'usuario'
@@ -187,8 +188,8 @@ async function openViaTopbar(page, destination) {
 
 /** Entra na 1ª categoria real da trilha (★/↺/Todos + a real) e espera a grade. */
 async function enterFirstRealCategory(page) {
-  await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await focusFirstRealCategory(page)
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
@@ -238,7 +239,7 @@ async function run() {
   const m3uUrl = `${base}/get.php?username=${PANEL_USER}&password=${PANEL_PASS}`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   const consoleLines = []
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
@@ -269,7 +270,8 @@ async function run() {
     await page.waitForSelector('.vod-detail-synopsis', { timeout: 8000 })
     assert(hits.vodInfo['1'] === 1, 'abrir o detalhe fez exatamente um get_vod_info')
     assert((await page.locator('.vod-detail-synopsis').textContent())?.startsWith('Uma história longa') ?? false, 'o hero mostra a sinopse do provedor')
-    assert((await page.locator('.vod-detail-origin').count()) === 0, 'sem selo de origem: tudo veio do provedor')
+    // Feature 059 (D-006): os cartões de Detalhes mostram "Dados: fonte"; o que não pode haver é selo do TMDB.
+    assert((await page.locator('.vod-detail-origin', { hasText: 'Dados: TMDB' }).count()) === 0, 'sem selo do TMDB: tudo veio do provedor')
 
     await page.waitForSelector('.vod-detail-backdrop img', { timeout: 8000 })
     const backdropLoaded = await page.waitForFunction(
@@ -288,7 +290,8 @@ async function run() {
     for (const label of ['Gênero', 'Duração', 'Direção', 'País', 'Elenco']) {
       assert(facts.includes(label), `aba Detalhes mostra "${label}"`)
     }
-    const duration = await page.locator('.vod-detail-fact', { hasText: 'Duração' }).locator('dd').textContent()
+    // Feature 059 (D-006): o cartão também traz a origem — o valor é o 1º nó do <dd>.
+    const duration = await page.locator('.vod-detail-fact', { hasText: 'Duração' }).locator('dd').evaluate((dd) => dd.firstChild?.textContent ?? '')
     assert(duration === '1 h 50 min', `duração 6631 s aparece como "1 h 50 min" (veio "${duration}")`)
     await assertOneFocus(page, 'detalhe com metadata')
 
@@ -343,7 +346,7 @@ async function run() {
     const tmdbCard = page.getByRole('region', { name: 'TMDB' })
     assert(((await tmdbCard.textContent()) ?? '').includes('Não configurado'), 'card TMDB começa "Não configurado"')
     assert(((await tmdbCard.textContent()) ?? '').includes('não é endossado nem certificado pelo TMDB'), 'a atribuição ao TMDB está no card')
-    for (const title of ['Assistente de IA', 'Clima', 'Teste de velocidade']) {
+    for (const title of ['Assistente de IA', 'Clima']) {
       assert(
         (await page.getByRole('region', { name: title }).getByRole('button').getAttribute('aria-disabled')) === 'true',
         `card "${title}" aparece soft disabled ("Em breve")`,
@@ -376,14 +379,10 @@ async function run() {
       assert((await page.getByRole('button', { name, exact: true }).count()) === 1, `com chave, o card oferece "${name}"`)
     }
 
-    console.log('=== US2: o dock da Home reflete o estado real ===')
+    console.log('=== US2: o estado fica no card de Integrações; o Início não tem mais dock (ad-hoc 2026-10-09) ===')
     await page.keyboard.press('Escape') // Configurações → Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
-    assert((await page.getByRole('button', { name: 'TMDB — conectado' }).count()) === 1, 'dock mostra "TMDB — conectado"')
-    assert(
-      (await page.getByRole('button', { name: 'TMDB — conectado' }).getAttribute('aria-disabled')) === null,
-      'o ícone TMDB do dock deixou de ser soft disabled',
-    )
+    assert((await page.locator('.home-dock, .home-hero-dock').count()) === 0, 'o Início não tem dock de serviços')
 
     console.log('=== US3: o TMDB preenche só a lacuna, com o selo "Dados: TMDB" ===')
     const tmdbBefore = hits.tmdb.length
@@ -437,13 +436,16 @@ async function run() {
     assert(((await page.locator('.vod-detail-synopsis').textContent()) ?? '') === 'SINOPSE DA SÉRIE', 'o hero da série mostra a sinopse do get_series_info')
     assert(hits.seriesInfo === 1, `episódios e metadata da série vieram de UMA requisição (${hits.seriesInfo})`)
 
-    for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowDown') // tabs → temporada → episódios
-    const episodeBox = page.locator('.vod-episode-synopsis')
-    await episodeBox.waitFor({ timeout: 5000 })
-    assert((await episodeBox.textContent()) === 'Sinopse do piloto.', 'o episódio focado mostra a própria sinopse')
+    for (let i = 0; i < 2; i += 1) await page.keyboard.press('ArrowDown') // ações → abas → episódios
+    const rows = page.locator('.vod-episode-row')
+    await rows.first().waitFor({ timeout: 5000 })
+    assert(
+      (await rows.nth(0).locator('.vod-episode-info .vod-episode-synopsis').textContent()) === 'Sinopse do piloto.',
+      'o episódio mostra a própria sinopse ao lado da capa',
+    )
     const seriesRequestsBefore = hits.seriesInfo
     await page.keyboard.press('ArrowDown')
-    assert(((await episodeBox.textContent()) ?? '') === '', 'episódio sem sinopse não mostra texto (nem a da série)')
+    assert((await rows.nth(1).locator('.vod-episode-synopsis').count()) === 0, 'episódio sem sinopse não mostra texto (nem a da série)')
     assert(hits.seriesInfo === seriesRequestsBefore, 'mover o foco entre episódios não fez nenhuma requisição')
     // O episódio focado tem o anel na linha E no cartão (`.vod-episode-row` + `ContentCard`) — é o desenho do detalhe.
     assert((await page.locator('.vod-episode-row.tv-focus').count()) === 1, 'foco (episódios): exatamente uma linha de episódio focada')
@@ -465,7 +467,7 @@ async function run() {
     await page.waitForSelector('.integration-card-state:has-text("Não configurado")', { timeout: 8000 })
     await page.keyboard.press('Escape')
     await page.waitForSelector('.home-content', { timeout: 8000 })
-    assert((await page.getByRole('button', { name: 'TMDB — não configurado' }).count()) === 1, 'o dock volta a "TMDB — não configurado"')
+    assert((await page.locator('.home-dock, .home-hero-dock').count()) === 0, 'sem chave, o Início continua sem dock')
 
     await openViaTopbar(page, 'movies')
     await enterFirstRealCategory(page)

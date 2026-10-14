@@ -1,0 +1,455 @@
+<!doctype html>
+<!--
+  REGISTRO HISTÓRICO — não é referência vigente.
+  Decisão (2026-10-05): variação B ("Vitrine expandida", referência Prime Video).
+  A referência vigente é a função home() de ../CCPlayTV_Tizen_Ultimate_Prototype_v13_2.html
+  e a seção "Home" da Spec V14.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Home V15 — variações</title>
+<style>
+@font-face{font-family:Inter;src:url(../../../../tv-web/src/assets/fonts/inter-latin-400-normal.woff2) format('woff2');font-weight:400}
+@font-face{font-family:Inter;src:url(../../../../tv-web/src/assets/fonts/inter-latin-500-normal.woff2) format('woff2');font-weight:500}
+@font-face{font-family:Inter;src:url(../../../../tv-web/src/assets/fonts/inter-latin-600-normal.woff2) format('woff2');font-weight:600}
+@font-face{font-family:Inter;src:url(../../../../tv-web/src/assets/fonts/inter-latin-700-normal.woff2) format('woff2');font-weight:700}
+@font-face{font-family:Inter;src:url(../../../../tv-web/src/assets/fonts/inter-latin-800-normal.woff2) format('woff2');font-weight:800}
+@font-face{font-family:Poppins;src:url(../../../../tv-web/src/assets/fonts/poppins-latin-600-normal.woff2) format('woff2');font-weight:600}
+@font-face{font-family:Poppins;src:url(../../../../tv-web/src/assets/fonts/poppins-latin-700-normal.woff2) format('woff2');font-weight:700}
+@font-face{font-family:Poppins;src:url(../../../../tv-web/src/assets/fonts/poppins-latin-800-normal.woff2) format('woff2');font-weight:800}
+
+/* Tokens V14 — cópia de tv-web/src/index.css */
+:root{
+  --bg-canvas:#05060a;--bg-base:#0b0d12;--bg-surface:#15181f;--bg-elevated:#1d212b;--bg-hover:#2a2f3c;
+  --text-primary:#f5f6f8;--text-secondary:#a7adbb;--text-disabled:#5c6372;--text-annotation:#7c8494;
+  --accent:#ff7a3d;--accent-light:#ffa36b;--accent-ink:#2a1206;--accent-tint-border:rgba(255,122,61,.4);
+  --success:#3ddc84;--warning:#ffc93d;--info:#2db8c4;--live:#ff2e87;
+  --brand-1:#ff2e87;--brand-2:#ff7a3d;--brand-3:#ffc93d;--brand-4:#3ddc84;--brand-5:#1e9ab0;
+  --brand-gradient:linear-gradient(90deg,var(--brand-1),var(--brand-2),var(--brand-3),var(--brand-4),var(--brand-5));
+  --font-heading:'Poppins',Arial,Helvetica,sans-serif;--font-body:'Inter',Arial,Helvetica,sans-serif;
+  --radius-md:12px;--radius-lg:16px;--radius-pill:999px;
+  --elevation-1:0 8px 24px rgba(0,0,0,.28);--elevation-2:0 16px 48px rgba(0,0,0,.48);
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --focus-ring-width:4px;--focus-ring-offset:3px;--focus-halo:0 0 0 8px rgba(255,122,61,.22);--focus-glow:0 0 40px rgba(255,122,61,.55);--focus-scale:1.06;
+  --text-shadow-media:0 1px 3px rgba(0,0,0,.9);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#020305;color:var(--text-primary);font-family:var(--font-body)}
+body{display:grid;grid-template-rows:60px 1fr;overflow:hidden}
+
+/* ---------- moldura da página (fora do palco) ---------- */
+.top{display:flex;align-items:center;gap:10px;padding:0 20px;border-bottom:1px solid var(--bg-elevated);background:var(--bg-base)}
+.top h1{font:700 17px var(--font-heading);margin-right:auto}
+.top h1 small{font:500 13px var(--font-body);color:var(--text-annotation);margin-left:10px}
+.top button{font:600 14px var(--font-body);color:var(--text-secondary);background:var(--bg-surface);border:1px solid var(--bg-hover);border-radius:999px;padding:8px 16px;cursor:pointer}
+.top button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.top button.nd-toggle.on{background:rgba(45,184,196,.18);color:#7fe3ef;border-color:var(--info)}
+main{display:grid;grid-template-columns:1fr 400px;min-height:0}
+#wrap{position:relative;overflow:hidden}
+#stage{position:absolute;top:0;left:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;background:var(--bg-canvas);box-shadow:0 0 0 1px var(--bg-elevated)}
+.side{overflow:auto;padding:22px 24px 40px;border-left:1px solid var(--bg-elevated);background:var(--bg-base);font-size:14px;line-height:1.55;color:var(--text-secondary)}
+.side h2{font:700 22px var(--font-heading);color:var(--text-primary)}
+.side .ref{font:600 13px var(--font-body);color:var(--accent-light);margin:2px 0 14px;letter-spacing:.04em;text-transform:uppercase}
+.side h3{font:700 13px var(--font-body);color:var(--text-primary);margin:20px 0 8px;letter-spacing:.06em;text-transform:uppercase}
+.side ul{padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.side b{color:var(--text-primary)}
+.side .kbd{display:inline-block;padding:0 6px;border:1px solid var(--bg-hover);border-radius:4px;font:600 12px var(--font-body);color:var(--text-primary)}
+.side .nd-sample{display:inline-block;padding:0 6px;outline:2px dashed var(--info);outline-offset:2px;border-radius:3px;color:#7fe3ef}
+.side table{width:100%;border-collapse:collapse;font-size:13px}
+.side td{padding:5px 0;border-bottom:1px solid var(--bg-elevated)} .side td:last-child{text-align:right;color:var(--text-primary)}
+
+/* ---------- palco 1920×1080 ---------- */
+#bg{position:absolute;inset:0;transition:opacity 320ms var(--ease)}
+#bg .bg-img{position:absolute;inset:0;animation:fade 420ms var(--ease)}
+#bg.dim{opacity:.34} #bg.off{opacity:0} #bg.amb{opacity:.3}
+@keyframes fade{from{opacity:0}}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}}
+#ui{position:absolute;inset:0}
+.shade{position:absolute;inset:0;pointer-events:none;transition:background 320ms}
+.shade.A{background:linear-gradient(90deg,rgba(5,6,10,.97) 0%,rgba(5,6,10,.8) 32%,rgba(5,6,10,.12) 62%,rgba(5,6,10,0) 75%),linear-gradient(0deg,#05060a 0%,rgba(5,6,10,.94) 40%,rgba(5,6,10,0) 64%)}
+.shade.B{background:linear-gradient(90deg,rgba(5,6,10,.92) 0%,rgba(5,6,10,.55) 38%,rgba(5,6,10,0) 65%),linear-gradient(0deg,#05060a 0%,rgba(5,6,10,.7) 28%,rgba(5,6,10,0) 50%)}
+.shade.B.rows{background:linear-gradient(0deg,rgba(5,6,10,.85),rgba(5,6,10,.55))}
+.shade.C{background:linear-gradient(0deg,rgba(5,6,10,.92),rgba(5,6,10,.7))}
+
+.tb{position:absolute;top:0;left:0;right:0;height:120px;display:flex;align-items:center;gap:56px;padding:0 96px;background:linear-gradient(180deg,rgba(5,6,10,.92),rgba(5,6,10,0));z-index:50}
+.tb-logo{font:800 34px var(--font-heading);background:var(--brand-gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tb nav{display:flex;gap:40px;font:600 24px var(--font-body);color:var(--text-secondary)}
+.tb nav .on{color:var(--text-primary);position:relative}
+.tb nav .on::after{content:'';position:absolute;left:0;right:0;bottom:-10px;height:4px;border-radius:4px;background:var(--accent)}
+.tb-r{margin-left:auto;display:flex;gap:28px;align-items:center;font:600 22px var(--font-body);color:var(--text-secondary)}
+.tb-r i{display:inline-block;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--brand-1),var(--brand-2));vertical-align:middle;margin-right:12px}
+
+/* foco V14: contorno 4px + offset + halo + glow + scale(1.06), 140ms */
+.f{outline:var(--focus-ring-width) solid var(--accent);outline-offset:var(--focus-ring-offset);box-shadow:var(--focus-halo),var(--focus-glow)!important;transform:scale(var(--focus-scale));z-index:3}
+
+/* hero */
+.h{display:flex;flex-direction:column;gap:18px}
+.h.swap{animation:rise 320ms var(--ease)}
+.h-eyebrow{font:700 20px var(--font-body);letter-spacing:.14em;color:var(--accent-light);text-transform:uppercase}
+.h-eyebrow.live{color:var(--live)}
+.h-title{font:800 96px/1 var(--font-heading);letter-spacing:-.02em;text-shadow:var(--text-shadow-media)}
+.compact .h-title{font-size:64px}
+.h-meta{display:flex;align-items:center;gap:14px;font:600 24px var(--font-body)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--text-annotation);display:inline-block;flex:none}
+.m-rate{color:var(--warning)} .m-rate small{color:var(--text-annotation);font-size:16px;margin-left:4px}
+.cls{display:inline-grid;place-items:center;min-width:40px;height:34px;padding:0 8px;border-radius:6px;font:800 20px var(--font-body)}
+.cls.sm{min-width:30px;height:26px;font-size:15px;padding:0 6px}
+.m-tmdb{padding:2px 10px;border-radius:6px;background:rgba(30,154,176,.22);color:#7fe3ef;font-size:20px}
+.h-genres{display:flex;gap:10px}
+.chip{padding:6px 16px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);font:600 18px var(--font-body);color:var(--text-secondary)}
+.h-syn{font:500 24px/1.45 var(--font-body);color:var(--text-secondary);max-width:860px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.compact .h-syn{-webkit-line-clamp:2}
+.h-livebar{width:520px}
+.h-actions{display:flex;gap:16px;margin-top:12px}
+.hbtn{height:72px;padding:0 32px;border-radius:var(--radius-pill);background:rgba(255,255,255,.14);display:inline-flex;align-items:center;gap:10px;font:700 24px var(--font-body);position:relative;transition:transform 140ms var(--ease);white-space:nowrap}
+.hbtn.primary{background:var(--text-primary);color:#05060a}
+.hbtn small{font-weight:600;font-size:18px;opacity:.65;margin-left:4px}
+.hbtn-prog{position:absolute;left:32px;right:32px;bottom:11px;height:4px;border-radius:4px;background:rgba(0,0,0,.16)}
+.hbtn-prog i{display:block;height:100%;background:var(--accent);border-radius:4px}
+
+/* fileiras */
+.row{transition:opacity 240ms var(--ease);padding-bottom:18px}
+.row.gone{opacity:0}
+.row-h{display:flex;align-items:center;gap:18px;padding:0 96px;height:52px}
+.row-title{font:600 30px var(--font-heading);display:flex;align-items:center}
+.row-src{font:600 16px var(--font-body);color:var(--text-annotation)}
+.soon{padding:4px 12px;border-radius:999px;background:var(--bg-elevated);color:var(--text-annotation);font:700 15px var(--font-body)}
+.row-vp{padding:22px 96px 16px}
+.row-track{display:flex;gap:24px;align-items:flex-start;position:relative;transition:transform 260ms var(--ease)}
+.vtrack{position:relative;transition:transform 340ms var(--ease)}
+.origin{display:inline-flex;align-items:center;gap:14px}
+.origin .mini{width:40px;height:60px;border-radius:6px;overflow:hidden;position:relative;container-type:inline-size;flex:none}
+.origin b{font-weight:700;color:var(--accent-light);margin-left:10px}
+
+/* cards */
+.cell{flex:none;position:relative}
+.cell.grow{animation:grow 220ms var(--ease)}
+@keyframes grow{from{width:var(--from)}}
+.card{position:relative;border-radius:var(--radius-md);overflow:hidden;background:var(--bg-surface);container-type:inline-size;transition:transform 140ms var(--ease),box-shadow 140ms var(--ease);box-shadow:var(--elevation-1)}
+.card.exp{animation:grow 220ms var(--ease)}
+.art{position:absolute;inset:0;background:radial-gradient(120% 90% at 75% 15%,hsl(var(--b) 70% 45%) 0%,transparent 60%),linear-gradient(180deg,hsl(var(--a) 55% 24%),hsl(var(--a) 60% 6%))}
+.art svg{position:absolute;inset:0;width:100%;height:100%}
+.art-title{position:absolute;left:8%;right:8%;bottom:7%;font:800 13cqw/.95 var(--font-heading);text-transform:uppercase;text-shadow:0 2px 12px rgba(0,0,0,.7)}
+.shade-b{position:absolute;inset:0;background:linear-gradient(0deg,rgba(5,6,10,.9) 0%,rgba(5,6,10,0) 55%)}
+.shade-b.strong{background:linear-gradient(0deg,rgba(5,6,10,.96) 0%,rgba(5,6,10,.6) 50%,rgba(5,6,10,.1) 100%)}
+.land-title{position:absolute;left:20px;right:90px;bottom:24px;font:800 30px/1.05 var(--font-heading);text-shadow:var(--text-shadow-media)}
+.prog{position:absolute;left:0;right:0;bottom:0;height:6px;background:rgba(255,255,255,.22)}
+.prog i{display:block;height:100%;background:var(--accent)}
+.cap{margin-top:14px;font:600 18px var(--font-body);color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bdg{position:absolute;top:12px;padding:4px 10px;border-radius:999px;font:800 15px var(--font-body);letter-spacing:.04em}
+.bdg-new{left:12px;background:var(--accent);color:var(--accent-ink)}
+.bdg-rate{right:12px;background:rgba(5,6,10,.8);color:var(--warning)}
+.bdg-br{position:absolute;right:12px;bottom:16px;display:flex;gap:6px}
+.bdg-i{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:800 16px var(--font-body);background:rgba(5,6,10,.82)}
+.bdg-i.ok{color:var(--success)} .bdg-i.fav{color:var(--brand-1)}
+.exp-info{position:absolute;left:28px;right:28px;bottom:24px;display:flex;flex-direction:column;gap:10px;animation:rise 260ms var(--ease) 80ms both}
+.exp-title{font:800 38px/1.05 var(--font-heading)}
+.exp-meta{font:600 18px var(--font-body);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.exp-syn{font:500 18px/1.4 var(--font-body);color:var(--text-secondary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.exp-hint{font:600 16px var(--font-body);color:var(--text-annotation)}
+.exp-hint b{padding:1px 8px;border:1px solid var(--text-annotation);border-radius:6px;margin-right:6px}
+.exp .bdg-br{display:none}
+
+.rank{display:flex;align-items:flex-end}
+.num{flex:none;font:800 290px/.74 var(--font-heading);letter-spacing:-.08em;color:var(--bg-canvas);-webkit-text-stroke:5px var(--text-disabled);text-align:right;margin-right:-44px;position:relative;z-index:0;padding-bottom:2px;transition:-webkit-text-stroke-color 140ms}
+.rank .card{z-index:1}
+.rank.rf .num{-webkit-text-stroke-color:var(--accent)}
+
+.live .ch-top{position:absolute;top:16px;left:16px;right:16px;display:flex;align-items:center;gap:12px}
+.ch-logo{flex:none;width:56px;height:56px;border-radius:12px;background:rgba(245,246,248,.94);color:#05060a;display:grid;place-items:center;font:800 17px var(--font-heading)}
+.ch-name{font:700 18px var(--font-body);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.onair{padding:4px 10px;border-radius:999px;background:var(--live);font:800 13px var(--font-body);letter-spacing:.08em}
+.ch-bottom{position:absolute;left:20px;right:20px;bottom:18px}
+.ch-prog{font:800 28px/1.1 var(--font-heading);margin-bottom:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-time{display:flex;align-items:center;gap:12px;font:600 16px var(--font-body);color:var(--text-secondary)}
+.bar{flex:1;height:6px;border-radius:6px;background:rgba(255,255,255,.2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--live)}
+
+.ai{width:860px;height:170px;border:2px dashed var(--bg-hover);background:var(--bg-base);display:flex;align-items:center;gap:28px;padding:0 36px;box-shadow:none}
+.ai .orb{flex:none;width:92px;height:92px;border-radius:50%;background:conic-gradient(var(--brand-1),var(--brand-2),var(--brand-3),var(--brand-4),var(--brand-5),var(--brand-1));opacity:.35}
+.ai h3{font:700 30px var(--font-heading);color:var(--text-secondary)}
+.ai p{font:500 20px var(--font-body);color:var(--text-disabled);margin-top:6px}
+
+/* Variação A */
+.A-hero{position:absolute;left:96px;top:200px;width:920px;transition:top 320ms var(--ease)}
+.A-hero.compact{top:150px}
+.A-rows{position:absolute;left:0;right:0;bottom:0;top:530px;transition:top 320ms var(--ease)}
+.A-rows.peek{top:790px}
+
+/* Variação B */
+.B-hero{position:absolute;left:96px;bottom:330px;width:980px}
+.B-rows{position:absolute;left:0;right:0;bottom:0;top:118px;transition:top 320ms var(--ease)}
+.B-rows.peek{top:820px}
+
+/* Variação C */
+.C-page{position:absolute;inset:0;overflow:hidden}
+.C-page.scrolled{-webkit-mask-image:linear-gradient(180deg,transparent 0,transparent 112px,#000 150px);mask-image:linear-gradient(180deg,transparent 0,transparent 112px,#000 150px)}
+.C-hero{position:relative;height:850px}
+.C-hero-art{position:absolute;inset:0}
+.C-hero-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,6,10,.96) 0%,rgba(5,6,10,.62) 40%,rgba(5,6,10,.25) 62%,rgba(5,6,10,.75) 100%),linear-gradient(0deg,#05060a 0%,rgba(5,6,10,0) 42%)}
+.C-hero-info{position:absolute;left:96px;top:190px;width:860px}
+.C-hero-info .hbtn{height:64px;padding:0 24px;font-size:21px}
+.C-hero-info .hbtn small{font-size:16px}
+.C-hero-info .hbtn-prog{left:24px;right:24px;bottom:9px}
+.C-hero-info .h-title{font-size:84px}
+.C-live{position:absolute;right:96px;top:170px;width:520px;padding:24px;border-radius:var(--radius-lg);background:rgba(11,13,18,.8);border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:14px;box-shadow:var(--elevation-2)}
+.C-live-h{display:flex;align-items:baseline;gap:12px;font:700 24px var(--font-heading)}
+.C-live-h i{color:var(--live);font-style:normal}
+.C-live-h small{font:600 15px var(--font-body);color:var(--text-annotation)}
+.ltile{display:flex;gap:18px;align-items:center;padding:16px;border-radius:var(--radius-md);background:var(--bg-surface);transition:transform 140ms var(--ease)}
+.lt-body{flex:1;min-width:0}
+.lt-name{font:600 16px var(--font-body);color:var(--text-annotation)}
+.lt-prog{font:700 24px var(--font-heading);margin:2px 0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.strip{padding:4px 96px 0;display:flex;flex-direction:column;gap:6px;animation:rise 240ms var(--ease)}
+.strip-t{display:flex;gap:14px;align-items:center;font:700 26px var(--font-heading)}
+.strip-t .sm-meta{display:flex;gap:10px;align-items:center;font:600 18px var(--font-body);color:var(--text-secondary)}
+.strip p{font:500 19px var(--font-body);color:var(--text-secondary);max-width:1400px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+#toast{position:absolute;left:50%;bottom:56px;transform:translate(-50%,20px);opacity:0;padding:18px 34px;border-radius:999px;background:var(--bg-elevated);border:1px solid var(--accent-tint-border);font:600 24px var(--font-body);z-index:100;transition:opacity 200ms,transform 200ms;white-space:nowrap}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* marcação de dado novo (tecla N liga/desliga) */
+.show-nd .nd{outline:2px dashed var(--info);outline-offset:3px}
+</style>
+</head>
+<body class="show-nd">
+<div class="top">
+  <h1>Home — propostas de redesenho<small>protótipo navegável · ← ↑ → ↓ · OK = Enter · 1/2/3 troca · N marca dados novos</small></h1>
+  <button data-v="A">A · Cinema</button>
+  <button data-v="B">B · Vitrine expandida</button>
+  <button data-v="C">C · Hub IPTV</button>
+  <button class="nd-toggle on" id="ndBtn">Dados novos ◌</button>
+</div>
+<main>
+  <div id="wrap"><div id="stage"><div id="bg"></div><div id="ui"></div><div id="toast"></div></div></div>
+  <aside class="side" id="side"></aside>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- dados de exemplo (inventados; nenhum é de provedor real) ---------- */
+const T={
+ hz:{name:'Horizonte Zero',kind:'series',year:2026,seasons:2,genres:['Ficção científica','Drama'],rate:8.4,cls:'16',tmdb:8.1,hue:[220,265],sc:3,fav:true,syn:'Uma tripulação desperta décadas depois do previsto e descobre que a Terra parou de responder. Cada episódio revela quem desligou o sinal — e por quê.'},
+ dv:{name:'Duna Vermelha',kind:'movie',year:2025,dur:132,genres:['Aventura','Ficção científica'],rate:7.9,cls:'14',tmdb:7.6,hue:[14,35],sc:0,watched:true,syn:'Uma cartógrafa atravessa um deserto que muda de forma a cada noite para resgatar a irmã de uma expedição desaparecida.'},
+ ma:{name:'Maré Alta',kind:'movie',year:2024,dur:108,genres:['Suspense'],rate:7.2,cls:'14',tmdb:6.9,hue:[200,190],sc:2,syn:'Presos num farol durante a maior tempestade do século, quatro desconhecidos percebem que um deles não chegou de barco.'},
+ ca:{name:'Código Ártico',kind:'series',year:2025,seasons:3,genres:['Thriller','Crime'],rate:8.1,cls:'16',tmdb:7.8,hue:[190,210],sc:0,syn:'Uma analista de dados encontra, sob o gelo da Groenlândia, um servidor que guarda segredos de três governos.'},
+ cn:{name:'Cidade Neon',kind:'movie',year:2026,dur:117,genres:['Ação','Ficção científica'],rate:7.5,cls:'16',tmdb:7.3,hue:[275,320],sc:1,isNew:true,syn:'Num futuro em que a noite nunca termina, um entregador descobre que sua rota esconde um plano para apagar a cidade.'},
+ vm:{name:'Velocidade Máxima',kind:'movie',year:2025,dur:124,genres:['Ação'],rate:6.8,cls:'12',tmdb:6.5,hue:[355,25],sc:1,syn:'Um piloto aposentado volta às pistas clandestinas para pagar a dívida do filho — e enfrentar quem o tirou de lá.'},
+ es:{name:'Expedição Sombra',kind:'movie',year:2024,dur:141,genres:['Aventura','Mistério'],rate:7.7,cls:'14',tmdb:7.4,hue:[150,95],sc:0,syn:'Uma equipe de cientistas segue um rio que não aparece em nenhum mapa até a nascente de uma lenda amazônica.'},
+ nl:{name:'Noite em Lisboa',kind:'movie',year:2026,dur:98,genres:['Romance','Drama'],rate:7.0,cls:'12',tmdb:6.8,hue:[25,45],sc:1,isNew:true,syn:'Dois estranhos perdem o último bonde e decidem atravessar a cidade a pé, contando um ao outro o que nunca disseram a ninguém.'},
+ pl:{name:'Pulso',kind:'movie',year:2026,dur:104,genres:['Thriller'],rate:6.9,cls:'16',tmdb:6.6,hue:[350,5],sc:2,isNew:true,syn:'Uma médica de plantão tem até o amanhecer para descobrir quem está alterando os monitores da UTI.'},
+ iv:{name:'A Ilha de Vidro',kind:'movie',year:2023,dur:112,genres:['Fantasia'],rate:7.8,cls:'10',tmdb:7.5,hue:[175,285],sc:3,fav:true,syn:'Uma menina encontra uma ilha transparente que só aparece na maré mais baixa do ano — e que guarda a memória de quem a visita.'},
+ fs:{name:'Fronteira Sul',kind:'series',year:2024,seasons:2,genres:['Drama','Policial'],rate:7.6,cls:'16',tmdb:7.4,hue:[35,15],sc:0,syn:'Na divisa entre dois países, uma delegada recém-chegada investiga o desaparecimento de um caminhão que nunca saiu do pátio.'},
+ ec:{name:'Eco',kind:'movie',year:2026,dur:95,genres:['Terror'],rate:6.4,cls:'18',tmdb:6.2,hue:[265,300],sc:2,isNew:true,syn:'Uma família se muda para uma casa em que cada palavra dita volta, horas depois, com outra voz.'},
+ ol:{name:'O Último Farol',kind:'movie',year:2022,dur:126,genres:['Drama'],rate:8.0,cls:'12',tmdb:7.9,hue:[215,35],sc:2,fav:true,watched:true,syn:'O último faroleiro do litoral sul se recusa a deixar o posto quando a automação chega.'},
+ ra:{name:'Raízes',kind:'series',year:2026,seasons:1,genres:['Documentário'],rate:8.6,cls:'L',tmdb:8.3,hue:[100,55],sc:0,isNew:true,fav:true,syn:'Seis famílias reconstroem a história das suas origens a partir de uma única fotografia.'},
+ gv:{name:'Os Guardiões do Vale',kind:'movie',year:2025,dur:101,genres:['Animação','Família'],rate:7.4,cls:'L',tmdb:7.2,hue:[85,170],sc:0,isNew:true,syn:'Três criaturas da floresta precisam convencer uma cidade inteira de que o vale está vivo.'},
+ ee:{name:'Estrela Cadente',kind:'series',year:2025,seasons:2,genres:['Comédia','Drama'],rate:7.3,cls:'12',tmdb:7.1,hue:[45,320],sc:3,syn:'Uma ex-estrela mirim tenta voltar à TV como apresentadora de um programa de culinária que ninguém assiste.'},
+};
+for(const [k,v] of Object.entries(T)){v.id=k;v.type='title'}
+const CH=[
+ {name:'CCPlay News',abbr:'NEWS',num:'001',prog:'Jornal da Noite',syn:'As principais notícias do dia, com correspondentes ao vivo.',next:'Mundo em Pauta',start:'21:00',end:'22:00',p:.67,hue:[215,200],sc:1},
+ {name:'Esporte+ HD',abbr:'E+',num:'004',prog:'Final da Copa Regional',syn:'Transmissão ao vivo do estádio, com pré e pós-jogo.',next:'Mesa Redonda',start:'20:30',end:'22:45',p:.5,hue:[140,90],sc:0},
+ {name:'Cine Clássico',abbr:'CC',num:'012',prog:'Sessão Clássica: O Grande Baile',syn:'Um musical dos anos 50 restaurado em alta definição.',next:'Cantando no Cais',start:'20:15',end:'22:05',p:.78,hue:[30,45],sc:2},
+ {name:'Kids Mundo',abbr:'KM',num:'020',prog:'Aventuras no Recife',syn:'Três amigos exploram a cidade atrás de um mapa perdido.',next:'Hora de Dormir',start:'21:30',end:'22:00',p:.3,hue:[280,330],sc:3},
+ {name:'Música 24h',abbr:'M24',num:'031',prog:'Acústico Brasil',syn:'Shows intimistas gravados em pequenas casas do país.',next:'Clássicos dos 80',start:'21:00',end:'23:00',p:.33,hue:[320,280],sc:1},
+ {name:'Documenta',abbr:'DOC',num:'045',prog:'Planeta Oceano',syn:'A vida nas fossas mais profundas do Atlântico.',next:'Grandes Construções',start:'21:15',end:'22:10',p:.45,hue:[195,170],sc:2},
+].map((c,i)=>({...c,id:'ch'+i,type:'channel'}));
+const CONT=[{id:'hz',p:.42,label:'T1:E3 · faltam 26 min'},{id:'dv',p:.68,label:'faltam 42 min'},{id:'ca',p:.85,label:'T2:E8 · faltam 7 min'},{id:'ma',p:.15,label:'faltam 1h 32 min'},{id:'fs',p:.3,label:'T1:E5 · faltam 33 min'}];
+const ids=a=>a.map(id=>({e:T[id]}));
+const ROWS={
+ continue:{key:'continue',kind:'continue',title:'Continuar assistindo',src:'Progresso salvo neste aparelho',eb:'CONTINUAR ASSISTINDO',items:CONT.map(x=>({e:T[x.id],p:x.p,label:x.label}))},
+ live:{key:'live',kind:'live',title:'Ao vivo agora',src:'Seus canais favoritos · programação do EPG',items:CH.map(e=>({e}))},
+ top10m:{key:'top10m',kind:'rank',title:'Em alta esta semana — Filmes',src:'Dados: TMDB · só o que está na sua lista',eb:'EM ALTA · FILMES',items:['cn','dv','vm','es','pl','nl','iv','ec','ma','gv'].map((id,i)=>({e:T[id],n:i+1}))},
+ top10s:{key:'top10s',kind:'rank',title:'Em alta esta semana — Séries',src:'Dados: TMDB · só o que está na sua lista',eb:'EM ALTA · SÉRIES',items:['ca','hz','fs','ra','ee'].map((id,i)=>({e:T[id],n:i+1}))},
+ because:{key:'because',kind:'poster',title:'Porque você assistiu Duna Vermelha',src:'Semelhantes do TMDB que estão na sua lista',eb:'PORQUE VOCÊ ASSISTIU DUNA VERMELHA',items:ids(['es','cn','iv','ma','vm','gv','ec'])},
+ recent:{key:'recent',kind:'poster',title:'Adicionados recentemente',src:'Dados: fonte · últimos 7 dias',eb:'ADICIONADO RECENTEMENTE',items:ids(['cn','nl','pl','ec','ra','gv'])},
+ mylist:{key:'mylist',kind:'poster',title:'Minha Lista',src:'',eb:'NA SUA LISTA',items:ids(['hz','iv','ol','ra'])},
+ ai:{key:'ai',kind:'ai',title:'Curadoria por IA',src:'',items:[{e:null}]},
+};
+const VAR={
+ A:{rows:['continue','live','top10m','because','recent','mylist','top10s','ai']},
+ B:{rows:['continue','top10m','recent','because','live','mylist','ai']},
+ C:{rows:['continue','because','top10m','recent','mylist','top10s','ai']},
+};
+const DIM={
+ A:{continue:{w:400,h:225},live:{w:400,h:225},rank:{w:230,h:345},poster:{w:400,h:225}},
+ B:{continue:{w:480,h:270,ew:600,eh:338},live:{w:480,h:270},rank:{w:250,h:375,ew:667,eh:375},poster:{w:250,h:375,ew:667,eh:375}},
+ C:{continue:{w:440,h:248},live:{w:440,h:248},rank:{w:230,h:345},poster:{w:230,h:345}},
+};
+const ACTIONS=[
+ {id:'primary',label:'▶&nbsp; Continuar T1:E3 <small>faltam 26 min</small>',primary:true},
+ {id:'details',label:'ⓘ&nbsp; Mais informações'},
+ {id:'mylist',label:'✓&nbsp; Na Minha Lista'},
+ {id:'trailer',label:'▷&nbsp; Trailer'},
+];
+/* Classificação indicativa (ClassInd) — DADO NOVO */
+const CLS={L:['#1fa54b','#fff'],'10':['#1e88e5','#fff'],'12':['#f2c200','#111'],'14':['#ef7d00','#fff'],'16':['#e53935','#fff'],'18':['#111','#fff']};
+
+/* ---------- arte gerada (sem imagens externas) ---------- */
+function scene(e){const [a,b]=e.hue,s=e.sc||0;
+ if(s===0)return `<circle cx="1100" cy="300" r="150" fill="hsl(${b} 90% 72%)" opacity=".8"/><path d="M0 620L260 420 480 560 760 300 1040 580 1260 440 1600 640V900H0Z" fill="hsl(${a} 45% 17%)"/><path d="M0 760L320 560 620 720 900 520 1240 760 1600 600V900H0Z" fill="hsl(${a} 50% 8%)"/>`;
+ if(s===1){let r=`<circle cx="1180" cy="230" r="90" fill="hsl(${b} 95% 75%)" opacity=".9"/>`;for(let i=0;i<20;i++){const h=220+((i*137+a)%6)*70,x=i*82;r+=`<rect x="${x}" y="${900-h}" width="74" height="${h}" fill="hsl(${a} 40% ${8+(i%3)*3}%)"/>`;for(let j=0;j<4;j++)if((i*7+j*3+a)%4===0)r+=`<rect x="${x+14+(j%2)*30}" y="${900-h+40+j*50}" width="14" height="20" fill="hsl(${b} 95% 70%)" opacity=".85"/>`}return r}
+ if(s===2)return `<ellipse cx="800" cy="560" rx="900" ry="120" fill="hsl(${b} 90% 65%)" opacity=".35"/><circle cx="800" cy="560" r="110" fill="hsl(${b} 95% 75%)" opacity=".9"/><path d="M0 600Q200 560 400 600T800 600T1200 600T1600 600V900H0Z" fill="hsl(${a} 55% 18%)"/><path d="M0 700Q200 650 400 700T800 700T1200 700T1600 700V900H0Z" fill="hsl(${a} 60% 10%)"/>`;
+ let st='';for(let i=0;i<40;i++)st+=`<circle cx="${(i*397)%1600}" cy="${(i*211)%600}" r="${1+i%3}" fill="#fff" opacity=".6"/>`;
+ return st+`<circle cx="1050" cy="420" r="260" fill="hsl(${b} 60% 50%)"/><circle cx="980" cy="360" r="260" fill="hsl(${a} 50% 14%)" opacity=".55"/><ellipse cx="1050" cy="430" rx="460" ry="70" fill="none" stroke="hsl(${b} 80% 75%)" stroke-width="10" opacity=".6" transform="rotate(-12 1050 430)"/><path d="M0 780Q400 700 800 760T1600 740V900H0Z" fill="hsl(${a} 50% 7%)"/>`}
+function art(e,mode){const [a,b]=e.hue;return `<div class="art" style="--a:${a};--b:${b}"><svg viewBox="0 0 1600 900" preserveAspectRatio="${mode==='poster'?'xMaxYMax':'xMidYMax'} slice" aria-hidden="true">${scene(e)}</svg>${mode==='poster'?`<div class="art-title">${esc(e.name)}</div>`:''}</div>`}
+
+/* ---------- peças ---------- */
+const fmtDur=m=>`${Math.floor(m/60)}h ${String(m%60).padStart(2,'0')}min`;
+const span=e=>e.kind==='series'?`${e.seasons} temporada${e.seasons>1?'s':''}`:fmtDur(e.dur);
+const clsBadge=(c,sm)=>`<span class="cls nd${sm?' sm':''}" title="Classificação indicativa — dado novo" style="background:${CLS[c][0]};color:${CLS[c][1]}">${c}</span>`;
+function metaHTML(e){
+ const p=[`<span>${e.year}</span>`,`<span>${span(e)}</span>`,`<span class="m-rate">★ ${e.rate.toFixed(1)}<small>Provedor</small></span>`,clsBadge(e.cls),`<span class="m-tmdb nd" title="Nota TMDB — dado novo">TMDB ${e.tmdb.toFixed(1)}</span>`];
+ return `<div class="h-meta">${p.join('<i class="dot"></i>')}</div><div class="h-genres">${e.genres.map(g=>`<span class="chip">${esc(g)}</span>`).join('')}</div>`}
+function shortMeta(e){return `<span>${e.year}</span><i class="dot"></i><span>${span(e)}</span><i class="dot"></i><span>${esc(e.genres.join(', '))}</span><i class="dot"></i><span class="m-rate">★ ${e.rate.toFixed(1)}</span>${clsBadge(e.cls,true)}`}
+function badges(e){let h='';if(e.isNew)h+='<span class="bdg bdg-new">NOVO</span>';h+=`<span class="bdg bdg-rate">★ ${e.rate.toFixed(1)}</span>`;let br='';if(e.watched)br+='<span class="bdg-i ok" title="Assistido">✓</span>';if(e.fav)br+='<span class="bdg-i fav" title="Na Minha Lista">♥</span>';return h+(br?`<span class="bdg-br">${br}</span>`:'')}
+function actionsHTML(fi){return `<div class="h-actions">${ACTIONS.map((a,i)=>`<div class="hbtn${a.primary?' primary':''}${fi===i?' f':''}">${a.label}${a.primary?'<span class="hbtn-prog"><i style="width:42%"></i></span>':''}</div>`).join('')}</div>`}
+function heroInfo(e,o){
+ const cls=`h${o.swap?' swap':''}`;
+ if(e.type==='channel')return `<div class="${cls}"><div class="h-eyebrow live">● AO VIVO AGORA · CANAL ${e.num}</div><div class="h-title">${esc(e.prog)}</div><div class="h-meta"><span>${esc(e.name)}</span><i class="dot"></i><span>${e.start}–${e.end}</span></div><div class="h-livebar ch-time"><span>${e.start}</span><div class="bar"><i style="width:${e.p*100}%"></i></div><span>${e.end}</span></div><p class="h-syn">${esc(e.syn)} A seguir: ${esc(e.next)}.</p></div>`;
+ return `<div class="${cls}"><div class="h-eyebrow">${o.eyebrow}</div><div class="h-title">${esc(e.name)}</div>${metaHTML(e)}<p class="h-syn">${esc(e.syn)}</p>${o.actions!=null?actionsHTML(o.actions):''}</div>`}
+const expInfo=e=>`<div class="exp-info"><div class="exp-title">${esc(e.name)}</div><div class="exp-meta">${shortMeta(e)}</div><p class="exp-syn">${esc(e.syn)}</p><div class="exp-hint"><b>OK</b>Detalhes</div></div>`;
+const land=(e,w,h,f,extra,exp,from)=>`<div class="card land${f?' f':''}${exp?' exp':''}" style="width:${w}px;height:${h}px${from?`;--from:${from}px`:''}">${art(e,'back')}<div class="shade-b${exp?' strong':''}"></div>${exp?expInfo(e):`<div class="land-title">${esc(e.name)}</div>`}${badges(e)}${extra||''}</div>`;
+const poster=(e,w,h,f)=>`<div class="card poster${f?' f':''}" style="width:${w}px;height:${h}px">${art(e,'poster')}${badges(e)}</div>`;
+const liveCard=(c,w,h,f)=>`<div class="card live${f?' f':''}" style="width:${w}px;height:${h}px">${art(c,'back')}<div class="shade-b strong"></div><div class="ch-top"><span class="ch-logo">${c.abbr}</span><span class="ch-name">${c.num} · ${esc(c.name)}</span><span class="onair">AO VIVO</span></div><div class="ch-bottom"><div class="ch-prog">${esc(c.prog)}</div><div class="ch-time"><span>${c.start}</span><div class="bar"><i style="width:${c.p*100}%"></i></div><span>${c.end}</span></div></div></div>`;
+const liveTile=(c,f)=>`<div class="ltile${f?' f':''}"><span class="ch-logo">${c.abbr}</span><div class="lt-body"><div class="lt-name">${c.num} · ${esc(c.name)}</div><div class="lt-prog">${esc(c.prog)}</div><div class="ch-time"><span>${c.start}</span><div class="bar"><i style="width:${c.p*100}%"></i></div><span>${c.end}</span></div></div></div>`;
+
+function cell(row,it,i,f){
+ const d=DIM[V][row.kind],B=V==='B';
+ switch(row.kind){
+  case 'continue':{const exp=B&&f,w=exp?d.ew:d.w,h=exp?d.eh:d.h;return `<div class="cell${exp?' grow':''}" style="width:${w}px;--from:${d.w}px">${land(it.e,w,h,f,`<div class="prog"><i style="width:${Math.round(it.p*100)}%"></i></div>`,exp,exp?d.w:0)}<div class="cap">${esc(it.label)}</div></div>`}
+  case 'live':return `<div class="cell" style="width:${d.w}px">${liveCard(it.e,d.w,d.h,f)}<div class="cap">A seguir: ${esc(it.e.next)}</div></div>`;
+  case 'rank':{const exp=B&&f,nw=it.n===10?250:160,w=exp?d.ew:d.w;return `<div class="cell rank${f?' rf':''}${exp?' grow':''}" style="width:${nw+w-44}px;--from:${nw+d.w-44}px"><div class="num" style="width:${nw}px">${it.n}</div>${exp?land(it.e,w,d.eh,true,'',true,d.w):poster(it.e,w,d.h,f)}</div>`}
+  case 'poster':{if(V==='A')return `<div class="cell" style="width:${d.w}px">${land(it.e,d.w,d.h,f)}</div>`;const exp=B&&f,w=exp?d.ew:d.w;return `<div class="cell${exp?' grow':''}" style="width:${w}px;--from:${d.w}px">${exp?land(it.e,w,d.eh,true,'',true,d.w):poster(it.e,w,d.h,f)}</div>`}
+  case 'ai':return `<div class="cell"><div class="card ai${f?' f':''}" aria-disabled="true"><div class="orb"></div><div><h3>Não sabe o que assistir?</h3><p>A IA escolheria na sua lista a partir do clima e do tempo disponível.</p></div></div></div>`;
+ }}
+function rowHead(row){
+ const t=row.key==='because'?`<span class="origin"><span class="mini">${art(T.dv,'poster')}</span>Porque você assistiu<b>Duna Vermelha</b></span>`:esc(row.title);
+ return `<div class="row-h"><h2 class="row-title">${t}</h2>${row.src?`<span class="row-src">${esc(row.src)}</span>`:''}${row.kind==='ai'?'<span class="soon">Em breve</span>':''}</div>`}
+function strip(row,ri){
+ const f=F();if(V!=='C'||ri!==f.r||row.kind==='ai'||row.kind==='live')return '';
+ const e=row.items[f.c[row.key]||0].e;
+ return `<div class="strip"><div class="strip-t">${esc(e.name)}<span class="sm-meta">${shortMeta(e)}</span></div><p>${esc(e.syn)}</p></div>`}
+function rowHTML(row,ri){const f=F(),gone=V!=='C'&&ri<f.r;return `<section class="row${gone?' gone':''}" data-row="${ri}">${rowHead(row)}<div class="row-vp"><div class="row-track" data-key="${row.key}">${row.items.map((it,i)=>cell(row,it,i,ri===f.r&&i===(f.c[row.key]||0))).join('')}</div></div>${strip(row,ri)}</section>`}
+const topbar=()=>`<header class="tb"><div class="tb-logo">CCPlay</div><nav><span class="on">Início</span><span>TV ao vivo</span><span>Filmes</span><span>Séries</span><span>Buscar</span></nav><div class="tb-r"><span><i></i>Lista Casa</span><span>21:40</span></div></header>`;
+
+/* ---------- estado e navegação ---------- */
+let V='A';
+const FS={A:{r:0,c:{}},B:{r:0,c:{}},C:{r:0,c:{}}};
+const F=()=>FS[V];
+let prevT={},lastE=T.hz,lastEb='SÉRIE · CONTINUAR ASSISTINDO',lastHeroKey='',bgId=null;
+function rowsOf(){const hero={key:'hero',kind:'hero',items:ACTIONS.map(a=>({a}))};if(V==='C')hero.items=hero.items.concat(CH.slice(0,3).map(e=>({e,live:true})));return [hero,...VAR[V].rows.map(k=>ROWS[k])]}
+function focused(R){
+ const f=F(),row=R[f.r],c=f.c[row.key]||0,it=row.items[c];
+ if(row.kind==='hero')return it.live?{e:it.e,eb:''}:{e:T.hz,eb:'SÉRIE · CONTINUAR ASSISTINDO'};
+ if(row.kind==='ai')return null;
+ const e=it.e;if(e.type==='channel')return {e,eb:''};
+ const kind=e.kind==='series'?'SÉRIE':'FILME',eb=row.kind==='rank'?`Nº ${it.n} ${row.eb}`:row.eb;
+ return {e,eb:`${kind} · ${eb}`}}
+
+function setBg(e,cls){const bg=$('#bg');bg.className=cls||'';if(!e||e.id===bgId)return;bgId=e.id;const d=document.createElement('div');d.className='bg-img';d.innerHTML=art(e,'back');bg.appendChild(d);const old=[...bg.children].slice(0,-1);setTimeout(()=>old.forEach(o=>o.remove()),450)}
+
+function render(){
+ const R=rowsOf(),f=F(),fo=focused(R);
+ if(fo){lastE=fo.e;lastEb=fo.eb}
+ const key=V+lastE.id+lastEb,swap=key!==lastHeroKey;lastHeroKey=key;
+ const rows=R.slice(1).map((row,i)=>rowHTML(row,i+1)).join('');
+ let html='';
+ if(V==='A'){
+  html=`<div class="shade A"></div>${topbar()}<div class="A-hero${f.r>0?' compact':''}">${heroInfo(lastE,{eyebrow:lastEb,swap,actions:f.r===0?(f.c.hero||0):null})}</div><div class="A-rows${f.r===0?' peek':''}"><div class="vtrack">${rows}</div></div>`;
+  setBg(lastE,'');
+ }else if(V==='B'){
+  html=`<div class="shade B${f.r>0?' rows':''}"></div>${topbar()}${f.r===0?`<div class="B-hero">${heroInfo(T.hz,{eyebrow:'SÉRIE · CONTINUAR ASSISTINDO',swap,actions:f.c.hero||0})}</div>`:''}<div class="B-rows${f.r===0?' peek':''}"><div class="vtrack">${rows}</div></div>`;
+  setBg(f.r===0?T.hz:lastE,f.r>0?'dim':'');
+ }else{
+  const hc=f.r===0?(f.c.hero||0):-1;
+  html=`<div class="shade C"></div><div class="C-page${f.r>0?' scrolled':''}"><div class="vtrack"><section class="C-hero" data-row="0"><div class="C-hero-art">${art(T.hz,'back')}<div class="C-hero-shade"></div></div><div class="C-hero-info">${heroInfo(T.hz,{eyebrow:'SÉRIE · CONTINUAR ASSISTINDO',actions:hc<4?hc:-1})}</div><aside class="C-live"><div class="C-live-h"><i>●</i> Ao vivo agora <small>canais favoritos · EPG</small></div>${CH.slice(0,3).map((c,i)=>liveTile(c,hc===4+i)).join('')}</aside></section>${rows}</div></div>${topbar()}`;
+  setBg(lastE,f.r===0?'off':'amb');
+ }
+ $('#ui').innerHTML=html;
+ post();
+}
+function slide(el,axis,k,to){const tr=v=>axis==='x'?`translateX(${v}px)`:`translateY(${v}px)`;const from=prevT[k]??to;el.style.transition='none';el.style.transform=tr(from);void el.offsetWidth;el.style.transition='';el.style.transform=tr(to);prevT[k]=to}
+function post(){
+ const f=F();
+ document.querySelectorAll('#ui .row-track').forEach(el=>{const k=el.dataset.key,c=f.c[k]||0,start=V==='C'?Math.max(0,c-1):c,cl=el.children[start];let x=cl?cl.offsetLeft:0;x=Math.min(x,Math.max(0,el.scrollWidth-el.clientWidth));slide(el,'x',V+k,-x)});
+ const vt=$('#ui .vtrack');if(!vt)return;
+ const rowEl=vt.querySelector(`[data-row="${f.r}"]`);let y=0;
+ if(f.r>0&&rowEl)y=V==='C'?-(rowEl.offsetTop-130):-rowEl.offsetTop;
+ slide(vt,'y',V+'v',y)}
+
+let toastT;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),1800)}
+function ok(R){const f=F(),row=R[f.r],it=row.items[f.c[row.key]||0];let m;
+ if(row.kind==='hero')m=it.live?`▶ Tocaria ${it.e.name}`:{primary:'▶ Retomaria Horizonte Zero em T1:E3',details:'Abriria o detalhe de Horizonte Zero',mylist:'Tiraria Horizonte Zero da Minha Lista',trailer:'Abriria o trailer (TMDB)'}[it.a.id];
+ else if(row.kind==='live')m=`▶ Tocaria ${it.e.name}`;
+ else if(row.kind==='ai')m='Em breve — Curadoria por IA';
+ else m=`Abriria o detalhe de ${it.e.name}`;
+ toast(m)}
+
+document.addEventListener('keydown',ev=>{
+ const k=ev.key;
+ if('123'.includes(k)&&k.length===1){setVariant('ABC'['123'.indexOf(k)]);return}
+ if(k==='n'||k==='N'){toggleNd();return}
+ const R=rowsOf(),f=F(),row=R[f.r],c=f.c[row.key]||0,len=row.items.length;
+ if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter'].includes(k))return;
+ ev.preventDefault();
+ if(k==='Enter'){ok(R);return}
+ // C: a coluna "Ao vivo agora" do hero é vertical (índices 4..6)
+ if(V==='C'&&f.r===0&&c>=4){
+  if(k==='ArrowUp'){if(c>4)f.c.hero=c-1}
+  else if(k==='ArrowDown'){if(c<6)f.c.hero=c+1;else f.r=1}
+  else if(k==='ArrowLeft')f.c.hero=3;
+  render();return}
+ if(k==='ArrowLeft')f.c[row.key]=Math.max(0,c-1);
+ else if(k==='ArrowRight')f.c[row.key]=Math.min(len-1,c+1);
+ else if(k==='ArrowUp')f.r=Math.max(0,f.r-1);
+ else if(k==='ArrowDown')f.r=Math.min(R.length-1,f.r+1);
+ render()});
+
+/* ---------- painel lateral ---------- */
+const INFO={
+ A:{t:'A · Cinema',ref:'Referência: Netflix',
+  what:['<b>Billboard fixo</b> no topo que passa a descrever o card focado: backdrop, título, ano, duração, nota, gêneros e sinopse trocam a cada movimento.','No hero, as 4 ações; ao descer, o hero encolhe (título 96→64 px) e as fileiras sobem, deixando a anterior sumir — só uma fileira em foco por vez.','<b>Cards paisagem 400×225</b> em todas as fileiras de título (hoje retrato 205 px): ~1,4× a área, com o nome sobre a arte.','<b>Continuar</b> com barra de progresso real e "T1:E3 · faltam 26 min".','<b>Top 10</b> com numeral gigante vazado e pôster 230×345; o número acende no foco.','<b>Ao vivo agora</b>: canais favoritos em cards 400×225 com programa do EPG, selo AO VIVO e barra de horário.'],
+  risk:['O hero reativo redesenha a área grande a cada ←/→: precisa de debounce (~250 ms, como o prefetch R-013) e de trocar só imagem já decodificada.','Cards paisagem dependem de backdrop TMDB em cache; sem ele, cai no pôster com fundo desfocado.']},
+ B:{t:'B · Vitrine expandida',ref:'Referência: Prime Video',
+  what:['<b>Billboard cheio</b> só enquanto o foco está nele; ao descer ele recolhe e as fileiras ocupam a tela inteira, com o backdrop do item focado como <b>fundo ambiente</b> esmaecido.','<b>Pôster 250×375</b> (hoje 205 px) com <b>selos</b>: NOVO (added_at), ★ nota do provedor, ✓ assistido, ♥ Minha Lista.','<b>Card expandido no foco</b>: o pôster vira um card 16:9 de 667×375 com backdrop, meta, 2 linhas de sinopse e "OK Detalhes" — informação sem sair da Home.','Continuar 480×270 cresce para 600×338 no foco.','Top 10 com numeral gigante; o card focado também expande.'],
+  risk:['O <code>Rail</code> virtualizado usa <code>itemWidth</code> fixo; largura variável no foco exige mudar o cálculo de posição.','Animar largura é caro na TV: preferir trocar o conteúdo e animar só <code>transform</code>/<code>opacity</code>.']},
+ C:{t:'C · Hub IPTV',ref:'Referência: Netflix + guia de TV',
+  what:['<b>Hero dividido</b>: destaque à esquerda e uma coluna <b>"Ao vivo agora"</b> com 3 canais favoritos, programa atual e barra do EPG — a TV ao vivo, ponto forte do app, já aparece na abertura.','A página rola como documento (fileiras anteriores continuam visíveis) e o <b>fundo ambiente</b> muda com o item focado.','<b>Faixa de informação</b> sob o card focado (título · ano · duração · gêneros · nota · sinopse em 1 linha), no estilo Apple TV.','Tamanhos por tipo: Continuar 440×248 com progresso, pôster 230×345 com selos, Top 10 grande.','"Porque você assistiu" mostra a capa do título de origem no cabeçalho.'],
+  risk:['Navegação 2D no topo (ações → coluna vertical de canais) precisa de regra explícita no useRemoteNav.','O hero não reage ao foco (só o fundo); é a variação mais leve para a TV.']},
+};
+function side(){const i=INFO[V];$('#side').innerHTML=`<h2>${i.t}</h2><div class="ref">${i.ref}</div>
+ <h3>O que muda</h3><ul>${i.what.map(x=>`<li>${x}</li>`).join('')}</ul>
+ <h3>Riscos / custo</h3><ul>${i.risk.map(x=>`<li>${x}</li>`).join('')}</ul>
+ <h3>Comum às três</h3><ul>
+  <li>Fileiras novas: <b>Ao vivo agora</b> (favoritos + EPG), <b>Porque você assistiu</b> (Semelhantes TMDB do último título concluído, só os que estão na lista) e <b>Adicionados recentemente</b> (added_at da fonte).</li>
+  <li>Backdrop e sinopse na Home vêm da metadata TMDB <b>já em cache</b> no aparelho (a mesma do detalhe). Focar nunca dispara consulta nem vídeo — sem cache, o card mostra pôster e nome.</li>
+  <li>Curadoria IA continua <b>"Em breve"</b> (soft-disabled), nunca conteúdo inventado. Nada de "98% relevante".</li>
+  <li>O Trailer do hero passa a ser real (reaproveita a feature 033 do detalhe).</li>
+ </ul>
+ <h3>Dados</h3><ul>
+  <li>Tudo já existe no app, <b>exceto</b> o que aparece com <span class="nd-sample">contorno tracejado</span>: classificação indicativa e nota TMDB (seriam dados novos do TMDB). Tecla <span class="kbd">N</span> liga/desliga.</li>
+ </ul>
+ <h3>Tamanhos (hoje → aqui)</h3><table>
+  <tr><td>Continuar</td><td>205 retrato → ${V==='A'?'400×225':V==='B'?'480×270 (600 no foco)':'440×248'}</td></tr>
+  <tr><td>Pôster</td><td>205 → ${V==='A'?'400×225 paisagem':V==='B'?'250×375 (667×375 no foco)':'230×345'}</td></tr>
+  <tr><td>Top 10</td><td>226×333 → ${V==='B'?'250×375':'230×345'} + numeral 290 px</td></tr>
+  <tr><td>Canal</td><td>340×100 → ${V==='A'?'400×225':V==='B'?'480×270':'tile 472×118 no hero'}</td></tr>
+ </table>
+ <h3>Controles</h3><ul><li><span class="kbd">← ↑ → ↓</span> foco · <span class="kbd">Enter</span> OK · <span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span> variação</li></ul>`}
+
+function setVariant(v){V=v;bgId=null;$('#bg').innerHTML='';lastHeroKey='';document.querySelectorAll('.top button[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));side();render()}
+function toggleNd(){const on=document.body.classList.toggle('show-nd');$('#ndBtn').classList.toggle('on',on)}
+document.querySelectorAll('.top button[data-v]').forEach(b=>b.onclick=()=>{setVariant(b.dataset.v);b.blur()});
+$('#ndBtn').onclick=e=>{toggleNd();e.currentTarget.blur()};
+function fit(){const w=$('#wrap'),s=Math.min(w.clientWidth/1920,w.clientHeight/1080),st=$('#stage');st.style.transform=`scale(${s})`;st.style.left=(w.clientWidth-1920*s)/2+'px';st.style.top=(w.clientHeight-1080*s)/2+'px'}
+addEventListener('resize',fit);
+fit();setVariant('A');
+</script>
+</body>
+</html>

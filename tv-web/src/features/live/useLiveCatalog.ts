@@ -31,13 +31,12 @@ import {
 } from './liveTrail'
 import { recalledLiveFocus, rememberLiveFocus } from './liveSessionMemory'
 import type { LiveSearch } from './useLiveSearch'
+import { useSectionAllHidden } from '../../lib/catalog/useSectionAllHidden'
 
 /**
- * Trilha e lista de canais da TV ao vivo (dados). Extraído da `LiveScreen`
- * na feature 040 sem mudar nada. São dois hooks porque, entre os efeitos da
- * trilha e os da lista, a tela sempre registrou o efeito de foco do campo de
- * busca (`useLiveSearch`) — a ordem dos efeitos é preservada
- * (`sdd/specs/040-dividir-player-live/logic/divisao.md` §1.2).
+ * Trilha e lista de canais da TV ao vivo (dados). Extraído da `LiveScreen` na feature 040 sem mudar nada. São dois hooks
+ * porque, entre os efeitos da trilha e os da lista, a tela sempre registrou o efeito de foco do campo de busca
+ * (`useLiveSearch`) — a ordem dos efeitos é preservada (`sdd/specs/040-dividir-player-live/logic/divisao.md` §1.2).
  */
 
 export interface LiveTrailParams {
@@ -50,12 +49,12 @@ export function useLiveTrail({ sourceId, startsInFavorites, initialChannelId }: 
   // Estrutura: rápida, sempre segura de ler — nunca toca rede (FR-004).
   const categoriesQuery = useCategoryList(sourceId, 'channel')
   const categories = categoriesQuery.data ?? []
+  // Feature 066 (FR-009): trilha vazia porque a pessoa escondeu todas as categorias de canais.
+  const allHidden = useSectionAllHidden(sourceId, 'channel', categoriesQuery.isSuccess && categories.length === 0)
 
   /**
-   * Estado de topo da tela inteira — carregando/erro/vazio a estrutura, ou
-   * "normal" (trilha + conteúdo). Cada um tem um foco próprio, mais simples
-   * que a navegação normal (feature 024, T021/R-005: nenhum tinha SELECT
-   * ligado antes desta feature, apesar da aparência de foco).
+   * Estado de topo da tela inteira — carregando/erro/vazio a estrutura, ou "normal" (trilha + conteúdo). Cada um tem um
+   * foco próprio, mais simples que a navegação normal (feature 024, T021/R-005: nenhum tinha SELECT ligado antes dela).
    */
   const topPhase: 'loading' | 'error' | 'empty' | 'normal' = categoriesQuery.isLoading
     ? 'loading'
@@ -120,6 +119,7 @@ export function useLiveTrail({ sourceId, startsInFavorites, initialChannelId }: 
     categoriesQuery,
     categories,
     topPhase,
+    allHidden,
     trail,
     focusedIdentity,
     setFocusedIdentity,
@@ -144,8 +144,8 @@ export interface LiveChannelsParams {
   initialChannelCategoryLookup: string | null
   trail: LiveTrail
   search: LiveSearch
-  col: 0 | 1 | 2
-  setCol: Dispatch<SetStateAction<0 | 1 | 2>>
+  col: 0 | 1
+  setCol: Dispatch<SetStateAction<0 | 1>>
   playing: CatalogItemOut | null
   zapOpen: boolean
   favoriteToggle: ReturnType<typeof useFavoriteToggle>
@@ -188,7 +188,7 @@ export function useLiveChannels({
   // `source_missing` ~300ms depois de entrar, sem o usuário fazer nada).
   useCategoryFocusPrefetch(
     sourceId,
-    focusedCategory,
+    focusedCategory?.locked ? undefined : focusedCategory, // feature 066 (FR-013): bloqueada não carrega por foco
     entered?.kind === 'category' ? entered.id : undefined,
   )
   // Feature 038 (FR-005/FR-011): só reordena a fila da pré-carga — nenhuma consulta nasce do foco.
@@ -220,7 +220,7 @@ export function useLiveChannels({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mesmas dependências de antes da feature 040 (setters estáveis ficam de fora)
   }, [categoryLookupChannelId, categoriesQuery.isLoading, initialChannelRecordQuery.data, initialChannelRecordQuery.isLoading, categories])
 
-  const content = useCategoryContent(sourceId, enteredCategory)
+  const content = useCategoryContent(sourceId, enteredCategory?.locked ? undefined : enteredCategory)
   // A estrela precisa do conjunto de favoritos mesmo numa categoria comum
   // (marcar quem já é favorito), não só dentro de "Favoritos" — por isso é
   // uma consulta separada, sempre ativa, nunca condicionada a `entered`.
@@ -289,10 +289,8 @@ export function useLiveChannels({
     lastChannelFocusRef.current = { listKey: channelListKey, index: channelIdx }
   }, [channelListKey, channelIdx])
   const activeChannel = items[channelIdx]
-  // Canal que sumiu com o preview aberto (feature 024, `logic/foco-live-
-  // shell.md` §3): cai de volta pra coluna de canais em vez de deixar o
-  // preview "órfão", sem foco algum sobre ele.
-  const effectiveCol = col === 2 && !activeChannel ? 1 : col
+  // Desde a feature 049 só há duas colunas de foco (0 trilha, 1 canais): o destaque não é focável.
+  const effectiveCol = col
 
   // Feature 046 (`logic/memoria-foco-live.md` §2): grava o canal focado por entrada. Só com a
   // coluna de canais/preview ativa, fora da busca (a posição numa lista filtrada nunca vira
@@ -344,9 +342,7 @@ export function useLiveChannels({
    * 016, edge case da spec) — `playing` está sempre presente aqui (é a
    * própria sessão que o zapping cobre), então não reaproveita a guarda
    * `!playing` acima. `topFocused` nunca é `true` dentro do zapping na
-   * prática (FR-018/D-009), mas a guarda fica por segurança. Zapping nunca
-   * alcança `col === 2` (D-009 da feature 024), então `effectiveCol` aqui é
-   * sempre 0 ou 1 na prática.
+   * prática (FR-018/D-009), mas a guarda fica por segurança. `effectiveCol` é sempre 0 ou 1.
    */
   const canToggleFavoriteInZap = zapOpen && effectiveCol === 1 && !topFocused && activeChannel !== undefined
 

@@ -1,0 +1,22 @@
+{
+    "feature":  "057-top10-dica-tmdb",
+    "lockedAt":  "2026-10-07 18:02",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/metadata/discoveryRules.top10-dica-tmdb.contract.test.ts",
+                      "sha256":  "fba563a66041b36439d9b73a69568bcd552451a4fe7057e630991884fbcfbd58",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/lib/metadata/tmdbDiscovery.top10-dica-tmdb.contract.test.ts",
+                      "sha256":  "3e6d3ccedcc2ffda7dd1d9651895c11a192de631956b0d003a73cbcf5d6db737",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/vod/VodShowcaseScreen.top10-dica-tmdb.contract.test.tsx",
+                      "sha256":  "5ce18445111e9871319b959e29da5140059b358de9004ebffc0b8827b068fc69",
+                      "tests":  2
+                  }
+              ]
+}

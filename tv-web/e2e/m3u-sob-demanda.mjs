@@ -30,6 +30,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURES_DIR = path.join(__dirname, 'fixtures', 'm3u-sob-demanda')
@@ -242,7 +243,7 @@ async function run() {
   const avulsaUrl = `http://127.0.0.1:${avulsa.server.address().port}/lista.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
@@ -271,8 +272,8 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
 
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra na categoria "Esportes"
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
+    await page.keyboard.press('Enter') // entra na categoria "Esportes"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').first().textContent()) === 'ESPN',
@@ -322,6 +323,7 @@ async function run() {
     for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
     for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowRight')
     await page.keyboard.press('Enter')
+    await page.waitForSelector('.settings-screen', { timeout: 8000 })
     // "Fontes IPTV" já é a aba inicial de Configurações (`SettingsScreen`,
     // `initialTab = 'sources'`) — o painel já está montado sem precisar
     // entrar nele.
@@ -360,8 +362,8 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
 
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra em "Canais | Esportes" (1ª categoria)
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
+    await page.keyboard.press('Enter') // entra em "Canais | Esportes" (1ª categoria)
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').allTextContents()).join(',') ===
@@ -370,9 +372,9 @@ async function run() {
     )
     assert(avulsa.counts.requests === M3U_PEDIDOS, 'entrar na 1ª categoria não pediu o arquivo de novo')
 
-    await page.keyboard.press('ArrowLeft') // volta pra trilha
+    await page.keyboard.press('Escape') // volta pra trilha
     await page.keyboard.press('ArrowDown') // "Canais | Esportes" -> "Canais | Variedades"
-    await page.keyboard.press('ArrowRight') // entra
+    await page.keyboard.press('Enter') // entra
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').first().textContent()) ===
@@ -385,12 +387,12 @@ async function run() {
     // Sai até a Home e reentra em Live TV — mais robusto que navegar a
     // trilha por índice relativo, e o padrão continua o mesmo: o foco
     // volta à 1ª categoria real (favoritos.mjs já assume isso).
-    await page.keyboard.press('ArrowLeft') // sai da categoria -> trilha
+    await page.keyboard.press('Escape') // sai da categoria -> trilha
     await page.keyboard.press('Escape') // sai da trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live') // Live TV de novo
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // 1ª categoria real: "Canais | Esportes"
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
+    await page.keyboard.press('Enter') // 1ª categoria real: "Canais | Esportes"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').first().textContent()) === 'ESPN Fictício',
@@ -407,8 +409,8 @@ async function run() {
     // `VIRTUAL_TRAIL_COUNT = 3`: ★ Favoritos, ↺ Histórico, Todos) — entrar
     // cedo demais pousa em "Todos" antes de as categorias carregarem (mesma
     // corrida documentada em `busca-por-categoria.mjs`/`favoritos.mjs`).
-    await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra na categoria "Filmes"
+    await focusFirstRealCategory(page)
+    await page.keyboard.press('Enter') // entra na categoria "Filmes"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
       (await page.locator('.content-card-title').first().textContent()) === 'Um Filme Fictício',
@@ -421,8 +423,8 @@ async function run() {
     await page.keyboard.press('Escape')
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'series')
-    await page.waitForSelector('.side-category-nav-item:not(:has-text("Favoritos")):not(:has-text("Histórico")):not(:has-text("Todos"))', { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra na categoria "Series"
+    await focusFirstRealCategory(page)
+    await page.keyboard.press('Enter') // entra na categoria "Series"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
       (await page.locator('.content-card-title').first().textContent()) === 'Série Fictícia',

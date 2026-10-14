@@ -55,6 +55,8 @@ usado para testar (endpoint `GET /sources/{id}/provider-credentials-spike`,
 botão "🧪 Testar [TEMP]" na Home, formulário de edição de fonte) fica
 registrado no histórico de commits, não neste ADR.
 
+**Atualização (ADR-013, 2026-10-11):** serviço central restrito a configuração/identidade/pagamento/licença; catálogo, importação e Direct Play continuam locais. Configurações fornecidas no portal podem permanecer cifradas no serviço; nenhuma exportação de segredos existentes só na TV. Compatibilização da constitution ainda em T001. Ver [ADR-013](ADR-013-portal-controle-serverless-google-cloud.md).
+
 ## Decisão
 
 **Client-first por padrão: o app tenta resolver import/reprodução direto do
@@ -228,3 +230,5 @@ quando priorizado, cobrindo pelo menos:
    esses casos; ou (b) a medição de desempenho do parsing client-side em TV
    real mostrar que é inviável nesse hardware — nesse caso o processamento
    pesado volta a precisar de um backend, ainda que auto-hospedado.
+
+**Atualização (feature 069, resolução de pendências 2026-10-11):** constitution 1.8.0 formaliza as exceções restritas do portal/licenciamento/convite efêmero e exibição protegida de código. Por nova decisão do usuário, recuperação manual da licença fica substituída por autoatendimento no próprio site, com código privado que pode guardar/fotografar e desafio da mesma TV; revogar acessos/código antigos e preservar teste/validade. Não transfere licença nem recupera catálogo apagado. Restauração operacional de backup permanece manual. Detalhes em spec/plan/logic da 069; nenhuma implementação/provisão declarada.

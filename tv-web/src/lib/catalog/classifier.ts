@@ -51,6 +51,12 @@ export interface ClassifiedEntry {
    * isto (é atualização, não inclusão).
    */
   addedAt?: number
+  /** Nota 0–10 (uma casa) declarada na listagem, já validada (feature 055, FR-001/FR-003) — filme e série do provedor. */
+  providerRating?: number
+  /** Gêneros da listagem (feature 055, FR-002) — só série do provedor; só exibição. */
+  providerGenres?: string
+  /** Primeira URL de fundo válida da listagem (feature 055, FR-002) — só série do provedor. */
+  providerBackdropUrl?: string
   /** Duração declarada pela fonte, em segundos (feature 025) — só episódio do provedor. */
   durationSeconds?: number
   /**
@@ -65,6 +71,8 @@ export interface ClassifiedEntry {
   radio?: true
   /** `tvg-chno` válido da lista (feature 044) — não é o número exibido (ADR-011). Quem grava descarta fora de canal. */
   declaredChannelNumber?: number
+  /** Dias de arquivo (catch-up) que o painel Xtream declara (feature 058) — só canal; nunca em M3U avulsa. */
+  archiveDays?: number
 }
 
 /**
@@ -147,6 +155,44 @@ export function normalizeYear(raw: unknown, now: number = Date.now()): number | 
   const maxYear = new Date(now).getUTCFullYear() + 1
   if (year < 1888 || year > maxYear) return undefined
   return year
+}
+
+const RATING_PATTERN = /^\d+(\.\d+)?$/
+
+/**
+ * Nota da listagem → número 0–10 com uma casa, ou `undefined` ("sem nota"): ausente, vazia, 0, não numérica (inclui
+ * vírgula decimal), negativa ou acima de 10 (feature 055, FR-001/FR-003, `logic/campos-da-listagem.md` §1). O teto é
+ * checado antes de arredondar, para `10.04` não virar `10`. Nunca lança.
+ */
+export function normalizeProviderRating(raw: unknown): number | undefined {
+  let value: number
+  if (typeof raw === 'number') {
+    value = raw
+  } else if (typeof raw === 'string' && RATING_PATTERN.test(raw.trim())) {
+    value = Number(raw.trim())
+  } else {
+    return undefined
+  }
+  if (!Number.isFinite(value) || value > 10) return undefined
+  const rounded = Math.round(value * 10) / 10
+  return rounded > 0 ? rounded : undefined
+}
+
+/** Gêneros da listagem → texto com espaços normalizados; vazio ou `"0"` = ausente (feature 055, FR-002). Só exibição. */
+export function normalizeProviderGenres(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined
+  const text = raw.trim().replace(/\s+/g, ' ')
+  return text === '' || text === '0' ? undefined : text
+}
+
+/** `backdrop_path` (lista ou string) → primeira URL válida, ou ausente (feature 055, FR-002). */
+export function firstBackdropUrl(raw: unknown): string | undefined {
+  const candidates = Array.isArray(raw) ? raw : [raw]
+  for (const candidate of candidates) {
+    const url = normalizeIconUrl(candidate)
+    if (url !== undefined) return url
+  }
+  return undefined
 }
 
 const MIN_ADDED_AT_MS = new Date('2000-01-01T00:00:00Z').getTime()

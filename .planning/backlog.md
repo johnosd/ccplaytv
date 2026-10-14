@@ -6,302 +6,18 @@ update-bug-status.ps1.
 
 ## Ideias Futuras
 
-**Só o que falta**, na ordem de execução sugerida (revisada em 02/10/2026,
-mantida a prioridade do usuário: player completo e valor direto ao usuário
-antes de lançamento). O que foi entregue está na tabela `## Features`; só os retirados ficam no fim da seção.
+- [Infra — gate de venda] 069 encerrada com riscos aceitos em 2026-10-14 (a pedido do usuário); **a venda segue desligada** e estes itens precisam ser executados antes de qualquer cobrança real: T066/T039 (replay `--apply` com evento posterior ao snapshot via `infra/portal/rehearse-replay.ps1`, ensaio da cópia protegida das chaves, restore + reconcile de pagamentos), T043 (compra sandbox para ativações pagas, carga distribuída, custo), T046 (roteiro A–H na TV física), T063 b (registros `generated`/TV `2A:…` — ação "desvincular"), T052 restante e T047. Detalhes: `sdd/specs/069-portal-tv-licenca-anual/plan.md` (R-022 a R-026) e `tasks.md` (Fase 8).
+- [Ideia] Ação "desvincular do portal" na TV (origem: TV física da 070, 2026-10-13): hoje não há como limpar só o pareamento local — apagar o registro no serviço deixa a TV presa em "não autorizado" e a única saída é desinstalar (perde listas, favoritos, histórico, progresso e chave TMDB). A ação limparia só as tabelas do portal no IndexedDB e pareada de novo, preservando o catálogo; serviria para resetar a TV de referência (ID `2A:…`, anterior ao privilégio de rede) e para suporte real. Envolve a ADR-015 (o ID antigo só some com operação documentada no serviço). Pede `sdd-specify`.
 
-ID é identificador estável, não ordem: `comingSoon.ts` (campo `backlogItem`)
-e `.planning/migracao-design-system-v14.md` apontam para ele. Nunca renumerar;
-item novo recebe o próximo número livre (**hoje: 67**); fatias usam letra
-(`55a`, `62b`). Todo item assume o dado no aparelho (ADR-008): chamadas externas
-só a APIs de terceiro com a chave do próprio usuário (BYOK); `api/` é contorno
-congelado. Quem entrega um item apaga o mock correspondente de `comingSoon.ts`
-na mesma feature (hoje restam **15**). Dexie hoje é **v15**; a próxima livre é
-**v16** (reservar na spec). Itens de categoria vivem em blocos: ler/gravar só
-por `catalogRepository.ts`, nunca `db.channels`.
-
-Estados: `Pronto` (vai para `sdd-specify`), `Bloqueado` (dependência dura
-aberta), `A avaliar` (precisa de `sdd-assess`), `Verificação` (só hardware ou
-medição), `Bugfix` (segue em `## Bugs`).
+- [Infra] Portal no domínio próprio `ccplaytv.com` (pedido do usuário, 2026-10-13): mapear o domínio para o Cloud Run `ccplaytv-portal` (domain mapping ou Firebase Hosting com rewrite — há `infra/portal/firebase.json`), DNS no registrador pelo usuário e certificado gerenciado; trocar `CCPLAY_PORTAL_PUBLIC_ORIGIN` no serviço (links do QR e conferência de origem) e `VITE_PORTAL_ORIGIN`/`VITE_PORTAL_SITE_URL` no `build:tizen:commercial`, e reinstalar na TV (sem desinstalar). Avaliar se o QR/convite e os cookies (`Secure`, `SameSite=Strict`, `Path=/portal/v1`) continuam válidos na troca e se o endereço `run.app` antigo deve redirecionar. Decidido em 2026-10-13: primeiro validar a TV no endereço atual do staging.
 
 
-### Valor direto ao usuário
+- [Bug] `teste-conexao-tv`: suíte E2E da 069 esperava `NET-W-QUOTA`, mas recebeu resultado completo sem aviso (linha 176, espera 5 s). Origem: 069-portal-tv-licenca-anual, 2026-10-11. Usuário decidiu registrar para depois e manter gate E2E pendente; causa não investigada e nenhum teste/timeout alterado. Retomar com `sdd-bugfix`.
 
-- **27** — **"Gostei" em filmes e séries**: sinal explícito, distinto de favorito e de histórico, persistido por identidade lógica estável. Base do 30. Falta `sdd-plan` e `sdd-execute`.
-  - Ordem: 4
-  - Tipo: feature
-  - Estado: Especificada — `043-gostei-filmes-series`
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: RF-015; ADR-005 §4
-- **36** — **Dedup/single-flight de importação por fonte**: duas telas ou hooks não disparam o mesmo trabalho de importação. Já existe single-flight por categoria, série, EPG e metadados; falta só a importação inteira de uma fonte. Conferir antes se o FR-017 da 005 já basta (pode virar "Retirado").
-  - Ordem: 5
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/06-carga-listas-url-xtream.md` #9
-- **24** — **Reconciliação pós-resync ("pending restore")**: reaplicar favoritos, "gostei" e progresso por chave estável num passo pós-import, com o snapshot novo **bloqueado até terminar**; item não reconciliável fica indisponível com o estado anterior, nunca atribuído a outra obra por aproximação. Protege contra perda de dados do usuário.
-  - Ordem: 6
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: 008 ✅, 013 ✅, 019 ✅; *36*; *27 (o "gostei" entra na reconciliação)*
-  - Remove mocks: —
-  - Fonte: ADR-005 §2/§4
-- **25b** — **Repasse dos headers (`User-Agent`/`Referer`) ao AVPlay**: muitas listas só tocam assim. O parser (25a, `044`) já guarda os headers; falta o adapter AVPlay. Resta também `tvg-chno` (exibir exige emendar a ADR-011).
-  - Ordem: 7
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: — (spike de header do AVPlay encerrado no 58)
-  - Remove mocks: —
-  - Fonte: RF-011; ADR-006 §4.3
-- **26** — **Seção "Não classificados"**: itens sem tipo confiável ficam visíveis e acessíveis, com regra de correção reaplicável sem perder preferências. Sem desenho no DS: grade + `EmptyState` do Component Lab.
-  - Ordem: 8
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: RF-011; ADR-005 §2
-- **22a** — **Adicionar lista por arquivo `.m3u`** (Filesystem/USB, `tizen.filesystem`), validando extensão **e** conteúdo, mesmo `m3uParser.ts`.
-  - Ordem: 9
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: privilégio de filesystem justificado (38)
-  - Remove mocks: —
-  - Fonte: RF-004; ADR-004 §4
-- **66** — **Busca global por blocos em fluxo** (`039` FR-013 emendado): para listas enormes (~300 mil), varrer bloco a bloco e guardar só os resultados (teto por tipo), sem mudar ordem nem relevância. Medir antes com o cenário 3 de `e2e/catalogo-em-blocos.mjs`.
-  - Ordem: 10
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: 039 ✅
-  - Remove mocks: —
-  - Fonte: `039` R-011/R-013
+- [Bug] Player MPEG-TS no navegador de desenvolvimento: início não confirmado no limite de 15 s em `player-dev-mpegts`, reproduzido em série e na suíte completa. Causa indeterminada; dez trocas, encerramento e reconexão passaram. Origem: 068-legibilidade-tv, R-012, 2026-10-10; evidências em `sdd/specs/068-legibilidade-tv/evidencias/fase4-vod-e2e-completo.txt` e `fase4-e2e-reproducao.txt`. A 068 foi encerrada a pedido do usuário após aprovação de todas as telas na TV; T032/E2E não aprovado. Retomar com `sdd-bugfix`, sem afrouxar timeout.
 
-
-### Diferenciais de produto
-
-- **30** — **Recomendações + Curadoria IA na Home**: sementes reais de "Gostei" e histórico, candidatos TMDB cruzados com o catálogo local (reusar `resolveTmdbTitles`), justificativa compatível com o método. Sem sinais, estado vazio orientativo, nunca justificativa inventada.
-  - Ordem: 11
-  - Tipo: feature
-  - Estado: Bloqueado
-  - Depende de: 27; 28 ✅; 45 ✅
-  - Remove mocks: `home-ai-curation`
-  - Fonte: RF-017; ADR-005 §6; V14 §23
-- **32** — **Trailer no herói do Início** (o do detalhe foi entregue pela 033): botão "▶ Trailer" reusando a `TrailerLayer`, nunca tocando no foco. Candidato a `sdd-adhoc`.
-  - Ordem: 12
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: 033 ✅
-  - Remove mocks: `home-trailer`
-  - Fonte: `033` R-010
-- **56** — **Acessibilidade de sistema**: aparência de legenda (tamanho, cor, fundo, contorno, sincronização) com **prévia real**, respeitando as preferências de caption da TV se o Tizen expuser; alto contraste como variação de tokens; Voice Guide com anúncios configuráveis sobre a região `aria-live`.
-  - Ordem: 13
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: 55a ✅; 55b ✅; 63 ✅
-  - Remove mocks: `a11y-subtitles`, `a11y-high-contrast`, `a11y-voice-guide`
-  - Fonte: V14 §31/§38/§39
-- **31** — **"Descobrir com IA" (BYOK OpenAI)**: chat que só consulta o catálogo **real** por function-calling restrito, nunca sugere título fora dele; chamada direta com a chave da pessoa, configurada em Integrações & BYOK.
-  - Ordem: 14
-  - Tipo: feature
-  - Estado: Pronto
-  - Depende de: 032 ✅; *30*
-  - Remove mocks: `dock-ai`
-  - Fonte: ADR-001 §4; ADR-008 §4; V14 §23
-- **23** — **Várias fontes com refresh isolado**: atualizar várias listas sem duplicar registros nem apagar favoritos/histórico, falha isolada e resultado por fonte (`atualizada`/`falhou`/`ignorada`) em Configurações › Fontes IPTV. Navegação continua uma lista por vez (ADR-011).
-  - Ordem: 15
-  - Tipo: feature
-  - Estado: Bloqueado
-  - Depende de: 46 ✅ (`034`), 24
-  - Remove mocks: —
-  - Fonte: RF-007; ADR-004 §6
-
-
-### Qualidade e lançamento (depois da UI estável)
-
-- **40** — **Conta de publicação e abrangência**: Public Seller publica só nos EUA; Brasil depende de Partner Seller. Confirmar antes de prometer data; kit de revisão com fonte de demonstração e credenciais de teste separadas. Pode começar a qualquer momento.
-  - Ordem: 16
-  - Tipo: lançamento
-  - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: guias `/09` §2/§3, `/11`
-- **35** — **Benchmark determinístico de importação**: fixtures de 1 000/10 000/100 000 entradas servidas localmente, medindo fetch/parse/classify/store e o parse de XMLTV, com aparelho e commit registrados. Base da 039: `e2e/catalogo-em-blocos.mjs` (cenário 3) e `e2e/catalogo-em-blocos-real.mjs`. Falta M3U/classificação e XMLTV.
-  - Ordem: 17
-  - Tipo: qualidade
-  - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: ADR-006 §2; V14 §30
-- **50** — **Suíte de aceite de UX e percurso de referência**: UX01–UX10 dos guias + checklist §46 do DS como conjunto executável, com fonte vazia, demonstrativa e volumosa, repetido com falha de rede; cada execução com responsável, aparelho, firmware e evidência.
-  - Ordem: 18
-  - Tipo: qualidade
-  - Estado: Bloqueado
-  - Depende de: itens de produto acima estáveis
-  - Remove mocks: —
-  - Fonte: V14 §34/§46; guias `/08`, `/13`
-- **38** — **Pacote e checklist de lançamento Tizen**: `config.xml` e assinaturas revisados, Tizen ID preservado, versão crescente, `required_version` coerente, permissões proporcionais e justificadas (teclas de cor/mídia, filesystem do 22a), custódia do certificado. Bloqueadores: falha de instalação, perda de favoritos, áudio em segundo plano, credencial em log.
-  - Ordem: 19
-  - Tipo: lançamento
-  - Estado: Bloqueado
-  - Depende de: 22a (o 58 foi concluído)
-  - Remove mocks: —
-  - Fonte: guias `/10` §1–3
-- **39** — **Materiais de loja e Application UI Description**: logo, fundo, ícone e 4 capturas nos tamanhos da Samsung, de uma versão executável com dados fictícios ou autorizados, sem credencial à vista.
-  - Ordem: 20
-  - Tipo: lançamento
-  - Estado: Bloqueado
-  - Depende de: UI estável (depois do 50)
-  - Remove mocks: —
-  - Fonte: guias `/02`, `/09` §1
-
-
-### Habilitadores e processo (paralelos, sem urgência)
-
-- **49a-2** — **Dividir `catalogRepository.ts` (~1 350 linhas)** por responsabilidade (categorias, blocos/leitura, estado do usuário, gerações/limpeza, preparo da carga) sem mudar comportamento nem API pública, provado pela suíte, pelas travas e pelos E2E. A fatia 49a-1 (player/live) foi entregue pela `040`.
-  - Ordem: 21
-  - Tipo: refatoração
-  - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/02-arquitetura.md` #7
-- **49b** — **Fronteiras de código e limite de tamanho por lint**: `features/` não importa de outro `features/`; `lib/` não importa UI; `lib/catalog/` → `lib/player/` unidirecional; ~300 linhas por arquivo.
-  - Ordem: 22
-  - Tipo: processo
-  - Estado: Pronto
-  - Depende de: 49a
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/02-arquitetura.md` #7
-- **48** — **Documentação canônica por subsistema** em `docs/architecture/`: importador, player, navegação, armazenamento local. ADR registra decisão; o documento registra o estado resultante.
-  - Ordem: 23
-  - Tipo: processo
-  - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/05-documentos.md`
-- **47** — **Skills de domínio + mapa de validação por área** (player AVPlay, importador, navegação D-pad), cada um com "gatilho + leia primeiro + comando de validação". (Não confundir com a feature `047-player-dev-mpegts`.)
-  - Ordem: 24
-  - Tipo: processo
-  - Estado: Pronto
-  - Depende de: *48*
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/04-skills.md`
-- **0** — **Destino de `api/delete_sources.py`**: continua versionado junto do pacote congelado ou sai.
-  - Ordem: 25
-  - Tipo: processo
-  - Estado: Pronto
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: T052 da 003
-- **Bugfix** — **Feature `047-player-dev-mpegts`** (reprodução de canais MPEG-TS no navegador do dev, 0/35 tasks, "Em Execução"): só ajuda o desenvolvimento, não chega ao usuário. Adiar, ou fazer só o necessário para testar Live no PC.
-  - Ordem: —
-  - Tipo: feature
-  - Estado: Adiada
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: `sdd/assessments/mpegtsjs-no-htmlvideoadapter-tocar-canais-no/`
-
-
-### Bloqueados ou a avaliar (sem data)
-
-- **64** — **Avaliação: canal celular ↔ TV na LAN.** Um web app Tizen não abre socket de escuta: decidir entre service app Tizen, relay ou outro caminho que respeite a ADR-008. Resolve uma vez para 22b, 33 e 34. O item 58 foi concluído: o `sdd-assess` já pode rodar.
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: —
-  - Remove mocks: —
-  - Fonte: ADR-008 §5; itens 22/33/34
-- **22b** — **Conectar a lista pelo celular (QR).**
-  - Ordem: —
-  - Tipo: feature
-  - Estado: Bloqueado
-  - Depende de: 64
-  - Remove mocks: `pair-phone`
-  - Fonte: RF-004; V14 §46
-- **33** — **Voz pelo celular (BYOK OpenAI)**: pressionar-para-falar com `getUserMedia` + `MediaRecorder`, transcrição direta do celular, comando com ID e expiração confirmado pelo estado real da TV.
-  - Ordem: —
-  - Tipo: feature
-  - Estado: Bloqueado
-  - Depende de: 64
-  - Remove mocks: `voice-search`
-  - Fonte: ADR-001 §4; ADR-008 §4
-- **34** — **Controle remoto por app Android**: mesma LAN, WebSocket autenticado com pareamento explícito, TV como fonte do estado real, controle físico sempre operacional.
-  - Ordem: —
-  - Tipo: feature
-  - Estado: Bloqueado
-  - Depende de: 64
-  - Remove mocks: —
-  - Fonte: ADR-001 §5; ADR-008 §5
-- **29** — **Nota IMDb com procedência**: nota real com origem, "Sem avaliação" quando faltar, nunca nota genérica renomeada nem gerada por IA; ordenar antes de paginar, sem nota no fim.
-  - Ordem: —
-  - Tipo: feature
-  - Estado: Bloqueado
-  - Depende de: decisão de fonte/licença dos dados (`sdd-assess`/ADR)
-  - Remove mocks: —
-  - Fonte: RF-016; ADR-005 §5
-- **37** — **Matriz de TVs e evidências de compatibilidade**: modelo, firmware, `userAgent`, protocolo, contêiner, codecs, resolução, DRM e legendas em cada teste de mídia. Hoje só a QN50Q60DAGXZD (Tizen 9.0 / Chromium 120).
-  - Ordem: —
-  - Tipo: verificação
-  - Estado: Bloqueado
-  - Depende de: outro aparelho disponível
-  - Remove mocks: —
-  - Fonte: ADR-006 E1/V1
-- **43** — **TV Archive / Catch-up / Timeshift**: tocar programa passado a partir do Guia, se o provedor oferecer; duas variantes de URL exigem probe; liberaria Play/Pause em Live (§43.3).
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: 031 ✅; `sdd-assess`
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/03-apis.md` #8
-- **52** — **Perfis de pessoa e controle parental**: perfis independentes da lista (perfil = lista pela ADR-011), PIN, bloqueio de categoria. Exige migração Dexie do estado da pessoa e decisão de produto.
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: `sdd-assess`
-  - Remove mocks: `settings-parental`
-  - Fonte: V14 §13.3/§48
-- **53** — **Seções Esportes e Infantil** sem substituir as categorias da fonte (seleção manual de grupos ou regra reversível). Fora da topbar até lá.
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: `sdd-assess`
-  - Remove mocks: —
-  - Fonte: V14 §13.1; ADR-011
-- **54** — **Dock: clima e teste de velocidade**. O teste de velocidade tem valor de diagnóstico para stream travando.
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: `sdd-assess`; 19 ✅
-  - Remove mocks: `dock-weather`, `dock-speedtest`
-  - Fonte: V14 §20/§21
-- **41** — **Portais Stalker/Ministra (STB)**: protocolo, autenticação, CORS do portal; "full" × "simple" por comportamento observado.
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: `sdd-assess`
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/03-apis.md` #9
-- **51** — **Descarte quando o espaço do aparelho acaba**: descartar a categoria menos usada, parar e declarar (hoje) ou teto configurável. Medir categoria, XMLTV e a quota real da TV (300 mil filmes em blocos ≈ 13 MB no navegador do PC).
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: `sdd-assess` com medição
-  - Remove mocks: —
-  - Fonte: feature 010, Clarifications
-- **17** — **Detalhe em dois estados (browse ↔ watch)**: o DS V14 não adota (player é camada em tela cheia); só se o uso real pedir.
-  - Ordem: —
-  - Tipo: avaliação
-  - Estado: A avaliar
-  - Depende de: `sdd-assess`
-  - Remove mocks: —
-  - Fonte: `docs/iptvnator/08-tela-filmes.md` #5/#7
-
-
-### Retirados
-
-- **20** — Design das telas sem protótipo: resolvido pela migração DS V14 (021–028). "Não classificados" segue no 26.
-- **21** — Um dono de scroll por painel: absorvido pela 009, pela 028 e pela fonte ativa única.
-- **44** — Teclas de mídia entregues pela 027; a entrada numérica de canal (§44) foi retirada a pedido do usuário em 30/09/2026.
+- [Ideia] Filmes e Séries em coluna única (origem: entrevista da 068, 2026-10-10): a lista lateral de categorias da vitrine viraria uma coluna só — categorias; OK troca pela lista/grade da categoria; RETURN volta às categorias com o foco onde estava —, no mesmo modelo que a 068 adota para a TV ao vivo. Fora da 068 por decisão do usuário; depende da 068 (escala de letra) e pede `sdd-specify` próprio, porque muda a navegação de vitrine + grade.
+- [Teste] E2E de tela da feature 066 nas superfícies que ficaram só com teste unitário: fileiras do Início, ↺ Histórico/Continuar assistindo e o guia de programação com uma categoria escondida/bloqueada (resíduo aceito do SC-001 na convergência de 2026-10-10).
 
 ## Features
 
@@ -312,32 +28,32 @@ medição), `Bugfix` (segue em `## Bugs`).
 | 003-live-tv-avplay | Live TV com catálogo real e reprodução AVPlay | Convergida | 67/67 tasks | 2026-09-18 |
 | 004-conector-xtream-live | Conector Xtream JSON para canais ao vivo | Convergida | 55/55 tasks | 2026-09-18 |
 | 005-import-catalogo-client-first | Import e catálogo client-first, sem backend sempre-ligado | Convergida | 59/59 tasks | 2026-09-22 |
-| 006-conector-xtream-vod-series | Conector Xtream JSON para VOD e Series | Convergida | 15/15 tasks | 2026-09-22 |
+| 006-conector-xtream-vod-series | Conector Xtream: fatia de VOD e séries pelo mesmo protocolo | Convergida | 18/18 tasks | 2026-10-06 |
 | 007-higiene-credenciais | Higiene de Credenciais e Políticas de Rede | Convergida | 7/7 tasks | 2026-09-22 |
 | 008-user-state-repo | UserStateRepository | Convergida | 14/14 tasks | 2026-09-22 |
 | 009-virtualizacao-foco | Virtualização de Grades e Foco Direcional | Convergida | 28/28 tasks | 2026-09-23 |
 | 010-catalogo-sob-demanda | Importação por Estrutura com Carga sob Demanda por Categoria | Convergida | 59/59 tasks | 2026-09-23 |
-| 011-assistir-filme-retomada | Assistir Filme, com Retomada | Convergida | 63/72 tasks | 2026-09-24 |
-| 012-series-episodios-temporadas | Séries — Episódios e Temporadas | Convergida | 52/55 tasks | 2026-09-24 |
+| 011-assistir-filme-retomada | Assistir Filme, com Retomada | Convergida | 71/72 tasks | 2026-10-09 |
+| 012-series-episodios-temporadas | Séries — Episódios e Temporadas | Convergida | 55/55 tasks | 2026-10-09 |
 | 013-favoritos | Favoritos em Canais, Filmes e Séries | Convergida | 47/47 tasks | 2026-09-24 |
-| 014-m3u-sob-demanda | Fonte M3U Estrutura-Primeiro (Detecção de Painel Xtream ou Arquivo Guardado) | Convergida | 58/62 tasks | 2026-09-24 |
+| 014-m3u-sob-demanda | Fonte M3U Estrutura-Primeiro (Detecção de Painel Xtream ou Arquivo Guardado) | Convergida | 59/62 tasks | 2026-10-06 |
 | 015-capa-real-filmes-series | Capa Real de Filmes e Séries | Convergida | 34/34 tasks | 2026-09-25 |
 | 016-zapping-live-tv | Zapping por Cima do Vídeo em Live TV | Convergida | 41/41 tasks | 2026-09-25 |
-| 017-busca-local-catalogo | Busca Local em Live TV, Filmes e Séries | Implementada | 40/42 tasks | 2026-09-25 |
+| 017-busca-local-catalogo | Busca Local em Live TV, Filmes e Séries | Implementada | 41/42 tasks | 2026-10-06 |
 | 018-busca-por-categoria | Busca por categoria com ícone de entrada e categoria virtual "Todos" | Convergida | 36/36 tasks | 2026-09-26 |
-| 019-historico-continuar-assistindo | Histórico e Continuar Assistindo | Convergida | 30/31 tasks | 2026-09-26 |
-| 020-ciclo-vida-player | Ciclo de Vida do Player na TV | Convergida | 15/16 tasks | 2026-09-26 |
+| 019-historico-continuar-assistindo | Histórico e Continuar Assistindo | Convergida | 31/31 tasks | 2026-10-09 |
+| 020-ciclo-vida-player | Ciclo de Vida do Player na TV | Convergida | 16/16 tasks | 2026-10-06 |
 | 021-fundacao-visual-ds-v14 | Fundação Visual do Design System V14 (Onda 0 da migração) | Convergida | 65/65 tasks | 2026-09-26 |
 | 022-biblioteca-componentes-ds-v14 | Biblioteca de Componentes do Design System V14 (Onda 1 da migração) | Convergida | 80/80 tasks | 2026-09-26 |
 | 023-shell-navegacao-entrada-ds-v14 | Shell, Navegação e Entrada do Design System V14 (Onda 2 da migração) | Convergida | 59/59 tasks | 2026-09-27 |
-| 024-live-tv-ds-v14 | Live TV no Design System V14 (Onda 3) | Convergida | 59/60 tasks | 2026-09-27 |
+| 024-live-tv-ds-v14 | Live TV no Design System V14 (Onda 3) | Convergida | 60/60 tasks | 2026-10-06 |
 | 025-filmes-series-ds-v14 | Filmes e Séries no Design System V14 (Onda 4) | Convergida | 79/80 tasks | 2026-09-27 |
 | 026-home-busca-configuracoes-ds-v14 | Home definitiva, Busca global e Configurações no Design System V14 (Onda 5) | Convergida | 50/50 tasks | 2026-09-28 |
 | 027-player-chrome-ds-v14 | Player chrome do Design System V14 com auto-hide e teclas de mídia (Onda 6) | Convergida | 55/55 tasks | 2026-09-28 |
 | 028-limpeza-qa-ds-v14 | Limpeza e QA do Design System V14 (Onda 7) | Implementada | 78/78 tasks | 2026-09-28 |
-| 029-audio-legendas-info-player | Player — Trilhas de Áudio, Legendas e Info do Stream | Convergida | 50/52 tasks | 2026-09-28 |
-| 030-epg-dados-agora | EPG — Dados de Programação e "Agora" na Live TV, no Player e na Home | Convergida | 55/56 tasks | 2026-09-29 |
-| 031-epg-guia-completo | EPG — Guia Completo em Tela Cheia | Convergida | 47/48 tasks | 2026-09-29 |
+| 029-audio-legendas-info-player | Player — Trilhas de Áudio, Legendas e Info do Stream | Convergida | 52/52 tasks | 2026-10-06 |
+| 030-epg-dados-agora | EPG — Dados de Programação e "Agora" na Live TV, no Player e na Home | Convergida | 56/56 tasks | 2026-10-06 |
+| 031-epg-guia-completo | EPG — Guia Completo em Tela Cheia | Convergida | 48/48 tasks | 2026-10-06 |
 | 032-metadata-tmdb-integracoes | Metadata de Filmes e Séries — Provedor Primeiro, TMDB (BYOK) Completa, e Tela Integrações | Convergida | 58/58 tasks | 2026-09-29 |
 | 033-trailers-filmes-series | Trailers de Filmes e Séries | Convergida | 55/55 tasks | 2026-09-29 |
 | 034-fontes-estado-expiracao | Fontes IPTV completas — estado, contagem e expiração da conta | Convergida | 45/45 tasks | 2026-10-01 |
@@ -348,13 +64,36 @@ medição), `Bugfix` (segue em `## Bugs`).
 | 039-catalogo-em-blocos | Catálogo em blocos por categoria — leitura e gravação instantâneas | Convergida | 44/44 tasks | 2026-09-30 |
 | 040-dividir-player-live | Dividir PlayerLayer e LiveScreen por responsabilidade | Convergida | 35/35 tasks | 2026-10-01 |
 | 041-player-qualidade-aspecto | Qualidade, aspecto e preferências do player (sem velocidade) | Convergida | 53/53 tasks | 2026-10-01 |
-| 042-rede-lifecycle-erros | Rede, lifecycle e erros acionáveis | Convergida | 61/62 tasks | 2026-10-01 |
+| 042-rede-lifecycle-erros | Rede, lifecycle e erros acionáveis | Convergida | 62/62 tasks | 2026-10-06 |
 | 043-gostei-filmes-series | "Gostei" em filmes e séries | Especificada | N/A | 2026-10-01 |
-| 044-parser-m3u-headers | Contrato de compatibilidade do parser M3U (headers, radio, tvg-chno) | Convergida | 26/27 tasks | 2026-10-02 |
-| 045-ime-formularios-tv | IME da TV nos formulários — teclado, Next/Done, senha e erros de conexão | Convergida | 39/42 tasks | 2026-10-02 |
+| 044-parser-m3u-headers | Contrato de compatibilidade do parser M3U (headers, radio, tvg-chno) | Convergida | 26/27 tasks | 2026-10-09 |
+| 045-ime-formularios-tv | IME da TV nos formulários — teclado, Next/Done, senha e erros de conexão | Convergida | 41/42 tasks | 2026-10-06 |
 | 046-memoria-foco-key-repeat | Memória de foco por área e key repeat | Convergida | 27/27 tasks | 2026-10-02 |
-| 047-player-dev-mpegts | Reprodução de canais ao vivo MPEG-TS no navegador do dev | Convergência Pendente | 35/38 tasks | 2026-10-02 |
-| 048-live-paridade-v14 | Paridade visual da TV ao vivo com o Design System V14 | Em Execução | 4/47 tasks | 2026-10-02 |
+| 047-player-dev-mpegts | Reprodução de canais ao vivo MPEG-TS no navegador do dev | Convergida | 38/38 tasks | 2026-10-05 |
+| 048-live-paridade-v14 | Paridade visual da TV ao vivo com o Design System V14 | Encerrada | 43/47 tasks | 2026-10-05 |
+| 050-filmes-series-paridade-v14 | Paridade visual de Filmes e Séries com o Design System V14 | Convergência Pendente | 32/34 tasks | 2026-10-09 |
+| 049-navegacao-por-pagina | Navegação por página nas listas | Convergida | 42/42 tasks | 2026-10-02 |
+| 051-detalhe-filme-paridade-v14 | Paridade visual do detalhe do filme com o Design System V14 | Substituída pela 059 | 0/31 tasks | 2026-10-05 |
+| 052-vitrine-filmes-series | Vitrine de Filmes e Séries e tela de categoria em grade cheia | Convergida | 54/54 tasks | 2026-10-03 |
+| 053-carrosseis-filmes-series | Carrosséis de categoria, lista lateral recolhível e slots TMDB na tela hero de Filmes e Séries | Convergida | 48/48 tasks | 2026-10-03 |
+| 054-idioma-do-app | Idioma do app | Convergida | 60/60 tasks | 2026-10-05 |
+| 055-campos-da-listagem-xtream | Nota, gênero e fundo vindos da listagem Xtream | Convergida | 38/38 tasks | 2026-10-03 |
+| 056-bem-avaliados | Fileira "Bem avaliados" em Filmes e Séries | Convergida | 44/44 tasks | 2026-10-04 |
+| 057-top10-dica-tmdb | Top 10 da semana e carrossel "Dica" (TMDB) em Filmes, Séries e Início | Convergida | 58/58 tasks | 2026-10-09 |
+| 058-headers-avplay-catchup | Headers da lista no AVPlay e catch-up de programas passados (Xtream) | Convergida | 53/53 tasks | 2026-10-05 |
+| 059-detalhe-cinema-filme-serie | Detalhe de filme e de série no layout Cinema do Design System | Convergida | 49/49 tasks | 2026-10-06 |
+| 060-home-vitrine-expandida | Home no layout "Vitrine expandida" do Design System | Convergida | 53/53 tasks | 2026-10-06 |
+| 061-classificacao-nota-tmdb | Classificação indicativa e nota TMDB no Início e no detalhe | Convergida | 46/46 tasks | 2026-10-06 |
+| 062-teste-conexao-tv | Teste de conexão da TV em Configurações | Em Execução | 30/34 tasks | 2026-10-09 |
+| 063-codigo-saudavel-benchmark | Código saudável — divisão do repositório do catálogo, fronteiras e tamanho por lint, benchmark de importação | Convergida | 48/49 tasks | 2026-10-09 |
+| 064-upload-teste-conexao | Upload no teste de conexão da TV | Convergida | 35/36 tasks | 2026-10-09 |
+| 065-otimizacao-carga-consultas-memoria | Otimização de carga, consultas externas, memória e abertura do app | Convergida | 74/74 tasks | 2026-10-09 |
+| 066-categorias-controle-parental | Gestão de categorias e controle parental | Convergida | 57/57 tasks | 2026-10-10 |
+| 067-configuracoes-lista-global | Separar configurações da lista das configurações globais do app | Convergência Pendente | 52/53 tasks | 2026-10-10 |
+| 068-legibilidade-tv | Legibilidade para TV — letra maior no app e TV ao vivo em coluna única | Encerrada | 42/44 tasks | 2026-10-10 |
+| 069-portal-tv-licenca-anual | Portal web da TV por QR code e licença anual | Encerrada com riscos aceitos | 66/76 tasks | 2026-10-14 |
+| 070-entrada-listas-gerenciador | Entrada de listas estilo gerenciador | Convergida | 61/61 tasks | 2026-10-13 |
+| 071-consulta-sob-demanda-qr-fixo | Consulta sob demanda e QR fixo | Em Execução | 32/44 tasks | 2026-10-14 |
 
 ## Bugs
 
@@ -367,14 +106,53 @@ medição), `Bugfix` (segue em `## Bugs`).
 | mensagem-generica-erro-reproducao-sempre-diz | Mensagem genérica de erro de reprodução sempre diz "canal" | Test | verified | Concluído | 2026-09-29 |
 | modal-temporada-sem-indicador-mais-itens | Modal de temporada — foco some e não há indicador de "mais abaixo" | Test | verified | Concluído | 2026-09-29 |
 | flake-e2e-home-busca-configuracoes-passo-continuar-progresso | Detalhe do filme pode voltar do player sem "Continuar" (flake do E2E da 026) | Test | verified | Concluído | 2026-09-30 |
-| epg-manual-falha-ao-salvar-epg-02 | EPG manual falha com EPG-02 embora o navegador baixe o XML | Assess | valid (reproduzido) — mas a causa é do servidor do EPG; no app há só uma lacuna de diagnóstico (medium) | Rodar fase Fix | 2026-10-02 |
+| epg-manual-falha-ao-salvar-epg-02 | EPG manual falha com EPG-02 embora o navegador baixe o XML | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-05 |
+| tela-principal-filmes-lenta-na-tv | Tela principal de Filmes lenta na TV (1ª e 2ª visita) | Test | verified | Concluído | 2026-10-05 |
+| continue-assistindo-sobreposto-na-primeira-abertura | Continue assistindo sobreposto na 1ª abertura de Filmes e Séries | Test | verified | Concluído | 2026-10-05 |
+| url-do-stream-no-src-do-video-de-dev | URL do stream no `src` do `<video>` de dev | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-05 |
+| foco-some-ao-descer-na-lista | Foco some ao descer na lista de episódios do detalhe da série | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-05 |
+| teste-conexo-armazenamento-indisponvel-tv | Teste de conexão não guarda resultado na TV | Test | verified | Concluído | 2026-10-07 |
+| lista-xtream-nao-atualiza-novos-filmes | Lista Xtream não traz filmes/séries/canais novos ao abrir o app | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-09 |
+| categoria-aberta-nao-mostra-itens-novos | Categoria aberta não mostra itens novos na TV mesmo após atualizar a lista | Test | verified | Concluído | 2026-10-09 |
+| abrir-app-nao-atualiza-todas-categorias | Abrir o app não atualiza todas as categorias (tela principal sem os recém-adicionados) | Test | verified | Concluído | 2026-10-09 |
+| serie-sem-proximo-episodio-controles-somem | Série — fim do episódio não chama o próximo; controles somem no 2º episódio | Test | verified | Concluído | 2026-10-09 |
+| epg-nao-atualiza-depois-primeira-carga | EPG não atualiza depois da primeira carga | Test | failed | Reabrir fase Assess com evidência nova | 2026-10-10 |
+| filmes-no-salvam-progresso-reproduo-nem | Filmes não salvam o progresso nem marcam como assistido | Test | verified | Concluído | 2026-10-10 |
+| erro-ao-abrir-detalhe-qualquer-serie | Erro ao abrir detalhe de qualquer série | Test | verified | Concluído | 2026-10-10 |
+| falha-ao-salvar-favorito-canal-segurando | Falha ao salvar favorito de canal segurando OK | Test | verified | Concluído | 2026-10-11 |
+| armazenamento-cheio-ao-entrar-sries-espao | Armazenamento cheio em séries com espaço livre na TV | Test | verified | Concluído | 2026-10-11 |
+| live-tv-carregando-durante-reproducao | Live TV carregando durante reprodução | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-11 |
+| trailer-setas-horizontais-avancam-video-vez | Trailer: setas horizontais navegam botões | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-11 |
+| ch-mais-menos-nao-trocam-canal | CH+/CH− não trocam canal no player | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-11 |
+| botoes-gerar-qr-code-portal-nao | Botões de QR do portal inativos no `npm run dev` | Assess | invalid (low) | Nenhum — descartado (invalid) | 2026-10-13 |
+| portal-login-sem-identidade-visual-aes | Portal: login sem identidade visual e com ações extras | Test | verified | Concluído | 2026-10-13 |
 
 ## Melhorias Ad-hoc
 
 | Data | Área | Resumo |
 | --- | --- | --- |
+| 2026-10-13 | Portal (gestão, Ativar, Revendedores, FAQ) + TV (tela Adicionar) | **Revisão de UX/UI pedida e guiada pelo usuário em várias rodadas; passou do escopo típico de ad-hoc (~20 arquivos em dois apps) e foi registrada aqui por já estar implementada — sobrepõe-se à 070 (gestão de listas no portal e coluna "Pelo celular").** Portal (`portal-web/src`): shell com abas (Suas listas / Ativar / Revendedores "Em breve" / FAQ) e ações secundárias; card compacto de dispositivo e licença com selo de estado; listas como cards no formato da tela de listas da TV (avatar com o mesmo par de cores estável por id de `listAvatar.ts`, nome, "tipo · estado", Editar/Remover abaixo); Adicionar/Editar em tela própria com volta de foco ao botão de origem; indicador de entrega/importação por ícone (anel girando, ✓, !, –) com o texto em leitor de tela e `title`; seletor Xtream/M3U (rádios), olho no campo de senha/URL, EPG recolhido abrindo sozinho quando há valor salvo; **"Limpar URL/ajuste do EPG" removidos: esvaziar um campo de EPG que tinha valor salvo agora envia `clearFields`** (a alternativa de só tirar as caixas foi descartada porque eliminaria o único jeito de apagar o EPG); aba Ativar no formato resumo + "antes de pagar" (preço vem do valor já validado da oferta, R$ 35); aba Revendedores só estrutura desabilitada, sem pacotes/preços inventados (não há feature de revenda no backlog); FAQ com busca sem acento, filtros, acordeão e atalhos, só com fatos das specs 069/070 e ADRs (sem canal de suporte inventado); rótulos "Endereço MAC" no login/card/Ativar/FAQ (ver a ideia de prioridade alta sobre a ADR-014). TV (`tv-web/src`): coluna "Pelo celular" com o QR grande e emoldurado no topo e site/ID/chave ao lado; tipos Xtream/M3U como seletor de duas posições (botões reais com `aria-pressed` e ✓), descrições dos tipos removidas. E2E ajustados aos rótulos novos (portal: `bootstrap`, `configuracao`, `gerenciador`, `licenca`; TV opt-in: `entrada-listas-gerenciador`, `portal-dev-server`, `portal-integrado-local` — estes três não executados, exigem a pilha do portal). Validado: portal `npm run build`, `npm run lint`, e2e 14/14, unitários 6/6; TV `npm run lint` (avisos herdados), `npx tsc -b`, `npm run test` 3330/3330, `npm run build` (guarda sem demux ok), e2e `ime-formularios` e `legibilidade-tv` (75 telas pt/en/es, 0 achados) contra `vite` comum — no servidor `--mode commercial` em 5173 ambos param na trava de licença (portal local responde 409 ao enroll), problema de ambiente. Visual conferido em Chromium (portal 320/390/768/1440 px; TV 1920×1080 pt/es com portal simulado). **TV física não testada.** |
+| 2026-10-13 | Portal — header/footer | Ajuste visual pedido: logo/mark alinhado no canto superior esquerdo, header mínimo com título e footer mínimo com a marca. Sem mudança de comportamento; não foram executados testes por solicitação explícita, apenas atualização/revisão no navegador local em `http://127.0.0.1:5174/`. |
+| 2026-10-13 | Portal — referência visual | Refinamento inspirado no Design System V14 e na composição de `bobplayer.com/login`: shell em largura de viewport, logo no topo esquerdo, coluna de acesso alinhada à esquerda e footer fixado ao fim. Navegação/captcha da referência foram descartados por não pertencerem ao fluxo CCPlayTV. Validado visualmente no navegador local; testes não executados por solicitação explícita. |
+| 2026-10-11 | Trailer - Minha Lista | Botao de Minha Lista nos trailers de filmes e series, reutilizando a persistencia local e os rotulos pt/en/es. Cima seleciona a lista, OK adiciona/remove, baixo retorna a pausa; nao interrompe o trailer nem altera progresso/historico. Faixa permanece visivel no foco da lista e bloqueia acionamento durante gravacao. Validado: 27/27 testes direcionados, type-check e E2E trailers 1/1 (ponte real com YouTube simulado); captura 1920x1080 conferida em `tv-web/test-results/trailer-minha-lista.png`. Gates gerais parciais: lint bloqueado por limite preexistente de `userStateRepository.ts`; suite completa apresentou 5 falhas nos contratos da feature 069 e 1 no gate de arquitetura, e foi interrompida. Build passou (incluindo guarda sem demux). TV fisica nao testada. |
+| 2026-10-10 | Detalhes de séries — seletor de temporada | Seletor movido de baixo das abas para a fileira de ações do hero, com rótulo da temporada sempre visível e o mesmo modal. Ordem anterior dos ícones preservada; SELECT abre, escolher/RETURN devolvem foco ao seletor; abas ↔ episódios passam a ser diretos. Contagem de episódios permanece na lista. Testes e roteiros existentes ajustados à nova navegação, sem alterar contratos travados; referência V14 sincronizada. Validado: `npm run lint` (avisos herdados), `npx tsc --noEmit`, `npm run build`; testes de séries 115/115, contratos preservados; E2E `modal-temporada`, `serie-foco-episodios` e `metadata-tmdb` 3/3, captura Chromium 1920×1080 conferida. **Validação geral parcial:** suíte completa interrompida após mais de 8 minutos sem conclusão; o teste de histórico que falhou durante essa rodada foi ajustado ao novo último controle e revalidado nos 115/115. Roteiros antigos `filmes-series-ds-v14` e `player-chrome` pararam antes do detalhe, na navegação de categorias; não corrigidos neste ajuste. TV física não testada. Evidências em `tv-web/test-results/temporadas-acoes/` e `tv-web/test-results/temporadas-acoes.png`. |
 | 2026-09-30 | E2E (`tv-web/e2e`, `package.json`) | Dois ajustes de script, sem tocar em `src/`: (1) `filmes-series-ds-v14.mjs` esperava o Trailer como mock "Em breve", desatualizado desde a feature 033 — agora espera o toast "Trailer indisponível para este título" (ou "Consultando trailer") e que nenhuma camada abra; (2) `e2e/modal-temporada.mjs` (bug `modal-temporada-sem-indicador-mais-itens`) entrou no fim de `npm run test:e2e`. Validado: `filmes-series-ds-v14.mjs` passa inteiro, `npm run lint` exit 0. Não incluído (fora do pedido): `filmes-series-ds-v14.mjs` também está fora do `test:e2e`, e foi por isso que a asserção velha passou despercebida. |
 | 2026-10-01 | Guia de programação (`tv-web/src/features/live/guide/EpgGuide.tsx`, `useLiveGuide.tsx`, `LiveScreen.tsx`, `App.tsx`) | **Item 62a do backlog, por decisão do usuário:** o guia não tem mais a ação "Configurar EPG" — o EPG só se configura ao editar a lista, em Configurações › Fontes IPTV. Antes, a ação saía da Live TV e, com um canal tocando, fechava o player (R-010 da 031). Removidos a prop `onOpenEpgSettings` (guia → `useLiveGuide` → `LiveScreen` → `App.tsx`, que despachava `open epg-settings` com `from: live`) e o botão; o estado "Sem programação" agora diz "O EPG é configurado em Configurações › Fontes IPTV, na linha da lista." e o foco fica no seletor de lista (o mesmo caminho que já existia sem a prop). Considerado e descartado antes da decisão: manter a ação e restaurar canal/guia na volta, ou manter o player tocando por baixo das configurações — o usuário preferiu que a ação simplesmente não exista no canal. Nenhum contrato travado citava a ação; mudaram, por ser comportamento pedido, um teste não travado (`EpgGuide.states.test.tsx`: os 3 estados de "sem programação" agora checam a explicação de onde configurar, a ausência do botão e o foco no seletor; o caso "sem destino" ficou redundante e saiu) e o E2E `epg-guia-completo.mjs` (sem o botão; 56 ✓). Validado: `tsc` limpo; `npx vitest run` 2029/2034 (só os contratos da 034); `oxlint` 0 erros (45 avisos, a linha de base aceita na 040); `npm run build:tizen` ok; todas as travas íntegras; `node e2e/epg-guia-completo.mjs` 56 ✓ / 0 ✗. |
 | 2026-10-01 | Teste da 036 (`SettingsScreen.privacidade.test.tsx`) | Teste instável achado ao medir a linha de base da 040: sob `npx vitest run` inteiro, a leitura do resumo do Histórico no IndexedDB passava de 1 s (o padrão do `waitFor`) e o teste via "Carregando…"; isolado, 3/3 verde. Corrigido **só no teste**, a pedido do usuário: as quatro esperas de IndexedDB usam `IDB_WAIT = { timeout: 5000 }` — nenhuma asserção mudou, nenhum código do app. Validado: o arquivo 3/3 em duas rodadas isoladas e `tsc` limpo; a prova na suíte inteira vem na próxima rodada completa da 040. |
 | 2026-10-01 | Configurações (`tv-web/src/features/settings/`) | **Item 63 do backlog — registro de abas.** A união `SettingsTab` + as cadeias de `if` por aba de `SettingsScreen.tsx` viraram um registro (`tabs/settingsTabs.ts`, `{id, label, icon, Panel}`) e um módulo por aba (`SourcesTab`, `IntegrationsTab`, `AccessibilityTab`, `SimpleTabs` com Sobre e os dois "Em breve"), cada um com o próprio estado, mutações e modal. A tela ficou só com as zonas topbar/abas/painel e encaminha as teclas do painel à aba ativa por um handle (`SettingsTabHandle`: `onEnter`/`onDirection`/`onSelect` — mesmo padrão do `EpgGuideHandle`); tipos em `tabs/settingsTab.ts`, `SettingsTab`/`SettingsFocus` reexportados pela tela (o `appNav.ts` não mudou). Sem mudança de comportamento. Descartados: (1) um hook por aba chamado em laço sobre o registro — o lint barra (`react/rules-of-hooks: error`); (2) remontar a aba a cada entrada (`key` com contador) — quebrou o contrato travado da 026, que guarda nós do DOM antes de entrar no painel; ficou `key` = id da aba, e reentrar na mesma aba chama `onEnter`; (3) `mutateAsync` para a saída de uma mutação sobreviver à troca de aba — os contratos travados mockam só `mutate`. Limite assumido e comentado em `settingsTab.ts`: trocar de aba durante uma exclusão/ressincronização ainda em voo perde o callback (`onSourceDeleted`/`onResyncStarted`), como já acontecia com RETURN na tela inteira; exige ≥ 5 teclas depois de confirmar. Validado: `tsc` e `npm run lint` limpos, 1 teste novo (reentrar zera o foco sem remontar; o foco restaurado não volta depois de trocar de aba), `npx vitest run` 1992/2002 (as 10 falhas são só os contratos das features 034/036 ainda não executadas, como antes), `npm run build:tizen` ok, `npm run test:e2e` inteiro verde, e `paridade-limpeza.mjs` 21 telas: 20 idênticas ou ruído; a 08 (Fontes IPTV) só difere na largura das tarjas que mascaram a data dinâmica da linha (capturas de evidência da 028 restauradas depois). |
 | 2026-10-02 | Live TV — logo do canal e prévia (`tv-web/src/styles/shared.css`, `live.css`) | Dois ajustes de CSS a pedido do usuário, sem tocar em componente. (1) **Logo cortado e fundo competindo:** a `<img>` do `PosterArt` na variante `logo` usava `object-fit: cover` e não tinha fundo, então cortava o logo e deixava o ruído listrado e as iniciais do placeholder aparecerem pelas partes transparentes; agora `.poster-box-logo .poster-box-art` usa `contain` + 6px de respiro + fundo sólido (e o fundo de foco), e o placeholder segue no DOM para quando a imagem falha — confirmado pelo usuário na tela. (2) **Botões Assistir/Favoritar/Guia completo sobrepondo o "A seguir" do EPG:** os filhos do `.live-preview-panel` (coluna flex de altura limitada) encolhiam e o conteúdo transbordava por cima dos botões; agora `.live-preview-panel > * { flex-shrink: 0 }`, logo da prévia 220px→160px e sinopse 3→2 linhas para caber. **Considerado e descartado:** deixar os botões encolherem/rolar (esconderia EPG) e não mexer no logo (a prévia não cabia). **Validação:** `npx tsc --noEmit` e `npx oxlint` limpos, `npm run build` ok e `npm test` 335 arquivos/2406 testes verdes (uma rodada anterior teve 1 falha em 2357 que não identifiquei e não se repetiu). **Não verificado:** o ajuste (2) não foi visto numa tela real (navegador ou TV) — 160px/2 linhas são estimativa de altura; conferir com sinopse longa. |
+| 2026-10-05 | Detalhe do filme — aba Elenco (`tv-web/src/styles/vod.css`, `features/movies/MovieDetailScreen.tsx`) | A pedido do usuário (a TV exigia descer para ver o elenco inteiro): em 1920×1080 o hero Cinema (860 px) deixava a capa terminar em 749 px, e as abas começavam em 892 px com o elenco indo até 1224 px. O hero **não mudou** (0–860, capa 149–749). As abas e o painel sobem para dentro da faixa livre de ~111 px do hero (abas 892→765, elenco termina em 1065, dentro dos 1080), por um modificador `vod-detail--movie` só no filme (a série usa as mesmas classes e fica de fora). Primeira versão pintava as abas por baixo da vinheta do hero (elemento posicionado cobre irmãos não posicionados): corrigido com `position: relative; z-index: 1` nas abas e no painel. Descartado: encolher o hero (muda um visual já aprovado). Validado em Chromium com TMDB fictício e medições por `getBoundingClientRect`; `tsc` limpo, lint sem erros, 123 arquivos / 725 testes de movies/vod/series/components e `npm run build` ok. **Não verificado na TV física.** Achado fora do escopo, falha igual sem o ajuste: E2E `metadata-tmdb` (selo "Dados: fonte" e duração) e `semelhantes-elenco-ator` (passo "foco no não encontrado") estão desatualizados em relação à 059/hero Cinema. |
+| 2026-10-06 | Detalhe da série — lista de episódios (`tv-web/src/features/series/SeriesDetailScreen.tsx`, `styles/vod.css`) | A pedido do usuário: título, sinopse e demais dados do episódio passam a ficar **ao lado** da capa (292×164), não abaixo. A linha deixou de usar `ContentCard` (que sempre põe título/meta embaixo) e monta `PosterArt` + coluna `.vod-episode-info` com título, meta (`T1:E2 · 30:00`), sinopse (até 3 linhas) e progresso; altura da linha virtualizada 232→196 px, então cabem mais episódios na tela. A faixa única "sinopse do episódio focado" (032/FR-028, altura fixa acima da lista) saiu: cada episódio que o provedor descreve mostra a própria sinopse na linha, sem depender do foco; as regras de dado seguem — sem sinopse, nada é mostrado, nunca a da série no lugar, e mover o foco não faz consulta. Pequeno extra: quando `episodeCode` já é o nome (M3U sem T/E), a meta não repete o nome ao lado do título. Dados de episódio além de título/duração/sinopse/progresso (ex.: data de exibição, nota) não existem em `EpisodeOut` — ficam como ideia futura, não inventados. Descartado: adicionar prop ao `ContentCard` só para esconder a legenda (acoplaria um componente compartilhado a um caso só). Validado: `tsc -b` limpo, lint só com avisos da linha de base, `npm test` 443 arquivos / 2827 testes verdes (testes de sinopse reescritos + 1 novo para "título ao lado da capa"), `npm run build` ok, E2E (`serie-foco-episodios`, `metadata-tmdb`, `modal-temporada` — seletor `.content-card-title`→`.vod-episode-title`) verdes e screenshot em Chromium conferido. **Não verificado na TV física** (corte da sinopse em 3 linhas e altura de 196 px sobre a capa com foco 1.06×). |
+| 2026-10-07 | Configurações — card do teste de conexão (`tv-web/src/features/settings/IntegrationsPanel.tsx`, `tabs/IntegrationsTab.tsx`) | Pedido do usuário: o card só dizia "Último teste · data" e não dava para saber a velocidade. A gravação do último resultado já existia e funcionava (IndexedDB `networkDiagnostics`, coberta pelo E2E `teste-conexao-tv`); faltava mostrá-lo. O card agora recebe o resultado inteiro (`SpeedTestResult`) e mostra, sempre que houver um salvo, data, Download (Mbps), Latência HTTP (ms) e Jitter (ms), com "Amostra insuficiente" no que não foi medido (nunca um número inventado); sem teste salvo, a mensagem de vazio de antes. Só leitura local: focar nada mede. Reaproveita os estilos `.speed-test-metrics` do diálogo e as chaves i18n existentes (pt/en/es), sem string nova. **Não incluído, de propósito:** upload — a spec 062 o deixou fora de escopo e medi-lo exige endpoint próprio, mais tráfego e limite de bytes, então é feature nova (`sdd-specify`). **Considerado e descartado:** só mexer na Home (já mostra o download, mas só na dica do ícone). Validado: 3 testes novos em `SettingsScreen.speedTestUltimo.test.tsx` (valores, resultado parcial, vazio); `npx tsc -b` 0; `npm run lint` 0; `npm run build` ok; `npm run test` 2 914/2 914; E2E `teste-conexao-tv` ok. **Segundo ajuste, a pedido do usuário (print do card): botão "Abrir teste" cortado no fim.** Duas causas em `tabs/IntegrationsTab.tsx`: o `scrollIntoView({ block: 'nearest' })` do foco encostava o botão na borda do painel (anel de foco recortado) e ele só rodava quando o foco mudava, não quando o resultado chegava do IndexedDB e o card crescia. Agora o efeito também depende de `lastSpeedTest.data` e, na última linha (`SPEED_TEST_ROW`), rola o `.settings-panel` até o fim — o botão fica 30 px acima da borda e o anel inteiro à vista, medido e visto em Chromium 1920×1080 com um resultado salvo. **Considerado e descartado:** `scroll-padding-block` no painel — corrigia a medida, mas deixava o botão exatamente na fronteira e o `scale(1.06)` do foco forçava uma rolagem extra de 1 px a cada foco (E2E `teste-conexao-tv` falhou 2 de 6 por `scrollTop` 231 ≠ 230; sem a mudança, 8 de 8 passam; com a rolagem até o fim, 10 de 10). Validado: `tsc` 0, `lint` 0, `vitest src/features/settings` 97/97, `build` ok, E2E `teste-conexao-tv` 10/10. **Não verificado:** na TV física (só Chromium desktop). |
+| 2026-10-07 | Filmes e Séries — vitrines (`tv-web/src/features/vod/VodShowcaseScreen.tsx`, `styles/vod.css`) | A pedido do usuário, removida a `vod-hero-band` das telas iniciais de Filmes e Séries. As fileiras ocupam o painel desde o topo, sem a faixa de 176 px nem espaço reservado; removidos também `VodHeroArt`, CSS e leituras de assistidos/retomada usadas exclusivamente no hero. Categorias, cards, notas reais, navegação, SELECT e RETURN preservados. Testes que dependiam do hero foram emendados para verificar ausência da faixa e foco nos cards; travas das features 050/052/057 regravadas e conferidas. Validado: `npm run lint` sem erros (avisos existentes), `npx tsc --noEmit` limpo, `npx vitest run src/features/vod` 180/180, `npm run build` ok; E2E `carrosseis-filmes-series`, `vitrine-filmes-series`, `campos-da-listagem`, `bem-avaliados` e `top10-dica` 5/5, capturas Chromium 1920×1080 conferidas. `npm test` padrão: 2953/2954, timeout de 10 s no `afterEach` de XMLTV em `scripts/bench/importBench.test.mjs` (arquivo não alterado); isolado 9/9; `npm test -- --hookTimeout 30000` 2954/2954 em 476 arquivos. **Não verificado na TV física.** |
+| 2026-10-09 | Início — canais favoritos (`tv-web/src/features/home/homeRows.ts`, `homeRowFormats.ts`, `HomeContent.tsx`, `HomeLiveCard.tsx`, `styles/home.css`, `lib/i18n/messages/home.ts`) | Pedido do usuário: a fileira de canais favoritos (chave `channels`, antes "Ao vivo agora", 6ª da Home) virou a **1ª fileira**, renomeada "Canais favoritos" (pt/en/es). Os cards 480×270 com número, selo AO VIVO e programa/barra de EPG (FR-012 da 060, FR-027 da 030) viraram **ícones quadrados 200×200** — logo do canal ou, sem logo/logo quebrado, as iniciais do `PosterArt variant="logo"` como placeholder — com o nome embaixo. A fileira mostra só **`HOME_CHANNELS_VISIBLE`** canais (o que cabe nos 1728 px úteis do palco sem rolar, guardando o último slot: hoje 6) seguidos do "Ver todos (N)" com o total real, que continua abrindo a TV ao vivo na categoria ★ Favoritos (`onOpenFavorites('live')`, já existente). Com isso o `HomeContent` deixou de ler EPG e categorias de canais na Home e de importar `features/live/channelNumber` (exceção herdada agora obsoleta no baseline da arquitetura — `--prune` pendente, não rodado para não mexer nas outras entradas). Interpretado "placeholder mostarda" como "mostrar" (digitação), não como cor mostarda. Testes: `homeRows.test.ts` (nova ordem), `HomeLiveCard.test.tsx` (iniciais sem logo, imagem com logo, foco), `HomeContent.test.tsx` (ordem `channels → continue → mylist → ai`, limite de ícones + "Ver todos" com o total, cabe na largura útil; saíram os 2 testes de EPG no card); E2E `home-busca-configuracoes.mjs` e `home-vitrine-expandida-real.mjs` ajustados à ordem/título novos. Validado: `npm run lint` ok (só avisos antigos), `tsc -b` limpo, `npm run build` ok, home 88/88; `npm test` 3073/3080 — as 7 falhas são da 066 em andamento (`categoryAccess`/`PinPrompt` contratos, `fachada.test.ts`, 2 testes de Configurações), nenhuma na Home; E2E `home-busca-configuracoes`, `home-vitrine-expandida`, `historico-continuar-assistindo`, `catalogo-em-blocos` 4/4; screenshot no navegador conferido (billboard espiando a fileira, foco no ícone). **TV física (2026-10-09, `deploy-tv.ps1`, visto pelo usuário): aprovado** — fileira no topo, ícones, limite + "Ver todos", foco, abrir canal/Favoritos e volta. No deploy, o build passou a emitir `assets/catalogApi.js` (chunk compartilhado), acrescentado a `CCPlayTv/tizen_web_project.yaml` conforme o guard `findUnlistedFiles`; o pacote instalado incluía também o código em andamento da 066. |
+| 2026-10-09 | Início enxuto — fileiras, billboard e topbar (`features/home/HomeContent.tsx`, `homeRows.ts`, `HomeBillboard.tsx`, `HomeScreen.tsx`, `App.tsx`, `features/shell/TopBar.tsx`, `styles/home.css`, `index.css`) | Pedido do usuário, sobre foto da TV: (1) o Início passa a ter **só** Canais favoritos → Continuar assistindo → Minha Lista → Filmes adicionados → Séries adicionadas (`HomeRowKey` encolheu); saíram Top 10, Dica, "Porque você assistiu" e a Curadoria IA (as vitrines de Filmes/Séries continuam com Top 10/Dica/Porque); (2) billboard só com a primária e "Minha Lista" — saíram "Mais informações" (o card abre o detalhe) e Trailer; (3) saiu o dock de serviços (TMDB, IA, clima, teste de conexão — o teste segue em Configurações › Integrações); ↑ nas ações vai direto à topbar; foco antigo em fileira/dock removido cai no billboard; (4) **lupa da busca global escondida em todas as telas** (`SEARCH_IN_TOPBAR = false` em `TopBar.tsx`; a tela/rota de Busca ficam no código, sem entrada — escolha do usuário entre esconder/só na Home/apagar; um foco restaurado num item escondido cai em "Início"); (5) backdrop do billboard escurecido por inteiro (token novo `--scrim-hero` 0,45 sob a vinheta, que ficou mais forte à esquerda); (6) "Continuar" com progresso: rótulo + tempo numa linha e a barra embaixo, centralizados no botão (antes a barra ficava solta no pé). Removidos `homeTmdbRatings.ts` e os testes do dock/teste de velocidade/Top 10-Dica da Home. **Contrato travado da 026 alterado por decisão do usuário**: `HomeScreen.home-busca-configuracoes-ds-v14.contract.test.tsx` exigia o botão "Mais informações"; a asserção virou "não existe" e o lock foi regravado (`check-contract-tests.ps1 -Write`), 026 e 060 íntegros. Validado: `tsc -b` limpo, `npm run lint` ok, `npm run build` ok, `npm test` 3056/3065 — as falhas são da 066 em andamento (contratos `categoryAccess`/`PinPrompt`, `fachada.test.ts`, 2 de Configurações) e um `importBench` instável na suíte cheia (passa isolado); home/shell/VOD 164/164. E2E ajustados e verdes: `home-vitrine-expandida`, `home-busca-configuracoes`, `classificacao-nota-tmdb`, `historico-continuar-assistindo`, `catalogo-em-blocos` (instável em paralelo, passa sozinho); `teste-conexao-tv` falha em `NET-W-QUOTA`, ponto que já falhava com a versão do HEAD (não relacionado) — o trecho reescrito (persistência e pt/en/es por Configurações) passou isolado; `home-vitrine-expandida-real` (lista real) ajustado mas não executado. Observado e não corrigido: logo ao abrir, "Filmes adicionados" some ~1 s e volta (revalidação ao abrir, provável origem no `10762da`). **TV física (2026-10-09, usuário): aprovado**, com um ajuste — "Continuar" focado quase encostava em "Minha Lista"; o espaço entre as ações do billboard foi de `--space-2` (16 px) para `--space-4` (32 px) e o app foi reinstalado. |
+| 2026-10-09 | Filmes/Séries — vitrine sem fileiras pulando ao abrir (`features/vod/VodShowcaseScreen.tsx`, `features/catalog/catalogApi.ts`, `features/catalog/cachedBackdrops.ts` novo) | Pedido do usuário: ao abrir Filmes/Séries o "Continue assistindo" aparecia segundos depois e empurrava "Em alta esta semana" para baixo. Causa: cada fileira é desenhada quando a sua leitura termina (histórico resolve itens e, com a lista real, leva segundos na TV; Top 10/Dica eram recalculados a cada abertura; o "Continue" ainda trocava de pôster para largo quando as imagens guardadas chegavam). Feito: (1) se a tela abre **sem** as leituras locais (categorias, histórico, favoritos, adicionados) já em mãos, fica no "Carregando…" que já existia ("Voltar" focável; ↑ vai à topbar; as outras setas não mexem em foco invisível) e espera também Top 10, Dica, "Porque você assistiu" e as imagens do "Continue", desenhando tudo de uma vez — teto de 3 s (`ROWS_SETTLE_CAP_MS`) para TMDB lento/erro nunca prender a tela; depois de desenhada não volta a esperar; com tudo em mãos no 1º render (reabrir, cache) desenha na hora como antes; (2) histórico e imagens do "Continue" ficam 5 min no cache (antes 30 s) e o último Top 10/Dica calculado fica no cache do react-query (só vale enquanto há títulos do TMDB — remover a chave faz a fileira sumir), então reabrir a vitrine é imediato; (3) `useCachedBackdrops` devolve um mapa "pendente" próprio (`backdropsPending`) e foi movido para `cachedBackdrops.ts` (reexportado pela fachada) para o `catalogApi.ts` ficar no teto da catraca (2185 ≤ 2190). Considerado e descartado: mostrar a lista lateral antes das fileiras (ela recolhe quando o foco entra nos cards — outro movimento) e esperar o TMDB também quando os dados locais já estão em mãos (os contratos travados 050/053/056 verificam a vitrine no 1º render, com Top 10/Dica reais ainda pendentes). Testes: 2 novos em `VodShowcaseScreen.test.tsx` (abre sem histórico → "Carregando", "Voltar" funciona, setas não mexem; quando chega, fileiras juntas com o Continue em 1º; com dados em mãos desenha na hora). Ajustado também o E2E `top10-dica.mjs`, que ainda esperava Top 10/Dica no Início (sobra da linha anterior): agora confirma a ausência no Início e faz a checagem offline pela vitrine de Filmes. Validado: `tsc -b` limpo, `npm run lint` ok (catraca ok), `npm run build` ok, VOD/catálogo/Início 367/367; `npm test` 3059/3067 com as falhas só da 066 em andamento; E2E da vitrine 10/10 (`bem-avaliados`, `busca-por-categoria`, `campos-da-listagem`, `carrosseis-filmes-series`, `home-vitrine-expandida`, `navegacao-por-pagina`, `top10-dica`, `vitrine-filmes-series`, `vod-pesquisa-ordenacao`, `classificacao-nota-tmdb`). No navegador o fixture carrega tudo em ~100 ms, então o efeito só se vê na TV com a lista real. **TV física (2026-10-09, usuário, com a lista real): aprovado — "melhorou".** |
+| 2026-10-09 | Filmes/Séries — grade de categoria sem topbar e busca sem encolher a tela (`features/vod/VodCategoryScreen.tsx`, `App.tsx`, `components/Stage.tsx`, `lib/useRemoteNav.ts`) | Pedido do usuário: (1) a tela de categoria (grade) de Filmes/Séries não mostra mais a topbar global. O `AppShell` fica sem `TopBar` (mantém banner de conexão e safe zone); saíram as props `shell`/`initialTopbarItem` e a zona topbar↔conteúdo; ↑ na toolbar Pesquisar/Ordenar fica nela, e RETURN volta à vitrine, que mantém a topbar. A grade ganha ~110 px de altura. Considerado e descartado: tirar a linha título/chips ou as duas faixas (escolha do usuário: só a topbar). (2) Ao digitar, o palco reescalava a tela inteira porque `Stage` recalcula a escala em todo `resize`, e o teclado da TV reduz a altura da janela. Agora, com um campo editável em foco e uma janela que só perdeu altura, o palco não reescala (o teclado cobre a parte de baixo; a busca fica no topo); vale para todo campo do app. Descartada a tela/painel de busca nova (redesign, seria sdd-specify). Validação: `tsc -b`, `npm run lint` e `npm run build` limpos; testes de `VodCategoryScreen*` (69) e `Stage` (4, um novo) passam. A suíte completa tem 7–10 falhas que oscilam, todas fora destes arquivos: contratos da 066 ainda não implementada e arquivos com alterações anteriores não commitadas (settings/sourceRepository/fachada). **Não verificado na TV**: que o IME da Samsung reduz a viewport, premissa de (2). |
+| 2026-10-09 | Filmes/Séries — cards maiores na grade de categoria (`features/vod/VodCategoryScreen.tsx`, `styles/vod.css`) | Pedido do usuário sobre foto da TV, depois de tirar a topbar: sobrava ~120 px embaixo da grade. A altura da linha deixou de ser fixa (402 px): a tela mede o espaço livre da coluna abaixo da barra Pesquisar/Ordenar, desconta os avisos que vierem abaixo da grade, e divide por 2, entre 402 e 470 px (acima disso o pôster 2:3 cortaria demais nas laterais). A 1920×1080 dá 462 px (2 linhas inteiras, de y=118 a y=1042). Medido a cada desenho com `useLayoutEffect` (sem ResizeObserver; `setRowPx` só se mudar), `estimateSize` estável por `useCallback` e `measure()` só quando a altura muda de fato; a célula lê `--vod-row-height`. Duas iterações: `estimateSize` novo a cada desenho quebrava `VodCategoryScreen.window.test.tsx`; e sem layout real (jsdom) a escala dava 0 → altura `NaN` → laço de atualização (56 testes) — guarda adicionada. Validação: `npx vitest run src/features/vod` 183/183, `node e2e/vitrine-filmes-series.mjs` todas as verificações (linhas em 118/580), `npm run lint` com `VodCategoryScreen.tsx` em 950/950. Instalado na TV (`deploy-tv.ps1`); veredito visual com o usuário. |
+| 2026-10-10 | Trailers — pt-BR em vez de pt-PT (`lib/trailer/trailerCandidates.ts`, `lib/metadata/tmdbLookup.ts`, `tmdbMapping.ts`, `titleMetadata.ts`, `lib/catalog/db.ts`) | Pedido do usuário: com o app em português apareciam trailers de Portugal. Causa medida no TMDB real: `include_video_language=pt` devolve **só pt-PT** (código sem país = país padrão do idioma); os pt-BR só vêm pedidos como `pt-BR` (ex.: *Divertida Mente 2* tinha 2 trailers pt-BR que o app nunca recebia, e vinha 1 pt-PT). Feito: (1) pede o idioma do app com região (`APP_LANGUAGE_LOCALE`: pt-BR/en-US/es-ES) + `pt,en,null` de sempre; (2) guarda `iso_3166_1` em `TrailerVideoRef.region` e ordena idioma como "idioma do app na região dele (ou região desconhecida) > inglês > idioma do app de outra região > resto" — a região nunca tira trailer, só reordena; (3) rótulo "▶ Trailer · Português (Portugal)" quando cai no pt de fora; (4) sem trailer nos idiomas pedidos, uma chamada `/{tipo}/{id}/videos?include_video_language=<idioma original>` (filme coreano só com `ko`); (5) `trailerVideosVersion` (`TRAILER_VIDEOS_VERSION = 2`) faz o `matched` antigo ser repedido uma vez ao abrir o detalhe, mesmo dentro dos 182 dias. **Considerado e descartado**: pôr o idioma antes de "oficial" na ordenação — quebraria o contrato travado da 033 (R-012) e os dados mostraram que a causa era a consulta, não a regra; `/videos` sem `language` como fallback "todos os idiomas" — medido: devolve só en-US. Validação: `npm run lint` e `tsc -b` limpos, `npm run build` ok, vitest das áreas (trailer/metadata/vod) verde com 6 testes novos; na suíte completa, 5–6 falhas só em testes da 067 (configurações/PIN por lista) e uma oscilação do teste de arquitetura, ambos de arquivos sendo editados em paralelo por outra sessão, sem relação com trailers. Falta conferir na TV física. |
+| 2026-10-10 | Player — barra de progresso (`tv-web/src/components/player/holdSeek.ts` novo, `usePlayerKeyboard.ts`) | Pedido do usuário: com a barra de progresso focada, segurar → (ou ←) saltava sempre 10 s por evento e "andava pouco". Agora segurar **acelera em degraus** (escolha do usuário entre 3 perfis): 10 s no primeiro toque, 30 s depois de 1 s segurando, 60 s depois de 3 s, 120 s (teto) depois de 6 s; soltar (pausa maior que 0,6 s) ou trocar de direção volta a 10 s. Módulo puro `createHoldSeek` recebe o relógio e devolve o salto com sinal; o hook só troca as duas linhas `jumpBy(±JUMP_MS)` da barra por `jumpBy(holdSeek.next(dir, Date.now()))` (arquivo no teto de 406 linhas: +0 líquido). Segue valendo o R-019: o acúmulo continua na porta single-flight do motor, não no hook. Só a barra: os botões ±10 s (SELECT) e o salto com a barra oculta não mudam. **Considerado e descartado:** usar `KeyboardEvent.repeat` (o próprio `useRemoteNav` avisa que o controle da TV pode disparar vários `keydown` sem `repeat: true`) e perfis "dobra a cada 1 s" e "conservador" (oferecidos, não escolhidos). Validado: `holdSeek.test.ts` (5) e 1 teste novo em `PlayerLayer.test.tsx` (segurar acelera a 30 s e soltar volta a 10 s; o teste antigo "1º toque = 10 s" segue verde); `npx tsc -b` limpo, `npm run lint` ok, `npm run build` ok, `npm run test` 3178/3179 (a falha é `App.source-access`, instável sob carga; isolada, 5/5), E2E `ciclo-vida-player`, `serie-foco-episodios`, `historico-continuar-assistindo`, `memoria-foco-key-repeat`, `player-dev-mpegts`, `e2e` 6/6. **Não verificado na TV:** os limiares (1 s/3 s/6 s) e o intervalo de 0,6 s assumem a cadência de auto-repetição do controle Samsung, que só a TV física confirma — ajustar em `holdSeek.ts` se o salto vier cedo ou tarde demais. |
+| 2026-10-10 | TV ao vivo — trilha de categorias e linhas de canal (`tv-web/src/styles/live.css`) | Pedido do usuário (fotos da TV e de referência): letra pequena para ler de longe. Só tokens, escopado à Live (`.live-column-groups`/`.live-channel-row`; Configurações e Filmes usam o mesmo componente de trilha e não mudam): categoria `--fs-caption` → `--fs-body` (16 → 20 px) e altura mínima 48 → 56 px; nome do canal `--fs-body` → `--fs-body-lg` (20 → 24 px); número e "Agora:" `--fs-caption` → `--fs-body` (16 → 20 px); o grupo (3ª linha em "Todos") fica em 16 px. **A altura da linha de canal não mudou** (72 px + espaço = 84 px de `LIVE_ITEM_ROW_HEIGHT`): o contrato travado de navegação por página (`LiveScreen.navegacao-por-pagina.contract.test.tsx`) fixa 84 px; 24 + 20 px cabem — medido em Chromium 1920×1080, 0 linhas com texto vazando, inclusive em "Todos". **Efeito colateral:** com letra maior, nomes longos ficam mais cortados ("Variedades Ca…"), porque a coluna de canais tem ~350 px — alargar colunas é decisão de layout e vai junto da outra parte do pedido. **Não feito aqui, de propósito:** remover a topbar ("header") da TV ao vivo — dois contratos travados da 024 (`LiveScreen.live-tv-ds-v14`, `appNav.live-tv-ds-v14`) dependem dela e é decisão de navegação (como sair da Live para Filmes/Configurações/trocar de lista sem a topbar); recomendado `sdd-specify`, como foi feito com a grade de Filmes/Séries. Validado: `npm run lint` ok, `npx tsc -b` limpo, `npm run test` 3179/3179, `npm run build` ok, E2E `live-tv-ds-v14`, `live-paridade-v14`, `navegacao-por-pagina`, `zapping-live-tv`, `memoria-foco-key-repeat`, `epg-guia-completo`, `categorias-controle-parental` 7/7. **TV física (2026-10-10, visto pelo usuário à distância): "melhorou"** — aprovado; o alvo maior (escala V14 inteira, nomes 28–32 px) fica para uma spec junto da remoção da topbar da Live. |
+| 2026-10-10 | Séries — seletor de temporadas | A pedido do usuário, o seletor saiu das ações do topo e substituiu a aba Episódios na primeira posição: **Temporada atual ▾ → Similares → Elenco → Detalhes**. SELECT abre o modal existente; confirmar ou RETURN devolve o foco ao seletor, e a lista de episódios permanece abaixo. Tradução de Similares restrita a Séries (pt/en/es). Descartada a troca apenas do texto, conforme esclarecimento do usuário. Testes de navegação e roteiros E2E adaptados, sem editar contratos travados. Validação: 116/116 testes de Séries; Playwright `modal-temporada` 15/15, captura 1920×1080 conferida; lint, TypeScript (`tsc -b`) e build aprovados. Gates gerais: `npm test` 3198/3203 (5 falhas nos stubs ainda não implementados da 069: `applyRemoteMutation`, `toPortalSourceView`, `evaluatePlaybackAccess`); E2E completo (`node e2e/run.mjs --jobs 3 --retry 1`) 45/46, apenas `epg-guia-completo` falha também isolado na expectativa de Amanhã perto da meia-noite (programa relativo ao horário atravessa o dia), fora do ajuste. Não declarado gate geral verde. TV `192.168.0.2`: `deploy-tv.ps1` aprovado (build:tizen, assinatura existente, instalação e lançamento PID 26076), sem desinstalação nem limpeza de dados; visual e navegação aprovados pelo usuário em 2026-10-11. Evidências em `tv-web/test-results/adhoc-temporadas/`. |
+| 2026-10-11 | Séries — retirada do debug visível | Removido o painel temporário `DiagnosticReport` dos estados de carregamento, erro e vazio do detalhe de Séries e do erro de rota; removida a assinatura `useSeriesDiagnostics` da tela. Mantidas as mensagens normais, código de quota STO-01 e ações SELECT/RETURN. Não alterada a correção de armazenamento já aprovada. Validação focada: 120/120 testes (Séries + RouteBoundary); Chromium 8/8 (carregamento/erro sem debug, foco, retry e RETURN), duas capturas conferidas em `tv-web/test-results/remocao-debug-series/`; lint, TypeScript e build aprovados. Gates gerais: E2E 46/46; `npm test` 3196/3203 (5 falhas nos stubs pendentes da 069; 2 timeouts de `App.source-access` passaram na reexecução isolada 5/5). Não declarado gate geral verde. Deploy tentado: preflight recusado pelo sdb em `192.168.0.2`, com porta 26101 aberta; script orienta Host PC IP `192.168.0.6` e reinício da TV. Retomada em 2026-10-11 após o usuário configurar e reiniciar a TV: build:tizen, assinatura existente, instalação e lançamento aprovados (PID 2711), sem desinstalação nem limpeza de dados. Versão sem o painel instalada; usuário confirmou na TV em 2026-10-11 que o diagnóstico não aparece mais ao entrar em Séries. Evidência: `tv-web/test-results/remocao-debug-series/deploy-retomada.log`. |
+| 2026-10-14 | Tempo da suíte de testes (tv-web) | **Vitest completo 200,6 s → 125–131 s (−38%)** com `pool: 'threads'` em `vite.config.ts` (dom 132 → 98 s; node 73 → 30 s; 3330 passando nas 2 rodadas finais, mesmos resultados). **E2E completo 330 s → 169 s (−49%, 49/49)**: `jobsPadrao()` proporcional à máquina (3–6; 16 threads → 6) e os 5 scripts mais longos entram primeiro na fila em `e2e/run.mjs`. Descartado por medição: `--maxWorkers=12` (±0%), `experimental.fsModuleCache` (±2%), `isolate:false` (já rejeitado: vaza estado entre arquivos). Observação: a rodada de 575 s citada antes era uma medição com a máquina carregada; o baseline limpo era 203 s. Validado: `npx tsc -b`, `npm run lint`, `npm run test` ×2 e `node e2e/run.mjs` com `npm run dev`. |

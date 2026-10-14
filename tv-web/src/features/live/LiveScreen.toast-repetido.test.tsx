@@ -136,7 +136,7 @@ describe('LiveScreen — toast repetido na vista principal', () => {
     const region = container.querySelector('.announcer-region')
     expect(region).not.toBeNull()
 
-    press('ArrowRight') // entra em "Grupo"; foco no canal sem fonte
+    press('Enter') // entra em "Grupo"; foco no canal sem fonte
 
     press('Enter')
     const primeiro = region!.querySelector('.toast')

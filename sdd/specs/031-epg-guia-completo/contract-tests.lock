@@ -1,6 +1,6 @@
 {
     "feature":  "031-epg-guia-completo",
-    "lockedAt":  "2026-09-29 11:25",
+    "lockedAt":  "2026-10-02 19:25",
     "total":  5,
     "files":  [
                   {
@@ -15,7 +15,7 @@
                   },
                   {
                       "path":  "tv-web/src/features/live/LiveScreen.epg-guia-completo.contract.test.tsx",
-                      "sha256":  "d3fa8f3b47d7bea3e46ded5f9af801e52d8922a2407d34425b4be2d7bb1d6196",
+                      "sha256":  "e1b5596d0b39acfb718f7ae7a10c4461f8d0e8a4d1a0c1c272a9051f552a873b",
                       "tests":  1
                   },
                   {

@@ -143,7 +143,7 @@ revalidação e o comportamento correto em sucesso/falha.
 - [x] Fase 3 (US2 — Visibilitychange) concluída
 - [x] Testes de contrato todos verdes na suíte completa (4/4) e `check-contract-tests.ps1` íntegro
 - [x] `npm run test` / `lint` / `build` limpos; `test:e2e` — script novo desta feature limpo (cadeia completa pode seguir com as limitações pré-existentes já documentadas)
-- [ ] Verificação na TV física do comportamento real de `tizen.power` (recomendada, não bloqueante — spec, Assumptions)
+- [x] Verificação na TV física do comportamento real de `tizen.power` (recomendada, não bloqueante — spec, Assumptions) — **Atualização 06/10/2026: passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-02"); qualquer "não executado/adiada" acima é o estado anterior, mantido como histórico
 
 **Registro da Fase**:
 

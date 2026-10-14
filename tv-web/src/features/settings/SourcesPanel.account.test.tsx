@@ -37,9 +37,6 @@ function renderPanel(sources: SourceOut[]) {
   return render(<SourcesPanel
       sources={sources}
       activeSourceId={null}
-      focusedCol={0}
-      resyncPending={false}
-      deletePending={false}
       onActivateRow={vi.fn()}
     />, { wrapper: withQuery })
 }

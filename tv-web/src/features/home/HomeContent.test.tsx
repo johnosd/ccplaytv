@@ -6,9 +6,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { HomeContent, type HomeContentProps } from './HomeContent'
 import { AnnouncerContext } from '../../lib/announcer'
 import { db } from '../../lib/catalog/db'
-import { writeEpgPrograms } from '../../lib/epg/epgRepository'
+import { HOME_CHANNELS_VISIBLE, HOME_ROW_FORMATS } from './homeRowFormats'
 import { buildStableId, toggleFavorite, updateProgress } from '../../lib/catalog/userStateRepository'
 import { findUnnamedControls } from '../../testing/accessibleNames'
+import { PROVIDER_FIELDS_VERSION } from '../../lib/metadata/titleMetadataStore'
 
 /**
  * Testes de comportamento de `HomeContent` (feature 026, T020) — hero,
@@ -100,11 +101,6 @@ function WithRegion({ children }: { children: ReactNode }) {
   )
 }
 
-async function announced(): Promise<string> {
-  await act(() => new Promise((resolve) => setTimeout(resolve, 30)))
-  return document.querySelector('.sr-only')?.textContent ?? ''
-}
-
 function renderHome(overrides: Partial<HomeContentProps> = {}) {
   const props: HomeContentProps = {
     sourceId: SOURCE_ID,
@@ -134,6 +130,7 @@ afterEach(async () => {
   await db.sources.delete(SOURCE_ID)
   await db.channels.where('sourceId').equals(SOURCE_ID).delete()
   await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
+  await db.titleMetadata.where('sourceId').equals(SOURCE_ID).delete() // feature 060: um teste grava a duração de um filme
 })
 
 describe('HomeContent — hero de boas-vindas (US1/AC3, FR-008)', () => {
@@ -149,6 +146,7 @@ describe('HomeContent — hero de boas-vindas (US1/AC3, FR-008)', () => {
       expect(document.querySelectorAll('.home-row[aria-busy="true"]')).toHaveLength(0)
     })
     const live = screen.getByRole('button', { name: 'Abrir TV ao vivo' })
+    expect(document.querySelector('.home-hero .content-rating-badge, .home-hero .tmdb-rating-badge')).toBeNull()
     const movies = screen.getByRole('button', { name: 'Abrir Filmes' })
     expect(live).toHaveClass('tv-focus')
     expect(movies).not.toHaveClass('tv-focus')
@@ -156,9 +154,10 @@ describe('HomeContent — hero de boas-vindas (US1/AC3, FR-008)', () => {
     expect(screen.queryByText('Continuar assistindo')).not.toBeInTheDocument()
     expect(screen.queryByText('Minha Lista')).not.toBeInTheDocument()
     expect(screen.queryByText('Canais favoritos')).not.toBeInTheDocument()
-    // Mocks sempre presentes.
-    expect(screen.getByText('Curadoria IA')).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'Serviços' })).toBeInTheDocument()
+    // Ad-hoc 2026-10-09: sem Curadoria IA e sem o dock de serviços — sem dados, só o billboard.
+    expect(screen.queryByText('Curadoria IA')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Serviços' })).not.toBeInTheDocument()
+    expect(document.querySelectorAll('.home-row')).toHaveLength(0)
 
     // Feature 028, FR-001: barra nativa escondida, sem trocar overflow por hidden.
     expect(document.querySelector('.home-content')).toHaveClass('no-scrollbar')
@@ -222,6 +221,179 @@ describe('HomeContent — rail "Continuar assistindo" (US1/AC1, AC8)', () => {
   })
 })
 
+// Feature 060 (US1): billboard com progresso real e Trailer real, no lugar do "Em breve" (item 32).
+describe('HomeContent — billboard da 060', () => {
+  it('061: billboard com metadata mostra classificação e TMDB depois da nota do provedor', async () => {
+    await seedSource()
+    const id = await seedMovie('Filme com classificação', 'rated')
+    await db.channels.update(id, { providerRating: 7.4 })
+    const stableId = buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: 'rated' })
+    await updateProgress(stableId, SOURCE_ID, 300, db)
+    await db.titleMetadata.put({
+      stableId, sourceId: SOURCE_ID, kind: 'movie',
+      tmdb: { status: 'matched', tmdbId: 1, fields: { certifications: { BR: '12' }, tmdbRating: { average: 7.83, votes: 80 } } },
+      tmdbFetchedAt: Date.now(),
+    })
+    renderHome()
+    await waitFor(() => expect(document.querySelector('.home-hero-meta .content-rating-badge')).toHaveTextContent('12'))
+    const text = document.querySelector('.home-hero-meta')!.textContent!
+    expect(text.indexOf('12')).toBeGreaterThan(text.indexOf('7,4'))
+    expect(text.indexOf('TMDB 7,8')).toBeGreaterThan(text.indexOf('12'))
+  })
+
+  it('"Continuar": o nome da primária é só o rótulo; o tempo restante é a descrição e só existe com a duração conhecida (metadata guardada)', async () => {
+    await seedSource()
+    await seedMovie('Duna', 'd1')
+    await seedMovie('Dark', 'k1')
+    const stable = (streamId: string) => buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: streamId })
+    await updateProgress(stable('k1'), SOURCE_ID, 300, db) // Dark: sem duração conhecida
+    await updateProgress(stable('d1'), SOURCE_ID, 600, db) // Duna: o mais recente -> vira o hero
+    // `lastWatched` de dois `updateProgress` seguidos pode empatar no mesmo milissegundo: a ordem do hero fica explícita.
+    await db.userStates.update(stable('d1'), { lastWatched: Date.now() + 60_000 })
+    await db.titleMetadata.put({
+      stableId: stable('d1'),
+      sourceId: SOURCE_ID,
+      kind: 'movie',
+      provider: { durationSeconds: 7200 },
+      providerFetchedAt: Date.now(),
+      providerVersion: PROVIDER_FIELDS_VERSION,
+    })
+    renderHome()
+
+    const primary = await screen.findByRole('button', { name: /^(▶\s*)?Continuar$/ })
+    await waitFor(() => expect(primary).toHaveAccessibleDescription('faltam 1 h 50 min'))
+    expect(document.querySelector('.home-hero-title')?.textContent).toBe('Duna')
+    expect(document.querySelectorAll('.home-hero-progress')).toHaveLength(1)
+  })
+
+  it('"Continuar" sem duração conhecida: sem barra e sem descrição (nenhum percentual inventado)', async () => {
+    await seedSource()
+    await seedMovie('Duna', 'd1')
+    await updateProgress(buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: 'd1' }), SOURCE_ID, 600, db)
+    renderHome()
+
+    const primary = await screen.findByRole('button', { name: /^(▶\s*)?Continuar$/ })
+    await waitFor(() => expect(document.querySelector('.home-hero-title')?.textContent).toBe('Duna'))
+    expect(primary).not.toHaveAttribute('aria-describedby')
+    expect(document.querySelector('.home-hero-progress')).toBeNull()
+  })
+
+  // Ad-hoc 2026-10-09: "Mais informações" e Trailer saíram do billboard; sobram a primária e "Minha Lista".
+  it('o billboard só tem a primária e "Minha Lista" — sem "Mais informações" nem Trailer', async () => {
+    await seedSource()
+    await seedMovie('Duna', 'd1')
+    await updateProgress(buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: 'd1' }), SOURCE_ID, 600, db)
+    renderHome()
+
+    const primary = await screen.findByRole('button', { name: /^(▶\s*)?Continuar$/ })
+    expect([...document.querySelectorAll('.home-hero-action')].map((button) => button.textContent)).toEqual([
+      expect.stringContaining('Continuar'),
+      expect.stringMatching(/Minha Lista/),
+    ])
+    expect(screen.queryByRole('button', { name: /Mais informações/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Trailer/ })).not.toBeInTheDocument()
+    expect(primary).toHaveClass('tv-focus')
+    press('ArrowRight')
+    press('ArrowRight') // clamp: não passa de "Minha Lista"
+    expect(screen.getByRole('button', { name: /Minha Lista/ })).toHaveClass('tv-focus')
+  })
+
+  it('↑ no billboard sai direto à topbar (sem dock no caminho)', async () => {
+    await seedSource()
+    const props = renderHome({ onExitUp: vi.fn() }).props
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Abrir TV ao vivo' })).toHaveClass('tv-focus'))
+
+    press('ArrowUp')
+    expect(props.onExitUp).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('.home-hero-dock, .home-dock')).toBeNull()
+  })
+
+  // Feature 060 (FR-023/SC-006): todo estado tem algo focável — sem dados só o billboard existe.
+  it('sem nenhum dado há exatamente um foco, e ↑/↓ nunca o fazem sumir', async () => {
+    await seedSource()
+    renderHome()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Abrir TV ao vivo' })).toHaveClass('tv-focus'))
+    expect(document.querySelectorAll('.home-content .tv-focus')).toHaveLength(1)
+
+    for (const key of ['ArrowDown', 'ArrowDown', 'ArrowUp']) {
+      press(key)
+      expect(document.querySelectorAll('.home-content .tv-focus')).toHaveLength(1)
+    }
+  })
+})
+
+// Feature 060 (US2): cards com selos, expansão no foco e Continuar com progresso real.
+describe('HomeContent — cards da 060', () => {
+  const stable = (streamId: string) => buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: streamId })
+  const expandedCards = () => document.querySelectorAll('.home-card.is-expanded')
+
+  it('→ no último card da fileira não sai dela; só o card focado expande, e "Filmes (N)" não expande', async () => {
+    await seedSource()
+    await seedMovie('Alfa', 'a1')
+    await seedMovie('Beta', 'b1')
+    await favoriteMovie('a1', 100)
+    await favoriteMovie('b1', 200)
+    renderHome()
+    await waitFor(() => expect(screen.getByText('Filmes (2)')).toBeInTheDocument())
+
+    press('ArrowDown') // hero -> Minha Lista
+    expect(expandedCards()).toHaveLength(1)
+    expect(document.querySelectorAll('.home-card.tv-focus')).toHaveLength(1)
+
+    press('ArrowRight') // Alfa/Beta -> o outro título
+    expect(expandedCards()).toHaveLength(1)
+    press('ArrowRight') // -> Filmes (2): não é um título, nada expande
+    expect(expandedCards()).toHaveLength(0)
+    expect(document.querySelector('.home-see-all.tv-focus')?.textContent).toBe('Filmes (2)')
+    for (let i = 0; i < 4; i += 1) press('ArrowRight') // além do fim: a fileira não perde o foco nem troca de linha
+    expect(document.querySelector('.home-see-all.tv-focus')?.textContent).toBe('Filmes (2)')
+    expect(document.querySelectorAll('.home-content .tv-focus')).toHaveLength(1)
+    expect(document.querySelector('.home-row.is-above')).toBeNull()
+  })
+
+  it('selos: ♥ nos títulos da Minha Lista e ✓ no filme assistido, lidos do aparelho (sem consulta por card)', async () => {
+    await seedSource()
+    await seedMovie('Alfa', 'a1')
+    await seedMovie('Beta', 'b1')
+    await favoriteMovie('a1', 100)
+    await favoriteMovie('b1', 200)
+    await db.userStates.update(stable('a1'), { completedAt: Date.now() })
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    renderHome()
+
+    await waitFor(() => expect(document.querySelectorAll('.home-row[aria-label="Minha Lista"] .home-mark--favorite')).toHaveLength(2))
+    const cardOf = (name: string) =>
+      [...document.querySelectorAll('.home-row[aria-label="Minha Lista"] .home-card')].find((card) => card.querySelector('.home-card-title')?.textContent === name)!
+    await waitFor(() => expect(cardOf('Alfa').querySelector('.home-mark--watched')).not.toBeNull())
+    expect(cardOf('Beta').querySelector('.home-mark--watched')).toBeNull()
+    expect(fetchSpy).not.toHaveBeenCalled()
+    fetchSpy.mockRestore()
+  })
+
+  it('Continuar assistindo: a barra e a legenda só existem para o filme com posição E duração conhecidas', async () => {
+    await seedSource()
+    await seedMovie('Com duração', 'd1')
+    await seedMovie('Sem duração', 'k1')
+    await updateProgress(stable('k1'), SOURCE_ID, 300, db)
+    await updateProgress(stable('d1'), SOURCE_ID, 600, db)
+    await db.userStates.update(stable('d1'), { lastWatched: Date.now() + 60_000 })
+    await db.titleMetadata.put({
+      stableId: stable('d1'),
+      sourceId: SOURCE_ID,
+      kind: 'movie',
+      provider: { durationSeconds: 7200 },
+      providerFetchedAt: Date.now(),
+      providerVersion: PROVIDER_FIELDS_VERSION,
+    })
+    renderHome()
+
+    await waitFor(() => expect(document.querySelectorAll('.home-row[aria-label="Continuar assistindo"] .home-card')).toHaveLength(2))
+    await waitFor(() => expect(document.querySelectorAll('.home-row[aria-label="Continuar assistindo"] .home-card-progress')).toHaveLength(1))
+    const captions = [...document.querySelectorAll('.home-row[aria-label="Continuar assistindo"] .home-card-caption')].map((el) => el.textContent)
+    expect(captions).toEqual(['faltam 1 h 50 min'])
+  })
+})
+
 describe('HomeContent — "Minha Lista" do hero (US1/AC7)', () => {
   it('alterna o favorito do item em foco e o rótulo muda, sem sair da tela', async () => {
     await seedSource()
@@ -277,18 +449,18 @@ describe('HomeContent — rails: "Filmes (N)"/"Séries (N)"/"Ver todos (N)" (FR-
     expect(screen.getByText('Séries (1)')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText('Ver todos (1)')).toBeInTheDocument())
 
-    // Desce até "Minha Lista" ([Duna, Dark, Filmes (1), Séries (1)]) e vai
-    // até o sentinela "Filmes (1)".
-    press('ArrowDown') // hero -> mylist
+    // Ad-hoc 2026-10-09: "Canais favoritos" (`channels`) é a 1ª fileira. Desce até os canais e vai ao "Ver todos".
+    press('ArrowDown') // hero -> channels
+    press('ArrowRight') // Globo -> Ver todos (1)
+    press('Enter')
+    expect(props.onOpenFavorites).toHaveBeenCalledWith('live', expect.objectContaining({ zone: 'rail', rail: 'channels' }))
+
+    // "Minha Lista" ([Duna, Dark, Filmes (1), Séries (1)]): vai até o sentinela "Filmes (1)".
+    press('ArrowDown') // channels -> mylist
     press('ArrowRight') // Duna -> Dark
     press('ArrowRight') // Dark -> Filmes (1)
     press('Enter')
     expect(props.onOpenFavorites).toHaveBeenCalledWith('movies', expect.objectContaining({ zone: 'rail', rail: 'mylist' }))
-
-    press('ArrowDown') // mylist -> channels
-    press('ArrowRight') // Globo -> Ver todos (1)
-    press('Enter')
-    expect(props.onOpenFavorites).toHaveBeenCalledWith('live', expect.objectContaining({ zone: 'rail', rail: 'channels' }))
   })
 
   // Feature 028, FR-015/FR-017.
@@ -321,6 +493,26 @@ describe('HomeContent — rails: "Filmes (N)"/"Séries (N)"/"Ver todos (N)" (FR-
   })
 })
 
+describe('HomeContent — ordem das fileiras (feature 060, FR-018)', () => {
+  it('"Canais favoritos" abre as fileiras, antes de "Continuar assistindo" e "Minha Lista"; não há Curadoria IA', async () => {
+    await seedSource()
+    await seedMovie('Duna', 'm1')
+    await favoriteMovie('m1', 40)
+    await updateProgress(buildStableId({ sourceId: SOURCE_ID, kind: 'movie', providerStreamId: 'm1' }), SOURCE_ID, 300, db)
+    await seedChannel('Globo', 'c1')
+    await favoriteChannel('c1', 50)
+    renderHome()
+
+    await waitFor(() => {
+      expect(screen.getByText('Canais favoritos')).toBeInTheDocument()
+      expect(screen.getByText('Continuar assistindo')).toBeInTheDocument()
+      expect(screen.getByText('Minha Lista')).toBeInTheDocument()
+      expect(document.querySelectorAll('.home-row[aria-busy="true"]')).toHaveLength(0)
+    })
+    expect([...document.querySelectorAll('.home-row')].map((row) => row.getAttribute('data-row'))).toEqual(['channels', 'continue', 'mylist'])
+  })
+})
+
 describe('HomeContent — "linha efetiva" (FR-018, mesmo padrão da feature 023)', () => {
   it('o item em foco desaparece da única rail com a tela já montada — o foco cai na linha acima, nunca em nada', async () => {
     await seedSource()
@@ -331,7 +523,7 @@ describe('HomeContent — "linha efetiva" (FR-018, mesmo padrão da feature 023)
     // Espera o card de verdade (não o skeleton, que tem o mesmo título) estar
     // pronto antes de descer o foco até ele.
     await waitFor(() => {
-      const title = document.querySelector('.home-row .content-card-title')
+      const title = document.querySelector('.home-row .home-card-title')
       expect(title?.textContent).toBe('Duna')
     })
     press('ArrowDown') // hero -> mylist
@@ -356,78 +548,6 @@ describe('HomeContent — "linha efetiva" (FR-018, mesmo padrão da feature 023)
   })
 })
 
-describe('HomeContent — mocks anunciam "Em breve" (FR-016)', () => {
-  it('"Curadoria IA" e os ícones do dock anunciam e não fazem mais nada', async () => {
-    await seedSource()
-    renderHome()
-
-    await waitFor(() => expect(screen.getByText('Curadoria IA')).toBeInTheDocument())
-    press('ArrowDown') // hero -> ai
-    press('Enter')
-    expect(await announced()).toContain('Em breve —')
-
-    press('ArrowDown') // ai -> dock (1º ícone = TMDB, real desde a feature 032)
-    press('ArrowRight') // 2º ícone = Assistente de IA, ainda mock
-    press('Enter')
-    expect(await announced()).toContain('Em breve —')
-  })
-})
-
-describe('HomeContent — ícone TMDB do dock (feature 032, FR-016)', () => {
-  async function focusDock() {
-    await waitFor(() => expect(screen.getByText('Curadoria IA')).toBeInTheDocument())
-    press('ArrowDown') // hero -> ai
-    press('ArrowDown') // ai -> dock (1º ícone)
-  }
-
-  it('sem chave: nome acessível "não configurado", sem aria-disabled; OK abre Integrações com o foco de origem', async () => {
-    await seedSource()
-    const { props } = renderHome({ onOpenIntegrations: vi.fn() })
-    await focusDock()
-
-    const tmdb = await screen.findByRole('button', { name: 'TMDB — não configurado' })
-    expect(tmdb).toHaveClass('tv-focus')
-    expect(tmdb).not.toHaveAttribute('aria-disabled')
-    expect(tmdb).toHaveAttribute('data-state', 'not_configured')
-
-    press('Enter')
-    expect(props.onOpenIntegrations).toHaveBeenCalledWith({ zone: 'dock', service: 'dock-tmdb' })
-  })
-
-  it('com chave guardada o ícone mostra "conectado" — só a leitura local, sem rede', async () => {
-    await seedSource()
-    await db.integrations.put({ id: 'tmdb', key: '0123456789abcdef0123456789abcdef', format: 'v3', state: 'connected', lastTestedAt: 1 })
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
-    try {
-      renderHome({ onOpenIntegrations: vi.fn() })
-      expect(await screen.findByRole('button', { name: 'TMDB — conectado' })).toHaveAttribute('data-state', 'connected')
-      expect(fetchSpy).not.toHaveBeenCalled()
-      // A chave nunca chega ao DOM.
-      expect(document.body.innerHTML).not.toContain('0123456789abcdef0123456789abcdef')
-    } finally {
-      fetchSpy.mockRestore()
-      await db.integrations.clear()
-    }
-  })
-
-  it('sem o callback (contratos antigos), OK só anuncia o estado e não quebra', async () => {
-    await seedSource()
-    renderHome()
-    await focusDock()
-    press('Enter')
-    expect(await announced()).toContain('TMDB — não configurado')
-  })
-
-  it('os outros três ícones continuam "Em breve" e soft disabled', async () => {
-    await seedSource()
-    renderHome()
-    await screen.findByRole('group', { name: 'Serviços' })
-    for (const name of ['Assistente de IA', 'Clima', 'Teste de velocidade']) {
-      expect(screen.getByRole('button', { name })).toHaveAttribute('aria-disabled', 'true')
-    }
-  })
-})
-
 describe('HomeContent — restauração de initialFocus por id (FR-017/FR-029)', () => {
   it('restaura o foco na rail "Minha Lista" pelo id do item, não pela posição', async () => {
     await seedSource()
@@ -440,7 +560,7 @@ describe('HomeContent — restauração de initialFocus por id (FR-017/FR-029)',
 
     await waitFor(() => {
       const focused = document.querySelector('.home-row .tv-focus')
-      expect(focused?.closest('.content-card')?.querySelector('.content-card-title')?.textContent).toBe('Beta')
+      expect(focused?.querySelector('.home-card-title')?.textContent).toBe('Beta')
     })
   })
 
@@ -453,49 +573,33 @@ describe('HomeContent — restauração de initialFocus por id (FR-017/FR-029)',
 
     await waitFor(() => {
       const focused = document.querySelector('.home-row .tv-focus')
-      expect(focused?.closest('.content-card')?.querySelector('.content-card-title')?.textContent).toBe('Alfa')
+      expect(focused?.querySelector('.home-card-title')?.textContent).toBe('Alfa')
     })
   })
 })
 
-// Feature 030, US4 (FR-027): programa atual nos cards de "Canais favoritos".
-describe('HomeContent — EPG na rail "Canais favoritos" (feature 030)', () => {
-  afterEach(async () => {
-    await db.epgPrograms.clear()
-  })
-
-  async function seedChannelWithEpg(name: string, streamId: string, epgId: string | undefined): Promise<void> {
-    const id = await seedChannel(name, streamId)
-    if (epgId) await db.channels.update(id, { epgChannelId: epgId })
-    await favoriteChannel(streamId, 50)
-  }
-
-  it('mostra o título do programa atual só nos canais com EPG; os demais ficam como eram', async () => {
+// Ad-hoc 2026-10-09 (substitui os cards com EPG da 030/060): ícones, só os que cabem na tela, e o "Ver todos (N)" com o total.
+describe('HomeContent — ícones de "Canais favoritos"', () => {
+  it('mostra só HOME_CHANNELS_VISIBLE ícones e o "Ver todos" conta todos os favoritos', async () => {
     await seedSource()
-    await seedChannelWithEpg('Globo', 'c1', 'globo.br')
-    await seedChannelWithEpg('Sem Guia', 'c2', undefined)
-    const now = Date.now()
-    await writeEpgPrograms(SOURCE_ID, [
-      { channelKey: 'globo.br', start: now - 30 * 60_000, end: now + 30 * 60_000, title: 'Jornal Nacional' },
-      { channelKey: 'globo.br', start: now + 30 * 60_000, end: now + 90 * 60_000, title: 'Novela das Nove' },
-    ])
+    const total = HOME_CHANNELS_VISIBLE + 3
+    for (let i = 0; i < total; i += 1) {
+      await seedChannel(`Canal ${i}`, `c${i}`)
+      await favoriteChannel(`c${i}`, 100 - i)
+    }
     renderHome()
 
-    await waitFor(() => expect(screen.getByText('Jornal Nacional')).toBeInTheDocument())
-    const rowOf = (name: string) =>
-      [...document.querySelectorAll('.home-row .channel-row')].find((row) => row.querySelector('.channel-row-name')?.textContent === name)
-    expect(rowOf('Globo')?.querySelector('.channel-row-now')?.textContent).toBe('Jornal Nacional')
-    expect(rowOf('Sem Guia')?.querySelector('.channel-row-now')?.textContent).toBe('')
-    // FR-027: só o título — o "A seguir" não entra no card.
-    expect(screen.queryByText('Novela das Nove')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText(`Ver todos (${total})`)).toBeInTheDocument())
+    const tiles = document.querySelectorAll('.home-row[data-row="channels"] .home-live-card')
+    expect(tiles).toHaveLength(HOME_CHANNELS_VISIBLE)
+    // Ícone = logo ou, sem logo, as iniciais (placeholder); o nome fica embaixo. Sem programa nem barra de EPG.
+    expect(tiles[0].querySelector('.poster-box-logo')).not.toBeNull()
+    expect(tiles[0].querySelector('.home-live-name')?.textContent).toBe('Canal 0')
+    expect(document.querySelector('.home-row[data-row="channels"] .home-live-bar')).toBeNull()
   })
 
-  it('sem programação guardada, os cards ficam exatamente como eram', async () => {
-    await seedSource()
-    await seedChannelWithEpg('Globo', 'c1', 'globo.br')
-    renderHome()
-
-    await waitFor(() => expect(screen.getByText('Globo')).toBeInTheDocument())
-    expect(document.querySelector('.home-row .channel-row-now')?.textContent).toBe('')
+  it('cabem na largura útil do palco junto com o "Ver todos"', () => {
+    expect(HOME_CHANNELS_VISIBLE).toBeGreaterThan(0)
+    expect((HOME_CHANNELS_VISIBLE + 1) * HOME_ROW_FORMATS.live.itemWidth).toBeLessThanOrEqual(1920 - 96 * 2)
   })
 })

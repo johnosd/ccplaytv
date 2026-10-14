@@ -188,6 +188,34 @@ describe('LiveScreen — paginação (feature 049)', () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull()
   })
 
+  it('paginação rápida: um quadro antigo não apaga o destino de uma tecla mais recente', async () => {
+    const many = Array.from({ length: 60 }, (_, i) => channel(`Canal ${String(i + 1).padStart(2, '0')}`))
+    mock([category(1, 'Longa')], () => many)
+    renderLive()
+    tap('Enter')
+    await waitFor(() => expect(channelName()).toBe('Canal 01'))
+
+    const frames: FrameRequestCallback[] = []
+    const raf = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.push(callback)
+      return frames.length
+    })
+    try {
+      tap('ArrowRight') // destino 6 (página de 5 = floor(640/108), feature 068), ainda sem render
+      tap('ArrowRight') // destino 11
+      act(() => frames.shift()?.(0)) // chega o quadro do primeiro toque
+      tap('ArrowLeft') // deve partir do destino 11: volta ao 6
+      act(() => {
+        for (const callback of frames.splice(0)) callback(0)
+      })
+      raf.mockRestore()
+      await waitFor(() => expect(channelName()).toBe('Canal 06'))
+      expect(vi.mocked(catalogApi.fetchPlayback)).not.toHaveBeenCalled()
+    } finally {
+      raf.mockRestore()
+    }
+  })
+
   it('categoria vazia: o botão do estado volta à trilha com OK e RETURN também — nunca preso', async () => {
     mock([category(1, 'Vazia')], () => [])
     renderLive()

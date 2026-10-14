@@ -15,6 +15,7 @@ import { db, type CatalogDb } from './db'
 import { getChannel } from './catalogRepository'
 import { readCredential } from './sourceRepository'
 import { buildLiveUrl, buildSeriesUrl, buildVodUrl, preferredFormat } from './xtreamConnector'
+import { buildArchiveUrl, type ArchiveVariant } from './archiveUrl'
 
 export type PlaybackUnavailableReason =
   | 'channel_not_found'
@@ -92,4 +93,40 @@ export async function resolvePlaybackUrl(
     channel.providerStreamId,
     format,
   )
+}
+
+/**
+ * Feature 058 (`logic/arquivo.md` §2/§3): a URL de arquivo (catch-up) de um
+ * programa do canal, no relógio do painel e na variante pedida. Mesmas regras
+ * da URL ao vivo: montada na hora, nunca guardada, nunca logada. Lança
+ * `PlaybackUnavailableError` (item/credencial/formato) ou
+ * `ArchiveClockUnknownError` (relógio do painel desconhecido).
+ */
+export async function resolveArchivePlaybackUrl(
+  channelId: number,
+  program: { start: number; end: number },
+  variant: ArchiveVariant,
+  database: CatalogDb = db,
+): Promise<string> {
+  const channel = await getChannel(channelId, database)
+  if (!channel) throw new PlaybackUnavailableError('channel_not_found')
+  if (channel.kind !== 'channel') throw new PlaybackUnavailableError('not_playable_kind')
+  if (!channel.providerStreamId) throw new PlaybackUnavailableError('no_stream_id')
+  const [credential, source] = await Promise.all([
+    readCredential(channel.sourceId, database),
+    database.sources.get(channel.sourceId),
+  ])
+  if (!credential || !source) throw new PlaybackUnavailableError('source_credential_missing')
+  const extension = preferredFormat(credential.allowedFormats)
+  if (!extension) throw new PlaybackUnavailableError('no_allowed_format')
+  return buildArchiveUrl(variant, {
+    base: credential.dns,
+    username: credential.username,
+    password: credential.password,
+    streamId: channel.providerStreamId,
+    startMs: program.start,
+    endMs: program.end,
+    clock: { timezone: source.panelTimezone, utcOffsetMinutes: source.panelUtcOffsetMinutes },
+    extension,
+  })
 }

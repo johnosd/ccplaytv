@@ -4,11 +4,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { SourceOut } from '../import/importApi'
 import { invalidateUserStates, type CatalogItemOut } from '../catalog/catalogApi'
 import { usePrefetchProgress } from '../catalog/prefetchApi'
+import { useT } from '../../lib/i18n/I18nProvider'
 import { homeStatusLine } from './homeStatusLine'
 import { HomeContent, type HomeContentFocus } from './HomeContent'
 import { AppShell } from '../shell/AppShell'
 import { TopBar } from '../shell/TopBar'
-import { ExitModal } from '../shell/ExitModal'
 import { PlayerLayer } from '../../components/PlayerLayer'
 import type { HintItem } from '../shell/HintBar'
 import type { HomeFocus, TopbarItem, TopDestination } from '../../navigation/appNav'
@@ -32,10 +32,10 @@ export interface HomeScreenProps {
   onOpenChannel: (channel: CatalogItemOut, from: HomeFocus) => void
   /** "Ver todos (N)"/"Filmes (N)"/"Séries (N)" — o destino em ★ Favoritos (FR-014). */
   onOpenFavorites: (destination: TopDestination, from: HomeFocus) => void
-  /** Ícone TMDB do dock (feature 032, FR-016) — Configurações › Integrações & BYOK. */
-  onOpenIntegrations?: (from: HomeFocus) => void
   /** Feature 042: "Editar lista" do erro de fonte no player (credencial recusada/conta expirada). */
   onEditSource?: (sourceId: string) => void
+  /** RETURN sai da lista e volta aos perfis, onde a confirmação de saída existe. */
+  onLeaveList: () => void
   /** Lupa da topbar (FR-035). */
   onOpenSearch: (from: HomeFocus) => void
   /** Engrenagem da topbar (FR-021). */
@@ -43,11 +43,6 @@ export interface HomeScreenProps {
   /** Feature 038 (US6): uma atualização da lista ativa está em andamento. */
   updating?: boolean
 }
-
-const HINTS: HintItem[] = [
-  { keyLabel: 'OK', action: 'Selecionar' },
-  { keyLabel: 'RETURN', action: 'Sair' },
-]
 
 interface PlayingState {
   itemId: string
@@ -76,12 +71,17 @@ export function HomeScreen({
   onOpenItem,
   onOpenChannel,
   onOpenFavorites,
-  onOpenIntegrations,
   onEditSource,
   onOpenSearch,
   onOpenSettings,
+  onLeaveList,
   updating = false,
 }: HomeScreenProps): ReactNode {
+  const t = useT()
+  const hints: HintItem[] = [
+    { keyLabel: 'OK', action: t('common.select') },
+    { keyLabel: 'RETURN', action: t('common.back') },
+  ]
   const queryClient = useQueryClient()
 
   // Feature 038 (US6): "Preparando catálogo — N de M" / "Atualizando…" /
@@ -92,27 +92,31 @@ export function HomeScreen({
     const timer = setInterval(() => setClock(Date.now()), 60 * 1000)
     return () => clearInterval(timer)
   }, [])
-  const statusLine = homeStatusLine({
-    sourceId: source.id,
-    updating,
-    progress: prefetchProgress,
-    lastSuccessfulSyncAt: source.last_successful_sync_at ? Date.parse(source.last_successful_sync_at) : null,
-    now: clock,
-  })
+  const statusLine = homeStatusLine(
+    {
+      sourceId: source.id,
+      updating,
+      progress: prefetchProgress,
+      lastSuccessfulSyncAt: source.last_successful_sync_at ? Date.parse(source.last_successful_sync_at) : null,
+      now: clock,
+    },
+    t,
+  )
   const [zone, setZone] = useState<'topbar' | 'content'>(initialFocus?.zone === 'topbar' ? 'topbar' : 'content')
   const [topbarItem, setTopbarItem] = useState<TopbarItem>(
     initialFocus?.zone === 'topbar' ? initialFocus.item : 'home',
   )
-  const [showExit, setShowExit] = useState(false)
   const [playing, setPlaying] = useState<PlayingState | null>(null)
+  // Feature 060 (D-004): o fundo ambiente vive na camada de fundo do shell, atrás da topbar; o conteúdo o desenha por portal.
+  const [ambientHost, setAmbientHost] = useState<HTMLElement | null>(null)
 
   const contentFocus: HomeContentFocus | undefined =
     initialFocus && initialFocus.zone !== 'topbar' ? initialFocus : undefined
 
-  // Com o player ou o modal de saída abertos, nenhum dos dois escopos reage
+  // Com o player aberto, nenhum dos dois escopos reage
   // ao teclado nem desenha foco — mesmo padrão de `logic/foco-shell.md`.
-  const topbarActive = zone === 'topbar' && !showExit && !playing
-  const contentActive = zone === 'content' && !showExit && !playing
+  const topbarActive = zone === 'topbar' && !playing
+  const contentActive = zone === 'content' && !playing
 
   function startPlaying(params: PlayingState) {
     // Guarda de sessão única (mesmo padrão de `MovieDetailScreen`/
@@ -133,13 +137,15 @@ export function HomeScreen({
     void invalidateUserStates(queryClient)
     void queryClient.invalidateQueries({ queryKey: ['user-state'] })
     void queryClient.invalidateQueries({ queryKey: ['home-hero', source.id] })
+    // Prefixo: cobre a lista e os cards com progresso do "Continuar assistindo" (feature 060, `useContinueCards`).
     void queryClient.invalidateQueries({ queryKey: ['continue-watching', source.id] })
   }
 
   return (
     <div className="screen home-screen">
       <AppShell
-        hints={HINTS}
+        hints={hints}
+        backdrop={<div ref={setAmbientHost} className="home-ambient-host" />}
         topBar={
           <TopBar
             sourceName={source.display_name}
@@ -151,7 +157,7 @@ export function HomeScreen({
             onOpenProfiles={() => onOpenProfiles({ zone: 'topbar', item: 'profile' })}
             onOpenSearch={() => onOpenSearch({ zone: 'topbar', item: 'search' })}
             onOpenSettings={() => onOpenSettings({ zone: 'topbar', item: 'settings' })}
-            onBack={() => setShowExit(true)}
+            onBack={onLeaveList}
           />
         }
       >
@@ -159,17 +165,17 @@ export function HomeScreen({
           sourceId={source.id}
           active={contentActive}
           initialFocus={contentFocus}
+          ambientHost={ambientHost}
           // Entrar na topbar sempre em "Início" — o destino atual (FR-015).
           onExitUp={() => {
             setTopbarItem('home')
             setZone('topbar')
           }}
-          onBack={() => setShowExit(true)}
+          onBack={onLeaveList}
           onNavigate={onNavigate}
           onOpenItem={onOpenItem}
           onOpenChannel={onOpenChannel}
           onOpenFavorites={onOpenFavorites}
-          onOpenIntegrations={onOpenIntegrations}
           onPlay={startPlaying}
           statusLine={statusLine}
         />
@@ -184,7 +190,6 @@ export function HomeScreen({
           onClose={closePlayer}
         />
       )}
-      {showExit && <ExitModal onCancel={() => setShowExit(false)} />}
     </div>
   )
 }

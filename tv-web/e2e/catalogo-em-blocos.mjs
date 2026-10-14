@@ -22,6 +22,7 @@ import { createServer } from 'node:http'
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const APP_URL = process.env.CCPLAY_APP_URL ?? 'http://localhost:5173'
 const STRESS = process.env.CCPLAY_E2E_ESTRESSE
@@ -175,9 +176,7 @@ async function openViaTopbar(page, destination) {
 
 /** Trilha de Filmes/Séries: ★ Favoritos, ↺ Histórico, Todos e as categorias reais. */
 async function waitForRealCategory(page) {
-  await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, {
-    timeout: 8000,
-  })
+  await focusFirstRealCategory(page)
 }
 
 const focusedTrailLabel = (page) => page.locator('.side-category-nav-item.tv-focus').textContent()
@@ -200,7 +199,7 @@ async function waitForGrid(page, predicate, description) {
 
 async function scenarioNewList(browser, panelUrl) {
   console.log('=== Cenário 1: lista nova só com blocos; navegar, buscar, favoritar e tocar ===')
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error', error?.message ?? ''))
   // O player de desenvolvimento (<video>) nunca recebe um fluxo de verdade. Só no
@@ -218,7 +217,7 @@ async function scenarioNewList(browser, panelUrl) {
   await openViaTopbar(page, 'movies')
   await waitForRealCategory(page)
   assert((await focusedTrailLabel(page))?.includes('Filmes 1') ?? false, 'Filmes abre na 1ª categoria real')
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
   await waitForGrid(page, (titles) => titles.length === 3, '3 filmes')
   assert(
     (await gridTitles(page)).join(',') === 'Filme 10000,Filme 10001,Filme 10002',
@@ -263,11 +262,11 @@ async function scenarioNewList(browser, panelUrl) {
   await page.waitForSelector('input.search-field', { timeout: 8000 })
   await page.keyboard.press('Escape') // resultado -> campo
   await page.keyboard.press('Escape') // campo -> "Pesquisar"
-  await page.keyboard.press('Escape') // "Pesquisar" -> trilha
+  await page.keyboard.press('Escape') // "Pesquisar" -> vitrine (lista lateral)
   await page.waitForSelector('.vod-side-nav .tv-focus', { timeout: 8000 })
   await page.keyboard.press('ArrowUp') // Filmes 1 -> Todos
   assert((await focusedTrailLabel(page))?.includes('Todos') ?? false, 'trilha em "Todos"')
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
   await waitForGrid(page, (titles) => titles.length === 6, '6 filmes')
   const all = await gridTitles(page)
   assert(
@@ -279,13 +278,13 @@ async function scenarioNewList(browser, panelUrl) {
   await page.keyboard.press('Escape') // grade -> trilha
   await page.keyboard.press('ArrowUp') // Todos -> Histórico
   assert((await focusedTrailLabel(page))?.includes('Histórico') ?? false, 'trilha em "↺ Histórico"')
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
   await waitForGrid(page, (titles) => titles.includes('Filme 10001'), 'Filme 10001')
   assert((await gridTitles(page)).join(',') === 'Filme 10001', '"↺ Histórico" mostra o filme assistido')
   await page.keyboard.press('Escape')
   await page.keyboard.press('ArrowUp') // Histórico -> Favoritos
   assert((await focusedTrailLabel(page))?.includes('Favoritos') ?? false, 'trilha em "★ Favoritos"')
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
   await waitForGrid(page, (titles) => titles.includes('Filme 10001'), 'Filme 10001')
   assert((await gridTitles(page)).join(',') === 'Filme 10001', '"★ Favoritos" mostra o filme favoritado')
   await page.keyboard.press('Enter')
@@ -300,7 +299,7 @@ async function scenarioNewList(browser, panelUrl) {
   await page.waitForSelector('.home-content', { timeout: 8000 })
   await openViaTopbar(page, 'series')
   await waitForRealCategory(page)
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
   await waitForGrid(page, (titles) => titles.length === 2, '2 séries')
   await page.keyboard.press('Enter')
   await page.waitForSelector('.vod-detail', { timeout: 8000 })
@@ -531,7 +530,7 @@ async function scenarioStress(browser) {
   console.log(`=== Cenário 3: ${total} filmes numa seção (estresse, SC-004) ===`)
   const server = await startStressPanelServer()
   const panelUrl = `http://127.0.0.1:${server.address().port}/get.php?username=usuario&password=senha`
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   let crashed = false
   page.on('crash', () => {
@@ -575,7 +574,7 @@ async function scenarioStress(browser) {
     await waitForRealCategory(page)
     await page.keyboard.press('ArrowUp') // 1ª categoria real -> "Todos"
     const tAll = Date.now()
-    await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('Enter')
     const shown = await page
       .waitForFunction(
         () =>
@@ -604,7 +603,7 @@ async function scenarioStress(browser) {
     await page.keyboard.press('Escape') // grade -> trilha
     await page.keyboard.press('ArrowDown') // Todos -> 1ª categoria real
     const tCat = Date.now()
-    await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('Enter')
     const catShown = await page
       .waitForFunction(
         () =>
@@ -672,7 +671,7 @@ async function run() {
     await scenarioNewList(browser, panelUrl)
 
     console.log('=== Cenário 2: lista no formato antigo vira blocos sozinha, sem perder nada ===')
-    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
     const page = await context.newPage()
     page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error', error?.message ?? ''))
     const before = await registerAndPrefetch(page, panelUrl)
@@ -707,10 +706,10 @@ async function run() {
     await page.waitForSelector('.source-card', { timeout: 10000 })
     await page.keyboard.press('Enter')
     await page.waitForSelector('.home-content', { timeout: 10000 })
-    const continueTitles = page.locator('section.home-row[aria-label="Continuar assistindo"] .content-card-title')
+    const continueTitles = page.locator('section.home-row[aria-label="Continuar assistindo"] .home-card-title')
     await continueTitles.first().waitFor({ timeout: 8000 })
     assert((await continueTitles.allTextContents()).includes('Filme 10102'), '"Continuar assistindo" ainda mostra o filme com progresso')
-    const favoriteTitles = page.locator('section.home-row[aria-label="Minha Lista"] .content-card-title')
+    const favoriteTitles = page.locator('section.home-row[aria-label="Minha Lista"] .home-card-title')
     await favoriteTitles.first().waitFor({ timeout: 8000 })
     assert((await favoriteTitles.allTextContents()).includes('Filme 10001'), '"Minha Lista" ainda mostra o filme favorito')
 
@@ -725,8 +724,13 @@ async function run() {
       (await page.locator('.content-card-title').first().textContent()) === 'Filme 10001',
       '"★ Favoritos" de Filmes mostra o favorito',
     )
-    await page.keyboard.press('ArrowRight') // trilha -> grade
-    await page.keyboard.press('Enter')
+    await page.locator('.vod-screen').waitFor({ state: 'attached', timeout: 20000 })
+    const focusedCard = page.locator('.vod-screen .content-card .tv-focus')
+    if (await focusedCard.count() === 0) {
+      await page.keyboard.press('Enter')
+    }
+    await focusedCard.waitFor({ state: 'attached', timeout: 20000 })
+    await page.keyboard.press('Enter') // abre o detalhe
     await page.waitForSelector('.vod-detail-hero', { timeout: 8000 })
     assert(
       ((await page.locator('.vod-detail-hero').textContent()) ?? '').includes('Filme 10001'),

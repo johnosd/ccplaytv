@@ -7,6 +7,9 @@
 
 async function abrirCadastro(page) {
   const title = page.locator('#add-source-title')
+  // O cadastro é rota lazy (065): quem já apertou OK/clicou em "Adicionar lista" pode estar a um instante dele —
+  // espera um pouco antes de concluir que ainda está nos perfis (o cartão some assim que a navegação começa).
+  await title.waitFor({ timeout: 2000 }).catch(() => {})
   if (!(await title.isVisible().catch(() => false))) {
     await page.locator('.add-card').click()
     await title.waitFor({ timeout: 8000 })

@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusSideItem } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'player-chrome.m3u')
@@ -149,8 +150,8 @@ async function openViaTopbar(page, destination) {
 }
 
 async function enterCategory(page, name) {
-  await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
-  await page.keyboard.press('ArrowRight')
+  await focusSideItem(page, name)
+  await page.keyboard.press('Enter')
   await page.waitForSelector('.content-card-title', { timeout: 8000 })
 }
 
@@ -198,7 +199,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/player-chrome.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   await context.addInitScript(installFakeAvplay)
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
@@ -241,9 +242,10 @@ async function run() {
 
     console.log('=== Cenário 2: sem conexão — "Tentar de novo" alcançável pelo teclado ===')
     await page.waitForSelector('.vod-detail', { timeout: 6000 })
-    await page.keyboard.press('Escape') // detalhe → grade de Filmes (que tem a topbar)
+    await page.keyboard.press('Escape') // detalhe → grade de Filmes
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
-    await page.getByRole('button', { name: 'Início' }).click() // da grade, o caminho mais curto até o Início
+    await page.keyboard.press('Escape') // grade → vitrine
+    await page.keyboard.press('Escape') // vitrine → Início (a vitrine não tem topbar)
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await context.setOffline(true)
     await page.getByText('Sem conexão com a internet.').waitFor({ timeout: 4000 })

@@ -8,8 +8,9 @@
  * `sdd/specs/026-home-busca-configuracoes-ds-v14/logic/hero-home.md`.
  */
 
-import { isResumable } from '../player/resumePolicy'
+import { isResumable } from './resumePolicy'
 import { findSeriesRecord, listEpisodes, resolveStableIds } from './catalogRepository'
+import { getAdultScope } from './categoryAccess'
 import { db, type CatalogDb, type CatalogRecord } from './db'
 import { getContinueWatching, getGlobalFavorites, parseStableId, type StableIdParts } from './userStateRepository'
 
@@ -124,10 +125,12 @@ export async function loadHomeHero(sourceId: string, database: CatalogDb = db): 
       entry.parts?.kind === 'movie' || entry.parts?.kind === 'episode',
     )
   const continueResolved = await resolveAll(sourceId, continueStates.map((entry) => entry.parts), database)
+  // Feature 066 (FR-035): o destaque "continuar" nunca é conteúdo adulto.
+  const adult = await getAdultScope(sourceId, database)
   for (const { state, parts } of continueStates) {
     if (parts.kind === 'movie') {
       const movie = continueResolved.get(parts)
-      if (movie) return { kind: 'continue', record: movie, primary: play(movie, state.progressSeconds) }
+      if (movie && !adult.isAdult(movie)) return { kind: 'continue', record: movie, primary: play(movie, state.progressSeconds) }
       continue
     }
 
@@ -135,7 +138,7 @@ export async function loadHomeHero(sourceId: string, database: CatalogDb = db): 
       const episode = continueResolved.get(parts)
       if (!episode || !episode.seriesId) continue
       const series = await resolveSeriesParent(sourceId, episode.seriesId, database)
-      if (!series) continue
+      if (!series || adult.isAdult(series)) continue
       return { kind: 'continue', record: series, primary: play(episode, state.progressSeconds) }
     }
     // Qualquer outro kind (canal, etc.) nunca vira hero — próximo estado.

@@ -1,0 +1,23 @@
+import { afterEach, expect, it, vi } from 'vitest'
+const fixture = vi.hoisted(() => ({ allowed: false, check: vi.fn() }))
+vi.mock('../catalog/db', () => ({ db: {} }))
+vi.mock('./licenseMonitor', () => ({ createLicenseMonitor: () => ({ check: fixture.check }) }))
+afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); vi.clearAllMocks() })
+it.each([true, false])('entrada comercial decide pelo cache local: allowed=%s', async allowed => {
+  vi.stubEnv('MODE', 'commercial'); fixture.check.mockReturnValue({ allowed })
+  const { allowListEntry, onListEntryDenied } = await import('./licenseRuntime')
+  const denied = vi.fn(), release = onListEntryDenied(denied)
+  expect(allowListEntry('fixture-source')).toBe(allowed)
+  expect(fixture.check).toHaveBeenCalledOnce()
+  expect(denied).toHaveBeenCalledTimes(allowed ? 0 : 1)
+  if (!allowed) expect(denied).toHaveBeenCalledWith('fixture-source')
+  release()
+  allowListEntry()
+  expect(denied).toHaveBeenCalledTimes(allowed ? 0 : 1)
+})
+it('build pessoal não consulta licença nem bloqueia entrada', async () => {
+  vi.stubEnv('MODE', 'development')
+  const { allowListEntry } = await import('./licenseRuntime')
+  expect(allowListEntry()).toBe(true)
+  expect(fixture.check).not.toHaveBeenCalled()
+})

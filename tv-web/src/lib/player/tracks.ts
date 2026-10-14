@@ -8,6 +8,9 @@
  * Só funções puras e tipos — nada aqui toca motor, DOM ou React.
  */
 
+import { APP_LANGUAGE_LOCALE, type AppLanguage } from '../i18n/languages'
+import { createTranslator, type Translator } from '../i18n/translate'
+
 export type MediaTrackKind = 'audio' | 'text'
 
 export interface MediaTrack {
@@ -111,6 +114,45 @@ const LANGUAGE_NAMES: Record<string, string> = {
   hi: 'Híndi',
 }
 
+/** Os mesmos idiomas nomeados em inglês e espanhol (feature 054) — tabela explícita, pelo mesmo motivo da acima. */
+const LANGUAGE_NAMES_BY_APP: Record<AppLanguage, Record<string, string>> = {
+  pt: LANGUAGE_NAMES,
+  en: {
+    pt: 'Portuguese',
+    en: 'English',
+    es: 'Spanish',
+    fr: 'French',
+    it: 'Italian',
+    de: 'German',
+    ja: 'Japanese',
+    ko: 'Korean',
+    zh: 'Chinese',
+    ru: 'Russian',
+    ar: 'Arabic',
+    nl: 'Dutch',
+    pl: 'Polish',
+    tr: 'Turkish',
+    hi: 'Hindi',
+  },
+  es: {
+    pt: 'Portugués',
+    en: 'Inglés',
+    es: 'Español',
+    fr: 'Francés',
+    it: 'Italiano',
+    de: 'Alemán',
+    ja: 'Japonés',
+    ko: 'Coreano',
+    zh: 'Chino',
+    ru: 'Ruso',
+    ar: 'Árabe',
+    nl: 'Neerlandés',
+    pl: 'Polaco',
+    tr: 'Turco',
+    hi: 'Hindi',
+  },
+}
+
 /**
  * Idiomas oferecidos nas Configurações (feature 041), na ordem da tabela acima
  * — nunca `Intl.DisplayNames`, que varia entre o Chromium da TV e o Node.
@@ -119,10 +161,32 @@ export const LANGUAGE_OPTIONS: { code: string; label: string }[] = Object.entrie
   ([code, label]) => ({ code, label }),
 )
 
+/** Os mesmos idiomas, nomeados no idioma do app (feature 054). */
+export function languageOptionsFor(language: AppLanguage): { code: string; label: string }[] {
+  return Object.entries(LANGUAGE_NAMES_BY_APP[language]).map(([code, label]) => ({ code, label }))
+}
+
+/** Nome de um idioma de faixa no idioma do app; código fora da tabela aparece em maiúsculas (é o que o motor disse). */
+export function languageDisplayName(code: string, language: AppLanguage, options: { loose?: boolean } = {}): string {
+  const known = LANGUAGE_NAMES_BY_APP[language][code]
+  if (known) return known
+  // Rótulo de FAIXA: nunca `Intl` (varia entre Chromium da TV e Node) — código fora da tabela em maiúsculas.
+  // `loose` (nomes de idioma de trailer/sinopse): o nome do Chromium é melhor que o código cru.
+  if (!options.loose) return code.toUpperCase()
+  try {
+    const name = new Intl.DisplayNames([APP_LANGUAGE_LOCALE[language]], { type: 'language' }).of(code)
+    if (name && name !== code) return name.charAt(0).toLocaleUpperCase(APP_LANGUAGE_LOCALE[language]) + name.slice(1)
+  } catch {
+    // código malformado: cai no código em maiúsculas
+  }
+  return code.toUpperCase()
+}
+
 /** Códigos que significam "sem idioma" (indeterminado, desconhecido, sem conteúdo linguístico…). */
 const NO_LANGUAGE = new Set(['', 'und', 'unk', 'mis', 'zxx', 'qaa'])
 
-const CHANNEL_LABELS: Record<number, string> = { 1: 'Mono', 2: 'Estéreo', 6: '5.1', 8: '7.1' }
+/** 1/2 canais têm nome traduzido (player.track.mono|stereo); os demais são o número de canais. */
+const CHANNEL_LABELS: Record<number, string> = { 6: '5.1', 8: '7.1' }
 
 /** Normaliza `por`/`pt`/`pt-BR` → `pt`, etc. `undefined` para ausente/`und`. Ver logic §2. */
 export function normalizeLanguage(code: string | undefined): string | undefined {
@@ -133,15 +197,22 @@ export function normalizeLanguage(code: string | undefined): string | undefined 
 }
 
 /** Rótulo legível de uma faixa (logic §2). `ordinal` é a posição 1-based dentro do seu tipo. */
-export function trackLabel(track: MediaTrack, ordinal: number): string {
+export function trackLabel(track: MediaTrack, ordinal: number, t: Translator = createTranslator('pt')): string {
   const language = normalizeLanguage(track.language)
   // Código fora da tabela aparece em maiúsculas: é o que o motor disse, não invenção.
-  const base = language ? (LANGUAGE_NAMES[language] ?? language.toUpperCase()) : `Faixa ${ordinal}`
+  const base = language ? languageDisplayName(language, t.language) : t('player.track.numbered', { n: ordinal })
   if (track.kind !== 'audio') return base
   const parts = [base]
   if (track.codec) parts.push(track.codec.toUpperCase())
   if (track.channels !== undefined && track.channels > 0) {
-    parts.push(CHANNEL_LABELS[track.channels] ?? `${track.channels} canais`)
+    parts.push(
+      CHANNEL_LABELS[track.channels] ??
+        (track.channels === 1
+          ? t('player.track.mono')
+          : track.channels === 2
+            ? t('player.track.stereo')
+            : t('player.track.channels', { n: track.channels })),
+    )
   }
   return parts.join(' • ')
 }
@@ -150,12 +221,12 @@ export function trackLabel(track: MediaTrack, ordinal: number): string {
  * Rótulos de uma lista de faixas, na mesma ordem. Dois rótulos idênticos do
  * mesmo tipo ganham ` • Faixa N` para serem distinguíveis (logic §2).
  */
-export function trackLabels(tracks: MediaTrack[]): string[] {
+export function trackLabels(tracks: MediaTrack[], t: Translator = createTranslator('pt')): string[] {
   const ordinals: Record<MediaTrackKind, number> = { audio: 0, text: 0 }
   const entries = tracks.map((track) => {
     ordinals[track.kind] += 1
     const ordinal = ordinals[track.kind]
-    return { kind: track.kind, ordinal, label: trackLabel(track, ordinal) }
+    return { kind: track.kind, ordinal, label: trackLabel(track, ordinal, t) }
   })
   const counts = new Map<string, number>()
   for (const { kind, label } of entries) {
@@ -163,7 +234,7 @@ export function trackLabels(tracks: MediaTrack[]): string[] {
     counts.set(key, (counts.get(key) ?? 0) + 1)
   }
   return entries.map(({ kind, ordinal, label }) =>
-    (counts.get(`${kind}|${label}`) ?? 0) > 1 ? `${label} • Faixa ${ordinal}` : label,
+    (counts.get(`${kind}|${label}`) ?? 0) > 1 ? `${label} • ${t('player.track.numbered', { n: ordinal })}` : label,
   )
 }
 

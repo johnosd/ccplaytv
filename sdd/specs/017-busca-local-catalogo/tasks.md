@@ -212,7 +212,7 @@ Comando dos contratos (em `tv-web/`):
 - [x] Fase 5 (US2) concluída
 - [x] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro
 - [x] `npm run test` / `lint` / `build` limpos; `test:e2e` — o script novo desta feature (`busca-local.mjs`) limpo; a cadeia completa segue quebrada nesta máquina Windows por scripts pré-existentes sem relação com a 017 (ver T034)
-- [ ] `quickstart.md` executado na TV física (cenários A–G) — A–C decidem R-003
+- [x] `quickstart.md` executado na TV física (cenários A–G) — A–C decidem R-003 — **Atualização 06/10/2026: o usuário declarou a passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-06"); qualquer "não executado" acima é o estado anterior, mantido como histórico
 
 **Registro da Fase**:
 

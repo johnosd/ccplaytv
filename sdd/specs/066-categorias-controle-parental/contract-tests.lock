@@ -1,0 +1,22 @@
+{
+    "feature":  "066-categorias-controle-parental",
+    "lockedAt":  "2026-10-10 09:30",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/catalog/categoryAccess.categorias-controle-parental.contract.test.ts",
+                      "sha256":  "910e041e1a1031dfcc9143774d2d7549591e5751bf90dbf68254dea8c860ab38",
+                      "tests":  3
+                  },
+                  {
+                      "path":  "tv-web/src/lib/parental/pin.categorias-controle-parental.contract.test.ts",
+                      "sha256":  "c8733ee8c60f0b4c47dabdcd60739531e99ee155763a205a606a6b7153b4a8a5",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/components/PinPrompt.categorias-controle-parental.contract.test.tsx",
+                      "sha256":  "5d6a8a27e28c218897390bb144e925f2e1088825cd6a7442ca51421e6e88f09d",
+                      "tests":  1
+                  }
+              ]
+}

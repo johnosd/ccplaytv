@@ -1,0 +1,22 @@
+{
+    "feature":  "060-home-vitrine-expandida",
+    "lockedAt":  "2026-10-05 15:46",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/features/home/HomeContent.home-vitrine-expandida.contract.test.tsx",
+                      "sha256":  "f990153b14f47bae5ebe1dc694c6581936107020cebce2e3e2f67e015e1ae744",
+                      "tests":  3
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/becauseSeed.home-vitrine-expandida.contract.test.ts",
+                      "sha256":  "1686505e0b11bae8a31e68a425478ca54266e10aef0f2dcaae41bf8819e28998",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/vod/vodShowcaseRows.home-vitrine-expandida.contract.test.ts",
+                      "sha256":  "08175cbefe005e213a52921213f872199fe2490bc3024346850cabc8e43073cb",
+                      "tests":  1
+                  }
+              ]
+}

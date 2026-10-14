@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { TopbarItem, TopDestination } from '../../navigation/appNav'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
+import { useT } from '../../lib/i18n/I18nProvider'
 import { Toast } from '../../components/Toast'
 import { AppShell } from '../shell/AppShell'
 import { TopBar } from '../shell/TopBar'
@@ -36,11 +37,6 @@ export interface SettingsScreenProps extends SettingsNavigation {
   onBack: () => void
 }
 
-const HINTS: HintItem[] = [
-  { keyLabel: 'OK', action: 'Selecionar' },
-  { keyLabel: 'RETURN', action: 'Voltar' },
-]
-
 type Zone = 'topbar' | 'tabs' | 'panel'
 
 /**
@@ -63,8 +59,15 @@ export function SettingsScreen({
   onOpenEpg,
   onOpenTmdbKey,
   onSourceDeleted,
+  onConfigureSource,
   onBack,
 }: SettingsScreenProps): ReactNode {
+  const t = useT()
+  const hints: HintItem[] = [
+    { keyLabel: 'OK', action: t('common.select') },
+    { keyLabel: 'RETURN', action: t('common.back') },
+  ]
+  const tabEntries = SETTINGS_TABS.map((tab) => ({ ...tab, label: t(tab.labelKey) }))
   const initialTab: SettingsTab =
     initialFocus?.zone === 'tabs' || initialFocus?.zone === 'panel' ? initialFocus.tab : 'sources'
   const initialZone: Zone = initialFocus?.zone === 'tabs' || initialFocus === undefined ? 'tabs' : 'panel'
@@ -87,6 +90,7 @@ export function SettingsScreen({
     onOpenEpg,
     onOpenTmdbKey,
     onSourceDeleted,
+    onConfigureSource,
   }
 
   /** Outra aba monta do zero; a mesma aba não remonta — volta ao começo pelo `onEnter`. */
@@ -147,35 +151,39 @@ export function SettingsScreen({
   const ActivePanel = (SETTINGS_TABS.find((tab) => tab.id === activeTab) ?? SETTINGS_TABS[0]).Panel
 
   const body = (
-    <div className="settings-body">
-      <SideCategoryNav
-        entries={SETTINGS_TABS}
-        selectedId={activeTab}
-        focusedId={zone === 'tabs' ? focusedTab : undefined}
-        onSelect={(id) => enterPanel(id as SettingsTab)}
-      />
-      {/* Achado real (feature 028, FR-006): rolava com a barra nativa visível. */}
-      <div className="settings-panel no-scrollbar">
-        <ActivePanel
-          key={activeTab}
-          focused={zone === 'panel'}
-          initialFocus={initialFocusPending ? initialFocus : undefined}
-          activeSourceId={activeSourceId}
-          navigation={navigation}
-          exitToTabs={exitToTabs}
-          goToTopbar={goToTopbar}
-          showToast={showToast}
-          handleRef={tabHandle}
+    <>
+      {/* Feature 067 (FR-014): o que há aqui vale para o app todo; o que é de uma lista está em "Configurar". */}
+      <p className={`settings-scope-note${shell ? ' settings-scope-note--lone' : ''}`}>{t('listSettings.globalScope')}</p>
+      <div className="settings-body">
+        <SideCategoryNav
+          entries={tabEntries}
+          selectedId={activeTab}
+          focusedId={zone === 'tabs' ? focusedTab : undefined}
+          onSelect={(id) => enterPanel(id as SettingsTab)}
         />
+        {/* Achado real (feature 028, FR-006): rolava com a barra nativa visível. */}
+        <div className="settings-panel no-scrollbar">
+          <ActivePanel
+            key={activeTab}
+            focused={zone === 'panel'}
+            initialFocus={initialFocusPending ? initialFocus : undefined}
+            activeSourceId={activeSourceId}
+            navigation={navigation}
+            exitToTabs={exitToTabs}
+            goToTopbar={goToTopbar}
+            showToast={showToast}
+            handleRef={tabHandle}
+          />
+        </div>
       </div>
-    </div>
+    </>
   )
 
   return (
     <div className="screen settings-screen">
       {shell ? (
         <AppShell
-          hints={HINTS}
+          hints={hints}
           topBar={
             <TopBar
               sourceName={shell.sourceName}
@@ -196,7 +204,7 @@ export function SettingsScreen({
         </AppShell>
       ) : (
         <>
-          <h1 className="screen-title">Configurações</h1>
+          <h1 className="screen-title">{t('settings.title')}</h1>
           {body}
         </>
       )}

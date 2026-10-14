@@ -102,14 +102,15 @@ function tap(key: string) {
 const focusedChannelName = () => document.querySelector('.live-channel-row.tv-focus .live-item-name')?.textContent ?? null
 const guideFocusText = () => document.querySelector('.epg-guide-block.tv-focus')?.textContent ?? ''
 
-/** Da trilha: entra na lista de canais e vai até o canal de índice `index`, abrindo o "Guia completo" dele. */
-function openGuideOn(index: number, viaAll = false) {
+/**
+ * Da trilha: entra na lista de canais e abre o ícone de Guia completo (feature 049) — 
+ * ↑ do 1º canal vai à lupa, → ao ícone de Guia. A origem do guia é, portanto, o 1º canal da lista.
+ */
+function openGuideFromFirstChannel(viaAll = false) {
   if (viaAll) tap('ArrowUp') // 1ª categoria real → "Todos"
-  tap('ArrowRight')
-  for (let i = 0; i < index; i += 1) tap('ArrowDown')
-  tap('ArrowRight') // preview: "Assistir"
-  tap('ArrowDown') // "Favoritar"
-  tap('ArrowDown') // "Guia completo"
+  tap('Enter') // entra
+  tap('ArrowUp') // lupa
+  tap('ArrowRight') // ícone de Guia completo
   tap('Enter')
 }
 
@@ -150,19 +151,19 @@ describe('LiveScreen — Guia completo (feature 031)', () => {
 
   it('aberto em "Todos", o guia usa a lista de Todos e RETURN restaura o foco no canal de origem, por id', async () => {
     renderLive()
-    openGuideOn(2, true) // "Canal C" em "Todos"
+    openGuideFromFirstChannel(true) // origem: "Canal A" (1º de "Todos")
 
-    await waitFor(() => expect(guideFocusText()).toContain('Programa do C'))
+    await waitFor(() => expect(guideFocusText()).toContain('Programa do A'))
     expect(document.querySelector('.epg-guide-coverage')?.textContent).toBe('Guia de 1 de 1 categorias')
 
     tap('Escape')
     await waitFor(() => expect(document.querySelector('.epg-guide')).toBeNull())
-    expect(focusedChannelName()).toBe('Canal C')
+    expect(focusedChannelName()).toBe('Canal A')
   })
 
   it('OK num programa toca o canal (a lista do guia vira a vizinhança) e RETURN do player cai no canal escolhido', async () => {
     renderLive()
-    openGuideOn(0) // origem: "Canal A"
+    openGuideFromFirstChannel() // origem: "Canal A"
     await waitFor(() => expect(guideFocusText()).toContain('Programa do A'))
 
     tap('ArrowDown') // "Canal B"
@@ -181,12 +182,12 @@ describe('LiveScreen — Guia completo (feature 031)', () => {
     const fetchSpy = vi.fn()
     vi.stubGlobal('fetch', fetchSpy)
     renderLive()
-    openGuideOn(0)
+    openGuideFromFirstChannel()
     await waitFor(() => expect(guideFocusText()).toContain('Programa do A'))
 
     tap('ArrowDown')
     tap('ArrowDown')
-    tap('ArrowRight')
+    tap('ArrowRight') // dentro do guia: move no tempo, não toca
     tap('ArrowUp')
 
     expect(fetchSpy).not.toHaveBeenCalled()

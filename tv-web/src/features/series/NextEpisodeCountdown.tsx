@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useRemoteNav } from '../../lib/useRemoteNav'
+import { useT } from '../../lib/i18n/I18nProvider'
 
 export interface NextEpisodeCountdownProps {
   /** Título do próximo episódio. */
@@ -34,6 +35,7 @@ export function NextEpisodeCountdown({
   onCancel,
   seconds = DEFAULT_SECONDS,
 }: NextEpisodeCountdownProps) {
+  const t = useT()
   const [remaining, setRemaining] = useState(seconds)
 
   // Um só `setInterval`, criado na montagem — não um `setTimeout`
@@ -60,15 +62,15 @@ export function NextEpisodeCountdown({
   useRemoteNav({ onSelect: onCancel, onBack: onCancel }, { modal: true })
 
   return (
-    <div className="player-overlay" role="dialog" aria-label="Próximo episódio">
+    <div className="player-overlay" role="dialog" aria-label={t('countdown.dialog')}>
       <div className="player-message">
         <div className="player-message-title">
           {seasonLabel ? `${seasonLabel} — ${title}` : title}
         </div>
-        <div className="player-message-copy">{`Próximo episódio em ${remaining}s`}</div>
+        <div className="player-message-copy">{t('countdown.next', { n: remaining })}</div>
         <div className="player-actions">
           <button type="button" className="player-action tv-focus" onClick={onCancel}>
-            Cancelar
+            {t('common.cancel')}
           </button>
         </div>
       </div>

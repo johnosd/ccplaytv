@@ -1,0 +1,22 @@
+{
+    "feature":  "049-navegacao-por-pagina",
+    "lockedAt":  "2026-10-10 17:10",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/focus/paging.navegacao-por-pagina.contract.test.ts",
+                      "sha256":  "9b33722e658e9eeae0fd99b8e886753c2058d879870d3f85658b8f2c2c41cefe",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/live/LiveScreen.navegacao-por-pagina.contract.test.tsx",
+                      "sha256":  "4e3e2989c806d7cec1bb81e1aab851421ce3549dcbf5796af42d8ff0acfa8dc1",
+                      "tests":  3
+                  },
+                  {
+                      "path":  "tv-web/src/features/vod/VodCategoryScreen.navegacao-por-pagina.contract.test.tsx",
+                      "sha256":  "d8888bf2f728bbebbe0a5c3281910e3653a02feea5bed4ec81843053c51093d4",
+                      "tests":  1
+                  }
+              ]
+}

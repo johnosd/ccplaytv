@@ -196,7 +196,7 @@ describe('LiveScreen — contrato da feature 048', () => {
   // US1/AC1+AC2, FR-001 (destaque com rótulo/nome), FR-002 (sem EPG: só "Ao vivo"), FR-005 (fundo = logo real, nada sem logo), FR-009 (sem EPG: nenhum cartão)
   it('destaque: rótulo do grupo, nome, "Ao vivo" sem EPG, fundo com o logo real só quando ele existe', async () => {
     renderLive()
-    tap('ArrowRight') // entra em "Telecine Premium" — foco em "Canal A"
+    tap('Enter') // entra em "Telecine Premium" — foco em "Canal A"
 
     await waitFor(() => expect(inPreview('.live-hero-name')?.textContent).toBe('Canal A'))
     expect(inPreview('.live-hero')).not.toBeNull()
@@ -211,33 +211,29 @@ describe('LiveScreen — contrato da feature 048', () => {
     expect(inPreview('.live-hero-art img')).toBeNull()
   })
 
-  // FR-004 (→/↓ avançam, ↑ volta, ← volta ao canal de QUALQUER ação), preserva os contratos 024/031
-  it('ações em linha: → avança e para na última, ↑ volta uma, ← volta ao canal de origem', async () => {
+  // Emendado na 049 (antes: ações em linha, FR-004 da 048): o destaque não tem mais ações focáveis. A antiga "Assistir"
+  // é OK no canal; o "Guia completo" é o ícone ao lado da lupa (↑ do 1º canal, →); só a 049 trata do resto.
+  it('destaque informativo: nenhuma ação focável; OK toca o canal e o Guia fica no ícone ao lado da lupa', async () => {
     renderLive()
-    tap('ArrowRight') // entra na categoria
-    tap('ArrowDown') // "Canal B" — a origem não é o primeiro
-    await waitFor(() => expect(focusedChannelName()).toBe('Canal B'))
-
-    tap('ArrowRight') // canal → 1ª ação
-    expect(focusedAction()).toContain('Assistir')
-    tap('ArrowRight')
-    expect(focusedAction()).toContain('Favoritar')
-    tap('ArrowRight')
-    expect(focusedAction()).toContain('Guia completo')
-    tap('ArrowRight') // já na última: fica
-    expect(focusedAction()).toContain('Guia completo')
-    tap('ArrowUp')
-    expect(focusedAction()).toContain('Favoritar')
-
-    tap('ArrowLeft') // de uma ação que não é a 1ª: volta ao canal, não à ação da esquerda
+    tap('Enter') // entra na categoria
+    await waitFor(() => expect(focusedChannelName()).toBe('Canal A'))
+    expect(document.querySelectorAll('.live-preview-panel .live-preview-action, .live-preview-panel button')).toHaveLength(0)
     expect(focusedAction()).toBeNull()
-    expect(focusedChannelName()).toBe('Canal B')
+
+    tap('ArrowUp') // lupa
+    tap('ArrowRight') // ícone de Guia completo
+    expect(document.querySelector('.live-guide-button.tv-focus')?.getAttribute('aria-label')).toBe('Guia completo')
+    tap('ArrowDown') // volta ao canal
+    await waitFor(() => expect(focusedChannelName()).toBe('Canal A'))
+
+    tap('Enter') // OK toca (antes: Assistir)
+    await waitFor(() => expect(vi.mocked(catalogApi.fetchPlayback)).toHaveBeenCalledTimes(1))
   })
 
   // US3/AC1, FR-002 (com EPG: programa atual na linha "ao vivo"), FR-009 (até 3 cartões reais, em ordem, dentro do painel), SC-003
   it('programação: com EPG, o atual na linha "ao vivo" e 3 cartões A seguir/Depois/Mais tarde com os próximos reais', async () => {
     renderLive()
-    tap('ArrowRight')
+    tap('Enter')
     tap('ArrowDown') // "Canal B", com EPG
 
     await waitFor(() => expect(document.querySelectorAll('.live-preview-panel .live-schedule-card')).toHaveLength(3))

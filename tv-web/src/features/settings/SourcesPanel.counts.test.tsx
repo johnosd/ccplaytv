@@ -33,7 +33,7 @@ const SOURCE: SourceOut = {
 function renderPanel(source: SourceOut, data: catalogApi.CatalogCounts | undefined) {
   vi.mocked(catalogApi.useCatalogCounts).mockReturnValue({ data } as ReturnType<typeof catalogApi.useCatalogCounts>)
   render(
-    <SourcesPanel sources={[source]} activeSourceId={null} focusedCol={0} resyncPending={false} deletePending={false} onActivateRow={vi.fn()} />,
+    <SourcesPanel sources={[source]} activeSourceId={null} onActivateRow={vi.fn()} />,
     { wrapper: withQuery },
   )
   return screen.getByRole('group', { name: 'Lista Lista a' })

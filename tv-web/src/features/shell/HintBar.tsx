@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useT } from '../../lib/i18n/I18nProvider'
 
 export interface HintItem {
   /** Rótulo da tecla, ex.: `OK`, `RETURN`. */
@@ -17,8 +18,9 @@ export interface HintBarProps {
  * tecnologia assistiva (`role="note"`), nunca escondido com `aria-hidden`.
  */
 export function HintBar({ hints }: HintBarProps): ReactNode {
+  const t = useT()
   return (
-    <div className="hint-bar" role="note" aria-label="Teclas do controle remoto">
+    <div className="hint-bar" role="note" aria-label={t('shell.hints.aria')}>
       {hints.map((hint) => (
         <span className="hint-bar-item" key={`${hint.keyLabel}-${hint.action}`}>
           <kbd className="hint-bar-key">{hint.keyLabel}</kbd>

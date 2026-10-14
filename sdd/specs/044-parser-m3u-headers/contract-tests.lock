@@ -1,0 +1,17 @@
+{
+    "feature":  "044-parser-m3u-headers",
+    "lockedAt":  "2026-10-02 07:00",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/catalog/m3uParser.parser-m3u-headers.contract.test.ts",
+                      "sha256":  "c656cbc9064fb281198b06bd57eee96b8644d845f97fd7c777a530392dcd319b",
+                      "tests":  3
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/importPipeline.parser-m3u-headers.contract.test.ts",
+                      "sha256":  "fcda0ec83d485151fceb167e9f0a4e4f779f7124977c134827125c2f43e95b55",
+                      "tests":  2
+                  }
+              ]
+}
