@@ -16,7 +16,7 @@ function New-OperationId {
 $enrollBody = @{platformIdentity=('payment-test-' + [guid]::NewGuid().ToString());nonce=(New-B64Token)} | ConvertTo-Json
 $enroll = Invoke-RestMethod -Uri "$base/portal/v1/devices/enroll" -Method Post -ContentType 'application/json' -Headers @{Origin='null'} -Body $enrollBody
 $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-$manualBody = @{deviceId=$enroll.deviceId;deviceKey=$enroll.deviceKey} | ConvertTo-Json
+$manualBody = @{displayId=$enroll.displayId;deviceKey=$enroll.deviceKey} | ConvertTo-Json
 $manual = Invoke-WebRequest -Uri "$base/portal/v1/sessions/manual" -Method Post -ContentType 'application/json' -Headers @{Origin=$base} -Body $manualBody -WebSession $session -UseBasicParsing
 $csrf = ($manual.Content | ConvertFrom-Json).csrfToken
 $browserHeaders = @{Origin=$base;'X-CSRF-Token'=$csrf;'Idempotency-Key'=(New-B64Token)}

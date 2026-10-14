@@ -36,6 +36,7 @@ IDs determinísticos substituem unique SQL; transações fazem leituras antes da
 - Convites/sessões: validade lógica em todo acesso; TTL físico pode atrasar. Expurgo não é autorização.
 - Pagamentos/grants e claims de idempotência: enquanto dispositivo cadastrado, para conciliação e preservação dos direitos; não guardar cartão/webhook bruto. Exclusão integral de TV não integra este incremento. T045 publica finalidade/retenção e verifica adequação antes da venda, sem decisão de produto em aberto. Recovery: desafio/envelope 5 min, verificador de retomada até 24 h, metadados terminais sem segredo por 30 dias; código corrente/verificador e floor enquanto vínculo cadastrado. Sem casos/anexos de atendimento.
 - Backup: diário/7 dias propostos, contém ciphertext e ledger, não chaves. Journal operacional: 30 dias, sem segredos; não é arquivo M3U nem backup do catálogo.
+- `display_id`/`display_id_source` e `displayIdClaims/{hmac}` (070, ADR-015): duráveis como `identityClaims` — enquanto o dispositivo existir, e nenhuma rotina automática remove dispositivos. Entram no backup do banco inteiro, nunca no journal (que não carrega ID nem chave). Ver `docs/portal/operacao.md` e `api/tests/portal/test_display_id_durability.py`.
 
 ## Journal independente do restore
 

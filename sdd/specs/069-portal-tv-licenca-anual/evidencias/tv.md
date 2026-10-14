@@ -60,3 +60,25 @@ Cobertura do T046 até aqui (TV física, Tizen 9, staging, `file://`): QR, porta
 ### Confirmação visual do usuário — 2026-10-12
 
 Após a atualização/lançamento, o usuário confirmou que o CCPlay abriu e que listas e favoritos permaneceram presentes. Esta confirmação valida a preservação dos dados na atualização do mesmo pacote. Não cobre, por si só, o roteiro comercial completo de QR, compra sandbox, ativação, entrada bloqueada por vencimento e remoção; esses cenários continuam pendentes de execução/observação específica.
+
+
+### Roteiro reconciliado com a 070 (T062) — 2026-10-13
+
+Substitui o roteiro dos passos 1–7 acima para o que **ainda falta observar**. O pacote comercial instalado é o da 070 (staging, `network.public`); a TV de referência exibe o ID `2A:…` por ser anterior ao privilégio (ADR-015) — isso não reprova nada aqui. Não repetir o que a 070 já aprovou em `sdd/specs/070-entrada-listas-gerenciador/evidencias/tv.md`.
+
+**Já observado na TV física em 2026-10-13 (não repetir):** abrir com listas/favoritos preservados; QR legível e portal aberto pelo celular; lista criada no portal aparece na TV; exclusão e edição nos dois sentidos; tela Adicionar com ID/chave/QR; ID + chave digitados no portal; Recarregar; RETURN em cadeia até a tela de listas.
+
+**Entradas válidas hoje:** Configurações → "Portal & licença" (licença, revogar, código) e "Adicionar lista" (QR, ID, chave). O canto "Adicionar pelo site" dos perfis não existe mais.
+
+| # | Cenário a observar | Como | Esperado | Preparo/autorização |
+| --- | --- | --- | --- | --- |
+| A | Licença legível | Configurações → "Portal & licença" | "Período de teste" com validade (~7 dias desde o 1º início), sem texto de erro | — |
+| B | Chave e código só por ação explícita | Na mesma tela, acionar mostrar chave / mostrar código e RETURN | Valor aparece só após a confirmação e some ao sair; a chave **não** aparece em outra tela além de Adicionar lista | — |
+| C | Offline com licença vigente | Desligar a rede da TV, abrir uma lista e reproduzir/navegar | Entra e usa normalmente; nada de bloqueio por falta de rede | — |
+| D | Vencimento: sessão e reentrada | Com licença vencida: continuar a sessão já aberta; sair e tentar entrar de novo na lista | Sessão atual continua até sair/fechar (D-016); próxima entrada é recusada com tela focável de compra; dados preservados | **TV de laboratório ou relógio avançado em dispositivo de teste, com confirmação do usuário**; nunca na TV do usuário sem aviso |
+| E | Pagamento de teste → ativação | Sandbox Mercado Pago pelo QR de compra | Licença passa a "Ativa" com validade de 12 meses, sem novo trial | Conta sandbox; **venda segue desligada**; confirmar antes de gerar cobrança de teste |
+| F | Recuperação pelo site | Código de recuperação guardado + desafio da mesma TV | Mesma TV volta a ser autorizada, sem novo trial e sem perder listas/licença | Só laboratório autorizado (rotaciona credenciais) |
+| G | Suspend/standby | Standby por alguns minutos e retomar na tela rápida | Sem consulta indevida; agente único; licença continua válida | — |
+| H | Tempos na TV | Anotar tempo de recebimento (QR aberto) e de ativação | Dentro de 30 s / 60 s com tela rápida | Complementa T043 |
+
+Cada linha recebe **aprovado / reprovado / não executado** com quem observou, como nas tabelas acima. T046 só fecha com a observação do usuário.

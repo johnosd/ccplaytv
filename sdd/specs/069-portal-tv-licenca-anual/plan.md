@@ -160,6 +160,7 @@ Detalhes vinculantes: data-model.md, contracts/portal-api.md, logic/operacoes-e-
 | Gates automatizados | Suíte TV **49/49 E2E PASS em 350s** com `teste-conexao-tv` aprovado. A005 não reproduziu em três repetições isoladas nem na suíte completa. Revisão atual: **3301/3301 testes e 1398/1398 suítes PASS** (563 arquivos, threads4/JSON); direcionados e contratos PASS. Portal E2E13/13, lint/build/unit PASS; build:tizen e sincronização PASS. |
 | Plataforma/operação | TV atual preservada; projeto Google Cloud ccplaytv-511322 ativo; Cloud Run público/jobs, IAM/OIDC e Firestore staging validados. Oferta/termos/retenções e budget R$10/mês confirmados; snapshot READY, restore/replay, medições/custos restantes e fluxo comercial físico permanecem pendentes. |
 | Contratos | C1–C5 PASS e trava069 íntegra. Emenda mínima067 autorizada; trava067 íntegra. Nenhuma autorização para outros contratos. Travas 070 (5/5) e 037 emendada também são gate desta feature (I-1…I-10). |
+| Fase 7 (alinhamento 070) | T059/T061/T062 concluídas: homologação real das rotas da 070 no staging 26/26 e 0 marcadores nos logs; trava 026 emendada (R-011 da 026). T060: guardas e docs feitos, ensaio real depende de T039. T063: pendem E2E de pilha local e a limpeza dos registros `generated` (inventário negado pelo classificador de permissões). |
 
 ## Riscos e Decisões
 
@@ -187,6 +188,7 @@ Detalhes vinculantes: data-model.md, contracts/portal-api.md, logic/operacoes-e-
 | R-019 | Sessão do portal recusava leituras concorrentes (401 espúrio): `now < last_seen_at` fora de ordem | Médio (UX e falso "acesso expirado"; afetaria staging/produção) | Resolvido (T056): tolerância de 30 s + `last_seen_at` monotônico; relógio muito atrás segue recusado; teste vermelho→verde. Achado pela pilha local integrada (`evidencias/pilha-local.md`), que o E2E com servidor falso não podia expor. Publicado no staging em 2026-10-13 (`evidencias/infra.md`). |
 | R-018 | Piso de amostras de T043 (≥100) reduzido para 20 por decisão do usuário em 2026-10-13 | Baixo | Registrado em `evidencias/medicoes.md`: com 20 amostras o p95 é o 19º valor, ordem de grandeza e não estatística robusta; nenhuma amostra descartada. Meta de 30 s/60 s e demais itens de T043 (ativações, 10–50 TVs, custo) não são relaxados. |
 | R-020 | O trabalho restante da 069 (T039/T043/T046/T052, backup/restore, scripts de manutenção, roteiros) desfazer ou contradizer o que a 070 entregou (ID MAC imutável, chave de 10 dígitos, `values`, tela Adicionar, `network.public`, RETURN em cadeia) | Alto (regressão normativa e de produto) | Seção **Invariantes herdadas da 070** abaixo; T059–T063 em `tasks.md` (Fase 7); gate de não-regressão da 070 obrigatório antes de fechar T047. |
+| R-021 | Contrato travado da 026 (`HomeScreen.home-busca-configuracoes-ds-v14.contract.test.tsx`) foi editado pela 070 no commit `f4e7f71` (prop `onLeaveList`) sem emenda aprovada nem regravação da trava; achado pelo gate T063 da 069 | Médio (trava `FAIL`, gate de contratos vermelho; mudança em si é mecânica) | **Resolvido:** emenda aprovada pelo usuário em 2026-10-13; trava 026 regravada e R-011 registrado na 026. |
 
 ## Execution Notes
 
@@ -252,7 +254,11 @@ Checkpoint 2026-10-11: T054 concluída após autorização; isInHistory em módu
 
 | 2026-10-13 | T057 + pacote comercial na TV | Exclusão local agora envia a outbox na hora (`flushDeletions` + `publishSnapshot`, sem pull/licença/polling); 5 testes novos, 91/91 relacionados, tsc/lint PASS; cenário integrado 5/5. `build:tizen:commercial` (origem e JWKS públicos do staging) instalado e lançado na TV 192.168.0.2 sem desinstalar. | Validação visual do usuário (roteiro em `evidencias/tv.md`); fix T056 publicado no staging (revisão `ccplaytv-portal-00013-ph4`, 60/60 leituras concorrentes OK); T043/T052/T039. |
 
-PRÓXIMO (revisado em 2026-10-13, após a 070): executar T060 (escopo de backup/restore com `displayIdClaims` e `display_id` imutável), T061 (homologação real das rotas da 070) e T062 (roteiro de TV reconciliado com `070/evidencias/tv.md`); depois T043 (ativações pagas, carga, custo) e T046 (observação do usuário na TV). T063 (gate de não-regressão da 070 e limpeza de registros `generated` do staging, com confirmação) e T047 fecham por último. O roteiro antigo de `evidencias/tv.md` (passos 1–7) foi cumprido em parte em 2026-10-13; o que falta está listado lá. Venda permanece desligada.
+| 2026-10-13 | Fase 7 (alinhamento 070) | T059/T062 concluídas; T060 parte local (guardas de retenção/backup/journal + docs do ID no restore); roteiro de TV reconciliado; varredura das 51 travas: 50 íntegras, **026 FAIL** (edição da 070, R-021); contratos 070/069 10/10; API 19 passed + Ruff. | T060 ensaio real, T061 homologação real, T063 E2E de pilha local + limpeza `generated` (ações externas); decisão sobre a trava 026. |
+
+| 2026-10-13 | Fase 7 (2º checkpoint) | T061 concluída: `homologate-070.ps1` 26/26 no staging real, 0 marcadores nos logs; trava 026 emendada; scripts `measure-staging`/`smoke-*` corrigidos para `displayId` (desvio ad-hoc). | T063: E2E de pilha local e limpeza `generated` (permissão de consulta ao Firestore do staging); T060 real depende de T039. |
+
+PRÓXIMO: T063 — decidir como fazer a limpeza dos registros `generated` do staging (a consulta administrativa ao Firestore foi negada; apagar o registro da TV de referência a deixa "não autorizada" até reparear, ver backlog) e reexecutar os E2E de pilha local. Depois: T039 (snapshot READY, restore, replay, RPO/RTO, com o escopo de T060); T043 (ativações pagas, carga, custo; scripts já corrigidos); T046 pelo roteiro reconciliado; T052 restante; T047 por último. Venda desligada.
 
 ## Invariantes herdadas da 070
 
@@ -277,11 +283,9 @@ Acrescentada em 2026-10-13, depois da convergência da `070-entrada-listas-geren
 
 ## Arquivos Principais
 
-- tv-web/src/lib/licensing/{licenseRuntime,licenseMonitor,licenseRepository,verifyEntitlement}.ts
-- tv-web/src/features/portal/LicenseGate.tsx; components/player/licensing.test.tsx
-- api/app/portal/{licensing,payments,restore_journal}.py e tests/portal/
-- infra/portal/backup/; docs/portal/operacao.md
-- evidencias/{validacao,segredos,execute-fase5}.md
+- api/tests/portal/test_display_id_durability.py · docs/portal/operacao.md · data-model.md (retenção do ID)
+- evidencias/tv.md (roteiro reconciliado) · quickstart.md
+- tv-web/src/lib/licensing/{licenseRuntime,licenseMonitor,licenseRepository,verifyEntitlement}.ts · api/app/portal/{licensing,payments,restore_journal}.py · infra/portal/backup/
 
 ## Cuidados para Retomada
 
@@ -332,3 +336,5 @@ O painel sandbox do Mercado Pago enviou `payment.updated` para a rota staging e 
 Não será repetida uma compra sandbox. As duas compras já aprovadas comprovam Checkout Pro e concessão anual via reconciliação; o webhook oficial foi aceito separadamente com `200 - OK`. A ausência de uma prova causal de nova concessão exclusivamente pelo webhook fica registrada como limitação aceita, sem habilitar venda.
 
 **Cuidados herdados da 070 (2026-10-13):** a frase "não expor campos ao portal" acima vale para leituras comuns; a rota `values` da 070 é a única exceção. Não restaurar, regravar nem apagar `display_id`/`displayIdClaims` (ADR-015). Não voltar à chave longa. Antes de qualquer gate, rodar as travas e contratos da 070 (tabela **Invariantes herdadas da 070**).
+
+**Scripts de infra e a 070:** a sessão manual do portal recebe displayId + chave, não deviceId. measure-staging.ps1, smoke-configuration.ps1 e smoke-payment-sandbox.ps1 já foram ajustados; qualquer script novo deve usar displayId (resposta do enroll). A homologação real das rotas da 070 é infra/portal/homologate-070.ps1 (cria 2 dispositivos de fixture no staging, nunca em produção).

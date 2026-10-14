@@ -33,7 +33,7 @@ $nonce = New-B64Token
 $identity = 'measure-' + [guid]::NewGuid().ToString()
 $enroll = Invoke-Json "$base/portal/v1/devices/enroll" 'Post' @{Origin='null'} @{platformIdentity=$identity;nonce=$nonce} $null
 $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-$manual = Invoke-WebRequest -Uri "$base/portal/v1/sessions/manual" -Method Post -ContentType 'application/json' -Headers @{Origin=$origin} -Body (@{deviceId=$enroll.deviceId;deviceKey=$enroll.deviceKey}|ConvertTo-Json) -WebSession $session -UseBasicParsing
+$manual = Invoke-WebRequest -Uri "$base/portal/v1/sessions/manual" -Method Post -ContentType 'application/json' -Headers @{Origin=$origin} -Body (@{displayId=$enroll.displayId;deviceKey=$enroll.deviceKey}|ConvertTo-Json) -WebSession $session -UseBasicParsing
 $csrf = ($manual.Content | ConvertFrom-Json).csrfToken
 $tvHeaders = @{Authorization=('Bearer ' + $enroll.bearer)}
 $sourceId = 'measure-' + [guid]::NewGuid().ToString('N')

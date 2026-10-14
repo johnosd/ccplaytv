@@ -40,6 +40,27 @@ Não habilitar retenção bloqueada irreversível no piloto. API pública nunca
 executa `/internal/portal/jobs/tick`; jobs depende de IAM/OIDC real, não token
 estático. Não executar fila em BackgroundTasks ou loop residente.
 
+## ID do dispositivo no backup e no restore (ADR-015)
+
+- `devices.display_id`/`display_id_source` e `displayIdClaims/{hmac(displayId)}`
+  entram no backup do Firestore (banco inteiro, **sem lista de coleções**) e nenhuma
+  retenção, manutenção ou restore os apaga ou regrava. Guardas automáticas:
+  `api/tests/portal/test_display_id_durability.py` e `test_pairing.py`.
+- Retenção: a reserva segue o dispositivo, e nenhuma rotina automática remove
+  dispositivos. Se um dia existir exclusão integral de TV, ID e reserva saem juntos e
+  só por operação documentada.
+- Restore em nova base: dispositivos cadastrados depois do snapshot não existem lá.
+  A TV recadastra com a mesma identidade e recebe o **mesmo** ID (origem `mac` ou
+  `derived`). Registros antigos `generated` (sorteados antes da ADR-015) não são
+  reproduzíveis; hoje só a TV de referência do staging (`2A:…`).
+- A chave HMAC de identidade/reserva fica na cópia protegida das chaves: sem ela o
+  ID derivado não se reproduz e a reserva não é consultável. Entra no ensaio de
+  recuperação de chaves.
+- Chave do dispositivo após restore: vale o hash restaurado; `access_revoked` do
+  journal derruba chaves revogadas depois do snapshot. O caso "TV com chave mais
+  nova que o snapshot" deve ser **observado no ensaio real** (T060/T039) e
+  registrado em `evidencias/`; não está afirmado aqui.
+
 ## Segredos e rotação sem cofres
 
 Sem KMS/Secret Manager, conforme decisão do usuário. AES-GCM, assinatura ES256,
