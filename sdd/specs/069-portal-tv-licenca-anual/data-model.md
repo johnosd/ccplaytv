@@ -81,3 +81,5 @@ pendingImportOutbox.acknowledgedState opcional completed|error evita repetir ACK
 ## Sessão local de uso da lista — decisão 2026-10-11
 
 Autorizar a entrada usando licença assinada/cache/relógio confiável vigentes. Não criar documento ou flag persistida de autorização da sessão. Navegação existente em memória identifica lista aberta; sair para o seletor ou fechar app encerra a continuidade, e escolha/RETURN revalidam. Vencimento não fecha a sessão já admitida; status/validade continuam refletindo o cache. Revogação confirmada mantém encerramento controlado.
+
+> **Atualização (070, 2026-10-13):** a feature 070 alterou o descrito neste documento quanto a: ID exibido no formato MAC (imutável, ADR-015), chave do dispositivo numérica de 10 dígitos, sessão manual por ID + chave e rota de valores salvos para a própria TV (`values`). O contrato e a lógica vigentes estão em `sdd/specs/070-entrada-listas-gerenciador/` (`contracts/portal-api-070.md`, `logic/pareamento.md`, `data-model.md`) e nas invariantes I-1…I-10 do `plan.md`. Não reverter.

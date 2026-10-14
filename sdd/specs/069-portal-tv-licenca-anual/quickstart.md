@@ -85,3 +85,5 @@ gcloud.cmd emulators firestore start --host-port=127.0.0.1:8085 --database-mode=
 ```
 
 Em outro terminal, api/: `$env:PORTAL_TEST_FIRESTORE="1"`; `.venv/Scripts/python.exe -m pytest tests/portal -q -o cache_dir=../.cache/pytest-portal`. Fixture só usa loopback/demo explícitos e limpa apenas documentos fictícios criados pelo teste. Sem o opt-in, testes de integração são skip, nunca prova de concorrência. Emulator não prova IAM/índices/custo de produção.
+
+> **Atualização (070, 2026-10-13):** a feature 070 alterou o descrito neste documento quanto a: ID exibido no formato MAC (imutável, ADR-015), chave do dispositivo numérica de 10 dígitos, sessão manual por ID + chave e rota de valores salvos para a própria TV (`values`). O contrato e a lógica vigentes estão em `sdd/specs/070-entrada-listas-gerenciador/` (`contracts/portal-api-070.md`, `logic/pareamento.md`, `data-model.md`) e nas invariantes I-1…I-10 do `plan.md`. Não reverter.

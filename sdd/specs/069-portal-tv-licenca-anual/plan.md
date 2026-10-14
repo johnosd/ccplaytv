@@ -29,8 +29,8 @@ Replanejamento completo das três stories e dos 33 FR/12 SC, sem implementação
 
 - **D-001 — Fronteira:** TV mantém catálogo, importação e reprodução; servidor mantém estado desejado, autorização, fila, pagamento e concessões. Snapshot confirma estado aplicado, nunca cria lista.
 - **D-002 — Isolamento:** novo entrypoint/settings/repos Firestore; não importar `api/main.py`, SQLAlchemy/Alembic, routers do catálogo ou iniciar PostgreSQL para o portal.
-- **D-003 — Identidade:** deviceId/DUID não autenticam. Bearer TV e device key são distintos; convite aleatório 256 bits/5 min/uso único; sessão 30 min inativa/8 h absoluta; epoch invalida acessos. Recuperação pelo site com código privado e desafio da mesma TV, rotação/revogação, sem novo trial (logic §7).
-- **D-004 — Cifragem/retenção:** AES-256-GCM, nonce novo, AAD deviceId/sourceId/configVersion/keyVersion. Configuração corrente vive enquanto cadastrada; ACK/cancelamento/expiração não a apagam. Browser não lê segredo salvo. Servidor decifra transitoriamente em fluxo autorizado; não é E2E opaco.
+- **D-003 — Identidade:** deviceId/DUID não autenticam. Bearer TV e device key são distintos; convite aleatório 256 bits/5 min/uso único; sessão 30 min inativa/8 h absoluta; epoch invalida acessos. Recuperação pelo site com código privado e desafio da mesma TV, rotação/revogação, sem novo trial (logic §7). **Atualização (070):** a device key passou a ser numérica de 10 dígitos e a entrada manual usa o ID exibido (`displayId`) + chave; convite segue 256 bits/uso único. Limites e recusa uniforme na D-005 da 070.
+- **D-004 — Cifragem/retenção:** AES-256-GCM, nonce novo, AAD deviceId/sourceId/configVersion/keyVersion. Configuração corrente vive enquanto cadastrada; ACK/cancelamento/expiração não a apagam. Browser não lê segredo salvo. Servidor decifra transitoriamente em fluxo autorizado; não é E2E opaco. **Atualização (070):** "Browser não lê segredo salvo" vale para leituras comuns; a rota `values` (sessão `manage` da mesma TV, allowlist, `no-store`) é a única exceção, por constitution 1.10.0.
 - **D-005 — Concorrência:** sourceId estável, revisão aplicada distinta da versão desejada; toda mutação local/remota incrementa revisão atomicamente com recibo/outbox. Operações imutáveis, entrega pelo menos uma vez, aplicação idempotente. Callback Firestore sem efeitos externos.
 - **D-006 — Escopo de fonte:** somente `provider_credentials` e `m3u_url`, com campos complementares suportados. Sem upload, arquivo/chunks M3U, `m3u_file`, `sourceFiles`, API keys TMDB/OpenAI remotas ou exportação de segredos exclusivos da TV.
 - **D-007 — Exclusão domina estado antigo:** remover na TV grava tombstone e outbox no mesmo commit. Sincronização envia exclusões antes de receber comandos. Portal elimina segredo/cancela pendências e mantém intenção até ACK da TV, sem TTL de 7 dias para deletes. sourceId excluído nunca é reutilizado; recriação explícita recebe novo ID.
@@ -154,12 +154,12 @@ Detalhes vinculantes: data-model.md, contracts/portal-api.md, logic/operacoes-e-
 
 | Área | Estado |
 | --- | --- |
-| Execução | Em Execução, modo contínuo; fases 1–2, US1 e US2 concluídas localmente; US3 concluída com webhook oficial e E2E comercial validados; T055 corrigida; infraestrutura staging e ACK sintético concluídos; backup diário provisionado; portal E2E 13/13; T036 e T045 concluídas; 56/64 itens concluídos conforme script de status. |
+| Execução | Em Execução, modo contínuo; fases 1–2, US1 e US2 concluídas localmente; US3 concluída com webhook oficial e E2E comercial validados; T055 corrigida; infraestrutura staging e ACK sintético concluídos; backup diário provisionado; portal E2E 13/13; T036 e T045 concluídas; 56/64 itens concluídos conforme script de status. **Revisão 2026-10-13:** painel em 59/67 antes da Fase 7; a 070 convergida mudou ID/chave/entrada (ver **Invariantes herdadas da 070**) e T059–T063 foram anexadas. |
 | Entregas | Configurações permanentes cifradas, exclusão sincronizada e recuperação pelo site; núcleo comercial, assinatura ES256, cache offline, guarda de entrada da lista e área de licença revalidadas pela nova decisão. Oferta R$35/12 meses/uma TV; venda desligada. |
 | Revisão local | T038/T040/T042 concluídas; T037/T044 revalidadas: UX, fronteiras HTTP/segredos, manifesto e documentação. API90/90 anterior + marcador HTTP1/1; portal13/13 E2E PASS com servidor explícito. Nova fronteira de vencimento:26/26 testes direcionados e E2E licença1/1 PASS78.2s; sem interrupção da sessão atual. Type/lint/build TV PASS. |
 | Gates automatizados | Suíte TV **49/49 E2E PASS em 350s** com `teste-conexao-tv` aprovado. A005 não reproduziu em três repetições isoladas nem na suíte completa. Revisão atual: **3301/3301 testes e 1398/1398 suítes PASS** (563 arquivos, threads4/JSON); direcionados e contratos PASS. Portal E2E13/13, lint/build/unit PASS; build:tizen e sincronização PASS. |
 | Plataforma/operação | TV atual preservada; projeto Google Cloud ccplaytv-511322 ativo; Cloud Run público/jobs, IAM/OIDC e Firestore staging validados. Oferta/termos/retenções e budget R$10/mês confirmados; snapshot READY, restore/replay, medições/custos restantes e fluxo comercial físico permanecem pendentes. |
-| Contratos | C1–C5 PASS e trava069 íntegra. Emenda mínima067 autorizada; trava067 íntegra. Nenhuma autorização para outros contratos. |
+| Contratos | C1–C5 PASS e trava069 íntegra. Emenda mínima067 autorizada; trava067 íntegra. Nenhuma autorização para outros contratos. Travas 070 (5/5) e 037 emendada também são gate desta feature (I-1…I-10). |
 
 ## Riscos e Decisões
 
@@ -169,7 +169,7 @@ Detalhes vinculantes: data-model.md, contracts/portal-api.md, logic/operacoes-e-
 | R-002 | DUID não autentica/recupera | Alto | T003 prova; T007 código privado + desafio da mesma TV, sem reinstalar a TV do usuário. |
 | R-003 | Relógio offline sem atestação | Alto | T003/T035 caracterizam e reabrem FR-027 se garantia inviável. |
 | R-004 | Oferta/comercial/custos incompletos | Alto | Infra definida Google Cloud; T045 confirmou preço R$35, sandbox/conta, termos/retenções, autoatendimento e budget R$10; custos de carga/restore ainda dependem de T043/T039/T052. |
-| R-005 | SourceView contém URLs | Alto | Allowlist, C4/T020/T042, sem revelar campos secretos. |
+| R-005 | SourceView contém URLs | Alto | Allowlist, C4/T020/T042, sem revelar campos secretos. **Atualização (070):** a allowlist e C4 continuam para `SourceView`; os valores salvos saem só pela rota `values` (070 D-006). |
 | R-006 | M3U arquivo não existe como fonte durável | Alto | Resolvido por escopo: sem arquivo remoto; usar M3U URL/import local existente. |
 | R-007 | Mudanças externas da 068/schema | Médio | Reler, não reverter nem assumir versão livre. |
 | R-008 | Fragmento QR versus FR-014 | Resolvido no design | Constitution 1.8.0 permite convite efêmero restrito, nunca chave permanente/código em URL; T038/T042 verificam implementação. |
@@ -186,6 +186,7 @@ Detalhes vinculantes: data-model.md, contracts/portal-api.md, logic/operacoes-e-
 | R-017 | Usuário mudou fronteira de vencimento após execução local | Médio | Emenda explícita: bloquear apenas próxima entrada; T031/T033/T035/T037/T044 reabertas e revalidadas, constitution1.9.0/spec/logic alinhadas. C5 continua decisão pura de validade, sem alterar trava. Sessão sem limite de duração adicional até saída é consequência aceita. |
 | R-019 | Sessão do portal recusava leituras concorrentes (401 espúrio): `now < last_seen_at` fora de ordem | Médio (UX e falso "acesso expirado"; afetaria staging/produção) | Resolvido (T056): tolerância de 30 s + `last_seen_at` monotônico; relógio muito atrás segue recusado; teste vermelho→verde. Achado pela pilha local integrada (`evidencias/pilha-local.md`), que o E2E com servidor falso não podia expor. Publicado no staging em 2026-10-13 (`evidencias/infra.md`). |
 | R-018 | Piso de amostras de T043 (≥100) reduzido para 20 por decisão do usuário em 2026-10-13 | Baixo | Registrado em `evidencias/medicoes.md`: com 20 amostras o p95 é o 19º valor, ordem de grandeza e não estatística robusta; nenhuma amostra descartada. Meta de 30 s/60 s e demais itens de T043 (ativações, 10–50 TVs, custo) não são relaxados. |
+| R-020 | O trabalho restante da 069 (T039/T043/T046/T052, backup/restore, scripts de manutenção, roteiros) desfazer ou contradizer o que a 070 entregou (ID MAC imutável, chave de 10 dígitos, `values`, tela Adicionar, `network.public`, RETURN em cadeia) | Alto (regressão normativa e de produto) | Seção **Invariantes herdadas da 070** abaixo; T059–T063 em `tasks.md` (Fase 7); gate de não-regressão da 070 obrigatório antes de fechar T047. |
 
 ## Execution Notes
 
@@ -251,7 +252,28 @@ Checkpoint 2026-10-11: T054 concluída após autorização; isInHistory em módu
 
 | 2026-10-13 | T057 + pacote comercial na TV | Exclusão local agora envia a outbox na hora (`flushDeletions` + `publishSnapshot`, sem pull/licença/polling); 5 testes novos, 91/91 relacionados, tsc/lint PASS; cenário integrado 5/5. `build:tizen:commercial` (origem e JWKS públicos do staging) instalado e lançado na TV 192.168.0.2 sem desinstalar. | Validação visual do usuário (roteiro em `evidencias/tv.md`); fix T056 publicado no staging (revisão `ccplaytv-portal-00013-ph4`, 60/60 leituras concorrentes OK); T043/T052/T039. |
 
-PRÓXIMO: o usuário percorre o roteiro de `evidencias/tv.md` na TV (T046 só fecha com observação dele). Fix T056 já publicado no staging (revisão ccplaytv-portal-00013-ph4). Concluir T043 (ativações pagas SC-006, carga, custo) e T052 (homologação real não destrutiva). Deixar T039 (snapshot READY, inspect, restore, replay e RPO/RTO) deliberadamente por último; T047 só fecha após esse gate. Venda permanece desligada.
+PRÓXIMO (revisado em 2026-10-13, após a 070): executar T060 (escopo de backup/restore com `displayIdClaims` e `display_id` imutável), T061 (homologação real das rotas da 070) e T062 (roteiro de TV reconciliado com `070/evidencias/tv.md`); depois T043 (ativações pagas, carga, custo) e T046 (observação do usuário na TV). T063 (gate de não-regressão da 070 e limpeza de registros `generated` do staging, com confirmação) e T047 fecham por último. O roteiro antigo de `evidencias/tv.md` (passos 1–7) foi cumprido em parte em 2026-10-13; o que falta está listado lá. Venda permanece desligada.
+
+## Invariantes herdadas da 070
+
+Acrescentada em 2026-10-13, depois da convergência da `070-entrada-listas-gerenciador`. A 070 mudou comportamentos que partes desta spec ainda descrevem com o texto anterior. **Qualquer task, correção, script, migração ou roteiro da 069 deve preservar o abaixo**; em caso de conflito com texto antigo desta spec, vale a 070 (constitution 1.10.0, ADR-014, ADR-015).
+
+| # | Invariante | Onde está garantida | Como a 069 pode violá-la |
+| --- | --- | --- | --- |
+| I-1 | ID exibido no formato MAC (`XX:XX:XX:XX:XX:XX`), **imutável** depois de atribuído; sem MAC útil é derivado da identidade, nunca sorteado | `api/app/portal/{display_id,enrollment,access_rotation}.py`, repositório (`immutable_display_id`), `test_pairing.py` | Restore/replay/manutenção/reconcile que regrave, apague ou recrie `display_id`/`displayIdClaims`; seed ou fixture que sorteie ID |
+| I-2 | Chave do dispositivo numérica de 10 dígitos, só HMAC no servidor, permanente até `revoke` | `enrollment.py`, `access_rotation.py`, `logic/pareamento.md` (070) | Voltar ao token longo; testes/fixtures/homologação com chave de 43 caracteres; tratar a rotação D-004 da 070 (registro antigo) como bug |
+| I-3 | Entrada manual por ID exibido + chave, recusa uniforme `401`, limites por HMAC(ID), por IP e global | `auth.py`, `routes/auth.py`, `test_pairing.py` | Afrouxar ou trocar limites em medições/carga (T043) ou homologação (T052); mensagem que revele se o ID existe |
+| I-4 | Valores salvos saem **somente** por `GET /portal/v1/configurations/{sourceId}/values`, sessão `manage` da mesma TV, allowlist, `no-store`, nunca em log | `configuration_delivery.py`, `routes/operations.py`, `test_configuration_values.py` | "Corrigir" a rota por causa de SC-004/R-005 antigos; cache/CDN/proxy na frente; log de corpo em diagnóstico |
+| I-5 | Chave sempre visível **só** na tela Adicionar da TV; em outros lugares só por ação explícita (diálogo de Configurações) | `PortalPairingPanel.tsx`, `PortalPrivateDialog.tsx` | Replicar a chave em cards, perfis, avisos, telas de licença ou diagnóstico |
+| I-6 | Entrada única "Adicionar lista"; sem canto "Adicionar pelo site" nos perfis; Configurações → "Portal & licença" permanece | `ProfilesScreen.tsx`, `AddSourceScreen.tsx`, `App.tsx`, `e2e/lib/portal.mjs` | Roteiros e E2E da 069 que clicam no canto removido |
+| I-7 | RETURN volta em cadeia até a tela de listas (`leave-list`); `ExitModal` só nos perfis | `appNav.ts`, `HomeScreen.tsx` | Telas da licença/bloqueio que abram saída própria ou fechem o app direto |
+| I-8 | `CCPlayTv/config.xml` declara `network.public` (leitura do MAC) | `config.xml`, sonda `platformProbe.ts` | Regenerar/limpar `config.xml` ou o manifesto do pacote comercial sem o privilégio |
+| I-9 | Formulário de lista com dados visíveis por padrão e olho único; edição mostra valores salvos | `SourceFormFields.tsx`, contrato C2 da 070 | Reintroduzir máscara por padrão ou "em branco preserva" como única opção |
+| I-10 | QR carrega só convite efêmero/uso único, nunca ID, chave nem credencial | `PortalPairingPanel.tsx`, contrato C1 da 070 | Colocar chave ou ID no fragmento por conveniência de teste |
+
+**Guarda mecânica**: `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 070-entrada-listas-gerenciador` deve passar (5/5) e `npx vitest run` dos quatro arquivos `*.entrada-listas-gerenciador.contract.test.*` deve ficar verde em todo gate desta feature (T063). Um contrato da 070 só muda por emenda aprovada pelo usuário na própria 070.
+
+**Gate de venda herdado da ADR-015**: registros `generated` do staging (a TV de referência tem ID `2A:…`) só saem por operação documentada **antes** da abertura comercial; isso é ação externa e exige confirmação do usuário (T063).
 
 ## Arquivos Principais
 
@@ -308,3 +330,5 @@ O painel sandbox do Mercado Pago enviou `payment.updated` para a rota staging e 
 ### Decisão T036 — reutilizar compras sandbox existentes — 2026-10-12
 
 Não será repetida uma compra sandbox. As duas compras já aprovadas comprovam Checkout Pro e concessão anual via reconciliação; o webhook oficial foi aceito separadamente com `200 - OK`. A ausência de uma prova causal de nova concessão exclusivamente pelo webhook fica registrada como limitação aceita, sem habilitar venda.
+
+**Cuidados herdados da 070 (2026-10-13):** a frase "não expor campos ao portal" acima vale para leituras comuns; a rota `values` da 070 é a única exceção. Não restaurar, regravar nem apagar `display_id`/`displayIdClaims` (ADR-015). Não voltar à chave longa. Antes de qualquer gate, rodar as travas e contratos da 070 (tabela **Invariantes herdadas da 070**).
