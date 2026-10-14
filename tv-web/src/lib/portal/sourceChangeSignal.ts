@@ -1,14 +1,16 @@
 /**
- * Aviso de "a pessoa criou/editou uma lista agora" (feature 071, FR-008/D-010). O agente montado no App registra
- * a escuta; sem portal configurado não há escuta e nada acontece. Nunca lança: o cadastro local não depende daqui.
+ * Aviso de "a pessoa criou/editou/excluiu uma lista agora" (feature 071, FR-008/D-010). O agente montado no App
+ * registra a escuta; sem portal configurado não há escuta e nada acontece. Nunca lança: a ação local não depende daqui.
  */
-let listener: (() => void) | undefined
+export type LocalSourceChange = 'saved' | 'deleted'
 
-export function onLocalSourceChanged(handler: () => void) {
+let listener: ((change: LocalSourceChange) => void) | undefined
+
+export function onLocalSourceChanged(handler: (change: LocalSourceChange) => void) {
   listener = handler
   return () => { if (listener === handler) listener = undefined }
 }
 
-export function notifyLocalSourceChanged() {
-  try { listener?.() } catch { /* o envio é tentado de novo no próximo Atualizar */ }
+export function notifyLocalSourceChanged(change: LocalSourceChange = 'saved') {
+  try { listener?.(change) } catch { /* o envio é tentado de novo no próximo Atualizar */ }
 }

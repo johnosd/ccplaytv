@@ -72,18 +72,18 @@ async function addListFromProfiles(page, m3uUrl, displayName) {
   await page.waitForSelector('.add-card.tv-focus', { timeout: 8000 })
   await page.keyboard.press('Enter')
   await page.waitForSelector('#add-source-title', { timeout: 8000 })
-  assert(await xtreamFocused(page), 'o cadastro abre com "Xtream Codes" selecionado e em foco (feature 037, FR-015/D-009)')
+  assert(await siteTabFocused(page), 'o cadastro abre na aba "Pelo site" selecionada e em foco (071/A006, antes: Xtream, 037 FR-015/D-009)')
   await cadastrarListaM3u(page, { nome: displayName, url: m3uUrl })
   await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
 }
 
-/** O foco DOM está no cartão "Xtream Codes", selecionado (`aria-pressed`). */
-async function xtreamFocused(page) {
+/** O foco DOM está na aba "Pelo site", selecionada (`aria-pressed`): é a que o cadastro abre (071/A006). */
+async function siteTabFocused(page) {
   return page
     .waitForFunction(
       () => {
         const el = document.activeElement
-        return el?.getAttribute('aria-pressed') === 'true' && el.textContent?.includes('Xtream Codes') === true
+        return el?.getAttribute('aria-pressed') === 'true' && el.textContent?.includes('Pelo site') === true
       },
       null,
       { timeout: 3000 },
@@ -318,7 +318,9 @@ async function run() {
     await freshPage.waitForSelector('.add-card.tv-focus', { timeout: 8000 })
     await ok() // "Adicionar lista"
     await freshPage.waitForSelector('#add-source-title', { timeout: 8000 })
-    assert(await xtreamFocused(freshPage), 'sem nenhuma lista, o cadastro também abre em "Xtream Codes"')
+    assert(await siteTabFocused(freshPage), 'sem nenhuma lista, o cadastro também abre em "Pelo site"')
+    await down() // Pelo site → Xtream Codes
+    await ok() // seleciona a aba "Xtream Codes" (071/A006: o cadastro abre em "Pelo site"); ainda ≤ 3 OK no total
     await down(2) // Xtream Codes → Lista M3U → Nome da lista
     await freshPage.keyboard.type('Lista E2E Xtream')
     await down()

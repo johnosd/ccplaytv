@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AddSourceScreen } from './AddSourceScreen'
@@ -250,6 +250,32 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
     expect(screen.getByRole('button', { name: /Xtream Codes/ })).toHaveFocus()
     fireEvent.keyDown(document, { key: 'ArrowUp' })
     expect(screen.getByRole('button', { name: 'Recarregar' })).toHaveFocus()
+  })
+
+  it('071/A006: "Pelo site" é a 1ª aba e a que abre, antes de Xtream Codes e Lista M3U; uma aba por vez, sem perder o que foi digitado', () => {
+    const site = <section aria-label="Pelo site"><button type="button">Recarregar</button><button type="button">Voltar</button></section>
+    render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} sitePanel={site} />, { wrapper: createWrapper() })
+
+    const tabs = screen.getByRole('group', { name: 'Tipo de lista' })
+    expect(Array.from(tabs.querySelectorAll('button')).map((button) => button.textContent?.replace('✓', ''))).toEqual(
+      ['Pelo site', 'Xtream Codes', 'Lista M3U'])
+    // Abre sempre em \"Pelo site\": painel visível (com o próprio Voltar), formulário fora e foco na aba.
+    expect(screen.getByRole('button', { name: /Pelo site/ })).toHaveFocus()
+    expect(screen.getByRole('region', { name: 'Pelo site' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Nome da lista')).not.toBeInTheDocument()
+    fireEvent.click(within(tabs).getByRole('button', { name: /Xtream Codes/ }))
+    expect(screen.queryByRole('region', { name: 'Pelo site' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Nome da lista'), { target: { value: 'Minha lista' } })
+
+    fireEvent.click(within(tabs).getByRole('button', { name: /Pelo site/ }))
+    expect(screen.getByRole('region', { name: 'Pelo site' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Nome da lista')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Conectar e sincronizar' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Voltar' })).toHaveLength(1)
+
+    fireEvent.click(within(tabs).getByRole('button', { name: /Xtream Codes/ }))
+    expect(screen.getByLabelText('Nome da lista')).toHaveValue('Minha lista')
+    expect(screen.queryByRole('region', { name: 'Pelo site' })).not.toBeInTheDocument()
   })
 
   it('as setas percorrem tipos → campos → Voltar → "Conectar e sincronizar", na ordem visual', () => {

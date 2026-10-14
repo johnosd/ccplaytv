@@ -1,5 +1,5 @@
 import Dexie from 'dexie'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { CatalogDb } from '../../lib/catalog/db'
 import { PortalRequestError } from '../../lib/portal/portalClient'
@@ -84,17 +84,10 @@ it('Recarregar sem internet mostra o aviso e mantém os botões; nada é perdido
   expect(onReloaded).not.toHaveBeenCalled()
   expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument()
 })
-it('"Gerar nova chave" exige confirmação: Cancelar não rotaciona; confirmar chama a rotação revoke', async () => {
+it('a tela do site só tem Recarregar e Voltar (nova chave fica em Portal & licença, 071/A006)', async () => {
   const connection = await connectionWith(path => (path.endsWith('/invites') ? invite() : {}))
-  const rotate = vi.spyOn(connection, 'rotate').mockResolvedValue((await connection.ready()))
   render(<PortalPairingPanel connection={connection} onBack={vi.fn()} />)
   await screen.findByRole('img', { name: /QR/ })
-  fireEvent.click(screen.getByRole('button', { name: 'Gerar nova chave' }))
-  let dialog = screen.getByRole('dialog', { name: 'Gerar nova chave do dispositivo?' })
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
-  expect(rotate).not.toHaveBeenCalled()
-  fireEvent.click(screen.getByRole('button', { name: 'Gerar nova chave' }))
-  dialog = screen.getByRole('dialog', { name: 'Gerar nova chave do dispositivo?' })
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Gerar nova chave' }))
-  await vi.waitFor(() => expect(rotate).toHaveBeenCalledWith('revoke'))
+  expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['Recarregar', 'Voltar'])
+  expect(screen.queryByRole('button', { name: 'Gerar nova chave' })).not.toBeInTheDocument()
 })

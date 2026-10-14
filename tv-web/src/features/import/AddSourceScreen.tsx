@@ -29,6 +29,11 @@ export interface AddSourceScreenProps {
    * Presente = substitui o antigo mock "Em breve" e traz o próprio Voltar; ausente = só o cadastro manual.
    */
   phonePanel?: ReactNode
+  /**
+   * Aba "Pelo site" (071, A006): vem do App (features/portal) e aparece ao lado de Xtream Codes e Lista M3U, uma
+   * por vez, na mesma tela — Voltar de qualquer aba cai na tela de listas. Traz Recarregar e o próprio Voltar.
+   */
+  sitePanel?: ReactNode
 }
 
 type EntryMode = 'url' | 'provider'
@@ -61,6 +66,7 @@ export function AddSourceScreen({
   onSourceUpdated,
   onBack,
   phonePanel,
+  sitePanel,
 }: AddSourceScreenProps) {
   const t = useT()
   const isEditing = existingSource != null
@@ -100,6 +106,8 @@ export function AddSourceScreen({
   const [mode, setMode] = useState<EntryMode>(
     existingSource == null || existingSource.type === 'provider_credentials' ? 'provider' : 'url',
   )
+  // Aba "Pelo site" (só existe no cadastro novo com `sitePanel`): é a que abre, sempre; Xtream/M3U seguem em `mode`.
+  const [onSite, setOnSite] = useState(sitePanel != null)
   const [displayName, setDisplayName] = useState(existingSource?.display_name ?? '')
   const [m3uUrl, setM3uUrl] = useState('')
   // Em edição (feature 070, FR-011), os valores salvos no próprio aparelho entram nos campos, visíveis
@@ -335,13 +343,20 @@ export function AddSourceScreen({
           <div className="source-setup-main">
             <section className="source-setup-manual" aria-labelledby="manual-setup-title">
               <h2 id="manual-setup-title" className="source-setup-main-title">
-                {t('add.manual')}
+                {sitePanel ? t('add.tabs.title') : t('add.manual')}
               </h2>
-              {/* Seletor de duas posições, igual ao do portal: botões reais (foco do controle), o
-                  selecionado com destaque E a marca ✓ — nunca só a cor (FR-015). */}
-              <div className="source-type-row" role="group" aria-label={t('add.typeGroup')}>
+              {/* Abas (071, A006): Pelo site (com portal ou sem), Xtream Codes e Lista M3U, nessa ordem. Botões reais (foco do
+                  controle), a selecionada com destaque E a marca ✓ — nunca só a cor (FR-015). */}
+              <div className={`source-type-row${sitePanel ? ' source-type-row--three' : ''}`} role="group" aria-label={t('add.typeGroup')}>
+                {sitePanel && (
+                  <button ref={onSite ? selectedTypeRef : undefined} type="button" className={`source-type${onSite ? ' is-selected' : ''}`}
+                    aria-pressed={onSite} onClick={() => setOnSite(true)}>
+                    {onSite && <span className="source-type-check" aria-hidden="true">✓</span>}
+                    {t('add.tab.site')}
+                  </button>
+                )}
                 {ENTRY_TYPES.map((type) => {
-                  const selected = type.id === mode
+                  const selected = type.id === mode && !onSite
                   return (
                     <button
                       key={type.id}
@@ -349,7 +364,7 @@ export function AddSourceScreen({
                       type="button"
                       className={`source-type${selected ? ' is-selected' : ''}`}
                       aria-pressed={selected}
-                      onClick={() => setMode(type.id)}
+                      onClick={() => { setOnSite(false); setMode(type.id) }}
                     >
                       {selected && (
                         <span className="source-type-check" aria-hidden="true">
@@ -363,8 +378,7 @@ export function AddSourceScreen({
               </div>
             </section>
 
-            {fields}
-            {feedbackAndActions}
+            {sitePanel && onSite ? sitePanel : <>{fields}{feedbackAndActions}</>}
           </div>
         </div>
       )}

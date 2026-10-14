@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$BaseUrl = 'https://ccplaytv-portal-dvpldo267q-uc.a.run.app')
+param([string]$BaseUrl = 'https://portal.ccplaytv.com')
 $ErrorActionPreference='Stop'
 $bytes=New-Object byte[] 32
 $rng=[Security.Cryptography.RandomNumberGenerator]::Create()

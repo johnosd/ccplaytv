@@ -18,7 +18,7 @@ cd ..\portal-web; npm run lint; npm run test; npm run build; npm run test:e2e
 ## 3. Cenário ponta a ponta (dev server / pilha local)
 
 1. App novo, offline: abre, teste começa, usa; 0 requisições.
-2. Online, abrir **Adicionar lista**: cadastro único; ID/chave/QR aparecem; trial ancorado.
+2. Online, abrir **Adicionar lista**: uma tela com as abas **Pelo site | Xtream Codes | Lista M3U**, abrindo em "Pelo site" (A006): cadastro único; ID/chave/QR aparecem, só com **Recarregar** e **Voltar**; trial ancorado. As abas de lista têm só o formulário e **Conectar e sincronizar**; RETURN de qualquer aba cai na tela de listas.
 3. Ler o QR no navegador: painel abre autenticado, sem digitar; endereço limpo (sem `#`).
 4. Criar lista no site → **Recarregar** na TV: volta à lista com foco na nova.
 5. Adicionar lista na TV → site mostra nome/host/usuário/senha em segundos; offline vai para a fila e sobe no Atualizar.
@@ -26,7 +26,7 @@ cd ..\portal-web; npm run lint; npm run test; npm run build; npm run test:e2e
 7. Avançar o relógio 7 dias: entrada na lista mostra o bloqueio com QR/endereço/ID/chave; 0 requisições.
 8. Comprar (sandbox) e **Atualizar** no bloqueio: libera e entra na lista negada.
 9. TV parada 24 h em qualquer tela: 0 requisições (log do serviço).
-10. **Gerar nova chave**: QR antigo recusado, QR da tela muda.
+10. **Gerar nova chave** (Configurações → Portal & licença → Revogar acessos ao portal): QR antigo recusado, QR da aba Pelo site muda.
 
 ## 4. TV física (gate antes de cobrar)
 

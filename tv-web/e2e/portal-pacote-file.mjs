@@ -41,8 +41,7 @@ try {
 
   assert.equal(await focus(), 'Gerar QR para o portal')
   await key('Enter')
-  await page.getByRole('img', { name: 'QR de acesso temporário ao portal desta TV' }).waitFor({ timeout: 15000 })
-  assert.ok(await panel.getByText(/QR válido por \d+ segundos/).count(), 'contagem do QR')
+  await page.getByRole('img', { name: /QR de acesso ao portal/ }).waitFor({ timeout: 15000 })
   step(`QR visível com relógio da TV ${clockOffsetMs} ms em relação ao servidor`)
 
   await key('ArrowDown')

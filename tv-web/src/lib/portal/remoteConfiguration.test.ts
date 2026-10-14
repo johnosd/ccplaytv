@@ -4,7 +4,7 @@ import { CatalogDb } from '../catalog/db'
 import { createSource, deleteSource, getSource, readCredential, updateSource } from '../catalog/sourceRepository'
 import { applyRemoteMutation, type RemoteMutation } from './remoteConfiguration'
 import { portalTables } from './portalTables'
-import { capturePortalSnapshot } from './snapshotPublisher'
+import { capturePortalSnapshot, MAX_SNAPSHOT_SOURCES } from './snapshotPublisher'
 import { drainRemoteImports } from './remoteImportOutbox'
 
 const names: string[] = []
@@ -97,6 +97,20 @@ it('snapshot deixa URLs/credenciais/campos futuros fora do envelope e separa rev
   } finally { db.close() }
 })
 
+
+it('071/C-01: com mais de 50 listas o snapshot leva no máximo 50 (o serviço recusaria o envelope inteiro)', async () => {
+  const db = database()
+  try {
+    for (let index = 0; index < 52; index += 1) await createSource({ ...provider, displayName: `Lista ${index}` }, db)
+    const snapshot = await capturePortalSnapshot(db, 1_000)
+    expect(snapshot.sources).toHaveLength(MAX_SNAPSHOT_SOURCES)
+    expect(snapshot.revisions).toHaveLength(MAX_SNAPSHOT_SOURCES)
+    expect(snapshot.imports.length).toBeLessThanOrEqual(MAX_SNAPSHOT_SOURCES)
+    // Só entram listas que também estão nas revisões (coerência do envelope).
+    const ids = new Set(snapshot.revisions.map((item) => item.sourceId))
+    expect(snapshot.sources.every((source) => ids.has(source.id))).toBe(true)
+  } finally { db.close() }
+})
 
 it('complemento EPG remoto preserva vazio e só limpa campo opcional explicitamente', async () => {
   const db = database(), importSource = vi.fn(async () => {})

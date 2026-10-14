@@ -21,12 +21,10 @@ try {
   await tvContext.route('https://media.fixture.test/**', () => {})
   const tv = await tvContext.newPage()
   const net = []
-  let inviteToken
   tv.on('response', async response => {
     const path = new URL(response.url()).pathname
     if (!path.startsWith('/portal/v1')) return
     net.push(`${response.request().method()} ${path.replace('/portal/v1', '')} ${response.status()}`)
-    if (path.endsWith('/device/invites') && response.ok()) inviteToken = (await response.json()).token
   })
   tv.on('pageerror', error => net.push('pageerror: ' + String(error.message).slice(0, 160)))
   const focus = () => tv.evaluate(() => (document.querySelector('.tv-focus')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 40))
@@ -44,8 +42,7 @@ try {
 
   assert.equal(await focus(), 'Gerar QR para o portal')
   await press('Enter')
-  await expect(tv.getByRole('img', { name: 'QR de acesso temporário ao portal desta TV' })).toBeVisible({ timeout: 15000 })
-  assert.ok(inviteToken, 'convite recebido')
+  await expect(tv.getByRole('img', { name: /QR de acesso ao portal/ })).toBeVisible({ timeout: 15000 })
   log(`QR visível (relógio da TV ${clockOffsetMs} ms)`)
 
   const reveal = async (action, pattern) => {
@@ -65,16 +62,27 @@ try {
   await reveal('Mostrar código da licença', /([0-9A-Z]{4}-){3,}[0-9A-Z]{4}/)
   log('código da licença exibido só por ação explícita')
 
-  // Portal: entra pelo convite do QR e cria uma lista; a TV (tela rápida aberta) aplica.
+  // Portal: entra pelo QR fixo (ID + chave no fragmento) e cria uma lista; a TV aplica no Atualizar.
   const portalContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR' })
   const portal = await portalContext.newPage()
-  await portal.goto(`${stack.portalOrigin}/#invite=${inviteToken}`)
+  const qr = await tv.evaluate(async site => {
+    const { db } = await import('/src/lib/catalog/db.ts')
+    const { buildFixedQrUrl } = await import('/src/lib/portal/fixedQr.ts')
+    const row = await db.table('portalDevice').get('device')
+    return buildFixedQrUrl({ site, displayId: row.displayId, deviceKey: row.deviceKey })
+  }, stack.portalOrigin)
+  await portal.goto(qr)
   await expect(portal.getByRole('heading', { name: 'Suas listas' })).toBeVisible({ timeout: 20000 })
   await portal.getByRole('button', { name: 'Adicionar lista', exact: true }).click()
   await portal.getByLabel('Nome da lista').fill('Lista do dev server')
   await portal.getByRole('group', { name: 'Tipo de lista' }).getByRole('radio', { name: 'M3U por URL' }).check()
   await portal.getByLabel('URL da lista M3U', { exact: true }).fill('https://iptv.fixture.test/list.m3u?key=segredo-fixture')
   await portal.getByRole('button', { name: 'Enviar para a TV', exact: true }).click()
+  // Espera o portal confirmar o pedido antes de pedir à TV (nada é automático).
+  await expect(portal.getByRole('heading', { name: 'Lista do dev server', exact: true })).toBeVisible({ timeout: 15000 })
+  // 071: nada é automático — volta aos perfis e aperta Atualizar.
+  await tv.keyboard.press('Escape')
+  await tv.locator('.profiles-portal-corner').click()
   await expect.poll(() => tv.evaluate(async () => { const { db } = await import('/src/lib/catalog/db.ts'); return (await db.sources.toArray()).map(s => s.displayName ?? s.name) }),
     { timeout: 60000, intervals: [1000] }).toContain('Lista do dev server')
   expect(await portal.locator('body').innerText()).not.toContain('segredo-fixture')

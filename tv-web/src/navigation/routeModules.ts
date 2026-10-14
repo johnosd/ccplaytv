@@ -38,7 +38,7 @@ function withParentalGate<P extends { onBack: () => void; existingSource?: { id:
 
 // Editar lista pede o PIN da lista quando ela tem controle parental; adicionar lista não pede (feature 067).
 export const AddSourceScreen = withParentalGate(lazyRoute<AddSourceScreenProps>(() => import('../features/import/AddSourceScreen'), 'AddSourceScreen'))
-export const ImportProgressScreen = lazyRoute<ImportProgressScreenProps>(() => import('../features/import/ImportProgressScreen'), 'ImportProgressScreen')
+export const ImportProgressScreen =lazyRoute<ImportProgressScreenProps>(() => import('../features/import/ImportProgressScreen'), 'ImportProgressScreen')
 export const SourceAccessRoute = lazyRoute<SourceAccessRouteProps>(() => import('../features/sources/SourceAccessRoute'), 'SourceAccessRoute')
 export const LiveScreen = lazyRoute<LiveScreenProps>(() => import('../features/live/LiveScreen'), 'LiveScreen')
 export const VodShowcaseScreen = lazyRoute<VodShowcaseScreenProps>(() => import('../features/vod/VodShowcaseScreen'), 'VodShowcaseScreen')

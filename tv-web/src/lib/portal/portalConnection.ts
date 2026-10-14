@@ -112,6 +112,7 @@ export class PortalConnection {
     }
     return device
   }
+  /** @deprecated 071: o acesso ao painel é o QR fixo (ID + chave no fragmento). Sem uso na UI; fica pelos testes da 069. */
   async invite(): Promise<{ deviceId: string; invite: PortalInvite }> {
     const device = await this.ready()
     const requestedAt = Date.now()

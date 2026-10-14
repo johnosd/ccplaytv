@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$BaseUrl = 'https://ccplaytv-portal-dvpldo267q-uc.a.run.app', [int]$Samples = 100)
+param([string]$BaseUrl = 'https://portal.ccplaytv.com', [int]$Samples = 100)
 
 $ErrorActionPreference = 'Stop'
 $base = $BaseUrl.TrimEnd('/')

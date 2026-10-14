@@ -1,4 +1,4 @@
-﻿import type { SourceOut } from '../features/import/importApi'
+import type { SourceOut } from '../features/import/importApi'
 import type { CategoryScreenSnapshot } from '../features/catalog/categoryScreenSnapshot'
 import type { VodCategoryRestore, VodShowcaseFocus, VodTarget } from '../features/vod/vodTarget'
 import type { SearchSnapshot } from '../features/search/searchSnapshot'

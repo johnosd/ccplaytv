@@ -9,7 +9,9 @@ export const REFRESH_PAUSE_MS = 10_000
 
 export type RefreshStatus = 'idle' | 'loading' | 'done' | 'nothing' | 'wait' | 'offline' | 'failed'
 
-export interface RefreshResult { ok: boolean; changed: boolean }
+/** 
+ewSourceIds: listas locais que passaram a existir com este Atualizar (só no escopo lists). */
+export interface RefreshResult { ok: boolean; changed: boolean; newSourceIds: string[] }
 
 export interface RefreshAction {
   status: RefreshStatus
@@ -35,13 +37,20 @@ export async function refreshFingerprint(scope: RefreshScope): Promise<string> {
 }
 
 const OFFLINE_CODES = new Set(['offline', 'network_error'])
+const localSourceIds = async () => (await db.sources.toCollection().primaryKeys()) as string[]
 
 /**
  * Estado de um botão Atualizar (feature 071, FR-003/FR-004): um aperto = uma chamada ao agente
  * (`refreshPortal(scope)`); nada roda por foco, montagem ou tempo.
  */
-export function useRefreshAction(scope: RefreshScope, options: { fingerprint?: (scope: RefreshScope) => Promise<string> } = {}): RefreshAction {
+export function useRefreshAction(scope: RefreshScope, options: {
+  fingerprint?: (scope: RefreshScope) => Promise<string>
+  /** Ids das listas locais (para 
+ewSourceIds); injetável em teste, onde o Dexie não convive com timers falsos. */
+  sourceIds?: () => Promise<string[]>
+} = {}): RefreshAction {
   const fingerprint = options.fingerprint ?? refreshFingerprint
+  const sourceIds = options.sourceIds ?? localSourceIds
   const [status, setStatus] = useState<RefreshStatus>('idle')
   const [code, setCode] = useState<string>()
   const [paused, setPaused] = useState(false)
@@ -54,32 +63,35 @@ export function useRefreshAction(scope: RefreshScope, options: { fingerprint?: (
   }, [])
 
   const run = useCallback(async (): Promise<RefreshResult> => {
-    if (busy.current) return { ok: false, changed: false }
+    if (busy.current) return { ok: false, changed: false, newSourceIds: [] }
     if (timer.current) {
       // Ainda na pausa: explica e não consulta.
       setStatus('wait')
-      return { ok: false, changed: false }
+      return { ok: false, changed: false, newSourceIds: [] }
     }
     busy.current = true
     setStatus('loading'); setCode(undefined); setPaused(true)
     timer.current = setTimeout(() => { timer.current = undefined; if (mounted.current) setPaused(false) }, REFRESH_PAUSE_MS)
     try {
+      const known = new Set(scope === 'lists' ? await sourceIds().catch(() => [] as string[]) : [])
       const before = await fingerprint(scope).catch(() => '')
       const outcome = await refreshPortal(scope)
-      if (!mounted.current) return { ok: outcome.ok, changed: false }
+      if (!mounted.current) return { ok: outcome.ok, changed: false, newSourceIds: [] }
       if (!outcome.ok) {
         const reason = outcome.code ?? 'sync_error'
         if (reason === 'wait') setStatus('wait')
         else if (OFFLINE_CODES.has(reason)) setStatus('offline')
         else { setStatus('failed'); setCode(reason) }
-        return { ok: false, changed: false }
+        return { ok: false, changed: false, newSourceIds: [] }
       }
       const after = await fingerprint(scope).catch(() => before)
       const changed = after !== before
       if (mounted.current) setStatus(changed ? 'done' : 'nothing')
-      return { ok: true, changed }
+      const newSourceIds = scope === 'lists'
+        ? (await sourceIds().catch(() => [] as string[])).filter(id => !known.has(id)) : []
+      return { ok: true, changed, newSourceIds }
     } finally { busy.current = false }
-  }, [fingerprint, scope])
+  }, [fingerprint, scope, sourceIds])
 
   return { status, code, paused, run }
 }

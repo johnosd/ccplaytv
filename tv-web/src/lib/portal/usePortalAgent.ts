@@ -13,8 +13,8 @@ export function usePortalAgent(database: CatalogDb, ports: PortalAgentPorts, ena
     lifecycle()
     const detach = agent.attach()
     const unregister = registerPortalRefresh(scope => agent.refresh(scope))
-    // 071/FR-008: criar/editar uma lista tenta o envio no ato (uma tentativa; falha mantém a fila).
-    const unlisten = onLocalSourceChanged(() => agent.uploadNow())
+    // 071/FR-008: criar/editar/excluir uma lista tenta o envio no ato (uma tentativa; falha mantém a fila).
+    const unlisten = onLocalSourceChanged(change => (change === 'deleted' ? agent.deletedNow() : agent.uploadNow()))
     document.addEventListener('visibilitychange', lifecycle)
     window.addEventListener('online', lifecycle)
     window.addEventListener('offline', lifecycle)

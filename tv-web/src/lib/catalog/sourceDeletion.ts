@@ -5,6 +5,7 @@ import { deleteUserStatesForSource } from './userStateRepository'
 import { deleteEpgForSource } from '../epg/epgRepository'
 import { categoryPreferences, parentalPins } from './parentalTables'
 import { portalTables } from '../portal/portalTables'
+import { notifyLocalSourceChanged } from '../portal/sourceChangeSignal'
 
 /** Remove a fonte e tudo que dependia dela — catálogo de todas as gerações e execuções. */
 export function sourceDeletionTables(database: CatalogDb) {
@@ -21,6 +22,7 @@ export async function deleteSource(id: string, database: CatalogDb = db,
     'del-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10)
   const deletedAt = Date.now()
   const tables = portalTables(database)
+  let removedByPerson = false
   await database.transaction('rw', sourceDeletionTables(database), async () => {
     const previous = await tables.revisions.get(id)
     if (previous?.tombstone) return
@@ -41,7 +43,10 @@ export async function deleteSource(id: string, database: CatalogDb = db,
     await tables.revisions.put({ ...previous, sourceId: id, revision, tombstone: true, deletedAt })
     if (options.origin !== 'portal') {
       await tables.deletes.put({ deletionId, sourceId: id, revision, createdAt: deletedAt })
+      removedByPerson = true
     }
   })
+  // 071/FR-009: a exclusão feita pela pessoa pede o envio no ato; a outbox durável cobre offline e falha.
+  if (removedByPerson) notifyLocalSourceChanged('deleted')
 }
 

@@ -36,6 +36,7 @@ export class PortalAgent {
   private attachedAt = 0
   // Exclusão local criada agora pela pessoa pede envio imediato (flushDeletions + snapshot; sem pull/licença).
   private deletionRequested = false
+  private deletionQueued = false
   private lastRefreshAt: Partial<Record<RefreshScope, number>> = {}
   private queue: Promise<unknown> = Promise.resolve()
   private outbox?: { unsubscribe(): void }
@@ -91,16 +92,30 @@ export class PortalAgent {
   private requestDeletionFlush() {
     // Offline/oculto: a pendência segue na outbox e sobe no próximo Atualizar (FR-009).
     if (!this.active || !this.visible || !this.online) return
+    // Um envio já na fila lê a outbox só quando começa: cobre esta exclusão também.
+    if (this.deletionQueued) return
     this.deletionRequested = true
     this.pumpDeletionFlush()
   }
 
   /** No máximo um envio por vez, depois de qualquer Atualizar em andamento. */
   private pumpDeletionFlush() {
-    if (!this.deletionRequested || !this.active || !this.visible || !this.online || this.running) return
+    if (!this.deletionRequested || !this.active || !this.visible || !this.online || this.running || this.deletionQueued) return
     this.deletionRequested = false
-    void this.enqueue(() => this.execute(['deletions', 'snapshot'])).catch(() => this.ports.onError?.('local_storage_error'))
+    this.deletionQueued = true
+    void this.enqueue(async () => {
+      this.deletionQueued = false
+      // Pedido repetido (ação + observação da outbox): se o envio anterior já levou tudo, não há o que enviar.
+      const waiting = await portalTables(this.database).deletes.filter(row => row.serverAckAt === undefined).count()
+      return waiting ? this.execute(['deletions', 'snapshot']) : { ok: true as const }
+    }).catch(() => this.ports.onError?.('local_storage_error'))
   }
+
+  /**
+   * 071/FR-009: a pessoa acabou de excluir uma lista — pede o envio no ato, direto da ação (não só da observação da
+   * outbox). Os dois caminhos se juntam: um envio por vez, sem snapshot duplicado.
+   */
+  deletedNow() { this.requestDeletionFlush() }
 
   /**
    * 071/FR-008: a pessoa acabou de criar/editar uma lista — uma tentativa de envio (+ snapshot) no ato. Falha mantém a

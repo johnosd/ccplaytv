@@ -426,10 +426,13 @@ async function auditPortalScreens(browser, m3uUrl) {
         await page.locator('.profiles-portal-corner').waitFor({ timeout: 8000 })
         await audit(page, lang, 'Perfis com Atualizar')
       })
+      // 071/A006: Xtream Codes, Lista M3U e Pelo site são abas da mesma tela; mede a aba do site com o QR fixo.
       await step(lang, 'Adicionar lista com QR fixo', async () => {
         await page.goto(PORTAL_APP)
         await page.waitForSelector('.add-card', { timeout: 15000 })
         await page.locator('.add-card').click()
+        await page.waitForSelector('#add-source-title', { timeout: 15000 })
+        await page.locator('.source-type-row .source-type').first().click()
         await page.waitForSelector('.portal-pairing .fixed-qr', { timeout: 15000 })
         await audit(page, lang, 'Adicionar lista com QR fixo')
       })

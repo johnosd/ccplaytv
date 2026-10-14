@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$BaseUrl = 'https://ccplaytv-portal-dvpldo267q-uc.a.run.app'
+    [string]$BaseUrl = 'https://portal.ccplaytv.com'
 )
 
 $ErrorActionPreference = 'Stop'

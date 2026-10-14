@@ -4,6 +4,7 @@ import { db, type CatalogDb } from '../catalog/db'
 import { runImport } from '../catalog/importRunner'
 import { ImportAlreadyRunningError, ABANDONED_AFTER_MS } from '../catalog/importPipeline'
 import { portalTables, type PendingImportRecord } from './portalTables'
+import { clearRemoteImport, markRemoteImportRunning } from './remoteImportsInFlight'
 
 export interface RemoteImportHandle {
   runId: string
@@ -86,6 +87,8 @@ async function drain(database: CatalogDb, importSource: ImportRemoteSource, sour
     try {
       const handle = await importSource(claimed.sourceId)
       if (!handle) { await finish(database, claimed, 'completed'); continue }
+      // 071/A008: a tela de listas consulta este registro para mostrar o progresso na 1ª entrada da lista nova.
+      markRemoteImportRunning(claimed.sourceId, handle.runId)
       // Pipeline já vincula runId no mesmo commit de criação do run. O set
       // abaixo também permite colaboradores locais com a mesma interface.
       await database.transaction('rw', tables.imports, async () => {
@@ -109,7 +112,7 @@ async function drain(database: CatalogDb, importSource: ImportRemoteSource, sour
       void handle.completion.then(
         run => finish(database, claimed, run.status === 'completed' ? 'completed' : 'error'),
         () => finish(database, claimed, 'error'),
-      ).catch(() => {}).finally(() => subscription.unsubscribe())
+      ).catch(() => {}).finally(() => { subscription.unsubscribe(); clearRemoteImport(claimed.sourceId, handle.runId) })
     } catch (error) {
       if (error instanceof ImportAlreadyRunningError) {
         await database.transaction('rw', tables.imports, async () => {

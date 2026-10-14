@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [string]$BaseUrl = 'https://ccplaytv-portal-dvpldo267q-uc.a.run.app',
+  [string]$BaseUrl = 'https://portal.ccplaytv.com',
   [ValidateRange(1, 100)][int]$Devices = 20,
   # Teto de espera acumulada por Retry-After do limitador de enrollment (20/h por IP).
   [ValidateRange(0, 240)][int]$MaxWaitMinutes = 75

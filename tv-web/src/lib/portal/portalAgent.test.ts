@@ -59,6 +59,27 @@ it('exclusão criada agora envia outbox + snapshot no ato: sem pull nem licença
   } finally { db.close() }
 })
 
+it('deletedNow (ação da pessoa) envia no ato e junta com a outbox: um envio só, sem snapshot duplicado', async () => {
+  const { db, ports, calls } = await fixture()
+  try {
+    // A porta real remove a linha ao receber o ACK; o fake faz o mesmo para o teste espelhar o uso.
+    ports.flushDeletions = vi.fn(async () => { calls.push('deletes'); await portalTables(db).deletes.clear() })
+    const agent = new PortalAgent(db, ports)
+    stops.push(agent.attach())
+    await advance()
+    await portalTables(db).deletes.put(pendingDelete('b'))
+    agent.deletedNow()
+    agent.deletedNow()
+    await advance()
+    expect(calls).toEqual(['deletes', 'snapshot'])
+    // Offline: não tenta e nada é reagendado; a outbox fica para o próximo Atualizar.
+    agent.lifecycle(true, false)
+    agent.deletedNow()
+    await advance()
+    expect(calls).toEqual(['deletes', 'snapshot'])
+  } finally { db.close() }
+})
+
 it('exclusão herdada (offline/reinício) não é enviada ao abrir nem ao voltar online: sobe no próximo Atualizar', async () => {
   const { db, ports, calls } = await fixture()
   try {

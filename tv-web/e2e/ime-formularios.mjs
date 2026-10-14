@@ -305,6 +305,7 @@ async function main() {
       const { context, page } = await freshPage(browser)
       await page.locator('.add-card').click()
       await page.locator('#add-source-title').waitFor({ timeout: 8000 })
+      await page.getByRole('button', { name: /^Xtream Codes/ }).click() // 071/A006: o cadastro abre na aba Pelo site
       for (const label of ['Nome da lista', 'Servidor', 'Usuário', 'Senha']) {
         await naMetadeSuperior(page, page.getByLabel(label, { exact: true }), `cadastro Xtream › ${label}`)
       }
@@ -343,6 +344,7 @@ async function main() {
       const { context, page } = await freshPage(browser)
       await page.locator('.add-card').click()
       await page.locator('#add-source-title').waitFor({ timeout: 8000 })
+      await page.getByRole('button', { name: /^Xtream Codes/ }).click() // 071/A006: o cadastro abre na aba Pelo site
       const campos = ['Servidor', 'Usuário', 'Senha']
       const tipos = () => Promise.all(campos.map((rotulo) => page.getByLabel(rotulo, { exact: true }).getAttribute('type')))
       await page.getByLabel('Senha', { exact: true }).fill(PASS)
@@ -355,6 +357,7 @@ async function main() {
       await page.keyboard.press('Escape') // sai do cadastro (RETURN fora de qualquer espera)
       await page.locator('.add-card').click()
       await page.locator('#add-source-title').waitFor({ timeout: 8000 })
+      await page.getByRole('button', { name: /^Xtream Codes/ }).click() // 071/A006: o cadastro abre na aba Pelo site
       assert((await page.getByLabel('Senha', { exact: true }).getAttribute('type')) === 'text', 'ao voltar ao cadastro, os dados voltam visíveis (nada persistido)')
       await context.close()
     }
@@ -364,6 +367,7 @@ async function main() {
       const { context, page } = await freshPage(browser)
       await page.locator('.add-card').click()
       await page.locator('#add-source-title').waitFor({ timeout: 8000 })
+      await page.getByRole('button', { name: /^Xtream Codes/ }).click() // 071/A006: o cadastro abre na aba Pelo site
       panel.accountHits = 0
       const done = (label) =>
         page.getByLabel(label, { exact: true }).evaluate((el) => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Unidentified', keyCode: 65376, bubbles: true, cancelable: true })))
