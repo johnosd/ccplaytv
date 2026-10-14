@@ -167,3 +167,24 @@ it('compartilha o agente por banco; ficar em segundo plano aborta o Atualizar an
     expect(ports.pull).not.toHaveBeenCalled()
   } finally { db.close() }
 })
+
+// Feature 071, FR-008/FR-009: lista criada/editada agora sobe no ato (uma tentativa); offline não tenta e não agenda
+it('uploadNow envia as listas + snapshot no ato, sem pull nem licença; offline fica na fila sem tentar', async () => {
+  const { db, ports, calls } = await fixture()
+  ports.flushUploads = vi.fn(async () => { calls.push('uploads') })
+  try {
+    const agent = new PortalAgent(db, ports)
+    stops.push(agent.attach())
+    await settle()
+    agent.uploadNow()
+    await advance()
+    expect(calls).toEqual(['uploads', 'snapshot'])
+    expect(ports.pull).not.toHaveBeenCalled()
+    expect(ports.refreshLicense).not.toHaveBeenCalled()
+
+    agent.lifecycle(true, false)
+    agent.uploadNow()
+    await advance(3_600_000)
+    expect(calls).toEqual(['uploads', 'snapshot'])
+  } finally { db.close() }
+})

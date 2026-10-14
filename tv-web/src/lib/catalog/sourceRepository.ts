@@ -30,6 +30,7 @@ import type { EpgStatus } from '../epg/types'
 import type { SourceAccount } from './sourceAccount'
 import type { ArchiveVariant, PanelClock } from './archiveUrl'
 import { portalTables } from '../portal/portalTables'
+import { notifyLocalSourceChanged } from '../portal/sourceChangeSignal'
 import { sourceExtras, type CreateSourceInput, type UpdateSourceInput } from './sourceInput'
 export type { CreateSourceInput, UpdateSourceInput } from './sourceInput'
 export { deleteSource, sourceDeletionTables } from './sourceDeletion'
@@ -173,6 +174,8 @@ export async function createSource(
     await database.sources.add(record)
     await tables.revisions.put({ sourceId: record.id, revision: 1 })
   })
+  // 071/FR-008: lista nova sobe ao site no ato (uma tentativa; o agente decide e a fila é durável).
+  notifyLocalSourceChanged()
   return record.id
 }
 
@@ -188,7 +191,7 @@ export async function updateSource(
   database: CatalogDb = db,
 ): Promise<SourceView | undefined> {
   const tables = portalTables(database)
-  return database.transaction('rw', database.sources, tables.revisions, database.epgPrograms, async () => {
+  const updated = await database.transaction('rw', database.sources, tables.revisions, database.epgPrograms, async () => {
     const record = await database.sources.get(id)
     if (!record) return undefined
 
@@ -222,6 +225,8 @@ export async function updateSource(
     await tables.revisions.put({ ...previous, sourceId: id, revision: (previous?.revision ?? 0) + 1 })
     return getSource(id, database)
   })
+  if (updated) notifyLocalSourceChanged()
+  return updated
 }
 
 export interface SyncMark {

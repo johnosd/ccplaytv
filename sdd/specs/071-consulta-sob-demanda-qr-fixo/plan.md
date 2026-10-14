@@ -179,7 +179,8 @@ Travas de outras features afetadas: **070 C1** (`PortalPairingPanel.entrada-list
 | Fase 2 (agente, teste local, âncora) | Concluída (T004–T010): C1–C3 verdes; agente sem timers, `refresh(scope)`, teste local no monitor, âncora no enroll (API + TV). |
 | Fase 3 (Atualizar e bloqueio) | Concluída (T011–T017 + T018/T019 antecipadas): botões Atualizar nas 4 telas, bloqueio com QR/endereço/ID/chave que libera e retoma a entrada, Adicionar sem convite; C4 verde. |
 | Fase 4 (QR fixo) | Concluída (T018–T022): `portal-web` entra por `#id=&key=` com `replaceState` antes da rede; C4 verde; portal-web lint/test/build/E2E verdes. |
-| Fase 5 | Não iniciada (envio TV → site, C5 vermelho). E2E `portal-configuracao` e `licenca-anual` vermelhos até a T030. |
+| Fase 5 (envio TV → site) | Concluída (T023–T027): rota `POST /device/sources` + `DeviceSourceUploads`, `planSourceUploads`/`sourceUploads` (Dexie v24), `flushUploads` e envio no ato; C5 verde (5/5 contratos). |
+| Polish | Não iniciado (T028–T034). E2E `portal-configuracao` e `licenca-anual` vermelhos até a T030; staging e TV física exigem confirmação do usuário. |
 
 ## Riscos e Decisões
 
@@ -204,18 +205,20 @@ Travas de outras features afetadas: **070 C1** (`PortalPairingPanel.entrada-list
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
 | 2026-10-14 | Planejamento | Spec, plan, tasks, contratos C1–C5 vermelhos e travados. | Fase 1 (gate normativo) antes de qualquer código. |
+| 2026-10-14 | Fase 5 (T023–T027) | `POST /device/sources` (lote ≤ 10, cifra/versão reaproveitadas, `applied_revision` direto, tombstone → `gone`, digest idempotente, corpo fora de log); TV com `planSourceUploads`, fila `sourceUploads` (v24), `flushUploads` e `uploadNow` no ato; `portal-web` sem código novo (copy de `localOnly`). C1–C5 verdes; API 145; TV 2212. Corrigidos ProfilesScreen (teto) e `pinMigration` (verno). | Polish: T028 revisão de segredos, T029 docs, T030 E2E único, T031 gates, T032 staging (confirmar), T033 TV física. |
 | 2026-10-14 | Fase 4 (T020–T022) | `takeEntry` do `portal-web` aceita `#id=&key=` → `POST /sessions/manual`, fragmento removido antes da rede; teste unitário, caso no `gerenciador.spec.ts` e teste de troca de chave na TV. C1–C4 verdes; portal-web 15/15 no E2E. | Fase 5: envio TV → site (API `POST /device/sources`, `planSourceUploads`, fila). |
 | 2026-10-14 | Fase 3 (T011–T017, +T018/T019) | `RefreshButton`/`useRefreshAction`, Adicionar com QR local, "Atualizar" na lista e em Portal & licença, bloqueio com QR+ID+chave que retoma a entrada; QR por `qrcode-generator@1.4.4`; legibilidade pt/en/es sem achados (84 telas). C1–C4 verdes. | Fase 4 restante: `portal-web` consome `#id=&key=` (T020), nova chave (T021), testes (T022); E2E antigos na T030. |
 | 2026-10-14 | Fase 2 (T004–T010) | Agente sem timers e `refresh(scope)`; teste local (`localTrial`, Dexie v23) decidido no monitor com `revoked` vencendo; cadastro preguiçoso; âncora `trialStartedAt` no enroll/rotação e reconciliação na TV; testes obsoletos reescritos. C1–C3 verdes; API 141 testes; lint/tsc limpos. | Fase 3 (botões Atualizar e bloqueio) — pedir aprovação para continuar. |
 | 2026-10-14 | Fase 1 (T001–T003) | Constitution 1.11.0 ((d) credenciais ao serviço, (e) chave no fragmento do QR, (f) chave no bloqueio), ADR-016, notas `Atualização (ADR-016)`/`(071)` em ADR-013/014, CLAUDE.md, 069 e 070; ideia do QR fixo saiu do backlog; A001 resolvida (Adicionar mantém "Recarregar"). Travas 071/070/069 íntegras. | Aprovação do usuário da emenda e da ADR-016 antes da Fase 2. |
 
-**PRÓXIMO**: Fase 5 (T023–T027): API `POST /portal/v1/device/sources` (lote ≤ 10, `submit_from_device`, tombstone → `gone`, digest idempotente, corpo fora de log), `planSourceUploads` + `sourceUploads` (Dexie v24), `flushUploads` no `portalSync` e envio no ato ao criar/editar, valores/edição no `portal-web`.
+**PRÓXIMO**: Polish (T028–T034): revisão de segredos com marcadores (`evidencias/segredos.md`), docs (`docs/portal/operacao.md`, `infra/portal/README.md`, `README.md`, notas 069/070), **1 E2E novo** `tv-web/e2e/consulta-sob-demanda.mjs` (+ reescrever `licenca-anual`/`portal-configuracao` vermelhos), gates completos (`npm run test`, `test:e2e`, build, `build:tizen`), staging e TV física **só com confirmação do usuário**.
 
 ## Arquivos Principais
 
 - .planning/memory/constitution.md (1.11.0) · sdd/adr/ADR-016-consulta-sob-demanda-qr-fixo.md
 - tv-web/src/lib/licensing/{localTrial,localTrialRepository,licenseMonitor}.ts · tv-web/src/lib/portal/{portalAgent,portalRuntime,usePortalAgent,portalConnection,portalTables}.ts · tv-web/src/lib/catalog/dbSchema.ts (v23)
 - api/app/portal/{enrollment,access_rotation}.py · api/app/portal/routes/auth.py
+- api/app/portal/{device_uploads.py,routes/operations.py,models.py} · tv-web/src/lib/portal/{sourceUploadPlan,sourceUploads,sourceChangeSignal,portalSync}.ts
 - portal-web/src/{main.tsx,features/api.ts} · portal-web/e2e/gerenciador.spec.ts
 - tv-web/src/components/{RefreshButton,FixedQr}.tsx · tv-web/src/lib/portal/{useRefreshAction,usePairingCredentials,fixedQr}.ts · tv-web/src/features/portal/{LicenseGate,PortalPairingPanel}.tsx · tv-web/src/features/profiles/{ProfilesScreen,ProfilesRefreshCorner}.tsx · tv-web/src/features/settings/PortalLicensePanel.tsx · tv-web/e2e/legibilidade-tv.mjs
 - sdd/specs/071-consulta-sob-demanda-qr-fixo/{spec,plan,tasks,handoff}.md · logic/atualizar.md · contracts/portal-api-071.md

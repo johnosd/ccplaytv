@@ -102,6 +102,15 @@ export class PortalAgent {
     void this.enqueue(() => this.execute(['deletions', 'snapshot'])).catch(() => this.ports.onError?.('local_storage_error'))
   }
 
+  /**
+   * 071/FR-008: a pessoa acabou de criar/editar uma lista — uma tentativa de envio (+ snapshot) no ato. Falha mantém a
+   * fila (sourceUploads) para o próximo Atualizar; offline/oculto não tenta e nada é reagendado.
+   */
+  uploadNow() {
+    if (!this.active || !this.visible || !this.online) return
+    void this.enqueue(() => this.execute(['uploads', 'snapshot'])).catch(() => this.ports.onError?.('local_storage_error'))
+  }
+
   /** Suspender/ficar offline aborta o que estiver em andamento; nada é reagendado ao voltar. */
   get attached() { return this.active }
 

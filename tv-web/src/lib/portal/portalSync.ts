@@ -7,6 +7,7 @@ import { portalTables, type PortalDeviceRecord } from './portalTables'
 import { applyRemoteMutation, type RemoteMutation } from './remoteConfiguration'
 import { drainRemoteImports, type ImportRemoteSource } from './remoteImportOutbox'
 import { capturePortalSnapshot } from './snapshotPublisher'
+import { flushSourceUploads, markSourceUploaded } from './sourceUploads'
 
 interface Delivery extends Omit<RemoteMutation, 'action'> {
   action: 'source.create' | 'source.update' | 'source.delete'
@@ -71,6 +72,12 @@ export function createPortalSync(options: PortalSyncOptions): PortalAgentPorts {
       })
       if (await tables.deletes.filter(row => row.serverAckAt === undefined).count()) throw new PortalRequestError('service_unavailable')
     },
+    /** 071/FR-008: envia as listas da TV (fila durável por revisão) ao serviço; para no primeiro erro. */
+    async flushUploads(signal) {
+      const saved = await device()
+      await same(saved, signal)
+      await flushSourceUploads(database, connection, saved, signal, () => same(saved, signal))
+    },
     async pull(signal) {
       const saved = await device()
       await same(saved, signal)
@@ -106,6 +113,8 @@ export function createPortalSync(options: PortalSyncOptions): PortalAgentPorts {
           importSource: options.importSource, authority: { authEpoch: saved.authEpoch, recoveryEpoch: saved.recoveryEpoch } })
         if (result.state === 'wrong_device') throw new PortalRequestError('unauthorized')
         if (result.state === 'applied') await options.committed(mutation)
+        // O valor veio do portal e já está no serviço nesta revisão: não precisa subir de novo (071/D-010).
+        if (result.state === 'applied' && mutation.action !== 'delete') await markSourceUploaded(database, mutation.sourceId, result.revision)
         const pendingImport = await tables.imports.get(row.sourceId)
         await ack(saved, row.operationId, { state: result.state, revision: result.revision,
           ...(result.state === 'applied' && mutation.action !== 'delete' && pendingImport?.operationId === row.operationId

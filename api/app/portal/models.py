@@ -111,6 +111,8 @@ class ConfigurationDocument(PortalDocument):
     expected_revision: Revision
     applied_revision: Revision | None = None
     envelope: CipherEnvelope = Field(repr=False)
+    # 071/D-009: digest do último envio da TV (idempotência); ausente nas configurações criadas pelo portal.
+    upload_digest: Digest | None = Field(default=None, repr=False)
     created_at: AwareDatetime
     updated_at: AwareDatetime
 

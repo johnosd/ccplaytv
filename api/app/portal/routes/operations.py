@@ -11,6 +11,7 @@ from app.portal.auth import AuthError
 from app.portal.configuration_delivery import ConfigurationDelivery
 from app.portal.configuration_input import ConfigurationPatch
 from app.portal.configurations import ConfigurationService, operation_view, request_time
+from app.portal.device_uploads import DeviceSourceUploads
 from app.portal.models import (
     ImportSnapshotDocument,
     OperationDocument,
@@ -67,6 +68,16 @@ class DeletionInput(Input):
 
 class DeletionsInput(Input):
     deletions: list[DeletionInput] = Field(min_length=1, max_length=20)
+
+
+class SourceUploadItem(Input):
+    sourceId: str = Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")
+    revision: int = Field(ge=0, le=2_147_483_647)
+    input: ConfigurationPatch
+
+
+class SourceUploadsInput(Input):
+    sources: list[SourceUploadItem] = Field(min_length=1, max_length=10)
 
 
 async def configurations(request: Request):
@@ -189,6 +200,34 @@ async def local_deletions(request: Request):
         if result.can_ack_tv:
             acks.append(item.deletionId)
     return {"acks": acks}
+
+
+@router.post("/device/sources")
+async def device_sources(request: Request):
+    """Envio TV → site (071/D-009): lote de até 10 listas; resposta por item, nunca ecoa valores nem os loga."""
+    principal = await tv_principal(request)
+    body = await payload(request, SourceUploadsInput)
+    if len({item.sourceId for item in body.sources}) != len(body.sources):
+        raise AuthError("invalid_input", 422)
+    auth = await auth_service(request)
+    now = datetime.now(UTC)
+    decision = await auth.limits.evaluate((RateConstraint(
+        auth.tokens.digest("rate_limit", "upload/" + principal.device_id), 20, 60,
+    ),), now, consume=True)
+    if not decision.allowed:
+        raise AuthError("rate_limited", 429, decision.retry_after)
+    uploads = DeviceSourceUploads(await configurations(request))
+    results = []
+    for item in body.sources:
+        try:
+            state = await uploads.upload(principal, source_id=item.sourceId, revision=item.revision,
+                                         patch=item.input, now=now)
+        except AuthError as error:
+            if error.status != 409:
+                raise
+            state = "conflict"
+        results.append({"sourceId": item.sourceId, "state": state})
+    return JSONResponse({"results": results}, headers={"Cache-Control": "no-store"})
 
 
 @router.post("/device/operations/{operation_id}/ack")

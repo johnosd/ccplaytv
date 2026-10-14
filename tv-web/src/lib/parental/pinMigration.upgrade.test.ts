@@ -51,7 +51,7 @@ describe('CatalogDb — v21 (feature 067)', () => {
 
     const upgraded = new CatalogDb(dbName)
     await upgraded.open()
-    expect(upgraded.verno).toBe(22)
+    expect(upgraded.verno).toBe(24)
     expect(await upgraded.table('parentalPin').count()).toBe(0)
     expect(await hasPin('sala', upgraded)).toBe(true)
     expect(await verifyPin('sala', '2468', upgraded)).toBe(true)

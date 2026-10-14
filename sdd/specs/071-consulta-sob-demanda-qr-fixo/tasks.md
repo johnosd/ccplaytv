@@ -147,24 +147,24 @@ description: "Tasks da feature 071 — consulta sob demanda e QR fixo"
 
 ### Implementation
 
-- [ ] T023 [US4] API `configurations.py` (`submit_from_device`), `routes/operations.py` (`POST /device/sources`): lote ≤ 10, allowlist, cifra/versão, `applied_revision`, tombstone → `gone`, digest idempotente, sem log/cache do corpo; revisão de segredos com marcadores. Testes `api/tests/portal/test_device_sources.py`. (FR-008/011/012, D-009, D-014)
-- [ ] T024 [US4] `tv-web/src/lib/portal/sourceUploadPlan.ts` (`planSourceUploads`) + `sourceUploads.ts` (tabela Dexie, mapeamento de `SourceRecord`, lotes, parada no 1º erro). → contrato C5
-- [ ] T025 [US4] `portalSync.ts`: porta `flushUploads` real e gatilho no ato em criar/editar lista (uma tentativa; falha mantém a fila); `refresh('lists')` esvazia a fila; `gone` registrado como enviado. (FR-008/009/010)
-- [ ] T026 [US4] `portal-web`: lista da TV mostra valores e permite editar sem o rótulo "Somente na TV" para itens enviados (reusa `values`); estados pendente/conflito da 069 intactos. (FR-012)
+- [X] T023 [US4] API `configurations.py` (`submit_from_device`), `routes/operations.py` (`POST /device/sources`): lote ≤ 10, allowlist, cifra/versão, `applied_revision`, tombstone → `gone`, digest idempotente, sem log/cache do corpo; revisão de segredos com marcadores. Testes `api/tests/portal/test_device_sources.py`. (FR-008/011/012, D-009, D-014)
+- [X] T024 [US4] `tv-web/src/lib/portal/sourceUploadPlan.ts` (`planSourceUploads`) + `sourceUploads.ts` (tabela Dexie, mapeamento de `SourceRecord`, lotes, parada no 1º erro). → contrato C5
+- [X] T025 [US4] `portalSync.ts`: porta `flushUploads` real e gatilho no ato em criar/editar lista (uma tentativa; falha mantém a fila); `refresh('lists')` esvazia a fila; `gone` registrado como enviado. (FR-008/009/010)
+- [X] T026 [US4] `portal-web`: lista da TV mostra valores e permite editar sem o rótulo "Somente na TV" para itens enviados (reusa `values`); estados pendente/conflito da 069 intactos. (FR-012)
 
 ### Testes da Fase
 
-- [ ] T027 [P] [US4] API com emulador, **só as regras que protegem dados**: idempotência por digest, tombstone → `gone`, CAS contra edição do portal, lote > 10 recusado e corpo ausente de log/cabeçalho (marcadores). TV: 1 teste de lotes/fila offline → Atualizar. Sem E2E próprio: o cenário entra na T030.
+- [X] T027 [P] [US4] API com emulador, **só as regras que protegem dados**: idempotência por digest, tombstone → `gone`, CAS contra edição do portal, lote > 10 recusado e corpo ausente de log/cabeçalho (marcadores). TV: 1 teste de lotes/fila offline → Atualizar. Sem E2E próprio: o cenário entra na T030.
 
 **Critério de Conclusão**: contrato C5 1/1 verde, trava íntegra; API `tests/portal` verde; E2E da fila PASS.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: Concluída em 2026-10-14 (T023–T027).
+- Feito: T023 API `POST /portal/v1/device/sources` (`routes/operations.py`) + `app/portal/device_uploads.py` (`DeviceSourceUploads`): lote de 1–10 itens sem `sourceId` repetido, bearer da TV, limite de 20 requisições/min por TV, `merge_configuration` como substituição completa, cifra AES-GCM e versão imutável reaproveitadas, grava `applied_revision = revision` sem operação nem contagem de pendentes; estados `stored | unchanged | conflict | gone | invalid`; tombstone → `gone`; edição do portal ainda pendente → `conflict` (nunca sobrescreve); idempotência por `upload_digest` (campo novo opcional em `ConfigurationDocument`); corpo fora de log/cache/cabeçalho, `Cache-Control: no-store`. T024 TV `sourceUploadPlan.ts` (C5), `sourceUploads.ts` (lotes de 10, para no 1º erro, marca só o aceito, `gone` conta como enviado), tabela Dexie `sourceUploads` (v24). T025 `portalSync.flushUploads` real, `PortalAgent.uploadNow()` e `sourceChangeSignal` disparado por `createSource`/`updateSource`/`updateSourceConfiguration` (uma tentativa no ato: uploads + snapshot, sem pull; offline não tenta); lista aplicada vinda do portal já conta como enviada. T026 `portal-web`: não precisou de código novo — uma lista com configuração salva já mostra "Salva" e abre a edição com os valores (`values`); só ajustei o texto `localOnly` (pt/en/es) para quem ainda não foi enviada (aperte Atualizar na TV). T027 testes (abaixo).
+- Contrato: `npx vitest run src/lib/portal/sourceUploadPlan.consulta-sob-demanda-qr-fixo.contract.test.ts` → C5 verde; C1–C5 = 5/5; `check-contract-tests.ps1` PASS para 071, 070, 069, 026, 037, 045, 023, 024.
+- Testes executados: API (emulador Firestore) `pytest tests/portal` → 145 passaram (4 novos em `test_device_sources.py`: idempotência/sem operação, tombstone → `gone` + incompleta → `invalid`, CAS contra edição do portal, lote > 10 recusado + `no-store` + marcadores fora de log/cabeçalho) e `ruff check app/portal tests/portal` limpo. TV `npx tsc -b` limpo; `npm run lint` exit 0 (ratchet); `npx vitest run src/lib src/features/portal src/features/profiles src/features/settings src/features/import src/components src/App.licensing.test.tsx` → 2212 passaram, 0 falhas; novos: `sourceUploads.test.ts` (2), `uploadNow` em `portalAgent.test.ts` (1). portal-web lint/test 7/7.
+- Pendências: (1) o cenário ponta a ponta (criar na TV → lista no site com valores; fila offline → Atualizar) entra no E2E único da T030; (2) corrigi nesta fase dois deslizes meus das fases anteriores: `ProfilesScreen.tsx` estava acima do teto do ratchet (extraí `useProfilesRefresh.ts`) e `pinMigration.upgrade.test.ts` ainda afirmava `verno` 22 (agora 24) — ambos só apareciam fora das suítes estreitas que eu rodava; (3) o `portal-web` ainda mostra "Somente na TV" para lista incompleta ou nunca enviada, por desenho (sem dados suficientes para o serviço); (4) limite de 50 listas por snapshot (069) não é imposto no envio — registrado, sem uso real hoje.
 
 ---
 
@@ -184,7 +184,7 @@ description: "Tasks da feature 071 — consulta sob demanda e QR fixo"
 - [X] Fase 2 (agente sob demanda, teste local, âncora) concluída
 - [X] Fase 3 (US1/US2: Atualizar e bloqueio) concluída
 - [X] Fase 4 (US5: QR fixo) concluída
-- [ ] Fase 5 (US4: envio TV → site) concluída
+- [X] Fase 5 (US4: envio TV → site) concluída
 - [ ] Testes de contrato 5/5 verdes na suíte completa e `check-contract-tests.ps1` íntegro (071, 070, 069, 026, 037, 045, 023, 024)
 - [ ] E2E no dev server e no pacote `file://` aprovados antes da TV
 - [ ] Revisão de segredos aprovada

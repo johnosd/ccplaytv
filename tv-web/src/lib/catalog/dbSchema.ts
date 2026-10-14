@@ -43,4 +43,9 @@ export function registerLateCatalogSchemas(db: Dexie): void {
   db.version(23).stores({
     localTrial: 'id',
   })
+  // Feature 071: fila de envio TV → site (última revisão aceita pelo serviço, por lista). Tabela nova, sem .upgrade():
+  // vazia = nada enviado ainda, então o primeiro Atualizar sobe todas as listas (FR-010).
+  db.version(24).stores({
+    sourceUploads: 'sourceId',
+  })
 }

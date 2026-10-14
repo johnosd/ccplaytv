@@ -86,6 +86,12 @@ export interface LocalTrialRecord {
   anchoredAt?: number
 }
 
+/** 071/D-010: última revisão da lista aceita pelo serviço. Sem credencial: só identidade e número. */
+export interface SourceUploadRecord {
+  sourceId: string
+  uploadedRevision: number
+}
+
 export function portalTables(database: CatalogDb) {
   return {
     device: database.table('portalDevice') as Table<PortalDeviceRecord, 'device'>,
@@ -97,5 +103,6 @@ export function portalTables(database: CatalogDb) {
     deletes: database.table('pendingPortalDeletes') as Table<PendingPortalDeleteRecord, string>,
     license: database.table('licenseCache') as Table<LicenseCacheRecord, 'entitlement'>,
     localTrial: database.table('localTrial') as Table<LocalTrialRecord, 'trial'>,
+    uploads: database.table('sourceUploads') as Table<SourceUploadRecord, string>,
   }
 }
