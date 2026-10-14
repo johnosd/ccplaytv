@@ -6,7 +6,7 @@
 
 **Revised**: 2026-10-11 — revisão sdd-specify após entrevista de arquitetura e clarificação de produto.
 
-**Status**: Em Execução
+**Status**: Encerrada com riscos aceitos
 
 **Input**: Como usuário do CCPlayTV, quero acessar um portal autenticado para minha TV por QR ou device ID/device key, gerenciar configurações Xtream e M3U por URL guardadas no serviço e comprar uma licença anual de R$35 para aquela TV.
 

@@ -493,3 +493,25 @@ Checkpoint desta revisão:3301/3301 unit (563 arquivos),26/26 direcionados, E2E 
 - [ ] T066 Ensaio real do replay com evento posterior ao snapshot: (1) **feito em 2026-10-14**: `infra/portal/rehearse-replay.ps1 -Phase Setup` criou 1 dispositivo e 1 fonte de fixture no staging (estado em arquivo local fora do repositório); (2) depois que o snapshot diário seguinte (≈03:40Z de 2026-10-15) aparecer em `gcloud firestore backups list`, rodar `-Phase Mutate` (exclui a fonte pelo portal → `source_deleted`; revoga o acesso → `access_revoked`); (3) restaurar **esse** snapshot em `portal-restore-*`; (4) `python -m app.portal.restore_replay --project-id ccplaytv-511322 --database portal-restore-… --journal-bucket ccplaytv-511322-portal-journal` (dry-run) e depois `--apply`; (5) conferir no banco restaurado que a fonte do fixture não existe, o tombstone e o comando de exclusão existem e o código antigo ficou `consumed`; (6) repetir `--apply` e ver `already_applied`; (7) apagar o banco e registrar em `evidencias/restore.md`. (FR-032-033; SC-010, SC-012)
 
 **Registro T066** (2026-10-14): Status: aberta — passo (1) concluído; (2)–(7) dependem do snapshot de amanhã e de autorização. CLI do replay passou a exigir `--project-id`, `--database` (recusa `(default)` com código 3) e `--journal-bucket`: o alvo é sempre explícito e a base ativa nunca é tocada; teste novo cobre a recusa. API `tests/portal` 139 passed, Ruff PASS. A tentativa de usar o snapshot de 2026-10-13 (anterior à 070) como "backup anterior a delete" não serve: os 5 eventos do journal são posteriores a ele e seus dispositivos não existiam lá.
+
+
+## Phase 8: Encerramento com riscos aceitos (2026-10-14)
+
+**Decisão do usuário (2026-10-14): "Encerrar sem esperar".** A feature é encerrada **sem executar** os itens abaixo. Eles **não** foram marcados como concluídos: continuam `[ ]` nas fases de origem e viram riscos aceitos no `plan.md` (R-022 a R-026). Nenhuma evidência foi inventada. **A venda continua desligada** (D-015: sem cobrança real antes de backup/recuperação, medições, integração real e TV física).
+
+| Task aberta | O que NÃO foi feito | Risco aceito |
+| --- | --- | --- |
+| T039 / T066 | `--apply` do replay com evento posterior ao snapshot em infraestrutura real; recuperação da cópia protegida das chaves; restore de pagamentos/grants com revalidação do provedor | R-022 |
+| T043 | Ativações **pagas** (SC-006); carga de 10–50 TVs / margem de 100; custo completo | R-023 |
+| T046 | Observação na TV física: licença/validade, código/chave, vencimento e reentrada, offline, pagamento de teste → ativação, recuperação pelo site, standby, tempos | R-024 |
+| T063 (b) | Limpeza dos registros `generated` do staging (TV de referência `2A:…`) | R-025 |
+| T052 (restante) / T047 | Homologação real completa e o gate final de fechamento | R-026 |
+
+- [X] T067 Registrar o encerramento com riscos aceitos: Fase 8, riscos R-022–R-026, Estado Atual/PRÓXIMO, status `Encerrada com riscos aceitos`, entrada no backlog. Sem alteração de código, contrato ou venda.
+
+**Registro da Fase 8** (2026-10-14):
+
+- Status: Concluída (registro). A feature **não** está `Implementada`: tem 10 tasks abertas por decisão do usuário.
+- Contrato: sem arquivo de contrato tocado; travas 069/070/026 íntegras.
+- Testes executados: nenhum novo; últimos gates verdes — API `tests/portal` 139 passed + Ruff, E2E TV 49/49 (2026-10-13), `entrada-listas-gerenciador` e `portal-dev-server` PASS, restore real em banco isolado (2 ensaios), homologação real das rotas da 070 26/26.
+- Pendências: as de R-022 a R-026. Reabrir a feature antes de qualquer cobrança real.

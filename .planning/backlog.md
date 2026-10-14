@@ -6,6 +6,7 @@ update-bug-status.ps1.
 
 ## Ideias Futuras
 
+- [Infra — gate de venda] 069 encerrada com riscos aceitos em 2026-10-14 (a pedido do usuário); **a venda segue desligada** e estes itens precisam ser executados antes de qualquer cobrança real: T066/T039 (replay `--apply` com evento posterior ao snapshot via `infra/portal/rehearse-replay.ps1`, ensaio da cópia protegida das chaves, restore + reconcile de pagamentos), T043 (compra sandbox para ativações pagas, carga distribuída, custo), T046 (roteiro A–H na TV física), T063 b (registros `generated`/TV `2A:…` — ação "desvincular"), T052 restante e T047. Detalhes: `sdd/specs/069-portal-tv-licenca-anual/plan.md` (R-022 a R-026) e `tasks.md` (Fase 8).
 - [Ideia] Ação "desvincular do portal" na TV (origem: TV física da 070, 2026-10-13): hoje não há como limpar só o pareamento local — apagar o registro no serviço deixa a TV presa em "não autorizado" e a única saída é desinstalar (perde listas, favoritos, histórico, progresso e chave TMDB). A ação limparia só as tabelas do portal no IndexedDB e pareada de novo, preservando o catálogo; serviria para resetar a TV de referência (ID `2A:…`, anterior ao privilégio de rede) e para suporte real. Envolve a ADR-015 (o ID antigo só some com operação documentada no serviço). Pede `sdd-specify`.
 
 - [Infra] Portal no domínio próprio `ccplaytv.com` (pedido do usuário, 2026-10-13): mapear o domínio para o Cloud Run `ccplaytv-portal` (domain mapping ou Firebase Hosting com rewrite — há `infra/portal/firebase.json`), DNS no registrador pelo usuário e certificado gerenciado; trocar `CCPLAY_PORTAL_PUBLIC_ORIGIN` no serviço (links do QR e conferência de origem) e `VITE_PORTAL_ORIGIN`/`VITE_PORTAL_SITE_URL` no `build:tizen:commercial`, e reinstalar na TV (sem desinstalar). Avaliar se o QR/convite e os cookies (`Secure`, `SameSite=Strict`, `Path=/portal/v1`) continuam válidos na troca e se o endereço `run.app` antigo deve redirecionar. Decidido em 2026-10-13: primeiro validar a TV no endereço atual do staging.
@@ -91,7 +92,7 @@ update-bug-status.ps1.
 | 066-categorias-controle-parental | Gestão de categorias e controle parental | Convergida | 57/57 tasks | 2026-10-10 |
 | 067-configuracoes-lista-global | Separar configurações da lista das configurações globais do app | Convergência Pendente | 52/53 tasks | 2026-10-10 |
 | 068-legibilidade-tv | Legibilidade para TV — letra maior no app e TV ao vivo em coluna única | Encerrada | 42/44 tasks | 2026-10-10 |
-| 069-portal-tv-licenca-anual | Portal web da TV por QR code e licença anual | Em Execução | 65/75 tasks | 2026-10-14 |
+| 069-portal-tv-licenca-anual | Portal web da TV por QR code e licença anual | Encerrada com riscos aceitos | 66/76 tasks | 2026-10-14 |
 | 070-entrada-listas-gerenciador | Entrada de listas estilo gerenciador | Convergida | 61/61 tasks | 2026-10-13 |
 
 ## Bugs
