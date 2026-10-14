@@ -160,7 +160,7 @@ Detalhes vinculantes: data-model.md, contracts/portal-api.md, logic/operacoes-e-
 | Gates automatizados | Suíte TV **49/49 E2E PASS em 350s** com `teste-conexao-tv` aprovado. A005 não reproduziu em três repetições isoladas nem na suíte completa. Revisão atual: **3301/3301 testes e 1398/1398 suítes PASS** (563 arquivos, threads4/JSON); direcionados e contratos PASS. Portal E2E13/13, lint/build/unit PASS; build:tizen e sincronização PASS. |
 | Plataforma/operação | TV atual preservada; projeto Google Cloud ccplaytv-511322 ativo; Cloud Run público/jobs, IAM/OIDC e Firestore staging validados. Oferta/termos/retenções e budget R$10/mês confirmados; snapshot READY, restore/replay, medições/custos restantes e fluxo comercial físico permanecem pendentes. |
 | Contratos | C1–C5 PASS e trava069 íntegra. Emenda mínima067 autorizada; trava067 íntegra. Nenhuma autorização para outros contratos. Travas 070 (5/5) e 037 emendada também são gate desta feature (I-1…I-10). |
-| Fase 7 (alinhamento 070) | T059/T061/T062 concluídas: homologação real das rotas da 070 no staging 26/26 e 0 marcadores nos logs; trava 026 emendada (R-011 da 026). T060: guardas e docs feitos, ensaio real depende de T039. T063: pendem E2E de pilha local e a limpeza dos registros `generated` (inventário negado pelo classificador de permissões). |
+| Fase 7 (alinhamento 070) | T059/T061/T062 concluídas; T063 (a) feita (E2E `entrada-listas-gerenciador` e `portal-dev-server` PASS na pilha local). Abertas: T060 real e T063 (b) — dependem de permissão do usuário para ler o Firestore/backups do staging e de decisão sobre apagar o registro da TV de referência. T043 (cobrança sandbox) e T046 (TV física) dependem do usuário. |
 
 ## Riscos e Decisões
 
@@ -258,7 +258,9 @@ Checkpoint 2026-10-11: T054 concluída após autorização; isInHistory em módu
 
 | 2026-10-13 | Fase 7 (2º checkpoint) | T061 concluída: `homologate-070.ps1` 26/26 no staging real, 0 marcadores nos logs; trava 026 emendada; scripts `measure-staging`/`smoke-*` corrigidos para `displayId` (desvio ad-hoc). | T063: E2E de pilha local e limpeza `generated` (permissão de consulta ao Firestore do staging); T060 real depende de T039. |
 
-PRÓXIMO: T063 — decidir como fazer a limpeza dos registros `generated` do staging (a consulta administrativa ao Firestore foi negada; apagar o registro da TV de referência a deixa "não autorizada" até reparear, ver backlog) e reexecutar os E2E de pilha local. Depois: T039 (snapshot READY, restore, replay, RPO/RTO, com o escopo de T060); T043 (ativações pagas, carga, custo; scripts já corrigidos); T046 pelo roteiro reconciliado; T052 restante; T047 por último. Venda desligada.
+| 2026-10-13 | Fase 7 (3º checkpoint, contínuo) | T063 (a): `entrada-listas-gerenciador.mjs` e `portal-dev-server.mjs` PASS com pilha local própria. Tentativas de `manage-backup.ps1 inspect -Apply` e de inventário do Firestore negadas pelo classificador de permissões — parada obrigatória. | Usuário: permissão/execução de `inspect`/`restore` e do inventário `generated`; T043 (compra sandbox) e T046 (TV). |
+
+PRÓXIMO: o que resta exige o usuário — (1) liberar (regra de permissão) ou executar `manage-backup.ps1 -Action inspect|restore` e a consulta de `devices`/`displayIdClaims` no staging para T039/T060/T063 (b); (2) decidir apagar ou não o registro da TV de referência `2A:…`; (3) T043: aprovar compra sandbox para medir ativações pagas; (4) T046: observar o roteiro A–H na TV. T047 fecha por último. Venda desligada.
 
 ## Invariantes herdadas da 070
 

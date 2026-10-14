@@ -443,3 +443,13 @@ Checkpoint desta revisão:3301/3301 unit (563 arquivos),26/26 direcionados, E2E 
 - Contrato: travas 069/070/026 íntegras; contratos 070 + 069 10/10 (checkpoint anterior).
 - Testes executados: `pwsh infra\portal\homologate-070.ps1` → 26/26; busca de marcadores em logs → 0.
 - Pendências: **T063** — (a) E2E `entrada-listas-gerenciador.mjs`/`portal-dev-server.mjs` com a pilha local não reexecutados nesta rodada (nenhum código de produção mudou desde o Polish da 070); (b) **limpeza dos registros `generated`: inventário read-only no Firestore do staging foi negado pelo classificador de permissões** — precisa de permissão explícita para consulta administrativa, e a exclusão em si tem efeito colateral sobre a TV de referência (ver plan.md). **T060** — ensaio real de restore (T039).
+
+
+**Registro da Fase 7 — 3º checkpoint** (2026-10-13, modo contínuo):
+
+- Status: Parcial — T059, T061 e T062 concluídas; T060 e T063 abertas por ações que dependem do usuário.
+- Feito: **T063 (a)** — E2E de pilha local reexecutados, cada um com a sua pilha (emulador + API + portal-web + TV commercial): `entrada-listas-gerenciador.mjs` **PASS** (ID/chave/URL/QR com 1 ação, entrada manual, lista aplicada, nova chave recusa a antiga, RETURN em cadeia) e `portal-dev-server.mjs` **PASS** (painel, licença, QR, chave e código só por ação explícita, portal → TV). Portas liberadas ao final.
+- Contrato: travas 069/070/026 íntegras (checkpoint anterior); nenhum arquivo de contrato tocado.
+- Testes executados: `node e2e/entrada-listas-gerenciador.mjs` e `node e2e/portal-dev-server.mjs` em `tv-web/`.
+- Bloqueio (parada obrigatória): o classificador de permissões **negou** `manage-backup.ps1 -Action inspect -Apply` (listagem read-only de backups) e a consulta ao Firestore do staging. Sem isso não há como obter o snapshot, nem executar `restore` em banco isolado (T039/T060 reais) nem o inventário dos registros `generated` (T063 b). Cada uma é ação sobre o projeto Google Cloud real e fica para o usuário autorizar (regra de permissão) ou rodar.
+- Fora do alcance sem o usuário: **T043** (ativações pagas exigem compra sandbox; decisão de 2026-10-12 de não repetir cobrança), **T046** (observação do usuário na TV, roteiro A–H), **T047** (fecha por último).
