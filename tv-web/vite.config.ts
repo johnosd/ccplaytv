@@ -150,6 +150,12 @@ export default defineConfig({
       : undefined,
   },
   test: {
+    // `threads` em vez de `forks` (padrão do Vitest 5): medido em 2026-10-14 nesta máquina (8 núcleos/16
+    // threads), mesma suíte e mesmos resultados — completa 200,6 s → 125,1 s (−38%); `dom` 132 → 98 s e
+    // `node` 73 → 30 s. O custo dominante era subir um processo por arquivo (transformação e import
+    // repetidos); threads compartilham o cache de módulos do processo. O isolamento por arquivo continua
+    // (`isolate` padrão). `--maxWorkers` maior e `experimental.fsModuleCache` não deram ganho (±2%).
+    pool: 'threads',
     // Dois projetos porque subir o jsdom custa ~5 s por arquivo (medido em
     // 2026-10: carregar o módulo ~2,6 s + setup; ambiente node ~1,2 s). Telas e
     // componentes (.tsx) precisam de DOM; lógica pura (.ts) não.

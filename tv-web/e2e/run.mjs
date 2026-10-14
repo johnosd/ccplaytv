@@ -2,7 +2,7 @@
 // cronometra cada um e imprime um resumo ordenado por duração.
 //
 // Uso (com `npm run dev` já rodando em :5173):
-//   npm run test:e2e                       # suíte completa, 3 em paralelo
+//   npm run test:e2e                       # suíte completa, 3–6 em paralelo conforme a máquina (jobsPadrao)
 //   npm run test:e2e -- --jobs 5           # outra concorrência
 //   npm run test:e2e -- --only favoritos,limpar-historico   # só alguns scripts
 //   npm run test:e2e -- --retry 1          # reexecuta uma vez o que falhar
@@ -14,6 +14,7 @@
 // intercalar linhas de scripts diferentes.
 
 import { spawn } from 'node:child_process'
+import { availableParallelism } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -73,8 +74,35 @@ export const SUITE = [
   'e2e/licenca-anual.mjs',
 ]
 
+// Os mais longos (medidos em 2026-10-14: 107 s, 104 s, 94 s, 57 s, 35 s) entram primeiro na fila: com eles no
+// fim, o último a começar define o tempo total. Só reordena a execução; `SUITE` e o resumo não mudam.
+const LENTOS_PRIMEIRO = [
+  'e2e/carga-listas.mjs',
+  'e2e/player-dev-mpegts.mjs',
+  'e2e/legibilidade-tv.mjs',
+  'e2e/portal-configuracao.mjs',
+  'e2e/ime-formularios.mjs',
+]
+
+/**
+ * Paralelismo padrão proporcional à máquina (cada script sobe um Chromium e um servidor falso próprios):
+ * 3 em 6–8 threads, até 6 com 16. Medido: 3 jobs = 330 s; 6 jobs = 203 s, 49/49 sem flake (16 threads).
+ * `--jobs N` continua mandando.
+ */
+function jobsPadrao() {
+  return Math.min(6, Math.max(3, Math.floor(availableParallelism() / 2.5)))
+}
+
+function ordemDeExecucao(lista) {
+  const rank = (f) => {
+    const i = LENTOS_PRIMEIRO.indexOf(f)
+    return i === -1 ? LENTOS_PRIMEIRO.length : i
+  }
+  return lista.map((f, idx) => ({ f, idx })).sort((a, b) => rank(a.f) - rank(b.f) || a.idx - b.idx).map((x) => x.f)
+}
+
 function lerArgs(argv) {
-  const opts = { jobs: 3, only: null, retry: 0 }
+  const opts = { jobs: jobsPadrao(), only: null, retry: 0 }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--jobs') opts.jobs = Number(argv[++i])
@@ -122,7 +150,7 @@ async function main() {
 
   const inicioTotal = Date.now()
   const resultados = []
-  const fila = [...lista]
+  const fila = ordemDeExecucao(lista)
 
   async function trabalhador() {
     while (fila.length > 0) {
