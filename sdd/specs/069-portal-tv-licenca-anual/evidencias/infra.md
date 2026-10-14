@@ -106,3 +106,11 @@ A configuração implantada mantém staging isolado e checkout fechado: público
 - Serviço jobs **não** foi alterado (`ccplaytv-portal-jobs-00013-qtk`): o fix está no caminho de sessão de navegador, que ele não serve.
 - Smoke: raiz `200`, `/health` `200`, `/portal/v1/configurations` sem sessão `401`, tick interno no serviço público `404`.
 - Verificação do fix: sessão sintética (enroll + sessão manual) e 20 rodadas × 3 leituras simultâneas (`configurations`, `operations`, `snapshot`): **60/60 `200`, 0 `401`**. Limite: não há linha de base no staging antes do fix (a reprodução anterior foi na pilha local, ~2 de 3 rodadas com 401); esta é evidência de ausência do sintoma, não prova formal.
+
+
+### T039 — inspeção do backup (executada pelo usuário) — 2026-10-13
+
+- `manage-backup.ps1 -Action inspect -ProjectId ccplaytv-511322 -Apply`, executado pelo usuário no terminal da sessão: `code=backup_current`, `ageHours=22.9`, `snapshotAt=2026-10-13T03:31:48Z`. Primeiro snapshot READY do agendamento diário (retenção 7 dias).
+- A 1ª execução falhou por defeito do script (reparse do `snapshotTime` pela cultura pt-BR); corrigido em `ebff70d` com teste estático de regressão.
+- Observação: 22,9 h está a ~1 h do limite de 24 h do `backup_stale`; o agendamento é diário, então o próximo snapshot deve renovar a idade. Isso é o monitor do R-… de RPO, não uma falha.
+- **Ainda não executado:** `restore` em banco isolado (`portal-restore-*`), leitura do banco restaurado (IDs/claims), replay do journal e medição de RPO/RTO — dependem de autorização explícita para criar o banco e do nome do recurso do backup.
