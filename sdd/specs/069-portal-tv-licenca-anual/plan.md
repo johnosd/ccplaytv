@@ -160,7 +160,7 @@ Detalhes vinculantes: data-model.md, contracts/portal-api.md, logic/operacoes-e-
 | Gates automatizados | Suíte TV **49/49 E2E PASS em 350s** com `teste-conexao-tv` aprovado. A005 não reproduziu em três repetições isoladas nem na suíte completa. Revisão atual: **3301/3301 testes e 1398/1398 suítes PASS** (563 arquivos, threads4/JSON); direcionados e contratos PASS. Portal E2E13/13, lint/build/unit PASS; build:tizen e sincronização PASS. |
 | Plataforma/operação | TV atual preservada; projeto Google Cloud ccplaytv-511322 ativo; Cloud Run público/jobs, IAM/OIDC e Firestore staging validados. Oferta/termos/retenções e budget R$10/mês confirmados; snapshot READY, restore/replay, medições/custos restantes e fluxo comercial físico permanecem pendentes. |
 | Contratos | C1–C5 PASS e trava069 íntegra. Emenda mínima067 autorizada; trava067 íntegra. Nenhuma autorização para outros contratos. Travas 070 (5/5) e 037 emendada também são gate desta feature (I-1…I-10). |
-| Fase 7 (alinhamento 070) | T059/T061/T062 concluídas; T063 (a) feita. Restore real em banco isolado feito (532,5 s; snapshot pré-070). **Executor de replay do journal implementado e testado** (T064/T065, 6/6, API 138 passed): falta o replay REAL contra um banco restaurado com journal real, e repetir o restore com snapshot pós-070 (T060). Abertas: T039, T060, T063 (b), T043, T046. |
+| Fase 7 (alinhamento 070) | T059–T062 e T064/T065 concluídas. **T060 provada em restore real** (snapshot pós-070: `displayId`/`displayIdClaims` sobrevivem, 1:1, sem colisão; RTO 1008,8 s com 64 dispositivos). Replay: decodificador e modelos validados com journal e dados reais (5 eventos, todos já aplicados); `--apply` real só com eventos fora do snapshot. Abertas: T039 (parcial), T063 (b), T043, T046, T047. |
 
 ## Riscos e Decisões
 
@@ -264,7 +264,9 @@ Checkpoint 2026-10-11: T054 concluída após autorização; isInHistory em módu
 
 | 2026-10-14 | T064/T065 (ad-hoc) | Executor de replay do journal (`restore_replay.py`) + leitor fail-closed + CLI dry-run; 6 testes com emulador cobrem "backup anterior a delete", floor de acesso, licença, regressão e dispositivo ausente. API 138 passed, Ruff PASS. | Replay REAL contra banco restaurado + journal real (precisa snapshot pós-070 e autorização); `fence_pending`/origem `portal` são limites registrados. |
 
-PRÓXIMO: com o próximo snapshot diário (pós-070): restaurar em `portal-restore-*`, rodar `python -m app.portal.restore_replay` (dry-run) e depois `--apply` com `CCPLAY_PORTAL_DATABASE_ID` apontando para o banco restaurado, conferir `display_id`/`displayIdClaims` e o relatório, medir RPO/RTO e apagar o banco (evidência em `evidencias/restore.md`); isso fecha T039/T060. Depois: T063 (b), T043 (compra sandbox), T046 (TV física, roteiro A–H), T052 restante e T047. Venda desligada.
+| 2026-10-14 | Fase 7 (5º checkpoint) | Ensaio 2 de restore (snapshot pós-070): 1008,8 s, 64 dispositivos, `displayId`/`displayIdClaims` preservados 1:1; dry-run do replay com journal real (5 eventos, todos já aplicados); modelos validados em dados reais; banco apagado. T060 concluída. | T039: `--apply` com evento fora do snapshot, cópia protegida das chaves, pagamentos/grants; T063 (b); T043; T046. |
+
+PRÓXIMO: (1) T039 — para provar o `--apply` real: gerar uma exclusão ou revogação DEPOIS do snapshot diário, restaurar de novo e rodar `restore_replay --apply`; ensaiar a recuperação da cópia protegida das chaves; (2) T063 (b): inventário/limpeza `generated` (TV `2A:…`, permissão + decisão); (3) T043: compra sandbox; (4) T046: TV física, roteiro A–H; (5) T052 restante e T047 por último. Venda desligada.
 
 ## Invariantes herdadas da 070
 
