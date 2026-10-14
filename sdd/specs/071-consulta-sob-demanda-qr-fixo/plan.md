@@ -135,6 +135,16 @@ cd portal-web; npm run lint; npm run test; npm run build; npm run test:e2e
 .\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 069-portal-tv-licenca-anual
 ```
 
+### Orçamento de testes (revisão 2026-10-14)
+
+Objetivo: cobertura que protege comportamento e dados, sem suíte inchada.
+
+- **Contratos**: 5 (já travados) definem "pronto"; nada acima de 5.
+- **Só o que mudou**: um teste por unidade alterada, no comportamento novo; nenhum teste de componente para tela cujo caminho o E2E já percorre.
+- **Remover antes de reescrever**: casos que afirmam ciclo diário/quick/convite saem, não são adaptados.
+- **1 E2E novo** (uma subida de pilha) em vez de um por story; E2E existentes só são editados se ficarem vermelhos.
+- **Rodar o mínimo por fase**: `npx vitest related <arquivos> --run` e o contrato da fase; suíte completa (`npm run test` ~10 min, `npm run test:e2e` ~6 min) **só** no gate do Polish (T031).
+- **Meta de volume**: ≤ 25 casos novos/reescritos no total (TV 10, API 8, portal 3, E2E 1 script) além dos 5 contratos.
 ### Testes de Contrato
 
 Arquivos travados em `contract-tests.lock` (5 testes):

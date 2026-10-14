@@ -47,7 +47,8 @@ Travas de outras features que esta pode quebrar: **070** (C1 usa o botão "Recar
 
 ## Armadilhas já mapeadas
 
-- **Agente**: `portalAgent.test.ts` e `usePortalAgent*.test.tsx` (não travados) assumem ciclo diário/quick — reescrever, não adaptar com timers.
+- **Agente**: `portalAgent.test.ts` e `usePortalAgent*.test.tsx` (não travados) assumem ciclo diário/quick — **remover** os casos obsoletos (os contratos C2/C3 cobrem o novo), manter só lifecycle/overlap/exclusão no ato.
+- **Orçamento de testes**: ver `plan.md` → "Orçamento de testes": 1 teste por unidade alterada, 1 E2E novo, suíte completa só no Polish; não crie teste de componente onde o E2E já passa.
 - **Fake timers do contrato**: usam `toFake: ['setTimeout','clearTimeout','Date']`; `refresh` não pode depender de `setInterval`/`performance.now`/sleep real.
 - **Teste local e migração**: instalação em uso com `licenseCache` herda `startedAt` do JWS (T004); nunca `now`, senão estende o teste de quem já está no meio.
 - **Revogação**: JWS `revoked` vence o teste local (D-005).

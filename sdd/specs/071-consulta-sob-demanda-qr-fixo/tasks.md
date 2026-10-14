@@ -59,7 +59,7 @@ description: "Tasks da feature 071 — consulta sob demanda e QR fixo"
 
 ### Testes da Fase
 
-- [ ] T010 [P] Reescrever `tv-web/src/lib/portal/portalAgent.test.ts` e `usePortalAgent*.test.tsx` (sem ciclo diário/quick; lifecycle visível/online só governa `refresh`); testes do `licenseMonitor` com teste local; `test_enrollment.py` (âncora `min`, faixa, reinstalação). Contratos 069 C1–C5 e 070 C1–C5 verdes sem edição.
+- [ ] T010 [P] **Remover** os casos de `portalAgent.test.ts` e `usePortalAgent*.test.tsx` que afirmam ciclo diário/quick (os contratos C2/C3 já definem o novo comportamento) e manter só os que continuam valendo (lifecycle suspende/retoma, sem overlap, exclusão no ato); acrescentar 1 caso do `licenseMonitor` (JWS ou teste local; `revoked` vence) e 2 de `test_enrollment.py` (âncora `min`, faixa inválida). Contratos 069 C1–C5 e 070 C1–C5 verdes sem edição.
 
 **Critério de Conclusão**: contratos C1–C3 3/3 verdes e `check-contract-tests.ps1` íntegro; API `tests/portal` verde; `npx tsc -b` e lint sem violação nova.
 
@@ -89,8 +89,8 @@ description: "Tasks da feature 071 — consulta sob demanda e QR fixo"
 
 ### Testes da Fase
 
-- [ ] T016 [P] [US1] Testes de `RefreshButton`/`useRefreshAction` (pausa, offline, erro), `PortalPairingPanel` (sem requisição ao abrir além do cadastro; Recarregar volta com foco), `ProfilesScreen` (Atualizar), `LicenseGate` (libera e retoma; "sem compra"; offline) e `PortalLicensePanel`; contratos 037/045/023/024/026 e 070 C1 verdes sem edição.
-- [ ] T017 [US1] `tv-web/e2e/legibilidade-tv.mjs`: incluir bloqueio e botão Atualizar da lista em pt/en/es (≥ 20 px, sem corte). (SC-009)
+- [ ] T016 [P] [US1] **1 teste por unidade, só do que mudou**: `useRefreshAction` (pausa 10 s, offline, erro com código) e `LicenseGate` (libera e retoma a entrada; "sem compra" mantém o bloqueio). Painel Adicionar, `ProfilesScreen` e `PortalLicensePanel` ficam cobertos pelo E2E da T030 (sem teste de componente novo). Contratos 037/045/023/024/026 e 070 C1 verdes sem edição.
+- [ ] T017 [US1] `tv-web/e2e/legibilidade-tv.mjs`: acrescentar **apenas** a tela de bloqueio e a lista com o botão Atualizar (pt/en/es, ≥ 20 px, sem corte). Sem script novo. (SC-009)
 
 **Critério de Conclusão**: contratos C1–C3 verdes (Fase 2) permanecem; E2E `legibilidade-tv` PASS; nenhum teste não travado assume o ciclo diário.
 
@@ -122,7 +122,7 @@ description: "Tasks da feature 071 — consulta sob demanda e QR fixo"
 
 ### Testes da Fase
 
-- [ ] T022 [P] [US5] `portal-web` unit (`takeEntry` com fragmento válido/ inválido/ com chave errada) e `gerenciador.spec.ts` (entra pelo QR sem digitar; histórico limpo); teste do componente `FixedQr`.
+- [ ] T022 [P] [US5] `portal-web`: 1 teste unitário de `takeEntry` (fragmento válido, inválido, chave errada → recusa uniforme, histórico limpo) e 1 caso em `gerenciador.spec.ts` (entra pelo QR sem digitar). Sem teste de componente do `FixedQr` (o contrato C4 e o E2E já cobrem).
 
 **Critério de Conclusão**: contrato C4 1/1 verde, trava íntegra; E2E do QR PASS; portal lint/test/build/E2E verdes.
 
@@ -154,7 +154,7 @@ description: "Tasks da feature 071 — consulta sob demanda e QR fixo"
 
 ### Testes da Fase
 
-- [ ] T027 [P] [US4] Testes do mapeamento/lotes/fila (offline → Atualizar), API com emulador (idempotência, tombstone, CAS vs portal), e E2E de pilha local (adicionar na TV → site; editar no site → Atualizar).
+- [ ] T027 [P] [US4] API com emulador, **só as regras que protegem dados**: idempotência por digest, tombstone → `gone`, CAS contra edição do portal, lote > 10 recusado e corpo ausente de log/cabeçalho (marcadores). TV: 1 teste de lotes/fila offline → Atualizar. Sem E2E próprio: o cenário entra na T030.
 
 **Critério de Conclusão**: contrato C5 1/1 verde, trava íntegra; API `tests/portal` verde; E2E da fila PASS.
 
@@ -172,7 +172,7 @@ description: "Tasks da feature 071 — consulta sob demanda e QR fixo"
 
 - [ ] T028 Revisão de segredos com marcadores fictícios (DOM, URL/fragmento, QR, histórico, logs da API, cabeçalhos, erros) — `evidencias/segredos.md`. (SC-008)
 - [ ] T029 Atualizar `docs/portal/operacao.md`, `infra/portal/README.md`, `README.md` e as notas das specs 069/070 (consulta sob demanda, QR fixo, teste local, envio TV → site).
-- [ ] T030 E2E novo `tv-web/e2e/consulta-sob-demanda.mjs` (SUITE quando isolado) e ajustes em `entrada-listas-gerenciador.mjs`, `portal-dev-server.mjs`, `licenca-anual.mjs`, `portal-configuracao.mjs`; medir SC-001 (0 requisições em 24 h simulados) e SC-007.
+- [ ] T030 **1 E2E novo** `tv-web/e2e/consulta-sob-demanda.mjs` (uma subida de pilha): cenários 1–5, 7–10 do `quickstart.md` §3 + contagem de requisições (SC-001 em 24 h simulados, SC-007). Ajustar `entrada-listas-gerenciador.mjs`, `portal-dev-server.mjs`, `licenca-anual.mjs` e `portal-configuracao.mjs` **só se ficarem vermelhos** (rodar antes de editar).
 - [ ] T031 Gates: TV `tsc`/lint/`npm run test`/build/`build:tizen`; API pytest + Ruff; portal lint/test/build/E2E; travas 071/070/069/026/037/045/023/024 íntegras; `npm run test:e2e` completo com `npm run dev`.
 - [ ] T032 Publicar API (rota + âncora) e portal-web no staging (**ação externa: pedir confirmação do usuário**) e repetir E2E do pacote contra o staging; reescrever `homologate-070.ps1`/`measure-staging.ps1` para a rota nova se necessário.
 - [ ] T033 TV física (quickstart §4): instalar o pacote comercial sem desinstalar, cenários 2–10, `evidencias/tv.md`.
