@@ -160,7 +160,7 @@ Detalhes vinculantes: data-model.md, contracts/portal-api.md, logic/operacoes-e-
 | Gates automatizados | Suíte TV **49/49 E2E PASS em 350s** com `teste-conexao-tv` aprovado. A005 não reproduziu em três repetições isoladas nem na suíte completa. Revisão atual: **3301/3301 testes e 1398/1398 suítes PASS** (563 arquivos, threads4/JSON); direcionados e contratos PASS. Portal E2E13/13, lint/build/unit PASS; build:tizen e sincronização PASS. |
 | Plataforma/operação | TV atual preservada; projeto Google Cloud ccplaytv-511322 ativo; Cloud Run público/jobs, IAM/OIDC e Firestore staging validados. Oferta/termos/retenções e budget R$10/mês confirmados; snapshot READY, restore/replay, medições/custos restantes e fluxo comercial físico permanecem pendentes. |
 | Contratos | C1–C5 PASS e trava069 íntegra. Emenda mínima067 autorizada; trava067 íntegra. Nenhuma autorização para outros contratos. Travas 070 (5/5) e 037 emendada também são gate desta feature (I-1…I-10). |
-| Fase 7 (alinhamento 070) | T059/T061/T062 concluídas; T063 (a) feita (E2E `entrada-listas-gerenciador` e `portal-dev-server` PASS na pilha local). Abertas: T060 real e T063 (b) — dependem de permissão do usuário para ler o Firestore/backups do staging e de decisão sobre apagar o registro da TV de referência. T043 (cobrança sandbox) e T046 (TV física) dependem do usuário. |
+| Fase 7 (alinhamento 070) | T059/T061/T062 concluídas; T063 (a) feita. **Restore real** executado (`evidencias/restore.md`): 532,5 s, banco isolado apagado; snapshot anterior à 070, então T060 (ID sobrevive ao restore) precisa repetir com o próximo snapshot. Abertas: T060/T039 (replay do journal sem executor, cenário pré-delete), T063 (b), T043 e T046. |
 
 ## Riscos e Decisões
 
@@ -260,7 +260,9 @@ Checkpoint 2026-10-11: T054 concluída após autorização; isInHistory em módu
 
 | 2026-10-13 | Fase 7 (3º checkpoint, contínuo) | T063 (a): `entrada-listas-gerenciador.mjs` e `portal-dev-server.mjs` PASS com pilha local própria. Tentativas de `manage-backup.ps1 inspect -Apply` e de inventário do Firestore negadas pelo classificador de permissões — parada obrigatória. | Usuário: permissão/execução de `inspect`/`restore` e do inventário `generated`; T043 (compra sandbox) e T046 (TV). |
 
-PRÓXIMO: o que resta exige o usuário — (1) liberar (regra de permissão) ou executar `manage-backup.ps1 -Action inspect|restore` e a consulta de `devices`/`displayIdClaims` no staging para T039/T060/T063 (b); (2) decidir apagar ou não o registro da TV de referência `2A:…`; (3) T043: aprovar compra sandbox para medir ativações pagas; (4) T046: observar o roteiro A–H na TV. T047 fecha por último. Venda desligada.
+| 2026-10-14 | Fase 7 (4º checkpoint) | Restore real do snapshot de 2026-10-13T03:31Z em `portal-restore-070`: 532,5 s, 15 dispositivos, 12 coleções; banco apagado. Snapshot anterior à 070 (sem `displayId`/`displayIdClaims`). `manage-backup.ps1` corrigido (pt-BR). | Repetir com snapshot pós-070 (T060); executor de replay do journal e cenário "backup anterior a delete" (T039); T063 (b); T043; T046. |
+
+PRÓXIMO: (1) repetir o restore com o próximo snapshot diário (pós-070) e conferir `display_id`/`displayIdClaims` — mesmo comando de `evidencias/restore.md`, banco `portal-restore-070`, apagar ao fim; (2) decidir se implementamos o executor de replay do journal e o cenário "backup anterior a delete" para fechar T039 (hoje só há decodificador); (3) T063 (b): permissão de consulta ao Firestore e decisão sobre a TV `2A:…`; (4) T043 (compra sandbox) e T046 (TV física, roteiro A–H); T047 por último. Venda desligada.
 
 ## Invariantes herdadas da 070
 

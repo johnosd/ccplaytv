@@ -453,3 +453,13 @@ Checkpoint desta revisão:3301/3301 unit (563 arquivos),26/26 direcionados, E2E 
 - Testes executados: `node e2e/entrada-listas-gerenciador.mjs` e `node e2e/portal-dev-server.mjs` em `tv-web/`.
 - Bloqueio (parada obrigatória): o classificador de permissões **negou** `manage-backup.ps1 -Action inspect -Apply` (listagem read-only de backups) e a consulta ao Firestore do staging. Sem isso não há como obter o snapshot, nem executar `restore` em banco isolado (T039/T060 reais) nem o inventário dos registros `generated` (T063 b). Cada uma é ação sobre o projeto Google Cloud real e fica para o usuário autorizar (regra de permissão) ou rodar.
 - Fora do alcance sem o usuário: **T043** (ativações pagas exigem compra sandbox; decisão de 2026-10-12 de não repetir cobrança), **T046** (observação do usuário na TV, roteiro A–H), **T047** (fecha por último).
+
+
+**Registro da Fase 7 — 4º checkpoint** (2026-10-14, autorização do usuário para restore):
+
+- Status: Parcial — T060 e T039 avançaram com ensaio real; seguem abertas.
+- Feito: restore real do único snapshot READY em `portal-restore-070` (banco isolado, `reopenTraffic=false`): operação concluída em **532,5 s**, 15 dispositivos e as 12 coleções raiz conferidas só por contagem/nome de campo; banco apagado ao final (só `(default)` permanece). Inspeção do backup: `backup_current`, 22,9 h. Corrigido defeito do `manage-backup.ps1` (parse do `snapshotTime` em pt-BR, `ebff70d`). Evidência em `evidencias/restore.md`.
+- Achado: o snapshot é **anterior à 070** (sem `displayId`, sem `displayIdClaims`), então o ensaio não prova a sobrevivência do ID ao restore. Precisa repetir com o próximo snapshot diário.
+- Contrato: sem arquivo de contrato tocado; travas 069/070/026 íntegras.
+- Testes executados: `pytest tests/portal/test_restore.py tests/portal/test_display_id_durability.py` → 10 passed (checkpoint anterior ao restore).
+- Pendências: **T060/T039** — repetir o ensaio com snapshot pós-070; executor de replay do journal e cenário "backup anterior a delete" (não implementados); cópia protegida das chaves. **T063 (b)** — inventário/limpeza `generated` do staging (permissão negada e decisão sobre a TV `2A:…`).
