@@ -36,7 +36,10 @@ if ($Action -eq 'inspect') {
     $backups = @($allBackups | Where-Object { $_.database -eq $sourceName -and $_.state -eq 'READY' })
     $latest = $backups | Sort-Object snapshotTime -Descending | Select-Object -First 1
     if (-not $latest) { throw 'backup_missing' }
-    $snapshot = [DateTimeOffset]::Parse($latest.snapshotTime)
+    # ConvertFrom-Json (pwsh 7) já entrega DateTime; reconverter por texto quebra em cultura pt-BR.
+    $snapshotRaw = $latest.snapshotTime
+    $snapshot = if ($snapshotRaw -is [datetime]) { [DateTimeOffset]::new($snapshotRaw.ToUniversalTime()) }
+                else { [DateTimeOffset]::Parse([string]$snapshotRaw, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal) }
     $age = ([DateTimeOffset]::UtcNow - $snapshot).TotalHours
     if ($age -lt 0) { throw 'backup_timestamp_invalid' }
     [pscustomobject]@{ code=$(if($age -gt 24){'backup_stale'}else{'backup_current'}); ageHours=[Math]::Round($age,2); snapshotAt=$snapshot.ToString('o') } | ConvertTo-Json
