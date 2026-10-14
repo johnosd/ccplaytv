@@ -1,27 +1,27 @@
 {
-    "feature":  "026-home-busca-configuracoes-ds-v14",
-    "lockedAt":  "2026-10-10 09:30",
-    "total":  5,
-    "files":  [
-                  {
-                      "path":  "tv-web/src/lib/catalog/homeHero.home-busca-configuracoes-ds-v14.contract.test.ts",
-                      "sha256":  "5b8d7bfba411f94bfe5b81eef2cd695bb83f1e694fbf589d3cf7454f7459fcaf",
-                      "tests":  2
-                  },
-                  {
-                      "path":  "tv-web/src/lib/catalog/globalSearch.home-busca-configuracoes-ds-v14.contract.test.ts",
-                      "sha256":  "ec01c7191060d958bff6fb3e84eef93c856ed79d717b7e515c69eb3469c63a97",
-                      "tests":  1
-                  },
-                  {
-                      "path":  "tv-web/src/features/home/HomeScreen.home-busca-configuracoes-ds-v14.contract.test.tsx",
-                      "sha256":  "361212b58261a7fb5eac35e341afcd4efd0b8fb4f0f74a5d038fdcb47899e934",
-                      "tests":  1
-                  },
-                  {
-                      "path":  "tv-web/src/features/settings/SettingsScreen.home-busca-configuracoes-ds-v14.contract.test.tsx",
-                      "sha256":  "72c3144239289b11d61f0fca0389cf242ba7994f87ae51d6d3c40d47968a2627",
-                      "tests":  1
-                  }
-              ]
+  "feature": "026-home-busca-configuracoes-ds-v14",
+  "lockedAt": "2026-10-13 21:11",
+  "total": 5,
+  "files": [
+    {
+      "path": "tv-web/src/lib/catalog/homeHero.home-busca-configuracoes-ds-v14.contract.test.ts",
+      "sha256": "5b8d7bfba411f94bfe5b81eef2cd695bb83f1e694fbf589d3cf7454f7459fcaf",
+      "tests": 2
+    },
+    {
+      "path": "tv-web/src/lib/catalog/globalSearch.home-busca-configuracoes-ds-v14.contract.test.ts",
+      "sha256": "ec01c7191060d958bff6fb3e84eef93c856ed79d717b7e515c69eb3469c63a97",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/features/home/HomeScreen.home-busca-configuracoes-ds-v14.contract.test.tsx",
+      "sha256": "795664755c6e5171363cda8b3fc3bd4b23830e9a3aff21cefd084531a8a37fdb",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/features/settings/SettingsScreen.home-busca-configuracoes-ds-v14.contract.test.tsx",
+      "sha256": "72c3144239289b11d61f0fca0389cf242ba7994f87ae51d6d3c40d47968a2627",
+      "tests": 1
+    }
+  ]
 }
