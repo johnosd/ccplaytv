@@ -212,6 +212,28 @@ manage-backup.ps1 em infra/portal/backup prepara schedule/inspect/restore; sem -
 
 Licença vigente é exigida localmente ao entrar numa lista, inclusive após importação/verificação do provedor e por RETURN do seletor. Se vencer dentro dela, o usuário mantém navegação, novas reproduções e retomada até sair para o seletor ou fechar o app. Configurações abertas dentro da sessão podem voltar ao conteúdo. Não há autorização persistida para a próxima abertura. Revogação confirmada continua encerrando a sessão. A guarda não faz HTTP por tecla nem dentro do player; o teste de 7 dias e o bloqueio são decididos no aparelho (071), sem rede.
 
+## Desvincular a TV e backup dos dados de uso (feature 072, ADR-017)
+
+- **Desvincular** (TV → Configurações → Portal & licença): apaga do aparelho só o pareamento (identidade, emissão
+  pendente, licença em cache, fila de envios) e guarda o código de recuperação. Preserva listas, catálogo, favoritos,
+  histórico, progresso, chave TMDB, PINs, o teste local e a fila de exclusões. Com internet faz o backup antes.
+- **Reassociação**: no próximo Atualizar o `enroll` responde `recovery_required`; a TV chama
+  `POST /portal/v1/devices/recovery/self` (identidade + código, só no corpo). O serviço reaproveita a rotação
+  write-ahead `revoke`: mesmo `deviceId` e ID exibido, chave/código/bearer novos, sessões e QR antigos derrubados.
+  Limites: 5/h por identidade, 20/h por IP, 200/h global; recusa uniforme `invalid_credentials`. Reinstalação (sem
+  lembrete) continua pela recuperação no site (069).
+- **Backup de uso**: `devices/{id}/backups/current` (só a última versão), payload cifrado (`usage-backup/v1`),
+  ≤ 512 KB (a TV corta histórico antigo antes de favoritos/progresso). Rotas da TV: `PUT/GET /device/backup`,
+  `GET /device/backup/summary`, `DELETE /device/backup` (20 PUT/h). Painel: `GET/DELETE /backup` (só data e
+  contagens). Sobe no fim do Atualizar de listas e no botão "Fazer backup agora" — nunca sozinho.
+- **Nunca sobrescrever backup não decidido**: logo após um pareamento novo a TV pergunta o resumo; havendo backup,
+  oferece "Restaurar backup de <data>?" e não sobe até a pessoa decidir. Restaurar mescla por lista (o mais recente
+  vence); dados de lista ausente ficam pendentes por 5 dias. A chave TMDB do backup só entra se a TV não tiver chave.
+- **Apagar** (TV ou site) desliga o envio automático: a TV manda `expectExisting` e o serviço responde 404 sem
+  recriar; o backup volta só com "Fazer backup agora".
+- **Publicação**: publicar a API (rotas novas) antes de instalar o pacote na TV. Rollback da API: revisões
+  anteriores dos dois serviços; documentos de backup antigos ficam inertes.
+
 ## Domínio próprio: `portal.ccplaytv.com` (2026-10-14)
 
 O portal responde em **https://portal.ccplaytv.com** (o endereço `run.app` do Cloud Run continua existindo, mas o

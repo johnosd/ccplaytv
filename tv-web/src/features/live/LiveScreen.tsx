@@ -284,7 +284,8 @@ export function LiveScreen({
 
       {playing && (
         <PlayerLayer
-          itemId={playing.id}
+          // Rajada de ↑/↓/CH±: o player segue no canal que tocava até a pessoa parar (o arquivo segue sempre `playing`).
+          itemId={(liveArchive.playerArchive ? playing : (zap.heldChannel ?? playing)).id}
           title={playing.name}
           identity={{
             title: playing.name,

@@ -10,6 +10,8 @@ O portal vinculado à TV e a licença anual estão em implementação nas [featu
 
 Desde a [feature 071](sdd/specs/071-consulta-sob-demanda-qr-fixo/plan.md) a TV não consulta o serviço sozinha: o botão **Atualizar** (listas e licença) e o envio no ato ao criar/editar uma lista são as únicas chamadas; "Adicionar lista" é uma tela com as abas Pelo site, Xtream Codes e Lista M3U; o QR da aba do site é fixo e gerado na TV (ID e chave no fragmento), o teste de 7 dias é contado no próprio app e as listas criadas na TV aparecem no site com nome, host, usuário e senha (cifrados no serviço; [ADR-016](sdd/adr/ADR-016-consulta-sob-demanda-qr-fixo.md)).
 
+A [feature 072](sdd/specs/072-desvincular-backup/plan.md) acrescenta **Desvincular** (solta só o pareamento; a TV volta ao mesmo registro sozinha) e um **backup dos dados de uso** no serviço (favoritos, histórico, progresso, preferências, PIN em hash e chave TMDB, cifrados e só desta TV), oferecido para restauração depois de reinstalar ou re-parear e apagável na TV e no site ([ADR-017](sdd/adr/ADR-017-desvincular-backup.md)).
+
 ## Escopo funcional
 
 O objetivo é carregar múltiplas listas M3U, reproduzir canais, filmes e séries compatíveis, permitir favoritos e organizar capas e detalhes do catálogo. As evoluções previstas incluem recomendações, pesquisa por voz com transcrição, integração com OpenAI e controle por aplicativo Android.

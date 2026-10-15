@@ -297,7 +297,7 @@ try {
   for (const secret of [MARKER_PASSWORD, MARKER_USER, before.deviceKey]) assert.ok(!serviceLogs.includes(secret), 'segredo no log da API')
 
   // Régua de SC-007: tudo acima são ações da pessoa; nenhuma chamada fora da lista de rotas esperadas.
-  const unexpected = calls.filter((line) => !/\/(devices\/(enroll|recovery\/(ack|result|challenges))|device\/(operations|sources|snapshot|deletions|entitlement\/refresh)|device\/operations\/[^/]+\/ack|device\/(revoke|recovery-code\/rotate))$/.test(line.replace(/^\w+ /, '')))
+  const unexpected = calls.filter((line) => !/\/(devices\/(enroll|recovery\/(ack|result|challenges))|device\/(operations|sources|snapshot|deletions|entitlement\/refresh|backup|backup\/summary)|device\/operations\/[^/]+\/ack|device\/(revoke|recovery-code\/rotate))$/.test(line.replace(/^\w+ /, '')))
   assert.deepEqual(unexpected, [], 'rotas inesperadas: ' + unexpected.join(' | '))
   log(`consulta sob demanda: PASS (${calls.length} requisições da TV, todas por ação da pessoa)`)
 } catch (error) {

@@ -9,8 +9,7 @@ export const REFRESH_PAUSE_MS = 10_000
 
 export type RefreshStatus = 'idle' | 'loading' | 'done' | 'nothing' | 'wait' | 'offline' | 'failed'
 
-/** 
-ewSourceIds: listas locais que passaram a existir com este Atualizar (só no escopo lists). */
+/** `newSourceIds`: listas locais que passaram a existir com este Atualizar (só no escopo lists). */
 export interface RefreshResult { ok: boolean; changed: boolean; newSourceIds: string[] }
 
 export interface RefreshAction {
@@ -29,6 +28,8 @@ export interface RefreshAction {
 export async function refreshFingerprint(scope: RefreshScope): Promise<string> {
   const tables = portalTables(db)
   if (scope === 'license') return (await tables.license.get('entitlement'))?.jws ?? ''
+  // 072: o backup "mudou" quando o serviço confirmou um novo (instante do último backup).
+  if (scope === 'backup') return String((await db.table('portalDevice').get('backup'))?.lastBackupAt ?? '')
   const [sources, revisions] = await Promise.all([db.sources.toArray(), tables.revisions.toArray()])
   return JSON.stringify([
     sources.map(source => [source.id, source.updatedAt]).sort(),
@@ -45,8 +46,7 @@ const localSourceIds = async () => (await db.sources.toCollection().primaryKeys(
  */
 export function useRefreshAction(scope: RefreshScope, options: {
   fingerprint?: (scope: RefreshScope) => Promise<string>
-  /** Ids das listas locais (para 
-ewSourceIds); injetável em teste, onde o Dexie não convive com timers falsos. */
+  /** Ids das listas locais (para `newSourceIds`); injetável em teste, onde o Dexie não convive com timers falsos. */
   sourceIds?: () => Promise<string[]>
 } = {}): RefreshAction {
   const fingerprint = options.fingerprint ?? refreshFingerprint
@@ -100,7 +100,8 @@ ewSourceIds); injetável em teste, onde o Dexie não convive com timers falsos. 
 export function refreshMessageKey(status: RefreshStatus, scope: RefreshScope) {
   switch (status) {
     case 'loading': return 'portal.refresh.loading' as const
-    case 'done': return scope === 'license' ? 'portal.refresh.licenseDone' as const : 'portal.refresh.listsDone' as const
+    case 'done': return scope === 'license' ? 'portal.refresh.licenseDone' as const
+      : scope === 'backup' ? 'portal.backup.done' as const : 'portal.refresh.listsDone' as const
     case 'nothing': return 'portal.refresh.nothing' as const
     case 'wait': return 'portal.refresh.wait' as const
     case 'offline': return 'portal.refresh.offline' as const

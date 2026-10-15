@@ -84,12 +84,12 @@ class InviteInput(Input):
     purpose: Literal["manage", "buy"]
 
 
-async def payload(request: Request, model: type[Input]):
+async def payload(request: Request, model: type[Input], limit: int = 65536):
     if request.headers.get("content-type", "").split(";", 1)[0].strip() != "application/json":
         raise AuthError("invalid_input", 422)
     data = bytearray()
     async for chunk in request.stream():
-        if len(data) + len(chunk) > 65536:
+        if len(data) + len(chunk) > limit:
             raise AuthError("payload_too_large", 413)
         data.extend(chunk)
     try:

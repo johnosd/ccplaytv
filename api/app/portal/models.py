@@ -117,6 +117,14 @@ class ConfigurationDocument(PortalDocument):
     updated_at: AwareDatetime
 
 
+class UsageBackupDocument(PortalDocument):
+    """072: backup dos dados de uso de uma TV (só a última versão). Payload inteiro cifrado; contagens em claro."""
+    format: Literal[1]
+    created_at: AwareDatetime
+    client_created_at: AwareDatetime
+    counts: dict[str, int]
+    envelope: CipherEnvelope = Field(repr=False)
+
 class ConfigurationVersionDocument(PortalDocument):
     source_id: OpaqueId
     config_version: OpaqueId

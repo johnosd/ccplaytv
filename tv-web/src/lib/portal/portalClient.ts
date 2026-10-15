@@ -1,6 +1,22 @@
 /** Controle HTTPS independente do provedor; erros nunca carregam URL/corpo remoto. */
 const errorCodes = new Set(['unauthorized', 'invalid_origin', 'invalid_csrf', 'invalid_input',
-  'invalid_credentials', 'rate_limited', 'service_unavailable', 'conflict', 'recovery_required'])
+  'invalid_credentials', 'rate_limited', 'service_unavailable', 'conflict', 'recovery_required', 'not_found'])
+
+/**
+ * 072: 401/409 do serviço distinguem "identidade já cadastrada" (`recovery_required`) e "código recusado"
+ * (`invalid_credentials`). Só esses dois códigos são lidos do corpo, que é JSON curto do próprio serviço; qualquer
+ * outra coisa (proxy, HTML, texto) cai no mapeamento por status. Nunca ecoa o corpo.
+ */
+const BODY_CODES = new Set(['recovery_required', 'invalid_credentials'])
+async function specificCode(response: Response): Promise<string | undefined> {
+  if (response.status !== 401 && response.status !== 409) return undefined
+  try {
+    const text = await response.text()
+    if (text.length > 512) return undefined
+    const code = (JSON.parse(text) as { code?: unknown }).code
+    return typeof code === 'string' && BODY_CODES.has(code) ? code : undefined
+  } catch { return undefined }
+}
 
 export class PortalRequestError extends Error {
   readonly code: string
@@ -29,7 +45,7 @@ export function createPortalClient(options: PortalClientOptions) {
   const fetcher = options.fetch ?? globalThis.fetch
   return {
     async request<T>(path: string, { bearer, body, signal, method = 'POST' }: {
-      bearer?: string; body?: unknown; signal?: AbortSignal; method?: 'GET' | 'POST' | 'PUT'
+      bearer?: string; body?: unknown; signal?: AbortSignal; method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
     }): Promise<T> {
       // Rota fixa sem query/hash; nenhuma credencial pode formar a URL.
       if (!/^\/portal\/v1\/[A-Za-z0-9_/-]+$/.test(path) || path.includes('//') ||
@@ -50,9 +66,9 @@ export function createPortalClient(options: PortalClientOptions) {
           const seconds = Number(response.headers.get('Retry-After'))
           const retryAfterMs = Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 86_400) * 1_000 : 0
           // Não ler/ecoar corpo de proxy, HTML, erro de validação ou URL de fetch.
-          const code = ({ 401: 'unauthorized', 403: 'invalid_origin', 409: 'conflict',
+          const code = ({ 401: 'unauthorized', 403: 'invalid_origin', 404: 'not_found', 409: 'conflict',
             422: 'invalid_input', 429: 'rate_limited' } as Record<number, string>)[response.status]
-          throw new PortalRequestError(code ?? 'service_unavailable', retryAfterMs)
+          throw new PortalRequestError(await specificCode(response) ?? code ?? 'service_unavailable', retryAfterMs)
         }
         if (response.status === 204) return undefined as T
         const reader = response.body?.getReader()

@@ -1,3 +1,4 @@
+import { BackupCard } from './BackupCard'
 import { ConfigurationManager } from './ConfigurationManager'
 import { useEffect, useRef, useState } from 'react'
 import { useT } from '../lib/i18n'
@@ -193,6 +194,7 @@ export function SourceManager({ session, onLogout, onOpenLicense }: { session: S
         </div>}
         </div>
       </section>
+      <BackupCard session={session} />
       {removing && <dialog ref={dialog} className="panel" aria-labelledby="delete-title" onCancel={event => { event.preventDefault(); if (!busy) { setRemoving(undefined); deletionRequest.current = null } }}>
         <h2 id="delete-title">{t('remove')}: {removing.displayName}</h2><p>{t('removeHint')}</p>
         <div className="actions"><button className="primary" onClick={() => void remove()} aria-disabled={busy}>{t(busy ? 'sending' : 'confirm')}</button>

@@ -6,6 +6,7 @@ import { acknowledgeCredentialIssuance, enrollmentNonce, persistCredentialIssuan
 import { anchorLocalTrial } from '../licensing/localTrialRepository'
 import { DEVICE_KEY_PATTERN, displayIdFromMac } from './displayId'
 import { portalTables, type PortalDeviceRecord } from './portalTables'
+import { clearRelinkHint, readRelinkHint } from './unlink'
 
 export type ControlClient = ReturnType<typeof createPortalClient>
 export interface PortalInvite { token: string; expiresAt: string; qrDataUrl: string }
@@ -97,9 +98,17 @@ export class PortalConnection {
     if (!device) {
       const nonce = await enrollmentNonce(this.database, crypto, Date.now())
       const platformIdentity = readPlatformIdentity(this.getDuid)
-      const issued = await this.client.request<IssuedCredentials & { operationId: string }>('/portal/v1/devices/enroll',
-        { body: { platformIdentity, nonce, ...this.platformMac(), ...await this.localTrialStart(Date.now()) } })
+      let issued: IssuedCredentials & { operationId: string }
+      try {
+        issued = await this.client.request<IssuedCredentials & { operationId: string }>('/portal/v1/devices/enroll',
+          { body: { platformIdentity, nonce, ...this.platformMac(), ...await this.localTrialStart(Date.now()) } })
+      } catch (error) {
+        // 072/D-002: a identidade já tem registro. Depois de "Desvincular", a TV volta a ele com o código que guardou.
+        if (!(error instanceof PortalRequestError) || error.code !== 'recovery_required') throw error
+        issued = await this.relink(platformIdentity, nonce, error)
+      }
       await persistCredentialIssuance(this.database, issued, issued.operationId, Date.now())
+      await clearRelinkHint(this.database)
       await this.reconcileTrial(issued)
       device = await tables.device.get('device')
     }
@@ -111,6 +120,19 @@ export class PortalConnection {
       await acknowledgeCredentialIssuance(this.database, pending.operationId, pending.authEpoch)
     }
     return device
+  }
+  /** Sem lembrete (reinstalação), a recusa original segue para a recuperação pelo site (069). O código só no corpo. */
+  private async relink(platformIdentity: string, nonce: string, refusal: PortalRequestError) {
+    const hint = await readRelinkHint(this.database)
+    if (!hint) throw refusal
+    try {
+      return await this.client.request<IssuedCredentials & { operationId: string }>('/portal/v1/devices/recovery/self',
+        { body: { platformIdentity, nonce, recoveryCode: hint.recoveryCode, ...this.platformMac() } })
+    } catch (error) {
+      // Código recusado não serve mais: descarta para não insistir; a pessoa recupera pelo site.
+      if (error instanceof PortalRequestError && error.code === 'invalid_credentials') await clearRelinkHint(this.database)
+      throw error
+    }
   }
   /** @deprecated 071: o acesso ao painel é o QR fixo (ID + chave no fragmento). Sem uso na UI; fica pelos testes da 069. */
   async invite(): Promise<{ deviceId: string; invite: PortalInvite }> {

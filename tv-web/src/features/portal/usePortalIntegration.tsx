@@ -9,7 +9,9 @@ import { getPortalConnection } from '../../lib/portal/portalRuntime'
 import { localImportSource } from '../../lib/portal/remoteImportOutbox'
 import { createPortalSync } from '../../lib/portal/portalSync'
 import { usePortalAgent } from '../../lib/portal/usePortalAgent'
+import { runBackupStep } from '../../lib/backup/backupStep'
 import { PortalSyncConfirmation } from './PortalSyncConfirmation'
+import { RestoreOffer } from './RestoreOffer'
 
 export function usePortalIntegration({ activeSourceId, leaveSource, sourceDeleted, catalogChanged, resumeEntry }: {
   activeSourceId?: string; leaveSource(sourceId?: string): void; sourceDeleted(id: string): void; catalogChanged(): void
@@ -54,7 +56,10 @@ export function usePortalIntegration({ activeSourceId, leaveSource, sourceDelete
     },
   }) : { flushDeletions: async () => {}, pull: async () => {}, publishSnapshot: async () => {} })
   const [agentPorts] = useState(() => ({ ...ports, refreshLicense: connection && commercialBuild
-    ? createLicenseSync(db, connection, licenseAuthority) : undefined }))
+    ? createLicenseSync(db, connection, licenseAuthority) : undefined,
+    // 072: passo de backup de uso no fim do Atualizar de listas e no botão Fazer backup agora.
+    backup: connection ? async (signal: AbortSignal) => { await runBackupStep(db, connection, { signal }) } : undefined }))
   usePortalAgent(db, agentPorts, !!connection)
-  return <><LicenseGate activeSourceId={activeSourceId} onStop={leaveSource} onResume={resumeEntry} connection={connection} />{decide && <PortalSyncConfirmation onDecide={decide.complete} />}</>
+  return <><LicenseGate activeSourceId={activeSourceId} onStop={leaveSource} onResume={resumeEntry} connection={connection} />{decide && <PortalSyncConfirmation onDecide={decide.complete} />}
+    {connection && <RestoreOffer connection={connection} />}</>
 }

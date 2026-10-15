@@ -13,7 +13,7 @@ export function sourceDeletionTables(database: CatalogDb) {
     'catalogReadManifests', 'catalogReadChunks', 'seriesWatchMembers', 'seriesWatchSummaries',
     'sectionStaging', 'importRuns', 'userStates', 'epgPrograms', 'titleMetadata',
     'categoryPreferences', 'parentalPins', 'sourceRevisions', 'pendingPortalDeletes',
-    'pendingImportOutbox'].map(name => database.table(name))
+    'pendingImportOutbox', 'pendingRestore'].map(name => database.table(name))
 }
 
 export async function deleteSource(id: string, database: CatalogDb = db,
@@ -40,6 +40,8 @@ export async function deleteSource(id: string, database: CatalogDb = db,
     await Promise.all([categoryPreferences(database).where('sourceId').equals(id).delete(), parentalPins(database).delete(id)])
     await database.sources.delete(id)
     await tables.imports.delete(id)
+    // 072: dados restaurados à espera desta lista não têm mais para onde ir.
+    await database.table('pendingRestore').delete(id)
     await tables.revisions.put({ ...previous, sourceId: id, revision, tombstone: true, deletedAt })
     if (options.origin !== 'portal') {
       await tables.deletes.put({ deletionId, sourceId: id, revision, createdAt: deletedAt })

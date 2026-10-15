@@ -443,6 +443,21 @@ async function auditPortalScreens(browser, m3uUrl) {
         await page.waitForSelector('[role="dialog"] .fixed-qr', { timeout: 15000 })
         await audit(page, lang, 'Bloqueio da licença', '[role="dialog"]')
       })
+      // 072: oferta de restauração do backup (aparece depois de re-parear quando o serviço tem backup desta TV).
+      await step(lang, 'Oferta de restauração do backup', async () => {
+        await page.evaluate(async () => {
+          const { db } = await import('/src/lib/catalog/db.ts')
+          await db.table('portalDevice').put({ id: 'backup', state: 'offered', lastBackupAt: Date.UTC(2026, 9, 14),
+            offer: { createdAt: Date.UTC(2026, 9, 14), counts: { favorites: 12, history: 345, progress: 6, categoryPreferences: 2, listPins: 1 } } })
+        })
+        await page.goto(PORTAL_APP)
+        await page.waitForSelector('[role="dialog"] .modal-actions', { timeout: 15000 })
+        await audit(page, lang, 'Oferta de restauração do backup', '[role="dialog"]')
+        await page.evaluate(async () => {
+          const { db } = await import('/src/lib/catalog/db.ts')
+          await db.table('portalDevice').put({ id: 'backup', state: 'settled' })
+        })
+      })
     }
   } finally {
     await context.close()

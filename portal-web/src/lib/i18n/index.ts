@@ -140,7 +140,14 @@ const messages = {
     "recoveryRetry": "Tentar novamente retoma o mesmo pedido, sem criar outra recuperação.",
     "resend": "Reenviar configuração guardada",
     "resendHint": "Reenvio explícito usa a configuração guardada, sem exibir seus dados. Atualize o estado da TV antes de reenviar.",
-    "retryRemoval": "Revisar e repetir remoção"
+    "retryRemoval": "Revisar e repetir remoção",
+    "backupTitle": "Backup dos dados de uso",
+    "backupNone": "Nenhum backup guardado.",
+    "backupSummary": "Último backup: {date} — {favorites} favoritos, {history} no histórico, {progress} em andamento.",
+    "backupHint": "O conteúdo fica cifrado e só a TV o lê. Aqui aparecem apenas a data e as contagens.",
+    "backupDelete": "Apagar backup",
+    "backupDeleteConfirm": "Apagar o backup desta TV? Nada na TV é apagado, e o backup só volta quando alguém pedir na TV.",
+    "backupDeleted": "Backup apagado."
   },
   "en": {
     "sellers": "Sellers",
@@ -283,7 +290,14 @@ const messages = {
     "recoveryRetry": "Trying again resumes the same request without creating another recovery.",
     "resend": "Resend saved configuration",
     "resendHint": "Explicit resend uses the saved configuration without displaying its details. Refresh the TV status before resending.",
-    "retryRemoval": "Review and retry removal"
+    "retryRemoval": "Review and retry removal",
+    "backupTitle": "Usage data backup",
+    "backupNone": "No backup saved.",
+    "backupSummary": "Last backup: {date} — {favorites} favorites, {history} in history, {progress} in progress.",
+    "backupHint": "The content is encrypted and only the TV can read it. Only the date and counts show here.",
+    "backupDelete": "Delete backup",
+    "backupDeleteConfirm": "Delete this TV's backup? Nothing on the TV is deleted, and the backup only comes back when someone asks on the TV.",
+    "backupDeleted": "Backup deleted."
   },
   "es": {
     "sellers": "Revendedores",
@@ -426,7 +440,14 @@ const messages = {
     "recoveryRetry": "Reintentar retoma la misma solicitud sin crear otra recuperación.",
     "resend": "Reenviar configuración guardada",
     "resendHint": "El reenvío explícito usa la configuración guardada sin mostrar sus datos. Actualiza el estado del televisor antes de reenviar.",
-    "retryRemoval": "Revisar y repetir eliminación"
+    "retryRemoval": "Revisar y repetir eliminación",
+    "backupTitle": "Copia de los datos de uso",
+    "backupNone": "No hay copia guardada.",
+    "backupSummary": "Última copia: {date} — {favorites} favoritos, {history} en el historial, {progress} en curso.",
+    "backupHint": "El contenido está cifrado y solo la TV puede leerlo. Aquí solo aparecen la fecha y los recuentos.",
+    "backupDelete": "Borrar copia",
+    "backupDeleteConfirm": "¿Borrar la copia de esta TV? Nada se borra en la TV, y la copia solo vuelve cuando alguien la pida en la TV.",
+    "backupDeleted": "Copia borrada."
   }
 } as const
 export function resolveLocale(language: string) {

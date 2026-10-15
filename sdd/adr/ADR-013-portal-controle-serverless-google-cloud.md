@@ -26,6 +26,8 @@ O usuário escolheu FastAPI + Firestore, infraestrutura Google Cloud com faturam
 - Backup nativo diário Firestore, retenção inicial proposta de 7 dias; objetivo RPO <=24h com monitoramento de falhas e restauração manual ensaiada, RTO a medir. Inclui ciphertext permanente, não chaves. Após restore, reconciliar pagamentos/revogações e não reabrir sessões expiradas nem ressuscitar configurações excluídas. Exclusão nos backups segue retenção, não apagamento instantâneo. T039 define responsável e procedimento.
 - Alertas sugeridos em R$17,50/R$28/R$35 e previsão de excedente; não desligar serviço ao superar orçamento. Limites de escala/entrada, retenção de logs e proteção contra abuso reduzem consumo, mas não garantem teto financeiro. Não contratar instâncias mínimas, PITR, WAF, domínio ou outros adicionais por padrão.
 
+**Atualização (ADR-017):** o serviço passa a guardar também um backup cifrado dos dados de uso de cada TV (favoritos, histórico, progresso, preferências, PIN em hash e chave TMDB), só por ação da pessoa e só devolvido à mesma TV, e ganha a rota de reassociação `POST /devices/recovery/self`. Ver ADR-017 para o raciocínio completo.
+
 ## Alternativas Consideradas
 
 ### Render Free + Supabase + cron Cloudflare

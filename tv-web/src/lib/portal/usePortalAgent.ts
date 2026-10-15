@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import type { CatalogDb } from '../catalog/db'
 import { sharedPortalAgent, type PortalAgentPorts } from './portalAgent'
-import { registerPortalRefresh } from './portalRuntime'
+import { registerPortalRefresh, registerPortalReset } from './portalRuntime'
 import { onLocalSourceChanged } from './sourceChangeSignal'
 
 /** Montar no App com portas estáveis. Sem timers: só registra o Atualizar e acompanha visibilidade/rede. */
@@ -13,6 +13,7 @@ export function usePortalAgent(database: CatalogDb, ports: PortalAgentPorts, ena
     lifecycle()
     const detach = agent.attach()
     const unregister = registerPortalRefresh(scope => agent.refresh(scope))
+    const unregisterReset = registerPortalReset(() => agent.reset())
     // 071/FR-008: criar/editar/excluir uma lista tenta o envio no ato (uma tentativa; falha mantém a fila).
     const unlisten = onLocalSourceChanged(change => (change === 'deleted' ? agent.deletedNow() : agent.uploadNow()))
     document.addEventListener('visibilitychange', lifecycle)
@@ -28,6 +29,7 @@ export function usePortalAgent(database: CatalogDb, ports: PortalAgentPorts, ena
       window.removeEventListener('pageshow', lifecycle)
       window.removeEventListener('pagehide', hide)
       unregister()
+      unregisterReset()
       unlisten()
       detach()
     }

@@ -11,7 +11,8 @@ import { PortalRequestError } from './portalClient'
 /** Pausa entre dois Atualizar do mesmo escopo; vale também depois de uma falha (limite do serviço). */
 const REFRESH_PAUSE_MS = 10_000
 
-export type RefreshScope = 'lists' | 'license'
+/** 072: 'backup' = só o passo de backup (botão Fazer backup agora); 'lists' também faz backup no fim. */
+export type RefreshScope = 'lists' | 'license' | 'backup'
 
 /** Resultado de um Atualizar: código não secreto em falha. */
 export type CycleOutcome = { ok: true } | { ok: false; code: string }
@@ -24,6 +25,8 @@ export interface PortalAgentPorts {
   pull(signal: AbortSignal): Promise<void>
   publishSnapshot(signal: AbortSignal): Promise<void>
   refreshLicense?(signal: AbortSignal): Promise<void>
+  /** 072: passo de backup de uso (ausente = nada a fazer); decide sozinho entre subir, oferecer ou pular. */
+  backup?(signal: AbortSignal): Promise<void>
   onError?(code: string): void
 }
 
@@ -126,6 +129,13 @@ export class PortalAgent {
     void this.enqueue(() => this.execute(['uploads', 'snapshot'])).catch(() => this.ports.onError?.('local_storage_error'))
   }
 
+  /** 072: Desvincular — aborta o que corre e esquece pausas e pedidos pendentes; nada é reagendado. */
+  reset() {
+    this.running?.abort()
+    this.lastRefreshAt = {}
+    this.deletionRequested = false
+  }
+
   /** Suspender/ficar offline aborta o que estiver em andamento; nada é reagendado ao voltar. */
   get attached() { return this.active }
 
@@ -145,7 +155,8 @@ export class PortalAgent {
       const last = this.lastRefreshAt[scope]
       if (last !== undefined && this.now() < last + REFRESH_PAUSE_MS) return { ok: false as const, code: 'wait' }
       this.lastRefreshAt[scope] = this.now()
-      return this.execute(scope === 'lists' ? ['deletions', 'uploads', 'pull', 'snapshot'] : ['license'])
+      return this.execute(scope === 'lists' ? ['deletions', 'uploads', 'pull', 'snapshot', 'backup']
+        : scope === 'backup' ? ['backup'] : ['license'])
     })
   }
 
@@ -156,7 +167,7 @@ export class PortalAgent {
     return result
   }
 
-  private async execute(steps: ('deletions' | 'uploads' | 'pull' | 'snapshot' | 'license')[]): Promise<CycleOutcome> {
+  private async execute(steps: ('deletions' | 'uploads' | 'pull' | 'snapshot' | 'license' | 'backup')[]): Promise<CycleOutcome> {
     const controller = new AbortController()
     this.running = controller
     const { signal } = controller
@@ -167,6 +178,7 @@ export class PortalAgent {
         else if (step === 'uploads') await this.ports.flushUploads?.(signal)
         else if (step === 'pull') await this.ports.pull(signal)
         else if (step === 'snapshot') await this.ports.publishSnapshot(signal)
+        else if (step === 'backup') await this.ports.backup?.(signal)
         else await this.ports.refreshLicense?.(signal)
       }
       signal.throwIfAborted()

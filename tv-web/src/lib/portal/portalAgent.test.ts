@@ -209,3 +209,21 @@ it('uploadNow envia as listas + snapshot no ato, sem pull nem licença; offline 
     expect(calls).toEqual(['uploads', 'snapshot'])
   } finally { db.close() }
 })
+
+it('072: Atualizar de listas faz o backup depois do snapshot; o botão de backup só faz o backup; reset esquece a pausa', async () => {
+  const { db, ports, calls } = await fixture()
+  ports.backup = vi.fn(async () => { calls.push('backup') })
+  try {
+    const agent = new PortalAgent(db, ports)
+    stops.push(agent.attach())
+    await advance()
+    expect(await agent.refresh('lists')).toEqual({ ok: true })
+    expect(calls).toEqual(['deletes', 'pull', 'snapshot', 'backup'])
+    calls.length = 0
+    expect(await agent.refresh('backup')).toEqual({ ok: true })
+    expect(calls).toEqual(['backup'])
+    expect(await agent.refresh('backup')).toEqual({ ok: false, code: 'wait' })
+    agent.reset()
+    expect(await agent.refresh('backup')).toEqual({ ok: true })
+  } finally { db.close() }
+})

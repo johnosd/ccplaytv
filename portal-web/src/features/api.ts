@@ -116,6 +116,7 @@ async function pages<T>(path: string, field: string): Promise<T[]> {
 }
 export interface LicenseDevice { deviceId: string; displayId?: string; license: { state: 'trial' | 'active' | 'revoked'; startsAt: number; expiresAt: number; generation: number; serverTime: number } }
 export interface LicenseOrder { orderId: string; deviceId: string; status: 'created' | 'pending' | 'approved' | 'refused' | 'cancelled' | 'refunded' | 'charged_back'; checkoutUrl: string | null }
+export interface BackupSummary { exists: boolean; createdAt?: number; counts?: { favorites: number; history: number; progress: number } }
 export const api = {
   licenseDevice: () => request<LicenseDevice>('/session/device'),
   offer: () => request<{ priceMinor: number; currency: string; termMonths: number; deviceCount: number; renewal: string; checkoutEnabled: boolean }>('/offer'),
@@ -152,4 +153,7 @@ export const api = {
     return request<Operation>('/operations/' + operationId, { method: 'DELETE', csrf: session.csrfToken })
   },
   logout: (session: Session) => request<unknown>('/session', { method: 'DELETE', csrf: session.csrfToken }),
+  // 072: o painel só vê data e contagens do backup de uso desta TV e pode apagá-lo.
+  backup: () => request<BackupSummary>('/backup'),
+  deleteBackup: (session: Session) => request<unknown>('/backup', { method: 'DELETE', csrf: session.csrfToken }),
 }

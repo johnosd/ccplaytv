@@ -6,7 +6,8 @@ import type { PortalSyncOptions } from '../../lib/portal/portalSync'
 import { usePortalIntegration } from './usePortalIntegration'
 const fixture = vi.hoisted(() => ({ options: undefined as PortalSyncOptions | undefined }))
 vi.mock('../../lib/portal/portalRuntime', () => ({ getPortalConnection: () => ({ origin: 'https://fixture.test' }),
-  registerPortalRefresh: () => () => {}, refreshPortal: async () => ({ ok: false }) }))
+  registerPortalRefresh: () => () => {}, refreshPortal: async () => ({ ok: false }),
+  registerPortalReset: () => () => {}, resetPortalAgent: () => {} }))
 vi.mock('../../lib/portal/portalSync', () => ({ createPortalSync: (options: PortalSyncOptions) => {
   fixture.options = options
   return { flushDeletions: async () => {}, pull: async () => {}, publishSnapshot: async () => {} }

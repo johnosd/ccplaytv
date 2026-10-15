@@ -1,4 +1,24 @@
 <!--
+Relatório de Impacto de Sincronização (2026-10-14, feature 072)
+- Mudança de versão: 1.11.0 -> 1.12.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs").
+- Origem: decisões explícitas do usuário no sdd-specify/sdd-plan da feature 072
+  (desvincular a TV do portal e backup dos dados de uso), após aviso de risco;
+  ADR-017.
+- Exceção delimitada (g): por ação da pessoa (Atualizar da tela de listas, botão
+  de backup, desvincular), a TV PODE enviar ao serviço um backup dos dados de uso
+  (favoritos, histórico, progresso, preferências de categoria, configurações do
+  app), o PIN por lista só como hash com sal e a chave BYOK do TMDB; tudo cifrado
+  em repouso, devolvido só à mesma TV, apagável pela pessoa; o painel vê só data
+  e contagens. (h) a TV PODE guardar o código de recuperação depois de
+  desvincular, só para se reassociar ao mesmo registro, uso único.
+- Continuam proibidos: logs, URL, erros, cache, analytics, terceiros, outra TV,
+  exportação pública; catálogo, URLs e credenciais IPTV continuam fora do backup.
+- Riscos aceitos pelo usuário: PIN curto reversível por força bruta se o backup
+  cifrado vazar; código de recuperação mantido na TV após desvincular.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
 Relatório de Impacto de Sincronização (2026-10-14)
 - Mudança de versão: 1.10.0 -> 1.11.0 (MINOR, expansão delimitada de "Segredos
   Fora dos Clientes e dos Logs").
@@ -114,6 +134,9 @@ Histórico:
 - 1.11.0 (2026-10-14): credenciais IPTV da TV ao serviço (cifradas), chave no
   fragmento do QR fixo e chave visível na tela de bloqueio; nenhuma consulta
   automática ao serviço (feature 071/ADR-016).
+- 1.12.0 (2026-10-14): backup dos dados de uso, PIN em hash e chave TMDB
+  cifrados no serviço só para a mesma TV, e código de recuperação guardado para
+  a reassociação após desvincular (feature 072/ADR-017).
 -->
 
 # Constitution do CCPlay TV
@@ -242,6 +265,23 @@ pessoa precisa dela para comprar. Fora de Adicionar lista e do bloqueio, continu
 só por ação explícita em Portal & licença; nunca em cards, perfis, avisos,
 histórico, erros ou diagnóstico.
 Limite de tentativa por ID/origem/global e recusa uniforme (item (a)) continuam.
+
+**Exceção de backup de uso e reassociação (2026-10-14, feature 072/ADR-017)**,
+decisão explícita do usuário com risco aceito, amplia o item (d):
+(g) a TV PODE enviar ao serviço, **somente por ação da pessoa** (Atualizar da tela
+de listas, "Fazer backup agora", Desvincular), um backup dos dados de uso dela —
+favoritos, histórico, progresso, preferências de categoria e configurações do app
+—, o PIN por lista **só como hash com sal** e a chave BYOK do TMDB. O serviço DEVE
+cifrar o backup inteiro em repouso, guardar só a última versão, NÃO PODE logá-lo
+nem devolvê-lo a outra TV, sessão ou cache, e o devolve só à **mesma TV**
+autenticada. O painel da própria TV PODE ver apenas data e contagens e apagar o
+backup. A pessoa DEVE poder apagá-lo na TV e no site. Catálogo, URLs de stream,
+URL/credenciais IPTV, arquivo M3U e chaves do desenvolvedor continuam fora do
+backup. A chave TMDB continua nunca exibida, logada ou enviada a terceiro.
+(h) depois de **Desvincular**, a TV PODE manter o código de recuperação que já
+guardava, exclusivamente para se reassociar ao mesmo registro; ele vai só no
+corpo HTTPS, é de uso único (o serviço emite outro) e é apagado da TV ao concluir.
+Limites de tentativa e recusa uniforme da recuperação (069) continuam valendo.
 
 ### Categorias da Fonte São Preservadas
 
@@ -499,4 +539,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.11.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-14
+**Versão**: 1.12.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-14
