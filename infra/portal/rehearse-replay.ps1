@@ -16,7 +16,7 @@
 param(
   [Parameter(Mandatory = $true)][ValidateSet('Setup', 'Mutate')][string]$Phase,
   [Parameter(Mandatory = $true)][string]$StateFile,
-  [string]$BaseUrl = 'https://ccplaytv-portal-dvpldo267q-uc.a.run.app'
+  [string]$BaseUrl = 'https://portal.ccplaytv.com'
 )
 
 $ErrorActionPreference = 'Stop'

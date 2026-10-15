@@ -33,7 +33,8 @@ def document_path(collection: str, document_id: str, *, device_id: str | None = 
             "recoveryClaims", "recoveryResults", "rateLimits", "settings",
             "orders", "orderClaims", "paymentClaims", "paymentEvents", "grants"}
     nested = {"configurations", "configurationVersions", "operations", "tombstones",
-              "deletionIntents", "accessIntents", "snapshot", "idempotencyClaims", "licensing", "licenseIntents"}
+              "deletionIntents", "accessIntents", "snapshot", "idempotencyClaims", "licensing", "licenseIntents",
+              "backups"}
     for value in (document_id, device_id):
         if value is not None and not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", value):
             raise RepositoryConflict("invalid_document_id")

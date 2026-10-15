@@ -146,8 +146,8 @@ Limites compartilhados: cinco falhas por par device/IP em 15min e cooldown de 15
 ### Entrada manual e operação do gerenciador (feature 070)
 
 Na TV, **Adicionar lista** abre o pareamento e mostra o `displayId` em formato
-`XX:XX:XX:XX:XX:XX`, a chave numérica de dez dígitos, endereço e QR efêmero.
-O QR não carrega credencial nem URL de provedor. No painel, a entrada manual
+`XX:XX:XX:XX:XX:XX`, a chave numérica de dez dígitos, endereço e QR (fixo desde a 071: ver a seção seguinte). O QR não carrega credencial nem URL de provedor — só
+ID e chave no fragmento. No painel, a entrada manual
 aceita `displayId` (maiúsculas, minúsculas ou hífens são normalizados) e chave;
 falhas retornam a mesma resposta de credencial inválida. A tela autenticada
 mostra ID, estado/validade da licença e as listas com tipo, nome e estado.
@@ -157,6 +157,35 @@ formulário os exibe somente nessa sessão e o olho alterna a visibilidade. A
 rotação **Gerar nova chave** invalida a chave anterior e as sessões associadas.
 Recarregar é explícito e dispara uma sincronização imediata, respeitando o
 mutex e os limites de pull; não existe polling contínuo do painel.
+
+### Consulta sob demanda, QR fixo e envio TV → site (feature 071, ADR-016)
+
+Nada consulta o serviço sozinho: não há ciclo diário, janela de 10 s, renovação de convite nem consulta ao abrir o
+app ou ao negar a entrada. As únicas chamadas da TV são ações da pessoa — **Atualizar** (listas: exclusões → envios
+→ busca → snapshot; licença: só a licença; pausa de 10 s por escopo), criar/editar/excluir uma lista (uma tentativa
+no ato; a fila `sourceUploads` é durável e sobe no próximo Atualizar) e abrir pela primeira vez uma tela que precisa
+de ID/chave (cadastro único, preguiçoso). Estimativa de custo: uma TV em uso típico faz no máximo ~10 requisições
+por mês (SC-007).
+
+- **QR fixo**: gerado na TV, sem requisição, com `<site>/#id=<ID>&key=<chave>` (a chave só no fragmento, que nunca
+  chega ao servidor nem a logs). O `portal-web` consome o fragmento, chama `POST /sessions/manual` (mesmos limites e
+  recusa uniforme) e limpa o endereço antes de renderizar. **Gerar nova chave** invalida QR e sessões. O convite
+  efêmero `manage` deixou de ser usado pela TV; os convites de recuperação (069) permanecem.
+- **Tela de entrada (A006)**: "Adicionar lista" é uma tela com as abas **Pelo site** (abre aqui; ID, chave, QR,
+  Recarregar e Voltar), **Xtream Codes** e **Lista M3U** (formulário e Conectar e sincronizar); RETURN de qualquer aba volta à tela de listas. Sem portal a aba do site mostra o estado honesto. Gerar
+  nova chave fica em Configurações → Portal & licença ("Revogar acessos ao portal"). Excluir uma lista na TV envia a
+  exclusão no ato (A007); offline fica na fila até o Atualizar.
+- **Teste de 7 dias contado no app** (`localTrial`), com marca d'água do relógio; o primeiro cadastro envia o início
+  (`trialStartedAt`) e o serviço grava `min(created_at, valor)` — nunca estende. Reinstalar antes do 1º contato
+  reinicia o teste (risco aceito, R-003).
+- **Envio TV → site**: `POST /portal/v1/device/sources` (bearer da TV, lote ≤ 10, 20 requisições/min por TV)
+  grava a lista cifrada com `applied_revision` direto, sem operação pendente. Resposta por item: `stored`,
+  `unchanged` (digest), `conflict` (edição do portal pendente), `gone` (tombstone), `invalid`. Nome, tipo,
+  host, usuário, senha e URL M3U vão no corpo HTTPS e nunca em log, erro ou cache (constitution 1.11.0 (d)).
+- **Publicação**: publicar a API (rota nova + âncora) **antes** de instalar o pacote na TV; senão a TV nova chama
+  uma rota inexistente. Sem detecção de estorno: só aparece no próximo Atualizar.
+- **Verificação local**: `node e2e/consulta-sob-demanda.mjs` (pilha local; fora do `SUITE`).
+
 
 Atenção no restore: trocar SERVICE_RECOVERY_EPOCH invalida acessos antigos. Não atualizar recoveryEpoch dos devices em lote mantendo hashes de acesso antigos: o repositório recusa essa transição. A reemissão precisa reservar fence e trocar bearer/key com epoch maior antes de remover o bloqueio. Sessões/convites antigos continuam com epoch global anterior. T039/T052 devem ensaiar esse caminho; preparação local não autoriza reabrir tráfego.
 
@@ -169,14 +198,70 @@ Worker privado continua limitado a5jobs/180s, lease240s, sem trabalho após resp
 
 Expurgo remove envelopes expirados e verificadores consumidos após24h, conserva floors/intents, configuração corrente e deletes pendentes. Journal tardio não recria envelope expurgado: finalize usa a releitura CAS do intent e emite resultado expired sem ciphertext; prova privada ainda válida pode retomar a mesma operação com uma nova rodada. Expiração create/update libera referência uma única vez; versão órfã só sai se não for corrente nem referenciada. Recibos/digests não são apagados prematuramente; compactação30dias com claims será integrada ao repositório de configuração T013/T022.
 
+**Superado pela 071**: o agente não tem mais ciclo de 24 h, retries nem tela rápida — só `refresh(scope)` por botão (seção "Consulta sob demanda"). O texto abaixo é o histórico da 069.
+
 Agente TV/transporte integrados ao App (T018). 24h/retries1-5-15min persistidos; tela rápida10s, falha com jitter/backoff até60s (Retry-After maior prevalece). Background/offline aborta a requisição; deadline absoluto reconcilia timer atrasado mesmo sem visibilitychange no standby. A prova física atual não demonstrou suspensão de callbacks no standby: T046 mede integração.
 
 ## Build e licença local — implementação verificada localmente
 
-O agente está integrado ao App: consulta24h, modo rápido10s apenas nas telas permitidas. O player não consulta rede de licenciamento. O pacote comercial usa npm run build:commercial ou build:tizen:commercial, com VITE_PORTAL_ORIGIN HTTPS e VITE_LICENSE_PUBLIC_KEYS contendo somente o mapa kid→JWK pública ES256. A chave privada fica no servidor; nunca buscar chaves de confiança automaticamente do endpoint público. Build pessoal permanece para desenvolvimento e para preservar a TV atual; não é o artefato de distribuição comercial. Venda segue bloqueada em settings até os gates reais.
+O agente está integrado ao App e só consulta por ação da pessoa (071: botão Atualizar e envio no ato; sem ciclo de 24 h nem modo rápido). O player não consulta rede de licenciamento. O pacote comercial usa npm run build:commercial ou build:tizen:commercial, com VITE_PORTAL_ORIGIN HTTPS e VITE_LICENSE_PUBLIC_KEYS contendo somente o mapa kid→JWK pública ES256. A chave privada fica no servidor; nunca buscar chaves de confiança automaticamente do endpoint público. Build pessoal permanece para desenvolvimento e para preservar a TV atual; não é o artefato de distribuição comercial. Venda segue bloqueada em settings até os gates reais.
 
 manage-backup.ps1 em infra/portal/backup prepara schedule/inspect/restore; sem -Apply não executa nuvem. A configuração de restauração ainda não permite reabrir tráfego: replay/expurgo/floors/reconcile e ensaio real continuam T039/T052.
 
 ## Regra vigente de vencimento — decisão 2026-10-11
 
-Licença vigente é exigida localmente ao entrar numa lista, inclusive após importação/verificação do provedor e por RETURN do seletor. Se vencer dentro dela, o usuário mantém navegação, novas reproduções e retomada até sair para o seletor ou fechar o app. Configurações abertas dentro da sessão podem voltar ao conteúdo. Não há autorização persistida para a próxima abertura. Revogação confirmada continua encerrando a sessão. A guarda não faz HTTP por tecla nem dentro do player; agente diário/rápido permanece independente.
+Licença vigente é exigida localmente ao entrar numa lista, inclusive após importação/verificação do provedor e por RETURN do seletor. Se vencer dentro dela, o usuário mantém navegação, novas reproduções e retomada até sair para o seletor ou fechar o app. Configurações abertas dentro da sessão podem voltar ao conteúdo. Não há autorização persistida para a próxima abertura. Revogação confirmada continua encerrando a sessão. A guarda não faz HTTP por tecla nem dentro do player; o teste de 7 dias e o bloqueio são decididos no aparelho (071), sem rede.
+
+## Desvincular a TV e backup dos dados de uso (feature 072, ADR-017)
+
+- **Desvincular** (TV → Configurações → Portal & licença): apaga do aparelho só o pareamento (identidade, emissão
+  pendente, licença em cache, fila de envios) e guarda o código de recuperação. Preserva listas, catálogo, favoritos,
+  histórico, progresso, chave TMDB, PINs, o teste local e a fila de exclusões. Com internet faz o backup antes.
+- **Reassociação**: no próximo Atualizar o `enroll` responde `recovery_required`; a TV chama
+  `POST /portal/v1/devices/recovery/self` (identidade + código, só no corpo). O serviço reaproveita a rotação
+  write-ahead `revoke`: mesmo `deviceId` e ID exibido, chave/código/bearer novos, sessões e QR antigos derrubados.
+  Limites: 5/h por identidade, 20/h por IP, 200/h global; recusa uniforme `invalid_credentials`. Reinstalação (sem
+  lembrete) continua pela recuperação no site (069).
+- **Backup de uso**: `devices/{id}/backups/current` (só a última versão), payload cifrado (`usage-backup/v1`),
+  ≤ 512 KB (a TV corta histórico antigo antes de favoritos/progresso). Rotas da TV: `PUT/GET /device/backup`,
+  `GET /device/backup/summary`, `DELETE /device/backup` (20 PUT/h). Painel: `GET/DELETE /backup` (só data e
+  contagens). Sobe no fim do Atualizar de listas e no botão "Fazer backup agora" — nunca sozinho.
+- **Nunca sobrescrever backup não decidido**: logo após um pareamento novo a TV pergunta o resumo; havendo backup,
+  oferece "Restaurar backup de <data>?" e não sobe até a pessoa decidir. Restaurar mescla por lista (o mais recente
+  vence); dados de lista ausente ficam pendentes por 5 dias. A chave TMDB do backup só entra se a TV não tiver chave.
+- **Apagar** (TV ou site) desliga o envio automático: a TV manda `expectExisting` e o serviço responde 404 sem
+  recriar; o backup volta só com "Fazer backup agora".
+- **Publicação**: publicar a API (rotas novas) antes de instalar o pacote na TV. Rollback da API: revisões
+  anteriores dos dois serviços; documentos de backup antigos ficam inertes.
+
+## Domínio próprio: `portal.ccplaytv.com` (2026-10-14)
+
+O portal responde em **https://portal.ccplaytv.com** (o endereço `run.app` do Cloud Run continua existindo, mas o
+serviço só aceita a origem do domínio próprio em requisições de navegador com mutação).
+
+| Peça | Valor |
+| --- | --- |
+| Registrador / DNS | Wix (`ns4.wixdns.net`, `ns5.wixdns.net`); o site Wix em `ccplaytv.com` e `www` não foi tocado |
+| Verificação de propriedade | registro TXT `google-site-verification=…` na raiz (Search Console, propriedade de domínio, conta `johnscosta2@gmail.com`) |
+| Mapeamento | Cloud Run *domain mapping* `portal.ccplaytv.com → ccplaytv-portal` (us-central1); certificado gerenciado |
+| DNS do subdomínio | CNAME `portal` → `ghs.googlehosted.com` (TTL 30 min) |
+| Origem pública | `CCPLAY_PORTAL_PUBLIC_ORIGIN=https://portal.ccplaytv.com` em `ccplaytv-portal` (rev. `00018-nx5`) e `ccplaytv-portal-jobs` (rev. `00017-kxv`) |
+| TV | `build:tizen:commercial` com `VITE_PORTAL_ORIGIN` e `VITE_PORTAL_SITE_URL` = `https://portal.ccplaytv.com` |
+
+**Por que domain mapping e não Firebase Hosting**: o Hosting só repassa o cookie `__session` ao Cloud Run, e a sessão do
+painel usa outro cookie (`Path=/portal/v1`).
+
+**Origem exata**: `auth.py` exige que o cabeçalho `Origin` de requisição de navegador com mutação seja exatamente a
+origem pública. Trocar a variável antes de o domínio responder derruba o site; por isso a ordem é domínio com TLS
+válido → variável nos dois serviços → pacote da TV. A TV (`file://`, `Origin: null`) não é afetada pela origem, mas
+o QR e o endereço mostrados vêm de `VITE_PORTAL_SITE_URL`.
+
+**Rollback**: voltar `CCPLAY_PORTAL_PUBLIC_ORIGIN` ao `run.app`
+(`gcloud run services update <serviço> --update-env-vars=CCPLAY_PORTAL_PUBLIC_ORIGIN=<origem>` ou `update-traffic` para
+`ccplaytv-portal-00017-664` / `ccplaytv-portal-jobs-00016-dhq`) e reinstalar o pacote anterior da TV. Sessões abertas
+no endereço antigo caem (cookie preso ao host); a licença e as listas não são afetadas.
+
+**Verificação feita**: `smoke-staging.ps1` e `smoke-sources.ps1` no domínio novo (aprovados); `Origin` do domínio novo
+aceito e o do `run.app` recusado (403) em `POST /sessions/manual`. Os `BaseUrl` padrão dos scripts de `infra/portal/`
+passaram para o domínio.
+

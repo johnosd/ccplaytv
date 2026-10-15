@@ -40,3 +40,10 @@ export function registerPortalRefresh(handler: RefreshHandler) {
 export function refreshPortal(scope: RefreshScope): Promise<{ ok: boolean; code?: string }> {
   return refreshHandler ? refreshHandler(scope) : Promise.resolve({ ok: false, code: 'unavailable' })
 }
+/** 072: Desvincular aborta o que o agente estiver fazendo e esquece pausas (nada é reagendado). */
+let resetHandler: (() => void) | undefined
+export function registerPortalReset(handler: () => void) {
+  resetHandler = handler
+  return () => { if (resetHandler === handler) resetHandler = undefined }
+}
+export function resetPortalAgent() { resetHandler?.() }

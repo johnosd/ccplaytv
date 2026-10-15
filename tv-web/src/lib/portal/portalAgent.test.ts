@@ -59,6 +59,27 @@ it('exclusão criada agora envia outbox + snapshot no ato: sem pull nem licença
   } finally { db.close() }
 })
 
+it('deletedNow (ação da pessoa) envia no ato e junta com a outbox: um envio só, sem snapshot duplicado', async () => {
+  const { db, ports, calls } = await fixture()
+  try {
+    // A porta real remove a linha ao receber o ACK; o fake faz o mesmo para o teste espelhar o uso.
+    ports.flushDeletions = vi.fn(async () => { calls.push('deletes'); await portalTables(db).deletes.clear() })
+    const agent = new PortalAgent(db, ports)
+    stops.push(agent.attach())
+    await advance()
+    await portalTables(db).deletes.put(pendingDelete('b'))
+    agent.deletedNow()
+    agent.deletedNow()
+    await advance()
+    expect(calls).toEqual(['deletes', 'snapshot'])
+    // Offline: não tenta e nada é reagendado; a outbox fica para o próximo Atualizar.
+    agent.lifecycle(true, false)
+    agent.deletedNow()
+    await advance()
+    expect(calls).toEqual(['deletes', 'snapshot'])
+  } finally { db.close() }
+})
+
 it('exclusão herdada (offline/reinício) não é enviada ao abrir nem ao voltar online: sobe no próximo Atualizar', async () => {
   const { db, ports, calls } = await fixture()
   try {
@@ -186,5 +207,23 @@ it('uploadNow envia as listas + snapshot no ato, sem pull nem licença; offline 
     agent.uploadNow()
     await advance(3_600_000)
     expect(calls).toEqual(['uploads', 'snapshot'])
+  } finally { db.close() }
+})
+
+it('072: Atualizar de listas faz o backup depois do snapshot; o botão de backup só faz o backup; reset esquece a pausa', async () => {
+  const { db, ports, calls } = await fixture()
+  ports.backup = vi.fn(async () => { calls.push('backup') })
+  try {
+    const agent = new PortalAgent(db, ports)
+    stops.push(agent.attach())
+    await advance()
+    expect(await agent.refresh('lists')).toEqual({ ok: true })
+    expect(calls).toEqual(['deletes', 'pull', 'snapshot', 'backup'])
+    calls.length = 0
+    expect(await agent.refresh('backup')).toEqual({ ok: true })
+    expect(calls).toEqual(['backup'])
+    expect(await agent.refresh('backup')).toEqual({ ok: false, code: 'wait' })
+    agent.reset()
+    expect(await agent.refresh('backup')).toEqual({ ok: true })
   } finally { db.close() }
 })

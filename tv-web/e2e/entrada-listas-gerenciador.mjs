@@ -1,9 +1,11 @@
 // Feature 070, US1 (T019): tela "Adicionar lista" com ID formato MAC + chave de 10 dígitos + endereço + QR, entrada
-// no portal por ID + chave digitados, criação de lista e Recarregar, "Gerar nova chave" invalidando a antiga.
+// no portal por ID + chave digitados, criação de lista e Recarregar, nova chave (Portal & licença) invalidando a antiga.
+// 071/A006: Xtream Codes, Lista M3U e "Pelo site" são abas da mesma tela; a aba do site tem só Recarregar e Voltar.
 // Dev server REAL (`e2e/lib/portalStack.mjs`: emulador + API + portal-web + TV commercial). Opt-in: exige
 // gcloud/emulador/api/.venv, por isso fica fora do SUITE do runner. Não comprova DUID/MAC real nem a TV física.
 import assert from 'node:assert/strict'
 import { chromium, expect } from '@playwright/test'
+import { abrirPortalLicenca } from './lib/portal.mjs'
 import { startPortalStack } from './lib/portalStack.mjs'
 
 const log = message => console.log(`[${new Date().toISOString().slice(11, 19)}] ${message}`)
@@ -19,16 +21,18 @@ try {
   await tv.goto(stack.tvOrigin)
   await tv.getByRole('button', { name: /Adicionar lista/ }).waitFor({ timeout: 20000 })
 
-  // SC-001: a partir da tela de listas, uma ação (OK em "Adicionar lista") mostra ID, chave, endereço e QR.
+  // SC-001: a partir da tela de listas, OK em "Adicionar lista" e OK na aba "Pelo site" mostram ID, chave, endereço e QR.
   await tv.keyboard.press('Enter')
+  await tv.getByRole('button', { name: /^Pelo site/ }).click()
+  await expect(tv.locator('.portal-pairing-actions button')).toHaveText(['Recarregar', 'Voltar'], { timeout: 20000 })
   const values = tv.locator('.portal-pairing-value')
   await expect(values.first()).toHaveText(/^[0-9A-F]{2}(:[0-9A-F]{2}){5}$/, { timeout: 20000 })
   await expect(values.nth(1)).toHaveText(/^\d{10}$/)
-  await expect(tv.getByRole('img', { name: 'QR de acesso temporário ao portal desta TV' })).toBeVisible({ timeout: 15000 })
+  await expect(tv.getByRole('img', { name: /QR de acesso ao portal/ })).toBeVisible({ timeout: 15000 })
   expect(await tv.locator('.portal-pairing').innerText()).toContain(stack.portalOrigin)
   const displayId = await values.first().innerText()
   const deviceKey = await values.nth(1).innerText()
-  log(`Adicionar: ID ${displayId} e chave de 10 dígitos visíveis com 1 ação (SC-001)`)
+  log(`Adicionar: ID ${displayId} e chave de 10 dígitos visíveis com 2 ações: Adicionar lista e aba Pelo site (SC-001)`)
 
   // Portal: entrada manual digitando ID (minúsculas/hífens) + chave.
   const portalContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR' })
@@ -48,15 +52,29 @@ try {
   await portal.getByRole('group', { name: 'Tipo de lista' }).getByRole('radio', { name: 'M3U por URL' }).check()
   await portal.getByLabel('URL da lista M3U', { exact: true }).fill('https://iptv.fixture.test/list.m3u?key=segredo-fixture')
   await portal.getByRole('button', { name: 'Enviar para a TV', exact: true }).click()
+  // 071: Recarregar é uma consulta só; espera o portal confirmar o pedido antes de pedir à TV.
+  await expect(portal.getByRole('heading', { name: 'Lista pelo gerenciador', exact: true })).toBeVisible({ timeout: 15000 })
   await tv.getByRole('button', { name: 'Recarregar' }).click()
   await expect.poll(() => tv.evaluate(async () => { const { db } = await import('/src/lib/catalog/db.ts'); return (await db.sources.toArray()).map(s => s.displayName) }),
     { timeout: 45000, intervals: [1000] }).toContain('Lista pelo gerenciador')
-  log('lista criada no portal aplicada na TV (Recarregar / tela rápida)')
+  log('lista criada no portal aplicada na TV pelo Recarregar')
+  // 071/FR-006: Recarregar com lista nova volta à tela de listas com o foco nela; reabre Adicionar para o resto.
+  await expect(tv.locator('.source-card.tv-focus')).toContainText('Lista pelo gerenciador', { timeout: 15000 })
+  await tv.getByRole('button', { name: /Adicionar lista/ }).click()
+  await tv.getByRole('button', { name: /^Pelo site/ }).click()
+  await expect(values.nth(1)).toHaveText(deviceKey, { timeout: 15000 })
   for (const text of [await tv.locator('body').innerText(), await portal.locator('body').innerText()]) assert.ok(!text.includes('segredo-fixture'))
 
-  // Gerar nova chave: a antiga deixa de valer.
-  await tv.getByRole('button', { name: 'Gerar nova chave' }).click()
-  await tv.getByRole('dialog').getByRole('button', { name: 'Gerar nova chave' }).click()
+  // Nova chave: fica em Configurações → Portal & licença ("Revogar acessos ao portal"); a antiga deixa de valer.
+  await tv.keyboard.press('Escape')
+  await abrirPortalLicenca(tv)
+  await tv.getByRole('button', { name: 'Revogar acessos ao portal', exact: true }).click()
+  await tv.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click()
+  await expect.poll(() => tv.evaluate(async () => (await (await import('/src/lib/catalog/db.ts')).db.table('portalDevice').get('device'))?.deviceKey),
+    { timeout: 20000 }).not.toBe(deviceKey)
+  await tv.goto(stack.tvOrigin)
+  await tv.getByRole('button', { name: /Adicionar lista/ }).click()
+  await tv.getByRole('button', { name: /^Pelo site/ }).click()
   await expect(values.nth(1)).not.toHaveText(deviceKey, { timeout: 20000 })
   await expect(values.nth(1)).toHaveText(/^\d{10}$/)
   await expect(values.first()).toHaveText(displayId)

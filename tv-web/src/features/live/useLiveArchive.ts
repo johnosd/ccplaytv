@@ -89,7 +89,8 @@ export function useLiveArchive({ sourceId, archiveState, zap, zapping, guide }: 
 
   /** FR-018: CH±/↑/↓ no arquivo vão ao ao vivo do vizinho — o arquivo sai junto com a troca. */
   function onChannelStep(direction: 'previous' | 'next'): boolean {
-    const moved = zapping.stepChannel(direction)
+    // Sem espera a partir do arquivo: segurar o canal antigo sem o arquivo reabriria o ao vivo dele.
+    const moved = zapping.stepChannel(direction, { hold: !active })
     if (moved) setArchive(null)
     return moved
   }

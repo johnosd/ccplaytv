@@ -395,6 +395,11 @@
   color: var(--accent);
   font-weight: 800;
 }
+
+/* Três abas (Xtream Codes, Lista M3U, Pelo site) quando a aba do site existe (071, A006). */
+.source-type-row--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 /* Campos em 2 colunas; Nome e Servidor/URL em largura total. O rótulo
    permanente fica dentro da caixa, como no protótipo (DS §37 — nunca
    placeholder); o anel de foco vai na caixa inteira. */

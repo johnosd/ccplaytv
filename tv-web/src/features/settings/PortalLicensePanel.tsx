@@ -14,9 +14,11 @@ import { useRefreshAction } from '../../lib/portal/useRefreshAction'
 import { FixedQr } from '../../components/FixedQr'
 import { RefreshStatusLine } from '../../components/RefreshButton'
 import { PortalPrivateDialog, type PortalDialogKind } from './PortalPrivateDialog'
+import { BACKUP_ACTION_COUNT, PortalBackupActions, type BackupActionsHandle } from './PortalBackupActions'
 import './portalLicense.css'
-/** 0–5 são as ações de sempre; 6 é o Atualizar da licença (071), por último para não mudar os índices existentes. */
-export const PORTAL_ACTION_COUNT = 7
+/** 0–5 são as ações de sempre; 6 é o Atualizar da licença (071); 7–10 são backup e Desvincular (072), por último. */
+const BACKUP_FIRST = 7
+export const PORTAL_ACTION_COUNT = BACKUP_FIRST + BACKUP_ACTION_COUNT
 const REFRESH_ACTION = 6
 export interface PortalPanelHandle { activate: (index: number) => void }
 export function PortalLicensePanel({ focusedAction, handleRef, connection: provided, onActionFocus }: {
@@ -46,6 +48,7 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
   const [dialog, setDialog] = useState<PortalDialogKind>()
   const working = useRef(false)
   const recoveryObserved = useRef(false)
+  const backupActions = useRef<BackupActionsHandle>(null)
   const privacyGeneration = useRef(0)
   const mounted = useRef(false)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; privacyGeneration.current++ } }, [])
@@ -106,6 +109,7 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
     } finally { working.current = false; setBusy(false) }
   }
   function activate(index: number) {
+    if (index >= BACKUP_FIRST) { backupActions.current?.activate(index - BACKUP_FIRST); return }
     if (index === REFRESH_ACTION) { void refresh.run(); return }
     if (busy || !connection) return
     if (index === 5) { void run('recovery'); return }
@@ -139,6 +143,9 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
       softDisabled={index === REFRESH_ACTION ? refresh.paused : !connection}
       onSelect={() => { onActionFocus?.(index); activate(index) }}>{t(label)}</Button>)}</div>
     </div>
+    <PortalBackupActions connection={connection} handleRef={backupActions}
+      focusedIndex={focusedAction !== undefined && focusedAction >= BACKUP_FIRST && !dialog ? focusedAction - BACKUP_FIRST : undefined}
+      onActionFocus={index => onActionFocus?.(BACKUP_FIRST + index)} />
     {dialog && <PortalPrivateDialog kind={dialog} device={device} onCancel={() => setDialog(undefined)}
       onConfirm={() => { const action = dialog; setDialog(undefined); if (action === 'revoke' || action === 'rotate') void run(action) }} />}
   </section>

@@ -38,7 +38,7 @@ try {
     window.licenseFixtureOffset = 0
     Date.now = () => nativeNow() + window.licenseFixtureOffset
   })
-  const credentials = { deviceId: 'license-tv', bearer: 'license-tv.' + 'a'.repeat(42) + 'A', deviceKey: 'b'.repeat(42) + 'A', authEpoch: 1,
+  const credentials = { deviceId: 'license-tv', displayId: 'A0:8C:FD:19:0A:8C', bearer: 'license-tv.' + 'a'.repeat(42) + 'A', deviceKey: '1732049818', authEpoch: 1,
     recoveryEpoch: 'c'.repeat(42) + 'A', recoveryCode: '0000-0000-0000-0000-0000-0000-0000', recoveryCodeVersion: 1 }
   await context.route(origin + '/**', async route => {
     const request = route.request(), path = new URL(request.url()).pathname
@@ -55,14 +55,18 @@ try {
   await context.route('https://media.fixture.test/**', () => {})
   const page = await context.newPage()
   await page.goto(address)
+  // 071: nada consulta sozinho. A licença só chega quando a pessoa aperta Atualizar em Portal & licença.
   const cache = () => page.evaluate(async () => { const { db } = await import('/src/lib/catalog/db.ts'); return db.table('licenseCache').get('entitlement') })
-  await expect.poll(async () => (await cache())?.generation, { timeout: 15000 }).toBeGreaterThan(0)
   await abrirPortalLicenca(page)
   await expect(page.getByText('Licença: Período de teste', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Atualizar', exact: true }).click()
+  await expect.poll(async () => (await cache())?.generation, { timeout: 15000 }).toBeGreaterThan(0)
   await page.getByRole('button', { name: 'Gerar QR para o portal', exact: true }).click()
-  await expect(page.getByRole('img', { name: 'QR de acesso temporário ao portal desta TV' })).toBeVisible()
-  // Provedor confirma mesmo com o navegador da compra fechado; próximo ciclo rápido ativa.
+  await expect(page.getByRole('img', { name: /QR de acesso ao portal/ })).toBeVisible()
+  // Provedor confirma mesmo com o navegador da compra fechado; a pessoa aperta Atualizar (a pausa de 10 s vale).
   state = 'active'; expiresAt = Date.now() + 365 * 86400000
+  await page.waitForTimeout(10500)
+  await page.getByRole('button', { name: 'Atualizar', exact: true }).click()
   await expect.poll(async () => {
     const { entitlement } = await page.evaluate(async () => { const { db } = await import('/src/lib/catalog/db.ts'); const { loadLicense } = await import('/src/lib/licensing/licenseRepository.ts'); const { licenseAuthority } = await import('/src/lib/licensing/licenseRuntime.ts'); return loadLicense(db, licenseAuthority('license-tv')) })
     return entitlement.state

@@ -2,6 +2,7 @@ import { allowListEntry } from './lib/licensing/licenseRuntime'
 import { usePortalIntegration } from './features/portal/usePortalIntegration'
 import { PortalPairingPanel } from './features/portal/PortalPairingPanel'
 import { getPortalConnection } from './lib/portal/portalRuntime'
+import { remoteImportRunId } from './lib/portal/remoteImportsInFlight'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { SplashScreen } from './features/splash/SplashScreen'
@@ -176,6 +177,17 @@ function App() {
    */
   function chooseSource(source: SourceOut) {
     if (!allowListEntry(source.id)) return
+    // 071/A008: lista ainda sem nenhuma sincronização cuja 1ª importação vinda do site corre em segundo plano →
+    // mostra o progresso (categorias carregando) em vez de entrar numa lista vazia. Leitura síncrona, sem rede.
+    const firstImport = source.last_successful_sync_at === null ? remoteImportRunId(source.id) : undefined
+    if (firstImport) {
+      dispatch({ type: 'open', screen: { name: 'progress', jobId: firstImport } })
+      return
+    }
+    openChosen(source)
+  }
+
+  function openChosen(source: SourceOut) {
     // Feature 034 (US2, `logic/conta-da-fonte.md` §5): uma lista Xtream com
     // conta vencida/recusada — ou ainda por verificar — passa pela tela de
     // acesso em vez de abrir o Início. M3U avulsa e Modo limitado nunca passam
@@ -335,15 +347,18 @@ function App() {
       )
 
     case 'add-source':
+      // 071/A006: Xtream Codes, Lista M3U e "Pelo site" são abas da mesma tela — RETURN de qualquer uma cai na tela
+      // de listas. A aba do site aparece com portal ou sem (sem portal mostra o estado honesto). Painel montado aqui:
+      // features/import não importa features/portal (070, D-008). Recarregar com lista nova volta à tela de listas
+      // com o foco nela (071/FR-006).
       return (
         <AddSourceScreen
           onSourceCreated={({ jobId }) => dispatch({ type: 'open', screen: { name: 'progress', jobId } })}
           onBack={goBack}
-          // Feature 070 (D-008): coluna "Pelo celular" montada aqui — features/import não importa features/portal.
-          phonePanel={<PortalPairingPanel connection={safePortalConnection()} onBack={goBack} />}
+          sitePanel={<PortalPairingPanel connection={safePortalConnection()} onBack={goBack}
+            onReloaded={(newSourceId) => dispatch({ type: 'import-back', sourceId: newSourceId })} />}
         />
       )
-
     case 'edit-source':
       return (
         <AddSourceScreen

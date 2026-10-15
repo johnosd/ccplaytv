@@ -5,7 +5,7 @@ Nenhum recurso provisionado. services.json é a configuração desejada, não um
 Build a partir da raiz: docker build -f infra/portal/Dockerfile.portal -t ccplaytv-portal:local .
 O Dockerfile.portal.dockerignore ao lado é aplicado a esse Dockerfile e copia somente runtime do portal; fallback/SQL não são copiados como código. Dependências congeladas no uv.lock ainda incluem o pacote existente; separar distribuição só se medição justificar.
 
-Pilha local integrada (PC, sem nuvem): `node e2e/portal-integrado-local.mjs` em `tv-web/` sobe emulador do gcloud (exige Java 21; usa `JAVA_HOME` só no processo filho), `dev/local_portal.py` (API real com journal em memória), portal-web e TV `--mode commercial`, e roda criação/edição/remoção nos dois sentidos. Fora do `SUITE` do runner; evidências em `sdd/specs/069-portal-tv-licenca-anual/evidencias/pilha-local.md`. Não prova IAM, Scheduler, Cloud Storage, DUID real nem hardware.
+Pilha local integrada (PC, sem nuvem): `tv-web/e2e/lib/portalStack.mjs` sobe emulador do gcloud (exige Java 21; usa `JAVA_HOME` só no processo filho), `dev/local_portal.py` (API real com journal em memória), portal-web e TV `--mode commercial`. Os E2E opt-in `node e2e/consulta-sob-demanda.mjs` (071: nada automático, QR fixo, envio TV → site, bloqueio, nova chave, contagem de requisições), `entrada-listas-gerenciador.mjs` e `portal-dev-server.mjs` a usam; ficam fora do `SUITE` do runner. O antigo `portal-integrado-local.mjs` foi substituído (a evidência histórica está em `sdd/specs/069-portal-tv-licenca-anual/evidencias/pilha-local.md`). Não prova IAM, Scheduler, Cloud Storage, DUID real nem hardware.
 
 Feature 070 acrescenta o fluxo de entrada manual do gerenciador: a TV exibe
 `displayId`/chave numérica/QR apenas na tela **Adicionar lista**; o portal entra
@@ -16,6 +16,8 @@ O E2E opt-in `node e2e/entrada-listas-gerenciador.mjs` cobre o fluxo completo,
 incluindo a rotação que recusa a chave anterior e RETURN até os perfis; ele
 exige as mesmas portas/emulador da pilha integrada e não substitui staging ou
 TV física.
+
+Feature 071 (ADR-016): a TV só fala com o serviço por ação da pessoa; `POST /portal/v1/device/sources` recebe as listas da TV (cifradas, sem log do corpo) e `POST /devices/enroll` aceita `trialStartedAt`. **Publicar a API no staging antes de instalar o pacote na TV.** A venda continua desligada. Verificação pós-publicação: `smoke-staging.ps1`, `smoke-enrollment.ps1` e `smoke-sources.ps1` (cadastro com âncora + envio de lista; aparelho sintético, sem imprimir segredo); `homologate-070.ps1` exige `pwsh` 7.
 
 Emulator: firebase emulators:start --project demo-ccplaytv-portal --only firestore --config infra/portal/firebase.json (CLI/Java21 a instalar se ausentes). Para API local, definir FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 e CCPLAY_PORTAL_ENVIRONMENT=development; uv run python portal_main.py em api. Sem emulator/ID demo, recusa bootstrap local.
 

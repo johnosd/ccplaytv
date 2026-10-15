@@ -11,6 +11,9 @@ export interface PortalSnapshot {
   imports: { sourceId: string; configRevision: number; state: string }[]
 }
 
+/** Teto do serviço por snapshot (`SnapshotInput`: sources, revisions e imports com no máximo 50). */
+export const MAX_SNAPSHOT_SOURCES = 50
+
 export async function capturePortalSnapshot(database: CatalogDb, now = Date.now()): Promise<PortalSnapshot> {
   if (!Number.isFinite(now) || now < 0 || !Number.isFinite(new Date(now).getTime())) throw new Error('invalid_snapshot_time')
   const tables = portalTables(database)
@@ -19,6 +22,8 @@ export async function capturePortalSnapshot(database: CatalogDb, now = Date.now(
     const revisions = []
     const imports = []
     for (const source of sources) {
+      // 071/C-01: mais de 50 listas não podem derrubar o Atualizar; o serviço recusaria o snapshot inteiro (422).
+      if (revisions.length >= MAX_SNAPSHOT_SOURCES) break
       const revision = await tables.revisions.get(source.id)
       if (revision?.tombstone) continue
       revisions.push({ sourceId: source.id, revision: revision?.revision ?? 0 })

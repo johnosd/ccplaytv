@@ -11,8 +11,9 @@ afterEach(() => { vi.useRealTimers(); vi.clearAllMocks() })
 it('pausa de 10 s: o segundo aperto não consulta; offline e erro com código aparecem depois da pausa', async () => {
   let version = 'v1'
   const fingerprint = vi.fn(async () => version)
+  const sourceIds = async () => [] as string[]
   vi.mocked(refreshPortal).mockImplementationOnce(async () => { version = 'v2'; return { ok: true } })
-  const { result } = renderHook(() => useRefreshAction('lists', { fingerprint }))
+  const { result } = renderHook(() => useRefreshAction('lists', { fingerprint, sourceIds }))
 
   await act(async () => { await result.current.run() })
   expect(result.current.status).toBe('done')

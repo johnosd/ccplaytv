@@ -320,18 +320,18 @@ export function usePlayerKeyboard({
         }
         if (isErrorScreen || panelRef.current) return
         const session = sessionRef.current
-        if (!session || session.state === 'idle' || session.state === 'preparing' || session.state === 'error') return
+        if (!session || session.state === 'error') return
+        // CH± no canal age também com o vizinho ainda preparando (016 SC-003: só a última escolha sobrevive).
+        if (chromeMediaRef.current === 'live' && (key === 'ChannelUp' || key === 'ChannelDown')) {
+          if (chromeLevelRef.current === 'hidden') setLevel('band')
+          const moved = onChannelStep?.(key === 'ChannelUp' ? 'previous' : 'next')
+          if (moved === false) showToast(t(LIMIT_MESSAGE_KEY.channel[key === 'ChannelUp' ? 'previous' : 'next']))
+          scheduleHide()
+          return
+        }
+        if (session.state === 'idle' || session.state === 'preparing') return
 
         if (chromeMediaRef.current === 'live') {
-          if (key === 'ChannelUp' || key === 'ChannelDown') {
-            if (chromeLevelRef.current === 'hidden') setLevel('band')
-            const moved = onChannelStep?.(key === 'ChannelUp' ? 'previous' : 'next')
-            if (moved === false) {
-              showToast(t(LIMIT_MESSAGE_KEY.channel[key === 'ChannelUp' ? 'previous' : 'next']))
-            }
-            scheduleHide()
-            return
-          }
           // Play/Pause/Play/Pause/Rewind/FastForward no canal: só revelam a faixa (FR-028).
           revealBand()
           return

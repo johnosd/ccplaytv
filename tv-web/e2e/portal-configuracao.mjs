@@ -18,8 +18,8 @@ try {
   browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, locale: 'pt-BR' })
   await context.addInitScript(() => { window.webapis = { productinfo: { getDuid: () => 'fake-browser-duid' } } })
-  const credentials = { deviceId: 'fixture-tv', bearer: 'fixture-tv.' + 'a'.repeat(42) + 'A',
-    deviceKey: 'b'.repeat(42) + 'A', authEpoch: 1, recoveryEpoch: 'c'.repeat(42) + 'A',
+  const credentials = { deviceId: 'fixture-tv', displayId: 'A0:8C:FD:19:0A:8C', bearer: 'fixture-tv.' + 'a'.repeat(42) + 'A',
+    deviceKey: '1732049818', authEpoch: 1, recoveryEpoch: 'c'.repeat(42) + 'A',
     recoveryCode: '0000-0000-0000-0000-0000-0000-0000', recoveryCodeVersion: 1 }
   let operations = []
   const acks = []
@@ -46,6 +46,7 @@ try {
     }
     if (path.endsWith('/invites')) return reply({ token: 'a'.repeat(43), expiresAt: new Date(Date.now() + 299000).toISOString(),
       qrDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=' })
+    if (path.endsWith('/device/sources')) return reply({ results: body.sources.map(x => ({ sourceId: x.sourceId, state: 'stored' })) })
     if (path.endsWith('/deletions')) { deletionIds.push(...body.deletions.map(x => x.deletionId)); return reply({ acks: body.deletions.map(x => x.deletionId) }) }
     if (path.endsWith('/operations')) return reply({ operations })
     if (path.endsWith('/snapshot')) { snapshots.push(body); return reply({ snapshotRevision: snapshots.length }) }
@@ -62,6 +63,14 @@ try {
     body: '#EXTM3U\n#EXTINF:-1 group-title="Canais | Fixture",Canal Fixture\nhttps://media.fixture.test/channel.ts\n',
   }))
   const page = await context.newPage()
+  // 071: nada consulta sozinho — cada rodada do serviço fictício é um Atualizar (pausa de 10 s por escopo).
+  const pull = async () => {
+    for (let i = 0; i < 25; i++) {
+      const result = await page.evaluate(async () => (await import('/src/lib/portal/portalRuntime.ts')).refreshPortal('lists'))
+      if (result.ok || result.code !== 'wait') return result
+      await page.waitForTimeout(1000)
+    }
+  }
   await page.goto('http://127.0.0.1:5175/')
   await page.locator('.add-card.tv-focus').waitFor({ timeout: 10000 })
   await abrirPortalLicenca(page)
@@ -80,11 +89,13 @@ try {
     sourceId: 'source-fixture', expectedRevision: 0, action: 'source.create', expiresAt: new Date(Date.now() + 600000).toISOString(),
     input: { type: 'm3u_url', displayName: 'Lista do portal', m3uUrl: 'https://provider.fixture.test/list?secret=fake-private' } }
   operations = [operation]
+  await pull()
   await expect.poll(() => acks.some(x => x.operationId === operation.operationId && x.state === 'applied'), { timeout: 15000 }).toBe(true)
   await expect.poll(() => snapshots.some(x => x.sources.some(y => y.id === operation.sourceId)), { timeout: 15000 }).toBe(true)
   assert(!JSON.stringify(snapshots).includes('fake-private'))
   // Replay sem segunda fonte ou import; conflito local não sobrescreve o nome.
   operations = [operation]
+  await pull()
   await expect.poll(() => acks.filter(x => x.operationId === operation.operationId).length, { timeout: 15000 }).toBeGreaterThan(1)
   await page.evaluate(async () => {
     const { db } = await import('/src/lib/catalog/db.ts')
@@ -92,6 +103,7 @@ try {
     await updateSource('source-fixture', { displayName: 'Nome local' }, db)
   })
   operations = [{ ...operation, operationId: 'operation-stale', action: 'source.update', expectedRevision: 1, input: { displayName: 'Nome remoto antigo' } }]
+  await pull()
   await expect.poll(() => acks.some(x => x.operationId === 'operation-stale' && x.state === 'conflict'), { timeout: 15000 }).toBe(true)
   // Remoção offline persiste até reconectar; nenhum comando antigo recria a lista.
   await context.setOffline(true)
@@ -102,14 +114,17 @@ try {
   })
   await context.setOffline(false)
   operations = [operation]
+  await pull()
   await expect.poll(() => deletionIds.length, { timeout: 15000 }).toBeGreaterThan(0)
   await expect.poll(() => snapshots.at(-1)?.sources.length, { timeout: 15000 }).toBe(0)
   const count = await page.evaluate(async () => { const { db } = await import('/src/lib/catalog/db.ts'); return db.sources.count() })
   assert.equal(count, 0)
   operations = [{ ...operation, operationId: 'operation-second', sourceId: 'source-second' }]
+  await pull()
   await expect.poll(() => acks.some(x => x.operationId === 'operation-second' && x.state === 'applied'), { timeout: 15000 }).toBe(true)
   operations = [{ operationId: 'operation-delete', deviceId: 'fixture-tv', authEpoch: 1,
     sourceId: 'source-second', expectedRevision: 1, action: 'source.delete', expiresAt: null }]
+  await pull()
   await expect.poll(() => acks.some(x => x.operationId === 'operation-delete' && x.state === 'applied'), { timeout: 15000 }).toBe(true)
   assert.equal(await page.evaluate(async () => { const { db } = await import('/src/lib/catalog/db.ts'); return db.sources.count() }), 0)
   operations = []

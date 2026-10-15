@@ -27,10 +27,21 @@ export function useLiveZappingState() {
   const zapSequenceRef = useRef<CatalogItemOut[]>([])
   /** Lista de onde o canal começou a tocar — par de `zapSequenceRef`; o "Guia" do player abre nela (feature 031, FR-010). */
   const zapKeyRef = useRef<EnteredKey | null>(null)
-  return { playing, setPlaying, zapOpen, setZapOpen, lastGoodChannelRef, zapSequenceRef, zapKeyRef }
+  /**
+   * Bug `zapping-rapido-por-ch-setas-no` (016 SC-003): durante uma rajada de ↑/↓/CH±, `playing` é o canal
+   * escolhido (faixa, número, EPG, foco) e `heldChannel` o que o player continua tocando; só o canal em que
+   * a pessoa para é aberto, `ZAP_SETTLE_MS` depois do último toque.
+   */
+  const [heldChannel, setHeldChannel] = useState<CatalogItemOut | null>(null)
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => clearTimeout(settleTimerRef.current ?? undefined), [])
+  return { playing, setPlaying, zapOpen, setZapOpen, lastGoodChannelRef, zapSequenceRef, zapKeyRef, heldChannel, setHeldChannel, settleTimerRef }
 }
 
 export type LiveZappingState = ReturnType<typeof useLiveZappingState>
+
+/** Espera depois do último ↑/↓/CH± antes de abrir o canal escolhido (afinar na TV física). */
+export const ZAP_SETTLE_MS = 600
 
 export interface LiveZappingParams {
   zap: LiveZappingState
@@ -51,7 +62,7 @@ export interface LiveZappingParams {
  */
 export function useLiveZapping({ zap, guide, trail, channels, search, setCol, showToast, initialChannel }: LiveZappingParams) {
   const t = useT()
-  const { playing, setPlaying, zapOpen, setZapOpen, lastGoodChannelRef, zapSequenceRef, zapKeyRef } = zap
+  const { playing, setPlaying, zapOpen, setZapOpen, lastGoodChannelRef, zapSequenceRef, zapKeyRef, heldChannel, setHeldChannel, settleTimerRef } = zap
   const { setGuide, guideWatchPendingRef } = guide
   const { categories, entered, setEntered, focusedIdentity, setFocusedIdentity } = trail
   const { items, activeChannel, contentIsLoading } = channels
@@ -72,9 +83,17 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `playActiveChannel` é recriada a cada render (lê refs/estado), mas o guard `autoPlayedInitialChannelRef` já impede qualquer segunda chamada
   }, [initialChannel, contentIsLoading, activeChannel])
 
+  /** Encerra a espera da rajada: o player passa a abrir `playing` já. */
+  function settleNow() {
+    if (settleTimerRef.current !== null) clearTimeout(settleTimerRef.current)
+    settleTimerRef.current = null
+    setHeldChannel(null)
+  }
+
   /** OK/Assistir sobre o canal focado — mesmo caminho a partir da lista ou do preview (feature 024). */
   function playActiveChannel() {
     if (!activeChannel) return
+    settleNow()
     if (!activeChannel.playable) {
       // Canal existe no catálogo mas não tem fonte de reprodução: explica,
       // não tenta abrir o player (FR-012/FR-019).
@@ -104,9 +123,10 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
    * ↑/↓ e CH± do chrome (feature 027, US2, `logic/chrome-player.md` §7):
    * troca para o canal anterior/seguinte REPRODUZÍVEL da vizinhança
    * capturada, sem voltar nas pontas (FR-011). Devolve `false` no limite —
-   * `PlayerLayer` avisa e não altera a sessão.
+   * `PlayerLayer` avisa e não altera a sessão. Com `hold` (padrão), o canal só
+   * é aberto quando a pessoa para de trocar (ver `heldChannel`).
    */
-  function stepChannel(direction: 'previous' | 'next'): boolean {
+  function stepChannel(direction: 'previous' | 'next', { hold = true }: { hold?: boolean } = {}): boolean {
     if (!playing) return false
     const seq = zapSequenceRef.current
     let i = seq.findIndex((c) => c.id === playing.id)
@@ -117,7 +137,13 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
     } while (seq[i] && !seq[i].playable)
     const target = seq[i]
     if (!target) return false
-    lastGoodChannelRef.current = playing // D-008: mesmo fallback de erro da 016
+    // D-008: mesmo fallback de erro da 016 — o canal que tocava antes da rajada, nunca um intermediário.
+    if (!heldChannel) lastGoodChannelRef.current = playing
+    if (hold) {
+      if (!heldChannel) setHeldChannel(playing)
+      if (settleTimerRef.current !== null) clearTimeout(settleTimerRef.current)
+      settleTimerRef.current = setTimeout(settleNow, ZAP_SETTLE_MS)
+    } else settleNow()
     setPlaying(target)
     setFocusedIdentity((prev) => ({ ...prev, channelId: target.id })) // FR-014
     return true
@@ -151,6 +177,7 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
   function onPlayerClosed() {
     const last = playing
     const origin = zapKeyRef.current
+    settleNow()
     // Sessão encerrada: o fallback de erro da troca anterior (D-008 da 027) não vale para uma reprodução nova —
     // sem isto, um canal inválido iniciado depois voltava ao canal antigo em vez de mostrar o erro.
     lastGoodChannelRef.current = null
@@ -178,6 +205,7 @@ export function useLiveZapping({ zap, guide, trail, channels, search, setCol, sh
   function onSessionError() {
     const fallback = lastGoodChannelRef.current
     if (!fallback) return
+    settleNow()
     lastGoodChannelRef.current = null
     setPlaying(fallback)
     showToast(t('live.zapFailed', { name: fallback.name }))

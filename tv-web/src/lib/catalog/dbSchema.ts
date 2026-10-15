@@ -38,8 +38,8 @@ export function registerLateCatalogSchemas(db: Dexie): void {
     pendingPortalDeletes: 'deletionId, sourceId, createdAt',
     licenseCache: 'id',
   })
-  // Feature 071: teste de 7 dias contado no aparelho (registro único 	rial). Tabela nova, sem .upgrade():
-  // a herança do início de uma licença de teste já verificada acontece em nsureLocalTrial.
+  // Feature 071: teste de 7 dias contado no aparelho (registro único `trial`). Tabela nova, sem .upgrade():
+  // a herança do início de uma licença de teste já verificada acontece em `ensureLocalTrial`.
   db.version(23).stores({
     localTrial: 'id',
   })
@@ -47,5 +47,10 @@ export function registerLateCatalogSchemas(db: Dexie): void {
   // vazia = nada enviado ainda, então o primeiro Atualizar sobe todas as listas (FR-010).
   db.version(24).stores({
     sourceUploads: 'sourceId',
+  })
+  // Feature 072: dados restaurados de uma lista que ainda não voltou à TV; aplicados quando ela voltar e descartados
+  // em `expiresAt` (5 dias). Tabela nova, sem .upgrade().
+  db.version(25).stores({
+    pendingRestore: 'sourceId, expiresAt',
   })
 }

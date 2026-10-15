@@ -11,7 +11,8 @@ import { PortalRequestError } from './portalClient'
 /** Pausa entre dois Atualizar do mesmo escopo; vale também depois de uma falha (limite do serviço). */
 const REFRESH_PAUSE_MS = 10_000
 
-export type RefreshScope = 'lists' | 'license'
+/** 072: 'backup' = só o passo de backup (botão Fazer backup agora); 'lists' também faz backup no fim. */
+export type RefreshScope = 'lists' | 'license' | 'backup'
 
 /** Resultado de um Atualizar: código não secreto em falha. */
 export type CycleOutcome = { ok: true } | { ok: false; code: string }
@@ -24,6 +25,8 @@ export interface PortalAgentPorts {
   pull(signal: AbortSignal): Promise<void>
   publishSnapshot(signal: AbortSignal): Promise<void>
   refreshLicense?(signal: AbortSignal): Promise<void>
+  /** 072: passo de backup de uso (ausente = nada a fazer); decide sozinho entre subir, oferecer ou pular. */
+  backup?(signal: AbortSignal): Promise<void>
   onError?(code: string): void
 }
 
@@ -36,6 +39,7 @@ export class PortalAgent {
   private attachedAt = 0
   // Exclusão local criada agora pela pessoa pede envio imediato (flushDeletions + snapshot; sem pull/licença).
   private deletionRequested = false
+  private deletionQueued = false
   private lastRefreshAt: Partial<Record<RefreshScope, number>> = {}
   private queue: Promise<unknown> = Promise.resolve()
   private outbox?: { unsubscribe(): void }
@@ -91,16 +95,30 @@ export class PortalAgent {
   private requestDeletionFlush() {
     // Offline/oculto: a pendência segue na outbox e sobe no próximo Atualizar (FR-009).
     if (!this.active || !this.visible || !this.online) return
+    // Um envio já na fila lê a outbox só quando começa: cobre esta exclusão também.
+    if (this.deletionQueued) return
     this.deletionRequested = true
     this.pumpDeletionFlush()
   }
 
   /** No máximo um envio por vez, depois de qualquer Atualizar em andamento. */
   private pumpDeletionFlush() {
-    if (!this.deletionRequested || !this.active || !this.visible || !this.online || this.running) return
+    if (!this.deletionRequested || !this.active || !this.visible || !this.online || this.running || this.deletionQueued) return
     this.deletionRequested = false
-    void this.enqueue(() => this.execute(['deletions', 'snapshot'])).catch(() => this.ports.onError?.('local_storage_error'))
+    this.deletionQueued = true
+    void this.enqueue(async () => {
+      this.deletionQueued = false
+      // Pedido repetido (ação + observação da outbox): se o envio anterior já levou tudo, não há o que enviar.
+      const waiting = await portalTables(this.database).deletes.filter(row => row.serverAckAt === undefined).count()
+      return waiting ? this.execute(['deletions', 'snapshot']) : { ok: true as const }
+    }).catch(() => this.ports.onError?.('local_storage_error'))
   }
+
+  /**
+   * 071/FR-009: a pessoa acabou de excluir uma lista — pede o envio no ato, direto da ação (não só da observação da
+   * outbox). Os dois caminhos se juntam: um envio por vez, sem snapshot duplicado.
+   */
+  deletedNow() { this.requestDeletionFlush() }
 
   /**
    * 071/FR-008: a pessoa acabou de criar/editar uma lista — uma tentativa de envio (+ snapshot) no ato. Falha mantém a
@@ -109,6 +127,13 @@ export class PortalAgent {
   uploadNow() {
     if (!this.active || !this.visible || !this.online) return
     void this.enqueue(() => this.execute(['uploads', 'snapshot'])).catch(() => this.ports.onError?.('local_storage_error'))
+  }
+
+  /** 072: Desvincular — aborta o que corre e esquece pausas e pedidos pendentes; nada é reagendado. */
+  reset() {
+    this.running?.abort()
+    this.lastRefreshAt = {}
+    this.deletionRequested = false
   }
 
   /** Suspender/ficar offline aborta o que estiver em andamento; nada é reagendado ao voltar. */
@@ -130,7 +155,8 @@ export class PortalAgent {
       const last = this.lastRefreshAt[scope]
       if (last !== undefined && this.now() < last + REFRESH_PAUSE_MS) return { ok: false as const, code: 'wait' }
       this.lastRefreshAt[scope] = this.now()
-      return this.execute(scope === 'lists' ? ['deletions', 'uploads', 'pull', 'snapshot'] : ['license'])
+      return this.execute(scope === 'lists' ? ['deletions', 'uploads', 'pull', 'snapshot', 'backup']
+        : scope === 'backup' ? ['backup'] : ['license'])
     })
   }
 
@@ -141,7 +167,7 @@ export class PortalAgent {
     return result
   }
 
-  private async execute(steps: ('deletions' | 'uploads' | 'pull' | 'snapshot' | 'license')[]): Promise<CycleOutcome> {
+  private async execute(steps: ('deletions' | 'uploads' | 'pull' | 'snapshot' | 'license' | 'backup')[]): Promise<CycleOutcome> {
     const controller = new AbortController()
     this.running = controller
     const { signal } = controller
@@ -152,6 +178,7 @@ export class PortalAgent {
         else if (step === 'uploads') await this.ports.flushUploads?.(signal)
         else if (step === 'pull') await this.ports.pull(signal)
         else if (step === 'snapshot') await this.ports.publishSnapshot(signal)
+        else if (step === 'backup') await this.ports.backup?.(signal)
         else await this.ports.refreshLicense?.(signal)
       }
       signal.throwIfAborted()

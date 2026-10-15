@@ -170,13 +170,48 @@ description: "Tasks da feature 071 — consulta sob demanda e QR fixo"
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T028 Revisão de segredos com marcadores fictícios (DOM, URL/fragmento, QR, histórico, logs da API, cabeçalhos, erros) — `evidencias/segredos.md`. (SC-008)
-- [ ] T029 Atualizar `docs/portal/operacao.md`, `infra/portal/README.md`, `README.md` e as notas das specs 069/070 (consulta sob demanda, QR fixo, teste local, envio TV → site).
-- [ ] T030 **1 E2E novo** `tv-web/e2e/consulta-sob-demanda.mjs` (uma subida de pilha): cenários 1–5, 7–10 do `quickstart.md` §3 + contagem de requisições (SC-001 em 24 h simulados, SC-007). Ajustar `entrada-listas-gerenciador.mjs`, `portal-dev-server.mjs`, `licenca-anual.mjs` e `portal-configuracao.mjs` **só se ficarem vermelhos** (rodar antes de editar).
-- [ ] T031 Gates: TV `tsc`/lint/`npm run test`/build/`build:tizen`; API pytest + Ruff; portal lint/test/build/E2E; travas 071/070/069/026/037/045/023/024 íntegras; `npm run test:e2e` completo com `npm run dev`.
-- [ ] T032 Publicar API (rota + âncora) e portal-web no staging (**ação externa: pedir confirmação do usuário**) e repetir E2E do pacote contra o staging; reescrever `homologate-070.ps1`/`measure-staging.ps1` para a rota nova se necessário.
-- [ ] T033 TV física (quickstart §4): instalar o pacote comercial sem desinstalar, cenários 2–10, `evidencias/tv.md`.
-- [ ] T034 Backlog/status via scripts; `plan.md` Estado Atual/Execution Notes.
+- [X] T028 Revisão de segredos com marcadores fictícios (DOM, URL/fragmento, QR, histórico, logs da API, cabeçalhos, erros) — `evidencias/segredos.md`. (SC-008)
+- [X] T029 Atualizar `docs/portal/operacao.md`, `infra/portal/README.md`, `README.md` e as notas das specs 069/070 (consulta sob demanda, QR fixo, teste local, envio TV → site).
+- [X] T030 **1 E2E novo** `tv-web/e2e/consulta-sob-demanda.mjs` (uma subida de pilha): cenários 1–5, 7–10 do `quickstart.md` §3 + contagem de requisições (SC-001 em 24 h simulados, SC-007). Ajustar `entrada-listas-gerenciador.mjs`, `portal-dev-server.mjs`, `licenca-anual.mjs` e `portal-configuracao.mjs` **só se ficarem vermelhos** (rodar antes de editar).
+- [X] T031 Gates: TV `tsc`/lint/`npm run test`/build/`build:tizen`; API pytest + Ruff; portal lint/test/build/E2E; travas 071/070/069/026/037/045/023/024 íntegras; `npm run test:e2e` completo com `npm run dev`.
+- [X] T032 Publicar API (rota + âncora) e portal-web no staging (**ação externa: pedir confirmação do usuário**) e repetir E2E do pacote contra o staging; reescrever `homologate-070.ps1`/`measure-staging.ps1` para a rota nova se necessário. _Feito em 2026-10-14 com pedido explícito do usuário; ver `evidencias/staging.md`. `homologate-070.ps1` roda sem reescrita (26/26); `measure-staging.ps1` mede uma janela de polling que a 071 removeu e ficou sem valor._
+- [X] T033 TV física (quickstart §4): instalar o pacote comercial sem desinstalar, cenários 2–10, `evidencias/tv.md`. _Encerrada pelo usuário em 2026-10-14: observou na TV os cenários 2–4 e as telas/ações das Fases 7 (A006–A008); os cenários 5 (parte offline), 7, 9 e 10 ficam só com o E2E local por decisão dele (`evidencias/tv.md`)._
+- [X] T034 Backlog/status via scripts; `plan.md` Estado Atual/Execution Notes.
+
+**Registro da Fase (T028–T031)**:
+
+- Status: T028–T032 concluídas em 2026-10-14; **T033 (TV física) e T034 (fechamento) abertas** — T033 exige a observação do usuário.
+- Feito: T028 `evidencias/segredos.md` (marcadores em DOM, URL/fragmento, referrer, requisições, logs da API e armazenamento) com os asserts no E2E; T029 `docs/portal/operacao.md` (nova seção "Consulta sob demanda, QR fixo e envio TV → site", agente 069 marcado como superado), `infra/portal/README.md` (pilha local → `consulta-sob-demanda.mjs`; publicar API antes do pacote), `README.md`; T030 `tv-web/e2e/consulta-sob-demanda.mjs` (1 subida de pilha via `lib/portalStack.mjs`: cenários 1–5, exclusão na TV, 7–10, régua de requisições e revisão de segredos) e conserto dos E2E que assumiam consulta automática/convite (`licenca-anual`, `portal-configuracao`, `portal-dev-server`, `portal-pacote-file`, `entrada-listas-gerenciador`); o antigo `portal-integrado-local.mjs` saiu (substituído); T031 gates.
+- Achado corrigido no E2E: o `App` não passava `onReloaded` ao painel, então "Recarregar" não voltava à lista com foco na nova (FR-006/US1 AC1). Agora `useRefreshAction` devolve `newSourceIds` e o App despacha `import-back` com o id.
+- Contrato: 4 arquivos / 5 testes verdes; `check-contract-tests.ps1` PASS (071, 070, 069, 026, 037, 045, 023, 024).
+- Testes executados: TV `npx tsc -b` limpo; `npm run lint` exit 0; `npm run test` 3339 testes, todos verdes na suíte completa (após estabilizar `useRefreshAction.test.tsx`, que travava com o Dexie sob timers falsos); `npm run build` e `npm run build:tizen` ok (guarda do pacote sem arquivo fora da lista; `CCPlayTv/` regenerado); `node e2e/run.mjs` **49/49** em 172 s; `node e2e/consulta-sob-demanda.mjs` PASS (21 requisições da TV, todas por ação; 2 execuções seguidas), `entrada-listas-gerenciador.mjs` e `portal-dev-server.mjs` PASS; API (emulador) `pytest tests/portal` 145 passaram e `ruff check .` limpo; portal-web lint/test 7/7/build/E2E 15/15.
+- Pendências: (1) ~~`portal-pacote-file.mjs` não executado~~ — executado na T032 com o pacote comercial contra o staging (PASS); (2) a liberação no E2E vem de licença de teste válida do serviço, não de compra (venda desligada; sandbox de pagamento não exercitado); (3) `PortalConnection.invite()` e as chaves i18n `portal.renewQr`/`portal.licenseBuy` ficaram sem uso na UI (limpeza opcional); (4) `legibilidade-tv.mjs` ficou ~2 min mais longo com o bloco do portal (Vite à parte); (5) T032 publica API (rota + âncora) e portal-web no staging **só com confirmação**; T033 instala sem desinstalar e observa o quickstart §4.
+
+**Registro da Fase (T032)**:
+
+- Status: concluída em 2026-10-14, por pedido explícito do usuário ("publique a api").
+- Feito: build remoto (Cloud Build `d7b15596…`, imagem `…:071-20261014-1236`, digest `sha256:72988b99…`); `ccplaytv-portal` → revisão `00017-664` e `ccplaytv-portal-jobs` → `00016-dhq`, 100% do tráfego (rollback: `00016-srm` / `jobs-00015-647`); novo `infra/portal/smoke-sources.ps1` (enroll com âncora + envio `stored`/`unchanged`, sem eco).
+- Contrato: sem contrato nesta fase (ação externa); travas não tocadas.
+- Testes executados: `smoke-staging.ps1`, `smoke-enrollment.ps1`, `smoke-sources.ps1` passaram; `pwsh infra/portal/homologate-070.ps1` 26/26; `POST /device/sources` sem bearer → 401; logs do Cloud Run sem os marcadores; `npm run build:tizen:commercial` (origem do staging + JWKS público) e `node e2e/portal-pacote-file.mjs` PASS.
+- Pendências: (1) a saída de um `gcloud run services describe` imprimiu no transcript a chave privada de assinatura de staging — rotacionar se o transcript sair do ambiente do usuário (`evidencias/staging.md`); (2) `CCPlayTv/` ficou regenerado com o pacote **comercial** do staging (versionado, ruído de git); (3) T033 instala na TV sem desinstalar e observa o quickstart §4.
+
+## Phase 7: Ajustes de UX observados na TV (2026-10-14)
+
+Origem: primeiro uso na TV física (T033, parcial). O usuário confirmou que o fluxo funciona e pediu duas mudanças de organização (A006 e A007 em `plan.md`); a A006 foi refinada em três rodadas (escolha em duas telas → abas na mesma tela, com "Pelo site" primeiro e aberta por padrão, com ou sem portal). Sem contrato novo: as travas 037/070 seguem íntegras porque `AddSourceScreen` mantém `phonePanel` e `PortalPairingPanel` mantém a API.
+
+- [X] T035 **A006** — "Adicionar lista" abre **uma tela só com três abas, nesta ordem: Pelo site, Xtream Codes e Lista M3U**; abre sempre em "Pelo site" (com portal ou sem; sem portal mostra o estado honesto). A aba do site tem só **Recarregar** e **Voltar**; as outras duas, o formulário com **Conectar e sincronizar**. RETURN de qualquer aba cai direto na tela de listas. "Gerar nova chave" saiu da aba do site e fica em Portal & licença ("Revogar acessos ao portal", a mesma rotação).
+- [X] T036 **A007** — excluir uma lista na TV pede o envio da exclusão (+ snapshot) no ato, direto da ação (`notifyLocalSourceChanged('deleted')` → `deletedNow()`), junto com a observação da outbox sem duplicar o envio; offline continua na outbox até o próximo Atualizar.
+- [X] T037 E2E e legibilidade adaptados às abas (`consulta-sob-demanda`, `entrada-listas-gerenciador`, `legibilidade-tv` pt/en/es, `e2e.mjs` — SC-002 da 037 segue em ≤ 3 OK —, `ime-formularios`).
+- [X] T038 Gates da Fase 7 (tsc, lint, vitest, E2E afetados, `build:tizen:commercial`) e nova instalação na TV para a pessoa rever.
+- [X] T039 **A008** — lista criada pelo site e trazida por Recarregar importa em segundo plano; a 1ª entrada nela mostra o progresso (categorias carregando) em vez de uma lista vazia. Registro síncrono em memória das importações do site em curso (`lib/portal/remoteImportsInFlight.ts`, alimentado pelo dreno da outbox), consultado em `chooseSource` só para lista sem nenhuma sincronização; atualização de lista que já tem catálogo continua entrando direto. Coberto no E2E `consulta-sob-demanda` (fixture lenta + `#progress-title`). Gates: tsc, lint, vitest 3342, E2E 49/49 + `consulta-sob-demanda`; pacote reinstalado na TV.
+
+**Registro da Fase (T035–T038)**:
+
+- Status: concluída em 2026-10-14; falta a pessoa rever as abas e testar a exclusão na TV com o pacote já instalado.
+- Feito: `AddSourceScreen` ganhou `sitePanel` (aba "Pelo site", primeira e aberta por padrão, com a ordem Pelo site / Xtream Codes / Lista M3U; os dados digitados ficam ao trocar de aba) montada pelo `App` com `PortalPairingPanel` (só Recarregar e Voltar); sem rotas novas — RETURN de qualquer aba volta à tela de listas; i18n `add.tabs.title`/`add.tab.site` pt/en/es e `add.subtitle.new` citando a aba; CSS `.source-type-row--three`; "Gerar nova chave" saiu da aba do site e fica em Portal & licença → "Revogar acessos ao portal"; exclusão: `notifyLocalSourceChanged('deleted')` em `deleteSource` → `PortalAgent.deletedNow()` (junta com a outbox, não duplica e não envia sem linha pendente). Sem chunks novos no pacote Tizen (a primeira versão em duas telas foi descartada).
+- Contrato: sem contrato novo; `AddSourceScreen` (`phonePanel` opcional) e o painel mantêm a API, travas 037/070/071 íntegras (`check-contract-tests.ps1`).
+- Testes executados: `npx tsc -b` limpo; `npm run lint` exit 0; `npm run test` 577 arquivos / 3341 testes verdes (um teste de benchmark, `importBench`, estoura o timeout só quando há E2E/dev server rodando em paralelo e passa isolado e com a máquina quieta); suíte E2E completa 49/49 (com a aba do site como padrão foram ajustados `e2e.mjs` — SC-002 da 037 continua em 3 OK — e `ime-formularios`); opt-in `consulta-sob-demanda` (21 requisições; abas na ordem; o site deixa de listar a lista excluída na TV sem Atualizar), `entrada-listas-gerenciador` e `portal-dev-server` PASS; pacote `file://` do staging: abas Pelo site | Xtream Codes | Lista M3U, QR e RETURN direto à tela de listas, sem erro de página.
+- Pendências: (1) pacote novo **instalado na TV** em 2026-10-14 (`deploy-tv.ps1 -SkipBuild`, após o sdb recusar uma vez por Host PC IP/reinício); falta a pessoa rever as abas e testar a exclusão; (2) não foi possível reproduzir em local o relato de exclusão que "não envia": nos logs do Cloud Run não havia nenhuma chamada `device/deletions` da TV antes desta sessão (`gcloud logging`, 6 h) — reavaliar com a TV nova; (3) a aba "Pelo site" sem portal mostra o estado honesto ("O portal ainda não está disponível neste app"), só com Voltar.
 
 ### Checklist de Release
 
@@ -185,11 +220,11 @@ description: "Tasks da feature 071 — consulta sob demanda e QR fixo"
 - [X] Fase 3 (US1/US2: Atualizar e bloqueio) concluída
 - [X] Fase 4 (US5: QR fixo) concluída
 - [X] Fase 5 (US4: envio TV → site) concluída
-- [ ] Testes de contrato 5/5 verdes na suíte completa e `check-contract-tests.ps1` íntegro (071, 070, 069, 026, 037, 045, 023, 024)
-- [ ] E2E no dev server e no pacote `file://` aprovados antes da TV
-- [ ] Revisão de segredos aprovada
-- [ ] Staging publicado com confirmação do usuário
-- [ ] TV física: quickstart observado pelo usuário (`evidencias/tv.md`)
+- [X] Testes de contrato 5/5 verdes na suíte completa e `check-contract-tests.ps1` íntegro (071, 070, 069, 026, 037, 045, 023, 024)
+- [X] E2E no dev server e no pacote `file://` aprovados antes da TV
+- [X] Revisão de segredos aprovada
+- [X] Staging publicado com confirmação do usuário (`evidencias/staging.md`)
+- [X] TV física: quickstart observado pelo usuário (`evidencias/tv.md`) — parcial por decisão dele; o restante fica com o E2E local
 
 ---
 
@@ -212,3 +247,18 @@ MVP = Fases 1–3 (nada automático, botões e bloqueio resolvem o custo e a com
 - Esta feature **não** reabre a venda: riscos R-022..R-026 da 069 seguem abertos.
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->
+
+## Phase 8: Convergence
+
+Achados do `sdd-converge` de 2026-10-14 (C-01 e C-02). Os demais (C-03 a C-07) são só documentação no Resultado Final.
+
+- [X] T040 [C-01, FR-010 / US4 / plan: R-006] Limitar o snapshot da TV a 50 listas (`capturePortalSnapshot`), com revisões e importações coerentes, e teste unitário: com 51+ listas o snapshot não é recusado pela API (`SnapshotInput` aceita no máximo 50).
+- [X] T041 [C-02, plan: pendências do Polish] Remover as chaves i18n sem uso `portal.renewQr` e `portal.licenseBuy` (pt/en/es) e marcar `PortalConnection.invite()` como legado do convite efêmero (usado só por testes da 069), sem mudar comportamento.
+
+**Registro da Fase (T040–T041)**:
+
+- Status: concluída em 2026-10-14.
+- Feito: T040 `snapshotPublisher.ts` limita o snapshot a `MAX_SNAPSHOT_SOURCES = 50` (teto do `SnapshotInput`), com teste de 52 listas em `remoteConfiguration.test.ts`; T041 chaves i18n `portal.renewQr` e `portal.licenseBuy` removidas (pt/en/es) e `PortalConnection.invite()` marcado `@deprecated` (usado só por testes da 069).
+- Contrato: 5/5 testes de contrato verdes na suíte completa; `check-contract-tests.ps1` PASS (trava íntegra).
+- Testes executados: `npx tsc -b` limpo; `npm run lint` exit 0; `npm run test` 578 arquivos / 3343 testes (um benchmark de importação, `scripts/bench/importBench.test.mjs` › xmltv, estoura o hook de 10 s só na suíte inteira com carga paralela e passa isolado, 9/9 em 16 s — instável, não é "baseline ok").
+- Pendências: (1) o snapshot com mais de 50 listas mostra só as 50 primeiras no site (limite do serviço, não da 071); (2) benchmark `importBench` instável sob carga (acima).

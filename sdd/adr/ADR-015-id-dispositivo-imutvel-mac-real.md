@@ -30,6 +30,8 @@ O usuário pediu que esse ID **seja único por TV e nunca mude**. A leitura do c
 5. A chave da derivação é versionada e guardada como as demais chaves do serviço (backup e recuperação protegidos, ADR-013); trocá-la só afeta derivações futuras, nunca IDs já gravados.
 6. A identidade interna (`deviceId`) continua sendo a referência da licença e das configurações; o ID exibido é o rótulo público, estável, que a pessoa usa para conferir a TV.
 
+**Atualização (ADR-017):** depois de "Desvincular" na TV, a mesma TV volta ao mesmo registro (mesmo ID) provando a posse com o código de recuperação que ela guardava, sem cadastro novo; o ID continua imutável. Ver ADR-017.
+
 ## Alternativas Consideradas
 
 ### ID aleatório gravado (comportamento atual da ADR-014)

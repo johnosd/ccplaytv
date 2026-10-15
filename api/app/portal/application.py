@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException
 from app.portal.auth import AuthError
 from app.portal.repositories.control import RepositoryConflict
 from app.portal.routes.auth import router as auth_router
+from app.portal.routes.backup import router as backup_router
 from app.portal.routes.jobs import router as jobs_router
 from app.portal.routes.licensing import router as licensing_router
 from app.portal.routes.operations import router as operations_router
@@ -82,6 +83,7 @@ def create_app(settings: PortalSettings) -> FastAPI:
     if settings.service_role == "public":
         app.include_router(auth_router)
         app.include_router(operations_router)
+        app.include_router(backup_router)
         app.include_router(licensing_router)
     else:
         app.include_router(jobs_router)
