@@ -125,7 +125,7 @@ update-bug-status.ps1.
 | ch-mais-menos-nao-trocam-canal | CH+/CH− não trocam canal no player | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-11 |
 | botoes-gerar-qr-code-portal-nao | Botões de QR do portal inativos no `npm run dev` | Assess | invalid (low) | Nenhum — descartado (invalid) | 2026-10-13 |
 | portal-login-sem-identidade-visual-aes | Portal: login sem identidade visual e com ações extras | Test | verified | Concluído | 2026-10-13 |
-| zapping-rapido-por-ch-setas-no | Zapping rápido por CH±/↑/↓ para no próximo canal | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-14 |
+| zapping-rapido-por-ch-setas-no | Zapping rápido por CH±/↑/↓ para no próximo canal | Test | verified | Concluído | 2026-10-14 |
 
 ## Melhorias Ad-hoc
 
