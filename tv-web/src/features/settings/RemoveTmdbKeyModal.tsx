@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
+import { useT } from '../../lib/i18n/I18nProvider'
 
 export interface RemoveTmdbKeyModalProps {
   onCancel: () => void
@@ -14,11 +15,12 @@ export interface RemoveTmdbKeyModalProps {
  * LEFT/RIGHT alternam, RETURN fecha sem confirmar.
  */
 export function RemoveTmdbKeyModal({ onCancel, onConfirm }: RemoveTmdbKeyModalProps): ReactNode {
+  const t = useT()
   const [confirmIdx, setConfirmIdx] = useState<0 | 1>(0)
 
   return (
     <Modal
-      ariaLabel="Remover a chave do TMDB?"
+      ariaLabel={t('settings.removeKey.title')}
       onBack={onCancel}
       onDirection={(direction) => {
         if (direction === 'left') setConfirmIdx(0)
@@ -26,17 +28,14 @@ export function RemoveTmdbKeyModal({ onCancel, onConfirm }: RemoveTmdbKeyModalPr
       }}
       onSelect={() => (confirmIdx === 0 ? onCancel() : onConfirm())}
     >
-      <p className="modal-title">Remover a chave do TMDB?</p>
-      <p className="modal-description">
-        A chave e os detalhes que vieram do TMDB serão apagados deste aparelho. O que a sua lista informa continua.
-        Você pode configurar de novo quando quiser.
-      </p>
+      <p className="modal-title">{t('settings.removeKey.title')}</p>
+      <p className="modal-description">{t('settings.removeKey.description')}</p>
       <div className="modal-actions">
         <Button variant="secondary" focused={confirmIdx === 0} onSelect={onCancel}>
-          Cancelar
+          {t('common.cancel')}
         </Button>
         <Button variant="accent" focused={confirmIdx === 1} onSelect={onConfirm}>
-          Remover
+          {t('common.remove')}
         </Button>
       </div>
     </Modal>

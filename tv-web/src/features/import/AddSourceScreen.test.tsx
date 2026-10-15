@@ -1,14 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { useState, type ReactNode } from 'react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AddSourceScreen } from './AddSourceScreen'
 import type { SourceOut } from './importApi'
 import { db } from '../../lib/catalog/db'
 import * as importPipeline from '../../lib/catalog/importPipeline'
 import * as sourceRepository from '../../lib/catalog/sourceRepository'
-import { AnnouncerContext } from '../../lib/announcer'
-import { getComingSoon } from '../../lib/comingSoon'
 import { findUnnamedControls } from '../../testing/accessibleNames'
 
 vi.spyOn(globalThis, 'fetch')
@@ -43,6 +41,12 @@ describe('AddSourceScreen', () => {
     const onBack = vi.fn()
 
     const startImportSpy = vi.spyOn(importPipeline, 'startImport')
+    // Feature 045: o painel confirma a conta antes de criar a lista; o resto da importação falha na hora.
+    vi.mocked(globalThis.fetch).mockImplementation((input) =>
+      String(input).includes('get_account_info')
+        ? Promise.resolve(new Response(JSON.stringify({ user_info: { auth: 1 } })))
+        : Promise.reject(new TypeError('Failed to fetch')),
+    )
 
     render(
       <AddSourceScreen
@@ -60,9 +64,13 @@ describe('AddSourceScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Conectar e sincronizar' }))
 
-    await waitFor(() => {
-      expect(onSourceCreated).toHaveBeenCalled()
-    })
+    // Feature 045: confirmar a conexão + criar a lista leva um pouco mais sob a suíte em paralelo.
+    await waitFor(
+      () => {
+        expect(onSourceCreated).toHaveBeenCalled()
+      },
+      { timeout: 5000 },
+    )
 
     const fetchMock = globalThis.fetch as any
     const calledUrls = fetchMock.mock.calls.map((c: any) => c[0] as string)
@@ -76,23 +84,10 @@ describe('AddSourceScreen', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Feature 023, US4 (T034/T037), redesenhada na feature 037 (T027): cadastro no
-// formato do `sourceSetup()` — mesmo formulário real, campos da feature 022,
-// painel "Conectar com celular" como mock "Em breve".
+// Feature 023, US4 (T034/T037), redesenhada na feature 037 (T027) e na 070: cadastro
+// com o mesmo formulário real, campos da feature 022 e — desde a 070 — a coluna real
+// "Pelo celular" passada pelo App em `phonePanel` (o mock "Em breve" saiu).
 // ---------------------------------------------------------------------------
-
-/** Região de anúncio (feature 021) para ler o que `ComingSoon` anuncia — mesmo padrão de `ComingSoon.test.tsx`. */
-function RegionHost({ children }: { children: ReactNode }) {
-  const [region, setRegion] = useState<HTMLElement | null>(null)
-  return (
-    <AnnouncerContext.Provider value={region}>
-      {children}
-      <div ref={setRegion} className="announcer-region">
-        <span className="sr-only" />
-      </div>
-    </AnnouncerContext.Provider>
-  )
-}
 
 function makeProviderSource(overrides: Partial<SourceOut> = {}): SourceOut {
   return {
@@ -127,18 +122,13 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
     await db.importRuns.clear()
   })
 
-  it('estrutura do `sourceSetup()`: título, "Como funciona" sem passo concluído, "Adicionar serviço", id do título preservado (D-002)', () => {
+  it('estrutura da 070: título preservado, sem "Como funciona" nem mock, cadastro manual com tipo e Voltar (D-002, D-007)', () => {
     render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
 
     expect(document.getElementById('add-source-title')).toHaveTextContent('Conecte sua lista IPTV')
     expect(screen.getByText('Configuração inicial')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Como funciona' })).toBeInTheDocument()
-    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      '1Escolha o tipoXtream Codes ou Lista M3U',
-      '2Digite os dadosServidor e login, ou a URL da lista',
-      '3Sincronizar tudoCanais, EPG, filmes e séries chegam na TV',
-    ])
-    expect(screen.getByRole('heading', { name: 'Adicionar serviço' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Como funciona' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Conectar com celular')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Configuração manual' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Tipo de lista' })).toBeInTheDocument()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
@@ -167,7 +157,8 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
     expect(dns).toHaveAttribute('type', 'url')
     expect(screen.getByLabelText('Usuário')).toHaveAttribute('autocomplete', 'username')
     const password = screen.getByLabelText('Senha')
-    expect(password).toHaveAttribute('type', 'password')
+    // 070 (FR-010): os dados nascem visíveis; o olho do formulário os mascara de uma vez.
+    expect(password).toHaveAttribute('type', 'text')
     expect(password).toHaveAttribute('autocomplete', 'current-password')
 
     chooseM3u()
@@ -175,6 +166,27 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
     expect(url).toHaveAttribute('inputmode', 'url')
     expect(url).toHaveAttribute('type', 'url')
   })
+
+  it('070: um único olho do formulário mascara e reexibe servidor/URL, usuário e senha; o teclado de cada campo não muda (FR-010)', () => {
+    render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
+
+    expect(screen.getAllByRole('button', { name: /^(Ocultar|Mostrar)/ })).toHaveLength(1)
+    const typeOf = (label: string) => (screen.getByLabelText(label) as HTMLInputElement).type
+    expect(['Nome da lista', 'Servidor', 'Usuário', 'Senha'].map(typeOf)).toEqual(['text', 'url', 'text', 'text'])
+
+    const eye = screen.getByRole('button', { name: 'Ocultar dados' })
+    expect(eye).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(eye)
+    expect(['Nome da lista', 'Servidor', 'Usuário', 'Senha'].map(typeOf)).toEqual(['text', 'password', 'password', 'password'])
+    expect(screen.getByRole('button', { name: 'Mostrar dados' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Servidor')).toHaveAttribute('inputmode', 'url')
+
+    chooseM3u()
+    expect(typeOf('URL M3U')).toBe('password')
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar dados' }))
+    expect(typeOf('URL M3U')).toBe('url')
+  })
+
 
   it('rótulo é permanente, nunca placeholder: nenhum campo usa placeholder, nos dois tipos (DS §37)', () => {
     render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
@@ -221,40 +233,55 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
     expect(screen.getByText('Deixe em branco para manter a URL atual')).toBeVisible()
   })
 
-  it('"Conectar com celular" é um mock: anuncia "Em breve", não navega e não sai do formulário (FR-035, FR-013)', () => {
-    vi.useFakeTimers()
-    const onBack = vi.fn()
-    const onSourceCreated = vi.fn()
-    render(
-      <RegionHost>
-        <AddSourceScreen onSourceCreated={onSourceCreated} onBack={onBack} />
-      </RegionHost>,
-      { wrapper: createWrapper() },
-    )
+  it('070: com a coluna do celular, ela fica antes do cadastro e o formulário não repete o Voltar (A002)', () => {
+    const phone = <section aria-label="Pelo celular"><button type="button">Recarregar</button><button type="button">Voltar</button></section>
+    render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} phonePanel={phone} />, { wrapper: createWrapper() })
 
-    expect(screen.getByRole('heading', { name: 'Conectar com celular' })).toBeInTheDocument()
-    const message = getComingSoon('pair-phone').message
-    fireEvent.click(screen.getByRole('button', { name: message }))
-    vi.advanceTimersByTime(20)
-
-    expect(document.querySelector('.announcer-region .sr-only')?.textContent).toBe(`Em breve — ${message}`)
-    expect(document.getElementById('add-source-title')).toBeInTheDocument()
-    expect(onBack).not.toHaveBeenCalled()
-    expect(onSourceCreated).not.toHaveBeenCalled()
+    const region = screen.getByRole('region', { name: 'Pelo celular' })
+    expect(region.compareDocumentPosition(screen.getByRole('heading', { name: 'Configuração manual' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'Voltar' })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Conectar e sincronizar' })).toBeInTheDocument()
   })
 
-  it('abre com o foco em "Xtream Codes" e ↑ alcança o mock do celular, anterior no DOM (D-009, FR-042)', () => {
-    render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
+  it('070: abre com o foco em "Xtream Codes" e ↑ alcança a coluna do celular, anterior no DOM (D-009, FR-007)', () => {
+    const phone = <section aria-label="Pelo celular"><button type="button">Recarregar</button></section>
+    render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} phonePanel={phone} />, { wrapper: createWrapper() })
 
     expect(screen.getByRole('button', { name: /Xtream Codes/ })).toHaveFocus()
     fireEvent.keyDown(document, { key: 'ArrowUp' })
-    expect(screen.getByRole('button', { name: getComingSoon('pair-phone').message })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Recarregar' })).toHaveFocus()
+  })
+
+  it('071/A006: "Pelo site" é a 1ª aba e a que abre, antes de Xtream Codes e Lista M3U; uma aba por vez, sem perder o que foi digitado', () => {
+    const site = <section aria-label="Pelo site"><button type="button">Recarregar</button><button type="button">Voltar</button></section>
+    render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} sitePanel={site} />, { wrapper: createWrapper() })
+
+    const tabs = screen.getByRole('group', { name: 'Tipo de lista' })
+    expect(Array.from(tabs.querySelectorAll('button')).map((button) => button.textContent?.replace('✓', ''))).toEqual(
+      ['Pelo site', 'Xtream Codes', 'Lista M3U'])
+    // Abre sempre em \"Pelo site\": painel visível (com o próprio Voltar), formulário fora e foco na aba.
+    expect(screen.getByRole('button', { name: /Pelo site/ })).toHaveFocus()
+    expect(screen.getByRole('region', { name: 'Pelo site' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Nome da lista')).not.toBeInTheDocument()
+    fireEvent.click(within(tabs).getByRole('button', { name: /Xtream Codes/ }))
+    expect(screen.queryByRole('region', { name: 'Pelo site' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Nome da lista'), { target: { value: 'Minha lista' } })
+
+    fireEvent.click(within(tabs).getByRole('button', { name: /Pelo site/ }))
+    expect(screen.getByRole('region', { name: 'Pelo site' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Nome da lista')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Conectar e sincronizar' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Voltar' })).toHaveLength(1)
+
+    fireEvent.click(within(tabs).getByRole('button', { name: /Xtream Codes/ }))
+    expect(screen.getByLabelText('Nome da lista')).toHaveValue('Minha lista')
+    expect(screen.queryByRole('region', { name: 'Pelo site' })).not.toBeInTheDocument()
   })
 
   it('as setas percorrem tipos → campos → Voltar → "Conectar e sincronizar", na ordem visual', () => {
     render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
 
-    const expected = ['Lista M3U', 'Nome da lista', 'Servidor', 'Usuário', 'Senha', 'Voltar', 'Conectar e sincronizar']
+    const expected = ['Lista M3U', 'Nome da lista', 'Servidor', 'Usuário', 'Senha', 'Ocultar dados', 'Voltar', 'Conectar e sincronizar']
     const seen: string[] = []
     for (let i = 0; i < expected.length; i += 1) {
       fireEvent.keyDown(document, { key: 'ArrowDown' })
@@ -324,6 +351,10 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
 
   it('OK duplo em "Conectar e sincronizar" cria uma lista só; o botão segue focável durante o envio', async () => {
     const onSourceCreated = vi.fn()
+    // Feature 045: a lista só é criada depois que a conexão é confirmada.
+    vi.mocked(globalThis.fetch).mockImplementation(() =>
+      Promise.resolve(new Response('#EXTM3U\n#EXTINF:-1,Canal\nhttp://lista.exemplo/1.ts\n')),
+    )
     render(<AddSourceScreen onSourceCreated={onSourceCreated} onBack={vi.fn()} />, { wrapper: createWrapper() })
 
     chooseM3u()
@@ -364,10 +395,11 @@ describe('AddSourceScreen — edição no visual novo (feature 037, US4)', () =>
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Editar lista')
     expect(screen.getByText('Suas listas')).toBeInTheDocument()
-    expect(screen.getByText('Altere o que precisar. Usuário e senha em branco continuam como estão.')).toBeInTheDocument()
+    expect(screen.getByText('Altere o que precisar. Os dados salvos aparecem abaixo; campo em branco continua como está.')).toBeInTheDocument()
     expect(screen.getByText('Xtream Codes')).toBeInTheDocument()
 
-    expect(document.querySelector('[aria-pressed]')).toBeNull()
+    // Feature 045: o ria-pressed do Mostrar senha é outro; o que não existe em edição é o seletor de tipo.
+    expect(document.querySelector('.source-type[aria-pressed]')).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Conectar com celular' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Como funciona' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /celular/i })).not.toBeInTheDocument()
@@ -419,8 +451,48 @@ describe('AddSourceScreen — edição no visual novo (feature 037, US4)', () =>
       'Deixe em branco para manter a URL atual',
     )
     expect(screen.queryByLabelText('Servidor')).not.toBeInTheDocument()
-    expect(document.querySelector('[aria-pressed]')).toBeNull()
+    // Feature 045: o ria-pressed do Mostrar senha é outro; o que não existe em edição é o seletor de tipo.
+    expect(document.querySelector('.source-type[aria-pressed]')).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Conectar com celular' })).not.toBeInTheDocument()
     expect(findUnnamedControls(container).map((f) => f.description)).toEqual([])
+  })
+
+  it('070: Xtream mostra os valores salvos, sem "deixe em branco"; salvar sem mexer não reenvia o segredo nem confirma a conexão (FR-011)', async () => {
+    await db.sources.put({ id: 'src-prov', type: 'provider_credentials', displayName: 'Meu Provedor', providerDns: 'http://prov.test',
+      providerUsername: 'maria', providerPassword: 'segredo-9', connectionState: 'synced', createdAt: 1, updatedAt: 1 } as never)
+    const update = vi.spyOn(sourceRepository, 'updateSource').mockResolvedValue(undefined)
+    const onSourceUpdated = vi.fn()
+    render(<AddSourceScreen existingSource={makeProviderSource()} onSourceCreated={vi.fn()} onSourceUpdated={onSourceUpdated} onBack={vi.fn()} />, {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(screen.getByLabelText('Senha')).toHaveValue('segredo-9'))
+    expect(screen.getByLabelText('Usuário')).toHaveValue('maria')
+    expect(screen.getByLabelText('Servidor')).toHaveValue('http://prov.test')
+    expect(screen.queryByText(/Deixe em branco/)).not.toBeInTheDocument()
+    // Nenhum valor salvo vaza para texto ou nome acessível (contrato 045).
+    expect(document.body.textContent).not.toContain('segredo-9')
+    expect(Array.from(document.querySelectorAll('[aria-label]')).map((el) => el.getAttribute('aria-label')).join(' ')).not.toContain('segredo-9')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }))
+    await waitFor(() => expect(onSourceUpdated).toHaveBeenCalledTimes(1))
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+    expect(update).toHaveBeenCalledWith('src-prov', {
+      displayName: 'Meu Provedor', m3uUrl: undefined, providerDns: 'http://prov.test',
+      providerUsername: undefined, providerPassword: undefined,
+    })
+  })
+
+  it('070: M3U mostra a URL salva e o olho a mascara junto dos outros dados (FR-010, FR-011)', async () => {
+    await db.sources.put({ id: 'src-prov', type: 'm3u_url', displayName: 'Minha M3U', m3uUrl: 'http://lista.exemplo/a.m3u',
+      connectionState: 'synced', createdAt: 1, updatedAt: 1 } as never)
+    const m3u = makeProviderSource({ type: 'm3u_url', provider_dns: null, display_name: 'Minha M3U' })
+    render(<AddSourceScreen existingSource={m3u} onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
+
+    await waitFor(() => expect(screen.getByLabelText('URL M3U')).toHaveValue('http://lista.exemplo/a.m3u'))
+    expect(screen.queryByText('Deixe em branco para manter a URL atual')).not.toBeInTheDocument()
+    expect((screen.getByLabelText('URL M3U') as HTMLInputElement).type).toBe('url')
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar dados' }))
+    expect((screen.getByLabelText('URL M3U') as HTMLInputElement).type).toBe('password')
   })
 })

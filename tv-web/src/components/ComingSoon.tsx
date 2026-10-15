@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { getComingSoon } from '../lib/comingSoon'
+import { comingSoonMessage, comingSoonToast } from '../lib/comingSoon'
+import { useT } from '../lib/i18n/I18nProvider'
 import { useAnnounce } from '../lib/announcer'
 import { Icon } from './Icon'
 
@@ -17,11 +18,12 @@ export interface ComingSoonProps {
  * sem depender de `onSelect` ser fornecido.
  */
 export function ComingSoon({ id, focused, onSelect }: ComingSoonProps): ReactNode {
-  const { message } = getComingSoon(id)
+  const t = useT()
+  const message = comingSoonMessage(id, t)
   const announce = useAnnounce()
 
   function handleSelect() {
-    announce(`Em breve — ${message}`)
+    announce(comingSoonToast(id, t))
     onSelect?.()
   }
 

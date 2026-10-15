@@ -1,0 +1,91 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "kind",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nextDueAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "operations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "operations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sourceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "action",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "state",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "operations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "action",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "state",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "configurations",
+      "fieldPath": "envelope",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "configurationVersions",
+      "fieldPath": "envelope",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "recoveryResults",
+      "fieldPath": "envelope",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "recoveryClaims",
+      "fieldPath": "bootstrapEnvelope",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "accessIntents",
+      "fieldPath": "envelope",
+      "indexes": []
+    }
+  ]
+}

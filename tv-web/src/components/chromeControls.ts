@@ -1,3 +1,4 @@
+import { createTranslator, type Translator } from '../lib/i18n/translate'
 import type { PlayerCapabilities, PlayerProgress } from '../lib/player/PlayerService'
 
 /**
@@ -15,10 +16,13 @@ export type ChromeControlId =
   | 'episodeNext'
   | 'tracks'
   | 'quality'
-  | 'speed'
   | 'aspect'
   | 'info'
   | 'guide'
+  /** Feature 058 (FR-012): no programa de arquivo, volta ao ao vivo do canal. */
+  | 'goLive'
+  /** Feature 058 (FR-015): no ao vivo de canal com arquivo, toca o programa atual desde o começo. */
+  | 'startOver'
 
 /**
  * `real`: age sobre a sessão. `soon`: mock "Em breve" (registro único
@@ -42,20 +46,63 @@ export interface ChromeFeatures {
    * real, só falta a tela que monta o player saber abri-lo).
    */
   guide?: boolean
+  /**
+   * Feature 041: o motor aplica ao menos um modo de aspecto. Opcional
+   * (ausente = indisponível) para chamadas antigas continuarem válidas.
+   */
+  aspect?: boolean
+  /**
+   * Feature 041: quantas qualidades distintas o stream anuncia — `many` (≥ 2,
+   * real), `single` (1) ou `none` (0 ou motor sem a API). Ausente = `none`.
+   */
+  quality?: 'many' | 'single' | 'none'
+  /** Feature 058 (FR-012): VOD que é programa de arquivo — ganha "Ao vivo" logo depois de ⏩. */
+  archive?: boolean
+  /**
+   * Feature 058 (FR-015/FR-016): "Do início" no Live, logo depois de "Guia".
+   * `enabled` = real; `disabled` = canal com arquivo sem programa atual (soft
+   * disabled); `none`/ausente = canal sem arquivo, o controle não existe.
+   */
+  startOver?: 'enabled' | 'disabled' | 'none'
 }
 
 const NO_FEATURES: ChromeFeatures = { tracks: false, info: false }
 
-function tracksControl(features: ChromeFeatures): ChromeControl {
-  return features.tracks
-    ? { id: 'tracks', availability: 'real', label: 'Áudio e legendas' }
-    : { id: 'tracks', availability: 'unavailable', label: 'Áudio e legendas — indisponível' }
+function unavailable(t: Translator, label: string): string {
+  return t('player.tracks.unavailableSuffix', { label })
 }
 
-function infoControl(features: ChromeFeatures): ChromeControl {
+function qualityControl(features: ChromeFeatures, t: Translator): ChromeControl {
+  const label = t('player.chrome.quality')
+  switch (features.quality) {
+    case 'many':
+      return { id: 'quality', availability: 'real', label }
+    case 'single':
+      return { id: 'quality', availability: 'unavailable', label: t('player.chrome.onlyOne', { label }) }
+    default:
+      return { id: 'quality', availability: 'unavailable', label: unavailable(t, label) }
+  }
+}
+
+function aspectControl(features: ChromeFeatures, t: Translator): ChromeControl {
+  const label = t('player.chrome.aspect')
+  return features.aspect
+    ? { id: 'aspect', availability: 'real', label }
+    : { id: 'aspect', availability: 'unavailable', label: unavailable(t, label) }
+}
+
+function tracksControl(features: ChromeFeatures, t: Translator): ChromeControl {
+  const label = t('player.tracks.title')
+  return features.tracks
+    ? { id: 'tracks', availability: 'real', label }
+    : { id: 'tracks', availability: 'unavailable', label: unavailable(t, label) }
+}
+
+function infoControl(features: ChromeFeatures, t: Translator): ChromeControl {
+  const label = t('player.info.title')
   return features.info
-    ? { id: 'info', availability: 'real', label: 'Info do stream' }
-    : { id: 'info', availability: 'unavailable', label: 'Info do stream — indisponível' }
+    ? { id: 'info', availability: 'real', label }
+    : { id: 'info', availability: 'unavailable', label: unavailable(t, label) }
 }
 
 export interface ChromeControl {
@@ -112,7 +159,8 @@ export function hasSeekBar(capabilities: PlayerCapabilities, progress: PlayerPro
 /**
  * Linha de controles, na ordem de foco (←/→, sem volta nas pontas).
  * VOD: [episódio anterior] ⏪ ▶⏸ ⏩ [próximo episódio] Áudio Qualidade
- * Velocidade Aspecto Info. Live: Guia Áudio Qualidade Aspecto Info.
+ * Aspecto Info (sem Velocidade — feature 041, D-001). Live: Guia Áudio
+ * Qualidade Aspecto Info.
  * Controle real cuja capacidade é `false` NÃO entra (regra da 011, D-003).
  * `episodePrevious`/`episodeNext` só entram com `episode` não nulo —
  * `availability: 'limit'` quando o lado correspondente de
@@ -128,14 +176,27 @@ export function chromeControls(
   paused: boolean,
   episode: ChromeEpisodeNeighbors | null,
   features: ChromeFeatures = NO_FEATURES,
+  t: Translator = createTranslator('pt'),
 ): ChromeControl[] {
   if (media === 'live') {
+    const guide = t('player.chrome.guide')
+    const live: ChromeControl[] = [
+      features.guide
+        ? { id: 'guide', availability: 'real', label: guide }
+        : { id: 'guide', availability: 'soon', label: t('player.chrome.soon', { label: guide }) },
+    ]
+    // Feature 058: "Guia" continua o 1º (contratos 027/031/041 contam a partir dele).
+    if (features.startOver === 'enabled') {
+      live.push({ id: 'startOver', availability: 'real', label: t('player.chrome.startOver') })
+    } else if (features.startOver === 'disabled') {
+      live.push({ id: 'startOver', availability: 'unavailable', label: t('player.chrome.startOverUnavailable') })
+    }
     return [
-      features.guide ? { id: 'guide', availability: 'real', label: 'Guia' } : { id: 'guide', availability: 'soon', label: 'Guia — em breve' },
-      tracksControl(features),
-      { id: 'quality', availability: 'soon', label: 'Qualidade — em breve', comingSoonId: 'player-quality' },
-      { id: 'aspect', availability: 'soon', label: 'Aspecto — em breve', comingSoonId: 'player-aspect' },
-      infoControl(features),
+      ...live,
+      tracksControl(features, t),
+      qualityControl(features, t),
+      aspectControl(features, t),
+      infoControl(features, t),
     ]
   }
 
@@ -145,30 +206,32 @@ export function chromeControls(
     controls.push({
       id: 'episodePrevious',
       availability: episode.hasPrevious ? 'real' : 'limit',
-      label: episode.hasPrevious ? 'Episódio anterior' : 'Episódio anterior — indisponível',
+      label: episode.hasPrevious ? t('player.chrome.previousEpisode') : t('player.chrome.previousEpisodeUnavailable'),
     })
   }
   if (capabilities.canSeek) {
-    controls.push({ id: 'jumpBack', availability: 'real', label: 'Voltar 10 segundos' })
+    controls.push({ id: 'jumpBack', availability: 'real', label: t('player.chrome.jumpBack') })
   }
   if (capabilities.canPause) {
-    controls.push({ id: 'playPause', availability: 'real', label: paused ? 'Reproduzir' : 'Pausar' })
+    controls.push({ id: 'playPause', availability: 'real', label: paused ? t('player.chrome.play') : t('player.chrome.pause') })
   }
   if (capabilities.canSeek) {
-    controls.push({ id: 'jumpForward', availability: 'real', label: 'Avançar 10 segundos' })
+    controls.push({ id: 'jumpForward', availability: 'real', label: t('player.chrome.jumpForward') })
+  }
+  if (features.archive) {
+    controls.push({ id: 'goLive', availability: 'real', label: t('player.chrome.goLive') })
   }
   if (episode) {
     controls.push({
       id: 'episodeNext',
       availability: episode.hasNext ? 'real' : 'limit',
-      label: episode.hasNext ? 'Próximo episódio' : 'Próximo episódio — indisponível',
+      label: episode.hasNext ? t('player.chrome.nextEpisode') : t('player.chrome.nextEpisodeUnavailable'),
     })
   }
-  controls.push(tracksControl(features))
-  controls.push({ id: 'quality', availability: 'soon', label: 'Qualidade — em breve', comingSoonId: 'player-quality' })
-  controls.push({ id: 'speed', availability: 'soon', label: 'Velocidade — em breve', comingSoonId: 'player-speed' })
-  controls.push({ id: 'aspect', availability: 'soon', label: 'Aspecto — em breve', comingSoonId: 'player-aspect' })
-  controls.push(infoControl(features))
+  controls.push(tracksControl(features, t))
+  controls.push(qualityControl(features, t))
+  controls.push(aspectControl(features, t))
+  controls.push(infoControl(features, t))
 
   return controls
 }

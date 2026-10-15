@@ -1,0 +1,22 @@
+{
+    "feature":  "052-vitrine-filmes-series",
+    "lockedAt":  "2026-10-07 17:59",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/features/vod/vodShowcase.vitrine-filmes-series.contract.test.ts",
+                      "sha256":  "d0cd562b5a1a3c0a56d10737b7ff625a447cde6e1c26ddff070eeac3ae910351",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/vod/VodShowcaseScreen.vitrine-filmes-series.contract.test.tsx",
+                      "sha256":  "8a4ed23bd7d7a97a6376240fa4f13312920668cc5d078b40e06e614e22ef3b61",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/vod/VodCategoryScreen.vitrine-filmes-series.contract.test.tsx",
+                      "sha256":  "a2b30d7bd7105babc6779fdca7bf5a483d2d82a71d76ca0893950f23752f2809",
+                      "tests":  2
+                  }
+              ]
+}

@@ -6,7 +6,11 @@
 
 import { db, type CatalogDb } from '../catalog/db'
 import { clearProgress, markCompleted, updateProgress } from '../catalog/userStateRepository'
+import { progressFailureCode } from '../network/storageFailure'
+import { notifyProgressSettled } from './progressSettled'
 import { RESUME_MIN_SECONDS, isPastEnd, shouldWriteProgress } from './resumePolicy'
+
+export { notifyProgressSettled }
 
 /** Identidade do item cuja posição está sendo gravada. */
 export interface ProgressRecorderIdentity {
@@ -15,7 +19,7 @@ export interface ProgressRecorderIdentity {
 }
 
 /** Por que a reprodução está saindo — decide o tratamento de FR-017/FR-020. */
-export type ExitReason = 'pause' | 'close' | 'completed'
+export type ExitReason = 'pause' | 'close' | 'completed' | 'license'
 
 export interface ProgressRecorderOptions {
   /**
@@ -53,6 +57,11 @@ export interface ProgressRecorder {
    * (`onCompleted`/`onClose` chamado em seguida) precisa de `await`.
    */
   onExit(reason: ExitReason): Promise<void>
+  /**
+   * Código curto (`PRG-W-…`) da última escrita que falhou e ainda não foi avisada, ou `null` — entrega uma vez só.
+   * Uma escrita que dá certo depois apaga a falha anterior (o progresso se recuperou sozinho: nada a avisar).
+   */
+  takeFailureCode(): string | null
 }
 
 /**
@@ -81,19 +90,39 @@ export function createProgressRecorder(
   // última posição conhecida e poderia regravar progresso num registro que
   // acabou de ser apagado como concluído.
   let done = false
+  // Falha de escrita nunca some em silêncio (bug `filmes-no-salvam-progresso-reproduo-nem`): fica registrada como código
+  // seguro e a próxima oportunidade tenta de novo.
+  let failure: string | null = null
 
   function write(positionMs: number): Promise<void> {
     if (!identity) return Promise.resolve()
+    const previous = lastWrittenMs
     lastWrittenMs = positionMs
-    return updateProgress(identity.stableId, identity.sourceId, Math.floor(positionMs / 1000), database)
+    return Promise.resolve(updateProgress(identity.stableId, identity.sourceId, Math.floor(positionMs / 1000), database)).then(
+      () => {
+        failure = null
+      },
+      (error: unknown) => {
+        lastWrittenMs = previous // o próximo tique volta a tentar gravar
+        failure = progressFailureCode(error)
+      },
+    )
   }
 
   function clear(): Promise<void> {
     if (!identity) return Promise.resolve()
-    if (options.recordCompletion) {
-      return markCompleted(identity.stableId, identity.sourceId, database)
-    }
-    return clearProgress(identity.stableId, identity.sourceId, database)
+    const written = options.recordCompletion
+      ? markCompleted(identity.stableId, identity.sourceId, database)
+      : clearProgress(identity.stableId, identity.sourceId, database)
+    return Promise.resolve(written).then(
+      () => {
+        failure = null
+      },
+      (error: unknown) => {
+        clearedThisSession = false // o próximo tique depois do limiar tenta registrar a conclusão de novo
+        failure = progressFailureCode(error)
+      },
+    )
   }
 
   /** `aoAtualizarPosição` do design — usada tanto por `onProgress` quanto por `onExit`. */
@@ -102,6 +131,8 @@ export function createProgressRecorder(
     if (!identity) return Promise.resolve()
 
     if (isPastEnd(positionMs, durationMs, options.completionRatio)) {
+      // Uma vez só: cada tique depois do limiar enfileirava outra transação de conclusão no IndexedDB (lento na TV).
+      if (clearedThisSession) return Promise.resolve()
       clearedThisSession = true
       return clear()
     }
@@ -131,7 +162,55 @@ export function createProgressRecorder(
       }
       if (!hasAdvanced) return // FR-017: falha antes de qualquer avanço não grava nada
       if (lastKnownMs === null) return
+      if (reason === 'license') {
+        // Vencimento interrompe a sessão: checkpoint final, sem inferir conclusão.
+        if (reportsPosition && !clearedThisSession && lastKnownMs >= RESUME_MIN_SECONDS * 1000) await write(lastKnownMs)
+        done = true
+        return
+      }
       await apply(lastKnownMs, lastKnownDurationMs)
     },
+    takeFailureCode() {
+      const code = failure
+      failure = null
+      return code
+    },
   }
+}
+
+/**
+ * Saída da reprodução: espera a escrita terminar (no máximo `COMPLETION_WRITE_TIMEOUT_MS`, nunca travando o RETURN) e só
+ * então avisa quem lê o estado do usuário — antes, o detalhe invalidava a leitura **antes** da escrita comitar e podia
+ * reler o estado velho — e, se houve falha, com o código curto.
+ */
+export function settleExit(recorder: ProgressRecorder, reason: ExitReason): void {
+  void settleWithin(Promise.resolve(recorder.onExit(reason)), COMPLETION_WRITE_TIMEOUT_MS).then(() => notifyProgressSettled(recorder.takeFailureCode()))
+}
+
+/** Quanto a navegação depois da conclusão espera pela gravação de "concluído" antes de seguir mesmo assim. */
+export const COMPLETION_WRITE_TIMEOUT_MS = 1500
+
+/**
+ * Resolve quando `promise` termina — com sucesso OU falha — ou quando `ms` passa, o que vier primeiro (bug
+ * `serie-sem-proximo-episodio-controles-somem`: na TV, esperar a escrita da conclusão sem prazo deixava a tela preta, sem a
+ * contagem do próximo). `onGiveUp` só informa o motivo ('falhou'/'prazo'), nunca dado da mídia.
+ */
+export function settleWithin(promise: Promise<unknown>, ms: number, onGiveUp?: (why: 'falhou' | 'prazo') => void): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      onGiveUp?.('prazo')
+      resolve()
+    }, ms)
+    promise.then(
+      () => {
+        clearTimeout(timer)
+        resolve()
+      },
+      () => {
+        clearTimeout(timer)
+        onGiveUp?.('falhou')
+        resolve()
+      },
+    )
+  })
 }

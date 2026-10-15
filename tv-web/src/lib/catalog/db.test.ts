@@ -14,6 +14,42 @@ afterEach(async () => {
   if (dbName) await Dexie.delete(dbName)
 })
 
+describe('CatalogDb - schema v18 (feature 065)', () => {
+  it('expõe manifestos e chunks de projeção com a chave composta', async () => {
+    dbName = `test-db-v18-projection-${Math.random().toString(36).slice(2)}`
+    const database = new CatalogDb(dbName)
+    await database.open()
+
+    await database.catalogReadManifests.put({
+      categoryId: 7,
+      sourceId: 'src-1',
+      generation: 3,
+      kind: 'movie',
+      revision: 'r1',
+      formatVersion: 1,
+      count: 1,
+      chunkSize: 240,
+      chunkCount: 1,
+      ready: true,
+    })
+    await database.catalogReadChunks.put({
+      id: [7, 'r1', 0],
+      categoryId: 7,
+      sourceId: 'src-1',
+      generation: 3,
+      kind: 'movie',
+      revision: 'r1',
+      chunk: 0,
+      items: [],
+    })
+
+    expect(await database.catalogReadManifests.get(7)).toMatchObject({ sourceId: 'src-1', generation: 3 })
+    expect(await database.catalogReadChunks.where('[categoryId+revision]').equals([7, 'r1']).count()).toBe(1)
+
+    database.close()
+  })
+})
+
 /**
  * Réplica só até a v6 — o schema real antes desta feature. Serve para
  * simular um aparelho que já tinha dado gravado, sem duplicar o código de

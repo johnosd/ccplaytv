@@ -17,13 +17,21 @@
 
 .settings-body .side-category-nav {
   flex: none;
-  width: calc(var(--space-7) * 3);
+  /* 4 × 96px desde a feature 068: com a letra de 24px, "Acessibilidade & sistema" não cabia em 288px. */
+  width: calc(var(--space-7) * 4);
 }
 
 .settings-panel {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  /* Achado na feature 036: o `overflow` recortava o anel de foco (contorno +
+     deslocamento + halo, ~8px para fora) das linhas de largura total, que
+     encostam na borda do painel. A folga interna dá espaço ao anel, e a
+     margem negativa igual mantém o conteúdo exatamente onde estava. As
+     linhas largas também usam `.no-scale` (§11: linhas não escalam). */
+  padding: var(--space-1);
+  margin: calc(-1 * var(--space-1));
 }
 
 /* Fontes IPTV. */
@@ -61,10 +69,30 @@
 
 .sources-panel-type,
 .sources-panel-status,
+.sources-panel-account,
+.sources-panel-counts,
 .sources-panel-epg {
   font-weight: 500;
   font-size: var(--fs-caption);
   color: var(--text-tertiary);
+}
+
+/* Chip passivo de aviso da conta (feature 034, FR-005/FR-007): texto sempre
+   presente — a cor (âmbar/erro) só reforça. */
+.sources-panel-chip {
+  padding: 0 var(--space-1);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+}
+
+.sources-panel-chip--warning {
+  color: var(--warning);
+}
+
+.sources-panel-chip--error {
+  color: var(--danger);
 }
 
 .sources-panel-badge {
@@ -145,11 +173,103 @@
 .accessibility-panel-note {
   margin: 0;
   padding: 0 var(--space-3);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-tertiary);
 }
 
+/* Privacidade (feature 036, `logic/remocao-historico.md` §11). */
+.privacy-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.privacy-panel-heading {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-heading);
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.privacy-panel-note {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-body);
+  color: var(--text-tertiary);
+}
+
+.privacy-panel-row {
+  appearance: none;
+  border: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.privacy-panel-row.tv-focus {
+  background: var(--bg-hover);
+}
+
+.privacy-panel-value {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
 /* Integrações & BYOK (feature 032, `logic/integracoes-e-dock.md` §1). */
+.speed-test-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.speed-test-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+}
+
+/* O diálogo é estreito (~640px): as quatro métricas (feature 064) ficam em 2×2 para o rótulo "Latência HTTP" caber. */
+.speed-test-dialog .speed-test-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.speed-test-metrics > div {
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.speed-test-metrics dt {
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.speed-test-metrics dd {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+}
+
+.speed-test-result {
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+}
+
+.speed-test-status {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
 .integrations-panel {
   display: flex;
   flex-direction: column;
@@ -225,7 +345,7 @@
 
 .integration-card-fact dt {
   min-width: calc(var(--space-7) * 2);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-annotation);
 }
 
@@ -288,6 +408,9 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
+  /* Feature 045 (US3): a tela rola para o campo focado subir à metade de cima.
+     O anel de foco fica dentro do padding de `.screen`, então o recorte não o alcança. */
+  overflow-y: auto;
 }
 
 .epg-settings-status {
@@ -347,4 +470,223 @@
   font-weight: 700;
   font-size: var(--fs-body);
   color: var(--text-primary);
+}
+
+/* Categorias & parental (feature 066, US1): seções e, por categoria, Visível/Escondida. */
+.parental-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.parental-panel-heading {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-heading);
+  font-size: var(--fs-h2);
+  color: var(--text-primary);
+}
+
+.parental-panel-note {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-body);
+  color: var(--text-tertiary);
+}
+
+.parental-sections {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.parental-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.parental-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.parental-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.parental-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: var(--fs-body);
+}
+
+.parental-row.is-hidden .parental-row-name {
+  color: var(--text-tertiary);
+}
+
+.parental-toggle {
+  appearance: none;
+  border: 2px solid var(--text-annotation);
+  min-width: 180px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.parental-toggle.is-on {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.parental-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.parental-control-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 360px;
+  justify-content: space-between;
+  font-size: var(--fs-body);
+}
+
+.parental-control-state {
+  font-weight: 700;
+}
+
+.parental-row-tag {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  color: var(--text-primary);
+  font-size: var(--fs-caption);
+}
+
+.parental-gate-button {
+  align-self: flex-start;
+}
+
+/* Sugestão de categorias adultas ao ligar o controle parental (feature 066, US3). */
+.parental-suggest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 640px;
+}
+
+.parental-suggest-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 480px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+}
+
+.parental-suggest-row {
+  appearance: none;
+  border: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.parental-suggest-row.tv-focus {
+  background: var(--bg-hover);
+}
+
+.parental-suggest-check {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--text-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.parental-suggest-section {
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+}
+
+/*
+ * Aviso de escopo (feature 067, FR-002/FR-014): "valem só para esta lista" na
+ * tela da lista e "valem para todas as listas" nas globais — logo abaixo do
+ * título, colado nele (o título já reserva o respiro de baixo).
+ */
+.settings-scope-note {
+  margin: calc(-1 * var(--space-3)) 0 var(--space-4);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+/* Sem título acima (Configurações com topbar): não há o respiro do título para puxar de volta. */
+.settings-scope-note--lone {
+  margin-top: 0;
+}
+
+/* Configurações da lista (feature 067): nome da lista ao lado do título. */
+.list-settings-name {
+  color: var(--text-secondary);
+}
+
+/* Abas Conta & lista e EPG: mesmo cartão das linhas de Fontes IPTV. */
+.list-settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.list-settings-hint {
+  flex-basis: 100%;
+  font-size: var(--fs-body);
+  color: var(--text-tertiary);
+}
+
+/* O rótulo mais longo ("Categorias & controle parental") não cabe na coluna das Configurações globais. */
+.list-settings-screen .settings-body .side-category-nav {
+  width: calc(var(--space-7) * 5);
 }

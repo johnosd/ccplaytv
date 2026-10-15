@@ -1,0 +1,17 @@
+{
+    "feature":  "041-player-qualidade-aspecto",
+    "lockedAt":  "2026-10-01 14:20",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/components/PlayerLayer.qualidade-aspecto.contract.test.tsx",
+                      "sha256":  "7c16d349d9eea08efd91d919c7a02cbdc716fc623913e30e28f6e02dad7cbb86",
+                      "tests":  4
+                  },
+                  {
+                      "path":  "tv-web/src/features/settings/SettingsScreen.player-reproducao.contract.test.tsx",
+                      "sha256":  "70c7791314b56cae2cabe2a65a9a0c64b5dd8afdeb1895c73009bf892ceb1641",
+                      "tests":  1
+                  }
+              ]
+}

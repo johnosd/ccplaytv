@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useT } from '../lib/i18n/I18nProvider'
 import type { TracksPanelModel, TracksRow } from './playerPanels'
 
 export interface PlayerTracksPanelProps {
@@ -15,6 +16,7 @@ export interface PlayerTracksPanelProps {
  * SELECT faz é o `PlayerLayer`.
  */
 export function PlayerTracksPanel({ model, focusedKey }: PlayerTracksPanelProps) {
+  const t = useT()
   const focusedRef = useRef<HTMLButtonElement | null>(null)
 
   // A linha focada precisa estar à vista: o painel rola sozinho, sem barra
@@ -48,26 +50,26 @@ export function PlayerTracksPanel({ model, focusedKey }: PlayerTracksPanelProps)
 
   return (
     <div className="modal-overlay">
-      <div className="modal-panel player-panel no-scrollbar" role="dialog" aria-modal="true" aria-label="Áudio e legendas">
-        <h2 className="modal-title">Áudio e legendas</h2>
+      <div className="modal-panel player-panel no-scrollbar" role="dialog" aria-modal="true" aria-label={t('player.tracks.title')}>
+        <h2 className="modal-title">{t('player.tracks.title')}</h2>
 
-        <h3 className="player-panel-heading">Áudio</h3>
-        <div role="radiogroup" aria-label="Áudio" className="player-panel-group">
+        <h3 className="player-panel-heading">{t('player.tracks.audio')}</h3>
+        <div role="radiogroup" aria-label={t('player.tracks.audio')} className="player-panel-group">
           {model.audioRows.map((row) => renderRow(row, 'radio'))}
         </div>
         {model.noAudioNote && <p className="player-panel-note">{model.noAudioNote}</p>}
         {renderRow(model.adRow, 'button')}
 
-        <h3 className="player-panel-heading">Legendas</h3>
-        <div role="radiogroup" aria-label="Legendas" className="player-panel-group">
+        <h3 className="player-panel-heading">{t('player.tracks.subtitles')}</h3>
+        <div role="radiogroup" aria-label={t('player.tracks.subtitles')} className="player-panel-group">
           {model.textRows.map((row) => renderRow(row, 'radio'))}
         </div>
         {model.noTextNote && <p className="player-panel-note">{model.noTextNote}</p>}
 
         {model.delayRows.length > 0 && (
           <>
-            <h3 className="player-panel-heading">Sincronização da legenda</h3>
-            <div role="radiogroup" aria-label="Sincronização da legenda" className="player-panel-group">
+            <h3 className="player-panel-heading">{t('player.tracks.sync')}</h3>
+            <div role="radiogroup" aria-label={t('player.tracks.sync')} className="player-panel-group">
               {model.delayRows.map((row) => renderRow(row, 'radio'))}
             </div>
           </>

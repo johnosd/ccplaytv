@@ -1,0 +1,27 @@
+{
+    "feature":  "058-headers-avplay-catchup",
+    "lockedAt":  "2026-10-04 09:43",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/player/avplayAdapter.headers-avplay-catchup.contract.test.ts",
+                      "sha256":  "ff44ba07529ea3bbe51babe033feb1097b3eaa3b25925bb4d52a7f2d31452199",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/components/PlayerLayer.headers-avplay-catchup.contract.test.tsx",
+                      "sha256":  "70406b8198a26b5b0e26a460943fa56b4d9248e1c3ee04a4101c71115ef056a5",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/lib/epg/catchup.headers-avplay-catchup.contract.test.ts",
+                      "sha256":  "1192a9cfa04bcd75da77de219fcc671d36931489039b84a9bbb3d4f0430b03b6",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/archiveUrl.headers-avplay-catchup.contract.test.ts",
+                      "sha256":  "a438faa7ea05d7db4573d8d2ae64ed3d89882d405d8f945f861b481c08580c88",
+                      "tests":  1
+                  }
+              ]
+}

@@ -1,0 +1,1 @@
+import{o as e}from"./errorCatalog.js";function t(){return e().online}export{t};

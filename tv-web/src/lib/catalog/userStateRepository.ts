@@ -11,6 +11,10 @@
  */
 
 import { db, type CatalogDb, type CatalogItemKind, type UserStateRecord } from './db'
+import { invalidateSeriesWatchForStableId } from './seriesWatchRepository'
+import { isInHistory } from './historyPolicy'
+
+export { isInHistory } from './historyPolicy'
 
 /**
  * O que identifica um item entre importações. Os campos opcionais refletem
@@ -147,7 +151,8 @@ export async function listWatched(
  * (`getContinueWatching` o usa): registro sem `lastWatched` não entra no
  * índice, então não precisa filtro extra para excluí-lo — só o marcado à
  * mão via `setWatchedManually` fica de fora (FR-011), porque nunca grava
- * `lastWatched`.
+ * `lastWatched`. Removido do Histórico (feature 036, `isInHistory`) também
+ * fica de fora — este é o único leitor do Histórico (D-002).
  */
 export async function listPlayed(
   sourceId: string,
@@ -156,7 +161,9 @@ export async function listPlayed(
 ): Promise<UserStateRecord[]> {
   const prefix = `${sourceId}|${kind}|`
   const played = await database.userStates.orderBy('lastWatched').reverse().toArray()
-  return played.filter((state) => state.sourceId === sourceId && state.stableId.startsWith(prefix))
+  return played.filter(
+    (state) => state.sourceId === sourceId && state.stableId.startsWith(prefix) && isInHistory(state),
+  )
 }
 
 /**
@@ -206,6 +213,7 @@ async function upsert(
   sourceId: string,
   patch: (current: UserStateRecord) => UserStateRecord,
   database: CatalogDb = db,
+  invalidateSeriesWatch = true,
 ): Promise<void> {
   await database.transaction('rw', database.userStates, async () => {
     const now = Date.now()
@@ -219,8 +227,8 @@ async function upsert(
     }
     await database.userStates.put({ ...patch(base), updatedAt: now })
   })
+  if (invalidateSeriesWatch) await invalidateSeriesWatchForStableId(stableId, database)
 }
-
 export async function toggleFavorite(
   stableId: string,
   sourceId: string,
@@ -238,6 +246,9 @@ export async function toggleFavorite(
       favoritedAt: isFavorite ? (current.favoritedAt ?? Date.now()) : undefined,
     }),
     database,
+    // Favorito não altera o selo de assistido. Uma falha nesse cache
+    // auxiliar não pode rejeitar um favorito que já foi persistido.
+    false,
   )
 }
 

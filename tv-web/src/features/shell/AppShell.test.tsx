@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { AppShell } from './AppShell'
 import { HintBar } from './HintBar'
 
@@ -70,34 +70,48 @@ describe('AppShell', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('"Testar conexão" usa o handler recebido, se houver', () => {
-    setNavigatorOnLine(false)
-    const onTestConnection = vi.fn()
-    render(
-      <AppShell topBar={<div>topbar</div>} hints={HINTS} onTestConnection={onTestConnection}>
-        <p>x</p>
-      </AppShell>,
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Testar conexão' }))
-    expect(onTestConnection).toHaveBeenCalledTimes(1)
-  })
-
-  it('"Testar conexão" sem handler re-lê o estado REAL do navegador, sem inventar conectividade', () => {
+  // Feature 042 (D-007): a ação "Tentar de novo" saiu do banner e foi para a topbar
+  // (coberta em `TopBar.conexao.test.tsx`); o banner offline é só texto.
+  it('offline: o banner é só texto — nenhum botão dentro dele', () => {
     setNavigatorOnLine(false)
     render(
       <AppShell topBar={<div>topbar</div>} hints={HINTS}>
         <p>x</p>
       </AppShell>,
     )
-    // Continua offline: o navegador ainda diz que não há conexão.
-    fireEvent.click(screen.getByRole('button', { name: 'Testar conexão' }))
-    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Sem conexão com a internet.')
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+})
 
-    // O navegador passou a dizer que há conexão, mas o evento se perdeu (TV
-    // que volta de standby): o botão republica o valor real e o banner some.
+// Feature 060 (D-004): fundo opcional da tela, dentro do shell (sai junto com ele quando o player abre).
+describe('AppShell — backdrop opcional (feature 060)', () => {
+  it('sem a prop o DOM é o de sempre: nenhuma camada de fundo e a classe raiz continua só app-shell', () => {
     setNavigatorOnLine(true)
-    fireEvent.click(screen.getByRole('button', { name: 'Testar conexão' }))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    const { container } = render(
+      <AppShell topBar={<div>topbar</div>}>
+        <p>conteúdo</p>
+      </AppShell>,
+    )
+    expect(container.firstElementChild?.className).toBe('app-shell')
+    expect(container.querySelector('.app-shell-backdrop')).toBeNull()
+  })
+
+  it('com a prop o fundo é a 1ª camada do shell, decorativa, antes da topbar e do conteúdo', () => {
+    setNavigatorOnLine(true)
+    const { container } = render(
+      <AppShell topBar={<div>topbar</div>} backdrop={<div>fundo-de-teste</div>}>
+        <p>conteúdo</p>
+      </AppShell>,
+    )
+    const shell = container.firstElementChild as HTMLElement
+    expect(shell).toHaveClass('app-shell', 'app-shell--backdrop')
+    const layer = shell.firstElementChild as HTMLElement
+    expect(layer).toHaveClass('app-shell-backdrop')
+    expect(layer).toHaveAttribute('aria-hidden', 'true')
+    expect(layer).toHaveTextContent('fundo-de-teste')
+    expect(screen.getByText('topbar')).toBeInTheDocument()
+    expect(screen.getByRole('main')).toContainElement(screen.getByText('conteúdo'))
   })
 })
 

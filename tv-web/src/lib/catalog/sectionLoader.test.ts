@@ -85,6 +85,21 @@ describe('loadSection (feature 038, R0-3)', () => {
     expect(categories.find((c) => c.id === c3)?.itemsFetchedAt).toBeUndefined() // não foi pedida
   })
 
+  it('renovação: só avisa a categoria que mudou (bug abrir-app-nao-atualiza-todas-categorias)', async () => {
+    const [c1, c2] = await seedLive()
+    await loadSection(SOURCE_ID, 'channel', [c1, c2], { database, fetchImpl: async () => streamed(SECTION), now: () => 500 })
+
+    const onCategory = vi.fn()
+    const withNew = [...SECTION, { stream_id: 13, name: 'Canal novo', category_id: '1' }]
+    const result = await loadSection(SOURCE_ID, 'channel', [c1, c2], { database, fetchImpl: async () => streamed(withNew), onCategory, now: () => 900 })
+
+    expect(result).toEqual({ outcome: 'done', written: [c1, c2] })
+    expect(onCategory.mock.calls.map(([id]) => id)).toEqual([c1]) // c2 voltou idêntica: nada a reler
+    expect((await listChannels(SOURCE_ID, 0, 0, 10, 'channel', database)).map((r) => r.name)).toEqual(['Canal A', 'Canal B', 'Canal novo'])
+    const categories = await listCategories(SOURCE_ID, 'channel', database)
+    expect(categories.find((c) => c.id === c2)?.itemsFetchedAt).toBe(900) // carimbada mesmo sem mudar
+  })
+
   it('categoria pedida que a seção não traz fica gravada vazia (dado real: a fonte não tem itens nela)', async () => {
     const [c1, , c3] = await seedLive()
     const result = await loadSection(SOURCE_ID, 'channel', [c3], {
@@ -183,6 +198,53 @@ describe('loadSection (feature 038, R0-3)', () => {
     expect(result).toEqual({ outcome: 'failed', written: [] })
     expect(await database.sectionStaging.count()).toBe(0)
     expect(await listChannels(SOURCE_ID, 0, 0, 10, 'channel', database)).toEqual([])
+  })
+
+  it('descarregar no preparo também espera o portão (não compete com a categoria que a pessoa abre)', async () => {
+    const [c1, c2, c3] = await seedLive()
+    const order: string[] = []
+    const realBulkAdd = database.sectionStaging.bulkAdd.bind(database.sectionStaging)
+    vi.spyOn(database.sectionStaging, 'bulkAdd').mockImplementation(((...args: Parameters<typeof realBulkAdd>) => {
+      order.push('preparo')
+      return realBulkAdd(...args)
+    }) as typeof realBulkAdd)
+
+    await loadSection(SOURCE_ID, 'channel', [c1, c2, c3], {
+      database,
+      fetchImpl: async () => streamed(SECTION, 5),
+      stageFlushItems: 1,
+      waitUntilAllowed: async () => {
+        order.push('portão')
+      },
+    })
+
+    expect(order).toContain('preparo')
+    order.forEach((step, index) => {
+      if (step === 'preparo') expect(order[index - 1]).toBe('portão')
+    })
+  })
+
+  it('cancelada no meio do fluxo: apaga o preparo antes de propagar o AbortError', async () => {
+    const [c1, c2] = await seedLive()
+    const controller = new AbortController()
+    let calls = 0
+
+    await expect(
+      loadSection(SOURCE_ID, 'channel', [c1, c2], {
+        database,
+        fetchImpl: async () => streamed(SECTION, 5),
+        stageFlushItems: 1,
+        signal: controller.signal,
+        waitUntilAllowed: async () => {
+          calls += 1
+          // A 1ª descarga acontece; na 2ª, a lista é trocada.
+          if (calls === 2) controller.abort()
+        },
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' })
+
+    expect(calls).toBeGreaterThanOrEqual(2)
+    expect(await database.sectionStaging.count()).toBe(0)
   })
 
   it('cancelado: propaga AbortError', async () => {

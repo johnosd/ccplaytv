@@ -59,4 +59,30 @@ describe('021 — Stage (US2)', () => {
 
     expect(document.activeElement).toBe(button)
   })
+
+  it('com um campo de texto em edição, a janela que só perde altura (teclado da TV) não reescala o palco', () => {
+    setViewport(1920, 1080)
+    const { container } = render(
+      <Stage>
+        <input aria-label="busca" />
+        <button type="button">fora do campo</button>
+      </Stage>,
+    )
+    const stage = container.querySelector('.stage') as HTMLElement
+    screen.getByRole('textbox', { name: 'busca' }).focus()
+
+    setViewport(1920, 540) // teclado subiu
+    window.dispatchEvent(new Event('resize'))
+    expect(stage.style.transform).toBe('')
+
+    setViewport(1920, 1080) // teclado desceu
+    window.dispatchEvent(new Event('resize'))
+    expect(stage.style.transform).toBe('')
+
+    // Sem campo em edição, a mesma perda de altura é uma janela menor de verdade: reescala.
+    screen.getByRole('button', { name: 'fora do campo' }).focus()
+    setViewport(1920, 540)
+    window.dispatchEvent(new Event('resize'))
+    expect(stage.style.transform).toBe('scale(0.5)')
+  })
 })

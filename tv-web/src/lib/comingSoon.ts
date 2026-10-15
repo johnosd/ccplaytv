@@ -1,3 +1,5 @@
+import type { MessageKey } from './i18n/messages/pt'
+import type { Translator } from './i18n/translate'
 export interface ComingSoonEntry {
   message: string
   /**
@@ -16,32 +18,28 @@ export interface ComingSoonEntry {
  * mock é apagar a entrada. A `message` é lida como "Em breve — {message}".
  */
 export const COMING_SOON: Record<string, ComingSoonEntry> = {
-  // Onboarding de lista (feature 023, FR-035).
-  'pair-phone': { message: 'Conectar a lista pelo celular, com QR code.', backlogItem: 22 },
-  // Detalhe de filme/série (feature 025, D-011, FR-043).
-  // O `trailer` do detalhe virou real na 033 (FR-021); o do herói do Início segue fora do escopo dela.
-  'home-trailer': { message: 'Trailer do filme ou da série.', backlogItem: 32 },
+  // Onboarding de lista (feature 023, FR-035): `pair-phone` deixou de ser mock na 070 (coluna real
+  // "Pelo celular" com ID, chave, endereço e QR na tela de cadastro).
+  // Detalhe de filme/série (feature 025, D-011, FR-043): o `trailer` do detalhe virou real na 033 (FR-021) e o do
+  // billboard do Início, na 060 (item 32) — `home-trailer` saiu deste registro.
   // Home definitiva (feature 026, FR-016).
   'home-ai-curation': { message: 'Sugestões de conteúdo por IA, com base no que você assiste.', backlogItem: 30 },
   'dock-ai': { message: 'Assistente de IA para perguntas sobre o catálogo.', backlogItem: 31 },
   'dock-weather': { message: 'Previsão do tempo no dock de serviços.', backlogItem: 54 },
-  'dock-speedtest': { message: 'Teste de velocidade da sua conexão.', backlogItem: 54 },
   // Busca global (feature 026, FR-043).
   'voice-search': { message: 'Busca por voz.', backlogItem: 33 },
   // Configurações (feature 026, FR-031). `settings-integrations` deixou de ser
   // mock na feature 032 (item 28: aba real Integrações & BYOK); `dock-tmdb`
-  // também (ícone TMDB do dock com estado real).
-  'settings-player': { message: 'Preferências de qualidade e trilhas do player.', backlogItem: 55 },
-  'settings-parental': { message: 'Perfis de pessoa e controle parental.', backlogItem: 52 },
+  // também (ícone TMDB do dock com estado real); `settings-parental`, na 066
+  // (aba real Categorias & parental).
   'a11y-voice-guide': { message: 'Narração de tela (Voice Guide).', backlogItem: 56 },
   'a11y-high-contrast': { message: 'Modo de alto contraste.', backlogItem: 56 },
   'a11y-subtitles': { message: 'Aparência das legendas.', backlogItem: 56 },
-  // Chrome do player (feature 027, D-014) — Qualidade/Velocidade/Aspecto,
-  // canal e VOD. Áudio e legendas e Info do stream deixaram de ser mock na
-  // feature 029 (item 55a); o Guia completo, na 031 (item 42c).
-  'player-quality': { message: 'Seleção manual de qualidade do stream.', backlogItem: 55 },
-  'player-speed': { message: 'Velocidade de reprodução.', backlogItem: 55 },
-  'player-aspect': { message: 'Proporção de tela do vídeo.', backlogItem: 55 },
+  // Tela hero de Filmes e Séries (feature 053, D-007): o Top 10 deixou de ser mock na feature 057 (item 67) e "Porque você
+  // assistiu" (`vod-because`), na 060 (item 69) — hoje não resta nenhuma fileira reservada ali.
+  // Chrome do player (feature 027): Áudio e legendas e Info do stream
+  // deixaram de ser mock na 029 (item 55a); o Guia completo, na 031 (42c);
+  // Qualidade e Aspecto, na 041 (55b). Velocidade saiu de vez (041, D-001).
 }
 
 /**
@@ -53,4 +51,18 @@ export function getComingSoon(id: string): ComingSoonEntry {
   const entry = COMING_SOON[id]
   if (!entry) throw new Error(`ComingSoon: id "${id}" não registrado em comingSoon.ts`)
   return entry
+}
+
+/** Mensagem do mock no idioma do app (catálogo `comingSoon.<id>`); o texto em pt é o de `COMING_SOON[id].message`. */
+export function comingSoonMessage(id: string, t: Translator): string {
+  const entry = getComingSoon(id) // mesmo erro cedo para id não registrado
+  const key = `comingSoon.${id}` as MessageKey
+  const translated = t(key)
+  // Id registrado sem texto no catálogo (ex.: mock de teste): vale a mensagem em pt do registro, nunca a chave.
+  return translated === key ? entry.message : translated
+}
+
+/** "Em breve — {mensagem}" no idioma do app (toast/anúncio). */
+export function comingSoonToast(id: string, t: Translator): string {
+  return t('common.comingSoon', { message: comingSoonMessage(id, t) })
 }

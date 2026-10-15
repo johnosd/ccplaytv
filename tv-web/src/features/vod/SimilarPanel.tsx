@@ -3,18 +3,22 @@ import type { ReactNode } from 'react'
 import { ContentCard } from '../../components/ContentCard'
 import type { KindCoverage, ResolvedTitle, SimilarTabStatus } from '../../lib/metadata/types'
 import { OriginTag } from './DetailMetadata'
+import { splitSimilar } from './detailPanelGrid'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
+import type { Translator } from '../../lib/i18n/translate'
 
-export const NOT_FOUND_LABEL = 'Não encontrado na sua lista'
-/** Marcador dos títulos que existem na lista (pedido do usuário, 2026-09-30) — abrem o detalhe local. */
-export const FOUND_LABEL = '✓ Na sua lista'
+/** Chaves do catálogo (feature 054): "Não encontrado na sua lista" e o marcador dos títulos que existem na lista. */
+export const NOT_FOUND_KEY = 'detail.notFound'
+export const FOUND_KEY = 'detail.found'
 
-/** Textos exatos de `logic/aba-semelhantes.md` §2 — alguns contratos dependem deles. */
-const STATE_TEXT: Record<Exclude<SimilarTabStatus, 'ready'>, string> = {
-  loading: 'Buscando títulos semelhantes…',
-  no_key: 'Semelhantes vêm do TMDB. Configure uma chave do TMDB para ver títulos parecidos com este.',
-  no_match: 'Não foi possível identificar este título no TMDB, então não há semelhantes para mostrar.',
-  empty: 'O TMDB não tem títulos semelhantes a este.',
-  unavailable: 'Semelhantes está indisponível agora. Veja o estado do TMDB em Configurações › Integrações & BYOK.',
+/** Textos exatos de `logic/aba-semelhantes.md` §2 (em pt, no catálogo) — alguns contratos dependem deles. */
+const STATE_TEXT_KEY: Record<Exclude<SimilarTabStatus, 'ready'>, MessageKey> = {
+  loading: 'detail.similar.loading',
+  no_key: 'detail.similar.no_key',
+  no_match: 'detail.similar.no_match',
+  empty: 'detail.similar.empty',
+  unavailable: 'detail.similar.unavailable',
 }
 
 export interface SimilarPanelProps {
@@ -31,8 +35,11 @@ export interface SimilarPanelProps {
   onConfigure: () => void
 }
 
-function coverageText(coverage: KindCoverage, kind: 'movie' | 'series'): string {
-  return `Procurado em ${coverage.covered} de ${coverage.total} categorias de ${kind === 'movie' ? 'filmes' : 'séries'}`
+function coverageText(coverage: KindCoverage, kind: 'movie' | 'series', t: Translator): string {
+  return t(kind === 'movie' ? 'detail.similar.coverageMovies' : 'detail.similar.coverageSeries', {
+    covered: coverage.covered,
+    total: coverage.total,
+  })
 }
 
 /**
@@ -50,28 +57,46 @@ export function SimilarPanel({
   onSelectTitle,
   onConfigure,
 }: SimilarPanelProps): ReactNode {
+  const t = useT()
   if (status !== 'ready') {
     return (
       <div className="similar-panel" aria-live="polite">
-        {coverage !== undefined && status === 'empty' && <p className="similar-coverage">{coverageText(coverage, kind)}</p>}
-        <p className="similar-state">{STATE_TEXT[status]}</p>
+        {coverage !== undefined && status === 'empty' && <p className="similar-coverage">{coverageText(coverage, kind, t)}</p>}
+        <p className="similar-state">{t(STATE_TEXT_KEY[status])}</p>
         {status === 'no_key' && (
           <button
             type="button"
             className={`button-secondary${configureFocused ? ' tv-focus' : ''}`}
             onClick={onConfigure}
           >
-            Configurar TMDB
+            {t('detail.similar.configure')}
           </button>
         )}
       </div>
     )
   }
 
+  // Feature 059 (D-007, `logic/semelhantes-duas-linhas.md` §1): o que já está na
+  // lista e o que só o TMDB conhece, em duas linhas tituladas. A 1ª nunca some
+  // (vazia, vira uma frase NÃO focável); a 2ª só existe com algum título.
+  const { found, missing } = splitSimilar(titles)
   return (
     <div className="similar-panel">
-      {coverage !== undefined && <p className="similar-coverage">{coverageText(coverage, kind)}</p>}
-      <SimilarRow titles={titles} focusedKey={focusedKey} onSelectTitle={onSelectTitle} />
+      {coverage !== undefined && <p className="similar-coverage">{coverageText(coverage, kind, t)}</p>}
+      <section className="similar-section" aria-label={t('person.inList')}>
+        <h3 className="similar-section-title">{t('person.inList')}</h3>
+        {found.length > 0 ? (
+          <SimilarRow titles={found} focusedKey={focusedKey} onSelectTitle={onSelectTitle} />
+        ) : (
+          <p className="similar-empty">{t('detail.similar.noneInList')}</p>
+        )}
+      </section>
+      {missing.length > 0 && (
+        <section className="similar-section similar-section--missing" aria-label={t('detail.similar.missingRow')}>
+          <h3 className="similar-section-title">{t('detail.similar.missingRow')}</h3>
+          <SimilarRow titles={missing} focusedKey={focusedKey} onSelectTitle={onSelectTitle} />
+        </section>
+      )}
       <OriginTag origin="tmdb" />
     </div>
   )
@@ -91,6 +116,7 @@ function SimilarRow({
   focusedKey: string | undefined
   onSelectTitle: (title: ResolvedTitle) => void
 }): ReactNode {
+  const t = useT()
   const rowRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (focusedKey === undefined) return
@@ -110,13 +136,9 @@ function SimilarRow({
             meta={title.year !== undefined ? String(title.year) : undefined}
             iconUrl={title.posterUrl}
             focused={focusedKey === title.key}
-            badge={
-              title.localItemId === undefined ? (
-                <span className="similar-chip">{NOT_FOUND_LABEL}</span>
-              ) : (
-                <span className="similar-chip similar-chip--found">{FOUND_LABEL}</span>
-              )
-            }
+            // Feature 059 (D-007): sem selo visível — o título da linha já diz. O não
+            // encontrado guarda o texto como nome acessível (e o contrato da 035 o conta).
+            badge={title.localItemId === undefined ? <span className="sr-only">{t(NOT_FOUND_KEY)}</span> : undefined}
             onSelect={() => onSelectTitle(title)}
           />
         </div>

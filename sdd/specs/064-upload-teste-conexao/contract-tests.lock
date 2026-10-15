@@ -1,0 +1,17 @@
+{
+    "feature":  "064-upload-teste-conexao",
+    "lockedAt":  "2026-10-07 13:12",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/network/connectionTest.upload-teste-conexao.contract.test.ts",
+                      "sha256":  "2dd9905c0591cb11f92162fc4f2453fa520c88a6c387257561feda5aef2a552c",
+                      "tests":  4
+                  },
+                  {
+                      "path":  "tv-web/src/lib/network/speedTestRepository.upload-teste-conexao.contract.test.ts",
+                      "sha256":  "9d48c52e5b2dfe2d2f250274ca9a31371e2bee4aefef307de6dbd2034a2241e0",
+                      "tests":  1
+                  }
+              ]
+}

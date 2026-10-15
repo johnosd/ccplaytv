@@ -176,10 +176,18 @@ async function openSettingsFromHome(page) {
   await page.waitForSelector('.settings-screen .sources-panel', { timeout: 8000 })
 }
 
+/** Feature 067: o EPG da lista mora em Configurações da lista › EPG — "Configurar" na linha leva até lá. */
+async function openEpgSettings(page) {
+  await page.locator('.sources-panel-row', { hasText: SOURCE_NAME }).getByRole('button', { name: 'Configurar' }).click()
+  await page.getByRole('heading', { name: /Configurações da lista/ }).waitFor({ timeout: 8000 })
+  await page.locator('.side-category-nav-item', { hasText: 'EPG' }).click()
+  await page.getByRole('button', { name: 'Configurar EPG' }).click()
+}
+
 async function openLive(page) {
   await page.waitForSelector('.home-content', { timeout: 8000 })
   await openFromTopbar(page, 'TV ao vivo')
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
 }
 
 /** Espera até `predicate` (avaliado no navegador) ser verdadeiro, ou devolve `false` no prazo. */
@@ -223,7 +231,7 @@ async function run() {
   const m3uUrl = `${base}/lista.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   const consoleLines = []
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
@@ -252,7 +260,7 @@ async function run() {
     console.log('=== US1: "Agora" + barra na linha de canal ===')
     await page.keyboard.press('Escape') // RETURN em Configurações → Início
     await openLive(page)
-    await page.keyboard.press('ArrowRight') // entra em "Canais | Notícias"
+    await page.keyboard.press('Enter') // entra em "Canais | Notícias"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       await eventually(page, () => {
@@ -274,20 +282,21 @@ async function run() {
     const previewText = () => page.locator('.live-preview-panel').innerText()
     let text = await previewText()
     assert(
-      /Agora/.test(text) && text.includes('Jornal da Noite') && text.includes('Resumo do dia para o E2E.'),
+      // Feature 048: o atual vive na linha "ao vivo agora" do destaque (innerText já vem com a caixa alta do CSS).
+      /ao vivo agora/i.test(text) && text.includes('Jornal da Noite') && text.includes('Resumo do dia para o E2E.'),
       'preview de "Canal A": "Agora" com título e sinopse',
     )
-    assert(/A seguir/.test(text) && text.includes('Filme da Noite'), 'preview de "Canal A": "A seguir" com o próximo programa')
+    assert(/A seguir/i.test(text) && text.includes('Filme da Noite'), 'preview de "Canal A": "A seguir" com o próximo programa')
     assert(/\d{2}:\d{2} – \d{2}:\d{2}/.test(text), 'os horários aparecem como "HH:MM – HH:MM"')
 
     await page.keyboard.press('ArrowDown') // Canal B
     await page.waitForTimeout(150)
     text = await previewText()
-    assert(text.includes('Esporte ao Vivo') && !/A seguir/.test(text), 'preview de "Canal B": só o "Agora" (não há próximo na janela)')
+    assert(text.includes('Esporte ao Vivo') && !/A seguir/i.test(text), 'preview de "Canal B": só o "Agora" (não há próximo na janela)')
     await page.keyboard.press('ArrowDown') // Canal Sem Guia
     await page.waitForTimeout(150)
     text = await previewText()
-    assert(!/Agora/.test(text) && !/A seguir/.test(text), 'preview de canal sem EPG: nenhum "Agora"/"A seguir" solto')
+    assert(!/Agora/i.test(text) && !/A seguir/i.test(text), 'preview de canal sem EPG: nenhum "Agora"/"A seguir" solto')
     await page.keyboard.press('ArrowUp')
     await page.keyboard.press('ArrowUp')
     assert(
@@ -328,7 +337,8 @@ async function run() {
       }),
       'a lista de zapping por cima do vídeo também mostra o "Agora"',
     )
-    await page.keyboard.press('Escape') // fecha o zapping
+    await page.keyboard.press('Escape') // zapping: lista de canais -> trilha (049)
+    await page.keyboard.press('Escape') // trilha -> fecha o zapping
     await page.keyboard.press('Escape') // fecha o player
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
 
@@ -344,7 +354,7 @@ async function run() {
     console.log('=== US2: tela "EPG da lista" ===')
     await openFromTopbar(page, 'Configurações')
     await page.waitForSelector('.settings-screen .sources-panel', { timeout: 8000 })
-    await page.getByRole('button', { name: 'EPG', exact: true }).click()
+    await openEpgSettings(page)
     await page.waitForSelector('.epg-settings', { timeout: 8000 })
     assert(
       (await page.locator('.epg-settings-state').textContent())?.startsWith('EPG vinculado'),
@@ -406,17 +416,17 @@ async function run() {
       'mudar o deslocamento não baixou nada',
     )
 
-    // Volta: o foco cai no botão "EPG" da mesma lista (FR-022).
+    // Volta: o foco cai no botão "Configurar EPG" da aba EPG da mesma lista (FR-022, feature 067 FR-009).
     await page.keyboard.press('Escape')
-    await page.waitForSelector('.settings-screen .sources-panel', { timeout: 8000 })
+    await page.waitForSelector('.list-settings-screen', { timeout: 8000 })
     assert(
-      ((await page.getByRole('button', { name: 'EPG', exact: true }).getAttribute('class')) ?? '').includes('tv-focus'),
-      'RETURN da tela de EPG devolve o foco ao botão "EPG" da lista',
+      ((await page.getByRole('button', { name: 'Configurar EPG' }).getAttribute('class')) ?? '').includes('tv-focus'),
+      'RETURN da tela de EPG devolve o foco ao botão "Configurar EPG" da lista',
     )
     await assertOneFocus(page, 'Configurações, de volta da tela de EPG')
 
     // Desativar (FR-021): confirma, apaga, e ativar volta a sincronizar.
-    await page.getByRole('button', { name: 'EPG', exact: true }).click()
+    await page.getByRole('button', { name: 'Configurar EPG' }).click()
     await page.waitForSelector('.epg-settings', { timeout: 8000 })
     await page.getByRole('button', { name: 'Desativar EPG' }).click()
     await page.waitForSelector('[role="dialog"]', { timeout: 4000 })

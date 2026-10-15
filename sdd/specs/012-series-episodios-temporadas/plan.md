@@ -324,7 +324,7 @@ npm run build:tizen
 
 | 2026-09-24 | Fase 7 (Polish) | `CLAUDE.md` e backlog atualizados (gap de séries fechado, item 9). Segredos e tokens CSS revisados, limpos. Verificação manual real no navegador (Playwright): schema v8 abre sobre dado existente do usuário sem erro; um cartão por série; layout do protótipo; foco/ADR-007; erro de stream tratado; foco restaurado ao fechar a camada. Achado fora de escopo, não corrigido: `avplayAdapter`/`htmlVideoAdapter` sempre dizem "canal" na mensagem genérica de erro, mesmo para filme/episódio — registrado como `[Bug]` no backlog. | `quickstart.md` B/C/E/F (retomada/stale-served/selo/autoplay num navegador real) ficam para quando houver fonte Xtream ou M3U real disponível — cobertos pela suíte automatizada nesse meio-tempo. TV física (G–I) e `npm run build:tizen` não executados (R-005, não é gate). |
 
-**PRÓXIMO**: feature código-completa nas 4 user stories, com pendência apenas de verificação manual mais ampla (fonte real + TV física) quando disponível. Rodar `sdd-converge` para fechar a convergência formal.
+**PRÓXIMO**: nenhum — convergida. `build:tizen` conferido em 2026-10-09. Fora de gate e pendente: verificação ampla com fonte real na TV física (usuário sem TV).
 
 ## Arquivos Principais
 
@@ -428,3 +428,8 @@ Xtream/M3U real nem TV física disponíveis nesta sessão.
   `avplayAdapter`/`htmlVideoAdapter` sempre dizem "Não foi possível
   reproduzir este canal" em qualquer falha genérica, mesmo para filme ou
   episódio — pré-existente, cosmético, não corrigido por esta feature.
+
+
+## Passada física na TV — 2026-10-02
+
+Passada feita na TV QN50Q60DAGXZD (backlog item 58), com o build de 02/10/2026. Resultado relatado pelo usuário: roteiro aprovado, sem pendência aberta por esta verificação. Os riscos de hardware desta feature (`R-xxx` marcados como "só se prova na TV") ficam encerrados por decisão do usuário. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas.

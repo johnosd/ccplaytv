@@ -15,11 +15,14 @@ import {
 import { formatEpgStatus } from '../sources/sourceFormat'
 import { useTvKeyNav } from '../../lib/useTvKeyNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
+import { useImeChain } from '../../lib/useImeChain'
 import { useToast } from '../../lib/useToast'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 import { TextField } from '../../components/TextField'
 import { Toast } from '../../components/Toast'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { Translator } from '../../lib/i18n/translate'
 
 export interface EpgSettingsScreenProps {
   sourceId: string
@@ -29,31 +32,32 @@ export interface EpgSettingsScreenProps {
 const OFFSET_MIN = -12
 const OFFSET_MAX = 12
 
-const INVALID_URL_MESSAGE = 'Endereço inválido. Use um endereço começando com http:// ou https://'
-
 function formatOffset(hours: number): string {
   return hours === 0 ? '0 h' : `${hours > 0 ? '+' : ''}${hours} h`
 }
 
-function originText(source: SourceOut): string {
+function originText(source: SourceOut, t: Translator): string {
   switch (source.epg?.urlOrigin) {
     case 'manual':
-      return source.epg_manual_host ? `Endereço informado por você (${source.epg_manual_host})` : 'Endereço informado por você'
+      return source.epg_manual_host
+        ? t('settings.epg.origin.manualHost', { host: source.epg_manual_host })
+        : t('settings.epg.origin.manual')
     case 'panel':
-      return 'Endereço do painel da lista'
+      return t('settings.epg.origin.panel')
     case 'playlist':
-      return 'Endereço declarado pela própria lista'
+      return t('settings.epg.origin.playlist')
     default:
-      return 'Nenhum endereço de EPG. Informe um endereço XMLTV abaixo.'
+      return t('settings.epg.origin.none')
   }
 }
 
 /** Confirmação de "Desativar EPG" (FR-021) — "Cancelar" é o padrão (índice 0), como `DeleteSourceModal`. */
 function DisableEpgModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }): ReactNode {
+  const t = useT()
   const [confirmIdx, setConfirmIdx] = useState<0 | 1>(0)
   return (
     <Modal
-      ariaLabel="Desativar o EPG desta lista?"
+      ariaLabel={t('settings.epg.disableTitle')}
       onBack={onCancel}
       onDirection={(direction) => {
         if (direction === 'left') setConfirmIdx(0)
@@ -61,16 +65,14 @@ function DisableEpgModal({ onCancel, onConfirm }: { onCancel: () => void; onConf
       }}
       onSelect={() => (confirmIdx === 0 ? onCancel() : onConfirm())}
     >
-      <p className="modal-title">Desativar o EPG desta lista?</p>
-      <p className="modal-description">
-        A programação guardada será apagada e a atualização automática para. Você pode ativar de novo quando quiser.
-      </p>
+      <p className="modal-title">{t('settings.epg.disableTitle')}</p>
+      <p className="modal-description">{t('settings.epg.disableDescription')}</p>
       <div className="modal-actions">
         <Button variant="secondary" focused={confirmIdx === 0} onSelect={onCancel}>
-          Cancelar
+          {t('common.cancel')}
         </Button>
         <Button variant="accent" focused={confirmIdx === 1} onSelect={onConfirm}>
-          Desativar
+          {t('settings.epg.disableConfirm')}
         </Button>
       </div>
     </Modal>
@@ -88,9 +90,12 @@ function DisableEpgModal({ onCancel, onConfirm }: { onCancel: () => void; onConf
  * Todo estado tem pelo menos um botão focável (FR-022).
  */
 export function EpgSettingsScreen({ sourceId, onBack }: EpgSettingsScreenProps): ReactNode {
+  const t = useT()
   const containerRef = useRef<HTMLElement>(null)
   const urlInputRef = useRef<HTMLInputElement>(null)
+  const saveUrlRef = useRef<HTMLButtonElement>(null)
   useTvKeyNav(containerRef)
+  useImeChain(containerRef, saveUrlRef) // Done do IME leva o foco a "Salvar endereço", sem enviar (feature 045)
   useRemoteNav({ onBack })
 
   const sourcesQuery = useSources()
@@ -112,13 +117,13 @@ export function EpgSettingsScreen({ sourceId, onBack }: EpgSettingsScreenProps):
     return (
       <section className="screen epg-settings" ref={containerRef} aria-labelledby="epg-settings-title">
         <h1 id="epg-settings-title" className="screen-title">
-          EPG da lista
+          {t('settings.epg.title')}
         </h1>
         <p className="epg-settings-note" role="status">
-          {sourcesQuery.isLoading ? 'Carregando…' : 'Esta lista não está mais disponível.'}
+          {sourcesQuery.isLoading ? t('common.loading') : t('settings.epg.unavailable')}
         </p>
         <Button variant="secondary" onSelect={onBack}>
-          Voltar
+          {t('common.back')}
         </Button>
       </section>
     )
@@ -132,7 +137,7 @@ export function EpgSettingsScreen({ sourceId, onBack }: EpgSettingsScreenProps):
 
   function startSync() {
     if (syncing) return
-    showToast('Sincronizando EPG…')
+    showToast(t('settings.epg.syncing'))
     syncNow.mutate(sourceId)
   }
 
@@ -140,7 +145,7 @@ export function EpgSettingsScreen({ sourceId, onBack }: EpgSettingsScreenProps):
     const trimmed = urlDraft.trim()
     if (trimmed !== '' && !isValidEpgUrl(trimmed)) {
       // FR-018: recusa antes de qualquer download, sem ecoar o que foi digitado, foco de volta ao campo.
-      setUrlError(INVALID_URL_MESSAGE)
+      setUrlError(t('settings.epg.invalidUrl'))
       urlInputRef.current?.focus()
       return
     }
@@ -150,10 +155,10 @@ export function EpgSettingsScreen({ sourceId, onBack }: EpgSettingsScreenProps):
       {
         onSuccess: () => {
           setUrlDraft('')
-          showToast(trimmed === '' ? 'Voltando ao endereço da lista. Sincronizando EPG…' : 'Endereço salvo. Sincronizando EPG…')
+          showToast(trimmed === '' ? t('settings.epg.urlReset') : t('settings.epg.urlSaved'))
         },
         onError: () => {
-          setUrlError(INVALID_URL_MESSAGE)
+          setUrlError(t('settings.epg.invalidUrl'))
           urlInputRef.current?.focus()
         },
       },
@@ -167,17 +172,17 @@ export function EpgSettingsScreen({ sourceId, onBack }: EpgSettingsScreenProps):
   }
 
   return (
-    <section className="screen epg-settings" ref={containerRef} aria-labelledby="epg-settings-title">
+    <section className="screen epg-settings no-scrollbar form-scroll-room" ref={containerRef} aria-labelledby="epg-settings-title">
       <h1 id="epg-settings-title" className="screen-title">
-        EPG da lista {source.display_name}
+        {t('settings.epg.titleNamed', { name: source.display_name })}
       </h1>
 
       <div className="epg-settings-status" role="status">
-        <p className="epg-settings-state">{formatEpgStatus(source, syncing)}</p>
-        {!disabled && <p className="epg-settings-note">{originText(source)}</p>}
+        <p className="epg-settings-state">{formatEpgStatus(source, syncing, t)}</p>
+        {!disabled && <p className="epg-settings-note">{originText(source, t)}</p>}
         {state === 'error' && epg?.errorKind && !syncing && (
           <p className="epg-settings-error">
-            {epgErrorMessage(epg.errorKind)} <span className="epg-settings-code">{EPG_ERROR_CODE}</span>
+            {epgErrorMessage(epg.errorKind, t)} <span className="epg-settings-code">{EPG_ERROR_CODE}</span>
           </p>
         )}
       </div>
@@ -187,40 +192,41 @@ export function EpgSettingsScreen({ sourceId, onBack }: EpgSettingsScreenProps):
           variant="accent"
           loading={setEnabled.isPending}
           onSelect={() => {
-            showToast('EPG ativado. Sincronizando…')
+            showToast(t('settings.epg.enabled'))
             setEnabled.mutate({ sourceId, enabled: true })
           }}
         >
-          Ativar EPG
+          {t('settings.epg.enable')}
         </Button>
       ) : (
         <>
           {canSync && (
             <Button variant="accent" loading={syncing} onSelect={startSync}>
-              {state === 'error' ? 'Tentar novamente' : 'Sincronizar agora'}
+              {state === 'error' ? t('settings.epg.retry') : t('settings.epg.syncNow')}
             </Button>
           )}
 
           <div className="epg-settings-field">
             <TextField
-              label="Endereço XMLTV (opcional)"
+              label={t('settings.epg.urlField')}
               purpose="url"
+              enterKeyHint="done"
               value={urlDraft}
               onChange={(value) => {
                 setUrlDraft(value)
                 if (urlError) setUrlError(undefined)
               }}
               error={urlError}
-              hint="Deixe em branco e salve para usar o endereço da própria lista."
+              hint={t('settings.epg.urlHint')}
               inputRef={urlInputRef}
             />
-            <Button variant="secondary" loading={setManualUrl.isPending} onSelect={saveUrl}>
-              Salvar endereço
+            <Button variant="secondary" loading={setManualUrl.isPending} onSelect={saveUrl} buttonRef={saveUrlRef}>
+              {t('settings.epg.saveUrl')}
             </Button>
           </div>
 
-          <div className="epg-settings-offset" role="group" aria-label="Deslocamento de horário">
-            <span className="epg-settings-offset-label">Deslocamento de horário</span>
+          <div className="epg-settings-offset" role="group" aria-label={t('settings.epg.offset')}>
+            <span className="epg-settings-offset-label">{t('settings.epg.offset')}</span>
             <Button variant="secondary" onSelect={() => changeOffset(-1)}>
               − 1 h
             </Button>
@@ -233,13 +239,13 @@ export function EpgSettingsScreen({ sourceId, onBack }: EpgSettingsScreenProps):
           </div>
 
           <Button variant="secondary" onSelect={() => setConfirmDisable(true)}>
-            Desativar EPG
+            {t('settings.epg.disable')}
           </Button>
         </>
       )}
 
       <Button variant="ghost" onSelect={onBack}>
-        Voltar
+        {t('common.back')}
       </Button>
 
       {confirmDisable && (

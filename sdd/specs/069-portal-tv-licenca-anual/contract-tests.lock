@@ -1,0 +1,12 @@
+{
+    "feature":  "069-portal-tv-licenca-anual",
+    "lockedAt":  "2026-10-10 21:13",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/portal/portal-tv-licenca-anual.contract.test.ts",
+                      "sha256":  "ddc4b784447a25a3e9bb23b8ec879f062d373481da31446114b2d74ea4ca6cf6",
+                      "tests":  5
+                  }
+              ]
+}

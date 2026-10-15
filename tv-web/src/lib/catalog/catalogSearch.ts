@@ -7,7 +7,9 @@
  */
 
 import { db, type CatalogDb, type CatalogRecord } from './db'
-import { listAllOfKind, listCategories } from './catalogRepository'
+import { listAllOfKind } from './catalogRepository'
+import { listVisibleCategories } from './categoryAccess'
+import { normalizeForSearch } from './adultCategory'
 
 /** Tipos pesquisáveis — cada seção pesquisa só o seu (FR-002). Episódio fica de fora. */
 export type SearchableKind = 'channel' | 'movie' | 'series'
@@ -29,15 +31,36 @@ export interface SearchIndex {
   totalCategories: number
 }
 
-/** Minúsculas, sem acentos/diacríticos, espaços das pontas removidos e internos colapsados (FR-007). */
-export function normalizeForSearch(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, ' ')
+/** Mantém somente os campos usados por busca, ordenação e cards; URLs e
+ * headers de reprodução não ficam duplicados no índice derivado. */
+export function compactSearchRecord(record: CatalogRecord): CatalogRecord {
+  return {
+    id: record.id,
+    sourceId: record.sourceId,
+    generation: record.generation,
+    kind: record.kind,
+    categoryId: record.categoryId,
+    categoryPosition: record.categoryPosition,
+    groupOrder: record.groupOrder,
+    name: record.name,
+    originalName: record.originalName,
+    group: record.group,
+    providerStreamId: record.providerStreamId,
+    seriesId: record.seriesId,
+    iconUrl: record.iconUrl,
+    year: record.year,
+    addedAt: record.addedAt,
+    providerRating: record.providerRating,
+    providerGenres: record.providerGenres,
+    providerBackdropUrl: record.providerBackdropUrl,
+    epgChannelId: record.epgChannelId,
+    archiveDays: record.archiveDays,
+    hasPlayback: record.hasPlayback ?? (Boolean(record.directUrl) || Boolean(record.providerStreamId)),
+  }
 }
+
+// Minúsculas, sem acentos, espaços colapsados (FR-007). Mora no módulo puro desde a feature 067 (sem ciclo com `db.ts`).
+export { normalizeForSearch }
 
 /**
  * Entrada do índice com o nome normalizado calculado **só quando lido**
@@ -90,10 +113,10 @@ export async function loadSearchIndex(
 ): Promise<SearchIndex> {
   const [records, categories] = await Promise.all([
     listAllOfKind(sourceId, kind, database),
-    listCategories(sourceId, kind, database),
+    listVisibleCategories(sourceId, kind, database),
   ])
   const coveredCategories = categories.filter(isCovered).length
-  return buildSearchIndex(records, { coveredCategories, totalCategories: categories.length })
+  return buildSearchIndex(records.map(compactSearchRecord), { coveredCategories, totalCategories: categories.length })
 }
 
 /**

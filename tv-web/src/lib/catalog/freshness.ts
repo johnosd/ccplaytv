@@ -2,6 +2,14 @@ import type { SourceRecord } from './db'
 
 export const STALE_AFTER_MS = 24 * 60 * 60 * 1000 // 24 hours
 
+/**
+ * Intervalo mínimo entre duas atualizações automáticas de uma lista ao abri-la
+ * ou ao voltar o app ao primeiro plano (bug `lista-xtream-nao-atualiza-novos-filmes`).
+ * Abrir o app precisa trazer o que o provedor acrescentou ou tirou; os 10 min
+ * só evitam reimportar ao alternar listas ou reabrir em sequência.
+ */
+export const REFRESH_ON_OPEN_MIN_MS = 10 * 60 * 1000
+
 export type FreshnessAction = 'none' | 'migrate' | 'update_by_age'
 
 /**
@@ -32,10 +40,13 @@ export function decideOnOpen(source: SourceRecord, now: number): FreshnessAction
     return 'migrate'
   }
 
-  // Atualização por idade (FR-020): qualquer fonte cuja última
-  // sincronização bem-sucedida passou de STALE_AFTER.
+  // Atualização ao abrir (FR-020, prazo emendado pelo bug
+  // `lista-xtream-nao-atualiza-novos-filmes`): qualquer fonte cuja última
+  // sincronização bem-sucedida passou de REFRESH_ON_OPEN_MIN_MS. Com 24 h,
+  // filmes, séries e canais novos (ou removidos) do provedor ficavam
+  // invisíveis enquanto a abertura não caísse depois do prazo.
   if (source.lastSuccessfulSyncAt !== undefined) {
-    if (now - source.lastSuccessfulSyncAt > STALE_AFTER_MS) {
+    if (now - source.lastSuccessfulSyncAt > REFRESH_ON_OPEN_MIN_MS) {
       return 'update_by_age'
     }
   }
@@ -47,10 +58,10 @@ export function decideOnOpen(source: SourceRecord, now: number): FreshnessAction
  * Decide se os itens de uma categoria ainda valem, ou se é hora de buscar
  * de novo (feature 010, `categoryLoader`).
  *
- * Reusa o mesmo prazo que a fonte inteira já usa (`STALE_AFTER_MS`, FR-020)
- * em vez de inventar um segundo valor: duas noções de "velho" no mesmo
- * aplicativo, sem nenhuma medição que justifique a diferença, seria
- * complexidade sem necessidade comprovada (research.md R0-2). Categoria
+ * Prazo de 24 h (`STALE_AFTER_MS`, research.md R0-2 da 010). Desde o bug
+ * `lista-xtream-nao-atualiza-novos-filmes`, a renovação normal de uma
+ * categoria vem da atualização feita ao abrir a lista (`renewRequestedAt`,
+ * feature 038); este prazo fica como rede de segurança de uma sessão longa. Categoria
  * `eager` não passa por aqui — ela é sempre servida do disco, qualquer
  * que seja a idade (contrato `catalog-on-demand.md` §2), porque não há o
  * que "atualizar" nela isoladamente: a fonte inteira é que re-sincroniza.

@@ -1,9 +1,12 @@
+import type { ErrorCode } from '../../lib/errors/errorCatalog'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
 import type { TmdbState, TmdbStatusView } from '../../lib/metadata/types'
 
 /**
  * Regras puras da aba "Integrações & BYOK" (feature 032, US2,
  * `logic/integracoes-e-dock.md`). Fora de `IntegrationsPanel.tsx` para aquele
- * arquivo exportar só componentes.
+ * arquivo exportar só componentes. Os textos vêm do catálogo (feature 054):
+ * aqui só ficam as CHAVES, e quem desenha chama `t(chave)`.
  */
 
 export type TmdbAction = 'configure' | 'test' | 'edit' | 'remove'
@@ -13,37 +16,47 @@ export function tmdbActions(status: TmdbStatusView | undefined): TmdbAction[] {
   return !status || status.state === 'not_configured' ? ['configure'] : ['test', 'edit', 'remove']
 }
 
-/** Cards ainda não construídos, na ordem da aba — reusam os mocks do dock (D-010). */
+/** Cards ainda não construídos, na ordem da aba — reusam os mocks do dock (D-010). `titleKey` = título no catálogo. */
 export const INTEGRATION_SOON_CARDS = [
-  { id: 'dock-ai', title: 'Assistente de IA' },
-  { id: 'dock-weather', title: 'Clima' },
-  { id: 'dock-speedtest', title: 'Teste de velocidade' },
-] as const
+  { id: 'dock-ai', titleKey: 'settings.integrations.soon.dock-ai' },
+  { id: 'dock-weather', titleKey: 'settings.integrations.soon.dock-weather' },
+] as const satisfies readonly { id: string; titleKey: MessageKey }[]
 
 /** Linha 0 = card do TMDB; as demais, os cards "Em breve". */
-export const INTEGRATIONS_ROW_COUNT = 1 + INTEGRATION_SOON_CARDS.length
+export const SPEED_TEST_ROW = 1 + INTEGRATION_SOON_CARDS.length
+export const INTEGRATIONS_ROW_COUNT = SPEED_TEST_ROW + 1
 
 /** Rótulo do estado no card (`logic/chave-tmdb.md` §7). */
-export const TMDB_STATE_LABEL: Record<TmdbState, string> = {
-  not_configured: 'Não configurado',
-  connected: 'Conectado',
-  refused: 'Chave recusada pelo TMDB',
-  offline: 'Sem conexão com o TMDB',
-  rate_limited: 'Limite de uso atingido; tentaremos mais tarde',
+export const TMDB_STATE_LABEL_KEY: Record<TmdbState, MessageKey> = {
+  not_configured: 'settings.integrations.state.not_configured',
+  connected: 'settings.integrations.state.connected',
+  refused: 'settings.integrations.state.refused',
+  offline: 'settings.integrations.state.offline',
+  rate_limited: 'settings.integrations.state.rate_limited',
+}
+
+/**
+ * Código discreto da tabela de erros para os estados de falha do TMDB (feature
+ * 042, FR-011/FR-015). `connected`/`not_configured` não são erro — sem código.
+ */
+export const TMDB_STATE_CODE: Partial<Record<TmdbState, ErrorCode>> = {
+  refused: 'API-401',
+  offline: 'NET-02',
+  rate_limited: 'API-429',
 }
 
 /** Nome acessível do ícone TMDB no dock da Home (`logic/chave-tmdb.md` §7). */
-export const TMDB_DOCK_LABEL: Record<TmdbState, string> = {
-  not_configured: 'TMDB — não configurado',
-  connected: 'TMDB — conectado',
-  refused: 'TMDB — chave recusada',
-  offline: 'TMDB — sem conexão',
-  rate_limited: 'TMDB — limite de uso',
+export const TMDB_DOCK_LABEL_KEY: Record<TmdbState, MessageKey> = {
+  not_configured: 'settings.integrations.dock.not_configured',
+  connected: 'settings.integrations.dock.connected',
+  refused: 'settings.integrations.dock.refused',
+  offline: 'settings.integrations.dock.offline',
+  rate_limited: 'settings.integrations.dock.rate_limited',
 }
 
-export const TMDB_ACTION_LABEL: Record<TmdbAction, string> = {
-  configure: 'Configurar',
-  test: 'Testar',
-  edit: 'Editar',
-  remove: 'Remover',
+export const TMDB_ACTION_LABEL_KEY: Record<TmdbAction, MessageKey> = {
+  configure: 'settings.integrations.action.configure',
+  test: 'settings.integrations.action.test',
+  edit: 'settings.integrations.action.edit',
+  remove: 'settings.integrations.action.remove',
 }

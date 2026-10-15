@@ -4,10 +4,11 @@
  * `identity`, `onChannelStep` e `episodeStep`.
  *
  * Fixado por este contrato (`plan.md` D-002 a D-008, `logic/chrome-player.md`):
- * rótulos acessíveis dos controles ("Pausar"/"Reproduzir", "Velocidade — em
- * breve", "Guia — em breve", "Episódio anterior", "Próximo episódio"), a
- * ordem da linha do VOD (episódio anterior, ⏪, ▶⏸, ⏩, próximo episódio,
- * mocks), os textos de limite e as teclas de mídia pelo nome DOM.
+ * rótulos acessíveis dos controles ("Pausar"/"Reproduzir", "Guia — em
+ * breve", "Episódio anterior", "Próximo episódio"), a ordem da linha do VOD
+ * (episódio anterior, ⏪, ▶⏸, ⏩, próximo episódio, demais controles), os
+ * textos de limite e as teclas de mídia pelo nome DOM. "Velocidade" saiu na
+ * feature 041 (emenda aprovada, R-012 do plan.md da 027).
  */
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -102,8 +103,8 @@ describe('PlayerLayer — chrome V14 (feature 027)', () => {
     vi.restoreAllMocks()
   })
 
-  // US1/AC1 + US5/AC1, FR-007/FR-020/FR-021: controles reais pelo contrato de capacidades + mocks "Em breve".
-  it('filme: chrome com título, Play/Pause focado e mocks "em breve"; selecionar um mock avisa sem mexer na reprodução', async () => {
+  // US1/AC1 + US5/AC1, FR-007/FR-020/FR-021: controles reais pelo contrato de capacidades + soft disabled que só explica.
+  it('filme: chrome com título, Play/Pause focado e Qualidade/Aspecto sem suporte do motor; selecionar um deles avisa sem mexer na reprodução', async () => {
     vi.mocked(catalogApi.fetchPlayback).mockResolvedValue(playbackOf('movie'))
     render(
       <PlayerLayer itemId="item-1" title="Filme Exemplo" identity={{ title: 'Filme Exemplo' }} onClose={vi.fn()} createAdapter={createAdapter} />,
@@ -113,19 +114,23 @@ describe('PlayerLayer — chrome V14 (feature 027)', () => {
     expect(screen.getByText('Filme Exemplo')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Pausar' })).toHaveClass('tv-focus')
     // Emenda da feature 029 (aprovada pelo usuário, 2026-09-28): Áudio e legendas e Info do stream deixaram de ser mock.
-    for (const name of ['Qualidade — em breve', 'Velocidade — em breve', 'Aspecto — em breve']) {
-      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    // Emenda da feature 041 (aprovada pelo usuário, 2026-10-01): "Velocidade" saiu; Qualidade/Aspecto são reais e,
+    // com este motor falso (sem as APIs), ficam soft disabled com o motivo.
+    for (const name of ['Qualidade — indisponível', 'Aspecto — indisponível']) {
+      expect(screen.getByRole('button', { name })).toHaveAttribute('aria-disabled', 'true')
     }
+    expect(screen.queryByRole('button', { name: /Velocidade/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Episódio anterior|Próximo episódio/ })).not.toBeInTheDocument()
 
-    // Linha: ⏪ ▶⏸ ⏩ | Áudio Qualidade Velocidade … — quatro passos à direita de ▶⏸ chegam em "Velocidade".
+    // Linha: ⏪ ▶⏸ ⏩ | Áudio Qualidade Aspecto Info — quatro passos à direita de ▶⏸ chegam em "Aspecto".
     press('ArrowRight')
     press('ArrowRight')
     press('ArrowRight')
     press('ArrowRight')
-    expect(screen.getByRole('button', { name: 'Velocidade — em breve' })).toHaveClass('tv-focus')
+    expect(screen.getByRole('button', { name: 'Aspecto — indisponível' })).toHaveClass('tv-focus')
     press('Enter')
-    expect(screen.getByText(/^Em breve — /)).toBeInTheDocument()
+    expect(screen.getByText('Este aparelho não permite ajustar o aspecto.')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Aspecto' })).not.toBeInTheDocument()
     expect(driver.pauseCount).toBe(0)
     expect(driver.jumpCalls).toEqual([])
   })

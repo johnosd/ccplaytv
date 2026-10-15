@@ -7,15 +7,19 @@
  */
 
 import type { CatalogItemOut } from '../catalog/catalogApi'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
+import { compareByRating, finiteAddedAt, validProviderRating } from './vodShowcase'
 
 /** `source` = ordem da fonte (padrão). */
-export type VodSortOption = 'source' | 'az' | 'year' | 'added'
+export type VodSortOption = 'source' | 'az' | 'year' | 'added' | 'rating'
 
-export const VOD_SORT_LABELS: Record<VodSortOption, string> = {
-  source: 'Ordem da fonte',
-  az: 'A–Z',
-  year: 'Ano',
-  added: 'Recém-adicionados',
+/** Chave do catálogo (`vod.sort.*`) do rótulo de cada ordenação (feature 054). */
+export const VOD_SORT_LABEL_KEYS: Record<VodSortOption, MessageKey> = {
+  source: 'vod.sort.source',
+  az: 'vod.sort.az',
+  year: 'vod.sort.year',
+  added: 'vod.sort.added',
+  rating: 'vod.sort.rating',
 }
 
 /**
@@ -70,5 +74,18 @@ export function sortVodItems(items: CatalogItemOut[], option: VodSortOption): Ca
       return [...items].sort(withMissingLast((item) => item.year, 'desc'))
     case 'added':
       return [...items].sort(withMissingLast((item) => item.added_at, 'desc'))
+    case 'rating':
+      // Feature 056 (`logic/bem-avaliados.md` §2): mesma ordem de "Bem avaliados"; sem nota válida vai ao fim, na ordem da fonte.
+      return [...items].sort((a, b) => {
+        const aRating = validProviderRating(a.provider_rating)
+        const bRating = validProviderRating(b.provider_rating)
+        if (aRating === undefined && bRating === undefined) return 0
+        if (aRating === undefined) return 1
+        if (bRating === undefined) return -1
+        return compareByRating(
+          { rating: aRating, addedAt: finiteAddedAt(a.added_at) },
+          { rating: bRating, addedAt: finiteAddedAt(b.added_at) },
+        )
+      })
   }
 }

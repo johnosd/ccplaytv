@@ -1,4 +1,78 @@
 <!--
+Relatório de Impacto de Sincronização (2026-10-14, feature 072)
+- Mudança de versão: 1.11.0 -> 1.12.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs").
+- Origem: decisões explícitas do usuário no sdd-specify/sdd-plan da feature 072
+  (desvincular a TV do portal e backup dos dados de uso), após aviso de risco;
+  ADR-017.
+- Exceção delimitada (g): por ação da pessoa (Atualizar da tela de listas, botão
+  de backup, desvincular), a TV PODE enviar ao serviço um backup dos dados de uso
+  (favoritos, histórico, progresso, preferências de categoria, configurações do
+  app), o PIN por lista só como hash com sal e a chave BYOK do TMDB; tudo cifrado
+  em repouso, devolvido só à mesma TV, apagável pela pessoa; o painel vê só data
+  e contagens. (h) a TV PODE guardar o código de recuperação depois de
+  desvincular, só para se reassociar ao mesmo registro, uso único.
+- Continuam proibidos: logs, URL, erros, cache, analytics, terceiros, outra TV,
+  exportação pública; catálogo, URLs e credenciais IPTV continuam fora do backup.
+- Riscos aceitos pelo usuário: PIN curto reversível por força bruta se o backup
+  cifrado vazar; código de recuperação mantido na TV após desvincular.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
+Relatório de Impacto de Sincronização (2026-10-14)
+- Mudança de versão: 1.10.0 -> 1.11.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs").
+- Origem: decisões explícitas do usuário no sdd-specify/sdd-plan da feature 071
+  (consulta sob demanda e QR fixo), após aviso de risco; ADR-016.
+- Exceções delimitadas: (d) a TV PODE enviar ao serviço, por ação da pessoa, as
+  credenciais IPTV das listas dela (host, usuário, senha, URL M3U), que ficam
+  cifradas, nunca em log, e só voltam à sessão autenticada da mesma TV; (e) a
+  chave do dispositivo PODE estar no FRAGMENTO do QR fixo gerado na TV, nunca em
+  path, query, log, requisição ou resposta; (f) a chave também fica visível na
+  tela de bloqueio da licença.
+- Esclarecimento: nenhuma consulta ao serviço é automática; só ação da pessoa.
+- Continuam proibidos: logs, URL enviada ao servidor, cards comuns, mensagens de
+  erro, analytics, checkout, exportação/backup público e terceiros.
+- Riscos aceitos pelo usuário (foto/captura do QR, credenciais no serviço, teste
+  local reiniciável antes do 1º contato) com mitigações na ADR-016.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
+Relatório de Impacto de Sincronização (2026-10-13)
+- Mudança de versão: 1.9.0 -> 1.10.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs").
+- Origem: decisões explícitas do usuário no sdd-specify/sdd-plan da feature 070
+  (entrada de listas estilo gerenciador), após aviso de risco; ADR-014.
+- Exceções delimitadas: (a) chave do dispositivo numérica permanente exibida o
+  tempo todo SOMENTE na tela de adicionar lista da TV; (b) painel autenticado da
+  própria TV recebe os valores salvos das listas dela; (c) a TV mostra credencial
+  local na digitação e na edição da própria lista, com controle para ocultar.
+- Continuam proibidos: logs, URL de navegação, QR, cards comuns, mensagens de
+  erro, analytics, checkout, exportação/backup público e terceiros.
+- Riscos aceitos pelo usuário (foto da tela, sessão sequestrada) com mitigações
+  obrigatórias listadas no próprio princípio.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
+Relatório de Impacto de Sincronização (2026-10-11)
+- Mudança de versão: 1.8.0 -> 1.9.0 (MINOR, expansão delimitada da exceção comercial).
+- Decisão explícita do usuário: licença vigente exigida ao entrar na lista;
+  vencimento durante a sessão não a interrompe, nova entrada exige revalidação.
+- Configuração, compra e dados preservados; revogação confirmada mantém encerramento.
+
+Relatório anterior:
+Relatório de Impacto de Sincronização (2026-10-11)
+- Mudança de versão: 1.7.0 -> 1.8.0 (MINOR).
+- Origem: decisões explícitas do usuário na feature 069 e pedido de resolver
+  suas pendências normativas; arquitetura aceita na ADR-013.
+- Exceções delimitadas: controle remoto opcional, retenção/backup cifrado de
+  configurações fornecidas no portal, convite QR efêmero, código de licença
+  protegido para recuperação pelo site e bloqueio comercial só de reprodução.
+- Checkout externo escolhido pelo usuário; comandos locais continuam locais.
+- Catálogo/importação/Direct Play e exceções BYOK locais preservados.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
 Relatório de Impacto de Sincronização
 - Mudança de versão: 1.6.1 -> 1.7.0 (MINOR)
 - Princípios modificados: "Sem Conta Obrigatória" ganha uma exceção — uma
@@ -51,6 +125,18 @@ Histórico:
 - 1.7.0 (2026-09-30): "Sem Conta Obrigatória" ganha exceção para impedir a
   entrada numa lista cuja conta o painel confirmou vencida ou recusada, sem
   apagar o estado local dela (feature 034)
+- 1.8.0 (2026-10-11): exceções restritas do portal/licença/recuperação pelo
+  site e retenção cifrada (feature 069/ADR-013), sem mover catálogo à nuvem.
+- 1.9.0 (2026-10-11): licença exigida só na entrada da lista (feature 069).
+- 1.10.0 (2026-10-13): chave do dispositivo sempre visível na tela de adicionar,
+  valores salvos ao painel da própria TV e credencial local visível com olho
+  (feature 070/ADR-014).
+- 1.11.0 (2026-10-14): credenciais IPTV da TV ao serviço (cifradas), chave no
+  fragmento do QR fixo e chave visível na tela de bloqueio; nenhuma consulta
+  automática ao serviço (feature 071/ADR-016).
+- 1.12.0 (2026-10-14): backup dos dados de uso, PIN em hash e chave TMDB
+  cifrados no serviço só para a mesma TV, e código de recuperação guardado para
+  a reassociação após desvincular (feature 072/ADR-017).
 -->
 
 # Constitution do CCPlay TV
@@ -76,7 +162,19 @@ daquela lista (favoritos, histórico, retomada, catálogo) NÃO DEVE ser apagado
 — volta a ficar acessível assim que a conta for confirmada válida. Falha de
 rede ou painel fora do ar, sozinhos, nunca impedem a entrada.
 
-**Por quê**: RF-001/RF-002; ADR-004 §1.
+**Exceção comercial (2026-10-11, feature 069/ADR-013)**: após o teste,
+a entrada no catálogo de uma lista PODE exigir licença vigente da própria TV,
+sem conta pessoal. A decisão DEVE ser local, inclusive ao retornar do seletor.
+Vencimento durante uma sessão já admitida NÃO DEVE interromper navegação,
+reprodução ou retomada; o usuário pode continuar até sair da lista ou fechar
+o app. A próxima entrada DEVE revalidar a licença, sem autorização persistida
+para contornar vencimento. Revogação confirmada recebida PODE encerrar a sessão
+controladamente. Abertura do app, seleção/gestão de listas, configuração, compra
+e dados locais DEVEM permanecer disponíveis. Licença local verificada e vigente
+DEVE permitir entrada offline; falha de consulta NÃO equivale a revogação.
+Primeira ativação, renovação e recuperação pelo site exigem conexão.
+
+**Por quê**: RF-001/RF-002; ADR-004 §1; feature 069/ADR-013.
 
 ### Segredos Fora dos Clientes e dos Logs
 
@@ -109,6 +207,82 @@ qualquer terceiro, nem exposto por um canal de exportação/backup, e DEVE
 ser descartado junto com a fonte ou a geração a que pertence. Ver ADR-008
 e ADR-010 para o raciocínio completo.
 
+**Exceção remota restrita (2026-10-11, feature 069/ADR-013)**: configurações
+Xtream/M3U URL fornecidas pela própria pessoa no portal PODEM permanecer
+cifradas no serviço enquanto cadastradas, com backup operacional protegido
+de retenção definida. O servidor PODE decifrar transitoriamente para entrega
+à TV autorizada; navegador NÃO recebe segredos salvos. Isso NÃO autoriza
+exportar valores existentes apenas na TV, arquivo M3U, catálogo, BYOK ou
+chaves do desenvolvedor. Chaves de decifragem DEVEM ficar separadas dos
+dados/backups, com recuperação protegida. Exclusão DEVE remover segredo
+ativo/cancelar entregas e impedir ressurreição por sincronização/restore;
+cópias antigas expiram conforme retenção informada.
+
+Convite QR aleatório, efêmero e de uso único PODE estar no fragmento da URL,
+removido antes da primeira requisição e trocado no corpo HTTPS; NÃO PODE
+conter device key permanente, código da licença ou credenciais IPTV.
+Device key e código da licença para recuperação PODEM ser revelados somente
+por ação explícita na superfície protegida da TV/portal autorizado, para
+digitação/guarda/fotografia escolhida pelo usuário, nunca em cards comuns,
+URL de navegação, logs, erros, analytics, checkout ou exportação pública.
+Código da licença é credencial de recuperação, não identificador público;
+reuso/revogação/tentativas DEVEM ser controlados. Não alegar DRM inviolável.
+
+**Exceção de pareamento estilo gerenciador (2026-10-13, feature 070/ADR-014)**,
+decisão explícita do usuário com risco aceito:
+(a) a TV PODE exibir o tempo todo, **somente na tela de adicionar lista**, o ID
+do dispositivo (formato de endereço MAC, não secreto) e a chave do dispositivo
+numérica permanente de 10 dígitos, para digitação no painel. A chave DEVE ser
+aleatória (CSPRNG), guardada no serviço só como HMAC, regenerável por ação
+explícita (invalidando a anterior e as sessões), protegida por limite de
+tentativas por ID/origem/global com recusa uniforme, e NÃO PODE ir para QR,
+URL, cards, logs, erros, analytics ou exportação. O QR continua sendo convite
+efêmero de uso único.
+(b) o painel autenticado **da própria TV** PODE receber os valores salvos das
+listas dela (URL, usuário, senha) para edição; a resposta NÃO DEVE ser
+armazenada em cache, logada nem enviada a outra TV/sessão; demais regras da
+exceção remota continuam valendo.
+(c) a TV PODE exibir a credencial que a própria pessoa digita e, na edição, a
+credencial local já guardada daquela lista, com controle explícito para
+ocultar — ainda proibido em cards, avisos, histórico, erros e telas comuns.
+
+**Exceção de consulta sob demanda e QR fixo (2026-10-14, feature 071/ADR-016)**,
+decisão explícita do usuário com risco aceito, emenda os itens (a) e (b) acima e
+o parágrafo do convite QR:
+(d) a TV PODE enviar ao serviço, **somente por ação da pessoa** (adicionar,
+editar ou excluir uma lista; botão Atualizar), nome, tipo, host, usuário, senha
+e URL M3U das listas dela. O serviço DEVE cifrá-las em repouso, NÃO PODE logá-las
+nem devolvê-las a outra TV, sessão ou cache, e as devolve só à sessão autenticada
+da mesma TV (item (b)). Não amplia o que sai do aparelho: arquivo M3U, catálogo,
+BYOK e chaves do desenvolvedor continuam proibidos.
+(e) a chave do dispositivo PODE compor o QR fixo gerado **localmente na TV**
+(`<site>/#id=<ID>&key=<chave>`), exclusivamente no **fragmento**. NÃO PODE estar
+em path, query, log, requisição, resposta, `Referer` ou analytics; o site DEVE
+consumi-la no navegador e removê-la do endereço/histórico antes de renderizar.
+"Gerar nova chave" DEVE invalidar o QR e as sessões abertas.
+(f) a chave também PODE ficar visível na **tela de bloqueio** da licença, onde a
+pessoa precisa dela para comprar. Fora de Adicionar lista e do bloqueio, continua
+só por ação explícita em Portal & licença; nunca em cards, perfis, avisos,
+histórico, erros ou diagnóstico.
+Limite de tentativa por ID/origem/global e recusa uniforme (item (a)) continuam.
+
+**Exceção de backup de uso e reassociação (2026-10-14, feature 072/ADR-017)**,
+decisão explícita do usuário com risco aceito, amplia o item (d):
+(g) a TV PODE enviar ao serviço, **somente por ação da pessoa** (Atualizar da tela
+de listas, "Fazer backup agora", Desvincular), um backup dos dados de uso dela —
+favoritos, histórico, progresso, preferências de categoria e configurações do app
+—, o PIN por lista **só como hash com sal** e a chave BYOK do TMDB. O serviço DEVE
+cifrar o backup inteiro em repouso, guardar só a última versão, NÃO PODE logá-lo
+nem devolvê-lo a outra TV, sessão ou cache, e o devolve só à **mesma TV**
+autenticada. O painel da própria TV PODE ver apenas data e contagens e apagar o
+backup. A pessoa DEVE poder apagá-lo na TV e no site. Catálogo, URLs de stream,
+URL/credenciais IPTV, arquivo M3U e chaves do desenvolvedor continuam fora do
+backup. A chave TMDB continua nunca exibida, logada ou enviada a terceiro.
+(h) depois de **Desvincular**, a TV PODE manter o código de recuperação que já
+guardava, exclusivamente para se reassociar ao mesmo registro; ele vai só no
+corpo HTTPS, é de uso único (o serviço emite outro) e é apagado da TV ao concluir.
+Limites de tentativa e recusa uniforme da recuperação (069) continuam valendo.
+
 ### Categorias da Fonte São Preservadas
 
 Grupos/categorias declarados pela fonte original NÃO DEVEM ser substituídos
@@ -137,6 +311,15 @@ resposta do backend, WebSocket ou OpenAI.
 
 **Por quê**: ADR-001 §5; ADR-002 §4.
 
+**Esclarecimento (2026-10-11, feature 069)**: a decisão de licença DEVE ser
+local, sem consulta por tecla ou início de playback. Sincronização diária
+online e consulta rápida apenas em QR/configuração/compra NÃO entram no
+caminho síncrono dos comandos. Falha de rede NÃO bloqueia licença vigente.
+**Atualização (2026-10-14, feature 071)**: o app NÃO DEVE consultar o serviço sem
+ação da pessoa — nem ciclo diário, nem consulta rápida, nem ao abrir o app ou ao
+negar a entrada. Só as ações listadas na exceção (d)–(f) de "Segredos" e o botão
+**Atualizar** falam com o serviço.
+
 ### Trailers e Metadados Não Alteram o Estado Principal da Obra
 
 Consultar, abrir ou assistir um trailer, ou consultar metadados/nota
@@ -155,6 +338,14 @@ de sair da tela ou encerrar o app.
 
 **Por quê**: docs/guia-praticas-app-tv/03 (Input Methods) e /08 (UX
 Checklist, item UX03); ADR-001 (controle remoto como meio primário).
+
+**Exceção de conveniência/comercial (2026-10-11, feature 069)**: portal para
+configurar e concluir compra/recuperação pelo site PODE exigir celular ou
+computador, por escolha explícita do usuário. A TV DEVE oferecer QR e
+endereço/código, situação/validade, instruções e retorno por controle.
+Adicionar/editar/remover fontes localmente, navegar e usar mídia autorizada
+DEVEM continuar com caminho completo pelo controle. Foco nunca compra,
+importa ou reproduz; código secreto não integra URL do QR.
 
 ### Uma Lista de Catálogo Nunca É Tratada Como Manifesto de Streaming
 
@@ -255,6 +446,14 @@ quando construída) ou como contorno opcional para provedor que bloqueia
 CORS. Não presumir TLS, backup/restore ou infraestrutura de produção
 resolvidos para esse contorno (ADR-006 E4, Incremento E, emendado).
 
+**Exceção (2026-10-11, feature 069/ADR-013)**: serviço central serverless
+PODE cuidar de identidade/sessões, configurações fornecidas no portal,
+pendências, pagamento/licença, recuperação pelo site e backups de controle.
+Importação, classificação, catálogo e Direct Play permanecem na TV.
+Indisponibilidade do serviço NÃO impede configuração local ou uso de
+licença local vigente. Infraestrutura/custo/restore/tempo/plataforma DEVEM
+ter validação própria; esta exceção não autoriza lançamento comercial.
+
 **Uso pessoal com intenção comercial futura**: distribuição comercial
 ainda não está autorizada nem implementada, mas licenças de dependências e
 serviços externos DEVEM ser observadas desde já — TMDB exige atribuição em
@@ -340,4 +539,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.7.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-09-30
+**Versão**: 1.12.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-14

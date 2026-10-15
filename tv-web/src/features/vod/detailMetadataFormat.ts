@@ -1,3 +1,4 @@
+import { createTranslator, type Translator } from '../../lib/i18n/translate'
 import type { MetadataOrigin, TitleMetadataView } from '../../lib/metadata/types'
 
 /**
@@ -58,20 +59,20 @@ export interface FactRow {
  * Gênero → Duração → Direção → País → Elenco, só com valor real (FR-003).
  * Série: a duração é por episódio, e diz isso (`logic/detalhe-com-metadata.md` §6).
  */
-export function metadataFactRows(view: TitleMetadataView | undefined, perEpisode: boolean): FactRow[] {
+export function metadataFactRows(view: TitleMetadataView | undefined, perEpisode: boolean, t: Translator = createTranslator('pt')): FactRow[] {
   if (!view) return []
   const rows: FactRow[] = []
-  if (view.genres) rows.push({ label: 'Gênero', value: view.genres.value, origin: view.genres.origin })
+  if (view.genres) rows.push({ label: t('detail.meta.genre'), value: view.genres.value, origin: view.genres.origin })
   if (view.durationSeconds) {
     const formatted = formatDurationMinutes(view.durationSeconds.value)
     rows.push({
-      label: perEpisode ? 'Duração por episódio' : 'Duração',
+      label: perEpisode ? t('detail.meta.durationPerEpisode') : t('detail.meta.duration'),
       value: perEpisode ? `~${formatted}` : formatted,
       origin: view.durationSeconds.origin,
     })
   }
-  if (view.director) rows.push({ label: 'Direção', value: view.director.value, origin: view.director.origin })
-  if (view.country) rows.push({ label: 'País', value: view.country.value, origin: view.country.origin })
-  if (view.cast) rows.push({ label: 'Elenco', value: view.cast.value, origin: view.cast.origin })
+  if (view.director) rows.push({ label: t('detail.meta.director'), value: view.director.value, origin: view.director.origin })
+  if (view.country) rows.push({ label: t('detail.meta.country'), value: view.country.value, origin: view.country.origin })
+  if (view.cast) rows.push({ label: t('detail.meta.cast'), value: view.cast.value, origin: view.cast.origin })
   return rows
 }

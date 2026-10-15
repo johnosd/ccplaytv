@@ -1,0 +1,17 @@
+﻿/**
+ * Margens de segurança do palco 1920×1080 — um único lugar para ajustar o aproveitamento da tela.
+ *
+ * A Spec V14 define 96×76px (5% × 7%), pensando em overscan de TVs antigas; nas Samsung atuais o
+ * painel mostra a imagem inteira e a margem vira só espaço perdido. Aqui as margens caem para
+ * 96×76px. `--safe-x`/`--safe-y` alimentam o `.app-shell`, as telas sem topbar (`.screen`), o
+ * player, os modais e as posições fixas de overlays; os tokens base continuam em `index.css`
+ * (e no `tokens.test.ts`) e são sobrescritos aqui. Hoje: 50% do original (48px / 38px). Para voltar ao original: 96px / 76px.
+ */
+:root {
+  --safe-x: 48px;
+  --safe-y: 38px;
+}
+
+
+
+

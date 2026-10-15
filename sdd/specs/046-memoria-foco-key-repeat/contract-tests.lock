@@ -1,0 +1,22 @@
+{
+    "feature":  "046-memoria-foco-key-repeat",
+    "lockedAt":  "2026-10-02 19:25",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/features/catalog/catalogApi.key-repeat.contract.test.tsx",
+                      "sha256":  "713b35c854add87e6a20d6416c58803b6ee6d940edb7123c79c666abe6203b2a",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/live/liveSessionMemory.memoria-foco.contract.test.ts",
+                      "sha256":  "6406fef20759b70883ed298b39ca8be82a18af8c001a9bd435858d0d3c7f5fe1",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/live/LiveScreen.memoria-foco.contract.test.tsx",
+                      "sha256":  "43559188c8b064911e874fbfba058a4d6c1d28c980c3797c91d1353deb8951b5",
+                      "tests":  2
+                  }
+              ]
+}

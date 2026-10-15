@@ -1,6 +1,15 @@
-import type { PlayerAdapter, PlayerAdapterCallbacks, PlayerRegion } from './PlayerService'
+import {
+  NO_REQUEST_HEADERS,
+  type PlayerAdapter,
+  type PlayerAdapterCallbacks,
+  type PlayerRegion,
+  type RequestHeaders,
+  type RequestHeadersReport,
+} from './PlayerService'
 import type { EngineCapabilities } from './capabilities'
 import type { StreamInfo } from './tracks'
+import { ASPECT_MODES, type AspectMode } from './viewChoice'
+import { defaultDemuxStarter, shouldFallbackToDemux, type DemuxHandle, type DemuxStarter } from './devDemux'
 
 /**
  * Adaptador de desenvolvimento, para o navegador do computador.
@@ -9,6 +18,13 @@ import type { StreamInfo } from './tracks'
  * não reproduz MPEG-TS bruto, que é justamente o formato mais comum em fonte
  * IPTV. Ele serve para exercitar a máquina de estados e o caminho de erro sem
  * depender da TV — a prova de reprodução é o AVPlay no aparelho (ADR-006 V1).
+ *
+ * Feature 047: **só em `npm run dev`**, uma URL `.ts` que o `<video>` recusar
+ * (`error.code 4`) passa a ser demultiplexada em JavaScript (`devDemux.ts`,
+ * `mpegts.js`) sobre o mesmo elemento, para testar zapping/chrome/guia com
+ * vídeo de verdade. Isso continua **não** provando nada da TV: o AVPlay, o
+ * codec e o desempenho reais só se veem no aparelho. Em produção e na TV a
+ * biblioteca nem é carregada; o que já tocava pelo `<video>` segue igual.
  *
  * **Suporta pausa, busca, posição e duração sempre** — ao contrário do AVPlay
  * real, cuja superfície de VOD ainda não foi verificada em hardware. Por
@@ -24,10 +40,62 @@ const HTML_VIDEO_CAPABILITIES: EngineCapabilities = {
   reportsDuration: true,
 }
 
-export function createHtmlVideoAdapter(callbacks: PlayerAdapterCallbacks): PlayerAdapter {
+/** Feature 047: `startDemux: null` desliga o fallback; ausente = padrão (só dev, e só com MediaSource). */
+export interface HtmlVideoAdapterOptions {
+  startDemux?: DemuxStarter | null
+}
+
+export function createHtmlVideoAdapter(
+  callbacks: PlayerAdapterCallbacks,
+  options?: HtmlVideoAdapterOptions,
+): PlayerAdapter {
   let element: HTMLVideoElement | null = null
 
+  // Feature 047 (logic/fallback-demux.md §2): fallback de demux para `.ts`
+  // que o `<video>` recusou. Estado por abertura, zerado em `open()`.
+  const startDemux = options?.startDemux === undefined ? defaultDemuxStarter() : options.startDemux
+  let demux: DemuxHandle | null = null
+  let demuxTried = false
+  let demuxDead = false
+  let errorReported = false
+  let closed = false
+  let headersReport: RequestHeadersReport = NO_REQUEST_HEADERS
+
+  function reportError(): void {
+    // Depois de uma tentativa de demux o elemento pode disparar `error` de novo
+    // ao ser solto: a falha é uma só. Sem demux, o comportamento é o de sempre.
+    if (demuxTried && errorReported) return
+    errorReported = true
+    // O objeto de erro do elemento (e o da biblioteca de demux) não é
+    // repassado: além de pobre, pode trazer a URL com credencial. Sem
+    // `message`: o texto fica com quem apresenta o erro, que sabe o tipo da
+    // mídia (`PlayerError`).
+    callbacks.onError({ code: null })
+  }
+
+  function failDemux(video: HTMLVideoElement): void {
+    // Falha tardia de um demux já fechado/trocado: ninguém está ouvindo.
+    if (closed || element !== video) return
+    demuxDead = true
+    demux?.destroy()
+    demux = null
+    reportError()
+  }
+
+  function beginDemux(video: HTMLVideoElement, url: string): void {
+    if (startDemux === null) return
+    startDemux(video, url, { onFailure: () => failDemux(video) })
+      .then((handle) => {
+        // `close()` (ou uma falha) chegou antes de o anexo terminar: solta na hora.
+        if (closed || element !== video || demuxDead) handle.destroy()
+        else demux = handle
+      })
+      .catch(() => failDemux(video))
+  }
+
   function detach(): void {
+    demux?.destroy()
+    demux = null
     if (!element) return
     element.removeAttribute('src')
     try {
@@ -49,9 +117,23 @@ export function createHtmlVideoAdapter(callbacks: PlayerAdapterCallbacks): Playe
     rendersOnHardwarePlane: false,
     capabilities: HTML_VIDEO_CAPABILITIES,
 
-    open(url: string, _region: PlayerRegion, startAtMs?: number): void {
+    requestHeadersReport(): RequestHeadersReport {
+      return headersReport
+    },
+
+    open(url: string, _region: PlayerRegion, startAtMs?: number, headers?: RequestHeaders): void {
       // A região é ignorada de propósito: no navegador o vídeo é um nó do DOM
       // posicionado por CSS, ao contrário do plano de hardware do AVPlay.
+      // Feature 058 (`logic/headers.md` §2): o navegador não deixa definir
+      // `User-Agent`/`Referer` de mídia — todo header declarado é recusado e
+      // o valor nunca é lido.
+      headersReport = {
+        applied: [],
+        refused: [
+          ...(headers?.userAgent !== undefined ? (['User-Agent'] as const) : []),
+          ...(headers?.referer !== undefined ? (['Referer'] as const) : []),
+        ],
+      }
       const video = document.createElement('video')
       video.autoplay = true
       video.playsInline = true
@@ -71,15 +153,36 @@ export function createHtmlVideoAdapter(callbacks: PlayerAdapterCallbacks): Playe
       })
       video.addEventListener('ended', () => callbacks.onCompleted?.())
       video.addEventListener('error', () => {
-        // O objeto de erro do elemento não é repassado: além de pobre, pode
-        // trazer a URL em alguns navegadores. Sem `message`: o texto fica com
-        // quem apresenta o erro, que sabe o tipo da mídia (`PlayerError`).
-        callbacks.onError({ code: null })
+        if (
+          shouldFallbackToDemux({
+            url,
+            mediaErrorCode: video.error?.code ?? null,
+            alreadyTried: demuxTried,
+            available: startDemux !== null,
+          })
+        ) {
+          // O `<video>` recusou o formato: o demux assume o MESMO elemento e,
+          // por ora, isto não é uma falha.
+          demuxTried = true
+          beginDemux(video, url)
+          return
+        }
+        reportError()
       })
 
       const mount = document.getElementById('player-surface') ?? document.body
       mount.appendChild(video)
       element = video
+      demux = null
+      demuxTried = false
+      demuxDead = false
+      errorReported = false
+      closed = false
+      // A URL carrega credencial: o atributo `src` não pode ficar no DOM. A seleção
+      // de recurso já leu o valor quando `loadstart` dispara, e remover o atributo
+      // depois disso não aborta o carregamento (remover antes abortaria). O `blob:`
+      // do mpegts.js, se entrar em cena, não carrega segredo.
+      video.addEventListener('loadstart', () => video.removeAttribute('src'), { once: true })
       video.src = url
       if (startAtMs !== undefined && startAtMs > 0) {
         // Atribuir `currentTime` antes dos metadados carregarem é um "pending
@@ -126,8 +229,25 @@ export function createHtmlVideoAdapter(callbacks: PlayerAdapterCallbacks): Playe
       return info
     },
 
+    // Feature 041 (research R0-3): aspecto por `object-fit`, os quatro modos.
+    // Sem métodos de qualidade — o elemento não expõe variantes, então no
+    // navegador "Qualidade" fica indisponível, honesto.
+    getAspectModes(): AspectMode[] {
+      return [...ASPECT_MODES]
+    },
+
+    setAspectMode(mode: AspectMode): boolean {
+      if (!element) return false
+      element.style.objectFit = OBJECT_FIT[mode]
+      return true
+    },
+
     close(): void {
+      // Antes de soltar o elemento: um demux ainda anexando se destrói sozinho ao terminar.
+      closed = true
       detach()
     },
   }
 }
+
+const OBJECT_FIT: Record<AspectMode, string> = { fit: 'contain', fill: 'fill', original: 'none', zoom: 'cover' }

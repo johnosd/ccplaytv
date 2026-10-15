@@ -1,0 +1,22 @@
+{
+    "feature":  "042-rede-lifecycle-erros",
+    "lockedAt":  "2026-10-01 21:15",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/player/playbackDiagnosis.rede-lifecycle.contract.test.ts",
+                      "sha256":  "aec02765e6908de3a3f616f35a929eaccae0cea0a3551d1d4c2d33df9154c598",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/components/PlayerLayer.rede-lifecycle.contract.test.tsx",
+                      "sha256":  "f41f0bf6e275d4c7c5b071f717f1853b073545aa024257c0497131861f1c0032",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/prefetch/prefetchScheduler.rede-lifecycle.contract.test.ts",
+                      "sha256":  "85c0f2f78cf6f91521a9f38db0da25b6c2e3771d3e5c3b4ec3fe93660765e287",
+                      "tests":  1
+                  }
+              ]
+}

@@ -221,7 +221,7 @@ description: "Tasks da feature 030-epg-dados-agora"
 - [x] T042 [P] Documentação: `CLAUDE.md` (parágrafo da 030 em "Project status"), `.planning/backlog.md` (item 42/tabela "Próximas entregas": 42a/42b entregues), `.planning/migracao-design-system-v14.md` (matriz real × mock: `settings-epg` real; slot "Agora" real)
 - [x] T043 Revisão de segredos antes de commit (constitution "Fluxo de Desenvolvimento"): `SourceView`/`SourceOut` sem URL; nenhum `console`/`logger` com erro cru de EPG; `epgManualUrl`/`epgDeclaredUrl` fora de tela, `aria-label`, toast e mensagem de erro
 - [x] T044 Emenda inline na ADR-010 (`**Atualização (030-epg-dados-agora):**` — endereço XMLTV manual e `url-tvg` declarado sob a mesma exceção e as mesmas proibições) via `sdd-adr` (Complexity Tracking do `plan.md`)
-- [ ] T045 (Recomendado, não gate) Passada na TV física via `tizen-tv`: quickstart passos 2–7 + SC-002 durante a sincronização, Worker carregado sem plano B, `.xml.gz` (R-007), URL externa do `.env` (R-001); registrar em `Riscos e Decisões`
+- [x] T045 (Recomendado, não gate) Passada na TV física via `tizen-tv`: quickstart passos 2–7 + SC-002 durante a sincronização, Worker carregado sem plano B, `.xml.gz` (R-007), URL externa do `.env` (R-001); registrar em `Riscos e Decisões` — **Atualização 06/10/2026: passada na TV física realizada com sucesso** (relato do usuário, sem números medidos nem capturas; registro em `plan.md` → "Passada física na TV — 2026-10-02"); qualquer "não executado/adiada" acima é o estado anterior, mantido como histórico
 
 ### Checklist de Release
 

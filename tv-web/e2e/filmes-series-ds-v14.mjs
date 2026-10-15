@@ -195,7 +195,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${server.address().port}/get.php?username=${PANEL_USER}&password=${PANEL_PASS}`
 
   const browser = await launchBrowser()
-  const page = await (await browser.newContext({ viewport: { width: 1920, height: 1080 } })).newPage()
+  const page = await (await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })).newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
     if (msg.type() === 'error' && !msg.text().includes('icon-size')) console.error('  [console.error]', msg.text())
@@ -207,7 +207,9 @@ async function run() {
     await page.keyboard.press('Enter') // abre a fonte
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await page.route('**/movie/**', () => {})
-    await page.route('**/series/**', () => {})
+    await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('=== Composição de foco: topbar ↔ side nav ===')
     await openViaTopbar(page, 'movies')
@@ -368,8 +370,7 @@ async function run() {
       'com retomada salva, a ação primária vira "Continuar T1:E1"',
     )
 
-    // actions -> tabs -> season -> episodes (3 setas, `logic/detalhe-vod.md` §6).
-    await page.keyboard.press('ArrowDown')
+    // actions -> tabs -> episodes (2 setas), focando o primeiro episódio.
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('ArrowDown')
     await page.waitForSelector('.vod-episode-row', { timeout: 8000 })

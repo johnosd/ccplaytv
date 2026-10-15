@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const APP_URL = 'http://localhost:5173'
@@ -102,7 +103,7 @@ async function run() {
   const server = await startPanelServer()
   const m3uUrl = `http://127.0.0.1:${server.address().port}/get.php?username=usuario&password=senha`
   const browser = await launchBrowser()
-  const page = await (await browser.newContext({ viewport: { width: 1920, height: 1080 } })).newPage()
+  const page = await (await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })).newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
 
   try {
@@ -123,14 +124,20 @@ async function run() {
     for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
     for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowRight') // Início -> TV -> Filmes -> Séries
     await page.keyboard.press('Enter')
-    await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
-    await page.keyboard.press('ArrowRight') // entra em "Séries"
+    await focusFirstRealCategory(page)
+    await page.keyboard.press('Enter') // entra em "Séries"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await page.keyboard.press('Enter') // detalhe
     await page.waitForSelector('.vod-detail', { timeout: 8000 })
     await page.waitForSelector('.vod-episode-row', { timeout: 8000 })
-    await page.keyboard.press('ArrowDown') // ações -> abas
-    await page.keyboard.press('ArrowDown') // abas -> temporada
+    const selector = page.getByRole('tab', { name: /Temporada 1/ })
+    assert(await selector.isVisible(), 'seletor visível na primeira aba no primeiro acesso')
+    const bounds = await selector.boundingBox()
+    assert(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 1920 && bounds.y + bounds.height <= 1080, 'seletor cabe na primeira tela')
+    await page.screenshot({ path: path.join(__dirname, '..', 'test-results', 'temporadas-acoes.png') })
+    await page.keyboard.press('ArrowDown')
+    await page.waitForSelector('[role=tab].tv-focus')
+    assert((await page.getByRole('tab').allTextContents()).join('|') === 'Temporada 1 ▾|Similares|Elenco|Detalhes', 'ordem das abas: Temporada, Similares, Elenco e Detalhes')
     await page.waitForTimeout(100)
     await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"][aria-label="Selecionar temporada"]', { timeout: 4000 })
@@ -172,7 +179,7 @@ async function run() {
     await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"][aria-label="Selecionar temporada"]', { state: 'detached', timeout: 4000 })
     assert(
-      await page.locator('.content-card-title', { hasText: 'Episódio da T10' }).isVisible(),
+      await page.locator('.vod-episode-title', { hasText: 'Episódio da T10' }).isVisible(),
       'OK escolhe a temporada destacada (T10)',
     )
 

@@ -15,13 +15,17 @@ import type { CategoryKind } from '../db'
 import {
   MAX_ATTEMPTS_PER_SESSION,
   pickNextCategory,
+  renewalRequested,
   SECTION_ORDER,
   workNeeded,
   type PrefetchCategoryState,
   type PrefetchHint,
 } from './prefetchOrder'
 
-export type PrefetchRunOutcome = 'done' | 'failed' | 'storage_full'
+export type PrefetchRunOutcome = 'done' | 'failed' | 'storage_full' | 'rate_limited'
+
+/** Feature 042 (FR-017): espera depois de um 429 do painel, sem contar como tentativa. */
+export const RATE_LIMIT_PAUSE_MS = 60_000
 
 export interface PrefetchSchedulerDeps {
   /** Estado atual das categorias da lista (lido do disco a cada rodada — FR-006). */
@@ -35,7 +39,7 @@ export interface PrefetchSchedulerDeps {
   /** Pausa entre uma categoria e a próxima, para ceder a thread. Padrão `GAP_BETWEEN_CATEGORIES_MS`. */
   gapMs?: number
   /** Uma categoria terminou com itens novos no disco (a raiz invalida as consultas dela). */
-  onCategoryDone?: (sourceId: string, categoryId: number) => void
+  onCategoryDone?: (sourceId: string, categoryId: number, kind?: CategoryKind) => void
   /**
    * Limpeza em partes de gerações antigas (feature 038, D-008) — uma parte por
    * chamada, só com o portão aberto. Devolve `true` se ainda sobrou trabalho.
@@ -46,13 +50,13 @@ export interface PrefetchSchedulerDeps {
   /**
    * Feature 038 (`research.md` R0-3): obtém várias categorias de uma seção com
    * UM pedido da seção inteira. Opcional: sem ele, tudo vai por categoria.
-   * Nunca lança; avisa cada categoria gravada por `onCategory`.
+   * Nunca lança; avisa cada categoria gravada por `onCategory`. `urgent`: não cede à tecla (ver `ActivityGate`).
    */
   runSection?: (
     sourceId: string,
     kind: CategoryKind,
     categoryIds: number[],
-    options: { signal: AbortSignal; onCategory: (categoryId: number) => void },
+    options: { signal: AbortSignal; onCategory: (categoryId: number) => void; urgent: boolean },
   ) => Promise<PrefetchRunOutcome>
 }
 
@@ -75,6 +79,8 @@ export interface PrefetchProgress {
   total: number
   /** Motivo de parada definitiva nesta sessão (FR-008). */
   stoppedReason?: 'storage_full'
+  /** Feature 042: motivo da pausa temporária por limite do painel (some quando a espera acaba). */
+  pausedReason?: 'rate_limited'
 }
 
 export interface PrefetchScheduler {
@@ -115,7 +121,8 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
       candidate.sourceId === progress.sourceId &&
       candidate.ready === progress.ready &&
       candidate.total === progress.total &&
-      candidate.stoppedReason === progress.stoppedReason
+      candidate.stoppedReason === progress.stoppedReason &&
+      candidate.pausedReason === progress.pausedReason
     ) {
       return
     }
@@ -147,9 +154,9 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
   }
 
   /** Espera o portão abrir. `false` = esta época acabou no meio da espera. */
-  async function waitUntilOpen(myEpoch: number, last: { ready: number; total: number }): Promise<boolean> {
+  async function waitUntilOpen(myEpoch: number, last: { ready: number; total: number }, urgent = false): Promise<boolean> {
     while (epoch === myEpoch) {
-      const reason = gate.blockReason(now(), idleAfterKeyMs)
+      const reason = gate.blockReason(now(), idleAfterKeyMs, urgent)
       if (reason === undefined) return true
       setProgress({ state: 'paused', ...last })
       if (reason === 'key') {
@@ -160,6 +167,17 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
       }
     }
     return false
+  }
+
+  /**
+   * Feature 042 (FR-017, `logic/rede-e-lifecycle.md` §5): espera `RATE_LIMIT_PAUSE_MS`
+   * mostrando o motivo (`pausedReason`), pela mesma espera cancelável dos demais
+   * recuos (`stop()`/novo `start()` a acordam). `false` = esta época acabou.
+   */
+  async function pauseForRateLimit(myEpoch: number, last: { ready: number; total: number }): Promise<boolean> {
+    setProgress({ state: 'paused', ...last, pausedReason: 'rate_limited' })
+    await wait(RATE_LIMIT_PAUSE_MS)
+    return epoch === myEpoch
   }
 
   /** Seções já buscadas inteiras nesta sessão (zera ao começar e quando a estrutura muda). */
@@ -206,26 +224,23 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
   async function loop(myEpoch: number, sourceId: string): Promise<void> {
     let last = { ready: 0, total: 0 }
     while (epoch === myEpoch) {
-      if (!(await waitUntilOpen(myEpoch, last))) return
-
-      let categories: PrefetchCategoryState[]
-      try {
-        categories = await deps.loadCategories(sourceId)
-      } catch {
-        categories = []
-      }
+      const categories = await deps.loadCategories(sourceId).catch((): PrefetchCategoryState[] => [])
       if (epoch !== myEpoch) return
 
       const covered = categories.filter((category) => category.fetchMode !== 'eager')
       last = { ready: covered.filter((category) => category.itemsFetchedAt !== undefined).length, total: covered.length }
+      // Renovação pedida por uma atualização não cede à tecla (`urgent`); quem esperou o portão relê o disco.
+      const urgent = categories.some(renewalRequested)
+      if (gate.blockReason(now(), idleAfterKeyMs, urgent) !== undefined) {
+        if (!(await waitUntilOpen(myEpoch, last, urgent))) return
+        continue
+      }
       const at = now()
       const prioritizedNext = nextPrioritized(categories, at)
 
-      // Feature 038 (R0-3): com várias categorias a obter numa seção, um pedido
-      // da seção inteira em vez de um por categoria (o painel limita a
-      // frequência). Uma tentativa por seção até a estrutura mudar; o que
-      // sobrar segue por categoria. Uma entrada que pediu prioridade passa na
-      // frente.
+      // Feature 038 (R0-3): com várias categorias a obter numa seção, um pedido da seção inteira em vez de um por
+      // categoria (o painel limita a frequência). Uma tentativa por seção até a estrutura mudar; o que sobrar segue
+      // por categoria. Uma entrada que pediu prioridade passa na frente.
       const bulk = prioritizedNext === undefined ? pickSectionForBulk(categories, at) : undefined
       if (bulk && deps.runSection) {
         bulkTried.add(bulk.kind)
@@ -235,8 +250,9 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
         const outcome = await deps
           .runSection(sourceId, bulk.kind, bulk.ids, {
             signal: controller.signal,
+            urgent,
             onCategory: (categoryId) => {
-              if (epoch === myEpoch) deps.onCategoryDone?.(sourceId, categoryId)
+              if (epoch === myEpoch) deps.onCategoryDone?.(sourceId, categoryId, bulk.kind)
             },
           })
           .catch((): PrefetchRunOutcome => 'failed')
@@ -245,6 +261,12 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
         if (outcome === 'storage_full') {
           setProgress({ state: 'stopped', ...last, stoppedReason: 'storage_full' })
           return
+        }
+        if (outcome === 'rate_limited') {
+          // O painel pediu um intervalo (feature 042, FR-017): a seção volta a ser tentada depois da espera.
+          bulkTried.delete(bulk.kind)
+          if (!(await pauseForRateLimit(myEpoch, last))) return
+          continue
         }
         await wait(gapMs)
         continue
@@ -274,10 +296,15 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
         setProgress({ state: 'stopped', ...last, stoppedReason: 'storage_full' })
         return
       }
+      if (outcome === 'rate_limited') {
+        // Não é tentativa e a categoria não vai para o fim da fila: o 429 não é culpa dela.
+        if (!(await pauseForRateLimit(myEpoch, last))) return
+        continue
+      }
       const index = prioritized.indexOf(next)
       if (outcome === 'done') {
         if (index >= 0) prioritized.splice(index, 1)
-        deps.onCategoryDone?.(sourceId, next)
+        deps.onCategoryDone?.(sourceId, next, categories.find((category) => category.id === next)?.kind)
       } else {
         attempts.set(next, (attempts.get(next) ?? 0) + 1)
         if (index >= 0) prioritized.splice(index, 1)

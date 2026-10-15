@@ -30,11 +30,9 @@ import {
   type ImportStep,
   type LimitedReason,
   type ProviderImportMode,
-  type SourceRecord,
   type StoredCatalogRecord,
 } from './db'
 import {
-  allocateGeneration,
   applyStructureRefresh,
   discardGeneration,
   publishGeneration,
@@ -45,7 +43,7 @@ import {
   type RefreshedCategory,
 } from './catalogRepository'
 import { storeEntryChunks } from './storedEntries'
-import { markConnectionError, markSynced, readCredential } from './sourceRepository'
+import { markAccount, markConnectionError, markSynced, readCredential } from './sourceRepository'
 import {
   EmptyPlaylistError,
   HlsManifestDetectedError,
@@ -62,6 +60,7 @@ import {
   legacyM3uUrl,
   parseXtreamStreamUrl,
   ProviderError,
+  InvalidServerAddressError,
   ProviderIncompatibleError,
   probeFailureKind,
   resolveAccountStatus,
@@ -70,7 +69,10 @@ import {
   type MappedChannel,
 } from './xtreamConnector'
 import { createSeriesGrouper } from './m3uSeriesGrouping'
+import { copyListingFields } from './adultFlag'
 import { firstEpgUrl } from '../epg/epgStatus'
+import { reserveImportRun, withImportPublication, ImportCancelledError, type RemoteImportRequest } from './importReservation'
+export { ImportAlreadyRunningError, ImportCancelledError } from './importReservation'
 import { parsePanelUrl, type PanelCredential } from './m3uPanelUrl'
 
 /**
@@ -94,21 +96,8 @@ const DEFAULT_BATCH_SIZE = 5_000
 const HEARTBEAT_INTERVAL_MS = 5_000
 export const ABANDONED_AFTER_MS = 60_000
 
-export class ImportAlreadyRunningError extends Error {
-  constructor() {
-    super('Já existe uma importação em andamento para esta fonte.')
-    this.name = 'ImportAlreadyRunningError'
-  }
-}
-
-export class ImportCancelledError extends Error {
-  constructor() {
-    super('Importação cancelada.')
-    this.name = 'ImportCancelledError'
-  }
-}
-
 export interface ImportOptions {
+  remote?: RemoteImportRequest
   onProgress?: (snapshot: ImportRunRecord) => void
   batchSize?: number
   database?: CatalogDb
@@ -134,18 +123,12 @@ function categorize(error: unknown): ImportErrorKind | undefined {
   if (error instanceof ProviderError) return error.kind
   if (error instanceof HlsManifestDetectedError) return 'hls_manifest'
   if (error instanceof EmptyPlaylistError) return 'empty_playlist'
-  // Painel que não fala o protocolo e lista ilegível são a mesma coisa para
-  // quem está olhando: o que veio não dá para usar como catálogo.
+  // Painel que não fala o protocolo e lista ilegível são a mesma coisa para quem olha: não dá para usar como catálogo.
   if (error instanceof InvalidPlaylistError) return 'invalid_playlist'
+  // Feature 042: antes da genérica — a subclasse é a que "nem chega a ser um endereço".
+  if (error instanceof InvalidServerAddressError) return 'invalid_address'
   if (error instanceof ProviderIncompatibleError) return 'invalid_playlist'
   return undefined
-}
-
-async function activeRunFor(
-  sourceId: string,
-  database: CatalogDb,
-): Promise<ImportRunRecord | undefined> {
-  return database.importRuns.where('[sourceId+status]').equals([sourceId, 'running']).first()
 }
 
 function isAbandoned(run: ImportRunRecord, now: number): boolean {
@@ -249,38 +232,9 @@ export async function startImport(
   const now = options.now ?? (() => Date.now())
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE
 
-  const source: SourceRecord | undefined = await database.sources.get(sourceId)
-  if (!source) throw new Error('Fonte não encontrada.')
-  // FR-017: a checagem vem antes de alocar geração, para a segunda
-  // tentativa não consumir número nem deixar lixo para trás.
-  const active = await activeRunFor(sourceId, database)
-  if (active) {
-    // Uma execução que parou de dar sinal de vida não é uma importação em
-    // andamento — é o rastro de um app fechado no meio. Recusar por causa
-    // dela trancaria a fonte para sempre.
-    if (!isAbandoned(active, now())) throw new ImportAlreadyRunningError()
-    await closeAbandoned(active, database, now())
-  }
-
-  const generation = await allocateGeneration(sourceId, database)
-  const run: ImportRunRecord = {
-    id: `run-${now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-    sourceId,
-    generation,
-    status: 'running',
-    step: 'fetching',
-    entriesRead: 0,
-    channelsStored: 0,
-    discardedByType: 0,
-    invalidCount: 0,
-    truncatedByStorage: false,
-    startedAt: now(),
-  }
-  run.heartbeatAt = run.startedAt
-  // A primeira etapa começa junto com a execução — não há o que esperar
-  // antes de começar a obter.
-  run.stepStartedAt = { fetching: run.startedAt }
-  await database.importRuns.add(run)
+  const { source, generation, run, configRevision } = await reserveImportRun(
+    sourceId, database, now, ABANDONED_AFTER_MS, closeAbandoned, options.remote,
+  )
 
   // O batimento é independente do progresso de propósito: a obtenção de uma
   // lista grande passa minutos sem nenhum lote a relatar, e nesse intervalo
@@ -332,6 +286,20 @@ export async function startImport(
   // Feature 030: `url-tvg`/`x-tvg-url` do cabeçalho M3U; ausente quando a
   // fonte segue o protocolo Xtream (o painel já tem o próprio XMLTV).
   let epgDeclaredUrl: string | undefined
+  // Feature 034 (`logic/conta-da-fonte.md` §7): a conta que o painel confirmou
+  // nesta execução, e se a consulta chegou a ser feita (`fail()` só marca
+  // "recusada" quando foi o painel que recusou). Fica em variáveis da
+  // execução, como `mode`: o pipeline roda no Worker e grava pelo Dexie.
+  let accountSeen: AccountStatus | undefined
+  let accountQueried = false
+
+  /** Guarda o resultado da consulta; vencida grava já, antes de a importação falhar. */
+  async function recordAccount(status: AccountStatus): Promise<void> {
+    accountSeen = status
+    if (status.expired) {
+      await markAccount(sourceId, { status: 'expired', expiresAt: status.expiresAt, checkedAt: now() }, database)
+    }
+  }
 
   async function persist(): Promise<void> {
     run.heartbeatAt = now()
@@ -451,7 +419,7 @@ export async function startImport(
       const categoryKinds = new Map<number, CategoryKind>()
 
       function toStoredRecord(channel: MappedChannel): StoredCatalogRecord {
-        return {
+        const record: StoredCatalogRecord = {
           kind: channel.kind,
           name: channel.name,
           originalName: channel.originalName,
@@ -473,6 +441,28 @@ export async function startImport(
           year: channel.year,
           addedAt: channel.addedAt,
         }
+        // Feature 044: compatibilidade M3U. Só entram quando existem — o clone
+        // estruturado do IndexedDB guarda até chave `undefined`, e uma lista de
+        // centenas de milhares de itens não deve ganhar três chaves vazias em
+        // cada um (FR-011, SC-002).
+        // Os headers acompanham a URL guardada (`keepUrl`): sem ela — Modo
+        // limitado, credencial derivada — não há o que mandar com eles, e
+        // guardá-los só ampliaria o segredo no aparelho (ADR-010). `radio` e o
+        // `tvg-chno` declarado só fazem sentido em canal, como o `epgChannelId`.
+        if (keepUrl && channel.playbackHeaders) record.playbackHeaders = channel.playbackHeaders
+        // Feature 055 (D-002/D-003): campos da listagem só quando existem; gênero e fundo só em série.
+        copyListingFields(channel, record) // nota (055) e marcação de adulto do painel (066, FR-035)
+        // Feature 058 (FR-007): dias de arquivo do painel, só no canal (caminho eager de `acquireXtreamChannels`).
+        if (channel.kind === 'channel' && channel.archiveDays !== undefined) record.archiveDays = channel.archiveDays
+        if (channel.kind === 'series') {
+          if (channel.providerGenres !== undefined) record.providerGenres = channel.providerGenres
+          if (channel.providerBackdropUrl !== undefined) record.providerBackdropUrl = channel.providerBackdropUrl
+        }
+        if (channel.kind === 'channel') {
+          if (channel.radio) record.radio = channel.radio
+          if (channel.declaredChannelNumber !== undefined) record.declaredChannelNumber = channel.declaredChannelNumber
+        }
+        return record
       }
 
       /**
@@ -699,6 +689,7 @@ export async function startImport(
       panel: PanelCredential,
     ): Promise<{ kind: 'xtream'; allowedFormats?: string[] } | { kind: 'limited'; reason: LimitedReason }> {
       let status: AccountStatus
+      accountQueried = true
       try {
         status = await resolveAccountStatus(panel.dns, panel.username, panel.password)
       } catch (error) {
@@ -711,6 +702,7 @@ export async function startImport(
         if (error instanceof ProviderIncompatibleError) return { kind: 'limited', reason: 'protocol_unavailable' }
         throw error
       }
+      await recordAccount(status)
       if (status.expired) throw new ProviderError('subscription_expired', 'Assinatura expirada.')
       if (!status.authorized) throw new ProviderError('invalid_credentials', 'Acesso negado.')
       return { kind: 'xtream', allowedFormats: status.allowedFormats }
@@ -720,11 +712,13 @@ export async function startImport(
       const credential = await readCredential(sourceId, database)
       if (!credential) throw new ProviderError('invalid_credentials', 'Fonte sem credencial.')
 
+      accountQueried = true
       const status = await resolveAccountStatus(
         credential.dns,
         credential.username,
         credential.password,
       )
+      await recordAccount(status)
       if (status.expired) throw new ProviderError('subscription_expired', 'Assinatura expirada.')
       if (!status.authorized) throw new ProviderError('invalid_credentials', 'Acesso negado.')
       allowedFormats = status.allowedFormats
@@ -787,57 +781,67 @@ export async function startImport(
     await persist()
     if (cancelled) throw new ImportCancelledError()
 
-    if (route === 'xtream' && refreshBuffer && previousGeneration !== undefined) {
-      // Feature 038 (§4.2): Xtream → Xtream, no lugar. Seção que o painel não
-      // serviu fica fora do diff — nunca se apaga Filmes porque
-      // `get_vod_categories` falhou desta vez.
-      const unavailable = run.unavailableSections ?? []
-      const kinds: CategoryKind[] = ['channel', ...(['movie', 'series'] as const).filter((kind) => !unavailable.includes(kind))]
-      await applyStructureRefresh(sourceId, previousGeneration, kinds, refreshBuffer, now(), database)
-      await discardGeneration(sourceId, generation, database)
-      run.generation = previousGeneration
-    } else if (route === 'stored' && previousFetchMode === 'stored' && previousGeneration !== undefined) {
-      // Feature 038 (§4.3): conteúdo guardado → conteúdo guardado, no lugar.
-      // A varredura gravou categorias e blocos numa geração própria; as
-      // categorias ativas passam a apontar para os blocos novos
-      // (`storedFrom`) e continuam servindo os itens de antes até a renovação.
-      const scanCategories = (await database.categories.where('sourceId').equals(sourceId).toArray())
-        .filter((category) => category.generation === generation)
-        .sort((a, b) => a.order - b.order)
-      await applyStructureRefresh(
-        sourceId,
-        previousGeneration,
-        ['channel', 'movie', 'series'],
-        scanCategories.map((category) => ({
-          kind: category.kind,
-          fetchMode: 'stored' as const,
-          name: category.name,
-          position: category.order,
-          declaredCount: category.declaredCount,
-          storedFrom: { generation, categoryId: category.id as number },
-        })),
-        now(),
-        database,
-      )
-      await database.categories.bulkDelete(scanCategories.map((category) => category.id as number))
-      run.generation = previousGeneration
-    } else {
-      await publishGeneration(sourceId, generation, database)
-    }
-    await markSynced(sourceId, {
-      at: now(),
-      mode,
-      limitedReason,
-      allowedFormats,
-      truncatedByStorage: run.truncatedByStorage,
-      discardedByType: run.discardedByType,
-      epgDeclaredUrl,
-    }, database)
+    await withImportPublication(sourceId, database, configRevision, async () => {
+      if (route === 'xtream' && refreshBuffer && previousGeneration !== undefined) {
+        // Feature 038 (§4.2): Xtream → Xtream, no lugar. Seção que o painel não
+        // serviu fica fora do diff — nunca se apaga Filmes porque
+        // `get_vod_categories` falhou desta vez.
+        const unavailable = run.unavailableSections ?? []
+        const kinds: CategoryKind[] = ['channel', ...(['movie', 'series'] as const).filter((kind) => !unavailable.includes(kind))]
+        await applyStructureRefresh(sourceId, previousGeneration, kinds, refreshBuffer, now(), database)
+        await discardGeneration(sourceId, generation, database)
+        run.generation = previousGeneration
+      } else if (route === 'stored' && previousFetchMode === 'stored' && previousGeneration !== undefined) {
+        // Feature 038 (§4.3): conteúdo guardado → conteúdo guardado, no lugar.
+        // A varredura gravou categorias e blocos numa geração própria; as
+        // categorias ativas passam a apontar para os blocos novos
+        // (`storedFrom`) e continuam servindo os itens de antes até a renovação.
+        const scanCategories = (await database.categories.where('sourceId').equals(sourceId).toArray())
+          .filter((category) => category.generation === generation)
+          .sort((a, b) => a.order - b.order)
+        await applyStructureRefresh(
+          sourceId,
+          previousGeneration,
+          ['channel', 'movie', 'series'],
+          scanCategories.map((category) => ({
+            kind: category.kind,
+            fetchMode: 'stored' as const,
+            name: category.name,
+            position: category.order,
+            declaredCount: category.declaredCount,
+            storedFrom: { generation, categoryId: category.id as number },
+          })),
+          now(),
+          database,
+        )
+        await database.categories.bulkDelete(scanCategories.map((category) => category.id as number))
+        run.generation = previousGeneration
+      } else {
+        await publishGeneration(sourceId, generation, database)
+      }
+      await markSynced(sourceId, {
+        at: now(),
+        mode,
+        limitedReason,
+        allowedFormats,
+        truncatedByStorage: run.truncatedByStorage,
+        discardedByType: run.discardedByType,
+        epgDeclaredUrl,
+        // Feature 034: Modo limitado (`legacy_m3u`) não declara conta (FR-022).
+        account:
+          accountSeen && mode !== 'legacy_m3u'
+            ? { status: 'active', expiresAt: accountSeen.expiresAt, checkedAt: now() }
+            : undefined,
+        unavailableSections: run.unavailableSections ?? [],
+        // Feature 058: relógio do painel para o arquivo (catch-up), só quando a conta foi consultada.
+        clock: mode !== 'legacy_m3u' ? accountSeen?.clock : undefined,
+      }, database)
 
-    run.status = 'completed'
-    enterStep('done')
-    run.finishedAt = now()
-    await persist()
+      run.status = 'completed'
+      enterStep('done')
+      run.finishedAt = now()
+      await persist()
+    })
   }
 
   async function fail(error: unknown): Promise<void> {
@@ -875,6 +879,11 @@ export async function startImport(
     run.status = 'failed'
     run.errorKind = categorize(error)
     await markConnectionError(sourceId, database)
+    // Feature 034: o painel recusou a credencial — vira "Credencial inválida"
+    // sem tocar no catálogo já publicado nem em `connectionState` (D-007).
+    if (run.errorKind === 'invalid_credentials' && accountQueried) {
+      await markAccount(sourceId, { status: 'refused', checkedAt: now() }, database)
+    }
 
     if (run.errorKind === undefined) {
       run.finishedAt = now()

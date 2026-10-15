@@ -30,16 +30,8 @@ describe('getComingSoon', () => {
       'a11y-subtitles',
       'a11y-voice-guide',
       'dock-ai',
-      'dock-speedtest',
       'dock-weather',
       'home-ai-curation',
-      'home-trailer',
-      'pair-phone',
-      'player-aspect',
-      'player-quality',
-      'player-speed',
-      'settings-parental',
-      'settings-player',
       'voice-search',
     ])
   })
@@ -50,13 +42,20 @@ describe('getComingSoon', () => {
       expect(entry.message.trim(), `mensagem de ${id}`).not.toBe('')
       expect(String(entry.backlogItem).trim(), `backlogItem de ${id}`).not.toBe('')
     }
-    expect(getComingSoon('pair-phone').backlogItem).toBe(22)
+    expect(getComingSoon('home-ai-curation').backlogItem).toBe(30)
+    expect(() => getComingSoon('pair-phone')).toThrow() // deixou de ser mock na 070 (coluna real do celular)
     expect(() => getComingSoon('epg-guide')).toThrow() // deixou de ser mock na 031
     expect(() => getComingSoon('dock-tmdb')).toThrow() // deixou de ser mock na 032 (ícone real do dock)
     expect(() => getComingSoon('settings-integrations')).toThrow() // deixou de ser mock na 032 (aba real)
     expect(() => getComingSoon('cast')).toThrow() // deixou de ser mock na 032 (aba Elenco com o elenco em texto)
     expect(() => getComingSoon('trailer')).toThrow() // deixou de ser mock na 033 (botão real)
+    expect(() => getComingSoon('home-trailer')).toThrow() // deixou de ser mock na 060 (Trailer real no billboard do Início, item 32)
+    expect(() => getComingSoon('vod-because')).toThrow() // deixou de ser mock na 060 ("Porque você assistiu" real, item 69)
     expect(() => getComingSoon('similar')).toThrow() // deixou de ser mock na 035 (aba Semelhantes real)
+    expect(() => getComingSoon('player-quality')).toThrow() // deixou de ser mock na 041 (Qualidade real)
+    expect(() => getComingSoon('player-aspect')).toThrow() // deixou de ser mock na 041 (Aspecto real)
+    expect(() => getComingSoon('player-speed')).toThrow() // 041, D-001: Velocidade saiu de vez, nem como mock
+    expect(() => getComingSoon('settings-player')).toThrow() // deixou de ser mock na 041 (aba Player real)
     expect(getComingSoon('home-ai-curation').backlogItem).toBe(30)
   })
 })

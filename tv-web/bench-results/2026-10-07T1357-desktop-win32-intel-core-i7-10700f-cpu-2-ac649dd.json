@@ -1,0 +1,125 @@
+{
+  "schema": 1,
+  "date": "2026-10-07T13:57:29.799Z",
+  "device": {
+    "slug": "desktop-win32-intel-core-i7-10700f-cpu-2-90ghz",
+    "platform": "win32",
+    "cpu": "Intel(R) Core(TM) i7-10700F CPU @ 2.90GHz",
+    "cores": 16,
+    "memoryGb": 32,
+    "browser": "chromium 153.0.8010.12",
+    "runtime": "playwright"
+  },
+  "commit": "ac649dd",
+  "dirty": true,
+  "appVersion": "0.0.0",
+  "seed": 1,
+  "cpuThrottle": 1,
+  "results": [
+    {
+      "format": "xtream",
+      "size": 1000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 11.8,
+        "parseMs": 0.4,
+        "classifyMs": 1.9,
+        "storeMs": 38.7,
+        "totalMs": 52.8
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 67.6
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 6442450944
+        },
+        "after": {
+          "usage": 118784,
+          "quota": 6442569728
+        }
+      },
+      "counts": {
+        "categories": 6,
+        "items": 1000
+      },
+      "expected": {
+        "categories": 6,
+        "items": 1000
+      },
+      "countsMatch": true
+    },
+    {
+      "format": "m3u",
+      "size": 1000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 4.7,
+        "parseMs": 3.8,
+        "classifyMs": 1.6,
+        "storeMs": 34,
+        "totalMs": 44.1
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 77.3
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 6442450944
+        },
+        "after": {
+          "usage": 372736,
+          "quota": 6442823680
+        }
+      },
+      "counts": {
+        "categories": 6,
+        "items": 1000
+      },
+      "expected": {
+        "categories": 6,
+        "items": 1000
+      },
+      "countsMatch": true
+    },
+    {
+      "format": "xmltv",
+      "size": 1000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 6.4,
+        "parseMs": 4.2,
+        "classifyMs": null,
+        "storeMs": 69.7,
+        "totalMs": 80.3
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 88.8
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 6442450944
+        },
+        "after": {
+          "usage": 679936,
+          "quota": 6443130880
+        }
+      },
+      "counts": {
+        "categories": 5,
+        "items": 1000
+      },
+      "expected": {
+        "categories": 5,
+        "items": 1000
+      },
+      "countsMatch": true
+    }
+  ]
+}

@@ -3,12 +3,17 @@
  * §13.3/§48.4). Regras completas em
  * `sdd/specs/036-limpar-historico/logic/remocao-historico.md`.
  *
- * STUB do sdd-plan: assinaturas travadas pelos testes de contrato
- * (`historyRemoval.limpar-historico.contract.test.ts`); o corpo é do
- * sdd-execute.
+ * Esconder, nunca apagar `lastWatched` (D-001): "Continuar assistindo" lê o
+ * mesmo campo. Nenhum caminho daqui escreve `isFavorite`, `favoritedAt`,
+ * `completedAt` ou `lastWatched` (D-004).
  */
 
+import { listEpisodes } from './catalogRepository'
 import { db, type CatalogDb, type UserStateRecord } from './db'
+import { loadHistory } from './history'
+import { buildStableId, isInHistory } from './userStateRepository'
+
+export { isInHistory }
 
 /**
  * `'history-only'` = só tira do Histórico (a retomada fica, o item continua em
@@ -35,24 +40,78 @@ export interface HistorySummary {
   series: HistoryScopeSummary
 }
 
-/** Regra única de "está no Histórico" (`logic/remocao-historico.md` §1). */
-export function isInHistory(state: Pick<UserStateRecord, 'lastWatched' | 'historyHiddenAt'> | null | undefined): boolean {
-  void state
-  throw new Error('not implemented')
+/**
+ * O estado depois de remover (`logic/remocao-historico.md` §2–§4), ou `null`
+ * quando não há nada a mudar. `historyHiddenAt = max(agora, lastWatched)`
+ * garante `lastWatched <= historyHiddenAt` mesmo com relógio igual (§1); o
+ * progresso some com `'history-and-progress'` mesmo num item já escondido
+ * (D-005).
+ */
+function removedState(state: UserStateRecord, mode: HistoryRemovalMode, now: number): UserStateRecord | null {
+  const hide = isInHistory(state)
+  const dropProgress = mode === 'history-and-progress' && state.progressSeconds !== undefined
+  if (!hide && !dropProgress) return null
+  const next: UserStateRecord = { ...state, updatedAt: now }
+  if (hide) next.historyHiddenAt = Math.max(now, state.lastWatched ?? now)
+  if (dropProgress) next.progressSeconds = undefined
+  return next
 }
 
-/** Remove um filme do Histórico (FR-008/FR-009). */
+/**
+ * `stableId`s dos episódios da série na geração ativa (D-009) — o mesmo
+ * cálculo de `useSeriesWatchedSummary`. Episódio sem identidade estável fica
+ * de fora: nunca entrou no Histórico.
+ */
+async function seriesEpisodeStableIds(sourceId: string, seriesId: string, database: CatalogDb): Promise<string[]> {
+  const episodes = await listEpisodes(sourceId, seriesId, database)
+  const stableIds: string[] = []
+  for (const episode of episodes) {
+    try {
+      stableIds.push(
+        buildStableId({
+          sourceId,
+          kind: 'episode',
+          providerStreamId: episode.providerStreamId,
+          seriesId: episode.seriesId,
+          seasonNumber: episode.seasonNumber,
+          episodeNumber: episode.episodeNumber,
+          originalName: episode.originalName,
+        }),
+      )
+    } catch {
+      // Sem identidade estável: pula.
+    }
+  }
+  return stableIds
+}
+
+/**
+ * O título tem retomada? Decide se a confirmação oferece "apagar progresso"
+ * (FR-007, §8) — lido antes de abrir, só IndexedDB. Série: algum episódio.
+ */
+export async function historyTargetHasProgress(
+  target: { kind: 'movie'; stableId: string } | { kind: 'series'; sourceId: string; seriesId: string },
+  database: CatalogDb = db,
+): Promise<boolean> {
+  const stableIds =
+    target.kind === 'movie' ? [target.stableId] : await seriesEpisodeStableIds(target.sourceId, target.seriesId, database)
+  const states = await database.userStates.bulkGet(stableIds)
+  return states.some((state) => (state?.progressSeconds ?? 0) > 0)
+}
+
+/** Remove um filme do Histórico (FR-008/FR-009). Fora do Histórico, não faz nada. */
 export async function removeMovieFromHistory(
   stableId: string,
   sourceId: string,
   mode: HistoryRemovalMode,
   database: CatalogDb = db,
 ): Promise<void> {
-  void stableId
-  void sourceId
-  void mode
-  void database
-  throw new Error('not implemented')
+  await database.transaction('rw', database.userStates, async () => {
+    const state = await database.userStates.get(stableId)
+    if (!state || state.sourceId !== sourceId || !isInHistory(state)) return
+    const next = removedState(state, mode, Date.now())
+    if (next) await database.userStates.put(next)
+  })
 }
 
 /**
@@ -66,11 +125,23 @@ export async function removeSeriesFromHistory(
   mode: HistoryRemovalMode,
   database: CatalogDb = db,
 ): Promise<void> {
-  void sourceId
-  void seriesId
-  void mode
-  void database
-  throw new Error('not implemented')
+  const stableIds = await seriesEpisodeStableIds(sourceId, seriesId, database)
+  if (stableIds.length === 0) return
+
+  await database.transaction('rw', database.userStates, async () => {
+    const now = Date.now()
+    const states = await database.userStates.bulkGet(stableIds)
+    const changed = states.flatMap((state) => (state ? (removedState(state, mode, now) ?? []) : []))
+    if (changed.length > 0) await database.userStates.bulkPut(changed)
+  })
+}
+
+function scopePrefixes(sourceId: string, scope: HistoryClearScope): string[] {
+  const movies = `${sourceId}|movie|`
+  const episodes = `${sourceId}|episode|`
+  if (scope === 'movies') return [movies]
+  if (scope === 'series') return [episodes]
+  return [movies, episodes]
 }
 
 /**
@@ -84,16 +155,28 @@ export async function clearHistory(
   mode: HistoryRemovalMode,
   database: CatalogDb = db,
 ): Promise<void> {
-  void sourceId
-  void scope
-  void mode
-  void database
-  throw new Error('not implemented')
+  const prefixes = scopePrefixes(sourceId, scope)
+  await database.transaction('rw', database.userStates, async () => {
+    const now = Date.now()
+    const states = await database.userStates.where('sourceId').equals(sourceId).toArray()
+    const changed = states.flatMap((state) =>
+      prefixes.some((prefix) => state.stableId.startsWith(prefix)) ? (removedState(state, mode, now) ?? []) : [],
+    )
+    if (changed.length > 0) await database.userStates.bulkPut(changed)
+  })
 }
 
 /** Contagens e "tem progresso" por escopo, para a aba Privacidade (FR-023). */
 export async function summarizeHistory(sourceId: string, database: CatalogDb = db): Promise<HistorySummary> {
-  void sourceId
-  void database
-  throw new Error('not implemented')
+  const [movies, series, states] = await Promise.all([
+    loadHistory(sourceId, 'movie', database),
+    loadHistory(sourceId, 'series', database),
+    database.userStates.where('sourceId').equals(sourceId).toArray(),
+  ])
+  const hasProgress = (prefix: string) =>
+    states.some((state) => state.stableId.startsWith(prefix) && isInHistory(state) && (state.progressSeconds ?? 0) > 0)
+  return {
+    movies: { titles: movies.records.length, unavailable: movies.unresolved, hasProgress: hasProgress(`${sourceId}|movie|`) },
+    series: { titles: series.records.length, unavailable: series.unresolved, hasProgress: hasProgress(`${sourceId}|episode|`) },
+  }
 }

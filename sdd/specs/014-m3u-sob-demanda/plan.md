@@ -412,3 +412,9 @@ opcionais, e continuam documentadas assim):
 `tv-web/README.md`, o boilerplate padrão do template Vite, sem relação com
 funcionalidades do app) — nada para atualizar, conforme o escopo deste
 skill.
+
+## Passada física na TV — 2026-10-06
+
+Passada feita na TV QN50Q60DAGXZD, declarada pelo usuário em 06/10/2026 como **realizada com sucesso**. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas; não há medição para citar. Os riscos de hardware desta feature (marcados como "só se prova na TV") ficam encerrados por decisão do usuário.
+
+Cobre o T049 (cenários 1, 3 e 4 com a lista real). **SC-001/SC-002/SC-003 continuam sem número registrado** (T051/T041 seguem abertas).

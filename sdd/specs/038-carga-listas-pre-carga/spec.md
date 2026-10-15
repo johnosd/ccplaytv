@@ -314,6 +314,12 @@ a pré-carga terminar.
 - **FR-003**: A pré-carga NÃO DEVE iniciar uma nova categoria enquanto houver
   teclas sendo apertadas; DEVE retomar só depois de um intervalo sem tecla
   (padrão ~2 s, ajustável após medição na TV).
+  **Atualização (bug `abrir-app-nao-atualiza-todas-categorias`, 2026-10-09):**
+  a renovação que uma atualização da lista pediu (`renewRequestedAt` >
+  `itemsFetchedAt`) **não** espera silêncio de teclas. Na TV, com a pessoa
+  navegando, o portão ficava fechado e o catálogo não se atualizava na sessão
+  (o Início e as vitrines ficavam sem os recém-adicionados). FR-004 continua
+  valendo para ela, e a carga fria continua cedendo à tecla como acima.
 - **FR-004**: A pré-carga NÃO DEVE iniciar nenhuma categoria enquanto o
   player estiver aberto (qualquer tipo de mídia), com o app oculto ou sem
   conexão; DEVE retomar sozinha quando a condição acaba.

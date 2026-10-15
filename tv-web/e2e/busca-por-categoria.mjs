@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusSideItem } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'busca-por-categoria.m3u')
@@ -84,7 +85,8 @@ async function addSource(page, m3uUrl) {
  * trilha das três é `SideCategoryNav` (`.side-category-nav-item`, texto em
  * `.side-category-nav-label`).
  */
-async function waitForTrailFocus(page, name) {
+async function waitForTrailFocus(page, name, scope) {
+  if (scope === 'vod') return focusSideItem(page, name)
   await page.locator('.side-category-nav-item.tv-focus', { hasText: name }).waitFor({ timeout: 8000 })
 }
 
@@ -131,7 +133,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/busca-por-categoria.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
@@ -148,8 +150,12 @@ async function run() {
     // `page.route()` antes do primeiro `goto` prende a navegação
     // indefinidamente neste ambiente (achado da feature 017, sem relação
     // com o app).
-    await page.route('**/live/**', () => {})
-    await page.route('**/vod/**', () => {})
+    await page.route('**/live/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('=== Live TV: entra em "Canais | Esportes" (cobre essa categoria) ===')
     await page.waitForSelector('.source-card', { timeout: 8000 })
@@ -157,9 +163,9 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
 
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     await waitForTrailFocus(page, 'Esportes')
-    await page.keyboard.press('ArrowRight') // entra em "Canais | Esportes" (padrão: 1ª categoria real)
+    await page.keyboard.press('Enter') // entra em "Canais | Esportes" (padrão: 1ª categoria real)
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').allTextContents()).join(',') ===
@@ -204,10 +210,14 @@ async function run() {
     // Fechar o player reancora a trilha na categoria do canal (016 D-006) —
     // sai até a trilha e sobe até "Todos" (logo após "★ Favoritos", ou
     // seja, 1 ArrowUp a partir de "Esportes" já chega em "Todos").
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
-    await page.keyboard.press('ArrowLeft') // categoria -> trilha (se ainda não estiver lá)
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
+    // RETURN em camadas (049): fechar o player devolve o foco aos resultados da busca; RETURN até chegar à trilha.
+    for (let i = 0; i < 4 && (await page.locator('.live-column-groups .side-category-nav-item.tv-focus').count()) === 0; i += 1) {
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(100)
+    }
     await page.keyboard.press('ArrowUp') // "Todos"
-    await page.keyboard.press('ArrowRight') // entra em "Todos"
+    await page.keyboard.press('Enter') // entra em "Todos"
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').allTextContents()).join(',') ===
@@ -230,8 +240,8 @@ async function run() {
     await page.keyboard.press('Enter') // abre a fonte
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'movies')
-    await waitForTrailFocus(page, 'Filmes A')
-    await page.keyboard.press('ArrowRight') // entra em "Filmes A" (padrão: 1ª categoria real)
+    await waitForTrailFocus(page, 'Filmes A', 'vod')
+    await page.keyboard.press('Enter') // entra em "Filmes A" (padrão: 1ª categoria real)
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
       (await page.locator('.content-card-title').first().textContent()) === 'Duna Fictício',
@@ -267,7 +277,7 @@ async function run() {
       'o foco voltou pro item que estava aberto',
     )
 
-    console.log('=== RETURN em camadas: resultado → campo → botão de busca → trilha → hub ===')
+    console.log('=== RETURN em camadas: resultado → campo → botão de busca → vitrine → hub ===')
     await page.keyboard.press('Escape') // resultado -> campo
     assert(
       await page.evaluate(() => document.activeElement === document.querySelector('input.search-field')),
@@ -278,12 +288,12 @@ async function run() {
       await page.locator('.vod-toolbar-search-button.tv-focus').isVisible(),
       'RETURN a partir do campo fechou a busca e devolveu o foco ao botão "Pesquisar", sem sair da categoria',
     )
-    await page.keyboard.press('Escape') // botão -> trilha
-    await page.waitForSelector('.vod-side-nav .tv-focus', { timeout: 8000 })
-    assert(true, 'RETURN a partir do botão de busca saiu da categoria para a trilha')
-    await page.keyboard.press('Escape') // trilha -> Início (a topbar só existe lá)
+    await page.keyboard.press('Escape') // botão -> vitrine
+    await page.waitForSelector('.vod-showcase', { timeout: 8000 })
+    assert(true, 'RETURN a partir do botão de busca saiu da categoria para a vitrine')
+    await page.keyboard.press('Escape') // vitrine -> Início (a topbar só existe lá)
     await page.waitForSelector('.home-content', { timeout: 8000 })
-    assert(true, 'RETURN a partir da trilha saiu da tela de Filmes sem travar')
+    assert(true, 'RETURN a partir da vitrine saiu da tela de Filmes sem travar')
   } catch (error) {
     failures += 1
     console.error('  ✗ ERRO NÃO TRATADO:', error)

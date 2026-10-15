@@ -1,7 +1,8 @@
 /**
  * Feature 030 — gatilhos de sincronização de EPG em `importApi` (D-008,
- * FR-009): importação concluída, e abrir a fonte com EPG vencido. Nada de
- * gatilho em falha, cancelamento, EPG em dia ou EPG desativado.
+ * FR-009): importação concluída, e abrir a fonte com EPG vencido — esta, desde o
+ * bug `epg-nao-atualiza-depois-primeira-carga`, com ou sem importação a fazer e
+ * qualquer que seja o desfecho dela. Nada de gatilho em EPG em dia ou desativado.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, renderHook } from '@testing-library/react'
@@ -40,10 +41,10 @@ function wrapper() {
   return ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
 
-const handleWith = (status: ImportRunRecord['status']) => ({
+const handleWith = (status: ImportRunRecord['status'], startedAt = NOW - 500) => ({
   runId: 'run-1',
   cancel: vi.fn(),
-  completion: Promise.resolve({ status } as ImportRunRecord),
+  completion: Promise.resolve({ status, startedAt } as ImportRunRecord),
 })
 
 const flush = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
@@ -131,5 +132,35 @@ describe('gatilhos de EPG em importApi', () => {
     expect(opened.triggered).toBe(true)
     expect(runImport).toHaveBeenCalledTimes(1)
     expect(requestEpgSync).toHaveBeenCalledWith(SOURCE_ID)
+  })
+  it('abrir com importação devida e EPG vencido pede o EPG já, qualquer que seja o desfecho da importação', async () => {
+    const due = { lastSuccessfulSyncAt: NOW - 60 * 60 * 1000, epgLastSyncAt: NOW - EPG_STALE_AFTER_MS - 1000 }
+    const neverEnds = { runId: 'run-x', cancel: vi.fn(), completion: new Promise<ImportRunRecord>(() => {}) }
+    for (const handle of [handleWith('failed'), handleWith('cancelled'), neverEnds]) {
+      await db.sources.update(SOURCE_ID, due)
+      requestEpgSync.mockClear()
+      runImport.mockResolvedValue(handle)
+      const { result } = renderHook(() => useOpenSource(), { wrapper: wrapper() })
+
+      const opened = await act(async () => result.current.mutateAsync(SOURCE_ID))
+      await flush()
+
+      expect(opened.triggered).toBe(true)
+      expect(requestEpgSync).toHaveBeenCalledTimes(1)
+      expect(requestEpgSync).toHaveBeenCalledWith(SOURCE_ID)
+    }
+  })
+
+  it('importação concluída depois de o EPG já ter sincronizado (na abertura) não baixa de novo', async () => {
+    await db.sources.update(SOURCE_ID, { epgLastSyncAt: NOW - 100 })
+    runImport.mockResolvedValue(handleWith('completed', NOW - 500))
+    const { result } = renderHook(() => useResyncSource(), { wrapper: wrapper() })
+
+    await act(async () => {
+      await result.current.mutateAsync(SOURCE_ID)
+    })
+    await flush()
+
+    expect(requestEpgSync).not.toHaveBeenCalled()
   })
 })

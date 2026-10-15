@@ -1,11 +1,22 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useCreateSource, useUpdateSource, type SourceOut } from './importApi'
 import { useTvKeyNav } from '../../lib/useTvKeyNav'
 import { useRemoteNav } from '../../lib/useRemoteNav'
+import { useImeChain } from '../../lib/useImeChain'
 import { Button } from '../../components/Button'
-import { ComingSoon } from '../../components/ComingSoon'
-import { TextField } from '../../components/TextField'
 import { OnboardingBrand } from './OnboardingBrand'
+import { checkSourceConnection } from '../../lib/catalog/sourceConnectionCheck'
+import { isQuotaError, StorageFullError } from '../../lib/catalog/catalogRepository'
+import { bannerFor, RETRY_LABEL_KEY, type ConnectionBanner } from './connectionBanner'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
+import { ConnectionErrorBanner } from './ConnectionErrorBanner'
+import { connectionInputFor } from './connectionInput'
+import { SourceFormFields, type SourceFormValues } from './SourceFormFields'
+import { useStoredSourceFields } from './useStoredSourceFields'
+
+/** `idle` → `checking` (confirma a conexão, cancelável) → `saving` (grava a lista). */
+type SubmitPhase = 'idle' | 'checking' | 'saving'
 
 export interface AddSourceScreenProps {
   /** Presente = tela em modo edição de uma fonte já existente. */
@@ -13,21 +24,24 @@ export interface AddSourceScreenProps {
   onSourceCreated: (result: { sourceId: string; jobId: string }) => void
   onSourceUpdated?: () => void
   onBack: () => void
+  /**
+   * Coluna "Pelo celular" (feature 070, D-008): montada pelo App (features/portal), nunca importada aqui.
+   * Presente = substitui o antigo mock "Em breve" e traz o próprio Voltar; ausente = só o cadastro manual.
+   */
+  phonePanel?: ReactNode
+  /**
+   * Aba "Pelo site" (071, A006): vem do App (features/portal) e aparece ao lado de Xtream Codes e Lista M3U, uma
+   * por vez, na mesma tela — Voltar de qualquer aba cai na tela de listas. Traz Recarregar e o próprio Voltar.
+   */
+  sitePanel?: ReactNode
 }
 
 type EntryMode = 'url' | 'provider'
 
 /** Os dois tipos do painel "Configuração manual" (D-008), na ordem do protótipo. */
-const ENTRY_TYPES: { id: EntryMode; title: string; description: string }[] = [
-  { id: 'provider', title: 'Xtream Codes', description: 'Servidor, usuário e senha com categorias e EPG.' },
-  { id: 'url', title: 'Lista M3U', description: 'URL única para playlist rápida e compatível.' },
-]
-
-/** Passos de "Como funciona" — o caminho real, sem o celular (FR-014). Nenhum é marcado como concluído. */
-const HOW_IT_WORKS: { title: string; text: string }[] = [
-  { title: 'Escolha o tipo', text: 'Xtream Codes ou Lista M3U' },
-  { title: 'Digite os dados', text: 'Servidor e login, ou a URL da lista' },
-  { title: 'Sincronizar tudo', text: 'Canais, EPG, filmes e séries chegam na TV' },
+const ENTRY_TYPES: { id: EntryMode; title: string | MessageKey }[] = [
+  { id: 'provider', title: 'Xtream Codes' },
+  { id: 'url', title: 'add.type.m3u' },
 ]
 
 /**
@@ -51,29 +65,88 @@ export function AddSourceScreen({
   onSourceCreated,
   onSourceUpdated,
   onBack,
+  phonePanel,
+  sitePanel,
 }: AddSourceScreenProps) {
+  const t = useT()
   const isEditing = existingSource != null
   const containerRef = useRef<HTMLElement>(null)
   const selectedTypeRef = useRef<HTMLButtonElement>(null)
+  const submitRef = useRef<HTMLButtonElement>(null)
   useTvKeyNav(containerRef, isEditing ? {} : { initialFocus: () => selectedTypeRef.current })
-  useRemoteNav({ onBack })
+  // Done do IME leva o foco à ação principal, sem enviar (feature 045, US2).
+  useImeChain(containerRef, submitRef)
+
+  // Trava **síncrona** (feature 045, D-007): `phase` só muda no render seguinte, e
+  // dois OK seguidos passariam. `abortRef` só existe enquanto a conexão é confirmada.
+  const lockRef = useRef(false)
+  const abortRef = useRef<AbortController | null>(null)
+  const [phase, setPhase] = useState<SubmitPhase>('idle')
+  const [banner, setBanner] = useState<ConnectionBanner | null>(null)
+
+  // RETURN fecha primeiro a camada aberta: com a confirmação em andamento só a
+  // cancela (dados preservados, foco na ação); sem ela, sai da tela (FR-009).
+  function handleBack() {
+    if (abortRef.current) {
+      abortRef.current.abort()
+      return
+    }
+    onBack()
+  }
+  useRemoteNav({ onBack: handleBack })
+
+  // Sair da tela no meio da confirmação não deixa a requisição pendurada.
+  useEffect(
+    () => () => {
+      abortRef.current?.abort()
+    },
+    [],
+  )
 
   const [mode, setMode] = useState<EntryMode>(
     existingSource == null || existingSource.type === 'provider_credentials' ? 'provider' : 'url',
   )
+  // Aba "Pelo site" (só existe no cadastro novo com `sitePanel`): é a que abre, sempre; Xtream/M3U seguem em `mode`.
+  const [onSite, setOnSite] = useState(sitePanel != null)
   const [displayName, setDisplayName] = useState(existingSource?.display_name ?? '')
   const [m3uUrl, setM3uUrl] = useState('')
-  // Em edição, endereço vem preenchido (não é segredo sozinho); usuário e
-  // senha começam em branco e ficam com o valor atual se não forem
-  // reescritos (write-only — o backend nunca devolve os dois).
+  // Em edição (feature 070, FR-011), os valores salvos no próprio aparelho entram nos campos, visíveis
+  // (olho do formulário). Até a leitura local chegar — ou se ela falhar — o campo fica em branco e
+  // em branco continua significando "manter o valor atual".
   const [dns, setDns] = useState(existingSource?.provider_dns ?? '')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const stored = useStoredSourceFields(existingSource?.id)
+  const [appliedStored, setAppliedStored] = useState(stored)
+  if (stored !== appliedStored) {
+    // Ajuste de estado na renderização (padrão do React para estado derivado de uma leitura que
+    // chega depois): só preenche o que a pessoa ainda não digitou.
+    setAppliedStored(stored)
+    if (stored) {
+      setM3uUrl((current) => current || stored.m3uUrl)
+      setDns((current) => current || stored.dns)
+      setUsername((current) => current || stored.username)
+      setPassword((current) => current || stored.password)
+    }
+  }
   const [validationError, setValidationError] = useState<string | null>(null)
 
   const createSource = useCreateSource()
   const updateSource = useUpdateSource()
-  const isPending = createSource.isPending || updateSource.isPending
+
+  /** Devolve a tela ao repouso e o foco à ação principal (nunca uma tela sem foco, SC-003). */
+  function settle(next: ConnectionBanner | null) {
+    abortRef.current = null
+    lockRef.current = false
+    setPhase('idle')
+    setBanner(next)
+    submitRef.current?.focus()
+  }
+
+  /** Falha ao gravar: disco cheio tem código próprio; o resto mantém a linha genérica de sempre. */
+  function settleSaveError(error: unknown) {
+    settle(isQuotaError(error) || error instanceof StorageFullError ? bannerFor('STO-01', t) : null)
+  }
 
   // Sem <form>: salvar só acontece no clique/OK deste botão especificamente,
   // nunca implicitamente. Um <form> com <input> dentro submete sozinho no
@@ -82,13 +155,65 @@ export function AddSourceScreen({
   // pelo mesmo keydown que um controle físico dispara. Sem <form>, esse
   // mecanismo do navegador nem existe: nada aciona handleSubmit a não ser
   // este onClick.
-  function handleSubmit() {
+  async function handleSubmit() {
+    if (lockRef.current) return
     setValidationError(null)
 
     if (!displayName.trim()) {
-      setValidationError('Informe um nome para a lista.')
+      setBanner(null)
+      setValidationError(t('add.err.name'))
       return
     }
+    if (!isEditing) {
+      if (mode === 'url' && !m3uUrl.trim()) {
+        setBanner(null)
+        setValidationError(t('add.err.m3u'))
+        return
+      }
+      if (mode === 'provider' && (!dns.trim() || !username.trim() || !password.trim())) {
+        setBanner(null)
+        setValidationError(t('add.err.provider'))
+        return
+      }
+    }
+
+    // Confirma a conexão ANTES de criar/atualizar (feature 045, D-001): uma falha
+    // não deixa fonte órfã e a pessoa continua aqui, com os dados preenchidos.
+    lockRef.current = true
+    setBanner(null)
+    setPhase('checking')
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    // Valor igual ao salvo = "não mudou": segue o caminho de sempre do campo em branco (sem nova
+    // confirmação de conexão e sem regravar o segredo).
+    const keep = (value: string, saved: string | undefined) => (isEditing && saved !== undefined && value === saved ? '' : value)
+    const sendM3u = keep(m3uUrl, stored?.m3uUrl)
+    const sendUser = keep(username, stored?.username)
+    const sendPassword = keep(password, stored?.password)
+
+    try {
+      const input = await connectionInputFor(
+        { mode, m3uUrl: sendM3u, dns, username: sendUser, password: sendPassword },
+        existingSource ? { id: existingSource.id, providerDns: existingSource.provider_dns } : undefined,
+      )
+      if (input) {
+        const result = await checkSourceConnection(input, { signal: controller.signal })
+        if (result.status === 'cancelled') return settle(null)
+        if (result.status === 'failed') return settle(bannerFor(result.code, t))
+      }
+    } catch {
+      // Defeito nosso não vira "falha de rede" (D-009): cai na linha genérica, sem a mensagem crua.
+      settle(null)
+      setValidationError(
+        isEditing ? t('add.err.saveEdit') : t('add.err.saveNew'),
+      )
+      return
+    }
+    if (controller.signal.aborted) return settle(null)
+
+    abortRef.current = null
+    setPhase('saving')
 
     if (isEditing) {
       updateSource.mutate(
@@ -96,34 +221,25 @@ export function AddSourceScreen({
           sourceId: existingSource.id,
           input: {
             display_name: displayName,
-            ...(mode === 'url' ? { m3u_url: m3uUrl || undefined } : {}),
+            ...(mode === 'url' ? { m3u_url: sendM3u || undefined } : {}),
             ...(mode === 'provider'
-              ? { provider: { dns: dns || undefined, username: username || undefined, password: password || undefined } }
+              ? { provider: { dns: dns || undefined, username: sendUser || undefined, password: sendPassword || undefined } }
               : {}),
           },
         },
-        { onSuccess: () => onSourceUpdated?.() },
+        { onSuccess: () => onSourceUpdated?.(), onError: settleSaveError },
       )
       return
     }
+
+    const onSuccess = (result: { source_id: string; import_job_id: string }) =>
+      onSourceCreated({ sourceId: result.source_id, jobId: result.import_job_id })
 
     if (mode === 'url') {
-      if (!m3uUrl.trim()) {
-        setValidationError('Informe a URL da lista M3U.')
-        return
-      }
       createSource.mutate(
         { type: 'm3u_url', display_name: displayName, m3u_url: m3uUrl },
-        {
-          onSuccess: (result) =>
-            onSourceCreated({ sourceId: result.source_id, jobId: result.import_job_id }),
-        },
+        { onSuccess, onError: settleSaveError },
       )
-      return
-    }
-
-    if (!dns.trim() || !username.trim() || !password.trim()) {
-      setValidationError('Informe endereço do servidor, usuário e senha.')
       return
     }
     createSource.mutate(
@@ -132,58 +248,27 @@ export function AddSourceScreen({
         display_name: displayName,
         provider: { dns, username, password },
       },
-      {
-        onSuccess: (result) =>
-          onSourceCreated({ sourceId: result.source_id, jobId: result.import_job_id }),
-      },
+      { onSuccess, onError: settleSaveError },
     )
   }
 
-  const submitLabel = isEditing
-    ? updateSource.isPending
-      ? 'Salvando…'
-      : 'Salvar alterações'
-    : createSource.isPending
-      ? 'Conectando…'
-      : 'Conectar e sincronizar'
+  const submitLabel =
+    phase === 'saving' && isEditing
+      ? t('add.submit.saving')
+      : phase !== 'idle'
+        ? t('add.submit.connecting')
+        : banner?.retryable
+          ? t(RETRY_LABEL_KEY)
+          : isEditing
+            ? t('add.submit.save')
+            : t('add.submit.connect')
 
+  const setters: Record<keyof SourceFormValues, (value: string) => void> = {
+    displayName: setDisplayName, m3uUrl: setM3uUrl, dns: setDns, username: setUsername, password: setPassword,
+  }
   const fields = (
-    <div className="source-setup-fields">
-      <div className="source-setup-field--wide">
-        <TextField label="Nome da lista" purpose="text" value={displayName} onChange={setDisplayName} />
-      </div>
-      {mode === 'url' ? (
-        <div className="source-setup-field--wide">
-          <TextField
-            label="URL M3U"
-            purpose="url"
-            value={m3uUrl}
-            onChange={setM3uUrl}
-            hint={isEditing ? 'Deixe em branco para manter a URL atual' : undefined}
-          />
-        </div>
-      ) : (
-        <>
-          <div className="source-setup-field--wide">
-            <TextField label="Servidor" purpose="url" value={dns} onChange={setDns} />
-          </div>
-          <TextField
-            label="Usuário"
-            purpose="username"
-            value={username}
-            onChange={setUsername}
-            hint={isEditing ? 'Deixe em branco para manter o usuário atual' : undefined}
-          />
-          <TextField
-            label="Senha"
-            purpose="password"
-            value={password}
-            onChange={setPassword}
-            hint={isEditing ? 'Deixe em branco para manter a senha atual' : undefined}
-          />
-        </>
-      )}
-    </div>
+    <SourceFormFields mode={mode} isEditing={isEditing} values={{ displayName, m3uUrl, dns, username, password }}
+      onChange={(field, value) => setters[field](value)} />
   )
 
   const feedbackAndActions = (
@@ -193,14 +278,15 @@ export function AddSourceScreen({
           {validationError}
         </p>
       )}
-      {createSource.isError && (
+      {banner && <ConnectionErrorBanner banner={banner} />}
+      {!banner && !validationError && createSource.isError && (
         <p className="form-error onboarding-error" role="alert">
-          Não foi possível adicionar a fonte: {createSource.error.message}
+          {t('add.err.saveNewWith', { message: createSource.error.message })}
         </p>
       )}
-      {updateSource.isError && (
+      {!banner && !validationError && updateSource.isError && (
         <p className="form-error onboarding-error" role="alert">
-          Não foi possível salvar as alterações: {updateSource.error.message}
+          {t('add.err.saveEditWith', { message: updateSource.error.message })}
         </p>
       )}
 
@@ -208,10 +294,13 @@ export function AddSourceScreen({
           focável (constitution, "Foco Visível e Sem Becos Sem Saída") e só
           ignora um segundo OK, sem submissão duplicada. */}
       <div className="source-setup-actions">
-        <Button variant="secondary" onSelect={onBack}>
-          Voltar
-        </Button>
-        <Button variant="accent" loading={isPending} onSelect={handleSubmit}>
+        {/* Com o painel do celular, o Voltar é o dele (um só Voltar na tela, A002). */}
+        {!phonePanel && (
+          <Button variant="secondary" onSelect={onBack}>
+            {t('common.back')}
+          </Button>
+        )}
+        <Button variant="accent" loading={phase !== 'idle'} onSelect={handleSubmit} buttonRef={submitRef}>
           {submitLabel}
         </Button>
       </div>
@@ -219,109 +308,77 @@ export function AddSourceScreen({
   )
 
   const currentType = ENTRY_TYPES.find((type) => type.id === mode)!
+  /** Xtream Codes é nome próprio (literal); o outro título vem do catálogo. */
+  const typeTitle = (title: string): string => (title.startsWith('add.') ? t(title as MessageKey) : title)
 
   return (
     <section
-      className="screen onboarding source-setup no-scrollbar"
+      className="screen onboarding source-setup no-scrollbar form-scroll-room"
       aria-labelledby="add-source-title"
       ref={containerRef}
     >
       <OnboardingBrand />
-      <p className="onboarding-kicker">{isEditing ? 'Suas listas' : 'Configuração inicial'}</p>
+      <p className="onboarding-kicker">{isEditing ? t('add.kicker.edit') : t('add.kicker.new')}</p>
       <h1 id="add-source-title" className="onboarding-title">
-        {isEditing ? 'Editar lista' : 'Conecte sua lista IPTV'}
+        {isEditing ? t('add.title.edit') : t('add.title.new')}
       </h1>
       <p className="onboarding-subtitle">
-        {isEditing
-          ? 'Altere o que precisar. Usuário e senha em branco continuam como estão.'
-          : 'Escolha Xtream Codes ou Lista M3U e preencha os dados da sua lista. Conectar pelo celular chega em breve.'}
+        {isEditing ? t('add.subtitle.edit') : t('add.subtitle.new')}
       </p>
 
       {isEditing ? (
         <div className="source-setup-layout source-setup-layout--edit">
           <div className="source-setup-main">
-            <p className="source-setup-eyebrow">{currentType.title}</p>
-            <h2 className="source-setup-main-title">Configuração manual</h2>
+            <p className="source-setup-eyebrow">{typeTitle(currentType.title)}</p>
+            <h2 className="source-setup-main-title">{t('add.manual')}</h2>
             {fields}
             {feedbackAndActions}
           </div>
         </div>
       ) : (
-        <div className="source-setup-layout">
-          <aside className="source-setup-side" aria-labelledby="setup-how-title">
-            <h2 id="setup-how-title" className="source-setup-side-title">
-              Como funciona
-            </h2>
-            <ol className="source-setup-steps">
-              {HOW_IT_WORKS.map((step, index) => (
-                <li key={step.title} className="source-setup-step">
-                  <span className="source-setup-step-number" aria-hidden="true">
-                    {index + 1}
-                  </span>
-                  <span className="source-setup-step-copy">
-                    <b>{step.title}</b>
-                    <span>{step.text}</span>
-                  </span>
-                </li>
-              ))}
-            </ol>
-            <p className="source-setup-note">Em breve: conectar pelo celular, sem digitar no controle remoto.</p>
-          </aside>
+        <div className={`source-setup-layout${phonePanel ? ' source-setup-layout--pairing' : ' source-setup-layout--edit'}`}>
+          {/* Coluna "Pelo celular" real (070); sem ela, só o cadastro manual — nunca um mock com dado inventado. */}
+          {phonePanel && <aside className="source-setup-side source-setup-phone">{phonePanel}</aside>}
 
           <div className="source-setup-main">
-            <h2 className="source-setup-main-title">Adicionar serviço</h2>
-            <p className="source-setup-main-text">
-              Preencha na TV com o controle remoto — o teclado da TV abre em cada campo.
-            </p>
-
-            <div className="source-setup-methods">
-              <section className="source-setup-panel source-setup-pair" aria-labelledby="pair-phone-title">
-                <p className="source-setup-eyebrow">Em breve</p>
-                <h3 id="pair-phone-title" className="source-setup-panel-title">
-                  Conectar com celular
-                </h3>
-                <p className="source-setup-panel-text">
-                  Parear a TV com o celular por QR code, para não digitar URLs longas no controle.
-                </p>
-                <ComingSoon id="pair-phone" />
-              </section>
-
-              <section className="source-setup-panel source-setup-manual" aria-labelledby="manual-setup-title">
-                <p className="source-setup-eyebrow">Disponível agora</p>
-                <h3 id="manual-setup-title" className="source-setup-panel-title">
-                  Configuração manual
-                </h3>
-                <div className="source-type-row" role="group" aria-label="Tipo de lista">
-                  {ENTRY_TYPES.map((type) => {
-                    const selected = type.id === mode
-                    return (
-                      <button
-                        key={type.id}
-                        ref={selected ? selectedTypeRef : undefined}
-                        type="button"
-                        className={`source-type${selected ? ' is-selected' : ''}`}
-                        aria-pressed={selected}
-                        onClick={() => setMode(type.id)}
-                      >
-                        <span className="source-type-head">
-                          <b>{type.title}</b>
-                          {/* Marca visível além da cor (FR-015); o estado lido é o `aria-pressed`. */}
-                          {selected && (
-                            <span className="source-type-check" aria-hidden="true">
-                              ✓
-                            </span>
-                          )}
+            <section className="source-setup-manual" aria-labelledby="manual-setup-title">
+              <h2 id="manual-setup-title" className="source-setup-main-title">
+                {sitePanel ? t('add.tabs.title') : t('add.manual')}
+              </h2>
+              {/* Abas (071, A006): Pelo site (com portal ou sem), Xtream Codes e Lista M3U, nessa ordem. Botões reais (foco do
+                  controle), a selecionada com destaque E a marca ✓ — nunca só a cor (FR-015). */}
+              <div className={`source-type-row${sitePanel ? ' source-type-row--three' : ''}`} role="group" aria-label={t('add.typeGroup')}>
+                {sitePanel && (
+                  <button ref={onSite ? selectedTypeRef : undefined} type="button" className={`source-type${onSite ? ' is-selected' : ''}`}
+                    aria-pressed={onSite} onClick={() => setOnSite(true)}>
+                    {onSite && <span className="source-type-check" aria-hidden="true">✓</span>}
+                    {t('add.tab.site')}
+                  </button>
+                )}
+                {ENTRY_TYPES.map((type) => {
+                  const selected = type.id === mode && !onSite
+                  return (
+                    <button
+                      key={type.id}
+                      ref={selected ? selectedTypeRef : undefined}
+                      type="button"
+                      className={`source-type${selected ? ' is-selected' : ''}`}
+                      aria-pressed={selected}
+                      onClick={() => { setOnSite(false); setMode(type.id) }}
+                    >
+                      {selected && (
+                        <span className="source-type-check" aria-hidden="true">
+                          ✓
                         </span>
-                        <span className="source-type-text">{type.description}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </section>
-            </div>
+                      )}
+                      {typeTitle(type.title)}
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
 
-            {fields}
-            {feedbackAndActions}
+            {sitePanel && onSite ? sitePanel : <>{fields}{feedbackAndActions}</>}
           </div>
         </div>
       )}

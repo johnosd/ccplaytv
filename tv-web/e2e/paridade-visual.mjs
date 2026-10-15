@@ -73,9 +73,15 @@ async function addSource(page, m3uUrl, displayName) {
  *  outros scripts em `e2e/`). Aqui é só evidência visual, não precisamos do
  *  vídeo de fato tocando — só que o chrome do player apareça. */
 async function stubPlaybackNetwork(page) {
-  await page.route('**/vod/**', () => {})
-  await page.route('**/series/**', () => {})
-  await page.route('**/live/**', () => {})
+  await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+  await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+  await page.route('**/live/**', (route) => {
+    if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+  })
 }
 
 async function settle(page) {
@@ -125,7 +131,7 @@ async function openViaTopbar(page, destination) {
 
 async function openLiveCategory(page) {
   await openViaTopbar(page, 'live')
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
   await page.keyboard.press('ArrowRight') // trilha -> entra na 1ª categoria real
   await page.waitForSelector('.live-channel-list .live-channel-row', { timeout: 8000 })
   await page.waitForSelector('.live-preview-panel', { timeout: 8000 })
@@ -221,7 +227,7 @@ async function runMainWalkthrough(page, m3uUrl, outDir) {
 
 /** SC-004 — mesma fixture, contexto isolado próprio, só 3 das 8 telas. */
 async function runViewportWalkthrough(browser, m3uUrl, width, height, suffix, outDir) {
-  const context = await browser.newContext({ viewport: { width, height } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width, height } })
   const page = await context.newPage()
   try {
     await addSource(page, m3uUrl, `Fonte E2E Paridade Visual ${suffix}`)
@@ -254,7 +260,7 @@ async function run() {
   const outDir = path.join(OUT_ROOT, MODE)
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {

@@ -18,7 +18,16 @@ function toSlot(program: EpgProgram, offsetMs: number): EpgSlot {
   return slot
 }
 
-export function nowAndNext(programs: readonly EpgProgram[], now: number, offsetMs: number): NowNext {
+/**
+ * Programas deslocados e ordenados + o atual, com a regra única de
+ * sobreposição. Compartilhado com `upcoming.ts` (feature 048) para o 1º
+ * "próximo" nunca divergir do `next` de `nowAndNext`. Não faz parte da API pública.
+ */
+export function resolveSchedule(
+  programs: readonly EpgProgram[],
+  now: number,
+  offsetMs: number,
+): { shifted: EpgSlot[]; current: EpgSlot | undefined } {
   const shifted = programs
     .map((program) => toSlot(program, offsetMs))
     .sort((a, b) => a.start - b.start || a.end - b.end)
@@ -34,6 +43,11 @@ export function nowAndNext(programs: readonly EpgProgram[], now: number, offsetM
     }
   }
 
+  return { shifted, current }
+}
+
+export function nowAndNext(programs: readonly EpgProgram[], now: number, offsetMs: number): NowNext {
+  const { shifted, current } = resolveSchedule(programs, now, offsetMs)
   const after = current ? current.end : now
   const next = shifted.find((slot) => (current ? slot.start >= after : slot.start > after))
 

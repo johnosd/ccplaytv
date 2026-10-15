@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { OfflineBanner } from './OfflineBanner'
 
@@ -16,11 +16,12 @@ afterEach(() => {
 })
 
 describe('OfflineBanner', () => {
-  it('offline: aparece com ação de testar conexão; volta online: some sozinho', () => {
+  // Feature 042 (D-007): o banner é só texto; a ação "Tentar de novo" vive na topbar.
+  it('offline: aparece só como texto, sem botão; volta online: some sozinho', () => {
     setNavigatorOnLine(false)
-    render(<OfflineBanner onTestConnection={vi.fn()} />)
-    expect(screen.getByRole('status')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Testar conexão' })).toBeInTheDocument()
+    render(<OfflineBanner />)
+    expect(screen.getByRole('status')).toHaveTextContent('Sem conexão com a internet.')
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
 
     act(() => {
       setNavigatorOnLine(true)
@@ -31,7 +32,7 @@ describe('OfflineBanner', () => {
 
   it('online desde o início: nunca aparece', () => {
     setNavigatorOnLine(true)
-    render(<OfflineBanner onTestConnection={vi.fn()} />)
+    render(<OfflineBanner />)
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })

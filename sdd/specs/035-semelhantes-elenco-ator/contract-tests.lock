@@ -1,6 +1,6 @@
 {
     "feature":  "035-semelhantes-elenco-ator",
-    "lockedAt":  "2026-09-30 08:23",
+    "lockedAt":  "2026-10-05 09:48",
     "total":  5,
     "files":  [
                   {
@@ -20,7 +20,7 @@
                   },
                   {
                       "path":  "tv-web/src/features/movies/MovieDetailScreen.semelhantes.contract.test.tsx",
-                      "sha256":  "580987b6ff71f02afbb8e88f82a6d2d376605041fff7327f4643de522e5165b8",
+                      "sha256":  "2775a277dc98d4eb54f6f6c399cee9155618182ffc1c86ee72324c1fe4b88e17",
                       "tests":  2
                   }
               ]

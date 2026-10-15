@@ -13,6 +13,7 @@
  */
 
 import type { ParsedEntry } from './m3uParser'
+import type { PlaybackHeaders } from './m3uHeaders'
 
 import type { CatalogItemKind } from './db'
 
@@ -50,6 +51,12 @@ export interface ClassifiedEntry {
    * isto (é atualização, não inclusão).
    */
   addedAt?: number
+  /** Nota 0–10 (uma casa) declarada na listagem, já validada (feature 055, FR-001/FR-003) — filme e série do provedor. */
+  providerRating?: number
+  /** Gêneros da listagem (feature 055, FR-002) — só série do provedor; só exibição. */
+  providerGenres?: string
+  /** Primeira URL de fundo válida da listagem (feature 055, FR-002) — só série do provedor. */
+  providerBackdropUrl?: string
   /** Duração declarada pela fonte, em segundos (feature 025) — só episódio do provedor. */
   durationSeconds?: number
   /**
@@ -58,6 +65,14 @@ export interface ClassifiedEntry {
    * descarta nos demais tipos.
    */
   epgChannelId?: string
+  /** Headers declarados pela entrada M3U (feature 044) — só User-Agent/Referer. Segredo em potencial (ADR-010). */
+  playbackHeaders?: PlaybackHeaders
+  /** `radio="true"` da lista (feature 044). Quem grava descarta fora de `kind: 'channel'`. */
+  radio?: true
+  /** `tvg-chno` válido da lista (feature 044) — não é o número exibido (ADR-011). Quem grava descarta fora de canal. */
+  declaredChannelNumber?: number
+  /** Dias de arquivo (catch-up) que o painel Xtream declara (feature 058) — só canal; nunca em M3U avulsa. */
+  archiveDays?: number
 }
 
 /**
@@ -92,6 +107,37 @@ export function normalizeEpgChannelId(raw: unknown): string | undefined {
   return trimmed === '' ? undefined : trimmed
 }
 
+/** `radio="true"` (sem importar caixa nem espaços); qualquer outra coisa é ausência (feature 044, FR-007). */
+export function normalizeRadio(raw: unknown): true | undefined {
+  return typeof raw === 'string' && raw.trim().toLowerCase() === 'true' ? true : undefined
+}
+
+const CHANNEL_NUMBER_PATTERN = /^[1-9]\d{0,5}$/
+
+/** `tvg-chno`: só inteiro positivo de até 6 dígitos; o resto é ausência (feature 044, FR-008). */
+export function normalizeDeclaredChannelNumber(raw: unknown): number | undefined {
+  if (typeof raw !== 'string') return undefined
+  const text = raw.trim()
+  return CHANNEL_NUMBER_PATTERN.test(text) ? Number(text) : undefined
+}
+
+/**
+ * Campos de compatibilidade M3U da feature 044, acrescentados ao resultado só
+ * quando existem — um item sem nenhum dos três sai idêntico ao de antes
+ * (FR-011), e sem alocar nada: isto roda uma vez por entrada de listas de
+ * centenas de milhares (SC-004).
+ */
+function withDeclaredExtras<T extends ClassifiedEntry>(result: T, entry: ParsedEntry): T {
+  if (entry.headers) result.playbackHeaders = entry.headers
+  const attributes = entry.attributes
+  if (attributes['radio'] !== undefined && normalizeRadio(attributes['radio'])) result.radio = true
+  if (attributes['tvg-chno'] !== undefined) {
+    const declaredChannelNumber = normalizeDeclaredChannelNumber(attributes['tvg-chno'])
+    if (declaredChannelNumber !== undefined) result.declaredChannelNumber = declaredChannelNumber
+  }
+  return result
+}
+
 const YEAR_DATE_PATTERN =/^(\d{4})(-\d{2}(-\d{2})?)?$/
 
 /**
@@ -109,6 +155,44 @@ export function normalizeYear(raw: unknown, now: number = Date.now()): number | 
   const maxYear = new Date(now).getUTCFullYear() + 1
   if (year < 1888 || year > maxYear) return undefined
   return year
+}
+
+const RATING_PATTERN = /^\d+(\.\d+)?$/
+
+/**
+ * Nota da listagem → número 0–10 com uma casa, ou `undefined` ("sem nota"): ausente, vazia, 0, não numérica (inclui
+ * vírgula decimal), negativa ou acima de 10 (feature 055, FR-001/FR-003, `logic/campos-da-listagem.md` §1). O teto é
+ * checado antes de arredondar, para `10.04` não virar `10`. Nunca lança.
+ */
+export function normalizeProviderRating(raw: unknown): number | undefined {
+  let value: number
+  if (typeof raw === 'number') {
+    value = raw
+  } else if (typeof raw === 'string' && RATING_PATTERN.test(raw.trim())) {
+    value = Number(raw.trim())
+  } else {
+    return undefined
+  }
+  if (!Number.isFinite(value) || value > 10) return undefined
+  const rounded = Math.round(value * 10) / 10
+  return rounded > 0 ? rounded : undefined
+}
+
+/** Gêneros da listagem → texto com espaços normalizados; vazio ou `"0"` = ausente (feature 055, FR-002). Só exibição. */
+export function normalizeProviderGenres(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined
+  const text = raw.trim().replace(/\s+/g, ' ')
+  return text === '' || text === '0' ? undefined : text
+}
+
+/** `backdrop_path` (lista ou string) → primeira URL válida, ou ausente (feature 055, FR-002). */
+export function firstBackdropUrl(raw: unknown): string | undefined {
+  const candidates = Array.isArray(raw) ? raw : [raw]
+  for (const candidate of candidates) {
+    const url = normalizeIconUrl(candidate)
+    if (url !== undefined) return url
+  }
+  return undefined
 }
 
 const MIN_ADDED_AT_MS = new Date('2000-01-01T00:00:00Z').getTime()
@@ -171,42 +255,51 @@ export function classifyEntry(entry: ParsedEntry): ClassifiedEntry {
   const episodeMatch = EPISODE_PATTERN.exec(entry.name.trim())
   if (episodeMatch?.groups) {
     const base = episodeMatch.groups.base.replace(/[\s\-._]+$/, '').trim() || entry.name
-    return {
-      kind: 'episode',
-      name: entry.name,
-      originalName: entry.name,
-      group: entry.group,
-      url: entry.url,
-      seriesKey: base.toLowerCase(),
-      seriesName: base,
-      seasonNumber: Number(episodeMatch.groups.season),
-      episodeNumber: Number(episodeMatch.groups.episode),
-      iconUrl,
-    }
+    return withDeclaredExtras(
+      {
+        kind: 'episode',
+        name: entry.name,
+        originalName: entry.name,
+        group: entry.group,
+        url: entry.url,
+        seriesKey: base.toLowerCase(),
+        seriesName: base,
+        seasonNumber: Number(episodeMatch.groups.season),
+        episodeNumber: Number(episodeMatch.groups.episode),
+        iconUrl,
+      },
+      entry,
+    )
   }
 
   const byGroup = groupKeywordKind(entry.group)
   if (byGroup !== undefined) {
-    return {
-      kind: byGroup,
+    return withDeclaredExtras(
+      {
+        kind: byGroup,
+        name: entry.name,
+        originalName: entry.name,
+        group: entry.group,
+        url: entry.url,
+        iconUrl,
+        // Feature 030: só canal carrega o id de EPG (o Modo limitado pode
+        // refinar o tipo pela URL depois, ver `refineFromUrl` — quem grava
+        // filtra por `kind === 'channel'`).
+        epgChannelId: normalizeEpgChannelId(entry.attributes['tvg-id']),
+      },
+      entry,
+    )
+  }
+
+  // Evidência insuficiente — sem hierarquia nem tipo inventado.
+  return withDeclaredExtras(
+    {
+      kind: 'unclassified',
       name: entry.name,
       originalName: entry.name,
       group: entry.group,
       url: entry.url,
-      iconUrl,
-      // Feature 030: só canal carrega o id de EPG (o Modo limitado pode
-      // refinar o tipo pela URL depois, ver `refineFromUrl` — quem grava
-      // filtra por `kind === 'channel'`).
-      epgChannelId: normalizeEpgChannelId(entry.attributes['tvg-id']),
-    }
-  }
-
-  // Evidência insuficiente — sem hierarquia nem tipo inventado.
-  return {
-    kind: 'unclassified',
-    name: entry.name,
-    originalName: entry.name,
-    group: entry.group,
-    url: entry.url,
-  }
+    },
+    entry,
+  )
 }

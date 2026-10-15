@@ -1,0 +1,391 @@
+import type { Dispatch, SetStateAction } from 'react'
+import { groupLabel, type CatalogCategory } from '../catalog/catalogApi'
+import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
+import type { TopbarItem } from '../../navigation/appNav'
+import { useEffect, useRef, type RefObject } from 'react'
+import { measuredRowPitch, pagedIndex, pageSizeFor, scrollByPage } from '../../lib/focus/paging'
+import { LIVE_ITEM_ROW_HEIGHT, liveEntryKey, type EnteredKey, type TrailEntry } from './liveTrail'
+import { recalledLiveFocus } from './liveSessionMemory'
+import type { LiveChannels, LiveTrail } from './useLiveCatalog'
+import type { LiveGuide, LiveGuideState } from './useLiveGuide'
+import type { LiveSearch } from './useLiveSearch'
+import type { LiveZapping, LiveZappingState } from './useLiveZapping'
+
+export interface LiveKeyboardParams {
+  /** Lista ativa — chave da memória de foco por entrada (feature 046). */
+  sourceId: string
+  contentActive: boolean
+  hasShell: boolean
+  setZone: Dispatch<SetStateAction<'topbar' | 'content'>>
+  setTopbarItem: Dispatch<SetStateAction<TopbarItem>>
+  setCol: Dispatch<SetStateAction<0 | 1>>
+  /** Contêineres roláveis da lista de canais e da trilha — a página é o que cabe neles (feature 049). */
+  channelListRef: RefObject<HTMLDivElement | null>
+  trailScrollRef: RefObject<HTMLDivElement | null>
+  topErrorActionIndex: number
+  setTopErrorActionIndex: Dispatch<SetStateAction<number>>
+  onBack: () => void
+  /** OK no vazio "todas as categorias escondidas" — abre a gestão (feature 066, FR-009). */
+  onManage?: () => void
+  onResync: () => void
+  trail: LiveTrail
+  search: LiveSearch
+  channels: LiveChannels
+  zap: LiveZappingState
+  zapping: LiveZapping
+  guide: LiveGuideState
+  liveGuide: LiveGuide
+}
+
+/**
+ * Navegação da TV ao vivo: entrar numa entrada da trilha, setas, OK, RETURN e gestos de favoritar — UM registro de
+ * `useRemoteNav` (`logic/divisao.md` §1.3). Extraído da `LiveScreen` na 040; devolve o que o desenho e o zapping usam.
+ */
+export function useLiveKeyboard({
+  sourceId,
+  contentActive,
+  hasShell,
+  setZone,
+  setTopbarItem,
+  setCol,
+  channelListRef,
+  trailScrollRef,
+  topErrorActionIndex,
+  setTopErrorActionIndex,
+  onBack,
+  onManage,
+  onResync,
+  trail,
+  search,
+  channels,
+  zap,
+  zapping,
+  guide,
+  liveGuide,
+}: LiveKeyboardParams) {
+  const { categories, categoriesQuery, topPhase, trail: entries, categoryIdx, focusedTrailEntry, entered, setEntered, setFocusedIdentity } = trail
+  const { searchActive, setSearchActive, setSearchTerm, topFocused, setTopFocused, topIcon, setTopIcon, resetSearchState } = search
+  const {
+    canToggleFavorite,
+    channelIdx,
+    contentEmptyNeedsBack,
+    contentFailed,
+    contentIsLoading,
+    contentMissing,
+    effectiveCol,
+    items,
+    retryContent,
+    showingContent,
+    toggleFocusedFavorite,
+  } = channels
+  const { playing, zapOpen } = zap
+  const { playActiveChannel } = zapping
+  const { guide: openGuide, guideRef } = guide
+  const { openGuideFromPreview, pageGuide } = liveGuide
+
+  // Destino de uma paginação de canais já decidida mas ainda não aplicada ao estado (ver `pageList`).
+  const pendingChannelRef = useRef<{ index: number; id: string | null } | null>(null)
+  useEffect(() => {
+    // Um render intermediário pode chegar depois de outro toque já ter decidido o próximo destino.
+    const pending = pendingChannelRef.current
+    if (pending && (channelIdx === pending.index || items[pending.index]?.id !== pending.id)) {
+      pendingChannelRef.current = null
+    }
+  }, [channelIdx, items])
+
+  // Ao fechar o guia aberto pelo ícone, o foco volta ao canal de origem (FR-008), não ao ícone.
+  const guideWasOpenRef = useRef(false)
+  useEffect(() => {
+    if (openGuide) {
+      guideWasOpenRef.current = true
+      return
+    }
+    if (!guideWasOpenRef.current) return
+    guideWasOpenRef.current = false
+    if (topFocused && topIcon === 'guide') {
+      setTopFocused(false)
+      setTopIcon('search')
+    }
+  }, [openGuide, topFocused, topIcon, setTopFocused, setTopIcon])
+
+  /**
+   * Canal a focar ao ENTRAR numa entrada (feature 046, FR-008/FR-009): o último lembrado nesta
+   * sessão, ou `null` — o primeiro item — se nunca foi visitada.
+   */
+  function rememberedChannelFor(key: EnteredKey): string | null {
+    const entryKey = liveEntryKey(key, categories)
+    return (entryKey && recalledLiveFocus(sourceId, entryKey)?.channelId) || null
+  }
+
+  function enterCategory(category: CatalogCategory) {
+    if (entered?.kind !== 'category' || entered.id !== category.id) {
+      setEntered({ kind: 'category', id: category.id })
+      // Trocar de categoria começa no último canal lembrado dela — ou no primeiro, se nunca
+      // visitada: o item de OUTRA categoria/de Favoritos/Todos não é uma posição significativa.
+      setFocusedIdentity({
+        trailKey: { kind: 'category', name: groupLabel(category.name) },
+        channelId: rememberedChannelFor({ kind: 'category', id: category.id }),
+      })
+    }
+    resetSearchState()
+    setCol(1)
+  }
+
+  function enterFavorites() {
+    if (entered?.kind !== 'favorites') {
+      setEntered({ kind: 'favorites' })
+      setFocusedIdentity({ trailKey: { kind: 'favorites' }, channelId: rememberedChannelFor({ kind: 'favorites' }) })
+    }
+    resetSearchState()
+    setCol(1)
+  }
+
+  /** Entra em "Todos" (feature 018, D-001) — mesmo padrão de `enterFavorites`. */
+  function enterAll() {
+    if (entered?.kind !== 'all') {
+      setEntered({ kind: 'all' })
+      setFocusedIdentity({ trailKey: { kind: 'all' }, channelId: rememberedChannelFor({ kind: 'all' }) })
+    }
+    resetSearchState()
+    setCol(1)
+  }
+
+  /** Entra numa entrada específica da trilha — Favoritos, Todos ou uma categoria. */
+  function enterTrailEntry(entry: TrailEntry) {
+    if (entry.key.kind === 'favorites') enterFavorites()
+    else if (entry.key.kind === 'all') enterAll()
+    else if (entry.category) enterCategory(entry.category)
+  }
+
+  /** Entra no que está focado na trilha agora — Favoritos, Todos ou uma categoria. */
+  function enterFocusedTrailItem() {
+    if (focusedTrailEntry) enterTrailEntry(focusedTrailEntry)
+  }
+
+  function handleTrailDirection(dir: 'up' | 'down' | 'left' | 'right') {
+    // Ícone/campo no topo da coluna de conteúdo (feature 018, D-003):
+    // qualquer entrada com itens tem esse topo — nunca dentro do zapping
+    // (FR-018). ↓ do topo vai pro 1º item; ↑ no 1º item volta ao topo.
+    // ←/→ no campo já foram capturados pela guarda de alvo editável do
+    // useRemoteNav antes de chegar aqui — o que sobra de ←/→ (ícone
+    // focado, sem foco DOM) precisa continuar pro fluxo padrão abaixo, por
+    // isso só ↑/↓ retornam cedo aqui, nunca ← nem →.
+    const hasTop = effectiveCol === 1 && !zapOpen && items.length > 0
+    if (hasTop && topFocused) {
+      if (dir === 'down') {
+        setTopFocused(false)
+        setTopIcon('search')
+        setFocusedIdentity((prev) => ({ ...prev, channelId: items[0].id }))
+        return
+      }
+      if (dir === 'up') return
+      // Linha do topo (feature 049, FR-008): → vai da lupa ao Guia, ← volta. Com o campo de busca
+      // aberto não há ícones, e ←/→ são do cursor (guarda de alvo editável do useRemoteNav).
+      if (!searchActive) {
+        if (dir === 'right' && topIcon === 'search') setTopIcon('guide')
+        else if (dir === 'left' && topIcon === 'guide') setTopIcon('search')
+      }
+      return
+    }
+    if (hasTop && !topFocused && dir === 'up' && channelIdx === 0) {
+      setTopFocused(true)
+      setTopIcon('search')
+      return
+    }
+
+    // → = próxima página, ← = página anterior (feature 049): nunca entra, toca nem troca de coluna.
+    if (dir === 'left' || dir === 'right') {
+      pageList(dir === 'right' ? 'next' : 'previous')
+      return
+    }
+
+    if (effectiveCol === 0) {
+      // Sobe da trilha para a topbar (feature 024, D-003) — só fora do
+      // zapping (que não tem topbar) e só no topo real da trilha.
+      if (dir === 'up' && categoryIdx === 0 && hasShell && !zapOpen) {
+        setTopbarItem('live')
+        setZone('topbar')
+        return
+      }
+      if (dir === 'up' || dir === 'down') {
+        const next = clamp(categoryIdx + (dir === 'down' ? 1 : -1), 0, entries.length - 1)
+        if (next !== categoryIdx) {
+          setFocusedIdentity({ trailKey: entries[next]?.key ?? { kind: 'favorites' }, channelId: null })
+        }
+      }
+    } else if (!topFocused) {
+      const total = items.length
+      if (dir === 'up' || dir === 'down') {
+        const next = clamp(channelIdx + (dir === 'down' ? 1 : -1), 0, Math.max(0, total - 1))
+        setFocusedIdentity((prev) => ({ ...prev, channelId: items[next]?.id ?? null }))
+      }
+    }
+  }
+
+  /**
+   * Paginar a trilha ou a lista de canais (feature 049, `logic/paginacao.md` §1-§4): o foco anda
+   * uma página, presa às pontas, e a lista rola o mesmo tanto para o item cair na mesma linha da tela.
+   */
+  function pageList(direction: 'next' | 'previous') {
+    if (effectiveCol === 0) {
+      const container = trailScrollRef.current
+      const pitch = measuredRowPitch(container, '.side-category-nav-item')
+      const next = pagedIndex(categoryIdx, entries.length, pageSizeFor(container?.clientHeight ?? 0, pitch), direction)
+      if (next === null || next === categoryIdx) return
+      scrollByPage(container, direction, Math.abs(next - categoryIdx), pitch)
+      setFocusedIdentity({ trailKey: entries[next]?.key ?? { kind: 'favorites' }, channelId: null })
+      return
+    }
+    const container = channelListRef.current
+    // Com a seta segurada chegam vários toques antes de o foco adiado (abaixo) virar estado: parte-se do
+    // destino já decidido, não do índice ainda desatualizado.
+    const from = pendingChannelRef.current?.index ?? channelIdx
+    const next = pagedIndex(from, items.length, pageSizeFor(container?.clientHeight ?? 0, LIVE_ITEM_ROW_HEIGHT), direction)
+    if (next === null || next === from) return
+    const pending = { index: next, id: items[next]?.id ?? null }
+    pendingChannelRef.current = pending
+    scrollByPage(container, direction, Math.abs(next - from), LIVE_ITEM_ROW_HEIGHT)
+    // A lista é virtualizada: o virtualizador só sabe da rolagem nova no evento de scroll. Mudar o foco no
+    // mesmo instante o faria achar o item fora da janela e rolar de novo (item na borda, não na mesma linha).
+    // Adiar para o quadro seguinte deixa o `scrollToIndex` do foco já enxergar o item visível.
+    const defer = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (callback: () => void) => setTimeout(callback, 0)
+    defer(() => {
+      // Só o destino mais recente pode virar foco; quadros anteriores não podem apagar uma rajada.
+      if (pendingChannelRef.current !== pending) return
+      setFocusedIdentity((prev) => ({ ...prev, channelId: pending.id }))
+    })
+  }
+  function handleTrailSelect() {
+    if (effectiveCol === 0) {
+      enterFocusedTrailItem()
+      return
+    }
+
+    // Estados só com "Voltar" (feature 024, T021/R-005): carregando o conteúdo, ou conteúdo vazio sem outra ação
+    // (Favoritos/Todos/categoria vazios) — nos três, o único elemento acionável é "Voltar", que devolve o foco à trilha.
+    // Sem isto, os botões apareciam com aparência de foco sem SELECT fazer nada (constitution, "Foco Visível").
+    if (showingContent && !searchActive && contentIsLoading) {
+      setCol(0)
+      return
+    }
+    if (contentEmptyNeedsBack) {
+      setCol(0)
+      return
+    }
+    // Feature 014 (T039) — e achado no caminho: o mesmo estado de
+    // "Tentar de novo" já existia sem isto, então SELECT não ativava o
+    // botão apesar da aparência de foco (constitution, "Foco Visível e
+    // Sem Becos Sem Saída") — corrigido junto, mesmo sendo pré-existente.
+    if (!contentIsLoading && contentMissing) {
+      onResync()
+      return
+    }
+    if (!contentIsLoading && contentFailed) {
+      retryContent()
+      return
+    }
+    // Ícone de busca (feature 018): SELECT nele abre o campo. Só é
+    // alcançado com `!searchActive` — quando o campo já tem foco DOM real
+    // (`searchActive && topFocused`), a guarda de alvo editável do
+    // useRemoteNav intercepta Enter antes de chegar aqui.
+    if (topFocused && topIcon === 'guide') {
+      // Guia completo no canal de origem (feature 031). O foco só sai da linha do topo quando o guia
+      // fecha (efeito acima): trocar `topFocused` no meio do toque mudaria o modo do OK entre o keydown
+      // e o keyup e ativaria o guia duas vezes.
+      openGuideFromPreview()
+      return
+    }
+    if (topFocused) {
+      setSearchActive(true)
+      setSearchTerm('')
+      return
+    }
+    playActiveChannel()
+  }
+
+  // Quando a camada de reprodução está aberta, ela é dona do teclado
+  // (`modal: true`), então esta tela ignora as teclas — nada de navegar a
+  // lista por trás do player. Com `shell`, só o escopo ATIVO (topbar ou
+  // conteúdo) recebe handlers — o outro ganha `{}` (mesmo padrão de
+  // `TopBar`/`logic/foco-live-shell.md` §2 da feature 024).
+  useRemoteNav(
+    contentActive
+      ? {
+          onDirection: (dir) => {
+            if (playing) return
+            if (openGuide) {
+              guideRef.current?.onDirection(dir) // feature 031: o guia parado não registra teclado próprio
+              return
+            }
+            if (topPhase === 'error') {
+              if (dir === 'left' || dir === 'right') setTopErrorActionIndex((i) => (i === 0 ? 1 : 0))
+              return
+            }
+            if (topPhase !== 'normal') return // loading/empty: uma ação só, nada pra mover
+            handleTrailDirection(dir)
+          },
+          onSelect: () => {
+            if (playing) return
+            if (openGuide) {
+              guideRef.current?.onSelect()
+              return
+            }
+            if (topPhase === 'loading' || topPhase === 'empty') {
+              if (topPhase === 'empty' && trail.allHidden && onManage) onManage()
+              else onBack()
+              return
+            }
+            if (topPhase === 'error') {
+              if (topErrorActionIndex === 0) void categoriesQuery.refetch()
+              else onBack()
+              return
+            }
+            handleTrailSelect()
+          },
+          // CH±/ChannelUp/Down (feature 031, FR-015): pagina o guia parado. Só existe
+          // handler com o guia aberto — sem ele a tecla segue sendo "não mapeada",
+          // como fora do player (feature 027, FR-029). O mapeamento é o mesmo do
+          // guia sobre o player (`pageGuide`, em `useLiveGuide`).
+          onMediaKey: openGuide && !playing ? pageGuide : undefined,
+          // Favoritar não é do guia (feature 031): sem os gestos enquanto ele está aberto.
+          onLongSelect: !openGuide && topPhase === 'normal' && canToggleFavorite ? toggleFocusedFavorite : undefined,
+          onFavoriteKey: !openGuide && topPhase === 'normal' && canToggleFavorite ? toggleFocusedFavorite : undefined,
+          onBack: () => {
+            if (playing) return
+            if (openGuide) {
+              guideRef.current?.onBack()
+              return
+            }
+            if (topPhase !== 'normal') {
+              onBack()
+              return
+            }
+            // Busca (feature 018): RETURN só ganha uma camada extra quando a
+            // busca está ATIVA — resultado focado volta ao campo; campo focado
+            // FECHA a busca (volta ao ícone, sem sair da categoria). Fora da
+            // busca (item normal OU ícone parado), RETURN vai direto pra trilha,
+            // igual à navegação normal — nunca força passar pelo ícone.
+            // RETURN físico (10009/Escape/XF86Back) nunca é interceptado pela
+            // guarda de alvo editável do useRemoteNav, então chega aqui
+            // normalmente mesmo com o campo focado.
+            if (effectiveCol === 1 && searchActive && !topFocused) {
+              setTopFocused(true)
+              return
+            }
+            if (effectiveCol === 1 && searchActive && topFocused) {
+              setSearchActive(false)
+              setSearchTerm('')
+              return
+            }
+            if (effectiveCol === 1) {
+              setCol(0)
+              return
+            }
+            onBack()
+          },
+        }
+      : {},
+  )
+
+  return { enterTrailEntry, handleTrailDirection, handleTrailSelect }
+}

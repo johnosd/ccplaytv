@@ -275,3 +275,9 @@ tecla Done, SC-002 na TV.
 - `MoviesScreen.tsx`/`SeriesScreen.tsx`/`LiveScreen.tsx` compartilham o mesmo padrão de trilha genérica e modo busca — ao mexer num, espelhar no(s) outro(s) (D-007); os testes `*.busca.contract.test.tsx` de Live/Filmes são a referência mais confiável do comportamento esperado.
 - `App.tsx` não generaliza `goto()` para aceitar um patch da tela atual — cada case que abre um detalhe com snapshot monta a entrada de histórico inline (`{ ...screen, restore: snapshot }`), porque `Partial<Screen>` não distribui sobre a união discriminada. Replicar esse padrão, não tentar um `goto` genérico com patch.
 - Achado da Fase 6 (T030, ambiente Windows local, não é bug do app): neste ambiente, `page.route(...)` registrado **antes** do primeiro `page.goto()` de um script Playwright prende essa navegação indefinidamente (nunca resolve, mesmo com timeout alto); e uma rota ainda registrada também prende qualquer `page.goto()` **subsequente** de navegação de página inteira. Mitigação usada em `busca-local.mjs`: registrar as rotas só depois da primeira navegação bem-sucedida, e `page.unroute(...)` antes de qualquer `goto` de página inteira posterior. Os demais scripts de `e2e/` que usam `page.route` antes do primeiro `goto` (`zapping-live-tv.mjs`, `m3u-sob-demanda.mjs`) não foram alterados — não reproduzido neles nesta sessão, e mexer neles está fora do escopo desta feature.
+
+## Passada física na TV — 2026-10-06
+
+Passada feita na TV QN50Q60DAGXZD, declarada pelo usuário em 06/10/2026 como **realizada com sucesso**. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas; não há medição para citar. Os riscos de hardware desta feature (marcados como "só se prova na TV") ficam encerrados por decisão do usuário.
+
+Cobre o quickstart A–G na TV, incluindo A–C que decidem R-003. A T021 (código de restauração em `App.tsx`) é outra coisa e **segue aberta**.

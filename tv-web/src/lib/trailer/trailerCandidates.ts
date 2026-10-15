@@ -1,4 +1,7 @@
 import type { TrailerVideoRef } from '../catalog/db'
+import { APP_LANGUAGE_LOCALE, isAppLanguage } from '../i18n/languages'
+import { createTranslator, type Translator } from '../i18n/translate'
+import { languageDisplayName } from '../player/tracks'
 
 /**
  * Candidatos a trailer de um título (feature 033,
@@ -15,7 +18,18 @@ export interface TrailerCandidate extends TrailerVideoRef {
 /** Nunca mais que isto na lista final (a feature só usa os dois primeiros). */
 export const MAX_TRAILER_CANDIDATES = 5
 
+/**
+ * Versão da busca de vídeos no TMDB guardada com o resultado. 2 = pede o idioma do app com região (`pt-BR`): só `pt`
+ * o TMDB lê como pt-PT, e os trailers brasileiros nunca chegavam (ad-hoc 2026-10-10).
+ */
+export const TRAILER_VIDEOS_VERSION = 2
+
 const YOUTUBE_VIDEO_ID = /^[A-Za-z0-9_-]{11}$/
+
+/** Região preferida dos vídeos no idioma do app (`pt` → `BR`), a do `APP_LANGUAGE_LOCALE`; código fora do app = nenhuma. */
+function preferredRegionOf(language: string): string | undefined {
+  return isAppLanguage(language) ? APP_LANGUAGE_LOCALE[language].split('-')[1] : undefined
+}
 
 /** Id de vídeo do YouTube bem formado — a única coisa que chega à página-ponte (FR-010). */
 export function isYoutubeVideoId(value: unknown): value is string {
@@ -42,6 +56,7 @@ export function trailerRefsFromTmdbVideos(raw: unknown): TrailerVideoRef[] {
 
     const ref: TrailerVideoRef = { videoId: video.key, kind }
     if (typeof video.iso_639_1 === 'string' && video.iso_639_1 !== '') ref.language = video.iso_639_1
+    if (typeof video.iso_3166_1 === 'string' && video.iso_3166_1 !== '') ref.region = video.iso_3166_1.toUpperCase()
     if (typeof video.official === 'boolean') ref.official = video.official
     refs.push(ref)
   }
@@ -54,34 +69,45 @@ export function trailerRefsFromTmdbVideos(raw: unknown): TrailerVideoRef[] {
  * reenvios de canais agregadores, cheios de anúncio; o oficial da distribuidora é o
  * que mais se parece com "o trailer" do título.
  */
-function tmdbRank(ref: TrailerVideoRef): [number, number, number] {
-  return [ref.kind === 'trailer' ? 0 : 1, ref.official === true ? 0 : 1, ref.language === 'pt' ? 0 : 1]
+function tmdbRank(ref: TrailerVideoRef, preferred: string, region: string | undefined): [number, number, number] {
+  // Idioma do app na região dele (ou região desconhecida) > inglês (fallback mais provável de existir) > idioma do app
+  // de outra região (pt-PT com o app em pt-BR: a dublagem soa estranha, o original legendado é melhor) > o resto.
+  const inPreferred = ref.language === preferred
+  const sameRegion = region === undefined || ref.region === undefined || ref.region === region
+  const languageRank = inPreferred && sameRegion ? 0 : ref.language === 'en' ? 1 : inPreferred ? 2 : 3
+  return [ref.kind === 'trailer' ? 0 : 1, ref.official === true ? 0 : 1, languageRank]
 }
 
-function compareTmdb(a: TrailerVideoRef, b: TrailerVideoRef): number {
-  const ra = tmdbRank(a)
-  const rb = tmdbRank(b)
-  for (let i = 0; i < ra.length; i += 1) {
-    if (ra[i] !== rb[i]) return ra[i] - rb[i]
+function compareTmdb(preferred: string): (a: TrailerVideoRef, b: TrailerVideoRef) => number {
+  const region = preferredRegionOf(preferred)
+  return (a, b) => {
+    const ra = tmdbRank(a, preferred, region)
+    const rb = tmdbRank(b, preferred, region)
+    for (let i = 0; i < ra.length; i += 1) {
+      if (ra[i] !== rb[i]) return ra[i] - rb[i]
+    }
+    return 0
   }
-  return 0
 }
 
 /**
  * Lista final, na ordem de preferência: o do provedor primeiro (se válido),
- * depois os do TMDB ordenados (trailer > teaser; português > outro idioma;
- * oficial > não oficial/desconhecido; empate mantém a ordem da fonte), sem
- * repetir `videoId`, no máximo `MAX_TRAILER_CANDIDATES`.
+ * depois os do TMDB ordenados (trailer > teaser; oficial > não oficial/desconhecido;
+ * idioma preferido na região do app > inglês > idioma preferido de outra região > outro
+ * idioma; empate mantém a ordem da fonte), sem
+ * repetir `videoId`, no máximo `MAX_TRAILER_CANDIDATES`. Sem vídeo no idioma
+ * preferido, o fallback é automático: sempre sobra o melhor que existir.
  */
 export function buildTrailerCandidates(
   provider: readonly TrailerVideoRef[] | undefined,
   tmdb: readonly TrailerVideoRef[] | undefined,
+  preferredLanguage = 'pt',
 ): TrailerCandidate[] {
   const ordered: TrailerCandidate[] = [
     ...(provider ?? []).filter((ref) => isYoutubeVideoId(ref.videoId)).map((ref) => ({ ...ref, origin: 'provider' as const })),
     ...(tmdb ?? [])
       .filter((ref) => isYoutubeVideoId(ref.videoId))
-      .sort(compareTmdb)
+      .sort(compareTmdb(preferredLanguage))
       .map((ref) => ({ ...ref, origin: 'tmdb' as const })),
   ]
 
@@ -95,24 +121,30 @@ export function buildTrailerCandidates(
   return unique.slice(0, MAX_TRAILER_CANDIDATES)
 }
 
-function languageName(code: string): string {
-  try {
-    const name = new Intl.DisplayNames(['pt-BR'], { type: 'language' }).of(code)
-    if (name && name !== code) return name.charAt(0).toLocaleUpperCase('pt-BR') + name.slice(1)
-  } catch {
-    // código de idioma malformado: cai no fallback
-  }
-  return code.toLocaleUpperCase('pt-BR')
-}
-
 /**
  * Rótulo do botão disponível (FR-007): "▶ Trailer" para trailer em português
  * ou de idioma desconhecido; senão tipo e idioma ("▶ Trailer · Inglês",
  * "▶ Teaser", "▶ Teaser · Inglês"). Teaser nunca vira "Trailer".
  */
-export function trailerButtonLabel(candidate: TrailerCandidate): string {
-  const base = candidate.kind === 'teaser' ? '▶ Teaser' : '▶ Trailer'
-  const { language } = candidate
-  if (!language || language === 'pt') return base
-  return `${base} · ${languageName(language)}`
+export function trailerButtonLabel(candidate: TrailerCandidate, t: Translator = createTranslator('pt')): string {
+  const base = candidate.kind === 'teaser' ? t('trailer.buttonTeaser') : t('trailer.button')
+  const { language, region } = candidate
+  // Idioma só aparece quando NÃO é o do app (feature 054): é o aviso de que houve fallback.
+  if (!language) return base
+  if (language === t.language) {
+    // Mesmo idioma de outra região (pt-PT com o app em pt-BR) também é fallback: o país vai entre parênteses.
+    const preferredRegion = preferredRegionOf(t.language)
+    if (region === undefined || preferredRegion === undefined || region === preferredRegion) return base
+    const name = `${languageDisplayName(language, t.language, { loose: true })} (${regionDisplayName(region, t.language)})`
+    return t('trailer.buttonIn', { base, language: name })
+  }
+  return t('trailer.buttonIn', { base, language: languageDisplayName(language, t.language, { loose: true }) })
+}
+
+function regionDisplayName(region: string, language: Translator['language']): string {
+  try {
+    return new Intl.DisplayNames([APP_LANGUAGE_LOCALE[language]], { type: 'region' }).of(region) ?? region
+  } catch {
+    return region
+  }
 }

@@ -117,7 +117,7 @@
 
 .epg-guide-detail-description {
   margin: 0;
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -255,7 +255,7 @@
   background: var(--bg-surface);
   color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body); /* nome do programa (068); o selo fica em --fs-caption — cabe em 84px */
   font-weight: var(--fw-caption);
   text-align: left;
   display: flex;
@@ -280,6 +280,26 @@
 /* Programa encerrado: esmaecido, sem ação (FR-003/FR-021). */
 .epg-guide-block.is-past {
   opacity: 0.5;
+}
+
+/* Feature 058 (FR-009): encerrado mas no arquivo do canal — legível e com a
+   marca de "assistir de novo"; OK toca. */
+.epg-guide-block.is-past.is-archive {
+  opacity: 0.85;
+}
+
+.epg-guide-block-archive {
+  flex-shrink: 0;
+  width: var(--space-3);
+  height: var(--space-3);
+  color: var(--info);
+}
+
+.epg-guide-detail-archive {
+  margin: 0;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-caption);
+  color: var(--info);
 }
 
 /* Canal sem EPG: um bloco só, largura total (FR-007). */

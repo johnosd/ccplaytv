@@ -2,6 +2,9 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
+import { ParentalPinPrompt } from '../../components/ParentalPinPrompt'
+import { pinActiveHint, verifyPin } from '../../lib/parental/listPin'
+import { useT } from '../../lib/i18n/I18nProvider'
 import type { SourceOut } from '../import/importApi'
 
 export interface DeleteSourceModalProps {
@@ -18,28 +21,47 @@ export interface DeleteSourceModalProps {
  * RETURN fecha sem confirmar.
  */
 export function DeleteSourceModal({ source, onCancel, onConfirm }: DeleteSourceModalProps): ReactNode {
+  const t = useT()
   const [confirmIdx, setConfirmIdx] = useState<0 | 1>(0)
+  // Feature 066 (FR-017): com o controle parental ligado NESTA lista (067), "Remover" pede o PIN dela antes de remover.
+  const [askPin, setAskPin] = useState(false)
+  const title = t('delete.title', { name: source.display_name })
+  // Decide na hora pelo espelho síncrono (R-013): sem PIN, remover continua imediato, como sempre foi.
+  const confirm = () => (pinActiveHint(source.id) ? setAskPin(true) : onConfirm())
+
+  if (askPin) {
+    return (
+      <ParentalPinPrompt
+        sourceId={source.id}
+        title={t('parental.pin.enter')}
+        onSubmit={async (pin) => {
+          const accepted = await verifyPin(source.id, pin)
+          if (accepted) onConfirm()
+          return accepted
+        }}
+        onCancel={onCancel}
+      />
+    )
+  }
 
   return (
     <Modal
-      ariaLabel={`Excluir a lista ${source.display_name}?`}
+      ariaLabel={title}
       onBack={onCancel}
       onDirection={(direction) => {
         if (direction === 'left') setConfirmIdx(0)
         if (direction === 'right') setConfirmIdx(1)
       }}
-      onSelect={() => (confirmIdx === 0 ? onCancel() : onConfirm())}
+      onSelect={() => (confirmIdx === 0 ? onCancel() : confirm())}
     >
-      <p className="modal-title">Excluir a lista {source.display_name}?</p>
-      <p className="modal-description">
-        Os favoritos e o ponto de retomada desta lista também serão apagados. Isso não pode ser desfeito.
-      </p>
+      <p className="modal-title">{title}</p>
+      <p className="modal-description">{t('delete.description')}</p>
       <div className="modal-actions">
         <Button variant="secondary" focused={confirmIdx === 0} onSelect={onCancel}>
-          Cancelar
+          {t('common.cancel')}
         </Button>
-        <Button variant="accent" focused={confirmIdx === 1} onSelect={onConfirm}>
-          Excluir
+        <Button variant="accent" focused={confirmIdx === 1} onSelect={confirm}>
+          {t('delete.confirm')}
         </Button>
       </div>
     </Modal>

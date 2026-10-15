@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { useDeleteSource, useResyncSource, useSources, type SourceOut } from '../import/importApi'
+import { useDeleteSource, useResyncSource, useSources, useSourceSyncing, type SourceOut } from '../import/importApi'
 import { clamp, useRemoteNav, type RemoteDirection } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
+import { useOnlineStatus } from '../../lib/onlineStatus'
 import { Toast } from '../../components/Toast'
 import { Button } from '../../components/Button'
 import { ErrorState } from '../../components/ErrorState'
@@ -10,9 +11,13 @@ import { Skeleton } from '../../components/Skeleton'
 import { Icon } from '../../components/Icon'
 import { ExitModal } from '../shell/ExitModal'
 import { DeleteSourceModal } from '../sources/DeleteSourceModal'
-import { formatType } from '../sources/sourceFormat'
+import { formatType, sourceAlertChips } from '../sources/sourceFormat'
 import { OnboardingBrand } from '../import/OnboardingBrand'
 import { listAvatarVariant, listInitials } from './listAvatar'
+import { useT } from '../../lib/i18n/I18nProvider'
+import { sourceNotices } from './ProfilesSourceNotices'
+import { ProfilesRefreshCorner } from './ProfilesRefreshCorner'
+import { useProfilesRefresh } from './useProfilesRefresh'
 
 export interface ProfilesScreenProps {
   /** `base`: RETURN abre o modal "Sair do CCPlayTV?". `switch`: RETURN chama `onBack` (volta ao Início da lista ativa, FR-031). */
@@ -25,12 +30,10 @@ export interface ProfilesScreenProps {
   onResyncStarted: (jobId: string) => void
   /** Depois de a exclusão confirmada terminar (FR-010/FR-011) — o App despacha `source-removed`. */
   onSourceDeleted?: (sourceId: string) => void
-  /**
-   * "Gerenciar listas" (feature 026, FR-032) — abre Configurações › Fontes
-   * IPTV sem lista ativa. Opcional (D-001): o contrato travado da 023
-   * monta `ProfilesScreenProps` sem este campo.
-   */
+  /** Abre as configurações globais sem exigir lista ativa. */
   onManageSources?: () => void
+  /** "Configurar" (feature 067, FR-012) — abre Configurações da lista. Opcional: o contrato travado da 037 não o passa. */
+  onConfigureSource?: (source: SourceOut) => void
   /** Só chamado em `mode: 'switch'`. */
   onBack: () => void
 }
@@ -45,10 +48,11 @@ const ADD_ID = '__add__'
  */
 export const ADD_LIST_FOCUS_ID = ADD_ID
 
-/** Ressincronizar, Editar, Excluir — a linha de ações de um cartão de lista. */
-const ACTIONS = ['Ressincronizar', 'Editar', 'Excluir'] as const
+/** Ressincronizar, Editar, Excluir, Configurar (feature 067, por último) — a linha de ações de um cartão de lista. */
+const ACTION_KEYS = ['settings.sources.resync', 'settings.sources.edit', 'settings.sources.delete', 'listSettings.configure'] as const
 const RESYNC = 0
 const EDIT = 1
+const CONFIGURE = 3
 
 /** Cartões de esqueleto enquanto as listas carregam (só geometria, sem dado). */
 const SKELETON_COUNT = 3
@@ -66,7 +70,7 @@ type ScreenState = 'error' | 'loading' | 'empty' | 'ready'
  * Foco é estado (ADR-009), por **id** de lista — nunca por índice — para
  * sobreviver a exclusão e a refetch (`logic/foco-shell.md`, § Tela de
  * perfis). Três linhas: `cards` (listas + "Adicionar lista"), `actions`
- * (Ressincronizar/Editar/Excluir do cartão em foco) e `manage`
+ * (Ressincronizar/Editar/Excluir/Configurar do cartão em foco) e `manage`
  * ("Configurações", abaixo de "Adicionar lista").
  */
 export function ProfilesScreen({
@@ -78,12 +82,15 @@ export function ProfilesScreen({
   onResyncStarted,
   onSourceDeleted,
   onManageSources,
+  onConfigureSource,
   onBack,
 }: ProfilesScreenProps): ReactNode {
+  const t = useT()
   const { data, isLoading, isError, refetch } = useSources()
   const deleteSource = useDeleteSource()
   const resyncSource = useResyncSource()
   const { toastMessage, toastKey, showToast } = useToast()
+  const online = useOnlineStatus()
 
   const sources = data?.sources ?? []
   const state: ScreenState = isError ? 'error' : isLoading ? 'loading' : sources.length === 0 ? 'empty' : 'ready'
@@ -101,6 +108,9 @@ export function ProfilesScreen({
   const [actionIdx, setActionIdx] = useState(0)
   const [confirmDelete, setConfirmDelete] = useState<SourceOut | null>(null)
   const [showExit, setShowExit] = useState(false)
+  const [manageTarget, setManageTarget] = useState<'refresh' | 'settings'>('settings')
+  const focusNewSource = useCallback((id: string) => { setRow('cards'); setFocusedId(id) }, [])
+  const { portalAvailable, refresh, run: updateLists } = useProfilesRefresh(sources, focusNewSource)
 
   const initialId =
     initialFocusSourceId === ADD_LIST_FOCUS_ID
@@ -117,8 +127,7 @@ export function ProfilesScreen({
         : 'cards'
   const focusedSource = sources.find((source) => source.id === effectiveId)
 
-  // Rolagem horizontal acompanha o foco (FR-012). `scrollIntoView` não existe
-  // em jsdom — a chamada é opcional de propósito.
+  // Rolagem horizontal acompanha o foco (FR-012). Sem `scrollIntoView` no jsdom: chamada opcional de propósito.
   const focusedCardRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     focusedCardRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
@@ -126,12 +135,19 @@ export function ProfilesScreen({
 
   function runAction(index: number, source: SourceOut) {
     if (index === RESYNC) {
-      showToast('Ressincronizando lista...')
+      // Feature 042 (FR-004): ressincronizar precisa de internet — explica, não tenta.
+      if (!online) {
+        showToast(t('settings.sources.offlineResync'))
+        return
+      }
+      showToast(t('profiles.resyncing'))
       resyncSource.mutate(source.id, {
         onSuccess: (result) => onResyncStarted(result.import_job_id),
       })
     } else if (index === EDIT) {
       onEditSource(source)
+    } else if (index === CONFIGURE) {
+      onConfigureSource?.(source)
     } else {
       if (deleteSource.isPending) return
       setConfirmDelete(source)
@@ -151,7 +167,7 @@ export function ProfilesScreen({
         setFocusedId(nextId)
         onSourceDeleted?.(id)
       },
-      onError: () => showToast('Não foi possível excluir a lista.'),
+      onError: () => showToast(t('settings.sources.deleteFailed')),
     })
   }
 
@@ -161,15 +177,18 @@ export function ProfilesScreen({
 
       if (effectiveRow === 'manage') {
         if (direction === 'up') setRow('cards') // "Adicionar lista" continua em foco (`focusedId` intocado)
+        if (direction === 'left' && portalAvailable) setManageTarget('refresh')
+        if (direction === 'right') setManageTarget('settings')
         return
       }
 
       if (effectiveRow === 'actions') {
-        // O limite alcança a última ação (Excluir): senão ela ficaria
-        // renderizada e inalcançável pelo controle.
+        // O limite alcança a última ação: senão ela ficaria renderizada e inalcançável pelo controle.
         if (direction === 'up') setRow('cards') // o cartão de onde se desceu (`focusedId`) segue em foco
-        if (direction === 'left') setActionIdx((i) => clamp(i - 1, 0, ACTIONS.length - 1))
-        if (direction === 'right') setActionIdx((i) => clamp(i + 1, 0, ACTIONS.length - 1))
+        // 069: BAIXO na linha de ações chega a "Configurações" (CIMA/RETURN voltam ao cartão).
+        if (direction === 'down') setRow('manage')
+        if (direction === 'left') setActionIdx((i) => clamp(i - 1, 0, ACTION_KEYS.length - 1))
+        if (direction === 'right') setActionIdx((i) => clamp(i + 1, 0, ACTION_KEYS.length - 1))
         return
       }
 
@@ -199,7 +218,8 @@ export function ProfilesScreen({
         return
       }
       if (effectiveRow === 'manage') {
-        onManageSources?.()
+        if (manageTarget === 'refresh' && portalAvailable) void updateLists()
+        else onManageSources?.()
         return
       }
       if (effectiveRow === 'actions') {
@@ -223,13 +243,13 @@ export function ProfilesScreen({
 
   // Textos da tabela "Textos" do plan.md da 037 (D-010). Carregando não tem
   // kicker: ainda não se sabe se é primeiro uso ou volta.
-  const kicker = state === 'empty' ? 'Configuração inicial' : state === 'ready' ? 'Bem-vindo de volta' : null
+  const kicker = state === 'empty' ? t('profiles.kicker.empty') : state === 'ready' ? t('profiles.kicker.ready') : null
   const subtitle =
     state === 'loading'
-      ? 'Carregando suas listas…'
+      ? t('profiles.subtitle.loading')
       : state === 'empty'
-        ? 'Adicione sua primeira lista para começar.'
-        : 'Escolha uma lista para continuar ou adicione uma nova.'
+        ? t('profiles.subtitle.empty')
+        : t('profiles.subtitle.ready')
 
   return (
     <div className="screen onboarding profiles-screen">
@@ -241,22 +261,22 @@ export function ProfilesScreen({
         </p>
       )}
       <h1 className="onboarding-title">
-        Selecione ou Adicione <br />
-        sua lista
+        {t('profiles.title.line1')} <br />
+        {t('profiles.title.line2')}
       </h1>
       {state !== 'error' && <p className="onboarding-subtitle">{subtitle}</p>}
 
       {state === 'error' ? (
         <ErrorState
           icon="info"
-          title="Não foi possível carregar suas listas"
-          description="Houve um problema ao ler as listas guardadas neste aparelho. Tente de novo."
+          title={t('profiles.error.title')}
+          description={t('profiles.error.description')}
           code="STO-01"
-          actions={[{ label: 'Tentar de novo', onSelect: () => void refetch() }]}
+          actions={[{ label: t('profiles.error.retry'), onSelect: () => void refetch() }]}
           focusedActionIndex={0}
         />
       ) : (
-        <div className="source-row" role="group" aria-label="Suas listas" aria-busy={state === 'loading'}>
+        <div className="source-row" role="group" aria-label={t('profiles.rowLabel')} aria-busy={state === 'loading'}>
           {state === 'loading' &&
             Array.from({ length: SKELETON_COUNT }, (_, i) => (
               <div className="profiles-skeleton-wrap" key={`skeleton-${i}`}>
@@ -269,7 +289,7 @@ export function ProfilesScreen({
             // `tv-focus` para a ação em foco, mas continua marcado.
             const isCurrent = effectiveId === source.id
             const actionsVisible = effectiveRow === 'actions' && isCurrent
-            const notices = sourceNotices(source)
+            const notices = sourceNotices(source, t)
             return (
               <div className="source-card-wrap" key={source.id}>
                 {/* Nome acessível = selo + nome + avisos; o avatar é
@@ -282,7 +302,7 @@ export function ProfilesScreen({
                   ref={isCurrent ? focusedCardRef : undefined}
                   onClick={() => onChooseSource(source)}
                 >
-                  <span className="source-card-kind">{formatType(source)}</span>
+                  <span className="source-card-kind">{formatType(source, t)}</span>
                   <span
                     className={`source-card-avatar list-avatar--${listAvatarVariant(source.id)}`}
                     aria-hidden="true"
@@ -290,31 +310,21 @@ export function ProfilesScreen({
                     {listInitials(source.display_name)}
                   </span>
                   <span className="source-card-name">{source.display_name}</span>
-                  {notices.length > 0 && (
-                    <span className="source-card-notices">
-                      {notices.map((notice) => (
-                        <span className="source-card-badge" key={notice}>
-                          {notice}
-                        </span>
-                      ))}
-                    </span>
-                  )}
+                  <SourceCardNotices source={source} notices={notices} />
                 </button>
                 {actionsVisible && (
-                  <div className="source-actions" role="group" aria-label={`Ações de ${source.display_name}`}>
-                    {ACTIONS.map((label, index) => (
+                  <div className="source-actions" role="group" aria-label={t('profiles.actionsLabel', { name: source.display_name })}>
+                    {ACTION_KEYS.map((labelKey, index) => (
                       <Button
-                        key={label}
+                        key={labelKey}
                         variant="secondary"
-                        // Com o modal de exclusão aberto, a ação de origem
-                        // (Excluir) não perde o próprio estado de foco, mas
-                        // não deve continuar desenhando o anel — o `Modal` já
-                        // é quem tem o teclado (achado na evidência visual da
-                        // 023, T045: dois anéis de foco ao mesmo tempo).
+                        // Com o modal de exclusão aberto, só o `Modal` desenha foco (023, T045: dois anéis ao mesmo tempo).
                         focused={actionIdx === index && !confirmDelete}
+                        softDisabled={index === RESYNC && !online}
                         onSelect={() => runAction(index, source)}
                       >
-                        {label}
+                        {t(labelKey)}
+                        {index === RESYNC && !online && <span className="sr-only">{t('settings.sources.offlineNote')}</span>}
                       </Button>
                     ))}
                   </div>
@@ -328,7 +338,7 @@ export function ProfilesScreen({
                 "Adicionar lista"; círculo e pílula são decorativos. */}
             <button
               type="button"
-              aria-label="Adicionar lista"
+              aria-label={t('profiles.add')}
               className={`add-card${effectiveId === ADD_ID && effectiveRow === 'cards' && !showExit ? ' tv-focus' : ''}`}
               ref={effectiveId === ADD_ID ? focusedCardRef : undefined}
               onClick={onAddSource}
@@ -337,51 +347,69 @@ export function ProfilesScreen({
                 <Icon name="add" />
               </span>
               <span className="add-card-title" aria-hidden="true">
-                Adicionar lista
+                {t('profiles.add')}
               </span>
               <span className="add-card-cta" aria-hidden="true">
-                ＋ Adicionar
+                {t('profiles.addCta')}
               </span>
             </button>
           </div>
         </div>
       )}
 
-      {state !== 'error' && (
-        <p className="profiles-foot-note">Cada lista mantém seu próprio histórico, favoritos e recomendações.</p>
+      {state !== 'error' && <p className="profiles-foot-note">{t('profiles.footNote')}</p>}
+
+      {state !== 'error' && portalAvailable && (
+        <ProfilesRefreshCorner action={refresh} focused={effectiveRow === 'manage' && manageTarget === 'refresh' && !showExit} onRun={() => void updateLists()} />
       )}
 
       {state !== 'error' && (
         <button
           type="button"
-          className={`profiles-settings-corner${effectiveRow === 'manage' && !showExit ? ' tv-focus' : ''}`}
+          className={`profiles-settings-corner${effectiveRow === 'manage' && (manageTarget === 'settings' || !portalAvailable) && !showExit ? ' tv-focus' : ''}`}
           onClick={() => onManageSources?.()}
         >
           <Icon name="settings" />
-          Configurações
+          {t('settings.title')}
         </button>
       )}
 
       <Toast message={toastMessage} messageKey={toastKey} />
 
-      {confirmDelete && (
-        <DeleteSourceModal
-          source={confirmDelete}
-          onCancel={() => setConfirmDelete(null)}
-          onConfirm={confirmDeletion}
-        />
-      )}
+      {confirmDelete && <DeleteSourceModal source={confirmDelete} onCancel={() => setConfirmDelete(null)} onConfirm={confirmDeletion} />}
 
       {showExit && <ExitModal onCancel={() => setShowExit(false)} />}
     </div>
   )
 }
 
-/** Avisos reais do cartão, numa linha compacta abaixo do nome (FR-006) — pastilha com texto, nunca só cor. */
-function sourceNotices(source: SourceOut): string[] {
-  const notices: string[] = []
-  if (source.provider_import_mode === 'legacy_m3u') notices.push('Modo limitado')
-  if (source.last_truncated_by_storage) notices.push('A lista não coube inteira')
-  if (source.last_discarded_by_type > 0) notices.push('Entradas não reconhecidas ficaram de fora')
-  return notices
+
+/**
+ * Avisos do cartão (feature 034, FR-006/FR-015): os avisos reais de sempre mais
+ * os chips de "há algo a agir" — vence em até 7 dias, expirada, credencial
+ * inválida, erro de sincronização ou de EPG — e "Sincronizando" enquanto a
+ * execução existe. Componente próprio para assinar o estado por lista. Texto
+ * sempre presente, no nome acessível do cartão; nunca data, endereço nem credencial.
+ */
+export function SourceCardNotices({ source, notices }: { source: SourceOut; notices: string[] }) {
+  const t = useT()
+  const syncing = useSourceSyncing(source.id)
+  // Uma leitura do relógio por montagem do cartão (a tela de perfis remonta ao voltar).
+  const [now] = useState(() => Date.now())
+  const alerts = sourceAlertChips(source, now, { syncing }, t)
+  if (notices.length === 0 && alerts.length === 0) return null
+  return (
+    <span className="source-card-notices">
+      {notices.map((notice) => (
+        <span className="source-card-badge" key={notice}>
+          {notice}
+        </span>
+      ))}
+      {alerts.map((alert) => (
+        <span className={`source-card-badge source-card-badge--${alert.tone}`} key={alert.label}>
+          {alert.label}
+        </span>
+      ))}
+    </span>
+  )
 }

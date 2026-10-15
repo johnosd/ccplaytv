@@ -64,6 +64,7 @@ function renderHome(overrides: Partial<HomeScreenProps> = {}) {
     onOpenFavorites: vi.fn(),
     onOpenSearch: vi.fn(),
     onOpenSettings: vi.fn(),
+    onLeaveList: vi.fn(),
     ...overrides,
   }
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -106,14 +107,15 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
     expect(focusedInTopbar()).toHaveLength(0)
   })
 
-  it('UP no hero leva à topbar em "Início"; DOWN devolve o foco ao MESMO conteúdo (FR-015)', () => {
+  // Ad-hoc 2026-10-09: sem o dock, ↑ nas ações do billboard sai direto à topbar.
+  it('UP no hero leva à topbar em "Início"; DOWN da topbar pousa nas ações do billboard', () => {
     renderHome()
 
-    press('ArrowUp')
+    press('ArrowUp') // hero -> topbar
     expect(focusedInTopbar()).toHaveLength(1)
     expect(topbarItem('Início')).toHaveClass('tv-focus')
 
-    press('ArrowDown')
+    press('ArrowDown') // topbar -> conteúdo: o foco volta ao billboard (060)
     expect(focusedInTopbar()).toHaveLength(0)
     expect(heroAction(/Abrir TV ao vivo/)).toHaveClass('tv-focus')
   })
@@ -121,7 +123,7 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
   it('OK em "Filmes" na topbar chama onNavigate com o foco de origem na topbar (FR-016)', () => {
     const props = renderHome()
 
-    press('ArrowUp') // conteúdo -> topbar, em "Início"
+    press('ArrowUp') // hero -> topbar, em "Início"
     press('ArrowRight') // Início -> TV ao vivo
     press('ArrowRight') // -> Filmes
     expect(topbarItem('Filmes')).toHaveClass('tv-focus')
@@ -133,7 +135,7 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
   it('OK no indicador da lista abre os perfis com foco de origem no indicador (FR-017)', () => {
     const props = renderHome()
 
-    press('ArrowUp')
+    press('ArrowUp') // hero -> topbar
     for (let i = 0; i < 4; i += 1) press('ArrowRight') // Início -> ... -> indicador
     expect(profileIndicator()).toHaveClass('tv-focus')
     press('Enter')
@@ -142,19 +144,17 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
     expect(props.onNavigate).not.toHaveBeenCalled()
   })
 
-  it('OK na lupa e na engrenagem chama onOpenSearch/onOpenSettings com o foco de origem na topbar (FR-021, FR-035)', () => {
+  // Ad-hoc 2026-10-09: a lupa está escondida; depois do indicador da lista vem direto a engrenagem.
+  it('sem lupa na topbar; OK na engrenagem chama onOpenSettings com o foco de origem na topbar (FR-021)', () => {
     const props = renderHome()
 
-    press('ArrowUp')
-    for (let i = 0; i < 5; i += 1) press('ArrowRight') // Início -> ... -> Buscar
-    expect(screen.getByRole('button', { name: 'Buscar' })).toHaveClass('tv-focus')
-    press('Enter')
-    expect(props.onOpenSearch).toHaveBeenCalledWith({ zone: 'topbar', item: 'search' })
-
-    press('ArrowRight') // -> Configurações
+    press('ArrowUp') // hero -> topbar
+    for (let i = 0; i < 5; i += 1) press('ArrowRight') // Início -> ... -> Configurações
+    expect(screen.queryByRole('button', { name: 'Buscar' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Configurações' })).toHaveClass('tv-focus')
     press('Enter')
     expect(props.onOpenSettings).toHaveBeenCalledWith({ zone: 'topbar', item: 'settings' })
+    expect(props.onOpenSearch).not.toHaveBeenCalled()
   })
 
   it('initialFocus na topbar restaura o item e deixa o conteúdo sem foco (FR-029)', () => {
@@ -165,29 +165,23 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
   })
 })
 
-describe('HomeScreen (Início) — RETURN e modal de saída', () => {
-  it('RETURN abre "Sair do CCPlayTV?" com Cancelar em foco; RETURN fecha e o foco fica onde estava (FR-019)', () => {
-    renderHome()
-
-    press('Escape')
-    const dialog = screen.getByRole('dialog', { name: 'Sair do CCPlayTV?' })
-    expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toHaveClass('tv-focus')
+describe('HomeScreen (Início) — RETURN sai da lista', () => {
+  it('RETURN chama onLeaveList e não abre confirmação de saída no Início (FR-018/FR-019)', () => {
+    const props = renderHome()
 
     press('Escape')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(heroAction(/Abrir TV ao vivo/)).toHaveClass('tv-focus')
+    expect(props.onLeaveList).toHaveBeenCalledTimes(1)
   })
 
-  it('RETURN na topbar também abre o modal de saída, e o foco volta à topbar ao fechar', () => {
-    renderHome()
+  it('RETURN na topbar também chama onLeaveList', () => {
+    const props = renderHome()
 
     press('ArrowUp')
+    press('ArrowUp') // hero -> dock -> topbar
     press('Escape')
-    expect(screen.getByRole('dialog', { name: 'Sair do CCPlayTV?' })).toBeInTheDocument()
-
-    press('Enter') // Cancelar
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(topbarItem('Início')).toHaveClass('tv-focus')
+    expect(props.onLeaveList).toHaveBeenCalledTimes(1)
   })
 })
 

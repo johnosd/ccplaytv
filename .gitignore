@@ -28,3 +28,11 @@ __pycache__/
 # Saída de ferramentas de verificação local (efêmero, não é código do projeto)
 .playwright-mcp/
 logs/*-dev*.log
+# Caches e evidências efêmeras da infraestrutura/portal
+.cache/
+portal-web/test-results/
+tv-web/test-results/pytest-*/
+portal-web/playwright-report/
+
+# Local Cloud Run staging credentials
+infra/portal/staging.env.yaml

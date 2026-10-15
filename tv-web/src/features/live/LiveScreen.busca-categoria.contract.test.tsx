@@ -146,7 +146,7 @@ describe('LiveScreen — busca por categoria (contrato, feature 018)', () => {
     mockAggregated([], 0, 2)
     renderLive()
 
-    press('ArrowRight') // entra em "Esportes" (padrão: 1ª categoria real)
+    press('Enter') // entra em "Esportes" (padrão: 1ª categoria real)
     press('ArrowUp') // sobe do 1º item para o ícone de busca
     press('Enter') // ativa o ícone: abre o campo
 
@@ -169,7 +169,7 @@ describe('LiveScreen — busca por categoria (contrato, feature 018)', () => {
     renderLive()
 
     press('ArrowUp') // de "Esportes" (padrão) para "Todos"
-    press('ArrowRight') // entra em "Todos"
+    press('Enter') // entra em "Todos"
 
     const namesBeforeSearch = [...document.querySelectorAll('.live-item-name')].map((el) => el.textContent)
     expect(namesBeforeSearch.sort()).toEqual(['ESPN', 'Globo Esportes'].sort())
@@ -194,7 +194,7 @@ describe('LiveScreen — busca por categoria (contrato, feature 018)', () => {
     mockAggregated([], 0, 2)
     renderLive()
 
-    press('ArrowRight') // entra em "Esportes"
+    press('Enter') // entra em "Esportes"
     press('ArrowUp') // ícone
     press('Enter') // abre o campo
     const field = document.querySelector<HTMLInputElement>('input.search-field')
@@ -209,22 +209,23 @@ describe('LiveScreen — busca por categoria (contrato, feature 018)', () => {
     const namesAfterClose = [...document.querySelectorAll('.live-item-name')].map((el) => el.textContent)
     expect(namesAfterClose.sort()).toEqual(['ESPN', 'Globo Esportes'].sort())
 
-    // Troca de categoria SEM fechar uma busca aberta: reabre a busca em
-    // "Esportes", vai para "Notícias" direto pela trilha, volta — o termo
-    // não sobrevive.
+    // Troca de categoria depois de usar a busca: reabre a busca em "Esportes", fecha as camadas por
+    // RETURN (feature 049: ←/→ não trocam mais de coluna, então não há saída "direta" com a busca
+    // aberta), vai para "Notícias" pela trilha, volta — o termo não sobrevive.
     press('ArrowUp') // 1º item -> ícone
     press('Enter') // reabre o campo
     const field2 = document.querySelector<HTMLInputElement>('input.search-field')
     act(() => fireEvent.change(field2!, { target: { value: 'glo' } }))
 
-    press('ArrowLeft') // sai direto para a trilha, com a busca ainda aberta
+    press('Escape') // campo -> fecha a busca
+    press('Escape') // lista -> trilha
     press('ArrowDown') // foco em "Notícias"
-    press('ArrowRight') // entra em "Notícias"
+    press('Enter') // entra em "Notícias"
     expect(document.querySelector('input.search-field')).toBeNull()
 
-    press('ArrowLeft')
+    press('Escape')
     press('ArrowUp') // volta para "Esportes" na trilha
-    press('ArrowRight') // reentra em "Esportes"
+    press('Enter') // reentra em "Esportes"
     expect(document.querySelector('input.search-field')).toBeNull()
     const namesOnReentry = [...document.querySelectorAll('.live-item-name')].map((el) => el.textContent)
     expect(namesOnReentry.sort()).toEqual(['ESPN', 'Globo Esportes'].sort())
@@ -238,12 +239,12 @@ describe('LiveScreen — busca por categoria (contrato, feature 018)', () => {
     mockAggregated([], 0, 2)
     renderLive()
 
-    press('ArrowRight') // entra em "Esportes" (com item)
+    press('Enter') // entra em "Esportes" (com item)
     expect(document.querySelector('.search-icon-button')).not.toBeNull()
 
-    press('ArrowLeft')
+    press('Escape')
     press('ArrowDown') // foco em "Vazia"
-    press('ArrowRight') // entra em "Vazia" (sem item)
+    press('Enter') // entra em "Vazia" (sem item)
     expect(document.querySelector('.search-icon-button')).toBeNull()
   })
 })

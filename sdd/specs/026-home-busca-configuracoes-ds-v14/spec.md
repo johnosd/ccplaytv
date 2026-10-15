@@ -413,6 +413,8 @@ com e sem resultado, abrir cada tipo de resultado e voltar.
   ou qualquer parte de credencial.
 - **FR-025**: Cada lista DEVE ter as ações Editar, Ressincronizar, Excluir
   e "EPG" (mock "Em breve"); a aba DEVE ter "Adicionar lista".
+- **FR-025** *(emenda, feature 067 — decisão do usuário, 2026-10-09)*: A linha de cada lista em Configurações › Fontes IPTV passa a ter **só "Configurar"**, que abre Configurações da lista (feature 067); Editar, Ressincronizar, Excluir e EPG saem da linha e passam a ser ações da aba Conta & lista e da aba EPG daquela tela. As informações de leitura da linha (nome, tipo, "Lista ativa", estado, conta, contagens, EPG, Modo limitado) continuam. O contrato travado `SettingsScreen.home-busca-configuracoes-ds-v14.contract.test.tsx` foi emendado e regravado.
+
 - **FR-026**: Editar DEVE abrir o formulário de edição existente; ao
   concluir ou voltar, o foco DEVE retornar à mesma lista em Configurações.
 - **FR-027**: Ressincronizar DEVE abrir a tela de progresso de importação

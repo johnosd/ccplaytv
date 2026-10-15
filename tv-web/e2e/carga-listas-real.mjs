@@ -20,18 +20,20 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaXtream } from './lib/entrada.mjs'
+import { focusFirstRealCategory, openShowcase } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ENV_PATH = path.resolve(__dirname, '..', '..', '.env')
 const APP_URL = 'http://localhost:5173'
 const REPETITIONS = Number(process.argv[2] ?? 3)
 const CATEGORIES_PER_SECTION = Number(process.argv[3] ?? 3)
-const ENTRY_TIMEOUT_MS = 180_000
+const ENTRY_TIMEOUT_MS = 60_000
 
+// Feature 055: Filmes e Séries entram pela VITRINE (lista lateral → tela de categoria, features 052/053). Canais ficou
+// de fora: a Live TV mudou de navegação (048) e esta medição serve às seções de catálogo (VOD).
 const SECTIONS = [
-  { name: 'canais', topbar: 'live', action: 'get_live_streams', ready: '.live-column-groups' },
-  { name: 'filmes', topbar: 'movies', action: 'get_vod_streams', ready: '.side-category-nav' },
-  { name: 'series', topbar: 'series', action: 'get_series', ready: '.side-category-nav' },
+  { name: 'filmes', topbar: 'movies', action: 'get_vod_streams' },
+  { name: 'series', topbar: 'series', action: 'get_series' },
 ]
 
 function readEnv() {
@@ -52,24 +54,14 @@ async function launchBrowser() {
   return chromium.launch({ headless: true })
 }
 
-async function openViaTopbar(page, destination) {
-  const ORDER = ['home', 'live', 'movies', 'series']
-  // Folga: o foco pode estar dezenas de categorias abaixo na trilha — ↑ a mais
-  // na topbar não faz nada.
-  for (let i = 0; i < 40; i += 1) await page.keyboard.press('ArrowUp')
-  for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
-  for (let i = 0; i < ORDER.indexOf(destination); i += 1) await page.keyboard.press('ArrowRight')
-  await page.keyboard.press('Enter')
-}
-
 const reportCount = (page) => page.evaluate(() => (window.__ccplayEntryTimings ?? []).length)
 const lastReport = (page) => page.evaluate(() => (window.__ccplayEntryTimings ?? []).at(-1) ?? null)
 
-/** Entra na categoria em foco e espera o relatório da medição (primeiro quadro com itens). */
+/** Entra na categoria em foco (OK na lista lateral) e espera o relatório da medição (primeiro quadro com itens). */
 async function measureEntry(page) {
   const before = await reportCount(page)
   const t0 = Date.now()
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
   try {
     await page.waitForFunction((n) => (window.__ccplayEntryTimings ?? []).length > n, before, {
       timeout: ENTRY_TIMEOUT_MS,
@@ -101,7 +93,7 @@ async function run() {
   const browser = await launchBrowser()
   try {
     for (let rep = 1; rep <= REPETITIONS; rep += 1) {
-      const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+      const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
       await context.addInitScript(() => localStorage.setItem('ccplaytv:perf', '1'))
       const page = await context.newPage()
       page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error'))
@@ -133,16 +125,11 @@ async function run() {
       await page.waitForSelector('.topbar', { timeout: 10000 })
 
       for (const section of SECTIONS) {
-        await openViaTopbar(page, section.topbar)
-        await page.waitForSelector(section.ready, { timeout: 15000 })
+        await openShowcase(page, section.topbar)
         // Sem espera longa aqui: a pré-busca por repouso (300 ms) anteciparia a
         // primeira categoria. 150 ms basta para a trilha montar.
         await page.waitForTimeout(150)
-        const onSection = await page.evaluate(
-          (label) => (document.querySelector('.topbar-item.is-active, .topbar-item[aria-current="page"]')?.textContent ?? '').includes(label),
-          section.topbar === 'live' ? 'TV' : section.topbar === 'movies' ? 'Filmes' : 'Séries',
-        )
-        if (!onSection) console.log(`  (aviso: não confirmei a seção ${section.name} pela topbar)`)
+        await focusFirstRealCategory(page)
         for (let i = 0; i < CATEGORIES_PER_SECTION; i += 1) {
           const networkBefore = network.length
           const { wallMs, report } = await measureEntry(page)
@@ -154,11 +141,15 @@ async function run() {
               (report ? ` fases=${JSON.stringify(report.phases)} itens=${report.items ?? '?'}` : '') +
               (net ? ` rede: ttfb=${net.ttfbMs}ms total=${net.totalMs}ms bytes=${net.bytes ?? '?'}` : ' rede: (categoria já no aparelho ou sem pedido)'),
           )
-          await page.keyboard.press('ArrowLeft') // volta à trilha
+          await page.keyboard.press('Escape') // RETURN → vitrine, foco de volta na lista lateral
+          await page.waitForSelector('.vod-showcase .side-category-nav-item.tv-focus', { timeout: 10000 })
           await page.keyboard.press('ArrowDown') // próxima categoria
           // Sem espera: entrar antes dos 300 ms da pré-busca por repouso.
         }
       }
+      // Feature 055 (SC-003): espaço usado pelo origin depois das entradas acima — só um número, sem nomes.
+      const usage = await page.evaluate(async () => (await navigator.storage.estimate()).usage ?? null)
+      if (usage !== null) console.log(`  armazenamento usado (storage.estimate): ${(usage / 1e6).toFixed(2)} MB`)
       await context.close()
     }
   } catch (error) {

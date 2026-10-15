@@ -18,7 +18,6 @@
  * busca, progresso e o estado `completed`. Ver
  * `sdd/specs/011-assistir-filme-retomada/contracts/player-capabilities.md`.
  */
-
 import {
   resolveCapabilities,
   type EngineCapabilities,
@@ -27,7 +26,7 @@ import {
   type PlayerProgress,
 } from './capabilities'
 import type { MediaTrack, StreamInfo, SubtitleCue } from './tracks'
-
+import { ASPECT_MODES, type AspectMode, type QualityOption } from './viewChoice'
 export type PlayerState =
   | 'idle'
   | 'preparing'
@@ -37,7 +36,6 @@ export type PlayerState =
   | 'completed'
   | 'error'
   | 'closed'
-
 /**
  * Região de exibição em coordenadas do palco 1920x1080 (ADR-007 §2) — não em
  * pixels de tela, que variam com a escala aplicada ao palco.
@@ -48,14 +46,12 @@ export interface PlayerRegion {
   width: number
   height: number
 }
-
 export const FULLSCREEN_REGION: PlayerRegion = {
   x: 0,
   y: 0,
   width: 1920,
   height: 1080,
 }
-
 /**
  * Falha de reprodução já sanitizada. `code` é o que o motor reportou, quando
  * reporta algo; `message` é texto para o usuário, e fica **ausente** quando
@@ -71,6 +67,40 @@ export const FULLSCREEN_REGION: PlayerRegion = {
 export interface PlayerError {
   code: string | null
   message?: string
+}
+
+/**
+ * Feature 058 (`sdd/specs/058-headers-avplay-catchup/logic/headers.md`): os
+ * headers de requisição que o app sabe repassar ao motor. Estruturalmente
+ * idêntico a `PlaybackHeaders` (`lib/catalog/m3uHeaders.ts`) de propósito —
+ * esta camada não importa de `lib/catalog` (mesma regra de `PlayableKind`).
+ * Os VALORES são segredo em potencial (ADR-010): nunca saem do adaptador.
+ */
+export interface RequestHeaders {
+  userAgent?: string
+  referer?: string
+}
+
+/** Nome de um header de requisição — o único dado sobre headers que atravessa para a UI (FR-005). */
+export type RequestHeaderName = 'User-Agent' | 'Referer'
+
+/** O que o motor aceitou aplicar na última abertura, e o que recusou. Só nomes, nunca valores. */
+export interface RequestHeadersReport {
+  applied: RequestHeaderName[]
+  refused: RequestHeaderName[]
+}
+
+export const NO_REQUEST_HEADERS: RequestHeadersReport = { applied: [], refused: [] }
+
+/**
+ * Feature 058 (`logic/arquivo.md` §4): a linha do tempo de um programa de
+ * arquivo vem do EPG, nunca do motor (o stream do painel não tem duração
+ * confiável). `maxPositionMs` limita a busca no programa em exibição ao
+ * "agora" (FR-014); ausente = só o fim do programa limita.
+ */
+export interface PlayerTimeline {
+  durationMs: number
+  maxPositionMs?: () => number
 }
 
 export interface PlayerAdapter {
@@ -100,8 +130,15 @@ export interface PlayerAdapter {
    * contrato §4.1). É o que evita o filme aparecer do início por um instante
    * antes de saltar pra posição de retomada.
    */
-  open(url: string, region: PlayerRegion, startAtMs?: number): void
+  open(url: string, region: PlayerRegion, startAtMs?: number, headers?: RequestHeaders): void
   close(): void
+
+  /**
+   * Feature 058 (FR-001/FR-004/FR-005): os headers que o motor aceitou e os
+   * que recusou na última `open`. Opcional: motor sem o método = nenhum
+   * header aplicado (tudo o que foi pedido conta como recusado).
+   */
+  requestHeadersReport?(): RequestHeadersReport
 
   /** Só chamado quando a sessão resolveu `canPause`. */
   pause?(): void
@@ -130,6 +167,20 @@ export interface PlayerAdapter {
   /** `null` desativa a legenda. `true` se o motor aceitou. */
   selectTextTrack?(id: string | null): boolean
   getStreamInfo?(): StreamInfo | null
+
+  /**
+   * Feature 041 (`logic/aspecto-qualidade.md` §1/§2). Mesma regra da 029:
+   * método ausente = capacidade ausente (controle "— indisponível").
+   * Modos que este motor de fato aplica — fixos por motor, provados no spike
+   * da TV (R-001); lista vazia = nenhum.
+   */
+  getAspectModes?(): AspectMode[]
+  /** `true` se o motor aceitou. Nunca reinicia a mídia nem mexe na posição. */
+  setAspectMode?(mode: AspectMode): boolean
+  /** Variantes que o stream anuncia agora, ou `null` (não conseguiu informar). */
+  getQualities?(): QualityOption[] | null
+  /** `null` = Auto (adaptativo). `true` se o motor aceitou (R-002: pode reabrir por dentro). */
+  selectQuality?(id: string | null): boolean
 }
 
 export interface PlayerAdapterCallbacks {
@@ -162,6 +213,8 @@ export interface PlayerSession {
   readonly supportsTracks: boolean
   /** O motor sabe informar dados técnicos do stream (feature 029). */
   readonly supportsStreamInfo: boolean
+  /** Feature 058: headers da lista que o motor aplicou/recusou nesta sessão — só nomes. */
+  readonly requestHeaders: RequestHeadersReport
 
   /** Faixas atuais, ou `null` (motor sem a API, sessão fechada, ou falha agora). */
   getTracks(): MediaTrack[] | null
@@ -172,6 +225,21 @@ export interface PlayerSession {
   getStreamInfo(): StreamInfo | null
   /** `null` = apagar a linha exibida. Devolve a função que cancela a assinatura. */
   subscribeSubtitles(listener: (cue: SubtitleCue | null) => void): () => void
+
+  /** Feature 041: modos que o motor aplica (ordem de `ASPECT_MODES`); `[]` = nenhum. */
+  readonly aspectModes: readonly AspectMode[]
+  /** Último modo que o motor aceitou nesta sessão, ou `null`. */
+  readonly currentAspect: AspectMode | null
+  /** `false`: sessão fechada, modo fora de `aspectModes` ou o motor recusou. Nunca pausa nem salta. */
+  setAspectMode(mode: AspectMode): boolean
+  /** O motor sabe listar e trocar variantes. Falso = "Qualidade — indisponível". */
+  readonly supportsQuality: boolean
+  /** Variantes que o stream anuncia (cru do motor), ou `null`. */
+  getQualities(): QualityOption[] | null
+  /** Id da variante aceita pelo motor; `null` = Auto. */
+  readonly selectedQualityId: string | null
+  /** `null` = Auto. `true` só se o motor aceitou (e só então `selectedQualityId` muda). */
+  selectQuality(id: string | null): boolean
 
   /** Sem efeito se `!capabilities.canPause`. */
   togglePause(): void
@@ -188,6 +256,10 @@ export interface PlayerServiceOptions {
   createAdapter?: PlayerAdapterFactory
   /** Posição inicial em ms, aplicada só depois de o motor ficar pronto. */
   startAtMs?: number
+  /** Feature 058: headers declarados pela lista para este item (valores só chegam ao adaptador). */
+  headers?: RequestHeaders
+  /** Feature 058: linha do tempo do programa de arquivo (EPG); ausente = a do motor. */
+  timeline?: PlayerTimeline
 }
 
 /**
@@ -195,15 +267,15 @@ export interface PlayerServiceOptions {
  * terminal por causa de um callback atrasado do motor — o cuidado que o guia
  * Samsung 06 pede ao trocar de mídia rapidamente.
  *
- * `paused`/`completed` entraram na feature 011. `completed` é terminal exceto
- * por `closed`, como `error` — mesma proteção contra callback atrasado.
+ * `completed` (011) é terminal exceto por `closed`; vem também de `buffering`/`paused` (bug serie-sem-proximo-episodio-
+ * controles-somem: o `<video>` emite `pause` antes de `ended` e o AVPlay pode avisar o fim em `buffering`).
  */
 const ALLOWED_NEXT: Record<PlayerState, PlayerState[]> = {
   idle: ['preparing', 'closed'],
   preparing: ['buffering', 'playing', 'error', 'closed'],
-  buffering: ['playing', 'paused', 'error', 'closed'],
+  buffering: ['playing', 'paused', 'completed', 'error', 'closed'],
   playing: ['buffering', 'paused', 'completed', 'error', 'closed'],
-  paused: ['playing', 'buffering', 'error', 'closed'],
+  paused: ['playing', 'buffering', 'completed', 'error', 'closed'],
   completed: ['closed'],
   error: ['closed'],
   closed: [],
@@ -245,6 +317,23 @@ export class PlayerServiceSession implements PlayerSession {
   private readonly subtitleListeners = new Set<(cue: SubtitleCue | null) => void>()
   readonly supportsTracks: boolean
   readonly supportsStreamInfo: boolean
+  /**
+   * Feature 058 (`logic/headers.md` §3): lido do adaptador logo depois do
+   * `open`. Motor sem `requestHeadersReport` = nada aplicado (tudo recusado).
+   */
+  readonly requestHeaders: RequestHeadersReport
+  /** Feature 042: `PlayerAdapter.name` (nunca inclui dado sensível) — vai para a "Info técnica". */
+  readonly engine: string
+
+  // Feature 041 (`logic/aspecto-qualidade.md` §1.1/§2.3). Como as faixas da
+  // 029: método ausente = capacidade ausente; fora do `emit()` de estado.
+  readonly aspectModes: readonly AspectMode[]
+  readonly supportsQuality: boolean
+  private _currentAspect: AspectMode | null = null
+  private _selectedQualityId: string | null = null
+
+  /** Feature 058: linha do tempo do EPG (arquivo) — sobrepõe a duração do motor e limita a busca ao "agora". */
+  private readonly timeline: PlayerTimeline | undefined
 
   // Porta single-flight de saltos (contrato §5; logic/reproducao-vod.md §3).
   private seekInFlight = false
@@ -256,7 +345,10 @@ export class PlayerServiceSession implements PlayerSession {
     kind: PlayableKind,
     createAdapter: PlayerAdapterFactory,
     startAtMs?: number,
+    headers?: RequestHeaders,
+    timeline?: PlayerTimeline,
   ) {
+    this.timeline = timeline
     this.adapter = createAdapter({
       onStateChange: (state) => this.applyState(state),
       onError: (error) => this.applyError(error),
@@ -265,12 +357,17 @@ export class PlayerServiceSession implements PlayerSession {
       onSubtitle: (cue) => this.applySubtitle(cue),
     })
     this._rendersOnHardwarePlane = this.adapter.rendersOnHardwarePlane
+    this.engine = this.adapter.name
     this.supportsTracks = typeof this.adapter.getTracks === 'function'
     this.supportsStreamInfo = typeof this.adapter.getStreamInfo === 'function'
+    this.aspectModes = readAspectModes(this.adapter)
+    this.supportsQuality =
+      typeof this.adapter.getQualities === 'function' && typeof this.adapter.selectQuality === 'function'
     // Resolvida uma vez, na construção: nem o motor nem o tipo de mídia mudam
     // durante a vida da sessão (D-001).
     this._capabilities = resolveCapabilities(this.adapter.capabilities, kind)
     this.applyState('preparing')
+    let headersReport: RequestHeadersReport = { applied: [], refused: declaredHeaderNames(headers) }
     try {
       // A sessão decide SE repassa `startAtMs` (precisa de `canSeek` já
       // resolvido); o adaptador só decide COMO aplicá-lo, antes do play()
@@ -279,12 +376,17 @@ export class PlayerServiceSession implements PlayerSession {
         this._capabilities.canSeek && startAtMs !== undefined && startAtMs > 0
           ? startAtMs
           : undefined
-      this.adapter.open(url, region, effectiveStartAtMs)
+      // Feature 058: os valores dos headers só existem daqui até o adaptador.
+      this.adapter.open(url, region, effectiveStartAtMs, headers)
+      if (typeof this.adapter.requestHeadersReport === 'function') {
+        headersReport = this.adapter.requestHeadersReport()
+      }
     } catch {
       // A exceção original fica de fora de propósito: mensagens de erro de
       // rede/motor costumam embutir a URL, que carrega credencial.
       this.applyError({ code: null, message: 'Não foi possível iniciar a reprodução.' })
     }
+    this.requestHeaders = headersReport
   }
 
   get state(): PlayerState {
@@ -419,6 +521,50 @@ export class PlayerServiceSession implements PlayerSession {
     }
   }
 
+  get currentAspect(): AspectMode | null {
+    return this._currentAspect
+  }
+
+  get selectedQualityId(): string | null {
+    return this._selectedQualityId
+  }
+
+  setAspectMode(mode: AspectMode): boolean {
+    const adapter = this.adapter
+    if (this._state === 'closed' || !adapter?.setAspectMode || !this.aspectModes.includes(mode)) return false
+    let ok = false
+    try {
+      ok = adapter.setAspectMode(mode)
+    } catch {
+      ok = false
+    }
+    if (ok) this._currentAspect = mode
+    return ok
+  }
+
+  getQualities(): QualityOption[] | null {
+    const adapter = this.adapter
+    if (this._state === 'closed' || !adapter?.getQualities) return null
+    try {
+      return adapter.getQualities()
+    } catch {
+      return null
+    }
+  }
+
+  selectQuality(id: string | null): boolean {
+    const adapter = this.adapter
+    if (this._state === 'closed' || !adapter?.selectQuality) return false
+    let ok = false
+    try {
+      ok = adapter.selectQuality(id)
+    } catch {
+      ok = false
+    }
+    if (ok) this._selectedQualityId = id
+    return ok
+  }
+
   close(): void {
     if (this._state === 'closed') return
     try {
@@ -457,11 +603,21 @@ export class PlayerServiceSession implements PlayerSession {
    */
   private clampSeekTarget(positionMs: number): number {
     const lower = Math.max(0, positionMs)
-    const duration = this._progress?.durationMs
-    if (duration === undefined || duration <= 0) return lower
-    // Último instante VÁLIDO, não a duração exata: alcançar o fim por busca
-    // não pode ser um atalho para "concluído" (só o motor real conclui).
-    return Math.min(lower, duration - 1)
+    const upper = this.upperBound()
+    return upper === undefined ? lower : Math.min(lower, upper)
+  }
+
+  /**
+   * Último instante VÁLIDO para busca, não a duração exata: alcançar o fim por
+   * busca não pode ser um atalho para "concluído" (só o motor real conclui).
+   * Feature 058 (FR-014): no programa de arquivo em exibição, também o "agora".
+   * `undefined` = sem duração conhecida (só o limite inferior vale).
+   */
+  private upperBound(): number | undefined {
+    const duration = this._progress?.durationMs ?? this.timeline?.durationMs
+    if (duration === undefined || duration <= 0) return undefined
+    const live = this.timeline?.maxPositionMs?.()
+    return live === undefined ? duration - 1 : Math.max(0, Math.min(duration - 1, live))
   }
 
   /**
@@ -471,12 +627,9 @@ export class PlayerServiceSession implements PlayerSession {
   private clampJumpDelta(deltaMs: number): number {
     const position = this._progress?.positionMs ?? 0
     const minDelta = -position
-    const duration = this._progress?.durationMs
-    if (duration === undefined || duration <= 0) {
-      return Math.max(deltaMs, minDelta)
-    }
-    const maxDelta = duration - 1 - position
-    return Math.max(minDelta, Math.min(deltaMs, maxDelta))
+    const upper = this.upperBound()
+    if (upper === undefined) return Math.max(deltaMs, minDelta)
+    return Math.max(minDelta, Math.min(deltaMs, upper - position))
   }
 
   private applyState(next: PlayerState): void {
@@ -495,7 +648,8 @@ export class PlayerServiceSession implements PlayerSession {
 
   private applyProgress(progress: PlayerProgress): void {
     if (this._state === 'closed') return
-    this._progress = progress
+    // Feature 058 (FR-011): no arquivo a duração vem do EPG — a do stream do painel não é confiável.
+    this._progress = this.timeline ? { ...progress, durationMs: this.timeline.durationMs } : progress
     this.emit()
   }
 
@@ -531,6 +685,25 @@ export class PlayerServiceSession implements PlayerSession {
   }
 }
 
+/** Nomes dos headers declarados (valores descartados) — o que conta como recusado quando o motor não informa. */
+function declaredHeaderNames(headers: RequestHeaders | undefined): RequestHeaderName[] {
+  const names: RequestHeaderName[] = []
+  if (headers?.userAgent !== undefined) names.push('User-Agent')
+  if (headers?.referer !== undefined) names.push('Referer')
+  return names
+}
+
+/** `ASPECT_MODES ∩ getAspectModes()`, na ordem de `ASPECT_MODES`; `[]` sem o método ou se ele lançar. */
+function readAspectModes(adapter: PlayerAdapter): readonly AspectMode[] {
+  if (typeof adapter.getAspectModes !== 'function') return []
+  try {
+    const declared = adapter.getAspectModes()
+    return ASPECT_MODES.filter((mode) => declared.includes(mode))
+  } catch {
+    return []
+  }
+}
+
 /**
  * `kind` é obrigatório e sem valor padrão (D-004): um padrão `'channel'`
  * faria um filme perder a barra por esquecimento numa chamada nova, sem
@@ -544,7 +717,7 @@ export function createPlayerSession(
   options: PlayerServiceOptions = {},
 ): PlayerServiceSession {
   const factory = options.createAdapter ?? resolveAdapterFactory()
-  return new PlayerServiceSession(url, region, kind, factory, options.startAtMs)
+  return new PlayerServiceSession(url, region, kind, factory, options.startAtMs, options.headers, options.timeline)
 }
 
 /**
@@ -558,6 +731,7 @@ export function resolveAdapterFactory(): PlayerAdapterFactory {
 
 export type { PlayableKind, PlayerCapabilities, PlayerProgress } from './capabilities'
 export type { MediaTrack, StreamInfo, SubtitleCue, TrackChoice } from './tracks'
+export type { AspectMode, QualityChoice, QualityOption, ViewChoice } from './viewChoice'
 
 // Importações no fim para evitar ciclo: os adaptadores dependem dos tipos
 // declarados acima.

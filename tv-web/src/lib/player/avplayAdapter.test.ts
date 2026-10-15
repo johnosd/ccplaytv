@@ -10,7 +10,7 @@ interface FakeAvplayListener {
   onerror?: (error: unknown) => void
 }
 
-function installFakeAvplay() {
+function installFakeAvplay(completeBeforePrepared = false) {
   const listeners: FakeAvplayListener = {}
   const calls = {
     open: [] as string[],
@@ -31,7 +31,10 @@ function installFakeAvplay() {
     close: () => {
       calls.close += 1
     },
-    prepareAsync: (onSuccess: () => void) => onSuccess(),
+    prepareAsync: (onSuccess: () => void) => {
+      if (completeBeforePrepared) listeners.onbufferingcomplete?.()
+      onSuccess()
+    },
     play: () => {
       calls.play += 1
     },
@@ -116,6 +119,60 @@ describe('avplayAdapter', () => {
       reportsPosition: true,
       reportsDuration: true,
     })
+  })
+
+
+  describe('recuperação do buffering por tempo real', () => {
+    it('só confirma playing com tempo crescente, inclusive após novo buffering', () => {
+      const fake = installFakeAvplay()
+      const callbacks = fakeCallbacks()
+      const adapter = createAvplayAdapter(callbacks)
+      adapter.open('http://exemplo.invalid/live.ts', { x: 0, y: 0, width: 1920, height: 1080 })
+      callbacks.onStateChange.mockClear()
+      for (const time of [NaN, -1, 0, 0]) fake.listeners.oncurrentplaytime?.(time)
+      expect(callbacks.onStateChange).not.toHaveBeenCalled()
+      fake.listeners.oncurrentplaytime?.(1000)
+      expect(callbacks.onStateChange).toHaveBeenLastCalledWith('playing')
+      fake.listeners.onbufferingstart?.()
+      callbacks.onStateChange.mockClear()
+      fake.listeners.oncurrentplaytime?.(1000)
+      fake.listeners.oncurrentplaytime?.(1000)
+      expect(callbacks.onStateChange).not.toHaveBeenCalled()
+      fake.listeners.oncurrentplaytime?.(2000)
+      expect(callbacks.onStateChange).toHaveBeenLastCalledWith('playing')
+      callbacks.onStateChange.mockClear()
+      adapter.pause?.()
+      fake.listeners.oncurrentplaytime?.(3000)
+      expect(callbacks.onStateChange).toHaveBeenLastCalledWith('paused')
+      adapter.close()
+      callbacks.onStateChange.mockClear()
+      fake.listeners.onbufferingstart?.()
+      fake.listeners.oncurrentplaytime?.(4000)
+      fake.listeners.oncurrentplaytime?.(5000)
+      expect(callbacks.onStateChange).not.toHaveBeenCalled()
+    })
+  })
+
+  it('bufferingcomplete antes de prepareAsync não volta para buffering', () => {
+    const fake = installFakeAvplay(true)
+    const callbacks = fakeCallbacks()
+    createAvplayAdapter(callbacks).open('http://exemplo.invalid/live.ts', { x: 0, y: 0, width: 1920, height: 1080 })
+    expect(fake.calls.play).toBe(1)
+    expect(callbacks.onStateChange).toHaveBeenLastCalledWith('playing')
+    expect(callbacks.onStateChange).not.toHaveBeenCalledWith('buffering')
+  })
+
+  it('tempo e buffering atrasados não recuperam erro', () => {
+    const fake = installFakeAvplay()
+    const callbacks = fakeCallbacks()
+    createAvplayAdapter(callbacks).open('http://exemplo.invalid/live.ts', { x: 0, y: 0, width: 1920, height: 1080 })
+    fake.listeners.onerror?.('PLAYER_ERROR_CONNECTION_FAILED')
+    callbacks.onStateChange.mockClear()
+    fake.listeners.onbufferingstart?.()
+    fake.listeners.oncurrentplaytime?.(1000)
+    fake.listeners.oncurrentplaytime?.(2000)
+    fake.listeners.onbufferingcomplete?.()
+    expect(callbacks.onStateChange).not.toHaveBeenCalled()
   })
 
   describe('pause/resume', () => {

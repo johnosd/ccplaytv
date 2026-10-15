@@ -179,7 +179,7 @@ describe('LiveScreen — contrato da feature 030', () => {
   // US1/AC1-AC2, FR-023 (programa atual + progresso real), FR-029 (só do aparelho), FR-030 (sem EPG = slot vazio, sem barra), SC-003
   it('linha de canal: com id de EPG mostra o programa atual e a barra; sem id, slot vazio e sem barra', async () => {
     renderLive()
-    tap('ArrowRight') // entra em "Notícias"
+    tap('Enter') // entra em "Notícias"
 
     await waitFor(() => expect(rowOf('Canal Com Guia')?.querySelector('.channel-row-now')?.textContent).toBe('Jornal da Manhã'))
     expect(rowOf('Canal Com Guia')?.querySelector('.channel-row-progress')).not.toBeNull()

@@ -153,10 +153,6 @@ function previewButtons(): HTMLButtonElement[] {
   return [...document.querySelectorAll<HTMLButtonElement>('.live-preview-panel button')]
 }
 
-function previewButton(label: string): HTMLButtonElement | undefined {
-  return previewButtons().find((el) => el.textContent?.includes(label))
-}
-
 /** Nome do canal cuja linha tem o foco de estado, ou `null`. */
 function focusedChannelName(): string | null {
   const focused = [...document.querySelectorAll('.tv-focus')].find((el) => el.querySelector('.live-item-name'))
@@ -217,31 +213,18 @@ describe('LiveScreen — contrato da feature 024', () => {
   })
 
   // US2/AC1-AC3, US2/AC5-AC6, FR-014, FR-015, FR-016, FR-018, Constitution: "Foco Visível e Sem Becos Sem Saída"
-  it('preview: sem canal não tem ação; → leva a "Assistir", favoritar alterna o rótulo, ← volta ao canal, Assistir abre o player', async () => {
+  // Emendado na 049: o destaque deixou de ter ações focáveis (OK toca, Segurar OK favorita, ícone de Guia no topo da lista).
+  it('destaque informativo: sem botões; → pagina sem entrar; OK entra e OK toca o canal; RETURN volta ao canal de origem', async () => {
     renderLive()
 
-    // Foco na coluna de categorias: orientação neutra, nada focável no preview.
+    // Foco na coluna de categorias: nada focável no destaque.
     expect(previewButtons()).toHaveLength(0)
 
-    tap('ArrowRight') // entra em "Esportes"
+    tap('Enter') // entra em "Esportes"
     expect(focusedChannelName()).toBe('Canal A')
+    expect(previewButtons()).toHaveLength(0)
 
-    tap('ArrowRight') // canal → 1ª ação do preview
-    expect(previewButton('Assistir')?.classList.contains('tv-focus')).toBe(true)
-    expect(focusedChannelName()).toBeNull()
-
-    tap('ArrowDown')
-    expect(previewButton('Favoritar')?.classList.contains('tv-focus')).toBe(true)
-    tap('Enter')
-    await waitFor(() => expect(previewButton('Favorito')).toBeDefined())
-    expect(previewButton('Favoritar')).toBeUndefined()
-
-    tap('ArrowLeft') // ação → o mesmo canal de onde saiu
-    expect(focusedChannelName()).toBe('Canal A')
-
-    tap('ArrowRight')
-    expect(previewButton('Assistir')?.classList.contains('tv-focus')).toBe(true)
-    tap('Enter')
+    tap('Enter') // OK toca o canal focado
     await waitFor(() => expect(catalogApi.fetchPlayback).toHaveBeenCalledTimes(1))
   })
 })

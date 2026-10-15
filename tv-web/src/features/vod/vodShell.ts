@@ -20,5 +20,6 @@ export interface VodShellProps {
    * campos, e o `tsc -b` compila esses arquivos). Ausente = soft disabled.
    */
   onOpenSearch?: () => void
-  onOpenSettings?: () => void
+  /** `'parental'` = tela da lista ativa em Categorias & controle parental (vazio "todas escondidas", feature 066, FR-009). */
+  onOpenSettings?: (tab?: 'parental') => void
 }

@@ -1,0 +1,13 @@
+{
+  "referenceCurrency": "BRL",
+  "referenceMonthlyAmount": 10,
+  "thresholdPercents": [
+    0.5,
+    0.9,
+    1,
+    1.5
+  ],
+  "forecast": true,
+  "onExceeded": "notify-maintainer-keep-service-running",
+  "hardCap": false
+}

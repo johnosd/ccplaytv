@@ -4,6 +4,17 @@ import '@testing-library/jest-dom/vitest'
 // verificável à mão na TV — contrariando a prioridade de teste do projeto
 // (research.md R6).
 import 'fake-indexeddb/auto'
+import { afterEach } from 'vitest'
+// Estado de módulo da feature 046 não pode vazar de um teste para o seguinte
+// (os contratos travados de outras features montam as mesmas telas e não podem
+// ser editados para limpá-lo).
+import { resetKeyRepeatTracker } from './lib/focus/keyRepeat'
+import { resetLiveSessionMemory } from './features/live/liveSessionMemory'
+
+afterEach(() => {
+  resetKeyRepeatTracker()
+  resetLiveSessionMemory()
+})
 
 // jsdom não implementa `Element.scrollIntoView` (usado por
 // `useScrollFocusedIntoView`, feature 009 — trilha de categorias sem
@@ -12,3 +23,8 @@ import 'fake-indexeddb/auto'
 // foco, nunca a posição real de rolagem — isso só a TV física confirma
 // (FR-008/SC-002).
 Element.prototype.scrollIntoView ??= function scrollIntoView() {}
+
+// Idioma do app (feature 054): sem preferência gravada o app segue o idioma do sistema, e o jsdom diz en-US.
+// Os testes existentes esperam português — o padrão deles é pt; testes de en/es gravam o idioma de propósito.
+Object.defineProperty(window.navigator, 'languages', { value: ['pt-BR'], configurable: true })
+Object.defineProperty(window.navigator, 'language', { value: 'pt-BR', configurable: true })

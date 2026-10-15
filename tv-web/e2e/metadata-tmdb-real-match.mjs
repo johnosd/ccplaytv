@@ -114,7 +114,7 @@ async function run() {
   ).map((item) => ({ title: item.name, year: yearOf(item.year ?? item.releaseDate ?? item.release_date) }))
 
   const browser = await launchBrowser()
-  const page = await (await browser.newContext()).newPage()
+  const page = await (await browser.newContext({ locale: 'pt-BR' })).newPage()
   page.on('pageerror', () => {})
   try {
     await page.goto(APP_URL)

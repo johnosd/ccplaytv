@@ -244,8 +244,8 @@ async function holdEnter(ms = 850): Promise<void> {
 
 /** Entra na categoria em foco (dispara a obtenção) e desce `n` posições dentro dela. */
 function enterAndDescend(n = 0) {
-  keydown('ArrowRight')
-  keyup('ArrowRight')
+  keydown('Enter')
+  keyup('Enter')
   for (let i = 0; i < n; i += 1) {
     keydown('ArrowDown')
     keyup('ArrowDown')
@@ -309,6 +309,29 @@ describe('LiveScreen — favoritos (feature 013)', () => {
 
     keyup('Enter') // soltar depois do gesto já resolvido não faz mais nada
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  }, 10000)
+
+  it('segurar OK salva favorito mesmo com cache de séries indisponível', async () => {
+    await seedSource()
+    mockCategories([category(1, 'G1', 0)])
+    mockContentByCategory({ 1: [channel('Canal', '1')] })
+    const cacheRead = vi.spyOn(db.seriesWatchMembers, 'where').mockImplementation(() => {
+      throw new Error('Cache de séries indisponível')
+    })
+    try {
+      renderLive()
+      enterAndDescend()
+      await holdEnter()
+      await waitFor(() => expect(screen.getByText('Adicionado aos favoritos')).toBeInTheDocument())
+      await waitFor(() => expect(document.querySelector('.fav-star')).toBeInTheDocument())
+      expect((await db.userStates.get(`${SOURCE_ID}|channel|id:1`))?.isFavorite).toBe(true)
+      expect(cacheRead).not.toHaveBeenCalled()
+      expect(catalogApi.fetchPlayback).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      keyup('Enter')
+    } finally {
+      cacheRead.mockRestore()
+    }
   }, 10000)
 
   it('(b2) tecla amarela favorita no toque único, sem esperar soltar — mesmo resultado do segurar OK', async () => {
@@ -396,8 +419,8 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp') // sobe mais uma vez, para "★ Favoritos"
     keyup('ArrowUp')
-    keydown('ArrowRight')
-    keyup('ArrowRight')
+    keydown('Enter')
+    keyup('Enter')
 
     await waitFor(() => {
       const names = document.querySelectorAll('.live-column-channels .live-item-name')
@@ -418,8 +441,8 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp') // sobe mais uma vez, para "★ Favoritos"
     keyup('ArrowUp')
-    keydown('ArrowRight')
-    keyup('ArrowRight')
+    keydown('Enter')
+    keyup('Enter')
 
     await waitFor(() => expect(screen.getByText('Nenhum favorito ainda')).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('tv-focus')
@@ -444,8 +467,8 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp') // sobe mais uma vez, para "★ Favoritos"
     keyup('ArrowUp')
-    keydown('ArrowRight')
-    keyup('ArrowRight')
+    keydown('Enter')
+    keyup('Enter')
 
     await waitFor(() => {
       const note = screen.getByText(/ainda não apareceram aqui/)
@@ -472,8 +495,8 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp') // sobe mais uma vez, para "★ Favoritos"
     keyup('ArrowUp')
-    keydown('ArrowRight')
-    keyup('ArrowRight')
+    keydown('Enter')
+    keyup('Enter')
 
     await waitFor(() => {
       const names = document.querySelectorAll('.live-column-channels .live-item-name')
@@ -494,10 +517,10 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('A')
   }, 10000)
 
-  // Feature 024, T035: desfavoritar pelo botão "Favoritar" do preview, sendo
-  // o ÚLTIMO favorito, não pode deixar o preview "órfão" (sem canal, mas
-  // ainda em col 2) — cai pra col 1, e o estado vazio de Favoritos aparece.
-  it('(h2) desfavoritar o único favorito com o foco no preview volta pra coluna de canais, sem preview órfão', async () => {
+  // Feature 024, T035 (reescrito na 049, o destaque não tem mais botões): desfavoritar o ÚLTIMO
+  // favorito com Segurar OK não pode deixar a lista num estado sem foco — o vazio de Favoritos
+  // aparece, com a ação focável.
+  it('(h2) desfavoritar o único favorito com Segurar OK mostra o vazio de Favoritos, sem destaque órfão', async () => {
     await seedSource()
     await seedRealChannel('Único', '1')
     await favoriteChannel('1', 100)
@@ -508,20 +531,14 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp')
     keyup('ArrowUp')
-    keydown('ArrowRight')
-    keyup('ArrowRight')
+    keydown('Enter')
+    keyup('Enter')
 
     await waitFor(() =>
       expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('Único'),
     )
 
-    keydown('ArrowRight') // canal → preview
-    keyup('ArrowRight')
-    keydown('ArrowDown') // "Assistir" → "Favoritar"
-    keyup('ArrowDown')
-    expect(document.querySelector('.live-preview-action.tv-focus')?.textContent).toBe('Favorito')
-
-    tap('Enter') // desfavorita pelo preview — toque comum, sem onLongSelect ali
+    await holdEnter(1500) // segura além do limiar de 800ms: desfavorita
 
     await waitFor(() => expect(screen.getByText('Nenhum favorito ainda')).toBeInTheDocument())
     expect(document.querySelector('.live-preview-panel button')).toBeNull()
@@ -550,8 +567,8 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp') // sobe mais uma vez, para "★ Favoritos"
     keyup('ArrowUp')
-    keydown('ArrowRight')
-    keyup('ArrowRight')
+    keydown('Enter')
+    keyup('Enter')
 
     await waitFor(() =>
       expect(document.querySelector('.live-column-channels .tv-focus')?.textContent).toContain('Favorito'),
@@ -580,13 +597,13 @@ describe('LiveScreen — favoritos (feature 013)', () => {
 
     // Padrão continua sendo a primeira categoria REAL — aqui, a "Favoritos"
     // declarada pela fonte, não a virtual.
-    expect(document.querySelector('.live-column-groups .tv-focus')?.textContent).toBe('Favoritos')
-    keydown('ArrowRight')
-    keyup('ArrowRight')
+    expect(document.querySelector('.live-column-groups .tv-focus .side-category-nav-label')?.textContent).toBe('Favoritos')
+    keydown('Enter')
+    keyup('Enter')
     expect(document.querySelector('.live-column-channels .live-item-name')?.textContent).toBe('DaFonte')
 
-    keydown('ArrowLeft')
-    keyup('ArrowLeft')
+    keydown('Escape')
+    keyup('Escape')
     keydown('ArrowUp') // sobe pra "Todos"
     keyup('ArrowUp')
     keydown('ArrowUp') // sobe mais uma vez, para a entrada virtual "★ Favoritos"
@@ -595,8 +612,8 @@ describe('LiveScreen — favoritos (feature 013)', () => {
       document.querySelector('.live-column-groups .tv-focus .side-category-nav-label')?.textContent,
     ).toBe('Favoritos')
 
-    keydown('ArrowRight')
-    keyup('ArrowRight')
+    keydown('Enter')
+    keyup('Enter')
     await waitFor(() =>
       expect(document.querySelector('.live-column-channels .live-item-name')?.textContent).toBe('DoUsuario'),
     )
@@ -659,8 +676,8 @@ describe('LiveScreen — favoritos (feature 013)', () => {
     keyup('ArrowUp')
     keydown('ArrowUp') // "★ Favoritos"
     keyup('ArrowUp')
-    keydown('ArrowRight')
-    keyup('ArrowRight')
+    keydown('Enter')
+    keyup('Enter')
 
     await waitFor(() => {
       const names = document.querySelectorAll('.live-column-channels .live-item-name')

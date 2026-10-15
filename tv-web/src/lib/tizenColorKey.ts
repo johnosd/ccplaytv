@@ -16,9 +16,10 @@
  * plataforma não as entrega ao app — é preciso declarar o privilégio
  * `http://tizen.org/privilege/tvinputdevice` (`CCPlayTv/config.xml`) e
  * registrar a tecla via `tizen.tvinputdevice.registerKey()` antes que
- * qualquer evento dela chegue (`docs/guia-praticas-app-tv/03`, item do
- * backlog 44 — "não registrar indiscriminadamente todas as teclas").
- * Registra só a amarela, nunca as quatro.
+ * qualquer evento dela chegue (`docs/guia-praticas-app-tv/03` — "não
+ * registrar indiscriminadamente todas as teclas"). Registra só a amarela
+ * (favoritar) e a vermelha (remover do "↺ Histórico", feature 036), nunca as
+ * quatro.
  */
 
 /** Nome da tecla na Web API do Tizen (`tizen.tvinputdevice`) — o mesmo valor chega em `KeyboardEvent.key`. */
@@ -58,4 +59,42 @@ export function registerFavoriteColorKey(): void {
     // TV mais antiga) — o atalho apenas não fica disponível; segurar OK
     // continua funcionando normalmente.
   }
+}
+
+/** Tecla vermelha: atalho de "Remover do histórico" na grade do "↺ Histórico" (feature 036, §7). */
+export const REMOVE_COLOR_KEY = 'ColorF0Red'
+
+/** `keyCode` da vermelha — fallback quando `event.key` não traz o nome. A conferir na TV física (R-002 da 036). */
+export const REMOVE_COLOR_KEYCODE = 403
+
+let removeColorKeyRegistered = false
+
+/**
+ * Registra a tecla vermelha no modo **estrito** (D-007 da 036, mesmo padrão de
+ * `registerMediaKeys`, diferente da amarela acima): sem `getSupportedKeys()`,
+ * com lista vazia, sem a vermelha na lista ou se algo lançar, não registra e
+ * devolve `false`. A dica "● Remover do histórico" só aparece com registro
+ * confirmado — prometer uma tecla que a plataforma não entrega seria uma dica
+ * falsa. O detalhe do título é o caminho completo por setas + OK.
+ */
+export function registerRemoveColorKey(): boolean {
+  removeColorKeyRegistered = false
+  const tizen = (window as unknown as { tizen?: TVInputDeviceGlobal }).tizen
+  const inputDevice = tizen?.tvinputdevice
+  if (!inputDevice?.registerKey) return false
+
+  try {
+    const supported = inputDevice.getSupportedKeys?.() ?? []
+    if (!supported.some((key) => key.name === REMOVE_COLOR_KEY)) return false
+    inputDevice.registerKey(REMOVE_COLOR_KEY)
+    removeColorKeyRegistered = true
+  } catch {
+    removeColorKeyRegistered = false
+  }
+  return removeColorKeyRegistered
+}
+
+/** A vermelha foi registrada com sucesso nesta sessão (decide a dica, FR-003). */
+export function isRemoveColorKeyRegistered(): boolean {
+  return removeColorKeyRegistered
 }

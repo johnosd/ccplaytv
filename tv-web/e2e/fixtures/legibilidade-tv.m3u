@@ -1,0 +1,17 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="noticias.exemplo" group-title="Canais | Notícias e Variedades da Região",Canal Exemplo Notícias Ação Educação HD
+http://127.0.0.1:59999/stream/canal-noticias.ts
+#EXTINF:-1 group-title="Canais | Notícias e Variedades da Região",Canal Curto
+http://127.0.0.1:59999/stream/canal-curto.ts
+#EXTINF:-1 group-title="Canais | Notícias e Variedades da Região",Canal Exemplo Programação Infantil e Família 4K
+http://127.0.0.1:59999/stream/canal-infantil.ts
+#EXTINF:-1 group-title="Canais | Esportes",Canal Esportivo Exemplo Futebol Ao Vivo Sem Parar
+http://127.0.0.1:59999/stream/canal-esportes.ts
+#EXTINF:-1 group-title="Filmes | Aventura e Ação Internacional",Filme Exemplo Com Um Título Muito Longo Que Não Cabe Inteiro
+http://127.0.0.1:59999/movie/filme-longo.mp4
+#EXTINF:-1 group-title="Filmes | Aventura e Ação Internacional",Filme Curto
+http://127.0.0.1:59999/movie/filme-curto.mp4
+#EXTINF:-1 group-title="Séries | Dramas Premiados da Década",Série Exemplo Com Nome Comprido Demais Para O Card S01E01
+http://127.0.0.1:59999/series/serie-longa-s01e01.mp4
+#EXTINF:-1 group-title="Séries | Dramas Premiados da Década",Série Exemplo Com Nome Comprido Demais Para O Card S01E02
+http://127.0.0.1:59999/series/serie-longa-s01e02.mp4

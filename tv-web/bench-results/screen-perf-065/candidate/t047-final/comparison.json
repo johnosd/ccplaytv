@@ -1,0 +1,2126 @@
+{
+  "pass": false,
+  "rows": [
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-local-20-images",
+      "metric": "cards/ordem/foco/rolagem observados",
+      "pass": true
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-20-images",
+      "metric": "movies-after-home:conteúdo/foco",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 774.4000000059605,
+        "min": 760.8999999761581,
+        "max": 794,
+        "mad": 6.4000000059604645
+      },
+      "candidate": {
+        "n": 7,
+        "median": 654.5999999940395,
+        "min": 643.9000000059605,
+        "max": 663.1000000238419,
+        "mad": 6.800000011920929
+      },
+      "gain": 0.15470041323734351
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-local-20-images",
+      "metric": "movies-after-home:maior tarefa",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 286,
+        "min": 275,
+        "max": 309,
+        "mad": 7
+      },
+      "candidate": {
+        "n": 7,
+        "median": 106,
+        "min": 100,
+        "max": 113,
+        "mad": 5
+      },
+      "gain": 0.6293706293706294
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-20-images",
+      "metric": "movies-index-cold:conteúdo/foco",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 347.7999999821186,
+        "min": 331.69999998807907,
+        "max": 384.59999999403954,
+        "mad": 7.9000000059604645
+      },
+      "candidate": {
+        "n": 7,
+        "median": 226.5,
+        "min": 221.7999999821186,
+        "max": 264.5,
+        "mad": 2.9000000059604645
+      },
+      "gain": 0.3487636572408136
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-local-20-images",
+      "metric": "movies-index-cold:maior tarefa",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 327,
+        "min": 318,
+        "max": 373,
+        "mad": 9
+      },
+      "candidate": {
+        "n": 7,
+        "median": 179,
+        "min": 174,
+        "max": 217,
+        "mad": 3
+      },
+      "gain": 0.4525993883792049
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-20-images",
+      "metric": "home-cold:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 1848.5999999940395,
+        "min": 1835,
+        "max": 1935.7999999821186,
+        "mad": 13.599999994039536
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1365.9000000059605,
+        "min": 1356.9000000059605,
+        "max": 1401.699999988079,
+        "mad": 3.0999999940395355
+      },
+      "gain": 0.2611165206045848
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-20-images",
+      "metric": "series-after-home:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 490.80000001192093,
+        "min": 419.19999998807907,
+        "max": 496.7000000178814,
+        "mad": 5.9000000059604645
+      },
+      "candidate": {
+        "n": 7,
+        "median": 299.59999999403954,
+        "min": 295.39999997615814,
+        "max": 333.09999999403954,
+        "mad": 3.0999999940395355
+      },
+      "gain": 0.3895680521867102
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-20-images",
+      "metric": "home-return:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 756.1000000238419,
+        "min": 737.5,
+        "max": 845.3999999761581,
+        "mad": 9.599999994039536
+      },
+      "candidate": {
+        "n": 7,
+        "median": 495.90000000596046,
+        "min": 488.30000001192093,
+        "max": 508.30000001192093,
+        "mad": 4.300000011920929
+      },
+      "gain": 0.3441343737728827
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-20-images",
+      "metric": "movie-category-cold:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 566.6999999880791,
+        "min": 547.2000000178814,
+        "max": 589.6999999880791,
+        "mad": 12.599999994039536
+      },
+      "candidate": {
+        "n": 7,
+        "median": 591.1999999880791,
+        "min": 578.4000000059605,
+        "max": 618.5,
+        "mad": 5.999999970197678
+      },
+      "gain": -0.04323275101555568
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-local-20-images",
+      "metric": "seleção pura",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 148.7999999821186,
+        "min": 135.30000001192093,
+        "max": 154.09999999403954,
+        "mad": 3.4000000059604645
+      },
+      "candidate": {
+        "n": 7,
+        "median": 104,
+        "min": 97.59999999403954,
+        "max": 119.30000001192093,
+        "mad": 2.699999988079071
+      },
+      "gain": 0.3010752687332141
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-local-20-images",
+      "metric": "ids/contador da seleção",
+      "pass": true
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-local-20-images",
+      "metric": "soma tarefas nos eventos reais",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1175,
+        "min": 1112,
+        "max": 1760,
+        "mad": 3
+      },
+      "candidate": {
+        "n": 7,
+        "median": 710,
+        "min": 680,
+        "max": 778,
+        "mad": 26
+      },
+      "gain": 0.39574468085106385
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-local-20-images",
+      "metric": "p95 direção (proxy de dois quadros)",
+      "pass": true,
+      "baseline": {
+        "n": 1,
+        "median": 352.40000000596046,
+        "min": 352.40000000596046,
+        "max": 352.40000000596046,
+        "mad": 0
+      },
+      "candidate": {
+        "n": 1,
+        "median": 74.10000002384186,
+        "min": 74.10000002384186,
+        "max": 74.10000002384186,
+        "mad": 0
+      },
+      "gain": 0.78972758222875
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-local-20-images",
+      "metric": "escopo/propagação",
+      "pass": true
+    },
+    {
+      "criterion": "SC-005",
+      "configuration": "screens-local-20-images",
+      "metric": "heap retido",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 29294040,
+        "min": 29173720,
+        "max": 29300780,
+        "mad": 1112
+      },
+      "candidate": {
+        "n": 7,
+        "median": 29231304,
+        "min": 29228452,
+        "max": 29353820,
+        "mad": 2852
+      },
+      "gain": 0.0021415960379653765
+    },
+    {
+      "criterion": "SC-005",
+      "configuration": "screens-local-20-images",
+      "metric": "Worker registrado separadamente",
+      "pass": true
+    },
+    {
+      "criterion": "SC-009",
+      "configuration": "screens-local-20-images",
+      "metric": "chamadas/universo de páginas",
+      "pass": true
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-local-100-images",
+      "metric": "cards/ordem/foco/rolagem observados",
+      "pass": true
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-100-images",
+      "metric": "movies-after-home:conteúdo/foco",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1560.0999999940395,
+        "min": 1526.0999999940395,
+        "max": 1789,
+        "mad": 31.099999994039536
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1394.5,
+        "min": 1356.0999999940395,
+        "max": 1573.5,
+        "mad": 35.89999997615814
+      },
+      "gain": 0.10614704185287627
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-local-100-images",
+      "metric": "movies-after-home:maior tarefa",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1071,
+        "min": 1062,
+        "max": 1269,
+        "mad": 9
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1038,
+        "min": 994,
+        "max": 1177,
+        "mad": 13
+      },
+      "gain": 0.03081232492997199
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-100-images",
+      "metric": "movies-index-cold:conteúdo/foco",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 345.5,
+        "min": 328.90000000596046,
+        "max": 433.09999999403954,
+        "mad": 9.199999988079071
+      },
+      "candidate": {
+        "n": 7,
+        "median": 225.7999999821186,
+        "min": 221.5,
+        "max": 253,
+        "mad": 4.299999982118607
+      },
+      "gain": 0.3464544139446639
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-local-100-images",
+      "metric": "movies-index-cold:maior tarefa",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1151,
+        "min": 1085,
+        "max": 1309,
+        "mad": 18
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1177,
+        "min": 1145,
+        "max": 1322,
+        "mad": 20
+      },
+      "gain": -0.022589052997393555
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-100-images",
+      "metric": "home-cold:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 1766.699999988079,
+        "min": 1748.4000000059605,
+        "max": 1841.9000000059605,
+        "mad": 12.399999976158142
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1312,
+        "min": 1289.0999999940395,
+        "max": 1361.2999999821186,
+        "mad": 10.900000005960464
+      },
+      "gain": 0.25737250240060405
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-100-images",
+      "metric": "series-after-home:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 648.1999999880791,
+        "min": 593.2999999821186,
+        "max": 712.5999999940395,
+        "mad": 16.80000001192093
+      },
+      "candidate": {
+        "n": 7,
+        "median": 478.5,
+        "min": 444.80000001192093,
+        "max": 521.9000000059605,
+        "mad": 20.400000005960464
+      },
+      "gain": 0.2618019129762419
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-100-images",
+      "metric": "home-return:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 796,
+        "min": 766.6999999880791,
+        "max": 887.5,
+        "mad": 13.599999994039536
+      },
+      "candidate": {
+        "n": 7,
+        "median": 495.89999997615814,
+        "min": 487.30000001192093,
+        "max": 569.9000000059605,
+        "mad": 6.499999970197678
+      },
+      "gain": 0.3770100502812084
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-100-images",
+      "metric": "movie-category-cold:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 515.2000000178814,
+        "min": 501.60000002384186,
+        "max": 561.5,
+        "mad": 13.599999994039536
+      },
+      "candidate": {
+        "n": 7,
+        "median": 556.5,
+        "min": 549.6999999880791,
+        "max": 626.4000000059605,
+        "mad": 6.5
+      },
+      "gain": -0.08016304344077096
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-local-100-images",
+      "metric": "seleção pura",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 721.5999999940395,
+        "min": 701.9000000059605,
+        "max": 750.1999999880791,
+        "mad": 12.100000023841858
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1076.9000000059605,
+        "min": 1038.199999988079,
+        "max": 1157.0999999940395,
+        "mad": 26
+      },
+      "gain": -0.49237804880107494
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-local-100-images",
+      "metric": "ids/contador da seleção",
+      "pass": true
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-local-100-images",
+      "metric": "soma tarefas nos eventos reais",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 3513,
+        "min": 2398,
+        "max": 3554,
+        "mad": 15
+      },
+      "candidate": {
+        "n": 7,
+        "median": 2495,
+        "min": 2423,
+        "max": 2642,
+        "mad": 58
+      },
+      "gain": 0.2897808141189866
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-local-100-images",
+      "metric": "p95 direção (proxy de dois quadros)",
+      "pass": true,
+      "baseline": {
+        "n": 1,
+        "median": 1021.2999999821186,
+        "min": 1021.2999999821186,
+        "max": 1021.2999999821186,
+        "mad": 0
+      },
+      "candidate": {
+        "n": 1,
+        "median": 81.39999997615814,
+        "min": 81.39999997615814,
+        "max": 81.39999997615814,
+        "mad": 0
+      },
+      "gain": 0.9202976598672443
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-local-100-images",
+      "metric": "escopo/propagação",
+      "pass": false
+    },
+    {
+      "criterion": "SC-005",
+      "configuration": "screens-local-100-images",
+      "metric": "heap retido",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 29260180,
+        "min": 29179784,
+        "max": 29299600,
+        "mad": 32248
+      },
+      "candidate": {
+        "n": 7,
+        "median": 29354088,
+        "min": 29229500,
+        "max": 29357244,
+        "mad": 984
+      },
+      "gain": -0.003209412929107147
+    },
+    {
+      "criterion": "SC-005",
+      "configuration": "screens-local-100-images",
+      "metric": "Worker registrado separadamente",
+      "pass": true
+    },
+    {
+      "criterion": "SC-009",
+      "configuration": "screens-local-100-images",
+      "metric": "chamadas/universo de páginas",
+      "pass": true
+    },
+    {
+      "criterion": "SC-011",
+      "configuration": "screens-local-100-images",
+      "metric": "primeiro comando normal",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 18.599999994039536,
+        "min": 18,
+        "max": 20.700000017881393,
+        "mad": 0.5999999940395355
+      },
+      "candidate": {
+        "n": 7,
+        "median": 14.599999994039536,
+        "min": 11.700000017881393,
+        "max": 26.19999998807907,
+        "mad": 2.899999976158142
+      },
+      "gain": 0.21505376350977523
+    },
+    {
+      "criterion": "SC-011",
+      "configuration": "screens-local-100-images",
+      "metric": "normal-first-home",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 1783.9000000059605,
+        "min": 1671.5,
+        "max": 1820.699999988079,
+        "mad": 19.099999994039536
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1341.5,
+        "min": 1308.0999999940395,
+        "max": 1445.699999988079,
+        "mad": 24.599999994039536
+      },
+      "gain": 0.24799596390183432
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-local-100-images",
+      "metric": "normal-first-home",
+      "pass": true
+    },
+    {
+      "criterion": "SC-011",
+      "configuration": "screens-local-100-images",
+      "metric": "normal-first-movies",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1586.8999999761581,
+        "min": 1511,
+        "max": 1666.9000000059605,
+        "mad": 32.49999997019768
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1885.4000000059605,
+        "min": 1457,
+        "max": 1973.5,
+        "mad": 28.400000005960464
+      },
+      "gain": -0.1881025899768649
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-local-100-images",
+      "metric": "normal-first-movies",
+      "pass": true
+    },
+    {
+      "criterion": "SC-011",
+      "configuration": "screens-local-100-images",
+      "metric": "normal-first-series",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 846.7999999821186,
+        "min": 795.8000000119209,
+        "max": 895.0999999940395,
+        "mad": 17.900000005960464
+      },
+      "candidate": {
+        "n": 7,
+        "median": 512.2999999821186,
+        "min": 475,
+        "max": 544,
+        "mad": 19.099999994039536
+      },
+      "gain": 0.395016532837817
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-local-100-images",
+      "metric": "normal-first-series",
+      "pass": true
+    },
+    {
+      "criterion": "SC-011",
+      "configuration": "screens-local-100-images",
+      "metric": "normal-first-category",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 574.8000000119209,
+        "min": 553.8000000119209,
+        "max": 1296.7000000178814,
+        "mad": 21
+      },
+      "candidate": {
+        "n": 7,
+        "median": 568.6999999880791,
+        "min": 562,
+        "max": 573.4000000059605,
+        "mad": 3.699999988079071
+      },
+      "gain": 0.010612386958447018
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-local-100-images",
+      "metric": "normal-first-category",
+      "pass": true
+    },
+    {
+      "criterion": "SC-011",
+      "configuration": "screens-local-100-images",
+      "metric": "abertura:false:cold",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 3541.2999999821186,
+        "min": 3525.9000000059605,
+        "max": 3569.5999999940395,
+        "mad": 7.099999964237213
+      },
+      "candidate": {
+        "n": 7,
+        "median": 768.7000000178814,
+        "min": 738.5,
+        "max": 815.9000000059605,
+        "mad": 14.299999982118607
+      },
+      "gain": 0.7829328212741753
+    },
+    {
+      "criterion": "SC-012",
+      "configuration": "screens-local-100-images",
+      "metric": "JS:false:cold",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1007752,
+        "min": 1007752,
+        "max": 1007752,
+        "mad": 0
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1041543,
+        "min": 1041543,
+        "max": 1041543,
+        "mad": 0
+      },
+      "gain": -0.03353106716731902
+    },
+    {
+      "criterion": "SC-011",
+      "configuration": "screens-local-100-images",
+      "metric": "abertura:false:warm",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 3229.199999988079,
+        "min": 3217.7000000178814,
+        "max": 3242.399999976158,
+        "mad": 9.300000011920929
+      },
+      "candidate": {
+        "n": 7,
+        "median": 344.69999998807907,
+        "min": 329.30000001192093,
+        "max": 384.09999999403954,
+        "mad": 10.799999982118607
+      },
+      "gain": 0.893255295432506
+    },
+    {
+      "criterion": "SC-012",
+      "configuration": "screens-local-100-images",
+      "metric": "JS:false:warm",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1007752,
+        "min": 1007752,
+        "max": 1007752,
+        "mad": 0
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1041543,
+        "min": 1041543,
+        "max": 1041543,
+        "mad": 0
+      },
+      "gain": -0.03353106716731902
+    },
+    {
+      "criterion": "SC-011",
+      "configuration": "screens-local-100-images",
+      "metric": "abertura:true:cold",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 3238.5,
+        "min": 3226.4000000059605,
+        "max": 3272.9000000059605,
+        "mad": 5.5
+      },
+      "candidate": {
+        "n": 7,
+        "median": 370.59999999403954,
+        "min": 333.69999998807907,
+        "max": 385.89999997615814,
+        "mad": 15.299999982118607
+      },
+      "gain": 0.8855643044637828
+    },
+    {
+      "criterion": "SC-012",
+      "configuration": "screens-local-100-images",
+      "metric": "JS:true:cold",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1007752,
+        "min": 1007752,
+        "max": 1007752,
+        "mad": 0
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1006856,
+        "min": 1006856,
+        "max": 1041543,
+        "mad": 0
+      },
+      "gain": 0.0008891076375934226
+    },
+    {
+      "criterion": "SC-011",
+      "configuration": "screens-local-100-images",
+      "metric": "abertura:true:warm",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 3210.5999999940395,
+        "min": 3193.699999988079,
+        "max": 3240.800000011921,
+        "mad": 12.900000005960464
+      },
+      "candidate": {
+        "n": 7,
+        "median": 331.40000000596046,
+        "min": 318.2000000178814,
+        "max": 364.59999999403954,
+        "mad": 10.300000011920929
+      },
+      "gain": 0.8967794181752397
+    },
+    {
+      "criterion": "SC-012",
+      "configuration": "screens-local-100-images",
+      "metric": "JS:true:warm",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1007752,
+        "min": 1007752,
+        "max": 1007752,
+        "mad": 0
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1041543,
+        "min": 1041543,
+        "max": 1041543,
+        "mad": 0
+      },
+      "gain": -0.03353106716731902
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "cards/ordem/foco/rolagem observados",
+      "pass": true
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "movies-after-home:conteúdo/foco",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 928.7000000178814,
+        "min": 902.7999999821186,
+        "max": 1025.5,
+        "mad": 22.400000035762787
+      },
+      "candidate": {
+        "n": 7,
+        "median": 792.9000000059605,
+        "min": 781.1999999880791,
+        "max": 831.8000000119209,
+        "mad": 2.800000011920929
+      },
+      "gain": 0.14622590719210316
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "movies-after-home:maior tarefa",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 262,
+        "min": 251,
+        "max": 274,
+        "mad": 2
+      },
+      "candidate": {
+        "n": 7,
+        "median": 118,
+        "min": 108,
+        "max": 122,
+        "mad": 1
+      },
+      "gain": 0.549618320610687
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "movies-index-cold:conteúdo/foco",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 211.40000000596046,
+        "min": 206.2000000178814,
+        "max": 243.59999999403954,
+        "mad": 2.5
+      },
+      "candidate": {
+        "n": 7,
+        "median": 159.09999999403954,
+        "min": 155,
+        "max": 165.09999999403954,
+        "mad": 3
+      },
+      "gain": 0.24739829711658623
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "movies-index-cold:maior tarefa",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 332,
+        "min": 313,
+        "max": 374,
+        "mad": 7
+      },
+      "candidate": {
+        "n": 7,
+        "median": 209,
+        "min": 189,
+        "max": 249,
+        "mad": 6
+      },
+      "gain": 0.37048192771084343
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "home-cold:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 2105.0999999940395,
+        "min": 2026.199999988079,
+        "max": 2149.699999988079,
+        "mad": 19.799999982118607
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1499.300000011921,
+        "min": 1475.800000011921,
+        "max": 1526.5999999940395,
+        "mad": 6.9000000059604645
+      },
+      "gain": 0.28777730273328295
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "series-after-home:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 643.7999999821186,
+        "min": 600.4000000059605,
+        "max": 880.3999999761581,
+        "mad": 7.300000041723251
+      },
+      "candidate": {
+        "n": 7,
+        "median": 448.69999998807907,
+        "min": 409.19999998807907,
+        "max": 482.30000001192093,
+        "mad": 12.699999988079071
+      },
+      "gain": 0.3030444237332376
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "home-return:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 1403.5,
+        "min": 1367.300000011921,
+        "max": 1486,
+        "mad": 31.599999994039536
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1032.300000011921,
+        "min": 992.4000000059605,
+        "max": 1073.8999999761581,
+        "mad": 30.80000001192093
+      },
+      "gain": 0.26448165300183757
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "movie-category-cold:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 644.9000000059605,
+        "min": 520.2999999821186,
+        "max": 851.6999999880791,
+        "mad": 77.40000000596046
+      },
+      "candidate": {
+        "n": 7,
+        "median": 617,
+        "min": 612.9000000059605,
+        "max": 627.3000000119209,
+        "mad": 3.699999988079071
+      },
+      "gain": 0.043262521329977655
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "seleção pura",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 154.40000000596046,
+        "min": 140.19999998807907,
+        "max": 162.40000000596046,
+        "mad": 6.9000000059604645
+      },
+      "candidate": {
+        "n": 7,
+        "median": 89.90000000596046,
+        "min": 70.30000001192093,
+        "max": 106.09999999403954,
+        "mad": 16.19999998807907
+      },
+      "gain": 0.4177461139735106
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "ids/contador da seleção",
+      "pass": true
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "soma tarefas nos eventos reais",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 3237,
+        "min": 2890,
+        "max": 3773,
+        "mad": 346
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1802,
+        "min": 1418,
+        "max": 2283,
+        "mad": 141
+      },
+      "gain": 0.44331170837194933
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "p95 direção (proxy de dois quadros)",
+      "pass": true,
+      "baseline": {
+        "n": 1,
+        "median": 366.69999998807907,
+        "min": 366.69999998807907,
+        "max": 366.69999998807907,
+        "mad": 0
+      },
+      "candidate": {
+        "n": 1,
+        "median": 209.7999999821186,
+        "min": 209.7999999821186,
+        "max": 209.7999999821186,
+        "mad": 0
+      },
+      "gain": 0.42787019364892576
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "escopo/propagação",
+      "pass": true
+    },
+    {
+      "criterion": "SC-005",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "heap retido",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 37986136,
+        "min": 37974440,
+        "max": 38032108,
+        "mad": 8172
+      },
+      "candidate": {
+        "n": 7,
+        "median": 38060940,
+        "min": 38053368,
+        "max": 38064268,
+        "mad": 2784
+      },
+      "gain": -0.001969244779200574
+    },
+    {
+      "criterion": "SC-005",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "Worker registrado separadamente",
+      "pass": true
+    },
+    {
+      "criterion": "SC-009",
+      "configuration": "screens-tmdb-20-images",
+      "metric": "chamadas/universo de páginas",
+      "pass": true
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "cards/ordem/foco/rolagem observados",
+      "pass": true
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "movies-after-home:conteúdo/foco",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1442,
+        "min": 1417.199999988079,
+        "max": 1470.4000000059605,
+        "mad": 4.5999999940395355
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1685,
+        "min": 1519.2000000178814,
+        "max": 3699.5,
+        "mad": 27
+      },
+      "gain": -0.16851595006934805
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "movies-after-home:maior tarefa",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 789,
+        "min": 780,
+        "max": 821,
+        "mad": 9
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1118,
+        "min": 1022,
+        "max": 2526,
+        "mad": 21
+      },
+      "gain": -0.41698352344740175
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "movies-index-cold:conteúdo/foco",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 205.2999999821186,
+        "min": 202.09999999403954,
+        "max": 219.69999998807907,
+        "mad": 3.199999988079071
+      },
+      "candidate": {
+        "n": 7,
+        "median": 164.40000000596046,
+        "min": 152.59999999403954,
+        "max": 188.40000000596046,
+        "mad": 11.300000011920929
+      },
+      "gain": 0.199220652604581
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "movies-index-cold:maior tarefa",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 842,
+        "min": 815,
+        "max": 853,
+        "mad": 9
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1194,
+        "min": 1085,
+        "max": 1624,
+        "mad": 64
+      },
+      "gain": -0.41805225653206657
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "home-cold:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 2078.699999988079,
+        "min": 2000.199999988079,
+        "max": 2185,
+        "mad": 70.59999996423721
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1497.7999999821186,
+        "min": 1417.199999988079,
+        "max": 1538.3999999761581,
+        "mad": 9.300000011920929
+      },
+      "gain": 0.27945350459868756
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "series-after-home:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 809.5,
+        "min": 729.8999999761581,
+        "max": 993.0999999940395,
+        "mad": 30.5
+      },
+      "candidate": {
+        "n": 7,
+        "median": 620.5999999940395,
+        "min": 574.9000000059605,
+        "max": 936.2999999821186,
+        "mad": 27
+      },
+      "gain": 0.23335392218154472
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "home-return:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 1419.300000011921,
+        "min": 1406.7000000178814,
+        "max": 1429.800000011921,
+        "mad": 8.099999994039536
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1003,
+        "min": 978.2999999821186,
+        "max": 1403.4000000059605,
+        "mad": 19.099999994039536
+      },
+      "gain": 0.29331360530432216
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "movie-category-cold:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 639,
+        "min": 529.5999999940395,
+        "max": 836.0999999940395,
+        "mad": 106.09999999403954
+      },
+      "candidate": {
+        "n": 7,
+        "median": 649.3999999761581,
+        "min": 582.7000000178814,
+        "max": 1020.9000000059605,
+        "mad": 48.69999998807907
+      },
+      "gain": -0.01627543032262624
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "seleção pura",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 670.0999999940395,
+        "min": 644.9000000059605,
+        "max": 683.7999999821186,
+        "mad": 13.200000017881393
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1033.7999999821186,
+        "min": 1008.2999999821186,
+        "max": 1544.9000000059605,
+        "mad": 11.500000029802322
+      },
+      "gain": -0.5427548127015582
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "ids/contador da seleção",
+      "pass": true
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "soma tarefas nos eventos reais",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 4959,
+        "min": 3942,
+        "max": 5178,
+        "mad": 219
+      },
+      "candidate": {
+        "n": 7,
+        "median": 4352,
+        "min": 3517,
+        "max": 6611,
+        "mad": 524
+      },
+      "gain": 0.12240371042548903
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "p95 direção (proxy de dois quadros)",
+      "pass": false,
+      "baseline": {
+        "n": 1,
+        "median": 1006.2000000178814,
+        "min": 1006.2000000178814,
+        "max": 1006.2000000178814,
+        "mad": 0
+      },
+      "candidate": {
+        "n": 1,
+        "median": 1334,
+        "min": 1334,
+        "max": 1334,
+        "mad": 0
+      },
+      "gain": -0.3257801629659045
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "escopo/propagação",
+      "pass": false
+    },
+    {
+      "criterion": "SC-005",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "heap retido",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 37982524,
+        "min": 37970340,
+        "max": 38043888,
+        "mad": 10596
+      },
+      "candidate": {
+        "n": 7,
+        "median": 38064668,
+        "min": 37941084,
+        "max": 38070424,
+        "mad": 2384
+      },
+      "gain": -0.0021626788151307696
+    },
+    {
+      "criterion": "SC-005",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "Worker registrado separadamente",
+      "pass": true
+    },
+    {
+      "criterion": "SC-009",
+      "configuration": "screens-tmdb-100-images",
+      "metric": "chamadas/universo de páginas",
+      "pass": true
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-local-100-no-images",
+      "metric": "cards/ordem/foco/rolagem observados",
+      "pass": true
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-100-no-images",
+      "metric": "movies-after-home:conteúdo/foco",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1458.0999999940395,
+        "min": 1434.0999999940395,
+        "max": 1473.300000011921,
+        "mad": 8.900000005960464
+      },
+      "candidate": {
+        "n": 7,
+        "median": 2053.0999999940395,
+        "min": 1427.1000000238419,
+        "max": 2156.600000023842,
+        "mad": 48.30000001192093
+      },
+      "gain": -0.40806529044813944
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-local-100-no-images",
+      "metric": "movies-after-home:maior tarefa",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1061,
+        "min": 1051,
+        "max": 1080,
+        "mad": 8
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1551,
+        "min": 1088,
+        "max": 1639,
+        "mad": 41
+      },
+      "gain": -0.46182846371347774
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-100-no-images",
+      "metric": "movies-index-cold:conteúdo/foco",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 250.2000000178814,
+        "min": 230.7000000178814,
+        "max": 255.19999998807907,
+        "mad": 4.700000017881393
+      },
+      "candidate": {
+        "n": 7,
+        "median": 222.59999999403954,
+        "min": 161.39999997615814,
+        "max": 267.90000000596046,
+        "mad": 8.899999976158142
+      },
+      "gain": 0.11031175068692778
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-local-100-no-images",
+      "metric": "movies-index-cold:maior tarefa",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1140,
+        "min": 1102,
+        "max": 1337,
+        "mad": 25
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1817,
+        "min": 1339,
+        "max": 1936,
+        "mad": 75
+      },
+      "gain": -0.593859649122807
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-100-no-images",
+      "metric": "home-cold:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 1662.800000011921,
+        "min": 1619.5,
+        "max": 1716.9000000059605,
+        "mad": 10
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1546.2999999821186,
+        "min": 1256.300000011921,
+        "max": 1710,
+        "mad": 103.10000002384186
+      },
+      "gain": 0.07006254512206345
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-100-no-images",
+      "metric": "series-after-home:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 613.5,
+        "min": 587.0999999940395,
+        "max": 650.4000000059605,
+        "mad": 23.200000017881393
+      },
+      "candidate": {
+        "n": 7,
+        "median": 661.3000000119209,
+        "min": 438.09999999403954,
+        "max": 765.7000000178814,
+        "mad": 47.80000001192093
+      },
+      "gain": -0.0779136104513789
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-100-no-images",
+      "metric": "home-return:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 666.6999999880791,
+        "min": 656.6999999880791,
+        "max": 703.5,
+        "mad": 8.299999982118607
+      },
+      "candidate": {
+        "n": 7,
+        "median": 625.8000000119209,
+        "min": 457.09999999403954,
+        "max": 741.6999999880791,
+        "mad": 7.699999988079071
+      },
+      "gain": 0.061346932618703276
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-local-100-no-images",
+      "metric": "movie-category-cold:regressão",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 482.59999999403954,
+        "min": 371.09999999403954,
+        "max": 503.90000000596046,
+        "mad": 10.100000023841858
+      },
+      "candidate": {
+        "n": 7,
+        "median": 656.9000000059605,
+        "min": 552.0999999940395,
+        "max": 674.3000000119209,
+        "mad": 7.5
+      },
+      "gain": -0.36116866973492256
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-local-100-no-images",
+      "metric": "seleção pura",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 678.4000000059605,
+        "min": 661,
+        "max": 896,
+        "mad": 16.200000017881393
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1628,
+        "min": 1222.2999999821186,
+        "max": 1719.5,
+        "mad": 25.30000001192093
+      },
+      "gain": -1.3997641509223118
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-local-100-no-images",
+      "metric": "ids/contador da seleção",
+      "pass": true
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-local-100-no-images",
+      "metric": "soma tarefas nos eventos reais",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 2984,
+        "min": 2027,
+        "max": 3059,
+        "mad": 75
+      },
+      "candidate": {
+        "n": 7,
+        "median": 3661,
+        "min": 2628,
+        "max": 5517,
+        "mad": 1033
+      },
+      "gain": -0.22687667560321723
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-local-100-no-images",
+      "metric": "p95 direção (proxy de dois quadros)",
+      "pass": true,
+      "baseline": {
+        "n": 1,
+        "median": 74.19999998807907,
+        "min": 74.19999998807907,
+        "max": 74.19999998807907,
+        "mad": 0
+      },
+      "candidate": {
+        "n": 1,
+        "median": 78.30000001192093,
+        "min": 78.30000001192093,
+        "max": 78.30000001192093,
+        "mad": 0
+      },
+      "gain": -0.05525606502022318
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-local-100-no-images",
+      "metric": "escopo/propagação",
+      "pass": false
+    },
+    {
+      "criterion": "SC-005",
+      "configuration": "screens-local-100-no-images",
+      "metric": "heap retido",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 23618044,
+        "min": 23579972,
+        "max": 23620856,
+        "mad": 2684
+      },
+      "candidate": {
+        "n": 7,
+        "median": 23777836,
+        "min": 23776268,
+        "max": 23778828,
+        "mad": 388
+      },
+      "gain": -0.006765674583382175
+    },
+    {
+      "criterion": "SC-005",
+      "configuration": "screens-local-100-no-images",
+      "metric": "Worker registrado separadamente",
+      "pass": true
+    },
+    {
+      "criterion": "SC-009",
+      "configuration": "screens-local-100-no-images",
+      "metric": "chamadas/universo de páginas",
+      "pass": true
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "cards/ordem/foco/rolagem observados",
+      "pass": true
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "movies-after-home:conteúdo/foco",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 1350.0999999940395,
+        "min": 1128.199999988079,
+        "max": 1413.9000000059605,
+        "mad": 59.19999998807907
+      },
+      "candidate": {
+        "n": 7,
+        "median": 2156.5,
+        "min": 2081.5999999940395,
+        "max": 2501.800000011921,
+        "mad": 2.5999999940395355
+      },
+      "gain": -0.5972890897041112
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "movies-after-home:maior tarefa",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 808,
+        "min": 689,
+        "max": 835,
+        "mad": 27
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1532,
+        "min": 1492,
+        "max": 1779,
+        "mad": 13
+      },
+      "gain": -0.896039603960396
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "movies-index-cold:conteúdo/foco",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 194.80000001192093,
+        "min": 161.19999998807907,
+        "max": 204.19999998807907,
+        "mad": 8.5
+      },
+      "candidate": {
+        "n": 7,
+        "median": 177.60000002384186,
+        "min": 167.40000000596046,
+        "max": 199.30000001192093,
+        "mad": 6.000000029802322
+      },
+      "gain": 0.08829568781841124
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "movies-index-cold:maior tarefa",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 861,
+        "min": 637,
+        "max": 864,
+        "mad": 3
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1625,
+        "min": 1597,
+        "max": 1704,
+        "mad": 23
+      },
+      "gain": -0.8873403019744484
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "home-cold:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 1924.3999999761581,
+        "min": 1813.2999999821186,
+        "max": 2200.699999988079,
+        "mad": 69.90000003576279
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1711,
+        "min": 1645.7999999821186,
+        "max": 1788.5,
+        "mad": 30.700000017881393
+      },
+      "gain": 0.11089170649490854
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "series-after-home:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 652.5999999940395,
+        "min": 605.8999999761581,
+        "max": 669.1999999880791,
+        "mad": 10
+      },
+      "candidate": {
+        "n": 7,
+        "median": 687.1999999880791,
+        "min": 654.4000000059605,
+        "max": 733.8000000119209,
+        "mad": 29.099999994039536
+      },
+      "gain": -0.05301869444430829
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "home-return:regressão",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 1305.199999988079,
+        "min": 948.8000000119209,
+        "max": 1375.7999999821186,
+        "mad": 22.399999976158142
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1159.9000000059605,
+        "min": 1139.7999999821186,
+        "max": 1393.300000011921,
+        "mad": 4.700000017881393
+      },
+      "gain": 0.11132393501643101
+    },
+    {
+      "criterion": "SC-002",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "movie-category-cold:regressão",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 493.90000000596046,
+        "min": 472.80000001192093,
+        "max": 604.5999999940395,
+        "mad": 21.099999994039536
+      },
+      "candidate": {
+        "n": 7,
+        "median": 660.7000000178814,
+        "min": 620.0999999940395,
+        "max": 825.0999999940395,
+        "mad": 18.200000017881393
+      },
+      "gain": -0.3377201862925854
+    },
+    {
+      "criterion": "SC-003",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "seleção pura",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 667.7999999821186,
+        "min": 448.89999997615814,
+        "max": 687.0999999940395,
+        "mad": 19.30000001192093
+      },
+      "candidate": {
+        "n": 7,
+        "median": 1418,
+        "min": 1360.300000011921,
+        "max": 1530.5999999940395,
+        "mad": 23.099999994039536
+      },
+      "gain": -1.1233902366546409
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "ids/contador da seleção",
+      "pass": true
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "soma tarefas nos eventos reais",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 3866,
+        "min": 2876,
+        "max": 4785,
+        "mad": 843
+      },
+      "candidate": {
+        "n": 7,
+        "median": 5593,
+        "min": 4561,
+        "max": 7581,
+        "mad": 103
+      },
+      "gain": -0.44671495085359547
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "p95 direção (proxy de dois quadros)",
+      "pass": true,
+      "baseline": {
+        "n": 1,
+        "median": 176.39999997615814,
+        "min": 176.39999997615814,
+        "max": 176.39999997615814,
+        "mad": 0
+      },
+      "candidate": {
+        "n": 1,
+        "median": 125.09999999403954,
+        "min": 125.09999999403954,
+        "max": 125.09999999403954,
+        "mad": 0
+      },
+      "gain": 0.29081632646854993
+    },
+    {
+      "criterion": "SC-004",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "escopo/propagação",
+      "pass": false
+    },
+    {
+      "criterion": "SC-005",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "heap retido",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 32295328,
+        "min": 32293520,
+        "max": 32301484,
+        "mad": 1808
+      },
+      "candidate": {
+        "n": 7,
+        "median": 32505044,
+        "min": 32499852,
+        "max": 32507104,
+        "mad": 2060
+      },
+      "gain": -0.006493694691690477
+    },
+    {
+      "criterion": "SC-005",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "Worker registrado separadamente",
+      "pass": true
+    },
+    {
+      "criterion": "SC-009",
+      "configuration": "screens-tmdb-100-no-images",
+      "metric": "chamadas/universo de páginas",
+      "pass": true
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "cycles-local",
+      "metric": "cards/ordem/foco/rolagem observados",
+      "pass": true
+    },
+    {
+      "criterion": "SC-006",
+      "configuration": "cycles-local",
+      "metric": "navigationCycles",
+      "pass": true
+    },
+    {
+      "criterion": "SC-006",
+      "configuration": "cycles-local",
+      "metric": "listCycles",
+      "pass": false
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "cycles-tmdb",
+      "metric": "cards/ordem/foco/rolagem observados",
+      "pass": true
+    },
+    {
+      "criterion": "SC-006",
+      "configuration": "cycles-tmdb",
+      "metric": "navigationCycles",
+      "pass": true
+    },
+    {
+      "criterion": "SC-006",
+      "configuration": "cycles-tmdb",
+      "metric": "listCycles",
+      "pass": false
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "category-30000",
+      "metric": "cards/ordem/foco/rolagem observados",
+      "pass": true
+    },
+    {
+      "criterion": "SC-007",
+      "configuration": "category-30000",
+      "metric": "primeiro recorte",
+      "pass": false,
+      "baseline": {
+        "n": 7,
+        "median": 281.09999999403954,
+        "min": 274.2000000178814,
+        "max": 295.7999999821186,
+        "mad": 4.700000017881393
+      },
+      "candidate": {
+        "n": 7,
+        "median": 764.6000000238419,
+        "min": 732,
+        "max": 790.6999999880791,
+        "mad": 14.200000047683716
+      },
+      "gain": -1.7200284597654019
+    },
+    {
+      "criterion": "SC-007",
+      "configuration": "category-30000",
+      "metric": "heap temporário amostrado",
+      "pass": true,
+      "baseline": {
+        "n": 7,
+        "median": 13685852,
+        "min": 13651852,
+        "max": 14115616,
+        "mad": 2276
+      },
+      "candidate": {
+        "n": 7,
+        "median": 8482464,
+        "min": 8349688,
+        "max": 8668968,
+        "mad": 104024
+      },
+      "gain": 0.3802019779258171
+    },
+    {
+      "criterion": "SC-007",
+      "configuration": "category-30000",
+      "metric": "leitura limitada/fim/busca/RETURN",
+      "pass": false
+    },
+    {
+      "criterion": "SC-001",
+      "configuration": "episodes-100000",
+      "metric": "cards/ordem/foco/rolagem observados",
+      "pass": true
+    },
+    {
+      "criterion": "SC-010",
+      "configuration": "episodes-100000",
+      "metric": "resumo e varredura de episódios",
+      "pass": true
+    },
+    {
+      "criterion": "SC-008",
+      "configuration": "gates",
+      "metric": "falhas/cancelamento/cache/segredos",
+      "pass": false
+    },
+    {
+      "criterion": "SC-009",
+      "configuration": "gates",
+      "metric": "leases/cache/contexto obsoleto",
+      "pass": false
+    },
+    {
+      "criterion": "SC-011",
+      "configuration": "gates",
+      "metric": "primeiro acesso/primeiro comando sem regressão >10%",
+      "pass": false
+    },
+    {
+      "criterion": "SC-012",
+      "configuration": "gates",
+      "metric": "pacote/rotas locais",
+      "pass": false
+    },
+    {
+      "criterion": "SC-013",
+      "configuration": "gates",
+      "metric": "checks/quickstart/relatório",
+      "pass": false
+    }
+  ]
+}

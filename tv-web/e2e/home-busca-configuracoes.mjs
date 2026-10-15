@@ -8,10 +8,10 @@
 //     mesmo item; "Minha Lista" mostra o card do filme favoritado e o
 //     agregado "Filmes (N)", que abre Filmes já em "★ Favoritos"; "Canais
 //     favoritos" abre a Live TV tocando o canal favoritado direto.
-//   US3 (Busca): a lupa da topbar abre a busca de verdade — com resultado
-//     (abre o filme e volta) e sem resultado (estado vazio).
+//   US3 (Busca): desde o ad-hoc de 2026-10-09 a lupa está escondida em todas as
+//     telas — o roteiro só confirma que ela não aparece na topbar.
 //   US2 (Configurações): Fontes IPTV mostra "Modo limitado" numa fonte cujo
-//     painel não confirma o protocolo; excluir exige confirmação;
+//     painel não confirma o protocolo; excluir (pela tela da lista, 067) exige confirmação;
 //     "Reduzir movimento" liga de verdade (classe no `<html>`).
 //
 // Pré-requisito: `npm run dev` já rodando em outro terminal
@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'home-busca-configuracoes.m3u')
@@ -154,7 +155,7 @@ async function run() {
   const limitedM3uUrl = `http://127.0.0.1:${limitedPanel.address().port}/get.php?username=usuario&password=senha`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
@@ -170,19 +171,23 @@ async function run() {
     // interceptar, o <video> dispara seu próprio evento `error` em corrida
     // com os eventos sintéticos deste script (mesmo padrão documentado em
     // `busca-por-categoria.mjs`/`zapping-live-tv.mjs`).
-    await page.route('**/live/**', () => {})
-    await page.route('**/vod/**', () => {})
+    await page.route('**/live/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('--- Favorita o canal ---')
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     // Espera a categoria REAL (não só "★ Favoritos"/"Todos") estar em foco antes do ArrowRight que
     // entra — enquanto as categorias carregam, o padrão cai em "Todos" (mesma corrida documentada em
     // `favoritos.mjs`/`busca-por-categoria.mjs`).
     await page.locator('.side-category-nav-item.tv-focus:not(:has-text("Favoritos")):not(:has-text("Todos"))').waitFor({
       timeout: 8000,
     })
-    await page.keyboard.press('ArrowRight') // trilha -> entra na categoria real de canais
+    await page.keyboard.press('Enter') // trilha -> entra na categoria real de canais
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').first().textContent()) === 'Canal Favorito',
@@ -191,16 +196,14 @@ async function run() {
     await holdEnter(page)
     await page.waitForSelector('.fav-star', { timeout: 4000 })
     assert(true, 'canal favoritado sem abrir o player')
-    await page.keyboard.press('ArrowLeft') // canal -> trilha
+    await page.keyboard.press('Escape') // canal -> trilha
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
     console.log('--- Favorita o filme e deixa progresso parcial (retomável) ---')
     await openViaTopbar(page, 'movies')
-    await page.locator('.side-category-nav-item.tv-focus:not(:has-text("Favoritos")):not(:has-text("Todos"))').waitFor({
-      timeout: 8000,
-    })
-    await page.keyboard.press('ArrowRight') // trilha -> entra na categoria real de filmes
+    await focusFirstRealCategory(page)
+    await page.keyboard.press('Enter') // trilha -> entra na categoria real de filmes
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
       (await page.locator('.content-card-title').first().textContent()) === 'Filme Hero',
@@ -240,10 +243,16 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
     console.log('=== US1 (Home): o hero retoma o filme direto, sem passar pelo detalhe ===')
-    assert(
-      (await page.locator('.home-hero-title').textContent()) === 'Filme Hero',
-      'o hero do Início mostra "Filme Hero" (progresso parcial tem prioridade sobre boas-vindas/favoritos)',
-    )
+    // Espera (não lê na hora): o Início monta antes de as leituras de progresso/favoritos chegarem — mesma corrida do
+    // "Continuar" acima. Visto falhar 2 de 3 vezes com leitura imediata (feature 068, 2026-10-10).
+    const heroShown = await page
+      .locator('.home-hero-title', { hasText: 'Filme Hero' })
+      .waitFor({ timeout: 4000 })
+      .then(
+        () => true,
+        () => false,
+      )
+    assert(heroShown, 'o hero do Início mostra "Filme Hero" (progresso parcial tem prioridade sobre boas-vindas/favoritos)')
     // Entramos em Filmes pela topbar (`openViaTopbar`), então voltar restaura o foco lá (FR-017/FR-029)
     // — DOWN entra no conteúdo, sempre no hero (montagem nova, sem favorito/rail restaurável aqui).
     await page.keyboard.press('ArrowDown')
@@ -261,10 +270,11 @@ async function run() {
     assert(true, 'RETURN fechou o player e voltou ao Início — "e volta"')
 
     console.log('=== US1 (Home): rail "Continuar assistindo" mostra o mesmo filme ===')
-    await page.keyboard.press('ArrowDown') // hero -> "Continuar assistindo"
+    await page.keyboard.press('ArrowDown') // hero -> "Canais favoritos" (ad-hoc 2026-10-09: a 1ª fileira)
+    await page.keyboard.press('ArrowDown') // -> "Continuar assistindo"
     assert(
       (await page
-        .locator('section.home-row[aria-label="Continuar assistindo"] .content-card-title')
+        .locator('section.home-row[aria-label="Continuar assistindo"] .home-card-title')
         .first()
         .textContent()) === 'Filme Hero',
       '"Continuar assistindo" mostra "Filme Hero"',
@@ -274,7 +284,7 @@ async function run() {
     await page.keyboard.press('ArrowDown') // continuar -> "Minha Lista"
     assert(
       (await page
-        .locator('section.home-row[aria-label="Minha Lista"] .content-card-title')
+        .locator('section.home-row[aria-label="Minha Lista"] .home-card-title')
         .first()
         .textContent()) === 'Filme Hero',
       '"Minha Lista" mostra o card do próprio "Filme Hero"',
@@ -288,15 +298,14 @@ async function run() {
     await page.keyboard.press('Enter') // abre Filmes já em "★ Favoritos"
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     assert(
-      (await page.locator('.side-category-nav-item.is-selected').textContent())?.includes('Favoritos') ?? false,
+      (await page.locator('.vod-toolbar-title').textContent())?.includes('Favoritos') ?? false,
       '"Filmes (1)" abre Filmes já em "★ Favoritos"',
     )
     assert(
       (await page.locator('.content-card-title').first().textContent()) === 'Filme Hero',
       '"★ Favoritos" de Filmes mostra "Filme Hero"',
     )
-    await page.keyboard.press('Escape') // grade -> trilha
-    await page.keyboard.press('Escape') // trilha -> Início
+    await page.keyboard.press('Escape') // grade de ★ Favoritos -> Início (aberta pelo agregado, sem passar pela vitrine)
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
     console.log('=== US1 (Home): rail de canal abre a Live TV já tocando ===')
@@ -305,14 +314,11 @@ async function run() {
     // linha, sempre acaba lá) e desce 1, que sempre pousa no hero (mesmo truque de `openViaTopbar`).
     for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
     await page.keyboard.press('ArrowDown')
-    await page.keyboard.press('ArrowDown') // hero -> "Continuar assistindo"
-    await page.keyboard.press('ArrowDown') // -> "Minha Lista"
-    await page.keyboard.press('ArrowDown') // -> "Canais favoritos"
+    await page.keyboard.press('ArrowDown') // hero -> "Canais favoritos" (ad-hoc 2026-10-09: a 1ª fileira, em ícones)
     assert(
-      (await page
-        .locator('section.home-row[aria-label="Canais favoritos"] .tv-focus')
-        .locator('..')
-        .textContent())?.includes('Canal Favorito') ?? false,
+      (await page.locator('section.home-row[aria-label="Canais favoritos"] .home-live-card.tv-focus').textContent())?.includes(
+        'Canal Favorito',
+      ) ?? false,
       '"Canais favoritos" mostra "Canal Favorito" em foco',
     )
     await page.keyboard.press('Enter')
@@ -322,53 +328,13 @@ async function run() {
     await page.keyboard.press('Escape') // fecha o player
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 8000 })
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
-    await page.keyboard.press('ArrowLeft') // canal -> trilha
+    await page.keyboard.press('Escape') // canal -> trilha
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
 
-    console.log('=== US3 (Busca): com resultado — abre o filme e volta ===')
-    await openViaTopbar(page, 'home') // garante posição conhecida antes de ir pra Buscar (índice 0 na topbar)
-    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight') // Início → … → Buscar
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.search-screen', { timeout: 8000 })
-    const searchField = page.locator('input#search-field')
-    await searchField.waitFor({ timeout: 8000 })
-    await page.keyboard.press('Enter') // OK no campo abre o teclado (foco DOM real)
-    await page.waitForFunction(() => document.activeElement === document.querySelector('#search-field'), null, {
-      timeout: 4000,
-    })
-    await searchField.fill('hero')
-    await page.waitForSelector('.search-row', { timeout: 8000 })
-    assert(await page.getByText('Filmes (1)').isVisible(), 'busca por "hero" acha "Filmes (1)"')
-    assert(await page.locator('.content-card-title', { hasText: 'Filme Hero' }).isVisible(), 'o resultado mostra "Filme Hero"')
-    await page.keyboard.press('ArrowDown') // com o teclado aberto, DOWN fecha e já move pro 1º resultado
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.vod-detail', { timeout: 8000 })
-    assert(true, 'SELECT no resultado abriu o detalhe do filme')
-    await page.keyboard.press('Escape') // volta pra Busca (teclado já estava fechado — sai da tela? não: RETURN aqui só volta um nível)
-    await page.waitForSelector('.search-screen', { timeout: 8000 })
-    assert((await searchField.inputValue()) === 'hero', 'voltar da busca restaura o termo "hero"')
-    await page.keyboard.press('Escape') // Busca -> Início (teclado fechado — RETURN sai direto)
-    await page.waitForSelector('.home-content', { timeout: 8000 })
-
-    console.log('=== US3 (Busca): sem resultado — estado vazio ===')
-    await openViaTopbar(page, 'home')
-    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight')
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.search-screen', { timeout: 8000 })
-    await page.keyboard.press('Enter') // abre o teclado
-    await page.waitForFunction(() => document.activeElement === document.querySelector('#search-field'), null, {
-      timeout: 4000,
-    })
-    await searchField.fill('zzz')
-    await page.waitForSelector('text=/Nada encontrado/', { timeout: 8000 })
-    assert(true, 'termo sem correspondência mostra o estado vazio "Nada encontrado"')
-    await page.keyboard.press('Escape') // 1º RETURN só fecha o teclado
-    await page.waitForFunction(() => document.activeElement !== document.querySelector('#search-field'), null, {
-      timeout: 4000,
-    })
-    await page.keyboard.press('Escape') // 2º RETURN sai da tela
-    await page.waitForSelector('.home-content', { timeout: 8000 })
+    console.log('=== Busca global: a lupa não aparece mais na topbar (ad-hoc 2026-10-09) ===')
+    // A tela de Busca continua no código, só sem entrada (`SEARCH_IN_TOPBAR` em TopBar.tsx); o roteiro dela saiu daqui.
+    assert((await page.locator('.topbar button[aria-label="Buscar"]').count()) === 0, 'a topbar não tem a lupa')
 
     console.log('=== US2 (Configurações): Fontes IPTV mostra "Modo limitado" numa fonte nova ===')
     await openViaTopbar(page, 'home')
@@ -404,10 +370,17 @@ async function run() {
     await limitedRow.locator('.limited-mode-notice-title', { hasText: 'Modo limitado' }).waitFor({ timeout: 8000 })
     assert(true, 'a fonte recém-adicionada, sem protocolo confirmado, mostra "Modo limitado" em Fontes IPTV')
 
-    console.log('=== US2 (Configurações): excluir exige confirmação ===')
-    await page.keyboard.press('ArrowRight') // tabs -> panel (entra em Fontes IPTV, padrão: 1ª linha, col "Editar")
+    console.log('=== US2 (Configurações): excluir exige confirmação (pela tela da lista, feature 067) ===')
+    await page.keyboard.press('ArrowRight') // tabs -> panel (entra em Fontes IPTV, 1ª linha, "Configurar")
     await page.waitForSelector('.sources-panel-row .tv-focus', { timeout: 4000 })
     await page.keyboard.press('ArrowDown') // "Fonte E2E Home" -> "Fonte E2E Home Limitada" (2ª linha)
+    await page.keyboard.press('Enter') // Configurar → Configurações da lista
+    await page.getByRole('heading', { name: /Configurações da lista/ }).waitFor({ timeout: 5000 })
+    assert(
+      ((await page.locator('.list-settings-name').textContent()) ?? '').includes('Fonte E2E Home Limitada'),
+      'a tela da lista mostra o nome da lista escolhida (não a ativa)',
+    )
+    await page.keyboard.press('ArrowRight') // abas → painel (Conta & lista: "Editar")
     await page.keyboard.press('ArrowRight') // Editar -> Ressincronizar
     await page.keyboard.press('ArrowRight') // Ressincronizar -> Excluir
     await page.keyboard.press('Enter')
@@ -419,25 +392,26 @@ async function run() {
     )
     await page.keyboard.press('Enter') // Cancelar
     await deleteDialog.waitFor({ state: 'detached', timeout: 5000 })
-    assert((await page.locator('.sources-panel-row').count()) === 2, 'OK em "Cancelar" não apaga nada')
-    await page.keyboard.press('Enter') // reabre (mesma linha/coluna)
+    assert((await page.locator('.list-settings-screen').count()) === 1, 'OK em "Cancelar" não apaga nada e fica na tela da lista')
+    await page.keyboard.press('Enter') // reabre (mesma ação)
     await deleteDialog.waitFor({ timeout: 5000 })
     await page.keyboard.press('ArrowRight') // Excluir
     await page.keyboard.press('Enter')
     await deleteDialog.waitFor({ state: 'detached', timeout: 5000 })
+    // Excluir uma lista que não é a ativa volta à origem (Configurações › Fontes IPTV) com o foco na vizinha.
     await page.waitForFunction(() => document.querySelectorAll('.sources-panel-row').length === 1, null, { timeout: 8000 })
-    assert(true, 'confirmar "Excluir" apaga só a fonte escolhida')
+    assert(true, 'confirmar "Excluir" apaga só a fonte escolhida e volta a Configurações › Fontes IPTV')
     assert(
       (await page.locator('.sources-panel-row', { hasText: 'Fonte E2E Home' }).count()) === 1,
       'a fonte principal continua cadastrada',
     )
+    assert(
+      (await page.locator('.sources-panel-row', { hasText: 'Fonte E2E Home' }).locator('.tv-focus').count()) === 1,
+      'o foco ficou em "Configurar" da lista vizinha',
+    )
 
     console.log('=== US2 (Configurações): "Reduzir movimento" liga de verdade ===')
-    // Depois de excluir, o foco fica na linha vizinha ("Fonte E2E Home") mas na MESMA coluna de onde
-    // se excluiu ("Excluir", col 2, `confirmSourceDeletion` só troca a linha) — 2 ArrowLeft pra col 0,
-    // um 3º pra sair do painel.
-    await page.keyboard.press('ArrowLeft') // Excluir -> Ressincronizar
-    await page.keyboard.press('ArrowLeft') // Ressincronizar -> Editar (col 0)
+    // Depois de excluir, o foco volta ao "Configurar" da linha vizinha; um ArrowLeft sai do painel.
     await page.keyboard.press('ArrowLeft') // panel -> tabs
     await page.keyboard.press('ArrowDown') // Fontes IPTV -> Player & reprodução
     await page.keyboard.press('ArrowDown') // -> Acessibilidade & sistema

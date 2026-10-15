@@ -1,5 +1,9 @@
-import type { ReactNode } from 'react'
+import { useT } from '../../lib/i18n/I18nProvider'
+import type { MessageKey } from '../../lib/i18n/messages/pt'
+import { useEffect, type ReactNode } from 'react'
 import { Icon } from '../../components/Icon'
+import { runConnectionCheck, useConnectionCheckStatus } from '../../lib/network/connectionCheck'
+import { useOnlineStatus } from '../../lib/onlineStatus'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import type { TopbarItem, TopDestination } from '../../navigation/appNav'
 import { useClock } from './clock'
@@ -34,9 +38,9 @@ export interface TopBarProps {
   /** OK no indicador da lista ativa — abre a tela de perfis para trocar de lista. */
   onOpenProfiles: () => void
   /**
-   * OK na lupa (feature 026, D-005, FR-035). Ausente = soft disabled e OK
-   * sem efeito — só acontece em testes que montam a topbar crua; o `App`
-   * sempre passa os dois.
+   * OK na lupa (feature 026, D-005, FR-035). A lupa está escondida desde o
+   * ad-hoc de 2026-10-09 (`SEARCH_IN_TOPBAR`): o callback segue aceito para a
+   * Busca voltar só religando a constante.
    */
   onOpenSearch?: () => void
   /** OK na engrenagem (feature 026, D-005, FR-021). Mesma regra de `onOpenSearch`. */
@@ -45,20 +49,31 @@ export interface TopBarProps {
   onBack: () => void
 }
 
-/** Ordem de foco, igual à ordem visual (logo e relógio não são focáveis). */
-const FOCUS_ORDER: TopbarItem[] = ['home', 'live', 'movies', 'series', 'profile', 'search', 'settings']
+/**
+ * Busca global na topbar: escondida em todas as telas a pedido do usuário (ad-hoc 2026-10-09). A tela de Busca e a rota
+ * continuam no código, só sem entrada — `true` aqui devolve a lupa e o lugar dela na ordem de foco.
+ */
+const SEARCH_IN_TOPBAR = false
 
-const NAV_ITEMS: { key: 'home' | TopDestination; label: string }[] = [
-  { key: 'home', label: 'Início' },
-  { key: 'live', label: 'TV ao vivo' },
-  { key: 'movies', label: 'Filmes' },
-  { key: 'series', label: 'Séries' },
+/** Ordem de foco, igual à ordem visual (logo e relógio não são focáveis). */
+const FOCUS_ORDER: TopbarItem[] = (['home', 'live', 'movies', 'series', 'profile', 'search', 'settings'] as TopbarItem[]).filter(
+  (item) => SEARCH_IN_TOPBAR || item !== 'search',
+)
+
+/** Feature 042 (D-007): "Tentar de novo" entra no FIM da ordem, só enquanto offline. */
+const FOCUS_ORDER_OFFLINE: TopbarItem[] = [...FOCUS_ORDER, 'connection']
+
+const NAV_ITEMS: { key: 'home' | TopDestination; labelKey: MessageKey }[] = [
+  { key: 'home', labelKey: 'shell.nav.home' },
+  { key: 'live', labelKey: 'shell.nav.live' },
+  { key: 'movies', labelKey: 'shell.nav.movies' },
+  { key: 'series', labelKey: 'shell.nav.series' },
 ]
 
 /** Busca e Configurações (feature 026, D-005) — reais quando o callback correspondente existe. */
-const ACTION_ITEMS: { key: 'search' | 'settings'; label: string; icon: 'search' | 'settings' }[] = [
-  { key: 'search', label: 'Buscar', icon: 'search' },
-  { key: 'settings', label: 'Configurações', icon: 'settings' },
+const ACTION_ITEMS: { key: 'search' | 'settings'; labelKey: MessageKey; icon: 'search' | 'settings' }[] = [
+  ...(SEARCH_IN_TOPBAR ? [{ key: 'search' as const, labelKey: 'shell.search' as const, icon: 'search' as const }] : []),
+  { key: 'settings', labelKey: 'settings.title', icon: 'settings' },
 ]
 
 function initialOf(name: string): string {
@@ -102,7 +117,18 @@ export function TopBar({
   onOpenSettings,
   onBack,
 }: TopBarProps): ReactNode {
+  const t = useT()
   const clock = useClock()
+  const online = useOnlineStatus()
+  const connectionCheck = useConnectionCheckStatus()
+  const focusOrder = online ? FOCUS_ORDER : FOCUS_ORDER_OFFLINE
+
+  // O foco nunca fica num item que sumiu: com a rede de volta, "Tentar de novo"
+  // deixa de existir, e a lupa está escondida (ad-hoc 2026-10-09) — um foco
+  // restaurado nela cai em "Início" (constituição: sem becos).
+  useEffect(() => {
+    if (active && !focusOrder.includes(focusedItem)) onFocusItem('home')
+  }, [active, focusOrder, focusedItem, onFocusItem])
 
   function activate(item: TopbarItem) {
     // Já está neste destino — inclui "Início" quando `currentItem` é o
@@ -126,6 +152,9 @@ export function TopBar({
       case 'settings':
         onOpenSettings?.()
         return
+      case 'connection':
+        void runConnectionCheck()
+        return
     }
   }
 
@@ -138,8 +167,8 @@ export function TopBar({
               return
             }
             if (direction === 'up') return
-            const index = FOCUS_ORDER.indexOf(focusedItem)
-            const next = FOCUS_ORDER[clamp(index + (direction === 'right' ? 1 : -1), 0, FOCUS_ORDER.length - 1)]
+            const index = focusOrder.indexOf(focusedItem)
+            const next = focusOrder[clamp(index + (direction === 'right' ? 1 : -1), 0, focusOrder.length - 1)]
             if (next !== focusedItem) onFocusItem(next)
           },
           onSelect: () => activate(focusedItem),
@@ -160,7 +189,7 @@ export function TopBar({
         <span className="topbar-logo-word">CCPlayTV</span>
       </div>
 
-      <nav className="topbar-nav" aria-label="Navegação principal">
+      <nav className="topbar-nav" aria-label={t('shell.nav.label')}>
         {NAV_ITEMS.map((item) => {
           const current = item.key === currentItem
           return (
@@ -171,7 +200,7 @@ export function TopBar({
               aria-current={current ? 'page' : undefined}
               onClick={() => activate(item.key)}
             >
-              {item.label}
+              {t(item.labelKey)}
             </button>
           )
         })}
@@ -181,7 +210,7 @@ export function TopBar({
         <button
           type="button"
           className={`topbar-profile${focusClass('profile')}`}
-          aria-label={`Lista ativa: ${sourceName}. Trocar de lista`}
+          aria-label={t('shell.profile', { name: sourceName })}
           onClick={() => activate('profile')}
         >
           <span className="topbar-profile-avatar" aria-hidden="true">
@@ -201,13 +230,25 @@ export function TopBar({
               type="button"
               className={`icon-button${hasCallback ? '' : ' is-soft-disabled'}${current ? ' topbar-item--current' : ''}${focusClass(item.key)}`}
               aria-current={current ? 'page' : undefined}
-              aria-label={item.label}
+              aria-label={t(item.labelKey)}
               onClick={() => activate(item.key)}
             >
               <Icon name={item.icon} />
             </button>
           )
         })}
+
+        {!online && (
+          <button
+            type="button"
+            className={`topbar-item${focusClass('connection')}`}
+            aria-label={t('shell.connection.aria')}
+            aria-disabled={connectionCheck === 'verifying' ? true : undefined}
+            onClick={() => activate('connection')}
+          >
+            {connectionCheck === 'verifying' ? t('shell.connection.verifying') : t('shell.connection.retry')}
+          </button>
+        )}
 
         <span className="topbar-clock">{clock}</span>
       </div>

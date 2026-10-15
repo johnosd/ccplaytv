@@ -1,0 +1,17 @@
+{
+    "feature":  "048-live-paridade-v14",
+    "lockedAt":  "2026-10-02 19:25",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/epg/upcoming.live-paridade-v14.contract.test.ts",
+                      "sha256":  "ab691f37c7f4bea97c5ee42d99dc63b05fcd24ab3baa9366abce100d66e33cd3",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/live/LiveScreen.live-paridade-v14.contract.test.tsx",
+                      "sha256":  "4d4c60b4fce4720e1edc763fddf94ba452d1e35cab8568e7d653f573eef9024b",
+                      "tests":  4
+                  }
+              ]
+}

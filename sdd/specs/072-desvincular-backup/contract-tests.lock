@@ -1,0 +1,32 @@
+{
+  "feature": "072-desvincular-backup",
+  "lockedAt": "2026-10-14 20:00",
+  "total": 5,
+  "files": [
+    {
+      "path": "tv-web/src/lib/portal/unlink.desvincular-backup.contract.test.ts",
+      "sha256": "ddf0321ac1ab77e67f4df5e95b40613464d2966d4facb101a29a734fac28891c",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/lib/portal/relink.desvincular-backup.contract.test.ts",
+      "sha256": "7ceae02fa572896790f9164d5fb38a3e7e1d678f8b3c30e42c77a12a432b54d7",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/lib/backup/backupDecision.desvincular-backup.contract.test.ts",
+      "sha256": "35879ab3e2dce908519e18ee6c91a0f83d0d70ad3effc3611915b1066517b829",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/lib/backup/usageMerge.desvincular-backup.contract.test.ts",
+      "sha256": "c696228c24833b8d86dd7068532ddd138125617fb0dc9491b8deef9fd6f4d196",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/lib/backup/usageBackup.desvincular-backup.contract.test.ts",
+      "sha256": "58ec5e48f1fa0831176e97f643acca87a11bad4d524267ac044d3ef184b02a3d",
+      "tests": 1
+    }
+  ]
+}

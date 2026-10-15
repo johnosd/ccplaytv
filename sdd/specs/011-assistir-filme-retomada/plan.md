@@ -350,7 +350,7 @@ npx vitest run src/components/PlayerLayer.test.tsx
 | 2026-09-24 | Fase 7 (Polish) — parcial | `CLAUDE.md` e `.planning/backlog.md` (itens 4/8/13, resumo "O que já existe hoje") atualizados para refletir a 011; R-004 (roteador perde foco/posição ao voltar de detalhe) registrado como `[Bug]` pré-existente; conferido que os componentes novos só usam tokens ADR-007; suíte completa limpa (390/390, tsc, lint). | T052 (Cenários A–E no navegador) não executado nesta sessão — sem bloqueio, fica para quando o navegador estiver em uso. |
 | 2026-09-24 | Fase 8 (Convergence) | Primeira passada de `sdd-converge` encontrou 7 achados, nenhum `CRITICAL`; 3 acionáveis viraram T058-T060. FR-008 (`spec.md`) emendado com a exceção da barra focada e nota "Atualização (Fase 6, R-020)" (T058/CF-01); teste novo em `PlayerControls.test.tsx` cobrindo o clamp de 100% quando a duração encolhe abaixo da posição já alcançada (T059/CF-02) — o clamp em si já existia, só faltava a cobertura; `research.md` R0-1 deixou de afirmar "não verificado em hardware", com nota apontando pra R-019/R-020/R-021/R-022 (T060/CF-07). Também aproveitada pra corrigir a Fase 2 da skill `tizen-tv` (build com `VITE_API_URL`/backend LAN), stale desde a migração client-first (feature 005/ADR-008) — não é código desta feature, mas foi pedido explicitamente no mesmo lote de trabalho. | Nenhuma — os 3 achados acionáveis foram sanados; os 4 achados de risco residual continuam cobertos por R-022, sem nova task. |
 
-**PRÓXIMO**: rodar `sdd-converge` de novo para confirmar que os achados foram sanados e, se não houver novo achado acionável, fechar a convergência (status final). Os quatro caminhos de risco residual (busca além do fim, retomada após fechar o app, Live TV, segredo em log) continuam fora de escopo — qualquer comportamento incorreto percebido neles vira `sdd-adhoc` ou `sdd-bugfix`, não reabre esta feature. T052 (Cenários A–E no navegador) continua disponível para quando fizer sentido rodar.
+**PRÓXIMO**: nenhum — convergida. Fora de gate e pendente da TV física: cenários F–J do `quickstart.md` (F–H parciais). T052 (A–E no navegador) coberto por automação em 2026-10-09.
 
 ## Arquivos Principais
 
@@ -469,3 +469,9 @@ nenhum novo).
 detalhe) — achado durante a exploração, pré-existente, encaminhado ao
 backlog como `[Bug]`. T052 (Cenários A–E do `quickstart.md` no navegador)
 segue disponível, sem bloqueio, para quando fizer sentido rodar.
+
+## Passada física na TV — 2026-10-06
+
+Passada feita na TV QN50Q60DAGXZD, declarada pelo usuário em 06/10/2026 como **realizada com sucesso**. Registro honesto: o resultado vem do relato do usuário, sem números medidos nem capturas; não há medição para citar. Os riscos de hardware desta feature (marcados como "só se prova na TV") ficam encerrados por decisão do usuário.
+
+Cobre os cenários F–J do quickstart que antes estavam parciais ou não executados (H em borda, I, J) e a conferência de `sdb dlog` (T050); o risco residual R-022 fica encerrado. Os cenários A–E no navegador (T052) **continuam não executados**.

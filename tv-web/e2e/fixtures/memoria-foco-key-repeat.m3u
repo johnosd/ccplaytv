@@ -1,0 +1,21 @@
+#EXTM3U
+#EXTINF:-1 group-title="Canais A",Canal A1
+http://127.0.0.1:59998/stream/a1.mp4
+#EXTINF:-1 group-title="Canais A",Canal A2
+http://127.0.0.1:59998/stream/a2.mp4
+#EXTINF:-1 group-title="Canais A",Canal A3
+http://127.0.0.1:59998/stream/a3.mp4
+#EXTINF:-1 group-title="Canais A",Canal A4
+http://127.0.0.1:59998/stream/a4.mp4
+#EXTINF:-1 group-title="Canais A",Canal A5
+http://127.0.0.1:59998/stream/a5.mp4
+#EXTINF:-1 group-title="Canais B",Canal B1
+http://127.0.0.1:59998/stream/b1.mp4
+#EXTINF:-1 group-title="Canais B",Canal B2
+http://127.0.0.1:59998/stream/b2.mp4
+#EXTINF:-1 group-title="Canais B",Canal B3
+http://127.0.0.1:59998/stream/b3.mp4
+#EXTINF:-1 group-title="Canais C",Canal C1
+http://127.0.0.1:59998/stream/c1.mp4
+#EXTINF:-1 group-title="Canais C",Canal C2
+http://127.0.0.1:59998/stream/c2.mp4

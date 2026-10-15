@@ -1,0 +1,47 @@
+import { act, cleanup, renderHook } from '@testing-library/react'
+import { afterEach, expect, it, vi } from 'vitest'
+import type { PortalConnection } from '../../lib/portal/portalConnection'
+import { usePortalRecovery } from './usePortalRecovery'
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks() })
+it('consulta serial somente visível, retoma prazo após pagehide e encerra ao receber credenciais', async () => {
+  vi.useFakeTimers()
+  let finish!: (state: 'waiting' | 'ready' | 'expired') => void
+  const signals: AbortSignal[] = []
+  const pollRecovery = vi.fn((signal: AbortSignal) => { signals.push(signal); return new Promise<'waiting' | 'ready' | 'expired'>(resolve => { finish = resolve }) })
+  const ready = vi.fn(), expired = vi.fn()
+  const hook = renderHook(({ active }) => usePortalRecovery({ pollRecovery } as unknown as PortalConnection, active, ready, expired), { initialProps: { active: false } })
+  await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
+  expect(pollRecovery).not.toHaveBeenCalled()
+  hook.rerender({ active: true })
+  await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+  expect(pollRecovery).toHaveBeenCalledTimes(1)
+  await act(async () => { await vi.advanceTimersByTimeAsync(30000) })
+  expect(pollRecovery).toHaveBeenCalledTimes(1)
+  act(() => { window.dispatchEvent(new Event('pagehide')) })
+  expect(signals[0].aborted).toBe(true)
+  await act(async () => { finish('ready'); await vi.advanceTimersByTimeAsync(60000) })
+  expect(ready).not.toHaveBeenCalled()
+  act(() => { window.dispatchEvent(new Event('pageshow')) })
+  await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+  expect(pollRecovery).toHaveBeenCalledTimes(2)
+  await act(async () => { finish('ready'); await vi.advanceTimersByTimeAsync(60000) })
+  expect(ready).toHaveBeenCalledOnce()
+  expect(expired).not.toHaveBeenCalled()
+  expect(pollRecovery).toHaveBeenCalledTimes(2)
+})
+it('falha de rede aplica backoff limitado e expiração encerra consultas', async () => {
+  vi.useFakeTimers()
+  const pollRecovery = vi.fn().mockRejectedValueOnce(new Error('fixture')).mockRejectedValueOnce(new Error('fixture')).mockResolvedValue('expired')
+  const ready = vi.fn(), expired = vi.fn()
+  renderHook(() => usePortalRecovery({ pollRecovery } as unknown as PortalConnection, true, ready, expired))
+  await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+  expect(pollRecovery).toHaveBeenCalledTimes(1)
+  await act(async () => { await vi.advanceTimersByTimeAsync(9999) })
+  expect(pollRecovery).toHaveBeenCalledTimes(1)
+  await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+  expect(pollRecovery).toHaveBeenCalledTimes(2)
+  await act(async () => { await vi.advanceTimersByTimeAsync(20000) })
+  expect(expired).toHaveBeenCalledOnce()
+  await act(async () => { await vi.advanceTimersByTimeAsync(120000) })
+  expect(pollRecovery).toHaveBeenCalledTimes(3)
+})

@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-22
 
-**Status**: Draft
+**Status**: Convergida
 
 **Input**: Backlog Fase 0, item 1 (Dívidas abertas da fundação pós-ADR-008 e feature 005).
 

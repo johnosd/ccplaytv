@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Modal } from '../../components/Modal'
 import { Button } from '../../components/Button'
+import { useT } from '../../lib/i18n/I18nProvider'
 import { exitApp } from '../../lib/tizenExit'
 
 export interface ExitModalProps {
@@ -19,11 +20,12 @@ export interface ExitModalProps {
  * (feature 022, R-006).
  */
 export function ExitModal({ onCancel, onExit = exitApp }: ExitModalProps): ReactNode {
+  const t = useT()
   const [focusIndex, setFocusIndex] = useState<0 | 1>(0) // 0 = Cancelar, 1 = Sair
 
   return (
     <Modal
-      ariaLabel="Sair do CCPlayTV?"
+      ariaLabel={t('shell.exit.title')}
       onBack={onCancel}
       onDirection={(direction) => {
         if (direction === 'left') setFocusIndex(0)
@@ -31,14 +33,14 @@ export function ExitModal({ onCancel, onExit = exitApp }: ExitModalProps): React
       }}
       onSelect={() => (focusIndex === 0 ? onCancel() : onExit())}
     >
-      <p className="modal-title">Sair do CCPlayTV?</p>
-      <p className="modal-description">Você pode voltar ao aplicativo depois e continuar de onde parou.</p>
+      <p className="modal-title">{t('shell.exit.title')}</p>
+      <p className="modal-description">{t('shell.exit.description')}</p>
       <div className="modal-actions">
         <Button variant="secondary" focused={focusIndex === 0} onSelect={onCancel}>
-          Cancelar
+          {t('common.cancel')}
         </Button>
         <Button variant="accent" focused={focusIndex === 1} onSelect={onExit}>
-          Sair
+          {t('shell.exit.confirm')}
         </Button>
       </div>
     </Modal>

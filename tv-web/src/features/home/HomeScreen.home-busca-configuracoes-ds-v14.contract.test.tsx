@@ -86,6 +86,7 @@ function renderHome() {
       onOpenFavorites={vi.fn()}
       onOpenSearch={vi.fn()}
       onOpenSettings={vi.fn()}
+      onLeaveList={vi.fn()}
     />,
     { wrapper: Wrapper },
   )
@@ -115,7 +116,9 @@ describe('HomeScreen — contrato da feature 026', () => {
 
     // O hub provisório (3 atalhos grandes) não existe mais.
     expect(screen.queryByRole('group', { name: 'Atalhos' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Mais informações/ })).toBeInTheDocument()
+    // Retravado no ad-hoc de 2026-10-09, a pedido do usuário: o billboard não tem mais "Mais informações" (o card abre o
+    // detalhe); a primária "Continuar" segue sendo o que este contrato protege.
+    expect(screen.queryByRole('button', { name: /Mais informações/ })).not.toBeInTheDocument()
     expect(continueButton()).toHaveClass('tv-focus')
 
     press('Enter')

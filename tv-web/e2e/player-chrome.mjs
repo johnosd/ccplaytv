@@ -150,7 +150,7 @@ async function run() {
   const m3uUrl = `http://127.0.0.1:${port}/player-chrome.m3u`
 
   const browser = await launchBrowser()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ locale: 'pt-BR' })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error))
   page.on('console', (msg) => {
@@ -164,9 +164,15 @@ async function run() {
     // interceptar, o <video> dispara seu próprio evento `error` em corrida
     // com os eventos sintéticos deste script (mesmo padrão dos demais
     // scripts em `e2e/`).
-    await page.route('**/live/**', () => {})
-    await page.route('**/vod/**', () => {})
-    await page.route('**/series/**', () => {})
+    await page.route('**/live/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/vod/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
+    await page.route('**/series/**', (route) => {
+      if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+    })
 
     console.log('=== Cenário 1: chrome do filme — controles, mock "Em breve", auto-hide, salto com o chrome escondido ===')
     await page.waitForSelector('.source-card', { timeout: 8000 })
@@ -187,16 +193,18 @@ async function run() {
     )
     // Feature 029: no navegador de desenvolvimento (`<video>`) não há faixas de
     // áudio (Áudio e legendas fica "— indisponível") e a Info do stream é real
-    // (o elemento informa a resolução). Qualidade/Velocidade/Aspecto seguem mock.
+    // (o elemento informa a resolução). Feature 041: Aspecto é real no `<video>`
+    // (object-fit), Qualidade fica "— indisponível" (o elemento não expõe
+    // variantes) e Velocidade não existe mais.
     for (const label of [
       'Áudio e legendas — indisponível',
-      'Qualidade — em breve',
-      'Velocidade — em breve',
-      'Aspecto — em breve',
+      'Qualidade — indisponível',
+      'Aspecto',
       'Info do stream',
     ]) {
-      assert(await page.getByRole('button', { name: label }).isVisible(), `controle "${label}" está na linha`)
+      assert(await page.getByRole('button', { name: label, exact: true }).isVisible(), `controle "${label}" está na linha`)
     }
+    assert((await page.locator('button', { hasText: /Velocidade/ }).count()) === 0, 'filme também não tem "Velocidade"')
     assert(
       (await page.locator('button', { hasText: /Episódio anterior|Próximo episódio/ }).count()) === 0,
       'filme não mostra botões de episódio',
@@ -205,16 +213,16 @@ async function run() {
     await setProgress(page, 60, 600) // duração conhecida — timeline aparece
     assert(await page.locator('.player-chrome-time-bar').isVisible(), 'timeline aparece com duração conhecida')
 
-    for (let i = 0; i < 4; i += 1) await page.keyboard.press('ArrowRight') // playPause -> jumpForward -> tracks -> quality -> speed
+    for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowRight') // playPause -> jumpForward -> tracks -> quality
     assert(
-      (await page.getByRole('button', { name: 'Velocidade — em breve' }).getAttribute('class'))?.includes('tv-focus'),
-      '4× → a partir de Play/Pause chega em "Velocidade"',
+      (await page.getByRole('button', { name: 'Qualidade — indisponível' }).getAttribute('class'))?.includes('tv-focus'),
+      '3× → a partir de Play/Pause chega em "Qualidade"',
     )
     const timeBeforeMock = await videoCurrentTime(page)
     await page.keyboard.press('Enter')
-    await page.waitForSelector('text=/^Em breve — /', { timeout: 4000 })
-    assert(true, 'selecionar o mock avisa "Em breve — …", sem abrir nada')
-    assert((await videoCurrentTime(page)) === timeBeforeMock, 'nenhum salto/busca aconteceu ao selecionar o mock')
+    await page.waitForSelector('text="Este stream não informou qualidades."', { timeout: 4000 })
+    assert(true, 'selecionar o controle indisponível só explica o motivo, sem abrir nada')
+    assert((await videoCurrentTime(page)) === timeBeforeMock, 'nenhum salto/busca aconteceu ao selecionar o controle indisponível')
 
     await page.waitForTimeout(5300) // > HIDE_CONTROLS_MS (5000ms)
     assert((await page.locator('.player-chrome').count()) === 0, 'o chrome some sozinho após 5s de reprodução contínua')
@@ -240,7 +248,7 @@ async function run() {
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     await page.keyboard.press('ArrowRight') // entra em "Canais Chrome" (única categoria real)
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await page.keyboard.press('Enter') // toca "Canal Um"
@@ -299,8 +307,7 @@ async function run() {
     await enterCategory(page, 'Series')
     await page.keyboard.press('Enter') // abre o detalhe da série
     await page.waitForSelector('.vod-detail', { timeout: 8000 })
-    // actions -> tabs -> season -> episodes (3 setas, logic/detalhe-vod.md §6), focando o 1º episódio.
-    await page.keyboard.press('ArrowDown')
+    // actions -> tabs -> episodes (2 setas), focando o primeiro episódio.
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('ArrowDown')
     await page.waitForSelector('.vod-episode-row', { timeout: 8000 })
@@ -386,7 +393,7 @@ async function run() {
     await page.keyboard.press('Escape') // trilha -> Início
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     await page.keyboard.press('ArrowRight')
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     await page.keyboard.press('Enter') // toca "Canal Um" de novo

@@ -13,6 +13,7 @@ import { createServer } from 'node:http'
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusSideItem } from './lib/vod.mjs'
 
 const APP_URL = 'http://localhost:5173'
 const PANEL_USER = 'usuario'
@@ -144,7 +145,7 @@ async function openViaTopbar(page, destination) {
 
 /** Lista nova, num contexto novo (IndexedDB vazio), aberta no Início. */
 async function freshListOpen(browser, panelUrl, name) {
-  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error('  [pageerror]', error?.name ?? 'Error', error?.message ?? ''))
   await page.goto(APP_URL)
@@ -177,12 +178,15 @@ async function readyCount(page) {
   })
 }
 
-/** Configurações › Fontes IPTV › "Ressincronizar" da (única) lista, até voltar ao Início. */
+/** Configurações › Fontes IPTV › "Configurar" › Conta & lista › "Ressincronizar" da (única) lista, até voltar ao Início. */
 async function resyncViaSettings(page) {
   await page.getByRole('button', { name: 'Configurações', exact: true }).click()
   await page.waitForSelector('.settings-screen .sources-panel', { timeout: 8000 })
-  await page.keyboard.press('ArrowRight') // abas -> painel (coluna "Editar")
+  await page.keyboard.press('ArrowRight') // abas -> painel (linha da lista, "Configurar")
   await page.waitForSelector('.sources-panel-row .tv-focus', { timeout: 4000 })
+  await page.keyboard.press('Enter') // Configurar → Configurações da lista (feature 067)
+  await page.getByRole('heading', { name: /Configurações da lista/ }).waitFor({ timeout: 5000 })
+  await page.keyboard.press('ArrowRight') // abas → painel (Conta & lista: "Editar")
   await page.keyboard.press('ArrowRight') // Editar -> Ressincronizar
   await page.keyboard.press('Enter')
   await page.waitForSelector('text=/Concluída/', { timeout: 20000 })
@@ -245,7 +249,7 @@ async function run() {
       console.log(`=== Cenário ${scenario}: tela de importação por parte (guia ${xmltv === 'ok' ? 'sincroniza' : 'falha'}) ===`)
       panel.seriesEmpty = true
       panel.xmltv = xmltv
-      const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+      const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
       const page = await context.newPage()
       await page.goto(APP_URL)
       await page.waitForSelector('.add-card', { timeout: 10000 })
@@ -342,7 +346,8 @@ async function run() {
         console.log('  [debug trilho]', JSON.stringify(dom))
       }
       assert(counted === '5', `a contagem real aparece no trilho antes de entrar (${counted})`)
-      await page.keyboard.press('ArrowRight')
+      await focusSideItem(page, 'Filmes 1')
+      await page.keyboard.press('Enter')
       await page.waitForSelector('.vod-grid .content-card, .vod-grid-cell', { timeout: 3000 })
       await page.waitForTimeout(500)
       assert(log.length === before, 'entrar numa categoria já pré-carregada não pede nada ao painel')
@@ -355,6 +360,7 @@ async function run() {
       const { context, page } = await freshListOpen(browser, panelUrl, 'Lista E2E 038 A2')
       await openViaTopbar(page, 'movies')
       await page.waitForFunction(() => document.querySelectorAll('.side-category-nav-item').length >= 4, null, { timeout: 8000 })
+      await focusSideItem(page, 'Filmes 1')
       await page.keyboard.press('ArrowDown')
       await page.keyboard.press('ArrowDown') // Filmes 1 -> Filmes 3
       const focusedLabel = () => page.locator('.side-category-nav-item.tv-focus .side-category-nav-label').textContent()
@@ -367,7 +373,10 @@ async function run() {
       assert((await focusedLabel()) === 'Filmes 3', 'o foco continua em "Filmes 3" enquanto os números chegam')
       const scrollAfter = await page.evaluate(() => document.querySelector('.side-category-nav')?.scrollTop ?? 0)
       assert(scrollAfter === scrollBefore, 'a rolagem do trilho não muda')
-      const sectionOrder = log.filter((e) => e.categoryId === '*').map((e) => e.action)
+      // Feature 056: sem nota no painel não há fileira "Bem avaliados" e as categorias sobem na tela hero, entrando na janela de
+      // prévias já na abertura — a pré-carga pede essas categorias uma a uma, em vez de só a seção inteira. A ordem que importa
+      // (Filmes antes de Séries) vale para qualquer pedido de filmes/séries, de seção ou de categoria.
+      const sectionOrder = log.filter((e) => e.categoryId === '*' || e.action === 'get_vod_streams' || e.action === 'get_series').map((e) => e.action)
       // Canais já foram pedidos no Início (sem dica ainda); com a pessoa em Filmes, Filmes passa na frente de Séries.
       assert(
         sectionOrder.indexOf('get_vod_streams') !== -1 &&
@@ -381,6 +390,9 @@ async function run() {
     {
       log.length = 0
       const { context, page } = await freshListOpen(browser, panelUrl, 'Lista E2E 038 B')
+      // A pré-carga só começa 2 s depois da última tecla (a digitação do cadastro conta): o cenário é sobre a GRAVAÇÃO
+      // ceder às teclas, então espera o pedido da seção sair antes de começar a apertar (065: o Início abre mais rápido).
+      for (let waited = 0; waited < 8000 && !log.some((e) => e.categoryId === '*'); waited += 100) await page.waitForTimeout(100)
       // Tecla a cada 150 ms por 5 s (nunca repousa os 300 ms da pré-busca por foco).
       const start = Date.now()
       while (Date.now() - start < 5000) {
@@ -401,10 +413,13 @@ async function run() {
     {
       log.length = 0
       const { context, page } = await freshListOpen(browser, panelUrl, 'Lista E2E 038 C')
-      await page.route('**/live/**', (route) => route.abort())
+      await page.route('**/live/**', (route) => {
+        if (new URL(route.request().url()).hostname === 'localhost') return route.continue()
+        return route.abort()
+      })
       await openViaTopbar(page, 'live')
-      await page.waitForSelector('.live-column-groups', { timeout: 10000 })
-      await page.keyboard.press('ArrowRight') // entra na categoria em foco
+      await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 10000 })
+      await page.keyboard.press('Enter') // entra na categoria em foco
       await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
       await page.keyboard.press('Enter') // abre o canal: camada de reprodução montada
       await page.waitForSelector('.player-layer, [data-testid="player-layer"], .player-video', { timeout: 8000 })
@@ -440,7 +455,8 @@ async function run() {
       assert(labels.includes('Filmes 11'), 'as demais continuam')
 
       const t0 = Date.now()
-      await page.keyboard.press('ArrowRight') // entra em "Filmes 1" (já carregada antes da atualização)
+      await focusSideItem(page, 'Filmes 1')
+      await page.keyboard.press('Enter') // entra em "Filmes 1" (já carregada antes da atualização)
       await page.waitForSelector('.vod-grid-cell .content-card-title', { timeout: 3000 })
       const elapsed = Date.now() - t0
       assert(elapsed < 1500, `categoria que estava pronta abre na hora depois de atualizar (${elapsed} ms)`)
@@ -458,7 +474,7 @@ async function run() {
       assert((await focusedCardTitle(page)) === 'Filme Renomeado', `o item em foco ganha o nome novo sem o foco sair dele (${await focusedCardTitle(page)})`)
 
       console.log('=== Cenário 8: categoria vencida (> 24 h) abre na hora e renova atrás ===')
-      await page.keyboard.press('ArrowLeft') // volta à trilha ("Filmes 1")
+      await page.keyboard.press('Escape') // grade -> vitrine, lista lateral em "Filmes 1"
       // As renovações pedidas pela atualização acima ainda correm: espera a
       // fila esvaziar (4 s sem pedido novo), senão "Filmes 2" seria renovada
       // logo depois de envelhecida e a entrada já a encontraria fresca.
@@ -473,7 +489,7 @@ async function run() {
       await ageCategory(page, 'Filmes 2', 25 * 60 * 60 * 1000)
       await page.keyboard.press('ArrowDown') // "Filmes 2"
       const t1 = Date.now()
-      await page.keyboard.press('ArrowRight') // entra antes dos 300 ms da pré-busca por foco
+      await page.keyboard.press('Enter') // entra antes dos 300 ms da pré-busca por foco
       await page.waitForSelector('.vod-grid-cell .content-card-title', { timeout: 3000 })
       const openedAt = Date.now()
       assert(openedAt - t1 < 1500, `vencida abre na hora com o que tem (${openedAt - t1} ms)`)
@@ -482,7 +498,9 @@ async function run() {
       await page.waitForTimeout(5000)
       const renewal = log.slice(before).find((e) => e.action === 'get_vod_streams' && e.categoryId === '101')
       assert(renewal !== undefined, 'a renovação da vencida acontece em segundo plano')
-      assert(renewal === undefined || renewal.at >= openedAt, 'a entrada não esperou a renovação')
+      // Bug `categoria-aberta-nao-mostra-itens-novos`: a renovação agora nasce da própria entrada (busca direta, sem
+      // esperar a fila), em paralelo com o desenho — "não esperou" é a grade abrir na hora (acima), não a ordem dos dois.
+      assert(renewal === undefined || renewal.at >= t1, 'a renovação nasce da entrada, sem atrasar a grade')
       await context.close()
     }
 
@@ -503,9 +521,9 @@ async function run() {
       await resyncViaSettings(page)
 
       await openViaTopbar(page, 'live')
-      await page.waitForSelector('.live-column-groups', { timeout: 10000 })
+      await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 10000 })
       const t0 = Date.now()
-      await page.keyboard.press('ArrowRight')
+      await page.keyboard.press('Enter')
       await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 3000 })
       const elapsed = Date.now() - t0
       assert(elapsed < 1500, `categoria M3U que estava pronta abre na hora depois de atualizar (${elapsed} ms)`)

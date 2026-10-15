@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-30
 
-**Status**: Planejada
+**Status**: Convergida
 
 **Input**: Item 57 do backlog — "Limpar histórico e remover item do
 `↺ Histórico`" (DS V14 §13.3 e §48.4): remover um item; limpar Filmes, Séries

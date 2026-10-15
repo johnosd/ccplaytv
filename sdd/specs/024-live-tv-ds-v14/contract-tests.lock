@@ -1,6 +1,6 @@
 {
     "feature":  "024-live-tv-ds-v14",
-    "lockedAt":  "2026-09-27 07:47",
+    "lockedAt":  "2026-10-02 19:25",
     "total":  5,
     "files":  [
                   {
@@ -15,7 +15,7 @@
                   },
                   {
                       "path":  "tv-web/src/features/live/LiveScreen.live-tv-ds-v14.contract.test.tsx",
-                      "sha256":  "38a2df4f745e907cbf2e15101d2386eeeafdcda7f4f75827f57462bed53a9162",
+                      "sha256":  "ab40b22ea3ca7254b8c47399b658f0baf6b7c876b7ba11c32836731e851b4a39",
                       "tests":  2
                   },
                   {

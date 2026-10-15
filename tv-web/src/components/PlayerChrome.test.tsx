@@ -59,7 +59,7 @@ describe('PlayerChrome (feature 027)', () => {
     const buttons = screen.getAllByRole('button')
     expect(buttons).toHaveLength(5)
     expect(buttons[2]).toHaveClass('tv-focus')
-    expect(buttons[2]).toHaveAttribute('aria-label', 'Qualidade — em breve')
+    expect(buttons[2]).toHaveAttribute('aria-label', 'Qualidade — indisponível')
   })
 
   it('VOD: título e subtítulo (episódio) aparecem, nenhum é omitido', () => {

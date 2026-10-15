@@ -1,0 +1,12 @@
+{
+    "feature":  "050-filmes-series-paridade-v14",
+    "lockedAt":  "2026-10-07 18:02",
+    "total":  2,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/features/vod/VodScreens.paridade-v14.contract.test.tsx",
+                      "sha256":  "e6d9e6b39caa6d921f247c6c7fadd12259538f7445e6705d13989119d3502e0a",
+                      "tests":  2
+                  }
+              ]
+}

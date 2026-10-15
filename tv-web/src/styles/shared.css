@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Regras compartilhadas por mais de uma tela/componente, movidas de
  * `features/screens.css` (feature 028, eliminado — D-003/T027 do plan.md).
  * Importado no MESMO lugar da ordem de `main.tsx` onde `screens.css`
@@ -9,7 +9,7 @@
 .screen {
   position: absolute;
   inset: 0;
-  padding: 80px 96px;
+  padding: var(--safe-y) var(--safe-x);
   display: flex;
   flex-direction: column;
   color: var(--text-secondary);
@@ -21,19 +21,19 @@
 }
 
 .screen-title {
-  font: 800 40px var(--font-heading);
+  font: 800 var(--fs-h1) var(--font-heading);
   color: var(--text-primary);
   margin-bottom: 36px;
 }
 
 .screen-subtitle {
-  font: 500 20px var(--font-body);
+  font: 500 var(--fs-body) var(--font-body);
   color: var(--text-tertiary);
   margin-bottom: 56px;
 }
 
 .screen-eyebrow {
-  font: 500 20px var(--font-body);
+  font: 500 var(--fs-body) var(--font-body);
   color: var(--text-tertiary);
   margin-bottom: 6px;
 }
@@ -85,7 +85,7 @@
   background: var(--surface);
   border: 3px solid var(--border-dashed);
   color: var(--text-primary);
-  font-size: 19px;
+  font-size: var(--fs-body);
   font-family: var(--font-body);
   padding: 0 24px;
   box-sizing: border-box;
@@ -97,7 +97,7 @@
 }
 
 .form-error {
-  font: 500 16px var(--font-body);
+  font: 500 var(--fs-body) var(--font-body);
   color: var(--brand-1);
 }
 
@@ -111,14 +111,14 @@
   background: var(--surface);
   border: 2px solid var(--border-dashed);
   color: var(--text-secondary);
-  font: 500 16px var(--font-body);
+  font: 500 var(--fs-body) var(--font-body);
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 .limited-mode-notice-title {
-  font: 700 18px var(--font-body);
+  font: 700 var(--fs-body-lg) var(--font-body);
   color: var(--text-primary);
 }
 
@@ -157,7 +157,7 @@
 }
 
 .live-column-title {
-  font: 700 22px var(--font-body);
+  font: 700 var(--fs-body-lg) var(--font-body);
   color: var(--text-primary);
   margin-bottom: 8px;
 }
@@ -172,12 +172,12 @@
 }
 
 .live-state-title {
-  font: 700 30px var(--font-body);
+  font: 700 var(--fs-h2) var(--font-body);
   color: var(--text-primary);
 }
 
 .live-state-copy {
-  font: 500 18px var(--font-body);
+  font: 500 var(--fs-body) var(--font-body);
   color: var(--text-tertiary);
   max-width: 620px;
   text-align: center;
@@ -189,7 +189,7 @@
   background: var(--surface-field-active);
   color: var(--text-secondary);
   font-weight: 700;
-  font-size: 19px;
+  font-size: var(--fs-body);
 }
 
 .live-state-action.tv-focus {
@@ -198,7 +198,7 @@
 }
 
 .live-truncated-note {
-  font: 500 15px var(--font-body);
+  font: 500 var(--fs-caption) var(--font-body);
   color: var(--text-tertiary);
   padding: 12px 20px;
 }
@@ -228,7 +228,7 @@
   border-radius: 12px;
   background: var(--surface);
   color: var(--text-secondary);
-  font-size: 20px;
+  font-size: var(--fs-body);
   flex: none;
 }
 
@@ -243,7 +243,7 @@
 .search-field {
   height: 56px;
   max-width: 100%;
-  font-size: 17px;
+  font-size: var(--fs-body);
 }
 
 .search-status {
@@ -251,7 +251,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px 4px 0;
-  font: 500 15px var(--font-body);
+  font: 500 var(--fs-caption) var(--font-body);
   color: var(--text-tertiary);
 }
 
@@ -284,7 +284,7 @@
 
 .poster-box-label {
   position: relative;
-  font: 11px ui-monospace, monospace;
+  font: var(--fs-caption) ui-monospace, monospace;
   color: var(--text-muted);
   text-align: center;
   padding: 0 8px;
@@ -316,6 +316,21 @@
   object-fit: cover;
 }
 
+/* Logo de canal: inteiro (contain, com respiro) e sobre fundo sólido, para
+   as áreas transparentes do logo não deixarem o ruído e as iniciais do
+   placeholder aparecerem por baixo. O placeholder continua no DOM e só
+   reaparece quando a imagem falha (a <img> some). */
+.poster-box-logo .poster-box-art {
+  box-sizing: border-box;
+  padding: 6px;
+  object-fit: contain;
+  background: var(--surface-field-active);
+}
+
+.poster-box-logo.tv-focus .poster-box-art {
+  background: var(--surface-active);
+}
+
 /* ---------- Toast ---------- */
 
 .toast {
@@ -327,7 +342,7 @@
   border: 2px solid var(--accent);
   border-radius: 14px;
   padding: 18px 32px;
-  font: 600 18px var(--font-body);
+  font: 600 var(--fs-body) var(--font-body);
   color: var(--text-primary);
   animation: ccp-toast 180ms ease-out;
   z-index: 1000;
@@ -342,7 +357,7 @@
    de cor (ADR-007). */
 .fav-star {
   color: var(--accent);
-  font-size: 16px;
+  font-size: var(--fs-caption);
   line-height: 1;
   flex: none;
 }
@@ -351,7 +366,7 @@
   position: absolute;
   top: 10px;
   right: 10px;
-  font-size: 20px;
+  font-size: var(--fs-caption);
   text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
 }
 
@@ -362,19 +377,73 @@
   position: absolute;
   left: 10px;
   bottom: 10px;
-  font: 700 12px var(--font-body);
+  font: 700 var(--fs-caption) var(--font-body);
   color: var(--text-primary);
   background: rgba(0, 0, 0, 0.6);
   border-radius: 6px;
   padding: 2px 8px;
 }
 
+/* Selo da nota do provedor (feature 055) — só apresentação, nunca focável. No card fica no canto superior esquerdo
+   (.fav-star ocupa o superior direito; .watched-badge, o inferior esquerdo). Fora do card (destaque e detalhe) é texto
+   corrido, na cor secundária do contexto. Só tokens. */
+.rating-badge {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rating-badge-source {
+  margin-left: var(--space-1);
+  color: var(--text-tertiary);
+}
+
+/* Classificação e nota TMDB (feature 061): apresentação, sem foco. */
+.content-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: calc(var(--space-1) / 4) var(--space-1);
+  border: 1px solid var(--bg-hover);
+  border-radius: calc(var(--radius-sm) / 2);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font: var(--fw-h1) var(--fs-caption) var(--font-body);
+  white-space: nowrap;
+}
+
+.content-rating-badge--br-l { background: var(--rating-br-l); color: var(--rating-br-l-ink); }
+.content-rating-badge--br-10 { background: var(--rating-br-10); color: var(--rating-br-10-ink); }
+.content-rating-badge--br-12 { background: var(--rating-br-12); color: var(--rating-br-12-ink); }
+.content-rating-badge--br-14 { background: var(--rating-br-14); color: var(--rating-br-14-ink); }
+.content-rating-badge--br-16 { background: var(--rating-br-16); color: var(--rating-br-16-ink); }
+.content-rating-badge--br-18 { background: var(--rating-br-18); color: var(--rating-br-18-ink); }
+
+.tmdb-rating-badge {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.poster-box .rating-badge {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  font: 700 var(--fs-caption) var(--font-body);
+  color: var(--text-primary);
+  background: var(--scrim-media);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-1);
+}
+
 /* Dica fixa no rodapé da coluna de conteúdo, discreta (mesmo tom de
    .live-truncated-note), lembrando o gesto de segurar OK enquanto houver
    itens favoritáveis na tela (FR-012). */
 .fav-hint {
-  font: 500 14px var(--font-body);
+  font: 500 var(--fs-caption) var(--font-body);
   color: var(--text-tertiary);
   padding: 8px 20px;
   flex: none;
 }
+
+

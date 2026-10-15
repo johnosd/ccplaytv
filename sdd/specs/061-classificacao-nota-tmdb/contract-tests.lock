@@ -1,0 +1,27 @@
+{
+    "feature":  "061-classificacao-nota-tmdb",
+    "lockedAt":  "2026-10-06 18:07",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/metadata/contentRating.classificacao-nota-tmdb.contract.test.ts",
+                      "sha256":  "8e98aa1ebea6fab53392f2a49d0b9500acf9071d9f9b6fdcf198ea649816fcc5",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/components/ContentRatingBadge.classificacao-nota-tmdb.contract.test.tsx",
+                      "sha256":  "85855b34ba52a9f3aa8e92526e13291cb3efeaa134b907e0531aae8007c07949",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/metadata/titleMetadata.classificacao-nota-tmdb.contract.test.ts",
+                      "sha256":  "5be2dfd2784b9cd8d7227fa7b17d850b008557489f8c73bed0545e84c0767e74",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/movies/MovieDetailScreen.classificacao-nota-tmdb.contract.test.tsx",
+                      "sha256":  "51504ed3afb7afa0e4ca7aef0506943364ad83df47d260aa34e29a3948531f50",
+                      "tests":  1
+                  }
+              ]
+}

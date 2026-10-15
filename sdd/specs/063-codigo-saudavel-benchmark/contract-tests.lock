@@ -1,0 +1,22 @@
+{
+    "feature":  "063-codigo-saudavel-benchmark",
+    "lockedAt":  "2026-10-07 10:15",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/catalog/catalogRepository.codigo-saudavel.contract.test.ts",
+                      "sha256":  "fc7247cac649ef4a9e655be78739b06f3c96f5efbdd507d80e70c46db28e3f53",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/scripts/architecture.codigo-saudavel.contract.test.mjs",
+                      "sha256":  "c8d24e8e3a48936453460e60c0731b090f91c7eb8a792f661a658c377bd8a8e9",
+                      "tests":  3
+                  },
+                  {
+                      "path":  "tv-web/scripts/bench/fixtures.codigo-saudavel.contract.test.mjs",
+                      "sha256":  "9e267b00f36bff63123eced6891f6a81df4dfc4d7a32a2c05fb9818492c3172a",
+                      "tests":  1
+                  }
+              ]
+}

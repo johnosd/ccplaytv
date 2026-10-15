@@ -1,0 +1,15 @@
+2026-10-10 — instrumentação SERIES-DIAG-01
+Vitest (fase Fix): 121/121, 13 arquivos.
+Vitest (fase Test): 121/121, 13 arquivos, 12.94 s.
+Lint: exit 0, avisos herdados, sem violações arquiteturais.
+build:tizen: exit 0, TypeScript + Vite + no-demux + sync/guard assets.
+Playwright pacote final: 4/4 (assinatura visível, segredo omitido, painel inteiro, RETURN ao catálogo).
+E2E completo --jobs 3 --retry 0: 45/46 em 305 s; timeout fontes-estado cenário 5 sem internet.
+Reexecução isolada fontes-estado --jobs 1 --retry 0: 1/1 em 30 s.
+Série-foco-episodios, detalhe-cinema, modal-temporada, player-dev-mpegts e legibilidade-tv: passaram no gate completo.
+Reprodução original na TV: pendente de fotografia do usuário. Não há correção confirmada do bug original.
+TV: deploy-tv.ps1 -TvIp 192.168.0.2 -SkipBuild, exit 0; app instalado e lançado (PID 5453), assinatura existente, sem desinstalação. Aceite visual pendente.
+
+Iteração 02: foto real confirmou falha de episódios; loader agora emite etapa e classificação antes de descartar exceção. 136/136 testes; lint/build aprovados; E2E afetados 4/4; Playwright de recusa controlada 5/5. TV atualizada sem desinstalar, exit 0, lançamento PID 18267. Causa original pendente da fotografia DIAG-02.
+
+Correção quota / DIAG-03: falha física confirmada em EPISODES_STORE com StorageFullError, obtenção do provedor concluída. Adicionado privilégio unlimitedstorage ausente (Samsung documenta uso em IndexedDB); motivo storage_full repassado à UI STO-01. 141/141 testes, reprodução crítica 3/3; Playwright quota/recuperação 8/8; lint/build aprovados; gate completo 46/46 em 314 s. WGT assinado confirma privilégio e identidade mantida. TV instalada e lançada PID 19301, exit 0. Resultado físico da correção pendente do usuário.

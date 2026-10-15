@@ -217,6 +217,8 @@ describe('PlayerService', () => {
       expect(canTransition('paused', 'playing')).toBe(true)
       expect(canTransition('paused', 'buffering')).toBe(true)
       expect(canTransition('playing', 'completed')).toBe(true)
+      expect(canTransition('paused', 'completed')).toBe(true)
+      expect(canTransition('buffering', 'completed')).toBe(true)
     })
 
     it('não permite ressuscitar uma sessão concluída nem pausada', () => {
@@ -241,6 +243,23 @@ describe('PlayerService', () => {
       })
       adapter.emitState('buffering')
       adapter.emitState('playing')
+
+      adapter.emitCompleted()
+
+      expect(session.state).toBe('completed')
+      expect(session.error).toBeNull()
+    })
+
+    // Bug serie-sem-proximo-episodio-controles-somem: o `<video>` emite `pause` antes de `ended`, e o AVPlay pode avisar o fim em
+    // `buffering` — o fim não pode ser descartado nesses estados.
+    it.each(['paused', 'buffering'] as const)('episódio: fim de mídia vindo de %s também conclui', (state) => {
+      const adapter = fakeAdapter()
+      const session = createPlayerSession('http://exemplo.invalid/x.ts', FULLSCREEN_REGION, 'episode', {
+        createAdapter: adapter.factory,
+      })
+      adapter.emitState('buffering')
+      adapter.emitState('playing')
+      adapter.emitState(state)
 
       adapter.emitCompleted()
 

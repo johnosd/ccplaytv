@@ -60,11 +60,9 @@ function renderScreen(props: Partial<SeriesDetailScreenProps> = {}) {
   )
 }
 
-/** ações → abas (Episódios) → Detalhes → Elenco → Semelhantes, OK. */
+/** ações → abas (Temporada) → Similares, OK. */
 function openSimilarTab() {
   press('ArrowDown')
-  press('ArrowRight')
-  press('ArrowRight')
   press('ArrowRight')
   press('Enter')
 }
@@ -94,14 +92,16 @@ describe('SeriesDetailScreen — aba Semelhantes (feature 035)', () => {
     renderScreen({ onOpenTitle })
 
     openSimilarTab()
-    expect(screen.getByRole('tab', { name: 'Semelhantes' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Similares' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('Procurado em 1 de 4 categorias de séries')).toBeInTheDocument()
 
     press('ArrowDown')
     press('Enter')
     expect(onOpenTitle).toHaveBeenCalledWith({ kind: 'series', itemId: 'series-2' }, { tab: 'similar', focusKey: 'tmdb:series:1' })
 
-    press('ArrowRight')
+    // Feature 059 (D-007/D-008): o não encontrado fica na linha de baixo — chega-se por ↓.
+    expect(screen.getByRole('heading', { name: 'Não encontrados na sua lista' })).toBeInTheDocument()
+    press('ArrowDown')
     press('Enter')
     expect(within(screen.getByRole('dialog')).getByText('Ausente')).toBeInTheDocument()
     press('Escape')
@@ -111,14 +111,14 @@ describe('SeriesDetailScreen — aba Semelhantes (feature 035)', () => {
   it('restore com aba similar e chave monta já no cartão; sem restore a aba inicial continua Episódios', () => {
     similarView({ status: 'ready', titles: [FOUND, MISSING], coverage: { covered: 1, total: 4 } })
     renderScreen({ restore: { tab: 'similar', focusKey: 'tmdb:series:2' } })
-    expect(screen.getByRole('tab', { name: 'Semelhantes' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Similares' })).toHaveAttribute('aria-selected', 'true')
     press('Enter')
     expect(within(screen.getByRole('dialog')).getByText('Ausente')).toBeInTheDocument()
 
     cleanup()
     similarView({ status: 'ready', titles: [], coverage: undefined })
     renderScreen()
-    expect(screen.getByRole('tab', { name: 'Episódios' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /Temporada 1/ })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('sem chave: explica e "Configurar TMDB" é focável e abre Integrações; TMDB indisponível: mensagem própria, foco na aba', () => {
@@ -138,7 +138,7 @@ describe('SeriesDetailScreen — aba Semelhantes (feature 035)', () => {
     openSimilarTab()
     expect(screen.getByText(/Semelhantes está indisponível agora/)).toBeInTheDocument()
     press('ArrowDown')
-    expect(screen.getByRole('tab', { name: 'Semelhantes' }).className).toContain('tv-focus')
+    expect(screen.getByRole('tab', { name: 'Similares' }).className).toContain('tv-focus')
     expect(findUnnamedControls(document.body)).toEqual([])
   })
 })

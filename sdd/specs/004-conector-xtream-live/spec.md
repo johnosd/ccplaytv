@@ -336,6 +336,13 @@ nada é disparado.
   para qualquer fonte, de provedor ou de URL M3U.
   *(O prazo de 24 h é o valor inicial acordado; mudá-lo é ajuste de
   configuração, não de comportamento.)*
+  **Atualização (bug `lista-xtream-nao-atualiza-novos-filmes`, 2026-10-09):**
+  o prazo passou a ser um intervalo mínimo de **10 min**
+  (`REFRESH_ON_OPEN_MIN_MS`) — abrir a lista atualiza em segundo plano, pelo
+  caminho incremental da feature 038, e voltar o app residente ao primeiro
+  plano faz a mesma verificação. Com 24 h, filmes, séries e canais novos ou
+  removidos pelo provedor ficavam invisíveis. A validade dos itens de cada
+  categoria (`isCategoryFresh`) continua 24 h.
 - **FR-021**: A ação explícita de ressincronizar DEVE continuar disponível e
   imediata, independente da idade da fonte — ela é o caminho de quem sabe
   que o provedor mudou agora.

@@ -141,7 +141,10 @@ describe('PlayerLayer — painel de faixas (feature 029, bordas)', () => {
     openMoviePanel()
     expect(dialog()).toBeInTheDocument()
 
+    // Feature 042: sem rede não reconecta — vai direto à tela de erro (NET-01, com "Tentar de novo").
+    const onLine = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
     act(() => driver.callbacks?.onError({ code: null }))
+    onLine.mockRestore()
     expect(dialog()).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
   })

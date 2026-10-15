@@ -53,6 +53,20 @@
   --live: #ff2e87;
   --danger: #ff4f68;
 
+  /* Classificação indicativa brasileira (feature 061, logic §3). */
+  --rating-br-l: #1FA54B;
+  --rating-br-l-ink: #fff;
+  --rating-br-10: #1E88E5;
+  --rating-br-10-ink: #fff;
+  --rating-br-12: #F2C200;
+  --rating-br-12-ink: #111;
+  --rating-br-14: #EF7D00;
+  --rating-br-14-ink: #fff;
+  --rating-br-16: #E53935;
+  --rating-br-16-ink: #fff;
+  --rating-br-18: #111;
+  --rating-br-18-ink: #fff;
+
   /* ---------- Gradiente de marca (§5.4) ---------- */
   --brand-1: #ff2e87;
   --brand-2: #ff7a3d;
@@ -105,11 +119,11 @@
   --font-body: 'Inter', Arial, Helvetica, sans-serif;
 
   --fs-display: 64px;
-  --fs-h1: 40px;
-  --fs-h2: 28px;
-  --fs-body-lg: 24px;
-  --fs-body: 20px;
-  --fs-caption: 16px;
+  --fs-h1: 48px;
+  --fs-h2: 32px;
+  --fs-body-lg: 28px;
+  --fs-body: 24px;
+  --fs-caption: 20px;
   --fw-display: 800;
   --fw-h1: 700;
   --fw-h2: 600;
@@ -150,6 +164,11 @@
   --focus-ring-offset: 3px;
   --focus-halo: 0 0 0 8px rgba(255, 122, 61, 0.22);
   --focus-glow: 0 0 40px rgba(255, 122, 61, 0.55);
+  /* Título sobre capa (cards de Filmes/Séries, feature 052): degradê escuro no rodapé do pôster + sombra do texto. */
+  --scrim-media: rgba(0, 0, 0, 0.85);
+  /* Escurecimento uniforme do backdrop do billboard do Início, por baixo da vinheta (ad-hoc 2026-10-09). */
+  --scrim-hero: rgba(0, 0, 0, 0.45);
+  --text-shadow-media: 0 1px 3px rgba(0, 0, 0, 0.9);
   --focus-scale: 1.06;
 
   /* ---------- Camadas lógicas (§29) ---------- */
@@ -175,7 +194,7 @@
      ATRÁS da camada web, e qualquer pixel opaco aqui o esconde — canal toca
      sem imagem. Só vale para motor de hardware; com o `<video>` do desktop a
      classe nunca é aplicada. */
-  font: 500 18px/1.5 var(--font-body);
+  font: 500 var(--fs-body)/1.5 var(--font-body);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -273,3 +292,4 @@ button:focus,
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+

@@ -52,6 +52,8 @@ não dá a um atacante nada que ele já não tenha. O risco real está nas
 Decisão pedida pelo usuário em 2026-09-24, durante o planejamento da
 feature 014.
 
+**Atualização (ADR-013, 2026-10-11):** gestão remota de configurações Xtream e M3U por URL permite retenção cifrada e backup operacional protegido dos valores fornecidos no portal, sem arquivo M3U remoto ou exportação de segredos locais existentes. Exclusão ativa e retenção de backups são distintas; constitution ainda requer compatibilização T001. Ver [ADR-013](ADR-013-portal-controle-serverless-google-cloud.md).
+
 ## Decisão
 
 A exceção da ADR-008, item 2, passa a cobrir, além da credencial de
@@ -96,6 +98,34 @@ endereço; o endereço do painel Xtream (`xmltv.php` com a credencial) **não
 é guardado**: é derivado do registro da fonte na hora, como a URL de
 reprodução; e excluir a fonte apaga a programação e a configuração de EPG.
 Ver `sdd/specs/030-epg-dados-agora/plan.md` (Complexity Tracking, D-011).
+
+**Atualização (feature 044-parser-m3u-headers, 2026-10-02):** a exceção passa
+a cobrir também os **headers de reprodução de um item M3U** — `User-Agent` e
+`Referer`, lidos do sufixo `|` da URL ou de `#EXTVLCOPT`/`#KODIPROP`
+(`CatalogRecord.playbackHeaders`). Podem carregar token, então são a mesma
+classe de dado da URL de reprodução do item e ficam sob as mesmas mitigações,
+obrigatórias: nunca em log, tela, mensagem de erro, chave de consulta,
+`aria-*`, exportação ou requisição a terceiros; descartados com a fonte ou a
+geração. Na prática: só ficam gravados junto com a URL que os acompanha
+(`m3u_url`; no Modo limitado, onde a URL é derivada da credencial, não são
+guardados); `CatalogItemOut` e a UI nunca os expõem; só `User-Agent`/`Referer`
+são guardados, qualquer outro header e toda chave de licença/DRM é descartado
+na leitura; e o valor só é lido por quem for repassá-lo ao player (feature
+25b). A constituição não muda. Ver `sdd/specs/044-parser-m3u-headers/plan.md`.
+
+**Atualização (feature 058-headers-avplay-catchup, 2026-10-04):** (1) os headers
+da 044 passam a ser **lidos** — só por `fetchPlayback`, que os entrega à sessão
+de reprodução, que os entrega ao adaptador do motor (`setStreamingProperty` do
+AVPlay); para cima (sessão, tela, diagnóstico, "Info do stream") só sobem os
+**nomes** dos headers aplicados/recusados, nunca os valores. (2) A **URL de
+arquivo** (catch-up) de um canal Xtream (`/timeshift/…` ou
+`/streaming/timeshift.php?…`) é uma URL de reprodução como as outras: carrega a
+credencial, é montada na hora de tocar e **nunca guardada**, logada, exibida,
+posta em erro ou em chave de consulta. (3) O **relógio do painel**
+(`panelTimezone`, `panelUtcOffsetMinutes`) e a **variante de URL de arquivo** que
+já tocou (`archiveVariant`) ficam na fonte; não são segredo, mas também não vão a
+tela nem log. A constituição não muda. Ver
+`sdd/specs/058-headers-avplay-catchup/plan.md`.
 
 ## Alternativas Consideradas
 
@@ -174,3 +204,5 @@ Revisitar esta ADR se:
 A constitution (princípio "Segredos Fora dos Clientes e dos Logs",
 exceção ADR-008) precisa de emenda correspondente: hoje ela ainda diz que
 a URL completa de fonte é proibida no cliente, sem exceção.
+
+**Atualização (feature 069, resolução de pendências 2026-10-11):** constitution 1.8.0 formaliza as exceções restritas do portal/licenciamento/convite efêmero e exibição protegida de código. Por nova decisão do usuário, recuperação manual da licença fica substituída por autoatendimento no próprio site, com código privado que pode guardar/fotografar e desafio da mesma TV; revogar acessos/código antigos e preservar teste/validade. Não transfere licença nem recupera catálogo apagado. Restauração operacional de backup permanece manual. Detalhes em spec/plan/logic da 069; nenhuma implementação/provisão declarada.

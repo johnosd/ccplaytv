@@ -309,3 +309,5 @@ Revisitar:
 - **Tela de perfis a cada abertura:** se a medição com usuário mostrar que
   o passo extra incomoda com uma lista só, trocar para "pula quando houver
   exatamente uma lista". A decisão é local à tela de perfis.
+
+**Atualização (feature 049, 2026-10-02):** nas trilhas de categorias e na lista de canais da TV ao vivo (e na trilha de Filmes e Séries), `→` passa a ser *página seguinte* e `←` *página anterior*; **OK** é o único gesto que entra numa categoria ou toca um canal, e **RETURN** volta da lista à trilha. Isto diverge da Spec V14 §13/§33 (`→` entra no conteúdo, focus path por colunas) por decisão do usuário — a precedência constitution > ADRs > Spec V14 vale aqui como ADR. O destaque da Live deixa de ser focável (sem os botões `Assistir`/`Favoritar`/`Guia completo` de §25/§31.1): OK toca, Segurar OK favorita e o Guia vira um ícone focável ao lado da lupa. A grade de Filmes/Séries não muda. Ver `sdd/specs/049-navegacao-por-pagina/`.

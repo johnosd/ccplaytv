@@ -1,0 +1,17 @@
+{
+    "feature":  "045-ime-formularios-tv",
+    "lockedAt":  "2026-10-02 07:12",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/catalog/sourceConnectionCheck.ime-formularios.contract.test.ts",
+                      "sha256":  "ee7e031c0303ee3475ee538f941f4c1720eddb07a9e7135eedd0eb16a10af923",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/features/import/AddSourceScreen.ime-formularios.contract.test.tsx",
+                      "sha256":  "f3c2fcca5e7c2ed0497be58bfbe1738068d9be7c3d740e49988a82a9e468e043",
+                      "tests":  3
+                  }
+              ]
+}

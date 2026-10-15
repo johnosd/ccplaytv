@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
+import { focusFirstRealCategory } from './lib/vod.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'favoritos.m3u')
@@ -121,7 +122,7 @@ async function openLiveTv(page) {
   await page.waitForSelector('.home-content', { timeout: 8000 })
   await openViaTopbar(page, 'live')
 
-  await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+  await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
 }
 
 async function run() {
@@ -140,7 +141,7 @@ async function run() {
   const browser = await chromium.launch(
     existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true },
   )
-  const context = await browser.newContext() // storage isolado — sem limpeza manual de IndexedDB
+  const context = await browser.newContext({ locale: 'pt-BR' }) // storage isolado — sem limpeza manual de IndexedDB
   const page = await context.newPage()
 
   try {
@@ -149,7 +150,7 @@ async function run() {
 
     console.log('=== Live TV: segurar OK favorita, sem abrir o player ===')
     // Padrão: trilha focada na primeira categoria real ("Canais Teste").
-    await page.keyboard.press('ArrowRight') // entra na categoria
+    await page.keyboard.press('Enter') // entra na categoria
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').first().textContent()) === 'Canal Alfa',
@@ -170,7 +171,7 @@ async function run() {
     assert(true, 'RETURN fechou o player')
 
     console.log('=== "★ Favoritos" no topo da trilha resolve o canal favoritado ===')
-    await page.keyboard.press('ArrowLeft') // volta pra trilha (col 0)
+    await page.keyboard.press('Escape') // volta pra trilha (col 0)
     // Trilha: ★ Favoritos(0), Todos(1), categoria real(2) — feature 018
     // inseriu "Todos" como 2ª entrada fixa (VIRTUAL_TRAIL_COUNT=2); duas
     // setas pra cima chegam em Favoritos, não uma só (achado ao rodar
@@ -183,7 +184,7 @@ async function run() {
     // "Favoritos" (sem o "★" embutido no nó de texto).
     const favoritesLabel = await page.locator('.live-column-groups .tv-focus .side-category-nav-label').textContent()
     assert(favoritesLabel === 'Favoritos', 'trilha focada em "★ Favoritos"')
-    await page.keyboard.press('ArrowRight') // entra
+    await page.keyboard.press('Enter') // entra
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').allTextContents()).join(',') === 'Canal Alfa',
@@ -196,12 +197,12 @@ async function run() {
     await page.keyboard.press('Enter')
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'live')
-    await page.waitForSelector('.live-column-groups', { timeout: 8000 })
+    await page.waitForSelector('.live-column-groups', { state: 'attached', timeout: 8000 })
     // Padrão cai na 1ª categoria real (índice 2) — duas setas pra cima
     // chegam em "★ Favoritos", passando por "Todos" (ver comentário acima).
     await page.keyboard.press('ArrowUp') // categoria real -> "Todos"
     await page.keyboard.press('ArrowUp') // "Todos" -> "★ Favoritos"
-    await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('Enter')
     await page.waitForSelector('.live-column-channels .live-item-name', { timeout: 8000 })
     assert(
       (await page.locator('.live-column-channels .live-item-name').first().textContent()) === 'Canal Alfa',
@@ -228,7 +229,8 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     await openViaTopbar(page, 'movies')
     await waitForCategoryTrail(page)
-    await page.keyboard.press('ArrowRight') // entra na 1ª categoria real de Filmes
+    await focusFirstRealCategory(page)
+    await page.keyboard.press('Enter') // entra na 1ª categoria real de Filmes
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
     await holdEnter(page)
     await page.waitForSelector('.fav-star', { timeout: 4000 })
@@ -243,7 +245,8 @@ async function run() {
     // disso (reseta pra "Início" antes de contar), então funciona igual.
     await openViaTopbar(page, 'series')
     await waitForCategoryTrail(page)
-    await page.keyboard.press('ArrowRight') // entra na 1ª categoria real de Séries
+    await focusFirstRealCategory(page)
+    await page.keyboard.press('Enter') // entra na 1ª categoria real de Séries
     await page.waitForSelector('.content-card-title', { timeout: 8000 })
 
     await pressFavoriteColorKey(page)

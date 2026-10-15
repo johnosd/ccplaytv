@@ -1,7 +1,9 @@
 import type { CastPerson, TitleFields, TmdbTitleRef } from '../catalog/db'
-import { trailerRefsFromTmdbVideos } from '../trailer/trailerCandidates'
+import { APP_LANGUAGE_LOCALE, type AppLanguage } from '../i18n/languages'
+import { TRAILER_VIDEOS_VERSION, trailerRefsFromTmdbVideos } from '../trailer/trailerCandidates'
 import { tmdbImageUrl } from './tmdbConnector'
 import { yearOfDate } from './tmdbMatch'
+import { certificationsFromTmdb, tmdbRatingFromTmdb } from './contentRating'
 
 /**
  * Detalhe do TMDB → campos do app (feature 032, `data-model.md` §3). Só o que
@@ -30,10 +32,10 @@ function joined(values: string[]): string | undefined {
   return values.length > 0 ? values.join(', ') : undefined
 }
 
-/** Código ISO 3166 → nome do país em português; o próprio código se o ambiente não souber. */
-function countryName(code: string): string {
+/** Código ISO 3166 → nome do país no idioma do app (português por padrão); o próprio código se o ambiente não souber. */
+function countryName(code: string, language: AppLanguage): string {
   try {
-    return new Intl.DisplayNames(['pt-BR'], { type: 'region' }).of(code) ?? code
+    return new Intl.DisplayNames([APP_LANGUAGE_LOCALE[language]], { type: 'region' }).of(code) ?? code
   } catch {
     return code
   }
@@ -43,15 +45,15 @@ function positiveMinutes(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value * 60) : undefined
 }
 
-function countries(detail: Record<string, unknown>): string | undefined {
+function countries(detail: Record<string, unknown>, language: AppLanguage): string | undefined {
   const production = Array.isArray(detail.production_countries)
     ? (detail.production_countries as Record<string, unknown>[])
-        .map((country) => (typeof country?.iso_3166_1 === 'string' ? countryName(country.iso_3166_1) : ''))
+        .map((country) => (typeof country?.iso_3166_1 === 'string' ? countryName(country.iso_3166_1, language) : ''))
         .filter((name) => name !== '')
     : []
   if (production.length > 0) return joined(production)
   const origin = Array.isArray(detail.origin_country)
-    ? (detail.origin_country as unknown[]).filter((code): code is string => typeof code === 'string').map(countryName)
+    ? (detail.origin_country as unknown[]).filter((code): code is string => typeof code === 'string').map((code) => countryName(code, language))
     : []
   return joined(origin)
 }
@@ -114,6 +116,9 @@ function mapSimilar(kind: TmdbKind, detail: Record<string, unknown>): TmdbTitleR
       if (year !== undefined) ref.year = year
       const poster = nonEmptyString(item.poster_path)
       if (poster !== undefined) ref.posterUrl = tmdbImageUrl(poster, 'w342')
+      // Feature 060: o fundo 16:9 já vem na resposta; guardá-lo não custa requisição (largura que cobre o card de 667 px).
+      const backdrop = nonEmptyString(item.backdrop_path)
+      if (backdrop !== undefined) ref.backdropUrl = tmdbImageUrl(backdrop, 'w780')
       const overview = nonEmptyString(item.overview)
       if (overview !== undefined) ref.overview = overview
       refs.push(ref)
@@ -169,7 +174,7 @@ function mapCastPeople(kind: TmdbKind, detail: Record<string, unknown>): CastPer
   return people
 }
 
-export function mapTmdbDetail(kind: TmdbKind, rawDetail: unknown): TitleFields {
+export function mapTmdbDetail(kind: TmdbKind, rawDetail: unknown, language: AppLanguage = 'pt'): TitleFields {
   const detail = record(rawDetail)
   const credits = record(detail.credits)
   const backdropPath = typeof detail.backdrop_path === 'string' && detail.backdrop_path !== '' ? detail.backdrop_path : undefined
@@ -180,13 +185,15 @@ export function mapTmdbDetail(kind: TmdbKind, rawDetail: unknown): TitleFields {
       : positiveMinutes(Array.isArray(detail.episode_run_time) ? detail.episode_run_time[0] : undefined)
 
   const fields: TitleFields = {
+    certifications: certificationsFromTmdb(kind, detail),
+    tmdbRating: tmdbRatingFromTmdb(detail),
     synopsis: overviewOf(detail),
     backdropUrl: backdropPath ? tmdbImageUrl(backdropPath) : undefined,
     genres: joined(names(detail.genres)),
     durationSeconds: runtimeSeconds,
     // Série: a direção por episódio varia; o TMDB não a tem no nível da série.
     director: kind === 'movie' ? directors(credits) : undefined,
-    country: countries(detail),
+    country: countries(detail, language),
     cast: joined(orderedCast(kind, detail).slice(0, 10).map((item) => nonEmptyString(item.name) ?? '').filter((name) => name !== '')),
     similar: mapSimilar(kind, detail),
     castPeople: (() => {
@@ -195,6 +202,7 @@ export function mapTmdbDetail(kind: TmdbKind, rawDetail: unknown): TitleFields {
     })(),
     // Só quando a resposta trouxe `videos` (pode ser `[]`): a ausência da chave é o que marca um registro anterior à 033.
     trailerVideos: 'videos' in detail ? trailerRefsFromTmdbVideos(detail.videos) : undefined,
+    trailerVideosVersion: 'videos' in detail ? TRAILER_VIDEOS_VERSION : undefined,
   }
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as TitleFields
 }

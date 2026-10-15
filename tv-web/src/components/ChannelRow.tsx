@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { useT } from '../lib/i18n/I18nProvider'
+import { MarqueeText } from './MarqueeText'
 import { PosterArt } from './PosterArt'
 
 export interface ChannelRowProps {
@@ -11,12 +13,18 @@ export interface ChannelRowProps {
   /** 0–1, barra só desenhada se vier. */
   progress?: number
   focused?: boolean
+  /** Linha focada (feature 068, FR-005): o nome que não cabe rola até o fim. Separado de `focused`, que acende o logo. */
+  nameActive?: boolean
   /** Classe extra no nome (feature 024, D-008) — a Live TV fixa `.live-item-name` por contrato da feature 018. */
   nameClassName?: string
   /** Estrela de favorito (feature 024, mesmo padrão visual das grades de Filmes/Séries). */
   favorite?: boolean
   /** Sem fonte de reprodução (feature 024, FR-019/FR-009 pré-existente): selo "Indisponível" + aparência reduzida. */
   unavailable?: boolean
+  /** Rótulo do grupo/categoria do canal (feature 048): só quando a lista mistura categorias ("Todos"); fica na coluna de texto, abaixo do nome. */
+  group?: string
+  /** Classe do rótulo de grupo — a Live fixa .live-item-group por contrato da feature 018. */
+  groupClassName?: string
 }
 
 /**
@@ -32,17 +40,24 @@ export function ChannelRow({
   nowPlaying,
   progress,
   focused,
+  nameActive,
   nameClassName,
   favorite,
   unavailable,
+  group,
+  groupClassName,
 }: ChannelRowProps): ReactNode {
+  const t = useT()
   return (
     <div className={`channel-row${unavailable ? ' is-soft-disabled' : ''}`}>
       {number !== undefined && <span className="channel-row-number">{number}</span>}
       <PosterArt url={logoUrl} title={name} focused={focused} variant="logo" />
       <div className="channel-row-info">
-        <span className={nameClassName ? `channel-row-name ${nameClassName}` : 'channel-row-name'}>{name}</span>
+        <span className={nameClassName ? `channel-row-name ${nameClassName}` : 'channel-row-name'}>
+          <MarqueeText text={name} active={nameActive ?? focused} />
+        </span>
         <span className="channel-row-now">{nowPlaying ?? ''}</span>
+        {group !== undefined && <span className={groupClassName ? `channel-row-group ${groupClassName}` : 'channel-row-group'}>{group}</span>}
       </div>
       {progress !== undefined && (
         <div className="channel-row-progress">
@@ -54,7 +69,7 @@ export function ChannelRow({
           ★
         </span>
       )}
-      {unavailable && <span className="channel-row-badge">Indisponível</span>}
+      {unavailable && <span className="channel-row-badge">{t('channelRow.unavailable')}</span>}
     </div>
   )
 }
