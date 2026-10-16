@@ -176,6 +176,29 @@ function kitResults(samsung, variant, today) {
   return [...checkKit({ manifest, readFile: kitReader(kitDir), variant, today }).filter((r) => r.id !== privacy.id), privacy]
 }
 
+/** Versão e hash do manifest do kit, para saber se o kit mudou desde o relatório anterior. */
+function kitFingerprint(samsung) {
+  const path = join(samsung, 'kit', 'manifest.json')
+  if (!existsSync(path)) return null
+  const buffer = readFileSync(path)
+  return { kitVersion: readJson(path, {}).kitVersion ?? null, manifestSha256: sha256(buffer) }
+}
+
+/**
+ * Obsolescência (logic §7.6, T034): o candidato mudou (`compareWithPrevious`), o kit mudou desde o
+ * relatório anterior, ou o `config.xml` do disco já não é o que está no pacote (editado depois de
+ * empacotar). As razões são nomes, nunca conteúdo.
+ */
+function staleness({ previous, candidate, kit, root, packagedConfig }) {
+  const { reasons } = compareWithPrevious(previous?.candidate, candidate)
+  if (previous && (previous.kit?.manifestSha256 ?? null) !== (kit?.manifestSha256 ?? null)) reasons.push('kit')
+  const diskConfig = join(root, 'CCPlayTv', 'config.xml')
+  if (packagedConfig && existsSync(diskConfig) && sha256(readFileSync(diskConfig)) !== sha256(packagedConfig)) {
+    reasons.push('config.xml do disco difere do pacote')
+  }
+  return { stale: reasons.length > 0, reasons }
+}
+
 function findDefaultWgt(root) {
   const dir = join(root, BUILD_RESULT)
   const found = existsSync(dir) ? readdirSync(dir).filter((name) => name.toLowerCase().endsWith('.wgt')) : []
@@ -265,8 +288,9 @@ export function runGate(args) {
   const { decision, blockers, approvedTargets } = decideLaunch({ results, matrix })
 
   const reportsDir = join(samsung, 'reports')
-  const stale = compareWithPrevious(readPreviousReport(reportsDir, args.variant)?.candidate, candidate)
-  const report = { candidate, results, approvedTargets, decision, blockers, stale, generatedAt }
+  const kit = kitFingerprint(samsung)
+  const stale = staleness({ previous: readPreviousReport(reportsDir, args.variant), candidate, kit, root, packagedConfig: entries.get('config.xml') })
+  const report = { candidate, kit, results, approvedTargets, decision, blockers, stale, generatedAt }
 
   mkdirSync(reportsDir, { recursive: true })
   const base = join(reportsDir, `${version || 'sem-versao'}-${args.variant}`)
@@ -286,7 +310,7 @@ function main() {
   try {
     const { report, files } = runGate(args)
     console.log(`Decisão: ${report.decision} (${report.blockers.length} bloqueio(s))`)
-    if (report.stale.stale) console.log(`Relatório anterior obsoleto: ${report.stale.reasons.join(', ')}`)
+    if (report.stale.stale) console.log(`Obsolescência: ${report.stale.reasons.join(', ')}`)
     for (const file of files) console.log(file)
     process.exit(report.decision === 'Ready for submission' ? 0 : 2)
   } catch (error) {

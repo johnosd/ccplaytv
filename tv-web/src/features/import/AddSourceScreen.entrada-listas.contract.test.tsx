@@ -53,7 +53,7 @@ describe('AddSourceScreen — contrato da feature 037', () => {
     const onSourceCreated = vi.fn()
     render(<AddSourceScreen onSourceCreated={onSourceCreated} onBack={vi.fn()} />, { wrapper: createWrapper() })
 
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Conecte sua lista IPTV')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Conecte sua playlist')
 
     const xtream = screen.getByRole('button', { name: /Xtream Codes/ })
     const m3u = screen.getByRole('button', { name: /Lista M3U/ })

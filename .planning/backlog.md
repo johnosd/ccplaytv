@@ -98,8 +98,8 @@ update-bug-status.ps1.
 | 075-redesenho-portal-licenca | Redesenho da tela Portal & licença e item Backup | Implementada | 41/41 tasks | 2026-10-16 |
 | 076-simplificar-portal-licenca | Simplificar Portal & licença — ações raras e código de recuperação em Avançado | Convergida | 40/40 tasks | 2026-10-16 |
 | 077-redesenho-portal-web | Redesenho do portal web mobile-first — listas, licença, chave TMDB e backup | Convergida | 64/64 tasks | 2026-10-16 |
-| 078-prontidao-publicacao-samsung | Prontidão para publicação do app Samsung TV | Em Execução | 34/53 tasks | 2026-10-16 |
-| 079-home-carregamento-progressivo | Home com carregamento progressivo e ordem visual estável | Especificada | N/A | 2026-10-16 |
+| 078-prontidao-publicacao-samsung | Prontidão para publicação do app Samsung TV | Em Execução | 38/54 tasks | 2026-10-16 |
+| 079-home-carregamento-progressivo | Home com carregamento progressivo e ordem visual estável | Planejada | 0/40 tasks | 2026-10-16 |
 
 ## Bugs
 

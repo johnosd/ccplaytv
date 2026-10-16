@@ -158,7 +158,7 @@ describe('EpgGuide — estados (US1)', () => {
     const { handle } = renderGuide()
 
     expect(await screen.findByText(text)).toBeInTheDocument()
-    expect(screen.getByText('O EPG é configurado em Configurações › Fontes IPTV, na linha da lista.')).toBeInTheDocument()
+    expect(screen.getByText('O EPG é configurado em Configurações › Playlists, na linha da lista.')).toBeInTheDocument()
     expect(document.querySelector('.epg-guide-grid')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Configurar EPG' })).not.toBeInTheDocument()
     await press(handle, 'down')

@@ -111,7 +111,7 @@ async function run() {
     await openSettings(page)
     const tabs = (await page.locator('.side-category-nav-item .side-category-nav-label').allTextContents()).map((t) => t.trim())
     assert(
-      JSON.stringify(tabs) === JSON.stringify(['Integrações & BYOK', 'Fontes IPTV', 'Player & reprodução', 'Acessibilidade & sistema', 'Sobre & créditos', 'Portal & licença', 'Backup']),
+      JSON.stringify(tabs) === JSON.stringify(['Integrações & BYOK', 'Playlists', 'Player & reprodução', 'Acessibilidade & sistema', 'Sobre & créditos', 'Portal & licença', 'Backup']),
       `abas globais: ${tabs.join(' | ')}`,
     )
     assert((await page.getByText('Estas configurações valem para todas as listas.').count()) === 1, 'aviso de escopo global')
@@ -183,8 +183,8 @@ async function run() {
     await page.getByRole('button', { name: 'TV ao vivo', exact: true }).click()
     await page.getByText('Todas as categorias estão escondidas').waitFor({ timeout: 10000 })
     assert(
-      (await page.getByText(/Fontes IPTV › Configurar › Categorias & controle parental/).count()) === 1,
-      'o vazio aponta o caminho novo (Fontes IPTV › Configurar › Categorias & controle parental)',
+      (await page.getByText(/Playlists › Configurar › Categorias & controle parental/).count()) === 1,
+      'o vazio aponta o caminho novo (Playlists › Configurar › Categorias & controle parental)',
     )
     assert((await page.getByRole('button', { name: 'Gerenciar categorias' }).getAttribute('class'))?.includes('tv-focus'), 'Gerenciar categorias começa focado')
     await page.keyboard.press('Enter')
