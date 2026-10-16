@@ -63,3 +63,12 @@ Assess de novo com esta evidência ("vinculado, recente" + guia vazio) e
 investigar a gravação e a leitura (candidatos 1–3), reproduzindo no navegador
 com a fonte real. O fix atual pode ficar: ele corrige um defeito real no
 gatilho da sincronização, só não é a causa toda.
+
+## Encerramento (2026-10-15)
+
+Reaberto como `sdd/bugs/epg-vinculado-recente-mas-guia-vazio/`, que investigou a
+segunda causa e foi **fechado por decisão do usuário** em 2026-10-15: a TV física
+voltou a mostrar o guia e o "Agora". O resultado acima continua `failed`, porque
+registra o que se viu em 2026-10-10. A recomendação "Reabrir" fica superada pela
+continuação. O fix deste bug (`c76c125`, gatilho do EPG vencido em toda abertura)
+continua no código.

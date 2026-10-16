@@ -23,6 +23,7 @@ import { chromium } from 'playwright'
 import assert from 'node:assert/strict'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
 import { openSectionCategory } from './lib/vod.mjs'
+import { mockRadioDirectory, radioDirectoryStation } from './lib/radioDirectoryMock.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'legibilidade-tv.m3u')
@@ -170,7 +171,7 @@ async function toHome(page) {
   await page.waitForSelector('.home-content', { timeout: 10000 })
 }
 
-/** Da Home, destino da topbar: home 0, live 1, movies 2, series 3, lista ativa 4, settings 6 (cai na engrenagem). */
+/** Da Home, destino da topbar: home 0, live 1, movies 2, series 3, rádio 4 (feature 074), lista ativa 5, settings 6. */
 async function viaTopbar(page, index) {
   for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowUp')
   for (let i = 0; i < 6; i += 1) await page.keyboard.press('ArrowLeft')
@@ -335,6 +336,24 @@ async function walk(page, lang) {
     await audit(page, lang, 'Detalhe de série')
   })
 
+  // Feature 074: Rádio com nomes longos (lista, barra tocando/falha, vazio de Favoritos). Diretório fictício (page.route).
+  await step(lang, 'Rádio', async () => {
+    await toHome(page)
+    await viaTopbar(page, 4)
+    await page.waitForSelector('.radio-station.tv-focus', { timeout: 10000 })
+    await page.waitForTimeout(1500) // nome longo no foco já rolando
+    await audit(page, lang, 'Rádio — lista')
+    await page.keyboard.press('Enter') // o stream local falha: barra com as ações
+    await page.waitForSelector('.radio-now-playing .button-primary', { timeout: 20000 })
+    await audit(page, lang, 'Rádio — barra')
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('ArrowUp')
+    await page.keyboard.press('ArrowUp')
+    await page.keyboard.press('Enter') // ★ Favoritos vazio
+    await page.waitForSelector('.radio-column-stations .empty-state, .radio-column-stations .tv-focus', { timeout: 8000 })
+    await audit(page, lang, 'Rádio — favoritos vazio')
+  })
+
   await step(lang, 'Início com fileiras', async () => {
     await toHome(page)
     await page.waitForSelector('.home-content .rail, .home-content section', { timeout: 8000 })
@@ -381,7 +400,8 @@ const PORTAL_ORIGIN = 'https://legibilidade.fixture.test'
 
 async function startCommercialVite() {
   const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--mode', 'commercial', '--host', '127.0.0.1', '--port', String(PORTAL_PORT), '--strictPort'], {
-    env: { ...process.env, VITE_PORTAL_ORIGIN: PORTAL_ORIGIN, VITE_LICENSE_PUBLIC_KEYS: '{}' }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+    // NO_COLOR: no Windows o Vite colore a URL mesmo num pipe, e a espera abaixo procura o texto puro.
+    env: { ...process.env, NO_COLOR: '1', VITE_PORTAL_ORIGIN: PORTAL_ORIGIN, VITE_LICENSE_PUBLIC_KEYS: '{}' }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
   })
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('vite comercial não subiu')), 40000)
@@ -397,10 +417,19 @@ async function auditPortalScreens(browser, m3uUrl) {
   await context.addInitScript(() => { window.webapis = { productinfo: { getDuid: () => 'fake-legibilidade-duid' } } })
   const credentials = { deviceId: 'legibilidade-tv', displayId: 'A0:8C:FD:19:0A:8C', bearer: 'legibilidade-tv.' + 'a'.repeat(42) + 'A',
     deviceKey: '1732049818', authEpoch: 1, recoveryEpoch: 'c'.repeat(42) + 'A', recoveryCode: '0000-0000-0000-0000-0000-0000-0000', recoveryCodeVersion: 1 }
+  // 073: estado da tela de Pix servido pelo portal fictício ('offline' derruba a requisição).
+  let pixMode = 'pending'
+  const pixQr = '00020126580014br.gov.bcb.pix0136fixture-chave-pix-ccplay52040000530398654053500.005802BR5907CCPLAY6009SAO PAULO6304ABCD'
   await context.route(PORTAL_ORIGIN + '/**', async (route) => {
     const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization,content-type', 'Access-Control-Allow-Methods': 'GET,POST,PUT,OPTIONS' }
     const request = route.request()
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers })
+    if (new URL(request.url()).pathname.endsWith('/device/orders/pix')) {
+      if (pixMode === 'offline') return route.abort()
+      return route.fulfill({ headers, json: { orderId: 'pedido-legibilidade', state: pixMode, ...(pixMode === 'pending' ? { qrCode: pixQr } : {}),
+        expiresAt: new Date(Date.now() + 30 * 60000).toISOString(), serverTime: new Date().toISOString(), priceMinor: 3500, termMonths: 12,
+        displayId: 'A0:8C:FD:19:0A:8C' } })
+    }
     if (new URL(request.url()).pathname.endsWith('/devices/enroll')) return route.fulfill({ json: { ...credentials, operationId: 'enroll-fixture' }, headers })
     if (new URL(request.url()).pathname.endsWith('/recovery/ack')) return route.fulfill({ status: 204, headers })
     return route.fulfill({ status: 404, headers })
@@ -443,6 +472,21 @@ async function auditPortalScreens(browser, m3uUrl) {
         await page.waitForSelector('[role="dialog"] .fixed-qr', { timeout: 15000 })
         await audit(page, lang, 'Bloqueio da licença', '[role="dialog"]')
       })
+      // 073 (FR-014): tela de Pix aberta pelo bloqueio — pendente (QR + copia-e-cola), vencido e sem conexão.
+      for (const [mode, screen, ready] of [['pending', 'Compra por Pix', '.license-pix .fixed-qr'],
+        ['expired', 'Compra por Pix vencido', '.license-pix .license-pix-text'], ['offline', 'Compra por Pix sem conexão', '.license-pix [role="alert"]']]) {
+        await step(lang, screen, async () => {
+          pixMode = mode
+          await page.goto(PORTAL_APP)
+          await page.waitForSelector('.source-card', { timeout: 15000 })
+          await page.locator('.source-card').first().click()
+          await page.waitForSelector('[role="dialog"] .portal-pairing-actions button', { timeout: 15000 })
+          await page.locator('[role="dialog"] .portal-pairing-actions button').first().click()
+          await page.waitForSelector(ready, { timeout: 15000 })
+          await audit(page, lang, screen, '[role="dialog"]')
+        })
+      }
+      pixMode = 'pending'
       // 072: oferta de restauração do backup (aparece depois de re-parear quando o serviço tem backup desta TV).
       await step(lang, 'Oferta de restauração do backup', async () => {
         await page.evaluate(async () => {
@@ -472,6 +516,13 @@ async function run() {
   const browser = await chromium.launch(existsSync(fixedPath) ? { headless: true, executablePath: fixedPath } : { headless: true })
   const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
+  const streamBase = `http://127.0.0.1:${server.address().port}/stream`
+  await mockRadioDirectory(page, {
+    BR: [
+      radioDirectoryStation('leg-1', 'Rádio Comunitária Associação dos Moradores da Vila Esperança FM 104,9', 'BR', streamBase),
+      radioDirectoryStation('leg-2', 'Super Rádio Ação Cultural Brasileira', 'BR', streamBase),
+    ],
+  })
 
   try {
     await page.goto(APP_URL)

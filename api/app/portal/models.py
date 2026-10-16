@@ -125,6 +125,16 @@ class UsageBackupDocument(PortalDocument):
     counts: dict[str, int]
     envelope: CipherEnvelope = Field(repr=False)
 
+class RecoveryEscrowDocument(PortalDocument):
+    """073/D-008 (constitution 1.13.0 (i)): cópia cifrada do código de recuperação enviada pela própria TV.
+    Só é revelada se `code_hmac` ainda for o verificador corrente do dispositivo."""
+    code_version: Revision
+    code_hmac: Digest = Field(repr=False)
+    hash_key_version: OpaqueId
+    envelope: CipherEnvelope = Field(repr=False)
+    updated_at: AwareDatetime
+
+
 class ConfigurationVersionDocument(PortalDocument):
     source_id: OpaqueId
     config_version: OpaqueId

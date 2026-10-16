@@ -1,1 +1,1 @@
-import{o as e}from"./errorCatalog.js";function t(){return e().online}export{t};
+import{i as e}from"./networkState.js";function t(){return e().online}export{t};

@@ -6,7 +6,7 @@ import { abrirPortalLicenca } from './lib/portal.mjs'
 import { mkdir } from 'node:fs/promises'
 const origin = 'https://portal.fixture.test'
 const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5175', '--strictPort'], {
-  env: { ...process.env, VITE_PORTAL_ORIGIN: origin }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+  env: { ...process.env, NO_COLOR: '1', VITE_PORTAL_ORIGIN: origin }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
 })
 let browser
 try {

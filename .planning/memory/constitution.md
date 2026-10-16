@@ -1,4 +1,21 @@
 <!--
+Relatório de Impacto de Sincronização (2026-10-15, feature 073)
+- Mudança de versão: 1.12.0 -> 1.13.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs").
+- Origem: decisão explícita do usuário no sdd-specify/sdd-plan/sdd-execute da
+  feature 073 (compra de licença por Pix na TV e código de recuperação no
+  portal), após aviso de risco; nota 073 na ADR-013.
+- Exceção delimitada (i): por ação da pessoa (Atualizar), a TV PODE enviar ao
+  serviço o código de recuperação que já guarda, só no corpo HTTPS; o serviço
+  confere o HMAC, guarda cópia cifrada e a revela só à sessão autenticada da
+  mesma TV, por ação explícita, em resposta não armazenável em cache.
+- Continuam proibidos: URL, logs, erros, cache, analytics, checkout,
+  exportação pública, outra TV/sessão e terceiros.
+- Risco aceito pelo usuário: quem tiver a chave do dispositivo (sempre visível
+  em Adicionar lista e no bloqueio) consegue abrir o portal e ler o código.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
 Relatório de Impacto de Sincronização (2026-10-14, feature 072)
 - Mudança de versão: 1.11.0 -> 1.12.0 (MINOR, expansão delimitada de "Segredos
   Fora dos Clientes e dos Logs").
@@ -137,6 +154,9 @@ Histórico:
 - 1.12.0 (2026-10-14): backup dos dados de uso, PIN em hash e chave TMDB
   cifrados no serviço só para a mesma TV, e código de recuperação guardado para
   a reassociação após desvincular (feature 072/ADR-017).
+- 1.13.0 (2026-10-15): cópia cifrada do código de recuperação no serviço,
+  enviada pela TV por ação da pessoa e revelada só ao painel da mesma TV por ação
+  explícita (feature 073).
 -->
 
 # Constitution do CCPlay TV
@@ -282,6 +302,19 @@ backup. A chave TMDB continua nunca exibida, logada ou enviada a terceiro.
 guardava, exclusivamente para se reassociar ao mesmo registro; ele vai só no
 corpo HTTPS, é de uso único (o serviço emite outro) e é apagado da TV ao concluir.
 Limites de tentativa e recusa uniforme da recuperação (069) continuam valendo.
+
+**Exceção de cópia do código de recuperação (2026-10-15, feature 073)**,
+decisão explícita do usuário com risco aceito, amplia o parágrafo do código da
+licença acima:
+(i) **somente por ação da pessoa** (botão Atualizar), a TV PODE enviar ao serviço
+o código de recuperação que já guarda, exclusivamente no corpo HTTPS. O serviço
+DEVE conferir o HMAC e a versão contra o registro do dispositivo antes de aceitar,
+guardar só uma cópia cifrada em repouso e revelá-la apenas à sessão autenticada
+do painel da **mesma TV**, por ação explícita, em requisição protegida contra
+CSRF, com limite de tentativas e resposta não armazenável em cache. Cópia cujo
+HMAC não é o do código corrente NÃO PODE ser revelada. O código continua proibido
+em URL, logs, erros, cache, analytics, checkout, journal, exportação pública,
+outra TV/sessão e terceiros.
 
 ### Categorias da Fonte São Preservadas
 
@@ -539,4 +572,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.12.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-14
+**Versão**: 1.13.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-15

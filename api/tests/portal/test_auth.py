@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import io
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -213,6 +214,25 @@ async def test_concurrent_reads_with_out_of_order_clock_keep_valid_session(contr
     assert await service.authenticate_session(issued.token, ORIGIN, latest + timedelta(minutes=30) - timedelta(seconds=1))
     with pytest.raises(AuthError):
         await service.authenticate_session(issued.token, ORIGIN, latest + timedelta(minutes=60))
+
+
+async def test_concurrent_burst_of_panel_reads_never_waits_on_session_lock(control):
+    # 073/R-014: o painel dispara vários GETs juntos (StrictMode dobra os efeitos). Com leitura+escrita da mesma
+    # sessão numa transação, o Firestore travava até "Transaction lock timeout" (~4 s por requisição).
+    service, device, _, key, now = await seeded(control)
+    issued = await service.manual_session(device.display_id, key, "fixture-ip", ORIGIN, now)
+    remember(control, service, "sessions", "session", issued.token)
+    started = time.monotonic()
+    burst = [now + timedelta(milliseconds=step) for step in (5, 3, 9, 1, 7, 2, 8, 4)]
+    principals = await asyncio.gather(*(service.authenticate_session(issued.token, ORIGIN, at) for at in burst))
+    assert time.monotonic() - started < 2 and all(value.device_id == device.device_id for value in principals)
+    path = service._paths("sessions", "session", issued.token)[0]
+    saved = SessionDocument.model_validate((await service.repository.client.document(path).get()).to_dict())
+    assert now < saved.last_seen_at <= max(burst)
+    # Uso sequencial depois da rajada continua contando o ocioso a partir do último uso.
+    later = now + timedelta(minutes=20)
+    assert await service.authenticate_session(issued.token, ORIGIN, later)
+    assert await service.authenticate_session(issued.token, ORIGIN, later + timedelta(minutes=29))
 
 
 async def test_session_rejects_clock_rolled_back_beyond_concurrency_tolerance(control):

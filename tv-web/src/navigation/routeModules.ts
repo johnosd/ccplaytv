@@ -1,4 +1,4 @@
-import { createElement, useEffect, type ComponentType } from 'react'
+import { createElement, useEffect, type ComponentType, type ReactElement } from 'react'
 import { aliasRouteReset, lazyRoute, type PreloadableRoute } from './lazyRoute'
 import { ParentalGate } from '../components/ParentalGate'
 export { lazyNamed } from './lazyRoute'
@@ -16,6 +16,8 @@ import type { EpgSettingsScreenProps } from '../features/settings/EpgSettingsScr
 import type { TmdbKeyScreenProps } from '../features/settings/TmdbKeyScreen'
 import type { SearchScreenProps } from '../features/search/SearchScreen'
 import type { VodCategoryScreenProps } from '../features/vod/VodCategoryScreen'
+import type { RadioScreenProps } from '../features/radio/RadioScreen'
+import type { AppScreen } from './appNav'
 
 // Feature 065 (SC-012): cadastro/importação e acesso à lista chegam quando a pessoa vai até lá. O Início fica no pacote
 // inicial: carregá-lo sob demanda atrasava a primeira entrada na lista mais do que economizava na abertura.
@@ -51,6 +53,16 @@ export const EpgSettingsScreen = lazyRoute<EpgSettingsScreenProps>(() => import(
 export const TmdbKeyScreen = lazyRoute<TmdbKeyScreenProps>(() => import('../features/settings/TmdbKeyScreen'), 'TmdbKeyScreen')
 export const SearchScreen = lazyRoute<SearchScreenProps>(() => import('../features/search/SearchScreen'), 'SearchScreen')
 export const VodCategoryScreen = lazyRoute<VodCategoryScreenProps>(() => import('../features/vod/VodCategoryScreen'), 'VodCategoryScreen')
+export const RadioScreen = lazyRoute<RadioScreenProps>(() => import('../features/radio/RadioScreen'), 'RadioScreen')
+
+/**
+ * Rota da Rádio (feature 074) fora do `App.tsx`, que está no teto de linhas da catraca (mesmo motivo de
+ * `settingsRoutes.tsx`). `undefined` = não é a Rádio; `null` = sem lista ativa não há Rádio (D-001).
+ */
+export function renderRadioRoute(screen: AppScreen, onBack: () => void, hasActiveSource: boolean): ReactElement | null | undefined {
+  if (screen.name !== 'radio') return undefined
+  return hasActiveSource ? createElement(RadioScreen, { onBack }) : null
+}
 
 /**
  * Aquece, quando o navegador estiver ocioso, só o código das próximas telas prováveis — nunca todas de uma vez, para não

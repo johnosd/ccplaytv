@@ -46,6 +46,7 @@ files:
   - assets/route-live.js
   - assets/route-movie-detail.js
   - assets/route-person.js
+  - assets/route-radio.js
   - assets/route-search.js
   - assets/route-series-detail.js
   - assets/route-settings.js
@@ -56,6 +57,11 @@ files:
   # Chunks compartilhados entre as rotas (nomes do empacotador; o guard do
   # sync-tizen lista qualquer novo).
   - assets/ChannelRow.js
+  - assets/I18nProvider.js
+  - assets/networkState.js
+  - assets/reconcileFocus.js
+  - assets/requestDeadline.js
+  - assets/useSectionAllHidden.js
   - assets/ContentCard.js
   - assets/EmptyState.js
   - assets/FavoritesState.js

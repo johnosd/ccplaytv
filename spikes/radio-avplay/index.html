@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>Spike Rádio AVPlay</title>
+<script src="$WEBAPIS/webapis/webapis.js"></script>
+<style>
+  /* Spike descartável (assessment radio-global-por-pais). Fundo transparente:
+     o AVPlay pinta num plano atrás da camada web. */
+  html, body { margin: 0; width: 1920px; height: 1080px; background: transparent; }
+  body { font-family: sans-serif; color: #f2f2f2; font-size: 24px; }
+  .wrap { position: absolute; inset: 0; background: #101216; padding: 40px 60px; box-sizing: border-box; }
+  h1 { font-size: 40px; margin: 0 0 8px; }
+  .sub { color: #b8bcc6; margin-bottom: 20px; }
+  .bar { display: flex; gap: 40px; margin-bottom: 16px; }
+  .bar b { color: #ff7a3d; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #2a2e38; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
+  th { color: #b8bcc6; font-weight: normal; }
+  tr.focus td, .btn.focus { outline: 4px solid #ff7a3d; outline-offset: -4px; background: #2a2018; }
+  .btn { display: inline-block; padding: 12px 24px; border: 2px solid #3a3f4d; border-radius: 10px; margin: 0 16px 16px 0; }
+  .ok { color: #57d68d; } .fail { color: #ff6b6b; } .wait { color: #f5c542; }
+  #log { position: absolute; bottom: 24px; left: 60px; right: 60px; color: #b8bcc6; font-size: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Spike: rádio do Radio Browser no AVPlay</h1>
+  <div class="sub">↑/↓ move · OK toca/para · ←/→ troca país · RETURN para (ou sai) · Primeira linha: testar todas em sequência</div>
+  <div class="bar">
+    <div>País: <b id="country">BR</b></div>
+    <div>Espelho: <b id="mirror">…</b></div>
+    <div>Resumo: <b id="summary">—</b></div>
+    <div>Agora: <b id="now">parado</b></div>
+  </div>
+  <div id="buttons"></div>
+  <table>
+    <thead><tr><th>#</th><th>Estação</th><th>Codec</th><th>kbps</th><th>HLS</th><th>Esquema</th><th>Resultado</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div id="log"></div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var COUNTRIES = ['BR', 'US', 'PT', 'AR', 'GB', 'DE', 'FR', 'MX', 'ES', 'IT', 'JP', 'IN'];
+  var LIMIT = 10;
+  var TIMEOUT_MS = 15000;   // até desistir de uma estação
+  var HOLD_MS = 5000;       // quanto tempo ouvir cada estação no teste automático
+  var state = { ci: 0, mirror: '', stations: [], results: [], focus: 0, playing: -1, auto: false, timer: null, startedAt: 0 };
+  var av = window.webapis && window.webapis.avplay;
+
+  function $(id) { return document.getElementById(id); }
+  function log(msg) { $('log').textContent = msg; }
+
+  function getJson(url, ms) {
+    return new Promise(function (resolve, reject) {
+      var x = new XMLHttpRequest();
+      x.open('GET', url, true);
+      x.timeout = ms || 8000;
+      x.onload = function () {
+        if (x.status !== 200) return reject(new Error('HTTP ' + x.status));
+        try { resolve(JSON.parse(x.responseText)); } catch (e) { reject(e); }
+      };
+      x.onerror = function () { reject(new Error('rede')); };
+      x.ontimeout = function () { reject(new Error('timeout')); };
+      x.send();
+    });
+  }
+
+  // Descoberta de espelho como a API pede: lista de all.api, ordem aleatória, primeiro que responde.
+  function resolveMirror() {
+    return getJson('https://all.api.radio-browser.info/json/servers', 5000).then(function (servers) {
+      var order = servers.map(function (s) { return s.name; }).filter(Boolean)
+        .filter(function (v, i, a) { return a.indexOf(v) === i; })
+        .sort(function () { return Math.random() - 0.5; });
+      function tryNext(i) {
+        if (i >= order.length) return Promise.reject(new Error('nenhum espelho'));
+        var base = 'https://' + order[i];
+        return getJson(base + '/json/stats', 3000).then(function () { return base; }, function () { return tryNext(i + 1); });
+      }
+      return tryNext(0);
+    }).catch(function () { return 'https://de1.api.radio-browser.info'; });
+  }
+
+  function loadStations() {
+    stopPlayback();
+    state.auto = false;
+    var cc = COUNTRIES[state.ci];
+    $('country').textContent = cc;
+    $('rows').innerHTML = '';
+    log('Carregando estações de ' + cc + '…');
+    var url = state.mirror + '/json/stations/search?countrycode=' + cc +
+      '&hidebroken=true&order=clickcount&reverse=true&limit=' + LIMIT;
+    getJson(url, 10000).then(function (list) {
+      state.stations = list.filter(function (s) { return s.url_resolved; });
+      state.results = state.stations.map(function () { return { cls: '', text: '—' }; });
+      state.focus = 0;
+      render();
+      log(state.stations.length + ' estações. ' + (av ? 'AVPlay disponível.' : 'SEM webapis.avplay — isto não é a TV.'));
+    }, function (e) { log('Falha ao buscar estações: ' + e.message); state.stations = []; render(); });
+  }
+
+  function scheme(u) { return u.indexOf('https:') === 0 ? 'https' : 'http'; }
+
+  function render() {
+    $('buttons').innerHTML = '<span class="btn' + (state.focus === 0 ? ' focus' : '') + '">' +
+      (state.auto ? 'Parar teste automático' : 'Testar todas em sequência') + '</span>';
+    var html = '';
+    state.stations.forEach(function (s, i) {
+      var r = state.results[i];
+      html += '<tr class="' + (state.focus === i + 1 ? 'focus' : '') + '"><td>' + (i + 1) + '</td><td>' + esc(s.name) +
+        '</td><td>' + esc(s.codec || '?') + '</td><td>' + (s.bitrate || '?') + '</td><td>' + (Number(s.hls) === 1 ? 'sim' : 'não') +
+        '</td><td>' + scheme(s.url_resolved) + '</td><td class="' + r.cls + '">' + esc(r.text) + '</td></tr>';
+    });
+    $('rows').innerHTML = html;
+    var ok = state.results.filter(function (r) { return r.cls === 'ok'; }).length;
+    var done = state.results.filter(function (r) { return r.cls === 'ok' || r.cls === 'fail'; }).length;
+    $('summary').textContent = ok + ' de ' + done + ' testadas tocaram (total ' + state.stations.length + ')';
+  }
+
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  function setResult(i, cls, text) { state.results[i] = { cls: cls, text: text }; render(); }
+
+  function stopPlayback() {
+    clearTimeout(state.timer);
+    if (av) { try { av.stop(); } catch (e) {} try { av.close(); } catch (e) {} }
+    state.playing = -1;
+    $('now').textContent = 'parado';
+  }
+
+  function play(i, onDone) {
+    stopPlayback();
+    var s = state.stations[i];
+    if (!s) return;
+    if (!av) { setResult(i, 'fail', 'sem AVPlay'); if (onDone) onDone(); return; }
+    state.playing = i;
+    state.startedAt = Date.now();
+    var settled = false;
+    $('now').textContent = s.name;
+    setResult(i, 'wait', 'conectando…');
+    function finish(cls, text) {
+      if (settled) return;
+      settled = true;
+      setResult(i, cls, text);
+      if (cls === 'fail') stopPlayback();
+      if (onDone) state.timer = setTimeout(function () { stopPlayback(); onDone(); }, cls === 'ok' ? HOLD_MS : 300);
+    }
+    try {
+      av.open(s.url_resolved);
+      av.setListener({
+        onbufferingcomplete: function () {},
+        oncurrentplaytime: function (ms) {
+          if (ms > 0) finish('ok', 'tocando em ' + ((Date.now() - state.startedAt) / 1000).toFixed(1) + ' s');
+        },
+        onerror: function (type) { finish('fail', 'erro: ' + type); },
+        onstreamcompleted: function () { finish('fail', 'stream terminou'); }
+      });
+      try { av.setDisplayRect(0, 0, 1, 1); } catch (e) {}
+      av.prepareAsync(function () {
+        try { av.play(); } catch (e) { finish('fail', 'play: ' + (e.name || e.message)); }
+      }, function (e) { finish('fail', 'prepare: ' + (e && (e.name || e.message) || e)); });
+    } catch (e) {
+      finish('fail', 'open: ' + (e.name || e.message));
+    }
+    clearTimeout(state.timer);
+    state.timer = setTimeout(function () { finish('fail', 'timeout ' + TIMEOUT_MS / 1000 + ' s'); }, TIMEOUT_MS);
+  }
+
+  function runAuto(i) {
+    if (!state.auto) return;
+    if (i >= state.stations.length) { state.auto = false; stopPlayback(); render(); log('Teste automático concluído.'); return; }
+    state.focus = i + 1;
+    play(i, function () { runAuto(i + 1); });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    var k = e.keyCode;
+    var max = state.stations.length;
+    if (k === 38) state.focus = Math.max(0, state.focus - 1);
+    else if (k === 40) state.focus = Math.min(max, state.focus + 1);
+    else if (k === 37 || k === 39) { state.ci = (state.ci + (k === 39 ? 1 : COUNTRIES.length - 1)) % COUNTRIES.length; loadStations(); return; }
+    else if (k === 13) {
+      if (state.focus === 0) {
+        if (state.auto) { state.auto = false; stopPlayback(); }
+        else { state.auto = true; state.results = state.stations.map(function () { return { cls: '', text: '—' }; }); runAuto(0); }
+      } else if (state.playing === state.focus - 1) stopPlayback();
+      else { state.auto = false; play(state.focus - 1, null); }
+    } else if (k === 10009) {
+      if (state.playing >= 0 || state.auto) { state.auto = false; stopPlayback(); }
+      else { try { tizen.application.getCurrentApplication().exit(); } catch (err) {} }
+    } else return;
+    e.preventDefault();
+    render();
+  });
+
+  resolveMirror().then(function (base) {
+    state.mirror = base;
+    $('mirror').textContent = base.replace('https://', '');
+    loadStations();
+  });
+})();
+</script>
+</body>
+</html>

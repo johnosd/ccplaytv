@@ -27,6 +27,13 @@ class OrderDocument(PortalDocument):
     reconcile_after: AwareDatetime
     checkout_lease: OpaqueId | None = None
     checkout_lease_until: AwareDatetime | None = None
+    # 073/D-001–D-003: Pix da tentativa corrente. O copia-e-cola só sai na rota da TV e some quando o pedido termina.
+    pix_payment_id: OpaqueId | None = None
+    pix_qr_code: str | None = Field(default=None, max_length=1024, repr=False)
+    pix_expires_at: AwareDatetime | None = None
+    pix_attempt: int = Field(default=0, ge=0)
+    # 073/D-005: pedido derivado de um pagamento excedente aprovado no pedido `parent_order_id`.
+    parent_order_id: OpaqueId | None = None
 
     @model_validator(mode="after")
     def fixed_reference(self):

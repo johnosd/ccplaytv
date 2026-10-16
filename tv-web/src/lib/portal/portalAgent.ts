@@ -27,6 +27,8 @@ export interface PortalAgentPorts {
   refreshLicense?(signal: AbortSignal): Promise<void>
   /** 072: passo de backup de uso (ausente = nada a fazer); decide sozinho entre subir, oferecer ou pular. */
   backup?(signal: AbortSignal): Promise<void>
+  /** 073/D-008: envia a cópia do código de recuperação quando a versão mudou; falha não derruba o Atualizar (D-009). */
+  escrowRecoveryCode?(signal: AbortSignal): Promise<unknown>
   onError?(code: string): void
 }
 
@@ -155,8 +157,8 @@ export class PortalAgent {
       const last = this.lastRefreshAt[scope]
       if (last !== undefined && this.now() < last + REFRESH_PAUSE_MS) return { ok: false as const, code: 'wait' }
       this.lastRefreshAt[scope] = this.now()
-      return this.execute(scope === 'lists' ? ['deletions', 'uploads', 'pull', 'snapshot', 'backup']
-        : scope === 'backup' ? ['backup'] : ['license'])
+      return this.execute(scope === 'lists' ? ['deletions', 'uploads', 'escrow', 'pull', 'snapshot', 'backup']
+        : scope === 'backup' ? ['backup'] : ['escrow', 'license'])
     })
   }
 
@@ -167,7 +169,7 @@ export class PortalAgent {
     return result
   }
 
-  private async execute(steps: ('deletions' | 'uploads' | 'pull' | 'snapshot' | 'license' | 'backup')[]): Promise<CycleOutcome> {
+  private async execute(steps: ('deletions' | 'uploads' | 'escrow' | 'pull' | 'snapshot' | 'license' | 'backup')[]): Promise<CycleOutcome> {
     const controller = new AbortController()
     this.running = controller
     const { signal } = controller
@@ -179,6 +181,13 @@ export class PortalAgent {
         else if (step === 'pull') await this.ports.pull(signal)
         else if (step === 'snapshot') await this.ports.publishSnapshot(signal)
         else if (step === 'backup') await this.ports.backup?.(signal)
+        else if (step === 'escrow') {
+          // D-009: a pessoa pediu licença/listas; a cópia do código tenta de novo no próximo Atualizar.
+          try { await this.ports.escrowRecoveryCode?.(signal) } catch {
+            signal.throwIfAborted()
+            this.ports.onError?.('escrow_failed')
+          }
+        }
         else await this.ports.refreshLicense?.(signal)
       }
       signal.throwIfAborted()

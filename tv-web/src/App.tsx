@@ -26,10 +26,10 @@ import { useRefreshOnForeground } from './features/import/useRefreshOnForeground
 import { usePrefetchForSource, wakePrefetch } from './features/catalog/prefetchApi'
 import { useCategoryAccessLifecycle } from './features/catalog/categoryAccessApi'
 import { HomeScreen } from './features/home/HomeScreen'
-import { appNavReducer, initialAppNav, type AppScreen, type TopDestination } from './navigation/appNav'
+import { appNavReducer, initialAppNav, type AppScreen, type TopbarDestination, type TopDestination } from './navigation/appNav'
 import { readLastSourceId, writeLastSourceId } from './navigation/lastSource'
 import type { OpenPersonTarget, OpenTitleTarget } from './features/vod/detailSnapshot'
-import { AddSourceScreen, ImportProgressScreen, SourceAccessRoute, LiveScreen, VodShowcaseScreen, MovieDetailScreen, SeriesDetailScreen, SearchScreen, VodCategoryScreen, PersonScreen, useRouteWarmup } from './navigation/routeModules'
+import { AddSourceScreen, ImportProgressScreen, SourceAccessRoute, LiveScreen, VodShowcaseScreen, MovieDetailScreen, SeriesDetailScreen, SearchScreen, VodCategoryScreen, PersonScreen, renderRadioRoute, useRouteWarmup } from './navigation/routeModules'
 import { RouteBoundary } from './components/RouteBoundary'
 import { ProgressSaveNotice } from './components/ProgressSaveNotice'
 import { openListSettings, renderSettingsRoute } from './navigation/settingsRoutes'
@@ -290,7 +290,7 @@ function App() {
   const vodShell = (src: SourceOut, current: Extract<AppScreen, { name: 'movies' | 'series' | 'movies-category' | 'series-category' }>) => ({
     sourceName: src.display_name,
     onGoHome: () => dispatch({ type: 'go-home' }),
-    onSwitchTop: (destination: TopDestination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
+    onSwitchTop: (destination: TopbarDestination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
     onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
     // Feature 066 (FR-009): `'parental'` abre a gestão — desde a 067, na tela da lista ativa (D-010); voltar devolve o foco ao conteúdo.
     onOpenSettings: (tab?: 'parental') => (tab ? openListSettings(dispatch, src.id, current, { tab }) : dispatch({ type: 'open', screen: { name: 'settings' }, from: { ...current, topbarFocus: 'settings' } })),
@@ -574,8 +574,8 @@ function App() {
       )
 
       default:
-        // Configurações (globais, da lista, EPG, TMDB) — `navigation/settingsRoutes.tsx` (feature 067, R-002).
-        return renderSettingsRoute(screen, { dispatch, goBack, activeSource: source }) ?? null
+        // Configurações (`navigation/settingsRoutes.tsx`, feature 067, R-002) e Rádio (`routeModules.ts`, feature 074).
+        return renderSettingsRoute(screen, { dispatch, goBack, activeSource: source }) ?? renderRadioRoute(screen, goBack, source !== null) ?? null
     }
   })()
   return (

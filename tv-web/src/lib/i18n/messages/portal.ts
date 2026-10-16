@@ -88,7 +88,7 @@ export const portal = defineArea(
   "portal.refresh.failed": "Não foi possível atualizar.",
   "portal.gate.trialEnded": "Seu período de teste acabou",
   "portal.gate.licenseEnded": "Sua licença não está ativa",
-  "portal.gate.steps": "Para continuar, compre a licença no site: leia o QR com o celular ou entre em {site} com o ID e a chave abaixo. Depois volte aqui e aperte Atualizar.",
+  "portal.gate.steps": "Aperte Comprar licença para pagar com Pix pelo app do banco. Para pagar com cartão, leia o QR com o celular ou entre em {site} com o ID e a chave abaixo. Depois aperte Atualizar.",
   "portal.gate.noPurchase": "Ainda não encontramos uma licença ativa para esta TV.",
   "portal.gate.released": "Licença liberada.",
   "portal.gate.noConnection": "Sem conexão para gerar o QR. Aperte Atualizar quando a TV estiver online."
@@ -181,7 +181,7 @@ export const portal = defineArea(
   "portal.refresh.failed": "Could not refresh.",
   "portal.gate.trialEnded": "Your trial period has ended",
   "portal.gate.licenseEnded": "Your license is not active",
-  "portal.gate.steps": "To continue, buy the license on the website: scan the QR code with your phone or go to {site} and enter the ID and key below. Then come back here and press Refresh.",
+  "portal.gate.steps": "Press Buy license to pay with Pix in your bank app. To pay by card, scan the QR code with your phone or go to {site} and enter the ID and key below. Then press Refresh.",
   "portal.gate.noPurchase": "We have not found an active license for this TV yet.",
   "portal.gate.released": "License activated.",
   "portal.gate.noConnection": "No connection to build the QR code. Press Refresh when the TV is online."
@@ -274,7 +274,7 @@ export const portal = defineArea(
   "portal.refresh.failed": "No se pudo actualizar.",
   "portal.gate.trialEnded": "Tu período de prueba terminó",
   "portal.gate.licenseEnded": "Tu licencia no está activa",
-  "portal.gate.steps": "Para continuar, compra la licencia en el sitio: lee el QR con el móvil o entra en {site} con el ID y la clave de abajo. Luego vuelve aquí y pulsa Actualizar.",
+  "portal.gate.steps": "Pulsa Comprar licencia para pagar con Pix en la app de tu banco. Para pagar con tarjeta, lee el QR con el móvil o entra en {site} con el ID y la clave de abajo. Luego pulsa Actualizar.",
   "portal.gate.noPurchase": "Aún no encontramos una licencia activa para este televisor.",
   "portal.gate.released": "Licencia activada.",
   "portal.gate.noConnection": "Sin conexión para generar el QR. Pulsa Actualizar cuando el televisor esté en línea."

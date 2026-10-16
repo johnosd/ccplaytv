@@ -15,6 +15,7 @@ from app.portal.routes.backup import router as backup_router
 from app.portal.routes.jobs import router as jobs_router
 from app.portal.routes.licensing import router as licensing_router
 from app.portal.routes.operations import router as operations_router
+from app.portal.routes.recovery_escrow import router as recovery_escrow_router
 from app.portal.settings import PortalSettings
 
 
@@ -85,6 +86,7 @@ def create_app(settings: PortalSettings) -> FastAPI:
         app.include_router(operations_router)
         app.include_router(backup_router)
         app.include_router(licensing_router)
+        app.include_router(recovery_escrow_router)
     else:
         app.include_router(jobs_router)
 

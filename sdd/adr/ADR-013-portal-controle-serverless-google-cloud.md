@@ -28,6 +28,8 @@ O usuário escolheu FastAPI + Firestore, infraestrutura Google Cloud com faturam
 
 **Atualização (ADR-017):** o serviço passa a guardar também um backup cifrado dos dados de uso de cada TV (favoritos, histórico, progresso, preferências, PIN em hash e chave TMDB), só por ação da pessoa e só devolvido à mesma TV, e ganha a rota de reassociação `POST /devices/recovery/self`. Ver ADR-017 para o raciocínio completo.
 
+**Atualização (073, 2026-10-15):** além do Checkout Pro, o serviço gera um **Pix dinâmico** pela API de pagamentos do Mercado Pago (`POST /v1/payments`) no mesmo pedido pendente da TV, para a TV desenhar o QR a partir do copia-e-cola; a licença continua chegando só pelo **Atualizar** (ADR-016 intacta), que concilia o pedido sob demanda. Um segundo pagamento aprovado no mesmo pedido vira concessão extra (pedido derivado), em vez de travar a conciliação. O serviço passa a guardar uma **cópia cifrada do código de recuperação**, enviada pela TV por ação da pessoa e conferida por HMAC, revelada só ao painel da mesma TV por ação explícita (constitution 1.13.0, exceção (i)). Venda real segue desligada. Ver `sdd/specs/073-compra-licenca-pix/plan.md` (D-001–D-013).
+
 ## Alternativas Consideradas
 
 ### Render Free + Supabase + cron Cloudflare

@@ -17,8 +17,14 @@ import type { PersonSnapshot } from '../features/person/personSnapshot'
 /** Destinos de topo alcançáveis pelo Início (atalhos ou topbar). */
 export type TopDestination = 'live' | 'movies' | 'series'
 
-/** Item da topbar, na ordem visual (FR-013). */
-export type TopbarItem = 'home' | TopDestination | 'profile' | 'search' | 'settings' | 'connection'
+/** O que a topbar pode abrir como destino de topo: os de sempre + a Rádio (feature 074, D-002 — fora de `TopDestination`). */
+export type TopbarDestination = TopDestination | 'radio'
+
+/**
+ * Item da topbar, na ordem visual (FR-013). `'radio'` (feature 074, D-002) é item da topbar mas NÃO é `TopDestination`:
+ * os atalhos e Favoritos do Início (contratos 023/024) continuam só com Live/Filmes/Séries.
+ */
+export type TopbarItem = 'home' | TopDestination | 'radio' | 'profile' | 'search' | 'settings' | 'connection'
 
 /**
  * Onde estava o foco do Início quando a pessoa saiu dele — restaurado no
@@ -101,6 +107,8 @@ estore = estado da grade ao voltar do detalhe. */
    * versão atual da lista. `restore`: aba e ação ao voltar de Editar/progresso/EPG (FR-009).
    */
   | { name: 'list-settings'; sourceId: string; restore?: ListSettingsFocus }
+  /** Rádio global (feature 074): destino de topo sem topbar própria (D-001); foco e entrada vivem em memória de sessão. */
+  | { name: 'radio' }
 
 export interface AppNavState {
   screen: AppScreen

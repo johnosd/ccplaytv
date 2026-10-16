@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { CatalogDb } from '../../lib/catalog/db'
 import { PortalConnection } from '../../lib/portal/portalConnection'
 import { persistCredentialIssuance, acknowledgeCredentialIssuance } from '../../lib/portal/deviceIdentity'
+import { registerPixPurchaseOpener } from '../../lib/licensing/pixPurchaseRuntime'
 import { PortalLicensePanel, type PortalPanelHandle } from './PortalLicensePanel'
 const databases: CatalogDb[] = []
 afterEach(async () => { cleanup(); for (const db of databases.splice(0)) { db.close(); await Dexie.delete(db.name) } })
@@ -71,4 +72,19 @@ it('ACK concluído pelo agente compartilhado encerra recuperação sem acusar ex
   await screen.findByText('Acesso atualizado. Guarde o novo código da licença.')
   await act(async () => finish('expired'))
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+// 073/D-010, D-011: Comprar licença (índice 7) abre a tela de Pix pelo registro; sem quem a abra, explica.
+it('Comprar licença no índice 7 pede a tela de Pix ao registro e, sem registro, avisa que a compra está indisponível', async () => {
+  const { handleRef } = await setup()
+  expect(screen.getByRole('button', { name: 'Comprar licença' })).toBeInTheDocument()
+  act(() => handleRef.current!.activate(7))
+  expect(await screen.findByText('A compra está indisponível no momento.')).toBeInTheDocument()
+  const opener = vi.fn()
+  const release = registerPixPurchaseOpener(opener)
+  try {
+    act(() => handleRef.current!.activate(7))
+    expect(opener).toHaveBeenCalledOnce()
+    expect(opener.mock.calls[0][0]).toMatchObject({ onLicensed: expect.any(Function), onBack: expect.any(Function) })
+  } finally { release() }
 })

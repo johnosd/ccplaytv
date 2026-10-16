@@ -234,6 +234,35 @@ Licença vigente é exigida localmente ao entrar numa lista, inclusive após imp
 - **Publicação**: publicar a API (rotas novas) antes de instalar o pacote na TV. Rollback da API: revisões
   anteriores dos dois serviços; documentos de backup antigos ficam inertes.
 
+## Compra por Pix na TV e código de recuperação no portal (feature 073)
+
+- **Pix na TV**: "Comprar licença" (bloqueio e Portal & licença) chama `POST /portal/v1/device/orders/pix`
+  (`{renew, requestId}`). O serviço cria um Pix pela **API de pagamentos** do Mercado Pago (`POST /v1/payments`,
+  `payment_method_id: pix`, `X-Idempotency-Key = sha256(orderId/tentativa)`, prazo de 30 min) no **mesmo pedido
+  pendente** da TV e devolve só o copia-e-cola (a TV desenha o QR). Reabrir com ≥ 60 s de folga reaproveita o Pix sem
+  chamar o provedor; vencido devolve `expired` e só "Gerar novo Pix" (`renew: true`) cria outra tentativa.
+  Respostas `no-store`; o copia-e-cola nunca vai para log, erro, `repr` ou portal e é apagado quando o pedido termina.
+- **Recebimento**: só pelo Atualizar (ADR-016). `POST /device/orders/pix/refresh` concilia o pedido sob demanda
+  (independe do webhook/worker; 12/min por TV) e, aprovado, a TV busca a licença no refresh de entitlement de sempre.
+- **Configuração**: `CCPLAY_PORTAL_PIX_PAYER_DOMAIN` (e-mail sintético `tv-<hash>@domínio`, sem dado pessoal) e
+  **chave Pix cadastrada** na conta Mercado Pago. Sem o domínio ou com `checkout_enabled` falso, a rota de Pix
+  responde 503 (a venda continua desligada fora do staging de teste).
+- **Dois pagamentos no mesmo pedido** (Pix na TV + cartão no portal): o segundo vira pedido derivado (`s…`, com
+  `parentOrderId`) e concede +12 meses; estorno dele afeta só a concessão dele (acha o pedido pelo `paymentClaims`).
+  Cancelamento/expiração de uma tentativa de Pix antiga não cancela o pedido corrente.
+- **Portal**: `GET /session/device` traz `pendingOrder` (Pix válido ou checkout aberto, sem copia-e-cola); a aba
+  vira "Comprar licença" (teste) ou "Renovar licença" (licença paga).
+- **Código de recuperação no portal** (constitution 1.13.0 (i)): no Atualizar, a TV envia o código que guarda para
+  `PUT /device/recovery-code/escrow` quando a versão mudou; o serviço confere HMAC + versão e guarda uma cópia cifrada
+  em `devices/{id}/recoveryEscrow/current` (`recovery-code/<versão>`). O painel revela por
+  `POST /session/recovery-code` (CSRF, `no-store`, 5/10 min) só se a cópia é do código corrente; senão `409
+  not_escrowed` ("aperte Atualizar na TV"). Rotação/recuperação tornam a cópia inerte até o próximo Atualizar.
+- **Leituras concorrentes do painel** (correção feita na 073): a sessão é validada por leitura e `lastSeenAt` é tocado
+  com escrita otimista serializada por sessão no processo; `/session/device` não grava no dispositivo. Antes, rajadas
+  de GETs davam "Transaction lock timeout" no Firestore.
+- **Publicação**: API (rotas novas) antes do pacote da TV. Rollback: revisões anteriores; pedidos com campos `pix*` e
+  documentos `recoveryEscrow` ficam inertes para a versão antiga.
+
 ## Domínio próprio: `portal.ccplaytv.com` (2026-10-14)
 
 O portal responde em **https://portal.ccplaytv.com** (o endereço `run.app` do Cloud Run continua existindo, mas o

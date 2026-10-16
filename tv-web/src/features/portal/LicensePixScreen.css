@@ -1,0 +1,30 @@
+/* Tela de pagamento Pix (feature 073). Só tokens V14. O QR é o protagonista e precisa ser lido do sofá (R-010):
+   ~480 px no palco 1920×1080, moldura clara como zona de silêncio. */
+.license-pix { display: grid; gap: var(--space-3); align-content: start; min-width: 0; }
+.license-pix h2 { margin: 0; }
+.license-pix-text { font-size: var(--fs-body); color: var(--text-secondary); margin: 0; overflow-wrap: anywhere; }
+.license-pix-success { color: var(--text-primary); font-weight: 700; }
+
+.license-pix-hero {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-5); align-items: start;
+}
+.license-pix-qr {
+  display: grid; place-items: center; box-sizing: border-box;
+  width: calc(var(--space-7) * 5); height: calc(var(--space-7) * 5);
+  padding: var(--space-3); border-radius: var(--radius-lg);
+  background: var(--text-primary);
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--accent-tint-border), var(--elevation-2);
+}
+.license-pix-qr .fixed-qr { width: 100%; height: 100%; color: var(--bg-base); }
+
+.license-pix-info { display: grid; gap: var(--space-2); align-content: start; min-width: 0; }
+.license-pix-offer { margin: 0; font-size: var(--fs-body-lg); font-weight: 700; color: var(--text-primary); }
+.license-pix-label { margin: 0; font-size: var(--fs-caption); color: var(--text-annotation); }
+/* Copia-e-cola: quebra livre (o código é uma linha longa sem espaços). */
+.license-pix-code {
+  margin: 0; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-dashed); border-radius: var(--radius-md); background: var(--surface-deep);
+  font-size: var(--fs-caption); color: var(--text-primary); overflow-wrap: anywhere; word-break: break-all;
+  font-variant-numeric: tabular-nums;
+}
+.license-pix-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }

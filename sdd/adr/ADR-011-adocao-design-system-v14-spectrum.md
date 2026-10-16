@@ -129,6 +129,12 @@ em outra.
   backlog.
 - Topbar do V14 **com Início, TV ao vivo, Filmes, Séries**, mais Busca,
   Configurações e relógio à direita.
+
+  **Atualização (ADR-018):** entra um quinto destino, **Rádio**, depois de Séries
+  (Início, TV ao vivo, Filmes, Séries, Rádio). Exige lista ativa, como os outros,
+  mas é o único destino de topo que **não lê da fonte ativa**: o conteúdo vem do
+  diretório Radio Browser. RETURN volta ao Início, como nos outros destinos de topo.
+  Ver ADR-018 §6 para o raciocínio completo.
 - A topbar inclui o **indicador do perfil ativo**, ou seja, o nome da
   lista (Spec §31 "perfil ativo claramente indicado"). Com OK, ele volta à
   tela de perfis para trocar de lista.
@@ -289,6 +295,7 @@ fonte.
 - Sem agregação, quem tem duas listas troca de perfil para ver a outra.
 - A topbar fica mais curta que a do protótipo (4 destinos). O layout do
   V14 precisa absorver isso sem buracos.
+  **Atualização (ADR-018):** com Rádio, são 5 destinos.
 - A Spec V14 e o protótipo divergem do app em pontos conhecidos (§36,
   preview em foco, DeepSeek, Esportes/Infantil, perfis). Quem consultar o
   DS precisa ler esta ADR junto. A precedência está no CLAUDE.md.

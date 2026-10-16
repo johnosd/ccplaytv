@@ -1,4 +1,5 @@
 import { commercialBuild, licenseMonitor } from '../../lib/licensing/licenseRuntime'
+import { openPixPurchase } from '../../lib/licensing/pixPurchaseRuntime'
 import { usePortalRecovery } from './usePortalRecovery'
 import { liveQuery } from 'dexie'
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, useSyncExternalStore, type Ref } from 'react'
@@ -16,10 +17,14 @@ import { RefreshStatusLine } from '../../components/RefreshButton'
 import { PortalPrivateDialog, type PortalDialogKind } from './PortalPrivateDialog'
 import { BACKUP_ACTION_COUNT, PortalBackupActions, type BackupActionsHandle } from './PortalBackupActions'
 import './portalLicense.css'
-/** 0–5 são as ações de sempre; 6 é o Atualizar da licença (071); 7–10 são backup e Desvincular (072), por último. */
-const BACKUP_FIRST = 7
+/**
+ * 0–5 são as ações de sempre; 6 é o Atualizar da licença (071); 7 é Comprar/Renovar licença por Pix (073);
+ * 8–11 são backup e Desvincular (072), por último.
+ */
+const BACKUP_FIRST = 8
 export const PORTAL_ACTION_COUNT = BACKUP_FIRST + BACKUP_ACTION_COUNT
 const REFRESH_ACTION = 6
+const PURCHASE_ACTION = 7
 export interface PortalPanelHandle { activate: (index: number) => void }
 export function PortalLicensePanel({ focusedAction, handleRef, connection: provided, onActionFocus }: {
   focusedAction?: number; handleRef: Ref<PortalPanelHandle>; connection?: PortalConnection; onActionFocus?: (index: number) => void
@@ -36,7 +41,7 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
   const refresh = useRefreshAction('license')
   const [now, setNow] = useState(Date.now)
   const [busy, setBusy] = useState(false)
-  const [failure, setFailure] = useState<'portal.failure' | 'portal.recoveryNeeded'>()
+  const [failure, setFailure] = useState<'portal.failure' | 'portal.recoveryNeeded' | 'portal.pix.unavailable'>()
   // Código não secreto (lista fechada de PortalRequestError ou o nome do erro JS) para diagnosticar na TV, sem console.
   const [failureCode, setFailureCode] = useState<string>()
   const [changed, setChanged] = useState(false)
@@ -111,6 +116,12 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
   function activate(index: number) {
     if (index >= BACKUP_FIRST) { backupActions.current?.activate(index - BACKUP_FIRST); return }
     if (index === REFRESH_ACTION) { void refresh.run(); return }
+    if (index === PURCHASE_ACTION) {
+      // 073/D-010: a tela de Pix é aberta por quem a registrou (usePortalIntegration); a volta devolve o foco aqui.
+      const back = () => onActionFocus?.(PURCHASE_ACTION)
+      if (!openPixPurchase({ onLicensed: back, onBack: back })) setFailure('portal.pix.unavailable')
+      return
+    }
     if (busy || !connection) return
     if (index === 5) { void run('recovery'); return }
     if (index === 0) { void run('invite'); return }
@@ -141,7 +152,10 @@ export function PortalLicensePanel({ focusedAction, handleRef, connection: provi
       focused={focusedAction === index && !dialog}
       loading={index === REFRESH_ACTION ? refresh.status === 'loading' : busy}
       softDisabled={index === REFRESH_ACTION ? refresh.paused : !connection}
-      onSelect={() => { onActionFocus?.(index); activate(index) }}>{t(label)}</Button>)}</div>
+      onSelect={() => { onActionFocus?.(index); activate(index) }}>{t(label)}</Button>)}
+      <Button variant="accent" focused={focusedAction === PURCHASE_ACTION && !dialog} softDisabled={!connection || !commercialBuild}
+        onSelect={() => { onActionFocus?.(PURCHASE_ACTION); activate(PURCHASE_ACTION) }}>
+        {t(license.state === 'active' ? 'portal.renew' : 'portal.buy')}</Button></div>
     </div>
     <PortalBackupActions connection={connection} handleRef={backupActions}
       focusedIndex={focusedAction !== undefined && focusedAction >= BACKUP_FIRST && !dialog ? focusedAction - BACKUP_FIRST : undefined}

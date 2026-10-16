@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { TopbarItem, TopDestination } from '../../navigation/appNav'
+import type { TopbarDestination, TopbarItem } from '../../navigation/appNav'
 import { clamp, useRemoteNav } from '../../lib/useRemoteNav'
 import { useToast } from '../../lib/useToast'
 import { useT } from '../../lib/i18n/I18nProvider'
 import { Toast } from '../../components/Toast'
-import { AppShell } from '../shell/AppShell'
+import { AppShell } from '../../components/AppShell'
 import { TopBar } from '../shell/TopBar'
-import type { HintItem } from '../shell/HintBar'
+import type { HintItem } from '../../components/HintBar'
 import { SideCategoryNav } from '../../components/SideCategoryNav'
 import { SETTINGS_TABS } from './tabs/settingsTabs'
 import type { SettingsFocus, SettingsNavigation, SettingsTab, SettingsTabHandle } from './tabs/settingsTab'
@@ -22,7 +22,7 @@ export type { SettingsFocus, SettingsTab } from './tabs/settingsTab'
 export interface SettingsShellProps {
   sourceName: string
   onGoHome: () => void
-  onSwitchTop: (destination: TopDestination) => void
+  onSwitchTop: (destination: TopbarDestination) => void
   onOpenProfiles: () => void
   onOpenSearch: () => void
 }
@@ -193,6 +193,7 @@ export function SettingsScreen({
               onFocusItem={setTopbarFocusedItem}
               onExitDown={() => setZone(zoneBeforeTopbar)}
               onNavigate={(destination) => shell.onSwitchTop(destination)}
+              onOpenRadio={() => shell.onSwitchTop('radio')}
               onGoHome={shell.onGoHome}
               onOpenProfiles={shell.onOpenProfiles}
               onOpenSearch={shell.onOpenSearch}

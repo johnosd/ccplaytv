@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { I18nProvider } from '../../lib/i18n/I18nProvider'
-import { resetAppLanguageForTests, writeAppLanguage } from '../../lib/i18n/appLanguage'
+import { I18nProvider } from '../lib/i18n/I18nProvider'
+import { resetAppLanguageForTests, writeAppLanguage } from '../lib/i18n/appLanguage'
 import { HintBar } from './HintBar'
 
 /** Feature 054 (convergência, C-001): o nome acessível da faixa de teclas acompanha o idioma do app. */

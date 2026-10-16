@@ -42,11 +42,11 @@ import { SectionEmptyState } from '../../components/SectionEmptyState'
 import { useSectionAllHidden } from '../../lib/catalog/useSectionAllHidden'
 import { ErrorState } from '../../components/ErrorState'
 import { Spinner } from '../../components/Spinner'
-import { AppShell } from '../shell/AppShell'
+import { AppShell } from '../../components/AppShell'
 import { TopBar } from '../shell/TopBar'
 import type { TopbarItem } from '../../navigation/appNav'
 import { vodGroupDisplay } from './vodGroupDisplay'
-import type { VodShellProps } from './vodShell'
+import { vodTopbarCallbacks, type VodShellProps } from './vodShell'
 import type { VodSection } from './vodSessionMemory'
 import { DISCOVERY_LIMIT } from '../../lib/metadata/discoveryRules'
 import { SHOWCASE_LIMIT, allHaveBackdrop } from './vodShowcase'
@@ -658,11 +658,7 @@ export function VodShowcaseScreen({
             currentItem={section}
             onFocusItem={setTopbarItem}
             onExitDown={() => setZone('content')}
-            onNavigate={(destination) => shell.onSwitchTop(destination)}
-            onGoHome={shell.onGoHome}
-            onOpenProfiles={shell.onOpenProfiles}
-            onOpenSearch={shell.onOpenSearch}
-            onOpenSettings={shell.onOpenSettings}
+            {...vodTopbarCallbacks(shell)}
             onBack={onBack}
           />
         }

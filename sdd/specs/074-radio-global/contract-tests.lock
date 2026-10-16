@@ -1,0 +1,17 @@
+{
+  "feature": "074-radio-global",
+  "lockedAt": "2026-10-15 18:57",
+  "total": 5,
+  "files": [
+    {
+      "path": "tv-web/src/features/radio/RadioScreen.radio-global.contract.test.tsx",
+      "sha256": "bcb6e5e5851dc3f1b6b1267b0345519e46643faa2476421ddb3455ef3d2d7913",
+      "tests": 4
+    },
+    {
+      "path": "tv-web/src/lib/radio/radioDirectory.radio-global.contract.test.ts",
+      "sha256": "2e9d4d533a0607579b1da6483aab4ebd8fd64baa753e7b4154e2eb344ca1e2ed",
+      "tests": 1
+    }
+  ]
+}

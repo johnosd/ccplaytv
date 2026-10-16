@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useT } from '../../lib/i18n/I18nProvider'
+import { useT } from '../lib/i18n/I18nProvider'
 
 export interface HintItem {
   /** Rótulo da tecla, ex.: `OK`, `RETURN`. */

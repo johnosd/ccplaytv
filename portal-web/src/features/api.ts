@@ -114,7 +114,12 @@ async function pages<T>(path: string, field: string): Promise<T[]> {
   }
   throw new PortalApiError('network')
 }
-export interface LicenseDevice { deviceId: string; displayId?: string; license: { state: 'trial' | 'active' | 'revoked'; startsAt: number; expiresAt: number; generation: number; serverTime: number } }
+/** 073/D-007: pedido em aberto da TV (Pix gerado na TV ou checkout iniciado aqui), nunca com o copia-e-cola. */
+export interface PendingOrder { orderId: string; method: 'pix' | 'checkout'; expiresAt: string | null }
+export interface LicenseDevice { deviceId: string; displayId?: string; license: { state: 'trial' | 'active' | 'revoked'; startsAt: number; expiresAt: number; generation: number; serverTime: number }; pendingOrder?: PendingOrder | null }
+export type LicenseState = LicenseDevice['license']['state']
+/** Rótulo da compra: "Renovar" para quem já pagou (mesmo vencida), "Comprar" no teste ou sem licença paga. */
+export const purchaseLabel = (state: LicenseState | undefined) => state === 'active' ? 'renewLicense' as const : 'buyLicense' as const
 export interface LicenseOrder { orderId: string; deviceId: string; status: 'created' | 'pending' | 'approved' | 'refused' | 'cancelled' | 'refunded' | 'charged_back'; checkoutUrl: string | null }
 export interface BackupSummary { exists: boolean; createdAt?: number; counts?: { favorites: number; history: number; progress: number } }
 export const api = {
@@ -141,6 +146,13 @@ export const api = {
       request<{ snapshot: Snapshot | null; stale: boolean }>('/snapshot'),
     ])
     return { configurations, operations, ...snapshot }
+  },
+  /** 073/US3: só por ação explícita (POST + CSRF, `no-store`); 409 = a TV ainda não enviou a cópia do código atual. */
+  async revealRecoveryCode(session: Session): Promise<{ recoveryCode: string; recoveryCodeVersion: number }> {
+    const value = await request<{ recoveryCode: unknown; recoveryCodeVersion: unknown }>('/session/recovery-code', { method: 'POST', body: {}, csrf: session.csrfToken })
+    if (typeof value.recoveryCode !== 'string' || !/^[0-9A-Z]{4}(-[0-9A-Z]{4}){6}$/.test(value.recoveryCode) ||
+      typeof value.recoveryCodeVersion !== 'number') throw new PortalApiError('network')
+    return { recoveryCode: value.recoveryCode, recoveryCodeVersion: value.recoveryCodeVersion }
   },
   values: (sourceId: string) => {
     if (!opaque.test(sourceId)) throw new PortalApiError('invalid')

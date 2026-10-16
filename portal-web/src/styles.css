@@ -238,6 +238,9 @@ details.form-section > * + :not(summary) { margin-top: var(--space-sm); }
 .license-hero h2 + p { margin-top: var(--space-xs); font-size: var(--fs-md); }
 .license-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); gap: var(--space-md); align-items: start; }
 .license-layout .panel { margin: 0; }
+/* 073/US3: código de recuperação legível para anotar (quebra nos hífens, sem rolagem horizontal). */
+.recovery-code-card { margin: 0; }
+.recovery-code-value { font-size: 1.25rem; font-weight: 600; letter-spacing: .08em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .license-details { display: grid; gap: var(--space-sm); }
 .license-details > * + * { margin-top: 0; }
 .license-details h3 { font-size: var(--fs-lg); }

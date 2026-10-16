@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useT } from '../lib/i18n'
-import { api, newRecoveryId, PortalApiError, type LicenseDevice, type LicenseOrder, type Session } from './api'
+import { RecoveryCodeCard } from './RecoveryCodeCard'
+import { api, newRecoveryId, PortalApiError, purchaseLabel, type LicenseDevice, type LicenseOrder, type LicenseState, type Session } from './api'
 export function safeCheckoutUrl(value: string | null | undefined) {
   try {
     const url = new URL(value ?? '')
@@ -8,7 +9,11 @@ export function safeCheckoutUrl(value: string | null | undefined) {
       !url.username && !url.password && !url.hash && !url.port ? url.href : undefined
   } catch { return undefined }
 }
-export function LicensePage({ session }: { session: Session }) {
+export function LicensePage({ session, onLicense, onRecover }: {
+  session: Session; onLicense?: (state: LicenseState) => void
+  /** 073/US3: abre a recuperação pelo site (após formatar/reinstalar a TV). */
+  onRecover?: () => void
+}) {
   const t = useT()
   const [device, setDevice] = useState<LicenseDevice>()
   const [enabled, setEnabled] = useState(false)
@@ -30,7 +35,7 @@ export function LicensePage({ session }: { session: Session }) {
       const status = knownOrder.current ? await api.order(knownOrder.current) : undefined
       if (status && status.deviceId !== session.deviceId) throw new PortalApiError('invalid')
       if (!alive.current) return
-      setDevice(info); setEnabled(offer.checkoutEnabled); setError(undefined)
+      setDevice(info); setEnabled(offer.checkoutEnabled); setError(undefined); onLicense?.(info.license.state)
       if (status) setOrder(status)
     } catch (caught) { if (alive.current) setError(caught instanceof PortalApiError ? caught : new PortalApiError('network')) }
     finally { running.current = false }
@@ -59,6 +64,7 @@ export function LicensePage({ session }: { session: Session }) {
     finally { running.current = false; if (alive.current) setBusy(false) }
   }
   const terminal = order && !['created', 'pending'].includes(order.status)
+  const pending = device?.pendingOrder
   const checkout = !terminal && safeCheckoutUrl(order?.checkoutUrl)
   const expired = device && device.license.expiresAt <= Math.max(Date.now(), device.license.serverTime)
   const tone = !device ? '' : expired || device.license.state === 'revoked' ? 'is-danger' : device.license.state === 'active' ? 'is-success' : 'is-warning'
@@ -66,7 +72,7 @@ export function LicensePage({ session }: { session: Session }) {
   const price = new Intl.NumberFormat(t('lang'), { style: 'currency', currency: 'BRL' }).format(3500 / 100)
   return <section className="license-page" aria-labelledby="license-title">
     <header className="license-hero">
-      <p className="eyebrow">{t('title')} / {t('activate')}</p>
+      <p className="eyebrow">{t('title')} / {t(purchaseLabel(device?.license.state))}</p>
       <h2 id="license-title">{t('activateTitle')}</h2>
       <p>{t('licenseOffer')}</p>
     </header>
@@ -80,6 +86,10 @@ export function LicensePage({ session }: { session: Session }) {
             <span>{t('licenseExpiry')}: <time dateTime={new Date(device.license.expiresAt).toISOString()}>{new Date(device.license.expiresAt).toLocaleDateString(t('lang'))}</time></span></p>
             : <p className="readonly-value">—</p>}</div>
         {!enabled && <p className="notice is-warning">{t('licenseDisabled')}</p>}
+        {/* 073/FR-010: pedido em aberto da TV — avisa e NÃO cria cobrança nova (o botão reaproveita o mesmo pedido). */}
+        {pending && !terminal && <p role="status" className="notice">{pending.method === 'pix' && pending.expiresAt
+          ? t('pendingPix').replace('{time}', new Date(pending.expiresAt).toLocaleTimeString(t('lang'), { hour: '2-digit', minute: '2-digit' }))
+          : t('pendingCheckout')}</p>}
         {error && <p role="alert">{t(error.code)}</p>}
         {order && <p role="status" className={'notice' + (order.status === 'approved' ? ' is-success' : '')}>{t(('order_' + order.status) as 'order_pending')}</p>}
         {(!order || terminal) && <label className="checkbox license-confirm"><input type="checkbox" checked={confirmed} onChange={event => {
@@ -104,5 +114,6 @@ export function LicensePage({ session }: { session: Session }) {
         </ul>
       </aside>
     </div>
+    <RecoveryCodeCard session={session} onRecover={onRecover} />
   </section>
 }

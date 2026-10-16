@@ -4,7 +4,12 @@ from datetime import datetime, timedelta
 
 from app.portal.auth import AuthError, AuthService, Principal
 from app.portal.auth_tokens import new_token
-from app.portal.commercial_models import LicensingStateDocument, OrderDocument, PaymentEventDocument
+from app.portal.commercial_models import (
+    LicensingStateDocument,
+    OrderDocument,
+    PaymentClaimDocument,
+    PaymentEventDocument,
+)
 from app.portal.licensing import LicensingService
 from app.portal.models import JobDocument
 from app.portal.providers.base import PaymentProvider, PaymentProviderError
@@ -123,6 +128,14 @@ class PaymentService:
         if (order.reference != payment.external_reference or order.price_minor != payment.price_minor
                 or order.currency != payment.currency):
             raise PaymentProviderError()
+        # 073/D-005: um pagamento já concedido aponta seu pedido pelo claim (o excedente tem pedido próprio).
+        claim_snapshot = await self.repository.client.document(document_path("paymentClaims", payment_id)).get(timeout=5, retry=None)
+        claimed_order_id = order.order_id
+        if claim_snapshot.exists:
+            claim = PaymentClaimDocument.model_validate(claim_snapshot.to_dict())
+            if claim.device_id != order.device_id:
+                raise PaymentProviderError()
+            claimed_order_id = claim.order_id
         if payment.status == "approved":
             if payment.confirmed_at is None:
                 raise PaymentProviderError()
@@ -131,7 +144,7 @@ class PaymentService:
         elif payment.status in {"refunded", "charged_back"}:
             if payment.confirmed_at is None:
                 raise PaymentProviderError()
-            result = await self.licensing.refund(order_id=order.order_id, payment_id=payment_id,
+            result = await self.licensing.refund(order_id=claimed_order_id, payment_id=payment_id,
                 status=payment.status, confirmed_at=payment.confirmed_at, provider_updated_at=payment.updated_at, now=now)
             if result != "finalized":
                 return False
@@ -142,7 +155,14 @@ class PaymentService:
                 state = LicensingStateDocument.model_validate(rows[state_path])
                 if current.status == "approved" or current.provider_payment_id is not None or (current.provider_updated_at and current.provider_updated_at > payment.updated_at):
                     return TransactionPlan(None)
-                puts = {order_path: current.model_copy(update={"status": payment.status, "provider_updated_at": payment.updated_at, "updated_at": now})}
+                # 073/D-006: recusa/cancelamento de um pagamento que não é o Pix corrente (tentativa vencida, cartão
+                # recusado) não derruba o pedido nem o Pix ainda pagável.
+                if (payment.status in {"refused", "cancelled"} and current.pix_payment_id
+                        and current.pix_payment_id != payment.payment_id):
+                    return TransactionPlan(None)
+                terminal = payment.status in {"refused", "cancelled"}
+                puts = {order_path: current.model_copy(update={"status": payment.status, "provider_updated_at": payment.updated_at,
+                    "updated_at": now, **({"pix_qr_code": None} if terminal else {})})}
                 if payment.status in {"refused", "cancelled"} and state.pending_order_id == current.order_id:
                     puts[state_path] = state.model_copy(update={"pending_order_id": None, "revision": state.revision + 1})
                 return TransactionPlan(None, puts)

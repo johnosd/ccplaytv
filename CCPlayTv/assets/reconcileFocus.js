@@ -1,0 +1,1 @@
+function e(e,t,n,r){if(e.length===0)return 0;let i=e.findIndex(t);return i===-1?r&&r.listKey===n?Math.min(Math.max(r.index,0),e.length-1):0:i}export{e as t};

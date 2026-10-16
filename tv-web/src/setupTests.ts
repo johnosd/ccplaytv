@@ -10,10 +10,12 @@ import { afterEach } from 'vitest'
 // ser editados para limpá-lo).
 import { resetKeyRepeatTracker } from './lib/focus/keyRepeat'
 import { resetLiveSessionMemory } from './features/live/liveSessionMemory'
+import { resetRadioSessionMemory } from './features/radio/radioSessionMemory'
 
 afterEach(() => {
   resetKeyRepeatTracker()
   resetLiveSessionMemory()
+  resetRadioSessionMemory()
 })
 
 // jsdom não implementa `Element.scrollIntoView` (usado por

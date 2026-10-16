@@ -14,6 +14,8 @@ export interface PortalDeviceRecord {
   /** Código privado: exibição somente por ação explícita, nunca em QR/URL. */
   recoveryCode: string
   recoveryCodeVersion: number
+  /** 073/D-008: versão do código cuja cópia cifrada o serviço já aceitou (reenvia quando difere). */
+  escrowedCodeVersion?: number
   nextSyncAt: number
   lastSuccessfulSync?: number
   syncRetry?: { attempt: number; dueAt: number }

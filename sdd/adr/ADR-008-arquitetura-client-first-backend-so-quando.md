@@ -77,6 +77,13 @@ YouTube IFrame Player recusa com erro 153 sem `Referer`, provado na TV em
 2026-09-29). Não é backend sempre ligado e fica permitida sob os critérios da
 ADR-012. Ver ADR-012 para o raciocínio completo.
 
+**Atualização (ADR-018):** uma quarta categoria: o **diretório público de conteúdo**,
+sem chave e sem conta, consultado direto da TV para listar e tocar mídia que não vem
+da lista da pessoa. O único registrado é o Radio Browser, para a tela Rádio. É
+client-first (CORS `*`, AVPlay toca o stream direto, provado na TV em 2026-10-15) e
+não exige backend nem proxy. O que sai da TV para o diretório, os streams e os
+favicons está delimitado na ADR-018 §2. Ver ADR-018 para o raciocínio completo.
+
 Por área concreta:
 
 1. **Import de fonte por provedor (Xtream) e por M3U** — passa a rodar no

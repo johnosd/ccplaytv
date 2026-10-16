@@ -9,6 +9,7 @@ from app.portal.auth import AuthError
 from app.portal.licensing import AUDIENCE, ISSUER, LicensingService
 from app.portal.payment_signature import verify_payment_signature
 from app.portal.payments import PaymentService, order_view
+from app.portal.pix_orders import PixOrders, pending_order
 from app.portal.providers.mercadopago import MercadoPagoProvider
 from app.portal.repositories.control import TransactionPlan, document_path
 from app.portal.routes.auth import Input, access_service, payload
@@ -23,6 +24,18 @@ class EmptyInput(Input):
 
 class RefreshInput(Input):
     previousJws: SecretStr | None = Field(default=None, max_length=16384, repr=False)
+
+
+class PixInput(Input):
+    renew: bool
+    requestId: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")
+
+
+class PixRefreshInput(Input):
+    orderId: str = Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")
+
+
+NO_STORE = {"Cache-Control": "no-store"}
 
 
 async def licensing_service(request: Request):
@@ -45,6 +58,32 @@ async def payment_service(request: Request):
             checkout_enabled=settings.checkout_enabled,
             allow_test_live_mode=settings.mercadopago_allow_test_live_mode)
     return request.app.state.portal_payments
+
+
+async def pix_orders(request: Request) -> PixOrders:
+    if not hasattr(request.app.state, "portal_pix"):
+        settings = request.app.state.portal_settings
+        request.app.state.portal_pix = PixOrders(await payment_service(request), payer_domain=settings.pix_payer_domain,
+                                                 test_payer_email=settings.pix_test_payer_email)
+    return request.app.state.portal_pix
+
+
+@router.post("/device/orders/pix")
+async def device_pix(request: Request):
+    """073/US1: gera ou reaproveita o Pix da TV. Copia-e-cola só aqui, `no-store`."""
+    principal = await tv_principal(request)
+    body = await payload(request, PixInput)
+    view = await (await pix_orders(request)).pix(principal, body.requestId, body.renew, datetime.now(UTC))
+    return JSONResponse(view, headers=NO_STORE)
+
+
+@router.post("/device/orders/pix/refresh")
+async def device_pix_refresh(request: Request):
+    """073/D-004: Atualizar da tela de Pix — concilia sob demanda; a licença vem do refresh de entitlement."""
+    principal = await tv_principal(request)
+    body = await payload(request, PixRefreshInput)
+    view = await (await pix_orders(request)).refresh(principal, body.orderId, datetime.now(UTC))
+    return JSONResponse(view, headers=NO_STORE)
 
 
 @router.post("/device/trial")
@@ -76,10 +115,13 @@ async def device(request: Request):
     device_path = document_path("devices", principal.device_id)
     display_id = await service.auth.repository.transact((device_path,), lambda rows: TransactionPlan(
         service.auth._same_principal(rows[device_path], principal).display_id))
-    token = await service.entitlement(principal, datetime.now(UTC))
+    now = datetime.now(UTC)
+    token = await service.entitlement(principal, now, persist=False)
     claims = service.crypto.verify(token, issuer=ISSUER, audience=AUDIENCE, device_id=principal.device_id)
     return {"deviceId": principal.device_id, "authEpoch": principal.auth_epoch, "displayId": display_id,
-            "license": {key: claims[key] for key in ("state", "startsAt", "expiresAt", "generation", "serverTime")}}
+            "license": {key: claims[key] for key in ("state", "startsAt", "expiresAt", "generation", "serverTime")},
+            # 073/D-007: Pix pendente gerado pela TV (ou checkout em aberto), sem copia-e-cola.
+            "pendingOrder": await pending_order(service.auth.repository, principal, now)}
 
 
 @router.get("/offer")

@@ -131,7 +131,7 @@ requesting a `tizen-tv`/`tizen-emulator` validation pass.
 
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.12.0) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.13.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 
@@ -339,7 +339,7 @@ and never reads or modifies.
 
 ## Architecture (from `sdd/adr/`)
 
-ADR-001 to ADR-017 are accepted decisions — read the relevant one in full
+ADR-001 to ADR-018 are accepted decisions — read the relevant one in full
 before proposing anything that conflicts, and amend with an inline
 `**Atualização (ADR-0XX):**` note rather than rewriting history.
 
@@ -362,6 +362,7 @@ before proposing anything that conflicts, and amend with an inline
 | ADR-015 | Device ID is immutable once assigned (amends ADR-014): real TV MAC frozen at first pairing (needs the network privilege, after T003), else an ID derived from the DUID with a service key — never random, never reassigned |
 | ADR-016 | On-demand queries and fixed QR (feature 071): no automatic service calls — only the person's action (Atualizar button, list add/edit/delete) talks to the service; the QR is fixed, generated on the TV with ID + key in the URL fragment; the TV uploads its lists' credentials (encrypted, never logged); 7-day trial counted in the app with a first-contact anchor; constitution 1.11.0 |
 | ADR-017 | Unlink and usage backup (feature 072): "Desvincular" clears only the local pairing and the TV re-links itself to the same record with its recovery code (`POST /devices/recovery/self`); encrypted per-TV backup of usage data (favorites, history, progress, preferences, hashed PIN, TMDB key), uploaded only by the person's action and never overwriting an undecided backup; constitution 1.12.0 |
+| ADR-018 | Radio Browser as a third-party public content directory (updates ADR-008 and ADR-011 §3): the TV queries it directly (CORS `*`, no key, no backend), sends only country code + station uuid (click POST), mirror discovery via `all.api.radio-browser.info`; stations keyed `radio-browser:<stationuuid>`; station favorites are local only (not in the ADR-017 backup); new topbar destination **Rádio** after Séries, needs an active list but doesn't read from it |
 
 Plus `REQUISITOS-FUNCIONAIS.md` (RF-001 to RF-019) and
 `ESPECIFICACAO-TRAILERS.md` (RF-019 detail).

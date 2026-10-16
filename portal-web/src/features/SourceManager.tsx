@@ -2,11 +2,15 @@ import { BackupCard } from './BackupCard'
 import { ConfigurationManager } from './ConfigurationManager'
 import { useEffect, useRef, useState } from 'react'
 import { useT } from '../lib/i18n'
-import { api, newOperationId, PortalApiError, type Dashboard, type LicenseDevice, type Session, type Source } from './api'
+import { api, newOperationId, PortalApiError, purchaseLabel, type Dashboard, type LicenseDevice, type LicenseState, type Session, type Source } from './api'
 import { SourceForm } from './SourceForm'
 import { OperationStatus } from './OperationStatus'
 
-export function SourceManager({ session, onLogout, onOpenLicense }: { session: Session; onLogout: () => void; onOpenLicense?: () => void }) {
+export function SourceManager({ session, onLogout, onOpenLicense, onLicense }: {
+  session: Session; onLogout: () => void; onOpenLicense?: () => void
+  /** 073/D-007: informa a licença lida para o rótulo Renovar/Comprar da aba. */
+  onLicense?: (state: LicenseState) => void
+}) {
   const t = useT()
   const [dashboard, setDashboard] = useState<Dashboard>()
   const [device, setDevice] = useState<LicenseDevice>()
@@ -34,7 +38,7 @@ export function SourceManager({ session, onLogout, onOpenLicense }: { session: S
     try {
       const value = await api.licenseDevice()
       if (value.deviceId !== session.deviceId || !value.displayId) throw new PortalApiError('invalid')
-      if (alive.current) { setDevice(value); setDeviceError(undefined) }
+      if (alive.current) { setDevice(value); setDeviceError(undefined); onLicense?.(value.license.state) }
     } catch (caught) {
       if (alive.current) setDeviceError(caught instanceof PortalApiError ? caught : new PortalApiError('network'))
     }
@@ -143,7 +147,7 @@ export function SourceManager({ session, onLogout, onOpenLicense }: { session: S
       {deviceError && <p role="alert">{t(deviceError.code)}</p>}
       <div className="actions management-actions">
         <button className="small" onClick={() => { void refresh(); void refreshDevice() }}>{t('refresh')}</button>
-        <button className="small primary" onClick={onOpenLicense}>{t('activateByPayment')}</button>
+        <button className="small primary" onClick={onOpenLicense}>{t(purchaseLabel(device?.license.state))}</button>
         <button className="small ghost" onClick={() => void logout()}>{t('logout')}</button>
       </div>
     </section>

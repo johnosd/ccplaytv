@@ -1,0 +1,153 @@
+/* Rádio global (feature 074). Só tokens V14; larguras fixas como as colunas da Live. */
+
+.radio-screen {
+  gap: var(--space-4);
+}
+
+.radio-body {
+  display: flex;
+  flex: 1;
+  gap: var(--space-4);
+  min-height: 0;
+}
+
+.radio-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.radio-column-trail {
+  width: 360px;
+  flex: none;
+}
+
+.radio-column-stations {
+  flex: 1;
+  min-width: 0;
+}
+
+.radio-column-head {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.radio-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  /* Folga para o anel de foco não ser cortado pela coluna. */
+  padding: var(--space-1);
+}
+
+.radio-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.radio-station {
+  display: flex;
+  align-items: center;
+  min-height: 120px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: var(--bg-elevated);
+}
+
+/* Foco sem escala, como a linha de canal da Live (D-010 de lá): crescer 6% cortava o logo na borda da coluna. O anel
+   V14 cabe na folga de `.radio-scroll`. */
+.radio-station.tv-focus {
+  transform: none;
+  background: var(--bg-hover);
+}
+
+.radio-station .channel-row {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Logo maior que o padrão do `ChannelRow` (feedback da TV física, 2026-10-15), com um anel só: o da linha. */
+.radio-station .poster-box {
+  width: var(--space-7);
+}
+
+.radio-station .poster-box.tv-focus {
+  transform: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.radio-station.is-playing {
+  border-color: var(--accent-tint-border);
+  background: var(--accent-tint);
+}
+
+.radio-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+/* Barra "Tocando agora" — fica no slot da topbar do AppShell (D-006). */
+.radio-now-playing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 96px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+}
+
+.radio-now-playing .poster-box {
+  width: var(--space-7);
+  aspect-ratio: 1;
+  flex-shrink: 0;
+}
+
+.radio-now-playing-label {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+}
+
+.radio-now-playing-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.radio-now-playing-name {
+  font-size: var(--fs-body-lg);
+  color: var(--text-primary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.radio-now-playing-meta {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.radio-now-playing-state.is-failed {
+  color: var(--accent);
+}
+
+.radio-now-playing-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.radio-player-surface {
+  display: none;
+}

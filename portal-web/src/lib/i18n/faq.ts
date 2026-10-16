@@ -20,7 +20,7 @@ const pt: FaqContent = {
   clear: 'Limpar busca',
   results: count => count === 1 ? '1 pergunta' : count + ' perguntas',
   categories: { player: 'O app', lists: 'Listas e portal', license: 'Licença e pagamento', sellers: 'Revendedores' },
-  actions: { lists: 'Ir para Suas listas', activate: 'Ir para Ativar', sellers: 'Ver Revendedores', recover: 'Recuperar acesso à TV' },
+  actions: { lists: 'Ir para Suas listas', activate: 'Ir para Comprar ou renovar', sellers: 'Ver Revendedores', recover: 'Recuperar acesso à TV' },
   stuckTitle: 'Ainda com dúvida?',
   stuckHint: 'Estes atalhos resolvem a maioria dos casos.',
   items: [
@@ -57,9 +57,10 @@ const pt: FaqContent = {
       'Sete dias seguidos, contados do primeiro uso do app com internet. Fechar e reabrir o app não reinicia o prazo.'] },
     { id: 'price', category: 'license', question: 'Quanto custa e como pago?', action: 'activate', answer: [
       'R$ 35 por 12 meses, para uma TV. É uma compra avulsa, por Pix ou cartão no Mercado Pago, sem renovação automática.',
-      'Para renovar, basta comprar de novo quando quiser.'] },
+      'Na TV, aperte Comprar licença (no aviso de licença ou em Configurações → Portal & licença) para pagar com Pix direto no app do banco. Pelo portal, use Comprar/Renovar licença para Pix ou cartão.',
+      'Para renovar, basta comprar de novo quando quiser: os 12 meses se somam ao vencimento atual.'] },
     { id: 'activation-time', category: 'license', question: 'Paguei. Quando a licença aparece na TV?', answer: [
-      'Assim que o Mercado Pago confirma o pagamento, a licença é liberada e chega à TV no próximo contato dela com o portal.',
+      'Assim que o Mercado Pago confirma o pagamento, a licença é liberada. Na TV, aperte Atualizar (na tela do Pix, no aviso de licença ou em Portal & licença) para recebê-la.',
       'Voltar à página ou guardar o comprovante não ativa a licença. Se o pagamento estiver pendente, não pague de novo: o mesmo pedido continua valendo.'] },
     { id: 'transfer', category: 'license', question: 'Posso passar a licença para outra TV?', answer: [
       'Não. A licença vale para a TV cujo endereço MAC foi confirmado na compra. Cada TV precisa da sua própria licença.'] },
@@ -68,6 +69,7 @@ const pt: FaqContent = {
       'Se uma lista já estiver aberta, ela continua funcionando até você sair dela ou fechar o app.'] },
     { id: 'recover', category: 'license', question: 'Reinstalei o app ou perdi o acesso. Como recupero?', action: 'recover', answer: [
       'Na TV, abra Portal & licença e escolha recuperar pelo site. Leia o QR temporário e informe o código privado da licença que você guardou.',
+      'Para guardar o código antes de precisar: na aba Comprar/Renovar licença do portal, use Mostrar código de recuperação (a TV envia a cópia quando você aperta Atualizar nela). Anote ou fotografe e guarde em lugar seguro.',
       'O endereço MAC da TV ou o comprovante de pagamento não substituem esse código. Sem ele, a recuperação automática não é possível. O catálogo apagado da TV não é recuperado.'] },
     { id: 'sellers', category: 'sellers', question: 'Existe um programa de revendedores?', action: 'sellers', answer: [
       'Está em preparação. Por enquanto não é possível se cadastrar nem comprar pacotes pelo portal.'] },
@@ -83,7 +85,7 @@ const en: FaqContent = {
   clear: 'Clear search',
   results: count => count === 1 ? '1 question' : count + ' questions',
   categories: { player: 'The app', lists: 'Lists and portal', license: 'License and payment', sellers: 'Sellers' },
-  actions: { lists: 'Go to Your lists', activate: 'Go to Activate', sellers: 'See Sellers', recover: 'Recover TV access' },
+  actions: { lists: 'Go to Your lists', activate: 'Go to Buy or renew', sellers: 'See Sellers', recover: 'Recover TV access' },
   stuckTitle: 'Still have a question?',
   stuckHint: 'These shortcuts solve most cases.',
   items: [
@@ -120,9 +122,10 @@ const en: FaqContent = {
       'Seven consecutive days from the first time the app is used online. Closing and reopening the app does not restart it.'] },
     { id: 'price', category: 'license', question: 'How much is it and how do I pay?', action: 'activate', answer: [
       'R$35 for 12 months, for one TV. It is a one-time purchase by Pix or card on Mercado Pago, with no automatic renewal.',
-      'To renew, just buy again whenever you want.'] },
+      'On the TV, press Buy license (on the license notice or in Settings → Portal & license) to pay with Pix straight from your bank app. On the portal, use Buy/Renew license for Pix or card.',
+      'To renew, just buy again whenever you want: the 12 months are added to the current expiry date.'] },
     { id: 'activation-time', category: 'license', question: 'I paid. When does the license reach the TV?', answer: [
-      'Once Mercado Pago confirms the payment, the license is released and reaches the TV on its next contact with the portal.',
+      'Once Mercado Pago confirms the payment, the license is released. On the TV, press Refresh (on the Pix screen, on the license notice or in Portal & license) to receive it.',
       'Going back to the page or keeping the receipt does not activate it. If the payment is pending, do not pay again: the same order still applies.'] },
     { id: 'transfer', category: 'license', question: 'Can I move my license to another TV?', answer: [
       'No. The license applies to the TV whose MAC address was confirmed at purchase. Each TV needs its own license.'] },
@@ -131,6 +134,7 @@ const en: FaqContent = {
       'A list that is already open keeps working until you leave it or close the app.'] },
     { id: 'recover', category: 'license', question: 'I reinstalled the app or lost access. How do I recover?', action: 'recover', answer: [
       'On the TV, open Portal & license and choose recover on website. Scan the temporary QR and enter the private license code you saved.',
+      'To keep the code before you need it: on the Buy/Renew license tab of the portal, use Show recovery code (the TV sends a copy when you press Refresh on it). Write it down or take a photo and keep it safe.',
       'The TV MAC address or a payment receipt cannot replace this code. Without it, automatic recovery is not possible. A catalog deleted from the TV is not restored.'] },
     { id: 'sellers', category: 'sellers', question: 'Is there a seller programme?', action: 'sellers', answer: [
       'It is being prepared. You cannot sign up or buy packs in the portal yet.'] },
@@ -146,7 +150,7 @@ const es: FaqContent = {
   clear: 'Borrar búsqueda',
   results: count => count === 1 ? '1 pregunta' : count + ' preguntas',
   categories: { player: 'La app', lists: 'Listas y portal', license: 'Licencia y pago', sellers: 'Revendedores' },
-  actions: { lists: 'Ir a Tus listas', activate: 'Ir a Activar', sellers: 'Ver Revendedores', recover: 'Recuperar acceso al televisor' },
+  actions: { lists: 'Ir a Tus listas', activate: 'Ir a Comprar o renovar', sellers: 'Ver Revendedores', recover: 'Recuperar acceso al televisor' },
   stuckTitle: '¿Todavía tienes dudas?',
   stuckHint: 'Estos accesos directos resuelven la mayoría de los casos.',
   items: [
@@ -183,9 +187,10 @@ const es: FaqContent = {
       'Siete días seguidos desde el primer uso de la app con internet. Cerrar y volver a abrir la app no reinicia el plazo.'] },
     { id: 'price', category: 'license', question: '¿Cuánto cuesta y cómo pago?', action: 'activate', answer: [
       'R$35 por 12 meses, para un televisor. Es una compra única, por Pix o tarjeta en Mercado Pago, sin renovación automática.',
-      'Para renovar, basta con comprar de nuevo cuando quieras.'] },
+      'En el televisor, pulsa Comprar licencia (en el aviso de licencia o en Ajustes → Portal y licencia) para pagar con Pix directo en la app del banco. En el portal, usa Comprar/Renovar licencia para Pix o tarjeta.',
+      'Para renovar, basta con comprar de nuevo cuando quieras: los 12 meses se suman al vencimiento actual.'] },
     { id: 'activation-time', category: 'license', question: 'Ya pagué. ¿Cuándo llega la licencia al televisor?', answer: [
-      'En cuanto Mercado Pago confirma el pago, la licencia se libera y llega al televisor en su próximo contacto con el portal.',
+      'En cuanto Mercado Pago confirma el pago, la licencia se libera. En el televisor, pulsa Actualizar (en la pantalla del Pix, en el aviso de licencia o en Portal y licencia) para recibirla.',
       'Volver a la página o guardar el comprobante no la activa. Si el pago está pendiente, no pagues de nuevo: la misma solicitud sigue valiendo.'] },
     { id: 'transfer', category: 'license', question: '¿Puedo pasar la licencia a otro televisor?', answer: [
       'No. La licencia vale para el televisor cuya dirección MAC se confirmó en la compra. Cada televisor necesita su propia licencia.'] },
@@ -194,6 +199,7 @@ const es: FaqContent = {
       'Una lista que ya esté abierta sigue funcionando hasta que salgas de ella o cierres la app.'] },
     { id: 'recover', category: 'license', question: 'Reinstalé la app o perdí el acceso. ¿Cómo lo recupero?', action: 'recover', answer: [
       'En el televisor, abre Portal y licencia y elige recuperar en el sitio. Lee el QR temporal e introduce el código privado de la licencia que guardaste.',
+      'Para guardar el código antes de necesitarlo: en la pestaña Comprar/Renovar licencia del portal, usa Mostrar código de recuperación (el televisor envía una copia cuando pulsas Actualizar en él). Anótalo o fotografíalo y guárdalo en un lugar seguro.',
       'La dirección MAC del televisor o el comprobante de pago no sustituyen ese código. Sin él, la recuperación automática no es posible. El catálogo borrado del televisor no se recupera.'] },
     { id: 'sellers', category: 'sellers', question: '¿Existe un programa de revendedores?', action: 'sellers', answer: [
       'Está en preparación. Por ahora no es posible registrarse ni comprar paquetes en el portal.'] },

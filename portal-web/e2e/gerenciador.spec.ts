@@ -40,10 +40,11 @@ test('entra por ID e chave, mostra o cabeçalho e oferece gestão e pagamento', 
   await expect(page.getByText('Período de teste', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Recarregar', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Recuperar acesso à TV', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Ativar por pagamento' })).toBeVisible()
+  // 073/D-007: o atalho do card segue o rótulo da compra (teste → Comprar licença).
+  await expect(page.getByRole('region', { name: 'Dispositivo e licença' }).getByRole('button', { name: 'Comprar licença', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Editar', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Remover lista', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Ativar por pagamento' }).click()
+  await page.getByRole('region', { name: 'Dispositivo e licença' }).getByRole('button', { name: 'Comprar licença', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Ative sua TV por 12 meses' })).toBeVisible()
 })
 

@@ -62,6 +62,7 @@ const ROUTE_CHUNKS = [
   ['route-epg-settings', '/src/features/settings/EpgSettingsScreen.'],
   ['route-tmdb-key', '/src/features/settings/TmdbKeyScreen.'],
   ['route-search', '/src/features/search/SearchScreen.'],
+  ['route-radio', '/src/features/radio/RadioScreen.'],
 ] as const
 
 export default defineConfig({

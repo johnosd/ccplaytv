@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
-import { OfflineBanner } from '../../components/OfflineBanner'
+import { OfflineBanner } from './OfflineBanner'
 import { HintBar, type HintItem } from './HintBar'
+
+export type { HintItem }
 
 export interface AppShellProps {
   /** A `TopBar` já montada — quem usa o shell decide o foco dela. */

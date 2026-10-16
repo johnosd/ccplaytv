@@ -93,6 +93,8 @@ update-bug-status.ps1.
 | 070-entrada-listas-gerenciador | Entrada de listas estilo gerenciador | Convergida | 61/61 tasks | 2026-10-13 |
 | 071-consulta-sob-demanda-qr-fixo | Consulta sob demanda e QR fixo | Convergida | 51/51 tasks | 2026-10-14 |
 | 072-desvincular-backup | Desvincular a TV do portal e backup dos dados de uso | Em Execução | 44/46 tasks | 2026-10-14 |
+| 073-compra-licenca-pix | Compra de licença por Pix na TV e renovação pelo portal | Em Execução | 45/47 tasks | 2026-10-15 |
+| 074-radio-global | Rádio global por país | Implementada | 49/49 tasks | 2026-10-15 |
 
 ## Bugs
 
@@ -126,6 +128,7 @@ update-bug-status.ps1.
 | botoes-gerar-qr-code-portal-nao | Botões de QR do portal inativos no `npm run dev` | Assess | invalid (low) | Nenhum — descartado (invalid) | 2026-10-13 |
 | portal-login-sem-identidade-visual-aes | Portal: login sem identidade visual e com ações extras | Test | verified | Concluído | 2026-10-13 |
 | zapping-rapido-por-ch-setas-no | Zapping rápido por CH±/↑/↓ para no próximo canal | Test | verified | Concluído | 2026-10-14 |
+| epg-vinculado-recente-mas-guia-vazio | EPG "vinculado, recente" mas guia e "Agora" vazios | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-15 |
 
 ## Melhorias Ad-hoc
 

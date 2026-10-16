@@ -1,5 +1,5 @@
 import { groupLabel, type CatalogCategory } from '../catalog/catalogApi'
-import type { HintItem } from '../shell/HintBar'
+import type { HintItem } from '../../components/HintBar'
 import { createTranslator, type Translator } from '../../lib/i18n/translate'
 import { UNGROUPED_LABEL } from './groupChannels'
 import type { LiveEntryKey } from './liveSessionMemory'
