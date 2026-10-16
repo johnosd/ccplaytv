@@ -1,10 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
 
-async function fixture(page: Page, options: { stale?: boolean; loseFirst?: boolean; snapshotAbsent?: boolean } = {}) {
+async function fixture(page: Page, options: { stale?: boolean; loseFirst?: boolean; snapshotAbsent?: boolean; failed?: boolean } = {}) {
   const source = { id: 'source-existing', type: 'provider_credentials', displayName: 'Lista existente', connectionState: 'synced', updatedAt: 1 }
   const configurations: Record<string, unknown>[] = [{ sourceId: source.id, type: source.type, displayName: source.displayName,
     configVersion: 'version-existing', appliedRevision: 1, expectedRevision: 0, operationId: null }]
-  const operations: Record<string, unknown>[] = []
+  const operations: Record<string, unknown>[] = options.failed
+    ? [{ operationId: 'op-failed', sourceId: source.id, action: 'source.update', state: 'expired', expectedRevision: 1, importState: null, receipt: null, createdAt: new Date().toISOString() }]
+    : []
   const requests: { body: Record<string, any>; id: string | undefined }[] = []
   let exchanges = 0
   const session = { deviceId: 'tv-fixture', csrfToken: 'csrf-fixture', expiresAt: new Date(Date.now() + 3600000).toISOString() }
@@ -59,21 +61,23 @@ async function login(page: Page) {
   await page.getByLabel('Endereço MAC da TV', { exact: true }).fill('a0-8c-fd-19-0a-8c')
   await page.getByLabel('Chave do dispositivo', { exact: true }).fill('0123456789')
   await page.getByRole('button', { name: 'Conectar', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Suas listas' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Listas', level: 1 })).toBeVisible()
 }
+const card = (page: Page, name: string) => page.getByRole('article', { name })
 
-test('QR remove fragmento antes da rede e exchange ocorre uma vez em StrictMode', async ({ page }) => {
+test('QR remove fragmento antes da rede e exchange ocorre uma vez em StrictMode; Sair apaga a sessão da aba', async ({ page }) => {
   const state = await fixture(page)
   await page.goto('/#invite=' + 'a'.repeat(43))
-  await expect(page.getByRole('heading', { name: 'Suas listas' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Listas', level: 1 })).toBeVisible()
   expect(state.exchanges()).toBe(1)
   expect(new URL(page.url()).hash).toBe('')
   const stored = () => page.evaluate(() => sessionStorage.getItem('ccplay-portal-session'))
   expect(Object.keys(JSON.parse((await stored())!)).sort()).toEqual(['csrfToken', 'deviceId', 'expiresAt'])
-  await page.getByRole('button', { name: 'Sair do portal' }).click()
+  await page.getByRole('navigation', { name: 'Principal' }).getByRole('button', { name: 'Ajustes' }).click()
+  await page.getByRole('button', { name: /^Sair/ }).click()
   await expect(page.getByRole('heading', { name: 'Conectar à TV' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Suas listas' })).not.toBeVisible()
-  // T036: sair apaga a sessão guardada na aba; recarregar não volta ao painel.
+  await expect(page.getByRole('heading', { name: 'Listas', level: 1 })).not.toBeVisible()
+  // Sair apaga a sessão guardada na aba; recarregar não volta ao painel.
   expect(await stored()).toBeNull()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Conectar à TV' })).toBeVisible()
@@ -92,13 +96,13 @@ test('manual/Xtream mantém segredo fora dos cards e aplicação separada de rec
   await expect(page.getByRole('heading', { name: 'Lista nova', exact: true })).toBeVisible()
   expect(state.requests[0].body.input.providerPassword).toBe('fake-private-password')
   expect(state.requests[0].id).toMatch(/^op-[0-9]{13}-[A-Za-z0-9_-]{43}$/)
-  await expect(page.getByText('Aguardando TV', { exact: true })).toBeVisible()
+  await expect(card(page, 'Lista nova')).toContainText('Aguardando a TV')
   expect(await page.locator('body').innerText()).not.toContain('fake-private-password')
   expect(await page.locator('body').innerText()).not.toContain('https://provider.invalid')
   expect(await page.locator('body').innerText()).not.toContain('fake-device-key')
 })
 
-test('editar mostra valores salvos, olho os oculta e Escape restaura foco após confirmação de remover', async ({ page }) => {
+test('editar mostra valores salvos, olho os oculta e Escape restaura foco após confirmação de excluir', async ({ page }) => {
   const state = await fixture(page)
   await login(page)
   await page.getByRole('button', { name: 'Editar', exact: true }).click()
@@ -113,7 +117,7 @@ test('editar mostra valores salvos, olho os oculta e Escape restaura foco após 
   expect(state.requests[0].body.input.providerPassword).toBe('fake-private-password')
   expect(state.requests[0].body.input.providerDns).toBe('https://provider.invalid')
   expect(state.requests[0].body.expectedRevision).toBe(1)
-  const remove = page.getByRole('button', { name: 'Remover lista', exact: true })
+  const remove = page.getByRole('button', { name: 'Excluir', exact: true })
   await remove.click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Cancelar', exact: true })).toBeFocused()
@@ -121,9 +125,20 @@ test('editar mostra valores salvos, olho os oculta e Escape restaura foco após 
   await expect(page.getByRole('dialog')).not.toBeVisible()
   await expect(remove).toBeFocused()
   await remove.click()
-  await page.getByRole('button', { name: 'Confirmar remoção' }).click()
-  await expect(page.getByText('Configuração removida do portal; aguardando a TV')).toBeVisible()
+  await page.getByRole('button', { name: 'Sim, excluir' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Exclusão enviada' })).toBeVisible()
   expect(state.requests.at(-1)?.body.action).toBe('source.delete')
+})
+
+test('Voltar do editor devolve o foco ao botão de origem', async ({ page }) => {
+  await fixture(page)
+  await login(page)
+  const edit = page.getByRole('button', { name: 'Editar', exact: true })
+  await edit.click()
+  await expect(page.getByRole('heading', { name: 'Editar', exact: true })).toBeVisible()
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Editar', exact: true })).not.toBeVisible()
+  await expect(edit).toBeFocused()
 })
 
 test('M3U somente URL e falha de resposta reutiliza o mesmo pedido', async ({ page }) => {
@@ -143,31 +158,41 @@ test('M3U somente URL e falha de resposta reutiliza o mesmo pedido', async ({ pa
   expect(await page.locator('body').innerText()).not.toContain('fake-secret')
 })
 
-test('reenvio explícito usa revisão recente sem revelar salvo e repete ID após falha', async ({ page }) => {
-  const state = await fixture(page, { loseFirst: true })
+test('Reenviar só aparece com erro, usa revisão recente sem revelar salvo e repete o ID após falha', async ({ page }) => {
+  const state = await fixture(page, { loseFirst: true, failed: true })
   await login(page)
-  await page.getByRole('button', { name: 'Reenviar configuração guardada', exact: true }).click()
+  await expect(card(page, 'Lista existente')).toContainText('Erro')
+  await card(page, 'Lista existente').getByRole('button', { name: 'Reenviar', exact: true }).click()
   await expect(page.getByRole('alert')).toBeVisible()
-  await page.getByRole('button', { name: 'Tentar novamente', exact: true }).click()
+  await card(page, 'Lista existente').getByRole('button', { name: 'Reenviar', exact: true }).click()
   await expect(page.getByRole('alert')).not.toBeVisible()
   expect(state.requests).toHaveLength(2)
   expect(state.requests[0]).toEqual(state.requests[1])
   expect(state.requests[0].body).toEqual({ expectedRevision: 1 })
   await expect(page.locator('input[type=password]')).toHaveCount(0)
 })
-test('snapshot desatualizado bloqueia reenvio', async ({ page }) => {
-  await fixture(page, { stale: true })
+
+test('sem erro não há Reenviar', async ({ page }) => {
+  await fixture(page)
   await login(page)
-  await expect(page.getByRole('button', { name: 'Reenviar configuração guardada', exact: true })).toBeDisabled()
+  await expect(card(page, 'Lista existente')).toContainText('Na TV')
+  await expect(page.getByRole('button', { name: 'Reenviar', exact: true })).toHaveCount(0)
 })
 
-test('exclusão pendente continua visível sem configuração ou fonte no snapshot', async ({ page }) => {
+test('snapshot desatualizado mantém Reenviar visível mas bloqueado', async ({ page }) => {
+  await fixture(page, { stale: true, failed: true })
+  await login(page)
+  await expect(page.getByRole('button', { name: 'Reenviar', exact: true })).toHaveAttribute('aria-disabled', 'true')
+})
+
+test('exclusão enviada some da tela de listas (não vira cartão nem registro) e só o aviso diz o próximo passo', async ({ page }) => {
   await fixture(page, { snapshotAbsent: true })
   await login(page)
-  await page.getByRole('button', { name: 'Remover lista', exact: true }).click()
-  await page.getByRole('button', { name: 'Confirmar remoção' }).click()
-  await expect(page.getByText('Aguardando TV', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Atualizar estado', exact: true }).click()
-  await expect(page.getByText('Aguardando TV', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Reenviar configuração guardada', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Excluir', exact: true }).click()
+  await page.getByRole('button', { name: 'Sim, excluir' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Exclusão enviada' })).toBeVisible()
+  await expect(page.getByRole('article')).toHaveCount(0)
+  await expect(page.getByText(/source-/)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Adicionar lista', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Reenviar', exact: true })).toHaveCount(0)
 })

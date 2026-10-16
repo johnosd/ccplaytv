@@ -15,6 +15,7 @@ import { createPortalSync } from '../../lib/portal/portalSync'
 import { usePortalAgent } from '../../lib/portal/usePortalAgent'
 import { runBackupStep } from '../../lib/backup/backupStep'
 import { escrowRecoveryCode } from '../../lib/portal/recoveryEscrow'
+import { createTmdbRemoteStep } from '../../lib/portal/tmdbRemote'
 import { PortalSyncConfirmation } from './PortalSyncConfirmation'
 import { RestoreOffer } from './RestoreOffer'
 
@@ -65,7 +66,9 @@ export function usePortalIntegration({ activeSourceId, leaveSource, sourceDelete
     // 072: passo de backup de uso no fim do Atualizar de listas e no botão Fazer backup agora.
     backup: connection ? async (signal: AbortSignal) => { await runBackupStep(db, connection, { signal }) } : undefined,
     // 073/D-008: cópia cifrada do código de recuperação, dentro do Atualizar (licença e listas).
-    escrowRecoveryCode: connection ? (signal: AbortSignal) => escrowRecoveryCode(db, connection.client, signal) : undefined }))
+    escrowRecoveryCode: connection ? (signal: AbortSignal) => escrowRecoveryCode(db, connection.client, signal) : undefined,
+    // 077/ADR-020: chave TMDB pedida pelo portal, aplicada no Atualizar de listas (entre o pull e o snapshot).
+    applyIntegrations: connection ? createTmdbRemoteStep(db, connection) : undefined }))
   usePortalAgent(db, agentPorts, !!connection)
   // 073/D-010: porta de produção da compra por Pix, compartilhada pelo bloqueio e por Portal & licença.
   const purchase = useMemo(() => connection && commercialBuild ? createPixPurchase({

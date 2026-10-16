@@ -29,13 +29,13 @@
    026, tem regra própria em `search.css`; esta tela usa a cor genérica de
    `shared.css`). Só o que é exclusivo da Live vive neste arquivo. */
 
-/* Painéis (feature 048, D-011/D-014; Spec §5.1/§7/§8): 280 / 400 / resto (eram 200 / 340; ampliadas após o uso
+/* Painéis (feature 048, D-011/D-014; Spec §5.1/§7/§8): 280 / 480 / resto (eram 200 / 340; ampliadas após o uso
    com categorias reais). As medidas são locais à Live e sobrepõem o `340px` e o `overflow: auto` de `shared.css`
    por especificidade (`.live-column.…`). */
 .live-column.live-column-groups,
 .live-column.live-column-channels {
   --live-col-groups: 280px;
-  --live-col-channels: 400px;
+  --live-col-channels: calc(var(--space-7) * 5);
   min-height: 0;
   padding: var(--space-3);
   border: 1px solid var(--bg-elevated);

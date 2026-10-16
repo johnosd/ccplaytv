@@ -1,4 +1,25 @@
 <!--
+Relatório de Impacto de Sincronização (2026-10-16, ADR-020, feature 077)
+- Mudança de versão: 1.14.1 -> 1.15.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs", nova exceção (j)).
+- Origem: o redesenho do portal (feature 077) leva a chave TMDB BYOK da pessoa a
+  poder ser digitada no portal; o usuário escolheu "Enviar pela TV via serviço"
+  na entrevista da spec. Sem emenda, o caminho navegador -> serviço -> TV seria
+  violação (R-001). ADR-020, aceita pelo usuário após revisar o texto.
+- Exceção delimitada: a chave TMDB BYOK da própria pessoa PODE ser enviada pelo
+  navegador autenticado ao serviço, ficar cifrada (uma pendente por TV, no máximo
+  7 dias) e ser entregue só à mesma TV, que a aplica no Atualizar e responde
+  applied|rejected|retry. O navegador só envia: nunca a recebe de volta.
+- Continuam proibidos: chave do desenvolvedor ou compartilhada em qualquer
+  cliente; chave em URL, Referer, log, erro, analytics, cache, armazenamento do
+  navegador, DOM depois do envio, checkout ou exportação; OpenAI BYOK não herda
+  esta exceção.
+- Risco aceito pelo usuário: chave de conta própria (gratuita, revogável no TMDB)
+  fica no serviço, cifrada, até ser aplicada/cancelada/expirar; a TV aplica sem
+  confirmar com a pessoa na TV (só depois do teste no TMDB).
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
 Relatório de Impacto de Sincronização (2026-10-16, feature 076)
 - Mudança de versão: 1.14.0 -> 1.14.1 (PATCH, esclarecimento de texto).
 - Origem: simplificação de Portal & licença (feature 076): o "código da licença"
@@ -185,6 +206,10 @@ Histórico:
   explícita (feature 073).
 - 1.14.0 (2026-10-16): QR fixo, ID e chave à vista em Portal & licença; código da
   licença oculto por padrão atrás de mostrar/ocultar na própria tela (ADR-019).
+- 1.14.1 (2026-10-16): "código da licença" passa a "código de recuperação"; o olho
+  vai para a subtela Avançado (feature 076).
+- 1.15.0 (2026-10-16): chave TMDB BYOK digitada no portal, cifrada no serviço e
+  aplicada pela TV no Atualizar (feature 077/ADR-020).
 -->
 
 # Constitution do CCPlay TV
@@ -353,6 +378,27 @@ CSRF, com limite de tentativas e resposta não armazenável em cache. Cópia cuj
 HMAC não é o do código corrente NÃO PODE ser revelada. O código continua proibido
 em URL, logs, erros, cache, analytics, checkout, journal, exportação pública,
 outra TV/sessão e terceiros.
+
+**Exceção de chave TMDB pelo portal (2026-10-16, feature 077/ADR-020)**,
+decisão explícita do usuário com risco aceito, amplia o item (g) e a "Exceção
+remota restrita" no sentido navegador -> serviço:
+(j) a chave TMDB BYOK **da própria pessoa** PODE ser digitada no portal
+autenticado da TV dela e enviada, exclusivamente no corpo HTTPS, ao serviço. O
+serviço DEVE cifrá-la em repouso (contexto próprio por TV e por operação), manter
+**uma só operação pendente por TV**, NÃO PODE logá-la, e a entrega **somente** à
+sessão autenticada da **mesma TV**, que a busca apenas no **Atualizar** da pessoa
+(sem consulta automática, ADR-016). A TV DEVE validar o formato, testar a chave no
+TMDB e só então substituir a existente; responde apenas `applied`, `rejected` ou
+`retry` com motivo de lista fechada, **nunca** a chave, trecho dela ou texto livre
+de erro. O serviço DEVE apagar o envelope ao aplicar, recusar, cancelar,
+substituir, expirar (no máximo 7 dias) ou apagar o aparelho, e sujeitar a
+operação ao mesmo limite de tentativas e à mesma recusa uniforme das demais
+configurações. O navegador SÓ envia: NENHUMA resposta lhe devolve a chave (editar
+= enviar outra); o campo DEVE ser oculto por padrão e limpo após o envio. A chave
+NÃO PODE estar em URL, `Referer`, log, erro, analytics, cache, armazenamento do
+navegador, DOM depois do envio, checkout ou exportação pública. Chave do
+desenvolvedor ou compartilhada continua proibida em qualquer cliente; esta
+exceção NÃO se estende à chave OpenAI, que exigiria ADR própria.
 
 ### Categorias da Fonte São Preservadas
 
@@ -610,4 +656,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.14.1 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-16
+**Versão**: 1.15.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-16

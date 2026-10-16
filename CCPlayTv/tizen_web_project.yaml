@@ -6,7 +6,7 @@ profile: tv-samsung
 api_version: "10.0"
 
 # Build type [Debug/ Release/ Test]
-build_type: Debug
+build_type: Release
 
 # Output name for application
 output_name: CCPlayTv
@@ -64,12 +64,10 @@ files:
   - assets/useSectionAllHidden.js
   - assets/ContentCard.js
   - assets/EmptyState.js
-  - assets/FavoritesState.js
   - assets/HistoryRemovalModal.js
   - assets/Icon.js
   - assets/SideCategoryNav.js
   - assets/SourcesPanel.js
-  - assets/TextField.js
   - assets/TitleSummaryModal.js
   - assets/accountCheck.js
   - assets/catalogApi.js
@@ -80,7 +78,6 @@ files:
   - assets/paging.js
   - assets/trailerAction.js
   - assets/react-dom.js
-  - assets/useEnterSimilarPanel.js
   - assets/useImeChain.js
   - assets/useOverflowEdges.js
   - assets/useScrollFocusedIntoView.js

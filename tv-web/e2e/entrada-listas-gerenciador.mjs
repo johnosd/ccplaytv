@@ -44,7 +44,7 @@ try {
     await portal.getByRole('button', { name: 'Conectar', exact: true }).click()
   }
   await login(displayId.toLowerCase().replaceAll(':', '-'), deviceKey)
-  await expect(portal.getByRole('heading', { name: 'Suas listas' })).toBeVisible({ timeout: 20000 })
+  await expect(portal.getByRole('heading', { name: 'Listas', level: 1, exact: true })).toBeVisible({ timeout: 20000 })
   log('portal: entrou por ID + chave digitados')
 
   await portal.getByRole('button', { name: 'Adicionar lista', exact: true }).click()
@@ -84,7 +84,7 @@ try {
   await fresh.getByLabel('Chave do dispositivo', { exact: true }).fill(deviceKey)
   await fresh.getByRole('button', { name: 'Conectar', exact: true }).click()
   await expect(fresh.getByRole('alert')).toBeVisible({ timeout: 10000 })
-  await expect(fresh.getByRole('heading', { name: 'Suas listas' })).toHaveCount(0)
+  await expect(fresh.getByRole('heading', { name: 'Listas', level: 1, exact: true })).toHaveCount(0)
   log('nova chave gerada: ID mantido, chave antiga recusada')
 
   // SC-007 / US4: RETURN sai da tela Adicionar para os perfis, abre a mesma

@@ -150,7 +150,8 @@ Os testes mockam colaboradores (`getPortalConnection`, `commercialBuild` por get
 | Ações do Avançado (US3, Fase 5) | Concluída: confirmações, rotação, Recuperar e Desvincular a partir da subtela; `PortalMoreOptions` removido; contratos 076 5/5 verdes |
 | Polish (Fase 6) | Concluído: terminologia (constitution 1.14.1, ADR-019/016, CLAUDE.md, portal-web i18n), E2E reescritos (portal-avancado.mjs no SUITE), legibilidade 123 telas/0 achados, rolagem da subtela corrigida (T028) |
 | Gates | `npm run test` 616 arquivos / 3476 verdes; lint + ratchet, `tsc` e build limpos; `node e2e/run.mjs` 52/52; travas 076 (5), 075 (3) e 067 íntegras |
-| Não verificado | Roteiros opt-in com a pilha local (`entrada-listas-gerenciador`, `desvincular-backup`, `consulta-sob-demanda`, `portal-dev-server`): atualizados e checados por sintaxe, **não executados** porque o `dev:portal` do usuário ocupava 5173/5174/3001/8085; `portal-pacote-file`: só sintaxe; TV física: não feita |
+| Roteiros opt-in | Executados com a pilha local livre e **verdes**: `entrada-listas-gerenciador`, `desvincular-backup`, `consulta-sob-demanda`, `portal-dev-server` (T029) |
+| Não verificado | `portal-pacote-file` (exige `build:tizen:commercial` sincronizado; só sintaxe) e TV física (fora do gate) |
 | Contrato da 075 | Emendado (T009): 3/3 verdes, trava regravada e íntegra |
 
 ## Riscos e Decisões
@@ -162,16 +163,16 @@ Os testes mockam colaboradores (`getPortalConnection`, `commercialBuild` por get
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | Emenda do contrato travado da 075 (remove 2 de 5 testes) | Sem ela a suíte fica vermelha quando o olho sair da principal | Aprovada na spec (FR-016); só apagar os dois `it` e imports sem uso; regravar a trava da 075 (T009) e registrar nas Execution Notes. |
-| R-002 | `SettingsScreen` passa a consultar `tabHandle.current?.onBack?.()` | Risco de mudar o RETURN das outras abas | Opcional e só com `zone === 'panel'`; as outras abas não definem `onBack`; rodar `src/features/settings` inteiro (contratos 026/028/067 ficam verdes). |
-| R-003 | `portal-web/src/lib/i18n/index.ts` já tem mudanças não commitadas de outra feature | Misturar edições | T025 só troca 4 linhas de texto; **não** reverter nem commitar o resto; conferir `git diff` do arquivo antes e depois. |
-| R-004 | `messages/portal.ts` está em 297/300 linhas | Ratchet quebra com chaves novas | Chaves novas em `portalAdvanced.ts` (D-008); as renomeações trocam texto em linha, as remoções (3 chaves × 3 idiomas) liberam espaço. |
-| R-005 | Constitution (f) diz "na própria tela" para o olho; agora ele fica numa subtela da mesma aba | Leitura literal poderia sugerir violação | PATCH 1.14.1 de esclarecimento ("na própria aba, nunca em modal de aviso") e nota na ADR-019 (T022/T023); a regra não é enfraquecida. |
+| R-001 | Emenda do contrato travado da 075 (remove 2 de 5 testes) | Sem ela a suíte fica vermelha quando o olho sair da principal | Resolvido: Aprovada na spec (FR-016); só apagar os dois `it` e imports sem uso; regravar a trava da 075 (T009) e registrar nas Execution Notes. |
+| R-002 | `SettingsScreen` passa a consultar `tabHandle.current?.onBack?.()` | Risco de mudar o RETURN das outras abas | Resolvido: Opcional e só com `zone === 'panel'`; as outras abas não definem `onBack`; rodar `src/features/settings` inteiro (contratos 026/028/067 ficam verdes). |
+| R-003 | `portal-web/src/lib/i18n/index.ts` já tem mudanças não commitadas de outra feature | Misturar edições | Resolvido: T025 só troca 4 linhas de texto; **não** reverter nem commitar o resto; conferir `git diff` do arquivo antes e depois. |
+| R-004 | `messages/portal.ts` está em 297/300 linhas | Ratchet quebra com chaves novas | Resolvido: Chaves novas em `portalAdvanced.ts` (D-008); as renomeações trocam texto em linha, as remoções (3 chaves × 3 idiomas) liberam espaço. |
+| R-005 | Constitution (f) diz "na própria tela" para o olho; agora ele fica numa subtela da mesma aba | Leitura literal poderia sugerir violação | Resolvido: PATCH 1.14.1 de esclarecimento ("na própria aba, nunca em modal de aviso") e nota na ADR-019 (T022/T023); a regra não é enfraquecida. |
 | R-006 | O texto do código promete "traz de volta a licença e o backup" após formatar | Prometer além do provado (a TV pode ter outro identificador depois de formatar; não verificado em hardware) | Texto descreve a função do código, não garante o resultado em toda TV; passada na TV física segue recomendada, fora do gate. |
-| R-007 | Roteiros E2E acionam "Mais opções" e o olho na principal | `test:e2e` quebra | T026/T027 reescrevem `lib/portal.mjs` e os roteiros; rodar `--only` antes da suíte. |
+| R-007 | Roteiros E2E acionam "Mais opções" e o olho na principal | `test:e2e` quebra | Resolvido: T026/T027 reescrevem `lib/portal.mjs` e os roteiros; rodar `--only` antes da suíte. |
 | R-008 | `carrosseis-filmes-series` já falhou uma vez em suíte completa na 075 (flake suspeito, R-007 daquela) | Pode reaparecer no gate | Reexecutar isolado (`--jobs 1`) antes de contar como falha desta feature. Nesta feature passou: 52/52 na suíte completa. |
 | R-009 | `src/lib/catalog/blockMemo.test.ts` falhou numa suíte completa e passou isolado e na 2ª rodada completa (616/616) | Flake de suíte cheia em área não tocada por esta feature | Registrado como flake suspeito; não investigado. |
-| R-010 | Roteiros opt-in dependem da pilha local e o `dev:portal` do usuário estava no ar | Mudanças do Avançado nesses 4 roteiros sem execução | Rodar `node e2e/<nome>.mjs` depois de encerrar o `dev:portal`; só a sintaxe foi conferida. |
+| R-010 | Roteiros opt-in dependem da pilha local e o `dev:portal` do usuário estava no ar | Mudanças do Avançado nesses 4 roteiros sem execução | Resolvido: rodados com a pilha livre, os 4 passaram (T029). |
 | R-011 | O `scrollIntoView({ block: 'nearest' })` no botão focado existe também nas outras abas de Configurações (o usuário relatou o mesmo corte) | Título/texto acima do botão focado ficam cortados ao subir | **Fora do escopo desta feature**: só `PortalLicenseTab` foi corrigida (T028). A correção genérica fica para decisão do usuário. |
 
 ## Execution Notes
@@ -190,7 +191,9 @@ Os testes mockam colaboradores (`getPortalConnection`, `commercialBuild` por get
 | 2026-10-16 | Fase 5 (US3) | T017–T019: confirmações (`PortalConfirmDialog`) e fluxos de rotação/Recuperar/Desvincular a partir do Avançado; `PortalMoreOptions.tsx` e chaves órfãs removidos; `PortalAdvanced.flows.test.tsx` (5) | Fase 6 (Polish) |
 | 2026-10-16 | Fase 6 (Polish) | T020–T028: terminologia (comentários, constitution 1.14.1, ADR-019 nota/título, ADR-016, CLAUDE.md, 7 textos i18n do portal-web); helper E2E `abrirAvancado`/`gerarNovaChave`; `portal-mais-opcoes.mjs` → `portal-avancado.mjs`; opt-in atualizados; legibilidade; **T028**: rolagem da subtela (relato do usuário) com teste unitário e verificação de layout que reproduz o defeito sem a correção; gates | Opt-in com pilha local por rodar (R-010); rolagem parecida nas outras abas (R-011) |
 
-**PRÓXIMO**: `sdd-converge` 076-simplificar-portal-licenca; rodar os 4 roteiros opt-in depois de encerrar o `dev:portal`; decidir sobre a rolagem das demais abas (R-011).
+| 2026-10-16 | Fase 7 (Convergence) | T029–T030: os 4 roteiros opt-in rodaram verdes com a pilha local livre (nenhum ajuste necessário); nota de textos da spec alinhada ao `logic/` e ao `portalAdvanced.ts` | `portal-pacote-file` só sintaxe; rolagem das outras abas (R-011) |
+
+**PRÓXIMO**: `sdd-converge` 076-simplificar-portal-licenca (deve fechar limpo); decidir sobre a rolagem das demais abas (R-011).
 
 ## Arquivos Principais
 
@@ -205,3 +208,22 @@ Os testes mockam colaboradores (`getPortalConnection`, `commercialBuild` por get
 
 - O olho oculta ao sair do Avançado por `useCodeReveal(device, active)` (`active = view === 'advanced'`), não por `hide()`. Em teste da aba, releia `handleRef.current` a cada tecla (o handle é recriado a cada render).
 - A mensagem `portal.recoveryNeeded` também dizia "código da licença": já corrigida nos 3 idiomas, com "Em Avançado, use Recuperar pelo site…".
+
+## Resultado Final
+
+*Convergência de 2026-10-16: sem achado acionável; contratos 076 5/5 e 075 3/3 verdes, travas íntegras.*
+
+**O que foi construído.** A tela Configurações → Portal & licença ficou enxuta: cartão Acessar o portal (QR, site, ID e chave agrupada à vista), cartão Licença só no build comercial (estado, validade, oferta, Comprar/Renovar licença e Atualizar), uma linha lembrando de guardar o código de recuperação e o botão **Avançado**, sem olho nem código na tela principal. **Avançado** é uma subtela dentro da aba (`PortalAdvanced`, região "Avançado", não `Modal`) com quatro itens — Código de recuperação (oculto por padrão, olho), Gerar nova chave e código, Recuperar pelo site e Desvincular esta TV — cada um com texto fixo de "para que serve / quando usar". RETURN fecha a subtela por `SettingsTabHandle.onBack`, consultado pela `SettingsScreen` só com o foco no painel. Confirmar rotação/Desvincular e escolher Recuperar voltam à tela principal. O "código da licença" passou a "código de recuperação" em toda a interface (pt/en/es), no `portal-web` (7 textos i18n), na constitution (1.14.1, PATCH), nas ADR-019/016 e no CLAUDE.md.
+
+**Desvios em relação ao plano.**
+- `useCodeReveal(device, active)` em vez de `hide()` (D-005): com `active = view === 'advanced'` o código oculta ao sair da subtela sem efeito no painel.
+- A aba (T008) já tratava as teclas da subtela e o `onBack`; a T014 só confirmou por testes.
+- `PortalMoreOptions.test.tsx` foi apagado na Fase 3 e seus casos voltaram em `PortalAdvanced.flows.test.tsx` (Fase 5); as chaves `portal.more`/`portal.moreUnavailable` saíram junto com `PortalMoreOptions.tsx`.
+- Emenda aprovada (R-001): dois testes do contrato da 075 (olho na principal; menu "Mais opções") foram removidos e a trava da 075 regravada com 3 testes.
+- Textos novos em área própria (`messages/portalAdvanced.ts`) por causa do teto de 300 linhas de `portal.ts`; texto do código usa "permite recuperar" (R-006).
+- **Task ad-hoc T028** (relato do usuário): a rolagem da subtela cortava título e texto do primeiro item; corrigida em `PortalLicenseTab` (primeira ação rola ao topo, demais mostram o bloco do item) com teste unitário e verificação de layout no `e2e/portal-avancado.mjs`, que reproduz o defeito sem a correção.
+- Roteiro de teclado `portal-mais-opcoes.mjs` virou `portal-avancado.mjs` (no SUITE).
+
+**Verificação.** `npm run test` 616 arquivos / 3476 verdes; lint com ratchet, `tsc` e build limpos; `node e2e/run.mjs` 52/52; legibilidade 123 telas e 0 achados (pt/en/es); roteiros opt-in com a pilha local (`entrada-listas-gerenciador`, `desvincular-backup`, `consulta-sob-demanda`, `portal-dev-server`) verdes.
+
+**Continua aberto (fora do gate ou fora do escopo).** TV física não feita (R-006: identificador do aparelho depois de formatar não verificado); `portal-pacote-file.mjs` só com sintaxe checada (exige `build:tizen:commercial`); rolagem do mesmo tipo nas outras abas de Configurações (R-011, decisão do usuário); flakes suspeitos sem relação com a feature (R-008, R-009).

@@ -65,6 +65,7 @@ The four top-level directories:
   primary path for any feature. It exists only for a provider panel that
   blocks CORS from the TV's browser; don't build new client-first work on
   top of it, and don't assume it's running.
+- **`portal-web/`** — the portal site (React 19 + Vite, features 069–077) that manages the same TV from a phone or PC: **Listas**, **Licença** and **Ajustes** under a persistent TV summary (bottom nav < 960 px, side menu above). Its service is `api/app/portal/` (Cloud Run + Firestore, ADR-013; tests need the Firestore emulator and `PORTAL_TEST_FIRESTORE=1`). The UI is tested only by Playwright with the dev server already up on 5174 (`layout.spec.ts` runs in the `mobile`/`tablet`/`desktop` projects); logic by Vitest `node`. See `portal-web/README.md` and `docs/portal/operacao.md`.
 - **`CCPlayTv/`** — the Tizen web project (`config.xml`, `index.html`,
   assets) that gets packaged into `.wgt`. `tv-web/scripts/sync-tizen.mjs`
   copies the Vite build into it (`npm run build:tizen`). Files listed in
@@ -131,7 +132,7 @@ requesting a `tizen-tv`/`tizen-emulator` validation pass.
 
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.14.1) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.15.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 
@@ -339,7 +340,7 @@ and never reads or modifies.
 
 ## Architecture (from `sdd/adr/`)
 
-ADR-001 to ADR-019 are accepted decisions — read the relevant one in full
+ADR-001 to ADR-020 are accepted decisions — read the relevant one in full
 before proposing anything that conflicts, and amend with an inline
 `**Atualização (ADR-0XX):**` note rather than rewriting history.
 
@@ -364,6 +365,7 @@ before proposing anything that conflicts, and amend with an inline
 | ADR-017 | Unlink and usage backup (feature 072): "Desvincular" clears only the local pairing and the TV re-links itself to the same record with its recovery code (`POST /devices/recovery/self`); encrypted per-TV backup of usage data (favorites, history, progress, preferences, hashed PIN, TMDB key), uploaded only by the person's action and never overwriting an undecided backup; constitution 1.12.0 |
 | ADR-018 | Radio Browser as a third-party public content directory (updates ADR-008 and ADR-011 §3): the TV queries it directly (CORS `*`, no key, no backend), sends only country code + station uuid (click POST), mirror discovery via `all.api.radio-browser.info`; stations keyed `radio-browser:<stationuuid>`; station favorites are local only (not in the ADR-017 backup); new topbar destination **Rádio** after Séries, needs an active list but doesn't read from it |
 | ADR-019 | Portal & licença shows the fixed QR, device ID and device key on open (amends ADR-016 decision 6); the recovery code (formerly called "license code" — it is not a purchased license) starts hidden behind an eye toggle inside the **Avançado** sub-screen of the same tab (feature 076; no warning modal, no timeout), re-hidden on leaving, backgrounding or regeneration; constitution 1.14.1 |
+| ADR-020 | TMDB key typed in the portal (feature 077): the person's own BYOK key goes browser → service (encrypted, one pending per TV, ≤ 7 days) → TV (fetched only on the person's **Atualizar**, tested against TMDB, acks only `applied\|rejected\|retry`); the browser only sends, never receives the key back; constitution 1.15.0 exception (j) |
 
 Plus `REQUISITOS-FUNCIONAIS.md` (RF-001 to RF-019) and
 `ESPECIFICACAO-TRAILERS.md` (RF-019 detail).

@@ -12,7 +12,7 @@ import { PortalRequestError } from './portalClient'
 const REFRESH_PAUSE_MS = 10_000
 
 /** 072: 'backup' = só o passo de backup (botão Fazer backup agora); 'lists' também faz backup no fim. */
-export type RefreshScope = 'lists' | 'license' | 'backup'
+export type RefreshScope = 'lists' | 'license' | 'backup' | 'tmdb'
 
 /** Resultado de um Atualizar: código não secreto em falha. */
 export type CycleOutcome = { ok: true } | { ok: false; code: string }
@@ -29,6 +29,8 @@ export interface PortalAgentPorts {
   backup?(signal: AbortSignal): Promise<void>
   /** 073/D-008: envia a cópia do código de recuperação quando a versão mudou; falha não derruba o Atualizar (D-009). */
   escrowRecoveryCode?(signal: AbortSignal): Promise<unknown>
+  /** 077/ADR-020: aplica a chave TMDB pedida pelo portal. Roda entre o pull e o snapshot; falha não derruba o snapshot. */
+  applyIntegrations?(signal: AbortSignal): Promise<unknown>
   onError?(code: string): void
 }
 
@@ -157,8 +159,10 @@ export class PortalAgent {
       const last = this.lastRefreshAt[scope]
       if (last !== undefined && this.now() < last + REFRESH_PAUSE_MS) return { ok: false as const, code: 'wait' }
       this.lastRefreshAt[scope] = this.now()
-      return this.execute(scope === 'lists' ? ['deletions', 'uploads', 'escrow', 'pull', 'snapshot', 'backup']
-        : scope === 'backup' ? ['backup'] : ['escrow', 'license'])
+      return this.execute(scope === 'lists' ? ['deletions', 'uploads', 'escrow', 'pull', 'integrations', 'snapshot', 'backup']
+        : scope === 'backup' ? ['backup']
+        // 077: Atualizar da aba Integrações — só aplica a chave TMDB pedida pelo portal e publica o estado no snapshot.
+        : scope === 'tmdb' ? ['integrations', 'snapshot'] : ['escrow', 'license'])
     })
   }
 
@@ -169,7 +173,7 @@ export class PortalAgent {
     return result
   }
 
-  private async execute(steps: ('deletions' | 'uploads' | 'escrow' | 'pull' | 'snapshot' | 'license' | 'backup')[]): Promise<CycleOutcome> {
+  private async execute(steps: ('deletions' | 'uploads' | 'escrow' | 'pull' | 'integrations' | 'snapshot' | 'license' | 'backup')[]): Promise<CycleOutcome> {
     const controller = new AbortController()
     this.running = controller
     const { signal } = controller
@@ -179,6 +183,13 @@ export class PortalAgent {
         if (step === 'deletions') await this.ports.flushDeletions(signal)
         else if (step === 'uploads') await this.ports.flushUploads?.(signal)
         else if (step === 'pull') await this.ports.pull(signal)
+        else if (step === 'integrations') {
+          // 077: a chave TMDB é opcional para o resto do Atualizar; o snapshot (e o que ele informa) sai mesmo se falhar.
+          try { await this.ports.applyIntegrations?.(signal) } catch {
+            signal.throwIfAborted()
+            this.ports.onError?.('integrations_failed')
+          }
+        }
         else if (step === 'snapshot') await this.ports.publishSnapshot(signal)
         else if (step === 'backup') await this.ports.backup?.(signal)
         else if (step === 'escrow') {

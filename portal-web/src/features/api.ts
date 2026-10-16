@@ -16,7 +16,9 @@ export interface SavedConfiguration { sourceId: string; type: Source['type']; di
   configVersion: string; appliedRevision: number | null; expectedRevision: number; operationId: string | null }
 export interface Operation { operationId: string; sourceId: string; action: string; state: string;
   expectedRevision: number; createdAt: string; importState: string | null; receipt: { revision: number; state: string } | null }
-export interface Snapshot { capturedAt: string; sources: Source[]; revisions: { sourceId: string; revision: number }[] }
+export interface Snapshot { capturedAt: string; sources: Source[]; revisions: { sourceId: string; revision: number }[];
+  /** 077: o que a TV informou sobre integrações (ausente em TV antiga). Nunca o valor da chave. */
+  integrations?: { tmdb: 'none' | 'configured' } | null }
 export interface Dashboard { configurations: SavedConfiguration[]; operations: Operation[]; snapshot: Snapshot | null; stale: boolean }
 export interface ConfigurationInput { type?: Source['type']; displayName?: string; providerDns?: string;
   providerUsername?: string; providerPassword?: string; m3uUrl?: string; epgManualUrl?: string;
@@ -144,6 +146,12 @@ export type LicenseState = LicenseDevice['license']['state']
 /** Rótulo da compra: "Renovar" para quem já pagou (mesmo vencida), "Comprar" no teste ou sem licença paga. */
 export const purchaseLabel = (state: LicenseState | undefined) => state === 'active' ? 'renewLicense' as const : 'buyLicense' as const
 export interface LicenseOrder { orderId: string; deviceId: string; status: 'created' | 'pending' | 'approved' | 'refused' | 'cancelled' | 'refunded' | 'charged_back'; checkoutUrl: string | null }
+/** 077/ADR-020: estado da chave TMDB no serviço. O navegador só envia a chave; nada aqui a contém. */
+export interface TmdbServerState {
+  pending: { action: 'set' | 'remove'; createdAt: string; retryReason?: 'offline' | 'rate_limited' } | null
+  last: { action: 'set' | 'remove'; result: 'applied' | 'rejected'; reason?: 'refused' | 'invalid_format'; at: string } | null
+  tvReported: 'none' | 'configured' | null
+}
 export interface BackupSummary { exists: boolean; createdAt?: number; counts?: { favorites: number; history: number; progress: number } }
 export const api = {
   licenseDevice: () => request<LicenseDevice>('/session/device'),
@@ -191,4 +199,13 @@ export const api = {
   // 072: o painel só vê data e contagens do backup de uso desta TV e pode apagá-lo.
   backup: () => request<BackupSummary>('/backup'),
   deleteBackup: (session: Session) => request<unknown>('/backup', { method: 'DELETE', csrf: session.csrfToken }),
+  // 077/ADR-020: a chave TMDB vai só no corpo do PUT; nenhuma resposta a devolve e ela nunca entra em URL.
+  tmdb: {
+    status: () => request<TmdbServerState>('/integrations/tmdb'),
+    set: (session: Session, key: string, operationId: string) => request<{ operationId: string; action: 'set'; state: 'pending' }>(
+      '/integrations/tmdb', { method: 'PUT', body: { key }, csrf: session.csrfToken, operationId }),
+    remove: (session: Session, operationId: string) => request<{ operationId: string; action: 'remove'; state: 'pending' }>(
+      '/integrations/tmdb/remove', { method: 'POST', body: {}, csrf: session.csrfToken, operationId }),
+    cancel: (session: Session) => request<unknown>('/integrations/tmdb/pending', { method: 'DELETE', csrf: session.csrfToken }),
+  },
 }

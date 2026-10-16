@@ -21,6 +21,18 @@ async function abrirAba(page, nome, painel) {
 
 export const abrirPortalLicenca = page => abrirAba(page, 'Portal & licença', '.portal-license-panel')
 export const abrirBackup = page => abrirAba(page, 'Backup', '.portal-backup')
+/** Configurações → Integrações & BYOK (feature 077: ali fica o Atualizar da chave TMDB). */
+export async function abrirIntegracoes(page) {
+  // Chega ao canto Configurações pelo controle e escolhe a aba pelo nome (a aba aberta primeiro depende da compilação).
+  await page.locator('.add-card').waitFor({ timeout: 20000 })
+  for (let i = 0; i < 12 && !(await focusText(page)).startsWith('Adicionar lista'); i++) await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('ArrowDown')
+  const corner = await focusText(page)
+  if (corner !== 'Configurações') throw new Error('foco não chegou a "Configurações": ' + corner)
+  await page.keyboard.press('Enter')
+  await page.getByRole('button', { name: 'Integrações & BYOK', exact: true }).click()
+  await page.locator('.integrations-panel').waitFor({ timeout: 15000 })
+}
 
 /** Desce com ↓ até o botão `texto` ficar em foco (a ordem das ações é a da tela). */
 export async function irParaFoco(page, texto) {

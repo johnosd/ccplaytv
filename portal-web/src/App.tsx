@@ -1,50 +1,58 @@
-import { FaqPage } from './features/FaqPage'
-import { LicensePage } from './features/LicensePage'
+import { LicenseCard } from './features/license/LicenseCard'
 import { RecoveryPage, type StartupRecovery } from './features/RecoveryPage'
 import { useCallback, useState } from 'react'
 import { useT } from './lib/i18n'
-import { purchaseLabel, rememberSession, type LicenseState, type Session } from './features/api'
-import { SessionPage, type StartupSession } from './features/SessionPage'
-import { SellersPage } from './features/SellersPage'
-import { SourceManager } from './features/SourceManager'
-type Tab = 'lists' | 'activate' | 'sellers' | 'faq'
-export function App({ startup, recoveryStartup, initialTab }: { startup?: StartupSession; recoveryStartup?: StartupRecovery; initialTab?: Tab }) {
+import { api, PortalApiError, rememberSession, type Session } from './features/api'
+import { SessionPage, type StartupSession } from './features/session/SessionPage'
+import { SettingsPage } from './features/settings/SettingsPage'
+import { ListsPage } from './features/lists/ListsPage'
+import { PortalShell } from './features/shell/PortalShell'
+import { SessionGuard } from './features/shell/SessionGuard'
+import { TvDataProvider } from './features/shell/TvDataProvider'
+import { ROOT, root, type Destination } from './features/shell/navigation'
+import { useNavigation } from './features/shell/useNavigation'
+
+/**
+ * Portal (features 069–077): sem sessão, a entrada (ou a recuperação por QR); com sessão, a casca com três destinos —
+ * Listas, Licença e Ajustes — e o resumo fixo da TV. A navegação é por estado + `history`, sem mudar a URL.
+ */
+export function App({ startup, recoveryStartup, initialDestination }: { startup?: StartupSession; recoveryStartup?: StartupRecovery; initialDestination?: Destination }) {
   const t = useT()
   const [initialSession, setInitialSession] = useState(startup)
   const [recovering, setRecovering] = useState(!!recoveryStartup)
   const [initialRecovery, setInitialRecovery] = useState(recoveryStartup)
-  const [tab, setTab] = useState<Tab>(initialTab ?? 'lists')
-  // Clicar em "Suas listas" de novo (por exemplo, na tela de edição) volta à grade de listas.
-  const [listsView, setListsView] = useState(0)
   const [session, setCurrentSession] = useState<Session>()
   // A sessão fica na aba para sobreviver à ida e volta ao Checkout Pro (main.tsx retoma).
-  const setSession = useCallback((value: Session | undefined) => { rememberSession(value); setCurrentSession(value) }, [])
-  // 073/D-007: a aba de compra mostra "Renovar" ou "Comprar" conforme a licença que o painel já leu.
-  const [licenseState, setLicenseState] = useState<LicenseState>()
-  return <main lang={t('lang')}>
-    <header className="portal-header">
-      <div className="brand" aria-label="CCPlayTV">
-        <span className="brand-mark" aria-hidden="true"><span /></span>
-        <span className="brand-wordmark">CCPlayTV</span>
-      </div>
-      <h1>{t('title')}</h1>
-    </header>
-    {recovering ? <RecoveryPage startup={initialRecovery} onBack={() => { setRecovering(false); setInitialRecovery(undefined) }} /> : session ? <div className="portal-app">
-      <div className="portal-toolbar">
-        <nav className="portal-tabs" aria-label={t('title')}>
-          <button aria-current={tab === 'lists' ? 'page' : undefined} onClick={() => { if (tab === 'lists') setListsView(value => value + 1); setTab('lists') }}>{t('sources')}</button>
-          <button aria-current={tab === 'activate' ? 'page' : undefined} onClick={() => setTab('activate')}>{t(purchaseLabel(licenseState))}</button>
-          <button aria-current={tab === 'sellers' ? 'page' : undefined} onClick={() => setTab('sellers')}>{t('sellers')}<span className="tab-soon">{t('comingSoon')}</span></button>
-          <button aria-current={tab === 'faq' ? 'page' : undefined} onClick={() => setTab('faq')}>FAQ</button>
-        </nav>
-        <div className="authenticated-actions" role="group" aria-label={t('title')}>
-          <button className="ghost small" onClick={() => window.location.reload()}>{t('reload')}</button>
-          <button className="ghost small" onClick={() => setRecovering(true)}>{t('recoveryTitle')}</button>
-        </div>
-      </div>
-      {tab === 'activate' ? <LicensePage session={session} onLicense={setLicenseState} onRecover={() => setRecovering(true)} /> : tab === 'sellers' ? <SellersPage /> : tab === 'faq' ? <FaqPage onAction={action => { if (action === 'recover') setRecovering(true); else { setTab(action); window.scrollTo(0, 0) } }} /> : <SourceManager key={listsView} session={session} onLicense={setLicenseState} onOpenLicense={() => setTab('activate')} onLogout={() => { setInitialSession(undefined); setSession(undefined) }} />}
-    </div>
-      : <SessionPage startup={initialSession} onSession={setSession} />}
-    <footer className="portal-footer"><small>CCPlayTV</small></footer>
-  </main>
+  const [sessionEnded, setSessionEnded] = useState(false)
+  const setSession = useCallback((value: Session | undefined) => { rememberSession(value); setCurrentSession(value); if (value) setSessionEnded(false) }, [])
+  const { state, go, back } = useNavigation(initialDestination ? root(initialDestination) : ROOT)
+  // 077: sessão encerrada no meio do uso → entrada com o ID lembrado e o aviso (o ID só some com "Usar outra TV").
+  const endSession = useCallback(() => { rememberSession(undefined); setCurrentSession(undefined); setSessionEnded(true); go(ROOT) }, [go])
+
+  async function logout() {
+    if (!session) return
+    try { await api.logout(session) } catch (caught) { if (!(caught instanceof PortalApiError && caught.code === 'access')) throw caught }
+    setInitialSession(undefined); setSession(undefined); go(ROOT)
+  }
+  const header = <header className="portal-header">
+    <div className="brand" aria-label="CCPlayTV"><span className="brand-mark" aria-hidden="true"><span /></span><span className="brand-wordmark">CCPlayTV</span></div>
+    <h1>{t('title')}</h1>
+  </header>
+  const footer = <footer className="portal-footer"><small>CCPlayTV</small></footer>
+
+  if (recovering) return <main lang={t('lang')}>{header}
+    <RecoveryPage startup={initialRecovery} onBack={() => { setRecovering(false); setInitialRecovery(undefined) }} />{footer}</main>
+  if (!session) return <main lang={t('lang')}>{header}<SessionPage startup={initialSession} onSession={setSession} ended={sessionEnded} />{footer}</main>
+
+  return <TvDataProvider session={session}>
+    <SessionGuard onEnded={endSession} />
+    <PortalShell state={state} onGo={destination => go(root(destination))}>
+      {state.destination === 'license'
+        ? <LicenseCard session={session} />
+        : state.destination === 'settings'
+          ? <SettingsPage session={session} view={state.view} onOpen={view => go({ destination: 'settings', view })} onBack={() => back(root('settings'))}
+            onNavigate={destination => go(root(destination))} onLogout={logout} />
+          : <ListsPage session={session} view={state.view} onOpenEditor={() => go({ destination: 'lists', view: 'editor' })} onCloseEditor={() => back(root('lists'))} />}
+    </PortalShell>
+  </TvDataProvider>
 }

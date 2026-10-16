@@ -2,7 +2,7 @@ import { allowListEntry } from './lib/licensing/licenseRuntime'
 import { usePortalIntegration } from './features/portal/usePortalIntegration'
 import { PortalPairingPanel } from './features/portal/PortalPairingPanel'
 import { getPortalConnection } from './lib/portal/portalRuntime'
-import { remoteImportRunId } from './lib/portal/remoteImportsInFlight'
+import { remoteImportRunForEntry } from './lib/portal/remoteImportEntry'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { SplashScreen } from './features/splash/SplashScreen'
@@ -179,12 +179,12 @@ function App() {
     if (!allowListEntry(source.id)) return
     // 071/A008: lista ainda sem nenhuma sincronização cuja 1ª importação vinda do site corre em segundo plano →
     // mostra o progresso (categorias carregando) em vez de entrar numa lista vazia. Leitura síncrona, sem rede.
-    const firstImport = source.last_successful_sync_at === null ? remoteImportRunId(source.id) : undefined
-    if (firstImport) {
-      dispatch({ type: 'open', screen: { name: 'progress', jobId: firstImport } })
-      return
-    }
-    openChosen(source)
+    // 077: decide pela marca em memória e pelo registro durável da importação (sobrevive a recarregar a TV): pendente,
+    // interrompida ou com erro → progresso com Tentar novamente; só entra na lista quando o catálogo estiver pronto.
+    if (source.last_successful_sync_at !== null) { openChosen(source); return }
+    void remoteImportRunForEntry(source.id).then(
+      runId => (runId ? dispatch({ type: 'open', screen: { name: 'progress', jobId: runId } }) : openChosen(source)),
+      () => openChosen(source))
   }
 
   function openChosen(source: SourceOut) {

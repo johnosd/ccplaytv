@@ -74,12 +74,12 @@ try {
     const values = await tv.locator('.portal-pairing-value').allInnerTexts()
     return { displayId: values[0], deviceKey: values[1] }
   }
-  const qrUrlOf = () => tv.evaluate(async () => {
+  const qrUrlOf = () => tv.evaluate(async (site) => {
     const { db } = await import('/src/lib/catalog/db.ts')
     const { buildFixedQrUrl } = await import('/src/lib/portal/fixedQr.ts')
     const row = await db.table('portalDevice').get('device')
-    return buildFixedQrUrl({ site: 'http://127.0.0.1:5174', displayId: row.displayId, deviceKey: row.deviceKey })
-  })
+    return buildFixedQrUrl({ site, displayId: row.displayId, deviceKey: row.deviceKey })
+  }, stack.portalOrigin)
 
   // ── 1. App novo: abre, o teste começa no aparelho, nenhuma requisição ────────────────────────────────────────
   log('1. app novo: sem requisições; teste local criado')
@@ -127,7 +127,7 @@ try {
   portal.on('request', (request) => { if (request.url().includes('/portal/v1/')) portalBodies.push(`${request.method()} ${request.url()} ${request.postData() ?? ''}`) })
   const firstQr = await qrUrlOf()
   await portal.goto(firstQr)
-  await expect(portal.getByRole('heading', { name: 'Suas listas' })).toBeVisible({ timeout: 20000 })
+  await expect(portal.getByRole('heading', { name: 'Listas', level: 1, exact: true })).toBeVisible({ timeout: 20000 })
   assert.ok(!portal.url().includes('#') && !portal.url().includes(first.deviceKey), 'fragmento removido do endereço')
   assert.ok(portalBodies.every((line) => !line.split(' ')[1].includes(first.deviceKey)), 'chave nunca na URL de requisição')
 
@@ -275,10 +275,10 @@ try {
   const stale = await (await portalBrowser.newContext()).newPage()
   await stale.goto(oldQr)
   await expect(stale.getByRole('alert')).toBeVisible({ timeout: 15000 })
-  await expect(stale.getByRole('heading', { name: 'Suas listas' })).toHaveCount(0)
+  await expect(stale.getByRole('heading', { name: 'Listas', level: 1, exact: true })).toHaveCount(0)
   const fresh = await (await portalBrowser.newContext()).newPage()
   await fresh.goto(newQr)
-  await expect(fresh.getByRole('heading', { name: 'Suas listas' })).toBeVisible({ timeout: 20000 })
+  await expect(fresh.getByRole('heading', { name: 'Listas', level: 1, exact: true })).toBeVisible({ timeout: 20000 })
 
   // ── Revisão de segredos (SC-008, T028): marcadores fora de DOM comum, URL, histórico e logs do serviço ─────────
   log('revisão de segredos: DOM, URL, histórico e logs')
@@ -297,7 +297,8 @@ try {
 
   // Régua de SC-007: tudo acima são ações da pessoa; nenhuma chamada fora da lista de rotas esperadas.
   // 073/D-008: o Atualizar também envia a cópia cifrada do código de recuperação (`device/recovery-code/escrow`).
-  const unexpected = calls.filter((line) => !/\/(devices\/(enroll|recovery\/(ack|result|challenges))|device\/(operations|sources|snapshot|deletions|entitlement\/refresh|backup|backup\/summary)|device\/operations\/[^/]+\/ack|device\/(revoke|recovery-code\/rotate|recovery-code\/escrow))$/.test(line.replace(/^\w+ /, '')))
+  // 077/ADR-020: o Atualizar de listas também pergunta se o portal pediu uma chave TMDB (`device/integrations/tmdb`).
+  const unexpected = calls.filter((line) => !/\/(devices\/(enroll|recovery\/(ack|result|challenges))|device\/(operations|sources|snapshot|deletions|entitlement\/refresh|backup|backup\/summary)|device\/operations\/[^/]+\/ack|device\/(revoke|recovery-code\/rotate|recovery-code\/escrow)|device\/integrations\/tmdb(\/ack)?)$/.test(line.replace(/^\w+ /, '')))
   assert.deepEqual(unexpected, [], 'rotas inesperadas: ' + unexpected.join(' | '))
   log(`consulta sob demanda: PASS (${calls.length} requisições da TV, todas por ação da pessoa)`)
 } catch (error) {

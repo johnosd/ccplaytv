@@ -201,3 +201,9 @@ Fases 2 → 3 → 4 (US1 + US2, ambas P1) e validar no navegador; depois Fase 5 
 - Depois de cada fase, rodar `check-contract-tests.ps1` das duas features.
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->
+## Phase 7: Convergence
+
+**Objetivo**: fechar o que a convergência de 2026-10-16 deixou sem evidência. Nenhuma tarefa de código novo.
+
+- [X] T029 [MEDIUM, F-001] Rodar os roteiros opt-in já atualizados para o Avançado, com a pilha local livre (encerrar o `npm run dev:portal` antes): de `tv-web/`, `node e2e/entrada-listas-gerenciador.mjs`, `node e2e/desvincular-backup.mjs`, `node e2e/consulta-sob-demanda.mjs` e `node e2e/portal-dev-server.mjs`; corrigir só o que o Avançado quebrou e registrar o resultado de cada um (e, se possível, `node e2e/portal-pacote-file.mjs` após `build:tizen:commercial`) → origem: FR-016, plan: R-010. **Resultado (2026-10-16, pilha livre):** `entrada-listas-gerenciador` PASS, `desvincular-backup` PASS (25 requisições, todas por ação da pessoa), `consulta-sob-demanda` PASS (24 requisições), `portal-dev-server` PASS; nenhum precisou de correção. `portal-pacote-file` **não** rodado: exige `build:tizen:commercial` sincronizado em `CCPlayTv/` (muda arquivos versionados do pacote) e foi deixado de fora
+- [X] T030 [LOW, F-002] Alinhar a nota de rascunho de textos em `spec.md` (§Assumptions) à fonte da verdade `logic/avancado-foco.md` §5 ("permite recuperar…", "Guarde fora da TV…"), sem mudar requisito → origem: spec × logic

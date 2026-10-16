@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CatalogDb, type SourceRecord } from '../catalog/db'
 import {
   deleteEpgForSource,
@@ -83,6 +83,18 @@ describe('writeEpgPrograms / listProgramsForChannels', () => {
     expect(result.programCount).toBe(1)
     expect(await titles('a')).toEqual(['Novo'])
     expect(await database.epgPrograms.count()).toBe(1)
+  })
+
+  it('amortiza 5.001 programas em dois lotes de escrita', async () => {
+    const bulkAdd = vi.spyOn(database.epgPrograms, 'bulkAdd').mockResolvedValue(0)
+    const programs = Array.from({ length: 5_001 }, (_, index) =>
+      program(`canal-${index % 10}`, index * 1_000, (index + 1) * 1_000, `Programa ${index}`),
+    )
+
+    await writeEpgPrograms(SOURCE_ID, programs, database)
+
+    expect(bulkAdd).toHaveBeenCalledTimes(2)
+    expect(bulkAdd.mock.calls.map(([batch]) => batch.length)).toEqual([5_000, 1])
   })
 
   it('falha no meio da gravação preserva a geração ativa (FR-005)', async () => {

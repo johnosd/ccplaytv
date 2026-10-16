@@ -80,3 +80,6 @@ Consultadas na revisão de 2026-10-11: [Cloud Run](https://cloud.google.com/run/
 **Atualização (ADR-014, 2026-10-13):** a entrada manual no painel passa a ser por ID do dispositivo no formato MAC + chave numérica permanente de 10 dígitos exibida na tela Adicionar da TV, e o painel autenticado da própria TV pode ler os valores salvos das listas dela para edição. Ver ADR-014 e constitution 1.10.0.
 
 **Atualização (ADR-016, 2026-10-14):** o ciclo diário e a consulta rápida saem: o app só consulta o serviço por ação da pessoa (botão Atualizar, adicionar/editar/excluir lista). O QR da TV passa a ser fixo, gerado localmente, com ID e chave no fragmento, no lugar do convite efêmero (que continua só na recuperação pelo site). A TV envia ao serviço as credenciais das listas dela, cifradas. O teste de 7 dias é contado no app, com âncora no primeiro contato. Ver ADR-016 e constitution 1.11.0.
+
+
+**Atualização (ADR-020, 2026-10-16):** o navegador continua sem receber segredos salvos, mas passa a poder **enviar** ao serviço a chave TMDB BYOK da própria pessoa (cifrada, uma pendente por TV, entregue só à mesma TV no Atualizar). Ver ADR-020 e constitution 1.15.0 (exceção (j)).

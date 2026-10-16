@@ -31,6 +31,8 @@ export async function refreshFingerprint(scope: RefreshScope): Promise<string> {
   if (scope === 'license') return licenseFingerprint((await tables.license.get('entitlement'))?.jws ?? '')
   // 072: o backup "mudou" quando o serviço confirmou um novo (instante do último backup).
   if (scope === 'backup') return String((await db.table('portalDevice').get('backup'))?.lastBackupAt ?? '')
+  // 077: a chave TMDB "mudou" quando o registro local trocou de revisão/estado (nunca compara nem guarda a chave).
+  if (scope === 'tmdb') { const row = await db.integrations.get('tmdb'); return row ? row.revision + ':' + row.state : '' }
   const [sources, revisions] = await Promise.all([db.sources.toArray(), tables.revisions.toArray()])
   return JSON.stringify([
     sources.map(source => [source.id, source.updatedAt]).sort(),
@@ -112,8 +114,10 @@ export function refreshMessageKey(status: RefreshStatus, scope: RefreshScope) {
   switch (status) {
     case 'loading': return 'portal.refresh.loading' as const
     case 'done': return scope === 'license' ? 'portal.refresh.licenseDone' as const
-      : scope === 'backup' ? 'portal.backup.done' as const : 'portal.refresh.listsDone' as const
-    case 'nothing': return scope === 'license' ? 'portal.refresh.licenseNothing' as const : 'portal.refresh.nothing' as const
+      : scope === 'backup' ? 'portal.backup.done' as const
+      : scope === 'tmdb' ? 'portal.refresh.tmdbDone' as const : 'portal.refresh.listsDone' as const
+    case 'nothing': return scope === 'license' ? 'portal.refresh.licenseNothing' as const
+      : scope === 'tmdb' ? 'portal.refresh.tmdbNothing' as const : 'portal.refresh.nothing' as const
     case 'wait': return 'portal.refresh.wait' as const
     case 'offline': return 'portal.refresh.offline' as const
     case 'failed': return 'portal.refresh.failed' as const

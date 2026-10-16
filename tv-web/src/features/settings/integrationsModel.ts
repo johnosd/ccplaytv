@@ -9,11 +9,14 @@ import type { TmdbState, TmdbStatusView } from '../../lib/metadata/types'
  * aqui só ficam as CHAVES, e quem desenha chama `t(chave)`.
  */
 
-export type TmdbAction = 'configure' | 'test' | 'edit' | 'remove'
+export type TmdbAction = 'configure' | 'test' | 'edit' | 'remove' | 'refresh'
 
-/** Sem chave só há "Configurar"; com chave, "Testar", "Editar" e "Remover" (`logic/integracoes-e-dock.md` §1). */
+/**
+ * Sem chave só há "Configurar"; com chave, "Testar", "Editar" e "Remover" (`logic/integracoes-e-dock.md` §1). "Atualizar"
+ * (feature 077) vem sempre por último: busca no portal a chave que a pessoa enviou por lá, sem sair desta aba.
+ */
 export function tmdbActions(status: TmdbStatusView | undefined): TmdbAction[] {
-  return !status || status.state === 'not_configured' ? ['configure'] : ['test', 'edit', 'remove']
+  return !status || status.state === 'not_configured' ? ['configure', 'refresh'] : ['test', 'edit', 'remove', 'refresh']
 }
 
 /** Cards ainda não construídos, na ordem da aba — reusam os mocks do dock (D-010). `titleKey` = título no catálogo. */
@@ -59,4 +62,5 @@ export const TMDB_ACTION_LABEL_KEY: Record<TmdbAction, MessageKey> = {
   test: 'settings.integrations.action.test',
   edit: 'settings.integrations.action.edit',
   remove: 'settings.integrations.action.remove',
+  refresh: 'portal.refresh.label',
 }

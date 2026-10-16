@@ -125,6 +125,33 @@ class UsageBackupDocument(PortalDocument):
     counts: dict[str, int]
     envelope: CipherEnvelope = Field(repr=False)
 
+class TmdbIntegrationDocument(PortalDocument):
+    """077/ADR-020 (constitution 1.15.0 (j)): operação corrente da chave TMDB BYOK pedida pelo portal, uma por TV.
+    O envelope existe só com `action='set'` e `state='pending'`; some ao aplicar, recusar, cancelar, substituir, expirar
+    ou trocar a chave de acesso. `last_*` guarda o último resultado concluído e nunca contém a chave."""
+    operation_id: OpaqueId
+    action: Literal["set", "remove"]
+    state: Literal["pending", "applied", "rejected", "cancelled", "expired"]
+    retry_reason: Literal["offline", "rate_limited"] | None = None
+    envelope: CipherEnvelope | None = Field(default=None, repr=False)
+    auth_epoch: Revision
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+    expires_at: AwareDatetime
+    last_action: Literal["set", "remove"] | None = None
+    last_result: Literal["applied", "rejected"] | None = None
+    last_reason: Literal["refused", "invalid_format"] | None = None
+    last_at: AwareDatetime | None = None
+
+    @model_validator(mode="after")
+    def envelope_only_while_pending_set(self):
+        if (self.envelope is not None) != (self.action == "set" and self.state == "pending"):
+            raise ValueError("envelope_only_for_pending_set")
+        if self.retry_reason is not None and self.state != "pending":
+            raise ValueError("retry_reason_only_pending")
+        return self
+
+
 class RecoveryEscrowDocument(PortalDocument):
     """073/D-008 (constitution 1.13.0 (i)): cópia cifrada do código de recuperação enviada pela própria TV.
     Só é revelada se `code_hmac` ainda for o verificador corrente do dispositivo."""
@@ -344,6 +371,11 @@ class ImportSnapshotDocument(PortalDocument):
     state: Literal["queued", "running", "completed", "error"]
 
 
+class IntegrationsSnapshotDocument(PortalDocument):
+    """077: o que a TV informa sobre integrações. Nunca o valor, o formato nem o fim da chave."""
+    tmdb: Literal["none", "configured"]
+
+
 class SnapshotDocument(PortalDocument):
     auth_epoch: Revision
     recovery_epoch: OpaqueId
@@ -353,6 +385,7 @@ class SnapshotDocument(PortalDocument):
     sources: list[SourceSnapshotDocument]
     revisions: list[SourceRevisionDocument]
     imports: list[ImportSnapshotDocument]
+    integrations: IntegrationsSnapshotDocument | None = None
 
     @model_validator(mode="after")
     def snapshot_sources(self):

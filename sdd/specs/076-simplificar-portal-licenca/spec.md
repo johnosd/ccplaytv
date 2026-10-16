@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-16
 
-**Status**: Implementada
+**Status**: Convergida
 
 **Input**: "Quero simplificar, pois na maioria dos apps de IPTV não vejo essas opções." Decisão do usuário sobre a 075: "Esconder em Avançado", com a explicação de cada item muito clara, porque nem o próprio usuário entendeu o fluxo de código/chave/recuperação/desvincular.
 
@@ -133,11 +133,7 @@ Sem entidades novas. Usa o registro existente do dispositivo (ID, chave, código
 - "Gerar nova chave e código" mantém esse nome; o texto explicativo esclarece que o código é o de recuperação.
 - A subtela reaproveita as confirmações (`PortalConfirmDialog`), a máscara e as regras de segundo plano da 075; o `sdd-plan` decide a divisão de componentes e como o RETURN é tratado na aba.
 - As regras de exibição da ADR-019 e da constitution 1.14.0 continuam valendo; só o lugar e o nome do código mudam.
-- Os textos em pt abaixo são o rascunho de referência (o `sdd-plan` os transforma em chaves de i18n):
-  - Código de recuperação: "É a sua senha de reserva — não é uma licença comprada. Se você reinstalar o app ou limpar os dados desta TV, ele devolve o acesso ao mesmo cadastro, com a licença e o backup. Guarde em local privado."
-  - Gerar nova chave e código: "Troca a chave, o QR e o código de recuperação. Use se alguém viu a sua chave ou para desconectar o site. As sessões abertas no site são encerradas; listas, favoritos e licença continuam."
-  - Recuperar pelo site: "Use quando esta TV perdeu o acesso (por exemplo, depois de reinstalar o app). Mostra um QR temporário: leia no celular, informe o código de recuperação e confirme o ID. Nada é apagado."
-  - Desvincular esta TV: "Solta o vínculo desta TV com o portal, sem apagar listas e dados. Use para recomeçar o vínculo; depois, Vincular de novo volta ao mesmo cadastro (mesmo ID), com chave nova."
+- Os textos finais (pt/en/es) estão em `logic/avancado-foco.md` §5 e em `tv-web/src/lib/i18n/messages/portalAdvanced.ts`; eles substituem os rascunhos da entrevista. Pontos que valem como requisito: o código de recuperação diz que **não é uma licença comprada**, manda **guardar fora da TV** (papel ou foto no celular) e só promete "permitir recuperar" a licença e o backup, sem garantir o resultado em toda TV (plan R-006).
 
 ## Clarifications
 

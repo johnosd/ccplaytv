@@ -1,8 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
-// 073/D-007: a aba de compra é "Comprar licença" no teste e "Renovar licença" com licença paga.
+// Feature 077/US3: Licença é um cartão com preço, validade e um botão; o rótulo é "Comprar licença" no teste e "Renovar licença"
+// com licença paga; o aceite é a frase com o ID da TV (sem caixa de seleção).
 const CSRF = 'c'.repeat(42) + 'A'
-const purchaseTab = (page: Page, name = 'Comprar licença') => page.getByRole('navigation').getByRole('button', { name, exact: true })
-async function fixture(page: Page, loseFirst = false, enabled = true, pendingPix = false) {
+const nav = (page: Page, name: string) => page.getByRole('navigation', { name: 'Principal' }).getByRole('button', { name, exact: true })
+/** Força uma leitura do portal (a mesma que o intervalo de 10 s faz) sem esperar o relógio. */
+const refresh = (page: Page) => page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+async function fixture(page: Page, options: { loseFirst?: boolean; enabled?: boolean; pendingPix?: boolean; open?: boolean } = {}) {
+  const { loseFirst = false, enabled = true, pendingPix = false, open = true } = options
   const requests: { id?: string; body: unknown }[] = []
   let status = 'pending'
   const pendingOrder = pendingPix ? { orderId: 'order-fixture', method: 'pix', expiresAt: new Date(Date.now() + 25 * 60000).toISOString() } : null
@@ -27,16 +31,19 @@ async function fixture(page: Page, loseFirst = false, enabled = true, pendingPix
     return json({}, 404)
   })
   await page.goto('/#invite=' + 'a'.repeat(42) + 'A')
-  await expect(page.getByRole('heading', { name: 'Suas listas' })).toBeVisible()
-  await purchaseTab(page).click()
-  await expect(page.getByText('R$ 35 por 12 meses', { exact: false })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Listas', level: 1 })).toBeVisible()
+  if (open) {
+    await nav(page, 'Licença').click()
+    await expect(page.getByText('R$ 35,00', { exact: false })).toBeVisible()
+  }
   return { requests, approve: () => { status = 'approved' } }
 }
-test('confirma TV, retry mantém pedido e pendente não permite recompra; retorno não concede', async ({ page }) => {
-  const state = await fixture(page, true)
-  const buy = page.getByRole('button', { name: 'Comprar ou renovar licença' })
-  await expect(buy).toBeDisabled()
-  await page.getByLabel('Conferi o endereço MAC da TV').check()
+test('um botão e a frase com o ID da TV; retry mantém o pedido e pendente não permite recompra; retorno não concede', async ({ page }) => {
+  const state = await fixture(page, { loseFirst: true })
+  const buy = page.getByRole('button', { name: 'Comprar licença', exact: true })
+  await expect(page.getByText('A licença será ativada na TV A0:8C:FD:19:0A:8C.', { exact: true })).toBeVisible()
+  await expect(page.getByRole('checkbox')).toHaveCount(0)
+  await expect(buy).toBeEnabled()
   await buy.click()
   await expect(page.getByRole('alert')).toBeVisible()
   await buy.click()
@@ -49,61 +56,73 @@ test('confirma TV, retry mantém pedido e pendente não permite recompra; retorn
   await expect(page.getByRole('link', { name: 'Continuar no Mercado Pago' })).toHaveAttribute('href', 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=fixture')
   // O retorno do checkout só muda a URL; estado continua vindo do serviço.
   await page.evaluate(() => history.replaceState(null, '', '/?checkout=return'))
-  await page.getByRole('button', { name: 'Atualizar estado' }).click()
+  await refresh(page)
   await expect(page.getByText('Pagamento pendente', { exact: true })).toBeVisible()
   state.approve()
-  await page.getByRole('button', { name: 'Atualizar estado' }).click()
+  await refresh(page)
   await expect(page.getByText(/^Pagamento confirmado\. Na TV, aperte Atualizar/)).toBeVisible()
   await expect(page.getByRole('link', { name: 'Continuar no Mercado Pago' })).toHaveCount(0)
-  await expect(buy).toBeVisible()
-  await expect(buy).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Renovar licença', exact: true })).toBeVisible()
 })
-// T034: o Checkout Pro devolve para /?checkout=return com a página recarregada; a sessão da aba é retomada e a aba de
-// compra abre com o pedido, sem pedir login de novo.
-test('volta do Mercado Pago retoma a sessão na aba de compra e mostra o pagamento confirmado', async ({ page }) => {
+// SC-003: de qualquer tela, comprar leva dois toques — Licença e o botão.
+test('comprar leva dois toques: Licença e o botão', async ({ page }) => {
+  const state = await fixture(page, { open: false })
+  await nav(page, 'Licença').click()
+  await page.getByRole('button', { name: 'Comprar licença', exact: true }).click()
+  await expect(page.getByRole('link', { name: 'Continuar no Mercado Pago' })).toBeVisible()
+  expect(state.requests).toHaveLength(1)
+})
+// O Checkout Pro devolve para /?checkout=return com a página recarregada; a sessão da aba é retomada e Licença abre com o
+// pedido, sem pedir login de novo.
+test('volta do Mercado Pago retoma a sessão em Licença e mostra o pagamento confirmado', async ({ page }) => {
   const state = await fixture(page)
-  await page.getByLabel('Conferi o endereço MAC da TV').check()
-  await page.getByRole('button', { name: 'Comprar ou renovar licença' }).click()
+  await page.getByRole('button', { name: 'Comprar licença', exact: true }).click()
   await expect(page.getByText('Pagamento pendente', { exact: true })).toBeVisible()
   state.approve()
   await page.goto('/?checkout=return')
   await expect(page.getByText(/^Pagamento confirmado\. Na TV, aperte Atualizar/)).toBeVisible()
-  await expect(purchaseTab(page, 'Renovar licença')).toHaveAttribute('aria-current', 'page')
+  await expect(nav(page, 'Licença')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('button', { name: 'Renovar licença', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Conectar à TV' })).toHaveCount(0)
   expect(new URL(page.url()).search).toBe('')
   expect(state.requests).toHaveLength(1)
 })
 test('compra pendente sobrevive reload e nova sessão da mesma TV sem segundo POST', async ({ page }) => {
   const state = await fixture(page)
-  await page.getByLabel('Conferi o endereço MAC da TV').check()
-  await page.getByRole('button', { name: 'Comprar ou renovar licença' }).click()
+  await page.getByRole('button', { name: 'Comprar licença', exact: true }).click()
   await expect(page.getByText('Pagamento pendente', { exact: true })).toBeVisible()
   await page.goto('/#invite=' + 'a'.repeat(42) + 'A')
-  await purchaseTab(page).click()
+  await nav(page, 'Licença').click()
   await expect(page.getByText('Pagamento pendente', { exact: true })).toBeVisible()
   expect(state.requests).toHaveLength(1)
 })
-// 073/US2/AC1, AC3, FR-009, FR-010: Pix gerado pela TV aparece como aviso, sem cobrança nova; com licença paga a aba vira Renovar.
-test('Pix pendente da TV vira aviso sem nova cobrança e a aba passa a Renovar licença com licença paga', async ({ page }) => {
-  const state = await fixture(page, false, true, true)
+// 073/US2/AC1, AC3, FR-009, FR-010: Pix gerado pela TV aparece como aviso, sem cobrança nova; com licença paga o botão vira Renovar.
+test('Pix pendente da TV vira aviso sem nova cobrança e o botão passa a Renovar licença com licença paga', async ({ page }) => {
+  const state = await fixture(page, { pendingPix: true })
   await expect(page.getByRole('status').filter({ hasText: 'Há um Pix gerado pela TV aguardando pagamento até' })).toBeVisible()
   await expect(page.getByText('000201', { exact: false })).toHaveCount(0)
   expect(state.requests).toHaveLength(0)
   state.approve()
-  await page.getByRole('button', { name: 'Atualizar estado' }).click()
-  await expect(purchaseTab(page, 'Renovar licença')).toBeVisible()
+  await refresh(page)
+  await expect(page.getByRole('button', { name: 'Renovar licença', exact: true })).toBeVisible()
   await expect(page.getByText('Há um Pix gerado pela TV', { exact: false })).toHaveCount(0)
 })
-test('venda desabilitada mantém oferta e bloqueia checkout', async ({ page }) => {
-  const state = await fixture(page, false, false)
-  await page.getByLabel('Conferi o endereço MAC da TV').check()
-  await expect(page.getByRole('button', { name: 'Comprar ou renovar licença' })).toBeDisabled()
+test('venda desabilitada mantém a oferta, explica o motivo e bloqueia o checkout', async ({ page }) => {
+  const state = await fixture(page, { enabled: false })
+  await expect(page.getByText('Compras ainda não estão disponíveis.')).toBeVisible()
+  const buy = page.getByRole('button', { name: 'Comprar licença', exact: true })
+  await expect(buy).toHaveAttribute('aria-disabled', 'true')
+  await buy.click({ force: true })
   expect(state.requests).toHaveLength(0)
 })
 
 // 073/US3, FR-011: código de recuperação só por ação explícita (POST + CSRF), com aviso; 409 orienta Atualizar na TV.
-test('código de recuperação aparece só ao pedir, com aviso, some ao ocultar e orienta a TV quando ainda não foi enviado', async ({ page }) => {
-  await fixture(page)
+// Na 077 ele mora em Ajustes → Código de recuperação, não mais em Licença.
+test('código de recuperação (em Ajustes) aparece só ao pedir, com aviso, some ao ocultar e orienta a TV quando ainda não foi enviado', async ({ page }) => {
+  await fixture(page, { open: false })
+  await expect(page.getByText('Código de recuperação', { exact: false })).toHaveCount(0)
+  await nav(page, 'Ajustes').click()
+  await page.getByRole('button', { name: /^Código de recuperação/ }).click()
   const code = '0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV'
   let escrowed = false
   const calls: { method: string; csrf?: string; url: string }[] = []
@@ -127,5 +146,4 @@ test('código de recuperação aparece só ao pedir, com aviso, some ao ocultar 
   expect(await page.evaluate(() => JSON.stringify({ ...sessionStorage, ...localStorage }))).not.toContain(code)
   await page.getByRole('button', { name: 'Ocultar código' }).click()
   await expect(page.getByText(code)).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Recuperar após formatar' })).toBeVisible()
 })

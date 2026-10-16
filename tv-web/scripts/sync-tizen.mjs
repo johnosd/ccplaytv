@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { copyFile, mkdir, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { findUnlistedFiles } from './tizenFiles.mjs'
+import { findStaleDeclared, findUnlistedFiles } from './tizenFiles.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const distDir = path.resolve(here, '..', 'dist')
@@ -44,6 +44,13 @@ const unlisted = findUnlistedFiles(distFiles, yamlText)
 if (unlisted.length > 0) {
   console.error('Arquivo(s) do build fora de `files:` em tizen_web_project.yaml — adicione antes de sincronizar:')
   for (const file of unlisted) console.error(`  - ${file}`)
+  process.exit(1)
+}
+// Feature 078 (R-008): o inverso — entrada de `files:` que o build não emite mais.
+const stale = findStaleDeclared(distFiles, yamlText)
+if (stale.length > 0) {
+  console.error('Entrada(s) obsoleta(s) em `files:` de tizen_web_project.yaml — o build não as emite mais, remova antes de sincronizar:')
+  for (const file of stale) console.error(`  - ${file}`)
   process.exit(1)
 }
 

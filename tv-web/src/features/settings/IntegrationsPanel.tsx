@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import { Button } from '../../components/Button'
+import { RefreshStatusLine } from '../../components/RefreshButton'
+import type { RefreshAction } from '../../lib/portal/useRefreshAction'
 import { ComingSoon } from '../../components/ComingSoon'
 import { useLanguage, useT } from '../../lib/i18n/I18nProvider'
 import { APP_LANGUAGE_LOCALE } from '../../lib/i18n/languages'
@@ -25,6 +27,8 @@ export interface IntegrationsPanelProps {
   /** "Testar" em andamento — a ação ignora novo OK e sinaliza `aria-busy`. */
   testing: boolean
   onActivate: (row: number, col: number) => void
+  /** Atualizar da chave TMDB (busca a chave enviada pelo portal); a linha de resultado fica logo abaixo das ações. */
+  refresh: RefreshAction
   /** Último resultado salvo (só leitura do IndexedDB); `undefined` = nenhum teste salvo. */
   lastSpeedTest?: SpeedTestResult
   speedTestReadFailed?: boolean
@@ -41,7 +45,7 @@ function formatWhen(epochMs: number, locale: string): string {
  * estado (ADR-009), como `AccessibilityPanel`: sempre há um elemento
  * focável, em qualquer estado.
  */
-export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onActivate, lastSpeedTest, speedTestReadFailed }: IntegrationsPanelProps): ReactNode {
+export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onActivate, refresh, lastSpeedTest, speedTestReadFailed }: IntegrationsPanelProps): ReactNode {
   const t = useT()
   const language = useLanguage()
   const view: TmdbStatusView = status ?? { state: 'not_configured' }
@@ -90,13 +94,15 @@ export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onA
               key={action}
               variant={action === 'remove' ? 'secondary' : action === 'configure' ? 'accent' : 'secondary'}
               focused={focusedRow === 0 && focusedCol === col}
-              loading={action === 'test' && testing}
+              loading={(action === 'test' && testing) || (action === 'refresh' && refresh.status === 'loading')}
+              softDisabled={action === 'refresh' && refresh.paused}
               onSelect={() => onActivate(0, col)}
             >
               {t(TMDB_ACTION_LABEL_KEY[action])}
             </Button>
           ))}
         </div>
+        <RefreshStatusLine action={refresh} scope="tmdb" />
       </section>
 
       {INTEGRATION_SOON_CARDS.map((card, index) => (

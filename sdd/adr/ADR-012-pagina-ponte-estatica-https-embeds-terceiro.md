@@ -94,6 +94,16 @@ que criar a primeira página-ponte.
 | Página | Terceiro | Feature | Recebe |
 | --- | --- | --- | --- |
 | Player de trailer (`bridge/trailer/index.html`, `https://johnosd.github.io/ccplaytv/trailer/?v=<id>`) | YouTube IFrame Player API | `033-trailers-filmes-series` — código completo e **publicada em 2026-09-29** (a URL responde 200 e só `bridge/` é servido; o `static.yml` genérico foi removido do `main`); **passada na TV pendente** | ID do vídeo |
+| Política de privacidade (`bridge/privacidade/index.html`, `https://johnosd.github.io/ccplaytv/privacidade/`) — **documento público, não página-ponte** | nenhum | `078-prontidao-publicacao-samsung` — publicada quando chegar ao `main` | nada (o app nunca a carrega) |
+
+**Atualização (feature 078):** a mesma hospedagem estática pode servir também
+**documento público estático** que o app **nunca carrega** — hoje só a política de
+privacidade exigida pelo Samsung TV Seller Office (`bridge/privacidade/`). Ele segue as
+regras 1 e 4 desta ADR (estático; sem script de terceiro, cookie ou analytics — a página
+da 078 não tem script algum) e fica listado na tabela acima; as regras 2, 3, 5 e 6 não
+se aplicam porque não há conversa com o app. Nada que receba dado da pessoa, tenha lógica
+ou seja carregado pelo app entra por esta nota: isso continua exigindo os critérios 1–6
+(página-ponte) ou nova decisão.
 
 ## Alternativas Consideradas
 

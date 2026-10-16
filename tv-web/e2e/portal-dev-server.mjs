@@ -76,7 +76,7 @@ try {
     return buildFixedQrUrl({ site, displayId: row.displayId, deviceKey: row.deviceKey })
   }, stack.portalOrigin)
   await portal.goto(qr)
-  await expect(portal.getByRole('heading', { name: 'Suas listas' })).toBeVisible({ timeout: 20000 })
+  await expect(portal.getByRole('heading', { name: 'Listas', level: 1, exact: true })).toBeVisible({ timeout: 20000 })
   await portal.getByRole('button', { name: 'Adicionar lista', exact: true }).click()
   await portal.getByLabel('Nome da lista').fill('Lista do dev server')
   await portal.getByRole('group', { name: 'Tipo de lista' }).getByRole('radio', { name: 'M3U por URL' }).check()

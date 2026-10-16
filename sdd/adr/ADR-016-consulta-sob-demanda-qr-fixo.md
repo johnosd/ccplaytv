@@ -93,3 +93,6 @@ Isso conflita com a constitution 1.10.0 em três pontos de "Segredos Fora dos Cl
 - Revisitar a detecção de estorno se a venda for ligada com volume (consulta opcional ao abrir, por decisão explícita).
 - Se a lib de QR falhar na TV física, trocar por outra mantendo o formato da URL (`buildFixedQrUrl` é a fronteira).
 - A venda continua desligada até os riscos R-022..R-026 da 069 serem executados; esta ADR não a reabre.
+
+
+**Atualização (ADR-020, 2026-10-16):** a chave TMDB digitada no portal só chega à TV no passo integrations do Atualizar da pessoa; continua sem consulta automática ao serviço. Ver ADR-020.
