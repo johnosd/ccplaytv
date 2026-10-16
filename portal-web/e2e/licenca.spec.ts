@@ -1,11 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
 // 073/D-007: a aba de compra é "Comprar licença" no teste e "Renovar licença" com licença paga.
+const CSRF = 'c'.repeat(42) + 'A'
 const purchaseTab = (page: Page, name = 'Comprar licença') => page.getByRole('navigation').getByRole('button', { name, exact: true })
 async function fixture(page: Page, loseFirst = false, enabled = true, pendingPix = false) {
   const requests: { id?: string; body: unknown }[] = []
   let status = 'pending'
   const pendingOrder = pendingPix ? { orderId: 'order-fixture', method: 'pix', expiresAt: new Date(Date.now() + 25 * 60000).toISOString() } : null
-  const session = { deviceId: 'tv-license-fixture', csrfToken: 'csrf-fixture', expiresAt: new Date(Date.now() + 3600000).toISOString() }
+  const session = { deviceId: 'tv-license-fixture', csrfToken: CSRF, expiresAt: new Date(Date.now() + 3600000).toISOString() }
   const order = () => ({ orderId: 'order-fixture', deviceId: session.deviceId, status, checkoutUrl: status === 'pending' ? 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=fixture' : null })
   await page.route('**/portal/v1/**', async route => {
     const request = route.request(), path = new URL(request.url()).pathname
@@ -52,10 +53,25 @@ test('confirma TV, retry mantém pedido e pendente não permite recompra; retorn
   await expect(page.getByText('Pagamento pendente', { exact: true })).toBeVisible()
   state.approve()
   await page.getByRole('button', { name: 'Atualizar estado' }).click()
-  await expect(page.getByText('Pagamento confirmado', { exact: true })).toBeVisible()
+  await expect(page.getByText(/^Pagamento confirmado\. Na TV, aperte Atualizar/)).toBeVisible()
   await expect(page.getByRole('link', { name: 'Continuar no Mercado Pago' })).toHaveCount(0)
   await expect(buy).toBeVisible()
   await expect(buy).toBeDisabled()
+})
+// T034: o Checkout Pro devolve para /?checkout=return com a página recarregada; a sessão da aba é retomada e a aba de
+// compra abre com o pedido, sem pedir login de novo.
+test('volta do Mercado Pago retoma a sessão na aba de compra e mostra o pagamento confirmado', async ({ page }) => {
+  const state = await fixture(page)
+  await page.getByLabel('Conferi o endereço MAC da TV').check()
+  await page.getByRole('button', { name: 'Comprar ou renovar licença' }).click()
+  await expect(page.getByText('Pagamento pendente', { exact: true })).toBeVisible()
+  state.approve()
+  await page.goto('/?checkout=return')
+  await expect(page.getByText(/^Pagamento confirmado\. Na TV, aperte Atualizar/)).toBeVisible()
+  await expect(purchaseTab(page, 'Renovar licença')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('heading', { name: 'Conectar à TV' })).toHaveCount(0)
+  expect(new URL(page.url()).search).toBe('')
+  expect(state.requests).toHaveLength(1)
 })
 test('compra pendente sobrevive reload e nova sessão da mesma TV sem segundo POST', async ({ page }) => {
   const state = await fixture(page)
@@ -106,8 +122,9 @@ test('código de recuperação aparece só ao pedir, com aviso, some ao ocultar 
   await show.click()
   await expect(page.getByText(code, { exact: true })).toBeVisible()
   await expect(page.getByText('É uma credencial privada', { exact: false })).toBeVisible()
-  expect(calls.every(call => call.method === 'POST' && call.csrf === 'csrf-fixture' && !call.url.includes(code))).toBe(true)
+  expect(calls.every(call => call.method === 'POST' && call.csrf === CSRF && !call.url.includes(code))).toBe(true)
   expect(page.url()).not.toContain(code)
+  expect(await page.evaluate(() => JSON.stringify({ ...sessionStorage, ...localStorage }))).not.toContain(code)
   await page.getByRole('button', { name: 'Ocultar código' }).click()
   await expect(page.getByText(code)).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Recuperar após formatar' })).toBeVisible()

@@ -61,7 +61,7 @@ try {
   await expect(page.getByText('Licença: Período de teste', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Atualizar', exact: true }).click()
   await expect.poll(async () => (await cache())?.generation, { timeout: 15000 }).toBeGreaterThan(0)
-  await page.getByRole('button', { name: 'Gerar QR para o portal', exact: true }).click()
+  // 075: o QR fixo já está à vista, sem nenhuma ação.
   await expect(page.getByRole('img', { name: /QR de acesso ao portal/ })).toBeVisible()
   // Provedor confirma mesmo com o navegador da compra fechado; a pessoa aperta Atualizar (a pausa de 10 s vale).
   state = 'active'; expiresAt = Date.now() + 365 * 86400000

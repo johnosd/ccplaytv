@@ -1,4 +1,5 @@
 import { portal } from './portal'
+import { portalAdvanced } from './portalAdvanced'
 import { comingSoon } from './comingSoon'
 import { common } from './common'
 import { components } from './components'
@@ -41,6 +42,7 @@ export const pt = {
   ...playerUi.pt,
   ...profiles.pt,
   ...portal.pt,
+  ...portalAdvanced.pt,
   ...purchase.pt,
   ...settings.pt,
   ...shell.pt,

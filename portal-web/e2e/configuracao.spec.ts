@@ -68,9 +68,15 @@ test('QR remove fragmento antes da rede e exchange ocorre uma vez em StrictMode'
   await expect(page.getByRole('heading', { name: 'Suas listas' })).toBeVisible()
   expect(state.exchanges()).toBe(1)
   expect(new URL(page.url()).hash).toBe('')
+  const stored = () => page.evaluate(() => sessionStorage.getItem('ccplay-portal-session'))
+  expect(Object.keys(JSON.parse((await stored())!)).sort()).toEqual(['csrfToken', 'deviceId', 'expiresAt'])
   await page.getByRole('button', { name: 'Sair do portal' }).click()
   await expect(page.getByRole('heading', { name: 'Conectar à TV' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Suas listas' })).not.toBeVisible()
+  // T036: sair apaga a sessão guardada na aba; recarregar não volta ao painel.
+  expect(await stored()).toBeNull()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Conectar à TV' })).toBeVisible()
 })
 
 test('manual/Xtream mantém segredo fora dos cards e aplicação separada de recebimento', async ({ page }) => {

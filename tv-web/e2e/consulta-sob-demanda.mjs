@@ -11,7 +11,7 @@
 import assert from 'node:assert/strict'
 import { chromium, expect } from '@playwright/test'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
-import { abrirPortalLicenca } from './lib/portal.mjs'
+import { abrirPortalLicenca, gerarNovaChave } from './lib/portal.mjs'
 import { startPortalStack } from './lib/portalStack.mjs'
 
 const log = (message) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${message}`)
@@ -261,11 +261,10 @@ try {
   await openSite(tv)
   const before = await credentialsOnScreen()
   const oldQr = await qrUrlOf()
-  // A nova chave sai da tela do site: fica em Configurações → Portal & licença → "Revogar acessos ao portal".
+  // A nova chave sai da tela do site: fica em Configurações → Portal & licença → Avançado → "Gerar nova chave e código".
   await tv.goto(stack.tvOrigin)
   await abrirPortalLicenca(tv)
-  await tv.getByRole('button', { name: 'Revogar acessos ao portal', exact: true }).click()
-  await tv.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click()
+  await gerarNovaChave(tv)
   await expect.poll(async () => (await device())?.deviceKey, { timeout: 30000 }).not.toBe(before.deviceKey)
   await tv.goto(stack.tvOrigin)
   await openSite(tv)

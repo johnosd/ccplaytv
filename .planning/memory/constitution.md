@@ -1,4 +1,30 @@
 <!--
+Relatório de Impacto de Sincronização (2026-10-16, feature 076)
+- Mudança de versão: 1.14.0 -> 1.14.1 (PATCH, esclarecimento de texto).
+- Origem: simplificação de Portal & licença (feature 076): o "código da licença"
+  passa a se chamar "código de recuperação" (nunca foi licença comprada) e o olho
+  sai da tela principal para a subtela Avançado da mesma aba.
+- Nenhuma regra é enfraquecida: oculto por padrão, SELECT no olho sem modal e sem
+  prazo, reoculto ao sair/segundo plano/regenerar, nunca em cards/URL/logs/QR.
+  "Na própria tela" do item (f) passa a valer para a subtela Avançado da aba.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
+Relatório de Impacto de Sincronização (2026-10-16, ADR-019)
+- Mudança de versão: 1.13.0 -> 1.14.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs", item (f)).
+- Origem: pedido explícito do usuário de simplificar Portal & licença
+  (sdd-adhoc redirecionado para sdd-adr), após aviso de risco; ADR-019.
+- Exceção delimitada: em Portal & licença, QR fixo, ID e chave à vista sem
+  ação; código da licença oculto por padrão, revelado por SELECT num olho na
+  própria tela, sem prazo, reocultado ao sair, em segundo plano ou ao regenerar.
+- Continuam proibidos: cards, perfis, avisos, histórico, erros, diagnóstico,
+  logs, URL ao servidor, analytics, checkout, exportação; código fora do QR.
+- Risco aceito pelo usuário: foto/captura de mais uma tela com chave/QR;
+  código revelado sem limite de tempo enquanto a tela estiver aberta.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
 Relatório de Impacto de Sincronização (2026-10-15, feature 073)
 - Mudança de versão: 1.12.0 -> 1.13.0 (MINOR, expansão delimitada de "Segredos
   Fora dos Clientes e dos Logs").
@@ -157,6 +183,8 @@ Histórico:
 - 1.13.0 (2026-10-15): cópia cifrada do código de recuperação no serviço,
   enviada pela TV por ação da pessoa e revelada só ao painel da mesma TV por ação
   explícita (feature 073).
+- 1.14.0 (2026-10-16): QR fixo, ID e chave à vista em Portal & licença; código da
+  licença oculto por padrão atrás de mostrar/ocultar na própria tela (ADR-019).
 -->
 
 # Constitution do CCPlay TV
@@ -240,12 +268,13 @@ cópias antigas expiram conforme retenção informada.
 
 Convite QR aleatório, efêmero e de uso único PODE estar no fragmento da URL,
 removido antes da primeira requisição e trocado no corpo HTTPS; NÃO PODE
-conter device key permanente, código da licença ou credenciais IPTV.
-Device key e código da licença para recuperação PODEM ser revelados somente
+conter device key permanente, código de recuperação ou credenciais IPTV.
+Device key e código de recuperação PODEM ser revelados somente
 por ação explícita na superfície protegida da TV/portal autorizado, para
 digitação/guarda/fotografia escolhida pelo usuário, nunca em cards comuns,
 URL de navegação, logs, erros, analytics, checkout ou exportação pública.
-Código da licença é credencial de recuperação, não identificador público;
+Código de recuperação (chamado "código da licença" até a feature 076; nunca foi
+uma licença comprada) é credencial de recuperação, não identificador público;
 reuso/revogação/tentativas DEVEM ser controlados. Não alegar DRM inviolável.
 
 **Exceção de pareamento estilo gerenciador (2026-10-13, feature 070/ADR-014)**,
@@ -284,6 +313,15 @@ consumi-la no navegador e removê-la do endereço/histórico antes de renderizar
 pessoa precisa dela para comprar. Fora de Adicionar lista e do bloqueio, continua
 só por ação explícita em Portal & licença; nunca em cards, perfis, avisos,
 histórico, erros ou diagnóstico.
+**Emenda (2026-10-16, ADR-019)**: em **Portal & licença**, o QR fixo, o ID e a
+chave PODEM ficar à vista ao abrir a tela, sem ação explícita. O código de
+recuperação DEVE começar oculto a cada abertura e só aparecer por SELECT num
+controle de mostrar/ocultar na própria aba (sem modal de aviso e sem prazo; desde
+a feature 076, dentro da subtela Avançado e nunca na tela principal); DEVE voltar
+a ficar oculto ao sair da subtela ou da tela, com a página em segundo plano
+(`visibilitychange`/`pagehide`) e ao ser regenerado; focar o controle NÃO PODE
+revelá-lo. As demais proibições deste item e do parágrafo do código de
+recuperação continuam.
 Limite de tentativa por ID/origem/global e recusa uniforme (item (a)) continuam.
 
 **Exceção de backup de uso e reassociação (2026-10-14, feature 072/ADR-017)**,
@@ -572,4 +610,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.13.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-15
+**Versão**: 1.14.1 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-16

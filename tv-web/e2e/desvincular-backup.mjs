@@ -10,7 +10,7 @@
 // 10 (marcadores fora de URL e do log da API).
 import assert from 'node:assert/strict'
 import { chromium, expect } from '@playwright/test'
-import { abrirPortalLicenca } from './lib/portal.mjs'
+import { abrirBackup, abrirPortalLicenca } from './lib/portal.mjs'
 import { startPortalStack } from './lib/portalStack.mjs'
 
 const log = (message) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${message}`)
@@ -73,7 +73,9 @@ try {
   log('3. Desvincular preserva os dados e guarda o lembrete')
   await tv.goto(stack.tvOrigin)
   await abrirPortalLicenca(tv)
-  await tv.getByRole('button', { name: 'Desvincular esta TV', exact: true }).click()
+  // 075/076: Desvincular vive no Avançado (é ação do vínculo, não do backup).
+  await tv.getByRole('button', { name: 'Avançado', exact: true }).click()
+  await tv.getByRole('region', { name: 'Avançado' }).getByRole('button', { name: 'Desvincular esta TV', exact: true }).click()
   const dialog = tv.getByRole('dialog', { name: 'Desvincular esta TV do portal?' })
   await expect(dialog).toBeVisible()
   assert.equal(await dialog.locator('.tv-focus').innerText(), 'Cancelar', 'foco inicial em Cancelar')
@@ -128,7 +130,7 @@ try {
   // ── 8. Apagar o backup desliga o envio automático ───────────────────────────────────────────────────────────────
   log('8. apagar o backup desliga o envio')
   await tv.goto(stack.tvOrigin)
-  await abrirPortalLicenca(tv)
+  await abrirBackup(tv)
   await tv.getByRole('button', { name: 'Apagar backup', exact: true }).click()
   await tv.getByRole('dialog', { name: 'Apagar o backup?' }).getByRole('button', { name: 'Apagar backup', exact: true }).click()
   await expect(tv.getByText('Backup apagado. Nada nesta TV mudou.')).toBeVisible({ timeout: 30000 })

@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-15
 
-**Status**: Em Execução
+**Status**: Implementada
 
 **Input**: Eu como usuário do app quero poder comprar a licença através do site ou diretamente na TV usando Pix/Mercado Pago; após a compra minha TV deve receber a licença, e eu também posso consultar e guardar a licença para uma eventual inclusão caso a TV seja formatada. Fluxo TV: entro no app, vejo que a licença expirou/teste acabou, aparece o QR code para pagar via Pix, escaneio, pago e a TV recebe a nova licença anual. Fluxo portal: entro em https://portal.ccplaytv.com/ (ou pelo QR), acesso "Renovar licença", pago e minha TV recebe a licença.
 

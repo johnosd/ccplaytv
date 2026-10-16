@@ -7,10 +7,14 @@ import pytest
 from app.portal.application import create_app
 from app.portal.auth import AuthError, Principal
 from app.portal.auth_tokens import new_token
+from app.portal.models import DeviceDocument
 from app.portal.recovery_escrow import RecoveryEscrowService
+from app.portal.repositories.control import TransactionPlan
 from app.portal.settings import PortalSettings
 from tests.portal.test_access_rotation import prepared, remember_new_code
 from tests.portal.test_auth import ORIGIN, remember
+from tests.portal.test_recovery import linked, remember_attempt, remember_code
+from tests.portal.test_recovery import prepared as prepared_recovery
 
 
 def remember_escrow(control, service, device_id):
@@ -55,6 +59,42 @@ async def test_tv_stores_only_the_current_code_encrypted_and_panel_reveals_only_
     with pytest.raises(AuthError) as caught:
         await service.put(fresh, code, credentials["recoveryCodeVersion"], now)
     assert caught.value.status == 409
+
+
+async def test_code_revealed_in_panel_recovers_same_tv_after_reinstall_and_only_current_is_shown(control):
+    # SC-006, US3/AC2–AC3 (C1 do converge): o código que o portal mostra é o que recupera a TV formatada pelo site.
+    recovery, old, identity, now = await prepared_recovery(control)
+    service = RecoveryEscrowService(recovery.auth, recovery.crypto, recovery.codes)
+    device_id = old["deviceId"]
+    remember_escrow(control, service, device_id)
+    path = "devices/" + device_id
+    # Licença paga já concedida: fica no registro da TV (geração), não na instalação.
+    await recovery.repository.transact((path,), lambda rows: TransactionPlan(None, {path: DeviceDocument.model_validate(
+        rows[path]).model_copy(update={"entitlement_generation": 7})}))
+    principal = await recovery.auth.authenticate_tv(old["bearer"])
+    await service.put(principal, old["recoveryCode"], old["recoveryCodeVersion"], now)
+    revealed = (await service.reveal(principal, now))["recoveryCode"]
+    assert revealed == old["recoveryCode"]
+    # Reinstalação: a TV só tem a identidade da plataforma; a pessoa digita no site o código que anotou do portal.
+    challenge, web = await linked(control, recovery, identity, now)
+    operation_id = new_token()
+    remember_attempt(control, recovery, challenge, revealed, operation_id)
+    result = await recovery.confirm(web.token, recovery.auth.public_origin, web.csrf, code=revealed,
+                                    confirmed_device_id=device_id, request_id=operation_id, ip="fixture-ip", now=now)
+    assert result.state == "ready"
+    row = await remember_code(control, recovery, device_id)
+    delivered = (await recovery.claim_result(challenge["claimId"], challenge["claimSecret"], now)).credentials
+    assert delivered["deviceId"] == device_id and row["entitlementGeneration"] == 7
+    fresh = await recovery.auth.authenticate_tv(delivered["bearer"])
+    # O portal nunca mostra o código consumido: até a TV enviar o novo, orienta Atualizar; depois, só o atual.
+    with pytest.raises(AuthError) as caught:
+        await service.reveal(fresh, now)
+    assert caught.value.code == "not_escrowed"
+    await service.put(fresh, delivered["recoveryCode"], delivered["recoveryCodeVersion"], now)
+    shown = await service.reveal(fresh, now)
+    assert shown["recoveryCode"] == delivered["recoveryCode"] != revealed
+    with pytest.raises(AuthError):
+        await recovery.auth.authenticate_tv(old["bearer"])
 
 
 async def test_routes_tv_bearer_put_and_panel_post_with_csrf_no_store_limited_and_never_logged(control, tmp_path, caplog):

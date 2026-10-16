@@ -27,7 +27,8 @@ export interface RefreshAction {
  */
 export async function refreshFingerprint(scope: RefreshScope): Promise<string> {
   const tables = portalTables(db)
-  if (scope === 'license') return (await tables.license.get('entitlement'))?.jws ?? ''
+  // O serviço assina um JWS novo a cada Atualizar (horário do servidor); "mudou" é situação/validade, não o texto.
+  if (scope === 'license') return licenseFingerprint((await tables.license.get('entitlement'))?.jws ?? '')
   // 072: o backup "mudou" quando o serviço confirmou um novo (instante do último backup).
   if (scope === 'backup') return String((await db.table('portalDevice').get('backup'))?.lastBackupAt ?? '')
   const [sources, revisions] = await Promise.all([db.sources.toArray(), tables.revisions.toArray()])
@@ -35,6 +36,16 @@ export async function refreshFingerprint(scope: RefreshScope): Promise<string> {
     sources.map(source => [source.id, source.updatedAt]).sort(),
     revisions.map(row => [row.sourceId, row.revision, row.tombstone ?? false]).sort(),
   ])
+}
+
+/** Claims públicas do JWS (só para comparar; quem confia na licença é o verificador). */
+export function licenseFingerprint(jws: string): string {
+  try {
+    const claims: unknown = JSON.parse(atob((jws.split('.')[1] ?? '').replaceAll('-', '+').replaceAll('_', '/')))
+    const { state, expiresAt } = (claims ?? {}) as Record<string, unknown>
+    if (typeof state === 'string' && typeof expiresAt === 'number') return state + ':' + expiresAt
+  } catch { /* JWS malformado: compara o texto. */ }
+  return jws
 }
 
 const OFFLINE_CODES = new Set(['offline', 'network_error'])
@@ -102,7 +113,7 @@ export function refreshMessageKey(status: RefreshStatus, scope: RefreshScope) {
     case 'loading': return 'portal.refresh.loading' as const
     case 'done': return scope === 'license' ? 'portal.refresh.licenseDone' as const
       : scope === 'backup' ? 'portal.backup.done' as const : 'portal.refresh.listsDone' as const
-    case 'nothing': return 'portal.refresh.nothing' as const
+    case 'nothing': return scope === 'license' ? 'portal.refresh.licenseNothing' as const : 'portal.refresh.nothing' as const
     case 'wait': return 'portal.refresh.wait' as const
     case 'offline': return 'portal.refresh.offline' as const
     case 'failed': return 'portal.refresh.failed' as const

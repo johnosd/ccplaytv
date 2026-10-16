@@ -13,4 +13,14 @@ Escopo: copia-e-cola do Pix, ids de pagamento, código de recuperação (cópia 
 | Terceiros | Mercado Pago recebe valor, referência do pedido e e-mail sintético `tv-<hash>@domínio` | Sem dado pessoal, `deviceId` ou credencial IPTV (`test_mercadopago.py`, `test_pix.py`). |
 | Backup operacional | Pedidos (com `pixQrCode` enquanto pendente) e `recoveryEscrow` entram no backup diário do Firestore | `pixQrCode` é apagado quando o pedido termina; `recoveryEscrow` é ciphertext (chave AES fora do banco, como as configurações — ADR-013). Risco aceito R-003. |
 
+## Complemento T036 (2026-10-16) — sessão do portal guardada na aba (correção da T034)
+
+| Item | Onde | Resultado |
+| --- | --- | --- |
+| O que fica | `sessionStorage['ccplay-portal-session']` (`portal-web/src/features/api.ts`, `rememberSession`) | Só `deviceId`, `csrfToken` e `expiresAt`, gravados campo a campo (nunca o objeto recebido). O cookie de sessão segue `httpOnly`, `SameSite=Strict`, `Secure` no staging/produção, e nunca é legível pela página: sem ele o CSRF não autoriza nada. Teste: `api.test.ts` (campo extra descartado); `configuracao.spec.ts` (só as três chaves). |
+| Quando some | Sair do portal (`setSession(undefined)`), validade vencida ou valor malformado (`storedSession` apaga), sessão recusada pelo serviço na retomada (`main.tsx`: `/session/device` ≠ mesma TV ou erro → apaga), aba fechada (escopo do `sessionStorage`) | `configuracao.spec.ts` (sair apaga e recarregar volta ao login); `api.test.ts` (vencida/malformada). Revogar acessos na TV invalida a sessão no serviço → a próxima retomada é recusada e o valor é apagado. |
+| Retomada | `main.tsx`: só com fragmento ausente; confere `/session/device` antes de abrir o painel; falha → formulário limpo, sem mensagem | `licenca.spec.ts` (volta do Mercado Pago). |
+| URL / log / erro | `back_urls` = `/?checkout=return` (sem dado), query limpa por `history.replaceState` antes de renderizar; portal sem `console.*` | `licenca.spec.ts` (`search` vazio depois do retorno). |
+| Código de recuperação | Continua fora de qualquer storage do navegador | `licenca.spec.ts` (`sessionStorage`/`localStorage` sem o código depois de mostrá-lo). |
+
 Conclusão: nenhum vazamento encontrado. Risco residual registrado: R-003 (quem tem a chave do dispositivo lê o código no painel), aceito pelo usuário e formalizado na constitution 1.13.0 (i).

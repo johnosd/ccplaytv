@@ -93,8 +93,10 @@ update-bug-status.ps1.
 | 070-entrada-listas-gerenciador | Entrada de listas estilo gerenciador | Convergida | 61/61 tasks | 2026-10-13 |
 | 071-consulta-sob-demanda-qr-fixo | Consulta sob demanda e QR fixo | Convergida | 51/51 tasks | 2026-10-14 |
 | 072-desvincular-backup | Desvincular a TV do portal e backup dos dados de uso | Em Execução | 44/46 tasks | 2026-10-14 |
-| 073-compra-licenca-pix | Compra de licença por Pix na TV e renovação pelo portal | Em Execução | 45/47 tasks | 2026-10-15 |
-| 074-radio-global | Rádio global por país | Implementada | 49/49 tasks | 2026-10-15 |
+| 073-compra-licenca-pix | Compra de licença por Pix na TV e renovação pelo portal | Implementada | 51/51 tasks | 2026-10-16 |
+| 074-radio-global | Rádio global por país | Convergência Pendente | 49/53 tasks | 2026-10-15 |
+| 075-redesenho-portal-licenca | Redesenho da tela Portal & licença e item Backup | Implementada | 41/41 tasks | 2026-10-16 |
+| 076-simplificar-portal-licenca | Simplificar Portal & licença — ações raras e código de recuperação em Avançado | Implementada | 38/38 tasks | 2026-10-16 |
 
 ## Bugs
 

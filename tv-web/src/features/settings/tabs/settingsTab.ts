@@ -4,7 +4,7 @@ import type { MessageKey } from '../../../lib/i18n/messages/pt'
 import type { SourceOut } from '../../import/importApi'
 
 /** Abas na ordem do DS (FR-022). `sources` é a inicial. Só as globais desde a feature 067 (FR-015). */
-export type SettingsTab = 'integrations' | 'sources' | 'player' | 'accessibility' | 'about' | 'portal'
+export type SettingsTab = 'integrations' | 'sources' | 'player' | 'accessibility' | 'about' | 'portal' | 'backup'
 
 /**
  * Onde estava o foco quando a pessoa saiu de Configurações (para Editar,
@@ -28,6 +28,11 @@ export interface SettingsTabHandle {
   onEnter: () => void
   onDirection: (direction: SettingsDirection) => void
   onSelect: () => void
+  /**
+   * RETURN no painel (feature 076): `true` = a aba tratou (fechou uma subtela, por exemplo) e a tela NÃO sai;
+   * ausente ou `false` = comportamento de sempre. Só é consultado com o foco no painel (`SettingsScreen`).
+   */
+  onBack?: () => boolean
 }
 
 /** Saídas de Configurações para outras telas — cada aba usa só as suas. */

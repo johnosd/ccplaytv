@@ -139,9 +139,8 @@ class PixOrders:
 
 
 
-async def pending_order(repository, principal: Principal, now: datetime) -> dict | None:
-    """Aviso do portal (FR-010, D-007): pedido pendente da TV, sem copia-e-cola. Só lê o Firestore — não depende do
-    provedor estar configurado, então não pode derrubar `/session/device`."""
+async def open_order(repository, principal: Principal) -> OrderDocument | None:
+    """Pedido em aberto (`created`/`pending`) da TV autenticada, só pelo Firestore."""
     from app.portal.commercial_models import LicensingStateDocument
     state_path = document_path("licensing", "current", device_id=principal.device_id)
     snapshot = await repository.client.document(state_path).get(timeout=5, retry=None)
@@ -154,7 +153,26 @@ async def pending_order(repository, principal: Principal, now: datetime) -> dict
     if not saved.exists:
         return None
     order = OrderDocument.model_validate(saved.to_dict())
-    if order.device_id != principal.device_id or order.status not in OPEN_STATES:
+    return order if order.device_id == principal.device_id and order.status in OPEN_STATES else None
+
+
+async def reconcile_open_order(payments: PaymentService, principal: Principal, now: datetime) -> None:
+    """Atualizar da TV (ADR-016: só por ação da pessoa): concilia o pedido em aberto antes de emitir a licença, para o
+    cartão pago no portal chegar mesmo sem webhook. Provedor fora do ar não impede a licença atual."""
+    order = await open_order(payments.repository, principal)
+    if order is None:
+        return
+    try:
+        await payments.read_order(principal, order.order_id, now)
+    except (AuthError, PaymentProviderError):
+        pass
+
+
+async def pending_order(repository, principal: Principal, now: datetime) -> dict | None:
+    """Aviso do portal (FR-010, D-007): pedido pendente da TV, sem copia-e-cola. Só lê o Firestore — não depende do
+    provedor estar configurado, então não pode derrubar `/session/device`."""
+    order = await open_order(repository, principal)
+    if order is None:
         return None
     if pix_usable(order, now):
         return {"orderId": order.order_id, "method": "pix", "expiresAt": order.pix_expires_at.isoformat()}

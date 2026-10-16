@@ -40,27 +40,31 @@ try {
   await expect(panel.getByText(/Validade até:/)).toBeVisible()
   log('licença: período de teste e validade visíveis')
 
-  assert.equal(await focus(), 'Gerar QR para o portal')
-  await press('Enter')
+  // 075: foco inicial na ação principal da licença; QR, ID e chave (3-3-4) já estão à vista, sem nenhuma ação.
+  assert.equal(await focus(), 'Comprar licença')
   await expect(tv.getByRole('img', { name: /QR de acesso ao portal/ })).toBeVisible({ timeout: 15000 })
   log(`QR visível (relógio da TV ${clockOffsetMs} ms)`)
+  await expect(panel.getByText(/^\d{3} \d{3} \d{4}$/)).toBeVisible()
+  log('ID e chave da TV à vista, sem ação')
 
-  const reveal = async (action, pattern) => {
-    assert.equal(await focus(), action)
-    await press('Enter')
-    const dialog = tv.getByRole('dialog')
-    await dialog.waitFor({ timeout: 5000 })
-    await press('ArrowRight', 'Enter') // Cancelar (foco inicial) → Mostrar agora
-    await expect(dialog).toContainText(pattern, { timeout: 5000 })
-    await press('Escape')
-    await dialog.waitFor({ state: 'detached', timeout: 5000 })
-  }
-  await press('ArrowDown')
-  await reveal('Mostrar chave da TV', /\d{10}/) // 070: chave numérica de 10 dígitos
-  log('chave da TV exibida só por ação explícita')
+  const code = /([0-9A-Z]{4}-){3,}[0-9A-Z]{4}/
+  assert.ok(!code.test(await panel.innerText()), 'sem código na tela principal')
+  assert.equal(await panel.getByText('Guarde seu código de recuperação em Avançado.').count(), 1)
   await press('ArrowDown', 'ArrowDown')
-  await reveal('Mostrar código da licença', /([0-9A-Z]{4}-){3,}[0-9A-Z]{4}/)
-  log('código da licença exibido só por ação explícita')
+  assert.equal(await focus(), 'Avançado')
+  await press('Enter')
+  const advanced = tv.getByRole('region', { name: 'Avançado' })
+  await expect(advanced).toBeVisible()
+  assert.equal(await focus(), 'Mostrar código de recuperação')
+  assert.ok(!code.test(await advanced.innerText()), 'focar o olho não revela')
+  await press('Enter')
+  await expect(advanced).toContainText(code, { timeout: 5000 })
+  assert.equal(await tv.getByRole('dialog').count(), 0, 'sem modal')
+  await press('Enter')
+  assert.ok(!code.test(await advanced.innerText()), 'segundo OK oculta')
+  await press('Escape')
+  await expect(advanced).toHaveCount(0)
+  log('código de recuperação exibido só pelo olho, dentro do Avançado')
 
   // Portal: entra pelo QR fixo (ID + chave no fragmento) e cria uma lista; a TV aplica no Atualizar.
   const portalContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR' })

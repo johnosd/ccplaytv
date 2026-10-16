@@ -184,7 +184,7 @@ description: "Tasks da feature 073 — compra de licença por Pix na TV e renova
 - [X] T031 Suítes completas: TV `npx tsc -b`, `npm run lint`, `npm run test`, `npm run build`, `npm run build:tizen`, `npm run test:e2e` (com `npm run dev`); API `pytest tests/portal` + `ruff`; portal lint/test/build/E2E; travas 073/072/071/070/069/026.
 - [X] T032 Revisão de segredos: copia-e-cola, ids de pagamento e código de recuperação fora de logs, `repr`, erros, diagnósticos, URLs e caches; respostas `no-store` conferidas; registrar em `sdd/specs/073-compra-licenca-pix/evidencias/segredos.md`.
 - [X] T033 Rodar `quickstart.md` §3 no navegador e registrar o resultado.
-- [ ] T034 TV física (**gate SC-007, só com confirmação do usuário**, skill `tizen-tv`): QR Pix lido do sofá, fluxo por controle remoto, atualização preservando dados.
+- [X] T034 TV física (**gate SC-007, só com confirmação do usuário**, skill `tizen-tv`): QR Pix lido do sofá, fluxo por controle remoto, atualização preservando dados. — 2026-10-16, veredito do usuário: QR do portal, Comprar (indisponível no staging, esperado), compra por cartão no portal com retorno correto, Atualizar recebeu a licença (15/10/2027) e a 2ª compra somou +12 meses. QR do Pix lido do sofá **não executado** (R-001, risco aceito pelo usuário). `evidencias/tv.md`.
 
 ### Checklist de Release
 
@@ -199,7 +199,7 @@ description: "Tasks da feature 073 — compra de licença por Pix na TV e renova
 - [X] Portal: lint/test/build/E2E (E2E 18/18 em 2 de 3 rodadas; `configuracao.spec.ts:123` instável — R-015)
 - [X] Revisão de segredos registrada
 - [X] Staging de teste validado (sem venda real; `checkout_enabled` falso fora dele) — cartão sim, Pix não (R-001)
-- [ ] `quickstart.md` executado; TV física (SC-007) aprovada ou risco aceito explicitamente pelo usuário
+- [X] `quickstart.md` executado; TV física (SC-007) aprovada ou risco aceito explicitamente pelo usuário (aprovada com cartão; Pix do sofá = risco aceito, R-001)
 
 ---
 
@@ -248,3 +248,20 @@ Task: "T012 [P] [US1] textos em tv-web/src/lib/i18n/messages/portal.ts"
 - Commitar após cada task ou grupo lógico coerente
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->
+
+## Phase 7: Convergence
+
+**Purpose**: fechar os achados do `sdd-converge` de 2026-10-16 (C1–C4). Nenhuma task anterior foi alterada.
+
+- [X] T035 [US3] Teste de integração do caminho completo de SC-006 em `api/tests/portal/test_recovery_escrow.py` (ou arquivo vizinho): TV envia a cópia → portal revela o código (`POST /session/recovery-code`) → "reinstalação" (identidade nova) → recuperação pelo site com **o código revelado** (`/recoveries/exchange` + `/recoveries/confirm`) → a TV volta ao mesmo registro com a licença; código antigo após rotação não recupera. Origem: SC-006, US3/AC2–AC3 (achado C1, MEDIUM).
+- [X] T036 Estender a revisão de segredos à sessão do portal guardada na aba (correção da T034): conferir que `sessionStorage` só tem ID/CSRF/validade, que some no logout/validade/sessão recusada, que o cookie `httpOnly` segue obrigatório, que nada vai para URL/log/erro; registrar em `sdd/specs/073-compra-licenca-pix/evidencias/segredos.md`. Origem: Constitution (segredos), FR-011/FR-012 (achado C2, MEDIUM).
+- [X] T037 Registrar em `plan.md` → `## Riscos e Decisões` (R-018) a extensão da D-004 feita na T034: `/session/device` e `/device/entitlement/refresh` conciliam o pedido em aberto (consulta autenticada, `reconcile_after` 10 s, provedor fora do ar não derruba a resposta; só por ação da pessoa, ADR-016), e a comparação da licença por situação/validade na TV. Origem: plan D-004 (achado C3, LOW).
+- [X] T038 Rodar o gate E2E depois das correções da T034: TV `npm run test:e2e` (com `npm run dev`) e `node e2e/consulta-sob-demanda.mjs` (pilha real, emulador), registrando o resultado nas Execution Notes. Origem: Constitution "Fluxo de Desenvolvimento" (achado C4, LOW).
+
+**Registro da Fase**
+
+- Status: concluída (2026-10-16).
+- Feito: T035 teste de integração código revelado no portal → recuperação pelo site após reinstalar → mesmo registro com a licença; portal só mostra o código atual. T036 revisão de segredos da sessão na aba (`evidencias/segredos.md`), com endurecimento: `rememberSession` grava só ID/CSRF/validade. T037 R-018 em `plan.md`. T038 gate E2E.
+- Contrato: `check-contract-tests.ps1 -Slug 073-compra-licenca-pix` → 5/5 verdes na suíte da TV, trava íntegra.
+- Testes executados: `uv run pytest tests/portal` 167/167 (+1 de T035, verde na 1ª iteração) e `uv run ruff check .` limpo; portal `npx vitest run` 8/8, `npm run lint`, `npm run build`, `npx playwright test` 19/19; TV `node e2e/run.mjs` 51/51 (190 s) e `node e2e/consulta-sob-demanda.mjs` PASS (pilha real).
+- Pendências: o endurecimento do `rememberSession` (T036) ainda não foi publicado no staging (comportamento publicado é equivalente: a resposta do login só tem os três campos). R-001, R-015, R-016 seguem abertos.

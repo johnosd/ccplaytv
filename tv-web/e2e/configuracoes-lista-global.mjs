@@ -111,7 +111,7 @@ async function run() {
     await openSettings(page)
     const tabs = (await page.locator('.side-category-nav-item .side-category-nav-label').allTextContents()).map((t) => t.trim())
     assert(
-      JSON.stringify(tabs) === JSON.stringify(['Integrações & BYOK', 'Fontes IPTV', 'Player & reprodução', 'Acessibilidade & sistema', 'Sobre & créditos', 'Portal & licença']),
+      JSON.stringify(tabs) === JSON.stringify(['Integrações & BYOK', 'Fontes IPTV', 'Player & reprodução', 'Acessibilidade & sistema', 'Sobre & créditos', 'Portal & licença', 'Backup']),
       `abas globais: ${tabs.join(' | ')}`,
     )
     assert((await page.getByText('Estas configurações valem para todas as listas.').count()) === 1, 'aviso de escopo global')

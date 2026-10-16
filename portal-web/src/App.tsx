@@ -1,21 +1,24 @@
 import { FaqPage } from './features/FaqPage'
 import { LicensePage } from './features/LicensePage'
 import { RecoveryPage, type StartupRecovery } from './features/RecoveryPage'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useT } from './lib/i18n'
-import { purchaseLabel, type LicenseState, type Session } from './features/api'
+import { purchaseLabel, rememberSession, type LicenseState, type Session } from './features/api'
 import { SessionPage, type StartupSession } from './features/SessionPage'
 import { SellersPage } from './features/SellersPage'
 import { SourceManager } from './features/SourceManager'
-export function App({ startup, recoveryStartup }: { startup?: StartupSession; recoveryStartup?: StartupRecovery }) {
+type Tab = 'lists' | 'activate' | 'sellers' | 'faq'
+export function App({ startup, recoveryStartup, initialTab }: { startup?: StartupSession; recoveryStartup?: StartupRecovery; initialTab?: Tab }) {
   const t = useT()
   const [initialSession, setInitialSession] = useState(startup)
   const [recovering, setRecovering] = useState(!!recoveryStartup)
   const [initialRecovery, setInitialRecovery] = useState(recoveryStartup)
-  const [tab, setTab] = useState<'lists' | 'activate' | 'sellers' | 'faq'>('lists')
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'lists')
   // Clicar em "Suas listas" de novo (por exemplo, na tela de edição) volta à grade de listas.
   const [listsView, setListsView] = useState(0)
-  const [session, setSession] = useState<Session>()
+  const [session, setCurrentSession] = useState<Session>()
+  // A sessão fica na aba para sobreviver à ida e volta ao Checkout Pro (main.tsx retoma).
+  const setSession = useCallback((value: Session | undefined) => { rememberSession(value); setCurrentSession(value) }, [])
   // 073/D-007: a aba de compra mostra "Renovar" ou "Comprar" conforme a licença que o painel já leu.
   const [licenseState, setLicenseState] = useState<LicenseState>()
   return <main lang={t('lang')}>

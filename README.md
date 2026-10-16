@@ -1,16 +1,22 @@
 # CCPlay TV
 
-Reprodutor e organizador de listas M3U, M3U8 para Smart TVs Samsung com Tizen, com foco em navegação por controle remoto, organização do catálogo e fluidez, que permite usuarios importarem URL remotas e adicionalmente suporta EPG em XMLTV.
+Reprodutor e organizador de listas M3U/M3U8 para Smart TVs Samsung com Tizen, voltado à navegação por controle remoto, ao catálogo local e à reprodução direta. A pessoa pode importar fontes por arquivo ou URL, usar credenciais Xtream e, opcionalmente, associar EPG em XMLTV.
 
 ## Estado do projeto
 
-Projeto em desenvolvimento ativo. Conforme a arquitetura atualizada (ADR-008), o app roda 100% no cliente (TV) usando React, TypeScript e IndexedDB, abolindo a necessidade de um backend dedicado sempre ligado.
+Projeto em desenvolvimento ativo. O núcleo é **client-first**: importação, catálogo, preferências e reprodução executam na TV com React, TypeScript e IndexedDB ([ADR-008](sdd/adr/ADR-008-arquitetura-client-first-backend-so-quando.md)). O portal é complementar; ele não assume o catálogo nem a reprodução.
 
-O portal vinculado à TV e a licença anual estão em implementação nas [features 069](sdd/specs/069-portal-tv-licenca-anual/plan.md) e [070](sdd/specs/070-entrada-listas-gerenciador/plan.md). A API FastAPI/Firestore controla configurações, recuperação e licenças; importação, catálogo e reprodução continuam na TV. A entrada manual do painel usa o ID exibido e a chave numérica da própria TV; a edição no painel devolve valores salvos somente à sessão da mesma TV, sem colocá-los em logs, URLs ou QR. No build comercial, a licença é verificada ao entrar na lista; se vencer durante o uso, a sessão continua até sair da lista ou fechar o app. Configuração e renovação continuam acessíveis. A validação local usa serviços simulados/emulador. Venda e implantação comercial permanecem bloqueadas pelos gates de infraestrutura, pagamento, restauração e TV física.
+As chamadas da TV ao portal são sob demanda: **Atualizar** para listas/licença e o envio ao criar ou editar uma lista. O QR fixo é gerado na TV; o fragmento contém o ID e a chave do dispositivo, sem os enviar como URL de requisição. Valores de listas permanecem restritos à sessão da própria TV e não podem ir para logs, mensagens de erro ou exportações ([ADR-016](sdd/adr/ADR-016-consulta-sob-demanda-qr-fixo.md)).
 
-Desde a [feature 071](sdd/specs/071-consulta-sob-demanda-qr-fixo/plan.md) a TV não consulta o serviço sozinha: o botão **Atualizar** (listas e licença) e o envio no ato ao criar/editar uma lista são as únicas chamadas; "Adicionar lista" é uma tela com as abas Pelo site, Xtream Codes e Lista M3U; o QR da aba do site é fixo e gerado na TV (ID e chave no fragmento), o teste de 7 dias é contado no próprio app e as listas criadas na TV aparecem no site com nome, host, usuário e senha (cifrados no serviço; [ADR-016](sdd/adr/ADR-016-consulta-sob-demanda-qr-fixo.md)).
+Situação registrada em **16/10/2026** (a fonte de verdade é o [backlog](.planning/backlog.md) e os planos vinculados):
 
-A [feature 072](sdd/specs/072-desvincular-backup/plan.md) acrescenta **Desvincular** (solta só o pareamento; a TV volta ao mesmo registro sozinha) e um **backup dos dados de uso** no serviço (favoritos, histórico, progresso, preferências, PIN em hash e chave TMDB, cifrados e só desta TV), oferecido para restauração depois de reinstalar ou re-parear e apagável na TV e no site ([ADR-017](sdd/adr/ADR-017-desvincular-backup.md)).
+- [069 — Portal e licença anual](sdd/specs/069-portal-tv-licenca-anual/plan.md) foi encerrada com riscos aceitos (66/76 tarefas); a venda continua desligada pelos gates de infraestrutura, pagamento, restauração e TV física.
+- [070 — Entrada de listas](sdd/specs/070-entrada-listas-gerenciador/plan.md) e [071 — Consulta sob demanda e QR fixo](sdd/specs/071-consulta-sob-demanda-qr-fixo/plan.md) estão convergidas.
+- [072 — Desvincular e backup](sdd/specs/072-desvincular-backup/plan.md) permanece em execução (44/46 tarefas).
+- [073 — Compra por Pix](sdd/specs/073-compra-licenca-pix/plan.md) está implementada (51/51), mas a cobrança real segue desativada.
+- [075 — Redesenho de Portal & licença](sdd/specs/075-redesenho-portal-licenca/plan.md) está implementada (41/41). A continuação [076 — Simplificar Portal & licença](sdd/specs/076-simplificar-portal-licenca/plan.md) está em execução (22/37), com o polish, os gates finais e a validação de legibilidade ainda pendentes.
+
+Na interface em evolução, o QR, o ID e a chave da TV ficam à vista em **Portal & licença**; o cartão de licença aparece somente no build comercial. O código de recuperação fica exclusivamente em **Avançado**, oculto por padrão e revelado pelo ícone de olho; rotação, recuperação pelo site e desvinculação continuam ações confirmadas. O backup ganhou uma aba própria. A regra de segurança e a terminologia canônica estão na [ADR-019](sdd/adr/ADR-019-portal-licenca-qr-id-chave.md).
 
 ## Escopo funcional
 
@@ -218,33 +224,50 @@ avaliar** ainda não passaram por `sdd-assess` e podem ser descartados.
   Fontes IPTV, Player, Acessibilidade, Sobre). O PIN antigo, único por aparelho,
   passa às listas que tinham categoria bloqueada ao atualizar (feature 067).
 
+**Portal, licença e backup**
+
+- O portal opcional permite administrar listas associadas à mesma TV, por QR ou pelo ID e chave do dispositivo. Ele não substitui a importação, o catálogo ou a reprodução locais.
+- A TV busca mudanças apenas por ação explícita. A aba **Avançado** concentra o código de recuperação, a rotação da chave e do código, a recuperação pelo site e a desvinculação; ações destrutivas exigem confirmação.
+- O backup de dados de uso é separado em uma aba própria. A feature 072 ainda não está concluída, portanto seu estado de entrega deve ser conferido no respectivo plano antes de qualquer comunicação de disponibilidade total.
+- O fluxo de Pix existe para desenvolvimento, testes e staging, mas nenhuma venda real pode ser oferecida enquanto os gates da feature 069 permanecerem abertos.
+
 ## Arquitetura
 
-**TV:** aplicativo web empacotado para Tizen, com React, TypeScript, CSS e Vite; `PlayerService` usando AVPlay na Samsung; cache de catálogo em IndexedDB, condicionado à validação no aparelho.
+**TV (`tv-web/`):** aplicativo React 19, TypeScript e Vite empacotado para Tizen. `PlayerService` usa AVPlay na Samsung; IndexedDB é a fonte de verdade do catálogo e das preferências do aparelho.
 
+**Portal (`portal-web/` e serviços específicos):** superfície opcional para pareamento, listas, recuperação, backup e licença. Não é dependência para importar uma lista, navegar pelo catálogo ou tocar mídia localmente.
 
-**Mídia:** reprodução direta da origem para a TV por padrão. O aplicativo não retransmite nem transcodifica o vídeo. Navegação e comandos são processados localmente. A única exceção hospedada é a página-ponte do trailer (ADR-012): uma página estática, sem lógica de servidor nem dado da pessoa, que só recebe o id do vídeo.
+**Empacotamento (`CCPlayTv/`):** projeto Tizen efetivo, alimentado por `tv-web/scripts/sync-tizen.mjs`. O diretório `tizen-app/` é legado e vazio.
 
-**Resiliência:** o catálogo salvo em IndexedDB garante navegação instantânea. Isso não significa que vídeos remotos funcionem sem internet, que URLs nunca expirem ou que todas as capas estejam armazenadas.
+**Mídia:** reprodução direta da origem para a TV, sem proxy ou transcodificação. A única exceção hospedada é a página-ponte estática de trailer ([ADR-012](sdd/adr/ADR-012-pagina-ponte-estatica-https-embeds-terceiro.md)), sem lógica de servidor ou dados pessoais.
 
-As definições, limitações e referências técnicas estão nas ADRs:
+**Resiliência:** o catálogo salvo em IndexedDB viabiliza navegação local. Isso não garante que streams remotos funcionem sem internet, que URLs não expirem ou que todas as capas estejam armazenadas.
 
-- [ADR-001 — Arquitetura e stack](ADR-001-arquitetura-tech-stack-aplicativo-tv.md).
-- [ADR-002 — Cache-First e resiliência](ADR-002-offline-first-resiliencia-na-tv.md).
+As decisões de arquitetura, limites e referências técnicas estão em [`sdd/adr/`](sdd/adr/), especialmente:
+
+- [ADR-001 — Arquitetura e stack](sdd/adr/ADR-001-arquitetura-tech-stack-aplicativo-tv.md)
+- [ADR-002 — Cache-first e resiliência](sdd/adr/ADR-002-offline-first-resiliencia-na-tv.md)
+- [ADR-008 — Client-first](sdd/adr/ADR-008-arquitetura-client-first-backend-so-quando.md)
+- [ADR-009 — Navegação direcional própria](sdd/adr/ADR-009-navegao-direcional-prpria-useremotenav-vez.md)
+- [ADR-011 — Design System V14 Spectrum](sdd/adr/ADR-011-adocao-design-system-v14-spectrum.md)
+- [ADR-016 — Consulta sob demanda e QR fixo](sdd/adr/ADR-016-consulta-sob-demanda-qr-fixo.md)
+- [ADR-019 — Portal, licença e código de recuperação](sdd/adr/ADR-019-portal-licenca-qr-id-chave.md)
 
 
 ## Desenvolvimento local
 
 ### Pré-requisitos e organização
 
-Recomenda-se o uso do VS Code, ferramentas Tizen e Node.js/npm para o frontend.
+Para o frontend, use Node.js/npm. Para empacotar ou instalar na TV, também são necessárias as ferramentas Tizen, o perfil de assinatura e `sdb` configurados.
 
-Os comandos abaixo pressupõem a seguinte estrutura básica:
+Estrutura relevante:
 
 ```text
 ccplayTv/
-├── tv-web/             # Frontend React/TypeScript
-└── tizen-app/          # Projeto de empacotamento Tizen
+├── tv-web/             # App React/TypeScript da TV
+├── portal-web/         # Portal web associado à TV
+├── api/                # Serviço/fallback; não é requisito do catálogo local
+└── CCPlayTv/           # Projeto Tizen populado no build:tizen
 ```
 
 ### Frontend
@@ -253,10 +276,30 @@ Em um terminal, partindo da raiz do projeto:
 
 ```bash
 cd tv-web
+npm install
 npm run dev
 ```
 
-A instalação das dependências do frontend deve já ter sido realizada (`npm install`). O aplicativo estará acessível no endereço exibido pelo Vite.
+O Vite informa o endereço local. Os comandos principais são:
+
+```bash
+npm run test
+npm run lint
+npm run build
+npm run build:tizen
+```
+
+`npm run build:tizen` também sincroniza a saída para `CCPlayTv/`. Para a suíte E2E, mantenha `npm run dev` aberto em outro terminal e execute `node e2e/run.mjs` dentro de `tv-web/`. Os testes em navegador não comprovam AVPlay, codecs, teclas físicas, memória ou desempenho na TV.
+
+### Portal web
+
+```bash
+cd portal-web
+npm install
+npm run dev
+```
+
+O portal depende de sua configuração e de serviços locais adequados; não presuma uma implantação comercial a partir desse comando.
 
 ### Medição de desempenho das telas
 
@@ -266,33 +309,15 @@ A importação tem uma bancada própria (feature 063): `npm run bench:import`, c
 
 ### Integração com a TV
 
-Para empacotamento e testes no emulador ou TV física, o aplicativo é compilado e encapsulado no Tizen Studio através de comandos de build específicos e ferramentas como `sdb` e o CLI do Tizen. Consulte a documentação específica de build para mais detalhes.
+Use `npm run build:tizen` antes dos fluxos de emulador ou TV física. A instalação deve seguir o processo de `tizen-tv`/`deploy-tv.ps1`, que confere a conexão antes de compilar, assina e preserva os dados existentes quando a reinstalação usa o mesmo certificado. Não trate uma execução de navegador ou emulador como validação de hardware.
 
-## Próximos marcos
+## Evidências e pendências atuais
 
-**Validado em 18/09/2026**: o app roda na TV de referência (Samsung QN50Q60DAGXZD) e um canal da fonte real reproduz com vídeo e áudio em tela cheia via `webapis.avplay`, com o catálogo salvo e processado localmente na TV — é a porta de validação V1 da ADR-006, executada. O firmware e a engine web do aparelho continuam sem registro: esta TV não expõe console ao desenvolvedor (`sdb root on` negado, `dlog` vazio, Web Inspector fechado).
+- O núcleo de reprodução AVPlay e a importação Xtream foram validados anteriormente na TV de referência, mas cada feature mantém sua própria evidência e pendência no respectivo plano.
+- A feature 073 registrou testes de serviço, portal, TV e E2E; a operação comercial segue bloqueada e o Pix real pelo sofá não foi executado.
+- A feature 075 concluiu os gates de código, build, E2E e legibilidade no navegador; a TV física continua fora desse gate e não está declarada como validada.
+- A feature 076 ainda precisa concluir o polish, os E2E, a legibilidade, os gates finais e o quickstart. Portanto, ela não deve ser comunicada como entrega validada.
 
-**Validado em 18/09/2026**: canais ao vivo de fontes por credenciais de provedor (Xtream Codes) passaram a ser importados pelo protocolo JSON do próprio painel (`player_api.php`), preservando o identificador estável e as categorias como o provedor as declara — em vez de reaproveitar o parser M3U, que descartava essa estrutura. Verificado na TV física com uma fonte real: categorias e identificador confirmados, reprodução sem regressão. Painéis que não falam esse protocolo continuam funcionando pelo caminho M3U existente, sinalizados como "modo limitado".
-
-Filmes e séries deixaram de usar dados fictícios: as telas leem o catálogo real, com o mesmo protocolo JSON do provedor (feature 006). Em 23/09/2026, a importação de fonte de provedor passou a gravar só a **estrutura** (as categorias declaradas pelo painel) e a obter os itens de cada categoria quando a pessoa entra nela — sincronizar uma fonte com centenas de milhares de itens deixou de significar esperar minutos olhando uma tela de progresso (feature 010, `sdd/specs/010-catalogo-sob-demanda/`). Fonte por URL M3U continua importando tudo de uma vez, como sempre — não existe protocolo por categoria num arquivo M3U.
-
-**Validado em 23/09/2026**: o ciclo completo de carga sob demanda foi verificado na TV física (feature 010) — sincronizar a fonte real passou a concluir em segundos (antes, minutos), e entrar numa categoria traz os itens dela sob demanda, com cache e degradação honesta offline. 6 dos 7 cenários do quickstart foram aprovados no aparelho; o único não executado (fonte por URL M3U) fica coberto por teste automatizado, sem fonte M3U disponível na sessão para confirmação visual.
-
-**Validado em 23/09/2026**: as listas de canais e grades de pôsteres (Live TV, Filmes, Séries) passaram a virtualizar o que renderizam (`@tanstack/react-virtual`), sincronizadas com o motor de foco próprio do projeto — nunca com uma engine de foco por DOM (feature 009, `sdd/specs/009-virtualizacao-foco/`; ADR-009 formaliza essa escolha, substituindo a recomendação original de Norigin Spatial Navigation, nunca adotada). O teto artificial de 500 itens por categoria (`CHANNELS_PER_GROUP_CAP`), necessário só por falta de virtualização, saiu de uso: uma categoria com milhares de itens agora rola sem travar a TV, confirmado no aparelho de referência.
-
-**Validado em 24/09/2026**: favoritar canais, filmes e séries (feature 013)
-foi confirmado na TV física — segurar OK sobre o item focado, ou apertar a
-tecla amarela do controle num toque único (segundo caminho independente,
-acrescentado depois que um controle de teste não distinguia
-pressionar/segurar/soltar como o navegador). Uma categoria "★ Favoritos"
-lista, por fonte e tipo, o que já estiver carregado no aparelho.
-
-Próximos: enriquecimento, recomendações, e então voz e controle Android. Captura de áudio disponível, persistência e protocolo de sincronização ainda precisam de validação ou decisão específica.
-
-## Referências do ambiente
-
-Consultadas em 2026-09-13. As ADRs contêm as referências da arquitetura.
-
-[^vite]: Vite — Getting Started. `https://vite.dev/guide/`
+Para o status, a contagem de tarefas e a evidência reproduzível, consulte [`.planning/backlog.md`](.planning/backlog.md) e `sdd/specs/<feature>/plan.md`; esses documentos prevalecem sobre este resumo.
 
 

@@ -181,6 +181,32 @@ async def test_portal_sees_pending_pix_without_code_and_no_new_charge(control):
         await cleanup(control, device.device_id)
 
 
+async def test_tv_refresh_reconciles_open_card_order_without_webhook(control, tmp_path):
+    # T034: cartão pago no Checkout Pro do portal, webhook recusado — o Atualizar da TV concilia e recebe a licença.
+    payments, provider, principal, device, bearer, now = await prepared(control)
+    app = create_app(PortalSettings(environment="test", static_dir=tmp_path, pix_payer_domain=DOMAIN))
+    app.state.portal_auth = payments.auth
+    app.state.portal_payments = payments
+    app.state.portal_licensing = payments.licensing
+    tv = {"origin": "null", "authorization": "Bearer " + bearer}
+    try:
+        order = await payments.checkout(principal, new_token(), now)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=ORIGIN) as client:
+            path = "/portal/v1/device/entitlement/refresh"
+            claims = lambda response: payments.licensing.crypto.verify(response.json()["jws"], issuer=ISSUER,
+                                                                       audience=AUDIENCE, device_id=device.device_id)
+            provider.observations["901"] = approved(order.order_id, "901", now)
+            provider.unavailable = True  # provedor fora do ar: o Atualizar ainda responde com a licença atual
+            assert claims(await client.post(path, headers=tv, json={}))["state"] == "trial"
+            assert (await order_row(control, order.order_id)).status in {"created", "pending"}
+            provider.unavailable = False
+            active = claims(await client.post(path, headers=tv, json={}))
+            assert active["state"] == "active" and (await order_row(control, order.order_id)).status == "approved"
+    finally:
+        await cleanup_licenses(control, device.device_id)
+        await cleanup(control, device.device_id, ("901",))
+
+
 def test_sandbox_test_payer_is_refused_outside_staging_and_test():
     # 073/R-001: o comprador de teste do sandbox nunca pode chegar a produção nem a live mode.
     with pytest.raises(ValueError):

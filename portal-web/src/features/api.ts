@@ -27,6 +27,29 @@ export function newOperationId(now = Date.now()) {
   const nonce = btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
   return 'op-' + now + '-' + nonce
 }
+/**
+ * Sessão da aba (T034): a ida ao Checkout Pro do Mercado Pago recarrega a página, e o CSRF só existe na resposta do
+ * login (o servidor guarda o hash). Fica no `sessionStorage` desta aba até a validade; sem o cookie `httpOnly` ele não
+ * autoriza nada, e a retomada confere a sessão no servidor antes de abrir o painel.
+ */
+const SESSION_KEY = 'ccplay-portal-session'
+export function rememberSession(session: Session | undefined, storage: Pick<Storage, 'setItem' | 'removeItem'> = sessionStorage) {
+  try {
+    // Só os três campos, nunca o objeto recebido inteiro.
+    if (session) storage.setItem(SESSION_KEY, JSON.stringify({ deviceId: session.deviceId, csrfToken: session.csrfToken, expiresAt: session.expiresAt }))
+    else storage.removeItem(SESSION_KEY)
+  } catch { /* Sem storage: só não retoma. */ }
+}
+export function storedSession(storage: Pick<Storage, 'getItem' | 'removeItem'> = sessionStorage, now = Date.now()): Session | undefined {
+  try {
+    const value: unknown = JSON.parse(storage.getItem(SESSION_KEY) ?? 'null')
+    const { deviceId, csrfToken, expiresAt } = (value ?? {}) as Record<string, unknown>
+    if (typeof deviceId === 'string' && opaque.test(deviceId) && typeof csrfToken === 'string' && /^[A-Za-z0-9_-]{43}$/.test(csrfToken) &&
+      typeof expiresAt === 'string' && Date.parse(expiresAt) > now) return { deviceId, csrfToken, expiresAt }
+    storage.removeItem(SESSION_KEY)
+  } catch { /* Valor corrompido ou storage indisponível = sem sessão guardada. */ }
+  return undefined
+}
 export interface RecoverySession extends Session { claimId: string }
 export function newRecoveryId() { return newOperationId().slice(17) }
 export type PortalEntry = { kind: 'invite' | 'recovery'; token: string } | { kind: 'device'; displayId: string; deviceKey: string }

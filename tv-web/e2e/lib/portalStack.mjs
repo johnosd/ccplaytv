@@ -24,7 +24,8 @@ export async function startPortalStack({ log = () => {}, tvPort = 5176, portalPo
   const start = (label, command, args, options) => {
     const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, ...options })
     child.output = ''
-    const keep = chunk => { child.output = (child.output + chunk).slice(-4000) }
+    // Sem códigos de cor: com FORCE_COLOR/terminal colorido o Vite imprime a porta em negrito e o `includes` abaixo falharia.
+    const keep = chunk => { child.output = (child.output + String(chunk).replace(/\x1b\[[0-9;]*m/g, '')).slice(-4000) }
     child.stdout.on('data', keep); child.stderr.on('data', keep)
     child.once('exit', code => { child.exited = code ?? -1 })
     children.push({ label, child })

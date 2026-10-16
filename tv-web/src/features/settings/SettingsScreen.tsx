@@ -145,7 +145,11 @@ export function SettingsScreen({
       }
       tabHandle.current?.onSelect()
     },
-    onBack,
+    // Feature 076: a aba pode tratar RETURN (fechar uma subtela) antes de a tela sair; só com o foco no painel.
+    onBack: () => {
+      if (zone === 'panel' && tabHandle.current?.onBack?.()) return
+      onBack()
+    },
   })
 
   const ActivePanel = (SETTINGS_TABS.find((tab) => tab.id === activeTab) ?? SETTINGS_TABS[0]).Panel

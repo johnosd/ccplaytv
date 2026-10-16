@@ -22,7 +22,7 @@ export interface PortalPairingPanelProps {
  * painel e QR fixo visíveis sem ação extra, com só dois botões: Recarregar e Voltar. A chave aparece aqui e na tela de
  * bloqueio (constitution 1.11.0, (a) e (f)); o QR é gerado na TV, sem requisição, com ID e chave só no fragmento.
  * Abrir a tela cadastra o dispositivo uma vez; o resto é botão. Gerar uma nova chave (invalidar QR e acessos)
- * fica em Configurações → Portal & licença ("Revogar acessos ao portal"), longe de quem só quer adicionar a lista.
+ * fica em Configurações → Portal & licença ("Avançado → Gerar nova chave e código"), longe de quem só quer adicionar a lista.
  */
 export function PortalPairingPanel({ connection, onBack, onReloaded }: PortalPairingPanelProps): ReactNode {
   const t = useT()

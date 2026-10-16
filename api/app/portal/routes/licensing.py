@@ -9,7 +9,7 @@ from app.portal.auth import AuthError
 from app.portal.licensing import AUDIENCE, ISSUER, LicensingService
 from app.portal.payment_signature import verify_payment_signature
 from app.portal.payments import PaymentService, order_view
-from app.portal.pix_orders import PixOrders, pending_order
+from app.portal.pix_orders import PixOrders, pending_order, reconcile_open_order
 from app.portal.providers.mercadopago import MercadoPagoProvider
 from app.portal.repositories.control import TransactionPlan, document_path
 from app.portal.routes.auth import Input, access_service, payload
@@ -68,6 +68,15 @@ async def pix_orders(request: Request) -> PixOrders:
     return request.app.state.portal_pix
 
 
+async def reconcile_open(request: Request, principal, now: datetime) -> None:
+    """Concilia sob demanda o pedido em aberto da TV (webhook pode não chegar); sem provedor, nada a conciliar."""
+    try:
+        payments = await payment_service(request)
+    except AuthError:
+        return
+    await reconcile_open_order(payments, principal, now)
+
+
 @router.post("/device/orders/pix")
 async def device_pix(request: Request):
     """073/US1: gera ou reaproveita o Pix da TV. Copia-e-cola só aqui, `no-store`."""
@@ -103,7 +112,9 @@ async def entitlement(request: Request):
 async def refresh(request: Request):
     principal = await tv_principal(request)
     body = await payload(request, RefreshInput)
-    return {"jws": await (await licensing_service(request)).entitlement(principal, datetime.now(UTC),
+    now = datetime.now(UTC)
+    await reconcile_open(request, principal, now)
+    return {"jws": await (await licensing_service(request)).entitlement(principal, now,
         body.previousJws.get_secret_value() if body.previousJws else None)}
 
 
@@ -116,6 +127,8 @@ async def device(request: Request):
     display_id = await service.auth.repository.transact((device_path,), lambda rows: TransactionPlan(
         service.auth._same_principal(rows[device_path], principal).display_id))
     now = datetime.now(UTC)
+    # Volta do Checkout Pro: o painel já mostra a licença paga sem depender do webhook.
+    await reconcile_open(request, principal, now)
     token = await service.entitlement(principal, now, persist=False)
     claims = service.crypto.verify(token, issuer=ISSUER, audience=AUDIENCE, device_id=principal.device_id)
     return {"deviceId": principal.device_id, "authEpoch": principal.auth_epoch, "displayId": display_id,

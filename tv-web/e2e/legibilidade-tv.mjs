@@ -487,6 +487,34 @@ async function auditPortalScreens(browser, m3uUrl) {
         })
       }
       pixMode = 'pending'
+      // 075/076: Portal & licença (principal, subtela Avançado com o código revelado, a confirmação mais longa) e a aba
+      // Backup. Por clique, para valer nos três idiomas (a navegação por teclado do helper e2e/lib/portal.mjs é em pt).
+      const abrirAbaDeConfiguracoes = async (index) => {
+        await page.goto(PORTAL_APP)
+        await page.waitForSelector('.add-card', { timeout: 15000 })
+        await page.locator('.profiles-settings-corner:not(.profiles-portal-corner)').click()
+        await page.waitForSelector('.settings-screen .side-category-nav-item', { timeout: 8000 })
+        await page.locator('.settings-screen .side-category-nav-item').nth(index).click()
+      }
+      await step(lang, 'Portal & licença', async () => {
+        await abrirAbaDeConfiguracoes(5)
+        await page.waitForSelector('.portal-license-panel .portal-qr-frame .fixed-qr', { timeout: 15000 })
+        await audit(page, lang, 'Portal & licença')
+        await page.locator('.portal-license-panel > .portal-card-actions button').click()
+        await page.waitForSelector('.portal-advanced .portal-advanced-item', { timeout: 8000 })
+        await audit(page, lang, 'Portal & licença — Avançado')
+        await page.locator('.portal-advanced .portal-advanced-item').first().locator('button').click()
+        await page.getByText(credentials.recoveryCode, { exact: true }).waitFor({ timeout: 5000 })
+        await audit(page, lang, 'Portal & licença — Avançado com código revelado')
+        await page.locator('.portal-advanced .portal-advanced-item').nth(1).locator('button').click()
+        await page.waitForSelector('[role="dialog"] .modal-actions', { timeout: 8000 })
+        await audit(page, lang, 'Portal & licença — confirmar nova chave', '[role="dialog"]')
+      })
+      await step(lang, 'Backup', async () => {
+        await abrirAbaDeConfiguracoes(6)
+        await page.waitForSelector('.portal-backup .portal-actions button', { timeout: 15000 })
+        await audit(page, lang, 'Backup')
+      })
       // 072: oferta de restauração do backup (aparece depois de re-parear quando o serviço tem backup desta TV).
       await step(lang, 'Oferta de restauração do backup', async () => {
         await page.evaluate(async () => {

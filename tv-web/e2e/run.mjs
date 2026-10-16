@@ -72,6 +72,7 @@ export const SUITE = [
   'e2e/legibilidade-tv.mjs',
   'e2e/portal-plataforma.mjs',
   'e2e/portal-configuracao.mjs',
+  'e2e/portal-avancado.mjs',
   'e2e/licenca-anual.mjs',
   'e2e/compra-licenca-pix.mjs',
 ]

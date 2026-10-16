@@ -1,15 +1,57 @@
+/* Portal & licença (feature 075): dois cartões lado a lado + Mais opções; só tokens V14. */
 .portal-license-panel { display: grid; gap: var(--space-3); padding: var(--space-3); }
 .portal-license-panel h2 { font-size: var(--fs-h2); margin: 0; }
 .portal-license-panel p { font-size: var(--fs-body); overflow-wrap: anywhere; margin: 0; }
-.portal-actions { display: grid; gap: var(--space-3); justify-items: start; padding: var(--space-2); }
-.portal-qr { display: grid; gap: var(--space-2); justify-items: start; }
-.portal-qr img { width: calc(var(--space-7) * 4); height: calc(var(--space-7) * 4); image-rendering: pixelated; }
-/* QR fixo (071): módulos escuros sobre moldura clara (zona de silêncio). */
-.portal-qr .fixed-qr {
-  box-sizing: border-box; width: calc(var(--space-7) * 4); height: calc(var(--space-7) * 4);
-  padding: var(--space-2); border-radius: var(--radius-lg); background: var(--text-primary); color: var(--bg-base);
-}
-.portal-private-value { font-size: var(--fs-h2); color: var(--text-primary); overflow-wrap: anywhere; padding-block: var(--space-4); user-select: none; }
 
-.portal-content { display: grid; gap: var(--space-5); align-items: start; }
-.portal-content.has-qr { grid-template-columns: calc(var(--space-7) * 4) minmax(0, 1fr); }
+.portal-cards { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: var(--space-3); align-items: stretch; }
+.portal-card {
+  display: grid; gap: var(--space-2); align-content: start; min-width: 0; padding: var(--space-3);
+  border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--elevation-1);
+}
+.portal-license-panel .portal-card h3 { margin: 0; font-size: var(--fs-body-lg); font-weight: 700; color: var(--text-primary); }
+.portal-card-body { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); align-items: start; }
+.portal-card-body.is-message { grid-template-columns: minmax(0, 1fr); }
+
+/* QR (fixo ou de recuperação) sobre moldura clara: zona de silêncio exigida pela leitura da câmera. */
+.portal-qr-frame {
+  display: grid; place-items: center; box-sizing: border-box;
+  width: calc(var(--space-7) * 2 + var(--space-6)); height: calc(var(--space-7) * 2 + var(--space-6));
+  padding: var(--space-2); border-radius: var(--radius-lg); background: var(--text-primary);
+}
+.portal-qr-frame .fixed-qr { width: 100%; height: 100%; color: var(--bg-base); }
+.portal-qr-frame img { width: 100%; height: 100%; image-rendering: pixelated; }
+
+.portal-fields { display: grid; gap: var(--space-2); margin: 0; min-width: 0; }
+.portal-field { display: grid; gap: 0; min-width: 0; }
+.portal-license-panel .portal-field-label { font-size: var(--fs-caption); color: var(--text-secondary); }
+.portal-field-value {
+  margin: 0; font-size: var(--fs-body); font-weight: 700; color: var(--text-primary);
+  font-variant-numeric: tabular-nums; letter-spacing: 0.04em; overflow-wrap: anywhere;
+}
+.portal-field-value.is-key { font-size: var(--fs-body-lg); letter-spacing: 0.08em; white-space: nowrap; }
+.portal-field-value.is-url { color: var(--accent); letter-spacing: 0; }
+.portal-license-panel .portal-card-hint { font-size: var(--fs-caption); color: var(--text-secondary); }
+.portal-card-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+
+
+/* Botões de ação (Backup e demais linhas de ações). */
+.portal-actions { display: grid; gap: var(--space-3); justify-items: start; padding: var(--space-2); }
+.portal-backup { display: grid; gap: var(--space-3); padding: var(--space-3); }
+.portal-backup h2 { margin: 0; font-size: var(--fs-h2); }
+.portal-backup p { margin: 0; font-size: var(--fs-body); overflow-wrap: anywhere; }
+
+/* Feature 076: sem o cartão Licença (build não comercial) o cartão de acesso ocupa a largura toda. */
+.portal-cards.is-single { grid-template-columns: minmax(0, 1fr); }
+.portal-license-panel .portal-code-reminder { font-size: var(--fs-caption); color: var(--text-secondary); }
+
+/* Avançado: subtela da aba com um bloco por item (título, texto de para que serve, motivo e ação). */
+.portal-advanced { display: grid; gap: var(--space-3); padding: var(--space-3); }
+.portal-advanced h2 { margin: 0; font-size: var(--fs-h2); }
+.portal-advanced p { margin: 0; font-size: var(--fs-body); overflow-wrap: anywhere; }
+.portal-advanced-item {
+  display: grid; gap: var(--space-2); align-content: start; padding: var(--space-3);
+  border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--elevation-1);
+}
+.portal-advanced .portal-advanced-item h3 { margin: 0; font-size: var(--fs-body-lg); font-weight: 700; color: var(--text-primary); }
+.portal-advanced .portal-advanced-text { font-size: var(--fs-caption); color: var(--text-secondary); }
+.portal-advanced .portal-advanced-reason { font-size: var(--fs-caption); color: var(--accent); }

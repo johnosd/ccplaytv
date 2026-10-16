@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-15
 
-**Status**: Implementada
+**Status**: Convergência Pendente
 
 **Input**: "Trazer para o ccplayTv a feature 'Tuner' do Open-Media-Explorer — um rádio global
 com seleção de país." Avaliada em `sdd/assessments/radio-global-por-pais/` (veredito `go`,

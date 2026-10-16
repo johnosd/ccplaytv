@@ -3,7 +3,8 @@ import { useT } from '../lib/i18n'
 import { api, PortalApiError, type Session } from './api'
 import { EyeIcon } from './EyeIcon'
 
-export type StartupSession = Promise<{ session: Session } | { error: PortalApiError }>
+/** `{}`: a sessão guardada na aba não vale mais — formulário limpo, sem mensagem de erro. */
+export type StartupSession = Promise<{ session: Session } | { error: PortalApiError } | Record<never, never>>
 export function normalizeDisplayId(value: string) {
   const compact = value.trim().replace(/[:.-]/g, '').toUpperCase()
   return /^[0-9A-F]{12}$/.test(compact) ? compact.match(/../g)!.join(':') : value.trim()
@@ -24,7 +25,7 @@ export function SessionPage({ startup, onSession }: { startup?: StartupSession; 
       if (!live) return
       setBusy(false)
       if ('session' in result) onSession(result.session)
-      else setError(result.error)
+      else if ('error' in result) setError(result.error)
     })
     return () => { live = false }
   }, [startup, onSession])

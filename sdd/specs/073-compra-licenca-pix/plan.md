@@ -231,17 +231,13 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sr
 
 | Área | Estado |
 | --- | --- |
-| Execução | Em Execução, modo pausado. Fases 1–5 e Polish automatizado concluídos (T001–T029, T031–T033 + T019a). Abertos só T030 (staging) e T034 (TV física), ambos com confirmação do usuário. |
-| Gates (T031) | TV: `tsc`/lint/`npm run test` 3370/3370/`build`/`build:tizen`/`npm run test:e2e` **50/50**; API pytest 163/163 + ruff; portal lint/test 7/7/build/E2E 18/18 (2 de 3 rodadas; R-015); contratos 5/5; travas 073/072/071/070/069/026 íntegras. |
-| Código de recuperação (Fase 5) | Cópia cifrada enviada pela TV no Atualizar (HMAC conferido); portal revela por ação explícita (POST + CSRF, `no-store`). Contratos 5/5 verdes; pytest 163/163; portal E2E 18/18; `consulta-sob-demanda` PASS na pilha real. |
-| Portal (Fase 4) | Aba Comprar/Renovar licença, aviso de Pix pendente sem nova cobrança, FAQ; `/session/device` com `pendingOrder`. Portal E2E 17/17. |
-| TV (Fase 3) | Comprar licença no bloqueio e em Portal & licença; tela de Pix; contratos 4/5 verdes (o 5º é da Fase 5); E2E `compra-licenca-pix` e legibilidade (96 telas, 0 achados) verdes. |
-| Serviço (Fase 2) | Pix dinâmico (`pix_orders.py`), D-005 excedente, D-006, rotas da TV `no-store`. pytest do portal 158/158 com emulador, 0 skipped; ruff limpo. |
-| Normativo | Constitution 1.13.0 aplicada (exceção (i), aprovada pelo usuário em 2026-10-15); nota 073 na ADR-013; `CLAUDE.md` aponta 1.13.0. |
-| Decisões do usuário (sdd-execute) | A002: cópia enviada pela TV no Atualizar (D-008 mantida). A003/R-005: aceito. A004: só texto com o site para cartão. |
-| Serviço | `pix_payer_domain` em `settings.py` (opcional; ausente → Pix da TV 503); documentado em `docs/portal/deploy-staging.md`. |
-| Contratos | 5/5 vermelhos (esperado), trava íntegra. |
-
+| Execução | Implementada: 51/51 tasks (Fases 1–7, incluindo a Phase 7 de convergência). Próximo: `sdd-converge`. |
+| Gates finais | API `pytest tests/portal` 167/167 + ruff; portal unit 8/8, lint, build, E2E 19/19; TV `npm run test` 3421/3421, tsc, lint, `node e2e/run.mjs` 51/51, `consulta-sob-demanda` PASS; contratos 5/5, trava íntegra. |
+| TV física (T034) | Aprovada pelo usuário com cartão no portal (licença até 15/10/2027; 2ª compra +12 meses). QR do Pix do sofá não executado (R-001, risco aceito). `evidencias/tv.md`. |
+| Staging | `ccplaytv-portal-00022-c55` / jobs `00021-4f6`, `CHECKOUT_ENABLED=false`. Endurecimento T036 do portal ainda não publicado (equivalente ao publicado). |
+| Conciliação (R-018) | `/session/device` e Atualizar da TV conciliam o pedido em aberto (≤ 1 consulta/10 s por pedido); webhook do Mercado Pago segue 401 (069/T036). |
+| Segredos | `evidencias/segredos.md` cobre copia-e-cola, escrow e a sessão do portal na aba (só ID/CSRF/validade). |
+| Abertos | R-001 (Pix na conta vendedora), R-015 (E2E do portal instável), R-016 (rotacionar chave do staging), branch `backup/pre-rewrite-073` (não fazer push; apagar). |
 ## Riscos e Decisões
 
 <!--
@@ -268,6 +264,7 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sr
 | R-016 | Incidente na execução (2026-10-15): ao listar só os nomes das chaves de `infra/portal/staging.env.yaml`, o corpo PEM de `CCPLAY_PORTAL_SIGNING_KEY` (assinatura ES256 das licenças do **staging**) foi impresso na conversa da sessão | Médio (staging; venda desligada; permite forjar licença para TVs que confiam nesse `kid`) | **Aceito pelo usuário em 2026-10-15** ("assumo o risco, pode manter"); chave mantida. Rotacionar (novo `kid`, nova pública no build da TV) antes de qualquer uso além do teste, e obrigatoriamente antes de produção (que já usa chaves separadas). Leitura desse arquivo daqui em diante só por chave específica. |
 | R-017 | Achado na T030 (anterior à 073): o commit local `c1315fb` ("logs") versionou `infra/portal/staging.env.yaml` (chaves do staging e token de teste do Mercado Pago) e 711 arquivos de `.cache/` (JRE, ~458 MB), ambos no `.gitignore`; ainda não estava no remoto | Alto se fosse enviado | Resolvido (a pedido do usuário, 2026-10-15): histórico local reescrito só com objetos novos (`commit-tree`), sem tocar a árvore de trabalho — `c1315fb`→`56c1922` e o merge `9fe7249`→`6937eaa` (autor, datas e mensagens preservados); `git rm --cached` dos caminhos; nenhum commit de `feature/licenca` os contém. Backup em `backup/pre-rewrite-073` (ainda TEM os segredos: **não fazer push dela**; apagar depois de conferir). Os objetos antigos continuam no reflog local até expirar/`gc`. |
 | R-011 | Travas de outras features (069 C1–C5, 070, 071, 072, 026) quebradas por mudanças em gate/painel/agente | Médio | Rodar `check-contract-tests.ps1` dessas features em todo gate; nenhuma edição em contrato alheio sem aprovação. |
+| R-018 | Decisão da T034 (extensão da D-004), registrada pelo converge (C3): com o webhook do Mercado Pago recusado (401, 069/T036), o cartão pago no portal só virava licença quando alguém lia `GET /orders/<id>` | Alto (pagou e não recebeu) | Resolvido: `reconcile_open_order` (`api/app/portal/pix_orders.py`) concilia o pedido em aberto da TV em `GET /session/device` (abrir/atualizar o portal) e em `POST /device/entitlement/refresh` (Atualizar da TV) — mesma consulta autenticada do `read_order`, no máximo uma ao provedor a cada 10 s por pedido (`reconcile_after`), provedor fora do ar/não configurado não derruba a resposta. ADR-016 intacta: só por ação da pessoa, nenhum timer na TV. Na TV, "Licença atualizada." passou a comparar situação + validade (o JWS é reassinado a cada Atualizar); sem mudança: "A licença não mudou…". Pedido de checkout abandonado segue aberto e consultado só nessas ações (baixo custo, sem expiração própria — herdado da 069). Testes: `test_pix.py::test_tv_refresh_reconciles_open_card_order_without_webhook`, `useRefreshAction.test.tsx`; validado na TV física (T034). |
 
 ## Execution Notes
 
@@ -295,21 +292,28 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sr
 
 | 2026-10-15 | T030 (staging, concluída com ressalva) | Pix não validável (conta vendedora de teste sem Pix; usuário decidiu validar com cartão). Cobrança direta pela API recusada (401 causa 7) também com cartão; Checkout Pro sandbox pago pelo usuário (comprador de teste) → pedido `approved` pela consulta autenticada, Atualizar da TV recebeu licença `active` de 365 dias, portal `active`, `pendingOrder` limpo. | T034 (TV física) e decisão sobre `CHECKOUT_ENABLED` do staging. |
 
-**PRÓXIMO**: T034 (TV física, gate SC-007) com confirmação do usuário — atenção: o QR do Pix na TV não terá Pix real para gerar no staging (R-001); decidir o que a passada na TV valida. Decidir se `CHECKOUT_ENABLED` do staging volta a `false`.
+| 2026-10-16 | T034 (TV física, em andamento) | Rodada 1: pacote sem config comercial (botões inertes) → refeito. Rodada 2 (usuário): QR e Comprar OK; compra por cartão falhou em 3 pontos — portal voltava ao login (sessão só em memória), pedido não conciliado (webhook 401), TV dizia "Licença atualizada" sem mudança. Corrigido: sessão na aba + retorno abre a compra; `/session/device` e Atualizar da TV conciliam o pedido em aberto; impressão da licença por situação/validade. pytest portal 166/166, ruff, portal 8/8 + E2E 19/19, TV 3421/3421, tsc, lint, travas OK. Staging `ccplaytv-portal-00021-wmg` / jobs `00020-5d5`; TV reinstalada. Detalhes em `evidencias/tv.md`. | Reteste do usuário (cartão no portal → Atualizar na TV). |
+
+| 2026-10-16 | T034 (concluída) | Reteste do usuário: Atualizar trouxe a licença paga (validade 15/10/2027); nova compra voltou à aba de compra e somou +12 meses. QR Pix do sofá não executado (R-001, risco aceito). Staging com `CHECKOUT_ENABLED=false` (`ccplaytv-portal-00022-c55`, jobs `00021-4f6`, conferido em `/offer`); `CCPlayTv/assets` de volta ao build comum. 47/47, status Implementada. | `sdd-converge`. |
+
+| 2026-10-16 | Phase 7 (Convergence) | T035 teste código do portal → recuperação após reinstalar; T036 segredos da sessão na aba (+ `rememberSession` só com 3 campos); T037 R-018; T038 gate E2E. pytest 167/167, ruff, portal 8/8 + E2E 19/19, TV E2E 51/51, `consulta-sob-demanda` PASS, trava íntegra. 51/51 tasks. | `sdd-converge`. |
+
+**PRÓXIMO**: `/sdd-converge 073-compra-licenca-pix`. Abertos: R-001 (Pix real na conta vendedora), webhook 401 do Mercado Pago (069/T036), R-015 (E2E do portal instável), R-016 (rotacionar a chave de assinatura antes de produção); apagar a branch `backup/pre-rewrite-073` sem push; publicar o endurecimento T036 do portal no próximo deploy.
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
-- `api/app/portal/recovery_escrow.py`, `api/app/portal/routes/recovery_escrow.py`, `api/app/portal/models.py`
-- `tv-web/src/lib/portal/recoveryEscrow.ts`, `tv-web/src/lib/portal/portalAgent.ts`, `features/portal/usePortalIntegration.tsx`
-- `portal-web/src/features/RecoveryCodeCard.tsx`, `features/LicensePage.tsx`, `features/api.ts`, `lib/i18n/{index,faq}.ts`
-- `api/tests/portal/test_recovery_escrow.py`, `tv-web/src/lib/portal/portalAgent.test.ts`, `portal-web/e2e/licenca.spec.ts`
-
+- `api/app/portal/pix_orders.py` (`reconcile_open_order`), `api/app/portal/routes/licensing.py` (`reconcile_open`)
+- `portal-web/src/main.tsx`, `portal-web/src/App.tsx`, `portal-web/src/features/api.ts` (sessão na aba, retorno do checkout)
+- `tv-web/src/lib/portal/useRefreshAction.ts` (impressão da licença), `tv-web/src/lib/i18n/messages/portal.ts`
+- `api/tests/portal/test_pix.py`, `api/tests/portal/test_recovery_escrow.py`, `portal-web/e2e/{licenca,configuracao}.spec.ts`
+- `sdd/specs/073-compra-licenca-pix/evidencias/{tv,segredos}.md`
 ## Cuidados para Retomada
 
 <!-- Armadilhas operacionais específicas desta feature, anexadas conforme descobertas. -->
 
+- TV física (T034, 2026-10-15): o primeiro pacote instalado saiu **sem** `VITE_PORTAL_ORIGIN` (build não comercial em `CCPlayTv/`; `deploy-tv.ps1 -SkipBuild` empacota o que estiver lá). Sintoma na TV: QR não aparece e nenhum botão de Portal & licença responde (`getPortalConnection()` = `undefined` → tudo soft-disabled). Antes do `-SkipBuild`, rodar `npm run build:tizen:commercial` com as duas variáveis no **mesmo processo** e conferir `portal.ccplaytv.com` em `CCPlayTv/assets/index.js` (e ausência de `"d":"`).
 - pytest do portal: emulador via `cloud_firestore_emulator.cmd start --host=127.0.0.1 --port=8085` (gcloud SDK em `G:\Users\johns\AppData\Local\Google\Cloud SDK\...\platform\cloud-firestore-emulator\`) com `JAVA_HOME` do Android Studio; `tmp_path` exige `"--basetemp=<scratchpad>\pytest"` (o `pytest-of-johns` do Temp nega acesso).
 - `seeded()` cria um `AuthService` com época própria: para testar "outra TV", use um segundo `prepared()` (pedido de outra TV), não um bearer de outro `seeded()` — senão a recusa vem da época, não do dono do pedido.
 - Em PowerShell, `[IO.File]` não segue o `cd` do shell: use caminho absoluto.

@@ -68,7 +68,7 @@ const pt: FaqContent = {
       'Você não consegue abrir o catálogo de uma lista até renovar. Suas listas, configurações e dados locais continuam guardados, e a compra segue disponível na TV e no portal.',
       'Se uma lista já estiver aberta, ela continua funcionando até você sair dela ou fechar o app.'] },
     { id: 'recover', category: 'license', question: 'Reinstalei o app ou perdi o acesso. Como recupero?', action: 'recover', answer: [
-      'Na TV, abra Portal & licença e escolha recuperar pelo site. Leia o QR temporário e informe o código privado da licença que você guardou.',
+      'Na TV, abra Portal & licença, entre em Avançado e escolha recuperar pelo site. Leia o QR temporário e informe o código de recuperação privado que você guardou.',
       'Para guardar o código antes de precisar: na aba Comprar/Renovar licença do portal, use Mostrar código de recuperação (a TV envia a cópia quando você aperta Atualizar nela). Anote ou fotografe e guarde em lugar seguro.',
       'O endereço MAC da TV ou o comprovante de pagamento não substituem esse código. Sem ele, a recuperação automática não é possível. O catálogo apagado da TV não é recuperado.'] },
     { id: 'sellers', category: 'sellers', question: 'Existe um programa de revendedores?', action: 'sellers', answer: [
@@ -133,7 +133,7 @@ const en: FaqContent = {
       'You cannot open a list catalog until you renew. Your lists, settings and local data are kept, and purchase stays available on the TV and in the portal.',
       'A list that is already open keeps working until you leave it or close the app.'] },
     { id: 'recover', category: 'license', question: 'I reinstalled the app or lost access. How do I recover?', action: 'recover', answer: [
-      'On the TV, open Portal & license and choose recover on website. Scan the temporary QR and enter the private license code you saved.',
+      'On the TV, open Portal & license, go to Advanced and choose recover on website. Scan the temporary QR and enter the private recovery code you saved.',
       'To keep the code before you need it: on the Buy/Renew license tab of the portal, use Show recovery code (the TV sends a copy when you press Refresh on it). Write it down or take a photo and keep it safe.',
       'The TV MAC address or a payment receipt cannot replace this code. Without it, automatic recovery is not possible. A catalog deleted from the TV is not restored.'] },
     { id: 'sellers', category: 'sellers', question: 'Is there a seller programme?', action: 'sellers', answer: [
@@ -198,7 +198,7 @@ const es: FaqContent = {
       'No puedes abrir el catálogo de una lista hasta renovar. Tus listas, ajustes y datos locales se conservan, y la compra sigue disponible en el televisor y en el portal.',
       'Una lista que ya esté abierta sigue funcionando hasta que salgas de ella o cierres la app.'] },
     { id: 'recover', category: 'license', question: 'Reinstalé la app o perdí el acceso. ¿Cómo lo recupero?', action: 'recover', answer: [
-      'En el televisor, abre Portal y licencia y elige recuperar en el sitio. Lee el QR temporal e introduce el código privado de la licencia que guardaste.',
+      'En el televisor, abre Portal y licencia, entra en Avanzado y elige recuperar en el sitio. Lee el QR temporal e introduce el código de recuperación privado que guardaste.',
       'Para guardar el código antes de necesitarlo: en la pestaña Comprar/Renovar licencia del portal, usa Mostrar código de recuperación (el televisor envía una copia cuando pulsas Actualizar en él). Anótalo o fotografíalo y guárdalo en un lugar seguro.',
       'La dirección MAC del televisor o el comprobante de pago no sustituyen ese código. Sin él, la recuperación automática no es posible. El catálogo borrado del televisor no se recupera.'] },
     { id: 'sellers', category: 'sellers', question: '¿Existe un programa de revendedores?', action: 'sellers', answer: [
