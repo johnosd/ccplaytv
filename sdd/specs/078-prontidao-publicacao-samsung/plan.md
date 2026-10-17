@@ -182,10 +182,10 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 | Fase 6 — US5 | Código concluído: `bridge/privacidade/index.html`, nota na ADR-012, `privacy.mjs` + CLI; `SAM-KIT-PRIVACY` `Pending` até o merge em `main` publicar a página e a evidência ser gravada |
 | Fase 7 — US3+US6 | T030 E2E, T031 emulador `Waived` por `118, -4` e T032 TV física concluídos; TV QN50Q60DAGXZD aprovada pelo usuário |
 | Fase 8 — US7 | Concluída: obsolescência por candidato, kit e `config.xml` do disco ≠ pacote; `release-gate.test.mjs` roda o CLI como processo |
-| App sem "IPTV" | Textos trocados (T042, R-012) e commitados (`e8fcc3c`); `build:tizen` refeito — `CCPlayTv/assets` sem "IPTV"; **`.wgt` ainda não reempacotado** |
-| Fase 9 | Parcial: T032, T036–T040 e T043 concluídos; T041 pendente |
-| Commit | `e8fcc3c` levou só arquivos já versionados: `release/`, `bridge/privacidade/` e `sdd/specs/078-…/` seguem **não rastreados** — a árvore continua suja e a revisão não contém o kit |
-| Pacote Tizen | Corrigido: `required_version` 8.0, `<name>CCPlayTV</name>`, `build_type: Release`, 3 entradas obsoletas fora; `.wgt` novo (`CCPlayTV.wgt`, 0.2.1) passa nos itens de pacote |
+| App sem "IPTV" | Textos trocados (T042, R-012), commitados e no `.wgt` candidato (`bc864e…`), validado na TV |
+| Fase 9 | Concluída: T036–T041 e T043; quickstart §2–§5 verdes, §6 `404` (página ainda não publicada), §7 manual |
+| Candidato | `CCPlayTV.wgt` 0.2.1, SHA-256 `bc864e…`, build `production`, árvore limpa; gate `Blocked` com 9 bloqueios, **todos externos**; pacote, inventário, privilégios, E2E, TV e atualização `Pass`; alvo aprovado BR/QN50Q60DAGXZD |
+| Pacote Tizen | `required_version` 8.0, `<name>CCPlayTV</name>`, `build_type: Release`, yaml sem obsoletas (inclui `EmptyState.js`, T043); `build:tizen` reproduzível |
 | Custódia / registro | `custody.json` e `published.json` ainda vazios: `INT-SEC-CUSTODY` Blocked; `SAM-REG-*` Pending (dependem da pessoa) |
 
 ## Riscos e Decisões
@@ -208,6 +208,7 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 | R-008 | Remover entradas obsoletas de `files:` pode esconder um chunk que voltaria a ser emitido | `.wgt` sem arquivo, só falha na TV | `sync-tizen` passa a recusar tanto não listado quanto obsoleto: qualquer volta é pega no build |
 | R-012 | Pedido do usuário (2026-10-16): nada de "IPTV" no kit, na página de privacidade nem no app — "playlists Xtream/M3U" nos textos, aba "Fontes IPTV" → "Playlists", título "Conecte sua lista IPTV" → "Conecte sua playlist" (pt/en/es), dicas e teste de conexão acompanhando | Toca contratos travados das features 026, 037 e 067 | Resolvido: emenda aprovada pelo usuário — só o texto esperado mudou nos 3 contratos, travas regravadas, R-0xx anotado em cada `plan.md`; testes e E2E que citavam os textos acompanharam. Exige reempacotar o `.wgt` (o candidato atual tem os textos antigos) |
 | R-011 | Gravar evidência ou a linha da matriz depois do empacotamento sujaria a árvore e bloquearia `INT-CAND-TREE` do próprio candidato | Candidato nunca ficaria limpo depois de validado | `release/samsung/evidence/`, `reports/` e `target-matrix.json` não contam na árvore suja (saídas da validação); kit, ledger, `published.json` e `custody.json` continuam contando |
+| R-013 | Duas sessões rodaram a 078 ao mesmo tempo (2026-10-17): `--record-local` de uma regravou `build-<data>-base.json` (mesmo nome de arquivo) com `Blocked` por cima do `Pass` commitado da outra, e o relatório também; as falhas do `npm run test` vieram da carga concorrente (a suíte passa sozinha) | Evidência e relatório corretos podem ser trocados por outros, de outro momento | Resolvido: arquivos restaurados do commit; evidências e relatório só são gravados por uma sessão — ver Cuidados |
 | R-010 | `core.autocrlf=true` sem `.gitattributes`: no checkout os `.md` do kit voltariam com CRLF e o SHA-256 do manifest não bateria | Kit inteiro `Blocked` noutra máquina ou depois de um clone | `release/samsung/kit/.gitattributes` com `* -text` (bytes intactos); hash recalculado sempre que um artefato muda |
 
 ## Execution Notes
@@ -230,7 +231,9 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 | 2026-10-16 | T042 + Fase 8 (US7) | App, kit e privacidade sem "IPTV" (emenda 026/037/067 aprovada, travas regravadas, E2E afetados 4/4); obsolescência por kit e `config.xml`; `release-gate.test.mjs`; testes do gate 31/31 | Commit → `build:tizen` + reempacotar → T030–T032 |
 | 2026-10-16 | Fase 9 (parcial) | T037–T040 + T043 (ad-hoc: yaml com `EmptyState.js` obsoleto travava o `sync-tizen` após `37e068a`); `build:tizen` ok sem "IPTV"; varredura de segredos limpa | Commit dos não rastreados + `CCPlayTv/` → reempacotar → T030–T032, T036, T041 |
 
-**PRÓXIMO**: executar T041 quickstart §2–§7. TV física está aprovada pelo usuário; emulador permanece `Waived` por R-003.
+| 2026-10-17 | T041 + revisão | Quickstart §2 (release 31, scripts 101, unit 3542, lint, build reproduzível, trava), §3 (gate `Blocked` só por externos; SC-009 provado com `config.xml` 0.2.2 e revertido), §6 `404` esperado; segredos limpos em 14 JSON/MD; E2E do cenário 9 (botão Atualizar da 077) e dois testes instáveis corrigidos; evidência/relatório sobrescritos por sessão concorrente restaurados (R-013) | Itens externos: merge em `main` + `evidence/privacy-*.json`, artes, UI Description, acesso de teste, `custody.json`, Seller Office, R-009 |
+
+**PRÓXIMO**: só itens da pessoa — merge em `main` para publicar a página e então `curl.exe -sI …/privacidade/` → gravar `evidence/privacy-<data>.json`; artes (logo, fundo do ícone, 4 screenshots) em `kit/media/` + hashes no manifest; UI Description no template oficial; lista de demonstração com `validUntil`; `custody.json`; checar nome de pacote e registrar App ID (`published.json`); decidir R-009 (`application.launch`). Depois, rodar o gate de novo (sem `--record-local` se o `.wgt` não mudou). Fechar a feature (`Implementada`) é decisão da pessoa, já que o veredito fica `Blocked` até esses itens.
 
 ## Arquivos Principais
 
@@ -251,4 +254,5 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 - O gate reescreve `release/samsung/reports/<versão>-<variante>.{json,md}` a cada execução; relatórios de teste devem ser apagados antes do commit — só o de T036 é versionado. Esses arquivos não contam na árvore suja do candidato.
 - `npm run build:tizen` regrava `CCPlayTv/assets/*` e `index.html` (rastreados): rodar o gate depois de um build sem reempacotar mostra `INT-PKG-INVENTORY` Blocked por divergência com o `.wgt`.
 - Evidência só vale para o `.wgt` cujo hash ela registra: gravar E2E/TV antes do commit final e do reempacotamento desperdiça o roteiro. `--record-local` leva ~5 min (roda `npm run test` inteiro).
+- Uma sessão só por vez grava evidência e relatório (R-013): `--record-local` regrava `static|build-<data>-<variante>.json` com o mesmo nome e o gate regrava o relatório. Antes de rodar, `git log -3` e `git status`; se o arquivo já está commitado com `Pass` para o mesmo hash, rode o gate **sem** `--record-local`. Para provas que alteram o disco (SC-009), restaure o relatório com `git restore -- release/samsung/reports` depois.
 - Mudou um artefato de `release/samsung/kit/`? Recalcule o hash (`Get-FileHash -Algorithm SHA256 <arquivo>`, em minúsculas) no `manifest.json`, senão o item vira `Blocked` por hash divergente. Um `.md` novo do kit não pode ter `password=`, `token=`, 32 hex isolados etc.: o próprio gate o bloqueia (`INT-KIT-SECRETS`).

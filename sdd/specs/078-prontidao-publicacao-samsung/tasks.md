@@ -272,15 +272,23 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 - [X] T038 [P] `CLAUDE.md` → seção Commands (frontend): uma linha `node scripts/release/release-gate.mjs --variant base|commercial` (regra permanente, sem status de feature).
 - [X] T039 [P] `.planning/backlog.md` → `## Ideias Futuras`: "Licença/voucher de teste para revisor do Seller Office (variante comercial)" (R-004) e "Ampliar matriz de modelos Tizen 8.0" (R-001).
 - [X] T040 Revisão de segredos: `git diff` de `release/`, `bridge/`, `CCPlayTv/` sem credencial, URL de lista, chave, caminho do certificado ou senha.
-- [ ] T041 Rodar `quickstart.md` §2–§7 e registrar o resultado no Registro de cada fase.
+- [X] T041 Rodar `quickstart.md` §2–§7 e registrar o resultado no Registro de cada fase.
 - [X] T043 (ad-hoc, descoberta ao reempacotar para T036) `CCPlayTv/tizen_web_project.yaml`: remover `assets/EmptyState.js`, que o build não emite mais desde o commit `37e068a` — a trava `findUnlistedFiles`/obsoletos do `sync-tizen` recusava sincronizar.
 
 **Registro da Fase**
-- Status: parcial — T032, T036–T040 e T043 feitos; T041 espera a execução do quickstart.
+- Status: concluída (2026-10-17) — T036–T041 e T043 feitos; o que resta é externo (Fase 6 publicada, quickstart §6/§7).
 - Feito: mapeamento L01–L10 → IDs no doc 10; linha do gate em `CLAUDE.md` → Commands; duas ideias no backlog (R-004, R-001); `npm run build:tizen` refeito (agora sem nenhum "IPTV" em `CCPlayTv/assets`) depois de T043.
 - Contrato: sem contrato nesta fase.
 - Testes executados: `npm run build:tizen` (1ª falhou na trava de obsoletos, 2ª ok depois de T043). T040: varredura com `findSecrets` + extensões de chave sobre 75 arquivos de texto de `release/`, `bridge/` e `CCPlayTv/` — `release/` e `bridge/` sem achado; 5 achados em `CCPlayTv/assets/catalogApi.js`, `route-add-source.js` e `CCPlayTv/Debug/.../index.js`, todos código (template `?username=${…}&password=${…}` e atribuições de campo, conferidos pela forma mascarada) — nenhum valor `CCPLAY_PROBE_*` do `.env` presente no bundle (conferido só por presença, sem imprimir). Nenhum `.p12/.pem/.key` nessas pastas.
-- Pendências: executar T041. O veredito atual permanece `Blocked` pelos gates de privacidade publicada, artes, UI Description e registros do Seller Office; a TV está aprovada pelo roteiro confirmado pelo usuário.
+- T041 (2026-10-17, revisão `32328a6`, `.wgt` `bc864e…`):
+  - §2: `npx vitest run scripts/release` 31/31; `npx vitest run scripts` 101/101; `npm run lint` ok (2 avisos pré-existentes do React Compiler); `npm run test` 640 arquivos / 3542 testes verdes; `npm run build:tizen` ok e **reproduzível** (nenhum arquivo versionado de `CCPlayTv/` mudou); trava 078 íntegra (5). E2E 52/52 (rodada desta sessão sobre o mesmo código — depois dela só mudaram testes).
+  - §3: gate `Blocked` com 9 bloqueios, todos externos (`INT-SEC-CUSTODY`, `SAM-REG-*`, `SAM-KIT-UIDESC/LOGO/ICONBG/SHOTS/TESTACCESS/PRIVACY`); **nenhum** bloqueio em `SAM-PKG-FILES`, `SAM-CFG-APIVERSION`, `SAM-CFG-TITLE`, `INT-PKG-INVENTORY`, `INT-PKG-RELEASE`, `SAM-PRV`; `INT-EVD-BUILD/E2E/TV` e `INT-UPD-PRESERVE` `Pass`, alvo aprovado BR/QN50Q60DAGXZD. SC-009: `config.xml` do disco em 0.2.2 sem reempacotar → `Obsolescência: config.xml do disco difere do pacote` e aviso no topo do `.md`; `config.xml` e relatório restaurados depois (o relatório commitado de T036 fica).
+  - §4/§5: feitos na Fase 7 (TV por cima, sem desinstalar, confirmada pelo usuário; emulador `Waived`, `118, -4`); as evidências batem com o hash do `.wgt` atual.
+  - §6: `curl.exe -sI https://johnosd.github.io/ccplaytv/privacidade/` → `HTTP/1.1 404` — esperado: a página só publica com o merge em `main`.
+  - §7: manuais do Seller Office, não executados (dependem da pessoa).
+  - Segredos: `findSecrets` + valores `CCPLAY_PROBE_*` (só presença) + caminho de certificado sobre 14 JSON/MD de `release/samsung/`, `reports/` e `evidence/` — nenhum achado.
+- Desvios fora do escopo corrigidos com aprovação do usuário (2026-10-17): E2E `semelhantes-elenco-ator` cenário 9 navegava 3 setas até "Remover" e parava em "Atualizar" (botão novo da 077) → 2 setas (`ab4c64e`); `release-gate.test.mjs` com 30 s (sobe o CLI 2× e roda git; 5,4 s na suíte completa); `VodShowcaseScreen.test.tsx` (079) com `waitFor` de 5 s para o atraso real de 300 ms (`e34c233`) — instável sob carga.
+- Pendências: o veredito permanece `Blocked` só por itens externos — publicar a página (merge em `main`) e gravar `evidence/privacy-*.json`; artes, UI Description oficial, acesso de teste com `validUntil`, `custody.json`, registros no Seller Office (§7).
 
 ### Checklist de Release
 
@@ -289,12 +297,12 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 - [X] Fase 4 (US2) concluída
 - [X] Fase 5 (US4) concluída
 - [ ] Fase 6 (US5) concluída — página publicada e evidência gravada
-- [ ] Fase 7 (US3/US6) concluída — TV física executada (gate obrigatório)
+- [X] Fase 7 (US3/US6) concluída — TV física executada (gate obrigatório)
 - [X] Fase 8 (US7) concluída
-- [ ] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro
-- [ ] `npm run lint`, `npm run test`, `npm run build:tizen` verdes
-- [ ] `npm run test:e2e` verde antes da passada na TV
-- [ ] Nenhum segredo em `release/`, `bridge/` e relatórios
+- [X] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro
+- [X] `npm run lint`, `npm run test`, `npm run build:tizen` verdes
+- [X] `npm run test:e2e` verde antes da passada na TV
+- [X] Nenhum segredo em `release/`, `bridge/` e relatórios
 - [ ] `quickstart.md` executado com sucesso
 
 ---
