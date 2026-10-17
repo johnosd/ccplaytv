@@ -1,0 +1,258 @@
+{
+  "candidate": {
+    "variant": "base",
+    "revision": "ab4c64ec5f469df7b325853a0b58cad646e2087d",
+    "dirtyPaths": [],
+    "buildMode": "production",
+    "version": "0.2.1",
+    "wgtSha256": "24b962e89e667924c9598585854bc3f4f92f231b14bbc17ab4585e2624dbde2e",
+    "dirty": false
+  },
+  "kit": {
+    "kitVersion": "0.2.1",
+    "manifestSha256": "b6a4202ba6af182e19b524cd59090f85b58847711fd7ef8f84c1bf0caf826b66"
+  },
+  "results": [
+    {
+      "id": "INT-CAND-TREE",
+      "status": "Pass",
+      "detail": "árvore limpa na revisão do candidato"
+    },
+    {
+      "id": "INT-CAND-HASH",
+      "status": "Pass",
+      "detail": "revisão, versão e hash do .wgt identificados"
+    },
+    {
+      "id": "INT-DIST-VARIANT",
+      "status": "Pass",
+      "detail": "variante base é a distribuída para o Tizen ID atual"
+    },
+    {
+      "id": "SAM-PKG-FILES",
+      "status": "Pass",
+      "detail": "config.xml, author-signature.xml e signature1.xml presentes"
+    },
+    {
+      "id": "SAM-PKG-MULTIARCH",
+      "status": "Not Applicable",
+      "detail": "pacote .wgt Web, arquitetura única",
+      "justification": "multi-arquitetura só vale para binários nativos"
+    },
+    {
+      "id": "SAM-CFG-TIZENID",
+      "status": "Pass",
+      "detail": "Tizen ID presente e coerente com o package"
+    },
+    {
+      "id": "SAM-CFG-PACKAGEID",
+      "status": "Pass",
+      "detail": "package ID de 10 caracteres alfanuméricos"
+    },
+    {
+      "id": "SAM-CFG-VERSION",
+      "status": "Pass",
+      "detail": "versão 0.2.1 na faixa permitida"
+    },
+    {
+      "id": "SAM-CFG-APIVERSION",
+      "status": "Pass",
+      "detail": "required_version 8.0 coerente com o piso 8.0"
+    },
+    {
+      "id": "SAM-CFG-TITLE",
+      "status": "Pass",
+      "detail": "name do pacote igual ao título do idioma padrão"
+    },
+    {
+      "id": "SAM-CFG-SCREENSIZE",
+      "status": "Pass",
+      "detail": "tamanho de tela declarado em feature"
+    },
+    {
+      "id": "INT-PKG-RELEASE",
+      "status": "Pass",
+      "detail": "build_type Release"
+    },
+    {
+      "id": "INT-PKG-INVENTORY",
+      "status": "Pass",
+      "detail": "emitido, declarado e empacotado coincidem"
+    },
+    {
+      "id": "SAM-PRV:http://tizen.org/privilege/application.launch",
+      "status": "Pass",
+      "detail": "uso registrado para a variante base"
+    },
+    {
+      "id": "SAM-PRV:http://tizen.org/privilege/internet",
+      "status": "Pass",
+      "detail": "uso registrado para a variante base"
+    },
+    {
+      "id": "SAM-PRV:http://developer.samsung.com/privilege/productinfo",
+      "status": "Pass",
+      "detail": "uso registrado para a variante base"
+    },
+    {
+      "id": "SAM-PRV:http://developer.samsung.com/privilege/network.public",
+      "status": "Pass",
+      "detail": "uso registrado para a variante base"
+    },
+    {
+      "id": "SAM-PRV:http://tizen.org/privilege/unlimitedstorage",
+      "status": "Pass",
+      "detail": "uso registrado para a variante base"
+    },
+    {
+      "id": "SAM-PRV:http://tizen.org/privilege/tv.inputdevice",
+      "status": "Pass",
+      "detail": "uso registrado para a variante base"
+    },
+    {
+      "id": "SAM-PRV",
+      "status": "Pass",
+      "detail": "6 privilégio(s) com nível, uso e regras nominais conferidos"
+    },
+    {
+      "id": "SAM-SEC-AUTHOR",
+      "status": "Pass",
+      "detail": "primeira versão: certificado de autor registrado (SHA-256 d09a0baec14b10284c210965434c3ed441162ed8060d35d4075707d887200d05)"
+    },
+    {
+      "id": "INT-SEC-CUSTODY",
+      "status": "Blocked",
+      "detail": "identidade do certificado de autor não registrada em release/samsung/custody.json",
+      "nextAction": "registrar o fingerprint público do certificado em custody.json"
+    },
+    {
+      "id": "SAM-REG-PACKAGENAME",
+      "status": "Pending",
+      "detail": "colisão de nome de pacote ainda não conferida",
+      "nextAction": "conferir no Seller Office e registrar packageNameChecked em published.json"
+    },
+    {
+      "id": "SAM-REG-APPID",
+      "status": "Pending",
+      "detail": "App ID do Seller Office ainda não registrado (≠ Tizen ID)",
+      "nextAction": "registrar o app no Seller Office e preencher appId em published.json"
+    },
+    {
+      "id": "SAM-KIT-UIDESC",
+      "status": "Pending",
+      "detail": "item ainda não entregue",
+      "owner": "produto",
+      "nextAction": "transcrever ui-description.md no template oficial da Samsung e incluir o arquivo preenchido no kit"
+    },
+    {
+      "id": "SAM-KIT-LOGO",
+      "status": "Pending",
+      "detail": "item ainda não entregue",
+      "owner": "produto",
+      "nextAction": "fornecer o logo em PNG com transparência em media/"
+    },
+    {
+      "id": "SAM-KIT-ICONBG",
+      "status": "Pending",
+      "detail": "item ainda não entregue",
+      "owner": "produto",
+      "nextAction": "fornecer a imagem de fundo do ícone (PNG ou JPEG) em media/"
+    },
+    {
+      "id": "SAM-KIT-SHOTS",
+      "status": "Pending",
+      "detail": "item ainda não entregue",
+      "owner": "produto",
+      "nextAction": "fornecer 4 screenshots JPEG < 500 kB, 1280×720 ou 1920×1080, em media/"
+    },
+    {
+      "id": "SAM-KIT-LISTING",
+      "status": "Pass",
+      "detail": "artefato(s) conferido(s)",
+      "owner": "produto"
+    },
+    {
+      "id": "SAM-KIT-VOC",
+      "status": "Pass",
+      "detail": "artefato(s) conferido(s)",
+      "owner": "produto"
+    },
+    {
+      "id": "SAM-KIT-TESTACCESS",
+      "status": "Pending",
+      "detail": "item ainda não entregue",
+      "owner": "release",
+      "nextAction": "definir a lista de teste autorizada, guardar o segredo no cofre e registrar validUntil em demo-access.md"
+    },
+    {
+      "id": "INT-KIT-SECRETS",
+      "status": "Pass",
+      "detail": "nenhum padrão de segredo no kit nem no manifest"
+    },
+    {
+      "id": "SAM-KIT-PRIVACY",
+      "status": "Pending",
+      "detail": "página não verificada: falta evidência HTTP 200 para esta URL",
+      "owner": "produto",
+      "nextAction": "publicar bridge/privacidade/ (merge em main), conferir (quickstart §6) e gravar evidence/privacy-<data>.json"
+    },
+    {
+      "id": "INT-EVD-STATIC",
+      "status": "Pass",
+      "detail": "local · 2026-10-17",
+      "owner": "release-gate --record-local"
+    },
+    {
+      "id": "INT-EVD-BUILD",
+      "status": "Pass",
+      "detail": "local · 2026-10-17",
+      "owner": "release-gate --record-local"
+    },
+    {
+      "id": "INT-EVD-E2E",
+      "status": "Pass",
+      "detail": "browser · 2026-10-17",
+      "owner": "execução sdd (agente)"
+    },
+    {
+      "id": "INT-EVD-EMULATOR",
+      "status": "Pending",
+      "detail": "sem evidência no ambiente emulator",
+      "nextAction": "executar o roteiro (quickstart) no ambiente emulator e gravar release/samsung/evidence/"
+    },
+    {
+      "id": "INT-EVD-TV",
+      "status": "Pending",
+      "detail": "sem evidência no ambiente tv",
+      "nextAction": "executar o roteiro (quickstart) no ambiente tv e gravar release/samsung/evidence/"
+    },
+    {
+      "id": "INT-UPD-PRESERVE",
+      "status": "Pending",
+      "detail": "sem evidência no ambiente tv",
+      "nextAction": "executar o roteiro (quickstart) no ambiente tv e gravar release/samsung/evidence/"
+    }
+  ],
+  "approvedTargets": [],
+  "decision": "Blocked",
+  "blockers": [
+    "SAM-REG-PACKAGENAME",
+    "SAM-REG-APPID",
+    "SAM-KIT-UIDESC",
+    "SAM-KIT-LOGO",
+    "SAM-KIT-ICONBG",
+    "SAM-KIT-SHOTS",
+    "SAM-KIT-PRIVACY",
+    "SAM-KIT-TESTACCESS",
+    "INT-SEC-CUSTODY",
+    "INT-EVD-EMULATOR",
+    "INT-EVD-TV",
+    "INT-UPD-PRESERVE",
+    "TARGET-MATRIX"
+  ],
+  "stale": {
+    "stale": false,
+    "reasons": []
+  },
+  "generatedAt": "2026-10-17T01:06:59.616Z"
+}

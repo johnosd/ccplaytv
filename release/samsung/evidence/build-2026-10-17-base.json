@@ -1,0 +1,15 @@
+{
+  "gate": "INT-EVD-BUILD",
+  "candidate": {
+    "version": "0.2.1",
+    "variant": "base",
+    "revision": "ab4c64ec5f469df7b325853a0b58cad646e2087d",
+    "wgtSha256": "24b962e89e667924c9598585854bc3f4f92f231b14bbc17ab4585e2624dbde2e"
+  },
+  "environment": "local",
+  "script": "npm run test",
+  "exitCode": 0,
+  "result": "Pass",
+  "date": "2026-10-17",
+  "by": "release-gate --record-local"
+}

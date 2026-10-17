@@ -1,0 +1,15 @@
+{
+  "gate": "INT-EVD-E2E",
+  "candidate": {
+    "version": "0.2.1",
+    "variant": "base",
+    "revision": "ab4c64ec5f469df7b325853a0b58cad646e2087d",
+    "wgtSha256": "24b962e89e667924c9598585854bc3f4f92f231b14bbc17ab4585e2624dbde2e"
+  },
+  "environment": "browser",
+  "script": "npm run test:e2e (node e2e/run.mjs, 6 em paralelo)",
+  "result": "Pass",
+  "date": "2026-10-17",
+  "by": "execução sdd (agente)",
+  "limitations": "52/52 scripts no Chromium contra o dev server; não comprova AVPlay, codecs nem controle remoto (fica para INT-EVD-TV)"
+}
