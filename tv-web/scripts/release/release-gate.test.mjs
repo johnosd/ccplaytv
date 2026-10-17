@@ -13,6 +13,8 @@ const CLI = fileURLToPath(new URL('./release-gate.mjs', import.meta.url))
 const SECRET = 's3cr3tValue078'
 const sha = (buf) => createHash('sha256').update(buf).digest('hex')
 const roots = []
+// Cada teste sobe o CLI duas vezes e roda git: na suíte completa passou dos 5 s padrão (5,4 s).
+const PROCESS_TIMEOUT = 30_000
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
@@ -98,7 +100,7 @@ it('grava o relatório; outro pacote na segunda execução marca obsolescência;
   for (const output of [first.stdout, first.stderr, first.json, first.md, second.stdout, second.stderr, second.json, second.md]) {
     expect(output).not.toContain(SECRET)
   }
-})
+}, PROCESS_TIMEOUT)
 
 it('kit alterado e config.xml do disco diferente do pacote entram nas razões', () => {
   const root = makeRepo()
@@ -112,4 +114,4 @@ it('kit alterado e config.xml do disco diferente do pacote entram nas razões', 
   writeFileSync(join(root, 'CCPlayTv', 'config.xml'), config('0.3.1'))
   const { stale } = JSON.parse(runCli(root, wgt).json)
   expect(stale.reasons).toEqual(expect.arrayContaining(['kit', 'config.xml do disco difere do pacote']))
-})
+}, PROCESS_TIMEOUT)
