@@ -257,7 +257,8 @@ describe('VodShowcaseScreen — fileiras e estados', () => {
     mockData({ categoriesState: { isLoading: true } })
     const loading = renderShowcase()
     // Feature 079 (FR-004): o "Carregando" com Voltar aparece passados 300 ms.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('tv-focus'))
+    // Atraso em tempo real: na suíte completa (jsdom sob carga) o 1 s padrão do waitFor estourou.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('tv-focus'), { timeout: 5000 })
     tap('Enter')
     expect(loading.onBack).toHaveBeenCalledTimes(1)
     loading.unmount()
