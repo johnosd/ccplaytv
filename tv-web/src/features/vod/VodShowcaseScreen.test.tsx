@@ -160,8 +160,15 @@ describe('VodShowcaseScreen — fileiras assentadas ao abrir', () => {
   it('sem o histórico ainda: "Carregando" com "Voltar" focável; quando chega, as fileiras aparecem juntas e o Continue já é a 1ª', async () => {
     mockData({ added: [item('A'), item('B')] })
     vi.mocked(catalogApi.useHistoryContent).mockReturnValue({ data: undefined, isLoading: true } as unknown as ReturnType<typeof catalogApi.useHistoryContent>)
+    // Tempo controlado: com relógio real, sob a carga da suíte inteira o teto de 2 s chegava antes do Enter (feature 079).
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const { rerenderShowcase, onBack } = renderShowcase('movies')
 
+    // Feature 079 (FR-004): o "Carregando" só aparece depois de 300 ms — antes, nada pisca.
+    expect(screen.queryByText('Carregando filmes…')).not.toBeInTheDocument()
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
     expect(screen.getByText('Carregando filmes…')).toBeInTheDocument()
     expect(document.querySelectorAll('section.vod-row')).toHaveLength(0)
     tap('ArrowDown') // nada se move por trás do carregamento
@@ -170,7 +177,12 @@ describe('VodShowcaseScreen — fileiras assentadas ao abrir', () => {
 
     mockData({ history: [item('H')], added: [item('A'), item('B')] })
     rerenderShowcase()
-    await waitFor(() => expect(document.querySelectorAll('section.vod-row').length).toBeGreaterThan(0), { timeout: 5000 })
+    // As leituras do TMDB/"Bem avaliados" deste arquivo são reais e seguem pendentes: a vitrine revela no teto (2 s).
+    act(() => {
+      vi.advanceTimersByTime(1700)
+    })
+    vi.useRealTimers()
+    expect(document.querySelectorAll('section.vod-row').length).toBeGreaterThan(0)
     const labels = [...document.querySelectorAll('section.vod-row')].map((row) => row.getAttribute('aria-label'))
     expect(labels[0]).toBe('Continue assistindo')
     expect(labels).toContain('Adicionados recentemente')
@@ -241,10 +253,11 @@ describe('VodShowcaseScreen — fileiras e estados', () => {
     expect(document.querySelector('.vod-showcase .tv-focus')?.closest('section')?.getAttribute('aria-label')).toBe('Continue assistindo')
   })
 
-  it('categorias carregando, com erro e sem nenhuma categoria: estado próprio com ação focável', () => {
+  it('categorias carregando, com erro e sem nenhuma categoria: estado próprio com ação focável', async () => {
     mockData({ categoriesState: { isLoading: true } })
     const loading = renderShowcase()
-    expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('tv-focus')
+    // Feature 079 (FR-004): o "Carregando" com Voltar aparece passados 300 ms.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('tv-focus'))
     tap('Enter')
     expect(loading.onBack).toHaveBeenCalledTimes(1)
     loading.unmount()

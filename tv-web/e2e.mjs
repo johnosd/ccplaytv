@@ -150,6 +150,8 @@ async function run() {
     await page.waitForSelector('.home-content', { timeout: 8000 })
     const indicator = await page.locator('.topbar-profile').getAttribute('aria-label')
     assert(indicator?.includes('Lista E2E Um') === true, 'o Início abre com a topbar mostrando a lista ativa')
+    // Feature 079: o Início monta antes de aparecer — o billboard só existe depois da revelação.
+    await page.waitForSelector('.home-hero', { timeout: 8000 })
     assert(
       (await focusedText(page, '.home-hero')).join('|').includes('TV ao vivo'),
       'o foco inicial do Início está na ação do hero "Abrir TV ao vivo" (feature 026, sem favoritos/histórico ainda)',

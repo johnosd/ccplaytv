@@ -354,13 +354,16 @@ async function run() {
       assert((await page.locator('.home-row').count()) >= 1, 'a 1ª fileira aparece abaixo do billboard')
       await shot(page, '01-billboard')
       if (!hasBar) {
-        // Abre o detalhe para o app guardar a duração (get_vod_info) e volta: agora o "faltam X" pode aparecer.
-        await press(page, 'ArrowRight')
+        // Abre o detalhe para o app guardar a duração (get_vod_info) e volta: agora o "faltam X" pode aparecer. Desde o ad-hoc
+        // de 2026-10-09 a 2ª ação do billboard é "Minha Lista" (favorita, não abre detalhe): o detalhe se abre pelo 1º card de
+        // "Continuar assistindo" — o título em andamento mais recente, o mesmo do billboard.
+        await irAFileira(page, 'continue')
         await page.keyboard.press('Enter')
         await page.waitForSelector('.vod-detail', { timeout: 15000 })
         await page.waitForTimeout(4000)
         await page.keyboard.press('Escape')
         await page.waitForSelector('.home-content', { timeout: 15000 })
+        await irAoBillboard(page)
         await page.waitForTimeout(1500)
         const after = page.locator('.home-hero-action--primary')
         const barAfter = (await after.locator('.home-hero-progress').count()) > 0
@@ -453,6 +456,9 @@ async function run() {
       await irAoBillboard(page)
       await irAFileira(page) // a 1ª fileira de títulos abre o detalhe com OK
       await press(page, 'ArrowRight', 2, 60)
+      // Desde o ad-hoc de 2026-10-09 a 1ª fileira de títulos costuma ser "Minha Lista", que termina em "Filmes (N)"/"Séries (N)"
+      // (abrem a categoria, não o detalhe): com poucos favoritos, volta até um card de título.
+      for (let i = 0; i < 3 && (await focusedCard(page)) === null; i += 1) await press(page, 'ArrowLeft', 1, 60)
       await page.waitForTimeout(400)
       const linha = await focusedRow(page)
       const card = await focusedCard(page)

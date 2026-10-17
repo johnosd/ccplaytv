@@ -126,8 +126,12 @@ export function HomeScreen({
     setPlaying(params)
   }
 
+  // Feature 079 (FR-009): fechar o player é ação da pessoa — o que a releitura trouxer (ex.: o 1º "Continuar") entra na hora.
+  const [userActionKey, setUserActionKey] = useState(0)
+
   function closePlayer() {
     setPlaying(null)
+    setUserActionKey((key) => key + 1)
     // Sem isto, o hero continuaria com a leitura de quando montou — um
     // filme assistido por alguns minutos voltaria mostrando "Assistir" em
     // vez de "Continuar" (`logic/hero-home.md` §5). `invalidateUserStates`
@@ -179,6 +183,7 @@ export function HomeScreen({
           onOpenFavorites={onOpenFavorites}
           onPlay={startPlaying}
           statusLine={statusLine}
+          userActionKey={userActionKey}
         />
       </AppShell>
       {playing && (
