@@ -200,7 +200,7 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 
 **Registro da Fase**:
 
-- Status: código concluído (2026-10-16); **publicação pendente** — a página só vai ao ar com o merge em `main` (workflow `bridge-pages.yml`), por isso o item "Fase 6" do Checklist de Release segue aberto.
+- Status: concluída (2026-10-17) — merge em `main` feito pelo usuário; `curl.exe -sI https://johnosd.github.io/ccplaytv/privacidade/` → `HTTP/1.1 200 OK`; o GET publicado é idêntico a `bridge/privacidade/index.html` (pt/en/es, nenhum `<script>`; "analytics"/"cookie" só no texto que diz não usar); `release/samsung/evidence/privacy-2026-10-17.json` gravado; gate → `SAM-KIT-PRIVACY` `Pass`. Pendência (1) abaixo resolvida.
 - Feito: `bridge/privacidade/index.html` (pt/en/es por âncora, sem script, cookie, analytics nem recurso de terceiro; `referrer no-referrer`): dados locais da TV; destinos conferidos no código — provedor da lista, TMDB (só com a chave da pessoa), Radio Browser (país + uuid), YouTube via página-ponte do trailer, Cloudflare (só no teste de conexão em Ajustes) e, na versão com portal, o serviço no Google Cloud (identificador, listas cifradas, backup cifrado, licença; Mercado Pago no pagamento) sempre por ação da pessoa; retenção (backups do serviço até 7 dias, `docs/portal/operacao.md`) e exclusão; contato `ccplaytv@gmail.com`. Nota `**Atualização (feature 078):**` e linha na tabela da ADR-012 (documento público estático, regras 1 e 4). `privacy.mjs` (`checkPrivacy`, puro, sem rede) e CLI: `SAM-KIT-PRIVACY` sobrepõe o item do manifest a partir de `privacyUrl` + `evidence/privacy-*.json` (formato no data-model).
 - Contrato: sem contrato nesta fase; `npx vitest run scripts/release/releaseGate.prontidao-publicacao.contract.test.mjs` segue 5/5 verdes; trava íntegra (PASS, 5 testes).
 - Testes executados: `npx vitest run scripts/release` → 9 arquivos, 26 testes verdes (`privacy.test.mjs` 3); `npm run lint` ok; `node scripts/release/release-gate.mjs --variant base` → `SAM-KIT-PRIVACY` `Pending` ("falta evidência HTTP 200 para esta URL"); relatório de teste apagado.
@@ -273,6 +273,7 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 - [X] T039 [P] `.planning/backlog.md` → `## Ideias Futuras`: "Licença/voucher de teste para revisor do Seller Office (variante comercial)" (R-004) e "Ampliar matriz de modelos Tizen 8.0" (R-001).
 - [X] T040 Revisão de segredos: `git diff` de `release/`, `bridge/`, `CCPlayTv/` sem credencial, URL de lista, chave, caminho do certificado ou senha.
 - [X] T041 Rodar `quickstart.md` §2–§7 e registrar o resultado no Registro de cada fase.
+- [X] T044 (ad-hoc, pedido do usuário 2026-10-17) Mídias da loja no kit: logo/fundo/ícone de `docs/guia-praticas-app-tv/assets/` em `release/samsung/kit/media/` (aprovados pelo usuário) e as 4 capturas geradas por `tv-web/scripts/release/store-screenshots.mjs` (app real no navegador, painel Xtream e capas SVG fictícios, sem TMDB) — Filmes, TV ao vivo com guia, Séries, detalhe de "Distrito Zero"; hashes no `manifest.json`; `SAM-KIT-LOGO/ICONBG/SHOTS` `Pass`; `kit.test.mjs` atualizado para o estado real.
 - [X] T043 (ad-hoc, descoberta ao reempacotar para T036) `CCPlayTv/tizen_web_project.yaml`: remover `assets/EmptyState.js`, que o build não emite mais desde o commit `37e068a` — a trava `findUnlistedFiles`/obsoletos do `sync-tizen` recusava sincronizar.
 
 **Registro da Fase**
@@ -296,7 +297,7 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 - [X] Fase 3 (US1) concluída
 - [X] Fase 4 (US2) concluída
 - [X] Fase 5 (US4) concluída
-- [ ] Fase 6 (US5) concluída — página publicada e evidência gravada
+- [X] Fase 6 (US5) concluída — página publicada e evidência gravada
 - [X] Fase 7 (US3/US6) concluída — TV física executada (gate obrigatório)
 - [X] Fase 8 (US7) concluída
 - [X] Testes de contrato todos verdes na suíte completa e `check-contract-tests.ps1` íntegro

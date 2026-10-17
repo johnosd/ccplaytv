@@ -178,13 +178,13 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 | Fase 3 — US1 | Concluída: `candidate.mjs` e CLI `release-gate.mjs` (git, `.wgt`, `INT-DIST-VARIANT`, relatório, obsolescência); contrato "candidato" verde |
 | Fase 4 — US2 | Concluída: `packageChecks`, `privileges`, `author`, ledger `privileges.json`, `findStaleDeclared`; CLI com pacote, inventário, privilégios, autor, custódia e `SAM-REG-*`; contratos pacote e privilégios verdes |
 | Fase 5 — US4 | Concluída: `kit.mjs` (mídia, hash, segredos, listagem por idioma, VOC, acesso de teste) e kit real em `release/samsung/kit/`; CLI com `kitReader`; contrato kit verde — **5/5 contratos verdes** |
-| Kit | `SAM-KIT-LISTING`, `SAM-KIT-VOC` (`ccplaytv@gmail.com`), `INT-KIT-SECRETS`, `SAM-CFG-TITLE` Pass; artes, UI Description oficial, privacidade e acesso de teste Pending com dono |
-| Fase 6 — US5 | Código concluído: `bridge/privacidade/index.html`, nota na ADR-012, `privacy.mjs` + CLI; `SAM-KIT-PRIVACY` `Pending` até o merge em `main` publicar a página e a evidência ser gravada |
+| Kit | `SAM-KIT-LISTING`, `VOC`, `LOGO`, `ICONBG`, `SHOTS`, `PRIVACY`, `INT-KIT-SECRETS`, `SAM-CFG-TITLE` Pass (T044: mídias em `kit/media/`, capturas de `store-screenshots.mjs`); só UI Description oficial e acesso de teste Pending com dono |
+| Fase 6 — US5 | Concluída: página publicada após o merge em `main` (200, idêntica ao repositório), `evidence/privacy-2026-10-17.json`, `SAM-KIT-PRIVACY` `Pass` |
 | Fase 7 — US3+US6 | T030 E2E, T031 emulador `Waived` por `118, -4` e T032 TV física concluídos; TV QN50Q60DAGXZD aprovada pelo usuário |
 | Fase 8 — US7 | Concluída: obsolescência por candidato, kit e `config.xml` do disco ≠ pacote; `release-gate.test.mjs` roda o CLI como processo |
 | App sem "IPTV" | Textos trocados (T042, R-012), commitados e no `.wgt` candidato (`bc864e…`), validado na TV |
-| Fase 9 | Concluída: T036–T041 e T043; quickstart §2–§5 verdes, §6 `404` (página ainda não publicada), §7 manual |
-| Candidato | `CCPlayTV.wgt` 0.2.1, SHA-256 `bc864e…`, build `production`, árvore limpa; gate `Blocked` com 9 bloqueios, **todos externos**; pacote, inventário, privilégios, E2E, TV e atualização `Pass`; alvo aprovado BR/QN50Q60DAGXZD |
+| Fase 9 | Concluída: T036–T041, T043 e T044; quickstart §2–§6 verdes (§6 200 após o merge), §7 manual |
+| Candidato | `CCPlayTV.wgt` 0.2.1, SHA-256 `bc864e…`, build `production`; gate `Blocked` com 5 bloqueios, **todos da pessoa** (`INT-SEC-CUSTODY`, `SAM-REG-PACKAGENAME`, `SAM-REG-APPID`, `SAM-KIT-UIDESC`, `SAM-KIT-TESTACCESS`); pacote, inventário, privilégios, E2E, TV e atualização `Pass`; alvo aprovado BR/QN50Q60DAGXZD |
 | Pacote Tizen | `required_version` 8.0, `<name>CCPlayTV</name>`, `build_type: Release`, yaml sem obsoletas (inclui `EmptyState.js`, T043); `build:tizen` reproduzível |
 | Custódia / registro | `custody.json` e `published.json` ainda vazios: `INT-SEC-CUSTODY` Blocked; `SAM-REG-*` Pending (dependem da pessoa) |
 
@@ -233,7 +233,9 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 
 | 2026-10-17 | T041 + revisão | Quickstart §2 (release 31, scripts 101, unit 3542, lint, build reproduzível, trava), §3 (gate `Blocked` só por externos; SC-009 provado com `config.xml` 0.2.2 e revertido), §6 `404` esperado; segredos limpos em 14 JSON/MD; E2E do cenário 9 (botão Atualizar da 077) e dois testes instáveis corrigidos; evidência/relatório sobrescritos por sessão concorrente restaurados (R-013) | Itens externos: merge em `main` + `evidence/privacy-*.json`, artes, UI Description, acesso de teste, `custody.json`, Seller Office, R-009 |
 
-**PRÓXIMO**: só itens da pessoa — merge em `main` para publicar a página e então `curl.exe -sI …/privacidade/` → gravar `evidence/privacy-<data>.json`; artes (logo, fundo do ícone, 4 screenshots) em `kit/media/` + hashes no manifest; UI Description no template oficial; lista de demonstração com `validUntil`; `custody.json`; checar nome de pacote e registrar App ID (`published.json`); decidir R-009 (`application.launch`). Depois, rodar o gate de novo (sem `--record-local` se o `.wgt` não mudou). Fechar a feature (`Implementada`) é decisão da pessoa, já que o veredito fica `Blocked` até esses itens.
+| 2026-10-17 | Fase 6 + T044 | Página de privacidade publicada (200, idêntica ao repo) e evidência gravada; logo/fundo/ícone no kit; `store-screenshots.mjs` gera as 4 capturas com catálogo fictício (revisadas imagem a imagem); `SAM-KIT-LOGO/ICONBG/SHOTS/PRIVACY` `Pass`; gate com 5 bloqueios, todos da pessoa | UI Description, acesso de teste, `custody.json`, Seller Office, R-009 |
+
+**PRÓXIMO**: só itens da pessoa — UI Description no template oficial; lista de demonstração com `validUntil`; `custody.json`; checar nome de pacote e registrar App ID (`published.json`); decidir R-009 (`application.launch`). Depois, rodar o gate de novo (sem `--record-local` se o `.wgt` não mudou). Fechar a feature (`Implementada`) é decisão da pessoa, já que o veredito fica `Blocked` até esses itens.
 
 ## Arquivos Principais
 

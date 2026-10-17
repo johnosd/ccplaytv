@@ -65,14 +65,14 @@ it('.p12 no manifest bloqueia segredos; caminho fora do kit bloqueia o item sem 
   expect(results.find((r) => r.id === 'INT-KIT-SECRETS').paths).toEqual(['autor.p12'])
 })
 
-it('o kit real: listagem e VOC passam, sem segredo, artes pendentes com dono; o comercial bloqueia o acesso de teste', () => {
+it('o kit real: listagem, VOC e artes passam (mídia conferida de verdade), sem segredo, UI Description pendente com dono; o comercial bloqueia o acesso de teste', () => {
   const manifest = JSON.parse(readFileSync(new URL('manifest.json', kitDir), 'utf8'))
   const readFile = kitReader(fileURLToPath(kitDir))
   const base = checkKit({ manifest, readFile, variant: 'base', today: '2026-10-16' })
-  expect(statusOf(base, 'SAM-KIT-LISTING')).toBe('Pass')
-  expect(statusOf(base, 'SAM-KIT-VOC')).toBe('Pass')
-  expect(statusOf(base, 'INT-KIT-SECRETS')).toBe('Pass')
-  for (const id of ['SAM-KIT-LOGO', 'SAM-KIT-ICONBG', 'SAM-KIT-SHOTS', 'SAM-KIT-UIDESC']) {
+  for (const id of ['SAM-KIT-LISTING', 'SAM-KIT-VOC', 'INT-KIT-SECRETS', 'SAM-KIT-LOGO', 'SAM-KIT-ICONBG', 'SAM-KIT-SHOTS']) {
+    expect(statusOf(base, id), id).toBe('Pass')
+  }
+  for (const id of ['SAM-KIT-UIDESC']) {
     const result = base.find((r) => r.id === id)
     expect(result.status, id).toBe('Pending')
     expect(result.owner, id).toBeTruthy()
