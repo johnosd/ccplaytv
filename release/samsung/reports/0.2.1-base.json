@@ -1,22 +1,12 @@
 {
   "candidate": {
     "variant": "base",
-    "revision": "d7b6c7737598d9ffadabdef69a144310b6b14f99",
-    "dirtyPaths": [
-      ".agents/skills/tizen-certificate-manager/",
-      ".agents/skills/tizen-dlog-analyzer/",
-      ".agents/skills/tizen-file-transfer/",
-      ".agents/skills/tizen-playwright-test/",
-      ".agents/skills/tizen-project-validation/",
-      ".agents/skills/tizen-remote-device/",
-      ".agents/skills/tizen-screenshot/",
-      ".agents/skills/tizen-webapp-debug/",
-      "docs/tizen-agent-skills-adaptacao.md"
-    ],
+    "revision": "b35eb8d7dec18d67a3366caef234be9b3f0b61e7",
+    "dirtyPaths": [],
     "buildMode": "production",
     "version": "0.2.1",
     "wgtSha256": "bc864eb4ad6972d77261f10935c417389428dbc0b2fe6407369229b5f743f48b",
-    "dirty": true
+    "dirty": false
   },
   "kit": {
     "kitVersion": "0.2.1",
@@ -25,20 +15,8 @@
   "results": [
     {
       "id": "INT-CAND-TREE",
-      "status": "Blocked",
-      "detail": "árvore de trabalho com 9 alteração(ões) não commitada(s)",
-      "paths": [
-        ".agents/skills/tizen-certificate-manager/",
-        ".agents/skills/tizen-dlog-analyzer/",
-        ".agents/skills/tizen-file-transfer/",
-        ".agents/skills/tizen-playwright-test/",
-        ".agents/skills/tizen-project-validation/",
-        ".agents/skills/tizen-remote-device/",
-        ".agents/skills/tizen-screenshot/",
-        ".agents/skills/tizen-webapp-debug/",
-        "docs/tizen-agent-skills-adaptacao.md"
-      ],
-      "nextAction": "commitar ou descartar as alterações e gerar o candidato de novo"
+      "status": "Pass",
+      "detail": "árvore limpa na revisão do candidato"
     },
     {
       "id": "INT-CAND-HASH",
@@ -220,39 +198,40 @@
     },
     {
       "id": "INT-EVD-STATIC",
-      "status": "Pending",
-      "detail": "evidência existente é de outro pacote ou de outro ambiente",
-      "nextAction": "executar o roteiro (quickstart) no ambiente local e gravar release/samsung/evidence/"
+      "status": "Pass",
+      "detail": "local · 2026-10-17",
+      "owner": "release-gate --record-local"
     },
     {
       "id": "INT-EVD-BUILD",
-      "status": "Pending",
-      "detail": "evidência existente é de outro pacote ou de outro ambiente",
-      "nextAction": "executar o roteiro (quickstart) no ambiente local e gravar release/samsung/evidence/"
+      "status": "Pass",
+      "detail": "local · 2026-10-17",
+      "owner": "release-gate --record-local"
     },
     {
       "id": "INT-EVD-E2E",
-      "status": "Pending",
-      "detail": "evidência existente é de outro pacote ou de outro ambiente",
-      "nextAction": "executar o roteiro (quickstart) no ambiente browser e gravar release/samsung/evidence/"
+      "status": "Pass",
+      "detail": "browser · 2026-10-17",
+      "owner": "execução sdd (agente)"
     },
     {
       "id": "INT-EVD-EMULATOR",
-      "status": "Pending",
-      "detail": "evidência existente é de outro pacote ou de outro ambiente",
-      "nextAction": "executar o roteiro (quickstart) no ambiente emulator e gravar release/samsung/evidence/"
+      "status": "Waived",
+      "detail": "emulator · T-samsung-10.0-x86_64 · Tizen 10.0 · 2026-10-17",
+      "owner": "release",
+      "justification": "install failed[118, -4] Operation not allowed em installing[9]; DUID XTCJYJZXZBZVK está no certificado; sdb root on retorna Permission denied; sem instalação não há UI/Web Inspector. R-003."
     },
     {
       "id": "INT-EVD-TV",
-      "status": "Pending",
-      "detail": "evidência existente é de outro pacote ou de outro ambiente",
-      "nextAction": "executar o roteiro (quickstart) no ambiente tv e gravar release/samsung/evidence/"
+      "status": "Pass",
+      "detail": "tv · QN50Q60DAGXZD · Tizen 8.0 (firmware específico não exposto pelo sdb) · 2026-10-17",
+      "owner": "usuário"
     },
     {
       "id": "INT-UPD-PRESERVE",
-      "status": "Pending",
-      "detail": "evidência existente é de outro pacote ou de outro ambiente",
-      "nextAction": "executar o roteiro (quickstart) no ambiente tv e gravar release/samsung/evidence/"
+      "status": "Pass",
+      "detail": "tv · QN50Q60DAGXZD · Tizen 8.0 (firmware específico não exposto pelo sdb) · 2026-10-17",
+      "owner": "usuário"
     }
   ],
   "approvedTargets": [
@@ -277,21 +256,13 @@
     "SAM-KIT-SHOTS",
     "SAM-KIT-PRIVACY",
     "SAM-KIT-TESTACCESS",
-    "INT-CAND-TREE",
-    "INT-SEC-CUSTODY",
-    "INT-EVD-STATIC",
-    "INT-EVD-BUILD",
-    "INT-EVD-E2E",
-    "INT-EVD-EMULATOR",
-    "INT-EVD-TV",
-    "INT-UPD-PRESERVE"
+    "INT-SEC-CUSTODY"
   ],
   "stale": {
     "stale": true,
     "reasons": [
-      "revision",
-      "wgtSha256"
+      "revision"
     ]
   },
-  "generatedAt": "2026-10-17T02:13:51.515Z"
+  "generatedAt": "2026-10-17T02:15:26.261Z"
 }
