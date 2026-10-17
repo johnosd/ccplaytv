@@ -16,7 +16,9 @@ export interface SavedConfiguration { sourceId: string; type: Source['type']; di
   configVersion: string; appliedRevision: number | null; expectedRevision: number; operationId: string | null }
 export interface Operation { operationId: string; sourceId: string; action: string; state: string;
   expectedRevision: number; createdAt: string; importState: string | null; receipt: { revision: number; state: string } | null }
-export interface Snapshot { capturedAt: string; sources: Source[]; revisions: { sourceId: string; revision: number }[] }
+export interface Snapshot { capturedAt: string; sources: Source[]; revisions: { sourceId: string; revision: number }[];
+  /** 077: o que a TV informou sobre integrações (ausente em TV antiga). Nunca o valor da chave. */
+  integrations?: { tmdb: 'none' | 'configured' } | null }
 export interface Dashboard { configurations: SavedConfiguration[]; operations: Operation[]; snapshot: Snapshot | null; stale: boolean }
 export interface ConfigurationInput { type?: Source['type']; displayName?: string; providerDns?: string;
   providerUsername?: string; providerPassword?: string; m3uUrl?: string; epgManualUrl?: string;
@@ -26,6 +28,29 @@ export function newOperationId(now = Date.now()) {
   const bytes = crypto.getRandomValues(new Uint8Array(32))
   const nonce = btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
   return 'op-' + now + '-' + nonce
+}
+/**
+ * Sessão da aba (T034): a ida ao Checkout Pro do Mercado Pago recarrega a página, e o CSRF só existe na resposta do
+ * login (o servidor guarda o hash). Fica no `sessionStorage` desta aba até a validade; sem o cookie `httpOnly` ele não
+ * autoriza nada, e a retomada confere a sessão no servidor antes de abrir o painel.
+ */
+const SESSION_KEY = 'ccplay-portal-session'
+export function rememberSession(session: Session | undefined, storage: Pick<Storage, 'setItem' | 'removeItem'> = sessionStorage) {
+  try {
+    // Só os três campos, nunca o objeto recebido inteiro.
+    if (session) storage.setItem(SESSION_KEY, JSON.stringify({ deviceId: session.deviceId, csrfToken: session.csrfToken, expiresAt: session.expiresAt }))
+    else storage.removeItem(SESSION_KEY)
+  } catch { /* Sem storage: só não retoma. */ }
+}
+export function storedSession(storage: Pick<Storage, 'getItem' | 'removeItem'> = sessionStorage, now = Date.now()): Session | undefined {
+  try {
+    const value: unknown = JSON.parse(storage.getItem(SESSION_KEY) ?? 'null')
+    const { deviceId, csrfToken, expiresAt } = (value ?? {}) as Record<string, unknown>
+    if (typeof deviceId === 'string' && opaque.test(deviceId) && typeof csrfToken === 'string' && /^[A-Za-z0-9_-]{43}$/.test(csrfToken) &&
+      typeof expiresAt === 'string' && Date.parse(expiresAt) > now) return { deviceId, csrfToken, expiresAt }
+    storage.removeItem(SESSION_KEY)
+  } catch { /* Valor corrompido ou storage indisponível = sem sessão guardada. */ }
+  return undefined
 }
 export interface RecoverySession extends Session { claimId: string }
 export function newRecoveryId() { return newOperationId().slice(17) }
@@ -114,8 +139,19 @@ async function pages<T>(path: string, field: string): Promise<T[]> {
   }
   throw new PortalApiError('network')
 }
-export interface LicenseDevice { deviceId: string; displayId?: string; license: { state: 'trial' | 'active' | 'revoked'; startsAt: number; expiresAt: number; generation: number; serverTime: number } }
+/** 073/D-007: pedido em aberto da TV (Pix gerado na TV ou checkout iniciado aqui), nunca com o copia-e-cola. */
+export interface PendingOrder { orderId: string; method: 'pix' | 'checkout'; expiresAt: string | null }
+export interface LicenseDevice { deviceId: string; displayId?: string; license: { state: 'trial' | 'active' | 'revoked'; startsAt: number; expiresAt: number; generation: number; serverTime: number }; pendingOrder?: PendingOrder | null }
+export type LicenseState = LicenseDevice['license']['state']
+/** Rótulo da compra: "Renovar" para quem já pagou (mesmo vencida), "Comprar" no teste ou sem licença paga. */
+export const purchaseLabel = (state: LicenseState | undefined) => state === 'active' ? 'renewLicense' as const : 'buyLicense' as const
 export interface LicenseOrder { orderId: string; deviceId: string; status: 'created' | 'pending' | 'approved' | 'refused' | 'cancelled' | 'refunded' | 'charged_back'; checkoutUrl: string | null }
+/** 077/ADR-020: estado da chave TMDB no serviço. O navegador só envia a chave; nada aqui a contém. */
+export interface TmdbServerState {
+  pending: { action: 'set' | 'remove'; createdAt: string; retryReason?: 'offline' | 'rate_limited' } | null
+  last: { action: 'set' | 'remove'; result: 'applied' | 'rejected'; reason?: 'refused' | 'invalid_format'; at: string } | null
+  tvReported: 'none' | 'configured' | null
+}
 export interface BackupSummary { exists: boolean; createdAt?: number; counts?: { favorites: number; history: number; progress: number } }
 export const api = {
   licenseDevice: () => request<LicenseDevice>('/session/device'),
@@ -142,6 +178,13 @@ export const api = {
     ])
     return { configurations, operations, ...snapshot }
   },
+  /** 073/US3: só por ação explícita (POST + CSRF, `no-store`); 409 = a TV ainda não enviou a cópia do código atual. */
+  async revealRecoveryCode(session: Session): Promise<{ recoveryCode: string; recoveryCodeVersion: number }> {
+    const value = await request<{ recoveryCode: unknown; recoveryCodeVersion: unknown }>('/session/recovery-code', { method: 'POST', body: {}, csrf: session.csrfToken })
+    if (typeof value.recoveryCode !== 'string' || !/^[0-9A-Z]{4}(-[0-9A-Z]{4}){6}$/.test(value.recoveryCode) ||
+      typeof value.recoveryCodeVersion !== 'number') throw new PortalApiError('network')
+    return { recoveryCode: value.recoveryCode, recoveryCodeVersion: value.recoveryCodeVersion }
+  },
   values: (sourceId: string) => {
     if (!opaque.test(sourceId)) throw new PortalApiError('invalid')
     return request<ConfigurationValues>('/configurations/' + sourceId + '/values')
@@ -156,4 +199,13 @@ export const api = {
   // 072: o painel só vê data e contagens do backup de uso desta TV e pode apagá-lo.
   backup: () => request<BackupSummary>('/backup'),
   deleteBackup: (session: Session) => request<unknown>('/backup', { method: 'DELETE', csrf: session.csrfToken }),
+  // 077/ADR-020: a chave TMDB vai só no corpo do PUT; nenhuma resposta a devolve e ela nunca entra em URL.
+  tmdb: {
+    status: () => request<TmdbServerState>('/integrations/tmdb'),
+    set: (session: Session, key: string, operationId: string) => request<{ operationId: string; action: 'set'; state: 'pending' }>(
+      '/integrations/tmdb', { method: 'PUT', body: { key }, csrf: session.csrfToken, operationId }),
+    remove: (session: Session, operationId: string) => request<{ operationId: string; action: 'remove'; state: 'pending' }>(
+      '/integrations/tmdb/remove', { method: 'POST', body: {}, csrf: session.csrfToken, operationId }),
+    cancel: (session: Session) => request<unknown>('/integrations/tmdb/pending', { method: 'DELETE', csrf: session.csrfToken }),
+  },
 }

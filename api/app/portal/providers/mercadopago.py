@@ -1,4 +1,5 @@
 """Checkout Pro Preferences/API autenticada; não confia no retorno do navegador."""
+import hashlib
 import json
 import re
 from datetime import UTC, datetime
@@ -9,7 +10,13 @@ import httpx
 from pydantic import SecretStr
 
 from app.portal.commercial_models import OrderDocument
-from app.portal.providers.base import CheckoutPreference, PaymentObservation, PaymentProviderError
+from app.portal.providers.base import (
+    CheckoutPreference,
+    PaymentObservation,
+    PaymentProviderError,
+    PixCharge,
+    valid_pix_code,
+)
 
 API_ORIGIN = "https://api.mercadopago.com"
 
@@ -43,13 +50,17 @@ class MercadoPagoProvider:
         self._live_mode = live_mode
         self._client = client
 
-    async def _request(self, method: str, path: str, *, body=None, params=None):
+    async def _request(self, method: str, path: str, *, body=None, params=None, headers=None):
         if not re.fullmatch(r"/[A-Za-z0-9_/-]+", path) or ".." in path or "//" in path:
+            raise PaymentProviderError()
+        extra = dict(headers or {})
+        # Só cabeçalhos próprios de idempotência; credencial e tipo nunca vêm de fora.
+        if any(name.lower() != "x-idempotency-key" for name in extra):
             raise PaymentProviderError()
         client = self._client or httpx.AsyncClient(timeout=5, follow_redirects=False)
         try:
             async with client.stream(method, API_ORIGIN + path, json=body, params=params,
-                headers={"authorization": "Bearer " + self._token.get_secret_value(),
+                headers={**extra, "authorization": "Bearer " + self._token.get_secret_value(),
                          "content-type": "application/json"}, timeout=5, follow_redirects=False) as response:
                 if response.status_code < 200 or response.status_code >= 300:
                     raise PaymentProviderError()
@@ -92,6 +103,32 @@ class MercadoPagoProvider:
         if parsed.scheme != "https" or parsed.hostname not in hosts or port not in {None, 443} or parsed.username or parsed.password or parsed.fragment:
             raise PaymentProviderError()
         return CheckoutPreference(preference_id, checkout_url)
+
+    async def pix(self, order: OrderDocument, *, attempt: int, expires_at: datetime,
+                  payer_email: str) -> PixCharge:
+        """073/D-001: Pix dinâmico pela API de pagamentos; guarda só id, prazo e copia-e-cola."""
+        if attempt < 1 or expires_at.tzinfo is None:
+            raise PaymentProviderError()
+        key = hashlib.sha256((order.order_id + "/" + str(attempt)).encode()).hexdigest()
+        value = await self._request("POST", "/v1/payments", headers={"X-Idempotency-Key": key}, body={
+            "transaction_amount": 35, "description": "CCPlayTV - licença anual para uma TV",
+            "payment_method_id": "pix", "external_reference": order.reference,
+            "notification_url": self._origin + "/portal/v1/payments/mercadopago/webhook",
+            "date_of_expiration": expires_at.astimezone(UTC).isoformat(timespec="milliseconds"),
+            "payer": {"email": payer_email},
+        })
+        try:
+            payment_id = str(value["id"])
+            data = value["point_of_interaction"]["transaction_data"]
+            qr_code = data["qr_code"]
+            if (not re.fullmatch(r"[0-9]{1,40}", payment_id) or value["external_reference"] != order.reference
+                    or minor(value["transaction_amount"]) != 3500 or value["status"] not in {"pending", "in_process"}
+                    or not valid_pix_code(qr_code)):
+                raise PaymentProviderError()
+            expiry = timestamp(value["date_of_expiration"]) if value.get("date_of_expiration") else expires_at
+            return PixCharge(payment_id, qr_code, expiry)
+        except (ValueError, TypeError, KeyError, InvalidOperation, OverflowError):
+            raise PaymentProviderError() from None
 
     async def payment(self, payment_id: str) -> PaymentObservation:
         if not re.fullmatch(r"[0-9]{1,40}", payment_id):

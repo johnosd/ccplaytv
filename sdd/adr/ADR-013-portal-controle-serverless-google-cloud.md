@@ -28,6 +28,8 @@ O usuário escolheu FastAPI + Firestore, infraestrutura Google Cloud com faturam
 
 **Atualização (ADR-017):** o serviço passa a guardar também um backup cifrado dos dados de uso de cada TV (favoritos, histórico, progresso, preferências, PIN em hash e chave TMDB), só por ação da pessoa e só devolvido à mesma TV, e ganha a rota de reassociação `POST /devices/recovery/self`. Ver ADR-017 para o raciocínio completo.
 
+**Atualização (073, 2026-10-15):** além do Checkout Pro, o serviço gera um **Pix dinâmico** pela API de pagamentos do Mercado Pago (`POST /v1/payments`) no mesmo pedido pendente da TV, para a TV desenhar o QR a partir do copia-e-cola; a licença continua chegando só pelo **Atualizar** (ADR-016 intacta), que concilia o pedido sob demanda. Um segundo pagamento aprovado no mesmo pedido vira concessão extra (pedido derivado), em vez de travar a conciliação. O serviço passa a guardar uma **cópia cifrada do código de recuperação**, enviada pela TV por ação da pessoa e conferida por HMAC, revelada só ao painel da mesma TV por ação explícita (constitution 1.13.0, exceção (i)). Venda real segue desligada. Ver `sdd/specs/073-compra-licenca-pix/plan.md` (D-001–D-013).
+
 ## Alternativas Consideradas
 
 ### Render Free + Supabase + cron Cloudflare
@@ -78,3 +80,6 @@ Consultadas na revisão de 2026-10-11: [Cloud Run](https://cloud.google.com/run/
 **Atualização (ADR-014, 2026-10-13):** a entrada manual no painel passa a ser por ID do dispositivo no formato MAC + chave numérica permanente de 10 dígitos exibida na tela Adicionar da TV, e o painel autenticado da própria TV pode ler os valores salvos das listas dela para edição. Ver ADR-014 e constitution 1.10.0.
 
 **Atualização (ADR-016, 2026-10-14):** o ciclo diário e a consulta rápida saem: o app só consulta o serviço por ação da pessoa (botão Atualizar, adicionar/editar/excluir lista). O QR da TV passa a ser fixo, gerado localmente, com ID e chave no fragmento, no lugar do convite efêmero (que continua só na recuperação pelo site). A TV envia ao serviço as credenciais das listas dela, cifradas. O teste de 7 dias é contado no app, com âncora no primeiro contato. Ver ADR-016 e constitution 1.11.0.
+
+
+**Atualização (ADR-020, 2026-10-16):** o navegador continua sem receber segredos salvos, mas passa a poder **enviar** ao serviço a chave TMDB BYOK da própria pessoa (cifrada, uma pendente por TV, entregue só à mesma TV no Atualizar). Ver ADR-020 e constitution 1.15.0 (exceção (j)).

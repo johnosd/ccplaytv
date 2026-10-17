@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "date": "2026-10-16T20:01:47.060Z",
+  "device": {
+    "slug": "desktop-win32-intel-core-i7-10700f-cpu-2-90ghz",
+    "platform": "win32",
+    "cpu": "Intel(R) Core(TM) i7-10700F CPU @ 2.90GHz",
+    "cores": 16,
+    "memoryGb": 32,
+    "browser": "chromium 153.0.8010.12",
+    "runtime": "playwright"
+  },
+  "commit": "2493a13",
+  "dirty": true,
+  "appVersion": "0.0.0",
+  "seed": 1,
+  "cpuThrottle": 1,
+  "results": [
+    {
+      "format": "xmltv",
+      "size": 10000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 35.3,
+        "parseMs": 28.5,
+        "classifyMs": null,
+        "storeMs": 592.6,
+        "totalMs": 656.4
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 626.9
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 6442450944
+        },
+        "after": {
+          "usage": 6250496,
+          "quota": 6448701440
+        }
+      },
+      "counts": {
+        "categories": 50,
+        "items": 10000
+      },
+      "expected": {
+        "categories": 50,
+        "items": 10000
+      },
+      "countsMatch": true
+    },
+    {
+      "format": "xmltv",
+      "size": 100000,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 306.9,
+        "parseMs": 248.4,
+        "classifyMs": null,
+        "storeMs": 5872.8,
+        "totalMs": 6428.1
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 6351.7
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 7516192768
+        },
+        "after": {
+          "usage": 62844928,
+          "quota": 7579037696
+        }
+      },
+      "counts": {
+        "categories": 500,
+        "items": 100000
+      },
+      "expected": {
+        "categories": 500,
+        "items": 100000
+      },
+      "countsMatch": true
+    }
+  ]
+}

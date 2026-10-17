@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { api, newOperationId, PortalApiError, takeEntry, takeInvite } from './api'
+import { api, newOperationId, PortalApiError, rememberSession, storedSession, takeEntry, takeInvite } from './api'
 afterEach(() => vi.unstubAllGlobals())
 it('remove fragmento antes da rede e valida convite sem guardar credenciais', () => {
   const history = { replaceState: vi.fn() }
@@ -56,4 +56,19 @@ it('QR fixo: lê #id=&key=, limpa o endereço antes da rede e recusa fragmento i
   vi.stubGlobal('fetch', fetcher)
   await expect(api.manual('A0:8C:FD:19:0A:8C', '0000000000')).rejects.toEqual(new PortalApiError('access'))
   expect(fetcher.mock.calls[0][0]).toBe('/portal/v1/sessions/manual')
+})
+it('sessão da aba: guarda só ID/CSRF/validade, descarta vencida ou malformada e limpa no logout (T034)', () => {
+  const values = new Map<string, string>()
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value) }, removeItem: (key: string) => { values.delete(key) } }
+  const session = { deviceId: 'device-a', csrfToken: 'c'.repeat(43), expiresAt: new Date(2_000_000).toISOString() }
+  rememberSession(session, storage)
+  expect(storedSession(storage, 1_000_000)).toEqual(session)
+  expect(storedSession(storage, 3_000_000)).toBeUndefined()
+  expect(values.size).toBe(0)
+  values.set('ccplay-portal-session', JSON.stringify({ ...session, csrfToken: 'curto' }))
+  expect(storedSession(storage, 1_000_000)).toBeUndefined()
+  rememberSession({ ...session, recoveryCode: '0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV' } as typeof session, storage)
+  expect(JSON.parse(values.get('ccplay-portal-session')!)).toEqual(session)
+  rememberSession(undefined, storage)
+  expect(values.size).toBe(0)
 })

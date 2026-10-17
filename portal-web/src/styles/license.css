@@ -1,0 +1,11 @@
+/* Licença (feature 077, US3): um cartão com estado, oferta e um botão grande. Mobile-first; no PC o cartão fica numa coluna legível. */
+.license-card { display: grid; gap: var(--space-sm); align-content: start; width: 100%; max-width: 36rem; }
+.license-body { display: grid; gap: var(--space-sm); margin: 0; }
+.license-body > * + * { margin-top: 0; }
+.license-current { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-s); color: var(--text-secondary); font-size: var(--fs-sm); }
+.license-offer { display: grid; gap: var(--space-2xs); }
+.license-price { font-family: var(--font-title); font-size: 36px; line-height: 1.1; letter-spacing: -.02em; color: var(--text-primary); }
+.license-term { color: var(--text-secondary); font-size: var(--fs-body); }
+.license-accepts { color: var(--text-primary); font-weight: 600; overflow-wrap: anywhere; }
+.license-cta { display: grid; }
+.license-cta .large { width: 100%; min-height: 52px; font-size: var(--fs-md); border-radius: var(--radius-input); }

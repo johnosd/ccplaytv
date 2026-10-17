@@ -1,9 +1,13 @@
 """Sessões/convites com consumo CAS e revalidação de epoch em cada acesso."""
 
+import asyncio
 import re
+import weakref
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal
+
+from google.api_core.exceptions import Aborted, Conflict, FailedPrecondition, NotFound
 
 from app.portal.auth_tokens import AuthTokens, new_token, valid_token
 from app.portal.display_id import display_claim_path, normalize_display_id, valid_device_key
@@ -13,10 +17,12 @@ from app.portal.repositories.control import ControlRepository, TransactionPlan, 
 
 AUTH_CODES = {"unauthorized", "invalid_origin", "try_again", "invalid_input",
               "invalid_credentials", "rate_limited", "invalid_csrf", "payload_too_large",
-              "service_unavailable", "recovery_required"}
+              "service_unavailable", "recovery_required", "not_escrowed"}
 # Requisições concorrentes da mesma sessão capturam `now` antes da transação e podem terminar fora de
 # ordem (retries transacionais com jitter); relógio mais atrás que isso continua sendo recusado.
 SESSION_CONCURRENCY_SKEW = timedelta(seconds=30)
+# 073/R-014: fila de toques em `lastSeenAt` por sessão; some sozinha quando nenhuma requisição a usa.
+_SESSION_TOUCH_LOCKS: "weakref.WeakValueDictionary[str, asyncio.Lock]" = weakref.WeakValueDictionary()
 
 
 class AuthError(ValueError):
@@ -243,31 +249,45 @@ class AuthService:
                                    *, csrf: str | None = None, mutation=False) -> Principal:
         self.browser_origin(origin, mutation=mutation)
         paths = self._paths("sessions", "session", token)
-        _, row = await self._lookup(paths)
-        session = SessionDocument.model_validate(row)
-        device_path = document_path("devices", session.device_id)
-
-        def decide(rows):
-            path, row = self._found(rows, paths)
-            saved = SessionDocument.model_validate(row)
-            device = self._device(rows[device_path])
-            if (saved.purpose != "manage" or saved.device_id != device.device_id
-                    or saved.auth_epoch != device.auth_epoch
-                    or saved.recovery_epoch != self.recovery_epoch
-                    or now + SESSION_CONCURRENCY_SKEW < saved.last_seen_at or now < saved.created_at
-                    or now - saved.last_seen_at >= timedelta(minutes=30)
-                    or now - saved.created_at >= timedelta(hours=8)):
-                raise AuthError()
-            if mutation and (not valid_token(csrf)
-                             or not self.tokens.matches("csrf", csrf, saved.csrf_hash)):
-                raise AuthError("invalid_csrf", 403)
-            # Requisições concorrentes capturam `now` antes da transação e podem terminar fora de ordem:
-            # last_seen_at nunca retrocede (o prazo ocioso é contado do uso mais recente).
-            return TransactionPlan(self._principal(device), {
-                path: saved.model_copy(update={"last_seen_at": max(saved.last_seen_at, now)}),
-            })
-
-        principal = await self.repository.transact((*paths, device_path), decide)
+        client = self.repository.client
+        # 073/R-014: sem transação de leitura+escrita. O portal dispara vários GETs juntos; com cada um lendo e depois
+        # gravando a mesma sessão numa transação, o Firestore (emulador e produção) segura travas cruzadas até
+        # "Transaction lock timeout". A validação lê sessão e dispositivo como antes (a requisição segue depois da
+        # leitura de qualquer forma); o toque em `lastSeenAt` é uma escrita otimista que desiste se outra já tocou.
+        snapshots = {}
+        async for snapshot in client.get_all([client.document(path) for path in paths]):
+            snapshots[snapshot.reference.path] = snapshot
+        path, row = self._found({key: value.to_dict() if value.exists else None for key, value in snapshots.items()}, paths)
+        saved = SessionDocument.model_validate(row)
+        device_snapshot = await client.document(document_path("devices", saved.device_id)).get(timeout=5, retry=None)
+        device = self._device(device_snapshot.to_dict() if device_snapshot.exists else None)
+        if (saved.purpose != "manage" or saved.device_id != device.device_id
+                or saved.auth_epoch != device.auth_epoch
+                or saved.recovery_epoch != self.recovery_epoch
+                or now + SESSION_CONCURRENCY_SKEW < saved.last_seen_at or now < saved.created_at
+                or now - saved.last_seen_at >= timedelta(minutes=30)
+                or now - saved.created_at >= timedelta(hours=8)):
+            raise AuthError()
+        if mutation and (not valid_token(csrf)
+                         or not self.tokens.matches("csrf", csrf, saved.csrf_hash)):
+            raise AuthError("invalid_csrf", 403)
+        # Requisições concorrentes capturam `now` antes e podem chegar fora de ordem: last_seen_at nunca retrocede
+        # (o prazo ocioso é contado do uso mais recente). Se outra requisição gravou primeiro, a pré-condição falha
+        # e este toque é dispensado — a diferença é de milissegundos.
+        if now > saved.last_seen_at:
+            # Um toque por sessão de cada vez neste processo: commits simultâneos no mesmo documento esperam a trava
+            # e abortam (~2 s no emulador com 8 de uma vez); em fila, os seguintes falham a pré-condição na hora.
+            lock = _SESSION_TOUCH_LOCKS.get(path)
+            if lock is None:
+                lock = _SESSION_TOUCH_LOCKS[path] = asyncio.Lock()
+            async with lock:
+                try:
+                    await client.document(path).update(
+                        {"lastSeenAt": now}, option=client.write_option(last_update_time=snapshots[path].update_time),
+                        timeout=5, retry=None)
+                except (FailedPrecondition, NotFound, Aborted, Conflict):
+                    pass
+        principal = self._principal(device)
         if mutation:
             rule = RateConstraint(self.tokens.digest("rate_limit", "forms/" + token), 30, 60)
             decision = await self.limits.evaluate((rule,), now, consume=True)

@@ -125,7 +125,7 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
   it('estrutura da 070: título preservado, sem "Como funciona" nem mock, cadastro manual com tipo e Voltar (D-002, D-007)', () => {
     render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
 
-    expect(document.getElementById('add-source-title')).toHaveTextContent('Conecte sua lista IPTV')
+    expect(document.getElementById('add-source-title')).toHaveTextContent('Conecte sua playlist')
     expect(screen.getByText('Configuração inicial')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Como funciona' })).not.toBeInTheDocument()
     expect(screen.queryByText('Conectar com celular')).not.toBeInTheDocument()

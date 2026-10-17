@@ -1,0 +1,3 @@
+# Feature 078: o manifest guarda o SHA-256 de cada artefato. Sem conversão de fim de linha
+# (core.autocrlf), os bytes no checkout são os mesmos que geraram o hash.
+* -text

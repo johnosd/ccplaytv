@@ -42,17 +42,18 @@ import { SectionEmptyState } from '../../components/SectionEmptyState'
 import { useSectionAllHidden } from '../../lib/catalog/useSectionAllHidden'
 import { ErrorState } from '../../components/ErrorState'
 import { Spinner } from '../../components/Spinner'
-import { AppShell } from '../shell/AppShell'
+import { AppShell } from '../../components/AppShell'
 import { TopBar } from '../shell/TopBar'
 import type { TopbarItem } from '../../navigation/appNav'
 import { vodGroupDisplay } from './vodGroupDisplay'
-import type { VodShellProps } from './vodShell'
+import { vodTopbarCallbacks, type VodShellProps } from './vodShell'
 import type { VodSection } from './vodSessionMemory'
 import { DISCOVERY_LIMIT } from '../../lib/metadata/discoveryRules'
 import { SHOWCASE_LIMIT, allHaveBackdrop } from './vodShowcase'
 import { ROW_FORMATS, type RowFormatMetrics } from './vodRowFormats'
 import { measuredRowPitch, pagedIndex, pageSizeFor, scrollByPage } from '../../lib/focus/paging'
 import { SEE_ALL_ID, SLOT_ENTRY_ID, buildShowcaseRows, type ShowcaseRowSpec } from './vodShowcaseRows'
+import { showcaseFirstScreenImages, shownRowsInput, useShowcaseAssembly } from './useShowcaseAssembly'
 import {
   focusedEntryId,
   initialShowcaseFocus,
@@ -86,11 +87,6 @@ const WINDOW_AFTER = 3
 const PRIORITIZE_DEBOUNCE_MS = 300
 /** Até quando dados que chegam ainda podem decidir o foco inicial (ver `startedInSide`), contado de quando as fileiras aparecem. */
 const INITIAL_FOCUS_SETTLE_MS = 1200
-/**
- * Teto da espera pelas fileiras ao abrir a vitrine (`rowsReady`): passado ele, desenha o que já tem — um TMDB lento ou com erro
- * nunca prende a tela no "Carregando".
- */
-const ROWS_SETTLE_CAP_MS = 3000
 /** Cartões fantasma (decorativos) de um slot reservado, contando o cartão focável. */
 const SLOT_CARD_COUNT = 6
 
@@ -214,42 +210,27 @@ export function VodShowcaseScreen({
   const backdrops = useCachedBackdrops(history.slice(0, SHOWCASE_LIMIT))
   const continueWide = allHaveBackdrop(history, backdrops)
 
-  // Fileiras assentadas antes do 1º desenho (ad-hoc 2026-10-09): cada fileira depende de uma leitura diferente, e desenhar
-  // conforme elas chegavam fazia o "Continue assistindo" aparecer segundos depois e empurrar "Em alta" para baixo.
-  //  - Com as leituras locais já em mãos no 1º render (reabrir a tela, cache), desenha na hora — como sempre foi.
-  //  - Sem elas, mostra "Carregando" e espera também as fileiras do TMDB (Top 10, Dica, "Porque você assistiu") e o formato do
-  //    "Continue" (imagens guardadas), para desenhar tudo de uma vez já no lugar — com teto, para nada prender a tela.
-  // Depois de desenhada, a vitrine não volta a esperar.
-  const localSettled =
-    !categoriesQuery.isLoading &&
-    historyQuery.data !== undefined &&
-    favoritesQuery.data !== undefined &&
-    addedQuery.data !== undefined
-  const discoverySettled =
-    top10Query.data !== undefined && tipQuery.data !== undefined && becauseRow !== undefined && !backdropsPending(backdrops)
-  const [rowsReady, setRowsReady] = useState(localSettled)
-  const [capPassed, setCapPassed] = useState(false)
-  useEffect(() => {
-    if (rowsReady) return
-    const timer = setTimeout(() => setCapPassed(true), ROWS_SETTLE_CAP_MS)
-    return () => clearTimeout(timer)
-  }, [rowsReady])
-  if (!rowsReady && ((localSettled && discoverySettled) || (capPassed && !categoriesQuery.isLoading))) setRowsReady(true)
-  const rows = buildShowcaseRows(
-    {
-      section,
-      hasContinue: history.length > 0,
-      hasFavorites: favorites.length > 0,
-      hasAdded: added.length > 0,
-      hasRated: rated.length > 0,
-      hasTop10: top10.length > 0,
-      hasTip: tip.length > 0,
-      hasBecause: because.length > 0,
-      becauseTitle: becauseRow?.seed.name,
-      categoryNames: categories.map((category) => category.name ?? ''),
-    },
-    t,
-  ).map((spec): ShowcaseRowSpec => (spec.key === 'continue' && continueWide ? { ...spec, format: 'wide' } : spec))
+  // Feature 079 (`logic/montagem-de-tela.md`, substitui a espera do ad-hoc de 2026-10-09): a vitrine espera as leituras, o
+  // formato do "Continue" e as capas da primeira tela, e aparece de uma vez (teto de 2 s). Com as leituras locais em cache,
+  // aparece no 1º render. Depois do teto, fileira que chega acima do que já está na tela fica para a próxima entrada.
+  const rowsInput = {
+    section,
+    hasContinue: history.length > 0,
+    hasFavorites: favorites.length > 0,
+    hasAdded: added.length > 0,
+    hasRated: rated.length > 0,
+    hasTop10: top10.length > 0,
+    hasTip: tip.length > 0,
+    hasBecause: because.length > 0,
+    becauseTitle: becauseRow?.seed.name,
+    categoryNames: categories.map((category) => category.name ?? ''),
+  }
+  const withFormat = (spec: ShowcaseRowSpec): ShowcaseRowSpec => (spec.key === 'continue' && continueWide ? { ...spec, format: 'wide' } : spec)
+  const reads = { categories: categoriesQuery, continue: historyQuery, favorites: favoritesQuery, added: addedQuery, rated: ratedQuery, top10: top10Query, tip: tipQuery, because: becauseRow }
+  const firstScreen = showcaseFirstScreenImages(buildShowcaseRows(rowsInput, t).map(withFormat), reads, backdrops)
+  const assembly = useShowcaseAssembly(section, reads, firstScreen, backdropsPending(backdrops))
+  const rowsReady = assembly.phase === 'revealed'
+  const rows = buildShowcaseRows(shownRowsInput(rowsInput, assembly.isShown), t).map(withFormat)
   const specByKey = new Map(rows.map((spec) => [spec.key as string, spec]))
   const rowIndexByKey = new Map(rows.map((spec, index) => [spec.key as string, index]))
 
@@ -410,10 +391,11 @@ export function VodShowcaseScreen({
   }
 
   const hasAnyItems = history.length > 0 || favorites.length > 0 || added.length > 0 || rated.length > 0
-  const loading = categoriesQuery.isLoading || (!rowsReady && !categoriesQuery.isError)
+  const loading = !rowsReady
   const blocked = loading || categoriesQuery.isError || (categories.length === 0 && !hasAnyItems)
 
   function handleSelect() {
+    if (loading && !assembly.showLoading) return // nada na tela ainda (079): SELECT não age
     if (blocked) {
       if (allHidden && categories.length === 0 && shell?.onOpenSettings) shell.onOpenSettings('parental')
       else if (categoriesQuery.isError) void categoriesQuery.refetch()
@@ -658,11 +640,7 @@ export function VodShowcaseScreen({
             currentItem={section}
             onFocusItem={setTopbarItem}
             onExitDown={() => setZone('content')}
-            onNavigate={(destination) => shell.onSwitchTop(destination)}
-            onGoHome={shell.onGoHome}
-            onOpenProfiles={shell.onOpenProfiles}
-            onOpenSearch={shell.onOpenSearch}
-            onOpenSettings={shell.onOpenSettings}
+            {...vodTopbarCallbacks(shell)}
             onBack={onBack}
           />
         }
@@ -672,6 +650,8 @@ export function VodShowcaseScreen({
     )
   }
 
+  // Montando (079): até 300 ms, só a moldura — o "Carregando" não pisca numa carga rápida.
+  if (loading && !assembly.showLoading) return withShell(<div className="screen vod-screen" aria-busy="true" />)
   if (loading) {
     return withShell(
       <div className="screen vod-screen">

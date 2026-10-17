@@ -93,6 +93,10 @@ class LicensingRepository:
         if not order_snapshot.exists:
             raise AuthError("invalid_input", 422)
         initial_order = OrderDocument.model_validate(order_snapshot.to_dict())
+        if initial_order.provider_payment_id is not None and initial_order.provider_payment_id != payment_id:
+            # 073/D-005: segundo pagamento aprovado no mesmo pedido (Pix na TV + cartão no portal) também concede.
+            return await self.approve_surplus(parent=initial_order, payment_id=payment_id, confirmed_at=confirmed_at,
+                                              provider_updated_at=provider_updated_at, now=now)
         device_path = document_path("devices", initial_order.device_id)
         state_path = document_path("licensing", "current", device_id=initial_order.device_id)
         from app.portal.models import DeviceDocument
@@ -122,13 +126,14 @@ class LicensingRepository:
                     raise AuthError("try_again", 409)
                 if order.device_id != initial_order.device_id:
                     raise AuthError("invalid_input", 422)
+                if order.provider_payment_id is not None and order.provider_payment_id != payment_id:
+                    # Outro pagamento aprovou este pedido entre a leitura e a transação: vira excedente (D-005).
+                    return TransactionPlan("surplus")
                 if rows[payment_path] is not None:
                     claim = PaymentClaimDocument.model_validate(rows[payment_path])
                     if claim.order_id != order_id or claim.device_id != order.device_id:
                         raise AuthError("try_again", 409)
                 if order.provider_payment_id is not None:
-                    if order.provider_payment_id != payment_id:
-                        raise AuthError("try_again", 409)
                     # Replays e notificações antigas jamais reativam grant estornado.
                     return TransactionPlan(order)
                 if order.status not in {"created", "pending", "refused", "cancelled"}:
@@ -144,7 +149,8 @@ class LicensingRepository:
                     raise AuthError("invalid_input", 422)
                 scheduled = schedule_grants([*grants, grant])
                 approved = order.model_copy(update={"status": "approved", "confirmed_at": confirmed_at,
-                    "provider_payment_id": payment_id, "provider_updated_at": provider_updated_at, "updated_at": now})
+                    "provider_payment_id": payment_id, "provider_updated_at": provider_updated_at, "updated_at": now,
+                    "pix_qr_code": None})
                 puts = {order_path: approved, payment_path: PaymentClaimDocument(payment_id=payment_id,
                     order_id=order_id, device_id=order.device_id, created_at=now),
                     device_path: device.model_copy(update={"entitlement_generation": device.entitlement_generation + 1}),
@@ -153,6 +159,78 @@ class LicensingRepository:
                         "pending_order_id": None if current.pending_order_id == order_id else current.pending_order_id})}
                 puts.update({document_path("grants", value.order_id): value for value in scheduled})
                 return TransactionPlan(approved, puts)
+
+            result = await self.repository.transact(paths, commit)
+            if result == "surplus":
+                parent = OrderDocument.model_validate((await self.repository.client.document(order_path).get(timeout=5, retry=None)).to_dict())
+                return await self.approve_surplus(parent=parent, payment_id=payment_id, confirmed_at=confirmed_at,
+                                                  provider_updated_at=provider_updated_at, now=now)
+            if result is not None:
+                return result
+        raise AuthError("try_again", 409)
+
+    @staticmethod
+    def surplus_order_id(parent_order_id: str, payment_id: str) -> str:
+        return "s" + hashlib.sha256((parent_order_id + "/" + payment_id).encode()).hexdigest()[:42]
+
+    async def approve_surplus(self, *, parent: OrderDocument, payment_id: str, confirmed_at: datetime,
+                              provider_updated_at: datetime, now: datetime) -> OrderDocument:
+        """073/D-005: pedido derivado com grant próprio (+12 meses), idempotente por `paymentClaims/{paymentId}`.
+        Chamado só depois do lookup autenticado que validou valor, moeda, conta e referência do pai."""
+        from app.portal.commercial_models import GrantDocument, PaymentClaimDocument
+        from app.portal.license_calendar import add_months, schedule_grants
+        from app.portal.models import DeviceDocument
+        surplus_id = self.surplus_order_id(parent.order_id, payment_id)
+        device_path = document_path("devices", parent.device_id)
+        state_path = document_path("licensing", "current", device_id=parent.device_id)
+        payment_path = document_path("paymentClaims", payment_id)
+        surplus_path = document_path("orders", surplus_id)
+        grant_path = document_path("grants", surplus_id)
+
+        for _ in range(5):
+            def inspect(rows):
+                device = DeviceDocument.model_validate(rows[device_path])
+                state = LicensingStateDocument.model_validate(rows[state_path])
+                if device.access_fence or state.revocation_fence:
+                    raise AuthError("try_again", 409)
+                return TransactionPlan(state)
+            state = await self.repository.transact((device_path, state_path), inspect)
+            ids = tuple(dict.fromkeys((*state.grant_order_ids, surplus_id)))
+            paths = tuple(dict.fromkeys((device_path, state_path, payment_path, surplus_path,
+                *(document_path("grants", value) for value in ids))))
+            if len(paths) > 100:
+                raise AuthError("service_unavailable", 503)
+
+            def commit(rows, expected_state=state, ids=ids):
+                device = DeviceDocument.model_validate(rows[device_path])
+                current = LicensingStateDocument.model_validate(rows[state_path])
+                if current != expected_state:
+                    return TransactionPlan(None)
+                if device.access_fence or current.revocation_fence:
+                    raise AuthError("try_again", 409)
+                if rows[payment_path] is not None:
+                    claim = PaymentClaimDocument.model_validate(rows[payment_path])
+                    if claim.order_id != surplus_id or claim.device_id != parent.device_id:
+                        raise AuthError("try_again", 409)
+                    return TransactionPlan(OrderDocument.model_validate(rows[surplus_path]))
+                if rows[surplus_path] is not None or rows[grant_path] is not None:
+                    raise AuthError("try_again", 409)
+                grants = [GrantDocument.model_validate(rows[document_path("grants", value)])
+                    for value in current.grant_order_ids]
+                if any(value.device_id != parent.device_id for value in grants):
+                    raise AuthError("invalid_input", 422)
+                grant = GrantDocument(order_id=surplus_id, device_id=parent.device_id, provider_payment_id=payment_id,
+                    confirmed_at=confirmed_at, starts_at=confirmed_at, expires_at=add_months(confirmed_at), status="valid")
+                surplus = OrderDocument(order_id=surplus_id, device_id=parent.device_id, reference=surplus_id,
+                    status="approved", created_at=now, updated_at=now, confirmed_at=confirmed_at,
+                    provider_payment_id=payment_id, provider_updated_at=provider_updated_at, reconcile_after=now,
+                    parent_order_id=parent.order_id)
+                puts = {surplus_path: surplus, payment_path: PaymentClaimDocument(payment_id=payment_id,
+                    order_id=surplus_id, device_id=parent.device_id, created_at=now),
+                    device_path: device.model_copy(update={"entitlement_generation": device.entitlement_generation + 1}),
+                    state_path: current.model_copy(update={"revision": current.revision + 1, "grant_order_ids": list(ids)})}
+                puts.update({document_path("grants", value.order_id): value for value in schedule_grants([*grants, grant])})
+                return TransactionPlan(surplus, puts)
 
             result = await self.repository.transact(paths, commit)
             if result is not None:

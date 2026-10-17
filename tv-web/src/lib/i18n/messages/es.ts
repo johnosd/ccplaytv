@@ -1,4 +1,5 @@
 import { portal } from './portal'
+import { portalAdvanced } from './portalAdvanced'
 import { comingSoon } from './comingSoon'
 import { common } from './common'
 import { components } from './components'
@@ -7,10 +8,12 @@ import { errors } from './errors'
 import { home } from './home'
 import { listSettings } from './listSettings'
 import { live } from './live'
+import { radio } from './radio'
 import { parental } from './parental'
 import { player } from './player'
 import { playerUi } from './playerUi'
 import { profiles } from './profiles'
+import { purchase } from './purchase'
 import { settings } from './settings'
 import { shell } from './shell'
 import { sources } from './sources'
@@ -28,6 +31,7 @@ export const es: Record<MessageKey, string> & Record<string, string> = {
   ...errors.es,
   ...home.es,
   ...live.es,
+  ...radio.es,
   ...listSettings.es,
   ...parental.es,
   ...comingSoon.es,
@@ -35,6 +39,8 @@ export const es: Record<MessageKey, string> & Record<string, string> = {
   ...playerUi.es,
   ...profiles.es,
   ...portal.es,
+  ...portalAdvanced.es,
+  ...purchase.es,
   ...settings.es,
   ...shell.es,
   ...sources.es,

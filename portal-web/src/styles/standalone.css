@@ -1,0 +1,25 @@
+/* Marca e telas fora da casca (entrada e recuperação) — migrado do styles.css legado (feature 077, T041). */
+.portal-header { display: flex; align-items: center; gap: var(--space-sm); padding-block: var(--space-sm) var(--space-xs); }
+.brand { display: flex; align-items: center; gap: var(--space-xs); flex: none; }
+.brand-mark { position: relative; display: grid; place-items: center; width: var(--brand-mark-size); height: var(--brand-mark-size); border-radius: var(--brand-mark-radius); background: var(--brand-gradient); box-shadow: var(--brand-mark-shadow); }
+.brand-mark span { width: 0; height: 0; margin-left: 3px; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 12px solid var(--text-primary); }
+.brand-wordmark { color: var(--text-primary); font-family: var(--font-title); font-size: var(--fs-wordmark); font-weight: 700; letter-spacing: -.02em; }
+.portal-header h1 { font-family: var(--font-body); font-size: var(--fs-h1); font-weight: 400; color: var(--text-secondary); padding-left: var(--space-sm); border-left: 1px solid var(--bg-hover); }
+.portal-footer { display: flex; justify-content: center; margin-top: auto; padding-block: var(--space-md); color: var(--text-muted); }
+.portal-footer small { font-size: var(--fs-xs); letter-spacing: .08em; }
+main > .panel { max-width: 34rem; margin: var(--space-md) auto; }
+main > .panel > h2 + p, main > section > h2 + p { margin-top: var(--space-xs); }
+.session-actions { align-items: center; }
+
+.recovery-code-card { margin: 0; }
+.recovery-code-value { font-size: 1.25rem; font-weight: 600; letter-spacing: .08em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* Telas muito estreitas: a marca e o título não cabem lado a lado. */
+@media (max-width: 360px) {
+  .portal-header { flex-wrap: wrap; }
+  .portal-header h1 { padding-left: 0; border-left: 0; flex-basis: 100%; }
+}
+@media (min-width: 641px) {
+  .portal-header { padding-block: var(--space-md) var(--space-sm); }
+  main > .panel { margin-block: var(--space-section); }
+}

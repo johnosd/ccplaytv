@@ -48,7 +48,12 @@ O manual operacional alerta que a terceira captura pode não aparecer em determi
 
 ### Entrega ao responsável pela publicação
 
-Propor nomes previsíveis: logo_1920x1080.png, fundo_1920x1080.jpg, icone_512x423.png e screenshot_01.jpg até screenshot_04.jpg. Guardar fontes editáveis separadamente, junto de um registro de quais elementos pertencem ao projeto e quais foram licenciados.
+Os três assets de identidade já estão em
+`docs/guia-praticas-app-tv/assets/`: `logo_1920x1080.png`,
+`fundo_1920x1080.jpg` e `icone_512x423.png`. As quatro capturas
+`screenshot_01.jpg` até `screenshot_04.jpg` continuam pendentes. Guardar fontes
+editáveis separadamente, junto de um registro de quais elementos pertencem ao
+projeto e quais foram licenciados.
 
 ## 3. Checklist de validação proposto
 

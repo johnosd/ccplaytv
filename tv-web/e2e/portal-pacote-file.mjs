@@ -39,22 +39,25 @@ try {
   assert.equal(await panel.getByText('O portal ainda não está disponível neste app', { exact: false }).count(), 0, 'portal configurado')
   step('licença: período de teste, validade e oferta visíveis')
 
-  assert.equal(await focus(), 'Gerar QR para o portal')
-  await key('Enter')
+  // 075: foco inicial na ação principal da licença; QR, ID e chave já estão à vista, sem nenhuma ação.
+  assert.equal(await focus(), 'Comprar licença')
   await page.getByRole('img', { name: /QR de acesso ao portal/ }).waitFor({ timeout: 15000 })
   step(`QR visível com relógio da TV ${clockOffsetMs} ms em relação ao servidor`)
+  assert.ok(await panel.getByText(/^\d{3} \d{3} \d{4}$/).count(), 'chave agrupada à vista')
+  await page.screenshot({ path: process.env.PKG_SHOT_DIR ? process.env.PKG_SHOT_DIR + '/painel.png' : undefined }).catch(() => {})
 
-  await key('ArrowDown')
-  assert.equal(await focus(), 'Mostrar chave da TV')
+  await key('ArrowDown'); await key('ArrowDown')
+  assert.equal(await focus(), 'Avançado')
   await key('Enter')
-  const dialog = page.getByRole('dialog')
-  await dialog.waitFor({ timeout: 5000 })
-  step('diálogo da chave: ' + (await dialog.innerText()).replace(/\s+/g, ' ').slice(0, 140))
-  await page.screenshot({ path: process.env.PKG_SHOT_DIR ? process.env.PKG_SHOT_DIR + '/chave.png' : undefined }).catch(() => {})
+  const advanced = page.getByRole('region', { name: 'Avançado' })
+  await advanced.waitFor({ timeout: 5000 })
+  assert.equal(await focus(), 'Mostrar código de recuperação')
+  await key('Enter')
+  step('código revelado pelo olho: ' + (await advanced.innerText()).includes('-') + ' (sem modal: ' + (await page.getByRole('dialog').count() === 0) + ')')
+  await key('Enter')
   await key('Escape')
-  await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 3000 }).catch(() => {})
 
-  console.log('PASS: pacote empacotado — painel, licença, QR e chave por controle')
+  console.log('PASS: pacote empacotado — painel, licença, QR, chave e olho por controle')
 } catch (error) {
   failed = error
   console.error('FALHA:', String(error?.message ?? error).split('\n').slice(0, 5).join('\n'))

@@ -1,0 +1,40 @@
+/* Ajuda / FAQ (feature 077): migrado do styles.css legado. Mobile-first; os filtros rolam na horizontal no celular. */
+.faq-page { display: grid; gap: var(--space-sm); width: 100%; max-width: 52rem; }
+.faq-hero { display: grid; gap: var(--space-xs); padding: var(--space-sm); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.faq-hero h2 { font-size: var(--fs-h2); }
+.faq-search { position: relative; max-width: 36rem; margin-top: var(--space-xs); }
+.faq-search svg { position: absolute; left: var(--space-s); top: 50%; width: 20px; height: 20px; transform: translateY(-50%); fill: none; stroke: var(--text-muted); stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+.faq-search input { min-height: 48px; padding-left: 44px; border-radius: var(--radius-pill); background: var(--bg-base); }
+.faq-search input::-webkit-search-cancel-button { filter: grayscale(1); }
+.faq-filters { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: var(--space-xs); margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); scrollbar-width: none; }
+.faq-filters button { flex: none; background: transparent; color: var(--text-secondary); }
+.faq-filters button[aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent-line); color: var(--text-primary); }
+.faq-filter-count { min-width: 20px; padding: 0 6px; border-radius: var(--radius-pill); background: var(--bg-elevated); color: var(--text-muted); font-size: var(--fs-xs); }
+.faq-filters button[aria-pressed=true] .faq-filter-count { background: var(--accent); color: var(--text-on-accent); }
+.faq-groups { display: grid; gap: var(--space-md); }
+.faq-group { display: grid; gap: var(--space-xs); }
+.faq-group > h3 { font-size: var(--fs-xs); }
+.faq-list { display: grid; border: 1px solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--bg-surface); overflow: hidden; }
+.faq-item + .faq-item { border-top: 1px solid var(--border-subtle); }
+.faq-item > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); min-height: 56px; padding: var(--space-s) var(--space-sm); color: var(--text-primary); font-size: var(--fs-body); font-weight: 600; cursor: pointer; list-style: none; transition: background var(--motion) ease-out; }
+.faq-item > summary::-webkit-details-marker { display: none; }
+.faq-item > summary::after { content: "+"; flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--bg-hover); color: var(--accent); font-size: 18px; font-weight: 400; transition: transform var(--motion) ease-out, background var(--motion) ease-out; }
+.faq-item[open] > summary::after { transform: rotate(45deg); background: var(--accent-soft); border-color: var(--accent-line); }
+.faq-item > summary:hover { background: var(--bg-elevated); }
+.faq-item > summary:focus-visible { outline: var(--focus-ring); outline-offset: -3px; border-radius: var(--radius-panel); }
+.faq-item[open] > summary { color: var(--accent-light); }
+.faq-answer { display: grid; gap: var(--space-xs); padding: 0 var(--space-sm) var(--space-md); max-width: 52rem; }
+.faq-answer p { line-height: 1.6; }
+.faq-action { justify-self: start; margin-top: var(--space-2xs); background: transparent; color: var(--accent-light); border-color: var(--accent-line); }
+.faq-empty { display: grid; justify-items: center; gap: var(--space-s); padding: var(--space-panel) var(--space-md); text-align: center; border: 2px dashed var(--bg-hover); border-radius: var(--radius-card); background: var(--bg-surface); }
+.faq-stuck.panel { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; margin: 0; }
+.faq-stuck.panel > * + * { margin-top: 0; }
+.faq-stuck h3 { font-size: var(--fs-lg); }
+.faq-stuck p { margin-top: var(--space-2xs); font-size: var(--fs-sm); }
+
+@media (min-width: 960px) {
+  .faq-hero { padding: var(--space-md); }
+  .faq-filters { flex-wrap: wrap; overflow-x: visible; margin-inline: 0; padding-inline: 0; }
+  .faq-item > summary { padding-inline: var(--space-md); font-size: var(--fs-md); }
+  .faq-answer { padding-inline: var(--space-md); }
+}

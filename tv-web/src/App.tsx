@@ -2,7 +2,7 @@ import { allowListEntry } from './lib/licensing/licenseRuntime'
 import { usePortalIntegration } from './features/portal/usePortalIntegration'
 import { PortalPairingPanel } from './features/portal/PortalPairingPanel'
 import { getPortalConnection } from './lib/portal/portalRuntime'
-import { remoteImportRunId } from './lib/portal/remoteImportsInFlight'
+import { remoteImportRunForEntry } from './lib/portal/remoteImportEntry'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { SplashScreen } from './features/splash/SplashScreen'
@@ -26,10 +26,10 @@ import { useRefreshOnForeground } from './features/import/useRefreshOnForeground
 import { usePrefetchForSource, wakePrefetch } from './features/catalog/prefetchApi'
 import { useCategoryAccessLifecycle } from './features/catalog/categoryAccessApi'
 import { HomeScreen } from './features/home/HomeScreen'
-import { appNavReducer, initialAppNav, type AppScreen, type TopDestination } from './navigation/appNav'
+import { appNavReducer, initialAppNav, type AppScreen, type TopbarDestination, type TopDestination } from './navigation/appNav'
 import { readLastSourceId, writeLastSourceId } from './navigation/lastSource'
 import type { OpenPersonTarget, OpenTitleTarget } from './features/vod/detailSnapshot'
-import { AddSourceScreen, ImportProgressScreen, SourceAccessRoute, LiveScreen, VodShowcaseScreen, MovieDetailScreen, SeriesDetailScreen, SearchScreen, VodCategoryScreen, PersonScreen, useRouteWarmup } from './navigation/routeModules'
+import { AddSourceScreen, ImportProgressScreen, SourceAccessRoute, LiveScreen, VodShowcaseScreen, MovieDetailScreen, SeriesDetailScreen, SearchScreen, VodCategoryScreen, PersonScreen, renderRadioRoute, useRouteWarmup } from './navigation/routeModules'
 import { RouteBoundary } from './components/RouteBoundary'
 import { ProgressSaveNotice } from './components/ProgressSaveNotice'
 import { openListSettings, renderSettingsRoute } from './navigation/settingsRoutes'
@@ -179,12 +179,12 @@ function App() {
     if (!allowListEntry(source.id)) return
     // 071/A008: lista ainda sem nenhuma sincronização cuja 1ª importação vinda do site corre em segundo plano →
     // mostra o progresso (categorias carregando) em vez de entrar numa lista vazia. Leitura síncrona, sem rede.
-    const firstImport = source.last_successful_sync_at === null ? remoteImportRunId(source.id) : undefined
-    if (firstImport) {
-      dispatch({ type: 'open', screen: { name: 'progress', jobId: firstImport } })
-      return
-    }
-    openChosen(source)
+    // 077: decide pela marca em memória e pelo registro durável da importação (sobrevive a recarregar a TV): pendente,
+    // interrompida ou com erro → progresso com Tentar novamente; só entra na lista quando o catálogo estiver pronto.
+    if (source.last_successful_sync_at !== null) { openChosen(source); return }
+    void remoteImportRunForEntry(source.id).then(
+      runId => (runId ? dispatch({ type: 'open', screen: { name: 'progress', jobId: runId } }) : openChosen(source)),
+      () => openChosen(source))
   }
 
   function openChosen(source: SourceOut) {
@@ -290,7 +290,7 @@ function App() {
   const vodShell = (src: SourceOut, current: Extract<AppScreen, { name: 'movies' | 'series' | 'movies-category' | 'series-category' }>) => ({
     sourceName: src.display_name,
     onGoHome: () => dispatch({ type: 'go-home' }),
-    onSwitchTop: (destination: TopDestination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
+    onSwitchTop: (destination: TopbarDestination) => dispatch({ type: 'switch-top', screen: { name: destination } }),
     onOpenProfiles: () => dispatch({ type: 'open-profiles' }),
     // Feature 066 (FR-009): `'parental'` abre a gestão — desde a 067, na tela da lista ativa (D-010); voltar devolve o foco ao conteúdo.
     onOpenSettings: (tab?: 'parental') => (tab ? openListSettings(dispatch, src.id, current, { tab }) : dispatch({ type: 'open', screen: { name: 'settings' }, from: { ...current, topbarFocus: 'settings' } })),
@@ -574,8 +574,8 @@ function App() {
       )
 
       default:
-        // Configurações (globais, da lista, EPG, TMDB) — `navigation/settingsRoutes.tsx` (feature 067, R-002).
-        return renderSettingsRoute(screen, { dispatch, goBack, activeSource: source }) ?? null
+        // Configurações (`navigation/settingsRoutes.tsx`, feature 067, R-002) e Rádio (`routeModules.ts`, feature 074).
+        return renderSettingsRoute(screen, { dispatch, goBack, activeSource: source }) ?? renderRadioRoute(screen, goBack, source !== null) ?? null
     }
   })()
   return (

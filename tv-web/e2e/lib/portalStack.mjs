@@ -19,12 +19,15 @@ async function waitFor(check, label, ms = 60000) {
   throw new Error(`timeout: ${label}`)
 }
 
-export async function startPortalStack({ log = () => {}, tvPort = 5176, portalPort = 5174, apiPort = 3001, emulatorPort = 8085, devDuid = 'dev-portal-' + b64().slice(0, 12) } = {}) {
+// As portas podem ser trocadas por E2E_TV_PORT / E2E_PORTAL_PORT / E2E_API_PORT / E2E_EMULATOR_PORT (ex.: com `npm run dev:portal` já no ar).
+const envPort = (name, fallback) => Number(process.env[name] ?? fallback)
+export async function startPortalStack({ log = () => {}, tvPort = envPort('E2E_TV_PORT', 5176), portalPort = envPort('E2E_PORTAL_PORT', 5174), apiPort = envPort('E2E_API_PORT', 3001), emulatorPort = envPort('E2E_EMULATOR_PORT', 8085), devDuid = 'dev-portal-' + b64().slice(0, 12) } = {}) {
   const children = []
   const start = (label, command, args, options) => {
     const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, ...options })
     child.output = ''
-    const keep = chunk => { child.output = (child.output + chunk).slice(-4000) }
+    // Sem códigos de cor: com FORCE_COLOR/terminal colorido o Vite imprime a porta em negrito e o `includes` abaixo falharia.
+    const keep = chunk => { child.output = (child.output + String(chunk).replace(/\x1b\[[0-9;]*m/g, '')).slice(-4000) }
     child.stdout.on('data', keep); child.stderr.on('data', keep)
     child.once('exit', code => { child.exited = code ?? -1 })
     children.push({ label, child })
@@ -66,7 +69,7 @@ export async function startPortalStack({ log = () => {}, tvPort = 5176, portalPo
     await waitFor(async () => { if (api.exited !== undefined) throw new Error('api encerrou: ' + api.output); try { return (await fetch(apiOrigin + '/health')).ok } catch { return false } }, 'API /health')
 
     log('subindo portal-web e TV (commercial, proxy same-origin)')
-    const portal = start('portal-web', process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(portalPort), '--strictPort'], { cwd: join(root, 'portal-web') })
+    const portal = start('portal-web', process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(portalPort), '--strictPort'], { cwd: join(root, 'portal-web'), env: { ...process.env, PORTAL_API_ORIGIN: apiOrigin } })
     const tv = start('tv-web', process.execPath, ['node_modules/vite/bin/vite.js', '--mode', 'commercial', '--host', '127.0.0.1', '--port', String(tvPort), '--strictPort'], {
       cwd: join(root, 'tv-web'),
       env: { ...process.env, VITE_PORTAL_ORIGIN: tvOrigin, VITE_PORTAL_DEV_PROXY: apiOrigin, VITE_PORTAL_DEV_DUID: devDuid,

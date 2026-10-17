@@ -96,7 +96,7 @@ describe('SettingsScreen — contrato da feature 026', () => {
     const onConfigureSource = vi.fn()
     renderSettings(onConfigureSource)
 
-    expect(screen.getByRole('button', { name: /Fontes IPTV/ })).toHaveClass('tv-focus')
+    expect(screen.getByRole('button', { name: /Playlists/ })).toHaveClass('tv-focus')
 
     const sala = screen.getByRole('group', { name: 'Lista Sala' })
     const quarto = screen.getByRole('group', { name: 'Lista Quarto' })

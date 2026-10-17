@@ -43,6 +43,14 @@ class PortalSettings(BaseSettings):
     mercadopago_allow_test_live_mode: bool = False
     mercadopago_access_token: SecretStr | None = None
     mercadopago_webhook_secret: SecretStr | None = None
+    # 073/D-013: domínio do e-mail sintético (não pessoal) que o Pix exige do pagador; ausente = Pix na TV indisponível (503).
+    pix_payer_domain: str | None = Field(
+        default=None, min_length=4, max_length=253,
+        pattern=r"^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$",
+    )
+    # 073/R-001: o sandbox do Mercado Pago só aceita Pix com um pagador que seja usuário de teste. Só staging/test;
+    # produção recusa a configuração (validador abaixo) e usa o e-mail sintético.
+    pix_test_payer_email: str | None = Field(default=None, max_length=254, pattern=r"^[^@\s]{1,64}@[^@\s]{1,189}$")
 
     @model_validator(mode="after")
     def isolated_environment(self) -> "PortalSettings":
@@ -64,6 +72,8 @@ class PortalSettings(BaseSettings):
             self.environment != "staging" or self.mercadopago_live_mode
         ):
             raise ValueError("test_live_mode_only_staging")
+        if self.pix_test_payer_email and (self.environment not in {"staging", "test"} or self.mercadopago_live_mode):
+            raise ValueError("pix_test_payer_only_staging")
         if local:
             if not self.project_id.startswith("demo-") or not self.firestore_emulator_host:
                 raise ValueError("local_emulator_required")

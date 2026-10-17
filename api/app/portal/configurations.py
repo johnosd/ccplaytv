@@ -172,7 +172,7 @@ class ConfigurationService:
                     raise AuthError("try_again", 409)
                 if previous.captured_at == snapshot.captured_at:
                     if (previous.sources != snapshot.sources or previous.revisions != snapshot.revisions
-                            or previous.imports != snapshot.imports):
+                            or previous.imports != snapshot.imports or previous.integrations != snapshot.integrations):
                         raise AuthError("try_again", 409)
                     return TransactionPlan(previous)
             updated = snapshot.model_copy(update={"snapshot_revision": (previous.snapshot_revision if previous else 0) + 1})

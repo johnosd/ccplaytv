@@ -136,7 +136,7 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
     const props = renderHome()
 
     press('ArrowUp') // hero -> topbar
-    for (let i = 0; i < 4; i += 1) press('ArrowRight') // Início -> ... -> indicador
+    for (let i = 0; i < 5; i += 1) press('ArrowRight') // Início -> ... -> Séries -> Rádio (074) -> indicador
     expect(profileIndicator()).toHaveClass('tv-focus')
     press('Enter')
 
@@ -149,7 +149,7 @@ describe('HomeScreen (Início) — topbar e conteúdo (feature 026)', () => {
     const props = renderHome()
 
     press('ArrowUp') // hero -> topbar
-    for (let i = 0; i < 5; i += 1) press('ArrowRight') // Início -> ... -> Configurações
+    for (let i = 0; i < 6; i += 1) press('ArrowRight') // Início -> ... -> Rádio (074) -> indicador -> Configurações
     expect(screen.queryByRole('button', { name: 'Buscar' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Configurações' })).toHaveClass('tv-focus')
     press('Enter')

@@ -81,7 +81,18 @@ CCPLAY_PORTAL_MERCADOPAGO_MERCHANT_ID: "<collector_id_da_conta_de_teste>"
 CCPLAY_PORTAL_MERCADOPAGO_ACCESS_TOKEN: "<TEST-access-token>"
 CCPLAY_PORTAL_MERCADOPAGO_WEBHOOK_SECRET: "<segredo_de_assinatura_do_webhook>"
 CCPLAY_PORTAL_MERCADOPAGO_LIVE_MODE: "false"
+CCPLAY_PORTAL_PIX_PAYER_DOMAIN: "pagamentos.ccplaytv.com"
 ```
+
+`CCPLAY_PORTAL_PIX_PAYER_DOMAIN` (feature 073) é o domínio do e-mail **sintético** que o Pix exige do pagador
+(`tv-<hash do deviceId>@<domínio>`): nenhum dado pessoal vai ao provedor. Sem ele, a rota de Pix da TV responde 503
+(o Checkout Pro do portal continua). O Pix direto também exige uma **chave Pix cadastrada** na conta Mercado Pago.
+
+Sandbox: com credenciais `APP_USR` de usuário de teste, o Mercado Pago só aceita Pix com um pagador que seja usuário
+de teste — `CCPLAY_PORTAL_PIX_TEST_PAYER_EMAIL` (opcional; aceito só com `environment=staging`/`test` e fora de live
+mode) substitui o e-mail sintético. Em 2026-10-15 o sandbox ainda recusava o Pix com HTTP 401, causa 7 ("Unauthorized
+use of live credentials"), mesmo com o comprador de teste: a credencial do vendedor precisa estar liberada para a API
+de pagamentos (`sdd/specs/073-compra-licenca-pix/evidencias/staging.md`).
 
 O `merchant_id` deve ser o `collector_id` retornado pela API de pagamentos da mesma conta de teste. No Checkout Pro, o Access Token de teste normalmente começa por `APP_USR`; confirme no painel que ele está na seção **Credenciais de teste**, e não em Credenciais de produção. O webhook deve apontar para `https://portal.ccplaytv.com/portal/v1/payments/mercadopago/webhook`.
 

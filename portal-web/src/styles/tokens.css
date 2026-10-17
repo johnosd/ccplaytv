@@ -1,0 +1,28 @@
+@font-face { font-family: Inter; src: url('../assets/fonts/inter-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: Inter; src: url('../assets/fonts/inter-latin-600-normal.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+@font-face { font-family: Poppins; src: url('../assets/fonts/poppins-latin-700-normal.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+
+/* Tokens — CCPlayTV Design System V14 Spectrum (valores de tv-web/src/index.css) */
+:root {
+  color-scheme: dark;
+  --bg-base: #0b0d12; --bg-surface: #15181f; --bg-elevated: #1d212b; --bg-hover: #2a2f3c; --border-subtle: #232836;
+  --text-primary: #f5f6f8; --text-secondary: #a7adbb; --text-muted: #7d8494;
+  --accent: #ff7a3d; --accent-light: #ffa36b; --accent-soft: rgb(255 122 61 / 14%); --accent-line: rgb(255 122 61 / 45%); --text-on-accent: #2a1206;
+  --success: #3ddc84; --success-soft: rgb(61 220 132 / 14%);
+  --warning: #ffc93d; --warning-soft: rgb(255 201 61 / 14%);
+  --danger: #ff4f68; --danger-soft: rgb(255 79 104 / 14%);
+  --brand-gradient: linear-gradient(135deg, #ff2f66, #ff7b47 42%, #ffd65c 70%, #4ba5ff);
+  --brand-glow: radial-gradient(60rem 24rem at 10% -10%, rgb(255 78 92 / 12%), transparent 60%), radial-gradient(50rem 20rem at 100% 0%, rgb(75 165 255 / 8%), transparent 60%);
+  --space-2xs: 4px; --space-xs: 8px; --space-s: 12px; --space-sm: 16px; --space-md: 24px; --space-panel: 32px; --space-section: 48px;
+  --radius-chip: 8px; --radius-input: 12px; --radius-panel: 16px; --radius-card: 20px; --radius-pill: 999px;
+  --font-body: Inter, Arial, sans-serif; --font-title: Poppins, Arial, sans-serif;
+  --fs-xs: 12px; --fs-sm: 13px; --fs-body: 15px; --fs-md: 16px; --fs-lg: 18px; --fs-h2: 20px; --fs-metric: 17px; --fs-h1: 17px; --fs-wordmark: 20px;
+  --control-h: 44px; --control-h-sm: 44px; --focus-ring: 3px solid var(--accent); --focus-offset: 2px;
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 3%) inset, 0 10px 30px rgb(0 0 0 / 25%);
+  --brand-mark-size: 36px; --brand-mark-radius: 11px; --brand-mark-shadow: 0 8px 20px rgb(255 78 92 / 25%);
+  --motion: 140ms; --page-width: 75rem; --gutter: var(--space-sm); --nav-bar-h: 64px;
+  --action-bar-safe-bottom: calc(var(--control-h) + var(--space-sm) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Mobile-first: alvos de toque de 44 px; em PC (ponteiro fino) os botões pequenos podem voltar a ser compactos. */
+@media (min-width: 960px) { :root { --control-h-sm: 36px; --gutter: var(--space-panel); } }

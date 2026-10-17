@@ -73,5 +73,8 @@ export const HOME_PEEK_HEIGHT = 192
 
 /** Atraso até o fundo ambiente seguir o card focado (D-005): seta segurada não faz o fundo piscar. */
 export const HOME_AMBIENT_DELAY_MS = 250
-/** Atraso das fileiras que leem o índice de busca inteiro (D-013): a primeira tela não espera por elas. */
+/**
+ * Atraso das leituras que não decidem a primeira tela (D-013 da 060): hoje só o resumo de séries em dia (selo). As fileiras
+ * de "adicionados" deixaram de ser adiadas na feature 079 — a montagem da Home espera por elas (com teto de 2 s).
+ */
 export const HOME_DEFERRED_MS = 600

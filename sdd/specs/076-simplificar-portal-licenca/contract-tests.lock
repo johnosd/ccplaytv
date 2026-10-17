@@ -1,0 +1,12 @@
+{
+  "feature": "076-simplificar-portal-licenca",
+  "lockedAt": "2026-10-16 11:24",
+  "total": 5,
+  "files": [
+    {
+      "path": "tv-web/src/features/settings/tabs/PortalLicenseTab.simplificar-portal-licenca.contract.test.tsx",
+      "sha256": "6c6377e0a4fac9a67b92d30a8d2a810c70434c55ca7c9a20f63d8d3e0351e365",
+      "tests": 5
+    }
+  ]
+}

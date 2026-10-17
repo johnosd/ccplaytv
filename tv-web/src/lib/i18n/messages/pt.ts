@@ -1,4 +1,5 @@
 import { portal } from './portal'
+import { portalAdvanced } from './portalAdvanced'
 import { comingSoon } from './comingSoon'
 import { common } from './common'
 import { components } from './components'
@@ -7,10 +8,12 @@ import { errors } from './errors'
 import { home } from './home'
 import { listSettings } from './listSettings'
 import { live } from './live'
+import { radio } from './radio'
 import { parental } from './parental'
 import { player } from './player'
 import { playerUi } from './playerUi'
 import { profiles } from './profiles'
+import { purchase } from './purchase'
 import { settings } from './settings'
 import { shell } from './shell'
 import { sources } from './sources'
@@ -31,6 +34,7 @@ export const pt = {
   ...errors.pt,
   ...home.pt,
   ...live.pt,
+  ...radio.pt,
   ...listSettings.pt,
   ...parental.pt,
   ...comingSoon.pt,
@@ -38,6 +42,8 @@ export const pt = {
   ...playerUi.pt,
   ...profiles.pt,
   ...portal.pt,
+  ...portalAdvanced.pt,
+  ...purchase.pt,
   ...settings.pt,
   ...shell.pt,
   ...sources.pt,

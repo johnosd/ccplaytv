@@ -394,7 +394,7 @@ async function run() {
     assert(explainText.includes('não tem EPG configurado'), 'a explicação diz por que não há programação')
     // Item 62a do backlog (decisão do usuário): o EPG só se configura ao editar a lista em
     // Configurações — o guia só diz onde, sem atalho que tiraria a pessoa da Live.
-    assert(explainText.includes('Configurações › Fontes IPTV'), 'a explicação diz onde configurar o EPG')
+    assert(explainText.includes('Configurações › Playlists'), 'a explicação diz onde configurar o EPG')
     assert((await page.getByRole('button', { name: 'Configurar EPG' }).count()) === 0, 'o guia não tem atalho "Configurar EPG"')
     await page.keyboard.press('ArrowDown') // não há ação de estado: o foco fica no seletor de lista
     assert((await page.locator('.epg-guide-selector').getAttribute('class'))?.includes('tv-focus'), 'o seletor de lista segue focável')

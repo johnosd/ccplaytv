@@ -1,4 +1,4 @@
-import type { TopDestination } from '../../navigation/appNav'
+import type { TopbarDestination } from '../../navigation/appNav'
 
 /**
  * Moldura V14 de Filmes/Séries (feature 025, FR-001..FR-004) — mesmo papel de
@@ -11,7 +11,7 @@ export interface VodShellProps {
   /** OK em "Início" na topbar. */
   onGoHome: () => void
   /** OK em outro destino de topo na topbar — troca sem empilhar (`switch-top`, D-004 da 024). */
-  onSwitchTop: (destination: TopDestination) => void
+  onSwitchTop: (destination: TopbarDestination) => void
   /** OK no indicador da lista ativa. */
   onOpenProfiles: () => void
   /**
@@ -22,4 +22,16 @@ export interface VodShellProps {
   onOpenSearch?: () => void
   /** `'parental'` = tela da lista ativa em Categorias & controle parental (vazio "todas escondidas", feature 066, FR-009). */
   onOpenSettings?: (tab?: 'parental') => void
+}
+
+/** Os callbacks da `TopBar` de Filmes/Séries a partir da moldura — inclui a Rádio (feature 074, D-003). */
+export function vodTopbarCallbacks(shell: VodShellProps) {
+  return {
+    onNavigate: (destination: TopbarDestination) => shell.onSwitchTop(destination),
+    onOpenRadio: () => shell.onSwitchTop('radio'),
+    onGoHome: shell.onGoHome,
+    onOpenProfiles: shell.onOpenProfiles,
+    onOpenSearch: shell.onOpenSearch,
+    onOpenSettings: shell.onOpenSettings,
+  }
 }

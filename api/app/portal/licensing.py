@@ -31,7 +31,10 @@ class LicensingService:
         self.repository = auth.repository
         self.journal = journal
 
-    async def entitlement(self, principal: Principal, now: datetime, previous_jws: str | None = None) -> str:
+    async def entitlement(self, principal: Principal, now: datetime, previous_jws: str | None = None,
+                          *, persist: bool = True) -> str:
+        """`persist=False` (073/R-014): só para exibir no portal — calcula o mesmo estado sem gravar geração/teste no
+        dispositivo, para GETs concorrentes do painel não disputarem a escrita do mesmo documento."""
         floor = 0
         if previous_jws is not None:
             try:
@@ -72,6 +75,7 @@ class LicensingService:
                 grants = [GrantDocument.model_validate(rows[document_path("grants", value)]) for value in current.grant_order_ids]
                 if any(value.device_id != principal.device_id for value in grants):
                     raise AuthError("invalid_input", 422)
+                stored_generation = device.entitlement_generation
                 puts = {}
                 if device.trial_started_at is None:
                     device = device.model_copy(update={"trial_started_at": device.created_at, "trial_expires_at": device.created_at + timedelta(days=7)})
@@ -84,11 +88,11 @@ class LicensingService:
                 if generation != device.entitlement_generation:
                     device = device.model_copy(update={"entitlement_generation": generation})
                     puts[device_path] = device
-                return TransactionPlan((device, current, grants), puts)
+                return TransactionPlan((device, current, grants, stored_generation), puts if persist else {})
             snapshot = await self.repository.transact(paths, read)
             if snapshot is None:
                 continue
-            device, current, grants = snapshot
+            device, current, grants, stored_generation = snapshot
             valid = sorted((value for value in grants if value.status == "valid"), key=lambda value: (value.starts_at, value.order_id))
             trial_active = device.trial_started_at <= now < device.trial_expires_at
             ongoing = [value for value in valid if value.starts_at <= now < value.expires_at]
@@ -102,7 +106,8 @@ class LicensingService:
                 "generation": device.entitlement_generation, "state": status,
                 "startsAt": ms(start), "expiresAt": ms(expiry), "serverTime": ms(now)})
 
-            def validate(rows, generation=device.entitlement_generation, revision=current.revision):
+            def validate(rows, generation=device.entitlement_generation if persist else stored_generation,
+                         revision=current.revision):
                 self.auth._same_principal(rows[device_path], principal)
                 observed = DeviceDocument.model_validate(rows[device_path])
                 latest = LicensingStateDocument.model_validate(rows[state_path]) if rows[state_path] else LicensingStateDocument(device_id=principal.device_id)
@@ -209,7 +214,8 @@ class LicensingService:
                     "pending_order_id": None if current.pending_order_id == intent.order_id else current.pending_order_id}),
                 order_path: order.model_copy(update={"status": intent.status, "provider_payment_id": intent.payment_id,
                     "confirmed_at": order.confirmed_at or intent.confirmed_at,
-                    "provider_updated_at": intent.provider_updated_at, "updated_at": intent.created_at})}
+                    "provider_updated_at": intent.provider_updated_at, "updated_at": intent.created_at,
+                    "pix_qr_code": None})}
             if rows[payment_path] is None:
                 puts[payment_path] = PaymentClaimDocument(payment_id=intent.payment_id, order_id=intent.order_id,
                     device_id=intent.device_id, created_at=intent.created_at)

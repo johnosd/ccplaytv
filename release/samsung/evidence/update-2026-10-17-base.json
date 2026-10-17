@@ -1,0 +1,17 @@
+{
+  "gate": "INT-UPD-PRESERVE",
+  "candidate": {
+    "version": "0.2.1",
+    "variant": "base",
+    "revision": "b35eb8d7dec18d67a3366caef234be9b3f0b61e7",
+    "wgtSha256": "bc864eb4ad6972d77261f10935c417389428dbc0b2fe6407369229b5f743f48b"
+  },
+  "environment": "tv",
+  "device": "QN50Q60DAGXZD",
+  "firmware": "Tizen 8.0 (firmware específico não exposto pelo sdb)",
+  "script": "deploy-tv.ps1 -SkipBuild; atualização por cima, sem uninstall",
+  "result": "Pass",
+  "date": "2026-10-17",
+  "by": "usuário",
+  "limitations": "A atualização foi feita sem desinstalar; usuário confirmou funcionamento correto e preservação do uso anterior."
+}

@@ -1,0 +1,32 @@
+{
+  "feature": "077-redesenho-portal-web",
+  "lockedAt": "2026-10-16 12:43",
+  "total": 5,
+  "files": [
+    {
+      "path": "portal-web/src/features/session/lastDevice.redesenho-portal-web.contract.test.ts",
+      "sha256": "94e90b8b4e14b077341dca9762a89b1f14df36458293858e9325834c354068aa",
+      "tests": 1
+    },
+    {
+      "path": "portal-web/src/features/settings/tmdbStatus.redesenho-portal-web.contract.test.ts",
+      "sha256": "19993d64f689c48e31c8b3498a19564d1b365e69eb6eb846c02d947081c78e9e",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/lib/portal/tmdbRemote.chave-tmdb-pelo-portal.contract.test.ts",
+      "sha256": "e4e04b9a370f83c24cc677d196b9ee3b109111eebffbf557380bbc52ae00beca",
+      "tests": 1
+    },
+    {
+      "path": "portal-web/e2e/shell.redesenho-portal-web.contract.spec.ts",
+      "sha256": "d41c22f38fe8c0de361b7a96bb405a7288e4fb2f79ffb13b373d470b7bbcf9ae",
+      "tests": 1
+    },
+    {
+      "path": "portal-web/e2e/listas.redesenho-portal-web.contract.spec.ts",
+      "sha256": "86bd3eee3473a5b38c10cfec36753483ea5fb74b6bc5d4c27092ba19168d820e",
+      "tests": 1
+    }
+  ]
+}

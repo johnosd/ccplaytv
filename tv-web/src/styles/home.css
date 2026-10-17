@@ -22,6 +22,16 @@
   padding-inline: var(--space-2);
 }
 
+/* Feature 079: enquanto a Home monta, só o "Carregando" com Voltar, no centro (o padrão de Filmes/Séries). */
+.home-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
 /* A 1ª sincronização (inclusive a volta de um destino com o foco restaurado) acontece sem animar: a Home já aparece no lugar
    (FR-020). `data-instant` é ligado e desligado por `HomeContent`. */
 .home-content[data-instant],

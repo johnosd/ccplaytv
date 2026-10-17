@@ -65,7 +65,7 @@ it('licença vencida impede entrada antes de atualização/importação da lista
 it('vence dentro da lista e continua; sair impede nova escolha e RETURN para a lista anterior', async () => {
   setup()
   fireEvent.click(await screen.findByRole('button', { name: 'entrar fixture' }))
-  expect(screen.getByText('lista aberta fixture')).toBeInTheDocument()
+  expect(await screen.findByText('lista aberta fixture')).toBeInTheDocument()
   expire()
   expect(screen.getByText('lista aberta fixture')).toBeInTheDocument()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -81,6 +81,7 @@ it('verificação de provedor não contorna vencimento antes de concluir a entra
   fixture.sourceAccess = true
   setup()
   fireEvent.click(await screen.findByRole('button', { name: 'entrar fixture' }))
+  await screen.findByRole('button', { name: 'provedor autorizado fixture' })
   expire()
   fireEvent.click(screen.getByRole('button', { name: 'provedor autorizado fixture' }))
   expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -91,6 +92,7 @@ it('verificação de provedor não contorna vencimento antes de concluir a entra
 it('reabrir o app revalida; renovação válida permite entrar novamente', async () => {
   const view = setup()
   fireEvent.click(await screen.findByRole('button', { name: 'entrar fixture' }))
+  await screen.findByText('lista aberta fixture')
   expire()
   view.unmount()
   setup()
@@ -100,5 +102,5 @@ it('reabrir o app revalida; renovação válida permite entrar novamente', async
   act(() => { fixture.allowed = true; fixture.decision = { allowed: true, reason: 'valid' }; for (const listener of fixture.listeners) listener() })
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'entrar fixture' }))
-  expect(screen.getByText('lista aberta fixture')).toBeInTheDocument()
+  expect(await screen.findByText('lista aberta fixture')).toBeInTheDocument()
 })

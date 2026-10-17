@@ -9,6 +9,8 @@ import { FixedQr } from '../../components/FixedQr'
 import { RefreshButton, RefreshStatusLine } from '../../components/RefreshButton'
 import { usePairingCredentials } from '../../lib/portal/usePairingCredentials'
 import { useRefreshAction } from '../../lib/portal/useRefreshAction'
+import type { PixPurchasePort } from '../../lib/licensing/pixPurchase'
+import { LicensePixScreen } from './LicensePixScreen'
 import './portalPairing.css'
 
 /** Espera a licença recém-guardada chegar ao monitor (o `liveQuery` o avisa); nunca bloqueia além do limite. */
@@ -22,19 +24,26 @@ function waitUntilAllowed(limitMs = 2_000): Promise<boolean> {
 }
 
 /**
- * Bloqueio de entrada na lista (features 069 e 071, US2): mensagem do fim do teste, orientação de compra, QR fixo,
- * endereço, ID e chave visíveis, **Atualizar** (só a licença) e **Voltar**. Nada consulta sozinho: abrir cadastra o
- * dispositivo uma vez (D-004) e o botão é a única consulta. Liberada pelo botão, retoma a entrada que foi negada.
+ * Bloqueio de entrada na lista (features 069, 071 e 073): mensagem do fim do teste, **Comprar licença** (Pix na
+ * TV, 073), QR fixo do portal (cartão), endereço, ID e chave visíveis, **Atualizar** (só a licença) e **Voltar**.
+ * Nada consulta sozinho: abrir cadastra o dispositivo uma vez (D-004) e só SELECT fala com o serviço. Liberada
+ * pelo Atualizar ou pela tela de Pix, retoma a entrada que foi negada.
  */
-export function LicenseGate({ onStop, onResume, activeSourceId, connection }: {
+export function LicenseGate({ onStop, onResume, activeSourceId, connection, purchase, readExpiry }: {
   onStop(sourceId?: string): void
   /** Chamado com a lista cuja entrada foi negada quando o Atualizar libera a licença (FR-007). */
   onResume?(sourceId: string): void
   activeSourceId?: string
   connection?: PortalConnection
+  /** 073: compra por Pix; ausente (portal não configurado / build não comercial) = botão soft-disabled. */
+  purchase?: PixPurchasePort
+  readExpiry?: () => number | undefined
 }) {
   const t = useT()
   const [blocked, setBlocked] = useState(false)
+  const [buying, setBuying] = useState(false)
+  const buyingRef = useRef(false)
+  useEffect(() => { buyingRef.current = buying }, [buying])
   const [focused, setFocused] = useState(0)
   const [noPurchase, setNoPurchase] = useState(false)
   const callbacks = useRef({ onStop, onResume, activeSourceId })
@@ -48,7 +57,7 @@ export function LicenseGate({ onStop, onResume, activeSourceId, connection }: {
     const block = (sourceId?: string) => {
       flushSync(() => callbacks.current.onStop(sourceId))
       denied.current = sourceId
-      setFocused(0); setNoPurchase(false); setBlocked(true)
+      setFocused(0); setNoPurchase(false); setBuying(false); setBlocked(true)
     }
     const stop = onListEntryDenied(block)
     const changed = licenseMonitor.subscribe(() => {
@@ -56,28 +65,41 @@ export function LicenseGate({ onStop, onResume, activeSourceId, connection }: {
       // Revogação confirmada mantém o encerramento; vencimento só barra a próxima entrada.
       if (next.reason === 'revoked' && previous !== 'revoked' && callbacks.current.activeSourceId) block()
       previous = next.reason
-      if (next.allowed) setBlocked(false)
+      // 073: com a tela de Pix aberta, quem fecha é ela (onLicensed retoma a lista negada); fechar aqui a desmontaria
+      // antes de avisar.
+      if (next.allowed && !buyingRef.current) setBlocked(false)
     })
     return () => { stop(); changed() }
   }, [])
   if (!blocked) return null
   const back = () => setBlocked(false)
+  const resume = () => {
+    const sourceId = denied.current
+    denied.current = undefined
+    setBuying(false); setBlocked(false)
+    if (sourceId) callbacks.current.onResume?.(sourceId)
+  }
   const update = async () => {
     setNoPurchase(false)
     const result = await refresh.run()
     if (!result.ok) return
-    if (await waitUntilAllowed()) {
-      const sourceId = denied.current
-      denied.current = undefined
-      setBlocked(false)
-      if (sourceId) callbacks.current.onResume?.(sourceId)
-    } else setNoPurchase(true)
+    if (await waitUntilAllowed()) resume()
+    else setNoPurchase(true)
   }
+  // Um Modal ativo por vez (components/Modal): a tela de Pix substitui o bloqueio inteiro enquanto aberta.
+  if (buying && purchase) {
+    return <LicensePixScreen purchase={purchase} site={pairing.site} readExpiry={readExpiry}
+      onLicensed={() => { void waitUntilAllowed().then(allowed => { if (allowed) resume(); else { setBuying(false); setNoPurchase(true) } }) }}
+      onBack={() => { setBuying(false); setFocused(0) }} />
+  }
+  const buy = () => { if (purchase) setBuying(true) }
   const trial = licenseMonitor.getSnapshot().state === 'trial'
   const { device } = pairing
+  const actions = [buy, () => void update(), back]
   return <Modal ariaLabel={t('portal.licenseBlocked')} onBack={back}
-    onDirection={direction => { if (direction === 'left' || direction === 'up') setFocused(0); else setFocused(1) }}
-    onSelect={() => focused === 0 ? void update() : back()}>
+    onDirection={direction => setFocused(current => direction === 'left' || direction === 'up'
+      ? Math.max(0, current - 1) : Math.min(actions.length - 1, current + 1))}
+    onSelect={() => actions[focused]?.()}>
     <div className="portal-pairing">
     <h2>{t('portal.licenseBlocked')}</h2>
     <p className="portal-pairing-text"><b>{t(trial ? 'portal.gate.trialEnded' : 'portal.gate.licenseEnded')}</b></p>
@@ -102,8 +124,10 @@ export function LicenseGate({ onStop, onResume, activeSourceId, connection }: {
     <RefreshStatusLine action={refresh} scope="license" />
     {noPurchase && refresh.status !== 'loading' && <p className="portal-refresh-status" role="status">{t('portal.gate.noPurchase')}</p>}
     <div className="portal-pairing-actions">
-      <RefreshButton action={refresh} focused={focused === 0} variant="accent" onRun={() => void update()} />
-      <Button focused={focused === 1} variant="secondary" onSelect={back}>{t('portal.licenseBack')}</Button>
+      {/* Sem portal configurado o bloqueio já mostra `portal.unconfigured` acima; o botão fica focável e inerte. */}
+      <Button focused={focused === 0} variant="accent" softDisabled={!purchase} onSelect={buy}>{t('portal.buy')}</Button>
+      <RefreshButton action={refresh} focused={focused === 1} variant="secondary" onRun={() => void update()} />
+      <Button focused={focused === 2} variant="secondary" onSelect={back}>{t('portal.licenseBack')}</Button>
     </div>
     </div>
   </Modal>

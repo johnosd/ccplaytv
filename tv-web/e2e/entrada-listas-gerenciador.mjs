@@ -5,7 +5,7 @@
 // gcloud/emulador/api/.venv, por isso fica fora do SUITE do runner. Não comprova DUID/MAC real nem a TV física.
 import assert from 'node:assert/strict'
 import { chromium, expect } from '@playwright/test'
-import { abrirPortalLicenca } from './lib/portal.mjs'
+import { abrirPortalLicenca, gerarNovaChave } from './lib/portal.mjs'
 import { startPortalStack } from './lib/portalStack.mjs'
 
 const log = message => console.log(`[${new Date().toISOString().slice(11, 19)}] ${message}`)
@@ -44,7 +44,7 @@ try {
     await portal.getByRole('button', { name: 'Conectar', exact: true }).click()
   }
   await login(displayId.toLowerCase().replaceAll(':', '-'), deviceKey)
-  await expect(portal.getByRole('heading', { name: 'Suas listas' })).toBeVisible({ timeout: 20000 })
+  await expect(portal.getByRole('heading', { name: 'Listas', level: 1, exact: true })).toBeVisible({ timeout: 20000 })
   log('portal: entrou por ID + chave digitados')
 
   await portal.getByRole('button', { name: 'Adicionar lista', exact: true }).click()
@@ -65,11 +65,10 @@ try {
   await expect(values.nth(1)).toHaveText(deviceKey, { timeout: 15000 })
   for (const text of [await tv.locator('body').innerText(), await portal.locator('body').innerText()]) assert.ok(!text.includes('segredo-fixture'))
 
-  // Nova chave: fica em Configurações → Portal & licença ("Revogar acessos ao portal"); a antiga deixa de valer.
+  // Nova chave: fica em Configurações → Portal & licença → Avançado → "Gerar nova chave e código"; a antiga deixa de valer.
   await tv.keyboard.press('Escape')
   await abrirPortalLicenca(tv)
-  await tv.getByRole('button', { name: 'Revogar acessos ao portal', exact: true }).click()
-  await tv.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click()
+  await gerarNovaChave(tv)
   await expect.poll(() => tv.evaluate(async () => (await (await import('/src/lib/catalog/db.ts')).db.table('portalDevice').get('device'))?.deviceKey),
     { timeout: 20000 }).not.toBe(deviceKey)
   await tv.goto(stack.tvOrigin)
@@ -85,7 +84,7 @@ try {
   await fresh.getByLabel('Chave do dispositivo', { exact: true }).fill(deviceKey)
   await fresh.getByRole('button', { name: 'Conectar', exact: true }).click()
   await expect(fresh.getByRole('alert')).toBeVisible({ timeout: 10000 })
-  await expect(fresh.getByRole('heading', { name: 'Suas listas' })).toHaveCount(0)
+  await expect(fresh.getByRole('heading', { name: 'Listas', level: 1, exact: true })).toHaveCount(0)
   log('nova chave gerada: ID mantido, chave antiga recusada')
 
   // SC-007 / US4: RETURN sai da tela Adicionar para os perfis, abre a mesma

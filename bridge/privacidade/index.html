@@ -1,0 +1,190 @@
+<!doctype html>
+<!--
+  Feature 078: política de privacidade do CCPlayTV para o Samsung TV Seller Office.
+  Documento público estático (ADR-012, atualização da feature 078): o app nunca carrega esta
+  página. Sem script, sem cookie, sem analytics, sem recurso de terceiro.
+-->
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>CCPlayTV — Política de privacidade</title>
+  <style>
+    :root { color-scheme: dark; --bg: #0b0d12; --fg: #e9ebf0; --muted: #a7adbb; --accent: #ff7a3d; --line: #262b36; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 820px; margin: 0 auto; padding: 32px 16px 64px; }
+    nav { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+    nav a { color: var(--accent); text-decoration: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; }
+    nav a:focus-visible, nav a:hover { outline: 2px solid var(--accent); }
+    section { border-top: 1px solid var(--line); padding-top: 24px; margin-top: 32px; }
+    h1 { font-size: 30px; margin: 0 0 8px; }
+    h2 { font-size: 24px; margin: 0 0 4px; }
+    h3 { font-size: 19px; margin: 24px 0 8px; }
+    p, li { color: var(--fg); }
+    .muted { color: var(--muted); }
+    a { color: var(--accent); }
+    ul { padding-left: 22px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>CCPlayTV</h1>
+  <nav aria-label="Idioma / Language / Idioma">
+    <a href="#pt" hreflang="pt">Português</a>
+    <a href="#en" hreflang="en">English</a>
+    <a href="#es" hreflang="es">Español</a>
+  </nav>
+
+  <section id="pt" lang="pt-BR">
+    <h2>Política de privacidade</h2>
+    <p class="muted">Vigente desde 16 de outubro de 2026.</p>
+
+    <p>O CCPlayTV é um player para playlists Xtream/M3U que a própria pessoa já possui. O aplicativo não inclui conteúdo,
+      não exige conta e não usa publicidade, analytics, rastreamento nem cookies.</p>
+
+    <h3>O que fica na TV</h3>
+    <p>Ficam armazenados apenas no armazenamento local da TV (IndexedDB e armazenamento do aplicativo): as listas
+      adicionadas e suas credenciais (servidor, usuário, senha ou URL M3U), o catálogo importado, favoritos,
+      histórico, posição para retomar, preferências (idioma, categorias ocultas), os PINs de controle dos pais
+      (guardados como hash) e, se informada, a chave TMDB da própria pessoa. Credenciais e chaves nunca aparecem em
+      telas, mensagens de erro ou registros.</p>
+
+    <h3>O que sai da TV e para quem</h3>
+    <ul>
+      <li><strong>Provedor da lista</strong> que a pessoa adicionou: recebe as credenciais dessa lista para
+        entregar categorias, guia de programação e vídeos. O CCPlayTV não opera nem controla esse provedor.</li>
+      <li><strong>TMDB</strong> (The Movie Database): só se a pessoa informar a própria chave TMDB; recebe a chave e
+        o título pesquisado para devolver capas e sinopses.</li>
+      <li><strong>Radio Browser</strong> (diretório público de rádios): ao abrir Rádio, recebe o código do país; ao
+        tocar uma estação, o identificador dela. O áudio vem da própria estação.</li>
+      <li><strong>YouTube</strong>: ao pedir um trailer, o identificador do vídeo é aberto numa página estática do
+        próprio projeto (GitHub Pages) que carrega o player do YouTube, sujeito à política do Google.</li>
+      <li><strong>Cloudflare</strong>: só quando a pessoa roda o teste de conexão em Ajustes; envia e recebe dados
+        sem significado gerados pelo app para medir a velocidade.</li>
+    </ul>
+    <p>Como em qualquer conexão de internet, esses serviços recebem o endereço IP da TV.</p>
+
+    <h3>Versão com portal (quando disponível)</h3>
+    <p>Uma versão do aplicativo com portal web e licença pode existir. Só nela, e sempre por ação da pessoa
+      (botão Atualizar, criar/editar/excluir uma lista, fazer backup), a TV fala com o serviço do portal do
+      CCPlayTV, hospedado no Google Cloud: identificador da TV, as listas com suas credenciais (cifradas), um backup
+      cifrado de dados de uso (favoritos, histórico, progresso, preferências, PIN em hash, chave TMDB) e o estado da
+      licença. O pagamento da licença, quando houver, é processado pelo Mercado Pago. Nada é consultado
+      automaticamente em segundo plano.</p>
+
+    <h3>Retenção e exclusão</h3>
+    <ul>
+      <li>Excluir uma lista no aplicativo apaga essa lista e o catálogo dela da TV. Desinstalar o aplicativo apaga
+        todos os dados locais.</li>
+      <li>Na versão com portal: excluir uma lista também a apaga do serviço; o backup de uso pode ser apagado pela TV
+        ou pelo site; "Desvincular" remove o pareamento da TV. Cópias de segurança do serviço são mantidas por até
+        7 dias.</li>
+    </ul>
+
+    <h3>Contato</h3>
+    <p>Dúvidas ou pedidos sobre privacidade: <a href="mailto:ccplaytv@gmail.com">ccplaytv@gmail.com</a>.</p>
+  </section>
+
+  <section id="en" lang="en">
+    <h2>Privacy policy</h2>
+    <p class="muted">Effective October 16, 2026.</p>
+
+    <p>CCPlayTV is a player for Xtream/M3U playlists the person already has. The app includes no content, requires no
+      account and uses no advertising, analytics, tracking or cookies.</p>
+
+    <h3>What stays on the TV</h3>
+    <p>Stored only in the TV's local storage (IndexedDB and app storage): the lists you add and their credentials
+      (server, username, password or M3U URL), the imported catalog, favorites, history, resume positions,
+      preferences (language, hidden categories), parental-control PINs (stored as a hash) and, if provided, your own
+      TMDB key. Credentials and keys never appear on screens, in error messages or in logs.</p>
+
+    <h3>What leaves the TV and to whom</h3>
+    <ul>
+      <li><strong>The list provider</strong> you added: receives that list's credentials to deliver categories,
+        program guide and videos. CCPlayTV does not operate or control that provider.</li>
+      <li><strong>TMDB</strong> (The Movie Database): only if you enter your own TMDB key; receives the key and the
+        searched title to return posters and synopses.</li>
+      <li><strong>Radio Browser</strong> (public radio directory): when you open Radio, receives the country code;
+        when you play a station, its identifier. The audio comes from the station itself.</li>
+      <li><strong>YouTube</strong>: when you ask for a trailer, the video identifier is opened on a static page of
+        this project (GitHub Pages) that loads the YouTube player, subject to Google's policy.</li>
+      <li><strong>Cloudflare</strong>: only when you run the connection test in Settings; it sends and receives
+        meaningless data generated by the app to measure speed.</li>
+    </ul>
+    <p>As with any internet connection, these services receive the TV's IP address.</p>
+
+    <h3>Portal version (when available)</h3>
+    <p>A version of the app with a web portal and license may exist. Only in it, and always by your action
+      (Refresh button, creating/editing/deleting a list, making a backup), the TV talks to the CCPlayTV portal
+      service, hosted on Google Cloud: the TV identifier, the lists and their credentials (encrypted), an encrypted
+      backup of usage data (favorites, history, progress, preferences, hashed PIN, TMDB key) and the license
+      status. License payment, when offered, is processed by Mercado Pago. Nothing is queried automatically in the
+      background.</p>
+
+    <h3>Retention and deletion</h3>
+    <ul>
+      <li>Deleting a list in the app removes that list and its catalog from the TV. Uninstalling the app removes all
+        local data.</li>
+      <li>In the portal version: deleting a list also removes it from the service; the usage backup can be deleted
+        from the TV or the website; "Unlink" removes the TV's pairing. Service backup copies are kept for up to
+        7 days.</li>
+    </ul>
+
+    <h3>Contact</h3>
+    <p>Privacy questions or requests: <a href="mailto:ccplaytv@gmail.com">ccplaytv@gmail.com</a>.</p>
+  </section>
+
+  <section id="es" lang="es">
+    <h2>Política de privacidad</h2>
+    <p class="muted">Vigente desde el 16 de octubre de 2026.</p>
+
+    <p>CCPlayTV es un reproductor para playlists Xtream/M3U que la propia persona ya tiene. La aplicación no incluye
+      contenido, no exige cuenta y no usa publicidad, analítica, rastreo ni cookies.</p>
+
+    <h3>Qué queda en el televisor</h3>
+    <p>Se guardan solo en el almacenamiento local del televisor (IndexedDB y almacenamiento de la aplicación): las
+      listas que agregas y sus credenciales (servidor, usuario, contraseña o URL M3U), el catálogo importado,
+      favoritos, historial, posición para reanudar, preferencias (idioma, categorías ocultas), los PIN de control
+      parental (guardados como hash) y, si la ingresas, tu propia clave de TMDB. Las credenciales y claves nunca
+      aparecen en pantallas, mensajes de error ni registros.</p>
+
+    <h3>Qué sale del televisor y hacia quién</h3>
+    <ul>
+      <li><strong>El proveedor de la lista</strong> que agregaste: recibe las credenciales de esa lista para
+        entregar categorías, guía de programación y videos. CCPlayTV no opera ni controla a ese proveedor.</li>
+      <li><strong>TMDB</strong> (The Movie Database): solo si ingresas tu propia clave de TMDB; recibe la clave y el
+        título buscado para devolver carátulas y sinopsis.</li>
+      <li><strong>Radio Browser</strong> (directorio público de radios): al abrir Radio, recibe el código del país;
+        al reproducir una estación, su identificador. El audio proviene de la propia estación.</li>
+      <li><strong>YouTube</strong>: al pedir un tráiler, el identificador del video se abre en una página estática
+        del propio proyecto (GitHub Pages) que carga el reproductor de YouTube, sujeto a la política de Google.</li>
+      <li><strong>Cloudflare</strong>: solo cuando ejecutas la prueba de conexión en Ajustes; envía y recibe datos
+        sin significado generados por la aplicación para medir la velocidad.</li>
+    </ul>
+    <p>Como en cualquier conexión a internet, estos servicios reciben la dirección IP del televisor.</p>
+
+    <h3>Versión con portal (cuando esté disponible)</h3>
+    <p>Puede existir una versión de la aplicación con portal web y licencia. Solo en ella, y siempre por acción de
+      la persona (botón Actualizar, crear/editar/eliminar una lista, hacer una copia de seguridad), el televisor se
+      comunica con el servicio del portal de CCPlayTV, alojado en Google Cloud: identificador del televisor, las
+      listas con sus credenciales (cifradas), una copia de seguridad cifrada de datos de uso (favoritos, historial,
+      progreso, preferencias, PIN en hash, clave de TMDB) y el estado de la licencia. El pago de la licencia, cuando
+      exista, lo procesa Mercado Pago. Nada se consulta automáticamente en segundo plano.</p>
+
+    <h3>Retención y eliminación</h3>
+    <ul>
+      <li>Eliminar una lista en la aplicación borra esa lista y su catálogo del televisor. Desinstalar la aplicación
+        borra todos los datos locales.</li>
+      <li>En la versión con portal: eliminar una lista también la borra del servicio; la copia de seguridad de uso
+        se puede borrar desde el televisor o el sitio; "Desvincular" quita el emparejamiento del televisor. Las
+        copias de seguridad del servicio se conservan hasta 7 días.</li>
+    </ul>
+
+    <h3>Contacto</h3>
+    <p>Preguntas o solicitudes sobre privacidad: <a href="mailto:ccplaytv@gmail.com">ccplaytv@gmail.com</a>.</p>
+  </section>
+</main>
+</body>
+</html>

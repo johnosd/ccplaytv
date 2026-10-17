@@ -15,8 +15,8 @@ export function FaqPage({ onAction }: { onAction: (action: FaqAction) => void })
   const items = faq.items.filter(item => (category === 'all' || item.category === category) &&
     terms.every(term => normalize(item.question + ' ' + item.answer.join(' ')).includes(term)))
   const categories = Object.keys(faq.categories) as FaqCategory[]
-  return <section className="license-page faq-page" aria-labelledby="faq-title">
-    <header className="license-hero faq-hero">
+  return <section className="faq-page" aria-labelledby="faq-title">
+    <header className="faq-hero">
       <p className="eyebrow">{t('title')} / FAQ</p>
       <h2 id="faq-title">{faq.title}</h2>
       <p>{faq.intro}</p>
@@ -33,7 +33,7 @@ export function FaqPage({ onAction }: { onAction: (action: FaqAction) => void })
       </button>)}
     </div>
     <p className="library-meta" role="status">{faq.results(items.length)}</p>
-    {items.length === 0 ? <div className="source-list-empty faq-empty">
+    {items.length === 0 ? <div className="faq-empty">
       <p>{faq.empty}</p>
       <button className="primary" onClick={() => { setQuery(''); setCategory('all') }}>{faq.clear}</button>
     </div> : <div className="faq-groups">

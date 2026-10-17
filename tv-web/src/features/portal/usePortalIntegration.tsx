@@ -1,15 +1,21 @@
 import { LicenseGate } from './LicenseGate'
 import { commercialBuild, licenseAuthority, licenseMonitor } from '../../lib/licensing/licenseRuntime'
 import { createLicenseSync } from '../../lib/licensing/licenseSync'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPixPurchase } from '../../lib/licensing/pixPurchase'
+import { registerPixPurchaseOpener, type PixPurchaseRequest } from '../../lib/licensing/pixPurchaseRuntime'
+import { portalSite } from '../../lib/portal/usePairingCredentials'
+import { LicensePixScreen } from './LicensePixScreen'
 import { flushSync } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { db } from '../../lib/catalog/db'
-import { getPortalConnection } from '../../lib/portal/portalRuntime'
+import { getPortalConnection, refreshPortal } from '../../lib/portal/portalRuntime'
 import { localImportSource } from '../../lib/portal/remoteImportOutbox'
 import { createPortalSync } from '../../lib/portal/portalSync'
 import { usePortalAgent } from '../../lib/portal/usePortalAgent'
 import { runBackupStep } from '../../lib/backup/backupStep'
+import { escrowRecoveryCode } from '../../lib/portal/recoveryEscrow'
+import { createTmdbRemoteStep } from '../../lib/portal/tmdbRemote'
 import { PortalSyncConfirmation } from './PortalSyncConfirmation'
 import { RestoreOffer } from './RestoreOffer'
 
@@ -58,8 +64,26 @@ export function usePortalIntegration({ activeSourceId, leaveSource, sourceDelete
   const [agentPorts] = useState(() => ({ ...ports, refreshLicense: connection && commercialBuild
     ? createLicenseSync(db, connection, licenseAuthority) : undefined,
     // 072: passo de backup de uso no fim do Atualizar de listas e no botão Fazer backup agora.
-    backup: connection ? async (signal: AbortSignal) => { await runBackupStep(db, connection, { signal }) } : undefined }))
+    backup: connection ? async (signal: AbortSignal) => { await runBackupStep(db, connection, { signal }) } : undefined,
+    // 073/D-008: cópia cifrada do código de recuperação, dentro do Atualizar (licença e listas).
+    escrowRecoveryCode: connection ? (signal: AbortSignal) => escrowRecoveryCode(db, connection.client, signal) : undefined,
+    // 077/ADR-020: chave TMDB pedida pelo portal, aplicada no Atualizar de listas (entre o pull e o snapshot).
+    applyIntegrations: connection ? createTmdbRemoteStep(db, connection) : undefined }))
   usePortalAgent(db, agentPorts, !!connection)
-  return <><LicenseGate activeSourceId={activeSourceId} onStop={leaveSource} onResume={resumeEntry} connection={connection} />{decide && <PortalSyncConfirmation onDecide={decide.complete} />}
-    {connection && <RestoreOffer connection={connection} />}</>
+  // 073/D-010: porta de produção da compra por Pix, compartilhada pelo bloqueio e por Portal & licença.
+  const purchase = useMemo(() => connection && commercialBuild ? createPixPurchase({
+    request: (path, init) => connection.client.request(path, init),
+    device: () => connection.ensurePairing(),
+    refreshLicense: () => refreshPortal('license'),
+  }) : undefined, [connection])
+  const [settingsPix, setSettingsPix] = useState<PixPurchaseRequest>()
+  useEffect(() => purchase ? registerPixPurchaseOpener(setSettingsPix) : undefined, [purchase])
+  const site = connection ? portalSite(connection) : undefined
+  const readExpiry = () => licenseMonitor.getSnapshot().expiresAt
+  return <><LicenseGate activeSourceId={activeSourceId} onStop={leaveSource} onResume={resumeEntry} connection={connection}
+    purchase={purchase} readExpiry={readExpiry} />{decide && <PortalSyncConfirmation onDecide={decide.complete} />}
+    {connection && <RestoreOffer connection={connection} />}
+    {settingsPix && purchase && <LicensePixScreen purchase={purchase} site={site} readExpiry={readExpiry}
+      onLicensed={() => { setSettingsPix(undefined); settingsPix.onLicensed() }}
+      onBack={() => { setSettingsPix(undefined); settingsPix.onBack() }} />}</>
 }

@@ -1,0 +1,22 @@
+{
+  "feature": "073-compra-licenca-pix",
+  "lockedAt": "2026-10-15 08:04",
+  "total": 5,
+  "files": [
+    {
+      "path": "tv-web/src/features/portal/LicensePixScreen.compra-licenca-pix.contract.test.tsx",
+      "sha256": "f22ac3cb58628aa40093d5f299101614f7b12689c520098ed20a8da6f787c81c",
+      "tests": 3
+    },
+    {
+      "path": "tv-web/src/lib/licensing/pixPurchase.compra-licenca-pix.contract.test.ts",
+      "sha256": "310cb55c6b700dd326bb30398e9a9e5ac5ea907f41ededf00531eade27986eb1",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/lib/portal/recoveryEscrow.compra-licenca-pix.contract.test.ts",
+      "sha256": "bad40dfa46e5edad7f4b4bed469bce0d28d9a039369da4376cc973ac62d3330a",
+      "tests": 1
+    }
+  ]
+}

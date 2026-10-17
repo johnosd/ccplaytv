@@ -7,11 +7,11 @@ import { usePrefetchProgress } from '../catalog/prefetchApi'
 import { useT } from '../../lib/i18n/I18nProvider'
 import { homeStatusLine } from './homeStatusLine'
 import { HomeContent, type HomeContentFocus } from './HomeContent'
-import { AppShell } from '../shell/AppShell'
+import { AppShell } from '../../components/AppShell'
 import { TopBar } from '../shell/TopBar'
 import { PlayerLayer } from '../../components/PlayerLayer'
-import type { HintItem } from '../shell/HintBar'
-import type { HomeFocus, TopbarItem, TopDestination } from '../../navigation/appNav'
+import type { HintItem } from '../../components/HintBar'
+import type { HomeFocus, TopbarDestination, TopbarItem, TopDestination } from '../../navigation/appNav'
 
 export interface HomeScreenProps {
   /** Fonte ativa da sessão (ADR-011 §3) — o nome vai no indicador da topbar, o resto no conteúdo. */
@@ -23,7 +23,7 @@ export interface HomeScreenProps {
    * pela topbar (FR-008/FR-016). `from` é o foco de origem, para o RETURN
    * devolvê-lo ao mesmo lugar.
    */
-  onNavigate: (destination: TopDestination, from: HomeFocus) => void
+  onNavigate: (destination: TopbarDestination, from: HomeFocus) => void
   /** Indicador da lista ativa na topbar (FR-017). */
   onOpenProfiles: (from: HomeFocus) => void
   /** "Mais informações" do hero, ou card de filme/série de uma rail (FR-007/FR-012). */
@@ -126,8 +126,12 @@ export function HomeScreen({
     setPlaying(params)
   }
 
+  // Feature 079 (FR-009): fechar o player é ação da pessoa — o que a releitura trouxer (ex.: o 1º "Continuar") entra na hora.
+  const [userActionKey, setUserActionKey] = useState(0)
+
   function closePlayer() {
     setPlaying(null)
+    setUserActionKey((key) => key + 1)
     // Sem isto, o hero continuaria com a leitura de quando montou — um
     // filme assistido por alguns minutos voltaria mostrando "Assistir" em
     // vez de "Continuar" (`logic/hero-home.md` §5). `invalidateUserStates`
@@ -154,6 +158,7 @@ export function HomeScreen({
             onFocusItem={setTopbarItem}
             onExitDown={() => setZone('content')}
             onNavigate={(destination) => onNavigate(destination, { zone: 'topbar', item: destination })}
+            onOpenRadio={() => onNavigate('radio', { zone: 'topbar', item: 'radio' })}
             onOpenProfiles={() => onOpenProfiles({ zone: 'topbar', item: 'profile' })}
             onOpenSearch={() => onOpenSearch({ zone: 'topbar', item: 'search' })}
             onOpenSettings={() => onOpenSettings({ zone: 'topbar', item: 'settings' })}
@@ -178,6 +183,7 @@ export function HomeScreen({
           onOpenFavorites={onOpenFavorites}
           onPlay={startPlaying}
           statusLine={statusLine}
+          userActionKey={userActionKey}
         />
       </AppShell>
       {playing && (

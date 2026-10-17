@@ -42,6 +42,29 @@ function parseFilesSection(yamlText) {
   return declared
 }
 
+/** Caminhos declarados em `files:`, na ordem do YAML (feature 078: inventário do gate). */
+export function declaredFiles(yamlText) {
+  return [...parseFilesSection(yamlText)]
+}
+
+// Declarados em `files:` mas que vêm do projeto Tizen, não do `dist/` (o sync
+// não os copia nem os remove).
+const TIZEN_PROJECT_FILES = new Set(['icon.png'])
+
+/**
+ * Feature 078 (R-008), o inverso de `findUnlistedFiles`: entradas de `files:`
+ * que o build não emite mais. Ficam apontando para um arquivo inexistente e o
+ * `.wgt` sai incompleto sem aviso. Caminhos normalizados com `/`, na ordem do YAML.
+ *
+ * @param {string[]} distFiles
+ * @param {string} yamlText
+ * @returns {string[]}
+ */
+export function findStaleDeclared(distFiles, yamlText) {
+  const emitted = new Set(distFiles.map((raw) => raw.replace(/\\/g, '/')))
+  return declaredFiles(yamlText).filter((path) => !emitted.has(path) && !TIZEN_PROJECT_FILES.has(path))
+}
+
 /**
  * Arquivos de `distFiles` (caminhos relativos a `dist/`, com `/` ou `\`)
  * que não aparecem na seção `files:` de `yamlText`. Retorna os caminhos

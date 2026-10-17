@@ -1,0 +1,12 @@
+{
+  "feature": "075-redesenho-portal-licenca",
+  "lockedAt": "2026-10-16 11:47",
+  "total": 3,
+  "files": [
+    {
+      "path": "tv-web/src/features/settings/tabs/PortalLicenseTab.redesenho-portal-licenca.contract.test.tsx",
+      "sha256": "c713079ec5f414e1e27da6e3c4d077427fada63c4741c009ef2d273569b5db42",
+      "tests": 3
+    }
+  ]
+}

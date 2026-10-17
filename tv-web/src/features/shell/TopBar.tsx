@@ -22,7 +22,7 @@ export interface TopBarProps {
    * Início era sempre o atual. Recebe a marcação `topbar-item--current`/
    * `aria-current`; OK nele não faz nada.
    */
-  currentItem?: 'home' | TopDestination | 'search' | 'settings'
+  currentItem?: 'home' | TopDestination | 'radio' | 'search' | 'settings'
   /** LEFT/RIGHT (linear, com clamp nas pontas). */
   onFocusItem: (item: TopbarItem) => void
   /** DOWN — devolve o foco ao conteúdo. */
@@ -45,6 +45,11 @@ export interface TopBarProps {
   onOpenSearch?: () => void
   /** OK na engrenagem (feature 026, D-005, FR-021). Mesma regra de `onOpenSearch`. */
   onOpenSettings?: () => void
+  /**
+   * OK em "Rádio" (feature 074, D-003). Só com este callback o item "Rádio" é desenhado (depois de "Séries") e entra
+   * na ordem de foco — sem ele a topbar é idêntica à de antes da 074.
+   */
+  onOpenRadio?: () => void
   /** RETURN. */
   onBack: () => void
 }
@@ -60,14 +65,19 @@ const FOCUS_ORDER: TopbarItem[] = (['home', 'live', 'movies', 'series', 'profile
   (item) => SEARCH_IN_TOPBAR || item !== 'search',
 )
 
+/** Feature 074 (D-003): "Rádio" logo depois de "Séries", só quando a topbar recebe `onOpenRadio`. */
+const FOCUS_ORDER_RADIO: TopbarItem[] = FOCUS_ORDER.flatMap((item) => (item === 'series' ? [item, 'radio' as const] : [item]))
+
 /** Feature 042 (D-007): "Tentar de novo" entra no FIM da ordem, só enquanto offline. */
 const FOCUS_ORDER_OFFLINE: TopbarItem[] = [...FOCUS_ORDER, 'connection']
+const FOCUS_ORDER_RADIO_OFFLINE: TopbarItem[] = [...FOCUS_ORDER_RADIO, 'connection']
 
-const NAV_ITEMS: { key: 'home' | TopDestination; labelKey: MessageKey }[] = [
+const NAV_ITEMS: { key: 'home' | TopDestination | 'radio'; labelKey: MessageKey }[] = [
   { key: 'home', labelKey: 'shell.nav.home' },
   { key: 'live', labelKey: 'shell.nav.live' },
   { key: 'movies', labelKey: 'shell.nav.movies' },
   { key: 'series', labelKey: 'shell.nav.series' },
+  { key: 'radio', labelKey: 'shell.nav.radio' },
 ]
 
 /** Busca e Configurações (feature 026, D-005) — reais quando o callback correspondente existe. */
@@ -115,13 +125,18 @@ export function TopBar({
   onOpenProfiles,
   onOpenSearch,
   onOpenSettings,
+  onOpenRadio,
   onBack,
 }: TopBarProps): ReactNode {
   const t = useT()
   const clock = useClock()
   const online = useOnlineStatus()
   const connectionCheck = useConnectionCheckStatus()
-  const focusOrder = online ? FOCUS_ORDER : FOCUS_ORDER_OFFLINE
+  const withRadio = onOpenRadio !== undefined
+  const focusOrder = withRadio
+    ? online ? FOCUS_ORDER_RADIO : FOCUS_ORDER_RADIO_OFFLINE
+    : online ? FOCUS_ORDER : FOCUS_ORDER_OFFLINE
+  const navItems = withRadio ? NAV_ITEMS : NAV_ITEMS.filter((item) => item.key !== 'radio')
 
   // O foco nunca fica num item que sumiu: com a rede de volta, "Tentar de novo"
   // deixa de existir, e a lupa está escondida (ad-hoc 2026-10-09) — um foco
@@ -142,6 +157,9 @@ export function TopBar({
       case 'movies':
       case 'series':
         onNavigate(item)
+        return
+      case 'radio':
+        onOpenRadio?.()
         return
       case 'profile':
         onOpenProfiles()
@@ -190,7 +208,7 @@ export function TopBar({
       </div>
 
       <nav className="topbar-nav" aria-label={t('shell.nav.label')}>
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const current = item.key === currentItem
           return (
             <button

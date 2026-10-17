@@ -227,3 +227,17 @@ it('072: Atualizar de listas faz o backup depois do snapshot; o botão de backup
     expect(await agent.refresh('backup')).toEqual({ ok: true })
   } finally { db.close() }
 })
+
+// 073/D-008, D-009: o Atualizar de licença envia a cópia do código antes da licença; falha dela não derruba o Atualizar.
+it('Atualizar de licença tenta a cópia do código antes e segue com a licença mesmo se ela falhar', async () => {
+  const { db, ports, calls } = await fixture()
+  try {
+    ports.escrowRecoveryCode = vi.fn(async () => { calls.push('escrow'); throw new PortalRequestError('network_error') })
+    const agent = new PortalAgent(db, ports)
+    stops.push(agent.attach())
+    await advance()
+    expect(await agent.refresh('license')).toEqual({ ok: true })
+    expect(calls).toEqual(['escrow', 'license'])
+    expect(ports.onError).toHaveBeenCalledWith('escrow_failed')
+  } finally { db.close() }
+})

@@ -20,6 +20,25 @@ async def cleanup_licenses(control, device_id):
     control[1].extend([doc.reference.path async for doc in control[0].client.collection("devices").document(device_id).collection("licenseIntents").stream()])
 
 
+async def test_panel_view_of_entitlement_is_read_only_and_concurrent_calls_do_not_contend(control):
+    # 073/R-014: `/session/device` só exibe a licença; não grava geração/teste no dispositivo da TV.
+    service, principal, device, now = await fixture(control)
+    licensing = LicensingService(service.auth, service.crypto, MemoryJournal(environment="test"))
+    try:
+        tokens = await asyncio.gather(*(licensing.entitlement(principal, now, persist=False) for _ in range(4)))
+        claims = [service.crypto.verify(token, issuer=ISSUER, audience=AUDIENCE, device_id=device.device_id) for token in tokens]
+        assert {value["state"] for value in claims} == {"trial"}
+        assert claims[0]["expiresAt"] - claims[0]["startsAt"] == 7 * 86400000
+        row = (await control[0].client.document("devices/" + device.device_id).get()).to_dict()
+        assert row["entitlementGeneration"] == device.entitlement_generation
+        # A TV continua gravando normalmente no seu próprio refresh.
+        persisted = service.crypto.verify(await licensing.entitlement(principal, now), issuer=ISSUER, audience=AUDIENCE,
+                                          device_id=device.device_id)
+        assert persisted["generation"] >= 1
+    finally:
+        await cleanup_licenses(control, device.device_id)
+
+
 async def test_trial_is_immutable_and_entitlement_is_signed_scoped_and_calendar_safe(control):
     service, principal, device, now = await fixture(control)
     licensing = LicensingService(service.auth, service.crypto, MemoryJournal(environment="test"))

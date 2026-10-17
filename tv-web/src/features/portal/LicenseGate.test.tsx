@@ -39,6 +39,37 @@ it('Atualizar libera a licença, fecha o bloqueio e retoma a lista que foi negad
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
+// 073/US1, D-010, D-011: Comprar licença é a ação inicial, abre a tela de Pix (o bloqueio sai, um Modal por vez),
+// Voltar devolve o foco a Comprar e o pagamento aprovado retoma a lista negada.
+it('Comprar licença abre a tela de Pix; Voltar volta com foco em Comprar; aprovado retoma a lista negada', async () => {
+  const charge = { orderId: 'pedido-1', state: 'pending' as const, qrCode: '000201fixture6304ABCD', expiresAt: 1_800_000,
+    serverTime: 0, priceMinor: 3500 as const, termMonths: 12 as const }
+  const purchase = {
+    open: vi.fn(async () => charge),
+    refresh: vi.fn(async () => {
+      fixture.allowed = true
+      for (const listener of fixture.listeners) listener()
+      return { charge: { ...charge, state: 'approved' as const, qrCode: undefined }, licensed: true }
+    }),
+  }
+  const onResume = vi.fn()
+  render(<LicenseGate onStop={vi.fn()} onResume={onResume} purchase={purchase} />)
+  act(() => { for (const listener of fixture.denied) listener('lista-negada') })
+  expect(screen.getByRole('button', { name: 'Comprar licença' })).toHaveClass('tv-focus')
+  expect(purchase.open).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Comprar licença' }))
+  expect(await screen.findByRole('dialog', { name: 'Comprar licença com Pix' })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: 'Licença necessária para abrir a lista' })).not.toBeInTheDocument()
+  fireEvent.click(await screen.findByRole('button', { name: 'Voltar' }))
+  expect(await screen.findByRole('dialog', { name: 'Licença necessária para abrir a lista' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Comprar licença' })).toHaveClass('tv-focus')
+  fireEvent.click(screen.getByRole('button', { name: 'Comprar licença' }))
+  await screen.findByText('000201fixture6304ABCD')
+  fireEvent.click(screen.getByRole('button', { name: 'Atualizar' }))
+  await waitFor(() => expect(onResume).toHaveBeenCalledWith('lista-negada'), { timeout: 3000 })
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
 // US2/AC3: nenhuma compra confirmada mantém o bloqueio, com o estado visível e os botões focáveis
 it('sem compra: o bloqueio permanece, explica e não retoma a entrada', async () => {
   const onResume = open()

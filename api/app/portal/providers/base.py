@@ -17,6 +17,20 @@ class CheckoutPreference:
     checkout_url: str
 
 
+@dataclass(frozen=True, repr=False)
+class PixCharge:
+    """073/D-001: só o necessário para a TV desenhar o QR; nunca o PNG/ticket do provedor."""
+    payment_id: str
+    qr_code: str
+    expires_at: datetime
+
+
+def valid_pix_code(value: object) -> bool:
+    """Copia-e-cola EMV do Pix: começa por "000201", ASCII imprimível, até 1024 caracteres."""
+    return (isinstance(value, str) and value.startswith("000201") and len(value) <= 1024
+            and all(" " <= char <= "~" for char in value))
+
+
 @dataclass(frozen=True)
 class PaymentObservation:
     payment_id: str
@@ -33,5 +47,7 @@ class PaymentObservation:
 
 class PaymentProvider(Protocol):
     async def preference(self, order: OrderDocument) -> CheckoutPreference: ...
+    async def pix(self, order: OrderDocument, *, attempt: int, expires_at: datetime,
+                  payer_email: str) -> PixCharge: ...
     async def payment(self, payment_id: str) -> PaymentObservation: ...
     async def search(self, reference: str, after: str | None = None) -> tuple[list[str], str | None]: ...

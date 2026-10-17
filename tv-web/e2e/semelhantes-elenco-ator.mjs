@@ -461,7 +461,7 @@ async function run() {
     await page.waitForSelector('.settings-screen .sources-panel', { timeout: 8000 })
     await page.keyboard.press('ArrowUp')
     await page.keyboard.press('ArrowRight')
-    for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowRight') // Remover
+    for (let i = 0; i < 2; i += 1) await page.keyboard.press('ArrowRight') // Testar → Editar → Remover (Atualizar vem depois, 077)
     await page.keyboard.press('Enter')
     await page.waitForSelector('[role="dialog"][aria-label="Remover a chave do TMDB?"]', { timeout: 5000 })
     await page.keyboard.press('ArrowRight')

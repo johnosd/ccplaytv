@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "date": "2026-10-16T20:03:29.901Z",
+  "device": {
+    "slug": "desktop-win32-intel-core-i7-10700f-cpu-2-90ghz",
+    "platform": "win32",
+    "cpu": "Intel(R) Core(TM) i7-10700F CPU @ 2.90GHz",
+    "cores": 16,
+    "memoryGb": 32,
+    "browser": "chromium 153.0.8010.12",
+    "runtime": "playwright"
+  },
+  "commit": "2493a13",
+  "dirty": true,
+  "appVersion": "0.0.0",
+  "seed": 1,
+  "cpuThrottle": 1,
+  "results": [
+    {
+      "format": "xmltv",
+      "size": 40877,
+      "status": "ok",
+      "stages": {
+        "fetchMs": 120,
+        "parseMs": 103.8,
+        "classifyMs": null,
+        "storeMs": 2344.1,
+        "totalMs": 2567.9
+      },
+      "realPath": {
+        "status": "ok",
+        "totalMs": 2523.2
+      },
+      "storage": {
+        "before": {
+          "usage": 0,
+          "quota": 6442450944
+        },
+        "after": {
+          "usage": 25489408,
+          "quota": 6467940352
+        }
+      },
+      "counts": {
+        "categories": 204,
+        "items": 40877
+      },
+      "expected": {
+        "categories": 204,
+        "items": 40877
+      },
+      "countsMatch": true
+    }
+  ]
+}

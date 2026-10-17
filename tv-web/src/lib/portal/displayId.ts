@@ -10,6 +10,14 @@ export const DISPLAY_ID_PATTERN = /^[0-9A-F]{2}(?::[0-9A-F]{2}){5}$/
 export const DEVICE_KEY_PATTERN = /^\d{10}$/
 
 /**
+ * Chave agrupada só para ler na tela (`1732049818` → `173 204 9818`, feature 075 D-005). O valor guardado, o QR e
+ * qualquer cópia continuam os 10 dígitos; fora do padrão devolve a entrada como está.
+ */
+export function formatDeviceKey(key: string): string {
+  return DEVICE_KEY_PATTERN.test(key) ? `${key.slice(0, 3)} ${key.slice(3, 6)} ${key.slice(6)}` : key
+}
+
+/**
  * Normaliza um MAC lido da plataforma (`aa-bb-…`, `aabb…`, minúsculas, espaços nas pontas) para o formato exibido.
  * Inválido, ausente, todo zero, broadcast ou multicast → `undefined` (o servidor deriva um ID no mesmo formato).
  */

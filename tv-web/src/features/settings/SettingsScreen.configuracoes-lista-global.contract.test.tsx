@@ -75,7 +75,7 @@ describe('SettingsScreen — contrato da feature 067', () => {
     )
 
     const labels = [...document.querySelectorAll('.side-category-nav-item .side-category-nav-label')].map((node) => node.textContent?.trim())
-    expect(labels).toEqual(['Integrações & BYOK', 'Fontes IPTV', 'Player & reprodução', 'Acessibilidade & sistema', 'Sobre & créditos', 'Portal & licença'])
+    expect(labels).toEqual(['Integrações & BYOK', 'Playlists', 'Player & reprodução', 'Acessibilidade & sistema', 'Sobre & créditos', 'Portal & licença', 'Backup'])
     expect(screen.getByText(/valem para todas as listas/i)).toBeInTheDocument()
 
     for (const name of ['Lista Sala', 'Lista Quarto']) {

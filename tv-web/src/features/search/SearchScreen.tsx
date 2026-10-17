@@ -3,12 +3,11 @@ import { useGlobalSearchResult, type CatalogItemOut } from '../catalog/catalogAp
 import { GLOBAL_SEARCH_MIN_CHARS } from '../../lib/catalog/globalSearch'
 import { normalizeForSearch } from '../../lib/catalog/catalogSearch'
 import type { SearchSnapshot } from './searchSnapshot'
-import type { TopbarItem, TopDestination } from '../../navigation/appNav'
+import type { TopbarDestination, TopbarItem } from '../../navigation/appNav'
 import { useIdFocus } from '../../lib/focus/useIdFocus'
 import { useRemoteNav } from '../../lib/useRemoteNav'
-import { AppShell } from '../shell/AppShell'
+import { AppShell, type HintItem } from '../../components/AppShell'
 import { TopBar } from '../shell/TopBar'
-import type { HintItem } from '../shell/HintBar'
 import { TextField } from '../../components/TextField'
 import { ComingSoon } from '../../components/ComingSoon'
 import { ContentCard } from '../../components/ContentCard'
@@ -23,7 +22,7 @@ import type { Translator } from '../../lib/i18n/translate'
 export interface SearchShellProps {
   sourceName: string
   onGoHome: () => void
-  onSwitchTop: (destination: TopDestination) => void
+  onSwitchTop: (destination: TopbarDestination) => void
   onOpenProfiles: () => void
   onOpenSettings: () => void
 }
@@ -325,6 +324,7 @@ export function SearchScreen({ sourceId, shell, restore, onOpenItem, onOpenChann
               onFocusItem={setTopbarItem}
               onExitDown={() => setZone('content')}
               onNavigate={(destination) => shell.onSwitchTop(destination)}
+              onOpenRadio={() => shell.onSwitchTop('radio')}
               onGoHome={shell.onGoHome}
               onOpenProfiles={shell.onOpenProfiles}
               onOpenSettings={shell.onOpenSettings}

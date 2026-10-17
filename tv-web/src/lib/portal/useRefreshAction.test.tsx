@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { refreshPortal } from './portalRuntime'
-import { REFRESH_PAUSE_MS, useRefreshAction } from './useRefreshAction'
+import { licenseFingerprint, REFRESH_PAUSE_MS, refreshMessageKey, useRefreshAction } from './useRefreshAction'
 
 vi.mock('./portalRuntime', () => ({ refreshPortal: vi.fn() }))
 beforeEach(() => { vi.useFakeTimers() })
@@ -40,4 +40,14 @@ it('pausa de 10 s: o segundo aperto não consulta; offline e erro com código ap
   vi.mocked(refreshPortal).mockResolvedValueOnce({ ok: true })
   await act(async () => { await result.current.run() })
   expect(result.current.status).toBe('nothing')
+})
+
+// 073/T034: cada Atualizar traz um JWS novo (horário do servidor); só situação/validade contam como mudança.
+it('licença: JWS reassinado com a mesma situação e validade não conta como atualizada', () => {
+  const jws = (claims: object) => 'h.' + btoa(JSON.stringify(claims)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '') + '.s'
+  const trial = { state: 'trial', expiresAt: 1_000, serverTime: 1 }
+  expect(licenseFingerprint(jws(trial))).toBe(licenseFingerprint(jws({ ...trial, serverTime: 2 })))
+  expect(licenseFingerprint(jws(trial))).not.toBe(licenseFingerprint(jws({ ...trial, state: 'active', expiresAt: 9_000 })))
+  expect(licenseFingerprint('malformado')).toBe('malformado')
+  expect(refreshMessageKey('nothing', 'license')).toBe('portal.refresh.licenseNothing')
 })

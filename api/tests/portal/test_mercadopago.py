@@ -58,6 +58,40 @@ async def test_authenticated_lookup_returns_allowlist_without_card_payer_or_prov
             await provider.payment("https://private.invalid")
 
 
+async def test_pix_sends_fixed_offer_idempotency_and_synthetic_payer_and_keeps_only_copy_paste():
+    # 073/D-001, D-003, D-013: valor fixo, chave de idempotência por tentativa, nada de PNG/ticket guardado.
+    import json
+    calls = []
+    qr = "00020126580014br.gov.bcb.pix0136fixture-chave6304ABCD"
+    value = {"id": 987, "status": "pending", "external_reference": "order-fixture", "transaction_amount": 35,
+             "date_of_expiration": "2026-10-15T12:30:00.000-03:00",
+             "point_of_interaction": {"transaction_data": {"qr_code": qr, "qr_code_base64": "fake-private-png",
+                                                            "ticket_url": "https://fake-private.invalid"}}}
+    def transport(request):
+        calls.append((dict(request.headers), json.loads(request.content)))
+        return httpx.Response(201, json=value)
+    expires = datetime(2026, 10, 15, 15, 30, tzinfo=UTC)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
+        provider = MercadoPagoProvider(SecretStr("fake-private-access-token"), "https://portal.fixture.test", live_mode=False, client=client)
+        charge = await provider.pix(order(), attempt=1, expires_at=expires, payer_email="tv-abc@pagamentos.fixture.test")
+        assert (charge.payment_id, charge.qr_code, charge.expires_at) == ("987", qr, expires)
+        assert "fake-private" not in repr(charge)
+        headers, body = calls[0]
+        assert body["transaction_amount"] == 35 and body["payment_method_id"] == "pix"
+        assert body["external_reference"] == "order-fixture" and body["payer"] == {"email": "tv-abc@pagamentos.fixture.test"}
+        assert "tv-fixture" not in json.dumps(body)
+        first_key = headers["x-idempotency-key"]
+        await provider.pix(order(), attempt=2, expires_at=expires, payer_email="tv-abc@pagamentos.fixture.test")
+        assert calls[1][0]["x-idempotency-key"] != first_key
+        for changes in ({"transaction_amount": 1}, {"external_reference": "other"}, {"status": "approved"},
+                        {"point_of_interaction": {"transaction_data": {"qr_code": "https://evil.invalid"}}}):
+            value.update(changes)
+            with pytest.raises(PaymentProviderError):
+                await provider.pix(order(), attempt=3, expires_at=expires, payer_email="tv-abc@pagamentos.fixture.test")
+            value.update({"transaction_amount": 35, "external_reference": "order-fixture", "status": "pending",
+                          "point_of_interaction": {"transaction_data": {"qr_code": qr}}})
+
+
 async def test_provider_network_errors_redirects_and_invalid_amount_are_sanitized():
     def transport(_request):
         raise httpx.ConnectError("https://private.invalid?token=fake-private")

@@ -1,0 +1,9 @@
+{
+  "authorCertSha256": null,
+  "issuer": null,
+  "backup": {
+    "location": null,
+    "verifiedAt": null,
+    "by": null
+  }
+}

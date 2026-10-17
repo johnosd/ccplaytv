@@ -23,7 +23,8 @@ import { useFavoriteToggle } from '../favorites/useFavoriteToggle'
 import { useToast } from '../../lib/useToast'
 import { useT } from '../../lib/i18n/I18nProvider'
 import { Toast } from '../../components/Toast'
-import type { Translator } from '../../lib/i18n/translate'
+import { Spinner } from '../../components/Spinner'
+import { EmptyState } from '../../components/EmptyState'
 import { RatingBadge } from '../../components/RatingBadge'
 import { ContentRatingBadge } from '../../components/ContentRatingBadge'
 import { TmdbRatingBadge } from '../../components/TmdbRatingBadge'
@@ -43,11 +44,12 @@ import {
   HOME_DEFERRED_MS,
   HOME_PEEK_HEIGHT,
   HOME_ROW_FORMATS,
-  FOCUS_PAD,
   type HomeRowFormat,
 } from './homeRowFormats'
 import { HOME_ROW_ORDER, buildHomeRows, type HomeRowKey } from './homeRows'
 import { useDeferred } from './useDeferred'
+import { useHomeAssembly } from './useHomeAssembly'
+import { channelRailId, heroEntries, myListRailId, rowStyle, type ChannelRailItem, type MyListRailItem } from './homeContentModel'
 
 /** Foco de origem que o Início sabe restaurar dentro do conteúdo (a topbar é do `HomeScreen`). */
 export type HomeContentFocus = Exclude<HomeFocus, { zone: 'topbar' }>
@@ -82,6 +84,8 @@ export interface HomeContentProps {
    * `null` = a camada ainda não existe, nada é desenhado até ela chegar.
    */
   ambientHost?: HTMLElement | null
+  /** Feature 079 (FR-009): muda quando a pessoa fecha o player — o que a releitura trouxer entra na posição. */
+  userActionKey?: number
 }
 
 /** Linhas navegáveis, de cima para baixo (D-017): as ações do billboard e as fileiras. */
@@ -90,53 +94,6 @@ const ALL_LINES: LineKey[] = ['hero', ...HOME_ROW_ORDER]
 
 /** Sem imagens além das da listagem e da metadata (as que vinham do Top 10/Dica saíram com essas fileiras). */
 const EMPTY_IMAGES: ReadonlyMap<string, string> = new Map()
-
-const SEE_ALL_ID = '__see-all__'
-const MOVIES_ID = '__movies__'
-const SERIES_ID = '__series__'
-
-type MyListRailItem = { kind: 'item'; item: CatalogItemOut } | { kind: 'movies'; count: number } | { kind: 'series'; count: number }
-type ChannelRailItem = { kind: 'channel'; item: CatalogItemOut } | { kind: 'see-all'; count: number }
-
-function myListRailId(entry: MyListRailItem): string {
-  if (entry.kind === 'item') return entry.item.id
-  return entry.kind === 'movies' ? MOVIES_ID : SERIES_ID
-}
-
-function channelRailId(entry: ChannelRailItem): string {
-  return entry.kind === 'channel' ? entry.item.id : SEE_ALL_ID
-}
-
-type HeroEntry = BillboardAction
-
-/** Ações do billboard: a primária e "Minha Lista" ("Mais informações" e Trailer saíram no ad-hoc de 2026-10-09). */
-function heroEntries(hero: ReturnType<typeof useHomeHero>['data'], isFavorite: boolean, t: Translator): HeroEntry[] {
-  if (!hero || hero.kind === 'welcome') {
-    return [
-      { id: 'shortcut-live', label: t('home.shortcut.live') },
-      { id: 'shortcut-movies', label: t('home.shortcut.movies') },
-    ]
-  }
-  const primaryLabel = hero.primary.type === 'open-detail' || !hero.primary.resume ? t('home.hero.watch') : t('home.hero.continue')
-  return [
-    { id: 'primary', label: primaryLabel },
-    { id: 'mylist', label: isFavorite ? t('home.hero.inMyList') : t('home.hero.addMyList') },
-  ]
-}
-
-/** Medidas de uma fileira como variáveis CSS: o CSS nunca repete px (FR-024, `homeRowFormats.ts`). */
-function rowStyle(format: HomeRowFormat): CSSProperties {
-  const m = HOME_ROW_FORMATS[format]
-  return {
-    '--home-card-w': `${m.cardWidth}px`,
-    '--home-card-h': `${m.cardHeight}px`,
-    '--home-card-expanded-w': `${m.expandedCardWidth}px`,
-    '--home-card-expanded-h': `${m.expandedCardHeight}px`,
-    '--home-focus-pad': `${FOCUS_PAD}px`,
-    '--home-numeral-w': `${m.numeralWidth}px`,
-    '--home-numeral-overlap': `${m.numeralOverlap}px`,
-  } as CSSProperties
-}
 
 /**
  * Conteúdo do Início "Vitrine expandida" (feature 060, `logic/billboard-e-navegacao.md`): um billboard de um título que
@@ -158,15 +115,43 @@ export function HomeContent({
   initialFocus,
   statusLine,
   ambientHost,
+  userActionKey,
 }: HomeContentProps): ReactNode {
   const heroQuery = useHomeHero(sourceId)
-  const hero = heroQuery.data ?? { kind: 'welcome' as const }
   const continueQuery = useContinueCards(sourceId)
   const myListQuery = useMyListContent(sourceId)
   const channelsQuery = useFavoritesContent(sourceId, 'channel', true)
+  // Feature 079 (D-010): "adicionados" entram na espera da montagem — não são mais adiados para depois do 1º desenho.
+  const addedMoviesQuery = useRecentlyAdded(sourceId, 'movie')
+  const addedSeriesQuery = useRecentlyAdded(sourceId, 'series')
   const t = useT()
   const { toastMessage, toastKey, showToast } = useToast()
   const favoriteToggle = useFavoriteToggle(showToast)
+
+  const continueCards = useMemo(() => continueQuery.data ?? [], [continueQuery.data])
+  const continueItems = useMemo(() => continueCards.map((card) => card.item), [continueCards])
+  const continueCardOf = useMemo(() => new Map(continueCards.map((card) => [card.item.id, card])), [continueCards])
+  const addedMovies = addedMoviesQuery.data ?? []
+  const addedSeries = addedSeriesQuery.data ?? []
+
+  // Imagens 16:9 já no aparelho: listagem → cache de metadata → o que veio com as respostas do TMDB (FR-021). São dezenas de
+  // itens: montar a lista e o mapa a cada render custa menos que manter memos com dependências instáveis.
+  const allItems: CatalogItemOut[] = []
+  if (heroQuery.data && heroQuery.data.kind !== 'welcome') allItems.push(heroQuery.data.item)
+  allItems.push(...continueItems, ...addedMovies, ...addedSeries, ...(myListQuery.data?.items ?? []))
+  const images = useHomeImages(allItems, EMPTY_IMAGES)
+
+  // Feature 079 (`logic/montagem-de-tela.md`): nada aparece até o billboard, as fileiras e as capas da primeira tela
+  // estarem prontos (ou o teto de 2 s); o hero que chega depois do teto não troca o billboard (modo neutro).
+  const assembly = useHomeAssembly(
+    { hero: heroQuery, channels: channelsQuery, continue: continueQuery, mylist: myListQuery, addedMovies: addedMoviesQuery, addedSeries: addedSeriesQuery },
+    images,
+    userActionKey,
+  )
+  const waiting = assembly.phase === 'waiting'
+  const heroData = assembly.isShown('hero') ? heroQuery.data : undefined
+  const hero = heroData ?? { kind: 'welcome' as const }
+  const neutralHero = heroData === undefined
   const heroItem = hero.kind !== 'welcome' ? hero.item : null
   const heroStableId = heroItem ? stableIdOf(heroItem) : null
   const heroUserState = useUserState(heroStableId)
@@ -177,10 +162,6 @@ export function HomeContent({
   const metadataQuery = useTitleMetadata(heroItem?.id ?? null)
   const heroMetadata = metadataQuery.data
 
-  const continueCards = useMemo(() => continueQuery.data ?? [], [continueQuery.data])
-  const continueItems = useMemo(() => continueCards.map((card) => card.item), [continueCards])
-  const continueCardOf = useMemo(() => new Map(continueCards.map((card) => [card.item.id, card])), [continueCards])
-
   // Selos dos cards (FR-008): assistido e favorito saem de UMA leitura local por tipo, nunca de uma consulta por card. O resumo
   // de séries em dia lê os episódios do aparelho; fica para depois do 1º desenho (D-013).
   const deferred = useDeferred(HOME_DEFERRED_MS)
@@ -189,35 +170,29 @@ export function HomeContent({
   const favoriteSeriesIds = useFavoriteIds(sourceId, 'series').data
   const seriesSummary = useSeriesWatchedSummary(deferred ? sourceId : null).data
 
-  // "Adicionados" lê o índice de busca inteiro de cada tipo: só depois do 1º desenho (feature 060, D-013, R-001).
-  const addedMoviesQuery = useRecentlyAdded(sourceId, 'movie', deferred)
-  const addedSeriesQuery = useRecentlyAdded(sourceId, 'series', deferred)
   const myListContent = myListQuery.data ?? { items: [], movieCount: 0, seriesCount: 0 }
   const channelsContent = channelsQuery.data ?? { items: [], unresolved: 0 }
   const epgNow = useNow()
 
-  const mylistRailItems: MyListRailItem[] = [
-    ...myListContent.items.map((item): MyListRailItem => ({ kind: 'item', item })),
+  const mylistRailItems: MyListRailItem<CatalogItemOut>[] = [
+    ...myListContent.items.map((item): MyListRailItem<CatalogItemOut> => ({ kind: 'item', item })),
     ...(myListContent.movieCount > 0 ? [{ kind: 'movies' as const, count: myListContent.movieCount }] : []),
     ...(myListContent.seriesCount > 0 ? [{ kind: 'series' as const, count: myListContent.seriesCount }] : []),
   ]
-  const channelRailItems: ChannelRailItem[] = [
+  const channelRailItems: ChannelRailItem<CatalogItemOut>[] = [
     // Só os ícones que cabem na tela; o resto fica a um "Ver todos (N)" da categoria Favoritos da TV ao vivo.
-    ...channelsContent.items.slice(0, HOME_CHANNELS_VISIBLE).map((item): ChannelRailItem => ({ kind: 'channel', item })),
+    ...channelsContent.items.slice(0, HOME_CHANNELS_VISIBLE).map((item): ChannelRailItem<CatalogItemOut> => ({ kind: 'channel', item })),
     ...(channelsContent.items.length > 0 ? [{ kind: 'see-all' as const, count: channelsContent.items.length }] : []),
   ]
 
-  const addedMovies = addedMoviesQuery.data ?? []
-  const addedSeries = addedSeriesQuery.data ?? []
-
-  // Fileira sem dado — ou ainda carregando — não existe (FR-018): sem skeleton, sem "Em breve".
+  // Fileira sem dado não existe (FR-018): sem skeleton, sem "Em breve"; e só aparece o que a montagem já mostrou (079).
   const rowKeys = buildHomeRows({
     channels: channelRailItems.length > 0,
     continue: continueItems.length > 0,
     mylist: mylistRailItems.length > 0,
     'added-movies': addedMovies.length > 0,
     'added-series': addedSeries.length > 0,
-  })
+  }).filter((key) => assembly.isShown(key))
   const lines: LineKey[] = ['hero', ...rowKeys]
 
   // Um foco antigo numa fileira que não existe mais (Top 10, Dica…) cai no billboard, nunca em nada.
@@ -241,7 +216,7 @@ export function HomeContent({
       : initialFocus?.zone === 'shortcuts'
         ? `shortcut-${initialFocus.destination}`
         : null
-  const heroActions = heroEntries(heroQuery.data, heroIsFavorite, t)
+  const heroActions = heroEntries(heroData, heroIsFavorite, t)
   const heroFocus = useIdFocus(heroActions, heroInitialId)
 
   const continueInitialId =
@@ -307,7 +282,9 @@ export function HomeContent({
       onPlay({ itemId: hero.primary.itemId, title: hero.primary.title, startAtMs: hero.primary.startAtMs })
       return
     }
-    if (action.id === 'mylist') void favoriteToggle.toggle(hero.item)
+    if (action.id !== 'mylist') return
+    void favoriteToggle.toggle(hero.item)
+    assembly.follow() // "Minha Lista" pode passar a existir: é consequência da ação da pessoa (079, FR-009)
   }
 
   function handleSelect() {
@@ -344,6 +321,11 @@ export function HomeContent({
     active
       ? {
           onDirection: (direction) => {
+            // Montando (079): só "Voltar" está na tela — ↑ leva à topbar, o resto não mexe em foco que ainda não aparece.
+            if (waiting) {
+              if (direction === 'up') onExitUp?.()
+              return
+            }
             if (direction === 'up' || direction === 'down') {
               moveLine(direction)
               return
@@ -354,7 +336,7 @@ export function HomeContent({
             else if (effectiveLine === 'channels') channelsFocus.moveTo(channelsFocus.index + delta)
             else titleRows[effectiveLine as HomeRowKey]?.focus.moveTo((titleRows[effectiveLine as HomeRowKey]?.focus.index ?? 0) + delta)
           },
-          onSelect: handleSelect,
+          onSelect: waiting ? () => (assembly.showLoading ? onBack() : undefined) : handleSelect,
           onBack,
         }
       : {},
@@ -388,7 +370,7 @@ export function HomeContent({
         })
       }
     }
-  }, [mode, effectiveLine, rowsKey, line])
+  }, [mode, effectiveLine, rowsKey, line, waiting])
 
   // --- Fundo ambiente: o do billboard na hora; o do card focado só depois de parar (seta segurada não faz piscar) ---
   const focusedRowItem: CatalogItemOut | null = (() => {
@@ -408,13 +390,6 @@ export function HomeContent({
   }, [mode, focusedRowItem])
   const ambientItem = mode === 'billboard' ? heroItem : (settledItem ?? heroItem)
 
-  // Imagens 16:9 já no aparelho: listagem → cache de metadata → o que veio com as respostas do TMDB (FR-021). São dezenas de
-  // itens: montar a lista e o mapa a cada render custa menos que manter memos com dependências instáveis.
-  const allItems: CatalogItemOut[] = []
-  if (heroItem) allItems.push(heroItem)
-  for (const row of Object.values(titleRows)) allItems.push(...row.items)
-  for (const entry of mylistRailItems) if (entry.kind === 'item') allItems.push(entry.item)
-  const images = useHomeImages(allItems, EMPTY_IMAGES)
   const ambientImage =
     ambientItem === null
       ? undefined
@@ -591,6 +566,21 @@ export function HomeContent({
     )
   }
 
+  // Montando (079, `logic/montagem-de-tela.md` §6): nada de billboard, boas-vindas ou fileira; o "Carregando" só depois de
+  // 300 ms. A raiz `.home-content` existe sempre (os roteiros E2E esperam por ela).
+  if (waiting) {
+    return (
+      <div ref={contentRef} className="home-content home-content--assembling no-scrollbar" aria-busy="true">
+        {assembly.showLoading && (
+          <div className="home-loading">
+            <Spinner size={48} />
+            <EmptyState title={t('common.loading')} action={{ label: t('common.back'), onSelect: onBack }} focused={active} />
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div
       ref={contentRef}
@@ -604,10 +594,11 @@ export function HomeContent({
       <div ref={stageRef} className="home-stage">
         <HomeBillboard
           state={mode === 'billboard' ? 'expanded' : 'collapsed'}
-          ariaLabel={heroItem ? heroItem.name : t('home.welcome.aria')}
+          // Modo neutro (079, FR-011): o hero passou do teto — atalhos, sem afirmar que não há favoritos nem histórico.
+          ariaLabel={heroItem ? heroItem.name : t(neutralHero ? 'home.hero.neutralTitle' : 'home.welcome.aria')}
           eyebrow={eyebrow}
-          title={heroItem ? heroItem.name : t('home.welcome.title')}
-          description={heroItem ? undefined : t('home.welcome.description')}
+          title={heroItem ? heroItem.name : t(neutralHero ? 'home.hero.neutralTitle' : 'home.welcome.title')}
+          description={heroItem || neutralHero ? undefined : t('home.welcome.description')}
           meta={
             heroItem && (
               <div className="home-hero-meta">

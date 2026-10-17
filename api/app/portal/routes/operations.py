@@ -14,6 +14,7 @@ from app.portal.configurations import ConfigurationService, operation_view, requ
 from app.portal.device_uploads import DeviceSourceUploads
 from app.portal.models import (
     ImportSnapshotDocument,
+    IntegrationsSnapshotDocument,
     OperationDocument,
     SnapshotDocument,
     SourceRevisionDocument,
@@ -54,6 +55,8 @@ class AckInput(Input):
 
 class SnapshotInput(Input):
     capturedAt: AwareDatetime
+    # 077: o que a TV informa sobre integrações (opcional: TV antiga não manda).
+    integrations: IntegrationsSnapshotDocument | None = None
     sources: list[SourceSnapshotDocument] = Field(max_length=50)
     revisions: list[SourceRevisionDocument] = Field(max_length=50)
     imports: list[ImportSnapshotDocument] = Field(max_length=50)
@@ -276,7 +279,7 @@ async def publish_snapshot(request: Request):
         raise AuthError("invalid_input", 422)
     snapshot = SnapshotDocument(auth_epoch=principal.auth_epoch, recovery_epoch=principal.recovery_epoch,
         captured_at=body.capturedAt, received_at=now, snapshot_revision=0,
-        sources=body.sources, revisions=body.revisions, imports=body.imports)
+        sources=body.sources, revisions=body.revisions, imports=body.imports, integrations=body.integrations)
     saved = await (await configurations(request)).save_snapshot(principal, snapshot)
     return {"snapshotRevision": saved.snapshot_revision}
 

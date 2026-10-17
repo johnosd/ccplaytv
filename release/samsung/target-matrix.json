@@ -1,0 +1,12 @@
+[
+  {
+    "country": "BR",
+    "model": "QN50Q60DAGXZD",
+    "firmware": "Tizen 8.0 (firmware específico não exposto pelo sdb)",
+    "environment": "tv",
+    "evidence": "release/samsung/evidence/tv-2026-10-17-base.json",
+    "date": "2026-10-17",
+    "state": "allowed",
+    "limitations": "Aceite visual confirmado pelo usuário; reprodução e desempenho referem-se ao aparelho observado."
+  }
+]

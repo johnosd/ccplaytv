@@ -1,4 +1,68 @@
 <!--
+Relatório de Impacto de Sincronização (2026-10-16, ADR-020, feature 077)
+- Mudança de versão: 1.14.1 -> 1.15.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs", nova exceção (j)).
+- Origem: o redesenho do portal (feature 077) leva a chave TMDB BYOK da pessoa a
+  poder ser digitada no portal; o usuário escolheu "Enviar pela TV via serviço"
+  na entrevista da spec. Sem emenda, o caminho navegador -> serviço -> TV seria
+  violação (R-001). ADR-020, aceita pelo usuário após revisar o texto.
+- Exceção delimitada: a chave TMDB BYOK da própria pessoa PODE ser enviada pelo
+  navegador autenticado ao serviço, ficar cifrada (uma pendente por TV, no máximo
+  7 dias) e ser entregue só à mesma TV, que a aplica no Atualizar e responde
+  applied|rejected|retry. O navegador só envia: nunca a recebe de volta.
+- Continuam proibidos: chave do desenvolvedor ou compartilhada em qualquer
+  cliente; chave em URL, Referer, log, erro, analytics, cache, armazenamento do
+  navegador, DOM depois do envio, checkout ou exportação; OpenAI BYOK não herda
+  esta exceção.
+- Risco aceito pelo usuário: chave de conta própria (gratuita, revogável no TMDB)
+  fica no serviço, cifrada, até ser aplicada/cancelada/expirar; a TV aplica sem
+  confirmar com a pessoa na TV (só depois do teste no TMDB).
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
+Relatório de Impacto de Sincronização (2026-10-16, feature 076)
+- Mudança de versão: 1.14.0 -> 1.14.1 (PATCH, esclarecimento de texto).
+- Origem: simplificação de Portal & licença (feature 076): o "código da licença"
+  passa a se chamar "código de recuperação" (nunca foi licença comprada) e o olho
+  sai da tela principal para a subtela Avançado da mesma aba.
+- Nenhuma regra é enfraquecida: oculto por padrão, SELECT no olho sem modal e sem
+  prazo, reoculto ao sair/segundo plano/regenerar, nunca em cards/URL/logs/QR.
+  "Na própria tela" do item (f) passa a valer para a subtela Avançado da aba.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
+Relatório de Impacto de Sincronização (2026-10-16, ADR-019)
+- Mudança de versão: 1.13.0 -> 1.14.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs", item (f)).
+- Origem: pedido explícito do usuário de simplificar Portal & licença
+  (sdd-adhoc redirecionado para sdd-adr), após aviso de risco; ADR-019.
+- Exceção delimitada: em Portal & licença, QR fixo, ID e chave à vista sem
+  ação; código da licença oculto por padrão, revelado por SELECT num olho na
+  própria tela, sem prazo, reocultado ao sair, em segundo plano ou ao regenerar.
+- Continuam proibidos: cards, perfis, avisos, histórico, erros, diagnóstico,
+  logs, URL ao servidor, analytics, checkout, exportação; código fora do QR.
+- Risco aceito pelo usuário: foto/captura de mais uma tela com chave/QR;
+  código revelado sem limite de tempo enquanto a tela estiver aberta.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
+Relatório de Impacto de Sincronização (2026-10-15, feature 073)
+- Mudança de versão: 1.12.0 -> 1.13.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs").
+- Origem: decisão explícita do usuário no sdd-specify/sdd-plan/sdd-execute da
+  feature 073 (compra de licença por Pix na TV e código de recuperação no
+  portal), após aviso de risco; nota 073 na ADR-013.
+- Exceção delimitada (i): por ação da pessoa (Atualizar), a TV PODE enviar ao
+  serviço o código de recuperação que já guarda, só no corpo HTTPS; o serviço
+  confere o HMAC, guarda cópia cifrada e a revela só à sessão autenticada da
+  mesma TV, por ação explícita, em resposta não armazenável em cache.
+- Continuam proibidos: URL, logs, erros, cache, analytics, checkout,
+  exportação pública, outra TV/sessão e terceiros.
+- Risco aceito pelo usuário: quem tiver a chave do dispositivo (sempre visível
+  em Adicionar lista e no bloqueio) consegue abrir o portal e ler o código.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
 Relatório de Impacto de Sincronização (2026-10-14, feature 072)
 - Mudança de versão: 1.11.0 -> 1.12.0 (MINOR, expansão delimitada de "Segredos
   Fora dos Clientes e dos Logs").
@@ -137,6 +201,15 @@ Histórico:
 - 1.12.0 (2026-10-14): backup dos dados de uso, PIN em hash e chave TMDB
   cifrados no serviço só para a mesma TV, e código de recuperação guardado para
   a reassociação após desvincular (feature 072/ADR-017).
+- 1.13.0 (2026-10-15): cópia cifrada do código de recuperação no serviço,
+  enviada pela TV por ação da pessoa e revelada só ao painel da mesma TV por ação
+  explícita (feature 073).
+- 1.14.0 (2026-10-16): QR fixo, ID e chave à vista em Portal & licença; código da
+  licença oculto por padrão atrás de mostrar/ocultar na própria tela (ADR-019).
+- 1.14.1 (2026-10-16): "código da licença" passa a "código de recuperação"; o olho
+  vai para a subtela Avançado (feature 076).
+- 1.15.0 (2026-10-16): chave TMDB BYOK digitada no portal, cifrada no serviço e
+  aplicada pela TV no Atualizar (feature 077/ADR-020).
 -->
 
 # Constitution do CCPlay TV
@@ -220,12 +293,13 @@ cópias antigas expiram conforme retenção informada.
 
 Convite QR aleatório, efêmero e de uso único PODE estar no fragmento da URL,
 removido antes da primeira requisição e trocado no corpo HTTPS; NÃO PODE
-conter device key permanente, código da licença ou credenciais IPTV.
-Device key e código da licença para recuperação PODEM ser revelados somente
+conter device key permanente, código de recuperação ou credenciais IPTV.
+Device key e código de recuperação PODEM ser revelados somente
 por ação explícita na superfície protegida da TV/portal autorizado, para
 digitação/guarda/fotografia escolhida pelo usuário, nunca em cards comuns,
 URL de navegação, logs, erros, analytics, checkout ou exportação pública.
-Código da licença é credencial de recuperação, não identificador público;
+Código de recuperação (chamado "código da licença" até a feature 076; nunca foi
+uma licença comprada) é credencial de recuperação, não identificador público;
 reuso/revogação/tentativas DEVEM ser controlados. Não alegar DRM inviolável.
 
 **Exceção de pareamento estilo gerenciador (2026-10-13, feature 070/ADR-014)**,
@@ -264,6 +338,15 @@ consumi-la no navegador e removê-la do endereço/histórico antes de renderizar
 pessoa precisa dela para comprar. Fora de Adicionar lista e do bloqueio, continua
 só por ação explícita em Portal & licença; nunca em cards, perfis, avisos,
 histórico, erros ou diagnóstico.
+**Emenda (2026-10-16, ADR-019)**: em **Portal & licença**, o QR fixo, o ID e a
+chave PODEM ficar à vista ao abrir a tela, sem ação explícita. O código de
+recuperação DEVE começar oculto a cada abertura e só aparecer por SELECT num
+controle de mostrar/ocultar na própria aba (sem modal de aviso e sem prazo; desde
+a feature 076, dentro da subtela Avançado e nunca na tela principal); DEVE voltar
+a ficar oculto ao sair da subtela ou da tela, com a página em segundo plano
+(`visibilitychange`/`pagehide`) e ao ser regenerado; focar o controle NÃO PODE
+revelá-lo. As demais proibições deste item e do parágrafo do código de
+recuperação continuam.
 Limite de tentativa por ID/origem/global e recusa uniforme (item (a)) continuam.
 
 **Exceção de backup de uso e reassociação (2026-10-14, feature 072/ADR-017)**,
@@ -282,6 +365,40 @@ backup. A chave TMDB continua nunca exibida, logada ou enviada a terceiro.
 guardava, exclusivamente para se reassociar ao mesmo registro; ele vai só no
 corpo HTTPS, é de uso único (o serviço emite outro) e é apagado da TV ao concluir.
 Limites de tentativa e recusa uniforme da recuperação (069) continuam valendo.
+
+**Exceção de cópia do código de recuperação (2026-10-15, feature 073)**,
+decisão explícita do usuário com risco aceito, amplia o parágrafo do código da
+licença acima:
+(i) **somente por ação da pessoa** (botão Atualizar), a TV PODE enviar ao serviço
+o código de recuperação que já guarda, exclusivamente no corpo HTTPS. O serviço
+DEVE conferir o HMAC e a versão contra o registro do dispositivo antes de aceitar,
+guardar só uma cópia cifrada em repouso e revelá-la apenas à sessão autenticada
+do painel da **mesma TV**, por ação explícita, em requisição protegida contra
+CSRF, com limite de tentativas e resposta não armazenável em cache. Cópia cujo
+HMAC não é o do código corrente NÃO PODE ser revelada. O código continua proibido
+em URL, logs, erros, cache, analytics, checkout, journal, exportação pública,
+outra TV/sessão e terceiros.
+
+**Exceção de chave TMDB pelo portal (2026-10-16, feature 077/ADR-020)**,
+decisão explícita do usuário com risco aceito, amplia o item (g) e a "Exceção
+remota restrita" no sentido navegador -> serviço:
+(j) a chave TMDB BYOK **da própria pessoa** PODE ser digitada no portal
+autenticado da TV dela e enviada, exclusivamente no corpo HTTPS, ao serviço. O
+serviço DEVE cifrá-la em repouso (contexto próprio por TV e por operação), manter
+**uma só operação pendente por TV**, NÃO PODE logá-la, e a entrega **somente** à
+sessão autenticada da **mesma TV**, que a busca apenas no **Atualizar** da pessoa
+(sem consulta automática, ADR-016). A TV DEVE validar o formato, testar a chave no
+TMDB e só então substituir a existente; responde apenas `applied`, `rejected` ou
+`retry` com motivo de lista fechada, **nunca** a chave, trecho dela ou texto livre
+de erro. O serviço DEVE apagar o envelope ao aplicar, recusar, cancelar,
+substituir, expirar (no máximo 7 dias) ou apagar o aparelho, e sujeitar a
+operação ao mesmo limite de tentativas e à mesma recusa uniforme das demais
+configurações. O navegador SÓ envia: NENHUMA resposta lhe devolve a chave (editar
+= enviar outra); o campo DEVE ser oculto por padrão e limpo após o envio. A chave
+NÃO PODE estar em URL, `Referer`, log, erro, analytics, cache, armazenamento do
+navegador, DOM depois do envio, checkout ou exportação pública. Chave do
+desenvolvedor ou compartilhada continua proibida em qualquer cliente; esta
+exceção NÃO se estende à chave OpenAI, que exigiria ADR própria.
 
 ### Categorias da Fonte São Preservadas
 
@@ -539,4 +656,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.12.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-14
+**Versão**: 1.15.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-16

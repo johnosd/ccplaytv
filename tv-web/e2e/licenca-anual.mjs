@@ -18,7 +18,7 @@ function token() {
   return input + '.' + sign('sha256', Buffer.from(input), { key: privateKey, dsaEncoding: 'ieee-p1363' }).toString('base64url')
 }
 const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--mode', 'commercial', '--host', '127.0.0.1', '--port', '5176', '--strictPort'], {
-  env: { ...process.env, VITE_PORTAL_ORIGIN: origin, VITE_LICENSE_PUBLIC_KEYS: JSON.stringify({ fixture: publicKey.export({ format: 'jwk' }) }) }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+  env: { ...process.env, NO_COLOR: '1', VITE_PORTAL_ORIGIN: origin, VITE_LICENSE_PUBLIC_KEYS: JSON.stringify({ fixture: publicKey.export({ format: 'jwk' }) }) }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
 })
 const body = (await readFile(new URL('./fixtures/ciclo-vida-player.m3u', import.meta.url), 'utf8')).replaceAll('http://ciclo-fictício.test', 'https://media.fixture.test')
 const server = createServer((request, response) => { response.writeHead(200, { 'Content-Type': 'audio/x-mpegurl', 'Access-Control-Allow-Origin': '*' }); response.end(body) })
@@ -61,7 +61,7 @@ try {
   await expect(page.getByText('Licença: Período de teste', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Atualizar', exact: true }).click()
   await expect.poll(async () => (await cache())?.generation, { timeout: 15000 }).toBeGreaterThan(0)
-  await page.getByRole('button', { name: 'Gerar QR para o portal', exact: true }).click()
+  // 075: o QR fixo já está à vista, sem nenhuma ação.
   await expect(page.getByRole('img', { name: /QR de acesso ao portal/ })).toBeVisible()
   // Provedor confirma mesmo com o navegador da compra fechado; a pessoa aperta Atualizar (a pausa de 10 s vale).
   state = 'active'; expiresAt = Date.now() + 365 * 86400000

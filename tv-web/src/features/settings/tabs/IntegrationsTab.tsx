@@ -8,6 +8,7 @@ import { useRemoveTmdbKey, useTestTmdbKey, useTmdbStatus } from '../../catalog/c
 import { IntegrationsPanel } from '../IntegrationsPanel'
 import { RemoveTmdbKeyModal } from '../RemoveTmdbKeyModal'
 import { INTEGRATION_SOON_CARDS, INTEGRATIONS_ROW_COUNT, SPEED_TEST_ROW, TMDB_STATE_LABEL_KEY, tmdbActions } from '../integrationsModel'
+import { useRefreshAction } from '../../../lib/portal/useRefreshAction'
 import { useSpeedTest } from '../useSpeedTest'
 import { SpeedTestDialog } from '../SpeedTestDialog'
 import { LAST_SPEED_TEST_QUERY_KEY, useLastSpeedTest } from '../../../lib/network/useLastSpeedTest'
@@ -41,6 +42,7 @@ export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs,
   const tmdbStatusQuery = useTmdbStatus()
   const testTmdbKey = useTestTmdbKey()
   const removeTmdbKey = useRemoveTmdbKey()
+  const refresh = useRefreshAction('tmdb')
   const actionList = tmdbActions(tmdbStatusQuery.data)
   const effectiveCol = clamp(col, 0, actionList.length - 1)
 
@@ -68,6 +70,10 @@ export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs,
       return
     }
     if (action === 'remove') setConfirmRemove(true)
+    if (action === 'refresh') {
+      // 077: busca a chave que a pessoa enviou pelo portal e relê o estado do cartão ao terminar.
+      void refresh.run().then(() => queryClient.invalidateQueries({ queryKey: ['tmdb-status'] }))
+    }
   }
 
   function confirmRemoval() {
@@ -115,6 +121,7 @@ export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs,
         focusedCol={effectiveCol}
         testing={testTmdbKey.isPending}
         onActivate={activate}
+        refresh={refresh}
         lastSpeedTest={lastSpeedTest.data ?? undefined}
         speedTestReadFailed={speedTest.storageUnavailable || lastSpeedTest.isError}
       />

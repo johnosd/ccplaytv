@@ -12,8 +12,12 @@ import { db, type CatalogDb, type EpgErrorKind, type EpgProgramRecord } from '..
 import { EPG_MAX_OFFSET_HOURS, epgStatusOf, isValidEpgUrl } from './epgStatus'
 import type { EpgProgram, EpgProgramInput, EpgStatus, EpgWindow } from './types'
 
-/** Programas por `bulkAdd`: amortiza a transação sem segurar o arquivo na memória (data-model §2). */
-const WRITE_BATCH_SIZE = 2_000
+/**
+ * Programas por `bulkAdd`: 5 mil reduz trocas de transação no XMLTV grande,
+ * mantendo o mesmo limite que a importação de catálogo já usa para não reter
+ * o arquivo inteiro na memória.
+ */
+const WRITE_BATCH_SIZE = 5_000
 
 /** Sinopse guardada truncada — o preview mostra ~3 linhas (data-model §2). */
 const MAX_DESCRIPTION_LENGTH = 600

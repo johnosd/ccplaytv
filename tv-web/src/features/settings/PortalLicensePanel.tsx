@@ -1,152 +1,115 @@
-import { commercialBuild, licenseMonitor } from '../../lib/licensing/licenseRuntime'
-import { usePortalRecovery } from './usePortalRecovery'
-import { liveQuery } from 'dexie'
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, useSyncExternalStore, type Ref } from 'react'
+import { useImperativeHandle, useState, useSyncExternalStore, type Ref } from 'react'
 import { Button } from '../../components/Button'
 import { useT } from '../../lib/i18n/I18nProvider'
-import { PortalRequestError } from '../../lib/portal/portalClient'
-import type { PortalConnection, PortalInvite } from '../../lib/portal/portalConnection'
-import { buildFixedQrUrl } from '../../lib/portal/fixedQr'
+import { commercialBuild, licenseMonitor } from '../../lib/licensing/licenseRuntime'
+import { openPixPurchase } from '../../lib/licensing/pixPurchaseRuntime'
+import type { PortalConnection } from '../../lib/portal/portalConnection'
 import { getPortalConnection } from '../../lib/portal/portalRuntime'
-import { portalTables, type PortalDeviceRecord } from '../../lib/portal/portalTables'
-import { portalSite } from '../../lib/portal/usePairingCredentials'
+import { usePairingCredentials } from '../../lib/portal/usePairingCredentials'
 import { useRefreshAction } from '../../lib/portal/useRefreshAction'
-import { FixedQr } from '../../components/FixedQr'
-import { RefreshStatusLine } from '../../components/RefreshButton'
-import { PortalPrivateDialog, type PortalDialogKind } from './PortalPrivateDialog'
-import { BACKUP_ACTION_COUNT, PortalBackupActions, type BackupActionsHandle } from './PortalBackupActions'
+import { PortalAccessCard } from './PortalAccessCard'
+import { PortalAdvanced } from './PortalAdvanced'
+import { PortalConfirmDialog } from './PortalConfirmDialog'
+import { PortalLicenseCard } from './PortalLicenseCard'
+import { ADVANCED_ACTIONS, initialMain, mainActions, pairingNeedsAction, resolveAction, type AdvancedActionId, type PortalActionId, type PortalView } from './portalActions'
+import { useCodeReveal } from './useCodeReveal'
+import { usePortalAccess } from './usePortalAccess'
 import './portalLicense.css'
-/** 0–5 são as ações de sempre; 6 é o Atualizar da licença (071); 7–10 são backup e Desvincular (072), por último. */
-const BACKUP_FIRST = 7
-export const PORTAL_ACTION_COUNT = BACKUP_FIRST + BACKUP_ACTION_COUNT
-const REFRESH_ACTION = 6
-export interface PortalPanelHandle { activate: (index: number) => void }
-export function PortalLicensePanel({ focusedAction, handleRef, connection: provided, onActionFocus }: {
-  focusedAction?: number; handleRef: Ref<PortalPanelHandle>; connection?: PortalConnection; onActionFocus?: (index: number) => void
+
+/**
+ * `actions`/`initial` são as ações e o foco de entrada **da visão atual**; `mainInitial` é o foco ao (re)entrar na aba.
+ * A aba os lê ao tratar uma tecla (por id, nunca por índice — D-001; o handle é recriado a cada render).
+ */
+export interface PortalPanelHandle {
+  activate: (id: PortalActionId) => void
+  actions: PortalActionId[]
+  initial: PortalActionId
+  mainInitial: PortalActionId
+}
+
+/**
+ * Portal & licença (feature 076): a tela principal tem os cartões Acessar o portal e Licença (só no build comercial),
+ * o lembrete do código de recuperação e o botão Avançado. Só compõe; o vínculo vem de `usePairingCredentials` e as
+ * ações raras de `usePortalAccess`. A visão (`view`) e o foco são da aba.
+ */
+export function PortalLicensePanel({ view, focused, focusedId, handleRef, connection: provided, onActionFocus, onView }: {
+  view: PortalView; focused: boolean; focusedId: PortalActionId | undefined; handleRef: Ref<PortalPanelHandle>
+  connection?: PortalConnection; onActionFocus?: (id: PortalActionId) => void; onView?: (view: PortalView, focus: PortalActionId) => void
 }) {
   const t = useT()
+  // Lidos na renderização (R-004 da 075): o teste do build comercial troca o valor por getter.
+  const commercial = commercialBuild
   const license = useSyncExternalStore(licenseMonitor.subscribe, licenseMonitor.getSnapshot)
   let connection: PortalConnection | undefined
   try { connection = provided ?? getPortalConnection() } catch { /* Configuração inválida vira estado acionável. */ }
-  const [device, setDevice] = useState<PortalDeviceRecord>()
-  // Convite da recuperação pelo site (069): PNG do serviço com validade curta. O acesso ao painel usa o QR fixo.
-  const [invite, setInvite] = useState<PortalInvite>()
-  // QR fixo (071): montado na TV com ID e chave no fragmento; aparece só por ação explícita aqui (constitution 1.11.0).
-  const [qrUrl, setQrUrl] = useState<string>()
+  const pairing = usePairingCredentials(connection)
+  const access = usePortalAccess(connection)
   const refresh = useRefreshAction('license')
-  const [now, setNow] = useState(Date.now)
-  const [busy, setBusy] = useState(false)
-  const [failure, setFailure] = useState<'portal.failure' | 'portal.recoveryNeeded'>()
-  // Código não secreto (lista fechada de PortalRequestError ou o nome do erro JS) para diagnosticar na TV, sem console.
-  const [failureCode, setFailureCode] = useState<string>()
-  const [changed, setChanged] = useState(false)
-  const [recovering, setRecovering] = useState(false)
-  const [recoveryDeviceId, setRecoveryDeviceId] = useState<string>()
-  const recoveryReady = useCallback(() => { setRecovering(false); setInvite(undefined); setFailure(undefined); setChanged(true) }, [])
-  const recoveryExpired = useCallback(() => { setRecovering(false); setInvite(undefined); setFailure('portal.recoveryNeeded') }, [])
-  usePortalRecovery(connection, recovering, recoveryReady, recoveryExpired)
-  const [dialog, setDialog] = useState<PortalDialogKind>()
-  const working = useRef(false)
-  const recoveryObserved = useRef(false)
-  const backupActions = useRef<BackupActionsHandle>(null)
-  const privacyGeneration = useRef(0)
-  const mounted = useRef(false)
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; privacyGeneration.current++ } }, [])
-  const expiresAt = invite ? Date.parse(invite.expiresAt) : 0
-  const valid = !!invite && now < expiresAt && document.visibilityState !== 'hidden'
-  useEffect(() => {
-    if (!connection) return
-    const sub = liveQuery(async () => {
-      const tables = portalTables(connection.database)
-      return { device: await tables.device.get('device'), bootstrap: await tables.bootstrap.get('bootstrap') }
-    }).subscribe({
-      next: value => {
-        setDevice(value.device)
-        if (value.bootstrap?.pendingRecovery || value.bootstrap?.pendingAck?.purpose === 'recovery') {
-          recoveryObserved.current = true
-          setRecovering(true)
-          setRecoveryDeviceId(value.bootstrap.pendingRecovery?.deviceId ?? value.device?.deviceId)
-        } else if (recoveryObserved.current && !value.bootstrap && value.device) {
-          recoveryObserved.current = false
-          recoveryReady()
-        }
-      }, error: () => setFailure('portal.failure'),
-    })
-    return () => sub.unsubscribe()
-  }, [connection, recoveryReady])
-  useEffect(() => {
-    const update = () => { setNow(Date.now()); if (document.visibilityState === 'hidden') { privacyGeneration.current++; setInvite(undefined); setQrUrl(undefined) } }
-    const timer = setInterval(update, 1000)
-    document.addEventListener('visibilitychange', update)
-    window.addEventListener('pageshow', update)
-    const hide = () => { privacyGeneration.current++; setInvite(undefined); setQrUrl(undefined) }
-    window.addEventListener('pagehide', hide)
-    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', update);
-      window.removeEventListener('pageshow', update); window.removeEventListener('pagehide', hide) }
-  }, [])
-  async function run(action: 'invite' | 'revoke' | 'rotate' | 'recovery') {
-    if (!connection || working.current) return
-    const generation = privacyGeneration.current
-    working.current = true; setBusy(true); setFailure(undefined); setFailureCode(undefined)
-    try {
-      if (action === 'invite') {
-        // 071/D-007: QR local (sem convite, sem requisição além do cadastro único); a pessoa pediu para ver.
-        const paired = await connection.ensurePairing()
-        const url = buildFixedQrUrl({ site: portalSite(connection), displayId: paired.displayId ?? '', deviceKey: paired.deviceKey })
-        if (mounted.current && generation === privacyGeneration.current && document.visibilityState !== 'hidden') { setInvite(undefined); setQrUrl(url) }
-      } else if (action === 'recovery') {
-        const result = await connection.recovery()
-        setRecovering(true); setRecoveryDeviceId(result.deviceId)
-        if (mounted.current && generation === privacyGeneration.current && document.visibilityState !== 'hidden') { setQrUrl(undefined); setInvite(result.invite); setNow(Date.now()) }
-      } else {
-        setInvite(undefined); setQrUrl(undefined)
-        await connection.rotate(action)
-        setChanged(true)
-      }
-    } catch (error) {
-      setFailure(error instanceof PortalRequestError && error.code === 'conflict' ? 'portal.recoveryNeeded' : 'portal.failure')
-      setFailureCode(error instanceof PortalRequestError ? error.code : error instanceof Error ? error.name : 'unexpected_error')
-    } finally { working.current = false; setBusy(false) }
+  const [purchaseUnavailable, setPurchaseUnavailable] = useState(false)
+  /** Confirmação aberta por cima do Avançado (rotação ou Desvincular); um diálogo por vez. */
+  const [step, setStep] = useState<'rotate' | 'unlink'>()
+  // O código só existe na subtela: sair do Avançado o oculta (D-005).
+  const reveal = useCodeReveal(pairing.device, view === 'advanced')
+
+  const main = mainActions({ pairingFailed: pairingNeedsAction(!!connection, pairing).needed, commercial })
+  const mainInitial = initialMain(main, { commercial, licenseState: license.state })
+  const actions: PortalActionId[] = view === 'main' ? main : ADVANCED_ACTIONS
+  const initial: PortalActionId = view === 'main' ? mainInitial : 'eye'
+  const current = focused && !step ? resolveAction(actions, initial, focusedId) : undefined
+  const paired = !!connection && !!pairing.device
+
+  function activate(id: PortalActionId) {
+    if (id === 'retry') { void pairing.retry(); return }
+    if (id === 'refresh') { void refresh.run(); return }
+    if (id === 'advanced') { onView?.('advanced', 'eye'); return }
+    if (id === 'eye') { reveal.toggle(); return }
+    // Indisponível (sem vínculo/conexão): soft-disabled, o motivo já está na tela; nada abre.
+    if ((id === 'rotate' || id === 'unlink') && paired) { setStep(id); return }
+    if (id === 'recover' && connection) {
+      // O QR temporário substitui o fixo na principal (D-007): volta para lá e começa a recuperação.
+      onView?.('main', 'advanced'); void access.startRecovery(); return
+    }
+    if (id === 'purchase') {
+      // 073/D-010: a tela de Pix é aberta por quem a registrou (usePortalIntegration); a volta devolve o foco aqui.
+      const back = () => onActionFocus?.('purchase')
+      setPurchaseUnavailable(!openPixPurchase({ onLicensed: back, onBack: back }))
+    }
   }
-  function activate(index: number) {
-    if (index >= BACKUP_FIRST) { backupActions.current?.activate(index - BACKUP_FIRST); return }
-    if (index === REFRESH_ACTION) { void refresh.run(); return }
-    if (busy || !connection) return
-    if (index === 5) { void run('recovery'); return }
-    if (index === 0) { void run('invite'); return }
-    if (!device) { setFailure('portal.failure'); return }
-    setDialog(index === 1 ? 'key' : index === 2 ? 'revoke' : index === 3 ? 'code' : 'rotate')
+  useImperativeHandle(handleRef, () => ({ activate, actions, initial, mainInitial }))
+  /** Confirmou: volta à principal, onde o resultado (nova chave, TV desvinculada) aparece (FR-010/FR-012). */
+  function confirm() {
+    const action = step
+    setStep(undefined); onView?.('main', 'advanced')
+    void (action === 'rotate' ? access.rotate() : access.unlink())
   }
-  useImperativeHandle(handleRef, () => ({ activate }))
-  const labels = ['portal.open', 'portal.showKey', 'portal.revoke', 'portal.showCode', 'portal.rotateCode', 'portal.recover', 'portal.refresh.label'] as const
+  const select = (id: PortalActionId) => { onActionFocus?.(id); activate(id) }
+
+  if (view === 'advanced') {
+    return <>
+      <PortalAdvanced device={pairing.device} reveal={reveal} available={{ rotate: paired, recover: !!connection, unlink: paired }}
+        focusedId={current as AdvancedActionId | undefined} onSelect={select} />
+      {step && <PortalConfirmDialog busy={access.busy} onCancel={() => setStep(undefined)} onConfirm={confirm}
+        title={t(step === 'rotate' ? 'portal.rotateAllTitle' : 'portal.unlinkTitle')} text={t(step === 'rotate' ? 'portal.rotateAllHint' : 'portal.unlinkText')}
+        confirmLabel={t(step === 'rotate' ? 'portal.rotateAll' : 'portal.unlink')} />}
+    </>
+  }
+
   return <section className="portal-license-panel" aria-label={t('portal.title')}>
     <h2>{t('portal.title')}</h2><p>{t('portal.description')}</p>
-    {commercialBuild && <><p role="status">{t('portal.licenseStatus', { status: t(license.decision.reason === 'expired' ? 'portal.license_expired' : license.state ? ('portal.license_' + license.state) as 'portal.license_active' : 'portal.license_missing') })}</p>
-      {license.expiresAt && <p>{t('portal.licenseExpiry', { date: new Date(license.expiresAt).toLocaleDateString() })}</p>}<p>{t('portal.licenseOffer')}</p></>}
-    {!connection && <p role="status">{t('portal.unconfigured')}</p>}
-    {!connection && import.meta.env.DEV && <p role="status">{t('portal.devHint')}</p>}
-    {(device || recoveryDeviceId) && <p>{t('portal.deviceId', { id: device?.deviceId ?? recoveryDeviceId! })}</p>}
-    {recovering && <p role="status">{t('portal.recoveryWaiting')}</p>}
-    {connection && <p>{t('portal.site')}: {new URL(connection.origin).origin}</p>}
-    {failure && <p role="alert">{t(failure)}</p>}
-    {failure && failureCode && <p>{t('portal.failureCode', { code: failureCode })}</p>}
-    {changed && <p role="status">{t('portal.changed')}</p>}
-    <RefreshStatusLine action={refresh} scope="license" />
-    <div className={`portal-content${valid || qrUrl ? ' has-qr' : ''}`}>
-    {valid && <div className="portal-qr"><img src={invite.qrDataUrl} alt={t('portal.qrAlt')} />
-      <p role="status">{t('portal.expiry', { seconds: Math.max(0, Math.ceil((expiresAt - now) / 1000)) })}</p></div>}
-    {qrUrl && <div className="portal-qr"><FixedQr value={qrUrl} label={t('portal.qrAlt')} /></div>}
-    {invite && !valid && <p role="status">{t('portal.expired')}</p>}
-    <div className="portal-actions">{labels.map((label, index) => <Button key={label} variant={index === 0 ? 'accent' : 'secondary'}
-      focused={focusedAction === index && !dialog}
-      loading={index === REFRESH_ACTION ? refresh.status === 'loading' : busy}
-      softDisabled={index === REFRESH_ACTION ? refresh.paused : !connection}
-      onSelect={() => { onActionFocus?.(index); activate(index) }}>{t(label)}</Button>)}</div>
+    <div className={`portal-cards${commercial ? '' : ' is-single'}`}>
+      <PortalAccessCard connected={!!connection} pairing={pairing} retryFocused={current === 'retry'} onRetry={() => select('retry')}
+        recovery={access.invite && { qrDataUrl: access.invite.qrDataUrl, seconds: access.seconds }} />
+      {commercial && <PortalLicenseCard license={license} refresh={refresh} connected={!!connection} focusedId={current} onSelect={select} />}
     </div>
-    <PortalBackupActions connection={connection} handleRef={backupActions}
-      focusedIndex={focusedAction !== undefined && focusedAction >= BACKUP_FIRST && !dialog ? focusedAction - BACKUP_FIRST : undefined}
-      onActionFocus={index => onActionFocus?.(BACKUP_FIRST + index)} />
-    {dialog && <PortalPrivateDialog kind={dialog} device={device} onCancel={() => setDialog(undefined)}
-      onConfirm={() => { const action = dialog; setDialog(undefined); if (action === 'revoke' || action === 'rotate') void run(action) }} />}
+    {connection && <p className="portal-code-reminder">{t('portal.codeReminder')}</p>}
+    {access.recovering && !access.invite && <p role="status">{t('portal.recoveryWaiting')}</p>}
+    {access.expired && <p role="status">{t('portal.expired')}</p>}
+    {access.outcome && <p role="status">{t(access.outcome)}</p>}
+    {access.failure && <p role="alert">{t(access.failure)}</p>}
+    {access.failure && access.failureCode && <p>{t('portal.failureCode', { code: access.failureCode })}</p>}
+    {purchaseUnavailable && <p role="alert">{t('portal.pix.unavailable')}</p>}
+    <div className="portal-card-actions">
+      <Button variant="secondary" focused={current === 'advanced'} loading={access.busy} onSelect={() => select('advanced')}>{t('portal.advanced')}</Button>
+    </div>
   </section>
 }

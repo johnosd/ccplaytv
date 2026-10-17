@@ -7,20 +7,18 @@ import { applyPendingRestores, deleteUsageBackup, restoreFromService } from '../
 import { useT } from '../../lib/i18n/I18nProvider'
 import { PortalRequestError } from '../../lib/portal/portalClient'
 import type { PortalConnection } from '../../lib/portal/portalConnection'
-import { refreshPortal, resetPortalAgent } from '../../lib/portal/portalRuntime'
-import { portalTables } from '../../lib/portal/portalTables'
-import { unlinkPortal } from '../../lib/portal/unlink'
 import { useRefreshAction } from '../../lib/portal/useRefreshAction'
 import { PortalConfirmDialog } from './PortalConfirmDialog'
+import './portalLicense.css'
 
-/** Fazer backup agora, Restaurar, Apagar e Desvincular (feature 072); índices 0–3 depois das ações da 069/071. */
-export const BACKUP_ACTION_COUNT = 4
-const LABELS = ['portal.backup.now', 'portal.backup.restore', 'portal.backup.delete', 'portal.unlink'] as const
-type Dialog = 'replace' | 'restore' | 'delete' | 'unlink'
+/** Fazer backup agora, Restaurar e Apagar (feature 072). Desde a 075 é a aba Backup; Desvincular está no Avançado de Portal & licença. */
+export const BACKUP_ACTION_COUNT = 3
+const LABELS = ['portal.backup.now', 'portal.backup.restore', 'portal.backup.delete'] as const
+type Dialog = 'replace' | 'restore' | 'delete'
 type Message = { key: Parameters<ReturnType<typeof useT>>[0]; params?: Record<string, string | number> }
 export interface BackupActionsHandle { activate: (index: number) => void }
 
-interface View { backup: BackupStateRecord; paired: boolean; pending: number }
+interface View { backup: BackupStateRecord; pending: number }
 
 export function PortalBackupActions({ connection, focusedIndex, handleRef, onActionFocus }: {
   connection?: PortalConnection; focusedIndex?: number; handleRef: Ref<BackupActionsHandle>; onActionFocus?: (index: number) => void
@@ -35,10 +33,9 @@ export function PortalBackupActions({ connection, focusedIndex, handleRef, onAct
 
   useEffect(() => {
     if (!database) return
-    // Abrir Portal & licença aplica pendências cuja lista já voltou (local, sem rede).
+    // Abrir a aba Backup aplica pendências cuja lista já voltou (local, sem rede).
     void applyPendingRestores(database).catch(() => {})
-    const subscription = liveQuery(async () => ({ backup: await readBackupState(database),
-      paired: !!(await portalTables(database).device.get('device')), pending: await backupTables(database).pending.count() }))
+    const subscription = liveQuery(async () => ({ backup: await readBackupState(database), pending: await backupTables(database).pending.count() }))
       .subscribe({ next: setView, error: () => setView(undefined) })
     return () => subscription.unsubscribe()
   }, [database])
@@ -46,7 +43,7 @@ export function PortalBackupActions({ connection, focusedIndex, handleRef, onAct
   const date = (value?: number) => (value ? new Date(value).toLocaleDateString() : '')
   const offer = view?.backup.offer
   const hasBackup = view?.backup.state === 'offered' || view?.backup.lastBackupAt !== undefined
-  const unavailable = [!connection, !connection || !hasBackup, !connection || !hasBackup, !connection || !view?.paired]
+  const unavailable = [!connection, !connection || !hasBackup, !connection || !hasBackup]
 
   async function guarded(work: () => Promise<Message>) {
     setBusy(true); setMessage(undefined)
@@ -64,7 +61,7 @@ export function PortalBackupActions({ connection, focusedIndex, handleRef, onAct
       void (view?.backup.state === 'disabled' ? writeBackupState(database, { state: 'settled' }) : Promise.resolve()).then(() => refresh.run())
       return
     }
-    setDialog(index === 1 ? 'restore' : index === 2 ? 'delete' : 'unlink')
+    setDialog(index === 1 ? 'restore' : 'delete')
   }
   useImperativeHandle(handleRef, () => ({ activate }))
 
@@ -82,14 +79,7 @@ export function PortalBackupActions({ connection, focusedIndex, handleRef, onAct
       })
       return
     }
-    if (dialog === 'delete') { void guarded(async () => { await deleteUsageBackup(database, connection); return { key: 'portal.backup.deleted' } }); return }
-    void guarded(async () => {
-      // Com internet, o backup vai antes de soltar o vínculo; sem internet, desvincula mesmo assim e avisa.
-      const backedUp = navigator.onLine ? (await refreshPortal('backup')).ok : false
-      resetPortalAgent()
-      await unlinkPortal(database)
-      return { key: backedUp ? 'portal.unlinkDone' : 'portal.unlinkNoBackup' }
-    })
+    void guarded(async () => { await deleteUsageBackup(database, connection); return { key: 'portal.backup.deleted' } })
   }
 
   const counts = offer?.counts
@@ -99,11 +89,11 @@ export function PortalBackupActions({ connection, focusedIndex, handleRef, onAct
       t('portal.restoreText', { favorites: counts?.favorites ?? 0, history: counts?.history ?? 0, progress: counts?.progress ?? 0 }),
       t('portal.restoreNow')],
     delete: [t('portal.backup.deleteTitle'), t('portal.backup.deleteText'), t('portal.backup.delete')],
-    unlink: [t('portal.unlinkTitle'), t('portal.unlinkText'), t('portal.unlink')],
   }
 
   return <section className="portal-backup" aria-label={t('portal.backup.title')}>
-    <h3>{t('portal.backup.title')}</h3>
+    <h2>{t('portal.backup.title')}</h2>
+    {!connection && <p role="status">{t('portal.unconfigured')}</p>}
     {view?.backup.state === 'disabled' ? <p role="status">{t('portal.backup.disabled')}</p>
       : view?.backup.state === 'offered' && offer
         ? <p role="status">{t('portal.backup.offer', { date: date(offer.createdAt), favorites: offer.counts.favorites, history: offer.counts.history })}</p>
