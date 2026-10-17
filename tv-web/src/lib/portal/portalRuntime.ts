@@ -4,6 +4,14 @@ import type { RefreshScope } from './portalAgent'
 import { PortalConnection } from './portalConnection'
 
 let connection: PortalConnection | undefined
+/**
+ * Feature 078: o build de loja sem portal (variante base) esconde as superfícies do portal — a aba "Pelo site" do
+ * cadastro e as abas "Portal & licença" e "Backup" — em vez de mostrar "ainda não disponível", que a revisão da Samsung
+ * lê como recurso que não funciona. Em dev e nos testes (`PROD` falso) continuam visíveis, com o estado honesto.
+ */
+export function portalSurfacesVisible(): boolean {
+  return Boolean(import.meta.env.VITE_PORTAL_ORIGIN) || !import.meta.env.PROD
+}
 /** Sem configuração não inicia rede nem cria identidade alternativa no desktop. */
 export function getPortalConnection(): PortalConnection | undefined {
   const origin = import.meta.env.VITE_PORTAL_ORIGIN as string | undefined

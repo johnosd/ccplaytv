@@ -56,7 +56,8 @@ export function ChannelRow({
         <span className={nameClassName ? `channel-row-name ${nameClassName}` : 'channel-row-name'}>
           <MarqueeText text={name} active={nameActive ?? focused} />
         </span>
-        <span className="channel-row-now">{nowPlaying ?? ''}</span>
+        {/* O prefixo "Agora:" é só visual (CSS `attr()`), traduzido: o texto do slot continua só o título (contrato 030). */}
+        <span className="channel-row-now" data-now-prefix={t('channelRow.nowPrefix')}>{nowPlaying ?? ''}</span>
         {group !== undefined && <span className={groupClassName ? `channel-row-group ${groupClassName}` : 'channel-row-group'}>{group}</span>}
       </div>
       {progress !== undefined && (

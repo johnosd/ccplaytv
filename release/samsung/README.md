@@ -54,3 +54,9 @@ Saída: `reports/<versão>-<variante>.json` e `.md`. Código de saída 0 =
 
   Sem `--out`, grava direto em `kit/media/`. Refaça a cada versão com mudança visual; trocar uma imagem exige
   recalcular o SHA-256 dela no `manifest.json` (o gate bloqueia hash divergente).
+
+## UI Description (`kit/ui-description/`)
+
+O template oficial da Samsung preenchido em inglês (`CCPlayTV_UI_Description_<versão>.pptx`), as capturas por
+tela (`ui_NN_*.jpg`, do build de produção com a lista fictícia) e o template original. Como refazer e o passo
+da lista de teste — que só entra numa **cópia fora do git**, na hora do envio — estão em `kit/ui-description.md`.

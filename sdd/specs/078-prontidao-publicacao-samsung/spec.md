@@ -192,3 +192,9 @@ Como mantenedor, quero repetir o processo após qualquer alteração e obter um 
 - **Acesso de teste**: inclui licença/voucher para o build comercial e validade cobrindo revisão e plataformas (FR-012).
 - **Certificado de autor**: custódia e backup viram pré-condição (FR-007a).
 - **Estados**: `Waived` vedado para itens obrigatórios Samsung; IDs estáveis por item; SC-001 alinhado com `Not Applicable` (FR-014, FR-014a, FR-014b).
+
+### Sessão 2026-10-17 (variante distribuída)
+
+- Q: Qual variante vai para a loja? → A: A **comercial completa** (portal, licença, teste de 7 dias, compra por Pix), a mesma instalada na TV da pessoa; compra mantida e declarada à Samsung (risco de reprovação por venda fora do Samsung Checkout aceito, R-006). Substitui a decisão inicial "primeira distribuição é a base" (D-005, R-015 do plano).
+- Q: Como o revisor acessa o comercial (FR-012)? → A: Pelo teste de 7 dias contado na própria TV a partir da instalação nova — é a "licença de teste" do revisor; `demo-access.md` declara isso (`reviewerAccess: local-trial-7d`) junto da lista de teste com `validUntil`.
+- Q: Quando envia? → A: Ainda não. Tudo é preparado e instalado na TV da pessoa; a venda é habilitada em produção pela pessoa antes do envio (já testada em homologação).

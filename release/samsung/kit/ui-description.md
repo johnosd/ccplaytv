@@ -1,50 +1,54 @@
-# Application UI Description — rascunho (CCPlayTV, variante base)
+# Application UI Description — CCPlayTV (variante base)
 
-Rascunho do conteúdo a transcrever no **template oficial** da Samsung (Seller Office →
-Application UI Description). `SAM-KIT-UIDESC` fica `Pending` até o template preenchido entrar no
-kit e no manifest. Nada aqui contém credencial, URL de lista ou chave.
+O arquivo enviado ao Seller Office é
+**`ui-description/CCPlayTV_UI_Description_0.2.1.pptx`**: o template oficial da Samsung
+(`ui-description/app_description_template_eng_v142_edited3.pptx`) preenchido em inglês, com o
+fluxo de telas, 7 casos de uso, uma tela por slide com elementos numerados, as teclas do controle e
+os idiomas. Nada aqui contém credencial, URL de lista ou chave.
 
-## Idiomas
+## Antes de enviar: a lista de teste
 
-Português (padrão), inglês e espanhol — seleção em Ajustes. Textos vindos da lista (nomes de
-canal, categoria, título) aparecem como o provedor os declara, sem tradução.
+O template exige a conta de teste do revisor (slide "Use Cases – Add a Playlist"). No git, a tabela
+traz só os marcadores `<TEST_HOST>`, `<TEST_USERNAME>` e `<TEST_PASSWORD>`, em vermelho. Na hora da
+submissão, faça uma **cópia fora do repositório**, troque os três marcadores pelos dados da lista de
+teste autorizada (a mesma de `demo-access.md`, item `SAM-KIT-TESTACCESS`) e envie a cópia. A cópia
+preenchida nunca volta para o git.
 
-## Teclas do controle remoto
+## Como refazer
 
-| Tecla | Uso |
-| --- | --- |
-| Setas | Mover o foco entre cards, fileiras, categorias e botões |
-| OK / Enter | Abrir o item focado; no canal ou episódio, iniciar a reprodução |
-| Voltar (Return) | Voltar à tela anterior com o foco restaurado; na tela inicial, oferecer sair do app |
-| Exit | Sair do app |
-| Play/Pause, Stop, FF, REW | Controles do player conforme a mídia (sem avanço em TV ao vivo sem janela de DVR) |
-| Channel Up / Down | Trocar de canal na TV ao vivo |
+1. Capturas, do build de produção (o dev server mostra superfícies só de desenvolvimento):
 
-Mover o foco nunca inicia reprodução nem consulta externa; só OK reproduz.
+   ```powershell
+   cd tv-web
+   npm run build
+   npx vite preview --port 4173     # em outro terminal
+   node scripts/release/ui-description-shots.mjs
+   ```
 
-## Telas e fluxo principal
+   Grava `ui-description/ui_NN_<tela>.jpg` com o app em inglês e a lista fictícia de `fakePanel.mjs`.
 
-1. **Splash** — abertura do app.
-2. **Selecione ou adicione sua lista** — um card por playlist Xtream/M3U e o card "Adicionar lista".
-3. **Conecte sua playlist** (condicional: sem lista ou ao escolher "Adicionar lista") — formulário
-   com teclado na tela: tipo Xtream (servidor, usuário, senha) ou URL M3U. A importação da
-   estrutura acontece na TV.
-4. **Início** — barra superior persistente (Início, TV ao vivo, Filmes, Séries, Rádio, Buscar e a
-   lista ativa, que leva à troca de lista) e fileiras Continuar assistindo, Minha Lista, Canais
-   favoritos, Filmes adicionados e Séries adicionadas.
-5. **TV ao vivo** — trilho de categorias da lista; ao entrar numa categoria, a grade de canais; OK
-   abre o player em tela cheia; guia de programação quando a lista oferece.
-6. **Filmes / Séries** — trilho de categorias, grade de títulos, tela de detalhe (temporadas e
-   episódios nas séries); capas e sinopses do TMDB só com a chave TMDB da própria pessoa.
-7. **Rádio** — estações públicas do diretório Radio Browser por país.
-8. **Ajustes** (a partir da tela de listas) — idioma, chave TMDB, categorias ocultas e bloqueio
-   por PIN, aba Playlists para gerenciar as listas.
+2. O pptx (python-pptx e Pillow num venv; não são dependências do projeto):
 
-## Fluxos condicionais
+   ```powershell
+   python tv-web/scripts/release/ui-description-pptx.py --version 0.2.1
+   ```
 
-- **Sem lista**: o app abre direto no formulário de adicionar lista.
-- **Categoria bloqueada**: pede o PIN da lista antes de mostrar o conteúdo.
-- **Lista inválida ou provedor fora do ar**: mensagem de erro com ação focável (tentar de novo,
-  editar a lista).
-- **Portal, QR de pareamento e licença**: existem **só na variante comercial**, que não é a
-  distribuída neste Tizen ID (`release/samsung/distribution.json`).
+3. Recalcule o SHA-256 do pptx (e deste arquivo, se mudou) no `manifest.json`: o gate bloqueia hash
+   divergente. O pptx não é byte a byte reproduzível (o zip guarda a hora), então todo novo build
+   pede hash novo.
+
+Refaça a cada versão com mudança de tela, tecla ou fluxo; os textos e as posições dos números ficam
+em `ui-description-pptx.py` (`USE_CASES`, `SCREENS`, `KEYS`, `LANGUAGE`).
+
+## O que o documento afirma (conferido no código em 2026-10-17)
+
+- **Teclas**: setas movem o foco; OK abre ou reproduz; segurar OK ou AMARELA favorita; VERMELHA
+  tira do "↺ Histórico"; PLAY/PAUSE, STOP (fecha o player; no Rádio, para a estação), REW/FF (10 s,
+  só com seek); CH+/CH− troca de canal no player ao vivo e pagina o guia; 0–9 digitam o PIN.
+  RETURN volta um nível; na tela de listas abre "Exit CCPlayTV?". EXIT não é alterada.
+- **Idioma**: inglês, português e espanhol, em Ajustes › Accessibility › Language, valendo na hora.
+  Padrão: o idioma da TV quando é um dos três; senão, português.
+- **Sem portal na variante base**: o build de loja sem `VITE_PORTAL_ORIGIN` não mostra a aba "Pelo
+  site" do cadastro nem as abas "Portal & licença" e "Backup" (feature 078, `portalSurfacesVisible`).
+- **Sem conta, login próprio, compra no app, assinatura ou publicidade.** A única credencial é a
+  lista IPTV da própria pessoa.

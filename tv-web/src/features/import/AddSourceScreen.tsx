@@ -323,7 +323,7 @@ export function AddSourceScreen({
         {isEditing ? t('add.title.edit') : t('add.title.new')}
       </h1>
       <p className="onboarding-subtitle">
-        {isEditing ? t('add.subtitle.edit') : t('add.subtitle.new')}
+        {isEditing ? t('add.subtitle.edit') : sitePanel ? `${t('add.subtitle.new')} ${t('portal.addSubtitleSite')}` : t('add.subtitle.new')}
       </p>
 
       {isEditing ? (

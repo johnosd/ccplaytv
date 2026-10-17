@@ -17,7 +17,8 @@ release/samsung/
 ├── kit/
 │   ├── manifest.json        # PublicationKitItem[]
 │   ├── listing/{pt,en,es}.md
-│   ├── ui-description.md    # rascunho do conteúdo para o template oficial
+│   ├── ui-description.md    # guia da UI Description (como refazer, lista de teste fora do git)
+│   ├── ui-description/      # template oficial, pptx preenchido e capturas por tela (T045)
 │   ├── demo-access.md       # DemoAccess sanitizado
 │   └── media/               # artes fornecidas (logo, fundo, screenshots)
 └── reports/<version>-<variant>.{json,md}   # LaunchDecision gerada pelo CLI

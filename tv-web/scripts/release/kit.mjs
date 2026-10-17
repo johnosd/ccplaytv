@@ -144,10 +144,14 @@ function specificProblem(item, buffers, { manifest, variant, today }) {
     case 'SAM-KIT-VOC':
       return EMAIL.test(item.value ?? '') ? undefined : { detail: 'e-mail VOC ausente ou inválido no manifest' }
     case 'SAM-KIT-TESTACCESS': {
-      // FR-012 / A-03 / R-004: o comercial não tem licença de teste para o revisor.
-      if (variant === 'commercial') return { detail: 'build comercial sem licença/voucher de teste para o revisor (R-004)' }
       if (!entries.length) return { detail: 'acesso de demonstração sem artefato' }
-      const validUntil = entries.map(([, buffer]) => /validUntil:\s*(\d{4}-\d{2}-\d{2})/.exec(buffer.toString('utf8'))?.[1]).find(Boolean)
+      const texts = entries.map(([, buffer]) => buffer.toString('utf8'))
+      // FR-012 / R-004 / R-015: no comercial, o revisor só entra com a licença de teste — o teste local de 7 dias da
+      // instalação nova —, e isso precisa estar declarado no artefato, não presumido.
+      if (variant === 'commercial' && !texts.some((text) => /reviewerAccess:\s*local-trial-7d\b/.test(text))) {
+        return { detail: 'build comercial sem acesso do revisor declarado (reviewerAccess: local-trial-7d) (R-004)' }
+      }
+      const validUntil = texts.map((text) => /validUntil:\s*(\d{4}-\d{2}-\d{2})/.exec(text)?.[1]).find(Boolean)
       if (!validUntil) return { detail: 'acesso de demonstração sem validade registrada (validUntil)' }
       if (today && validUntil < today) return { detail: 'acesso de demonstração vencido' }
       return undefined

@@ -9,8 +9,11 @@
       "id": "SAM-KIT-UIDESC",
       "owner": "produto",
       "status": "Pending",
-      "artifacts": [{ "path": "ui-description.md", "sha256": "db6c60a05ae26b5b52a6756a838f8ec40c5d0be65d25c62364872de8ea352adb" }],
-      "nextAction": "transcrever ui-description.md no template oficial da Samsung e incluir o arquivo preenchido no kit"
+      "nextAction": "refazer o pptx para a variante comercial (portal, teste e compra) — T053, R-015",
+      "artifacts": [
+        { "path": "ui-description/CCPlayTV_UI_Description_0.2.1.pptx", "sha256": "b4ce0c7a3c449245a43b3dec10c1bcca452e975aefa5bc8a8f66befb597e75c8" },
+        { "path": "ui-description.md", "sha256": "2d2fe02f885f5a5e90b85ca1408c9b308a9aa8e8ad6f79b4eaab8061ea0f5834" }
+      ]
     },
     {
       "id": "SAM-KIT-LOGO",
@@ -62,7 +65,7 @@
       "id": "SAM-KIT-TESTACCESS",
       "owner": "release",
       "status": "Pending",
-      "artifacts": [{ "path": "demo-access.md", "sha256": "26d6f3dbedf8d1315e23621a58bb085bef866df9e6bdfdd5297c0bda133446b3" }],
+      "artifacts": [{ "path": "demo-access.md", "sha256": "35f2d2b13ba6477110644f2764586f53704f41b14809bba1cedc7c95034d05da" }],
       "nextAction": "definir a lista de teste autorizada, guardar o segredo no cofre e registrar validUntil em demo-access.md"
     }
   ]

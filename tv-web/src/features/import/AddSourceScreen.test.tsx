@@ -135,6 +135,16 @@ describe('AddSourceScreen — cadastro no formato do protótipo (features 023 e 
     expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument()
   })
 
+  // Feature 078: sem a aba "Pelo site" (build de loja sem portal), o texto não manda a pessoa para uma aba que não existe.
+  it('sem a aba do site, o subtítulo não cita "Pelo site"; com ela, cita', () => {
+    const { unmount } = render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, { wrapper: createWrapper() })
+    expect(screen.getByText('Escolha Xtream Codes ou Lista M3U e preencha os dados da sua lista.')).toBeInTheDocument()
+    expect(screen.queryByText(/Pelo site/)).not.toBeInTheDocument()
+    unmount()
+    render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} sitePanel={<p>painel</p>} />, { wrapper: createWrapper() })
+    expect(screen.getByText(/dados da sua lista\. Ou use a aba Pelo site/)).toBeInTheDocument()
+  })
+
   // Feature 028, FR-015/FR-017.
   it('todo controle tem nome acessível, nos dois tipos', () => {
     const { container } = render(<AddSourceScreen onSourceCreated={vi.fn()} onBack={vi.fn()} />, {

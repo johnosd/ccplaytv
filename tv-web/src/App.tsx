@@ -1,7 +1,7 @@
 import { allowListEntry } from './lib/licensing/licenseRuntime'
 import { usePortalIntegration } from './features/portal/usePortalIntegration'
 import { PortalPairingPanel } from './features/portal/PortalPairingPanel'
-import { getPortalConnection } from './lib/portal/portalRuntime'
+import { getPortalConnection, portalSurfacesVisible } from './lib/portal/portalRuntime'
 import { remoteImportRunForEntry } from './lib/portal/remoteImportEntry'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -348,15 +348,15 @@ function App() {
 
     case 'add-source':
       // 071/A006: Xtream Codes, Lista M3U e "Pelo site" são abas da mesma tela — RETURN de qualquer uma cai na tela
-      // de listas. A aba do site aparece com portal ou sem (sem portal mostra o estado honesto). Painel montado aqui:
-      // features/import não importa features/portal (070, D-008). Recarregar com lista nova volta à tela de listas
-      // com o foco nela (071/FR-006).
+      // de listas. Em dev a aba do site aparece mesmo sem portal (estado honesto); no build de loja sem portal ela
+      // some (078, `portalSurfacesVisible`). Painel montado aqui: features/import não importa features/portal
+      // (070, D-008). Recarregar com lista nova volta à tela de listas com o foco nela (071/FR-006).
       return (
         <AddSourceScreen
           onSourceCreated={({ jobId }) => dispatch({ type: 'open', screen: { name: 'progress', jobId } })}
           onBack={goBack}
-          sitePanel={<PortalPairingPanel connection={safePortalConnection()} onBack={goBack}
-            onReloaded={(newSourceId) => dispatch({ type: 'import-back', sourceId: newSourceId })} />}
+          sitePanel={portalSurfacesVisible() ? <PortalPairingPanel connection={safePortalConnection()} onBack={goBack}
+            onReloaded={(newSourceId) => dispatch({ type: 'import-back', sourceId: newSourceId })} /> : undefined}
         />
       )
     case 'edit-source':

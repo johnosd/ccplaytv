@@ -178,13 +178,14 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 | Fase 3 — US1 | Concluída: `candidate.mjs` e CLI `release-gate.mjs` (git, `.wgt`, `INT-DIST-VARIANT`, relatório, obsolescência); contrato "candidato" verde |
 | Fase 4 — US2 | Concluída: `packageChecks`, `privileges`, `author`, ledger `privileges.json`, `findStaleDeclared`; CLI com pacote, inventário, privilégios, autor, custódia e `SAM-REG-*`; contratos pacote e privilégios verdes |
 | Fase 5 — US4 | Concluída: `kit.mjs` (mídia, hash, segredos, listagem por idioma, VOC, acesso de teste) e kit real em `release/samsung/kit/`; CLI com `kitReader`; contrato kit verde — **5/5 contratos verdes** |
-| Kit | `SAM-KIT-LISTING`, `VOC`, `LOGO`, `ICONBG`, `SHOTS`, `PRIVACY`, `INT-KIT-SECRETS`, `SAM-CFG-TITLE` Pass (T044: mídias em `kit/media/`, capturas de `store-screenshots.mjs`); só UI Description oficial e acesso de teste Pending com dono |
+| Kit | `SAM-KIT-LISTING`, `VOC`, `LOGO`, `ICONBG`, `SHOTS`, `PRIVACY`, `INT-KIT-SECRETS`, `SAM-CFG-TITLE` Pass — mas capturas, privacidade e UI Description descrevem a **base**; com R-015 (comercial) são refeitas em T051–T053. `SAM-KIT-UIDESC` voltou a Pending (o pptx da T045 é da base e serve de molde) |
+| Variante distribuída | **Comercial** (R-015, decisão da pessoa): mesmo app na loja e na TV dela; envio só depois de a pessoa habilitar a venda em produção (T055, já testada em homologação). T046 (portal escondido sem endereço) e T047 ("Agora:") ficam no código e entram no `.wgt` comercial (T048) |
 | Fase 6 — US5 | Concluída: página publicada após o merge em `main` (200, idêntica ao repositório), `evidence/privacy-2026-10-17.json`, `SAM-KIT-PRIVACY` `Pass` |
 | Fase 7 — US3+US6 | T030 E2E, T031 emulador `Waived` por `118, -4` e T032 TV física concluídos; TV QN50Q60DAGXZD aprovada pelo usuário |
 | Fase 8 — US7 | Concluída: obsolescência por candidato, kit e `config.xml` do disco ≠ pacote; `release-gate.test.mjs` roda o CLI como processo |
 | App sem "IPTV" | Textos trocados (T042, R-012), commitados e no `.wgt` candidato (`bc864e…`), validado na TV |
-| Fase 9 | Concluída: T036–T041, T043 e T044; quickstart §2–§6 verdes (§6 200 após o merge), §7 manual |
-| Candidato | `CCPlayTV.wgt` 0.2.1, SHA-256 `bc864e…`, build `production`; gate `Blocked` com 5 bloqueios, **todos da pessoa** (`INT-SEC-CUSTODY`, `SAM-REG-PACKAGENAME`, `SAM-REG-APPID`, `SAM-KIT-UIDESC`, `SAM-KIT-TESTACCESS`); pacote, inventário, privilégios, E2E, TV e atualização `Pass`; alvo aprovado BR/QN50Q60DAGXZD |
+| Fase 9 | T036–T047 feitos; T048 aberta (novo candidato com T046/T047); quickstart §2–§6 verdes (§6 200 após o merge), §7 manual |
+| Candidato | `CCPlayTV.wgt` 0.2.1, SHA-256 `bc864e…`, **anterior a T046/T047** — vai ser substituído em T048; com ele, o gate tinha 5 bloqueios da pessoa (agora 4: `INT-SEC-CUSTODY`, `SAM-REG-PACKAGENAME`, `SAM-REG-APPID`, `SAM-KIT-TESTACCESS`); E2E/TV/atualização valem só para esse hash |
 | Pacote Tizen | `required_version` 8.0, `<name>CCPlayTV</name>`, `build_type: Release`, yaml sem obsoletas (inclui `EmptyState.js`, T043); `build:tizen` reproduzível |
 | Custódia / registro | `custody.json` e `published.json` ainda vazios: `INT-SEC-CUSTODY` Blocked; `SAM-REG-*` Pending (dependem da pessoa) |
 
@@ -210,6 +211,8 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 | R-011 | Gravar evidência ou a linha da matriz depois do empacotamento sujaria a árvore e bloquearia `INT-CAND-TREE` do próprio candidato | Candidato nunca ficaria limpo depois de validado | `release/samsung/evidence/`, `reports/` e `target-matrix.json` não contam na árvore suja (saídas da validação); kit, ledger, `published.json` e `custody.json` continuam contando |
 | R-013 | Duas sessões rodaram a 078 ao mesmo tempo (2026-10-17): `--record-local` de uma regravou `build-<data>-base.json` (mesmo nome de arquivo) com `Blocked` por cima do `Pass` commitado da outra, e o relatório também; as falhas do `npm run test` vieram da carga concorrente (a suíte passa sozinha) | Evidência e relatório corretos podem ser trocados por outros, de outro momento | Resolvido: arquivos restaurados do commit; evidências e relatório só são gravados por uma sessão — ver Cuidados |
 | R-010 | `core.autocrlf=true` sem `.gitattributes`: no checkout os `.md` do kit voltariam com CRLF e o SHA-256 do manifest não bateria | Kit inteiro `Blocked` noutra máquina ou depois de um clone | `release/samsung/kit/.gitattributes` com `* -text` (bytes intactos); hash recalculado sempre que um artefato muda |
+| R-014 | As capturas em inglês da UI Description (T045) mostraram, na variante base, a aba "Pelo site" como **aba inicial** do cadastro e as abas "Portal & licença"/"Backup", todas com "o portal ainda não está disponível" — recurso visível que não funciona, motivo comum de reprovação | Revisor cai num recurso morto logo no primeiro passo | Decisão do usuário (2026-10-17): esconder na base. `portalSurfacesVisible()` = `VITE_PORTAL_ORIGIN` presente **ou** `!PROD`: some só no build de loja sem portal; dev, E2E e testes (PROD falso) continuam com o estado honesto, e os contratos 067/070 (7 abas, aba do site) seguem verdes sem emenda. Custo: novo `.wgt` e evidências refeitas (T048). Ficam visíveis, sem decisão: itens desativados em Integrations (AI assistant, Weather) e Accessibility. **Atualização (2026-10-17):** superado por R-015 — a variante distribuída passa a ser a comercial (portal com endereço de produção), então nada fica escondido no pacote enviado; `portalSurfacesVisible` segue só para builds sem endereço do portal (pessoal/dev). A 080 (base com portal) foi cancelada antes do plano |
+| R-015 | Decisão da pessoa (2026-10-17): **um app só** — a loja e a TV dela recebem a mesma versão, a **comercial completa** (portal, licença, teste local de 7 dias, compra por Pix); compra mantida e declarada à Samsung. Substitui D-005 ("primeira distribuição é a base"). A pessoa **não envia ainda**: prepara tudo e habilita a venda no serviço (`checkout_enabled`) antes da submissão | Reabre R-004 (acesso do revisor) e R-006 (venda fora do Samsung Checkout, risco de reprovação aceito); kit, privacidade, UI Description e capturas da loja precisam descrever o comercial; novo `.wgt` com `build:tizen:commercial` | T049–T055; R-006 aceito pela pessoa; R-004 tratado pelo teste local de 7 dias (o revisor instala do zero e ganha o teste), registrado em `demo-access.md` |
 
 ## Execution Notes
 
@@ -235,14 +238,25 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 
 | 2026-10-17 | Fase 6 + T044 | Página de privacidade publicada (200, idêntica ao repo) e evidência gravada; logo/fundo/ícone no kit; `store-screenshots.mjs` gera as 4 capturas com catálogo fictício (revisadas imagem a imagem); `SAM-KIT-LOGO/ICONBG/SHOTS/PRIVACY` `Pass`; gate com 5 bloqueios, todos da pessoa | UI Description, acesso de teste, `custody.json`, Seller Office, R-009 |
 
-**PRÓXIMO**: só itens da pessoa — UI Description no template oficial; lista de demonstração com `validUntil`; `custody.json`; checar nome de pacote e registrar App ID (`published.json`); decidir R-009 (`application.launch`). Depois, rodar o gate de novo (sem `--record-local` se o `.wgt` não mudou). Fechar a feature (`Implementada`) é decisão da pessoa, já que o veredito fica `Blocked` até esses itens.
+| 2026-10-17 | T045–T047 | UI Description oficial preenchida (pptx 34 slides, capturas do build de produção em inglês, revisado slide a slide no PowerPoint), `SAM-KIT-UIDESC` `Pass`; portal escondido no build de loja sem portal (R-014) e "Agora:" traduzido; testes das áreas 523/523, tsc, lint e build ok | T048: novo `.wgt` e evidências, depois de R-009 e do nome do pacote |
+
+| 2026-10-17 | R-015 | Pessoa decidiu enviar e instalar a **comercial completa** (mesmo app na loja e na TV), compra mantida e declarada; não envia ainda — habilita a venda antes. 080 cancelada. Tarefas T049–T055 abertas; `SAM-KIT-UIDESC` volta a Pending (o pptx descrevia a base) | T049–T055, depois T048 com `build:tizen:commercial` |
+
+| 2026-10-17 | T049/T050 | Variante distribuída `commercial`; acesso de teste do comercial pelo teste local de 7 dias declarado em `demo-access.md`; testes do gate 32/32, trava íntegra | T051 privacidade, T052/T053 capturas e UI Description do comercial |
+
+| 2026-10-17 | T051 (parcial) | Política de privacidade reescrita para a comercial (portal, licença, Mercado Pago, cookie/armazenamento do site, retenção), fatos conferidos no código | Publicar no merge em `main` e regravar a evidência |
+
+**PRÓXIMO**: publicar a privacidade (merge em `main` pela pessoa → conferir 200 → evidência) fecha a T051; depois capturas e UI Description do comercial (T052/T053) e o build comercial com o portal e as chaves públicas de produção (T054, a pessoa confirma as chaves). Da pessoa: R-009, nome do pacote, App ID, `custody.json`, `validUntil` do acesso de teste e, **antes de enviar**, habilitar a venda no serviço (T055). T048 por último, num reempacote só, instalado por cima na TV dela.
 
 ## Arquivos Principais
 
 <!-- Sobrescrita a cada checkpoint — foco da etapa atual, não a árvore inteira. -->
 
+- `release/samsung/kit/ui-description/` + `kit/ui-description.md` — pptx oficial, capturas por tela e como refazer
+- `tv-web/scripts/release/{ui-description-shots.mjs,ui-description-pptx.py,fakePanel.mjs}` — capturas do build de produção e montagem do pptx
+- `tv-web/src/lib/portal/portalRuntime.ts` (`portalSurfacesVisible`), `features/settings/tabs/settingsTabs.ts`, `App.tsx` — portal fora da base (T046)
 - `tv-web/scripts/release/release-gate.mjs` — CLI; `--record-local` gravou STATIC/BUILD e o gate consumiu E2E
-- `release/samsung/evidence/` — evidências `static/build/e2e-2026-10-17-base.json`, amarradas ao hash do candidato
+- `release/samsung/evidence/` — evidências `static/build/e2e-2026-10-17-base.json`, amarradas ao hash do candidato **antigo** (`bc864e…`)
 - `release/samsung/reports/0.2.1-base.{json,md}` — relatório final local, decisão `Blocked` honesta
 - `tv-web/e2e/run.mjs` — runner E2E (T030); skills `tizen-emulator` (T031) e `tizen-tv` (T032)
 - `bridge/privacidade/index.html` — política publicada no merge em `main`
@@ -257,4 +271,5 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 - `npm run build:tizen` regrava `CCPlayTv/assets/*` e `index.html` (rastreados): rodar o gate depois de um build sem reempacotar mostra `INT-PKG-INVENTORY` Blocked por divergência com o `.wgt`.
 - Evidência só vale para o `.wgt` cujo hash ela registra: gravar E2E/TV antes do commit final e do reempacotamento desperdiça o roteiro. `--record-local` leva ~5 min (roda `npm run test` inteiro).
 - Uma sessão só por vez grava evidência e relatório (R-013): `--record-local` regrava `static|build-<data>-<variante>.json` com o mesmo nome e o gate regrava o relatório. Antes de rodar, `git log -3` e `git status`; se o arquivo já está commitado com `Pass` para o mesmo hash, rode o gate **sem** `--record-local`. Para provas que alteram o disco (SC-009), restaure o relatório com `git restore -- release/samsung/reports` depois.
+- Capturas da UI Description vêm do **build de produção** (`npm run build` + `npx vite preview --port 4173`), nunca do dev server: em dev o portal aparece de propósito (R-014) e há dicas de desenvolvimento na tela. O pptx não é reproduzível byte a byte: cada novo build pede hash novo no manifest.
 - Mudou um artefato de `release/samsung/kit/`? Recalcule o hash (`Get-FileHash -Algorithm SHA256 <arquivo>`, em minúsculas) no `manifest.json`, senão o item vira `Blocked` por hash divergente. Um `.md` novo do kit não pode ter `password=`, `token=`, 32 hex isolados etc.: o próprio gate o bloqueia (`INT-KIT-SECRETS`).
