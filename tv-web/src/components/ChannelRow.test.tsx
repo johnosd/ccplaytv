@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
+import { resetAppLanguageForTests, writeAppLanguage } from '../lib/i18n/appLanguage'
 import { ChannelRow } from './ChannelRow'
 
 afterEach(cleanup)
@@ -45,6 +46,20 @@ describe('ChannelRow', () => {
     expect(container.querySelector('.fav-star')).not.toBeInTheDocument()
     rerender(<ChannelRow name="Canal Exemplo" favorite />)
     expect(container.querySelector('.fav-star')).toBeInTheDocument()
+  })
+
+  // Feature 078: o prefixo "Agora:" saía fixo em português do CSS; vem do i18n e nunca entra no texto do slot.
+  it('o prefixo do slot "Agora" segue o idioma do app e fica fora do texto do slot', () => {
+    try {
+      writeAppLanguage('en')
+      const { container } = render(<ChannelRow name="Canal Exemplo" nowPlaying="Jornal da Manhã" />)
+      const now = container.querySelector('.channel-row-now')
+      expect(now).toHaveAttribute('data-now-prefix', 'Now: ')
+      expect(now).toHaveTextContent(/^Jornal da Manhã$/)
+    } finally {
+      window.localStorage.clear()
+      resetAppLanguageForTests()
+    }
   })
 
   it('unavailable desenha o selo "Indisponível" e marca a linha como soft disabled', () => {

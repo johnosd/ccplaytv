@@ -285,9 +285,10 @@
   text-overflow: ellipsis;
 }
 
-/* "Agora: " só como prefixo visual — o texto do slot continua só o título (contrato 030). */
+/* "Agora: " só como prefixo visual — o texto do slot continua só o título (contrato 030). O texto vem do i18n
+   (`channelRow.nowPrefix`, via `data-now-prefix`), nunca fixo aqui: fixo, aparecia em português no app em inglês. */
 .live-channel-row .channel-row-now:not(:empty)::before {
-  content: 'Agora: ';
+  content: attr(data-now-prefix);
 }
 
 /* Em "Todos" o rótulo do grupo é a 3ª linha da coluna de texto — nunca disputa a largura com o nome. */

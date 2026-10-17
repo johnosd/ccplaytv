@@ -38,3 +38,25 @@ Saída: `reports/<versão>-<variante>.json` e `.md`. Código de saída 0 =
 | `evidence/` | Um JSON por gate executado (E2E, emulador, TV, atualização, privacidade), amarrado ao hash do `.wgt` |
 | `kit/` | Manifest do kit, textos de listagem, rascunho da UI Description, acesso de demo sanitizado, mídias fornecidas |
 | `reports/` | Relatórios gerados pelo gate (sobrescritos; o histórico é o git) |
+
+## Mídias da loja (`kit/media/`)
+
+- `logo_1920x1080.png` (RGBA, transparente), `fundo_1920x1080.jpg` e `icone_512x423.png`: a identidade do
+  app, as mesmas de `docs/guia-praticas-app-tv/assets/`.
+- `screenshot_01.jpg` … `screenshot_04.jpg` (1920×1080, < 500 kB): Filmes, TV ao vivo com guia, Séries e
+  detalhe de série com episódios. Gerados do app real no navegador, com catálogo, capas e logos **fictícios**
+  (nenhuma lista real, marca ou pôster de terceiros):
+
+  ```powershell
+  cd tv-web   # com `npm run dev` no ar
+  node scripts/release/store-screenshots.mjs --out <pasta-temporária>   # revise as 4 imagens
+  ```
+
+  Sem `--out`, grava direto em `kit/media/`. Refaça a cada versão com mudança visual; trocar uma imagem exige
+  recalcular o SHA-256 dela no `manifest.json` (o gate bloqueia hash divergente).
+
+## UI Description (`kit/ui-description/`)
+
+O template oficial da Samsung preenchido em inglês (`CCPlayTV_UI_Description_<versão>.pptx`), as capturas por
+tela (`ui_NN_*.jpg`, do build de produção com a lista fictícia) e o template original. Como refazer e o passo
+da lista de teste — que só entra numa **cópia fora do git**, na hora do envio — estão em `kit/ui-description.md`.

@@ -65,19 +65,36 @@ it('.p12 no manifest bloqueia segredos; caminho fora do kit bloqueia o item sem 
   expect(results.find((r) => r.id === 'INT-KIT-SECRETS').paths).toEqual(['autor.p12'])
 })
 
-it('o kit real: listagem e VOC passam, sem segredo, artes pendentes com dono; o comercial bloqueia o acesso de teste', () => {
+it('o kit real: listagem, VOC e artes passam (conferidos de verdade), sem segredo, UI Description e acesso de teste pendentes com dono; o comercial bloqueia o acesso de teste', () => {
   const manifest = JSON.parse(readFileSync(new URL('manifest.json', kitDir), 'utf8'))
   const readFile = kitReader(fileURLToPath(kitDir))
   const base = checkKit({ manifest, readFile, variant: 'base', today: '2026-10-16' })
-  expect(statusOf(base, 'SAM-KIT-LISTING')).toBe('Pass')
-  expect(statusOf(base, 'SAM-KIT-VOC')).toBe('Pass')
-  expect(statusOf(base, 'INT-KIT-SECRETS')).toBe('Pass')
-  for (const id of ['SAM-KIT-LOGO', 'SAM-KIT-ICONBG', 'SAM-KIT-SHOTS', 'SAM-KIT-UIDESC']) {
+  for (const id of ['SAM-KIT-LISTING', 'SAM-KIT-VOC', 'INT-KIT-SECRETS', 'SAM-KIT-LOGO', 'SAM-KIT-ICONBG', 'SAM-KIT-SHOTS']) {
+    expect(statusOf(base, id), id).toBe('Pass')
+  }
+  for (const id of ['SAM-KIT-UIDESC', 'SAM-KIT-TESTACCESS']) {
     const result = base.find((r) => r.id === id)
     expect(result.status, id).toBe('Pending')
     expect(result.owner, id).toBeTruthy()
   }
   const withAccess = { ...manifest, items: manifest.items.map((item) => (item.id === 'SAM-KIT-TESTACCESS' ? { ...item, status: 'Pass' } : item)) }
-  expect(statusOf(checkKit({ manifest: withAccess, readFile, variant: 'commercial' }), 'SAM-KIT-TESTACCESS')).toBe('Blocked')
-  expect(statusOf(checkKit({ manifest: withAccess, readFile, variant: 'base' }), 'SAM-KIT-TESTACCESS')).toBe('Blocked') // sem validUntil
+  // O demo-access real já declara o teste local do revisor, mas ainda não tem a validade da lista de teste.
+  for (const variant of ['commercial', 'base']) {
+    const result = checkKit({ manifest: withAccess, readFile, variant }).find((r) => r.id === 'SAM-KIT-TESTACCESS')
+    expect(result.status, variant).toBe('Blocked')
+    expect(result.detail, variant).toMatch(/validUntil/)
+  }
+})
+
+it('comercial (R-015/R-004): acesso de teste só passa com o teste local do revisor declarado e a validade em dia', () => {
+  const kit = mkdtempSync(join(tmpdir(), 'kit078-access-'))
+  const check = (text, today = '2026-10-17') => {
+    const buffer = Buffer.from(text)
+    writeFileSync(join(kit, 'demo-access.md'), buffer)
+    const manifest = { kitVersion: '0.2.1', items: [{ id: 'SAM-KIT-TESTACCESS', owner: 'release', status: 'Pass', artifacts: [{ path: 'demo-access.md', sha256: sha(buffer) }] }] }
+    return checkKit({ manifest, readFile: kitReader(kit), variant: 'commercial', today }).find((r) => r.id === 'SAM-KIT-TESTACCESS')
+  }
+  expect(check('validUntil: 2026-12-31').detail).toMatch(/reviewerAccess/)
+  expect(check('reviewerAccess: local-trial-7d\nvalidUntil: 2026-12-31').status).toBe('Pass')
+  expect(check('reviewerAccess: local-trial-7d\nvalidUntil: 2026-10-01').detail).toMatch(/vencido/)
 })
