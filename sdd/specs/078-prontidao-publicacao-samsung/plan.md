@@ -180,7 +180,7 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 | Fase 5 — US4 | Concluída: `kit.mjs` (mídia, hash, segredos, listagem por idioma, VOC, acesso de teste) e kit real em `release/samsung/kit/`; CLI com `kitReader`; contrato kit verde — **5/5 contratos verdes** |
 | Kit | `SAM-KIT-LISTING`, `SAM-KIT-VOC` (`ccplaytv@gmail.com`), `INT-KIT-SECRETS`, `SAM-CFG-TITLE` Pass; artes, UI Description oficial, privacidade e acesso de teste Pending com dono |
 | Fase 6 — US5 | Código concluído: `bridge/privacidade/index.html`, nota na ADR-012, `privacy.mjs` + CLI; `SAM-KIT-PRIVACY` `Pending` até o merge em `main` publicar a página e a evidência ser gravada |
-| Fase 7 — US3+US6 | Parcial: `evidence.mjs` + CLI; T030 E2E e evidências local/static/build concluídos; T031 emulador e T032 **TV física** pendentes |
+| Fase 7 — US3+US6 | Parcial: T030 E2E e T031 emulador concluídos; `INT-EVD-EMULATOR` `Waived` por `118, -4`; T032 **TV física** pendente |
 | Fase 8 — US7 | Concluída: obsolescência por candidato, kit e `config.xml` do disco ≠ pacote; `release-gate.test.mjs` roda o CLI como processo |
 | App sem "IPTV" | Textos trocados (T042, R-012) e commitados (`e8fcc3c`); `build:tizen` refeito — `CCPlayTv/assets` sem "IPTV"; **`.wgt` ainda não reempacotado** |
 | Fase 9 | Parcial: T037–T040 e T043 concluídos; T036 executado localmente com relatório/evidências, aguardando preservação no commit; T041 pendente |
@@ -225,11 +225,11 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 | 2026-10-16 | Fase 4 (US2) | Gate do pacote e privilégios; `findStaleDeclared` + guarda no `sync-tizen`; `config.xml` 8.0/CCPlayTV, yaml Release sem obsoletas; `author.mjs`; ledger; `.wgt` novo passa nos itens de pacote; contratos pacote+privilégios 2/2 verdes, trava íntegra | Fase 5 (US4): T020 `kit.mjs`, T021 perguntar e-mail VOC ao usuário |
 | 2026-10-16 | Fase 5 (US4) | `kit.mjs` completo (A-02 e A-03 cobertos), kit real (manifest, listagem pt/en/es, UI Description, demo sanitizado), `kitReader` no CLI, `kit.test.mjs`; e-mail VOC respondido; contratos 5/5 verdes, trava íntegra | Fase 6 (US5): T025 página de privacidade |
 | 2026-10-16 | Fase 6 (US5) | Página de privacidade pt/en/es (destinos de rede conferidos no código), nota na ADR-012, `privacy.mjs` + CLI + `privacy.test.mjs`; contratos 5/5 verdes, trava íntegra | Publicar via merge em `main` e gravar `evidence/privacy-*.json` |
-| 2026-10-17 | T030 + evidências locais | `npm run test:e2e` 52/52; `--record-local` gravou STATIC/BUILD `Pass`; uma falha intermitente de `importBench` sob suíte completa passou isolada (9/9) e na reexecução da evidência | T031 emulador, T032 TV física, T036 preservação do relatório e T041 quickstart |
+| 2026-10-17 | T030/T031 + evidências | E2E 52/52; STATIC/BUILD `Pass`; emulador iniciou e confirmou `tv-samsung`, mas instalação falhou em `installing[9]` com `118, -4`; DUID estava no certificado e `sdb root on` deu `Permission denied`; `INT-EVD-EMULATOR` `Waived` | T032 TV física, T036 preservar relatório do novo hash e T041 quickstart |
 | 2026-10-16 | T042 + Fase 8 (US7) | App, kit e privacidade sem "IPTV" (emenda 026/037/067 aprovada, travas regravadas, E2E afetados 4/4); obsolescência por kit e `config.xml`; `release-gate.test.mjs`; testes do gate 31/31 | Commit → `build:tizen` + reempacotar → T030–T032 |
 | 2026-10-16 | Fase 9 (parcial) | T037–T040 + T043 (ad-hoc: yaml com `EmptyState.js` obsoleto travava o `sync-tizen` após `37e068a`); `build:tizen` ok sem "IPTV"; varredura de segredos limpa | Commit dos não rastreados + `CCPlayTv/` → reempacotar → T030–T032, T036, T041 |
 
-**PRÓXIMO**: preservar no commit as evidências e o relatório gerados; depois executar T031 (emulador), T032 TV física **sem desinstalar** e T041 quickstart. T036 só fecha após o relatório `0.2.1-base.{json,md}` entrar no commit; o gate atual permanece `Blocked` pelos ambientes e itens de publicação ainda pendentes.
+**PRÓXIMO**: preservar no commit as evidências atualizadas e o relatório do candidato `61467d1`/hash `462fda…`; depois executar T032 na TV física **sem desinstalar** e T041 quickstart. O emulador fica `Waived` por R-003; o gate permanece `Blocked` pelos gates de TV, privacidade, artes e registros.
 
 ## Arquivos Principais
 

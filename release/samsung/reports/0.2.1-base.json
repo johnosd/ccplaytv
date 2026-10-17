@@ -1,11 +1,11 @@
 {
   "candidate": {
     "variant": "base",
-    "revision": "ab4c64ec5f469df7b325853a0b58cad646e2087d",
+    "revision": "61467d11fba3d3f35cfbcad49933a660645e23f9",
     "dirtyPaths": [],
     "buildMode": "production",
     "version": "0.2.1",
-    "wgtSha256": "24b962e89e667924c9598585854bc3f4f92f231b14bbc17ab4585e2624dbde2e",
+    "wgtSha256": "462fda1106277e2f0088b28d0c0aee44cd7972759bf51ffccf549996b8d28ce3",
     "dirty": false
   },
   "kit": {
@@ -216,9 +216,10 @@
     },
     {
       "id": "INT-EVD-EMULATOR",
-      "status": "Pending",
-      "detail": "sem evidência no ambiente emulator",
-      "nextAction": "executar o roteiro (quickstart) no ambiente emulator e gravar release/samsung/evidence/"
+      "status": "Waived",
+      "detail": "emulator · T-samsung-10.0-x86_64 · Tizen 10.0 · 2026-10-17",
+      "owner": "release",
+      "justification": "install failed[118, -4] Operation not allowed em installing[9]; DUID XTCJYJZXZBZVK está no certificado; sdb root on retorna Permission denied; sem instalação não há UI/Web Inspector. R-003."
     },
     {
       "id": "INT-EVD-TV",
@@ -245,7 +246,6 @@
     "SAM-KIT-PRIVACY",
     "SAM-KIT-TESTACCESS",
     "INT-SEC-CUSTODY",
-    "INT-EVD-EMULATOR",
     "INT-EVD-TV",
     "INT-UPD-PRESERVE",
     "TARGET-MATRIX"
@@ -254,5 +254,5 @@
     "stale": false,
     "reasons": []
   },
-  "generatedAt": "2026-10-17T01:06:59.616Z"
+  "generatedAt": "2026-10-17T01:16:11.301Z"
 }

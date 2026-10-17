@@ -3,8 +3,8 @@
   "candidate": {
     "version": "0.2.1",
     "variant": "base",
-    "revision": "ab4c64ec5f469df7b325853a0b58cad646e2087d",
-    "wgtSha256": "24b962e89e667924c9598585854bc3f4f92f231b14bbc17ab4585e2624dbde2e"
+    "revision": "61467d11fba3d3f35cfbcad49933a660645e23f9",
+    "wgtSha256": "462fda1106277e2f0088b28d0c0aee44cd7972759bf51ffccf549996b8d28ce3"
   },
   "environment": "browser",
   "script": "npm run test:e2e (node e2e/run.mjs, 6 em paralelo)",

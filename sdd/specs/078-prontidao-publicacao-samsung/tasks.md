@@ -218,7 +218,7 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 
 - [X] T029 [US6] No CLI: `INT-EVD-*` e `INT-UPD-PRESERVE` lidos de `release/samsung/evidence/*.json` (data-model), só contando evidência com `candidate.wgtSha256` igual ao candidato; `INT-EVD-STATIC`/`BUILD` podem ser gravados pelo próprio CLI com `--record-local` rodando `npm run lint` e `npm run test` e registrando código de saída (nunca a saída bruta). `target-matrix.json` → `decideLaunch`.
 - [X] T030 [US6] Rodar `npm run test:e2e` (com `npm run dev`) e gravar `evidence/e2e-<data>.json` para o candidato.
-- [ ] T031 [US6] Emulador: tentar o roteiro da skill `tizen-emulator`; se o bloqueio `118, -4` persistir, gravar `INT-EVD-EMULATOR` `Waived` com dono e justificativa (D-009, R-003).
+- [X] T031 [US6] Emulador: tentar o roteiro da skill `tizen-emulator`; se o bloqueio `118, -4` persistir, gravar `INT-EVD-EMULATOR` `Waived` com dono e justificativa (D-009, R-003).
 - [ ] T032 [US3] [US6] TV física (quickstart §4, skill `tizen-tv`, **sem desinstalar**): atualização por cima com dados de uso, roteiro curto, firmware anotado; gravar `evidence/tv-<data>.json`, `evidence/update-<data>.json` (INT-UPD-PRESERVE) e a linha `BR · QN50Q60DAGXZD · <firmware> · tv · allowed` em `target-matrix.json`. Gate obrigatório — se não executado, fica `Pending` e a feature não fecha sem decisão explícita do usuário.
 
 ### Testes da Fase
@@ -229,11 +229,11 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 
 **Registro da Fase**:
 
-- Status: parcial (2026-10-16/17) — T029, T030 e T033 concluídas; T031–T032 aguardam os ambientes correspondentes.
+- Status: parcial (2026-10-17) — T029–T031 e T033 concluídas; T032 aguarda a TV física.
 - Feito: `evidence.mjs` (`checkEvidence`, `EVIDENCE_GATES`: STATIC/BUILD `local`, E2E `browser`, EMULATOR `emulator`, TV e UPD-PRESERVE `tv`; só conta evidência do mesmo `wgtSha256` e do ambiente do gate; a mais recente vence; `Waived` leva dono e justificativa para o `decideLaunch` julgar). CLI: lê `evidence/*.json` (menos `privacy-*`), `--record-local` roda `npm run lint` e `npm run test` e grava só o código de saída em `evidence/{static,build}-<data>-<variante>.json`; `evidence/` e `target-matrix.json` deixam de contar na árvore suja (R-011).
 - Contrato: sem contrato nesta fase; contrato da feature segue 5/5 verdes; trava íntegra.
 - Testes executados: `npx vitest run scripts/release` → 10 arquivos, 29 testes verdes (`evidence.test.mjs` 3); `npm run lint` ok; `npm run test:e2e` → 52/52 scripts verdes; `node scripts/release/release-gate.mjs --variant base --record-local` → `INT-EVD-STATIC` e `INT-EVD-BUILD` `Pass` (códigos 0). Uma execução anterior da suíte completa falhou intermitentemente em `scripts/bench/importBench.test.mjs` (`xmltv`, timeout do `afterEach`); o teste isolado passou 9/9 e a reexecução usada na evidência passou, sem alterar o benchmark.
-- Pendências: (1) T031 emulador e T032 TV física; (2) T036 depende de preservar/commitar o relatório final; (3) T041 quickstart §2–§7 ainda não registrado; (4) T032 precisa da TV ligada e da pessoa (gate obrigatório, sem desinstalar).
+- Pendências: (1) T032 TV física; (2) T036 precisa preservar o relatório atualizado após o novo hash do `.wgt`; (3) T041 quickstart §2–§7 ainda não registrado; (4) a instalação no emulador permanece `Waived` por `118, -4` e não valida UI/AVPlay.
 
 ---
 
