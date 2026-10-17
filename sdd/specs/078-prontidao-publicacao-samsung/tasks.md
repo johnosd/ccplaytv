@@ -229,11 +229,11 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 
 **Registro da Fase**:
 
-- Status: parcial (2026-10-17) — T029–T031 e T033 concluídas; T032 aguarda a TV física.
+- Status: concluída (2026-10-17) — T029–T033 concluídas; T031 ficou `Waived` por `118, -4` e T032 foi confirmado na TV física pelo usuário.
 - Feito: `evidence.mjs` (`checkEvidence`, `EVIDENCE_GATES`: STATIC/BUILD `local`, E2E `browser`, EMULATOR `emulator`, TV e UPD-PRESERVE `tv`; só conta evidência do mesmo `wgtSha256` e do ambiente do gate; a mais recente vence; `Waived` leva dono e justificativa para o `decideLaunch` julgar). CLI: lê `evidence/*.json` (menos `privacy-*`), `--record-local` roda `npm run lint` e `npm run test` e grava só o código de saída em `evidence/{static,build}-<data>-<variante>.json`; `evidence/` e `target-matrix.json` deixam de contar na árvore suja (R-011).
 - Contrato: sem contrato nesta fase; contrato da feature segue 5/5 verdes; trava íntegra.
 - Testes executados: `npx vitest run scripts/release` → 10 arquivos, 29 testes verdes (`evidence.test.mjs` 3); `npm run lint` ok; `npm run test:e2e` → 52/52 scripts verdes; `node scripts/release/release-gate.mjs --variant base --record-local` → `INT-EVD-STATIC` e `INT-EVD-BUILD` `Pass` (códigos 0). Uma execução anterior da suíte completa falhou intermitentemente em `scripts/bench/importBench.test.mjs` (`xmltv`, timeout do `afterEach`); o teste isolado passou 9/9 e a reexecução usada na evidência passou, sem alterar o benchmark.
-- Pendências: (1) T036 precisa preservar o relatório atualizado após o commit final e o novo hash do `.wgt`; (2) T041 quickstart §2–§7 ainda não registrado; (3) privacidade publicada, artes, UI Description e registros do Seller Office seguem pendentes.
+- Pendências: (1) T041 quickstart §2–§7 ainda não registrado; (2) privacidade publicada, artes, UI Description e registros do Seller Office seguem pendentes.
 
 ---
 
@@ -267,7 +267,7 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 
 **Purpose**: Documentação, rodada final do gate e revisão de segredos.
 
-- [ ] T036 Rodar o gate final para a variante base sobre um `.wgt` recém-empacotado de árvore limpa e commitar `release/samsung/reports/<version>-base.{json,md}`; o veredito é o que o gate disser (esperado `Blocked` por artes/UI Description até serem fornecidas — registrar honestamente). Gate executado e relatório gerado localmente; falta preservar no commit.
+- [X] T036 Rodar o gate final para a variante base sobre um `.wgt` recém-empacotado de árvore limpa e commitar `release/samsung/reports/<version>-base.{json,md}`; o veredito é o que o gate disser (esperado `Blocked` por artes/UI Description até serem fornecidas — registrar honestamente). Gate executado, decisão `Blocked` registrada honestamente e relatório preservado.
 - [X] T037 [P] Atualizar `docs/guia-praticas-app-tv/10_checklist_de_lancamento.md` com um parágrafo apontando o gate (`release/samsung/README.md`) e o mapeamento L01–L10 → IDs.
 - [X] T038 [P] `CLAUDE.md` → seção Commands (frontend): uma linha `node scripts/release/release-gate.mjs --variant base|commercial` (regra permanente, sem status de feature).
 - [X] T039 [P] `.planning/backlog.md` → `## Ideias Futuras`: "Licença/voucher de teste para revisor do Seller Office (variante comercial)" (R-004) e "Ampliar matriz de modelos Tizen 8.0" (R-001).
@@ -276,11 +276,11 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 - [X] T043 (ad-hoc, descoberta ao reempacotar para T036) `CCPlayTv/tizen_web_project.yaml`: remover `assets/EmptyState.js`, que o build não emite mais desde o commit `37e068a` — a trava `findUnlistedFiles`/obsoletos do `sync-tizen` recusava sincronizar.
 
 **Registro da Fase**
-- Status: parcial — T032 e T037–T040 e T043 feitos; T036 precisa ser regravado após o commit final do candidato; T041 espera a execução do quickstart.
+- Status: parcial — T032, T036–T040 e T043 feitos; T041 espera a execução do quickstart.
 - Feito: mapeamento L01–L10 → IDs no doc 10; linha do gate em `CLAUDE.md` → Commands; duas ideias no backlog (R-004, R-001); `npm run build:tizen` refeito (agora sem nenhum "IPTV" em `CCPlayTv/assets`) depois de T043.
 - Contrato: sem contrato nesta fase.
 - Testes executados: `npm run build:tizen` (1ª falhou na trava de obsoletos, 2ª ok depois de T043). T040: varredura com `findSecrets` + extensões de chave sobre 75 arquivos de texto de `release/`, `bridge/` e `CCPlayTv/` — `release/` e `bridge/` sem achado; 5 achados em `CCPlayTv/assets/catalogApi.js`, `route-add-source.js` e `CCPlayTv/Debug/.../index.js`, todos código (template `?username=${…}&password=${…}` e atribuições de campo, conferidos pela forma mascarada) — nenhum valor `CCPLAY_PROBE_*` do `.env` presente no bundle (conferido só por presença, sem imprimir). Nenhum `.p12/.pem/.key` nessas pastas.
-- Pendências: regravar o relatório após o commit final do candidato e executar T041. O veredito atual permanece `Blocked` pelos gates de privacidade publicada, artes, UI Description e registros do Seller Office; a TV está aprovada pelo roteiro confirmado pelo usuário.
+- Pendências: executar T041. O veredito atual permanece `Blocked` pelos gates de privacidade publicada, artes, UI Description e registros do Seller Office; a TV está aprovada pelo roteiro confirmado pelo usuário.
 
 ### Checklist de Release
 

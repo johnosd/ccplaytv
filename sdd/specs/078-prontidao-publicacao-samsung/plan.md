@@ -183,7 +183,7 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 | Fase 7 — US3+US6 | T030 E2E, T031 emulador `Waived` por `118, -4` e T032 TV física concluídos; TV QN50Q60DAGXZD aprovada pelo usuário |
 | Fase 8 — US7 | Concluída: obsolescência por candidato, kit e `config.xml` do disco ≠ pacote; `release-gate.test.mjs` roda o CLI como processo |
 | App sem "IPTV" | Textos trocados (T042, R-012) e commitados (`e8fcc3c`); `build:tizen` refeito — `CCPlayTv/assets` sem "IPTV"; **`.wgt` ainda não reempacotado** |
-| Fase 9 | Parcial: T032 e T037–T040 e T043 concluídos; T036 precisa ser regravado após o commit final; T041 pendente |
+| Fase 9 | Parcial: T032, T036–T040 e T043 concluídos; T041 pendente |
 | Commit | `e8fcc3c` levou só arquivos já versionados: `release/`, `bridge/privacidade/` e `sdd/specs/078-…/` seguem **não rastreados** — a árvore continua suja e a revisão não contém o kit |
 | Pacote Tizen | Corrigido: `required_version` 8.0, `<name>CCPlayTV</name>`, `build_type: Release`, 3 entradas obsoletas fora; `.wgt` novo (`CCPlayTV.wgt`, 0.2.1) passa nos itens de pacote |
 | Custódia / registro | `custody.json` e `published.json` ainda vazios: `INT-SEC-CUSTODY` Blocked; `SAM-REG-*` Pending (dependem da pessoa) |
@@ -226,11 +226,11 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 | 2026-10-16 | Fase 5 (US4) | `kit.mjs` completo (A-02 e A-03 cobertos), kit real (manifest, listagem pt/en/es, UI Description, demo sanitizado), `kitReader` no CLI, `kit.test.mjs`; e-mail VOC respondido; contratos 5/5 verdes, trava íntegra | Fase 6 (US5): T025 página de privacidade |
 | 2026-10-16 | Fase 6 (US5) | Página de privacidade pt/en/es (destinos de rede conferidos no código), nota na ADR-012, `privacy.mjs` + CLI + `privacy.test.mjs`; contratos 5/5 verdes, trava íntegra | Publicar via merge em `main` e gravar `evidence/privacy-*.json` |
 | 2026-10-17 | T030/T031 + evidências | E2E 52/52; STATIC/BUILD `Pass`; emulador iniciou e confirmou `tv-samsung`, mas instalação falhou em `installing[9]` com `118, -4`; DUID estava no certificado e `sdb root on` deu `Permission denied`; `INT-EVD-EMULATOR` `Waived` | T032 TV física, T036 preservar relatório do novo hash e T041 quickstart |
-| 2026-10-17 | T032 TV física | `deploy-tv.ps1 -SkipBuild` encontrou `192.168.0.2`, instalou por cima com o certificado Samsung, lançou `8tZqMtwANL.CCPlayTv` e `applist` confirmou `CCPlayTV`; usuário confirmou funcionamento correto; `INT-EVD-TV` e `INT-UPD-PRESERVE` `Pass`, matriz BR/QN50Q60DAGXZD `allowed` | Regravar/commitar T036 após o hash final; T041 quickstart |
+| 2026-10-17 | T032/T036 fechamento | `deploy-tv.ps1 -SkipBuild` encontrou `192.168.0.2`, instalou por cima com o certificado Samsung, lançou `8tZqMtwANL.CCPlayTv` e `applist` confirmou `CCPlayTV`; usuário confirmou funcionamento correto; `INT-EVD-TV` e `INT-UPD-PRESERVE` `Pass`, matriz BR/QN50Q60DAGXZD `allowed`; relatório final preservado | T041 quickstart; itens externos de publicação |
 | 2026-10-16 | T042 + Fase 8 (US7) | App, kit e privacidade sem "IPTV" (emenda 026/037/067 aprovada, travas regravadas, E2E afetados 4/4); obsolescência por kit e `config.xml`; `release-gate.test.mjs`; testes do gate 31/31 | Commit → `build:tizen` + reempacotar → T030–T032 |
 | 2026-10-16 | Fase 9 (parcial) | T037–T040 + T043 (ad-hoc: yaml com `EmptyState.js` obsoleto travava o `sync-tizen` após `37e068a`); `build:tizen` ok sem "IPTV"; varredura de segredos limpa | Commit dos não rastreados + `CCPlayTv/` → reempacotar → T030–T032, T036, T041 |
 
-**PRÓXIMO**: preservar no commit as evidências de TV e matriz; regravar o gate final T036 contra o commit resultante e executar T041 quickstart. TV física está aprovada pelo usuário; emulador permanece `Waived` por R-003.
+**PRÓXIMO**: executar T041 quickstart §2–§7. TV física está aprovada pelo usuário; emulador permanece `Waived` por R-003.
 
 ## Arquivos Principais
 
