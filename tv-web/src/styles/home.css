@@ -727,14 +727,15 @@
   background: var(--bg-hover);
 }
 
-/* ---------- Canais favoritos (1ª fileira, ad-hoc 2026-10-09): ícone quadrado com o logo — ou as iniciais — e o nome embaixo.
-   O nome fica fora da caixa (na faixa de legenda do formato), então o anel de foco contorna só o ícone. ---------- */
+/* ---------- Canais favoritos (1ª fileira, ad-hoc 2026-10-09): ícone redondo (ad-hoc 2026-10-17) com o logo — ou as
+   iniciais — e o nome embaixo. O nome fica fora da caixa (na faixa de legenda do formato), então o anel de foco contorna só o
+   círculo (o `outline` acompanha o `border-radius` no Chromium da TV). ---------- */
 
 .home-live-card {
   position: relative;
   width: var(--home-card-w);
   height: var(--home-card-h);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   background: var(--bg-surface);
   box-shadow: var(--elevation-1);
 }
@@ -751,6 +752,12 @@
   width: 100%;
   height: 100%;
   border-radius: inherit;
+}
+
+/* Logo inteiro dentro do círculo: o maior retângulo que cabe nele ocupa ~70% do diâmetro, então 15% de respiro por lado
+   impede que um logo largo tenha as pontas cortadas pela borda redonda. */
+.home-live-logo .poster-box-logo .poster-box-art {
+  padding: 15%;
 }
 
 .home-live-name {
@@ -772,7 +779,9 @@
   color: var(--text-primary);
 }
 
-/* "Ver todos (N)" da fileira de canais: da altura do ícone, não do slot inteiro (que inclui a faixa do nome). */
+/* "Ver todos (N)" da fileira de canais: círculo do mesmo tamanho do ícone (não do slot inteiro, que inclui a faixa do nome),
+   para a fileira manter um ritmo só. */
 .home-row[data-row='channels'] .home-see-all {
   height: var(--home-card-h);
+  border-radius: var(--radius-pill);
 }

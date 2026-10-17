@@ -55,7 +55,7 @@ export const HOME_ROW_FORMATS: Record<HomeRowFormat, HomeFormatMetrics> = {
   poster: metrics([250, 375], [667, 375]),
   rank: metrics([250, 375], [667, 375], 0, true),
   continue: metrics([480, 270], [600, 338], CAPTION_BLOCK),
-  // Canais favoritos: ícone quadrado (logo ou iniciais) com o nome embaixo — não expande (ad-hoc 2026-10-09).
+  // Canais favoritos: ícone redondo (logo ou iniciais) com o nome embaixo — não expande (ad-hoc 2026-10-09; círculo 2026-10-17).
   live: metrics([200, 200], [200, 200], CAPTION_BLOCK),
   ai: metrics([860, 170], [860, 170]),
 }
