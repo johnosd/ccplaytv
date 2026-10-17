@@ -1,0 +1,88 @@
+/* Listas (feature 077, US2): cartões em uma coluna no celular, duas no PC; editor em uma coluna com ações fixas no rodapé. */
+:root { --brand-1: #ff2e87; --brand-2: #ff7a3d; --brand-3: #ffc93d; --brand-4: #3ddc84; --brand-5: #1e9ab0; }
+
+.lists-page { position: relative; display: grid; gap: var(--space-sm); align-content: start; min-width: 0; }
+.page-header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2xs) var(--space-sm); padding-right: 0; }
+.page-header h1 { display: flex; align-items: center; gap: var(--space-xs); }
+.library-count { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding-inline: var(--space-xs); border-radius: var(--radius-pill); background: var(--bg-elevated); border: 1px solid var(--bg-hover); color: var(--text-secondary); font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 400; }
+.library-notices { display: grid; gap: var(--space-xs); }
+.library-notices:empty { display: none; }
+
+.list-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-s); padding-bottom: calc(var(--control-h) + var(--space-md)); }
+.list-card { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "avatar body" "actions actions"; gap: var(--space-s) var(--space-sm); align-items: center; padding: var(--space-sm); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-panel); box-shadow: var(--shadow-card); min-width: 0; }
+.list-card:focus-within { border-color: var(--accent-line); }
+.list-avatar { grid-area: avatar; display: grid; place-items: center; width: 52px; height: 52px; border-radius: var(--radius-input); background: linear-gradient(135deg, var(--avatar-from), var(--avatar-to)); color: var(--bg-base); font-family: var(--font-title); font-size: var(--fs-lg); font-weight: 700; }
+.list-avatar--0 { --avatar-from: var(--brand-1); --avatar-to: var(--brand-2); }
+.list-avatar--1 { --avatar-from: var(--brand-2); --avatar-to: var(--brand-3); }
+.list-avatar--2 { --avatar-from: var(--brand-4); --avatar-to: var(--brand-5); }
+.list-avatar--3 { --avatar-from: var(--brand-5); --avatar-to: var(--brand-1); }
+.list-avatar--4 { --avatar-from: var(--brand-3); --avatar-to: var(--brand-4); }
+.list-avatar--5 { --avatar-from: var(--brand-1); --avatar-to: var(--brand-5); }
+.list-card-body { grid-area: body; display: grid; gap: var(--space-2xs); min-width: 0; }
+.list-card-body h3 { display: -webkit-box; overflow: hidden; font-family: var(--font-title); font-weight: 700; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.list-meta, .list-detail { font-size: var(--fs-sm); color: var(--text-muted); }
+.list-detail { color: var(--text-secondary); }
+.list-card-actions { grid-area: actions; display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.list-card-actions:empty { display: none; }
+.list-card-actions button { flex: 1 1 auto; }
+
+/* Adicionar lista: botão flutuante acima da barra inferior no celular; no cabeçalho em PC; embutido quando a lista está vazia. */
+.lists-add { position: fixed; right: var(--gutter); bottom: calc(var(--nav-bar-h) + env(safe-area-inset-bottom, 0px) + var(--space-sm)); z-index: 15; box-shadow: 0 8px 24px rgb(0 0 0 / 45%); }
+.lists-add span[aria-hidden] { font-size: var(--fs-h2); line-height: 1; }
+.lists-add.is-inline { position: static; box-shadow: none; }
+.lists-empty { display: grid; justify-items: center; gap: var(--space-sm); padding: var(--space-section) var(--space-md); text-align: center; border: 2px dashed var(--bg-hover); border-radius: var(--radius-card); background: var(--bg-surface); }
+.lists-empty p { max-width: 28rem; }
+
+/* Editor */
+.list-editor { display: grid; gap: var(--space-sm); align-content: start; width: 100%; max-width: 40rem; padding-bottom: calc(var(--control-h) + var(--space-md)); }
+.list-editor form { gap: var(--space-sm); }
+.editor-fields { display: grid; gap: var(--space-sm); }
+.editor-actions { position: sticky; bottom: 0; z-index: 15; display: flex; gap: var(--space-xs); justify-content: flex-end; padding: var(--space-xs) 0 calc(var(--space-xs) + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, var(--bg-base) 70%, transparent); }
+.editor-actions button { flex: 1 1 0; }
+.list-editor input, .list-editor select, .tmdb-form input { scroll-margin-bottom: var(--action-bar-safe-bottom); }
+.type-toggle { display: grid; gap: var(--space-xs); }
+.type-toggle > legend { padding: 0; margin-bottom: var(--space-xs); color: var(--text-secondary); font-size: var(--fs-sm); font-weight: 600; }
+.segmented { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2xs); padding: var(--space-2xs); min-height: calc(var(--control-h) + var(--space-xs)); background: var(--bg-elevated); border: 1px solid var(--bg-hover); border-radius: var(--radius-input); }
+.segmented label { position: relative; display: grid; min-height: var(--control-h); color: var(--text-secondary); font-size: var(--fs-body); }
+.segmented input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; opacity: 0; cursor: pointer; }
+.segmented span { display: flex; align-items: center; justify-content: center; gap: var(--space-2xs); padding: var(--space-2xs) var(--space-s); border: 1px solid transparent; border-radius: var(--radius-chip); transition: background var(--motion) ease-out, color var(--motion) ease-out; }
+.segmented label:hover span { color: var(--text-primary); }
+.segmented input:checked + span { background: var(--accent-soft); border-color: var(--accent-line); color: var(--text-primary); font-weight: 600; }
+.segmented input:checked + span::before { content: "✓"; color: var(--accent); }
+.segmented input:focus-visible + span { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.segmented input:disabled { cursor: not-allowed; }
+.type-toggle:disabled .segmented { opacity: .55; }
+.form-section { display: grid; gap: var(--space-sm); border: 1px solid var(--border-subtle); border-radius: var(--radius-panel); background: rgb(0 0 0 / 12%); }
+details.form-section { padding: 0; gap: 0; }
+details.form-section[open] { padding-bottom: var(--space-sm); }
+details.form-section > :not(summary) { margin-inline: var(--space-sm); }
+details.form-section > summary + * { margin-top: var(--space-xs); }
+.form-section > summary { display: flex; align-items: center; gap: var(--space-xs); min-height: 44px; padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-panel); color: var(--text-secondary); font-size: var(--fs-sm); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; list-style: none; }
+.form-section > summary::-webkit-details-marker { display: none; }
+.form-section > summary::before { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(-45deg); transition: transform var(--motion) ease-out; }
+.form-section[open] > summary::before { transform: rotate(45deg); }
+.form-section > summary:hover { color: var(--text-primary); background: var(--bg-elevated); }
+.form-section > summary:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+
+/* No editor, as ações fixas ocupam o lugar da barra inferior (menos empilhamento com o teclado virtual). */
+@media (max-width: 959.98px) {
+  .portal-shell[data-view=editor] .portal-nav { display: none; }
+  .portal-shell[data-view=editor] .portal-main { padding-bottom: var(--space-sm); }
+  .portal-shell[data-view=editor] .list-editor { padding-bottom: 0; }
+}
+
+@media (min-width: 640px) {
+  .list-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .list-card-actions button { flex: 0 0 auto; }
+}
+
+@media (min-width: 960px) {
+  .lists-add { position: absolute; top: 0; right: 0; bottom: auto; box-shadow: none; }
+  /* O botão fica no canto do cabeçalho: reserva o espaço dele para não cobrir o "último estado recebido". */
+  .lists-page .page-header { padding-right: 13rem; min-height: var(--control-h); }
+  .lists-add.is-inline { position: static; }
+  .list-grid { padding-bottom: 0; }
+  .list-editor { padding-bottom: 0; }
+  .editor-actions { position: static; background: none; justify-content: flex-start; padding: 0; }
+  .editor-actions button { flex: 0 0 auto; }
+}

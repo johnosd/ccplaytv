@@ -1,0 +1,27 @@
+{
+    "feature":  "079-home-carregamento-progressivo",
+    "lockedAt":  "2026-10-16 21:07",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/assembly/screenAssembly.home-carregamento-progressivo.contract.test.ts",
+                      "sha256":  "78c4b46f7c3a4ec642f466bb147bd1c0fdc2e22759c3c4c888aa8fa6c9a47056",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/lib/assembly/useScreenAssembly.home-carregamento-progressivo.contract.test.tsx",
+                      "sha256":  "2f8b597209e876f2513b6c8c872bfb046749bd3396fa170200a6a2037a7f2430",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/home/HomeContent.home-carregamento-progressivo.contract.test.tsx",
+                      "sha256":  "bc1d911ccf1a0477a54d8c985e8aa4b95b4e0016ca5dd863834e20b7b473a1fc",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/features/vod/VodShowcaseScreen.home-carregamento-progressivo.contract.test.tsx",
+                      "sha256":  "c941604cb10a93666c0697d104442e82eba29b4575f57d7b18a81514434ce4e4",
+                      "tests":  1
+                  }
+              ]
+}

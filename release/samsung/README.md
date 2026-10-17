@@ -1,0 +1,40 @@
+# Gate de publicação — Samsung TV Seller Office
+
+Dados versionados do gate de prontidão da feature
+`078-prontidao-publicacao-samsung` (spec, plano e regras em
+`sdd/specs/078-prontidao-publicacao-samsung/`, em especial `logic/gate.md` e
+`data-model.md`). O gate prepara e confere; **nunca** faz login, upload ou
+submissão no Seller Office — isso é sempre manual.
+
+## Regra número um: nada de segredo aqui
+
+Nenhum arquivo desta pasta pode conter credencial de lista, URL de lista ou
+de stream, chave (TMDB, OpenAI, licença), senha ou caminho do certificado.
+Acesso de demonstração e backup do certificado aparecem só como **referência
+sanitizada** (onde está, quem é o dono, validade). O próprio gate bloqueia o
+kit se encontrar um padrão de segredo (`INT-KIT-SECRETS`). O `.wgt` não é
+versionado; só o hash dele entra no relatório.
+
+## Como rodar
+
+```powershell
+cd tv-web
+node scripts/release/release-gate.mjs --variant base   # ou --variant commercial
+```
+
+Chame o `node` direto: no PowerShell, `npm run x -- --flag` perde o `--`.
+Saída: `reports/<versão>-<variante>.json` e `.md`. Código de saída 0 =
+`Ready for submission`, 2 = `Blocked`.
+
+## Arquivos
+
+| Arquivo | Conteúdo |
+| --- | --- |
+| `distribution.json` | Variante distribuída para o Tizen ID e países (uma variante por Tizen ID) |
+| `published.json` | O que já foi enviado/publicado: App ID do Seller Office, última versão, Tizen ID, fingerprint do certificado de autor, conferência do nome de pacote. `null` antes da primeira submissão |
+| `privileges.json` | Ledger de privilégios: nível, uso por variante, autorização/confirmação |
+| `target-matrix.json` | País × modelo × firmware com evidência; só `environment: "tv"` com evidência entra no conjunto aprovado |
+| `custody.json` | Identidade pública do certificado de autor e onde está o backup (sem caminho secreto) |
+| `evidence/` | Um JSON por gate executado (E2E, emulador, TV, atualização, privacidade), amarrado ao hash do `.wgt` |
+| `kit/` | Manifest do kit, textos de listagem, rascunho da UI Description, acesso de demo sanitizado, mídias fornecidas |
+| `reports/` | Relatórios gerados pelo gate (sobrescritos; o histórico é o git) |

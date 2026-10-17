@@ -43,6 +43,25 @@ Propor um pacote Web .wgt com configuração revisada. Não adotar multi-arquite
 | L09 | Completar descrição da UI. | Template oficial para a mesma versão. |
 | L10 | Sanitizar pacote e diagnóstico. | Ausência de segredos de produção e logs sensíveis. |
 
+### Gate executável (feature 078)
+
+Este checklist virou um gate: `node scripts/release/release-gate.mjs --variant base|commercial` (em `tv-web/`) confere o `.wgt` candidato, o kit em `release/samsung/kit/` e as evidências, e grava `release/samsung/reports/<versão>-<variante>.{json,md}`. Como rodar e preencher: `release/samsung/README.md`. Cada L vira um ou mais IDs estáveis, usados igualmente no relatório, no manifest do kit e nas evidências:
+
+| L | IDs no gate |
+| --- | --- |
+| L01 | `SAM-CFG-TIZENID`, `SAM-CFG-PACKAGEID`, `SAM-CFG-VERSION` |
+| L02 | `SAM-SEC-AUTHOR`, `INT-SEC-CUSTODY` |
+| L03 | `SAM-CFG-SCREENSIZE`, `SAM-PRV` |
+| L04 | `SAM-CFG-APIVERSION` (mais a matriz `release/samsung/target-matrix.json`) |
+| L05 | `SAM-CFG-TITLE`, `SAM-KIT-LISTING` |
+| L06 | `INT-EVD-TV`, `INT-UPD-PRESERVE` |
+| L07 | `SAM-KIT-TESTACCESS` |
+| L08 | `SAM-KIT-LOGO`, `SAM-KIT-ICONBG`, `SAM-KIT-SHOTS` |
+| L09 | `SAM-KIT-UIDESC` |
+| L10 | `INT-PKG-INVENTORY`, `INT-PKG-RELEASE`, `INT-KIT-SECRETS` |
+
+Os itens da página oficial sem L correspondente (privacidade, contato VOC, registros no Seller Office) entram com IDs `SAM-*` próprios; o gate nunca faz login nem envio no Seller Office.
+
 ### Permissões proporcionais ao escopo
 
 Propor uma justificativa explícita para cada permissão: entrada do controle, acesso à rede, arquivos ou outra função realmente usada. Não acrescentar permissões de anúncio, cobrança, microfone ou integração privilegiada somente porque aparecem em algum exemplo. Remover recursos desativados e código demonstrativo antes do envio.

@@ -1,0 +1,67 @@
+{
+  "kitVersion": "0.2.1",
+  "defaultLanguage": "pt",
+  "languages": ["pt", "en", "es"],
+  "storeTitle": "CCPlayTV",
+  "privacyUrl": "https://johnosd.github.io/ccplaytv/privacidade/",
+  "items": [
+    {
+      "id": "SAM-KIT-UIDESC",
+      "owner": "produto",
+      "status": "Pending",
+      "artifacts": [{ "path": "ui-description.md", "sha256": "db6c60a05ae26b5b52a6756a838f8ec40c5d0be65d25c62364872de8ea352adb" }],
+      "nextAction": "transcrever ui-description.md no template oficial da Samsung e incluir o arquivo preenchido no kit"
+    },
+    {
+      "id": "SAM-KIT-LOGO",
+      "owner": "produto",
+      "status": "Pending",
+      "artifacts": [],
+      "nextAction": "fornecer o logo em PNG com transparência em media/"
+    },
+    {
+      "id": "SAM-KIT-ICONBG",
+      "owner": "produto",
+      "status": "Pending",
+      "artifacts": [],
+      "nextAction": "fornecer a imagem de fundo do ícone (PNG ou JPEG) em media/"
+    },
+    {
+      "id": "SAM-KIT-SHOTS",
+      "owner": "produto",
+      "status": "Pending",
+      "artifacts": [],
+      "nextAction": "fornecer 4 screenshots JPEG < 500 kB, 1280×720 ou 1920×1080, em media/"
+    },
+    {
+      "id": "SAM-KIT-LISTING",
+      "owner": "produto",
+      "status": "Pass",
+      "artifacts": [
+        { "path": "listing/pt.md", "sha256": "23bcb2fb31d36e9aad6a88ec34f13c9c08b61f903aa09a9eb60436e089e8a4d8" },
+        { "path": "listing/en.md", "sha256": "0163d020bbc16c4d9cdc3c19bf69ded6b49a1eeca85eadfc9caa614c4b1b0c95" },
+        { "path": "listing/es.md", "sha256": "85080dcfa9d10b1396e1f4b871797666f71dac5cee302c170f65c79a5a392574" }
+      ]
+    },
+    {
+      "id": "SAM-KIT-PRIVACY",
+      "owner": "produto",
+      "status": "Pending",
+      "artifacts": [],
+      "nextAction": "publicar bridge/privacidade/ e gravar a evidência HTTPS em release/samsung/evidence/ (Fase 6)"
+    },
+    {
+      "id": "SAM-KIT-VOC",
+      "owner": "produto",
+      "status": "Pass",
+      "value": "ccplaytv@gmail.com"
+    },
+    {
+      "id": "SAM-KIT-TESTACCESS",
+      "owner": "release",
+      "status": "Pending",
+      "artifacts": [{ "path": "demo-access.md", "sha256": "26d6f3dbedf8d1315e23621a58bb085bef866df9e6bdfdd5297c0bda133446b3" }],
+      "nextAction": "definir a lista de teste autorizada, guardar o segredo no cofre e registrar validUntil em demo-access.md"
+    }
+  ]
+}

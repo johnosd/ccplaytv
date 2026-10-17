@@ -1,0 +1,12 @@
+{
+    "feature":  "078-prontidao-publicacao-samsung",
+    "lockedAt":  "2026-10-16 18:23",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/scripts/release/releaseGate.prontidao-publicacao.contract.test.mjs",
+                      "sha256":  "5bbfe01b61db2166fa94e9b88f895981e22f38dbe9e35c1d88f8bfc54dee6b2e",
+                      "tests":  5
+                  }
+              ]
+}

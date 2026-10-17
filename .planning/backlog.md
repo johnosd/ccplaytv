@@ -7,6 +7,8 @@ update-bug-status.ps1.
 ## Ideias Futuras
 
 - [Infra — gate de venda] 069 encerrada com riscos aceitos em 2026-10-14 (a pedido do usuário); **a venda segue desligada** e estes itens precisam ser executados antes de qualquer cobrança real: T066/T039 (replay `--apply` com evento posterior ao snapshot via `infra/portal/rehearse-replay.ps1`, ensaio da cópia protegida das chaves, restore + reconcile de pagamentos), T043 (compra sandbox para ativações pagas, carga distribuída, custo), T046 (roteiro A–H na TV física), T063 b (registros `generated`/TV `2A:…` — ação "desvincular"), T052 restante e T047. Detalhes: `sdd/specs/069-portal-tv-licenca-anual/plan.md` (R-022 a R-026) e `tasks.md` (Fase 8).
+- [Infra — publicação Samsung] Licença/voucher de teste para o revisor do Seller Office na variante comercial (origem: 078, R-004, 2026-10-16): hoje `SAM-KIT-TESTACCESS` fica `Blocked` na variante comercial porque não há como dar ao revisor uma licença válida sem cobrança; a variante base não depende disso.
+- [Infra — publicação Samsung] Ampliar a matriz de modelos Tizen 8.0 (origem: 078, R-001, 2026-10-16): só a TV de referência (Tizen 9.0) tem evidência; `release/samsung/target-matrix.json` só aprova o que tiver evidência por modelo/firmware, então outros alvos dependem de aparelho (ou Remote Test Lab) para testar.
 - [Ideia] Login com Google para levar os dados de uso a outra TV/celular (origem: especificação da 072, 2026-10-14). Fora da 072, que guarda o backup preso à identidade da TV; muda ADR-004 (sem conta obrigatória) e pede `sdd-specify` próprio.
 
 
@@ -98,7 +100,7 @@ update-bug-status.ps1.
 | 075-redesenho-portal-licenca | Redesenho da tela Portal & licença e item Backup | Implementada | 41/41 tasks | 2026-10-16 |
 | 076-simplificar-portal-licenca | Simplificar Portal & licença — ações raras e código de recuperação em Avançado | Convergida | 40/40 tasks | 2026-10-16 |
 | 077-redesenho-portal-web | Redesenho do portal web mobile-first — listas, licença, chave TMDB e backup | Convergida | 64/64 tasks | 2026-10-16 |
-| 078-prontidao-publicacao-samsung | Prontidão para publicação do app Samsung TV | Em Execução | 38/54 tasks | 2026-10-16 |
+| 078-prontidao-publicacao-samsung | Prontidão para publicação do app Samsung TV | Em Execução | 43/55 tasks | 2026-10-16 |
 | 079-home-carregamento-progressivo | Home, Filmes e Séries já montadas ao entrar | Em Execução | 34/40 tasks | 2026-10-16 |
 
 ## Bugs

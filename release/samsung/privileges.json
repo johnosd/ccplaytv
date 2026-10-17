@@ -1,0 +1,68 @@
+{
+  "features": { "checkout": false, "inAppAds": false },
+  "privileges": {
+    "http://tizen.org/privilege/application.launch": {
+      "level": "public",
+      "levelSource": "pendente de conferência na doc Tizen (a doc Samsung do Application API não o cita); privilégio herdado do modelo do projeto",
+      "usedBy": {
+        "base": ["tv-web/src/lib/tizenExit.ts — getCurrentApplication().exit() (a doc Samsung não lista privilégio para esse método; mantido até a passada na TV, R-009)"],
+        "commercial": ["tv-web/src/lib/tizenExit.ts — getCurrentApplication().exit() (idem)"]
+      },
+      "confirmation": null,
+      "authorization": null
+    },
+    "http://tizen.org/privilege/internet": {
+      "level": "public",
+      "levelSource": "pendente de conferência na doc Tizen; privilégio básico de rede de todo app Web",
+      "usedBy": {
+        "base": ["tv-web/src/lib/catalog/xtreamConnector.ts — painel Xtream/M3U", "tv-web/src/lib/player/ — reprodução"],
+        "commercial": ["idem base", "tv-web/src/lib/portal/ — serviço do portal"]
+      },
+      "confirmation": null,
+      "authorization": null
+    },
+    "http://developer.samsung.com/privilege/productinfo": {
+      "level": "public",
+      "levelSource": "https://developer.samsung.com/smarttv/develop/api-references/samsung-product-api-references/productinfo-api.html (getDuid: Public)",
+      "usedBy": {
+        "base": ["tv-web/src/lib/portal/platformProbe.ts — webapis.productinfo.getDuid, chamado em toda inicialização (main.tsx)"],
+        "commercial": ["tv-web/src/lib/portal/platformProbe.ts — idem base", "tv-web/src/lib/portal/portalRuntime.ts — identidade da TV no portal"]
+      },
+      "confirmation": {
+        "source": "https://developer.samsung.com/smarttv/develop/api-references/samsung-product-api-references/productinfo-api.html",
+        "date": "2026-10-16"
+      },
+      "authorization": null
+    },
+    "http://developer.samsung.com/privilege/network.public": {
+      "level": "public",
+      "levelSource": "https://developer.samsung.com/smarttv/develop/api-references/samsung-product-api-references/network-api.html (getMac: Privilege Level Public)",
+      "usedBy": {
+        "base": ["tv-web/src/lib/portal/platformProbe.ts — webapis.network.getMac, chamado em toda inicialização (main.tsx)"],
+        "commercial": ["tv-web/src/lib/portal/platformProbe.ts — idem base", "tv-web/src/lib/portal/portalConnection.ts — ID do dispositivo em formato MAC (ADR-014/015)"]
+      },
+      "confirmation": null,
+      "authorization": null
+    },
+    "http://tizen.org/privilege/unlimitedstorage": {
+      "level": "public",
+      "levelSource": "pendente de conferência na doc Tizen; necessário ao volume de IndexedDB do catálogo",
+      "usedBy": {
+        "base": ["tv-web/src/lib/catalog/db.ts — catálogo em IndexedDB (Dexie)"],
+        "commercial": ["idem base"]
+      },
+      "confirmation": null,
+      "authorization": null
+    },
+    "http://tizen.org/privilege/tv.inputdevice": {
+      "level": "public",
+      "levelSource": "https://developer.samsung.com/smarttv/develop/api-references/tizen-web-device-api-references/tvinputdevice-api.html (registerKey/getSupportedKeys: Privilege level public)",
+      "usedBy": {
+        "base": ["tv-web/src/lib/tizenMediaKeys.ts — registerKey de mídia e dígitos", "tv-web/src/lib/tizenColorKey.ts — teclas coloridas"],
+        "commercial": ["idem base"]
+      },
+      "confirmation": null,
+      "authorization": null
+    }
+  }
+}

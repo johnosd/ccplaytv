@@ -108,6 +108,7 @@ npm run lint           # oxlint + the architecture ratchet (scripts/architecture
 npm run bench:import   # import benchmark: fictional Xtream/M3U/XMLTV × 1k/10k/100k in the browser (needs `npm run dev`); not part of test:e2e; results versioned in tv-web/bench-results/
 npm run build          # tsc -b && vite build
 npm run build:tizen    # build + sync into CCPlayTv/
+node scripts/release/release-gate.mjs --variant base|commercial  # Seller Office gate on a packaged .wgt → release/samsung/reports/ (see release/samsung/README.md)
 ```
 
 Prefer the narrowest command that covers the change (a single

@@ -1,0 +1,19 @@
+/* Ajustes (feature 077): lista de itens com título e descrição, cabeçalho das sub-telas e a página da chave TMDB. */
+.settings-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-xs); width: 100%; max-width: 40rem; }
+.settings-item {
+  width: 100%; min-height: 64px; flex-direction: column; align-items: flex-start; justify-content: center; gap: var(--space-2xs);
+  padding: var(--space-s) var(--space-sm); text-align: left; font-weight: 400; background: var(--bg-surface);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-panel);
+}
+.settings-item:hover:not(:disabled) { background: var(--bg-elevated); border-color: var(--accent-line); }
+.settings-item-title { font-size: var(--fs-md); font-weight: 600; color: var(--text-primary); }
+.settings-item-desc { font-size: var(--fs-sm); color: var(--text-secondary); }
+
+.subpage-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-sm); }
+.subpage-header .ghost { margin-left: calc(var(--space-xs) * -1); }
+
+.tmdb-page { display: grid; gap: var(--space-sm); align-content: start; width: 100%; max-width: 36rem; }
+.tmdb-page .panel { margin: 0; }
+.tmdb-status, .tmdb-form { display: grid; gap: var(--space-s); }
+.tmdb-status > * + *, .tmdb-form > * + * { margin-top: 0; }
+.tmdb-form .actions { align-items: center; }
