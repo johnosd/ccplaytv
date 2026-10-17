@@ -1,10 +1,11 @@
-# Application UI Description — CCPlayTV (variante base)
+# Application UI Description — CCPlayTV (variante comercial)
 
 O arquivo enviado ao Seller Office é
 **`ui-description/CCPlayTV_UI_Description_0.2.1.pptx`**: o template oficial da Samsung
 (`ui-description/app_description_template_eng_v142_edited3.pptx`) preenchido em inglês, com o
-fluxo de telas, 7 casos de uso, uma tela por slide com elementos numerados, as teclas do controle e
-os idiomas. Nada aqui contém credencial, URL de lista ou chave.
+fluxo de telas, 9 casos de uso (inclui teste de 7 dias e compra da licença, e o portal web), uma tela
+por slide com elementos numerados, as teclas do controle e os idiomas. Nada aqui contém credencial,
+URL de lista ou chave.
 
 ## Antes de enviar: a lista de teste
 
@@ -12,20 +13,21 @@ O template exige a conta de teste do revisor (slide "Use Cases – Add a Playlis
 traz só os marcadores `<TEST_HOST>`, `<TEST_USERNAME>` e `<TEST_PASSWORD>`, em vermelho. Na hora da
 submissão, faça uma **cópia fora do repositório**, troque os três marcadores pelos dados da lista de
 teste autorizada (a mesma de `demo-access.md`, item `SAM-KIT-TESTACCESS`) e envie a cópia. A cópia
-preenchida nunca volta para o git.
+preenchida nunca volta para o git. O acesso do revisor ao app é o teste de 7 dias da instalação nova
+(R-015, `reviewerAccess: local-trial-7d`).
 
 ## Como refazer
 
-1. Capturas, do build de produção (o dev server mostra superfícies só de desenvolvimento):
+1. Capturas (sem servidor no ar — o roteiro sobe o app em modo comercial numa porta própria, com
+   portal e licença fictícios de `fakePanel.mjs`/`fakeCommercial.mjs`; o domínio real aparece na
+   tela, mas toda chamada a ele é atendida no navegador, nada chega à produção):
 
    ```powershell
    cd tv-web
-   npm run build
-   npx vite preview --port 4173     # em outro terminal
    node scripts/release/ui-description-shots.mjs
    ```
 
-   Grava `ui-description/ui_NN_<tela>.jpg` com o app em inglês e a lista fictícia de `fakePanel.mjs`.
+   Grava `ui-description/ui_NN_<tela>.jpg` com o app em inglês.
 
 2. O pptx (python-pptx e Pillow num venv; não são dependências do projeto):
 
@@ -37,8 +39,8 @@ preenchida nunca volta para o git.
    divergente. O pptx não é byte a byte reproduzível (o zip guarda a hora), então todo novo build
    pede hash novo.
 
-Refaça a cada versão com mudança de tela, tecla ou fluxo; os textos e as posições dos números ficam
-em `ui-description-pptx.py` (`USE_CASES`, `SCREENS`, `KEYS`, `LANGUAGE`).
+Refaça a cada versão com mudança de tela, tecla, preço ou fluxo; os textos e as posições dos números
+ficam em `ui-description-pptx.py` (`USE_CASES`, `SCREENS`, `KEYS`, `LANGUAGE`).
 
 ## O que o documento afirma (conferido no código em 2026-10-17)
 
@@ -48,7 +50,9 @@ em `ui-description-pptx.py` (`USE_CASES`, `SCREENS`, `KEYS`, `LANGUAGE`).
   RETURN volta um nível; na tela de listas abre "Exit CCPlayTV?". EXIT não é alterada.
 - **Idioma**: inglês, português e espanhol, em Ajustes › Accessibility › Language, valendo na hora.
   Padrão: o idioma da TV quando é um dos três; senão, português.
-- **Sem portal na variante base**: o build de loja sem `VITE_PORTAL_ORIGIN` não mostra a aba "Pelo
-  site" do cadastro nem as abas "Portal & licença" e "Backup" (feature 078, `portalSurfacesVisible`).
-- **Sem conta, login próprio, compra no app, assinatura ou publicidade.** A única credencial é a
-  lista IPTV da própria pessoa.
+- **Licença**: teste de 7 dias contado na TV; R$ 35 por 12 meses, uma TV, sem renovação automática;
+  Pix na TV ou cartão no site, pelo Mercado Pago; depois do teste, abrir uma lista pede a licença
+  (o app continua abrindo e os dados ficam).
+- **Portal**: opcional; QR, ID e chave na aba "On the website" do cadastro e em Portal & license; a
+  TV só fala com o serviço quando a pessoa aperta Reload/Refresh (ADR-016).
+- **Sem conta pessoal e sem publicidade.** A credencial da lista é da própria pessoa.

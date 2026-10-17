@@ -1,10 +1,10 @@
 // Feature 078 (SAM-KIT-UIDESC): uma captura por tela do app, EM INGLÊS, para os slides "Menus and Functions" do
 // template de Application UI Description da Samsung. Mesmo painel fictício das capturas da loja (`fakePanel.mjs`);
-// o diretório Radio Browser também é interceptado (estações inventadas). Nenhuma chamada sai para fora.
+// o diretório Radio Browser também é interceptado (estações inventadas). Variante COMERCIAL (R-015), subida pelo
+// próprio roteiro com portal e licença fictícios (`fakeCommercial.mjs`). Nenhuma chamada sai para fora.
 //
-// Uso (com o build de produção servido: `npm run build` e `npx vite preview --port 4173`; `ffmpeg` no PATH dá um
-// vídeo abstrato ao player):
-//   node scripts/release/ui-description-shots.mjs [--out <pasta>] [--app <url>]
+// Uso (sem servidor no ar; `ffmpeg` no PATH dá um vídeo abstrato ao player):
+//   node scripts/release/ui-description-shots.mjs [--out <pasta>]
 // Grava ui_NN_<tela>.jpg em `release/samsung/kit/ui-description/` por padrão.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync } from 'node:fs'
@@ -15,16 +15,14 @@ import { chromium } from 'playwright'
 import { cadastrarListaXtream } from '../../e2e/lib/entrada.mjs'
 import { openVodCategory, enterRows } from '../../e2e/lib/vod.mjs'
 import { mockRadioDirectory, radioDirectoryStation } from '../../e2e/lib/radioDirectoryMock.mjs'
+import { startCommercialApp } from './fakeCommercial.mjs'
 import { MOVIES, SERIES, startPanel, waitPainted } from './fakePanel.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const outArg = process.argv.indexOf('--out')
 const OUT = outArg > 0 ? path.resolve(process.argv[outArg + 1]) : path.join(ROOT, 'release', 'samsung', 'kit', 'ui-description')
-// O revisor vê o build de loja: use o preview do build de produção (`npm run build` + `npx vite preview --port 4173`),
-// não o dev server, que mostra superfícies só de desenvolvimento (portal sem configuração, dicas de dev).
-const appArg = process.argv.indexOf('--app')
-const APP_URL = appArg > 0 ? process.argv[appArg + 1] : 'http://localhost:4173'
 const LISTA = 'My Playlist'
+const DAY = 86_400_000
 const LABELS = { home: 'Home', live: 'Live TV', movies: 'Movies', series: 'Series', radio: 'Radio' }
 
 /** Vídeo abstrato (gradiente animado, sem som) para o player, se houver ffmpeg; senão o player mostra o erro do stream. */
@@ -78,10 +76,13 @@ async function backToProfiles(page) {
 async function run() {
   mkdirSync(OUT, { recursive: true })
   const server = await startPanel({ videoFile: makeVideo() })
+  const app = await startCommercialApp({ port: 5183 })
+  const APP_URL = app.url
   const browser = await chromium.launch({ headless: true, args: ['--autoplay-policy=no-user-gesture-required'] })
   const context = await browser.newContext({ locale: 'en-US', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
   await context.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (route) => route.abort('failed'))
+  await app.prepare(context) // depois do bloqueio: o portal fictício tem precedência
   const streamBase = `http://127.0.0.1:${server.address().port}/radio`
   const stations = (code, names) => names.map((name, i) => radioDirectoryStation(`${code.toLowerCase()}-${i}`, name, code, streamBase))
   await mockRadioDirectory(page, {
@@ -116,23 +117,38 @@ async function run() {
     await page.locator('.add-card').click()
     await settle(page, 300)
     if (await visible(page, '.add-card')) await page.keyboard.press('Enter')
-    await page.waitForSelector('input', { timeout: 8000 }) // build de loja sem portal: abre direto em Xtream Codes
+    // Com portal, o cadastro abre na aba "On the website" (QR, ID e chave); depois a aba Xtream Codes.
+    await page.getByText('A0:8C:FD:19:0A:8C').first().waitFor({ timeout: 15000 })
+    await settle(page, 1000)
+    await shot(page, 'ui_03a_add_site')
+    await page.getByRole('button', { name: /^.?\s*Xtream Codes/ }).click()
+    await page.waitForSelector('input', { timeout: 8000 })
     await settle(page, 800)
     await shot(page, 'ui_03_add_list')
     await backToProfiles(page)
 
-    console.log('== ajustes')
-    await page.locator('.profiles-settings-corner').click()
+    console.log('== ajustes, portal e compra')
+    const settingsCorner = page.locator('.profiles-settings-corner:not(.profiles-portal-corner)')
+    await settingsCorner.click()
     await settle(page, 300)
-    if (await visible(page, '.profiles-settings-corner')) await page.keyboard.press('Enter')
+    if (await settingsCorner.isVisible().catch(() => false)) await page.keyboard.press('Enter')
     await page.waitForFunction(() => !document.querySelector('.add-card'), null, { timeout: 8000 })
     await settle(page, 1000)
     await shot(page, 'ui_04_settings')
-    for (const [label, name] of [['Playback', 'ui_04b_playback']]) {
+    for (const [label, name] of [['Playback', 'ui_04b_playback'], ['Portal & license', 'ui_04c_portal']]) {
       await page.getByText(label, { exact: true }).first().click() // o clique abre a aba
-      await settle(page, 1200)
+      await settle(page, 1500)
       await shot(page, name)
     }
+    // Comprar licença: o foco já está em "Buy license"; OK abre o Pix (valor, QR e Atualizar).
+    await page.getByRole('button', { name: 'Buy license' }).click()
+    await settle(page, 300)
+    if (!(await visible(page, '[role="dialog"]'))) await page.keyboard.press('Enter')
+    await page.getByRole('dialog').getByText(/R\$/).first().waitFor({ timeout: 15000 })
+    await settle(page, 1200)
+    await shot(page, 'ui_14_pix')
+    await page.keyboard.press('Escape')
+    await settle(page, 600)
     await backToProfiles(page)
 
     console.log('== início')
@@ -232,12 +248,25 @@ async function run() {
     await page.getByText('Harbor FM').first().waitFor({ timeout: 15000 })
     await settle(page, 1500)
     await shot(page, 'ui_13_radio')
+
+    console.log('== fim do teste: bloqueio ao entrar na lista')
+    await backToProfiles(page)
+    await app.skew(page, 8 * DAY) // 8 dias depois: o teste local de 7 dias venceu
+    await settle(page, 1500)
+    await page.locator('.source-card-wrap', { hasText: LISTA }).click()
+    await settle(page, 300)
+    if (!(await visible(page, '[role="dialog"]'))) await page.keyboard.press('Enter')
+    await page.getByRole('dialog', { name: 'A license is required to open the list' }).waitFor({ timeout: 15000 })
+    await settle(page, 1500)
+    await shot(page, 'ui_15_license_gate')
+    if (app.unknownCalls.length) console.log('  · rotas do portal sem fixture:', [...new Set(app.unknownCalls)].join(', '))
   } catch (error) {
     await page.screenshot({ path: path.join(OUT, '_falha.png') }).catch(() => {})
     throw error
   } finally {
     await browser.close()
     server.close()
+    app.stop()
   }
 }
 

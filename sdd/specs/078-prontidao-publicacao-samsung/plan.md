@@ -248,7 +248,9 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sc
 
 | 2026-10-17 | T051 | Privacidade comercial publicada (PR #10, 200, idêntica ao repo) e evidência regravada | T052/T053 |
 
-**PRÓXIMO**: capturas e UI Description do comercial (T052/T053) e o build comercial com o portal e as chaves públicas de produção (T054, a pessoa confirma as chaves). Da pessoa: R-009, nome do pacote, App ID, `custody.json`, `validUntil` do acesso de teste e, **antes de enviar**, habilitar a venda no serviço (T055). T048 por último, num reempacote só, instalado por cima na TV dela.
+| 2026-10-17 | T052/T053 | Capturas da loja e UI Description do comercial (portal, teste, Pix, bloqueio) com `fakeCommercial.mjs`; pptx 40 slides; `SAM-KIT-UIDESC` `Pass` | T054 build comercial (chaves públicas de produção) |
+
+**PRÓXIMO**: o build comercial com o portal e as chaves públicas de produção (T054, a pessoa confirma as chaves). Da pessoa: R-009, nome do pacote, App ID, `custody.json`, `validUntil` do acesso de teste e, **antes de enviar**, habilitar a venda no serviço (T055). T048 por último, num reempacote só, instalado por cima na TV dela.
 
 ## Arquivos Principais
 
