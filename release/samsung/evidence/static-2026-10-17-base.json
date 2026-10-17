@@ -3,8 +3,8 @@
   "candidate": {
     "version": "0.2.1",
     "variant": "base",
-    "revision": "61467d11fba3d3f35cfbcad49933a660645e23f9",
-    "wgtSha256": "462fda1106277e2f0088b28d0c0aee44cd7972759bf51ffccf549996b8d28ce3"
+    "revision": "d7b6c7737598d9ffadabdef69a144310b6b14f99",
+    "wgtSha256": "bc864eb4ad6972d77261f10935c417389428dbc0b2fe6407369229b5f743f48b"
   },
   "environment": "local",
   "script": "npm run lint",

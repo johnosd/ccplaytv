@@ -1,0 +1,17 @@
+{
+  "gate": "INT-EVD-TV",
+  "candidate": {
+    "version": "0.2.1",
+    "variant": "base",
+    "revision": "d7b6c7737598d9ffadabdef69a144310b6b14f99",
+    "wgtSha256": "bc864eb4ad6972d77261f10935c417389428dbc0b2fe6407369229b5f743f48b"
+  },
+  "environment": "tv",
+  "device": "QN50Q60DAGXZD",
+  "firmware": "Tizen 8.0 (firmware específico não exposto pelo sdb)",
+  "script": "quickstart.md §4; deploy-tv.ps1 -SkipBuild",
+  "result": "Pass",
+  "date": "2026-10-17",
+  "by": "usuário",
+  "limitations": "Usuário confirmou que tudo funciona corretamente na TV; reprodução, codec, DRM, desempenho e memória valem para o roteiro observado e permanecem específicos deste aparelho."
+}

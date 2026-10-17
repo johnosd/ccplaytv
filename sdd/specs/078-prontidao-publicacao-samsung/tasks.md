@@ -219,7 +219,7 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 - [X] T029 [US6] No CLI: `INT-EVD-*` e `INT-UPD-PRESERVE` lidos de `release/samsung/evidence/*.json` (data-model), só contando evidência com `candidate.wgtSha256` igual ao candidato; `INT-EVD-STATIC`/`BUILD` podem ser gravados pelo próprio CLI com `--record-local` rodando `npm run lint` e `npm run test` e registrando código de saída (nunca a saída bruta). `target-matrix.json` → `decideLaunch`.
 - [X] T030 [US6] Rodar `npm run test:e2e` (com `npm run dev`) e gravar `evidence/e2e-<data>.json` para o candidato.
 - [X] T031 [US6] Emulador: tentar o roteiro da skill `tizen-emulator`; se o bloqueio `118, -4` persistir, gravar `INT-EVD-EMULATOR` `Waived` com dono e justificativa (D-009, R-003).
-- [ ] T032 [US3] [US6] TV física (quickstart §4, skill `tizen-tv`, **sem desinstalar**): atualização por cima com dados de uso, roteiro curto, firmware anotado; gravar `evidence/tv-<data>.json`, `evidence/update-<data>.json` (INT-UPD-PRESERVE) e a linha `BR · QN50Q60DAGXZD · <firmware> · tv · allowed` em `target-matrix.json`. Gate obrigatório — se não executado, fica `Pending` e a feature não fecha sem decisão explícita do usuário.
+- [X] T032 [US3] [US6] TV física (quickstart §4, skill `tizen-tv`, **sem desinstalar**): atualização por cima com dados de uso, roteiro curto, firmware anotado; gravar `evidence/tv-<data>.json`, `evidence/update-<data>.json` (INT-UPD-PRESERVE) e a linha `BR · QN50Q60DAGXZD · <firmware> · tv · allowed` em `target-matrix.json`. Gate obrigatório — se não executado, fica `Pending` e a feature não fecha sem decisão explícita do usuário.
 
 ### Testes da Fase
 
@@ -233,7 +233,7 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 - Feito: `evidence.mjs` (`checkEvidence`, `EVIDENCE_GATES`: STATIC/BUILD `local`, E2E `browser`, EMULATOR `emulator`, TV e UPD-PRESERVE `tv`; só conta evidência do mesmo `wgtSha256` e do ambiente do gate; a mais recente vence; `Waived` leva dono e justificativa para o `decideLaunch` julgar). CLI: lê `evidence/*.json` (menos `privacy-*`), `--record-local` roda `npm run lint` e `npm run test` e grava só o código de saída em `evidence/{static,build}-<data>-<variante>.json`; `evidence/` e `target-matrix.json` deixam de contar na árvore suja (R-011).
 - Contrato: sem contrato nesta fase; contrato da feature segue 5/5 verdes; trava íntegra.
 - Testes executados: `npx vitest run scripts/release` → 10 arquivos, 29 testes verdes (`evidence.test.mjs` 3); `npm run lint` ok; `npm run test:e2e` → 52/52 scripts verdes; `node scripts/release/release-gate.mjs --variant base --record-local` → `INT-EVD-STATIC` e `INT-EVD-BUILD` `Pass` (códigos 0). Uma execução anterior da suíte completa falhou intermitentemente em `scripts/bench/importBench.test.mjs` (`xmltv`, timeout do `afterEach`); o teste isolado passou 9/9 e a reexecução usada na evidência passou, sem alterar o benchmark.
-- Pendências: (1) T032 TV física; (2) T036 precisa preservar o relatório atualizado após o novo hash do `.wgt`; (3) T041 quickstart §2–§7 ainda não registrado; (4) a instalação no emulador permanece `Waived` por `118, -4` e não valida UI/AVPlay.
+- Pendências: (1) T036 precisa preservar o relatório atualizado após o commit final e o novo hash do `.wgt`; (2) T041 quickstart §2–§7 ainda não registrado; (3) privacidade publicada, artes, UI Description e registros do Seller Office seguem pendentes.
 
 ---
 
@@ -276,11 +276,11 @@ description: "Tasks da feature 078 — prontidão para publicação no Samsung T
 - [X] T043 (ad-hoc, descoberta ao reempacotar para T036) `CCPlayTv/tizen_web_project.yaml`: remover `assets/EmptyState.js`, que o build não emite mais desde o commit `37e068a` — a trava `findUnlistedFiles`/obsoletos do `sync-tizen` recusava sincronizar.
 
 **Registro da Fase**
-- Status: parcial — T037–T040 e T043 feitos; T036 foi executado e gerou relatório/evidências locais, mas aguarda preservação no commit; T041 espera a execução do quickstart.
+- Status: parcial — T032 e T037–T040 e T043 feitos; T036 precisa ser regravado após o commit final do candidato; T041 espera a execução do quickstart.
 - Feito: mapeamento L01–L10 → IDs no doc 10; linha do gate em `CLAUDE.md` → Commands; duas ideias no backlog (R-004, R-001); `npm run build:tizen` refeito (agora sem nenhum "IPTV" em `CCPlayTv/assets`) depois de T043.
 - Contrato: sem contrato nesta fase.
 - Testes executados: `npm run build:tizen` (1ª falhou na trava de obsoletos, 2ª ok depois de T043). T040: varredura com `findSecrets` + extensões de chave sobre 75 arquivos de texto de `release/`, `bridge/` e `CCPlayTv/` — `release/` e `bridge/` sem achado; 5 achados em `CCPlayTv/assets/catalogApi.js`, `route-add-source.js` e `CCPlayTv/Debug/.../index.js`, todos código (template `?username=${…}&password=${…}` e atribuições de campo, conferidos pela forma mascarada) — nenhum valor `CCPLAY_PROBE_*` do `.env` presente no bundle (conferido só por presença, sem imprimir). Nenhum `.p12/.pem/.key` nessas pastas.
-- Pendências: as evidências `release/samsung/evidence/{static,build,e2e}-2026-10-17-base.json` e os relatórios `release/samsung/reports/0.2.1-base.{json,md}` foram gerados localmente e ainda estão não rastreados; T036 só fecha após preservação no commit. O veredito atual permanece `Blocked` pelos gates de emulador/TV, privacidade publicada, artes e UI Description.
+- Pendências: regravar o relatório após o commit final do candidato e executar T041. O veredito atual permanece `Blocked` pelos gates de privacidade publicada, artes, UI Description e registros do Seller Office; a TV está aprovada pelo roteiro confirmado pelo usuário.
 
 ### Checklist de Release
 
