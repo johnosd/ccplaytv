@@ -8,6 +8,7 @@ import {
   setReadProjectionMemoChunk,
   type ReadProjectionMemoContext,
 } from './readProjectionMemo'
+import { readBlockChunks } from './blockChunks'
 
 /**
  * Categorias a partir deste tamanho são lidas por janela na grade (feature 065, SC-007). Abaixo dele a leitura do bloco
@@ -22,7 +23,7 @@ export interface CategoryWindow {
 }
 
 function recordsFromBlock(block: CategoryBlockRecord): CatalogRecord[] {
-  return block.items.map((item, index) => ({
+  return (block.items ?? []).map((item, index) => ({
     ...item,
     sourceId: block.sourceId,
     generation: block.generation,
@@ -41,7 +42,7 @@ export async function prepareCategoryReadModel(sourceId: string, categoryId: num
   if (existing && category.itemsCount !== undefined && existing.count === category.itemsCount && existing.kind === category.kind) return
   const block = await database.categoryBlocks.get(categoryId)
   const records = block
-    ? recordsFromBlock(block)
+    ? block.format === 2 ? await readBlockChunks(database, categoryId) : recordsFromBlock(block)
     : await database.channels
         .where('[sourceId+generation]')
         .equals([sourceId, category.generation])
@@ -120,7 +121,16 @@ export async function readCategoryWindow(sourceId: string, categoryId: number, o
   // Feature 066 (FR-014/FR-020): a janela de uma categoria escondida/bloqueada é vazia, mesmo pedida por cache velho.
   if ((await getCategoryAccess(sourceId, database)).excluded.has(categoryId)) return { items: [], total: 0 }
   const manifest = await readProjectionManifest(sourceId, categoryId, database)
-  if (!manifest || limit <= 0 || offset >= manifest.count) return { items: [], total: manifest?.count ?? 0 }
+  if (!manifest) {
+    const block = await database.categoryBlocks.get(categoryId)
+    if (block?.format === 2) {
+      const total = block.count ?? 0
+      const items = await readBlockChunks(database, categoryId, offset, offset + limit)
+      return { items, total, ...(offset + items.length < total ? { nextOffset: offset + items.length } : {}) }
+    }
+    return { items: [], total: 0 }
+  }
+  if (limit <= 0 || offset >= manifest.count) return { items: [], total: manifest.count }
   const safeOffset = Math.max(0, offset)
   const safeLimit = Math.max(1, Math.floor(limit))
   const firstChunk = Math.floor(safeOffset / manifest.chunkSize)

@@ -1,0 +1,75 @@
+{
+  "at": "2026-10-18T11:30:04.785Z",
+  "kinds": {
+    "channel": {
+      "rawJsonMB": 0.75,
+      "items": 2355,
+      "categories": 42,
+      "largestCategory": 550,
+      "blocksJsonMB": 0.59,
+      "leanJsonMB": 0.37,
+      "projectionCopyMB": 0,
+      "gzipBlocksMB": 0.06,
+      "gzipLeanMB": 0.05,
+      "deflateRawLeanMB": 0.05,
+      "gzipLeanChunksMB": {
+        "250": 0.05,
+        "500": 0.05,
+        "1000": 0.05,
+        "2000": 0.05
+      },
+      "ratioLeanGzip": 11.8
+    },
+    "movie": {
+      "rawJsonMB": 16.54,
+      "items": 43510,
+      "categories": 35,
+      "largestCategory": 11347,
+      "blocksJsonMB": 14.73,
+      "leanJsonMB": 10.39,
+      "projectionCopyMB": 18.72,
+      "gzipBlocksMB": 2.11,
+      "gzipLeanMB": 1.92,
+      "deflateRawLeanMB": 1.91,
+      "gzipLeanChunksMB": {
+        "250": 1.96,
+        "500": 1.94,
+        "1000": 1.93,
+        "2000": 1.92
+      },
+      "ratioLeanGzip": 7.7
+    },
+    "series": {
+      "rawJsonMB": 8.87,
+      "items": 9768,
+      "categories": 28,
+      "largestCategory": 1931,
+      "blocksJsonMB": 4.07,
+      "leanJsonMB": 3.16,
+      "projectionCopyMB": 2.66,
+      "gzipBlocksMB": 0.79,
+      "gzipLeanMB": 0.74,
+      "deflateRawLeanMB": 0.74,
+      "gzipLeanChunksMB": {
+        "250": 0.75,
+        "500": 0.74,
+        "1000": 0.74,
+        "2000": 0.74
+      },
+      "ratioLeanGzip": 5.5
+    }
+  },
+  "epg": {
+    "xmlMB": 14.64,
+    "programs": 41616,
+    "inWindow": 10122,
+    "channels": 131,
+    "rowsJsonMB": 3.19,
+    "withoutDescriptionJsonMB": 1.63,
+    "gzipPerChannelLeanMB": 0.56
+  },
+  "summary": {
+    "estimatedNowMB": 44,
+    "estimatedLeanGzipChunks500MB": 3.3
+  }
+}

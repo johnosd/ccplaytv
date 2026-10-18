@@ -70,13 +70,15 @@ async def test_pix_unavailable_when_sale_off_domain_missing_or_provider_down_and
             await pix.pix(principal, new_token(), False, now)
         assert caught.value.status == 503
         payments.checkout_enabled = True
+        # 081/D-004: venda aberta sem domínio do pagador = Pix desligado (estado), não pane.
         with pytest.raises(AuthError) as caught:
             await PixOrders(payments, payer_domain=None).pix(principal, new_token(), False, now)
-        assert caught.value.status == 503
+        assert (caught.value.code, caught.value.status) == ("pix_disabled", 409)
         provider.unavailable = True
         with pytest.raises(AuthError) as caught:
             await pix.pix(principal, new_token(), False, now)
-        assert caught.value.status == 503 and "000201" not in str(caught.value)
+        # 081/T044: falha do provedor com a venda aberta tem código próprio (a TV oferece o site).
+        assert (caught.value.code, caught.value.status) == ("pix_failed", 503) and "000201" not in str(caught.value)
         provider.unavailable = False
         view = await pix.pix(principal, new_token(), False, now)
         assert view["state"] == "pending"

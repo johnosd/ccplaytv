@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sonda descartável da feature 082: app SEPARADO do CCPlayTV (outro id, outra pasta de dados). Mede a cota de
+     armazenamento da TV sem tocar o app nem a lista do usuário. Desinstalar depois do teste. -->
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://yourdomain/CcpSonda82" version="0.0.1" viewmodes="maximized">
+   <name>SondaCota082</name>
+   <icon src="icon.png"></icon>
+   <content src="index.html"></content>
+   <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"></feature>
+   <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"></tizen:setting>
+   <tizen:application id="ccpSonda82.CotaProbe" package="ccpSonda82" required_version="8.0"></tizen:application>
+   <tizen:privilege name="http://tizen.org/privilege/internet"></tizen:privilege>
+   <!-- Mesmo privilégio do app: é ele que o motor deveria usar para conceder "ilimitado" ao estourar. -->
+   <tizen:privilege name="http://tizen.org/privilege/unlimitedstorage"></tizen:privilege>
+   <!-- Só na sonda: teste da pasta privada de arquivos (wgt-private). -->
+   <tizen:privilege name="http://tizen.org/privilege/filesystem.read"></tizen:privilege>
+   <tizen:privilege name="http://tizen.org/privilege/filesystem.write"></tizen:privilege>
+   <tizen:profile name="tv-samsung"></tizen:profile>
+   <access origin="*" subdomains="true"></access>
+</widget>

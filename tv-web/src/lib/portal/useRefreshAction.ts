@@ -7,7 +7,7 @@ import { portalTables } from './portalTables'
 /** Pausa do botão depois de apertado (FR-004); o agente aplica a mesma pausa por escopo como segunda barreira. */
 export const REFRESH_PAUSE_MS = 10_000
 
-export type RefreshStatus = 'idle' | 'loading' | 'done' | 'nothing' | 'wait' | 'offline' | 'failed'
+export type RefreshStatus = 'idle' | 'loading' | 'done' | 'nothing' | 'wait' | 'offline' | 'failed' | 'storage_full'
 
 /** `newSourceIds`: listas locais que passaram a existir com este Atualizar (só no escopo lists). */
 export interface RefreshResult { ok: boolean; changed: boolean; newSourceIds: string[] }
@@ -94,6 +94,8 @@ export function useRefreshAction(scope: RefreshScope, options: {
         const reason = outcome.code ?? 'sync_error'
         if (reason === 'wait') setStatus('wait')
         else if (OFFLINE_CODES.has(reason)) setStatus('offline')
+        // Limite de armazenamento do app: mensagem própria, sem "código do erro" genérico.
+        else if (reason === 'storage_full') setStatus('storage_full')
         else { setStatus('failed'); setCode(reason) }
         return { ok: false, changed: false, newSourceIds: [] }
       }
@@ -121,6 +123,7 @@ export function refreshMessageKey(status: RefreshStatus, scope: RefreshScope) {
     case 'wait': return 'portal.refresh.wait' as const
     case 'offline': return 'portal.refresh.offline' as const
     case 'failed': return 'portal.refresh.failed' as const
+    case 'storage_full': return 'error.STO-01.description' as const
     default: return undefined
   }
 }

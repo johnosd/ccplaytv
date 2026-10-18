@@ -61,6 +61,9 @@ const pt: FaqContent = {
     { id: 'activation-time', category: 'license', question: 'Paguei. Quando a licença aparece na TV?', answer: [
       'Assim que o Mercado Pago confirma o pagamento, a licença é liberada. Na TV, aperte Atualizar (na tela do Pix, no aviso de licença ou em Portal & licença) para recebê-la.',
       'Voltar à página ou guardar o comprovante não ativa a licença. Se o pagamento estiver pendente, não pague de novo: o mesmo pedido continua valendo.'] },
+    { id: 'refund', category: 'license', question: 'Quem vende e como peço reembolso?', answer: [
+      'A licença é vendida pelo CCPlayTV. Contato: ccplaytv@gmail.com.',
+      'Você pode pedir o reembolso em até 7 dias depois da compra, pelo mesmo e-mail, informando o endereço MAC da TV. O pagamento é estornado pelo Mercado Pago e a licença daquela compra deixa de valer na TV no próximo Atualizar.'] },
     { id: 'transfer', category: 'license', question: 'Posso passar a licença para outra TV?', answer: [
       'Não. A licença vale para a TV cujo endereço MAC foi confirmado na compra. Cada TV precisa da sua própria licença.'] },
     { id: 'expired', category: 'license', question: 'O que acontece quando a licença vence?', action: 'activate', answer: [
@@ -129,6 +132,9 @@ const en: FaqContent = {
     { id: 'activation-time', category: 'license', question: 'I paid. When does the license reach the TV?', answer: [
       'Once Mercado Pago confirms the payment, the license is released. On the TV, press Refresh (on the Pix screen, on the license notice or in Portal & license) to receive it.',
       'Going back to the page or keeping the receipt does not activate it. If the payment is pending, do not pay again: the same order still applies.'] },
+    { id: 'refund', category: 'license', question: 'Who sells it and how do I ask for a refund?', answer: [
+      'The license is sold by CCPlayTV. Contact: ccplaytv@gmail.com.',
+      'You can ask for a refund within 7 days of the purchase at the same email, including the TV MAC address. The payment is refunded through Mercado Pago and that purchase’s license stops working on the TV at the next Refresh.'] },
     { id: 'transfer', category: 'license', question: 'Can I move my license to another TV?', answer: [
       'No. The license applies to the TV whose MAC address was confirmed at purchase. Each TV needs its own license.'] },
     { id: 'expired', category: 'license', question: 'What happens when the license expires?', action: 'activate', answer: [
@@ -197,6 +203,9 @@ const es: FaqContent = {
     { id: 'activation-time', category: 'license', question: 'Ya pagué. ¿Cuándo llega la licencia al televisor?', answer: [
       'En cuanto Mercado Pago confirma el pago, la licencia se libera. En el televisor, pulsa Actualizar (en la pantalla del Pix, en el aviso de licencia o en Portal y licencia) para recibirla.',
       'Volver a la página o guardar el comprobante no la activa. Si el pago está pendiente, no pagues de nuevo: la misma solicitud sigue valiendo.'] },
+    { id: 'refund', category: 'license', question: '¿Quién vende y cómo pido un reembolso?', answer: [
+      'La licencia la vende CCPlayTV. Contacto: ccplaytv@gmail.com.',
+      'Puedes pedir el reembolso hasta 7 días después de la compra en el mismo correo, indicando la dirección MAC del televisor. El pago se devuelve por Mercado Pago y la licencia de esa compra deja de valer en el televisor en la próxima Actualización.'] },
     { id: 'transfer', category: 'license', question: '¿Puedo pasar la licencia a otro televisor?', answer: [
       'No. La licencia vale para el televisor cuya dirección MAC se confirmó en la compra. Cada televisor necesita su propia licencia.'] },
     { id: 'expired', category: 'license', question: '¿Qué pasa cuando vence la licencia?', action: 'activate', answer: [

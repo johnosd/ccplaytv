@@ -4,6 +4,7 @@ import { CatalogDb } from '../catalog/db'
 import { PortalAgent, sharedPortalAgent, type PortalAgentPorts } from './portalAgent'
 import { PortalRequestError } from './portalClient'
 import { portalTables } from './portalTables'
+import { StorageFullError } from '../catalog/catalogRepository'
 
 // Feature 071: o agente não tem ciclo nem timers. Aqui ficam só o ciclo de vida, a exclusão no ato e a exclusão de
 // sobreposição; os contratos `portalAgent.consulta-sob-demanda-qr-fixo` definem Atualizar e a ausência de consulta.
@@ -239,5 +240,23 @@ it('Atualizar de licença tenta a cópia do código antes e segue com a licença
     expect(await agent.refresh('license')).toEqual({ ok: true })
     expect(calls).toEqual(['escrow', 'license'])
     expect(ports.onError).toHaveBeenCalledWith('escrow_failed')
+  } finally { db.close() }
+})
+
+// Bug armazenamento-app-cheio-na-tv-impede: falta de espaço no aparelho vira `storage_full` (mensagem de limite de
+// armazenamento do app), não o `sync_error` genérico que escondia a causa na TV.
+it('Atualizar da licença sem espaço no aparelho devolve storage_full; outro erro local continua sync_error', async () => {
+  const { db, ports } = await fixture()
+  try {
+    const quota = Object.assign(new Error('x'), { name: 'AbortError', inner: { name: 'QuotaExceededError' } })
+    ports.refreshLicense = vi.fn<NonNullable<PortalAgentPorts['refreshLicense']>>()
+      .mockRejectedValueOnce(new StorageFullError()).mockRejectedValueOnce(quota).mockRejectedValueOnce(new TypeError('outro'))
+    const agent = new PortalAgent(db, ports)
+    stops.push(agent.attach())
+    expect(await agent.refresh('license')).toMatchObject({ ok: false, code: 'storage_full' })
+    vi.setSystemTime(Date.now() + 11_000)
+    expect(await agent.refresh('license')).toMatchObject({ ok: false, code: 'storage_full' })
+    vi.setSystemTime(Date.now() + 11_000)
+    expect(await agent.refresh('license')).toMatchObject({ ok: false, code: 'sync_error' })
   } finally { db.close() }
 })

@@ -1,0 +1,12 @@
+{
+    "feature":  "082-orcamento-armazenamento-tv",
+    "lockedAt":  "2026-10-18 08:50",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/catalog/storageBudget.orcamento-armazenamento.contract.test.ts",
+                      "sha256":  "e9b7b4bdac7f9e053675e1063a51ffbc88ba4bf38176c2afb350f7d3d14f7afd",
+                      "tests":  5
+                  }
+              ]
+}

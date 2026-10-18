@@ -58,7 +58,7 @@ it('Comprar licença pede a tela de Pix ao registro e, sem registro, avisa que a
   const { handleRef } = await setup()
   expect(screen.getByRole('button', { name: 'Comprar licença' })).toBeInTheDocument()
   act(() => handleRef.current!.activate('purchase'))
-  expect(await screen.findByText('A compra está indisponível no momento.')).toBeInTheDocument()
+  expect(await screen.findByText('A compra está indisponível no momento. Tente mais tarde.')).toBeInTheDocument()
   const opener = vi.fn()
   const release = registerPixPurchaseOpener(opener)
   try {
@@ -66,7 +66,7 @@ it('Comprar licença pede a tela de Pix ao registro e, sem registro, avisa que a
     expect(opener).toHaveBeenCalledOnce()
     expect(opener.mock.calls[0][0]).toMatchObject({ onLicensed: expect.any(Function), onBack: expect.any(Function) })
   } finally { release() }
-  expect(screen.queryByText('A compra está indisponível no momento.')).not.toBeInTheDocument()
+  expect(screen.queryByText('A compra está indisponível no momento. Tente mais tarde.')).not.toBeInTheDocument()
 })
 
 it('as ações seguem Comprar → Atualizar → Avançado no build comercial e só Avançado fora dele', async () => {

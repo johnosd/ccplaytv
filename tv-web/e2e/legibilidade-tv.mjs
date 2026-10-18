@@ -73,6 +73,7 @@ function startFixtureServer() {
 /** Mede a tela atual no navegador; devolve a lista de problemas ("seletor: problema"). */
 function measure({ minFontPx, boxSelectors, rootSelector }) {
   const problems = []
+  if (/STO-01/i.test(document.body?.innerText ?? '')) problems.push('cobertura parcial não deve exibir STO-01')
   const root = document.querySelector(rootSelector) ?? document.body
   const describe = (el) => {
     const cls = typeof el.className === 'string' ? el.className.trim().split(/\s+/).filter((c) => c && c !== 'tv-focus').slice(0, 2) : []
@@ -426,6 +427,9 @@ async function auditPortalScreens(browser, m3uUrl) {
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers })
     if (new URL(request.url()).pathname.endsWith('/device/orders/pix')) {
       if (pixMode === 'offline') return route.abort()
+      // 081/T044: venda aberta sem Pix (site) e Pix que falhou agora (site + tentar).
+      if (pixMode === 'disabled') return route.fulfill({ status: 409, json: { code: 'pix_disabled', retryable: false }, headers })
+      if (pixMode === 'failed') return route.fulfill({ status: 503, json: { code: 'pix_failed', retryable: true }, headers })
       return route.fulfill({ headers, json: { orderId: 'pedido-legibilidade', state: pixMode, ...(pixMode === 'pending' ? { qrCode: pixQr } : {}),
         expiresAt: new Date(Date.now() + 30 * 60000).toISOString(), serverTime: new Date().toISOString(), priceMinor: 3500, termMonths: 12,
         displayId: 'A0:8C:FD:19:0A:8C' } })
@@ -474,7 +478,8 @@ async function auditPortalScreens(browser, m3uUrl) {
       })
       // 073 (FR-014): tela de Pix aberta pelo bloqueio — pendente (QR + copia-e-cola), vencido e sem conexão.
       for (const [mode, screen, ready] of [['pending', 'Compra por Pix', '.license-pix .fixed-qr'],
-        ['expired', 'Compra por Pix vencido', '.license-pix .license-pix-text'], ['offline', 'Compra por Pix sem conexão', '.license-pix [role="alert"]']]) {
+        ['expired', 'Compra por Pix vencido', '.license-pix .license-pix-text'], ['offline', 'Compra por Pix sem conexão', '.license-pix [role="alert"]'],
+        ['disabled', 'Compra sem Pix (site)', '.license-pix .fixed-qr'], ['failed', 'Compra com Pix falhou (site)', '.license-pix .fixed-qr']]) {
         await step(lang, screen, async () => {
           pixMode = mode
           await page.goto(PORTAL_APP)

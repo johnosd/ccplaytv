@@ -36,3 +36,5 @@ portal-web/playwright-report/
 
 # Local Cloud Run staging credentials
 infra/portal/staging.env.yaml
+infra/portal/production.env.yaml
+infra/portal/jobs.env.yaml

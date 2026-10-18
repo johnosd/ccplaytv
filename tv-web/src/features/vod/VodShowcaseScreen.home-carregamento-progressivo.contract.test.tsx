@@ -137,7 +137,7 @@ function advance(ms: number) {
 
 describe('VodShowcaseScreen — contrato da feature 079', () => {
   // US2/AC2, US3/AC1, US3/AC3, FR-003, FR-004, FR-007, Constitution: "Foco Visível e Sem Becos Sem Saída"
-  it('Filmes: sem "Carregando" antes de 300 ms; aos 2 s revela com o que tem; "Adicionados" e "Em alta" que chegam depois, acima de fileiras na tela, não entram nesta visita', () => {
+  it('Filmes: sem "Carregando" antes de 300 ms; fileiras prontas e tardias entram na mesma visita em ordem', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
     resetVodSessionMemory()
     mockReads()
@@ -153,23 +153,23 @@ describe('VodShowcaseScreen — contrato da feature 079', () => {
     expect(screen.queryByRole('button', { name: 'Voltar' })).toBeNull() // não pisca
     expect(rowLabels()).toEqual([])
     advance(300)
-    expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Voltar' })).toBeNull()
 
-    advance(1699) // 1999 ms
-    expect(rowLabels()).toEqual([])
-    advance(1) // 2000 ms: teto
+    advance(1) // 301 ms: janela curta
     expect(rowLabels()).toContain('★ Favoritos')
     expect(rowLabels()).toContain('Ação')
     expect(rowLabels()).not.toContain('Adicionados recentemente')
     expect(rowLabels()).not.toContain('Em alta esta semana')
 
-    // Chegam depois do teto, acima de "Ação" (já na tela): ficam para a próxima entrada.
+    // Chegam depois, acima de "Ação" (já na tela): entram na mesma visita e reordenam a pilha.
     reads.added = [movie('Novo 1'), movie('Novo 2')]
     reads.top10 = [{ item: movie('Top 1'), rank: 1 }]
-    rerender(element)
+    rerender(
+      <VodShowcaseScreen section="movies" sourceId={SOURCE_ID} onOpenItem={vi.fn()} onOpenTarget={vi.fn()} onBack={vi.fn()} onResync={vi.fn()} />,
+    )
     advance(100)
-    expect(rowLabels()).not.toContain('Adicionados recentemente')
-    expect(rowLabels()).not.toContain('Em alta esta semana')
+    expect(rowLabels()).toContain('Adicionados recentemente')
+    expect(rowLabels()).toContain('Em alta esta semana')
     expect(rowLabels()).toContain('★ Favoritos')
   })
 })

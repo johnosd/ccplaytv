@@ -106,7 +106,7 @@ describe('cache curto de blocos', () => {
     const categoryId = await movieCategory()
     const target = { sourceId: SOURCE_ID, generation: 1, kind: 'movie' as const, categoryId, groupOrder: 0 }
     await storeCategoryItems(target, [movie('m1', 'Matrix'), movie('m2', 'Duna')], 1000, database)
-    const id = (await database.categoryBlocks.get(categoryId))!.items[0].id
+    const id = ((await database.categoryBlocks.get(categoryId))!.items ?? [])[0].id
 
     const get = vi.spyOn(database.categoryBlocks, 'get')
     for (let i = 0; i < 4; i += 1) expect((await getChannel(id, database))?.name).toBe('Matrix')
@@ -120,7 +120,7 @@ describe('cache curto de blocos', () => {
     const categoryId = await movieCategory()
     const target = { sourceId: SOURCE_ID, generation: 1, kind: 'movie' as const, categoryId, groupOrder: 0 }
     await storeCategoryItems(target, [movie('m1', 'Matrix'), movie('m2', 'Duna')], 1000, database)
-    const duna = (await database.categoryBlocks.get(categoryId))!.items[1].id
+    const duna = ((await database.categoryBlocks.get(categoryId))!.items ?? [])[1].id
     expect((await getChannel(duna, database))?.name).toBe('Duna')
 
     await renewCategoryItems(target, [movie('m1', 'Matrix')], 2000, database)
@@ -163,7 +163,7 @@ describe('storeSeriesEpisodes com a série em bloco', () => {
     )
     const target = { sourceId: SOURCE_ID, generation: 1, kind: 'series' as const, categoryId, groupOrder: 0 }
     await storeCategoryItems(target, [series('s1', 'Dark'), series('s2', 'Lost')], 1000, database)
-    const darkId = (await database.categoryBlocks.get(categoryId))!.items[0].id
+    const darkId = ((await database.categoryBlocks.get(categoryId))!.items ?? [])[0].id
 
     const put = vi.spyOn(database.categoryBlocks, 'put')
     await storeSeriesEpisodes({ sourceId: SOURCE_ID, generation: 1, seriesId: 's1', seriesRecordId: darkId }, [], 900, database)
@@ -173,7 +173,7 @@ describe('storeSeriesEpisodes com a série em bloco', () => {
 
     await renewCategoryItems(target, [series('s2', 'Lost'), series('s1', 'Dark')], 2000, database)
     const block = await database.categoryBlocks.get(categoryId)
-    expect(block!.items.find((item) => item.seriesId === 's1')?.episodesFetchedAt).toBe(900)
+    expect((block!.items ?? []).find((item) => item.seriesId === 's1')?.episodesFetchedAt).toBe(900)
     expect((await database.categories.get(categoryId))?.seriesEpisodesFetchedAt).toBeUndefined()
     expect((await getChannel(darkId, database))?.episodesFetchedAt).toBe(900)
   })

@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-18",
+  "quotaBytes": 83886080,
+  "storageErrors": [],
+  "cpuThrottlingRate": 4,
+  "perf": [],
+  "entryWallMs": [
+    {
+      "section": "movies",
+      "ms": 669
+    },
+    {
+      "section": "series",
+      "ms": 528
+    }
+  ],
+  "usage": 4451556,
+  "quota": 83886080,
+  "tables": {
+    "categories": 104,
+    "epgPrograms": 9637,
+    "categoryBlocks": 1,
+    "catalogReadManifests": 0,
+    "catalogReadChunks": 0,
+    "categoryChunks": 2,
+    "epgChunks": 0
+  }
+}

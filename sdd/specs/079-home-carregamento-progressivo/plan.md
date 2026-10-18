@@ -2,15 +2,13 @@
 
 **Slug**: `079-home-carregamento-progressivo` | **Date**: 2026-10-16 | **Spec**: `sdd/specs/079-home-carregamento-progressivo/spec.md`
 
-> Re-planejado em 2026-10-16 depois da entrevista. O plano anterior (modelo progressivo, só Home) foi substituído antes de qualquer execução; seus riscos não se aplicam mais.
+> Re-planejado em 2026-10-16 depois da entrevista. Emenda de 2026-10-17: a decisão foi alinhada ao comportamento progressivo dos grandes players.
 
 ## Summary
 
-Home, Filmes e Séries passam a montar a tela inteira antes de mostrá-la: esperam as leituras das fileiras (e o hero, na
-Home) e as capas dos cards da primeira tela, com teto de 2 s, e revelam tudo de uma vez. "Carregando" com Voltar só
-aparece se a espera passar de 300 ms. Depois do teto, nada entra acima do que já está na tela. A regra é uma função pura e
-um hook em `lib/assembly/`, compartilhados pelas três telas; Filmes/Séries trocam a espera local que já tinham
-(`rowsReady`, teto de 3 s) por ela.
+Home, Filmes e Séries revelam as fileiras prontas após uma janela curta de 300 ms e inserem as demais quando resolvem, sempre
+na ordem canônica. O teto de 2 s continua evitando espera infinita quando nenhum conteúdo está pronto. As capas chegam dentro
+dos cards e a regra comum vive em `lib/assembly/`, compartilhada pelas três telas.
 
 ## Technical Context
 
@@ -42,11 +40,11 @@ dependem do caminho do cache síncrono.
 - D-002: Teto `ASSEMBLY_CAP_MS = 2000` e atraso `LOADING_DELAY_MS = 300`, fixos, contados da montagem da tela.
 - D-003: A revelação é decidida **no render**, nunca num efeito (caminho do cache no 1º quadro).
 - D-004: Caminho do cache: leituras `primary` resolvidas no 1º render → revela na hora; até o teto, o que chega se encaixa.
-- D-005: A partir do teto, o que chega acima do que está na tela fica para a próxima montagem; abaixo, entra ao fim; o billboard da Home é âncora (não troca depois).
+- D-005: Toda fileira pronta entra na visita atual, na posição canônica, inclusive depois do teto; a reacomodação das fileiras abaixo é aceita para não esconder conteúdo.
 - D-006: Ação da pessoa (fechar o player, alternar favorito no billboard) abre `follow()` e tudo entra na posição.
 - D-007: Entram na espera: leituras das fileiras e do hero, formato largo do "Continue" e — **só até `LOADING_DELAY_MS` (300 ms)** — as capas da primeira tela (emenda R-008). Não entram: prévias de categoria, backdrop do billboard, selos, metadados do hero.
 - D-008: Fileira vazia ou com falha não aparece, sem aviso.
-- D-009: Durante a espera não se desenha billboard, boas-vindas, fileira nem skeleton; o "Carregando" reaproveita `Spinner` + `EmptyState` com Voltar.
+- D-009: Antes da janela curta não se desenha fileira; após ela, as fileiras prontas aparecem. Se nenhuma leitura resolveu e a espera continua, o "Carregando" reaproveita `Spinner` + `EmptyState` com Voltar.
 - D-010: O adiamento `HOME_DEFERRED_MS` deixa de valer para "adicionados" da Home (continua para o resumo de séries).
 - D-011: Medição só numérica, em `lib/perf/assemblyTiming.ts`; aceite = avaliação visual do usuário na TV.
 
@@ -175,10 +173,10 @@ Contratos de outras features que esta pode quebrar (rodar sem editar): `HomeScre
 | --- | --- |
 | Regra comum (`lib/assembly/`) | Implementada; 3/3 contratos verdes |
 | Medição (`lib/perf/assemblyTiming.ts`) | Implementada; ainda sem tela usando |
-| Home | Espera e revela; billboard neutro; contrato 079 + 026/060 verdes; 628 linhas |
-| Filmes/Séries | Regra comum, teto 2 s, "Bem avaliados" e capas na espera; contratos 079/052/053/056/057/050 verdes; 733 linhas |
+| Home | Fileiras progressivas após 300 ms; late rows entram na ordem atual; contrato 079 + 026/060 verdes; 628 linhas |
+| Filmes/Séries | Regra comum progressiva, teto 2 s, fileiras tardias entram na ordem atual; contratos 079/052/053/056/057/050 verdes; 733 linhas |
 | Medição no navegador | Depois da R-008 (lista real, 5 rodadas, p50): Home fria 491 ms, Filmes fria 766 ms, Séries fria 321 ms, quentes 0 ms; nenhuma revelação pelo teto |
-| Gates | lint, tsc, 3542/3542, build ok; E2E 50/52 (2 falhas não da 079: `semelhantes-elenco-ator` anterior, `portal-configuracao` porta 5175 ocupada) |
+| Gates | lint, tsc, build ok; áreas Home/VOD 264/264; contratos 5/5; suíte completa 3547/3547 com `--hookTimeout 30000`; E2E direcionado 7/7 |
 | TV física | Não iniciada — T020/T021 dependem do aparelho e do usuário |
 
 ## Riscos e Decisões
@@ -193,6 +191,7 @@ Contratos de outras features que esta pode quebrar (rodar sem editar): `HomeScre
 | R-006 | Pré-carga duplica requisição de capa se o host não permitir cache. | Rede extra na abertura. | Mesma URL do `<img>`; registrar na medição quantas capas terminaram no teto. |
 | R-007 | Medição no navegador (lista real): Filmes/Séries frios revelam sempre pelo teto (≈2 s) com **todas as leituras prontas** — as capas do provedor não terminam (9/25 no teto). A lista de capas da vitrine não desconta lista lateral nem topbar. | Abertura fria de Filmes/Séries ~1,5 s mais lenta que sem esperar capas, e ainda com capas faltando. | Resolvido: ver R-008. |
 | R-008 | Decisão do usuário (2026-10-16): seguir o padrão dos apps de streaming — capas seguram a tela só até 300 ms (a janela do "Carregando"); depois chegam dentro dos cards no lugar. | Emenda do contrato travado `useScreenAssembly.home-carregamento-progressivo.contract.test.tsx` (capa lenta não segura mais até o teto); trava regravada com autorização. | `imagesSettled` no hook = capas prontas **ou** 300 ms; spec FR-002 e `logic/montagem-de-tela.md` §3 emendados. Reconfirmar na medição do navegador e na TV. |
+| R-009 | Emenda do usuário (2026-10-17): fileiras prontas e tardias devem aparecer na visita atual, como nos grandes players, mesmo quando uma fileira acima reacomoda as demais. | Reordenação visual controlada; foco continua reconciliado por identidade. | Regra comum não mantém `deferred`; contratos 079 atualizados e a trava será regravada com autorização. |
 
 ## Execution Notes
 
@@ -207,8 +206,9 @@ Contratos de outras features que esta pode quebrar (rodar sem editar): `HomeScre
 | 2026-10-16 | Fase 5 (parcial) | lint/tsc/3542 testes/build verdes; E2E 50/52 depois de ajustar `e2e.mjs` (espera `.home-hero`); teste da vitrine com relógio falso. | T030 (2 falhas não da 079), T023 sem reprodução na fixture, decisão R-007. |
 
 | 2026-10-16 | Emenda R-008 | Capas só até 300 ms (decisão do usuário); contrato do hook emendado com autorização e trava regravada; 3542/3542, lint ok, E2E da área 10/10; Filmes frio 2,0 s → 0,77 s. | TV física. |
+| 2026-10-17 | Emenda R-009 | Regra comum passa a revelar fileiras prontas após 300 ms e inserir fileiras tardias na posição canônica; contratos e testes de Home/VOD atualizados; lint, tsc, build, suíte completa 3547/3547 com `--hookTimeout 30000`, E2E direcionado 7/7; trava 5/5 íntegra. | TV física. |
 
-**PRÓXIMO**: TV física — `tizen-tv` com `VITE_CCPLAY_PERF=1`, roteiro de `quickstart.md` (T020) e avaliação visual do usuário (T021).
+**PRÓXIMO**: validar a montagem progressiva na TV física com `tizen-tv`, `VITE_CCPLAY_PERF=1`, roteiro de `quickstart.md` (T020) e avaliação visual do usuário (T021).
 
 ## Arquivos Principais
 

@@ -20,9 +20,13 @@ export const purchase = defineArea(
   "portal.pix.notCompleted": "Este pagamento não foi concluído.",
   "portal.pix.offline": "Sem conexão com o serviço.",
   "portal.pix.failed": "Não foi possível falar com o serviço agora.",
-  "portal.pix.unavailable": "A compra está indisponível no momento.",
+  "portal.pix.unavailable": "A compra está indisponível no momento. Tente mais tarde.",
   "portal.pix.renewAction": "Gerar novo Pix",
-  "portal.pix.retry": "Tentar novamente"
+  "portal.pix.retry": "Tentar novamente",
+  "portal.pix.generateFailed": "Não foi possível gerar o Pix agora.",
+  "portal.pix.cardOnly": "O Pix não está disponível na TV. Leia o QR com o celular e compre com cartão no site {site}.",
+  "portal.pix.cardAlt": "Ou leia o QR com o celular e compre com cartão no site {site}.",
+  "portal.pix.seller": "Vendido por CCPlayTV · ccplaytv@gmail.com · Reembolso em até 7 dias pelo e-mail."
 },
 {
   "portal.buy": "Buy license",
@@ -42,9 +46,13 @@ export const purchase = defineArea(
   "portal.pix.notCompleted": "This payment was not completed.",
   "portal.pix.offline": "No connection to the service.",
   "portal.pix.failed": "Could not reach the service right now.",
-  "portal.pix.unavailable": "Purchases are unavailable right now.",
+  "portal.pix.unavailable": "Purchases are unavailable right now. Try again later.",
   "portal.pix.renewAction": "Create new Pix",
-  "portal.pix.retry": "Try again"
+  "portal.pix.retry": "Try again",
+  "portal.pix.generateFailed": "Could not create the Pix right now.",
+  "portal.pix.cardOnly": "Pix isn't available on the TV. Scan the QR with your phone and buy by card at {site}.",
+  "portal.pix.cardAlt": "Or scan the QR with your phone and buy by card at {site}.",
+  "portal.pix.seller": "Sold by CCPlayTV · ccplaytv@gmail.com · Refund within 7 days by email."
 },
 {
   "portal.buy": "Comprar licencia",
@@ -64,8 +72,12 @@ export const purchase = defineArea(
   "portal.pix.notCompleted": "Este pago no se completó.",
   "portal.pix.offline": "Sin conexión con el servicio.",
   "portal.pix.failed": "No fue posible comunicarse con el servicio ahora.",
-  "portal.pix.unavailable": "La compra no está disponible en este momento.",
+  "portal.pix.unavailable": "La compra no está disponible en este momento. Inténtalo más tarde.",
   "portal.pix.renewAction": "Generar nuevo Pix",
-  "portal.pix.retry": "Intentar de nuevo"
+  "portal.pix.retry": "Intentar de nuevo",
+  "portal.pix.generateFailed": "No fue posible generar el Pix ahora.",
+  "portal.pix.cardOnly": "El Pix no está disponible en la TV. Lee el QR con el móvil y compra con tarjeta en {site}.",
+  "portal.pix.cardAlt": "O lee el QR con el móvil y compra con tarjeta en {site}.",
+  "portal.pix.seller": "Vendido por CCPlayTV · ccplaytv@gmail.com · Reembolso en hasta 7 días por correo."
 }
 )

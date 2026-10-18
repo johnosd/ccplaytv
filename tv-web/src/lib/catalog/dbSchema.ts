@@ -53,4 +53,10 @@ export function registerLateCatalogSchemas(db: Dexie): void {
   db.version(25).stores({
     pendingRestore: 'sourceId, expiresAt',
   })
+  // Feature 082: catálogo e guia comprimidos em pedaços (a TV dá 80 MiB fixos e não comprime o que grava). Tabelas
+  // novas, sem .upgrade(): o formato antigo continua legível e é convertido em segundo plano. Acesso em `chunkTables.ts`.
+  db.version(26).stores({
+    categoryChunks: '[categoryId+chunk], [sourceId+generation]',
+    epgChunks: '[sourceId+generation+channelKey], [sourceId+generation]',
+  })
 }

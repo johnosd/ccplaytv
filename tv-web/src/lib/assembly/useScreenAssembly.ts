@@ -103,6 +103,7 @@ export function useScreenAssembly<K extends string>({
   state.current = stepAssembly(state.current, {
     slots,
     imagesSettled,
+    progressivePassed: loadingDelayPassed,
     capPassed,
     following,
     firstRender: !mounted.current,
@@ -112,7 +113,6 @@ export function useScreenAssembly<K extends string>({
   const waiting = current.phase === 'waiting'
   const urlsKey = imageUrls.join('\n')
   useEffect(() => {
-    if (!waiting) return
     let alive = true
     for (const url of urlsKey === '' ? [] : urlsKey.split('\n')) {
       if (requested.current.has(url)) continue

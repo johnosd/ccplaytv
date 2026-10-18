@@ -8,6 +8,7 @@
 
 import { blockRecords } from '../lib/catalog/categoryBlocks'
 import type { CatalogDb, CatalogRecord } from '../lib/catalog/db'
+import { readBlockChunks } from '../lib/catalog/blockChunks'
 
 export async function storedItems(database: CatalogDb, sourceId?: string): Promise<CatalogRecord[]> {
   const rows = sourceId
@@ -16,5 +17,6 @@ export async function storedItems(database: CatalogDb, sourceId?: string): Promi
   const blocks = (await database.categoryBlocks.toArray()).filter(
     (block) => sourceId === undefined || block.sourceId === sourceId,
   )
-  return [...rows, ...blocks.flatMap(blockRecords)]
+  const compressed = (await Promise.all(blocks.filter((block) => block.format === 2).map((block) => readBlockChunks(database, block.categoryId)))).flat()
+  return [...rows, ...blocks.filter((block) => block.format !== 2).flatMap(blockRecords), ...compressed]
 }

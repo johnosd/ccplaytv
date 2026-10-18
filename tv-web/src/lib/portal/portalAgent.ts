@@ -7,6 +7,7 @@ import { liveQuery } from 'dexie'
 import type { CatalogDb } from '../catalog/db'
 import { portalTables } from './portalTables'
 import { PortalRequestError } from './portalClient'
+import { isQuotaError, StorageFullError } from '../catalog/catalogRepository'
 
 /** Pausa entre dois Atualizar do mesmo escopo; vale também depois de uma falha (limite do serviço). */
 const REFRESH_PAUSE_MS = 10_000
@@ -206,7 +207,9 @@ export class PortalAgent {
       return { ok: true }
     } catch (error) {
       if (signal.aborted) return { ok: false, code: 'aborted' }
-      const code = error instanceof PortalRequestError ? error.code : 'sync_error'
+      // Falta de espaço no aparelho não é "erro de sincronização": a tela mostra o limite de armazenamento do app.
+      const code = error instanceof PortalRequestError ? error.code
+        : error instanceof StorageFullError || isQuotaError(error) ? 'storage_full' : 'sync_error'
       this.ports.onError?.(code)
       return { ok: false, code }
     } finally {

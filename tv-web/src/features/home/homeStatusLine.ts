@@ -39,6 +39,7 @@ export function homeStatusLine(
   if (progress.sourceId === sourceId && progress.pausedReason === 'rate_limited') {
     return t('home.status.paused')
   }
+  if (progress.sourceId === sourceId && progress.stoppedReason === 'storage_full' && progress.ready < progress.total) return t('home.status.partial')
   const preparing =
     progress.sourceId === sourceId &&
     (progress.state === 'running' || progress.state === 'paused') &&

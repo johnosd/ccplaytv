@@ -1,0 +1,4 @@
+.buildResult/
+.tizen-rds/
+report-target.js
+icon.png

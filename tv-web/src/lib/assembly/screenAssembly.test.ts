@@ -3,7 +3,7 @@ import { initialAssembly, stepAssembly, type AssemblyInput, type AssemblySlot, t
 
 type Key = 'cats' | 'a' | 'b' | 'c'
 
-const base = { imagesSettled: true, capPassed: false, following: false, firstRender: false }
+const base = { imagesSettled: true, progressivePassed: false, capPassed: false, following: false, firstRender: false }
 
 function slots(cats: SlotStatus, a: SlotStatus, b: SlotStatus, c: SlotStatus): AssemblySlot<Key>[] {
   return [
@@ -18,13 +18,11 @@ const step = (prev: ReturnType<typeof initialAssembly<Key>>, input: Partial<Asse
   stepAssembly(prev, { ...base, ...input })
 
 describe('stepAssembly', () => {
-  it('o teto não revela sem a leitura obrigatória', () => {
+  it('o teto revela o que estiver pronto sem bloquear por uma leitura pendente', () => {
     let s = step(initialAssembly<Key>(), { capPassed: true, slots: slots('pending', 'ready', 'ready', 'ready') })
-    expect(s.phase).toBe('waiting')
-    s = step(s, { capPassed: true, slots: slots('ready', 'ready', 'pending', 'ready') })
     expect(s.phase).toBe('revealed')
     expect(s.reason).toBe('cap')
-    expect(s.shown).toEqual(['a', 'c', 'cats'])
+    expect(s.shown).toEqual(['a', 'b', 'c'])
   })
 
   it('falha conta como resolvida e não aparece', () => {
@@ -35,7 +33,7 @@ describe('stepAssembly', () => {
 
   it('depois do teto, várias chegando no mesmo passo entram em ordem crescente', () => {
     let s = step(initialAssembly<Key>(), { capPassed: true, slots: slots('pending', 'ready', 'pending', 'pending') })
-    expect(s.phase).toBe('waiting')
+    expect(s.shown).toEqual(['a'])
     s = step(s, { capPassed: true, slots: slots('empty', 'ready', 'pending', 'pending') })
     expect(s.shown).toEqual(['a'])
     s = step(s, { capPassed: true, slots: slots('ready', 'ready', 'ready', 'ready') })

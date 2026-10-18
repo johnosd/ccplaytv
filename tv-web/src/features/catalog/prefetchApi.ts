@@ -1,6 +1,9 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { prefetchScheduler, setPrefetchCategoryDone } from '../../lib/catalog/prefetch'
+import { protectCatalogSource } from '../../lib/catalog/storageRelief'
+import { subscribeCatalogReleases, touchSource } from '../../lib/catalog/storageBudget'
+import { db } from '../../lib/catalog/db'
 import type { PrefetchHint } from '../../lib/catalog/prefetch/prefetchOrder'
 import type { PrefetchProgress } from '../../lib/catalog/prefetch/prefetchScheduler'
 
@@ -120,13 +123,18 @@ export function usePrefetchForSource(sourceId: string | null): void {
   useEffect(() => {
     const invalidator = createPrefetchInvalidator(queryClient)
     setPrefetchCategoryDone(invalidator.categoryDone)
+    const unsubscribe = subscribeCatalogReleases((sourceId, categoryIds) => categoryIds.forEach((id) => invalidator.categoryDone(sourceId, id)))
     return () => {
       setPrefetchCategoryDone(undefined)
       invalidator.dispose()
+      unsubscribe()
     }
   }, [queryClient])
 
   useEffect(() => {
+    // A lista ativa nunca perde cache quando uma gravação crítica precisa liberar espaço.
+    protectCatalogSource(sourceId ?? undefined)
+    if (sourceId) touchSource(sourceId, Date.now(), db)
     if (sourceId) prefetchScheduler.start(sourceId)
     else prefetchScheduler.stop()
   }, [sourceId])

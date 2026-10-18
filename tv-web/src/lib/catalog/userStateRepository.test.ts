@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { db } from './db'
 import {
   buildStableId,
@@ -73,6 +73,23 @@ describe('userStateRepository', () => {
     expect(state).toBeDefined()
     expect(state?.isFavorite).toBe(true)
     expect(state?.sourceId).toBe('src1')
+  })
+
+  it('preserva o favorito quando a primeira gravação bate na cota e há cache refazível', async () => {
+    const sourceId = 'quota-fav'
+    await db.sources.put({ id: sourceId, type: 'm3u_url', displayName: 'Quota', connectionState: 'synced', createdAt: 1, updatedAt: 1 })
+    const categoryId = await db.categories.add({
+      sourceId, generation: 1, kind: 'movie', order: 0, fetchMode: 'on_demand',
+      itemsCount: 1, itemsFetchedAt: 1, storedBytes: 100,
+    })
+    vi.spyOn(db.userStates, 'put').mockRejectedValueOnce(new DOMException('QuotaExceededError', 'QuotaExceededError'))
+
+    await toggleFavorite(buildStableId({ sourceId, kind: 'movie', providerStreamId: 'quota-1' }), sourceId, true)
+
+    expect((await db.userStates.get(`${sourceId}|movie|id:quota-1`))?.isFavorite).toBe(true)
+    expect((await db.categories.get(categoryId))?.itemsFetchedAt).toBeUndefined()
+    await db.categories.delete(categoryId)
+    await db.sources.delete(sourceId)
   })
 
   it('should toggle favorite for existing state', async () => {

@@ -23,7 +23,9 @@ import type { CategoryBlockRecord } from './db'
 
 /** Quantos blocos ficam em memória (a categoria aberta e o detalhe dela, em geral o mesmo). */
 const CACHE_MAX = 2
-const CACHE_MAX_ITEMS = 2_000
+/** Limite global de itens descomprimidos em cache (~14 MiB na TV, medição 082). */
+export const DECOMPRESSED_ITEM_CACHE_LIMIT = 30_000
+const CACHE_MAX_ITEMS = DECOMPRESSED_ITEM_CACHE_LIMIT
 
 interface Memo {
   epoch: number
@@ -38,7 +40,7 @@ const memos = new WeakMap<object, Memo & { foreignSeen: number }>()
  * no mesmo IndexedDB): chegam por `BroadcastChannel` e esvaziam todo cache
  * deste contexto. Só um aviso, nunca dado.
  */
-let foreignEpoch = 0
+const foreignEpochs = new Map<string, number>()
 const channel: BroadcastChannel | undefined =
   typeof BroadcastChannel === 'function' ? new BroadcastChannel('ccplaytv-category-blocks') : undefined
 if (channel) {
@@ -48,7 +50,7 @@ if (channel) {
       applyMoves(data.databaseName, data.moves as Array<[number, number]>)
       return
     }
-    foreignEpoch += 1
+    if (data && typeof data.databaseName === 'string') foreignEpochs.set(data.databaseName, (foreignEpochs.get(data.databaseName) ?? 0) + 1)
   }
   // Node (testes): o canal não pode segurar o processo aberto.
   ;(channel as unknown as { unref?: () => void }).unref?.()
@@ -57,9 +59,10 @@ if (channel) {
 function memoOf(database: object): Memo {
   let memo = memos.get(database)
   if (!memo) {
-    memo = { epoch: 0, pendingWrites: 0, blocks: new Map(), foreignSeen: foreignEpoch }
+    memo = { epoch: 0, pendingWrites: 0, blocks: new Map(), foreignSeen: foreignEpochs.get((database as { name?: string }).name ?? '') ?? 0 }
     memos.set(database, memo)
   }
+  const foreignEpoch = foreignEpochs.get((database as { name?: string }).name ?? '') ?? 0
   if (memo.foreignSeen !== foreignEpoch) {
     memo.foreignSeen = foreignEpoch
     memo.epoch += 1
@@ -92,7 +95,7 @@ export function noteBlockWrite(database: object, transaction: unknown): void {
   }
   tx.addEventListener('complete', () => {
     settle()
-    channel?.postMessage(1)
+    channel?.postMessage({ databaseName: (database as { name?: string }).name })
   })
   tx.addEventListener('abort', settle)
   tx.addEventListener('error', settle)
@@ -120,9 +123,9 @@ export async function readBlock(
   const block = await database.categoryBlocks.get(categoryId)
   // `memoOf` de novo: aplica um aviso de outro contexto que chegou durante a leitura.
   memoOf(database)
-  if (block && block.items.length <= CACHE_MAX_ITEMS && !inTransaction && pendingBefore === 0 && memo.pendingWrites === 0 && memo.epoch === epoch) {
+  if (block && (block.items ?? []).length <= CACHE_MAX_ITEMS && !inTransaction && pendingBefore === 0 && memo.pendingWrites === 0 && memo.epoch === epoch) {
     memo.blocks.set(categoryId, block)
-    const itemCount = () => [...memo.blocks.values()].reduce((total, value) => total + value.items.length, 0)
+    const itemCount = () => [...memo.blocks.values()].reduce((total, value) => total + (value.items ?? []).length, 0)
     while (memo.blocks.size > CACHE_MAX || itemCount() > CACHE_MAX_ITEMS) {
       const oldest = memo.blocks.keys().next().value as number
       memo.blocks.delete(oldest)
@@ -138,7 +141,7 @@ export function blockItemIndex(block: CategoryBlockRecord, id: number): number {
   let index = indexes.get(block)
   if (!index) {
     index = new Map()
-    block.items.forEach((item, position) => index!.set(item.id, position))
+    ;(block.items ?? []).forEach((item, position) => index!.set(item.id, position))
     indexes.set(block, index)
   }
   return index.get(id) ?? -1

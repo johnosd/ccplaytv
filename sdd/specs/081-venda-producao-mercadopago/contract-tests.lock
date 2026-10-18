@@ -1,0 +1,22 @@
+{
+    "feature":  "081-venda-producao-mercadopago",
+    "lockedAt":  "2026-10-17 13:49",
+    "total":  2,
+    "files":  [
+                  {
+                      "path":  "api/tests/portal/test_venda_producao_contract.py",
+                      "sha256":  "5a60fa2b8e9a1db7b901b9a3a2f6de0f031d4b6459f1838eef2471fc6221c8a6",
+                      "tests":  0
+                  },
+                  {
+                      "path":  "tv-web/src/features/portal/LicensePixScreen.venda-producao-mercadopago.contract.test.tsx",
+                      "sha256":  "ea93c730a09b348b7c01df1bcf8e79b51e30d9c23b22660b3d7646b6e32264c3",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/scripts/commercialConfig.venda-producao-mercadopago.contract.test.mjs",
+                      "sha256":  "75de8a68870085c635e56ca3904c3f39691635044e8560fc90a7ab0868876ffd",
+                      "tests":  1
+                  }
+              ]
+}

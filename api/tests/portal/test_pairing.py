@@ -9,7 +9,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from app.portal.access_rotation import AccessRotation
-from app.portal.auth import AuthError, AuthService
+from app.portal.auth import MANUAL_PAIR_ATTEMPTS, AuthError, AuthService
 from app.portal.auth_tokens import AuthTokens, new_token
 from app.portal.crypto import PortalCrypto
 from app.portal.display_id import (
@@ -127,7 +127,7 @@ async def test_sessao_manual_por_id_exibido_com_recusa_uniforme_e_limite(control
             await auth.manual_session(candidate_id, candidate_key, "other-ip-" + uuid.uuid4().hex[:6], ORIGIN, now)
         codes.add((error.value.code, error.value.status))
     assert codes == {("invalid_credentials", 401)}
-    for _ in range(5):  # limite por par (ID + origem) = 5 em 15 min
+    for _ in range(MANUAL_PAIR_ATTEMPTS):  # limite por par (ID + origem) em 15 min
         with pytest.raises(AuthError):
             await auth.manual_session(display_id, wrong_key, "pairing-ip", ORIGIN, now)
     with pytest.raises(AuthError) as error:

@@ -3,18 +3,11 @@ import { useT } from '../../lib/i18n'
 import { api, PortalApiError, type Session } from '../api'
 import { EyeIcon } from '../EyeIcon'
 import { normalizeDeviceKey } from './deviceKey'
+import { formatDisplayIdInput, normalizeDisplayId, typedDisplayId } from './displayId'
 import { forgetDevice, readRememberedDevice, rememberDevice, type LastDeviceStorage } from './lastDevice'
 
 /** `{}`: a sessão guardada na aba não vale mais — formulário limpo, sem mensagem de erro. */
 export type StartupSession = Promise<{ session: Session } | { error: PortalApiError } | Record<never, never>>
-export function normalizeDisplayId(value: string) {
-  const compact = value.trim().replace(/[:.-]/g, '').toUpperCase()
-  return /^[0-9A-F]{12}$/.test(compact) ? compact.match(/../g)!.join(':') : value.trim()
-}
-export function formatDisplayIdInput(value: string) {
-  const compact = value.replace(/[^0-9A-F]/gi, '').slice(0, 12).toUpperCase()
-  return compact.match(/../g)?.join('-') ?? compact
-}
 // `localStorage` pode lançar só de ser lido (modo privado/bloqueado): sem ele a entrada funciona sem lembrar o ID.
 const noStorage: LastDeviceStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} }
 export function deviceStorage(): LastDeviceStorage {
@@ -78,7 +71,7 @@ export function SessionPage({ startup, onSession, ended }: { startup?: StartupSe
   return <section className="panel session-page" aria-labelledby="access-title">
     <h2 id="access-title">{t('accessTitle')}</h2><p>{t('accessHint')}</p>
     <form onSubmit={submit} aria-busy={busy}>
-      <div className="field"><label>{t('deviceId')}<input ref={idInput} name="displayId" value={displayId} onChange={event => setDisplayId(formatDisplayIdInput(event.target.value))} required maxLength={17} autoComplete="off" disabled={busy} inputMode="text" placeholder="A0-8C-FD-19-0A-8C" aria-describedby="device-id-hint" /></label>
+      <div className="field"><label>{t('deviceId')}<input ref={idInput} name="displayId" value={displayId} onChange={event => setDisplayId(typedDisplayId(event.target.value))} onBlur={event => setDisplayId(formatDisplayIdInput(event.target.value))} required maxLength={17} autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false} disabled={busy} inputMode="text" placeholder="A0-8C-FD-19-0A-8C" aria-describedby="device-id-hint" /></label>
         <p id="device-id-hint" className="field-hint">{t('deviceIdHint')}</p></div>
       <label htmlFor="device-key">{t('deviceKey')}<span className="secret-field">
         <input ref={keyInput} id="device-key" name="deviceKey" type={showDeviceKey ? 'text' : 'password'} required maxLength={64} autoComplete="off" disabled={busy} inputMode="numeric" />

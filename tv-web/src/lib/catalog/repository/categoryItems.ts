@@ -1,7 +1,8 @@
 /** Gravação e renovação dos itens de uma categoria. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogRecord, type CategoryKind, type StoredCatalogRecord } from '../db'
-import { writeBlockWithin } from '../categoryBlocks'
+import { blockRecords, writeBlockWithin } from '../categoryBlocks'
+import { writeCompressedBlock } from '../blockChunks'
 import { prepareCategoryReadModel } from './categoryWindow'
 import { KEY_MAX, KEY_MIN, StorageFullError, isQuotaError } from './shared'
 
@@ -56,6 +57,8 @@ export async function renewCategoryItems(
       [database.channels, database.categories, database.categoryBlocks, database.catalogReadManifests, database.catalogReadChunks] as any,
       async () => ({ written: await writeBlockWithin(target, items, now, database) }),
     )
+    const writtenBlock = await database.categoryBlocks.get(target.categoryId)
+    if (result.written && writtenBlock?.items) await writeCompressedBlock(target, blockRecords(writtenBlock), now, database)
     // Também tenta reparar uma projeção perdida por quota numa renovação
     // idêntica; a preparação é idempotente quando já está pronta.
     await prepareCategoryReadModel(target.sourceId, target.categoryId, database).catch(() => undefined)

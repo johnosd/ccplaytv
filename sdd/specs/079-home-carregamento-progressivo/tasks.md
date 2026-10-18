@@ -154,6 +154,8 @@
 - [X] T029 `npm run build`
 - [ ] T030 `npm run test:e2e` com `npm run dev` rodando
 
+- [X] T033 [US1/US3] (emenda do usuário 2026-10-17) Tornar a montagem progressiva: revelar fileiras prontas após 300 ms e inserir as tardias na posição canônica na visita atual, removendo o adiamento até a próxima entrada; atualizar contratos/testes da regra comum, Home e Filmes/Séries.
+
 **Critério de Conclusão**: todos os gates verdes; todos os contratos (079 e os das features 026/052/056/057/060/paridade) verdes com travas íntegras; documentação sem caminhos obsoletos.
 
 **Registro da Fase**:
@@ -174,3 +176,10 @@
 - [X] Lint (ratchet), TypeScript, Vitest e build passam.
 - [ ] E2E completo passa antes da TV.
 - [X] Nenhuma URL, título ou segredo na medição ou em log.
+
+### Registro da emenda T033 (2026-10-17)
+
+- Status: Concluída.
+- Feito: `screenAssembly` revela fileiras prontas após 300 ms e insere toda fileira tardia na posição canônica; Home, Filmes e Séries deixam de esconder conteúdo até a próxima entrada. Contratos foram emendados com autorização e a trava foi regravada.
+- Testes executados: `npx vitest run src/lib/assembly src/features/home/HomeContent.home-carregamento-progressivo.contract.test.tsx src/features/vod/VodShowcaseScreen.home-carregamento-progressivo.contract.test.tsx` → 9/9; `npx vitest run src/features/home src/features/vod` → 264/264; lint, tsc, build e E2E direcionado 7/7.
+- Pendências: confirmação visual na TV física.

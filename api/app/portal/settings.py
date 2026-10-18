@@ -62,8 +62,11 @@ class PortalSettings(BaseSettings):
         ):
             raise ValueError("invalid_public_origin")
         if self.checkout_enabled:
-            # Checkout só pode ser aberto no staging com o sandbox; produção permanece fechada.
-            if self.environment != "staging" or self.mercadopago_live_mode:
+            # 081/D-003: produção vende só em modo real; staging só com o sandbox; local nunca.
+            if self.environment == "production":
+                if not self.mercadopago_live_mode:
+                    raise ValueError("live_mode_required")
+            elif self.environment != "staging" or self.mercadopago_live_mode:
                 raise ValueError("checkout_not_released")
             if (not self.mercadopago_merchant_id or self.mercadopago_access_token is None
                     or self.mercadopago_webhook_secret is None):

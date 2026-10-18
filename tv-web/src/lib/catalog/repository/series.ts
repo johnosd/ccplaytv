@@ -6,6 +6,7 @@ import { FavoritesScanComplete, StorageFullError, activeGenerationOf, isQuotaErr
 import { buildStableId } from '../userStateRepository'
 import { storeSeriesWatchMembers } from './seriesWatchRepository'
 import { getCategoryAccess } from '../categoryAccess'
+import { readBlockChunks } from '../blockChunks'
 
 /** Identifica a série alvo de uma substituição integral de episódios (feature 012). */
 export interface SeriesEpisodesTarget {
@@ -46,14 +47,12 @@ async function findSeriesIn(
   if (row) return row
   let found: CatalogRecord | undefined
   try {
-    await blocksOfKind(database, sourceId, generation, 'series').each((block) => {
-      if (access.excluded.has(block.categoryId)) return
-      const index = block.items.findIndex((item) => item.seriesId === seriesId)
-      if (index >= 0) {
-        found = blockRecord(block, block.items[index], index)
-        throw new FavoritesScanComplete()
-      }
-    })
+    for (const block of await blocksOfKind(database, sourceId, generation, 'series').toArray()) {
+      if (access.excluded.has(block.categoryId)) continue
+      const rows = block.format === 2 ? await readBlockChunks(database, block.categoryId) : (block.items ?? []).map((item, index) => blockRecord(block, item, index))
+      const row = rows.find((item) => item.seriesId === seriesId)
+      if (row) { found = row; break }
+    }
   } catch (error) {
     if (!(error instanceof FavoritesScanComplete)) throw error
   }
@@ -84,15 +83,12 @@ export async function findSeriesManyIn(
   }
   if (found.size === seriesIds.size) return found
   try {
-    await blocksOfKind(database, sourceId, generation, 'series').each((block) => {
-      if (access.excluded.has(block.categoryId)) return
-      block.items.forEach((item, index) => {
-        if (item.seriesId && seriesIds.has(item.seriesId) && !found.has(item.seriesId)) {
-          found.set(item.seriesId, blockRecord(block, item, index))
-        }
-      })
-      if (found.size === seriesIds.size) throw new FavoritesScanComplete()
-    })
+    for (const block of await blocksOfKind(database, sourceId, generation, 'series').toArray()) {
+      if (access.excluded.has(block.categoryId)) continue
+      const rows = block.format === 2 ? await readBlockChunks(database, block.categoryId) : (block.items ?? []).map((item, index) => blockRecord(block, item, index))
+      for (const row of rows) if (row.seriesId && seriesIds.has(row.seriesId) && !found.has(row.seriesId)) found.set(row.seriesId, row)
+      if (found.size === seriesIds.size) break
+    }
   } catch (error) {
     if (!(error instanceof FavoritesScanComplete)) throw error
   }

@@ -1,15 +1,17 @@
 /** Controle HTTPS independente do provedor; erros nunca carregam URL/corpo remoto. */
 const errorCodes = new Set(['unauthorized', 'invalid_origin', 'invalid_csrf', 'invalid_input',
-  'invalid_credentials', 'rate_limited', 'service_unavailable', 'conflict', 'recovery_required', 'not_found'])
+  'invalid_credentials', 'rate_limited', 'service_unavailable', 'conflict', 'recovery_required', 'not_found',
+  'pix_disabled', 'pix_failed'])
 
 /**
  * 072: 401/409 do serviço distinguem "identidade já cadastrada" (`recovery_required`) e "código recusado"
- * (`invalid_credentials`). Só esses dois códigos são lidos do corpo, que é JSON curto do próprio serviço; qualquer
+ * (`invalid_credentials`). 081: 409 `pix_disabled` (venda aberta sem Pix) e 503 `pix_failed` (o Pix falhou agora)
+ * levam a TV a oferecer o site. Só esses códigos são lidos do corpo, que é JSON curto do próprio serviço; qualquer
  * outra coisa (proxy, HTML, texto) cai no mapeamento por status. Nunca ecoa o corpo.
  */
-const BODY_CODES = new Set(['recovery_required', 'invalid_credentials'])
+const BODY_CODES = new Set(['recovery_required', 'invalid_credentials', 'pix_disabled', 'pix_failed'])
 async function specificCode(response: Response): Promise<string | undefined> {
-  if (response.status !== 401 && response.status !== 409) return undefined
+  if (response.status !== 401 && response.status !== 409 && response.status !== 503) return undefined
   try {
     const text = await response.text()
     if (text.length > 512) return undefined

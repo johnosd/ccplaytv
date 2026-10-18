@@ -14,6 +14,7 @@ import { createActivityGate } from './activityGate'
 import { createPrefetchScheduler, IDLE_AFTER_KEY_MS, type PrefetchRunOutcome } from './prefetchScheduler'
 import { runSectionLoad } from '../sectionRunner'
 import { listVisibleCategories } from '../categoryAccess'
+import { hasStorageHeadroom } from '../storageRelief'
 
 export const prefetchGate = createActivityGate()
 
@@ -27,12 +28,15 @@ async function runCategory(sourceId: string, categoryId: number): Promise<Prefet
   const category = (await listCategories(sourceId)).find((candidate) => candidate.id === categoryId)
   // Saiu numa atualização: nada a fazer, e não é falha.
   if (!category) return 'done'
+  // Bug `armazenamento-app-cheio-na-tv-impede`: para ANTES de encher, guardando folga para licença, pareamento e
+  // estado da pessoa (antes só parava depois do `QuotaExceededError`, com o banco já cheio).
+  if (!(await hasStorageHeadroom())) return 'storage_full'
   // Duas tentativas só por causa de cancelamento: a busca pode ter sido
   // compartilhada (`dedup`) com uma pré-busca por foco que o cursor abandonou
   // e abortou (R-004) — isso não é falha da categoria.
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const result = await ensureCategory(sourceId, category, { renew: true })
+      const result = await ensureCategory(sourceId, category, { renew: true, budgetMode: 'prefetch' })
       if (result.reason === 'storage_full') return 'storage_full'
       if (result.reason === 'rate_limited') return 'rate_limited'
       return result.outcome === 'fetched' || result.outcome === 'fresh' ? 'done' : 'failed'

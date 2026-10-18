@@ -14,7 +14,7 @@ import {
   storeCategories,
   type CatalogCategory,
 } from '../lib/catalog/catalogRepository'
-import { toItemRecord } from '../lib/catalog/categoryLoader'
+import { toItemRecord } from '../lib/catalog/categoryItemRecord'
 import { parseM3uText } from '../lib/catalog/m3uParser'
 import { createSource, deleteSource } from '../lib/catalog/sourceRepository'
 import {

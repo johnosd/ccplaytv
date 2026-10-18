@@ -180,6 +180,7 @@ async function openGuideFromPreview(page) {
       }),
     )
     console.error(rects.join('\n'))
+    console.error(`estado-guia:${await page.locator('.epg-guide-state').innerText().catch(() => '')}`)
     throw error
   }
 }
@@ -219,6 +220,7 @@ async function run() {
     })()
     assert(synced, 'o EPG da lista foi sincronizado pela importação')
     await page.waitForTimeout(800) // o Worker termina de gravar
+    console.log(`epg-state:${await page.evaluate(async () => { const { db } = await import('/src/lib/catalog/db.ts'); const sources = await db.sources.toArray(); return JSON.stringify({ sources: sources.map((source) => ({ active: source.epgActiveGeneration, last: source.epgLastSyncAt, error: source.epgLastErrorKind })), chunks: await db.table('epgChunks').count(), rows: await db.epgPrograms.count() }) })}`)
 
     console.log('=== US1: abrir o guia pelo ícone, no 1º canal (049) ===')
     await openLive(page)

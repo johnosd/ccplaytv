@@ -67,8 +67,11 @@ class PixOrders:
 
     async def pix(self, principal: Principal, request_id: str, renew: bool, now: datetime) -> dict:
         payments = self.payments
-        if not payments.checkout_enabled or not (self.payer_domain or self.test_payer_email):
+        if not payments.checkout_enabled:
             raise AuthError("service_unavailable", 503)
+        # 081/D-004: venda aberta sem Pix configurado é um estado; a TV encaminha para o cartão no site.
+        if not (self.payer_domain or self.test_payer_email):
+            raise AuthError("pix_disabled", 409)
         order = await payments.commercial.reserve_order(principal, request_id, now)
         display_id = await self._display_id(principal)
         # Pedido terminado, Pix ainda pagável ou vencido sem pedido explícito: nada de provedor.
@@ -112,7 +115,8 @@ class PixOrders:
                     return TransactionPlan(None)
                 return TransactionPlan(None, {order_path: latest.model_copy(update={"checkout_lease": None, "checkout_lease_until": None})})
             await self.repository.transact((order_path,), release)
-            raise AuthError("service_unavailable", 503) from None
+            # 081/T044: a venda está aberta e só o Pix falhou agora — a TV oferece o site como alternativa.
+            raise AuthError("pix_failed", 503) from None
 
         def finish(rows):
             auth._same_principal(rows[device_path], principal)

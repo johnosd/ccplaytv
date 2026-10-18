@@ -16,6 +16,7 @@ import { db, type CatalogDb, type EpgErrorKind } from '../catalog/db'
 import { isQuotaError } from '../catalog/catalogRepository'
 import { isAbortError } from '../catalog/xtreamConnector'
 import { deleteEpgForSource, recordEpgFailure, recordEpgSuccess, writeEpgPrograms } from './epgRepository'
+import { makeRoomFor } from '../catalog/storageBudget'
 import { EpgFailure, requireXmltvRoot, textChunks } from './epgFetch'
 import { resolveEpgUrl } from './epgStatus'
 import { parseXmltv } from './xmltvParser'
@@ -77,6 +78,8 @@ export async function syncEpg(sourceId: string, options: SyncEpgOptions = {}): P
     if (!response.ok || !response.body) throw new EpgFailure('network')
 
     const chunks = requireXmltvRoot(textChunks(response.body))
+    const room = await makeRoomFor(sourceId, 0, { database, mode: 'prefetch' })
+    if (!room.fits) return { outcome: 'failed', errorKind: 'storage_full' }
     const { programCount } = await writeEpgPrograms(sourceId, parseXmltv(chunks, window), database)
 
     // Fonte removida ou EPG desativado enquanto rodava (FR-011): o resultado

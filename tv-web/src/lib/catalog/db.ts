@@ -8,7 +8,9 @@ import type { NetworkDiagnosticRecord } from '../network/speedTestRepository'
 import type { CatalogReadChunk, CatalogReadManifest } from './readProjectionTypes'
 import type { SeriesWatchMemberRecord, SeriesWatchSummaryRecord } from './seriesWatchTypes'
 import { registerLateCatalogSchemas } from './dbSchema'
+import type { CategoryBlockRecord } from './blockTypes'
 
+export type { BlockItem, BlockShared, CategoryBlockRecord } from './blockTypes'
 export type { CatalogReadChunk, CatalogReadItem, CatalogReadManifest } from './readProjectionTypes'
 export type { SeriesWatchMemberRecord, SeriesWatchSummaryRecord } from './seriesWatchTypes'
 
@@ -59,6 +61,10 @@ export interface SourceRecord {
   providerMigratedAt?: number
   connectionState: ConnectionState
   lastSuccessfulSyncAt?: number
+  /** Feature 082: última vez que virou a lista ativa (ordem de liberação das inativas). Sem índice. */
+  lastActivatedAt?: number
+  /** Feature 082: bytes do guia no formato comprimido por canal (`epgChunks`). Sem índice. */
+  epgStoredBytes?: number
   lastTruncatedByStorage?: boolean
   lastDiscardedByType?: number
   /** Geração publicada do catálogo. `undefined` = nenhuma ainda (D-004). */
@@ -504,31 +510,10 @@ export interface CategoryRecord {
    * conteúdo está na própria categoria (`generation`/`id`), como na 014.
    */
   storedFrom?: { generation: number; categoryId: number }
-}
-
-/**
- * Um item dentro de um bloco de categoria (feature 039) — o `CatalogRecord`
- * sem o que o bloco já diz (fonte, geração, tipo, categoria, posição), com
- * `id` **negativo** estável (`categoryBlocks.ts`, `blockItemId`).
- */
-export type BlockItem = Omit<
-  CatalogRecord,
-  'id' | 'sourceId' | 'generation' | 'kind' | 'groupOrder' | 'categoryId' | 'categoryPosition'
-> & { id: number }
-
-/**
- * Os itens de uma categoria num registro só (feature 039, `data-model.md`).
- * Substituído inteiro a cada obtenção. Chave: o id local da categoria.
- */
-export interface CategoryBlockRecord {
-  categoryId: number
-  sourceId: string
-  generation: number
-  kind: CategoryKind
-  /** = `categories.order` (imutável — chave dos itens, D-005 da 038). */
-  groupOrder: number
-  /** Na ordem da fonte. */
-  items: BlockItem[]
+  /** Feature 082: bytes gravados dos itens (conta própria do orçamento). Sem índice. */
+  storedBytes?: number
+  /** Feature 082: último uso persistido (entrada, série, reprodução; no máximo 1×/h). Sem índice. */
+  lastUsedAt?: number
 }
 
 /**

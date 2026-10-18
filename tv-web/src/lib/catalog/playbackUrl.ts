@@ -12,6 +12,7 @@
  */
 
 import { db, type CatalogDb } from './db'
+import { touchCategory } from './storageBudget'
 import { getChannel } from './catalogRepository'
 import { readCredential } from './sourceRepository'
 import { buildLiveUrl, buildSeriesUrl, buildVodUrl, preferredFormat } from './xtreamConnector'
@@ -52,6 +53,7 @@ export async function resolvePlaybackUrl(
 ): Promise<string> {
   const channel = await getChannel(channelId, database)
   if (!channel) throw new PlaybackUnavailableError('channel_not_found')
+  if (channel.categoryId !== undefined) touchCategory(channel.categoryId, Date.now(), database)
 
   if (channel.directUrl) return channel.directUrl
 

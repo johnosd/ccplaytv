@@ -388,6 +388,13 @@
   color: var(--text-secondary);
 }
 
+/* Uso do armazenamento do app (bug armazenamento-app-cheio-na-tv-impede): só leitura. */
+.about-panel-storage {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
 .about-panel-licenses {
   display: flex;
   flex-direction: column;

@@ -6,12 +6,47 @@ update-bug-status.ps1.
 
 ## Ideias Futuras
 
-- [Infra — gate de venda] 069 encerrada com riscos aceitos em 2026-10-14 (a pedido do usuário); **a venda segue desligada** e estes itens precisam ser executados antes de qualquer cobrança real: T066/T039 (replay `--apply` com evento posterior ao snapshot via `infra/portal/rehearse-replay.ps1`, ensaio da cópia protegida das chaves, restore + reconcile de pagamentos), T043 (compra sandbox para ativações pagas, carga distribuída, custo), T046 (roteiro A–H na TV física), T063 b (registros `generated`/TV `2A:…` — ação "desvincular"), T052 restante e T047. Detalhes: `sdd/specs/069-portal-tv-licenca-anual/plan.md` (R-022 a R-026) e `tasks.md` (Fase 8).
+- [Infra — gate de venda] **Absorvido pela feature 081-venda-producao-mercadopago (2026-10-17)**: backup/restore com conciliação e TV física com compra real entram nela; T043 virou risco aceito para o piloto. 069 encerrada com riscos aceitos em 2026-10-14 (a pedido do usuário); **a venda segue desligada** e estes itens precisam ser executados antes de qualquer cobrança real: T066/T039 (replay `--apply` com evento posterior ao snapshot via `infra/portal/rehearse-replay.ps1`, ensaio da cópia protegida das chaves, restore + reconcile de pagamentos), T043 (compra sandbox para ativações pagas, carga distribuída, custo), T046 (roteiro A–H na TV física), T063 b (registros `generated`/TV `2A:…` — ação "desvincular"), T052 restante e T047. Detalhes: `sdd/specs/069-portal-tv-licenca-anual/plan.md` (R-022 a R-026) e `tasks.md` (Fase 8).
 - [Infra — publicação Samsung] Licença/voucher de teste para o revisor do Seller Office na variante comercial (origem: 078, R-004, 2026-10-16): hoje `SAM-KIT-TESTACCESS` fica `Blocked` na variante comercial porque não há como dar ao revisor uma licença válida sem cobrança; a variante base não depende disso.
 - [Infra — publicação Samsung] Ampliar a matriz de modelos Tizen 8.0 (origem: 078, R-001, 2026-10-16): só a TV de referência (Tizen 9.0) tem evidência; `release/samsung/target-matrix.json` só aprova o que tiver evidência por modelo/firmware, então outros alvos dependem de aparelho (ou Remote Test Lab) para testar.
 - [Ideia] Login com Google para levar os dados de uso a outra TV/celular (origem: especificação da 072, 2026-10-14). Fora da 072, que guarda o backup preso à identidade da TV; muda ADR-004 (sem conta obrigatória) e pede `sdd-specify` próprio.
 
+<!-- Achados das sondas na TV física (feature 082, 2026-10-18). Números em
+     sdd/specs/082-orcamento-armazenamento-tv/evidencias/sonda2-capacidades-tv-2026-10-18.md.
+     A sonda (sonda-tv/) pode medir de novo antes e depois de cada uma, sempre com autorização. -->
+- [Feature] **Orçamento de memória do app** (origem: sonda 2 da 082).
+  - **Medido**:
+    - RAM total de 1,49 GB, com só ~310 MB livres no início;
+    - `jsHeapSizeLimit` de 364 MB;
+    - **a TV fechou o app perto de 4,4 milhões de objetos pequenos**, sem erro capturável;
+    - buffers externos: 352 MiB alocados até o sistema ficar com < 200 MB livres;
+    - item de catálogo descomprimido: ~460 B de heap (`medir-heap-itens.mjs`);
+    - `performance.memory` não serve na TV (fica sempre em 10 MB).
+  - **Risco**: "Todos" com centenas de milhares de itens (300 mil × 460 B ≈ 138 MB), índices de busca, cache de imagens
+    e o React Query segurando listas inteiras. A 082 só põe teto no cache de pedaços.
+  - **Ideia**: um orçamento de memória por área, medido pela sonda (contagem de objetos e alocação), com leitura sempre
+    paginada.
+  - Próximo passo: `sdd-assess`.
+- [Feature] **Leitura de rede em fluxo mais eficiente** (origem: sonda 2 da 082).
+  - **Medido**: baixar 20 MB inteiros leva 3,8 s (43,8 Mbit/s). Os mesmos 20 MB por `body.getReader()` chegam em
+    3 065 pedaços de ~7 KB e levam **5,9 s, 55 % mais lento**.
+  - **Onde pega**: a importação, a carga por seção e o guia, que leem em fluxo nos Workers.
+  - **Ideia**: juntar os pedaços em buffers maiores antes de decodificar e parsear, ou ler inteiro quando o tamanho
+    cabe com folga na memória. Medir com a lista real pela sonda.
+  - Próximo passo: `sdd-assess`.
+- [Feature] **Ajustes finos de CPU na TV: Worker, ordenação e capas** (origem: sonda 2 da 082).
+  - **Medido**:
+    - mandar 11 mil objetos ao Worker (clone): **195 ms**; o mesmo conteúdo como `ArrayBuffer` transferido: **1,4 ms**;
+    - `structuredClone` (173 ms) é mais lento que `JSON.parse` (84 ms);
+    - ordenar 11 mil nomes: simples 18 ms; `localeCompare` 114 ms; `Intl.Collator` 144 ms;
+    - decodificar uma capa de 300×450 com `img.decode()`: 33 ms; com `createImageBitmap`: 5 ms;
+    - `JSON.parse` a 44 MB/s, ~10× mais lento que o PC.
+  - **Ideia**: revisar as mensagens entre Workers e a interface (mandar bytes, não objetos), as ordenações por nome
+    (chave de ordenação pré-calculada) e a decodificação das capas nas grades.
+  - Próximo passo: `sdd-assess`, com medição antes e depois pela sonda.
 
+
+- [Bug] Desvincular (Portal & licença → Avançado) falhou duas vezes seguidas na TV física com `AbortError`, sem apagar o pareamento (gravação local atômica cancelada; nenhum cadastro chegou ao serviço), logo depois de trocar o pacote da homologação para a produção; funcionou na 1ª tentativa após reinstalar o app. Causa não identificada (o backup antes dele dava 401, mas esse passo não propaga o erro). Origem: 081-venda-producao-mercadopago, T018, 2026-10-17; evidência em `sdd/specs/081-venda-producao-mercadopago/evidencias/tv.md`. Retomar com `sdd-bugfix`: mostrar nome+mensagem do erro e do `inner` do Dexie (diagnóstico usado na 081 em `usePortalAccess.ts`, revertido) e reproduzir com bearer recusado (401) + estado da sessão anterior.
 - [Bug] `teste-conexao-tv`: suíte E2E da 069 esperava `NET-W-QUOTA`, mas recebeu resultado completo sem aviso (linha 176, espera 5 s). Origem: 069-portal-tv-licenca-anual, 2026-10-11. Usuário decidiu registrar para depois e manter gate E2E pendente; causa não investigada e nenhum teste/timeout alterado. Retomar com `sdd-bugfix`.
 
 - [Bug] Player MPEG-TS no navegador de desenvolvimento: início não confirmado no limite de 15 s em `player-dev-mpegts`, reproduzido em série e na suíte completa. Causa indeterminada; dez trocas, encerramento e reconexão passaram. Origem: 068-legibilidade-tv, R-012, 2026-10-10; evidências em `sdd/specs/068-legibilidade-tv/evidencias/fase4-vod-e2e-completo.txt` e `fase4-e2e-reproducao.txt`. A 068 foi encerrada a pedido do usuário após aprovação de todas as telas na TV; T032/E2E não aprovado. Retomar com `sdd-bugfix`, sem afrouxar timeout.
@@ -101,8 +136,11 @@ update-bug-status.ps1.
 | 076-simplificar-portal-licenca | Simplificar Portal & licença — ações raras e código de recuperação em Avançado | Convergida | 40/40 tasks | 2026-10-16 |
 | 077-redesenho-portal-web | Redesenho do portal web mobile-first — listas, licença, chave TMDB e backup | Convergida | 64/64 tasks | 2026-10-16 |
 | 078-prontidao-publicacao-samsung | Prontidão para publicação do app Samsung TV | Em Execução | 63/67 tasks | 2026-10-17 |
-| 079-home-carregamento-progressivo | Home, Filmes e Séries já montadas ao entrar | Em Execução | 34/40 tasks | 2026-10-16 |
+| 079-home-carregamento-progressivo | Home, Filmes e Séries já montadas ao entrar | Em Execução | 35/41 tasks | 2026-10-17 |
 | 080-portal-variante-base | Portal na variante base da loja Samsung, sem licença | Cancelada | N/A | 2026-10-17 |
+| 081-venda-producao-mercadopago | Venda em produção com Mercado Pago | Em Execução | 34/56 tasks | 2026-10-17 |
+| 082-orcamento-armazenamento-tv | Orçamento de armazenamento do app na TV | Em Execução | 63/72 tasks | 2026-10-18 |
+| 083-foco-leve-tv | Foco leve na TV | Em Execução | 0/35 tasks | 2026-10-18 |
 
 ## Bugs
 
@@ -139,6 +177,9 @@ update-bug-status.ps1.
 | epg-vinculado-recente-mas-guia-vazio | EPG "vinculado, recente" mas guia e "Agora" vazios | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-15 |
 | guide-epg-demorando-carregar-na-tela | Guia EPG demorando para carregar na tela de progresso de importacao | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-16 |
 | corrigir-cone-tizen-dimenso-samsung-1920x1080 | Assets do ícone Samsung ausentes | Test | verified | Concluído | 2026-10-16 |
+| armazenamento-app-cheio-na-tv-impede | Armazenamento do app cheio na TV impede gravar a licença e desvincular | Fix | applied (falta a medição e a confirmação na TV, na fase Test) | Rodar fase Test | 2026-10-17 |
+| epg-guia-completo-no-renderiza-grade | EPG guia completo não renderiza a grade | Test | verified | Concluído | 2026-10-18 |
+| fixture-antiga-catlogo-blocos-acessa-blockitems | Fixture antiga do catálogo em blocos acessa `block.items` | Test | verified | Concluído | 2026-10-18 |
 
 ## Melhorias Ad-hoc
 

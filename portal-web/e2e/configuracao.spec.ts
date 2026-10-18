@@ -71,13 +71,13 @@ test('QR remove fragmento antes da rede e exchange ocorre uma vez em StrictMode;
   await expect(page.getByRole('heading', { name: 'Listas', level: 1 })).toBeVisible()
   expect(state.exchanges()).toBe(1)
   expect(new URL(page.url()).hash).toBe('')
-  const stored = () => page.evaluate(() => sessionStorage.getItem('ccplay-portal-session'))
+  const stored = () => page.evaluate(() => localStorage.getItem('ccplay-portal-session'))
   expect(Object.keys(JSON.parse((await stored())!)).sort()).toEqual(['csrfToken', 'deviceId', 'expiresAt'])
   await page.getByRole('navigation', { name: 'Principal' }).getByRole('button', { name: 'Ajustes' }).click()
   await page.getByRole('button', { name: /^Sair/ }).click()
   await expect(page.getByRole('heading', { name: 'Conectar à TV' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Listas', level: 1 })).not.toBeVisible()
-  // Sair apaga a sessão guardada na aba; recarregar não volta ao painel.
+  // Sair apaga a sessão guardada no navegador; recarregar não volta ao painel.
   expect(await stored()).toBeNull()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Conectar à TV' })).toBeVisible()

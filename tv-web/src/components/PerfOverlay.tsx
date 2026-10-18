@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { subscribeEntryReports, takeEntryReports, type EntryReport } from '../lib/perf/entryTiming'
 
 /**
@@ -16,7 +16,22 @@ function getSnapshot(): EntryReport[] {
 
 export function PerfOverlay() {
   const reports = useSyncExternalStore(subscribeEntryReports, getSnapshot)
+  const [slowFrames, setSlowFrames] = useState(0)
+  useEffect(() => {
+    let previous = performance.now()
+    let active = true
+    let frame = 0
+    const tick = (now: number) => {
+      if (!active) return
+      if (now - previous > 100) setSlowFrames((count) => count + 1)
+      previous = now
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => { active = false; cancelAnimationFrame(frame) }
+  }, [])
   const last = reports.slice(-6)
+  const firstPage = reports.find((report) => report.phases.firstPaint !== undefined)?.phases.firstPaint
   return (
     <div
       aria-hidden="true"
@@ -33,7 +48,7 @@ export function PerfOverlay() {
         whiteSpace: 'pre',
       }}
     >
-      {last.length === 0
+      {`quadros>100ms=${slowFrames} primeiraPágina=${firstPage ?? '?'}ms\n` + (last.length === 0
         ? 'perf: entre numa categoria'
         : last
             .map(
@@ -43,7 +58,7 @@ export function PerfOverlay() {
                   .map(([name, ms]) => `${name.slice(0, 5)}=${ms}`)
                   .join(' '),
             )
-            .join('\n')}
+            .join('\n'))}
     </div>
   )
 }

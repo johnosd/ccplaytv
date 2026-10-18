@@ -28,6 +28,8 @@ export interface AssemblyInput<K extends string = string> {
   slots: readonly AssemblySlot<K>[]
   /** Capas da primeira tela carregadas ou com falha — ou a janela curta delas passou (o hook decide). */
   imagesSettled: boolean
+  /** Janela curta de montagem passada; permite revelar fileiras já prontas sem esperar as demais. */
+  progressivePassed?: boolean
   /** `ASSEMBLY_CAP_MS` desde a entrada. */
   capPassed: boolean
   /** Janela de uma ação da pessoa (fechar o player, alternar favorito): tudo que chega entra na posição (FR-009). */
@@ -75,35 +77,23 @@ export function stepAssembly<K extends string>(prev: AssemblyState<K>, input: As
     if (input.firstRender && primaries.length > 0 && primaries.every(isResolved)) {
       return { phase: 'revealed', reason: 'cache', shown: readyKeys, deferred: [] }
     }
-    // 2. Pronta: todas as leituras resolvidas e as capas da primeira tela carregadas.
+    // 2. Streaming: depois da janela curta, mostra o que já está pronto. O restante entra quando resolver.
+    if (input.progressivePassed && readyKeys.length > 0) {
+      return { phase: 'revealed', reason: 'ready', shown: readyKeys, deferred: [] }
+    }
+    // 3. Pronta: todas as leituras resolvidas e as capas da primeira tela carregadas.
     if (slots.every(isResolved) && input.imagesSettled) {
       return { phase: 'revealed', reason: 'ready', shown: readyKeys, deferred: [] }
     }
-    // 3. Teto: revela com o que tem, desde que as obrigatórias tenham resolvido.
-    if (input.capPassed && slots.filter((slot) => slot.required).every(isResolved)) {
+    // 4. Teto: revela com o que tem; uma tela sem qualquer conteúdo ainda espera a leitura obrigatória.
+    if (input.capPassed && (readyKeys.length > 0 || slots.filter((slot) => slot.required).every(isResolved))) {
       return { phase: 'revealed', reason: 'cap', shown: readyKeys, deferred: [] }
     }
     return prev
   }
 
-  // 5. Ação da pessoa, ou antes do teto (só no caminho do cache): tudo que tem dado fica na sua posição.
-  if (input.following || !input.capPassed) {
-    return settle(prev, { ...prev, shown: readyKeys, deferred: [] })
-  }
-
-  // 6. Depois do teto: o que chega abaixo de tudo na tela entra ao fim; acima, fica para a próxima entrada.
-  const position = new Map(slots.map((slot, index) => [slot.key, index]))
-  const ready = new Set(readyKeys)
-  const shown = prev.shown.filter((key) => ready.has(key))
-  const deferred = prev.deferred.filter((key) => ready.has(key))
-  const anchors = slots.flatMap((slot, index) => (slot.anchor ? [index] : []))
-  slots.forEach((slot, index) => {
-    if (!ready.has(slot.key) || shown.includes(slot.key) || deferred.includes(slot.key)) return
-    const limit = Math.max(-1, ...anchors, ...shown.map((key) => position.get(key) ?? -1))
-    if (index > limit) shown.push(slot.key)
-    else deferred.push(slot.key)
-  })
-  return settle(prev, { ...prev, shown, deferred })
+  // Toda leitura pronta entra na visita atual, na posição canônica. O reflow é deliberado: evita conteúdo desaparecido.
+  return settle(prev, { ...prev, shown: readyKeys, deferred: [] })
 }
 
 /** Situação de uma leitura no formato do React Query (ou dos mocks dos testes): sem dado e sem erro = pendente. */

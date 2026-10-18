@@ -136,7 +136,7 @@ export function blockRecord(block: CategoryBlockRecord, item: BlockItem, index: 
 
 /** Todos os itens de um bloco, na ordem da fonte. */
 export function blockRecords(block: CategoryBlockRecord): CatalogRecord[] {
-  return block.items.map((item, index) => blockRecord(block, item, index))
+  return (block.items ?? []).map((item, index) => blockRecord(block, item, index))
 }
 
 /** Linhas antigas (não episódio) de uma categoria — o formato anterior à 039. */
@@ -190,7 +190,7 @@ export async function writeBlockWithin(
 
   const signature = itemsSignature(items)
   const old = await database.categoryBlocks.get(target.categoryId)
-  if (old && category.itemsSignature === signature && old.items.length === items.length) {
+  if (old && category.itemsSignature === signature && (old.format === 2 ? (old.count ?? 0) : (old.items ?? []).length) === items.length) {
     await database.categories.update(target.categoryId, { itemsFetchedAt: now })
     return false
   }
@@ -205,7 +205,7 @@ export async function writeBlockWithin(
     else previous.set(key, [value])
   }
   if (old) {
-    for (const item of old.items) push(identityKey({ ...item, kind: old.kind }), { id: item.id, episodesFetchedAt: item.episodesFetchedAt })
+    for (const item of (old.items ?? [])) push(identityKey({ ...item, kind: old.kind }), { id: item.id, episodesFetchedAt: item.episodesFetchedAt })
   }
   for (const row of legacy) push(identityKey(row), { legacyId: row.id, episodesFetchedAt: row.episodesFetchedAt })
 

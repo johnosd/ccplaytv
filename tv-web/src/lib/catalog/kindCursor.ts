@@ -2,6 +2,7 @@ import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord } from './
 import { blockRecords } from './categoryBlocks'
 import { readCategoryWindow } from './categoryWindow'
 import { getCategoryAccess } from './categoryAccess'
+import { readBlockChunks } from './blockChunks'
 
 const KEY_MIN = -1
 const KEY_MAX = Number.MAX_SAFE_INTEGER
@@ -61,7 +62,7 @@ export async function readKindCursorPage(
     } else {
       const block = await database.categoryBlocks.get(category.id as number)
       const records = block && block.sourceId === sourceId && block.generation === generation
-        ? blockRecords(block)
+        ? block.format === 2 ? await readBlockChunks(database, block.categoryId) : blockRecords(block)
         : await database.channels
             .where('[sourceId+generation+kind+groupOrder]')
             .between([sourceId, generation, kind, category.order], [sourceId, generation, kind, category.order], true, true)

@@ -127,14 +127,17 @@ async function snapshot(page) {
     const [categories, blocks, rows] = await Promise.all([all('categories'), all('categoryBlocks'), all('channels')])
     handle.close()
     const byCategory = {}
+    const { db } = await import('/src/lib/catalog/db.ts')
+    const { readBlockChunks } = await import('/src/lib/catalog/blockChunks.ts')
     for (const category of categories) {
       const block = blocks.find((candidate) => candidate.categoryId === category.id)
       const legacy = rows
         .filter((row) => row.kind === category.kind && row.groupOrder === category.order && row.generation === category.generation)
         .sort((a, b) => (a.categoryPosition ?? 1e15) - (b.categoryPosition ?? 1e15) || a.id - b.id)
+      const compressed = block?.format === 2 ? await readBlockChunks(db, category.id) : []
       byCategory[category.name] = {
         format: block ? 'block' : legacy.length > 0 ? 'rows' : 'empty',
-        names: block ? block.items.map((item) => item.name) : legacy.map((row) => row.name),
+        names: block?.format === 2 ? compressed.map((item) => item.name) : block ? block.items.map((item) => item.name) : legacy.map((row) => row.name),
         itemsFetchedAt: category.itemsFetchedAt,
       }
     }
@@ -324,6 +327,18 @@ async function scenarioNewList(browser, panelUrl) {
 async function downgradeAndSeedUserState(page, { favorite, progress }) {
   return page.evaluate(
     async ({ favorite, progress }) => {
+      const { db } = await import('/src/lib/catalog/db.ts')
+      const { readBlockChunks } = await import('/src/lib/catalog/blockChunks.ts')
+      const all = await db.categoryBlocks.toArray()
+      const decoded = await Promise.all(
+        all.map(async (block) => ({
+          ...block,
+          // O formato 2 mantém só o cabeçalho em `categoryBlocks`; a fixture
+          // precisa materializar os itens antes de simular o banco legado.
+          items: block.format === 2 ? await readBlockChunks(db, block.categoryId) : block.items ?? [],
+        })),
+      )
+      const source = await db.sources.toCollection().first()
       const request = indexedDB.open('ccplaytv')
       const handle = await new Promise((resolve, reject) => {
         request.onsuccess = () => resolve(request.result)
@@ -332,15 +347,7 @@ async function downgradeAndSeedUserState(page, { favorite, progress }) {
       const tx = handle.transaction(['categoryBlocks', 'channels', 'userStates', 'sources'], 'readwrite')
       const blocks = tx.objectStore('categoryBlocks')
       const channels = tx.objectStore('channels')
-      const all = await new Promise((resolve) => {
-        const query = blocks.getAll()
-        query.onsuccess = () => resolve(query.result)
-      })
-      const [source] = await new Promise((resolve) => {
-        const query = tx.objectStore('sources').getAll()
-        query.onsuccess = () => resolve(query.result)
-      })
-      for (const block of all) {
+      for (const block of decoded) {
         block.items.forEach((item, index) => {
           const { id, ...fields } = item
           void id

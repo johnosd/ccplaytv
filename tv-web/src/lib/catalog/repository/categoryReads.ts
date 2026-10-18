@@ -7,6 +7,7 @@ import { blockItemIndex, movedIdOf, readBlock } from '../blockMemo'
 import { activeGenerationOf, query } from './shared'
 import { getCategoryAccess } from '../categoryAccess'
 import { findSeriesRecord } from './series'
+import { readBlockChunks } from '../blockChunks'
 
 /** Categorias da geração ativa com um dado `order` (e `kind`, se informado). */
 async function categoriesAtOrder(
@@ -43,7 +44,7 @@ async function readCategory(
   const blocks = (await database.categoryBlocks.bulkGet(categories.map((category) => category.id as number))).filter(
     (block): block is NonNullable<typeof block> => !!block && block.generation === generation,
   )
-  const fromBlocks = blocks.flatMap(blockRecords)
+  const fromBlocks = (await Promise.all(blocks.map((block) => block.format === 2 ? readBlockChunks(database, block.categoryId) : blockRecords(block)))).flat()
   // Com `kind` e bloco achado, não há linha antiga daquela categoria (escrever
   // o bloco as apaga) — poupa a segunda leitura no caminho quente.
   if (kind && blocks.length > 0) return fromBlocks
@@ -97,6 +98,10 @@ export async function getActiveCategoryBlock(
     getCategoryAccess(sourceId, database),
   ])
   if (!block || block.sourceId !== sourceId || block.generation !== generation || access.excluded.has(categoryId)) return undefined
+  if (block.format === 2) {
+    const records = await readBlockChunks(database, categoryId)
+    return { ...block, items: records.map(({ sourceId: _source, generation: _generation, kind: _kind, groupOrder: _order, categoryId: _category, categoryPosition: _position, ...item }) => item as NonNullable<CategoryBlockRecord['items']>[number]) }
+  }
   return block
 }
 
@@ -122,7 +127,7 @@ export async function countChannels(
       : kind
         ? await blocksOfKind(database, sourceId, generation, kind).toArray()
         : await blocksOfGeneration(database, sourceId, generation).toArray()
-  const inBlocks = blocks.reduce((total, block) => total + block.items.length, 0)
+  const inBlocks = blocks.reduce((total, block) => total + (block.format === 2 ? (block.count ?? 0) : (block.items ?? []).length), 0)
   return inBlocks + (await query(database, sourceId, generation, undefined, kind).count())
 }
 
@@ -158,9 +163,17 @@ export async function getChannel(
   if (!block) return undefined
   if ((await activeGenerationOf(block.sourceId, database)) !== block.generation) return undefined
   if ((await getCategoryAccess(block.sourceId, database)).excluded.has(categoryId)) return undefined
+  if (block.format === 2) {
+    const record = (await readBlockChunks(database, categoryId)).find((item) => item.id === id)
+    if (record?.kind === 'series' && record.seriesId) {
+      const stamp = (await database.categories.get(categoryId))?.seriesEpisodesFetchedAt?.[record.seriesId]
+      if (stamp !== undefined && (record.episodesFetchedAt === undefined || stamp > record.episodesFetchedAt)) record.episodesFetchedAt = stamp
+    }
+    return record
+  }
   const index = blockItemIndex(block, id)
   if (index < 0) return undefined
-  const record = blockRecord(block, block.items[index], index)
+  const record = blockRecord(block, (block.items ?? [])[index], index)
   // Série: o carimbo dos episódios vive na categoria (`storeSeriesEpisodes`);
   // o do item é de antes desta correção — vale o mais recente.
   if (record.kind === 'series' && record.seriesId) {

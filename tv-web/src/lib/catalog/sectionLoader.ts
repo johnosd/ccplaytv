@@ -25,7 +25,8 @@ import {
   StorageFullError,
   type CatalogCategory,
 } from './catalogRepository'
-import { toItemRecord } from './categoryLoader'
+import { makeRoomFor } from './storageBudget'
+import { toItemRecord } from './categoryItemRecord'
 import { readJsonArrayStream } from './jsonArrayStream'
 import { readCredential } from './sourceRepository'
 import {
@@ -182,6 +183,8 @@ export async function loadSection(
       await options.waitUntilAllowed?.()
       const rest = groups.get(category.id) ?? []
       const items = staged.has(category.id) ? [...(await stagedItemsOf(sourceId, category.id, database)), ...rest] : rest
+      const room = await makeRoomFor(sourceId, Math.ceil(items.length * 60), { database, mode: 'prefetch', protectCategoryId: category.id })
+      if (!room.fits) return { outcome: 'storage_full', written }
       const result = await renewCategoryItems(
         { sourceId, generation, kind, categoryId: category.id, groupOrder: category.order },
         items,

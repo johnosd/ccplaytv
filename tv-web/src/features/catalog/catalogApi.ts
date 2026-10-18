@@ -414,11 +414,11 @@ async function loadCategoryContent(
   const records = block ? undefined : await listChannels(sourceId, category.order, 0, NO_LIMIT, category.kind)
   // Feature 039: a leitura sem teto já é a categoria inteira — contar de novo
   // seria uma segunda leitura do mesmo bloco.
-  const totalCount = block ? block.items.length : (records?.length ?? 0)
+  const totalCount = block ? (block.items ?? []).length : (records?.length ?? 0)
   // Feature 038 (FR-012): medição desligada por padrão, só números.
   if (!signal) markEntry(category.id, category.kind, 'read', totalCount)
   const items = block
-    ? block.items.map((item, index) => blockItemOut(block, item, index, category.kind))
+    ? (block.items ?? []).map((item, index) => blockItemOut(block, item, index, category.kind))
     : (records ?? []).map((record) => toItemOut(record, category.kind))
   if (!signal) markEntry(category.id, category.kind, 'itemsOut')
   return { items, totalCount, outcome: result.outcome, errorCode: result.errorCode }
@@ -2012,7 +2012,7 @@ async function loadCategoryPreview(sourceId: string, category: CatalogCategory):
   if (projected.items.length > 0) return { status: 'ready', items: projected.items.map((record) => toItemOut(record, category.kind)) }
   const block = await getActiveCategoryBlock(sourceId, category.id)
   if (block) {
-    const items = block.items.slice(0, PREVIEW_LIMIT).map((item, index) => blockItemOut(block, item, index, category.kind))
+    const items = (block.items ?? []).slice(0, PREVIEW_LIMIT).map((item, index) => blockItemOut(block, item, index, category.kind))
     return { status: items.length > 0 ? 'ready' : 'empty', items }
   }
   const records = await listChannels(sourceId, category.order, 0, PREVIEW_LIMIT, category.kind)

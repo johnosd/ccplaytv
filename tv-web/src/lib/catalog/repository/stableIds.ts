@@ -5,6 +5,7 @@ import { type StableIdParts } from '../userStateRepository'
 import { blockRecord, blocksOfKind } from '../categoryBlocks'
 import { FavoritesScanComplete, KEY_MAX, KEY_MIN, activeGenerationOf } from './shared'
 import { getCategoryAccess } from '../categoryAccess'
+import { readBlockChunks } from '../blockChunks'
 
 /**
  * Resolve favoritos (feature 013, `stableId` do usuário) em registros do
@@ -93,16 +94,17 @@ export async function resolveStableIdsIn(
       remaining -= 1
     }
     try {
-      await blocksOfKind(database, sourceId, generation, kind).each((block) => {
-        if (access.excluded.has(block.categoryId)) return
-        block.items.forEach((item, index) => {
-          const record = () => blockRecord(block, item, index)
-          if (item.providerStreamId) take(byId.get(item.providerStreamId), record)
-          if (kind === 'series' && item.seriesId) take(byId.get(item.seriesId), record)
-          if (byNameKey.size > 0) take(byNameKey.get(item.originalName.trim().toLowerCase()), record)
+      const blocks = await blocksOfKind(database, sourceId, generation, kind).toArray()
+      for (const block of blocks) {
+        if (access.excluded.has(block.categoryId)) continue
+        const items = block.format === 2 ? await readBlockChunks(database, block.categoryId) : (block.items ?? []).map((item, index) => blockRecord(block, item, index))
+        items.forEach((row) => {
+          if (row.providerStreamId) take(byId.get(row.providerStreamId), () => row)
+          if (kind === 'series' && row.seriesId) take(byId.get(row.seriesId), () => row)
+          if (byNameKey.size > 0) take(byNameKey.get(row.originalName.trim().toLowerCase()), () => row)
         })
-        if (remaining === 0) throw new FavoritesScanComplete()
-      })
+        if (remaining === 0) break
+      }
     } catch (error) {
       if (!(error instanceof FavoritesScanComplete)) throw error
     }

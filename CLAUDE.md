@@ -463,3 +463,7 @@ Project documentation (ADRs, planning docs, backlog, specs) is written in
 Portuguese. Match that when writing or amending files under `sdd/`,
 `.planning/` and `docs/`. This file and code comments stay in the language
 already used by their surroundings.
+# Regra da feature 082
+
+O catálogo e o guia são gravados comprimidos em pedaços. Leia por `readBlockChunks`, nunca por `block.items`; nunca
+descomprima dentro de uma transação; todo gravador novo chama `makeRoomFor`.

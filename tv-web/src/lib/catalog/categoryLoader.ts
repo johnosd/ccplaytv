@@ -19,21 +19,24 @@
  *    mensagem de rede — a mensagem crua carrega a URL com credencial.
  */
 
-import { db, type CatalogDb, type CatalogRecord, type CategoryKind } from './db'
+import { db, type CatalogDb, type CategoryKind } from './db'
 import {
   activeGeneration,
   countChannels,
   renewCategoryItems,
-  StorageFullError,
   storeStoredCategory,
+  StorageFullError,
   type CatalogCategory,
 } from './catalogRepository'
 import { readEntryChunks } from './storedEntries'
+import type { BudgetOptions } from './storageBudget'
 import { isCategoryFresh } from './freshness'
-import { copyListingFields } from './adultFlag'
 import { markEntry } from '../perf/entryTiming'
 import { readCredential } from './sourceRepository'
-import { providerErrorCode, type ErrorCode } from '../errors/errorCatalog'
+import type { ErrorCode } from '../errors/errorCatalog'
+import { failureOf, toItemRecord } from './categoryItemRecord'
+import { makeRoomFor } from './storageBudget'
+import { categoryStoredBytes } from './storageLedger'
 import {
   fetchLiveStreams,
   fetchSeries,
@@ -42,8 +45,6 @@ import {
   mapLiveEntry,
   mapSeriesEntry,
   mapVodEntry,
-  ProviderError,
-  ProviderIncompatibleError,
   type LiveCategory,
   type MappedChannel,
 } from './xtreamConnector'
@@ -67,15 +68,14 @@ export interface EnsureCategoryResult {
   errorCode?: ErrorCode
 }
 
-export interface EnsureCategoryOptions {
+export interface EnsureCategoryOptions extends BudgetOptions /* feature 082 */ {
   database?: CatalogDb
   now?: () => number
   /**
    * Sinal de cancelamento para a busca de rede desta chamada (bug
    * `prefetch-concorrente-categoria-sem-cancelamento-requisicao`) — só o
-   * caminho `on_demand` (`fetchAndStore`) o usa; `stored`/`eager` nunca
-   * tocam rede. Abortado, a busca lança em vez de virar `failed`/
-   * `stale-served` (ver `fetchAndStore`).
+   * caminho `on_demand` (`fetchAndStore`) o usa; `stored`/`eager` nunca tocam
+   * rede. Abortado, a busca lança em vez de virar `failed`/`stale-served`.
    */
   signal?: AbortSignal
   /**
@@ -141,62 +141,6 @@ async function fetchMappedItems(
     .filter((item): item is MappedChannel => item !== undefined)
 }
 
-/** Um item mapeado do provedor como registro do catálogo — mesmo formato na carga por categoria e por seção (feature 038). */
-export function toItemRecord(
-  channel: MappedChannel,
-  sourceId: string,
-  generation: number,
-  category: CatalogCategory,
-): CatalogRecord {
-  const record: CatalogRecord = {
-    sourceId,
-    generation,
-    kind: channel.kind,
-    name: channel.name,
-    originalName: channel.originalName,
-    group: channel.group,
-    groupOrder: category.order,
-    categoryId: category.id,
-    providerStreamId: channel.providerStreamId,
-    providerCategoryId: channel.providerCategoryId,
-    seriesId: channel.seriesId,
-    seasonNumber: channel.seasonNumber,
-    episodeNumber: channel.episodeNumber,
-    streamExtension: channel.streamExtension,
-    // Provedor nunca guarda URL — ver `noUrl` acima.
-    directUrl: undefined,
-    // Feature 015/024: capa/logo declarado pela fonte (também canal desde a 024 — mapLiveEntry preenche).
-    iconUrl: channel.iconUrl,
-    // Feature 030: id de EPG só no canal (FR-006/FR-008).
-    epgChannelId: channel.kind === 'channel' ? channel.epgChannelId : undefined,
-    // Feature 025: ano/inclusão declarados pela fonte (filme/série do provedor).
-    year: channel.year,
-    addedAt: channel.addedAt,
-  }
-  // Feature 055 (D-002/D-003): campos da listagem só quando existem (nota em filme e série; gênero e fundo só em série).
-  copyListingFields(channel, record) // nota (055) e marcação de adulto do painel (066, FR-035)
-  // Feature 058 (FR-007): dias de arquivo só no canal, e só quando o painel declara.
-  if (channel.kind === 'channel' && channel.archiveDays !== undefined) record.archiveDays = channel.archiveDays
-  if (channel.kind === 'series') {
-    if (channel.providerGenres !== undefined) record.providerGenres = channel.providerGenres
-    if (channel.providerBackdropUrl !== undefined) record.providerBackdropUrl = channel.providerBackdropUrl
-  }
-  return record
-}
-
-/** Falha de gravação por falta de espaço vira dado, nunca exceção (feature 038, FR-008). */
-function failureOf(error: unknown, hadItems: boolean): EnsureCategoryResult {
-  const outcome: CategoryFetchOutcome = hadItems ? 'stale-served' : 'failed'
-  if (error instanceof StorageFullError) return { outcome, reason: 'storage_full' }
-  // Feature 042 (FR-017): 429 do painel é dado, não exceção — a pré-carga espera; a entrada mostra `API-429`.
-  if (error instanceof ProviderError && error.kind === 'rate_limited') {
-    return { outcome, reason: 'rate_limited', errorCode: 'API-429' }
-  }
-  if (error instanceof ProviderError) return { outcome, errorCode: providerErrorCode(error.kind, navigator.onLine) }
-  if (error instanceof ProviderIncompatibleError) return { outcome, errorCode: 'SRC-422' }
-  return { outcome }
-}
-
 async function fetchAndStore(
   sourceId: string,
   category: CatalogCategory,
@@ -204,6 +148,8 @@ async function fetchAndStore(
   database: CatalogDb,
   now: number,
   signal?: AbortSignal,
+  budgetMode: EnsureCategoryOptions['budgetMode'] = 'entry',
+  budget: EnsureCategoryOptions['budget'] = undefined,
 ): Promise<EnsureCategoryResult> {
   const credential = await readCredential(sourceId, database)
   if (!credential) return { outcome: hadItems ? 'stale-served' : 'failed' }
@@ -222,6 +168,11 @@ async function fetchAndStore(
       signal,
     )
     markEntry(category.id, category.kind, 'mapped', items.length)
+    const sourceCategories = await database.categories.where('sourceId').equals(sourceId).toArray()
+    const averages = await Promise.all(sourceCategories.filter((candidate) => candidate.itemsCount).map(async (candidate) => (await categoryStoredBytes(database, candidate.id as number)) / (candidate.itemsCount ?? 1)))
+    const average = averages.find((value) => value > 0) ?? 60
+    const room = await makeRoomFor(sourceId, Math.ceil(items.length * average), { database, now, mode: budgetMode, protectCategoryId: category.id, config: budget })
+    if (!room.fits) throw new StorageFullError()
     // Feature 038 (D-006): um caminho de escrita só — preserva o id local de
     // quem continua na fonte e não regrava uma lista idêntica.
     await renewCategoryItems(
@@ -374,5 +325,5 @@ export async function ensureCategory(
   if (category.fetchMode === 'stored') {
     return dedup(category.id, () => readStored(sourceId, category, record?.storedFrom, database, now))
   }
-  return dedup(category.id, () => fetchAndStore(sourceId, category, hasItems, database, now, options.signal))
+  return dedup(category.id, () => fetchAndStore(sourceId, category, hasItems, database, now, options.signal, options.budgetMode, options.budget))
 }

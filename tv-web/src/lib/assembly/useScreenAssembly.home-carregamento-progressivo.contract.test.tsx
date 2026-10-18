@@ -43,20 +43,14 @@ describe('useScreenAssembly — contrato da feature 079', () => {
     })
     expect(result.current.showLoading).toBe(true)
 
-    // Uma leitura ainda pendente segura a tela até o teto (a capa que não carrega não muda isso).
+    // Uma leitura ainda pendente não impede a primeira fileira pronta de aparecer após a janela curta.
     rerender({ screen: 'home', slots: slots('ready', 'pending'), imageUrls: ['https://img.example.org/capa.jpg'], loadImage: neverLoads })
     expect(neverLoads).toHaveBeenCalledWith('https://img.example.org/capa.jpg')
     act(() => {
-      vi.advanceTimersByTime(1699) // 1999 ms desde a entrada
-    })
-    expect(result.current.phase).toBe('waiting')
-
-    // Teto: revela com o que tem.
-    act(() => {
-      vi.advanceTimersByTime(1)
+      vi.advanceTimersByTime(300)
     })
     expect(result.current.phase).toBe('revealed')
-    expect(result.current.reason).toBe('cap')
+    expect(result.current.reason).toBe('ready')
     expect(result.current.showLoading).toBe(false)
     expect(result.current.isShown('a')).toBe(true)
     expect(result.current.isShown('b')).toBe(false)

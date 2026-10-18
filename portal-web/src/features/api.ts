@@ -30,19 +30,25 @@ export function newOperationId(now = Date.now()) {
   return 'op-' + now + '-' + nonce
 }
 /**
- * Sessão da aba (T034): a ida ao Checkout Pro do Mercado Pago recarrega a página, e o CSRF só existe na resposta do
- * login (o servidor guarda o hash). Fica no `sessionStorage` desta aba até a validade; sem o cookie `httpOnly` ele não
- * autoriza nada, e a retomada confere a sessão no servidor antes de abrir o painel.
+ * Sessão do navegador (069/T034, 081/T047): a ida ao Checkout Pro do Mercado Pago recarrega a página, e o CSRF só existe
+ * na resposta do login (o servidor guarda o hash). No celular o Mercado Pago abre no app/aba dele e a volta cai numa aba
+ * NOVA — por isso fica no `localStorage` (não mais no `sessionStorage` da aba) até a validade (≤ 8 h). Sem o cookie
+ * `httpOnly` ele não autoriza nada, a retomada confere a sessão no servidor antes de abrir o painel e Sair o apaga.
  */
 const SESSION_KEY = 'ccplay-portal-session'
-export function rememberSession(session: Session | undefined, storage: Pick<Storage, 'setItem' | 'removeItem'> = sessionStorage) {
+const noStorage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = { getItem: () => null, setItem: () => {}, removeItem: () => {} }
+// `localStorage` pode lançar só de ser lido (modo privado/bloqueado): sem ele só não retoma.
+function sessionStore(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> {
+  try { return window.localStorage } catch { return noStorage }
+}
+export function rememberSession(session: Session | undefined, storage: Pick<Storage, 'setItem' | 'removeItem'> = sessionStore()) {
   try {
     // Só os três campos, nunca o objeto recebido inteiro.
     if (session) storage.setItem(SESSION_KEY, JSON.stringify({ deviceId: session.deviceId, csrfToken: session.csrfToken, expiresAt: session.expiresAt }))
     else storage.removeItem(SESSION_KEY)
   } catch { /* Sem storage: só não retoma. */ }
 }
-export function storedSession(storage: Pick<Storage, 'getItem' | 'removeItem'> = sessionStorage, now = Date.now()): Session | undefined {
+export function storedSession(storage: Pick<Storage, 'getItem' | 'removeItem'> = sessionStore(), now = Date.now()): Session | undefined {
   try {
     const value: unknown = JSON.parse(storage.getItem(SESSION_KEY) ?? 'null')
     const { deviceId, csrfToken, expiresAt } = (value ?? {}) as Record<string, unknown>

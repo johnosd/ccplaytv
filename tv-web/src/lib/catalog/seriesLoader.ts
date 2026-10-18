@@ -26,6 +26,7 @@ import { readCredential } from './sourceRepository'
 import { fetchSeriesDetail, type XtreamEpisode } from './xtreamConnector'
 import { normalizeSeriesInfo } from '../metadata/providerMetadata'
 import { storeProviderMetadata } from '../metadata/titleMetadataStore'
+import { makeRoomFor, touchCategory } from './storageBudget'
 
 export type SeriesFetchOutcome = 'fresh' | 'fetched' | 'stale-served' | 'failed'
 
@@ -82,6 +83,7 @@ async function fetchAndStore(
   recordSeriesDiagnostic('CREDENTIAL_READ')
 
   const generation = await activeGeneration(series.sourceId, database)
+  if (series.categoryId !== undefined) touchCategory(series.categoryId, now, database)
   if (generation === undefined) {
     recordSeriesDiagnostic('GENERATION_READ', 'failed')
     return { outcome: wasNeverFetched ? 'failed' : 'stale-served' }
@@ -102,6 +104,8 @@ async function fetchAndStore(
     recordSeriesDiagnostic(stage)
     stage = 'EPISODES_STORE'
     recordSeriesDiagnostic(stage, 'loading')
+    const room = await makeRoomFor(series.sourceId, Math.ceil(episodes.length * 60), { database, now, mode: 'entry', protectCategoryId: series.categoryId })
+    if (!room.fits) throw new StorageFullError()
     await storeSeriesEpisodes(
       {
         sourceId: series.sourceId,

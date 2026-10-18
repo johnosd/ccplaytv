@@ -108,7 +108,7 @@ test('sessão encerrada no meio do uso volta à entrada com o ID lembrado e o av
   const key = page.getByLabel('Chave do dispositivo', { exact: true })
   await expect(key).toHaveValue('')
   await expect(key).toBeFocused()
-  expect(await page.evaluate(() => sessionStorage.getItem('ccplay-portal-session'))).toBeNull()
+  expect(await page.evaluate(() => localStorage.getItem('ccplay-portal-session'))).toBeNull()
 })
 
 // A TV mostra a chave em grupos ("012 345 6789"): colar do jeito que aparece tem de funcionar.

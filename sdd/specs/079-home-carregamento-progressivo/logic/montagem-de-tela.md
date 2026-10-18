@@ -28,24 +28,17 @@ Fase `waiting`:
 
 1. **Cache**: `firstRender` e existe slot `primary` e todos os `primary` estão resolvidos → `revealed`, `reason: 'cache'`,
    `shown` = slots `ready` na ordem. Não espera capas nem os não-primários.
-2. **Pronta**: todos os slots resolvidos e `imagesSettled` → `revealed`, `reason: 'ready'`.
-3. **Teto**: `capPassed` e todos os `required` resolvidos → `revealed`, `reason: 'cap'`, `shown` = `ready` na ordem.
+2. **Progressiva**: passada a janela curta (`progressivePassed`) e existe ao menos um slot `ready` → `revealed`, `reason: 'ready'`, `shown` = slots `ready` na ordem; as demais entram quando resolverem.
+3. **Teto**: `capPassed` e existe conteúdo pronto (ou todas as leituras obrigatórias resolveram) → `revealed`, `reason: 'cap'`, `shown` = `ready` na ordem.
 4. Senão continua `waiting` com `shown = []`.
 
 Fase `revealed`:
 
-5. `following` **ou** `!capPassed` → `shown` = todos os `ready` na ordem (inclusive os adiados); `deferred = []`.
-   (`!capPassed` depois de revelado só acontece no caminho do cache: leituras locais que terminam em milissegundos se
-   encaixam.)
-6. Senão:
-   - tira de `shown` e de `deferred` o que deixou de ser `ready`;
-   - para cada slot `ready` fora de `shown` e de `deferred`, **em ordem crescente de posição**: `limite` = maior posição
-     entre os de `shown` e os `anchor`; se `posição > limite` → entra em `shown` (na ordem); senão → `deferred`.
-7. `deferred` só sai por `following` ou por nova montagem da tela (estado novo).
+5. Toda mudança de leitura → `shown` = todos os `ready` na ordem canônica, `deferred = []`. Fileiras tardias entram na
+   visita atual e podem reacomodar as fileiras abaixo; foco e scroll são reconciliados por identidade.
 
-Exemplo (Home, abertura fria, hero lento): `r1` pronto, teto vence → `shown [r1]`; hero chega → posição 0 ≤ âncora 0 →
-`deferred [hero]`, o billboard fica no modo neutro; `r2` chega → posição 2 > 1 → `shown [r1, r2]`; a pessoa fecha o
-player → `following` → `shown [hero, r1, r2]`.
+Exemplo (Home, abertura fria, hero lento): `r1` pronto após a janela curta → `shown [r1]`; hero chega → `shown [hero, r1]`;
+`r2` chega → `shown [hero, r1, r2]`, sempre na ordem da tela.
 
 ## 3. Hook (`useScreenAssembly`)
 
@@ -54,7 +47,7 @@ player → `following` → `shown [hero, r1, r2]`.
   das features 026/052/056/057 quebram.
 - Temporizadores contados da montagem: `LOADING_DELAY_MS` (300) liga `showLoading` se ainda `waiting`;
   `ASSEMBLY_CAP_MS` (2000) liga `capPassed`. Revelado, `showLoading` é `false`.
-- Capas: para cada URL nova de `imageUrls` enquanto `waiting`, chama `loadImage(url)` uma vez; `imagesSettled` =
+- Capas: para cada URL nova de `imageUrls`, chama `loadImage(url)` uma vez; `imagesSettled` =
   `!extraPending` e (todas as URLs atuais terminadas **ou** `LOADING_DELAY_MS` passou). Emenda de 2026-10-16 (R-008): as
   capas só seguram a tela pela mesma janela do "Carregando" — ele nunca aparece só por causa de imagem; depois as capas
   chegam dentro dos cards. Carregador padrão: `new Image()`, `src = url`, `decode()` (sucesso ou falha

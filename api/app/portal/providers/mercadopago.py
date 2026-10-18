@@ -84,8 +84,13 @@ class MercadoPagoProvider:
     async def preference(self, order: OrderDocument) -> CheckoutPreference:
         value = await self._request("POST", "/checkout/preferences", body={
             "external_reference": order.reference,
+            # 081/D-009: campos de qualidade da integração (categoria oficial `virtual_goods`, de GET /item_categories;
+            # descrição; nome na fatura). Nenhum dado do comprador é enviado.
             "items": [{"id": order.offer_version, "title": "CCPlayTV - licença anual para uma TV",
+                       "description": "Licença anual do app CCPlayTV para uma TV, sem renovação automática",
+                       "category_id": "virtual_goods",
                        "quantity": 1, "currency_id": "BRL", "unit_price": 35}],
+            "statement_descriptor": "CCPLAYTV",
             "back_urls": {status: self._origin + "/?checkout=return" for status in ("success", "pending", "failure")},
             "notification_url": self._origin + "/portal/v1/payments/mercadopago/webhook",
             "payment_methods": {"installments": 1, "excluded_payment_types": [{"id": "ticket"}, {"id": "atm"}]},

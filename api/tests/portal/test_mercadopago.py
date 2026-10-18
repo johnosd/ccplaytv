@@ -30,6 +30,10 @@ async def test_preference_uses_fixed_server_offer_and_only_official_https_checko
         assert preference.checkout_url == checkout
         assert calls[0]["items"][0]["unit_price"] == 35 and calls[0]["items"][0]["currency_id"] == "BRL"
         assert calls[0]["external_reference"] == "order-fixture"
+        # 081/T024: qualidade da integração sem dado do comprador.
+        item = calls[0]["items"][0]
+        assert (item["category_id"], calls[0]["statement_descriptor"]) == ("virtual_goods", "CCPLAYTV")
+        assert item["description"] and "payer" not in calls[0]
         assert "tv-fixture" not in str(calls) and "fake-private" not in repr(preference)
         for checkout in ("https://attacker.invalid/", "http://www.mercadopago.com.br/", "https://secret@www.mercadopago.com.br/", "https://www.mercadopago.com.br:invalid/"):
             with pytest.raises(PaymentProviderError):
