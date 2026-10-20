@@ -14,10 +14,7 @@ update-bug-status.ps1.
 <!-- Achados das sondas na TV física (feature 082, 2026-10-18). Números em
      sdd/specs/082-orcamento-armazenamento-tv/evidencias/sonda2-capacidades-tv-2026-10-18.md.
      A sonda (sonda-tv/) pode medir de novo antes e depois de cada uma, sempre com autorização. -->
-- [Medição] **Velocidade da 082 na TV física** (origem: fechamento da 082, 2026-10-19, R-021): medir SC-002 (1ª página da
-  categoria de 11 mil filmes — `primeiraPágina` e linha `movie:foco … read=`, referência 178 ms), SC-003 (`parado>100ms`
-  com a lista aberta, meta 0), SC-004 (3 listas + Atualizar da licença) e SC-007 (guia ≤ 3 s no app real). O pacote de
-  medição já está instalado na TV; depois, reinstalar o pacote normal (avisando).
+- [Medição] **Velocidade da 082 na TV física — medida em 2026-10-20, com pendências** (origem: R-021; evidência `sdd/specs/082-orcamento-armazenamento-tv/evidencias/medicao-app-real-tv-2026-10-20.md`): SC-002 passa (105–153 ms), com um outlier de 6,8 s sem causa; SC-003 não fecha em zero (28 quadros > 100 ms com o controle parado, não atribuíveis à compressão); SC-004 parcial (cargas de seção sem erro; faltam 3 listas e a licença, que só existe no build comercial); SC-007 sem número (o guia do Xtream só é baixado depois de 12 h; o bug da tela de progresso "Guia: Carregando" foi corrigido em `sdd/bugs/sincronizar-agora-epg-fica-sincronizando-sem`; medir o download com o build de medição, que já tem as fases do guia).
 - [Medição] **Abrir "Todos" soma ~30 quadros acima de 100 ms no app real** (origem: feature 084, T020, 2026-10-20, R-008): com o `PerfOverlay`, abrir Filmes → "Todos" → Ordenar A–Z leva `quadros>100ms` de 3 para 32–33 tanto no código antigo quanto no novo (a 084 fatiou índice, conversão e ordenação, que a sonda mostrou serem o congelamento de 933–1 233 ms). A causa dominante no app real é outra ou adicional (render da grade, capas, trabalho por render). Evidência: `sdd/specs/084-indice-busca-sem-travar/evidencias/app-real-perfoverlay-2026-10-20.md`.
 - [Medição] **Carga por seção mais lenta entre rodadas na mesma instalação** (origem: especificação da 085, 2026-10-20,
   FR-015): na sonda `etapasSecao`, a carga da seção de filmes passou de 22 s para 33 s entre a 1ª e a 2ª rodada da mesma
@@ -167,6 +164,7 @@ update-bug-status.ps1.
 | armazenamento-app-cheio-na-tv-impede | Armazenamento do app cheio na TV impede gravar a licença e desvincular | Fix | applied (falta a medição e a confirmação na TV, na fase Test) | Rodar fase Test | 2026-10-17 |
 | epg-guia-completo-no-renderiza-grade | EPG guia completo não renderiza a grade | Test | verified | Concluído | 2026-10-18 |
 | fixture-antiga-catlogo-blocos-acessa-blockitems | Fixture antiga do catálogo em blocos acessa `block.items` | Test | verified | Concluído | 2026-10-18 |
+| sincronizar-agora-epg-fica-sincronizando-sem | "Sincronizar agora" do EPG fica "Sincronizando" sem terminar na lista real da TV | Test | verified | Concluído | 2026-10-20 |
 
 ## Melhorias Ad-hoc
 
