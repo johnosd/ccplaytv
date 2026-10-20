@@ -125,7 +125,7 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | R-001 | O dedupe por título de "Bem avaliados" é global entre categorias; um top-K por categoria pode, em teoria, divergir da varredura | FR-004 (mesmos itens) falha | `RATED_CANDIDATES = 48` (pool de 36 + folga) e o contrato C1 compara com a varredura. Se divergir, **aumentar a folga**, nunca mudar o algoritmo para o teste passar |
 | R-002 | `eligibleCount` por categoria soma com duplicatas entre categorias, superestimando o total | O mínimo de 5 para a fileira existir, e o aviso de cobertura, podem diferir num catálogo pequeno | Contar elegíveis distintos na mesclagem (os candidatos já estão em mãos), não somar os números por categoria |
 | R-003 | Os candidatos ocupam espaço: ~48+12 itens × 390 categorias × 3 listas | Teto de armazenamento da 082 | Gravar pelos caminhos que já chamam `makeRoomFor`; medir o tamanho real na Fase 2 e baixar `RATED_CANDIDATES` se passar de ~1 MB por lista |
-| R-004 | Mover a seleção de `features/vod` para `lib/` pode quebrar os contratos travados das features 052, 056 e 065 | Trava de outra feature vermelha | D-006: mover o código e **reexportar** dos caminhos antigos; rodar as travas daquelas features na mesma task |
+| R-004 | Mover a seleção de `features/vod` para `lib/` pode quebrar os contratos travados das features 052, 056 e 065 | Trava de outra feature vermelha | **Resolvido (T011, 2026-10-20)**: código movido com reexport nos caminhos antigos; as três travas verificadas íntegras e 194 testes de `features/vod` passando |
 | R-005 | A vitrine é invalidada a cada lote da pré-carga (até 1/s) e hoje revarre tudo (`prefetchApi.ts`, achado do `logic` §5) | Com a leitura barata deixa de doer, mas pode sobrar custo de remontagem | **Aberto**: a medição (T003) não teve tela aberta durante o pico da pré-carga, então não confirmou nem descartou. Reavaliar na Fase 4 (T034) com a leitura já barata |
 | R-006 | A Home desenha as 5 fileiras de uma vez, sem virtualização vertical (as vitrines têm) | Pode ser parte do custo de renderização | **Resolvido: descartado pela medição (T003, 2026-10-20).** Com dado em cache, a Home revela em 1 ms e `paintMs` é 1 ms — desenhar não é o gargalo. Não virtualizar a Home nesta feature |
 | R-007 | A TV é gate, com 2 passadas planejadas, e cada instalação pede autorização | A feature pode parar esperando a TV | Pedir autorização por instalação; fechar sem a TV só por decisão explícita do usuário, registrada aqui |
@@ -141,7 +141,7 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | Área | Estado |
 | --- | --- |
 | Fase 1 — medição | Concluída: instrumentação por leitura + pico de heap; linha de base medida na TV (`evidencias/linha-de-base-tv-2026-10-20.md`) |
-| Fase 2 — base | Pendente (schema v17, mover a seleção para `lib/`, varredura de referência) |
+| Fase 2 — base | Concluída: schema v17, seleção movida para `lib/` com reexport, varredura de referência pronta |
 | Fases 3–6 | Pendentes; contratos C1–C5 vermelhos por `not implemented` |
 | TV | Pacote normal reinstalado; coletor parado |
 
@@ -152,8 +152,9 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
 | 2026-10-20 | Fase 1 (T001–T004) | Instrumentação por leitura e pico de heap; linha de base na TV: Início revela por `cap` em 2 039 ms com **6 de 6 leituras pendentes**; Séries espera 1 074 ms só por `categories`; reentrada em cache revela em 1 ms | R-006 descartado (renderização não é o gargalo); R-009 (categorias ~1 s) e R-010 (memória não mensurável) abertos |
+| 2026-10-20 | Fase 2 (T010–T013) | Schema v17 com as 2 tabelas; seleção movida para `lib/catalog/{showcaseSelection,ratedSelection}.ts` com reexport em `features/vod`; `selectShowcaseRowsByScan` pronta; limpeza da lista | Travas de 052/056/065 confirmadas íntegras; teto de linhas do `db.ts` ajustado no baseline |
 
-**PRÓXIMO**: Fase 2 (T010–T013) — schema v17, mover a lógica de seleção para `lib/catalog/showcaseSelection.ts` com reexport em `features/vod` (R-004) e a varredura de referência.
+**PRÓXIMO**: Fase 3 (T020–T028) — implementar os candidatos e a montagem até os 5 contratos ficarem verdes. Antes: Fase 2 (T010–T013) — schema v17, mover a lógica de seleção para `lib/catalog/showcaseSelection.ts` com reexport em `features/vod` (R-004) e a varredura de referência.
 
 ## Arquivos Principais
 
@@ -162,6 +163,10 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 - `tv-web/src/lib/assembly/useScreenAssembly.ts` — tempo por leitura (`slotMs`) e `paintMs`
 - `tv-web/src/lib/perf/assemblyTiming.ts` — emite `<leitura>Ms` e `paintMs` no canal
 - `tv-web/src/components/PerfOverlay.tsx` — pico de heap junto dos quadros
+- `tv-web/src/lib/catalog/showcaseSelection.ts` — seleção pura + `selectShowcaseRowsByScan` (referência do C1)
+- `tv-web/src/lib/catalog/ratedSelection.ts` — "Bem avaliados" (movido de `features/vod`)
+- `tv-web/src/lib/catalog/{showcaseCandidates,showcaseRows}.ts` — stubs a implementar na Fase 3
+- `tv-web/src/lib/catalog/{db,showcaseTypes,sourceDeletion}.ts` — schema v17 e limpeza
 - `sdd/specs/086-montagem-rapida-telas/evidencias/linha-de-base-tv-2026-10-20.md` — a referência da validação
 
 ## Cuidados para Retomada
@@ -173,3 +178,4 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 - `paintMs` inclui a janela deliberada de 300 ms da feature 079 quando a tela revela por `ready`; não é "custo de pintar" puro.
 - Medir com o app recém-aberto mede junto a pré-carga — que é o caso real, mas torna a comparação válida só contra outra medição no mesmo roteiro.
 - O `sdb` pode travar ao lançar o app depois de instalar; a instalação já foi feita, basta abrir pela TV.
+- `VodShowcaseScreen.test.tsx` é flake conhecido na suíte completa (passa isolado); não confunda com regressão desta feature.

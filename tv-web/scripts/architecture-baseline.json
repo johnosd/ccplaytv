@@ -259,7 +259,7 @@
     "features/vod/VodShowcaseScreen.tsx": 733,
     "lib/catalog/categoryLoader.ts": 328,
     "lib/catalog/classifier.ts": 305,
-    "lib/catalog/db.ts": 845,
+    "lib/catalog/db.ts": 854,
     "lib/catalog/importPipeline.ts": 934,
     "lib/catalog/prefetch/prefetchScheduler.ts": 376,
     "lib/catalog/sourceRepository.ts": 400,

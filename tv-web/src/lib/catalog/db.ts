@@ -12,6 +12,8 @@ import type { CategoryBlockRecord } from './blockTypes'
 
 export type { BlockItem, BlockShared, CategoryBlockRecord } from './blockTypes'
 export type { CatalogReadChunk, CatalogReadItem, CatalogReadManifest } from './readProjectionTypes'
+export type { ShowcaseCandidatesRecord, ShowcaseExternalRowRecord } from './showcaseTypes'
+import type { ShowcaseCandidatesRecord, ShowcaseExternalRowRecord } from './showcaseTypes'
 export type { SeriesWatchMemberRecord, SeriesWatchSummaryRecord } from './seriesWatchTypes'
 
 /**
@@ -667,6 +669,8 @@ export class CatalogDb extends Dexie {
   seriesWatchSummaries!: EntityTable<SeriesWatchSummaryRecord, 'id'>
   sectionStaging!: EntityTable<SectionStagingRecord, 'id'>
   discoveryCache!: EntityTable<DiscoveryCacheRecord, 'id'>
+  showcaseCandidates!: EntityTable<ShowcaseCandidatesRecord, 'categoryId'>
+  showcaseExternalRows!: EntityTable<ShowcaseExternalRowRecord, 'id'>
   networkDiagnostics!: EntityTable<NetworkDiagnosticRecord, 'id'>
   constructor(name: string = DB_NAME) {
     // Feature 038 (R0-3): o Chrome grava em modo "relaxed" por padrão desde a
@@ -817,6 +821,11 @@ export class CatalogDb extends Dexie {
     // tabela nova, não há dado antigo. Limpa junto da chave TMDB (`removeTmdbKey`).
     this.version(16).stores({
       discoveryCache: 'id',
+    })
+    // v17 (feature 086): candidatos das fileiras por categoria e o resultado já casado das fileiras de serviço externo — derivados, sem `.upgrade()`.
+    this.version(17).stores({
+      showcaseCandidates: 'categoryId, sourceId, [sourceId+generation+kind]',
+      showcaseExternalRows: 'id, sourceId, [sourceId+generation+kind]',
     })
     // Feature 062: último diagnóstico por aparelho, independente de lista/chave.
     registerLateCatalogSchemas(this)

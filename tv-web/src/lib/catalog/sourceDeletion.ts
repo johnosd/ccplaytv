@@ -11,7 +11,7 @@ import { notifyLocalSourceChanged } from '../portal/sourceChangeSignal'
 export function sourceDeletionTables(database: CatalogDb) {
   return ['sources', 'channels', 'categories', 'storedEntries', 'categoryBlocks',
     'catalogReadManifests', 'catalogReadChunks', 'categoryChunks', 'epgChunks', 'seriesWatchMembers', 'seriesWatchSummaries',
-    'sectionStaging', 'importRuns', 'userStates', 'epgPrograms', 'titleMetadata',
+    'sectionStaging', 'showcaseCandidates', 'showcaseExternalRows', 'importRuns', 'userStates', 'epgPrograms', 'titleMetadata',
     'categoryPreferences', 'parentalPins', 'sourceRevisions', 'pendingPortalDeletes',
     'pendingImportOutbox', 'pendingRestore'].map(name => database.table(name))
 }
@@ -36,6 +36,11 @@ export async function deleteSource(id: string, database: CatalogDb = db,
     await deleteEpgForSource(id, database)
     // Feature 032 (FR-026): a metadata descritiva da fonte (provedor e TMDB) sai junto; a chave TMDB é da pessoa e fica.
     await database.titleMetadata.where('sourceId').equals(id).delete()
+    // Feature 086 (FR-009): as fileiras guardadas são derivadas da lista — saem junto, sem deixar resíduo.
+    await Promise.all([
+      database.showcaseCandidates.where('sourceId').equals(id).delete(),
+      database.showcaseExternalRows.where('sourceId').equals(id).delete(),
+    ])
     // Preferências de categoria (066, FR-005) e o PIN da lista (067, FR-025 — o PIN é por lista desde então).
     await Promise.all([categoryPreferences(database).where('sourceId').equals(id).delete(), parentalPins(database).delete(id)])
     await database.sources.delete(id)
