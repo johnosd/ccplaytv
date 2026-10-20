@@ -28,3 +28,18 @@ houve leitura de Busca. Ordenações Ano, Adicionados e Nota (passo opcional, 1�
   dentro do ruído de uma leitura a olho, mas na direção contrária à desejada. Pode ser trabalho em segundo plano (pré-carga,
   conversão) e não o índice.
 - Limites: uma leitura por condição, lida a olho pelo usuário, sem tempo até pronto medido.
+
+## Leitura 4 — código novo com o cache dos formatadores `Intl` (Fase 7, T022)
+
+Pacote de medição com `RatingBadge` e `translate.ts` usando um formatador por idioma; catálogo quente.
+
+| Leitura | `quadros>100ms` | `parado>100` |
+| --- | --- | --- |
+| Início, antes | 6 | 2 |
+| Depois de "Todos" → Ordenar A–Z | 26 (**+20**) | 9 (+7) |
+| De volta à Início (cumulativo, inclui a navegação) | 45 (+19) | 16 (+7) |
+
+- **+20** contra +29 (antigo) e +30 (novo sem o cache): parece melhora de ~30 %, mas é uma leitura só, com ruído do contador.
+- `parado>100` +7: igual ao antigo (+7) e menor que o do novo sem o cache (+12).
+- SC-005 (zero quadros lentos) continua **não cumprido**.
+- A leitura de TV ao vivo "Todos" e do guia (T026) **não foi feita**: o usuário encerrou as medições em 2026-10-20.

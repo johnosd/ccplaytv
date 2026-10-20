@@ -203,16 +203,17 @@ Contratos de outras features nos mesmos arquivos, que devem continuar verdes: 01
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | Tetos de linha do ratchet: `catalogApi.ts` tem 3 linhas de folga; `VodCategoryScreen.tsx` e `SearchScreen.tsx` estão no teto. | `npm run lint` falha. | Lógica em arquivos novos (`aggregatedIndex.ts`, `useVodListItems.ts`, `lib/slices.ts`); o hook absorve o filtro, as opções e a ordenação, liberando linhas na tela. Nunca subir o teto no baseline. |
-| R-002 | A ordenação em fatias divergir da nativa (empate, comparador inconsistente). | Ordem visível muda (viola D-001). | Merge sort estável + `comparatorFor` único (D-002); contrato FR-005 com acentos, pontuação, números e empates em todas as opções. |
-| R-003 | As ordenações Ano/Adicionados/Nota não foram medidas; o usuário não soube dizer se travam. | O FR-005 diz "fica como está se já cumpre". | Decisão: todas passam pelo mesmo `sortVodItemsInSlices` (mesma ordem garantida por D-002), mais simples que manter dois caminhos; medidas na sonda (T019). Comunicar no relato do execute. |
+| R-001 | Tetos de linha do ratchet: `catalogApi.ts` tem 3 linhas de folga; `VodCategoryScreen.tsx` e `SearchScreen.tsx` estão no teto. | `npm run lint` falha. | Resolvido: lógica em arquivos novos (`aggregatedIndex.ts`, `useVodListItems.ts`, `lib/slices.ts`); o hook absorve o filtro, as opções e a ordenação, liberando linhas na tela. Nunca subir o teto no baseline. |
+| R-002 | A ordenação em fatias divergir da nativa (empate, comparador inconsistente). | Ordem visível muda (viola D-001). | Resolvido: merge sort estável + `comparatorFor` único (D-002); contrato FR-005 com acentos, pontuação, números e empates em todas as opções. |
+| R-003 | As ordenações Ano/Adicionados/Nota não foram medidas; o usuário não soube dizer se travam. | O FR-005 diz "fica como está se já cumpre". | Resolvido: decisão aplicada, todas passam pelo mesmo `sortVodItemsInSlices` (mesma ordem garantida por D-002), mais simples que manter dois caminhos; medidas na sonda (T019). Comunicar no relato do execute. |
 | R-004 | A 1ª tecla na busca global com termo curto (2 caracteres) pode casar dezenas de milhares de itens; ordenar os acertos por `Intl.Collator` é uma tarefa longa fora do escopo da spec (que trata da montagem). | Possível quadro > 100 ms na digitação, mesmo com a montagem resolvida. | O aquecimento do nome normalizado (opção `normalize`) tira a parte da normalização. A sonda mede "primeira tecla" (T019); se passar de 100 ms, registrar como achado novo no backlog, sem ampliar o escopo. |
 | R-005 | A sonda roda sem React; o app real pode ter mais trabalho no mesmo quadro. | O gate da sonda passa e o app real não. | SC-005: leitura do `PerfOverlay` no app real com o usuário (T020). |
 | R-007 | Medição na TV (T019, 2026-10-20, 3 instalações da sonda): a 1ª rodada da instalação com leitura por pedaço de 500 itens teve pior quadro 50 ms em todos os cenários e 4 montagens isoladas tiveram pior 64 ms, mas a 2ª rodada de `quadrosIndice` (após muitas listas descartadas) tem quadros de 150–217 ms (1–3 por cenário) nas duas instalações, e a remontagem a cada 10 s tem pior 150–217 ms (57–58 fps). Montagem da busca global 3,1–3,5 s (limite ~3,2 s). | SC-001/SC-002/SC-003 (nenhum quadro > 100 ms) não cumpridos em todas as medições; hipótese de pausa de GC não provada. | Evidência em `evidencias/quadros-tv-2026-10-20.md`. Decisão do usuário pendente: validar no app real (T020, `PerfOverlay`) antes de aceitar, ou investigar mais a sonda. O critério não foi afrouxado. |
 | R-008 | App real na TV com `PerfOverlay` (T020, 2026-10-20, uma leitura por condição): abrir "Todos" A–Z soma +30 quadros>100ms com o código novo e +29 com o antigo (HEAD, catálogo quente); parado>100 0 → 12 (novo) contra 0 → 7 (antigo); a 1ª leitura do novo (+52) foi logo após instalar e não é comparável. Busca global não está acessível na interface hoje. | SC-005 (`quadros>100ms` sem subir) não cumprido nos dois códigos: no app real o custo dominante dessa entrada não é o que a 084 fatiou; o contador do painel não distingue uma trava longa de várias curtas. | Evidência em `evidencias/app-real-perfoverlay-2026-10-20.md`. Pendente decisão no `sdd-converge`: investigar a causa dos ~30 quadros lentos ao abrir "Todos" (render da grade, capas, trabalho O(n) por render) em feature/bugfix próprio; a 084 entrega a montagem em fatias (ganho provado na sonda) sem ganho visível no app real. |
 | R-009 | `listAllOfKind` ganhou o parâmetro opcional `clock` (`repository/kindReads.ts`) em vez de uma função nova `listAllOfKindInSlices`, e o índice em fatias lê cada categoria de formato 2 por `iterateHeaderChunks` (um pedaço de 500 itens por vez). | O contrato da 063 (`catalogRepository.codigo-saudavel.contract.test.ts`) trava a lista de exports da fachada e `fachada.test.ts` proíbe importar `repository/` de fora; `logic/fatias.md` §2 dizia `listAllOfKind` inalterado. | Sem `clock` o comportamento é idêntico ao de antes (`Promise.all`, `sort` nativo); o contrato 084 e os 017/018/026/063/065 verdes. Decidido na T022/T025. |
 | R-010 | Perfil no PC (CPU 4×) de "Todos" A–Z (T022): os quadros > 100 ms que sobram são nativos (`(program)`) na entrada da tela (~850 ms) e no início da troca de ordenação (~280 ms); o que a 084 fatiou não gera quadro > 100 ms. Achado e corrigido: `RatingBadge` e `translate.ts` criavam `Intl.NumberFormat` por card/render. | Explica por que o app real tem o mesmo contador (+29/+30) com o código antigo e o novo; o SC-005 não depende só do que a 084 entrega. | `evidencias/perfil-todos-pc-2026-10-20.md`. Reler na TV (PerfOverlay) para medir o efeito do cache dos formatadores; investigar o nativo (compilação dos chunks lazy, layout) em feature/bugfix próprio. |
-| R-006 | Remontagem limitada deixa a cobertura até ~10 s defasada com a tela aberta. | Comportamento aceito pelo usuário (FR-006). | Esconder/bloquear categoria segue imediato (FR-007, D-005); teste de regressão T014. |
+| R-011 | Encerramento da Fase 7 por decisão do usuário (2026-10-20, `Não vamos mais medir; faça a conclusão com o que tem`): T023, T024 e T026 não foram executadas. | Ficam aceitos, sem correção: picos de 150–217 ms na 2ª rodada da sonda e na remontagem (R-007), SC-005 não cumprido no app real (R-008/R-010), busca global em 3,1–3,5 s contra ~3,2 s (SC-006), 1ª tecla de 195–228 ms (R-004, no backlog) e TV ao vivo/guia sem medição (FR-004). | Aceito pelo usuário. Os números e o que cada risco significa estão em `evidencias/`. Nenhum critério foi afrouxado no texto da spec: continuam escritos como estavam e marcados aqui como não cumpridos. |
+| R-006 | Remontagem limitada deixa a cobertura até ~10 s defasada com a tela aberta. | Comportamento aceito pelo usuário (FR-006). | Resolvido: esconder/bloquear categoria segue imediato (FR-007, D-005); teste em `categoryAccessApi.test.tsx`. |
 
 ## Execution Notes
 
@@ -253,3 +254,35 @@ Contratos de outras features nos mesmos arquivos, que devem continuar verdes: 01
 - `npm run lint` avisa "teto pode baixar" em `catalogApi.ts` (2 181 < 2 187): não rodar `--prune` sem o usuário pedir, para
   não mexer no baseline à toa.
 - Dentro de `tv-web/`, o PowerShell mantém o diretório entre chamadas: volte à raiz antes de rodar os `.ps1` do `.planning`.
+
+## Resultado Final
+
+**Construído (2026-10-20).** O índice de busca e "Todos" são montados em fatias que cedem a vez à interface e se deixam
+cancelar; a ordenação de "Todos" usa o mesmo comparador de antes, em merge sort estável; a pré-carga remonta o índice no
+máximo uma vez a cada 10 s. O resultado (conteúdo, ordem, cobertura, categorias escondidas) é idêntico ao de antes,
+provado por 4 testes de contrato travados e por testes de regressão. Arquivos novos: `lib/slices.ts`,
+`features/catalog/aggregatedIndex.ts`, `features/vod/useVodListItems.ts`. Mudaram: `catalogSearch.ts`, `globalSearch.ts`,
+`repository/kindReads.ts`, `catalogApi.ts`, `prefetchApi.ts`, `vodSort.ts`, `VodCategoryScreen.tsx`, `RatingBadge.tsx` e
+`translate.ts`. Suíte unitária 664 arquivos / 3 641 testes verdes; E2E 53/54 (o que falhou passou 3 vezes isolado).
+
+**Desvios do plano original.**
+- `listAllOfKind` ganhou o parâmetro opcional `clock` (R-009), em vez de função nova, e o índice lê um pedaço de 500 itens
+  por vez (a leitura por categoria inteira ainda dava quadros de 150–180 ms na TV).
+- `loadAggregatedItems` (T009) entrou na Fase 3, porque `useAggregatedItems` precisava dele para a build ficar coerente.
+- Fase 7 (convergência) trouxe, fora do plano, o cache dos formatadores `Intl` em `RatingBadge` e `translate.ts`, achado no
+  perfil de CPU (R-010).
+- `CCPlayTv/tizen_web_project.yaml` perdeu `assets/requestDeadline.js`, chunk que o build deixou de emitir.
+
+**Resultado nas TVs (sonda e app real).** Ganho provado na sonda: "Todos" A–Z foi de 933–1 233 ms para 50–167 ms de pior
+quadro; a busca global de 15–19 quadros > 50 ms para 0–5; a remontagem a cada 10 s roda a 57–58 fps (era 15–17 fps com
+remontagem a cada 1 s). **No app real o ganho não apareceu no contador do `PerfOverlay`**: abrir "Todos" A–Z soma +29
+(antigo), +30 (novo) e +20 (novo com o cache dos formatadores). O que restou de lento é nativo, na entrada da tela e na troca
+de ordenação, fora do que a 084 fatiou.
+
+**Critérios de desempenho não cumpridos (aceitos pelo usuário, R-011).** SC-001, SC-002 e SC-003 (nenhum quadro > 100 ms)
+valem só na 1ª rodada da sonda e nas montagens isoladas; SC-005 não cumprido no app real; SC-006 em 3,1–3,5 s contra ~3,2 s;
+FR-004 sem medição de TV ao vivo e guia. SC-004 e todos os requisitos funcionais (FR-001 a FR-003 e FR-005 a FR-010) estão
+cumpridos. Abertos como risco: R-004, R-007, R-008, R-010 e R-011.
+
+**Sugestão de continuação** (feature ou bugfix próprio, fora desta): achar a causa do custo nativo ao abrir "Todos"
+(compilação dos chunks lazy, layout) com um perfil nativo na TV.
