@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-20
 
-**Status**: Em Execução
+**Status**: Convergência Pendente
 
 **Input**: handoff do assessment `ajustes-cpu-tv` (`sdd/assessments/ajustes-cpu-tv/decision.md`, veredito `go`
 em 2026-10-19). Na TV física, montar o índice de busca de um tipo inteiro trava o controle:

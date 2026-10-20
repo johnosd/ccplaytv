@@ -120,7 +120,7 @@ update-bug-status.ps1.
 | 081-venda-producao-mercadopago | Venda em produção com Mercado Pago | Em Execução | 34/56 tasks | 2026-10-17 |
 | 082-orcamento-armazenamento-tv | Orçamento de armazenamento do app na TV | Implementada | 89/89 tasks | 2026-10-19 |
 | 083-foco-leve-tv | Foco leve na TV | Convergida | 37/37 tasks | 2026-10-19 |
-| 084-indice-busca-sem-travar | Índice de busca sem travar a tela na TV | Em Execução | 31/32 tasks | 2026-10-20 |
+| 084-indice-busca-sem-travar | Índice de busca sem travar a tela na TV | Convergência Pendente | 31/37 tasks | 2026-10-20 |
 
 ## Bugs
 
