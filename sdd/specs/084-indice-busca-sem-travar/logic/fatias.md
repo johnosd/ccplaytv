@@ -57,7 +57,7 @@ cobertura = listVisibleCategories (como hoje).
 - **Cancelamento** (FR-008): a montagem cancelada rejeita com `AbortError` e **não cede mais vezes** (o contrato exige
   exatamente 1 cessão quando o sinal é abortado dentro da 1ª). Confira o sinal antes de ler o próximo bloco e logo
   depois de cada cessão.
-- `listAllOfKind` continua existindo e inalterado (o contrato o usa como referência).
+- `listAllOfKind` continua existindo e o contrato o usa como referência. **Ajuste feito no execute (R-009)**: ganhou o 4º parâmetro opcional `clock` (sem ele o comportamento é o de antes), porque a fachada de `catalogRepository` não pode ganhar export novo (contrato 063); com `clock` lê um bloco por vez e, no formato 2, um pedaço de 500 itens por vez (`iterateHeaderChunks`).
 - Cuidado: **nunca** leia `block.items` de um bloco `format === 2` (regra da 082 no CLAUDE.md).
 
 ## 3. "Todos": itens e ordenação

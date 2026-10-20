@@ -278,7 +278,7 @@ verde; `npm run lint` com os tetos respeitados.
 **Objetivo**: fechar as lacunas que o `sdd-converge` achou entre a spec e o que a TV mediu. O código e os 4 contratos estão
 convergidos; o que falta são os critérios de desempenho (SC-001/002/003/005/006) e três registros.
 
-- [ ] T022 [HIGH] Diagnosticar por que abrir "Todos" A–Z soma ~30 quadros > 100 ms no app real tanto no código antigo quanto
+- [ ] T022 [HIGH] (diagnóstico feito em 2026-10-20, ver `evidencias/perfil-todos-pc-2026-10-20.md`: custo achado e corrigido em `RatingBadge`/`translate.ts` (formatador `Intl` por idioma); o restante é nativo na entrada da tela e no início da troca de ordenação; **falta reler na TV com o `PerfOverlay`** para saber se o contador caiu) Diagnosticar por que abrir "Todos" A–Z soma ~30 quadros > 100 ms no app real tanto no código antigo quanto
   no novo, e atingir `quadros>100ms` estável ou emendar o SC-005 com o usuário. Passos: medir no PC com o perfil do
   navegador (render da grade com 43 mil itens, `locateOrNeighbor`/`items.some` por render, capas), depois a TV com o
   `PerfOverlay`; não afrouxar o critério sem decisão do usuário. Origem: SC-005; US1/US2; R-008.
@@ -289,7 +289,7 @@ convergidos; o que falta são os critérios de desempenho (SC-001/002/003/005/00
 - [ ] T024 [MEDIUM] Tempo da montagem da busca global: 3,09–3,45 s contra ≤ ~3,2 s. Reduzir (pedaços maiores quando não há
   pressão de quadros, normalização mais barata) ou pedir ao usuário que ajuste o limite do FR-011/SC-006. Origem: SC-006;
   FR-011.
-- [ ] T025 [LOW] Registrar em `plan.md` → `## Riscos e Decisões` (R-009) que `listAllOfKind` ganhou o parâmetro opcional
+- [X] T025 [LOW] Registrar em `plan.md` → `## Riscos e Decisões` (R-009) que `listAllOfKind` ganhou o parâmetro opcional
   `clock` (em vez de uma função nova) porque o contrato 063 trava os exports da fachada de `catalogRepository`, e ajustar a
   nota "inalterado" de `logic/fatias.md` §2. Origem: plan: `logic/fatias.md` §2.
 - [ ] T026 [LOW] Medir também "Todos" da TV ao vivo e o guia (usam `useAggregatedItems` com `channel`) na próxima passada na

@@ -24,9 +24,16 @@ type Catalogs = Record<AppLanguage, Readonly<Record<string, string>>>
 
 const CATALOGS: Catalogs = { pt, en, es }
 
+/** Um formatador por idioma: criar `Intl.NumberFormat` a cada `t()` com parâmetros custa muito na TV (feature 084, T022). */
+const numberFormatters = new Map<AppLanguage, Intl.NumberFormat>()
+
 function interpolate(template: string, params: TranslateParams | undefined, language: AppLanguage): string {
   if (!params) return template
-  const numbers = new Intl.NumberFormat(APP_LANGUAGE_LOCALE[language])
+  let numbers = numberFormatters.get(language)
+  if (!numbers) {
+    numbers = new Intl.NumberFormat(APP_LANGUAGE_LOCALE[language])
+    numberFormatters.set(language, numbers)
+  }
   return template.replace(/\{(\w+)\}/g, (match, name: string) => {
     const value = params[name]
     if (value === undefined) return match
