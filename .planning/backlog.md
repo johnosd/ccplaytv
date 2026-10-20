@@ -19,6 +19,12 @@ update-bug-status.ps1.
   com a lista aberta, meta 0), SC-004 (3 listas + Atualizar da licença) e SC-007 (guia ≤ 3 s no app real). O pacote de
   medição já está instalado na TV; depois, reinstalar o pacote normal (avisando).
 - [Medição] **Abrir "Todos" soma ~30 quadros acima de 100 ms no app real** (origem: feature 084, T020, 2026-10-20, R-008): com o `PerfOverlay`, abrir Filmes → "Todos" → Ordenar A–Z leva `quadros>100ms` de 3 para 32–33 tanto no código antigo quanto no novo (a 084 fatiou índice, conversão e ordenação, que a sonda mostrou serem o congelamento de 933–1 233 ms). A causa dominante no app real é outra ou adicional (render da grade, capas, trabalho por render). Evidência: `sdd/specs/084-indice-busca-sem-travar/evidencias/app-real-perfoverlay-2026-10-20.md`.
+- [Medição] **Carga por seção mais lenta entre rodadas na mesma instalação** (origem: especificação da 085, 2026-10-20,
+  FR-015): na sonda `etapasSecao`, a carga da seção de filmes passou de 22 s para 33 s entre a 1ª e a 2ª rodada da mesma
+  instalação, e o orçamento subiu junto. Hipótese, não confirmada: o IndexedDB da TV fica mais lento depois de uma carga
+  grande apagada, porque `clear()` não devolve o espaço na hora. Evidência:
+  `sdd/assessments/gravacao-carga-secao-tv/evidencias/etapas-gravacao-tv-2026-10-19.md`.
+- [Perf] **Orçamento de armazenamento ainda custa ~1,8 s por chamada no app real** (origem: 085, T044, 2026-10-20; ver `sdd/specs/085-gravacao-carga-secao-tv/evidencias/tv-app-real-2026-10-20.md`). Na sonda o orçamento fecha em ~29 ms/chamada, mas na lista real a carga de filmes levou 11,7 s, com 3,7 s em 2 chamadas de `makeRoomFor` (ledger e candidatos crescem com o catálogo). Atacar o resto do `makeRoomFor` (ou reabrir a conta guardada, D-001 da 085) e medir de novo no app real, onde o canal de métricas já entrega as etapas.
 - [Medição] **1ª tecla da busca global com termo de 2 letras** (origem: feature 084, T019, 2026-10-20, R-004): na TV,
   `searchGlobal` com "ma" (7 317 filmes casando) leva 195–228 ms em uma tarefa só (ordenação síncrona dos acertos por
   `Intl.Collator`). Passa de 100 ms; fora do escopo da 084. Evidência:
@@ -120,7 +126,8 @@ update-bug-status.ps1.
 | 081-venda-producao-mercadopago | Venda em produção com Mercado Pago | Em Execução | 34/56 tasks | 2026-10-17 |
 | 082-orcamento-armazenamento-tv | Orçamento de armazenamento do app na TV | Implementada | 89/89 tasks | 2026-10-19 |
 | 083-foco-leve-tv | Foco leve na TV | Convergida | 37/37 tasks | 2026-10-19 |
-| 084-indice-busca-sem-travar | Índice de busca sem travar a tela na TV | Convergência Pendente | 31/37 tasks | 2026-10-20 |
+| 084-indice-busca-sem-travar | Índice de busca sem travar a tela na TV | Convergida | 33/37 tasks | 2026-10-20 |
+| 085-gravacao-carga-secao-tv | Gravação da carga por seção mais rápida na TV | Convergida | 40/40 tasks | 2026-10-20 |
 
 ## Bugs
 

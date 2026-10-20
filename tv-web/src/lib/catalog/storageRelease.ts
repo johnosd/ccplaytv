@@ -12,7 +12,7 @@ import type { CatalogLedger } from './storageLedger'
 import { guideStoredBytes, LEGACY_EPG_ROW_BYTES, METADATA_BYTES } from './storageLedger'
 import { deleteCategoryItems } from './blockChunks'
 import { deleteEpgForSource } from '../epg/epgRepository'
-import { isQuotaError, resolveStableIds } from './catalogRepository'
+import { clearStagedItemsOfOtherSources, isQuotaError, resolveStableIds } from './catalogRepository'
 import { parseStableId, type StableIdParts } from './userStateRepository'
 
 export interface CandidateContext {
@@ -32,11 +32,22 @@ function refetchable(category: CategoryRecord): boolean {
   return category.fetchMode === 'on_demand'
 }
 
+const KEY_MIN = -1
+const KEY_MAX = Number.MAX_SAFE_INTEGER
+
+/** Partes do preparo de OUTRAS listas, só por contagem de índice: nunca lê os itens preparados (feature 085, D-002). */
+async function stagedPartsOfOthers(database: CatalogDb, activeSourceId?: string): Promise<number> {
+  const table = database.table('sectionStaging')
+  const total = await table.count()
+  if (activeSourceId === undefined || total === 0) return total
+  const own = await table.where('[sourceId+categoryId]').between([activeSourceId, KEY_MIN], [activeSourceId, KEY_MAX], true, true).count()
+  return total - own
+}
+
 /** Monta os candidatos de `logic/orcamento.md` §3, na ordem de entrada (o planejador ordena). */
 export async function releaseCandidates(database: CatalogDb, context: CandidateContext): Promise<ReleaseCandidate[]> {
   const result: ReleaseCandidate[] = []
-  const staging = await database.table('sectionStaging')
-    .filter((row: { sourceId?: string }) => row.sourceId !== context.activeSourceId).count()
+  const staging = await stagedPartsOfOthers(database, context.activeSourceId)
   const discovery = await database.table('discoveryCache').count()
   if (staging + discovery > 0) {
     result.push({ key: 'temporary', scope: 'temporary', bytes: (staging + discovery) * METADATA_BYTES, lastUsedAt: 0,
@@ -151,13 +162,12 @@ async function releaseGuide(database: CatalogDb, sourceId: string): Promise<void
 
 /** Preparo de seção de outras listas e o cache de descobertas do TMDB. */
 export async function releaseTemporary(database: CatalogDb, keepSourceId?: string): Promise<{ staging: boolean; discovery: boolean }> {
-  const staging = database.table('sectionStaging')
-  const keys = await staging.filter((row: { sourceId?: string }) => row.sourceId !== keepSourceId).primaryKeys()
-  if (keys.length) await staging.bulkDelete(keys)
+  // Chaves do índice e apagar por faixa: nunca desserializa os itens preparados (feature 085, D-002).
+  const stagingCleared = await clearStagedItemsOfOtherSources(keepSourceId, database)
   const discovery = database.table('discoveryCache')
   const hadDiscovery = (await discovery.count()) > 0
   if (hadDiscovery) await discovery.clear()
-  return { staging: keys.length > 0, discovery: hadDiscovery }
+  return { staging: stagingCleared, discovery: hadDiscovery }
 }
 
 /** Libera um candidato escolhido pelo planejador. Devolve `[sourceId, categorias liberadas]` para avisar as telas. */

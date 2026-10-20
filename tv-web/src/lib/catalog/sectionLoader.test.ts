@@ -255,4 +255,66 @@ describe('loadSection (feature 038, R0-3)', () => {
       loadSection(SOURCE_ID, 'channel', [c1], { database, fetchImpl: async () => streamed(SECTION), signal: controller.signal }),
     ).rejects.toMatchObject({ name: 'AbortError' })
   })
+
+  // Feature 085 (US2/AC3): abortar no meio da gravação, com o preparo usado, não deixa sobra e mantém o já gravado.
+  it('abortado durante a gravação das categorias: preparo vazio e a categoria já gravada fica', async () => {
+    const [c1, c2, c3] = await seedLive()
+    const controller = new AbortController()
+    const written: number[] = []
+    await expect(
+      loadSection(SOURCE_ID, 'channel', [c1, c2, c3], {
+        database,
+        fetchImpl: async () => streamed(SECTION),
+        stageFlushItems: 1,
+        signal: controller.signal,
+        onCategory: (id) => {
+          written.push(id)
+          controller.abort()
+        },
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' })
+    expect(written).toEqual([c1])
+    expect(await database.sectionStaging.count()).toBe(0)
+    expect((await listChannels(SOURCE_ID, 0, 0, 10, 'channel', database)).map((r) => r.name)).toEqual(['Canal A', 'Canal B'])
+  })
+
+  // Edge "no limite": a descarga dispara quando os itens lidos chegam a `stageFlushItems` (>=), então uma seção com
+  // exatamente esse tamanho passa pelo preparo uma vez e não deixa sobra.
+  it('seção com exatamente stageFlushItems itens passa pelo preparo uma vez', async () => {
+    const [c1, c2, c3] = await seedLive()
+    const bulkAdd = vi.spyOn(database.sectionStaging, 'bulkAdd')
+    await loadSection(SOURCE_ID, 'channel', [c1, c2, c3], { database, fetchImpl: async () => streamed(SECTION), stageFlushItems: 4 })
+    expect(bulkAdd).toHaveBeenCalledTimes(1)
+    expect(await database.sectionStaging.count()).toBe(0)
+  })
+
+  // Feature 085 (US3): os tempos por etapa saem por `onTimings`, uma vez por carga, só números.
+  it('onTimings é chamado uma vez, com contagens coerentes e todos os campos finitos ≥ 0; abaixo do limite não há escrita no preparo', async () => {
+    const [c1, c2, c3] = await seedLive()
+    let tick = 0
+    const timings: Array<Record<string, number>> = []
+    const result = await loadSection(SOURCE_ID, 'channel', [c1, c2, c3], {
+      database,
+      fetchImpl: async () => streamed(SECTION),
+      clock: () => (tick += 1),
+      onTimings: (measured) => timings.push({ ...measured }),
+    })
+    expect(result.outcome).toBe('done')
+    expect(timings).toHaveLength(1)
+    const [measured] = timings
+    expect([measured.items, measured.categories, measured.written]).toEqual([4, 3, 3])
+    expect(measured.budgetCalls).toBe(3)
+    expect(measured.stageWriteMs).toBe(0)
+    for (const value of Object.values(measured)) {
+      expect(Number.isFinite(value)).toBe(true)
+      expect(value).toBeGreaterThanOrEqual(0)
+    }
+  })
+
+  it('onTimings também é chamado quando a carga falha ou é cancelada', async () => {
+    const [c1] = await seedLive()
+    const onTimings = vi.fn()
+    await loadSection(SOURCE_ID, 'channel', [c1], { database, fetchImpl: async () => new Response(null, { status: 500 }), onTimings })
+    expect(onTimings).toHaveBeenCalledTimes(1)
+  })
 })

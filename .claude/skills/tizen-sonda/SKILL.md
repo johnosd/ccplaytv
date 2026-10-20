@@ -71,6 +71,18 @@ O código da sonda é **ES5 com `var`, sem módulos** (script clássico), `async
   dados). O `PerfOverlay` mostra números (`quadros>100ms`, `parado>100ms`, `tecla: Nfps pior=Xms >50ms=Y`, tempos de entrada).
   **A leitura é do usuário** na TV, que opera a lista real dele; peça números e respostas específicas, nunca "funcionou?".
   Ao terminar, rebuild normal (sem a variável) e reinstale — e avise: `build:tizen` reescreve `CCPlayTv/assets` rastreados.
+  **Medir o app real sem depender de ler o painel (feature 085)**: o build de medição também pode mandar os números ao
+  coletor. Suba o coletor com `node sdd\specs\082-orcamento-armazenamento-tv\sonda-tv\coletor.mjs <ip-da-tv> 8770 --app-saida <arquivo>.jsonl`
+  (padrão `sdd/specs/082-.../evidencias/app-metricas.jsonl`; para ensaiar no PC passe `127.0.0.1` como IP) e gere o build com
+  `$env:VITE_CCPLAY_PERF = "1"; $env:VITE_CCPLAY_METRICS_REPORT = "http://<ip-do-pc>:8770/app-metrics"; npm run build:tizen`. O destino só
+  vale como `http://` em `localhost`, `127.0.0.1` ou `192.168.x.y`, com o caminho exato `/app-metrics`. O app manda lotes
+  `ccplay-app-metrics/1` (`{ schema, sentAt, lines }`) e o coletor grava **uma linha por métrica**. Cada linha tem `source`:
+  `section-load` (etapas da carga por seção: `readMs`, `encodeMs`, `budgetMs`, `commitMs`, `gateWaitMs`, `totalMs`…),
+  `entry` (fases da entrada numa categoria, uma chave `<fase>Ms`), `assembly` (revelação de Home/Filmes/Séries) e `frames`
+  (quadros lentos e a janela de tecla, a cada ~5 s). **Só números e rótulos fixos** (`kind`, `outcome`, `screen`, `reason`):
+  nunca nome de canal/categoria/título, URL ou credencial — o app sanea e o coletor sanea de novo. O build normal não leva o
+  canal (a string `ccplay-app-metrics` não existe em `dist/assets`). Sem o IP do PC acessível, nada é enviado e o app segue
+  igual. Leia o `.jsonl` atrás de texto do provedor antes de gravar a evidência, e **reinstale o pacote normal avisando**.
 - **D — bug**: reduza ao mínimo no app de teste (um teste que reproduz e devolve o nome do erro/valor). Se a sonda não
   reproduz, a causa está no app: volte ao modo C.
 
@@ -162,8 +174,9 @@ prova). Sem URL, host, credencial ou nome de item. Registre a decisão tomada (`
 
 - `instalar-sonda.ps1` sem `-App app2` instala a sonda 1 e `-Only foco083` não acha nada.
 - `report-target.js` está versionado e é reescrito a cada instalação (IP da LAN); não o trate como mudança de feature.
-- O coletor só conhece os schemas `sonda-cota-082/1` e `sonda-tv-082/2`; um app novo com outro schema precisa de uma linha em
-  `outputs` no `coletor.mjs` e outro `schema` no `report` de `core.js`.
+- O coletor só conhece os schemas `sonda-cota-082/1` e `sonda-tv-082/2` (sondas, `POST /storage-probe`) e `ccplay-app-metrics/1`
+  (app real, `POST /app-metrics`, feature 085); um app novo com outro schema precisa de uma linha em `outputs` no `coletor.mjs`
+  e outro `schema` no `report` de `core.js`.
 - Regra de repouso com seletor mais específico que a de estado "vence" e a variante nunca acende (medi o nada). Confira por
   `getComputedStyle` no ensaio.
 - A TV recusa o `sdb` por um tempo depois de ligar/reiniciar (daemon subindo): tente de novo antes de mexer no Host PC IP.
@@ -180,3 +193,4 @@ prova). Sem URL, host, credencial ou nome de item. Registre a decisão tomada (`
 - [ ] Evidência gravada na feature, só números, classificada (gate/registro/diagnóstico), sem segredo
 - [ ] Decisão registrada (`plan.md` ou assessment do bug) com os números
 - [ ] Se usou o modo C: build normal reinstalado e o usuário avisado
+- [ ] Se mandou métricas do app real: `.jsonl` lido atrás de texto do provedor e sem variável `VITE_CCPLAY_METRICS_REPORT` no build final

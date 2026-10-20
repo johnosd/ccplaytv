@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CatalogDb, type CatalogRecord } from './db'
 import { getChannel, listChannels, storeCategories, storeCategoryItems } from './catalogRepository'
 import { makeRoomFor, PIN_WINDOW_MS, subscribeCatalogReleases, touchCategory } from './storageBudget'
-import { categoryStoredBytes } from './storageLedger'
-import { releaseCandidates, releaseInactiveList } from './storageRelease'
+import { categoryStoredBytes, METADATA_BYTES } from './storageLedger'
+import { releaseCandidates, releaseInactiveList, releaseTemporary } from './storageRelease'
 import { catalogLedger } from './storageLedger'
 import { epgChunks } from './chunkTables'
 import { toggleFavorite } from './userStateRepository'
@@ -126,5 +126,31 @@ describe('liberação do orçamento', () => {
     const ledger = await catalogLedger(database)
     const candidates = await releaseCandidates(database, { activeSourceId: 'ativa', ledger, lastUsedOf: () => 0, isRecent: () => false })
     expect(candidates.filter((candidate) => candidate.refetchable).map((candidate) => candidate.key)).toEqual(['category:1'])
+  })
+
+  // Feature 085, T013: o preparo é contado e liberado só por chave de índice (FR-001, FR-005).
+  describe('preparo de seção (feature 085)', () => {
+    const part = (sourceId: string, categoryId: number) => ({ sourceId, categoryId, items: movies(sourceId, 0, `p${categoryId}`, 3) })
+    const context = (activeSourceId?: string) => ({ activeSourceId, ledger: { total: 0, bySource: {}, byCategory: new Map() } as never,
+      lastUsedOf: () => 0, isRecent: () => false })
+
+    it('preparo só da lista ativa não vira candidato "temporário"', async () => {
+      await database.sectionStaging.bulkAdd([part('ativa', 1), part('ativa', 2)])
+      const candidates = await releaseCandidates(database, context('ativa'))
+      expect(candidates.find((candidate) => candidate.key === 'temporary')).toBeUndefined()
+    })
+
+    it('com preparo da ativa e de outras listas, os bytes são só as linhas das outras', async () => {
+      await database.sectionStaging.bulkAdd([part('ativa', 1), part('outra', 1), part('outra', 2), part('terceira', 1)])
+      const temporary = (await releaseCandidates(database, context('ativa'))).find((candidate) => candidate.key === 'temporary')
+      expect(temporary?.bytes).toBe(3 * METADATA_BYTES)
+    })
+
+    it('releaseTemporary mantém a lista ativa e apaga todas as outras', async () => {
+      await database.sectionStaging.bulkAdd([part('ativa', 1), part('outra', 1), part('terceira', 1), part('terceira', 2)])
+      expect((await releaseTemporary(database, 'ativa')).staging).toBe(true)
+      expect((await database.sectionStaging.toArray()).map((row) => row.sourceId)).toEqual(['ativa'])
+      expect((await releaseTemporary(database, 'ativa')).staging).toBe(false)
+    })
   })
 })

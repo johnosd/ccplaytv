@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { createActiveFrameTracker, type ActiveFrameStats } from '../lib/perf/activeFrames'
 import { subscribeEntryReports, takeEntryReports, type EntryReport } from '../lib/perf/entryTiming'
+import { emitMetric } from '../lib/perf/metricsChannel'
 
 /**
  * Painel de medição da feature 038 (FR-012), só no build de medição
@@ -30,6 +31,13 @@ export function PerfOverlay() {
     const onKey = () => { lastKey = performance.now(); tracker.onKey(lastKey) }
     const refresh = window.setInterval(() => setKeyedFrames(tracker.snapshot(performance.now())), 500)
     window.addEventListener('keydown', onKey, true)
+    // Feature 085: a cada ~5 s os quadros lentos e a janela de tecla vão ao canal (no-op fora do build de medição).
+    let slow = 0
+    let idleSlow = 0
+    const report = window.setInterval(() => {
+      const keyed = tracker.snapshot(performance.now())
+      emitMetric({ source: 'frames', slow, idleSlow, ...(keyed ? { fps: keyed.fps, worstMs: keyed.worstMs, over50: keyed.over50 } : {}) })
+    }, 5_000)
     let previous = performance.now()
     let active = true
     let frame = 0
@@ -37,14 +45,18 @@ export function PerfOverlay() {
       if (!active) return
       tracker.onFrame(now)
       if (now - previous > 100) {
+        slow += 1
         setSlowFrames((count) => count + 1)
-        if (now - mountedAt > 15_000 && previous - lastKey > 2_000) setIdleSlowFrames((count) => count + 1)
+        if (now - mountedAt > 15_000 && previous - lastKey > 2_000) {
+          idleSlow += 1
+          setIdleSlowFrames((count) => count + 1)
+        }
       }
       previous = now
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
-    return () => { active = false; cancelAnimationFrame(frame); window.clearInterval(refresh); window.removeEventListener('keydown', onKey, true) }
+    return () => { active = false; cancelAnimationFrame(frame); window.clearInterval(refresh); window.clearInterval(report); window.removeEventListener('keydown', onKey, true) }
   }, [])
   const last = reports.slice(-6)
   // A entrada mais recente que já pintou a 1ª página (SC-002 é lido na TV a cada entrada).

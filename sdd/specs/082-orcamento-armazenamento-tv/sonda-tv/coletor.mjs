@@ -1,8 +1,10 @@
 // Coletor local das sondas da feature 082. Aceita só o IP da TV.
 //  POST /storage-probe  → grava o relatório (schemas das sondas 1 e 2) em ../evidencias/*.jsonl
+//  POST /app-metrics    → o APP REAL (build de medição, feature 085): lote `ccplay-app-metrics/1`, uma linha por métrica em
+//       --app-saida <arquivo> (padrão ../evidencias/app-metricas.jsonl). Só números e rótulos curtos; o resto é descartado aqui também.
 //  GET  /ping, /bin/<MB>, /amostra/<nome>.json, /amostra-gz/<nome>  → insumos da sonda 2 (amostras sanitizadas de
 //       .amostras/, geradas por medir-lista-real.mjs: sem host do provedor, sem credencial, sem URL de stream).
-// Uso: node coletor.mjs <ip-da-tv> [porta]
+// Uso: node coletor.mjs <ip-da-tv> [porta] [--app-saida <arquivo>]   (para ensaiar no PC, passe 127.0.0.1 como IP)
 import http from 'node:http'
 import { appendFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -10,13 +12,18 @@ import { fileURLToPath } from 'node:url'
 import { randomBytes } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 
-const tvIp = process.argv[2]
-const port = Number(process.argv[3] ?? 8770)
-if (!tvIp) { console.error('uso: node coletor.mjs <ip-da-tv> [porta]'); process.exit(2) }
+const args = process.argv.slice(2)
+const flag = args.indexOf('--app-saida')
+const appOutputArg = flag >= 0 ? args.splice(flag, 2)[1] : undefined
+const tvIp = args[0]
+const port = Number(args[1] ?? 8770)
+if (!tvIp) { console.error('uso: node coletor.mjs <ip-da-tv> [porta] [--app-saida <arquivo>]'); process.exit(2) }
 const here = dirname(fileURLToPath(import.meta.url))
 const evidence = resolve(here, '..', 'evidencias')
 mkdirSync(evidence, { recursive: true })
 const outputs = { 'sonda-cota-082/1': resolve(evidence, 'sonda-cota-tv.jsonl'), 'sonda-tv-082/2': resolve(evidence, 'sonda-tv2.jsonl') }
+const appOutput = resolve(appOutputArg ?? resolve(evidence, 'app-metricas.jsonl'))
+mkdirSync(dirname(appOutput), { recursive: true })
 const binCache = new Map()
 
 const server = http.createServer(async (req, res) => {
@@ -47,6 +54,7 @@ const server = http.createServer(async (req, res) => {
     }
     res.writeHead(404).end(); return
   }
+  if (path === '/app-metrics' && req.method === 'POST') { await receiveAppMetrics(req, res); return }
   if (path !== '/storage-probe' || req.method !== 'POST') { res.writeHead(404).end(); return }
   let body = ''
   try {
@@ -59,4 +67,31 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204).end()
   } catch (error) { console.log('recusado:', error.message); res.writeHead(400).end() }
 })
+
+/** Defesa em profundidade: o app já sanea, mas o coletor também só aceita números finitos e rótulos curtos. */
+function cleanMetric(line) {
+  if (!line || typeof line !== 'object' || Array.isArray(line) || typeof line.source !== 'string') return null
+  const out = {}
+  for (const [key, value] of Object.entries(line)) {
+    if (!/^[a-z][A-Za-z0-9]{0,39}$/.test(key)) continue
+    if (typeof value === 'number' && Number.isFinite(value)) out[key] = value
+    else if (typeof value === 'string' && /^[a-z_-]{1,24}$/.test(value)) out[key] = value
+  }
+  return out
+}
+
+async function receiveAppMetrics(req, res) {
+  let body = ''
+  try {
+    for await (const chunk of req) { body += chunk.toString(); if (body.length > 1024 * 1024) throw Error('limite') }
+    const data = JSON.parse(body)
+    if (data.schema !== 'ccplay-app-metrics/1' || !Array.isArray(data.lines) || data.lines.length > 500) throw Error('schema')
+    const receivedAt = new Date().toISOString()
+    const lines = data.lines.map(cleanMetric).filter(Boolean)
+    for (const line of lines) appendFileSync(appOutput, JSON.stringify({ receivedAt, sentAt: data.sentAt, ...line }) + '\n')
+    console.log(`[${new Date().toLocaleTimeString()}] app: ${lines.length} linha(s) (${[...new Set(lines.map((l) => l.source))].join(', ')})`)
+    res.writeHead(204).end()
+  } catch (error) { console.log('recusado:', error.message); res.writeHead(400).end() }
+}
+
 server.listen(port, '0.0.0.0', () => console.log(`Coletor das sondas pronto na porta ${port}`))

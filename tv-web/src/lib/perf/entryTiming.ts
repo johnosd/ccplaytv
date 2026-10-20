@@ -10,6 +10,7 @@
  */
 
 import { logger } from '../logger'
+import { emitMetric } from './metricsChannel'
 
 /**
  * `start`/`ensured`/`itemsOut` (feature 039, R-009) detalham a entrada numa
@@ -36,6 +37,14 @@ export function isPerfEnabled(): boolean {
   } catch {
     return false
   }
+}
+
+/** Feature 085: só `kind` (rótulo fixo), `items` e uma chave `<fase>Ms` por fase; o id da categoria não sai. */
+function emitEntryMetric(report: EntryReport): void {
+  const background = report.kind.endsWith(':foco')
+  const phases: Record<string, number> = {}
+  for (const [name, ms] of Object.entries(report.phases)) phases[`${name}Ms`] = ms
+  emitMetric({ source: 'entry', kind: background ? report.kind.slice(0, -':foco'.length) : report.kind, background: background ? 1 : 0, items: report.items, ...phases })
 }
 
 interface Pending {
@@ -75,6 +84,7 @@ export function markEntry(categoryId: number, kind: string, phase: EntryPhase, i
   pending.delete(categoryId)
   const report: EntryReport = { categoryId, kind: entry.kind, phases: entry.phases, items: entry.items }
   reports().push(report)
+  emitEntryMetric(report)
   for (const listener of [...listeners]) listener()
   logger.log(
     `[perf] entrada ${report.kind} #${report.categoryId}: ` +
@@ -92,6 +102,7 @@ export function markEntry(categoryId: number, kind: string, phase: EntryPhase, i
 export function reportBackgroundRead(categoryId: number, kind: string, phases: Partial<Record<EntryPhase, number>>, items?: number): void {
   if (!isPerfEnabled()) return
   reports().push({ categoryId, kind: `${kind}:foco`, phases, items })
+  emitEntryMetric({ categoryId, kind: `${kind}:foco`, phases, items })
   for (const listener of [...listeners]) listener()
 }
 

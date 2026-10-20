@@ -241,33 +241,50 @@
     return out
   }
 
-  // Divisão do tempo da carga real por seção (assessment gravacao-carga-secao-tv): carga real + mesma sequência por etapas.
-  async function etapasSecao() {
-    var url = P.base + '/amostra/vodraw.json'
+  // Divisão do tempo da carga real por seção (assessment gravacao-carga-secao-tv; feature 085 acrescenta séries e canais).
+  // Por seção e rodada: `secaoAtual` = tempo total do `loadSection` real (o número que o critério da 085 compara com a linha de
+  // base); `secaoEtapas` = a sequência de ANTES da 085 reimplementada por etapas; `secaoReal` = o `loadSection` com `onTimings`
+  // (no código anterior à 085 ele roda sem tempos). A linha de base e a medição pós-mudança usam este mesmo teste.
+  async function etapasSecao(only) {
+    var sections = [['movie', 'vodraw'], ['series', 'seriesraw'], ['channel', 'liveraw']].filter(function (x) { return !only || x[0] === only })
     var worker = new Worker('cargaWorker.js')
-    function call(name) {
+    function call(name, section, file) {
       return new Promise(function (resolve) {
         worker.onmessage = function (event) { resolve(event.data.ok ? event.data.result : { error: event.data.error }) }
-        worker.postMessage({ op: 'variante', name: name, url: url })
+        worker.postMessage({ op: 'variante', name: name, section: section, url: P.base + '/amostra/' + file + '.json' })
       })
     }
-    var out = { rodadas: [] }
-    for (var round = 1; round <= 2; round += 1) {
-      P.status('Etapas da seção r' + round)
-      var r = { rodada: round, secaoAtual: await call('secaoAtual') }
-      await P.sleep(500)
-      r.etapas = await call('secaoEtapas')
-      var e = r.etapas
-      P.log('Etapas r' + round + ': real ' + r.secaoAtual.ms + ' | etapas ' + e.ms + ' = ler ' + e.lerInterpretar + ' + desc ' + e.descarregarPreparo + ' + lerPrep ' + e.lerPreparo +
-        ' + comprimir ' + e.prepararComprimir + ' + orç ' + e.orcamento + ' + trans ' + e.transacao + ' + limpar ' + e.limparPreparo)
-      out.rodadas.push(r)
-      await P.sleep(500)
+    var out = { secoes: {} }
+    for (var s = 0; s < sections.length; s += 1) {
+      var section = sections[s][0]
+      var file = sections[s][1]
+      out.secoes[section] = { rodadas: [] }
+      for (var round = 1; round <= 2; round += 1) {
+        P.status('Etapas ' + section + ' r' + round)
+        var r = { rodada: round, secaoAtual: await call('secaoAtual', section, file) }
+        await P.sleep(500)
+        r.etapas = await call('secaoEtapas', section, file)
+        await P.sleep(500)
+        r.real = await call('secaoReal', section, file)
+        var e = r.etapas
+        var m = r.real
+        P.log('Etapas ' + section + ' r' + round + ': loadSection ' + r.secaoAtual.ms + ' ms (' + r.secaoAtual.items + ' itens) | sequência antiga ' + e.ms + ' = ler ' + e.lerInterpretar + ' + desc ' + e.descarregarPreparo +
+          ' + lerPrep ' + e.lerPreparo + ' + comprimir ' + e.prepararComprimir + ' + orç ' + e.orcamento + ' + trans ' + e.transacao + ' + limpar ' + e.limparPreparo +
+          ' | real: total ' + m.totalMs + ' = ler ' + m.readMs + ' + codif ' + m.encodeMs + ' + orç ' + m.budgetMs + ' (' + m.budgetCalls + 'x) + commit ' + m.commitMs +
+          ' + limpar ' + m.stageClearMs + ' | estimate ' + m.estimativaPorCategoriaMs + ' ms/cat')
+        out.secoes[section].rodadas.push(r)
+        await P.sleep(500)
+      }
     }
     worker.terminate()
     return out
   }
 
   T.etapasSecao = etapasSecao
+  // Uma seção por teste: cada uma manda o próprio relatório e usa um Worker novo (o app morrer no meio não perde as anteriores).
+  T.etapasCanais = function () { return etapasSecao('channel') }
+  T.etapasSeries = function () { return etapasSecao('series') }
+  T.etapasFilmes = function () { return etapasSecao('movie') }
   T.memoriaLeitores = memoriaLeitores
   T.ordenacaoChave = ordenacaoChave
   T.quadrosIndice = quadrosIndice
