@@ -35,9 +35,17 @@ export function PerfOverlay() {
     // Feature 085: a cada ~5 s os quadros lentos e a janela de tecla vão ao canal (no-op fora do build de medição).
     let slow = 0
     let idleSlow = 0
+    // Feature 086 (FR-026): o pico de heap da sessão entra junto dos quadros; só existe no Chromium da TV.
+    let peakHeap = 0
+    const heapNow = (): number => {
+      const memory = (performance as { memory?: { usedJSHeapSize?: number } }).memory
+      return typeof memory?.usedJSHeapSize === 'number' ? memory.usedJSHeapSize : 0
+    }
     const report = window.setInterval(() => {
       const keyed = tracker.snapshot(performance.now())
-      emitMetric({ source: 'frames', slow, idleSlow, ...(keyed ? { fps: keyed.fps, worstMs: keyed.worstMs, over50: keyed.over50 } : {}) })
+      peakHeap = Math.max(peakHeap, heapNow())
+      emitMetric({ source: 'frames', slow, idleSlow, ...(keyed ? { fps: keyed.fps, worstMs: keyed.worstMs, over50: keyed.over50 } : {}),
+        ...(peakHeap > 0 ? { heapMB: Math.round(peakHeap / 1048576), heapNowMB: Math.round(heapNow() / 1048576) } : {}) })
     }, 5_000)
     // Feature 085/082: o orçamento medido sem gravar nada, 3× (20 s, 80 s e 140 s depois de abrir), para ter as etapas no app real.
     const budgetTimers = [20_000, 80_000, 140_000].map((delay) => window.setTimeout(() => { void probeBudget() }, delay))

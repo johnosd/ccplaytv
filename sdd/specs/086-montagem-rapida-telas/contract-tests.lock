@@ -1,0 +1,17 @@
+{
+    "feature":  "086-montagem-rapida-telas",
+    "lockedAt":  "2026-10-20 20:03",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/lib/catalog/showcaseRows.montagem-rapida.contract.test.ts",
+                      "sha256":  "13ea8aa86eecea0d972f0bd346cdc1aa57f609d5385dc0891b8998e90e1e4bb8",
+                      "tests":  4
+                  },
+                  {
+                      "path":  "tv-web/src/lib/catalog/showcaseCandidates.montagem-rapida.contract.test.ts",
+                      "sha256":  "6f1c055d748f4a60cd35c5673021326093b90b55522989eadf504eccf15f3424",
+                      "tests":  1
+                  }
+              ]
+}

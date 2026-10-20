@@ -54,6 +54,12 @@ const decodeImage: ImageLoader = (url) => {
   )
 }
 
+/** Chave de métrica de uma leitura: `added-movies` → `addedMoviesMs` (o canal só aceita `[a-z][A-Za-z0-9]*`). */
+function slotMetricKey(key: string): string {
+  const camel = key.replace(/[^A-Za-z0-9]+(.)/g, (_whole, next: string) => next.toUpperCase())
+  return `${camel.charAt(0).toLowerCase()}${camel.slice(1)}Ms`
+}
+
 /** Um temporizador de uma vez, contado da montagem. */
 function useElapsed(ms: number): boolean {
   const [elapsed, setElapsed] = useState(false)
@@ -111,6 +117,22 @@ export function useScreenAssembly<K extends string>({
   const current = state.current
 
   const waiting = current.phase === 'waiting'
+  // Feature 086 (FR-026/FR-019): quando cada leitura resolveu e quando a última resolveu, para medir o tempo de desenho.
+  const slotMs = useRef<Record<string, number>>({})
+  const lastResolvedAt = useRef(0)
+  const resolvedKey = slots.map((slot) => (slot.status === 'pending' ? '' : slot.key)).join(',')
+  useEffect(() => {
+    const now = performance.now()
+    for (const slot of slots) {
+      const metric = slotMetricKey(slot.key)
+      if (slot.status === 'pending' || slotMs.current[metric] !== undefined) continue
+      slotMs.current[metric] = Math.round(now - (mountedAt.current || now))
+      lastResolvedAt.current = now
+    }
+    // Só o conjunto de leituras resolvidas importa; `slots` muda de identidade a cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedKey])
+
   const urlsKey = imageUrls.join('\n')
   useEffect(() => {
     let alive = true
@@ -138,6 +160,8 @@ export function useScreenAssembly<K extends string>({
       pending: slots.filter((slot) => slot.status === 'pending').map((slot) => slot.key),
       deferred: current.deferred,
       images: { requested: requested.current.size, settled: settledImages.size },
+      slotMs: { ...slotMs.current },
+      paintMs: lastResolvedAt.current > 0 ? Math.round(performance.now() - lastResolvedAt.current) : undefined,
     })
     // Só na revelação; o resto é registrado pelo efeito das adiadas.
     // eslint-disable-next-line react-hooks/exhaustive-deps
