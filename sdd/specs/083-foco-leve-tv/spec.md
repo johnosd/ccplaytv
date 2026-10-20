@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-18
 
-**Status**: Implementada
+**Status**: Convergida
 
 **Input**: Achado da sonda 2 da feature 082 em TV física (grade de 140 cards, 7 por linha): parada a 61 fps; foco só com escala a 52 fps e pior quadro de 33 ms; a receita atual completa de foco (escala + contorno + halo e brilho por sombra) a 38 fps e pior quadro de 133 ms (5 quadros acima de 50 ms); com uma faixa de backdrop-filter, 32 fps e 217 ms; só rolar a grade, 50 fps e 34 ms. Números em `sdd/specs/082-orcamento-armazenamento-tv/evidencias/sonda2-capacidades-tv-2026-10-18.md`.
 

@@ -181,14 +181,14 @@ Sonda (da raiz, só com autorização): `.\sdd\specs\082-orcamento-armazenamento
 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
-| R-001 | Pseudo-elemento (C2/C3) é cortado por `overflow: hidden` de `.poster-box` e colide com `::before/::after` já usados (anel da vitrine, degradês do Live). | Brilho some ou sobrepõe conteúdo. | C1 primeiro (D-003); se C2/C3 forem necessárias, desenho por família registrado na matriz de superfícies. |
-| R-002 | C1 faz o brilho "acender" em vez de crescer; pode parecer brusco ou menos legível. | SC-005 reprova mesmo com fps ok. | Inspeção na TV com capas claras/escuras/saturadas antes de escolher; se reprovar, passa para C2. |
-| R-003 | Receita global alcança botões, campos, player, chips. | Regressão visual fora das grades. | Matriz de superfícies (US2) + suites de componentes/player + E2E. |
-| R-004 | A emenda da ADR-007 §4 e do V14 §11.1 ainda não está registrada. | Docs canônicos descrevendo a receita antiga. | Tarefa explícita no Polish. |
-| R-005 | Nenhuma candidata que mantém o brilho atinge 50 fps (teto da escala é 52 fps / 33 ms). | Gate físico reprovado. | Registrar números; perguntar ao usuário entre C4 (emenda da spec) e aceitar risco; não declarar convergida. |
-| R-006 | `PerfOverlay.tsx`, `entryTiming.ts` e outros arquivos da 082 estão modificados e não commitados (2026-10-19). | Conflito/mistura de diffs entre features. | Executar a 083 depois do commit da 082, ou não tocar `PerfOverlay` até lá. |
-| R-007 | A sonda vive na pasta da 082 e o coletor grava em `082-.../evidencias/`. | Evidência da 083 no lugar errado. | Copiar o relatório numérico para `083-foco-leve-tv/evidencias/` e citar a origem. |
-| R-008 | **Escolha da receita (T007, 2026-10-19): C1 — sombra estática, só `transform` (e `background`) anima; mesmos tokens.** Desvio de ordem: a medição (T006) foi feita na Fase 5, no fim, a pedido do usuário (testes na TV por último), com a C1 aplicada como provisória na Fase 3. **Resolvido:** na TV, duas rodadas de `foco083` sem rolagem — C1 51 fps / pior 50 ms e 33 ms / 0 quadros > 50 ms nas duas; receita antiga do app 44–46 fps, linha de base da 082 35–37 fps; C2/C3/C4 47–50 fps com quadros de 117–150 ms. Números completos em `evidencias/sonda-candidatas-tv-2026-10-19.md`. | Margem curta (51 contra meta de 50 fps). | Nada a refazer na Fase 3. Se o app real ou a inspeção a ~3 m (T020/T021) reprovar a leitura do foco, reabrir com C2/C3 (R-002). |
+| R-001 | Pseudo-elemento (C2/C3) é cortado por `overflow: hidden` de `.poster-box` e colide com `::before/::after` já usados (anel da vitrine, degradês do Live). | Brilho some ou sobrepõe conteúdo. | Resolvido: a C1 não usa pseudo-elemento; o corte por `overflow: hidden` e a colisão com `::before/::after` não ocorrem (a C2/C3 foram medidas na TV e não superaram a C1). C1 primeiro (D-003); se C2/C3 forem necessárias, desenho por família registrado na matriz de superfícies. |
+| R-002 | C1 faz o brilho "acender" em vez de crescer; pode parecer brusco ou menos legível. | SC-005 reprova mesmo com fps ok. | Resolvido: o brilho "acende de uma vez" e foi aprovado na inspeção a ~3 m pelo usuário, em todos os casos do roteiro (2026-10-19). Inspeção na TV com capas claras/escuras/saturadas antes de escolher; se reprovar, passa para C2. |
+| R-003 | Receita global alcança botões, campos, player, chips. | Regressão visual fora das grades. | Resolvido: matriz de superfícies (64 elementos em foco, 0 sem contorno), `npm run test` 3607/3607, E2E 54/54 e inspeção do usuário na TV. Matriz de superfícies (US2) + suites de componentes/player + E2E. |
+| R-004 | A emenda da ADR-007 §4 e do V14 §11.1 ainda não está registrada. | Docs canônicos descrevendo a receita antiga. | Resolvido: ADR-007 §4/§8 e V14 §11.1 emendadas em 2026-10-19. Tarefa explícita no Polish. |
+| R-005 | Nenhuma candidata que mantém o brilho atinge 50 fps (teto da escala é 52 fps / 33 ms). | Gate físico reprovado. | Resolvido: a C1 mantém o brilho e atinge 51 fps / 0 quadros > 50 ms; não foi preciso a C4 nem emenda da spec. Registrar números; perguntar ao usuário entre C4 (emenda da spec) e aceitar risco; não declarar convergida. |
+| R-006 | `PerfOverlay.tsx`, `entryTiming.ts` e outros arquivos da 082 estão modificados e não commitados (2026-10-19). | Conflito/mistura de diffs entre features. | Resolvido: o trabalho da 082 foi commitado junto com a 083 (`ce69ad2`, a pedido do usuário), sem diffs separados. Executar a 083 depois do commit da 082, ou não tocar `PerfOverlay` até lá. |
+| R-007 | A sonda vive na pasta da 082 e o coletor grava em `082-.../evidencias/`. | Evidência da 083 no lugar errado. | Resolvido: os números foram copiados para `083-.../evidencias/sonda-candidatas-tv-2026-10-19.md`, citando o `sonda-tv2.jsonl` da 082. Copiar o relatório numérico para `083-foco-leve-tv/evidencias/` e citar a origem. |
+| R-008 | **Escolha da receita (T007, 2026-10-19): C1 — sombra estática, só `transform` (e `background`) anima; mesmos tokens.** Desvio de ordem: a medição (T006) foi feita na Fase 5, no fim, a pedido do usuário (testes na TV por último), com a C1 aplicada como provisória na Fase 3. **Resolvido:** na TV, duas rodadas de `foco083` sem rolagem — C1 51 fps / pior 50 ms e 33 ms / 0 quadros > 50 ms nas duas; receita antiga do app 44–46 fps, linha de base da 082 35–37 fps; C2/C3/C4 47–50 fps com quadros de 117–150 ms. Números completos em `evidencias/sonda-candidatas-tv-2026-10-19.md`. | Margem curta (51 contra meta de 50 fps). | Resolvido: C1 confirmada na TV (sonda, duas rodadas) e na inspeção do usuário. Nada a refazer na Fase 3. Se o app real ou a inspeção a ~3 m (T020/T021) reprovar a leitura do foco, reabrir com C2/C3 (R-002). |
 
 ## Execution Notes
 
@@ -219,3 +219,30 @@ Sonda (da raiz, só com autorização): `.\sdd\specs\082-orcamento-armazenamento
 - Perguntar antes de cada instalação na TV (sonda ou app); não desinstalar o CCPlayTV nem apagar dados.
 - Não declarar SC-001/SC-002 aprovados com navegador/emulador.
 - Desinstalar a sonda ao fim de cada sessão (`tizen.bat uninstall -p ccpSondaV2.Capacidades -t QN50Q60DAGXZD`).
+
+## Resultado Final
+
+**Convergida em 2026-10-19.** O foco do app deixou de animar `box-shadow`: a receita global (`tv-web/src/index.css`) e a cópia
+local de `.vod-detail-icon` (`styles/vod.css`) animam só `transform` e `background`; contorno 4 px, offset 3 px, halo, brilho de 40 px e
+`scale(1.06)` são os mesmos tokens de antes, e a sombra entra e sai de uma vez. Nenhuma folha de `tv-web/src/` anima sombra nem usa
+`backdrop-filter`, garantido pelo contrato travado `styles/foco-leve-tv.contract.test.ts` (1 teste, verde).
+
+**Medido na TV de referência** (sonda `foco083`, grade de 140 cards, troca de foco a cada 140 ms sem rolagem, duas rodadas):
+C1 (a receita final) 51 fps e 0 quadros > 50 ms nas duas; receita antiga do app 44–46 fps; linha de base da 082 35–37 fps; brilho em
+camada, por degradê e sem brilho 47–50 fps com quadros de 117–150 ms. Com rolagem (só registro): receita antiga 31–32 fps com 14
+quadros lentos; C1 48–50 fps. Aprovada a ~3 m pelo usuário em todos os casos do roteiro. SC-001, SC-002, SC-004 e SC-005 atendidos.
+
+**Desvios em relação ao plano original**
+- **Receita decidida na TV, no fim (R-008):** o plano mandava escolher por medição antes de mexer no app (Fase 2); a pedido do usuário
+  ("testes na TV por último") a C1 foi aplicada como provisória e a medição ficou na Fase 5, que a confirmou. Nada foi refeito.
+- **O plano de 2026-10-18** (brilho em pseudo-elemento) foi descartado antes de executar: o corte por `overflow: hidden` e os
+  `::before/::after` já usados o tornavam inviável (R-001), e a medição mostrou que o pseudo-elemento não ganha desempenho nesta TV.
+- **SC-006 incompleto (aceito pelo usuário na convergência):** o app real foi inspecionado, mas o painel só foi fotografado com o
+  controle parado (`tecla: sem tecla`), então faltam fps e pior quadro de navegação no app real. É registro, não condiciona o aceite;
+  o gate (sonda) e a rolagem sintética estão registrados. Pode ser refeito numa ida futura à TV com o build `VITE_CCPLAY_PERF=1`.
+- **Fora do escopo, a pedido do usuário:** a skill `tizen-sonda` (`.claude/` e `.agent/`) e a nota no `CLAUDE.md` entraram no mesmo
+  commit, assim como o trabalho pendente da 082 (`ce69ad2`).
+
+**Decisões técnicas que valem além da feature:** `lib/perf/activeFrames.ts` (função pura, com teste) alimenta uma linha `tecla:` no
+`PerfOverlay` — só no build de medição; o gate de desempenho de CSS/foco é a sonda na TV, nunca o navegador ou o emulador; a regra
+"nenhuma animação de `box-shadow`" é do projeto (D-002) e uma exceção futura precisa ser decidida com o usuário.
