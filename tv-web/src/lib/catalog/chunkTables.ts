@@ -6,6 +6,7 @@
 
 import type { Table } from 'dexie'
 import type { CatalogDb } from './db'
+import type { BlockShared } from './blockTypes'
 
 /** Pedaço dos itens de uma categoria: `chunk` 0..n-1 são itens; `IDENTITY_CHUNK` é o índice de identidade. */
 export interface CategoryChunkRecord {
@@ -18,6 +19,10 @@ export interface CategoryChunkRecord {
   count: number
   /** gzip do JSON enxuto. */
   bytes: Uint8Array
+  /** = `revision` do cabeçalho que gravou este pedaço: a janela lê sem o cabeçalho (contrato da 065) e o cache confere. */
+  revision?: string
+  /** = `shared` do cabeçalho (poucos bytes), pelo mesmo motivo. */
+  shared?: BlockShared
 }
 
 /** Programas de um canal do guia na janela, comprimidos. */

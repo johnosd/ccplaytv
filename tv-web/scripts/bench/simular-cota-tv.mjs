@@ -17,6 +17,9 @@ const QUOTA_BYTES = 80 * 1024 * 1024
 const REPORT_DIR = path.join(ROOT, 'sdd/specs/082-orcamento-armazenamento-tv/evidencias')
 const IMPORT_TIMEOUT_MS = Number(process.env.CCPLAY_SIM_IMPORT_TIMEOUT_MS ?? 180000)
 const SIM_PHASE = process.env.CCPLAY_SIM_PHASE === 'after' ? 'depois' : 'antes'
+/** Quanto esperar a pré-carga e o guia terminarem (feature 082: o uso só vale com a lista inteira no aparelho). */
+const PREFETCH_TIMEOUT_MS = Number(process.env.CCPLAY_SIM_PREFETCH_TIMEOUT_MS ?? 15 * 60_000)
+const STABLE_MS = 45_000
 
 function readEnv() {
   if (!existsSync(ENV_PATH)) return {}
@@ -48,7 +51,56 @@ async function launch() {
 async function setQuota(page) {
   const session = await page.context().newCDPSession(page)
   await session.send('Storage.overrideQuotaForOrigin', { origin: new URL(APP_URL).origin, quotaSize: QUOTA_BYTES })
-  await session.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+  return session
+}
+
+/** Progresso da pré-carga e do guia, lido do próprio app (só números). */
+async function prefetchState(page) {
+  return page.evaluate(async () => {
+    const { db } = await import('/src/lib/catalog/db.ts')
+    const categories = await db.categories.toArray()
+    const sources = await db.sources.toArray()
+    const status = document.querySelector('.home-status-line')?.textContent ?? null
+    return {
+      categories: categories.length,
+      onDemand: categories.filter((category) => category.fetchMode === 'on_demand').length,
+      fetched: categories.filter((category) => category.itemsFetchedAt !== undefined).length,
+      epgGeneration: sources[0]?.epgActiveGeneration ?? null,
+      epgError: sources[0]?.epgLastErrorKind ?? null,
+      partial: status ? /Parte da lista/.test(status) : false,
+    }
+  })
+}
+
+/** Espera a pré-carga parar de avançar por `STABLE_MS` (ou acabar) e o guia sincronizar. Sem teclas: o portão abre ~2 s sem tecla. */
+async function waitForPrefetch(page, mark) {
+  const start = Date.now()
+  let last = await prefetchState(page)
+  let changedAt = Date.now()
+  while (Date.now() - start < PREFETCH_TIMEOUT_MS) {
+    await page.waitForTimeout(5_000)
+    const state = await prefetchState(page)
+    if (state.fetched !== last.fetched || state.epgGeneration !== last.epgGeneration) changedAt = Date.now()
+    last = state
+    const done = state.fetched >= state.categories || state.partial
+    const guideSettled = state.epgGeneration !== null || state.epgError !== null
+    if ((done && guideSettled) || Date.now() - changedAt > STABLE_MS) break
+  }
+  mark(`pre-carga-${Math.round((Date.now() - start) / 1000)}s`)
+  return { ...last, waitedMs: Date.now() - start }
+}
+
+/** Conta própria do orçamento (bytes por lista) e o que o planejador vê. */
+async function ledgerOf(page) {
+  return page.evaluate(async () => {
+    const { db } = await import('/src/lib/catalog/db.ts')
+    const { catalogLedger } = await import('/src/lib/catalog/storageLedger.ts')
+    const { catalogCapBytes } = await import('/src/lib/catalog/storageBudget.ts')
+    const ledger = await catalogLedger(db)
+    const sources = await db.sources.toArray()
+    const estimate = await navigator.storage.estimate()
+    return { ledgerBytes: ledger.total, capBytes: catalogCapBytes(estimate.quota ?? 0), epgStoredBytes: sources[0]?.epgStoredBytes ?? null }
+  })
 }
 
 async function collect(page) {
@@ -118,6 +170,11 @@ async function run() {
     await page.getByRole('button', { name: 'Abrir lista' }).click()
     await page.waitForSelector('.topbar', { timeout: 10000 })
     mark('lista-aberta')
+    const prefetch = await waitForPrefetch(page, mark)
+    const afterPrefetch = { ...(await collect(page)), ...(await ledgerOf(page)) }
+    // CPU 4× só para as entradas (como a TV): na pré-carga deixaria a espera longa demais.
+    const cdpSession = await page.context().newCDPSession(page)
+    await cdpSession.send('Emulation.setCPUThrottlingRate', { rate: 4 })
     const entryWallMs = []
     for (const topbar of ['movies', 'series']) {
       await openShowcase(page, topbar)
@@ -137,9 +194,12 @@ async function run() {
       quotaBytes: QUOTA_BYTES,
       storageErrors: [...new Set(storageErrors)],
       cpuThrottlingRate: 4,
+      prefetch,
+      afterPrefetch,
       perf,
       entryWallMs,
       ...result,
+      ...(await ledgerOf(page)),
     }
     const output = path.join(REPORT_DIR, `simulacao-pc-${SIM_PHASE}-${report.date}.json`)
     writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`)

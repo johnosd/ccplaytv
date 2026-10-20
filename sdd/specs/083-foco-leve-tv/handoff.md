@@ -1,49 +1,74 @@
-﻿# Handoff — feature 083 Foco leve na TV
+﻿# Handoff — feature 083 Foco leve na TV (re-plano de 2026-10-19)
 
 ## Contexto
 
-Repositório `ccplayTv`, frontend React 19/TypeScript/Vite em `tv-web/`, foco direcional por estado React/`useRemoteNav`. Próximo comando: `/sdd-execute 083-foco-leve-tv`. O backlog deve ficar em `Planejada`. Nesta sessão foram criados `plan.md`, `tasks.md`, `research.md`, `logic/foco-leve.md` e `quickstart.md`; `spec.md` já existia. Nenhum código de produto foi alterado.
+Repositório `ccplayTv`, branch `feature/licenca`; frontend React 19/TypeScript/Vite em `tv-web/`, foco por estado React +
+classe `.tv-focus` (`useRemoteNav`, ADR-009). Próximo comando: `/sdd-execute 083-foco-leve-tv`. Backlog: `Planejada`,
+0/37. O plano de 2026-10-18 foi **substituído** (nenhuma task dele tinha sido executada): spec revisada, `plan.md`,
+`tasks.md`, `research.md`, `logic/foco-leve.md` e `quickstart.md` reescritos, contrato novo travado.
+A árvore tem **muito trabalho da 082 não commitado** (inclusive `tv-web/src/components/PerfOverlay.tsx` e
+`src/lib/perf/entryTiming.ts`): não misturar diffs (R-006).
 
 ## O que a feature entrega
 
-- **P1**: foco de card visualmente equivalente e mais fluido na grade de referência, com meta física de 50 fps ou mais e zero quadros acima de 50 ms.
-- **P2**: a mesma receita leve em Home, Live TV, Filmes, Séries e demais consumidores da classe `.tv-focus`, preservando SELECT/RETURN.
-
-Decisões do usuário: preservar o visual atual com brilho mais barato, aplicar a todas as grades e manter navegação, dimensões e tokens gerais fora do escopo.
+- **P1**: o foco para de animar a sombra (causa dos 38 fps / 133 ms na sonda 2); contorno, halo, brilho e escala
+  continuam os mesmos tokens. A composição exata é **escolhida por medição na TV** (C1 → C2 → C3, `research.md`), não
+  decidida de antemão. Gate: sonda com ≥ 50 fps e 0 quadros > 50 ms, foco **sem rolagem**.
+- **P2**: a mesma receita em **todo** elemento focável (regra global + cópias locais em `vod.css` e `onboarding.css`),
+  SELECT/RETURN intactos.
+- Decisões do usuário (2026-10-19): nada do backlog entra (capas/Worker/ordenação ficam fora); receita global, não só
+  cards; rolagem e app real são **registro**, não gate; gate = sonda.
 
 ## Leitura obrigatória, em ordem
 
-1. `spec.md` — escopo, FRs, stories e métricas.
-2. `plan.md` — contexto técnico, invariantes, constitution check e riscos.
-3. `tasks.md` — fases e comandos de execução.
-4. `research.md` — comparação de receitas e decisão pelo pseudo-elemento/opacity.
-5. `logic/foco-leve.md` — invariantes de CSS, fallback e medição.
-6. `quickstart.md` — gates automatizados e roteiro de TV.
-7. `.planning/memory/constitution.md` — foco visível, controle remoto, documentação e gates.
-8. `sdd/adr/ADR-007-design-system-tv-identidade-visual.md` e `ADR-009-navegao-direcional-prpria-useremotenav-vez.md` — receita visual atual e modelo de foco React.
+1. `spec.md` — escopo revisado, FR-001..007, SC-001..006, clarificações de 2026-10-19.
+2. `plan.md` — D-001..D-006, Constitution Check, R-001..R-007.
+3. `tasks.md` — 6 fases; Fase 2 escolhe a receita na TV antes de mexer no app.
+4. `research.md` — por que C1 vem antes do pseudo-elemento (corte por `overflow: hidden`, `::before` já usado).
+5. `logic/foco-leve.md` — invariantes, papéis das medições, pseudocódigo do teste `foco083` da sonda.
+6. `quickstart.md` — comandos, instalação da sonda, roteiro na TV.
+7. `evidencias/inventario-tv-focus.md` — consumidores e onde a sombra é animada hoje.
+8. `.planning/memory/constitution.md` (v1.15.0) — "Foco Visível e Sem Becos Sem Saída".
 
 ## Testes de contrato
 
-Não há `contract-tests.lock` nem testes de contrato novos. A feature é uma mudança visual CSS e o aceite central depende de frame time/legibilidade na QN50Q60DAGXZD. Rodar os testes existentes de `.tv-focus`, PosterArt, Home, Live e VOD; o quickstart lista os comandos. Travas de outras features que podem ser afetadas incluem contratos de Home/VOD/Live que verificam a classe `.tv-focus`; não editar esses arquivos.
+- `tv-web/src/styles/foco-leve-tv.contract.test.ts` — 1 teste, Fase 3 (T008/T009 o deixam verde).
+- Rodar (de `tv-web/`): `npx vitest run src/styles/foco-leve-tv.contract.test.ts`. Vermelho hoje com
+  `index.css:258` e `styles/vod.css:1574`.
+- Integridade (da raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 083-foco-leve-tv`.
+- Travas de outras features que a mudança de CSS pode tocar: `tv-web/src/styles/escala.legibilidade-tv.contract.test.ts`
+  (068) — não mexer em tokens `--fs-*`.
 
 ## Stubs criados
 
-Nenhum stub. A implementação deve começar na regra compartilhada existente em `tv-web/src/index.css`.
+Nenhum. O ponto de partida é `tv-web/src/index.css` (regras em ~linha 245–267).
 
 ## Armadilhas já mapeadas
 
-- Não trocar foco React por `.focus()` de DOM, Norigin ou outra biblioteca: ADR-009 fixa o modelo atual.
-- Não usar `backdrop-filter` nem animar o glow pesado no `box-shadow`: a sonda 2 mediu 32 fps/217 ms e 38 fps/133 ms.
-- Não remover outline/scale para ganhar fps antes de conferir equivalência visual; o fallback precisa continuar reconhecível.
-- Preservar `.no-scale`, reduced motion, `pointer-events` e stacking da camada; uma pseudo-camada não pode bloquear SELECT.
-- Não considerar navegador/emulador como prova de SC-001/SC-002; a TV física é o gate da medição.
-- Instalação na TV deve preservar IndexedDB e não usar desinstalação/limpeza de dados.
+- O contrato proíbe animar `box-shadow` em **qualquer** CSS de `tv-web/src/` (inclusive `transition: all` e
+  `@keyframes`) e qualquer `backdrop-filter` — é intencional (D-002).
+- `.poster-box` tem `overflow: hidden`: um `::after` com brilho para fora é cortado (R-001). A grade da vitrine já usa
+  `.poster-box.tv-focus::before` para o anel interno.
+- A sonda 2 **não** usou a receita do app (`f-full` = `0 0 32px 8px` + sombra `0 12px 40px`, offset 6 px). Não altere
+  `f-full`; acrescente `f-app` com os tokens reais para comparar na mesma sessão.
+- `instalar-sonda.ps1` tem padrão `-App app` (sonda 1): passe `-App app2 -AppId ccpSondaV2.Capacidades -Only foco083`.
+  O coletor grava em `082-.../evidencias/`; copie só os números para `083-.../evidencias/` (R-007).
+- `main.js` da sonda já roda `T[nome]` com `-Only`: basta exportar `foco083` em `tests.js`.
+- Perguntar ao usuário antes de **cada** instalação na TV (memória do projeto); desinstalar a sonda ao terminar; nunca
+  desinstalar o CCPlayTV.
+- Se só C4 (sem brilho difuso) ou nenhuma candidata atingir a meta: parar e perguntar (D-003, R-005). C4 exige emenda
+  da spec (FR-002).
 - E2E pode sobrescrever capturas rastreadas em `tv-web/test-results/`; restaurar antes do Polish.
 
 ## Pendências do Analyze
 
-Nenhum achado CRITICAL/HIGH. R-001 a R-004 são riscos de execução já registrados em `plan.md`, não lacunas impeditivas; resolver durante as fases e registrar evidência.
+- A-01 LOW — Edge case "grade com poucos cards" não tem passo explícito; incluir na inspeção da T021.
+- A-02 LOW — O contrato vale para todo CSS, não só foco: uma animação futura de sombra fora do foco também reprova.
+  Aceito como regra de projeto (D-002); se aparecer caso legítimo, decidir com o usuário.
 
 ## Gate de pronto
 
-Testes focados e completos do Vitest, `npm run lint`, `npx tsc -b`, `npm run build`, E2E Playwright antes da TV, quickstart executado, emenda inline da ADR-007 e medição física com pelo menos 50 fps/zero quadros acima de 50 ms. Se o hardware não atingir o alvo, não declarar a feature convergida; registrar o resultado e o risco residual.
+Contrato 1/1 verde e trava íntegra; `npm run lint`, `npx tsc -b`, `npm run test`, `npm run build`,
+`npm run test:e2e` (dev server no ar, antes da TV); sonda na TV com a receita final ≥ 50 fps e 0 quadros > 50 ms
+(**gate obrigatório**, navegador não vale); app real e rolagem registrados; inspeção visual na TV; emendas da ADR-007 §4
+e da V14 §11.1; pacote normal reinstalado. Sem o gate físico, a feature não é convergida.

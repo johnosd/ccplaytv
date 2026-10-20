@@ -27,6 +27,7 @@ import { fetchSeriesDetail, type XtreamEpisode } from './xtreamConnector'
 import { normalizeSeriesInfo } from '../metadata/providerMetadata'
 import { storeProviderMetadata } from '../metadata/titleMetadataStore'
 import { makeRoomFor, touchCategory } from './storageBudget'
+import { LEGACY_ITEM_BYTES } from './storageLedger'
 
 export type SeriesFetchOutcome = 'fresh' | 'fetched' | 'stale-served' | 'failed'
 
@@ -104,7 +105,7 @@ async function fetchAndStore(
     recordSeriesDiagnostic(stage)
     stage = 'EPISODES_STORE'
     recordSeriesDiagnostic(stage, 'loading')
-    const room = await makeRoomFor(series.sourceId, Math.ceil(episodes.length * 60), { database, now, mode: 'entry', protectCategoryId: series.categoryId })
+    const room = await makeRoomFor(series.sourceId, episodes.length * LEGACY_ITEM_BYTES, { database, now, mode: 'entry', protectCategoryId: series.categoryId })
     if (!room.fits) throw new StorageFullError()
     await storeSeriesEpisodes(
       {

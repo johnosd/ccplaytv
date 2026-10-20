@@ -25,18 +25,16 @@ import {
   countChannels,
   renewCategoryItems,
   storeStoredCategory,
-  StorageFullError,
   type CatalogCategory,
 } from './catalogRepository'
 import { readEntryChunks } from './storedEntries'
-import type { BudgetOptions } from './storageBudget'
 import { isCategoryFresh } from './freshness'
 import { markEntry } from '../perf/entryTiming'
 import { readCredential } from './sourceRepository'
 import type { ErrorCode } from '../errors/errorCatalog'
 import { failureOf, toItemRecord } from './categoryItemRecord'
-import { makeRoomFor } from './storageBudget'
-import { categoryStoredBytes } from './storageLedger'
+import { makeRoomFor, touchCategory, type BudgetOptions } from './storageBudget'
+import { isOrphanCategory } from './blockChunks'
 import {
   fetchLiveStreams,
   fetchSeries,
@@ -168,18 +166,17 @@ async function fetchAndStore(
       signal,
     )
     markEntry(category.id, category.kind, 'mapped', items.length)
-    const sourceCategories = await database.categories.where('sourceId').equals(sourceId).toArray()
-    const averages = await Promise.all(sourceCategories.filter((candidate) => candidate.itemsCount).map(async (candidate) => (await categoryStoredBytes(database, candidate.id as number)) / (candidate.itemsCount ?? 1)))
-    const average = averages.find((value) => value > 0) ?? 60
-    const room = await makeRoomFor(sourceId, Math.ceil(items.length * average), { database, now, mode: budgetMode, protectCategoryId: category.id, config: budget })
-    if (!room.fits) throw new StorageFullError()
     // Feature 038 (D-006): um caminho de escrita só — preserva o id local de
-    // quem continua na fonte e não regrava uma lista idêntica.
+    // quem continua na fonte e não regrava uma lista idêntica. Feature 082: o
+    // orçamento recebe os bytes já codificados, antes da transação.
+    const room = async (need: number) =>
+      (await makeRoomFor(sourceId, need, { database, now, mode: budgetMode, protectCategoryId: category.id, config: budget })).fits
     await renewCategoryItems(
       { sourceId, generation, kind: category.kind, categoryId: category.id, groupOrder: category.order },
       items.map((item) => toItemRecord(item, sourceId, generation, category)),
       now,
       database,
+      room,
     )
     markEntry(category.id, category.kind, 'written')
     return { outcome: 'fetched' }
@@ -292,6 +289,8 @@ export async function ensureCategory(
   const now = options.now?.() ?? Date.now()
 
   if (category.fetchMode === 'eager') return { outcome: 'fresh' }
+  // Feature 082 (§5): a entrada da pessoa marca o uso — protege a categoria aberta de ser liberada.
+  if ((options.budgetMode ?? 'entry') === 'entry') touchCategory(category.id, now, database)
 
   // O `category` recebido é um retrato: a lista de categorias das telas nunca é
   // relida depois de uma obtenção (`useCategoryList`), então o retrato pode não
@@ -307,7 +306,7 @@ export async function ensureCategory(
       ? Math.max(persisted, category.itemsFetchedAt)
       : (persisted ?? category.itemsFetchedAt)
   const renewRequestedAt = record?.renewRequestedAt ?? category.renewRequestedAt
-  const hasItems = itemsFetchedAt !== undefined
+  const hasItems = itemsFetchedAt !== undefined && !(record && record.storedBytes === undefined && (await isOrphanCategory(database, record))) // 082: órfã = não obtida
   const renewPending = hasItems && renewRequestedAt !== undefined && renewRequestedAt > itemsFetchedAt
   // `stored` não vence por idade: o conteúdo vem de um arquivo que não muda —
   // reler produziria o mesmo resultado (D-007/FR-011 da 014). Só uma

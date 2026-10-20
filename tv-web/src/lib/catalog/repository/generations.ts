@@ -83,7 +83,10 @@ export async function publishGeneration(
       // nunca lendo os blocos (um filtro `.and()` leria todos, inclusive os novos).
       const staleBlocks = await blockKeysOutsideGeneration(database, sourceId, generation)
       if (staleBlocks.length > 0) await database.categoryBlocks.bulkDelete(staleBlocks)
-      await categoryChunks(database).where('[sourceId+generation]').equals([sourceId, generation]).delete()
+      // Pedaços comprimidos (feature 082) das OUTRAS gerações — os da geração publicada ficam.
+      const chunksOf = categoryChunks(database).where('[sourceId+generation]')
+      await chunksOf.between([sourceId, -Infinity], [sourceId, generation], true, false).delete()
+      await chunksOf.between([sourceId, generation], [sourceId, Infinity], false, true).delete()
       await invalidateReadModelsOutsideGeneration(sourceId, generation, database)
       // Estrutura da geração anterior sai junto (feature 010) — nunca
       // `userStates`, que não tem noção de geração (D-002 do plan.md). É
@@ -176,11 +179,15 @@ export async function collectStaleGenerations(
       .primaryKeys()
     if (blockKeys.length > 0) await database.categoryBlocks.bulkDelete(blockKeys)
     deleted += blockKeys.length
-    if (deleted < batchSize) {
-      const chunkKeys = await categoryChunks(database).where('[sourceId+generation]').equals([sourceId, from]).primaryKeys()
-      if (chunkKeys.length > 0) await categoryChunks(database).bulkDelete(chunkKeys.slice(0, batchSize - deleted))
-      deleted += Math.min(chunkKeys.length, batchSize - deleted)
-    }
+    if (deleted >= batchSize) break
+    // Pedaços comprimidos (feature 082): cada um conta como um registro.
+    const chunkKeys = await categoryChunks(database)
+      .where('[sourceId+generation]')
+      .between([sourceId, from], [sourceId, to], true, true)
+      .limit(batchSize - deleted)
+      .primaryKeys()
+    if (chunkKeys.length > 0) await categoryChunks(database).bulkDelete(chunkKeys)
+    deleted += chunkKeys.length
   }
   if (staleReadGenerations.size > 0) {
     for (const generation of staleReadGenerations) {

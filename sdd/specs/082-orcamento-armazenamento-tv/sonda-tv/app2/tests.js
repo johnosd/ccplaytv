@@ -230,6 +230,53 @@ window.T = (function () {
     return out
   }
 
+  // ---------- 6b. Foco leve (feature 083) ----------
+  // Mesma grade do teste `render` (7×20, capas sintéticas 220×330). Por classe: troca de foco a cada 140 ms, 3 s, sem rolagem
+  // (gate SC-001/SC-002). Depois, para f-app e f-c1: o foco desce uma linha por vez com a grade rolando (registro SC-006).
+  async function foco083() {
+    var stage = document.getElementById('stage'); stage.innerHTML = ''; stage.style.display = 'block'
+    var out = { semRolagem: {}, rolagem: {} }
+    var canvas = document.createElement('canvas'); canvas.width = 300; canvas.height = 450; var ctx = canvas.getContext('2d')
+    var blobs = []
+    for (var i = 0; i < 24; i += 1) {
+      var grad = ctx.createLinearGradient(0, 0, 300, 450); grad.addColorStop(0, 'hsl(' + (i * 15) + ',70%,40%)'); grad.addColorStop(1, '#111')
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, 300, 450); for (var n = 0; n < 200; n += 1) { ctx.fillStyle = 'rgba(255,255,255,' + Math.random() * 0.3 + ')'; ctx.fillRect(Math.random() * 300, Math.random() * 450, 8, 8) }
+      blobs.push(await new Promise(function (r) { canvas.toBlob(r, 'image/jpeg', 0.85) }))
+    }
+    var urls = blobs.map(function (b) { return URL.createObjectURL(b) })
+    var grid = document.createElement('div'); grid.className = 'grid'
+    for (var c = 0; c < 140; c += 1) { var card = document.createElement('div'); card.className = 'card'; var im = document.createElement('img'); im.src = urls[c % urls.length]; var label = document.createElement('div'); label.className = 'label'; label.textContent = 'Título de teste ' + c; card.appendChild(im); card.appendChild(label); grid.appendChild(card) }
+    stage.appendChild(grid); void grid.offsetHeight
+    await P.sleep(800)
+    var cards = grid.children
+    var rowHeight = cards[7].offsetTop - cards[0].offsetTop
+    function modo(cls) { grid.className = 'grid m-' + cls }
+    function limpar(cls) { for (var x = 0; x < cards.length; x += 1) cards[x].classList.remove(cls); grid.style.transform = '' }
+    function troca(cls, duration, passo, rolar) {
+      var idx = 0; cards[0].classList.add(cls)
+      var timer = setInterval(function () {
+        cards[idx % cards.length].classList.remove(cls); idx += passo; cards[idx % cards.length].classList.add(cls)
+        if (rolar) grid.style.transform = 'translateY(' + (-Math.max(0, Math.floor((idx % cards.length) / 7) - 1) * rowHeight) + 'px)'
+      }, 140)
+      return P.sleep(duration).then(function () { clearInterval(timer); limpar(cls) })
+    }
+    var classes = ['f-full', 'f-app', 'f-c1', 'f-c2', 'f-c3', 'f-c4']
+    out.rowHeightPx = rowHeight
+    out.idle = await P.frames(1500)
+    for (var k = 0; k < classes.length; k += 1) {
+      var cls = classes[k]; modo(cls)
+      out.semRolagem[cls] = await P.frames(3000, function () { return troca(cls, 3000, 1, false) })
+      P.log('foco083 ' + cls + ': ' + out.semRolagem[cls].fps + ' fps | pior ' + out.semRolagem[cls].maxGapMs + ' ms | >50ms ' + out.semRolagem[cls].longFrames)
+    }
+    for (var r = 0; r < 2; r += 1) {
+      var rc = ['f-app', 'f-c1'][r]; modo(rc)
+      out.rolagem[rc] = await P.frames(3000, function () { return troca(rc, 3000, 7, true) })
+      P.log('foco083 rolagem ' + rc + ': ' + out.rolagem[rc].fps + ' fps | pior ' + out.rolagem[rc].maxGapMs + ' ms | >50ms ' + out.rolagem[rc].longFrames)
+    }
+    stage.innerHTML = ''; stage.style.display = 'none'; urls.forEach(function (u) { URL.revokeObjectURL(u) })
+    return out
+  }
+
   // ---------- 7. Rede local (TV <-> PC) ----------
   async function rede() {
     var out = {}
@@ -343,5 +390,5 @@ window.T = (function () {
     return out
   }
 
-  return { guia: guia, ambiente: ambiente, cpu: cpu, compressao: compressao, worker: worker, idb: idb, render: render, rede: rede, memoriaHeap: memoriaHeap, memoriaBuffers: memoriaBuffers }
+  return { guia: guia, ambiente: ambiente, cpu: cpu, compressao: compressao, worker: worker, idb: idb, render: render, foco083: foco083, rede: rede, memoriaHeap: memoriaHeap, memoriaBuffers: memoriaBuffers }
 })()

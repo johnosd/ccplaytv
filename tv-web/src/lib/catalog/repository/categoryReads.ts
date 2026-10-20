@@ -7,7 +7,7 @@ import { blockItemIndex, movedIdOf, readBlock } from '../blockMemo'
 import { activeGenerationOf, query } from './shared'
 import { getCategoryAccess } from '../categoryAccess'
 import { findSeriesRecord } from './series'
-import { readBlockChunks } from '../blockChunks'
+import { findBlockItem, readHeaderChunks } from '../blockChunks'
 
 /** Categorias da geração ativa com um dado `order` (e `kind`, se informado). */
 async function categoriesAtOrder(
@@ -44,7 +44,7 @@ async function readCategory(
   const blocks = (await database.categoryBlocks.bulkGet(categories.map((category) => category.id as number))).filter(
     (block): block is NonNullable<typeof block> => !!block && block.generation === generation,
   )
-  const fromBlocks = (await Promise.all(blocks.map((block) => block.format === 2 ? readBlockChunks(database, block.categoryId) : blockRecords(block)))).flat()
+  const fromBlocks = (await Promise.all(blocks.map((block) => block.format === 2 ? readHeaderChunks(database, block) : blockRecords(block)))).flat()
   // Com `kind` e bloco achado, não há linha antiga daquela categoria (escrever
   // o bloco as apaga) — poupa a segunda leitura no caminho quente.
   if (kind && blocks.length > 0) return fromBlocks
@@ -99,7 +99,7 @@ export async function getActiveCategoryBlock(
   ])
   if (!block || block.sourceId !== sourceId || block.generation !== generation || access.excluded.has(categoryId)) return undefined
   if (block.format === 2) {
-    const records = await readBlockChunks(database, categoryId)
+    const records = await readHeaderChunks(database, block)
     return { ...block, items: records.map(({ sourceId: _source, generation: _generation, kind: _kind, groupOrder: _order, categoryId: _category, categoryPosition: _position, ...item }) => item as NonNullable<CategoryBlockRecord['items']>[number]) }
   }
   return block
@@ -164,7 +164,8 @@ export async function getChannel(
   if ((await activeGenerationOf(block.sourceId, database)) !== block.generation) return undefined
   if ((await getCategoryAccess(block.sourceId, database)).excluded.has(categoryId)) return undefined
   if (block.format === 2) {
-    const record = (await readBlockChunks(database, categoryId)).find((item) => item.id === id)
+    // Feature 082: posição pelo índice de identidade e um pedaço só.
+    const record = await findBlockItem(database, block, id)
     if (record?.kind === 'series' && record.seriesId) {
       const stamp = (await database.categories.get(categoryId))?.seriesEpisodesFetchedAt?.[record.seriesId]
       if (stamp !== undefined && (record.episodesFetchedAt === undefined || stamp > record.episodesFetchedAt)) record.episodesFetchedAt = stamp

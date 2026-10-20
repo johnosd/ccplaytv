@@ -16,6 +16,7 @@ import { loadSection } from '../lib/catalog/sectionLoader'
 import { createSource } from '../lib/catalog/sourceRepository'
 import { setEpgManualUrl } from '../lib/epg/epgRepository'
 import { syncEpg } from '../lib/epg/epgSync'
+import { epgChunks } from '../lib/catalog/chunkTables'
 import { BENCH_PASSWORD, BENCH_USER, createdSources } from './benchStages'
 import { failureOf, msSince, readStorage, type BenchCounts, type BenchModeResult, type BenchRunOptions, type StageTracker } from './benchTypes'
 
@@ -85,16 +86,9 @@ async function realXmltv(options: BenchRunOptions, tracker: StageTracker): Promi
 }
 
 async function epgCounts(sourceId: string): Promise<BenchCounts> {
-  const channels = new Set<string>()
-  let items = 0
-  await db.epgPrograms
-    .where('[sourceId+generation]')
-    .between([sourceId, -Infinity], [sourceId, Infinity])
-    .each((program) => {
-      channels.add(program.channelKey)
-      items += 1
-    })
-  return { categories: channels.size, items }
+  // Feature 082: o guia é um registro comprimido por canal (`epgChunks`), com a contagem de programas.
+  const chunks = await epgChunks(db).where('[sourceId+generation]').between([sourceId, -Infinity], [sourceId, Infinity]).toArray()
+  return { categories: new Set(chunks.map((chunk) => chunk.channelKey)).size, items: chunks.reduce((sum, chunk) => sum + chunk.count, 0) }
 }
 
 export async function runReal(options: BenchRunOptions): Promise<BenchModeResult> {

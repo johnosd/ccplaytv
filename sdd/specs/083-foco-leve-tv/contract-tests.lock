@@ -1,0 +1,12 @@
+{
+  "feature": "083-foco-leve-tv",
+  "lockedAt": "2026-10-19 19:54",
+  "total": 1,
+  "files": [
+    {
+      "path": "tv-web/src/styles/foco-leve-tv.contract.test.ts",
+      "sha256": "1ca636635761f0d26cb54f36df1907ab780a4b851c3a80c96490f99f02387d59",
+      "tests": 1
+    }
+  ]
+}

@@ -247,8 +247,8 @@ All 8 SDD skills (`sdd-assess`, `sdd-adr`, `sdd-bugfix`, `sdd-specify`,
 them as `/sdd-*`) and `.agent/skills/<name>/` (other agent CLIs, e.g.
 Gemini CLI). Keep the two copies in sync when editing one.
 
-Two more skills follow the same mirroring rule but are **not** part of the
-SDD pipeline — both are operational procedures for getting the app onto a
+Three more skills follow the same mirroring rule but are **not** part of the
+SDD pipeline — operational procedures for getting the app (or a probe) onto a
 screen:
 
 - `tizen-tv` — installs/updates the app on the **physical TV** over the
@@ -261,6 +261,11 @@ screen:
   on the TV emulator after DUID, clock, chain and package integrity were all
   ruled out. The skill documents what was eliminated so a future session
   doesn't repeat it.
+- `tizen-sonda` — measures performance and reproduces bugs **on the physical
+  TV** with a throwaway probe app (`sdd/specs/082-.../sonda-tv/`, separate
+  id) that sends only numbers to a local collector, optionally with
+  sanitized samples of the real `.env` list. Use it before deciding anything
+  that the PC browser can't answer (frame rate, memory, quota).
 
 When the user asks in natural language for one of these workflows
 ("especifica a feature de X", "planeja a feature 001", "implementa a feature

@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import { createActiveFrameTracker, type ActiveFrameStats } from '../lib/perf/activeFrames'
 import { subscribeEntryReports, takeEntryReports, type EntryReport } from '../lib/perf/entryTiming'
 
 /**
@@ -17,21 +18,37 @@ function getSnapshot(): EntryReport[] {
 export function PerfOverlay() {
   const reports = useSyncExternalStore(subscribeEntryReports, getSnapshot)
   const [slowFrames, setSlowFrames] = useState(0)
+  // Feature 082 (SC-003): quadros lentos com o controle PARADO (sem tecla há 2 s, depois dos 15 s da abertura) isolam o
+  // trabalho em segundo plano — pré-carga, conversão, guia — da navegação e das capas, que o total mistura.
+  const [idleSlowFrames, setIdleSlowFrames] = useState(0)
+  // Feature 083 (SC-006): fps, pior quadro e quadros > 50 ms medidos SÓ com tecla nos últimos 2 s (janela de 4 s).
+  const [keyedFrames, setKeyedFrames] = useState<ActiveFrameStats | null>(null)
   useEffect(() => {
+    const mountedAt = performance.now()
+    let lastKey = mountedAt
+    const tracker = createActiveFrameTracker()
+    const onKey = () => { lastKey = performance.now(); tracker.onKey(lastKey) }
+    const refresh = window.setInterval(() => setKeyedFrames(tracker.snapshot(performance.now())), 500)
+    window.addEventListener('keydown', onKey, true)
     let previous = performance.now()
     let active = true
     let frame = 0
     const tick = (now: number) => {
       if (!active) return
-      if (now - previous > 100) setSlowFrames((count) => count + 1)
+      tracker.onFrame(now)
+      if (now - previous > 100) {
+        setSlowFrames((count) => count + 1)
+        if (now - mountedAt > 15_000 && previous - lastKey > 2_000) setIdleSlowFrames((count) => count + 1)
+      }
       previous = now
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
-    return () => { active = false; cancelAnimationFrame(frame) }
+    return () => { active = false; cancelAnimationFrame(frame); window.clearInterval(refresh); window.removeEventListener('keydown', onKey, true) }
   }, [])
   const last = reports.slice(-6)
-  const firstPage = reports.find((report) => report.phases.firstPaint !== undefined)?.phases.firstPaint
+  // A entrada mais recente que já pintou a 1ª página (SC-002 é lido na TV a cada entrada).
+  const firstPage = [...reports].reverse().find((report) => report.phases.firstPaint !== undefined)?.phases.firstPaint
   return (
     <div
       aria-hidden="true"
@@ -48,7 +65,8 @@ export function PerfOverlay() {
         whiteSpace: 'pre',
       }}
     >
-      {`quadros>100ms=${slowFrames} primeiraPágina=${firstPage ?? '?'}ms\n` + (last.length === 0
+      {`quadros>100ms=${slowFrames} parado>100ms=${idleSlowFrames} primeiraPágina=${firstPage ?? '?'}ms\n` +
+        `tecla: ${keyedFrames ? `${keyedFrames.fps}fps pior=${keyedFrames.worstMs}ms >50ms=${keyedFrames.over50}` : 'sem tecla'}\n` + (last.length === 0
         ? 'perf: entre numa categoria'
         : last
             .map(

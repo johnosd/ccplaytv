@@ -85,6 +85,16 @@ export function markEntry(categoryId: number, kind: string, phase: EntryPhase, i
   )
 }
 
+/**
+ * Leitura feita ANTES da entrada, pela pré-busca por foco (feature 082): a grade então pinta da memória (`firstPaint`
+ * perto de 0) e o custo real da leitura sumiria. Publica só os números dela, como `kind:foco`, sem fechar entrada.
+ */
+export function reportBackgroundRead(categoryId: number, kind: string, phases: Partial<Record<EntryPhase, number>>, items?: number): void {
+  if (!isPerfEnabled()) return
+  reports().push({ categoryId, kind: `${kind}:foco`, phases, items })
+  for (const listener of [...listeners]) listener()
+}
+
 /** Relatórios já publicados (testes e roteiro E2E). */
 export function takeEntryReports(): EntryReport[] {
   return [...reports()]

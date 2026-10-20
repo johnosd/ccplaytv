@@ -18,6 +18,31 @@
     .card .label { font-size: 24px; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .card.f-scale { transform: scale(1.06); }
     .card.f-full { transform: scale(1.06); outline-color: #ff7a3d; box-shadow: 0 0 32px 8px rgba(255,122,61,0.55), 0 12px 40px rgba(0,0,0,0.6); }
+
+    /* ---- Feature 083: candidatas de foco leve (teste foco083). `.card`, f-scale e f-full ficam como na 082.
+       Cada rodada põe `m-<classe>` na grade para que a SAÍDA do foco também use a transição da candidata. ---- */
+    /* f-app: receita exata do app hoje (tokens de tv-web/src/index.css), transição de sombra incluída. */
+    .grid.m-f-app .card { transition: transform 140ms ease-out, box-shadow 140ms ease-out; }
+    .card.f-app { transform: scale(1.06); outline-color: #ff7a3d; outline-offset: 3px; box-shadow: 0 0 0 8px rgba(255,122,61,0.22), 0 0 40px rgba(255,122,61,0.55); }
+    /* C1: mesmo desenho, sombra estática; só a escala anima. */
+    .grid.m-f-c1 .card { transition: transform 140ms ease-out; }
+    .card.f-c1 { transform: scale(1.06); outline-color: #ff7a3d; outline-offset: 3px; box-shadow: 0 0 0 8px rgba(255,122,61,0.22), 0 0 40px rgba(255,122,61,0.55); }
+    /* C2: halo + brilho pré-pintados num pseudo-elemento; só a opacidade anima. */
+    .grid.m-f-c2 .card, .grid.m-f-c3 .card { position: relative; transition: transform 140ms ease-out; }
+    .grid.m-f-c2 .card::after { content: ''; position: absolute; inset: 0; border-radius: 12px; pointer-events: none; opacity: 0; transition: opacity 140ms ease-out;
+      box-shadow: 0 0 0 8px rgba(255,122,61,0.22), 0 0 40px rgba(255,122,61,0.55); }
+    .card.f-c2 { transform: scale(1.06); outline-color: #ff7a3d; outline-offset: 3px; }
+    .grid.m-f-c2 .card.f-c2::after { opacity: 1; }
+    /* C3: como C2, mas o brilho é um degradê radial (halo continua uma sombra sem desfoque). */
+    .grid.m-f-c3 .card::before { content: ''; position: absolute; inset: -56px; z-index: -1; pointer-events: none; opacity: 0; transition: opacity 140ms ease-out;
+      background: radial-gradient(closest-side, rgba(255,122,61,0.55) 45%, rgba(255,122,61,0) 100%); }
+    .grid.m-f-c3 .card::after { content: ''; position: absolute; inset: 0; border-radius: 12px; pointer-events: none; opacity: 0; transition: opacity 140ms ease-out;
+      box-shadow: 0 0 0 8px rgba(255,122,61,0.22); }
+    .card.f-c3 { transform: scale(1.06); outline-color: #ff7a3d; outline-offset: 3px; }
+    .grid.m-f-c3 .card.f-c3::before, .grid.m-f-c3 .card.f-c3::after { opacity: 1; }
+    /* C4: sem brilho difuso; contorno + halo (sombra sem desfoque) + escala. */
+    .grid.m-f-c4 .card { transition: transform 140ms ease-out; }
+    .card.f-c4 { transform: scale(1.06); outline-color: #ff7a3d; outline-offset: 3px; box-shadow: 0 0 0 8px rgba(255,122,61,0.22); }
   </style>
 </head>
 <body>

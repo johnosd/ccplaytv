@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-17 (reescrita em 2026-10-18 com as medições das sondas na TV)
 
-**Status**: Em Execução
+**Status**: Implementada
 
 **Input**: "Estamos frequentemente passando do limite de 80 MB de espaço do app, o que gera erros de quota. Precisamos
 aumentar esse tamanho ou ver outras soluções." Avaliação `go` em

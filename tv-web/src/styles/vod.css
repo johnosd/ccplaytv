@@ -1573,7 +1573,6 @@
   color: var(--text-primary);
   transition:
     transform var(--duration-fast) var(--ease),
-    box-shadow var(--duration-fast) var(--ease),
     background var(--duration-fast) var(--ease);
 }
 

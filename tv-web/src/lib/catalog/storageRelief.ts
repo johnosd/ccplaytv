@@ -14,9 +14,8 @@
  */
 import { db, type CatalogDb } from './db'
 import { isQuotaError, StorageFullError } from './catalogRepository'
-import { invalidateSourceReadModels } from './readProjection'
 import { deleteEpgForSource } from '../epg/epgRepository'
-import { deleteCategoryItems } from './blockChunks'
+import { releaseInactiveList, releaseListCategories, releaseTemporary } from './storageRelease'
 
 const MB = 1024 * 1024
 /**
@@ -56,39 +55,20 @@ export function protectedCatalogSource() { return protectedSourceId }
 
 export type ReliefStep = 'staging' | 'discovery' | 'inactive-lists' | 'epg' | 'active-list'
 
-/** Itens das categorias sob demanda de uma lista (voltam ao entrar na categoria). `true` se apagou algo. */
-async function releaseSourceCategories(database: CatalogDb, sourceId: string): Promise<boolean> {
-  let freed = false
-  const categories = await database.categories.where('sourceId').equals(sourceId).toArray()
-  for (const category of categories.filter((item) => item.fetchMode === 'on_demand' && item.id !== undefined)) {
-    const had = (await database.categories.get(category.id as number))?.itemsFetchedAt !== undefined
-    await deleteCategoryItems(database, category.id as number)
-    if (had) freed = true
-  }
-  await database.transaction('rw', [database.categories, database.categoryBlocks,
-    database.catalogReadManifests, database.catalogReadChunks], async () => {
-    await invalidateSourceReadModels(sourceId, database)
-  })
-  return freed
-}
-
 /**
- * Libera cache refazível em níveis (um nível por transação, do mais barato ao mais caro).
+ * Libera cache refazível em níveis (um nível por transação, do mais barato ao mais caro) — os mesmos candidatos do
+ * orçamento (feature 082, `storageRelease.ts`): temporários, depois as listas NÃO ativas inteiras (categorias sob
+ * demanda, guia e metadados).
  * @returns os níveis que apagaram algo.
  */
 export async function releaseCatalogSpace(database: CatalogDb = db, keepSourceId = protectedSourceId): Promise<ReliefStep[]> {
   const released: ReliefStep[] = []
-  const staging = database.table('sectionStaging')
-  const stagingKeys = await staging.filter((row: { sourceId?: string }) => row.sourceId !== keepSourceId).primaryKeys()
-  if (stagingKeys.length) { await staging.bulkDelete(stagingKeys); released.push('staging') }
-
-  const discovery = database.table('discoveryCache')
-  if (await discovery.count()) { await discovery.clear(); released.push('discovery') }
-
-  const sourceIds = (await database.sources.toCollection().primaryKeys()) as string[]
+  const temporary = await releaseTemporary(database, keepSourceId)
+  if (temporary.staging) released.push('staging')
+  if (temporary.discovery) released.push('discovery')
   let freed = false
-  for (const sourceId of sourceIds) {
-    if (sourceId !== keepSourceId && await releaseSourceCategories(database, sourceId)) freed = true
+  for (const sourceId of (await database.sources.toCollection().primaryKeys()) as string[]) {
+    if (sourceId !== keepSourceId && (await releaseInactiveList(database, sourceId)).length > 0) freed = true
   }
   if (freed) released.push('inactive-lists')
   return released
@@ -110,7 +90,7 @@ export async function releaseEmergencySpace(database: CatalogDb = db, activeSour
     epg = true
   }
   if (epg) released.push('epg')
-  if (activeSourceId && await releaseSourceCategories(database, activeSourceId)) released.push('active-list')
+  if (activeSourceId && (await releaseListCategories(database, activeSourceId)).length > 0) released.push('active-list')
   return released
 }
 

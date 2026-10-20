@@ -34,9 +34,10 @@ import {
 import { readKindCursorPage, type KindCursor } from '../../lib/catalog/kindCursor'
 import { listVisibleCategories } from '../../lib/catalog/categoryAccess'
 import { READ_WINDOW_MIN_ITEMS, readCategoryWindow } from '../../lib/catalog/categoryWindow'
-import { READ_PROJECTION_CHUNK_SIZE, readProjectionManifest } from '../../lib/catalog/readProjection'
+import { READ_PROJECTION_CHUNK_SIZE } from '../../lib/catalog/readProjection'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
-import { markEntry } from '../../lib/perf/entryTiming'
+import { markEntry, reportBackgroundRead } from '../../lib/perf/entryTiming'
+import { useEntryFirstPaint } from '../../lib/perf/useEntryFirstPaint'
 import { isKeyRepeatBurst, subscribeKeyRepeatBurst } from '../../lib/focus/keyRepeat'
 import { prefetchScheduler, renewCategoryNow } from '../../lib/catalog/prefetch'
 import { ensureSeriesEpisodes, type SeriesFetchOutcome } from '../../lib/catalog/seriesLoader'
@@ -452,28 +453,23 @@ export function useCategoryContent(sourceId: string | null, category: CatalogCat
     },
     enabled: sourceId !== null && category !== undefined,
   })
-  // Feature 038 (FR-012): fecha a medição da entrada no primeiro quadro com
-  // itens — efeito roda depois do commit, o `requestAnimationFrame` depois da
-  // pintura. Sem `ccplaytv:perf`, `markEntry` não faz nada.
-  const paintedId = query.data && query.data.items.length > 0 ? category?.id : undefined
-  const paintedKind = category?.kind
-  useEffect(() => {
-    if (paintedId === undefined || paintedKind === undefined) return
-    const frame = requestAnimationFrame(() => markEntry(paintedId, paintedKind, 'firstPaint'))
-    return () => cancelAnimationFrame(frame)
-  }, [paintedId, paintedKind])
+  useEntryFirstPaint(query.data && query.data.items.length > 0 ? category : undefined) // 038 FR-012: medição da entrada
   return query
 }
 
 type CategoryWindowPage = CategoryContent & { windowed: boolean }
 /** Uma janela da projeção a partir de `offset` (a primeira também garante a categoria). Sem projeção atual: `windowed: false`. */
 async function loadCategoryWindowPage(queryClient: QueryClient, sourceId: string, category: CatalogCategory, offset: number, wantedEnd: number, signal?: AbortSignal): Promise<CategoryWindowPage> {
+  if (!signal && offset === 0) markEntry(category.id, category.kind, 'start')
+  const startedAt = performance.now() // 082: a pré-busca por foco também publica o custo da leitura (`reportBackgroundRead`)
   const ensured = offset === 0 ? await ensureCategoryForEntry(sourceId, category, signal) : undefined
   if (ensured?.outcome === 'fetched') void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId] })
   const base = { outcome: ensured?.outcome ?? ('fresh' as const), errorCode: ensured?.errorCode }
-  const manifest = await readProjectionManifest(sourceId, category.id)
-  if (!manifest || manifest.count !== category.count) return { ...base, items: [], totalCount: 0, windowed: false }
+  // Feature 082: janela dos pedaços comprimidos; contagem diferente do retrato = a tela lê a categoria inteira.
   const window = await readCategoryWindow(sourceId, category.id, offset, Math.max(READ_PROJECTION_CHUNK_SIZE, wantedEnd - offset))
+  if (window.total === 0 || window.total !== category.count) return { ...base, items: [], totalCount: 0, windowed: false }
+  if (!signal && offset === 0) markEntry(category.id, category.kind, 'read', window.total)
+  else if (offset === 0) reportBackgroundRead(category.id, category.kind, { read: Math.round(performance.now() - startedAt) }, window.total)
   return { ...base, items: window.items.map((record) => toItemOut(record, category.kind)), totalCount: window.total, windowed: true }
 }
 
@@ -507,6 +503,7 @@ export function useCategoryWindow(sourceId: string | null, category: CatalogCate
     if (hasNextPage && !isFetchingNextPage && (index === undefined || index >= items.length)) void fetchNextPage()
   }, [hasNextPage, isFetchingNextPage, fetchNextPage, items.length])
   const data: CategoryContent | undefined = first && { items, totalCount: first.totalCount, outcome: first.outcome, errorCode: first.errorCode }
+  useEntryFirstPaint(windowed && items.length > 0 ? category : undefined)
   return { data, isLoading: pages.isLoading, isError: pages.isError, refetch: pages.refetch, windowed, hasMore: windowed && hasNextPage, loadMore }
 }
 

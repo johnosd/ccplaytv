@@ -253,11 +253,13 @@ input:focus,
     var(--focus-glow);
 }
 
+/* Feature 083: só `transform` e `background` animam. A sombra (halo + brilho de 40 px) entra e sai de uma vez — animá-la
+   obriga a repintar o desfoque a cada quadro e levou a grade de 140 cards a 38 fps na TV. Nenhuma folha de estilo pode
+   animar `box-shadow` nem usar `backdrop-filter` (contrato `styles/foco-leve-tv.contract.test.ts`). */
 button,
 .tv-focusable {
   transition:
     transform var(--duration-fast) ease-out,
-    box-shadow var(--duration-fast) ease-out,
     background var(--duration-fast) ease-out;
 }
 

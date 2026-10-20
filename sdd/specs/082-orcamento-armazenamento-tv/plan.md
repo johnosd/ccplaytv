@@ -213,9 +213,10 @@ comprimido e a conversão ficam em testes de fase.
 
 | Área | Estado |
 | --- | --- |
-| Medição | Sondas 1 e 2 na TV e lista real no PC concluídas (2026-10-18), em `evidencias/` |
-| Plano | Refeito depois das sondas; Fases 1–2 concluídas e Fase 3 em execução |
-| Código | Codec, ledger, gravação sob demanda, lista, janela, identidades e séries integrados; leitores restantes pendentes |
+| Status | **Implementada** (2026-10-19), com SC-002/003/004/007 na TV adiados por decisão do usuário (R-021) |
+| Código | Formato comprimido como gravação única, conversão, guia por canal, orçamento completo, recuperação do banco cheio, painel de medição |
+| Testes | `npm run test` 3 601; contrato 5/5 e trava íntegra; `npm run test:e2e` 54/54; build ok |
+| TV | SC-001 aprovado (97 → 16 MB); a TV está com o **pacote de medição** instalado |
 
 ## Riscos e Decisões
 
@@ -235,6 +236,13 @@ comprimido e a conversão ficam em testes de fase.
 | R-012 | Versão 26 do Dexie numa TV com dados | Abertura do banco | Só tabelas novas, sem `.upgrade()` (padrão da 066/069) |
 | R-013 | **Medido na TV**: uma transação com muitas gravações (lote de 2 000 linhas de guia) foi abortada com `TimeoutError: Transaction timed out due to inactivity` | Gravação perdida no meio | Gravar em lotes pequenos (≤ 500 linhas) ou em poucos registros comprimidos. O formato novo do guia são 104 registros por lista, gravados em ~110 ms. Conversões e liberações: uma categoria por transação |
 | R-014 | B-05 (SC-007, guia ≤ 3 s) | — | Resolvido por medição na TV: o guia real (10 122 programas, 104 canais) comprimido por canal no Worker é gravado em **1,01 s** (hoje 10,2 s), com a tela a 60 fps. A T050 só confirma com o app real |
+| R-015 | Revisão 2026-10-19: tasks marcadas `[X]` sem o código fazer o pedido (gravação dupla, projeção 065 reconstruída dos pedaços, conversão T014 inexistente, guia em dois formatos, candidatos/proteção do orçamento ausentes) | SC-001 reprovado na TV (97 MiB) | Resolvido: T054–T064. Regra: fechar task só com teste que falharia sem ela |
+| R-016 | `Storage.overrideQuotaForOrigin` não vale em contexto efêmero do Chromium (informa a cota do disco) | E2E/simulação "com 80 MiB" sem cota nenhuma | Resolvido: contexto persistente + `--disable-features=StaticStorageQuota`; o E2E confere a cota antes de seguir |
+| R-017 | `publishGeneration`/`collectStaleGenerations` apagavam a geração errada dos pedaços | Conteúdo novo sumindo ou pedaços antigos vazando | Resolvido (T058), com teste |
+| R-018 | Pedaços gravados pela versão de 2026-10-18 já estão na TV (sem `revision` por pedaço, `shared` pelo 1º item) | Leitura de grupo misto | Decodificação preenche do `shared` só o ausente (compatível); `readIdentityIndex` ignora índice sem `revision` e cai na varredura; a próxima renovação regrava no formato novo |
+| R-019 | Banco acima da cota no formato antigo (a TV de 2026-10-18): toda gravação falha e só remoção passa; liberar, converter e regravar o guia não andavam e a pré-carga parava com o housekeeping | App preso cheio para sempre | Resolvido no PC (T066–T068, E2E `orcamento-armazenamento-migracao`): remoção separada do carimbo, órfãs reparadas depois, guia antigo sai primeiro, `storage_full` não para enquanto há limpeza. Na TV o espaço apagado demora a voltar (R-002): confirmar na T050 |
+| R-020 | Flake `carrosseis-filmes-series` ("Maximum update depth" na pilha de 302 categorias) em 2 de 4 rodadas completas do E2E em 2026-10-19 | Gate E2E não fica verde | Resolvido (usuário pediu investigar): pré-existente (falha igual com o código anterior à 082, `E2E_CPU=4`); causa em `useOverflowEdges` (setState de mesmo valor a cada render). Bug `vitrine-filmes-estoura-maximum-update-depth`, verificado: 54/54 duas vezes |
+| R-021 | Decisão do usuário (2026-10-19): fechar a 082 sem as medidas de velocidade na TV | SC-002 (1ª página), SC-003 (quadros > 100 ms em segundo plano), SC-004 (3 listas + Atualizar da licença) e SC-007 (guia no app real) sem número nesta versão | Aceito pelo usuário. Base: SC-001 aprovado na TV (16/80 MB), recuperação do banco cheio confirmada, PC com CPU 4× (1ª página 309 ms; entrada 581/762 ms), sonda de 2026-10-18 (guia 1,07 s no Worker, 0 quadros longos). Painel corrigido (T069) e pacote de medição instalado: medir quando possível |
 
 ## Execution Notes
 
@@ -275,19 +283,31 @@ comprimido e a conversão ficam em testes de fase.
 | 2026-10-18 | T050 | Preflight sdb aprovado; pacotes normal e de medição instalados com o mesmo certificado. Sondas autorizadas confirmaram cota 80 MiB, bloqueio IndexedDB em 82,9 MiB, EPG Worker 1,071 s e 0 quadros longos; usuário observou 97 MiB no app e fluxos sem erros | SC-001 reprovado (97/80 MiB) e SC-002 ainda sem `primeiraPágina` da categoria real; manter T050 pendente |
 | 2026-10-18 | T050 | Lacuna corrigida em `makeRoomFor`: o planejador agora recebe `navigator.storage.estimate()` e libera cache refazível quando o uso físico passa da reserva, mesmo com ledger lógico baixo; teste de regressão verde e pacote normal reinstalado na TV sem limpar dados | Repetir entrada em categorias/listas para confirmar a redução observada; T050 continua pendente até nova leitura |
 | 2026-10-18 | T050 | Corrigido o caminho de “Minha Lista”: `userStateRepository.upsert` passou a envolver favoritos/progresso em `withStorageRelief`, liberando cache refazível e repetindo a gravação após `QuotaExceededError`; regressão verde (44 testes de favoritos/estado), lint/tsc verdes e pacote normal reinstalado com o mesmo certificado | Repetir adicionar um filme à Minha Lista na TV e registrar se o favorito persiste; T050 continua pendente |
+| 2026-10-19 | Revisão + correção das lacunas | Revisão achou o formato 2 gravado **junto** com o antigo e a projeção 065, conversão ausente, guia duplicado e vazando por geração, `publishGeneration` apagando os pedaços da geração publicada, orçamento sem `temporary`/`inactive-list`/proteção de favoritos, grade sem janela no formato 2, E2E sem cota real e 7 testes vermelhos. Corrigido em T054–T064; unitários 3 596 verdes, contrato 5/5, lint ok, E2E da 082 ok | Suíte E2E completa e T050 na TV com autorização |
+| 2026-10-19 | Ensaio antes da TV | Simulação com lista real refeita esperando a pré-carga: 104/104 categorias, 5,9 MB de 80 MiB (7,4 %), conta 3,98 MB, guia 0,45 MB. E2E novo do banco cheio no formato antigo achou e o código corrigiu o impasse acima da cota (R-019). Unitários 3 601, lint ok, build ok; E2E 53/54 com flake aberto (R-020) | Decidir o flake; T050 com autorização |
+| 2026-10-19 | Flake da vitrine (R-020) | Investigado a pedido: reproduz sempre com CPU 4× e também no código anterior à 082; causa em `useOverflowEdges`. Corrigido via bug `vitrine-filmes-estoura-maximum-update-depth`; suíte E2E 54/54 duas vezes, unitários 3 601, build ok | T050 com autorização |
+| 2026-10-19 | T050 (TV, pacote normal) | Instalado sem desinstalar. Armazenamento 97 → 63 → 43 → 16 MB (20 %): SC-001 aprovado; recuperação do banco cheio (R-019) confirmada na TV; Minha Lista grava; categorias e guia abrem | SC-002/SC-003 com o pacote de medição; SC-004, SC-007 |
+| 2026-10-19 | T050 (pacote de medição) | Painel não media a janela (T056) nem a leitura da pré-busca por foco; contador de quadros misturava navegação. Corrigido (T069) e reinstalado; medição pausada a pedido do usuário | Medir SC-002/SC-003 com o pacote já instalado |
+| 2026-10-19 | Fechamento | Gates repetidos (3 601 unitários, 54/54 E2E depois de trocar uma espera fixa do `fontes-estado`). Usuário decidiu fechar sem SC-002/003/004/007 na TV (R-021); status Implementada | Medir SC-002/003 com o pacote já instalado; voltar ao pacote normal |
 
-**PRÓXIMO**: T050 — gate físico, com autorização explícita.
+**PRÓXIMO**: feature fechada (R-021). Pendente fora do gate: medir SC-002/SC-003/SC-004/SC-007 na TV com o pacote de medição já instalado e então reinstalar o pacote normal (avisando). Antes: T050 — SC-001 aprovado; pacote de medição (com T069) JÁ INSTALADO na TV — medir SC-002 (`primeiraPágina` + linha `:foco`) e SC-003 (`parado>100ms` com a lista aberta), depois voltar ao pacote normal; SC-004 (3 listas + Atualizar da licença) e SC-007.
 
 ## Arquivos Principais
 
-- `sdd/specs/082-orcamento-armazenamento-tv/logic/formato-comprimido.md`
-- `tv-web/scripts/bench/simular-cota-tv.mjs`
-- `tv-web/src/lib/catalog/{blockCodec,blockChunks,storageLedger}.ts`
+- `tv-web/src/lib/catalog/{blockCodec,blockChunks,blockWrite,blockConversion}.ts` — formato 2 (ler, gravar, converter)
+- `tv-web/src/lib/catalog/{storageLedger,storageRelease,storageBudget,storageRelief}.ts` — orçamento
+- `tv-web/src/lib/epg/epgChunkStore.ts` — guia comprimido por canal
+- `tv-web/src/lib/catalog/categoryWindow.ts` — janela pelos pedaços; projeção 065 só é apagada
+- `tv-web/e2e/orcamento-armazenamento.mjs` — E2E com cota reduzida de verdade
 - `tv-web/src/lib/catalog/storageBudget.orcamento-armazenamento.contract.test.ts` (travado)
 
 ## Cuidados para Retomada
 
 - As sondas instalam **apps separados** (`ccpSonda82.CotaProbe`, `ccpSondaV2.Capacidades`). Os dois já foram
   desinstalados. Para medir de novo, peça autorização e use `sonda-tv/instalar-sonda.ps1`.
+- Cota simulada no PC só vale em `launchPersistentContext` com `--disable-features=StaticStorageQuota`; confira com
+  `navigator.storage.estimate()` antes de medir (R-016).
+- Itens de categoria só se gravam por `writeCompressedBlock`/`prepareBlockWrite`+`commitBlockWrite` (`blockWrite.ts`);
+  nunca `categoryBlocks.put` com `items`, nunca projeção 065 nova.
 - O Chrome do PC bloqueia o coletor em `127.0.0.1` por Local Network Access. No ensaio no PC, sirva tudo na mesma origem
   (`page.route`), como no ensaio feito.

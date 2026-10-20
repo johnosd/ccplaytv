@@ -14,6 +14,10 @@ update-bug-status.ps1.
 <!-- Achados das sondas na TV física (feature 082, 2026-10-18). Números em
      sdd/specs/082-orcamento-armazenamento-tv/evidencias/sonda2-capacidades-tv-2026-10-18.md.
      A sonda (sonda-tv/) pode medir de novo antes e depois de cada uma, sempre com autorização. -->
+- [Medição] **Velocidade da 082 na TV física** (origem: fechamento da 082, 2026-10-19, R-021): medir SC-002 (1ª página da
+  categoria de 11 mil filmes — `primeiraPágina` e linha `movie:foco … read=`, referência 178 ms), SC-003 (`parado>100ms`
+  com a lista aberta, meta 0), SC-004 (3 listas + Atualizar da licença) e SC-007 (guia ≤ 3 s no app real). O pacote de
+  medição já está instalado na TV; depois, reinstalar o pacote normal (avisando).
 - [Feature] **Orçamento de memória do app** (origem: sonda 2 da 082).
   - **Medido**:
     - RAM total de 1,49 GB, com só ~310 MB livres no início;
@@ -139,8 +143,8 @@ update-bug-status.ps1.
 | 079-home-carregamento-progressivo | Home, Filmes e Séries já montadas ao entrar | Em Execução | 35/41 tasks | 2026-10-17 |
 | 080-portal-variante-base | Portal na variante base da loja Samsung, sem licença | Cancelada | N/A | 2026-10-17 |
 | 081-venda-producao-mercadopago | Venda em produção com Mercado Pago | Em Execução | 34/56 tasks | 2026-10-17 |
-| 082-orcamento-armazenamento-tv | Orçamento de armazenamento do app na TV | Em Execução | 63/72 tasks | 2026-10-18 |
-| 083-foco-leve-tv | Foco leve na TV | Em Execução | 0/35 tasks | 2026-10-18 |
+| 082-orcamento-armazenamento-tv | Orçamento de armazenamento do app na TV | Implementada | 89/89 tasks | 2026-10-19 |
+| 083-foco-leve-tv | Foco leve na TV | Implementada | 37/37 tasks | 2026-10-19 |
 
 ## Bugs
 

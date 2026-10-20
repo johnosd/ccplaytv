@@ -17,9 +17,13 @@ import { isQuotaError } from '../catalog/catalogRepository'
 import { isAbortError } from '../catalog/xtreamConnector'
 import { deleteEpgForSource, recordEpgFailure, recordEpgSuccess, writeEpgPrograms } from './epgRepository'
 import { makeRoomFor } from '../catalog/storageBudget'
+import { guideStoredBytes } from '../catalog/storageLedger'
 import { EpgFailure, requireXmltvRoot, textChunks } from './epgFetch'
 import { resolveEpgUrl } from './epgStatus'
 import { parseXmltv } from './xmltvParser'
+
+/** Guia sem histórico no orçamento (feature 082): ~1 MB. */
+const EPG_ESTIMATE_BYTES = 1024 * 1024
 
 const HOUR_MS = 3_600_000
 
@@ -78,7 +82,10 @@ export async function syncEpg(sourceId: string, options: SyncEpgOptions = {}): P
     if (!response.ok || !response.body) throw new EpgFailure('network')
 
     const chunks = requireXmltvRoot(textChunks(response.body))
-    const room = await makeRoomFor(sourceId, 0, { database, mode: 'prefetch' })
+    // Feature 082: o guia novo substitui o atual — o que ele apaga ao publicar sai da conta (num banco cheio de linhas
+    // antigas, sem isso o próprio guia velho barraria o novo). Sem histórico, ~1 MB (o real comprimido mede ~0,6 MB).
+    const current = await guideStoredBytes(database, record)
+    const room = await makeRoomFor(sourceId, (record.epgStoredBytes ?? EPG_ESTIMATE_BYTES) - current.bytes, { database, mode: 'prefetch' })
     if (!room.fits) return { outcome: 'failed', errorKind: 'storage_full' }
     const { programCount } = await writeEpgPrograms(sourceId, parseXmltv(chunks, window), database)
 

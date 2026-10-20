@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-19",
+  "quotaBytes": 83886080,
+  "storageErrors": [],
+  "cpuThrottlingRate": 4,
+  "prefetch": {
+    "categories": 104,
+    "onDemand": 104,
+    "fetched": 104,
+    "epgGeneration": 1,
+    "epgError": null,
+    "partial": false,
+    "waitedMs": 10046
+  },
+  "afterPrefetch": {
+    "usage": 5923175,
+    "quota": 83886080,
+    "tables": {
+      "categories": 104,
+      "epgPrograms": 0,
+      "categoryBlocks": 104,
+      "catalogReadManifests": 0,
+      "catalogReadChunks": 0,
+      "categoryChunks": 294,
+      "epgChunks": 122
+    },
+    "ledgerBytes": 3975083,
+    "capBytes": 71303168,
+    "epgStoredBytes": 450534
+  },
+  "perf": [
+    {
+      "phases": {
+        "start": 0,
+        "ensured": 44,
+        "read": 50,
+        "itemsOut": 51,
+        "firstPaint": 309
+      },
+      "items": 101
+    }
+  ],
+  "entryWallMs": [
+    {
+      "section": "movies",
+      "ms": 581
+    },
+    {
+      "section": "series",
+      "ms": 762
+    }
+  ],
+  "usage": 5926221,
+  "quota": 83886080,
+  "tables": {
+    "categories": 104,
+    "epgPrograms": 0,
+    "categoryBlocks": 104,
+    "catalogReadManifests": 0,
+    "catalogReadChunks": 0,
+    "categoryChunks": 294,
+    "epgChunks": 122
+  },
+  "ledgerBytes": 3975083,
+  "capBytes": 71303168,
+  "epgStoredBytes": 450534
+}

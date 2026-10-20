@@ -6,6 +6,7 @@
 import { gzipSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CatalogDb, type SourceRecord } from '../catalog/db'
+import { epgChunks } from '../catalog/chunkTables'
 import { getEpgStatus, listProgramsForChannels, setEpgEnabled } from './epgRepository'
 import { syncEpg } from './epgSync'
 
@@ -122,7 +123,7 @@ describe('syncEpg — fora do contrato', () => {
   it('quota cheia vira storage_full e preserva o que havia', async () => {
     await run(respond(XML))
     const quota = Object.assign(new Error('cheio'), { name: 'QuotaExceededError' })
-    vi.spyOn(database.epgPrograms, 'bulkAdd').mockRejectedValue(quota)
+    vi.spyOn(epgChunks(database), 'bulkPut').mockRejectedValue(quota)
 
     expect(await run(respond(XML))).toMatchObject({ outcome: 'failed', errorKind: 'storage_full' })
     expect(await titles()).toEqual(['Agora'])

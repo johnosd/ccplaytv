@@ -22,6 +22,10 @@ const NONE: OverflowEdges = { above: false, below: false }
  */
 export function useOverflowEdges(ref: RefObject<HTMLElement | null>, deps?: unknown): OverflowEdges {
   const [edges, setEdges] = useState<OverflowEdges>(NONE)
+  // O valor já entregue: medir sem mudança não chama `setEdges`. Um `setState` de mesmo valor ainda agenda um render (o
+  // React só descarta depois), e este hook mede a CADA render — sob carga, numa descida longa da vitrine de Filmes, isso
+  // encadeava atualizações até "Maximum update depth exceeded" (bug `vitrine-filmes-estoura-maximum-update-depth`).
+  const current = useRef<OverflowEdges>(NONE)
   const bound = useRef<{ element: HTMLElement; cleanup: () => void } | null>(null)
   const measure = useRef<() => void>(() => {})
 
@@ -36,7 +40,9 @@ export function useOverflowEdges(ref: RefObject<HTMLElement | null>, deps?: unkn
             below: element.scrollTop + element.clientHeight < element.scrollHeight - 1,
           }
         : NONE
-      setEdges((prev) => (prev.above === next.above && prev.below === next.below ? prev : next))
+      if (current.current.above === next.above && current.current.below === next.below) return
+      current.current = next
+      setEdges(next)
     }
   })
   useEffect(() => {

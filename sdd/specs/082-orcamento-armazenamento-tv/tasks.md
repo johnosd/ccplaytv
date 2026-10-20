@@ -188,11 +188,12 @@ description: "Tasks da feature 082 — formato comprimido em pedaços + orçamen
 
 **Registro da Fase**:
 
-- Status: Em execução (integração inicial).
-- Feito: T010a/T010b, T011 e T012; leitores de lista/janela e gravação sob demanda usam formato 2 com fallback antigo.
+- Status: Concluída (refeita na revisão de 2026-10-19 — ver "Revisão 2026-10-19" no fim).
+- Feito: T010–T019. Na 1ª passada T011/T012/T014 ficaram marcadas sem estar feitas (gravação dupla, projeção 065
+  reconstruída a partir dos pedaços, conversão inexistente); corrigido em T054–T057.
 - Contrato: `npx vitest run src/lib/catalog/storageBudget.orcamento-armazenamento.contract.test.ts` — 5/5 verdes; trava íntegra.
-- Testes executados: contrato 082 completo (5/5); codec/pedaços e leitores legados verdes; `npx tsc -b` verde.
-- Pendências: T019.
+- Testes executados: ver Registro da revisão.
+- Pendências: números da simulação T019 foram medidos com a gravação dupla; repetir na T050/simulação.
 
 ---
 
@@ -345,11 +346,13 @@ parcial honesta.
 
 **Registro da Fase**:
 
-- Status: Concluída em laboratório.
-- Feito: T033–T040; integração de uso/orçamento, proteção por janela, invalidação agrupada e cobertura parcial.
+- Status: Concluída em laboratório (números do PC; os da TV ficam na T050).
+- Feito: T041/T042 — painel com quadros > 100 ms e 1ª página (corrigido em 2026-10-19 para mostrar a entrada mais
+  recente, não a mais antiga); simulação com CPU 4×: entrada movies 669 ms, series 528 ms.
 - Contrato: contrato 082 5/5 verde; trava íntegra.
-- Testes executados: `npx vitest run src/features/home/homeStatusLine.storage.test.ts src/lib/catalog/storageRelease.test.ts src/lib/catalog/storageBudget.orcamento-armazenamento.contract.test.ts` — 7/7 verdes; `npx tsc -b` verde.
-- Pendências: nenhuma nesta fase.
+- Testes executados: simulação T042 (`node scripts/bench/simular-cota-tv.mjs`, 2026-10-18).
+- Pendências: com a revisão a grade passa a ler janela dos pedaços (antes caía na leitura inteira sem projeção);
+  repetir a medida de 1ª página na T050.
 
 ---
 
@@ -410,7 +413,8 @@ parcial honesta.
   - o guia abrindo
 - [X] T049 `home.status.partial` em `tv-web/e2e/legibilidade-tv.mjs`, e depois `npm run test:e2e` completo (com
   `npm run dev`), antes da TV
-- [ ] T050 ⚠️ TV — **avisar e pedir permissão**. Instalar o pacote normal e o de medição (`VITE_CCPLAY_PERF=1`):
+- [X] T050 ⚠️ TV — **parcial, fechada por decisão do usuário (R-021, 2026-10-19)**: SC-001 aprovado (16/80 MB); SC-002,
+  SC-003, SC-004 e SC-007 adiados (painel de medição corrigido na T069, pacote de medição instalado). **Avisar e pedir permissão**. Instalar o pacote normal e o de medição (`VITE_CCPLAY_PERF=1`):
   - **SC-001**: lista real completa ≤ 25 % em Sobre & créditos;
   - **SC-002**: 1ª página ≤ hoje;
   - **SC-003**: nenhum quadro > 100 ms na conversão e na pré-carga;
@@ -429,14 +433,17 @@ parcial honesta.
 
 ### Checklist de Release
 
-- [ ] Fases 1–9 concluídas
-- [ ] Contrato 5/5 verde na suíte completa e `check-contract-tests.ps1` íntegro
-- [ ] Contratos de outras features verdes (039, 055, 063, 065, 066, 038/042, 081)
-- [ ] `npm run test`, `npx tsc -b`, `npm run lint` (`architecture: ok`) e `npm run build`
-- [ ] Simulação no PC sem erro de armazenamento (gate antes da TV)
-- [ ] `npm run test:e2e` verde
-- [ ] Gate da TV física (T050), ou decisão explícita do usuário registrada em `Riscos e Decisões`
-- [ ] `quickstart.md` executado
+- [X] Fases 1–9 concluídas
+- [X] Contrato 5/5 verde na suíte completa e `check-contract-tests.ps1` íntegro
+- [X] Contratos de outras features verdes (039, 055, 063, 065, 066, 038/042, 081)
+- [X] `npm run test`, `npx tsc -b`, `npm run lint` (`architecture: ok`) e `npm run build`
+- [X] Simulação no PC sem erro de armazenamento (gate antes da TV)
+- [X] `npm run test:e2e` verde (54/54 duas vezes, depois do bug `vitrine-filmes-estoura-maximum-update-depth`)
+- [X] Gate da TV física (T050), ou decisão explícita do usuário registrada em `Riscos e Decisões` — SC-001 na TV;
+  SC-002/003/004/007 adiados pelo usuário (R-021)
+- [X] `quickstart.md` executado — automatizadas, A (lista real: catálogo 3,98 MB ≤ 5 MB, guia 0,45 MB ≤ 1 MB, sem erro;
+  A4 coberto pelo E2E com 12 categorias e teto de 1 MiB, não 50), B (54/54), D1–D2 (SC-001); C opcional não executado;
+  D3–D5 adiados (R-021) — a TV segue com o pacote de medição
 
 ---
 
@@ -471,5 +478,120 @@ parcial honesta.
 - Correções aplicadas: `makeRoomFor` considera `navigator.storage.estimate()` para liberar cache refazível; `userStateRepository.upsert` usa `withStorageRelief` para que “Minha Lista” sobreviva a `QuotaExceededError`.
 - Verificações concluídas: testes focados de favoritos/estado (44), lint com `architecture: ok`, `tsc`, build Tizen, `git diff --check` e deploy/lançamento normal na TV.
 - **Próxima retomada**: pedir ao usuário para adicionar um filme em “Minha Lista” na TV; confirmar persistência e ausência do erro; repetir a entrada em uma categoria/lista e registrar a nova leitura de armazenamento e, se possível, `primeiraPágina` no arquivo `evidencias/validacao-tv-2026-10-18.md`; então decidir se T050 pode avançar.
+
+## Revisão 2026-10-19 (sdd-execute: revisar o que foi feito e corrigir as lacunas)
+
+Tasks ad-hoc descobertas na revisão. Todas dentro do escopo da 082: eram tasks marcadas `[X]` cujo código não fazia o
+que a task pedia, ou defeitos que os testes da fase não pegavam.
+
+- [X] T054 [US1] (de T011) Gravação única no formato 2 em duas fases — `blockWrite.ts` (`prepareBlockWrite` fora da
+  transação, `commitBlockWrite` dentro, `writeCompressedBlock` com até 2 novas tentativas por `revision`). Antes,
+  `renewCategoryItems` gravava o bloco antigo com `items`, depois os pedaços, e `storeStoredCategory` (M3U) só o antigo.
+  `writeBlockWithin` saiu; a conversão da 039 (linhas → bloco) também grava direto no formato 2
+- [X] T055 [US1] (de T012, D-004) A projeção 065 deixou de ser gravada: `prepareCategoryReadModel` reconstruía a 2ª
+  cópia **a partir dos pedaços** a cada renovação. Agora só apaga; `prepareMissingReadModels` só limpa as que sobraram.
+  `readCategoryWindow` lê os pedaços sem o cabeçalho (`readOwnerChunks`; `revision`/`shared` vão em cada pedaço), com
+  fallback para bloco antigo e linhas da 039
+- [X] T056 [US2] A grade (`useCategoryWindow`) e o cursor de "Todos" (`kindCursor.ts`, `repository/kindReads.ts`) só
+  faziam janela com projeção 065; sem ela liam a categoria inteira. Agora o formato 2 é janelável (`categoryWindowInfo`)
+- [X] T057 [US1] (T014, inexistente) Conversão bloco antigo → formato 2 em `blockConversion.ts` (`convertNextBlock`), no
+  `housekeeping` depois da 039: uma por chamada, lista ativa e maiores primeiro, ids/`itemsFetchedAt`/`itemsSignature`
+  preservados, avisando a tela
+- [X] T058 [US1] `publishGeneration` apagava os pedaços **da geração publicada** (`equals` em vez de "as outras");
+  `collectStaleGenerations` só apagava a geração exatamente igual ao início da faixa. Corrigidos
+- [X] T059 [US1] (T020–T022) Guia: `writeEpgPrograms` gravava as linhas antigas **e** os pedaços; a troca de geração não
+  apagava pedaços antigos (acumulavam a cada sincronização); a leitura descomprimia o guia inteiro a cada consulta.
+  Agora `epgChunkStore.ts`: só pedaços enxutos, lotes ≤ 200 canais (R-013), `bulkGet` dos canais pedidos, troca apaga
+  linhas e pedaços de outras gerações; desativar o EPG (`sourceRepository`) apaga os dois formatos
+- [X] T060 [US3] (T027/T028/T030) Orçamento: candidatos `temporary` e `inactive-list` (ordenada por `lastActivatedAt`)
+  não existiam; favoritos/"Continuar assistindo" não eram protegidos (`pinnedUserCategories`, só resolvido quando o plano
+  chegaria à lista ativa); liberar lista inativa leva guia e metadados; `makeRoomFor` nunca lança; a conta não carrega
+  mais o guia inteiro (`epgPrograms.toArray()`) e soma episódios e metadados; `withStorageRelief` usa as mesmas
+  primitivas; o orçamento recebe os bytes **codificados** (`room`) em vez de `60 B × itens`; `touchCategory` na entrada
+  (faltava) e em memória para a proteção de uso recente; o guia estima `epgStoredBytes` (pedia 0 B)
+- [X] T061 Leitores: `getChannel` pelo índice de identidade e um pedaço (`findBlockItem`); identidades/séries pedaço a
+  pedaço parando ao achar (`iterateHeaderChunks`); `shared` só com valor igual em todos (antes, item sem grupo herdava o
+  grupo do 1º); LRU de pedaços em ordem de uso; cache de bloco antigo volta a 2 000 itens
+- [X] T062 `StorageFullError` classificado como `QUOTA` (`storageFailure.ts`): desde que `upsert` usa
+  `withStorageRelief`, falha de progresso saía `PRG-W-UNKNOWN`
+- [X] T063 Testes que faltavam ou eram rasos: `blockCodec`/`blockChunks` (T008/T009, com concorrência entre fases),
+  `blockConversion.test.ts` (T016/T017: antigo × formato 2 idênticos, interrupção, ordem), `epgRepository.formato2.test.ts`
+  (T023, não existia), `storageLedger`/`storageRelease`/`storageBudget.listas` (T031/T032/T038/T040/T044). Testes da
+  065/039/guia/bancada que verificavam o comportamento substituído (projeção, linhas do guia) reescritos para o novo
+- [X] T064 (T048) E2E `orcamento-armazenamento.mjs` era só importar uma fixture M3U; e a cota de 80 MiB **nunca valeu**:
+  num contexto efêmero o Chromium ignora `Storage.overrideQuotaForOrigin` (informa 6,4 GB). Reescrito com contexto
+  persistente, painel Xtream falso (12 × 4 000 filmes) e cota de 13 MiB (teto 1 MiB): os 5 cenários da T048
+
+**Registro da revisão**:
+
+- Status: Concluída; T050 (TV física) continua pendente.
+- Linha de base antes da revisão: `npx vitest run src/lib/catalog src/lib/epg` — 7 falhas em 693 (blockMemo,
+  categoryWindow, readProjection.writers), embora as fases estivessem registradas como verdes.
+- Contrato: `npx vitest run src/lib/catalog/storageBudget.orcamento-armazenamento.contract.test.ts` — 5/5 verdes;
+  `check-contract-tests.ps1` íntegro. Contrato da 065 verde (janela sem `categoryBlocks.get`).
+- Testes executados: `npm run test` — 656 arquivos, 3 596 testes verdes; `npx tsc -b` limpo; `npm run lint` —
+  `architecture: ok` (baseline encolhida com `--prune`: `categoryBlocks.ts` saiu das exceções);
+  `node e2e/orcamento-armazenamento.mjs` — ok (pré-carga parou em 7/12 categorias com a conta em 999 597 B ≤ 1 MiB;
+  entradas além do teto sem STO-01; Voltar restaura o item; guia em 2 pedaços e 0 linhas; troca de lista ok);
+  `npm run test:e2e` — 53/53 scripts verdes (216 s, 6 em paralelo); `npm run build:tizen` ok (lista do Tizen íntegra).
+- Pendências: T050 na TV (o pacote instalado em 2026-10-18 tem a gravação dupla — os 97 MiB lidos lá não medem esta
+  versão); repetir a simulação T019 com o formato corrigido.
+
+## Ensaio antes da TV (2026-10-19, a pedido do usuário: "refaça a simulação no PC com lista real antes de instalar")
+
+- [X] T065 Simulação com a lista real (`scripts/bench/simular-cota-tv.mjs`) passa a esperar a pré-carga e o guia antes de
+  medir (antes media logo ao abrir a lista: os 7,9 MB de "antes" eram de cobertura parcial) e registra a conta própria.
+  Resultado em `evidencias/simulacao-pc-depois-2026-10-19.json`: 104/104 categorias, uso 5 926 221 B de 80 MiB (7,4 %),
+  conta 3 975 083 B, guia 450 534 B em 122 canais, 0 linhas antigas, 0 projeções, 0 erros de armazenamento
+- [X] T066 E2E `orcamento-armazenamento-migracao.mjs` (na `SUITE`): o estado da TV de 2026-10-18 — formato antigo
+  (blocos com `items`, projeção 065, guia em linhas) com o banco ACIMA da cota. Achou o impasse: acima da cota toda
+  gravação falha (até um `update`) e só remoção passa; a liberação apagava e carimbava na mesma transação e não andava; a
+  pré-carga parava em `storage_full` e com ela o housekeeping; o guia novo era barrado pelo próprio guia velho na conta
+- [X] T067 Correções do impasse: projeções 065 saem primeiro; `deleteCategoryItems` remove numa transação e carimba em
+  outra (categoria "órfã" se não couber: a entrada a busca de novo, a conta não a soma, `repairOrphanCategories` a
+  conserta e o guia órfão volta a "não sincronizado"); com o banco cheio a conversão tira antes o guia em linhas
+  (`releaseLegacyGuides`) e só então libera a categoria; `storage_full` só para a pré-carga quando a limpeza não tem mais
+  o que fazer (`cleanBeforeStopping`); reparo bloqueado tenta de novo a cada 5 s por até 3 min; o guia novo desconta o
+  guia que substitui; linhas antigas do guia viram candidato `temporary`; regravar o guia tolera o banco cheio
+- [X] T068 Testes: conversão com banco cheio (libera e segue; guia antigo primeiro), órfã e reparo, guia com banco cheio
+  (formato antigo e novo), conta sem órfã
+
+**Registro do ensaio**:
+
+- Status: Concluído; T050 (TV) liberada para instalação, com autorização.
+- Testes executados: `npm run test` — 656 arquivos, 3 601 testes verdes; `npx tsc -b` limpo; `npm run lint` —
+  `architecture: ok`; `node e2e/orcamento-armazenamento-migracao.mjs` — 3/3 ok isolado (do banco cheio, ~19 MB numa cota
+  de 16 MiB, para 8 blocos comprimidos, conta 0,7 MB, guia comprimido, 0 órfãs; favoritar e abrir categoria sem STO-01);
+  `npm run build:tizen` ok; simulação com a lista real repetida (números acima).
+- `npm run test:e2e`: 53/54 em duas rodadas seguidas — falhou `carrosseis-filmes-series` ("Maximum update depth exceeded"
+  na pilha virtualizada de 302 categorias, a mesma classe da R-010 da 053). Passa 3/3 isolado (`--jobs 1`) e 6/6 em
+  subconjunto paralelo; passou nas rodadas completas anteriores do dia.
+- Flake investigado a pedido do usuário: pré-existente (falha igual com o código anterior à 082 sob `E2E_CPU=4`), causa em
+  `useOverflowEdges`; corrigido e verificado no bug `sdd/bugs/vitrine-filmes-estoura-maximum-update-depth/` — suíte E2E
+  54/54 em duas rodadas.
+- Pendências: no PC o espaço apagado
+  volta rápido e na TV o `estimate()` demora (R-002) — o reparo com nova tentativa cobre ~3 min, o resto fica na rodada
+  normal de 10 min; confirmar na T050.
+
+**Registro da T050 (2026-10-19, 2ª rodada)**: pacote normal instalado sem desinstalar. SC-001 **aprovado** (16/80 MB,
+20 %, vindo de 97 MiB no formato antigo; recuperação sozinha em ~25 min, sem STO-01); "Minha Lista" grava no banco cheio.
+Pendente: SC-002/SC-003 (pacote de medição), SC-004 e SC-007 nesta versão. Evidência:
+`evidencias/validacao-tv-2026-10-19.md`.
+
+- [X] T069 [US2] Painel de medição (descoberto na T050): a janela (T056) não marcava a entrada → `primeiraPágina=?`
+  (`useEntryFirstPaint` nos dois caminhos + `start`/`read` na janela); `parado>100ms` (sem tecla há 2 s, depois de 15 s)
+  separa o trabalho em segundo plano da navegação; a pré-busca por foco publica o custo da leitura (`kind:foco`,
+  `reportBackgroundRead`). Testes de telas/catálogo/perf 543 verdes, tsc e catraca ok
+
+- [X] T070 Gates repetidos depois da T069: `npm run test` 656 arquivos / 3 601 testes; `tsc` limpo; lint `architecture: ok`;
+  `npm run test:e2e` 53/54 → `fontes-estado` falhou por espera fixa de 600 ms (`waitForTimeout`) antes do RETURN na tela
+  de progresso, sob a carga paralela (isolado 3/3). Trocada por `waitForSelector('#progress-title')` (só o roteiro);
+  suíte 54/54. `npm run build:tizen` normal (sem painel) regenerado em `CCPlayTv/` — **não instalado**: a TV segue com o
+  pacote de medição
+
+**Pendente para retomar a T050**: com o pacote de medição já instalado — (1) lista aberta, Início parado 2 min →
+`parado>100ms` (SC-003 pede 0); (2) categoria de 11 mil filmes → `primeiraPágina` e linha `movie:foco … read=`
+(SC-002, referência 178 ms do bloco inteiro); (3) idem Séries. Depois: SC-004 (3 listas + Atualizar da licença), SC-007,
+e voltar ao pacote normal (avisando). Gates a repetir antes do commit: `npm run test`, `npm run test:e2e`.
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->

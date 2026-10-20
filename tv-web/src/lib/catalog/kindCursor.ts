@@ -1,8 +1,8 @@
 import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord } from './db'
 import { blockRecords } from './categoryBlocks'
-import { readCategoryWindow } from './categoryWindow'
+import { categoryWindowInfo, readCategoryWindow } from './categoryWindow'
 import { getCategoryAccess } from './categoryAccess'
-import { readBlockChunks } from './blockChunks'
+import { readHeaderChunks } from './blockChunks'
 
 const KEY_MIN = -1
 const KEY_MAX = Number.MAX_SAFE_INTEGER
@@ -48,9 +48,10 @@ export async function readKindCursorPage(
   let next: KindCursor | undefined
   while (index < categories.length && items.length < limit) {
     const category = categories[index]
-    const manifest = await database.catalogReadManifests.get(category.id as number)
+    // Feature 082: formato 2 também é lido por janela (só os pedaços que cobrem a página).
+    const manifest = await categoryWindowInfo(sourceId, category, database)
     const categoryOffset = cursorIndex === index && cursor?.revision !== undefined && cursor.revision !== manifest?.revision ? 0 : offset
-    if (manifest?.ready && manifest.generation === generation) {
+    if (manifest) {
       const resumingCategory = cursorIndex === index && offset > 0
       const categoryLimit = !resumingCategory && items.length > 0 ? manifest.count - categoryOffset : limit - items.length
       const page = await readCategoryWindow(sourceId, category.id as number, categoryOffset, categoryLimit, database)
@@ -62,7 +63,7 @@ export async function readKindCursorPage(
     } else {
       const block = await database.categoryBlocks.get(category.id as number)
       const records = block && block.sourceId === sourceId && block.generation === generation
-        ? block.format === 2 ? await readBlockChunks(database, block.categoryId) : blockRecords(block)
+        ? block.format === 2 ? await readHeaderChunks(database, block) : blockRecords(block)
         : await database.channels
             .where('[sourceId+generation+kind+groupOrder]')
             .between([sourceId, generation, kind, category.order], [sourceId, generation, kind, category.order], true, true)
@@ -83,7 +84,7 @@ export async function readKindCursorPage(
     offset = 0
     if (index < categories.length && items.length >= limit) {
       const following = categories[index]
-      const followingManifest = await database.catalogReadManifests.get(following.id as number)
+      const followingManifest = await categoryWindowInfo(sourceId, following, database)
       next = { sourceId, generation, kind, categoryId: following.id as number, offset: 0, revision: followingManifest?.revision ?? (following.itemsSignature !== undefined ? `items:${following.itemsSignature}` : undefined) }
     }
   }

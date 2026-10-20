@@ -23,9 +23,8 @@ import type { CategoryBlockRecord } from './db'
 
 /** Quantos blocos ficam em memória (a categoria aberta e o detalhe dela, em geral o mesmo). */
 const CACHE_MAX = 2
-/** Limite global de itens descomprimidos em cache (~14 MiB na TV, medição 082). */
-export const DECOMPRESSED_ITEM_CACHE_LIMIT = 30_000
-const CACHE_MAX_ITEMS = DECOMPRESSED_ITEM_CACHE_LIMIT
+/** Bloco antigo (com `items`) em cache; o formato 2 tem o LRU de pedaços de `blockChunks.ts` (feature 082, D-008). */
+const CACHE_MAX_ITEMS = 2_000
 
 interface Memo {
   epoch: number

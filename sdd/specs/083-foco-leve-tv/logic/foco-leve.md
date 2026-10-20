@@ -1,53 +1,47 @@
 # Lógica: composição do foco leve
 
+Revisado em 2026-10-19. Candidatas e ordem de escolha em `research.md`.
+
 ## Invariantes
 
-1. Existe no máximo um `.tv-focus` lógico por superfície de navegação.
-2. O foco continua sendo estado React; nenhuma mudança de CSS pode introduzir `.focus()` de DOM, hover, autoplay, consulta externa ou SELECT implícito.
-3. O elemento focado mantém `outline` de 4 px, offset de 3 px e `transform: scale(1.06)` para cards que já usam escala.
-4. O brilho deve ser uma camada visual não interativa, sem alterar o tamanho medido do card nem a janela virtualizada.
-5. A entrada/saída da camada deve ser animada por `opacity` dentro da faixa de 120–160 ms; não animar `backdrop-filter`, layout ou uma sombra pesada no elemento a cada frame.
-6. Componentes `.no-scale` continuam sem transformação; rows, tabelas, opções e controles que já usam essa classe não podem ganhar escala por esta feature.
-7. `prefers-reduced-motion` e `:root.reduce-motion` devem continuar zerando a duração sem remover a distinção visual do foco.
-8. O fallback visual deve continuar funcional se pseudo-elementos forem ignorados: outline e escala permanecem suficientes para localizar o item.
+1. Existe no máximo um `.tv-focus` lógico por superfície de navegação; o foco continua sendo estado React + classe
+   (ADR-009). Nenhuma mudança introduz `.focus()` de DOM, hover, autoplay, consulta externa ou SELECT implícito.
+2. Contorno `var(--focus-ring-width)` + `var(--focus-ring-offset)`, halo `var(--focus-halo)`, brilho `var(--focus-glow)`
+   e `scale(var(--focus-scale))` continuam sendo os **valores** do foco; a feature muda como eles entram, não os tokens.
+3. **Nenhuma folha de estilo anima `box-shadow`** (nem por `transition: all`, nem por `@keyframes`) e nenhuma usa
+   `backdrop-filter` — é o teste de contrato `foco-leve-tv.contract.test.ts`. Animação de foco fica em `transform`,
+   `opacity` e, onde já existe, `background`.
+4. `.no-scale` continua sem escala; as exceções de tela já existentes (anel interno da grade da vitrine
+   `.vod-grid-cell .poster-box.tv-focus::before`, pôster da Rádio, ícone de detalhe `.vod-detail-icon`) mantêm a
+   **geometria** que têm hoje — só perdem a animação de sombra, se tiverem.
+5. Cópias locais da receita (hoje `.vod-detail-icon-action.tv-focus .vod-detail-icon` em `vod.css` e
+   `.source-setup .text-field:focus-within` em `onboarding.css`) usam os mesmos tokens e obedecem ao item 3.
+6. Movimento reduzido (`prefers-reduced-motion` e `:root.reduce-motion`) continua zerando a duração; o estado final do
+   foco é o mesmo.
+7. Se a candidata escolhida for C2/C3 (pseudo-elemento): a camada é `pointer-events: none`, não altera o tamanho medido
+   (virtualização), não é posta em elemento com `overflow: hidden` que a corte, e não reaproveita `::before/::after`
+   já usados pelo componente — cada exceção fica listada na matriz de superfícies.
 
-## Forma de validação
+## Medição — duas superfícies, papéis diferentes
 
-- Inspecionar que a regra compartilhada mantém o foco visível nos componentes que recebem `focused`/`.tv-focus`.
-- Verificar que a troca rápida de foco deixa somente o item atual com a camada ativa.
-- Medir a grade de 140 cards no mesmo roteiro da sonda 2 e comparar fps, pior quadro e contagem de quadros acima de 50 ms.
-- Repetir inspeção visual nas famílias Home, Live, Filmes e Séries; SELECT e RETURN são testes de regressão, não novos contratos de navegação.
+| Superfície | Papel | Movimento | O que registra |
+| --- | --- | --- | --- |
+| Sonda (`sdd/specs/082-orcamento-armazenamento-tv/sonda-tv/app2`, teste `foco083`) | **Gate** SC-001/SC-002 | Troca de foco entre cards visíveis a cada 140 ms, sem rolagem, 3 s por candidata | fps, pior quadro, quadros > 50 ms |
+| Sonda, mesmo teste | Registro (SC-006) | Foco descendo linhas com rolagem da grade | idem |
+| App real, build de medição (`VITE_CCPLAY_PERF=1`, `PerfOverlay`) | Registro (SC-006) e inspeção (SC-005) | Navegação na grade da vitrine de Filmes e numa fileira da tela de Filmes, com capas | idem, na janela com tecla ativa |
 
-# Inventário executado — T001
+Na sonda, cada rodada mede na mesma sessão: `f-full` (linha de base da 082), `f-app` (receita atual exata do app) e as
+candidatas C1–C4. Assim a comparação não depende de outro dia/firmware.
 
-A auditoria encontrou `tv-focus` em 
-214
- arquivos de `tv-web/src/`. Distribuição por área:
-- `` — 1 arquivo(s)
-- `components` — 46 arquivo(s)
-- `components\player` — 1 arquivo(s)
-- `features\favorites` — 2 arquivo(s)
-- `features\history` — 1 arquivo(s)
-- `features\home` — 12 arquivo(s)
-- `features\live` — 14 arquivo(s)
-- `features\live\guide` — 6 arquivo(s)
-- `features\movies` — 10 arquivo(s)
-- `features\person` — 2 arquivo(s)
-- `features\portal` — 3 arquivo(s)
-- `features\profiles` — 5 arquivo(s)
-- `features\radio` — 4 arquivo(s)
-- `features\search` — 1 arquivo(s)
-- `features\series` — 11 arquivo(s)
-- `features\settings` — 27 arquivo(s)
-- `features\settings\list` — 3 arquivo(s)
-- `features\settings\parental` — 3 arquivo(s)
-- `features\settings\tabs` — 7 arquivo(s)
-- `features\shell` — 6 arquivo(s)
-- `features\sources` — 3 arquivo(s)
-- `features\splash` — 2 arquivo(s)
-- `features\vod` — 29 arquivo(s)
-- `lib\focus` — 2 arquivo(s)
-- `styles` — 13 arquivo(s)
+## Pseudocódigo da sonda (`foco083`)
 
-Consumidores centrais revisados: `src/index.css`, `components/PosterArt.tsx`, `Button.tsx`, `Chip.tsx`, `ContentCard.tsx`, `ChannelRow.tsx`, `PlayerChrome.tsx`, `PlayerLayer.tsx`, `features/home/`, `features/live/` e `features/vod/`.
-Nenhum consumidor exigiu estado novo; `.no-scale` aparece em controles que não podem alterar geometria.
+```text
+monta grade 7×20 igual à do teste render (capas sintéticas, 220×330)
+para cada classe em [f-full, f-app, f-c1, f-c2, f-c3, f-c4]:
+    out[classe] = frames(3000, focusLoop(classe, 3000))        // sem rolagem
+para cada classe em [f-app, f-c1]:
+    out.rolagem[classe] = frames(3000, foco desce uma linha a cada 140 ms, rolando o palco até a linha)
+loga uma linha por classe: fps | pior | >50ms
+```
+
+`frames()` já devolve `fps`, `maxGapMs` e `longFrames` (> 50 ms) em `core.js`.

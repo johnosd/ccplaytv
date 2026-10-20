@@ -6,13 +6,10 @@
  * ficam sob um teto (cota − reserva); a reserva é do estado da pessoa e das gravações críticas. Antes de gravar mais
  * catálogo, o app libera o que pode ser refeito, do menos ao mais caro e do usado há mais tempo ao mais recente — nunca
  * estado da pessoa, nunca categoria `eager`/`stored` (M3U, fora da 082), nunca o que está em uso agora.
- *
- * STUB do sdd-plan: as assinaturas são o ponto de partida do sdd-execute; os corpos `not implemented` são dele.
  */
-import type { CatalogDb } from './db'
+import { db, type CatalogDb, type CategoryRecord } from './db'
 import { catalogLedger } from './storageLedger'
-import { deleteCategoryItems } from './blockChunks'
-import { releaseCandidates } from './storageRelease'
+import { pinnedUserCategories, releaseCandidate, releaseCandidates } from './storageRelease'
 import { readStorageEstimate } from './storageRelief'
 
 const MB = 1024 * 1024
@@ -109,50 +106,70 @@ export function planStorageRelease(
 
 /**
  * Garante espaço no teto antes de gravar `needBytes` de catálogo/guia da lista `sourceId` (`logic/orcamento.md` §4):
- * monta os candidatos, planeja, libera e devolve se coube. Nunca lança por quota.
+ * monta os candidatos, planeja, libera um por transação e devolve se coube. **Nunca lança**: sem conseguir fazer a conta,
+ * devolve `fits: true` e a gravação segue (o caminho normal de quota decide).
  */
 export async function makeRoomFor(
   sourceId: string,
   needBytes: number,
   options: { database?: CatalogDb; now?: number; mode: BudgetMode; protectCategoryId?: number; config?: StorageBudgetConfig },
 ): Promise<{ fits: boolean; released: ReleaseCandidate[] }> {
-  if (!options.database) return { fits: true, released: [] }
-  const database = options.database
-  const ledger = await catalogLedger(database)
-  const reported = await readStorageEstimate()
-  const quota = reported?.quota ?? FALLBACK_QUOTA_BYTES
-  const capBytes = options.config?.capBytes ?? catalogCapBytes(quota)
-  const reportedLimit = options.config?.capBytes ?? catalogCapBytes(quota)
-  const candidates = await releaseCandidates(database, sourceId, options.protectCategoryId, options.now ?? Date.now())
-  const plan = planStorageRelease({
-    capBytes,
-    ledgerBytes: ledger.total,
-    ...(reported ? { reported: { usage: reported.usage, limit: reportedLimit } } : {}),
-  }, needBytes, candidates, options.mode)
-  const released: ReleaseCandidate[] = []
-  for (const candidate of plan) {
-    if (candidate.categoryId === undefined) continue
-    await deleteCategoryItems(database, candidate.categoryId)
-    released.push(candidate)
+  const database = options.database ?? db
+  const now = options.now ?? Date.now()
+  try {
+    const ledger = await catalogLedger(database)
+    const reported = await readStorageEstimate()
+    const quota = reported?.quota ?? FALLBACK_QUOTA_BYTES
+    const capBytes = options.config?.capBytes ?? catalogCapBytes(quota)
+    const state: BudgetState = {
+      capBytes,
+      ledgerBytes: ledger.total,
+      // Guarda do navegador (R-002): o uso físico inclui o estado da pessoa; o limite é cota − reserva.
+      ...(reported && !options.config?.capBytes ? { reported: { usage: reported.usage, limit: catalogCapBytes(quota) } } : {}),
+    }
+    const context = {
+      activeSourceId: sourceId,
+      protectCategoryId: options.protectCategoryId,
+      ledger,
+      lastUsedOf: (category: CategoryRecord) => Math.max(category.lastUsedAt ?? 0, touched.get(touchKey(database, category.id as number)) ?? 0),
+      isRecent: (category: CategoryRecord) => now - Math.max(category.lastUsedAt ?? 0, touched.get(touchKey(database, category.id as number)) ?? 0) < PIN_WINDOW_MS,
+    }
+    let candidates = await releaseCandidates(database, context)
+    let plan = planStorageRelease(state, needBytes, candidates, options.mode)
+    // Favoritos e "Continuar assistindo" só custam a resolução quando o plano chegaria à lista ativa (A-01).
+    if (plan.some((candidate) => candidate.scope === 'active-category')) {
+      const pinnedCategoryIds = await pinnedUserCategories(database, sourceId)
+      candidates = candidates.map((candidate) => candidate.categoryId !== undefined && pinnedCategoryIds.has(candidate.categoryId)
+        ? { ...candidate, pinned: true } : candidate)
+      plan = planStorageRelease(state, needBytes, candidates, options.mode)
+    }
+    const released: ReleaseCandidate[] = []
+    let freed = 0
+    for (const candidate of plan) {
+      const notice = await releaseCandidate(database, candidate, sourceId)
+      released.push(candidate)
+      freed += candidate.bytes
+      if (notice && notice[1].length > 0) for (const listener of releaseListeners) listener(notice[0], notice[1])
+    }
+    return { fits: ledger.total - freed + needBytes <= capBytes, released }
+  } catch {
+    return { fits: true, released: [] }
   }
-  const after = await catalogLedger(database)
-  if (released.length) for (const listener of releaseListeners) listener(sourceId, released.flatMap((item) => item.categoryId === undefined ? [] : [item.categoryId]))
-  return { fits: after.total + needBytes <= capBytes, released }
-}
-
-/** Marca o uso de uma categoria (entrada, detalhe, player) — memória já; disco no máximo 1×/h (`logic/orcamento.md` §5). */
-export function touchCategory(categoryId: number, now: number, database?: CatalogDb): void {
-  if (!database) return
-  const key = `${database.name}:${categoryId}`
-  const last = touched.get(key) ?? 0
-  touched.set(key, now)
-  if (now - last < 60 * 60 * 1000) return
-  void database.categories.update(categoryId, { lastUsedAt: now }).catch(() => undefined)
-}
-
-export function touchSource(sourceId: string, now: number, database?: CatalogDb): void {
-  if (!database) return
-  void database.sources.update(sourceId, { lastActivatedAt: now }).catch(() => undefined)
 }
 
 const touched = new Map<string, number>()
+const touchKey = (database: CatalogDb, categoryId: number) => `${database.name}:${categoryId}`
+
+/** Marca o uso de uma categoria (entrada, detalhe, player) — memória já; disco no máximo 1×/h (`logic/orcamento.md` §5). */
+export function touchCategory(categoryId: number, now: number, database: CatalogDb = db): void {
+  const key = touchKey(database, categoryId)
+  const last = touched.get(key)
+  touched.set(key, now)
+  if (last !== undefined && now - last < 60 * 60 * 1000) return
+  void database.categories.update(categoryId, { lastUsedAt: now }).catch(() => undefined)
+}
+
+/** A lista virou a ativa (ordem de liberação das inativas: a ativada há mais tempo sai primeiro). */
+export function touchSource(sourceId: string, now: number, database: CatalogDb = db): void {
+  void database.sources.update(sourceId, { lastActivatedAt: now }).catch(() => undefined)
+}

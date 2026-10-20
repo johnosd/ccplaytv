@@ -21,9 +21,7 @@ import {
   type CategoryBlockRecord,
   type CategoryKind,
 } from './db'
-import { noteMovedIds } from './blockMemo'
-import { invalidateCategoryReadModel } from './readProjection'
-import { prepareCategoryReadModel } from './categoryWindow'
+import { writeCompressedBlock } from './blockWrite'
 /** Espaço de ids por categoria: `id = -(categoryId * BLOCK_ID_SPACE + slot)`. */
 export const BLOCK_ID_SPACE = 2 ** 32
 
@@ -146,121 +144,6 @@ export function legacyRowsOf(database: CatalogDb, target: Pick<BlockTarget, 'sou
     .equals([target.sourceId, target.generation, target.kind, target.groupOrder])
 }
 
-/** Campos que o bloco guarda por item (tira o que o bloco já diz). */
-function toBlockItem(record: CatalogRecord, id: number, episodesFetchedAt: number | undefined): BlockItem {
-  const {
-    id: _id,
-    sourceId: _sourceId,
-    generation: _generation,
-    kind: _kind,
-    groupOrder: _groupOrder,
-    categoryId: _categoryId,
-    categoryPosition: _categoryPosition,
-    ...fields
-  } = record
-  void _id
-  void _sourceId
-  void _generation
-  void _kind
-  void _groupOrder
-  void _categoryId
-  void _categoryPosition
-  return { ...fields, id, episodesFetchedAt }
-}
-
-/**
- * Grava (ou renova) o bloco de uma categoria — `logic/blocos-e-identidade.md`
- * §4. Roda DENTRO de uma transação `rw` que inclui `categoryBlocks`,
- * `categories` e `channels`. Item que continua na fonte reaproveita o id que
- * tinha (casando por identidade, em ordem); `episodesFetchedAt` é mantido;
- * lista idêntica só carimba o instante. Apaga as linhas antigas da categoria
- * na mesma transação (uma categoria é ou bloco ou linhas, nunca os dois).
- *
- * @returns `true` se o bloco foi (re)escrito.
- */
-export async function writeBlockWithin(
-  target: BlockTarget,
-  items: CatalogRecord[],
-  now: number,
-  database: CatalogDb,
-): Promise<boolean> {
-  const category = await database.categories.get(target.categoryId)
-  // A categoria saiu numa atualização enquanto a busca voava: não grava órfãos.
-  if (!category) return false
-
-  const signature = itemsSignature(items)
-  const old = await database.categoryBlocks.get(target.categoryId)
-  if (old && category.itemsSignature === signature && (old.format === 2 ? (old.count ?? 0) : (old.items ?? []).length) === items.length) {
-    await database.categories.update(target.categoryId, { itemsFetchedAt: now })
-    return false
-  }
-  const legacy = old ? [] : await legacyRowsOf(database, target).sortBy('id')
-
-  // Anteriores por identidade, em ordem: nomes repetidos (M3U) casam em ordem.
-  type Previous = { id?: number; legacyId?: number; episodesFetchedAt?: number }
-  const previous = new Map<string, Previous[]>()
-  const push = (key: string, value: Previous) => {
-    const queue = previous.get(key)
-    if (queue) queue.push(value)
-    else previous.set(key, [value])
-  }
-  if (old) {
-    for (const item of (old.items ?? [])) push(identityKey({ ...item, kind: old.kind }), { id: item.id, episodesFetchedAt: item.episodesFetchedAt })
-  }
-  for (const row of legacy) push(identityKey(row), { legacyId: row.id, episodesFetchedAt: row.episodesFetchedAt })
-
-  // 1ª passada: reserva os ids reaproveitados (um item novo nunca "rouba" o
-  // slot de um que continua). 2ª: ids novos para quem entrou.
-  const taken = new Set<number>()
-  const matched = items.map((item) => {
-    const prev = previous.get(identityKey({ ...item, kind: target.kind }))?.shift()
-    if (prev?.id !== undefined && prev.id < 0) taken.add(prev.id)
-    return prev
-  })
-  // Carimbos de episódios gravados na categoria (`storeSeriesEpisodes`, para
-  // não regravar o bloco a cada série aberta) entram nos itens agora, que o
-  // bloco é regravado de qualquer jeito — e o mapa da categoria é esvaziado.
-  const stamps = category.seriesEpisodesFetchedAt
-  const blockItems = items.map((item, index) => {
-    const prev = matched[index]
-    let id = prev?.id !== undefined && prev.id < 0 ? prev.id : undefined
-    if (id === undefined) {
-      id = blockItemId(target.categoryId, identityKey({ ...item, kind: target.kind }), taken)
-      taken.add(id)
-    }
-    let fetchedAt = prev?.episodesFetchedAt ?? item.episodesFetchedAt
-    const stamp = item.seriesId ? stamps?.[item.seriesId] : undefined
-    if (stamp !== undefined && (fetchedAt === undefined || stamp > fetchedAt)) fetchedAt = stamp
-    return toBlockItem(item, id, fetchedAt)
-  })
-
-  await database.categoryBlocks.put({
-    categoryId: target.categoryId,
-    sourceId: target.sourceId,
-    generation: target.generation,
-    kind: target.kind,
-    groupOrder: target.groupOrder,
-    items: blockItems,
-  })
-  if (legacy.length > 0) {
-    await database.channels.bulkDelete(legacy.map((row) => row.id as number))
-    // O id antigo continua levando ao item (tela aberta, pilha de navegação,
-    // consulta em cache): `getChannel` consulta esta troca quando a linha some.
-    const moves: Array<[number, number]> = []
-    matched.forEach((prev, index) => {
-      if (prev?.legacyId !== undefined) moves.push([prev.legacyId, blockItems[index].id])
-    })
-    noteMovedIds(database, moves)
-  }
-  await database.categories.update(target.categoryId, {
-    itemsFetchedAt: now,
-    itemsCount: items.length,
-    itemsSignature: signature,
-    seriesEpisodesFetchedAt: undefined,
-  })
-  await invalidateCategoryReadModel(target.categoryId, database)
-  return true
-}
 /** Faixa de chave de todos os blocos de uma fonte (qualquer geração e tipo). */
 export function blocksOfSource(database: CatalogDb, sourceId: string) {
   return database.categoryBlocks
@@ -352,23 +235,17 @@ export async function convertLegacyCategories(
     if (!(await legacyRowsOf(database, target).first())) continue
     // Sobrou pelo menos uma depois do limite desta parte.
     if (converted >= maxCategories) return true
-    const done = await database.transaction('rw', database.channels, database.categories, database.categoryBlocks, database.catalogReadManifests, database.catalogReadChunks, async () => {
-      const current = await database.categories.get(categoryId)
-      if (!current || (await database.categoryBlocks.where(':id').equals(categoryId).count()) > 0) return false
-      const rows = await legacyRowsOf(database, target).toArray()
-      if (rows.length === 0) return false
-      // Mesma ordem que a leitura de linhas usava (`listChannels`).
-      rows.sort((a, b) => {
-        const pa = a.categoryPosition ?? Number.MAX_SAFE_INTEGER
-        const pb = b.categoryPosition ?? Number.MAX_SAFE_INTEGER
-        return pa - pb || (a.id ?? 0) - (b.id ?? 0)
-      })
-      await writeBlockWithin(target, rows, current.itemsFetchedAt ?? 0, database)
-      // Converter não é renovar: o instante da última obtenção fica como estava.
-      await database.categories.update(categoryId, { itemsFetchedAt: current.itemsFetchedAt })
-      return true
+    // Fora de transação: a gravação comprimida tem duas fases (feature 082, `blockWrite.ts`).
+    const rows = await legacyRowsOf(database, target).toArray()
+    // Mesma ordem que a leitura de linhas usava (`listChannels`).
+    rows.sort((a, b) => {
+      const pa = a.categoryPosition ?? Number.MAX_SAFE_INTEGER
+      const pb = b.categoryPosition ?? Number.MAX_SAFE_INTEGER
+      return pa - pb || (a.id ?? 0) - (b.id ?? 0)
     })
-    if (done) { options.onConverted?.(categoryId); await prepareCategoryReadModel(sourceId, categoryId, database).catch(() => undefined) }
+    // Converter não é renovar: o instante da última obtenção fica como estava (`convert`).
+    const { written } = await writeCompressedBlock(target, rows, category.itemsFetchedAt ?? 0, database, { convert: true })
+    if (written) options.onConverted?.(categoryId)
     converted += 1
   }
   return false

@@ -183,13 +183,13 @@ export async function loadSection(
       await options.waitUntilAllowed?.()
       const rest = groups.get(category.id) ?? []
       const items = staged.has(category.id) ? [...(await stagedItemsOf(sourceId, category.id, database)), ...rest] : rest
-      const room = await makeRoomFor(sourceId, Math.ceil(items.length * 60), { database, mode: 'prefetch', protectCategoryId: category.id })
-      if (!room.fits) return { outcome: 'storage_full', written }
+      // Feature 082: pré-carga nunca libera categoria da lista ativa; o orçamento recebe os bytes já codificados.
       const result = await renewCategoryItems(
         { sourceId, generation, kind, categoryId: category.id, groupOrder: category.order },
         items,
         now(),
         database,
+        async (need) => (await makeRoomFor(sourceId, need, { database, mode: 'prefetch', protectCategoryId: category.id })).fits,
       )
       groups.delete(category.id) // libera a memória desta categoria já gravada
       if (staged.has(category.id)) await clearStagedItems(sourceId, category.id, database)

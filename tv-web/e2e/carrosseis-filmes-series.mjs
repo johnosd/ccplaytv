@@ -131,6 +131,9 @@ async function run() {
     await browser.newContext({ locale: 'pt-BR', viewport: { width: Number(process.env.E2E_W ?? 1920), height: Number(process.env.E2E_H ?? 1080) } })
   ).newPage()
   const pageErrors = []
+  // `E2E_CPU=4`: CPU reduzida por CDP, como a suíte paralela pesa. Com ela a descida longa da vitrine reproduzia sempre o
+  // "Maximum update depth exceeded" (bug `vitrine-filmes-estoura-maximum-update-depth`, corrigido em `useOverflowEdges`).
+  if (process.env.E2E_CPU) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.E2E_CPU) })
   const externalRequests = []
   page.on('pageerror', (error) => { pageErrors.push(`[${step}] ${String(error).slice(0, 90)}`); if (pageErrors.length === 1) console.error(String(error.stack).split('\n').slice(0, 14).join('\n')) })
   const panelCalls = []

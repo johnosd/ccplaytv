@@ -6,11 +6,12 @@ import { useCategoryWindow } from './catalogApi'
 import { db, type CatalogRecord } from '../../lib/catalog/db'
 import { listCategories, renewCategoryItems, storeCategories } from '../../lib/catalog/catalogRepository'
 import { prepareMissingReadModels, READ_WINDOW_MIN_ITEMS } from '../../lib/catalog/categoryWindow'
+import { READ_PROJECTION_CHUNK_SIZE } from '../../lib/catalog/readProjection'
 
 /**
- * Feature 065 (T055, SC-007): a grade de uma categoria grande na ordem da fonte lê janelas da projeção compacta — o primeiro
- * recorte nunca materializa a categoria inteira, rolar até o fim lê só o que falta, e sem projeção a tela volta à leitura
- * integral de sempre. O backfill prepara, em segundo plano, só as categorias grandes, a maior primeiro.
+ * Feature 065 (T055, SC-007): a grade de uma categoria grande na ordem da fonte lê por janela — o primeiro recorte nunca
+ * materializa a categoria inteira e rolar até o fim lê só o que falta. Desde a feature 082 a janela vem dos pedaços
+ * comprimidos; a projeção compacta só sobra de versões anteriores e é apagada em segundo plano.
  */
 
 const SOURCE_ID = 'source-category-window'
@@ -73,13 +74,13 @@ describe('useCategoryWindow (feature 065, SC-007)', () => {
     expect(blockGet).not.toHaveBeenCalled()
   })
 
-  it('sem projeção da contagem atual, categoria pequena ou fora da ordem da fonte: windowed=false (a tela lê a categoria inteira)', async () => {
-    const ids = await seed([BIG, 20])
-    await db.catalogReadManifests.delete(ids[0])
+  it('categoria grande no formato comprimido é lida por janela mesmo sem projeção; pequena ou fora da ordem da fonte: windowed=false', async () => {
+    await seed([BIG, 20])
+    expect(await db.catalogReadManifests.count()).toBe(0) // feature 082: a projeção não é mais gravada
     const [big, small] = await listCategories(SOURCE_ID, 'movie')
-    const noProjection = renderHook(() => useCategoryWindow(SOURCE_ID, big, true), { wrapper: wrapper() })
-    await waitFor(() => expect(noProjection.result.current.isLoading).toBe(false))
-    expect(noProjection.result.current.windowed).toBe(false)
+    const compressed = renderHook(() => useCategoryWindow(SOURCE_ID, big, true), { wrapper: wrapper() })
+    await waitFor(() => expect(compressed.result.current.data?.items.length).toBeGreaterThan(0))
+    expect(compressed.result.current.windowed).toBe(true)
     const smallOne = renderHook(() => useCategoryWindow(SOURCE_ID, small, true), { wrapper: wrapper() })
     expect(smallOne.result.current.windowed).toBe(false)
     const sorted = renderHook(() => useCategoryWindow(SOURCE_ID, big, false), { wrapper: wrapper() })
@@ -87,17 +88,15 @@ describe('useCategoryWindow (feature 065, SC-007)', () => {
   })
 })
 
-describe('prepareMissingReadModels (feature 065, backfill)', () => {
-  it('prepara só categorias grandes sem projeção, a maior primeiro, uma por chamada', async () => {
+describe('prepareMissingReadModels (feature 065 → 082)', () => {
+  it('não prepara projeção nova; apaga, uma leva por chamada, as que sobraram de categorias já convertidas', async () => {
     const ids = await seed([BIG, 20, BIG + 50])
-    await db.catalogReadManifests.bulkDelete(ids)
-    await db.catalogReadChunks.clear()
-    expect(await prepareMissingReadModels(SOURCE_ID)).toBe(true)
-    expect(await db.catalogReadManifests.get(ids[2])).toMatchObject({ count: BIG + 50 })
-    expect(await db.catalogReadManifests.get(ids[0])).toBeUndefined()
     expect(await prepareMissingReadModels(SOURCE_ID)).toBe(false)
-    expect(await db.catalogReadManifests.get(ids[0])).toMatchObject({ count: BIG })
-    expect(await db.catalogReadManifests.get(ids[1])).toBeUndefined()
+    expect(await db.catalogReadManifests.count()).toBe(0)
+    await db.catalogReadManifests.put({ categoryId: ids[2], sourceId: SOURCE_ID, generation: 1, kind: 'movie', revision: 'r', formatVersion: 1,
+      count: BIG + 50, chunkSize: READ_PROJECTION_CHUNK_SIZE, chunkCount: 1, ready: true })
+    expect(await prepareMissingReadModels(SOURCE_ID)).toBe(true)
+    expect(await db.catalogReadManifests.count()).toBe(0)
     expect(await prepareMissingReadModels(SOURCE_ID)).toBe(false)
   })
 })
