@@ -28,7 +28,7 @@ it('migra v21 preservando fontes, favoritos e PINs sem criar arquivos M3U', asyn
   const database = new CatalogDb(name)
   try {
     await database.open()
-    expect(database.verno).toBe(25)
+    expect(database.verno).toBe(26)
     expect(await database.sources.get('source-a')).toEqual(source)
     expect(await database.userStates.get(favorite.stableId)).toEqual(favorite)
     expect(await database.table('parentalPins').get('source-a')).toEqual(pin)

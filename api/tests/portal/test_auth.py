@@ -10,7 +10,7 @@ import pytest
 from PIL import Image
 
 from app.portal.application import create_app
-from app.portal.auth import AuthError, AuthService, SessionIssuance
+from app.portal.auth import MANUAL_PAIR_ATTEMPTS, AuthError, AuthService, SessionIssuance
 from app.portal.auth_tokens import AuthTokens, new_token
 from app.portal.display_id import derived_display_id, display_claim_path, new_device_key
 from app.portal.models import DeviceDocument, DisplayIdClaimDocument, SessionDocument
@@ -135,7 +135,7 @@ async def test_manual_limit_shared_between_instances_cooldown_and_no_secret_coun
     service, device, _, key, now = await seeded(control)
     second = AuthService(service.repository, service.tokens, public_origin=ORIGIN,
                          recovery_epoch=service.recovery_epoch)
-    for index in range(5):
+    for index in range(MANUAL_PAIR_ATTEMPTS):
         instance = service if index % 2 else second
         with pytest.raises(AuthError) as error:
             await instance.manual_session(device.display_id, "0000000001", "fixture-ip", ORIGIN, now)

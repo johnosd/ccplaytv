@@ -1,6 +1,7 @@
 import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord, type CategoryBlockRecord } from './db'
 import { blockRecords } from './categoryBlocks'
 import { getCategoryAccess } from './categoryAccess'
+import { readHeaderChunks } from './blockChunks'
 
 /** Campos suficientes para vitrines e cruzamentos; URLs/credenciais ficam no canônico. */
 export interface CatalogDerivedRow {
@@ -60,7 +61,10 @@ async function* iterateKindChunks(
     for (let index = 0; index < group.length; index += 1) {
       const block = blocks[index]
       if (block && block.sourceId === sourceId && block.generation === generation) {
-        if (block.items.length > 0) yield { block }
+        if (block.format === 2) {
+          const rows = await readHeaderChunks(database, block)
+          if (rows.length > 0) yield { rows }
+        } else if ((block.items ?? []).length > 0) yield { block }
         continue
       }
       const order = group[index].order

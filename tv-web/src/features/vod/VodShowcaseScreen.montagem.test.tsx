@@ -126,7 +126,7 @@ describe('VodShowcaseScreen — montagem (feature 079)', () => {
   it('quem subiu para a topbar durante a espera continua nela quando a vitrine aparece', async () => {
     const shell: VodShellProps = { sourceName: 'Lista', onGoHome: vi.fn(), onSwitchTop: vi.fn(), onOpenProfiles: vi.fn() }
     const rerender = renderShowcase(shell)
-    expect(await screen.findByRole('button', { name: 'Voltar' })).toHaveClass('tv-focus')
+    expect(screen.queryByRole('button', { name: 'Voltar' })).toBeNull()
     act(() => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
     })

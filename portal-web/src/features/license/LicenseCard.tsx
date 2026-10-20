@@ -3,6 +3,11 @@ import { useT } from '../../lib/i18n'
 import { api, newRecoveryId, PortalApiError, purchaseLabel, type LicenseOrder, type Session } from '../api'
 import { useTvDataContext } from '../shell/TvDataProvider'
 
+// 081/T047: a volta do Mercado Pago pode abrir numa aba nova (celular) — o pedido conhecido fica no navegador, não na aba.
+function orderStore(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> {
+  try { return window.localStorage } catch { return { getItem: () => null, setItem: () => {}, removeItem: () => {} } }
+}
+
 export function safeCheckoutUrl(value: string | null | undefined) {
   try {
     const url = new URL(value ?? '')
@@ -46,7 +51,7 @@ export function LicenseCard({ session }: { session: Session }) {
   }
   useEffect(() => {
     alive.current = true
-    try { knownOrder.current = sessionStorage.getItem(storageKey) ?? undefined; attempt.current = sessionStorage.getItem(storageKey + '-attempt') ?? undefined } catch { /* Storage indisponível não altera o pedido do servidor. */ }
+    try { knownOrder.current = orderStore().getItem(storageKey) ?? undefined; attempt.current = orderStore().getItem(storageKey + '-attempt') ?? undefined } catch { /* Storage indisponível não altera o pedido do servidor. */ }
     return () => { alive.current = false }
   }, [storageKey])
   // Cada leitura do dispositivo (a cada 10 s, só com a aba visível) relê a oferta e o estado do pedido conhecido.
@@ -55,14 +60,14 @@ export function LicenseCard({ session }: { session: Session }) {
   async function buy() {
     if (!enabled || busy || running.current) return
     setBusy(true); setError(undefined); running.current = true
-    if (terminal) { attempt.current = undefined; try { sessionStorage.removeItem(storageKey + '-attempt') } catch { /* Sem storage. */ } }
+    if (terminal) { attempt.current = undefined; try { orderStore().removeItem(storageKey + '-attempt') } catch { /* Sem storage. */ } }
     attempt.current ??= newRecoveryId()
     try {
-      try { sessionStorage.setItem(storageKey + '-attempt', attempt.current) } catch { /* Reutilização em memória. */ }
+      try { orderStore().setItem(storageKey + '-attempt', attempt.current) } catch { /* Reutilização em memória. */ }
       const value = await api.checkout(session, attempt.current)
       if (value.deviceId !== session.deviceId) throw new PortalApiError('invalid')
       knownOrder.current = value.orderId
-      try { sessionStorage.setItem(storageKey, value.orderId) } catch { /* Servidor reutiliza compra pendente. */ }
+      try { orderStore().setItem(storageKey, value.orderId) } catch { /* Servidor reutiliza compra pendente. */ }
       if (alive.current) setOrder(value)
     } catch (caught) { fail(caught) }
     finally { running.current = false; if (alive.current) setBusy(false) }
@@ -84,6 +89,8 @@ export function LicenseCard({ session }: { session: Session }) {
         <span className="license-term">{t('licenseProduct')} · {t('licenseTerm')}</span>
       </div>
       <p>{t('licenseOneTime')}</p>
+      {/* 081/FR-009: quem vende, contato e reembolso, antes do botão de compra. */}
+      <p className="field-hint">{t('licenseSeller')}</p>
       {enabled === false && <p className="notice is-warning">{t('licenseDisabled')}</p>}
       {/* 073/FR-010: pedido em aberto da TV — avisa e NÃO cria cobrança nova (o botão reaproveita o mesmo pedido). */}
       {pending && !terminal && <p role="status" className="notice">{pending.method === 'pix' && pending.expiresAt

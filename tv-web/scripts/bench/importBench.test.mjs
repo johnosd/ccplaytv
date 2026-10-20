@@ -80,10 +80,13 @@ describe('bancada do benchmark — modo real', () => {
   it('com navigator.storage lê uso e quota antes e depois', async () => {
     const fixture = generateFixture({ format: 'xmltv', size: 200 })
     vi.stubGlobal('fetch', serve(fixture))
-    const estimates = [{ usage: 10, quota: 1000 }, { usage: 25, quota: 1000 }]
-    vi.stubGlobal('navigator', { language: 'pt-BR', languages: ['pt-BR'], storage: { estimate: async () => estimates.shift() } })
+    // Cota plausível (80 MiB, a da TV): com 1 000 bytes o orçamento da feature 082 recusaria o guia, como deve.
+    const QUOTA = 80 * 1024 * 1024
+    const estimates = [{ usage: 10, quota: QUOTA }, { usage: 25, quota: QUOTA }]
+    vi.stubGlobal('navigator', { language: 'pt-BR', languages: ['pt-BR'], storage: { estimate: async () => (estimates.length > 1 ? estimates.shift() : estimates[0]) } })
+    // (o orçamento do guia, feature 082, também lê a estimativa no meio: a 2ª leitura se repete até o fim)
     const result = await runReal({ ...options('xmltv', 'real', fixture), size: 200 })
-    expect(result.storage).toEqual({ before: { usage: 10, quota: 1000 }, after: { usage: 25, quota: 1000 } })
+    expect(result.storage).toEqual({ before: { usage: 10, quota: QUOTA }, after: { usage: 25, quota: QUOTA } })
   })
 })
 

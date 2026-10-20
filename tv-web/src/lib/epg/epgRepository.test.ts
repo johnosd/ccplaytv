@@ -12,6 +12,7 @@ import {
   setEpgOffsetHours,
   writeEpgPrograms,
 } from './epgRepository'
+import { epgChunks } from '../catalog/chunkTables'
 import type { EpgProgramInput } from './types'
 
 const SOURCE_ID = 'fonte'
@@ -82,19 +83,20 @@ describe('writeEpgPrograms / listProgramsForChannels', () => {
 
     expect(result.programCount).toBe(1)
     expect(await titles('a')).toEqual(['Novo'])
-    expect(await database.epgPrograms.count()).toBe(1)
+    // Feature 082: um pedaço comprimido por canal, só da geração nova.
+    expect(await epgChunks(database).count()).toBe(1)
   })
 
-  it('amortiza 5.001 programas em dois lotes de escrita', async () => {
-    const bulkAdd = vi.spyOn(database.epgPrograms, 'bulkAdd').mockResolvedValue(0)
+  it('amortiza 5.001 programas num registro comprimido por canal (feature 082)', async () => {
+    const bulkPut = vi.spyOn(epgChunks(database), 'bulkPut')
     const programs = Array.from({ length: 5_001 }, (_, index) =>
       program(`canal-${index % 10}`, index * 1_000, (index + 1) * 1_000, `Programa ${index}`),
     )
 
     await writeEpgPrograms(SOURCE_ID, programs, database)
 
-    expect(bulkAdd).toHaveBeenCalledTimes(2)
-    expect(bulkAdd.mock.calls.map(([batch]) => batch.length)).toEqual([5_000, 1])
+    expect(bulkPut.mock.calls.map(([batch]) => (batch as unknown[]).length)).toEqual([10])
+    expect(await database.epgPrograms.count()).toBe(0)
   })
 
   it('falha no meio da gravação preserva a geração ativa (FR-005)', async () => {
@@ -107,7 +109,7 @@ describe('writeEpgPrograms / listProgramsForChannels', () => {
     await expect(writeEpgPrograms(SOURCE_ID, broken(), database)).rejects.toThrow('leitura quebrou')
 
     expect(await titles('a')).toEqual(['Bom'])
-    expect(await database.epgPrograms.count()).toBe(1)
+    expect(await epgChunks(database).count()).toBe(1)
   })
 
   it('sobra de geração parcial (app fechado no meio) nunca se mistura com a nova', async () => {

@@ -30,6 +30,19 @@ describe('transporte do portal', () => {
     await expect(client.request('/portal/v1/device/trial', {})).rejects.toThrow('network_error')
   })
 
+  // 081/T044: Pix desligado (409) e Pix que falhou agora (503) vêm do corpo; outro 503 continua genérico.
+  it('lê pix_disabled e pix_failed do corpo curto do serviço e ignora corpo de proxy', async () => {
+    const json = (status: number, code: string) => new Response(JSON.stringify({ code, retryable: status === 503 }), { status })
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(json(409, 'pix_disabled'))
+      .mockResolvedValueOnce(json(503, 'pix_failed'))
+      .mockResolvedValueOnce(json(503, 'service_unavailable'))
+      .mockResolvedValueOnce(new Response('<html>pix_failed</html>', { status: 503 }))
+    const client = createPortalClient({ origin: 'https://portal.example.test', fetch: fetcher })
+    for (const code of ['pix_disabled', 'pix_failed', 'service_unavailable', 'service_unavailable'])
+      await expect(client.request('/portal/v1/device/orders/pix', {})).rejects.toMatchObject({ code })
+  })
+
   it('limita resposta antes do parse e mantém sinal de cancelamento', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response('x'.repeat(1_048_577)))
     const client = createPortalClient({ origin: 'https://portal.example.test', fetch: fetcher })

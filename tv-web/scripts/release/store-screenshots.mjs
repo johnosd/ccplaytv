@@ -3,8 +3,10 @@
 // Tudo é FICTÍCIO: o painel Xtream local de `fakePanel.mjs` (canais, guia, filmes e séries de nomes inventados, capas e
 // logos em SVG abstrato) — nenhuma marca, pôster ou logo de terceiros, nenhuma lista real.
 // Sem chave TMDB: a tela mostra só o que a lista declara, como na TV de quem não configurou o TMDB.
+// Variante COMERCIAL (R-015), subida pelo próprio roteiro (`fakeCommercial.mjs`: portal e licença fictícios). A 4ª
+// captura é Portal & licença, com o preço — exigência da Samsung para app com compra.
 //
-// Uso (com `npm run dev` no ar em http://localhost:5173):
+// Uso (sem servidor no ar; o roteiro sobe o seu):
 //   node scripts/release/store-screenshots.mjs [--out <pasta>]
 // Grava screenshot_01.jpg … screenshot_04.jpg (JPEG < 500 kB) em `release/samsung/kit/media/` por padrão.
 import { mkdirSync, statSync } from 'node:fs'
@@ -13,12 +15,12 @@ import path from 'node:path'
 import { chromium } from 'playwright'
 import { cadastrarListaXtream } from '../../e2e/lib/entrada.mjs'
 import { openVodCategory, enterRows } from '../../e2e/lib/vod.mjs'
+import { startCommercialApp } from './fakeCommercial.mjs'
 import { MOVIES, SERIES, startPanel, waitPainted } from './fakePanel.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const outArg = process.argv.indexOf('--out')
 const OUT = outArg > 0 ? path.resolve(process.argv[outArg + 1]) : path.join(ROOT, 'release', 'samsung', 'kit', 'media')
-const APP_URL = 'http://localhost:5173'
 const LISTA = 'Minha Playlist'
 const MAX_BYTES = 500_000
 
@@ -65,14 +67,17 @@ async function openShowcase(page, section) {
 async function run() {
   mkdirSync(OUT, { recursive: true })
   const server = await startPanel()
+  const app = await startCommercialApp({ port: 5182 })
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
   const page = await context.newPage()
-  // Nenhuma chamada sai para fora: TMDB e qualquer outro host externo são recusados.
+  // Nenhuma chamada sai para fora: TMDB e qualquer outro host externo são recusados. O portal fictício é registrado
+  // depois, para ter precedência sobre este bloqueio.
   await context.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (route) => route.abort('failed'))
+  await app.prepare(context)
   try {
     console.log('== lista fictícia')
-    await page.goto(APP_URL)
+    await page.goto(app.url)
     await page.waitForSelector('.add-card.tv-focus', { timeout: 15000 })
     await page.keyboard.press('Enter')
     await cadastrarListaXtream(page, { nome: LISTA, servidor: `http://127.0.0.1:${server.address().port}`, usuario: 'demo', senha: 'demo' })
@@ -99,7 +104,7 @@ async function run() {
       await page.waitForSelector('.vod-showcase', { timeout: 8000 })
     }
 
-    // Ordem da loja: 1 Filmes (catálogo), 2 TV ao vivo (canais + guia), 3 Séries, 4 detalhe de série com episódios.
+    // Ordem da loja: 1 Filmes (catálogo), 2 TV ao vivo (canais + guia), 3 Séries, 4 Portal & licença (preço).
     console.log('== 1. Filmes')
     await openShowcase(page, 'movies')
     await settle(page, 1200)
@@ -131,23 +136,30 @@ async function run() {
     await settle(page, 1500)
     await shot(page, 3)
 
-    console.log('== 4. Detalhe de série')
-    // "Séries em Alta" na ordem da fonte: o 1º card é "Distrito Zero", a série com sinopse escrita.
-    await openVodCategory(page, 'Séries em Alta')
-    await page.locator('.vod-grid .content-card', { hasText: 'Distrito Zero' }).first().click() // clique só foca
-    await settle(page, 600)
-    await page.keyboard.press('Enter')
-    await page.waitForSelector('.vod-grid', { state: 'detached', timeout: 10000 })
-    await page.getByText('Distrito Zero', { exact: true }).first().waitFor({ timeout: 10000 })
-    await page.getByText('O Primeiro Apagão').first().waitFor({ timeout: 10000 })
-    await settle(page, 2500)
+    console.log('== 4. Portal & licença')
+    for (let i = 0; i < 8 && !(await page.locator('.add-card').isVisible().catch(() => false)); i += 1) {
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(500)
+    }
+    // Com portal há dois cantos (Atualizar e Configurações): o das Configurações pelo nome.
+    const settingsCorner = page.locator('.profiles-settings-corner:not(.profiles-portal-corner)')
+    await settingsCorner.click()
+    await settle(page, 300)
+    if (await settingsCorner.isVisible().catch(() => false)) await page.keyboard.press('Enter')
+    await page.getByText('Portal & licença', { exact: true }).first().click() // o clique abre a aba
+    await page.locator('.portal-license-panel').waitFor({ timeout: 10000 })
+    await page.getByText('A0:8C:FD:19:0A:8C').first().waitFor({ timeout: 15000 })
+    await settle(page, 1500)
+    await page.mouse.move(1919, 1079)
     await shot(page, 4)
+    if (app.unknownCalls.length) console.log('  · rotas do portal sem fixture:', [...new Set(app.unknownCalls)].join(', '))
   } catch (error) {
     await page.screenshot({ path: path.join(OUT, '_falha.png') }).catch(() => {})
     throw error
   } finally {
     await browser.close()
     server.close()
+    app.stop()
   }
 }
 

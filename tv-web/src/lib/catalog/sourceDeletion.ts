@@ -10,7 +10,7 @@ import { notifyLocalSourceChanged } from '../portal/sourceChangeSignal'
 /** Remove a fonte e tudo que dependia dela — catálogo de todas as gerações e execuções. */
 export function sourceDeletionTables(database: CatalogDb) {
   return ['sources', 'channels', 'categories', 'storedEntries', 'categoryBlocks',
-    'catalogReadManifests', 'catalogReadChunks', 'seriesWatchMembers', 'seriesWatchSummaries',
+    'catalogReadManifests', 'catalogReadChunks', 'categoryChunks', 'epgChunks', 'seriesWatchMembers', 'seriesWatchSummaries',
     'sectionStaging', 'importRuns', 'userStates', 'epgPrograms', 'titleMetadata',
     'categoryPreferences', 'parentalPins', 'sourceRevisions', 'pendingPortalDeletes',
     'pendingImportOutbox', 'pendingRestore'].map(name => database.table(name))

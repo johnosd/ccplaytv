@@ -3,9 +3,10 @@
 import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord, type CategoryBlockRecord } from '../db'
 import { blockRecords, blocksOfKind } from '../categoryBlocks'
 import { FavoritesScanComplete, KEY_MAX, KEY_MIN, activeGenerationOf, query } from './shared'
-import { readCategoryWindow } from './categoryWindow'
-import { readProjectionManifest } from './readProjection'
+import { categoryWindowInfo, readCategoryWindow } from './categoryWindow'
 import { getCategoryAccess } from '../categoryAccess'
+import { iterateHeaderChunks, readHeaderChunks } from '../blockChunks'
+import { stableSortInSlices, type SliceClock } from '../../slices'
 
 /** Categorias do tipo na geração ativa, na ordem de `order`, sem as escondidas/bloqueadas (feature 066). */
 async function visibleCategoriesOfKind(database: CatalogDb, sourceId: string, generation: number, kind: CatalogItemKind) {
@@ -24,11 +25,15 @@ async function visibleCategoriesOfKind(database: CatalogDb, sourceId: string, ge
  * busca local (feature 017), que lê uma vez e filtra em memória (D-002 do
  * `plan.md` da 017). Nunca use isto para uma tela renderizar direto: sem
  * paginação, é exatamente o que `listChannels` existe para evitar.
+ *
+ * Feature 084: com `clock`, o resultado é o mesmo, mas lê um bloco por vez (não `Promise.all`, que junta tudo numa leva
+ * só), cede a vez à interface a cada bloco e se deixa cancelar pelo sinal do relógio.
  */
 export async function listAllOfKind(
   sourceId: string,
   kind: CatalogItemKind,
   database: CatalogDb = db,
+  clock?: SliceClock,
 ): Promise<CatalogRecord[]> {
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return []
@@ -42,9 +47,30 @@ export async function listAllOfKind(
   const rows = (await query(database, sourceId, generation, undefined, kind).toArray()).filter((row) => !access.isExcludedRecord(row))
   if (blocks.length === 0) return rows
   blocks.sort((a, b) => a.groupOrder - b.groupOrder)
-  const records = blocks.flatMap(blockRecords)
+  const read = (block: CategoryBlockRecord) => block.format === 2 ? readHeaderChunks(database, block) : blockRecords(block)
+  let records: CatalogRecord[]
+  if (clock) {
+    const parts: CatalogRecord[][] = []
+    for (const block of blocks) {
+      clock.check()
+      if (block.format === 2) {
+        // Um pedaço (500 itens) por vez: ler e converter a categoria inteira numa tarefa só travava a tela da TV.
+        for await (const part of iterateHeaderChunks(database, block)) {
+          parts.push(part)
+          await clock.maybeYield()
+        }
+      } else {
+        parts.push(await read(block))
+      }
+      await clock.maybeYield(true)
+    }
+    records = parts.flat()
+  } else {
+    records = (await Promise.all(blocks.map(read))).flat()
+  }
   if (rows.length === 0) return records
-  return [...records, ...rows].sort((a, b) => a.groupOrder - b.groupOrder)
+  const byGroupOrder = (a: CatalogRecord, b: CatalogRecord) => a.groupOrder - b.groupOrder
+  return clock ? stableSortInSlices([...records, ...rows], byGroupOrder, clock) : [...records, ...rows].sort(byGroupOrder)
 }
 
 /** Um pedaço de uma página de "Todos": o bloco de uma categoria, ou as linhas dela (formato antigo). */
@@ -96,7 +122,8 @@ export async function readKindCursorPage(
   let next: KindCursor | undefined
   while (index < categories.length && items.length < limit) {
     const category = categories[index]
-    const manifest = await readProjectionManifest(sourceId, category.id as number, database)
+    // Feature 082: formato 2 também é lido por janela (só os pedaços que cobrem a página).
+    const manifest = await categoryWindowInfo(sourceId, category, database)
     if (manifest) {
       const categoryOffset = cursorIndex === index && cursor?.revision !== undefined && cursor.revision !== manifest.revision ? 0 : offset
       const resumingCategory = cursorIndex === index && offset > 0
@@ -110,7 +137,7 @@ export async function readKindCursorPage(
     } else {
       const block = await database.categoryBlocks.get(category.id as number)
       const records = block && block.sourceId === sourceId && block.generation === generation
-        ? blockRecords(block)
+        ? block.format === 2 ? await readHeaderChunks(database, block) : blockRecords(block)
         : await query(database, sourceId, generation, category.order, kind).toArray()
       // Sem projeção (categoria pequena, 065): a assinatura dos itens faz o papel de revisão — renovou, recomeça a categoria.
       const blockRevision = category.itemsSignature !== undefined ? `items:${category.itemsSignature}` : undefined
@@ -128,7 +155,7 @@ export async function readKindCursorPage(
     offset = 0
     if (index < categories.length && items.length >= limit) {
       const following = categories[index]
-      const followingManifest = await readProjectionManifest(sourceId, following.id as number, database)
+      const followingManifest = await categoryWindowInfo(sourceId, following, database)
       next = { sourceId, generation, kind, categoryId: following.id as number, offset: 0, revision: followingManifest?.revision ?? (following.itemsSignature !== undefined ? `items:${following.itemsSignature}` : undefined) }
     }
   }
@@ -160,8 +187,14 @@ export async function readKindPage(
     index += 1
     const block = await database.categoryBlocks.get(category.id as number)
     if (block && block.sourceId === sourceId && block.generation === generation) {
-      if (block.items.length > 0) chunks.push({ block })
-      count += block.items.length
+      if (block.format === 2) {
+        const records = await readHeaderChunks(database, block)
+        if (records.length > 0) chunks.push({ rows: records })
+        count += block.count ?? records.length
+      } else {
+        if ((block.items ?? []).length > 0) chunks.push({ block })
+        count += (block.items ?? []).length
+      }
       continue
     }
     const rows = await query(database, sourceId, generation, category.order, kind).toArray()
@@ -191,11 +224,12 @@ export async function kindSortFields(
   }
   const access = await getCategoryAccess(sourceId, database)
   try {
-    await blocksOfKind(database, sourceId, generation, kind).each((block) => {
-      if (access.excluded.has(block.categoryId)) return
-      for (const item of block.items) take(item)
+    for (const block of await blocksOfKind(database, sourceId, generation, kind).toArray()) {
+      if (access.excluded.has(block.categoryId)) continue
+      const records = block.format === 2 ? await readHeaderChunks(database, block) : blockRecords(block)
+      for (const item of records) take(item)
       if (found.year && found.addedAt) throw new FavoritesScanComplete()
-    })
+    }
     await query(database, sourceId, generation, undefined, kind).each((record) => {
       if (access.isExcludedRecord(record)) return
       take(record)

@@ -2,6 +2,7 @@
 import type { CatalogDb } from '../catalog/db'
 import { DEVICE_KEY_PATTERN, DISPLAY_ID_PATTERN } from './displayId'
 import { portalTables, type PortalDeviceRecord } from './portalTables'
+import { withStorageRelief } from '../catalog/storageRelief'
 
 export type CredentialIssuance = Pick<PortalDeviceRecord,
   'deviceId' | 'displayId' | 'bearer' | 'deviceKey' | 'authEpoch' | 'recoveryEpoch' |
@@ -42,7 +43,8 @@ export async function enrollmentNonce(database: CatalogDb, cryptoApi: Crypto, no
   if (!Number.isFinite(now) || now < 0) throw new DeviceIdentityError()
   const candidate = token256(cryptoApi)
   const tables = portalTables(database)
-  return database.transaction('rw', tables.device, tables.bootstrap, async () => {
+  // Cadastro não pode falhar por catálogo cheio (bug armazenamento-app-cheio-na-tv-impede).
+  return withStorageRelief(() => database.transaction('rw', tables.device, tables.bootstrap, async () => {
     if (await tables.device.get('device')) throw new DeviceIdentityError()
     const saved = await tables.bootstrap.get('bootstrap')
     if (saved?.enrollmentNonce) {
@@ -52,7 +54,7 @@ export async function enrollmentNonce(database: CatalogDb, cryptoApi: Crypto, no
     await tables.bootstrap.put({ ...saved, id: 'bootstrap', createdAt: saved?.createdAt ?? now,
       enrollmentNonce: candidate })
     return candidate
-  })
+  }), database)
 }
 
 function validateIssuance(value: CredentialIssuance) {
@@ -75,7 +77,8 @@ export async function persistCredentialIssuance(
   validateIssuance(value)
   if (!opaqueId.test(operationId) || !Number.isFinite(now) || now < 0) throw new DeviceIdentityError()
   const tables = portalTables(database)
-  await database.transaction('rw', tables.device, tables.bootstrap, async () => {
+  // Credencial emitida pelo serviço tem de ficar gravada mesmo com o catálogo cheio (libera cache e repete).
+  await withStorageRelief(() => database.transaction('rw', tables.device, tables.bootstrap, async () => {
     const previous = await tables.device.get('device')
     if (previous && (previous.deviceId !== value.deviceId || previous.authEpoch > value.authEpoch ||
         previous.recoveryCodeVersion > value.recoveryCodeVersion)) throw new DeviceIdentityError()
@@ -96,7 +99,7 @@ export async function persistCredentialIssuance(
       (pendingBootstrap?.pendingAck?.operationId === operationId ? pendingBootstrap.pendingAck.purpose : undefined)
     await tables.bootstrap.put({ id: 'bootstrap', createdAt: now,
       pendingAck: { operationId, authEpoch: value.authEpoch, createdAt: now, ...(pendingPurpose ? { purpose: pendingPurpose } : {}) } })
-  })
+  }), database)
 }
 
 /** Chamar somente após ACK remoto; resposta antiga não apaga emissão posterior. */

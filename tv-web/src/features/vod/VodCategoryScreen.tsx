@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   groupLabel,
@@ -23,7 +23,7 @@ import { historyTargetHasProgress, type HistoryRemovalMode } from '../../lib/cat
 import { isRemoveColorKeyRegistered } from '../../lib/tizenColorKey'
 import { computeNeighbor } from '../favorites/neighbor'
 import { HistoryRemovalModal } from '../history/HistoryRemovalModal'
-import { normalizeForSearch, searchWithinItems, SEARCH_MIN_CHARS } from '../../lib/catalog/catalogSearch'
+import { normalizeForSearch, SEARCH_MIN_CHARS } from '../../lib/catalog/catalogSearch'
 import { gridNextIndex, useRemoteNav } from '../../lib/useRemoteNav'
 import { useVirtualFocusSync } from '../../lib/focus/useVirtualFocusSync'
 import { locateOrNeighbor, type LastFocus } from '../../lib/focus/reconcileFocus'
@@ -44,7 +44,8 @@ import { Chip } from '../../components/Chip'
 import { Icon } from '../../components/Icon'
 import { AppShell } from '../../components/AppShell'
 import { useOverflowEdges, type OverflowEdges } from '../../lib/focus/useOverflowEdges'
-import { availableSortOptions, sortVodItems, VOD_SORT_LABEL_KEYS, type VodSortOption } from './vodSort'
+import { VOD_SORT_LABEL_KEYS, type VodSortOption } from './vodSort'
+import { useVodListItems } from './useVodListItems'
 import { useT } from '../../lib/i18n/I18nProvider'
 import type { MessageKey } from '../../lib/i18n/messages/pt'
 import { vodGroupDisplay } from './vodGroupDisplay'
@@ -220,13 +221,19 @@ export function VodCategoryScreen({
       : enteredAll
         ? aggregated.items
         : (content.data?.items ?? [])
-  const contentIsLoading = enteredFavorites
+  // Filtro por termo, opções de "Ordenar" e a lista ordenada (feature 084: lista grande ordena em fatias).
+  const itemListKey = JSON.stringify(entryKey)
+  const { items, availableOptions, effectiveSortOption, pending: sortPending } = useVodListItems({
+    baseItems, enteredFavorites, enteredHistory, enteredAll, kindSortFields: kindSortFieldsQuery.data, sortOption,
+    searchActive, belowMinimum, searchTerm, entryKey: itemListKey,
+  })
+  const contentIsLoading = sortPending || (enteredFavorites
     ? favoritesContent.isLoading
     : enteredHistory
       ? historyContent.isLoading
       : enteredAll
         ? aggregated.isLoading
-        : categoriesQuery.isLoading || content.isLoading
+        : categoriesQuery.isLoading || content.isLoading)
   const contentFailed = enteredFavorites
     ? favoritesContent.isError
     : enteredHistory
@@ -243,38 +250,12 @@ export function VodCategoryScreen({
   const canSearch = !contentUnavailable && baseItems.length > 0
   const canSort = canSearch && !enteredFavorites && !enteredHistory
 
-  const kindSortFieldsData = kindSortFieldsQuery.data
-  const availableOptions = useMemo(() => {
-    if (enteredFavorites || enteredHistory) return []
-    const loaded = availableSortOptions(baseItems)
-    if (!enteredAll || !kindSortFieldsData) return loaded
-    // União com o tipo inteiro: nunca some uma opção que os itens lidos já mostram.
-    return (['source', 'az', 'year', 'added'] as const).filter(
-      (option) =>
-        loaded.includes(option) ||
-        (option === 'year' && kindSortFieldsData.year) ||
-        (option === 'added' && kindSortFieldsData.addedAt),
-    )
-  }, [enteredFavorites, enteredHistory, enteredAll, baseItems, kindSortFieldsData])
-  // Opção salva pode não estar disponível nesta entrada (ex.: "Ano" numa categoria M3U) — a grade usa "Ordem da
-  // fonte" sem apagar a escolha da seção (D-008).
-  // "Nota" (feature 056) não é opção do modal: só vale como destino do "Ver tudo" de "Bem avaliados", em "Todos".
-  const effectiveSortOption: VodSortOption =
-    (sortOption === 'rating' && enteredAll) || availableOptions.includes(sortOption) ? sortOption : 'source'
-
-  const items = useMemo(() => {
-    const filtered = !searchActive ? baseItems : belowMinimum ? [] : searchWithinItems(baseItems, searchTerm, (item) => item.name)
-    if (enteredFavorites || enteredHistory || effectiveSortOption === 'source') return filtered
-    return sortVodItems(filtered, effectiveSortOption)
-  }, [searchActive, belowMinimum, baseItems, searchTerm, enteredFavorites, enteredHistory, effectiveSortOption])
-
   const [focusedItemId, setFocusedItemId] = useState<string | null>(
     () => restore?.focusedItemId ?? recalledFocus(sourceId, section, entryKey),
   )
   // Feature 038 (FR-027): se a renovação em segundo plano tirou o item em foco, o foco fica no vizinho (mesma
   // posição), não volta ao topo.
   const lastItemFocusRef = useRef<LastFocus | null>(null)
-  const itemListKey = JSON.stringify(entryKey)
   // Feature 036 (T021, US1/AC9): voltando do detalhe, o card de origem pode não existir mais (removido do Histórico
   // lá). `focusedIndexHint` do restore dá o vizinho na mesma posição. Vale enquanto o foco ainda é o id restaurado.
   const [restoreHint] = useState<LastFocus | null>(() =>
@@ -658,7 +639,7 @@ export function VodCategoryScreen({
     declaredCount !== realCount
   const unresolvedFavorites = enteredFavorites ? (favoritesContent.data?.unresolved ?? 0) : 0
   const unresolvedHistory = enteredHistory ? (historyContent.data?.unresolved ?? 0) : 0
-  const searchNoResults = searchActive && !belowMinimum && items.length === 0
+  const searchNoResults = searchActive && !belowMinimum && !sortPending && items.length === 0
   const searchCoveragePartial = enteredAll && aggregated.coveredCategories < aggregated.totalCategories
   const showResultsGrid = searchActive
     ? !belowMinimum && items.length > 0

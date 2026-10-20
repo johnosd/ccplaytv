@@ -72,3 +72,9 @@ Filmes/Séries frios saíram de ~2,0 s (sempre no teto) para 0,3–0,8 s, sem ne
 
 <!-- T020: abertura fria/quente por tela na Samsung QN50Q60DAGXZD. -->
 Pendente (depende do aparelho).
+
+## R-009 — Fileiras tardias na visita atual (emenda 2026-10-17)
+
+- **Decisão**: fileiras prontas aparecem após a janela curta de 300 ms; qualquer fileira que resolver depois entra na visita atual, na posição canônica, mesmo que reacomode as fileiras abaixo.
+- **Motivo**: o comportamento anterior deixava conteúdo invisível até sair e entrar novamente; isso divergia do padrão progressivo observado em grandes players.
+- **Consequência**: `deferred` deixa de bloquear conteúdo; foco e scroll devem ser reconciliados por identidade estável.

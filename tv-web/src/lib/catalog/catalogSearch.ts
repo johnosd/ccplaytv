@@ -10,6 +10,7 @@ import { db, type CatalogDb, type CatalogRecord } from './db'
 import { listAllOfKind } from './catalogRepository'
 import { listVisibleCategories } from './categoryAccess'
 import { normalizeForSearch } from './adultCategory'
+import { createSliceClock, forEachInSlices, mapInSlices, type SliceOptions } from '../slices'
 
 /** Tipos pesquisáveis — cada seção pesquisa só o seu (FR-002). Episódio fica de fora. */
 export type SearchableKind = 'channel' | 'movie' | 'series'
@@ -75,7 +76,8 @@ class LazySearchIndexEntry implements SearchIndexEntry {
     this.record = record
   }
   get normalizedName(): string {
-    this.normalized ??= normalizeForSearch(this.record.name)
+    // Pelo cache do registro: a busca filtra os registros por ele, então um cálculo serve aos dois (feature 084).
+    this.normalized ??= normalizedNameOf(this.record, recordName)
     return this.normalized
   }
 }
@@ -102,21 +104,30 @@ export function isCovered(category: { fetchMode: string; itemsFetchedAt?: number
   return category.fetchMode === 'eager' || category.itemsFetchedAt !== undefined
 }
 
+/** Feature 084: montagem do índice em fatias, sem tarefa longa na tela da TV. */
+export interface LoadSearchIndexOptions extends SliceOptions {
+  /** Calcula o nome normalizado de cada entrada durante a montagem, em fatias (busca global: a 1ª tecla não normaliza tudo). */
+  normalize?: boolean
+}
+
 /**
  * Lê do aparelho tudo o que é pesquisável de um tipo na geração ativa e a
  * cobertura (quantas categorias do tipo já têm conteúdo no aparelho).
+ * Feature 084: em fatias que cedem a vez à interface e podem ser canceladas (`signal`); mesmo resultado de antes.
  */
 export async function loadSearchIndex(
   sourceId: string,
   kind: SearchableKind,
   database: CatalogDb = db,
+  options: LoadSearchIndexOptions = {},
 ): Promise<SearchIndex> {
-  const [records, categories] = await Promise.all([
-    listAllOfKind(sourceId, kind, database),
-    listVisibleCategories(sourceId, kind, database),
-  ])
-  const coveredCategories = categories.filter(isCovered).length
-  return buildSearchIndex(records.map(compactSearchRecord), { coveredCategories, totalCategories: categories.length })
+  const clock = createSliceClock(options)
+  const categories = await listVisibleCategories(sourceId, kind, database)
+  const compact = await mapInSlices(await listAllOfKind(sourceId, kind, database, clock), compactSearchRecord, clock)
+  const entries = await mapInSlices(compact, (record): SearchIndexEntry => new LazySearchIndexEntry(record), clock)
+  // Aquece, em fatias, o nome normalizado: o cálculo da entrada preenche também o cache do registro (ver o getter).
+  if (options.normalize) await forEachInSlices(entries, (entry) => void entry.normalizedName, clock)
+  return { entries, coveredCategories: categories.filter(isCovered).length, totalCategories: categories.length }
 }
 
 /**
@@ -143,6 +154,13 @@ function normalizedNameOf<T>(item: T, nameOf: (item: T) => string): string {
   const normalized = normalizeForSearch(raw)
   normalizedByItem.set(item, { raw, normalized })
   return normalized
+}
+
+const recordName = (record: CatalogRecord): string => record.name
+
+/** Calcula (e guarda) o nome normalizado de um item, para a 1ª busca por ele não pagar por isso (feature 084). */
+export function warmNormalizedName<T>(item: T, nameOf: (item: T) => string): string {
+  return normalizedNameOf(item, nameOf)
 }
 
 /** Mesma ordem de `a.localeCompare(b)` sem argumentos (localidade e opções padrão), sem recriar o colador a cada comparação. */

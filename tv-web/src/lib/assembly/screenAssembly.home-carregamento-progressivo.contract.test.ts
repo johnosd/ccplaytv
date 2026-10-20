@@ -20,7 +20,7 @@ function slots(statuses: Record<Key, SlotStatus>): AssemblySlot<Key>[] {
   return (['a', 'b', 'c', 'd', 'e'] as const).map((key) => ({ key, status: statuses[key] }))
 }
 
-const base = { imagesSettled: true, capPassed: false, following: false, firstRender: false }
+const base = { imagesSettled: true, progressivePassed: false, capPassed: false, following: false, firstRender: false }
 
 function step<K extends string>(prev: AssemblyState<K>, input: Partial<AssemblyInput<K>> & Pick<AssemblyInput<K>, 'slots'>) {
   return stepAssembly(prev, { ...base, ...input })
@@ -28,7 +28,7 @@ function step<K extends string>(prev: AssemblyState<K>, input: Partial<AssemblyI
 
 describe('screenAssembly — contrato da feature 079', () => {
   // US1/AC1, US1/AC2, US1/AC3, US3/AC2, US3/AC3, FR-001, FR-002, FR-007, FR-010
-  it('espera todas as leituras e as capas, revela tudo de uma vez na ordem da tela; depois do teto, o que chega acima fica para a próxima entrada e o que chega abaixo entra ao fim', () => {
+  it('revela as fileiras prontas após a janela curta e encaixa as tardias na ordem da tela', () => {
     expect(slotStatusOf({ data: undefined }, (d: number[]) => d.length === 0)).toBe('pending')
     expect(slotStatusOf({ data: undefined, isError: true }, (d: number[]) => d.length === 0)).toBe('failed')
     expect(slotStatusOf({ data: [] as number[] }, (d) => d.length === 0)).toBe('empty')
@@ -42,25 +42,21 @@ describe('screenAssembly — contrato da feature 079', () => {
     expect(s.phase).toBe('waiting')
     expect(s.shown).toEqual([])
 
-    // Todas resolvidas, mas as capas da primeira tela ainda não: continua esperando.
-    s = step(s, { imagesSettled: false, slots: slots({ a: 'ready', b: 'empty', c: 'ready', d: 'ready', e: 'empty' }) })
-    expect(s.phase).toBe('waiting')
-
-    // Capas prontas: revela de uma vez, na ordem, sem as vazias.
-    s = step(s, { slots: slots({ a: 'ready', b: 'empty', c: 'ready', d: 'ready', e: 'empty' }) })
+    // A janela curta passou: revela o que já está pronto, na ordem, sem as vazias.
+    s = step(s, { progressivePassed: true, slots: slots({ a: 'ready', b: 'empty', c: 'ready', d: 'ready', e: 'empty' }) })
     expect(s.phase).toBe('revealed')
     expect(s.reason).toBe('ready')
     expect(s.shown).toEqual(['a', 'c', 'd'])
 
-    // Depois do teto: "b" passa a ter dado acima de "c"/"d" já na tela → adiada; "e" chega abaixo de tudo → entra ao fim.
+    // Uma fileira acima chega depois: entra na mesma visita, na posição canônica.
     s = step(s, { capPassed: true, slots: slots({ a: 'ready', b: 'ready', c: 'ready', d: 'ready', e: 'ready' }) })
-    expect(s.shown).toEqual(['a', 'c', 'd', 'e'])
-    expect(s.deferred).toEqual(['b'])
+    expect(s.shown).toEqual(['a', 'b', 'c', 'd', 'e'])
+    expect(s.deferred).toEqual([])
 
-    // Uma que fica vazia sai da tela; a adiada continua adiada.
+    // Uma que fica vazia sai da tela; as demais permanecem na ordem.
     s = step(s, { capPassed: true, slots: slots({ a: 'ready', b: 'ready', c: 'empty', d: 'ready', e: 'ready' }) })
-    expect(s.shown).toEqual(['a', 'd', 'e'])
-    expect(s.deferred).toEqual(['b'])
+    expect(s.shown).toEqual(['a', 'b', 'd', 'e'])
+    expect(s.deferred).toEqual([])
   })
 
   // US2/AC5, US3/AC1, US3/AC5, FR-009, FR-011, FR-013, Constitution: "Progresso e Capacidades São Reais, Nunca Prometidos"
@@ -90,10 +86,10 @@ describe('screenAssembly — contrato da feature 079', () => {
     expect(cold.reason).toBe('cap')
     expect(cold.shown).toEqual(['r1'])
 
-    // O hero chega depois: o billboard (âncora) não troca nesta visita. "r2" chega abaixo de tudo: entra.
+    // O hero e a fileira chegam depois: ambos entram na mesma visita e na ordem canônica.
     cold = step(cold, { capPassed: true, slots: home('ready', 'ready', 'ready') })
-    expect(cold.shown).toEqual(['r1', 'r2'])
-    expect(cold.deferred).toEqual(['hero'])
+    expect(cold.shown).toEqual(['hero', 'r1', 'r2'])
+    expect(cold.deferred).toEqual([])
 
     // Ação da pessoa (fechar o player, favoritar): tudo que tem dado entra na posição.
     cold = step(cold, { capPassed: true, following: true, slots: home('ready', 'ready', 'ready') })

@@ -4,6 +4,7 @@ import { db, type CatalogDb, type CatalogFetchMode, type CategoryKind, type Cate
 import { categoryMatchKey, diffCategories } from '../structureDiff'
 import { blockRecords } from '../categoryBlocks'
 import { invalidateCategoryReadModel } from './readProjection'
+import { categoryChunks } from '../chunkTables'
 
 /** Uma categoria lida numa atualização (feature 038, `logic/atualizacao-sem-esfriar.md` §4). */
 export interface RefreshedCategory {
@@ -44,11 +45,7 @@ export async function applyStructureRefresh(
 ): Promise<StructureRefreshResult> {
   return database.transaction(
     'rw',
-    database.categories,
-    database.channels,
-    database.categoryBlocks,
-    database.catalogReadManifests,
-    database.catalogReadChunks,
+    [database.categories, database.channels, database.categoryBlocks, database.catalogReadManifests, database.catalogReadChunks, categoryChunks(database)] as any,
     async () => {
     const existing = (await database.categories.where('sourceId').equals(sourceId).toArray()).filter(
       (record) => record.generation === generation && kinds.includes(record.kind),
@@ -115,6 +112,7 @@ export async function applyStructureRefresh(
       const block = await database.categoryBlocks.get(id)
       const items = [...rows, ...(block ? blockRecords(block) : [])]
       if (block) await database.categoryBlocks.delete(id)
+      await categoryChunks(database).where('[categoryId+chunk]').between([id, -1], [id, Number.MAX_SAFE_INTEGER], true, true).delete()
       await invalidateCategoryReadModel(id, database)
       if (record.kind === 'series') {
         for (const seriesId of new Set(items.map((item) => item.seriesId).filter((value): value is string => !!value))) {

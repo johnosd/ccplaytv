@@ -28,3 +28,5 @@
   font-variant-numeric: tabular-nums;
 }
 .license-pix-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+/* 081/FR-009: quem vende, contato e reembolso — sempre visível antes de pagar, discreto (legenda ≥ 20 px). */
+.license-pix-seller { margin: 0; font-size: var(--fs-caption); color: var(--text-annotation); overflow-wrap: anywhere; }

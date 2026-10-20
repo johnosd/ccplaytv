@@ -13,6 +13,7 @@
 import { db, type CatalogDb, type CatalogItemKind, type UserStateRecord } from './db'
 import { invalidateSeriesWatchForStableId } from './seriesWatchRepository'
 import { isInHistory } from './historyPolicy'
+import { withStorageRelief } from './storageRelief'
 
 export { isInHistory } from './historyPolicy'
 
@@ -215,18 +216,15 @@ async function upsert(
   database: CatalogDb = db,
   invalidateSeriesWatch = true,
 ): Promise<void> {
-  await database.transaction('rw', database.userStates, async () => {
-    const now = Date.now()
-    const existing = await database.userStates.get(stableId)
-    const base: UserStateRecord = existing ?? {
-      stableId,
-      sourceId,
-      isFavorite: false,
-      createdAt: now,
-      updatedAt: now,
-    }
-    await database.userStates.put({ ...patch(base), updatedAt: now })
-  })
+  await withStorageRelief(
+    () => database.transaction('rw', database.userStates, async () => {
+      const now = Date.now()
+      const existing = await database.userStates.get(stableId)
+      const base: UserStateRecord = existing ?? { stableId, sourceId, isFavorite: false, createdAt: now, updatedAt: now }
+      await database.userStates.put({ ...patch(base), updatedAt: now })
+    }),
+    database,
+  )
   if (invalidateSeriesWatch) await invalidateSeriesWatchForStableId(stableId, database)
 }
 export async function toggleFavorite(

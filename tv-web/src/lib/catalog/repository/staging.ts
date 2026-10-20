@@ -46,7 +46,7 @@ export async function clearStagedItems(sourceId: string, categoryId?: number, da
  *
  * @returns `true` se apagou algo.
  */
-export async function clearStagedItemsOfOtherSources(sourceId: string, database: CatalogDb = db): Promise<boolean> {
+export async function clearStagedItemsOfOtherSources(sourceId: string | undefined, database: CatalogDb = db): Promise<boolean> {
   const keys = (await database.sectionStaging.orderBy('[sourceId+categoryId]').uniqueKeys()) as unknown as Array<[string, number]>
   const others = new Set(keys.map(([owner]) => owner).filter((owner) => owner !== sourceId))
   for (const owner of others) await clearStagedItems(owner, undefined, database)

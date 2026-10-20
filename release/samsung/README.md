@@ -44,11 +44,12 @@ Saída: `reports/<versão>-<variante>.json` e `.md`. Código de saída 0 =
 - `logo_1920x1080.png` (RGBA, transparente), `fundo_1920x1080.jpg` e `icone_512x423.png`: a identidade do
   app, as mesmas de `docs/guia-praticas-app-tv/assets/`.
 - `screenshot_01.jpg` … `screenshot_04.jpg` (1920×1080, < 500 kB): Filmes, TV ao vivo com guia, Séries e
-  detalhe de série com episódios. Gerados do app real no navegador, com catálogo, capas e logos **fictícios**
-  (nenhuma lista real, marca ou pôster de terceiros):
+  Portal & licença com o preço (a Samsung pede o preço numa captura de app com compra). Gerados do app real
+  **comercial** no navegador, com catálogo, capas, logos, portal e licença **fictícios** (nenhuma lista real, marca
+  ou pôster de terceiros; o domínio do portal aparece, mas nenhuma chamada chega à produção):
 
   ```powershell
-  cd tv-web   # com `npm run dev` no ar
+  cd tv-web   # sem servidor no ar: o roteiro sobe o app comercial numa porta própria
   node scripts/release/store-screenshots.mjs --out <pasta-temporária>   # revise as 4 imagens
   ```
 

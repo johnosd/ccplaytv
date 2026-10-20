@@ -1,6 +1,9 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { prefetchScheduler, setPrefetchCategoryDone } from '../../lib/catalog/prefetch'
+import { protectCatalogSource } from '../../lib/catalog/storageRelief'
+import { subscribeCatalogReleases, touchSource } from '../../lib/catalog/storageBudget'
+import { db } from '../../lib/catalog/db'
 import type { PrefetchHint } from '../../lib/catalog/prefetch/prefetchOrder'
 import type { PrefetchProgress } from '../../lib/catalog/prefetch/prefetchScheduler'
 
@@ -30,17 +33,61 @@ export const INVALIDATE_BATCH_MS = 1000
 export const ALL_PAGES_REFETCH_MAX = 2
 
 /**
+ * Feature 084 (FR-006): com a tela aberta, o índice de busca (`global-search-index` e `catalog-search-index` de um
+ * tipo) é remontado no máximo uma vez a cada tanto durante a pré-carga. Cada remontagem lê dezenas de milhares de
+ * registros; a cada lote (até 1 por segundo) a TV não aguentaria.
+ */
+export const SEARCH_INDEX_REFRESH_MS = 10_000
+
+/** `['catalog-search-index', fonte, tipo]`: o índice. A vitrine tem mais elementos e segue invalidada a cada lote. */
+const CATALOG_INDEX_KEY_LENGTH = 3
+
+/**
  * Invalida, agrupado, o que depende de uma categoria que acabou de chegar ao
  * aparelho (`logic/agendador-pre-carga.md` §6): a lista de categorias (o
  * número aparece no trilho), o conteúdo das categorias que chegaram, as
  * contagens e os índices de busca. Registrado uma vez, na raiz.
  */
-export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = INVALIDATE_BATCH_MS) {
+export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = INVALIDATE_BATCH_MS, refreshMs = SEARCH_INDEX_REFRESH_MS) {
   const pending = new Map<string, {
     all: Set<number>
     byKind: Map<'channel' | 'movie' | 'series', Set<number>>
   }>()
   let timer: ReturnType<typeof setTimeout> | undefined
+
+  // Feature 084 (FR-006): por consulta de índice, quando foi remontada pela última vez e se chegou algo depois.
+  const indexRefresh = new Map<string, { queryKey: readonly unknown[]; last: number; dirty: boolean; timer?: ReturnType<typeof setTimeout> }>()
+
+  function remountIndex(id: string): void {
+    const state = indexRefresh.get(id)
+    if (!state) return
+    state.timer = undefined
+    if (!state.dirty) return
+    state.dirty = false
+    state.last = Date.now()
+    void queryClient.refetchQueries({ queryKey: state.queryKey, exact: true, type: 'active' })
+  }
+
+  /**
+   * Marca o índice como velho sem reler e remonta no máximo 1× por `refreshMs`: a 1ª chegada remonta na hora (borda de
+   * entrada); as seguintes, dentro da janela, só confirmam que há algo novo e entram numa remontagem no fim dela.
+   */
+  function refreshIndexes(queryKeys: readonly (readonly unknown[])[]): void {
+    for (const queryKey of queryKeys) {
+      void queryClient.invalidateQueries({ queryKey, exact: true, refetchType: 'none' })
+      const id = JSON.stringify(queryKey)
+      const state = indexRefresh.get(id) ?? { queryKey, last: Number.NEGATIVE_INFINITY, dirty: false }
+      indexRefresh.set(id, state)
+      state.dirty = true
+      const wait = state.last + refreshMs - Date.now()
+      if (wait <= 0) {
+        if (state.timer !== undefined) clearTimeout(state.timer)
+        remountIndex(id)
+      } else if (state.timer === undefined) {
+        state.timer = setTimeout(() => remountIndex(id), wait)
+      }
+    }
+  }
 
   function flush(): void {
     timer = undefined
@@ -55,14 +102,19 @@ export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = IN
       }
       void queryClient.invalidateQueries({ queryKey: ['category-preview', sourceId, 'window'] })
       void queryClient.invalidateQueries({ queryKey: ['catalog-counts', sourceId] })
-      if (pendingSource.byKind.size === 0) {
-        void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId] })
-      } else {
-        for (const kind of pendingSource.byKind.keys()) {
-          void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId, kind] })
-          void queryClient.invalidateQueries({ queryKey: ['catalog-all-pages', sourceId, kind], refetchType: 'none' })
-        }
-        if (pendingSource.all.size > 0) void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId] })
+      const wholeSource = pendingSource.byKind.size === 0 || pendingSource.all.size > 0
+      const indexPrefixes = wholeSource
+        ? [['catalog-search-index', sourceId]]
+        : [...pendingSource.byKind.keys()].map((kind) => ['catalog-search-index', sourceId, kind])
+      for (const prefix of indexPrefixes) {
+        // A vitrine e o resto sob o prefixo seguem como sempre; o índice (3 elementos) é remontado com limite.
+        void queryClient.invalidateQueries({ queryKey: prefix, predicate: (query) => query.queryKey.length !== CATALOG_INDEX_KEY_LENGTH })
+        refreshIndexes(queryClient.getQueryCache()
+          .findAll({ queryKey: prefix, predicate: (query) => query.queryKey.length === CATALOG_INDEX_KEY_LENGTH })
+          .map((query) => query.queryKey))
+      }
+      for (const kind of pendingSource.byKind.keys()) {
+        void queryClient.invalidateQueries({ queryKey: ['catalog-all-pages', sourceId, kind], refetchType: 'none' })
       }
       // Feature 039 (T022): "Todos" aos poucos. Reler uma consulta infinita relê
       // TODAS as páginas já lidas, uma por vez — com 30 páginas, a cada lote
@@ -85,7 +137,7 @@ export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = IN
         })
       }
       void queryClient.invalidateQueries({ queryKey: ['kind-sort-fields', sourceId] })
-      void queryClient.invalidateQueries({ queryKey: ['global-search-index', sourceId] })
+      refreshIndexes(queryClient.getQueryCache().findAll({ queryKey: ['global-search-index', sourceId], exact: true }).map((query) => query.queryKey))
     }
     pending.clear()
   }
@@ -107,6 +159,8 @@ export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = IN
       if (timer !== undefined) clearTimeout(timer)
       timer = undefined
       pending.clear()
+      for (const state of indexRefresh.values()) if (state.timer !== undefined) clearTimeout(state.timer)
+      indexRefresh.clear()
     },
   }
 }
@@ -120,13 +174,18 @@ export function usePrefetchForSource(sourceId: string | null): void {
   useEffect(() => {
     const invalidator = createPrefetchInvalidator(queryClient)
     setPrefetchCategoryDone(invalidator.categoryDone)
+    const unsubscribe = subscribeCatalogReleases((sourceId, categoryIds) => categoryIds.forEach((id) => invalidator.categoryDone(sourceId, id)))
     return () => {
       setPrefetchCategoryDone(undefined)
       invalidator.dispose()
+      unsubscribe()
     }
   }, [queryClient])
 
   useEffect(() => {
+    // A lista ativa nunca perde cache quando uma gravação crítica precisa liberar espaço.
+    protectCatalogSource(sourceId ?? undefined)
+    if (sourceId) touchSource(sourceId, Date.now(), db)
     if (sourceId) prefetchScheduler.start(sourceId)
     else prefetchScheduler.stop()
   }, [sourceId])

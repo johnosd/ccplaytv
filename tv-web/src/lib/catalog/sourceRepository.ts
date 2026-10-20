@@ -191,7 +191,7 @@ export async function updateSource(
   database: CatalogDb = db,
 ): Promise<SourceView | undefined> {
   const tables = portalTables(database)
-  const updated = await database.transaction('rw', database.sources, tables.revisions, database.epgPrograms, async () => {
+  const updated = await database.transaction('rw', [database.sources, tables.revisions, database.epgPrograms, database.table('epgChunks')], async () => {
     const record = await database.sources.get(id)
     if (!record) return undefined
 
@@ -216,8 +216,8 @@ export async function updateSource(
 
     Object.assign(changes, sourceExtras(input))
     if (input.epgDisabled === true) {
-      await database.epgPrograms.where('sourceId').equals(id).delete()
-      changes.epgActiveGeneration = undefined
+      await Promise.all([database.epgPrograms.where('sourceId').equals(id).delete(), database.table('epgChunks').where('sourceId').equals(id).delete()]) // + guia comprimido (082)
+      Object.assign(changes, { epgActiveGeneration: undefined, epgStoredBytes: undefined })
     }
     const previous = await tables.revisions.get(id)
     if (previous?.tombstone) throw new InvalidSourceError('Lista removida.')

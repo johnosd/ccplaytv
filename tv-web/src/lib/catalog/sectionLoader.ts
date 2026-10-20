@@ -25,9 +25,11 @@ import {
   StorageFullError,
   type CatalogCategory,
 } from './catalogRepository'
-import { toItemRecord } from './categoryLoader'
+import { makeRoomFor } from './storageBudget'
+import { toItemRecord } from './categoryItemRecord'
 import { readJsonArrayStream } from './jsonArrayStream'
 import { readCredential } from './sourceRepository'
+import { SectionTimer, type SectionLoadTimings } from './sectionTimings'
 import {
   isAbortError,
   mapLiveEntry,
@@ -47,6 +49,8 @@ const ACTION: Record<CategoryKind, string> = {
 /** `rate_limited` (feature 042): o painel respondeu 429 — a pré-carga espera antes de tentar de novo. */
 export type SectionLoadOutcome = 'done' | 'failed' | 'storage_full' | 'rate_limited'
 
+export type { SectionLoadTimings } from './sectionTimings'
+
 export interface SectionLoadOptions {
   database?: CatalogDb
   now?: () => number
@@ -58,14 +62,22 @@ export interface SectionLoadOptions {
   waitUntilAllowed?: () => Promise<void>
   /** A cada quantos itens lidos o acumulado vai para a área de preparo (testes; padrão `STAGE_FLUSH_ITEMS`). */
   stageFlushItems?: number
+  /** Feature 085: recebe os tempos por etapa ao fim da carga (qualquer resultado, inclusive cancelada). Só números. */
+  onTimings?: (timings: SectionLoadTimings) => void
+  /** Relógio dos tempos (testes; padrão `performance.now`). */
+  clock?: () => number
 }
 
 /**
  * Feature 039 (T031, FR-013): itens lidos do fluxo antes de descarregar na área
  * de preparo — o pico de memória do Worker passa a ser isto mais a maior
  * categoria, não a seção inteira (~123–132 MB com 300 mil filmes antes).
+ *
+ * Feature 085 (D-003): 60 000 itens ≈ 28 MB de heap no Worker (~460 B/item, medido na
+ * 082), longe dos 364 MB do limite da TV. A lista real (43 510 filmes) cabe inteira e
+ * nunca passa pelo preparo; só uma seção maior que isto descarrega.
  */
-export const STAGE_FLUSH_ITEMS = 20_000
+export const STAGE_FLUSH_ITEMS = 60_000
 
 export interface SectionLoadResult {
   outcome: SectionLoadOutcome
@@ -93,6 +105,22 @@ export async function loadSection(
   categoryIds: readonly number[],
   options: SectionLoadOptions = {},
 ): Promise<SectionLoadResult> {
+  const timer = new SectionTimer(options.clock ?? (() => performance.now()))
+  try {
+    return await runSectionLoad(sourceId, kind, categoryIds, options, timer)
+  } finally {
+    try { options.onTimings?.(timer.finish()) } catch { /* medir nunca atrapalha a carga */ }
+  }
+}
+
+async function runSectionLoad(
+  sourceId: string,
+  kind: CategoryKind,
+  categoryIds: readonly number[],
+  options: SectionLoadOptions,
+  timer: SectionTimer,
+): Promise<SectionLoadResult> {
+  const gate = () => timer.time('gateWaitMs', async () => { await options.waitUntilAllowed?.() })
   const database = options.database ?? db
   const now = options.now ?? (() => Date.now())
   const written: number[] = []
@@ -112,6 +140,7 @@ export async function loadSection(
     categories.map((c) => [c.providerCategoryId as string, { id: c.providerCategoryId as string, name: c.name ?? '', order: c.order }]),
   )
   const map = mapperFor(kind, categoryMap)
+  timer.values.categories = categories.length
   const groups = new Map<number, CatalogRecord[]>(categories.map((c) => [c.id, []]))
   // Feature 039 (T031, FR-013): as categorias chegam misturadas no fluxo, então
   // nenhuma pode ser gravada antes do fim (meia categoria à vista violaria
@@ -130,12 +159,13 @@ export async function loadSection(
       groups.set(categoryId, [])
     }
     buffered = 0
-    await stageSectionItems(parts, database)
+    await timer.time('stageWriteMs', () => stageSectionItems(parts, database))
   }
 
+  const readStart = timer.now()
   try {
     // Sobra de uma carga interrompida (app fechado, aborto) nunca entra nesta.
-    await clearStagedItems(sourceId, undefined, database)
+    await timer.time('stageClearMs', () => clearStagedItems(sourceId, undefined, database))
     const response = await (options.fetchImpl ?? fetch)(
       playerApiUrl(credential.dns, credential.username, credential.password, { action: ACTION[kind] }),
       options.signal ? { signal: options.signal } : undefined,
@@ -155,6 +185,7 @@ export async function loadSection(
         if (!item) return
         groups.get(category.id)?.push(toItemRecord(item, sourceId, generation, category))
         buffered += 1
+        timer.values.items += 1
       },
       options.signal,
       async () => {
@@ -162,7 +193,7 @@ export async function loadSection(
         // Descarregar grava vários MB: espera o mesmo portão da gravação de
         // cada categoria, para não competir com a categoria que a pessoa abre.
         // Enquanto espera, o fluxo não é lido (a rede segura o resto).
-        await options.waitUntilAllowed?.()
+        await gate()
         if (options.signal?.aborted) throw new DOMException('Carga cancelada.', 'AbortError')
         await flush()
       },
@@ -174,27 +205,49 @@ export async function loadSection(
     if (isAbortError(error)) throw error
     if (error instanceof StorageFullError) return { outcome: 'storage_full', written }
     return { outcome: 'failed', written }
+  } finally {
+    timer.add('readMs', readStart)
   }
 
   try {
     for (const category of categories) {
       if (options.signal?.aborted) throw new DOMException('Carga cancelada.', 'AbortError')
-      await options.waitUntilAllowed?.()
+      await gate()
       const rest = groups.get(category.id) ?? []
-      const items = staged.has(category.id) ? [...(await stagedItemsOf(sourceId, category.id, database)), ...rest] : rest
+      const items = staged.has(category.id)
+        ? [...(await timer.time('stageReadMs', () => stagedItemsOf(sourceId, category.id, database))), ...rest]
+        : rest
+      // Feature 082: pré-carga nunca libera categoria da lista ativa; o orçamento recebe os bytes já codificados.
+      const categoryStart = timer.now()
+      let roomEnd = 0
       const result = await renewCategoryItems(
         { sourceId, generation, kind, categoryId: category.id, groupOrder: category.order },
         items,
         now(),
         database,
+        async (need) => {
+          const roomStart = timer.now()
+          timer.values.encodeMs += roomStart - categoryStart
+          timer.values.budgetCalls += 1
+          try {
+            return (await makeRoomFor(sourceId, need, { database, mode: 'prefetch', protectCategoryId: category.id })).fits
+          } finally {
+            roomEnd = timer.now()
+            timer.values.budgetMs += roomEnd - roomStart
+          }
+        },
       )
+      // Categoria igual à gravada não chama o orçamento: o tempo todo vira "preparar".
+      if (roomEnd === 0) timer.add('encodeMs', categoryStart)
+      else timer.add('commitMs', roomEnd)
       groups.delete(category.id) // libera a memória desta categoria já gravada
-      if (staged.has(category.id)) await clearStagedItems(sourceId, category.id, database)
       written.push(category.id)
       // Igual ao que já estava no aparelho (renovação sem novidade): nada a reler na tela. Avisar assim mesmo relia as
       // vitrines e o índice do tipo inteiro a cada categoria (bug `abrir-app-nao-atualiza-todas-categorias`).
       if (result.written) options.onCategory?.(category.id)
     }
+    // Feature 085 (D-004): o preparo sai uma vez, no fim, em vez de uma limpeza por categoria.
+    if (staged.size > 0) await timer.time('stageClearMs', () => clearStagedItems(sourceId, undefined, database))
   } catch (error) {
     // Interrompida no meio: as categorias já gravadas ficam; o preparo das
     // demais sai agora (e, se o app fechou, na próxima carga desta fonte).
@@ -203,5 +256,6 @@ export async function loadSection(
     if (error instanceof StorageFullError) return { outcome: 'storage_full', written }
     return { outcome: 'failed', written }
   }
+  timer.values.written = written.length
   return { outcome: 'done', written }
 }

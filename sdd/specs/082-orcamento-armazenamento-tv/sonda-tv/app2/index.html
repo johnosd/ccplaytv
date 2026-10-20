@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Sonda 2 (082)</title>
+  <style>
+    html, body { margin: 0; background: #0b0d12; color: #e8eaf0; font: 26px/1.35 sans-serif; overflow: hidden; }
+    body { padding: 40px 64px; }
+    h1 { font-size: 38px; margin: 0 0 8px; }
+    #status { font-size: 30px; color: #ff7a3d; margin: 0 0 12px; }
+    #log { white-space: pre-wrap; font-family: monospace; font-size: 21px; max-height: 860px; overflow: hidden; }
+    /* Palco dos testes de renderização (cobre a tela enquanto mede). */
+    #stage { display: none; position: fixed; inset: 0; background: #0b0d12; overflow: hidden; padding: 60px; }
+    #stage.blurred::after { content: ''; position: fixed; inset: 0 0 auto 0; height: 160px; backdrop-filter: blur(12px); background: rgba(11,13,18,0.5); }
+    .grid { display: grid; grid-template-columns: repeat(7, 220px); gap: 32px; will-change: transform; }
+    .card { width: 220px; transition: transform 140ms, box-shadow 140ms, outline-color 140ms; outline: 4px solid transparent; outline-offset: 6px; border-radius: 12px; }
+    .card img { width: 220px; height: 330px; border-radius: 12px; display: block; }
+    .card .label { font-size: 24px; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card.f-scale { transform: scale(1.06); }
+    .card.f-full { transform: scale(1.06); outline-color: #ff7a3d; box-shadow: 0 0 32px 8px rgba(255,122,61,0.55), 0 12px 40px rgba(0,0,0,0.6); }
+
+    /* ---- Feature 083: candidatas de foco leve (teste foco083). `.card`, f-scale e f-full ficam como na 082.
+       Cada rodada põe `m-<classe>` na grade para que a SAÍDA do foco também use a transição da candidata. ---- */
+    /* f-app: receita exata do app hoje (tokens de tv-web/src/index.css), transição de sombra incluída. */
+    .grid.m-f-app .card { transition: transform 140ms ease-out, box-shadow 140ms ease-out; }
+    .card.f-app { transform: scale(1.06); outline-color: #ff7a3d; outline-offset: 3px; box-shadow: 0 0 0 8px rgba(255,122,61,0.22), 0 0 40px rgba(255,122,61,0.55); }
+    /* C1: mesmo desenho, sombra estática; só a escala anima. */
+    .grid.m-f-c1 .card { transition: transform 140ms ease-out; }
+    .card.f-c1 { transform: scale(1.06); outline-color: #ff7a3d; outline-offset: 3px; box-shadow: 0 0 0 8px rgba(255,122,61,0.22), 0 0 40px rgba(255,122,61,0.55); }
+    /* C2: halo + brilho pré-pintados num pseudo-elemento; só a opacidade anima. */
+    .grid.m-f-c2 .card, .grid.m-f-c3 .card { position: relative; transition: transform 140ms ease-out; }
+    .grid.m-f-c2 .card::after { content: ''; position: absolute; inset: 0; border-radius: 12px; pointer-events: none; opacity: 0; transition: opacity 140ms ease-out;
+      box-shadow: 0 0 0 8px rgba(255,122,61,0.22), 0 0 40px rgba(255,122,61,0.55); }
+    .card.f-c2 { transform: scale(1.06); outline-color: #ff7a3d; outline-offset: 3px; }
+    .grid.m-f-c2 .card.f-c2::after { opacity: 1; }
+    /* C3: como C2, mas o brilho é um degradê radial (halo continua uma sombra sem desfoque). */
+    .grid.m-f-c3 .card::before { content: ''; position: absolute; inset: -56px; z-index: -1; pointer-events: none; opacity: 0; transition: opacity 140ms ease-out;
+      background: radial-gradient(closest-side, rgba(255,122,61,0.55) 45%, rgba(255,122,61,0) 100%); }
+    .grid.m-f-c3 .card::after { content: ''; position: absolute; inset: 0; border-radius: 12px; pointer-events: none; opacity: 0; transition: opacity 140ms ease-out;
+      box-shadow: 0 0 0 8px rgba(255,122,61,0.22); }
+    .card.f-c3 { transform: scale(1.06); outline-color: #ff7a3d; outline-offset: 3px; }
+    .grid.m-f-c3 .card.f-c3::before, .grid.m-f-c3 .card.f-c3::after { opacity: 1; }
+    /* C4: sem brilho difuso; contorno + halo (sombra sem desfoque) + escala. */
+    .grid.m-f-c4 .card { transition: transform 140ms ease-out; }
+    .card.f-c4 { transform: scale(1.06); outline-color: #ff7a3d; outline-offset: 3px; box-shadow: 0 0 0 8px rgba(255,122,61,0.22); }
+  </style>
+</head>
+<body>
+  <h1>Sonda 2 — capacidades da TV (feature 082)</h1>
+  <p id="status">Iniciando…</p>
+  <div id="log"></div>
+  <div id="stage"></div>
+  <!-- Gerado pelo instalar-sonda.ps1: endereço do coletor no PC (só IP da LAN). -->
+  <script src="report-target.js"></script>
+  <script src="core.js"></script>
+  <script src="tests.js"></script>
+  <script src="appReal.js"></script>
+  <script src="memoria.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

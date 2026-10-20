@@ -33,6 +33,23 @@ test('bootstrap acessível mantém o login enxuto e sem ações autenticadas; o 
   await expect(page.getByLabel('Chave do dispositivo', { exact: true })).toBeFocused()
 })
 
+// 081/T046: digitar tecla por tecla (como no celular) — antes o 3º caractere sumia e o campo travava.
+test('o ID digitado tecla por tecla aparece inteiro, é formatado ao sair do campo e entra normalizado', async ({ page }) => {
+  await fixture(page)
+  let sent: unknown
+  page.on('request', request => { if (request.url().endsWith('/sessions/manual')) sent = request.postDataJSON() })
+  await page.goto('/')
+  const id = page.getByLabel('Endereço MAC da TV', { exact: true })
+  await id.pressSequentially('a08cfd190a8c')
+  await expect(id).toHaveValue('a08cfd190a8c')
+  await page.getByLabel('Chave do dispositivo', { exact: true }).click()
+  await expect(id).toHaveValue('A0-8C-FD-19-0A-8C')
+  await page.getByLabel('Chave do dispositivo', { exact: true }).pressSequentially('0123456789')
+  await page.getByRole('button', { name: 'Conectar', exact: true }).click()
+  await expect(page.getByRole('navigation', { name: 'Principal' })).toBeVisible()
+  expect(sent).toMatchObject({ displayId })
+})
+
 test('US1-AC3: entrar pelo QR (ID e chave no fragmento) também lembra o ID; a chave nunca fica guardada', async ({ page }) => {
   await fixture(page)
   await page.goto('/#id=' + displayId + '&key=0123456789')

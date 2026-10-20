@@ -191,6 +191,7 @@ def box(slide, x, y, w, h, title, detail=None, fill=BOX_FILL):
     tf.vertical_anchor = MSO_ANCHOR.MIDDLE
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
+    latin_wrap(p)
     run = p.add_run()
     run.text = title
     run.font.size = Pt(9)
@@ -199,6 +200,7 @@ def box(slide, x, y, w, h, title, detail=None, fill=BOX_FILL):
     if detail:
         q = tf.add_paragraph()
         q.alignment = PP_ALIGN.CENTER
+        latin_wrap(q)
         r2 = q.add_run()
         r2.text = detail
         r2.font.size = Pt(7.5)
@@ -239,12 +241,35 @@ USE_CASES = [
         'CCPlayTV has no user account and no login of its own. The only credential is the IPTV playlist the user '
         'already has (Xtream Codes or M3U). It is typed on the TV and stays on the TV.',
         '1. On first launch the app opens "Connect your playlist". Otherwise, on "Select or Add your list", select '
-        '"Add list" and press OK.',
-        '2. Choose "Xtream Codes" (or "M3U list") and fill in Playlist name, Host, User name and Password with the '
+        '"Add list" and press OK. The form opens on the "On the website" tab (see the portal use case).',
+        '2. Move to "Xtream Codes" (or "M3U list") and fill in Playlist name, Host, User name and Password with the '
         'on-screen keyboard.',
         '3. Select "Connect and sync". The structure of the list is imported on the TV; when it finishes, select "Back".',
         '4. Select the new list card and press OK: the Home screen opens.',
         'Test playlist for the review (Xtream Codes):',
+    ]),
+    ('Trial and In-app Purchase', [
+        'A new installation runs a free 7-day trial with every feature, counted on the TV — no account, voucher or '
+        'payment needed. The reviewer tests the app inside this trial.',
+        '1. Settings › "Portal & license" shows the license status ("Trial"), its end date and the offer: R$35 for '
+        '12 months, for one TV, one-time purchase by Pix or card, no automatic renewal.',
+        '2. "Buy license" opens "Buy a license with Pix": price, QR code and copy-and-paste code for the bank app. '
+        'Paying by card is done on the website portal.ccplaytv.com (same TV ID and key).',
+        '3. After paying, "Refresh" brings the license to the TV; the status changes to "Active" with the new end date.',
+        '4. When the trial (or the license) ends, opening a list shows "A license is required to open the list", '
+        'with "Buy license", "Refresh" and "Back". Lists, favorites and settings are kept; the app itself keeps '
+        'opening.',
+        'Payment is processed by Mercado Pago (Brazil). Nothing is charged automatically.',
+    ]),
+    ('Web Portal (Phone or PC)', [
+        'Optional: the TV works completely without the portal.',
+        '1. "Add list" › "On the website" (or Settings › "Portal & license") shows a QR code, the device ID and the '
+        'device key.',
+        '2. On the phone, scan the QR code (or open portal.ccplaytv.com and type the ID and key). The website shows '
+        '"Lists", "License" and "Settings" for this TV.',
+        '3. Add or edit a list on the website, then press "Reload"/"Refresh" on the TV: the list is imported on the TV.',
+        '4. The TV talks to the portal only when the user presses one of these buttons; nothing runs in the '
+        'background.',
     ]),
     ('Watch Live TV', [
         '1. On Home, move to "Live TV" in the top bar and press OK.',
@@ -292,8 +317,8 @@ USE_CASES = [
         '3. In "Categories & parental control", categories can be hidden or locked with a PIN. Opening a locked '
         'category asks for the PIN (number keys or the on-screen keypad).',
         '4. "Settings" (bottom right of the list screen, or the gear in the top bar) has: Integrations (optional '
-        'TMDB key of the user, for synopses and images), Playlists, Playback, Accessibility (including Language) '
-        'and About & credits.',
+        'TMDB key of the user, for synopses and images), Playlists, Playback, Accessibility (including Language), '
+        'About & credits, Portal & license and Backup (encrypted backup of favorites, history and progress).',
     ]),
 ]
 
@@ -304,12 +329,20 @@ SCREENS = [
         (645, 560, 'List card (one per playlist). OK opens the list; DOWN shows Resync, Edit, Delete and Configure.'),
         (1255, 560, '"Add list": opens the playlist form.'),
         (1645, 1018, 'Settings for all lists.'),
+        (230, 1018, '"Refresh": brings lists changed on the web portal.'),
     ], 'RETURN on this screen shows the "Exit CCPlayTV?" confirmation.'),
     ('ui_02_exit.jpg', 'Exit confirmation', [
         (1078, 560, '"Cancel": closes the dialog (default focus).'),
         (1203, 560, '"Exit": closes the application.'),
     ], None),
-    ('ui_03_add_list.jpg', 'Connect your playlist', [
+    ('ui_03a_add_site.jpg', 'Connect your playlist › On the website', [
+        (1880, 409, 'Tabs: On the website (default), Xtream Codes, M3U list.'),
+        (40, 690, 'QR code: opens the web portal for this TV on the phone.'),
+        (990, 601, 'Portal address.'),
+        (1880, 737, 'Device ID and device key, to sign in on the website.'),
+        (380, 1050, '"Reload": imports lists added on the website. "Back": returns.'),
+    ], None),
+    ('ui_03_add_list.jpg', 'Connect your playlist › Xtream Codes', [
         (1880, 409, 'Type of list: Xtream Codes or M3U list (M3U asks for the list URL).'),
         (1880, 513, 'Playlist fields. OK on a field opens the on-screen keyboard.'),
         (1635, 803, '"Hide data": masks or shows the typed values.'),
@@ -383,7 +416,7 @@ SCREENS = [
         (750, 1026, 'Key guide.'),
     ], 'Stations come from the public Radio Browser directory; STOP stops the radio.'),
     ('ui_04_settings.jpg', 'Settings', [
-        (464, 216, 'Tabs: Integrations, Playlists, Playback, Accessibility, About & credits.'),
+        (464, 216, 'Tabs: Integrations, Playlists, Playback, Accessibility, About & credits, Portal & license, Backup.'),
         (725, 345, 'A playlist: type, last sync, guide (EPG). "Configure" opens its settings.'),
         (715, 469, '"Add list".'),
     ], 'Integrations: optional TMDB key of the user. Accessibility: Reduce motion and Language.'),
@@ -392,6 +425,28 @@ SCREENS = [
         (900, 457, 'Default quality.'),
         (900, 550, 'Audio language.'),
         (900, 643, 'Subtitles.'),
+    ], None),
+    ('ui_04c_portal.jpg', 'Settings › Portal & license', [
+        (885, 386, 'Access the portal: QR code, portal address, device ID and device key.'),
+        (464, 563, 'Portal & license and Backup tabs.'),
+        (1800, 467, 'License status ("Trial" or "Active"), end date and the offer: R$35 for 12 months.'),
+        (1760, 636, '"Buy license" (Pix on the TV) and "Refresh" (brings the license after paying).'),
+        (725, 860, '"Advanced": recovery code, new key and Unlink.'),
+    ], None),
+    ('ui_14_pix.jpg', 'Buy a license with Pix', [
+        (40, 535, 'Pix QR code for the bank app.'),
+        (1370, 317, 'Price and terms: R$35.00, 12 months, one TV, no automatic renewal.'),
+        (1880, 603, 'Pix copy-and-paste code.'),
+        (1340, 683, 'Card payment: on the website.'),
+        (147, 900, '"Refresh": checks the payment and activates the license.'),
+        (390, 831, '"Back": returns without paying.'),
+    ], 'Payment processed by Mercado Pago. Screenshot with a fictional Pix code.'),
+    ('ui_15_license_gate.jpg', 'License required (after the trial)', [
+        (780, 245, 'Shown when a list is opened after the 7-day trial (or the license) ends.'),
+        (40, 615, 'QR code, device ID and key: pay by card on the website.'),
+        (169, 900, '"Buy license": Pix on the TV.'),
+        (350, 900, '"Refresh": brings a license paid on the website.'),
+        (496, 900, '"Back": returns to the list selection; lists and favorites are kept.'),
     ], None),
 ]
 
@@ -437,7 +492,7 @@ def build(version):
     write(placeholder(cover, 11).text_frame, ['Application UI Description', f'Version {version} · Samsung Smart TV (Tizen)'],
           size=22, color=RGBColor(0xFF, 0xFF, 0xFF))
     fill_table(shape_named(revision, 'Table 7'), ['Version', 'Date', 'Description', 'Author', 'Related App Version'],
-               [['1.0', '2026.10.17', 'First UI description (first submission)', 'John Costa', version]],
+               [['1.0', '2026.10.17', 'First UI description (first submission, commercial version)', 'John Costa', version]],
                size=10, header_size=11, col_widths=[0.8, 1.1, 3.5, 1.6, 2.0])
 
     # UI Structure: o slide "Flow Graph" recebe o diagrama real
@@ -453,10 +508,11 @@ def build(version):
     write(placeholder(uc_intro, 1).text_frame, [
         'CCPlayTV organizes and plays the IPTV playlist (Xtream Codes or M3U) that the user already has. It does not '
         'provide or sell any content, channel or playlist.',
-        'No user account, no login of its own, no in-app purchase, no subscription and no advertising.',
+        'No user account and no advertising. In-app purchase: a yearly license (R$35, 12 months, one TV) after a free '
+        '7-day trial, paid by Pix on the TV or by card on the website — one-time, no automatic renewal.',
         'Use cases:',
         *[(f'{i}. {title}', 1) for i, (title, _) in enumerate(USE_CASES, start=1)],
-    ], size=14)
+    ], size=12)
 
     uc_slides = []
     title, steps = USE_CASES[0]
@@ -550,18 +606,20 @@ def screen_slide(prs, example, image, subtitle, labels, note):
 def draw_flow(slide):
     y0 = 2.35
     splash = box(slide, 0.25, y0 + 1.75, 1.15, 0.55, 'Splash', 'app launch')
-    add = box(slide, 1.7, y0, 1.6, 0.6, 'Connect your playlist', 'Xtream Codes / M3U')
+    add = box(slide, 1.7, y0, 1.6, 0.6, 'Connect your playlist', 'On the website (QR) · Xtream Codes · M3U')
     progress = box(slide, 1.7, y0 + 0.85, 1.6, 0.5, 'Import progress')
     lists = box(slide, 1.7, y0 + 1.7, 1.6, 0.65, 'Select or Add your list', 'one card per playlist')
     exit_ = box(slide, 1.7, y0 + 2.75, 1.6, 0.5, 'Exit confirmation', 'RETURN on the list screen')
-    settings = box(slide, 3.65, y0, 1.85, 0.75, 'Settings', 'Integrations · Playlists · Playback · Accessibility · About')
+    settings = box(slide, 3.65, y0, 1.85, 0.75, 'Settings', 'Integrations · Playlists · Playback · Accessibility · About · Portal & license · Backup')
     actions = box(slide, 3.65, y0 + 0.95, 1.85, 0.6, 'List actions', 'Resync · Edit · Delete · Configure')
     home = box(slide, 3.65, y0 + 1.75, 1.85, 0.6, 'Home', 'top bar + rows')
     live = box(slide, 5.85, y0, 1.75, 0.6, 'Live TV', 'categories → channels + guide')
     movies = box(slide, 5.85, y0 + 0.8, 1.75, 0.6, 'Movies', 'rows → category grid')
     series = box(slide, 5.85, y0 + 1.6, 1.75, 0.6, 'Series', 'rows → category grid')
     radio = box(slide, 5.85, y0 + 2.4, 1.75, 0.6, 'Radio', 'countries → stations')
-    pin = box(slide, 5.85, y0 + 3.3, 1.75, 0.55, 'PIN prompt', 'locked category (Live TV, Movies, Series)')
+    gate = box(slide, 3.65, y0 + 2.6, 1.85, 0.6, 'License required', 'list opened after the 7-day trial')
+    box(slide, 3.65, y0 + 3.45, 1.85, 0.5, 'PIN prompt', 'locked category (Live TV, Movies, Series)')
+    pix = box(slide, 5.85, y0 + 3.3, 1.75, 0.6, 'Pix purchase', 'R$35 · 12 months · one TV')
     live_player = box(slide, 7.95, y0, 1.75, 0.6, 'Live player', 'CH +/- switches channel')
     movie_detail = box(slide, 7.95, y0 + 0.8, 1.75, 0.6, 'Movie details', 'Watch → full-screen player')
     series_detail = box(slide, 7.95, y0 + 1.6, 1.75, 0.6, 'Series details', 'season → episode → player')
@@ -581,9 +639,12 @@ def draw_flow(slide):
     link(slide, right(movies), left(movie_detail))
     link(slide, right(series), left(series_detail))
     link(slide, right(radio), left(now_playing))
-    textbox(slide, 0.25, 6.3, 9.4, 0.55, [
-        'Settings also opens from the gear in the top bar; List actions appear with DOWN on a list card. '
-        'A locked category asks for the PIN before showing its items.'], size=10)
+    link(slide, right(lists), left(gate))
+    link(slide, right(gate), left(pix))
+    textbox(slide, 0.25, 6.3, 9.4, 0.6, [
+        'Settings opens from the list screen or the gear in the top bar; Settings › Portal & license also opens the Pix '
+        'purchase. List actions appear with DOWN on a list card; a locked category asks for the PIN. The website '
+        'portal.ccplaytv.com (QR code on the TV) manages lists, license and settings from a phone or PC.'], size=9)
 
 
 if __name__ == '__main__':

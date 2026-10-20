@@ -84,7 +84,7 @@ describe('HomeContent — montagem (feature 079)', () => {
     expect(props.onExitUp).toHaveBeenCalledTimes(1)
   })
 
-  it('hero que passa do teto: billboard neutro (atalhos, sem boas-vindas), e não troca quando o hero chega', () => {
+  it('hero que chega depois da primeira montagem atualiza o billboard na mesma visita', () => {
     reads.channels = { items: [], unresolved: 0 }
     reads.continue = []
     reads.mylist = { items: [item('movie', 'Fav')], movieCount: 1, seriesCount: 0 }
@@ -98,11 +98,11 @@ describe('HomeContent — montagem (feature 079)', () => {
 
     reads.hero = HERO
     rerender()
-    expect(screen.getByText('Explore o catálogo')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Continuar$/ })).toBeNull()
+    expect(screen.getByText('Arrival')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Continuar$/ })).toBeInTheDocument()
   })
 
-  it('depois do teto, "Continuar" que chega acima de "Minha Lista" fica adiado; fechar o player (userActionKey) o mostra', () => {
+  it('"Continuar" que chega acima de "Minha Lista" entra na mesma visita', () => {
     reads.hero = HERO
     reads.channels = { items: [], unresolved: 0 }
     reads.continue = []
@@ -114,9 +114,6 @@ describe('HomeContent — montagem (feature 079)', () => {
 
     reads.continue = [{ item: ARRIVAL, code: null, progress: null }]
     rerender()
-    expect(rowLabels()).toEqual(['Minha Lista'])
-
-    rerender({ userActionKey: 1 })
     expect(rowLabels()).toEqual(['Continuar assistindo', 'Minha Lista'])
   })
 })

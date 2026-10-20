@@ -8,6 +8,7 @@
 
 import { logger } from '../logger'
 import { isPerfEnabled } from './entryTiming'
+import { emitMetric } from './metricsChannel'
 
 export interface AssemblyReport {
   screen: string
@@ -33,6 +34,9 @@ export function recordAssembly(report: AssemblyReport): AssemblyReport | null {
   if (!isPerfEnabled()) return null
   const entry: AssemblyReport = { ...report, pending: [...report.pending], deferred: [...report.deferred], images: { ...report.images } }
   reports().push(entry)
+  // Feature 085: as fileiras viram contagem; a chave de cada uma não sai.
+  emitMetric({ source: 'assembly', screen: entry.screen, reason: entry.reason, revealMs: entry.revealMs, pending: entry.pending.length,
+    deferred: entry.deferred.length, imagesRequested: entry.images.requested, imagesSettled: entry.images.settled })
   logger.log(
     `[perf] montagem ${entry.screen}: ${entry.revealMs}ms (${entry.reason}) capas=${entry.images.settled}/${entry.images.requested}` +
       (entry.pending.length > 0 ? ` pendentes=${entry.pending.join(',')}` : ''),

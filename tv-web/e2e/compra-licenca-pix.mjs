@@ -16,6 +16,8 @@ const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime
 const canonical = value => JSON.stringify(Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)))
 const encode = value => Buffer.from(value).toString('base64url')
 let generation = 0, paid = false
+// 081/T044: 'disabled' = venda aberta sem Pix (409 pix_disabled); 'failed' = o Pix falhou agora (503 pix_failed).
+let pixMode = 'ok'
 // Relógio do "serviço" acompanha o relógio adiantado do navegador (teste vencido há um dia).
 const serviceNow = () => Date.now() + SKEW
 function token() {
@@ -65,6 +67,8 @@ try {
     calls.push({ path, body: request.postData() ? JSON.parse(request.postData()) : undefined })
     if (path.endsWith('/devices/enroll')) return json({ ...credentials, operationId: 'enroll-fixture' })
     if (path.endsWith('/entitlement/refresh')) return json({ jws: token() })
+    if (path.endsWith('/device/orders/pix') && pixMode === 'disabled') return route.fulfill({ status: 409, json: { code: 'pix_disabled', retryable: false }, headers })
+    if (path.endsWith('/device/orders/pix') && pixMode === 'failed') return route.fulfill({ status: 503, json: { code: 'pix_failed', retryable: true }, headers })
     if (path.endsWith('/device/orders/pix')) return json(charge('pending'))
     if (path.endsWith('/device/orders/pix/refresh')) return json(charge(paid ? 'approved' : 'pending'))
     if (path.endsWith('/device/recovery-code/escrow') || path.endsWith('/device/snapshot') || path.endsWith('/recovery/ack')) return route.fulfill({ status: 204, headers })
@@ -96,13 +100,32 @@ try {
   assert.equal(calls.length, before, 'setas não podem consultar o serviço')
   assert.equal(await focusText(), 'Comprar licença')
 
-  await page.keyboard.press('Enter')
   const pix = page.getByRole('dialog', { name: 'Comprar licença com Pix' })
+  // 081/T044: venda aberta sem Pix → QR e endereço do site, só Voltar; RETURN devolve o foco a Comprar.
+  pixMode = 'disabled'
+  await page.keyboard.press('Enter')
+  await expect(pix.getByText(/compre com cartão no site https:\/\/pix\.fixture\.test/)).toBeVisible()
+  await expect(pix.getByRole('img', { name: /QR/ })).toBeVisible()
+  await expect(pix.getByRole('button', { name: 'Tentar novamente' })).toHaveCount(0)
+  await expect(pix.getByText(/Vendido por CCPlayTV · ccplaytv@gmail\.com/)).toBeVisible()
+  assert.equal(await focusText(), 'Voltar')
+  await page.keyboard.press('Escape')
+  await expect(gate).toBeVisible()
+  assert.equal(await focusText(), 'Comprar licença')
+  // O Pix falhou agora → erro + site como alternativa + Tentar novamente (que gera o Pix quando o provedor volta).
+  pixMode = 'failed'
+  await page.keyboard.press('Enter')
+  await expect(pix.getByText('Não foi possível gerar o Pix agora.')).toBeVisible()
+  await expect(pix.getByText(/Ou leia o QR com o celular e compre com cartão/)).toBeVisible()
+  assert.equal(await focusText(), 'Tentar novamente')
+  pixMode = 'ok'
+  const mark = calls.length
+  await page.keyboard.press('Enter')
   await expect(pix.getByText(QR, { exact: true })).toBeVisible()
   await expect(pix.getByText(/R\$ 35,00 · 12 meses/)).toBeVisible()
   await expect(pix.getByText('Pix vence em 30 min')).toBeVisible()
   await expect(pix.getByRole('img', { name: /QR/ })).toBeVisible()
-  const opened = calls.filter(call => call.path.endsWith('/device/orders/pix'))
+  const opened = calls.slice(mark).filter(call => call.path.endsWith('/device/orders/pix'))
   assert.equal(opened.length, 1)
   assert.equal(opened[0].body.renew, false)
 
@@ -112,7 +135,7 @@ try {
   assert.equal(await focusText(), 'Comprar licença')
   await page.keyboard.press('Enter')
   await expect(pix.getByText(QR, { exact: true })).toBeVisible()
-  const reopened = calls.filter(call => call.path.endsWith('/device/orders/pix'))
+  const reopened = calls.slice(mark).filter(call => call.path.endsWith('/device/orders/pix'))
   assert.equal(reopened.length, 2)
   assert.equal(reopened[1].body.renew, false)
   assert.equal(reopened[1].body.requestId, reopened[0].body.requestId)
@@ -128,7 +151,7 @@ try {
   await page.locator('.home-content').waitFor({ timeout: 15000 })
   await expect(page.getByRole('dialog')).toHaveCount(0)
   assert.equal(await page.evaluate(async () => { const { licenseMonitor } = await import('/src/lib/licensing/licenseRuntime.ts'); return licenseMonitor.check().allowed }), true)
-  console.log('Compra por Pix na TV: bloqueio, foco sem consulta, Pix, RETURN, reabrir sem nova intenção, pendente, aprovado e entrada na lista PASS (fixtures).')
+  console.log('Compra por Pix na TV: bloqueio, foco sem consulta, Pix desligado (site) e com falha (site + tentar), Pix, RETURN, reabrir sem nova intenção, pendente, aprovado e entrada na lista PASS (fixtures).')
 } finally {
   await browser?.close()
   server.close()

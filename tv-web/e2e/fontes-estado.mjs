@@ -347,7 +347,9 @@ async function run() {
     panel.categoryDelayMs = 3000
     await openSettings(page)
     await clickResync(page)
-    await page.waitForTimeout(600) // a tela de progresso abriu e a importação segue rodando (o painel demora 3 s)
+    // A tela de progresso abriu (espera por ela, não por tempo fixo: sob a suíte paralela 600 ms não bastavam e o RETURN
+    // caía em outra tela) e a importação segue rodando (o painel demora 3 s).
+    await page.waitForSelector('#progress-title', { timeout: 8000 })
     await page.keyboard.press('Escape') // RETURN na tela de progresso, com a importação ainda rodando
     await page.waitForSelector('.source-card', { timeout: 8000 })
     await eventually(async () => (await cardBadges(page)).includes('Sincronizando'), 'o cartão mostra "Sincronizando" enquanto a sincronização roda', 8000)

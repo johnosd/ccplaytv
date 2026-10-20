@@ -2,9 +2,10 @@
 
 import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord } from '../db'
 import { type StableIdParts } from '../userStateRepository'
-import { blockRecord, blocksOfKind } from '../categoryBlocks'
+import { blocksOfKind } from '../categoryBlocks'
 import { FavoritesScanComplete, KEY_MAX, KEY_MIN, activeGenerationOf } from './shared'
 import { getCategoryAccess } from '../categoryAccess'
+import { iterateHeaderChunks } from '../blockChunks'
 
 /**
  * Resolve favoritos (feature 013, `stableId` do usuário) em registros do
@@ -93,16 +94,20 @@ export async function resolveStableIdsIn(
       remaining -= 1
     }
     try {
-      await blocksOfKind(database, sourceId, generation, kind).each((block) => {
-        if (access.excluded.has(block.categoryId)) return
-        block.items.forEach((item, index) => {
-          const record = () => blockRecord(block, item, index)
-          if (item.providerStreamId) take(byId.get(item.providerStreamId), record)
-          if (kind === 'series' && item.seriesId) take(byId.get(item.seriesId), record)
-          if (byNameKey.size > 0) take(byNameKey.get(item.originalName.trim().toLowerCase()), record)
-        })
-        if (remaining === 0) throw new FavoritesScanComplete()
-      })
+      const blocks = await blocksOfKind(database, sourceId, generation, kind).toArray()
+      for (const block of blocks) {
+        if (access.excluded.has(block.categoryId)) continue
+        // Feature 082: pedaço a pedaço, parando ao achar todos (não decodifica o resto da categoria).
+        for await (const items of iterateHeaderChunks(database, block)) {
+          for (const row of items) {
+            if (row.providerStreamId) take(byId.get(row.providerStreamId), () => row)
+            if (kind === 'series' && row.seriesId) take(byId.get(row.seriesId), () => row)
+            if (byNameKey.size > 0) take(byNameKey.get(row.originalName.trim().toLowerCase()), () => row)
+          }
+          if (remaining === 0) break
+        }
+        if (remaining === 0) break
+      }
     } catch (error) {
       if (!(error instanceof FavoritesScanComplete)) throw error
     }

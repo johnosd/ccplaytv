@@ -11,19 +11,25 @@ import './LicensePixScreen.css'
 const LICENSED_PAUSE_MS = 600
 
 type Note = 'portal.pix.pending' | 'portal.pix.approvedNoLicense' | 'portal.pix.offline' | 'portal.pix.failed'
+type ErrorMessage = 'portal.pix.offline' | 'portal.pix.failed' | 'portal.pix.unavailable' | 'portal.pix.generateFailed'
+/** 081/FR-010: `only` = venda aberta sem Pix (só o site); `also` = o Pix falhou agora (site como alternativa). */
+type SiteOffer = 'only' | 'also'
 type View =
   | { kind: 'loading' }
   | { kind: 'charge'; charge: PixCharge; receivedAt: number; note?: Note; code?: string }
-  | { kind: 'error'; message: 'portal.pix.offline' | 'portal.pix.failed' | 'portal.pix.unavailable'; code?: string; renew: boolean }
+  | { kind: 'error'; message: ErrorMessage; code?: string; renew: boolean; site?: SiteOffer }
   | { kind: 'licensed' }
 
 const OFFLINE = new Set(['offline', 'network_error'])
 
-function failure(error: unknown) {
+function failure(error: unknown): { message: ErrorMessage; code?: string; site?: SiteOffer } {
   const code = error instanceof PortalRequestError ? error.code : 'unexpected_error'
-  if (OFFLINE.has(code)) return { message: 'portal.pix.offline' as const }
-  if (code === 'service_unavailable') return { message: 'portal.pix.unavailable' as const }
-  return { message: 'portal.pix.failed' as const, code }
+  if (OFFLINE.has(code)) return { message: 'portal.pix.offline' }
+  // Venda fechada para todos (manutenção/antes da abertura): o site também não vende, então não manda para lá.
+  if (code === 'service_unavailable') return { message: 'portal.pix.unavailable' }
+  if (code === 'pix_disabled') return { message: 'portal.pix.unavailable', site: 'only' }
+  if (code === 'pix_failed') return { message: 'portal.pix.generateFailed', site: 'also' }
+  return { message: 'portal.pix.failed', code, site: 'also' }
 }
 
 /**
@@ -114,7 +120,7 @@ export function LicensePixScreen({ purchase, onLicensed, onBack, site, readExpir
 
   const back = () => { controller.current?.abort(); handlers.current.onBack() }
   const actions: { label: string; variant: 'accent' | 'secondary'; run: () => void }[] = []
-  if (view.kind === 'error') actions.push({ label: t('portal.pix.retry'), variant: 'accent', run: () => void open(view.renew) })
+  if (view.kind === 'error' && view.site !== 'only') actions.push({ label: t('portal.pix.retry'), variant: 'accent', run: () => void open(view.renew) })
   else if (view.kind === 'charge' && (payable || awaitingLicense)) actions.push({ label: t('portal.refresh.label'), variant: 'accent', run: () => void refresh() })
   else if (view.kind === 'charge') actions.push({ label: t('portal.pix.renewAction'), variant: 'accent', run: () => void open(true) })
   actions.push({ label: t('portal.licenseBack'), variant: 'secondary', run: back })
@@ -128,10 +134,18 @@ export function LicensePixScreen({ purchase, onLicensed, onBack, site, readExpir
     <div className="license-pix">
       <h2>{t('portal.pix.title')}</h2>
       {view.kind === 'loading' && <p className="license-pix-text" role="status">{t('portal.pix.loading')}</p>}
-      {view.kind === 'error' && <>
+      {view.kind === 'error' && (view.site && site ? <div className="license-pix-hero">
+        <div className="license-pix-qr"><FixedQr value={site} label={t('portal.qrAlt')} /></div>
+        <div className="license-pix-info">
+          {view.site === 'also' && <p className="license-pix-text" role="alert">{t(view.message)}</p>}
+          <p className="license-pix-text" role={view.site === 'only' ? 'status' : undefined}>
+            {t(view.site === 'only' ? 'portal.pix.cardOnly' : 'portal.pix.cardAlt', { site })}</p>
+          {view.code && <p className="license-pix-text">{t('portal.failureCode', { code: view.code })}</p>}
+        </div>
+      </div> : <>
         <p className="license-pix-text" role="alert">{t(view.message)}</p>
         {view.code && <p className="license-pix-text">{t('portal.failureCode', { code: view.code })}</p>}
-      </>}
+      </>)}
       {view.kind === 'licensed' && <p className="license-pix-text license-pix-success" role="status">
         {expiry ? t('portal.pix.licensed', { date: new Date(expiry).toLocaleDateString() }) : t('portal.license_active')}</p>}
       {view.kind === 'charge' && <>
@@ -152,6 +166,7 @@ export function LicensePixScreen({ purchase, onLicensed, onBack, site, readExpir
           <p className="license-pix-text" role="status">{t(view.note)}</p>}
         {view.code && <p className="license-pix-text">{t('portal.failureCode', { code: view.code })}</p>}
       </>}
+      {view.kind !== 'licensed' && <p className="license-pix-seller">{t('portal.pix.seller')}</p>}
       <div className="license-pix-actions">
         {actions.map((action, position) => <Button key={action.label} variant={action.variant} focused={position === index}
           onSelect={() => { setFocused(position); action.run() }}>{action.label}</Button>)}

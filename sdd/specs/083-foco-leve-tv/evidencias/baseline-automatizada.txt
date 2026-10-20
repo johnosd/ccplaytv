@@ -1,0 +1,61 @@
+# Linha de base automatizada — 2026-10-19
+
+## npx vitest run src/styles src/components/focoDeEstado.test.tsx src/components/PosterArt.test.tsx
+
+ RUN  v5.0.0 C:/Users/johns/Documents/Projetos/ccplayTv/tv-web
+
+ ❯ |node| src/styles/foco-leve-tv.contract.test.ts (1 test | 1 failed) 36ms
+   ❯ 083 — foco leve na TV (contrato) (1)
+     × nenhuma folha de estilo do app anima box-shadow nem usa backdrop-filter 34ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |node| src/styles/foco-leve-tv.contract.test.ts > 083 — foco leve na TV (contrato) > nenhuma folha de estilo do app anima box-shadow nem usa backdrop-filter
+AssertionError: expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "index.css:258 transition anima box-shadow",
++   "styles/vod.css:1574 transition anima box-shadow",
++ ]
+
+ ❯ src/styles/foco-leve-tv.contract.test.ts:55:45
+     53|     const files = cssFiles(SRC)
+     54|     expect(files.length).toBeGreaterThan(0)
+     55|     expect(files.flatMap(animacoesPesadas)).toEqual([])
+       |                                             ^
+     56|   })
+     57| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 5 passed (6)
+      Tests  1 failed | 103 passed (104)
+   Start at  20:01:27
+   Duration  2.91s (environment 63%, setup 17%, transform 8%, tests 7%, import 4%, worker 1%)
+
+
+## npm run lint
+src/features/vod/VodCategoryScreen.tsx:269:35: warning react-hooks(exhaustive-deps): React hook useMemo depends on `baseItems`, which changes every render help: Try memoizing this variable with `useRef` or `useCallback`.
+src/features/vod/useEnterSimilarPanel.ts:38:5: warning react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+src/features/vod/DetailMetadata.tsx:159:14: warning react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+src/features/series/SeriesDetailScreen.tsx:404:30: warning react(incompatible-library): Use of incompatible library help: This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized
+e2e/serie-foco-episodios.mjs:118:16: warning eslint(no-unused-vars): Function 'openViaTopbar' is declared but never used. help: Consider removing this declaration.
+e2e/serie-foco-episodios.mjs:127:16: warning eslint(no-unused-vars): Function 'waitForRealCategory' is declared but never used. help: Consider removing this declaration.
+e2e/serie-foco-episodios.mjs:167:16: warning eslint(no-unused-vars): Function 'completePlayback' is declared but never used. help: Consider removing this declaration.
+src/lib/i18n/I18nProvider.tsx:15:17: warning react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+src/lib/i18n/I18nProvider.tsx:20:17: warning react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+src/lib/portal/remoteConfiguration.ts:57:40: warning eslint(no-control-regex): Unexpected control characters help: Avoid matching control characters in regular expressions. If intentional, disable this rule for the expression.
+src/lib/network/connectionTest.upload-teste-conexao.contract.test.ts:32:32: warning eslint(no-unsafe-optional-chaining): Unsafe usage of optional chaining help: If this short-circuits with 'undefined' the evaluation will throw TypeError
+src/features/movies/MovieDetailScreen.tsx:557:46: warning react(refs): Cannot access refs during render help: React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected
+src/features/live/guide/EpgGuide.tsx:266:26: warning react(incompatible-library): Use of incompatible library help: This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized
+architecture: aviso — teto pode baixar  features/catalog/catalogApi.ts (2184 < 2187)
+architecture: ok — 510 arquivos de produção, 129 imports herdados, 36 arquivos com teto, 1 aviso(s) (use --prune).
+exit lint: 0
+
+## npx tsc -b
+exit tsc: 0

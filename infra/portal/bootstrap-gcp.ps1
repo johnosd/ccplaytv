@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
-    [string]$ProjectId = 'ccplaytv-511322',
+    # 081/D-001: sem padrão — homologação e produção são projetos diferentes; errar o alvo não pode ser silencioso.
+    [Parameter(Mandatory = $true)][ValidatePattern('^[a-z][a-z0-9-]{4,61}[a-z0-9]$')]
+    [string]$ProjectId,
     [ValidatePattern('^[a-z]+-[a-z]+[0-9]+$')]
     [string]$Region = 'us-central1',
     [switch]$Apply

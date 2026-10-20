@@ -118,22 +118,19 @@ describe('HomeContent — contrato da feature 079', () => {
     press('Escape')
     expect(props.onBack).toHaveBeenCalledTimes(1)
 
-    // As de baixo terminam primeiro: continua sem desenhar nada.
+    // As de baixo terminam primeiro: aparecem na ordem da tela assim que a janela curta passou.
     reads.addedSeries = [item('series', 'Série Nova')]
     reads.addedMovies = [item('movie', 'Filme Novo')]
     reads.mylist = { items: [item('movie', 'Favorito')], movieCount: 1, seriesCount: 0 }
     rerender(<HomeContent {...props} />)
-    expect(document.querySelector('section.home-hero')).toBeNull()
-    expect(rowLabels()).toEqual([])
+    expect(rowLabels()).toEqual(['Minha Lista', 'Filmes adicionados', 'Séries adicionadas'])
 
-    // As de cima terminam: tudo aparece de uma vez, na ordem aprovada, com o foco na ação primária do billboard.
+    // As de cima terminam: entram na mesma visita, na ordem aprovada, com o billboard resolvido.
     reads.continue = [{ item: ARRIVAL, code: null, progress: null }]
     reads.channels = { items: [item('channel', 'Canal Um')], unresolved: 0 }
     reads.hero = { kind: 'continue', item: ARRIVAL, primary: { type: 'play', itemId: ARRIVAL.id, title: 'Arrival', startAtMs: 600_000, resume: true } }
     rerender(<HomeContent {...props} />)
-    await waitFor(() =>
-      expect(rowLabels()).toEqual(['Canais favoritos', 'Continuar assistindo', 'Minha Lista', 'Filmes adicionados', 'Séries adicionadas']),
-    )
+    await waitFor(() => expect(rowLabels()).toEqual(['Canais favoritos', 'Continuar assistindo', 'Minha Lista', 'Filmes adicionados', 'Séries adicionadas']))
     expect(document.querySelector('section.home-hero')).not.toBeNull()
     expect(screen.getByRole('button', { name: /^(▶\s*)?Continuar$/ })).toHaveClass('tv-focus')
     expect(screen.queryByRole('button', { name: 'Voltar' })).toBeNull()

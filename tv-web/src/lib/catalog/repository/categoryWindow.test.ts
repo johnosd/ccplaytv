@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CatalogDb, type CatalogRecord } from '../db'
-import { prepareCategoryReadModel, readCategoryWindow, READ_WINDOW_MIN_ITEMS } from './categoryWindow'
+import { readCategoryWindow, READ_WINDOW_MIN_ITEMS } from './categoryWindow'
 import { storeCategories, storeCategoryItems } from '../catalogRepository'
+import { convertLegacyCategories } from '../categoryBlocks'
 
 let database: CatalogDb
 const SOURCE_ID = 'category-window-tests'
@@ -36,49 +37,56 @@ function movie(name: string): CatalogRecord {
   }
 }
 
-/** Só categoria grande tem projeção (065); os nomes seguem a posição. */
+/** Categoria grande (lida por janela na grade, 065); os nomes seguem a posição. */
 const BIG = READ_WINDOW_MIN_ITEMS
 const names = (prefix: string) => Array.from({ length: BIG }, (_, index) => `${prefix}${index}`)
 
+// Feature 082 (D-004): a janela vem dos pedaços comprimidos; a projeção 065 não é mais gravada.
 describe('categoryWindow', () => {
-  it('prepara linhas legadas e preserva a ordem na janela final', async () => {
+  it('linhas legadas: a janela segue a ordem antes e depois da conversão', async () => {
     const [categoryId] = await storeCategories(
       [{ sourceId: SOURCE_ID, generation: 1, kind: 'movie', fetchMode: 'on_demand', name: 'Filmes', order: 0 }],
       database,
     )
     // Gravadas fora de ordem: a janela segue `categoryPosition`.
     await database.channels.bulkAdd(names('L').map((name, index) => ({ ...movie(name), categoryId, categoryPosition: index })).reverse())
+    await database.categories.update(categoryId, { itemsCount: BIG })
 
-    await prepareCategoryReadModel(SOURCE_ID, categoryId, database)
+    const legacy = await readCategoryWindow(SOURCE_ID, categoryId, BIG - 1, 2, database)
+    expect(legacy.items.map((item) => item.name)).toEqual([`L${BIG - 1}`])
+    expect(legacy.total).toBe(BIG)
+
+    expect(await convertLegacyCategories(SOURCE_ID, {}, database)).toBe(false)
     const window = await readCategoryWindow(SOURCE_ID, categoryId, BIG - 1, 2, database)
-
     expect(window.items.map((item) => item.name)).toEqual([`L${BIG - 1}`])
     expect(window.total).toBe(BIG)
     expect(window.nextOffset).toBeUndefined()
-    expect(await database.channels.count()).toBe(BIG)
+    expect(await database.channels.count()).toBe(0)
+    expect(await database.catalogReadManifests.count()).toBe(0)
   }, 20_000) // mil linhas legadas no fake-indexeddb passam de 5 s com a suíte em paralelo
 
-  it('publica uma nova revisão quando a categoria muda mantendo a mesma contagem', async () => {
+  it('renovação com a mesma contagem: a janela mostra o conteúdo novo (nada velho pelo cache)', async () => {
     const [categoryId] = await storeCategories(
       [{ sourceId: SOURCE_ID, generation: 1, kind: 'movie', fetchMode: 'on_demand', name: 'Filmes', order: 0 }],
       database,
     )
     const target = { sourceId: SOURCE_ID, generation: 1, kind: 'movie' as const, categoryId, groupOrder: 0 }
     await storeCategoryItems(target, names('A').map(movie), 10, database)
-    const first = await database.catalogReadManifests.get(categoryId)
+    const first = await database.categoryBlocks.get(categoryId)
+    expect((await readCategoryWindow(SOURCE_ID, categoryId, 0, 2, database)).items.map((item) => item.name)).toEqual(['A0', 'A1'])
 
     await storeCategoryItems(target, ['A0', ...names('C').slice(1)].map(movie), 20, database)
-    const second = await database.catalogReadManifests.get(categoryId)
+    const second = await database.categoryBlocks.get(categoryId)
     const window = await readCategoryWindow(SOURCE_ID, categoryId, 0, 2, database)
 
-    expect(first?.revision).toBeDefined()
     expect(second?.revision).toBeDefined()
     expect(second?.revision).not.toBe(first?.revision)
     expect(second?.count).toBe(first?.count)
     expect(window.items.map((item) => item.name)).toEqual(['A0', 'C1'])
+    expect(await database.catalogReadManifests.count()).toBe(0)
   })
 
-  it('não lê uma projeção de geração que deixou de ser ativa', async () => {
+  it('não lê uma categoria de geração que deixou de ser ativa', async () => {
     const [categoryId] = await storeCategories(
       [{ sourceId: SOURCE_ID, generation: 1, kind: 'movie', fetchMode: 'on_demand', name: 'Filmes', order: 0 }],
       database,

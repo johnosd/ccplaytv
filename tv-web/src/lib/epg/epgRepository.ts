@@ -11,13 +11,9 @@ import { portalTables } from '../portal/portalTables'
 import { db, type CatalogDb, type EpgErrorKind, type EpgProgramRecord } from '../catalog/db'
 import { EPG_MAX_OFFSET_HOURS, epgStatusOf, isValidEpgUrl } from './epgStatus'
 import type { EpgProgram, EpgProgramInput, EpgStatus, EpgWindow } from './types'
-
-/**
- * Programas por `bulkAdd`: 5 mil reduz trocas de transação no XMLTV grande,
- * mantendo o mesmo limite que a importação de catálogo já usa para não reter
- * o arquivo inteiro na memória.
- */
-const WRITE_BATCH_SIZE = 5_000
+import { epgChunks } from '../catalog/chunkTables'
+import { isQuotaError } from '../catalog/catalogRepository'
+import { deleteEpgChunksExcept, readEpgChunks, writeEpgChunks } from './epgChunkStore'
 
 /** Sinopse guardada truncada — o preview mostra ~3 linhas (data-model §2). */
 const MAX_DESCRIPTION_LENGTH = 600
@@ -45,6 +41,10 @@ function toRecord(sourceId: string, generation: number, program: EpgProgramInput
 
 /** Apaga as linhas de uma fonte cuja geração não é `keep` (`undefined` = todas). */
 async function deleteGenerationsExcept(sourceId: string, keep: number | undefined, database: CatalogDb): Promise<void> {
+  if (keep === undefined) {
+    await database.epgPrograms.where('[sourceId+generation]').between([sourceId, -Infinity], [sourceId, Infinity]).delete()
+    return
+  }
   await database.epgPrograms
     .where('[sourceId+generation]')
     .between([sourceId, -Infinity], [sourceId, Infinity])
@@ -57,6 +57,9 @@ async function deleteGenerationsExcept(sourceId: string, keep: number | undefine
  * anterior só depois. Aceita fluxo (a leitura do XMLTV não materializa o
  * arquivo inteiro). Falha no meio: apaga só a geração parcial e relança —
  * a ativa continua intacta.
+ *
+ * Feature 082 (D-005): grava só o formato comprimido por canal (`epgChunkStore.ts`), no Worker do guia; ao publicar,
+ * as linhas do formato antigo (`epgPrograms`) e os pedaços de outras gerações saem.
  */
 export async function writeEpgPrograms(
   sourceId: string,
@@ -69,32 +72,41 @@ export async function writeEpgPrograms(
   const active = source.epgActiveGeneration
   // Sobra de um app fechado no meio de uma gravação anterior: nunca mistura
   // com a geração nova.
-  await deleteGenerationsExcept(sourceId, active, database)
+  await deleteEpgChunksExcept(database, sourceId, active)
   const generation = (active ?? 0) + 1
 
   let programCount = 0
   try {
-    let batch: EpgProgramRecord[] = []
+    const byChannel = new Map<string, EpgProgramRecord[]>()
     for await (const program of programs) {
       if (!program.channelKey || !program.title) continue
-      batch.push(toRecord(sourceId, generation, program))
-      if (batch.length >= WRITE_BATCH_SIZE) {
-        await database.epgPrograms.bulkAdd(batch)
-        programCount += batch.length
-        batch = []
-      }
+      const record = toRecord(sourceId, generation, program)
+      const group = byChannel.get(record.channelKey)
+      if (group) group.push(record)
+      else byChannel.set(record.channelKey, [record])
+      programCount += 1
     }
-    if (batch.length > 0) {
-      await database.epgPrograms.bulkAdd(batch)
-      programCount += batch.length
+    let storedBytes: number
+    try {
+      storedBytes = await writeEpgChunks(database, sourceId, generation, byChannel)
+    } catch (error) {
+      // Banco cheio com o guia ainda em linhas (formato anterior à 082, ~7 MB): gravar o novo antes de apagar o velho nunca
+      // caberia. Apaga as linhas — o guia fica "ainda não sincronizado" por um instante, nunca vazio calado — e tenta 1×.
+      if (!isQuotaError(error) || source.epgStoredBytes !== undefined) throw error
+      await deleteGenerationsExcept(sourceId, undefined, database)
+      await deleteEpgChunksExcept(database, sourceId, undefined)
+      // Acima da cota até este `update` falha (só remoção passa): a nova tentativa abaixo é que decide.
+      await database.sources.update(sourceId, { epgActiveGeneration: undefined, epgLastSyncAt: undefined }).catch(() => undefined)
+      storedBytes = await writeEpgChunks(database, sourceId, generation, byChannel)
     }
 
-    await database.transaction('rw', database.sources, database.epgPrograms, async () => {
-      await database.sources.update(sourceId, { epgActiveGeneration: generation })
-      await deleteGenerationsExcept(sourceId, generation, database)
+    await database.transaction('rw', [database.sources, database.epgPrograms, epgChunks(database)], async () => {
+      await database.sources.update(sourceId, { epgActiveGeneration: generation, epgStoredBytes: storedBytes })
+      await deleteGenerationsExcept(sourceId, undefined, database)
+      await deleteEpgChunksExcept(database, sourceId, generation)
     })
   } catch (error) {
-    await deleteGenerationsExcept(sourceId, active, database).catch(() => {
+    await deleteEpgChunksExcept(database, sourceId, active).catch(() => {
       // Descarte da geração parcial é melhor-esforço: o erro que trouxe até
       // aqui (quota, leitura) é o que importa para quem chamou.
     })
@@ -117,6 +129,11 @@ export async function listProgramsForChannels(
   const result = new Map<string, EpgProgram[]>()
   const keys = [...new Set(channelKeys.filter((key) => key !== ''))]
   if (keys.length === 0) return result
+  // Feature 082: geração gravada no formato comprimido (tem `epgStoredBytes`) → só os canais pedidos, por `bulkGet`.
+  const source = await database.sources.get(sourceId)
+  if (source?.epgActiveGeneration !== undefined && source.epgStoredBytes !== undefined) {
+    return readEpgChunks(database, sourceId, source.epgActiveGeneration, keys, range)
+  }
 
   await database.transaction('r', database.sources, database.epgPrograms, async () => {
     const generation = (await database.sources.get(sourceId))?.epgActiveGeneration
@@ -153,7 +170,8 @@ export async function getEpgStatus(sourceId: string, database: CatalogDb = db): 
 /** Apaga toda a programação da fonte, de todas as gerações (FR-012/FR-021). */
 export async function deleteEpgForSource(sourceId: string, database: CatalogDb = db): Promise<void> {
   await deleteGenerationsExcept(sourceId, undefined, database)
-  await database.sources.update(sourceId, { epgActiveGeneration: undefined })
+  await deleteEpgChunksExcept(database, sourceId, undefined)
+  await database.sources.update(sourceId, { epgActiveGeneration: undefined, epgStoredBytes: undefined })
 }
 
 /** Registra sincronização bem-sucedida: avança a marca e limpa o erro anterior (FR-005). */
@@ -206,7 +224,7 @@ export async function setEpgOffsetHours(sourceId: string, hours: number, databas
  * marca de sincronização — reativar começa "nunca sincronizado".
  */
 export async function setEpgEnabled(sourceId: string, enabled: boolean, database: CatalogDb = db): Promise<void> {
-  await database.transaction('rw', database.sources, database.epgPrograms, portalTables(database).revisions, async () => {
+  await database.transaction('rw', [database.sources, database.epgPrograms, portalTables(database).revisions, epgChunks(database)], async () => {
     if (enabled) {
       await updateSourceConfiguration(sourceId, { epgDisabled: undefined }, database)
       return

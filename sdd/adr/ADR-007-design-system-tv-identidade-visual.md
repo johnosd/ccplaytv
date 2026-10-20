@@ -151,6 +151,15 @@ transform: scale(1.06);
 transition: transform 140ms ease-out, box-shadow 140ms ease-out;
 ```
 
+**Atualização (083, 2026-10-19):** a **transição de `box-shadow` deixou de valer**. Medida na TV de referência (grade de 140 cards,
+troca de foco a cada 140 ms, duas rodadas), animar a sombra de 40 px de desfoque deu 44–46 fps com a receita do app (35–37 fps
+com a variante da 082) e quadros de até 133 ms; com a sombra **estática** e só `transform` animando, a mesma troca de foco deu
+51 fps e 0 quadros acima de 50 ms. Valores inalterados — contorno 4 px, offset 3 px, halo, brilho de 40 px e `scale(1.06)` —,
+muda só o que anima: a receita passa a `transition: transform 140ms ease-out, background 140ms ease-out;` (a sombra entra e
+sai de uma vez). Nenhuma folha de `tv-web/src/` pode animar `box-shadow` (nem por `transition: all` ou `@keyframes`) nem usar
+`backdrop-filter`: `styles/foco-leve-tv.contract.test.ts`. Números e alternativas medidas (brilho em camada por `opacity`, brilho
+por degradê, sem brilho difuso — nenhuma superou a sombra estática): `sdd/specs/083-foco-leve-tv/evidencias/`.
+
 O glow é deliberadamente mais forte que o de um app desktop: o foco precisa
 ser reconhecível a ~3 m (`docs/guia-praticas-app-tv/01` §1). Foco **nunca**
 é comunicado só por mudança de cor (`.../04`, critério de foco), e nunca
@@ -196,7 +205,7 @@ acentuado e títulos longos como caso de teste
 ### 8. Custo de animação é restrição, não detalhe
 
 O hardware-alvo é modesto. Transições ficam na faixa de ~140 ms, em
-`transform`/`opacity`/`box-shadow`. Evitar blur pesado, glassmorphism e
+`transform`/`opacity` (**`box-shadow` não anima mais** — Atualização (083) em §4). Evitar blur pesado, glassmorphism e
 shimmer contínuo em listas grandes — quando o custo aparecer na medição, o
 skeleton vira bloco estático (`docs/iptvnator/09-dashboard-home.md`,
 resumo #6).
@@ -275,7 +284,7 @@ resumo #6).
 Revisitar se: (a) o teste de legibilidade a 3 m na Q60D reprovar a escala
 tipográfica ou o contraste do foco; (b) a medição de desempenho mostrar que
 o `box-shadow` de 40 px do glow custa caro em grades virtualizadas grandes
-(alternativa: borda sólida + escala, sem glow); (c) o projeto passar a mirar
+(alternativa: borda sólida + escala, sem glow — **ocorreu na feature 083**; a solução foi manter o glow e não animá-lo, §4); (c) o projeto passar a mirar
 outra plataforma de TV com guidelines conflitantes.
 
 Quando o protótipo divergir do código a ponto de confundir, substituí-lo por

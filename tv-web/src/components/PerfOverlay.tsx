@@ -1,5 +1,7 @@
-import { useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import { createActiveFrameTracker, type ActiveFrameStats } from '../lib/perf/activeFrames'
 import { subscribeEntryReports, takeEntryReports, type EntryReport } from '../lib/perf/entryTiming'
+import { emitMetric } from '../lib/perf/metricsChannel'
 
 /**
  * Painel de medição da feature 038 (FR-012), só no build de medição
@@ -16,7 +18,49 @@ function getSnapshot(): EntryReport[] {
 
 export function PerfOverlay() {
   const reports = useSyncExternalStore(subscribeEntryReports, getSnapshot)
+  const [slowFrames, setSlowFrames] = useState(0)
+  // Feature 082 (SC-003): quadros lentos com o controle PARADO (sem tecla há 2 s, depois dos 15 s da abertura) isolam o
+  // trabalho em segundo plano — pré-carga, conversão, guia — da navegação e das capas, que o total mistura.
+  const [idleSlowFrames, setIdleSlowFrames] = useState(0)
+  // Feature 083 (SC-006): fps, pior quadro e quadros > 50 ms medidos SÓ com tecla nos últimos 2 s (janela de 4 s).
+  const [keyedFrames, setKeyedFrames] = useState<ActiveFrameStats | null>(null)
+  useEffect(() => {
+    const mountedAt = performance.now()
+    let lastKey = mountedAt
+    const tracker = createActiveFrameTracker()
+    const onKey = () => { lastKey = performance.now(); tracker.onKey(lastKey) }
+    const refresh = window.setInterval(() => setKeyedFrames(tracker.snapshot(performance.now())), 500)
+    window.addEventListener('keydown', onKey, true)
+    // Feature 085: a cada ~5 s os quadros lentos e a janela de tecla vão ao canal (no-op fora do build de medição).
+    let slow = 0
+    let idleSlow = 0
+    const report = window.setInterval(() => {
+      const keyed = tracker.snapshot(performance.now())
+      emitMetric({ source: 'frames', slow, idleSlow, ...(keyed ? { fps: keyed.fps, worstMs: keyed.worstMs, over50: keyed.over50 } : {}) })
+    }, 5_000)
+    let previous = performance.now()
+    let active = true
+    let frame = 0
+    const tick = (now: number) => {
+      if (!active) return
+      tracker.onFrame(now)
+      if (now - previous > 100) {
+        slow += 1
+        setSlowFrames((count) => count + 1)
+        if (now - mountedAt > 15_000 && previous - lastKey > 2_000) {
+          idleSlow += 1
+          setIdleSlowFrames((count) => count + 1)
+        }
+      }
+      previous = now
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => { active = false; cancelAnimationFrame(frame); window.clearInterval(refresh); window.clearInterval(report); window.removeEventListener('keydown', onKey, true) }
+  }, [])
   const last = reports.slice(-6)
+  // A entrada mais recente que já pintou a 1ª página (SC-002 é lido na TV a cada entrada).
+  const firstPage = [...reports].reverse().find((report) => report.phases.firstPaint !== undefined)?.phases.firstPaint
   return (
     <div
       aria-hidden="true"
@@ -33,7 +77,8 @@ export function PerfOverlay() {
         whiteSpace: 'pre',
       }}
     >
-      {last.length === 0
+      {`quadros>100ms=${slowFrames} parado>100ms=${idleSlowFrames} primeiraPágina=${firstPage ?? '?'}ms\n` +
+        `tecla: ${keyedFrames ? `${keyedFrames.fps}fps pior=${keyedFrames.worstMs}ms >50ms=${keyedFrames.over50}` : 'sem tecla'}\n` + (last.length === 0
         ? 'perf: entre numa categoria'
         : last
             .map(
@@ -43,7 +88,7 @@ export function PerfOverlay() {
                   .map(([name, ms]) => `${name.slice(0, 5)}=${ms}`)
                   .join(' '),
             )
-            .join('\n')}
+            .join('\n'))}
     </div>
   )
 }

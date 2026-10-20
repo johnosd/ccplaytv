@@ -12,6 +12,13 @@ it('build comercial exige HTTPS e chave pública EC válida embutida', () => {
 it('chave privada nunca é aceita para pacote cliente', () => {
   expect(() => validateCommercialConfig({ ...env, VITE_LICENSE_PUBLIC_KEYS: JSON.stringify({ fixture: pair.privateKey.export({ format: 'jwk' }) }) })).toThrow('commercial_configuration_required')
 })
+it('qualquer chave revogada no mapa recusa o build, mesmo junto de chaves válidas', async () => {
+  const { revokedLicenseKeys } = await import('./revokedLicenseKeys.mjs')
+  const second = generateKeyPairSync('ec', { namedCurve: 'prime256v1' }).publicKey.export({ format: 'jwk' })
+  expect(() => validateCommercialConfig({ ...env, VITE_LICENSE_PUBLIC_KEYS: JSON.stringify({ fixture: publicKey, other: second }) })).not.toThrow()
+  for (const { kty, crv, x, y } of revokedLicenseKeys)
+    expect(() => validateCommercialConfig({ ...env, VITE_LICENSE_PUBLIC_KEYS: JSON.stringify({ fixture: publicKey, other: second, old: { kty, crv, x, y } }) })).toThrow('commercial_configuration_required')
+})
 it('ausência, kid inválido e coordenadas inválidas recusam build', () => {
   for (const keys of [{}, { 'invalid/kid': publicKey }, { fixture: { ...publicKey, x: 'invalid' } }, []])
     expect(() => validateCommercialConfig({ ...env, VITE_LICENSE_PUBLIC_KEYS: JSON.stringify(keys) })).toThrow('commercial_configuration_required')

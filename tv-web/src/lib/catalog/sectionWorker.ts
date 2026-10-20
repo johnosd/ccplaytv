@@ -11,7 +11,7 @@
  */
 
 import type { CategoryKind } from './db'
-import { loadSection, type SectionLoadOutcome } from './sectionLoader'
+import { loadSection, type SectionLoadOutcome, type SectionLoadTimings } from './sectionLoader'
 
 export type SectionWorkerRequest =
   | { type: 'load'; sourceId: string; kind: CategoryKind; categoryIds: number[] }
@@ -22,7 +22,8 @@ export type SectionWorkerRequest =
 
 export type SectionWorkerResponse =
   | { type: 'category'; categoryId: number }
-  | { type: 'done'; outcome: SectionLoadOutcome }
+  /** `timings`: só números (feature 085); a thread da interface os manda ao canal de métricas, se houver. */
+  | { type: 'done'; outcome: SectionLoadOutcome; timings?: SectionLoadTimings }
   | { type: 'error'; name: string }
 
 const scope = self as unknown as DedicatedWorkerGlobalScope
@@ -59,13 +60,15 @@ scope.onmessage = async (event: MessageEvent<SectionWorkerRequest>) => {
     return
   }
 
+  let timings: SectionLoadTimings | undefined
   try {
     const result = await loadSection(message.sourceId, message.kind, message.categoryIds, {
       signal: controller.signal,
       waitUntilAllowed,
+      onTimings: (measured) => { timings = measured },
       onCategory: (categoryId) => scope.postMessage({ type: 'category', categoryId } satisfies SectionWorkerResponse),
     })
-    scope.postMessage({ type: 'done', outcome: result.outcome } satisfies SectionWorkerResponse)
+    scope.postMessage({ type: 'done', outcome: result.outcome, timings } satisfies SectionWorkerResponse)
   } catch (error) {
     scope.postMessage({ type: 'error', name: error instanceof Error ? error.name : 'Error' } satisfies SectionWorkerResponse)
   }

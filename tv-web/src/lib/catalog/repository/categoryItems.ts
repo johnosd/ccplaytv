@@ -1,8 +1,7 @@
 /** Gravação e renovação dos itens de uma categoria. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogRecord, type CategoryKind, type StoredCatalogRecord } from '../db'
-import { writeBlockWithin } from '../categoryBlocks'
-import { prepareCategoryReadModel } from './categoryWindow'
+import { BlockRevisionConflict, blockWriteTables, commitBlockWrite, prepareBlockWrite, writeCompressedBlock } from '../blockWrite'
 import { KEY_MAX, KEY_MIN, StorageFullError, isQuotaError } from './shared'
 
 /** Identifica a categoria alvo de uma substituição integral de itens. */
@@ -49,17 +48,17 @@ export async function renewCategoryItems(
   items: CatalogRecord[],
   now: number,
   database: CatalogDb = db,
+  /**
+   * Feature 082: chamado com os bytes já codificados, antes da transação (`makeRoomFor`); `false` = sem espaço
+   * (`StorageFullError`, nada gravado).
+   */
+  room?: (needBytes: number) => Promise<boolean>,
 ): Promise<{ written: boolean }> {
   try {
-    const result = await database.transaction(
-      'rw',
-      [database.channels, database.categories, database.categoryBlocks, database.catalogReadManifests, database.catalogReadChunks] as any,
-      async () => ({ written: await writeBlockWithin(target, items, now, database) }),
-    )
-    // Também tenta reparar uma projeção perdida por quota numa renovação
-    // idêntica; a preparação é idempotente quando já está pronta.
-    await prepareCategoryReadModel(target.sourceId, target.categoryId, database).catch(() => undefined)
-    return result
+    // Feature 082: formato comprimido em pedaços, em duas fases (`blockWrite.ts`) — sem 2ª cópia (projeção 065).
+    const result = await writeCompressedBlock(target, items, now, database, { room })
+    if (result.storageFull) throw new StorageFullError()
+    return { written: result.written }
   } catch (error) {
     if (isQuotaError(error)) throw new StorageFullError()
     throw error
@@ -99,59 +98,60 @@ export async function storeStoredCategory(
    */
   chunksFrom?: { generation: number; categoryId: number },
 ): Promise<void> {
+  const records = items.map((item) => ({ ...item, sourceId: target.sourceId, generation: target.generation }))
   try {
-    await database.transaction(
-      'rw',
-      [database.channels, database.categories, database.storedEntries, database.categoryBlocks, database.catalogReadManifests, database.catalogReadChunks] as any,
-      async () => {
-        // Episódios: substituição integral (D-011 da 038) — retomada e
-        // "assistido" são por `stableId`, não pelo id local do episódio.
-        await database.channels
-          .where('[sourceId+generation+kind+groupOrder]')
-          .equals([target.sourceId, target.generation, 'episode', target.groupOrder])
-          .delete()
+    for (let attempt = 0; ; attempt += 1) {
+      // Fase 1 fora da transação (feature 082): compressão nunca dentro dela.
+      const prepared = await prepareBlockWrite(target, records, database)
+      if (prepared === 'missing') return
+      try {
+        await database.transaction('rw', [...blockWriteTables(database), database.storedEntries], async () => {
+          // Episódios: substituição integral (D-011 da 038) — retomada e
+          // "assistido" são por `stableId`, não pelo id local do episódio.
+          await database.channels
+            .where('[sourceId+generation+kind+groupOrder]')
+            .equals([target.sourceId, target.generation, 'episode', target.groupOrder])
+            .delete()
 
-        // Itens: bloco da categoria, com id preservado (feature 038, D-006;
-        // feature 039). A posição na ordem do arquivo continua sendo
-        // `categoryPosition`, base do número do canal — `logic/numero-do-canal.md` §4.
-        await writeBlockWithin(
-          target,
-          items.map((item) => ({ ...item, sourceId: target.sourceId, generation: target.generation })),
-          now,
-          database,
-        )
+          // Itens: formato comprimido, com id preservado (features 038/039/082). A posição na ordem do arquivo
+          // continua sendo a base do número do canal — `logic/numero-do-canal.md` §4.
+          if (prepared === 'unchanged') await database.categories.update(target.categoryId, { itemsFetchedAt: now })
+          else await commitBlockWrite(prepared, now, database)
 
-        if (episodes.length > 0) {
-          await database.channels.bulkAdd(
-            episodes.map((episode) => ({
-              ...episode,
-              sourceId: target.sourceId,
-              generation: target.generation,
-              kind: 'episode',
-              groupOrder: target.groupOrder,
-              // Episódio nunca tem categoria navegável própria (D-001, feature 012).
-              categoryId: undefined,
-            })),
-          )
-        }
+          if (episodes.length > 0) {
+            await database.channels.bulkAdd(
+              episodes.map((episode) => ({
+                ...episode,
+                sourceId: target.sourceId,
+                generation: target.generation,
+                kind: 'episode',
+                groupOrder: target.groupOrder,
+                // Episódio nunca tem categoria navegável própria (D-001, feature 012).
+                categoryId: undefined,
+              })),
+            )
+          }
 
-        // `writeBlockWithin` já carimbou `itemsFetchedAt`/`itemsCount`; o ponteiro
-        // para os blocos da atualização some junto com os blocos.
-        await database.categories.update(target.categoryId, { storedFrom: undefined })
+          // O ponteiro para os blocos da atualização some junto com os blocos.
+          await database.categories.update(target.categoryId, { storedFrom: undefined })
 
-        const from = chunksFrom ?? { generation: target.generation, categoryId: target.categoryId }
-        await database.storedEntries
-          .where('[sourceId+generation+categoryId+chunk]')
-          .between(
-            [target.sourceId, from.generation, from.categoryId, KEY_MIN],
-            [target.sourceId, from.generation, from.categoryId, KEY_MAX],
-            true,
-            true,
-          )
-          .delete()
-      },
-    )
-    await prepareCategoryReadModel(target.sourceId, target.categoryId, database).catch(() => undefined)
+          const from = chunksFrom ?? { generation: target.generation, categoryId: target.categoryId }
+          await database.storedEntries
+            .where('[sourceId+generation+categoryId+chunk]')
+            .between(
+              [target.sourceId, from.generation, from.categoryId, KEY_MIN],
+              [target.sourceId, from.generation, from.categoryId, KEY_MAX],
+              true,
+              true,
+            )
+            .delete()
+        })
+        return
+      } catch (error) {
+        if (error instanceof BlockRevisionConflict && attempt < 2) continue
+        throw error
+      }
+    }
   } catch (error) {
     if (isQuotaError(error)) throw new StorageFullError()
     throw error

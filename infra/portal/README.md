@@ -34,4 +34,4 @@ Templates reais Cloud Run v1: cloud-run-public.json/cloud-run-jobs.json; policie
 
 ## Bootstrap do projeto
 
-`bootstrap-gcp.ps1` prepara APIs, contas `portal-runtime`/`portal-scheduler`, papéis mínimos, Firestore Native e Artifact Registry. Execute com `-Apply` somente após autenticar o gcloud. O script não remove `roles/editor`. Nesta sessão, a execução foi interrompida porque o primeiro comando `gcloud projects describe` não retornou; nenhum recurso foi confirmado como criado.
+`bootstrap-gcp.ps1 -ProjectId <id>` prepara APIs, contas `portal-runtime`/`portal-scheduler`, papéis mínimos, Firestore Native e Artifact Registry. Execute com `-Apply` somente após autenticar o gcloud. Desde a feature 081, `-ProjectId` (e `-SourceEnv` no `deploy-jobs-env.ps1`) são obrigatórios: homologação e produção são projetos diferentes e nenhum script aponta para um deles por padrão. O script não remove `roles/editor`. Nesta sessão, a execução foi interrompida porque o primeiro comando `gcloud projects describe` não retornou; nenhum recurso foi confirmado como criado.

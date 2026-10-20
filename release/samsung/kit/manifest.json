@@ -8,11 +8,10 @@
     {
       "id": "SAM-KIT-UIDESC",
       "owner": "produto",
-      "status": "Pending",
-      "nextAction": "refazer o pptx para a variante comercial (portal, teste e compra) — T053, R-015",
+      "status": "Pass",
       "artifacts": [
-        { "path": "ui-description/CCPlayTV_UI_Description_0.2.1.pptx", "sha256": "b4ce0c7a3c449245a43b3dec10c1bcca452e975aefa5bc8a8f66befb597e75c8" },
-        { "path": "ui-description.md", "sha256": "2d2fe02f885f5a5e90b85ca1408c9b308a9aa8e8ad6f79b4eaab8061ea0f5834" }
+        { "path": "ui-description/CCPlayTV_UI_Description_0.2.1.pptx", "sha256": "850b129e4dad6d7cb7b6d77c95aa77ab3fdebfb128aad368784bcc279a7c4be2" },
+        { "path": "ui-description.md", "sha256": "22147b1d202d3e8dcc70e17e5e00e7ae025d0095a2baa7445d1c7789ace036c9" }
       ]
     },
     {
@@ -32,10 +31,10 @@
       "owner": "produto",
       "status": "Pass",
       "artifacts": [
-        { "path": "media/screenshot_01.jpg", "sha256": "889f9c10e33d63de88234e590a47912d0e8e79e4d6eb4ff4c9aa15af421d4248" },
-        { "path": "media/screenshot_02.jpg", "sha256": "79a4b4b0e18607464adfb75a04f11e04327024565e0549cb854ce77995c359ec" },
-        { "path": "media/screenshot_03.jpg", "sha256": "3a7bee752bf1b3972487644101e27eadb510a2b456feab452568a8d5cc039ded" },
-        { "path": "media/screenshot_04.jpg", "sha256": "73129a8cbad19b6135344f1de1e5be6305ff7448865b47f911ef34704280ae11" }
+        { "path": "media/screenshot_01.jpg", "sha256": "c904355dd3f69ddcfd0888cac9ce86f030d2105925d45774110b5430b6bced5b" },
+        { "path": "media/screenshot_02.jpg", "sha256": "bc092dc171f71d7c1e26c601b6004c166a860e75383ac71fd9979e92d4720bbf" },
+        { "path": "media/screenshot_03.jpg", "sha256": "fe3c8223dfe2cfae02477a8cec0ae2c13838a51cdbaf8fef647819855ccee4bf" },
+        { "path": "media/screenshot_04.jpg", "sha256": "8397c61566ada8b80f4ff2c29030e95eca3c5efc248f9139958159d116b2027b" }
       ]
     },
     {

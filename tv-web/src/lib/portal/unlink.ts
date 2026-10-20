@@ -3,6 +3,7 @@ import type { Table } from 'dexie'
 import type { CatalogDb } from '../catalog/db'
 import { backupTables } from '../backup/backupState'
 import { portalTables } from './portalTables'
+import { withStorageRelief } from '../catalog/storageRelief'
 
 /** Guardado em `portalDevice` (id `relink`): é o mesmo segredo que já estava na TV; consumido na reassociação. */
 export interface RelinkHintRecord {
@@ -25,7 +26,9 @@ function relinkTable(database: CatalogDb) {
 export async function unlinkPortal(database: CatalogDb, now = Date.now()): Promise<void> {
   const tables = portalTables(database)
   const backup = backupTables(database)
-  await database.transaction('rw', tables.device, tables.license, tables.uploads, async () => {
+  // Desvincular grava pouco, mas grava: com o catálogo cheio, libera cache refazível e repete (bug
+  // armazenamento-app-cheio-na-tv-impede; antes abortava com AbortError sem apagar nada).
+  await withStorageRelief(() => database.transaction('rw', tables.device, tables.license, tables.uploads, async () => {
     const device = await tables.device.get('device')
     if (device) {
       await relinkTable(database).put({ id: 'relink', deviceId: device.deviceId,
@@ -39,7 +42,7 @@ export async function unlinkPortal(database: CatalogDb, now = Date.now()): Promi
     const previous = await backup.state.get('backup')
     await backup.state.put({ id: 'backup', state: 'unknown',
       ...(previous?.lastBackupAt ? { lastBackupAt: previous.lastBackupAt } : {}) })
-  })
+  }), database)
 }
 
 export async function readRelinkHint(database: CatalogDb): Promise<RelinkHintRecord | undefined> {

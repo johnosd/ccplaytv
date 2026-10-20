@@ -1,11 +1,12 @@
 /** Séries e episódios: registro da série, episódios e carimbo de obtenção. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogRecord } from '../db'
-import { blockRecord, blocksOfKind, categoryIdOfBlockItem } from '../categoryBlocks'
+import { blocksOfKind, categoryIdOfBlockItem } from '../categoryBlocks'
 import { FavoritesScanComplete, StorageFullError, activeGenerationOf, isQuotaError, query } from './shared'
 import { buildStableId } from '../userStateRepository'
 import { storeSeriesWatchMembers } from './seriesWatchRepository'
 import { getCategoryAccess } from '../categoryAccess'
+import { iterateHeaderChunks } from '../blockChunks'
 
 /** Identifica a série alvo de uma substituição integral de episódios (feature 012). */
 export interface SeriesEpisodesTarget {
@@ -46,14 +47,15 @@ async function findSeriesIn(
   if (row) return row
   let found: CatalogRecord | undefined
   try {
-    await blocksOfKind(database, sourceId, generation, 'series').each((block) => {
-      if (access.excluded.has(block.categoryId)) return
-      const index = block.items.findIndex((item) => item.seriesId === seriesId)
-      if (index >= 0) {
-        found = blockRecord(block, block.items[index], index)
-        throw new FavoritesScanComplete()
+    for (const block of await blocksOfKind(database, sourceId, generation, 'series').toArray()) {
+      if (access.excluded.has(block.categoryId)) continue
+      // Feature 082: pedaço a pedaço, parando ao achar.
+      for await (const rows of iterateHeaderChunks(database, block)) {
+        found = rows.find((item) => item.seriesId === seriesId)
+        if (found) break
       }
-    })
+      if (found) break
+    }
   } catch (error) {
     if (!(error instanceof FavoritesScanComplete)) throw error
   }
@@ -84,15 +86,14 @@ export async function findSeriesManyIn(
   }
   if (found.size === seriesIds.size) return found
   try {
-    await blocksOfKind(database, sourceId, generation, 'series').each((block) => {
-      if (access.excluded.has(block.categoryId)) return
-      block.items.forEach((item, index) => {
-        if (item.seriesId && seriesIds.has(item.seriesId) && !found.has(item.seriesId)) {
-          found.set(item.seriesId, blockRecord(block, item, index))
-        }
-      })
-      if (found.size === seriesIds.size) throw new FavoritesScanComplete()
-    })
+    for (const block of await blocksOfKind(database, sourceId, generation, 'series').toArray()) {
+      if (access.excluded.has(block.categoryId)) continue
+      for await (const rows of iterateHeaderChunks(database, block)) {
+        for (const row of rows) if (row.seriesId && seriesIds.has(row.seriesId) && !found.has(row.seriesId)) found.set(row.seriesId, row)
+        if (found.size === seriesIds.size) break
+      }
+      if (found.size === seriesIds.size) break
+    }
   } catch (error) {
     if (!(error instanceof FavoritesScanComplete)) throw error
   }

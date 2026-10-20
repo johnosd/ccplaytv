@@ -1,0 +1,22 @@
+{
+  "feature": "085-gravacao-carga-secao-tv",
+  "lockedAt": "2026-10-20 08:48",
+  "total": 5,
+  "files": [
+    {
+      "path": "tv-web/src/lib/catalog/storageBudget.gravacao-carga-secao.contract.test.ts",
+      "sha256": "c945a6835f4156508034053b777d47e539cb54c1460284396889e1448c5cea9a",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/lib/catalog/sectionLoader.gravacao-carga-secao.contract.test.ts",
+      "sha256": "f6ccede78673d3872572d8d6879a07ac68d2660560433dbe934b6412b599cd9b",
+      "tests": 2
+    },
+    {
+      "path": "tv-web/src/lib/perf/metricsChannel.gravacao-carga-secao.contract.test.ts",
+      "sha256": "58eb2b9bb3c32be34b69e94ae4072a10dd7d5e62dc9e2b24220e937e4c81ae13",
+      "tests": 2
+    }
+  ]
+}

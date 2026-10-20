@@ -19,6 +19,8 @@ export const listSettings = defineArea(
     'listSettings.missing.title': 'Lista não encontrada',
     'listSettings.missing.description': 'Esta lista não está mais cadastrada no aparelho.',
     'listSettings.loading': 'Carregando a lista…',
+    'settings.about.storage': 'Armazenamento do app: {used} de {quota}',
+    'settings.about.storageUnknown': 'Armazenamento do app: a TV não informa o uso.',
   },
   {
     'listSettings.title': 'List settings',
@@ -34,6 +36,8 @@ export const listSettings = defineArea(
     'listSettings.missing.title': 'List not found',
     'listSettings.missing.description': 'This list is no longer saved on this device.',
     'listSettings.loading': 'Loading the list…',
+    'settings.about.storage': 'App storage: {used} of {quota}',
+    'settings.about.storageUnknown': 'App storage: the TV does not report usage.',
   },
   {
     'listSettings.title': 'Ajustes de la lista',
@@ -49,5 +53,7 @@ export const listSettings = defineArea(
     'listSettings.missing.title': 'Lista no encontrada',
     'listSettings.missing.description': 'Esta lista ya no está guardada en el dispositivo.',
     'listSettings.loading': 'Cargando la lista…',
+    'settings.about.storage': 'Almacenamiento de la app: {used} de {quota}',
+    'settings.about.storageUnknown': 'Almacenamiento de la app: el TV no informa el uso.',
   },
 )

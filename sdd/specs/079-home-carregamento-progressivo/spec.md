@@ -10,7 +10,7 @@
 
 ## Escopo
 
-Ao entrar na **Home**, em **Filmes** ou em **Séries**, a pessoa deve ver a tela já montada: fileiras na ordem certa, no lugar certo, sem nada surgindo ou pulando depois; as capas chegam dentro dos cards, que já estão no lugar (padrão dos apps de streaming). A tela segura um estado "Carregando" focável até estar pronta, com teto de 2 s, e então revela tudo de uma vez.
+Ao entrar na **Home**, em **Filmes** ou em **Séries**, a pessoa deve ver as fileiras resolvidas rapidamente, na ordem certa, enquanto as demais continuam chegando em segundo plano; as capas chegam dentro dos cards, que já estão no lugar (padrão dos apps de streaming). A tela segura um estado "Carregando" focável só durante a janela curta inicial, com teto de 2 s para evitar espera infinita.
 
 **Onde está a dor**: na primeira abertura do app (abertura fria). Voltar a uma tela com dados já no aparelho já deve ser imediato.
 
@@ -21,11 +21,11 @@ Ao entrar na **Home**, em **Filmes** ou em **Séries**, a pessoa deve ver a tela
 
 ### Incluído
 
-- Um mesmo modelo de montagem nas três telas: esperar e revelar de uma vez.
+- Um mesmo modelo de montagem nas três telas: revelar as fileiras prontas após a janela curta e inserir as demais quando resolverem.
 - Teto fixo de 2 s (Filmes/Séries descem de 3 s para 2 s).
 - "Carregando" focável com Voltar, com a topbar visível, mostrado só se a espera passar de ~300 ms.
 - As capas dos cards visíveis só seguram a tela por ~300 ms; depois chegam dentro dos cards (emenda de 2026-10-16).
-- Regra para o que chega depois do teto: entra se ficar abaixo de tudo que está na tela; se ficar acima, só na próxima visita.
+- Fileira que chega depois do teto entra na visita atual, na posição canônica; a reacomodação das fileiras abaixo é permitida para não esconder conteúdo.
 - Ordem das fileiras de cada tela preservada como está hoje.
 - Fileiras sem dados — vazias ou com falha — não aparecem.
 - Medição na TV de referência para registrar quanto tempo a montagem leva (confirmação, não definição do teto).
@@ -121,13 +121,13 @@ Como responsável pelo produto, quero ver na TV de referência que a montagem fu
 
 ### Functional Requirements
 
-- **FR-001**: Home, Filmes e Séries DEVEM usar o mesmo modelo: nada do conteúdo é desenhado até a tela estar pronta ou o teto vencer; então tudo é revelado de uma vez.
+- **FR-001**: Home, Filmes e Séries DEVEM usar o mesmo modelo: após a janela curta, cada fileira resolvida é desenhada na posição canônica e as demais entram quando resolverem.
 - **FR-002**: "Pronta" DEVE significar: todas as leituras das fileiras da tela resolvidas (com dados, vazias ou com falha), o hero/billboard resolvido (Home) e as capas dos cards visíveis na primeira tela carregadas ou com falha — mas as capas só seguram a tela por uma janela curta (~300 ms, a mesma do "Carregando"); passada ela, a tela aparece com os cards no lugar e cada capa chega dentro do seu card, sem mover nada (emenda de 2026-10-16, padrão dos apps de streaming).
 - **FR-003**: O teto DEVE ser 2 s nas três telas.
 - **FR-004**: A espera DEVE mostrar a topbar e um "Carregando" com Voltar focável, mas só se passar de ~300 ms; abaixo disso, nada pisca.
 - **FR-005**: Durante a espera, Voltar/RETURN DEVEM voltar sem depender de consulta pendente, e a topbar DEVE continuar navegável.
 - **FR-006**: Na revelação, o foco DEVE ir para o lugar inicial da tela somente se a pessoa não tiver saído do "Carregando"; se estiver na topbar, fica lá.
-- **FR-007**: A partir do teto (2 s desde a entrada), uma fileira que chega DEVE entrar somente se sua posição ficar abaixo de todas as já mostradas; se ficar acima, DEVE aparecer só na próxima entrada na tela. Antes do teto — o que só acontece quando a tela apareceu na hora pelo caminho do cache (FR-013) — ela se encaixa na sua posição.
+- **FR-007**: Uma fileira que chega depois da revelação, inclusive depois do teto de 2 s, DEVE entrar na visita atual em sua posição canônica; as fileiras abaixo podem ser reacomodadas. Ela NÃO DEVE ficar escondida até a próxima entrada na tela.
 - **FR-008**: Depois da revelação, capas que chegam DEVEM preencher o card no lugar, sem mover nada.
 - **FR-009**: Leituras refeitas por ação da pessoa (fechar o player, alternar favorito) DEVEM ser aplicadas na hora, com foco reconciliado por identidade estável.
 - **FR-010**: Fileira vazia ou com falha NÃO DEVE ocupar espaço, título, aviso ou destino de foco.
@@ -147,7 +147,7 @@ Como responsável pelo produto, quero ver na TV de referência que a montagem fu
 
 ### Measurable Outcomes
 
-- **SC-001**: Em 100% dos cenários automatizados de chegada fora de ordem, nas três telas, nenhum conteúdo é desenhado antes da revelação e nenhuma fileira entra acima de outra já mostrada.
+- **SC-001**: Em 100% dos cenários automatizados de chegada fora de ordem, nas três telas, toda fileira resolvida aparece na visita atual e a ordem final permanece a ordem canônica da tela.
 - **SC-002**: Em 100% dos cenários automatizados, a revelação acontece em até 2 s (+ tolerância de teste) desde a entrada.
 - **SC-003**: Em 100% dos cenários com montagem abaixo de ~300 ms, o "Carregando" não é desenhado.
 - **SC-004**: Em 100% dos estados de espera, vazio e erro, existe controle focável e RETURN funciona.
@@ -189,3 +189,8 @@ Como responsável pelo produto, quero ver na TV de referência que a montagem fu
 - Caminho do cache: os contratos travados das features 026 (Home) e 052/056/057/paridade (Filmes/Séries) exigem a tela montada no 1º render quando só as leituras principais estão em cache. Por isso a tela aparece na hora nesse caso (FR-013) e o que termina antes do teto se encaixa na posição (FR-007); o adiamento vale a partir do teto. Na abertura fria — a dor relatada — nada aparece antes de tudo pronto ou do teto.
 - **Emenda 2026-10-16 (decisão do usuário, depois da medição no navegador)**: Q: As capas devem segurar a tela até os 2 s? → A: Não — seguir o padrão dos apps de streaming: as capas esperam só ~300 ms; depois a tela aparece com os cards no lugar e as capas chegam dentro deles. Motivo: na lista real, Filmes/Séries frios ficavam sempre 2 s parados com todas as leituras prontas e ainda apareciam com só 9 de 25 capas (R-007/R-008 do plano). Substitui a resposta "Sim, as capas dos cards visíveis, dentro dos 2 s" da entrevista.
 - Carrosséis de categoria de Filmes/Séries não entram na espera: a prévia de uma categoria pode depender de rede sem teto próprio, e a altura das fileiras é fixa, então os cards chegam no lugar sem mover nada.
+
+### Emenda 2026-10-17 — comportamento progressivo
+
+- O usuário decidiu seguir o comportamento de grandes players: fileiras prontas aparecem após a janela curta de 300 ms; fileiras pendentes entram assim que resolverem.
+- Uma fileira atrasada acima das demais entra na visita atual, na posição correta, mesmo que isso mova as fileiras abaixo. Esconder conteúdo até sair e entrar novamente foi rejeitado.

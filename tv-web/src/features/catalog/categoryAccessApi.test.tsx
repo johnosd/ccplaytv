@@ -1,11 +1,12 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, renderHook } from '@testing-library/react'
+import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query'
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '../../lib/catalog/db'
 import { isSessionUnlocked, relockSession, unlockWithPin, notifyCategoryAccessChanged } from '../../lib/catalog/categoryAccess'
 import { enableParentalControl } from '../../lib/parental/listPin'
 import { useCategoryAccessLifecycle } from './categoryAccessApi'
+import { createPrefetchInvalidator } from './prefetchApi'
 
 /** Feature 066 (T028, FR-015, D-005): rebloqueio por segundo plano e troca de lista; reset só quando havia sessão. */
 
@@ -45,6 +46,26 @@ describe('useCategoryAccessLifecycle', () => {
     act(() => setVisibility('hidden'))
     expect(isSessionUnlocked('sala')).toBe(false)
     expect(reset).toHaveBeenCalledWith({ queryKey: ['categories'] })
+  })
+
+  // Feature 084 (FR-007): o limite de remontagem do índice vale só para a pré-carga; mudar o acesso relê na hora.
+  it('esconder/bloquear categoria remonta o índice na hora, mesmo dentro da janela do limite da pré-carga', async () => {
+    mount('sala')
+    const fetchIndex = vi.fn(async () => ({ entries: [] }))
+    const key = ['catalog-search-index', 'sala', 'movie']
+    queryClient.setQueryData(key, { entries: [] })
+    const unsubscribe = new QueryObserver(queryClient, { queryKey: key, queryFn: fetchIndex, staleTime: Infinity }).subscribe(() => {})
+    const invalidator = createPrefetchInvalidator(queryClient, 0, 60_000)
+    try {
+      invalidator.categoryDone('sala', 1, 'movie') // abre a janela: a 1ª remontagem é imediata
+      await waitFor(() => expect(fetchIndex).toHaveBeenCalledTimes(1))
+
+      act(() => notifyCategoryAccessChanged())
+      await waitFor(() => expect(fetchIndex).toHaveBeenCalledTimes(2)) // sem esperar os 60 s da janela
+    } finally {
+      invalidator.dispose()
+      unsubscribe()
+    }
   })
 
   it('trocar de lista rebloqueia; sem sessão aberta, nada é refeito à toa', async () => {

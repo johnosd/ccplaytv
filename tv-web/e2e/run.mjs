@@ -23,6 +23,8 @@ const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..')
 // Ordem = a do antigo `test:e2e` serial (sem a duplicata de fontes-estado).
 // Scripts `*-real.mjs` ficam de fora de propósito: precisam do .env e da rede.
 export const SUITE = [
+  'e2e/orcamento-armazenamento.mjs',
+  'e2e/orcamento-armazenamento-migracao.mjs',
   'e2e.mjs',
   'e2e/favoritos.mjs',
   'e2e/m3u-sob-demanda.mjs',

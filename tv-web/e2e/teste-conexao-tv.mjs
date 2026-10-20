@@ -168,9 +168,11 @@ try {
   const beforeStorageFailure = await last()
   // Falha de guarda: diagnóstico seguro, resultado atual visível e anterior preservado.
   await page.evaluate(async () => {
-    const { db } = await import('/src/lib/catalog/db.ts')
-    window.__speedOriginalPut = db.networkDiagnostics.put
-    db.networkDiagnostics.put = async () => { throw new DOMException('unsafe-untrusted-details', 'QuotaExceededError') }
+    window.__speedOriginalIdbPut = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'networkDiagnostics') throw new DOMException('unsafe-untrusted-details', 'QuotaExceededError')
+      return window.__speedOriginalIdbPut.apply(this, args)
+    }
   })
   await transport('success'); await openCard(); await page.keyboard.press('Enter')
   await expect(page.getByRole('dialog').getByText(/NET-W-QUOTA/)).toBeVisible()
@@ -178,8 +180,7 @@ try {
   assert.ok(!(await page.textContent('body')).includes('unsafe-untrusted-details'))
   assert.deepEqual(await last(), beforeStorageFailure)
   await page.evaluate(async () => {
-    const { db } = await import('/src/lib/catalog/db.ts')
-    db.networkDiagnostics.put = window.__speedOriginalPut
+    IDBObjectStore.prototype.put = window.__speedOriginalIdbPut
   })
   await closeDialog()
 

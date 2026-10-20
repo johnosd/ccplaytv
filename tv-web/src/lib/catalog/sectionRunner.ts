@@ -10,7 +10,8 @@
  */
 
 import type { CategoryKind } from './db'
-import { loadSection, type SectionLoadOutcome } from './sectionLoader'
+import { emitMetric } from '../perf/metricsChannel'
+import { loadSection, type SectionLoadOutcome, type SectionLoadTimings } from './sectionLoader'
 import type { SectionWorkerRequest, SectionWorkerResponse } from './sectionWorker'
 
 export interface RunSectionOptions {
@@ -20,6 +21,11 @@ export interface RunSectionOptions {
   signal?: AbortSignal
   /** Força a thread principal (testes e plano B). */
   mainThread?: boolean
+}
+
+/** Feature 085: só números e rótulos fixos; no-op fora do build de medição. */
+function reportTimings(kind: CategoryKind, outcome: SectionLoadOutcome, timings?: SectionLoadTimings): void {
+  if (timings) emitMetric({ source: 'section-load', kind, outcome, ...timings })
 }
 
 /** Intervalo de conferência do portão durante a carga. */
@@ -47,12 +53,17 @@ function runOnMainThread(
       await new Promise((resolve) => setTimeout(resolve, GATE_POLL_MS))
     }
   }
+  let timings: SectionLoadTimings | undefined
   return loadSection(sourceId, kind, categoryIds, {
     signal: options.signal,
     onCategory: options.onCategory,
     waitUntilAllowed,
+    onTimings: (measured) => { timings = measured },
   })
-    .then((result) => result.outcome)
+    .then((result) => {
+      reportTimings(kind, result.outcome, timings)
+      return result.outcome
+    })
     .catch((): SectionLoadOutcome => 'failed')
 }
 
@@ -99,7 +110,10 @@ export function runSectionLoad(
       heardFromWorker = true
       const message = event.data
       if (message.type === 'category') options.onCategory?.(message.categoryId)
-      else if (message.type === 'done') finish(message.outcome)
+      else if (message.type === 'done') {
+        reportTimings(kind, message.outcome, message.timings)
+        finish(message.outcome)
+      }
       else finish('failed')
     }
     worker.onerror = () => {

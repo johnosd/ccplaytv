@@ -471,6 +471,10 @@ O app também pode oferecer preferência interna para engines que não respeitam
 }
 ```
 
+> **Nota (feature 083, 2026-10-19):** a transição de `box-shadow` do bloco acima **deixa de valer** — no app, só `transform`
+> (e `background`) animam; a sombra (halo + brilho) entra e sai de uma vez. Valores e aparência do foco não mudam. Medição na
+> TV de referência e motivo em `sdd/adr/ADR-007-design-system-tv-identidade-visual.md` §4 (Atualização 083).
+
 Para botão primário em foco:
 
 - fundo pode subir para `#FFA36B`;

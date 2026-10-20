@@ -17,10 +17,12 @@ from app.portal.repositories.control import ControlRepository, TransactionPlan, 
 
 AUTH_CODES = {"unauthorized", "invalid_origin", "try_again", "invalid_input",
               "invalid_credentials", "rate_limited", "invalid_csrf", "payload_too_large",
-              "service_unavailable", "recovery_required", "not_escrowed"}
+              "service_unavailable", "recovery_required", "not_escrowed", "pix_disabled", "pix_failed"}
 # Requisições concorrentes da mesma sessão capturam `now` antes da transação e podem terminar fora de
 # ordem (retries transacionais com jitter); relógio mais atrás que isso continua sendo recusado.
 SESSION_CONCURRENCY_SKEW = timedelta(seconds=30)
+# 081/T045: falhas por par ID+IP na entrada manual em 15 min (era 5; um celular com a chave antiga bloqueava rápido).
+MANUAL_PAIR_ATTEMPTS = 10
 # 073/R-014: fila de toques em `lastSeenAt` por sessão; some sozinha quando nenhuma requisição a usa.
 _SESSION_TOUCH_LOCKS: "weakref.WeakValueDictionary[str, asyncio.Lock]" = weakref.WeakValueDictionary()
 
@@ -196,7 +198,7 @@ class AuthService:
         # IP e ID só participam de HMAC; nunca persistir endereço, ID ou device key nos contadores.
         return tuple(RateConstraint(self.tokens.digest("rate_limit", scope), limit, 900, 900)
                      for scope, limit in (
-                         ("manual-pair/" + display_scope + "/" + ip, 5),
+                         ("manual-pair/" + display_scope + "/" + ip, MANUAL_PAIR_ATTEMPTS),
                          ("manual-device/" + display_scope, 25),
                          ("manual-ip/" + ip, 25), ("manual-global", 100),
                      ))

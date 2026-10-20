@@ -4,5 +4,5 @@
   "status": 200,
   "date": "2026-10-17",
   "by": "execução sdd (agente)",
-  "check": "curl.exe -sI (quickstart §6) + GET: pt/en/es, sem <script>, conteúdo idêntico a bridge/privacidade/index.html"
+  "check": "versão comercial (R-015, T051), publicada pelo merge do PR #10 (89ae844) e deploy Pages 39030694839: GET 200, pt/en/es, sem <script>, conteúdo idêntico a bridge/privacidade/index.html"
 }

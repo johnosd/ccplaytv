@@ -62,6 +62,50 @@ describe('createPrefetchInvalidator × escopo por tipo (feature 065)', () => {
   })
 })
 
+describe('createPrefetchInvalidator × limite de remontagem do índice (feature 084)', () => {
+  it('a vitrine (chave com mais elementos) continua relida a cada lote; só o índice é limitado', async () => {
+    vi.useFakeTimers()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const showcaseFetch = vi.fn(async () => ({ recent: [] }))
+    const indexFetch = vi.fn(async () => ({ entries: [] }))
+    const showcaseKey = ['catalog-search-index', 'fonte', 'movie', 'showcase', '2026-10-20', true]
+    client.setQueryData(showcaseKey, { recent: [] })
+    client.setQueryData(['catalog-search-index', 'fonte', 'movie'], { entries: [] })
+    const unsubs = [
+      new QueryObserver(client, { queryKey: showcaseKey, queryFn: showcaseFetch, staleTime: Infinity }).subscribe(() => {}),
+      new QueryObserver(client, { queryKey: ['catalog-search-index', 'fonte', 'movie'], queryFn: indexFetch, staleTime: Infinity }).subscribe(() => {}),
+    ]
+    const invalidator = createPrefetchInvalidator(client, 10, 10_000)
+    for (let batch = 0; batch < 3; batch += 1) {
+      invalidator.categoryDone('fonte', batch, 'movie')
+      await vi.advanceTimersByTimeAsync(10)
+    }
+    expect(showcaseFetch).toHaveBeenCalledTimes(3)
+    expect(indexFetch).toHaveBeenCalledTimes(1)
+    invalidator.dispose()
+    unsubs.forEach((unsubscribe) => unsubscribe())
+    client.clear()
+  })
+
+  it('dispose() não deixa remontagem pendente', async () => {
+    vi.useFakeTimers()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const indexFetch = vi.fn(async () => ({ entries: [] }))
+    client.setQueryData(['catalog-search-index', 'fonte', 'movie'], { entries: [] })
+    const unsubscribe = new QueryObserver(client, { queryKey: ['catalog-search-index', 'fonte', 'movie'], queryFn: indexFetch, staleTime: Infinity }).subscribe(() => {})
+    const invalidator = createPrefetchInvalidator(client, 10, 10_000)
+    invalidator.categoryDone('fonte', 1, 'movie')
+    await vi.advanceTimersByTimeAsync(10)
+    invalidator.categoryDone('fonte', 2, 'movie')
+    await vi.advanceTimersByTimeAsync(10) // dentro da janela: fica uma remontagem agendada
+    invalidator.dispose()
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(indexFetch).toHaveBeenCalledTimes(1)
+    unsubscribe()
+    client.clear()
+  })
+})
+
 describe('createPrefetchInvalidator × "Todos" aos poucos', () => {
   it('com muitas páginas lidas: marca como velha sem reler; com poucas: relê', async () => {
     vi.useFakeTimers()

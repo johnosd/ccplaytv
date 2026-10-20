@@ -154,30 +154,26 @@ afterEach(async () => {
   await db.userStates.where('sourceId').equals(SOURCE_ID).delete()
 })
 
-// Ad-hoc 2026-10-09: abrir a vitrine sem as leituras locais em mãos não desenha fileira por fileira conforme chegam — o
-// "Continue assistindo" chegava segundos depois e empurrava as de baixo. Fica em "Carregando" e desenha tudo de uma vez.
-describe('VodShowcaseScreen — fileiras assentadas ao abrir', () => {
-  it('sem o histórico ainda: "Carregando" com "Voltar" focável; quando chega, as fileiras aparecem juntas e o Continue já é a 1ª', async () => {
+// Feature 079: as fileiras prontas aparecem após a janela curta e as tardias entram na posição canônica.
+describe('VodShowcaseScreen — fileiras progressivas ao abrir', () => {
+  it('sem o histórico ainda: mostra as fileiras prontas e insere Continue quando ele chega', async () => {
     mockData({ added: [item('A'), item('B')] })
     vi.mocked(catalogApi.useHistoryContent).mockReturnValue({ data: undefined, isLoading: true } as unknown as ReturnType<typeof catalogApi.useHistoryContent>)
     // Tempo controlado: com relógio real, sob a carga da suíte inteira o teto de 2 s chegava antes do Enter (feature 079).
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    const { rerenderShowcase, onBack } = renderShowcase('movies')
+    const { rerenderShowcase } = renderShowcase('movies')
 
     // Feature 079 (FR-004): o "Carregando" só aparece depois de 300 ms — antes, nada pisca.
     expect(screen.queryByText('Carregando filmes…')).not.toBeInTheDocument()
     act(() => {
       vi.advanceTimersByTime(300)
     })
-    expect(screen.getByText('Carregando filmes…')).toBeInTheDocument()
-    expect(document.querySelectorAll('section.vod-row')).toHaveLength(0)
-    tap('ArrowDown') // nada se move por trás do carregamento
-    tap('Enter')
-    expect(onBack).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Carregando filmes…')).not.toBeInTheDocument()
+    expect(document.querySelectorAll('section.vod-row').length).toBeGreaterThan(0)
 
     mockData({ history: [item('H')], added: [item('A'), item('B')] })
     rerenderShowcase()
-    // As leituras do TMDB/"Bem avaliados" deste arquivo são reais e seguem pendentes: a vitrine revela no teto (2 s).
+    // As leituras do TMDB/"Bem avaliados" deste arquivo são reais e continuam podendo chegar depois.
     act(() => {
       vi.advanceTimersByTime(1700)
     })

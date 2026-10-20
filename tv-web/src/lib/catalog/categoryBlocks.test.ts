@@ -236,7 +236,7 @@ describe('readKindPage — "Todos" aos poucos (feature 039, T022)', () => {
     let cursor: number | undefined = 0
     while (cursor !== undefined) {
       const page = await readKindPage(SOURCE_ID, 'channel', cursor, 4, database)
-      const pageNames = page.chunks.flatMap((chunk) => ('block' in chunk ? chunk.block.items : chunk.rows).map((item) => item.name))
+      const pageNames = page.chunks.flatMap((chunk) => ('block' in chunk ? (chunk.block.items ?? []) : chunk.rows).map((item) => item.name))
       names.push(...pageNames)
       pageSizes.push(pageNames.length)
       cursor = page.next
@@ -286,7 +286,7 @@ describe('readKindCursorPage — janela por categoria e revisão (feature 065, T
 
     const restarted = await readKindCursorPage(SOURCE_ID, 'channel', first.next, 1, database)
 
-    expect(restarted.items.map((item) => item.name)).toEqual(['novo'])
+    expect((restarted.items ?? []).map((item) => item.name)).toEqual(['novo'])
   })
 })
 
@@ -363,8 +363,8 @@ describe('getActiveCategoryBlock (feature 039, R-009 — caminho rápido de abri
 
     const block = await getActiveCategoryBlock(SOURCE_ID, categoryId, database)
     const listed = await listChannels(SOURCE_ID, 0, 0, 10, 'channel', database)
-    expect(block?.items.map((item) => item.name)).toEqual(['B', 'A', 'C'])
-    expect(block?.items.map((item) => item.id)).toEqual(listed.map((record) => record.id))
+    expect((block?.items ?? []).map((item) => item.name)).toEqual(['B', 'A', 'C'])
+    expect((block?.items ?? []).map((item) => item.id)).toEqual(listed.map((record) => record.id))
   })
 
   it('sem bloco (formato antigo), de outra fonte ou de geração que não é a ativa: undefined', async () => {

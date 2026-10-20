@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-18",
+  "quotaBytes": 83886080,
+  "storageErrors": [],
+  "usage": 7933418,
+  "quota": 83886080,
+  "tables": {
+    "categories": 104,
+    "epgPrograms": 9897,
+    "categoryBlocks": 1,
+    "catalogReadManifests": 0,
+    "catalogReadChunks": 0,
+    "categoryChunks": 0,
+    "epgChunks": 0
+  }
+}

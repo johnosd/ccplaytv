@@ -1,5 +1,6 @@
 const reasons = new Map([
-  ['QuotaExceededError', 'QUOTA'], ['NotFoundError', 'TABLE'], ['SchemaError', 'SCHEMA'],
+  // `StorageFullError`: a gravação já liberou o que podia e repetiu (`withStorageRelief`, feature 082) — é cota.
+  ['QuotaExceededError', 'QUOTA'], ['StorageFullError', 'QUOTA'], ['NotFoundError', 'TABLE'], ['SchemaError', 'SCHEMA'],
   ['VersionError', 'VERSION'], ['InvalidStateError', 'STATE'], ['TransactionInactiveError', 'TRANSACTION'],
   ['AbortError', 'ABORT'], ['DatabaseClosedError', 'CLOSED'], ['OpenFailedError', 'OPEN'],
   ['DataCloneError', 'CLONE'], ['SecurityError', 'SECURITY'], ['TypeError', 'TYPE'],

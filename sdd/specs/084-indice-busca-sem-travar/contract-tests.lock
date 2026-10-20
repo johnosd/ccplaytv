@@ -1,0 +1,22 @@
+{
+  "feature": "084-indice-busca-sem-travar",
+  "lockedAt": "2026-10-20 06:39",
+  "total": 4,
+  "files": [
+    {
+      "path": "tv-web/src/lib/catalog/catalogSearch.indice-sem-travar.contract.test.ts",
+      "sha256": "9a54c55e9255ec1a21380f8431a49f8ba11d177c5dcb2e959c34368d96e16850",
+      "tests": 2
+    },
+    {
+      "path": "tv-web/src/features/vod/vodSort.indice-sem-travar.contract.test.ts",
+      "sha256": "f1a8269dc8a2b219533395d5d7df0a17d9e47f307e48b733131c34f3731960dd",
+      "tests": 1
+    },
+    {
+      "path": "tv-web/src/features/catalog/prefetchApi.indice-sem-travar.contract.test.ts",
+      "sha256": "b23718b7648950774982f92561c042c27dadd7d39d43a4c4e20c417ea4d166ac",
+      "tests": 1
+    }
+  ]
+}
