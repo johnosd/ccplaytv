@@ -599,6 +599,19 @@ describe('VodCategoryScreen — Ordenar (feature 025, US4, T050)', () => {
     expect(focusedTitle()).toBe('Filme A')
   })
 
+  // Feature 084 (FR-005/FR-009/FR-010): lista grande ordena em fatias; enquanto isso, o carregando tem saída focável.
+  it('"Todos" grande: ordenando mostra o carregando com "Voltar" focável e depois a grade na ordem certa', async () => {
+    mockAggregated(Array.from({ length: 2_500 }, (_, index) => movie(`Filme ${String(index).padStart(4, '0')}`, `m${index}`, 2000, index)))
+    const { onBack } = renderCategory({ kind: 'all', sort: 'added' })
+    expect(document.querySelector('.vod-state-wrapper')).not.toBeNull()
+    expect(document.querySelector('.vod-state-wrapper .tv-focus')).not.toBeNull()
+    press('Enter')
+    expect(onBack).toHaveBeenCalledTimes(1)
+
+    await waitFor(() => expect(document.querySelector('.vod-state-wrapper')).toBeNull())
+    expect(gridTitles()[0]).toBe('Filme 2499') // mais recente primeiro
+  })
+
   it('a ordenação escolhida vale para outra categoria da mesma seção e sobrevive a desmontar/remontar', () => {
     mockCategories([category(1, 'Ação', 0), category(2, 'Drama', 1)])
     mockContentByCategory({

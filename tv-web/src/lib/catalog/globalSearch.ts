@@ -8,6 +8,7 @@
 
 import { loadSearchIndex, normalizeForSearch, searchWithinItems, type SearchIndex } from './catalogSearch'
 import { db, type CatalogDb, type CatalogRecord } from './db'
+import type { SliceOptions } from '../slices'
 
 /**
  * Mínimo do termo NORMALIZADO para haver resultado (FR-039). Próprio da
@@ -32,12 +33,20 @@ export interface GlobalSearchResult {
   totalCategories: number
 }
 
-/** Lê os três índices da lista (um `loadSearchIndex` por tipo). */
-export async function loadGlobalSearchIndex(sourceId: string, database: CatalogDb = db): Promise<GlobalSearchIndex> {
+/**
+ * Lê os três índices da lista (um `loadSearchIndex` por tipo), em fatias e canceláveis (feature 084), já com o nome
+ * normalizado aquecido: a 1ª tecla não normaliza dezenas de milhares de nomes de uma vez.
+ */
+export async function loadGlobalSearchIndex(
+  sourceId: string,
+  database: CatalogDb = db,
+  options: SliceOptions = {},
+): Promise<GlobalSearchIndex> {
+  const sliced = { ...options, normalize: true }
   const [channel, movie, series] = await Promise.all([
-    loadSearchIndex(sourceId, 'channel', database),
-    loadSearchIndex(sourceId, 'movie', database),
-    loadSearchIndex(sourceId, 'series', database),
+    loadSearchIndex(sourceId, 'channel', database, sliced),
+    loadSearchIndex(sourceId, 'movie', database, sliced),
+    loadSearchIndex(sourceId, 'series', database, sliced),
   ])
   return { channel, movie, series }
 }

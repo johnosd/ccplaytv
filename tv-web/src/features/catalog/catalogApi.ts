@@ -63,6 +63,7 @@ import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { type SeriesWatchedSummary } from '../../lib/catalog/seriesWatchedSummary'
 import { loadSeriesWatchedSummaries } from './seriesSummaryApi'
 import { buildSearchIndex, compactSearchRecord, isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
+import { NO_AGGREGATED_ITEMS, loadAggregatedItems } from './aggregatedIndex'
 import { createRecentlyAddedAccumulator } from '../vod/vodShowcase'
 import { primaryProgress, type PrimaryProgress } from '../vod/detailProgress'
 import { pickBecauseSeed, type BecauseSeedKind } from '../../lib/catalog/becauseSeed'
@@ -1477,7 +1478,7 @@ export function useMyListContent(sourceId: string | null) {
 export function useGlobalSearchIndex(sourceId: string | null) {
   return useQuery({
     queryKey: ['global-search-index', sourceId],
-    queryFn: () => loadGlobalSearchIndex(sourceId as string, db),
+    queryFn: ({ signal }) => loadGlobalSearchIndex(sourceId as string, db, { signal }),
     enabled: sourceId !== null,
     staleTime: 0,
     refetchOnMount: 'always',
@@ -1572,7 +1573,7 @@ export function useAggregatedItems(
   // cobertura (mesmo padrão de `useCatalogSearch`, D-005 do plan.md).
   const indexQuery = useQuery({
     queryKey: ['catalog-search-index', sourceId, kind],
-    queryFn: () => loadSearchIndex(sourceId as string, kind as SearchableKind),
+    queryFn: ({ signal }) => loadAggregatedItems(sourceId as string, kind as SearchableKind, (record) => toItemOut(record, kind), { signal }),
     enabled: enabled && !progressive && sourceId !== null,
     staleTime: 0,
     refetchOnMount: 'always',
@@ -1603,10 +1604,6 @@ export function useAggregatedItems(
     refetchOnMount: 'always',
   })
 
-  const indexItems = useMemo(() => {
-    if (!indexQuery.data) return []
-    return indexQuery.data.entries.map((entry) => toItemOut(entry.record, kind))
-  }, [indexQuery.data, kind])
   const pageItems = useMemo(() => pagesQuery.data?.pages.flatMap((page) => page.items) ?? [], [pagesQuery.data])
 
   const { hasNextPage, isFetching, fetchNextPage } = pagesQuery
@@ -1626,7 +1623,7 @@ export function useAggregatedItems(
     }
   }
   return {
-    items: indexItems,
+    items: indexQuery.data?.items ?? NO_AGGREGATED_ITEMS,
     coveredCategories: indexQuery.data?.coveredCategories ?? 0,
     totalCategories: indexQuery.data?.totalCategories ?? 0,
     isLoading: indexQuery.isLoading,

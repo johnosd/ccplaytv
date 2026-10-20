@@ -5,7 +5,8 @@ import { blockRecords, blocksOfKind } from '../categoryBlocks'
 import { FavoritesScanComplete, KEY_MAX, KEY_MIN, activeGenerationOf, query } from './shared'
 import { categoryWindowInfo, readCategoryWindow } from './categoryWindow'
 import { getCategoryAccess } from '../categoryAccess'
-import { readHeaderChunks } from '../blockChunks'
+import { iterateHeaderChunks, readHeaderChunks } from '../blockChunks'
+import { stableSortInSlices, type SliceClock } from '../../slices'
 
 /** Categorias do tipo na geração ativa, na ordem de `order`, sem as escondidas/bloqueadas (feature 066). */
 async function visibleCategoriesOfKind(database: CatalogDb, sourceId: string, generation: number, kind: CatalogItemKind) {
@@ -24,11 +25,15 @@ async function visibleCategoriesOfKind(database: CatalogDb, sourceId: string, ge
  * busca local (feature 017), que lê uma vez e filtra em memória (D-002 do
  * `plan.md` da 017). Nunca use isto para uma tela renderizar direto: sem
  * paginação, é exatamente o que `listChannels` existe para evitar.
+ *
+ * Feature 084: com `clock`, o resultado é o mesmo, mas lê um bloco por vez (não `Promise.all`, que junta tudo numa leva
+ * só), cede a vez à interface a cada bloco e se deixa cancelar pelo sinal do relógio.
  */
 export async function listAllOfKind(
   sourceId: string,
   kind: CatalogItemKind,
   database: CatalogDb = db,
+  clock?: SliceClock,
 ): Promise<CatalogRecord[]> {
   const generation = await activeGenerationOf(sourceId, database)
   if (generation === undefined) return []
@@ -42,9 +47,30 @@ export async function listAllOfKind(
   const rows = (await query(database, sourceId, generation, undefined, kind).toArray()).filter((row) => !access.isExcludedRecord(row))
   if (blocks.length === 0) return rows
   blocks.sort((a, b) => a.groupOrder - b.groupOrder)
-  const records = (await Promise.all(blocks.map((block) => block.format === 2 ? readHeaderChunks(database, block) : blockRecords(block)))).flat()
+  const read = (block: CategoryBlockRecord) => block.format === 2 ? readHeaderChunks(database, block) : blockRecords(block)
+  let records: CatalogRecord[]
+  if (clock) {
+    const parts: CatalogRecord[][] = []
+    for (const block of blocks) {
+      clock.check()
+      if (block.format === 2) {
+        // Um pedaço (500 itens) por vez: ler e converter a categoria inteira numa tarefa só travava a tela da TV.
+        for await (const part of iterateHeaderChunks(database, block)) {
+          parts.push(part)
+          await clock.maybeYield()
+        }
+      } else {
+        parts.push(await read(block))
+      }
+      await clock.maybeYield(true)
+    }
+    records = parts.flat()
+  } else {
+    records = (await Promise.all(blocks.map(read))).flat()
+  }
   if (rows.length === 0) return records
-  return [...records, ...rows].sort((a, b) => a.groupOrder - b.groupOrder)
+  const byGroupOrder = (a: CatalogRecord, b: CatalogRecord) => a.groupOrder - b.groupOrder
+  return clock ? stableSortInSlices([...records, ...rows], byGroupOrder, clock) : [...records, ...rows].sort(byGroupOrder)
 }
 
 /** Um pedaço de uma página de "Todos": o bloco de uma categoria, ou as linhas dela (formato antigo). */

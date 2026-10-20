@@ -8,6 +8,7 @@
 
 import type { CatalogItemOut } from '../catalog/catalogApi'
 import type { MessageKey } from '../../lib/i18n/messages/pt'
+import { createSliceClock, stableSortInSlices } from '../../lib/slices'
 import { compareByRating, finiteAddedAt, validProviderRating } from './vodShowcase'
 
 /** `source` = ordem da fonte (padrão). */
@@ -65,18 +66,24 @@ const collator = new Intl.Collator('pt-BR', { sensitivity: 'base' })
  * fim; empates mantêm a ordem da fonte (FR-020).
  */
 export function sortVodItems(items: CatalogItemOut[], option: VodSortOption): CatalogItemOut[] {
+  return option === 'source' ? [...items] : [...items].sort(comparatorFor(option))
+}
+
+/**
+ * O comparador de cada ordenação (todas menos "ordem da fonte", que não reordena). Único: `sortVodItems` e
+ * `sortVodItemsInSlices` o usam, então as duas nunca divergem (feature 084, D-002).
+ */
+export function comparatorFor(option: Exclude<VodSortOption, 'source'>): (a: CatalogItemOut, b: CatalogItemOut) => number {
   switch (option) {
-    case 'source':
-      return [...items]
     case 'az':
-      return [...items].sort((a, b) => collator.compare(a.name, b.name))
+      return (a, b) => collator.compare(a.name, b.name)
     case 'year':
-      return [...items].sort(withMissingLast((item) => item.year, 'desc'))
+      return withMissingLast((item) => item.year, 'desc')
     case 'added':
-      return [...items].sort(withMissingLast((item) => item.added_at, 'desc'))
+      return withMissingLast((item) => item.added_at, 'desc')
     case 'rating':
       // Feature 056 (`logic/bem-avaliados.md` §2): mesma ordem de "Bem avaliados"; sem nota válida vai ao fim, na ordem da fonte.
-      return [...items].sort((a, b) => {
+      return (a, b) => {
         const aRating = validProviderRating(a.provider_rating)
         const bRating = validProviderRating(b.provider_rating)
         if (aRating === undefined && bRating === undefined) return 0
@@ -86,6 +93,28 @@ export function sortVodItems(items: CatalogItemOut[], option: VodSortOption): Ca
           { rating: aRating, addedAt: finiteAddedAt(a.added_at) },
           { rating: bRating, addedAt: finiteAddedAt(b.added_at) },
         )
-      })
+      }
   }
+}
+
+/** Feature 084: ordenar sem tarefa longa na TV. */
+export interface SortInSlicesOptions {
+  /** Cancela (tela fechada, outra ordenação pedida): rejeita com `AbortError`. */
+  signal?: AbortSignal
+  /** Como ceder a vez à interface entre fatias (padrão: `yieldToMain`); injetável nos testes. */
+  yieldToMain?: () => Promise<void>
+}
+
+/**
+ * Mesmo resultado de `sortVodItems(items, option)` — mesma ordem, inclusive nos empates (ordem da fonte) —, mas em
+ * fatias que cedem a vez à interface (feature 084, FR-005). Regras em `sdd/specs/084-indice-busca-sem-travar/logic/fatias.md`.
+ */
+export async function sortVodItemsInSlices(
+  items: CatalogItemOut[],
+  option: VodSortOption,
+  options: SortInSlicesOptions = {},
+): Promise<CatalogItemOut[]> {
+  const clock = createSliceClock(options)
+  clock.check()
+  return option === 'source' ? [...items] : stableSortInSlices(items, comparatorFor(option), clock)
 }
