@@ -12,7 +12,7 @@ import {
 import { reconcileRun, type ImportHandle } from '../../lib/catalog/importPipeline'
 import { runImport } from '../../lib/catalog/importRunner'
 import { decideOnOpen } from '../../lib/catalog/freshness'
-import { EPG_ERROR_CODE, epgErrorMessage, isEpgDueAfterImport, isEpgStale, isValidEpgUrl } from '../../lib/epg/epgStatus'
+import { EPG_ERROR_CODE, EPG_STALE_AFTER_MS, epgErrorMessage, isEpgDueAfterImport, isEpgStale, isValidEpgUrl } from '../../lib/epg/epgStatus'
 import { isEpgSyncing, requestEpgSync, subscribeEpgSyncing } from '../../lib/epg/epgRunner'
 import { setEpgEnabled, setEpgManualUrl, setEpgOffsetHours } from '../../lib/epg/epgRepository'
 import type { EpgStatus } from '../../lib/epg/types'
@@ -23,7 +23,7 @@ import { forgetLiveSource } from '../live/liveSessionMemory'
 
 // Telas falam só com `importApi`/`catalogApi`, nunca com `lib/` direto (D-001
 // da feature 005): o que a tela de EPG precisa de `lib/epg` sai por aqui.
-export { EPG_ERROR_CODE, epgErrorMessage, isValidEpgUrl }
+export { EPG_ERROR_CODE, EPG_STALE_AFTER_MS, epgErrorMessage, isValidEpgUrl }
 export type { EpgStatus }
 import { logger } from '../../lib/logger'
 

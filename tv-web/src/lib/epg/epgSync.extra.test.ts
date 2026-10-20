@@ -129,3 +129,40 @@ describe('syncEpg — fora do contrato', () => {
     expect(await titles()).toEqual(['Agora'])
   })
 })
+
+describe('syncEpg — download parado e fases (bug "Sincronizando" eterno)', () => {
+  it('corpo que para de chegar é abortado pelo limite de parada e vira falha network, sem gravar nada', async () => {
+    const stuck = new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new TextEncoder().encode('<?xml version="1.0"?><tv>')) },
+      // nunca fecha nem envia mais nada
+    })
+    const result = await syncEpg(SOURCE_ID, { database, now: () => NOW, stallMs: 80, fetchImpl: (async (_url: unknown, init?: RequestInit) => {
+      init?.signal?.addEventListener('abort', () => { void stuck.cancel().catch(() => undefined) })
+      return new Response(stuck)
+    }) as typeof fetch })
+    expect(result).toEqual({ outcome: 'failed', errorKind: 'network' })
+    expect(await epgChunks(database).count()).toBe(0)
+  })
+
+  it('servidor que nunca responde (nem cabeçalhos) também vira falha network', async () => {
+    const result = await syncEpg(SOURCE_ID, { database, now: () => NOW, stallMs: 80, fetchImpl: ((_url: unknown, init?: RequestInit) =>
+      new Promise((_resolve, reject) => init?.signal?.addEventListener('abort', () => reject(new DOMException('abortado', 'AbortError'))))) as typeof fetch })
+    expect(result).toEqual({ outcome: 'failed', errorKind: 'network' })
+  })
+
+  it('cancelamento de quem chamou continua propagando AbortError (não vira falha)', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    await expect(syncEpg(SOURCE_ID, { database, now: () => NOW, signal: controller.signal, fetchImpl: ((_url: unknown, init?: RequestInit) =>
+      Promise.reject(init?.signal?.aborted ? new DOMException('x', 'AbortError') : new Error('não abortou'))) as typeof fetch })).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('onPhase marca config, headers, room, read e written, em ordem, com ms crescentes', async () => {
+    const phases: Array<[string, number]> = []
+    const result = await syncEpg(SOURCE_ID, { database, now: () => NOW, onPhase: (phase, ms) => phases.push([phase, ms]), fetchImpl: (async () => new Response(XML)) as typeof fetch })
+    expect(result.outcome).toBe('synced')
+    expect(phases.map(([phase]) => phase)).toEqual(['config', 'headers', 'room', 'read', 'written'])
+    const times = phases.map(([, ms]) => ms)
+    expect([...times].sort((a, b) => a - b)).toEqual(times)
+  })
+})

@@ -14,7 +14,8 @@
  */
 
 import type { EpgWorkerResponse } from './epgWorker'
-import { syncEpg, type SyncEpgResult } from './epgSync'
+import { emitMetric } from '../perf/metricsChannel'
+import { syncEpg, type EpgPhase, type SyncEpgResult } from './epgSync'
 
 type FinishedListener = (sourceId: string, result: SyncEpgResult) => void
 
@@ -23,6 +24,11 @@ const syncingListeners = new Set<() => void>()
 const finishedListeners = new Set<FinishedListener>()
 
 const FAILED_UNREADABLE: SyncEpgResult = { outcome: 'failed', errorKind: 'unreadable' }
+
+/** Fase do guia → canal de métricas (no-op fora do build de medição). */
+function reportPhase(phase: EpgPhase, ms: number): void {
+  emitMetric({ source: 'epg', phase, ms })
+}
 
 function createWorker(): Worker | undefined {
   if (typeof Worker === 'undefined') return undefined
@@ -38,7 +44,7 @@ function createWorker(): Worker | undefined {
 
 function runInWorker(sourceId: string): Promise<SyncEpgResult> {
   const worker = createWorker()
-  if (!worker) return syncEpg(sourceId).catch(() => FAILED_UNREADABLE)
+  if (!worker) return syncEpg(sourceId, { onPhase: reportPhase }).catch(() => FAILED_UNREADABLE)
 
   return new Promise<SyncEpgResult>((resolve) => {
     let settled = false
@@ -51,7 +57,8 @@ function runInWorker(sourceId: string): Promise<SyncEpgResult> {
 
     worker.onmessage = (event: MessageEvent<EpgWorkerResponse>) => {
       const message = event.data
-      if (message.type === 'done') settle(message.result)
+      if (message.type === 'progress') reportPhase(message.phase, message.ms)
+      else if (message.type === 'done') settle(message.result)
       else settle(FAILED_UNREADABLE)
     }
     worker.onerror = () => {
@@ -60,11 +67,12 @@ function runInWorker(sourceId: string): Promise<SyncEpgResult> {
       if (settled) return
       settled = true
       worker.terminate()
-      void syncEpg(sourceId)
+      void syncEpg(sourceId, { onPhase: reportPhase })
         .catch(() => FAILED_UNREADABLE)
         .then(resolve)
     }
     worker.postMessage({ type: 'sync', sourceId })
+    reportPhase('sent', 0)
   })
 }
 
@@ -80,7 +88,10 @@ export function requestEpgSync(sourceId: string): Promise<SyncEpgResult> {
   const existing = inFlight.get(sourceId)
   if (existing) return existing
 
+  const startedAt = performance.now()
   const promise = runInWorker(sourceId).then((result) => {
+    // Feature 085/082 (SC-007): tempo total da sincronização (rede + leitura + gravação), só números e rótulos fixos.
+    emitMetric({ source: 'epg', outcome: result.outcome, errorKind: result.errorKind, programs: result.programCount, totalMs: Math.round(performance.now() - startedAt) })
     inFlight.delete(sourceId)
     notifySyncing()
     for (const listener of [...finishedListeners]) listener(sourceId, result)

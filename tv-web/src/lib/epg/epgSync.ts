@@ -38,7 +38,17 @@ export interface SyncEpgOptions {
   /** Injetável para teste; padrão `fetch` global. */
   fetchImpl?: typeof fetch
   signal?: AbortSignal
+  /** Sem receber nada por este tempo, o download é abortado e vira falha `network` (bug "Sincronizando" eterno). */
+  stallMs?: number
+  /** Marcas de progresso (só rótulo fixo + ms desde o início): o build de medição as manda ao coletor. */
+  onPhase?: (phase: EpgPhase, ms: number) => void
 }
+
+/** `sent` = pedido enviado ao Worker; `start` = o Worker o recebeu; `config` = fonte e endereço lidos (antes do download); `headers` = resposta recebida; `room` = orçamento ok; `read` = download + leitura do XML acabaram; `written` = gravado. */
+export type EpgPhase = 'sent' | 'start' | 'config' | 'headers' | 'room' | 'read' | 'written'
+
+/** O download parado há tanto tempo não volta (rede da TV, servidor que não fecha o corpo). Largo de propósito: o guia real é lento. */
+export const EPG_STALL_MS = 60_000
 
 export interface SyncEpgResult {
   /** `skipped` = sem endereço configurado, EPG desativado ou fonte inexistente. */
@@ -63,6 +73,39 @@ export async function syncEpg(sourceId: string, options: SyncEpgOptions = {}): P
   const target = resolveEpgUrl(record)
   if (!target) return { outcome: 'skipped' }
 
+  const startedAt = performance.now()
+  const phase = (name: EpgPhase) => options.onPhase?.(name, Math.round(performance.now() - startedAt))
+  const guard = new AbortController()
+  const onOuterAbort = () => guard.abort()
+  options.signal?.addEventListener('abort', onOuterAbort)
+  if (options.signal?.aborted) guard.abort()
+  let stalled = false
+  let stallTimer: ReturnType<typeof setTimeout> | undefined
+  let rejectStalled: (reason: unknown) => void = () => undefined
+  // Rejeita quando o download para: a leitura do corpo não depende de o `fetch` propagar o aborto até o leitor.
+  const stalledSignal = new Promise<never>((_resolve, reject) => { rejectStalled = reject })
+  stalledSignal.catch(() => undefined)
+  const arm = () => {
+    clearTimeout(stallTimer)
+    stallTimer = setTimeout(() => {
+      stalled = true
+      guard.abort()
+      rejectStalled(new DOMException('Download parado.', 'AbortError'))
+    }, options.stallMs ?? EPG_STALL_MS)
+  }
+  const disarm = () => clearTimeout(stallTimer)
+  async function* stallGuarded(chunks: AsyncIterable<string>): AsyncGenerator<string> {
+    const iterator = chunks[Symbol.asyncIterator]()
+    for (;;) {
+      const next = await Promise.race([iterator.next(), stalledSignal])
+      if (next.done) break
+      arm()
+      yield next.value
+    }
+    disarm()
+  }
+
+  phase('config')
   const syncAt = now()
   const offsetHours = Math.abs(record.epgOffsetHours ?? 0)
   const window = {
@@ -73,7 +116,8 @@ export async function syncEpg(sourceId: string, options: SyncEpgOptions = {}): P
   try {
     let response: Response
     try {
-      response = await doFetch(target.url, options.signal ? { signal: options.signal } : undefined)
+      arm()
+      response = await doFetch(target.url, { signal: guard.signal })
     } catch (error) {
       if (isAbortError(error)) throw error
       throw new EpgFailure('network')
@@ -81,13 +125,21 @@ export async function syncEpg(sourceId: string, options: SyncEpgOptions = {}): P
     if (response.status === 401 || response.status === 403) throw new EpgFailure('refused')
     if (!response.ok || !response.body) throw new EpgFailure('network')
 
-    const chunks = requireXmltvRoot(textChunks(response.body))
+    phase('headers')
+    arm()
+    const chunks = stallGuarded(requireXmltvRoot(textChunks(response.body)))
     // Feature 082: o guia novo substitui o atual — o que ele apaga ao publicar sai da conta (num banco cheio de linhas
     // antigas, sem isso o próprio guia velho barraria o novo). Sem histórico, ~1 MB (o real comprimido mede ~0,6 MB).
     const current = await guideStoredBytes(database, record)
     const room = await makeRoomFor(sourceId, (record.epgStoredBytes ?? EPG_ESTIMATE_BYTES) - current.bytes, { database, mode: 'prefetch' })
     if (!room.fits) return { outcome: 'failed', errorKind: 'storage_full' }
-    const { programCount } = await writeEpgPrograms(sourceId, parseXmltv(chunks, window), database)
+    phase('room')
+    async function* observed() {
+      yield* parseXmltv(chunks, window)
+      phase('read')
+    }
+    const { programCount } = await writeEpgPrograms(sourceId, observed(), database)
+    phase('written')
 
     // Fonte removida ou EPG desativado enquanto rodava (FR-011): o resultado
     // é descartado — nada fica gravado para uma fonte que não quer mais isso.
@@ -100,10 +152,13 @@ export async function syncEpg(sourceId: string, options: SyncEpgOptions = {}): P
     await recordEpgSuccess(sourceId, syncAt, database)
     return { outcome: 'synced', programCount }
   } catch (error) {
-    if (isAbortError(error)) throw error
-    const errorKind = categorize(error)
+    if (isAbortError(error) && !stalled) throw error
+    const errorKind = stalled ? 'network' : categorize(error)
     // Só a categoria é registrada; a fonte pode ter sumido no meio.
     if (await database.sources.get(sourceId)) await recordEpgFailure(sourceId, errorKind, now(), database)
     return { outcome: 'failed', errorKind }
+  } finally {
+    disarm()
+    options.signal?.removeEventListener('abort', onOuterAbort)
   }
 }
