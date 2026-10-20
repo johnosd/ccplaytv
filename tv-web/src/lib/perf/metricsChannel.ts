@@ -12,7 +12,7 @@
 export const METRICS_SCHEMA = 'ccplay-app-metrics/1'
 
 /** Quem emitiu a linha. Rótulo fixo, definido no código. */
-export type MetricSource = 'section-load' | 'entry' | 'frames' | 'assembly' | 'epg'
+export type MetricSource = 'section-load' | 'entry' | 'frames' | 'assembly' | 'epg' | 'budget'
 
 /** Uma linha já saneada: `source` + campos numéricos finitos + rótulos da lista fixa. */
 export type MetricLine = { source: MetricSource } & Record<string, number | string>
@@ -26,7 +26,7 @@ export interface MetricsChannel {
   pending(): number
 }
 
-const SOURCES: ReadonlySet<string> = new Set<MetricSource>(['section-load', 'entry', 'frames', 'assembly', 'epg'])
+const SOURCES: ReadonlySet<string> = new Set<MetricSource>(['section-load', 'entry', 'frames', 'assembly', 'epg', 'budget'])
 
 /**
  * Únicas strings que podem sair, todas literais do código. Nunca entra aqui um valor que poderia ter vindo da lista
@@ -41,6 +41,8 @@ const LABELS: ReadonlySet<string> = new Set([
   'home', 'movies', 'cache', 'ready', 'cap',
   // SyncEpgResult.outcome / EpgErrorKind (literais de `lib/epg`)
   'synced', 'skipped', 'network', 'refused', 'unreadable',
+  // BudgetMode (`makeRoomFor`)
+  'entry', 'prefetch', 'probe',
   // EpgPhase
   'sent', 'start', 'config', 'headers', 'room', 'read', 'written',
 ])

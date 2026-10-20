@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { createActiveFrameTracker, type ActiveFrameStats } from '../lib/perf/activeFrames'
 import { subscribeEntryReports, takeEntryReports, type EntryReport } from '../lib/perf/entryTiming'
 import { emitMetric } from '../lib/perf/metricsChannel'
+import { probeBudget } from '../lib/catalog/storageBudget'
 
 /**
  * Painel de medição da feature 038 (FR-012), só no build de medição
@@ -38,6 +39,8 @@ export function PerfOverlay() {
       const keyed = tracker.snapshot(performance.now())
       emitMetric({ source: 'frames', slow, idleSlow, ...(keyed ? { fps: keyed.fps, worstMs: keyed.worstMs, over50: keyed.over50 } : {}) })
     }, 5_000)
+    // Feature 085/082: o orçamento medido sem gravar nada, 3× (20 s, 80 s e 140 s depois de abrir), para ter as etapas no app real.
+    const budgetTimers = [20_000, 80_000, 140_000].map((delay) => window.setTimeout(() => { void probeBudget() }, delay))
     let previous = performance.now()
     let active = true
     let frame = 0
@@ -56,7 +59,7 @@ export function PerfOverlay() {
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
-    return () => { active = false; cancelAnimationFrame(frame); window.clearInterval(refresh); window.clearInterval(report); window.removeEventListener('keydown', onKey, true) }
+    return () => { active = false; cancelAnimationFrame(frame); window.clearInterval(refresh); window.clearInterval(report); budgetTimers.forEach((timer) => window.clearTimeout(timer)); window.removeEventListener('keydown', onKey, true) }
   }, [])
   const last = reports.slice(-6)
   // A entrada mais recente que já pintou a 1ª página (SC-002 é lido na TV a cada entrada).
