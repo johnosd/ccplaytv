@@ -2,3 +2,5 @@
 .tizen-rds/
 report-target.js
 icon.png
+appReal.js
+cargaWorker.js

@@ -18,36 +18,11 @@ update-bug-status.ps1.
   categoria de 11 mil filmes — `primeiraPágina` e linha `movie:foco … read=`, referência 178 ms), SC-003 (`parado>100ms`
   com a lista aberta, meta 0), SC-004 (3 listas + Atualizar da licença) e SC-007 (guia ≤ 3 s no app real). O pacote de
   medição já está instalado na TV; depois, reinstalar o pacote normal (avisando).
-- [Feature] **Orçamento de memória do app** (origem: sonda 2 da 082).
-  - **Medido**:
-    - RAM total de 1,49 GB, com só ~310 MB livres no início;
-    - `jsHeapSizeLimit` de 364 MB;
-    - **a TV fechou o app perto de 4,4 milhões de objetos pequenos**, sem erro capturável;
-    - buffers externos: 352 MiB alocados até o sistema ficar com < 200 MB livres;
-    - item de catálogo descomprimido: ~460 B de heap (`medir-heap-itens.mjs`);
-    - `performance.memory` não serve na TV (fica sempre em 10 MB).
-  - **Risco**: "Todos" com centenas de milhares de itens (300 mil × 460 B ≈ 138 MB), índices de busca, cache de imagens
-    e o React Query segurando listas inteiras. A 082 só põe teto no cache de pedaços.
-  - **Ideia**: um orçamento de memória por área, medido pela sonda (contagem de objetos e alocação), com leitura sempre
-    paginada.
-  - Próximo passo: `sdd-assess`.
-- [Feature] **Leitura de rede em fluxo mais eficiente** (origem: sonda 2 da 082).
-  - **Medido**: baixar 20 MB inteiros leva 3,8 s (43,8 Mbit/s). Os mesmos 20 MB por `body.getReader()` chegam em
-    3 065 pedaços de ~7 KB e levam **5,9 s, 55 % mais lento**.
-  - **Onde pega**: a importação, a carga por seção e o guia, que leem em fluxo nos Workers.
-  - **Ideia**: juntar os pedaços em buffers maiores antes de decodificar e parsear, ou ler inteiro quando o tamanho
-    cabe com folga na memória. Medir com a lista real pela sonda.
-  - Próximo passo: `sdd-assess`.
-- [Feature] **Ajustes finos de CPU na TV: Worker, ordenação e capas** (origem: sonda 2 da 082).
-  - **Medido**:
-    - mandar 11 mil objetos ao Worker (clone): **195 ms**; o mesmo conteúdo como `ArrayBuffer` transferido: **1,4 ms**;
-    - `structuredClone` (173 ms) é mais lento que `JSON.parse` (84 ms);
-    - ordenar 11 mil nomes: simples 18 ms; `localeCompare` 114 ms; `Intl.Collator` 144 ms;
-    - decodificar uma capa de 300×450 com `img.decode()`: 33 ms; com `createImageBitmap`: 5 ms;
-    - `JSON.parse` a 44 MB/s, ~10× mais lento que o PC.
-  - **Ideia**: revisar as mensagens entre Workers e a interface (mandar bytes, não objetos), as ordenações por nome
-    (chave de ordenação pré-calculada) e a decodificação das capas nas grades.
-  - Próximo passo: `sdd-assess`, com medição antes e depois pela sonda.
+- [Medição] **Abrir "Todos" soma ~30 quadros acima de 100 ms no app real** (origem: feature 084, T020, 2026-10-20, R-008): com o `PerfOverlay`, abrir Filmes → "Todos" → Ordenar A–Z leva `quadros>100ms` de 3 para 32–33 tanto no código antigo quanto no novo (a 084 fatiou índice, conversão e ordenação, que a sonda mostrou serem o congelamento de 933–1 233 ms). A causa dominante no app real é outra ou adicional (render da grade, capas, trabalho por render). Evidência: `sdd/specs/084-indice-busca-sem-travar/evidencias/app-real-perfoverlay-2026-10-20.md`.
+- [Medição] **1ª tecla da busca global com termo de 2 letras** (origem: feature 084, T019, 2026-10-20, R-004): na TV,
+  `searchGlobal` com "ma" (7 317 filmes casando) leva 195–228 ms em uma tarefa só (ordenação síncrona dos acertos por
+  `Intl.Collator`). Passa de 100 ms; fora do escopo da 084. Evidência:
+  `sdd/specs/084-indice-busca-sem-travar/evidencias/quadros-tv-2026-10-20.md`.
 
 
 - [Bug] Desvincular (Portal & licença → Avançado) falhou duas vezes seguidas na TV física com `AbortError`, sem apagar o pareamento (gravação local atômica cancelada; nenhum cadastro chegou ao serviço), logo depois de trocar o pacote da homologação para a produção; funcionou na 1ª tentativa após reinstalar o app. Causa não identificada (o backup antes dele dava 401, mas esse passo não propaga o erro). Origem: 081-venda-producao-mercadopago, T018, 2026-10-17; evidência em `sdd/specs/081-venda-producao-mercadopago/evidencias/tv.md`. Retomar com `sdd-bugfix`: mostrar nome+mensagem do erro e do `inner` do Dexie (diagnóstico usado na 081 em `usePortalAccess.ts`, revertido) e reproduzir com bearer recusado (401) + estado da sessão anterior.
@@ -145,6 +120,7 @@ update-bug-status.ps1.
 | 081-venda-producao-mercadopago | Venda em produção com Mercado Pago | Em Execução | 34/56 tasks | 2026-10-17 |
 | 082-orcamento-armazenamento-tv | Orçamento de armazenamento do app na TV | Implementada | 89/89 tasks | 2026-10-19 |
 | 083-foco-leve-tv | Foco leve na TV | Convergida | 37/37 tasks | 2026-10-19 |
+| 084-indice-busca-sem-travar | Índice de busca sem travar a tela na TV | Em Execução | 31/32 tasks | 2026-10-20 |
 
 ## Bugs
 

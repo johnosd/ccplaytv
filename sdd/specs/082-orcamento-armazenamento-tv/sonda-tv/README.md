@@ -22,3 +22,20 @@ imprimir os valores. Para simular a cota, `tv-web/scripts/bench/simular-cota-tv.
 
 Uma nova medição deve primeiro ser ensaiada no PC com dados sanitizados e uma função pequena em `app2/tests.js`, depois
 instalada na TV somente após nova autorização. Registre o resultado em Markdown na pasta `evidencias/`.
+
+## Memória dos leitores reais (assessment `orcamento-memoria-app-tv`)
+
+`memoria/entrada.ts` importa os leitores reais do app (`loadGlobalSearchIndex`, `loadSearchIndex`, `readKindCursorPage`,
+`sortVodItems`, gravador `writeCompressedBlock`) e `memoria/empacotar.mjs` gera `app2/appReal.js` (ignorado pelo git;
+gere antes de instalar). `app2/memoria.js` define `memoriaLeitores` (busca global e "Todos" com a lista real e com
+~100 mil itens, mais a folga de 2,2 milhões de objetos com a estrutura viva) e `ordenacaoChave` (Collator do app contra
+chave pré-calculada). Instale com `-App app2 -AppId ccpSondaV2.Capacidades -Only ordenacaoChave,memoriaLeitores`.
+
+Também em `app2/memoria.js`: `quadrosIndice` mede os quadros enquanto o índice real é montado (assessment
+`ajustes-cpu-tv`), e `cargaSecao` roda a carga da seção de filmes no Worker `app2/cargaWorker.js` (gerado de
+`memoria/cargaWorker.ts`, com `loadSection` real; assessment `leitura-rede-fluxo-tv`). `cargaSecao` precisa de
+`.amostras/vodraw.json`, gerado por `memoria/gerar-vod-bruto.mjs`. Ordem antes de instalar: `gerar-vod-bruto.mjs` →
+`empacotar.mjs` → `instalar-sonda.ps1 … -Only quadrosIndice,cargaSecao`.
+
+`etapasSecao` (mesmo arquivo) divide a carga real por seção em etapas (ler, preparo, comprimir, orçamento, transação,
+limpar) com a variante `secaoEtapas` do Worker (assessment `gravacao-carga-secao-tv`).

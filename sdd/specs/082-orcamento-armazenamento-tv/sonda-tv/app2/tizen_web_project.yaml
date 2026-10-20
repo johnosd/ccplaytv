@@ -13,6 +13,9 @@ files:
   - report-target.js
   - core.js
   - tests.js
+  - appReal.js
+  - memoria.js
+  - cargaWorker.js
   - worker.js
   - main.js
   - icon.png
