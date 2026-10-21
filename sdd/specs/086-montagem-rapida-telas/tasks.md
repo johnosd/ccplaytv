@@ -415,3 +415,54 @@ Pendências (atualizado 2026-10-21, **3ª revisão — validação final feita**
 - T078 (a montagem faz uma leitura só) só faz sentido depois de T071.
 - A TV está com o **build de medição** instalado; reinstalar o normal ao fechar a fase.
 - `npm run test:e2e` ainda não rodou nesta fase (gate antes da TV).
+
+## Phase 9: Convergence
+
+**Objetivo**: fechar a lacuna que a própria correção de desempenho abriu (a tela deixou de ver a atualização na
+sessão) e resolver o que ficou sem veredito, sem reescrever critério depois de ver resultado.
+
+T081 é CRITICAL e vem primeiro: é regressão de comportamento, não de tempo.
+
+### Implementação
+
+- [ ] T081 Avisar a interface quando o documento de tela é refeito, pelo canal que já existe (`onCategoryDone` em
+      `lib/catalog/prefetch/index.ts`), para a vitrine reler → origem: **FR-008**, **FR-012** (CV-012, CRITICAL).
+      Hoje `refreshMissingScreenDocuments` troca o documento em silêncio: a tela relê **antes** disso, recebe o
+      documento vencido e só vê o conteúdo novo se a pessoa sair e voltar. Aceitar o documento vencido é o que tirou a
+      pré-carga do caminho da abertura (Início 355 ms) — a correção é ligar o aviso, **não** voltar a recusá-lo.
+- [ ] T082 [US2] Casamento com o serviço externo em 2º plano, gravando em `showcaseExternalRows` → origem: **FR-014**
+      (CV-013). Fecha o parcial de T031/T075; `readExternalRow`/`writeExternalRow` já existem e estão testadas.
+- [ ] T083 Decidir o destino de `ScreenDocument.images`: usar (as capas da 1ª tela vindo na mesma leitura, FR-023) ou
+      remover o campo → origem: CV-017.
+- [ ] T084 Rastrear o flake `window is not defined` da suíte completa, ou registrá-lo em `## Cuidados para Retomada`
+      com o que já foi eliminado → origem: **SC-013** (CV-018).
+
+### Decisões que precisam do usuário (não implementar sem resposta)
+
+- [ ] T085 **SC-003**: a 1ª abertura tem 6 leituras pendentes (meta ≤ 2) com o tempo em 313–380 ms. Perguntar se o
+      critério muda (com justificativa registrada) ou se as pendentes devem cair → origem: SC-003 (CV-014).
+- [ ] T086 **SC-005/SC-006**: combinar uma passada curta na TV só para esses dois (atualizar com a tela aberta; sem
+      rede) → origem: CV-015.
+- [ ] T087 **SC-008/009/010/012**: definir método de prova ou declarar não verificáveis nesta TV, como já foi feito
+      com SC-010 (R-010) → origem: CV-016.
+
+### Testes da fase
+
+- [ ] T088 Teste: refazer o documento avisa a interface, e a vitrine passa a mostrar a categoria nova **sem** remontar
+      a tela (T081).
+
+### Critério de Conclusão
+
+1. Os 5 contratos travados verdes e `check-contract-tests.ps1` íntegro (086 e as travas de 052, 056, 065, 066, 079,
+   082, 084, 085, 057, 060).
+2. `npm run test`, `npx tsc -b`, `npm run lint`, `npm run build` e `npm run test:e2e` verdes.
+3. FR-008 verificável por teste: conteúdo novo aparece na sessão, sem sair e voltar.
+4. Cada critério sem veredito **decidido explicitamente** — medido, ou declarado não verificável com o porquê.
+
+### Registro da Fase
+
+Status:
+Feito:
+Contrato:
+Testes executados:
+Pendências:
