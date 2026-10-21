@@ -32,6 +32,12 @@ import { readCredential } from './sourceRepository'
 import { SectionTimer, type SectionLoadTimings } from './sectionTimings'
 import { writeCandidatesBatch, type ShowcaseCandidates } from './showcaseCandidates'
 import { beginSectionLoad } from './loadActivity'
+
+/** Etapa da gravação → campo dos tempos da seção (feature 086, T080). */
+const STAGE_FIELD: Record<string, 'prevIdMs' | 'assignMs' | 'sharedMs' | 'chunksMs' | 'identityMs' | 'pickMs' | 'txMs'> = {
+  prevId: 'prevIdMs', assign: 'assignMs', shared: 'sharedMs', chunks: 'chunksMs', identity: 'identityMs',
+  pick: 'pickMs', tx: 'txMs',
+}
 import {
   isAbortError,
   mapLiveEntry,
@@ -245,6 +251,8 @@ async function runSectionLoad(
         },
         // Feature 086 (FR-003): junta os candidatos de todas as categorias e grava uma vez, no fim desta seção.
         (candidates) => pendingCandidates.push(candidates),
+        // Feature 086 (T080): soma o tempo de cada etapa da gravação, para saber qual delas cresceu.
+        (stage, ms) => { timer.values[STAGE_FIELD[stage] ?? 'prevIdMs'] += ms },
       )
       // Categoria igual à gravada não chama o orçamento: o tempo todo vira "preparar".
       if (roomEnd === 0) timer.add('encodeMs', categoryStart)

@@ -59,10 +59,12 @@ export async function renewCategoryItems(
    * Sem isto, cada categoria grava os seus na hora — o certo quando é uma categoria só.
    */
   collectCandidates?: BlockWriteOptions['collectCandidates'],
+  /** Feature 086 (T080): medição por etapa da gravação, só quando quem chama quer medir. */
+  onStage?: BlockWriteOptions['onStage'],
 ): Promise<{ written: boolean }> {
   try {
     // Feature 082: formato comprimido em pedaços, em duas fases (`blockWrite.ts`) — sem 2ª cópia (projeção 065).
-    const result = await writeCompressedBlock(target, items, now, database, { room, collectCandidates })
+    const result = await writeCompressedBlock(target, items, now, database, { room, collectCandidates, onStage })
     if (result.storageFull) throw new StorageFullError()
     return { written: result.written }
   } catch (error) {

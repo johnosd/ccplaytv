@@ -315,10 +315,15 @@ carga regredida, nenhum número de abertura vale — foi o que invalidou a rodad
       `plan: logic/documento-de-tela.md` P0.1.
 - [X] T068 `fillNextCandidates` ganha orçamento de tempo por rodada e não roda enquanto a carga está ativa, em
       `lib/catalog/prefetch/index.ts` → origem: CV-010 (MEDIUM).
-- [ ] T069 TV (**pedir autorização**): confirmar que a carga por seção voltou à linha de base (séries ≤ ~3,5 s,
+- [X] T069 TV (**pedir autorização**): confirmar que a carga por seção voltou à linha de base (séries ≤ ~3,5 s,
       filmes ≤ ~8 s) → gate de P0. Sem isto, não medir abertura.
-- [ ] T070 TV (**pedir autorização**): sonda `montagem086`, 2 rodadas, para decidir onde o documento de tela mora →
+- [X] T070 TV (**pedir autorização**): sonda `montagem086`, 2 rodadas, para decidir onde o documento de tela mora →
       origem: **R-015**. Critério fixado antes de medir: p95 ≤ 50 ms sob carga real nas duas rodadas.
+- [X] T079 Projetar só os candidatos escolhidos em `pickCandidates` (descoberta durante T069: a projeção criava ~87 mil
+      objetos por carga de filmes) → não alterou o tempo medido, mas reduz trabalho e memória; contrato C1 verde.
+- [X] T080 Medir cada etapa da gravação (`prevId`, `assign`, `shared`, `chunks`, `identity`, `pick`, `tx`) via
+      `BlockWriteOptions.onStage` (descoberta durante T069: `encodeMs` cobria tudo de uma vez). Foi o que mostrou que a
+      3ª sessão não regravou nada — e que a comparação de filmes entre sessões não sustentava a conclusão de regressão.
 - [ ] T071 Documento de tela por tela (`home`, `movies`, `series`) com fileiras, **trilha de categorias** e capas da
       primeira tela; a montagem passa a fazer **uma** leitura → origem: **SC-003**, **CV-007**, R-009, P1 do logic.
 - [ ] T072 O documento mora fora do banco do catálogo, na forma que T070 escolher → origem: **R-015**, P2 do logic.

@@ -343,7 +343,91 @@
     return out
   }
 
+  // ---- teste 4: a trilha de categorias — volume ou fila? ------------------------------------------------------
+  // Na validação, `categoriesMs` (854–991 ms) ficou IGUAL ao `revealMs`: é ela que decide quando a vitrine aparece.
+  // Mas as duas medições foram tiradas durante a carga, então não se sabe se ela é lenta por ler 390 categorias ou
+  // por esperar na fila. A resposta decide o desenho: se for volume, guardar a trilha pronta resolve; se for fila,
+  // só resolve tirá-la do banco disputado.
+  var DB_CAT = 'sonda-086-trilha'
+  async function montagemTrilha() {
+    var out = { categorias: 390 }
+    P.report.results.montagemTrilha = out
+    await P.deleteDb(DB_CAT); await P.deleteDb(DB_A)
+    var db = await P.openDb(DB_CAT, ['categories', 'prefs', 'doc'])
+    var dbCarga = await P.openDb(DB_A, ['staging', 'blocks', 'doc'])
+
+    // 390 categorias com a forma real (o que `listVisibleCategories` lê), mais as preferências por categoria.
+    var categorias = []
+    for (var i = 0; i < out.categorias; i += 1) {
+      categorias.push({ id: i + 1, sourceId: 'f', generation: 1, kind: i % 3 === 0 ? 'movie' : (i % 3 === 1 ? 'series' : 'channel'),
+        fetchMode: 'on_demand', order: i, providerCategoryId: String(100 + i), name: 'Categoria ' + i,
+        itemsFetchedAt: i % 4 === 0 ? undefined : 1700000000000, itemsCount: 1281, storedBytes: 190000 })
+    }
+    await P.tx(db, 'categories', 'readwrite', function (store) {
+      for (var k = 0; k < categorias.length; k += 1) store.put(categorias[k], categorias[k].id)
+    })
+    await P.tx(db, 'prefs', 'readwrite', function (store) {
+      // Uma preferência a cada 10 categorias (escondida/travada), como uma lista de verdade.
+      for (var k = 0; k < categorias.length; k += 10) store.put({ key: 'p:' + (100 + k), hidden: k % 20 === 0, locked: k % 20 !== 0 }, 'p:' + (100 + k))
+    })
+    // A mesma trilha já pronta, como UM registro — a forma do documento de tela.
+    var trilha = categorias.filter(function (c) { return c.kind === 'movie' }).map(function (c) {
+      return { id: c.id, name: c.name, order: c.order, covered: c.itemsFetchedAt !== undefined }
+    })
+    out.trilhaItens = trilha.length
+    await P.tx(db, 'doc', 'readwrite', function (store) { store.put({ categories: trilha }, 'movies') })
+
+    // Ler como hoje: todas as categorias da fonte + as preferências, e filtrar por tipo em memória.
+    function lerPorVarredura() {
+      return new Promise(function (resolve, reject) {
+        var t0 = performance.now()
+        var t = db.transaction(['categories', 'prefs'], 'readonly')
+        var rc = t.objectStore('categories').getAll()
+        var rp = t.objectStore('prefs').getAll()
+        var faltam = 2, lidas = 0
+        function pronto() {
+          faltam -= 1
+          if (faltam > 0) return
+          var visiveis = rc.result.filter(function (c) { return c.kind === 'movie' })
+          lidas = visiveis.length
+          resolve({ ms: performance.now() - t0, ok: lidas > 0 })
+        }
+        rc.onsuccess = pronto; rp.onsuccess = pronto
+        rc.onerror = function () { reject(rc.error) }
+      })
+    }
+    var lerPronta = function () { return lerIdb(db, 'doc', 'movies') }
+
+    out.repouso = {}
+    var meios = [['varredura', lerPorVarredura], ['pronta', lerPronta]]
+    for (var m = 0; m < meios.length; m += 1) {
+      var lat = []
+      for (var r = 0; r < 20; r += 1) { var res = await meios[m][1](); if (res.ok) lat.push(res.ms) }
+      out.repouso[meios[m][0]] = resumo(lat)
+      P.log('trilha repouso ' + meios[m][0] + ': ' + (out.repouso[meios[m][0]] || {}).medianaMs + ' ms')
+    }
+
+    // Agora as duas sob a carga real, mas a carga roda em OUTRO banco: isola o custo de volume do de fila.
+    var amostra = await amostraMovie()
+    var itens = fabricar(amostra, ITENS_POR_CATEGORIA)
+    for (var c2 = 0; c2 < CATEGORIAS; c2 += 1) await gravarStaging(dbCarga, c2, itens)
+    out.carga = {}
+    for (var n = 0; n < meios.length; n += 1) {
+      P.status('086 trilha: carga + ' + meios[n][0])
+      await limparBlocos(dbCarga)
+      var info = await sob(dbCarga, 'real', itens, meios[n][1])
+      out.carga[meios[n][0]] = info
+      P.log('trilha carga ' + meios[n][0] + ': mediana ' + (info.leitura || {}).medianaMs + ' / p95 ' +
+        (info.leitura || {}).p95Ms + ' / max ' + (info.leitura || {}).maxMs + ' ms')
+      await P.send('montagemTrilha-' + meios[n][0])
+    }
+    db.close(); dbCarga.close()
+    await P.deleteDb(DB_CAT); await P.deleteDb(DB_A)
+    return out
+  }
+
   T.montagemContencao = montagemContencao
   T.montagemDocumento = montagemDocumento
   T.montagemBackfill = montagemBackfill
+  T.montagemTrilha = montagemTrilha
 })()

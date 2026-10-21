@@ -50,6 +50,11 @@ export interface BlockWriteOptions {
    * carga de filmes (R-014). Sem isto, a gravação acontece na hora, que é o certo para uma categoria só.
    */
   collectCandidates?: (candidates: ShowcaseCandidates) => void
+  /**
+   * Feature 086 (T080): recebe o tempo de cada etapa da gravação (`prevId`, `assign`, `shared`, `chunks`, `identity`,
+   * `pick`, `tx`). Só para medir — sem ela, nada é cronometrado.
+   */
+  onStage?: (stage: string, ms: number) => void
 }
 
 export class BlockRevisionConflict extends Error {}
@@ -135,11 +140,20 @@ export async function prepareBlockWrite(target: BlockTarget, items: readonly Cat
   const oldCount = old ? (old.format === 2 ? (old.count ?? 0) : (old.items ?? []).length) : undefined
   if (!options.convert && old && category.itemsSignature === signature && oldCount === items.length) return 'unchanged'
 
-  const { previous, legacy } = await previousIdentities(database, target, old)
-  const { blockItems, moves } = assignBlockItems(target, items, previous, category.seriesEpisodesFetchedAt)
-  const shared = sharedOf(blockItems)
-  const encoded = await encodeBlockChunks(blockItems, shared)
-  const identity = await encodeIdentityIndex(blockItems, (item) => identityKey({ ...item, kind: target.kind }))
+  // Medição por etapa (feature 086, T080): o `encodeMs` da carga por seção cobre tudo isto de uma vez, e na TV ele
+  // saltou de 1 262 para ~8 300 ms em filmes sem que se soubesse qual etapa cresceu. Só números, e só quando pedido.
+  const stage = options.onStage
+  const timed = async <T>(name: string, run: () => T | Promise<T>): Promise<T> => {
+    if (!stage) return run()
+    const at = performance.now()
+    try { return await run() } finally { stage(name, performance.now() - at) }
+  }
+
+  const { previous, legacy } = await timed('prevId', () => previousIdentities(database, target, old))
+  const { blockItems, moves } = await timed('assign', () => assignBlockItems(target, items, previous, category.seriesEpisodesFetchedAt))
+  const shared = await timed('shared', () => sharedOf(blockItems))
+  const encoded = await timed('chunks', () => encodeBlockChunks(blockItems, shared))
+  const identity = await timed('identity', () => encodeIdentityIndex(blockItems, (item) => identityKey({ ...item, kind: target.kind })))
   const revision = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
   const storedBytes = encoded.reduce((sum, chunk) => sum + chunk.bytes.byteLength, identity.byteLength + HEADER_BYTES)
   const owner = { categoryId: target.categoryId, sourceId: target.sourceId, generation: target.generation, revision }
@@ -152,9 +166,11 @@ export async function prepareBlockWrite(target: BlockTarget, items: readonly Cat
   // Feature 086 (FR-003/R-013): escolhidos com os itens que já estão em mãos, sem nenhuma leitura extra. `now` do
   // parâmetro é o carimbo de obtenção da categoria; a régua de ano de "Bem avaliados" compara com o ano CORRENTE,
   // então aqui vai `Date.now()` (`logic/selecoes-guardadas.md` §3).
-  const candidates = target.kind === 'movie' || target.kind === 'series'
-    ? pickCandidates({ ...target, kind: target.kind, order: category.order }, blockItems, Date.now())
-    : undefined
+  const rowKind: 'movie' | 'series' | undefined =
+    target.kind === 'movie' ? 'movie' : target.kind === 'series' ? 'series' : undefined
+  const candidates = rowKind === undefined
+    ? undefined
+    : await timed('pick', () => pickCandidates({ ...target, kind: rowKind, order: category.order }, blockItems, Date.now()))
   return { target, expected: headerState(old), header, rows, legacyIds: legacy.map((row) => row.id as number), moves,
     signature, storedBytes, candidates }
 }
@@ -201,7 +217,9 @@ export async function writeCompressedBlock(target: BlockTarget, items: readonly 
     }
     if (options.room && !(await options.room(prepared.storedBytes))) return { written: false, storageFull: true }
     try {
+      const txAt = performance.now()
       const written = await database.transaction('rw', blockWriteTables(database), () => commitBlockWrite(prepared, now, database, options))
+      options.onStage?.('tx', performance.now() - txAt)
       forgetCachedChunks(database, target.categoryId)
       // Feature 086 (FR-003): os candidatos já saíram da codificação (`prepareBlockWrite`). Quem carrega uma seção
       // junta e grava uma vez no fim; sem coletor, grava aqui mesmo. Falha aqui nunca derruba a gravação do catálogo.

@@ -9,8 +9,7 @@
  */
 
 import { db, type BlockItem, type CatalogDb, type CatalogReadItem, type CatalogRecord, type ShowcaseCandidatesRecord } from './db'
-import { createRecentlyAddedAccumulator } from './showcaseSelection'
-import { RATED_FIELDS, showcaseSeed, toShowcaseItem } from './showcaseSelection'
+import { createRecentlyAddedAccumulator, showcaseSeed, toShowcaseItem } from './showcaseSelection'
 import { createRatedSelectionAccumulator } from './ratedSelection'
 import { readBlockChunks } from './blockChunks'
 import { isSectionLoadActive } from './loadActivity'
@@ -53,48 +52,72 @@ function asRecord(item: CatalogRecord | BlockItem, target: CandidateTarget, posi
   }
 }
 
+/** Item cru mais a sua posição: o que os acumuladores precisam, sem o custo de projetar (T079). */
+interface Entry {
+  item: CatalogRecord | BlockItem
+  position: number
+}
+
+/**
+ * Os mesmos campos de `RATED_FIELDS`, lidos do item **cru**. Têm de devolver exatamente os mesmos valores que a
+ * varredura lê do item projetado, senão os dois caminhos divergem (contrato C1): `id` é o id local, que o bloco já
+ * atribuiu, e os demais são campos que a projeção copia sem transformar.
+ */
+const ENTRY_FIELDS = {
+  id: (entry: Entry) => String(entry.item.id),
+  name: (entry: Entry) => entry.item.name,
+  rating: (entry: Entry) => entry.item.providerRating,
+  year: (entry: Entry) => entry.item.year,
+  addedAt: (entry: Entry) => entry.item.addedAt,
+}
+
 /**
  * Escolhe os candidatos de uma categoria a partir dos itens que estão sendo gravados. Função pura: não toca o banco.
  * Os dois conjuntos saem dos MESMOS acumuladores que a varredura usa (`logic/selecoes-guardadas.md` §2).
+ *
+ * **Projeta só os escolhidos** (T079): projetar os itens todos custou `encodeMs` 1 262 → 8 274 ms na carga de filmes da
+ * TV (43 549 itens = ~87 mil objetos por carga). Os acumuladores precisam de cinco campos, que o item cru já tem; o
+ * `CatalogReadItem` é construído no fim, para as ~60 linhas que sobram.
  */
 export function pickCandidates(
   target: CandidateTarget,
   items: readonly (CatalogRecord | BlockItem)[],
   now: number,
 ): ShowcaseCandidates {
-  const recent = createRecentlyAddedAccumulator<CatalogReadItem>((item) => item.addedAt, RECENT_CANDIDATES)
+  const recent = createRecentlyAddedAccumulator<Entry>((entry) => entry.item.addedAt, RECENT_CANDIDATES)
   // A seleção de "Bem avaliados" guarda o pool com folga: quem escolhe os 12 finais é a mesclagem, com todas as categorias.
-  const rated = createRatedSelectionAccumulator<CatalogReadItem>(RATED_FIELDS, {
+  const rated = createRatedSelectionAccumulator<Entry>(ENTRY_FIELDS, {
     now,
     seed: showcaseSeed(target.sourceId, target.kind, now),
     limit: RATED_CANDIDATES,
     min: 1,
   })
   let eligibleCount = 0
+  const currentYear = new Date(now).getFullYear()
   for (let position = 0; position < items.length; position += 1) {
-    const item = toShowcaseItem(asRecord(items[position], target, position))
-    recent.add(item)
-    rated.add(item)
-    if (isEligible(item, now)) eligibleCount += 1
+    const entry: Entry = { item: items[position], position }
+    recent.add(entry)
+    rated.add(entry)
+    if (isEligible(items[position], currentYear)) eligibleCount += 1
   }
+  const project = (entry: Entry): CatalogReadItem => toShowcaseItem(asRecord(entry.item, target, entry.position))
   return {
     categoryId: target.categoryId,
     sourceId: target.sourceId,
     generation: target.generation,
     kind: target.kind,
     order: target.order,
-    recent: recent.finish(),
-    rated: rated.finish().picked,
+    recent: recent.finish().map(project),
+    rated: rated.finish().picked.map(project),
     eligibleCount,
     itemsCount: items.length,
   }
 }
 
 /** Mesma régua de elegibilidade de "Bem avaliados" (nota 6,0–9,9 e ano conhecido), só para a contagem por categoria. */
-function isEligible(item: CatalogReadItem, now: number): boolean {
+function isEligible(item: CatalogRecord | BlockItem, currentYear: number): boolean {
   const rating = item.providerRating
   if (typeof rating !== 'number' || !Number.isFinite(rating) || rating < 6 || rating >= 10) return false
-  const currentYear = new Date(now).getFullYear()
   return typeof item.year === 'number' && Number.isInteger(item.year) && item.year >= 1888 && item.year <= currentYear + 1
 }
 
