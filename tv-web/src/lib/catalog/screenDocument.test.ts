@@ -68,7 +68,7 @@ async function seed(): Promise<number[]> {
 describe('documento de tela (086)', () => {
   it('monta, guarda e devolve na leitura sem tocar o banco', async () => {
     await seed()
-    expect(await refreshScreenDocument(SOURCE, 'movie', { database, now: NOW, images: ['capa-1', 'capa-2'] })).toBe(true)
+    expect(await refreshScreenDocument(SOURCE, 'movie', { database, now: NOW })).toBe(true)
 
     // A leitura é síncrona e não abre transação: qualquer acesso ao banco aqui é falha de desenho.
     const aberto = vi.spyOn(database, 'transaction')
@@ -80,7 +80,8 @@ describe('documento de tela (086)', () => {
     expect(documento?.categories.map((category) => category.name)).toEqual(['Cat 0', 'Cat 1'])
     expect(documento?.totalCategories).toBe(2)
     expect(documento?.coveredCategories).toBe(2)
-    expect(documento?.images).toEqual(['capa-1', 'capa-2'])
+    // As capas da primeira tela não ficam no documento (T083): saem dos itens, que já estão aqui.
+    expect(documento?.recent[0]?.iconUrl === undefined || typeof documento?.recent[0]?.iconUrl === 'string').toBe(true)
   })
 
   it('esconder uma categoria apaga o documento, e o refeito deixa os itens dela de fora', async () => {

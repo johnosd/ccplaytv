@@ -49,8 +49,11 @@ export interface ScreenDocument {
   rated: CatalogReadItem[]
   coveredCategories: number
   totalCategories: number
-  /** Capas da primeira tela, para o decode começar na mesma leitura que traz as fileiras (FR-023). */
-  images: string[]
+  /**
+   * Não há campo de capas aqui (T083): as URLs da primeira tela são derivadas dos **itens**, que já vêm neste
+   * documento, e o cálculo é um `slice` — `homeFirstScreenImages` as monta assim que a leitura volta, em 1 ms.
+   * Guardá-las não antecipava nada e criava uma 2ª verdade sobre quais capas são as da primeira tela.
+   */
   /** Calculado na leitura (não gravado): há candidatos novos desde que este documento foi montado. */
   stale?: boolean
 }

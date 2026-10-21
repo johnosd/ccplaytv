@@ -432,7 +432,17 @@ T081 é CRITICAL e vem primeiro: é regressão de comportamento, não de tempo.
       pré-carga do caminho da abertura (Início 355 ms) — a correção é ligar o aviso, **não** voltar a recusá-lo.
 - [ ] T082 [US2] Casamento com o serviço externo em 2º plano, gravando em `showcaseExternalRows` → origem: **FR-014**
       (CV-013). Fecha o parcial de T031/T075; `readExternalRow`/`writeExternalRow` já existem e estão testadas.
-- [ ] T083 Decidir o destino de `ScreenDocument.images`: usar (as capas da 1ª tela vindo na mesma leitura, FR-023) ou
+      **TENTADO E REVERTIDO em 2026-10-21** — o escopo é maior do que este rótulo sugere, e está medido: a mudança
+      ficou pronta e funcional (produtor em `lib/catalog/externalRows.ts`, registro estendido com `ranks`, `backdrops`,
+      `ratings` e cobertura, hooks lendo por chave primária, `useDiscoveryIndex`/`useDiscoveryRow` removidos), **mas
+      quebrou 14 testes da feature 057** (`catalogApi.discovery.test.tsx` e `catalogApi.discovery.estados.test.tsx`).
+      Não são contratos travados, mas cobrem comportamento real que o produtor em 2º plano precisa continuar honrando:
+      sem rede usa o último guardado; chave recusada ou em pausa não consulta; remover a chave limpa e a fileira some;
+      trocar o idioma refaz a consulta; trocar a lista recalcula sem nova consulta; categoria nova atualiza a fileira;
+      o resultado não é calculado na renderização. Fazer T082 **é reescrever esses 14 testes para o novo lugar** — é
+      uma task de porte próprio, não um ajuste. Revertido para não deixar trabalho duplicado (produtor gravando e tela
+      calculando) nem 14 testes às pressas.
+- [X] T083 Decidir o destino de `ScreenDocument.images`: usar (as capas da 1ª tela vindo na mesma leitura, FR-023) ou
       remover o campo → origem: CV-017.
 - [ ] T084 Rastrear o flake `window is not defined` da suíte completa, ou registrá-lo em `## Cuidados para Retomada`
       com o que já foi eliminado → origem: **SC-013** (CV-018).
@@ -488,6 +498,11 @@ Testes executados:
   como flake, não como verde.**
 
 Pendências:
+- **T083 fechado**: o campo foi **removido**. As URLs da primeira tela são derivadas dos itens, que já vêm no
+  documento, e `homeFirstScreenImages` as monta num `slice` assim que a leitura volta (1 ms) — guardá-las não
+  antecipava nada e criava uma 2ª verdade sobre quais capas são as da primeira tela.
+- **T082 tentado e revertido** (ver a task): o escopo real é reescrever 14 testes da feature 057. Decisão do usuário.
+- Registro anterior:
 - **T082** (casamento externo em 2º plano) e **T083** (`ScreenDocument.images`: usar ou remover) não começaram.
 - **T084** (flake `window is not defined` da suíte unitária) não investigado; não reproduz isolado.
 - **T085, T086, T087 esperam decisão do usuário**: o critério do SC-003 (6 pendentes contra meta ≤ 2), uma passada curta

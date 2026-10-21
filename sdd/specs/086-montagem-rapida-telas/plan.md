@@ -183,6 +183,8 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 
 | 2026-10-21 | Fase 9 (T081, T088) | A convergência achou que a correção de desempenho abrira uma lacuna de comportamento: a abertura aceita o documento vencido (o que a deixou rápida), mas quem o refazia não avisava — o conteúdo novo só apareceria se a pessoa saísse e voltasse, contra o FR-008. Canal próprio de aviso ligado, invalidando só a vitrine do tipo; o desenho rápido ficou intacto | T082/T083/T084 abertos; **T085–T087 esperam decisão do usuário**; flake de 2 roteiros E2E registrado (1 em 4 execuções, passam isolados) |
 
+| 2026-10-21 | Fase 9 (T083; T082 revertido) | `ScreenDocument.images` **removido**: redundante, porque as capas saem dos itens que já vêm no documento. **T082 tentado e revertido** — a mudança ficou funcional, mas quebrou 14 testes da feature 057 que cobrem comportamento real (sem rede, chave recusada, idioma, lista trocada); fazê-la é reescrever esses testes, uma task de porte próprio | T082 vira decisão do usuário, com o escopo agora medido |
+
 **PRÓXIMO**: **T085, T086 e T087 são perguntas ao usuário**, não trabalho de código: o critério do SC-003 (o tempo
 passou com folga, as 6 leituras pendentes não), uma passada curta na TV para SC-005/SC-006, e o método de prova de
 SC-008/009/010/012. Em paralelo, T082 (casamento externo em 2º plano) e T083 (`images`: usar ou remover) não dependem

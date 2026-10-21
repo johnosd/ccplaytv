@@ -57,8 +57,6 @@ export const writeScreenDocument = saveScreenDocument
 export interface BuildScreenDocumentOptions {
   database?: CatalogDb
   now?: number
-  /** Capas da primeira tela, decididas por quem conhece o formato das fileiras (a tela passa; o 2º plano omite). */
-  images?: readonly string[]
 }
 
 /**
@@ -101,7 +99,6 @@ export async function buildScreenDocument(
     rated: rows.rated,
     coveredCategories: rows.coveredCategories,
     totalCategories: rows.totalCategories,
-    images: [...(options.images ?? [])],
   }
 }
 
