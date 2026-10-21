@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-20
 
-**Status**: Convergência Pendente
+**Status**: Convergida
 
 **Input**: "As principais telas, como a tela de home, a tela de filmes e a tela de séries, ainda têm as montagens demoradas.
 Gostaria de usar essa skill nova de sonda para medir, entender e propor uma nova solução para que as montagens dessas telas

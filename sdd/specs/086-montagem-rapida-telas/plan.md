@@ -123,8 +123,8 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | ID | Risco/Decisão | Impacto | Mitigação/Encaminhamento |
 | --- | --- | --- | --- |
 | R-001 | O dedupe por título de "Bem avaliados" é global entre categorias; um top-K por categoria pode, em teoria, divergir da varredura | FR-004 (mesmos itens) falha | `RATED_CANDIDATES = 48` (pool de 36 + folga) e o contrato C1 compara com a varredura. Se divergir, **aumentar a folga**, nunca mudar o algoritmo para o teste passar |
-| R-002 | `eligibleCount` por categoria soma com duplicatas entre categorias, superestimando o total | O mínimo de 5 para a fileira existir, e o aviso de cobertura, podem diferir num catálogo pequeno | Contar elegíveis distintos na mesclagem (os candidatos já estão em mãos), não somar os números por categoria |
-| R-003 | Os candidatos ocupam espaço: ~48+12 itens × 390 categorias × 3 listas | Teto de armazenamento da 082 | Gravar pelos caminhos que já chamam `makeRoomFor`; medir o tamanho real na Fase 2 e baixar `RATED_CANDIDATES` se passar de ~1 MB por lista |
+| R-002 | `eligibleCount` por categoria soma com duplicatas entre categorias, superestimando o total | O mínimo de 5 para a fileira existir, e o aviso de cobertura, podem diferir num catálogo pequeno | **Resolvido (convergência, 2026-10-21)**: `eligibleCount` é usado só como contagem por categoria, nunca como a régua do mínimo de "Bem avaliados" — quem decide é a mesclagem, com o dedupe global. Auditoria não achou leitor que o trate como total do tipo. Contar elegíveis distintos na mesclagem (os candidatos já estão em mãos), não somar os números por categoria |
+| R-003 | Os candidatos ocupam espaço: ~48+12 itens × 390 categorias × 3 listas | Teto de armazenamento da 082 | **Resolvido (convergência, 2026-10-21)**: a liberação do orçamento apaga os candidatos na mesma transação do bloco (`blockChunks.ts`), travado por `showcaseRows.liberacao-orcamento.test.ts`; e o documento de tela tem teto de 120 KB. Gravar pelos caminhos que já chamam `makeRoomFor`; medir o tamanho real na Fase 2 e baixar `RATED_CANDIDATES` se passar de ~1 MB por lista |
 | R-004 | Mover a seleção de `features/vod` para `lib/` pode quebrar os contratos travados das features 052, 056 e 065 | Trava de outra feature vermelha | **Resolvido (T011, 2026-10-20)**: código movido com reexport nos caminhos antigos; as três travas verificadas íntegras e 194 testes de `features/vod` passando |
 | R-005 | A vitrine é invalidada a cada lote da pré-carga (até 1/s) e hoje revarre tudo (`prefetchApi.ts`, achado do `logic` §5) | Com a leitura barata deixa de doer, mas pode sobrar custo de remontagem | **Resolvido (T034)**: a vitrine passou a ler candidatos (barata) e segue acompanhando cada lote — o que mantém o frescor (FR-008); a consulta pesada que sobrou (índice de nomes do Top 10/Dica) entrou no grupo de remontagem limitada |
 | R-006 | A Home desenha as 5 fileiras de uma vez, sem virtualização vertical (as vitrines têm) | Pode ser parte do custo de renderização | **Resolvido: descartado pela medição (T003, 2026-10-20).** Com dado em cache, a Home revela em 1 ms e `paintMs` é 1 ms — desenhar não é o gargalo. Não virtualizar a Home nesta feature |
@@ -136,7 +136,7 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | R-011 | Tudo fica 2–5× mais lento sob concorrência: o orçamento levou 2 437 ms durante a abertura, contra ~400 ms com o app quieto (T003) | As metas de tempo valem no pior momento, que é o real | Medir a validação (T061) no mesmo roteiro da linha de base, com a pré-carga acontecendo — comparar igual com igual |
 | R-014 | **Parcialmente retirado (T069/T080, 2026-10-21)**: em séries a regressão era real e está resolvida (26,6 s → 3,1–3,5 s em 3 sessões); **em filmes não há evidência de regressão** — o `encodeMs` depende de haver regravação, e as sessões comparadas diferiam nisso (3ª sessão: 781 ms sem regravação). Duas explicações que eu dei para o número de filmes estavam erradas, e estão registradas no adendo §4 da evidência. O texto original dizia: a feature deixou a carga da lista mais lenta (T061, 2026-10-20): séries 3,2 s → 26,6 s, filmes 7,4 → 9,7 s, canais 1,6 → 3,7 s; leituras de categoria em segundo plano de 153–2 586 ms para 8 523–10 618 ms. Causa: `PreparedBlock` retém `blockItems` para todos os tipos (inclusive canais, que não têm fileiras), `pickCandidates`+`writeCandidates` rodam serializados com uma transação por categoria, e `fillNextCandidates` descomprime um bloco por rodada concorrendo com a carga | A 1ª abertura da sessão concorre com a carga **por desenho** (a lista sempre se atualiza), então a carga mais lenta piora exatamente a abertura que a feature queria acelerar; e desfaz o ganho da feature 085 | **Aberto**: P0 de `logic/documento-de-tela.md` — não retém itens, candidatos saem da codificação que já acontece e o documento é gravado uma vez por seção; backfill com orçamento e nunca durante a carga. Gate: carga de volta à linha de base **antes** de medir abertura |
 | R-015 | **Resolvido pela sonda (T070, 2026-10-21), com uma hipótese REFUTADA**: a espera da abertura é fila, não volume (T061): a Home esperou 1 986 ms por uma leitura de dezenas de linhas, no instante em que a carga lia o preparo e comprimia. A literatura confirma a causa (transação `readwrite` segura os locks do store pelo tempo de vida; `readwrite` no mesmo store não é concorrente) mas **não** a cura — que outro banco tenha fila independente é plausível e não está medido | Qualquer redução de volume na abertura tem teto: a leitura espera o recurso ocupado | **Resolvido**: as 2 rodadas deram `localStorage` p95 **0,8/0,8 ms**, mesmo banco com 1 registro **22,6/19,1 ms** e **banco separado 223/40,8 ms — reprovado**. Banco próprio era a candidata principal e a TV a refutou. A causa é a **thread**, não a fila: só comprimindo, a leitura já custa p95 ~20 ms. P2 = `localStorage` com o IndexedDB como reserva; documento **cru**; P3 passa a ser "não começar a carga antes da 1ª revelação" (fatiar deu 19,2 e 104,9 — não confiável). Evidência: `evidencias/sonda-montagem-tv-2026-10-21.md` |
-| R-008 | Top 10/Dica dependem do índice de nomes do tipo para casar títulos; esse casamento continua caro | Se rodar na hora errada, volta a competir com a navegação | D-004: roda fora da abertura, na fila que já existe; nunca na montagem |
+| R-008 | Top 10/Dica dependem do índice de nomes do tipo para casar títulos; esse casamento continua caro | Se rodar na hora errada, volta a competir com a navegação | **Aberto por decisão (2026-10-21)**: o casamento continua na tela, fora da montagem (slot `external`). Virou feature própria no backlog, com o escopo medido (14 testes da 057 a reescrever). D-004: roda fora da abertura, na fila que já existe; nunca na montagem |
 
 ## Estado Atual
 
@@ -235,3 +235,56 @@ O que já foi eliminado, para não repetir:
 - Medir com o app recém-aberto mede junto a pré-carga — que é o caso real, mas torna a comparação válida só contra outra medição no mesmo roteiro.
 - O `sdb` pode travar ao lançar o app depois de instalar; a instalação já foi feita, basta abrir pela TV.
 - `VodShowcaseScreen.test.tsx` é flake conhecido na suíte completa (passa isolado); não confunda com regressão desta feature.
+
+## Resultado Final
+
+**Convergida em 2026-10-21.** A feature nasceu de uma pergunta de desempenho e terminou como uma mudança de desenho:
+a abertura de Início, Filmes e Séries **não calcula mais nada** — ela lê um documento pronto.
+
+### O que foi construído
+
+| Camada | O que ficou |
+| --- | --- |
+| Candidatos por categoria | `showcaseCandidates.ts`: quem grava uma categoria guarda os poucos itens que podem entrar nas fileiras. O contrato C1 prova que o conteúdo é idêntico ao da varredura |
+| Documento de tela | `screenDocumentStore.ts` (o meio) + `screenDocument.ts` (a montagem): um registro por tela no `localStorage`, lido numa leitura síncrona que **não toca o banco** |
+| Invalidação | Por quem **escreve**: geração nova e mudança de visibilidade apagam; candidato novo marca como vencido (e o vencido segue usável, com aviso quando o novo chega) |
+| A carga cede a vez | `firstReveal.ts`: a carga por seção e a sincronização automática do guia esperam a 1ª revelação, com teto de 2,5 s, rearmado ao abrir a lista |
+| Banco aquecido | `dbWarmup.ts`: a 1ª abertura do IndexedDB (926/544 ms) é paga na splash, não na 1ª tela |
+
+### Medido na TV (QN50Q60DAGXZD), 12 aberturas em 2 sessões
+
+| | Linha de base | Final |
+| --- | --- | --- |
+| Início, 1ª da sessão | `cap` 2 039 ms, **vazia** | **`ready` 355 e 362 ms** |
+| Filmes / Séries | 497 / 1 074 ms | **313–380 ms** |
+| Reabertura em cache | 1 ms | 1–2 ms |
+| Ler as fileiras | `addedMoviesMs` 1 810–1 939 ms | **`docMs` 0–1 ms** |
+| Carga de séries | 3,2 s → 26,6 s (regressão da própria feature) | **3,5 s** |
+| Capas prontas na revelação | 3 de 17 | até 7 de 17 |
+
+### Onde o plano original errou, e o que isso ensinou
+
+1. **A sonda refutou a candidata principal.** O documento ia para um banco IndexedDB próprio; a TV mediu p95 de
+   **223 ms** contra **0,8 ms** do `localStorage`. O gargalo era a **thread**, não a fila — na condição que só comprime,
+   sem tocar o banco, a leitura já custa ~20 ms. A literatura consultada não media essa parte.
+2. **Quatro hipóteses minhas sobre o `encodeMs` de filmes caíram, uma a uma** (retenção dos itens, projeção dos 43 549
+   itens, uma "regressão" que não existia, a própria invalidação). O que quebrou o ciclo foi **instrumentar cada etapa**
+   em vez de supor: `prepareMs`/`docMs` separados, `dbOpenMs`, e os tempos de **todas** as leituras — não só as que
+   resolviam antes da revelação, que era exatamente onde o diagnóstico estava cego.
+3. **A causa final era minha**: eu havia posto duas consultas ao banco para validar o documento. Custavam 0,9–4,0 s.
+4. **Consertar o tempo abriu uma lacuna de comportamento** (FR-008): aceitar o documento vencido é o que tira a
+   pré-carga do caminho, e quem o refazia não avisava. Os dois objetivos eram conciliáveis — faltava ligar o aviso.
+5. **A medição interferia no que media**: a sondagem do orçamento do `PerfOverlay` custava 1,2–4,9 s e disputava o
+   aparelho com a abertura. Virou opt-in.
+
+### O que fica declarado, não escondido
+
+- **SC-003 reprovado**, com o critério já emendado (contar leituras **locais**): são 3 (`continue`, `favorites`,
+  `categories`) contra a meta de 2. O tempo passa com folga. A emenda esclareceu o critério, não o fez passar.
+- **SC-005 e SC-006 não verificados** na TV, por decisão do usuário.
+- **SC-008, SC-009 e SC-010 não verificáveis** como escritos, com o porquê de cada um na spec.
+- **FR-014 parcial** (R-008): o casamento do Top 10/Dica segue na tela, fora da montagem. Virou feature própria no
+  backlog, com o escopo medido — a mudança chegou a ficar pronta e foi revertida porque exige reescrever 14 testes da
+  feature 057.
+- **Flake da suíte** (`window is not defined`, ~1 em 2–3 execuções) registrado em `## Cuidados para Retomada` com o que
+  já foi eliminado.
