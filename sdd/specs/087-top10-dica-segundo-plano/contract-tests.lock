@@ -1,0 +1,17 @@
+{
+  "feature": "087-top10-dica-segundo-plano",
+  "lockedAt": "2026-10-21 16:31",
+  "total": 5,
+  "files": [
+    {
+      "path": "tv-web/src/lib/catalog/externalRows.top10-dica-segundo-plano.contract.test.ts",
+      "sha256": "d0ff529b77dc4d232d430cd551f0bb9be832b49adf69c4a20a442324d2d65ac6",
+      "tests": 3
+    },
+    {
+      "path": "tv-web/src/features/catalog/catalogApi.top10-dica-segundo-plano.contract.test.tsx",
+      "sha256": "13dbb176a7a00ee86dfb364dce52a7aa74e15762b2fdaaab104495bea41e8b92",
+      "tests": 2
+    }
+  ]
+}

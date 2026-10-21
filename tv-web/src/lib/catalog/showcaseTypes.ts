@@ -31,4 +31,14 @@ export interface ShowcaseExternalRowRecord {
   periodKey: string
   items: CatalogReadItem[]
   computedAt: number
+  /**
+   * Feature 087: guardados junto porque vêm do mesmo casamento, e a tela não pode consultar o serviço externo para
+   * obtê-los depois. Pares em array (não `Map`): o registro atravessa o clone estruturado do IndexedDB.
+   * Campos novos **não indexados** — não exigem subir a versão do schema.
+   */
+  ranks?: number[]
+  backdrops?: Array<[string, string]>
+  ratings?: Array<[string, { average: number; votes: number }]>
+  coveredCategories?: number
+  totalCategories?: number
 }
