@@ -160,8 +160,9 @@ de Conclusão de cada fase as cobra.
 | As 14 garantias | **Todas no lugar novo**; os dois arquivos de teste antigos removidos |
 | `npm run test` | **3708/3708**, 683 arquivos |
 | `tsc` / `lint` / `build` | Verdes; ratchet podado (`catalogApi.ts` 2160 -> 2056) |
-| `npm run test:e2e` | **54/54**; `top10-dica.mjs` adaptado ao novo desenho (T045) |
+| `npm run test:e2e` | **54/54** na rodada de referência; `top10-dica.mjs` adaptado (T045) e com o `quickstart` §3 completo (T046). Flake aberto em `orcamento-armazenamento-migracao`, alheio a esta feature: 1 em 3 rodadas paralelas, verde em série |
 | `CLAUDE.md` | Regra da 087 registrada; a da 086 deixou de listar Top 10/Dica |
+| `quickstart.md` | §2 e §3 em navegador real; §4 (TV) pendente |
 | **TV (T043/T044)** | **Pendente — espera autorização do usuário.** É o gate de SC-007 e SC-008 |
 
 ## Riscos e Decisões
@@ -188,6 +189,7 @@ de Conclusão de cada fase as cobra.
 | 2026-10-21 | Fase 3 (US1 — MVP) | T020–T028: produtor pronto e ligado na fila; a tela só lê; `catalogApi.ts` 2160 → 2066 linhas. 3/3 contratos da fase verdes. **Emenda R-006** ao contrato 1 (referência lia `channels`, vazia desde a 082) aprovada pelo usuário e trava regravada. **R-007**: a invalidação suposta no plano não alcançava a fileira — resolvido pela T028 | As 15 garantias do lugar antigo seguem vermelhas até a T033 (Fase 4) |
 | 2026-10-21 | Fase 4 (US2/US3) | T030–T036: salvar acorda a fila; remover apaga os registros na transação da chave; trocar o idioma mantém e marca para refazer. **As 14 garantias movidas** e os 2 arquivos antigos removidos — área com 1009 passed, 0 falhas. **R-008**: a validade só por período perdia a garantia 4 -> a cobertura gravada entra na conta | O ratchet de `catalogApi.ts` quebrou por 12 linhas e foi corrigido enxugando comentários (R-005) |
 | 2026-10-21 | Fase 5 (Polish) | T040–T042 e T045: gates verdes (`test` 3708/3708, `tsc`, `lint`+ratchet podado, `build`), **E2E 54/54** e `CLAUDE.md` com a regra da 087. O roteiro `top10-dica.mjs` codificava o comportamento antigo em três pontos e foi adaptado (T045) | T043/T044 na TV, esperando autorização |
+| 2026-10-21 | Fase 5 (T046) | Os itens 5 e 6 do `quickstart.md` §3 (chave salva de novo; troca de idioma) saíram do teste unitário para o navegador real, no `top10-dica.mjs` — §3 completo | Flake em `orcamento-armazenamento-migracao` (1 em 3 paralelas, verde em série), alheio a esta feature |
 
 PRÓXIMO: **T043 e T044 na TV** — roteiro de duração fixa do `quickstart.md` §4 (SC-007 e SC-008), com build de medição, e depois reinstalar o pacote normal. **Pedem autorização do usuário a cada instalação.** Todo o resto está fechado.
 
@@ -206,5 +208,6 @@ PRÓXIMO: **T043 e T044 na TV** — roteiro de duração fixa do `quickstart.md`
 - **`catalogApi.ts` e `externalRows.ts` têm fim de linha diferente** (CRLF no antigo, LF no criado pelo Write). Editar por script sem detectar o fim de linha gera arquivo **misto** e as âncoras de texto param de casar. Normalize o arquivo inteiro antes de editar.
 - **`queryClient.removeQueries` não faz uma consulta com observador ativo reler**: a tela fica com o dado anterior até sair e voltar. Para a fileira sumir na hora, é `invalidateQueries`. Custou uma rodada de depuração no contrato do FR-011.
 - **`page.waitForFunction` não espera uma Promise devolvida pelo predicado** (trata o objeto como verdadeiro e segue): a espera da produção no E2E foi para o lado do Node, com `page.evaluate` em laço. O roteiro passava e falhava na asserção seguinte.
+- **Trocar o idioma muda o rótulo da fileira**: no E2E, asserção depois da troca precisa de seletor neutro (`section.vod-row:has(.content-card-rank)`) e do título do provedor, que nunca é traduzido.
 - **Heredoc de shell com backtick quebra o parsing** neste ambiente: scripts de edição maiores vão para arquivo `.py` no scratchpad e são executados por caminho.
 

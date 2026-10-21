@@ -149,6 +149,11 @@ const SEEDS = {
     const { removeTmdbKey } = await import('/src/lib/metadata/tmdbKeyRepository.ts')
     await removeTmdbKey()
   },
+  // Feature 087 (FR-012): o idioma troca pelo caminho real do app, que avisa quem assina (`subscribeAppLanguage`).
+  switchLanguage: async () => {
+    const { writeAppLanguage } = await import('/src/lib/i18n/appLanguage.ts')
+    writeAppLanguage('en')
+  },
   producedRows: () =>
     new Promise((resolve, reject) => {
       const open = indexedDB.open('ccplaytv')
@@ -245,6 +250,7 @@ async function run() {
   const consoleTexts = []
   const externalHosts = new Set()
   const tmdbCalls = []
+  const tmdbLanguages = []
   let tmdbOnline = true
   page.on('pageerror', (error) => pageErrors.push(`[${step}] ${String(error).slice(0, 90)}`))
   page.on('console', (message) => consoleTexts.push(message.text()))
@@ -255,6 +261,7 @@ async function run() {
   await context.route('https://api.themoviedb.org/**', async (route) => {
     const url = new URL(route.request().url())
     tmdbCalls.push(`${url.pathname}${url.searchParams.get('page') ? `?page=${url.searchParams.get('page')}` : ''}`)
+    tmdbLanguages.push(url.searchParams.get('language'))
     const body = tmdbOnline ? tmdbBody(url.pathname, url.searchParams.get('page') ?? '1') : null
     if (body === null) return route.abort('failed')
     return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) })
@@ -391,6 +398,43 @@ async function run() {
     await page.waitForTimeout(500)
     assert(!(await rowLabels(page, '.vod-showcase')).some(isDiscovery), 'Filmes sem chave: sem Top 10/Dica')
     assert(tmdbCalls.length === callsBeforeNoKey, 'sem chave nada é pedido ao TMDB')
+
+    console.log((step = '=== Salvar a chave de novo: as fileiras voltam (quickstart §3.5) ==='))
+    await page.evaluate(SEEDS.putKey, KEY)
+    await reopenApp(page)
+    await openShowcase(page, 'movies')
+    // Duas bastam para provar que voltaram: a fila produz na ordem filmes/Top 10, filmes/Dica, séries...
+    const voltaram = await esperarProducao(page, 2, 90000)
+    assert(voltaram >= 2, `a chave de volta faz a fila produzir de novo (${voltaram} fileiras)`)
+    await page.waitForSelector(`${offlineTop} .content-card`, { timeout: 20000 })
+    assert(JSON.stringify(await ranksOf(page, offlineTop)) === JSON.stringify(['1', '2', '3']), 'as fileiras voltaram, numeradas')
+    await shot(page, '07-filmes-chave-de-volta')
+
+    console.log((step = '=== Trocar o idioma: a fileira CONTINUA e a fila refaz no idioma novo (quickstart §3.6) ==='))
+    // Rótulo em português não serve depois da troca: a fileira do Top 10 é a única com numeral, e o título do item vem
+    // do provedor (nunca traduzido), então os dois são neutros de idioma.
+    const comNumeral = 'section.vod-row:has(.content-card-rank)'
+    const antesDoIdioma = await titlesOf(page, comNumeral)
+    assert(antesDoIdioma.length > 0, 'a fileira numerada está na tela antes da troca')
+    await page.evaluate(SEEDS.switchLanguage)
+    let refezNoIdiomaNovo = false
+    let perdeuAFileira = false
+    const limiteIdioma = Date.now() + 30000
+    while (Date.now() < limiteIdioma) {
+      // A cada tique: a fileira não pode esvaziar nem mudar de conteúdo enquanto o novo resultado não chega (FR-012).
+      if (JSON.stringify(await titlesOf(page, comNumeral)) !== JSON.stringify(antesDoIdioma)) {
+        perdeuAFileira = true
+        break
+      }
+      if (tmdbLanguages.includes('en-US')) {
+        refezNoIdiomaNovo = true
+        break
+      }
+      await page.waitForTimeout(500)
+    }
+    assert(!perdeuAFileira, 'trocar o idioma mantém a fileira com o resultado anterior (FR-012)')
+    assert(refezNoIdiomaNovo, 'e a fila refaz a consulta no idioma novo')
+    await shot(page, '08-filmes-idioma-trocado')
 
     const html = await page.content()
     assert(!html.includes(KEY), 'a chave nunca aparece no DOM')

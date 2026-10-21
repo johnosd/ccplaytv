@@ -188,6 +188,11 @@ Pendências: a garantia 4 só é refeita quando a **cobertura** muda (categoria 
       as quatro fileiras, para as contagens de consulta ficarem determinísticas); (b) “tentou a rede antes de usar o
       cache” virou **nenhuma consulta dentro do período** (FR-007/FR-008); (c) remover a chave passa pelo caminho real
       (`removeTmdbKey`), que apaga também o registro — apagar só a chave no IndexedDB deixava a fileira na tela.
+- [X] T046 **[fechamento do `quickstart.md` §3]** Levar os itens **5 e 6** do §3 (salvar a chave de novo faz as
+      fileiras voltarem; trocar o idioma **mantém** a fileira e refaz no idioma novo) para o `top10-dica.mjs` — eles
+      estavam cobertos só por teste unitário, não em navegador. A asserção do idioma é por seletor neutro
+      (`section.vod-row:has(.content-card-rank)` e o título do provedor, que nunca é traduzido), porque o rótulo da
+      fileira muda de idioma na troca.
 - [ ] T043 TV (**pedir autorização**): roteiro do `quickstart.md` §4 — **duração fixa**, pela lição do SC-009 da 086.
       Medir SC-007 (quadros longos ao navegar) e SC-008 (abertura segue em 313–380 ms).
 - [ ] T044 Reinstalar o **pacote normal** na TV e avisar o usuário.
@@ -206,11 +211,14 @@ Pendências: a garantia 4 só é refeita quando a **cobertura** muda (categoria 
 
 ### Registro da Fase
 
-Status: **Em andamento** — T040, T041, T042 e T045 concluídos; **T043 e T044 esperam autorização do usuário para instalar na TV**.
+Status: **Em andamento** — T040, T041, T042, T045 e T046 concluídos; **T043 e T044 esperam autorização do usuário para instalar na TV**. É o único trabalho restante: nada mais depende da TV.
 Feito: T040 (gates), T041 (E2E completo), T042 (`CLAUDE.md`: a regra da 086 deixou de listar Top 10/Dica entre as fileiras de `showcaseCandidates`, e a regra da 087 registra o produtor, a validade por período + cobertura, o aviso e as duas ações da pessoa) e T045 (ad-hoc, o roteiro E2E).
 Contrato: `check-contract-tests.ps1` → PASS para **087**, **057** e **086**; os 5 contratos da 087 verdes dentro da suíte completa.
 Testes executados: `npm run test` → **3708/3708 em 683 arquivos** (151 s). `npx tsc -b` → verde. `npm run lint` → sem erro (só os avisos pré-existentes de `react-hooks`/`react(purity)`) e ratchet ok, com a poda final (`--prune`). `npm run build` → verde, `check-no-demux-in-build: ok`. `npm run test:e2e` → **54/54 em 205 s**, com o `dev` no ar; `top10-dica` sozinho em série → 1/1 em 20,7 s. Nenhum flake observado nesta rodada (os conhecidos `headers-catchup` e `carrosseis-filmes-series` passaram nas duas execuções completas).
-Pendências: **T043/T044 na TV** (gate de SC-007 e SC-008), que pedem autorização. Do `quickstart.md` §3 (conferir sem a TV): os itens 1 a 4 estão cobertos em navegador real pelo `top10-dica.mjs` (fileira ausente, entrando com a tela aberta, numerada, e sumindo ao remover a chave); os itens **5 e 6** (salvar a chave de novo e trocar o idioma) estão cobertos por teste unitário, **não** em navegador — por isso o item do quickstart segue desmarcado no Checklist de Release.
+Pendências: **T043/T044 na TV** (gate de SC-007 e SC-008), que pedem autorização.
+
+- `quickstart.md` §2 (checagens automatizadas) e **§3 inteiro** (os 6 itens) estão cobertos em navegador real pelo `top10-dica.mjs`, depois da T046. O §4 é a TV, e tem linha própria no Checklist de Release — por isso a linha do quickstart segue desmarcada: ela inclui o §4.
+- **Flake novo observado** (não é desta feature): `orcamento-armazenamento-migracao` falhou **1 em 3** execuções completas em paralelo hoje, na última. Passou em série em **29,2 s** contra **131,4 s** sob carga paralela — 4,5x mais lento, causa explicável (roteiro de IO de armazenamento disputando com 5 outros Chromium). O total da suíte subiu de 205 s para 228 s com o `top10-dica` mais longo, o que aumenta um pouco a disputa. Fica registrado como problema aberto, não como verde.
 
 ## Dependencies & Execution Order
 
