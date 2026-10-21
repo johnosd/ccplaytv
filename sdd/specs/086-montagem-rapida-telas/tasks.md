@@ -425,7 +425,7 @@ T081 é CRITICAL e vem primeiro: é regressão de comportamento, não de tempo.
 
 ### Implementação
 
-- [ ] T081 Avisar a interface quando o documento de tela é refeito, pelo canal que já existe (`onCategoryDone` em
+- [X] T081 Avisar a interface quando o documento de tela é refeito, pelo canal que já existe (`onCategoryDone` em
       `lib/catalog/prefetch/index.ts`), para a vitrine reler → origem: **FR-008**, **FR-012** (CV-012, CRITICAL).
       Hoje `refreshMissingScreenDocuments` troca o documento em silêncio: a tela relê **antes** disso, recebe o
       documento vencido e só vê o conteúdo novo se a pessoa sair e voltar. Aceitar o documento vencido é o que tirou a
@@ -448,7 +448,7 @@ T081 é CRITICAL e vem primeiro: é regressão de comportamento, não de tempo.
 
 ### Testes da fase
 
-- [ ] T088 Teste: refazer o documento avisa a interface, e a vitrine passa a mostrar a categoria nova **sem** remontar
+- [X] T088 Teste: refazer o documento avisa a interface, e a vitrine passa a mostrar a categoria nova **sem** remontar
       a tela (T081).
 
 ### Critério de Conclusão
@@ -461,8 +461,35 @@ T081 é CRITICAL e vem primeiro: é regressão de comportamento, não de tempo.
 
 ### Registro da Fase
 
-Status:
+Status: **Em andamento** — o CRITICAL está fechado; as decisões que dependem do usuário (T085–T087) seguem abertas.
+
 Feito:
-Contrato:
+- **T081 (CV-012, CRITICAL)**: canal próprio de aviso (`notifyScreenDocumentRefreshed`/`onScreenDocumentRefreshed` em
+  `screenDocumentStore.ts`, o módulo sem dependências). Quem refaz o documento avisa, e `usePrefetchForSource` invalida
+  **só** `['catalog-search-index', <fonte>, <tipo>, 'showcase']`. Não usei o `onCategoryDone` da pré-carga de
+  propósito: ele invalida a trilha, as contagens, as prévias e as páginas de "Todos" — trabalho demais para um
+  documento que só mudou de fileira.
+- A abertura **continua** aceitando o documento vencido. Era isso que tirava a pré-carga do caminho (Início 355 ms);
+  voltar a recusá-lo desfaria o ganho. A correção foi ligar o aviso, não reverter o desenho.
+- **T088**: `screenDocument.aviso.test.ts` prova o ciclo inteiro do FR-008 — categoria nova pela pré-carga, documento
+  vencido com o conteúdo antigo, refresh, aviso, conteúdo novo. Cobre também o caso de não haver o que guardar (não
+  avisa) e o de um ouvinte com erro (não derruba quem refez).
+
+Contrato: `npx vitest run src/lib/catalog/showcaseRows.montagem-rapida.contract.test.ts
+src/lib/catalog/showcaseCandidates.montagem-rapida.contract.test.ts` → **5/5 verdes**; travas íntegras em 086 e nas
+dez features relacionadas (052, 056, 057, 060, 065, 066, 079, 082, 084, 085).
+
 Testes executados:
+- `npm run test` → **3699/3699**, 680 arquivos
+- `npx tsc -b`, `npm run lint` (ratchet ok), `npm run build` → verdes
+- `npm run test:e2e` → **52/54**, com `headers-catchup` e `carrosseis-filmes-series` falhando. Reexecutados em série
+  (`--jobs 1`): **2/2 passaram**. Taxa observada hoje: **1 falha em 4 execuções** da suíte completa, sempre nesses dois,
+  que já eram os mais lentos (22–46 s). Causa provável: concorrência com 6 jobs após a suíte unitária. **Registrado
+  como flake, não como verde.**
+
 Pendências:
+- **T082** (casamento externo em 2º plano) e **T083** (`ScreenDocument.images`: usar ou remover) não começaram.
+- **T084** (flake `window is not defined` da suíte unitária) não investigado; não reproduz isolado.
+- **T085, T086, T087 esperam decisão do usuário**: o critério do SC-003 (6 pendentes contra meta ≤ 2), uma passada curta
+  na TV para SC-005/SC-006, e o método de prova de SC-008/009/010/012.
+- O flake dos dois roteiros E2E acima.

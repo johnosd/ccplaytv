@@ -181,9 +181,12 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 
 | 2026-10-21 | Fase 8 (T079–T089) | **A causa real era minha**: eu havia posto duas consultas ao IndexedDB para validar o documento, e elas custavam `prepareMs` 883–3 986 ms na abertura, contra `docMs` 1–17 ms para ler o documento. Invertido — quem escreve invalida (troca de geração, mudança de visibilidade), e a leitura não toca o banco. Mais o banco aberto na splash (`dbOpenMs` 926/544 ms) e a sondagem do orçamento do `PerfOverlay` virando opt-in, porque disputava o aparelho com o que media. Resultado: **Início 355/362 ms**, Filmes/Séries **313–380 ms**, nenhuma revelação por teto | Antes disto, **4 hipóteses minhas caíram na medição** (§3 da evidência). SC-003 parcial; SC-005/006 não testados; SC-008/009/010/012 sem veredito |
 
-**PRÓXIMO**: `sdd-converge` para fechar a fase, declarando o que ficou sem veredito. Depois, se valer, **T074/T075**
-(troca atômica com a tela aberta e casamento externo em 2º plano) e os critérios não medidos — nenhum deles muda os
-números de abertura já aprovados.
+| 2026-10-21 | Fase 9 (T081, T088) | A convergência achou que a correção de desempenho abrira uma lacuna de comportamento: a abertura aceita o documento vencido (o que a deixou rápida), mas quem o refazia não avisava — o conteúdo novo só apareceria se a pessoa saísse e voltasse, contra o FR-008. Canal próprio de aviso ligado, invalidando só a vitrine do tipo; o desenho rápido ficou intacto | T082/T083/T084 abertos; **T085–T087 esperam decisão do usuário**; flake de 2 roteiros E2E registrado (1 em 4 execuções, passam isolados) |
+
+**PRÓXIMO**: **T085, T086 e T087 são perguntas ao usuário**, não trabalho de código: o critério do SC-003 (o tempo
+passou com folga, as 6 leituras pendentes não), uma passada curta na TV para SC-005/SC-006, e o método de prova de
+SC-008/009/010/012. Em paralelo, T082 (casamento externo em 2º plano) e T083 (`images`: usar ou remover) não dependem
+da TV. A feature **não converge** enquanto cada critério não for medido ou declarado não verificável.
 
 ## Arquivos Principais
 

@@ -4,6 +4,7 @@ import { prefetchScheduler, setPrefetchCategoryDone } from '../../lib/catalog/pr
 import { protectCatalogSource } from '../../lib/catalog/storageRelief'
 import { subscribeCatalogReleases, touchSource } from '../../lib/catalog/storageBudget'
 import { db } from '../../lib/catalog/db'
+import { onScreenDocumentRefreshed } from '../../lib/catalog/screenDocument'
 import type { PrefetchHint } from '../../lib/catalog/prefetch/prefetchOrder'
 import type { PrefetchProgress } from '../../lib/catalog/prefetch/prefetchScheduler'
 
@@ -184,10 +185,17 @@ export function usePrefetchForSource(sourceId: string | null): void {
     const invalidator = createPrefetchInvalidator(queryClient)
     setPrefetchCategoryDone(invalidator.categoryDone)
     const unsubscribe = subscribeCatalogReleases((sourceId, categoryIds) => categoryIds.forEach((id) => invalidator.categoryDone(sourceId, id)))
+    // Feature 086 (T081/FR-008): a abertura aceita o documento de tela vencido de propósito — é o que a mantém rápida
+    // sob carga. Quando a fila de 2º plano o refaz, a vitrine daquele tipo relê, e só ela: sem isto o conteúdo novo
+    // apareceria apenas se a pessoa saísse e voltasse.
+    const unsubscribeDocument = onScreenDocumentRefreshed((sourceId, kind) => {
+      void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId, kind, 'showcase'] })
+    })
     return () => {
       setPrefetchCategoryDone(undefined)
       invalidator.dispose()
       unsubscribe()
+      unsubscribeDocument()
     }
   }, [queryClient])
 

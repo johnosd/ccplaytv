@@ -15,12 +15,14 @@ import { dayKey } from './ratedSelection'
 import {
   isScreenDocumentStale,
   loadRawScreenDocument,
+  notifyScreenDocumentRefreshed,
   saveScreenDocument,
   SCREEN_DOCUMENT_VERSION,
   type ScreenDocument,
 } from './screenDocumentStore'
 
-export { clearAllScreenDocuments, clearScreenDocuments, type ScreenDocument, type ScreenDocumentCategory } from './screenDocumentStore'
+export { clearAllScreenDocuments, clearScreenDocuments, onScreenDocumentRefreshed,
+  type ScreenDocument, type ScreenDocumentCategory } from './screenDocumentStore'
 
 /**
  * Lê o documento guardado, **se ele ainda vale**: mesma versão, geração ativa, mesmo dia e mesmo conjunto de categorias
@@ -110,7 +112,11 @@ export async function refreshScreenDocument(
   options: BuildScreenDocumentOptions = {},
 ): Promise<boolean> {
   const document = await buildScreenDocument(sourceId, kind, options)
-  return document === undefined ? false : saveScreenDocument(document)
+  if (document === undefined) return false
+  const saved = saveScreenDocument(document)
+  // T081 (FR-008): a tela pode estar aberta mostrando o documento de um instante atrás. Avisar é o que a faz reler.
+  if (saved) notifyScreenDocumentRefreshed(sourceId, kind)
+  return saved
 }
 
 /**

@@ -147,6 +147,39 @@ export function markScreenDocumentsStale(sourceId: string, kind?: 'movie' | 'ser
   }
 }
 
+type RefreshListener = (sourceId: string, kind: 'movie' | 'series') => void
+
+const refreshListeners = new Set<RefreshListener>()
+
+/**
+ * Avisa que o documento de uma tela foi **refeito** (feature 086, T081).
+ *
+ * Por que isto existe: a abertura aceita o documento vencido de propósito — é o que tirou a pré-carga do caminho e levou
+ * o Início de 2 039 ms para 355 ms na TV. O preço é que, quando a pré-carga traz uma categoria, a tela relê e recebe o
+ * documento de um instante atrás. Sem este aviso, o conteúdo novo só apareceria se a pessoa saísse e voltasse — o que o
+ * FR-008 proíbe ("atualiza na própria sessão"). Então quem refaz o documento avisa, e a vitrine relê.
+ *
+ * Canal próprio, e não o `onCategoryDone` da pré-carga, porque aquele invalida a trilha, as contagens, as prévias e as
+ * páginas de "Todos" — trabalho demais para um documento que só mudou de fileira.
+ */
+export function notifyScreenDocumentRefreshed(sourceId: string, kind: 'movie' | 'series'): void {
+  for (const listener of [...refreshListeners]) {
+    try {
+      listener(sourceId, kind)
+    } catch {
+      // um ouvinte com problema não impede os outros nem derruba quem refez o documento
+    }
+  }
+}
+
+/** Assina o aviso acima. Devolve a função que cancela. */
+export function onScreenDocumentRefreshed(listener: RefreshListener): () => void {
+  refreshListeners.add(listener)
+  return () => {
+    refreshListeners.delete(listener)
+  }
+}
+
 /** O documento guardado está vencido (há candidatos novos desde que foi montado)? */
 export function isScreenDocumentStale(sourceId: string, kind: 'movie' | 'series', builtAt: number): boolean {
   try {
